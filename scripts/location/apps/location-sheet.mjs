@@ -207,6 +207,7 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     // is a specialisation, prepared only where there is one.
     await this.#preparePlace(context);
     this.#prepareFactions(context);
+    this.#prepareDomain(context);
     if (sys.hasMarket) this.#prepareMarket(context, t);
     if (sys.hasMarket) await prepareTradeTab(this, context);
 
@@ -369,6 +370,45 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       rows.push({ uuid: faction.uuid, name: faction.name, label: label("controls"), note: "" });
     }
     if (rows.length) context.factionsHere = rows;
+  }
+
+  /**
+   * The domain this place answers to: the one holding it, or the one holding
+   * the nearest place it stands inside (`acksExtras.domains.domainOf`). Read
+   * through the api, as the organisations are, so a world without the
+   * domains feature renders no line. A holding the domain hides is the
+   * Judge's own, so a player is shown no domain through a hidden row.
+   */
+  #prepareDomain(context) {
+    const api = acksExtras.domains;
+    if (!api?.domainOf) return;
+    if (!game.user.isGM && !this.actor.testUserPermission(game.user, "OWNER")) return;
+    const domain = api.domainOf(this.actor);
+    if (!domain) return;
+    const rows = [...(domain.system.holdings ?? [])];
+    const seen = new Set();
+    let doc = this.actor;
+    let held = null;
+    while (doc && !seen.has(doc.uuid)) {
+      seen.add(doc.uuid);
+      held = rows.find((h) => h.uuid === doc.uuid) ?? null;
+      if (held) break;
+      const parent = places.parentUuidOf(doc);
+      try {
+        doc = parent ? fromUuidSync(parent) : null;
+      } catch {
+        doc = null;
+      }
+    }
+    if (!held || (held.hidden && !game.user.isGM)) return;
+    const own = held.uuid === this.actor.uuid;
+    context.domainHere = {
+      uuid: domain.uuid,
+      name: domain.name,
+      label: own
+        ? game.i18n.localize(`${LANG_PREFIX}.place.domainHere.holds`)
+        : game.i18n.format(`${LANG_PREFIX}.place.domainHere.around`, { place: doc?.name ?? held.name }),
+    };
   }
 
   /** Does this uuid still resolve? Never throws — render paths cannot afford it. */
@@ -823,6 +863,14 @@ export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   async _onDropActor(event, actor) {
     if (!actor) return;
     if (actor.uuid === this.actor.uuid) return;
+
+    // A domain stands above a place, not in it: it holds the place, and the
+    // hold is made from the domain's sheet. Asked through the api, as the
+    // organisations here are, so a place imports nothing of domains.
+    if (acksExtras.domains?.isDomain?.(actor)) {
+      ui.notifications.warn(game.i18n.format(`${LANG_PREFIX}.place.domainDropped`, { name: actor.name }));
+      return;
+    }
 
     // A LOCATION dropped on a location is nesting, whichever tab it lands on.
     // Deliberately narrower than `isPlace`: a pack mule someone enabled storage

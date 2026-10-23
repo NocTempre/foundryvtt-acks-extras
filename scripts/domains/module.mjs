@@ -15,8 +15,8 @@ import {
 import { DomainData } from "./data/domain-data.mjs";
 import { DomainSheet, registerDomainSheet, registerDomainSheetRefresh } from "./apps/domain-sheet.mjs";
 import {
-  allDomains, domainOf, domainsHolding, domainsRuledBy, familiesOf, hold, holdsPlace, isDomain, ledgerFor, liegeOf,
-  release, setLiege, vassalsOf, wouldCycle,
+  allDomains, domainOf, domainsHolding, domainsRuledBy, familiesOf, foundSettlement, hold, holdsPlace, isDomain,
+  ledgerFor, liegeOf, promoteVassal, release, setLiege, vassalsOf, wouldCycle,
 } from "./domains.mjs";
 import {
   blankDomain, hexCountOf, ledgerOf, normalizeDomain, peasantFamiliesOf, strongholdValueOf, tributeInOf,
@@ -27,11 +27,10 @@ import {
 const DOMAIN_IMG = "icons/svg/castle.svg";
 
 const TEMPLATES = [
-  `modules/${MODULE_ID}/templates/domains/domain-header.hbs`,
-  `modules/${MODULE_ID}/templates/domains/domain-body.hbs`,
-  `modules/${MODULE_ID}/templates/domains/domain-lines.hbs`,
-  `modules/${MODULE_ID}/templates/domains/domain-bonds.hbs`,
-];
+  "domain-band", "domain-frame", "domain-tabs",
+  "domain-tab-overview", "domain-tab-territory", "domain-tab-holdings", "domain-tab-ledger", "domain-tab-realm", "domain-tab-notes",
+  "domain-lines", "domain-bonds",
+].map((name) => `modules/${MODULE_ID}/templates/domains/${name}.hbs`);
 
 Hooks.once("init", () => {
   // The data model and the sheet register HERE and only here — this feature
@@ -71,7 +70,8 @@ Hooks.once("init", () => {
   });
 
   acksExtras.domains = {
-    apiVersion: 1,
+    // 2: promoteVassal and foundSettlement.
+    apiVersion: 2,
     DOMAIN_TYPE,
     CLASSIFICATIONS,
     HOLDING_ROLES,
@@ -105,5 +105,7 @@ Hooks.once("init", () => {
     setLiege,
     hold,
     release,
+    promoteVassal,
+    foundSettlement,
   };
 });

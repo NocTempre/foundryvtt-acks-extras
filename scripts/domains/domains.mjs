@@ -1,18 +1,23 @@
-/* global game, fromUuidSync */
+/* global game, fromUuidSync, Actor */
 /**
  * Domains, asked of the world: which domain holds a place, which ones a
  * character rules, which ones answer to a liege — and the Judge's writers for
- * the two relations a domain's sheet cannot simply type in, the liege and the
- * holdings, because each must be checked against every other domain. The pure
- * half is `domain-logic.mjs`.
+ * what a domain's sheet cannot simply type in: the liege and the holdings,
+ * because each must be checked against every other domain, and the two that
+ * make a document (a vassal row promoted to a domain, a settlement founded).
+ * The pure half is `domain-logic.mjs`.
  */
-import { DOMAIN_TYPE } from "./constants.mjs";
+import { DOMAIN_TYPE, LANG_PREFIX } from "./constants.mjs";
 import {
-  domainHolding, domainRecord, figure, holdConflict, ledgerOf, normalizeHolding, peasantFamiliesOf, rowsOf,
-  urbanFamiliesOf, wouldCycleDomain,
+  domainHolding, domainRecord, figure, holdConflict, ledgerOf, normalizeHolding, peasantFamiliesOf, promoteVassalRow,
+  rowsOf, urbanFamiliesOf, wouldCycleDomain,
 } from "./domain-logic.mjs";
 import { ancestorUuids, indexPlaces } from "../lib/place-logic.mjs";
 import { allPlaces, packIdOf } from "../lib/place.mjs";
+import { LOCATION_TYPE } from "../location/constants.mjs";
+
+/** The picture a founded settlement is made with: core's village. */
+const SETTLEMENT_IMG = "icons/svg/village.svg";
 
 /** Is this document a domain actor? */
 export const isDomain = (doc) => doc?.documentName === "Actor" && doc?.type === DOMAIN_TYPE;
@@ -131,6 +136,56 @@ export async function release(domain, placeUuid) {
   if (kept.length === rows.length) return false;
   await domain.update({ "system.holdings": kept });
   return true;
+}
+
+/**
+ * Promote one of a liege's vassal rows to a domain of its own: a domain actor
+ * answering to the liege, carrying what the row said (`promoteVassalRow`), and
+ * the row deleted, because a vassal is an actor or a row, never both. GM
+ * only. The new domain is created bare and then written, because the system's
+ * `Actor.create` drops a single create's `system`; the row goes only once the
+ * new domain holds the record.
+ * @param {(key: string) => string} [label] names a figure the record has no field for, in its notes
+ * @returns {Promise<{ok: boolean, domain?: Actor, reason?: "judgeOnly"|"notDomain"|"noRow"|"notCreated"}>}
+ */
+export async function promoteVassal(liege, rowId, { label } = {}) {
+  if (!isDomain(liege)) return { ok: false, reason: "notDomain" };
+  if (!game.user?.isGM) return { ok: false, reason: "judgeOnly" };
+  const rows = rowsOf(liege.system.vassalRows).map((r) => r?.toObject?.() ?? r);
+  const row = rows.find((r) => r.id === rowId);
+  if (!row) return { ok: false, reason: "noRow" };
+  const { name, system } = promoteVassalRow(row, { liegeUuid: liege.uuid, label });
+  const domain = await Actor.create({
+    name: name || game.i18n.localize(`${LANG_PREFIX}.sheet.unnamed`),
+    type: DOMAIN_TYPE,
+    folder: liege.folder?.id ?? null,
+  });
+  if (!domain) return { ok: false, reason: "notCreated" };
+  await domain.update({ system });
+  await liege.update({ "system.vassalRows": rows.filter((r) => r.id !== rowId) });
+  return { ok: true, domain };
+}
+
+/**
+ * Found a settlement for a domain: a world location with a market, held by
+ * the domain at once as a settlement. GM only. Created bare and then given
+ * its market, as the location sheet's own Add a market writes it.
+ * @param {object} [market] the market to give it; the location model's empty one where omitted
+ * @returns {Promise<{ok: boolean, place?: Actor, reason?: string, other?: Actor}>} `hold`'s refusal where the hold fails
+ */
+export async function foundSettlement(domain, { name = "", market = null } = {}) {
+  if (!isDomain(domain)) return { ok: false, reason: "notDomain" };
+  if (!game.user?.isGM) return { ok: false, reason: "judgeOnly" };
+  const marketData = market ?? (await import("../location/data/location-data.mjs")).emptyMarket();
+  const place = await Actor.create({
+    name: name || game.i18n.localize(`${LANG_PREFIX}.sheet.newSettlement`),
+    type: LOCATION_TYPE,
+    img: SETTLEMENT_IMG,
+  });
+  if (!place) return { ok: false, reason: "notCreated" };
+  await place.update({ "system.market": marketData });
+  const held = await hold(domain, place, { role: "settlement" });
+  return held.ok ? { ok: true, place } : { ...held, place };
 }
 
 /** A placed settlement's urban families, off its place's market; null where nobody has entered them. */

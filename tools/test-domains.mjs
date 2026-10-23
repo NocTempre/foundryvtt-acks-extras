@@ -9,7 +9,10 @@
  * flat figure wins over its rate. Tribute in is the vassals' and is never
  * stored. A place is held by one domain at most, a liege cannot close a
  * loop, and a place belongs to the domain holding it or the nearest place
- * around it. Every figure below is invented; every name is a neutral label.
+ * around it. A vassal row made a domain keeps every figure it held, the
+ * liege's tribute in unchanged; a founded settlement is held at once. The
+ * sheet's frame reads a floor as a floor and a partial month as partial.
+ * Every figure below is invented; every name is a neutral label.
  *
  * Run: npm test
  */
@@ -307,5 +310,148 @@ isGM = true;
 assert.deepEqual(await api.setLiege(vassal, null), { ok: true });
 assert.equal(vassal.system.parentUuid, "", "clearing the liege writes the field empty");
 assert.deepEqual(await api.setLiege(vassal, keep), { ok: false, reason: "notDomain" }, "a place is not a liege");
+
+/* ------------------------- a vassal row made a domain ---------------------- */
+const label = (k) => `[${k}]`;
+const promoted = logic.promoteVassalRow({
+  id: "v1", name: "Domain 3", rulerName: "NPC 3",
+  families: { peasant: 120, urban: 30 }, realmFamilies: 400, revenueGp: 90, tributeGp: 60, extraTaxGp: 20, realmGarrisonGp: 15,
+  domainHexes: { count: 2, labels: ["0401", "0402"], classes: ["borderlands"] },
+  realmHexes: { count: 5, classes: ["outlands"] },
+  favors: "Favor 1", duties: "Duty 1", note: "Note <1>",
+}, { liegeUuid: "Actor.top", label, makeId });
+const ps = promoted.system;
+assert.equal(promoted.name, "Domain 3");
+assert.equal(ps.parentUuid, "Actor.top", "the new domain answers to the liege whose row it was");
+assert.equal(ps.rulerName, "NPC 3");
+assert.equal(ps.classification, "borderlands", "a row of one class gives the domain that class");
+assert.deepEqual(ps.territory.map((t) => [t.hexLabels, t.count, t.families]), [[["0401", "0402"], 2, 120]], "the row's hexes and peasants become one tract");
+assert.deepEqual(ps.holdings.map((h) => [h.role, h.families, h.uuid]), [["settlement", 30, ""]], "its urban families become one settlement not yet on the map");
+assert.equal(ps.tributeGp, 80, "the tribute and the additional tax are both what the liege receives, so the new domain owes both");
+assert.deepEqual([ps.favors.map((b) => b.label), ps.duties.map((b) => b.label)], [["Favor 1"], ["Duty 1"]]);
+for (const key of ["field.realmFamilies", "field.realmHexes", "field.realmGarrison", "field.revenue", "field.extraTax"]) {
+  assert.ok(ps.notes.includes(`[${key}]`), `${key} is a figure a domain sums rather than stores, so it is kept in the notes`);
+}
+assert.ok(ps.notes.includes("<strong>[field.realmFamilies]</strong>: 400"), "a figure is written as its number");
+assert.ok(ps.notes.includes("5 · [classification.outlands]"), "a run of hexes is written as its count and its classes");
+assert.ok(ps.notes.includes("<p>Note &lt;1&gt;</p>"), "the row's note is escaped into the notes");
+assert.ok(!ps.notes.includes("[field.domainHexes]"), "a single class needs no note");
+const bareRow = logic.promoteVassalRow({ id: "v2" }, { makeId });
+assert.deepEqual([bareRow.system.territory, bareRow.system.holdings, bareRow.system.notes, bareRow.system.tributeGp, bareRow.system.classification],
+  [[], [], "", null, ""], "a row that says nothing makes a blank domain: no tract, no settlement, nothing owed");
+const mixed = logic.promoteVassalRow({ id: "v3", tributeGp: 0, domainHexes: { classes: ["civilized", "borderlands"] } }, { label, makeId });
+assert.equal(mixed.system.classification, "", "a row of mixed classes leaves the classification to the Judge");
+assert.ok(mixed.system.notes.includes("[classification.civilized], [classification.borderlands]"), "and keeps its classes in the notes");
+assert.equal(mixed.system.tributeGp, 0, "a tribute of none is a figure, not unset");
+
+/* ------------------------- the frame ----------------------------------------- */
+const frame = await import("../scripts/domains/domain-frame.mjs");
+const floc = (k, d) => (d ? `${k}${JSON.stringify(d)}` : k);
+assert.deepEqual([frame.shownFigure(null), frame.shownFigure(""), frame.shownFigure(12.345), frame.shownFigure("7"), frame.shownFigure("x")], ["—", "—", "12.35", "7", "—"]);
+const sums = {
+  families: { peasant: 100, urban: 70, urbanUnknown: 1 },
+  hexCount: { total: 4, unknown: 0 },
+  strongholdValue: { total: 0, unknown: 2 },
+  ledger: { totals: { revenue: 300, expenses: 120, income: 180 }, partial: true },
+  partialNote: "NOTE",
+};
+const rails = frame.railsOf(sums, floc);
+const cellOf = (rail, key) => rail.find((c) => c.key === key);
+assert.deepEqual(rails.land.map((c) => c.key), ["peasant", "urban", "hexes", "stronghold"]);
+assert.deepEqual(rails.month.map((c) => c.key), ["revenue", "expenses", "income"]);
+assert.equal(cellOf(rails.land, "urban").reading, "70+", "a settlement with no figure makes the urban count a floor");
+assert.equal(cellOf(rails.land, "hexes").reading, "4", "a count with nothing uncounted is exact");
+assert.equal(cellOf(rails.land, "stronghold").reading, "0+");
+assert.ok(rails.month.every((c) => c.partial && c.title.endsWith(" — NOTE")), "every month cell over a partial ledger says what it lacks");
+assert.ok(rails.land.every((c) => !c.partial), "the land's figures are not the ledger's");
+assert.deepEqual([...rails.land, ...rails.month].map((c) => c.tab), ["territory", "holdings", "territory", "holdings", "ledger", "ledger", "ledger"], "a cell opens the tab its figure is kept on");
+assert.equal(cellOf(frame.railsOf({ ...sums, ledger: { totals: { revenue: null } } }, floc).month, "revenue").reading, "—", "a month with no figure reads as none");
+
+const ref = { uuid: "Actor.npc", name: "NPC 1", missing: false };
+const editChips = frame.chipsOf({ ruler: ref, rulerName: "NPC 1", liege: null, liegeName: "Domain 8", canEdit: true }, floc);
+assert.deepEqual([editChips.ruler.name, editChips.ruler.uuid, editChips.ruler.pick, editChips.ruler.clear, editChips.ruler.empty], ["NPC 1", "Actor.npc", "pickRuler", "clearRuler", false]);
+assert.deepEqual([editChips.liege.name, editChips.liege.uuid, editChips.liege.pick, editChips.liege.clear, editChips.liege.empty],
+  ["Domain 8", "", "pickLiege", null, false], "a liege known only by the record's word is named, and there is no actor to clear");
+const readChips = frame.chipsOf({ ruler: { ...ref, missing: true }, liege: null, canEdit: false }, floc);
+assert.deepEqual([readChips.ruler.missing, readChips.ruler.pick, readChips.ruler.clear], [true, null, null], "a reader is offered no picker and no clear");
+assert.deepEqual([readChips.liege.name, readChips.liege.empty], ["frame.noLiege", true]);
+assert.deepEqual(frame.tagsOf({ classification: "civilized" }, floc).map((t) => [t.label, t.unset]), [["classification.civilized", false], ["frame.rulersAlignment", true]]);
+assert.deepEqual(frame.leftOutOf(sums, floc).map((r) => r.key), ["urban", "stronghold", "ledger"], "only a figure that leaves something out is listed");
+assert.deepEqual(frame.leftOutOf({ families: { urbanUnknown: 0 }, hexCount: { unknown: 0 }, strongholdValue: { unknown: 0 }, ledger: { partial: false } }, floc), []);
+const built = frame.buildDomainFrame({ ...sums, ruler: ref, canEdit: true }, floc);
+assert.deepEqual(built.chipList.map((c) => c.zone), ["ruler", "liege"], "the art row draws the ruler's chip, then the liege's");
+assert.deepEqual(built.railList, [built.rails.land, built.rails.month]);
+
+/* ------------------------- promoting and founding ---------------------------- */
+const created = [];
+let refuseCreate = false;
+globalThis.game.i18n = { localize: (k) => k };
+globalThis.Actor = {
+  async create(data) {
+    if (refuseCreate) return null;
+    const uuid = `Actor.new${created.length + 1}`;
+    const doc = data.type === DOMAIN_TYPE ? domainDoc(uuid, data.name, {}) : placeDoc(uuid, data.name);
+    const plain = doc.update;
+    doc.update = async (changes) => {
+      if (!changes.system) {
+        if (plain) return plain(changes);
+        updates.push({ uuid, changes });
+        for (const [path, value] of Object.entries(changes)) doc.system[path.replace(/^system\./, "")] = value;
+        return doc;
+      }
+      updates.push({ uuid, changes });
+      Object.assign(doc.system, changes.system);
+      return doc;
+    };
+    created.push({ data, doc });
+    actors.push(doc);
+    return doc;
+  },
+};
+
+top.system.vassalRows = normalizeDomain({
+  vassalRows: [
+    { id: "row1", name: "Domain 4", rulerName: "NPC 4", tributeGp: 10, extraTaxGp: 5, families: { peasant: 50 } },
+    { id: "row2", name: "Domain 5", tributeGp: 3 },
+  ],
+}, { makeId }).vassalRows;
+top.folder = { id: "f1" };
+const tributeBefore = api.ledgerFor(top).tributeIn;
+isGM = false;
+assert.deepEqual(await api.promoteVassal(top, "row1"), { ok: false, reason: "judgeOnly" });
+isGM = true;
+assert.deepEqual(await api.promoteVassal(keep, "row1"), { ok: false, reason: "notDomain" });
+assert.deepEqual(await api.promoteVassal(top, "row9"), { ok: false, reason: "noRow" });
+refuseCreate = true;
+assert.deepEqual(await api.promoteVassal(top, "row1"), { ok: false, reason: "notCreated" });
+assert.equal(top.system.vassalRows.length, 2, "a domain that was never made takes no row away");
+refuseCreate = false;
+updates.length = 0;
+const promotion = await api.promoteVassal(top, "row1", { label });
+assert.equal(promotion.ok, true);
+const madeDomain = promotion.domain;
+assert.deepEqual(created.at(-1).data, { name: "Domain 4", type: DOMAIN_TYPE, folder: "f1" }, "made bare, filed beside its liege: the system's create drops a create's system");
+assert.deepEqual([madeDomain.system.parentUuid, madeDomain.system.rulerName, madeDomain.system.tributeGp], ["Actor.top", "NPC 4", 15]);
+assert.deepEqual(top.system.vassalRows.map((r) => r.id), ["row2"], "the row goes: a vassal is an actor or a row, never both");
+assert.deepEqual(updates.map((u) => u.uuid), [madeDomain.uuid, "Actor.top"], "the row goes only once the new domain holds its record");
+assert.deepEqual(api.vassalsOf(top).map((d) => d.uuid), [madeDomain.uuid], "the new domain is a vassal domain of its liege");
+assert.deepEqual(api.ledgerFor(top).tributeIn, tributeBefore, "the liege's tribute in is what it was: the row's tribute is now the domain's tribute out");
+const promotedUnnamed = await api.promoteVassal(top, "row2");
+assert.equal(promotedUnnamed.domain.name, "Domain 5");
+
+assert.deepEqual(await api.foundSettlement(keep, { market: {} }), { ok: false, reason: "notDomain" });
+isGM = false;
+assert.deepEqual(await api.foundSettlement(vassal, { market: {} }), { ok: false, reason: "judgeOnly" });
+isGM = true;
+const founded = await api.foundSettlement(vassal, { name: "Place 9", market: { urbanFamilies: null } });
+assert.equal(founded.ok, true);
+assert.deepEqual(created.at(-1).data, { name: "Place 9", type: "acks-extras.location", img: "icons/svg/village.svg" }, "a location made bare");
+assert.deepEqual(founded.place.system.market, { urbanFamilies: null }, "and given its market after");
+const heldRow = vassal.system.holdings.at(-1);
+assert.deepEqual([heldRow.uuid, heldRow.role, heldRow.name], [founded.place.uuid, "settlement", "Place 9"], "held at once, as a settlement");
+assert.equal(api.domainOf(founded.place)?.uuid, "Actor.vas");
+const foundedUnnamed = await api.foundSettlement(vassal, { market: {} });
+assert.equal(foundedUnnamed.place.name, "ACKS-DOMAINS.sheet.newSettlement", "a settlement founded with no name takes the sheet's word for one");
+delete globalThis.Actor;
 
 console.log("test-domains: all checks passed");

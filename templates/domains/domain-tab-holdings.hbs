@@ -1,0 +1,140 @@
+{{!-- Holdings: the places the domain holds, by reference — a placed row reads
+      its families and market class off its place — then the stronghold's
+      structures. The Judge founds a settlement here, or adds a place a record
+      names that is not yet on the map. --}}
+<div class="tab acks-extras-domain-sheet__panel{{#if tabs.holdings.active}} active{{/if}}" data-group="primary" data-tab="holdings">
+  <div class="acks-extras-domain-sheet__block">
+    <h3 class="acks-extras-domain-sheet__block-title">{{localize "ACKS-DOMAINS.sheet.holdings"}} ({{holdings.length}})</h3>
+    <p class="acks-extras-domain-hint">{{localize "ACKS-DOMAINS.hint.holdings"}}</p>
+    {{#if holdings.length}}
+    <table class="acks-table acks-extras-domain-table">
+      <thead>
+        <tr>
+          <th>{{localize "ACKS-DOMAINS.field.place"}}</th>
+          <th>{{localize "ACKS-DOMAINS.field.role"}}</th>
+          <th>{{localize "ACKS-DOMAINS.field.urbanFamilies"}}</th>
+          <th>{{localize "ACKS-DOMAINS.field.marketClass"}}</th>
+          <th>{{localize "ACKS-DOMAINS.field.investment"}}</th>
+          <th>{{localize "ACKS-DOMAINS.field.note"}}</th>
+          {{#if isGM}}<th>{{localize "ACKS-DOMAINS.field.hidden"}}</th>{{/if}}
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each holdings}}
+        <tr class="{{#if missing}}is-missing{{/if}}{{#if hidden}} is-hidden{{/if}}"{{#if placed}} data-uuid="{{uuid}}"{{/if}}>
+          <td>
+            {{#if placed}}
+            <button type="button" class="acks-extras-domain-sheet__link" data-action="openDoc" data-uuid="{{uuid}}">{{shownName}}</button>
+            {{#if missing}}<i class="fa-solid fa-triangle-exclamation" data-tooltip="{{localize 'ACKS-DOMAINS.hint.missing'}}"></i>{{/if}}
+            {{else}}
+            <input type="text" name="system.holdings.{{index}}.name" value="{{name}}" {{@root.lock}}
+                   aria-label="{{localize 'ACKS-DOMAINS.field.place'}}" data-tooltip="{{localize 'ACKS-DOMAINS.hint.unplaced'}}" />
+            {{/if}}
+          </td>
+          <td>
+            <select name="system.holdings.{{index}}.role" {{@root.lock}} aria-label="{{localize 'ACKS-DOMAINS.field.role'}}">
+              {{#each roleOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+            </select>
+          </td>
+          <td>
+            {{#if placed}}{{placeFamilies}}
+            {{else}}<input type="number" min="0" step="1" name="system.holdings.{{index}}.families" value="{{families}}" {{@root.lock}}
+                           aria-label="{{localize 'ACKS-DOMAINS.field.urbanFamilies'}}" />{{/if}}
+          </td>
+          <td>
+            {{#if placed}}{{placeMarketClass}}
+            {{else}}
+            <select name="system.holdings.{{index}}.marketClass" {{@root.lock}} aria-label="{{localize 'ACKS-DOMAINS.field.marketClass'}}">
+              {{#each marketClassOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+            </select>
+            {{/if}}
+          </td>
+          <td><input type="number" min="0" step="any" name="system.holdings.{{index}}.investmentGp" value="{{investmentGp}}" {{@root.lock}}
+                     aria-label="{{localize 'ACKS-DOMAINS.field.investment'}}" data-tooltip="{{localize 'ACKS-DOMAINS.hint.investment'}}" /></td>
+          <td><input type="text" name="system.holdings.{{index}}.note" value="{{note}}" {{@root.lock}}
+                     aria-label="{{localize 'ACKS-DOMAINS.field.note'}}" /></td>
+          {{#if @root.isGM}}
+          <td><input type="checkbox" name="system.holdings.{{index}}.hidden" {{#if hidden}}checked{{/if}} {{@root.lock}}
+                     aria-label="{{localize 'ACKS-DOMAINS.field.hidden'}}" data-tooltip="{{localize 'ACKS-DOMAINS.hint.hidden'}}" /></td>
+          {{/if}}
+          <td class="row-actions">
+            {{#if @root.canEdit}}<button type="button" class="acks-btn acks-btn--quiet acks-btn--icon" data-action="rowDelete" data-array="holdings" data-index="{{index}}" aria-label="{{localize 'ACKS-DOMAINS.sheet.removeRowTitle'}}"><i class="fa-solid fa-xmark" inert></i></button>{{/if}}
+          </td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+    {{else}}
+    <p class="acks-empty">{{localize "ACKS-DOMAINS.sheet.holdingsEmpty"}}</p>
+    {{/if}}
+    {{#if canEdit}}
+    <div class="acks-extras-domain-sheet__actions">
+      <button type="button" class="acks-btn acks-btn--primary acks-btn--sm" data-action="foundSettlement"
+              data-tooltip="{{localize 'ACKS-DOMAINS.hint.found'}}">
+        <i class="fa-solid fa-flag" inert></i> {{localize "ACKS-DOMAINS.frame.found"}}
+      </button>
+      <button type="button" class="acks-btn acks-btn--secondary acks-btn--sm" data-action="rowAdd" data-array="holdings">
+        <i class="fa-solid fa-plus" inert></i> {{localize "ACKS-DOMAINS.sheet.addUnplaced"}}
+      </button>
+    </div>
+    {{/if}}
+  </div>
+
+  <div class="acks-extras-domain-sheet__block">
+    <h3 class="acks-extras-domain-sheet__block-title">{{localize "ACKS-DOMAINS.sheet.structures"}} ({{structures.length}})</h3>
+    {{#if structures.length}}
+    <table class="acks-table acks-extras-domain-table">
+      <thead>
+        <tr>
+          <th>{{localize "ACKS-DOMAINS.field.structure"}}</th>
+          <th>{{localize "ACKS-DOMAINS.field.unitCount"}}</th>
+          <th>{{localize "ACKS-DOMAINS.field.ac"}}</th>
+          <th>{{localize "ACKS-DOMAINS.field.unitCapacity"}}</th>
+          <th>{{localize "ACKS-DOMAINS.field.shp"}}</th>
+          <th>{{localize "ACKS-DOMAINS.field.cost"}}</th>
+          <th>{{localize "ACKS-DOMAINS.field.note"}}</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each structures}}
+        <tr>
+          <td><input type="text" name="system.structures.{{index}}.name" value="{{name}}" {{@root.lock}}
+                     aria-label="{{localize 'ACKS-DOMAINS.field.structure'}}" /></td>
+          <td><input type="number" min="0" step="1" name="system.structures.{{index}}.count" value="{{count}}" {{@root.lock}}
+                     aria-label="{{localize 'ACKS-DOMAINS.field.unitCount'}}" /></td>
+          <td><input type="number" step="any" name="system.structures.{{index}}.ac" value="{{ac}}" {{@root.lock}}
+                     aria-label="{{localize 'ACKS-DOMAINS.field.ac'}}" /></td>
+          <td><input type="number" step="any" name="system.structures.{{index}}.unitCapacity" value="{{unitCapacity}}" {{@root.lock}}
+                     aria-label="{{localize 'ACKS-DOMAINS.field.unitCapacity'}}" data-tooltip="{{localize 'ACKS-DOMAINS.hint.perUnit'}}" /></td>
+          <td><input type="number" step="any" name="system.structures.{{index}}.shp" value="{{shp}}" {{@root.lock}}
+                     aria-label="{{localize 'ACKS-DOMAINS.field.shp'}}" /></td>
+          <td><input type="number" min="0" step="any" name="system.structures.{{index}}.costGp" value="{{costGp}}" {{@root.lock}}
+                     aria-label="{{localize 'ACKS-DOMAINS.field.cost'}}" data-tooltip="{{localize 'ACKS-DOMAINS.hint.cost'}}" /></td>
+          <td><input type="text" name="system.structures.{{index}}.note" value="{{note}}" {{@root.lock}}
+                     aria-label="{{localize 'ACKS-DOMAINS.field.note'}}" /></td>
+          <td class="row-actions">
+            {{#if @root.canEdit}}<button type="button" class="acks-btn acks-btn--quiet acks-btn--icon" data-action="rowDelete" data-array="structures" data-index="{{index}}" aria-label="{{localize 'ACKS-DOMAINS.sheet.removeRowTitle'}}"><i class="fa-solid fa-xmark" inert></i></button>{{/if}}
+          </td>
+        </tr>
+        {{/each}}
+        <tr class="acks-extras-domain-total">
+          <td colspan="5">{{localize "ACKS-DOMAINS.field.strongholdValue"}}</td>
+          <td>{{strongholdValue.shown}}{{#if strongholdValue.unknown}}+{{/if}}</td>
+          <td colspan="2"></td>
+        </tr>
+      </tbody>
+    </table>
+    {{else}}
+    <p class="acks-empty">{{localize "ACKS-DOMAINS.sheet.structuresEmpty"}}</p>
+    {{/if}}
+    {{#if canEdit}}
+    <div class="acks-extras-domain-sheet__actions">
+      <button type="button" class="acks-btn acks-btn--secondary acks-btn--sm" data-action="rowAdd" data-array="structures">
+        <i class="fa-solid fa-plus" inert></i> {{localize "ACKS-DOMAINS.sheet.addStructure"}}
+      </button>
+    </div>
+    {{/if}}
+  </div>
+</div>

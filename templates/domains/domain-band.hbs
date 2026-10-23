@@ -1,0 +1,32 @@
+{{!-- The band: rendered as a part, then moved into the window header by the
+      sheet (lib `moveBandIntoHeader`), so Foundry's drag handle and buttons
+      stay where they are. The heraldry is the domain's picture, a press for
+      the Judge; the title stands before the name, each on its own underline;
+      the morale figures close it. A reader sees the words, not the fields. --}}
+<div class="acks-extras-domain-sheet__band">
+  {{#if canEdit}}
+  <button type="button" class="acks-extras-domain-sheet__crest" data-action="editHeraldry"
+          data-tooltip="{{localize 'ACKS-DOMAINS.frame.heraldry'}}" aria-label="{{localize 'ACKS-DOMAINS.frame.heraldry'}}">
+    <img src="{{actor.img}}" alt="" inert>
+  </button>
+  <input class="acks-extras-domain-sheet__title" type="text" name="system.title" value="{{system.title}}"
+         aria-label="{{localize 'ACKS-DOMAINS.field.title'}}" placeholder="{{localize 'ACKS-DOMAINS.field.title'}}">
+  <input class="acks-extras-domain-sheet__name" type="text" name="name" value="{{actor.name}}"
+         aria-label="{{localize 'ACKS-DOMAINS.field.name'}}" placeholder="{{localize 'ACKS-DOMAINS.sheet.namePlaceholder'}}">
+  <div class="acks-extras-domain-sheet__morale" role="group" aria-label="{{localize 'ACKS-DOMAINS.sheet.morale'}}">
+    <label><span>{{localize "ACKS-DOMAINS.field.moraleCurrent"}}</span>
+      <input class="acks-nums" type="number" step="1" name="system.morale.current" value="{{system.morale.current}}"
+             placeholder="{{localize 'ACKS-DOMAINS.frame.atBase'}}" data-tooltip="{{localize 'ACKS-DOMAINS.hint.moraleCurrent'}}"></label>
+    <label><span>{{localize "ACKS-DOMAINS.field.moraleBase"}}</span>
+      <input class="acks-nums" type="number" step="1" name="system.morale.base" value="{{system.morale.base}}"></label>
+  </div>
+  {{else}}
+  <span class="acks-extras-domain-sheet__crest"><img src="{{actor.img}}" alt="" inert></span>
+  {{#if system.title}}<span class="acks-extras-domain-sheet__title">{{system.title}}</span>{{/if}}
+  <span class="acks-extras-domain-sheet__name">{{actor.name}}</span>
+  <div class="acks-extras-domain-sheet__morale" role="group" aria-label="{{localize 'ACKS-DOMAINS.sheet.morale'}}">
+    <span><span>{{localize "ACKS-DOMAINS.field.moraleCurrent"}}</span> <b class="acks-nums">{{#if (eq system.morale.current null)}}—{{else}}{{system.morale.current}}{{/if}}</b></span>
+    <span><span>{{localize "ACKS-DOMAINS.field.moraleBase"}}</span> <b class="acks-nums">{{#if (eq system.morale.base null)}}—{{else}}{{system.morale.base}}{{/if}}</b></span>
+  </div>
+  {{/if}}
+</div>

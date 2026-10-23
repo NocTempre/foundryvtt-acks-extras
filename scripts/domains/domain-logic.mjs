@@ -232,6 +232,58 @@ export function normalizeDomain(raw, { makeId = defaultId } = {}) {
 /** The record of a domain with nothing in it — every field at its starting value. */
 export const blankDomain = () => normalizeDomain({}, { makeId: () => "" });
 
+const escapeText = (s) => text(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+
+/**
+ * The domain record a vassal row becomes when it is promoted to a domain of
+ * its own under `liegeUuid`. Each figure lands where the record keeps it: the
+ * domain hexes and the peasant families as one tract, the urban families as
+ * one settlement not yet on the map, a single classification as the domain's,
+ * the favors and the duties as a row each. Tribute out is the row's tribute
+ * and its additional tax together — what the liege's tribute in counted for
+ * the row — so the liege's ledger does not move. The figures a domain sums
+ * from its own vassals or lines instead of storing (its realm's families,
+ * hexes and garrison, its revenue), the additional tax, more than one
+ * classification and the row's note go into `notes`, a paragraph each.
+ * @param {object} raw a vassal row; normalised here
+ * @param {{liegeUuid?: string, label?: (key: string) => string, makeId?: () => string}} [opts]
+ *   `label` names a figure in the notes, by its lang key under the feature root
+ *   (`field.realmFamilies`, `classification.outlands`)
+ * @returns {{name: string, system: object}}
+ */
+export function promoteVassalRow(raw, { liegeUuid = "", label = (k) => k, makeId = defaultId } = {}) {
+  const row = normalizeVassalRow(raw, makeId);
+  const hexes = row.domainHexes;
+  const hexText = (h) => [h.count === null ? "" : String(h.count), h.labels.join(", "), h.classes.map((c) => label(`classification.${c}`)).join(", ")]
+    .filter(Boolean)
+    .join(" · ");
+  const lines = [];
+  const add = (key, value) => {
+    if (value !== null && value !== "" && value !== 0) lines.push(`<p><strong>${escapeText(label(key))}</strong>: ${escapeText(value)}</p>`);
+  };
+  add("field.realmFamilies", row.realmFamilies);
+  add("field.realmHexes", hexText(row.realmHexes));
+  add("field.realmGarrison", row.realmGarrisonGp);
+  add("field.revenue", row.revenueGp);
+  add("field.extraTax", row.extraTaxGp);
+  if (hexes.classes.length > 1) add("field.domainHexes", hexText({ count: null, labels: [], classes: hexes.classes }));
+  if (row.note) lines.push(`<p>${escapeText(row.note)}</p>`);
+
+  const tract = hexes.count !== null || hexes.labels.length || row.families.peasant !== null;
+  const record = {
+    rulerName: row.rulerName,
+    parentUuid: liegeUuid,
+    classification: hexes.classes.length === 1 ? hexes.classes[0] : "",
+    territory: tract ? [{ hexLabels: hexes.labels, count: hexes.count, families: row.families.peasant ?? 0 }] : [],
+    holdings: row.families.urban ? [{ role: "settlement", families: row.families.urban }] : [],
+    tributeGp: row.tributeGp === null ? null : row.tributeGp + row.extraTaxGp,
+    favors: row.favors ? [{ label: row.favors }] : [],
+    duties: row.duties ? [{ label: row.duties }] : [],
+    notes: lines.join(""),
+  };
+  return { name: row.name, system: normalizeDomain(record, { makeId }) };
+}
+
 /* -------------------------------------------- */
 /*  Sums                                         */
 /* -------------------------------------------- */

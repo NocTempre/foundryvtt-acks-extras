@@ -7,20 +7,21 @@ realm of lieges and vassals. It is an Actor sub-type, `acks-extras.domain`, so
 everything the rest of the module does with an actor works on it unchanged.
 
 This is the **record**: every field a printed domain record fills, in its
-final shape, a plain sheet that edits it, and the sums read off what it states.
-Nothing here derives a figure the record does not hold — a line nobody has
-entered is unset, not zero. The rules tables are read but not yet used. The
-stylized sheet and the automation (the derivations, the month, territory
-painted on the map) are [ROADMAP.md](ROADMAP.md); why it is shaped this way is
+final shape, a sheet in the character sheet's frame that edits it, and the
+sums read off what it states. Nothing here derives a figure the record does
+not hold — a line nobody has entered is unset, not zero. The rules tables are
+read but not yet used. The automation (the derivations, the month, territory
+painted on the map) is [ROADMAP.md](ROADMAP.md); why it is shaped this way is
 [DECISIONS.md](DECISIONS.md); the live recipe is [TESTING.md](TESTING.md).
 
 | File | Owns |
 |---|---|
 | `scripts/domains/constants.mjs` | The sub-type id, the lang root, the vocabularies: classifications, holding roles, revenue and expense lines, a line's four figures. |
-| `scripts/domains/domain-logic.mjs` | The pure half: the row normalisers and `normalizeDomain`, the sums (families, hexes, stronghold value, a line's amount, tribute in, the ledger) and the realm walks (the loop guard, which domain holds a place). Foundry-free. |
+| `scripts/domains/domain-logic.mjs` | The pure half: the row normalisers and `normalizeDomain`, the sums (families, hexes, stronghold value, a line's amount, tribute in, the ledger), the realm walks (the loop guard, which domain holds a place) and `promoteVassalRow`, the record a vassal row becomes. Foundry-free. |
 | `scripts/domains/data/domain-data.mjs` | `DomainData` — the schema, and readers delegating to the logic (`peasantFamilies`, `hexCount`, `strongholdValue`, `holdsPlace`, `placeUuids`, `hasLiege`). |
-| `scripts/domains/domains.mjs` | The world-facing readers and the Judge's two checked writers, `setLiege` and `hold`. |
-| `scripts/domains/apps/domain-sheet.mjs` | The plain working sheet: six tabs, row add and remove, every drop a domain takes. |
+| `scripts/domains/domains.mjs` | The world-facing readers and the Judge's writers: `setLiege`, `hold` and `release`, checked against every other domain, and `promoteVassal` and `foundSettlement`, which make a document. |
+| `scripts/domains/domain-frame.mjs` | The frame decided over the sums: the ruler and liege chips, the classification and alignment tags, the rail cells, and what the figures leave out. Foundry-free. |
+| `scripts/domains/apps/domain-sheet.mjs` | The sheet: the band, the frame, six pill tabs, row add and remove, the pickers, promoting and founding, every drop a domain takes. |
 | `scripts/domains/module.mjs` | Registration (data model, sheet, templates, token defaults) and the `acksExtras.domains` api. |
 
 ## Design doctrine
@@ -33,7 +34,9 @@ painted on the map) are [ROADMAP.md](ROADMAP.md); why it is shaped this way is
 - **Extend**: the `acks-extras.domain` sub-type (TypeDataModel). Every field
   defaults, so a field a later wave adds needs no migration.
 - **Enhance**: the domain sheet; one clause in the location feature's
-  empty-location prune.
+  empty-location prune; the location sheet's Domain line, and the location
+  and faction sheets' refusal of a dropped domain, each asked through
+  `acksExtras.domains` so neither feature imports this one.
 - **Invent**: nothing. No rate, no band, no table the book prints. The module
   ships the shape a record takes; the figures are the Judge's, or a book's
   through the importer.
@@ -147,18 +150,67 @@ domain itself, or one that already answers to it at any depth, is refused
 `vassalsOf` and `liegeOf` read the edge from either end, and `domainsRuledBy`
 answers which domains an actor rules.
 
+**A vassal row becomes a domain.** `promoteVassal(liege, rowId)` makes a
+domain actor answering to the liege, filed in the liege's folder, and deletes
+the row once the new domain holds its record — a vassal is an actor or a row,
+never both. `promoteVassalRow` decides where each of the row's figures lands:
+
+| The row's | The new domain's |
+|---|---|
+| `name`, `rulerName` | its name, `rulerName` |
+| `domainHexes`, `families.peasant` | one territory row: the labels, the count, the peasant families |
+| `families.urban` | one unplaced settlement holding with those families |
+| `domainHexes.classes` | `classification` where the row names one class; else blank, and the classes in the notes |
+| `tributeGp` + `extraTaxGp` | `tributeGp` |
+| `favors`, `duties` | one favor row, one duty row |
+| `realmFamilies`, `realmHexes`, `realmGarrisonGp`, `revenueGp`, `extraTaxGp`, `note` | the notes, one labelled line each |
+
+The liege's tribute in is the same before and after: it counted the row's
+tribute and its additional tax, and now counts the new domain's tribute out.
+
+**A settlement is founded.** `foundSettlement(domain, {name, market})` makes a
+world location with a market — the location model's empty one unless a
+market is passed — and holds it at once as a settlement.
+
 ## The sheet
 
-Six tabs: **Overview** (ruler, title, liege, classification, alignment,
-morale and the totals), **Territory**, **Holdings** (the places and the
-structures), **Ledger**, **Realm** (vassal domains, vassal rows, favors,
-duties) and **Notes**.
+The sheet stands in the character sheet's frame, as the party sheet does:
+
+- **The band is the window header** (lib `moveBandIntoHeader`): the heraldry
+  — the domain's picture, which a press changes along with a token still
+  wearing the old one — the title before the name, and the current and base
+  morale.
+- **The art row** stands above every tab. Its reading column holds the
+  **chips** — the ruler and the liege, each naming the actor, else the
+  record's word for one, else that there is none — and the classification and
+  alignment **tags**. Its **rails** are the land (peasant families, urban
+  families, hexes, the stronghold's value) and the month (revenue, expenses,
+  income). A count with rows nobody counted reads as a floor (`70+`); a month
+  over a partial ledger marks each of its cells, and its tooltip says what is
+  missing. A cell is a press that opens the tab its figure is kept on.
+  `domain-frame.mjs` decides every chip, tag and cell.
+- **Six pill tabs**: **Overview** (the record's words for the ruler and the
+  liege, the classification and alignment, and what the rails' figures leave
+  out), **Territory**, **Holdings** (the places and the structures; founding a
+  settlement), **Ledger** (with a treasury row standing empty: the domain
+  keeps no treasury yet), **Realm** (vassal domains, vassal rows — each with
+  its promote button — favors and duties) and **Notes**. Each tab is a part of
+  its own and scrolls at its root, so it keeps its place across the re-render
+  every edit makes; in a window shorter than the frame, the content box
+  scrolls down to the panel.
+
+**The chips take a drop or a picker.** The ruler picker lists the world's
+characters and monsters; the liege picker every other domain that would not
+close a loop. Each chip's clear drops the actor and keeps the record's word.
 
 **The record is the Judge's.** A player who can open the sheet reads it and
-edits nothing: the controls render disabled, the row buttons do not render, a
-hidden holding is left out, a territory row's land value shows only once
-revealed, and `gmNotes` is absent. `setLiege`, `hold` and `release` refuse a
-player's client whatever calls them.
+edits nothing: the controls render disabled, no row, chip, promote, found or
+heraldry press renders, a hidden holding is left out, a territory row's land
+value shows only once revealed, and `gmNotes` is absent. Core disables every
+control of a sheet its reader cannot edit, the band's before it is moved;
+the reading presses — the pills, the rail cells, a name that opens another
+sheet — are enabled again after each render. Every writer in `domains.mjs`
+refuses a player's client whatever calls it.
 
 **Lists are named form rows** (`system.territory.0.families`) written whole on
 submit. `_processFormData` fills each row's unrendered fields from the stored
@@ -167,19 +219,26 @@ submits into rows before the model cleans them. A row's add and remove buttons
 submit the form first, so an edit in flight is not written over.
 
 **Drops are read by what is dropped.** A place is held. A domain dropped on
-the liege row (`[data-drop-zone="liege"]`) becomes this domain's liege, and
+the liege chip (`[data-drop-zone="liege"]`) becomes this domain's liege, and
 dropped anywhere else becomes its vassal. An organisation is refused — it is
 not a ruler. Any other actor becomes the ruler. Items are refused, goods in
-the words every sheet that lists no goods uses.
+the words every sheet that lists no goods uses. The other way round, a
+domain dropped on a place's sheet or an organisation's is refused, with where
+it belongs.
+
+**A place's sheet names its domain.** Beside its organisations, a location
+sheet shows the domain holding it, or holding the nearest place around it,
+for the Judge and the place's owners; a hidden holding shows to the Judge
+alone.
+
+**A domain's token is a marker**, kept out of every reader that takes a
+token for a body by lib's `isMarkerActor` ([PLACES.md](../lib/PLACES.md)).
 
 **An open sheet follows the actors it reads.** Core re-renders a sheet for its
 own document only; `registerDomainSheetRefresh` re-renders every open domain
 sheet when another domain, a place or its ruler is created, changed or
 deleted, gathered into one render per burst. Without it a liege's sheet keeps
 listing a released vassal and a deleted settlement's families.
-
-The sheet scrolls at its body part root, which keeps its place across the
-re-render every edit makes.
 
 ## The official sheet's domain page
 
@@ -216,7 +275,8 @@ patterns and takes on invented text.
 
 ## The api
 
-`acksExtras.domains`, published at `init`:
+`acksExtras.domains`, published at `init`, `apiVersion` 2 (2 added
+`promoteVassal` and `foundSettlement`):
 
 - readers — `isDomain`, `allDomains`, `domainOf`, `domainsHolding`,
   `holdsPlace`, `domainsRuledBy`, `vassalsOf`, `liegeOf`, `wouldCycle`;
@@ -224,8 +284,8 @@ patterns and takes on invented text.
   included, hands `system`), `blankDomain`, and the sums `familiesOf`,
   `ledgerFor`, `ledgerOf`, `peasantFamiliesOf`, `urbanFamiliesOf`,
   `hexCountOf`, `strongholdValueOf`, `tributeInOf`;
-- the Judge's writers — `setLiege`, `hold`, `release`, each returning why it
-  refused;
+- the Judge's writers — `setLiege`, `hold`, `release`, `promoteVassal`,
+  `foundSettlement`, each returning why it refused;
 - the vocabularies and `DomainSheet`.
 
 A domain is created like any actor, then updated: the system's own

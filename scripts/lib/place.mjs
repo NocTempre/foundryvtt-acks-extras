@@ -81,6 +81,20 @@ const CONTAINED_IN = "containedIn";
 export const isLocation = (doc) => doc?.documentName === "Actor" && doc?.type === LOCATION_TYPE;
 
 /**
+ * The sub-types whose token marks a body on the map rather than standing for
+ * a creature: a place, an organisation, a domain. Named here, not imported,
+ * for the same reason as `LOCATION_TYPE`.
+ */
+const MARKER_TYPES = new Set([LOCATION_TYPE, `${MODULE_ID}.faction`, `${MODULE_ID}.domain`]);
+
+/**
+ * Is this actor a marker — a place, an organisation or a domain? A reader
+ * that takes a token for a body (an occupant, a sense, a footprint, a party
+ * member) leaves a marker's token alone.
+ */
+export const isMarkerActor = (doc) => doc?.documentName === "Actor" && MARKER_TYPES.has(doc?.type);
+
+/**
  * Is this item something gear can go inside? True for a declared capacity
  * (any gear may have one) or a container state flag — checking only the
  * flag would miss a capacity-only container.
@@ -392,10 +406,11 @@ export function sceneOccupants(scene) {
   for (const token of scene.tokens ?? []) {
     const actor = token.actor;
     if (!actor || actor.isToken) continue; // unlinked: uuid dies with the token
-    // A place's token is a point of interest on the map, not somebody living
+    // A marker's token is a point of interest on the map, not somebody living
     // here: a shrine standing in the market square is not the square's tenant,
-    // and neither is the wagon deployed beside it.
-    if (isLocation(actor) || isDeployed(actor)) continue;
+    // and neither is the guild's banner, the barony's or the wagon deployed
+    // beside them.
+    if (isMarkerActor(actor) || isDeployed(actor)) continue;
     if (seen.has(actor.uuid)) continue;
     seen.add(actor.uuid);
     rows.push(occupantRow(actor));

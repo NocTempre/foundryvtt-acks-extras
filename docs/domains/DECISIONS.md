@@ -128,3 +128,65 @@ an older edition's word is mapped to a key by the importer's binding, not by
 the schema. *Inferred, unverified:* the older edition's wilderness class
 corresponds to outlands; the binding settles it against the System
 Compatibility Guide, where conversions start.
+
+### Wave 2: the sheet in the character sheet's frame (2026-10-22)
+
+**Ruled:** the domain sheet takes the frame the party sheet took in 11.4.0 —
+the band in the window header, an art row of chips, tags and rails above the
+tabs, the tabs as pills, each tab a part that scrolls at its root. The
+wave-1 class, its actions, its tab ids and its form handling stay; its
+templates are replaced. This is the replacement the 2026-10-17 entry
+scheduled, and it reverses no ruling of that day. The band's move into the
+header is lib's `moveBandIntoHeader`, written once here; the character, item
+and party sheets still carry their own copies (`docs/lib/ROADMAP.md`).
+
+**Rejected:** the plain sheet's liege `<select>` kept beside the chip. The
+chip's picker does what the select did, and two controls for one field are
+two places for an edit to land.
+
+### A promoted vassal row keeps every figure it held (2026-10-22)
+
+**Ruled:** each of a vassal row's figures lands where a domain keeps it
+(`docs/domains/MODEL.md`, "The realm"). The additional tax is added to the new
+domain's tribute out, because a row's tribute and its additional tax are both
+what its liege receives: the liege's tribute in is the same before the
+promotion and after. The figures a domain sums from its own record rather
+than storing — realm families and hexes, the realm garrison, the row's
+revenue, and the tax split — go to the new domain's notes, one labelled line
+each. A row naming one classification gives it; a row naming several leaves
+it blank and notes them.
+
+**Rejected:** dropping the summed figures. They are the record's, and the
+Judge reconciling the new domain against its printed row needs them.
+**Rejected:** schema fields to hold them. A stored copy of a figure the
+domain sums is a second source for it, the drift the holdings ruling refused,
+and wave 3 derives them.
+
+**Cost:** the new domain's month reads partial until its lines are entered,
+as any fresh domain does.
+
+### The pickers offer the system's people and the realm's domains (2026-10-22)
+
+**Ruled:** the ruler picker lists the world's `character` and `monster`
+actors; the liege picker every other domain that would not close a loop. A
+drop still takes any actor that is not a marker as the ruler.
+
+**Rejected:** every actor in the ruler picker. The list would be the world's
+places, organisations and vehicles, and a domain's ruler is a person.
+
+### A place and an organisation refuse a dropped domain, through the api (2026-10-22)
+
+**Ruled:** the location and faction sheets refuse a dropped domain with a
+warning saying where it belongs, and the location sheet names the domain
+holding it or the place around it. Both ask `acksExtras.domains`, never this
+feature's files.
+
+**Why.** Domains imports the location's and the factions' constants; either
+importing domains back is a cycle, and the api is the seam between features.
+
+### The treasury row stands empty until the month writes it (2026-10-22)
+
+**Ruled:** the Ledger shows a treasury row with no figure and no field.
+
+**Rejected:** a treasury field now. Wave 3's month is its one writer, and a
+field added before its writer is a stored figure nobody keeps.

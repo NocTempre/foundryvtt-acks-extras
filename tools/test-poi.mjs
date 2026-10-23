@@ -12,7 +12,7 @@
 import assert from "node:assert/strict";
 import { MODULE_ID } from "../scripts/lib/constants.mjs";
 import { LOCATION_TYPE } from "../scripts/location/constants.mjs";
-import { sceneOccupants } from "../scripts/lib/place.mjs";
+import { isMarkerActor, sceneOccupants } from "../scripts/lib/place.mjs";
 import {
   DISTRICT_RELATION, TRANSIENT_FLAG, WILDS_FLAG, districtRelation, expiredNoteIds, noteLabel, poiTravelTurns,
   promotedPlaceData, ringsTouch, terrainMarkData, transientNoteData, transientOf,
@@ -238,6 +238,19 @@ ok("a place's token stands on the map without living there", () => {
   };
   const rows = sceneOccupants(scene);
   assert.deepEqual(rows.map((r) => r.uuid), ["Actor.hero"], "one body, once; the shrine is not a tenant");
+});
+
+ok("an organisation's or a domain's token is a marker, not a tenant", () => {
+  const marker = (uuid, type) => ({ actor: { uuid, name: uuid, documentName: "Actor", type, isToken: false } });
+  const scene = {
+    tokens: [marker("Actor.org", "acks-extras.faction"), marker("Actor.realm", "acks-extras.domain"), marker("Actor.hero", "character")],
+  };
+  assert.deepEqual(sceneOccupants(scene).map((r) => r.uuid), ["Actor.hero"]);
+  assert.deepEqual(
+    [marker("Actor.p", LOCATION_TYPE), marker("Actor.org", "acks-extras.faction"), marker("Actor.realm", "acks-extras.domain"), marker("Actor.hero", "character")].map((t) => isMarkerActor(t.actor)),
+    [true, true, true, false],
+  );
+  assert.equal(isMarkerActor({ documentName: "Item", type: "acks-extras.domain" }), false, "a marker is an actor");
 });
 
 console.log("\ntest-poi: all " + passed + " checks passed");

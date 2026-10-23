@@ -130,7 +130,7 @@ import {
   SETTING_TRANSIENT_TURNS, TRAVEL_OPTION, dropIncidentNote, expireTransientNotes, installIncidentCardActions,
   pickAndTravel, poiTargets, promoteIncident, transientNotesOn, travelToPlace,
 } from "./poi.mjs";
-import { isLocation } from "../lib/place.mjs";
+import { isMarkerActor } from "../lib/place.mjs";
 import { closeDay, offerDayEnd } from "./day-close.mjs";
 import { onWorldTimeAdvanced, calendarDay } from "../lib/world-time.mjs";
 import { SETTING_SKY_CACHE } from "./sky.mjs";
@@ -1184,9 +1184,9 @@ Hooks.on("chatMessage", (_chatLog, message) => {
  */
 async function addTokensToParty(seedToken) {
   const scene = seedToken.parent;
-  // A place's token is a marker on the map, not a body that can march.
+  // A marker's token (a place, an organisation, a domain) is not a body that can march.
   const eligible = (tokenDoc) =>
-    tokenDoc.actor && tokenDoc.actor.type !== PARTY_TYPE && !isLocation(tokenDoc.actor)
+    tokenDoc.actor && tokenDoc.actor.type !== PARTY_TYPE && !isMarkerActor(tokenDoc.actor)
     && !tokenDoc.getFlag(MODULE_ID, FLAG_FORMATION_ID);
   const tokens = (canvas?.tokens?.controlled ?? []).map((t) => t.document).filter(eligible);
   if (!tokens.some((t) => t.id === seedToken.id) && eligible(seedToken)) tokens.unshift(seedToken);
@@ -1247,7 +1247,7 @@ Hooks.on("renderTokenHUD", (hud, html) => {
   // A saved order is what the button restores, so with none saved there is
   // nothing to offer and the button stays off the HUD entirely.
   if (isParty && !listTemplates().length) return;
-  if (!isParty && (tokenDoc.getFlag(MODULE_ID, FLAG_FORMATION_ID) || isLocation(tokenDoc.actor))) return;
+  if (!isParty && (tokenDoc.getFlag(MODULE_ID, FLAG_FORMATION_ID) || isMarkerActor(tokenDoc.actor))) return;
 
   const button = document.createElement("button");
   button.type = "button";

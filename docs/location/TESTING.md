@@ -378,6 +378,10 @@ owner is gone) are walked in docs/lib/TESTING.md, "The repair tool". Coin
 moving between holders is docs/lib/TESTING.md, "Coin: one stack, moved and
 never copied".
 
+The sheet's Domain line — on a held place and on a place inside one — is
+walked in docs/domains/TESTING.md, step 9; a domain dropped on a place's
+sheet, refused with the place unchanged, is step 17 there.
+
 ## Teardown
 
 Delete every document the compendium steps imported (filter the pack index by

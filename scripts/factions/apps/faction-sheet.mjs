@@ -36,6 +36,7 @@ import {
   factionRecord, headcountOf, normalizeStrength, readableLeaderUuid, readableRows, strengthColumnTotals, strengthRevenue,
   strengthTotal, wouldCycleFaction,
 } from "../standing-logic.mjs";
+import { acksExtras } from "../../namespace.mjs";
 import { indexPlaces } from "../../lib/place-logic.mjs";
 import { isLocation, occupantRow } from "../../lib/place.mjs";
 import { makeLoc } from "../../lib/util.mjs";
@@ -311,6 +312,13 @@ export class FactionSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   /** @override */
   async _onDropActor(event, actor) {
     if (!actor || actor.uuid === this.actor.uuid || !this.isEditable) return;
+    // A domain is neither a member nor a holding: it answers to other domains,
+    // on a domain's own sheet. Asked through the api, so organisations import
+    // nothing of domains, which already reads them.
+    if (acksExtras.domains?.isDomain?.(actor)) {
+      ui.notifications.warn(loc("sheet.domainDropped", { name: actor.name }));
+      return;
+    }
     const tab = event?.target?.closest?.(".tab")?.dataset?.tab ?? this.tabGroups.primary;
     // A place takes the seat when it is dropped on the seat row or when there
     // is no seat yet, and otherwise joins the holdings — never both, so the

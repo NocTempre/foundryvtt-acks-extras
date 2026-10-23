@@ -1,5 +1,5 @@
 /**
- * Live walk, domains: docs/domains/TESTING.md, steps 1–12.
+ * Live walk, domains: docs/domains/TESTING.md, steps 1–18.
  * Machine values arrive through ./_env.mjs. Every figure typed into a fixture
  * is invented and every name is a neutral label, so the log holds nothing a
  * book printed.
@@ -127,6 +127,13 @@ const P = {
       await H.poll(() => H.root(app)?.querySelector?.('div.tab[data-tab="overview"]'));
       return app;
     };
+    H.openSheet = async (id) => {
+      const app = game.actors.get(id).sheet;
+      await app.render({ force: true });
+      await H.poll(() => H.root(app)?.querySelector?.(".window-content"));
+      await H.sleep(300);
+      return app;
+    };
     H.q = (app, sel) => H.root(app)?.querySelector(sel) ?? null;
     H.qa = (app, sel) => [...(H.root(app)?.querySelectorAll(sel) ?? [])];
     H.tab = async (app, id) => {
@@ -227,11 +234,115 @@ const P = {
     for (const t of ["overview", "territory", "holdings", "ledger", "realm", "notes"]) {
       tabs[t] = (await H.tab(app, t)) && (H.q(app, `div.tab[data-tab="${t}"]`)?.children.length ?? 0) > 0;
     }
-    const glance = H.qa(app, ".acks-extras-domain-glance dd").map((dd) => H.num(H.txt(dd)));
+    const rails = Object.fromEntries(H.qa(app, '[data-action="goTab"][data-key]').map((el) => [el.dataset.key, H.num(H.txt(el.querySelector(".acks-extras-domain-sheet__cell-value")))]));
     const totals = H.qa(app, 'div.tab[data-tab="ledger"] tr.acks-extras-domain-total td:nth-child(2)').map((td) => H.num(H.txt(td)));
     const partial = H.txt(H.q(app, ".acks-extras-domain-partial"));
     const ledger = H.D.ledgerFor(game.actors.get(id));
-    return { tabs, glance, totals, partial, unset: ledger.unset, unknown: ledger.unknown, api: ledger.totals, families: H.D.familiesOf(game.actors.get(id)) };
+    return { tabs, rails, totals, partial, unset: ledger.unset, unknown: ledger.unknown, api: ledger.totals, families: H.D.familiesOf(game.actors.get(id)) };
+  },
+
+  /** The frame: how many bands the window holds and where, the band's fields, the rails' partial cells, the chips and the tags. */
+  frame: async ({ id }) => {
+    const H = globalThis.__dm;
+    const app = await H.sheet(id);
+    const root = H.root(app);
+    const bands = [...root.querySelectorAll('[data-application-part="band"]')];
+    const val = (sel) => root.querySelector(sel)?.value ?? null;
+    return {
+      bands: bands.length,
+      inHeader: bands.length === 1 && !!bands[0].closest(".window-header"),
+      title: val('.window-header [name="system.title"]'),
+      name: val('.window-header [name="name"]'),
+      morale: [val('.window-header [name="system.morale.current"]'), val('.window-header [name="system.morale.base"]')],
+      partial: H.qa(app, '[data-action="goTab"].is-partial').map((el) => el.dataset.key),
+      chips: Object.fromEntries(H.qa(app, "[data-drop-zone]").map((el) => [el.dataset.dropZone, H.txt(el.querySelector(".acks-extras-domain-sheet__chip-name"))])),
+      tags: H.qa(app, "[data-tag]").map((el) => H.txt(el)),
+    };
+  },
+
+  /** Press a rail cell: does the tab its figure is kept on open? */
+  cellOpens: async ({ id, key }) => {
+    const H = globalThis.__dm;
+    const app = await H.sheet(id);
+    await H.tab(app, "overview");
+    const cell = H.q(app, `[data-action="goTab"][data-key="${key}"]`);
+    if (!cell) return { found: false };
+    const tab = cell.dataset.tab;
+    cell.click();
+    return { found: true, tab, active: !!(await H.poll(() => H.q(app, `div.tab[data-tab="${tab}"].active`))) };
+  },
+
+  /**
+   * Press a picker and read which of `probe` its dialog offers; choose
+   * `choice` by value, or close the dialog unchosen. A picker with nothing to
+   * offer opens no dialog.
+   */
+  pick: async ({ id, tab, selector, probe = [], choice = null }) => {
+    const H = globalThis.__dm;
+    const app = await H.sheet(id);
+    await H.tab(app, tab);
+    const el = H.q(app, selector);
+    if (!el) return { found: false };
+    el.click();
+    const dlg = await H.poll(() => H.apps().find((a) => a instanceof foundry.applications.api.DialogV2 && a.rendered && H.root(a)?.querySelector('select[name="choice"]')), { tries: 20 });
+    if (!dlg) {
+      await H.sleep(300);
+      return { found: true, dialog: false, count: 0, offered: Object.fromEntries(probe.map((u) => [u, false])) };
+    }
+    const select = H.root(dlg).querySelector('select[name="choice"]');
+    const values = [...select.options].map((o) => o.value);
+    let chosen = false;
+    if (choice && values.includes(choice)) {
+      select.value = choice;
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+      H.root(dlg).querySelector('button[data-action="ok"]').click();
+      chosen = true;
+    } else await dlg.close();
+    await H.sleep(1200);
+    return { found: true, dialog: true, count: values.length, offered: Object.fromEntries(probe.map((u) => [u, values.includes(u)])), chosen };
+  },
+
+  /** Drop a document on any actor's sheet, on its content box. */
+  dropOnSheet: async ({ id, uuid, type = "Actor" }) => {
+    const H = globalThis.__dm;
+    const app = await H.openSheet(id);
+    const el = H.root(app)?.querySelector(".window-content");
+    if (!el) return { found: false };
+    H.drop(el, uuid, type);
+    await H.sleep(1500);
+    return { found: true };
+  },
+
+  /** The text of one element on any actor's sheet. */
+  sheetText: async ({ id, selector }) => {
+    const H = globalThis.__dm;
+    const app = await H.openSheet(id);
+    const el = H.root(app)?.querySelector(selector);
+    return { rendered: !!app?.rendered, found: !!el, text: H.txt(el) };
+  },
+
+  name: async ({ id }) => game.actors.get(id)?.name ?? null,
+
+  /** Set each actor's token on the scene; who the scene's occupants are, and what size the battle map would give each. */
+  markers: async ({ sceneId, ids }) => {
+    const scene = game.scenes.get(sceneId);
+    const data = [];
+    for (const [i, id] of ids.entries()) data.push((await game.actors.get(id).getTokenDocument({ x: 100 * (i + 1), y: 100 })).toObject());
+    const made = await scene.createEmbeddedDocuments("Token", data);
+    await globalThis.__dm.sleep(500);
+    const sizeOf = acksExtras.battlemap?.sizeForToken;
+    return {
+      tokens: made.length,
+      occupants: acksExtras.lib.places.sceneOccupants(scene).map((r) => r.uuid),
+      sizes: Object.fromEntries(made.map((t) => [t.actor?.id ?? t.id, sizeOf ? sizeOf(t, scene) : "no api"])),
+    };
+  },
+
+  /** The facts of a made actor, for the report: its type, folder, market and record. */
+  made: async ({ uuid }) => {
+    const a = await fromUuid(uuid);
+    if (!a) return null;
+    return { name: a.name, type: a.type, folder: a.folder?.id ?? null, hasMarket: a.system?.market != null, system: globalThis.__dm.plain(a.system) };
   },
 
   /** Set one control on the sheet as a user would, by its name, and let the submit land. */
@@ -331,41 +442,69 @@ const P = {
     const app = await H.sheet(id, { fresh: true });
     const root = H.root(app);
     const named = [...root.querySelectorAll("input[name], select[name], textarea[name], prose-mirror[name]")];
+    const realmOpens = await H.tab(app, "realm");
     await H.tab(app, "holdings");
+    const writers = ["rowAdd", "rowDelete", "clearRuler", "releaseVassal", "pickRuler", "pickLiege", "clearLiege", "promoteVassal", "foundSettlement", "editHeraldry"];
+    const bands = [...root.querySelectorAll('[data-application-part="band"]')];
+    const readers = [...root.querySelectorAll('[data-action="tab"], [data-action="goTab"], [data-action="openDoc"]')];
     return {
       rendered: !!root,
       enabled: named.filter((el) => !el.disabled).map((el) => el.getAttribute("name")),
-      buttons: [...root.querySelectorAll('[data-action="rowAdd"], [data-action="rowDelete"], [data-action="clearRuler"], [data-action="releaseVassal"]')].length,
+      buttons: [...root.querySelectorAll(writers.map((a) => `[data-action="${a}"]`).join(", "))].length,
       hiddenShown: H.txt(root.querySelector('div.tab[data-tab="holdings"]')).includes(hiddenName),
       landInputs: [...root.querySelectorAll('[name$=".landValue"]')].map((el) => el.getAttribute("name")),
       gmNotes: !!root.querySelector('[name="system.gmNotes"]') || H.txt(root).includes(gmText),
+      bandInHeader: bands.length === 1 && !!bands[0].closest(".window-header"),
+      bandName: H.txt(root.querySelector(".window-header .acks-extras-domain-sheet__name")),
+      realmOpens,
+      readers: readers.length,
+      readersDisabled: readers.filter((el) => el.disabled).length,
     };
   },
 
-  /** A short window: does the body scroll to its last control with the tabs in view? */
-  shortWindow: async ({ id }) => {
+  /** A short window: does the active tab's part scroll to its last control with the tabs in view? */
+  shortWindow: async ({ id, height }) => {
     const H = globalThis.__dm;
     const app = await H.sheet(id, { fresh: true });
     await H.tab(app, "ledger");
-    app.setPosition({ height: 320 });
+    app.setPosition({ height });
     await H.sleep(500);
     const root = H.root(app);
-    const body = root.querySelector('[data-application-part="body"]');
-    const nav = root.querySelector('[data-application-part="header"] [data-action="tab"]');
-    const before = { scrollHeight: body.scrollHeight, clientHeight: body.clientHeight, overflowY: getComputedStyle(body).overflowY };
-    body.scrollTop = body.scrollHeight;
-    await H.sleep(300);
-    const controls = [...body.querySelectorAll('div.tab.active input, div.tab.active select, div.tab.active button')];
-    const last = controls.at(-1);
-    const br = body.getBoundingClientRect();
-    const lr = last?.getBoundingClientRect();
+    const content = root.querySelector(".window-content");
+    const body = root.querySelector('[data-application-part="ledger"]');
+    const nav = root.querySelector('[data-application-part="tabs"] [data-action="tab"]');
+    const before = { scrollHeight: body.scrollHeight, clientHeight: body.clientHeight, overflowY: getComputedStyle(body).overflowY, contentScrolls: content.scrollHeight > content.clientHeight };
+    const navBefore = nav?.getBoundingClientRect();
     const fr = root.getBoundingClientRect();
-    const nr = nav?.getBoundingClientRect();
+    // The panel first, then the content box, as a reader's wheel would.
+    body.scrollTop = body.scrollHeight;
+    content.scrollTop = content.scrollHeight;
+    await H.sleep(300);
+    const inside = (r, box) => !!r && r.bottom <= box.bottom + 1 && r.top >= box.top - 1;
+    const panelInView = inside(body.getBoundingClientRect(), content.getBoundingClientRect());
+    const endReached = body.scrollTop >= body.scrollHeight - body.clientHeight - 1;
+    // Content with no control in it can follow the last control, so a panel
+    // at its end need not show it: wheel the panel back until it does.
+    const controls = [...body.querySelectorAll("input, select, button")];
+    const last = controls.at(-1);
+    if (last) body.scrollTop -= body.getBoundingClientRect().bottom - last.getBoundingClientRect().bottom;
+    await H.sleep(100);
+    const lr = last?.getBoundingClientRect();
+    const box = (r) => r && { top: Math.round(r.top), bottom: Math.round(r.bottom) };
     return {
       ...before,
-      lastReached: !!lr && lr.bottom <= br.bottom + 1 && lr.top >= br.top - 1,
-      navInView: !!nr && nr.top >= fr.top && nr.bottom <= fr.bottom,
+      contentOverflowY: getComputedStyle(content).overflowY,
+      panelInView,
+      endReached,
+      lastReached: inside(lr, body.getBoundingClientRect()) && inside(lr, content.getBoundingClientRect()),
+      navInView: inside(navBefore, fr),
       frameHeight: Math.round(fr.height),
+      geometry: {
+        header: Math.round(root.querySelector(".window-header")?.getBoundingClientRect().height ?? 0),
+        content: { ...box(content.getBoundingClientRect()), clientHeight: content.clientHeight, scrollHeight: content.scrollHeight, scrollTop: Math.round(content.scrollTop) },
+        panel: { ...box(body.getBoundingClientRect()), scrollTop: Math.round(body.scrollTop) },
+        last: last && { ...box(lr), tag: last.tagName, name: last.name || last.dataset.action || "" },
+      },
     };
   },
 
@@ -378,7 +517,7 @@ const P = {
     const px = (el) => (el ? parseFloat(getComputedStyle(el).fontSize) : null);
     return {
       body: px(root.querySelector('div.tab[data-tab="overview"] .acks-extras-domain-label')),
-      header: px(root.querySelector(".acks-extras-domain-name")),
+      header: px(root.querySelector(".window-header .acks-extras-domain-sheet__name")),
     };
   },
 };
@@ -418,7 +557,7 @@ try {
   gm = await seat("gm");
   const census = await run(gm, P.census, { mod: MOD, type: DOMAIN });
   note("gm census", census);
-  check("before anything else: the world declares the domain sub-type, the api is published, and this seat is the active GM", census.domainType && census.api === 1 && census.activeGMIsSelf, census);
+  check("before anything else: the world declares the domain sub-type, the api is published, and this seat is the active GM", census.domainType && census.api === 2 && census.activeGMIsSelf, census);
   if (!census.domainType) throw new Error("the world does not declare acks-extras.domain: shut it down and relaunch it");
   prunePre = census.prune;
   fontPre = census.fontScale;
@@ -447,8 +586,8 @@ try {
   const r1 = await run(gm, P.read, { id: D1.id });
   note("read", r1);
   check("1: every tab renders the record", Object.values(r1.tabs).every(Boolean), r1.tabs);
-  check("1: Overview shows the families, hexes and stronghold value summed by hand", same(r1.glance.slice(0, 4), [BY_HAND.peasant, BY_HAND.urban, BY_HAND.hexes, BY_HAND.stronghold]), { shown: r1.glance, byHand: BY_HAND });
-  check("1: the Ledger's totals equal the lines summed by hand, and the api agrees", same(r1.totals, [BY_HAND.revenue, BY_HAND.expenses, BY_HAND.income]) && same(r1.api, { revenue: BY_HAND.revenue, expenses: BY_HAND.expenses, income: BY_HAND.income }), { shown: r1.totals, api: r1.api });
+  check("1: the land rail shows the families, hexes and stronghold value summed by hand", same([r1.rails.peasant, r1.rails.urban, r1.rails.hexes, r1.rails.stronghold], [BY_HAND.peasant, BY_HAND.urban, BY_HAND.hexes, BY_HAND.stronghold]), { shown: r1.rails, byHand: BY_HAND });
+  check("1: the Ledger's totals and the month rail equal the lines summed by hand, and the api agrees", same(r1.totals, [BY_HAND.revenue, BY_HAND.expenses, BY_HAND.income]) && same([r1.rails.revenue, r1.rails.expenses, r1.rails.income], r1.totals) && same(r1.api, { revenue: BY_HAND.revenue, expenses: BY_HAND.expenses, income: BY_HAND.income }), { shown: r1.totals, rails: r1.rails, api: r1.api });
   check("1: the ledger is partial with one line unset, and says so", r1.unset === 1 && r1.unknown === 0 && r1.partial.length > 0, { unset: r1.unset, unknown: r1.unknown, partial: r1.partial });
   note("enter the tithe", await run(gm, P.edit, { id: D1.id, tab: "ledger", name: "system.expenses.tithe.peasantGp", value: String(TITHE) }));
   const r1b = await run(gm, P.read, { id: D1.id });
@@ -456,10 +595,13 @@ try {
   note("errors (1)", await run(gm, P.take));
 
   section("2. every kind of field");
+  const d1Name = `Domain 1 ${NONCE} A`;
   const edits = [
     ["overview", "system.title", "Title 2"],
+    ["overview", "name", d1Name],
     ["overview", "system.classification", "outlands"],
     ["overview", "system.morale.current", ""],
+    ["overview", "system.morale.base", "2"],
     ["territory", "system.territory.0.families", "130"],
     ["territory", "system.territory.0.hexLabels", "0101, 0102"],
     ["realm", "system.vassalRows.0.domainHexes.classes.civilized", true],
@@ -469,7 +611,8 @@ try {
   editResults.push(["system.notes", await run(gm, P.edit, { id: D1.id, tab: "notes", name: "system.notes", value: "<p>Notes 2</p>", prose: true })]);
   note("edits", editResults);
   const s2 = await run(gm, P.system, { id: D1.id });
-  check("2: text, select and number fields land typed, a cleared number is null", s2.title === "Title 2" && s2.classification === "outlands" && s2.morale.current === null && s2.morale.base === 0, { title: s2.title, classification: s2.classification, morale: s2.morale });
+  const name2 = await run(gm, P.name, { id: D1.id });
+  check("2: text, select and number fields land typed — the band's title, name and morale among them — and a cleared number is null", s2.title === "Title 2" && name2 === d1Name && s2.classification === "outlands" && s2.morale.current === null && s2.morale.base === 2, { title: s2.title, name: name2, classification: s2.classification, morale: s2.morale });
   check("2: a row field and a hex-label list land, and the other rows keep their values", s2.territory[0].families === 130 && same(s2.territory[0].hexLabels, ["0101", "0102"]) && s2.territory[1].families === 200 && s2.territory[1].count === 4 && s2.holdings.length === 1 && s2.holdings[0].families === 50, { t0: s2.territory[0], t1: s2.territory[1] });
   check("2: a vassal row's class checkbox lands beside the class it had", same(s2.vassalRows[0].domainHexes.classes, ["civilized", "outlands"]) && s2.vassalRows[0].tributeGp === 70, s2.vassalRows[0].domainHexes);
   check("2: the notes land", /Notes 2/.test(s2.notes), { notes: s2.notes, found: editResults.at(-1)[1] });
@@ -494,7 +637,7 @@ try {
   const held = Object.fromEntries(s4.holdings.filter((h) => h.uuid).map((h) => [h.uuid, h.role]));
   const r4 = await run(gm, P.read, { id: D1.id });
   check("4: the settlement is held as a settlement and the stronghold place as other", held[S.uuid] === "settlement" && held[K.uuid] === "other", held);
-  check("4: the urban families include the place's own", r4.families.urban === 50 + 75 && r4.glance[1] === 125, r4.families);
+  check("4: the urban families include the place's own, on the rail and in the api", r4.families.urban === 50 + 75 && r4.rails.urban === 125, { families: r4.families, rail: r4.rails.urban });
   const n4 = await run(gm, P.take);
   await run(gm, P.dropOn, { id: D2.id, tab: "holdings", uuid: S.uuid });
   const n4b = await run(gm, P.take);
@@ -516,8 +659,8 @@ try {
   const s5 = await run(gm, P.system, { id: D1.id });
   const v5b = await run(gm, P.system, { id: D2.id });
   check("5: the vassal dropped on the liege row is refused as a loop, naming both, and neither edge moved", s5.parentUuid === "" && v5b.parentUuid === D1.uuid && n5.notes.some((n) => n.kind === "warn" && n.text.includes(`Domain 1 ${NONCE}`) && n.text.includes(`Domain 2 ${NONCE}`)), { d1: s5.parentUuid, d2: v5b.parentUuid, notes: n5.notes });
-  const l5b = await run(gm, P.look, { id: D1.id, tab: "overview", options: ['select[name="system.parentUuid"]'] });
-  check("5: the liege picker does not offer the vassal", !Object.values(l5b.options)[0].includes(D2.uuid) && Object.values(l5b.options)[0].includes(""), l5b.options);
+  const p5 = await run(gm, P.pick, { id: D1.id, tab: "overview", selector: '[data-drop-zone="liege"] [data-action="pickLiege"]', probe: [D2.uuid, D1.uuid] });
+  check("5: the liege picker offers neither the vassal nor the domain itself", p5.found && !p5.offered[D2.uuid] && !p5.offered[D1.uuid], p5);
   await run(gm, P.press, { id: D1.id, tab: "realm", selector: `tr[data-uuid="${D2.uuid}"] [data-action="releaseVassal"]` });
   const v5c = await run(gm, P.system, { id: D2.id });
   check("5: the release button cuts the vassal loose", v5c.parentUuid === "", v5c.parentUuid);
@@ -561,6 +704,15 @@ try {
   const of9 = await run(gm, P.ask, { fn: "domainOf", args: [inner.uuid] });
   const holds9 = await run(gm, P.ask, { fn: "holdsPlace", args: [inner.uuid] });
   check("9: a place inside a held settlement answers to its domain, and is not itself held", of9 === D1.uuid && holds9 === false, { domainOf: of9, holdsPlace: holds9 });
+  const line9s = await run(gm, P.sheetText, { id: S.id, selector: ".acks-extras-place-domain" });
+  const line9i = await run(gm, P.sheetText, { id: inner.id, selector: ".acks-extras-place-domain" });
+  check("9: the held place's sheet names its domain, holding it", line9s.found && line9s.text.includes(`Domain 1 ${NONCE}`) && line9s.text.includes("holds this place"), line9s);
+  check("9: the inner place's sheet names the domain and the place around it that is held", line9i.found && line9i.text.includes(`Domain 1 ${NONCE}`) && line9i.text.includes(`Town 2 ${NONCE}`), line9i);
+  // The prune took the control, so the place no domain holds is made here.
+  const free = await mk("Place 4", LOCATION);
+  const line9f = await run(gm, P.sheetText, { id: free.id, selector: ".acks-extras-place-domain" });
+  check("9: a place no domain holds renders with no Domain line", line9f.rendered && !line9f.found, line9f);
+  await run(gm, P.closeAll);
 
   section("10. the delete path");
   await run(gm, P.take);
@@ -578,7 +730,9 @@ try {
   note("observer, hidden holding", await run(gm, P.update, { id: D1.id, data: { ownership: { default: 0, [pc.userId]: 2 }, "system.holdings": holdings11 } }));
   const pv = await run(player, P.playerView, { id: D1.id, hiddenName: `Place 1 ${NONCE}`, gmText: "Judge only 1" });
   note("player view", pv);
-  check("11: on the player's sheet every control is disabled and no row button renders", pv.rendered && pv.enabled.length === 0 && pv.buttons === 0, { enabled: pv.enabled, buttons: pv.buttons });
+  check("11: on the player's sheet every control is disabled and no writing button renders — row, chip, promote, found or heraldry", pv.rendered && pv.enabled.length === 0 && pv.buttons === 0, { enabled: pv.enabled, buttons: pv.buttons });
+  check("11: the player's band sits in the header and names the domain", pv.bandInHeader && pv.bandName === d1Name, { bandInHeader: pv.bandInHeader, bandName: pv.bandName });
+  check("11: the reading presses stay live for the player: the tabs open, and no tab, rail cell or name is disabled", pv.realmOpens && pv.readers > 0 && pv.readersDisabled === 0, { realmOpens: pv.realmOpens, readers: pv.readers, disabled: pv.readersDisabled });
   check("11: the hidden holding and the Judge's notes are absent, and only the revealed row shows its land value", !pv.hiddenShown && !pv.gmNotes && same(pv.landInputs, ["system.territory.0.landValue"]), pv);
   const ph = await run(player, P.ask, { fn: "hold", args: [`@${D1.id}`, { uuid: K.uuid }] });
   check("11: the api refuses the player's client", ph?.ok === false && ph?.reason === "judgeOnly", ph);
@@ -586,16 +740,111 @@ try {
   await run(player, P.closeAll);
 
   section("12. layout");
-  const sw = await run(gm, P.shortWindow, { id: D1.id });
+  const sw = await run(gm, P.shortWindow, { id: D1.id, height: 460 });
   note("short window", sw);
-  check("12: in a short window the body scrolls to its last control and the tabs stay in view", /auto|scroll/.test(sw.overflowY) && sw.scrollHeight > sw.clientHeight && sw.lastReached && sw.navInView, sw);
+  check("12: in a short window the active tab scrolls to its end and to its last control, and the tabs stay in view", /auto|scroll/.test(sw.overflowY) && sw.scrollHeight > sw.clientHeight && sw.endReached && sw.lastReached && sw.navInView, sw);
+  const sw2 = await run(gm, P.shortWindow, { id: D1.id, height: 200 });
+  note("shorter than the frame", sw2);
+  check("12: in a window shorter than the frame the content box scrolls the whole panel into view, and the panel still reaches its end and its last control", sw2.contentScrolls && /auto|scroll/.test(sw2.contentOverflowY) && sw2.panelInView && sw2.endReached && sw2.lastReached, sw2);
   note("fontScale 14", await run(gm, P.setSetting, { mod: MOD, key: "fontScale", value: 14 }));
   const t14 = await run(gm, P.typeSize, { id: D1.id });
   note("fontScale 18", await run(gm, P.setSetting, { mod: MOD, key: "fontScale", value: 18 }));
   const t18 = await run(gm, P.typeSize, { id: D1.id });
   const ratio = (a, b) => (a && b ? Math.round((b / a) * 1000) / 1000 : null);
   check("12: on a fresh window the body and the header both take the type size (18/14 = 1.286)", Math.abs(ratio(t14.body, t18.body) - 18 / 14) < 0.03 && Math.abs(ratio(t14.header, t18.header) - 18 / 14) < 0.03, { at14: t14, at18: t18, body: ratio(t14.body, t18.body), header: ratio(t14.header, t18.header) });
+  note("fontScale back", await run(gm, P.setSetting, { mod: MOD, key: "fontScale", value: fontPre }));
   note("errors (12)", await run(gm, P.take));
+
+  section("13. the frame");
+  const f13 = await run(gm, P.frame, { id: D1.id });
+  const r13 = await run(gm, P.read, { id: D1.id });
+  note("frame", f13);
+  check("13: after every re-render the window holds one band, in its header, with the record's title, name and morale", f13.bands === 1 && f13.inHeader && f13.title === "Title 2" && f13.name === d1Name && same(f13.morale, ["", "2"]), f13);
+  check("13: the rails equal the api's sums, the urban count reading as a floor while a settlement gives no figure", r13.rails.peasant === r13.families.peasant && r13.rails.urban === r13.families.urban && r13.rails.revenue === r13.api.revenue && r13.rails.expenses === r13.api.expenses && r13.rails.income === r13.api.income, { rails: r13.rails, families: r13.families, api: r13.api });
+  check("13: over a partial ledger the month's three cells are marked partial, and the land's are not", r13.partial.length > 0 && same(f13.partial, ["revenue", "expenses", "income"]), { partialCells: f13.partial, note: r13.partial });
+  check("13: the chips name the ruler and the liege's absence, and the tags the classification and the ruler's alignment", f13.chips.ruler === `NPC 1 ${NONCE}` && f13.chips.liege.length > 0 && f13.tags.length === 2, { chips: f13.chips, tags: f13.tags });
+  const c13a = await run(gm, P.cellOpens, { id: D1.id, key: "hexes" });
+  const c13b = await run(gm, P.cellOpens, { id: D1.id, key: "income" });
+  check("13: a rail cell opens the tab its figure is kept on", c13a.active && c13a.tab === "territory" && c13b.active && c13b.tab === "ledger", { hexes: c13a, income: c13b });
+  note("errors (13)", await run(gm, P.take));
+
+  section("14. the ruler and liege chips");
+  await run(gm, P.press, { id: D1.id, tab: "overview", selector: '[data-drop-zone="ruler"] [data-action="clearRuler"]' });
+  const s14a = await run(gm, P.system, { id: D1.id });
+  check("14: clearing the ruler drops the actor and keeps the record's word for them", s14a.rulerUuid === "" && s14a.rulerName === `NPC 1 ${NONCE}`, { rulerUuid: s14a.rulerUuid, rulerName: s14a.rulerName });
+  const p14a = await run(gm, P.pick, { id: D1.id, tab: "overview", selector: '[data-drop-zone="ruler"] [data-action="pickRuler"]', probe: [R.uuid, D1.uuid, D2.uuid, K.uuid, F.uuid], choice: R.uuid });
+  const s14b = await run(gm, P.system, { id: D1.id });
+  check("14: the ruler picker offers the character and no place, organisation or domain; choosing sets the ruler", p14a.offered[R.uuid] && !p14a.offered[D1.uuid] && !p14a.offered[D2.uuid] && !p14a.offered[K.uuid] && !p14a.offered[F.uuid] && p14a.chosen && s14b.rulerUuid === R.uuid, { offered: p14a.offered, rulerUuid: s14b.rulerUuid });
+  const p14b = await run(gm, P.pick, { id: D2.id, tab: "overview", selector: '[data-drop-zone="liege"] [data-action="pickLiege"]', probe: [D1.uuid, D2.uuid], choice: D1.uuid });
+  const s14c = await run(gm, P.system, { id: D2.id });
+  check("14: Domain 2's liege picker offers Domain 1 and not itself; choosing makes it the liege", p14b.offered[D1.uuid] && !p14b.offered[D2.uuid] && p14b.chosen && s14c.parentUuid === D1.uuid, { offered: p14b.offered, parentUuid: s14c.parentUuid });
+  await run(gm, P.take);
+  await run(gm, P.press, { id: D2.id, tab: "overview", selector: '[data-drop-zone="liege"] [data-action="clearLiege"]' });
+  const n14 = await run(gm, P.take);
+  const s14d = await run(gm, P.system, { id: D2.id });
+  check("14: clearing the liege cuts the vassalage and says so", s14d.parentUuid === "" && n14.notes.some((n) => n.kind === "info" && n.text.includes(`Domain 2 ${NONCE}`)), { parentUuid: s14d.parentUuid, notes: n14.notes });
+  note("errors (14)", n14.errors);
+  await run(gm, P.closeAll);
+
+  section("15. a vassal row becomes a domain");
+  const s15a = await run(gm, P.system, { id: D1.id });
+  const row15 = s15a.vassalRows[0];
+  const tIn15a = (await run(gm, P.ask, { fn: "ledgerFor", args: [`@${D1.id}`] })).tributeIn;
+  const before15 = await run(gm, P.ask, { fn: "vassalsOf", args: [`@${D1.id}`] });
+  note("promote", await run(gm, P.press, { id: D1.id, tab: "realm", selector: `fieldset[data-row-id="${row15.id}"] [data-action="promoteVassal"]`, answer: "yes" }));
+  const after15 = await run(gm, P.ask, { fn: "vassalsOf", args: [`@${D1.id}`] });
+  const made15 = after15.filter((u) => !before15.includes(u));
+  for (const uuid of made15) gm.track(uuid, "Actor");
+  note("promoted (tracked)", made15);
+  const s15b = await run(gm, P.system, { id: D1.id });
+  const tIn15b = (await run(gm, P.ask, { fn: "ledgerFor", args: [`@${D1.id}`] })).tributeIn;
+  const m15 = made15.length === 1 ? await run(gm, P.made, { uuid: made15[0] }) : null;
+  note("the new domain", m15 && { name: m15.name, type: m15.type, parentUuid: m15.system.parentUuid, tributeGp: m15.system.tributeGp, classification: m15.system.classification, territory: m15.system.territory, notes: m15.system.notes });
+  const d1Folder = JSON.parse(await gm.eval(`JSON.stringify(game.actors.get(${JSON.stringify(D1.id)}).folder?.id ?? null)`));
+  check("15: one new domain, answering to Domain 1, in its folder, and the row is gone", made15.length === 1 && m15?.type === DOMAIN && m15.system.parentUuid === D1.uuid && m15.folder === d1Folder && !s15b.vassalRows.some((r) => r.id === row15.id), { made: made15, folder: m15?.folder, d1Folder, rows: s15b.vassalRows.length });
+  check("15: the new domain carries the row: ruler, tribute with the additional tax, hexes and peasants as a tract, the classes in its notes", m15?.system.rulerName === row15.rulerName && m15?.system.tributeGp === row15.tributeGp + row15.extraTaxGp && m15?.system.territory[0]?.count === row15.domainHexes.count && m15?.system.territory[0]?.families === row15.families.peasant && m15?.system.classification === "" && /Domain hexes/.test(m15?.system.notes ?? ""), m15?.system && { rulerName: m15.system.rulerName, tributeGp: m15.system.tributeGp, territory: m15.system.territory });
+  check("15: Domain 1's tribute in is what it was", same(tIn15a, tIn15b), { before: tIn15a, after: tIn15b });
+  note("errors (15)", await run(gm, P.take));
+
+  section("16. a settlement is founded");
+  const s16a = await run(gm, P.system, { id: D1.id });
+  note("found", await run(gm, P.press, { id: D1.id, tab: "holdings", selector: '[data-action="foundSettlement"]', answer: "ok" }));
+  const s16b = await run(gm, P.system, { id: D1.id });
+  const new16 = s16b.holdings.filter((h) => h.uuid && !s16a.holdings.some((o) => o.uuid === h.uuid));
+  for (const h of new16) gm.track(h.uuid, "Actor");
+  note("founded (tracked)", new16.map((h) => h.uuid));
+  const m16 = new16.length === 1 ? await run(gm, P.made, { uuid: new16[0].uuid }) : null;
+  const of16 = new16.length === 1 ? await run(gm, P.ask, { fn: "domainOf", args: [new16[0].uuid] }) : null;
+  const n16 = await run(gm, P.take);
+  check("16: one new location with a market, held by Domain 1 as a settlement", new16.length === 1 && m16?.type === LOCATION && m16.hasMarket && new16[0].role === "settlement" && of16 === D1.uuid, { holding: new16[0], made: m16 && { name: m16.name, type: m16.type, hasMarket: m16.hasMarket }, domainOf: of16 });
+  check("16: the founding says so, and nothing errs", n16.notes.some((n) => n.kind === "info") && n16.errors.length === 0, n16);
+  await run(gm, P.closeAll);
+
+  section("17. a domain is refused by a place and by an organisation");
+  const k17a = await run(gm, P.system, { id: K.id });
+  const f17a = await run(gm, P.system, { id: F.id });
+  await run(gm, P.take);
+  await run(gm, P.dropOnSheet, { id: K.id, uuid: D1.uuid });
+  await run(gm, P.dropOnSheet, { id: F.id, uuid: D1.uuid });
+  const n17 = await run(gm, P.take);
+  const k17b = await run(gm, P.system, { id: K.id });
+  const f17b = await run(gm, P.system, { id: F.id });
+  check("17: dropped on a place's sheet and on an organisation's, a domain is refused with a warning naming it, and neither record moves", same(k17a, k17b) && same(f17a, f17b) && n17.notes.filter((n) => n.kind === "warn" && n.text.includes(`Domain 1 ${NONCE}`)).length === 2, { notes: n17.notes, placeSame: same(k17a, k17b), orgSame: same(f17a, f17b) });
+  note("errors (17)", n17.errors);
+  await run(gm, P.closeAll);
+
+  section("18. a domain's token is a marker");
+  // Inactive by name: core activates a new scene when none is active, which
+  // pulls every seated client to it and draws its canvas under the tokens.
+  const scene18 = await gm.create("Scene", { name: `Scene 1 ${NONCE}`, active: false, width: 1000, height: 600, grid: { size: 100, distance: 5, units: "ft" } });
+  await run(gm, P.take);
+  const m18 = await run(gm, P.markers, { sceneId: scene18.id, ids: [D1.id, F.id, K.id, R.id] });
+  note("markers", m18);
+  check("18: of a domain's, an organisation's, a place's and a character's tokens, only the character is an occupant", m18.tokens === 4 && m18.occupants.length === 1 && m18.occupants[0].includes(R.id), m18.occupants);
+  check("18: the battle map sizes the character's token and none of the three markers", m18.sizes[D1.id] === null && m18.sizes[F.id] === null && m18.sizes[K.id] === null && m18.sizes[R.id] !== null && m18.sizes[R.id] !== "no api", m18.sizes);
+  const n18 = await run(gm, P.take);
+  const active18 = await gm.eval(`!!game.scenes.get(${JSON.stringify(scene18.id)})?.active`);
+  check("18: the scene stays inactive and placing the tokens errs nothing", active18 === false && n18.errors.length === 0, { active: active18, errors: n18.errors });
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err);
   checks.push(["walk ran to the end", false]);

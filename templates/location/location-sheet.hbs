@@ -185,6 +185,15 @@
       {{/if}}
     </details>
 
+    {{!-- ---- The domain this place answers to ---- --}}
+    {{#if domainHere}}
+    <p class="acks-extras-place-domain" data-place-uuid="{{domainHere.uuid}}">
+      <span class="acks-extras-place-hint">{{localize "ACKS-LOCATION.place.domainHere.title"}}</span>
+      <a data-action="openPlace" data-place-uuid="{{domainHere.uuid}}">{{domainHere.name}}</a>
+      <span class="acks-extras-place-hint">{{domainHere.label}}</span>
+    </p>
+    {{/if}}
+
     {{!-- ---- Organisations here ---- --}}
     {{#if factionsHere}}
     <details class="section" open>

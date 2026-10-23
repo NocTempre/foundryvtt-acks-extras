@@ -5,25 +5,6 @@ Work that is designed but absent, deliberately. How the feature behaves now is
 
 ---
 
-## Wave 2 — the stylized sheet
-
-- **The character sheet's frame**, as the party sheet took it: the band in the
-  header (heraldry, the title before the name, the morale figures), an art row
-  with the ruler, liege, classification and alignment, and rails for the
-  families, the stronghold value and the month's lines. The plain sheet's
-  class and actions stay; its templates go.
-- **A lib helper for the band**, so the frame's header is written once. The
-  existing copies move onto it later.
-- **Ruler and liege chips** that take a drop or a picker; **promote a vassal
-  row** to a domain actor (the row is deleted); **found a settlement** — a world
-  location with a market, held at once.
-- **A marker test in lib** (`isMarkerActor`: a location, an organisation or a
-  domain) for the readers that take a token for a body, closing the same gap
-  for organisations.
-- **Drop guards** on the location and faction sheets: a dropped domain is
-  refused with where it belongs. **The location sheet names its domain**
-  beside its organisations.
-
 ## Wave 3 — the automation
 
 - **The favors-and-duties chart** as a roll table. The other rules tables
@@ -39,8 +20,9 @@ Work that is designed but absent, deliberately. How the feature behaves now is
   expenses, income into the treasury, growth, the morale roll, then the ledger
   row. Apply-once by month index, with a claim before the write and a resume
   for a month that wrote its row and not its coin. New fields with defaults:
-  favors' and duties' times, religion, occupation, tithes, the treasury,
-  magistrates, the month's inputs, the last month applied, the ledger rows.
+  favors' and duties' times, religion, occupation, tithes, the treasury (the
+  Ledger's empty treasury row then shows it), magistrates, the month's inputs,
+  the last month applied, the ledger rows.
 - **Territory on the map**: battlemap gains a paint-layer seam (its own three
   layers re-registered on it), and a GM-only domain layer paints the rows; a
   painted row is read from the map, the stored row wins, and erasing a cell

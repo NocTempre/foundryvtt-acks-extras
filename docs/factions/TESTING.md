@@ -231,6 +231,11 @@ Shut the world down and relaunch it, then check again.
     [`docs/lib/TESTING.md`](../lib/TESTING.md), which also walks a unit and a
     party.
 
+A domain dropped on an organisation's sheet, refused with a warning naming it
+and the organisation unchanged, is walked in
+[`docs/domains/TESTING.md`](../domains/TESTING.md), step 17; an organisation's
+token as a marker, not an occupant, is step 18 there.
+
 ## Teardown
 
 Delete by the run's own ids: the factions (the syndicate with them), the

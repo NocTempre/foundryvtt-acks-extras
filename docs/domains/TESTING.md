@@ -2,7 +2,7 @@
 
 Format per docs-doctrine: fixtures → steps → observable → teardown. Server and
 driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`; the location
-and market fixtures are `docs/location/TESTING.md`. Steps 1–12 are walked by
+and market fixtures are `docs/location/TESTING.md`. Steps 1–18 are walked by
 `tools/live/domains.mjs` (`node tools/live/run.mjs domains`).
 
 ## Before anything else
@@ -20,11 +20,16 @@ Every one disposable, tracked by id as it is made.
 - Two `acks-extras.domain` actors: **Domain 1** (the liege) and **Domain 2**
   (the vassal).
 - A character to rule Domain 1.
+- An organisation, refused as a ruler and refusing a domain.
 - An `acks-extras.location` with a market (press **Add a market**) and urban
   families entered — the settlement.
 - An `acks-extras.location` with nothing in it — the stronghold.
 - A second empty `acks-extras.location` — the prune's control.
 - A world `item` and a piece of gear on the ruler, for the refused drops.
+- A scene, for the tokens of step 18.
+
+Steps 15 and 16 make a domain and a location of their own; each is tracked
+the moment its id is read back (below).
 
 ## Core drive mechanics
 
@@ -38,12 +43,24 @@ Every one disposable, tracked by id as it is made.
   control's value and dispatches `new Event("change", {bubbles: true})`; the
   sheet submits on change and writes the whole list. Hex labels are one text
   field, split on commas and spaces into a list.
+- **The band's fields live in the window header**, not the content box:
+  `name`, `system.title`, `system.morale.current` and `system.morale.base` are
+  found from the application's root (`app.element`), and submit as any field.
 - **A drop on a domain is read by what is dropped**, and for a domain by where
-  it lands: on the liege row (`[data-drop-zone="liege"]`) it becomes the
-  liege, anywhere else a vassal. Click the Realm or Overview tab first so the
-  target is rendered.
-- **The row remove button asks first.** It opens a confirm dialog; press its
-  yes button, or the row stays.
+  it lands: on the liege chip (`[data-drop-zone="liege"]`) it becomes the
+  liege, anywhere else a vassal. The chips stand above every tab; click the
+  Realm or Overview tab first so a tab target is rendered.
+- **A picker is a prompt with one select.** Press the chip's
+  `[data-action="pickRuler"]` or `[data-action="pickLiege"]`; the dialog holds
+  `select[name="choice"]` with a uuid per option. Set its value, dispatch
+  `change`, press `button[data-action="ok"]` — never take the first option, in
+  a shared world it is anyone's. Closing the dialog chooses nothing. A picker
+  with nothing to offer opens no dialog and says so.
+- **The row remove and the promote buttons ask first.** Each opens a confirm
+  dialog; press its yes button, or nothing happens.
+- **Read back what a press made, and track it at once.** Promoting a row
+  makes a domain: list `vassalsOf(Domain 1)` before and after, and track the
+  new uuid. Founding makes a location: the new uuid is the last holding's.
 - **The prune is not on the api**:
   `(await import("/modules/acks-extras/scripts/location/module.mjs")).pruneEmptyLocations()`,
   with the `acks-extras.pruneEmptyLocations` setting on.
@@ -56,38 +73,40 @@ Every one disposable, tracked by id as it is made.
    families, two structure rows with costs, every revenue line set (one as
    per-family rates, one as totals), every expense line but one, a vassal row
    with a tribute and an extra tax, morale, a favor and a duty.
-   *Observable:* every tab renders the record; on Overview the peasant
-   families, hexes and stronghold value equal the sums by hand; the Ledger's
-   totals equal the lines by hand, and both totals carry the partial note
-   naming one unset line. Enter the missing line. *Observable:* the partial
-   note is gone.
-2. **Every kind of field.** On the sheet, edit the title (text), the
-   classification (select), the current morale (number), a territory row's
-   families (row field), its hex labels (typed as `0101, 0102`), a vassal
-   row's classification checkbox, and the notes. *Observable:* each survives
-   a re-render, and the stored value has its type — `system.territory[0].hexLabels`
-   is `["0101", "0102"]`, a checked class is in `classes`, a cleared number is
-   null.
+   *Observable:* every tab renders the record; the land rail's peasant
+   families, urban families, hexes and stronghold value equal the sums by
+   hand; the Ledger's totals and the month rail equal the lines by hand, and
+   the Ledger carries the partial note naming one unset line. Enter the
+   missing line. *Observable:* the partial note is gone.
+2. **Every kind of field.** On the sheet, edit the title and the name in the
+   band (text), the classification (select), the current and base morale in
+   the band (number), a territory row's families (row field), its hex labels
+   (typed as `0101, 0102`), a vassal row's classification checkbox, and the
+   notes. *Observable:* each survives a re-render, and the stored value has
+   its type — `system.territory[0].hexLabels` is `["0101", "0102"]`, a checked
+   class is in `classes`, a cleared number is null.
 3. **Rows added and removed.** Press **Add tract** under Territory. *Observable:* a
    new row with an id of its own; the rows before it keep their values. Remove
    it and confirm. *Observable:* it is gone and the others are unchanged.
    Remove one and cancel. *Observable:* nothing is removed.
 4. **A place is held, once.** On Holdings, drop the settlement on Domain 1.
    *Observable:* a row with role **settlement**, the place's own families and
-   market class shown beside it, and the urban families on Overview include
+   market class shown beside it, and the urban families on the rail include
    them. Drop the stronghold. *Observable:* a row with role **other**. Drop
    the settlement on Domain 2. *Observable:* refused with a warning naming
    Domain 1; Domain 2's holdings are unchanged.
 5. **The realm.** On Domain 1's Realm tab, drop Domain 2 (not on the liege
-   row). *Observable:* `Domain 2.system.parentUuid` is Domain 1's uuid;
+   chip). *Observable:* `Domain 2.system.parentUuid` is Domain 1's uuid;
    Domain 2 is listed among Domain 1's vassal domains, and its tribute joins
-   tribute in. Now drop Domain 2 on Domain 1's **liege row**. *Observable:*
+   tribute in. Now drop Domain 2 on Domain 1's **liege chip**. *Observable:*
    refused as a loop with a warning naming both; neither `parentUuid` moved.
-   Domain 1's liege picker does not offer Domain 2. Press the release button
-   on the vassal. *Observable:* Domain 2's `parentUuid` is empty.
-6. **The ruler.** On Overview drop the character. *Observable:* `rulerUuid`
-   and `rulerName` are the character's, and `domainsRuledBy(character)` names
-   Domain 1. Drop an organisation. *Observable:* refused.
+   Domain 1's liege picker offers neither Domain 2 nor Domain 1. Press the
+   release button on the vassal. *Observable:* Domain 2's `parentUuid` is
+   empty.
+6. **The ruler.** Drop the character on the ruler chip. *Observable:*
+   `rulerUuid` and `rulerName` are the character's, and
+   `domainsRuledBy(character)` names Domain 1. Drop an organisation.
+   *Observable:* refused.
 7. **Goods are refused.** Drop the world item and the ruler's gear on the
    sheet. *Observable:* one warning per drop naming the domain;
    `Domain 1.items.size` is 0 and the ruler still has the gear.
@@ -100,7 +119,13 @@ Every one disposable, tracked by id as it is made.
 9. **A place a domain holds, and the place around it.** Create a location
    inside the settlement (`system.parentUuid` the settlement's uuid).
    *Observable:* `acksExtras.domains.domainOf(it)` is Domain 1, and
-   `holdsPlace(it)` is false.
+   `holdsPlace(it)` is false. Open the settlement's sheet. *Observable:* its
+   Domain line (`.acks-extras-place-domain`) names Domain 1, holding it. Open
+   the inner place's. *Observable:* its line names Domain 1 and the
+   settlement around it. Create a location with no parent, which no domain
+   holds (the prune took the control), and open its sheet. *Observable:* it
+   renders, with no Domain line. Walk this before step 10 deletes the
+   settlement.
 10. **The delete path.** Delete the settlement. *Observable:* its holding row
     stays, marked missing; the urban families drop to the unplaced town's and
     say one settlement gives no figure; the urban rates make the ledger
@@ -109,23 +134,71 @@ Every one disposable, tracked by id as it is made.
     for it until the Judge removes the row.
 11. **A player reads, and writes nothing.** Give the Player seat Observer on
     Domain 1, hide one holding, and join as that player. *Observable:* every
-    control is disabled; no add, remove, clear or release button renders; the
-    hidden holding is absent, a land value shows only on a revealed row, and
-    the GM notes are absent. In that seat's console,
+    control is disabled; no add, remove, clear, release, picker, promote,
+    found or heraldry press renders; the hidden holding is absent, a land
+    value shows only on a revealed row, and the GM notes are absent. The band
+    sits in the header and names the domain; the pills open their tabs, and no
+    pill, rail cell or name press is disabled. In that seat's console,
     `await acksExtras.domains.hold(Domain 1, place)` returns
     `{ok: false, reason: "judgeOnly"}`.
-12. **Layout.** Shrink the sheet to its shortest height. *Observable:* the
-    body scrolls to its last control and the tabs stay in view. Raise the
-    type-size setting and open a fresh copy of the sheet. *Observable:* the
-    body and the header both take the new size.
-13. **The official sheet's domain page.** Walked with the official sheet,
+12. **Layout.** Shrink the sheet until the Ledger outgrows it. *Observable:*
+    the Ledger's part scrolls to its end and to its last control, and the tabs
+    stay in view. Shrink it below the frame's own height. *Observable:* the
+    content box scrolls the whole panel into view, and the panel still scrolls
+    to its end and to its last control. The Ledger's totals and treasury row
+    follow its last control and hold none, so a panel at its end does not show
+    that control: scroll back to it, and never read "reached" off the end.
+    Raise the type-size setting and open a fresh copy of the sheet.
+    *Observable:* the body and the band both take the new size.
+13. **The frame.** *Observable:* after every re-render the window holds one
+    band (`[data-application-part="band"]`), inside `.window-header`, showing
+    the stored title, name and morale. The rails equal `familiesOf` and
+    `ledgerFor`; over a partial ledger the three month cells are marked
+    partial and the four land cells are not. The chips name the ruler and the
+    liege (or its absence); the tags the classification and the alignment.
+    Press the hexes cell, then the income cell. *Observable:* Territory, then
+    Ledger, opens.
+14. **The ruler and liege chips.** Clear the ruler on its chip. *Observable:*
+    `rulerUuid` is empty and `rulerName` kept. Open the ruler picker.
+    *Observable:* it offers the character and no place, organisation or
+    domain. Choose the character. *Observable:* it rules again. On Domain 2,
+    open the liege picker. *Observable:* it offers Domain 1 and not itself.
+    Choose Domain 1, then clear the liege on its chip. *Observable:*
+    `parentUuid` is Domain 1's, then empty, with a notice naming Domain 2.
+15. **A vassal row becomes a domain.** On Domain 1's Realm tab, press the
+    vassal row's promote button and confirm. *Observable:* one new domain,
+    answering to Domain 1, in its folder; the row is gone; the new domain's
+    ruler is the row's, its tribute out is the row's tribute plus its
+    additional tax, its hexes and peasants are one territory row, and the
+    row's two classes (step 2 ticked a second) leave the classification blank
+    and appear in its notes. Domain 1's tribute in is unchanged.
+16. **A settlement is founded.** On Holdings, press **Found a settlement** and
+    accept the name. *Observable:* one new location with a market, held by
+    Domain 1 as a settlement; `domainOf` it is Domain 1; its sheet opens; a
+    notice says so and nothing errs.
+17. **A domain is refused by a place and by an organisation.** Drop Domain 1
+    on the stronghold's sheet and on the organisation's. *Observable:* a
+    warning naming Domain 1 for each, and neither record changes.
+18. **A domain's token is a marker.** Make a scene with `active: false`
+    written out: core activates a new scene when none is active, which pulls
+    every seated client to it and draws its canvas under the tokens being
+    placed. Set on it a token of Domain 1, of the organisation, of the
+    stronghold and of the character (`actor.getTokenDocument(...)`, then
+    `scene.createEmbeddedDocuments`). *Observable:*
+    `acksExtras.lib.places.sceneOccupants(scene)` lists the character alone,
+    and `acksExtras.battlemap.sizeForToken` returns null for the three markers
+    and a size for the character; the scene is still inactive and the console
+    took no error.
+19. **The official sheet's domain page.** Walked with the official sheet,
     not by `tools/live/domains.mjs`: `docs/character-sheet/TESTING.md`, "The
     official sheet (PDF)", steps 3–5a, 11 and 13.
 
 ## Teardown
 
-Delete by the run's own ids: both domains, the character, the locations (the
-inner one of step 9 with them), the world item. Holdings, vassal rows and
-every other list are rows on the domains, so they go when the domains do;
-step 5 writes `parentUuid` only on Domain 2. Quote `api.sweepTracked()`'s
-result. Restore the prune setting.
+Delete by the run's own ids: both domains, the character, the organisation,
+the locations (the inner one of step 9 with them), the world item, the
+domain step 15 made, the location step 16 founded, and the scene (its tokens
+go with it). Holdings, vassal rows
+and every other list are rows on the domains, so they go when the domains do;
+steps 5 and 14 write `parentUuid` only on Domain 2. Quote
+`api.sweepTracked()`'s result. Restore the prune and type-size settings.

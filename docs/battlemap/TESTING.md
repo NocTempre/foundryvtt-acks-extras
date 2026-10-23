@@ -229,6 +229,8 @@ by hand.
     `docs/formation/TESTING.md` step 9 (frontage, heading swap, coarse-scale
     floor). On a scene whose units are miles the party token sizes through the
     conversion too — the face is feet and the square is not.
+18. A marker's token — a place's, an organisation's, a domain's — keeps the
+    size it was drawn: walked in `docs/domains/TESTING.md`, step 18.
 
 ## Teardown
 

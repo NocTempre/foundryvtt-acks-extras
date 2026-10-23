@@ -43,8 +43,15 @@ A provider can also be **deployed**: set down somewhere as a place in its own
 right, standing on a map as its own marker the way a location's token does.
 `isDeployed` reads `deployed` on the same place flag as the parent pointer;
 `sceneOccupants` steps over a deployed provider's token as it does a
-location's, since a marker is not a tenant. The vehicles feature is the one
+marker's, since a marker is not a tenant. The vehicles feature is the one
 writer (`docs/vehicles/MODEL.md`, "Deployed as a place").
+
+A **marker** (`isMarkerActor`) is a location, an organisation or a domain:
+an actor whose token marks a body on the map rather than standing for a
+creature. Every reader that takes a token for a body steps over one — the
+occupants here, the senses and lights `token-sync.mjs` writes, the footprint
+the battle map fits to a scene's squares, and the party's add-to-party and
+form-up buttons.
 
 ## The one invariant
 
@@ -127,7 +134,7 @@ the place actually being looked at.
 `acksLib.places` — pure rules (Node-importable, unit-tested in `tools/test-lib.mjs`)
 plus the document layer:
 
-- **kinds** — `isPlace`, `isLocation`, `isContainerItem`, `isDeployed`, `kindOf`
+- **kinds** — `isPlace`, `isLocation`, `isMarkerActor`, `isContainerItem`, `isDeployed`, `kindOf`
 - **nesting** — `parentUuidOf`, `setParent`, `childPlaces`, `placePath`,
   `ancestorUuids`, `descendantUuids`, `wouldCycle`, `planReparent`
 - **contents** — `contentsOf`, `contentRows`, `coinRollupGC`, `rollup`

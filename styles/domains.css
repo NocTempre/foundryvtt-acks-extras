@@ -1,74 +1,534 @@
-/* The domain sheet. Every selector opens on the sheet's own two classes, because
-   the vendored design system dresses `.acks-ui` fields and tables at the same
-   weight and wins a tie. Type sizes are ramp steps, so the size knob reaches
-   them.
+/* The domain sheet, in the character sheet's frame as the party sheet draws
+   it: the band in the window header; the art row (the chips and tags beside
+   the rails of the land and of the month); the pill tab row; and one panel
+   per tab, each a part of its own.
 
-   The scroller is the body PART root (it declares `scrollable: [""]`), so a
-   tab keeps its place across the re-render every change causes, while the
-   identity strip and the tab row hold still above it. */
+   The vendored design system dresses `.acks-ui` headings, fields, buttons and
+   the window header at up to (0,3,1) and wins a tie, so every selector opens
+   on the sheet's own two classes, and a rule for a control or a heading adds
+   `.application` as well. Type sizes are ramp steps or em off one, and boxes
+   are em, so the size knob reaches the whole drawing.
 
-.acks-extras.acks-extras-domain-sheet.application .window-content {
-  padding: 0;
-  /* Re-take the type from core, which pins a size on `.window-content`. */
-  font-size: var(--acks-fs-body);
-}
+   The scroller is the active tab's PART root (each declares `scrollable:
+   [""]`), so a tab keeps its place across the re-render every change causes,
+   while the frame and the tab row hold still above it. The content box
+   scrolls only when the frame alone outgrows a short window. The sheet keeps
+   no width floor: the art row and each rail wrap instead. */
+
+/* --- The frame: window chrome. The band IS the header. --------------------- */
 
 .acks-extras.acks-extras-domain-sheet.application > .window-header {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-3);
+  /* The basis, not the height: core pins the header with `flex: 0 0 36px`,
+     and a flex-basis outranks `height: auto` on a flex item, so the band would
+     be cut off at both edges. */
+  flex: 0 0 auto;
+  height: auto;
+  min-height: 0;
+  padding: var(--acks-sp-2) var(--acks-sp-3);
+  border: none;
+  border-block-end: var(--acks-rule-hair) solid var(--acks-spot);
+  background: var(--acks-paper-warm);
+  box-shadow: none;
+  color: var(--acks-ink);
+  /* Core sizes its own chrome, and the band lives inside that chrome rather
+     than in the content, so the knob reaches it only through this. */
   font-size: var(--acks-fs-body);
 }
 
-.acks-extras.acks-extras-domain-sheet .acks-extras-domain-head {
-  flex: 0 0 auto;
+.acks-extras.acks-extras-domain-sheet.application > .window-header :is(.window-icon, .window-title) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.acks-extras.acks-extras-domain-sheet.application > .window-header .header-control {
+  flex: none;
+  inline-size: 1.9em;
+  min-height: 1.9em;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--acks-spot);
+  font-size: var(--acks-fs-body);
+}
+
+.acks-extras.acks-extras-domain-sheet.application > .window-header .header-control:hover {
+  background: var(--acks-tint);
+}
+
+.acks-extras.acks-extras-domain-sheet.application .window-content {
   display: flex;
   flex-direction: column;
-  gap: var(--acks-sp-2);
-  padding: var(--acks-sp-3) var(--acks-sp-3) 0;
-}
-
-.acks-extras.acks-extras-domain-sheet .acks-extras-domain-body {
   flex: 1 1 auto;
   min-height: 0;
-  overflow-y: auto;
+  padding: 0;
   overflow-x: hidden;
-  padding: var(--acks-sp-2) var(--acks-sp-3) var(--acks-sp-3);
+  overflow-y: auto;
+  /* Re-take the type from core, which pins a size on the content box that
+     every panel would otherwise inherit instead of the knob's. */
+  font-size: var(--acks-fs-body);
 }
 
-/* --- Identity strip ---------------------------------------------------------- */
+/* --- The frame: the band ----------------------------------------------------- */
 
-.acks-extras.acks-extras-domain-sheet .acks-extras-domain-identity {
+.acks-extras-domain-sheet__band {
+  flex: 1;
+  min-width: 0;
   display: flex;
-  gap: var(--acks-sp-3);
-  align-items: flex-start;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--acks-sp-2) var(--acks-sp-4);
 }
-.acks-extras.acks-extras-domain-sheet .acks-extras-domain-profile {
-  flex: 0 0 auto;
-  width: 4.5em;
-  height: 4.5em;
-  object-fit: cover;
-  border: var(--acks-rule-hair) solid var(--acks-rule-color-soft);
-  border-radius: var(--acks-radius);
+
+/* Core appends each render's fresh band to the content box, where it stays
+   until the sheet moves it into the header. There it takes no layout: a band
+   that takes height in a short window overflows the content box, whose
+   scrollbar narrows the panel, and the panel's restored scroll is then set
+   against a wrap the finished render does not have. */
+.acks-extras.acks-extras-domain-sheet .window-content > .acks-extras-domain-sheet__band {
+  display: none;
 }
-.acks-extras.acks-extras-domain-sheet .acks-extras-domain-profile[data-action] {
+
+.acks-extras.acks-extras-domain-sheet.application .acks-extras-domain-sheet__crest {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 2.4em;
+  height: 2.4em;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: var(--acks-rule-hair) solid var(--acks-spot);
+  border-radius: 0;
+  background: var(--acks-paper);
+  overflow: hidden;
+}
+
+.acks-extras.acks-extras-domain-sheet.application button.acks-extras-domain-sheet__crest {
   cursor: pointer;
 }
-.acks-extras.acks-extras-domain-sheet .acks-extras-domain-heading {
-  flex: 1 1 auto;
+
+.acks-extras.acks-extras-domain-sheet.application button.acks-extras-domain-sheet__crest:hover {
+  background: var(--acks-tint);
+}
+
+.acks-extras-domain-sheet__crest img {
+  width: 100%;
+  height: 100%;
+  border: none;
+  object-fit: contain;
+}
+
+/* The title and the name each sit on their own underline, so the fields draw
+   no frame of their own. */
+.acks-extras.acks-extras-domain-sheet.application :is(.acks-extras-domain-sheet__title, .acks-extras-domain-sheet__name) {
+  min-width: 6ch;
+  height: auto;
+  min-height: 0;
+  margin: 0;
+  padding: var(--acks-sp-1) var(--acks-sp-1);
+  border: none;
+  border-block-end: var(--acks-rule-hair) solid var(--acks-ink);
+  border-radius: 0;
+  background: transparent;
+  color: var(--acks-ink);
+  font-family: var(--acks-font-display);
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.acks-extras.acks-extras-domain-sheet.application .acks-extras-domain-sheet__title {
+  flex: 0 1 11em;
+  font-size: var(--acks-fs-label);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras.acks-extras-domain-sheet.application .acks-extras-domain-sheet__name {
+  flex: 1 1 10em;
+  font-size: var(--acks-fs-h3);
+  font-weight: var(--acks-weight-bold);
+  letter-spacing: 0.03em;
+}
+
+.acks-extras-domain-sheet__morale {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-3);
+}
+
+.acks-extras-domain-sheet__morale > :is(label, span) {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--acks-sp-2);
+  font-size: var(--acks-fs-fine);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--acks-ink-soft);
+  white-space: nowrap;
+}
+
+.acks-extras.acks-extras-domain-sheet.application .acks-extras-domain-sheet__morale input {
+  width: 3.6em;
+  height: auto;
+  min-height: 0;
+  padding: var(--acks-sp-1) var(--acks-sp-2);
+  font-size: var(--acks-fs-body);
+  text-align: center;
+  text-transform: none;
+}
+
+.acks-extras-domain-sheet__morale b {
+  font-family: var(--acks-font-display);
+  font-size: var(--acks-fs-body);
+  color: var(--acks-ink);
+}
+
+/* --- The frame: the art row -------------------------------------------------- */
+
+.acks-extras-domain-sheet__frame {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.acks-extras-domain-sheet__art-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--acks-sp-4) var(--acks-sp-5);
+  padding: var(--acks-sp-4) var(--acks-sp-4) var(--acks-sp-3);
+}
+
+.acks-extras-domain-sheet__reading {
+  flex: 1 1 16em;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--acks-sp-1);
+  align-items: flex-start;
+  gap: var(--acks-sp-2);
 }
-.acks-extras.acks-extras-domain-sheet .acks-extras-domain-name {
-  font-size: var(--acks-fs-h3);
-  font-weight: bold;
-  width: 100%;
+
+/* A chip names an actor, or the record's word for one, and takes a drop. */
+.acks-extras-domain-sheet__chip {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-2);
+  max-width: 100%;
+  padding: var(--acks-sp-1) var(--acks-sp-3);
+  border: var(--acks-rule-hair) solid var(--acks-spot);
+  color: var(--acks-spot);
+  font-size: var(--acks-fs-label);
+  line-height: 1.2;
+}
+
+.acks-extras-domain-sheet__chip.is-empty {
+  border-style: dashed;
+  border-color: var(--acks-ink-faint);
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-domain-sheet__chip-role {
+  flex: none;
+  font-size: var(--acks-fs-fine);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras.acks-extras-domain-sheet .acks-extras-domain-sheet__chip-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--acks-font-display);
+  font-weight: var(--acks-weight-medium);
+  color: var(--acks-ink);
+}
+
+.acks-extras-domain-sheet__chip.is-empty .acks-extras-domain-sheet__chip-name {
+  font-style: italic;
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras.acks-extras-domain-sheet.application button.acks-extras-domain-sheet__chip-name {
+  width: auto;
+  height: auto;
+  min-height: 0;
   margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font-size: inherit;
+  text-align: start;
+  text-decoration: underline dotted;
+  cursor: pointer;
 }
-.acks-extras.acks-extras-domain-sheet .acks-extras-domain-tags {
+
+.acks-extras.acks-extras-domain-sheet.application .acks-extras-domain-sheet__chip-press {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 1.7em;
+  height: 1.7em;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--acks-spot);
+  font-size: var(--acks-fs-fine);
+}
+
+.acks-extras.acks-extras-domain-sheet.application .acks-extras-domain-sheet__chip-press:hover {
+  background: var(--acks-tint);
+}
+
+.acks-extras-domain-sheet__tags {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--acks-sp-1);
+  gap: var(--acks-sp-2);
+}
+
+.acks-extras-domain-sheet__tag {
+  padding: var(--acks-sp-1) var(--acks-sp-3);
+  border: var(--acks-rule-hair) solid var(--acks-spot);
+  color: var(--acks-spot);
+  font-family: var(--acks-font-display);
+  font-size: var(--acks-fs-fine);
+  font-weight: var(--acks-weight-medium);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.acks-extras-domain-sheet__tag.is-unset {
+  border-style: dashed;
+  border-color: var(--acks-ink-faint);
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras.acks-extras-domain-sheet.application .acks-extras-domain-sheet__hint {
+  margin: 0;
+  font-size: var(--acks-fs-fine);
+  font-style: italic;
+  color: var(--acks-ink-soft);
+}
+
+/* The rails: the land above the month, each cell a press that opens the tab
+   its figure is kept on. */
+.acks-extras-domain-sheet__rails {
+  flex: 1 1 22em;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-2);
+}
+
+.acks-extras-domain-sheet__rail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--acks-sp-2);
+}
+
+.acks-extras.acks-extras-domain-sheet.application .acks-extras-domain-sheet__cell {
+  flex: 1 1 5.5em;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
+  column-gap: var(--acks-sp-2);
+  row-gap: 0;
+  width: auto;
+  height: auto;
+  min-height: 0;
+  margin: 0;
+  padding: var(--acks-sp-2) var(--acks-sp-3);
+  border: var(--acks-rule-hair) solid var(--acks-ink);
+  border-radius: 0;
+  background: var(--acks-paper-warm);
+  color: var(--acks-spot);
+  font-size: var(--acks-fs-body);
+  line-height: 1.15;
+  text-align: start;
+  cursor: pointer;
+}
+
+.acks-extras.acks-extras-domain-sheet.application .acks-extras-domain-sheet__cell:hover {
+  border-color: var(--acks-spot);
+}
+
+/* A month figure over a partial ledger: dashed and gold, as a reading that is
+   not whole. */
+.acks-extras.acks-extras-domain-sheet.application .acks-extras-domain-sheet__cell.is-partial {
+  border-style: dashed;
+  border-color: var(--acks-gold-deep);
+}
+
+.acks-extras-domain-sheet__cell-glyph {
+  grid-row: 1;
+  grid-column: 1;
+  font-size: var(--acks-fs-label);
+}
+
+.acks-extras-domain-sheet__cell-value {
+  grid-row: 1;
+  grid-column: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--acks-font-display);
+  font-size: var(--acks-fs-h3);
+  font-weight: var(--acks-weight-bold);
+  color: var(--acks-ink);
+}
+
+.acks-extras-domain-sheet__cell-mark {
+  margin-inline-start: 0.3em;
+  font-size: 0.6em;
+  color: var(--acks-warning-ink);
+  vertical-align: middle;
+}
+
+.acks-extras-domain-sheet__cell-name {
+  grid-row: 2;
+  grid-column: 1 / -1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--acks-fs-fine);
+  color: var(--acks-ink-soft);
+}
+
+/* --- The frame: the tab row -------------------------------------------------- */
+
+.acks-extras.acks-extras-domain-sheet .acks-extras-domain-sheet__tabs {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--acks-sp-2);
+  margin: 0 var(--acks-sp-4);
+  padding: 0 0 var(--acks-sp-3);
+  border: none;
+  border-block-end: var(--acks-rule-hair) solid var(--acks-tint-2);
+}
+
+/* Core's tab buttons (`data-action="tab"`), drawn as pills. Core keeps their
+   `active` class and `aria-pressed` in step; the vendored tab styles key on
+   `aria-selected`, which a pill never carries. */
+.acks-extras.acks-extras-domain-sheet.application .acks-extras-domain-sheet__pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--acks-sp-2);
+  width: auto;
+  height: auto;
+  min-height: 0;
+  margin: 0;
+  padding: var(--acks-sp-2) var(--acks-sp-4);
+  border: var(--acks-rule-hair) solid var(--acks-spot);
+  border-radius: 0;
+  background: transparent;
+  color: var(--acks-spot);
+  font-family: var(--acks-font-display);
+  font-size: var(--acks-fs-fine);
+  font-weight: var(--acks-weight-medium);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.acks-extras.acks-extras-domain-sheet.application .acks-extras-domain-sheet__pill:hover:not(.active) {
+  background: var(--acks-tint);
+}
+
+.acks-extras.acks-extras-domain-sheet.application .acks-extras-domain-sheet__pill.active {
+  background: var(--acks-burgundy);
+  color: var(--acks-on-burgundy);
+}
+
+/* --- The frame: the panels --------------------------------------------------- */
+
+.acks-extras.acks-extras-domain-sheet .acks-extras-domain-sheet__panel {
+  display: none;
+}
+
+/* The active panel is the scroller: it takes what height the window has left
+   under the frame and the tab row, and scrolls inside it. Its floor keeps a
+   few rows in view: in a window shorter than the frame and the floor, the
+   content box scrolls down to the panel instead of squeezing it to nothing. */
+.acks-extras.acks-extras-domain-sheet .acks-extras-domain-sheet__panel.active {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-5);
+  flex: 1 1 auto;
+  min-height: 10em;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: var(--acks-sp-4) var(--acks-sp-4) var(--acks-sp-5);
+}
+
+.acks-extras-domain-sheet__block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-2);
+  min-width: 0;
+}
+
+/* What only the Judge sees is dashed. */
+.acks-extras-domain-sheet__block.is-judge {
+  padding: var(--acks-sp-3);
+  border: var(--acks-rule-hair) dashed var(--acks-spot);
+}
+
+.acks-extras.acks-extras-domain-sheet.application .acks-extras-domain-sheet__block-title {
+  margin: 0;
+  padding: 0 0 var(--acks-sp-1);
+  border: none;
+  border-block-end: var(--acks-rule-hair) solid var(--acks-tint-2);
+  font-family: var(--acks-font-display);
+  font-size: var(--acks-fs-label);
+  font-weight: var(--acks-weight-medium);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-domain-sheet__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--acks-sp-2);
+}
+
+/* A name that opens another sheet, drawn as a link. */
+.acks-extras.acks-extras-domain-sheet.application .acks-extras-domain-sheet__link {
+  display: inline;
+  width: auto;
+  height: auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--acks-spot);
+  font: inherit;
+  text-align: start;
+  text-decoration: underline;
+  cursor: pointer;
 }
 
 /* --- Fields ------------------------------------------------------------------ */
@@ -149,6 +609,11 @@
   color: var(--acks-ink-soft);
   font-style: italic;
 }
+/* The treasury row holds a place for a figure the domain does not keep. */
+.acks-extras.acks-extras-domain-sheet .acks-extras-domain-treasury td {
+  color: var(--acks-ink-soft);
+  font-style: italic;
+}
 
 /* --- Vassal rows ---------------------------------------------------------------- */
 
@@ -180,4 +645,14 @@
 
 .acks-extras.acks-extras-domain-sheet .acks-extras-domain-notes {
   min-height: 6em;
+}
+
+/* --- The pickers ------------------------------------------------------------------ */
+
+/* The ruler, liege and settlement dialogs: a caption over its control. */
+.acks-extras.application .acks-extras-domain-sheet__pick {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-2);
+  font-size: var(--acks-fs-label);
 }

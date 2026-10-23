@@ -1,0 +1,46 @@
+{{!-- The frame above every tab: the reading column (the chips naming the ruler
+      and the liege, each a drop target and, for the Judge, a picker; the
+      classification and alignment tags) and the rails of the land and the
+      month. domain-frame.mjs decides every chip and cell; a cell opens the tab
+      its figure is kept on. --}}
+<div class="acks-extras-domain-sheet__frame">
+  <div class="acks-extras-domain-sheet__art-row">
+    <div class="acks-extras-domain-sheet__reading">
+      {{#each frame.chipList}}
+      <div class="acks-extras-domain-sheet__chip{{#if empty}} is-empty{{/if}}" data-drop-zone="{{zone}}">
+        <i class="{{icon}}" inert></i>
+        <span class="acks-extras-domain-sheet__chip-role">{{role}}</span>
+        {{#if uuid}}
+        <button type="button" class="acks-extras-domain-sheet__chip-name{{#if missing}} is-missing{{/if}}" data-action="openDoc" data-uuid="{{uuid}}">{{name}}</button>
+        {{else}}
+        <span class="acks-extras-domain-sheet__chip-name">{{name}}</span>
+        {{/if}}
+        {{#if pick}}
+        <button type="button" class="acks-extras-domain-sheet__chip-press" data-action="{{pick}}" data-tooltip="{{pickLabel}}" aria-label="{{pickLabel}}"><i class="fa-solid fa-user-pen" inert></i></button>
+        {{/if}}
+        {{#if clear}}
+        <button type="button" class="acks-extras-domain-sheet__chip-press" data-action="{{clear}}" data-tooltip="{{localize 'ACKS-DOMAINS.sheet.clear'}}" aria-label="{{localize 'ACKS-DOMAINS.sheet.clear'}}"><i class="fa-solid fa-xmark" inert></i></button>
+        {{/if}}
+      </div>
+      {{/each}}
+      <div class="acks-extras-domain-sheet__tags">
+        {{#each frame.tags}}<span class="acks-extras-domain-sheet__tag{{#if unset}} is-unset{{/if}}" data-tag="{{key}}">{{label}}</span>{{/each}}
+      </div>
+      {{#if canEdit}}<p class="acks-extras-domain-sheet__hint">{{localize "ACKS-DOMAINS.hint.liegeDrop"}}</p>{{/if}}
+    </div>
+    <div class="acks-extras-domain-sheet__rails">
+      {{#each frame.railList}}
+      <div class="acks-extras-domain-sheet__rail">
+        {{#each this}}
+        <button type="button" class="acks-extras-domain-sheet__cell{{#if partial}} is-partial{{/if}}" data-action="goTab" data-tab="{{tab}}" data-key="{{key}}"
+                data-tooltip="{{title}}" aria-label="{{title}}">
+          <i class="{{icon}} acks-extras-domain-sheet__cell-glyph" inert></i>
+          <span class="acks-extras-domain-sheet__cell-value acks-nums" aria-hidden="true">{{reading}}{{#if partial}}<i class="fa-solid fa-circle-half-stroke acks-extras-domain-sheet__cell-mark" inert></i>{{/if}}</span>
+          <span class="acks-extras-domain-sheet__cell-name" aria-hidden="true">{{name}}</span>
+        </button>
+        {{/each}}
+      </div>
+      {{/each}}
+    </div>
+  </div>
+</div>

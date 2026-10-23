@@ -1,0 +1,66 @@
+{{!-- Territory: one row per hex, or per run of hexes a record gives only in
+      total. A land value shows to a reader only on a row the Judge reveals. --}}
+<div class="tab acks-extras-domain-sheet__panel{{#if tabs.territory.active}} active{{/if}}" data-group="primary" data-tab="territory">
+  <div class="acks-extras-domain-sheet__block">
+    <h3 class="acks-extras-domain-sheet__block-title">{{localize "ACKS-DOMAINS.sheet.territory"}} ({{territory.length}})</h3>
+    <p class="acks-extras-domain-hint">{{localize "ACKS-DOMAINS.hint.territory"}}</p>
+    {{#if territory.length}}
+    <table class="acks-table acks-extras-domain-table">
+      <thead>
+        <tr>
+          <th>{{localize "ACKS-DOMAINS.field.label"}}</th>
+          <th>{{localize "ACKS-DOMAINS.field.hexLabels"}}</th>
+          <th>{{localize "ACKS-DOMAINS.field.count"}}</th>
+          <th>{{localize "ACKS-DOMAINS.field.landValue"}}</th>
+          <th>{{localize "ACKS-DOMAINS.field.improvement"}}</th>
+          <th>{{localize "ACKS-DOMAINS.field.families"}}</th>
+          {{#if isGM}}<th>{{localize "ACKS-DOMAINS.field.revealed"}}</th>{{/if}}
+          <th>{{localize "ACKS-DOMAINS.field.note"}}</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each territory}}
+        <tr>
+          <td><input type="text" name="system.territory.{{index}}.label" value="{{label}}" {{@root.lock}}
+                     aria-label="{{localize 'ACKS-DOMAINS.field.label'}}" /></td>
+          <td><input type="text" name="system.territory.{{index}}.hexLabels" value="{{hexLabelsText}}" {{@root.lock}}
+                     aria-label="{{localize 'ACKS-DOMAINS.field.hexLabels'}}" data-tooltip="{{localize 'ACKS-DOMAINS.hint.hexLabels'}}" /></td>
+          <td><input type="number" min="0" step="1" name="system.territory.{{index}}.count" value="{{count}}" {{@root.lock}}
+                     aria-label="{{localize 'ACKS-DOMAINS.field.count'}}" data-tooltip="{{localize 'ACKS-DOMAINS.hint.count'}}" /></td>
+          <td>
+            {{#if landShown}}
+            <input type="number" step="any" name="system.territory.{{index}}.landValue" value="{{landValue}}" {{@root.lock}}
+                   aria-label="{{localize 'ACKS-DOMAINS.field.landValue'}}" data-tooltip="{{localize 'ACKS-DOMAINS.hint.perFamily'}}" />
+            {{else}}—{{/if}}
+          </td>
+          <td><input type="number" step="any" name="system.territory.{{index}}.improvement" value="{{improvement}}" {{@root.lock}}
+                     aria-label="{{localize 'ACKS-DOMAINS.field.improvement'}}" data-tooltip="{{localize 'ACKS-DOMAINS.hint.perFamily'}}" /></td>
+          <td><input type="number" min="0" step="1" name="system.territory.{{index}}.families" value="{{families}}" {{@root.lock}}
+                     aria-label="{{localize 'ACKS-DOMAINS.field.families'}}" /></td>
+          {{#if @root.isGM}}
+          <td><input type="checkbox" name="system.territory.{{index}}.revealed" {{#if revealed}}checked{{/if}} {{@root.lock}}
+                     aria-label="{{localize 'ACKS-DOMAINS.field.revealed'}}" data-tooltip="{{localize 'ACKS-DOMAINS.hint.revealed'}}" /></td>
+          {{/if}}
+          <td><input type="text" name="system.territory.{{index}}.note" value="{{note}}" {{@root.lock}}
+                     aria-label="{{localize 'ACKS-DOMAINS.field.note'}}" /></td>
+          <td class="row-actions">
+            {{#if painted}}<i class="fa-solid fa-paintbrush" data-tooltip="{{localize 'ACKS-DOMAINS.hint.painted'}}"></i>{{/if}}
+            {{#if @root.canEdit}}<button type="button" class="acks-btn acks-btn--quiet acks-btn--icon" data-action="rowDelete" data-array="territory" data-index="{{index}}" aria-label="{{localize 'ACKS-DOMAINS.sheet.removeRowTitle'}}"><i class="fa-solid fa-xmark" inert></i></button>{{/if}}
+          </td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+    {{else}}
+    <p class="acks-empty">{{localize "ACKS-DOMAINS.sheet.territoryEmpty"}}</p>
+    {{/if}}
+    {{#if canEdit}}
+    <div class="acks-extras-domain-sheet__actions">
+      <button type="button" class="acks-btn acks-btn--secondary acks-btn--sm" data-action="rowAdd" data-array="territory">
+        <i class="fa-solid fa-plus" inert></i> {{localize "ACKS-DOMAINS.sheet.addTract"}}
+      </button>
+    </div>
+    {{/if}}
+  </div>
+</div>

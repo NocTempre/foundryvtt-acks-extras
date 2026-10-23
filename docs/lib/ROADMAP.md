@@ -20,6 +20,11 @@ verification, not as drive-by edits:
   ruling revisited, not silently overridden.
 - **Chat cards onto `roll-card.mjs`.** Direct `ChatMessage.create` in 32
   files; henchmen has a parallel card layer.
+- **The band copies onto `header-band.mjs`.** The character sheet, the item
+  sheet and the party sheet each move their band into the header with a
+  private copy of `moveBandIntoHeader`; the domain sheet is the helper's only
+  caller. Each move is a live check of that sheet's header (drag, double
+  click, the band's own fields).
 - **Settings registration convention.** Three competing styles (dedicated
   settings.mjs / feature module.mjs / arbitrary file); pick one, document it,
   move the strays.

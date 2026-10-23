@@ -1,0 +1,42 @@
+{{!-- Overview: the record's own words for who rules the domain and whom it
+      answers to (the chips above name the actors), and how it is classified.
+      Its sums are the frame's rails. --}}
+<div class="tab acks-extras-domain-sheet__panel{{#if tabs.overview.active}} active{{/if}}" data-group="primary" data-tab="overview">
+  <div class="acks-extras-domain-sheet__block">
+    <h3 class="acks-extras-domain-sheet__block-title">{{localize "ACKS-DOMAINS.sheet.rule"}}</h3>
+    <div class="acks-extras-domain-fields">
+      <label class="acks-extras-domain-field">
+        <span class="acks-extras-domain-label">{{localize "ACKS-DOMAINS.field.rulerName"}}</span>
+        <input type="text" name="system.rulerName" value="{{system.rulerName}}" {{lock}}
+               placeholder="{{localize 'ACKS-DOMAINS.hint.rulerName'}}" />
+      </label>
+      <label class="acks-extras-domain-field">
+        <span class="acks-extras-domain-label">{{localize "ACKS-DOMAINS.field.liegeName"}}</span>
+        <input type="text" name="system.liegeName" value="{{system.liegeName}}" {{lock}}
+               placeholder="{{localize 'ACKS-DOMAINS.hint.liegeName'}}" />
+      </label>
+      <label class="acks-extras-domain-field">
+        <span class="acks-extras-domain-label">{{localize "ACKS-DOMAINS.field.classification"}}</span>
+        <select name="system.classification" {{lock}}>
+          {{#each classificationOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+        </select>
+      </label>
+      <label class="acks-extras-domain-field">
+        <span class="acks-extras-domain-label">{{localize "ACKS-DOMAINS.field.alignment"}}</span>
+        <select name="system.alignment" {{lock}}>
+          {{#each alignmentOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+        </select>
+      </label>
+    </div>
+    {{#if canEdit}}<p class="acks-extras-domain-hint">{{localize "ACKS-DOMAINS.hint.rulerDrop"}}</p>{{/if}}
+  </div>
+
+  {{#if frame.leftOut.length}}
+  <div class="acks-extras-domain-sheet__block">
+    <h3 class="acks-extras-domain-sheet__block-title">{{localize "ACKS-DOMAINS.frame.leftOut"}}</h3>
+    <dl class="acks-extras-domain-glance">
+      {{#each frame.leftOut}}<dt>{{name}}</dt><dd class="acks-extras-domain-hint" data-left-out="{{key}}">{{note}}</dd>{{/each}}
+    </dl>
+  </div>
+  {{/if}}
+</div>

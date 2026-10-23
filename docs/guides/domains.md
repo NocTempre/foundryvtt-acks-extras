@@ -6,34 +6,46 @@ the month's revenue and expenses, its morale, and the lieges and vassals around
 it. It is an actor like any other, with a sheet, a token and a place in a
 folder.
 
-This first release is the **record**. Every figure on it is one you or an
-imported adventure enters; the module adds them up and says where something is
-missing, and works nothing out from the rules yet. A line you have not filled
-in is **unset**, not zero, and every total that leaves one out says so.
+This is the **record**. Every figure on it is one you or an imported adventure
+enters; the module adds them up and says where something is missing, and
+works nothing out from the rules yet. A line you have not filled in is
+**unset**, not zero, and every total that leaves one out says so.
 
 ## Make a domain
 
 Actors sidebar → **Create Actor** → type **Domain**.
 
-The sheet is the Judge's. A player who can open it reads it and changes
-nothing.
+The sheet is the Judge's. A player who can open it reads it, opens its tabs,
+and changes nothing.
 
-## Overview
+## The frame
 
 ![](../releases/v11.5.0/domains-overview.png)
 
-- **Ruler** — drag a character onto the ruler row. **Ruler's name** is for a
-  ruler with no actor; it is filled in when you drop one, so the record still
-  reads if the actor is deleted. The × clears the link and keeps the name.
-- **Title**, **classification** and **alignment**. Alignment left blank means
-  the ruler's.
-- **Liege** — pick the domain this one answers to, or drag one onto the
-  **Liege** row. A domain cannot answer to one that already answers to it, and
-  the picker leaves those out. **Liege's name** is for a liege with no actor.
-- **Morale** — the current score, the base score, or both, as your record
-  gives them. A blank current score means it stands at its base.
-- **At a glance** — the families, the hexes, the stronghold's value and the
-  month's income, each with a note when part of it is unknown.
+The top of the sheet stays put whichever tab is open.
+
+- **The band**, in the window's title bar: the domain's heraldry (click it to
+  choose a picture), its **title** before its **name**, and its **morale** —
+  the current score, the base score, or both, as your record gives them. A
+  blank current score means it stands at its base.
+- **Ruler** and **Liege** — each names the actor, or the record's word for
+  one. Drag a character onto the Ruler, or a domain onto the Liege, or press
+  the pencil to choose from a list. A domain cannot answer to one that already
+  answers to it, and the list leaves those out. The × drops the actor and
+  keeps the name.
+- **The tags** — the classification, and the alignment (blank means the
+  ruler's).
+- **The rails** — the peasant and urban families, the hexes, the stronghold's
+  value, and the month's revenue, expenses and income. A figure with a **+**
+  is at least that much: something on the record has no figure yet. A
+  month figure with a half-filled mark is over lines left blank; hover it to
+  see which. Click any figure to open the tab it is kept on.
+
+## Overview
+
+The record's own words for the ruler and the liege, for a ruler or liege with
+no actor; the classification and alignment; and, when a figure leaves
+something out, a list of what.
 
 ## Territory
 
@@ -47,8 +59,10 @@ lets players who can read the sheet see that row's land value.
 ![](../releases/v11.5.0/domains-holdings.png)
 
 Drag a location onto the sheet to hold it. A place stays where it is; the
-domain lists it.
+domain lists it, and the place's own sheet names the domain.
 
+- **Found a settlement** makes a new location with a market and holds it at
+  once. Its sheet opens so you can enter its families.
 - A **settlement** — a location with a market — counts its own urban families
   and market class, read from its sheet. Change them there.
 - **Add a place not yet on the map** is for a town your record names that has
@@ -76,19 +90,28 @@ the rate. The note beside a line is for anything the figure cannot say.
 this domain pays its liege; a domain with no liege owes nothing.
 
 When a line is blank, or a rate meets families nobody has counted, the totals
-count only what is set and say how many lines they left out.
+count only what is set and say how many lines they left out. The
+**Treasury** row stays empty for now.
 
 ## Realm
 
 ![](../releases/v11.5.0/domains-realm.png)
 
 - **Vassal domains** are domains whose liege is this one. Drag a domain onto
-  this sheet anywhere but the Liege row to make it a vassal; the button beside
+  this sheet anywhere but the Liege to make it a vassal; the button beside
   one releases it.
 - **Other vassals** are the vassals your record summarises in a row: families,
   hexes and their classification, revenue, tribute and any additional tax.
   A vassal is one or the other — a domain of its own, or a row here.
+- **Make a domain** turns a row into a domain of its own, answering to this
+  one, and removes the row. The new domain keeps everything the row said: its
+  hexes and peasants as territory, its urban families as a settlement not yet
+  on the map, its tribute and additional tax as what it pays, and the rest in
+  its notes. This domain's tribute in does not change.
 - **Favors** and **duties** are rows of text.
+
+A domain dropped on a location's sheet or an organisation's is refused: hold
+a place, or set a liege, from the domain's own sheet.
 
 ## Notes
 
@@ -96,6 +119,6 @@ count only what is set and say how many lines they left out.
 
 ## Coming next
 
-The framed sheet, then the rules: the standard revenue and expense figures,
-morale, the month's turn and territory painted on the map. Each arrives
-without changing what you have entered.
+The rules: the standard revenue and expense figures, morale, the treasury, the
+month's turn and territory painted on the map. Each arrives without changing
+what you have entered.

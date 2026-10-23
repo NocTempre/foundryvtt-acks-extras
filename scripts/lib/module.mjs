@@ -148,7 +148,8 @@ const localImpl = Object.freeze({
   // `SAVE_KINDS`, the save a `rollMath` is for and the kind of attack an
   // `acMath` stands against; `giverOf`, `endingAtTurn`, `lostTo`, `LOSSES`
   // and a subject's `gifts`.
-  apiVersion: 29,
+  // 30: places — `isMarkerActor`, the bodies whose token marks a place.
+  apiVersion: 30,
   vocab,
   fields,
   /**

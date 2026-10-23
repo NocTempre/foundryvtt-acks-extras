@@ -1,5 +1,8 @@
-<details class="section" open>
-  <summary>{{localize title}}</summary>
+{{!-- One side of the ledger: the named lines, each a rate per family and a
+      flat figure for peasants and for settlements, then the other lines.
+      Context: {title, lines, others, othersArray, lock, canEdit}. --}}
+<div class="acks-extras-domain-sheet__block">
+  <h3 class="acks-extras-domain-sheet__block-title">{{localize title}}</h3>
   <table class="acks-table acks-extras-domain-table acks-extras-domain-lines">
     <thead>
       <tr>
@@ -26,7 +29,7 @@
                    aria-label="{{label}}: {{localize 'ACKS-DOMAINS.field.urbanGp'}}" /></td>
         <td>
           {{totalShown}}
-          {{#if amount.unknown}}<i class="fas fa-circle-question" data-tooltip="{{localize 'ACKS-DOMAINS.hint.unknownFamilies'}}"></i>{{/if}}
+          {{#if amount.unknown}}<i class="fa-solid fa-circle-question" data-tooltip="{{localize 'ACKS-DOMAINS.hint.unknownFamilies'}}"></i>{{/if}}
         </td>
         <td><input type="text" name="{{path}}.note" value="{{line.note}}" {{@root.lock}}
                    aria-label="{{label}}: {{localize 'ACKS-DOMAINS.field.note'}}" /></td>
@@ -43,7 +46,7 @@
                  aria-label="{{localize 'ACKS-DOMAINS.field.gp'}}" />
         </td>
         <td class="row-actions">
-          {{#if @root.canEdit}}<button type="button" class="acks-btn acks-btn--quiet acks-btn--icon" data-action="rowDelete" data-array="{{../othersArray}}" data-index="{{index}}" aria-label="{{localize 'ACKS-DOMAINS.sheet.removeRowTitle'}}"><i class="fas fa-xmark"></i></button>{{/if}}
+          {{#if @root.canEdit}}<button type="button" class="acks-btn acks-btn--quiet acks-btn--icon" data-action="rowDelete" data-array="{{../othersArray}}" data-index="{{index}}" aria-label="{{localize 'ACKS-DOMAINS.sheet.removeRowTitle'}}"><i class="fa-solid fa-xmark" inert></i></button>{{/if}}
         </td>
       </tr>
       {{/each}}
@@ -51,8 +54,10 @@
   </table>
   <p class="acks-extras-domain-hint">{{localize "ACKS-DOMAINS.hint.lines"}}</p>
   {{#if canEdit}}
-  <button type="button" class="acks-btn acks-btn--secondary acks-btn--sm" data-action="rowAdd" data-array="{{othersArray}}">
-    <i class="fas fa-plus"></i> {{localize "ACKS-DOMAINS.sheet.addOtherLine"}}
-  </button>
+  <div class="acks-extras-domain-sheet__actions">
+    <button type="button" class="acks-btn acks-btn--secondary acks-btn--sm" data-action="rowAdd" data-array="{{othersArray}}">
+      <i class="fa-solid fa-plus" inert></i> {{localize "ACKS-DOMAINS.sheet.addOtherLine"}}
+    </button>
+  </div>
   {{/if}}
-</details>
+</div>

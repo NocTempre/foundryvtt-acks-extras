@@ -1,0 +1,8 @@
+{{!-- The tab row: core's tab buttons (`data-action="tab"`), drawn as pills.
+      Core keeps their `active` class and `aria-pressed` in step. --}}
+<nav class="acks-tabs tabs acks-extras-domain-sheet__tabs" data-group="primary" aria-label="{{localize 'ACKS-DOMAINS.frame.tabsLabel'}}">
+  {{#each tabs}}
+  <button type="button" class="acks-tab acks-extras-domain-sheet__pill{{#if active}} active{{/if}}" data-action="tab"
+          data-group="primary" data-tab="{{id}}" aria-pressed="{{#if active}}true{{else}}false{{/if}}"><i class="{{icon}}" inert></i> {{label}}</button>
+  {{/each}}
+</nav>

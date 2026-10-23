@@ -2710,6 +2710,23 @@ own port; no walk in `tools/live` covers it.
 
 **Teardown.** `api.sweepTracked()`. The originals on A, and the arrivals the
 recall deleted, sweep as missing.
+
+## The band in the header, and the marker test
+
+`header-band.mjs` is walked by its first user's recipe,
+`docs/domains/TESTING.md`: step 13 reads one band, in the window header,
+after every re-render, and step 11 reads it on a player's seat, whose header
+the GM's controls do not crowd. `isMarkerActor` and `sceneOccupants` over a
+domain's, an organisation's and a place's tokens are step 18 there, and are
+pinned offline in `tools/test-poi.mjs`.
+
+Formation reads the same test, and no driver walks it yet. On a scene, put a
+character's token and a domain's token, select both, and press the
+character's token HUD "add to party". *Observable:* the party gains the
+character alone. Open the domain token's HUD. *Observable:* it has no
+form-up press. Track the party the press made from `getFormations()`, read
+back after it, and `api.sweepTracked()`.
+
 ## Teardown
 
 Delete every fixture actor and the items the storage and money steps created.

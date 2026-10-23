@@ -1,0 +1,46 @@
+{{!-- Ledger: the month as the record states it — the revenue and expense
+      lines, the other lines, tribute in and out, and the totals over what is
+      set. A partial ledger says what it lacks. The treasury row stands empty:
+      the domain keeps no treasury yet. --}}
+<div class="tab acks-extras-domain-sheet__panel{{#if tabs.ledger.active}} active{{/if}}" data-group="primary" data-tab="ledger">
+  {{#if ledger.partial}}<p class="notification info acks-extras-domain-partial">{{ledger.partialNote}}</p>{{/if}}
+  {{> "modules/acks-extras/templates/domains/domain-lines.hbs" title="ACKS-DOMAINS.sheet.revenue" lines=ledger.revenue others=ledger.otherRevenue othersArray="otherRevenue" lock=lock canEdit=canEdit}}
+  <table class="acks-table acks-extras-domain-table">
+    <tbody>
+      <tr>
+        <td>{{localize "ACKS-DOMAINS.field.tributeIn"}}</td>
+        <td>{{ledger.tributeIn.shown}}{{#if ledger.tributeIn.unknown}}+{{/if}}</td>
+        <td class="acks-extras-domain-hint">{{localize "ACKS-DOMAINS.hint.tributeIn"}}</td>
+      </tr>
+      <tr class="acks-extras-domain-total">
+        <td>{{localize "ACKS-DOMAINS.field.totalRevenue"}}</td><td>{{ledger.revenueShown}}</td><td></td>
+      </tr>
+    </tbody>
+  </table>
+
+  {{> "modules/acks-extras/templates/domains/domain-lines.hbs" title="ACKS-DOMAINS.sheet.expenses" lines=ledger.expenses others=ledger.otherExpenses othersArray="otherExpenses" lock=lock canEdit=canEdit}}
+  <table class="acks-table acks-extras-domain-table">
+    <tbody>
+      <tr>
+        <td>{{localize "ACKS-DOMAINS.field.tributeOut"}}</td>
+        <td>
+          {{#if ledger.tributeOwed}}
+          <input type="number" min="0" step="any" name="system.tributeGp" value="{{system.tributeGp}}" {{lock}}
+                 aria-label="{{localize 'ACKS-DOMAINS.field.tributeOut'}}" />
+          {{else}}—{{/if}}
+        </td>
+        <td class="acks-extras-domain-hint">{{#if ledger.tributeOwed}}{{localize "ACKS-DOMAINS.hint.tributeOut"}}{{else}}{{localize "ACKS-DOMAINS.hint.noLiege"}}{{/if}}</td>
+      </tr>
+      <tr class="acks-extras-domain-total">
+        <td>{{localize "ACKS-DOMAINS.field.totalExpenses"}}</td><td>{{ledger.expensesShown}}</td><td></td>
+      </tr>
+      <tr class="acks-extras-domain-total">
+        <td>{{localize "ACKS-DOMAINS.field.income"}}</td><td>{{ledger.incomeShown}}</td><td></td>
+      </tr>
+      <tr class="acks-extras-domain-treasury">
+        <td>{{localize "ACKS-DOMAINS.field.treasury"}}</td><td>—</td>
+        <td class="acks-extras-domain-hint">{{localize "ACKS-DOMAINS.hint.treasury"}}</td>
+      </tr>
+    </tbody>
+  </table>
+</div>

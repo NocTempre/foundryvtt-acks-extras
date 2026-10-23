@@ -1,4 +1,4 @@
-# lib API (apiVersion 29)
+# lib API (apiVersion 30)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -31,7 +31,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 29,
+  apiVersion: 30,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -58,6 +58,7 @@ acksExtras.lib = {
   coinOrder,           // lib/coin-order.mjs — the coin-order controls a sheet draws (below); 25
   // 25: coin stores, a holder's order, a payment's reach — `money` (below)
   drawQuietly,         // lib/roll-audience.mjs — a table draw with nothing posted (below); 28
+  // 30: places.isMarkerActor — the bodies whose token marks a place (docs/lib/PLACES.md)
 }
 ```
 

@@ -1,5 +1,7 @@
-<details class="section" open>
-  <summary>{{localize title}} ({{rows.length}})</summary>
+{{!-- A list of favors or duties: a label and a note per row.
+      Context: {array, title, rows, lock, canEdit}. --}}
+<div class="acks-extras-domain-sheet__block">
+  <h3 class="acks-extras-domain-sheet__block-title">{{localize title}} ({{rows.length}})</h3>
   {{#if rows.length}}
   <table class="acks-table acks-extras-domain-table">
     <tbody>
@@ -10,7 +12,7 @@
         <td><input type="text" name="system.{{../array}}.{{index}}.note" value="{{note}}" {{@root.lock}}
                    aria-label="{{localize 'ACKS-DOMAINS.field.note'}}" placeholder="{{localize 'ACKS-DOMAINS.field.note'}}" /></td>
         <td class="row-actions">
-          {{#if @root.canEdit}}<button type="button" class="acks-btn acks-btn--quiet acks-btn--icon" data-action="rowDelete" data-array="{{../array}}" data-index="{{index}}" aria-label="{{localize 'ACKS-DOMAINS.sheet.removeRowTitle'}}"><i class="fas fa-xmark"></i></button>{{/if}}
+          {{#if @root.canEdit}}<button type="button" class="acks-btn acks-btn--quiet acks-btn--icon" data-action="rowDelete" data-array="{{../array}}" data-index="{{index}}" aria-label="{{localize 'ACKS-DOMAINS.sheet.removeRowTitle'}}"><i class="fa-solid fa-xmark" inert></i></button>{{/if}}
         </td>
       </tr>
       {{/each}}
@@ -18,8 +20,10 @@
   </table>
   {{/if}}
   {{#if canEdit}}
-  <button type="button" class="acks-btn acks-btn--secondary acks-btn--sm" data-action="rowAdd" data-array="{{array}}">
-    <i class="fas fa-plus"></i> {{localize "ACKS-DOMAINS.sheet.addRow"}}
-  </button>
+  <div class="acks-extras-domain-sheet__actions">
+    <button type="button" class="acks-btn acks-btn--secondary acks-btn--sm" data-action="rowAdd" data-array="{{array}}">
+      <i class="fa-solid fa-plus" inert></i> {{localize "ACKS-DOMAINS.sheet.addRow"}}
+    </button>
+  </div>
   {{/if}}
-</details>
+</div>

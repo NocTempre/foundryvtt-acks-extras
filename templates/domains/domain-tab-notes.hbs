@@ -1,0 +1,20 @@
+{{!-- Notes: the record's notes, and the Judge's own, which reach a GM seat
+      only. --}}
+<div class="tab acks-extras-domain-sheet__panel{{#if tabs.notes.active}} active{{/if}}" data-group="primary" data-tab="notes">
+  <div class="acks-extras-domain-sheet__block">
+    <h3 class="acks-extras-domain-sheet__block-title">{{localize "ACKS-DOMAINS.field.notes"}}</h3>
+    {{#if canEdit}}
+    <prose-mirror class="acks-extras-domain-notes content-sized" name="system.notes" value="{{system.notes}}" toggled
+                  data-document-uuid="{{actor.uuid}}" style="--min-height: 6rem;">{{{notesHTML}}}</prose-mirror>
+    {{else}}
+    <div class="acks-extras-domain-notes acks-prose">{{{notesHTML}}}</div>
+    {{/if}}
+  </div>
+  {{#if isGM}}
+  <div class="acks-extras-domain-sheet__block is-judge">
+    <h3 class="acks-extras-domain-sheet__block-title">{{localize "ACKS-DOMAINS.field.gmNotes"}}</h3>
+    <prose-mirror class="acks-extras-domain-notes content-sized" name="system.gmNotes" value="{{system.gmNotes}}" toggled
+                  data-document-uuid="{{actor.uuid}}" style="--min-height: 6rem;">{{{gmNotesHTML}}}</prose-mirror>
+  </div>
+  {{/if}}
+</div>
