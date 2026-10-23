@@ -40,7 +40,8 @@ Bargaining swing (`availability.bargainingProse`), the magic-item price
 multiples (`magicItems.priceProse`, JJ 131), the identification thresholds
 (`magicItems.identifyProse`), the market-impact limits, assessment bands,
 class price shifts and negotiation profile (`mercantile.impactProse`,
-`assessmentProse`, `priceShiftProse`, `negotiationProse`, JJ 202). The
+`assessmentProse`, `priceShiftProse`, `negotiationProse`, JJ 202), and the
+randomized tariff's dice (`mercantile.tariffProse`, RR 372). The
 demand step fraction is derived per category from the merchandise row's own
 step and price. `engine/printed.mjs` is the one reader: it returns `null` for
 a value the world lacks, and the action that needs it refuses with a notice
@@ -116,8 +117,8 @@ party's find.
   and construction rates); a directed search re-examines each fresh market
   month through the same shared rolls the buy flow honors.
 - **Ventures** (`engine/ventures.mjs`): dedicated-day actions post now and
-  resolve when their day passes — market entry (toll from the imported
-  Market Characteristics; impact from the cargo capacity the party brings
+  resolve when their day passes — market entry (toll and tariff paid at the
+  gate, below; impact from the cargo capacity the party brings
   over the baseline: the hold capacity of each vehicle it enters with, read
   through `vehicles/hold.mjs`, plus any other capacity it states),
   assessment (writes one market REPORT Item holding the assessor's
@@ -136,6 +137,31 @@ party's find.
   or drawn. The seat must own the hold as well as the trader.
   A day that cannot resolve because its imported table is missing posts a
   card to the actor's owners and the GM naming the table.
+  - **The gate** (`engine/gate.mjs` `entryQuote`, `settleTariff`; RR 372):
+    an entry pays the toll and the tariff in ONE payment as the day is
+    posted, refused whole when the purse falls short. The toll is the
+    class's per-stone toll on the declared capacity. The tariff is charged
+    on every merchandise load in the entering trader's own packs and in the
+    entering vehicles' holds (`manifestOf`, so goods kept for another owner
+    are passed over), on each load's base cost — its good's catalogue price
+    per stone, else the load's own cost, × stones — at its tier's rate
+    (`rules/arbitrage.mjs` `tariffOn`), a good marked `tariffExempt`
+    charged nothing. The rates are the class's tariff cell
+    (`parseTariffPct`: two percentages, precious first, or none); a cell
+    that is neither refuses the entry naming the table. With
+    `marketsRandomTariff` on and a taxable load aboard, each tier the class
+    tariffs is thrown once at the gate on the imported dice instead, and an
+    entry with no dice imported is refused naming that table. Where the
+    trader or a member of the trader's party rules the domain the market
+    lies in (`acksExtras.domains.domainOf`, read at call time), neither is
+    charged (the Ruler's Privilege). The Enter dialog shows the same quote,
+    recomputed as vehicles are ticked and capacity typed: the toll, a line
+    per load with its rate and charge, the span a thrown tariff can come
+    to, or the privilege. The quote is figured again on the seat that
+    posts, which can read loads the previewing seat may not. The action and
+    the venture row store `tollCp`, `tariffCp` and `privilegeUuid`; the
+    ledger row itemizes toll and tariff, the detail names any throws, and
+    the entered card says what was paid.
   - **The assessment's roll is made on the influence page**, not by the
     sweep: the tab opens the influence feature's `marketAssessment` mode
     against the market as target (Charisma, one tone proficiency, Mystic
@@ -175,10 +201,10 @@ party's find.
     the Enter dialog says its value is not imported. The ledger note and
     the card name the option used.
   - **A party may leave the market** (`leaveMarket`, `leaveVentureMarket`):
-    the month's row stays with `entered` false and the toll on record, the
-    party's solicitations for the month are dropped, and its waiting
-    enter/assess/solicit days are withdrawn. Entering again overwrites the
-    row with a fresh declaration and pays a fresh toll.
+    the month's row stays with `entered` false and the toll and tariff on
+    record, the party's solicitations for the month are dropped, and its
+    waiting enter/assess/solicit days are withdrawn. Entering again
+    overwrites the row with a fresh declaration and pays the gate afresh.
 - **Known markets** (`rules/known.mjs`, `engine/known-market.mjs`): a
   mercantile network's class shift is situational — it counts in a market the
   trader has been in before — and henchmen's `effectiveMarketClass` asks

@@ -194,9 +194,15 @@ export function goodsSchema() {
         bribeGp: num(0),
         // enter: how the party's solicitations use a mercantile network this visit.
         networkMode: new f.StringField({ required: true, initial: "auto", choices: NETWORK_MODES }),
+        // enter: what the gate took when the day was posted (engine/gate.mjs) —
+        // the toll (null on a row posted before it was stored), the tariff, and
+        // the domain whose ruler's privilege waived both.
+        tollCp: new f.NumberField({ required: false, nullable: true, integer: true, initial: null }),
+        tariffCp: int(0),
+        privilegeUuid: str(),
       })
     ),
-    // Venture state per party-month: entered, cargo, impact, toll paid.
+    // Venture state per party-month: entered, cargo, impact, toll and tariff paid.
     ventures: new f.ArrayField(
       new f.SchemaField({
         partyId: str(),
@@ -208,6 +214,10 @@ export function goodsSchema() {
         impact: int(0),
         effectiveClass: int(0),
         tollCp: int(0),
+        // The tariff the entry paid, and the domain whose ruler's privilege
+        // waived toll and tariff ("" where none did).
+        tariffCp: int(0),
+        privilegeUuid: str(),
         entered: new f.BooleanField({ initial: false }),
         // When the entry that opened this visit was posted: the day a known
         // market's earlier visits are counted back from (rules/known.mjs).

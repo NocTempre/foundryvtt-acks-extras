@@ -1,8 +1,9 @@
 /**
  * Live walk, markets: markets + location + the lib pointer.
- * Walks: the default-trader ad hoc; the known-market walk (1–7); the network walk (1–6);
- * reports step 10 and the step-4 hunk (picks, the card's link); the ledger-length ad hoc;
- * the hit-point tool from the party sheet. Machine values arrive through ./_env.mjs.
+ * Walks: the gate walk (G0–G7; STAGE=gate stops after it); the default-trader ad hoc; the
+ * known-market walk (1–7); the network walk (1–6); reports step 10 and the step-4 hunk
+ * (picks, the card's link); the ledger-length ad hoc; the hit-point tool from the party
+ * sheet. Machine values arrive through ./_env.mjs.
  * Every figure typed into a
  * fixture is invented; imported figures stay in this log and are never quoted by name.
  *
@@ -12,6 +13,7 @@
  *     (read first, put back);
  *   - a book connected on the GM seat with remember:false; a rules document the run
  *     imported is removed; a trade house the run made is swept and its setting cleared;
+ *   - the world's `marketsRandomTariff` setting, read first and put back;
  *   - the shared clock: one day per advance, counted and reported.
  */
 import { connect, sleep } from "./_driver.mjs";
@@ -24,6 +26,7 @@ const SEATS = { gm: MACHINE.gm, player: MACHINE.player };
 const NONCE = "m" + Math.random().toString(36).slice(2, 8);
 const MOD = "acks-extras";
 const SHOTS = process.env.SHOTS === "1";
+const STAGE = process.env.STAGE ?? ""; // "gate" stops after the gate walk
 const SHOT_DIR = shotDir();
 const BOOKS = books(["rr"]); // the GM's staged copies, from ACKS_TEST_BOOKS; empty, the walk takes the bookless path
 const DOCS = ["mercantile", "availability"];
@@ -403,6 +406,128 @@ const P = {
     const row = H.T.findRow(rows, (r) => Number(r.marketClass) === Number(marketClass)) ?? null;
     return { hasRow: !!row, baseline: row ? H.m.AR.parseStones(row.baselineCargo) : null, tollPerSt: row ? H.m.AR.parseTollCpPerSt(row.toll) : null, impactCap: H.m.PR.impactLimits()?.impactCap ?? null, bands: H.m.PR.assessmentBands() };
   },
+  /** The gate's imported inputs for one class, and whether every class's tariff cell reads. Figures stay in the log. */
+  gateRates: async ({ marketClass }) => {
+    const H = globalThis.__c2;
+    const rows = H.T.getTable("mercantile", "marketCharacteristics")?.rows ?? [];
+    const rowOf = (cls) => H.T.findRow(rows, (r) => Number(r.marketClass) === cls) ?? null;
+    const row = rowOf(marketClass);
+    return {
+      tollPerSt: row ? H.m.AR.parseTollCpPerSt(row.toll) : null,
+      rates: row ? H.m.AR.parseTariffPct(row.tariff) : null,
+      everyCellReads: [1, 2, 3, 4, 5, 6].every((cls) => rowOf(cls) && H.m.AR.parseTariffPct(rowOf(cls).tariff) !== null),
+      dice: H.m.PR.tariffDice(),
+      ranges: H.m.PR.tariffDice() ? { precious: H.m.AR.diceRange(H.m.PR.tariffDice().precious), common: H.m.AR.diceRange(H.m.PR.tariffDice().common) } : null,
+    };
+  },
+  /** GM: the Randomized Tariff read off the connected book through the shipped recipe, returned for every seat's layer; nothing is written to the world. */
+  tariffFromBook: async () => {
+    const H = globalThis.__c2;
+    const base = "/modules/acks-extras/scripts/importer/";
+    const { TABLE_RECIPES } = await import(base + "table-recipes.mjs");
+    const { locatePageNumber } = await import(base + "tables-binding.mjs");
+    const { extractTable } = await import(base + "table-extract.mjs");
+    const { pageItems } = await import(base + "extract.mjs");
+    const recipe = TABLE_RECIPES.mercantile.tables.tariffProse;
+    const doc = H.m.CB.cookbookSessionDoc(recipe.book);
+    if (!doc) return { read: false, reason: "book not connected" };
+    const p = await locatePageNumber(doc, recipe);
+    if (p == null) return { read: false, reason: "page not found" };
+    const { items } = await pageItems(doc, p);
+    return { read: true, table: extractTable(items, recipe) };
+  },
+  /** This seat's priority-30 Randomized Tariff layer, on with `table` or off; reports whether the gate then reads its dice. */
+  tariffLayer: async ({ on, table = null }) => {
+    const H = globalThis.__c2;
+    if (on) { H.T.registerTable({ id: "mercantile", tables: { tariffProse: table } }, { priority: 30, source: "qa-gate" }); H.gateLayer = true; }
+    else if (H.gateLayer) { H.T.unregisterTable("mercantile", { priority: 30 }); H.gateLayer = false; }
+    return { dice: !!H.m.PR.tariffDice() };
+  },
+  /**
+   * Press Enter on the open Trade tab, declare each of `declarations` in turn
+   * ({vehicleUuids, other}) through the dialog's own controls, and read the gate
+   * block after each; submit the last unless told to read only.
+   */
+  gateDialog: async ({ locationId, declarations, submit = true }) => {
+    const H = globalThis.__c2;
+    H.takeNotes();
+    const btn = await H.poll(() => H.root(H.locSheet(locationId))?.querySelector('[data-action="ventureEnter"]') ?? null, { tries: 40, every: 200 });
+    if (!btn) return { pressed: false };
+    btn.click();
+    const input = await H.poll(() => document.querySelector('.application.dialog input[name="other"]'), { tries: 40, every: 200 });
+    if (!input) return { pressed: true, dialog: false, notes: H.takeNotes() };
+    const dialog = input.closest(".application");
+    dialog.dataset.qaEnter = "1";
+    const read = () => { const box = dialog.querySelector("[data-gate-quote]"); return { text: H.text(box), lines: [...(box?.querySelectorAll("li") ?? [])].map((li) => H.text(li)) }; };
+    const reads = [read()];
+    for (const d of declarations) {
+      for (const el of dialog.querySelectorAll('input[name="vehicle"]')) {
+        const want = (d.vehicleUuids ?? []).includes(el.value);
+        if (el.checked !== want) { el.checked = want; el.dispatchEvent(new Event("change", { bubbles: true })); }
+      }
+      input.value = String(d.other ?? 0);
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      await H.sleep(250);
+      reads.push(read());
+    }
+    if (!submit) return { pressed: true, dialog: true, reads, notes: H.takeNotes() };
+    const t0 = game.time.worldTime;
+    H.takeChat();
+    dialog.querySelector('button[data-action="ok"]').click();
+    const loc = game.actors.get(locationId);
+    const action = await H.poll(() => (loc.system.market.goods.actions ?? []).filter((a) => a.kind === "enter" && a.status === "pending" && a.postedTime >= t0).at(-1) ?? null, { tries: 40, every: 250 });
+    await H.sleep(400);
+    return { pressed: true, dialog: true, reads, submitted: true, notes: H.takeNotes(), chat: H.takeChat(), action: action ? { id: action.id, cargoSt: action.cargoSt, tollCp: action.tollCp, tariffCp: action.tariffCp, privilegeUuid: action.privilegeUuid, detail: action.detail, vehicleUuids: [...action.vehicleUuids] } : null };
+  },
+  /** Wait until this seat holds the actor with at least `items` embedded items. */
+  seen: async ({ actorId, items = 0 }) => {
+    const H = globalThis.__c2;
+    const a = await H.poll(() => { const x = game.actors.get(actorId); return x && x.items.size >= items ? x : null; }, { tries: 50, every: 200 });
+    return { seen: !!a, items: game.actors.get(actorId)?.items.size ?? null };
+  },
+  /** GM: an entry posted through the api, under a dice rig when `u` is given (every die then shows the same face). */
+  gateEnterApi: async ({ locationId, actorId, vehicleUuids, u = null }) => {
+    const H = globalThis.__c2;
+    const loc = game.actors.get(locationId);
+    if (u !== null) { H.rig0 = H.rig0 ?? CONFIG.Dice.randomUniform; CONFIG.Dice.randomUniform = () => u; }
+    H.takeChat();
+    let r = null;
+    try { r = await H.M.performVentureAction(loc, { kind: "enter", actorUuid: game.actors.get(actorId).uuid, vehicleUuids, cargoSt: 0, resolutionId: foundry.utils.randomID() }); } finally { H.unrig(); }
+    await H.sleep(400);
+    const action = (loc.system.market.goods.actions ?? []).filter((a) => a.kind === "enter" && a.status === "pending").at(-1) ?? null;
+    return { ok: !!r?.ok, error: r?.error ?? null, table: r?.table ?? null, chat: H.takeChat(), action: action ? { id: action.id, tollCp: action.tollCp, tariffCp: action.tariffCp, detail: action.detail } : null };
+  },
+  /** GM: resolve one pending entry now, without moving the shared clock. */
+  gateResolve: async ({ locationId, actionId }) => {
+    const H = globalThis.__c2;
+    const loc = game.actors.get(locationId);
+    const actions = (loc.system.market.goods.actions ?? []).map((a) => H.plain(a));
+    const action = actions.find((a) => a.id === actionId);
+    if (!action) return { found: false };
+    action.resolveTime = game.time.worldTime;
+    H.takeChat();
+    await loc.update({ "system.market.goods.actions": actions });
+    await H.M.processImports(loc);
+    await H.poll(() => (game.actors.get(locationId).system.market.goods.actions ?? []).find((a) => a.id === actionId)?.status === "done" || null, { tries: 40, every: 250 });
+    await H.sleep(600);
+    const v = H.M.ventureOf(loc, H.M.partyOf(fromUuidSync(action.actorUuid)).id);
+    return { found: true, venture: v ? { entered: !!v.entered, tollCp: v.tollCp, tariffCp: v.tariffCp, privilegeUuid: v.privilegeUuid } : null, chat: H.takeChat() };
+  },
+  /** The trader's newest ledger rows at a market: type, gp and the note with the trader's name dropped. */
+  ledgerTail: async ({ locationId, actorId, n = 3 }) => {
+    const loc = game.actors.get(locationId);
+    const a = game.actors.get(actorId);
+    return (loc.system.market.marketLog ?? []).filter((r) => r.actorUuid === a.uuid).slice(-n).map((r) => ({ type: r.type, gp: r.gp ?? null, note: String(r.note ?? "").replace(a.name, "T") }));
+  },
+  /** GM: make the domain fixture hold the market under `rulerId` (none when null), and read whose privilege the gate finds for the trader. */
+  gateDomain: async ({ domainId, locationId, traderId, rulerId = null }) => {
+    const D = game.actors.get(domainId);
+    const loc = game.actors.get(locationId);
+    const held = D.system.holdsPlace(loc.uuid) ? { ok: true, already: true } : await acksExtras.domains.hold(D, loc);
+    await D.update({ "system.rulerUuid": rulerId ? game.actors.get(rulerId).uuid : "" });
+    const GT = await import("/modules/acks-extras/scripts/markets/engine/gate.mjs");
+    return { held, domainOf: acksExtras.domains.domainOf(loc)?.id ?? null, privilege: GT.privilegeDomain(loc, game.actors.get(traderId))?.id ?? null };
+  },
   probeDie: async ({ u, faces = 6 }) => {
     const H = globalThis.__c2;
     H.rig0 = H.rig0 ?? CONFIG.Dice.randomUniform;
@@ -513,6 +638,7 @@ const P = {
     if (H.chatWrapped) { ChatMessage.create = H.chatCreate; H.chatWrapped = false; out.chat = "restored"; }
     if (H.notesPatched) { for (const k of Object.keys(H.orig)) ui.notifications[k] = H.orig[k]; H.notesPatched = false; out.notes = "restored"; }
     if (H.settingBefore !== undefined) { await game.settings.set("acks-extras", "marketsActingTrader", H.settingBefore); out.actingTrader = { restoredTo: H.settingBefore === "" ? "(empty)" : "(a uuid)" }; }
+    if (H.gateLayer) { H.T.unregisterTable("mercantile", { priority: 30 }); H.gateLayer = false; out.tariffLayer = "unregistered"; }
     return out;
   },
   clearHouse: async ({ value }) => { await game.settings.set("acks-extras", "marketsTradeHouse", value); return { now: String(game.settings.get("acks-extras", "marketsTradeHouse") ?? "") }; },
@@ -544,9 +670,13 @@ async function seat(key) {
   return api;
 }
 
+/** Thrown to end the walk early at the stage STAGE names; teardown still runs. */
+class StageDone extends Error {}
+
 let gm = null;
 let advances = 0;
 let housePre = null;
+let randomBefore = null;
 const imported = [];
 const advance = async (locationId = null, actionId = null) => { advances++; const r = await run(gm, P.advanceDay, { locationId, actionId }); note(`advance ${advances}`, r); return r; };
 // What the rule gives a solicitation, by hand: the class option, the impact option, the better of them (class over impact on a tie, the plain entry when neither beats it).
@@ -597,6 +727,137 @@ try {
   const ch1 = await run(gm, P.characteristics, { marketClass: 1 });
   note("characteristics read (class 3, class 1)", { hasRow3: ch3.hasRow, hasRow1: ch1.hasRow, cap: ch3.impactCap, bandsRead: !!ch3.bands });
   if (!ch3.hasRow || !ch3.impactCap || !ch3.bands) throw new Error("the mercantile document's characteristics, impact limits or assessment bands are not readable: the venture days cannot resolve");
+
+  section("the gate walk: toll, tariff, the Ruler's Privilege, the thrown tariff");
+  {
+    const gr = await run(gm, P.gateRates, { marketClass: 3 });
+    note("the gate's imported inputs (class 3)", gr);
+    check("G0: every class's tariff cell in the imported Market Characteristics reads as a precious and a common rate", gr.everyCellReads && !!gr.rates, { everyCellReads: gr.everyCellReads, class3: !!gr.rates });
+    if (!gr.rates || gr.tollPerSt === null) throw new Error("the class-3 toll or tariff cell is unreadable: the gate walk cannot price an entry");
+    const gOwn = { default: 0, [pc.userId]: 3 };
+    // Every price and stone count here is invented; the rates and dice are the import's.
+    const PRICE = { p: 40, c: 3, e: 2 };
+    const KEY = { p: `qgp${NONCE}`, c: `qgc${NONCE}`, e: `qge${NONCE}` };
+    const CAP = 60;
+    const G = await gm.create("Actor", { name: `QA Gate Town ${NONCE}`, type: "acks-extras.location" });
+    note("market G", await run(gm, P.addMarket, { locationId: G.id, classOverride: 3 }));
+    for (const [k, tier, exempt, label] of [["p", "precious", false, "Precious"], ["c", "common", false, "Common"], ["e", "common", true, "Exempt"]]) {
+      await gm.create("Item", { name: `QA ${label} ${NONCE}`, type: "acks-extras.merchandise", system: { key: KEY[k], tier, tariffExempt: exempt, pricePerStoneGp: PRICE[k], priceStepGp: 1, dailyStones: [10, 5, 2, 1, 1, 1] } });
+    }
+    const load = (k, stones, more = {}) => ({ name: `QA load ${k} ${NONCE}`, type: "item", system: { quantity: { value: stones, max: 0 }, cost: PRICE[k], weight6: 6 }, flags: { "acks-extras": { markets: { merchandise: true, category: KEY[k] }, ...more } } });
+    const T = await gm.create("Actor", { name: `QA Gate Trader ${NONCE}`, type: "character", ownership: gOwn, items: [load("p", 2)], flags: { "acks-extras": { markets: { trader: true } } } });
+    const Q = await gm.create("Actor", { name: `QA Gate Partner ${NONCE}`, type: "character", ownership: gOwn, items: [] });
+    // A new actor's default ownership is the world's; only an explicit none keeps NP out of the implicit party.
+    const NP = await gm.create("Actor", { name: `QA Gate Stranger ${NONCE}`, type: "character", ownership: { default: 0 }, items: [] });
+    // Thirty common stones and ten exempt aboard, and five kept aboard for the stranger, which the gate never sees.
+    const VH = await gm.create("Actor", { name: `QA Gate Wagon ${NONCE}`, type: "acks-extras.vehicle", ownership: gOwn, system: { kind: "land", cargo: { capacityStone: CAP } }, items: [load("c", 30), load("e", 10), load("c", 5, { storage: { ownerUuid: NP.uuid, ownerName: "QA" } })] });
+    const D = await gm.create("Actor", { name: `QA Gate Barony ${NONCE}`, type: "acks-extras.domain" });
+    const gp = (cp) => Math.round(cp) / 100;
+    const due = (sum) => (sum > 0 ? Math.ceil(sum - 1e-9) : 0);
+    const tollOn = (st) => Math.ceil(gr.tollPerSt * st);
+    const tariffAt = (r, { packs = true, hold = true } = {}) => due((packs ? 2 * PRICE.p * r.precious : 0) + (hold ? 30 * PRICE.c * r.common : 0));
+    const coinOf = async () => (await run(gm, P.coin, { actorId: T.id })).gp;
+    const near = (a, b) => Math.abs(a - b) < 0.005;
+    note("coin", await run(gm, P.coin, { actorId: T.id, mint: 5000 }));
+
+    // G1–G3: the printed tariff, previewed declaration by declaration, paid with the toll, carried to the venture row.
+    // The picker lists only the actors this client holds: a tab opened before T reaches the player acts as someone else.
+    note("T and its load as the player seat sees them", await run(player, P.seen, { actorId: T.id, items: 1 }));
+    const tab = await run(player, P.tradeTab, { locationId: G.id, traderId: T.id });
+    note("trade tab at G as T (player)", { acting: tab.acting, isT: tab.acting === T.id, enterButton: tab.enterButton });
+    if (tab.acting !== T.id) throw new Error("the player's Trade tab does not act as T: the gate walk would drive another character");
+    const coin0 = await coinOf();
+    const d1 = await run(player, P.gateDialog, { locationId: G.id, declarations: [{ vehicleUuids: [VH.uuid], other: 0 }, { vehicleUuids: [], other: 5 }, { vehicleUuids: [VH.uuid], other: 0 }] });
+    for (const id of d1.chat ?? []) player.track(id, "ChatMessage");
+    note("the gate block per declaration (player): none ticked, the wagon, five other stone, the wagon", d1.reads);
+    const full = { toll: tollOn(CAP), tariff: tariffAt(gr.rates) };
+    const [r0, r1, r2] = d1.reads ?? [];
+    check("G1: the Enter dialog's gate block follows the declaration — the packs' load alone with no capacity, the wagon's capacity and both its trader loads with the exempt one marked and the stranger's left out, then five other stone and the packs again — at the imported rates on the invented prices", d1.dialog && r0?.text.includes("Toll: 0gp on 0 st") && r0.text.includes(`Tariff (RR 372): ${gp(tariffAt(gr.rates, { hold: false }))}gp`) && r0.lines.length === 1 && r1?.text.includes(`Toll: ${gp(full.toll)}gp on ${CAP} st`) && r1.text.includes(`Tariff (RR 372): ${gp(full.tariff)}gp`) && r1.lines.length === 3 && r1.lines.filter((l) => l.endsWith(": exempt")).length === 1 && !r1.lines.some((l) => /, 5 st/.test(l)) && r2?.text.includes(`Toll: ${gp(tollOn(5))}gp on 5 st`) && r2.lines.length === 1, { r0, r1, r2, full });
+    const coin1 = await coinOf();
+    const tail1 = await run(gm, P.ledgerTail, { locationId: G.id, actorId: T.id, n: 1 });
+    note("posted entry, coin and ledger", { action: d1.action, notes: d1.notes, coin0, coin1, tail1 });
+    check("G2: the posted entry carries that toll and tariff and no privilege, the trader paid exactly their sum once, and the ledger row itemizes both", d1.action && d1.action.tollCp === full.toll && d1.action.tariffCp === full.tariff && d1.action.privilegeUuid === "" && d1.action.cargoSt === CAP && near(coin0 - coin1, gp(full.toll + full.tariff)) && tail1[0]?.type === "ventureAction" && near(tail1[0].gp, -gp(full.toll + full.tariff)) && tail1[0].note.includes(`toll ${gp(full.toll)}gp, tariff ${gp(full.tariff)}gp paid`), { action: d1.action, paid: coin0 - coin1, tail1 });
+    const res1 = await run(gm, P.gateResolve, { locationId: G.id, actionId: d1.action?.id });
+    for (const id of res1.chat ?? []) gm.track(id, "ChatMessage");
+    const cards1 = await run(gm, P.cards, { ids: res1.chat ?? [] });
+    note("entry resolved", { venture: res1.venture, cards: cards1.map((c) => c.text) });
+    check("G3: the resolved venture row holds the toll and tariff paid, and the entered card states both", res1.venture?.entered && res1.venture.tollCp === full.toll && res1.venture.tariffCp === full.tariff && res1.venture.privilegeUuid === "" && cards1.some((c) => c.text.includes(`Paid at the gate: toll ${gp(full.toll)}gp, tariff ${gp(full.tariff)}gp.`)), { venture: res1.venture });
+    note("leave G", await run(player, P.ventureLeave, { locationId: G.id, actorId: T.id }));
+    note("closed (player)", await run(player, P.closeAll));
+
+    // G4–G5: the Ruler's Privilege.
+    const byT = await run(gm, P.gateDomain, { domainId: D.id, locationId: G.id, traderId: T.id, rulerId: T.id });
+    const byQ = await run(gm, P.gateDomain, { domainId: D.id, locationId: G.id, traderId: T.id, rulerId: Q.id });
+    const byNP = await run(gm, P.gateDomain, { domainId: D.id, locationId: G.id, traderId: T.id, rulerId: NP.id });
+    note("privilege by ruler", { byT, byQ, byNP });
+    check("G4: with the barony holding the market, the trader ruling it or a party member ruling it grants the privilege, and a stranger ruling it does not", byT.held?.ok && byT.domainOf === D.id && byT.privilege === D.id && byQ.privilege === D.id && byNP.domainOf === D.id && byNP.privilege === null, { byT, byQ, byNP });
+    note("the trader rules", await run(gm, P.gateDomain, { domainId: D.id, locationId: G.id, traderId: T.id, rulerId: T.id }));
+    await run(player, P.tradeTab, { locationId: G.id, traderId: T.id });
+    const coin2 = await coinOf();
+    const d2 = await run(player, P.gateDialog, { locationId: G.id, declarations: [{ vehicleUuids: [VH.uuid], other: 0 }] });
+    for (const id of d2.chat ?? []) player.track(id, "ChatMessage");
+    const coin3 = await coinOf();
+    const tail2 = await run(gm, P.ledgerTail, { locationId: G.id, actorId: T.id, n: 1 });
+    const res2 = await run(gm, P.gateResolve, { locationId: G.id, actionId: d2.action?.id });
+    for (const id of res2.chat ?? []) gm.track(id, "ChatMessage");
+    const cards2 = await run(gm, P.cards, { ids: res2.chat ?? [] });
+    note("privileged entry", { read: d2.reads?.at(-1), action: d2.action, coin2, coin3, tail2, venture: res2.venture, cards: cards2.map((c) => c.text) });
+    check("G5: under the trader's own rule the dialog names the privilege and the barony, the entry pays nothing and records the domain, the ledger says nothing was paid, and the entered card says so", (d2.reads?.at(-1)?.text ?? "").includes(`No toll or tariff: Ruler's Privilege in QA Gate Barony ${NONCE}`) && d2.action?.tollCp === 0 && d2.action.tariffCp === 0 && d2.action.privilegeUuid === D.uuid && near(coin2, coin3) && tail2[0]?.note.includes("ruler's privilege, nothing paid") && res2.venture?.privilegeUuid === D.uuid && cards2.some((c) => c.text.includes("Ruler's Privilege: no toll or tariff paid.")), { read: d2.reads?.at(-1)?.text, action: d2.action, tail2, venture: res2.venture });
+    note("leave G", await run(player, P.ventureLeave, { locationId: G.id, actorId: T.id }));
+    note("closed (player)", await run(player, P.closeAll));
+    note("no ruler", await run(gm, P.gateDomain, { domainId: D.id, locationId: G.id, traderId: T.id, rulerId: null }));
+
+    // G6–G7: the Judge's randomized tariff. A world imported before the dice
+    // recipe holds none: its refusal is checked, then the dice are read off the
+    // book through the shipped recipe into a priority-30 layer on both seats —
+    // nothing written to the world — and the thrown half is walked on them.
+    const rnd = await run(gm, P.settingSet, { key: "marketsRandomTariff", value: true });
+    if (randomBefore === null) randomBefore = rnd.before;
+    note("randomized tariff on", rnd);
+    await sleep(500);
+    const randomRead = async () => {
+      await run(player, P.tradeTab, { locationId: G.id, traderId: T.id });
+      const d = await run(player, P.gateDialog, { locationId: G.id, declarations: [{ vehicleUuids: [VH.uuid], other: 0 }], submit: false });
+      note("dialog closed", await run(player, P.closeDialog));
+      return d.reads?.at(-1) ?? { text: "", lines: [] };
+    };
+    let thrown = gr;
+    if (!gr.dice) {
+      const read6 = await randomRead();
+      const coinR = await coinOf();
+      const e6 = await run(gm, P.gateEnterApi, { locationId: G.id, actorId: T.id, vehicleUuids: [VH.uuid], u: null });
+      for (const id of e6.chat ?? []) gm.track(id, "ChatMessage");
+      const coinR2 = await coinOf();
+      note("randomized with no dice in the world", { read6, e6, coinR, coinR2 });
+      check("G6r (the world holds no dice): the dialog and the entry both refuse, naming the Randomized Tariff table, and nothing is paid", read6.text.includes("Randomized Tariff") && e6.error === "printedMissing" && e6.table === "Randomized Tariff" && !e6.action && near(coinR, coinR2), { read6: read6.text, e6 });
+      const fb = await run(gm, P.tariffFromBook);
+      const layered = fb.read && (await run(gm, P.tariffLayer, { on: true, table: fb.table })).dice && (await run(player, P.tariffLayer, { on: true, table: fb.table })).dice;
+      note("the dice read off the book through the shipped recipe, layered at priority 30 on both seats", { read: fb.read, reason: fb.reason ?? null, layered });
+      thrown = layered ? await run(gm, P.gateRates, { marketClass: 3 }) : null;
+    }
+    const whence = gr.dice ? "imported" : "read off the book";
+    if (thrown?.dice) {
+      const read3 = await randomRead();
+      const coin4 = await coinOf();
+      const end = (side) => ({ precious: thrown.rates.precious > 0 ? thrown.ranges.precious[side] : 0, common: thrown.rates.common > 0 ? thrown.ranges.common[side] : 0 });
+      const lo = tariffAt(end("min")), hi = tariffAt(end("max"));
+      check(`G6: with the tariff randomized the dialog shows the span the ${whence} dice can come to and lists the loads without a rate`, read3.text.includes(`thrown at the gate, ${gp(lo)}gp to ${gp(hi)}gp`) && read3.lines.length === 3 && !read3.lines.some((l) => l.includes("%")), { read3, lo, hi });
+      const e3 = await run(gm, P.gateEnterApi, { locationId: G.id, actorId: T.id, vehicleUuids: [VH.uuid], u: 0.001 });
+      for (const id of e3.chat ?? []) gm.track(id, "ChatMessage");
+      const coin5 = await coinOf();
+      note("thrown entry (every die at its top face)", { e3, coin4, coin5 });
+      check(`G7: thrown on the ${whence} dice with every die at its top face, the entry's tariff is the top of the span, the toll is unchanged, the detail records each throw, and the trader paid their sum`, e3.ok && e3.action?.tariffCp === hi && e3.action.tollCp === full.toll && /→ \d+%/.test(e3.action.detail) && near(coin4 - coin5, gp(full.toll + hi)), { e3, paid: coin4 - coin5 });
+      const res3 = await run(gm, P.gateResolve, { locationId: G.id, actionId: e3.action?.id });
+      for (const id of res3.chat ?? []) gm.track(id, "ChatMessage");
+      note("thrown entry resolved", res3.venture);
+      note("leave G", await run(player, P.ventureLeave, { locationId: G.id, actorId: T.id }));
+    } else check("G6–G7: the thrown tariff's dice are readable from the world or the connected book", false, { worldDice: !!gr.dice, books: BOOKS.length });
+    note("tariff layers off", { gm: await run(gm, P.tariffLayer, { on: false }), player: await run(player, P.tariffLayer, { on: false }) });
+    note("randomized tariff restored", await run(gm, P.settingSet, { key: "marketsRandomTariff", value: randomBefore }));
+    note("closed (player)", await run(player, P.closeAll));
+    note("closed (gm)", await run(gm, P.closeAll));
+  }
+  if (STAGE === "gate") throw new StageDone("gate");
 
   section("fixtures");
   {
@@ -888,11 +1149,15 @@ try {
   check("lib: the party sheet's entry point opens the hit-point tool on the enrolled member", hp.enrolled && hp.opened && hp.hpOpen && hp.rows.some((r) => r.name.startsWith("QA Member")), { rows: hp.rows, subtitle: hp.subtitle });
   note("closed (gm)", await run(gm, P.closeAll));
 } catch (err) {
-  console.error("WALK ERROR:", err?.stack ?? err);
-  checks.push(["walk ran to the end", false]);
+  if (err instanceof StageDone) note("stage", `stopped after the ${err.message} walk`);
+  else {
+    console.error("WALK ERROR:", err?.stack ?? err);
+    checks.push(["walk ran to the end", false]);
+  }
 } finally {
   section("teardown");
   try { if (gm) note("closed windows", await run(gm, P.closeAll)); } catch (err) { console.error("closeAll:", err?.message ?? err); }
+  try { if (gm && randomBefore !== null) note("randomized tariff setting", await run(gm, P.settingSet, { key: "marketsRandomTariff", value: randomBefore })); } catch (err) { console.error("randomTariff:", err?.message ?? err); }
   try { if (gm) note("restored (gm)", await run(gm, P.restore)); } catch (err) { console.error("restore:", err?.message ?? err); }
   try { if (seats.player) { note("closed windows (player)", await run(seats.player, P.closeAll)); note("restored (player)", await run(seats.player, P.restore)); } } catch (err) { console.error("restore player:", err?.message ?? err); }
   for (const id of imported) { try { note(`${id} document removed`, await run(gm, P.removeDoc, { id })); } catch (err) { console.error("removeDoc:", err?.message ?? err); } }

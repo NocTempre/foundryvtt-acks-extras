@@ -21,11 +21,13 @@
   counts wherever the market is known.
 - **The network on carriage and passengers**, which waits on passenger and
   cargo transport below.
-- **Venture logistics**: tariffs on incoming sale cargo, moorage and
-  stabling fees, cargo handling times, warehousing, exhaustion-of-arbitrage
-  and price-reset options, passenger and cargo transport, passive
-  investment. (The party's own vehicles setting its market impact, and
-  loads bought into their holds, landed 2026-09-30 — MODEL, Ventures.)
+- **Venture logistics**: moorage and stabling fees, cargo handling times,
+  warehousing, exhaustion-of-arbitrage and price-reset options, passenger
+  and cargo transport, passive investment. (The party's own vehicles
+  setting its market impact, and loads bought into their holds, landed
+  2026-09-30; the tariff at the gate 2026-10-23 — MODEL, Ventures.)
+- **The Ruler's Privilege on moorage**, which waits on moorage above; the
+  toll and tariff half is built.
 - **Calendar seasons for grain pricing** — the spring/autumn step waits on
   a season source; the engine takes a `season` argument already.
 - **Spell-casting purchases** (RR spell availability by market class).

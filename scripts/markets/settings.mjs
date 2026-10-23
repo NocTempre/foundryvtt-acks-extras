@@ -33,6 +33,15 @@ export function registerSettings() {
     type: Boolean,
     default: true,
   });
+  // Read by the gate at each market entry (engine/gate.mjs).
+  reg("marketsRandomTariff", {
+    name: `${LANG}.setting.randomTariff`,
+    hint: `${LANG}.setting.randomTariffHint`,
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: false,
+  });
   // Party registry: [{id, name, memberUuids: []}]. Empty = one implicit
   // party of all player-owned characters and their henchmen. Edited from the
   // party-config app, not the settings sheet.

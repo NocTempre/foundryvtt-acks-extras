@@ -19,6 +19,7 @@ import { optTable } from "../../henchmen/rules/tables.mjs";
 import { numOrNull } from "../../lib/util.mjs";
 import { tiersNamed } from "../rules/identification.mjs";
 import { stepFractionOf } from "../rules/pricing.mjs";
+import { diceRange } from "../rules/arbitrage.mjs";
 import { merchandiseFor } from "./merchandise.mjs";
 
 /** A prose table is a flat object of keys; anything else is not one. */
@@ -120,6 +121,19 @@ export function negotiation() {
     rankStep: n.rankStep,
     bands,
   };
+}
+
+/**
+ * The dice the Judge's optional randomized tariff throws per tier, as
+ * `{precious, common}` formulas, or null when either is absent or is not one
+ * plain die term.
+ * @returns {{precious: string, common: string}|null}
+ */
+export function tariffDice() {
+  const t = flat(optTable("mercantile", "tariffProse"));
+  const precious = typeof t?.preciousDie === "string" ? t.preciousDie.trim() : "";
+  const common = typeof t?.commonDie === "string" ? t.commonDie.trim() : "";
+  return diceRange(precious) && diceRange(common) ? { precious, common } : null;
 }
 
 /**

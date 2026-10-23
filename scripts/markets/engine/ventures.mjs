@@ -33,14 +33,13 @@ import { trueDemand } from "../rules/demand.mjs";
 import { registerHandler, executeAsGM, judgeDeclares } from "../../lib/sockets.mjs";
 import { ITEM_TYPE } from "../../lib/vocab.mjs";
 import { judgesAndOwners } from "../../lib/util.mjs";
-import { optTable } from "../../henchmen/rules/tables.mjs";
-import { findRow } from "../../lib/tables.mjs";
 import { now } from "../../henchmen/time.mjs";
 import * as adapter from "../../henchmen/acks-adapter.mjs";
 import { partyOf } from "./parties.mjs";
 import { marketMonthStart, abilityRanks, awayFromMarket } from "./trade.mjs";
 import { impactLimits, assessmentBands, priceShifts, negotiation, printedError } from "./printed.mjs";
 import { merchandiseCatalog, merchandiseFor } from "./merchandise.mjs";
+import { characteristicsFor, entryQuote, settleTariff } from "./gate.mjs";
 import { writeReport } from "./trade-objects.mjs";
 import { VEHICLE_TYPE } from "../../vehicles/constants.mjs";
 import { holdOf } from "../../vehicles/hold.mjs";
@@ -60,12 +59,6 @@ async function postCard(actor, html) {
     whisper,
     speaker: ChatMessage.getSpeaker({ actor }),
   });
-}
-
-/** The imported Market Characteristics row for a class (null when absent). */
-function characteristicsFor(marketClass) {
-  const rows = optTable("mercantile", "marketCharacteristics")?.rows ?? [];
-  return findRow(rows, (r) => Number(r.marketClass) === Number(marketClass)) ?? null;
 }
 
 /**
@@ -129,21 +122,19 @@ export function ventureVehicles(venture) {
 }
 
 /**
- * The vehicles a trader declares at entry, checked and weighed. Each must be
- * a vehicle the requesting seat owns; what they bring is their cargo capacity
- * (RR §VIII.6, market impact), read from the one hold computation
- * (vehicles/hold.mjs) so the figure a market counts is the one the sheet shows.
+ * The vehicles a trader declares at entry, checked: each must be a vehicle the
+ * requesting seat owns. The gate weighs what they bring (`entryQuote`).
  */
 async function enteringVehicles(uuids, requestUserId) {
   const user = requestUserId ? game.users.get(requestUserId) : game.user;
-  const out = { uuids: [], names: [], capacity: 0 };
+  const out = { uuids: [], names: [], docs: [] };
   for (const uuid of new Set((uuids ?? []).filter(Boolean))) {
     const doc = await fromUuid(uuid).catch(() => null);
     if (doc?.type !== VEHICLE_TYPE) return err("noVehicle");
     if (!user?.isGM && !doc.testUserPermission(user, "OWNER")) return err("notYourVehicle");
     out.uuids.push(doc.uuid);
     out.names.push(doc.name);
-    out.capacity += Math.max(0, holdOf(doc)?.capacity ?? 0);
+    out.docs.push(doc);
   }
   return out;
 }
@@ -156,10 +147,10 @@ export function ventureOf(location, partyId, monthStart = marketMonthStart()) {
 }
 
 /**
- * Post a dedicated-day venture action. Entering pays the toll NOW (the gate
- * collects on arrival) and an assessment its bribe (the merchants pocket it
- * whatever the day brings); the rest of the day's outcome lands when the
- * sweep resolves it. An assessment arrives with the Judge's roll already made
+ * Post a dedicated-day venture action. Entering pays the gate NOW — toll and
+ * tariff in one payment, collected on arrival — and an assessment its bribe
+ * (the merchants pocket it whatever the day brings); the rest of the day's
+ * outcome lands when the sweep resolves it. An assessment arrives with the Judge's roll already made
  * on the influence page (`roll: {natural, total}`); one posted without a roll
  * is rolled bare (2d6 + Charisma) by the sweep. The same trader's same day
  * cannot wait in the queue twice.
@@ -189,23 +180,32 @@ export async function postVentureAction(location, payload) {
   const party = partyOf(actor);
   const venture = ventureOf(location, party.id, monthStart);
   let tollCp = 0;
+  let tariff = null;
+  let privilege = null;
   const bribe = kind === "assess" ? Math.max(0, Number(bribeGp) || 0) : 0;
-  // Entering declares what the party brings: the vehicles' capacity plus any
-  // other (porters, pack animals) stated as a number.
-  let capacitySt = Math.round(Math.max(0, Number(cargoSt) || 0));
+  let capacitySt = 0;
   let brought = { uuids: [], names: [] };
 
   if (kind === "enter") {
     if (venture?.entered) return err("alreadyEntered");
     if (actions.some((a) => a.status === "pending" && a.kind === "enter" && a.partyId === party.id)) return err("alreadyEntered");
-    const ch = characteristicsFor(location.system.marketClass);
-    if (!ch) return err("noCharacteristics");
     brought = await enteringVehicles(vehicleUuids, requestUserId);
     if (brought.error) return brought;
-    capacitySt = Math.round(capacitySt + brought.capacity);
-    tollCp = Math.ceil(parseTollCpPerSt(ch.toll) * capacitySt);
-    if (tollCp > 0) {
-      const paid = await adapter.spendGold(actor, toGp(tollCp), game.i18n.localize(`${LANG}.ventures.tollReason`), { to: location, at: location, within: location, judge: judgeDeclares(requestUserId) });
+    // Entering declares what the party brings — the vehicles, plus any other
+    // capacity (porters, pack animals) stated as a number — and the gate
+    // charges on it: the toll, the tariff on the loads aboard, or neither
+    // under the Ruler's Privilege.
+    const quote = entryQuote(location, actor, { vehicles: brought.docs, otherSt: cargoSt });
+    if (quote.error) return quote;
+    capacitySt = quote.capacitySt;
+    tollCp = quote.tollCp;
+    privilege = quote.privilege;
+    tariff = await settleTariff(quote);
+    // One payment for both, so a purse that falls short pays neither.
+    const dueCp = tollCp + tariff.totalCp;
+    if (dueCp > 0) {
+      const reason = game.i18n.localize(`${LANG}.ventures.${tariff.totalCp > 0 ? "tollTariffReason" : "tollReason"}`);
+      const paid = await adapter.spendGold(actor, toGp(dueCp), reason, { to: location, at: location, within: location, judge: judgeDeclares(requestUserId) });
       if (!paid) return err("insufficientGold");
     }
   } else {
@@ -219,9 +219,13 @@ export async function postVentureAction(location, payload) {
 
   const natural = Number.isInteger(roll?.natural) ? roll.natural : null;
   const total = Number.isInteger(roll?.total) ? roll.total : null;
+  const tariffCp = tariff?.totalCp ?? 0;
+  const thrown = (tariff?.rolls ?? []).map((r) => `${r.tier} ${r.formula} → ${r.total}%`).join(", ");
   const detail = [
     brought.names.length ? `with ${brought.names.join(", ")}` : "",
+    privilege ? `ruler's privilege (${privilege.name})` : "",
     tollCp > 0 ? `toll ${toGp(tollCp)}gp` : "",
+    tariffCp > 0 ? `tariff ${toGp(tariffCp)}gp${thrown ? ` (${thrown})` : ""}` : "",
     bribe > 0 ? `bribe ${bribe}gp` : "",
     total !== null ? `rolled ${natural} → ${total}` : "",
   ]
@@ -243,13 +247,23 @@ export async function postVentureAction(location, payload) {
     total,
     bribeGp: bribe,
     networkMode: kind === "enter" && NETWORK_MODES.includes(networkMode) ? networkMode : "auto",
+    tollCp: kind === "enter" ? tollCp : null,
+    tariffCp,
+    privilegeUuid: privilege?.uuid ?? "",
   };
   const log = clone(location.system.market.marketLog);
-  const paidGp = toGp(tollCp) + bribe;
+  const paidGp = toGp(tollCp + tariffCp) + bribe;
+  // An entry's payment is itemized, toll and tariff, so the ledger keeps them apart.
+  const paidNote =
+    kind === "enter" && (tariffCp > 0 || privilege)
+      ? ` (${privilege ? "ruler's privilege, nothing" : `${paidGp}gp: toll ${toGp(tollCp)}gp, tariff ${toGp(tariffCp)}gp`} paid)`
+      : paidGp > 0
+        ? ` (${paidGp}gp paid)`
+        : "";
   log.push({
     time: t,
     type: "ventureAction",
-    note: `${actor.name}: ${kind}${category ? ` (${category})` : ""} posted${paidGp > 0 ? ` (${paidGp}gp paid)` : ""} [${action.id}]`,
+    note: `${actor.name}: ${kind}${category ? ` (${category})` : ""} posted${paidNote} [${action.id}]`,
     actorUuid: actor.uuid,
     gp: -paidGp,
   });
@@ -412,6 +426,8 @@ export async function processVentureActions(location, log, t) {
         impact: 0,
         effectiveClass: 0,
         tollCp: 0,
+        tariffCp: 0,
+        privilegeUuid: "",
         entered: false,
         enteredTime: 0,
         rawImpact: 0,
@@ -423,15 +439,22 @@ export async function processVentureActions(location, log, t) {
       row.vehicleUuids = [...(action.vehicleUuids ?? [])];
       row.impact = impact;
       row.effectiveClass = effectiveClass;
-      // The toll was paid when the action was posted; the row records it.
-      row.tollCp = Math.ceil(parseTollCpPerSt(ch.toll) * Math.max(0, Number(action.cargoSt) || 0));
+      // The gate was paid when the action was posted; the row records what it
+      // took. An entry posted before the action carried its toll is figured
+      // again from its capacity.
+      row.tollCp = Number.isInteger(action.tollCp) ? action.tollCp : Math.ceil(parseTollCpPerSt(ch.toll) * Math.max(0, Number(action.cargoSt) || 0));
+      row.tariffCp = Math.max(0, Number(action.tariffCp) || 0);
+      row.privilegeUuid = action.privilegeUuid ?? "";
       row.entered = true;
       row.enteredTime = Number(action.postedTime) || t;
       row.rawImpact = rawImpact;
       row.impactCap = cap;
       row.networkMode = NETWORK_MODES.includes(action.networkMode) ? action.networkMode : "auto";
       log.push({ time: t, type: "ventureEntered", note: `${actor.name}: entered the market, impact ${impact}`, actorUuid: actor.uuid, gp: 0 });
-      await postCard(actor, `<strong>${game.i18n.format(`${LANG}.ventures.enteredLine`, { name: actor.name, location: location.name, impact })}</strong>`);
+      const paid = row.privilegeUuid
+        ? game.i18n.localize(`${LANG}.ventures.paidPrivilege`)
+        : game.i18n.format(`${LANG}.ventures.paidLine`, { toll: toGp(row.tollCp), tariff: toGp(row.tariffCp) });
+      await postCard(actor, `<strong>${game.i18n.format(`${LANG}.ventures.enteredLine`, { name: actor.name, location: location.name, impact })}</strong><br>${paid}`);
     }
 
     if (action.kind === "assess") {

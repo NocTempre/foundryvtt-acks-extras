@@ -2973,6 +2973,19 @@ export const TABLE_RECIPES = {
         ],
         emit: { container: "rows", keyField: "marketClass" },
       },
+      // The Judge's optional randomized tariff (RR 372, the designer's note
+      // after Entering the Market step 3): the die thrown for each tier's
+      // rate, as written.
+      tariffProse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 372,
+        locate: "randomize the tariff",
+        values: [
+          { key: "preciousDie", find: "randomize the tariff at", take: "dice", span: 8 },
+          { key: "commonDie", find: "for precious merchandise and", take: "dice", span: 8 },
+        ],
+      },
       merchandiseTypes: {
         shape: "gridRows",
         book: "rr",

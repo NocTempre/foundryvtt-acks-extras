@@ -22,7 +22,7 @@ import { locatePageNumber, recipeLocates } from "../../scripts/importer/tables-b
 import { TABLE_RECIPES } from "../../scripts/importer/table-recipes.mjs";
 import { isMissingRow, missingRowKeys } from "../../scripts/lib/tables.mjs";
 import { parseCell } from "../../scripts/markets/rules/availability.mjs";
-import { parseStones, parseTollCpPerSt } from "../../scripts/markets/rules/arbitrage.mjs";
+import { parseStones, parseTollCpPerSt, parseTariffPct, diceRange } from "../../scripts/markets/rules/arbitrage.mjs";
 import { parseMoneyCp } from "../../scripts/markets/rules/commissions.mjs";
 import { FILES } from "./reference-lib.mjs";
 
@@ -32,7 +32,7 @@ const TABLES = {
   magicItems: ["transactionsByMarketClass", "priceProse", "identifyProse"],
   mercantile: [
     "marketCharacteristics", "merchandiseTypes", "impactProse",
-    "assessmentProse", "priceShiftProse", "negotiationProse",
+    "assessmentProse", "priceShiftProse", "negotiationProse", "tariffProse",
   ],
   construction: ["wageAndConstructionRates"],
   settlement: ["marketClassByFamilies"],
@@ -159,7 +159,12 @@ const VERIFY = {
       for (const col of recipe.cellColumns) if (!isText(r[col.key])) fail(`row ${label}: ${col.key} empty or non-text`);
       if (!(parseStones(r.baselineCargo) > 0)) fail(`row ${label}: baselineCargo does not parse through parseStones to a positive number`);
       if (!(parseTollCpPerSt(r.toll) >= 0)) fail(`row ${label}: toll does not parse through parseTollCpPerSt`);
+      if (!parseTariffPct(r.tariff)) fail(`row ${label}: tariff does not parse through parseTariffPct`);
     }
+  },
+  "mercantile.tariffProse": (out, recipe, fail) => {
+    proseKeys(out, recipe, fail);
+    for (const v of recipe.values) if (out?.[v.key] !== undefined && !diceRange(out[v.key])) fail(`${v.key}: not one die term diceRange reads`);
   },
   "mercantile.merchandiseTypes": (out, recipe, fail) => {
     for (const r of declaredRows(out, recipe, fail)) {

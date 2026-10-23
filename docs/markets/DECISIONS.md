@@ -548,3 +548,47 @@ Solicit or the Judge's Set demand is offered, and captioned.
 Rejected: building the tariff in the hotfix (a new charge, read off the
 loads aboard and the imported tariff cell, is a minor's surface); a toll on
 the stone declared for sale (not the rule).
+
+## 2026-10-23 — The gate charges the tariff with the toll; the Ruler's Privilege waives both; the Judge may throw it
+
+Builds the tariff the 2026-10-17 entry left unbuilt for a minor; nothing
+that entry ruled is reversed. The owner answered four questions:
+
+- **Every merchandise load aboard is charged, with no declaration.** RR
+  ch. 8 has the point of entry inspect cargo for taxable goods; leaving
+  goods out is smuggling, the Judge's call or the smuggling service's. The
+  build narrows what the owner was offered ("the vehicles' holds and the
+  party members' own packs") to the entering trader's own packs and the
+  holds of the vehicles entering with them — the holds a venture's trades
+  buy into and sell from — because the implicit party is every player
+  character at the table, and its members' packs would be charged wherever
+  they stood. Goods kept aboard for anyone else are not the trader's and
+  are not charged.
+- **Paid at entry, with the toll, in one payment** (step 3 charges both at
+  the point of entry): a purse that falls short pays neither. Like the toll
+  it stays paid when the day is withdrawn or the party leaves, and a
+  re-entry pays it again.
+- **The basis is the good's base price per stone × stones**, the catalogue's
+  price, else the load's own cost: the rule's word is base cost. Rejected:
+  the price the party paid. The book's worked example happens to tax a
+  purchase, but a load found as loot or bought in another month carries no
+  price paid.
+- **The rates are the class's tariff cell**, read precious figure first, the
+  order the step's prose names them in. A cell that reads neither as none
+  nor as two percentages refuses the entry naming the table; it never
+  charges nothing.
+- **The Ruler's Privilege** waives toll and tariff where the trader or a
+  member of the trader's party rules the domain the market lies in (the
+  domains feature's `domainOf`, read at call time). Rejected, offered: a
+  liege's privilege reaching a vassal's market.
+- **The randomized tariff is built**, behind a world setting off by default:
+  each tier the class tariffs is thrown once per entry on the dice the
+  designer's note prints, imported as `mercantile.tariffProse`; a tier the
+  class does not tariff is never thrown. The owner chose it over the
+  recommended deferral.
+
+Cost: a world imported before this release reports the new table missing
+at `ready` until its Rules tables are re-imported, and with the setting on
+an entry carrying taxable goods is refused until then. An entry posted
+before its action stored the toll records the toll refigured from its
+capacity when it resolves.

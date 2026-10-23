@@ -40,6 +40,7 @@ import {
 } from "../engine/trade.mjs";
 import { processImports, performItemSearch, performSearchCancel } from "../engine/imports.mjs";
 import { performVentureAction, performVentureCancel, performVentureLeave, ventureOf, ventureVehicles } from "../engine/ventures.mjs";
+import { entryQuote } from "../engine/gate.mjs";
 import { VEHICLE_TYPE } from "../../vehicles/constants.mjs";
 import { holdOf } from "../../vehicles/hold.mjs";
 import { carrierChain } from "../../lib/attachment.mjs";
@@ -431,7 +432,9 @@ function partyBlocks(goods, monthStart, reports) {
               impact: venture.impact,
               marketClass: venture.effectiveClass,
               toll: Math.round(Number(venture.tollCp) || 0) / 100,
+              tariff: Math.round(Number(venture.tariffCp) || 0) / 100,
             }),
+            venture.privilegeUuid ? loc("ventures.paidPrivilege") : "",
             ventureVehicles(venture).map((v) => v.name).join(", "),
             venture.networkMode && venture.networkMode !== "auto"
               ? `${loc("ventures.network.legend")}: ${loc(`ventures.network.mode.${venture.networkMode}`)}`
@@ -477,10 +480,46 @@ async function promptNumber({ title, label, value, min, max }) {
 }
 
 /**
+ * What the gate will charge on a declaration, as the Enter dialog shows it:
+ * the toll, the tariff with a line per load aboard (or the span a thrown
+ * tariff can come to), or nothing under the Ruler's Privilege. The figures
+ * are the entry's own quote (`entryQuote`), so the payment matches them.
+ */
+function gateQuoteHtml(location, trader, vehicles, otherSt) {
+  const esc = foundry.utils.escapeHTML;
+  const quote = entryQuote(location, trader, { vehicles, otherSt });
+  if (quote.error) return `<p class="hint">${esc(game.i18n.format(`${LANG}.trade.error.${quote.error}`, { remaining: 0, table: "", crowd: "", ...quote }))}</p>`;
+  if (quote.privilege) return `<p>${loc("ventures.quote.privilege", { domain: esc(quote.privilege.name) })}</p>`;
+  const gp = (cp) => Math.round(Number(cp) || 0) / 100;
+  const out = [`<p>${loc("ventures.quote.toll", { gp: gp(quote.tollCp), stone: quote.capacitySt })}</p>`];
+  if (!quote.loads.length) {
+    out.push(`<p>${loc("ventures.quote.noLoads")}</p>`);
+    return out.join("");
+  }
+  const line = (l, figure) =>
+    `<li>${loc(l.exempt ? "ventures.quote.loadExempt" : figure ? "ventures.quote.load" : "ventures.quote.loadThrown", {
+      label: esc(l.label),
+      stones: Math.round(l.stones * 100) / 100,
+      pct: l.pct,
+      gp: gp(l.cp),
+    })}</li>`;
+  if (quote.dice) {
+    out.push(`<p>${loc("ventures.quote.tariffThrown", { min: gp(quote.range.minCp), max: gp(quote.range.maxCp) })}</p>`);
+    out.push(`<ul>${quote.loads.map((l) => line(l, false)).join("")}</ul>`);
+  } else {
+    out.push(`<p>${loc("ventures.quote.tariff", { gp: gp(quote.tariff.totalCp) })}</p>`);
+    out.push(`<ul>${quote.tariff.lines.map((l) => line(l, true)).join("")}</ul>`);
+  }
+  return out.join("");
+}
+
+/**
  * Ask what the party brings to the gate: the vehicles it enters with, each at
  * the cargo capacity its hold states (vehicles/hold.mjs), and any other
  * capacity — porters, pack animals — as a number. A vehicle a party member
- * rides, drives or is harnessed to starts ticked. Null when dismissed.
+ * rides, drives or is harnessed to starts ticked. What the gate will charge
+ * is shown beneath, and follows the declaration as it changes. Null when
+ * dismissed.
  */
 async function promptEntry(trader, location) {
   const party = partyOf(trader);
@@ -496,18 +535,33 @@ async function promptEntry(trader, location) {
     })
     .join("");
   const otherId = foundry.utils.randomID();
+  const gate = gateQuoteHtml(location, trader, vehicles.filter((v) => aboard.has(v.uuid)), 0);
   const content = [
     vehicles.length
       ? `<fieldset><legend>${loc("ventures.vehiclesLegend")}</legend>${rows}</fieldset>`
       : `<p class="hint">${loc("ventures.noVehicles")}</p>`,
     `<div class="form-group"><label for="${otherId}">${loc("ventures.otherCargo")}</label><input id="${otherId}" type="number" name="other" value="0" min="0" step="1"></div>`,
     `<p class="hint">${loc("ventures.enterHint")}</p>`,
+    `<fieldset class="acks-extras-markets-gate"><legend>${loc("ventures.quote.legend")}</legend><div data-gate-quote aria-live="polite">${gate}</div></fieldset>`,
     network,
   ].join("");
   return foundry.applications.api.DialogV2.prompt({
     classes: DIALOG_CLASSES,
     window: { title: loc("ventures.enter") },
     content,
+    render: (_event, dialog) => {
+      // The quote follows the declaration: a vehicle ticked or the other capacity typed.
+      const root = dialog?.element;
+      const refresh = (event) => {
+        if (!event.target?.matches?.('input[name="vehicle"], input[name="other"]')) return;
+        const ticked = [...root.querySelectorAll('input[name="vehicle"]:checked')].map((el) => fromUuidSync(el.value)).filter(Boolean);
+        const other = Number(root.querySelector('input[name="other"]')?.value) || 0;
+        const box = root.querySelector("[data-gate-quote]");
+        if (box) box.innerHTML = gateQuoteHtml(location, trader, ticked, other);
+      };
+      root?.addEventListener("change", refresh);
+      root?.addEventListener("input", refresh);
+    },
     ok: {
       label: loc("ventures.enterSubmit"),
       callback: (_ev, button) => ({

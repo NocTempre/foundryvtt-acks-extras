@@ -30,6 +30,54 @@ export function parseTollCpPerSt(text) {
 }
 
 /**
+ * A Market Characteristics tariff cell as two percentages, `{precious,
+ * common}`. The cell prints the precious rate before the common one, the
+ * order the Entering the Market prose names them in (RR ch. 8, step 3), so
+ * the first figure is precious. "none" or a dash charges both at 0; a cell
+ * that is neither and does not hold exactly two percentages is null — a
+ * tariff the market cannot read, never a free one.
+ * @returns {{precious: number, common: number}|null}
+ */
+export function parseTariffPct(text) {
+  const t = String(text ?? "").toLowerCase().trim();
+  if (!t) return null;
+  if (/\bnone\b/.test(t) || /^[-–—]$/.test(t)) return { precious: 0, common: 0 };
+  const pcts = [...t.replace(/,/g, "").matchAll(/(\d+(?:\.\d+)?)\s*%/g)].map((m) => Number(m[1]));
+  return pcts.length === 2 ? { precious: pcts[0], common: pcts[1] } : null;
+}
+
+/** "2d6" → {min: 2, max: 12}: the throw's ends. Null for anything but one plain die term. */
+export function diceRange(formula) {
+  const m = String(formula ?? "").trim().toLowerCase().match(/^(\d+)d(\d+)$/);
+  if (!m) return null;
+  const count = Number(m[1]);
+  const faces = Number(m[2]);
+  return count > 0 && faces > 0 ? { min: count, max: count * faces } : null;
+}
+
+/**
+ * The tariff on the merchandise a party brings to market (RR ch. 8, Entering
+ * the Market, step 3): each load's base cost — base price per stone × stones —
+ * at its tier's rate, a good marked exempt charged nothing. The rates are
+ * percentages, passed in. The total rounds up to a whole copper, as the toll
+ * does.
+ * @param {{category: string, label: string, stones: number, basePriceGp: number, tier: string, exempt: boolean}[]} loads
+ * @param {{precious: number, common: number}} rates
+ * @returns {{totalCp: number, lines: {category: string, label: string, stones: number, tier: string, exempt: boolean, pct: number, cp: number}[]}}
+ */
+export function tariffOn(loads, rates) {
+  const lines = (loads ?? []).map((load) => {
+    const tier = load.tier === "precious" ? "precious" : "common";
+    const pct = load.exempt ? 0 : Math.max(0, Number(rates?.[tier]) || 0);
+    const stones = Math.max(0, Number(load.stones) || 0);
+    const cp = stones * Math.max(0, Number(load.basePriceGp) || 0) * pct;
+    return { category: load.category, label: load.label, stones, tier, exempt: !!load.exempt, pct, cp };
+  });
+  const sum = lines.reduce((n, l) => n + l.cp, 0);
+  return { totalCp: sum > 0 ? Math.ceil(sum - 1e-9) : 0, lines };
+}
+
+/**
  * Market impact (RR §VIII.6 step 2): cargo capacity over the baseline,
  * rounded half-to-even; capped at the printed maximum (the one class whose
  * cap scales with its urban families takes the larger of the two); impact 0

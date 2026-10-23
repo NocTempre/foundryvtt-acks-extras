@@ -310,6 +310,9 @@ const {
   merchMarketPriceCp,
   negotiationOutcome,
   solicitedStones,
+  parseTariffPct,
+  diceRange,
+  tariffOn,
   ASSESSMENT_RESULTS,
   NEGOTIATION_RESULTS,
 } = await import(new URL("../scripts/markets/rules/arbitrage.mjs", import.meta.url));
@@ -318,6 +321,37 @@ const {
 assert.strictEqual(parseStones("12,345 st"), 12345, "stones with commas");
 assert.strictEqual(parseTollCpPerSt("0.7cp/st"), 0.7, "toll per stone");
 assert.strictEqual(parseTollCpPerSt("none"), 0, "the word none is no toll");
+
+/* ------------------------- the gate's tariff ------------------------- */
+
+// Every rate, price and die below is invented for these checks.
+assert.deepStrictEqual(parseTariffPct("15% and 3%"), { precious: 15, common: 3 }, "the first percentage is the precious rate, the second the common");
+assert.deepStrictEqual(parseTariffPct("12.5% and 1.5%"), { precious: 12.5, common: 1.5 }, "decimal rates");
+assert.deepStrictEqual(parseTariffPct("None"), { precious: 0, common: 0 }, "the word none charges nothing");
+assert.deepStrictEqual(parseTariffPct("-"), { precious: 0, common: 0 }, "a dash charges nothing");
+assert.strictEqual(parseTariffPct("15%"), null, "one percentage is not a tariff the gate can read");
+assert.strictEqual(parseTariffPct(""), null, "an empty cell is unread, never free");
+assert.strictEqual(parseTariffPct(undefined), null, "an absent cell is unread");
+assert.deepStrictEqual(diceRange("3d6"), { min: 3, max: 18 }, "a die term's ends");
+assert.deepStrictEqual(diceRange(" 1D12 "), { min: 1, max: 12 }, "case and space are forgiven");
+assert.strictEqual(diceRange("2d6+1"), null, "a modified throw is not one die term");
+assert.strictEqual(diceRange(""), null, "no formula");
+{
+  const loads = [
+    { category: "a", label: "A", stones: 4, basePriceGp: 30, tier: "precious", exempt: false },
+    { category: "b", label: "B", stones: 10, basePriceGp: 0.7, tier: "common", exempt: false },
+    { category: "c", label: "C", stones: 50, basePriceGp: 0.3, tier: "common", exempt: true },
+  ];
+  const t = tariffOn(loads, { precious: 15, common: 3 });
+  // A: 4 × 30gp × 15% = 18gp = 1800cp; B: 10 × 0.7gp × 3% = 0.21gp = 21cp; C exempt.
+  assert.deepStrictEqual(t.lines.map((l) => l.cp), [1800, 21, 0], "each load at its tier's rate, the exempt good at none");
+  assert.strictEqual(t.totalCp, 1821, "the tariff is the sum of the loads'");
+  assert.strictEqual(t.lines[2].pct, 0, "an exempt load is charged at no rate");
+  assert.strictEqual(tariffOn(loads, { precious: 0, common: 0 }).totalCp, 0, "a class with no tariff charges nothing");
+  assert.strictEqual(tariffOn([{ category: "d", label: "D", stones: 1, basePriceGp: 0.33, tier: "common", exempt: false }], { precious: 9, common: 3 }).totalCp, 1, "a fraction of a copper rounds up, as the toll does");
+  assert.strictEqual(tariffOn([{ category: "e", label: "E", stones: 2, basePriceGp: 10, tier: "", exempt: false }], { precious: 9, common: 3 }).totalCp, 60, "a load of no stated tier is charged as common");
+  assert.strictEqual(tariffOn([], { precious: 9, common: 3 }).totalCp, 0, "nothing aboard, nothing charged");
+}
 
 {
   // Every figure in this block is invented for it, none of them a page's.
@@ -596,6 +630,7 @@ assert.strictEqual(parseMoneyCp("-"), 0, "unreadable money is zero");
         commonCha: 3, commonRanks: 2, preciousCha: 4, preciousRanks: 5, extraRanks: 2, rankStep: 3,
         bands: [{ min: null, max: 3 }, { min: 4, max: 6 }, { min: 7, max: 10 }, { min: 11, max: 13 }, { min: 14, max: null }],
       },
+      tariffProse: { preciousDie: "3d8", commonDie: "1d6" },
     },
   };
   globalThis.acksExtras = {
@@ -627,6 +662,10 @@ assert.strictEqual(parseMoneyCp("-"), 0, "unreadable money is zero");
   );
   assert.deepStrictEqual(printed.negotiation().precious, { cha: 4, ranks: 5 }, "the typical precious merchant is the imported one");
   assert.strictEqual(printed.negotiation().rankStep, 3, "the per-rank step");
+  assert.deepStrictEqual(printed.tariffDice(), { precious: "3d8", common: "1d6" }, "the randomized tariff's dice per tier");
+  STORE.mercantile.tariffProse.commonDie = "a few";
+  assert.strictEqual(printed.tariffDice(), null, "a die the page did not yield as one die term reads as absent");
+  STORE.mercantile.tariffProse.commonDie = "1d6";
 
   const id = printed.identification();
   assert.strictEqual(id.researchCasterLevel, 9, "the research caster level");
@@ -646,6 +685,7 @@ assert.strictEqual(parseMoneyCp("-"), 0, "unreadable money is zero");
   assert.strictEqual(printed.marketRules(["crowdSize"]), null, "no registry document, no figure");
   assert.strictEqual(printed.bargaining(), null, "no registry document, no swing");
   assert.strictEqual(printed.negotiation(), null, "no registry document, no profile");
+  assert.strictEqual(printed.tariffDice(), null, "no registry document, no dice");
   assert.deepStrictEqual(printed.identification(), { researchCasterLevel: null, engineeringTiers: null, dabblingBackfire: null }, "no registry document, every threshold null");
   assert.strictEqual(printed.stepFractionFor("salt"), null, "no registry document, no step");
   delete globalThis.acksExtras;

@@ -231,9 +231,17 @@ Ventures run on dedicated days that resolve as game time passes:
 1. **Enter the market** — declare cargo capacity, vehicles included
    ([Taking it to market](vehicles.md#taking-it-to-market)); the gate takes
    its toll on that capacity, loaded or empty, and your market impact is
-   fixed from the imported baselines (RR 371). The tariff on merchandise
-   brought in to sell is not charged by the module yet; the Judge settles
-   it at the table.
+   fixed from the imported baselines (RR 371). The gate also takes its
+   tariff (RR 372) on every merchandise load in your own packs and aboard
+   the vehicles you enter with, at the rate your book prints for the
+   market's class on each good's base price; a good marked exempt on its
+   merchandise sheet pays nothing. The Enter dialog shows both charges,
+   load by load, before you confirm, and you pay them together. Where you
+   or a member of your party rules the domain the market lies in, the gate
+   takes neither. The Judge may instead have the tariff thrown at each
+   entry (the **Randomize the market tariff** setting); the dialog then
+   shows the span it can come to. After upgrading, re-import the Rules
+   tables so the dice arrive.
 2. **Assess supply & demand** — opens the influence page against the
    market: your Charisma, a tone proficiency, a bribe (RR 287) and your
    reaction effects set the Judge's throw against the imported bands, which
@@ -246,8 +254,9 @@ Ventures run on dedicated days that resolve as game time passes:
    into or out of the hold you pick, optionally negotiating the spot price a
    step your way — or into an outraged refusal (RR 376).
 5. **Leave the market** when you are done, or to declare again — the toll
-   stays with the gate, what you solicited closes, and any of your party's
-   days still queued are withdrawn. Entering again pays a fresh toll.
+   and tariff stay with the gate, what you solicited closes, and any of your
+   party's days still queued are withdrawn. Entering again pays the gate
+   again.
 
 **A mercantile network counts in a market its holder has visited before.** On
 a venture each solicitation reads the goods of a market class larger or with

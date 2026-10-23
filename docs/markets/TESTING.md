@@ -676,6 +676,80 @@ needs `items: []` ([../vehicles/TESTING.md](../vehicles/TESTING.md)).
    *Observable:* the sale answers `{ok: true}` and W's stack is gone; the
    packs purchase lands on A.
 
+## The gate walk (toll, tariff, the Ruler's Privilege)
+
+Steps G0–G7 of `tools/live/markets.mjs`; `STAGE=gate` stops the run after
+them.
+
+**Fixtures** (through `api.create`, tracked): market G of class III with
+`marketCharacteristics` imported (and `tariffProse` for G6–G7); three world
+merchandise Items with invented keys and prices — one `tier: "precious"`, one
+common, one common with `tariffExempt: true`; character T owned by the Player
+seat, a trader with coin, carrying a precious load in its packs; character Q
+owned by the Player seat (a party member under the implicit party); character
+NP created with `ownership: {default: 0}` — the world's default ownership
+for a new actor can make it player-owned, and so a party member; a land vehicle VH owned by the Player seat with an
+invented cargo capacity, holding a common load, an exempt load, and a common
+load stamped `flags["acks-extras"].storage.ownerUuid = NP.uuid`; an
+`acks-extras.domain` actor D. A load is an `item` with `system.quantity.value`
+stones, `system.cost`, `weight6: 6` and
+`flags["acks-extras"].markets = {merchandise: true, category: <key>}`.
+
+**Drive mechanics**
+
+- Work the expected figures out in the driver from the invented prices and
+  the rates the page parses from the imported cell (`parseTariffPct`), never
+  from a remembered page: the tariff in copper is stones × gp per stone ×
+  percent, summed and rounded up once.
+- D holds G through `acksExtras.domains.hold(D, G)` on the GM seat; the ruler
+  is `system.rulerUuid`.
+- Wait until the Player seat holds T and its load before opening the Trade
+  tab, and read the acting trader back. The picker lists only actors the
+  client already holds; set to a uuid it lacks, it falls back to another
+  character, and the walk then drives that one.
+- Throw every die at its top face by setting `CONFIG.Dice.randomUniform` to a
+  value near 0 around a GM-seat `performVentureAction`, and put it back.
+- Resolve an entry without moving the clock as in the fleet walk.
+
+**Steps**
+
+0. Read every class's tariff cell. *Observable:* each parses as a precious
+   and a common rate.
+1. Player seat, G's Trade tab acting as T: **Enter the market**, then tick VH,
+   untick it and type 5, then tick VH again. *Observable:* the "At the gate"
+   block shows, in turn: no capacity and T's packs load alone; VH's capacity,
+   and three load lines — the exempt one marked exempt, the stamped one
+   absent; 5 st and the packs load; then VH's figures again.
+2. Confirm. *Observable:* the pending action's `tollCp` and `tariffCp` equal
+   the driver's figures and `privilegeUuid` is empty; T's coin fell by their
+   sum once; the ledger row's note reads `toll …gp, tariff …gp paid`.
+3. GM seat: resolve. *Observable:* the venture row holds both figures; the
+   entered card reads "Paid at the gate: toll …gp, tariff …gp." Leave G.
+4. Set D's ruler to T, to Q, to NP. *Observable:* `domainOf(G)` is D each
+   time; the gate's privilege is D for T and Q and none for NP.
+5. Ruler T; Player seat: Enter with VH. *Observable:* the block reads "No
+   toll or tariff: Ruler's Privilege in D"; the action pays 0 and 0 and
+   records D's uuid; T's coin is unchanged; the ledger note reads "ruler's
+   privilege, nothing paid"; the card reads "Ruler's Privilege: no toll or
+   tariff paid." Leave G; clear the ruler.
+6. World setting `marketsRandomTariff` on (read it first). Where the world's
+   Mercantile document predates `tariffProse`: the Enter block names the
+   Randomized Tariff table, and a GM-seat entry refuses `printedMissing`
+   naming it with nothing paid. Then read the table off the connected book
+   through the shipped recipe (`locatePageNumber`, `pageItems`,
+   `extractTable`) and register it as a priority-30 `mercantile` layer on
+   BOTH seats — the player's dialog quotes on its own client — writing
+   nothing to the world. Player seat: open Enter with VH. *Observable:* the
+   block reads "thrown at the gate, …gp to …gp" at the span the dice give,
+   and the load lines carry no rate.
+7. GM seat, every die at its top face: enter T with VH. *Observable:* the
+   tariff is the top of the span, the toll is step 2's, the detail records
+   each throw (`… → N%`), and T paid their sum. Unregister the layers and
+   put the setting back.
+
+**Teardown**: `api.sweepTracked()`, which takes D, VH, the characters, the
+goods, G and the cards; the setting is restored in the walk's `finally`.
+
 ## The manifest and load-removal API
 
 **Fixtures:** a character holding a merchandise load stack (invented category
