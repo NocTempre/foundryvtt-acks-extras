@@ -27,9 +27,9 @@
  * The run expects a world that holds nothing under the book's ids. With
  * HELD_OK=1, the library owner's go-ahead, a document already standing under
  * one of them is the owner's: a held class or power is first rebuilt from the
- * open book through the entry picker, under its id, so the shapes read are
- * the book's and not whatever the owner's import could make without it; the
- * steps then skip or reuse it as they do for any world, and it is never
+ * open book through the entry picker, under the uuid it had, so the shapes
+ * read are the book's and not whatever the owner's import could make without
+ * it; the steps then skip or reuse it as they do for any world, and it is never
  * tracked, so the sweep leaves it where it stood.
  *
  * Writes outside the fixture ledger, each reported:
@@ -570,11 +570,11 @@ try {
     // Whatever stands under a held id now is still the owner's.
     for (const id of heldItems) if (now[id]) theirs.add(now[id]);
     const t1 = await run(gm, P.created, { uuids: heldItems.map((id) => now[id]).filter(Boolean) });
-    // A rebuild deletes and creates, so the document id is new; the pack is the shelf.
-    const packOf = (uuid) => uuid?.split(".").slice(0, -2).join(".") ?? null;
-    const kept = heldItems.filter((id) => now[id] && packOf(now[id]) === packOf(census.held[id]));
+    // A rebuild deletes and creates under the id the document stood under, so
+    // the uuid is the same and only the creation time says it was written again.
+    const kept = heldItems.filter((id) => now[id] === census.held[id]);
     const rebuilt = kept.filter((id) => t1[now[id]] > t0[census.held[id]]);
-    check("1a: each is rebuilt on the shelf it stood on (the owner's, never tracked)", kept.length === heldItems.length && rebuilt.length === heldItems.length,
+    check("1a: each is rebuilt under the uuid it had (the owner's, never tracked)", kept.length === heldItems.length && rebuilt.length === heldItems.length,
       { held: heldItems.length, kept: kept.length, rebuilt: rebuilt.length });
   }
 

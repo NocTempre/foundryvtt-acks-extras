@@ -31,7 +31,7 @@
  * instead of laying a fresh twin beside every one that was already there.
  */
 
-import { ensureItemFolder, importedDocs, packOptsFor } from "./cookbook.mjs";
+import { ensureItemFolder, importedDocs, itemIds, packOptsFor } from "./cookbook.mjs";
 import { MODULE_ID } from "./constants.mjs";
 
 /** The system's own item type for a language. Never `ability`. */
@@ -226,7 +226,10 @@ export async function applyLanguageImport(table) {
   const opts = await packOptsFor("Item");
   if (creates.length) {
     const folder = (await ensureItemFolder(creates[0].flags[MODULE_ID].cookbook.id))?.id ?? null;
-    await Item.createDocuments(creates.map((d) => ({ ...d, folder })), opts);
+    // A retype's replacement is written while the ability it replaces still
+    // stands, so `itemIds` passes over an id that ability holds.
+    const rows = itemIds(creates.map((d) => ({ ...d, folder })), { pack: opts.pack ?? null });
+    await Item.createDocuments(rows, { ...opts, keepId: true });
   }
   if (stamps.length) await Item.updateDocuments(stamps, opts);
   // Only now — every replacement is committed, so nothing is lost by removing

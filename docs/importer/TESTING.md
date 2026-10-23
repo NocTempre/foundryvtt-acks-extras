@@ -415,7 +415,8 @@ imported (By This Axe, read one-off so nothing is remembered), then import
 equipment — its own items appear; note their ids. Steps: the same picker, the
 "Books open on this seat" group, that book, confirm.
 *Observable:* the confirm names the count AND the shelves it spans; afterwards
-every noted id is gone and the same names exist again under new ids; every
+every noted id answers again with the same name and a later
+`_stats.createdTime` — written again under the id it had; every
 other book's item count is unchanged; a Rulebook item carrying one of the
 book's ids in `cookbook.merged` is still there. The group lists only books
 open on this seat, and `cookbookReimportBook` for a book that is not open
@@ -441,9 +442,13 @@ row carrying its id.
 
 ### Fixtures
 
-An imported world. Note the document id and `img` of ONE imported trap and ONE
-imported proficiency before starting. A rebuild mints NEW ids for what it
-rebuilds, and those documents are the library's, not the run's: never track or
+An imported world. Note the document id, `img` and `_stats.createdTime` of ONE
+imported trap and ONE imported proficiency, and the `_stats.createdTime` of
+every other trap and proficiency, before starting. A rebuild writes an Item
+again under the id it had and a monster under a new one (DECISIONS,
+2026-10-23, "A rebuilt Item keeps its id"), so the creation time is what tells
+a rebuilt Item from an untouched one. Either way the documents are the
+library's, not the run's: never track or
 sweep them, or the shelf is left short of the very entries the step rebuilt.
 Only what the run adds to the world is tracked, as it is made — the copies in
 step 10, the entry step 7 creates.
@@ -462,10 +467,10 @@ step 10, the entry step 7 creates.
 3. On the imported world, tick the one trap and the one proficiency and press
    *Reimport*.
    *Observable:* the confirm names the ticked count and the number of
-   documents they claim (2 and 2). Afterwards both names exist again under new
-   ids, the old ids are gone, and every OTHER trap and proficiency still
-   carries its original document id — the run rebuilt two rows, not two
-   shelves. A class template's documents are never among the deleted.
+   documents they claim (2 and 2). Afterwards both answer under the ids they
+   had, each with a later `_stats.createdTime`, and every OTHER trap and
+   proficiency keeps its noted creation time — the run rebuilt two rows, not
+   two shelves. A class template's documents are never among the deleted.
 4. Tick a vehicle entry, whose one entry covers a whole table.
    *Observable:* the confirm's removed count is the number of ROWS that entry
    made, not 1, and every one of them comes back.
@@ -500,10 +505,11 @@ step 10, the entry step 7 creates.
    ladder-key repair before its loop and can write to held classes.
 8. Tick an entry whose book is NOT open on this seat.
    *Observable:* a notice says it was left as it is; no removal confirm opens,
-   its document keeps its id and nothing is created. On the shelf rebuild, the
-   confirm's second paragraph names how many documents on the shelf come from
-   a book that is not open and are kept; the count it offers to delete excludes
-   them. Answer No — confirming rebuilds the shelf under new ids.
+   its document keeps its id and its `_stats.createdTime`, and nothing is
+   created. On the shelf rebuild, the confirm's second paragraph names how
+   many documents on the shelf come from a book that is not open and are kept;
+   the count it offers to delete excludes them. Answer No — confirming
+   rebuilds the whole shelf, which a shared test world does not want.
 9. Run `acksExtras.importer.cookbookUpdateClasses()` with a class imported from
    a book that is not open on this seat.
    *Observable:* the confirm counts only the classes it can read and names the
@@ -516,8 +522,9 @@ step 10, the entry step 7 creates.
     description of your own. Tick both entries and press *Reimport*.
     *Observable:* the confirm's removed count is 2 (the library's two
     documents, not the copies). Afterwards both copies keep their ids and the
-    trap keeps your description. The compendiums hold the trap and the monster
-    again under new ids, because the refill did not take a copy for the
+    trap keeps your description. The compendiums hold both again, written
+    anew — the trap under the id it had with a later `_stats.createdTime`, the
+    monster under a new id — because the refill did not take a copy for the
     library's own document. Then *Reimport one shelf* for the trap's shelf.
     *Observable:* the copy is still there, unchanged, and the shelf's count
     matches the count before the step.
@@ -2518,9 +2525,10 @@ untagged seat would read every line as a heading and import nothing.
   `HELD_OK=1`) runs the same steps. A class or power imported while the book
   was closed holds no text and no hit die, only what the cookbook entry
   carries, so rebuild every held one through the entry picker
-  (`Classes|<id>`, `Abilities|<id>`) once the book is open. Each comes back on
-  the shelf it stood on under a new document id, so read it again by its
-  entry id. The steps then skip a held class and reuse a held power, so take each
+  (`Classes|<id>`, `Abilities|<id>`) once the book is open. *Observable:*
+  each answers under the uuid it had, with a later `_stats.createdTime` — the
+  same document id on the same shelf, written again. The steps then skip a
+  held class and reuse a held power, so take each
   count as the absent ones. Read the classes' shapes off the uuids held under
   their ids, not off the step's result. Track only what was absent before
   the run.

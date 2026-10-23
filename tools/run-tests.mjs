@@ -150,6 +150,7 @@ const COMMITTED = [
   "importer/test-mount-flags.mjs",
   "importer/test-item-shelves.mjs",
   "importer/test-imported-index.mjs",
+  "importer/test-item-ids.mjs",
   "importer/test-cookbook-coherence.mjs",
   "importer/test-printed-name.mjs",
   "importer/test-poi-binding.mjs",

@@ -957,6 +957,16 @@ document. Four things it leaves to Rebuild:
 Rules tables merge in both modes. A Rebuild that removed the world layer before
 re-reading would undo "a re-read that finds nothing keeps what it had".
 
+## A rebuilt actor keeps no id
+
+A rebuilt Item comes back under the id it stood under (DECISIONS,
+2026-10-23); a character takes its derived id. A monster, vehicle or OSE
+creature rebuilt through the picker still takes a new one, so a link to it
+dangles. `deleteImported` could record Actors as it records Items, and
+`createDoc` could take the record for an Actor write. Before it ships, walk
+a held monster's rebuild live, and a map's world copies through
+`bringAcross`, which keys a copy by its library actor's id.
+
 ## A map made before its book's organisations
 
 A map imported before the organisations step hands no quarters until the map

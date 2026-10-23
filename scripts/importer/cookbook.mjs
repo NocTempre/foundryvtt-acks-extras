@@ -906,8 +906,56 @@ const packOpts = async (type, line = null) => {
 export const createDoc = async (cls, data, { line = null, ...opts } = {}) => {
   const packOptions = await packOpts(cls.documentName, lineOfData(data) ?? line);
   warnStrayFolder(cls.documentName, data, packOptions.pack ?? null);
-  return remembered(await cls.create(data, { ...opts, ...packOptions }));
+  if (cls.documentName !== "Item") return remembered(await cls.create(data, { ...opts, ...packOptions }));
+  const [row] = itemIds([data], { pack: packOptions.pack ?? null, keepId: !!opts.keepId });
+  return remembered(await cls.create(row, { ...opts, keepId: true, ...packOptions }));
 };
+
+/**
+ * The id each imported Item stood under, by cookbook id, recorded as
+ * `deleteImported` removes it and taken by the create that puts it back.
+ */
+const deletedItemIds = new Map();
+
+/** Whether the collection a write lands in already holds a document id: the pack's index, else the sidebar's. */
+const holdsIn = (type, pack) => (id) =>
+  pack ? !!game.packs.get(pack)?.index?.has(id) : !!game.collections?.get(type)?.has(id);
+
+/**
+ * Imported Items' creation data under the ids they are written with
+ * `keepId`: first the id the entry's document stood under before a rebuild
+ * deleted it, else the one its cookbook id derives (`stableDocId`), so a
+ * rebuild keeps every uuid that pointed at it. An id the target already
+ * holds, or that an earlier row of the same write took, is passed over, and a
+ * row left with neither gets core's own: one duplicate id rejects a whole
+ * write. A caller's `_id` stands only under its own `keepId`; otherwise it is
+ * dropped, as a write without `keepId` drops it. See
+ * docs/importer/DECISIONS.md, "A rebuilt Item keeps its id".
+ *
+ * @param {object[]} dataList creation data, one per document
+ * @param {{pack?: string|null, keepId?: boolean, has?: (id: string) => boolean, deleted?: Map<string, string>}} [opts]
+ *   `pack` names the target (null: the sidebar), `has` overrides the lookup in it,
+ *   `keepId` is the caller's own option.
+ * @returns {object[]} new creation data, in input order
+ */
+export function itemIds(dataList, { pack = null, keepId = false, has = holdsIn("Item", pack), deleted = deletedItemIds } = {}) {
+  const taken = new Set();
+  return dataList.map((data) => {
+    if (keepId && data?._id) {
+      taken.add(data._id);
+      return data;
+    }
+    const { _id: _dropped, ...row } = data ?? {};
+    const claim = row.flags?.[MODULE_ID]?.cookbook?.id;
+    if (!claim) return row;
+    const was = deleted.get(claim);
+    deleted.delete(claim);
+    const _id = [was, stableDocId(claim)].find((id) => id && !taken.has(id) && !has(id));
+    if (!_id) return row;
+    taken.add(_id);
+    return { ...row, _id };
+  });
+}
 
 /**
  * A folder handed to a write into another pack is dropped by core without a
@@ -963,9 +1011,15 @@ export async function createDocs(cls, dataList, opts = {}) {
     byLine.get(key).entries.push({ data, i });
   });
 
-  const { line: _ignored, ...createOpts } = opts;
-  for (const { line, entries } of byLine.values()) {
+  const { line: _ignored, ...callerOpts } = opts;
+  const items = cls.documentName === "Item";
+  const createOpts = items ? { ...callerOpts, keepId: true } : callerOpts;
+  for (const { line, entries: given } of byLine.values()) {
     const packOptions = await packOpts(cls.documentName, line);
+    // Ids are settled over the whole line at once, so no two chunks of it hand
+    // out the same one.
+    const rows = items ? itemIds(given.map((e) => e.data), { pack: packOptions.pack ?? null, keepId: !!callerOpts.keepId }) : null;
+    const entries = rows ? given.map((e, n) => ({ ...e, data: rows[n] })) : given;
     for (let i = 0; i < entries.length; i += WRITE_CHUNK) {
       const chunk = entries.slice(i, i + WRITE_CHUNK);
       const made = await cls
@@ -1145,9 +1199,11 @@ async function deleteImported(type, docs) {
   }
   const cls = foundry.utils.getDocumentClass(type);
   for (const [pack, ids] of byPack) {
-    await cls
+    const gone = await cls
       .deleteDocuments(ids, pack ? { pack } : {})
-      .catch((err) => console.warn(`${MODULE_ID} | delete ${ids.length} ${type}(s) from ${pack || "the sidebar"}`, err));
+      .catch((err) => (console.warn(`${MODULE_ID} | delete ${ids.length} ${type}(s) from ${pack || "the sidebar"}`, err), null));
+    // What the rebuild puts back takes the id this one stood under (`itemIds`).
+    if (type === "Item") for (const doc of gone ?? []) if (claimedId(doc)) deletedItemIds.set(claimedId(doc), doc.id);
   }
   return docs.length;
 }

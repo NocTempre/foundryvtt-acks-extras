@@ -7261,3 +7261,55 @@ per labelled field.
 *Cost:* `lint-register` learns the pattern; the kind file for `kind.npc`
 still declares `statline`, and the op's own `pattern` is what the executor
 runs. The live record is the typography walk's steps 2, 3 and 6.
+
+## 2026-10-23 — A rebuilt Item keeps its id
+
+**New evidence.** A community book's class, rebuilt through the entry picker,
+came back on its open Item shelf under a new document id, while a character
+rebuilt beside it kept its own (2026-10-17, "A person the page prints in full
+becomes a character"). A character holds its class by uuid
+(`classForActor` reads the `FLAG_CLASSES` binding's uuid first), and a
+journal link or a template part holds an Item the same way, so every Item
+rebuild cut them.
+
+**Ruled.** Every imported Item is written with `keepId`, under the first id
+`itemIds` finds that the target does not hold and no earlier row of the same
+write took:
+
+- **The id it stood under.** `deleteImported` records each Item it removes
+  by cookbook id, and the create that puts the entry back takes it. The
+  picker, the shelf rebuild and the book rebuild all delete through it, so
+  all three keep ids, for documents made before this ruling too.
+- **Its cookbook id's `stableDocId`,** as a character's is, for an entry with
+  no record: the same id in every world and after Remove Imports.
+- **Core's own,** when both are taken. One duplicate id rejects a whole
+  write, so a held id is passed over rather than sent.
+
+The choice is made in `createDoc` and `createDocs`, which every Item import
+writes through, and in the language binding's own batch. A caller's `_id`
+stands only under the caller's own `keepId`; any other is dropped, as core
+dropped it before.
+
+**What narrows.** "A rebuild can repair in place instead" (2026-09-24)
+offered Repair as the way to keep an id. Rebuild keeps it too now; it still
+discards the name, folder, ownership and notes a Judge gave the document,
+which only Repair keeps.
+
+**Rejected.**
+- *Derived ids alone.* Every Item a world already holds stands under an id
+  core minted, so its first rebuild would cut its links once more — the
+  failure reported.
+- *Keeping ids for the picker only.* The shelf and book rebuilds delete
+  through the same `deleteImported`, and are the same request over more
+  entries.
+- *Actors in the same change.* A monster, vehicle or OSE creature rebuilt
+  through the picker still takes a new id. The record would serve them as
+  cheaply, but no walk here rebuilds an actor, and an actor's library id is
+  what `bringAcross` keys a map's world copies by. ROADMAP.
+
+*Cost:* the record lives in the GM's client for the session. An entry
+deleted and not written back (a throw, a page that no longer matches) keeps
+its record until a reload, and its first import after one takes the derived
+id: one changed uuid, not one per rebuild. An entry whose line changed is
+written to another shelf, and its uuid changes with the pack whatever its id.
+The live record is the typography walk's step 1a.
