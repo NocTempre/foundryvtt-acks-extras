@@ -16,7 +16,7 @@ A new place opens on the **Contents** tab with nothing but a name. That is the
 whole of the minimum: identity, and what it sits inside.
 
 - **Parent** — the place this one is in. Set it and a breadcrumb appears
-  (Duchy of Aura › Rusty Anchor › cellar).
+  (Duchy of Harrowmere › Rusty Anchor › cellar).
 - **Stack count** — for eight identical warehouse bays, keep one actor and set
   the count to 8. Split one off when it becomes interesting.
 - **Roster** — the living things kept here: a garrison, a stabled horse, a
