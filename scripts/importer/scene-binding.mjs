@@ -31,6 +31,7 @@ import { hash36 } from "./printed-name.mjs";
 import { gridTypeFor } from "../battlemap/constants.mjs";
 import { DISTANCE_UNITS } from "../lib/distance-units.mjs";
 import { wallsProblems } from "./wall-trace.mjs";
+import { polygonArea } from "../formation/zone-layers.mjs";
 
 /** The register kind a scene recipe is filed under. */
 export const SCENE_KIND = "kind.scene";
@@ -55,6 +56,8 @@ export const ZONE_CADENCES = Object.freeze(["", "entry", "periods"]);
 
 /** Core's `REGION_VISIBILITY.GAMEMASTER`, spelled out because this file loads without Foundry. */
 const REGION_VISIBILITY_GAMEMASTER = 1;
+/** Core's `REGION_VISIBILITY.LAYER`, spelled out for the same reason: drawn only while the Regions layer is active. */
+const REGION_VISIBILITY_LAYER = 0;
 
 /** The Region behaviour type formation registers as its encounter zone (`encounter-zone.mjs`). */
 const ZONE_BEHAVIOR_TYPE = `${MODULE_ID}.encounterZone`;
@@ -319,8 +322,15 @@ export function recipeContext(entries) {
 
 const isNum = (v) => typeof v === "number" && Number.isFinite(v);
 
-/** Whether a page point lies inside a crop, edges included. */
-const inCropOf = (crop) => (x, y) => x >= crop.x && x <= crop.x + crop.w && y >= crop.y && y <= crop.y + crop.h;
+/**
+ * Whether a page point lies inside a crop, edges included. A far edge is a sum
+ * (`x + w`) a float can land a hair short of, so a point within a millionth of
+ * a page point of an edge is on it.
+ */
+export const inCropOf = (crop) => {
+  const e = 1e-6;
+  return (x, y) => x >= crop.x - e && x <= crop.x + crop.w + e && y >= crop.y - e && y <= crop.y + crop.h + e;
+};
 
 /**
  * Everything wrong with a recipe's `grid` block, as sentences; empty when it
@@ -631,9 +641,16 @@ export function placeTokenAt(at, frame, { size = PLACE_TOKEN_SIZE, gridPixels = 
   return { x: Math.round(cx - half), y: Math.round(cy - half), width: size, height: size };
 }
 
-/** The boxes a zone row may lay over its printed figures, and the field and pattern each compiles to. */
+/**
+ * The boxes a zone row may lay over its printed figures, and the field and
+ * pattern each compiles to. The target has two: `targetAt` over a throw
+ * printed "<n>+", `chanceAt` over one printed in words; a row gives one.
+ */
 export const ZONE_FIGURES = Object.freeze([
   Object.freeze({ at: "targetAt", field: "target", pattern: "throw" }),
+  Object.freeze({ at: "chanceAt", field: "target", pattern: "rollTarget" }),
+  Object.freeze({ at: "everyAt", field: "every", pattern: "countWord" }),
+  Object.freeze({ at: "levelAt", field: "dungeonLevel", pattern: "int" }),
   Object.freeze({ at: "dayAt", field: "dayThrows", pattern: "countWord" }),
   Object.freeze({ at: "nightAt", field: "nightThrows", pattern: "countWord" }),
 ]);
@@ -653,6 +670,7 @@ export function zoneProblems(zone, entries = {}) {
   const ring = zone?.outline;
   if (!Array.isArray(ring) || ring.length < 6 || ring.length % 2 || !ring.every(isNum)) out.push("outline needs at least three numeric points");
   if (zone?.cadence !== undefined && !ZONE_CADENCES.includes(zone.cadence)) out.push(`cadence must be one of ${ZONE_CADENCES.map((c) => JSON.stringify(c)).join(", ")}`);
+  if (zone?.targetAt !== undefined && zone?.chanceAt !== undefined) out.push("targetAt and chanceAt both read the target; give one");
   for (const { at } of ZONE_FIGURES) {
     const b = zone?.[at];
     if (b === undefined) continue;
@@ -662,6 +680,16 @@ export function zoneProblems(zone, entries = {}) {
   return out;
 }
 
+/**
+ * Whether a zone's outline covers its recipe's whole crop. An outline lies
+ * inside the crop (`test-cookbook-coherence`), so it covers the crop when its
+ * area is the crop's.
+ */
+export function coversCrop(outline, crop) {
+  const area = Number(crop?.w) * Number(crop?.h);
+  return area > 0 && polygonArea(outline) >= area * (1 - 1e-6);
+}
+
 /** A hex's vertices, as `{x, y}` points or a flat list, flattened to whole pixels. */
 const flatVertices = (vertices) => (vertices ?? []).flatMap((v) => (typeof v === "number" ? [v] : [v?.x, v?.y])).map((n) => Math.round(Number(n)));
 
@@ -669,6 +697,9 @@ const flatVertices = (vertices) => (vertices ?? []).flatMap((v) => (typeof v ===
  * Region data for one zone: visible to the Judge only and locked against a
  * stray drag, carrying the encounter-zone behaviour with the zone's list and
  * figures, and flagged with the zone it answers to and the cells it covers.
+ * A zone over its map's whole picture (`whole`) is drawn on the Regions layer
+ * alone: drawn always, its fill would lie over every part of the map and mark
+ * none.
  *
  * Its shapes are one polygon per snapped cell when `hexes` are given — the
  * offsets `offsetsInside` kept, with `cells` holding each one's vertices in
@@ -681,16 +712,19 @@ const flatVertices = (vertices) => (vertices ?? []).flatMap((v) => (typeof v ===
  * @param {string} p.name the zone's name in this world
  * @param {string} [p.tableUuid] the imported list, when the world holds it
  * @param {number} [p.target] the encounter target read off the page
+ * @param {number} [p.every] the delve's throw interval in turns, read off the page; 0 inherits
+ * @param {number} [p.dungeonLevel] the floor's dungeon level, read off the page; 0 does not scale
  * @param {string} [p.cadence] defaults to the row's own
  * @param {number} [p.dayThrows] read off the page; 0 inherits
  * @param {number} [p.nightThrows]
  * @param {{i: number, j: number}[]} [p.hexes]
  * @param {Array<{x: number, y: number}[]|number[]>} [p.cells]
+ * @param {boolean} [p.whole] the outline covers the recipe's crop (`coversCrop`)
  * @param {string} p.book the zone's book
  * @param {string} p.id the zone's cookbook id
  */
 export function zoneRegionData(zone, frame, {
-  name, tableUuid = "", target = 0, cadence = zone?.cadence ?? "", dayThrows = 0, nightThrows = 0, hexes = [], cells = [], book, id,
+  name, tableUuid = "", target = 0, every = 0, dungeonLevel = 0, cadence = zone?.cadence ?? "", dayThrows = 0, nightThrows = 0, hexes = [], cells = [], whole = false, book, id,
 }) {
   const snapped = (hexes ?? []).map((h, k) => ({ i: h.i, j: h.j, points: flatVertices(cells?.[k]) }))
     .filter((h) => h.points.length >= 6 && h.points.every(Number.isFinite));
@@ -699,7 +733,7 @@ export function zoneRegionData(zone, frame, {
     : [{ type: "polygon", points: ringToScene(zone.outline, frame), hole: false }];
   return {
     name,
-    visibility: REGION_VISIBILITY_GAMEMASTER,
+    visibility: whole ? REGION_VISIBILITY_LAYER : REGION_VISIBILITY_GAMEMASTER,
     locked: true,
     shapes,
     behaviors: [{
@@ -708,6 +742,8 @@ export function zoneRegionData(zone, frame, {
       system: {
         tableUuid: tableUuid || null,
         encounterTarget: Number(target) || 0,
+        encounterEvery: Number(every) || 0,
+        dungeonLevel: Number(dungeonLevel) || 0,
         journeyCadence: ZONE_CADENCES.includes(cadence) ? cadence : "",
         dayThrows: Number(dayThrows) || 0,
         nightThrows: Number(nightThrows) || 0,

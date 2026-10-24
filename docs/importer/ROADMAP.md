@@ -1052,6 +1052,15 @@ on the plans a tracer mode reads; characters from the page;
 later books superseding a shared place. It ships as one minor when AX1
 imports whole.
 
+- **AX1's narrower encounter rules.** Two areas and a room of the first
+  level print their own interval and chance inside the level's (pp. 37, 43,
+  45). They wait for the delve to compose the zones under the party smallest
+  first, as a journey does. Today the delve reads the first zone, which
+  would be the level's (formation DECISIONS 2026-10-09). The fort's rooms
+  that throw on entering, by day and by night (pp. 12, 13, 17), are a
+  settlement's shape and wait for the fort's plans. The forest's rule and a
+  hex's crossing throw (pp. 34, 35) wait for the region map.
+
 What each book still owes, in the order it is worth doing:
 
 - **Dungeon maps** (AX2, AX4, AX5, AX6) as scenes with their keyed areas

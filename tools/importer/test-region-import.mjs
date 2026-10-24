@@ -320,6 +320,12 @@ const figureFields = {
   nightThrows: { op: "value", page: 2, box: { x0: 300, x1: 340, y0: 600, y1: 615 }, pattern: "countWord" },
 };
 const zoneRow = (zone, fields = figureFields) => ({ kind: "kind.sceneZone", name: "Zone", cite: "ZZ 2", pages: [2], zone: { cadence: "entry", ...zone, fields } });
+/** A delve's figures in the same three boxes: a chance printed in words, an interval and a dungeon level. */
+const delveFields = {
+  target: { ...figureFields.target, pattern: "rollTarget" },
+  every: { ...figureFields.dayThrows },
+  dungeonLevel: { ...figureFields.nightThrows, pattern: "int" },
+};
 
 const GRID = { family: "hexCols", box: { w: (20 * 2) / Math.sqrt(3), h: 20 }, centre: [160, 170], distance: 6, units: "mi", pixels: 100 };
 const REGION_MAP = {
@@ -382,6 +388,7 @@ const BOOK_FILES = {
           place: "ww.l1", travel: "delve", places: [{ id: "ww.l1-1", at: [150, 150] }, { id: "ww.l1-2", at: [200, 200] }],
         },
       },
+      "ww.zone1": zoneRow({ scene: "ww.plan", outline: [100, 100, 400, 100, 400, 340, 100, 340], cadence: "" }, delveFields),
     },
   },
 };
@@ -610,7 +617,7 @@ const map = game.scenes.find((s) => s.getFlag(MODULE_ID, "cookbook")?.id === "zz
   const own = zoneOf(map, "zz.zone1");
   const behavior = own?.behaviors.find((b) => b.type === `${MODULE_ID}.encounterZone`);
   check("the zone's behaviour carries its list and the figures read off its page",
-    behavior?.system, { tableUuid: listOne.uuid, encounterTarget: 11, journeyCadence: "entry", dayThrows: 3, nightThrows: 5 });
+    behavior?.system, { tableUuid: listOne.uuid, encounterTarget: 11, encounterEvery: 0, dungeonLevel: 0, journeyCadence: "entry", dayThrows: 3, nightThrows: 5 });
   ok("named from the lang key, never a printed word", own?.name.startsWith("ACKS-IMPORTER.ui.sceneZone|"));
   // The cells the test itself finds inside the outline on the live grid.
   const placed = (x, y) => {
@@ -638,7 +645,7 @@ const map = game.scenes.find((s) => s.getFlag(MODULE_ID, "cookbook")?.id === "zz
   const flat = zoneOf(city, "zz.zone2");
   check("on a gridless map no cell is snapped", flat?.flags[MODULE_ID].zoneHexes, []);
   check("the outline is carried through the frame", flat?.shapes, [{ type: "polygon", points: ringToScene(XX_OUTLINE, sceneFrame(CITY_RECIPE)), hole: false }]);
-  check("a zone with no figures inherits", flat?.behaviors.find(() => true)?.system, { tableUuid: null, encounterTarget: 0, journeyCadence: "", dayThrows: 0, nightThrows: 0 });
+  check("a zone with no figures inherits", flat?.behaviors.find(() => true)?.system, { tableUuid: null, encounterTarget: 0, encounterEvery: 0, dungeonLevel: 0, journeyCadence: "", dayThrows: 0, nightThrows: 0 });
   ok("the run names every region it made", first.created.regions.length === 3);
 }
 
@@ -684,7 +691,7 @@ const map = game.scenes.find((s) => s.getFlag(MODULE_ID, "cookbook")?.id === "zz
   await shelve("ww.l1-1", "ww.l1-a1");
   await shelve("ww.l1-2", "ww.l1-a1");
   forgetImportedIndex();
-  sessions.set("ww", { doc: pdf([]) });
+  sessions.set("ww", { doc: pdf([["a 4 on a d6", 110], ["every three turns", 210], ["level 2", 310]]) });
   const out = await cookbookImportScenes({ books: ["ww"] });
   const plan = game.scenes.find((s) => s.getFlag(MODULE_ID, "cookbook")?.id === "ww.plan");
   const world = (cbId) => game.actors.find((a) => a.getFlag(MODULE_ID, "cookbook")?.id === cbId);
@@ -697,6 +704,12 @@ const map = game.scenes.find((s) => s.getFlag(MODULE_ID, "cookbook")?.id === "zz
     [world("ww.adventure")?.uuid, world("ww.l1")?.uuid, world("ww.l1-a1")?.uuid, world("ww.l1-a1")?.uuid]);
   check("the book's own place sits in nothing", world("ww.adventure")?.system.parentUuid, "");
   check("the plan is explored a turn at a time", plan?.flags[MODULE_ID].battlemap.mapSystem, "delve");
+  const level = plan?.regions.find((r) => r.getFlag(MODULE_ID, "cookbook")?.zone === "ww.zone1");
+  const delve = level?.behaviors.find(() => true)?.system;
+  check("the level's zone is laid over the plan whole, on no cell, drawn on the Regions layer alone",
+    [out.zones, level?.shapes.length, level?.flags[MODULE_ID].zoneHexes, level?.visibility], [1, 1, [], 0]);
+  check("it carries the chance, the interval and the dungeon level read off its page",
+    [delve?.encounterTarget, delve?.encounterEvery, delve?.dungeonLevel, delve?.journeyCadence], [4, 3, 2, ""]);
   sessions.delete("ww");
 }
 

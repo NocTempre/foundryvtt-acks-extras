@@ -1,0 +1,34 @@
+[
+  {
+    "id": "ax1.zone1",
+    "kind": "kind.sceneZone",
+    "book": "ax1",
+    "name": "Zone 1",
+    "pages": [36, 37],
+    "zone": {
+      "scene": "ax1.level1Map",
+      "table": "ax1.wanderingLevel1",
+      "levelAt": { "page": 36, "x0": 28, "x1": 291, "y0": 88, "y1": 99 },
+      "everyAt": { "page": 37, "x0": 47, "x1": 302, "y0": 57, "y1": 68 },
+      "chanceAt": { "page": 37, "x0": 37, "x1": 302, "y0": 81, "y1": 92 },
+      "outline": [40.8, 80, 572.2, 80, 572.2, 756.5, 40.8, 756.5],
+      "note": "The first level's encounter rule over the whole of its plan: the plan's crop on p.38, so a party anywhere on the level stands in it. Its dungeon level is the section heading's, its interval and chance the wandering-monster paragraph's."
+    }
+  },
+  {
+    "id": "ax1.zone2",
+    "kind": "kind.sceneZone",
+    "book": "ax1",
+    "name": "Zone 2",
+    "pages": [54],
+    "zone": {
+      "scene": "ax1.level2Map",
+      "table": "ax1.wanderingLevel2",
+      "levelAt": { "page": 54, "x0": 28, "x1": 291, "y0": 88, "y1": 99 },
+      "everyAt": { "page": 54, "x0": 27, "x1": 292, "y0": 550, "y1": 561 },
+      "chanceAt": { "page": 54, "x0": 27, "x1": 292, "y0": 562, "y1": 573 },
+      "outline": [36.48, 36.48, 575.52, 36.48, 575.52, 756, 36.48, 756],
+      "note": "The second level's encounter rule over the whole of its plan, the crop on p.55; figures as the first level's."
+    }
+  }
+]

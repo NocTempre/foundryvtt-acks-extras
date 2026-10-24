@@ -7634,3 +7634,40 @@ which place each is and where each of its rooms is keyed.
 - The fort's buildings and their sub-keys, other than areas 18's and 24's,
   are on no plan yet. The fort overview and the other buildings' plans have no
   recipe, so an Adventure import still leaves those places in the library.
+
+## 2026-10-24 — A dungeon level is one zone over its plan, its figures read off the page
+
+AX1 prints a wandering-monster rule for each of its two levels: a list, how
+often the Judge throws, the chance, and, in the section's heading, the
+level's dungeon level. Each level's rule is now a zone over its plan.
+
+**Ruled.**
+- **One zone per level, over the plan's whole crop**, its list the level's
+  table. A party anywhere on the level stands in it.
+- **A zone over its map's whole picture is drawn on the Regions layer
+  alone.** A zone the Judge sees always fills its area, and over a whole plan
+  the fill lay on every room and hid the pins. The live walk's shot showed
+  it; no check read the canvas. A zone over part of a map is still drawn
+  for the Judge, because there its fill marks where the rule holds.
+- **The interval and the dungeon level are read off the page**, as the target
+  is (`everyAt`, `levelAt`), and the Region's encounter zone carries them as
+  `encounterEvery` and `dungeonLevel`. The build plan called the dungeon level
+  structure. The heading prints it, and a number read off a page is content
+  (ip-doctrine). A plan's place in the module's order is the module's; the
+  level a book gives a floor is the book's.
+- **A target printed in words is read through its own box, `chanceAt`**, with
+  a new `rollTarget` pattern: the first number that no die or modifier owns.
+  So "a 4 on a d6" and the low end of "4 or 5" read as "4+" does.
+
+*Rejected:*
+- **`targetAt` read through `rollTarget` for every book.** Read offline over
+  every shipped zone, AX6's target box gives a different number under it, so
+  the change would move a shipped figure.
+- **Widening `throw` to read a target without its "+"** (inferred cost). Every
+  other `throw` box would start reading a number where it read none.
+
+*Cost:*
+- AX1's narrower rules are not laid: two areas and a room of the first level
+  print their own interval and chance (ROADMAP, "AX1 whole"). The delve reads
+  the first zone under the party token (formation DECISIONS 2026-10-09), so
+  inside the level's zone a narrower one would never answer.

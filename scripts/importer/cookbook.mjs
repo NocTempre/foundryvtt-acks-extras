@@ -37,7 +37,7 @@ import {
 import { printedNameOf, withoutKeyNumber } from "./printed-name.mjs";
 import {
   isSceneRecipe, sceneFrame, sceneData, districtRegionData, placeTokenAt, worldCopySource, isWorldCopy, placementMatches, afterDarkShift, bandOfSection,
-  isZoneRow, gridScale, ringToScene, offsetsInside, zoneRegionData, wallSources,
+  isZoneRow, gridScale, ringToScene, offsetsInside, zoneRegionData, coversCrop, wallSources,
 } from "./scene-binding.mjs";
 import { FACTION_TYPE } from "../factions/constants.mjs";
 import { LOCATION_TYPE, isPlaceRole } from "../location/constants.mjs";
@@ -5378,7 +5378,7 @@ function pictureCells(scene, dims) {
  * its `zone.fields` are value instructions like any entry's, run as the one
  * entry of a view of that book's cookbook. Null when the book's cookbook is
  * not one the executor reads.
- * @returns {Promise<{target: number, dayThrows: number, nightThrows: number}|null>}
+ * @returns {Promise<{target: number, every: number, dungeonLevel: number, dayThrows: number, nightThrows: number}|null>}
  */
 async function zoneFigures(bookId, id, row) {
   const cb = data.books.get(bookId);
@@ -5386,7 +5386,8 @@ async function zoneFigures(bookId, id, row) {
   const node = await executeEntry(ctx.sessionDocs.get(bookId).doc, view, data.registers, id).catch(() => null);
   if (!node?.ok) return null;
   const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
-  return { target: num(node.fields?.target), dayThrows: num(node.fields?.dayThrows), nightThrows: num(node.fields?.nightThrows) };
+  const f = node.fields ?? {};
+  return { target: num(f.target), every: num(f.every), dungeonLevel: num(f.dungeonLevel), dayThrows: num(f.dayThrows), nightThrows: num(f.nightThrows) };
 }
 
 /**
@@ -5421,7 +5422,7 @@ async function ensureZone({ bookId, id, row }, counts) {
   const name = game.i18n.format(`${LANG_PREFIX}.ui.sceneZone`, { n, book: BOOKS[bookId]?.short ?? bookId.toUpperCase() });
   const source = zoneRegionData(zone, placed, {
     name, tableUuid: list?.uuid ?? "", ...figures, hexes,
-    cells: hexes.map((h) => scene.grid.getVertices({ i: h.i, j: h.j })), book: bookId, id,
+    cells: hexes.map((h) => scene.grid.getVertices({ i: h.i, j: h.j })), whole: coversCrop(zone.outline, recipe.crop), book: bookId, id,
   });
   const [made] = (await scene.createEmbeddedDocuments("Region", [source])) ?? [];
   if (!made) return void counts.zonesRefused++;

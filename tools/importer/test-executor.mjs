@@ -613,4 +613,27 @@ await ta("the throw pattern reads the first <n>+, never a die's faces or a modif
   assert.equal(node.fields.d, 1, "int reads the die count, which is why throw exists");
 });
 
+await ta("the rollTarget pattern reads the first number no die or modifier owns, with or without a +", async () => {
+  const pd = page(
+    run("QQ on a roll of a 4 on a d6, QQ", 20, 100),
+    run("QQ on a 3 or 4 on a 1d6 QQ", 20, 200),
+    run("QQ +2 QQ, 5+ on 1d6 QQ", 20, 300),
+    run("QQ a d6 and nothing to reach", 20, 400),
+  );
+  const box = (y) => ({ x0: 0, x1: 400, y0: y - 3, y1: y + 3 });
+  const cookbook = {
+    schema: "acks-cookbook/3",
+    entries: { "qq.chances": { kind: "kind.rolltable", fields: {
+      a: { op: "value", page: 1, box: box(100), pattern: "rollTarget" },
+      b: { op: "value", page: 1, box: box(200), pattern: "rollTarget" },
+      c: { op: "value", page: 1, box: box(300), pattern: "rollTarget" },
+      d: { op: "value", page: 1, box: box(400), pattern: "rollTarget" },
+      e: { op: "value", page: 1, box: box(100), pattern: "throw" },
+    } } },
+  };
+  const node = await executeEntry(null, cookbook, {}, "qq.chances", { pageCache: new Map([[1, pd]]) });
+  assert.deepEqual([node.fields.a, node.fields.b, node.fields.c, node.fields.d], [4, 3, 5, null]);
+  assert.equal(node.fields.e, null, "throw wants a +, which is why rollTarget exists");
+});
+
 console.log(`\n${n} tests passed`);

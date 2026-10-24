@@ -42,7 +42,7 @@ const PRINT_KEY = /^[0-9a-z]{1,7}$/;
 // body-size run-in line, the label a statline opens with (`axOpen`), or a
 // sub-heading alone on its line (the definition compiler).
 const ANCHOR_SORTS = ["display", "runin", "label", "subheading"];
-const PATTERNS = new Set(["raw", "statValue", "int", "dice", "countWord", "throw", "refList", "parenSplit", "spoilList", "statline", "writeup", "countParen"]);
+const PATTERNS = new Set(["raw", "statValue", "int", "dice", "countWord", "throw", "rollTarget", "refList", "parenSplit", "spoilList", "statline", "writeup", "countParen"]);
 // The keys a scene recipe's `grid` block and a zone row's `zone` block may carry.
 const GRID_KEYS = new Set(["family", "even", "box", "centre", "distance", "units", "pixels", "note"]);
 const ZONE_KEYS = new Set(["scene", "table", "outline", "cadence", ...ZONE_FIGURES.map((f) => f.at), "note"]);

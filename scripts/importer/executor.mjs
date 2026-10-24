@@ -1158,6 +1158,13 @@ function applyPattern(raw, instr, registers, misses) {
       const m = /(?<![\dDd])(\d+)\+(?!\d)/.exec(text);
       return m ? parseInt(m[1], 10) : null;
     }
+    case "rollTarget": {
+      // The number a die must reach, printed as "<n>+", as "a <n> on a d6",
+      // or as the low end of "<n> or <m>": the first number that is no die's
+      // count or faces and no modifier.
+      const m = /(?<![\dDd+-])(\d+)(?![\dDd])/.exec(text);
+      return m ? parseInt(m[1], 10) : null;
+    }
     case "refList":
       if (!text || /^none/i.test(text)) return [];
       return splitTop(text).map((t) => {

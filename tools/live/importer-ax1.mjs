@@ -21,16 +21,20 @@
  * linked to it, is explored a turn at a time, and stands a hidden token on
  * each area it pins. Every place a pinned area sits in is in the world too,
  * each inside the copy of its parent, and the empty-location prune, run dry,
- * would remove none of them. A shot of each level's plan, framed on its first
- * pin with the interface hidden, goes to the log directory to be read by eye.
+ * would remove none of them. Each dungeon level's plan carries its level's
+ * encounter zone once, its list the level's table and its figures within the
+ * behaviour's schema; the figures go to the log to be checked against the page.
+ * A shot of each level's plan, framed on its first pin with the interface
+ * hidden, goes to the log directory to be read by eye.
  *
  * Section 3 walks "A book lands in the library as one Adventure": the
  * journals step makes no page for a keyed area, and the book's Adventure
  * carries the places, their tree and their rosters beside the maps, whose
- * scenes state the dark map's sight. Section 3b deletes the world's AX1
- * places and every plan but one, and presses the Adventure sheet's own
- * Import: it brings each deleted plan back with its pins, and the places 2c
- * found and no other, and the plan it held names its place's new copy.
+ * scenes state the dark map's sight and carry their zones. Section 3b deletes
+ * the world's AX1 places and every plan but one, and presses the Adventure
+ * sheet's own Import: it brings each deleted plan back with its pins and its
+ * zone, and the places 2c found and no other, and the plan it held names its
+ * place's new copy.
  *
  * Fixtures and writes, each reported:
  *   - the book connected on the GM seat with remember:false;
@@ -113,6 +117,8 @@ const LINE_ID = /^(.+)-o(\d+)$/;
 // The plans that are a place's own: each map's id, the place it draws, the areas it pins.
 const PINNED = Object.entries(COOKBOOK.scenes ?? {}).filter(([, r]) => r?.scene?.place)
   .map(([id, r]) => ({ id, place: r.scene.place, pins: (r.scene.places ?? []).map((p) => p.id) }));
+// The book's encounter zones: each one's id, the map it lies over and its list.
+const ZONES = Object.entries(COOKBOOK.scenes ?? {}).filter(([, r]) => r?.zone).map(([id, r]) => ({ id, scene: r.zone.scene, table: r.zone.table ?? null }));
 // A place's parents, nearest first, up to the book's own.
 const aboveOf = (id) => {
   const out = [];
@@ -304,13 +310,14 @@ const P = {
     const a = await fromUuid(uuid);
     return a ? [...a.scenes].map((s) => ({
       id: s.flags?.["acks-extras"]?.cookbook?.id ?? null, tokens: s.tokens.length ?? s.tokens.size,
+      zones: [...s.regions].map((r) => r.flags?.["acks-extras"]?.cookbook?.zone).filter(Boolean),
       walls: s.walls.length ?? s.walls.size, tokenVision: s.tokenVision, fogMode: s.fog?.mode, darkness: s.environment?.darknessLevel, globalLight: !!s.environment?.globalLight?.enabled,
     })) : null;
   },
   /**
    * A map by cookbook id: its link and whether that is a world place named as
-   * the map is, its travel system, and each token's place and whether it is
-   * hidden. No name rides out.
+   * the map is, its travel system, each token's place and whether it is
+   * hidden, and each zone's list and figures. No name rides out.
    */
   planOf: async ({ id }) => {
     const MID = "acks-extras";
@@ -325,7 +332,25 @@ const P = {
       namedForIt: !!place && s.name === place.name,
       mapSystem: s.flags[MID].battlemap?.mapSystem ?? null,
       tokens: [...s.tokens].map((t) => ({ id: t.id, hidden: !!t.hidden, place: game.actors.get(t.actorId)?.flags?.[MID]?.cookbook?.id ?? null })),
+      zones: await Promise.all([...s.regions].filter((r) => r.flags?.[MID]?.cookbook?.zone).map(async (r) => {
+        const sys = r.behaviors.find((b) => b.type === `${MID}.encounterZone`)?.system ?? {};
+        const list = sys.tableUuid ? await fromUuid(sys.tableUuid).catch(() => null) : null;
+        return {
+          zone: r.flags[MID].cookbook.zone, layerOnly: r.visibility === CONST.REGION_VISIBILITY.LAYER,
+          list: list?.flags?.[MID]?.cookbook?.id ?? null, target: sys.encounterTarget, every: sys.encounterEvery, level: sys.dungeonLevel,
+        };
+      })),
     };
+  },
+  /** Which of these roll-table cookbook ids the world or a compendium holds. */
+  tablesHeld: async ({ ids }) => {
+    const MID = "acks-extras";
+    const held = new Set(game.tables.map((t) => t.flags?.[MID]?.cookbook?.id).filter(Boolean));
+    for (const pack of game.packs.filter((p) => p.documentName === "RollTable")) {
+      const index = await pack.getIndex({ fields: [`flags.${MID}.cookbook.id`] }).catch(() => []);
+      for (const row of index) if (row.flags?.[MID]?.cookbook?.id) held.add(row.flags[MID].cookbook.id);
+    }
+    return ids.filter((id) => held.has(id));
   },
   /** The world's places of a book: cookbook id, uuid and parent. */
   worldPlaces: async ({ book }) => {
@@ -356,18 +381,26 @@ const P = {
   /** What the empty-location prune would remove; it removes nothing. */
   pruneDry: async () => (await import("/modules/acks-extras/scripts/location/module.mjs")).pruneEmptyLocations({ dryRun: true }),
   /** The viewed scene centred on one token at a scale, with the interface hidden for a shot. */
+  // A pin is a half-alpha white icon, lit like the white floor it stands on:
+  // at the plan's darkness it is lost, and in daylight it shows only where it
+  // greys a printed glyph. The GM's canvas alone is relit and the pins tinted
+  // for the shot; no document is written, and `showInterface` puts both back.
   frameToken: async ({ tokenId, scale = 1 }) => {
     const t = canvas.tokens.get(tokenId);
     if (!t) return { framed: false };
+    canvas.environment.initialize({ environment: { darknessLevel: 0 } });
+    for (const p of canvas.tokens.placeables) if (p.mesh) p.mesh.tint = 0xd00000;
     await canvas.animatePan({ x: t.center.x, y: t.center.y, scale, duration: 0 });
     for (const id of ["interface", "pause"]) document.getElementById(id)?.style.setProperty("visibility", "hidden");
-    await new Promise((r) => setTimeout(r, 1000));
-    // Whether the GM's canvas draws the pin at all, and where.
-    return { framed: true, visible: !!t.visible, alpha: t.mesh?.alpha ?? null, inScene: !!canvas.dimensions.sceneRect.contains(t.center.x, t.center.y) };
+    await new Promise((r) => setTimeout(r, 1500));
+    return { framed: true, visible: !!t.visible, inScene: !!canvas.dimensions.sceneRect.contains(t.center.x, t.center.y) };
   },
   showInterface: async () => {
     for (const id of ["interface", "pause"]) document.getElementById(id)?.style.removeProperty("visibility");
-    return true;
+    for (const p of canvas.tokens?.placeables ?? []) if (p.mesh) p.mesh.tint = 0xffffff;
+    const stored = canvas.scene?._source.environment.darknessLevel;
+    if (stored != null) canvas.environment.initialize({ environment: { darknessLevel: stored } });
+    return { darkness: canvas.environment?.darknessLevel ?? null, stored: stored ?? null };
   },
   /** Press the book's Adventure sheet's own Import; what it created arrives from core's hook. */
   importViaSheet: async ({ book }) => {
@@ -844,6 +877,20 @@ try {
   check("2c: each plan is explored a turn at a time", PINNED.every((p) => plans[p.id]?.mapSystem === "delve"));
   check("2c: each plan stands one hidden token per pin, each the world copy of the area it pins",
     PINNED.every((p) => standsItsPins(p, plans[p.id])), PINNED.map((p) => ({ id: p.id, ok: standsItsPins(p, plans[p.id]) })));
+  // A zone's list is linked when the library holds its table, and blank until
+  // then; its figures are read off the page and go to the log, not the check.
+  const listsHeld = new Set(await run(gm, P.tablesHeld, { ids: ZONES.map((z) => z.table).filter(Boolean) }));
+  for (const z of ZONES) plans[z.scene] ??= await run(gm, P.planOf, { id: z.scene });
+  const zonesOn = (z, plan) => (plan?.zones ?? []).filter((r) => r.zone === z.id);
+  const inSchema = (r) => r.target >= 1 && r.target <= 6 && r.every >= 1 && r.every <= 24 && r.level >= 1 && r.level <= 20;
+  const laidRight = (z, plan) => {
+    const [r, ...more] = zonesOn(z, plan);
+    return !!r && !more.length && r.layerOnly && r.list === (listsHeld.has(z.table) ? z.table : null) && inSchema(r);
+  };
+  note("2c: zones, to check against the page", { listsHeld: listsHeld.size, zones: ZONES.map((z) => ({ id: z.id, on: z.scene, laid: zonesOn(z, plans[z.scene]) })) });
+  check("2c: the maps step lays every AX1 zone", sc?.zones === ZONES.length && !sc?.zonesRefused, { zones: sc?.zones, held: sc?.zonesHeld, waiting: sc?.zonesWaiting, refused: sc?.zonesRefused });
+  check("2c: each zone lies once on its plan, drawn on the Regions layer alone, its list its level's table, its figures within the behaviour's schema",
+    ZONES.length > 0 && ZONES.every((z) => laidRight(z, plans[z.scene])), ZONES.map((z) => ({ id: z.id, ok: laidRight(z, plans[z.scene]) })));
   const world2c = await run(gm, P.worldPlaces, { book: BOOK });
   const sitsInItsParent = (places) => {
     const byId = new Map(places.map((p) => [p.id, p]));
@@ -916,6 +963,8 @@ try {
     !!carried?.length && carried.every((s) => s.tokenVision === true && s.fogMode === 1 && s.darkness === 1 && s.globalLight === false), carried);
   check("3: the Adventure carries each plan with a token per pin",
     PINNED.every((p) => carried?.find((s) => s.id === p.id)?.tokens === p.pins.length), carried?.map((s) => ({ id: s.id, tokens: s.tokens })));
+  check("3: the Adventure carries each zone on its plan, once",
+    ZONES.every((z) => carried?.find((s) => s.id === z.scene)?.zones.filter((id) => id === z.id).length === 1), carried?.map((s) => ({ id: s.id, zones: s.zones })));
 
   section("3b. an Adventure import brings each plan with its rooms, inside the places they sit in");
   // The world loses its AX1 places and every plan but one; the import is what
@@ -953,6 +1002,8 @@ try {
   check("3b: the plan the import held names its place's new copy and still stands its pins",
     !!held3b && !createdSet.has(held3b.uuid) && held3b.linkId === kept3b.place && held3b.linkWorld && standsItsPins(kept3b, held3b),
     { id: kept3b.id, created: createdSet.has(held3b?.uuid), linkId: held3b?.linkId, world: held3b?.linkWorld, pins: standsItsPins(kept3b, held3b) });
+  check("3b: each plan stands its zone again, as the maps step laid it",
+    ZONES.every((z) => laidRight(z, plans3b[z.scene])), ZONES.map((z) => ({ id: z.id, ok: laidRight(z, plans3b[z.scene]) })));
   const dry3b = await run(gm, P.pruneDry);
   check("3b: the empty-location prune, run dry, would remove none of them", doomedOf(dry3b, world3b) === 0, { doomed: doomedOf(dry3b, world3b) });
 } catch (err) {

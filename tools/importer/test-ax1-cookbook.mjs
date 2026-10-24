@@ -217,6 +217,20 @@ t("every area inside a plan's place that holds no other is pinned on it, once", 
   }
 });
 
+/* ---------------- zones ---------------- */
+
+t("each dungeon level is one zone over its plan, reading its chance, interval and dungeon level off the page with its level's list", () => {
+  const zones = Object.entries(cb.scenes).filter(([, row]) => row.zone);
+  const want = { "ax1.level1Map": "ax1.wanderingLevel1", "ax1.level2Map": "ax1.wanderingLevel2" };
+  assert.deepEqual(Object.fromEntries(zones.map(([, row]) => [row.zone.scene, row.zone.table])), want);
+  for (const [id, { zone }] of zones) {
+    const patterns = Object.fromEntries(Object.entries(zone.fields).map(([field, f]) => [field, f.pattern]));
+    assert.deepEqual(patterns, { target: "rollTarget", every: "countWord", dungeonLevel: "int" }, id);
+    const { crop } = cb.scenes[zone.scene].scene;
+    assert.deepEqual(zone.outline, [crop.x, crop.y, crop.x + crop.w, crop.y, crop.x + crop.w, crop.y + crop.h, crop.x, crop.y + crop.h].map((n) => +n.toFixed(2)), `${id} covers its plan`);
+  }
+});
+
 /* ---------------- prose boxes ---------------- */
 
 t("no two areas' or inhabitants' boxes meet on a page", () => {

@@ -2010,6 +2010,12 @@ What a scripted walk meets:
   it, which also keeps the players list and its user names out of frame, and
   `#pause`, whose banner sits over the token the frame is centred on. Keep
   the PNG in the local log directory.
+- A pin cannot be read on a plan as it stands: a hidden place token is a
+  half-alpha white icon on a white floor, lost at the plan's darkness and in
+  daylight seen only where it greys a printed glyph. The walk's `frameToken`
+  relights the GM's canvas alone and tints every pin red for the shot, with no
+  document written; `showInterface` restores both from the scene's stored
+  darkness.
 - Sweep a ledger the places step has filled a chunk at a time. One page-side
   call over a few hundred library documents outlives the driver's evaluate
   timeout, and the call it gives up on goes on deleting with nobody reading
@@ -2037,8 +2043,15 @@ What a scripted walk meets:
      every place those sit in, up to `ax1.adventure`. Each sits in the world
      copy of the place its row names, and `ax1.adventure` in nothing. None
      names a library uuid;
-   - framed on its first pin, each level's plan shows each token on the key
-     its page prints.
+   - the step lays every AX1 zone, and refuses none. Each level's plan carries
+     its level's zone once, drawn on the Regions layer alone (a fill over
+     the whole plan would hide it), its list the level's table where the
+     library holds it, and its target, interval and dungeon
+     level within the encounter zone's schema. The walk logs the figures;
+     check them against the page by eye;
+   - framed on its first pin, relit and tinted, each level's plan shows a red
+     pin on the key its page prints. An entry keyed to a range of numbers pins
+     its first key, and a lettered cell with no entry of its own carries none.
 2. Run the prune dry.
    *Observable:* its `doomed` holds none of AX1's world places, though a
    section holds no goods, roster or token. It holds both empty fixtures.
@@ -2047,9 +2060,10 @@ What a scripted walk meets:
    fewest pins, open AX1's Adventure from the library, and press its sheet's
    **Import**. Read what was created from core's `importAdventure` hook.
    *Observable:*
-   - the Adventure carries each plan with a token per pin;
+   - the Adventure carries each plan with a token per pin, and each level's
+     zone on its plan;
    - the import creates each plan it was handed, linked to its place's new
-     copy and standing its pins;
+     copy and standing its pins and its zone as step 1 laid it;
    - the places it creates are exactly step 1's set. The fort's other
      buildings, which no plan pins, stay in the library;
    - every created place sits in a created place, and `ax1.adventure` in

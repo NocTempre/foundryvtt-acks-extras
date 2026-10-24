@@ -12,7 +12,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { citeFor } from "../../scripts/importer/books.mjs";
-import { isSceneRecipe, isZoneRow } from "../../scripts/importer/scene-binding.mjs";
+import { inCropOf, isSceneRecipe, isZoneRow } from "../../scripts/importer/scene-binding.mjs";
 
 const COOKBOOK = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "cookbook");
 
@@ -180,9 +180,10 @@ for (const z of zones) {
   const crop = target?.scene?.crop;
   const ring = z.zone.outline ?? [];
   const outside = [];
+  const inCrop = crop ? inCropOf(crop) : null;
   for (let i = 0; crop && i + 1 < ring.length; i += 2) {
     const [x, y] = [ring[i], ring[i + 1]];
-    if (!(x >= crop.x && x <= crop.x + crop.w && y >= crop.y && y <= crop.y + crop.h)) outside.push(`(${x}, ${y})`);
+    if (!inCrop(x, y)) outside.push(`(${x}, ${y})`);
   }
   check(`${z.id}: every outline point lies inside ${z.zone.scene}'s crop${outside.length ? ` — not ${outside.slice(0, 3).join(", ")}` : ""}`, !!crop && outside.length === 0);
 }

@@ -31574,6 +31574,65 @@
         }
       }
     },
+    "ax1.zone1": {
+      "kind": "kind.sceneZone",
+      "name": "Zone 1",
+      "cite": "AX1 p.35",
+      "pages": [
+        36,
+        37
+      ],
+      "zone": {
+        "scene": "ax1.level1Map",
+        "table": "ax1.wanderingLevel1",
+        "outline": [
+          40.8,
+          80,
+          572.2,
+          80,
+          572.2,
+          756.5,
+          40.8,
+          756.5
+        ],
+        "cadence": "",
+        "fields": {
+          "target": {
+            "op": "value",
+            "page": 37,
+            "box": {
+              "x0": 37,
+              "x1": 302,
+              "y0": 81,
+              "y1": 92
+            },
+            "pattern": "rollTarget"
+          },
+          "every": {
+            "op": "value",
+            "page": 37,
+            "box": {
+              "x0": 47,
+              "x1": 302,
+              "y0": 57,
+              "y1": 68
+            },
+            "pattern": "countWord"
+          },
+          "dungeonLevel": {
+            "op": "value",
+            "page": 36,
+            "box": {
+              "x0": 28,
+              "x1": 291,
+              "y0": 88,
+              "y1": 99
+            },
+            "pattern": "int"
+          }
+        }
+      }
+    },
     "ax1.level1Map": {
       "kind": "kind.scene",
       "name": "Level 1 Map",
@@ -32522,6 +32581,64 @@
               "is": "wall"
             }
           ]
+        }
+      }
+    },
+    "ax1.zone2": {
+      "kind": "kind.sceneZone",
+      "name": "Zone 2",
+      "cite": "AX1 p.53",
+      "pages": [
+        54
+      ],
+      "zone": {
+        "scene": "ax1.level2Map",
+        "table": "ax1.wanderingLevel2",
+        "outline": [
+          36.48,
+          36.48,
+          575.52,
+          36.48,
+          575.52,
+          756,
+          36.48,
+          756
+        ],
+        "cadence": "",
+        "fields": {
+          "target": {
+            "op": "value",
+            "page": 54,
+            "box": {
+              "x0": 27,
+              "x1": 292,
+              "y0": 562,
+              "y1": 573
+            },
+            "pattern": "rollTarget"
+          },
+          "every": {
+            "op": "value",
+            "page": 54,
+            "box": {
+              "x0": 27,
+              "x1": 292,
+              "y0": 550,
+              "y1": 561
+            },
+            "pattern": "countWord"
+          },
+          "dungeonLevel": {
+            "op": "value",
+            "page": 54,
+            "box": {
+              "x0": 28,
+              "x1": 291,
+              "y0": 88,
+              "y1": 99
+            },
+            "pattern": "int"
+          }
         }
       }
     },

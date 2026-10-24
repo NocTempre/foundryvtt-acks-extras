@@ -240,14 +240,18 @@ locates it), and carries a `zone` block:
   the turn.
 - `cadence` — the encounter zone's journey cadence: blank (inherit), `entry`
   or `periods`.
-- `targetAt`, `dayAt`, `nightAt` — optional boxes (`page`, `x0`–`x1`,
-  `y0`–`y1`) over the zone's own printed encounter target and day and night
-  throws.
+- `targetAt` or `chanceAt`, `everyAt`, `levelAt`, `dayAt`, `nightAt` —
+  optional boxes (`page`, `x0`–`x1`, `y0`–`y1`) over the zone's own printed
+  encounter target, the delve's throw interval in turns, the floor's dungeon
+  level, and the day and night throws (`ZONE_FIGURES`). A row reads its
+  target through one of the two.
 
 `compileSceneZone` checks it (`zoneProblems`) and files it under the
 cookbook's `scenes` beside the recipes (`isZoneRow` tells the two apart), each
-box as a value instruction: the target with the `int` pattern, the throws with
-`countWord`, which reads a digit or an English count word from
+box as a value instruction: `targetAt` with the `throw` pattern (a target
+printed `<n>+`), `chanceAt` with `rollTarget` (one printed in words, or as the
+low end of two faces), the dungeon level with `int`, the interval and the
+throws with `countWord`, which reads a digit or an English count word from
 `register/_refs/countWord.json` and yields 0 (inherit) for a box that reads
 nothing. What no single compile can see — that the scene is a compiled recipe
 in some cookbook, that the table is the zone's own book's, and that the
@@ -255,7 +259,11 @@ outline lies inside the recipe's crop — is asserted by
 `test-cookbook-coherence`. `zoneRegionData` shapes the Region: visible to the
 GM only, locked, one polygon per snapped cell (else the outline carried
 through the frame), the `acks-extras.encounterZone` behaviour with the list,
-target, cadence and throws, and flags naming the zone and the cells it covers.
+target, interval, dungeon level, cadence and throws, and flags naming the zone
+and the cells it covers. An adventure's dungeon level is one zone over the
+whole of its plan, so a party anywhere on the level reads its rule. A zone
+whose outline covers its recipe's crop (`coversCrop`) is drawn on the
+Regions layer alone.
 
 The map step lays the zones after the maps (`ensureZone`), for every zone row
 of an open book. A zone whose map is not in the world waits (`zonesWaiting`);

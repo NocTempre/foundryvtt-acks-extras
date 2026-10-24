@@ -20,7 +20,7 @@ import {
   SCENE_KIND, PLACE_TOKEN_SIZE, isSceneRecipe, sceneFrame, ringToScene, pointInRing, bandOfSection, formulaMax,
   afterDarkShift, placementMatches, placementHolding, recipeContext, recipeProblems, sceneData, districtRegionData,
   placeTokenAt, worldCopySource, isWorldCopy, turnMatrix, pictureKey,
-  SCENE_ZONE_KIND, isZoneRow, gridScale, recipeFeetPerPoint, offsetsInside, zoneProblems, zoneRegionData,
+  SCENE_ZONE_KIND, isZoneRow, gridScale, recipeFeetPerPoint, offsetsInside, zoneProblems, zoneRegionData, coversCrop, inCropOf,
 } from "../../scripts/importer/scene-binding.mjs";
 import { readCountWord } from "../../scripts/importer/executor.mjs";
 import { MODULE_ID } from "../../scripts/importer/constants.mjs";
@@ -448,6 +448,9 @@ says("a cadence the behaviour does not take", zoneBroken((z) => { z.cadence = "d
 says("a target box that runs backwards", zoneBroken((z) => { z.targetAt.x0 = 10; }), "targetAt needs");
 says("a day box with no page", zoneBroken((z) => { delete z.dayAt.page; }), "dayAt needs");
 says("a night box of no height", zoneBroken((z) => { z.nightAt.y1 = z.nightAt.y0; }), "nightAt needs");
+says("a target read twice", zoneBroken((z) => { z.chanceAt = figure(3); }), "give one");
+says("an interval box with no page", zoneBroken((z) => { z.everyAt = { ...figure(3), page: 0 }; }), "everyAt needs");
+check("a target read in words, an interval and a dungeon level are sound", zoneProblems({ ...soundZone(), targetAt: undefined, chanceAt: figure(3), everyAt: figure(3), levelAt: figure(2) }, zoneBook), []);
 
 const zoneRow = { kind: SCENE_ZONE_KIND, name: "Zone 1", zone: { ...soundZone(), fields: {} } };
 ok("a compiled zone row is a zone", isZoneRow(zoneRow));
@@ -461,8 +464,17 @@ check("a zone is a locked region only the Judge sees", [outlined.name, outlined.
 check("with no cells it is its outline, carried into the frame", outlined.shapes, [{ type: "polygon", points: [50, 50, 450, 50, 450, 300], hole: false }]);
 check("it carries the encounter zone with its list, figures and the row's cadence", outlined.behaviors, [{
   type: "acks-extras.encounterZone", name: "Zone",
-  system: { tableUuid: "RollTable.z", encounterTarget: 4, journeyCadence: "periods", dayThrows: 2, nightThrows: 1 },
+  system: { tableUuid: "RollTable.z", encounterTarget: 4, encounterEvery: 0, dungeonLevel: 0, journeyCadence: "periods", dayThrows: 2, nightThrows: 1 },
 }]);
+check("a zone over the whole picture is drawn on the Regions layer alone", zoneRegionData(soundZone(), given, { ...zoneArgs, whole: true }).visibility, 0);
+ok("an outline on the crop's edges covers it", coversCrop([10, 20, 110, 20, 110, 70, 10, 70], { x: 10, y: 20, w: 100, h: 50 }));
+ok("one short of an edge does not", !coversCrop([10, 20, 109, 20, 109, 70, 10, 70], { x: 10, y: 20, w: 100, h: 50 }));
+ok("nor does any outline cover a crop of no area", !coversCrop([0, 0, 1, 0, 1, 1], { x: 0, y: 0, w: 0, h: 5 }));
+// 40.8 + 531.4 sums to a hair under 572.2, the edge as printed.
+ok("a point on a far edge a float's sum falls short of is inside the crop", inCropOf({ x: 40.8, y: 80, w: 531.4, h: 676.5 })(572.2, 756.5));
+ok("a point a hundredth past the edge is not", !inCropOf({ x: 40.8, y: 80, w: 531.4, h: 676.5 })(572.21, 80));
+const delved = zoneRegionData(soundZone(), given, { ...zoneArgs, every: 3, dungeonLevel: 2 }).behaviors[0].system;
+check("a delve's interval and dungeon level ride the behaviour", [delved.encounterEvery, delved.dungeonLevel], [3, 2]);
 check("and remembers which zone it is, covering no cells", outlined.flags[MODULE_ID], { cookbook: { zone: "zy.zone1", book: "zy" }, zoneHexes: [] });
 const hexVerts = [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 15, y: 8.6 }, { x: 10, y: 17.3 }, { x: 0, y: 17.3 }, { x: -5, y: 8.6 }];
 const snapped = zoneRegionData(soundZone(), given, { ...zoneArgs, hexes: [{ i: 2, j: 3 }, { i: 3, j: 3 }], cells: [hexVerts, [20, 0, 30, 0, 25, 9]] });
@@ -475,7 +487,7 @@ const unvertexed = zoneRegionData(soundZone(), given, { ...zoneArgs, hexes: [{ i
 check("a cell the grid gave no vertices for falls back to the outline", [unvertexed.shapes.length, unvertexed.flags[MODULE_ID].zoneHexes], [1, []]);
 const bareZone = zoneRegionData({ scene: "zz.region", outline: [10, 10, 90, 10, 90, 60] }, given, { name: "Zone", book: "zy", id: "zy.zone2" });
 check("a zone with no list or figures says so with a null list and zeroes", bareZone.behaviors[0].system, {
-  tableUuid: null, encounterTarget: 0, journeyCadence: "", dayThrows: 0, nightThrows: 0,
+  tableUuid: null, encounterTarget: 0, encounterEvery: 0, dungeonLevel: 0, journeyCadence: "", dayThrows: 0, nightThrows: 0,
 });
 check("a cadence the behaviour does not take is written blank", zoneRegionData(soundZone(), given, { ...zoneArgs, cadence: "daily" }).behaviors[0].system.journeyCadence, "");
 
