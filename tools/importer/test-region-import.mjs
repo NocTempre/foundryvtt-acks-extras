@@ -578,6 +578,23 @@ const recipe = REGION_MAP.scene;
   check("a recipe's travel is the travel system its map declares", delve.flags[MODULE_ID].battlemap.mapSystem, "delve");
 }
 
+// --- a plate of storeys: a level per storey, named by its number ------------------------------
+{
+  const tower = {
+    page: 4, crop: { x: 0, y: 100, w: 60, h: 40 }, place: "xx.adventure", travel: "delve", levels: [{ x: 0, y: 50 }],
+    grid: { family: "square", box: { w: 10, h: 10 }, centre: [5, 105], distance: 5, units: "ft", pixels: 70 },
+  };
+  const plan = gridScenePlan(tower, new MockScene({ padding: 0 }));
+  const built = await mapCreateData({
+    bookId: "xx", id: "xx.tower", recipe: tower, ids: { mapPlaceId: "xx.adventure", districtIds: [], placeIds: [] }, actors: new Map(),
+    tableOf: async () => null, src: "maps/a.webp", folderId: null, fallbackName: "Tower", grid: plan, storeys: ["maps/b.webp"],
+  });
+  check("a plate of storeys is a level per storey, each named by its number", built.levels.map((l) => [l.name, l.background.src]), [
+    ['ACKS-IMPORTER.ui.sceneStorey|{"n":1}', "maps/a.webp"],
+    ['ACKS-IMPORTER.ui.sceneStorey|{"n":2}', "maps/b.webp"],
+  ]);
+}
+
 // --- region places: the overview, a market, the settlement, a site of its own ----------------
 const pack = game.packs.get(ACTOR_PACK);
 const shelved = (cbId) => pack.docs.find((d) => d.flags?.[MODULE_ID]?.cookbook?.id === cbId);

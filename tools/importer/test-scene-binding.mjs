@@ -19,7 +19,7 @@ import { dirname, join } from "node:path";
 import {
   SCENE_KIND, PLACE_TOKEN_SIZE, isSceneRecipe, sceneFrame, ringToScene, pointInRing, bandOfSection, formulaMax,
   afterDarkShift, placementMatches, placementHolding, recipeContext, recipeProblems, sceneData, districtRegionData,
-  placeTokenAt, worldCopySource, isWorldCopy, turnMatrix, pictureKey,
+  placeTokenAt, worldCopySource, isWorldCopy, turnMatrix, pictureKey, storeyCrops, storeyLevelId,
   SCENE_ZONE_KIND, isZoneRow, gridScale, recipeFeetPerPoint, offsetsInside, zoneProblems, zoneRegionData, coversCrop, inCropOf,
 } from "../../scripts/importer/scene-binding.mjs";
 import { readCountWord } from "../../scripts/importer/executor.mjs";
@@ -413,6 +413,38 @@ check("no shift given is no shift", [unshiftedHex.shiftX, unshiftedHex.shiftY], 
 check("a scale measured live overrides the offline one", sceneData({ id: "zz.region", book: "zz", name: "R", recipe: hexRecipe(), src: "r.webp", pixelsPerPoint: 4 }).width, 800);
 check("a declared travel system is kept", sceneData({ id: "zz.region", book: "zz", name: "R", recipe: hexRecipe(), src: "r.webp", mapSystem: "delve" }).flags[MODULE_ID].battlemap.mapSystem, "delve");
 ok("a city map writes no shift at all", !("shiftX" in data) && !("shiftY" in data));
+
+// An invented plate of three storeys printed side by side on one 10 pt grid.
+const storeyed = (patch = {}) => ({
+  page: 4, crop: { x: 10, y: 200, w: 100, h: 60 }, place: "zz.up",
+  grid: { family: "square", box: { w: 10, h: 10 }, centre: [15, 205], distance: 5, units: "ft", pixels: 70 },
+  levels: [{ x: 10, y: 120 }, { x: 10, y: 40 }],
+  ...patch,
+});
+check("each storey above the first is the crop moved to its corner", storeyCrops(storeyed()), [{ x: 10, y: 120, w: 100, h: 60 }, { x: 10, y: 40, w: 100, h: 60 }]);
+check("a recipe without levels has none", storeyCrops(hexRecipe()), []);
+check("each storey is another picture", new Set([storeyed(), ...storeyCrops(storeyed()).map((crop) => ({ ...storeyed(), crop }))].map(pictureKey)).size, 3);
+check("a storey's level id is core's sixteen characters", [storeyLevelId(1).length, storeyLevelId(12)], [16, "storey0000000012"]);
+check("storeys a whole number of cells apart stand", recipeProblems(storeyed(), spaceBook), []);
+says("a storey off the lattice", recipeProblems(storeyed({ levels: [{ x: 10, y: 125 }] }), spaceBook), "not a whole number of cells");
+says("the first storey listed again", recipeProblems(storeyed({ levels: [{ x: 10, y: 200 }] }), spaceBook), "is the first storey's crop");
+says("a storey with half a corner", recipeProblems(storeyed({ levels: [{ x: 10 }] }), spaceBook), "levels[0] needs numeric x and y");
+says("no storey above the first", recipeProblems(storeyed({ levels: [] }), spaceBook), "at least one storey");
+says("storeys on a hex lattice", recipeProblems({ ...hexRecipe(), levels: [{ x: 0, y: 0 }] }, regionBook), "only on a square grid");
+ok("walls on a plan of storeys", recipeProblems(storeyed({ walls: { mode: "stroke", threshold: 80 } }), spaceBook).some((p) => p.includes("plan of storeys")));
+
+const tower = sceneData({
+  id: "zz.tower", book: "zz", name: "Tower", recipe: storeyed(), src: "a.webp",
+  level: { id: "defaultLevel0000", name: "Storey 1" }, storeys: [{ src: "b.webp", name: "Storey 2" }, { src: "c.webp", name: "Storey 3" }],
+});
+check("a level per storey, bottom up, each four cells' distance over the last", tower.levels.map((l) => [l._id, l.name, l.background.src, l.elevation]), [
+  ["defaultLevel0000", "Storey 1", "a.webp", { bottom: 0, top: 20 }],
+  ["storey0000000001", "Storey 2", "b.webp", { bottom: 20, top: 40 }],
+  ["storey0000000002", "Storey 3", "c.webp", { bottom: 40, top: 60 }],
+]);
+check("the scene opens on the first storey", tower.initialLevel, "defaultLevel0000");
+ok("a map of one storey states no elevation", !("elevation" in hexData.levels[0]) && hexData.levels.length === 1);
+check("storeys are a grid plan's alone", sceneData({ id: "zz.map", book: "zz", name: "Map", recipe: sound(), src: "a.webp", storeys: [{ src: "b.webp", name: "B" }] }).levels.length, 1);
 
 check("a pin is half of the recipe's own cell", placeTokenAt([60, 50], given), { x: 300 - 20, y: 250 - 20, width: PLACE_TOKEN_SIZE, height: PLACE_TOKEN_SIZE });
 check("or of the cell it is told", placeTokenAt([60, 50], given, { gridPixels: 200 }), { x: 300 - 50, y: 250 - 50, width: PLACE_TOKEN_SIZE, height: PLACE_TOKEN_SIZE });

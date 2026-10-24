@@ -2053,7 +2053,10 @@ the owner's. Report each write to them.
 A scene recipe that names a place (`scene.place`) is that place's plan, and
 its `places` pin the areas inside it. On AX1 every map is one but the
 region's, which names no place: it is `ax1.region`'s map, and stands the
-fort, the first level and the sites on their hexes. Sections 2c and 3b of
+fort, the first level and the sites on their hexes. The fort's overview
+(`ax1.fortMap`) is a hex plan too, its pins on the circled keys and not on
+cell centres; `ax1.fort10Map` and `ax1.fort15-17Map` are the pictures of
+`ax1.fort9Map` and `ax1.fort14Map` standing no pins. Sections 2c and 3b of
 `tools/live/importer-ax1.mjs` walk it, once section 2 has put AX1's places in
 the library. The recipes in `cookbook/ax1.json` say which plan is whose and
 what each pins; nothing of the page is read to check it.
@@ -2118,11 +2121,19 @@ What a scripted walk meets:
      library holds it, and its target, interval and dungeon
      level within the encounter zone's schema. The walk logs the figures;
      check them against the page by eye;
-   - framed on its first pin, relit and tinted, each level's plan shows a red
-     pin on the key its page prints. An entry keyed to a range of numbers pins
-     its first key, and a lettered cell with no entry of its own carries none.
-     The region map, framed the same way at half scale, shows each pin in the
-     middle of its hex, and the drawn hex lines under the scene's grid.
+   - framed on its first pin, relit and tinted, each plan that stands pins
+     shows a red pin on the key or letter its page prints. An entry keyed to a
+     range pins its first key, and a lettered cell with no entry of its own
+     carries none. A block plan shows its drawn squares under the scene's
+     grid. The region map, framed the same way at half scale, shows each pin
+     in the middle of its hex, and the drawn hex lines under the scene's grid;
+     the fort's overview, at half scale, shows its drawn hexes under the grid
+     and each pin on its circled key;
+   - each plate of storeys (`ax1.fort1Map`, `ax1.fort2-3Map`,
+     `ax1.fort5-8Map`) holds a level per storey, each its own picture, each
+     starting where the one below it ends. Viewed at its top storey, the
+     shot shows that storey's drawing under the grid, its stairs where the
+     storey below drew them; every other plan holds core's one level.
 2. Run the prune dry.
    *Observable:* its `doomed` holds none of AX1's world places, though a
    section holds no goods, roster or token. It holds both empty fixtures.
@@ -2137,8 +2148,7 @@ What a scripted walk meets:
      zone on its plan;
    - the import creates each plan it was handed, linked to its place's new
      copy and standing its pins and its zone as step 1 laid it;
-   - the places it creates are exactly step 1's set. The fort's other
-     buildings, which no plan pins, stay in the library;
+   - the places it creates are exactly step 1's set;
    - every created place sits in a created place, and `ax1.adventure` in
      nothing;
    - the plan the import held names its place's new copy and still stands

@@ -29,8 +29,8 @@
  * would remove none of them. Each dungeon level's plan carries its level's
  * encounter zone once, its list the level's table and its figures within the
  * behaviour's schema; the figures go to the log to be checked against the page.
- * A shot of each level's plan, framed on its first pin with the interface
- * hidden, goes to the log directory to be read by eye.
+ * A shot of each plan that stands pins, framed on its first pin with the
+ * interface hidden, goes to the log directory to be read by eye.
  *
  * A place AX1 prints that a later book prints too (`meta.sameAs`) is one
  * place: section 2 expects AX1's row to bind onto the later book's place where
@@ -152,7 +152,10 @@ const LINE_ID = /^(.+)-o(\d+)$/;
 // The maps that are a place's own: each map's id, the place it draws (a
 // plan's, or the region's for the map that names none), and the places it pins.
 const PINNED = Object.entries(COOKBOOK.scenes ?? {}).filter(([, r]) => r?.scene?.place || (r?.scene?.crop && r.scene.grid))
-  .map(([id, r]) => ({ id, place: r.scene.place ?? REGION_PLACE, region: !r.scene.place, pins: (r.scene.places ?? []).map((p) => p.id) }));
+  .map(([id, r]) => ({
+    id, place: r.scene.place ?? REGION_PLACE, region: !r.scene.place, hex: String(r.scene.grid?.family ?? "").startsWith("hex"),
+    pins: (r.scene.places ?? []).map((p) => p.id), storeys: 1 + (r.scene.levels ?? []).length,
+  }));
 // The book's encounter zones: each one's id, the map it lies over and its list.
 const ZONES = Object.entries(COOKBOOK.scenes ?? {}).filter(([, r]) => r?.zone).map(([id, r]) => ({ id, scene: r.zone.scene, table: r.zone.table ?? null }));
 // A place's parents, nearest first, up to the book's own or the region's.
@@ -384,6 +387,7 @@ const P = {
       linkWorld: !!place && !place.pack,
       namedForIt: !!place && s.name === place.name,
       mapSystem: s.flags[MID].battlemap?.mapSystem ?? null,
+      levels: [...s.levels].map((l) => ({ id: l.id, src: l.background?.src ?? null, bottom: l.elevation?.bottom, top: l.elevation?.top })),
       tokens: [...s.tokens].map((t) => ({ id: t.id, hidden: !!t.hidden, place: inBook(game.actors.get(t.actorId)?.flags?.[MID]?.cookbook) })),
       zones: await Promise.all([...s.regions].filter((r) => r.flags?.[MID]?.cookbook?.zone).map(async (r) => {
         const sys = r.behaviors.find((b) => b.type === `${MID}.encounterZone`)?.system ?? {};
@@ -518,6 +522,18 @@ const P = {
     for (const id of ["interface", "pause"]) document.getElementById(id)?.style.setProperty("visibility", "hidden");
     await new Promise((r) => setTimeout(r, 1500));
     return { framed: true, visible: !!t.visible, inScene: !!canvas.dimensions.sceneRect.contains(t.center.x, t.center.y) };
+  },
+  /** A scene viewed at one of its levels, centred on its picture, with the interface hidden for a shot. */
+  frameLevel: async ({ uuid, level, scale = 1 }) => {
+    const s = await fromUuid(uuid);
+    await s.view({ level });
+    for (let n = 0; n < 120 && !(canvas.ready && canvas.scene?.id === s.id); n++) await new Promise((r) => setTimeout(r, 250));
+    const rect = canvas.dimensions.sceneRect;
+    canvas.environment.initialize({ environment: { darknessLevel: 0 } });
+    await canvas.animatePan({ x: rect.x + rect.width / 2, y: rect.y + rect.height / 2, scale, duration: 0 });
+    for (const id of ["interface", "pause"]) document.getElementById(id)?.style.setProperty("visibility", "hidden");
+    await new Promise((r) => setTimeout(r, 1500));
+    return { framed: canvas.scene?.id === s.id, level: canvas.level?.id ?? null };
   },
   showInterface: async () => {
     for (const id of ["interface", "pause"]) document.getElementById(id)?.style.removeProperty("visibility");
@@ -1034,6 +1050,16 @@ try {
     PINNED.every((p) => plans[p.id]?.mapSystem === (p.region ? "journey" : "delve")), PINNED.map((p) => ({ id: p.id, mapSystem: plans[p.id]?.mapSystem })));
   check("2c: each plan stands one hidden token per pin, each the world copy of the area it pins",
     PINNED.every((p) => standsItsPins(p, plans[p.id])), PINNED.map((p) => ({ id: p.id, ok: standsItsPins(p, plans[p.id]) })));
+  // A plate of storeys is a level per storey, each its own picture, stacked
+  // bottom up; a plan of one storey keeps core's one level.
+  const stacked = (p, plan) => {
+    const ls = plan?.levels ?? [];
+    if (ls.length !== p.storeys) return false;
+    if (p.storeys === 1) return true;
+    return new Set(ls.map((l) => l.src)).size === ls.length && ls.every((l, i) => !i || l.bottom === ls[i - 1].top);
+  };
+  check("2c: each plan is a level per storey its plate prints, each storey its own picture, stacked bottom up",
+    PINNED.every((p) => stacked(p, plans[p.id])), PINNED.filter((p) => p.storeys > 1).map((p) => ({ id: p.id, levels: plans[p.id]?.levels })));
   // Each place a region map stands is set at its drawn hex's centre: within a
   // couple of pixels of a cell centre, the scene's grid is the drawn one.
   for (const p of PINNED.filter((x) => x.region)) {
@@ -1085,15 +1111,29 @@ try {
   note("2c: fixtures", { outer: outer.uuid, inner: inner.uuid });
   const dryPair = await run(gm, P.pruneDry);
   check("2c: an empty place inside an empty one is listed with it", dryPair.doomed.includes(outer.uuid) && dryPair.doomed.includes(inner.uuid));
-  // The pins read by eye: each level's plan framed on its first pin, the
-  // region's map wide enough to show its hexes around it.
-  for (const p of PINNED.filter((x) => x.pins.length > 20 || x.region)) {
+  // The pins read by eye: each plan that stands any framed on its first pin, a
+  // hex map wide enough to show its hexes around it.
+  for (const p of PINNED.filter((x) => x.pins.length)) {
     const plan = plans[p.id];
     await run(gm, P.view, { uuid: plan.uuid });
-    const framed = await run(gm, P.frameToken, { tokenId: plan.tokens[0].id, scale: p.region ? 0.5 : 0.8 });
+    const framed = await run(gm, P.frameToken, { tokenId: plan.tokens[0].id, scale: p.hex ? 0.5 : 0.8 });
     note(`2c: ${p.id}'s first pin on the GM's canvas`, framed);
     try {
       if (framed.framed) note(`2c: shot ${p.id}`, await gm.shot(path.join(logDir(), `importer-ax1-pins-${p.id.split(".").pop()}.png`), "#board"));
+    } finally {
+      await run(gm, P.showInterface);
+    }
+  }
+  // Each plate of storeys viewed at its top storey, read by eye against the
+  // page: the storey's own drawing, under the same grid.
+  for (const p of PINNED.filter((x) => x.storeys > 1)) {
+    const plan = plans[p.id];
+    const top = plan?.levels?.at(-1);
+    if (!top) continue;
+    const framed = await run(gm, P.frameLevel, { uuid: plan.uuid, level: top.id, scale: 0.8 });
+    note(`2c: ${p.id}'s top storey on the GM's canvas`, framed);
+    try {
+      if (framed.framed) note(`2c: shot ${p.id} top`, await gm.shot(path.join(logDir(), `importer-ax1-storey-${p.id.split(".").pop()}.png`), "#board"));
     } finally {
       await run(gm, P.showInterface);
     }

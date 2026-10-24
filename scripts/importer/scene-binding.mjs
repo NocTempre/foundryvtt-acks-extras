@@ -354,6 +354,44 @@ export function gridProblems(grid, crop = null) {
   return out;
 }
 
+/** How far off a whole cell a storey's corner may sit, as a share of the cell. */
+const STOREY_SLACK = 0.02;
+
+/**
+ * The crop of each storey above a recipe's first, bottom up: `crop` moved to
+ * each corner `levels` lists. One frame serves every storey, so a storey
+ * states only its corner.
+ */
+export function storeyCrops(recipe) {
+  return (Array.isArray(recipe?.levels) ? recipe.levels : []).map((l) => ({ ...recipe.crop, x: l?.x, y: l?.y }));
+}
+
+/** The scene level id of storey `n` above the first: core's sixteen characters. */
+export const storeyLevelId = (n) => `storey${String(n).padStart(10, "0")}`;
+
+/**
+ * Everything wrong with a recipe's `levels`, as sentences. Each corner lies a
+ * whole number of cells from the crop's, so the one grid lies on every
+ * storey's drawing.
+ */
+function levelsProblems(recipe) {
+  if (!Array.isArray(recipe.levels) || !recipe.levels.length) return ["levels must list at least one storey above the first"];
+  if (recipe.grid?.family !== "square") return ["levels stand only on a square grid"];
+  const out = [];
+  if (recipe.walls !== undefined) out.push("walls are not traced on a plan of storeys");
+  const { w, h } = recipe.grid.box;
+  recipe.levels.forEach((l, i) => {
+    if (!isNum(l?.x) || !isNum(l?.y)) return void out.push(`levels[${i}] needs numeric x and y`);
+    const dx = (l.x - recipe.crop.x) / w;
+    const dy = (l.y - recipe.crop.y) / h;
+    if (!dx && !dy) return void out.push(`levels[${i}] is the first storey's crop`);
+    if (Math.abs(dx - Math.round(dx)) > STOREY_SLACK || Math.abs(dy - Math.round(dy)) > STOREY_SLACK) {
+      out.push(`levels[${i}] is not a whole number of cells from the crop, so the grid would not lie on its drawing`);
+    }
+  });
+  return out;
+}
+
 /**
  * Whether a recipe is a region's map: built on a grid of drawn cells, with no
  * quarters, and naming no place of its own. A plan names the place it draws,
@@ -377,7 +415,8 @@ export const isRegionRecipe = (recipe) => !!recipe?.grid && !recipe.districts?.l
  * stands only on a map that names no place: on a plan it is the map, or
  * holds it. `feetPerPoint` is
  * required only of a recipe with no `grid`. A `walls` block is held to
- * `wallsProblems`, the corrections cap included.
+ * `wallsProblems`, the corrections cap included, and `levels` to whole cells
+ * on a square grid.
  *
  * @param {object} recipe the row's `scene` block
  * @param {Record<string, {kind?: string, meta?: object, sections?: string[]}>} entries
@@ -394,6 +433,7 @@ export function recipeProblems(recipe, entries = {}) {
   if (recipe?.blockFeet !== undefined && !(recipe.blockFeet > 0)) out.push("blockFeet must be a positive number when given");
   if (out.length) return out;
   if (recipe.walls !== undefined) out.push(...wallsProblems(recipe.walls, recipe));
+  if (recipe.levels !== undefined) out.push(...levelsProblems(recipe));
 
   const inCrop = inCropOf(crop);
   const quarterOf = (id) => poiGroupOf(entries[id]?.meta?.group)?.district ?? null;
@@ -480,6 +520,9 @@ export function recipeProblems(recipe, entries = {}) {
  * to put in front of a table, not something a running session finds added to
  * its bar.
  *
+ * A plate of storeys is one scene with a level per storey, each its own picture
+ * under the one grid, and opens on the first.
+ *
  * Three things here are forced by how core creates a scene. The picture goes
  * in as the scene's first LEVEL, spelled out: the older top-level `background`
  * is stripped from creation data before core's own carry-over reads it.
@@ -507,12 +550,25 @@ export function recipeProblems(recipe, entries = {}) {
  * @param {string|null} [p.mapSystem] the travel system the map declares;
  *   `journey` for a grid recipe and `settlement` otherwise when not given
  * @param {object[]} [p.walls] `wallSources` rows, already in scene pixels
+ * @param {{src: string, name: string}[]} [p.storeys] the storeys above the
+ *   first, bottom up, each a level over the last at core's own default height
+ *   of four cells' distance
  */
 export function sceneData({
   id, book, name, recipe, src, incidents = null, folderId = null, locationUuid = "", level = { id: "defaultLevel0000", name: "Level" },
   regions = [], tokens = [], grid = recipe?.grid ?? null, pixelsPerPoint = null, shiftX = 0, shiftY = 0, mapSystem = null, walls = [],
+  storeys = [],
 }) {
   const frame = grid ? sceneFrame({ ...recipe, grid }, { pixelsPerPoint: pixelsPerPoint ?? gridScale({ grid }) }) : sceneFrame(recipe);
+  const storey = Number(grid?.distance) * 4;
+  const above = grid ? storeys : [];
+  const levels = [
+    { _id: level.id, name: level.name, background: { src, color: "#ffffff" }, ...(above.length ? { elevation: { bottom: 0, top: storey } } : {}) },
+    ...above.map((s, i) => ({
+      _id: storeyLevelId(i + 1), name: s.name, background: { src: s.src, color: "#ffffff" },
+      elevation: { bottom: (i + 1) * storey, top: (i + 2) * storey },
+    })),
+  ];
   return {
     name,
     folder: folderId,
@@ -521,7 +577,7 @@ export function sceneData({
     width: frame.width,
     height: frame.height,
     padding: 0,
-    levels: [{ _id: level.id, name: level.name, background: { src, color: "#ffffff" } }],
+    levels,
     initialLevel: level.id,
     ...(grid
       ? {

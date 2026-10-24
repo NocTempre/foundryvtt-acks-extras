@@ -7865,6 +7865,69 @@ draws" had ruled this shape out, and it recurred.
 *Cost:* a book that prints two region maps cannot register the second until
 a region map can name its region.
 
+## 2026-10-24 — The fort's overview is its hex plan, and a block built to another's plan is a scene of that plan
+
+AX1 maps the fort three ways above the dungeon: an overview of its grounds
+(p.6), plates of single buildings (pp.10, 11, 14) and the walled plans of
+the stroke plates. This entry covers the overview and the two block plates.
+
+**Ruled.**
+- **The overview is the fort's own plan** (`place: ax1.fort`), explored a
+  turn at a time (`delve`). Its hex lattice is fitted from the drawn hex
+  edges, and its distance is the hex scale the map prints. Each top-level
+  area stands at its circled key. A key sits on its building, wherever that
+  falls in a hex, so the region map's cell-centre check does not apply. A
+  row that keys several buildings stands at its first key, as a range of
+  rooms does.
+- **A block plate's scene is its block plan.** Each plate prints the block
+  on a squared grid, and below it a drawing of one section at another
+  scale, with no grid. The crop stops above that drawing.
+- **A sub-area stands at its letter's first occurrence.** A label that names
+  two sub-areas stands each at its own letter.
+- **A block built to another's plan is a scene of that plan** (blocks 10
+  and 15–17), linked to its own place and keying no sub-areas. A key is one
+  place, and a place's map is the one that names it, so two blocks of one
+  plan are two scenes of one picture.
+
+*Rejected:*
+- **The section drawing in the frame.** Under the block plan's grid it would
+  be measured at the wrong scale.
+- **Pins at hex centres on the overview.** A key printed between two hexes
+  would move to one of them, away from the building it names.
+- **One scene naming two places.** A scene's `place` is one id, and the
+  second block would have no map of its own.
+
+*Cost:*
+- The section drawings are not imported (ROADMAP).
+- A delve on a hex lattice lays the party's formation on hex cells. No live
+  walk has run one yet (ROADMAP).
+
+## 2026-10-24 — A plate of storeys is one scene with a level per storey
+
+AX1's p.10 prints a gatehouse and a tower storey by storey, side by side on
+one squared grid: the gatehouse in two storeys, the tower in three.
+
+**Ruled.**
+- **One scene per building, a level per storey** (`levels`), on core's scene
+  levels. Each storey's crop is the first's moved a whole number of cells, so
+  the stairs drawn on one storey stand over the stairs on the next.
+- **A storey stands four cells' distance over the last**, core's own default
+  level height. Nothing on the plate is read for it.
+- **The gatehouses built to the first's plan are a scene of that plan**
+  (`ax1.fort2-3Map`), as the blocks are.
+
+*Rejected:*
+- **A scene per storey.** A token could change storey only by changing
+  scene, and the stairs would line up on no canvas.
+- **The whole plate as one level.** A token on the stairs would have to
+  cross the page to reach the storey above.
+
+*Cost:*
+- A token changes storey through core's level controls. Stairs that move it
+  are not wired (ROADMAP).
+- The plates draw their walls as hatching, so the storeys are wall-less, as
+  the block plans are (ROADMAP).
+
 ## 2026-10-24 — AX1's sites are places in its region, and its region map stands them on their hexes
 
 AX1 prints six sites around the fort on its region page (p.66) and draws

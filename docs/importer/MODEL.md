@@ -105,6 +105,19 @@ measured off the page like the rest of the recipe:
   `DISTANCE_UNITS` key.
 - `pixels` — the Foundry cell size, 100 when absent.
 
+A plate that prints a building's storeys side by side on one squared grid is
+one scene with a level per storey. The recipe's `crop` is the first storey,
+and `levels` lists the storeys above it, bottom up, each as the corner
+`{x, y}` the crop moves to (`storeyCrops`). One frame serves them all, so a
+storey states no size. `recipeProblems` holds each corner to a whole number
+of cells from the crop, so the grid lies on every storey's drawing, and
+refuses `levels` off a square grid or beside `walls`. The maps step and the
+Adventure cut each storey's picture as they cut the first's. The first
+storey keeps core's first level id and each one above takes
+`storeyLevelId(n)`; each stands four cells' distance over the last, core's
+own default level height, and is named `ui.sceneStorey`. A map of one storey
+is written as before.
+
 With a grid, `feetPerPoint` may be left out (`recipeFeetPerPoint` derives it
 from the cell). The picture is scaled so one drawn cell is one Foundry cell:
 `gridScale` is Foundry's cell extent over the drawn cell's, measured on a
@@ -632,7 +645,9 @@ inside it, however deep (`recipeProblems`); a key space stands as a pin only
 on a map that names no place, as a region's map draws it among its sites.
 Each pin is a hidden token of
 the area at the point its page prints the key (`places`). A row that keys a
-range of rooms stands once, on its first key. A recipe's `travel` is the
+range of rooms stands once, on its first key. Two blocks built to one plan
+are two recipes of one crop, each naming its own place; only the block whose
+sub-areas the page keys stands pins. A recipe's `travel` is the
 travel system its map declares (`mapCreateData`); a plan explored a turn at a
 time says `delve`. A pinned room comes into the world inside the places it
 sits in. The maps step brings every place a pinned room or the plan's own place

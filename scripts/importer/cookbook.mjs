@@ -38,7 +38,7 @@ import {
 import { printedNameOf, withoutKeyNumber } from "./printed-name.mjs";
 import {
   isSceneRecipe, sceneFrame, sceneData, districtRegionData, placeTokenAt, worldCopySource, isWorldCopy, placementMatches, afterDarkShift, bandOfSection,
-  isZoneRow, gridScale, ringToScene, offsetsInside, zoneRegionData, coversCrop, wallSources, isRegionRecipe,
+  isZoneRow, gridScale, ringToScene, offsetsInside, zoneRegionData, coversCrop, wallSources, isRegionRecipe, storeyCrops,
 } from "./scene-binding.mjs";
 import { FACTION_TYPE } from "../factions/constants.mjs";
 import { LOCATION_TYPE, isPlaceRole } from "../location/constants.mjs";
@@ -5213,8 +5213,10 @@ export function gridScenePlan(recipe, scene) {
  * @param {object|null} [p.grid] `gridScenePlan` of a grid recipe
  * @param {{c: number[], door: number, terrain?: true}[]|null} [p.walls] traced walls in page
  *   points (`traceWalls`), carried through the same placed frame as the rest
+ * @param {string[]} [p.storeys] uploaded pictures of the storeys above the
+ *   first (`storeyCrops`), bottom up; each storey is named by its number
  */
-export async function mapCreateData({ bookId, id, recipe, ids, actors, tableOf, src, folderId, fallbackName, grid = null, walls = null }) {
+export async function mapCreateData({ bookId, id, recipe, ids, actors, tableOf, src, folderId, fallbackName, grid = null, walls = null, storeys = [] }) {
   const list = recipe.incidents?.table ? await tableOf(recipe.incidents.table) : null;
   const incidents = list
     ? {
@@ -5243,7 +5245,11 @@ export async function mapCreateData({ bookId, id, recipe, ids, actors, tableOf, 
     if (!actor) continue;
     tokens.push((await actor.getTokenDocument({ ...placeTokenAt(spot.at, frame), hidden: true })).toObject());
   }
-  const level = { id: Scene.metadata.defaultLevelId, name: game.i18n.localize(foundry.documents.Level.metadata.label) };
+  const storeyName = (n) => game.i18n.format(`${LANG_PREFIX}.ui.sceneStorey`, { n });
+  const level = {
+    id: Scene.metadata.defaultLevelId,
+    name: storeys.length ? storeyName(1) : game.i18n.localize(foundry.documents.Level.metadata.label),
+  };
   const wallData = wallSources(walls, frame);
   const mapSystem = recipe.travel ?? null;
   if (!grid) {
@@ -5260,6 +5266,7 @@ export async function mapCreateData({ bookId, id, recipe, ids, actors, tableOf, 
     level,
     regions, tokens, walls: wallData, mapSystem,
     grid: recipe.grid, pixelsPerPoint: grid.pixelsPerPoint, shiftX: grid.shiftX, shiftY: grid.shiftY,
+    storeys: storeys.map((path, i) => ({ src: path, name: storeyName(i + 2) })),
   });
   made.flags[MODULE_ID].cookbook.pixelsPerPoint = grid.pixelsPerPoint;
   return made;
@@ -5397,6 +5404,12 @@ async function importScene({ bookId, id, row }, counts, tick) {
   tick();
   const up = await ctx.uploadSceneMap(doc, id, recipe, { pixelsPerPoint: grid?.pixelsPerPoint });
   if (!up) return void counts.refused++;
+  const storeys = [];
+  for (const crop of storeyCrops(recipe)) {
+    const above = await ctx.uploadSceneMap(doc, id, { ...recipe, crop }, { pixelsPerPoint: grid?.pixelsPerPoint });
+    if (!above) return void counts.refused++;
+    storeys.push(above.path);
+  }
   const traced = recipe.walls ? await ctx.traceSceneWalls(doc, id, recipe) : null;
   if (recipe.walls && !traced) counts.wallsFailed++;
 
@@ -5409,7 +5422,7 @@ async function importScene({ bookId, id, row }, counts, tick) {
   // are the only thing that has to wait for the documents they name.
   const scene = await Scene.create(await mapCreateData({
     bookId, id, recipe, ids, actors: world.actors, tableOf: importedTable, src: up.path, folderId: folder?.id ?? null,
-    fallbackName: row.name, grid, walls: traced?.walls ?? null,
+    fallbackName: row.name, grid, walls: traced?.walls ?? null, storeys,
   }));
   if (!scene) return void counts.refused++;
   counts.made++;
@@ -5800,11 +5813,13 @@ async function bookAdventureSource(bookId) {
     if (recipe.grid && !grid) throw new Error(`map ${id}: its grid could not be fitted`);
     const picture = await sceneMapPath(bookId, id, recipe, grid?.pixelsPerPoint);
     cover ??= picture;
+    const storeys = [];
+    for (const crop of storeyCrops(recipe)) storeys.push(await sceneMapPath(bookId, id, { ...recipe, crop }, grid?.pixelsPerPoint));
     const held = heldMapOf(id);
     const traced = recipe.walls ? await ctx.traceSceneWalls(ctx.sessionDocs.get(bookId).doc, id, recipe) : null;
     const built = await mapCreateData({
       bookId, id, recipe, ids: mapIds(bookId, recipe), actors: standIns, tableOf, src: picture, folderId: null,
-      fallbackName: row.name, grid, walls: traced?.walls ?? null,
+      fallbackName: row.name, grid, walls: traced?.walls ?? null, storeys,
     });
     const scene = withWorldIds(built, held?.toObject() ?? null, adventureCookbookId(id));
     scene.thumb = null;

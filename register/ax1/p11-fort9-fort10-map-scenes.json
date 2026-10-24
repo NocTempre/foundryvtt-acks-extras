@@ -1,0 +1,55 @@
+[
+  {
+    "id": "ax1.fort9Map",
+    "kind": "kind.scene",
+    "book": "ax1",
+    "name": "Fort 9 Map",
+    "pages": [11],
+    "scene": {
+      "note": "Geometry in page points, top-left origin: the crop is the block plan above its scale brace, the detail drawing below it left out; the grid block is one drawn square near the middle; the distance is the plate's printed square. Each sub-area stands at its first letter; a shared label stands its two letters apart.",
+      "crop": { "x": 36, "y": 36, "w": 266, "h": 94.08 },
+      "place": "ax1.fort9",
+      "travel": "delve",
+      "grid": {
+        "family": "square",
+        "box": { "w": 11.566, "h": 11.561 },
+        "centre": [162.67, 99.79],
+        "distance": 10,
+        "units": "ft",
+        "pixels": 70
+      },
+      "places": [
+        { "id": "ax1.fort9a", "at": [62.52, 81.12] },
+        { "id": "ax1.fort9b", "at": [60.48, 93.72] },
+        { "id": "ax1.fort9c", "at": [68.64, 93.24] },
+        { "id": "ax1.fort9d", "at": [255.72, 79.92] },
+        { "id": "ax1.fort9e", "at": [251.4, 93.12] },
+        { "id": "ax1.fort9f", "at": [258.6, 93.12] },
+        { "id": "ax1.fort9g", "at": [274.08, 120.72] },
+        { "id": "ax1.fort9h", "at": [271.08, 90.36] },
+        { "id": "ax1.fort9i", "at": [278.4, 89.16] }
+      ]
+    }
+  },
+  {
+    "id": "ax1.fort10Map",
+    "kind": "kind.scene",
+    "book": "ax1",
+    "name": "Fort 10 Map",
+    "pages": [11],
+    "scene": {
+      "note": "The block plan of fort9Map, for the block built to the same plan; it keys no sub-areas.",
+      "crop": { "x": 36, "y": 36, "w": 266, "h": 94.08 },
+      "place": "ax1.fort10",
+      "travel": "delve",
+      "grid": {
+        "family": "square",
+        "box": { "w": 11.566, "h": 11.561 },
+        "centre": [162.67, 99.79],
+        "distance": 10,
+        "units": "ft",
+        "pixels": 70
+      }
+    }
+  }
+]

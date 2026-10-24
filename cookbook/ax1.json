@@ -31593,6 +31593,578 @@
     ]
   },
   "scenes": {
+    "ax1.fortMap": {
+      "kind": "kind.scene",
+      "name": "Fort Map",
+      "cite": "AX1 p.5",
+      "pages": [
+        6
+      ],
+      "scene": {
+        "page": 6,
+        "placement": {
+          "x": 16.75,
+          "y": 0,
+          "w": 560.25,
+          "h": 465.64
+        },
+        "crop": {
+          "x": 16.75,
+          "y": 39.8,
+          "w": 560.25,
+          "h": 425.84
+        },
+        "place": "ax1.fort",
+        "travel": "delve",
+        "grid": {
+          "family": "hexCols",
+          "even": false,
+          "box": {
+            "w": 20.12,
+            "h": 17.43
+          },
+          "centre": [
+            288.96,
+            233.42
+          ],
+          "distance": 55,
+          "units": "ft",
+          "pixels": 100
+        },
+        "places": [
+          {
+            "id": "ax1.fort1",
+            "at": [
+              212.28,
+              203.91
+            ]
+          },
+          {
+            "id": "ax1.fort2-3",
+            "at": [
+              307.43,
+              168.69
+            ]
+          },
+          {
+            "id": "ax1.fort4",
+            "at": [
+              255.14,
+              205.03
+            ]
+          },
+          {
+            "id": "ax1.fort5-8",
+            "at": [
+              220.21,
+              173.55
+            ]
+          },
+          {
+            "id": "ax1.fort9",
+            "at": [
+              255.14,
+              189.34
+            ]
+          },
+          {
+            "id": "ax1.fort10",
+            "at": [
+              255.14,
+              220.07
+            ]
+          },
+          {
+            "id": "ax1.fort11",
+            "at": [
+              236.83,
+              246.5
+            ]
+          },
+          {
+            "id": "ax1.fort12-13",
+            "at": [
+              255.14,
+              171.87
+            ]
+          },
+          {
+            "id": "ax1.fort14",
+            "at": [
+              278.67,
+              240.06
+            ]
+          },
+          {
+            "id": "ax1.fort15-17",
+            "at": [
+              337.21,
+              240.06
+            ]
+          },
+          {
+            "id": "ax1.fort18",
+            "at": [
+              307.33,
+              205.31
+            ]
+          },
+          {
+            "id": "ax1.fort19",
+            "at": [
+              335.53,
+              205.12
+            ]
+          },
+          {
+            "id": "ax1.fort20",
+            "at": [
+              368.31,
+              205.12
+            ]
+          },
+          {
+            "id": "ax1.fort21",
+            "at": [
+              359.25,
+              231.28
+            ]
+          },
+          {
+            "id": "ax1.fort22",
+            "at": [
+              556.18,
+              188.96
+            ]
+          },
+          {
+            "id": "ax1.fort23",
+            "at": [
+              69.13,
+              214.18
+            ]
+          },
+          {
+            "id": "ax1.fort24",
+            "at": [
+              48.31,
+              217.36
+            ]
+          },
+          {
+            "id": "ax1.fort25",
+            "at": [
+              64.09,
+              198.03
+            ]
+          }
+        ]
+      }
+    },
+    "ax1.fort1Map": {
+      "kind": "kind.scene",
+      "name": "Fort 1 Map",
+      "cite": "AX1 p.9",
+      "pages": [
+        10
+      ],
+      "scene": {
+        "page": 10,
+        "placement": {
+          "x": 200.57,
+          "y": 50,
+          "w": 375.43,
+          "h": 382
+        },
+        "crop": {
+          "x": 339.79,
+          "y": 306.99,
+          "w": 224.14,
+          "h": 93.83
+        },
+        "levels": [
+          {
+            "x": 339.79,
+            "y": 167.98
+          }
+        ],
+        "place": "ax1.fort1",
+        "travel": "delve",
+        "grid": {
+          "family": "square",
+          "box": {
+            "w": 17.376,
+            "h": 17.376
+          },
+          "centre": [
+            445.78,
+            353.9
+          ],
+          "distance": 5,
+          "units": "ft",
+          "pixels": 70
+        }
+      }
+    },
+    "ax1.fort2-3Map": {
+      "kind": "kind.scene",
+      "name": "Fort 2-3 Map",
+      "cite": "AX1 p.9",
+      "pages": [
+        10
+      ],
+      "scene": {
+        "page": 10,
+        "placement": {
+          "x": 200.57,
+          "y": 50,
+          "w": 375.43,
+          "h": 382
+        },
+        "crop": {
+          "x": 339.79,
+          "y": 306.99,
+          "w": 224.14,
+          "h": 93.83
+        },
+        "levels": [
+          {
+            "x": 339.79,
+            "y": 167.98
+          }
+        ],
+        "place": "ax1.fort2-3",
+        "travel": "delve",
+        "grid": {
+          "family": "square",
+          "box": {
+            "w": 17.376,
+            "h": 17.376
+          },
+          "centre": [
+            445.78,
+            353.9
+          ],
+          "distance": 5,
+          "units": "ft",
+          "pixels": 70
+        }
+      }
+    },
+    "ax1.fort5-8Map": {
+      "kind": "kind.scene",
+      "name": "Fort 5-8 Map",
+      "cite": "AX1 p.9",
+      "pages": [
+        10
+      ],
+      "scene": {
+        "page": 10,
+        "placement": {
+          "x": 200.57,
+          "y": 50,
+          "w": 375.43,
+          "h": 382
+        },
+        "crop": {
+          "x": 209.47,
+          "y": 306.99,
+          "w": 119.88,
+          "h": 93.83
+        },
+        "levels": [
+          {
+            "x": 209.47,
+            "y": 167.98
+          },
+          {
+            "x": 209.47,
+            "y": 46.35
+          }
+        ],
+        "place": "ax1.fort5-8",
+        "travel": "delve",
+        "grid": {
+          "family": "square",
+          "box": {
+            "w": 17.376,
+            "h": 17.376
+          },
+          "centre": [
+            272.02,
+            353.9
+          ],
+          "distance": 5,
+          "units": "ft",
+          "pixels": 70
+        }
+      }
+    },
+    "ax1.fort9Map": {
+      "kind": "kind.scene",
+      "name": "Fort 9 Map",
+      "cite": "AX1 p.10",
+      "pages": [
+        11
+      ],
+      "scene": {
+        "page": 11,
+        "placement": {
+          "x": 36,
+          "y": 36,
+          "w": 266,
+          "h": 462.61
+        },
+        "crop": {
+          "x": 36,
+          "y": 36,
+          "w": 266,
+          "h": 94.08
+        },
+        "place": "ax1.fort9",
+        "travel": "delve",
+        "grid": {
+          "family": "square",
+          "box": {
+            "w": 11.566,
+            "h": 11.561
+          },
+          "centre": [
+            162.67,
+            99.79
+          ],
+          "distance": 10,
+          "units": "ft",
+          "pixels": 70
+        },
+        "places": [
+          {
+            "id": "ax1.fort9a",
+            "at": [
+              62.52,
+              81.12
+            ]
+          },
+          {
+            "id": "ax1.fort9b",
+            "at": [
+              60.48,
+              93.72
+            ]
+          },
+          {
+            "id": "ax1.fort9c",
+            "at": [
+              68.64,
+              93.24
+            ]
+          },
+          {
+            "id": "ax1.fort9d",
+            "at": [
+              255.72,
+              79.92
+            ]
+          },
+          {
+            "id": "ax1.fort9e",
+            "at": [
+              251.4,
+              93.12
+            ]
+          },
+          {
+            "id": "ax1.fort9f",
+            "at": [
+              258.6,
+              93.12
+            ]
+          },
+          {
+            "id": "ax1.fort9g",
+            "at": [
+              274.08,
+              120.72
+            ]
+          },
+          {
+            "id": "ax1.fort9h",
+            "at": [
+              271.08,
+              90.36
+            ]
+          },
+          {
+            "id": "ax1.fort9i",
+            "at": [
+              278.4,
+              89.16
+            ]
+          }
+        ]
+      }
+    },
+    "ax1.fort10Map": {
+      "kind": "kind.scene",
+      "name": "Fort 10 Map",
+      "cite": "AX1 p.10",
+      "pages": [
+        11
+      ],
+      "scene": {
+        "page": 11,
+        "placement": {
+          "x": 36,
+          "y": 36,
+          "w": 266,
+          "h": 462.61
+        },
+        "crop": {
+          "x": 36,
+          "y": 36,
+          "w": 266,
+          "h": 94.08
+        },
+        "place": "ax1.fort10",
+        "travel": "delve",
+        "grid": {
+          "family": "square",
+          "box": {
+            "w": 11.566,
+            "h": 11.561
+          },
+          "centre": [
+            162.67,
+            99.79
+          ],
+          "distance": 10,
+          "units": "ft",
+          "pixels": 70
+        }
+      }
+    },
+    "ax1.fort14Map": {
+      "kind": "kind.scene",
+      "name": "Fort 14 Map",
+      "cite": "AX1 p.13",
+      "pages": [
+        14
+      ],
+      "scene": {
+        "page": 14,
+        "placement": {
+          "x": 340,
+          "y": 34.9,
+          "w": 204,
+          "h": 504
+        },
+        "crop": {
+          "x": 340,
+          "y": 34.9,
+          "w": 204,
+          "h": 80.3
+        },
+        "place": "ax1.fort14",
+        "travel": "delve",
+        "grid": {
+          "family": "square",
+          "box": {
+            "w": 12,
+            "h": 12
+          },
+          "centre": [
+            435.84,
+            94.8
+          ],
+          "distance": 10,
+          "units": "ft",
+          "pixels": 70
+        },
+        "places": [
+          {
+            "id": "ax1.fort14a",
+            "at": [
+              363.24,
+              107.04
+            ]
+          },
+          {
+            "id": "ax1.fort14b",
+            "at": [
+              364.32,
+              83.76
+            ]
+          },
+          {
+            "id": "ax1.fort14c",
+            "at": [
+              507.36,
+              106.92
+            ]
+          },
+          {
+            "id": "ax1.fort14d",
+            "at": [
+              508.92,
+              83.76
+            ]
+          },
+          {
+            "id": "ax1.fort14e",
+            "at": [
+              518.76,
+              107.04
+            ]
+          },
+          {
+            "id": "ax1.fort14f",
+            "at": [
+              520.08,
+              83.76
+            ]
+          }
+        ]
+      }
+    },
+    "ax1.fort15-17Map": {
+      "kind": "kind.scene",
+      "name": "Fort 15-17 Map",
+      "cite": "AX1 p.13",
+      "pages": [
+        14
+      ],
+      "scene": {
+        "page": 14,
+        "placement": {
+          "x": 340,
+          "y": 34.9,
+          "w": 204,
+          "h": 504
+        },
+        "crop": {
+          "x": 340,
+          "y": 34.9,
+          "w": 204,
+          "h": 80.3
+        },
+        "place": "ax1.fort15-17",
+        "travel": "delve",
+        "grid": {
+          "family": "square",
+          "box": {
+            "w": 12,
+            "h": 12
+          },
+          "centre": [
+            435.84,
+            94.8
+          ],
+          "distance": 10,
+          "units": "ft",
+          "pixels": 70
+        }
+      }
+    },
     "ax1.fort18Map": {
       "kind": "kind.scene",
       "name": "Fort 18 Map",

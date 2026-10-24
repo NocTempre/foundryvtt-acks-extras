@@ -1153,6 +1153,16 @@ What each book still owes, in the order it is worth doing:
 - **One AX3 site's paragraph split at a column turn** (`ax3.site35`). Its
   block breaks mid-sentence where the column turns; AX1's pair keeps none of
   its own paragraphs, so the place reads AX3's text as split.
+- **The block plates' section drawings** (AX1 pp.11, 14). Each plate prints
+  one section of its block below the plan, at another scale and with no
+  grid, and the scene stops above it. It would be a scene of its own.
+- **A delve on a hex plan.** The fort's overview is explored a turn at a
+  time on a hex lattice, so the party's formation is laid on hex cells. No
+  live walk has delved one yet.
+- **Stairs between storeys.** A plate of storeys is a level per storey
+  (AX1 p.10), and a token changes storey through core's level controls. A
+  region on the drawn stairs that moves a token to the storey above or below
+  would take it there by walking.
 
 ## The OSR Catgirl: what the first cut leaves
 

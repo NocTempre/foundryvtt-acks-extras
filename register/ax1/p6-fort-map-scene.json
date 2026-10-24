@@ -1,0 +1,44 @@
+[
+  {
+    "id": "ax1.fortMap",
+    "kind": "kind.scene",
+    "book": "ax1",
+    "name": "Fort Map",
+    "pages": [6],
+    "scene": {
+      "note": "Geometry in page points, top-left origin: the crop is the map image's placement below its header strip; the grid block is one drawn hex of its lattice, upright (w across corners, h across flats), centred on a hex centre near the middle, fitted from the drawn edges; the distance is the map's checked hex scale. Each top-level area stands at its circled key, a row of several at its first.",
+      "crop": { "x": 16.75, "y": 39.8, "w": 560.25, "h": 425.84 },
+      "place": "ax1.fort",
+      "travel": "delve",
+      "grid": {
+        "family": "hexCols",
+        "even": false,
+        "box": { "w": 20.12, "h": 17.43 },
+        "centre": [288.96, 233.42],
+        "distance": 55,
+        "units": "ft",
+        "pixels": 100
+      },
+      "places": [
+        { "id": "ax1.fort1", "at": [212.28, 203.91] },
+        { "id": "ax1.fort2-3", "at": [307.43, 168.69] },
+        { "id": "ax1.fort4", "at": [255.14, 205.03] },
+        { "id": "ax1.fort5-8", "at": [220.21, 173.55] },
+        { "id": "ax1.fort9", "at": [255.14, 189.34] },
+        { "id": "ax1.fort10", "at": [255.14, 220.07] },
+        { "id": "ax1.fort11", "at": [236.83, 246.5] },
+        { "id": "ax1.fort12-13", "at": [255.14, 171.87] },
+        { "id": "ax1.fort14", "at": [278.67, 240.06] },
+        { "id": "ax1.fort15-17", "at": [337.21, 240.06] },
+        { "id": "ax1.fort18", "at": [307.33, 205.31] },
+        { "id": "ax1.fort19", "at": [335.53, 205.12] },
+        { "id": "ax1.fort20", "at": [368.31, 205.12] },
+        { "id": "ax1.fort21", "at": [359.25, 231.28] },
+        { "id": "ax1.fort22", "at": [556.18, 188.96] },
+        { "id": "ax1.fort23", "at": [69.13, 214.18] },
+        { "id": "ax1.fort24", "at": [48.31, 217.36] },
+        { "id": "ax1.fort25", "at": [64.09, 198.03] }
+      ]
+    }
+  }
+]

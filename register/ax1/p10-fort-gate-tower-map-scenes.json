@@ -1,0 +1,68 @@
+[
+  {
+    "id": "ax1.fort1Map",
+    "kind": "kind.scene",
+    "book": "ax1",
+    "name": "Fort 1 Map",
+    "pages": [10],
+    "scene": {
+      "note": "Geometry in page points, top-left origin: one squared grid runs under every storey on the plate; the crop is the gatehouse's ground storey, and each of `levels` is that crop moved whole cells up to the storey above, so the stairs coincide; the grid block is one drawn square; the distance is the plate's printed square.",
+      "crop": { "x": 339.79, "y": 306.99, "w": 224.14, "h": 93.83 },
+      "levels": [{ "x": 339.79, "y": 167.98 }],
+      "place": "ax1.fort1",
+      "travel": "delve",
+      "grid": {
+        "family": "square",
+        "box": { "w": 17.376, "h": 17.376 },
+        "centre": [445.78, 353.9],
+        "distance": 5,
+        "units": "ft",
+        "pixels": 70
+      }
+    }
+  },
+  {
+    "id": "ax1.fort2-3Map",
+    "kind": "kind.scene",
+    "book": "ax1",
+    "name": "Fort 2-3 Map",
+    "pages": [10],
+    "scene": {
+      "note": "The storeys of fort1Map, for the gatehouses built to the same plan.",
+      "crop": { "x": 339.79, "y": 306.99, "w": 224.14, "h": 93.83 },
+      "levels": [{ "x": 339.79, "y": 167.98 }],
+      "place": "ax1.fort2-3",
+      "travel": "delve",
+      "grid": {
+        "family": "square",
+        "box": { "w": 17.376, "h": 17.376 },
+        "centre": [445.78, 353.9],
+        "distance": 5,
+        "units": "ft",
+        "pixels": 70
+      }
+    }
+  },
+  {
+    "id": "ax1.fort5-8Map",
+    "kind": "kind.scene",
+    "book": "ax1",
+    "name": "Fort 5-8 Map",
+    "pages": [10],
+    "scene": {
+      "note": "Geometry in page points, top-left origin: one squared grid runs under every storey on the plate; the crop is the tower's ground storey, and each of `levels` is that crop moved whole cells up to the storey above, so the stairs coincide; the grid block is one drawn square; the distance is the plate's printed square.",
+      "crop": { "x": 209.47, "y": 306.99, "w": 119.88, "h": 93.83 },
+      "levels": [{ "x": 209.47, "y": 167.98 }, { "x": 209.47, "y": 46.35 }],
+      "place": "ax1.fort5-8",
+      "travel": "delve",
+      "grid": {
+        "family": "square",
+        "box": { "w": 17.376, "h": 17.376 },
+        "centre": [272.02, 353.9],
+        "distance": 5,
+        "units": "ft",
+        "pixels": 70
+      }
+    }
+  }
+]
