@@ -33,13 +33,16 @@ export class FollowerCardSheet extends foundry.applications.api.HandlebarsApplic
   foundry.applications.sheets.ActorSheetV2,
 ) {
   static DEFAULT_OPTIONS = {
-    // The frame's root class draws the band in the window header; the card's
-    // own class narrows the frame's floor (styles/lib-follower-card.css).
-    classes: ["acks-ui", "acks", "acks-lib-follower-card-sheet", "acks-extras-scroll", FRAME_CLASS],
+    // `acks-extras` publishes the type ratio every calc() size reads; without
+    // it the band's name field and the score inputs collapse to their
+    // intrinsic width. The frame's root class draws the band in the window
+    // header; the card's own class narrows the frame's floor
+    // (styles/lib-follower-card.css).
+    classes: ["acks-ui", "acks", "acks-extras", "acks-lib-follower-card-sheet", "acks-extras-scroll", FRAME_CLASS],
     // Size to content (grow with the card), not a fixed height that leaves an
     // empty window-content bar below a short card. The card part scrolls if it
     // outgrows the viewport.
-    position: { width: 600, height: "auto" },
+    position: { width: 720, height: "auto" },
     window: { resizable: true },
     form: { submitOnChange: true, closeOnSubmit: false },
     actions: {

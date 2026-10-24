@@ -26,6 +26,19 @@
   min-width: 480px;
 }
 
+/* Five labelled chips beside the name: the band wraps rather than squeezing
+   the name field to its floor, and the title keeps a basis the chips flow
+   around. The header's height is its content's (lib-frame.css), so a second
+   line of chips has room. */
+.acks-lib-follower-card-sheet .acks-extras-frame__band {
+  flex-wrap: wrap;
+  row-gap: var(--acks-sp-2);
+}
+
+.acks-lib-follower-card-sheet .acks-extras-frame__title {
+  flex: 1 1 calc(220px * var(--acks-extras-k));
+}
+
 .acks-lib-follower-card-sheet .window-content {
   font-size: var(--acks-fs-body);
   padding: var(--acks-sp-4) var(--acks-sp-5) var(--acks-sp-5);

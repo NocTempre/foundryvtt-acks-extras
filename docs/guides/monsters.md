@@ -23,36 +23,64 @@ still sits on its own d20, and a power with no prose gets no button.
 
 *A named power posted to chat for the table to read.*
 
-Everything else is one click away on **Expand** in the window header. If you
-would rather land on the full block, set it once under **Sheet Configuration**
-on any monster — that choice is yours and this module will not move it again.
-**Animals** still open on the full block.
+Everything else is one click away on **Full sheet** — the chip in the card's
+header band, or the portrait beside the name. If you would rather land on the
+full block, set it once under **Sheet Configuration** on any monster — that
+choice is yours and this module will not move it again. **Animals** still
+open on the full block.
 
 ## The sheet
 
-![](../releases/v4.0.0/monster-defences.png)
+![](../releases/v11.9.0/monsters.png)
 
-*The extended stat block's Defenses tab, one click behind the card: the silver
-flaw beside Mundane and Extraordinary.*
+*The full sheet on the shared frame: the band, the rails, and the Statblock
+tab of a creature in service — every throw a row with its pin.*
 
-**Expand** from the card, or open an **animal** actor, and this is the sheet you
-get. An animal's combat block uses the monster's own field paths, and the
-extended block is where its body form, carrying load and training live. The
-sheet replaces core's flat "attributes" and "notes" panes with tabs:
+**Full sheet** from the card, or open an **animal** actor, and this is the
+sheet you get: the same frame as the character sheet. The **band** in the
+window header holds the body form's glyph, the Hit Dice rating, the name, the
+employer's chip while the creature serves (a dot on it says a calamity's
+loyalty throw is owed) and the XP award. The **rails** either side of the
+portrait are the reaction roll and the five saves on the left; hit points,
+armour class, the speed in force, the attack throw, the lightless range and
+the creature's tokens on the scene on the right. Press the chevron on the
+tab strip and the sheet **folds** to the band, the rails and the pinned
+rows. An animal's combat block uses the monster's own field paths, and the
+extended block is where its body form, carrying load and training live.
 
-- **Classification** — type, size, body form, intelligence, alignment.
+The tabs:
+
+- **Statblock** — the dashboard: saves, reactions and encounter rolls in
+  the first column, attacks, hit points and abilities in the second, and
+  the readings in the third — speeds, senses, the load bar, the defence
+  pills and a caster's slots. A row is its own button; its pin keeps it on
+  the folded card.
+- **Classification** — the pen for what the frame reads: types, identity,
+  the Hit Dice rating and its roll, saves-as and the five save targets, the
+  loads, the attributes, and the **Figures** rule with the core fields the
+  system's header used to carry (hit points, armour class, attack throw,
+  morale, initiative, surprise, XP award, alignment, movement).
 - **Attacks** — the attack routine, natural weapons and their damage types.
-- **Defenses** — immunities, resistances, senses and vision modes.
 - **Abilities** — special abilities, tagged by category and carrying their XP
   contribution.
 - **Inventory** — generic items, armor and clothing the monster carries.
-  Armor Class is the value typed on the header and is not changed by
+  Armor Class is the value set on Classification and is not changed by
   anything carried here.
-- **Ecology** — habitat, number appearing, lair chance, treasure.
 - **Spoils** — what a body is worth.
-- **Henchman** — the fields that apply when this creature is hired.
+- **Defenses & Magic** — immunities, resistances and susceptibilities with
+  the silver flaw, and what the creature casts as (class and level). The
+  spell page itself is the **Spells** tab, on for any creature that carries
+  a spell.
+- **Ecology** — habitat, number appearing, lair chance, treasure.
+- **Animal** — on an animal only: body form, carrying load and training.
+- **Service** — core's retainer fields and the manager picker, and, while
+  the creature serves, the same Service panel a hireling's character sheet
+  shows ([henchmen](henchmen.md)): standing, terms, the employer, the
+  ledger and the recorded events.
 - **Description** — the prose, a section at a time; each opens for editing
-  in place and grows with its text.
+  in place and grows with its text. The appearance is edited on the art row
+  instead, from the pen on the tools rail.
+- **Effects** — the system's active effects.
 
 ![](../releases/v11.3.0/monsters-description-editor.png)
 

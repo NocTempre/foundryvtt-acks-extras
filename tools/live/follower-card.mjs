@@ -130,7 +130,10 @@ const P = {
       attackRows: root.querySelectorAll(".acks-extras-frame__row.is-roll[data-action='fcRollAttack']").length,
       expandButton: !!root.querySelector(".window-header .acks-lib-fc-expand"),
       scrollContract: root.classList.contains("acks-extras-scroll"),
+      ratio: root.classList.contains("acks-extras"),
       width: root.getBoundingClientRect().width,
+      nameWidth: root.querySelector(".window-header .acks-extras-frame__name")?.getBoundingClientRect().width ?? 0,
+      scoreWidth: root.querySelector(".acks-lib-follower-card__score-v")?.getBoundingClientRect().width ?? 0,
     };
   },
 
@@ -205,6 +208,30 @@ const P = {
     return { rendered: true, cards, toolsRow: !!H.root(app).querySelector(".acks-extras-frame__card-tools"), seat: game.user.name === undefined ? null : game.user.role };
   },
 
+  /** Open a hireling's character sheet on its Service tab and read what the panel rendered. */
+  serviceTab: async ({ henchId }) => {
+    const H = globalThis.__fc1;
+    const actor = game.actors.get(henchId);
+    const Cls = CONFIG.Actor.sheetClasses.character?.[`acks-extras.AcksCharacterSheet`]?.cls;
+    if (!Cls) return { rendered: false, reason: "sheet class not registered" };
+    const app = new Cls({ document: actor });
+    H.opened.push(app);
+    app.render(true);
+    const ready = await H.poll(() => (H.root(app)?.querySelector(".acks-extras-frame__band") ? app : null));
+    if (!ready) return { rendered: false, reason: "sheet did not render" };
+    app.changeTab("service", "primary");
+    const sec = await H.poll(() => { const s = H.root(app)?.querySelector('section[data-tab="service"]'); return s?.textContent.trim() ? s : null; });
+    const standing = game.i18n.localize("ACKS-HENCHMEN.service.standing");
+    return {
+      rendered: true,
+      active: app.tabGroups.primary,
+      text: H.text(sec).slice(0, 120),
+      standing: !!sec && H.text(sec).includes(standing),
+      rows: sec?.querySelectorAll(".acks-extras-frame__row").length ?? 0,
+      height: sec?.getBoundingClientRect().height ?? 0,
+    };
+  },
+
   closeAll: async () => globalThis.__fc1?.closeAll?.() ?? 0,
 };
 
@@ -260,7 +287,16 @@ try {
   section("9. the follower's own sheet on the frame");
   const card = await run(gm, P.openCard, { actorId: beast.id });
   note("card", card);
-  check("the card sheet carries the frame class and the scroll contract", card.rendered && card.frame && card.scrollContract, { frame: card.frame, scroll: card.scrollContract });
+  check("the card sheet carries the frame class, the ratio's publisher and the scroll contract", card.rendered && card.frame && card.ratio && card.scrollContract, { frame: card.frame, ratio: card.ratio, scroll: card.scrollContract });
+  check("the beast card's name field keeps room beside five chips", card.nameWidth > 120, { nameWidth: card.nameWidth });
+  note("closed (gm beast card)", await run(gm, P.closeAll));
+  // The score inputs are a character's; the beast has none.
+  const hcard = await run(gm, P.openCard, { actorId: hench.id });
+  note("hench card", { nameWidth: hcard.nameWidth, scoreWidth: hcard.scoreWidth, ratio: hcard.ratio });
+  check("the character card's name field and score inputs take their calc() widths, not their intrinsic ones", hcard.rendered && hcard.nameWidth > 120 && hcard.scoreWidth > 28, { nameWidth: hcard.nameWidth, scoreWidth: hcard.scoreWidth });
+  note("closed (gm hench card)", await run(gm, P.closeAll));
+  const cardAgain = await run(gm, P.openCard, { actorId: beast.id });
+  if (!cardAgain.rendered) throw new Error("the beast's card did not render a second time");
   check("the band is in the window header, with the name field, and not in the body", card.bandInHeader && card.nameInHeader && !card.bandInBody);
   check("the rank reads Hit Dice and the type", /HD/.test(card.rank) && card.rank.includes("·"), card.rank);
   check("the chips are the four tools and Full sheet", ["fcAddAttack", "fcAddSkill", "fcCommit", "fcResetSheet", "fcOpenFull"].every((a) => card.chips.includes(a)), card.chips);
@@ -295,6 +331,12 @@ try {
   check("the henchman's name carries the pending dot with the henchmen feature's title", typeof henchCard?.dot === "string" && henchCard.dot.length > 0, henchCard?.dot);
   check("the beast's name carries no dot", !!beastCard && beastCard.dot === null);
   note("closed (gm followers)", await run(gm, P.closeAll));
+
+  section("character-sheet 7a. the Service tab renders the hireling's record");
+  const service = await run(gm, P.serviceTab, { henchId: hench.id });
+  note("service tab", service);
+  check("the Service tab activates and the panel renders the Standing rule with its rows", service.rendered && service.active === "service" && service.standing && service.rows >= 2 && service.height > 40, { rows: service.rows, height: service.height });
+  note("closed (gm service)", await run(gm, P.closeAll));
 
   section("9. the compact card from a seat that observes the employer");
   const player = await seat("player");

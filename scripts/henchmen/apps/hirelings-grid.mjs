@@ -74,7 +74,9 @@ async function gridifyHirelings(app, element) {
         // The .item wrapper carries data-item-id so both the system's hireling
         // actions (characters) and this module's handler (monsters) resolve the
         // hireling via closest(".item").dataset.itemId.
-        return `<div class="item acks-henchmen-fc-cell" data-item-id="${h.id}">${card}</div>`;
+        // The system's sheet publishes no type ratio; the cell does, so the
+        // card's calc() sizes resolve inside it.
+        return `<div class="item acks-henchmen-fc-cell acks-extras" data-item-id="${h.id}">${card}</div>`;
       }),
     );
     grid.innerHTML = cells.join("");

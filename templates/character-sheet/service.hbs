@@ -1,3 +1,4 @@
 {{!-- Service: a hireling's record from the hireling's side. The panel is the
-      henchmen feature's, shared with the monster sheet's Henchman tab. --}}
-{{> "modules/acks-extras/templates/henchmen/service-panel.hbs"}}
+      henchmen feature's, shared with the monster sheet's Service tab; it reads
+      `service` at its root, which this sheet keeps under `panels`. --}}
+{{> "modules/acks-extras/templates/henchmen/service-panel.hbs" service=panels.service}}
