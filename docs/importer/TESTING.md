@@ -2329,9 +2329,11 @@ block what walls block.
    *Observable:*
    - the console logged one `walls traced` digest for the map, with
      `regions: 1` on a grid plan, meaning one connected floor. A contour
-     plan's digest quotes `loops`, `islandsDropped` and `doorsDropped`;
+     plan's digest quotes `loops`, `islandsDropped` and `doorsDropped`, and
+     a stroke plan's `paths`, `spurs`, `boxes` and `doorsDropped`;
      `islandsRefused: 0` is the pass, and a refusal means the render drifted
-     from the one the recipe was read on;
+     from the one the recipe was read on. In stroke, so is `unplaced: 0`: a
+     cell that names a door's kind and finds no drawn box means the same;
    - `c.walls` equals the digest's `walls + doors + secret + terrain +
      invisible`, and `c.wallsFailed` is 0;
    - the scene's `walls` count the same, split by `door` 0, 1 and 2 and by
@@ -2349,7 +2351,9 @@ block what walls block.
    differs from the reproduction's means the render moved, not the tracer.
 2. The walls lie on the lattice. Core's square grid lines run at multiples of
    `grid.size` from the CANVAS origin; `sceneX`/`sceneY` is the shift that
-   moves the picture under them, not the lines. On a grid plan:
+   moves the picture under them, not the lines. A stroke plan's walls run
+   along its drawn strokes, which need not sit on the lattice, so step 5's
+   pictures check them instead. On a grid plan:
    - every plain wall's endpoints are within the plate's aspect drift (a pixel
      or two) of a multiple of `grid.size`;
    - each door spans its passage cell across the middle, so its endpoints sit

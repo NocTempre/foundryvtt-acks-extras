@@ -126,6 +126,8 @@ ok("an island point must be inside the crop", wallsProblems({ ...fine, correctio
 const dropDoor = [{ at: [crop.x + 5, crop.y + 5], drop: "door" }];
 ok("grid mode drops no door by its point", wallsProblems({ ...fine, corrections: dropDoor }, recipeOf(fine)).some((p) => /drop must be "island" in grid mode/.test(p)));
 check("contour mode drops a door by its point", wallsProblems({ mode: "contour", threshold: 160, corrections: dropDoor }, recipeOf(fine)), []);
+check("stroke mode drops a door by its point, and names a drawn door's kind by its cell",
+  wallsProblems({ mode: "stroke", threshold: 80, corrections: [...dropDoor, { cell: [1, 1], is: "secret" }] }, recipeOf(fine)), []);
 ok("recipeProblems carries the walls checks", recipeProblems({ ...recipeOf({ ...fine, mode: "hatch" }) }).some((p) => /walls.mode/.test(p)));
 
 const boxOf = (box, is = "terrain") => ({ ...fine, corrections: [{ box, is }] });
@@ -429,15 +431,23 @@ check("grid: a door asserted open is gone", opened.digest.doors, 0);
 /* ---------------- stroke mode ---------------- */
 
 {
-  const house = canvas(40);
-  const t = Math.round(0.1 * TRACE_PITCH);
-  const line = (c0, r0, c1, r1) => house.rect(c0 * TRACE_PITCH - t / 2, r0 * TRACE_PITCH - t / 2, c1 * TRACE_PITCH + t / 2, r1 * TRACE_PITCH + t / 2, 255);
-  line(3, 3, 12, 3);
-  line(3, 10, 12, 10);
-  line(3, 3, 3, 10);
-  line(12, 3, 12, 10);
-  house.rect(6 * TRACE_PITCH, 6.2 * TRACE_PITCH, 6.8 * TRACE_PITCH, 6.32 * TRACE_PITCH, 255); // a bench: long enough to thin to a path, too short to be a wall
-  const rec = { mode: "stroke", threshold: 200 };
+  // Dark wall strokes on a light floor, as the importer's render draws them.
+  // An odd width centres each stroke on its lattice line.
+  const P = TRACE_PITCH;
+  const t = 9;
+  const drawHouse = () => {
+    const c = canvas(235);
+    const pen = (c0, r0, c1, r1) => c.rect(c0 * P - t / 2, r0 * P - t / 2, c1 * P + t / 2, r1 * P + t / 2, 40);
+    pen(3, 3, 12, 3);
+    pen(3, 10, 12, 10);
+    pen(3, 3, 3, 10);
+    pen(12, 3, 12, 10);
+    c.rect(6 * P, 6.2 * P, 6.8 * P, 6.32 * P, 40); // a bench: long enough to thin to a path, too short to be a wall
+    return { ...c, pen };
+  };
+  const house = drawHouse();
+  const line = house.pen;
+  const rec = { mode: "stroke", threshold: 80 };
   const out = traceWalls(house, recipeOf(rec), scale);
   const len = wallLength(out.walls);
   ok("stroke: the walls run the drawn outline's length", Math.abs(len - 32 * CELL) < 0.08 * 32 * CELL, `${len.toFixed(1)} vs ${32 * CELL}`);
@@ -468,6 +478,38 @@ check("grid: a door asserted open is gone", opened.digest.doors, 0);
   check("stroke: a point on the separate stroke drops it alone", [markDropped.digest.islandsDropped, wallLength(markDropped.walls).toFixed(6)], [1, len.toFixed(6)]);
   const raised = traceWalls(house, recipeOf({ ...rec, corrections: [{ box: [5, 5, 8, 8], is: "terrain" }] }), scale);
   check("stroke: a terrain box is its four sides", [raised.digest.terrain, lengthOf(raised.walls.filter((s) => s.terrain))], [4, 12 * CELL]);
+
+  // A door drawn as a box of paper across a wall, closed by a thin outline;
+  // two such boxes end to end, a bar apart, are one box split by its bar.
+  const doorway = drawHouse();
+  const box = (x0, x1, y0, y1) => {
+    doorway.rect(x0 - 2, y0 - 2, x1 + 2, y1 + 2, 40);
+    doorway.rect(x0, y0, x1, y1, 235);
+  };
+  box(6.1 * P, 6.9 * P, 10 * P - 4, 10 * P + 7); // its centre a pixel and a half inside row 10
+  box(6.1 * P, 6.97 * P, 3 * P - 6, 3 * P + 6);
+  box(7.03 * P, 7.9 * P, 3 * P - 6, 3 * P + 6);
+  const inCells = (x, y) => [(x - crop.x) / CELL, (y - crop.y) / CELL];
+  const crosses = (walls, [u, v]) => walls.some(({ c }) => {
+    const [ax, ay] = inCells(c[0], c[1]), [bx, by] = inCells(c[2], c[3]);
+    const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy;
+    const k = l2 ? Math.max(0, Math.min(1, ((u - ax) * dx + (v - ay) * dy) / l2)) : 0;
+    return Math.hypot(u - (ax + k * dx), v - (ay + k * dy)) < 0.1;
+  });
+  const boxed = traceWalls(doorway, recipeOf(rec), scale);
+  check("stroke: a drawn box is a door, and a box split by its bar is two", [boxed.digest.boxes, boxed.digest.doors], [{ door: 1, split: 1 }, 3]);
+  const single = boxed.walls.filter((s) => s.door && Math.abs(inCells(s.c[0], s.c[1])[1] - 10) < 0.3);
+  const span = single.flatMap((s) => [inCells(s.c[0], s.c[1])[0], inCells(s.c[2], s.c[3])[0]]);
+  ok("stroke: the door runs its box's length, wall end to wall end",
+    single.length === 1 && Math.min(...span) > 5.85 && Math.min(...span) < 6.15 && Math.max(...span) > 6.85 && Math.max(...span) < 7.15, JSON.stringify(span));
+  ok("stroke: no plain wall runs through a drawn box", !crosses(boxed.walls.filter((s) => !s.door), [6.5, 10]) && !crosses(boxed.walls.filter((s) => !s.door), [7, 3]));
+  const leaves = boxed.walls.filter((s) => s.door && Math.abs(inCells(s.c[0], s.c[1])[1] - 3) < 0.3);
+  ok("stroke: a split box's two leaves meet at its bar", leaves.length === 2
+    && leaves.every((s) => [inCells(s.c[0], s.c[1]), inCells(s.c[2], s.c[3])].some(([u, v]) => Math.hypot(u - 7, v - 3) < 0.08)));
+  const unhung = traceWalls(doorway, recipeOf({ ...rec, corrections: [{ at: [crop.x + 6.5 * CELL, crop.y + 10 * CELL], drop: "door" }] }), scale);
+  check("stroke: a door dropped by its point leaves its opening open", [unhung.digest.doorsDropped, unhung.digest.doors, crosses(unhung.walls, [6.5, 10])], [1, 2, false]);
+  const hidden = traceWalls(doorway, recipeOf({ ...rec, corrections: [{ cell: [6, 10], is: "secret" }] }), scale);
+  check("stroke: a cell names the kind of the drawn door in it", [hidden.digest.secret, hidden.digest.doors, hidden.digest.unplaced], [1, 2, 0]);
 }
 
 /* ---------------- refusals ---------------- */

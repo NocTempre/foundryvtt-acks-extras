@@ -151,11 +151,13 @@ A recipe with a square `grid` may carry a `walls` block, read by
   `{box: [c0, r0, c1, r1], is: "terrain"}` on lattice lines, or
   `{at: [x, y], drop: "island"|"door"}` and `{line: [x0, y0, x1, y1], is}`
   in page points. Which states a cell may take depends on the mode
-  (`CELL_STATES`). `stroke` takes only `open`. A line takes the same states
+  (`CELL_STATES`). In `stroke`, `door` and `secret` name the kind of the
+  drawn door whose box centre lies in the cell; a cell with none counts in
+  `unplaced`. A line takes the same states
   in every mode (`LINE_STATES`): `wall`, `door`, `secret`, `terrain`, or
   `invisible`, a wall that blocks movement and no sense.
-  Only `contour` drops a door by its point (`AT_DROPS`): the drawn door
-  nearest the point, within half a cell. An island point on the plan's
+  `contour` and `stroke` drop a door by its point (`AT_DROPS`): the drawn
+  door nearest the point, within half a cell. An island point on the plan's
   floor or on the rock framing it, the largest component of its value, is
   refused (`islandsRefused` in the digest).
 - `note` — the compiler strips it.
@@ -182,6 +184,13 @@ What every mode does with a plan:
   (`splitBoxes` in the digest). An opening is a run of asserted door cells
   along one wall line, so a box over two cells, split on their shared line,
   is read once. Any other door stands across each cell's middle.
+- **A door in `stroke` is the box the plan draws** across a wall
+  (`drawnBoxes`): the wall through it is cut, and the door runs along its
+  axis from wall end to wall end, at whatever angle the box is drawn. Two
+  boxes end to end a bar apart are one split box, two leaves meeting at the
+  bar. The digest counts both kinds (`boxes`), the stroke paths kept
+  (`paths`), and the corner tines pruned (`spurs`). A door dropped by its
+  point leaves its box cut, so the opening stands open.
 - **A line is laid last.** A door or secret line replaces every traced door
   whose middle lies within half a cell of it (`doorsReplaced` in the
   digest), and in `contour` closes against the outline like a traced door.

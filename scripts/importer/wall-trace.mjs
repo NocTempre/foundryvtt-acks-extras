@@ -17,8 +17,8 @@
  *   rock, and a one-cell throat is read for a door by the ink across it.
  * - `contour`: the same rock and floor, with walls on the floor's own
  *   outline. This mode is for caves, which follow no lattice.
- * - `stroke`: light wall strokes on a dark floor, thinned to their centre
- *   lines.
+ * - `stroke`: dark wall strokes on a light floor, thinned to their centre
+ *   lines, with each door drawn as a box across a wall read as a door.
  *
  * Every size below is a share of the drawn cell, so a trace reads the same
  * plan the same way at any render scale.
@@ -40,7 +40,7 @@ const MAX_TRACE_PIXELS = 16_000_000;
 const CELL_STATES = Object.freeze({
   grid: ["floor", "solid", "door", "secret", "open"],
   contour: ["floor", "solid", "door", "secret", "open"],
-  stroke: ["open"],
+  stroke: ["open", "door", "secret"],
 });
 const EDGE_STATES = Object.freeze(["wall", "door", "secret", "open"]);
 const EDGE_SIDES = Object.freeze(["n", "w"]);
@@ -64,14 +64,14 @@ const BOX_WEIGHT = 4;
 const LINE_STATES = Object.freeze(["wall", "door", "secret", "terrain", "invisible"]);
 
 /**
- * What a point correction may drop, per mode. Only contour reads drawn doors
- * as free segments off the lattice, where a cell asserted open would cut the
- * walls beside one too, so only contour drops a door by its point.
+ * What a point correction may drop, per mode. Contour and stroke read drawn
+ * doors as free segments off the lattice, where a cell asserted open would
+ * cut the walls beside one too, so they drop a door by its point.
  */
 const AT_DROPS = Object.freeze({
   grid: ["island"],
   contour: ["island", "door"],
-  stroke: ["island"],
+  stroke: ["island", "door"],
 });
 
 /** Core's `WALL_DOOR_TYPES`, spelled out because this file loads without Foundry. */
@@ -1236,13 +1236,260 @@ function thin(sk, w, h) {
   return sk;
 }
 
-/** stroke mode: light strokes opened, compact marks dropped, thinned, and walked node to node. */
+/**
+ * How deep each stroke pixel lies in its stroke: the chamfer distance, in
+ * pixels, to the nearest pixel off it. At a skeleton pixel it is half the
+ * stroke's width there.
+ */
+function strokeDepth(mask, w, h) {
+  const d = new Float32Array(w * h);
+  for (let i = 0; i < d.length; i++) d[i] = mask[i] ? 1e9 : 0;
+  const D = Math.SQRT2;
+  const at = (x, y) => (x >= 0 && y >= 0 && x < w && y < h ? d[y * w + x] : 0);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = y * w + x;
+      if (d[i]) d[i] = Math.min(d[i], at(x - 1, y) + 1, at(x, y - 1) + 1, at(x - 1, y - 1) + D, at(x + 1, y - 1) + D);
+    }
+  }
+  for (let y = h - 1; y >= 0; y--) {
+    for (let x = w - 1; x >= 0; x--) {
+      const i = y * w + x;
+      if (d[i]) d[i] = Math.min(d[i], at(x + 1, y) + 1, at(x, y + 1) + 1, at(x + 1, y + 1) + D, at(x - 1, y + 1) + D);
+    }
+  }
+  return d;
+}
+
+/**
+ * A skeleton as a graph. Pixels with other than two skeleton neighbours are
+ * nodes, and nodes that touch are one node at their centroid, so a junction
+ * or a staircase corner is one point every path through it ends on. Each
+ * path runs from node to node (`a`, `b`, node ids) as pixel points, its ends
+ * on the nodes' centroids; a ring with no node is a closed path of its own
+ * (`a` and `b` -1).
+ * @returns {{nodes: {x: number, y: number, px: number[]}[], paths: {a: number, b: number, pts: number[][], closed: boolean}[]}}
+ */
+function strokeGraph(sk, w, h) {
+  const nb = (q) => {
+    const x = q % w, y = (q / w) | 0, out = [];
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        if (!dx && !dy) continue;
+        const X = x + dx, Y = y + dy;
+        if (X >= 0 && Y >= 0 && X < w && Y < h && sk[Y * w + X]) out.push(Y * w + X);
+      }
+    }
+    return out;
+  };
+  const deg = new Uint8Array(w * h);
+  for (let q = 0; q < sk.length; q++) if (sk[q]) deg[q] = nb(q).length;
+  const node = new Int32Array(w * h).fill(-1);
+  const nodes = [];
+  for (let q = 0; q < sk.length; q++) {
+    if (!sk[q] || deg[q] === 2 || node[q] >= 0) continue;
+    const id = nodes.length;
+    const px = [q];
+    node[q] = id;
+    for (let k = 0; k < px.length; k++) {
+      for (const n of nb(px[k])) {
+        if (deg[n] === 2 || node[n] >= 0) continue;
+        node[n] = id;
+        px.push(n);
+      }
+    }
+    let sx = 0, sy = 0;
+    for (const p of px) {
+      sx += p % w;
+      sy += (p / w) | 0;
+    }
+    nodes.push({ x: sx / px.length, y: sy / px.length, px });
+  }
+  const seen = new Uint8Array(w * h);
+  const xy = (q) => [q % w, (q / w) | 0];
+  const paths = [];
+  for (const [id, n] of nodes.entries()) {
+    for (const q of n.px) {
+      for (const n0 of nb(q)) {
+        if (deg[n0] !== 2 || seen[n0]) continue;
+        const pts = [[n.x, n.y]];
+        let prev = q, cur = n0;
+        while (deg[cur] === 2 && !seen[cur]) {
+          seen[cur] = 1;
+          pts.push(xy(cur));
+          const next = nb(cur).find((z) => z !== prev);
+          prev = cur;
+          cur = next;
+        }
+        const b = node[cur];
+        if (b < 0) continue;
+        pts.push([nodes[b].x, nodes[b].y]);
+        paths.push({ a: id, b, pts, closed: false });
+      }
+    }
+  }
+  for (let q = 0; q < sk.length; q++) {
+    if (!sk[q] || deg[q] !== 2 || seen[q]) continue;
+    const pts = [];
+    let prev = nb(q)[0], cur = q;
+    while (!seen[cur]) {
+      seen[cur] = 1;
+      pts.push(xy(cur));
+      const next = nb(cur).find((z) => z !== prev);
+      prev = cur;
+      cur = next;
+    }
+    pts.push(pts[0]);
+    paths.push({ a: -1, b: -1, pts, closed: true });
+  }
+  return { nodes, paths };
+}
+
+/** A polyline's length. */
+const polyLength = (pts) => {
+  let n = 0;
+  for (let i = 1; i < pts.length; i++) n += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+  return n;
+};
+
+/**
+ * The doors a stroke plan draws: a box of paper closed by its outline, set
+ * across a wall line. A paper component (at the stroke's own cut) is a box
+ * shape when it fills most of a rectangle a fifth of a cell to two and a
+ * half cells long and under half a cell across; an elongated one is read
+ * along its principal axis, so a box drawn at an angle stands at its angle,
+ * and a near-square one along each axis of the page. Two shapes end to end
+ * on one line, a bar's width apart, are one box split by its bar. A box
+ * stands as a door when a wall lies within a third of a cell beyond both of
+ * its ends and floor beyond both of its long sides: a bed, a bench or a table
+ * against a wall has the wall along a long side, and an archway is floor that
+ * never closes. Each box is its centre, its unit axis `u`, its half length
+ * `hl` and half width `hw`, whether a bar splits it, and where its bar
+ * stands when one does.
+ * @returns {{c: number[], u: number[], hl: number, hw: number, split: boolean, bar?: number[]}[]}
+ */
+function drawnBoxes(gray, thick, w, h, cut, L) {
+  const pitch = L.pitch;
+  // Paper at the stroke's cut. A lattice line drawn one pixel thin across
+  // paper is paper too, so a box the lattice crosses stays one box; then the
+  // paper is eroded by a pixel, so an outline the render drew thin still
+  // closes its box.
+  const paper = new Uint8Array(w * h);
+  for (let i = 0; i < paper.length; i++) paper[i] = gray[i] >= cut ? 1 : 0;
+  const isPaper = (x, y) => x >= 0 && y >= 0 && x < w && y < h && gray[y * w + x] >= cut;
+  for (let k = Math.ceil(-L.ox / L.ppx); L.cellX(k) < w; k++) {
+    const gx = L.cellX(k);
+    for (let x = Math.max(0, Math.ceil(gx - 1)); x <= Math.min(w - 1, Math.floor(gx + 1)); x++) {
+      for (let y = 0; y < h; y++) if (!paper[y * w + x] && isPaper(x - 1, y) && isPaper(x + 1, y)) paper[y * w + x] = 1;
+    }
+  }
+  for (let k = Math.ceil(-L.oy / L.ppy); L.cellY(k) < h; k++) {
+    const gy = L.cellY(k);
+    for (let y = Math.max(0, Math.ceil(gy - 1)); y <= Math.min(h - 1, Math.floor(gy + 1)); y++) {
+      for (let x = 0; x < w; x++) if (!paper[y * w + x] && isPaper(x, y - 1) && isPaper(x, y + 1)) paper[y * w + x] = 1;
+    }
+  }
+  const light = morph(paper, w, h, 1, true);
+  const { lab, comps } = components(light, w, h, 1);
+  const sums = new Map();
+  for (const c of comps) {
+    const bw = c.maxx - c.minx + 1, bh = c.maxy - c.miny + 1;
+    if (Math.max(bw, bh) < 0.15 * pitch || Math.max(bw, bh) > 2.6 * pitch || c.area > 1.2 * pitch * pitch || c.area < 0.012 * pitch * pitch) continue;
+    sums.set(c.id, { id: c.id, n: 0, sx: 0, sy: 0, sxx: 0, syy: 0, sxy: 0, px: [] });
+  }
+  for (let i = 0; i < lab.length; i++) {
+    const m = sums.get(lab[i]);
+    if (!m) continue;
+    const x = i % w, y = (i / w) | 0;
+    m.n++;
+    m.sx += x;
+    m.sy += y;
+    m.sxx += x * x;
+    m.syy += y * y;
+    m.sxy += x * y;
+    m.px.push(i);
+  }
+  const shapes = [];
+  for (const m of sums.values()) {
+    const cx = m.sx / m.n, cy = m.sy / m.n;
+    const vxx = m.sxx / m.n - cx * cx, vyy = m.syy / m.n - cy * cy, vxy = m.sxy / m.n - cx * cy;
+    const spread = Math.sqrt((vxx - vyy) ** 2 + 4 * vxy * vxy);
+    const ratio = Math.sqrt((vxx + vyy + spread) / Math.max(1e-9, vxx + vyy - spread));
+    const ang = 0.5 * Math.atan2(2 * vxy, vxx - vyy);
+    for (const u of ratio >= 1.4 ? [[Math.cos(ang), Math.sin(ang)]] : [[1, 0], [0, 1]]) {
+      let a0 = Infinity, a1 = -Infinity, b0 = Infinity, b1 = -Infinity;
+      for (const i of m.px) {
+        const dx = (i % w) - cx, dy = ((i / w) | 0) - cy;
+        const a = dx * u[0] + dy * u[1], b = -dx * u[1] + dy * u[0];
+        if (a < a0) a0 = a;
+        if (a > a1) a1 = a;
+        if (b < b0) b0 = b;
+        if (b > b1) b1 = b;
+      }
+      // The erosion took a pixel off every side; it is given back here.
+      const len = a1 - a0 + 3, wid = b1 - b0 + 3;
+      if (len < 0.2 * pitch || len > 2.5 * pitch || wid < 0.06 * pitch || wid > 0.5 * pitch || m.n < 0.6 * (len - 2) * (wid - 2)) continue;
+      const c = [cx + u[0] * (a0 + a1) / 2 - u[1] * (b0 + b1) / 2, cy + u[1] * (a0 + a1) / 2 + u[0] * (b0 + b1) / 2];
+      shapes.push({ c, u, hl: len / 2, hw: wid / 2, split: false, comps: [m.id] });
+    }
+  }
+  const merged = [];
+  for (let i = 0; i < shapes.length; i++) {
+    for (let j = i + 1; j < shapes.length; j++) {
+      const A = shapes[i], B = shapes[j];
+      if (A.comps[0] === B.comps[0] || Math.abs(A.u[0] * B.u[0] + A.u[1] * B.u[1]) < 0.97) continue;
+      const dx = B.c[0] - A.c[0], dy = B.c[1] - A.c[1];
+      const along = dx * A.u[0] + dy * A.u[1], across = Math.abs(-dx * A.u[1] + dy * A.u[0]);
+      const bar = Math.abs(along) - A.hl - B.hl;
+      if (across > 0.1 * pitch || bar < -1 || bar > 0.15 * pitch || Math.abs(A.hw - B.hw) > 0.35 * Math.max(A.hw, B.hw)) continue;
+      const s = Math.sign(along) || 1;
+      const lo = -A.hl, hi = Math.abs(along) + B.hl, mid = (lo + hi) / 2, gap = (A.hl + Math.abs(along) - B.hl) / 2;
+      const at = (t) => [A.c[0] + A.u[0] * s * t, A.c[1] + A.u[1] * s * t];
+      merged.push({ c: at(mid), u: A.u, hl: (hi - lo) / 2, hw: Math.max(A.hw, B.hw), split: true, bar: at(gap), comps: [A.comps[0], B.comps[0]] });
+    }
+  }
+  const wallAt = (x, y) => {
+    x = Math.round(x);
+    y = Math.round(y);
+    return x >= 0 && y >= 0 && x < w && y < h && thick[y * w + x] === 1;
+  };
+  const stands = ({ c, u, hl, hw }) => {
+    const n = [-u[1], u[0]];
+    const at = (a, b) => [c[0] + u[0] * a + n[0] * b, c[1] + u[1] * a + n[1] * b];
+    const reach = Math.round(0.33 * pitch);
+    const endWall = (sgn) => {
+      for (let d = 1; d <= reach; d++) {
+        for (const b of [-0.5 * hw, 0, 0.5 * hw]) if (wallAt(...at(sgn * (hl + d), b))) return true;
+      }
+      return false;
+    };
+    const side = hw + Math.max(3, 0.12 * pitch);
+    const floorSide = (sgn) => [-0.5, 0, 0.5].every((f) => !wallAt(...at(f * hl, sgn * side)));
+    return endWall(1) && endWall(-1) && floorSide(1) && floorSide(-1);
+  };
+  const used = new Set();
+  const boxes = [];
+  for (const b of [...merged, ...shapes]) {
+    if (b.comps.some((id) => used.has(id)) || !stands(b)) continue;
+    for (const id of b.comps) used.add(id);
+    boxes.push({ c: b.c, u: b.u, hl: b.hl, hw: b.hw, split: b.split, bar: b.bar });
+  }
+  return boxes;
+}
+
+/**
+ * stroke mode: dark strokes opened, compact marks dropped, thinned, and
+ * walked node to node; a stroke's corner tines are pruned, and each drawn
+ * door box stands as a door in its wall.
+ */
 function traceStroke(gray, w, h, threshold, L, corr) {
   const pitch = L.pitch;
-  const lightMask = new Uint8Array(w * h);
-  for (let i = 0; i < lightMask.length; i++) lightMask[i] = gray[i] >= threshold ? 1 : 0;
+  const inkMask = new Uint8Array(w * h);
+  for (let i = 0; i < inkMask.length; i++) inkMask[i] = gray[i] < threshold ? 1 : 0;
+  // The opening takes away what is thinner than a wall: the lattice, a
+  // door's or a bed's outline, hatching and speckle.
   const e = Math.max(1, Math.round(0.03 * pitch));
-  const thick = morph(morph(lightMask, w, h, e, true), w, h, e, false);
+  const thick = morph(morph(inkMask, w, h, e, true), w, h, e, false);
   {
     // A stroke network spans most of a cell; a component shorter than that on
     // its long side is furniture, a label or an ornament.
@@ -1262,51 +1509,135 @@ function traceStroke(gray, w, h, threshold, L, corr) {
     if (strokes.lab[y * w + x] === largest.id) refused++;
     else if (flipComponentAt(thick, w, h, x, y)) dropped++;
   }
-  const sk = thin(thick, w, h);
-  const nb = (q) => {
-    const x = q % w, y = (q / w) | 0, out = [];
-    for (let dy = -1; dy <= 1; dy++) {
-      for (let dx = -1; dx <= 1; dx++) {
-        if (!dx && !dy) continue;
-        const X = x + dx, Y = y + dy;
-        if (X >= 0 && Y >= 0 && X < w && Y < h && sk[Y * w + X]) out.push(Y * w + X);
-      }
-    }
-    return out;
-  };
-  const deg = new Uint8Array(w * h);
-  for (let q = 0; q < sk.length; q++) if (sk[q]) deg[q] = nb(q).length;
-  const isNode = (q) => deg[q] !== 2;
-  const seen = new Set();
-  const edgeKey = (a, b) => (a < b ? `${a}:${b}` : `${b}:${a}`);
-  const paths = [];
-  for (let q = 0; q < sk.length; q++) {
-    if (!sk[q] || !isNode(q)) continue;
-    for (const n0 of nb(q)) {
-      if (seen.has(edgeKey(q, n0))) continue;
-      seen.add(edgeKey(q, n0));
-      const path = [q, n0];
-      let prev = q, cur = n0;
-      while (!isNode(cur)) {
-        const next = nb(cur).filter((z) => z !== prev);
-        if (!next.length || seen.has(edgeKey(cur, next[0]))) break;
-        seen.add(edgeKey(cur, next[0]));
-        prev = cur;
-        cur = next[0];
-        path.push(cur);
-      }
-      paths.push(path.map((z) => [z % w, (z / w) | 0]));
+  const doorBoxes = drawnBoxes(gray, thick, w, h, threshold, L);
+  const depth = strokeDepth(thick, w, h);
+  const skel = thin(thick, w, h);
+  const { nodes, paths } = strokeGraph(skel, w, h);
+  const nodeDepth = (k) => nodes[k].px.reduce((m, q) => Math.max(m, depth[q]), 0);
+
+  // A band's end thins to a fork whose tines run to its corners, no longer
+  // than the band is wide; such a tine is pruned, so the band ends in one
+  // point. A short path with no node at either end is a mark, not a wall.
+  const ends = new Int32Array(nodes.length);
+  const live = paths.map((p) => {
+    const len = polyLength(p.pts);
+    return { ...p, len, alive: !(p.closed ? len < pitch : p.a === p.b ? len < 0.5 * pitch : false) };
+  });
+  for (const p of live) if (p.alive && !p.closed) { ends[p.a]++; ends[p.b]++; }
+  let spurs = 0;
+  for (let pass = 0, changed = true; changed && pass < 4; pass++) {
+    changed = false;
+    for (const p of live) {
+      if (!p.alive || p.closed) continue;
+      const freeA = ends[p.a] === 1, freeB = ends[p.b] === 1;
+      const tine = (freeA && ends[p.b] >= 3 && p.len <= 1.5 * nodeDepth(p.b) + 0.1 * pitch)
+        || (freeB && ends[p.a] >= 3 && p.len <= 1.5 * nodeDepth(p.a) + 0.1 * pitch);
+      const mark = freeA && freeB && p.len < 0.25 * pitch;
+      if (!tine && !mark) continue;
+      p.alive = false;
+      ends[p.a]--;
+      ends[p.b]--;
+      spurs += tine ? 1 : 0;
+      changed = true;
     }
   }
+
   const eps = Math.max(2, 0.04 * pitch);
   let walls = [];
-  for (const p of paths) {
-    if (p.length < 0.25 * pitch) continue;
-    const poly = simplify(p, eps);
+  for (const p of live) {
+    if (!p.alive) continue;
+    let poly;
+    if (p.closed) {
+      let far = 0, fd = -1;
+      for (let i = 0; i < p.pts.length; i++) {
+        const dd = Math.hypot(p.pts[i][0] - p.pts[0][0], p.pts[i][1] - p.pts[0][1]);
+        if (dd > fd) { fd = dd; far = i; }
+      }
+      poly = simplify(p.pts.slice(0, far + 1), eps).concat(simplify(p.pts.slice(far), eps).slice(1));
+    } else poly = simplify(p.pts, eps);
     for (let i = 0; i + 1 < poly.length; i++) walls.push({ c: [...poly[i], ...poly[i + 1]], door: DOOR.none });
   }
-  walls = correctSegments([...walls, ...boxSides(L, corr.boxes)], L, corr);
-  return { walls, digest: { cells: L.cols * L.rows, paths: paths.length, islandsDropped: dropped, islandsRefused: refused } };
+
+  // A box is never wall: whatever the trace ran through or around it is cut,
+  // and the door stands along its axis from end to end, reaching on to the
+  // wall end that the cut or the band's own end left within a third of a
+  // cell. A split box is two leaves on its centre line, one from each end,
+  // meeting at its bar.
+  const rectCut = (s, b, padA, padB) => {
+    const n = [-b.u[1], b.u[0]];
+    const toBox = ([x, y]) => [(x - b.c[0]) * b.u[0] + (y - b.c[1]) * b.u[1], (x - b.c[0]) * n[0] + (y - b.c[1]) * n[1]];
+    const fromBox = ([a, v]) => [b.c[0] + b.u[0] * a + n[0] * v, b.c[1] + b.u[1] * a + n[1] * v];
+    const p = toBox([s.c[0], s.c[1]]), q = toBox([s.c[2], s.c[3]]);
+    return cutBox({ ...s, c: [...p, ...q] }, -b.hl - padA, -b.hw - padB, b.hl + padA, b.hw + padB).map((r) => ({ ...r, c: [...fromBox([r.c[0], r.c[1]]), ...fromBox([r.c[2], r.c[3]])] }));
+  };
+  const padA = Math.max(1, 0.03 * pitch), padB = Math.max(2, 0.08 * pitch);
+  for (const b of doorBoxes) walls = walls.flatMap((s) => rectCut(s, b, padA, padB));
+  const reach = 0.33 * pitch;
+  const reachWall = (b, sgn) => {
+    const end = [b.c[0] + b.u[0] * sgn * b.hl, b.c[1] + b.u[1] * sgn * b.hl];
+    let best = null, bd = Infinity;
+    for (const s of walls) {
+      if (s.door) continue;
+      for (const p of [[s.c[0], s.c[1]], [s.c[2], s.c[3]]]) {
+        const dx = p[0] - end[0], dy = p[1] - end[1];
+        const along = sgn * (dx * b.u[0] + dy * b.u[1]), across = Math.abs(-dx * b.u[1] + dy * b.u[0]);
+        if (along < -padA - 1 || along > reach || across > b.hw + 0.05 * pitch) continue;
+        const dd = Math.hypot(dx, dy);
+        if (dd < bd) { bd = dd; best = p; }
+      }
+    }
+    return best ?? [end[0] + b.u[0] * sgn * padA, end[1] + b.u[1] * sgn * padA];
+  };
+  const kinds = { door: 0, split: 0 };
+  doorBoxes.forEach((b, id) => {
+    const p0 = reachWall(b, -1), p1 = reachWall(b, 1);
+    if (!b.split) {
+      kinds.door++;
+      walls.push({ c: [...p0, ...p1], door: DOOR.door, box: id });
+      return;
+    }
+    kinds.split++;
+    walls.push({ c: [...p0, ...b.bar], door: DOOR.door, box: id }, { c: [...b.bar, ...p1], door: DOOR.door, box: id });
+  });
+
+  // A cell asserted a door or a secret door: the box whose centre lies in it
+  // takes that kind; a cell with no box is unplaced.
+  let unplaced = 0;
+  for (const [key, state] of corr.cells) {
+    if (state !== "door" && state !== "secret") continue;
+    const [i, j] = key.split(",").map(Number);
+    const x0 = L.cellX(i), y0 = L.cellY(j), x1 = L.cellX(i + 1), y1 = L.cellY(j + 1);
+    const id = doorBoxes.findIndex((b) => b.c[0] >= x0 && b.c[0] < x1 && b.c[1] >= y0 && b.c[1] < y1);
+    if (id < 0) {
+      unplaced++;
+      continue;
+    }
+    for (const s of walls) if (s.box === id && s.door) s.door = doorOf(state);
+  }
+  // A dropped door is the drawn door nearest the correction's point, within
+  // half a cell, with the rest of its box; its box stays cut from the wall,
+  // so the opening stands open.
+  let doorsDropped = 0;
+  for (const [px, py] of corr.doorDrops) {
+    let best = -1;
+    let near = 0.5 * pitch;
+    for (const s of walls) {
+      if (!s.door) continue;
+      const dd = pointToSegment(px, py, s.c);
+      if (dd <= near) {
+        near = dd;
+        best = s.box;
+      }
+    }
+    if (best < 0) continue;
+    walls = walls.filter((s) => s.box !== best);
+    doorsDropped++;
+  }
+  walls = correctSegments([...walls.map(({ c, door }) => ({ c, door })), ...boxSides(L, corr.boxes)], L, corr);
+  return {
+    walls,
+    digest: { cells: L.cols * L.rows, paths: live.filter((p) => p.alive).length, spurs, boxes: kinds, islandsDropped: dropped, islandsRefused: refused, doorsDropped, unplaced },
+  };
 }
 
 /* ---------------------------------------------------------------------------

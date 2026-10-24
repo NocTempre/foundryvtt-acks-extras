@@ -7313,3 +7313,50 @@ its record until a reload, and its first import after one takes the derived
 id: one changed uuid, not one per rebuild. An entry whose line changed is
 written to another shelf, and its uuid changes with the pack whatever its id.
 The live record is the typography walk's step 1a.
+
+## 2026-10-24 — A stroke plan draws its walls dark, and its doors as boxes
+
+Amends one line of "Walls are traced at import from the Judge's own page"
+(2026-10-17), the `stroke` mode, "light wall strokes on a dark floor". The
+entry's other rulings stand.
+
+**New evidence.**
+- The 2026-10-17 stroke prototype read AX1's p16 plate off a render that had
+  been inverted.
+- On the importer's own render (print intent, on white), every stroke plate
+  (p12, p15, p16, p22, p24, p26) draws its walls dark, at about gray 46, on a
+  light floor. Its lattice lines fall between 57 and 145.
+- The shipped mode cut `gray >= threshold`. On p15 it traced 720 walls of
+  floor texture. No row used the mode, so nothing shipped wrong.
+- These plates draw a door as a box of paper across the wall, closed by a
+  thin outline. A double door is two such boxes end to end, split by a bar.
+
+**Ruled.**
+- **`stroke` reads dark strokes on a light floor**, cut at the threshold.
+  80 parts the walls from the lattice on every one of the six plates.
+- **The strokes are opened, thinned and walked as a graph.** A component
+  shorter than nine tenths of a cell is furniture or a mark, and drops. A
+  corner's tines no longer than the band is deep are pruned, so a band ends
+  in one point.
+- **A drawn box is the door** (MODEL, "A map's walls, traced from the
+  page"). A box counts only with wall beyond both its ends and floor on both
+  its long sides: a bed against a wall has the wall along a side. A split box
+  is two leaves meeting at its bar, as on the other plans (2026-10-18).
+- **A stroke cell may name its box's kind** (`door`, `secret`), and a point
+  may drop a box's door. These are the same two corrections contour takes,
+  for the same reason: a stroke door lies off the lattice.
+
+*Rejected:*
+- **A closing to bridge the gaps in a crenellated wall** (p26's north wall).
+  At a radius that bridged the narrowest slits it joined furniture and floor
+  texture to the walls on every plate. The plate asserts that wall with line
+  corrections instead.
+- **Pairing free stroke ends across a door gap.** A band's end thins to a
+  hook, and pairs formed across rooms. The box is drawn on the page, so the
+  trace reads the box.
+
+*Cost:*
+- A lattice line crossing a box is read as paper only where it is one pixel
+  wide. A wider one splits the box, and the halves need not stand as doors.
+- A window drawn as a gap in the wall reads as an opening. The plate's
+  review sheet shows both, and a line corrects either.
