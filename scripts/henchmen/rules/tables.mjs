@@ -55,6 +55,11 @@ export function optTable(docId, tableId) {
   }
 }
 
+/** The page a table was read from (lib `citeOf`), or null where none is recorded or no registry is attached. */
+export function optCite(docId, tableId) {
+  return globalThis.acksExtras?.lib?.tables?.citeOf?.(docId, tableId) ?? null;
+}
+
 /** Register a document directly (rarely needed; imports use ruledata-import). */
 export function initTables(doc) {
   return reg().registerTable(doc);

@@ -65,6 +65,22 @@ Feature-scoped roadmaps live in `docs/<feature>/ROADMAP.md`.
     domain as consumed, and no script reads it by name.
   - *Code:* `bindVariation` in `scripts/importer/cookbook.mjs` spreads `data`
     and `dataFields` twice (harmless).
+- **Provenance tooltips: the retrofit.** `.claude/rules/ui-tooltips.md` asks
+  every figure to name where it came from. Done: the henchmen Service panel.
+  A census of `templates/` on 2026-10-24 counted the lines that render a
+  figure with no tooltip within two lines above it, so each count is an upper
+  bound and figures assembled in scripts are not in it: about 73 lines —
+  `monsters/` 15 (the stat block and the Henchman tab, which also prints bare
+  `HP`, `AC` and `XP` labels outside the lang file), `formation/` 13 (most in
+  the wilderness tab's camp forecast and throws), `character-sheet/` 9,
+  `lib/` 7 (the follower card, the group sheet), `influence/` 6,
+  `location/` 6, `equipment/` 5, `abilities/` 3, `markets/` 2, `factions/` 2,
+  `vehicles/` 1. Beside them, 14 `title=` attributes (the group sheet 7, the
+  domain realm and ledger tabs 4, the class, race and template sheets) and
+  the tooltips assembled at render in `data-tooltip` rather than
+  `data-tooltip-text`, most of them on the class sheet. A figure whose
+  tooltip cannot be written goes on the bug-intake ledger as the rule says,
+  not into this list.
 
 ---
 

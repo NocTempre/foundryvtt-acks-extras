@@ -966,3 +966,33 @@ loyalty score was already the hireling's player's to see on Rolls and Stats;
 its parts, the ledger and the events now are too, which the roster's
 GM-and-employer gate used to keep from them. The throws and the toggle stay
 the Judge's.
+
+### Every figure on the Service panel names its source, and Obedience reads morale (2026-10-24)
+
+**Found** by writing the panel's tooltips to `.claude/rules/ui-tooltips.md`,
+which asks each figure to list the parts its page prints:
+
+- The Judge's **Obedience** row showed the loyalty score (11.9.0). The throw
+  it opens, `openObedienceRoll`, rolls on `effectiveMoraleFor`, and the
+  obedience throw is a morale throw (RR 167). No parts of loyalty could be
+  written for it.
+- The morale line read base and permanents, while the score beside it also
+  adds the employer's `moraleBase` powers. With such a power on the employer,
+  the line's parts did not produce the figure.
+
+**Ruled.** The Obedience row reads the morale score. The morale line and its
+tooltip carry the employer's powers as a third part, read through
+`employerMoraleBase`, which `effectiveMoraleFor` now also calls, so the roll
+and the panel read one figure. Each figure's tooltip is written as text
+(`data-tooltip-text`), since it is assembled from names and numbers at render.
+
+**Left for review, not changed here.** Two figures reach the panel from a
+constant in source rather than from a table: the share `termsOf` reads where
+the record states none (its tooltip says it is the module's default),
+and the score range `clampScore` holds both scores to. Both are the value
+rule's case (`.claude/rules/ip-doctrine.md`) and are on the bug-intake
+ledger.
+
+**What it cost.** The wage's tooltip names the table's page only where the
+importer recorded one; a Judge's override layer and a module sample record
+none, so their wage reads "no page recorded".

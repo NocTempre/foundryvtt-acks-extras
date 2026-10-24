@@ -69,11 +69,17 @@ export function loyaltyParts(record, mods = {}) {
   };
 }
 
-/** The pieces of an effective morale: the base (the record's, else the sheet's) and the permanents still counting. */
-export function moraleParts(record, fallbackBase = 0) {
+/**
+ * The pieces of an effective morale: the base (the record's, else the
+ * sheet's), the permanents still counting, and the employer's `moraleBase`
+ * powers handed in as `powers`. `total` clamps base and permanents, then
+ * clamps again with the powers added, as `effectiveMoraleFor` does.
+ */
+export function moraleParts(record, fallbackBase = 0, powers = 0) {
   const base = num(record?.morale?.base, num(fallbackBase));
   const permanents = sumPermanents(record?.morale?.permanents ?? []);
-  return { base, permanents, total: clampScore(base + permanents) };
+  const bonus = num(powers);
+  return { base, permanents, powers: bonus, total: clampScore(clampScore(base + permanents) + bonus) };
 }
 
 /**
@@ -120,6 +126,9 @@ export function shareKind(fraction) {
  * figure, else the sheet's, else the ladder's handed in as `ladder` for a
  * henchman alone), its basis, the two shares, the signing bonus and the
  * arrears. `wageUnset` is a wage that comes to nothing, which bills nothing.
+ * `wageFrom` names where the wage in force came from — `agreed`, `sheet`,
+ * `ladder`, or null for none — and `sharesDefaulted` is a share the record
+ * never stated, read at the default instead.
  * @param {object} record HenchmanRecord-shaped
  * @param {{sheetWage?: unknown, ladder?: number, category?: string}} given
  */
@@ -127,9 +136,12 @@ export function termsOf(record, { sheetWage = null, ladder = 0, category = "henc
   const terms = record?.terms ?? {};
   const agreed = Number(terms.wageGp ?? sheetWage);
   const wage = agreed > 0 ? agreed : keepsLoyalty(category) ? num(ladder) : 0;
+  const wageFrom = agreed > 0 ? (terms.wageGp != null ? "agreed" : "sheet") : wage > 0 ? "ladder" : null;
   return {
     wage,
     wageUnset: !(wage > 0),
+    wageFrom,
+    sharesDefaulted: terms.treasureShare == null || terms.xpShare == null,
     basis: terms.wageBasis ?? "level",
     treasureShare: shareKind(terms.treasureShare ?? 0.5),
     xpShare: shareKind(terms.xpShare ?? 0.5),
@@ -139,11 +151,14 @@ export function termsOf(record, { sheetWage = null, ladder = 0, category = "henc
   };
 }
 
+/** The six scores a hire records, in the order `rolledOf` prints them. */
+export const ROLLED_SCORES = Object.freeze(["str", "int", "wil", "dex", "con", "cha"]);
+
 /** The recorded rolls as the panel prints them: the six scores in order, or null where none was recorded. */
 export function rolledOf(record) {
   const r = record?.rolled ?? {};
   const a = r.attributes ?? {};
-  const keys = ["str", "int", "wil", "dex", "con", "cha"];
+  const keys = ROLLED_SCORES;
   const scores = keys.every((k) => a[k] == null) ? null : keys.map((k) => (a[k] == null ? "—" : String(a[k])));
   return {
     scores,

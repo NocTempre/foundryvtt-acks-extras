@@ -7,11 +7,11 @@
  * `rules/service.mjs`; this file reads the world and puts words on them.
  */
 import { MODULE_ID, FLAG_RECORD } from "./constants.mjs";
-import { effectiveLoyaltyFor, effectiveMoraleFor, employerLoyaltyMods } from "./engine/events.mjs";
+import { effectiveLoyaltyFor, effectiveMoraleFor, employerLoyaltyMods, employerMoraleBase } from "./engine/events.mjs";
 import { reasonKey } from "./rules/loyalty.mjs";
-import { henchmanWage } from "./rules/wages.mjs";
+import { henchmanWage, henchmanWageCite } from "./rules/wages.mjs";
 import {
-  wageClock, loyaltyParts, moraleParts, ledgerEntries, termsOf, rolledOf, slotOf, keepsLoyalty, serviceBadge,
+  wageClock, loyaltyParts, moraleParts, ledgerEntries, termsOf, rolledOf, slotOf, keepsLoyalty, serviceBadge, ROLLED_SCORES,
 } from "./rules/service.mjs";
 import * as adapter from "./acks-adapter.mjs";
 import { now, secondsPerMonth, dateLabel } from "./time.mjs";
@@ -76,6 +76,37 @@ export function clockFor(record, currentTime = now()) {
   });
 }
 
+/**
+ * A summed score's tooltip: its parts as `[label, n]`, a note where the
+ * score's range held the sum at `total`, and the page under `key`.
+ */
+function partsTip(parts, total, key) {
+  const listed = parts.map(([label, n]) => `${label} ${signed(n)}`).join(" · ");
+  const sum = parts.reduce((s, [, n]) => s + n, 0);
+  return loc(key, { parts: sum === total ? listed : loc("tip.held", { parts: listed, total: signed(total) }) });
+}
+
+/** Where the wage in force came from, as `termsOf` names it, with the ladder's page where it was read. */
+function wageTip(terms, { actor, henchman }) {
+  if (terms.wageFrom === "agreed") return loc("tip.wageAgreed");
+  if (terms.wageFrom === "sheet") return loc("tip.wageSheet");
+  if (terms.wageFrom === "ladder") {
+    return loc(actor.type === ACTOR_TYPE.monster ? "tip.wageHd" : "tip.wageLevel", {
+      n: adapter.getWageLevel(actor),
+      page: henchmanWageCite() ?? loc("tip.noPage"),
+    });
+  }
+  return loc(henchman ? "tip.wageUnset" : "tip.wageUnsetOther");
+}
+
+/** The recorded scores, each named by the system's own short label (Will is its `wis`). */
+function scoresTip(scores) {
+  return scores.map((v, i) => {
+    const key = ROLLED_SCORES[i] === "wil" ? "wis" : ROLLED_SCORES[i];
+    return `${game.i18n.localize(`ACKS.scores.${key}.short`)} ${v}`;
+  }).join(" · ");
+}
+
 /** The clock's one-line reading: behind, unset, or since and until. */
 export function clockLine(clock) {
   if (clock.unset) return loc("clockUnset");
@@ -98,7 +129,8 @@ export function buildServicePanel(actor, { isGM = false, pins = [] } = {}) {
   const henchman = keepsLoyalty(category);
   const mods = employerLoyaltyMods(employer);
   const loyalty = loyaltyParts(record, mods);
-  const morale = moraleParts(record, adapter.getMorale(actor));
+  const morale = moraleParts(record, adapter.getMorale(actor), employerMoraleBase(employer));
+  const moraleValue = signed(effectiveMoraleFor(actor));
   const pending = !!record.special?.pendingCalamity;
 
   const standing = {
@@ -106,19 +138,31 @@ export function buildServicePanel(actor, { isGM = false, pins = [] } = {}) {
     henchman,
     loyalty: {
       value: signed(effectiveLoyaltyFor(actor)),
+      tip: partsTip([
+        [loc("loyaltyStart"), loyalty.start],
+        [loc("tip.permanents"), loyalty.permanents],
+        [loc("loyaltyCha"), loyalty.cha],
+        [loc("loyaltyPowers"), loyalty.powers],
+      ], loyalty.total, "tip.loyalty"),
       pinned: pins.includes("loyalty"),
       parts: [
-        { label: loc("loyaltyStart"), value: signed(loyalty.start) },
-        { label: loc("loyaltyPermanents", { n: loyalty.uncompensated }), value: signed(loyalty.permanents) },
-        { label: loc("loyaltyCha"), value: signed(loyalty.cha) },
-        { label: loc("loyaltyPowers"), value: signed(loyalty.powers) },
+        { label: loc("loyaltyStart"), value: signed(loyalty.start), tip: loc("tip.start") },
+        { label: loc("loyaltyPermanents", { n: loyalty.uncompensated }), value: signed(loyalty.permanents), tip: loc("tip.ledger") },
+        { label: loc("loyaltyCha"), value: signed(loyalty.cha), tip: loc("tip.cha") },
+        { label: loc("loyaltyPowers"), value: signed(loyalty.powers), tip: loc("tip.powers") },
       ],
     },
     morale: {
-      value: signed(effectiveMoraleFor(actor)),
+      value: moraleValue,
+      tip: partsTip([
+        [loc("tip.base"), morale.base],
+        [loc("tip.permanents"), morale.permanents],
+        [loc("loyaltyPowers"), morale.powers],
+      ], morale.total, "tip.morale"),
       pinned: pins.includes("morale"),
-      line: loc("moraleLine", { base: signed(morale.base), permanents: signed(morale.permanents) }),
+      line: loc("moraleLine", { base: signed(morale.base), permanents: signed(morale.permanents), powers: signed(morale.powers) }),
     },
+    obedience: { value: moraleValue, tip: loc("tip.obedience") },
   };
 
   const terms = termsFor(actor, record, retainer);
@@ -126,14 +170,18 @@ export function buildServicePanel(actor, { isGM = false, pins = [] } = {}) {
   const clock = clockFor(record);
   const termsView = {
     wage: terms.wageUnset ? loc("wageUnset") : loc("wageValue", { gp: terms.wage }),
+    wageTip: wageTip(terms, { actor, henchman }),
     wageUnset: terms.wageUnset,
     basis: loc(`wageBasis.${basisKey}`, { n: adapter.getWageLevel(actor) }),
     share: terms.treasureShare.kind === terms.xpShare.kind && terms.treasureShare.pct === terms.xpShare.pct
       ? shareLabel(terms.treasureShare)
       : loc("shareSplit", { treasure: shareLabel(terms.treasureShare), xp: shareLabel(terms.xpShare) }),
+    shareTip: loc(terms.sharesDefaulted ? "tip.shareDefault" : "tip.shareAgreed"),
     signingBonus: loc("gp", { gp: terms.signingBonus }),
+    signingTip: loc("tip.signing"),
     signingWhere: record.settlementName ? loc("signingWhere", { where: record.settlementName }) : "",
     arrears: loc("gp", { gp: terms.arrears }),
+    arrearsTip: loc("tip.arrears"),
     arrearsOwed: terms.arrears > 0,
     clock,
     clockLine: clockLine(clock),
@@ -149,7 +197,9 @@ export function buildServicePanel(actor, { isGM = false, pins = [] } = {}) {
           ? loc("hiredAt", { where: record.settlementName, date: hiredDate })
           : hiredDate ? loc("hiredOn", { date: hiredDate }) : "",
         calamities: record.counters?.calamities ?? 0,
+        calamitiesTip: loc("tip.calamities"),
         levelsGained: record.counters?.levelsGainedInService ?? 0,
+        levelsGainedTip: loc("tip.levelsGained"),
         startLevel: record.counters?.startLevel ? loc("startLevel", { n: record.counters.startLevel }) : "",
         slot: slotOf(record, category),
       }
@@ -171,6 +221,8 @@ export function buildServicePanel(actor, { isGM = false, pins = [] } = {}) {
     rolled: rolled.any
       ? {
           scores: rolled.scores ? rolled.scores.join(" · ") : "",
+          scoresTip: rolled.scores ? scoresTip(rolled.scores) : "",
+          rolledTip: loc("tip.rolled"),
           classLevel: [rolled.classKey, rolled.level != null ? rolled.level : ""].filter((x) => x !== "").join(" · "),
           template: rolled.template,
           hpRoll: rolled.hpRoll,

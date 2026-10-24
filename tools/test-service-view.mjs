@@ -11,8 +11,9 @@
 import assert from "node:assert";
 import {
   ROSTER_FILTERS, bucketOf, keepsLoyalty, wageClock, loyaltyParts, moraleParts, ledgerEntries, shareKind, termsOf,
-  rolledOf, slotOf, serviceBadge, filterRows, filterCounts,
+  rolledOf, slotOf, serviceBadge, filterRows, filterCounts, ROLLED_SCORES,
 } from "../scripts/henchmen/rules/service.mjs";
+import { effectiveMorale, clampScore } from "../scripts/henchmen/rules/loyalty.mjs";
 
 let passed = 0;
 const test = (name, fn) => {
@@ -74,8 +75,19 @@ test("the total is clamped to the score's range", () => {
   assert.equal(loyaltyParts({ loyalty: { start: -4, permanents: [{ delta: -3 }] } }, {}).total, -4);
 });
 test("morale reads the record's base, else the sheet's, plus the permanents", () => {
-  assert.deepEqual(moraleParts(record, 2), { base: 0, permanents: 1, total: 1 });
-  assert.deepEqual(moraleParts({}, 2), { base: 2, permanents: 0, total: 2 });
+  assert.deepEqual(moraleParts(record, 2), { base: 0, permanents: 1, powers: 0, total: 1 });
+  assert.deepEqual(moraleParts({}, 2), { base: 2, permanents: 0, powers: 0, total: 2 });
+});
+test("the employer's powers are a part of morale, added after base and permanents are held to the range", () => {
+  assert.deepEqual(moraleParts(record, 2, 1), { base: 0, permanents: 1, powers: 1, total: 2 });
+  const high = { morale: { base: 4, permanents: [{ delta: 2 }] } };
+  assert.equal(moraleParts(high, 0, -1).total, 3, "held at 4 before the power, so the power counts from there");
+});
+test("the parts' total is the figure the obedience throw and the roster read", () => {
+  const cases = [[record, 2, 0], [record, 2, 1], [{}, -3, -2], [{ morale: { base: 4, permanents: [{ delta: 2 }] } }, 0, -1]];
+  for (const [r, sheet, powers] of cases) {
+    assert.equal(moraleParts(r, sheet, powers).total, clampScore(effectiveMorale(r, sheet) + powers));
+  }
 });
 test("the badge is one while a calamity's throw is owed", () => {
   assert.equal(serviceBadge(record), 1);
@@ -113,6 +125,19 @@ test("the agreed wage wins, then the sheet's, then the ladder for a henchman alo
   assert.equal(merc.wage, 0);
   assert.equal(merc.wageUnset, true, "a mercenary's unstated wage bills nothing");
 });
+test("the wage names where it came from: the record, the sheet, the ladder, or nowhere", () => {
+  assert.equal(termsOf({ terms: { wageGp: 30 } }, { sheetWage: "25", ladder: 12 }).wageFrom, "agreed");
+  assert.equal(termsOf({}, { sheetWage: "25", ladder: 12 }).wageFrom, "sheet");
+  assert.equal(termsOf({}, { ladder: 12 }).wageFrom, "ladder");
+  assert.equal(termsOf({ terms: { wageGp: 0 } }, { sheetWage: "25", ladder: 12 }).wageFrom, "ladder", "an agreed nothing falls to the ladder, as the wage does");
+  assert.equal(termsOf({}, {}).wageFrom, null);
+  assert.equal(termsOf({}, { ladder: 12, category: "mercenary" }).wageFrom, null);
+});
+test("a share the record never stated is read at the default, and says so", () => {
+  assert.equal(termsOf({ terms: { treasureShare: 0.5, xpShare: 0.5 } }).sharesDefaulted, false);
+  assert.equal(termsOf({ terms: { treasureShare: 1 } }).sharesDefaulted, true);
+  assert.equal(termsOf({}).sharesDefaulted, true);
+});
 test("the shares default to the record's initial and the arrears to nothing", () => {
   const t = termsOf({ terms: { signingBonusGp: 50, arrearsGp: 7 } });
   assert.equal(t.treasureShare.kind, "half");
@@ -126,6 +151,7 @@ console.log("service: the record's extras");
 test("recorded rolls print the six scores in order, a missing one as a dash", () => {
   const r = rolledOf({ rolled: { attributes: { str: 13, int: 10, wil: 9, dex: 14, con: 12 }, classKey: "fighter", level: 1 } });
   assert.deepEqual(r.scores, ["13", "10", "9", "14", "12", "—"]);
+  assert.deepEqual(ROLLED_SCORES, ["str", "int", "wil", "dex", "con", "cha"], "the order the panel's tooltip names them in");
   assert.equal(r.any, true);
   assert.equal(rolledOf({}).any, false);
   assert.equal(rolledOf({}).scores, null);

@@ -50,11 +50,15 @@ export function effectiveLoyaltyFor(actor) {
   return effectiveLoyalty(record, employerLoyaltyMods(employer));
 }
 
-/** Effective morale (record base+permanents, falling back to core morale). */
+/** The employer's `moraleBase` powers, which every hireling's morale score adds; 0 without an employer. */
+export function employerMoraleBase(employer) {
+  return employer ? sumEffectModifiers(employer, "moraleBase") : 0;
+}
+
+/** Effective morale (record base+permanents, falling back to core morale, plus the employer's powers). */
 export function effectiveMoraleFor(actor) {
   const record = actor.getFlag(MODULE_ID, FLAG_RECORD) ?? {};
-  const base = sumEffectModifiers(adapter.getManager(actor), "moraleBase");
-  return clampScore(effectiveMorale(record, adapter.getMorale(actor)) + base);
+  return clampScore(effectiveMorale(record, adapter.getMorale(actor)) + employerMoraleBase(adapter.getManager(actor)));
 }
 
 /** Recompute and persist core retainer.loyalty from the record. */

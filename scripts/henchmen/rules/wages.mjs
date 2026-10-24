@@ -1,7 +1,7 @@
 /**
  * Wage rules (RR 166-171). Pure module.
  */
-import { getTable, optTable } from "./tables.mjs";
+import { getTable, optTable, optCite } from "./tables.mjs";
 
 /** Monthly wage in gp for a henchman of a level (HD for monsters, MM 351). */
 export function henchmanWage(level) {
@@ -12,6 +12,13 @@ export function henchmanWage(level) {
   // carries the same per-level monthly wage, so market hiring still works.
   const row = optTable("availability", "henchmanAvailability")?.rows?.find((r) => r.level === capped);
   return row?.wage ?? 0;
+}
+
+/** The page of the table `henchmanWage` reads, in the same order it reads them; null where neither is imported or the layer read records none. */
+export function henchmanWageCite() {
+  if (optTable("wages", "henchmanWageByLevel")?.byLevel) return optCite("wages", "henchmanWageByLevel");
+  if (optTable("availability", "henchmanAvailability")?.rows) return optCite("availability", "henchmanAvailability");
+  return null;
 }
 
 /** Monthly wage for a mercenary troop type and race ("man" default). */

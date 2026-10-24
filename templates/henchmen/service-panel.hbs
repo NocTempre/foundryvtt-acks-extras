@@ -32,13 +32,13 @@
           <span class="acks-extras-frame__row-label">{{localize "ACKS-HENCHMEN.service.loyalty"}}</span>
           <span class="acks-extras-frame__row-line">{{localize "ACKS-HENCHMEN.service.loyaltyLine"}}</span>
         </span>
-        <span class="acks-extras-frame__row-value acks-nums">{{s.standing.loyalty.value}}</span>
+        <span class="acks-extras-frame__row-value acks-nums" data-tooltip-text="{{s.standing.loyalty.tip}}">{{s.standing.loyalty.value}}</span>
         <span class="acks-extras-frame__mini"><i class="fa-solid fa-dice-d20" inert></i></span>
       </div>
       {{#each s.standing.loyalty.parts}}
       <div class="acks-extras-frame__row is-bare acks-extras-service__sub">
         <span class="acks-extras-frame__row-line">{{label}}</span>
-        <span class="acks-extras-frame__row-value acks-nums">{{value}}</span>
+        <span class="acks-extras-frame__row-value acks-nums" data-tooltip-text="{{tip}}">{{value}}</span>
       </div>
       {{/each}}
       {{#if @root.isGM}}
@@ -48,7 +48,7 @@
           <span class="acks-extras-frame__row-label">{{localize "ACKS-HENCHMEN.service.obedience"}}</span>
           <span class="acks-extras-frame__row-line">{{localize "ACKS-HENCHMEN.service.obedienceLine"}}</span>
         </span>
-        <span class="acks-extras-frame__row-value acks-nums">{{s.standing.loyalty.value}}</span>
+        <span class="acks-extras-frame__row-value acks-nums" data-tooltip-text="{{s.standing.obedience.tip}}">{{s.standing.obedience.value}}</span>
         <span class="acks-extras-frame__mini"><i class="fa-solid fa-dice-d20" inert></i></span>
       </div>
       {{/if}}
@@ -64,7 +64,7 @@
           <span class="acks-extras-frame__row-label">{{localize "ACKS-HENCHMEN.service.morale"}}</span>
           <span class="acks-extras-frame__row-line">{{s.standing.morale.line}}</span>
         </span>
-        <span class="acks-extras-frame__row-value acks-nums">{{s.standing.morale.value}}</span>
+        <span class="acks-extras-frame__row-value acks-nums" data-tooltip-text="{{s.standing.morale.tip}}">{{s.standing.morale.value}}</span>
         <span class="acks-extras-frame__mini"><i class="fa-solid fa-dice-d20" inert></i></span>
       </div>
     </div>
@@ -81,28 +81,28 @@
           <span class="acks-extras-frame__row-label">{{localize "ACKS-HENCHMEN.service.wage"}}</span>
           <span class="acks-extras-frame__row-line">{{s.terms.basis}}</span>
         </span>
-        <span class="acks-extras-frame__row-value acks-nums{{#if s.terms.wageUnset}} is-faint{{/if}}">{{s.terms.wage}}</span>
+        <span class="acks-extras-frame__row-value acks-nums{{#if s.terms.wageUnset}} is-faint{{/if}}" data-tooltip-text="{{s.terms.wageTip}}">{{s.terms.wage}}</span>
       </div>
       <div class="acks-extras-frame__row">
         <span class="acks-extras-frame__row-text">
           <span class="acks-extras-frame__row-label">{{localize "ACKS-HENCHMEN.service.share"}}</span>
           <span class="acks-extras-frame__row-line">{{localize "ACKS-HENCHMEN.service.shareLine"}}</span>
         </span>
-        <span class="acks-extras-frame__row-value acks-nums">{{s.terms.share}}</span>
+        <span class="acks-extras-frame__row-value acks-nums" data-tooltip-text="{{s.terms.shareTip}}">{{s.terms.share}}</span>
       </div>
       <div class="acks-extras-frame__row">
         <span class="acks-extras-frame__row-text">
           <span class="acks-extras-frame__row-label">{{localize "ACKS-HENCHMEN.service.signingBonus"}}</span>
           {{#if s.terms.signingWhere}}<span class="acks-extras-frame__row-line">{{s.terms.signingWhere}}</span>{{/if}}
         </span>
-        <span class="acks-extras-frame__row-value acks-nums">{{s.terms.signingBonus}}</span>
+        <span class="acks-extras-frame__row-value acks-nums" data-tooltip-text="{{s.terms.signingTip}}">{{s.terms.signingBonus}}</span>
       </div>
       <div class="acks-extras-frame__row">
         <span class="acks-extras-frame__row-text">
           <span class="acks-extras-frame__row-label">{{localize "ACKS-HENCHMEN.service.arrears"}}</span>
           <span class="acks-extras-frame__row-line">{{localize "ACKS-HENCHMEN.service.arrearsLine"}}</span>
         </span>
-        <span class="acks-extras-frame__row-value acks-nums{{#if s.terms.arrearsOwed}} is-neg{{/if}}">{{s.terms.arrears}}</span>
+        <span class="acks-extras-frame__row-value acks-nums{{#if s.terms.arrearsOwed}} is-neg{{/if}}" data-tooltip-text="{{s.terms.arrearsTip}}">{{s.terms.arrears}}</span>
       </div>
       <div class="acks-extras-service__clock">
         <div class="acks-extras-frame__rule is-bar">
@@ -130,14 +130,14 @@
       </div>
       <div class="acks-extras-frame__row">
         <span class="acks-extras-frame__row-label">{{localize "ACKS-HENCHMEN.service.calamities"}}</span>
-        <span class="acks-extras-frame__row-value acks-nums acks-extras-service__push">{{s.employer.calamities}}</span>
+        <span class="acks-extras-frame__row-value acks-nums acks-extras-service__push" data-tooltip-text="{{s.employer.calamitiesTip}}">{{s.employer.calamities}}</span>
       </div>
       <div class="acks-extras-frame__row">
         <span class="acks-extras-frame__row-text">
           <span class="acks-extras-frame__row-label">{{localize "ACKS-HENCHMEN.service.levelsGained"}}</span>
           {{#if s.employer.startLevel}}<span class="acks-extras-frame__row-line">{{s.employer.startLevel}}</span>{{/if}}
         </span>
-        <span class="acks-extras-frame__row-value acks-nums">{{s.employer.levelsGained}}</span>
+        <span class="acks-extras-frame__row-value acks-nums" data-tooltip-text="{{s.employer.levelsGainedTip}}">{{s.employer.levelsGained}}</span>
       </div>
       {{#unless (eq s.employer.slot "none")}}
       <div class="acks-extras-frame__row">
@@ -199,7 +199,7 @@
       {{#if s.rolled.scores}}
       <div class="acks-extras-frame__row">
         <span class="acks-extras-frame__row-label is-plain">{{localize "ACKS-HENCHMEN.service.attributes"}}</span>
-        <span class="acks-extras-frame__row-value acks-nums acks-extras-service__push">{{s.rolled.scores}}</span>
+        <span class="acks-extras-frame__row-value acks-nums acks-extras-service__push" data-tooltip-text="{{s.rolled.scoresTip}}">{{s.rolled.scores}}</span>
       </div>
       {{/if}}
       {{#if s.rolled.classLevel}}
@@ -208,7 +208,7 @@
           <span class="acks-extras-frame__row-label is-plain">{{localize "ACKS-HENCHMEN.service.classLevel"}}</span>
           {{#if s.rolled.template}}<span class="acks-extras-frame__row-line">{{s.rolled.template}}</span>{{/if}}
         </span>
-        <span class="acks-extras-frame__row-value acks-nums">{{s.rolled.classLevel}}</span>
+        <span class="acks-extras-frame__row-value acks-nums" data-tooltip-text="{{s.rolled.rolledTip}}">{{s.rolled.classLevel}}</span>
       </div>
       {{/if}}
     </div>

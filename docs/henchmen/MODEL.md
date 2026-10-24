@@ -375,8 +375,18 @@ only while `system.retainer.enabled` ([../character-sheet/MODEL.md](../character
 "The tabs"), and the foot of the monster sheet's Service tab while the actor
 serves ([../monsters/MODEL.md](../monsters/MODEL.md), "The tabs"). Standing
 holds the loyalty score with its parts (start, permanents, Charisma, powers)
-and the morale score, each a roll row the sheet's own `roll` action throws
-and a pin for the folded bar; a calamity still owing its throw
+and the morale score with its parts (base, permanents, the employer's
+`moraleBase` powers — `employerMoraleBase`, the same figure
+`effectiveMoraleFor` adds), each a roll row the sheet's own `roll` action
+throws and a pin for the folded bar; the Judge's **Obedience** row reads the
+morale score, which is what `openObedienceRoll` throws on. Every figure on the
+panel names its source in a tooltip (`.claude/rules/ui-tooltips.md`): a score
+its parts and the page, held at the score's range where that cut the sum; the
+wage whether it was agreed at hire, set on the sheet, or read off the wage
+table at the hireling's level with the page that table was imported from
+(`henchmanWageCite`, lib `citeOf`), or what is missing; the shares whether
+the record states them (`sharesDefaulted`); the counters and recorded rolls
+that the record keeps them. A calamity still owing its throw
 (`special.pendingCalamity`) puts a warning row first, badges the tab, dots
 the band's in-service chip and, through the lib's `FOLLOWER_CARD_HOOK`
 (`module.mjs`), dots the follower's name on the employer's compact card
