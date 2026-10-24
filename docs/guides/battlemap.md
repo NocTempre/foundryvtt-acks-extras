@@ -149,19 +149,19 @@ token and survives rescales.
 ## Painting the country
 
 The group's **Country brush** tool arms a brush on a hex-gridded map and opens
-its palette. Three pills at the palette's head pick what the brush paints:
+its palette. Two pills at the palette's head pick what the brush paints:
 
 - **Terrain** — one swatch per kind of country the encounter tables know: the
   forests, hills, mountains, scrublands and swamps at the grain the book prints
   them, with any further kind your imported travel tables name. Each kind
   becomes a tinted region everyone can see.
 - **Territory** — civilized, borderlands, outlands or unsettled.
-- **Climate** — the climates under their group names.
 
-Click or drag to paint hexes. Each of the three holds one value per hex, and
-painting over replaces it; a hex can be a forest, borderlands and a climate at
-once. The eraser clears the hex on the pill you are on and leaves the other two
-alone. Territory and climate are drawn for you alone.
+Click or drag to paint hexes. Each pill holds one value per hex, and painting
+over replaces it; a hex can be a forest and borderlands at once. The eraser
+clears the hex on the pill you are on and leaves the other alone. Territory is
+drawn for you alone. A stroke paints only the map: dragging across a window in
+front of it paints nothing behind the window.
 
 ![](../releases/v11.4.0/battlemap-country-brush.png)
 
@@ -169,9 +169,15 @@ alone. Territory and climate are drawn for you alone.
 eraser.*
 
 A hex nobody painted reads as the scene's own country. The Battlemap window
-has **Ground here**, **Territory here** and **Climate here** for it — for a map
-that is one country throughout, or that is not a hex map at all — and each is
-saved the moment you pick it.
+has **Ground here** and **Territory here** for it — for a map that is one
+country throughout, or that is not a hex map at all — and **Climate of this
+map**, the climate every hex of the map shares. Each is saved the moment you
+pick it.
+
+A map painted with climates hex by hex, as the brush once allowed, takes the
+climate most of its hexes held the first time you open it where it names no
+climate of its own, and a notification says which. Its old climate regions
+stay in the Regions tab, read by nothing, for you to delete.
 
 ![](../releases/v11.4.0/battlemap-scene-country.png)
 

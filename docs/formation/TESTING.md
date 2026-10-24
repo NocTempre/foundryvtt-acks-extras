@@ -2374,7 +2374,7 @@ RollTable for Tweaks to pick. Read each seat's
    | Country | no field (the cards are readings); `clearOverride` on a card whose chip reads override; `paintThisHex` on a card whose layer the party's hex has not painted (since phase 2a, below) |
    | Points of interest | `hexStock`; once stocked `hexAddPoint`, `hexClear` and, while the hex can be surveyed, `hexSurvey`; per point `hexFound`, `hexPlace` (or `openPlace` once placed) and `hexRemovePoint`; `travel.camp.present`, `travel.camp.target` |
    | Movement | `travel.movement.mode`; while flying `travel.movement.hoursAloft`, `travel.movement.dayHours`, `travel.movement.load` |
-   | Sky | `travel.weather.season`, `.auto`, `.fronts`, `.temperature`, `.precipitation`, `.wind`, `.footingMud`, `.footingSnow`; `travelWeatherRoll`; on the climate card, `clearOverride` while climate is overridden and `paintThisHex` where the climate layer is unpainted |
+   | Sky | `travel.weather.season`, `.auto`, `.fronts`, `.temperature`, `.precipitation`, `.wind`, `.footingMud`, `.footingSnow`; `travelWeatherRoll`; on the climate card, `clearOverride` while climate is overridden |
    | Day | `travel.day.kind`, `travel.day.slot.<n>` (one per slot), `travel.hour`, `travel.day.traps`, `travel.day.noSleep` |
    | Camp | `travel.exposure.hours`, `.atHeatSource`, `.wet`; `travel.camp.steal`, `.water`, `.sleepInArmour` |
    | Judge tab, The episode | `lostBegin` (by state `lostDiscover`, `lostReanchor`, `lostEnd`), `travel.lostNote` |
@@ -2483,8 +2483,8 @@ a gesture makes, read back by the id it returns:
   and D, picked by offset and read as points with
   `scene.grid.getCenterPoint({i, j})`, so every drag below crosses one hex;
 - through `acksExtras.battlemap.terrain.paintHexAt(scene, point, value,
-  layer)`: hex A painted a forest table on `terrain`, Y on `territory` and a
-  climate on `climate`; hex B a hill table on `terrain` alone; C and D left
+  layer)`: hex A painted a forest table on `terrain` and Y on `territory`;
+  hex B a hill table on `terrain` alone; C and D left
   unpainted. Each call creates or updates a region: list
   `layerRegionsOf(scene, layer)` after the painting and track every region
   id;
@@ -2520,8 +2520,9 @@ off the world while the walk runs. A hand select is
    no chip.
 2. **A drag caches the hex and writes no country key.** Record
    `Object.keys(f.travel)`, then drag into hex A.
-   *Observable:* `travel.map` names hex A with its painted ground and table,
-   Y and the painted climate, each `source` "map"; `following` "none" (the
+   *Observable:* `travel.map` names hex A with its painted ground and table
+   and Y, each `source` "map", and the scene default's climate with `source`
+   "scene"; `following` "none" (the
    scene has a water line, none under A) and `road` null; `Object.keys(f.travel)`
    gained none of `ground`, `encounterTerrain`, `territory`, `road` or
    `following`. No `hexEntered` fired and `travel.day.cadenceCarry` holds one
@@ -2561,8 +2562,8 @@ off the world while the walk runs. A hand select is
    clear: `travel.road` is the default, the card reads the default with no
    chip.
 6. **Paint this hex.** Drag back into hex C and view the second scene. On the
-   GM seat the Ground and Territory cards and the Sky's climate card offer
-   **Paint this hex**; Road and Following do not. Press the Territory card's.
+   GM seat the Ground and Territory cards offer **Paint this hex**; the Sky's
+   climate card, Road and Following do not. Press the Territory card's.
    *Observable:* the party's scene comes into view; the Country brush palette
    opens with its Territory pill pressed (`aria-pressed="true"`) and X, the
    card's value, the armed swatch; no region changed (`layerRegionsOf(scene,
@@ -2576,7 +2577,7 @@ off the world while the walk runs. A hand select is
    *Observable:* within two seconds `travel.map.territory` reads X with
    `source.territory` "map" where it read "scene" — written by the refresh,
    not a drag — and the Territory card lost its paint chip. Paint hex C's
-   terrain and climate in quick succession from the console: ONE counted
+   terrain and territory in quick succession from the console: ONE counted
    write, after which `travel.map` carries both. Paint hex B (the token is not
    on it): no write. Change the scene default's ground
    (`writeSceneSetup(scene, {country: {...sceneCountry(scene), ground:

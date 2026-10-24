@@ -95,6 +95,58 @@ export function sceneCountry(scene) {
 }
 
 /**
+ * The region flags a climate painted hex by hex is held under: the code, and
+ * its cells as offset keys. The brush paints no climate, and nothing reads
+ * these as country; only the fold below reads them.
+ */
+const PAINTED_CLIMATE = Object.freeze({ flag: "climate", hexesFlag: "climateHexes" });
+
+/**
+ * The climate a scene's painted climate regions hold the most hexes of, and
+ * how many such regions it has. A tie goes to the code `CLIMATES` lists first;
+ * a code the module does not know counts as a region and never wins.
+ * @returns {{climate: string|null, regions: number}}
+ */
+export function paintedClimateOf(scene) {
+  const counts = new Map();
+  let regions = 0;
+  for (const region of scene?.regions ?? []) {
+    const code = region.getFlag?.(MODULE_ID, PAINTED_CLIMATE.flag);
+    if (!code) continue;
+    regions++;
+    if (!Object.hasOwn(CLIMATES, code)) continue;
+    const cells = region.getFlag(MODULE_ID, PAINTED_CLIMATE.hexesFlag) ?? [];
+    counts.set(code, (counts.get(code) ?? 0) + cells.length);
+  }
+  let climate = null;
+  for (const code of Object.keys(CLIMATES)) {
+    if ((counts.get(code) ?? 0) > (counts.get(climate) ?? 0)) climate = code;
+  }
+  return { climate, regions };
+}
+
+/**
+ * Fold a scene's painted climate into the map's climate, once. Where the
+ * scene holds painted climate regions and says no climate of its own, the
+ * climate they hold the most hexes of becomes it; the regions are left as
+ * they are. A scene that held any is marked `climateFolded` and never folded
+ * again, so a climate the Judge clears afterwards stays cleared.
+ * @returns {Promise<string|null>} the climate written, or null where none was
+ */
+export async function foldPaintedClimate(scene) {
+  const record = scene?.getFlag?.(MODULE_ID, FLAG_BATTLEMAP) ?? {};
+  if (record.climateFolded) return null;
+  const { climate, regions } = paintedClimateOf(scene);
+  if (!regions) return null;
+  const write = !sceneCountry(scene).climate && climate ? climate : null;
+  await writeSceneSetup(scene, {
+    climateFolded: true,
+    ...(write ? { country: { ...(record.country ?? {}), climate: write } } : {}),
+  });
+  return write;
+}
+
+/**
  * Merge a patch into the map's incident record, leaving the rest of the setup
  * record as it was. Blank, zero and junk clear a figure rather than storing it.
  */

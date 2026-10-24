@@ -10,10 +10,10 @@
  * by the battlemap control group's terrain tool, a screen-space pointer
  * catcher (capture.mjs's pattern) turning clicks and drags into cell writes.
  *
- * Terrain is one LAYER of a registry (`registerPaintLayer`): territory and
- * climate are painted the same way into regions of their own, under flags of
- * their own, one value per hex per layer, and a feature adds a layer of its
- * own by registering it. The terrain names below keep their meaning; each
+ * Terrain is one LAYER of a registry (`registerPaintLayer`): territory is
+ * painted the same way into regions of its own, under flags of its own, one
+ * value per hex per layer, and a feature adds a layer of its own by
+ * registering it. The climate is no layer: it is the map's, never a hex's. The terrain names below keep their meaning; each
  * layer-aware form takes a trailing `layer`, "terrain" by default.
  *
  * See docs/battlemap/DECISIONS.md, "Terrain paints as regions, and the
@@ -34,8 +34,8 @@ export const HEXES_FLAG = "terrainHexes";
  * pair of region flags (the value a region paints, and its painted cells as
  * offset keys) and the functions that say what its brush may lay down. A hex
  * holds one value per layer, and a layer's write never touches another's
- * regions: a terrain, a territory and a climate answer different questions
- * about the same hex.
+ * regions: a terrain and a territory answer different questions about the
+ * same hex.
  */
 const layers = new Map();
 
@@ -248,6 +248,11 @@ export function climateColorFor(code) {
   return lighten(base, (kin.indexOf(code) / kin.length) * 0.5);
 }
 
+/** A climate's label, its code and name as the sheet's climate select reads; a code the module does not know reads as itself. */
+export function climateLabelFor(code) {
+  return CLIMATES[code] ? `${code} — ${game.i18n.localize(CLIMATES[code].label)}` : String(code ?? "");
+}
+
 /** Every value a layer's brush may lay down: its registered `values()`, or none for a layer the brush does not know. */
 export function paintableValues(layer = "terrain") {
   return Array.from(layerSpec(layer)?.values() ?? []);
@@ -263,11 +268,9 @@ export function layerLabelFor(key, layer = "terrain") {
   return (layerSpec(layer)?.label ?? labelFor)(key);
 }
 
-// The three layers the country is read in. Terrain is the map everyone sees;
-// territory and climate are the Judge's bookkeeping, drawn for a GM only. A
-// territory is named by the strings the party sheet already names it by, and a
-// climate by its code and name as the sheet's climate select reads, grouped as
-// that select groups them.
+// The two layers the country is painted in. Terrain is the map everyone sees;
+// territory is the Judge's bookkeeping, drawn for a GM only, and named by the
+// strings the party sheet already names it by.
 registerPaintLayer({
   key: "terrain",
   flag: TERRAIN_FLAG,
@@ -285,19 +288,6 @@ registerPaintLayer({
   values: () => [...TERRITORY_KEYS],
   label: (key) => (TERRITORY_KEYS.includes(key) ? game.i18n.localize(`ACKS-FORMATION.travel.territory.${key}`) : String(key ?? "")),
   color: (key) => TERRITORY_COLORS[key] ?? colorFor(key),
-});
-
-registerPaintLayer({
-  key: "climate",
-  flag: "climate",
-  hexesFlag: "climateHexes",
-  values: () => Object.keys(CLIMATES),
-  label: (key) => (CLIMATES[key] ? `${key} — ${game.i18n.localize(CLIMATES[key].label)}` : String(key ?? "")),
-  color: climateColorFor,
-  groups: {
-    of: (key) => CLIMATES[key].group,
-    label: (group) => game.i18n.localize(`ACKS-FORMATION.travel.weather.climateGroup.${group}`),
-  },
 });
 
 /* -------------------------------------------------------------------- */
@@ -430,8 +420,7 @@ async function eraseHexEverywhere(scene, key, { except = null, layer = "terrain"
  * layer, when `value` is null). One value per hex per layer; the region is
  * created on first use and tinted. A region is visible to everyone where its
  * layer is registered `visible` (a hex map's terrain is the map) and drawn for
- * a GM only where it is not (a territory or a climate is the Judge's
- * bookkeeping).
+ * a GM only where it is not (a territory is the Judge's bookkeeping).
  */
 export async function paintHexAt(scene, point, value, layer = "terrain") {
   const spec = layerSpec(layer);

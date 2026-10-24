@@ -49,7 +49,8 @@ import { compassBetween, compassPad } from "./plate.mjs";
 import { cadenceOf } from "./march.mjs";
 import { cadenceMilesFor } from "./encounter-card.mjs";
 import {
-  colorFor, hexLabelFromOffset, isHexScene, labelFor, layerColorFor, layerLabelFor, layerValueAt, paintableValues,
+  climateColorFor, climateLabelFor, colorFor, hexLabelFromOffset, isHexScene, labelFor, layerColorFor, layerLabelFor,
+  layerValueAt, paintableValues,
 } from "../battlemap/terrain-paint.mjs";
 import { COUNTRY_KEYS } from "../battlemap/country.mjs";
 import { ROAD_TINT, WATER_TINT } from "../battlemap/road-markers.mjs";
@@ -1482,19 +1483,21 @@ function countryLabel(key, value) {
   if (key === "encounterTerrain") {
     return ENCOUNTER_TERRAINS[value] ? game.i18n.localize(ENCOUNTER_TERRAINS[value].label) : labelFor(value);
   }
-  if (key === "climate" || key === "territory") return layerLabelFor(value, key);
+  if (key === "climate") return climateLabelFor(value);
+  if (key === "territory") return layerLabelFor(value, key);
   return game.i18n.localize(`ACKS-FORMATION.travel.${key}.${value}`);
 }
 
 /**
- * The colour a card's swatch is painted in: the brush's for a ground, a
- * territory or a climate (a ground in the colour of the encounter terrain it
- * stands for, where that one is on it), the overlay's for a road or a river,
- * and none where the party is on neither.
+ * The colour a card's swatch is painted in: the brush's for a ground or a
+ * territory (a ground in the colour of the encounter terrain it stands for,
+ * where that one is on it), the climate's own, the overlay's for a road or a
+ * river, and none where the party is on neither.
  */
 function countrySwatch(key, value, t) {
   if (key === "ground") return colorFor(ENCOUNTER_TERRAINS[t.encounterTerrain]?.ground === value ? t.encounterTerrain : value);
-  if (key === "territory" || key === "climate") return value ? layerColorFor(value, key) : null;
+  if (key === "territory") return value ? layerColorFor(value, key) : null;
+  if (key === "climate") return value ? climateColorFor(value) : null;
   if (key === "road") return value && value !== "none" ? cssTint(ROAD_TINT[value] ?? ROAD_TINT.earth) : null;
   if (key === "following") return value === "river" ? cssTint(WATER_TINT.river) : null;
   return null;
@@ -1523,7 +1526,7 @@ function paintBrushFor(layer, key, t) {
   const values = paintableValues(layer);
   const held = key === "ground"
     ? [t.encounterTerrain, t.ground, encounterTerrainFor(t.ground)]
-    : [key === "climate" ? t.weather.climate : t[key]];
+    : [t[key]];
   return held.find((v) => v && values.includes(v)) ?? "";
 }
 
@@ -1572,7 +1575,8 @@ function buildCountryView(formation, t, { judge = !!game.user?.isGM } = {}) {
   const table = Object.hasOwn(ENCOUNTER_TERRAINS, drawn.encounterTerrain) ? drawn.encounterTerrain : encounterTerrainFor(drawn.ground);
   return {
     cards: COUNTRY_CARDS.map(card),
-    climate: card({ key: "climate", label: "ACKS-FORMATION.travel.weather.climate", layer: "climate" }),
+    // The climate is the map's setting, never a hex's, so its card has no brush.
+    climate: card({ key: "climate", label: "ACKS-FORMATION.travel.weather.climate", layer: null }),
     encountersDrawOn: table ? game.i18n.localize(ENCOUNTER_TERRAINS[table].label) : null,
   };
 }

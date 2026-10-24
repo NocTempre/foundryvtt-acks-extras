@@ -817,6 +817,9 @@ stayed where the Judge last set it.
 - A square or gridless map has no painted layers; its default speaks for the
   whole map.
 
+**Superseded in part, 2026-10-24** (*The climate is the map's*, below): the
+climate left the brush, and a map's climate is its scene default alone.
+
 ## 2026-10-17 — The country brush's layers are a registry
 
 **Evidence.** The domains feature's automation wave (ruled 2026-10-17) paints a
@@ -888,4 +891,51 @@ board, and a release ends the stroke.
 
 **Cost.** A stroke dragged off the board and back leaves the hexes it crossed
 under the window unpainted, which is where the Judge could not see them.
+
+## 2026-10-24 — The climate is the map's
+
+Supersedes the climate half of 2026-10-15, *The country brush paints three
+layers*.
+
+**Evidence.**
+- The owner's report: the layers paint over each other. Core draws every
+  Region as a hatched fill at half alpha, so a hex painted a terrain, a
+  territory and a climate carried three hatches and none of them read.
+- The book rolls the weather per weather hex, larger than the regional hex a
+  map is painted in (JJ Ch2 "Weather"): the climate does not change at the
+  map's grain, so a layer for it was the wrong shape, not only the wrong
+  drawing.
+- The owner's ruling on the map-layers audit (Q5a): the weather is a map-wide
+  setting; the climate most painted becomes the setting of a map that says
+  none, and the painted regions are left inert.
+
+**Ruled.**
+- **No climate layer.** The brush registers terrain and territory; `countryAt`
+  reads the climate from the scene default alone; the party sheet's climate
+  card offers no Paint this hex.
+- **A map painted with climates is folded once**, the first time a GM's client
+  draws it (`foldPaintedClimate`, MODEL "A map painted with climates"): the
+  climate most of its hexes hold becomes the scene default where the map says
+  none, `climateFolded` marks the record either way, and a notification names
+  the climate taken. The viewing GM writes it.
+- **The painted regions stay**, read by nothing; the notification says they may
+  be deleted.
+- `climateLabelFor` and `climateColorFor` stay with the module's palette in
+  `terrain-paint.mjs`, for the window's select and the sheet's card.
+
+**Rejected.**
+- *Keeping the layer and drawing it some other way*: the overlap was the
+  symptom, and the climate does not vary at the map's grain.
+- *Deleting the painted regions in the fold*: a delete of the Judge's documents
+  on a view, with no undo, to save regions that cost nothing once unread.
+- *Folding on the active GM's client*: `canvasReady` fires only on the client
+  drawing the map, so a map an assistant GM alone opened would never fold.
+- *Folding on every view*: a climate the Judge cleared would come back.
+
+**Cost.**
+- A map that spans two climates says one; the party sheet's climate override
+  answers for the other.
+- An old map keeps its painted climate regions, GM-only and hatched, until the
+  Judge deletes them.
+- Until a GM opens an old map, its climate reads unsaid.
 

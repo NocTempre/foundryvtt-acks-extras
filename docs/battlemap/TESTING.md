@@ -462,7 +462,7 @@ it is the one thing here a sweep cannot delete.
 Fixtures, each made through the capture driver's ledger (`api.create`, or
 `api.track` for what a tool made) and swept by its ids: a disposable
 HEX-gridded scene and a disposable square-gridded scene, both with a scale in
-miles. Nothing else: every read here is `countryAt` over the scene document,
+miles, and step 10's two more hex scenes. Nothing else: every read here is `countryAt` over the scene document,
 and the party's half is `docs/formation/TESTING.md`, "The country".
 
 **Drive mechanics.** View the hex scene first, as for terrain painting. The
@@ -487,15 +487,16 @@ bubbling `change`.
    One region per territory value appears, flagged `territory` and
    `territoryHexes`, with `visibility` 1 (GAMEMASTER): a player seat sees no
    territory drawn. The terrain region of the third hex still lists that hex.
-2. Press the **Climate** pill and paint the same third hex.
-   *Observable:* the climates are grouped under their group names; one climate
-   region, flagged `climate` and `climateHexes`, GM-only. `layerValueAt` reads
-   the hex's terrain, territory and climate apart.
+2. Look for a **Climate** pill, and paint the third hex with a climate from
+   the console (`paintHexAt(scene, point, <a climate code>, "climate")`).
+   *Observable:* the pills are Terrain and Territory alone, the Territory pill
+   still pressed; the call returns false and no region flagged `climate`
+   appears.
 3. On the Territory pill, erase the third hex; then paint the first hex with
    the second territory.
-   *Observable:* the erase removes the territory alone — terrain and climate
-   stay; the repaint moves the hex between territory regions, and a region
-   left with no hex is deleted.
+   *Observable:* the erase removes the territory alone — the terrain stays;
+   the repaint moves the hex between territory regions, and a region left with
+   no hex is deleted.
 4. Press the **River** preset in the Battlemap group and drag a line across two
    hexes; press **Coastline** and drag another.
    *Observable:* the notification names what is armed; core's wall preset holds
@@ -518,11 +519,11 @@ bubbling `change`.
    `sceneCountry(scene)` returns them; setting a select back to "Not said"
    clears its key.
 7. Read the country back from the console with `countryAt(scene, point)` at the
-   centres of: the hex painted on all three layers; an unpainted hex well off
+   centres of: the hex painted on both layers; an unpainted hex well off
    both lines; a hex the river crosses; a hex the coast crosses.
    *Observable:* the painted hex answers its painted terrain's ground and
-   table, its territory and its climate, each with `source.<key>` "map"; the
-   unpainted hex answers the scene default's three with "scene", `following`
+   table and its territory, each with `source.<key>` "map", and the scene
+   default's climate with "scene"; the unpainted hex answers the scene default's three with "scene", `following`
    "none" with "map" (the scene has water lines), and `road` null with
    `source.road` null (no road is drawn here — a road's reading is the Roads
    recipe above); the river hex answers `following` "river" and `water`
@@ -535,26 +536,40 @@ bubbling `change`.
    *Observable:* the hex-only warning, once per stroke, and no region; the
    ground reads the default with `source.ground` "scene", and the unset
    territory and climate read null with a null source.
-9. Register a fourth layer from the console. `registerPaintLayer` is not on
+9. Register a third layer from the console. `registerPaintLayer` is not on
    the API; take it from the loaded module with `const tp = await
    import("/modules/acks-extras/scripts/battlemap/terrain-paint.mjs")` (the
    same instance the module runs), then register a throwaway layer with its
    own two flags, a `values()` over a variable you hold and a `title`.
    Keep its returned handle. With the variable empty, open the Country brush.
-   *Observable:* only the three pills show. Fill the variable and re-render
+   *Observable:* only the two pills show. Fill the variable and re-render
    the palette (`foundry.applications.instances.get("acks-extras-terrain-palette").render()`):
-   a fourth pill appears under its own title; pressing it lists the values as
+   a third pill appears under its own title; pressing it lists the values as
    swatches, grouped where `groups` was given, and a swatch arms the brush on
    the layer. Click a hex of the hex scene by a real pointer event: one region,
    flagged with the layer's two flags, `visibility` 1 (2 where `visible` was
-   set), and the other three layers read nothing at that hex; the eraser takes
+   set), and the other two layers read nothing at that hex; the eraser takes
    it out again. A second registration of a key already held throws. Call the
    handle: the pill goes, the brush returns to terrain, and the region stays in
    the scene, read by nothing (`layerRegionsOf` answers empty for the key; count
    the scene's regions by the flag to see it). The registration lives in the
    page alone and goes with a reload.
+10. Build two more hex scenes in the shape a map painted before the climate
+    was the map's: on the first, GM-only regions flagged `climate` and
+    `climateHexes`, one climate on two hexes and a second on one, and no
+    climate of its own; on the second, one such region and a scene default
+    climate. Make each region with `scene.createEmbeddedDocuments("Region",
+    …)` (the brush can no longer write one) and track its id. View the
+    first as a GM.
+    *Observable:* its setup record's climate is the one painted on two hexes,
+    `climateFolded` is true, and a notification names that climate; its two
+    regions stay, and `countryAt` at the hex painted the second climate
+    answers the map's with `source.climate` "scene". Clear the climate in the
+    record, view another scene and view this one again: the climate stays
+    cleared and nothing is said. View the second scene: its own climate
+    stands, `climateFolded` is true, and nothing is said.
 
 Teardown: `api.sweepTracked()` — the two scenes take their regions and walls
-with them — and quote its result. The wall preset is client state: arm core's
+with them, as do step 10's two — and quote its result. The wall preset is client state: arm core's
 ordinary wall once more if the run left a water preset armed, so this seat's
 next wall is not a river.

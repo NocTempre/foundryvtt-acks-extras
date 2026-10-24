@@ -1,6 +1,6 @@
 /**
  * Live walk, battlemap. Recipes walked:
- *   docs/battlemap/TESTING.md  "The country's layers and water" 1-8, and the changed
+ *   docs/battlemap/TESTING.md  "The country's layers and water" 1-8 and 10, and the changed
  *                              step 1 of "Terrain painting"                       (part "layers")
  *   docs/formation/TESTING.md  "The country" 1-9, then on the same fixtures the changed
  *                              steps 5-7 of battlemap "Terrain painting" and step 12
@@ -35,8 +35,8 @@ const CELL = 100;
 const MILES = 7; // invented cell width, equal to the invented cadence figure for X
 const X = "outlands"; // cadence = one cell  -> "grid"
 const Y = "unsettled"; // cadence = two cells -> "miles", one cell carried
-const CLIMATE_A = "Csa"; // painted
-const CLIMATE_SCENE = "BSk"; // the scene default's
+const CLIMATE_A = "Csa"; // a map's own, and the one a map painted with climates folds into
+const CLIMATE_SCENE = "BSk"; // the scene default's, and the fold's loser
 const TARGET = 11; // invented navigation target; the dice are rigged to a natural 20 for the country walk
 const SHOT_DIR = shotDir();
 
@@ -287,14 +287,42 @@ const P = {
   },
 
   /** Two layers painted on one hex in quick succession (one debounce burst). */
-  paintTwo: async ({ sceneId, point, terrain, climate }) => {
+  paintTwo: async ({ sceneId, point, terrain, territory }) => {
     const H = globalThis.__rb;
     const scene = game.scenes.get(sceneId);
     const r = await Promise.all([
       H.B.terrain.paintHexAt(scene, point, terrain, "terrain"),
-      H.B.terrain.paintHexAt(scene, point, climate, "climate"),
+      H.B.terrain.paintHexAt(scene, point, territory, "territory"),
     ]);
-    return { ok: r, terrain: H.B.terrain.layerValueAt(scene, point, "terrain"), climate: H.B.terrain.layerValueAt(scene, point, "climate") };
+    return { ok: r, terrain: H.B.terrain.layerValueAt(scene, point, "terrain"), territory: H.B.terrain.layerValueAt(scene, point, "territory") };
+  },
+
+  /** A climate painted on a hex as the brush wrote one before the climate was the map's: a GM-only region, flagged `climate` and `climateHexes`. */
+  paintedClimate: async ({ sceneId, offsets, value }) => {
+    const H = globalThis.__rb;
+    const scene = game.scenes.get(sceneId);
+    const [made] = await scene.createEmbeddedDocuments("Region", [{
+      name: `QA painted climate ${value}`, color: "#4a8a3c", visibility: CONST.REGION_VISIBILITY?.GAMEMASTER ?? 1,
+      shapes: offsets.map((o) => ({ type: "polygon", hole: false, points: scene.grid.getVertices(o).flatMap((v) => [v.x, v.y]) })),
+      flags: { "acks-extras": { climate: value, climateHexes: offsets.map((o) => `${o.i}:${o.j}`) } },
+    }]);
+    await H.sleep(300);
+    return { id: made.id, uuid: made.uuid };
+  },
+
+  /** What the fold left on a scene: its setup record's climate and mark, its painted climate regions, and the notifications since the last read. */
+  foldState: async ({ sceneId, offset = null }) => {
+    const H = globalThis.__rb;
+    const scene = game.scenes.get(sceneId);
+    const record = scene.getFlag("acks-extras", "battlemap") ?? {};
+    const at = offset ? H.B.country.countryAt(scene, scene.grid.getCenterPoint(offset)) : null;
+    return {
+      climate: H.B.country.sceneCountry(scene).climate,
+      folded: record.climateFolded === true,
+      regions: scene.regions.filter((r) => !!r.getFlag("acks-extras", "climate")).length,
+      at: at && { climate: at.climate, source: at.source.climate },
+      notes: H.takeNotes().filter((n) => /climate/i.test(n.text)),
+    };
   },
 
   regions: async ({ sceneId, layer }) => {
@@ -310,7 +338,7 @@ const P = {
   layerValues: async ({ sceneId, point }) => {
     const H = globalThis.__rb;
     const scene = game.scenes.get(sceneId);
-    return { terrain: H.B.terrain.layerValueAt(scene, point, "terrain"), territory: H.B.terrain.layerValueAt(scene, point, "territory"), climate: H.B.terrain.layerValueAt(scene, point, "climate") };
+    return { terrain: H.B.terrain.layerValueAt(scene, point, "terrain"), territory: H.B.terrain.layerValueAt(scene, point, "territory") };
   },
 
   waterLine: async ({ sceneId, c, kind = "river" }) => {
@@ -445,7 +473,7 @@ const P = {
     return { found: true, brush: H.m.paint.terrainPaint.brush, layer: H.m.paint.terrainPaint.layer };
   },
 
-  /** A real click on the map at a point; reports what the three layers read there afterwards. */
+  /** A real click on the map at a point; reports what the two layers read there afterwards. */
   clickHex: async ({ sceneId, point }) => {
     const H = globalThis.__rb;
     H.takeNotes();
@@ -455,7 +483,6 @@ const P = {
     return {
       terrain: H.B.terrain.layerValueAt(scene, point, "terrain"),
       territory: H.B.terrain.layerValueAt(scene, point, "territory"),
-      climate: H.B.terrain.layerValueAt(scene, point, "climate"),
       notes: H.takeNotes().filter((n) => n.kind !== "info" || !/^Reading |entries available/.test(n.text)),
       state: { layer: H.m.paint.terrainPaint.layer, brush: H.m.paint.terrainPaint.brush, armedBy: H.m.paint.terrainPaint.armedBy },
     };
@@ -1232,7 +1259,7 @@ async function walkLayers(W) {
   const tracked = new Set();
   const track = async () => {
     let n = 0;
-    for (const layer of ["terrain", "territory", "climate"]) {
+    for (const layer of ["terrain", "territory"]) {
       for (const r of await page(gm, P.regions, { sceneId: hex.id, layer })) {
         if (tracked.has(r.uuid)) continue;
         gm.track(r.uuid, "Region");
@@ -1255,7 +1282,7 @@ async function walkLayers(W) {
   const tv = await page(gm, P.terrainVocab);
   note("terrain vocabulary", tv);
   check("TP1: arming the Country brush disarms calibration (the square mode was armed, now none)", cal.mode === "square" && pal.calibration === null, { before: cal.mode, after: pal.calibration });
-  check("TP1: the palette opens on the Terrain pill, the three pills terrain / territory / climate", pal.palette && pal.pressed === "terrain" && same(pal.pills.map((p) => p.layer), ["terrain", "territory", "climate"]), pal.pills);
+  check("TP1: the palette opens on the Terrain pill, the two pills terrain / territory", pal.palette && pal.pressed === "terrain" && same(pal.pills.map((p) => p.layer), ["terrain", "territory"]), pal.pills);
   check("TP1: one swatch per encounter terrain on a ground (21), no bare ground, no river, imported extras beside them, and the eraser", tv.fine === 21 && tv.fineAll === 21 && tv.rivers.length === 0 && tv.bare.length === 0 && tv.eraser && tv.swatchCount === tv.fine + tv.extras, tv);
   check("TP1: the toolbar shows the brush armed", pal.tool === "terrain" && pal.control === "acksBattlemap" && pal.state.armedBy === "tool" && !!pal.state.brush && !!pal.toolDom && (/\bactive\b/.test(pal.toolDom.cls) || pal.toolDom.pressed === "true"), { tool: pal.tool, control: pal.control, state: pal.state, toolDom: pal.toolDom });
 
@@ -1268,10 +1295,10 @@ async function walkLayers(W) {
   const clickB = await page(gm, P.clickHex, { sceneId: hex.id, point: pt("B") });
   note("click B", clickB);
   check("L1: paintHexAt and a real click both paint a territory", clickB.territory === X, clickB);
-  // The snapshot: the palette with its three pills, the Territory layer armed and X chosen.
+  // The snapshot: the palette with its two pills, the Territory layer armed and X chosen.
   const palNow = await page(gm, P.palette);
   note("placed palette", await page(gm, P.placeApp, { id: "acks-extras-terrain-palette" }));
-  check("shot state: Territory pressed and X the armed swatch", palNow.pressed === "territory" && palNow.armedSwatch === X && palNow.pills.length === 3, { pressed: palNow.pressed, armed: palNow.armedSwatch });
+  check("shot state: Territory pressed and X the armed swatch", palNow.pressed === "territory" && palNow.armedSwatch === X && palNow.pills.length === 2, { pressed: palNow.pressed, armed: palNow.armedSwatch });
   await shot(gm, "battlemap-country-brush", "#acks-extras-terrain-palette");
   note("C terrain (paintHexAt)", await page(gm, P.paintAt, { sceneId: hex.id, point: pt("C"), value: forest, layer: "terrain" }));
   note("C Y (paintHexAt)", await page(gm, P.paintAt, { sceneId: hex.id, point: pt("C"), value: Y, layer: "territory" }));
@@ -1286,23 +1313,20 @@ async function walkLayers(W) {
   note("player canvas", pc);
   check("L1: a player seat sees no territory drawn", pc.viewed && !pc.isGM && pc.regions.every((g) => g.placeable === false || g.visible === false), pc.regions);
 
-  section("layers 2. the Climate pill");
-  pal = await page(gm, P.pickLayer, { layer: "climate" });
-  note("climate pill", { pressed: pal.pressed, groups: pal.groups?.map((g) => ({ label: g.label, n: g.keys.length })), state: pal.state });
-  check("L2: the climates are grouped under their group names", pal.pressed === "climate" && (pal.groups?.length ?? 0) > 1 && pal.groups.every((g) => !!g.label), pal.groups?.map((g) => g.label));
-  note("pick climate", await page(gm, P.pickBrush, { value: CLIMATE_A }));
-  const clickC = await page(gm, P.clickHex, { sceneId: hex.id, point: pt("C") });
-  note("click C", clickC);
-  const clim = await page(gm, P.regions, { sceneId: hex.id, layer: "climate" });
-  note("regions tracked", await track());
-  check("L2: one climate region, flagged climate and climateHexes, GM-only; layerValueAt reads the three layers apart", clim.length === 1 && clim[0].value === CLIMATE_A && clim[0].visibility === 1 && clim[0].hexes.length === 1 && clickC.terrain === forest && clickC.territory === Y && clickC.climate === CLIMATE_A, { clim: clim.map((g) => ({ value: g.value, hexes: g.hexes.length, visibility: g.visibility })), clickC });
+  section("layers 2. no climate on the brush");
+  const climPress = await page(gm, P.pickLayer, { layer: "climate" });
+  pal = await page(gm, P.palette);
+  note("climate pill", { found: climPress.found, pressed: pal.pressed, pills: pal.pills.map((p) => p.layer) });
+  const climPaint = await page(gm, P.paintAt, { sceneId: hex.id, point: pt("C"), value: CLIMATE_A, layer: "climate" });
+  note("climate paintHexAt", climPaint);
+  const climRegions = await page(gm, P.foldState, { sceneId: hex.id });
+  check("L2: no Climate pill to press, the brush paints no climate, and no climate region appears", climPress.found === false && pal.pressed === "territory" && !pal.pills.some((p) => p.layer === "climate") && paintable.climate === 0 && climPaint.ok === false && climRegions.regions === 0, { found: climPress.found, pressed: pal.pressed, paintable: paintable.climate, ok: climPaint.ok, regions: climRegions.regions });
 
   section("layers 3. erase and repaint on the Territory pill");
-  pal = await page(gm, P.pickLayer, { layer: "territory" });
   note("pick erase", await page(gm, P.pickBrush, { value: "erase" }));
   const eraseC = await page(gm, P.clickHex, { sceneId: hex.id, point: pt("C") });
   note("erase C", eraseC);
-  check("L3: the erase removes the territory alone; terrain and climate stay", eraseC.territory === null && eraseC.terrain === forest && eraseC.climate === CLIMATE_A, eraseC);
+  check("L3: the erase removes the territory alone; the terrain stays", eraseC.territory === null && eraseC.terrain === forest, eraseC);
   regs = await page(gm, P.regions, { sceneId: hex.id, layer: "territory" });
   check("L3: a region left with no hex is deleted", regs.length === 1 && regs[0].value === X && regs[0].hexes.length === 2, regs.map((g) => ({ value: g.value, hexes: g.hexes.length })));
   note("pick Y", await page(gm, P.pickBrush, { value: Y }));
@@ -1391,8 +1415,8 @@ async function walkLayers(W) {
   note("scene default", await page(gm, P.sceneDefault, { sceneId: hex.id, country: { ground: "scrubland", territory: X, climate: CLIMATE_A } }));
   const at = (k, extra = {}) => page(gm, P.countryAt, { sceneId: hex.id, point: pt(k), ...extra });
   const cC = await at("C");
-  note("C (all three layers)", cC);
-  check("L7: the painted hex answers its terrain's ground and table, its territory and its climate, each sourced map", cC.ground === "forest" && cC.encounterTerrain === forest && cC.territory === X && cC.climate === CLIMATE_A && ["ground", "encounterTerrain", "territory", "climate"].every((k) => cC.source[k] === "map"), cC);
+  note("C (both layers)", cC);
+  check("L7: the painted hex answers its terrain's ground and table and its territory, each sourced map, and the map's climate sourced scene", cC.ground === "forest" && cC.encounterTerrain === forest && cC.territory === X && cC.climate === CLIMATE_A && ["ground", "encounterTerrain", "territory"].every((k) => cC.source[k] === "map") && cC.source.climate === "scene", cC);
   const far = await at("F");
   note("F (unpainted, off both lines)", far);
   check("L7: the unpainted hex answers the scene default's three with scene, following none with map, road null with null", far.ground === "scrubland" && far.territory === X && far.climate === CLIMATE_A && far.source.ground === "scene" && far.source.territory === "scene" && far.source.climate === "scene" && far.following === "none" && far.source.following === "map" && far.road === null && far.source.road === null, far);
@@ -1424,6 +1448,33 @@ async function walkLayers(W) {
   note("square countryAt", sqAt);
   check("L8: the ground reads the default with source scene; territory and climate null with a null source", sq.flagCountry?.ground === "grassland" && sqAt.ground === "grassland" && sqAt.source.ground === "scene" && sqAt.territory === null && sqAt.source.territory === null && sqAt.climate === null && sqAt.source.climate === null, sqAt);
   note("palette closed", await page(gm, P.closePalette));
+
+  section("layers 10. a map painted with climates folds into its one climate");
+  const painted = await gm.create("Scene", sceneData(`QA Layers painted climate ${NONCE}`, { type: 2 }));
+  const declared = await gm.create("Scene", sceneData(`QA Layers declared climate ${NONCE}`, { type: 2 }, { flags: { [MOD]: { battlemap: { country: { climate: CLIMATE_SCENE } } } } }));
+  for (const [sceneId, offsets, value] of [
+    [painted.id, [{ i: 5, j: 5 }, { i: 5, j: 6 }], CLIMATE_A],
+    [painted.id, [{ i: 6, j: 5 }], CLIMATE_SCENE],
+    [declared.id, [{ i: 5, j: 5 }], CLIMATE_A],
+  ]) {
+    const made = await page(gm, P.paintedClimate, { sceneId, offsets, value });
+    gm.track(made.uuid, "Region");
+  }
+  const f0 = await page(gm, P.foldState, { sceneId: painted.id });
+  check("fixture: the painted map holds two climate regions, no climate of its own, and is not folded", f0.regions === 2 && f0.climate === null && !f0.folded, f0);
+  note("painted map viewed", await page(gm, P.viewScene, painted.id));
+  const f1 = await page(gm, P.foldState, { sceneId: painted.id, offset: { i: 6, j: 5 } });
+  note("fold", f1);
+  check("L10: on first view the map takes the climate most of its hexes were painted, is marked folded, and says which", f1.climate === CLIMATE_A && f1.folded && f1.notes.length === 1 && f1.notes[0].text.includes(CLIMATE_A), f1);
+  check("L10: the painted regions stay and nothing reads them: a hex painted the other climate answers the map's, sourced scene", f1.regions === 2 && f1.at?.climate === CLIMATE_A && f1.at?.source === "scene", f1.at);
+  note("climate cleared", await page(gm, P.sceneDefault, { sceneId: painted.id, country: {} }));
+  note("square viewed", await page(gm, P.viewScene, square.id));
+  note("painted map viewed again", await page(gm, P.viewScene, painted.id));
+  const f2 = await page(gm, P.foldState, { sceneId: painted.id });
+  check("L10: a map is folded once: the climate cleared after the fold stays cleared, and nothing is said", f2.climate === null && f2.folded && f2.notes.length === 0, f2);
+  note("declared map viewed", await page(gm, P.viewScene, declared.id));
+  const f3 = await page(gm, P.foldState, { sceneId: declared.id });
+  check("L10: a map that says its own climate keeps it, is marked folded, and nothing is said", f3.climate === CLIMATE_SCENE && f3.folded && f3.notes.length === 0, f3);
 }
 
 /* ------------------------------------------------------------------ */
@@ -1477,12 +1528,11 @@ async function walkCountry(W) {
   check("fixture: the brush offers a forest table and a hill table", !!forest && !!hill, { forest, hill, terrains: paintable.terrain.length });
   note("A terrain", await page(gm, P.paintAt, { sceneId: hexScene.id, point: pt("A"), value: forest, layer: "terrain" }));
   note("A territory", await page(gm, P.paintAt, { sceneId: hexScene.id, point: pt("A"), value: Y, layer: "territory" }));
-  note("A climate", await page(gm, P.paintAt, { sceneId: hexScene.id, point: pt("A"), value: CLIMATE_A, layer: "climate" }));
   note("B terrain", await page(gm, P.paintAt, { sceneId: hexScene.id, point: pt("B"), value: hill, layer: "terrain" }));
   const tracked = new Set();
   const trackRegions = async () => {
     let n = 0;
-    for (const layer of ["terrain", "territory", "climate"]) {
+    for (const layer of ["terrain", "territory"]) {
       for (const r of await page(gm, P.regions, { sceneId: hexScene.id, layer })) {
         if (tracked.has(r.uuid)) continue;
         gm.track(r.uuid, "Region");
@@ -1540,7 +1590,7 @@ async function walkCountry(W) {
   note("drag C->A", d2);
   r = await page(gm, P.record, { fid });
   note("record", { map: r.map, keys: r.keys, day: r.day, provenance: r.provenance, values: r.values, lost: r.lostPhase });
-  check("C2: travel.map names hex A with the painted ground and table, Y and the painted climate, each sourced map", r.map?.i === A.i && r.map?.j === A.j && r.map?.encounterTerrain === forest && r.map?.ground === "forest" && r.map?.territory === Y && r.map?.climate === CLIMATE_A && ["ground", "encounterTerrain", "territory", "climate"].every((k) => r.map?.source?.[k] === "map"), r.map);
+  check("C2: travel.map names hex A with the painted ground and table and Y, each sourced map, and the map's climate sourced scene", r.map?.i === A.i && r.map?.j === A.j && r.map?.encounterTerrain === forest && r.map?.ground === "forest" && r.map?.territory === Y && r.map?.climate === CLIMATE_SCENE && ["ground", "encounterTerrain", "territory"].every((k) => r.map?.source?.[k] === "map") && r.map?.source?.climate === "scene", r.map);
   check("C2: following reads none (the scene has a water line, none under A) and road null", r.map?.following === "none" && r.map?.road === null, { following: r.map?.following, road: r.map?.road });
   const gained = r.keys.filter((k) => !keysBefore.includes(k));
   check("C2: no country key was written to the record", !["ground", "encounterTerrain", "territory", "road", "following"].some((k) => gained.includes(k)), { gained, keys: r.keys });
@@ -1659,7 +1709,7 @@ async function walkCountry(W) {
   s = await page(gm, P.sheet, { partyId: party.id, keep: true });
   note("cards", s.cards.map((c) => ({ key: c.key, paint: c.paint, brush: c.paintBrush })));
   note("sky", s.skyCard);
-  check("C6: Ground, Territory and the Sky's climate offer Paint this hex; Road and Following do not", card("ground")?.paint && card("territory")?.paint && s.skyCard?.paint && !card("road")?.paint && !card("following")?.paint, s.cards.map((c) => ({ key: c.key, paint: c.paint })));
+  check("C6: Ground and Territory offer Paint this hex; the Sky's climate, Road and Following do not", card("ground")?.paint && card("territory")?.paint && !s.skyCard?.paint && !card("road")?.paint && !card("following")?.paint, { cards: s.cards.map((c) => ({ key: c.key, paint: c.paint })), sky: s.skyCard?.paint });
   check("C6: the Territory card's brush is X, the card's value", card("territory")?.paintBrush === X, card("territory"));
   const regionsBefore = await page(gm, P.regions, { sceneId: hexScene.id, layer: "territory" });
   const chip = await page(gm, P.paintChip, { partyId: party.id, key: "territory" });
@@ -1686,11 +1736,11 @@ async function walkCountry(W) {
   s = await page(gm, P.sheet, { partyId: party.id, keep: true });
   check("C7: the Territory card lost its paint chip", card("territory")?.paint === false && card("territory")?.provenance === "map", card("territory"));
   await page(gm, P.resetWatch);
-  const two = await page(gm, P.paintTwo, { sceneId: hexScene.id, point: pt("C"), terrain: hill, climate: CLIMATE_A });
-  note("paint C terrain+climate", two);
+  const two = await page(gm, P.paintTwo, { sceneId: hexScene.id, point: pt("C"), terrain: hill, territory: Y });
+  note("paint C terrain+territory", two);
   const w2 = await page(gm, P.readWatch, { waitMs: 2000 });
   r = await page(gm, P.record, { fid });
-  check("C7: one counted write carries both the terrain and the climate", w2.writes === 1 && r.map?.encounterTerrain === hill && r.map?.ground === "hills" && r.map?.climate === CLIMATE_A && r.map?.source?.climate === "map", { writes: w2.writes, map: r.map });
+  check("C7: one counted write carries both the terrain and the territory", w2.writes === 1 && r.map?.encounterTerrain === hill && r.map?.ground === "hills" && r.map?.territory === Y && r.map?.source?.territory === "map", { writes: w2.writes, map: r.map });
   note("regions tracked", await trackRegions());
   await page(gm, P.resetWatch);
   note("paint B territory", await page(gm, P.paintAt, { sceneId: hexScene.id, point: pt("B"), value: Y, layer: "territory" }));

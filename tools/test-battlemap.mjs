@@ -777,16 +777,18 @@ assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an
 }
 
 /* --- the country's other two layers -----------------------------------------
-   Territory and climate are painted the way terrain is — one value per hex per
-   layer, held as region flags of the layer's own — so the terrain cases are
-   asked of each: what the brush may lay down, its colours and labels, the read
-   of a hex, and a write that never reaches another layer's regions. The scene
-   holds its regions in memory and is written the way documents are. See
-   docs/battlemap/DECISIONS.md, "The country brush paints three layers". */
+   Territory is painted the way terrain is — one value per hex per layer, held
+   as region flags of the layer's own — so the terrain cases are asked of it:
+   what the brush may lay down, its colours and labels, the read of a hex, and
+   a write that never reaches another layer's regions. The climate is the
+   map's and paints no hex. The scene holds its regions in memory and is
+   written the way documents are. See docs/battlemap/DECISIONS.md, "The
+   country brush paints three layers" and "The climate is the map's". */
 {
   const {
     PAINT_LAYERS, TERRITORY_COLORS, paintableValues, layerColorFor, layerLabelFor, layerRegionsOf,
     layerValueAt, paintHexAt, registerPaintLayer, terrainPaint, TerrainPaletteApp, openCountryBrush,
+    climateLabelFor,
   } = await import("../scripts/battlemap/terrain-paint.mjs");
   const { TERRITORY_KEYS } = await import("../scripts/formation/country-keys.mjs");
   const { CLIMATES } = await import("../scripts/formation/weather.mjs");
@@ -797,28 +799,26 @@ assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an
   game.user = { isGM: true };
 
   // What each layer may paint, and the names the sheet already gives them.
-  assert.deepEqual(Object.keys(PAINT_LAYERS), ["terrain", "territory", "climate"]);
+  assert.deepEqual(Object.keys(PAINT_LAYERS), ["terrain", "territory"]);
   const flags = Object.values(PAINT_LAYERS).flatMap((l) => [l.flag, l.hexesFlag]);
   assert.equal(new Set(flags).size, flags.length, "no two layers share a flag");
   assert.deepEqual(PAINT_LAYERS.terrain, { flag: TERRAIN_FLAG, hexesFlag: HEXES_FLAG }, "terrain keeps its flags");
   assert.deepEqual(paintableValues("territory"), [...TERRITORY_KEYS]);
-  assert.deepEqual(paintableValues("climate"), Object.keys(CLIMATES));
+  assert.deepEqual(paintableValues("climate"), [], "the climate is the map's, and the brush paints none");
   assert.deepEqual(paintableValues("terrain"), paintableTerrains());
   assert.deepEqual(paintableValues("water"), [], "a layer the brush does not know paints nothing");
 
-  for (const layer of ["territory", "climate"]) {
-    const values = paintableValues(layer);
-    const colours = values.map((v) => layerColorFor(v, layer));
-    for (const [n, c] of colours.entries()) assert.match(c, /^#[0-9a-f]{6}$/, `${layer} ${values[n]} has a swatch colour`);
-    assert.equal(new Set(colours).size, values.length, `every ${layer} reads apart from every other`);
-  }
+  const territoryColours = TERRITORY_KEYS.map((v) => layerColorFor(v, "territory"));
+  for (const [n, c] of territoryColours.entries()) assert.match(c, /^#[0-9a-f]{6}$/, `territory ${TERRITORY_KEYS[n]} has a swatch colour`);
+  assert.equal(new Set(territoryColours).size, TERRITORY_KEYS.length, "every territory reads apart from every other");
   for (const key of TERRITORY_KEYS) assert.equal(layerColorFor(key, "territory"), TERRITORY_COLORS[key]);
   assert.equal(layerLabelFor("outlands", "territory"), "ACKS-FORMATION.travel.territory.outlands",
     "a territory is named as the sheet names it");
-  assert.equal(layerLabelFor("Csb", "climate"), "Csb — ACKS-FORMATION.travel.weather.climates.Csb",
-    "a climate by its code and its name");
   assert.equal(layerLabelFor("nowhere", "territory"), "nowhere", "an unknown value is shown as itself");
-  assert.equal(layerLabelFor("Q9", "climate"), "Q9");
+  assert.equal(climateLabelFor("Csb"), "Csb — ACKS-FORMATION.travel.weather.climates.Csb",
+    "a climate by its code and its name");
+  assert.equal(climateLabelFor("Q9"), "Q9", "an unknown climate is shown as itself");
+  assert.ok(Object.hasOwn(CLIMATES, "Csb"), "the label's case is a climate the module knows");
 
   let rid = 0;
   /** A hex scene of 100-pixel cells, offset (i, j) = (row, column), its regions held in memory. */
@@ -862,65 +862,57 @@ assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an
 
   assert.equal(await paintHexAt(scene, centre(1, 1), "forestTaiga"), true, "terrain, by default");
   assert.equal(await paintHexAt(scene, centre(1, 1), "outlands", "territory"), true);
-  assert.equal(await paintHexAt(scene, centre(1, 1), "Csb", "climate"), true);
-  assert.deepEqual(values(1, 1), { terrain: "forestTaiga", territory: "outlands", climate: "Csb" },
+  assert.equal(await paintHexAt(scene, centre(1, 1), "Csb", "climate"), false, "a climate paints no hex");
+  assert.deepEqual(values(1, 1), { terrain: "forestTaiga", territory: "outlands" },
     "one hex holds a value on every layer at once");
-  assert.equal(scene.regions.length, 3, "one region per layer value");
+  assert.equal(scene.regions.length, 2, "one region per layer value");
   const visibility = Object.fromEntries(
     Object.keys(PAINT_LAYERS).map((layer) => [layer, layerRegionsOf(scene, layer).map((r) => r.visibility)]));
-  assert.deepEqual(visibility, { terrain: [2], territory: [1], climate: [1] },
-    "the terrain is the map everyone sees; territory and climate are the Judge's bookkeeping");
+  assert.deepEqual(visibility, { terrain: [2], territory: [1] },
+    "the terrain is the map everyone sees; territory is the Judge's bookkeeping");
   assert.equal(layerRegionsOf(scene, "territory")[0].name, "ACKS-FORMATION.travel.territory.outlands",
     "a region is named by its layer's label");
   assert.deepEqual(layerRegionsOf(scene, "water"), [], "a layer the brush does not know has no regions");
 
-  assert.equal(await paintHexAt(scene, centre(1, 2), "Csb", "climate"), true);
-  assert.deepEqual(layerRegionsOf(scene, "climate")[0].getFlag(MODULE_ID, "climateHexes"), ["1:1", "1:2"],
-    "a second hex of the same value joins its region");
-  assert.equal(await paintHexAt(scene, centre(1, 2), "Csb", "climate"), false, "painting it again writes nothing");
-
   assert.equal(await paintHexAt(scene, centre(1, 1), "civilized", "territory"), true);
-  assert.deepEqual(values(1, 1), { terrain: "forestTaiga", territory: "civilized", climate: "Csb" },
-    "a new territory moves the hex out of the old one and leaves the other layers alone");
+  assert.deepEqual(values(1, 1), { terrain: "forestTaiga", territory: "civilized" },
+    "a new territory moves the hex out of the old one and leaves the terrain alone");
   assert.deepEqual(layerRegionsOf(scene, "territory").map((r) => r.getFlag(MODULE_ID, "territory")), ["civilized"],
     "a region left with no hex is deleted");
 
+  assert.equal(await paintHexAt(scene, centre(1, 2), "civilized", "territory"), true);
+  assert.deepEqual(layerRegionsOf(scene, "territory")[0].getFlag(MODULE_ID, "territoryHexes"), ["1:1", "1:2"],
+    "a second hex of the same value joins its region");
+  assert.equal(await paintHexAt(scene, centre(1, 2), "civilized", "territory"), false, "painting it again writes nothing");
+
   assert.equal(await paintHexAt(scene, centre(1, 1), null, "territory"), true);
-  assert.deepEqual(values(1, 1), { terrain: "forestTaiga", territory: null, climate: "Csb" },
+  assert.deepEqual(values(1, 1), { terrain: "forestTaiga", territory: null },
     "erasing a layer erases that layer only");
-  assert.equal(await paintHexAt(scene, centre(1, 1), null, "climate"), true);
-  assert.deepEqual(values(1, 2), { terrain: null, territory: null, climate: "Csb" }, "and that hex only");
+  assert.deepEqual(values(1, 2), { terrain: null, territory: "civilized" }, "and that hex only");
 
   assert.equal(await paintHexAt(scene, centre(2, 2), "forestTaiga", "territory"), false, "a terrain is no territory");
-  assert.equal(await paintHexAt(scene, centre(2, 2), "outlands", "climate"), false, "nor a territory a climate");
+  assert.equal(await paintHexAt(scene, centre(2, 2), "outlands"), false, "nor a territory a terrain");
   assert.equal(await paintHexAt(scene, centre(2, 2), "outlands", "water"), false, "and an unknown layer paints nothing");
   game.user = { isGM: false };
   assert.equal(await paintHexAt(scene, centre(2, 2), "outlands", "territory"), false, "a player paints nothing");
   game.user = { isGM: true };
-  assert.deepEqual(values(2, 2), { terrain: null, territory: null, climate: null });
+  assert.deepEqual(values(2, 2), { terrain: null, territory: null });
 
   const square = { ...scene, grid: { ...scene.grid, type: 1 } };
-  assert.equal(layerValueAt(square, centre(1, 2), "climate"), null, "a square grid is never painted");
+  assert.equal(layerValueAt(square, centre(1, 2), "territory"), null, "a square grid is never painted");
   assert.equal(await paintHexAt(square, centre(3, 3), "outlands", "territory"), false);
 
-  // The registry. A fourth layer joins by registering and nothing else in the
+  // The registry. A third layer joins by registering and nothing else in the
   // file knows its name; the palette is probed through its context, which is
   // what the template renders.
-  const builtIns = ["terrain", "territory", "climate"];
+  const builtIns = ["terrain", "territory"];
   const palette = () => new TerrainPaletteApp()._prepareContext();
   const pillKeys = async () => (await palette()).layers.map((p) => p.key);
 
-  assert.deepEqual(await pillKeys(), builtIns, "the palette offers the three layers");
+  assert.deepEqual(await pillKeys(), builtIns, "the palette offers the two layers");
   assert.deepEqual((await palette()).layers.map((p) => p.label), builtIns.map((k) => `ACKS-BATTLEMAP.terrain.layer.${k}`),
     "each named by the lang key it has always had");
   assert.equal((await palette()).groups.length, 1, "terrain is one ungrouped run of swatches");
-  terrainPaint.setLayer("climate");
-  const grouped = await palette();
-  assert.deepEqual(grouped.groups.map((g) => g.label),
-    [...new Set(Object.values(CLIMATES).map((c) => c.group))].map((g) => `ACKS-FORMATION.travel.weather.climateGroup.${g}`),
-    "the climates are grouped as the sheet groups them");
-  assert.equal(grouped.groups.flatMap((g) => g.swatches).length, Object.keys(CLIMATES).length);
-  terrainPaint.setLayer("terrain");
 
   const demoValues = ["a1", "a2", "b1"];
   const demoLayer = () => ({
@@ -1133,10 +1125,12 @@ assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an
 /* --- the scene's default country --------------------------------------------
    What the Judge said of a map's unpainted country, stored inside the setup
    record. The write merges into that record; the read drops what it does not
-   know. Values below are invented. */
+   know. A map painted with climates hex by hex folds them into its one
+   climate, once. Values below are invented. */
 {
-  const { sceneCountry, writeSceneSetup } = await import("../scripts/battlemap/scene-setup.mjs");
+  const { sceneCountry, writeSceneSetup, paintedClimateOf, foldPaintedClimate } = await import("../scripts/battlemap/scene-setup.mjs");
   const { MODULE_ID } = await import("../scripts/lib/constants.mjs");
+  const { CLIMATES } = await import("../scripts/formation/weather.mjs");
   const flags = {};
   const scene = {
     getFlag: (ns, key) => flags[ns]?.[key],
@@ -1157,6 +1151,43 @@ assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an
     "the ground is any brush value, an imported one included, and an unsaid key reads null");
   await writeSceneSetup(scene, { country: { ground: "", territory: "nowhere", climate: "Q9" } });
   assert.deepEqual(sceneCountry(scene), silent, "a blank or a value the module does not know reads as unsaid");
+
+  const painted = (code, hexes) => ({ getFlag: (_ns, key) => (key === "climate" ? code : key === "climateHexes" ? hexes : undefined) });
+  const mapOf = (regions, country = null) => {
+    const held = { [MODULE_ID]: { battlemap: country ? { country } : {} } };
+    return {
+      regions,
+      held,
+      getFlag: (ns, key) => held[ns]?.[key],
+      setFlag: async (ns, key, value) => { held[ns] = { ...(held[ns] ?? {}), [key]: structuredClone(value) }; },
+    };
+  };
+  assert.deepEqual(paintedClimateOf(mapOf([])), { climate: null, regions: 0 }, "a map with no painted climate holds none");
+  assert.deepEqual(paintedClimateOf(null), { climate: null, regions: 0 });
+  const listedFirst = Object.keys(CLIMATES).find((k) => k === "BSk" || k === "Csb");
+  assert.equal(paintedClimateOf(mapOf([painted("Csb", ["1:1"]), painted("BSk", ["1:2"])])).climate, listedFirst,
+    "a tie goes to the climate the module lists first");
+  assert.deepEqual(
+    paintedClimateOf(mapOf([painted("Csb", ["1:1"]), painted("BSk", ["1:2", "1:3"]), painted("Q9", ["1:4", "1:5", "1:6"])])),
+    { climate: "BSk", regions: 3 }, "the climate most hexes hold wins; an unknown one counts as a region and never wins");
+
+  const folding = mapOf([painted("Csb", ["1:1"]), painted("BSk", ["1:2", "1:3"])], { ground: "forest" });
+  assert.equal(await foldPaintedClimate(folding), "BSk", "a map that says no climate takes its painted one");
+  assert.deepEqual(folding.held[MODULE_ID].battlemap, { country: { ground: "forest", climate: "BSk" }, climateFolded: true },
+    "into the setup record, the rest of the record kept");
+  assert.equal(folding.regions.length, 2, "the painted regions are left as they are");
+  await writeSceneSetup(folding, { country: { ground: "forest" } });
+  assert.equal(await foldPaintedClimate(folding), null, "a map is folded once");
+  assert.equal(sceneCountry(folding).climate, null, "so a climate the Judge clears afterwards stays cleared");
+
+  const declared = mapOf([painted("BSk", ["1:2"])], { climate: "Csb" });
+  assert.equal(await foldPaintedClimate(declared), null, "a map that says its own climate keeps it");
+  assert.equal(sceneCountry(declared).climate, "Csb");
+  assert.equal(declared.held[MODULE_ID].battlemap.climateFolded, true, "and is marked folded all the same");
+
+  const unpainted = mapOf([]);
+  assert.equal(await foldPaintedClimate(unpainted), null);
+  assert.equal(unpainted.held[MODULE_ID].battlemap.climateFolded, undefined, "a map with no painted climate is never written");
 }
 
 /* --- the country under a point ----------------------------------------------
@@ -1216,15 +1247,16 @@ assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an
   const all = (source) => Object.fromEntries(COUNTRY_KEYS.map((k) => [k, source]));
   let at = read(scene, 1, 1);
   assert.deepEqual(at.values, {
-    ground: "forest", encounterTerrain: "forestTaiga", territory: "outlands", climate: "Csb", road: "paved", following: "none",
+    ground: "forest", encounterTerrain: "forestTaiga", territory: "outlands", climate: "BSk", road: "paved", following: "none",
   }, "a hex painted on every layer, a road through it and no navigable water under it");
-  assert.deepEqual(at.source, all("map"), "every answer is the map's");
+  assert.deepEqual(at.source, { ...all("map"), climate: "scene" },
+    "every painted answer is the map's; a climate painted before the climate was the map's is not read");
   assert.equal(at.water, null);
 
   at = read(scene, 1, 3);
   assert.deepEqual(at.values, {
     ground: "desert", encounterTerrain: "desertSandy", territory: "borderlands", climate: "BSk", road: "none", following: "river",
-  }, "a painted desert on the river, with no territory or climate of its own");
+  }, "a painted desert on the river, with no territory of its own");
   assert.deepEqual(at.source, { ...all("map"), territory: "scene", climate: "scene" },
     "a territory value the module does not know is silence, and the scene default answers");
   assert.deepEqual(at.water, { kind: "river", navigable: true });
@@ -1274,4 +1306,4 @@ assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an
   invalidateRoadGraph();
 }
 
-console.log("test-battlemap: OK (hex keys, labels, aligned paint/erase pairs, palette coverage, open vocabulary, road row escaping, whole-line segments, road distance, the territory and climate layers, the brush over a window, the scene's default country, the country under a point)");
+console.log("test-battlemap: OK (hex keys, labels, aligned paint/erase pairs, palette coverage, open vocabulary, road row escaping, whole-line segments, road distance, the territory layer, the brush over a window, the scene's default country and its painted climate folded, the country under a point)");

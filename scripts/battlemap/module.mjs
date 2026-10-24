@@ -17,7 +17,10 @@ import {
   resetSelectedFootprints,
 } from "./token-scale.mjs";
 import { fitGrid, feetPerSquare, hexSizeFromBox, pixelsPerUnit, roundSuggestions, outputGridSize, scaleOnlyGrid } from "./calibrate-logic.mjs";
-import { familyOfScene, sceneCountry, sceneSetup, sceneTravelSystem, sceneIncidents, writeSceneIncidents, writeSceneSetup } from "./scene-setup.mjs";
+import {
+  familyOfScene, foldPaintedClimate, sceneCountry, sceneSetup, sceneTravelSystem, sceneIncidents, writeSceneIncidents,
+  writeSceneSetup,
+} from "./scene-setup.mjs";
 import { footprintFeet, tokenSpan } from "./footprint.mjs";
 import { CAPTURE_MODES, session } from "./session.mjs";
 import {
@@ -36,6 +39,7 @@ import {
   PAINT_LAYERS,
   TERRAIN_COLORS,
   TERRITORY_COLORS,
+  climateLabelFor,
 } from "./terrain-paint.mjs";
 import {
   WATER_KINDS,
@@ -88,6 +92,20 @@ Hooks.once("init", () => {
   // The session owns the samples, so it is what a scene change clears — the
   // window is only a view and may not even be open.
   Hooks.on("canvasReady", () => session.onCanvasReady());
+  // A map painted with climates hex by hex is folded into its one climate the
+  // first time a GM opens it. The viewing GM writes it, never the active GM:
+  // canvasReady fires only on the client drawing the map, so a map opened by
+  // an assistant alone would otherwise never fold. Two GMs opening it at once
+  // write the same answer.
+  Hooks.on("canvasReady", (board) => {
+    if (!game.user?.isGM || !board?.scene) return;
+    foldPaintedClimate(board.scene)
+      .then((climate) => {
+        if (!climate) return;
+        ui.notifications?.info(game.i18n.format(`${LANG_PREFIX}.setup.climateFolded`, { climate: climateLabelFor(climate) }));
+      })
+      .catch((err) => console.error(`${MODULE_ID} | painted climate fold failed`, err));
+  });
 
   foundry.applications.handlebars
     .loadTemplates(TEMPLATES)
@@ -140,9 +158,9 @@ Hooks.once("ready", () => {
       nodePoint,
       stepBetweenHexes,
     },
-    /** Hex painting (terrain-paint.mjs): the map-prep brush on its three
-     *  layers and the reads the journey hangs off — a value by hex, labels
-     *  from offsets. */
+    /** Hex painting (terrain-paint.mjs): the map-prep brush on its layers
+     *  and the reads the journey hangs off — a value by hex, labels from
+     *  offsets. */
     terrain: {
       paintHexAt,
       terrainAtPoint,

@@ -18,3 +18,10 @@
 5. **The wall sheet's road row at its default width.** At the sheet's 480 px
    the surface select cuts its *Not a road* label short; the row's three
    controls want a width each, or a second line.
+6. **Worldographer import and export.** The owner's ruling of 2026-10-24
+   (map-layers audit, Q6b): the map modes are built in Foundry, and a `.wxx`
+   file is exchanged with them after. A file's hexes would be read into a hex
+   scene's terrain regions and written back from them, through a table the
+   Judge keeps from the file's tile names to the brush's terrain keys. The
+   format is known only from an open converter (`mdhender/wxconv`): gzip over
+   UTF-16 XML, unverified against a file of the user's own.

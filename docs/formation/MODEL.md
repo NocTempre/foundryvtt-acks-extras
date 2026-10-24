@@ -819,8 +819,10 @@ provenance earns against the map's own value (`countryChip`):
 | override or declared | nothing | the pen mark, with a clear (`clearOverride` for the Judge's word, `clearDeclared` for an older record's) |
 | map, scene or default | — | none |
 
-A card on a layer the brush paints (ground, territory, climate) offers **Paint
-this hex** (`paintThisHex`) while the party's hex has no paint on that layer:
+A card on a layer the brush paints (ground, territory) offers **Paint this
+hex** (`paintThisHex`) while the party's hex has no paint on that layer; the
+climate card offers none, since the climate is the map's setting (battlemap
+MODEL, "Country layers"):
 the party's scene comes into view, and `openCountryBrush` arms the brush on the
 card's layer with the card's value where that layer's brush lays it, the
 toolbar's own path. Nothing is written until the Judge clicks the map.

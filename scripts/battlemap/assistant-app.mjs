@@ -19,7 +19,7 @@ import { applyGridCalibration, applyHexCalibration, applyScaleOnly, bakeCorrecte
 import { hexProbe, sceneCountry, sceneSetup, writeSceneSetup } from "./scene-setup.mjs";
 import { rescaleSceneTokens, applyFootprintToSelected, resetSelectedFootprints } from "./token-scale.mjs";
 import { backgroundTexture } from "./scene-image.mjs";
-import { layerLabelFor, paintableValues } from "./terrain-paint.mjs";
+import { climateLabelFor, layerLabelFor, paintableValues } from "./terrain-paint.mjs";
 import { DISTANCE_UNITS } from "../lib/distance-units.mjs";
 import { FEET_PER_RANK } from "../formation/trap-rules.mjs";
 import { CLIMATES } from "../formation/weather.mjs";
@@ -399,9 +399,9 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
 
   /**
    * The scene default's three selects: a terrain brush value, a territory and
-   * a climate (grouped as the party sheet groups them). A held value the
-   * vocabulary no longer offers is kept as an option, so a save of another
-   * select does not clear it.
+   * the climate the whole map reads (grouped as the party sheet groups them).
+   * A held value the vocabulary no longer offers is kept as an option, so a
+   * save of another select does not clear it.
    */
   #countryRows(scene) {
     const held = this.#countryDraft ?? sceneCountry(scene);
@@ -410,7 +410,11 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
       if (current && !values.includes(current)) values.push(current);
       return values.map((key) => ({ key, label: layerLabelFor(key, layer), selected: key === current }));
     };
-    const climates = options("climate", held.climate);
+    // The climate is the map's own setting, not a brush layer: its codes and
+    // names come from the climate vocabulary itself.
+    const codes = Object.keys(CLIMATES);
+    if (held.climate && !codes.includes(held.climate)) codes.push(held.climate);
+    const climates = codes.map((key) => ({ key, label: climateLabelFor(key), selected: key === held.climate }));
     const groups = [...new Set(climates.map((o) => CLIMATES[o.key]?.group ?? ""))].map((group) => ({
       label: group ? game.i18n.localize(`ACKS-FORMATION.travel.weather.climateGroup.${group}`) : "",
       options: climates.filter((o) => (CLIMATES[o.key]?.group ?? "") === group),

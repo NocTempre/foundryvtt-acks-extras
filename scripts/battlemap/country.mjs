@@ -1,9 +1,9 @@
 /**
  * The country under a point, read off the map: what the brush painted on its
- * three layers, the lines drawn through it, and what the scene says of the
- * rest. ONE reader: the journey's trace, the seat on arrival, the Judge's
- * refresh and the encounter context all ask here, so a hex never reads two
- * ways. Pure over the scene document — no canvas — so any client holding the
+ * layers, the lines drawn through it, and what the scene says of the rest —
+ * the climate always, since a map holds one. ONE reader: the journey's trace,
+ * the seat on arrival, the Judge's refresh and the encounter context all ask
+ * here, so a hex never reads two ways. Pure over the scene document — no canvas — so any client holding the
  * scene can ask.
  *
  * See docs/battlemap/MODEL.md, "Country layers".
@@ -14,7 +14,6 @@ import { waterUnder, waterWallsOf } from "./water.mjs";
 import { sceneCountry } from "./scene-setup.mjs";
 import { ENCOUNTER_TERRAINS, encounterTerrainFor } from "../formation/encounter-terrains.mjs";
 import { TERRITORY_KEYS } from "../formation/country-keys.mjs";
-import { CLIMATES } from "../formation/weather.mjs";
 
 /** The country's six keys: what the map, the scene default and the Judge each answer. */
 export const COUNTRY_KEYS = Object.freeze(["ground", "encounterTerrain", "territory", "climate", "road", "following"]);
@@ -43,7 +42,8 @@ function readBrushValue(key) {
  * Read the country at a point.
  *
  * Each key answers from the map where the map says something — a painted hex,
- * a drawn line — and from the scene's default where it does not; `source`
+ * a drawn line — and from the scene's default where it does not; the climate
+ * is the scene's alone, never painted per hex; `source`
  * names which, per key: "map", "scene", or null where neither answered and the
  * value is null. A drawn layer speaks only on a scene that has one: `road` is
  * read where the scene has road walls and `following` where it has water
@@ -89,7 +89,7 @@ export function countryAt(scene, point, { waterBorne = false } = {}) {
     return valid(value) ? value : null;
   };
   const territory = pick("territory", painting("territory", (v) => TERRITORY_KEYS.includes(v)), fallback.territory);
-  const climate = pick("climate", painting("climate", (v) => Object.hasOwn(CLIMATES, v ?? "")), fallback.climate);
+  const climate = pick("climate", null, fallback.climate);
   const road = pick("road", roadWallsOf(scene).length ? (roadUnder(scene, point)?.surface ?? "none") : null, null);
   const following = pick(
     "following",

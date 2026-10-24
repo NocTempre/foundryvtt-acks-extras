@@ -13,26 +13,26 @@ from the scene-config row, and dismissed by its own close control.
 ## Country layers
 
 The group's **Country brush** tool arms a brush over hex-gridded scenes
-(`terrain-paint.mjs`) on one of its registered LAYERS — the module's three,
-terrain, territory and climate, and any a feature registers (§The layer
-registry) — chosen by the pills at the head of its palette window.
+(`terrain-paint.mjs`) on one of its registered LAYERS — the module's two,
+terrain and territory, and any a feature registers (§The layer registry) —
+chosen by the pills at the head of its palette window.
 Clicks and drags paint hex cells into scene REGIONS (a drag paints only
 inside a stroke that began on the board, and only while the pointer is over
 it, never through a window in front): one region per value per
 layer per scene, tinted from the module's own palette and flagged with the
-layer's pair — the value (`terrain`, `territory`, `climate`) and the painted
-cells as OFFSET KEYS beside the shapes (`terrainHexes`, `territoryHexes`,
-`climateHexes`, aligned index-for-index). The keys are what make erasing
+layer's pair — the value (`terrain`, `territory`) and the painted cells as
+OFFSET KEYS beside the shapes (`terrainHexes`, `territoryHexes`, aligned
+index-for-index). The keys are what make erasing
 exact and every read geometry-free: "what territory is this hex?" is a flag
 read that answers identically on a client with no canvas. A hex holds one
 value per layer: painting a cell removes it from every other region of that
 layer first, the eraser unpaints the armed layer alone, and a region whose
-last cell goes is deleted. A terrain, a territory and a climate answer
-different questions about the same hex, so a write on one layer never touches
-another's regions. Terrain regions are visible to everyone (a hex map's
-terrain is the map); territory and climate regions are drawn for a GM only,
-as the Judge's bookkeeping. Square-grid scenes refuse with a warning rather
-than approximating.
+last cell goes is deleted. A terrain and a territory answer different
+questions about the same hex, so a write on one layer never touches the
+other's regions. Terrain regions are visible to everyone (a hex map's terrain
+is the map); territory regions are drawn for a GM only, as the Judge's
+bookkeeping. Square-grid scenes refuse with a warning rather than
+approximating.
 
 Each layer's vocabulary is structural:
 
@@ -45,13 +45,14 @@ Each layer's vocabulary is structural:
   a terrain is WORTH stays in the registered travel tables.
 - **Territory** is `TERRITORY_KEYS` (`formation/country-keys.mjs`), named by
   the party sheet's territory strings and coloured from `TERRITORY_COLORS`.
-- **Climate** is `CLIMATES` (`formation/weather.mjs`), named by code and name
-  and grouped as the sheet's climate select groups them. A climate takes its
-  group's colour (`CLIMATE_GROUP_COLORS`) a step lighter for each kin listed
-  before it, so two climates of a group still read apart where they meet.
+- **Climate** is no layer: it is the map's alone, the scene default below.
+  `climateLabelFor` names a climate of `CLIMATES` (`formation/weather.mjs`) by
+  code and name, and `climateColorFor` colours it with its group's colour
+  (`CLIMATE_GROUP_COLORS`) a step lighter for each kin listed before it, for
+  the Battlemap window's select and the party sheet's climate card.
 
 **The layer registry.** No code in the painter names a layer: each is
-registered, and the three above register through the same call at the foot of
+registered, and the two above register through the same call at the foot of
 `terrain-paint.mjs`. `registerPaintLayer({key, flag, hexesFlag, values, label,
 color, visible, title, groups})` takes the layer's two region flags;
 `values()`, asked on every read so a vocabulary may come from the world;
@@ -59,8 +60,7 @@ color, visible, title, groups})` takes the layer's two region flags;
 are drawn for everyone and otherwise the Judge's alone; an optional `title`,
 the i18n key of the palette pill (`ACKS-BATTLEMAP.terrain.layer.<key>` by
 default); and optional `groups` (`of(value)` and `label(group)`), which fold the
-swatches under group headings in order of first appearance, as the climate's
-do. Paint, erase, the reads (`layerValueAt`, `layerRegionsOf`), `paintableValues`,
+swatches under group headings in order of first appearance. Paint, erase, the reads (`layerValueAt`, `layerRegionsOf`), `paintableValues`,
 `layerLabelFor`, `layerColorFor`, `openCountryBrush` and the palette all read the
 registry; a key it does not hold paints nothing, reads null and arms on terrain.
 The palette leaves out the pill of a layer whose `values()` is empty. A feature
@@ -87,12 +87,26 @@ the whole setup record). `sceneCountry` reads it and drops a key the module
 does not know. `ground` takes a terrain brush value, read the way a painted
 hex reads it.
 
+**A map painted with climates.** A map painted before the climate was the
+map's holds GM-only regions flagged `climate` and `climateHexes`. The first
+time a GM's client draws such a map (`canvasReady`), `foldPaintedClimate`
+([scene-setup.mjs](../../scripts/battlemap/scene-setup.mjs)) writes the
+climate most of its hexes hold (`paintedClimateOf`; a tie goes to the code
+`CLIMATES` lists first, and a code the module does not know never wins) into
+the scene default where the map says none, marks the setup record
+`climateFolded` either way, and says which climate it took in a notification.
+The viewing GM writes it, since `canvasReady` fires only on the client that
+draws the map. A map is folded once, so a climate cleared afterwards stays
+cleared. Nothing reads the regions after the fold; they stay until the Judge
+deletes them from the Regions tab.
+
 **One reader.** `countryAt(scene, point)`
 ([country.mjs](../../scripts/battlemap/country.mjs)) answers the six keys the
 journey asks — `ground`, `encounterTerrain`, `territory`, `climate`, `road`,
 `following` — and `source` names, per key, which answered: `"map"` (a painted
 hex, a drawn line), `"scene"` (the default), or null. A painted layer answers
-on a hex scene, and the default answers where the layer does not. A drawn
+on a hex scene, and the default answers where the layer does not; `climate`
+is the default's alone. A drawn
 layer speaks only on a scene that has one: `road` is the surface of the road
 wall under the point, or `"none"`, where the scene has road walls; `following`
 is `"river"` where a navigable water line is under the point, or `"none"`,
