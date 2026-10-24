@@ -488,6 +488,28 @@ printed name, then rebuild the entry.
 
 *An adventure's inhabitant as a character: the class bound at the printed level, and its saves and throws the class's own.*
 
+### An adventure's rooms, as places
+
+An adventure's keyed rooms import as **places** in the book's **Places**
+folder on the Judge's shelf: one place for each room, inside the area or
+level it belongs to, and each level inside a place for the book. **Import
+Everything** runs the step after the people and creatures, so a room can link
+to them. A room's notes are its text from your copy. Its roster lists who is
+there: the core creature where your library holds one, the adventure's own
+person or creature, or, where nothing else matches, a creature made from the
+room's own stat line, filed in the book's **Creatures** folder. Roster rows
+are hidden from players. A count printed as dice, and the hit points, are in
+the row's notes.
+
+A room already in your library is not read again. To bring one in again as
+the book has it, delete it and run the step; the rooms inside it move onto
+the new one. Rooms an earlier version imported as journal pages keep their
+pages.
+
+The book's Adventure carries these places, but its **Import** does not bring
+them into the world yet. They stay in your library until the maps mark where
+each room is.
+
 ### Common problems
 
 **"Missing book."** The entry cites a book this seat has not connected. Connect

@@ -13,7 +13,9 @@
  * The foot of the file reads the shipped AX3 cookbook: every keyed place it
  * holds must belong to a quarter (or the journal step would write pages beside
  * the actors), nothing that is not a place may be taken for one, and a quarter
- * has at most one overview, since two would race for one place's notes.
+ * has at most one overview, since two would race for one place's notes. It
+ * reads the AX1 cookbook too: every location row is a keyed place, and every
+ * place's parent is a keyed place of the book or the book's own.
  */
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -21,7 +23,9 @@ import { dirname, join } from "node:path";
 import {
   poiGroupOf, isPoiEntry, isDistrictOverview, districtPlaceId, districtPlaceData, poiLocationData,
   REGION_GROUPS, regionGroupOf, isRegionSite, isRegionOverview, regionPlaceId, regionPlaceData,
+  keySpacesOf, isKeyedPlace, keyedParentId, occupantsOf, occupantFigures,
 } from "../../scripts/importer/poi-binding.mjs";
+import { creatureKeys, nameKeys } from "../../scripts/lib/vocab.mjs";
 import { LOCATION_TYPE, isPlaceRole } from "../../scripts/location/constants.mjs";
 import { MODULE_ID } from "../../scripts/importer/constants.mjs";
 
@@ -193,6 +197,72 @@ check("every keyed place ships a label built from its number", keyed.filter(([, 
 check("under an id built from its number", keyed.filter(([id, e]) => id !== `ax3.poi${e.name.slice(4).split("/")[0]}`).map(([id]) => id), []);
 check("and reads its printed name off the page", keyed.filter(([, e]) => e.fields?.name?.op !== "heading" || !e.fields.name.number || "text" in e.fields.name).map(([id]) => id), []);
 check("by the number its label is built from", keyed.filter(([, e]) => e.fields?.name?.number !== `${e.name.slice(4)}.`).map(([id]) => id), []);
+
+/* ---------------- key spaces (invented rows) ---------------- */
+
+const spaceRows = {
+  "zz.keep": { kind: "kind.location", name: "Keep" },
+  "zz.keep1": { kind: "kind.location", name: "Keep 1", meta: { space: "zz.keep", parent: "zz.keep" } },
+  "zz.keep1a": { kind: "kind.location", name: "Keep 1a", meta: { space: "zz.keep", parent: "zz.keep1" } },
+  "zz.loft1": { kind: "kind.location", name: "Loft 1", meta: { space: "zz.loft" } },
+  "zz.loft": { kind: "kind.location", name: "Loft" },
+  "zz.well": { kind: "kind.location", name: "Well" },
+  "zz.npc1": { kind: "kind.npc", name: "NPC 1", meta: { space: "zz.keep" } },
+};
+const spaces = keySpacesOf(spaceRows);
+check("a key space is a row another row names as its space", [...spaces].sort(), ["zz.keep", "zz.loft"]);
+check("its areas and the spaces themselves are keyed places; a row of no space, or not a location, is not",
+  Object.entries(spaceRows).filter(([id, e]) => isKeyedPlace(e, id, spaces)).map(([id]) => id).sort(),
+  ["zz.keep", "zz.keep1", "zz.keep1a", "zz.loft", "zz.loft1"]);
+check("a place sits in its parent, else its space, else the book's own place",
+  ["zz.keep1a", "zz.loft1", "zz.keep"].map((id) => keyedParentId(spaceRows[id], "zz")), ["zz.keep1", "zz.loft", "zz.adventure"]);
+
+/* ---------------- occupants ---------------- */
+
+const occFields = {
+  occupants: {
+    "1.name": { text: "Lantern Moths" }, "1.count": "2d4", "1.stats": { hp: 3 },
+    "0.name": { text: "Kiln Wardens", ref: "zz.warden" }, "0.count": 3, "0.stats": { hp: 9, hpList: [9, 7, 4] },
+    "2.name": { text: "" }, "2.count": null, "2.stats": null,
+    "3.name": { text: "Ash Hound" }, "3.count": null, "3.stats": { ac: 4 },
+  },
+};
+const occ = occupantsOf(occFields);
+check("occupants regroup by index in printed order, a nameless one dropped", occ.map((o) => [o.index, o.name.text]), [[0, "Kiln Wardens"], [1, "Lantern Moths"], [3, "Ash Hound"]]);
+check("a whole count is the quantity, and the hit points are the per-creature list", occupantFigures(occ[0]), { quantity: 3, countText: "", hp: [9, 7, 4] });
+check("a count printed as dice stays text, beside the single hit-point figure", occupantFigures(occ[1]), { quantity: null, countText: "2d4", hp: [3] });
+check("no count and no hit points is neither", occupantFigures(occ[2]), { quantity: null, countText: "", hp: [] });
+check("a node with no occupants has none", occupantsOf({}), []);
+
+/* ---------------- a label naming several meets the name of one ---------------- */
+
+const meets = (label, name) => [...creatureKeys(label)].some((k) => nameKeys(name).has(k));
+ok("a plural label meets the catalogue's head-first name", meets("Giant Kilnbats", "Kilnbat, Giant"));
+ok("and the plain singular", meets("Ash Hounds", "Ash Hound"));
+ok("-ies to -y", meets("Lamp Fairies", "Lamp Fairy"));
+ok("-ies to -ie", meets("Ash Zombies", "Ash Zombie"));
+ok("-ves to -f", meets("Kiln Wolves", "Kiln Wolf"));
+ok("-men to -man", meets("Kilnmen", "Kilnman"));
+ok("the count in brackets is not part of the name", meets("Ash Hounds (6)", "Ash Hound"));
+ok("a singular label still meets its own name", meets("Ash Hound", "Ash Hound"));
+ok("a word that ends in ss is not made singular", !meets("Kiln Moss", "Kiln Mos"));
+ok("a different creature is not met", !meets("Ash Hounds", "Ash Hare"));
+
+/* ---------------- AX1's shipped cookbook: every keyed area is a place ---------------- */
+
+const ax1 = JSON.parse(readFileSync(join(here, "..", "..", "cookbook", "ax1.json"), "utf8")).entries;
+const ax1Spaces = keySpacesOf(ax1);
+const ax1Locations = Object.entries(ax1).filter(([, e]) => e.kind === "kind.location");
+ok("AX1 keys its areas in spaces", ax1Spaces.size > 0 && [...ax1Spaces].every((id) => ax1[id]?.kind === "kind.location"));
+const unkeyed = ax1Locations.filter(([id, e]) => !isKeyedPlace(e, id, ax1Spaces)).map(([id]) => id);
+check("every AX1 location row is a keyed place, so none is left to the journal step", unkeyed, []);
+const unparented = ax1Locations.filter(([id, e]) => {
+  const parent = keyedParentId(e, "ax1");
+  return parent !== "ax1.adventure" && !isKeyedPlace(ax1[parent], parent, ax1Spaces);
+}).map(([id]) => id);
+check("every AX1 place sits in a keyed place of the book, or a space in the book's own", unparented, []);
+const spacesInBook = [...ax1Spaces].filter((id) => keyedParentId(ax1[id], "ax1") !== "ax1.adventure");
+check("a key space sits in the book's own place", spacesInBook, []);
 
 if (failed) {
   console.error(`\npoi-binding: ${failed} failure(s)`);

@@ -87,6 +87,37 @@ export function nameVariants(raw) {
 /** `nameVariants` as comparable keys: folded, punctuation and spacing gone. */
 export const nameKeys = (raw) => new Set(nameVariants(raw).map(slug).filter(Boolean));
 
+/** The singular forms an English plural may have stood for, the word itself first. */
+function singularsOf(word) {
+  const w = String(word ?? "");
+  const out = [w];
+  const add = (s) => s.length > 1 && !out.includes(s) && out.push(s);
+  if (/men$/i.test(w)) add(w.replace(/men$/i, "man"));
+  if (/ies$/i.test(w)) add(w.replace(/ies$/i, "y"));
+  if (/ves$/i.test(w)) {
+    add(w.replace(/ves$/i, "f"));
+    add(w.replace(/ves$/i, "fe"));
+  }
+  if (/es$/i.test(w)) add(w.replace(/es$/i, ""));
+  if (/s$/i.test(w) && !/ss$/i.test(w)) add(w.replace(/s$/i, ""));
+  return out;
+}
+
+/**
+ * `nameKeys` for a creature as a page labels it: the label as printed, and
+ * every form of it with its last word made singular, so a label for several
+ * ("Giant Ants") meets the catalogue's name for one ("Ant, Giant"). A key
+ * matches only a name that holds it, so a form no name holds costs nothing.
+ */
+export function creatureKeys(raw) {
+  const base = String(raw ?? "").replace(/\([^)]*\)/g, " ").replace(/\s+/g, " ").trim();
+  const words = base.split(" ");
+  const last = words.pop() ?? "";
+  const keys = new Set();
+  for (const form of singularsOf(last)) for (const k of nameKeys([...words, form].join(" "))) keys.add(k);
+  return keys;
+}
+
 // NOTE deliberately NO normalizeAlignment here. It looked like a fold, but the
 // one module that classifies alignment (acks-influence) keeps its OWN token set
 // (law/chaos/neutral/other, baked into published effect flags) and translates

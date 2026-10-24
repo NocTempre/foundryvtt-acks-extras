@@ -7511,3 +7511,64 @@ along the box's axis. The reach stays as it was.
 *Cost:* one door end on p.11 is still loose. It stops at a bar near the end
 of its box, and the short piece past the bar is not read as part of the box.
 That plate states the door as a line.
+
+## 2026-10-24 — An adventure's keyed areas are places, and their stat lines a roster
+
+AX1 keys its areas in three key spaces: the fort and two dungeon levels. The
+journals step wrote each area as a page of its group, and the places step took
+none, so an imported AX1 had its maps and nothing standing in them. The user
+reported it the same week ("the current adventure does not import more than
+the maps").
+
+**Ruled.**
+- **A keyed area and a key space are places, not pages.** The places step
+  takes every row `isKeyedPlace` names, and the journals step takes none of
+  them. Two documents for one printed place are what a Judge then keeps in
+  step by hand, which is the ruling a settlement's points of interest took
+  ("A settlement's keyed places are actors, nested quarter → city"). Each
+  sits inside the place its row names, and a space sits inside the book's own
+  place.
+- **A place's notes are its page's text whole, stat lines included.** The
+  line is what a Judge reads at the table, and the roster only links it.
+- **A room's stat lines are its roster, every row hidden.** A row tells a
+  player what waits in a room. Each links to the first that answers: the
+  register's lookup; the library's creature of another book by name key, a
+  name two books print answered by the later-published; the person or
+  creature this book's own rows were imported as; else a creature made from
+  the line. A person stands once with no notes. A creature's whole count is
+  its quantity, and any other count, and the hit points, are its notes.
+- **A creature made from a line is claimed under `<place id>-o<i>`**,
+  stamped `unaudited` as a quarter's place is. No cookbook row names it, and
+  that id is what a later run and a rebuilt room find it by.
+- **A parent made again is a new document.** A held place whose parent uuid
+  resolves to nothing is moved onto the parent's new one. One that resolves
+  is the Judge's move and stays.
+- **A world that imported these rooms as pages keeps its pages.** Nothing
+  here deletes, as with a settlement's points of interest.
+
+*Rejected:*
+- **The stat lines cut out of the notes.** The line would then stand only on
+  a creature made from it, and on nothing at all for a room whose creature
+  the library answers.
+- **A creature made from every line.** Where the library answers, that is a
+  second copy of a core creature in the book's folder, which a Judge's edits
+  to the core one never reach.
+- **The label's name keys alone.** A count of several prints the creature's
+  name in the plural, and the library's names are singular.
+- **The fill rule widened to bring every place into the world.** It stays
+  as ruled on 2026-10-24 ("Maps and their places"): a place an Adventure
+  import brings is one a carried map names.
+
+*Cost:*
+- **An Adventure import still brings AX1's maps alone.** The Adventure
+  carries the places, their tree and their rosters, but no carried map names
+  a place until AX1's map recipes carry their places (`places`, docs/importer/
+  ROADMAP.md, "AX1 whole is in progress"), and a place no map names stays in
+  the library.
+- AX1's rooms print no person's stat line. Its people are mentioned in the
+  prose, which makes no row, so no AX1 room has a person on its roster.
+- A held place's roster is not read again, so a creature deleted after the
+  import leaves its row naming nothing until the room is rebuilt.
+- A creature made from a line has what the line prints and nothing more: no
+  treasure, no description beyond the line itself.
+- The pages an earlier release wrote for these rooms stand beside the places.

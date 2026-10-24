@@ -426,7 +426,7 @@ standingStep = 0;
   // entry into a document has to go and read the printed name. A dropped call
   // here is invisible offline and names a whole book "NPC 1"… "NPC 63".
   const src = await fs.readFile(new URL("../scripts/importer/cookbook.mjs", import.meta.url), "utf8");
-  for (const fn of ["async function importAdventureActor", "export async function cookbookImportPoiPlaces", "async function cookbookImportFactions"]) {
+  for (const fn of ["async function importAdventureActor", "export async function cookbookImportPoiPlaces", "async function importKeyedPlace", "async function cookbookImportFactions"]) {
     const at = src.indexOf(fn);
     assert.ok(at > 0, `${fn} is still the name of the path this pins`);
     const body = src.slice(at, at + 12000);

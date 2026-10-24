@@ -559,6 +559,43 @@ before it, else under the space. It prints the gaps in the key sequence, a
 key found twice and a key line with no colon, which it writes no row for; a
 gap is settled by an author against the page.
 
+## An adventure's keyed places
+
+A key space's rows are places. A row names its space and the place it sits
+inside (`meta.space`, `meta.parent`), and a space is a row the others name
+(`keySpacesOf`). The points-of-interest step takes every such row
+(`isKeyedPlace`) as a location actor (`importKeyedPlace`); the journal step
+takes none (`journalBound`). A place is filed in the book's `Places` folder,
+named by the heading its page prints, and given its page's text, stat lines
+included, as its notes. It sits inside the place its row names
+(`keyedParentId`): its parent row, else its space, else the book's own place
+(`oseAdventureId`), which every space sits in. A run asks for each place once
+and its parent first (`keyedRun`), so the rows may be listed in any order. A
+held place is not read again. It is given its parent where it names none, or
+where the uuid it names resolves to nothing (a parent deleted and made
+again); a parent that still resolves is left as the Judge set it.
+
+A new place's roster is its occupants (`occupantsOf`), one hidden row each
+(`occupantRow`), linked to the first of these that answers
+(`keyedOccupantRows`):
+
+1. the creature the register's lookup names (`occupants.<i>.name.ref`);
+2. the library's creature of another book under one of the label's name keys
+   (`creatureKeys`: the label's words, its last word in each singular form);
+   a name two books print is answered by the later-published (`laterBook`);
+3. a person or creature this book's own rows were imported as;
+4. a creature made from the line itself (`statLineCreature`): a monster named
+   as the label reads, its figures bound as a person's line is (`bindNpc`), the
+   line its biography, filed in the book's `Creatures` folder and claimed under
+   `<place id>-o<i>`, so a later run and a rebuilt room find it.
+
+World copies answer none of these. A row's quantity is the label's count where
+that is a whole number (`occupantFigures`); a count printed any other way, and
+the line's hit points (each creature's where the line lists them), are its
+notes. A person of the book stands once, with no notes. The step returns
+`created.places`, the book's own place among them, and `created.creatures`,
+and reports what it rostered and made.
+
 ## A roll table's rows
 
 `kind.rolltable` compiles to `fields.rows`, one text paragraph per row under

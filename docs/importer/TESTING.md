@@ -1918,6 +1918,75 @@ holds nothing, and leave the book folder, which other imports share.
 `api.sweepTracked()` over the ids read back; the pages, where the world had
 them, are the world's.
 
+## An adventure's keyed areas land as places
+
+The same step, `cookbookImportPoiPlaces({ books: ["ax1"] })`, on AX1: every
+keyed area and key space is a place inside the place its row names, and a
+room's stat lines are its roster. Sections 2 and 2b of
+`tools/live/importer-ax1.mjs` walk it. The cookbook's own rows (`cookbook/ax1.json`) say what each
+place should be: the keyed rows are the `kind.location` rows with a
+`meta.space`, and the rows a `meta.space` names; a room's printed occupants
+are its `occupants.<i>.name` fields. Nothing of the page is read to check it.
+
+### Fixtures
+
+- AX1 connected on the GM seat, and the library's creatures of the other books
+  imported (MM's), so a room has another book's creature to link to.
+- AX1's people and creatures (its `kind.npc` and `kind.monsterLegacy` rows),
+  imported by id with `cookbookImportIds` where the library lacks them, as
+  Import Everything does before the places step. Read each back under its id
+  and track it, with the ability definitions the import supplied on demand.
+- Nothing under an AX1 place id: no actor claimed under a keyed row's id or
+  `ax1.adventure`, and no creature under `ax1.<place>-o<i>`. Where one stands,
+  it is its owner's, and the walk stops unless the owner says to rebuild
+  (`HELD_OK=1`): the held ones are deleted and the step makes them again as
+  the owner's.
+- The step's own result is the ledger: track `created.places` (the book's own
+  place is among them) and `created.creatures`.
+
+### Steps
+
+1. Run the step.
+   *Observable:*
+   - `made` is the number of keyed rows, `created.places` one more, and
+     nothing refused;
+   - each keyed row is one place, and its `system.parentUuid` is the uuid of
+     the place under the row's `meta.parent`, else its `meta.space`, else
+     `ax1.adventure`;
+   - a room has a roster exactly when its row prints an occupant, never more
+     rows than it prints, every row hidden, and `rostered` counts them;
+   - each row's link resolves and is no world copy. Among the rows are a
+     creature of another book, a creature of AX1's own rows, and a creature
+     made from its room's line, claimed under `<room>-o<i>` and linked from
+     that room; `creatures` counts what was made;
+   - a creature's row has a whole-number quantity, and some carry their hit
+     points in the notes;
+   - a row linking a person of the book stands at quantity 1 with no notes.
+     AX1's rooms print no person's stat line (its people are mentioned in the
+     prose, which makes no row), so on AX1 the walk notes this as not reached.
+2. Delete two rooms, one that holds others and one that links a creature made
+   from its line, then run the step again.
+   *Observable:* `made` is 2, `already` is every other keyed row, and no
+   creature is made. Each room stands again under its id, a new document,
+   inside the place its row names. The rooms inside the first name its new
+   uuid. The second's roster links the same line creatures as before. Track
+   the new rooms from `created.places`; the deleted ones read as missing in
+   the sweep.
+3. Run `cookbookImportJournals({ books: ["ax1"] })`.
+   *Observable:* no page is made or refreshed. A journal an earlier release
+   wrote for these rooms is still there.
+
+The Adventure that carries these places is step 3 of the AX1 walk ("A book
+lands in the library as one Adventure").
+
+### Teardown
+
+`api.sweepTracked()`. Under `HELD_OK` the rebuilt places are the owner's and
+are not tracked. Where the walk rebuilt the owner's AX1 Adventure over the
+swept documents, run the Adventure step once more after the sweep, so it
+carries only what the library still holds. Delete a shelf the run opened only
+when it is empty.
+
 ## Organisations land as factions
 
 The organisations step (`cookbookImportFactions`, the chain's `stepFactions`)
@@ -1981,7 +2050,11 @@ also needs the Player seat. The Adventure sheet's own **Import** button is
 the real trigger for steps 6 to 8. A scripted `adventure.import()` proves the
 hook and not the sheet, so script it only to read back.
 `tools/live/importer-adventure.mjs` walks it. `tools/live/importer-ax1.mjs`
-walks the journals case on AX1, whose keyed areas are one journal.
+walks the places case on AX1: its Adventure carries every AX1 place, each in
+the carried place its row names in world form, and each roster row names a
+carried person or creature in world form or another book's creature where the
+library holds it. No carried map names a place yet, so an import of it brings
+the maps alone.
 
 What a scripted walk meets:
 

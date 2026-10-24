@@ -28,6 +28,7 @@ import {
 } from "./refresh.mjs";
 import {
   isPoiEntry, poiGroupOf, districtPlaceId, districtPlaceData, poiLocationData, isRegionSite, isRegionOverview, regionPlaceId, regionPlaceData,
+  keySpacesOf, isKeyedPlace, keyedParentId, occupantsOf, occupantFigures,
 } from "./poi-binding.mjs";
 import {
   isOrganisationRow, organisationData, organisationPlan, owedRelations, controlledRegions,
@@ -47,7 +48,7 @@ import { gridTypeFor } from "../battlemap/constants.mjs";
 import { mirrorCreatedLinks } from "../location/scene-link.mjs";
 import { occupantRow } from "../lib/place.mjs";
 import { oseAdventureData, oseAdventureId } from "./ose-location.mjs";
-import { BOOKS, bookIsJudges, bookLine } from "./books.mjs";
+import { BOOKS, bookIsJudges, bookLine, laterBook } from "./books.mjs";
 import { OSE_PREFIX, oseSourceLabel, oseSourceLine } from "./ose-source.mjs";
 import { oseGroupBookOf } from "./ose-template.mjs";
 import { executeEntry, materializeEffects, attackModel, convertName } from "./executor.mjs";
@@ -74,7 +75,7 @@ import {
 } from "./adventure-binding.mjs";
 import { ALIGN_WORD, sheetValuesFromStatline, asPrintedBlock, playerOwned, classBehindQualifier } from "./character-binding.mjs";
 import { ensureSceneThumb } from "./book-adventure.mjs";
-import { nameKeys, ABILITY_CATEGORIES, DAMAGE_TYPES } from "../lib/vocab.mjs";
+import { nameKeys, creatureKeys, ABILITY_CATEGORIES, DAMAGE_TYPES } from "../lib/vocab.mjs";
 import { materializeTemplates, TEMPLATE_PART } from "../classes/template-packages.mjs";
 import { CLASS_TYPE, RACE_TYPE } from "../classes/constants.mjs";
 import { VEHICLE_TYPE } from "../vehicles/constants.mjs";
@@ -3723,12 +3724,20 @@ const JOURNAL_KINDS = new Set(["kind.location", "kind.settingTable", "kind.prose
 const journalPageName = (e) => (e.kind === "kind.prose" ? (e.meta?.title ?? e.name) : e.name);
 
 /**
- * A page-bound entry. A keyed place of a settlement's quarter, and a region's
- * site or overview, is a location ACTOR or its notes (`cookbookImportPoiPlaces`)
- * and is not a page as well: two documents for one printed place would be the
- * thing a Judge then keeps in step by hand.
+ * A page-bound entry. A keyed place of a settlement's quarter, a region's site
+ * or overview, and an adventure's keyed area or key space, is a location ACTOR
+ * or its notes (`cookbookImportPoiPlaces`) and is not a page as well: two
+ * documents for one printed place would be the thing a Judge then keeps in
+ * step by hand. `spaces` is the book's `keySpacesOf`.
  */
-const journalBound = (e) => JOURNAL_KINDS.has(e.kind) && !isPoiEntry(e) && !isRegionSite(e) && !isRegionOverview(e);
+const journalBound = (e, id, spaces) =>
+  JOURNAL_KINDS.has(e.kind) && !isPoiEntry(e) && !isRegionSite(e) && !isRegionOverview(e) && !isKeyedPlace(e, id, spaces);
+
+/** A book's page-bound entries, as `[id, entry]`. */
+const journalEntriesOf = (entries) => {
+  const spaces = keySpacesOf(entries);
+  return Object.entries(entries).filter(([id, e]) => journalBound(e, id, spaces));
+};
 
 /**
  * Journals: one JournalEntry per meta.group, one page per keyed entry. A
@@ -3753,13 +3762,13 @@ export async function cookbookImportJournals({ books = null } = {}) {
   // through them it is rather than only that it is busy.
   const bar = progressBar(
     game.i18n.localize(`${LANG_PREFIX}.ui.progressJournals`),
-    openBooks.reduce((n, b) => n + Object.values(data.books.get(b).entries).filter(journalBound).length, 0),
+    openBooks.reduce((n, b) => n + journalEntriesOf(data.books.get(b).entries).length, 0),
   );
   try {
     for (const bookId of openBooks) {
       const cb = data.books.get(bookId);
       const session = ctx.sessionDocs.get(bookId);
-      const locs = Object.entries(cb.entries).filter(([, e]) => journalBound(e));
+      const locs = journalEntriesOf(cb.entries);
       if (!locs.length) continue;
       // The BOOK is the folder now, so the journal itself is named by its group
       // alone ("A. Entrance Caves") rather than repeating the book on every row.
@@ -3870,25 +3879,33 @@ export async function cookbookImportJournals({ books = null } = {}) {
  * quarter's place".
  *
  * A region's rows ride the same step (`importRegionRow`): its sites are places
- * under the region's own place, and its overview is that place's notes.
+ * under the region's own place, and its overview is that place's notes. So do
+ * an adventure's key spaces and keyed areas (`importKeyedPlace`), each a place
+ * under the one it sits inside, its stat lines its roster. `books` scopes the
+ * run to those book ids; `created` lists the uuids of the keyed places (the
+ * book's own place among them) and stat-line creatures it made.
  */
-export async function cookbookImportPoiPlaces() {
+export async function cookbookImportPoiPlaces({ books = null } = {}) {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates actors).`);
-  const openBooks = [...data.books.keys()].filter((b) => ctx.sessionDocs.has(b));
+  const openBooks = [...data.books.keys()].filter((b) => ctx.sessionDocs.has(b) && (!books || books.includes(b)));
   const jobs = [];
   for (const bookId of openBooks) {
-    for (const [id, e] of Object.entries(data.books.get(bookId).entries)) {
+    const entries = data.books.get(bookId).entries;
+    const spaces = keySpacesOf(entries);
+    for (const [id, e] of Object.entries(entries)) {
       if (isPoiEntry(e)) jobs.push({ bookId, id, e, group: poiGroupOf(e.meta?.group) });
       else if (isRegionSite(e) || isRegionOverview(e)) jobs.push({ bookId, id, e, region: isRegionSite(e) ? "site" : "overview" });
+      else if (isKeyedPlace(e, id, spaces)) jobs.push({ bookId, id, e, keyed: true });
     }
   }
-  if (!jobs.length) return ui.notifications.warn(`${MODULE_ID} | no points of interest in any open book — connect AX3 first.`);
+  if (!jobs.length) return ui.notifications.warn(`${MODULE_ID} | no keyed places in any open book — connect a settlement or an adventure first.`);
   let made = 0;
   let described = 0;
   let already = 0;
   let stamped = 0;
   let refused = 0;
-  const tally = { made: 0, regions: 0, bound: 0, already: 0, stamped: 0, refused: 0 };
+  const tally = { made: 0, regions: 0, bound: 0, already: 0, stamped: 0, refused: 0, rostered: 0, creatures: 0 };
+  const run = keyedRun(tally);
   const bar = progressBar(game.i18n.localize(`${LANG_PREFIX}.ui.progressPoi`), jobs.length);
   try {
     for (const job of jobs) {
@@ -3896,6 +3913,10 @@ export async function cookbookImportPoiPlaces() {
       bar.step(e.name);
       if (job.region) {
         await importRegionRow(job, tally);
+        continue;
+      }
+      if (job.keyed) {
+        await run.placeFor(bookId, id);
         continue;
       }
       const overview = group.kind === "overview";
@@ -3956,18 +3977,203 @@ export async function cookbookImportPoiPlaces() {
   already += tally.already;
   stamped += tally.stamped;
   refused += tally.refused;
-  const { regions, bound } = tally;
+  const { regions, bound, rostered, creatures } = tally;
   if (!made && !described && !regions && !bound && !already && refused) {
     return ui.notifications.warn(`${MODULE_ID} | points of interest: ${refused} page(s) did not match the cookbook (different printing?) — none written.`);
   }
   const regionParts = [
     regions ? `, ${game.i18n.format(`${LANG_PREFIX}.ui.poiRegionsDescribed`, { n: regions })}` : "",
     bound ? `, ${game.i18n.format(`${LANG_PREFIX}.ui.poiSitesBound`, { n: bound })}` : "",
+    rostered ? `, ${game.i18n.format(`${LANG_PREFIX}.ui.poiOccupantsRostered`, { n: rostered })}` : "",
+    creatures ? `, ${game.i18n.format(`${LANG_PREFIX}.ui.poiCreaturesMade`, { n: creatures })}` : "",
   ].join("");
   ui.notifications.info(
     `${MODULE_ID} | points of interest: ${made} place(s) created${described ? `, ${described} quarter(s) described` : ""}${regionParts}${already ? `, ${already} already held` : ""}${stamped ? `, ${stamped} given a role` : ""}${refused ? `, ${refused} skipped (page did not match the cookbook)` : ""}.`,
   );
-  return { made, described, regions, bound, already, stamped, refused };
+  return { made, described, regions, bound, already, stamped, refused, rostered, creatures, created: run.created };
+}
+
+/**
+ * One run's keyed-place state: each place asked for once (`placeFor`, so a
+ * room's parent is made before it whatever order the rows are listed in), each
+ * book's own place, key spaces and occupant targets built once, and the uuids
+ * of the places and creatures the run made (`created`).
+ */
+function keyedRun(tally) {
+  const places = new Map();
+  const bookPlaces = new Map();
+  const spaces = new Map();
+  const targets = new Map();
+  const run = {
+    tally,
+    created: { places: [], creatures: [] },
+    spacesOf: (bookId) => {
+      if (!spaces.has(bookId)) spaces.set(bookId, keySpacesOf(data.books.get(bookId)?.entries));
+      return spaces.get(bookId);
+    },
+    targetsOf: (bookId) => {
+      if (!targets.has(bookId)) targets.set(bookId, occupantTargets(bookId));
+      return targets.get(bookId);
+    },
+    placeFor: (bookId, id) => {
+      if (!places.has(id)) places.set(id, importKeyedPlace(bookId, id, run));
+      return places.get(id);
+    },
+    bookPlaceFor: (bookId) => {
+      if (!bookPlaces.has(bookId)) bookPlaces.set(bookId, bookPlaceOf(bookId, run));
+      return bookPlaces.get(bookId);
+    },
+  };
+  return run;
+}
+
+/** The book's own place, the one its key spaces sit in: held, else made. */
+async function bookPlaceOf(bookId, run) {
+  const id = oseAdventureId(bookId);
+  const held = await importedActor(id);
+  if (held) return held;
+  const label = bookLabel(bookId);
+  const folder = (await ensureFolderPath("Actor", [label, "Places"], lineOf(bookId)))?.id ?? null;
+  const made = await claimActorImport(id, () => createDoc(Actor, oseAdventureData({ book: bookId, bookLabel: label, folderId: folder })));
+  if (made) run.created.places.push(made.uuid);
+  return made;
+}
+
+/**
+ * One key space or keyed area as a place inside the place it sits in
+ * (`keyedParentId`: a keyed place, else the book's own), which is asked for
+ * first. A held place is not read again; one with no parent, or one whose
+ * parent no longer exists, is given it. A
+ * new one is named by the heading its page prints, takes the page's text as
+ * its notes, stat lines and all, and its roster is `keyedOccupantRows`.
+ * @returns {Promise<Actor|null>} the place, held or made; null when its page did not match
+ */
+async function importKeyedPlace(bookId, id, run) {
+  const { tally } = run;
+  const cb = data.books.get(bookId);
+  const e = cb.entries[id];
+  const label = bookLabel(bookId);
+  const folder = (await ensureFolderPath("Actor", [label, "Places"], lineOf(bookId)))?.id ?? null;
+  const parentId = keyedParentId(e, bookId);
+  const parent = isKeyedPlace(cb.entries[parentId], parentId, run.spacesOf(bookId))
+    ? await run.placeFor(bookId, parentId)
+    : await run.bookPlaceFor(bookId);
+  const held = await importedActor(id);
+  if (held) {
+    const patch = siteBindPatch(held, { parentUuid: parent?.uuid ?? "" });
+    // A parent made again is a new document: the uuid the place names is then
+    // nothing's, and is replaced. One that still resolves is the Judge's move.
+    const was = held.system?.parentUuid;
+    if (parent && was && was !== parent.uuid && !(await fromUuid(was).catch(() => null))) patch["system.parentUuid"] = parent.uuid;
+    if (Object.keys(patch).length) await held.update(patch);
+    tally.already++;
+    return held;
+  }
+  const node = await executeEntry(ctx.sessionDocs.get(bookId).doc, cb, data.registers, id).catch(() => null);
+  if (!node?.ok) {
+    tally.refused++;
+    return null;
+  }
+  const roster = await keyedOccupantRows(bookId, id, node, run);
+  const place = await claimActorImport(id, () =>
+    createDoc(Actor, poiLocationData({
+      name: printedNameOf(node, e.name), entryId: id, notes: entryText(node, id, e.cite), book: bookId, bookLabel: label,
+      parentUuid: parent?.uuid ?? "", folderId: folder, roster,
+    })));
+  if (place) {
+    tally.made++;
+    run.created.places.push(place.uuid);
+  }
+  return place;
+}
+
+/**
+ * What a room's occupant labels can link to, by `nameKeys` of each name.
+ * `core`: the library's creatures of every other book, a name two books share
+ * answered by the later-published (`laterBook`). `own`: the people and
+ * creatures this book's rows were imported as. World copies answer neither.
+ */
+async function occupantTargets(bookId) {
+  const bookOf = (a) => bookOfCookbookId(a?.flags?.[MODULE_ID]?.cookbook?.id ?? "");
+  const core = new Map();
+  for (const actor of await importedActorsOfType("monster")) {
+    const book = bookOf(actor);
+    if (!book || book === bookId || isWorldCopy(actor)) continue;
+    for (const k of nameKeys(actor.name)) {
+      const had = core.get(k);
+      if (!had || laterBook(book, bookOf(had)) === book) core.set(k, actor);
+    }
+  }
+  const own = new Map();
+  for (const [rowId, e] of Object.entries(data.books.get(bookId)?.entries ?? {})) {
+    if (!ACTOR_KINDS.has(e.kind) || e.kind === "kind.pregen") continue;
+    const actor = await importedActor(rowId, { copies: false });
+    if (actor) for (const k of nameKeys(actor.name)) if (!own.has(k)) own.set(k, actor);
+  }
+  return { core, own };
+}
+
+/**
+ * A keyed place's roster: a hidden row per stat line its text prints, linked
+ * to the creature the label names (`occupantTargets`: the register's own
+ * reference first, then `core`, then `own`), else to a creature made from
+ * the line itself (`statLineCreature`). The row's quantity is the label's
+ * count, and its notes the count printed as dice and the hit points. A person
+ * of the book stands once, with no notes, however the room counts its line.
+ */
+async function keyedOccupantRows(bookId, id, node, run) {
+  const { core, own } = await run.targetsOf(bookId);
+  const rows = [];
+  for (const occ of occupantsOf(node.fields)) {
+    const keys = [...creatureKeys(occ.name.text)];
+    const named = occ.name.ref ? await importedActor(occ.name.ref) : null;
+    const library = named ?? keys.map((k) => core.get(k)).find(Boolean) ?? null;
+    const ours = library ? null : (keys.map((k) => own.get(k)).find(Boolean) ?? null);
+    const actor = library ?? ours ?? (await statLineCreature(bookId, id, occ, node, run));
+    if (!actor) continue;
+    const person = ours?.type === "character";
+    const { quantity, countText, hp } = occupantFigures(occ);
+    const notes = person ? "" : [
+      countText,
+      hp.length ? game.i18n.format(`${LANG_PREFIX}.ui.poiOccupantHp`, { hp: hp.join(", ") }) : "",
+    ].filter(Boolean).join("; ");
+    rows.push(occupantRow(actor, { quantity: person ? 1 : quantity, notes, hidden: true }));
+    run.tally.rostered++;
+  }
+  return rows;
+}
+
+/**
+ * A creature made from a room's own stat line, for a label nothing else
+ * answers: named as the label reads on the page, its figures bound the way a
+ * person's line is (`bindNpc`), the line itself its biography. Claimed under
+ * `<place id>-o<i>`, so a later run, and a rebuilt room, find it.
+ */
+async function statLineCreature(bookId, placeId, occ, node, run) {
+  const oid = `${placeId}-o${occ.index}`;
+  const held = await importedActor(oid);
+  if (held) return held;
+  const folder = (await ensureFolderPath("Actor", [bookLabel(bookId), "Creatures"], lineOf(bookId)))?.id ?? null;
+  const bound = bindNpc({ fields: { statline: occ.stats ?? {} } });
+  const line = String(occ.stats?.text ?? "").trim();
+  const cite = data.books.get(bookId)?.entries?.[placeId]?.cite ?? "";
+  const made = await claimActorImport(oid, () =>
+    createDoc(Actor, {
+      name: occ.name.text.trim(),
+      type: "monster",
+      folder,
+      system: {
+        ...bound.system,
+        details: { ...(bound.system.details ?? {}), biography: line ? bookText([line], cite, { id: oid, book: bookId, page: node.page ?? null }) : "" },
+      },
+      items: bound.items ?? [],
+      flags: { [MODULE_ID]: { cookbook: { id: oid, book: bookId, kind: "kind.npc", unaudited: true } } },
+    }));
+  if (made) {
+    run.tally.creatures++;
+    run.created.creatures.push(made.uuid);
+  }
+  return made;
 }
 
 /**
