@@ -1,0 +1,39 @@
+[
+  {
+    "id": "ax1.fort18Map",
+    "kind": "kind.scene",
+    "book": "ax1",
+    "name": "Fort 18 Map",
+    "pages": [15],
+    "scene": {
+      "note": "Page points, top-left origin: the crop is the plan in its frame; the grid block is one drawn square; the distance is that square measured against the building's printed size (area 18). Walls trace the dark strokes, and a drawn box is a door. Corrections are lines: three fences a sense passes, each with its gate as a door, and the dais's terrain, open at its stair's mouth.",
+      "crop": { "x": 28, "y": 328, "w": 256, "h": 402 },
+      "grid": {
+        "family": "square",
+        "box": { "w": 15.7555, "h": 15.7656 },
+        "centre": [147.104, 531.32],
+        "distance": 5,
+        "units": "ft",
+        "pixels": 70
+      },
+      "walls": {
+        "mode": "stroke",
+        "threshold": 80,
+        "corrections": [
+          { "line": [88.97, 659.65, 109.3, 657.45], "is": "invisible" },
+          { "line": [109.3, 657.45, 120.96, 657.45], "is": "door" },
+          { "line": [120.96, 657.45, 138.29, 659.81], "is": "invisible" },
+          { "line": [138.29, 659.81, 156.56, 657.45], "is": "invisible" },
+          { "line": [156.56, 657.45, 167.91, 657.45], "is": "door" },
+          { "line": [167.91, 657.45, 186.19, 659.5], "is": "invisible" },
+          { "line": [186.19, 659.5, 204.78, 657.45], "is": "invisible" },
+          { "line": [204.78, 657.45, 216.28, 657.45], "is": "door" },
+          { "line": [216.28, 657.45, 234.71, 658.87], "is": "invisible" },
+          { "line": [39.75, 578.83, 74.95, 578.83], "is": "terrain" },
+          { "line": [59.51, 594.11, 75.74, 594.11], "is": "terrain" },
+          { "line": [75.74, 594.11, 76.53, 659.12], "is": "terrain" }
+        ]
+      }
+    }
+  }
+]
