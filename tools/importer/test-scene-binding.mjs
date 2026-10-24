@@ -372,6 +372,30 @@ says("a grid that is a word", recipeProblems({ ...hexRecipe(), grid: "hex" }, re
 says("a stated feetPerPoint must still be one", recipeProblems({ ...hexRecipe(), feetPerPoint: 0 }, regionBook), "feetPerPoint");
 says("a region's overview is no site", recipeProblems({ ...hexRecipe(), places: [{ id: "zz.regionOverview", at: [60, 50] }] }, regionBook), "is not a keyed place");
 
+// An invented book of key spaces: a level, a section inside it, rooms inside
+// that, and a second level.
+const spaceBook = recipeContext({
+  "zz.up": { kind: "kind.location", meta: {} },
+  "zz.down": { kind: "kind.location", meta: {} },
+  "zz.up-area1": { kind: "kind.location", meta: { space: "zz.up", parent: "zz.up" } },
+  "zz.up-1": { kind: "kind.location", meta: { space: "zz.up", parent: "zz.up-area1" } },
+  "zz.up-1a": { kind: "kind.location", meta: { space: "zz.up", parent: "zz.up-1" } },
+  "zz.down-1": { kind: "kind.location", meta: { space: "zz.down" } },
+  "zz.loop": { kind: "kind.location", meta: { space: "zz.up", parent: "zz.loop" } },
+  "zz.list": { kind: "kind.rolltable", meta: {} },
+});
+const level = (patch = {}) => ({
+  crop: { x: 0, y: 0, w: 100, h: 100 }, feetPerPoint: 1, place: "zz.up",
+  places: [{ id: "zz.up-1", at: [10, 10] }, { id: "zz.up-1a", at: [20, 10] }], ...patch,
+});
+check("a key space's rooms stand on the plan of the place they are in, however deep", recipeProblems(level(), spaceBook), []);
+check("a plan that names no place takes any keyed area", recipeProblems(level({ place: undefined, places: [{ id: "zz.down-1", at: [5, 5] }] }), spaceBook), []);
+says("a room of another level", recipeProblems(level({ places: [{ id: "zz.down-1", at: [5, 5] }] }), spaceBook), "is not inside zz.up");
+says("a room whose parent is itself", recipeProblems(level({ places: [{ id: "zz.loop", at: [5, 5] }] }), spaceBook), "is not inside zz.up");
+says("a space is no pin", recipeProblems(level({ place: undefined, places: [{ id: "zz.up", at: [5, 5] }] }), spaceBook), "is not a keyed place");
+says("a plan of a list", recipeProblems(level({ place: "zz.list" }), spaceBook), 'place "zz.list" is not a place');
+says("a plan of a place the book does not hold", recipeProblems(level({ place: "zz.gone", places: [] }), spaceBook), 'place "zz.gone" is not a place');
+
 const hexData = sceneData({ id: "zz.region", book: "zz", name: "Region", recipe: hexRecipe(), src: "r.webp", shiftX: 12, shiftY: -7 });
 check("a grid map is the crop at its grid's scale", [hexData.width, hexData.height], [1000, 500]);
 check("on Foundry's lattice of that family, cell size, distance and units", hexData.grid, { type: 4, size: 80, distance: 3, units: "mi" });

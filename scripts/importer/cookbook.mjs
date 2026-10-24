@@ -4988,12 +4988,18 @@ async function claimControlledQuarters(bookId, scene, recipe, districtIds) {
   return written;
 }
 
-/** Whether a recipe is a region's map: built on a grid of drawn cells, with no quarters. */
-const isRegionRecipe = (recipe) => !!recipe?.grid && !recipe.districts?.length;
+/**
+ * Whether a recipe is a region's map: built on a grid of drawn cells, with no
+ * quarters, and naming no place of its own. A plan names the place it draws,
+ * and a dungeon's plan is drawn on a grid too.
+ */
+const isRegionRecipe = (recipe) => !!recipe?.grid && !recipe.districts?.length && !recipe.place;
 
 /**
- * The cookbook ids a map stands on. A settlement's: the city's place, each
- * quarter's, each keyed place's. A region's: the region's own place, no
+ * The cookbook ids a map stands on. A settlement's: the place the map is (the
+ * recipe's `place`, else the book's own), each quarter's, each keyed place's,
+ * and in `all` every place a keyed one sits in, up to the book's own.
+ * A region's: the region's own place, no
  * quarters, and for each placed site the id its text was claimed under
  * (`regionSiteClaim`). `placeIds` runs index for index with the recipe's
  * `places`.
@@ -5010,10 +5016,21 @@ function mapIds(bookId, recipe) {
     return { mapPlaceId, districtIds: [], placeIds, all: [mapPlaceId, ...placeIds], region: true };
   }
   const quarterOf = (entryId) => poiGroupOf(cb.entries[entryId]?.meta?.group)?.district ?? "";
-  const mapPlaceId = oseAdventureId(bookId);
+  const mapPlaceId = recipe.place ?? oseAdventureId(bookId);
   const districtIds = (recipe.districts ?? []).map((d) => districtPlaceId(bookId, quarterOf(d.place)));
   const placeIds = (recipe.places ?? []).map((p) => p.id);
-  return { mapPlaceId, districtIds, placeIds, all: [mapPlaceId, ...districtIds, ...placeIds], region: false };
+  // Every place a keyed one sits in, up to the book's own, so the world's
+  // copies sit in one another and none in the library.
+  const spaces = keySpacesOf(cb.entries);
+  const above = new Set();
+  for (const start of [mapPlaceId, ...placeIds]) {
+    for (let at = start; isKeyedPlace(cb.entries[at], at, spaces) && !above.has(keyedParentId(cb.entries[at], bookId));) {
+      at = keyedParentId(cb.entries[at], bookId);
+      above.add(at);
+    }
+  }
+  const all = [...new Set([mapPlaceId, ...districtIds, ...placeIds, ...above])];
+  return { mapPlaceId, districtIds, placeIds, all, region: false };
 }
 
 /** Whether a book prints a region's gazetteer, which its map waits on as a city's waits on its quarters. */
@@ -5088,8 +5105,9 @@ export function gridScenePlan(recipe, scene) {
  * plan's scale, everything set down on it is moved to the picture's corner,
  * the lattice and shift ride into `sceneData`, and the scale is kept in the
  * cookbook flag (`pixelsPerPoint`) so a zone laid later frames the same
- * picture. Without a plan the data is exactly a settlement map's. Exported so
- * the offline suite can build both.
+ * picture. Without a plan the data is exactly a settlement map's. A recipe's
+ * `travel` is the travel system the map declares. Exported so the offline
+ * suite can build both.
  *
  * @param {object} p
  * @param {Map<string, object>} p.actors cookbook id to an Actor-like (`name`, `uuid`, `getTokenDocument`)
@@ -5130,19 +5148,20 @@ export async function mapCreateData({ bookId, id, recipe, ids, actors, tableOf, 
   }
   const level = { id: Scene.metadata.defaultLevelId, name: game.i18n.localize(foundry.documents.Level.metadata.label) };
   const wallData = wallSources(walls, frame);
+  const mapSystem = recipe.travel ?? null;
   if (!grid) {
     return sceneData({
       id, book: bookId, name: city?.name ?? fallbackName, recipe, src, incidents, folderId,
       locationUuid: city?.uuid ?? "",
       level,
-      regions, tokens, walls: wallData,
+      regions, tokens, walls: wallData, mapSystem,
     });
   }
   const made = sceneData({
     id, book: bookId, name: city?.name ?? fallbackName, recipe, src, incidents, folderId,
     locationUuid: city?.uuid ?? "",
     level,
-    regions, tokens, walls: wallData,
+    regions, tokens, walls: wallData, mapSystem,
     grid: recipe.grid, pixelsPerPoint: grid.pixelsPerPoint, shiftX: grid.shiftX, shiftY: grid.shiftY,
   });
   made.flags[MODULE_ID].cookbook.pixelsPerPoint = grid.pixelsPerPoint;

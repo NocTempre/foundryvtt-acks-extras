@@ -26,7 +26,7 @@
  */
 import { MODULE_ID } from "./constants.mjs";
 import { SCENE_LINK_FLAG } from "../location/constants.mjs";
-import { isPoiEntry, isRegionSite, poiGroupOf } from "./poi-binding.mjs";
+import { isKeyedPlace, isPoiEntry, isRegionSite, keySpacesOf, poiGroupOf } from "./poi-binding.mjs";
 import { hash36 } from "./printed-name.mjs";
 import { gridTypeFor } from "../battlemap/constants.mjs";
 import { DISTANCE_UNITS } from "../lib/distance-units.mjs";
@@ -353,9 +353,11 @@ export function gridProblems(grid, crop = null) {
  * group names, because the quarter under a place is found by geometry at the
  * table and a place drawn over its neighbour would be priced as the
  * neighbour's; a map with no quarters has none to check. A place is a keyed
- * point of interest or a region site. `feetPerPoint` is required only of a
- * recipe with no `grid`. A `walls` block is held to `wallsProblems`, the
- * corrections cap included.
+ * point of interest, a region site, or a key space's keyed area; a map that
+ * names the place it is (`place`) holds only areas inside that place, so a
+ * room set down on the wrong level's plan is refused. `feetPerPoint` is
+ * required only of a recipe with no `grid`. A `walls` block is held to
+ * `wallsProblems`, the corrections cap included.
  *
  * @param {object} recipe the row's `scene` block
  * @param {Record<string, {kind?: string, meta?: object, sections?: string[]}>} entries
@@ -408,14 +410,29 @@ export function recipeProblems(recipe, entries = {}) {
     }
   });
 
+  const spaces = keySpacesOf(entries);
+  const place = entries[recipe.place]?.kind === "kind.location" ? recipe.place : undefined;
+  if (recipe.place !== undefined && !place) out.push(`place "${recipe.place}" is not a place of this book`);
+  // A keyed area's chain of parents, nearest first; a cycle stops it.
+  const above = (id) => {
+    const chain = [];
+    for (let at = entries[id]?.meta?.parent ?? entries[id]?.meta?.space; at && at !== id && !chain.includes(at);) {
+      chain.push(at);
+      at = entries[at]?.meta?.parent ?? entries[at]?.meta?.space;
+    }
+    return chain;
+  };
+
   const seenPlaces = new Set();
   (Array.isArray(recipe.places) ? recipe.places : []).forEach((p, i) => {
     const where = `places[${i}]`;
     const entry = entries[p?.id];
-    const keyed = !!entry && ((isPoiEntry(entry) && poiGroupOf(entry.meta.group).kind !== "overview") || isRegionSite(entry));
+    const area = isKeyedPlace(entry, p?.id, spaces) && !spaces.has(p?.id);
+    const keyed = !!entry && ((isPoiEntry(entry) && poiGroupOf(entry.meta.group).kind !== "overview") || isRegionSite(entry) || area);
     if (!keyed) return void out.push(`${where}.id "${p?.id}" is not a keyed place of this book`);
     if (seenPlaces.has(p.id)) return void out.push(`${where}.id "${p.id}" is placed twice`);
     seenPlaces.add(p.id);
+    if (area && place !== undefined && !above(p.id).includes(place)) return void out.push(`${where} "${p.id}" is not inside ${place}`);
     if (!Array.isArray(p.at) || p.at.length !== 2 || !p.at.every(num)) return void out.push(`${where}.at must be [x, y]`);
     if (!inCrop(p.at[0], p.at[1])) return void out.push(`${where} "${p.id}" stands outside the crop`);
     if (!districts.length) return;

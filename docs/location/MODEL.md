@@ -207,7 +207,11 @@ circled beside a town is where the goods are, the town is where the party is.
 **It keeps its place alive.** `pruneEmptyLocations` spares an empty place that
 has a token on any scene, hidden or not — a marker the Judge hid is a point of
 interest not yet found. The world's tokens are walked once per sweep, not once
-per place.
+per place. So does a place staying behind keep the place it sits in, and that
+place the one above it (`emptyOfPlaces`, lib `place-logic.mjs`): the level a
+map's rooms sit in stays with them, and an empty place inside an empty one
+goes with it in the same sweep. A dry run (`dryRun`) deletes nothing, whatever
+the setting, and answers with the uuids a sweep would remove.
 
 **A quarter's own place.** A scene Region can carry the same
 `flags["acks-extras"].location` the scene carries, at the Region's grain, and

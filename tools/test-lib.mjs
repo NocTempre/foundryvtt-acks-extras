@@ -28,6 +28,7 @@ import {
   childrenOf,
   depthOf,
   descendantUuids,
+  emptyOfPlaces,
   headcount,
   indexPlaces,
   isStacked,
@@ -1377,6 +1378,18 @@ t("childrenOf is direct children only, in stable name order", () => {
 t("descendantUuids is the whole subtree, excluding itself", () => {
   assert.deepEqual(descendantUuids("Actor.inn", PLACES).sort(), ["Actor.cellar", "Item.chest"]);
   assert.equal(descendantUuids("Actor.realm", PLACES).length, 5);
+});
+
+t("emptyOfPlaces keeps an empty place that a staying place sits in, up every level", () => {
+  // The cellar holds the chest, which stays: the cellar, inn, town and realm all stay.
+  assert.deepEqual([...emptyOfPlaces(PLACES, ["Actor.realm", "Actor.town", "Actor.inn", "Actor.cellar"])], []);
+  // An empty leaf goes, and the empty place it alone sat in goes with it in the same sweep.
+  const leafy = [...PLACES, { uuid: "Actor.hut", parentUuid: "Actor.yard" }, { uuid: "Actor.yard", parentUuid: "Actor.realm" }];
+  assert.deepEqual([...emptyOfPlaces(leafy, ["Actor.yard", "Actor.hut", "Actor.realm"])].sort(), ["Actor.hut", "Actor.yard"]);
+  // A place nothing sits in is removed as the other tests found it.
+  assert.deepEqual([...emptyOfPlaces(PLACES, ["Actor.bays"])], ["Actor.bays"]);
+  const looped = [{ uuid: "A", parentUuid: "B" }, { uuid: "B", parentUuid: "A" }];
+  assert.deepEqual([...emptyOfPlaces(looped, ["A", "B"])].sort(), ["A", "B"]);
 });
 
 t("a corrupt parent cycle terminates instead of hanging", () => {

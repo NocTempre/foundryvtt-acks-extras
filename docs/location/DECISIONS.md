@@ -867,3 +867,30 @@ dealing.
 
 Rejected: two caps (the shorter one decides for both); a separate visits
 store (the ledger and the venture rows already hold every dated sign).
+
+## 2026-10-24 — A place another place sits in is not empty
+
+**The evidence.** The importer now brings a plan's rooms into the world inside
+the sections and levels they sit in (importer DECISIONS, 2026-10-24, "A plan
+is the place it draws"). A section holds no goods, no roster and no token, so
+the prune removed it at the next `ready`, and every room in it then named a
+parent that did not exist. The sheet already lists a place's sub-places among
+its contents (`contentRows`), so "a place holding nothing" in the 2026-08-14
+ruling already meant a place with nothing inside it. The prune had not caught
+up. A hand-made town holding only its tavern was pruned the same way.
+
+**Ruled.** A place that a place staying behind sits in is not empty. The test
+runs over every world place (`allPlaces`) to a fixed point
+(`emptyOfPlaces`): survival climbs the tree, and an empty place inside an
+empty one goes with it in one sweep.
+
+This is not the move the importer rejected on 2026-09 ("bringing unplaced
+seats across and exempting them from the prune"). A lone seat with nothing
+inside it still goes, and nothing here asks where a place came from.
+
+**Rejected:** sparing imported places by their cookbook stamp. The test would
+then ask where a place came from rather than what it holds, and the hand-made
+town would still go.
+
+*Cost:* one more clause in the survival test, and a pass over the world's
+places for each round of the fixed point.

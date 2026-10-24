@@ -119,6 +119,28 @@ export function descendantUuids(uuid, nodes) {
   return out;
 }
 
+/**
+ * Of the places a sweep finds empty, the ones it may remove: a place that a
+ * place staying behind sits in holds something, and stays too. Run to a fixed
+ * point, so an empty place inside an empty one goes with it in one sweep.
+ * @param {{uuid: string, parentUuid?: string}[]} nodes every place the sweep can see
+ * @param {Iterable<string>} empty the uuids the sweep's other tests find empty
+ * @returns {Set<string>} the uuids to remove
+ */
+export function emptyOfPlaces(nodes, empty) {
+  const doomed = new Set(empty);
+  for (let changed = true; changed;) {
+    changed = false;
+    const holders = new Set((nodes ?? []).filter((n) => n?.parentUuid && !doomed.has(n.uuid)).map((n) => n.parentUuid));
+    for (const uuid of doomed) {
+      if (!holders.has(uuid)) continue;
+      doomed.delete(uuid);
+      changed = true;
+    }
+  }
+  return doomed;
+}
+
 /* -------------------------------------------- */
 /*  Re-parenting                                 */
 /* -------------------------------------------- */

@@ -7572,3 +7572,65 @@ the maps").
 - A creature made from a line has what the line prints and nothing more: no
   treasure, no description beyond the line itself.
 - The pages an earlier release wrote for these rooms stand beside the places.
+
+## 2026-10-24 — A plan is the place it draws, and its rooms stand on it as pins
+
+The entry above left an Adventure import of AX1 bringing its maps alone: the
+places were carried but no map named one, so the fill rule left them all in
+the library. AX1's plans of its two levels and of areas 18 and 24 now say
+which place each is and where each of its rooms is keyed.
+
+**Ruled.**
+- **A plan names the place it draws (`scene.place`)**, and the map is named
+  for that place and linked to it. A recipe that names none is the book's own
+  place's, so every map that shipped before keeps its link.
+- **A grid recipe that names its place is a plan, not a region's map.** A
+  region's map is a grid recipe with no quarters and no `place`
+  (`isRegionRecipe`). Every AX1 plan is drawn on a grid. Read as a region's
+  map, a plan named the region's place, which an adventure does not have,
+  and brought its pins with none of the places they sit in. The live walk
+  found this; the offline fixture plan had no grid, so the suite could not.
+- **A plan of a place pins only areas inside it**, at any depth, and the
+  recipe check refuses one from elsewhere. A room set down on the other
+  level's plan is the misreading this catches.
+- **A pin stands on the key its page prints.** Where the plan circles its
+  keys, the tracer's own ring finder (`labelRings`) places the pin and the
+  author reads only which key each ring holds. Where it does not (a sub-key's
+  letter, a key in a dark patch), the author places it by eye. Every pin was
+  checked against an overlay of the page that drew each pin's key beside the
+  printed one.
+- **A row that keys a range of rooms is pinned once, on its first key.** A
+  place is one token on a map, and the row is one place.
+- **Every area inside a plan's place that holds no other is pinned on it**,
+  gated in `test-ax1-cookbook`. A section that only holds rooms is not on the
+  map.
+- **A pinned room comes into the world inside the places it sits in.** The
+  maps step brings every place a pinned room or the plan's own place sits in,
+  up to the book's own (`mapIds`). A book's Adventure creates a place no map
+  shows once a place it creates sits in it (`fillPlan`). Either way a world
+  room sits in a world section, the section in its level, and the level in the
+  book's own place.
+- **A plan explored a turn at a time declares `travel: "delve"`.**
+
+*Rejected:*
+- **Pins at each room's centre, found from the traced floor.** Rooms run into
+  corridors, and the key is where the page's own reader looks.
+- **The sections left in the library, each world room naming the library's
+  section as its parent.** A place's contents are the places that name it as
+  their parent (lib `childrenOf`). The world's level would then list no room,
+  and a world room's path would climb into the library and never reach the
+  level on the map.
+- **A held map given the pins its recipe gained.** A map's shape is the
+  Judge's once made ("A held map has its links repaired, never its shape"):
+  a pin the Judge deleted would come back on every run.
+
+*Cost:*
+- A world that made AX1's maps before this keeps them without pins. Deleting
+  a map and running the maps step again lays them.
+- The sections and the book's own place hold no goods, roster or token, and
+  the empty-location prune removed such a place at `ready`. They stand because
+  places sit in them (location DECISIONS, 2026-10-24, "A place another place
+  sits in is not empty").
+- The fort's buildings and their sub-keys, other than areas 18's and 24's,
+  are on no plan yet. The fort overview and the other buildings' plans have no
+  recipe, so an Adventure import still leaves those places in the library.

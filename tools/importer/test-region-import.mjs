@@ -364,6 +364,26 @@ const BOOK_FILES = {
     },
   },
   xx: { schema: SCHEMA, book: { id: "xx" }, entries: {}, scenes: { "xx.city": { kind: "kind.scene", name: "City", cite: "XX 1", pages: [1], scene: CITY_RECIPE } } },
+  // A key space, a section in it and two rooms in the section, on a plan of the space.
+  ww: {
+    schema: SCHEMA, book: { id: "ww" },
+    entries: {
+      "ww.l1": loc("Space"),
+      "ww.l1-a1": loc("Space", { space: "ww.l1" }),
+      "ww.l1-1": loc("Space", { space: "ww.l1", parent: "ww.l1-a1" }),
+      "ww.l1-2": loc("Space", { space: "ww.l1", parent: "ww.l1-a1" }),
+    },
+    scenes: {
+      "ww.plan": {
+        kind: "kind.scene", name: "Plan", cite: "WW 1", pages: [1],
+        scene: {
+          page: 1, placement: { x: 50, y: 50, w: 500, h: 400 }, crop: { x: 100, y: 100, w: 300, h: 240 }, turn: 0,
+          grid: { family: "square", box: { w: 20, h: 20 }, centre: [160, 170], distance: 5, units: "ft", pixels: 70 },
+          place: "ww.l1", travel: "delve", places: [{ id: "ww.l1-1", at: [150, 150] }, { id: "ww.l1-2", at: [200, 200] }],
+        },
+      },
+    },
+  },
 };
 
 /** A two-page PDF: the map's image placement on page 1, a zone's three figures on page 2. */
@@ -516,6 +536,8 @@ const recipe = REGION_MAP.scene;
   });
   check("a recipe without a grid builds byte-identical creation data", JSON.stringify(built), JSON.stringify(before));
   ok("and carries no lattice, shift or scale", !("shiftX" in built) && built.grid.type === 0 && !("pixelsPerPoint" in built.flags[MODULE_ID].cookbook));
+  const delve = await mapCreateData({ bookId: "xx", id: "xx.city", recipe: { ...CITY_RECIPE, travel: "delve" }, ids, actors, tableOf, src: "maps/x.webp", folderId: "F", fallbackName: "City" });
+  check("a recipe's travel is the travel system its map declares", delve.flags[MODULE_ID].battlemap.mapSystem, "delve");
 }
 
 // --- region places: the overview, a market, the settlement, a site of its own ----------------
@@ -645,6 +667,37 @@ const map = game.scenes.find((s) => s.getFlag(MODULE_ID, "cookbook")?.id === "zz
   const third = await cookbookImportScenes();
   sessions.set("zz", zzDoc);
   check("with the map's book closed the zone pass relinks", [third.made, third.already, third.zonesHeld, crossed.system.tableUuid], [0, 0, 1, late.uuid]);
+}
+
+// --- a plan of a key space: its rooms come into the world inside the places they sit in -----
+{
+  const lib = {};
+  const shelve = async (cbId, parent) => {
+    lib[cbId] = await MockActor.create({
+      name: `Place ${cbId}`, type: LOCATION_TYPE, system: { notes: "", parentUuid: parent ? lib[parent].uuid : "" },
+      flags: { [MODULE_ID]: { cookbook: { id: cbId, book: "ww", kind: "kind.location" } } },
+    }, { pack: ACTOR_PACK });
+  };
+  await shelve("ww.adventure");
+  await shelve("ww.l1", "ww.adventure");
+  await shelve("ww.l1-a1", "ww.l1");
+  await shelve("ww.l1-1", "ww.l1-a1");
+  await shelve("ww.l1-2", "ww.l1-a1");
+  forgetImportedIndex();
+  sessions.set("ww", { doc: pdf([]) });
+  const out = await cookbookImportScenes({ books: ["ww"] });
+  const plan = game.scenes.find((s) => s.getFlag(MODULE_ID, "cookbook")?.id === "ww.plan");
+  const world = (cbId) => game.actors.find((a) => a.getFlag(MODULE_ID, "cookbook")?.id === cbId);
+  check("the plan is made, and nothing it needs is missing", [out.made, out.missing, !!plan], [1, 0, true]);
+  check("every place from a pinned room up to the book's own is brought into the world", out.copied, 5);
+  ok("the plan is the place it draws", plan?.name === world("ww.l1")?.name && plan?.flags[MODULE_ID].location === world("ww.l1")?.uuid);
+  check("each room stands on the plan, hidden", plan?.tokens.map((t) => [t.actorId, t.hidden]), [[world("ww.l1-1")?.id, true], [world("ww.l1-2")?.id, true]]);
+  check("each copy sits in its parent's copy, and none in the library",
+    ["ww.l1", "ww.l1-a1", "ww.l1-1", "ww.l1-2"].map((id) => world(id)?.system.parentUuid),
+    [world("ww.adventure")?.uuid, world("ww.l1")?.uuid, world("ww.l1-a1")?.uuid, world("ww.l1-a1")?.uuid]);
+  check("the book's own place sits in nothing", world("ww.adventure")?.system.parentUuid, "");
+  check("the plan is explored a turn at a time", plan?.flags[MODULE_ID].battlemap.mapSystem, "delve");
+  sessions.delete("ww");
 }
 
 // --- shapes the Foundry half depends on -------------------------------------------------------

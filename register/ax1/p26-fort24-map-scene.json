@@ -8,6 +8,17 @@
     "scene": {
       "note": "Page points, top-left origin: the crop is the plan in its frame; the grid block is one drawn square; the distance is the square other building plans measure at (areas 18, 19, 23). Walls trace the dark strokes; a drawn box is a door. Lines: the north wall along its middle beside the entrance, the entrance as two leaves, and the slanted annex's block-drawn walls on every side but its opening.",
       "crop": { "x": 190, "y": 76, "w": 355, "h": 426 },
+      "place": "ax1.fort24",
+      "travel": "delve",
+      "places": [
+        { "id": "ax1.fort24a", "at": [434.5, 120.1] },
+        { "id": "ax1.fort24b", "at": [455.8, 204] },
+        { "id": "ax1.fort24c", "at": [434.5, 307.5] },
+        { "id": "ax1.fort24d", "at": [434.5, 437] },
+        { "id": "ax1.fort24e", "at": [322.5, 347.4] },
+        { "id": "ax1.fort24f", "at": [229.9, 416.5] },
+        { "id": "ax1.fort24g", "at": [247.9, 194.7] }
+      ],
       "grid": {
         "family": "square",
         "box": { "w": 18.6654, "h": 18.67 },

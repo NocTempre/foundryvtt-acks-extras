@@ -357,12 +357,18 @@ through the monthly row (`node tools/live/run.mjs markets`;
     `system.regionUuid` is the Region's uuid. Pick **— none —**: both ends
     clear. Pick it again: both set. Delete the Region: the place survives with
     `regionUuid` empty. Track the place the button made by id.
-20. **A placed or quartered place survives the prune.** With the prune
-    setting on, run the sweep — it is not on the api:
-    `(await import("/modules/acks-extras/scripts/location/module.mjs")).pruneEmptyLocations()`.
+20. **A placed or quartered place survives the prune.** Run the sweep dry —
+    it is not on the api:
+    `(await import("/modules/acks-extras/scripts/location/module.mjs")).pruneEmptyLocations({ dryRun: true })`.
+    A dry run deletes nothing, whatever the setting, and its `doomed` lists
+    the uuids a sweep would remove, so the shared world's other empty places
+    are left alone. Read your fixtures' uuids in it.
     *Observable:* the quarter's place (empty, but a quarter) and the point
-    (empty, but standing on a map — hide its token and run again) survive; an
-    empty place with no token, no link and nothing in it goes.
+    (empty, but standing on a map — hide its token and run again) are not
+    listed; an empty place with no token, no link and nothing in it is. Make an
+    empty place and set it as the point's parent: it is not listed, because
+    the point stays. Make two more empty places, the second inside the first:
+    both are listed.
 
 21. **A place's role.** Create a disposable location fixture and track it by
     id. Open its sheet.

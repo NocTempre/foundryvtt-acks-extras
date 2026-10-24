@@ -1987,6 +1987,83 @@ swept documents, run the Adventure step once more after the sweep, so it
 carries only what the library still holds. Delete a shelf the run opened only
 when it is empty.
 
+## A plan is the place it draws
+
+A scene recipe that names a place (`scene.place`) is that place's plan, and
+its `places` pin the areas inside it. On AX1 every map is one: the plans of
+the two dungeon levels and of areas 18 and 24. Sections 2c and 3b of
+`tools/live/importer-ax1.mjs` walk it, once section 2 has put AX1's places in
+the library. The recipes in `cookbook/ax1.json` say which plan is whose and
+what each pins; nothing of the page is read to check it.
+
+What a scripted walk meets:
+
+- A map is never reshaped once made, so a plan made before the library held
+  its places, or before its recipe carried pins, has none. Delete it and run
+  the maps step again.
+- The places a plan brings into the world are world copies: the maps step
+  lists them in `created.actors`, beside `created.scenes` and
+  `created.folders`.
+- Run the empty-location prune dry (location TESTING step 20). A real sweep
+  deletes every empty place in the shared world, a peer's included.
+- A shot of the canvas holds the book's art. Hide `#interface` before taking
+  it, which also keeps the players list and its user names out of frame, and
+  `#pause`, whose banner sits over the token the frame is centred on. Keep
+  the PNG in the local log directory.
+- Sweep a ledger the places step has filled a chunk at a time. One page-side
+  call over a few hundred library documents outlives the driver's evaluate
+  timeout, and the call it gives up on goes on deleting with nobody reading
+  its result.
+
+### Fixtures
+
+- AX1's places in the library ("An adventure's keyed areas land as places").
+- No AX1 map in the world and no world copy of an AX1 place. Where the walk
+  made them earlier, it deletes them; under `HELD_OK` they are the owner's,
+  and what the steps make in their place is the owner's too.
+- Two empty places, the second inside the first, made with `api.create`.
+
+### Steps
+
+1. Run the maps step, `cookbookImportScenes({ books: ["ax1"] })`.
+   *Observable:*
+   - every AX1 map is made, and `missing` is 0;
+   - each plan's scene is linked to its place's world copy
+     (`flags.acks-extras.location`) and named as that place is;
+   - its battlemap flag's `mapSystem` is `delve`;
+   - it stands one hidden token per pin, in the recipe's order, each the world
+     copy of the area it pins;
+   - the world's AX1 places are exactly the plans' places, their pins and
+     every place those sit in, up to `ax1.adventure`. Each sits in the world
+     copy of the place its row names, and `ax1.adventure` in nothing. None
+     names a library uuid;
+   - framed on its first pin, each level's plan shows each token on the key
+     its page prints.
+2. Run the prune dry.
+   *Observable:* its `doomed` holds none of AX1's world places, though a
+   section holds no goods, roster or token. It holds both empty fixtures.
+3. Run the Adventure step, so the Adventure carries the plans as they now
+   stand. Then delete every world AX1 place and every plan but the one with
+   fewest pins, open AX1's Adventure from the library, and press its sheet's
+   **Import**. Read what was created from core's `importAdventure` hook.
+   *Observable:*
+   - the Adventure carries each plan with a token per pin;
+   - the import creates each plan it was handed, linked to its place's new
+     copy and standing its pins;
+   - the places it creates are exactly step 1's set. The fort's other
+     buildings, which no plan pins, stay in the library;
+   - every created place sits in a created place, and `ax1.adventure` in
+     nothing;
+   - the plan the import held names its place's new copy and still stands
+     its pins;
+   - a dry prune holds none of them.
+
+### Teardown
+
+`api.sweepTracked()`: the fixtures, and, outside `HELD_OK`, every map, copy
+and folder the steps and the import made. Under `HELD_OK` the owner keeps
+the plans and places the import made.
+
 ## Organisations land as factions
 
 The organisations step (`cookbookImportFactions`, the chain's `stepFactions`)
@@ -2053,8 +2130,8 @@ hook and not the sheet, so script it only to read back.
 walks the places case on AX1: its Adventure carries every AX1 place, each in
 the carried place its row names in world form, and each roster row names a
 carried person or creature in world form or another book's creature where the
-library holds it. No carried map names a place yet, so an import of it brings
-the maps alone.
+library holds it. What an import of it brings is "A plan is the place it
+draws", step 3.
 
 What a scripted walk meets:
 

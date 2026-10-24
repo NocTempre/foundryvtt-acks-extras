@@ -506,9 +506,16 @@ the book has it, delete it and run the step; the rooms inside it move onto
 the new one. Rooms an earlier version imported as journal pages keep their
 pages.
 
-The book's Adventure carries these places, but its **Import** does not bring
-them into the world yet. They stay in your library until the maps mark where
-each room is.
+A plan of a dungeon level or a building is named for that place, and each
+room on it stands as a hidden token on the key the page prints. The maps
+step, and the Adventure's **Import**, bring those rooms into the world with
+their plan, each inside the area, level and book it belongs to, so a place's
+sheet lists the rooms in it. A room no plan shows stays in your library. A
+plan made before its rooms had places has no tokens: delete the scene and run
+the maps step again.
+
+An empty place that other places sit in is no longer removed when the world
+loads, so a level with its rooms, or a town with only its tavern, stays.
 
 ### Common problems
 

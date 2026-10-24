@@ -19,6 +19,7 @@
 import { acksExtras } from "../namespace.mjs";
 import { MODULE_ID, LANG_PREFIX, LOCATION_TYPE } from "./constants.mjs";
 import { primaryGMSettled } from "../lib/util.mjs";
+import { allPlaces, emptyOfPlaces } from "../lib/place.mjs";
 
 /** World setting: empty, unremarkable locations self-clean at ready. */
 const PRUNE_SETTING = "pruneEmptyLocations";
@@ -228,11 +229,14 @@ Hooks.once("ready", () => {
  * is scaffolding, and scaffolding comes down on its own. A location survives
  * empty when it IS something: a market (any market class or a market subtree),
  * someone's vault, a scene-linked mapped place, a quarter's own place, a
- * place standing on a map as a token, or a place a domain holds. Setting-gated
- * for worlds that want their empty rooms kept.
+ * place standing on a map as a token, a place a domain holds, or a place that
+ * a place staying behind sits in (`emptyOfPlaces`). Setting-gated for worlds
+ * that want their empty rooms kept. `dryRun` deletes nothing, setting or not,
+ * and answers with the uuids a sweep would remove.
+ * @returns {Promise<{pruned: number, doomed?: string[]}>}
  */
-export async function pruneEmptyLocations() {
-  if (!game.settings.get(MODULE_ID, PRUNE_SETTING)) return { pruned: 0 };
+export async function pruneEmptyLocations({ dryRun = false } = {}) {
+  if (!dryRun && !game.settings.get(MODULE_ID, PRUNE_SETTING)) return { pruned: 0 };
   // Every actor with a token anywhere, hidden ones included: a marker the
   // Judge hid is a point of interest not yet found, not an absent one. One
   // pass over the world's tokens for the whole sweep, not one per place.
@@ -240,7 +244,7 @@ export async function pruneEmptyLocations() {
   for (const scene of game.scenes ?? []) {
     for (const token of scene.tokens ?? []) if (token.actorId) placed.add(token.actorId);
   }
-  const doomed = game.actors.filter((a) => {
+  const empty = game.actors.filter((a) => {
     if (a.type !== LOCATION_TYPE) return false;
     if (a.items.size > 0) return false;
     if ((a.system?.roster ?? []).length > 0) return false;
@@ -253,6 +257,9 @@ export async function pruneEmptyLocations() {
     if (acksExtras.domains?.holdsPlace?.(a.uuid)) return false;
     return true;
   });
+  const gone = emptyOfPlaces(allPlaces(), empty.map((a) => a.uuid));
+  const doomed = empty.filter((a) => gone.has(a.uuid));
+  if (dryRun) return { pruned: 0, doomed: doomed.map((a) => a.uuid) };
   for (const a of doomed) await a.delete();
   if (doomed.length) {
     console.log(`${MODULE_ID} | pruned ${doomed.length} empty location(s): ${doomed.map((a) => a.name).join(", ")}`);

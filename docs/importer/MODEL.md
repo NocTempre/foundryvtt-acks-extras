@@ -79,7 +79,8 @@ shelf is cold (`libraryCold`), since a cold shelf reads every library document
 as missing; otherwise it empties `toUpdate` and narrows `toCreate` to the fill
 (`fillPlan`), synchronously. In a book's Adventure every document is a root,
 and a person, a list, a journal, an item, or a place no carried map shows
-stays in the library when the library holds it. `importAdventure` then
+stays in the library when the library holds it, unless a place the import
+creates sits in that place. `importAdventure` then
 mirrors the links of every created or held map and draws its thumbnail. The
 patch lives here and not in `lib/` because only this feature builds these
 Adventures; every other Adventure passes through untouched. One owner:
@@ -130,8 +131,9 @@ before anything is written. The picture is cut at the plan's scale
 quarter down from the picture's corner on the canvas (the padded origin less
 the shift, `placedFrame`), hands the
 lattice and shift to `sceneData`, and keeps the scale in the scene's cookbook
-flag (`pixelsPerPoint`) for the zones laid later. A recipe with a grid and no
-quarters is a REGION's map (`mapIds`): the map is the region's place
+flag (`pixelsPerPoint`) for the zones laid later. A recipe with a grid, no
+quarters and no `place` of its own is a REGION's map (`mapIds`); a plan names
+its place and is drawn on a grid too. A region's map is the region's place
 (`regionPlaceId`), each placed site stands on the place its text was written to
 (`regionSiteClaim`), and there are no quarters to hand to organisations; the
 picture's thumbnail and the places' scene links are written as for a
@@ -595,6 +597,21 @@ the line's hit points (each creature's where the line lists them), are its
 notes. A person of the book stands once, with no notes. The step returns
 `created.places`, the book's own place among them, and `created.creatures`,
 and reports what it rostered and made.
+
+A plan is the place it draws when its recipe says which (`place`): the map is
+named for that place and linked to it, where a recipe that names none is the
+book's own place's (`mapIds`). A plan of a place holds pins only for areas
+inside it, however deep (`recipeProblems`), and each pin is a hidden token of
+the area at the point its page prints the key (`places`). A row that keys a
+range of rooms stands once, on its first key. A recipe's `travel` is the
+travel system its map declares (`mapCreateData`); a plan explored a turn at a
+time says `delve`. A pinned room comes into the world inside the places it
+sits in. The maps step brings every place a pinned room or the plan's own place
+sits in, up to the book's own (`mapIds` `all`). In a book's Adventure a place
+is created when a carried map shows it, and the places above it because a
+created place sits in each (`fillPlan`). A map made before its recipe carried
+pins keeps its shape (`repairHeldMap`); deleting it and running the maps step
+again lays them.
 
 ## A roll table's rows
 

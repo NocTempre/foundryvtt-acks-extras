@@ -16,10 +16,21 @@
  * lines. The cookbook's own rows (cookbook/ax1.json) say what each room should
  * be; nothing of the page is read here.
  *
+ * Section 2c walks "A plan is the place it draws": with the places in the
+ * library, the maps are made again, and each plan is named for its place and
+ * linked to it, is explored a turn at a time, and stands a hidden token on
+ * each area it pins. Every place a pinned area sits in is in the world too,
+ * each inside the copy of its parent, and the empty-location prune, run dry,
+ * would remove none of them. A shot of each level's plan, framed on its first
+ * pin with the interface hidden, goes to the log directory to be read by eye.
+ *
  * Section 3 walks "A book lands in the library as one Adventure": the
  * journals step makes no page for a keyed area, and the book's Adventure
  * carries the places, their tree and their rosters beside the maps, whose
- * scenes state the dark map's sight.
+ * scenes state the dark map's sight. Section 3b deletes the world's AX1
+ * places and every plan but one, and presses the Adventure sheet's own
+ * Import: it brings each deleted plan back with its pins, and the places 2c
+ * found and no other, and the plan it held names its place's new copy.
  *
  * Fixtures and writes, each reported:
  *   - the book connected on the GM seat with remember:false;
@@ -38,6 +49,13 @@
  *     or creature already under one of AX1's place ids stops the walk, and
  *     under HELD_OK is deleted and made again as the owner's. Two rooms are
  *     deleted mid-walk and made again; the new ones are tracked like the rest;
+ *   - the maps made again in 2c, with the world copies of AX1's places the
+ *     step brings across (`created.actors`) and the folders it opens, under
+ *     section 1's rule; the plans and places 3b deletes, and what the
+ *     Adventure import creates in their stead (read from core's
+ *     `importAdventure` hook), under the same rule;
+ *   - two empty places, one inside the other, made with `api.create` to show
+ *     the prune's dry run lists both;
  *   - AX1's journal, stamped by an earlier release's journals step and left
  *     standing, and AX1's Adventure, written or rebuilt by the Adventure step
  *     (one it writes is tracked, and a shelf it opens is deleted when empty).
@@ -54,8 +72,9 @@
  *     outlived its scene.
  */
 import { readFile } from "node:fs/promises";
-import { connect, sleep } from "./_driver.mjs";
-import { seats as machineSeats, PORTS, books } from "./_env.mjs";
+import path from "node:path";
+import { connect, sleep, pageSweep } from "./_driver.mjs";
+import { seats as machineSeats, PORTS, books, logDir } from "./_env.mjs";
 
 const MACHINE = machineSeats();
 const browser = MACHINE.browser;
@@ -66,6 +85,8 @@ const BOOK = "ax1";
 const BOOKS = books([BOOK]);
 const LEVEL = "ax1.level1Map";
 const HELD_OK = process.env.HELD_OK === "1";
+// Ledger entries per page-side sweep call, each well inside the driver's timeout.
+const SWEEP_CHUNK = 25;
 
 const note = (label, value) => console.log(`${label}: ${typeof value === "string" ? value : JSON.stringify(value)}`);
 const section = (title) => console.log(`\n== ${title} ==`);
@@ -89,6 +110,18 @@ const parentOf = (id) => COOK[id]?.meta?.parent ?? COOK[id]?.meta?.space ?? BOOK
 const labelsOf = (id) => new Set(Object.keys(COOK[id]?.fields ?? {}).map((k) => /^occupants\.(\d+)\.name$/.exec(k)?.[1]).filter((i) => i != null)).size;
 const PEOPLE = Object.entries(COOK).filter(([, e]) => ["kind.npc", "kind.monsterLegacy"].includes(e.kind)).map(([id]) => id);
 const LINE_ID = /^(.+)-o(\d+)$/;
+// The plans that are a place's own: each map's id, the place it draws, the areas it pins.
+const PINNED = Object.entries(COOKBOOK.scenes ?? {}).filter(([, r]) => r?.scene?.place)
+  .map(([id, r]) => ({ id, place: r.scene.place, pins: (r.scene.places ?? []).map((p) => p.id) }));
+// A place's parents, nearest first, up to the book's own.
+const aboveOf = (id) => {
+  const out = [];
+  for (let at = id; at !== BOOK_PLACE && out.length < 16;) out.push((at = parentOf(at)));
+  return out;
+};
+// Every place the plans bring into the world: theirs, their pins', and every place those sit in.
+const BROUGHT = [...new Set(PINNED.flatMap((p) => [p.place, ...p.pins]).flatMap((id) => [id, ...aboveOf(id)]))];
+const sameSet = (a, b) => a.length === b.length && new Set(a).size === a.length && a.every((x) => b.includes(x));
 
 /* ------------------------------------------------------------------ */
 /*  Page side                                                           */
@@ -266,10 +299,108 @@ const P = {
     }
     return out;
   },
-  /** The sight fields of every scene a stored Adventure carries. */
+  /** The sight fields, cookbook id and token count of every scene a stored Adventure carries. */
   adventureScenes: async ({ uuid }) => {
     const a = await fromUuid(uuid);
-    return a ? [...a.scenes].map((s) => ({ walls: s.walls.length ?? s.walls.size, tokenVision: s.tokenVision, fogMode: s.fog?.mode, darkness: s.environment?.darknessLevel, globalLight: !!s.environment?.globalLight?.enabled })) : null;
+    return a ? [...a.scenes].map((s) => ({
+      id: s.flags?.["acks-extras"]?.cookbook?.id ?? null, tokens: s.tokens.length ?? s.tokens.size,
+      walls: s.walls.length ?? s.walls.size, tokenVision: s.tokenVision, fogMode: s.fog?.mode, darkness: s.environment?.darknessLevel, globalLight: !!s.environment?.globalLight?.enabled,
+    })) : null;
+  },
+  /**
+   * A map by cookbook id: its link and whether that is a world place named as
+   * the map is, its travel system, and each token's place and whether it is
+   * hidden. No name rides out.
+   */
+  planOf: async ({ id }) => {
+    const MID = "acks-extras";
+    const s = game.scenes.find((x) => x.flags?.[MID]?.cookbook?.id === id);
+    if (!s) return null;
+    const link = s.flags[MID].location ?? null;
+    const place = link ? await fromUuid(link).catch(() => null) : null;
+    return {
+      uuid: s.uuid,
+      linkId: place?.flags?.[MID]?.cookbook?.id ?? null,
+      linkWorld: !!place && !place.pack,
+      namedForIt: !!place && s.name === place.name,
+      mapSystem: s.flags[MID].battlemap?.mapSystem ?? null,
+      tokens: [...s.tokens].map((t) => ({ id: t.id, hidden: !!t.hidden, place: game.actors.get(t.actorId)?.flags?.[MID]?.cookbook?.id ?? null })),
+    };
+  },
+  /** The world's places of a book: cookbook id, uuid and parent. */
+  worldPlaces: async ({ book }) => {
+    const MID = "acks-extras";
+    const H = globalThis.__ax;
+    const ofBook = (a) => { const c = a.flags?.[MID]?.cookbook; return !!c?.id && H.CB.bookOfCookbookId(c.id, c.book) === book; };
+    return game.actors.filter((a) => a.type === H.LC.LOCATION_TYPE && ofBook(a))
+      .map((a) => ({ uuid: a.uuid, id: a.flags[MID].cookbook.id, parentUuid: a.system?.parentUuid ?? "" }));
+  },
+  /**
+   * Where each cookbook id stands as the maps step reads it: the world Actor
+   * packs' index rows carrying it (the step's own fields), and the world
+   * actors carrying it, by type. `docs: true` also counts the packs' documents,
+   * which re-indexes every one it loads, so it is asked only after the step.
+   */
+  standing: async ({ ids, docs = false }) => {
+    const MID = "acks-extras";
+    const fields = ["type", ...["id", "kind", "book"].map((k) => `flags.${MID}.cookbook.${k}`)];
+    const out = Object.fromEntries(ids.map((id) => [id, { index: 0, docs: 0, world: [] }]));
+    const at = (id) => (Object.hasOwn(out, id ?? "") ? out[id] : null);
+    for (const pack of game.packs.filter((p) => p.metadata.packageType === "world" && p.documentName === "Actor")) {
+      for (const r of await pack.getIndex({ fields })) { const o = at(r.flags?.[MID]?.cookbook?.id); if (o) o.index++; }
+      if (docs) for (const d of await pack.getDocuments()) { const o = at(d.flags?.[MID]?.cookbook?.id); if (o) o.docs++; }
+    }
+    for (const a of game.actors) { const o = at(a.flags?.[MID]?.cookbook?.id); if (o) o.world.push(a.type); }
+    return out;
+  },
+  /** What the empty-location prune would remove; it removes nothing. */
+  pruneDry: async () => (await import("/modules/acks-extras/scripts/location/module.mjs")).pruneEmptyLocations({ dryRun: true }),
+  /** The viewed scene centred on one token at a scale, with the interface hidden for a shot. */
+  frameToken: async ({ tokenId, scale = 1 }) => {
+    const t = canvas.tokens.get(tokenId);
+    if (!t) return { framed: false };
+    await canvas.animatePan({ x: t.center.x, y: t.center.y, scale, duration: 0 });
+    for (const id of ["interface", "pause"]) document.getElementById(id)?.style.setProperty("visibility", "hidden");
+    await new Promise((r) => setTimeout(r, 1000));
+    // Whether the GM's canvas draws the pin at all, and where.
+    return { framed: true, visible: !!t.visible, alpha: t.mesh?.alpha ?? null, inScene: !!canvas.dimensions.sceneRect.contains(t.center.x, t.center.y) };
+  },
+  showInterface: async () => {
+    for (const id of ["interface", "pause"]) document.getElementById(id)?.style.removeProperty("visibility");
+    return true;
+  },
+  /** Press the book's Adventure sheet's own Import; what it created arrives from core's hook. */
+  importViaSheet: async ({ book }) => {
+    const H = globalThis.__ax;
+    H.AB ??= await import("/modules/acks-extras/scripts/importer/adventure-binding.mjs");
+    const pack = H.LIB.findLibraryPack("Adventure", H.CB.lineOf(book));
+    const doc = pack ? await pack.getDocument(H.AB.bookAdventureId(book)) : null;
+    if (!doc) return { clicked: false, adventure: false };
+    globalThis.__axImport = { done: false };
+    H.importHook = Hooks.once("importAdventure", (adv, opts, created) => {
+      globalThis.__axImport = { done: true, created: Object.fromEntries(Object.entries(created ?? {}).map(([type, docs]) => [type, docs.map((d) => d.uuid)])) };
+    });
+    const sheet = doc.sheet;
+    await sheet.render({ force: true });
+    // A V1 sheet's `element` is a jQuery wrapper; a V2 sheet's is the node
+    // itself, a <form> whose [0] is its first control, so never index a V2 one.
+    const root = () => (typeof sheet.element?.querySelector === "function" ? sheet.element : (sheet.element?.[0] ?? null));
+    let button = null;
+    for (let n = 0; n < 80; n++) {
+      button = root()?.querySelector('button[type="submit"]') ?? null;
+      if (button && !button.disabled) break;
+      await new Promise((r) => setTimeout(r, 250));
+    }
+    if (!button || button.disabled) return { clicked: false, adventure: true, sheetClass: sheet.constructor.name };
+    button.click();
+    return { clicked: true, adventure: true, sheetClass: sheet.constructor.name };
+  },
+  importState: async () => globalThis.__axImport ?? { done: false },
+  endImport: async () => {
+    const H = globalThis.__ax;
+    if (H.importHook) Hooks.off("importAdventure", H.importHook);
+    H.importHook = null;
+    return true;
   },
   /** The actors a stored Adventure carries: id, cookbook id, type, parent and roster links. */
   adventureActors: async ({ uuid }) => {
@@ -507,7 +638,8 @@ try {
   const made = await run(gm, P.sceneIdsOf, { uuids: st?.created?.scenes ?? [] });
   for (const m of made) if (!rebuild || !ownersIds.has(m.id)) gm.track(m.uuid, "Scene");
   if (!rebuild) for (const uuid of st?.created?.folders ?? []) gm.track(uuid, "Folder");
-  note("1: maps made", { owners: made.filter((m) => rebuild && ownersIds.has(m.id)).map((m) => m.uuid), tracked: made.filter((m) => !rebuild || !ownersIds.has(m.id)).map((m) => m.uuid), folders: st?.created?.folders ?? [], foldersTracked: !rebuild });
+  if (!rebuild) for (const uuid of st?.created?.actors ?? []) gm.track(uuid, "Actor");
+  note("1: maps made", { owners: made.filter((m) => rebuild && ownersIds.has(m.id)).map((m) => m.uuid), tracked: made.filter((m) => !rebuild || !ownersIds.has(m.id)).map((m) => m.uuid), folders: st?.created?.folders ?? [], foldersTracked: !rebuild, copies: st?.created?.actors?.length ?? 0 });
   note("maps step", { made: st?.made, walls: st?.walls, wallsFailed: st?.wallsFailed, scenes: st?.created?.scenes?.length ?? 0 });
   const sights = [];
   for (const id of MAPS) sights.push({ id, ...(await run(gm, P.sightOf, { id })) });
@@ -679,6 +811,69 @@ try {
       && lib2.filter((r) => LINE_ID.test(r.id)).length === lineMade.length,
     { lineRows: liner ? was[liner].lines.length : 0, creatures: lib2.filter((r) => LINE_ID.test(r.id)).length });
 
+  section("2c. each plan is the place it draws, and its rooms stand on it");
+  // Section 1 made the maps before the library held AX1's places, and a held
+  // map is never reshaped: each is made again, now that its pins have places.
+  const before2c = await run(gm, P.heldMaps, { ids: MAPS });
+  note("2c: maps deleted to be made again", await run(gm, P.deleteScenes, { uuids: before2c.map((m) => m.uuid) }));
+  const copiesBefore = await run(gm, P.worldPlaces, { book: BOOK });
+  if (copiesBefore.length) note("2c: world places deleted", await run(gm, P.deleteActors, { uuids: copiesBefore.map((p) => p.uuid) }));
+  // Where the places the pins sit in stand, as the maps step reads them.
+  const above2c = BROUGHT.filter((id) => !PINNED.some((p) => p.pins.includes(id)));
+  const standing = (s) => ({
+    ids: above2c.length, indexed: above2c.filter((id) => s[id].index).length, documents: above2c.filter((id) => s[id].docs).length,
+    world: above2c.filter((id) => s[id].world.length).map((id) => [id, s[id].world]), unindexed: above2c.filter((id) => !s[id].index),
+  });
+  note("2c: the places the pins sit in, before the step", standing(await run(gm, P.standing, { ids: above2c })));
+  const sc = await step(gm, "cookbookImportScenes", [{ books: [BOOK] }]);
+  note("2c: the places the pins sit in, after the step", standing(await run(gm, P.standing, { ids: above2c, docs: true })));
+  note("2c: actors the step created", (sc?.created?.actors ?? []).length);
+  const remade = await run(gm, P.sceneIdsOf, { uuids: sc?.created?.scenes ?? [] });
+  for (const m of remade) if (!rebuild || !ownersIds.has(m.id)) gm.track(m.uuid, "Scene");
+  if (!rebuild) for (const uuid of sc?.created?.folders ?? []) gm.track(uuid, "Folder");
+  if (!rebuild) for (const uuid of sc?.created?.actors ?? []) gm.track(uuid, "Actor");
+  note("2c: maps step", { made: sc?.made, missing: sc?.missing, copied: sc?.copied, tokens: sc?.tokens, refused: sc?.refused, wallsFailed: sc?.wallsFailed, tracked: !rebuild });
+  check("2c: every AX1 map is made again, and none needs a place the library lacks",
+    sc?.made === MAPS.length && sc?.missing === 0 && !sc?.refused, { made: sc?.made, maps: MAPS.length, missing: sc?.missing, refused: sc?.refused });
+  const plans = {};
+  for (const p of PINNED) plans[p.id] = await run(gm, P.planOf, { id: p.id });
+  note("2c: plans", PINNED.map((p) => ({ id: p.id, linkId: plans[p.id]?.linkId, linkWorld: plans[p.id]?.linkWorld, named: plans[p.id]?.namedForIt, mapSystem: plans[p.id]?.mapSystem, tokens: plans[p.id]?.tokens.length, pins: p.pins.length })));
+  const standsItsPins = (p, plan) => !!plan && JSON.stringify(plan.tokens.map((t) => t.place)) === JSON.stringify(p.pins) && plan.tokens.every((t) => t.hidden);
+  check("2c: each plan is named for the place it draws and linked to that place's world copy",
+    PINNED.length === MAPS.length && PINNED.every((p) => plans[p.id]?.linkId === p.place && plans[p.id].linkWorld && plans[p.id].namedForIt));
+  check("2c: each plan is explored a turn at a time", PINNED.every((p) => plans[p.id]?.mapSystem === "delve"));
+  check("2c: each plan stands one hidden token per pin, each the world copy of the area it pins",
+    PINNED.every((p) => standsItsPins(p, plans[p.id])), PINNED.map((p) => ({ id: p.id, ok: standsItsPins(p, plans[p.id]) })));
+  const world2c = await run(gm, P.worldPlaces, { book: BOOK });
+  const sitsInItsParent = (places) => {
+    const byId = new Map(places.map((p) => [p.id, p]));
+    return (p) => (p.id === BOOK_PLACE ? p.parentUuid === "" : p.parentUuid === byId.get(parentOf(p.id))?.uuid);
+  };
+  check("2c: the world holds the places the plans bring, once each, and no other of AX1's",
+    sameSet(world2c.map((p) => p.id), BROUGHT), { world: world2c.length, brought: BROUGHT.length, copied: sc?.copied });
+  check("2c: every world place sits in the world copy of the place its row names, the book's own in nothing",
+    world2c.every(sitsInItsParent(world2c)), failing(world2c.map((p) => p.id), (id) => sitsInItsParent(world2c)(world2c.find((p) => p.id === id))));
+  const dry2c = await run(gm, P.pruneDry);
+  const doomedOf = (dry, places) => (dry?.doomed ?? []).filter((u) => places.some((p) => p.uuid === u)).length;
+  check("2c: the empty-location prune, run dry, would remove none of them", Array.isArray(dry2c?.doomed) && doomedOf(dry2c, world2c) === 0, { doomed: doomedOf(dry2c, world2c) });
+  const outer = await gm.create("Actor", { name: `QA empty ${NONCE}`, type: LOCATION });
+  const inner = await gm.create("Actor", { name: `QA emptier ${NONCE}`, type: LOCATION, system: { parentUuid: outer.uuid } });
+  note("2c: fixtures", { outer: outer.uuid, inner: inner.uuid });
+  const dryPair = await run(gm, P.pruneDry);
+  check("2c: an empty place inside an empty one is listed with it", dryPair.doomed.includes(outer.uuid) && dryPair.doomed.includes(inner.uuid));
+  // The pins read by eye: each level's plan framed on its first pin.
+  for (const p of PINNED.filter((x) => x.pins.length > 20)) {
+    const plan = plans[p.id];
+    await run(gm, P.view, { uuid: plan.uuid });
+    const framed = await run(gm, P.frameToken, { tokenId: plan.tokens[0].id, scale: 0.8 });
+    note(`2c: ${p.id}'s first pin on the GM's canvas`, framed);
+    try {
+      if (framed.framed) note(`2c: shot ${p.id}`, await gm.shot(path.join(logDir(), `importer-ax1-pins-${p.id.split(".").pop()}.png`), "#board"));
+    } finally {
+      await run(gm, P.showInterface);
+    }
+  }
+
   section("3. AX1's Adventure carries its places beside its maps");
   const before = await run(gm, P.library, { book: BOOK });
   const ownedAdventure = before.adventures.length > 0;
@@ -719,6 +914,47 @@ try {
   const carried = adv ? await run(gm, P.adventureScenes, { uuid: adv.uuid }) : null;
   check("3: each map the Adventure carries is dark, as the world's are",
     !!carried?.length && carried.every((s) => s.tokenVision === true && s.fogMode === 1 && s.darkness === 1 && s.globalLight === false), carried);
+  check("3: the Adventure carries each plan with a token per pin",
+    PINNED.every((p) => carried?.find((s) => s.id === p.id)?.tokens === p.pins.length), carried?.map((s) => ({ id: s.id, tokens: s.tokens })));
+
+  section("3b. an Adventure import brings each plan with its rooms, inside the places they sit in");
+  // The world loses its AX1 places and every plan but one; the import is what
+  // brings them, and the plan it holds names its place's new copy.
+  const kept3b = PINNED.reduce((a, b) => (b.pins.length < a.pins.length ? b : a));
+  const remade3b = PINNED.filter((p) => p !== kept3b);
+  const plansHeld = await run(gm, P.heldMaps, { ids: remade3b.map((p) => p.id) });
+  const placesHeld = await run(gm, P.worldPlaces, { book: BOOK });
+  note("3b: deleted", {
+    scenes: (await run(gm, P.deleteScenes, { uuids: plansHeld.map((m) => m.uuid) })).length,
+    places: (await run(gm, P.deleteActors, { uuids: placesHeld.map((p) => p.uuid) })).length,
+  });
+  const click = await run(gm, P.importViaSheet, { book: BOOK });
+  note("3b: sheet", click);
+  if (!click.clicked) throw new Error("the Adventure sheet's Import button could not be pressed");
+  const imported = await poll(gm, P.importState, undefined, { tries: 120, every: 2000 });
+  await run(gm, P.endImport);
+  const createdBy = imported?.created ?? {};
+  if (!rebuild) for (const [type, uuids] of Object.entries(createdBy)) for (const uuid of uuids) gm.track(uuid, type);
+  note("3b: created", { ...Object.fromEntries(Object.entries(createdBy).map(([type, uuids]) => [type, uuids.length])), tracked: !rebuild });
+  check("3b: the sheet's Import ran to core's hook", imported?.done === true);
+  const createdSet = new Set(Object.values(createdBy).flat());
+  const world3b = await run(gm, P.worldPlaces, { book: BOOK });
+  const createdPlaces = world3b.filter((p) => createdSet.has(p.uuid)).map((p) => p.id);
+  check("3b: it creates the plans' places, their pins and every place those sit in, and no other of AX1's",
+    sameSet(createdPlaces, BROUGHT) && world3b.length === BROUGHT.length, { created: createdPlaces.length, brought: BROUGHT.length, world: world3b.length });
+  const plans3b = {};
+  for (const p of PINNED) plans3b[p.id] = await run(gm, P.planOf, { id: p.id });
+  check("3b: it creates each plan it was handed, linked to its place's new copy and standing its pins",
+    remade3b.length > 0 && remade3b.every((p) => createdSet.has(plans3b[p.id]?.uuid) && plans3b[p.id].linkId === p.place && plans3b[p.id].linkWorld && standsItsPins(p, plans3b[p.id])),
+    remade3b.map((p) => ({ id: p.id, created: createdSet.has(plans3b[p.id]?.uuid), linkId: plans3b[p.id]?.linkId, pins: standsItsPins(p, plans3b[p.id]) })));
+  check("3b: every created place sits in a created place, the book's own in nothing",
+    world3b.every(sitsInItsParent(world3b)), failing(world3b.map((p) => p.id), (id) => sitsInItsParent(world3b)(world3b.find((p) => p.id === id))));
+  const held3b = plans3b[kept3b.id];
+  check("3b: the plan the import held names its place's new copy and still stands its pins",
+    !!held3b && !createdSet.has(held3b.uuid) && held3b.linkId === kept3b.place && held3b.linkWorld && standsItsPins(kept3b, held3b),
+    { id: kept3b.id, created: createdSet.has(held3b?.uuid), linkId: held3b?.linkId, world: held3b?.linkWorld, pins: standsItsPins(kept3b, held3b) });
+  const dry3b = await run(gm, P.pruneDry);
+  check("3b: the empty-location prune, run dry, would remove none of them", doomedOf(dry3b, world3b) === 0, { doomed: doomedOf(dry3b, world3b) });
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err);
   checks.push(["walk ran to the end", false]);
@@ -726,8 +962,20 @@ try {
   section("teardown");
   let swept = 0;
   try {
-    const sw = gm ? await gm.sweepTracked() : null;
-    if (sw) {
+    if (gm) {
+      // A chunk at a time, newest first as the driver sweeps: one page-side
+      // call over a ledger the places step has filled outlives the driver's
+      // evaluate timeout, and the call it abandons still deletes, unreported.
+      // The driver's own sweep then finds nothing left and empties the ledger.
+      const sw = { removed: [], missing: [], failed: [] };
+      const left = gm.tracked().reverse();
+      for (let i = 0; i < left.length; i += SWEEP_CHUNK) {
+        const r = JSON.parse(await gm.eval(pageSweep(left.slice(i, i + SWEEP_CHUNK))));
+        for (const k of Object.keys(sw)) sw[k].push(...r[k]);
+      }
+      const rest = await gm.sweepTracked();
+      sw.removed.push(...rest.removed);
+      sw.failed = rest.failed;
       swept = sw.removed.length;
       note("sweep (gm)", { removed: sw.removed.map((e) => e.uuid), missing: sw.missing.map((e) => e.uuid), failed: sw.failed.map((e) => ({ uuid: e.uuid, error: e.error })) });
     }

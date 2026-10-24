@@ -189,6 +189,34 @@ t("a block the column's foot cuts reads its run-on from the next column's top, a
   assert.ok(more.x0 > first.x1 && more.y1 < first.y0, "the second box is the next column's top");
 });
 
+/* ---------------- pins ---------------- */
+
+/** The plans that are a place's own, and the place each one is. */
+const PLANS = { "ax1.level1Map": "ax1.l1", "ax1.level2Map": "ax1.l2", "ax1.fort18Map": "ax1.fort18", "ax1.fort24Map": "ax1.fort24" };
+const parentOf = (id) => entries[id]?.meta?.parent ?? entries[id]?.meta?.space;
+const insideOf = (place) => Object.keys(entries).filter((id) => {
+  for (let at = parentOf(id), hops = 0; at && hops < 9; at = parentOf(at), hops++) if (at === place) return true;
+  return false;
+});
+
+t("each plan is the place it draws, explored a turn at a time", () => {
+  for (const [map, place] of Object.entries(PLANS)) {
+    assert.equal(cb.scenes[map]?.scene?.place, place, map);
+    assert.equal(cb.scenes[map].scene.travel, "delve", map);
+  }
+});
+
+t("every area inside a plan's place that holds no other is pinned on it, once", () => {
+  for (const [map, place] of Object.entries(PLANS)) {
+    const inside = insideOf(place);
+    const holders = new Set(inside.map(parentOf));
+    const pinned = (cb.scenes[map].scene.places ?? []).map((p) => p.id);
+    assert.equal(new Set(pinned).size, pinned.length, `${map} pins a row twice`);
+    assert.deepEqual(inside.filter((id) => !holders.has(id) && !pinned.includes(id)), [], `${map} leaves areas off`);
+    assert.deepEqual(pinned.filter((id) => !inside.includes(id)), [], `${map} pins areas from elsewhere`);
+  }
+});
+
 /* ---------------- prose boxes ---------------- */
 
 t("no two areas' or inhabitants' boxes meet on a page", () => {

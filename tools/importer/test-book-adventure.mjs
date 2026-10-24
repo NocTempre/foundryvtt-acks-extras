@@ -391,6 +391,22 @@ const sourceWorld = (drop = []) => ({
   const placed = fillPlan({ content: onMap, book: true, included: keysOf(onMap), ...world({ shelved: libraryHolds }) });
   ok("a place a carried map shows is created, though the library holds it", created(placed).includes(k("Actor", "p4")));
 
+  // p1 sits in p4, which no map shows; p4 sits in the city.
+  const nested = adventure({ book: true });
+  nested.Actor.find((x) => x._id === I.p1).system.parentUuid = `Actor.${I.p4}`;
+  nested.Actor.find((x) => x._id === I.p4).system.parentUuid = `Actor.${I.city}`;
+  const inside = fillPlan({ content: nested, book: true, included: keysOf(nested), ...world({ shelved: libraryHolds }) });
+  ok("a place a created place sits in is created, though no map shows it and the library holds it", created(inside).includes(k("Actor", "p4")));
+  check("and the place inside it names the copy, not the library's", inside.create.Actor.find((x) => x._id === I.p1).system.parentUuid, `Actor.${I.p4}`);
+  check("and it is no longer counted as kept in the library", inside.shelved, libraryHolds.length - 1);
+  const outOfScope = fillPlan({ content: nested, book: true, included: new Set([...keysOf(nested)].filter((x) => x !== k("Actor", "p4"))), ...world({ shelved: libraryHolds }) });
+  check("a place core left out of the import stays pointed at the library", outOfScope.create.Actor.find((x) => x._id === I.p1).system.parentUuid, `${LIB}.${I.p4}`);
+  const heldRoom = fillPlan({
+    content: nested, book: true, included: keysOf(nested),
+    ...world({ ...sourceWorld(), shelved: libraryHolds, worldDocs: { [k("Actor", "p1")]: nested.Actor.find((x) => x._id === I.p1) } }),
+  });
+  ok("a place a held place's world version names is created when the world lacks it", created(heldRoom).includes(k("Actor", "p4")));
+
   const built = plan({ ...sourceWorld(), shelved: libraryHolds });
   check("the world that built it: nothing to add", [built.added, created(built)], [0, []]);
 

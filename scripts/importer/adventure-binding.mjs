@@ -329,7 +329,8 @@ function parentFirst(folders) {
  * are. Of the absent ones, an import creates the roots (`isRoot`), whatever a
  * held document's WORLD version names, and whatever a created one names, until
  * nothing new is named; and a folder only when something created sits in it or
- * below it. Only what core scoped into the import (`included`) is created, and
+ * below it. A place shelved for standing on no map is absent again once a
+ * held or created document names it, as a room names the place it sits in. Only what core scoped into the import (`included`) is created, and
  * a folder that is neither held nor created is dropped from what is. Nothing
  * held is written to.
  *
@@ -358,6 +359,8 @@ export function fillPlan({ content, book = false, included, has, twinOf, shelfOf
   const onMap = new Set(book ? (content.Scene ?? []).flatMap((s) => [...refsOf("Scene", s)]) : []);
   const shelvable = (type, data) =>
     isShelvedKind(type, data) || (book && type === "Actor" && data?.type === LOCATION_TYPE && !onMap.has(`Actor.${data._id}`));
+  // The places shelved only because no carried map shows them.
+  const offMap = new Set();
 
   const folders = content.Folder ?? [];
   const ours = new Set(folders.map((f) => f._id));
@@ -399,6 +402,7 @@ export function fillPlan({ content, book = false, included, has, twinOf, shelfOf
       if (lib) {
         state.set(key, "shelved");
         redirect.set(key, lib);
+        if (!isShelvedKind(type, data)) offMap.add(key);
         shelved++;
         continue;
       }
@@ -413,15 +417,25 @@ export function fillPlan({ content, book = false, included, has, twinOf, shelfOf
     wanted.add(key);
     queue.push(key);
   };
+  // A named place off every map loses its library pointer as well, so what
+  // names it is written to name the copy this import creates.
+  const named = (key) => {
+    if (offMap.delete(key) && included.has(key)) {
+      state.set(key, "absent");
+      redirect.delete(key);
+      shelved--;
+    }
+    want(key);
+  };
   for (const [key, { type, data }] of source) if (isRoot(type, data, book)) want(key);
   for (const [key, { type }] of source) {
     if (type === "Folder" || state.get(key) !== "held") continue;
     const worldId = (redirect.get(key) ?? key).slice(type.length + 1);
-    for (const ref of worldRefs(type, worldId)) want(ref);
+    for (const ref of worldRefs(type, worldId)) named(ref);
   }
   while (queue.length) {
     const { type, data } = source.get(queue.shift());
-    for (const ref of refsOf(type, data)) want(ref);
+    for (const ref of refsOf(type, data)) named(ref);
   }
   for (const key of [...wanted]) {
     let parent = source.get(key).data.folder ?? null;
