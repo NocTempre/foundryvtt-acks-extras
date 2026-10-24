@@ -13,7 +13,9 @@ import {
   ROSTER_FILTERS, bucketOf, keepsLoyalty, wageClock, loyaltyParts, moraleParts, ledgerEntries, shareKind, termsOf,
   rolledOf, slotOf, serviceBadge, filterRows, filterCounts, ROLLED_SCORES,
 } from "../scripts/henchmen/rules/service.mjs";
-import { effectiveMorale, clampScore } from "../scripts/henchmen/rules/loyalty.mjs";
+import { effectiveMorale, effectiveLoyalty, clampScore } from "../scripts/henchmen/rules/loyalty.mjs";
+import { henchmanWage, henchmanWageCite } from "../scripts/henchmen/rules/wages.mjs";
+import * as tables from "../scripts/lib/tables.mjs";
 
 let passed = 0;
 const test = (name, fn) => {
@@ -69,6 +71,10 @@ const record = {
 test("loyalty sums start, the permanents still counting, Charisma and powers, and counts the uncompensated", () => {
   const p = loyaltyParts(record, { chaLoyalty: 1, baseLoyaltyBonus: 0 });
   assert.deepEqual(p, { start: 1, permanents: -1, uncompensated: 1, cha: 1, powers: 0, total: 1 });
+});
+test("the loyalty parts' total is the figure the panel and the throws read", () => {
+  const cases = [[record, { chaLoyalty: 1, baseLoyaltyBonus: 0 }], [{ loyalty: { start: 4 } }, { chaLoyalty: 3 }], [{}, {}], [{ loyalty: { start: -4, permanents: [{ delta: -3 }] } }, { baseLoyaltyBonus: 1 }]];
+  for (const [r, mods] of cases) assert.equal(loyaltyParts(r, mods).total, effectiveLoyalty(r, mods));
 });
 test("the total is clamped to the score's range", () => {
   assert.equal(loyaltyParts({ loyalty: { start: 4 } }, { chaLoyalty: 3 }).total, 4);
@@ -132,6 +138,26 @@ test("the wage names where it came from: the record, the sheet, the ladder, or n
   assert.equal(termsOf({ terms: { wageGp: 0 } }, { sheetWage: "25", ladder: 12 }).wageFrom, "ladder", "an agreed nothing falls to the ladder, as the wage does");
   assert.equal(termsOf({}, {}).wageFrom, null);
   assert.equal(termsOf({}, { ladder: 12, category: "mercenary" }).wageFrom, null);
+});
+test("the wage table's page is the one the import recorded for the table the wage is read from", () => {
+  const saved = globalThis.acksExtras;
+  globalThis.acksExtras = { lib: { tables } };
+  try {
+    tables.resetTables();
+    assert.equal(henchmanWageCite(), null, "nothing imported: no page");
+    tables.registerTable({ id: "availability", source: { pages: "AV 1-2" }, tables: { henchmanAvailability: { rows: [{ level: 1, wage: 7 }] } } }, { priority: tables.PRIORITY.WORLD });
+    assert.equal(henchmanWage(1), 7);
+    assert.equal(henchmanWageCite(), "AV 1-2", "the fallback table's page, from its document where no table page is recorded");
+    tables.registerTable({ id: "wages", source: { pages: "W 1-9" }, cites: { henchmanWageByLevel: "W 3" }, tables: { henchmanWageByLevel: { byLevel: { 1: 9 } } } }, { priority: tables.PRIORITY.WORLD });
+    assert.equal(henchmanWage(1), 9);
+    assert.equal(henchmanWageCite(), "W 3", "the ladder wins, with its own page");
+    tables.registerTable({ id: "wages", tables: { henchmanWageByLevel: { byLevel: { 1: 11 } } } }, { priority: tables.PRIORITY.OVERRIDE });
+    assert.equal(henchmanWage(1), 11);
+    assert.equal(henchmanWageCite(), null, "a Judge's override holds no page");
+  } finally {
+    tables.resetTables();
+    globalThis.acksExtras = saved;
+  }
 });
 test("a share the record never stated is read at the default, and says so", () => {
   assert.equal(termsOf({ terms: { treasureShare: 0.5, xpShare: 0.5 } }).sharesDefaulted, false);

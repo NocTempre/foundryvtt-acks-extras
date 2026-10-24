@@ -317,6 +317,80 @@ const P = {
     return { sel: `#${el.id}`, sheet: app.constructor.name, morale: !!el.querySelector('input[name="system.details.morale"]') };
   },
 
+  /**
+   * The hireling's Service tab as rendered: every value's tooltip beside the
+   * ones `buildServicePanel` builds, the Standing figures against the engine's,
+   * and the loyalty figure hovered (a pointerenter dispatched on it, after a
+   * hit test at its centre). `ladder` first clears the agreed and the sheet's
+   * wage, so the wage is read off the table.
+   */
+  serviceTips: async ({ actorId, ladder = false }) => {
+    const H = globalThis.__c1;
+    const actor = game.actors.get(actorId);
+    if (ladder) {
+      const rec = actor.getFlag("acks-extras", "record") ?? {};
+      await actor.update({ "system.retainer.wage": 0 });
+      await actor.setFlag("acks-extras", "record", { ...rec, terms: { ...(rec.terms ?? {}), wageGp: null } });
+    }
+    const app = actor.sheet;
+    await app.render({ force: true });
+    await H.poll(() => H.root(app)?.querySelector(".window-content"));
+    if (H.root(app).querySelector('[data-group="primary"][data-tab="service"]')) app.changeTab("service", "primary");
+    await app.setPosition({ left: 16, top: 16 });
+    const panel = await H.poll(() => H.root(app)?.querySelector(".acks-extras-service"));
+    if (!panel) return { rendered: false };
+    const SV = await import("/modules/acks-extras/scripts/henchmen/service-view.mjs");
+    const { signed } = await import("/modules/acks-extras/scripts/lib/frame-model.mjs");
+    const view = SV.buildServicePanel(actor, { isGM: game.user.isGM });
+    const s = view.standing, t = view.terms, e = view.employer ?? {};
+    const built = new Set([s.loyalty.tip, ...s.loyalty.parts.map((p) => p.tip), s.morale.tip, s.obedience.tip, t.wageTip, t.shareTip, t.signingTip, t.arrearsTip, e.calamitiesTip, e.levelsGainedTip, view.rolled?.scoresTip, view.rolled?.rolledTip].filter(Boolean));
+    const values = [...panel.querySelectorAll(".acks-extras-frame__row-value")];
+    const label = (el) => H.text(el.closest(".acks-extras-frame__row")?.querySelector(".acks-extras-frame__row-label, .acks-extras-frame__row-line")).slice(0, 40);
+    const figure = (sel) => H.text(panel.querySelector(`${sel} .acks-extras-frame__row-value`)) || null;
+    const employer = H.A.adapter.getManager(actor);
+    const level = H.A.adapter.getWageLevel(actor);
+    const ladderGp = H.m.WG.henchmanWage(level);
+    const cite = H.m.WG.henchmanWageCite();
+    const L = (k, d) => (d ? game.i18n.format(`ACKS-HENCHMEN.service.${k}`, d) : game.i18n.localize(`ACKS-HENCHMEN.service.${k}`));
+    const moraleRow = panel.querySelector('[data-roll="morale"]');
+    const target = panel.querySelector('[data-roll="loyalty"] .acks-extras-frame__row-value');
+    const hover = { attr: target?.dataset.tooltipText ?? null };
+    if (target) {
+      target.scrollIntoView({ block: "center" });
+      await H.sleep(250);
+      const r = target.getBoundingClientRect();
+      const at = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      hover.hit = !!at && (at === target || target.contains(at));
+      hover.hitClass = at?.className ?? null;
+      target.dispatchEvent(new PointerEvent("pointerenter"));
+      await H.sleep(foundry.helpers.interaction.TooltipManager.TOOLTIP_ACTIVATION_MS + 400);
+      hover.active = game.tooltip.element === target;
+      hover.shown = game.tooltip.tooltip?.textContent ?? null;
+      target.dispatchEvent(new PointerEvent("pointerleave"));
+    }
+    return {
+      rendered: true,
+      count: values.length,
+      untipped: values.filter((v) => !v.dataset.tooltipText).map(label),
+      mismatched: values.filter((v) => v.dataset.tooltipText && !built.has(v.dataset.tooltipText)).map((v) => [label(v), v.dataset.tooltipText]),
+      loyalty: figure('[data-roll="loyalty"]'),
+      morale: figure('[data-roll="morale"]'),
+      obedience: figure('[data-action="serviceObedience"]'),
+      moraleScore: signed(H.m.EV.effectiveMoraleFor(actor)),
+      powers: signed(H.m.EV.employerMoraleBase(employer)),
+      powersLabel: L("loyaltyPowers"),
+      moraleLine: H.text(moraleRow?.querySelector(".acks-extras-frame__row-line")),
+      moraleTip: moraleRow?.querySelector(".acks-extras-frame__row-value")?.dataset.tooltipText ?? null,
+      wageTip: [...panel.querySelectorAll(".acks-extras-frame__row")]
+        .find((r) => H.text(r.querySelector(".acks-extras-frame__row-label")) === L("wage"))
+        ?.querySelector(".acks-extras-frame__row-value")?.dataset.tooltipText ?? null,
+      expectWageTip: ladder ? (ladderGp > 0 ? L("tip.wageLevel", { n: level, page: cite ?? L("tip.noPage") }) : L("tip.wageUnset")) : null,
+      ladderGp,
+      cite,
+      hover,
+    };
+  },
+
   roster: async ({ actorId, keep = false, place = false }) => {
     const H = globalThis.__c1;
     const actor = game.actors.get(actorId);
@@ -1404,6 +1478,23 @@ try {
     const hostedObB = await run(gm, P.hosted, { kind: "obedience", hirelingId: hB.id });
     note("B's hireling, hosted", { opened: hostedObB.opened, external: hostedObB.external, mods: modsOf(hostedObB).map((m) => [m.label, m.value]) });
     check("15: B's hireling's obedience page names Command in a note and adds nothing for it", hostedObB.opened && hostedObB.external.some((e) => /Command/.test(e.label ?? "") && e.note === true && !(Number(e.value) > 0)) && !modsOf(hostedObB).some((m) => /^Command\b/.test(m.label ?? "")), { external: hostedObB.external });
+
+    // The service employer and its hireling are this step's alone, so its invented power reaches no other step's figures.
+    section("1b. the Service panel's figure tooltips");
+    const SE = await gm.create("Actor", { name: `QA Service employer ${NONCE}`, type: "character", system: { scores: { cha: { value: 13 } }, details: { level: 4 } }, items: [] });
+    const hS = await gm.create("Actor", { name: `QA Service hireling ${NONCE}`, type: "character", items: [] });
+    note("the service employer's morale power, an invented value", await run(gm, P.handAbilities, { actorId: SE.id, items: [{ name: `QA morale power ${NONCE}`, effects: [{ type: "modifier", target: "moraleBase", value: 1 }] }] }));
+    note("link the service hireling", await run(gm, P.link, { employerId: SE.id, hirelingId: hS.id, wage: 5 }));
+    const tipsS = await run(gm, P.serviceTips, { actorId: hS.id });
+    note("the service hireling, Service", tipsS);
+    check("1b: every value on the Service panel carries a data-tooltip-text, each one the view built", tipsS.rendered && tipsS.count >= 8 && tipsS.untipped.length === 0 && tipsS.mismatched.length === 0, { count: tipsS.count, untipped: tipsS.untipped, mismatched: tipsS.mismatched });
+    check("changed: the Obedience row reads the morale figure the obedience throw rolls on", tipsS.obedience !== null && tipsS.obedience === tipsS.morale && tipsS.morale === tipsS.moraleScore, { obedience: tipsS.obedience, morale: tipsS.morale, moraleScore: tipsS.moraleScore, loyalty: tipsS.loyalty });
+    check("changed: the morale line and its tooltip carry the employer's powers as a part", tipsS.powers === "+1" && tipsS.moraleLine.endsWith(`${tipsS.powersLabel} +1`) && (tipsS.moraleTip ?? "").includes(`${tipsS.powersLabel} +1`), { powers: tipsS.powers, line: tipsS.moraleLine, tip: tipsS.moraleTip });
+    check("1b: the loyalty figure, hovered, shows its own text in core's tooltip, and a pointer at its centre lands on it", tipsS.hover.hit && tipsS.hover.active && tipsS.hover.shown === tipsS.hover.attr, tipsS.hover);
+    const ladderS = await run(gm, P.serviceTips, { actorId: hS.id, ladder: true });
+    note("the service hireling, wage off the table", { wageTip: ladderS.wageTip, expect: ladderS.expectWageTip, ladderGp: ladderS.ladderGp, cite: ladderS.cite });
+    check("1b: with no agreed or sheet wage, the wage's tooltip names the table at the hireling's level and the page lib citeOf answers, or says nothing is imported", ladderS.rendered && ladderS.wageTip === ladderS.expectWageTip, { wageTip: ladderS.wageTip, expect: ladderS.expectWageTip, cite: ladderS.cite });
+    note("closed", await run(gm, P.closeAll));
 
     section("15. the hosted hiring page: B's hiring effect, the note, Diplomacy's box");
     const cov = await run(gm, P.handAbilities, { actorId: B.id, items: [{ name: "Command of Voice" }] });

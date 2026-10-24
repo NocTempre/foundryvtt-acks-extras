@@ -135,23 +135,28 @@ a step it does not name is walked by hand.
    the manager picker and the same panel under them; a mercenary's Standing
    holds no loyalty row, a hint saying why, and the morale throw alone, and
    its roster row reads a dash for loyalty.
-1b. The panel's figure tooltips. Give the employer an Active Effect whose
-   change key is `flags.acks-extras.moraleBase` (ADD, an invented value), and
-   leave the hireling's record without `terms.treasureShare`. Read each
-   `.acks-extras-service [data-tooltip-text]` value, then hover the loyalty
-   and wage figures for real. *Observable:* every value span in Standing,
-   Terms, Employer and Recorded rolls carries a `data-tooltip-text`, and the
-   hover shows it in core's tooltip; the loyalty tooltip lists start,
-   permanents, Charisma and powers and names its page, and its parts sum to
-   the figure or say where the range held it; the morale line and tooltip
+1b. The panel's figure tooltips (`tools/live/henchmen.mjs`, stage 1). A fresh
+   employer and hireling of this step's own: the employer holds a power whose
+   module effect targets `moraleBase` (an invented value; an Active Effect on
+   `flags.acks-extras.moraleBase` reads the same), and the hireling's record
+   states no share. Read each `.acks-extras-service .acks-extras-frame__row-value`
+   against what `buildServicePanel` builds, then hover the loyalty figure: the
+   capture driver has no pointer channel, so the walk hit-tests the figure's
+   centre with `elementFromPoint` and dispatches `pointerenter` on it, which
+   core's handler takes as a pointer's. *Observable:* every value span in
+   Standing, Terms, Employer and Recorded rolls carries a `data-tooltip-text`
+   the view built, and the hover shows it in core's tooltip; the loyalty
+   tooltip lists start, permanents, Charisma and powers and names its page,
+   and its parts sum to the figure or say where the range held it; the
+   morale line and tooltip
    carry the effect's value as the employer's powers, and the morale figure
    equals the `moraleScore` the GM's **Obedience** dialog opens with; the
    Obedience row reads that same morale figure, not loyalty; the wage tooltip
    says *agreed at hire* with `terms.wageGp` set, *set by hand* with only the
    sheet's wage, and the wage table's level and page with neither (the page
    is what lib `citeOf("wages", "henchmanWageByLevel")` answers, or *no page
-   recorded*); the share tooltip says the default is the module's. Delete the
-   effect: the powers part reads +0 and the morale figure drops by its value.
+   recorded*), and with no table imported says so; the share tooltip says
+   the default is the module's.
 2. `openThrowDialog("hirelingLoyalty", {actor: employer})`, then press its own
    **Roll** button.
    *Observable:* the dialog itemises base throw, loyalty score, level
