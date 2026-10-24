@@ -168,9 +168,11 @@ A recipe with a square `grid` may carry a `walls` block, read by
 
 `wallsProblems` checks the block wherever `recipeProblems` runs, in the
 register lint and in the compiler. It refuses corrections that weigh more
-than `correctionCap`, which is `CORRECTION_SHARE` of the lattice's cells, so
-a recipe that needs more never compiles. A correction weighs one and a box
-`BOX_WEIGHT`.
+than `correctionCap`, which is `CORRECTION_CEILING` of the lattice's cells,
+so a recipe that needs more never compiles. Past `correctionBudget`,
+`CORRECTION_SHARE` of the cells, the lint and the compiler warn
+(`wallsWarnings`) and the row still compiles. A correction weighs one and a
+box `BOX_WEIGHT`.
 
 What every mode does with a plan:
 - **The crop's own edge is no wall.** In `grid`, a floor cell on the

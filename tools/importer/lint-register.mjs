@@ -15,7 +15,7 @@ import {
   SCENE_ZONE_KIND, ZONE_FIGURES, bandOfSection, gridProblems, recipeContext, recipeProblems, zoneProblems,
 } from "../../scripts/importer/scene-binding.mjs";
 import { regionGroupOf } from "../../scripts/importer/poi-binding.mjs";
-import { wallsProblems } from "../../scripts/importer/wall-trace.mjs";
+import { wallsProblems, wallsWarnings } from "../../scripts/importer/wall-trace.mjs";
 import { ABILITY_CATEGORIES, TRAVEL_MODES } from "../../scripts/lib/vocab.mjs";
 import { FACTION_KINDS, RELATION_STANCES } from "../../scripts/factions/constants.mjs";
 import {
@@ -414,11 +414,13 @@ for (const dirent of fs.existsSync(REGISTER) ? fs.readdirSync(REGISTER, { withFi
           err(`${id}: scene.travel ${JSON.stringify(e.scene.travel)} is not a travel mode (${TRAVEL_MODES.join("|")})`);
         }
         // A walls block is checked here, before compile, so a row over the
-        // corrections cap fails at the lint and not at the compiler.
+        // corrections cap fails at the lint and not at the compiler, and one
+        // over the budget is warned.
         if (e.scene?.walls !== undefined) {
           const c = e.scene.crop;
           const cropOk = c && ["x", "y", "w", "h"].every((k) => typeof c[k] === "number");
           if (cropOk) for (const problem of wallsProblems(e.scene.walls, e.scene)) err(`${id}: scene.${problem}`);
+          if (cropOk) for (const advice of wallsWarnings(e.scene.walls, e.scene)) console.error(`WARN ${id}: scene.${advice}`);
         }
         const words = [];
         const walk = (v, key, path) => {

@@ -27,6 +27,7 @@ import { runsIn, joinRuns, attackModel } from "../../scripts/importer/executor.m
 import { rowsByY, slugLabel } from "../../scripts/importer/table-extract.mjs";
 import { BOOKS, citeFor, fingerprintWarning } from "../../scripts/importer/books.mjs";
 import { SCENE_ZONE_KIND, ZONE_FIGURES, placementHolding, recipeContext, recipeProblems, zoneProblems } from "../../scripts/importer/scene-binding.mjs";
+import { wallsWarnings } from "../../scripts/importer/wall-trace.mjs";
 import { caseCarriesNothing, opensWithNumber, printKey } from "../../scripts/importer/printed-name.mjs";
 import { FILES, OSE_FILES } from "./reference-lib.mjs";
 import { useTypography } from "../../scripts/importer/extract.mjs";
@@ -3876,6 +3877,7 @@ async function compileScene(doc, entry, compiled) {
   }
   const problems = recipeProblems(recipe, recipeContext(compiled));
   if (problems.length) throw new Error(`scene recipe: ${problems.join("; ")}`);
+  for (const advice of wallsWarnings(recipe.walls, recipe)) warn(`${entry.id}: scene recipe ${advice}`);
   const placement = placementHolding(await pageArtPlacements(doc, page), recipe.crop);
   if (!placement) throw new Error(`no image on p.${page} holds the crop`);
   // `grid`, when the recipe has one, rides through `recipe` unchanged.

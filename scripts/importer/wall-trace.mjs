@@ -30,8 +30,14 @@ export const WALL_MODES = Object.freeze(["grid", "contour", "stroke"]);
 /** How many pixels one drawn cell spans in the gray render a trace reads. */
 export const TRACE_PITCH = 50;
 
-/** The share of a plan's lattice cells its corrections may number. */
+/**
+ * The share of a plan's lattice cells its corrections may weigh before the
+ * lint and the compiler warn: a reviewer's budget, not a refusal.
+ */
 export const CORRECTION_SHARE = 0.05;
+
+/** The share of a plan's lattice cells past which its corrections are refused. */
+export const CORRECTION_CEILING = 0.1;
 
 /** The largest gray render a trace accepts, in pixels; past this the box sums overflow. */
 const MAX_TRACE_PIXELS = 16_000_000;
@@ -115,8 +121,16 @@ export function wallLattice(recipe) {
   return { x0, y0, px, py, cols, rows };
 }
 
-/** How many corrections a lattice allows: `CORRECTION_SHARE` of its cells, rounded down. */
-export const correctionCap = (lattice) => Math.floor(CORRECTION_SHARE * (lattice?.cols ?? 0) * (lattice?.rows ?? 0));
+const cellsOf = (lattice) => (lattice?.cols ?? 0) * (lattice?.rows ?? 0);
+
+/** How many corrections a lattice's budget holds: `CORRECTION_SHARE` of its cells, rounded down. */
+export const correctionBudget = (lattice) => Math.floor(CORRECTION_SHARE * cellsOf(lattice));
+
+/** How many corrections a lattice allows: `CORRECTION_CEILING` of its cells, rounded down. */
+export const correctionCap = (lattice) => Math.floor(CORRECTION_CEILING * cellsOf(lattice));
+
+/** What corrections weigh against the budget and the cap: one each, a box `BOX_WEIGHT`. */
+const correctionWeight = (list) => list.reduce((n, k) => n + (k?.box !== undefined ? BOX_WEIGHT : 1), 0);
 
 /** One correction's identity, so a cell, an edge, an island, a box or a line is asserted once. */
 const correctionKey = (k) => (k.cell ? `cell:${k.cell.join(",")}` : k.edge ? `edge:${k.edge.join(",")}` : k.box ? `box:${k.box.join(",")}` : k.line ? `line:${k.line.join(",")}` : `at:${(k.at ?? []).join(",")}`);
@@ -126,8 +140,9 @@ const correctionKey = (k) => (k.cell ? `cell:${k.cell.join(",")}` : k.edge ? `ed
  * `walls`; empty when it holds together. The recipe must carry a square grid,
  * because the corrections are read on its lattice. Corrections are checked
  * against that lattice and the cap, so a row whose corrections weigh more
- * than `CORRECTION_SHARE` of its cells is refused wherever `recipeProblems`
- * runs; each correction weighs one, a box `BOX_WEIGHT`.
+ * than `CORRECTION_CEILING` of its cells is refused wherever `recipeProblems`
+ * runs; each correction weighs one, a box `BOX_WEIGHT`. A row past the
+ * budget but within the cap holds here and is named by `wallsWarnings`.
  */
 export function wallsProblems(walls, recipe) {
   if (!walls || typeof walls !== "object" || Array.isArray(walls)) return ["walls must be an object"];
@@ -141,9 +156,9 @@ export function wallsProblems(walls, recipe) {
   const list = walls.corrections ?? [];
   if (!Array.isArray(list)) return [...out, "walls.corrections must be a list"];
   const cap = correctionCap(lattice);
-  const weight = list.reduce((n, k) => n + (k?.box !== undefined ? BOX_WEIGHT : 1), 0);
+  const weight = correctionWeight(list);
   if (weight > cap) {
-    out.push(`walls.corrections weigh ${weight} (a box ${BOX_WEIGHT}), over the cap of ${cap} (${CORRECTION_SHARE * 100}% of ${lattice.cols}x${lattice.rows} cells); a plan that needs more is left wall-less`);
+    out.push(`walls.corrections weigh ${weight} (a box ${BOX_WEIGHT}), over the cap of ${cap} (${CORRECTION_CEILING * 100}% of ${lattice.cols}x${lattice.rows} cells); a plan that needs more is left wall-less`);
   }
   const cellStates = CELL_STATES[walls.mode] ?? [];
   const seen = new Set();
@@ -195,6 +210,21 @@ export function wallsProblems(walls, recipe) {
     seen.add(key);
   });
   return out;
+}
+
+/**
+ * A recipe's corrections past the budget and within the cap, as one sentence
+ * prefixed `walls` for the lint and the compiler to warn with; empty within
+ * the budget, and past the cap, which `wallsProblems` refuses.
+ */
+export function wallsWarnings(walls, recipe) {
+  const lattice = wallLattice(recipe);
+  const list = walls?.corrections;
+  if (!lattice || !Array.isArray(list)) return [];
+  const budget = correctionBudget(lattice);
+  const weight = correctionWeight(list);
+  if (weight <= budget || weight > correctionCap(lattice)) return [];
+  return [`walls.corrections weigh ${weight} (a box ${BOX_WEIGHT}), over the budget of ${budget} (${CORRECTION_SHARE * 100}% of ${lattice.cols}x${lattice.rows} cells)`];
 }
 
 /* ---------------------------------------------------------------------------

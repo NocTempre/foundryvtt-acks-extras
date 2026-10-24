@@ -7763,3 +7763,34 @@ field whole, where a takeover moves the identity and swaps one block.
 - A restamped world copy keeps the notes it was copied with.
 - In the earlier book's Adventure the place's parent is its own book's place,
   which that Adventure does not carry, so the reference stays in library form.
+
+## 2026-10-24 — The cap is a ceiling at 10%, and 5% is a budget that warns
+
+Amends the bullet "The cap" in "Walls are traced at import from the Judge's
+own page" (2026-10-17). That bullet refuses any recipe whose corrections
+weigh more than 5% of its lattice's cells.
+
+**New evidence.**
+- The user: "The cap was not a hard cap for corrections." Asked what it
+  becomes, the user chose a higher hard ceiling, kept as a backstop, with a
+  warning above 5%.
+- Under the hard 5%, two AX1 plans came up short. p.11's plan needs
+  seventeen corrections against a cap of twelve, so it was listed wall-less.
+  p.15's raised dais needs three terrain lines on top of eleven corrections
+  against a cap of twelve, so it stands as floor. And the window lines on
+  p.15, p.21 and p.23 were laid one to a side partly to fit.
+
+**Ruled.**
+- **Corrections weighing more than 10% of the lattice's cells are refused**
+  (`CORRECTION_CEILING`), wherever `recipeProblems` runs, as the 5% were. The
+  user's option read "e.g. 10%", and the figure is one constant.
+- **Past 5% (`CORRECTION_SHARE`), the lint and the compiler warn**, and the
+  row compiles. The warning is a reviewer's cue: a recipe made mostly of
+  corrections is drifting from correcting a trace toward shipping one.
+
+*Rejected:*
+- **No cap.** Nothing would then hold the line the 2026-10-17 entry drew
+  between correcting a trace and shipping one.
+- **Keeping 5% hard.** The plans above.
+
+*Cost:* between 5% and 10% that line is held by a reviewer, not a gate.

@@ -13,7 +13,8 @@
  * picture under them.
  */
 import {
-  CORRECTION_SHARE, TRACE_PITCH, WALL_MODES, correctionCap, traceWalls, wallLattice, wallsProblems,
+  CORRECTION_CEILING, CORRECTION_SHARE, TRACE_PITCH, WALL_MODES, correctionBudget, correctionCap, traceWalls, wallLattice, wallsProblems,
+  wallsWarnings,
 } from "../../scripts/importer/wall-trace.mjs";
 import { recipeProblems, sceneData, sceneFrame, wallSources } from "../../scripts/importer/scene-binding.mjs";
 import { withWorldIds } from "../../scripts/importer/adventure-binding.mjs";
@@ -104,7 +105,9 @@ check("a crop cutting a cell starts the lattice at the next line", (() => {
   const L = wallLattice({ crop: { x: 33, y: 40, w: 200, h: 150 }, grid });
   return [L.x0, L.cols];
 })(), [40, 19]);
-check("the cap is a share of the cells, rounded down", correctionCap(wallLattice(recipeOf({}))), Math.floor(CORRECTION_SHARE * 300));
+check("the cap is a share of the cells, rounded down", correctionCap(wallLattice(recipeOf({}))), Math.floor(CORRECTION_CEILING * 300));
+check("the budget is a smaller share of the cells", [correctionBudget(wallLattice(recipeOf({}))), CORRECTION_SHARE < CORRECTION_CEILING],
+  [Math.floor(CORRECTION_SHARE * 300), true]);
 check("three modes", WALL_MODES, ["grid", "contour", "stroke"]);
 
 const fine = { mode: "grid", threshold: 160 };
@@ -137,12 +140,22 @@ ok("a box must run from a line to a later one", wallsProblems(boxOf([6, 2, 6, 6]
 ok("a box past the lattice is refused", wallsProblems(boxOf([2, 2, 21, 6]), recipeOf(fine)).some((p) => /later one/.test(p)));
 ok("a box names four lattice lines", wallsProblems(boxOf([2, 2, 6]), recipeOf(fine)).some((p) => /box must be/.test(p)));
 ok("a box is terrain", wallsProblems(boxOf([2, 2, 6, 6], "wall"), recipeOf(fine)).some((p) => /for a box/.test(p)));
-// Three boxes weigh twelve; with three cells the list sits at the cap of 15.
-const heavy = [[1, 1, 3, 3], [5, 1, 7, 3], [9, 1, 11, 3]].map((box) => ({ box, is: "terrain" }))
-  .concat([0, 1, 2].map((c) => ({ cell: [c, 10], is: "floor" })));
+// Six boxes weigh 24; with six cells the list sits at the cap of 30.
+const heavy = [[1, 1, 3, 3], [5, 1, 7, 3], [9, 1, 11, 3], [13, 1, 15, 3], [1, 5, 3, 7], [5, 5, 7, 7]].map((box) => ({ box, is: "terrain" }))
+  .concat([0, 1, 2, 3, 4, 5].map((c) => ({ cell: [c, 10], is: "floor" })));
 check("boxes weigh four against the cap", wallsProblems({ ...fine, corrections: heavy }, recipeOf(fine)), []);
-ok("a box past the cap is refused by its weight", wallsProblems({ ...fine, corrections: [...heavy, { cell: [3, 10], is: "floor" }] }, recipeOf(fine))
-  .some((p) => /weigh 16 \(a box 4\), over the cap of 15/.test(p)));
+ok("a box past the cap is refused by its weight", wallsProblems({ ...fine, corrections: [...heavy, { cell: [6, 10], is: "floor" }] }, recipeOf(fine))
+  .some((p) => /weigh 31 \(a box 4\), over the cap of 30/.test(p)));
+
+// The budget warns between itself and the cap, and is silent on either side.
+const cellsUpTo = (n) => Array.from({ length: n }, (_, i) => ({ cell: [i % 20, Math.floor(i / 20)], is: "floor" }));
+const warnedOf = (list) => wallsWarnings({ ...fine, corrections: list }, recipeOf(fine));
+check("corrections within the budget warn of nothing", warnedOf(cellsUpTo(15)), []);
+check("corrections past the budget hold", wallsProblems({ ...fine, corrections: cellsUpTo(16) }, recipeOf(fine)), []);
+ok("corrections past the budget are warned by their weight", warnedOf(cellsUpTo(16)).length === 1
+  && /weigh 16 \(a box 4\), over the budget of 15/.test(warnedOf(cellsUpTo(16))[0]));
+ok("a box weighs four against the budget", /weigh 17 /.test(warnedOf([...cellsUpTo(13), { box: [1, 11, 3, 13], is: "terrain" }])[0] ?? ""));
+check("corrections past the cap are refused, not warned", warnedOf(cellsUpTo(31)), []);
 
 const lineOf = (line, is = "door", mode = "grid") => ({ mode, threshold: 160, corrections: [{ line, is }] });
 const slant = [crop.x + 5, crop.y + 5, crop.x + 25, crop.y + 15];
