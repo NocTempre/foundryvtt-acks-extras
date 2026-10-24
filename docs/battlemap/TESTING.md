@@ -259,6 +259,13 @@ read).
    set and `terrainHexes` holding one `i:j` key per painted cell, aligned
    with `shapes`; a drag writes each cell once; repainting a cell with the
    OTHER brush moves it between regions (never two claims).
+   Then move the palette window over an unpainted hex, pick a swatch with a
+   few pixels of drag, drag the palette by its header, and drag one stroke
+   from the board across the palette and back onto the board.
+   *Observable:* no hex under the palette is painted by the pick, the header
+   drag or the stroke's crossing; the stroke paints again once it is back on
+   the board. A scripted drive fires `pointermove` at the palette element and
+   reads `terrainHexes` back, since PIXI hears that event on the document.
 3. Erase a painted cell; erase a region's last cell.
    *Observable:* the key and its shape leave together; the emptied region is
    deleted.

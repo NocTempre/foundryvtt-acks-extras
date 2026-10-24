@@ -479,6 +479,15 @@ export async function paintHexAt(scene, point, value, layer = "terrain") {
 /*  The paint session and its canvas catcher                            */
 /* -------------------------------------------------------------------- */
 
+/**
+ * Whether a pointer event happened over the board canvas itself rather than
+ * over a window, the sidebar or any other element in front of it. Read off
+ * the native event's target, which is the element under the pointer.
+ */
+export function onBoard(ev, board = canvas?.app?.view) {
+  return !!board && ev?.nativeEvent?.target === board;
+}
+
 class TerrainPaintSession {
   /** The brush: a value of the current layer, "erase", or null (disarmed). */
   brush = null;
@@ -496,6 +505,8 @@ class TerrainPaintSession {
 
   #container = null;
   #lastKey = null;
+  /** Whether the pointer went down on the board itself, which is what opens a drag stroke. */
+  #stroking = false;
   #listeners = new Set();
   /** The last value picked on each layer, so a layer switch or a re-arm comes back to it. */
   #lastBrush = { terrain: "grassland" };
@@ -571,18 +582,32 @@ class TerrainPaintSession {
       this.transform.updateTransform(PIXI.Transform.IDENTITY);
       this.worldAlpha = this.alpha;
     };
-    catcher.on("pointerdown", (ev) => this.#paintAt(ev));
-    catcher.on("pointermove", (ev) => {
-      if (ev.buttons & 1) this.#paintAt(ev);
+    // PIXI hears `pointermove` on the whole document and `pointerdown` on the
+    // board alone, so a move over a window — a swatch clicked with a pixel of
+    // travel, the palette dragged by its header — still reaches this
+    // full-screen catcher. A move paints only inside a stroke the board's own
+    // pointerdown opened, and only while the pointer is over the board.
+    catcher.on("pointerdown", (ev) => {
+      if (!onBoard(ev)) return;
+      this.#stroking = true;
+      this.#paintAt(ev);
     });
-    catcher.on("pointerup", () => (this.#lastKey = null));
-    catcher.on("pointerupoutside", () => (this.#lastKey = null));
+    catcher.on("pointermove", (ev) => {
+      if (this.#stroking && ev.buttons & 1 && onBoard(ev)) this.#paintAt(ev);
+    });
+    const endStroke = () => {
+      this.#stroking = false;
+      this.#lastKey = null;
+    };
+    catcher.on("pointerup", endStroke);
+    catcher.on("pointerupoutside", endStroke);
   }
 
   #teardown() {
     this.#container?.destroy({ children: true });
     this.#container = null;
     this.#lastKey = null;
+    this.#stroking = false;
   }
 
   async #paintAt(ev) {

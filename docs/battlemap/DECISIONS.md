@@ -867,3 +867,25 @@ Nothing about the three layers changes here: the 2026-10-15 ruling stands.
 - Registrations are per client and per load. The regions a layer painted stay
   in the scene when its feature is absent, and nothing reads them.
 
+## 2026-10-24 — The brush paints the board alone
+
+**Evidence.** The owner's report: picking a swatch painted the hex hidden
+under the palette, so a selection also landed where nothing showed it. PIXI
+7.4 hears `pointermove` on the document, in the capture phase, and
+`pointerdown` on the board alone; the brush's full-screen catcher was handed
+every move made over a window with the button held.
+
+**Ruled.** A stroke opens on a press over the board (`onBoard`, the native
+event's target), a move paints only inside an open stroke and only over the
+board, and a release ends the stroke.
+
+**Rejected.**
+- *Testing the pointer against the palette's rectangle*: the palette is one
+  window of many; the sidebar, a sheet and the chat stand in front of the
+  board as well.
+- *Stopping the event in the palette*: PIXI's capture-phase listener on the
+  document runs before any window's own handler.
+
+**Cost.** A stroke dragged off the board and back leaves the hexes it crossed
+under the window unpainted, which is where the Judge could not see them.
+

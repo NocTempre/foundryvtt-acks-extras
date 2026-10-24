@@ -1046,6 +1046,90 @@ assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an
   assert.deepEqual(await pillKeys(), builtIns);
 }
 
+/* --- the brush paints the board, never what stands in front of it -----------
+   PIXI hears pointermove on the whole document, so the catcher is handed
+   moves made over a window. A stroke opens only on the board, and a move
+   paints only over it. The catcher is built against a stand-in stage whose
+   handlers the test calls as PIXI would. */
+{
+  const { onBoard, terrainPaint } = await import("../scripts/battlemap/terrain-paint.mjs");
+  const { MODULE_ID } = await import("../scripts/lib/constants.mjs");
+
+  const board = { id: "board" };
+  const palette = { id: "palette" };
+  assert.equal(onBoard({ nativeEvent: { target: board } }, board), true);
+  assert.equal(onBoard({ nativeEvent: { target: palette } }, board), false, "a window in front is not the board");
+  assert.equal(onBoard({}, board), false, "an event with no native target is not the board");
+  assert.equal(onBoard({ nativeEvent: { target: board } }, null), false, "and nothing is the board with no canvas");
+
+  CONST.GRID_TYPES ??= { HEXODDR: 2, HEXEVENR: 3, HEXODDQ: 4, HEXEVENQ: 5 };
+  CONST.REGION_VISIBILITY ??= { LAYER: 0, GAMEMASTER: 1, ALWAYS: 2 };
+  game.user = { isGM: true };
+  const painted = [];
+  const scene = {
+    grid: {
+      type: CONST.GRID_TYPES.HEXODDR,
+      getOffset: (p) => ({ i: Math.floor(p.y / 100), j: Math.floor(p.x / 100) }),
+      getVertices: (o) => [{ x: o.j * 100, y: o.i * 100 }, { x: o.j * 100 + 100, y: o.i * 100 }, { x: o.j * 100 + 50, y: o.i * 100 + 100 }],
+    },
+    regions: [],
+    async createEmbeddedDocuments(_name, data) {
+      const made = data.map((d) => ({
+        ...d,
+        getFlag(ns, key) { return this.flags[ns]?.[key]; },
+        toObject() { return { shapes: [...this.shapes] }; },
+        async update(patch) { this.flags[MODULE_ID].terrainHexes = patch[`flags.${MODULE_ID}.terrainHexes`]; },
+      }));
+      scene.regions.push(...made);
+      painted.push(...data.flatMap((d) => d.flags[MODULE_ID].terrainHexes));
+      return made;
+    },
+  };
+  /** A PIXI display object that keeps its handlers so the test can fire them. */
+  class Node {
+    handlers = {};
+    transform = { updateTransform() {} };
+    addChild(child) { return child; }
+    on(name, fn) { this.handlers[name] = fn; }
+    destroy() {}
+  }
+  let catcher = null;
+  globalThis.PIXI = {
+    Container: Node,
+    Sprite: class extends Node { constructor() { super(); catcher = this; } },
+    Texture: { WHITE: {} },
+    Transform: { IDENTITY: {} },
+  };
+  globalThis.canvas = { stage: new Node(), app: { screen: {}, view: board }, scene };
+  const at = (target, x, y, buttons = 1) => ({ nativeEvent: { target }, buttons, getLocalPosition: () => ({ x, y }) });
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+  try {
+    terrainPaint.arm("grassland", { layer: "terrain" });
+    const fire = async (name, ev) => { catcher.handlers[name](ev); await settle(); };
+
+    await fire("pointermove", at(board, 150, 150));
+    assert.deepEqual(painted, [], "a held button with no stroke opened on the board paints nothing");
+    await fire("pointerdown", at(palette, 150, 150));
+    await fire("pointermove", at(palette, 250, 150));
+    assert.deepEqual(painted, [], "a click on the palette opens no stroke, and its travel paints nothing");
+    await fire("pointerup", at(palette, 250, 150, 0));
+
+    await fire("pointerdown", at(board, 150, 150));
+    assert.deepEqual(painted, ["1:1"], "a press on the board paints its hex");
+    await fire("pointermove", at(palette, 250, 150));
+    assert.deepEqual(painted, ["1:1"], "a stroke dragged over a window paints nothing under it");
+    await fire("pointermove", at(board, 350, 150));
+    assert.equal(scene.regions[0].getFlag(MODULE_ID, "terrainHexes").at(-1), "1:3", "and resumes on the board");
+    await fire("pointerup", at(board, 350, 150, 0));
+    await fire("pointermove", at(board, 450, 150));
+    assert.equal(scene.regions[0].getFlag(MODULE_ID, "terrainHexes").includes("1:4"), false, "the stroke ends on release");
+  } finally {
+    terrainPaint.disarm();
+    delete globalThis.PIXI;
+    delete globalThis.canvas;
+  }
+}
+
 /* --- the scene's default country --------------------------------------------
    What the Judge said of a map's unpainted country, stored inside the setup
    record. The write merges into that record; the read drops what it does not
@@ -1190,4 +1274,4 @@ assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an
   invalidateRoadGraph();
 }
 
-console.log("test-battlemap: OK (hex keys, labels, aligned paint/erase pairs, palette coverage, open vocabulary, road row escaping, whole-line segments, road distance, the territory and climate layers, the scene's default country, the country under a point)");
+console.log("test-battlemap: OK (hex keys, labels, aligned paint/erase pairs, palette coverage, open vocabulary, road row escaping, whole-line segments, road distance, the territory and climate layers, the brush over a window, the scene's default country, the country under a point)");
