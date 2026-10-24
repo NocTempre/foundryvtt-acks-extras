@@ -2,7 +2,9 @@
  * Live walk, markets: markets + location + the lib pointer.
  * Walks: the gate walk (G0–G7, and P0–P5 for the goods at the gate; STAGE=gate stops
  * after it); the parties walk (S0–S9, characters of one party entering separately;
- * STAGE=parties walks it alone); the default-trader ad hoc; the
+ * STAGE=parties walks it alone); the moorage walk (M0–M11, the stay's daily fee
+ * charged on leaving and at the month's end; STAGE=moorage walks it alone); the
+ * default-trader ad hoc; the
  * known-market walk (1–7); the network walk (1–6); reports step 10 and the step-4 hunk
  * (picks, the card's link); the ledger-length ad hoc; the hit-point tool from the party
  * sheet. Machine values arrive through ./_env.mjs.
@@ -16,8 +18,8 @@
  *   - a book connected on the GM seat with remember:false; a rules document the run
  *     imported is removed; a trade house the run made is swept and its setting cleared;
  *   - the world's `marketsRandomTariff` setting, read first and put back;
- *   - one roster each of the gate walk's and the parties walk's own in the world's
- *     `marketParties`, removed by its id;
+ *   - one roster each of the gate walk's, the parties walk's and the moorage walk's
+ *     own in the world's `marketParties`, removed by its id;
  *   - the shared clock: one day per advance, counted and reported.
  */
 import { connect, sleep } from "./_driver.mjs";
@@ -30,7 +32,7 @@ const SEATS = { gm: MACHINE.gm, player: MACHINE.player };
 const NONCE = "m" + Math.random().toString(36).slice(2, 8);
 const MOD = "acks-extras";
 const SHOTS = process.env.SHOTS === "1";
-const STAGE = process.env.STAGE ?? ""; // "gate" stops after the gate walk; "parties" walks only the parties walk
+const STAGE = process.env.STAGE ?? ""; // "gate" stops after the gate walk; "parties" and "moorage" walk only that walk
 const SHOT_DIR = shotDir();
 const BOOKS = books(["rr"]); // the GM's staged copies, from ACKS_TEST_BOOKS; empty, the walk takes the bookless path
 const DOCS = ["mercantile", "availability"];
@@ -473,6 +475,29 @@ const P = {
     else if (H.gateLayer) { H.T.unregisterTable("mercantile", { priority: 30 }); H.gateLayer = false; }
     return { dice: !!H.m.PR.tariffDice() };
   },
+  /** GM: the Moorage and Stabling table read off the connected book through the shipped recipe, for a world whose Mercantile import predates it; nothing is written to the world. */
+  stayFromBook: async () => {
+    const H = globalThis.__c2;
+    const base = "/modules/acks-extras/scripts/importer/";
+    const { TABLE_RECIPES } = await import(base + "table-recipes.mjs");
+    const { locatePageNumber } = await import(base + "tables-binding.mjs");
+    const { extractTable } = await import(base + "table-extract.mjs");
+    const { pageItems } = await import(base + "extract.mjs");
+    const recipe = TABLE_RECIPES.mercantile.tables.moorageRates;
+    const doc = H.m.CB.cookbookSessionDoc(recipe.book);
+    if (!doc) return { read: false, reason: "book not connected" };
+    const p = await locatePageNumber(doc, recipe);
+    if (p == null) return { read: false, reason: "page not found" };
+    const { items } = await pageItems(doc, p);
+    return { read: true, table: extractTable(items, recipe) };
+  },
+  /** This seat's priority-31 Moorage and Stabling layer, on with `table` or off; reports the kinds the gate then reads. */
+  stayLayer: async ({ on, table = null }) => {
+    const H = globalThis.__c2;
+    if (on) { H.T.registerTable({ id: "mercantile", tables: { moorageRates: table } }, { priority: 31, source: "qa-moorage" }); H.stayLayer = true; }
+    else if (H.stayLayer) { H.T.unregisterTable("mercantile", { priority: 31 }); H.stayLayer = false; }
+    return { kinds: Object.keys(H.m.PR.stayRates() ?? {}) };
+  },
   /**
    * Press Enter on the open Trade tab, read the goods block it opens on, then
    * declare each of `declarations` in turn ({vehicleUuids, other}) through the
@@ -774,6 +799,19 @@ const P = {
     await H.sleep(600);
     return { found: found.length, done: !!done, chat: H.takeChat() };
   },
+  /** Wait until this seat reads every action in `actionIds` done: another seat's write reaches it over the socket. */
+  seesDone: async ({ locationId, actionIds }) => {
+    const H = globalThis.__c2;
+    const done = await H.poll(() => actionIds.every((id) => (game.actors.get(locationId).system.market.goods.actions ?? []).find((a) => a.id === id)?.status === "done") || null, { tries: 40, every: 250 });
+    return { done: !!done };
+  },
+  /** Wait until this seat reads an actor's spendable coin move off `from`; the last read either way. */
+  coinMoved: async ({ actorId, from }) => {
+    const H = globalThis.__c2;
+    const read = () => H.m.MO.spendableGp(game.actors.get(actorId));
+    await H.poll(() => (Math.abs(read() - from) >= 0.005 ? true : null), { tries: 40, every: 250 });
+    return { gp: read() };
+  },
   /** The market's venture rows, pools and waiting days this month, as this seat reads them. */
   partiesState: async ({ locationId }) => {
     const H = globalThis.__c2;
@@ -819,6 +857,176 @@ const P = {
     const back = (game.actors.get(locationId).system.market.goods.ventures ?? []).find((v) => v.partyId === partyId && Number(v.monthStartTime) === ms && v.entered);
     return { found: true, wrote: Object.keys(row).filter((k) => k === "entrantUuid" || k === "entrants"), back: back ? { entrantUuid: back.entrantUuid, entrants: back.entrants } : null };
   },
+  /** The imported Moorage and Stabling rates as the gate reads them. */
+  stayRates: async () => globalThis.__c2.m.PR.stayRates(),
+  /**
+   * Press Enter on the open Trade tab and read the dialog's moorage block and
+   * gate quote; then tick exactly `vehicleUuids`, choose `stayAt`, set each
+   * vehicle's stabling in `stabled` (by uuid) and each head count in
+   * `animals`, tick the sneak where asked, read again, and submit unless told
+   * to read only. Read only, the dialog is closed.
+   */
+  moorageDialog: async ({ locationId, vehicleUuids = null, stayAt = null, stabled = {}, animals = {}, sneak = false, submit = true }) => {
+    const H = globalThis.__c2;
+    H.takeNotes();
+    const btn = await H.poll(() => H.root(H.locSheet(locationId))?.querySelector('[data-action="ventureEnter"]') ?? null, { tries: 40, every: 200 });
+    if (!btn) return { pressed: false };
+    btn.click();
+    const input = await H.poll(() => document.querySelector('.application.dialog input[name="other"]'), { tries: 40, every: 200 });
+    if (!input) return { pressed: true, dialog: false, notes: H.takeNotes() };
+    const dialog = input.closest(".application");
+    dialog.dataset.qaEnter = "1";
+    const fire = (el, type = "change") => el.dispatchEvent(new Event(type, { bubbles: true }));
+    const read = () => {
+      const box = dialog.querySelector("fieldset.acks-extras-markets-stay");
+      const at = box?.querySelector('select[name="stayAt"]');
+      const quote = dialog.querySelector("[data-gate-quote]");
+      return {
+        legend: H.text(box?.querySelector("legend")),
+        at: at ? { value: at.value, options: [...at.options].map((o) => o.value), captioned: !!at.labels?.length } : null,
+        stabled: [...(box?.querySelectorAll('select[name="stabled"]') ?? [])].map((el) => ({ vehicle: el.dataset.vehicle, value: el.value, hidden: !!el.closest("[data-stay-vehicle]")?.hidden, label: H.text(el.labels?.[0]) })),
+        animals: [...(box?.querySelectorAll('input[name="animal"]') ?? [])].map((el) => ({ unit: el.dataset.unit, value: Number(el.value), label: H.text(el.labels?.[0]) })),
+        quote: H.text(quote),
+        lines: [...(quote?.querySelectorAll("li") ?? [])].map((li) => H.text(li)),
+      };
+    };
+    await H.sleep(250);
+    const opening = read();
+    if (vehicleUuids) for (const el of dialog.querySelectorAll('input[name="vehicle"]:not(:disabled)')) { const want = vehicleUuids.includes(el.value); if (el.checked !== want) { el.checked = want; fire(el); } }
+    const atSel = dialog.querySelector('select[name="stayAt"]');
+    if (stayAt && atSel && atSel.value !== stayAt) { atSel.value = stayAt; fire(atSel); }
+    for (const el of dialog.querySelectorAll('select[name="stabled"]')) { const want = stabled[el.dataset.vehicle]; if (want && el.value !== want) { el.value = want; fire(el); } }
+    for (const el of dialog.querySelectorAll('input[name="animal"]')) { const want = animals[el.dataset.unit]; if (want !== undefined) { el.value = String(want); fire(el, "input"); } }
+    if (sneak) H.declare(dialog, { sneak: true });
+    await H.sleep(300);
+    const chosen = read();
+    if (!submit) {
+      await H.apps().find((a) => H.root(a) === dialog)?.close({ force: true });
+      return { pressed: true, dialog: true, opening, chosen, notes: H.takeNotes() };
+    }
+    const known = new Set((game.actors.get(locationId).system.market.goods.actions ?? []).map((a) => a.id));
+    H.takeChat();
+    dialog.querySelector('button[data-action="ok"]').click();
+    const action = await H.poll(() => (game.actors.get(locationId).system.market.goods.actions ?? []).find((a) => a.kind === "enter" && !known.has(a.id)) ?? null, { tries: 40, every: 250 });
+    await H.sleep(400);
+    return { pressed: true, dialog: true, opening, chosen, submitted: true, notes: H.takeNotes(), chat: H.takeChat(), action: action ? { id: action.id, stayAt: action.stayAt, stayCpPerDay: action.stayCpPerDay, sneaked: action.sneaked, tollCp: action.tollCp, privilegeUuid: action.privilegeUuid, vehicleUuids: [...action.vehicleUuids], detail: action.detail } : null };
+  },
+  /** An entry posted through the api as `actorId`, with what it says about the stay; the action it queued, if any. */
+  moorageApi: async ({ locationId, actorId, vehicleUuids = [], stayAt = "berth", stabled = {}, animals = {}, sneak = false }) => {
+    const H = globalThis.__c2;
+    const loc = game.actors.get(locationId);
+    const known = new Set((loc.system.market.goods.actions ?? []).map((x) => x.id));
+    H.takeChat();
+    const r = await H.M.performVentureAction(loc, { kind: "enter", actorUuid: game.actors.get(actorId).uuid, vehicleUuids, stayAt, stabled, animals, sneak, cargoSt: 0, resolutionId: foundry.utils.randomID() });
+    await H.sleep(500);
+    const action = (game.actors.get(locationId).system.market.goods.actions ?? []).find((x) => !known.has(x.id) && x.kind === "enter") ?? null;
+    return { ok: !!r?.ok, error: r?.error ?? null, vehicle: r?.vehicle ?? null, chat: H.takeChat(), action: action ? { id: action.id, stayAt: action.stayAt, stayCpPerDay: action.stayCpPerDay, sneaked: action.sneaked, tollCp: action.tollCp, privilegeUuid: action.privilegeUuid, detail: action.detail } : null };
+  },
+  /** The party's venture row at a market, this month's or the previous month's, with its stay. */
+  moorageRow: async ({ locationId, partyId, prev = false }) => {
+    const H = globalThis.__c2;
+    const ms = H.m.TR.marketMonthStart();
+    const month = prev ? H.m.TR.marketMonthStart(ms - 1) : ms;
+    const v = (game.actors.get(locationId).system.market.goods.ventures ?? []).find((x) => x.partyId === partyId && !x.entrantUuid && Number(x.monthStartTime) === month);
+    return v ? { entered: !!v.entered, arrivalDay: H.m.WT.dayOfWorldTime(v.enteredTime), stayAt: v.stayAt, stayCpPerDay: v.stayCpPerDay, payerUuid: v.payerUuid, stayDays: v.stayDays, stayPaidCp: v.stayPaidCp, staySettled: !!v.staySettled } : null;
+  },
+  /** GM: move this month's row's arrival `days` calendar days earlier, without moving the clock. */
+  moorageBackdate: async ({ locationId, partyId, days }) => {
+    const H = globalThis.__c2;
+    const d = game.time.calendar?.days;
+    const n = Number(d?.hoursPerDay) * Number(d?.minutesPerHour) * Number(d?.secondsPerMinute);
+    const spd = Number.isFinite(n) && n > 0 ? n : 86400;
+    const loc = game.actors.get(locationId);
+    const ms = H.m.TR.marketMonthStart();
+    const rows = (loc.system.market.goods.ventures ?? []).map((v) => H.plain(v));
+    const row = rows.find((v) => v.partyId === partyId && !v.entrantUuid && Number(v.monthStartTime) === ms);
+    if (!row) return { found: false };
+    row.enteredTime -= days * spd;
+    await loc.update({ "system.market.goods.ventures": rows });
+    return { found: true, arrivalDay: H.m.WT.dayOfWorldTime(row.enteredTime), today: H.day() };
+  },
+  /** Press Leave on the open Trade tab, read the confirmation, and confirm it. */
+  moorageLeaveUI: async ({ locationId }) => {
+    const H = globalThis.__c2;
+    H.takeNotes();
+    H.takeChat();
+    const btn = await H.poll(() => H.root(H.locSheet(locationId))?.querySelector('[data-action="ventureLeave"]') ?? null, { tries: 40, every: 200 });
+    if (!btn) return { pressed: false };
+    btn.click();
+    const yes = await H.poll(() => document.querySelector('.application.dialog button[data-action="yes"]'), { tries: 40, every: 200 });
+    if (!yes) return { pressed: true, confirm: false };
+    const text = H.text(yes.closest(".application").querySelector(".window-content"));
+    yes.click();
+    // The leave's own notice, or its refusal, says the handler finished; a fixed wait can end first.
+    await H.poll(() => H.notes.some((n) => n.kind !== "info" || n.text.startsWith("Left the market")) || null, { tries: 40, every: 250 });
+    await H.sleep(400);
+    return { pressed: true, confirm: true, text, notes: H.takeNotes(), chat: H.takeChat() };
+  },
+  /** Leave the market as `actorId` through the api; what the stay came to, or the refusal. */
+  moorageLeave: async ({ locationId, actorId }) => {
+    const H = globalThis.__c2;
+    H.takeChat();
+    const r = await H.M.performVentureLeave(game.actors.get(locationId), { actorUuid: game.actors.get(actorId).uuid });
+    await H.sleep(400);
+    return { ok: !!r?.ok, error: r?.error ?? null, gp: r?.gp ?? null, days: r?.days ?? null, stay: r?.stay ?? null, chat: H.takeChat() };
+  },
+  /** How a vehicle remembers it was stabled, or null. */
+  moorageFlag: async ({ actorId }) => game.actors.get(actorId)?.getFlag("acks-extras", "markets")?.stabledAs ?? null,
+  /** This seat's handler on the gate's hook, setting the stay's day fee at one market, or removed. */
+  stayHook: async ({ on, locationId = null, cpPerDay = 0 }) => {
+    const H = globalThis.__c2;
+    if (H.stayHookId) { Hooks.off("acksExtras.marketGateQuote", H.stayHookId); H.stayHookId = null; }
+    if (on) H.stayHookId = Hooks.on("acksExtras.marketGateQuote", (quote, { location }) => { if (location.id === locationId) quote.stay.cpPerDay = cpPerDay; });
+    return { on: !!H.stayHookId };
+  },
+  /** Take every coin an actor has on hand out of the world. */
+  drain: async ({ actorId }) => {
+    const H = globalThis.__c2;
+    const a = game.actors.get(actorId);
+    const had = H.m.MO.spendableGp(a);
+    if (had > 0) await H.m.MO.sinkCoin(a, had);
+    return { drained: had, gp: H.m.MO.spendableGp(game.actors.get(actorId)) };
+  },
+  /**
+   * GM: write venture rows into the previous market month, entered `arrivalOffset`
+   * days after it began, each with a daily fee and a payer unless `legacy`,
+   * which is written without any of the stay's keys. Says whether this seat
+   * is the primary GM's, which alone settles them.
+   */
+  rollRows: async ({ locationId, rows }) => {
+    const H = globalThis.__c2;
+    const d = game.time.calendar?.days;
+    const n = Number(d?.hoursPerDay) * Number(d?.minutesPerHour) * Number(d?.secondsPerMinute);
+    const spd = Number.isFinite(n) && n > 0 ? n : 86400;
+    const ms = H.m.TR.marketMonthStart();
+    if (!(ms > 0)) return { skip: true };
+    const prev = H.m.TR.marketMonthStart(ms - 1);
+    const loc = game.actors.get(locationId);
+    const out = (loc.system.market.goods.ventures ?? []).map((v) => H.plain(v));
+    const made = [];
+    for (const r of rows) {
+      const enteredTime = prev + r.arrivalOffset * spd;
+      const row = { partyId: r.partyId, entrantUuid: "", entrants: 0, monthStartTime: prev, cargoSt: 0, vehicleUuids: [], impact: 1, effectiveClass: 3, tollCp: 0, tariffCp: 0, privilegeUuid: "", entered: true, enteredTime, rawImpact: 1, impactCap: 1, networkMode: "auto" };
+      if (!r.legacy) Object.assign(row, { stayAt: "berth", stayCpPerDay: r.cpPerDay, payerUuid: game.actors.get(r.payerId).uuid, stayDays: 0, stayPaidCp: 0, staySettled: false });
+      out.push(row);
+      made.push({ partyId: r.partyId, arrivalDay: H.m.WT.dayOfWorldTime(enteredTime) });
+    }
+    await loc.update({ "system.market.goods.ventures": out });
+    const UT = await import("/modules/acks-extras/scripts/lib/util.mjs");
+    return { skip: false, lastDay: H.m.WT.dayOfWorldTime(ms - 1), made, primary: UT.isPrimaryGM() };
+  },
+  /** GM: run the market's due-work sweep, and read back the named previous-month rows, the stay's ledger rows and the chat it posted. */
+  rollSettle: async ({ locationId, partyIds }) => {
+    const H = globalThis.__c2;
+    H.takeChat();
+    await H.M.processImports(game.actors.get(locationId));
+    await H.sleep(800);
+    const g = game.actors.get(locationId).system.market.goods;
+    const prev = H.m.TR.marketMonthStart(H.m.TR.marketMonthStart() - 1);
+    const rows = Object.fromEntries(partyIds.map((p) => { const v = (g.ventures ?? []).find((x) => x.partyId === p && Number(x.monthStartTime) === prev); return [p, v ? { stayCpPerDay: v.stayCpPerDay, stayDays: v.stayDays, stayPaidCp: v.stayPaidCp, staySettled: !!v.staySettled } : null]; }));
+    const log = (game.actors.get(locationId).system.market.marketLog ?? []).filter((r) => r.type === "ventureStay").map((r) => ({ actorUuid: r.actorUuid, gp: r.gp, note: r.note }));
+    return { rows, log, chat: H.takeChat() };
+  },
   closeAll: async () => globalThis.__c2.closeAll(),
   restore: async () => {
     const H = globalThis.__c2 ?? {};
@@ -828,7 +1036,9 @@ const P = {
     if (H.notesPatched) { for (const k of Object.keys(H.orig)) ui.notifications[k] = H.orig[k]; H.notesPatched = false; out.notes = "restored"; }
     if (H.settingBefore !== undefined) { await game.settings.set("acks-extras", "marketsActingTrader", H.settingBefore); out.actingTrader = { restoredTo: H.settingBefore === "" ? "(empty)" : "(a uuid)" }; }
     if (H.gateLayer) { H.T.unregisterTable("mercantile", { priority: 30 }); H.gateLayer = false; out.tariffLayer = "unregistered"; }
+    if (H.stayLayer) { H.T.unregisterTable("mercantile", { priority: 31 }); H.stayLayer = false; out.stayLayer = "unregistered"; }
     if (H.gateHookId) { Hooks.off("acksExtras.marketGateQuote", H.gateHookId); H.gateHookId = null; out.gateHook = "removed"; }
+    if (H.stayHookId) { Hooks.off("acksExtras.marketGateQuote", H.stayHookId); H.stayHookId = null; out.stayHook = "removed"; }
     return out;
   },
   clearHouse: async ({ value }) => { await game.settings.set("acks-extras", "marketsTradeHouse", value); return { now: String(game.settings.get("acks-extras", "marketsTradeHouse") ?? "") }; },
@@ -869,6 +1079,7 @@ let housePre = null;
 let randomBefore = null;
 let gateRoster = null;
 let partiesRoster = null;
+let moorageRoster = null;
 const imported = [];
 const advance = async (locationId = null, actionId = null) => { advances++; const r = await run(gm, P.advanceDay, { locationId, actionId }); note(`advance ${advances}`, r); return r; };
 // What the rule gives a solicitation, by hand: the class option, the impact option, the better of them (class over impact on a tie, the plain entry when neither beats it).
@@ -915,12 +1126,22 @@ try {
   }
   note("documents after import", await run(gm, P.docs));
   note("player mirrors the world's documents", await run(player, P.reloadDocs));
+  // Every entry bringing a vehicle reads the moorage table. A world imported before the
+  // table's recipe holds none: read it off the connected book and layer it in memory on
+  // both seats for the run, as the gate walk does the thrown tariff.
+  const STAY_KINDS = ["ship", "wagon", "cartElephant", "horse", "camelDonkeyOx"];
+  const stayWhole = (rates) => !!rates && STAY_KINDS.every((k) => rates[k]);
+  if (!stayWhole(await run(gm, P.stayRates))) {
+    const fb = await run(gm, P.stayFromBook);
+    note("the world's import lacks the moorage table; read off the book", { read: fb.read, reason: fb.reason ?? null, rows: fb.table?.rows?.length ?? null });
+    if (fb.read) note("moorage layers on", { gm: await run(gm, P.stayLayer, { on: true, table: fb.table }), player: await run(player, P.stayLayer, { on: true, table: fb.table }) });
+  }
   const ch3 = await run(gm, P.characteristics, { marketClass: 3 });
   const ch1 = await run(gm, P.characteristics, { marketClass: 1 });
   note("characteristics read (class 3, class 1)", { hasRow3: ch3.hasRow, hasRow1: ch1.hasRow, cap: ch3.impactCap, bandsRead: !!ch3.bands });
   if (!ch3.hasRow || !ch3.impactCap || !ch3.bands) throw new Error("the mercantile document's characteristics, impact limits or assessment bands are not readable: the venture days cannot resolve");
 
-  if (STAGE !== "parties") {
+  if (STAGE !== "parties" && STAGE !== "moorage") {
     section("the gate walk: toll, tariff, smuggled goods, sneaking in, the Ruler's Privilege, the thrown tariff");
     const gr = await run(gm, P.gateRates, { marketClass: 3 });
     note("the gate's imported inputs (class 3)", gr);
@@ -968,6 +1189,8 @@ try {
     const tariffAt = (r, { hold = true } = {}) => { const c = cpOf(r); return due(c.T + c.Q + (hold ? c.hold : 0)); };
     const coinOf = async (who = T) => (await run(gm, P.coin, { actorId: who.id })).gp;
     const near = (a, b) => Math.abs(a - b) < 0.005;
+    // Every quote with the wagon ticked carries its stay, stabled as a wagon within, as one line more; the moorage walk walks the stay.
+    const stayLine = `${VH.name}: ${gp(Math.ceil((await run(gm, P.stayRates))?.wagon?.berth?.cp ?? NaN))}gp`;
     note("coin", { T: await run(gm, P.coin, { actorId: T.id, mint: 5000 }), Q: await run(gm, P.coin, { actorId: Q.id, mint: 500 }) });
 
     // P0: the members stand where the steps need them, as the player seat reads it.
@@ -994,7 +1217,7 @@ try {
     note("the gate block per declaration (player): the opening, the wagon, five other stone, the wagon", d1.reads);
     const full = { toll: tollOn(CAP), tariff: tariffAt(gr.rates) };
     const [r0, r1, r2] = d1.reads ?? [];
-    check("G1: the Enter dialog's gate block follows the declaration — the present members' packs alone with no capacity, the wagon's capacity with its two loads added and the exempt one marked, then five other stone and the packs again — at the imported rates on the invented prices", d1.dialog && r0?.text.includes("Toll: 0gp on 0 st") && r0.text.includes(`Tariff (RR 372): ${gp(tariffAt(gr.rates, { hold: false }))}gp`) && r0.lines.length === 2 && r1?.text.includes(`Toll: ${gp(full.toll)}gp on ${CAP} st`) && r1.text.includes(`Tariff (RR 372): ${gp(full.tariff)}gp`) && r1.lines.length === 4 && r1.lines.filter((l) => l.endsWith(": exempt")).length === 1 && !r1.lines.some((l) => /, [45] st/.test(l)) && r2?.text.includes(`Toll: ${gp(tollOn(5))}gp on 5 st`) && r2.lines.length === 2, { r0, r1, r2, full });
+    check("G1: the Enter dialog's gate block follows the declaration — the present members' packs alone with no capacity, the wagon's capacity with its two loads added and the exempt one marked, then five other stone and the packs again — at the imported rates on the invented prices", d1.dialog && r0?.text.includes("Toll: 0gp on 0 st") && r0.text.includes(`Tariff (RR 372): ${gp(tariffAt(gr.rates, { hold: false }))}gp`) && r0.lines.length === 2 && r1?.text.includes(`Toll: ${gp(full.toll)}gp on ${CAP} st`) && r1.text.includes(`Tariff (RR 372): ${gp(full.tariff)}gp`) && r1.lines.length === 5 && r1.lines.includes(stayLine) && r1.lines.filter((l) => l.endsWith(": exempt")).length === 1 && !r1.lines.some((l) => /, [45] st/.test(l)) && r2?.text.includes(`Toll: ${gp(tollOn(5))}gp on 5 st`) && r2.lines.length === 2, { r0, r1, r2, full });
     const coin1 = { T: await coinOf(), Q: await coinOf(Q) };
     const tail1 = await run(gm, P.ledgerTail, { locationId: G.id, actorId: T.id, n: 1 });
     note("posted entry, coin and ledger", { action: d1.action, notes: d1.notes, coin0, coin1, tail1 });
@@ -1028,7 +1251,7 @@ try {
     const lineOf = (who, text) => read4.lines.find((l) => l.startsWith(`${who.name}:`) && l.includes(text)) ?? null;
     const smuggledQ = lineOf(Q, `${LABEL[tk]}, 1 st`), smuggled30 = lineOf(VH, `${LABEL.c}, 30 st`);
     note("the entry with goods smuggled and the Judge's charge", { read: read4, action: d4.action, coin4a, coin4b, tail4, cards: smug4.map((c) => c.text), expect: x4 });
-    check("P2: the dialog quotes the toll, the trader's packs and the cup brought to sell at the precious rate, the exempt load, and the hook's charge, and lists the partner's load and the thirty stone apart and untaxed; the absent member's goods and the stranger's kept load appear nowhere", read4.text.includes(`Toll: ${gp(x4.toll)}gp on ${CAP} st`) && read4.text.includes(`Tariff (RR 372): ${gp(x4.tariff)}gp`) && !!lineOf(T, `${LABEL.p}, 2 st at ${gr.rates.precious}%: ${gp(c4.T)}gp`) && !!lineOf(T, `QA Cup ${NONCE} ×${CUP.n} at ${gr.rates.precious}%: ${gp(c4.cup)}gp`) && !!lineOf(VH, `${LABEL.e}, 10 st: exempt`) && read4.lines.some((l) => l.includes(`${HOOK.label}: ${gp(HOOK.cp)}gp`)) && read4.text.includes("Smuggled past the gate:") && !!smuggledQ && !smuggledQ.includes("%") && !!smuggled30 && !smuggled30.includes("%") && read4.lines.length === 6 && !read4.lines.some((l) => l.startsWith(`${A.name}:`) || /, [45] st/.test(l)), { read4, expect: x4 });
+    check("P2: the dialog quotes the toll, the trader's packs and the cup brought to sell at the precious rate, the exempt load, and the hook's charge, and lists the partner's load and the thirty stone apart and untaxed; the absent member's goods and the stranger's kept load appear nowhere", read4.text.includes(`Toll: ${gp(x4.toll)}gp on ${CAP} st`) && read4.text.includes(`Tariff (RR 372): ${gp(x4.tariff)}gp`) && !!lineOf(T, `${LABEL.p}, 2 st at ${gr.rates.precious}%: ${gp(c4.T)}gp`) && !!lineOf(T, `QA Cup ${NONCE} ×${CUP.n} at ${gr.rates.precious}%: ${gp(c4.cup)}gp`) && !!lineOf(VH, `${LABEL.e}, 10 st: exempt`) && read4.lines.some((l) => l.includes(`${HOOK.label}: ${gp(HOOK.cp)}gp`)) && read4.text.includes("Smuggled past the gate:") && !!smuggledQ && !smuggledQ.includes("%") && !!smuggled30 && !smuggled30.includes("%") && read4.lines.length === 7 && read4.lines.includes(stayLine) && !read4.lines.some((l) => l.startsWith(`${A.name}:`) || /, [45] st/.test(l)), { read4, expect: x4 });
     const res4 = await run(gm, P.gateResolve, { locationId: G.id, actionId: d4.action?.id });
     for (const id of res4.chat ?? []) gm.track(id, "ChatMessage");
     note("the entry resolved", res4.venture);
@@ -1053,7 +1276,7 @@ try {
     const read7 = d7.reads?.at(-1) ?? { text: "", lines: [] };
     const brought7 = [`${LABEL.p} (2 st, ${T.name})`, `${LABEL[tk]} (1 st, ${Q.name})`, `${LABEL.c} (30 st, ${VH.name})`, `${LABEL.e} (10 st, ${VH.name})`];
     note("sneaked in", { read: read7, action: d7.action, coin7a, coin7b, tail7, smuggled: smug7.map((c) => c.text), entered: cards7.map((c) => c.text) });
-    check("P4: with the sneak ticked the dialog says the party sneaks in and lists all four loads untaxed, the entry charges no toll or tariff, records the sneak and takes nothing, the ledger says so, one card tells the Judge everything the party brings (not the stranger's or the absent member's), and the entered card says nothing was paid", read7.text.includes("No toll or tariff: the party sneaks in") && read7.lines.length === 4 && !read7.lines.some((l) => l.includes("%")) && d7.action?.tollCp === 0 && d7.action.tariffCp === 0 && d7.action.sneaked && near(coin7a, coin7b) && !!tail7[0]?.note.includes("(sneaked in, nothing paid) Smuggled: ") && smug7.length === 1 && smug7[0].text.includes(`${T.name}'s party sneaks into QA Gate Town ${NONCE}, bringing `) && brought7.every((s) => smug7[0].text.includes(s)) && !smug7[0].text.includes("(5 st") && !smug7[0].text.includes(A.name) && cards7.some((c) => c.text.includes("Sneaked in: no toll or tariff paid.")), { read7, action: d7.action, tail7, smuggled: smug7.map((c) => c.text) });
+    check("P4: with the sneak ticked the dialog says the party sneaks in and lists all four loads untaxed, the entry charges no toll or tariff, records the sneak and takes nothing, the ledger says so, one card tells the Judge everything the party brings (not the stranger's or the absent member's), and the entered card says nothing was paid", read7.text.includes("No toll or tariff: the party sneaks in") && read7.lines.length === 5 && read7.lines.includes(stayLine) && !read7.lines.some((l) => l.includes("%")) && d7.action?.tollCp === 0 && d7.action.tariffCp === 0 && d7.action.sneaked && near(coin7a, coin7b) && !!tail7[0]?.note.includes("(sneaked in, nothing paid) Smuggled: ") && smug7.length === 1 && smug7[0].text.includes(`${T.name}'s party sneaks into QA Gate Town ${NONCE}, bringing `) && brought7.every((s) => smug7[0].text.includes(s)) && !smug7[0].text.includes("(5 st") && !smug7[0].text.includes(A.name) && cards7.some((c) => c.text.includes("Sneaked in: no toll or tariff paid.")), { read7, action: d7.action, tail7, smuggled: smug7.map((c) => c.text) });
     note("leave G", await run(player, P.ventureLeave, { locationId: G.id, actorId: T.id }));
     note("closed (player)", await run(player, P.closeAll));
 
@@ -1125,7 +1348,7 @@ try {
       const coin4 = await coinOf();
       const end = (side) => ({ precious: thrown.rates.precious > 0 ? thrown.ranges.precious[side] : 0, common: thrown.rates.common > 0 ? thrown.ranges.common[side] : 0 });
       const lo = tariffAt(end("min")), hi = tariffAt(end("max"));
-      check(`G6: with the tariff randomized the dialog shows the span the ${whence} dice can come to and lists the loads without a rate`, read3.text.includes(`thrown at the gate, ${gp(lo)}gp to ${gp(hi)}gp`) && read3.lines.length === 4 && !read3.lines.some((l) => l.includes("%")), { read3, lo, hi });
+      check(`G6: with the tariff randomized the dialog shows the span the ${whence} dice can come to and lists the loads without a rate`, read3.text.includes(`thrown at the gate, ${gp(lo)}gp to ${gp(hi)}gp`) && read3.lines.length === 5 && read3.lines.includes(stayLine) && !read3.lines.some((l) => l.includes("%")), { read3, lo, hi });
       const e3 = await run(gm, P.gateEnterApi, { locationId: G.id, actorId: T.id, vehicleUuids: [VH.uuid], u: 0.001 });
       for (const id of e3.chat ?? []) gm.track(id, "ChatMessage");
       const coin5 = await coinOf();
@@ -1145,8 +1368,8 @@ try {
   }
   if (STAGE === "gate") throw new StageDone("gate");
 
-  section("the parties walk: characters of one party entering separately (RR ch. 8, Entering the Market, step 2, Parties)");
-  {
+  if (STAGE !== "moorage") {
+    section("the parties walk: characters of one party entering separately (RR ch. 8, Entering the Market, step 2, Parties)");
     // The gate's charges here are the printed ones, so the tariff is the fixed rate for the walk.
     const rnd = await run(gm, P.settingSet, { key: "marketsRandomTariff", value: false });
     if (randomBefore === null) randomBefore = rnd.before;
@@ -1337,6 +1560,191 @@ try {
     note("closed (gm)", await run(gm, P.closeAll));
   }
   if (STAGE === "parties") throw new StageDone("parties");
+
+  section("the moorage walk: the stay's daily fee, charged on leaving and at the month's end (RR ch. 8, Engaging in Mercantile Ventures)");
+  {
+    const rates = await run(gm, P.stayRates);
+    note("the moorage rates the gate reads", rates);
+    check("M0: the table gives every row a rate within the market and outside it", !!rates && STAY_KINDS.every((k) => rates[k]?.berth?.cp > 0 && rates[k]?.anchor?.cp > 0), { rows: rates ? Object.keys(rates) : null });
+    if (!stayWhole(rates)) throw new Error("the Moorage and Stabling table is not imported whole: re-import the Mercantile rules before walking the stay");
+    const own = { default: 0, [pc.userId]: 3 };
+    // Every size, capacity, count and daily figure typed here is invented; the rates are the import's.
+    const SHP = 60;
+    const HOOK_CP = 777;
+    const ROLL_CP = { paid: 37, away: 41, short: 43 };
+    const shipCp = (at, shp) => { const r = rates.ship[at]; return Math.ceil(r.perShp ? (r.cp * shp) / r.perShp : r.cp); };
+    const flat = (kind, at, n = 1) => Math.ceil(rates[kind][at].cp * n);
+    const gp = (cp) => Math.round(cp) / 100;
+    const near = (a, b) => Math.abs(a - b) < 0.005;
+    const trackChat = (api, r) => { for (const id of r?.chat ?? []) api.track(id, "ChatMessage"); return r; };
+    const coinOf = async (who) => (await run(gm, P.coin, { actorId: who.id })).gp;
+    const M = await gm.create("Actor", { name: `QA Moorage Town ${NONCE}`, type: "acks-extras.location" });
+    note("market M", await run(gm, P.addMarket, { locationId: M.id, classOverride: 3 }));
+    note("M owned by the player", await run(gm, P.ownershipSet, { actorId: M.id, ownership: own }));
+    const vehicle = (name, system) => gm.create("Actor", { name: `QA Moorage ${name} ${NONCE}`, type: "acks-extras.vehicle", ownership: own, system });
+    const W = await vehicle("Wain", { kind: "land", cargo: { capacityStone: 5 } });
+    const HC = await vehicle("Litter", { kind: "land", carriage: "handCarried", cargo: { capacityStone: 2 } });
+    const S = await vehicle("Cog", { kind: "sea", shp: { value: 40, max: SHP }, cargo: { capacityStone: 10 } });
+    const S0 = await vehicle("Hulk", { kind: "sea", shp: { value: 0, max: 0 }, cargo: { capacityStone: 1 } });
+    // T drives the wain, so it starts ticked; R is at the market without coin; Z has coin and stands nowhere near it.
+    const T = await gm.create("Actor", { name: `QA Moorage Tam ${NONCE}`, type: "character", ownership: own, flags: { "acks-extras": { attachedTo: { uuid: W.uuid, role: "crew", station: "driver" }, markets: { trader: true } } } });
+    const R = await gm.create("Actor", { name: `QA Moorage Rae ${NONCE}`, type: "character", ownership: own });
+    const Z = await gm.create("Actor", { name: `QA Moorage Zed ${NONCE}`, type: "character" });
+    note("Z owned by the Judge alone", await run(gm, P.ownershipSet, { actorId: Z.id, ownership: { default: 0 } }));
+    moorageRoster = `qa-moorage-${NONCE}`;
+    note("the walk's party roster: T alone", await run(gm, P.roster, { add: { id: moorageRoster, name: `QA Moorage Party ${NONCE}`, memberUuids: [T.uuid] } }));
+    note("coin", { T: await run(gm, P.coin, { actorId: T.id, mint: 1000 }), Z: await run(gm, P.coin, { actorId: Z.id, mint: 100 }), R: await run(gm, P.drain, { actorId: R.id }) });
+    await sleep(500);
+    const row = () => run(gm, P.moorageRow, { locationId: M.id, partyId: moorageRoster });
+    // A resolve is the GM's write; the player's seat leaves next, so it waits to read the entry done.
+    const resolve = async (locationId, posted) => {
+      const actionIds = posted?.action?.id ? [posted.action.id] : [];
+      const r = trackChat(gm, await run(gm, P.partiesResolve, { locationId, actionIds }));
+      return { ...r, seen: (await run(player, P.seesDone, { locationId, actionIds })).done };
+    };
+    const leave = async (locationId) => trackChat(player, await run(player, P.moorageLeave, { locationId, actorId: T.id }));
+    const stabledOf = (read, v) => read?.stabled?.find((s) => s.vehicle === v.uuid) ?? null;
+
+    // M1: the dialog's block as it opens, then a declaration through it.
+    const tab = await run(player, P.tradeTab, { locationId: M.id, traderId: T.id });
+    if (tab.acting !== T.id) throw new Error("the player's Trade tab does not act as T: the moorage walk would drive another character");
+    const d1 = trackChat(player, await run(player, P.moorageDialog, { locationId: M.id, vehicleUuids: [W.uuid, HC.uuid, S.uuid], stabled: { [W.uuid]: "cart" }, animals: { horse: 2, camelDonkeyOx: 1 } }));
+    note("M1 dialog", { opening: d1.opening, chosen: d1.chosen, action: d1.action, notes: d1.notes });
+    const o1 = d1.opening;
+    check("M1: the Enter dialog's moorage block asks where the party waits, within or outside; how each land vehicle is stabled — the driven wain as a wagon, the litter hidden and not stabled, no row for a ship — and counts three kinds of animal at none, each captioned; the quote charges the wain its day", o1?.at?.value === "berth" && o1.at.options.join() === "berth,anchor" && o1.at.captioned && stabledOf(o1, W)?.value === "wagon" && !stabledOf(o1, W).hidden && stabledOf(o1, HC)?.value === "none" && stabledOf(o1, HC).hidden && !stabledOf(o1, S) && !stabledOf(o1, S0) && o1.animals.map((a) => a.unit).join() === "elephant,horse,camelDonkeyOx" && o1.animals.every((a) => a.value === 0 && a.label) && o1.quote.includes(`Moorage and stabling (RR 372): ${gp(flat("wagon", "berth"))}gp a day, berthed and stabled in the market`), { at: o1?.at, stabled: o1?.stabled, animals: o1?.animals, quote: o1?.quote });
+    const exp1 = shipCp("berth", SHP) + flat("cartElephant", "berth") + flat("horse", "berth", 2) + flat("camelDonkeyOx", "berth", 1);
+    const c1 = d1.chosen;
+    check("M1: declared — the wain stabled as a cart, the litter not stabled, the cog, two horses and a camel — the quote charges the ship pro rata on its size and each kind per head, line by line, and the entry records that day's fee within", !!c1?.quote.includes(`Moorage and stabling (RR 372): ${gp(exp1)}gp a day, berthed and stabled in the market`) && c1.lines.includes(`${S.name}: ${gp(shipCp("berth", SHP))}gp`) && c1.lines.includes(`${W.name}: ${gp(flat("cartElephant", "berth"))}gp`) && c1.lines.includes(`Horses ×2: ${gp(flat("horse", "berth", 2))}gp`) && c1.lines.includes(`Camels, donkeys and oxen ×1: ${gp(flat("camelDonkeyOx", "berth"))}gp`) && !c1.lines.some((l) => l.startsWith(`${HC.name}:`)) && d1.action?.stayCpPerDay === exp1 && d1.action.stayAt === "berth" && d1.action.detail.includes(`stay ${gp(exp1)}gp a day`), { lines: c1?.lines, action: d1.action, expect: exp1 });
+    const flags1 = { W: await run(gm, P.moorageFlag, { actorId: W.id }), HC: await run(gm, P.moorageFlag, { actorId: HC.id }), S: await run(gm, P.moorageFlag, { actorId: S.id }) };
+    check("M1: the wain remembers it was stabled as a cart; the litter, left as it read, and the ship remember nothing", flags1.W === "cart" && flags1.HC === null && flags1.S === null, flags1);
+
+    // M2: the entry resolves.
+    const r2 = await resolve(M.id, d1);
+    const row2 = await row();
+    const cards2 = await run(gm, P.cards, { ids: r2.chat ?? [] });
+    const tab2 = await run(player, P.tradeTab, { locationId: M.id, traderId: T.id });
+    note("M2", { row2, cards: cards2.map((c) => c.text), status: tab2.ventureStatus });
+    check("M2: the entry resolves with the day's fee on the venture, the trader its payer, unsettled; the entered card and the status line give the fee", r2.done && row2?.entered && row2.stayCpPerDay === exp1 && row2.stayAt === "berth" && row2.payerUuid === T.uuid && !row2.staySettled && cards2.some((c) => c.text.includes(`Moorage and stabling, berthed and stabled in the market: ${gp(exp1)}gp a day`)) && tab2.ventureStatus.includes(`stay ${gp(exp1)}gp a day, berthed and stabled in the market`), { row2, status: tab2.ventureStatus });
+
+    // M3: leaving on the day of arrival, through the button.
+    const coin3a = await coinOf(T);
+    const l3 = trackChat(player, await run(player, P.moorageLeaveUI, { locationId: M.id }));
+    // The player's seat paid; the GM's read waits for that write to arrive.
+    const coin3b = (await run(gm, P.coinMoved, { actorId: T.id, from: coin3a })).gp;
+    const row3 = await row();
+    const tail3 = await run(gm, P.ledgerTail, { locationId: M.id, actorId: T.id, n: 1 });
+    note("M3", { l3, coin: [coin3a, coin3b], row3, tail3 });
+    check("M3: leaving the day it arrived, the confirmation names the stay and its payer, one day is charged, the purse pays it, the venture records it settled, and the ledger and the notice say so", !!l3.confirm && l3.text.includes(`The stay is paid now by ${T.name}: ${gp(exp1)}gp so far (days charged: 1).`) && near(coin3a - coin3b, gp(exp1)) && !!row3 && !row3.entered && row3.stayDays === 1 && row3.stayPaidCp === exp1 && row3.staySettled && tail3[0]?.type === "ventureLeft" && tail3[0].note.includes(`stay of 1 day ${gp(exp1)}gp paid`) && near(tail3[0].gp, -gp(exp1)) && (l3.notes ?? []).some((n) => n.text.includes(`paying ${gp(exp1)}gp for the stay (days charged: 1)`)), { text: l3.text, notes: l3.notes, row3, tail3 });
+
+    // M4: the dialog remembers the wain's stabling.
+    await run(player, P.tradeTab, { locationId: M.id, traderId: T.id });
+    const d4 = await run(player, P.moorageDialog, { locationId: M.id, submit: false });
+    check("M4: the Enter dialog opens again with the wain stabled as a cart", stabledOf(d4.opening, W)?.value === "cart", { stabled: d4.opening?.stabled });
+
+    // M5: anchored outside, arriving two days before leaving.
+    const exp5 = shipCp("anchor", SHP) + flat("cartElephant", "anchor") + flat("horse", "anchor", 1);
+    const e5 = trackChat(player, await run(player, P.moorageApi, { locationId: M.id, actorId: T.id, vehicleUuids: [W.uuid, S.uuid], stayAt: "anchor", animals: { horse: 1 } }));
+    const r5 = await resolve(M.id, e5);
+    const back5 = await run(gm, P.moorageBackdate, { locationId: M.id, partyId: moorageRoster, days: 2 });
+    const coin5a = await coinOf(T);
+    const l5 = await leave(M.id);
+    const coin5b = await coinOf(T);
+    const row5 = await row();
+    note("M5", { e5: e5.action, error: e5.error, back5, l5, coin: [coin5a, coin5b], row5, expect: exp5 });
+    check("M5: anchored outside, every line takes the outside column and the wain is stabled as it remembers; with the arrival two days back, three days are charged at that fee", e5.ok && e5.action?.stayAt === "anchor" && e5.action.stayCpPerDay === exp5 && r5.done && back5.found && back5.today - back5.arrivalDay === 2 && l5.ok && l5.stay?.days === 3 && near(l5.stay.gp, gp(exp5 * 3)) && near(coin5a - coin5b, gp(exp5 * 3)) && row5?.stayDays === 3 && row5.stayPaidCp === exp5 * 3, { e5: e5.action, back5, l5, row5 });
+
+    // M6: a purse that cannot pay the stay.
+    const exp6 = flat("cartElephant", "berth");
+    const e6 = trackChat(player, await run(player, P.moorageApi, { locationId: M.id, actorId: T.id, vehicleUuids: [W.uuid] }));
+    const r6 = await resolve(M.id, e6);
+    const drained = await run(gm, P.drain, { actorId: T.id });
+    const l6a = await leave(M.id);
+    const row6a = await row();
+    note("T's coin again", await run(gm, P.coin, { actorId: T.id, mint: 1000 }));
+    const l6b = await leave(M.id);
+    const row6b = await row();
+    note("M6", { e6: e6.action, drained, l6a, row6a, l6b, row6b });
+    check("M6: with an empty purse the leave is refused with the stay's sum and days, and the party stays in the market, unsettled; with coin again it leaves and pays", e6.action?.stayCpPerDay === exp6 && r6.done && drained.gp === 0 && l6a.error === "stayShort" && near(l6a.gp, gp(exp6)) && l6a.days === 1 && !!row6a?.entered && !row6a.staySettled && l6b.ok && near(l6b.stay?.gp, gp(exp6)) && !!row6b?.staySettled && !row6b.entered, { l6a, row6a, l6b, row6b });
+
+    // M7: a ship with no size.
+    await run(player, P.tradeTab, { locationId: M.id, traderId: T.id });
+    const d7b = await run(player, P.moorageDialog, { locationId: M.id, vehicleUuids: [S0.uuid], submit: false });
+    const d7a = await run(player, P.moorageDialog, { locationId: M.id, vehicleUuids: [S0.uuid], stayAt: "anchor", submit: false });
+    const bySize = (at) => !!rates.ship[at].perShp;
+    const sized = (read, at) => (bySize(at) ? read?.chosen?.quote.includes(`${S0.name} has no structural hit points`) : read?.chosen?.quote.includes(`Moorage and stabling (RR 372): ${gp(flat("ship", at))}gp a day`));
+    check("M7: a ship with no structural hit points cannot be figured where its rate is by size, and is where the rate is flat", !!sized(d7b, "berth") && !!sized(d7a, "anchor"), { berth: d7b.chosen?.quote, anchor: d7a.chosen?.quote, bySize: { berth: bySize("berth"), anchor: bySize("anchor") } });
+
+    // M8: sneaking in.
+    const d8 = await run(player, P.moorageDialog, { locationId: M.id, vehicleUuids: [W.uuid], sneak: true, submit: false });
+    const e8 = trackChat(player, await run(player, P.moorageApi, { locationId: M.id, actorId: T.id, vehicleUuids: [W.uuid], sneak: true }));
+    const r8 = await resolve(M.id, e8);
+    const l8 = await leave(M.id);
+    note("M8", { quote: d8.chosen?.quote, e8: e8.action, l8 });
+    check("M8: a party sneaking in pays no toll or tariff and still has its stay figured, recorded and charged", !!d8.chosen?.quote.includes("No toll or tariff: the party sneaks in") && d8.chosen.quote.includes(`Moorage and stabling (RR 372): ${gp(exp6)}gp a day`) && !!e8.action?.sneaked && e8.action.tollCp === 0 && e8.action.stayCpPerDay === exp6 && r8.done && l8.ok && near(l8.stay?.gp, gp(exp6)) && l8.stay.days === 1, { quote: d8.chosen?.quote, e8: e8.action, l8 });
+
+    // M9: a Judge's hook sets the day's fee.
+    note("stay hook on (player)", await run(player, P.stayHook, { on: true, locationId: M.id, cpPerDay: HOOK_CP }));
+    const d9 = await run(player, P.moorageDialog, { locationId: M.id, vehicleUuids: [W.uuid], submit: false });
+    const e9 = trackChat(player, await run(player, P.moorageApi, { locationId: M.id, actorId: T.id, vehicleUuids: [W.uuid] }));
+    note("stay hook off (player)", await run(player, P.stayHook, { on: false }));
+    const r9 = await resolve(M.id, e9);
+    const l9 = await leave(M.id);
+    note("M9", { quote: d9.chosen?.quote, lines: d9.chosen?.lines, e9: e9.action, error: e9.error, r9, l9, row9: await row() });
+    check("M9: a Judge's hook that sets the day's fee is what the quote charges and the entry records, over the gate's own lines, and leaving charges it", !!d9.chosen?.quote.includes(`Moorage and stabling (RR 372): ${gp(HOOK_CP)}gp a day`) && d9.chosen.lines.includes(`${W.name}: ${gp(exp6)}gp`) && e9.action?.stayCpPerDay === HOOK_CP && r9.done && near(l9.stay?.gp, gp(HOOK_CP)), { quote: d9.chosen?.quote, e9: e9.action, l9 });
+
+    // M10: the Ruler's Privilege.
+    const Mp = await gm.create("Actor", { name: `QA Moorage Haven ${NONCE}`, type: "acks-extras.location" });
+    note("market Mp", await run(gm, P.addMarket, { locationId: Mp.id, classOverride: 3 }));
+    note("Mp owned by the player", await run(gm, P.ownershipSet, { actorId: Mp.id, ownership: own }));
+    const D = await gm.create("Actor", { name: `QA Moorage Barony ${NONCE}`, type: "acks-extras.domain" });
+    note("the barony holds Mp under T", await run(gm, P.gateDomain, { domainId: D.id, locationId: Mp.id, traderId: T.id, rulerId: T.id }));
+    await run(player, P.tradeTab, { locationId: Mp.id, traderId: T.id });
+    const d10 = await run(player, P.moorageDialog, { locationId: Mp.id, vehicleUuids: [W.uuid], animals: { horse: 2 }, submit: false });
+    const coin10a = await coinOf(T);
+    const e10 = trackChat(player, await run(player, P.moorageApi, { locationId: Mp.id, actorId: T.id, vehicleUuids: [W.uuid], animals: { horse: 2 } }));
+    const r10 = await resolve(Mp.id, e10);
+    const l10 = await leave(Mp.id);
+    const coin10b = await coinOf(T);
+    const tail10 = await run(gm, P.ledgerTail, { locationId: Mp.id, actorId: T.id, n: 1 });
+    note("M10", { quote: d10.chosen?.quote, e10: e10.action, l10, coin: [coin10a, coin10b], tail10 });
+    check("M10: where the trader rules the market's domain the quote waives the stay with the toll, the entry records no fee, and leaving takes nothing", !!d10.chosen?.quote.includes(`No moorage or stabling: Ruler's Privilege in ${D.name}`) && !d10.chosen.quote.includes("gp a day") && e10.action?.stayCpPerDay === 0 && !!e10.action.privilegeUuid && r10.done && l10.ok && l10.stay === null && near(coin10a, coin10b) && tail10[0]?.type === "ventureLeft" && !tail10[0].note.includes("stay of"), { quote: d10.chosen?.quote, e10: e10.action, l10, tail10 });
+
+    // M11: the month's end, written into the previous month on M without moving the clock.
+    const ROLL = {
+      paid: { partyId: `qa-moor-${NONCE}-paid`, payerId: T.id, cpPerDay: ROLL_CP.paid, arrivalOffset: 3 },
+      away: { partyId: `qa-moor-${NONCE}-away`, payerId: Z.id, cpPerDay: ROLL_CP.away, arrivalOffset: 5 },
+      short: { partyId: `qa-moor-${NONCE}-short`, payerId: R.id, cpPerDay: ROLL_CP.short, arrivalOffset: 7 },
+      legacy: { partyId: `qa-moor-${NONCE}-legacy`, legacy: true, arrivalOffset: 2 },
+    };
+    const partyIds = Object.values(ROLL).map((r) => r.partyId);
+    const pres = await run(gm, P.presence, { locationId: M.id, actorIds: [T.id, Z.id, R.id] });
+    const coinR = await coinOf(R);
+    const made = await run(gm, P.rollRows, { locationId: M.id, rows: Object.values(ROLL) });
+    note("M11 rows written", { made, pres, coinR });
+    if (made.skip) note("M11", "not walked: the clock is in its first market month, so no earlier month exists");
+    else {
+      const daysOf = (k) => made.lastDay - made.made.find((m) => m.partyId === ROLL[k].partyId).arrivalDay + 1;
+      const coinT0 = await coinOf(T);
+      const coinZ0 = await coinOf(Z);
+      const s1 = trackChat(gm, await run(gm, P.rollSettle, { locationId: M.id, partyIds }));
+      const coinT1 = await coinOf(T);
+      const coinZ1 = await coinOf(Z);
+      const cards11 = await run(gm, P.cards, { ids: s1.chat ?? [] });
+      const rr = (k) => s1.rows[ROLL[k].partyId];
+      const owed = (k) => ROLL_CP[k] * daysOf(k);
+      note("M11 settle", { rows: s1.rows, log: s1.log, cards: cards11.map((c) => c.text), coin: { T: [coinT0, coinT1], Z: [coinZ0, coinZ1] }, days: { paid: daysOf("paid"), away: daysOf("away"), short: daysOf("short") } });
+      check("M11: the sweep runs on the primary GM's seat, with T and R at the market, Z away from it, and R without coin", made.primary && pres[T.id]?.present && pres[R.id]?.present && !pres[Z.id]?.present && coinR === 0, { primary: made.primary, pres, coinR });
+      check("M11: a visit still standing at the month's end is charged from its arrival through the month's last day; the payer at the market pays it, one away and one short are not charged and are told what is owed, every row is settled once, and a row written without the stay's keys reads a fee of none and is left alone", !!rr("paid")?.staySettled && rr("paid").stayDays === daysOf("paid") && rr("paid").stayPaidCp === owed("paid") && near(coinT0 - coinT1, gp(owed("paid"))) && !!rr("away")?.staySettled && rr("away").stayPaidCp === 0 && rr("away").stayDays === daysOf("away") && near(coinZ0, coinZ1) && !!rr("short")?.staySettled && rr("short").stayPaidCp === 0 && rr("legacy")?.stayCpPerDay === 0 && !rr("legacy").staySettled && s1.log.length === 3 && cards11.some((c) => c.text.includes(`${T.name}'s stay at ${M.name} ended with the month: ${gp(owed("paid"))}gp paid (days charged: ${daysOf("paid")})`)) && cards11.some((c) => c.text.includes(`${gp(owed("away"))}gp owed (days charged: ${daysOf("away")})`) && c.text.includes(`${Z.name} is away from the market`)) && cards11.some((c) => c.text.includes(`${gp(owed("short"))}gp owed`) && c.text.includes(`${R.name}'s coin falls short`)), { rows: s1.rows, log: s1.log.length, cards: cards11.map((c) => c.text) });
+      const s2 = trackChat(gm, await run(gm, P.rollSettle, { locationId: M.id, partyIds }));
+      const coinT2 = await coinOf(T);
+      check("M11: a second sweep settles nothing again", s2.log.length === 3 && near(coinT1, coinT2) && !(s2.chat ?? []).length, { log: s2.log.length, chat: s2.chat });
+    }
+    note("the moorage walk's party roster removed", await run(gm, P.roster, { off: moorageRoster }));
+    moorageRoster = null;
+    note("closed (player)", await run(player, P.closeAll));
+    note("closed (gm)", await run(gm, P.closeAll));
+  }
+  if (STAGE === "moorage") throw new StageDone("moorage");
 
   section("fixtures");
   {
@@ -1639,6 +2047,7 @@ try {
   try { if (gm && randomBefore !== null) note("randomized tariff setting", await run(gm, P.settingSet, { key: "marketsRandomTariff", value: randomBefore })); } catch (err) { console.error("randomTariff:", err?.message ?? err); }
   try { if (gm && gateRoster) note("the gate walk's party roster removed", await run(gm, P.roster, { off: gateRoster })); } catch (err) { console.error("roster:", err?.message ?? err); }
   try { if (gm && partiesRoster) note("the parties walk's party roster removed", await run(gm, P.roster, { off: partiesRoster })); } catch (err) { console.error("roster:", err?.message ?? err); }
+  try { if (gm && moorageRoster) note("the moorage walk's party roster removed", await run(gm, P.roster, { off: moorageRoster })); } catch (err) { console.error("roster:", err?.message ?? err); }
   try { if (gm) note("restored (gm)", await run(gm, P.restore)); } catch (err) { console.error("restore:", err?.message ?? err); }
   try { if (seats.player) { note("closed windows (player)", await run(seats.player, P.closeAll)); note("restored (player)", await run(seats.player, P.restore)); } } catch (err) { console.error("restore player:", err?.message ?? err); }
   for (const id of imported) { try { note(`${id} document removed`, await run(gm, P.removeDoc, { id })); } catch (err) { console.error("removeDoc:", err?.message ?? err); } }

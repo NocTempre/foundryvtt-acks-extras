@@ -738,3 +738,58 @@ Cost:
   `entrantUuid` reads as the party's, through the schema's defaults.
 - A Judge's `marketGateQuote` handler that ignores the new `separately` in
   its context charges a separate entrant as it would the party.
+
+## 2026-10-23 — The stay is a daily fee the gate figures and the visit's end charges
+
+Builds Moorage and Stabling (RR ch. 8, Engaging in Mercantile Ventures,
+RR 372), the last of the gate's fees the entry above left on the ROADMAP,
+with the Ruler's Privilege on it. It follows that entry's rule: the module
+charges what the book charges and nothing else, and a Judge who wants more
+uses the gate hook. Nothing ruled above is reversed. The owner answered
+six questions:
+
+- **A land vehicle says how it is stabled** ("Stabled as": wagon, cart or
+  not stabled), and the vehicle remembers the answer. Its carriage only
+  picks the first answer.
+- **Loose animals are counted per row of the table** in the Enter dialog,
+  a head count for each.
+- **A ship's berth is pro rata** to its size where the imported cell prices
+  by size.
+- **A stay still standing at the month's end is charged automatically** to
+  that day, by the primary GM's month roll.
+- **Sneaking in does not escape the stay.** Sneaking avoids the gate, not
+  the market's berths and stables.
+- **A visit counts both its ends**, as the chapter's Mercantile Income
+  example counts. This overrode the default offered, the Arbitrage Trading
+  example's exit step, which counts the departure day less the arrival day.
+
+Defaults that stood unanswered:
+
+- Leaving is refused whole while the leaver's purse cannot cover the stay.
+- One berth-or-anchor choice covers the whole entry.
+- No new hook: the stay rides the gate quote, and a `marketGateQuote`
+  handler may set `quote.stay.cpPerDay`. The gate keeps its own lines and
+  waiver.
+- The time it takes to load at an anchorage or a pasture is not built; it
+  stays on the ROADMAP with cargo handling times.
+- Each line rounds up to a whole copper a day.
+- The leaver pays on leaving; at the month's end the character who
+  entered pays. A payer away from the market, short or gone is not charged:
+  a card tells the Judge, and the row is settled once.
+- A drawn or blank-carriage vehicle starts as a wagon, a carried one as not
+  stabled. A wagon marked not stabled does not add its team as loose
+  animals.
+- Pack animals count twice, in the capacity the toll reads and in the head
+  count the stable reads, since the two fees charge different things.
+
+Cost:
+
+- **A world that has not re-imported the Mercantile rules refuses every
+  entry that brings anything to stable**, naming the table, until it does.
+  A party with nothing to stable never reads the table.
+- A ship priced by size with no size recorded is refused (`stayNoShp`).
+- A non-primary GM's sweep resolves queued days but leaves stays for the
+  primary GM, so a world whose primary GM never logs in settles no
+  month-end stays.
+- None for a world's data. A venture row stored before the stay reads a fee
+  of 0 and is never charged.

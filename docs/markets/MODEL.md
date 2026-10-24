@@ -139,7 +139,8 @@ party's find.
   card to the actor's owners and the GM naming the table.
   - **The gate** (`engine/gate.mjs` `entryQuote`, `settleTariff`; RR 372)
     assesses the book's fees and no others. They fall on what the party
-    brings, never on its people, and the trader pays them.
+    brings, never on its people, and the trader pays them, the stay at
+    the visit's end (below).
     - **What is assessed** (`enteringLoads`). This covers every merchandise
       load in the packs of the members entering and in the entering
       vehicles' holds. The members entering (`enteringMembers`) are the
@@ -166,7 +167,43 @@ party's find.
       instead, and an entry with no dice imported is refused naming that
       table. Where a member entering rules the domain the market lies in
       (`acksExtras.domains.domainOf`, read at call time), neither is
-      charged (the Ruler's Privilege).
+      charged, nor the stay below (the Ruler's Privilege).
+    - **Moorage and stabling** (`rules/stay.mjs` `stayPerDay`; RR ch. 8,
+      Engaging in Mercantile Ventures) is a daily fee on what the party
+      keeps at the market: each sea vehicle as a ship of its size (maximum
+      shp, else current), pro rata where its imported cell prices by shp;
+      each land vehicle as a wagon, a cart or not stabled (`STABLED_AS`),
+      its team inside its fee; and a head count per kind of animal brought
+      besides the teams (`STAY_ANIMALS`, each keyed to the imported row its
+      fee reads). One choice per entry says whether all of it waits
+      berthed and stabled within or anchored and pastured outside
+      (`STAY_AT`), and each line takes that column of `printed.stayRates()`,
+      rounded up to a whole copper. A land vehicle starts at what its owner
+      last chose at a gate (`flags.acks-extras.markets.stabledAs`, written
+      after the entry is paid where the choice changed), else by its
+      carriage (`defaultStabledAs`: drawn, a wagon; carried, not stabled).
+      An entry bringing something the imported table cannot price is
+      refused naming the table, and a ship priced by size with no shp
+      `stayNoShp`; a party with nothing to stable never reads the table.
+      The quote figures the day's fee (`quote.stay`) and the entry records
+      it (`stayCpPerDay`, `stayAt`); nothing of it is paid at the gate.
+      Sneaking in leaves it charged; the privilege waives it
+      (`stayCpPerDayOf`).
+    - **Settling a stay.** A visit is charged its days (`stayOwed`: the
+      calendar day of arrival, the row's `enteredTime` taken from the
+      entry's `postedTime`, through the day of
+      departure, both counted) at the fee recorded. Leaving pays it from
+      the leaving character's purse, refused whole on a short one
+      (`stayShort`). At a month's end the primary GM's sweep
+      (`settleEndedStays`, in `processVentureActions`) charges each visit
+      of an earlier month still standing through that month's last day,
+      from the character who entered (`payerUuid`). A payer away from the
+      market (`coinReach`), short of coin or gone is not charged: a card
+      tells the Judge and the payer's owners what is owed and why, and the
+      row is settled either way, once. The row keeps `stayDays`,
+      `stayPaidCp` and `staySettled`; entering again the same month starts
+      a fresh stay on it. A row written before the stay was stored reads a
+      fee of 0 and is never charged.
     - **Smuggling** is marked on goods, and resolving it is the Judge's.
       A good in `smuggled` is listed apart and never assessed. A party
       that sneaks in (`sneak`) pays neither toll nor tariff, and everything
@@ -178,25 +215,33 @@ party's find.
       `acksExtras.marketGateQuote` (`HOOKS.GATE_QUOTE`) with
       `(quote, {location, trader, separately})` on every seat that quotes. A handler
       may push `{label, cp}` onto `quote.extra`. The trader pays these with
-      the book's, whatever the privilege or the sneaking. A handler answers
-      the same on every seat, or preview and payment disagree. The gate's
-      parts are on `acksExtras.markets.gate`.
+      the book's, whatever the privilege or the sneaking. What a handler
+      leaves in `quote.stay.cpPerDay` is the day's fee the entry records,
+      unless the privilege waives it; the lines and the waiver stay the
+      gate's. A handler answers the same on every seat, or preview and
+      payment disagree. The gate's parts are on `acksExtras.markets.gate`,
+      and the stay's rules on `acksExtras.markets.stay`.
     - **The payment** is ONE spend from the trader's purse as the day is
       posted (toll + tariff + `extraCpOf`), refused whole when the purse
       falls short. Which member funds it is the players' bookkeeping.
     - **What is shown and kept.** The Enter dialog lists the goods at the
       gate: each load (a hold's only while its vehicle is ticked) with a
       smuggled tick, each item that can be sold with a brought-to-sell and
-      a smuggled tick, and one tick that sneaks the party in. Beneath it is
-      the same quote, recomputed as the declaration changes: the toll, a
-      line per good with its holder, rate and charge, the span a thrown
-      tariff can come to, the privilege or the sneaking, any hook charge,
-      and what is smuggled. The quote is figured again on the seat that
-      posts, which can read goods the previewing seat may not. The action
-      stores `tollCp`, `tariffCp`, `privilegeUuid` and `sneaked`, and the
-      venture row the totals. The ledger row itemizes the charges and lists
-      what was smuggled; the detail names any throws; and the entered card
-      says what was paid.
+      a smuggled tick, and one tick that sneaks the party in. Its moorage
+      block asks where the party waits, how each ticked land vehicle is
+      stabled, and a head count per kind of animal. Beneath it is the same
+      quote, recomputed as the declaration changes: the toll, a line per
+      good with its holder, rate and charge, the span a thrown tariff can
+      come to, the privilege or the sneaking, the stay's day fee with a
+      line per ship, vehicle and kind of animal, any hook charge, and what
+      is smuggled. The quote is figured again on the seat that posts,
+      which can read goods the previewing seat may not. The action stores
+      `tollCp`, `tariffCp`, `privilegeUuid`, `sneaked`, `stayAt` and
+      `stayCpPerDay`, and the venture row the totals. The ledger row
+      itemizes the charges, lists what was smuggled and gives the stay's
+      lines; the detail names any throws; the entered card says what was
+      paid and the day's fee; and the Trade tab's status line gives the
+      fee while the visit stands.
   - **Entering as the party or separately** (RR ch. 8, Entering the Market,
     step 2, Parties; `rules/arbitrage.mjs` `entryConflict`, `ventureKey`,
     `inVenture`). An entry's `mode` (`VENTURE_MODES`) is `party` or
@@ -283,9 +328,9 @@ party's find.
   - **A party may leave the market** (`leaveMarket`, `leaveVentureMarket`),
     in the venture the trader acts in: the month's row stays with `entered`
     false and the toll and tariff on record, the venture's solicitations for
-    the month are dropped, and its waiting enter/assess/solicit days are
-    withdrawn. Entering again
-    overwrites the row with a fresh declaration and pays the gate afresh.
+    the month are dropped, its waiting enter/assess/solicit days are
+    withdrawn, and its stay is settled (above). Entering again overwrites
+    the row with a fresh declaration and pays the gate afresh.
 - **Known markets** (`rules/known.mjs`, `engine/known-market.mjs`): a
   mercantile network's class shift is situational — it counts in a market the
   trader has been in before — and henchmen's `effectiveMarketClass` asks

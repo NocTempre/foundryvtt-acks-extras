@@ -18,6 +18,7 @@
 import { num, str, int } from "../../lib/fields.mjs";
 import { DEMAND_WATER, DEMAND_BIOMES, DEMAND_ELEVATIONS } from "../rules/demand.mjs";
 import { NETWORK_MODES } from "../rules/arbitrage.mjs";
+import { STAY_AT } from "../rules/stay.mjs";
 
 const fields = () => foundry.data.fields;
 
@@ -207,6 +208,10 @@ export function goodsSchema() {
         entrantUuid: str(),
         // enter, separately: the party's characters the maximum impact is shared among; 0 entering as one.
         entrants: int(0),
+        // enter: where the party's ships and animals wait, and the daily
+        // moorage and stabling the gate figured for them (0 where waived).
+        stayAt: new f.StringField({ required: true, initial: "berth", choices: STAY_AT }),
+        stayCpPerDay: int(0),
       })
     ),
     // Venture state per party-month, or per character-month where the party
@@ -242,6 +247,17 @@ export function goodsSchema() {
         rawImpact: int(0),
         impactCap: int(0),
         networkMode: new f.StringField({ required: true, initial: "auto", choices: NETWORK_MODES }),
+        // The visit's moorage and stabling (engine/ventures.mjs): where it
+        // waits, the daily fee the gate figured (0 where waived, and on a row
+        // written before it was stored, which is never charged), whose purse
+        // pays it at the month's end, and, once settled on leaving or at the
+        // month's end, the days charged and the coppers paid.
+        stayAt: new f.StringField({ required: true, initial: "berth", choices: STAY_AT }),
+        stayCpPerDay: int(0),
+        payerUuid: str(),
+        stayDays: int(0),
+        stayPaidCp: int(0),
+        staySettled: new f.BooleanField({ initial: false }),
       })
     ),
     // LEGACY: the per-party beliefs assessments wrote before reports were Items.

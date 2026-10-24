@@ -1041,4 +1041,57 @@ assert.strictEqual(parseMoneyCp("-"), 0, "unreadable money is zero");
   assert.deepStrictEqual(planLoadDraw(null, 0), { updates: [], deletes: [], held: 0, short: false }, "nothing asked, nothing taken");
 }
 
-console.log("test-markets: OK (availability, caps, pricing, magic pricing, imports, commissions, arbitrage, result bands, venture queue, ledger, item flags, identification, printed reader, load draws)");
+// ---- moorage and stabling: the day's fee where the party waits, and the days charged ----
+{
+  const { stayPerDay, stayDays, stayOwed, defaultStabledAs, STABLED_AS, STAY_AT, STAY_ANIMALS } = await import(new URL("../scripts/markets/rules/stay.mjs", import.meta.url));
+  // Invented rates in the imported shape: a ship's berth by size, the rest flat.
+  const rates = {
+    ship: { berth: { cp: 30, perShp: 20 }, anchor: { cp: 7, perShp: null } },
+    wagon: { berth: { cp: 11, perShp: null }, anchor: { cp: 3, perShp: null } },
+    cartElephant: { berth: { cp: 5, perShp: null }, anchor: { cp: 2, perShp: null } },
+    horse: { berth: { cp: 4, perShp: null }, anchor: { cp: 1, perShp: null } },
+    camelDonkeyOx: { berth: { cp: 3, perShp: null }, anchor: { cp: 1, perShp: null } },
+  };
+  assert.deepStrictEqual([...STAY_AT], ["berth", "anchor"], "within, or outside");
+  assert.deepStrictEqual([...STABLED_AS], ["wagon", "cart", "none"], "a land vehicle is a wagon, a cart, or not stabled");
+  assert.deepStrictEqual(Object.values(STAY_ANIMALS), ["cartElephant", "horse", "camelDonkeyOx"], "every animal reads a row the import emits");
+  assert.strictEqual(defaultStabledAs("pulled"), "wagon", "a team-drawn vehicle stables as a wagon");
+  assert.strictEqual(defaultStabledAs(""), "wagon", "no carriage stated reads as drawn");
+  assert.strictEqual(defaultStabledAs("handCarried"), "none", "a vehicle carried by hand is not stabled");
+
+  const party = stayPerDay({
+    rates,
+    at: "berth",
+    ships: [{ name: "Cog", shp: 50 }],
+    vehicles: [{ name: "Wain", as: "wagon" }, { name: "Barrow", as: "cart" }, { name: "Litter", as: "none" }],
+    animals: { horse: 3, elephant: 1, camelDonkeyOx: 0 },
+  });
+  assert.deepStrictEqual(party.lines, [
+    { unit: "ship", name: "Cog", count: 1, cp: 75 },
+    { unit: "wagon", name: "Wain", count: 1, cp: 11 },
+    { unit: "cart", name: "Barrow", count: 1, cp: 5 },
+    { unit: "elephant", name: "", count: 1, cp: 5 },
+    { unit: "horse", name: "", count: 3, cp: 12 },
+  ], "a ship pro rata on its size, a wagon and a cart by their rows, each animal counted; nothing for a vehicle not stabled or an animal not counted");
+  assert.strictEqual(party.cpPerDay, 108, "the day's fee is the lines' sum");
+  assert.strictEqual(party.at, "berth", "the quote says where it waits");
+  assert.strictEqual(stayPerDay({ rates, ships: [{ name: "Skiff", shp: 3 }] }).cpPerDay, 5, "a fraction of a copper rounds up");
+  const outside = stayPerDay({ rates, at: "anchor", ships: [{ name: "Cog", shp: 50 }], animals: { horse: 2 } });
+  assert.deepStrictEqual(outside.lines.map((l) => l.cp), [7, 2], "outside, the other column: a flat anchorage whatever the ship's size");
+  assert.strictEqual(stayPerDay({ rates, at: "pier" }).at, "berth", "an unknown place reads as within");
+  assert.deepStrictEqual(stayPerDay({ rates, animals: { horse: -2, elephant: 1.7 } }).lines.map((l) => [l.unit, l.count]), [["elephant", 1]], "a count is a whole, never negative, head");
+  assert.deepStrictEqual(stayPerDay({ rates: null }), { at: "berth", cpPerDay: 0, lines: [] }, "nothing to stable needs no rates");
+  assert.deepStrictEqual(stayPerDay({ rates: null, animals: { horse: 1 } }), { error: "noRate", row: "horse" }, "an unread table refuses what it would price");
+  assert.deepStrictEqual(stayPerDay({ rates: { ...rates, wagon: undefined }, vehicles: [{ name: "Wain", as: "wagon" }] }), { error: "noRate", row: "wagon" }, "a row the import left out is refused, never free");
+  assert.deepStrictEqual(stayPerDay({ rates, ships: [{ name: "Hulk", shp: 0 }] }), { error: "noShp", name: "Hulk" }, "a ship priced by size needs its size");
+  assert.strictEqual(stayPerDay({ rates, at: "anchor", ships: [{ name: "Hulk", shp: 0 }] }).cpPerDay, 7, "a flat rate does not");
+
+  assert.strictEqual(stayDays(10, 10), 1, "arriving and leaving on one day is one day");
+  assert.strictEqual(stayDays(10, 12), 3, "both the day of arrival and the day of departure are charged");
+  assert.strictEqual(stayDays(12, 10), 1, "a departure read before the arrival is still one day");
+  assert.strictEqual(stayDays(null, undefined), 1, "unreadable days are one day");
+  assert.deepStrictEqual(stayOwed({ cpPerDay: 108, arrivalDay: 4, departureDay: 6 }), { days: 3, cp: 324 }, "the days at the day's fee");
+  assert.deepStrictEqual(stayOwed({ cpPerDay: 0, arrivalDay: 4, departureDay: 30 }), { days: 27, cp: 0 }, "a stay figured free is free whatever its length");
+}
+
+console.log("test-markets: OK (availability, caps, pricing, magic pricing, imports, commissions, arbitrage, result bands, venture queue, ledger, item flags, identification, printed reader, load draws, moorage and stabling)");

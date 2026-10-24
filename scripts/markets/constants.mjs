@@ -33,6 +33,9 @@ export const TRADE_HOUSE_SETTING = "marketsTradeHouse";
 /** The actor flag a GM sets to give a character the Trade tab (`flags["acks-extras"].markets.trader`). */
 export const TRADER_FLAG = "trader";
 
+/** The vehicle flag that remembers how its owner last stabled it at a gate (`flags["acks-extras"].markets.stabledAs`). */
+export const STABLED_FLAG = "stabledAs";
+
 /** camelCased module id — the namespace custom hooks fire under (TOOLCHAIN §5b). */
 const NAMESPACE = "acksExtras";
 

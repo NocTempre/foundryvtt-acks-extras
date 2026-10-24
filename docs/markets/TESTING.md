@@ -922,6 +922,123 @@ re-written with E for S6b and back, removed by its id at the end. The world's
 the characters, the goods, M and the cards; the setting is restored and the
 roster removed by its id, in the walk and again in its `finally`.
 
+## The moorage walk (the stay's daily fee, settled on leaving and at the month's end)
+
+Steps M0–M11 of `tools/live/markets.mjs`, in the order below;
+`STAGE=moorage` runs them alone.
+
+**The table.** Every entry that brings a vehicle reads `moorageRates`. A
+world whose Mercantile document was imported before the table's recipe holds
+none, and the walk does not re-import over the world's document. The rules
+step reads the table off the connected book through the shipped recipe
+(`TABLE_RECIPES.mercantile.tables.moorageRates`, `locatePageNumber`,
+`pageItems`, `extractTable`). It registers the table as an in-memory layer
+at priority 31 on both seats (`registerTable({id: "mercantile", tables:
+{moorageRates}}, {priority: 31})`), and `restore` unregisters it. The
+report says when the layer stood in for the import.
+
+**Fixtures** (through `api.create`, tracked; every size, capacity, count
+and daily figure invented, every rate the table's): market M of class III,
+owned by the Player seat; vehicles owned by the Player seat:
+
+- a wain (land, drawn by default);
+- a litter (land, `carriage: "handCarried"`);
+- a cog (sea, `shp {value: 40, max: 60}`);
+- a hulk (sea, `shp` 0).
+
+Characters:
+
+- T, owned by the Player seat, driving the wain (`attachedTo` role `crew`,
+  station `driver`) and flagged a trader, with coin;
+- R, owned by the Player seat, drained of coin;
+- Z, owned by the Judge alone, with coin.
+
+A roster of the run's own holds T alone, removed by its id at the end.
+
+**Drive mechanics**
+
+- The Enter dialog's moorage block is `fieldset.acks-extras-markets-stay`:
+  `select[name=stayAt]`, one `select[name=stabled][data-vehicle]` per land
+  vehicle (its row `[data-stay-vehicle]` hidden while the vehicle is
+  unticked), and `input[name=animal][data-unit]`. The selects fire `change`,
+  the counts `input`; the quote is `[data-gate-quote]`, its lines the `li`s.
+- Resolve an entry without moving the clock, as the parties walk does, then
+  wait on the Player seat until it reads the action done before leaving
+  from that seat. A seat that reads straight after another seat's write
+  can read the old row or the old purse: after the Player seat leaves, the
+  GM seat waits for T's purse to move. After **Leave the market** is
+  pressed, wait for its notice, never a fixed time.
+- Make a visit span days by moving the row's `enteredTime` back whole
+  calendar days (seconds a day from `game.time.calendar.days`); the clock
+  stays put.
+- Reach the month's end by writing rows into the previous market month
+  (`marketMonthStart(marketMonthStart() - 1)`), each with a payer and a daily
+  fee, then run `processImports(M)` on the GM seat. Only the primary GM's
+  seat settles them (`lib/util.mjs` `isPrimaryGM`); the step checks it is
+  that seat. A clock still in its first market month has no earlier month,
+  and M11 says so and is skipped.
+- A Judge's handler is `Hooks.on("acksExtras.marketGateQuote", …)` on the
+  seat that posts the entry, setting `quote.stay.cpPerDay` at M alone;
+  remove it by its id.
+
+**Steps**
+
+- **M0.** *Observable:* `printed.stayRates()` gives ship, wagon,
+  cartElephant, horse and camelDonkeyOx a rate both within and outside.
+- **M1.** Player seat, M's Trade tab acting as T: **Enter the market**.
+  *Observable:* the block opens at "berth" with both options and a caption;
+  the wain reads wagon and shows, the litter reads not stabled and is
+  hidden, no ship has a row; three animal counts at 0, each captioned; the
+  quote charges the wain's day. Tick the wain, the litter and the cog, set
+  the wain to cart, two horses and one camel, confirm. *Observable:* the
+  quote's lines charge the cog pro rata on its maximum shp (or flat where
+  the berth cell is flat), the wain at the cart row and each kind per head,
+  with no line for the litter; the action records that day's fee, `stayAt`
+  berth, and its detail "stay …gp a day"; the wain's flag reads cart, and
+  neither the litter nor the cog carry one.
+- **M2.** Resolve. *Observable:* the row is entered with the fee, T its
+  payer, unsettled; the entered card's stay line and the Trade tab's status
+  line give the fee.
+- **M3.** Press **Leave the market** and confirm. *Observable:* the
+  confirmation names T as the payer, the fee and "days charged: 1"; T's
+  purse drops by one day's fee; the row is settled with one day; the ledger's
+  `ventureLeft` row reads "stay of 1 day …gp paid" with that gp negative;
+  the notice says the same.
+- **M4.** Open Enter again. *Observable:* the wain reads cart.
+- **M5.** Through the api: enter at anchor with the wain, the cog and one
+  horse; resolve; move the arrival two days back; leave. *Observable:* the
+  fee is every line's outside column; three days are charged and paid.
+- **M6.** Enter with the wain; resolve; drain T; leave. *Observable:*
+  `stayShort` with the sum and one day, the row still entered and
+  unsettled. Give T coin and leave again. *Observable:* it pays.
+- **M7.** Open Enter with the hulk alone, at berth and at anchor, without
+  submitting. *Observable:* where the cell prices by size the quote names
+  the hulk as having no structural hit points; where it is flat, the flat
+  fee.
+- **M8.** Sneak in with the wain. *Observable:* no toll or tariff, the stay
+  quoted and recorded, and leaving pays one day.
+- **M9.** Hook on the Player seat at 777cp; enter with the wain; hook off;
+  resolve; leave. *Observable:* the quote's fee is 7.77gp a day while the
+  wain's own line stands; the action records 777; leaving charges 7.77gp.
+- **M10.** A second market under domain D ruled by T: enter with the wain.
+  *Observable:* the quote reads "No moorage or stabling: Ruler's Privilege
+  in …" with no daily fee; the action records 0; leaving takes nothing and
+  the ledger row has no stay.
+- **M11.** Write four previous-month rows on M: T paying (at the market),
+  Z paying (away from it), R paying (no coin), and one with no stay keys.
+  Sweep. *Observable:* each fee is charged from its arrival through the
+  previous month's last day, both counted; T pays, Z's and R's rows are
+  settled unpaid with cards naming what is owed and why ("is away from the
+  market", "'s coin falls short"); the keyless row reads a fee of 0 and
+  stays unsettled; three `ventureStay` ledger rows. Sweep again.
+  *Observable:* nothing more is charged, logged or posted. The rows go
+  through the client, which fills the schema's defaults: the keyless row
+  proves the read, not a row a released version stored.
+
+**Teardown**: `api.sweepTracked()` on both seats, which takes the vehicles,
+the characters, D, both markets and the cards; the roster is removed by its
+id, and `restore` removes the hook and the table layer on each seat.
+
 ## The manifest and load-removal API
 
 **Fixtures:** a character holding a merchandise load stack (invented category

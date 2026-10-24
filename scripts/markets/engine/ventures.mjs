@@ -9,7 +9,7 @@
  * solicitation one class larger or at more impact (`engine/network.mjs`);
  * steady trade routes are future work (ROADMAP).
  */
-import { MODULE_ID, LANG, ITEM_FLAG } from "../constants.mjs";
+import { MODULE_ID, LANG, ITEM_FLAG, STABLED_FLAG } from "../constants.mjs";
 import {
   parseStones,
   parseTollCpPerSt,
@@ -30,20 +30,23 @@ import {
   entryConflict,
   vehiclesEntered,
 } from "../rules/arbitrage.mjs";
+import { stayOwed, STABLED_AS } from "../rules/stay.mjs";
 import { networkSteps } from "./network.mjs";
 import { marketKnownTo } from "./known-market.mjs";
 import { toGp } from "../rules/pricing.mjs";
 import { trueDemand } from "../rules/demand.mjs";
 import { registerHandler, executeAsGM, judgeDeclares } from "../../lib/sockets.mjs";
 import { ITEM_TYPE } from "../../lib/vocab.mjs";
-import { judgesAndOwners } from "../../lib/util.mjs";
-import { now } from "../../henchmen/time.mjs";
+import { judgesAndOwners, isPrimaryGM } from "../../lib/util.mjs";
+import { coinReach } from "../../lib/money.mjs";
+import { dayOfWorldTime } from "../../lib/world-time.mjs";
+import { now, nextMarketRollTime, secondsPerMonth } from "../../henchmen/time.mjs";
 import * as adapter from "../../henchmen/acks-adapter.mjs";
 import { partyOf, partyMembers } from "./parties.mjs";
 import { marketMonthStart, abilityRanks, awayFromMarket } from "./trade.mjs";
 import { impactLimits, assessmentBands, priceShifts, negotiation, printedError } from "./printed.mjs";
 import { merchandiseCatalog, merchandiseFor } from "./merchandise.mjs";
-import { characteristicsFor, entryQuote, settleTariff, extraCpOf } from "./gate.mjs";
+import { characteristicsFor, entryQuote, settleTariff, extraCpOf, stayCpPerDayOf, stabledAsOf } from "./gate.mjs";
 import { writeReport } from "./trade-objects.mjs";
 import { VEHICLE_TYPE } from "../../vehicles/constants.mjs";
 import { holdOf } from "../../vehicles/hold.mjs";
@@ -179,7 +182,36 @@ function gateNote(gate, tariffCp) {
     ...gate.extra.map((c) => `${c.label} ${toGp(c.cp)}gp`),
   ].join(", ");
   const paid = paidCp > 0 ? `${toGp(paidCp)}gp: ${charges} paid` : `${charges}, nothing paid`;
-  return ` (${paid})${gate.smuggled.length ? ` Smuggled: ${gate.smuggled.map(smuggledText).join(", ")}.` : ""}`;
+  return ` (${paid})${gate.smuggled.length ? ` Smuggled: ${gate.smuggled.map(smuggledText).join(", ")}.` : ""}${stayNote(gate.stay)}`;
+}
+
+/** How an animal line of a stay reads in the ledger. */
+const ANIMAL_TEXT = Object.freeze({ elephant: "elephant", horse: "horse", camelDonkeyOx: "camel, donkey or ox" });
+
+/** The ledger's account of a stay as the gate figured it: the day's fee, where, and each line's share, or the privilege that waives it. */
+function stayNote(stay) {
+  if (!stay?.lines?.length && !(stay?.cpPerDay > 0)) return "";
+  if (stay.privilege) return " Stay: waived (ruler's privilege).";
+  const lines = stay.lines.map((l) => `${l.name || `${l.count} ${ANIMAL_TEXT[l.unit] ?? l.unit}`} ${toGp(l.cp)}gp`).join(", ");
+  return ` Stay: ${toGp(stay.cpPerDay)}gp a day, ${stay.at === "anchor" ? "anchored and pastured outside" : "berthed and stabled"}${lines ? ` (${lines})` : ""}, charged when the visit ends.`;
+}
+
+/**
+ * Remember on each land vehicle brought how its owner stabled it this time
+ * (`STABLED_FLAG`), where that differs from what it reads as now
+ * (`stabledAsOf`). The entry is paid by then, so a vehicle that cannot be
+ * written keeps its old reading and the entry stands.
+ */
+async function rememberStabling(vehicles, stabled) {
+  for (const v of vehicles) {
+    const as = stabled?.[v.uuid];
+    if (v.system?.kind === "sea" || !STABLED_AS.includes(as) || as === stabledAsOf(v)) continue;
+    try {
+      await v.update({ [`flags.${MODULE_ID}.${ITEM_FLAG}.${STABLED_FLAG}`]: as });
+    } catch (e) {
+      console.warn(`${MODULE_ID} | how ${v.name} is stabled could not be remembered`, e);
+    }
+  }
 }
 
 /**
@@ -206,16 +238,19 @@ async function postSmuggling(location, actor, gate) {
  *
  * An entry's payload says what the party brings to the gate besides its
  * vehicles (`entryQuote`): `forSale` and `smuggled` name goods by `goodKey`,
- * and `sneak` sneaks the party in. Its `mode` (`VENTURE_MODES`) says whether
- * the trader enters as the party or separately (RR ch. 8, Entering the
- * Market, step 2, Parties), the party's characters counted as its roster
- * (`partyMembers`) with the trader; anything else enters as the party
- * (`entryConflict` has the refusals). A vehicle already through the gate
- * this month enters once. Every other day is posted in the venture the
- * trader acts in (`ventureKey`).
+ * `sneak` sneaks the party in, and `stayAt`, `animals` and `stabled` say
+ * where its ships and animals wait, how many animals come besides the
+ * vehicles' teams, and how each land vehicle is stabled; the stay's daily
+ * fee is recorded, not taken, and is charged when the visit ends. Its
+ * `mode` (`VENTURE_MODES`) says whether the trader enters as the party or
+ * separately (RR ch. 8, Entering the Market, step 2, Parties), the party's
+ * characters counted as its roster (`partyMembers`) with the trader;
+ * anything else enters as the party (`entryConflict` has the refusals). A
+ * vehicle already through the gate this month enters once. Every other day
+ * is posted in the venture the trader acts in (`ventureKey`).
  */
 export async function postVentureAction(location, payload) {
-  const { kind, actorUuid, category = "", cargoSt = 0, vehicleUuids = [], requestUserId = null, resolutionId = "", roll = null, bribeGp = 0, networkMode = "auto", forSale = [], smuggled = [], sneak = false, mode = "party" } = payload;
+  const { kind, actorUuid, category = "", cargoSt = 0, vehicleUuids = [], requestUserId = null, resolutionId = "", roll = null, bribeGp = 0, networkMode = "auto", forSale = [], smuggled = [], sneak = false, mode = "party", stayAt = "berth", animals = {}, stabled = {} } = payload;
   const actorDoc = await fromUuid(actorUuid).catch(() => null);
   const actor = actorDoc?.actor ?? actorDoc;
   if (!actor) return err("noBuyer");
@@ -261,7 +296,7 @@ export async function postVentureAction(location, payload) {
     // capacity (porters, pack animals) stated as a number, the goods declared
     // for sale and those smuggled, or a party sneaking in. The gate assesses
     // the book's charges on it.
-    gate = entryQuote(location, actor, { vehicles: brought.docs, otherSt: cargoSt, forSale, smuggled, sneak, separately: entrants > 0, requestUserId });
+    gate = entryQuote(location, actor, { vehicles: brought.docs, otherSt: cargoSt, forSale, smuggled, sneak, separately: entrants > 0, stayAt, animals, stabled, requestUserId });
     if (gate.error) return gate;
     capacitySt = gate.capacitySt;
     tollCp = gate.tollCp;
@@ -286,6 +321,7 @@ export async function postVentureAction(location, payload) {
   const natural = Number.isInteger(roll?.natural) ? roll.natural : null;
   const total = Number.isInteger(roll?.total) ? roll.total : null;
   const tariffCp = tariff?.totalCp ?? 0;
+  const stayCp = stayCpPerDayOf(gate);
   const thrown = (tariff?.rolls ?? []).map((r) => `${r.tier} ${r.formula} → ${r.total}%`).join(", ");
   const detail = [
     entrants > 0 ? `separately, one of ${entrants}` : "",
@@ -294,6 +330,7 @@ export async function postVentureAction(location, payload) {
     tollCp > 0 ? `toll ${toGp(tollCp)}gp` : "",
     tariffCp > 0 ? `tariff ${toGp(tariffCp)}gp${thrown ? ` (${thrown})` : ""}` : "",
     gate?.sneaked ? "sneaked in" : "",
+    stayCp > 0 ? `stay ${toGp(stayCp)}gp a day${gate.stay.at === "anchor" ? " outside" : ""}` : "",
     ...(gate?.extra ?? []).map((c) => `${c.label} ${toGp(c.cp)}gp`),
     bribe > 0 ? `bribe ${bribe}gp` : "",
     total !== null ? `rolled ${natural} → ${total}` : "",
@@ -322,6 +359,8 @@ export async function postVentureAction(location, payload) {
     sneaked: !!gate?.sneaked,
     entrantUuid: kind === "enter" ? (entrants > 0 ? actor.uuid : "") : key.entrantUuid,
     entrants,
+    stayAt: gate?.stay?.at ?? "berth",
+    stayCpPerDay: stayCp,
   };
   const log = clone(location.system.market.marketLog);
   const paidGp = toGp(gate ? tollCp + tariffCp + extraCpOf(gate) : 0) + bribe;
@@ -339,7 +378,10 @@ export async function postVentureAction(location, payload) {
     "system.market.goods.actions": [...actions, action],
     "system.market.marketLog": log.slice(-MARKET_LOG_CAP),
   });
-  if (gate) await postSmuggling(location, actor, gate);
+  if (gate) {
+    await rememberStabling(brought.docs, stabled);
+    await postSmuggling(location, actor, gate);
+  }
   return { ok: true, resolveTime: action.resolveTime };
 }
 
@@ -386,6 +428,10 @@ export async function cancelVentureAction(location, { actionId, requestUserId = 
  * with it (`rules/arbitrage.mjs` `leaveMarket`); the Enter button then offers
  * a fresh declaration at a fresh toll. The Judge may leave for any party;
  * anyone else only through a trader they own.
+ *
+ * The visit's stay ends with it: its days (`stayOwed`) at the daily fee the
+ * gate recorded, paid by the character leaving. A purse that falls short
+ * refuses the leave (`stayShort`), and the party stays in the market.
  */
 export async function leaveVentureMarket(location, { actorUuid, requestUserId = null } = {}) {
   const goods = location?.system?.market?.goods;
@@ -400,15 +446,26 @@ export async function leaveVentureMarket(location, { actorUuid, requestUserId = 
   const t = now();
   const monthStart = marketMonthStart(t);
   const state = { ventures: clone(goods.ventures), actions: clone(goods.actions), solicitations: clone(goods.solicitations) };
-  const result = leaveMarket(state, { ...keyFor(location, actor, monthStart), monthStart });
+  const key = keyFor(location, actor, monthStart);
+  const result = leaveMarket(state, { ...key, monthStart });
   if (result.error) return err(result.error);
+  const row = state.ventures.find((v) => inVenture(v, key) && Number(v.monthStartTime) === monthStart);
+  // A visit the gate recorded no fee for (waived, or entered before the stay
+  // was charged) settles nothing.
+  let stay = null;
+  if (row && Number(row.stayCpPerDay) > 0 && !row.staySettled) {
+    stay = stayOwed({ cpPerDay: row.stayCpPerDay, arrivalDay: dayOfWorldTime(row.enteredTime), departureDay: dayOfWorldTime(t) });
+    const paid = await adapter.spendGold(actor, toGp(stay.cp), game.i18n.localize(`${LANG}.ventures.stayReason`), { to: location, at: location, within: location, judge: judgeDeclares(requestUserId) });
+    if (!paid) return err("stayShort", { gp: toGp(stay.cp), days: stay.days });
+    Object.assign(row, { stayDays: stay.days, stayPaidCp: stay.cp, staySettled: true });
+  }
   const log = clone(location.system.market.marketLog);
   log.push({
     time: t,
     type: "ventureLeft",
-    note: `${actor.name}: left the market, nothing refunded${result.cancelledIds.length ? ` (withdrawn: ${result.cancelledIds.join(", ")})` : ""}`,
+    note: `${actor.name}: left the market${stay ? `, stay of ${stay.days} day${stay.days === 1 ? "" : "s"} ${toGp(stay.cp)}gp paid` : ""}, nothing refunded${result.cancelledIds.length ? ` (withdrawn: ${result.cancelledIds.join(", ")})` : ""}`,
     actorUuid: actor.uuid,
-    gp: 0,
+    gp: stay ? -toGp(stay.cp) : 0,
   });
   await location.update({
     "system.market.goods.ventures": state.ventures,
@@ -416,7 +473,7 @@ export async function leaveVentureMarket(location, { actorUuid, requestUserId = 
     "system.market.goods.solicitations": state.solicitations,
     "system.market.marketLog": log.slice(-MARKET_LOG_CAP),
   });
-  return { ok: true, cancelled: result.cancelledIds.length };
+  return { ok: true, cancelled: result.cancelledIds.length, stay: stay ? { days: stay.days, gp: toGp(stay.cp) } : null };
 }
 
 /** The truth: the market's true demand modifier for a category (0 unset). */
@@ -447,19 +504,66 @@ async function ensureMerchPrice(goods, merchPrices, category, marketClass, month
   return row;
 }
 
+/** The calendar day a market month that began at `monthStart` ends on. */
+function lastDayOfMonth(monthStart) {
+  const next = nextMarketRollTime(monthStart, monthStart) ?? monthStart + secondsPerMonth();
+  return dayOfWorldTime(next - 1);
+}
+
 /**
- * Resolve due venture actions (called from the due-work sweep). Returns the
- * updated arrays to write, or null when nothing was due.
+ * Settle the stays that a month's end closed: each visit from an earlier
+ * month still standing, with a daily fee and not yet settled, is charged its
+ * days through the last day of its month (`stayOwed`) from the purse of the
+ * character who entered. Each row is settled once: a payer away from the
+ * market, short of coin or gone is not charged, and the Judge and the
+ * payer's owners are told what is owed and why, to collect or waive by
+ * hand. Returns how many rows it settled.
+ */
+async function settleEndedStays(location, ventures, log, t, monthStart) {
+  let settled = 0;
+  const esc = foundry.utils.escapeHTML;
+  for (const row of ventures) {
+    if (!row.entered || row.staySettled || !(Number(row.stayCpPerDay) > 0) || !(Number(row.monthStartTime) < monthStart)) continue;
+    const owed = stayOwed({ cpPerDay: row.stayCpPerDay, arrivalDay: dayOfWorldTime(row.enteredTime), departureDay: lastDayOfMonth(Number(row.monthStartTime)) });
+    const doc = row.payerUuid ? await fromUuid(row.payerUuid).catch(() => null) : null;
+    const payer = doc?.actor ?? doc;
+    let why = "";
+    if (!payer) why = "gone";
+    else if (!coinReach(payer, location).can) why = "away";
+    else if (!(await adapter.spendGold(payer, toGp(owed.cp), game.i18n.localize(`${LANG}.ventures.stayReason`), { to: location, at: location, within: location }))) why = "short";
+    const paidCp = why ? 0 : owed.cp;
+    Object.assign(row, { stayDays: owed.days, stayPaidCp: paidCp, staySettled: true });
+    settled++;
+    const name = payer?.name ?? row.payerUuid;
+    log.push({
+      time: t,
+      type: "ventureStay",
+      note: `${name}: stay of ${owed.days} day${owed.days === 1 ? "" : "s"} ended with the month, ${toGp(owed.cp)}gp ${why ? `owed, not paid (${why})` : "paid"}`,
+      actorUuid: payer?.uuid ?? row.payerUuid ?? "",
+      gp: -toGp(paidCp),
+    });
+    const line = game.i18n.format(`${LANG}.ventures.${why ? `stayUnpaid.${why}` : "stayPaid"}`, { name: esc(name), location: esc(location.name), days: owed.days, gp: toGp(owed.cp) });
+    await postCard(payer ?? location, `<strong>${line}</strong>`);
+  }
+  return settled;
+}
+
+/**
+ * Resolve due venture actions (called from the due-work sweep), and settle
+ * the stays a month's end closed (`settleEndedStays`) on the primary GM's
+ * seat, which alone takes coin unasked. Returns the updated arrays to write,
+ * or null when nothing was due or settled.
  */
 export async function processVentureActions(location, log, t) {
   const goods = location.system.market?.goods;
   if (!goods) return null;
   const actions = clone(goods.actions);
   const due = actions.filter((a) => a.status === "pending" && Number(a.resolveTime) <= t);
-  if (!due.length) return null;
-
   const monthStart = marketMonthStart(t);
   const ventures = clone(goods.ventures);
+  const settled = isPrimaryGM() ? await settleEndedStays(location, ventures, log, t, monthStart) : 0;
+  if (!due.length && !settled) return null;
+
   const merchPrices = clone(goods.merchPrices);
   const solicitations = clone(goods.solicitations);
 
@@ -511,6 +615,12 @@ export async function processVentureActions(location, log, t) {
         rawImpact: 0,
         impactCap: 0,
         networkMode: "auto",
+        stayAt: "berth",
+        stayCpPerDay: 0,
+        payerUuid: "",
+        stayDays: 0,
+        stayPaidCp: 0,
+        staySettled: false,
       };
       if (!existing) ventures.push(row);
       row.entrants = entrants;
@@ -529,6 +639,14 @@ export async function processVentureActions(location, log, t) {
       row.rawImpact = rawImpact;
       row.impactCap = cap;
       row.networkMode = NETWORK_MODES.includes(action.networkMode) ? action.networkMode : "auto";
+      // A new visit's stay starts unsettled, the row reused by a party that
+      // left and came back this month included; the character who entered pays it.
+      row.stayAt = action.stayAt === "anchor" ? "anchor" : "berth";
+      row.stayCpPerDay = Math.max(0, Math.round(Number(action.stayCpPerDay) || 0));
+      row.payerUuid = action.actorUuid;
+      row.stayDays = 0;
+      row.stayPaidCp = 0;
+      row.staySettled = false;
       log.push({ time: t, type: "ventureEntered", note: `${actor.name}: entered the market${entrants ? ` separately, one of ${entrants}` : ""}, impact ${impact}`, actorUuid: actor.uuid, gp: 0 });
       const paid = action.sneaked
         ? game.i18n.localize(`${LANG}.ventures.paidSneaked`)
@@ -536,7 +654,8 @@ export async function processVentureActions(location, log, t) {
           ? game.i18n.localize(`${LANG}.ventures.paidPrivilege`)
           : game.i18n.format(`${LANG}.ventures.paidLine`, { toll: toGp(row.tollCp), tariff: toGp(row.tariffCp) });
       const entered = game.i18n.format(`${LANG}.ventures.${entrants ? "enteredSeparatelyLine" : "enteredLine"}`, { name: actor.name, location: location.name, impact, n: entrants });
-      await postCard(actor, `<strong>${entered}</strong><br>${paid}`);
+      const stay = row.stayCpPerDay > 0 ? `<br>${game.i18n.format(`${LANG}.ventures.stayLine`, { gp: toGp(row.stayCpPerDay), where: game.i18n.localize(`${LANG}.ventures.stayAt.${row.stayAt}`) })}` : "";
+      await postCard(actor, `<strong>${entered}</strong><br>${paid}${stay}`);
     }
 
     if (action.kind === "assess") {

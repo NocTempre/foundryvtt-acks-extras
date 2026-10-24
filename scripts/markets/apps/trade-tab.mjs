@@ -40,7 +40,8 @@ import {
 } from "../engine/trade.mjs";
 import { processImports, performItemSearch, performSearchCancel } from "../engine/imports.mjs";
 import { performVentureAction, performVentureCancel, performVentureLeave, ventureFor, ventureVehicles } from "../engine/ventures.mjs";
-import { entryQuote, enteringMembers, goodKey, saleCandidates } from "../engine/gate.mjs";
+import { entryQuote, enteringMembers, goodKey, saleCandidates, stabledAsOf } from "../engine/gate.mjs";
+import { stayOwed, STAY_AT, STABLED_AS, STAY_ANIMALS } from "../rules/stay.mjs";
 import { manifestOf } from "../engine/manifest.mjs";
 import { VEHICLE_TYPE } from "../../vehicles/constants.mjs";
 import { holdOf } from "../../vehicles/hold.mjs";
@@ -345,8 +346,9 @@ export async function prepareTradeTab(sheet, context) {
   // The merchandise picker is the input of Solicit (shown once entered) and of the
   // Judge's Set demand; where neither is offered it is not rendered.
   context.ventureCategoryShown = !!context.venture?.entered || isGM;
-  // The vehicles the venture entered with, named on its status line.
+  // The vehicles the venture entered with, named on its status line, and the stay's daily fee.
   context.ventureVehicles = ventureVehicles(context.venture).map((v) => v.name).join(", ");
+  context.ventureStay = context.venture?.stayCpPerDay > 0 ? loc("ventures.stayStatus", { gp: context.venture.stayCpPerDay / 100, where: loc(`ventures.stayAt.${context.venture.stayAt}`) }) : "";
   context.ventureActions = (goods.actions ?? [])
     .filter((a) => a.status === "pending" && (isGM || a.partyId === partyId))
     .map((a) => {
@@ -521,6 +523,15 @@ function gateQuoteHtml(location, trader, declaration) {
       out.push(`<ul>${quote.tariff.lines.map((l) => line(l, true)).join("")}</ul>`);
     }
   }
+  // The stay's day: the fee charged (a Judge's hook may have changed it) over the lines it was figured from.
+  const stay = quote.stay;
+  if (stay?.privilege && stay.lines.length) out.push(`<p>${loc("ventures.quote.stayWaived", { domain: esc(stay.privilege.name) })}</p>`);
+  else if (!stay?.privilege && stay?.cpPerDay > 0) {
+    out.push(`<p>${loc("ventures.quote.stay", { gp: gp(stay.cpPerDay), where: loc(`ventures.stayAt.${stay.at}`) })}</p>`);
+    const unit = (l) =>
+      l.name ? loc("ventures.quote.stayVehicle", { label: esc(l.name), gp: gp(l.cp) }) : loc("ventures.quote.stayAnimals", { label: loc(`ventures.stay.animal.${l.unit}`), count: l.count, gp: gp(l.cp) });
+    if (stay.lines.length) out.push(`<ul>${stay.lines.map((l) => `<li>${unit(l)}</li>`).join("")}</ul>`);
+  }
   if (quote.extra.length) out.push(`<ul>${quote.extra.map((c) => `<li>${loc("ventures.quote.extra", { label: esc(c.label), gp: gp(c.cp) })}</li>`).join("")}</ul>`);
   if (quote.smuggled.length) {
     out.push(`<p>${loc("ventures.quote.smuggled")}</p><ul>${quote.smuggled.map((l) => line({ ...l, exempt: false }, false)).join("")}</ul>`);
@@ -568,6 +579,36 @@ function goodsFieldset(location, trader, vehicles, aboard, separately) {
     <label class="checkbox"><input type="checkbox" name="sneak"> ${loc("ventures.goods.sneak")}</label></fieldset>`;
 }
 
+/**
+ * The Enter dialog's moorage and stabling block: where the party's ships and
+ * animals wait, how each land vehicle is stabled (starting at `stabledAsOf`,
+ * each row shown only while its vehicle is ticked), and the head of each
+ * kind of animal brought besides the vehicles' teams.
+ */
+function stayFieldset(vehicles, ticks) {
+  const esc = foundry.utils.escapeHTML;
+  const field = (label, control) => {
+    const id = foundry.utils.randomID();
+    return `<label for="${id}">${label}</label>${control(id)}`;
+  };
+  const at = field(loc("ventures.stay.at"), (id) => `<select id="${id}" name="stayAt">${STAY_AT.map((s) => `<option value="${s}">${loc(`ventures.stay.atOption.${s}`)}</option>`).join("")}</select>`);
+  const stabling = vehicles
+    .filter((v) => v.system?.kind !== "sea")
+    .map((v) => {
+      const as = stabledAsOf(v);
+      const row = field(loc("ventures.stay.stabledAs", { name: esc(v.name) }), (id) =>
+        `<select id="${id}" name="stabled" data-vehicle="${v.uuid}">${STABLED_AS.map((s) => `<option value="${s}"${s === as ? " selected" : ""}>${loc(`ventures.stay.as.${s}`)}</option>`).join("")}</select>`
+      );
+      return `<div class="form-group" data-stay-vehicle="${v.uuid}"${ticks.has(v.uuid) ? "" : " hidden"}>${row}</div>`;
+    })
+    .join("");
+  const animals = Object.keys(STAY_ANIMALS)
+    .map((unit) => `<div class="form-group">${field(loc(`ventures.stay.animal.${unit}`), (id) => `<input id="${id}" type="number" name="animal" data-unit="${unit}" value="0" min="0" step="1">`)}</div>`)
+    .join("");
+  return `<fieldset class="acks-extras-markets-stay"><legend>${loc("ventures.stay.legend")}</legend>
+    <div class="form-group">${at}</div>${stabling}<p class="hint">${loc("ventures.stay.animalsHint")}</p>${animals}</fieldset>`;
+}
+
 /** What the Enter dialog declares, read off its form: what `entryQuote` and the entry take. */
 function readDeclaration(root) {
   const vehicleUuids = [...root.querySelectorAll('input[name="vehicle"]:checked')].map((el) => el.value);
@@ -580,6 +621,9 @@ function readDeclaration(root) {
     smuggled: values("smuggle"),
     sneak: !!root.querySelector('input[name="sneak"]')?.checked,
     separately: root.querySelector('input[name="mode"]:checked')?.value === "separately",
+    stayAt: root.querySelector('select[name="stayAt"]')?.value ?? "berth",
+    stabled: Object.fromEntries([...root.querySelectorAll('select[name="stabled"]')].map((el) => [el.dataset.vehicle, el.value])),
+    animals: Object.fromEntries([...root.querySelectorAll('input[name="animal"]')].map((el) => [el.dataset.unit, Math.max(0, Math.floor(Number(el.value) || 0))])),
   };
 }
 
@@ -587,8 +631,10 @@ function readDeclaration(root) {
  * Ask what the trader brings to the gate: the vehicles entering, each at the
  * cargo capacity its hold states (vehicles/hold.mjs), any other capacity
  * (porters, pack animals) as a number, the goods brought to sell and
- * smuggled (`goodsFieldset`), or whether the party sneaks in. What the gate
- * will charge is shown beneath and follows the declaration as it changes.
+ * smuggled (`goodsFieldset`), or whether the party sneaks in, and where its
+ * ships and animals wait, how each land vehicle is stabled and what animals
+ * come besides the teams (`stayFieldset`). What the gate will charge is
+ * shown beneath and follows the declaration as it changes.
  *
  * A party of more than one character also says whether the trader enters as
  * the party or separately (RR ch. 8, Entering the Market, step 2, Parties),
@@ -643,6 +689,7 @@ async function promptEntry(trader, location) {
     `<div class="form-group"><label for="${otherId}">${loc("ventures.otherCargo")}</label><input id="${otherId}" type="number" name="other" value="0" min="0" step="1"></div>`,
     `<p class="hint">${loc("ventures.enterHint")}</p>`,
     goodsFieldset(location, trader, vehicles, ticks, locked),
+    stayFieldset(vehicles, ticks),
     `<fieldset class="acks-extras-markets-gate"><legend>${loc("ventures.quote.legend")}</legend><div data-gate-quote aria-live="polite">${gate}</div></fieldset>`,
     `<div data-entry-network>${networkFieldset(locked ? [trader] : members, location)}</div>`,
   ].join("");
@@ -652,11 +699,12 @@ async function promptEntry(trader, location) {
     content,
     render: (_event, dialog) => {
       // The quote follows the declaration: the mode chosen, a vehicle ticked
-      // (its hold's goods shown with it), the other capacity typed, a good
-      // declared for sale or smuggled, or the party sneaking in.
+      // (its hold's goods and its stabling shown with it), the other capacity
+      // typed, a good declared for sale or smuggled, the party sneaking in,
+      // where it waits, how a vehicle is stabled, or an animal counted.
       const root = dialog?.element;
       const refresh = (event) => {
-        if (!event.target?.matches?.('input[name="vehicle"], input[name="other"], input[name="forSale"], input[name="smuggle"], input[name="sneak"], input[name="mode"]')) return;
+        if (!event.target?.matches?.('input[name="vehicle"], input[name="other"], input[name="forSale"], input[name="smuggle"], input[name="sneak"], input[name="mode"], select[name="stayAt"], select[name="stabled"], input[name="animal"]')) return;
         if (event.type === "change" && event.target.name === "mode") {
           // A mode starts from its own vehicles and its own network holders.
           const apart = event.target.value === "separately";
@@ -667,6 +715,7 @@ async function promptEntry(trader, location) {
         }
         const declaration = readDeclaration(root);
         for (const el of root.querySelectorAll("[data-good-vehicle]")) el.hidden = !declaration.vehicleUuids.includes(el.dataset.goodVehicle);
+        for (const el of root.querySelectorAll("[data-stay-vehicle]")) el.hidden = !declaration.vehicleUuids.includes(el.dataset.stayVehicle);
         for (const el of root.querySelectorAll("[data-good-member]")) el.hidden = declaration.separately;
         const box = root.querySelector("[data-gate-quote]");
         if (box) box.innerHTML = gateQuoteHtml(location, trader, declaration);
@@ -677,8 +726,8 @@ async function promptEntry(trader, location) {
     ok: {
       label: loc("ventures.enterSubmit"),
       callback: (_ev, button) => {
-        const { vehicleUuids, otherSt, forSale, smuggled, sneak, separately } = readDeclaration(button.form);
-        return { vehicleUuids, cargoSt: otherSt, forSale, smuggled, sneak, mode: separately ? "separately" : "party", networkMode: button.form.elements.networkMode?.value ?? "auto" };
+        const { vehicleUuids, otherSt, forSale, smuggled, sneak, separately, stayAt, stabled, animals } = readDeclaration(button.form);
+        return { vehicleUuids, cargoSt: otherSt, forSale, smuggled, sneak, mode: separately ? "separately" : "party", networkMode: button.form.elements.networkMode?.value ?? "auto", stayAt, stabled, animals };
       },
     },
   }).catch(() => null);
@@ -908,14 +957,22 @@ export const TRADE_TAB_ACTIONS = {
   async ventureLeave() {
     const trader = requireTrader(this);
     if (!trader) return;
+    // The stay is settled on leaving: say what it comes to today, and who pays it.
+    const venture = ventureFor(this.actor, trader);
+    const owed =
+      venture?.stayCpPerDay > 0 && !venture.staySettled
+        ? stayOwed({ cpPerDay: venture.stayCpPerDay, arrivalDay: dayOfWorldTime(venture.enteredTime), departureDay: dayOfWorldTime(now()) })
+        : null;
+    const stay = owed ? `<p>${loc("ventures.leaveStay", { gp: owed.cp / 100, days: owed.days, name: foundry.utils.escapeHTML(trader.name) })}</p>` : "";
     const sure = await foundry.applications.api.DialogV2.confirm({
       classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
       window: { title: loc("ventures.leaveTitle") },
-      content: `<p>${loc("ventures.leaveBody")}</p>`,
+      content: `<p>${loc("ventures.leaveBody")}</p>${stay}`,
       rejectClose: false,
     }).catch(() => false);
     if (!sure) return;
-    reportResult(this, await performVentureLeave(this.actor, { actorUuid: trader.uuid }), loc("ventures.left"));
+    const result = await performVentureLeave(this.actor, { actorUuid: trader.uuid });
+    reportResult(this, result, result?.stay ? loc("ventures.leftStay", { gp: result.stay.gp, days: result.stay.days }) : loc("ventures.left"));
   },
 
   /** Solicit buyers/sellers in the selected merchandise: a dedicated day. */

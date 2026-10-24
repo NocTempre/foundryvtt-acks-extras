@@ -51,6 +51,7 @@ import {
 } from "./engine/ventures.mjs";
 import { manifestOf, removeLoads, manifestRows, manifestTotals } from "./engine/manifest.mjs";
 import * as gate from "./engine/gate.mjs";
+import * as stay from "./rules/stay.mjs";
 import { openVentureTradeDialog, VentureTradeDialog } from "./apps/venture-dialog.mjs";
 import { PartyConfigApp } from "./apps/party-config.mjs";
 import { openCommissionDialog, CommissionDialog } from "./apps/commission-dialog.mjs";
@@ -170,6 +171,8 @@ Hooks.once("setup", () => {
     // the market's gate: the book's assessment on what a party brings (entryQuote
     // and its parts), for a Judge's script beside the HOOKS.GATE_QUOTE hook
     gate,
+    // moorage and stabling: the day's fee the gate figures and the days a visit is charged
+    stay,
     // the loads a party carries: read and priced, or drawn out as re-creatable snapshots (the gate action, smuggling)
     manifestOf,
     removeLoads,

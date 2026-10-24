@@ -258,6 +258,17 @@ Ventures run on dedicated days that resolve as game time passes:
      separately that month, until everyone has left. A vehicle goes through
      the gate once a month, so each brings their own. Only the character
      who rules the domain enters free.
+   - **Moorage and stabling** (RR 372). Choose whether your ships take a
+     berth and your animals the stables, or you anchor and pasture outside;
+     one choice covers the whole entry. Each wagon or cart you bring asks
+     how it is **Stabled as**, and remembers your answer for next time.
+     Count your loose animals by kind; the dialog shows the day's fee. You
+     pay it when you leave, for every day you stayed, the day you arrived
+     and the day you leave both included. A stay still running when the
+     month ends is charged then, to the day the month ends. Sneaking in does
+     not escape it; the character who rules the domain stays free. After
+     upgrading, re-import the Mercantile rules tables so the rates arrive:
+     until then an entry with anything to stable is refused.
    - **Judge's options.** The Judge may have the tariff thrown at each entry
      (the **Randomize the market tariff** setting); the dialog then shows
      the span it can come to. After upgrading, re-import the Rules tables
@@ -276,10 +287,11 @@ Ventures run on dedicated days that resolve as game time passes:
 4. **Trade merchandise** — buy or sell stones against your solicitation,
    into or out of the hold you pick, optionally negotiating the spot price a
    step your way — or into an outraged refusal (RR 376).
-5. **Leave the market** when you are done, or to declare again — the toll
-   and tariff stay with the gate, what you solicited closes, and any of your
-   party's days still queued are withdrawn. Entering again pays the gate
-   again.
+5. **Leave the market** when you are done, or to declare again — you pay
+   your stay, the toll and tariff stay with the gate, what you solicited
+   closes, and any of your party's days still queued are withdrawn. Leaving
+   is refused while your purse cannot cover the stay. Entering again pays
+   the gate again.
 
 **Adding your own gate charges.** The gate charges what the book charges and
 nothing else. A house rule goes in a world script, which must run on every
@@ -300,8 +312,11 @@ Hooks.on("acksExtras.marketGateQuote", (quote, { location }) => {
 The quote holds what is assessed (`loads`) and what is smuggled
 (`smuggled`), plus the book's charges (`tollCp`, `tariff`) and the
 `privilege` or `sneaked` that waived them. The handler's second argument
-also says whether the trader enters `separately`. The
-same functions are on `acksExtras.markets.gate`.
+also says whether the trader enters `separately`. The stay is
+`quote.stay`: its `lines`, and `cpPerDay`, the day's fee in copper, which a
+handler may set to charge a different stay; the days are counted as above.
+The same functions are on `acksExtras.markets.gate`, and the stay's on
+`acksExtras.markets.stay`.
 
 **A mercantile network counts in a market its holder has visited before.** On
 a venture each solicitation reads the goods of a market class larger or with

@@ -3,8 +3,10 @@
  * The gate a party passes to enter a market (RR ch. 8, Entering the Market,
  * step 3). It assesses what the book assesses and nothing more: the toll on
  * the capacity the party brings, the tariff on the merchandise it brings in
- * to sell, and the Ruler's Privilege that waives both. A good the party
- * smuggles is not assessed, and a party that sneaks in pays neither. The
+ * to sell, the daily moorage and stabling of its ships, vehicles and animals
+ * (Engaging in Mercantile Ventures), and the Ruler's Privilege that waives
+ * all three. A good the party smuggles is not assessed, and a party that
+ * sneaks in pays neither toll nor tariff; its stay is still charged. The
  * attempt is the Judge's to resolve. One quote serves the Enter dialog's
  * preview and the entry that pays it. The entry quotes again on the seat
  * that writes, which can see every load the previewing seat may not. A
@@ -13,8 +15,9 @@
  */
 import { parseTollCpPerSt, parseTariffPct, tariffOn, diceRange } from "../rules/arbitrage.mjs";
 import { marketsFlagOf } from "../rules/goods.mjs";
+import { stayPerDay, defaultStabledAs, STABLED_AS } from "../rules/stay.mjs";
 import { merchandiseTierOf } from "../merchandise-keys.mjs";
-import { HOOKS } from "../constants.mjs";
+import { MODULE_ID, HOOKS, ITEM_FLAG, STABLED_FLAG } from "../constants.mjs";
 import { getSetting } from "../settings.mjs";
 import { optTable } from "../../henchmen/rules/tables.mjs";
 import { findRow } from "../../lib/tables.mjs";
@@ -26,7 +29,7 @@ import { merchandiseFor } from "./merchandise.mjs";
 import { manifestOf } from "./manifest.mjs";
 import { partyOf, partyMembers } from "./parties.mjs";
 import { categoryOf } from "./trade.mjs";
-import { tariffDice, printedError } from "./printed.mjs";
+import { tariffDice, printedError, stayRates } from "./printed.mjs";
 
 const TIERS = Object.freeze(["precious", "common"]);
 const tierOf = (load) => (load.tier === "precious" ? "precious" : "common");
@@ -166,6 +169,31 @@ export function privilegeDomain(location, entering) {
   return uuids.has(ruler) ? domain : null;
 }
 
+/**
+ * How a land vehicle is stabled at a market: as its owner last declared it
+ * at a gate (`STABLED_FLAG`), else by its carriage (`defaultStabledAs`).
+ */
+export function stabledAsOf(vehicle) {
+  const kept = vehicle?.getFlag?.(MODULE_ID, ITEM_FLAG)?.[STABLED_FLAG];
+  return STABLED_AS.includes(kept) ? kept : defaultStabledAs(vehicle?.system?.carriage);
+}
+
+/**
+ * The party's daily moorage and stabling (`stayPerDay`) at the imported
+ * rates: each sea vehicle a ship of its size (its maximum shp, else its
+ * current), each land vehicle stabled as `stabled` names it by uuid, else
+ * `stabledAsOf`, and the animals counted.
+ */
+function stayOf(vehicles, { at, animals, stabled }) {
+  const ships = [];
+  const land = [];
+  for (const v of vehicles) {
+    if (v.system?.kind === "sea") ships.push({ name: v.name, shp: Number(v.system.shp?.max) || Number(v.system.shp?.value) || 0 });
+    else land.push({ name: v.name, as: STABLED_AS.includes(stabled?.[v.uuid]) ? stabled[v.uuid] : stabledAsOf(v) });
+  }
+  return stayPerDay({ rates: stayRates(), at, ships, vehicles: land, animals });
+}
+
 /** The charges a Judge's script added through the hook: each kept where it has a label and a whole number of coppers above none. */
 function judgeCharges(extra) {
   return (Array.isArray(extra) ? extra : [])
@@ -189,22 +217,29 @@ export const extraCpOf = (quote) => (quote?.extra ?? []).reduce((n, c) => n + c.
  *   tier at the gate instead: `dice` names each tier's throw (null for a
  *   tier the class does not tariff), `range` gives the totals they can come
  *   to, and `tariff` stays null until `settleTariff` throws them;
- * - a member entering who rules the market's domain waives both
- *   (`privilege`); entering separately (`separately`), only the entrant's
- *   own rule does, and the goods are those `gateHolders` gives;
- * - a party that sneaks in (`sneak`) is charged neither, and everything it
- *   brings is smuggled.
+ * - the stay (`stay`) is the moorage and stabling of the vehicles and of
+ *   `animals` where the party waits (`stayAt`), per day (`stayOf`), charged
+ *   for the days the visit lasts when it ends;
+ * - a member entering who rules the market's domain waives all three
+ *   (`privilege`, and `stay.privilege`); entering separately (`separately`),
+ *   only the entrant's own rule does, and the goods are those `gateHolders`
+ *   gives;
+ * - a party that sneaks in (`sneak`) is charged no toll and no tariff, and
+ *   everything it brings is smuggled. Its stay is figured as any other's.
  *
  * Then the `acksExtras.marketGateQuote` hook is called with
  * `(quote, {location, trader, separately})` on every seat that quotes, the
  * preview's and the paying one's alike. A handler may push charges of its own onto
  * `quote.extra` as `{label, cp}` in whole coppers. The trader pays them with
- * the book's, whatever the privilege. A handler must answer the same on
- * every seat, or the preview and the payment disagree.
+ * the book's, whatever the privilege. What a handler leaves in
+ * `quote.stay.cpPerDay` is the day's fee the visit is charged, unless the
+ * privilege waives it. A handler must answer the same on every seat, or the
+ * preview and the payment disagree.
  *
- * Refuses `noCharacteristics` where the class's row is unread, and the
- * printed error where its tariff cell, or the dice a randomized tariff
- * needs, cannot be read.
+ * Refuses `noCharacteristics` where the class's row is unread; the printed
+ * error where its tariff cell, the dice a randomized tariff needs, or a
+ * moorage rate something brought needs cannot be read; and `stayNoShp` with
+ * the `vehicle` where a ship's rate is by size and it has none.
  * @param {Actor} location
  * @param {Actor} trader - the member the entry is posted under, who pays
  * @param {object} [o]
@@ -214,21 +249,29 @@ export const extraCpOf = (quote) => (quote?.extra ?? []).reduce((n, c) => n + c.
  * @param {string[]} [o.smuggled] - `goodKey`s of goods smuggled
  * @param {boolean} [o.sneak]
  * @param {boolean} [o.separately] - the trader enters apart from the party
+ * @param {"berth"|"anchor"} [o.stayAt] - within the market, or outside it (`STAY_AT`)
+ * @param {Record<string, number>} [o.animals] - animals brought besides the vehicles' teams, by `STAY_ANIMALS` key
+ * @param {Record<string, string>} [o.stabled] - how each land vehicle is stabled, by uuid (`STABLED_AS`)
  * @param {string|null} [o.requestUserId] - the seat declaring, whose sight bounds the party (`gateParty`)
- * @returns {{error: string, table?: string}|{capacitySt: number, sneaked: boolean, privilege: {uuid: string, name: string}|null, tollCp: number, loads: object[], smuggled: object[], rates: {precious: number, common: number}|null, dice: {precious: string|null, common: string|null}|null, range: {minCp: number, maxCp: number}|null, tariff: {totalCp: number, lines: object[]}|null, extra: {label: string, cp: number}[]}}
+ * @returns {{error: string, table?: string, vehicle?: string}|{capacitySt: number, sneaked: boolean, privilege: {uuid: string, name: string}|null, tollCp: number, loads: object[], smuggled: object[], rates: {precious: number, common: number}|null, dice: {precious: string|null, common: string|null}|null, range: {minCp: number, maxCp: number}|null, tariff: {totalCp: number, lines: object[]}|null, stay: {at: string, cpPerDay: number, lines: object[], privilege: {uuid: string, name: string}|null}, extra: {label: string, cp: number}[]}}
  */
-export function entryQuote(location, trader, { vehicles = [], otherSt = 0, forSale = [], smuggled = [], sneak = false, separately = false, requestUserId = null } = {}) {
+export function entryQuote(location, trader, { vehicles = [], otherSt = 0, forSale = [], smuggled = [], sneak = false, separately = false, stayAt = "berth", animals = {}, stabled = {}, requestUserId = null } = {}) {
   const capacitySt = Math.round(Math.round(Math.max(0, Number(otherSt) || 0)) + vehicles.reduce((n, v) => n + Math.max(0, holdOf(v)?.capacity ?? 0), 0));
   const ch = characteristicsFor(location.system.marketClass);
   if (!ch) return { error: "noCharacteristics" };
   const { members, owners } = gateHolders(location, trader, { separately, user: requestUserId ? game.users.get(requestUserId) : game.user });
   const sneaked = !!sneak;
   const sorted = enteringLoads({ members, owners, vehicles, forSale, smuggled, sneak: sneaked });
-  const quote = { capacitySt, sneaked, privilege: null, tollCp: 0, loads: sorted.loads, smuggled: sorted.smuggled, rates: null, dice: null, range: null, tariff: null, extra: [] };
-  const domain = sneaked ? null : privilegeDomain(location, members);
+  const stay = stayOf(vehicles, { at: stayAt, animals, stabled });
+  if (stay.error === "noShp") return { error: "stayNoShp", vehicle: stay.name };
+  if (stay.error) return printedError("moorageRates");
+  const ruled = privilegeDomain(location, members);
+  const ruledBy = ruled ? { uuid: ruled.uuid, name: ruled.name } : null;
+  const quote = { capacitySt, sneaked, privilege: null, tollCp: 0, loads: sorted.loads, smuggled: sorted.smuggled, rates: null, dice: null, range: null, tariff: null, stay: { ...stay, privilege: ruledBy }, extra: [] };
+  const domain = sneaked ? null : ruled;
   if (sneaked || domain) {
     const free = { precious: 0, common: 0 };
-    Object.assign(quote, { privilege: domain ? { uuid: domain.uuid, name: domain.name } : null, rates: free, tariff: tariffOn(quote.loads, free) });
+    Object.assign(quote, { privilege: domain ? ruledBy : null, rates: free, tariff: tariffOn(quote.loads, free) });
   } else {
     quote.tollCp = Math.ceil(parseTollCpPerSt(ch.toll) * capacitySt);
     const printed = parseTariffPct(ch.tariff);
@@ -246,8 +289,13 @@ export function entryQuote(location, trader, { vehicles = [], otherSt = 0, forSa
   }
   Hooks.callAll(HOOKS.GATE_QUOTE, quote, { location, trader, separately: !!separately });
   quote.extra = judgeCharges(quote.extra);
+  // The lines and the waiver stay the gate's; only the day's fee is the handler's to change.
+  quote.stay = { ...stay, privilege: ruledBy, cpPerDay: Math.max(0, Math.round(Number(quote.stay?.cpPerDay) || 0)) };
   return quote;
 }
+
+/** The coppers a quote's stay is charged per day: none where the privilege waives it. */
+export const stayCpPerDayOf = (quote) => (quote?.stay && !quote.stay.privilege ? quote.stay.cpPerDay : 0);
 
 /**
  * The tariff the gate takes on a quote: its own where the rates are printed,
