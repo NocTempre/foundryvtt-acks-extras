@@ -1,0 +1,36 @@
+[
+  {
+    "id": "ax1.fort24Map",
+    "kind": "kind.scene",
+    "book": "ax1",
+    "name": "Fort 24 Map",
+    "pages": [26],
+    "scene": {
+      "note": "Page points, top-left origin: the crop is the plan in its frame; the grid block is one drawn square; the distance is the square other building plans measure at (areas 18, 19, 23). Walls trace the dark strokes; a drawn box is a door. Lines: the north wall along its middle beside the entrance, the entrance as two leaves, and the slanted annex's block-drawn walls on every side but its opening.",
+      "crop": { "x": 190, "y": 76, "w": 355, "h": 426 },
+      "grid": {
+        "family": "square",
+        "box": { "w": 18.6654, "h": 18.67 },
+        "centre": [378.005, 250.606],
+        "distance": 5,
+        "units": "ft",
+        "pixels": 70
+      },
+      "walls": {
+        "mode": "stroke",
+        "threshold": 80,
+        "corrections": [
+          { "line": [336.34, 91.68, 415.66, 91.87], "is": "wall" },
+          { "line": [415.66, 91.87, 433.96, 91.87], "is": "door" },
+          { "line": [433.96, 91.87, 452.62, 91.87], "is": "door" },
+          { "line": [452.62, 91.87, 530.46, 91.68], "is": "wall" },
+          { "line": [207.15, 184.85, 287.97, 138.19], "is": "wall" },
+          { "line": [287.97, 138.19, 316.07, 186.85], "is": "wall" },
+          { "line": [316.07, 186.85, 235.24, 233.51], "is": "wall" },
+          { "line": [207.15, 184.85, 221.25, 209.26], "is": "wall" },
+          { "line": [235.24, 233.51, 230.58, 225.42], "is": "wall" }
+        ]
+      }
+    }
+  }
+]
