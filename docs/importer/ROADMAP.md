@@ -1101,6 +1101,9 @@ What each book still owes, in the order it is worth doing:
   courtyard's star dropped, the plan takes seventeen corrections against its
   cap of twelve, so it lands wall-less (DECISIONS 2026-10-17, "The cap") until
   the box reader takes those boxes.
+- **Terrain on the dais of AX1 p16's plan.** The plan imports walled, but its
+  raised dais stands as floor. The three terrain lines its open sides need,
+  on top of the plan's eleven corrections, pass its cap of twelve.
 - **Walls on AX3's plans.** The building plans have no tracer run yet. The
   city map's streets and gates stay shelved.
 - **Label rings found on door boxes.** `labelRings` can find a ring on a door

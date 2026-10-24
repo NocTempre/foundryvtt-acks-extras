@@ -7671,3 +7671,45 @@ level's dungeon level. Each level's rule is now a zone over its plan.
   print their own interval and chance (ROADMAP, "AX1 whole"). The delve reads
   the first zone under the party token (formation DECISIONS 2026-10-09), so
   inside the level's zone a narrower one would never answer.
+
+## 2026-10-24 — A window is a wall that sight passes
+
+Amends today's "A stroke plan draws its walls dark, and its doors as boxes".
+That entry reads a window drawn as a gap as an opening, to be corrected by a
+line, and leaves the line's kind open.
+
+**New evidence.** The drafts for AX1's plans on p.15, p.21 and p.23 close
+their outer walls with one line along each side, because windows and slits
+break the trace along the whole side. A `wall` line made every window blind.
+Asked, the user ruled: "Make the window-only lines invisible: sight passes,
+movement blocked." An `invisible` line costs the same one correction. It stops
+tokens, and the traced wall under it still stops every sense, so sight passes
+only where the trace breaks.
+
+**Ruled**, for every stroke plan:
+- **A side whose trace breaks only at its windows is closed by an
+  `invisible` line.** A window drawn as a box across the wall, restated by the
+  line (p.23's top), is seen through the same way.
+- **A side where the trace lost wall as well stays a `wall` line.** The
+  tracer drops a stretch of wall shorter than nine tenths of a cell, such as
+  a block between two windows, and sight would pass it. A side may be split
+  where the loss begins: p.15's south wall is invisible to the west and wall
+  to the east.
+- **Sight never passes beside a door.** Where the trace stops short of a door
+  on an invisible side, the door's leaves run on to where the trace resumes
+  (p.15's entrance).
+
+*Rejected:*
+- **Every window blind**, a `wall` line on every side. It was the
+  recommendation, since sight could never pass more than the page draws. The
+  user ruled for the windows.
+- **A line per window.** Each window would cost a correction, where a side
+  costs one.
+
+*Cost:*
+- The trace pulls the wall back along a drawn embrasure's flanks, so sight
+  passes a gap wider than the opening. On p.21 a slit that narrows to a point
+  at the outer face lets sight through 0.7 to 1.2 cells.
+- Light and sound pass a window as sight does.
+- Which sides lost wall is read off the review sheet, side by side. No digest
+  says it.

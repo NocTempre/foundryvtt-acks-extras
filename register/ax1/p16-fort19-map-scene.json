@@ -1,0 +1,38 @@
+[
+  {
+    "id": "ax1.fort19Map",
+    "kind": "kind.scene",
+    "book": "ax1",
+    "name": "Fort 19 Map",
+    "pages": [16],
+    "scene": {
+      "note": "Page points, top-left origin: the crop is the plan in its frame; the grid block is one drawn square; the distance is that square against the entrance's printed width (area 19). Walls trace the dark strokes; a drawn box is a door. Lines: the outer wall where windows break it; the entrance as two leaves; a wall read as a door up north; the western strip's divider, read as two doors, one dropped.",
+      "crop": { "x": 245, "y": 84, "w": 314, "h": 302 },
+      "grid": {
+        "family": "square",
+        "box": { "w": 18.4541, "h": 18.4757 },
+        "centre": [417.195, 249.226],
+        "distance": 5,
+        "units": "ft",
+        "pixels": 70
+      },
+      "walls": {
+        "mode": "stroke",
+        "threshold": 80,
+        "corrections": [
+          { "line": [258.47, 90.83, 538.97, 90.83], "is": "invisible" },
+          { "line": [258.47, 90.83, 259.39, 371.52], "is": "invisible" },
+          { "line": [259.39, 371.52, 425.85, 371.52], "is": "invisible" },
+          { "line": [425.85, 371.52, 503.36, 371.52], "is": "wall" },
+          { "line": [538.97, 90.83, 538.97, 198.78], "is": "invisible" },
+          { "line": [538.97, 198.78, 538.97, 221.48], "is": "door" },
+          { "line": [538.97, 221.48, 538.97, 244], "is": "door" },
+          { "line": [538.97, 244, 538.97, 371.52], "is": "invisible" },
+          { "line": [370.3, 90.83, 370.3, 128.29], "is": "wall" },
+          { "line": [288, 203.77, 288, 222.59], "is": "wall" },
+          { "at": [290.53, 213.03], "drop": "door" }
+        ]
+      }
+    }
+  }
+]
