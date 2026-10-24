@@ -62,7 +62,9 @@ import { nextTrainingView, TRAINING_VIEWS } from "../equipment/training-view.mjs
 import { LANGUAGE_ACTIONS } from "../abilities/language-slots.mjs";
 import { openRosterApp } from "../henchmen/apps/roster-app.mjs";
 import { dismissMonster } from "../henchmen/apps/hirelings-grid.mjs";
-import { openLoyaltyRoll, payWagesFor } from "../henchmen/engine/events.mjs";
+import { openLoyaltyRoll, openObedienceRoll, payWagesFor, setPermanentCompensated } from "../henchmen/engine/events.mjs";
+import { buildServicePanel } from "../henchmen/service-view.mjs";
+import { getManager } from "../henchmen/acks-adapter.mjs";
 import { openStashDialog } from "../location/apps/stash-dialog.mjs";
 import { setPinnedPlace, pinnedPlaces } from "../location/reach.mjs";
 import { mountOf, ride, dismount } from "../lib/mount.mjs";
@@ -74,7 +76,7 @@ const { ActorSheetV2 } = foundry.applications.sheets;
 const T = `modules/${MODULE_ID}/templates/character-sheet`;
 /** Every template the body includes as a partial, preloaded at init; the frame's own are the lib's. */
 export const CHARACTER_SHEET_TEMPLATES = Object.freeze([
-  "body", "rolls", "abilities", "equipment", "gear-row", "stats", "class", "magic", "followers", "notes", "effects",
+  "body", "rolls", "abilities", "equipment", "gear-row", "stats", "class", "magic", "service", "followers", "notes", "effects",
 ].map((n) => `${T}/${n}.hbs`));
 
 const loc = makeLoc(LANG);
@@ -171,6 +173,11 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
       rest: AcksCharacterSheet.#onRest,
       roster: AcksCharacterSheet.#onRoster,
       payWages: AcksCharacterSheet.#onPayWages,
+      serviceThrow: AcksCharacterSheet.#onServiceThrow,
+      serviceObedience: AcksCharacterSheet.#onServiceObedience,
+      serviceEmployer: AcksCharacterSheet.#onServiceEmployer,
+      servicePay: AcksCharacterSheet.#onServicePay,
+      toggleCompensated: AcksCharacterSheet.#onToggleCompensated,
       hirelingShow: AcksCharacterSheet.#onHirelingShow,
       hirelingLoyalty: AcksCharacterSheet.#onHirelingLoyalty,
       hirelingMorale: AcksCharacterSheet.#onHirelingMorale,
@@ -196,6 +203,7 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
     ...FRAME_VIEW_ACTIONS,
     "roll", "moveMenu", "cycleAc", "abilityFilter", "toggleBucket", "trainingView", "formation", "partyMenu", "influence",
     "placeOpen", "companionOpen", "mountOpen", "itemEdit", "hirelingShow", "relationshipOpen", "classOpen", "effectEdit", "source",
+    "serviceEmployer",
   ]);
 
   static PARTS = {
@@ -328,6 +336,7 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
     panels.class = buildClassTab(actor);
     if (tabs.magic) panels.magic = buildMagicTab(actor);
     if (tabs.trade) panels.trade = buildTraderTab(actor, { compare: this._traderCompare });
+    if (tabs.service) panels.service = buildServicePanel(actor, { isGM: gm, pins: snap.pins });
     panels.followers = await buildFollowersTab(actor);
     this.#wageLine = wageLineKey(actor);
     panels.notes = await buildNotesTab(actor, { editing: this.#ui.editingNotes });
@@ -365,11 +374,11 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
         name: actor.name,
         editable,
         folded,
-        chips: [],
+        chips: this.#serviceChips(snap),
         bar: {
           pct: frame.xp.pct,
           full: frame.xp.full,
-          title: loc("band.xpTitle"),
+          title: loc(snap.retainer ? "band.xpTitleHenchman" : "band.xpTitle"),
           label: frame.xp.full
             ? loc("band.levelUp", { xp: frame.xp.value })
             : frame.xp.next ? loc("band.xp", { xp: frame.xp.value, next: frame.xp.next }) : loc("band.xpOnly", { xp: frame.xp.value }),
@@ -385,6 +394,27 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
         title: loc(t.key === "editTags" && !heroicFateOn() ? "tools.editTagsNoFate" : `tools.${t.key}`),
       })),
     });
+  }
+
+  /**
+   * The band's chips: in service, one naming the employer that opens the
+   * Service tab, with the red dot while a calamity's loyalty throw is owed.
+   */
+  #serviceChips(snap) {
+    if (!snap.retainer) return [];
+    const employer = getManager(this.actor);
+    const name = employer?.name ?? loc("band.inService");
+    const pending = snap.pendingCalamity > 0;
+    return [
+      {
+        action: "goTab",
+        attrs: attr({ tab: "service" }),
+        icon: "fa-solid fa-handshake",
+        label: name,
+        title: loc(pending ? "band.inServicePending" : "band.inServiceTitle", { name }),
+        dot: pending,
+      },
+    ];
   }
 
   /** The Rolls tab's three columns, as the design lays them out. */
@@ -1230,6 +1260,34 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
 
   static async #onPayWages() {
     await payWagesFor(this.actor);
+  }
+
+  /* Service — this character as a hireling; the engine's own seat checks apply. */
+
+  /** The Judge opens the owed loyalty throw; the engine's roll clears the pending mark. */
+  static #onServiceThrow() {
+    if (!game.user.isGM) return;
+    openLoyaltyRoll(this.actor, { reason: game.i18n.localize("ACKS-HENCHMEN.event.calamity") });
+  }
+
+  static #onServiceObedience() {
+    if (!game.user.isGM) return;
+    openObedienceRoll(this.actor);
+  }
+
+  static #onServiceEmployer() {
+    getManager(this.actor)?.sheet?.render(true);
+  }
+
+  /** A henchman's Pay wages pays the EMPLOYER's roster: the engine decides which seat may. */
+  static async #onServicePay() {
+    const employer = getManager(this.actor);
+    if (employer) await payWagesFor(employer);
+  }
+
+  static async #onToggleCompensated(event, target) {
+    const { track, index, compensated } = target.dataset;
+    await setPermanentCompensated(this.actor, { track, index: Number(index), compensated: compensated !== "true" });
   }
 
   #hirelingOf(target) {

@@ -111,9 +111,11 @@ lengths.
 
 Rolls · Abilities · Equipment · Stats · Class · Magic (casters only) ·
 Trade (traders only; docs/markets/MODEL.md, "The Trade tab on the character
-sheet") · Followers · Notes · Effects. Followers and Effects carry a count; Abilities
-and Class carry a gold badge for choices waiting; Class goes gold while the
-XP bar is full. The chevron before the strip folds the sheet.
+sheet") · Service (hirelings only) · Followers · Notes · Effects. Followers
+and Effects carry a count, and Service carries one while a calamity's throw
+is owed; Abilities and Class carry a gold badge for choices waiting; Class
+goes gold while the XP bar is full. The chevron before the strip folds the
+sheet.
 
 **Rolls** (`rolls.mjs`) lists every throw with its target in three columns:
 saves, initiative and the two surprise throws (plus morale and loyalty for a
@@ -265,6 +267,17 @@ a casting tradition. The classes feature's casting strip mounts at the top
 (pips to spend, a rest control); the repertoire lists by level with the
 system's slot pair (used, and the editable maximum), each spell with its
 cast count, a Cast control that spends it, show, edit and delete.
+
+**Service** is the hireling's side of its record, shown while
+`system.retainer.enabled`: the henchmen feature's Service panel
+([henchmen MODEL](../henchmen/MODEL.md) §4d), which this sheet renders from
+`buildServicePanel` and whose loyalty and morale rows throw through the
+sheet's own `roll` action and pin through `pinRoll`. The band's in-service
+chip names the employer and opens the tab; it carries a dot while the
+calamity throw is owed. The panel's own actions (the Judge's throws, the
+compensated toggle, Pay wages, opening the employer) are the sheet's
+`service*` and `toggleCompensated` handlers, each a call into the henchmen
+feature.
 
 **Followers** renders the employer's hirelings as Follower Cards in the
 henchmen feature's buckets — the system's character henchmen and the

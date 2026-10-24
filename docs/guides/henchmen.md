@@ -88,14 +88,22 @@ hundreds of them, and creating hundreds of actors would be unusable.
 ## Keep a retinue
 
 **Roster** (from the character sheet, or the actor's context menu) shows every
-hireling with its loyalty and morale standing, the wage ledger, and the event
-history each score is computed from.
+hireling with its loyalty, morale and wage standing, filtered by kind, under
+the henchman limit and the month's wage bill. Drop a character on it to take
+them into service.
+
+**A hireling's own sheet carries a Service tab**: the same record from the
+hireling's side — loyalty and its parts, morale, the terms, the wage clock,
+the employer, the ledger and the events — with the Judge's throws beside it.
+A calamity still owing its loyalty throw marks the tab and the sheet's
+in-service chip until the Judge rolls it.
 
 ![](../releases/v11.0.0/henchmen.png)
 
-*An employer's roster: who is hired, on what terms. Open a row for that
-hireling's history and the Judge's actions on it — a loyalty or obedience
-throw, a calamity or a penalty on the record, a transfer, a dismissal.*
+*An employer's roster: who is hired, on what terms. Press a hireling's name
+for its wage clock, record and history; the Judge's actions on it — a loyalty
+or obedience throw, a calamity or a penalty on the record, a transfer, a
+dismissal — sit on the row.*
 
 **A hireling opens on the same sheet as any character.** The compact Follower
 Card is there if you want it: right-click the hireling in the Actors

@@ -162,11 +162,19 @@ test("a modifier in force colours the save green or amber, and splits under a ri
 });
 
 console.log("character sheet: the tab strip");
-test("Magic appears for a caster and Trade for a trader, and the order is fixed", () => {
-  assert.deepEqual(tabList({}).map((t) => t.key), TAB_ORDER.filter((k) => k !== "magic" && k !== "trade"));
-  assert.deepEqual(tabList({ caster: true }).map((t) => t.key), TAB_ORDER.filter((k) => k !== "trade"));
-  assert.deepEqual(tabList({ trader: true }).map((t) => t.key), TAB_ORDER.filter((k) => k !== "magic"));
-  assert.deepEqual(tabList({ caster: true, trader: true }).map((t) => t.key), [...TAB_ORDER]);
+test("Magic appears for a caster, Trade for a trader, Service for a hireling, and the order is fixed", () => {
+  const gated = ["magic", "trade", "service"];
+  assert.deepEqual(tabList({}).map((t) => t.key), TAB_ORDER.filter((k) => !gated.includes(k)));
+  assert.deepEqual(tabList({ caster: true }).map((t) => t.key), TAB_ORDER.filter((k) => k !== "trade" && k !== "service"));
+  assert.deepEqual(tabList({ trader: true }).map((t) => t.key), TAB_ORDER.filter((k) => k !== "magic" && k !== "service"));
+  assert.deepEqual(tabList({ retainer: true }).map((t) => t.key), TAB_ORDER.filter((k) => k !== "magic" && k !== "trade"));
+  assert.deepEqual(tabList({ caster: true, trader: true, retainer: true }).map((t) => t.key), [...TAB_ORDER]);
+});
+test("Service badges the owed calamity throw, and nothing while none is owed", () => {
+  const owed = tabList({ retainer: true, calamity: 1 }).find((t) => t.key === "service");
+  assert.equal(owed.n, 1);
+  const quiet = tabList({ retainer: true }).find((t) => t.key === "service");
+  assert.equal(quiet.n, undefined);
 });
 test("counts sit on Followers and Effects; gold badges are choices waiting; Class goes gold when full", () => {
   const tabs = tabList({ pending: 2, followers: 3, timers: 1, full: true, hasClass: true, unansweredPaths: 1 });

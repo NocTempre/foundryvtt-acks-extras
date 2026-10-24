@@ -443,6 +443,8 @@ mixin's `_onRender` moves it into Foundry's `.window-header` through
 while the band's name field lives in the form. The band carries a glyph
 button, a rank before the name, the name field, chips, and in the bar's place
 either a filling bar (the character's XP) or a plain reading (`is-reading`).
+A chip is `{action, attrs, icon, label, title, tone, dot}`; `dot` draws the
+red mark after the label that says something is owed on the chip's subject.
 The bar and the reading are readings, not controls: no action, so a press on
 either falls through to the header and drags the window.
 

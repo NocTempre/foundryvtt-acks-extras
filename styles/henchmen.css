@@ -354,156 +354,228 @@
 }
 
 /* ------------------------------ roster app ------------------------------ */
-.acks-extras.roster-app .roster-body {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  padding: 0.5rem;
-  height: 100%;
-  overflow-y: auto;
+/* The roster is drawn with the lib frame's vocabulary (rules, rows, chips,
+   pills, bars, controls); what follows is the roster's own geometry. The
+   frame's root floor is a sheet's; a roster of rows needs less. */
+.acks-extras-roster-app.acks-extras-frame {
+  min-width: 480px;
+}
+
+.acks-extras-roster-app .window-content {
   font-size: var(--acks-fs-body);
 }
 
-.acks-extras.roster-app .roster-header {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-  border-bottom: var(--acks-border-soft);
-  padding-bottom: 0.35rem;
+.acks-extras-roster {
+  padding: var(--acks-sp-4) var(--acks-sp-5) var(--acks-sp-5);
+  /* The body is its own container, so the detail grid below can answer the
+     window's width: the frame's scroll wrapper is not on this window. */
+  container-type: inline-size;
 }
 
-.acks-extras.roster-app .limit-meter {
-  padding: 0.15em 0.5em;
-  border: var(--acks-border-soft);
-  border-radius: var(--acks-radius);
+.acks-extras-roster__push {
+  margin-inline-start: auto;
 }
 
-/* Over the henchman limit: the keyline takes the alarm FILL token, the count
-   takes the -ink variant that still reads as text on either ground. */
-.acks-extras.roster-app .limit-meter.over {
-  border-color: var(--acks-danger);
-  color: var(--acks-danger-ink);
-  font-weight: var(--acks-weight-bold);
-}
-
-.acks-extras.roster-app .wage-summary {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.acks-extras.roster-app .wage-summary button {
-  width: auto;
-  line-height: 1.5;
-}
-
-.acks-extras.roster-app details.roster-row {
-  border: var(--acks-border-soft);
-  border-radius: var(--acks-radius);
-  padding: 0.2rem 0.4rem;
-}
-
-/* Wages owed: a heavy warning rule down the edge. The glyph in the row's wage
-   cell carries the same state, so the bar is reinforcement, not the only signal. */
-.acks-extras.roster-app details.roster-row.wage-due {
-  border-left: var(--acks-rule-heavy) solid var(--acks-warning);
-}
-
-.acks-extras.roster-app .roster-row summary {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  cursor: pointer;
-}
-
-.acks-extras.roster-app .roster-row summary img {
-  width: 28px;
-  height: 28px;
-  border: none;
-  object-fit: cover;
-}
-
-.acks-extras.roster-app .row-name {
-  font-weight: var(--acks-weight-bold);
-}
-
-.acks-extras.roster-app .row-tag {
-  font-size: 0.85em;
-  opacity: 0.8;
-}
-
-.acks-extras.roster-app .row-stat {
-  margin-left: 0.5rem;
-  white-space: nowrap;
-}
-
-.acks-extras.roster-app .row-stat.due {
+.acks-extras-roster__warn {
+  gap: var(--acks-sp-3);
   color: var(--acks-warning-ink);
 }
 
-/* The row's controls sit at the head of the row body, not on the summary line:
-   a summary is the disclosure toggle, and anything clickable inside it trades
-   clicks with the toggle. */
-.acks-extras.roster-app .row-actions {
+.acks-extras-roster__rows {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.2rem;
-  margin-block-end: 0.35rem;
+  flex-direction: column;
 }
 
-.acks-extras.roster-app .row-actions button {
-  flex: 0 0 auto;
-  width: auto;
-  line-height: 1.4;
+.acks-extras-roster__row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto auto;
+  grid-template-areas:
+    "portrait who loyalty morale wage ctls"
+    "clock clock clock clock clock clock"
+    "detail detail detail detail detail detail";
+  align-items: center;
+  column-gap: var(--acks-sp-4);
+  padding-block: calc(5px * var(--acks-extras-k));
+  border-block-end: var(--acks-rule-hair) solid var(--acks-tint-2);
 }
 
-.acks-extras.roster-app .row-details {
-  padding: 0.25rem 0.5rem 0.25rem 2.3rem;
+/* Wages owed: the alarm rule down the edge, beside the wage cell's own tone. */
+.acks-extras-roster__row.is-due {
+  border-inline-start: var(--acks-rule-heavy) solid var(--acks-danger);
+  padding-inline-start: var(--acks-sp-3);
 }
 
-.acks-extras.roster-app .event-log,
-.acks-extras.roster-app .loyalty-ledger {
-  width: 100%;
-  font-size: 0.85em;
-  border-collapse: collapse;
+.acks-extras-roster__row.is-open {
+  background: var(--acks-tint);
 }
 
-.acks-extras.roster-app .event-log td,
-.acks-extras.roster-app .loyalty-ledger td {
-  padding: 0.1rem 0.3rem;
-  /* Dotted, so the composite border tokens (all `solid`) cannot be used here —
-     the hairline width and the soft rule colour are taken separately. */
-  border-top: var(--acks-rule-hair) dotted var(--acks-rule-color-soft);
+.acks-extras-roster__portrait {
+  grid-area: portrait;
+  width: calc(32px * var(--acks-extras-k));
+  height: calc(32px * var(--acks-extras-k));
+  border: var(--acks-rule-hair) solid var(--acks-spot);
+  object-fit: cover;
 }
 
-.acks-extras.roster-app .loyalty-ledger caption {
-  text-align: left;
-  font-weight: var(--acks-weight-bold);
-  opacity: 0.8;
+/* The name is the row's disclosure: a button, so the keyboard reaches it. */
+.acks-extras-roster__who {
+  grid-area: who;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--acks-sp-1);
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
 }
 
-.acks-extras.roster-app .loyalty-ledger .ledger-track {
-  width: 4.5em;
-  opacity: 0.7;
+.acks-extras-roster__name {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--acks-sp-2);
+  max-width: 100%;
+  font-family: var(--acks-font-ui);
+  font-size: calc(13px * var(--acks-extras-k));
+  font-weight: var(--acks-weight-medium);
+  color: var(--acks-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.acks-extras.roster-app .loyalty-ledger .ledger-delta {
-  width: 2.5em;
-  text-align: right;
-  font-weight: var(--acks-weight-bold);
+.acks-extras-roster__chev {
+  font-size: calc(9px * var(--acks-extras-k));
+  color: var(--acks-ink-faint);
 }
 
-.acks-extras.roster-app .loyalty-ledger .ledger-toggle {
-  width: 1.5em;
-  text-align: right;
+.acks-extras-roster__dot {
+  display: inline-block;
+  width: calc(6px * var(--acks-extras-k));
+  height: calc(6px * var(--acks-extras-k));
+  border-radius: 50%;
+  background: var(--acks-danger);
 }
 
-/* Compensated (RR 166): the entry stays on record but no longer scores. */
-.acks-extras.roster-app .loyalty-ledger tr.compensated td:not(.ledger-toggle) {
-  text-decoration: line-through;
-  opacity: 0.6;
+.acks-extras-roster__stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  min-width: calc(48px * var(--acks-extras-k));
+}
+
+.acks-extras-roster__stat:nth-of-type(1) { grid-area: loyalty; }
+.acks-extras-roster__stat:nth-of-type(2) { grid-area: morale; }
+.acks-extras-roster__stat:nth-of-type(3) { grid-area: wage; }
+
+.acks-extras-roster__k {
+  font-family: var(--acks-font-display);
+  font-size: calc(8px * var(--acks-extras-k));
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-roster__v {
+  font-family: var(--acks-font-ui);
+  font-size: calc(12.5px * var(--acks-extras-k));
+  font-weight: var(--acks-weight-medium);
+}
+
+.acks-extras-roster__stat.is-neg .acks-extras-roster__v {
+  color: var(--acks-danger-ink);
+}
+
+.acks-extras-roster__v.is-faint {
+  color: var(--acks-ink-faint);
+  font-weight: var(--acks-weight-body);
+}
+
+.acks-extras-roster__row > .acks-extras-frame__ctls {
+  grid-area: ctls;
+}
+
+.acks-extras-roster__clock {
+  grid-area: clock;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--acks-sp-3);
+  padding-block: var(--acks-sp-2);
+}
+
+.acks-extras-roster__detail {
+  grid-area: detail;
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 0 var(--acks-sp-5);
+  padding-block: var(--acks-sp-2) var(--acks-sp-3);
+}
+
+.acks-extras-roster__date {
+  flex: none;
+  min-width: calc(72px * var(--acks-extras-k));
+}
+
+.acks-extras-roster__note {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.acks-extras-roster__drop {
+  margin-block-start: var(--acks-sp-4);
+  justify-content: center;
+}
+
+@container (max-width: 560px) {
+  .acks-extras-roster__detail {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ------------------------------ service panel ------------------------------ */
+/* The Service panel (templates/henchmen/service-panel.hbs) on either sheet:
+   the warning row, the breakdown sub-rows under Loyalty, the wage clock. */
+.acks-extras-service__push {
+  margin-inline-start: auto;
+}
+
+.acks-extras-service__warn {
+  gap: var(--acks-sp-3);
+  color: var(--acks-warning-ink);
+}
+
+.acks-extras-service__warn > .fa-solid {
+  flex: none;
+}
+
+.acks-extras-service__sub {
+  padding-inline-start: calc(22px * var(--acks-extras-k));
+}
+
+.acks-extras-service__sub > .acks-extras-frame__row-line {
+  flex: 1 1 auto;
+}
+
+.acks-extras-service__clock {
+  padding-block-start: var(--acks-sp-4);
+}
+
+.acks-extras-service__date {
+  flex: none;
+  min-width: calc(72px * var(--acks-extras-k));
+}
+
+.acks-extras-service__note {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Long-running advert: the post "changes color" (RAW designation) — the

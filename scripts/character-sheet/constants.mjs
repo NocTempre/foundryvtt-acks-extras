@@ -25,7 +25,7 @@ export const PDF_RECORD_FLAG = "sheetPdf";
 export const TRAINING_VIEW_FLAG = "trainingView";
 
 /** The tab keys, in the one order they ever appear. */
-export const TAB_ORDER = Object.freeze(["rolls", "abilities", "equipment", "stats", "class", "magic", "trade", "followers", "notes", "effects"]);
+export const TAB_ORDER = Object.freeze(["rolls", "abilities", "equipment", "stats", "class", "magic", "trade", "service", "followers", "notes", "effects"]);
 
 /** The mark each duration unit wears on a clock, keyed as Foundry names the unit. */
 export const CLOCK_MARKS = Object.freeze({ rounds: "r", turns: "t", seconds: "s", minutes: "m", hours: "h", days: "d", months: "mo", years: "y" });

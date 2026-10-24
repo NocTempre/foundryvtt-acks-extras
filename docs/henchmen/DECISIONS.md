@@ -921,3 +921,48 @@ which stopped the roll for every segment after it.
 records no morale bonus, and a henchman's loyalty roll types the
 apparent-level penalty by hand. Ledger entries recorded before this change
 no longer name their level.
+
+### The record is read on the lib frame, once, from both sides (2026-10-23)
+
+**Ruled.**
+- *One panel, two sheets.* The hireling's side of its record was reachable
+  only through the employer's roster, and the monster sheet's Henchman tab
+  held the two core fields and a manager picker. One partial
+  (`service-panel.hbs`), fed by one reader (`service-view.mjs`) over pure
+  decisions (`rules/service.mjs`), is now the character sheet's Service tab
+  and the foot of the monster sheet's, renamed Service. The character sheet
+  gates the tab on `retainer.enabled` in its tab list, where Magic and Trade
+  are gated, so an actor out of service never grows an empty tab.
+- *The roster is redrawn on the frame's vocabulary and keeps every control.*
+  Rules, rows, chips, pills and bars from `lib-frame.css`; the roster owns
+  only its grid. The filters, the counts on them, the limit bar, the wage
+  clock per row and the drop zone are added; nothing the old window did is
+  gone. Which rows are open is window state, as before, not a flag.
+- *The name is the disclosure, and it is a button.* `<details>` put the
+  row's controls where a click trades with the toggle, which the layout
+  contract forbids inside a `<summary>`; a button toggle with
+  `aria-expanded` reaches the keyboard and a second copy of the window
+  without a literal id.
+- *A mercenary shows no loyalty.* The record keeps none for it, and a dash
+  with the reason beside the morale throw says so in place of a score of 0.
+- *The owed throw is marked where the eye already is.* The band's in-service
+  chip carries a dot (a lib addition to the band's chip contract), the
+  Service tab carries a count, and the panel opens on the warning row with
+  the Judge's **Throw now** beside it.
+- *The share is said from the stored fraction.* `shareKind` turns 0.5, 1 and
+  0 into words and anything else into a percentage; the panel never stores a
+  word.
+
+**Rejected.**
+- *A loyalty panel per sheet.* Two copies drift; the character and monster
+  sheets already shared the frame partials for the same reason.
+- *Pin ids of the panel's own.* The pins are the sheet's roll ids; the panel
+  pins `loyalty` and `morale`, which the sheets' roll inventories hold, and
+  nothing a sheet cannot throw.
+
+**What it cost.** The roster's release screenshot (`docs/releases/v11.0.0/henchmen.png`)
+shows the old window and is stale until the next release shoots it. The
+loyalty score was already the hireling's player's to see on Rolls and Stats;
+its parts, the ledger and the events now are too, which the roster's
+GM-and-employer gate used to keep from them. The throws and the toggle stay
+the Judge's.

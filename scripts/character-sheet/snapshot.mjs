@@ -289,6 +289,7 @@ export function snapshotFrame(actor) {
     unansweredPaths: classItem ? unansweredGroups(classItem.system, actorPaths(actor)).length : 0,
     pins: Array.isArray(sheetFlag(actor).pins) ? sheetFlag(actor).pins : [],
     retainer: !!sys.retainer?.enabled,
+    pendingCalamity: sys.retainer?.enabled && actor.getFlag(MODULE_ID, FLAG_RECORD)?.special?.pendingCalamity ? 1 : 0,
   };
 }
 

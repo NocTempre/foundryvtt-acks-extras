@@ -147,7 +147,7 @@ Charisma score (every actor but a character), or a world that has not
 imported the base, has no limit: `max` is null, no hire is refused or warned
 for it, and the roster shows the limit as unknown. `checkHenchmanLimit`'s
 `why` (`acks-adapter.mjs > retainGap`) says which gap it is, the actor's own
-first, and the roster tooltip names it.
+first, and the roster's limit note names it in its tooltip (§4d).
 
 The highest henchman level an employer may seek
 (`rules/wages.mjs > maxHenchmanLevel`) is the imported ladder
@@ -358,6 +358,60 @@ fire on the seat that ran the payday, which is the GM's when it was relayed.
 A signing bonus and a week's recruiting fee are paid where the hire is made:
 they state the market as their reach, so they draw on coin on hand and coin
 that market keeps for the employer.
+
+## 4d. The Service panel and the roster
+
+Two surfaces read the record on the lib frame's vocabulary
+([../lib/MODEL.md](../lib/MODEL.md), "The sheet frame"). The decisions are
+pure (`rules/service.mjs`: the roster buckets, which kinds keep loyalty, the
+wage clock, the loyalty and morale parts, the ledger order, the share words,
+the slot kind); `service-view.mjs` reads an actor through them and localizes,
+so a sheet renders what `buildServicePanel(actor, {isGM, pins})` answers and
+decides nothing itself. Both are pinned by `tools/test-service-view.mjs`.
+
+**The Service panel** (`templates/henchmen/service-panel.hbs`) is the
+hireling's side of its record: it is the character sheet's Service tab, shown
+only while `system.retainer.enabled` ([../character-sheet/MODEL.md](../character-sheet/MODEL.md),
+"The tabs"), and the foot of the monster sheet's Service tab while the actor
+serves ([../monsters/MODEL.md](../monsters/MODEL.md), "The tabs"). Standing
+holds the loyalty score with its parts (start, permanents, Charisma, powers)
+and the morale score, each a roll row the sheet's own `roll` action throws
+and a pin for the folded bar; a calamity still owing its throw
+(`special.pendingCalamity`) puts a warning row first, badges the tab and dots
+the band's in-service chip. Terms are the wage, its basis, the two shares
+said as words from the stored fractions, the signing bonus, arrears and the
+wage clock (days since the last payday against the month, in tone once it is
+behind). Employer names the employer and the calamity and level counters,
+and whether the hireling takes a slot. The ledger lists the permanents newest
+first, a suspended one struck through; Events the last `EVENTS_SHOWN`;
+Recorded rolls the candidate's scores where the record keeps them. A
+mercenary keeps no loyalty score (`keepsLoyalty`), so its Standing holds the
+morale throw alone and says why.
+
+Which seat sees which control: the Judge's throws (**Throw now** for the owed
+calamity, **Obedience**) and the compensated toggle render and run on
+`game.user.isGM` alone (`setPermanentCompensated` refuses anyone else); **Pay
+wages** renders for a GM or an owner of the employer and calls
+`payWagesFor(employer)` (§4c); the employer's name opens the employer for any
+viewer.
+
+**The roster app** (`apps/roster-app.mjs`) is the employer's side. Its band is
+the frame's, moved into the window header; the body is the limit rule (count
+against `checkHenchmanLimit`, a thin bar, the Charisma and powers in the
+note, the unknown-limit tooltip of §3, a warning row over the limit and
+another naming the unvalued powers), the wage rule (`wageBill`: the month's
+due or the monthly cost, **Pay wages** while anything is due, the two card
+controls), the four bucket filters with their counts (`ROSTER_FILTERS`), and
+a row per hireling: portrait, the name as the disclosure toggle (a button, so
+a second copy of the window and the keyboard both reach it), the kind tags,
+loyalty, morale and wage with the wage's tone, and the controls the seat may
+use — the Judge's loyalty and obedience throws, calamity and penalty,
+transfer and dismiss; a mercenary's morale throw; open for everyone. An open
+row adds the wage clock and the record, the last `ROW_EVENTS` events and the
+ledger with its toggles. Dropping a character on the rows enrols it through
+`enrollHenchman` when it is in no one's service; the drop refuses a hireling
+already placed. Which rows are open and which filter is on are the window's
+own state (`#ui`), not a flag.
 
 ## 5. Time model
 

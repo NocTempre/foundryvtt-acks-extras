@@ -115,6 +115,27 @@ export function daysBetween(t0, t1) {
   return Math.floor((t1 - t0) / SECONDS_PER_DAY);
 }
 
+/**
+ * A world-time reading as a date a Judge recognises: the calendar's month
+ * name and day of the month where the world runs one, else the day count
+ * from the clock's start. Empty for no reading.
+ */
+export function dateLabel(t) {
+  if (t == null || !Number.isFinite(Number(t))) return "";
+  const cal = calendarOf();
+  if (cal) {
+    try {
+      const c = cal.timeToComponents(Number(t));
+      const month = cal.months.values[c.month];
+      const day = (c.dayOfMonth ?? c.day ?? 0) + 1;
+      if (month?.name) return `${game.i18n.localize(month.name)} ${day}`;
+    } catch {
+      /* fall through to the day count */
+    }
+  }
+  return game.i18n.format("ACKS-HENCHMEN.time.day", { n: Math.floor(Number(t) / SECONDS_PER_DAY) + 1 });
+}
+
 /** Days from `t0` until `t1`, a part day counted as a whole one: 1 at the least. */
 export function daysUntil(t1, t0 = now()) {
   return Math.max(1, Math.ceil((t1 - t0) / SECONDS_PER_DAY));

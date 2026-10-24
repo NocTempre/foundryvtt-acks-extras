@@ -1,0 +1,221 @@
+{{!-- Service: the hireling's record read from the hireling's side — the gauge,
+      not the fields (loyalty and the wage are edited on Stats or Henchman).
+      Context: service (henchmen/service-view.mjs buildServicePanel); @root.isGM,
+      @root.editable. The Loyalty and Morale rows roll through the sheet's own
+      `roll` action under the ids its Rolls tab uses, so a pin here is the
+      same pin there. --}}
+{{#with service as |s|}}
+{{#if s.inService}}
+<div class="acks-extras-frame__cols is-2 acks-extras-service">
+  <div class="acks-extras-frame__col">
+    <div class="acks-extras-frame__group">
+      <div class="acks-extras-frame__rule">
+        <span class="acks-extras-frame__rule-title">{{localize "ACKS-HENCHMEN.service.standing"}}</span>
+        <span class="acks-extras-frame__rule-note">{{localize "ACKS-HENCHMEN.service.standingNote"}}</span>
+      </div>
+      {{#if s.pending}}
+      <div class="acks-extras-frame__row acks-extras-service__warn">
+        <i class="fa-solid fa-triangle-exclamation" inert></i>
+        <span class="acks-extras-frame__row-label">{{localize "ACKS-HENCHMEN.service.pendingRow"}}</span>
+        {{#if @root.isGM}}
+        <button type="button" class="acks-extras-frame__chip is-warn acks-extras-service__push" data-action="serviceThrow" data-tooltip="{{localize 'ACKS-HENCHMEN.service.throwNowTitle'}}"><i class="fa-solid fa-user-secret" inert></i>{{localize "ACKS-HENCHMEN.service.throwNow"}}</button>
+        {{/if}}
+      </div>
+      {{/if}}
+      {{#if s.standing.henchman}}
+      <div class="acks-extras-frame__row is-roll" data-action="roll" data-roll="loyalty">
+        <button type="button" class="acks-extras-frame__pin{{#if s.standing.loyalty.pinned}} is-on{{/if}}" data-action="pinRoll" data-roll="loyalty"
+                data-tooltip="{{localize (ifThen s.standing.loyalty.pinned 'ACKS-LIB.frame.unpin' 'ACKS-LIB.frame.pin')}}" {{disabled (not @root.editable)}}>
+          <span class="acks-sr-only">{{localize 'ACKS-LIB.frame.pin'}}</span>
+        </button>
+        <span class="acks-extras-frame__row-text">
+          <span class="acks-extras-frame__row-label">{{localize "ACKS-HENCHMEN.service.loyalty"}}</span>
+          <span class="acks-extras-frame__row-line">{{localize "ACKS-HENCHMEN.service.loyaltyLine"}}</span>
+        </span>
+        <span class="acks-extras-frame__row-value acks-nums">{{s.standing.loyalty.value}}</span>
+        <span class="acks-extras-frame__mini"><i class="fa-solid fa-dice-d20" inert></i></span>
+      </div>
+      {{#each s.standing.loyalty.parts}}
+      <div class="acks-extras-frame__row is-bare acks-extras-service__sub">
+        <span class="acks-extras-frame__row-line">{{label}}</span>
+        <span class="acks-extras-frame__row-value acks-nums">{{value}}</span>
+      </div>
+      {{/each}}
+      {{#if @root.isGM}}
+      <div class="acks-extras-frame__row is-roll" data-action="serviceObedience">
+        <span class="acks-extras-frame__pin is-blank" inert></span>
+        <span class="acks-extras-frame__row-text">
+          <span class="acks-extras-frame__row-label">{{localize "ACKS-HENCHMEN.service.obedience"}}</span>
+          <span class="acks-extras-frame__row-line">{{localize "ACKS-HENCHMEN.service.obedienceLine"}}</span>
+        </span>
+        <span class="acks-extras-frame__row-value acks-nums">{{s.standing.loyalty.value}}</span>
+        <span class="acks-extras-frame__mini"><i class="fa-solid fa-dice-d20" inert></i></span>
+      </div>
+      {{/if}}
+      {{else}}
+      <div class="acks-extras-frame__hint">{{localize "ACKS-HENCHMEN.service.noLoyalty"}}</div>
+      {{/if}}
+      <div class="acks-extras-frame__row is-roll" data-action="roll" data-roll="morale">
+        <button type="button" class="acks-extras-frame__pin{{#if s.standing.morale.pinned}} is-on{{/if}}" data-action="pinRoll" data-roll="morale"
+                data-tooltip="{{localize (ifThen s.standing.morale.pinned 'ACKS-LIB.frame.unpin' 'ACKS-LIB.frame.pin')}}" {{disabled (not @root.editable)}}>
+          <span class="acks-sr-only">{{localize 'ACKS-LIB.frame.pin'}}</span>
+        </button>
+        <span class="acks-extras-frame__row-text">
+          <span class="acks-extras-frame__row-label">{{localize "ACKS-HENCHMEN.service.morale"}}</span>
+          <span class="acks-extras-frame__row-line">{{s.standing.morale.line}}</span>
+        </span>
+        <span class="acks-extras-frame__row-value acks-nums">{{s.standing.morale.value}}</span>
+        <span class="acks-extras-frame__mini"><i class="fa-solid fa-dice-d20" inert></i></span>
+      </div>
+    </div>
+
+    <div class="acks-extras-frame__group">
+      <div class="acks-extras-frame__rule">
+        <span class="acks-extras-frame__rule-title">{{localize "ACKS-HENCHMEN.service.terms"}}</span>
+        {{#if s.employer}}{{#if @root.editable}}
+        <button type="button" class="acks-extras-frame__chip acks-extras-service__push" data-action="servicePay" data-tooltip="{{localize 'ACKS-HENCHMEN.service.payWagesTitle'}}"><i class="fa-solid fa-coins" inert></i>{{localize "ACKS-HENCHMEN.service.payWages"}}</button>
+        {{/if}}{{/if}}
+      </div>
+      <div class="acks-extras-frame__row">
+        <span class="acks-extras-frame__row-text">
+          <span class="acks-extras-frame__row-label">{{localize "ACKS-HENCHMEN.service.wage"}}</span>
+          <span class="acks-extras-frame__row-line">{{s.terms.basis}}</span>
+        </span>
+        <span class="acks-extras-frame__row-value acks-nums{{#if s.terms.wageUnset}} is-faint{{/if}}">{{s.terms.wage}}</span>
+      </div>
+      <div class="acks-extras-frame__row">
+        <span class="acks-extras-frame__row-text">
+          <span class="acks-extras-frame__row-label">{{localize "ACKS-HENCHMEN.service.share"}}</span>
+          <span class="acks-extras-frame__row-line">{{localize "ACKS-HENCHMEN.service.shareLine"}}</span>
+        </span>
+        <span class="acks-extras-frame__row-value acks-nums">{{s.terms.share}}</span>
+      </div>
+      <div class="acks-extras-frame__row">
+        <span class="acks-extras-frame__row-text">
+          <span class="acks-extras-frame__row-label">{{localize "ACKS-HENCHMEN.service.signingBonus"}}</span>
+          {{#if s.terms.signingWhere}}<span class="acks-extras-frame__row-line">{{s.terms.signingWhere}}</span>{{/if}}
+        </span>
+        <span class="acks-extras-frame__row-value acks-nums">{{s.terms.signingBonus}}</span>
+      </div>
+      <div class="acks-extras-frame__row">
+        <span class="acks-extras-frame__row-text">
+          <span class="acks-extras-frame__row-label">{{localize "ACKS-HENCHMEN.service.arrears"}}</span>
+          <span class="acks-extras-frame__row-line">{{localize "ACKS-HENCHMEN.service.arrearsLine"}}</span>
+        </span>
+        <span class="acks-extras-frame__row-value acks-nums{{#if s.terms.arrearsOwed}} is-neg{{/if}}">{{s.terms.arrears}}</span>
+      </div>
+      <div class="acks-extras-service__clock">
+        <div class="acks-extras-frame__rule is-bar">
+          <span class="acks-extras-frame__rule-title is-soft">{{localize "ACKS-HENCHMEN.service.clock"}}</span>
+          <span class="acks-extras-frame__rule-note{{#if s.terms.clock.behind}} is-neg{{/if}}">{{s.terms.clockLine}}</span>
+        </div>
+        <div class="acks-extras-frame__bar is-thin{{#if s.terms.clock.tone}} is-{{s.terms.clock.tone}}{{/if}}{{#if s.terms.clock.unset}} is-unset{{/if}}"><i style="width: {{s.terms.clock.pct}}%"></i><u style="left: 100%"></u></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="acks-extras-frame__col">
+    <div class="acks-extras-frame__group">
+      <div class="acks-extras-frame__rule">
+        <span class="acks-extras-frame__rule-title">{{localize "ACKS-HENCHMEN.service.employer"}}</span>
+        {{#if s.employer.hired}}<span class="acks-extras-frame__rule-note">{{s.employer.hired}}</span>{{/if}}
+      </div>
+      {{#if s.employer}}
+      <div class="acks-extras-frame__row">
+        <span class="acks-extras-frame__row-text">
+          <span class="acks-extras-frame__row-label">{{s.employer.name}}</span>
+          {{#if s.employer.line}}<span class="acks-extras-frame__row-line">{{s.employer.line}}</span>{{/if}}
+        </span>
+        <button type="button" class="acks-extras-frame__ctl acks-extras-service__push" data-action="serviceEmployer" data-tooltip="{{localize 'ACKS-HENCHMEN.service.open'}}"><i class="fa-solid fa-arrow-up-right-from-square" inert></i></button>
+      </div>
+      <div class="acks-extras-frame__row">
+        <span class="acks-extras-frame__row-label">{{localize "ACKS-HENCHMEN.service.calamities"}}</span>
+        <span class="acks-extras-frame__row-value acks-nums acks-extras-service__push">{{s.employer.calamities}}</span>
+      </div>
+      <div class="acks-extras-frame__row">
+        <span class="acks-extras-frame__row-text">
+          <span class="acks-extras-frame__row-label">{{localize "ACKS-HENCHMEN.service.levelsGained"}}</span>
+          {{#if s.employer.startLevel}}<span class="acks-extras-frame__row-line">{{s.employer.startLevel}}</span>{{/if}}
+        </span>
+        <span class="acks-extras-frame__row-value acks-nums">{{s.employer.levelsGained}}</span>
+      </div>
+      {{#unless (eq s.employer.slot "none")}}
+      <div class="acks-extras-frame__row">
+        <span class="acks-extras-frame__row-text">
+          <span class="acks-extras-frame__row-label">{{localize "ACKS-HENCHMEN.service.slot"}}</span>
+          <span class="acks-extras-frame__row-line">{{#if (eq s.employer.slot "counted")}}{{localize "ACKS-HENCHMEN.service.slotLine"}}{{else}}{{localize "ACKS-HENCHMEN.service.slotNoneLine"}}{{/if}}</span>
+        </span>
+        <span class="acks-tag{{#if (eq s.employer.slot "noSlot")}} acks-tag--ghost{{/if}} acks-extras-service__push">{{#if (eq s.employer.slot "counted")}}{{localize "ACKS-HENCHMEN.service.slotCounted"}}{{else}}{{localize "ACKS-HENCHMEN.service.slotNone"}}{{/if}}</span>
+      </div>
+      {{/unless}}
+      {{else}}
+      <div class="acks-extras-frame__hint">{{localize "ACKS-HENCHMEN.service.noEmployer"}}</div>
+      {{/if}}
+    </div>
+
+    <div class="acks-extras-frame__group">
+      <div class="acks-extras-frame__rule">
+        <span class="acks-extras-frame__rule-title">{{localize "ACKS-HENCHMEN.service.ledger"}}</span>
+        <span class="acks-extras-frame__rule-note">{{localize "ACKS-HENCHMEN.service.ledgerNote"}}</span>
+      </div>
+      {{#each s.ledger as |e|}}
+      <div class="acks-extras-frame__row{{#if e.compensated}} is-off{{/if}}">
+        <span class="acks-tag{{#if (eq e.tone "neg")}} acks-tag--danger{{/if}}">{{e.trackLabel}} {{e.signed}}</span>
+        <span class="acks-extras-frame__row-text">
+          <span class="acks-extras-frame__row-label is-plain">{{e.reasonLabel}}</span>
+          <span class="acks-extras-frame__row-line">{{#if e.compensated}}{{localize "ACKS-HENCHMEN.service.compensated"}}{{else}}{{e.note}}{{/if}}</span>
+        </span>
+        {{#if @root.isGM}}
+        <button type="button" class="acks-extras-frame__ctl acks-extras-service__push{{#if e.compensated}} is-faint{{/if}}" data-action="toggleCompensated" data-track="{{e.track}}" data-index="{{e.index}}" data-compensated="{{e.compensated}}" data-tooltip="{{e.toggleTitle}}"><i class="fa-solid {{#if e.compensated}}fa-rotate-left{{else}}fa-hand-holding-heart{{/if}}" inert></i></button>
+        {{/if}}
+      </div>
+      {{else}}
+      <div class="acks-extras-frame__hint">{{localize "ACKS-HENCHMEN.service.ledgerEmpty"}}</div>
+      {{/each}}
+    </div>
+
+    <div class="acks-extras-frame__group">
+      <div class="acks-extras-frame__rule">
+        <span class="acks-extras-frame__rule-title">{{localize "ACKS-HENCHMEN.service.events"}}</span>
+        <span class="acks-extras-frame__rule-note">{{s.eventsNote}}</span>
+      </div>
+      {{#each s.events as |e|}}
+      <div class="acks-extras-frame__row is-bare">
+        <span class="acks-extras-frame__row-line acks-extras-service__date">{{e.date}}</span>
+        <span class="acks-extras-frame__row-label is-plain">{{e.typeLabel}}</span>
+        <span class="acks-extras-frame__row-line acks-extras-service__note">{{#if e.outcomeLabel}}{{e.outcomeLabel}}{{#if e.note}} · {{/if}}{{/if}}{{e.note}}</span>
+      </div>
+      {{else}}
+      <div class="acks-extras-frame__hint">{{localize "ACKS-HENCHMEN.service.eventsEmpty"}}</div>
+      {{/each}}
+    </div>
+
+    {{#if s.rolled}}
+    <div class="acks-extras-frame__group">
+      <div class="acks-extras-frame__rule">
+        <span class="acks-extras-frame__rule-title">{{localize "ACKS-HENCHMEN.service.rolled"}}</span>
+        <span class="acks-extras-frame__rule-note">{{localize "ACKS-HENCHMEN.service.rolledNote"}}</span>
+      </div>
+      {{#if s.rolled.scores}}
+      <div class="acks-extras-frame__row">
+        <span class="acks-extras-frame__row-label is-plain">{{localize "ACKS-HENCHMEN.service.attributes"}}</span>
+        <span class="acks-extras-frame__row-value acks-nums acks-extras-service__push">{{s.rolled.scores}}</span>
+      </div>
+      {{/if}}
+      {{#if s.rolled.classLevel}}
+      <div class="acks-extras-frame__row">
+        <span class="acks-extras-frame__row-text">
+          <span class="acks-extras-frame__row-label is-plain">{{localize "ACKS-HENCHMEN.service.classLevel"}}</span>
+          {{#if s.rolled.template}}<span class="acks-extras-frame__row-line">{{s.rolled.template}}</span>{{/if}}
+        </span>
+        <span class="acks-extras-frame__row-value acks-nums">{{s.rolled.classLevel}}</span>
+      </div>
+      {{/if}}
+    </div>
+    {{/if}}
+  </div>
+</div>
+{{else}}
+<div class="acks-empty"><span class="acks-empty-title">{{localize "ACKS-HENCHMEN.service.title"}}</span><span class="acks-empty-hint">{{s.emptyHint}}</span></div>
+{{/if}}
+{{/with}}

@@ -92,8 +92,8 @@ by `tools/test-monster-sheet.mjs`.
 no form is set; a click goes to Classification), the Hit Dice rating before
 the name (`hdRating`, falling back to core's roll formula), the name field,
 an in-service chip naming the employer while `system.retainer` names one (a
-click goes to Henchman), and the XP award as a plain reading in the bar's
-place.
+click goes to Service; a dot on it says a calamity's loyalty throw is owed),
+and the XP award as a plain reading in the bar's place.
 
 **The rails.** Left: the reaction roll, then the five saves with their
 targets (a click rolls through the system's `rollSave`, resolving `blast` and
@@ -136,9 +136,12 @@ with their roll glyphs, the normal and maximum load, the attributes, and the
 **Figures** rule holding the core fields the system's header used to carry:
 hit points, armour class, attack throw, morale, initiative, surprise, XP
 award, alignment, movement base and details. The senses and the speed rows
-have their + chip and bin on the rule. Loyalty and the wage live on Henchman
-alone. The number appearing stays on Ecology, mirrored into core's
-`appearing.d/.w` on submit as before.
+have their + chip and bin on the rule. Loyalty and the wage live on Service
+alone, which holds core's retainer fields and the manager picker, and under
+them, while the actor serves, the henchmen feature's Service panel
+([henchmen MODEL](../henchmen/MODEL.md) §4d) with its actions bound to this
+sheet's `service*` and `toggleCompensated` handlers. The number appearing
+stays on Ecology, mirrored into core's `appearing.d/.w` on submit as before.
 
 **Unlinked tokens.** The fold is a user flag keyed by the document id and
 the pins are the actor's sheet flag, so every unlinked token of one actor

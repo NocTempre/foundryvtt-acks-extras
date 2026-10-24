@@ -322,14 +322,20 @@ const P = {
     const actor = game.actors.get(actorId);
     H.takeNotes();
     await H.A.openRosterApp(actor);
-    const app = await H.poll(() => { const a = H.appBy("roster-app"); return a && H.root(a)?.querySelector("strong") ? a : null; });
+    // The limit rule's note carries the tooltip; the count and the max are read
+    // from the context the note was formatted from, and the note is checked
+    // against it, so `limit` keeps the `count / max` shape the checks compare.
+    const NOTE = ".acks-extras-frame__rule-note[data-tooltip]";
+    const app = await H.poll(() => { const a = H.appBy("roster-app"); return a && H.root(a)?.querySelector(NOTE) ? a : null; });
     if (!app) return { rendered: false, notes: H.takeNotes() };
     if (place) { await app.setPosition({ left: 16, top: 16 }); await H.sleep(300); }
     const el = H.root(app);
-    const tip = el.querySelector(".limit-meter")?.dataset?.tooltip ?? "";
+    const note = el.querySelector(NOTE);
+    const tip = note?.dataset?.tooltip ?? "";
     const hintOf = (key) => tip === game.i18n.localize(key);
     const hint = ["limitHint", "limitUnknown", "limitNotImported"].find((k) => hintOf(`ACKS-HENCHMEN.roster.${k}`)) ?? null;
-    const out = { rendered: true, limit: H.text(el.querySelector("strong")), hint, unvalued: H.text(el.querySelector("[data-unvalued]")) || null, rows: el.querySelectorAll("[data-hireling-id], .roster-row, tr[data-id]").length, retainMax: H.A.adapter.getRetainMax(actor), gap: H.A.adapter.retainGap(actor), notes: H.takeNotes() };
+    const ctx = (await app._prepareContext({})).limit;
+    const out = { rendered: true, limit: `${ctx.count} / ${ctx.max ?? "—"}`, noteOk: H.text(note) === ctx.note, hint, unvalued: H.text(el.querySelector("[data-unvalued]")) || null, rows: el.querySelectorAll(".acks-extras-roster__row").length, retainMax: H.A.adapter.getRetainMax(actor), gap: H.A.adapter.retainGap(actor), notes: H.takeNotes() };
     if (!keep) await app.close({ force: true });
     return out;
   },
@@ -1146,15 +1152,22 @@ const P = {
   ledgerShown: async ({ employerId, hirelingId }) => {
     const H = globalThis.__c1;
     await H.A.openRosterApp(game.actors.get(employerId));
-    const app = await H.poll(() => { const a = H.appBy("roster-app"); return a && H.root(a)?.querySelector(`[data-actor-id="${hirelingId}"]`) ? a : null; });
+    const ROW = `[data-actor-id="${hirelingId}"]`;
+    const app = await H.poll(() => { const a = H.appBy("roster-app"); return a && H.root(a)?.querySelector(ROW) ? a : null; });
     if (!app) return { rendered: false };
-    const rows = [...H.root(app).querySelectorAll(`[data-actor-id="${hirelingId}"] table.loyalty-ledger tr`)].map((tr) => [...tr.querySelectorAll("td")].map((td) => H.text(td)));
+    // The ledger renders only on an open row: press the name, as a user does.
+    if (!H.root(app).querySelector(`${ROW} .acks-extras-roster__detail`)) {
+      H.root(app).querySelector(`${ROW} [data-action="toggleRow"]`)?.click();
+      await H.poll(() => H.root(app)?.querySelector(`${ROW} .acks-extras-roster__detail`));
+    }
+    const rows = [...H.root(app).querySelectorAll(`${ROW} .acks-extras-roster__detail > div:last-child .acks-extras-frame__row`)]
+      .map((r) => ({ tag: H.text(r.querySelector(".acks-tag")), reason: H.text(r.querySelector(".acks-extras-frame__row-label")), note: H.text(r.querySelector(".acks-extras-frame__row-line")) }));
     const track = game.i18n.localize("ACKS-HENCHMEN.ledger.track.morale");
     const reason = game.i18n.localize("ACKS-HENCHMEN.moraleReason.levelGain");
     const notes = H.m.WG.levelMoraleRungs().map((r) => game.i18n.format("ACKS-HENCHMEN.moraleReason.levelNote", { level: r.level }));
-    const shown = rows.filter((c) => c[0] === track && c[2] === reason);
+    const shown = rows.filter((c) => c.tag.startsWith(track) && c.reason === reason);
     await app.close({ force: true });
-    return { rendered: true, shown: shown.length, notesMatch: shown.every((c) => notes.includes(c[3])) };
+    return { rendered: true, shown: shown.length, notesMatch: shown.every((c) => notes.includes(c.note)) };
   },
 
   closeAll: async () => globalThis.__c1.closeAll(),
@@ -1325,12 +1338,12 @@ try {
     note("B's limit pinned at one", await run(gm, P.pinLimit, { actorId: B.id, to: 1 }));
     const rosterA = await run(gm, P.roster, { actorId: A.id });
     note("roster A", rosterA);
-    check("14: A's roster shows its count against the limit the powers make, with no unvalued note", rosterA.rendered && rosterA.limit === `1 / ${readA.retainMax}` && rosterA.hint === "limitHint" && !rosterA.unvalued, { limit: rosterA.limit, hint: rosterA.hint, unvalued: rosterA.unvalued });
+    check("14: A's roster shows its count against the limit the powers make, with no unvalued note", rosterA.rendered && rosterA.limit === `1 / ${readA.retainMax}` && rosterA.noteOk && rosterA.hint === "limitHint" && !rosterA.unvalued, { limit: rosterA.limit, noteOk: rosterA.noteOk, hint: rosterA.hint, unvalued: rosterA.unvalued });
     if (limitSource === "book" || limitSource === "invented") {
       note("the limit layer off", await run(gm, P.overrideLimit, { on: false }));
       const rosterX = await run(gm, P.roster, { actorId: A.id });
       note("roster A, no base", rosterX);
-      check("changed: with no imported base, A's roster shows no limit (count / —) and its tooltip asks for the Rules tables", rosterX.rendered && /^1 \/ —$/.test(rosterX.limit) && rosterX.gap === "import" && rosterX.hint === "limitNotImported", { limit: rosterX.limit, gap: rosterX.gap, hint: rosterX.hint });
+      check("changed: with no imported base, A's roster shows no limit (count / —) and its tooltip asks for the Rules tables", rosterX.rendered && /^1 \/ —$/.test(rosterX.limit) && rosterX.noteOk && rosterX.gap === "import" && rosterX.hint === "limitNotImported", { limit: rosterX.limit, noteOk: rosterX.noteOk, gap: rosterX.gap, hint: rosterX.hint });
       note("the limit layer back on", await run(gm, P.overrideLimit, { on: true }));
     }
     const rosterB = await run(gm, P.roster, { actorId: B.id, keep: true, place: true });

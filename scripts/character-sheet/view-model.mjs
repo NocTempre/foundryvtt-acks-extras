@@ -109,15 +109,17 @@ export function lightCell({ lit = null, ambient = null, sense = null, blinded = 
 
 /**
  * Which tabs exist and what each badges. Magic appears for a caster only,
- * Trade for a trader;
+ * Trade for a trader, Service for a hireling in service;
  * a count sits on Followers and Effects (how many is the reason to open
- * them); a gold pending badge on Abilities and Class is a choice waiting;
+ * them), and on Service while a calamity's loyalty throw is owed; a gold
+ * pending badge on Abilities and Class is a choice waiting;
  * Class goes gold (`dyn`) while the XP bar is full.
  */
-export function tabList({ caster = false, trader = false, pending = 0, followers = 0, timers = 0, full = false, hasClass = false, unansweredPaths = 0 }) {
-  return TAB_ORDER.filter((k) => (k !== "magic" || caster) && (k !== "trade" || trader)).map((key) => {
+export function tabList({ caster = false, trader = false, retainer = false, calamity = 0, pending = 0, followers = 0, timers = 0, full = false, hasClass = false, unansweredPaths = 0 }) {
+  return TAB_ORDER.filter((k) => (k !== "magic" || caster) && (k !== "trade" || trader) && (k !== "service" || retainer)).map((key) => {
     const tab = { key };
     if (key === "abilities" && pending > 0) tab.p = pending;
+    if (key === "service" && calamity > 0) tab.n = calamity;
     if (key === "class") {
       if (full && hasClass) tab.dyn = true;
       if (unansweredPaths > 0) tab.p = unansweredPaths;
@@ -184,6 +186,8 @@ export function buildFrameModel(snap, viewer = {}) {
   const tabs = tabList({
     caster: !!snap.caster,
     trader: !!snap.trader,
+    retainer: !!snap.retainer,
+    calamity: num(snap.pendingCalamity),
     pending: num(snap.pending),
     followers: num(snap.followers),
     timers: num(snap.timers),

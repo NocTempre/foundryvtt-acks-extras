@@ -32,6 +32,10 @@ import { SAVE_KEYS, saveCells, hpCell, num, sheetFlag } from "../lib/frame-model
 import { statblockColumns, rollRows, hdRating, bodyFormIcon, moveReading, sensesReading, feet } from "./statblock.mjs";
 import { openHpTool } from "../lib/apps/hp-app.mjs";
 import { makeLoc } from "../lib/util.mjs";
+import { FLAG_RECORD } from "../henchmen/constants.mjs";
+import { buildServicePanel } from "../henchmen/service-view.mjs";
+import { openLoyaltyRoll, openObedienceRoll, payWagesFor, setPermanentCompensated } from "../henchmen/engine/events.mjs";
+import { getManager } from "../henchmen/acks-adapter.mjs";
 
 const T = `modules/${MODULE_ID}/templates/monsters`;
 const loc = makeLoc("ACKS-MONSTERS");
@@ -190,6 +194,11 @@ export function createFullMonsterSheet(Base) {
         senseMenu: FullMonsterSheet.#onSenseMenu,
         groupSelect: FullMonsterSheet.#onGroupSelect,
         employer: FullMonsterSheet.#onEmployer,
+        serviceThrow: FullMonsterSheet.#onServiceThrow,
+        serviceObedience: FullMonsterSheet.#onServiceObedience,
+        serviceEmployer: FullMonsterSheet.#onEmployer,
+        servicePay: FullMonsterSheet.#onServicePay,
+        toggleCompensated: FullMonsterSheet.#onToggleCompensated,
         editDescription: FullMonsterSheet.#onEditDescription,
         changeArt: FullMonsterSheet.#onChangeArt,
         editTags: FullMonsterSheet.#onEditTags,
@@ -199,7 +208,7 @@ export function createFullMonsterSheet(Base) {
     };
 
     /** Actions a read-only seat keeps: the frame's, the rolls and the menus, and what only opens or shows. */
-    static VIEW_ACTIONS = new Set([...FRAME_VIEW_ACTIONS, "roll", "moveMenu", "senseMenu", "groupSelect", "employer", "source", "itemShow", "toggleSummary"]);
+    static VIEW_ACTIONS = new Set([...FRAME_VIEW_ACTIONS, "roll", "moveMenu", "senseMenu", "groupSelect", "employer", "serviceEmployer", "source", "itemShow", "toggleSummary"]);
 
     /** The folded card is narrower than a character's: the rails and the portrait alone. */
     static FRAME_WIDTHS = Object.freeze({ open: 900, folded: 348 });
@@ -367,6 +376,7 @@ export function createFullMonsterSheet(Base) {
       };
 
       const employer = snap.employer;
+      const pendingCalamity = !!employer && !!actor.getFlag(MODULE_ID, FLAG_RECORD)?.special?.pendingCalamity;
       return Object.assign(context, {
         editable,
         folded,
@@ -385,7 +395,14 @@ export function createFullMonsterSheet(Base) {
           editable,
           folded,
           chips: employer
-            ? [{ action: "goTab", attrs: attr({ tab: "henchman" }), icon: "fa-solid fa-handshake", label: employer.name, title: loc("frame.inServiceTitle") }]
+            ? [{
+                action: "goTab",
+                attrs: attr({ tab: "henchman" }),
+                icon: "fa-solid fa-handshake",
+                label: employer.name,
+                title: loc(pendingCalamity ? "frame.inServicePending" : "frame.inServiceTitle"),
+                dot: pendingCalamity,
+              }]
             : [],
           bar: null,
           reading: { label: loc("frame.xpAward", { xp: num(actor.system?.details?.xp) }), title: loc("frame.xpTitle") },
@@ -394,6 +411,7 @@ export function createFullMonsterSheet(Base) {
         tabsLabel: loc("frame.tabsLabel"),
         art,
         statblock: { columns: statblock.columns, intro: loc("statblock.intro") },
+        service: buildServicePanel(actor, { isGM: game.user.isGM, pins: sheetFlag(actor).pins ?? [] }),
         pins: this.#pinBar(statblock.columns),
         sheetTools: TOOLS.filter((t) => !t.imported || this.#oseRecord).map((t) => ({ key: t.key, icon: t.icon, title: loc(`frame.tools.${t.title ?? t.key}`) })),
       });
@@ -761,6 +779,30 @@ export function createFullMonsterSheet(Base) {
       const id = this.actor.system?.retainer?.managerid;
       const manager = id ? game.actors.get(id) : null;
       manager?.sheet?.render(true);
+    }
+
+    /* Service — this monster as a hireling; the engine's own seat checks apply. */
+
+    /** The Judge opens the owed loyalty throw; the engine's roll clears the pending mark. */
+    static #onServiceThrow() {
+      if (!game.user.isGM) return;
+      openLoyaltyRoll(this.actor, { reason: game.i18n.localize("ACKS-HENCHMEN.event.calamity") });
+    }
+
+    static #onServiceObedience() {
+      if (!game.user.isGM) return;
+      openObedienceRoll(this.actor);
+    }
+
+    /** Pay wages pays the EMPLOYER's roster: the engine decides which seat may. */
+    static async #onServicePay() {
+      const employer = getManager(this.actor);
+      if (employer) await payWagesFor(employer);
+    }
+
+    static async #onToggleCompensated(event, target) {
+      const { track, index, compensated } = target.dataset;
+      await setPermanentCompensated(this.actor, { track, index: Number(index), compensated: compensated !== "true" });
     }
 
     static #onEditDescription() {

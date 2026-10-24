@@ -36,4 +36,10 @@
       </div>
     </fieldset>
 
+    {{!-- The record read from the hireling's side: the henchmen feature's
+          panel, the same one the character sheet's Service tab draws. --}}
+    {{#if system.retainer.enabled}}
+    {{> "modules/acks-extras/templates/henchmen/service-panel.hbs"}}
+    {{/if}}
+
   </div>

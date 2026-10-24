@@ -998,6 +998,70 @@ a.acks-extras-frame__gear-name:hover {
   background: var(--acks-gold-tint);
 }
 
+/* Tones a chip can carry: a warning (something is owed) and the alarm (coin due). */
+.acks-extras-frame__chip.is-warn {
+  border-color: var(--acks-warning);
+  color: var(--acks-warning-ink);
+}
+
+.acks-extras-frame__chip.is-neg {
+  border-color: var(--acks-danger);
+  color: var(--acks-danger-ink);
+}
+
+/* The red dot after a chip's label: a throw owed on the chip's subject. */
+.acks-extras-frame__dot {
+  display: inline-block;
+  width: calc(6px * var(--acks-extras-k));
+  height: calc(6px * var(--acks-extras-k));
+  margin-inline-start: calc(2px * var(--acks-extras-k));
+  border-radius: 50%;
+  background: var(--acks-danger);
+}
+
+/* Row and rule modifiers the record surfaces share: a suspended entry, a
+   plain-weight label, a value in the alarm or faint ink, a soft rule title,
+   a rule note in the alarm ink, a bar whose clock has not started, and the
+   blank square that holds a pin's place on a row that cannot be pinned. */
+.acks-extras-frame__row.is-off > :not(.acks-extras-frame__ctl) {
+  opacity: 0.55;
+  text-decoration: line-through;
+}
+
+.acks-extras-frame__row-label.is-plain {
+  font-weight: var(--acks-weight-body);
+}
+
+.acks-extras-frame__row-value.is-neg,
+.acks-extras-frame__rule-note.is-neg,
+.acks-extras-frame__row-line.is-neg {
+  color: var(--acks-danger-ink);
+  font-weight: var(--acks-weight-medium);
+}
+
+.acks-extras-frame__row-value.is-faint {
+  color: var(--acks-ink-faint);
+  font-weight: var(--acks-weight-body);
+}
+
+.acks-extras-frame__rule-title.is-soft {
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-frame__bar.is-unset {
+  border-block-end-style: dashed;
+  opacity: 0.6;
+}
+
+.acks-extras-frame__pin.is-blank {
+  border-color: transparent;
+  cursor: default;
+}
+
+.acks-extras-frame__ctl.is-faint {
+  color: var(--acks-ink-faint);
+}
+
 .acks-extras-frame__badge {
   display: inline-flex;
   align-items: baseline;

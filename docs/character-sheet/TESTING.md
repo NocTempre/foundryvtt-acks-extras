@@ -201,6 +201,12 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    Back on the band, press the XP bar and drag: the WINDOW moves, as from
    the title bar; `system.details.xp.value` is unchanged and no tab opens.
    The class glyph before the name still opens the Class tab.
+7a. Service tab, on the hireling fixture. *Observable:* the strip holds
+   Service between Trade and Followers and the band's chip names the
+   employer; the employer's own sheet holds no Service tab. The panel's
+   contents, the owed-calamity badge and dot, and the seat gates are walked
+   in docs/henchmen/TESTING.md, step 1a; here, press the Loyalty row: the
+   loyalty throw posts, as from Rolls; star it: the folded bar carries it.
 8. Followers tab. *Observable:* the hireling's Follower Card renders with the
    four controls; Roster opens the roster app. With a waged hireling and
    nothing due the rule reads what the payroll costs a month and the days

@@ -76,6 +76,8 @@ Hooks.once("init", () => {
       `${T}/posting-dialog.hbs`,
       `${T}/throw-dialog.hbs`,
       `${T}/roster-app.hbs`,
+      // A partial, included by the character and monster sheets' Service tabs.
+      `${T}/service-panel.hbs`,
       `${T}/chat/throw-card.hbs`,
       `${T}/chat/reveal-card.hbs`,
       `${T}/chat/event-card.hbs`,

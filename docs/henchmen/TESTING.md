@@ -105,9 +105,36 @@ a step it does not name is walked by hand.
 ## Steps
 
 1. `openRosterApp(employer)`.
-   *Observable:* `RosterApp` renders, showing the henchman count against the
-   CHA limit and a wage total — and the count is the employer's real one, not
-   a placeholder.
+   *Observable:* `RosterApp` renders on the lib frame: the band sits in the
+   window header naming the employer, the limit rule reads the employer's real
+   henchman count against the CHA limit with a thin bar under it, the wage
+   rule reads the month's cost, and the four filter pills carry the bucket
+   counts. Press a filter: the rows narrow and the pill goes `is-on`. Press a
+   row's name (`[data-action="toggleRow"]`): `aria-expanded` flips, the row
+   gains `is-open` and shows the wage clock, the record, the events and the
+   ledger; a second press closes it. Drag a disposable `character` in no
+   one's service from the directory onto `[data-roster-drop]`: it is enrolled
+   (`enrollHenchman`) and its row appears; drop a hireling already placed and
+   the notice refuses it with nothing written. Shrink the window to about
+   500 px wide: the body scrolls and no control is clipped.
+1a. The Service tab, on the hire's own sheet. Open the hireling's character
+   sheet. *Observable:* the strip holds **Service** between Trade and
+   Followers (none on a character out of service), and the band carries the
+   in-service chip naming the employer; a click on either reaches the tab.
+   Standing reads the loyalty with its parts and the morale, each a roll row
+   whose press throws and whose pin stars it for the folded bar; Terms reads
+   the wage, the share as a word (`½` for the default fractions), the clock;
+   Employer names the employer and opens them. `recordCalamity(actor, …)`
+   with the throw left owing: the warning row leads the panel, the tab reads
+   a count of 1, the chip carries the dot, and the GM seat's **Throw now**
+   opens the loyalty roll; the Player seat owning the hireling sees the row
+   and no button. Toggle a ledger entry's compensation from the GM seat: the
+   row strikes through and the loyalty total moves by its delta; the Player
+   seat sees no toggle. Repeat on a monster serving through
+   `system.retainer.managerid`: its Service tab holds the two core fields,
+   the manager picker and the same panel under them; a mercenary's Standing
+   holds no loyalty row, a hint saying why, and the morale throw alone, and
+   its roster row reads a dash for loyalty.
 2. `openThrowDialog("hirelingLoyalty", {actor: employer})`, then press its own
    **Roll** button.
    *Observable:* the dialog itemises base throw, loyalty score, level
@@ -419,7 +446,8 @@ a step it does not name is walked by hand.
       the page. `employerLoyaltyMods(A).baseLoyaltyBonus` is Blood of Kings'
       `baseLoyalty` value. No `[data-unvalued]` note shows.
     - **A's roster with the base unregistered:** it reads `1 / —`,
-      `adapter.retainGap(A)` is `"import"`, and the `.limit-meter` tooltip is
+      `adapter.retainGap(A)` is `"import"`, and the limit note's tooltip (the
+      `.acks-extras-frame__rule-note` on the limit rule) is
       `ACKS-HENCHMEN.roster.limitNotImported`. Register the base again.
     - **Employer A's hiring dialog:** Diplomacy (its tone), Beast Friendship
       (`animal`) and Command of Voice (unaudited) are unticked.

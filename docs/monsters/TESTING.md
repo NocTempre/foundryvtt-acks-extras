@@ -86,10 +86,11 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    pick changes the cell's reading. Click the eye: the senses menu lists the
    vision kinds and the other senses with their ranges. Place two tokens of
    the monster on the scene: the group cell reads ×2 and a click selects
-   both. Set `system.retainer.managerid` to a character (the Henchman tab's
+   both. Set `system.retainer.managerid` to a character (the Service tab's
    **Serve as henchman of…**): the band gains the employer chip, the group
-   cell becomes the handshake and opens the employer, and Statblock gains
-   the Loyalty row.
+   cell becomes the handshake and opens the employer, Statblock gains
+   the Loyalty row, and Service gains the record panel under the manager
+   picker (walked in docs/henchmen/TESTING.md, step 1a).
 4c. **The tools rail.** The pen turns the appearance into an editor on the
    art row; save a paragraph and `extras.description.appearance` holds it,
    and the Description tab shows no appearance editor. The tags tool prompts
