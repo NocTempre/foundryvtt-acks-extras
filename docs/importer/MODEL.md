@@ -191,13 +191,17 @@ What every mode does with a plan:
   axis from wall end to wall end, at whatever angle the box is drawn. Two
   boxes end to end a bar apart are one split box, two leaves meeting at the
   bar. The digest counts both kinds (`boxes`), the stroke paths kept
-  (`paths`), and the corner tines pruned (`spurs`). A door dropped by its
-  point leaves its box cut, so the opening stands open.
+  (`paths`), and the corner tines pruned (`spurs`). A short path that runs
+  along a box's axis into its end is the wall the door hangs in and is never
+  pruned, so the door meets a wall at both ends. A door dropped by its point
+  leaves its box cut, so the opening stands open.
 - **A line is laid last.** A door or secret line replaces every traced door
   whose middle lies within half a cell of it (`doorsReplaced` in the
   digest), and in `contour` closes against the outline like a traced door.
-  Every line then stands as the kind it asserts; `invisible` in the digest
-  counts the invisible ones.
+  A line of any kind replaces a traced door lying along it, both its ends
+  within 0.15 of a cell of the line, so a box that is no door (a window) is
+  restated by one line. Every line then stands as the kind it asserts;
+  `invisible` in the digest counts the invisible ones.
 
 The map step traces after the picture is uploaded and before the one create.
 `traceSceneWalls` (`module.mjs`) renders the crop of the seat's page to gray

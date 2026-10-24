@@ -7399,3 +7399,48 @@ entry's other rulings stand.
   wide. A wider one splits the box, and the halves need not stand as doors.
 - A window drawn as a gap in the wall reads as an opening. The plate's
   review sheet shows both, and a line corrects either.
+
+## 2026-10-24 — A line restates a traced door lying along it
+
+Amends today's "A stroke plan draws its walls dark, and its doors as boxes".
+The new evidence is AX1 p.23's plan. It draws a window as a light box across a
+wall, the shape of a door, and the tracer stood its two panes as a split door.
+Correcting that took a point drop and a wall line over the same box: two
+corrections for one fact, against plate caps of 8 and 9.
+
+*Ruled:* a line of any kind replaces a traced door whose two ends both lie
+within 0.15 of a cell of it. A door or secret line keeps its wider reach, a
+door whose middle lies within half a cell. A line half a cell beside a door
+leaves it.
+
+*Rejected:* **teaching the box reader a window from a door.** The plates draw
+both as a light box across a wall, and a rule for one plate's panes buys
+nothing that a line does not.
+
+*Cost:* a line laid along a wall where a real door stands replaces that door,
+so the recipe states the door as a line of its own.
+
+## 2026-10-24 — The wall a door hangs in is never a tine
+
+Amends today's "A stroke plan draws its walls dark, and its doors as boxes".
+The new evidence is a door-end census of AX1's six stroke plates. Twelve door
+ends touched no wall: 2 on p.21, 2 on p.23, 1 on p.15 and 7 on p.11. Each
+had a gap of 16 to 25 pixels at 50 to the cell, and both tokens and sight
+pass through a gap that size. Each was a box set a short way from a junction.
+The stretch of wall between the box and the junction thinned to a dead end
+no longer than the band is wide, so it was pruned as a corner tine. Its
+junction lay beyond the door's third-of-a-cell reach.
+
+*Ruled:* a path is never a tine when its free end lies at a box's end, within
+a third of a cell beyond it and inside the box's half width, and it runs
+along the box's axis. The reach stays as it was.
+
+*Rejected:*
+- **A longer reach.** The door would run past its box to the junction, and
+  opening it would open the wall.
+- **Joining a loose door end to the nearest wall afterwards.** The nearest
+  wall need not be the one the door hangs in.
+
+*Cost:* one door end on p.11 is still loose. It stops at a bar near the end
+of its box, and the short piece past the bar is not read as part of the box.
+That plate states the door as a line.

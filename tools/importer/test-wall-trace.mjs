@@ -510,6 +510,27 @@ check("grid: a door asserted open is gone", opened.digest.doors, 0);
   check("stroke: a door dropped by its point leaves its opening open", [unhung.digest.doorsDropped, unhung.digest.doors, crosses(unhung.walls, [6.5, 10])], [1, 2, false]);
   const hidden = traceWalls(doorway, recipeOf({ ...rec, corrections: [{ cell: [6, 10], is: "secret" }] }), scale);
   check("stroke: a cell names the kind of the drawn door in it", [hidden.digest.secret, hidden.digest.doors, hidden.digest.unplaced], [1, 2, 0]);
+  const along = (y) => [crop.x + 6 * CELL, crop.y + y * CELL, crop.x + 7 * CELL, crop.y + y * CELL];
+  const restated = traceWalls(doorway, recipeOf({ ...rec, corrections: [{ line: along(10), is: "wall" }] }), scale);
+  check("stroke: a wall line along a drawn door replaces it", [restated.digest.doorsReplaced, restated.digest.doors], [1, 2]);
+  const beside = traceWalls(doorway, recipeOf({ ...rec, corrections: [{ line: along(10.5), is: "wall" }] }), scale);
+  check("stroke: a wall line half a cell off a drawn door leaves it", [beside.digest.doorsReplaced, beside.digest.doors], [0, 3]);
+
+  // A thick wall down from the top to the bottom wall, its box a short reach
+  // short of the junction: the stretch between them is wall, not a tine.
+  const tee = drawHouse();
+  tee.rect(8 * P - 10, 3 * P, 8 * P + 10, 10 * P, 40);
+  tee.rect(8 * P - 14, 8.7 * P - 2, 8 * P + 14, 9.5 * P + 2, 40);
+  tee.rect(8 * P - 12, 8.7 * P, 8 * P + 12, 9.5 * P, 235);
+  const teed = traceWalls(tee, recipeOf(rec), scale);
+  const toSeg = (x, y, [ax, ay, bx, by]) => {
+    const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy;
+    const k = l2 ? Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / l2)) : 0;
+    return Math.hypot(x - (ax + k * dx), y - (ay + k * dy));
+  };
+  const gapOf = ([x, y], self) => Math.min(...teed.walls.filter((s) => s !== self).map((s) => toSeg(x, y, s.c)));
+  const loose = teed.walls.filter((s) => s.door).flatMap((s) => [[s.c[0], s.c[1]], [s.c[2], s.c[3]]].map((p) => gapOf(p, s)));
+  ok("stroke: a door short of a junction meets the wall at both ends", teed.digest.doors === 1 && loose.every((g) => g < 0.02 * CELL), JSON.stringify(loose.map((g) => +(g / CELL).toFixed(3))));
 }
 
 /* ---------------- refusals ---------------- */

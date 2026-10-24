@@ -510,14 +510,18 @@ function correctSegments(walls, L, corr) {
 /**
  * A mode's walls with its line corrections laid over them, last of all. A
  * door or secret line replaces every traced door whose middle lies within half
- * a cell of it, and closes against `outline` when the mode gives one; every
- * line then stands as the segment it asserts.
+ * a cell of it, and closes against `outline` when the mode gives one; a line of
+ * any kind replaces a traced door lying along it, both ends within a few
+ * pixels of the line, so a box that is not a door is restated by one line.
+ * Every line then stands as the segment it asserts.
  * @returns {{walls: object[], replaced: number}} `replaced` counts the traced doors a line replaced
  */
 function applyLines(walls, L, lines, outline) {
   const doors = lines.filter((l) => l.door);
   const near = (s) => doors.some((l) => pointToSegment((s.c[0] + s.c[2]) / 2, (s.c[1] + s.c[3]) / 2, l.c) <= 0.5 * L.pitch);
-  const kept = walls.filter((s) => !(s.door && near(s)));
+  const tol = 0.15 * L.pitch;
+  const along = (s) => lines.some((l) => pointToSegment(s.c[0], s.c[1], l.c) <= tol && pointToSegment(s.c[2], s.c[3], l.c) <= tol);
+  const kept = walls.filter((s) => !(s.door && (near(s) || along(s))));
   const drawn = lines.map((l) => (l.door && outline ? closeDoor(l, outline, 0.25 * L.pitch, 0.02 * L.pitch) : l));
   return { walls: [...kept, ...drawn], replaced: walls.length - kept.length };
 }
@@ -1518,6 +1522,18 @@ function traceStroke(gray, w, h, threshold, L, corr) {
   // A band's end thins to a fork whose tines run to its corners, no longer
   // than the band is wide; such a tine is pruned, so the band ends in one
   // point. A short path with no node at either end is a mark, not a wall.
+  // A path that runs along a drawn door's axis into the door's end is the wall
+  // the door hangs in, however short, and is never a tine.
+  const boxEnds = doorBoxes.flatMap((b) => [-1, 1].map((s) => ({ x: b.c[0] + b.u[0] * s * b.hl, y: b.c[1] + b.u[1] * s * b.hl, ux: b.u[0] * s, uy: b.u[1] * s, hw: b.hw })));
+  const intoDoor = (free, root) => {
+    const f = nodes[free], r = nodes[root];
+    const len = Math.hypot(f.x - r.x, f.y - r.y) || 1;
+    return boxEnds.some((e) => {
+      const ax = f.x - e.x, ay = f.y - e.y;
+      const along = ax * e.ux + ay * e.uy, across = Math.abs(-ax * e.uy + ay * e.ux);
+      return along >= -0.05 * pitch && along <= 0.33 * pitch && across <= e.hw && -((f.x - r.x) * e.ux + (f.y - r.y) * e.uy) / len >= 0.9;
+    });
+  };
   const ends = new Int32Array(nodes.length);
   const live = paths.map((p) => {
     const len = polyLength(p.pts);
@@ -1530,8 +1546,8 @@ function traceStroke(gray, w, h, threshold, L, corr) {
     for (const p of live) {
       if (!p.alive || p.closed) continue;
       const freeA = ends[p.a] === 1, freeB = ends[p.b] === 1;
-      const tine = (freeA && ends[p.b] >= 3 && p.len <= 1.5 * nodeDepth(p.b) + 0.1 * pitch)
-        || (freeB && ends[p.a] >= 3 && p.len <= 1.5 * nodeDepth(p.a) + 0.1 * pitch);
+      const tine = (freeA && ends[p.b] >= 3 && p.len <= 1.5 * nodeDepth(p.b) + 0.1 * pitch && !intoDoor(p.a, p.b))
+        || (freeB && ends[p.a] >= 3 && p.len <= 1.5 * nodeDepth(p.a) + 0.1 * pitch && !intoDoor(p.b, p.a));
       const mark = freeA && freeB && p.len < 0.25 * pitch;
       if (!tine && !mark) continue;
       p.alive = false;
