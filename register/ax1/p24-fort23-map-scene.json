@@ -1,0 +1,36 @@
+[
+  {
+    "id": "ax1.fort23Map",
+    "kind": "kind.scene",
+    "book": "ax1",
+    "name": "Fort 23 Map",
+    "pages": [24],
+    "scene": {
+      "note": "Page points, top-left origin: the crop is the plan in its frame; the grid block is one drawn square; the distance is that square against the building's printed size (area 23). Walls trace the dark strokes; a drawn box is a door. Lines: the outer wall where slits break it, restating the top's window boxes; the corner door at the foot; the hall wall by its side room, closed above that room's door.",
+      "crop": { "x": 326, "y": 78, "w": 215.5, "h": 332 },
+      "grid": {
+        "family": "square",
+        "box": { "w": 17.9959, "h": 18.0018 },
+        "centre": [438.882, 224.974],
+        "distance": 5,
+        "units": "ft",
+        "pixels": 70
+      },
+      "walls": {
+        "mode": "stroke",
+        "threshold": 80,
+        "corrections": [
+          { "line": [457.37, 89.52, 537.27, 89.52], "is": "invisible" },
+          { "line": [537.27, 89.52, 537.27, 198.57], "is": "invisible" },
+          { "line": [537.27, 198.57, 502, 198.57], "is": "invisible" },
+          { "line": [502, 198.57, 502, 395.81], "is": "invisible" },
+          { "line": [502, 395.81, 389.71, 395.81], "is": "wall" },
+          { "line": [389.71, 395.81, 379.27, 395.81], "is": "door" },
+          { "line": [374.95, 395.81, 374.95, 198.57], "is": "invisible" },
+          { "line": [411.48, 221.25, 411.48, 238.88], "is": "wall" },
+          { "line": [411.48, 238.88, 411.48, 251.84], "is": "door" }
+        ]
+      }
+    }
+  }
+]
