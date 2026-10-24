@@ -49,20 +49,55 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    speed, morale, loyalty, attacks and damage.
 2. Press **Full sheet** on the card.
    *Observable:* `FullMonsterSheet` opens beside the card (both instances
-   live), showing alignment, D.E./W.E., morale, XP award, HP/HD, AC, throw,
-   MV, I.B. and S.O.
+   live) on the lib's frame: the band in the window header (the body-form
+   glyph, the HD rating, the name, the XP award reading), the two rails
+   around the portrait, the tab strip opening on **Statblock**. The
+   `.window-header` holds `.acks-extras-frame__band`; the body root is the
+   one `scrollable` part. Resize the window below its content: the body
+   scrolls and the tab strip stays reachable.
 3. Open the `acks-extras.animal`.
    *Observable:* `FullMonsterSheet` directly, with no card in between.
-4. Fill the extras: types, size, body form, HD, save-as, speeds, vision.
-   *Observable:* each round-trips through `getExtras`, and the derived lines
-   on the sheet (save row, encounter numbers) change with them rather than
-   staying at their defaults. Set Hit Dice to 3, HD Bonus to 1: the header's
-   HD field reads `3d8+1` and `system.hp.hd` holds it; the follower card
-   reads 3 HD. Type `2d6` into the header's HD field, then change an
-   unrelated extras field: `2d6` survives. Click the dice button on the
-   Rating & Saves legend: `system.hp.value` and `.max` are set from a roll
-   of the formula. (A blank rating still rolls: core's schema never leaves
-   `system.hp.hd` empty, so there is no warning branch to reach.)
+4. Fill the extras on **Classification**: types (the pills), size, body form,
+   HD, save-as, speeds, vision.
+   *Observable:* each round-trips through `getExtras`, and the frame reads
+   them: the band's glyph and rating, the rails' save targets, the Statblock
+   rows and the art row's overline and tags change with them rather than
+   staying at their defaults. Set Hit Dice to 3, HD Bonus to 1: the Roll
+   formula field reads `3d8+1` and `system.hp.hd` holds it; the follower card
+   reads 3 HD. Type `2d6` into the Roll formula field, then change an
+   unrelated extras field: `2d6` survives. Press the **Roll HP** chip on the
+   Rating rule: `system.hp.value` and `.max` are set from a roll of the
+   formula, and the heart on the right rail fills to the fraction. (A blank
+   rating still rolls: core's schema never leaves `system.hp.hd` empty, so
+   there is no warning branch to reach.) Type an armour class, an attack
+   throw and a morale under **Figures**: the shield and the fist on the
+   rail and the Statblock's attack and morale rows read them.
+4a. **Statblock.** Click a save row: the system's save roll posts to chat.
+   Click the reaction, morale, initiative and surprise rows: each posts.
+   Add a weapon item on Attacks and click its row on Statblock: the item's
+   use dialog (or its roll, with the skip key) fires, and the row shows the
+   damage and the counter. Add an ability item with a roll target and one
+   without: the first rolls, the second posts its card (the eye). Press a
+   row's pin, then the fold chevron: the folded card shows the pinned row as
+   a chip that rolls, and `actor.flags.acks-extras.sheet.pins` holds its id;
+   unfold and unpin. Link a RollTable by dropping it on the sheet and click
+   the Treasure row: the table draws.
+4b. **The rails.** Click the map cell: a menu lists every speed row and the
+   pick changes the cell's reading. Click the eye: the senses menu lists the
+   vision kinds and the other senses with their ranges. Place two tokens of
+   the monster on the scene: the group cell reads ×2 and a click selects
+   both. Set `system.retainer.managerid` to a character (the Henchman tab's
+   **Serve as henchman of…**): the band gains the employer chip, the group
+   cell becomes the handshake and opens the employer, and Statblock gains
+   the Loyalty row.
+4c. **The tools rail.** The pen turns the appearance into an editor on the
+   art row; save a paragraph and `extras.description.appearance` holds it,
+   and the Description tab shows no appearance editor. The tags tool prompts
+   for alignment and XP award and writes both. On an imported creature the
+   book tool opens the Source dialog with the printed block and its tables;
+   a hand-built monster shows no book tool. Join as a player with observer
+   permission on the monster: the rolls, the menus and the fold work and
+   every field is disabled.
 5. Defenses: declare an immunity and a susceptibility, including the
    `mundane` / `extraordinary` / `silverFlaw` switches.
    *Observable:* they appear on the sheet as stated defenses, and damage
@@ -88,11 +123,12 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    either way, and `actor.apps` is keyed by that shared id, so neither counts
    instances.
 10. Description tab: create the monster with several paragraphs in
-    `flags["acks-extras"].extras.description.appearance` — the sheet reads
+    `flags["acks-extras"].extras.description.combat` — the sheet reads
     `extras.description`, and a bare `flags["acks-extras"].description`
     renders nothing. `flags.core.sheetClass: "acks-extras.FullMonsterSheet"`
     at create opens the full sheet without the card. Open the Description tab
-    and press the Appearance editor's toggle.
+    and press the Combat editor's toggle (the appearance is the art row's,
+    step 4c).
     *Observable:* the open editor's `.editor-content` starts at or below the
     `menu`'s bottom edge. For a section shorter than 40vh its `clientHeight`
     equals its `scrollHeight` — all of the text in view, not one line under
@@ -129,8 +165,8 @@ negative half.
 3. `setFlag("acks-extras", "cookbook", …)` and re-render: the legend gains
    the `.acksm-cat-tag` badge.
 4. Build `FullMonsterSheet` on the plain monster (see above). It must show
-   neither `[data-tab="animal"]` nor any `[name^="system.animal"]` — the part
-   gate, not just the nav gate.
+   neither `[data-tab="animal"]` nor any `[name^="system.animal"]` — the
+   body renders a panel only for a tab the strip holds.
 5. Scan the section's text for `/ACKS-[A-Z-]+\.[a-zA-Z.]+/` — any match is a
    missing lang key.
 

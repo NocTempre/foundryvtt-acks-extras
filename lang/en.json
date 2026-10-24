@@ -806,6 +806,15 @@
   "ACKS-LIB.followerCard.newAttack": "New Attack",
   "ACKS-LIB.followerCard.newSkill": "New Skill",
   "ACKS-LIB.followerCard.targetHint": "target {n}+",
+  "ACKS-LIB.frame.fold.open": "Folded — click to open the sheet",
+  "ACKS-LIB.frame.fold.close": "Open — click to fold to the table card",
+  "ACKS-LIB.frame.fold.noPins": "Star a roll, a timer or a count to keep it here.",
+  "ACKS-LIB.frame.roll": "Roll",
+  "ACKS-LIB.frame.post": "Post its card to chat",
+  "ACKS-LIB.frame.pin": "Pin to the folded card",
+  "ACKS-LIB.frame.unpin": "Unpin from the folded card",
+  "ACKS-LIB.frame.rollFailed": "That roll could not be made.",
+  "ACKS-LIB.frame.rollUnknown": "Nothing on the sheet answers to that roll.",
   "ACKS-LIB.repair.title": "Repair This World",
   "ACKS-LIB.repair.menuName": "Repair this world",
   "ACKS-LIB.repair.menuLabel": "Open the repair tool",
@@ -5186,6 +5195,7 @@
       "openFull": "Open Full Monster Sheet"
     },
     "tab": {
+      "statblock": "Statblock",
       "classification": "Classification",
       "attacks": "Attacks",
       "abilities": "Abilities",
@@ -5275,7 +5285,8 @@
       "sourceGaps": "What was left alone",
       "sourceUnread": "Not recognised",
       "sourceNotes": "To do by hand",
-      "animalRole": "Role & Training"
+      "animalRole": "Role & Training",
+      "figures": "Figures"
     },
     "field": {
       "types": "Type(s)",
@@ -5355,7 +5366,8 @@
       "sourceRule": "Cited",
       "sourceReason": "Why",
       "animalTraining": "Trained for",
-      "animalMountable": "Mountable"
+      "animalMountable": "Mountable",
+      "hdFormula": "Roll formula"
     },
     "desc": {
       "appearance": "Appearance",
@@ -5369,7 +5381,11 @@
     "action": {
       "generateSavesHint": "Generate the five saving throws from Hit Dice.",
       "rollHitPointsHint": "Roll hit points from the Hit Dice rating; sets current and maximum.",
-      "addSpoil": "Add spoil / item"
+      "addSpoil": "Add spoil / item",
+      "generateSaves": "Generate saves",
+      "rollHitPoints": "Roll HP",
+      "addSense": "Add a sense",
+      "addSpeed": "Add a speed"
     },
     "empty": {
       "attacks": "No attacks yet — add weapon items.",
@@ -5399,7 +5415,10 @@
       "variants": "Link related stat lines (juveniles, babies, leaders) by pasting each actor's UUID.",
       "henchman": "A monster can serve as a henchman: these reuse the system's retainer fields.",
       "retainerHeader": "Loyalty and Wage are shown in the sheet header while this monster is a retainer.",
-      "henchmanSummary": "Read-only combat data a hireling contributes."
+      "henchmanSummary": "Read-only combat data a hireling contributes.",
+      "attributes": "blank reads as 9",
+      "figures": "the band and the rails read these",
+      "speeds": "combat / run, in feet"
     },
     "item": {
       "section": "ACKS Monster",
@@ -5431,6 +5450,110 @@
       "imported": "imported",
       "roleHint": "Two separate questions: what this animal was schooled for, and whether its kind can carry a rider at all.",
       "loadHint": "What it carries is set on the Classification tab and drawn on Inventory."
+    },
+    "frame": {
+      "glyphTitle": "{form} — open Classification",
+      "noForm": "No body form set",
+      "hd": "HD {hd}",
+      "hdTitle": "Hit Dice rating — set on Classification",
+      "inServiceTitle": "In service — open the Henchman tab",
+      "xpAward": "{xp} XP",
+      "xpTitle": "Experience award",
+      "tabsLabel": "Monster sheet tabs",
+      "art": {
+        "size": "{size}",
+        "lair": "Lair {n}%",
+        "treasure": "Treasure {type}",
+        "savesAs": "Saves as {cls} {level}"
+      },
+      "tools": {
+        "editDescription": "Edit the appearance",
+        "changeArt": "Change the portrait",
+        "editTags": "Alignment and experience award",
+        "ownership": "Ownership",
+        "source": "Where this creature was imported from",
+        "tweaks": "Actor tweaks"
+      },
+      "rail": {
+        "reaction": "Reaction roll",
+        "save": "{name} save, {target}+ — roll",
+        "hp": "{value} / {max} hit points — open the hit-point window",
+        "hpTab": "{value} / {max} hit points — set on Classification",
+        "hpZero": "No hit points left",
+        "ac": "Armour class {n}",
+        "move": "{mode}: {value} — pick the speed shown",
+        "moveNone": "No speeds recorded",
+        "attack": "Attack throw {n}+ — roll",
+        "senses": "Senses: {what}",
+        "sensesNone": "No senses recorded",
+        "employer": "In service of {name} — open their sheet",
+        "group": "{n} on the scene — select them all",
+        "groupNone": "None of this creature on the scene"
+      },
+      "tags": {
+        "title": "Alignment and experience award",
+        "save": "Save"
+      }
+    },
+    "statblock": {
+      "intro": "Every throw with its target and what it is made of, and the readings beside them. A row is its own button; the pin keeps it on the folded card. The figures are set on Classification and Ecology.",
+      "group": {
+        "saves": "Saving throws",
+        "reactions": "Reactions",
+        "encounter": "Encounter",
+        "attacks": "Attacks",
+        "hitPoints": "Hit points",
+        "abilities": "Abilities",
+        "movement": "Movement",
+        "senses": "Senses",
+        "load": "Load",
+        "defences": "Defences",
+        "spells": "Spells"
+      },
+      "note": {
+        "savesAs": "as {cls} {level}",
+        "ecologyPen": "set on Ecology",
+        "attacks": "throw {n}+",
+        "abilities": "with a throw roll; the rest post",
+        "movement": "combat / run, in feet",
+        "senses": "range in feet",
+        "load": "{stone} of {normal} st · max {max}",
+        "loadUnset": "set a normal load on Classification",
+        "defencesPen": "set on Defences & Magic",
+        "casts": "as {cls} {level}"
+      },
+      "row": {
+        "morale": "Morale",
+        "loyalty": "Loyalty",
+        "reaction": "Reaction",
+        "initiative": "Initiative",
+        "surpriseOthers": "Surprise others",
+        "avoidSurprise": "Avoid surprise",
+        "dungeon": "Dungeon",
+        "wilderness": "Wilderness",
+        "lair": "In lair",
+        "treasure": "Treasure",
+        "wandering": "wandering {n}",
+        "inLair": "lair {n}",
+        "treasureLinked": "type {type} — draw from the linked table",
+        "treasureType": "type {type} — no table linked",
+        "treasureNone": "none recorded",
+        "noAttacks": "No attacks yet — add weapon items on Attacks.",
+        "natural": "natural",
+        "extraordinary": "extraordinary",
+        "rollHp": "Hit points",
+        "rollHpLine": "roll from the Hit Dice rating; sets current and maximum",
+        "hitDice": "Hit Dice",
+        "noAbilities": "No abilities yet — add them on Abilities.",
+        "noSpeeds": "No speeds recorded.",
+        "hover": "hovers",
+        "noSenses": "No senses recorded.",
+        "rider": "Rider",
+        "riderLine": "{name} — body and gear",
+        "slot": "L{level} {used}/{max}",
+        "spellsTab": "Spells",
+        "lairFlavor": "In lair? ({n}%)"
+      }
     }
   },
   "ACKS-HENCHMEN.location.tab.contents": "Contents",
@@ -7334,9 +7457,6 @@
   "ACKS-CHARACTER.tab.notes": "Notes",
   "ACKS-CHARACTER.tab.effects": "Effects",
   "ACKS-CHARACTER.tab.pending": "{n} choice(s) waiting",
-  "ACKS-CHARACTER.fold.open": "Folded — click to open the sheet",
-  "ACKS-CHARACTER.fold.close": "Open — click to fold to the table card",
-  "ACKS-CHARACTER.fold.noPins": "Star a roll, a timer or a count to keep it here.",
   "ACKS-CHARACTER.band.xp": "XP {xp} of {next}",
   "ACKS-CHARACTER.band.xpOnly": "XP {xp}",
   "ACKS-CHARACTER.band.levelUp": "Level up · {xp}",
@@ -7376,12 +7496,6 @@
   "ACKS-CHARACTER.rail.formation": "Formation — {name} · click to open the party",
   "ACKS-CHARACTER.rail.noFormation": "This character marches in no formation.",
   "ACKS-CHARACTER.rolls.intro": "Every throw on the sheet, with its target, and every ability that makes none, which posts its card. A row is its own button; the pin keeps it on the folded card. What is wielded is ringed.",
-  "ACKS-CHARACTER.rolls.roll": "Roll",
-  "ACKS-CHARACTER.rolls.post": "Post its card to chat",
-  "ACKS-CHARACTER.rolls.pin": "Pin to the folded card",
-  "ACKS-CHARACTER.rolls.unpin": "Unpin from the folded card",
-  "ACKS-CHARACTER.rolls.failed": "That roll could not be made.",
-  "ACKS-CHARACTER.rolls.unknown": "Nothing on the sheet answers to that roll.",
   "ACKS-CHARACTER.rolls.group.saves": "Saving throws",
   "ACKS-CHARACTER.rolls.group.initiative": "Initiative & surprise",
   "ACKS-CHARACTER.rolls.group.attack": "Attack",

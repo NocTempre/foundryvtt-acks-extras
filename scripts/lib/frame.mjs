@@ -16,7 +16,7 @@
  * render steps after `super._onRender`. The decisions on plain data are
  * `frame-model.mjs`; the mechanics are docs/lib/MODEL.md, "The sheet frame".
  */
-import { MODULE_ID } from "./constants.mjs";
+import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import { atTypeScale } from "./util.mjs";
 import { moveBandIntoHeader } from "./header-band.mjs";
 import { FOLD_FLAG, SHEET_FLAG, sheetFlag, togglePin } from "./frame-model.mjs";
@@ -25,6 +25,9 @@ export { FOLD_FLAG, SHEET_FLAG, sheetFlag };
 
 /** The frame's root class: the stylesheet's every selector hangs off it or its `__` members. */
 export const FRAME_CLASS = "acks-extras-frame";
+
+/** The lang root of the frame's own strings (fold, pin, roll, post); a sheet binds `makeLoc` to it beside its own root. */
+export const FRAME_LANG_PREFIX = `${LANG_PREFIX}.frame`;
 
 /** The frame's partials, preloaded by the lib at init; `rails.hbs` includes `cell.hbs` by path. */
 export const FRAME_TEMPLATES = Object.freeze(

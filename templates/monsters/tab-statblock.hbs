@@ -1,0 +1,85 @@
+{{!-- Statblock: every throw with its target, three columns. The whole row is
+      the button; the pin puts it on the folded card. The third column holds
+      readings — movement, senses, the load bar, the defence pills and the
+      spell slots — which carry no pin and make no roll. Context:
+      statblock {intro, columns: [[group]]}; a group is {key, kind, name,
+      note, empty, rows | bar | pills, tab, tabLabel}. --}}
+<div class="acks-extras-frame__stack">
+  <div class="acks-extras-frame__intro">{{statblock.intro}}</div>
+  <div class="acks-extras-frame__cols is-3">
+    {{#each statblock.columns as |col|}}
+    <div class="acks-extras-frame__col">
+      {{#each col as |group|}}
+      <div class="acks-extras-frame__group acks-extras-monster__group is-{{group.kind}}">
+        <div class="acks-extras-frame__rule">
+          <span class="acks-extras-frame__rule-title">{{group.name}}</span>
+          {{#if group.note}}<span class="acks-extras-frame__rule-note">{{group.note}}</span>{{/if}}
+          {{#if group.tab}}<button type="button" class="acks-extras-frame__chip" data-action="goTab" data-tab="{{group.tab}}">{{group.tabLabel}}</button>{{/if}}
+        </div>
+
+        {{#if (eq group.kind "pills")}}
+          {{#if group.pills.length}}
+          <div class="acks-extras-frame__pills">
+            {{#each group.pills}}<span class="acks-extras-frame__pill is-{{tone}}"{{#if title}} data-tooltip="{{title}}"{{/if}}>{{label}}</span>{{/each}}
+          </div>
+          {{else if group.empty}}
+          <div class="acks-extras-frame__hint">{{group.empty}}</div>
+          {{/if}}
+
+        {{else if (eq group.kind "bar")}}
+          <div class="acks-extras-frame__bar is-thin{{#if group.bar.tone}} is-{{group.bar.tone}}{{/if}}">
+            <i style="width: {{group.bar.pct}}%"></i>{{#if group.bar.tick}}<u style="left: {{group.bar.tick}}%"></u>{{/if}}
+          </div>
+          {{#each group.rows as |row|}}
+          <div class="acks-extras-frame__row is-bare">
+            <span class="acks-extras-frame__row-text">
+              <span class="acks-extras-frame__row-label">{{row.label}}</span>
+              {{#if row.line}}<span class="acks-extras-frame__row-line">{{row.line}}</span>{{/if}}
+            </span>
+            <span class="acks-extras-frame__row-value acks-nums">{{row.value}}</span>
+          </div>
+          {{/each}}
+
+        {{else if (eq group.kind "readings")}}
+          {{#each group.rows as |row|}}
+          <div class="acks-extras-frame__row is-bare">
+            <span class="acks-extras-frame__row-text">
+              <span class="acks-extras-frame__row-label">{{row.label}}</span>
+              {{#if row.line}}<span class="acks-extras-frame__row-line">{{row.line}}</span>{{/if}}
+            </span>
+            <span class="acks-extras-frame__row-value acks-nums">{{row.value}}</span>
+          </div>
+          {{else}}
+          <div class="acks-extras-frame__hint">{{group.empty}}</div>
+          {{/each}}
+
+        {{else}}
+          {{#each group.rows as |row|}}
+          <div class="acks-extras-frame__row{{#if row.rollable}} is-roll{{else}} is-disabled{{/if}}" {{#if row.rollable}}data-action="roll" data-roll="{{row.id}}"{{/if}}>
+            <button type="button" class="acks-extras-frame__pin{{#if row.pinned}} is-on{{/if}}" data-action="pinRoll" data-roll="{{row.id}}"
+                    data-tooltip="{{localize (ifThen row.pinned 'ACKS-LIB.frame.unpin' 'ACKS-LIB.frame.pin')}}" {{disabled (not @root.editable)}}>
+              <span class="acks-sr-only">{{localize 'ACKS-LIB.frame.pin'}}</span>
+            </button>
+            <span class="acks-extras-frame__row-text">
+              <span class="acks-extras-frame__row-label">{{row.label}}</span>
+              {{#if row.line}}<span class="acks-extras-frame__row-line">{{row.line}}</span>{{/if}}
+            </span>
+            {{#if row.damage}}<span class="acksm-dmg-tag">{{row.damage}}</span>{{/if}}
+            {{#if row.counter}}<span class="acks-extras-frame__row-line acks-nums">{{row.counter.value}}/{{row.counter.max}}</span>{{/if}}
+            <span class="acks-extras-frame__row-value acks-nums">{{row.value}}</span>
+            {{#if row.post}}
+            <span class="acks-extras-frame__mini is-post" data-tooltip="{{localize 'ACKS-LIB.frame.post'}}"><i class="fa-solid fa-eye" inert></i><span class="acks-sr-only">{{localize "ACKS-LIB.frame.post"}}</span></span>
+            {{else if row.rollable}}
+            <span class="acks-extras-frame__mini"><i class="fa-solid fa-dice-d20" inert></i></span>
+            {{/if}}
+          </div>
+          {{else}}
+          <div class="acks-extras-frame__hint">{{group.empty}}</div>
+          {{/each}}
+        {{/if}}
+      </div>
+      {{/each}}
+    </div>
+    {{/each}}
+  </div>
+</div>

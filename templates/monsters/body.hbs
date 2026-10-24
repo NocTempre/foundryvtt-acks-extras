@@ -1,0 +1,34 @@
+{{!-- Everything below the band: the art row, then the tab strip and the panels
+      — or, folded, the pin bar alone. The art row, the pin bar and the tab
+      strip are the lib frame's partials; the panels are this sheet's tab
+      templates and the system's own Spells and Effects, which read the tab
+      object they are handed as `tab`. --}}
+<div class="acks-extras-frame__scroll">
+  <div class="acks-extras-frame__art-row{{#if folded}} is-folded{{/if}}">
+    {{> "modules/acks-extras/templates/lib/frame/rails.hbs"}}
+  </div>
+
+  {{#if folded}}
+    {{> "modules/acks-extras/templates/lib/frame/folded.hbs"}}
+  {{else}}
+    {{> "modules/acks-extras/templates/lib/frame/tabs.hbs"}}
+
+    {{#each frame.tabs}}
+    <section class="tab acks-tab-panel acks-extras-frame__panel{{#if active}} active{{/if}}" data-group="primary" data-tab="{{key}}">
+      {{#if (eq key "statblock")}}{{> "modules/acks-extras/templates/monsters/tab-statblock.hbs" ../this}}{{/if}}
+      {{#if (eq key "classification")}}{{> "modules/acks-extras/templates/monsters/tab-classification.hbs" ../this}}{{/if}}
+      {{#if (eq key "animal")}}{{> "modules/acks-extras/templates/monsters/tab-animal.hbs" ../this}}{{/if}}
+      {{#if (eq key "attacks")}}{{> "modules/acks-extras/templates/monsters/tab-attacks.hbs" ../this}}{{/if}}
+      {{#if (eq key "abilities")}}{{> "modules/acks-extras/templates/monsters/tab-abilities.hbs" ../this}}{{/if}}
+      {{#if (eq key "inventory")}}{{> "modules/acks-extras/templates/monsters/tab-inventory.hbs" ../this}}{{/if}}
+      {{#if (eq key "spoils")}}{{> "modules/acks-extras/templates/monsters/tab-spoils.hbs" ../this}}{{/if}}
+      {{#if (eq key "defenses")}}{{> "modules/acks-extras/templates/monsters/tab-defenses.hbs" ../this}}{{/if}}
+      {{#if (eq key "ecology")}}{{> "modules/acks-extras/templates/monsters/tab-ecology.hbs" ../this}}{{/if}}
+      {{#if (eq key "henchman")}}{{> "modules/acks-extras/templates/monsters/tab-henchman.hbs" ../this}}{{/if}}
+      {{#if (eq key "description")}}{{> "modules/acks-extras/templates/monsters/tab-description.hbs" ../this}}{{/if}}
+      {{#if (eq key "spells")}}{{> "systems/acks/templates/actors/v2/spells.hbs" ../this tab=this}}{{/if}}
+      {{#if (eq key "effects")}}{{> "systems/acks/templates/actors/v2/effects.hbs" ../this tab=this}}{{/if}}
+    </section>
+    {{/each}}
+  {{/if}}
+</div>

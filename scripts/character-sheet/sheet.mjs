@@ -21,7 +21,7 @@
  */
 import { MODULE_ID, LANG, SHEET_CLASS, SHEET_FLAG, TRAINING_VIEW_FLAG, SUMMON_FLAG, MOVE_MODES, TAB_ORDER } from "./constants.mjs";
 import { makeLoc, libStorage } from "../lib/util.mjs";
-import { FRAME_CLASS, FRAME_VIEW_ACTIONS, FrameMixin } from "../lib/frame.mjs";
+import { FRAME_CLASS, FRAME_LANG_PREFIX, FRAME_VIEW_ACTIONS, FrameMixin } from "../lib/frame.mjs";
 import { snapshotFrame, sheetFlag, saveLabel, partyOf, summonerOf, henchmanIds, currentScene } from "./snapshot.mjs";
 import { buildFrameModel, nextAcMode } from "./view-model.mjs";
 import { rollInventory, rollById } from "./rolls.mjs";
@@ -78,6 +78,8 @@ export const CHARACTER_SHEET_TEMPLATES = Object.freeze([
 ].map((n) => `${T}/${n}.hbs`));
 
 const loc = makeLoc(LANG);
+/** The frame's own strings — the fold, the pins, the roll verbs — are the lib's. */
+const frameLoc = makeLoc(FRAME_LANG_PREFIX);
 const num = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
 
 /** The token fields the party cell reads (`partyOf`); an update touching none of them leaves it as it was. */
@@ -425,7 +427,7 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
     }
     if (party.calamity) r.partyTitle += ` · ${loc("rail.partyCalamity", { n: party.calamity })}`;
     r.influenceTitle = loc("rail.influence");
-    r.foldTitle = frame.folded ? loc("fold.open") : loc("fold.close");
+    r.foldTitle = frame.folded ? frameLoc("fold.open") : frameLoc("fold.close");
     for (const t of frame.tabs) {
       t.label = loc(`tab.${t.key}`);
       t.pTitle = t.p ? loc("tab.pending", { n: t.p }) : "";
@@ -492,11 +494,11 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
   #pinBar(rolls, effects) {
     const rows = rolls.groups.flatMap((g) => g.rows).filter((r) => r.pinned);
     return {
-      rolls: rows.map((r) => ({ id: r.id, label: r.label, value: r.value, eq: r.eq, post: !!r.post, title: r.post ? loc("rolls.post") : r.value })),
+      rolls: rows.map((r) => ({ id: r.id, label: r.label, value: r.value, eq: r.eq, post: !!r.post, title: r.post ? frameLoc("post") : r.value })),
       timers: effects.timers.filter((t) => t.pinned).map((t) => ({ id: t.id, label: t.name, pct: t.pct, tone: t.tone, icon: t.icon ?? null, img: t.img ?? null })),
       resources: effects.resources.filter((r) => r.pinned).map((r) => ({ id: r.id, label: r.name, count: r.count, icon: r.icon })),
       any: rows.length + effects.timers.filter((t) => t.pinned).length + effects.resources.filter((r) => r.pinned).length > 0,
-      emptyLabel: loc("fold.noPins"),
+      emptyLabel: frameLoc("fold.noPins"),
     };
   }
 
@@ -676,7 +678,7 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
       await rollById(this.actor, id, { event });
     } catch (err) {
       console.error(`${MODULE_ID} | roll ${id} failed`, err);
-      ui.notifications.error(loc("rolls.failed"));
+      ui.notifications.error(frameLoc("rollFailed"));
     }
   }
 

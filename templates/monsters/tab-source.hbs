@@ -1,5 +1,6 @@
-<section class="tab {{tab.cssClass}}" data-group="primary" data-tab="source">
-  <div class="content flexcol acksm-content">
+{{!-- The importer's provenance; rendered in a dialog of its own from the
+      sheet's tools rail (the `source` action), so it has no tab wrapper. --}}
+  <div class="content flexcol acksm-content acksm-source">
 
     <fieldset>
       <legend>{{localize "ACKS-MONSTERS.section.sourceBlock"}}</legend>
@@ -91,4 +92,3 @@
     {{/if}}
 
   </div>
-</section>

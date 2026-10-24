@@ -434,8 +434,8 @@ root class beside its own identity class, and renders two parts: a `band`
 from the frame's band partial, and a body of its own that includes the
 frame's `rails`, `folded` and `tabs` partials. What each sheet SHOWS in the
 band and the rails is that sheet's model to decide
-(docs/character-sheet/MODEL.md, "The frame"); what follows is the mechanics
-every one of them shares.
+(docs/character-sheet/MODEL.md, "The frame"; docs/monsters/MODEL.md, "The
+sheet"); what follows is the mechanics every one of them shares.
 
 **The band is the window header.** The band renders as its own part and the
 mixin's `_onRender` moves it into Foundry's `.window-header` through

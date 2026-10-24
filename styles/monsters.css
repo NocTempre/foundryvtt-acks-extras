@@ -373,10 +373,143 @@
   max-height: 40vh;
 }
 
-/* Treasure is edited on the Ecology tab; hide the reused system header's
-   treasure panel on the Full Monster sheet only (no template fork). */
-.acks-extras.monster-v2 .sheet-header .form-group:has(> .treasure-link-panel) {
-  display: none;
+/* --- The frame around the sheet: what the monster adds to the lib's rules ---
+   The band, the rails, the tab strip, the rows and the pills are
+   styles/lib-frame.css. Only the pieces the monster sheet alone draws live
+   here, each scoped to the sheet's own root class. */
+
+/* Defence pills carry a tone the lib's pill has no rule for: resistances
+   green, susceptibilities red, spell slots in the magic hue. Border and ink
+   only — a filled pill is the lib's SELECTED tier and these are readings. */
+.acks-extras-monster .acks-extras-frame__pill.is-pos {
+  border-color: var(--acks-success);
+  color: var(--acks-success-ink);
+}
+.acks-extras-monster .acks-extras-frame__pill.is-neg {
+  border-color: var(--acks-danger);
+  color: var(--acks-danger-ink);
+}
+.acks-extras-monster .acks-extras-frame__pill.is-ts {
+  border-color: var(--acks-extras-magic);
+  color: var(--acks-extras-magic);
+}
+
+/* A choice set drawn as pills (types, vision): the multi-checkbox's labels
+   take the lib's pill shape, the checkbox inside each is kept for the
+   keyboard and the reader but drawn out of sight, and a checked pill is the
+   selected tier. The focus ring returns on the pill, since the control that
+   holds focus is the hidden box. */
+.acks-extras-monster multi-checkbox.acks-extras-monster__pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(4px * var(--acks-extras-k));
+  border: none;
+  padding: var(--acks-sp-3) 0 var(--acks-sp-2);
+}
+.acks-extras-monster multi-checkbox.acks-extras-monster__pills label.checkbox {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: calc(30px * var(--acks-extras-k));
+  height: calc(24px * var(--acks-extras-k));
+  margin: 0;
+  padding: 0 calc(8px * var(--acks-extras-k));
+  border: var(--acks-rule-hair) solid var(--acks-ink-faint);
+  border-radius: 0;
+  background: transparent;
+  color: var(--acks-ink-faint);
+  font-family: var(--acks-font-display);
+  font-size: calc(10px * var(--acks-extras-k));
+  font-weight: var(--acks-weight-bold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.acks-extras-monster multi-checkbox.acks-extras-monster__pills label.checkbox:has(input:checked) {
+  border-color: var(--acks-spot);
+  background: var(--acks-burgundy);
+  color: var(--acks-on-burgundy);
+}
+.acks-extras-monster multi-checkbox.acks-extras-monster__pills label.checkbox:has(input:focus-visible) {
+  outline: var(--acks-rule) solid var(--acks-spot);
+  outline-offset: 2px;
+}
+.acks-extras-monster multi-checkbox.acks-extras-monster__pills input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* A fact row's leading button: the save's die, a repeated row's bin. It sits
+   where the lib's fact icon sits and is drawn as that icon, not as a button. */
+.acks-extras-monster button.acks-extras-monster__factroll {
+  flex: none;
+  width: calc(16px * var(--acks-extras-k));
+  height: auto;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--acks-spot);
+  line-height: 1;
+  cursor: pointer;
+}
+.acks-extras-monster button.acks-extras-monster__factroll:hover {
+  color: var(--acks-ink);
+}
+
+/* A row of several write-on fields (a range, a speed row, a sense row): the
+   fields share the row's width instead of taking the fact input's fixed one. */
+.acks-extras-monster .acks-extras-monster__editrow {
+  gap: var(--acks-sp-2);
+}
+.acks-extras-monster .acks-extras-monster__editrow > .acks-extras-frame__fact-label {
+  flex: 0 1 auto;
+  min-width: 7em;
+}
+.acks-extras-monster .acks-extras-monster__editrow > select.acks-extras-frame__fact-input {
+  flex: 1 1 8ch;
+  min-width: 0;
+}
+.acks-extras-monster .acks-extras-monster__editrow > input[type="text"].acks-extras-frame__fact-input {
+  flex: 1 1 8ch;
+  width: auto;
+  min-width: 0;
+}
+.acks-extras-monster .acks-extras-monster__cb {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--acks-sp-2);
+  white-space: nowrap;
+  font-family: var(--acks-font-ui);
+  font-size: calc(11px * var(--acks-extras-k));
+  color: var(--acks-ink-soft);
+}
+.acks-extras-monster .acks-extras-monster__cb input {
+  flex: 0 0 auto;
+  width: auto;
+  margin: 0;
+}
+
+/* An attribute box: the lib's score face over its label. */
+.acks-extras-monster .acks-extras-monster__score {
+  display: grid;
+  gap: 0;
+  justify-items: center;
+}
+
+/* The provenance dialog opened from the tools rail renders the Source
+   template, which is styled under the sheet's own root; the dialog carries
+   that root class so the same rules reach it. */
+.acks-extras-monster-source .acksm-source {
+  gap: var(--acks-sp-4);
+  padding: var(--acks-sp-3) var(--acks-sp-4);
 }
 
 /* --- Injected item-sheet flag fieldset (NOT scoped to .acks-monsters) ---

@@ -1,133 +1,232 @@
-<section class="tab {{tab.cssClass}}" data-group="primary" data-tab="classification">
-  <div class="content flexcol acksm-content">
+{{!-- Classification: the pen for what the band, the rails and the Statblock
+      read. Two columns of rule-headed groups: what the creature IS and how it
+      is rated on the left; the figures, the senses and the speeds on the
+      right. Every field here submits on change, so the part root scrolls and
+      keeps its place across the re-render. --}}
+<div class="acks-extras-frame__stack">
+  <div class="acks-extras-frame__cols is-2 is-wide-left">
 
-    <fieldset>
-      <legend>{{localize "ACKS-MONSTERS.section.classification"}}</legend>
-      <div class="form-group stacked">
-        <label>{{localize "ACKS-MONSTERS.field.types"}}</label>
-        <multi-checkbox name="{{x}}.types" class="acksm-chips">
+    <div class="acks-extras-frame__col">
+      <div class="acks-extras-frame__group">
+        <div class="acks-extras-frame__rule">
+          <span class="acks-extras-frame__rule-title">{{localize "ACKS-MONSTERS.section.classification"}}</span>
+        </div>
+        <multi-checkbox name="{{x}}.types" class="acksm-chips acks-extras-monster__pills" aria-label="{{localize 'ACKS-MONSTERS.field.types'}}">
           {{#each choices.types as |label key|}}
           <option value="{{key}}" {{#if (acksExtrasHas @root.selected.types key)}}selected{{/if}}>{{localize label}}</option>
           {{/each}}
         </multi-checkbox>
+        <label class="acks-extras-frame__fact">
+          <span class="acks-extras-frame__fact-label">{{localize "ACKS-MONSTERS.field.subtype"}}</span>
+          <input class="acks-input acks-extras-frame__fact-input is-wide" type="text" name="{{x}}.subtype" value="{{extras.subtype}}" placeholder="{{localize 'ACKS-MONSTERS.hint.subtype'}}"/>
+        </label>
+        <label class="acks-extras-frame__fact">
+          <span class="acks-extras-frame__fact-label">{{localize "ACKS-MONSTERS.field.size"}}</span>
+          <select class="acks-input acks-extras-frame__fact-input" name="{{x}}.size">{{selectOptions choices.size selected=extras.size localize=true blank=""}}</select>
+        </label>
+        <label class="acks-extras-frame__fact">
+          <span class="acks-extras-frame__fact-label">{{localize "ACKS-MONSTERS.field.bodyForm"}}</span>
+          <select class="acks-input acks-extras-frame__fact-input" name="{{x}}.bodyForm">{{selectOptions choices.bodyForm selected=extras.bodyForm localize=true blank=""}}</select>
+        </label>
+        <label class="acks-extras-frame__fact">
+          <span class="acks-extras-frame__fact-label">{{localize "ACKS-MONSTERS.field.intelligence"}}</span>
+          <select class="acks-input acks-extras-frame__fact-input" name="{{x}}.secondary.intelligence">{{selectOptions choices.intelligence selected=extras.secondary.intelligence localize=true blank=""}}</select>
+        </label>
+        <label class="acks-extras-frame__fact">
+          <span class="acks-extras-frame__fact-label">{{localize "ACKS-MONSTERS.field.massStone"}}</span>
+          <input class="acks-input acks-extras-frame__fact-input" type="number" step="any" name="{{x}}.mass.stone" value="{{extras.mass.stone}}"/>
+        </label>
+        <label class="acks-extras-frame__fact">
+          <span class="acks-extras-frame__fact-label">{{localize "ACKS-MONSTERS.field.massLbs"}}</span>
+          <input class="acks-input acks-extras-frame__fact-input" type="number" step="any" name="{{x}}.mass.lbs" value="{{extras.mass.lbs}}"/>
+        </label>
+        <label class="acks-extras-frame__fact">
+          <span class="acks-extras-frame__fact-label">{{localize "ACKS-MONSTERS.field.noncombatant"}}</span>
+          <input type="checkbox" name="{{x}}.noncombatant" {{#if extras.noncombatant}}checked{{/if}}/>
+        </label>
       </div>
-      <div class="flexrow">
-        <div class="form-group"><label>{{localize "ACKS-MONSTERS.field.subtype"}}</label>
-          <div class="form-fields"><input type="text" name="{{x}}.subtype" value="{{extras.subtype}}" placeholder="{{localize 'ACKS-MONSTERS.hint.subtype'}}"/></div></div>
-        <div class="form-group"><label>{{localize "ACKS-MONSTERS.field.size"}}</label>
-          <div class="form-fields"><select name="{{x}}.size">{{selectOptions choices.size selected=extras.size localize=true blank=""}}</select></div></div>
-        <div class="form-group"><label>{{localize "ACKS-MONSTERS.field.bodyForm"}}</label>
-          <div class="form-fields"><select name="{{x}}.bodyForm">{{selectOptions choices.bodyForm selected=extras.bodyForm localize=true blank=""}}</select></div></div>
-        <div class="form-group"><label>{{localize "ACKS-MONSTERS.field.intelligence"}}</label>
-          <div class="form-fields"><select name="{{x}}.secondary.intelligence">{{selectOptions choices.intelligence selected=extras.secondary.intelligence localize=true blank=""}}</select></div></div>
-      </div>
-      <div class="flexrow">
-        <div class="form-group"><label>{{localize "ACKS-MONSTERS.field.massStone"}}</label>
-          <div class="form-fields"><input type="number" step="any" name="{{x}}.mass.stone" value="{{extras.mass.stone}}"/></div></div>
-        <div class="form-group"><label>{{localize "ACKS-MONSTERS.field.massLbs"}}</label>
-          <div class="form-fields"><input type="number" step="any" name="{{x}}.mass.lbs" value="{{extras.mass.lbs}}"/></div></div>
-        <label class="checkbox acksm-cb"><input type="checkbox" name="{{x}}.noncombatant" {{#if extras.noncombatant}}checked{{/if}}/> {{localize "ACKS-MONSTERS.field.noncombatant"}}</label>
-      </div>
-    </fieldset>
 
-    <fieldset>
-      <legend>{{localize "ACKS-MONSTERS.section.rating"}}
-        <a class="acksm-mini" data-action="generateSaves" data-tooltip="{{localize 'ACKS-MONSTERS.action.generateSavesHint'}}"><i class="fa-solid fa-wand-magic-sparkles"></i></a>
-        <a class="acksm-mini" data-action="rollHitPoints" data-tooltip="{{localize 'ACKS-MONSTERS.action.rollHitPointsHint'}}"><i class="fa-solid fa-dice-d20"></i></a>
-      </legend>
-      <div class="flexrow">
-        <div class="form-group"><label>{{localize "ACKS-MONSTERS.field.hdCount"}}</label>
-          <div class="form-fields"><input type="number" step="any" name="{{x}}.hd.count" value="{{extras.hd.count}}"/></div></div>
-        <div class="form-group"><label>{{localize "ACKS-MONSTERS.field.hdCountMax"}}</label>
-          <div class="form-fields"><input type="number" step="any" name="{{x}}.hd.countMax" value="{{extras.hd.countMax}}"/></div></div>
-        <div class="form-group"><label>{{localize "ACKS-MONSTERS.field.hdBonus"}}</label>
-          <div class="form-fields"><input type="number" name="{{x}}.hd.bonus" value="{{extras.hd.bonus}}"/></div></div>
-        <div class="form-group"><label>{{localize "ACKS-MONSTERS.field.hdAsterisks"}}</label>
-          <div class="form-fields"><input type="number" name="{{x}}.hd.asterisks" value="{{extras.hd.asterisks}}"/></div></div>
-        <div class="form-group"><label>{{localize "ACKS-MONSTERS.field.hdDie"}}</label>
-          <div class="form-fields"><input type="number" name="{{x}}.hd.dieType" value="{{extras.hd.dieType}}"/></div></div>
-      </div>
-      <div class="flexrow">
-        <div class="form-group"><label>{{localize "ACKS-MONSTERS.field.saveClass"}}</label>
-          <div class="form-fields"><select name="{{x}}.saveAs.class">{{selectOptions choices.saveClass selected=extras.saveAs.class localize=true blank=""}}</select></div></div>
-        <div class="form-group"><label>{{localize "ACKS-MONSTERS.field.saveLevel"}}</label>
-          <div class="form-fields"><input type="number" name="{{x}}.saveAs.level" value="{{extras.saveAs.level}}"/></div></div>
-        <div class="form-group"><label>{{localize "ACKS-MONSTERS.field.saveLevelMax"}}</label>
-          <div class="form-fields"><input type="number" name="{{x}}.saveAs.levelMax" value="{{extras.saveAs.levelMax}}"/></div></div>
-        <div class="form-group"><label>{{localize "ACKS-MONSTERS.field.loadNormal"}}</label>
-          <div class="form-fields"><input type="number" step="any" name="{{x}}.load.normal" value="{{extras.load.normal}}"/></div></div>
-        <div class="form-group"><label>{{localize "ACKS-MONSTERS.field.loadCapacity"}}</label>
-          <div class="form-fields"><input type="number" step="any" name="{{x}}.load.capacity" value="{{extras.load.capacity}}"/></div></div>
-      </div>
-      <div class="flexrow acksm-saves">
+      <div class="acks-extras-frame__group">
+        <div class="acks-extras-frame__rule">
+          <span class="acks-extras-frame__rule-title">{{localize "ACKS-MONSTERS.section.rating"}}</span>
+          {{#if editable}}
+          <button type="button" class="acks-extras-frame__chip" data-action="generateSaves" data-tooltip="{{localize 'ACKS-MONSTERS.action.generateSavesHint'}}"><i class="fa-solid fa-wand-magic-sparkles" inert></i>{{localize "ACKS-MONSTERS.action.generateSaves"}}</button>
+          <button type="button" class="acks-extras-frame__chip" data-action="rollHitPoints" data-tooltip="{{localize 'ACKS-MONSTERS.action.rollHitPointsHint'}}"><i class="fa-solid fa-dice-d20" inert></i>{{localize "ACKS-MONSTERS.action.rollHitPoints"}}</button>
+          {{/if}}
+        </div>
+        <div class="acks-extras-frame__fact acks-extras-monster__editrow">
+          <span class="acks-extras-frame__fact-label">{{localize "ACKS-MONSTERS.field.hdCount"}}</span>
+          <input class="acks-input acks-extras-frame__fact-input" type="number" step="any" name="{{x}}.hd.count" value="{{extras.hd.count}}" aria-label="{{localize 'ACKS-MONSTERS.field.hdCount'}}"/>
+          <span class="acks-extras-frame__fact-of">–</span>
+          <input class="acks-input acks-extras-frame__fact-input" type="number" step="any" name="{{x}}.hd.countMax" value="{{extras.hd.countMax}}" aria-label="{{localize 'ACKS-MONSTERS.field.hdCountMax'}}"/>
+        </div>
+        <label class="acks-extras-frame__fact">
+          <span class="acks-extras-frame__fact-label">{{localize "ACKS-MONSTERS.field.hdBonus"}}</span>
+          <input class="acks-input acks-extras-frame__fact-input" type="number" name="{{x}}.hd.bonus" value="{{extras.hd.bonus}}"/>
+        </label>
+        <label class="acks-extras-frame__fact">
+          <span class="acks-extras-frame__fact-label">{{localize "ACKS-MONSTERS.field.hdAsterisks"}}</span>
+          <input class="acks-input acks-extras-frame__fact-input" type="number" name="{{x}}.hd.asterisks" value="{{extras.hd.asterisks}}"/>
+        </label>
+        <label class="acks-extras-frame__fact">
+          <span class="acks-extras-frame__fact-label">{{localize "ACKS-MONSTERS.field.hdDie"}}</span>
+          <input class="acks-input acks-extras-frame__fact-input" type="number" name="{{x}}.hd.dieType" value="{{extras.hd.dieType}}"/>
+        </label>
+        <label class="acks-extras-frame__fact">
+          <span class="acks-extras-frame__fact-label">{{localize "ACKS-MONSTERS.field.hdFormula"}}</span>
+          <input class="acks-input acks-extras-frame__fact-input is-wide" type="text" name="system.hp.hd" value="{{system.hp.hd}}"/>
+        </label>
+        <label class="acks-extras-frame__fact">
+          <span class="acks-extras-frame__fact-label">{{localize "ACKS-MONSTERS.field.saveClass"}}</span>
+          <select class="acks-input acks-extras-frame__fact-input" name="{{x}}.saveAs.class">{{selectOptions choices.saveClass selected=extras.saveAs.class localize=true blank=""}}</select>
+        </label>
+        <div class="acks-extras-frame__fact acks-extras-monster__editrow">
+          <span class="acks-extras-frame__fact-label">{{localize "ACKS-MONSTERS.field.saveLevel"}}</span>
+          <input class="acks-input acks-extras-frame__fact-input" type="number" name="{{x}}.saveAs.level" value="{{extras.saveAs.level}}" aria-label="{{localize 'ACKS-MONSTERS.field.saveLevel'}}"/>
+          <span class="acks-extras-frame__fact-of">–</span>
+          <input class="acks-input acks-extras-frame__fact-input" type="number" name="{{x}}.saveAs.levelMax" value="{{extras.saveAs.levelMax}}" aria-label="{{localize 'ACKS-MONSTERS.field.saveLevelMax'}}"/>
+        </div>
         {{#each saveRows as |s|}}
-        <div class="form-group">
-          <a class="rollable-header" data-action="rollSave" data-save="{{s.key}}" data-tooltip="{{s.tip}}">
-            <i class="fa-solid fa-dice-d20 rollable-header__icon"></i>
-            <span class="rollable-header__label">{{s.label}}</span>
-          </a>
-          <div class="form-fields"><input type="text" data-dtype="Number" name="system.saves.{{s.key}}.value" value="{{s.value}}"/></div>
+        <div class="acks-extras-frame__fact">
+          <button type="button" class="acks-extras-frame__fact-icon acks-extras-monster__factroll" data-action="rollSave" data-save="{{s.key}}" data-tooltip="{{s.tip}}">
+            <i class="fa-solid fa-dice-d20" inert></i><span class="acks-sr-only">{{s.label}}</span>
+          </button>
+          <label class="acks-extras-frame__fact-label">{{s.label}}</label>
+          <input class="acks-input acks-extras-frame__fact-input" type="text" data-dtype="Number" name="system.saves.{{s.key}}.value" value="{{s.value}}"/>
         </div>
         {{/each}}
+        <label class="acks-extras-frame__fact">
+          <span class="acks-extras-frame__fact-label">{{localize "ACKS-MONSTERS.field.loadNormal"}}</span>
+          <input class="acks-input acks-extras-frame__fact-input" type="number" step="any" name="{{x}}.load.normal" value="{{extras.load.normal}}"/>
+        </label>
+        <label class="acks-extras-frame__fact">
+          <span class="acks-extras-frame__fact-label">{{localize "ACKS-MONSTERS.field.loadCapacity"}}</span>
+          <input class="acks-input acks-extras-frame__fact-input" type="number" step="any" name="{{x}}.load.capacity" value="{{extras.load.capacity}}"/>
+        </label>
       </div>
-    </fieldset>
 
-    <fieldset>
-      <legend>{{localize "ACKS-MONSTERS.section.attributes"}}</legend>
-      <div class="flexrow">
-        {{#each scores as |score key|}}
-        <div class="form-group"><label>{{localize score.label}}</label>
-          <div class="form-fields"><input type="number" name="{{@root.x}}.scores.{{key}}" value="{{lookup @root.extras.scores key}}" placeholder="9"/></div></div>
-        {{/each}}
+      <div class="acks-extras-frame__group">
+        <div class="acks-extras-frame__rule">
+          <span class="acks-extras-frame__rule-title">{{localize "ACKS-MONSTERS.section.attributes"}}</span>
+          <span class="acks-extras-frame__rule-note">{{localize "ACKS-MONSTERS.hint.attributes"}}</span>
+        </div>
+        <div class="acks-extras-frame__attrs">
+          {{#each scores as |score key|}}
+          <label class="acks-extras-monster__score">
+            <span class="acks-extras-frame__fact-label">{{localize score.label}}</span>
+            <input class="acks-input acks-attribute-value acks-extras-frame__score" type="number" name="{{@root.x}}.scores.{{key}}" value="{{lookup @root.extras.scores key}}" placeholder="9"/>
+          </label>
+          {{/each}}
+        </div>
       </div>
-    </fieldset>
+    </div>
 
-    <fieldset>
-      <legend>{{localize "ACKS-MONSTERS.section.senses"}}</legend>
-      <div class="form-group stacked">
-        <label>{{localize "ACKS-MONSTERS.field.vision"}}</label>
-        <multi-checkbox name="{{x}}.vision" class="acksm-chips">
+    <div class="acks-extras-frame__col">
+      <div class="acks-extras-frame__group">
+        <div class="acks-extras-frame__rule">
+          <span class="acks-extras-frame__rule-title">{{localize "ACKS-MONSTERS.section.figures"}}</span>
+          <span class="acks-extras-frame__rule-note">{{localize "ACKS-MONSTERS.hint.figures"}}</span>
+        </div>
+        <div class="acks-extras-frame__fact acks-extras-monster__editrow">
+          <span class="acks-extras-frame__fact-label">{{localize "ACKS.Health"}}</span>
+          <input class="acks-input acks-extras-frame__fact-input" type="number" name="system.hp.value" value="{{system.hp.value}}" aria-label="{{localize 'ACKS.Health'}}"/>
+          <span class="acks-extras-frame__fact-of">/</span>
+          <input class="acks-input acks-extras-frame__fact-input" type="number" name="system.hp.max" value="{{system.hp.max}}" aria-label="{{localize 'ACKS.HealthMax'}}"/>
+        </div>
+        <label class="acks-extras-frame__fact">
+          <span class="acks-extras-frame__fact-label">{{localize "ACKS.AscArmorClassShort"}}</span>
+          <input class="acks-input acks-extras-frame__fact-input" type="number" name="system.ac.value" value="{{system.ac.value}}"/>
+        </label>
+        <label class="acks-extras-frame__fact">
+          <span class="acks-extras-frame__fact-label">{{localize "ACKS.throw.attack.title"}}</span>
+          <input class="acks-input acks-extras-frame__fact-input" type="number" name="system.attack.throw" value="{{system.attack.throw}}"/>
+        </label>
+        <label class="acks-extras-frame__fact">
+          <span class="acks-extras-frame__fact-label">{{localize "ACKS-MONSTERS.field.morale"}}</span>
+          <input class="acks-input acks-extras-frame__fact-input" type="number" name="system.details.morale" value="{{system.details.morale}}"/>
+        </label>
+        <label class="acks-extras-frame__fact">
+          <span class="acks-extras-frame__fact-label">{{localize "ACKS.Initiative"}}</span>
+          <input class="acks-input acks-extras-frame__fact-input" type="number" name="system.initiative.mod" value="{{system.initiative.mod}}"/>
+        </label>
+        <label class="acks-extras-frame__fact">
+          <span class="acks-extras-frame__fact-label">{{localize "ACKS.SurpriseOthers"}}</span>
+          <input class="acks-input acks-extras-frame__fact-input" type="number" name="system.surprise.surpriseothers" value="{{system.surprise.surpriseothers}}"/>
+        </label>
+        <label class="acks-extras-frame__fact">
+          <span class="acks-extras-frame__fact-label">{{localize "ACKS.AvoidSurprise"}}</span>
+          <input class="acks-input acks-extras-frame__fact-input" type="number" name="system.surprise.avoidsurprise" value="{{system.surprise.avoidsurprise}}"/>
+        </label>
+        <label class="acks-extras-frame__fact">
+          <span class="acks-extras-frame__fact-label">{{localize "ACKS.details.experience.award"}}</span>
+          <input class="acks-input acks-extras-frame__fact-input" type="number" name="system.details.xp" value="{{system.details.xp}}"/>
+        </label>
+        <label class="acks-extras-frame__fact">
+          <span class="acks-extras-frame__fact-label">{{localize "ACKS.details.alignment"}}</span>
+          <select class="acks-input acks-extras-frame__fact-input" name="system.details.alignment">{{selectOptions choices.alignment selected=system.details.alignment blank=""}}</select>
+        </label>
+        <label class="acks-extras-frame__fact">
+          <span class="acks-extras-frame__fact-label">{{localize "ACKS.movement.short"}}</span>
+          <input class="acks-input acks-extras-frame__fact-input" type="number" name="system.movement.base" value="{{system.movement.base}}"/>
+        </label>
+        <label class="acks-extras-frame__fact">
+          <span class="acks-extras-frame__fact-label">{{localize "ACKS.movement.details"}}</span>
+          <input class="acks-input acks-extras-frame__fact-input is-wide" type="text" name="system.movement.value" value="{{system.movement.value}}"/>
+        </label>
+      </div>
+
+      <div class="acks-extras-frame__group">
+        <div class="acks-extras-frame__rule">
+          <span class="acks-extras-frame__rule-title">{{localize "ACKS-MONSTERS.section.senses"}}</span>
+          {{#if editable}}
+          <button type="button" class="acks-extras-frame__chip" data-action="addRow" data-path="otherSenses" data-tooltip="{{localize 'ACKS-MONSTERS.action.addSense'}}"><i class="fa-solid fa-plus" inert></i>{{localize "ACKS-MONSTERS.field.otherSenses"}}</button>
+          {{/if}}
+        </div>
+        <multi-checkbox name="{{x}}.vision" class="acksm-chips acks-extras-monster__pills" aria-label="{{localize 'ACKS-MONSTERS.field.vision'}}">
           {{#each choices.vision as |label key|}}
           <option value="{{key}}" {{#if (acksExtrasHas @root.selected.vision key)}}selected{{/if}}>{{localize label}}</option>
           {{/each}}
         </multi-checkbox>
-      </div>
-      <div class="flexrow">
-        <div class="form-group"><label>{{localize "ACKS-MONSTERS.field.lightlessRange"}}</label>
-          <div class="form-fields"><input type="number" name="{{x}}.lightlessRange" value="{{extras.lightlessRange}}"/></div></div>
-      </div>
-      <div class="acksm-rows">
-        <div class="acksm-rows-head"><span>{{localize "ACKS-MONSTERS.field.otherSenses"}}</span>
-          <a class="acksm-mini" data-action="addRow" data-path="otherSenses"><i class="fa-solid fa-plus"></i></a></div>
+        <label class="acks-extras-frame__fact">
+          <span class="acks-extras-frame__fact-label">{{localize "ACKS-MONSTERS.field.lightlessRange"}}</span>
+          <input class="acks-input acks-extras-frame__fact-input" type="number" name="{{x}}.lightlessRange" value="{{extras.lightlessRange}}"/>
+        </label>
         {{#each extras.otherSenses as |row i|}}
-        <div class="acksm-row">
-          <select name="{{@root.x}}.otherSenses.{{i}}.type">{{selectOptions @root.choices.sense selected=row.type localize=true}}</select>
-          <input type="number" name="{{@root.x}}.otherSenses.{{i}}.range" value="{{row.range}}" placeholder="{{localize 'ACKS-MONSTERS.field.range'}}"/>
-          <input type="text" name="{{@root.x}}.otherSenses.{{i}}.note" value="{{row.note}}" placeholder="{{localize 'ACKS-MONSTERS.field.note'}}"/>
-          <a class="acksm-mini" data-action="removeRow" data-path="otherSenses" data-index="{{i}}"><i class="fa-solid fa-trash"></i></a>
+        <div class="acks-extras-frame__row is-bare acks-extras-monster__editrow">
+          <select class="acks-input acks-extras-frame__fact-input" name="{{@root.x}}.otherSenses.{{i}}.type" aria-label="{{localize 'ACKS-MONSTERS.field.otherSenses'}}">{{selectOptions @root.choices.sense selected=row.type localize=true}}</select>
+          <input class="acks-input acks-extras-frame__fact-input" type="number" name="{{@root.x}}.otherSenses.{{i}}.range" value="{{row.range}}" placeholder="{{localize 'ACKS-MONSTERS.field.range'}}" aria-label="{{localize 'ACKS-MONSTERS.field.range'}}"/>
+          <input class="acks-input acks-extras-frame__fact-input is-wide" type="text" name="{{@root.x}}.otherSenses.{{i}}.note" value="{{row.note}}" placeholder="{{localize 'ACKS-MONSTERS.field.note'}}" aria-label="{{localize 'ACKS-MONSTERS.field.note'}}"/>
+          {{#if @root.editable}}
+          <button type="button" class="acks-extras-frame__fact-icon acks-extras-monster__factroll" data-action="removeRow" data-path="otherSenses" data-index="{{i}}" data-tooltip="{{localize 'ACKS.Delete'}}"><i class="fa-solid fa-trash" inert></i><span class="acks-sr-only">{{localize "ACKS.Delete"}}</span></button>
+          {{/if}}
         </div>
         {{/each}}
       </div>
-    </fieldset>
 
-    <fieldset>
-      <legend>{{localize "ACKS-MONSTERS.section.movement"}}
-        <a class="acksm-mini" data-action="addRow" data-path="speeds"><i class="fa-solid fa-plus"></i></a></legend>
-      <div class="acksm-rows">
-        {{#each extras.speeds as |row i|}}
-        <div class="acksm-row">
-          <select name="{{@root.x}}.speeds.{{i}}.type">{{selectOptions @root.choices.movement selected=row.type localize=true}}</select>
-          <input type="number" name="{{@root.x}}.speeds.{{i}}.combat" value="{{row.combat}}" placeholder="{{localize 'ACKS-MONSTERS.field.combatSpeed'}}"/>
-          <input type="number" name="{{@root.x}}.speeds.{{i}}.run" value="{{row.run}}" placeholder="{{localize 'ACKS-MONSTERS.field.runSpeed'}}"/>
-          <label class="checkbox acksm-cb"><input type="checkbox" name="{{@root.x}}.speeds.{{i}}.hover" {{#if row.hover}}checked{{/if}}/> {{localize "ACKS-MONSTERS.field.hover"}}</label>
-          <a class="acksm-mini" data-action="removeRow" data-path="speeds" data-index="{{i}}"><i class="fa-solid fa-trash"></i></a>
+      <div class="acks-extras-frame__group">
+        <div class="acks-extras-frame__rule">
+          <span class="acks-extras-frame__rule-title">{{localize "ACKS-MONSTERS.section.movement"}}</span>
+          <span class="acks-extras-frame__rule-note">{{localize "ACKS-MONSTERS.hint.speeds"}}</span>
+          {{#if editable}}
+          <button type="button" class="acks-extras-frame__chip" data-action="addRow" data-path="speeds" data-tooltip="{{localize 'ACKS-MONSTERS.action.addSpeed'}}"><i class="fa-solid fa-plus" inert></i>{{localize "ACKS-MONSTERS.action.addSpeed"}}</button>
+          {{/if}}
         </div>
+        {{#each extras.speeds as |row i|}}
+        <div class="acks-extras-frame__row is-bare acks-extras-monster__editrow">
+          <select class="acks-input acks-extras-frame__fact-input" name="{{@root.x}}.speeds.{{i}}.type" aria-label="{{localize 'ACKS-MONSTERS.section.movement'}}">{{selectOptions @root.choices.movement selected=row.type localize=true}}</select>
+          <input class="acks-input acks-extras-frame__fact-input" type="number" name="{{@root.x}}.speeds.{{i}}.combat" value="{{row.combat}}" placeholder="{{localize 'ACKS-MONSTERS.field.combatSpeed'}}" aria-label="{{localize 'ACKS-MONSTERS.field.combatSpeed'}}"/>
+          <span class="acks-extras-frame__fact-of">/</span>
+          <input class="acks-input acks-extras-frame__fact-input" type="number" name="{{@root.x}}.speeds.{{i}}.run" value="{{row.run}}" placeholder="{{localize 'ACKS-MONSTERS.field.runSpeed'}}" aria-label="{{localize 'ACKS-MONSTERS.field.runSpeed'}}"/>
+          <label class="acks-extras-monster__cb"><input type="checkbox" name="{{@root.x}}.speeds.{{i}}.hover" {{#if row.hover}}checked{{/if}}/> {{localize "ACKS-MONSTERS.field.hover"}}</label>
+          {{#if @root.editable}}
+          <button type="button" class="acks-extras-frame__fact-icon acks-extras-monster__factroll" data-action="removeRow" data-path="speeds" data-index="{{i}}" data-tooltip="{{localize 'ACKS.Delete'}}"><i class="fa-solid fa-trash" inert></i><span class="acks-sr-only">{{localize "ACKS.Delete"}}</span></button>
+          {{/if}}
+        </div>
+        {{else}}
+        <div class="acks-extras-frame__hint">{{localize "ACKS-MONSTERS.statblock.row.noSpeeds"}}</div>
         {{/each}}
       </div>
-      <div class="flexrow">
-        <div class="form-group">{{formGroup actorFields.movement.fields.value label="ACKS.movement.details" value=system.movement.value rootId=@root.partId localize=true}}</div>
-      </div>
-    </fieldset>
+    </div>
 
   </div>
-</section>
+</div>

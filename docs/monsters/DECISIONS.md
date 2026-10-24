@@ -190,3 +190,38 @@ imported copy stands for a compendium namesake, as the class picker rules.
 until it is repaired, and a repair reads the prose again. A world with no
 imported spells and no spell compendium loaded carries printed names only,
 as before.
+
+## 2026-10-23 — The monster sheet is drawn on the lib's frame
+
+**Ruled.** `FullMonsterSheet` extends `FrameMixin` and renders the frame's
+`band` and one `body` part in place of the system's header, tab strip and
+part set, so a monster and a character share one window shape (MODEL.md,
+"The sheet"). The system's Spells and Effects templates are included as
+partials of the body with the frame's tab object handed in as `tab`, and
+`_prepareEffectsContext` is called for the whole context: the system
+prepares the effects list only for its own effects PART, which no longer
+renders. A **Statblock** tab opens the sheet — every throw as a row that
+rolls, with a pin for the folded card — and **Classification** takes the
+core fields the system's header carried (hit points, armour class, attack
+throw, morale, initiative, surprise, XP award, alignment, movement) under a
+Figures rule. The Source tab becomes a tools-rail dialog, since provenance
+is read once and never edited; the band's glyph is the body form; loyalty
+and the wage are edited on Henchman alone; the appearance is edited on the
+art row alone and leaves the Description tab.
+
+**Rejected.** Keeping the system's header part under the frame's band: two
+title rows, and the header's hit-point, loyalty and wage fields would have
+submitted beside the frame's and the Henchman tab's under the same names.
+Keeping the Source tab: an imported creature carried one tab more than a
+hand-built one for a record nobody edits. A second appearance editor on
+Description for symmetry: two `prose-mirror` elements on one `name` submit
+an array, which is the fault the old Henchman tab's `{{#unless
+system.retainer.enabled}}` guarded against on the header.
+
+**What it cost.** The Rating & Saves legend's two glyph buttons are chips on
+the Classification rule; a Judge used to the system header finds its figures
+on Classification and its rolls on Statblock. Every unlinked token of one
+actor shares one fold state and one set of pins, because the fold is a user
+flag keyed by document id and the pins are the actor's sheet flag. The
+release that ships this owes a live walk of docs/monsters/TESTING.md on a
+relaunched world; the walk could not run in the session that built it.

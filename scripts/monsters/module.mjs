@@ -3,16 +3,16 @@
  * ACKS II — Full Monster Sheet.
  *
  * At ready we resolve the system's own registered monster sheet and register a
- * SUBCLASS of it — adding tabs for the extended stat block — as the DEFAULT
- * sheet for `monster` and for the library's `animal` sub-type. No new document
- * sub-type; nothing mutates the acks system. Extended data lives in
- * `flags["acks-extras"].extras`.
+ * SUBCLASS of it — the lib's sheet frame around the extended stat block — for
+ * `monster` and as the DEFAULT sheet for the library's `animal` sub-type. No
+ * new document sub-type; nothing mutates the acks system. Extended data lives
+ * in `flags["acks-extras"].extras`.
  *
  * See docs/monsters/DECISIONS.md for why this sheet defaults on both types.
  */
 import { acksExtras, assertAcksSystem } from "../namespace.mjs";
 import { MODULE_ID, FLAG_EXTRAS, MONSTER_TYPE } from "./constants.mjs";
-import { createFullMonsterSheet } from "./monster-sheet.mjs";
+import { createFullMonsterSheet, MONSTER_SHEET_TEMPLATES } from "./monster-sheet.mjs";
 import MonsterExtras from "./monster-extras.mjs";
 import { registerItemAnnotations } from "./item-annotations.mjs";
 import * as config from "./config.mjs";
@@ -80,21 +80,12 @@ Hooks.once("init", () => {
   };
   acksExtras.monsters = api;
 
-  // Best-effort template preload (added tabs; base tabs preload with the system).
+  // Best-effort preload of every partial the body includes: the sheet's own
+  // tabs and the system's Spells and Effects, which the body includes as
+  // partials rather than rendering as parts. The frame's partials preload
+  // with the lib.
   try {
-    const T = `modules/${MODULE_ID}/templates/monsters`;
-    foundry.applications.handlebars.loadTemplates([
-      `${T}/tab-classification.hbs`,
-      `${T}/tab-attacks.hbs`,
-      `${T}/tab-abilities.hbs`,
-      `${T}/tab-inventory.hbs`,
-      `${T}/tab-spoils.hbs`,
-      `${T}/tab-defenses.hbs`,
-      `${T}/tab-ecology.hbs`,
-      `${T}/tab-henchman.hbs`,
-      `${T}/tab-description.hbs`,
-      `${T}/tab-source.hbs`,
-    ]);
+    foundry.applications.handlebars.loadTemplates([...MONSTER_SHEET_TEMPLATES]);
   } catch (err) {
     console.warn(`${MODULE_ID} | template preload skipped`, err);
   }

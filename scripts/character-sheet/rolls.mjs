@@ -21,6 +21,7 @@
  */
 import { LANG, SAVE_KEYS, ADVENTURING_KEYS } from "./constants.mjs";
 import { makeLoc } from "../lib/util.mjs";
+import { FRAME_LANG_PREFIX } from "../lib/frame.mjs";
 import { carriesMorale, signed } from "./view-model.mjs";
 import { rollGroups as itemRollGroups, rollById as itemRollById } from "../equipment/item-sheet/rolls.mjs";
 import { rollUnarmed } from "../equipment/actions.mjs";
@@ -34,6 +35,7 @@ import { isAdventuring } from "../classes/grants.mjs";
 import { skipDialogFor } from "../lib/roll-dialog.mjs";
 
 const loc = makeLoc(LANG);
+const frameLoc = makeLoc(FRAME_LANG_PREFIX);
 const num = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
 
 /** Where a weapon is, as the line under its row. */
@@ -237,7 +239,7 @@ export async function rollById(actor, id, { event } = {}) {
       return true;
     }
     default:
-      ui.notifications?.warn(loc("rolls.unknown"));
+      ui.notifications?.warn(frameLoc("rollUnknown"));
       return false;
   }
 }

@@ -167,6 +167,11 @@ that prices a spell-like ability by how often it can be used imports with the
 creation tables when a monster builder consumes it. Nothing reads a factor
 today, so none ships; the usage itself is the shared frequency vocabulary.
 
+**The lair line reads the hex.** The Statblock's lair row rolls the chance;
+what a stocked hex holds for this creature (`formation/hex-stock.mjs`) is not
+read back onto the sheet, because the hex exposes no read keyed by actor. A
+reading of the lair's stock and its place on the map waits on that read.
+
 ---
 
 ## Groups
