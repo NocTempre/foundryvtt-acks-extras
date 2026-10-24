@@ -980,6 +980,10 @@ A roster of the run's own holds T alone, removed by its id at the end.
 - A Judge's handler is `Hooks.on("acksExtras.marketGateQuote", …)` on the
   seat that posts the entry, setting `quote.stay.cpPerDay` at M alone;
   remove it by its id.
+- An entry that brings no vehicle and no animal reads no moorage rate, so
+  it needs no table: that handler alone gives it a daily fee, and leaving
+  pays it. It is the cheapest way to make one stay payment, such as one
+  whose receipt (`spendGold`'s whisper to the Judge) is the thing checked.
 
 **Steps**
 
