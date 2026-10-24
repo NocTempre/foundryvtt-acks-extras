@@ -6,7 +6,7 @@
     "name": "Fort 19 Map",
     "pages": [16],
     "scene": {
-      "note": "Page points, top-left origin: the crop is the plan in its frame; the grid block is one drawn square; the distance is that square against the entrance's printed width (area 19). Walls trace the dark strokes; a drawn box is a door. Lines: the outer wall where windows break it; the entrance as two leaves; a wall read as a door up north; the western strip's divider, read as two doors, one dropped.",
+      "note": "Page points, top-left origin: the crop is the plan in its frame; the grid block is one drawn square; the distance is that square against the entrance's printed width (area 19). Walls trace the dark strokes; a drawn box is a door. Lines: the outer wall where windows break it; the entrance as two leaves; a wall read as a door up north; the west divider, read as doors, one dropped. A rect: the dais.",
       "crop": { "x": 245, "y": 84, "w": 314, "h": 302 },
       "grid": {
         "family": "square",
@@ -30,6 +30,7 @@
           { "line": [538.97, 244, 538.97, 371.52], "is": "invisible" },
           { "line": [370.3, 90.83, 370.3, 128.29], "is": "wall" },
           { "line": [288, 203.77, 288, 222.59], "is": "wall" },
+          { "rect": [339.12, 333.87, 383.04, 368.93], "is": "terrain" },
           { "at": [290.53, 213.03], "drop": "door" }
         ]
       }
