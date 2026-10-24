@@ -48,7 +48,9 @@ export async function buildFollowersTab(actor) {
       g.list.map(async (h) => {
         let html = "";
         try {
-          html = await renderFollowerCard(h, { editable: false });
+          // The card draws the employer's controls itself (dismissal, the two
+          // throws) for an owner; Show for every seat.
+          html = await renderFollowerCard(h, { editable: false, controls: actor.isOwner });
         } catch (err) {
           console.warn(`${MODULE_ID} | follower card failed for ${h.name}`, err);
         }

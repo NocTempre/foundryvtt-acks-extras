@@ -17,18 +17,25 @@
  */
 import { toNum as num, unset } from "../util.mjs";
 import { MODULE_ID } from "../constants.mjs";
-import { actorProvides, followerCardContext, shownAttackBonus, shownDamageBonus, FOLLOWER_CARD_TEMPLATE } from "../follower-card.mjs";
+import { actorProvides, followerCardContext, shownAttackBonus, shownDamageBonus, FOLLOWER_CARD_TEMPLATE, STAR_FLAG } from "../follower-card.mjs";
+import { toggleStar } from "../follower-card-model.mjs";
+import { FRAME_CLASS } from "../frame.mjs";
+import { moveBandIntoHeader } from "../header-band.mjs";
 import { ITEM_TYPE } from "../vocab.mjs";
 import { skipDialogFor } from "../roll-dialog.mjs";
 import { SECRET_ADVENTURING, rollSecretAdventuring } from "../patches/adventuring-roll.mjs";
 import { promptDivide } from "../stack-prompt.mjs";
 
+/** The actions that only look, kept live on a seat that cannot edit. */
+const VIEW_ACTIONS = new Set(["fcOpenFull", "fcShowItem"]);
 
 export class FollowerCardSheet extends foundry.applications.api.HandlebarsApplicationMixin(
   foundry.applications.sheets.ActorSheetV2,
 ) {
   static DEFAULT_OPTIONS = {
-    classes: ["acks-ui", "acks", "acks-lib-follower-card-sheet", "acks-extras-scroll"],
+    // The frame's root class draws the band in the window header; the card's
+    // own class narrows the frame's floor (styles/lib-follower-card.css).
+    classes: ["acks-ui", "acks", "acks-lib-follower-card-sheet", "acks-extras-scroll", FRAME_CLASS],
     // Size to content (grow with the card), not a fixed height that leaves an
     // empty window-content bar below a short card. The card part scrolls if it
     // outgrows the viewport.
@@ -36,6 +43,7 @@ export class FollowerCardSheet extends foundry.applications.api.HandlebarsApplic
     window: { resizable: true },
     form: { submitOnChange: true, closeOnSubmit: false },
     actions: {
+      fcStar: FollowerCardSheet.#onStar,
       fcToggleEquip: FollowerCardSheet.#onToggleEquip,
       fcRollProficiency: FollowerCardSheet.#onRollProficiency,
       fcRollAttack: FollowerCardSheet.#onRollAttack,
@@ -67,18 +75,66 @@ export class FollowerCardSheet extends foundry.applications.api.HandlebarsApplic
   }
 
   static PARTS = {
+    band: { template: `modules/${MODULE_ID}/templates/lib/frame/band.hbs` },
     card: { template: FOLLOWER_CARD_TEMPLATE, scrollable: [".acks-lib-follower-card"] },
   };
 
   /** @override */
   async _prepareContext(options) {
     const context = await super._prepareContext(options);
-    return { ...context, ...(await followerCardContext(this.actor, { editable: this.isEditable, interactive: true })) };
+    const card = await followerCardContext(this.actor, { editable: this.isEditable, interactive: true });
+    return { ...context, ...card, band: this.#band(card) };
   }
 
-  /** @override — wire the override inputs and inject the Expand button. */
+  /**
+   * The band: the portrait as the glyph, the rank under the name's line, the
+   * name field, and the card's tools as chips — the two ad-hoc additions, the
+   * two override controls (lit while an override stands) and the way out to
+   * the full sheet.
+   */
+  #band(card) {
+    const L = (k) => game.i18n.localize(`ACKS-LIB.followerCard.${k}`);
+    const chips = this.isEditable
+      ? [
+          { action: "fcAddAttack", icon: "fa-solid fa-plus", label: L("addAttackShort"), title: L("addAttack") },
+          { action: "fcAddSkill", icon: "fa-solid fa-plus", label: L("addSkillShort"), title: L("addSkill") },
+          { action: "fcCommit", icon: "fa-solid fa-check-double", label: L("commitShort"), title: L("commit"), tone: card.hasOverrides ? "gold" : null, attrs: card.hasOverrides ? "" : "disabled" },
+          { action: "fcResetSheet", icon: "fa-solid fa-rotate-left", label: L("resetShort"), title: L("resetSheet"), attrs: card.hasOverrides ? "" : "disabled" },
+        ]
+      : [];
+    chips.push({ action: "fcOpenFull", icon: "fa-solid fa-up-right-from-square", label: L("fullSheet"), title: L("expand") });
+    return {
+      glyph: { img: this.actor.img, action: "fcOpenFull", attrs: "", title: L("expand") },
+      rank: card.rank,
+      rankTitle: card.rank,
+      name: this.actor.name,
+      editable: this.isEditable,
+      folded: false,
+      chips,
+      bar: null,
+      reading: null,
+    };
+  }
+
+  /** Star or unstar a power for the employer's compact card. */
+  static async #onStar(_event, target) {
+    const id = target.dataset.itemId;
+    if (!id) return;
+    await this.actor.setFlag(MODULE_ID, STAR_FLAG, toggleStar(this.actor.getFlag(MODULE_ID, STAR_FLAG) ?? [], id));
+  }
+
+  /** @override — the band into the header, the override inputs, the view-only actions and the Expand button. */
   async _onRender(context, options) {
     await super._onRender(context, options);
+    moveBandIntoHeader(this.element);
+
+    // DocumentSheetV2 disables every control on a seat that cannot edit; the
+    // ones that only look stay live.
+    if (!this.isEditable) {
+      for (const button of this.element.querySelectorAll("button[data-action]")) {
+        if (VIEW_ACTIONS.has(button.dataset.action)) button.disabled = false;
+      }
+    }
 
     // Roll-target inputs write CARD-ONLY overrides (a flag the main sheet ignores),
     // not the base fields. They carry no name=, so they don't ride the form submit.
@@ -193,7 +249,7 @@ export class FollowerCardSheet extends foundry.applications.api.HandlebarsApplic
 
   /** Reveal/hide one attack's edit line (view state only — nothing is stored). */
   static #onToggleAttackEdit(_event, target) {
-    target.closest(".fc-attack-wrap")?.classList.toggle("editing");
+    target.closest(".acks-lib-follower-card__attack")?.classList.toggle("is-editing");
   }
 
   /** Reset: drop all card-only overrides, back to the sheet's own values. */
@@ -291,7 +347,7 @@ export class FollowerCardSheet extends foundry.applications.api.HandlebarsApplic
     const key = target.closest("[data-attack-key]")?.dataset.attackKey;
     const ov = key ? ((this.actor.getFlag(MODULE_ID, "fcOverrides") ?? {}).attacks ?? {})[key] : null;
     const stored = target.dataset.itemId ? this.actor.items.get(target.dataset.itemId) : null;
-    const item = this.#attackItem(stored, ov, side, target.textContent.trim());
+    const item = this.#attackItem(stored, ov, side, target.dataset.label ?? target.textContent.trim());
     // A bare row rolls as the row says; a weapon rolls the kind it offers on
     // that side (a hurled hand axe is the system's "thrown").
     const types = item ? (item.system?.getAttackTypes?.() ?? []) : [side];

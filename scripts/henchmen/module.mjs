@@ -8,7 +8,8 @@
  *  ready: system check, GM time watcher, chat commands, card listeners.
  */
 import { acksExtras, assertAcksSystem } from "../namespace.mjs";
-import { MODULE_ID, LOCATION_TYPE, RULEDATA, HOOKS, SCHEMA_VERSION } from "./constants.mjs";
+import { MODULE_ID, LOCATION_TYPE, RULEDATA, HOOKS, SCHEMA_VERSION, FLAG_RECORD } from "./constants.mjs";
+import { FOLLOWER_CARD_HOOK } from "../lib/follower-card.mjs";
 import { installWageGuard, registerDeletionCleanup, sweepAtReady, repairWorld, repairActor, scanActor, describeRepair } from "./repair.mjs";
 import * as config from "./config.mjs";
 import { registerHenchmenRepairChecks } from "./repair-checks.mjs";
@@ -306,6 +307,13 @@ Hooks.on("preCreateActor", (doc, data) => {
 /* Bind event-card buttons (v14 AppV2 convention: HTMLElement hook only —
  * registering the legacy jQuery hook triggers a deprecation warning). */
 Hooks.on("renderChatMessageHTML", (_message, html) => bindCardListeners(html));
+
+/* The Follower Card asks what a feature knows of the actor: a calamity still
+ * owing its loyalty throw dots the follower's name on the employer's card. */
+Hooks.on(FOLLOWER_CARD_HOOK, (actor, ctx) => {
+  if (!actor?.getFlag?.(MODULE_ID, FLAG_RECORD)?.special?.pendingCalamity) return;
+  ctx.pending = { title: game.i18n.localize("ACKS-HENCHMEN.roster.pending") };
+});
 
 /* Roster button on acks character sheets (additive DOM only — the
  * acks-domains/acks-influence injection pattern, dedupe-guarded). */

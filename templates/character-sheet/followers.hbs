@@ -16,15 +16,9 @@
     <div class="acks-extras-frame__subhead"><span>{{g.title}}</span></div>
     <div class="acks-extras-frame__cards">
       {{#each g.cards as |card|}}
+      {{!-- The card carries its own controls (Show, Dismiss, the two throws),
+            resolved by this wrapper's actor id. --}}
       <div class="acks-extras-frame__card" data-actor-id="{{card.id}}">
-        <div class="acks-extras-frame__card-tools">
-          <button type="button" class="acks-extras-frame__ctl" data-action="hirelingShow" data-tooltip="{{localize 'ACKS.Show'}}"><i class="fa-solid fa-eye" inert></i></button>
-          {{#if @root.editable}}
-          <button type="button" class="acks-extras-frame__ctl" data-action="hirelingLoyalty" data-tooltip="{{localize 'ACKS.Loyalty'}}"><i class="fa-solid fa-heart" inert></i></button>
-          <button type="button" class="acks-extras-frame__ctl" data-action="hirelingMorale" data-tooltip="{{localize 'ACKS.details.morale'}}"><i class="fa-solid fa-flag" inert></i></button>
-          <button type="button" class="acks-extras-frame__ctl" data-action="hirelingDelete" data-tooltip="{{localize 'ACKS-CHARACTER.followers.dismiss'}}"><i class="fa-solid fa-user-minus" inert></i></button>
-          {{/if}}
-        </div>
         {{#if card.html}}{{{card.html}}}{{else}}<div class="acks-extras-frame__row"><img class="acks-extras-frame__gear-img" src="{{card.img}}" alt="" inert><span class="acks-extras-frame__row-name">{{card.name}}</span></div>{{/if}}
       </div>
       {{/each}}

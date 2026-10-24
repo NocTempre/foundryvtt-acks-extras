@@ -1,16 +1,20 @@
-/* global foundry, game, CONFIG */
+/* global foundry, game, CONFIG, Hooks */
 /**
  * The ACKS II "Follower Card" — the printed henchman/follower card, rendered as a
  * compact, theme-styled view of an actor. See docs/lib/FOLLOWER-CARD.md.
  *
- * One layout serves two surfaces: the editable FollowerCardSheet, and the
- * read-only cards a character sheet's hirelings tab is re-skinned into (the
- * henchmen feature), where the SAME markup must emit no `name=` inputs.
+ * One template serves two surfaces: the editable FollowerCardSheet, drawn on
+ * the lib frame's vocabulary with its band in the window header, and the
+ * compact read-only cards an employer's Followers tab shows (the character
+ * sheet and the henchmen feature's grid), where the SAME template must emit
+ * no `name=` inputs.
  *
  * Which fields a card shows is decided by what the actor's data model
  * DECLARES, never by `actor.type` — see `actorProvides` below and
  * docs/lib/DECISIONS.md, "The Follower Card selects fields by schema, never
- * by actor type".
+ * by actor type". What a FEATURE knows about the actor (a henchman's owed
+ * throw, a monster's saves-as class) arrives through `FOLLOWER_CARD_HOOK`,
+ * so the lib reads no feature's flag.
  */
 import { toNum as num } from "./util.mjs";
 import { MODULE_ID } from "./constants.mjs";
@@ -21,8 +25,21 @@ import { coinOrderView } from "./coin-order.mjs";
 import { attackOptionsFor, damageTypeLabel, DAMAGE_TYPE_ICONS, UNTYPED_ICON } from "./damage-type.mjs";
 import { profileStrips, isProfileAbility, sizePips } from "./proficiency-strip.mjs";
 import { ITEM_TYPE } from "./vocab.mjs";
+import { ANIMAL_TRAINING } from "./data/animal-data.mjs";
+import { signed } from "./frame-model.mjs";
+import { STAR_FLAG, stones, hdText, withMod, rankLine, saveTargets, savesLine, oneLine, starredRows } from "./follower-card-model.mjs";
+
+export { STAR_FLAG };
 
 export const FOLLOWER_CARD_TEMPLATE = `modules/${MODULE_ID}/templates/lib/follower-card.hbs`;
+
+/**
+ * Fired with `(actor, ctx)` once the lib has built a card's context, before
+ * it renders. A feature adds what only it knows: `ctx.pending = {title}` for
+ * a throw owed on the follower, `ctx.savesAs` for the class a creature saves
+ * as. The lib reads no feature's flag itself.
+ */
+export const FOLLOWER_CARD_HOOK = "acksExtrasFollowerCardContext";
 
 /** Printed-card ability order. "WIL" is the label; the system stores it as `wis`. */
 const ABILITY_ROW = [
@@ -43,27 +60,13 @@ const ADVENTURING = [
   { key: "trapbreaking", label: "ACKS.adventuring.trapbreaking", icon: "fas fa-toolbox" },
 ];
 
-const signed = (v) => {
-  const n = num(v);
-  return n >= 0 ? `+${n}` : `${n}`;
-};
-
-/**
- * 1/6-stone weight → the stone figure the printed sheet writes (e.g. "3 2/6").
- * A purse weighs a fraction of a sixth; the card prints the nearest whole one.
- */
-function stones(value6) {
-  const n = Math.max(0, Math.round(num(value6)));
-  const whole = Math.floor(n / 6);
-  const sixths = n % 6;
-  return sixths ? `${whole} ${sixths}/6` : String(whole);
-}
-
-/** Hit Dice as the printed card writes it: an integer, or the ½ fraction. */
+/** Hit Dice as the printed card writes it: an integer, or the fraction glyph. */
 function hdLabel(actor) {
-  const hd = monsterHd(actor);
-  return { 0.5: "½", 0.25: "¼", 0.125: "⅛" }[hd] ?? String(hd);
+  return hdText(monsterHd(actor));
 }
+
+/** A core string where the system has it, else the fallback. */
+const coreLabel = (key, fallback) => (game.i18n?.has?.(key) ? game.i18n.localize(key) : fallback);
 
 /**
  * Does this actor actually carry the field at `path`? True when the actor's
@@ -90,20 +93,6 @@ function typeLabel(actor) {
   return game.i18n?.has?.(key) ? game.i18n.localize(key) : "";
 }
 
-/** A damage die with the actor's damage modifier appended (blank stays blank). */
-function withMod(dice, mod) {
-  if (!dice) return "";
-  return mod ? `${dice}${signed(mod)}` : `${dice}`;
-}
-
-/**
- * Does this body bring spells to the table?
- *
- * THE one answer to that question. A class caster declares the slot model, but a
- * creature with spell-like powers carries the spells themselves and never sets
- * the flag — asking only the flag hides exactly the monsters whose spells the
- * table needs to see. Either is enough.
- */
 /**
  * The attack bonus the card shows for a kind of attack: an ability mod and the
  * Tweaks adjustment paired with it, both of a body with scores. A creature
@@ -122,6 +111,12 @@ export function shownDamageBonus(actor, type) {
   return num(actor?.system?.damage?.mod?.[type === "missile" ? "missile" : "melee"]);
 }
 
+/**
+ * Does this body bring spells to the table? A class caster declares the slot
+ * model, but a creature with spell-like powers carries the spells themselves
+ * and never sets the flag — asking only the flag hides exactly the monsters
+ * whose spells the table needs to see. Either is enough.
+ */
 export function isSpellcaster(actor) {
   if (actor?.system?.spells?.enabled) return true;
   return (actor?.items?.contents ?? []).some((i) => i.type === ITEM_TYPE.spell);
@@ -130,14 +125,17 @@ export function isSpellcaster(actor) {
 /**
  * Build the Follower Card view model for an actor.
  * @param {Actor} actor
- * @param {{editable?: boolean, interactive?: boolean}} [opts]
+ * @param {{editable?: boolean, interactive?: boolean, controls?: boolean}} [opts]
  *   `interactive` marks the card as the FollowerCardSheet's own render, where this
  *   module's actions are bound. The read-only cards on a character sheet's
  *   hirelings tab sit inside the EMPLOYER's application, which knows nothing of
  *   them, so controls that dispatch an action are drawn only when it is set.
+ *   `controls` draws the employer's own controls on a read-only card — the
+ *   dismissal and the two throws — for a host whose seat may use them; the
+ *   Show control is drawn regardless.
  * @returns {Promise<object>} a flat view model consumed by follower-card.hbs
  */
-export async function followerCardContext(actor, { editable = false, interactive = false } = {}) {
+export async function followerCardContext(actor, { editable = false, interactive = false, controls = !editable } = {}) {
   const sys = actor?.system ?? {};
   const items = actor?.items?.contents ?? [];
   // Ability scores are the card's one structural fork: a model that declares them
@@ -149,6 +147,9 @@ export async function followerCardContext(actor, { editable = false, interactive
   // Commit bakes them into the real base fields. Shape: { ac, adventuring: {key} }.
   const overrides = actor?.getFlag?.(MODULE_ID, "fcOverrides") ?? {};
   const advOv = overrides.adventuring ?? {};
+  // The powers starred on the follower's own card are the ones the employer's
+  // compact card lists; the flag holds their item ids.
+  const starred = actor?.getFlag?.(MODULE_ID, STAR_FLAG) ?? [];
 
   const weapons = items.filter((i) => i.type === ITEM_TYPE.weapon);
   // Powers/prof and equipment carry ids so the editable sheet can roll them and
@@ -159,7 +160,14 @@ export async function followerCardContext(actor, { editable = false, interactive
   const strips = profileStrips(actor);
   const powers = items
     .filter((i) => i.type === ITEM_TYPE.ability && (!isProfileAbility(i) || !strips.any))
-    .map((i) => ({ id: i.id, name: i.name, rollable: !!i.system?.roll, hasText: !!i.system?.description }));
+    .map((i) => ({
+      id: i.id,
+      name: i.name,
+      rollable: !!i.system?.roll,
+      hasText: !!i.system?.description,
+      line: oneLine(i.system?.description),
+      starred: starred.includes(i.id),
+    }));
   // Coin is gear like the rest: a purse that holds anything is listed, always
   // with its count; an emptied one is not. A stack divides on the card's own
   // sheet, where the control's action is bound.
@@ -214,6 +222,7 @@ export async function followerCardContext(actor, { editable = false, interactive
   const ctx = {
     editable,
     interactive,
+    controls,
     caster,
     id: actor?.id,
     uuid: actor?.uuid,
@@ -223,17 +232,44 @@ export async function followerCardContext(actor, { editable = false, interactive
     klass: hasClass ? (sys.details?.class ?? "") : typeLabel(actor),
     klassPath: hasClass ? "system.details.class" : null,
     ac: overrides.ac != null ? num(overrides.ac) : num(sys.ac?.value),
+    acBase: num(sys.ac?.value),
     acOverridden: overrides.ac != null,
     hp: { value: num(sys.hp?.value), max: num(sys.hp?.max) },
     morale: num(sys.details?.morale),
+    moraleSigned: signed(num(sys.details?.morale)),
     loyalty: num(sys.retainer?.loyalty),
+    loyaltySigned: signed(num(sys.retainer?.loyalty)),
     attackThrow: num(sys.attack?.throw, 10),
     powers,
+    starredRows: starredRows(powers, starred),
     equipment,
+    worn: equipment.filter((e) => e.equipped || isCurrency(items.find((i) => i.id === e.id))),
     purse: purse?.shown ? purse : null,
     notesPath,
     notes,
+    // What only a feature knows, set through FOLLOWER_CARD_HOOK below.
+    pending: null,
+    savesAs: null,
   };
+
+  // The five save targets, where the body stores any; the readings a compact
+  // card prints beside the class it saves as.
+  const saveTargetsOf = actorProvides(actor, "saves") ? saveTargets(sys.saves) : null;
+  ctx.saves = saveTargetsOf ? { targets: saveTargetsOf, line: savesLine(saveTargetsOf) } : null;
+
+  // An animal's training and whether it bears a rider — the lib's own
+  // sub-type fields, labelled from its own vocabulary.
+  if (actorProvides(actor, "animal")) {
+    const key = sys.animal?.training ?? "untrained";
+    const trained = !!key && key !== "untrained";
+    ctx.animal = {
+      trained,
+      trainingLabel: trained ? game.i18n.localize(ANIMAL_TRAINING[key] ?? key) : "",
+      mount: !!sys.animal?.mountable,
+    };
+  } else {
+    ctx.animal = null;
+  }
 
   // Enriched for display only; the raw text is what the editor edits (its
   // `value`). Both branches render HTML that core stored as HTML.
@@ -258,6 +294,14 @@ export async function followerCardContext(actor, { editable = false, interactive
     ctx.level = "";
     ctx.levelPath = null;
   }
+  // The line under the name: class and level, or Hit Dice and the type's name.
+  ctx.rank = rankLine({
+    klass: hasClass ? ctx.klass : "",
+    level: actorProvides(actor, "details.level") ? ctx.level : "",
+    hd: actorProvides(actor, "hp.hd") && !actorProvides(actor, "details.level") ? ctx.level : "",
+    hdWord: coreLabel("ACKS.HitDiceShort", "HD"),
+    typeLabel: typeLabel(actor),
+  });
 
   // XP — nested (`{value, next, …}`) on a character, flat on a creature; bind
   // to whichever the model declares, or the edit writes an object over a number.
@@ -281,7 +325,7 @@ export async function followerCardContext(actor, { editable = false, interactive
         key,
         label,
         value: num(sys.scores?.[key]?.value),
-        mod: signed(sys.scores?.[key]?.mod),
+        mod: signed(num(sys.scores?.[key]?.mod)),
       }))
     : [];
 
@@ -324,15 +368,15 @@ export async function followerCardContext(actor, { editable = false, interactive
   const dmgModFor = (type) => shownDamageBonus(actor, type);
 
   const equippedWeapons = weapons.filter((w) => w.system?.equipped);
+  // A body without scores fights by its routine: one throw for every attack.
+  ctx.routine = hasScores ? null : throwTarget;
   if (!hasScores && !equippedWeapons.length) {
     // A creature with no gear fights with its own routine, not "unarmed" — the
     // unarmed / improvised repertoire belongs to a body that has hands and scores.
     ctx.attacks = [
       {
         key: "natural",
-        label: game.i18n?.has?.("ACKS-LIB.followerCard.attack")
-          ? game.i18n.localize("ACKS-LIB.followerCard.attack")
-          : "Attack",
+        label: coreLabel("ACKS-LIB.followerCard.attack", "Attack"),
         type: "attack",
         itemId: null,
         icon: DAMAGE_TYPE_ICONS.varies ?? UNTYPED_ICON,
@@ -395,16 +439,17 @@ export async function followerCardContext(actor, { editable = false, interactive
     overrides.enc != null ||
     Object.keys(advOv).length > 0 ||
     Object.keys(overrides.attacks ?? {}).length > 0;
+  if (actor) Hooks.callAll?.(FOLLOWER_CARD_HOOK, actor, ctx);
   return ctx;
 }
 
 /**
  * Render the Follower Card to an HTML string.
  * @param {Actor} actor
- * @param {{editable?: boolean}} [opts]
+ * @param {{editable?: boolean, interactive?: boolean, controls?: boolean}} [opts] as `followerCardContext`
  * @returns {Promise<string>}
  */
-export async function renderFollowerCard(actor, { editable = false, interactive = false } = {}) {
-  const ctx = await followerCardContext(actor, { editable, interactive });
+export async function renderFollowerCard(actor, { editable = false, interactive = false, controls = !editable } = {}) {
+  const ctx = await followerCardContext(actor, { editable, interactive, controls });
   return foundry.applications.handlebars.renderTemplate(FOLLOWER_CARD_TEMPLATE, ctx);
 }

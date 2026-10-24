@@ -17,6 +17,7 @@ import MonsterExtras from "./monster-extras.mjs";
 import { registerItemAnnotations } from "./item-annotations.mjs";
 import * as config from "./config.mjs";
 import { elementOf, primaryGMSettled } from "../lib/util.mjs";
+import { FOLLOWER_CARD_HOOK } from "../lib/follower-card.mjs";
 
 /** The dynamically-created sheet class (base is resolved at init). */
 let FullMonsterSheet = null;
@@ -183,6 +184,17 @@ async function migrateDefenseBands() {
   await Actor.updateDocuments(updates);
   console.log(`${MODULE_ID} | defence bands migrated on ${updates.length} actor(s): prose effects became sets, remainders kept in notes.`);
 }
+
+/* The Follower Card asks what a feature knows of the actor: a creature's
+ * saves-as class and level, which live on this feature's extras. */
+Hooks.on(FOLLOWER_CARD_HOOK, (actor, ctx) => {
+  if (!sheetTypes.includes(actor?.type)) return;
+  const saveAs = MonsterExtras.fromActor(actor)?.saveAs ?? {};
+  if (!saveAs.class) return;
+  const cls = game.i18n.localize(config.SAVE_CLASSES[saveAs.class]?.label ?? saveAs.class);
+  const level = saveAs.levelMax != null && saveAs.levelMax !== saveAs.level ? `${Number(saveAs.level) || 0}–${Number(saveAs.levelMax) || 0}` : `${Number(saveAs.level) || 0}`;
+  ctx.savesAs = game.i18n.format("ACKS-MONSTERS.frame.art.savesAs", { cls, level });
+});
 
 /* Actor-directory convenience: open the Full Monster sheet directly. */
 Hooks.on("getActorContextOptions", (_directory, options) => {

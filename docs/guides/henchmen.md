@@ -113,6 +113,20 @@ card at once (**Full sheets for all** undoes it). With the module's sheets, a
 monster opens on the card whether hired or not, with the full stat block
 behind its **Full sheet** link.
 
+**The card is the sheet's shape, smaller.** Its band sits in the window
+header with the portrait, class and level (or Hit Dice), the name, and the
+tools: **Attack** and **Skill** add a line for the table only, **Commit**
+and **Reset** keep or drop the card's own figures, **Full sheet** opens the
+rest. Below, three columns: hit points, the card-only armour class, speed
+and load, morale, loyalty and the six scores; the powers and proficiencies,
+each on one line with its roll, the adventuring throws and the attacks (press
+the row to throw, the pencil to edit it); notes, what is carried with the
+worn toggle and the coin, and a caster's slots. **Star a power** and the
+employer's Followers tab shows it on the follower's compact card beside the
+attacks; unstarred, that card shows the six readings, the attacks, the saves
+and what is worn, and a red dot after the name while a calamity throw is
+owed.
+
 **A power is worth what your book says.** The henchman limit, a hire's base
 loyalty, the hirelings' morale bonus and the hiring-offer bonuses read the
 value the importer located on each power's page, or an Active Effect the Judge

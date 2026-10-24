@@ -279,10 +279,14 @@ compensated toggle, Pay wages, opening the employer) are the sheet's
 `service*` and `toggleCompensated` handlers, each a call into the henchmen
 feature.
 
-**Followers** renders the employer's hirelings as Follower Cards in the
+**Followers** renders the employer's hirelings as compact Follower Cards
+([lib FOLLOWER-CARD](../lib/FOLLOWER-CARD.md), "The compact card") in the
 henchmen feature's buckets — the system's character henchmen and the
-module's monster henchmen alike — with show, loyalty, morale and dismiss on
-each, and the Roster chip. The wage line beside it is the henchmen feature's
+module's monster henchmen alike — and the Roster chip. The card draws the
+employer's controls itself (Show, Dismiss, the morale and loyalty throws)
+when the seat owns the employer (`controls: actor.isOwner`); they dispatch
+this sheet's `hireling*` actions, which resolve the follower by the
+wrapper's `data-actor-id`. The wage line beside it is the henchmen feature's
 `wageBill` ([henchmen MODEL](../henchmen/MODEL.md) §4c): what a payday would
 bill now, with the Pay wages chip, while anything is due, and what the
 payroll costs a month otherwise, with the days until the bill's `nextDue`

@@ -4464,3 +4464,57 @@ and this one was not).
 picked — both are the same flag — so a hireling someone had put on the card
 on purpose opens on the full sheet after the upgrade, one right-click from
 returning. A dismissed hireling is not in service and keeps its card.
+
+### The card is drawn on the frame, in two faces, and a feature speaks through a hook (2026-10-23)
+
+The character and monster sheets moved onto the lib frame (2026-10-22, and
+docs/character-sheet/DECISIONS.md); the Follower Card kept its own grammar
+(`fc-*` classes, a bordered column, the tools in a footer), so a Judge
+switching a hireling between faces met two designs of one module. The
+redesign canvas gave the card a band and the frame's three columns for the
+follower's own window, and a compact head-and-readings card for the
+employer's tab.
+
+**Ruled.**
+- One template, two faces, switched on `editable`: the frame's rules and
+  rows on the follower's own sheet; a head, a six-reading strip, the attacks,
+  the starred powers, the saves, the animal line and what is worn on the
+  compact card. Every control the old card had stays; the compact card gains
+  the employer's controls (Show, Dismiss, the two throws) as its own, drawn
+  on `controls` (default `!editable`), so the Followers tab no longer draws a
+  tools row beside each card and a non-owner gets the readings alone.
+- `FollowerCardSheet` carries the frame's root class and the band partial
+  but not the `FrameMixin`: the card has no rails, fold or tabs, and the
+  mixin's size-for-fold and pin menu would be dead weight on it. It moves the
+  band itself, as the roster app does.
+- What a feature knows reaches the card through `FOLLOWER_CARD_HOOK`, fired
+  with the built context. Henchmen sets the pending dot, monsters the
+  saves-as line. The lib imports nothing of either.
+- Starred powers are a lib flag (`fcStarred`, item ids) toggled on the
+  follower's sheet; the compact card lists those rows and no others, so the
+  Judge decides what an employer's tab says of a follower's abilities.
+- An attack row throws on the row and on its die button; the row's
+  `data-label` names the attack to the roll, since the row's text now holds
+  the throw and the damage too.
+- The decisions on plain data left `follower-card.mjs` for
+  `follower-card-model.mjs`, pinned by `tools/test-follower-card.mjs`; the
+  legacy save keys (`breath`, `wand`) map onto the frame's five.
+
+**Rejected.**
+- *Two templates.* The context is one; the branches share the attacks, the
+  build strips and the coin block, and a second template would restate them.
+- *The `FrameMixin` on the card sheet.* See above; the mixin is for a sheet
+  with rails and a fold.
+- *The lib reading the henchmen record and the monster extras directly.*
+  The lib is the layer the features build on; a read of a feature's flag
+  from it inverts the dependency the "lib" rule exists for.
+- *Every power on the compact card.* A henchman with a dozen proficiencies
+  made the employer's tab a list; the star is the Judge's cut.
+
+**Cost.** The `fc-*` classes the old card and its CSS shared with nothing
+else are gone; `.acks-lib-build`/`fc-build-*`/`fc-pill` stay because the
+proficiency strip and the class modifiers mount them outside the card. The
+system sheet's Hirelings grid (`hirelings-grid.mjs`) renders the card with
+`controls` on for every seat the system sheet opens for, as before. The
+release shots `docs/releases/v10.1.0/lib-follower-card.png` and
+`henchmen-wages.png` show the old card and are retaken at the next release.

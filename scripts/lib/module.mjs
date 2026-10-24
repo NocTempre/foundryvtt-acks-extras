@@ -73,7 +73,7 @@ import { registerMountCleanup, registerMountDrop } from "./mount.mjs";
 import { registerStorageCleanup, registerStorageRelay, DELETE_POLICY_SETTING } from "./storage.mjs";
 import { registerGroupCleanup } from "./group.mjs";
 import { FollowerCardSheet } from "./apps/follower-card-sheet.mjs";
-import { followerCardContext, renderFollowerCard, FOLLOWER_CARD_TEMPLATE } from "./follower-card.mjs";
+import { followerCardContext, renderFollowerCard, FOLLOWER_CARD_TEMPLATE, FOLLOWER_CARD_HOOK } from "./follower-card.mjs";
 import { FRAME_TEMPLATES } from "./frame.mjs";
 import * as damageType from "./damage-type.mjs";
 import {
@@ -360,6 +360,8 @@ const localImpl = Object.freeze({
     render: renderFollowerCard,
     Sheet: FollowerCardSheet,
     TEMPLATE: FOLLOWER_CARD_TEMPLATE,
+    /** The hook a feature answers with what it alone knows of the actor. */
+    HOOK: FOLLOWER_CARD_HOOK,
     setSheet: setFollowerSheet,
     SHEET_KEY: FOLLOWER_SHEET_KEY,
   },

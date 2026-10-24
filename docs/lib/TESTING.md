@@ -125,10 +125,30 @@ report the same symptom.
    `await acksExtras.lib.vision.migrateWorld()` re-derives it for tokens
    already placed, answering `ran: true` with its counts. No macro ships for
    the sweep, so the call is the step; it writes to every scene in the world.
-9. Follower card: open a plain `monster`.
-   *Observable:* `FollowerCardSheet` renders as the compact card, and its
-   **Full sheet** control (`data-action="fcOpenFull"`) opens `FullMonsterSheet`
-   beside it.
+9. Follower card (`tools/live/follower-card.mjs` walks this step): open a
+   plain `monster`.
+   *Observable:* `FollowerCardSheet` renders on the frame — the root carries
+   `acks-extras-frame` and `.window-header` holds `.acks-extras-frame__band`
+   with the portrait glyph, the rank (`2 HD · Monster`), the name field and
+   the chips — and its **Full sheet** chip (`data-action="fcOpenFull"`) opens
+   `FullMonsterSheet` beside it. The body is `.acks-lib-follower-card` (no
+   `readonly` class) with `.acks-extras-frame__cols.is-3`.
+   Set a saves-as class on the monster's extras and star one of its powers
+   (`[data-action="fcStar"]`, which writes `flags.acks-extras.fcStarred`).
+   Make a `character` with a hireling list naming the monster and open its
+   Followers tab. *Observable:* the compact card (`.acks-lib-follower-card.readonly`)
+   shows the starred power under **Starred**, the saves row reads the
+   monsters feature's "Saves as …" line, the name is a button
+   (`.acks-lib-follower-card__name`) and **Dismiss** and the two throw
+   buttons (`.acks-lib-follower-card__fact.is-roll`) render for the owner.
+   Join as a player who can observe but not own the employer: the readings
+   render, the name button renders, no Dismiss and no throw buttons.
+   Record a calamity on a character hireling and leave its throw unmade.
+   *Observable:* its compact card carries `.acks-extras-frame__dot` after
+   the name with the pending tooltip. On an attack row of the editable card,
+   press the row away from its controls, then its die. *Observable:* two
+   chat throws of that attack; the pencil opens `.acks-lib-follower-card__attack-editor`
+   under the row (`is-editing`) and nothing is written until a field changes.
    The card as a RETAINER's own sheet is reached without the context menu:
    `actor.setFlag("core","sheetClass","acks-extras.FollowerCardSheet")` with
    `actor._sheet = null` on either side of the write, since `ClientDocument#sheet`

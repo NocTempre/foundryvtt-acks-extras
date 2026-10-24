@@ -143,6 +143,14 @@ them, while the actor serves, the henchmen feature's Service panel
 sheet's `service*` and `toggleCompensated` handlers. The number appearing
 stays on Ecology, mirrored into core's `appearing.d/.w` on submit as before.
 
+**On the Follower Card.** A monster hired opens on the lib's card, and its
+compact card on an employer's sheet reads the saves-as line in the saves row:
+this feature answers the lib's `FOLLOWER_CARD_HOOK` (`module.mjs`) with
+`ctx.savesAs` from the extras' `saveAs`, the class label and the level or
+its range ([lib FOLLOWER-CARD](../lib/FOLLOWER-CARD.md), "What a feature
+adds"). A creature with no saves-as class leaves the row to the stored
+targets.
+
 **Unlinked tokens.** The fold is a user flag keyed by the document id and
 the pins are the actor's sheet flag, so every unlinked token of one actor
 shares one fold state and one set of pins.

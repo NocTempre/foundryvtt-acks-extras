@@ -377,8 +377,11 @@ serves ([../monsters/MODEL.md](../monsters/MODEL.md), "The tabs"). Standing
 holds the loyalty score with its parts (start, permanents, Charisma, powers)
 and the morale score, each a roll row the sheet's own `roll` action throws
 and a pin for the folded bar; a calamity still owing its throw
-(`special.pendingCalamity`) puts a warning row first, badges the tab and dots
-the band's in-service chip. Terms are the wage, its basis, the two shares
+(`special.pendingCalamity`) puts a warning row first, badges the tab, dots
+the band's in-service chip and, through the lib's `FOLLOWER_CARD_HOOK`
+(`module.mjs`), dots the follower's name on the employer's compact card
+([../lib/FOLLOWER-CARD.md](../lib/FOLLOWER-CARD.md), "What a feature
+adds"). Terms are the wage, its basis, the two shares
 said as words from the stored fractions, the signing bonus, arrears and the
 wage clock (days since the last payday against the month, in tone once it is
 behind). Employer names the employer and the calamity and level counters,
