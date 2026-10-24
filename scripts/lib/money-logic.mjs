@@ -101,6 +101,13 @@ export function coinTotalCp(plainItems) {
 export const coinTotalGC = (plainItems) => coinTotalCp(plainItems) / 100;
 
 /**
+ * A sum in gold as the figure a message shows: to the copper, trailing zeros
+ * dropped (`0.03`, `0.5`, `12`), so a sum under a gold piece never reads as
+ * nothing. An unreadable sum reads `0`.
+ */
+export const gpText = (gp) => String(Math.round(num(gp, 0) * 100) / 100);
+
+/**
  * Spendable slots from plain item data, one per coin row. Order is NOT applied
  * here — the planner sorts by its own policy.
  */

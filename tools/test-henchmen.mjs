@@ -531,4 +531,41 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
   }
 }
 
-console.log(`test-henchmen: OK (${macros.length} macros, bulk offers, network step, power values, henchman limit, network posting, hiring offer, hosted pages)`);
+// ---- spendGold's receipt and short-purse warning show the sum paid ----
+// A copper-scale fee (a market stay) pays through spendGold; the figure it
+// tells the Judge must not round a sub-gp sum to 0 or 1. The money stand-in
+// answers only whether the purse covered the sum.
+{
+  const { spendGold } = await import(new URL("../scripts/henchmen/acks-adapter.mjs", import.meta.url));
+  const { acksExtras: ns } = await import(new URL("../scripts/namespace.mjs", import.meta.url));
+  const saved = { lib: ns.lib, game: globalThis.game, ui: globalThis.ui, ChatMessage: globalThis.ChatMessage };
+  const posted = [];
+  const warned = [];
+  let covered = true;
+  ns.lib = { money: { sinkCoin: async () => ({ ok: covered }) } };
+  globalThis.game = {
+    users: [{ id: "gm", isGM: true }, { id: "p", isGM: false }],
+    i18n: { format: (key, data) => `${key}|` + Object.entries(data).map(([k, v]) => `${k}=${v}`).join("|") },
+  };
+  globalThis.ui = { notifications: { warn: (text) => warned.push(text) } };
+  globalThis.ChatMessage = { create: (msg) => posted.push(msg), getSpeaker: () => ({}) };
+  try {
+    const actor = { name: "Trader" };
+    assert.strictEqual(await spendGold(actor, 0.03, "stay"), true, "a covered sum is paid");
+    assert.match(posted[0].content, /^ACKS-HENCHMEN\.gold\.spent\|.*\|gp=0\.03\|/, "the receipt shows 3 cp as 0.03 gp, not 0");
+    assert.deepStrictEqual(posted[0].whisper, ["gm"], "and is whispered to the Judge");
+    await spendGold(actor, 0.52, "stay");
+    assert.match(posted[1].content, /\|gp=0\.52\|/, "52 cp reads 0.52 gp, not 1");
+    covered = false;
+    assert.strictEqual(await spendGold(actor, 0.52, "stay"), false, "a short purse pays nothing");
+    assert.match(warned[0], /^ACKS-HENCHMEN\.gold\.insufficient\|.*\|gp=0\.52\|/, "the warning names the sum that was short");
+    assert.strictEqual(posted.length, 2, "and posts no receipt");
+  } finally {
+    ns.lib = saved.lib;
+    globalThis.game = saved.game;
+    globalThis.ui = saved.ui;
+    globalThis.ChatMessage = saved.ChatMessage;
+  }
+}
+
+console.log(`test-henchmen: OK (${macros.length} macros, bulk offers, network step, power values, henchman limit, network posting, hiring offer, hosted pages, spend receipt)`);

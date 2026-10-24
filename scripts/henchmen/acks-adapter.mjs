@@ -20,6 +20,7 @@ import { ACTOR_TYPE } from "../lib/vocab.mjs";
 // A bare `export … from` re-export creates no local binding — spendGold's
 // receipt whisper needs the import itself.
 import { gmIds } from "../lib/util.mjs";
+import { gpText } from "../lib/money-logic.mjs";
 import { acksExtras } from "../namespace.mjs";
 
 /* ------------------------------ reads ------------------------------ */
@@ -258,14 +259,14 @@ export async function spendGold(actor, gp, reason, { chat = true, to = null, at 
     const r = await money.sinkCoin(actor, gp, { within });
     if (!r.ok) {
       ui?.notifications?.warn(
-        game.i18n.format("ACKS-HENCHMEN.gold.insufficient", { name: actor.name, gp: gp.toFixed(0), reason })
+        game.i18n.format("ACKS-HENCHMEN.gold.insufficient", { name: actor.name, gp: gpText(gp), reason })
       );
       return false;
     }
   }
   if (chat) {
     ChatMessage.create({
-      content: game.i18n.format("ACKS-HENCHMEN.gold.spent", { name: actor.name, gp: gp.toFixed(0), reason }),
+      content: game.i18n.format("ACKS-HENCHMEN.gold.spent", { name: actor.name, gp: gpText(gp), reason }),
       speaker: ChatMessage.getSpeaker({ actor }),
       whisper: gmIds(),
     });

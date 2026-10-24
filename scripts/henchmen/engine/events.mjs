@@ -23,6 +23,7 @@ import { GROUP_ACTOR_TYPE as GROUP_TYPE } from "../../lib/group-logic.mjs";
 import { collectEffectModifiers, sumEffectModifiers, toDialogModifiers, hasEffectFlag, unvaluedDialogModifiers } from "../effects.mjs";
 import * as adapter from "../acks-adapter.mjs";
 import { transferCoin } from "../../lib/money.mjs";
+import { gpText } from "../../lib/money-logic.mjs";
 import { registerHandler, executeAsGM } from "../../lib/sockets.mjs";
 import { resolveActorSync } from "../../lib/storage.mjs";
 import { openThrowDialog } from "../apps/throw-dialog.mjs";
@@ -541,14 +542,13 @@ const payrollOf = (employer) => [...rosterOf(employer).filter((a) => adapter.isR
  */
 function tellPayday(employer, result, { relayed = false } = {}) {
   const say = (level, key, data = {}) => ui.notifications[level](game.i18n.format(`ACKS-HENCHMEN.${key}`, { name: employer.name, ...data }));
-  const gp = (n) => String(Number(Number(n ?? 0).toFixed(2)));
   switch (result?.status) {
     case "nothingDue": {
       const next = wageBill(employer).nextDue;
       return next == null ? say("info", "wage.nothingDue") : say("info", "wage.nothingDueUntil", { days: daysUntil(next) });
     }
     case "insufficient":
-      return say("warn", "gold.insufficient", { gp: result.total.toFixed(0), reason: game.i18n.format("ACKS-HENCHMEN.wage.reason", { count: result.count }) });
+      return say("warn", "gold.insufficient", { gp: gpText(result.total), reason: game.i18n.format("ACKS-HENCHMEN.wage.reason", { count: result.count }) });
     case "notYours":
       return say("warn", "wage.notYours");
     case "refused": {
@@ -558,7 +558,7 @@ function tellPayday(employer, result, { relayed = false } = {}) {
       return who.length && game.i18n.has(`ACKS-HENCHMEN.${why}`) ? say("warn", why, { who: who.join(", ") }) : say("warn", "wage.refused");
     }
     case "paid":
-      return say("info", result.arrears > 0 ? "wage.paidPartNote" : "wage.paidNote", { gp: gp(result.paid), owed: gp(result.arrears) });
+      return say("info", result.arrears > 0 ? "wage.paidPartNote" : "wage.paidNote", { gp: gpText(result.paid), owed: gpText(result.arrears) });
     default:
       return undefined;
   }

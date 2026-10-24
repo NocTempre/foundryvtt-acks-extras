@@ -4,7 +4,7 @@
  */
 import assert from "node:assert/strict";
 import {
-  coinKind, coinKindKey, coinCount, coinRate, coinTotalCp, coinTotalGC, coinSlots,
+  coinKind, coinKindKey, coinCount, coinRate, coinTotalCp, coinTotalGC, gpText, coinSlots,
   planCoinSpend, planCoinPayUpTo, planChange, convertCp,
   LOOSE_STORE, containerStoreKey, placeStoreKey, readStoreKey, coinOrderOf,
 } from "../scripts/lib/money-logic.mjs";
@@ -131,4 +131,12 @@ assert.equal(convertCp(250, { mode: "market" }), 250, "a market converts at face
 assert.equal(convertCp(250, { mode: "none" }), null, "no changer refuses");
 assert.equal(convertCp(250, null), null);
 
-console.log("test-money: OK (kind identity, one count per row, ranked smallest-first planner, exact pay, store keys, change, terms)");
+/* --- the gold figure a message shows (sums are this file's own) ------------ */
+assert.equal(gpText(0.03), "0.03", "a sum under a gold piece is not rounded to nothing");
+assert.equal(gpText(0.52), "0.52", "nor up to a whole one");
+assert.equal(gpText(1.5), "1.5", "trailing zeros drop");
+assert.equal(gpText(1200), "1200", "a whole sum shows no fraction and no grouping");
+assert.equal(gpText(0.07 + 0.01), "0.08", "float drift is held to the copper");
+assert.equal(gpText("x"), "0", "an unreadable sum reads nothing");
+
+console.log("test-money: OK (kind identity, one count per row, ranked smallest-first planner, exact pay, store keys, change, terms, gold figure)");
