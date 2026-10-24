@@ -6,7 +6,7 @@
     "name": "Fort 24 Map",
     "pages": [26],
     "scene": {
-      "note": "Page points, top-left origin: the crop is the plan in its frame; the grid block is one drawn square; the distance is the square other building plans measure at (areas 18, 19, 23). Walls trace the dark strokes; a drawn box is a door. Lines: the north wall along its middle beside the entrance, the entrance as two leaves, and the slanted annex's block-drawn walls on every side but its opening.",
+      "note": "Page points, top-left origin: the crop is the plan in its frame; the grid block is one drawn square; the distance is the square other building plans measure at (areas 18, 19, 23). Walls trace the dark strokes; a drawn box is a door, a splayed gap a window. Lines: the entrance's leaves; the slanted annex's block-drawn walls on all sides but its opening. Drops: 9 false windows.",
       "crop": { "x": 190, "y": 76, "w": 355, "h": 426 },
       "place": "ax1.fort24",
       "travel": "delve",
@@ -31,15 +31,22 @@
         "mode": "stroke",
         "threshold": 80,
         "corrections": [
-          { "line": [336.34, 91.68, 415.66, 91.87], "is": "wall" },
-          { "line": [415.66, 91.87, 433.96, 91.87], "is": "door" },
-          { "line": [433.96, 91.87, 452.62, 91.87], "is": "door" },
-          { "line": [452.62, 91.87, 530.46, 91.68], "is": "wall" },
+          { "line": [412.49, 91.68, 433.96, 91.87], "is": "door" },
+          { "line": [433.96, 91.87, 455.8, 91.68], "is": "door" },
           { "line": [207.15, 184.85, 287.97, 138.19], "is": "wall" },
           { "line": [287.97, 138.19, 316.07, 186.85], "is": "wall" },
           { "line": [316.07, 186.85, 235.24, 233.51], "is": "wall" },
           { "line": [207.15, 184.85, 221.25, 209.26], "is": "wall" },
-          { "line": [235.24, 233.51, 230.58, 225.42], "is": "wall" }
+          { "line": [235.24, 233.51, 230.58, 225.42], "is": "wall" },
+          { "at": [340.82, 154.77], "drop": "window" },
+          { "at": [525.42, 155.42], "drop": "window" },
+          { "at": [243.2, 349.63], "drop": "window" },
+          { "at": [267.07, 387.98], "drop": "window" },
+          { "at": [273.34, 390.89], "drop": "window" },
+          { "at": [310.68, 396.3], "drop": "window" },
+          { "at": [305.45, 399], "drop": "window" },
+          { "at": [331.11, 434.94], "drop": "window" },
+          { "at": [369.56, 454.35], "drop": "window" }
         ]
       }
     }
