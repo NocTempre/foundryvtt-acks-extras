@@ -3,7 +3,8 @@
  * Walks: the gate walk (G0–G7, and P0–P5 for the goods at the gate; STAGE=gate stops
  * after it); the parties walk (S0–S9, characters of one party entering separately;
  * STAGE=parties walks it alone); the moorage walk (M0–M11, the stay's daily fee
- * charged on leaving and at the month's end; STAGE=moorage walks it alone); the
+ * charged on leaving and at the month's end; STAGE=moorage walks it alone, and
+ * STAGE=entries stops after it, the three entry walks in order); the
  * default-trader ad hoc; the
  * known-market walk (1–7); the network walk (1–6); reports step 10 and the step-4 hunk
  * (picks, the card's link); the ledger-length ad hoc; the hit-point tool from the party
@@ -32,7 +33,7 @@ const SEATS = { gm: MACHINE.gm, player: MACHINE.player };
 const NONCE = "m" + Math.random().toString(36).slice(2, 8);
 const MOD = "acks-extras";
 const SHOTS = process.env.SHOTS === "1";
-const STAGE = process.env.STAGE ?? ""; // "gate" stops after the gate walk; "parties" and "moorage" walk only that walk
+const STAGE = process.env.STAGE ?? ""; // "gate" stops after the gate walk; "parties" and "moorage" walk only that walk; "entries" stops after the moorage walk
 const SHOT_DIR = shotDir();
 const BOOKS = books(["rr"]); // the GM's staged copies, from ACKS_TEST_BOOKS; empty, the walk takes the bookless path
 const DOCS = ["mercantile", "availability"];
@@ -785,9 +786,18 @@ const P = {
     const action = (game.actors.get(locationId).system.market.goods.actions ?? []).find((x) => !known.has(x.id) && x.actorUuid === a.uuid) ?? null;
     return { ok: !!r?.ok, error: r?.error ?? null, vehicle: r?.vehicle ?? null, chat: H.takeChat(), action: action ? { id: action.id, kind: action.kind, entrantUuid: action.entrantUuid, entrants: action.entrants, vehicleUuids: [...action.vehicleUuids], tollCp: action.tollCp, tariffCp: action.tariffCp, privilegeUuid: action.privilegeUuid, detail: action.detail } : null };
   },
-  /** GM: resolve the named pending days now, without moving the shared clock; the cards the sweep posted. */
+  /**
+   * GM: resolve the named pending days now, without moving the shared clock; the cards the sweep posted.
+   * A day another seat posted reaches this seat over the socket, so it waits to read every named one
+   * first: the write below replaces the whole list, and a list read before a day arrived would erase it.
+   */
   partiesResolve: async ({ locationId, actionIds }) => {
     const H = globalThis.__c2;
+    const started = Date.now();
+    const listed = () => (game.actors.get(locationId).system.market.goods.actions ?? []).map((a) => a.id);
+    const seen = await H.poll(() => actionIds.every((id) => listed().includes(id)) || null, { tries: 60, every: 250 });
+    const waitedMs = Date.now() - started;
+    if (!seen) return { found: actionIds.filter((id) => listed().includes(id)).length, done: false, waitedMs, listed: listed().slice(-6), chat: [] };
     const loc = game.actors.get(locationId);
     const actions = (loc.system.market.goods.actions ?? []).map((a) => H.plain(a));
     const found = actions.filter((a) => actionIds.includes(a.id));
@@ -797,7 +807,7 @@ const P = {
     await H.M.processImports(loc);
     const done = await H.poll(() => actionIds.every((id) => (game.actors.get(locationId).system.market.goods.actions ?? []).find((a) => a.id === id)?.status === "done") || null, { tries: 40, every: 250 });
     await H.sleep(600);
-    return { found: found.length, done: !!done, chat: H.takeChat() };
+    return { found: found.length, done: !!done, waitedMs, chat: H.takeChat() };
   },
   /** Wait until this seat reads every action in `actionIds` done: another seat's write reaches it over the socket. */
   seesDone: async ({ locationId, actionIds }) => {
@@ -1744,7 +1754,7 @@ try {
     note("closed (player)", await run(player, P.closeAll));
     note("closed (gm)", await run(gm, P.closeAll));
   }
-  if (STAGE === "moorage") throw new StageDone("moorage");
+  if (STAGE === "moorage" || STAGE === "entries") throw new StageDone(STAGE);
 
   section("fixtures");
   {

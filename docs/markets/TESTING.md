@@ -861,6 +861,10 @@ re-written with E for S6b and back, removed by its id at the end. The world's
   share. A world whose share is 0 trades at Class VI, impact 1.
 - Resolve entries and solicitations without moving the clock: set the named
   actions' `resolveTime` to now and run `processImports(M)` on the GM seat.
+  First wait until the GM seat reads every named action. A day the Player
+  seat posted reaches it over the socket, measured at over a second;
+  the write replaces the whole list, so one read before the day arrived
+  erases it, and the day then never resolves.
 - Read the venture trade dialog through `new VentureTradeDialog({location,
   trader})._prepareContext({})`.
 - The Enter dialog's mode radios fire `change`; a mode re-ticks the
@@ -925,7 +929,8 @@ roster removed by its id, in the walk and again in its `finally`.
 ## The moorage walk (the stay's daily fee, settled on leaving and at the month's end)
 
 Steps M0–M11 of `tools/live/markets.mjs`, in the order below;
-`STAGE=moorage` runs them alone.
+`STAGE=moorage` runs them alone, and `STAGE=entries` runs the gate, parties
+and moorage walks in order and stops, the full run's sequence through M11.
 
 **The table.** Every entry that brings a vehicle reads `moorageRates`. A
 world whose Mercantile document was imported before the table's recipe holds
