@@ -7,6 +7,7 @@
  * passes them in.
  */
 import { requireNumber } from "./required.mjs";
+import { parseMoneyCp } from "./commissions.mjs";
 
 /** The extremes of a 2d6 roll: the naturals that outrank any modifier. */
 const TWO_D6 = Object.freeze({ min: 2, max: 12 });
@@ -44,6 +45,24 @@ export function parseTariffPct(text) {
   if (/\bnone\b/.test(t) || /^[-–—]$/.test(t)) return { precious: 0, common: 0 };
   const pcts = [...t.replace(/,/g, "").matchAll(/(\d+(?:\.\d+)?)\s*%/g)].map((m) => Number(m[1]));
   return pcts.length === 2 ? { precious: pcts[0], common: pcts[1] } : null;
+}
+
+/**
+ * A Moorage and Stabling cell (RR ch. 8, Engaging in Mercantile Ventures)
+ * as a daily rate, `{cp, perShp}`: the copper one day costs and, where the
+ * cell prices a ship by its size ("… per N shp"), the structural hit points
+ * that copper covers; `perShp` is null for a flat rate. A cell with no coin
+ * amount, or any other unit, is null: a rate the market cannot read, never
+ * a free one.
+ * @returns {{cp: number, perShp: number|null}|null}
+ */
+export function parseStayFee(text) {
+  const [money, unit, extra] = String(text ?? "").toLowerCase().replace(/,/g, "").split(/\bper\b/);
+  const cp = parseMoneyCp(money);
+  if (!(cp > 0) || extra !== undefined) return null;
+  if (unit === undefined) return { cp, perShp: null };
+  const perShp = Number(unit.match(/^\s*(\d+(?:\.\d+)?)\s*shp\s*$/)?.[1]);
+  return perShp > 0 ? { cp, perShp } : null;
 }
 
 /** "2d6" → {min: 2, max: 12}: the throw's ends. Null for anything but one plain die term. */

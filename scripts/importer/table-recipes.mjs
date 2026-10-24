@@ -2986,6 +2986,37 @@ export const TABLE_RECIPES = {
           { key: "commonDie", find: "for precious merchandise and", take: "dice", span: 8 },
         ],
       },
+      // Moorage and stabling (RR 372, beside Engaging in Mercantile
+      // Ventures): the daily fee per ship, vehicle or animal, berthed or
+      // stabled and anchored or pastured outside. One printed row is one key,
+      // a row naming two kinds keeping both in its key; the ship's berth cell
+      // is a rate per a number of shp, and every cell stays raw for the
+      // consumer to parse.
+      moorageRates: {
+        shape: "gridRows",
+        book: "rr",
+        printedPage: 372,
+        locate: "Vehicle/Animal",
+        startAfter: "Pasture",
+        // The left print column's prose shares the table's baselines: without
+        // the floor every label joins it.
+        column: { xMin: 298 },
+        labelMaxX: 390,
+        cellColumns: [
+          { key: "berth", x: 395, w: 60, row: true, pattern: "raw" },
+          { key: "anchor", x: 488, w: 34, row: true, pattern: "raw" },
+        ],
+        // Small capitals split a word's first letter from the rest, and a
+        // footnote mark can lead a label.
+        rows: [
+          { key: "ship", labelRe: "^\\W*ship" },
+          { key: "wagon", labelRe: "^\\W*wagon" },
+          { key: "cartElephant", labelRe: "^\\W*c\\s*art\\W*elephant" },
+          { key: "horse", labelRe: "^\\W*horse" },
+          { key: "camelDonkeyOx", labelRe: "^\\W*c\\s*amel\\W*d\\s*onkey\\W*o\\s*x" },
+        ],
+        emit: { container: "rows", keyField: "kind" },
+      },
       merchandiseTypes: {
         shape: "gridRows",
         book: "rr",

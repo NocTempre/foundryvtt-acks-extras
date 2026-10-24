@@ -22,7 +22,7 @@ import { locatePageNumber, recipeLocates } from "../../scripts/importer/tables-b
 import { TABLE_RECIPES } from "../../scripts/importer/table-recipes.mjs";
 import { isMissingRow, missingRowKeys } from "../../scripts/lib/tables.mjs";
 import { parseCell } from "../../scripts/markets/rules/availability.mjs";
-import { parseStones, parseTollCpPerSt, parseTariffPct, diceRange } from "../../scripts/markets/rules/arbitrage.mjs";
+import { parseStones, parseTollCpPerSt, parseTariffPct, parseStayFee, diceRange } from "../../scripts/markets/rules/arbitrage.mjs";
 import { parseMoneyCp } from "../../scripts/markets/rules/commissions.mjs";
 import { FILES } from "./reference-lib.mjs";
 
@@ -33,6 +33,7 @@ const TABLES = {
   mercantile: [
     "marketCharacteristics", "merchandiseTypes", "impactProse",
     "assessmentProse", "priceShiftProse", "negotiationProse", "tariffProse",
+    "moorageRates",
   ],
   construction: ["wageAndConstructionRates"],
   settlement: ["marketClassByFamilies"],
@@ -176,6 +177,16 @@ const VERIFY = {
         if (!isText(c)) return fail(`${w}: empty or non-text`);
         if (!isNone(c) && !Number.isFinite(Number(String(c).replace(/,/g, "")))) fail(`${w}: neither a dash nor a number the venture engine reads`);
       });
+    }
+  },
+  "mercantile.moorageRates": (out, recipe, fail) => {
+    for (const r of declaredRows(out, recipe, fail)) {
+      for (const col of recipe.cellColumns) {
+        const fee = parseStayFee(r[col.key]);
+        if (!fee) fail(`row ${r.kind}: ${col.key} does not parse through parseStayFee`);
+        // Only a ship's berth is priced by size; any other cell with a unit welded a neighbour in.
+        else if ((fee.perShp !== null) !== (r.kind === "ship" && col.key === "berth")) fail(`row ${r.kind}: ${col.key} ${fee.perShp === null ? "lacks" : "carries"} a per-shp unit`);
+      }
     }
   },
   "construction.wageAndConstructionRates": (out, recipe, fail) => {

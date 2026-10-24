@@ -119,6 +119,7 @@ Hooks.once("setup", () => {
       "priceShiftProse",
       "negotiationProse",
       "tariffProse",
+      "moorageRates",
     ]);
     acksExtras.lib?.tables?.expectTables?.("magicItems", ["transactionsByMarketClass", "priceProse", "identifyProse"]);
     acksExtras.lib?.tables?.expectTables?.("construction", ["wageAndConstructionRates"]);

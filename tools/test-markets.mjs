@@ -311,6 +311,7 @@ const {
   negotiationOutcome,
   solicitedStones,
   parseTariffPct,
+  parseStayFee,
   diceRange,
   tariffOn,
   ASSESSMENT_RESULTS,
@@ -332,6 +333,15 @@ assert.deepStrictEqual(parseTariffPct("-"), { precious: 0, common: 0 }, "a dash 
 assert.strictEqual(parseTariffPct("15%"), null, "one percentage is not a tariff the gate can read");
 assert.strictEqual(parseTariffPct(""), null, "an empty cell is unread, never free");
 assert.strictEqual(parseTariffPct(undefined), null, "an absent cell is unread");
+assert.deepStrictEqual(parseStayFee("3sp"), { cp: 30, perShp: null }, "a flat daily rate");
+assert.deepStrictEqual(parseStayFee("2gp per 40 shp"), { cp: 200, perShp: 40 }, "a ship's rate keeps the structural hit points it covers");
+assert.deepStrictEqual(parseStayFee("2 GP PER 40 SHP"), { cp: 200, perShp: 40 }, "case and spacing are forgiven");
+assert.deepStrictEqual(parseStayFee("1gp per 1,000 shp"), { cp: 100, perShp: 1000 }, "a thousands comma in the unit");
+assert.strictEqual(parseStayFee("2gp per week"), null, "a unit other than structural hit points is unread");
+assert.strictEqual(parseStayFee("2gp per 0 shp"), null, "a unit of none covers nothing");
+assert.strictEqual(parseStayFee("per 40 shp"), null, "a unit with no coin amount is unread");
+assert.strictEqual(parseStayFee("free"), null, "a cell with no coin amount is unread, never free");
+assert.strictEqual(parseStayFee(undefined), null, "an absent cell is unread");
 assert.deepStrictEqual(diceRange("3d6"), { min: 3, max: 18 }, "a die term's ends");
 assert.deepStrictEqual(diceRange(" 1D12 "), { min: 1, max: 12 }, "case and space are forgiven");
 assert.strictEqual(diceRange("2d6+1"), null, "a modified throw is not one die term");
@@ -634,6 +644,14 @@ assert.strictEqual(parseMoneyCp("-"), 0, "unreadable money is zero");
         bands: [{ min: null, max: 3 }, { min: 4, max: 6 }, { min: 7, max: 10 }, { min: 11, max: 13 }, { min: 14, max: null }],
       },
       tariffProse: { preciousDie: "3d8", commonDie: "1d6" },
+      moorageRates: {
+        rows: [
+          { kind: "ship", berth: "3gp per 20 shp", anchor: "2gp" },
+          { kind: "horse", berth: "4sp", anchor: "2cp" },
+          { kind: "wagon", berth: "a lot", anchor: "1sp" },
+          { __missing: true, kind: "camelDonkeyOx" },
+        ],
+      },
     },
   };
   globalThis.acksExtras = {
@@ -669,6 +687,14 @@ assert.strictEqual(parseMoneyCp("-"), 0, "unreadable money is zero");
   STORE.mercantile.tariffProse.commonDie = "a few";
   assert.strictEqual(printed.tariffDice(), null, "a die the page did not yield as one die term reads as absent");
   STORE.mercantile.tariffProse.commonDie = "1d6";
+  assert.deepStrictEqual(
+    printed.stayRates(),
+    {
+      ship: { berth: { cp: 300, perShp: 20 }, anchor: { cp: 200, perShp: null } },
+      horse: { berth: { cp: 40, perShp: null }, anchor: { cp: 2, perShp: null } },
+    },
+    "the daily rates by kind; a row with an unread cell and a missing-row placeholder are left out"
+  );
 
   const id = printed.identification();
   assert.strictEqual(id.researchCasterLevel, 9, "the research caster level");
@@ -689,6 +715,7 @@ assert.strictEqual(parseMoneyCp("-"), 0, "unreadable money is zero");
   assert.strictEqual(printed.bargaining(), null, "no registry document, no swing");
   assert.strictEqual(printed.negotiation(), null, "no registry document, no profile");
   assert.strictEqual(printed.tariffDice(), null, "no registry document, no dice");
+  assert.strictEqual(printed.stayRates(), null, "no registry document, no rates");
   assert.deepStrictEqual(printed.identification(), { researchCasterLevel: null, engineeringTiers: null, dabblingBackfire: null }, "no registry document, every threshold null");
   assert.strictEqual(printed.stepFractionFor("salt"), null, "no registry document, no step");
   delete globalThis.acksExtras;

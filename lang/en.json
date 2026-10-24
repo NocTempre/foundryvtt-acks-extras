@@ -6233,6 +6233,7 @@
   "ACKS-MARKETS.ventures.table.priceShiftProse": "Monthly Price Shifts",
   "ACKS-MARKETS.ventures.table.negotiationProse": "Reaction to Negotiation",
   "ACKS-MARKETS.ventures.table.tariffProse": "Randomized Tariff",
+  "ACKS-MARKETS.ventures.table.moorageRates": "Moorage and Stabling",
   "ACKS-MARKETS.trade.error.printedMissing": "The {table} table has not been imported, so this cannot be priced or resolved. Bring it in with Import Everything in the importer's Books dialog (or Rules tables in Reimport One Shelf, ACKS Extras Macros).",
   "ACKS-MARKETS.identify.error.printedMissing": "The {table} table has not been imported, so this method cannot be run. Bring it in with Import Everything in the importer's Books dialog.",
   "ACKS-MARKETS.identify.error.noTarget": "The identifier's {ability} proficiency prints no throw target, so it cannot be thrown.",

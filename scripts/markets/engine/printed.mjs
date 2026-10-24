@@ -19,7 +19,8 @@ import { optTable } from "../../henchmen/rules/tables.mjs";
 import { numOrNull } from "../../lib/util.mjs";
 import { tiersNamed } from "../rules/identification.mjs";
 import { stepFractionOf } from "../rules/pricing.mjs";
-import { diceRange } from "../rules/arbitrage.mjs";
+import { diceRange, parseStayFee } from "../rules/arbitrage.mjs";
+import { isMissingRow } from "../../lib/tables.mjs";
 import { merchandiseFor } from "./merchandise.mjs";
 
 /** A prose table is a flat object of keys; anything else is not one. */
@@ -134,6 +135,27 @@ export function tariffDice() {
   const precious = typeof t?.preciousDie === "string" ? t.preciousDie.trim() : "";
   const common = typeof t?.commonDie === "string" ? t.commonDie.trim() : "";
   return diceRange(precious) && diceRange(common) ? { precious, common } : null;
+}
+
+/**
+ * The Moorage and Stabling daily rates by kind (`ship`, `wagon`,
+ * `cartElephant`, `horse`, `camelDonkeyOx`), each `{berth, anchor}` as
+ * `parseStayFee` reads its cell, or null when the table is not imported. A
+ * kind whose row is missing or whose cells do not read is left out, so a
+ * caller that needs it refuses.
+ * @returns {Record<string, {berth: {cp: number, perShp: number|null}, anchor: {cp: number, perShp: number|null}}>|null}
+ */
+export function stayRates() {
+  const rows = optTable("mercantile", "moorageRates")?.rows;
+  if (!Array.isArray(rows)) return null;
+  const out = {};
+  for (const row of rows) {
+    if (isMissingRow(row) || !row.kind) continue;
+    const berth = parseStayFee(row.berth);
+    const anchor = parseStayFee(row.anchor);
+    if (berth && anchor) out[row.kind] = { berth, anchor };
+  }
+  return out;
 }
 
 /**
