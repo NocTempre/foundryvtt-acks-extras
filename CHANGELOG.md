@@ -1,5 +1,99 @@
 # Changelog
 
+## 11.9.0
+
+### Added
+
+- **The market gate charges the book's fees.** Entering a market now takes
+  the tariff with the toll (RR ch. 8, Entering the Market). The toll is
+  still charged on the capacity you declare, loaded or empty. The tariff
+  falls on every merchandise load in the packs of your party's members at
+  the market and in the holds of the vehicles you bring, and on each item
+  with a merchandise type that you tick *Brought to sell*. It is charged at
+  the rates your imported Market Characteristics print for the market's
+  class, on each good's base price. A good marked exempt pays nothing. The
+  Enter dialog lists the goods at the gate and shows every charge before you
+  confirm, and the trader pays it all in one payment. A member who rules
+  the domain the market lies in enters free. A good ticked *Smuggled* pays
+  no tariff, *The party sneaks in* pays no toll either, and either way the
+  Judge gets a card to resolve the attempt (RR §VIII.5). The Judge's
+  *Randomize the market tariff* setting throws the tariff at each entry
+  instead. The module charges nothing else; a world script can add a charge
+  through the new `acksExtras.marketGateQuote` hook.
+- **Moorage and stabling.** The Enter dialog figures a daily fee (RR 372)
+  for your ships by size, each wagon or cart as it is stabled, and your loose
+  animals by kind. One choice covers the entry: berths and stables, or
+  anchoring and pasture outside. You pay it when you leave, for every day of
+  the stay, the day you arrived and the day you leave both counted. A stay
+  still running at the month's end is charged then. Sneaking in still pays
+  it; a ruler of the domain stays free.
+- **A party's characters may enter a market separately** (RR ch. 8,
+  Entering the Market, Parties). Each character then posts their own entry,
+  toll and goods and trades in a venture of their own, at the maximum market
+  impact divided among the party's characters, which the dialog shows.
+  Once one enters separately, the rest of the party can enter only
+  separately that month, until all have left.
+- **A hireling's Service tab.** A retainer's character sheet and a monster's
+  full sheet show its service from the hireling's side: loyalty and morale
+  with their parts, each a roll; the wage and its terms, the shares, arrears
+  and the wage clock; the employer; and the ledger, events and recorded
+  rolls. A calamity throw that is owed leads the tab and marks the sheet.
+  The Judge's throws are the Judge's alone; *Pay wages* shows for the Judge
+  or the employer's owner.
+- **0th-level characters can rise to 1st.** A character at level 0 has a
+  threshold for 1st, imported from the Rulebook and the Judges Journal. Past
+  it, the Judge chooses the class: the level-up control is the Judge's and
+  opens the class picker at 1st. A dialog then settles each proficiency the
+  character held, kept, replaced by a class power, lost, or marked to erode.
+
+### Changed
+
+- **The Full Monster sheet is drawn on the character sheet's frame.** The
+  name, Hit Dice and XP award stand in the window's header with the
+  employer chip while in service; the reaction roll and saves, hit points,
+  armour, speeds, attack throw and senses are rail cells around the
+  portrait; and a *Statblock* tab opens the sheet with every throw as a row
+  that rolls and pins to the folded card.
+- **The Follower Card is drawn on the frame.** A follower's own card sheet
+  carries its band in the header and its vitals, powers, throws, attacks,
+  notes, equipment and coin in three columns, with every control it had. The
+  compact card on an employer's *Followers* tab draws *Show*, *Dismiss* and
+  the two throws for the employer's owner, and the readings alone for anyone
+  else. Starred powers show on both faces; a monster's saves-as line and a
+  pending calamity's mark come from their features.
+- **The henchmen roster is redrawn** on the frame, with every control kept:
+  the limit and wage rules, four filters with counts, a row per hireling
+  that opens its record, and the drop zone.
+- **Experience follows a set level.** A level set by an import, the class
+  picker or either sheet moves the experience into that level's band.
+  Experience is tracked, capped and dealt for player characters and
+  henchmen; an NPC's only follows its level.
+- **Henchman figures arrive with the Rules tables.** The employer-level cap
+  on a henchman's level (RR 168), the levels the market offers henchmen at
+  (the availability table's rows, RR 164), the morale bonuses for levels
+  gained in service (RR 166) and the loyalty roll's figure per level of
+  apparent difference (RR 168) are read from your book (see *Upgrading*).
+- **The henchman limit notice** states the count against the limit, and the
+  posting dialog's hints say what their fields do.
+
+### Fixed
+
+- **A rebuilt Item keeps its id.** Rebuilding classes, powers or any other
+  imported Item through the entry picker, a shelf or a book writes it back
+  under the id it stood under, so characters bound to a class, journal links
+  and templates pointing at it keep working.
+- **A payment's receipt shows the sum to the copper.** A copper-scale fee
+  paid through the module, such as a stay or a toll, read "0 gp" or a
+  rounded figure on the Judge's receipt; it now reads 0.03 or 0.52.
+
+### Upgrading
+
+Run *Reimport One Shelf → Rules tables* once. It brings the moorage rates,
+the tariff dice, the henchman figures above and the 0th-level threshold.
+Until then an entry with anything to stable is refused, the randomized
+tariff refuses naming its table, and the Judge's missing-tables notice names
+what is missing.
+
 ## 11.8.0
 
 ### Added

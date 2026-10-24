@@ -276,6 +276,11 @@ Ventures run on dedicated days that resolve as game time passes:
      Judge who wants more, such as a bribe at the gate or a guild fee, adds
      it with a world script on the `acksExtras.marketGateQuote` hook (see
      below).
+
+   ![](../releases/v11.9.0/markets-gate-enter.png)
+
+   *A party of two at the gate: entering as the party or separately, and
+   the goods it brings, with the goblets ticked as brought to sell.*
 2. **Assess supply & demand** — opens the influence page against the
    market: your Charisma, a tone proficiency, a bribe (RR 287) and your
    reaction effects set the Judge's throw against the imported bands, which

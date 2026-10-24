@@ -92,18 +92,23 @@ hireling with its loyalty, morale and wage standing, filtered by kind, under
 the henchman limit and the month's wage bill. Drop a character on it to take
 them into service.
 
+![](../releases/v11.9.0/henchmen-roster.png)
+
+*An employer's roster: who is hired, on what terms. Press a hireling's name
+for its wage clock, record and history; the Judge's actions on it — a loyalty
+or obedience throw, a calamity or a penalty on the record, a transfer, a
+dismissal — sit on the row.*
+
 **A hireling's own sheet carries a Service tab**: the same record from the
 hireling's side — loyalty and its parts, morale, the terms, the wage clock,
 the employer, the ledger and the events — with the Judge's throws beside it.
 A calamity still owing its loyalty throw marks the tab and the sheet's
 in-service chip until the Judge rolls it.
 
-![](../releases/v11.0.0/henchmen.png)
+![](../releases/v11.9.0/henchmen-service.png)
 
-*An employer's roster: who is hired, on what terms. Press a hireling's name
-for its wage clock, record and history; the Judge's actions on it — a loyalty
-or obedience throw, a calamity or a penalty on the record, a transfer, a
-dismissal — sit on the row.*
+*A henchman's Service tab: standing, terms and employer, then the ledger and
+events, with the employer's chip in the window header.*
 
 **A hireling opens on the same sheet as any character.** The compact Follower
 Card is there if you want it: right-click the hireling in the Actors
@@ -127,6 +132,16 @@ attacks; unstarred, that card shows the six readings, the attacks, the saves
 and what is worn, and a red dot after the name while a calamity throw is
 owed.
 
+![](../releases/v11.9.0/lib-follower-card.png)
+
+*A follower's own card: the band and its tools in the header, then vitals and
+scores, powers, throws and attacks, notes and what is carried.*
+
+![](../releases/v11.9.0/lib-followers-tab.png)
+
+*An employer's Followers tab: a compact card for a henchman and for a hired
+monster, with its saves-as line, and the month's wages above.*
+
 **A power is worth what your book says.** The henchman limit, a hire's base
 loyalty, the hirelings' morale bonus and the hiring-offer bonuses read the
 value the importer located on each power's page, or an Active Effect the Judge
@@ -136,7 +151,7 @@ in the henchman-limit refusal, and on the hiring and obedience pages.
 Characters holding powers imported before 11.4.0 refresh them with **Update
 Abilities** at the top of the Items sidebar, with the books open.
 
-![](../releases/v11.8.0/henchmen-powers-values.png)
+![](../releases/v11.9.0/henchmen-powers-values.png)
 
 **The limit starts from your book's figure and the employer's Charisma, or
 not at all.** The base arrives with the Rules tables. A world that imported
@@ -145,7 +160,7 @@ Macros) once; until then no limit is counted, and the roster's tooltip says
 so. An employer with no Charisma score, such as a monster leading henchmen,
 shows no limit on its roster, and none is enforced on its hires.
 
-![](../releases/v11.8.0/henchmen-limit-none.png)
+![](../releases/v11.9.0/henchmen-limit-none.png)
 
 **A wage is coin that changes hands.** On payday the employer's coin leaves
 their stores in the order their sheet states
