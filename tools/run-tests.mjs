@@ -158,6 +158,7 @@ const COMMITTED = [
   "importer/test-cookbook-coherence.mjs",
   "importer/test-printed-name.mjs",
   "importer/test-poi-binding.mjs",
+  "importer/test-place-pair.mjs",
   "importer/test-market-profiles.mjs",
   "importer/test-faction-binding.mjs",
   "importer/test-strength-grid.mjs",

@@ -391,6 +391,19 @@ const BOOK_FILES = {
       "ww.zone1": zoneRow({ scene: "ww.plan", outline: [100, 100, 400, 100, 400, 340, 100, 340], cadence: "" }, delveFields),
     },
   },
+  // One place two books print: vv's key space is uu's site, the pair declared on
+  // the earlier book's row, and a room of vv's sits in it.
+  vv: {
+    schema: SCHEMA, book: { id: "vv" },
+    entries: {
+      "vv.l1": { ...loc("Space", { sameAs: "uu.site1", unique: [] }), name: "Earlier" },
+      "vv.l1-1": loc("Space", { space: "vv.l1" }),
+    },
+  },
+  uu: {
+    schema: SCHEMA, book: { id: "uu" },
+    entries: { "uu.region": loc("Region — Overview"), "uu.site1": { ...loc("Region — Sites"), name: "Later" } },
+  },
 };
 
 /** A two-page PDF: the map's image placement on page 1, a zone's three figures on page 2. */
@@ -711,6 +724,63 @@ const map = game.scenes.find((s) => s.getFlag(MODULE_ID, "cookbook")?.id === "zz
   check("it carries the chance, the interval and the dungeon level read off its page",
     [delve?.encounterTarget, delve?.encounterEvery, delve?.dungeonLevel, delve?.journeyCadence], [4, 3, 2, ""]);
   sessions.delete("ww");
+}
+
+// --- one place two books print: either book first, the same place ---------------------------
+{
+  const docOf = (uuid) => pack.docs.get(String(uuid ?? "").split(".").pop());
+  const idOf = (d) => d?.flags?.[MODULE_ID]?.cookbook?.id;
+  const claimIdsOf = (d) => [idOf(d), ...(d.flags[MODULE_ID].cookbook.merged ?? [])];
+  const blocks = (d) => [...String(d?.system?.notes ?? "").matchAll(/data-acks-entry="([^"]+)"/g)].map((m) => m[1]);
+  const shape = (d) => {
+    const { id, book, merged } = d.flags[MODULE_ID].cookbook;
+    return { id, book, merged, name: d.name, blocks: blocks(d), region: d.system.region, parent: idOf(docOf(d.system.parentUuid)) };
+  };
+  sessions.set("uu", { doc: pdf([]) });
+  sessions.set("vv", { doc: pdf([]) });
+
+  // The later book first: the earlier row binds onto its place.
+  await cookbookImportPoiPlaces({ books: ["uu"] });
+  const site = shelved("uu.site1");
+  const bound = await cookbookImportPoiPlaces({ books: ["vv"] });
+  check("the earlier row joins the later book's place", [bound.paired, !!shelved("vv.l1")], [1, false]);
+  const bindShape = shape(site);
+  check("the place answers for both, the later book's block first, still in its own region",
+    bindShape, { id: "uu.site1", book: "uu", merged: ["vv.l1"], name: "Later", blocks: ["uu.site1", "vv.l1"], region: site.system.region, parent: "uu.region" });
+  check("the earlier book's room sits in it", idOf(docOf(shelved("vv.l1-1")?.system.parentUuid)), "uu.site1");
+  const docs = pack.docs.size;
+  const again = await cookbookImportPoiPlaces({ books: ["vv"] });
+  check("a second run joins nothing and makes nothing", [again.paired, pack.docs.size, blocks(site)], [0, docs, ["uu.site1", "vv.l1"]]);
+
+  // A world copy of the joined place is the Judge's: with the library's own
+  // document gone, the earlier row makes its place again rather than take the
+  // copy. The copy stays in the world through the other order below.
+  const [copy] = await MockActor.createDocuments([{ ...site.toObject(), _stats: { compendiumSource: site.uuid } }]);
+  const copyNotes = copy.system.notes;
+  pack.docs.delete(site.id);
+  forgetImportedIndex();
+  const remade = await cookbookImportPoiPlaces({ books: ["vv"] });
+  const own = shelved("vv.l1");
+  check("past a world copy, the earlier row makes its own place in the library", [remade.made, remade.paired, own?.pack], [1, 0, ACTOR_PACK]);
+  check("its room sits in that place", shelved("vv.l1-1")?.system.parentUuid, own?.uuid);
+  check("the copy is left as it stood", [claimIdsOf(copy), copy.system.notes === copyNotes], [["uu.site1", "vv.l1"], true]);
+
+  // The earlier book first: the later row takes its place over.
+  for (const d of pack.docs.filter((x) => ["uu", "vv"].includes(x.flags?.[MODULE_ID]?.cookbook?.book))) pack.docs.delete(d.id);
+  forgetImportedIndex();
+  await cookbookImportPoiPlaces({ books: ["vv"] });
+  const earlier = shelved("vv.l1");
+  const room = shelved("vv.l1-1");
+  check("the earlier place stands alone first", [earlier?.name, room?.system.parentUuid], ["Earlier", earlier?.uuid]);
+  const took = await cookbookImportPoiPlaces({ books: ["uu"] });
+  ok("the later row takes the earlier place over", took.paired === 1 && shelved("uu.site1") === earlier && !shelved("vv.l1"));
+  check("and it is the place the other order makes", shape(earlier), bindShape);
+  check("the room still sits in it", room.system.parentUuid, earlier.uuid);
+  const kept = pack.docs.size;
+  const held = await cookbookImportPoiPlaces({ books: ["vv"] });
+  check("the earlier book run again finds its place held", [held.paired, held.made, pack.docs.size], [0, 0, kept]);
+  sessions.delete("uu");
+  sessions.delete("vv");
 }
 
 // --- shapes the Foundry half depends on -------------------------------------------------------

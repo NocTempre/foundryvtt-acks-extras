@@ -15,7 +15,8 @@
  */
 import { MODULE_ID, LANG_PREFIX, ITEM_TYPE, DEFAULT_IMG } from "./constants.mjs";
 import { trainingChanges } from "../classes/training-logic.mjs";
-import { bookText, entryText, entryTable, escapeText, nodeParagraphs } from "./prose.mjs";
+import { bookText, entryText, entryTable, escapeText, keepParagraphs, nodeParagraphs } from "./prose.mjs";
+import { answersFor, bindPatch, claimIds, placePairs, takeoverPatch } from "./place-pair.mjs";
 import {
   handWrittenProse,
   refreshImported,
@@ -1134,10 +1135,12 @@ async function claimImport(id, build) {
 /**
  * The ACTOR-side claim: same rule, the actor collection instead of the item
  * index. Nothing is remembered — actors are found by their flag, not by an
- * index. Exported because the OSE book importers write actors too.
+ * index. A world copy is the Judge's and answers no claim, as it answers no
+ * item index (`isWorldCopy`). Exported because the OSE book importers write
+ * actors too.
  */
 export async function claimActorImport(id, build) {
-  return claimed(id, importedActor, (_id, doc) => doc, build);
+  return claimed(id, (claimId) => importedActor(claimId, { copies: false }), (_id, doc) => doc, build);
 }
 
 async function claimed(id, present, remember, build) {
@@ -1295,7 +1298,9 @@ const importedItem = async (id) => {
  * a world it ran in must hold exactly the packs it held before.
  */
 async function importedActor(id, { copies = true } = {}) {
-  const world = game.actors.find((a) => a.getFlag(MODULE_ID, "cookbook")?.id === id && (copies || !isWorldCopy(a)));
+  // A place another book took over answers for the id it was made under too
+  // (`merged`), so a room still finds the place it sits in.
+  const world = game.actors.find((a) => answersFor(a.getFlag(MODULE_ID, "cookbook"), id) && (copies || !isWorldCopy(a)));
   if (world) return world;
   // Its OWN shelf first — that is where `createDoc` put it — then the others.
   // A creature re-shelved by a release that changed its line is still found,
@@ -1306,8 +1311,8 @@ async function importedActor(id, { copies = true } = {}) {
   for (const collection of collections) {
     // The cookbook flag is not a default index field — ask for it, exactly as
     // importedIdSet does, or the row is there and the match never fires.
-    const index = await collection.getIndex({ fields: [`flags.${MODULE_ID}.cookbook.id`] }).catch(() => null);
-    const row = [...(index ?? [])].find((r) => r.flags?.[MODULE_ID]?.cookbook?.id === id);
+    const index = await collection.getIndex({ fields: [`flags.${MODULE_ID}.cookbook.id`, `flags.${MODULE_ID}.cookbook.merged`] }).catch(() => null);
+    const row = [...(index ?? [])].find((r) => answersFor(r.flags?.[MODULE_ID]?.cookbook, id));
     if (row) return collection.getDocument(row._id);
   }
   return null;
@@ -1377,11 +1382,11 @@ async function importedIdsOfType(type, worldCollection) {
   // copy of an import either (`isWorldCopy`): counting it would stop a rebuild
   // putting the library's own document back.
   const part = (flags) => !!flags?.[MODULE_ID]?.[TEMPLATE_PART];
+  // Every id a document answers for, a merged one included (`claimIds`).
   const ids = new Set(
     [...worldCollection]
       .filter((d) => !part(d.flags) && !isWorldCopy(d))
-      .map((d) => d.getFlag(MODULE_ID, "cookbook")?.id)
-      .filter(Boolean),
+      .flatMap((d) => claimIds(d.getFlag(MODULE_ID, "cookbook"))),
   );
   // Every shelf: a batch mixes lines, so asking one pack answers "not
   // imported" for every book shelved elsewhere.
@@ -1389,7 +1394,7 @@ async function importedIdsOfType(type, worldCollection) {
     // A failed index read must be LOUD — an empty set here reads as "nothing
     // imported yet" and a bulk run re-creates everything as twins.
     const index = await collection
-      .getIndex({ fields: [`flags.${MODULE_ID}.cookbook.id`, `flags.${MODULE_ID}.${TEMPLATE_PART}`] })
+      .getIndex({ fields: [`flags.${MODULE_ID}.cookbook.id`, `flags.${MODULE_ID}.cookbook.merged`, `flags.${MODULE_ID}.${TEMPLATE_PART}`] })
       .catch((err) => {
         console.warn(
           `${MODULE_ID} | importedIdsOfType: index of ${collection.collection} unreadable — imported ${type}s may be recreated`,
@@ -1399,8 +1404,7 @@ async function importedIdsOfType(type, worldCollection) {
       });
     for (const row of index ?? []) {
       if (part(row.flags)) continue;
-      const id = row.flags?.[MODULE_ID]?.cookbook?.id;
-      if (id) ids.add(id);
+      for (const id of claimIds(row.flags?.[MODULE_ID]?.cookbook)) ids.add(id);
     }
   }
   return ids;
@@ -3881,11 +3885,13 @@ export async function cookbookImportJournals({ books = null } = {}) {
  * A region's rows ride the same step (`importRegionRow`): its sites are places
  * under the region's own place, and its overview is that place's notes. So do
  * an adventure's key spaces and keyed areas (`importKeyedPlace`), each a place
- * under the one it sits inside, its stat lines its roster. `books` scopes the
- * run to those book ids; `created` lists the uuids of the keyed places (the
- * book's own place among them) and stat-line creatures it made.
+ * under the one it sits inside, its stat lines its roster. A place another
+ * book prints too is one place: a row whose pair already stands joins it
+ * (`joinPaired`) instead of making a second. `books` scopes the run to those
+ * book ids and `ids` to those rows; `created` lists the uuids of the keyed
+ * places (the book's own place among them) and stat-line creatures it made.
  */
-export async function cookbookImportPoiPlaces({ books = null } = {}) {
+export async function cookbookImportPoiPlaces({ books = null, ids = null } = {}) {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates actors).`);
   const openBooks = [...data.books.keys()].filter((b) => ctx.sessionDocs.has(b) && (!books || books.includes(b)));
   const jobs = [];
@@ -3893,6 +3899,7 @@ export async function cookbookImportPoiPlaces({ books = null } = {}) {
     const entries = data.books.get(bookId).entries;
     const spaces = keySpacesOf(entries);
     for (const [id, e] of Object.entries(entries)) {
+      if (ids && !ids.includes(id)) continue;
       if (isPoiEntry(e)) jobs.push({ bookId, id, e, group: poiGroupOf(e.meta?.group) });
       else if (isRegionSite(e) || isRegionOverview(e)) jobs.push({ bookId, id, e, region: isRegionSite(e) ? "site" : "overview" });
       else if (isKeyedPlace(e, id, spaces)) jobs.push({ bookId, id, e, keyed: true });
@@ -3904,7 +3911,7 @@ export async function cookbookImportPoiPlaces({ books = null } = {}) {
   let already = 0;
   let stamped = 0;
   let refused = 0;
-  const tally = { made: 0, regions: 0, bound: 0, already: 0, stamped: 0, refused: 0, rostered: 0, creatures: 0 };
+  const tally = { made: 0, regions: 0, bound: 0, already: 0, stamped: 0, refused: 0, rostered: 0, creatures: 0, paired: 0 };
   const run = keyedRun(tally);
   const bar = progressBar(game.i18n.localize(`${LANG_PREFIX}.ui.progressPoi`), jobs.length);
   try {
@@ -3912,7 +3919,7 @@ export async function cookbookImportPoiPlaces({ books = null } = {}) {
       const { bookId, id, e, group } = job;
       bar.step(e.name);
       if (job.region) {
-        await importRegionRow(job, tally);
+        await importRegionRow(job, tally, run.pairs);
         continue;
       }
       if (job.keyed) {
@@ -3920,7 +3927,7 @@ export async function cookbookImportPoiPlaces({ books = null } = {}) {
         continue;
       }
       const overview = group.kind === "overview";
-      const held = overview ? null : await importedActor(id);
+      const held = overview ? null : await importedActor(id, { copies: false });
       if (held) {
         // A role is structural (which kind of place), not a page value, so a
         // place imported before the cookbook named it is stamped without a page
@@ -3977,8 +3984,8 @@ export async function cookbookImportPoiPlaces({ books = null } = {}) {
   already += tally.already;
   stamped += tally.stamped;
   refused += tally.refused;
-  const { regions, bound, rostered, creatures } = tally;
-  if (!made && !described && !regions && !bound && !already && refused) {
+  const { regions, bound, rostered, creatures, paired } = tally;
+  if (!made && !described && !regions && !bound && !paired && !already && refused) {
     return ui.notifications.warn(`${MODULE_ID} | points of interest: ${refused} page(s) did not match the cookbook (different printing?) — none written.`);
   }
   const regionParts = [
@@ -3986,18 +3993,20 @@ export async function cookbookImportPoiPlaces({ books = null } = {}) {
     bound ? `, ${game.i18n.format(`${LANG_PREFIX}.ui.poiSitesBound`, { n: bound })}` : "",
     rostered ? `, ${game.i18n.format(`${LANG_PREFIX}.ui.poiOccupantsRostered`, { n: rostered })}` : "",
     creatures ? `, ${game.i18n.format(`${LANG_PREFIX}.ui.poiCreaturesMade`, { n: creatures })}` : "",
+    paired ? `, ${game.i18n.format(`${LANG_PREFIX}.ui.poiPlacesPaired`, { n: paired })}` : "",
   ].join("");
   ui.notifications.info(
     `${MODULE_ID} | points of interest: ${made} place(s) created${described ? `, ${described} quarter(s) described` : ""}${regionParts}${already ? `, ${already} already held` : ""}${stamped ? `, ${stamped} given a role` : ""}${refused ? `, ${refused} skipped (page did not match the cookbook)` : ""}.`,
   );
-  return { made, described, regions, bound, already, stamped, refused, rostered, creatures, created: run.created };
+  return { made, described, regions, bound, already, stamped, refused, rostered, creatures, paired, created: run.created };
 }
 
 /**
  * One run's keyed-place state: each place asked for once (`placeFor`, so a
  * room's parent is made before it whatever order the rows are listed in), each
- * book's own place, key spaces and occupant targets built once, and the uuids
- * of the places and creatures the run made (`created`).
+ * book's own place, key spaces and occupant targets built once, the place
+ * pairs every cookbook declares (`pairs`), and the uuids of the places and
+ * creatures the run made (`created`).
  */
 function keyedRun(tally) {
   const places = new Map();
@@ -4006,6 +4015,7 @@ function keyedRun(tally) {
   const targets = new Map();
   const run = {
     tally,
+    pairs: placePairs(data.books),
     created: { places: [], creatures: [] },
     spacesOf: (bookId) => {
       if (!spaces.has(bookId)) spaces.set(bookId, keySpacesOf(data.books.get(bookId)?.entries));
@@ -4030,7 +4040,7 @@ function keyedRun(tally) {
 /** The book's own place, the one its key spaces sit in: held, else made. */
 async function bookPlaceOf(bookId, run) {
   const id = oseAdventureId(bookId);
-  const held = await importedActor(id);
+  const held = await importedActor(id, { copies: false });
   if (held) return held;
   const label = bookLabel(bookId);
   const folder = (await ensureFolderPath("Actor", [label, "Places"], lineOf(bookId)))?.id ?? null;
@@ -4042,11 +4052,13 @@ async function bookPlaceOf(bookId, run) {
 /**
  * One key space or keyed area as a place inside the place it sits in
  * (`keyedParentId`: a keyed place, else the book's own), which is asked for
- * first. A held place is not read again; one with no parent, or one whose
- * parent no longer exists, is given it. A
- * new one is named by the heading its page prints, takes the page's text as
- * its notes, stat lines and all, and its roster is `keyedOccupantRows`.
- * @returns {Promise<Actor|null>} the place, held or made; null when its page did not match
+ * first. A held place, the library's own document and never a world copy, is
+ * not read again; one with no parent, or one whose parent no longer exists, is
+ * given it. One whose pair another book's place already stands as joins that
+ * place (`joinPaired`). A new one is named by the heading its page prints,
+ * takes the page's text as its notes, stat lines and all, and its roster is
+ * `keyedOccupantRows`.
+ * @returns {Promise<Actor|null>} the place, held, joined or made; null when its page did not match
  */
 async function importKeyedPlace(bookId, id, run) {
   const { tally } = run;
@@ -4058,7 +4070,7 @@ async function importKeyedPlace(bookId, id, run) {
   const parent = isKeyedPlace(cb.entries[parentId], parentId, run.spacesOf(bookId))
     ? await run.placeFor(bookId, parentId)
     : await run.bookPlaceFor(bookId);
-  const held = await importedActor(id);
+  const held = await importedActor(id, { copies: false });
   if (held) {
     const patch = siteBindPatch(held, { parentUuid: parent?.uuid ?? "" });
     // A parent made again is a new document: the uuid the place names is then
@@ -4074,11 +4086,21 @@ async function importKeyedPlace(bookId, id, run) {
     tally.refused++;
     return null;
   }
+  const name = printedNameOf(node, e.name);
+  const notes = entryText(node, id, e.cite);
+  const paired = await pairedPlace(run.pairs, id);
+  if (paired) {
+    // Only a bind fills a roster, and only an empty one: the lines are not
+    // made into creatures for a roster nothing writes.
+    const fills = !paired.takesOver && !paired.place.system?.roster?.length;
+    const roster = fills ? await keyedOccupantRows(bookId, id, node, run) : [];
+    tally.paired++;
+    return joinPaired(paired, { id, book: bookId, name, notes, parentUuid: parent?.uuid ?? "", region: label, roster });
+  }
   const roster = await keyedOccupantRows(bookId, id, node, run);
   const place = await claimActorImport(id, () =>
     createDoc(Actor, poiLocationData({
-      name: printedNameOf(node, e.name), entryId: id, notes: entryText(node, id, e.cite), book: bookId, bookLabel: label,
-      parentUuid: parent?.uuid ?? "", folderId: folder, roster,
+      name, entryId: id, notes, book: bookId, bookLabel: label, parentUuid: parent?.uuid ?? "", folderId: folder, roster,
     })));
   if (place) {
     tally.made++;
@@ -4126,7 +4148,7 @@ async function keyedOccupantRows(bookId, id, node, run) {
   const rows = [];
   for (const occ of occupantsOf(node.fields)) {
     const keys = [...creatureKeys(occ.name.text)];
-    const named = occ.name.ref ? await importedActor(occ.name.ref) : null;
+    const named = occ.name.ref ? await importedActor(occ.name.ref, { copies: false }) : null;
     const library = named ?? keys.map((k) => core.get(k)).find(Boolean) ?? null;
     const ours = library ? null : (keys.map((k) => own.get(k)).find(Boolean) ?? null);
     const actor = library ?? ours ?? (await statLineCreature(bookId, id, occ, node, run));
@@ -4151,7 +4173,7 @@ async function keyedOccupantRows(bookId, id, node, run) {
  */
 async function statLineCreature(bookId, placeId, occ, node, run) {
   const oid = `${placeId}-o${occ.index}`;
-  const held = await importedActor(oid);
+  const held = await importedActor(oid, { copies: false });
   if (held) return held;
   const folder = (await ensureFolderPath("Actor", [bookLabel(bookId), "Creatures"], lineOf(bookId)))?.id ?? null;
   const bound = bindNpc({ fields: { statline: occ.stats ?? {} } });
@@ -4217,14 +4239,54 @@ export function siteBindPatch(target, { notes = "", parentUuid = "", role = "" }
 }
 
 /**
+ * The place a row's pair already stands as, or null: the earlier book's place
+ * when `id` is the later row (`takesOver`), the later book's when it is the
+ * earlier. The library's own document answers, never a world copy.
+ * @returns {Promise<{pair: {earlier: string, later: string, unique: number[]}, place: Actor, takesOver: boolean}|null>}
+ */
+async function pairedPlace(pairs, id) {
+  const pair = pairs?.get(id);
+  if (!pair) return null;
+  const takesOver = pair.later === id;
+  const place = await importedActor(takesOver ? pair.earlier : pair.later, { copies: false });
+  return place ? { pair, place, takesOver } : null;
+}
+
+/**
+ * Join an arriving row to the place its pair stands as (`pairedPlace`): the
+ * later row takes the place over, the earlier row binds onto it, its block
+ * kept to the paragraphs its pair names. `built` is the arriving row's own
+ * build — id, book, read name, materialized notes, parent, region, role and
+ * roster. The earlier row's side of a takeover is what its own build wrote:
+ * the parent its row names and its book's label.
+ * @returns {Promise<Actor>} the place joined
+ */
+async function joinPaired({ pair, place, takesOver }, built) {
+  const source = { ...place.toObject(), uuid: place.uuid };
+  let patch;
+  if (takesOver) {
+    const book = bookOfCookbookId(pair.earlier);
+    const entry = data.books.get(book)?.entries?.[pair.earlier];
+    const parentId = isRegionSite(entry) ? regionPlaceId(book) : keyedParentId(entry, book);
+    const parent = await importedActor(parentId, { copies: false });
+    patch = takeoverPatch(source, built, { id: pair.earlier, parentUuid: parent?.uuid ?? "", region: bookLabel(book), unique: pair.unique });
+  } else {
+    patch = bindPatch(source, { ...built, notes: keepParagraphs(built.notes, pair.unique) });
+  }
+  if (Object.keys(patch).length) await place.update(patch);
+  return place;
+}
+
+/**
  * One region row, as `cookbookImportPoiPlaces` takes a quarter's: the
  * region's place is claimed first (`regionPlaceData`, once per book); its
  * overview is that place's notes, and a site is a place under it, or is bound
- * onto the market or settlement its row names (`regionSiteClaim`). Presence
- * and held notes are asked before the page is read, as for a point of
- * interest. Counts into `tally`.
+ * onto the market or settlement its row names (`regionSiteClaim`), or joins
+ * the place its pair already stands as (`joinPaired`). Presence and held notes
+ * are asked of the library's own document before the page is read, as for a
+ * point of interest. Counts into `tally`.
  */
-async function importRegionRow({ bookId, id, e, region }, tally) {
+async function importRegionRow({ bookId, id, e, region }, tally, pairs) {
   const cb = data.books.get(bookId);
   const label = bookLabel(bookId);
   const folder = (await ensureFolderPath("Actor", [label, "Places"], lineOf(bookId)))?.id ?? null;
@@ -4243,7 +4305,7 @@ async function importRegionRow({ bookId, id, e, region }, tally) {
   }
 
   const claim = regionSiteClaim(bookId, e, id, cb.entries);
-  const held = await importedActor(claim.claimId);
+  const held = await importedActor(claim.claimId, { copies: false });
   if (claim.onto === "site" && held) {
     if (isPlaceRole(role) && !held.system?.role) {
       await held.update({ "system.role": role });
@@ -4263,6 +4325,11 @@ async function importRegionRow({ bookId, id, e, region }, tally) {
   const name = printedNameOf(node, e.name);
   const notes = entryText(node, id, e.cite);
   if (claim.onto === "site") {
+    const paired = await pairedPlace(pairs, id);
+    if (paired) {
+      await joinPaired(paired, { id, book: bookId, name, notes, parentUuid, region: label, role });
+      return void tally.paired++;
+    }
     const made = await claimActorImport(id, () =>
       createDoc(Actor, poiLocationData({ name, entryId: id, notes, book: bookId, bookLabel: label, parentUuid, folderId: folder, role })));
     if (made) tally.made++;
@@ -4706,18 +4773,24 @@ async function ensureWorldFolderPath(type, names, made = []) {
  *
  * @returns {Promise<{actors: Map<string, Actor>, queued: Map<object, {id: string, _id: string}[]>,
  *   worldIds: Map<string, string>, missing: string[], known: Set<string>,
- *   shelf: Map<string, {collection: object, _id: string, faction: boolean}>}>}
+ *   shelf: Map<string, {collection: object, _id: string, faction: boolean, flag: object}>,
+ *   restamp: Map<Actor, object>}>}
+ *   `restamp`: world copies found by their library document's id whose stamp
+ *   predates it, each with the stamp to take
  */
 async function planCrossing(bookId, cookbookIds) {
   const flagOf = (row) => row?.flags?.[MODULE_ID]?.cookbook ?? {};
   const shelf = new Map();
   for (const collection of ourPacksOfType("Actor")) {
     const index = await collection
-      .getIndex({ fields: ["type", ...["id", "kind", "book"].map((k) => `flags.${MODULE_ID}.cookbook.${k}`)] })
+      .getIndex({ fields: ["type", ...["id", "kind", "book", "merged"].map((k) => `flags.${MODULE_ID}.cookbook.${k}`)] })
       .catch(() => null);
     for (const row of index ?? []) {
       const flag = flagOf(row);
-      if (flag.id && !shelf.has(flag.id)) shelf.set(flag.id, { collection, _id: row._id, faction: flag.kind === "kind.faction" && flag.book === bookId });
+      // A place another book took over answers for its merged ids too.
+      for (const id of claimIds(flag)) {
+        if (!shelf.has(id)) shelf.set(id, { collection, _id: row._id, faction: flag.kind === "kind.faction" && flag.book === bookId, flag });
+      }
     }
   }
   const wanted = new Set(cookbookIds);
@@ -4725,15 +4798,24 @@ async function planCrossing(bookId, cookbookIds) {
 
   const actors = new Map();
   for (const actor of game.actors) {
-    const id = actor.getFlag(MODULE_ID, "cookbook")?.id;
-    if (id && wanted.has(id) && !actors.has(id)) actors.set(id, actor);
+    for (const id of claimIds(actor.getFlag(MODULE_ID, "cookbook"))) if (wanted.has(id) && !actors.has(id)) actors.set(id, actor);
   }
   const worldIds = new Map();
   const queued = new Map();
   const missing = [];
+  const restamp = new Map();
   for (const id of wanted) {
     const row = shelf.get(id);
-    const held = actors.get(id);
+    let held = actors.get(id);
+    // A world copy keeps its library document's id, and its stamp from the day
+    // it was copied: one made before its place joined another book's is that
+    // place's copy all the same, and is restamped rather than copied twice.
+    const twin = !held && row ? game.actors.get(row._id) : null;
+    if (twin && isWorldCopy(twin)) {
+      held = twin;
+      actors.set(id, twin);
+      restamp.set(twin, row.flag);
+    }
     if (row) worldIds.set(row._id, held?.id ?? row._id);
     if (held) continue;
     if (!row) missing.push(id);
@@ -4741,7 +4823,7 @@ async function planCrossing(bookId, cookbookIds) {
     else queued.set(row.collection, [{ id, _id: row._id }]);
   }
   const known = new Set([...wanted].filter((id) => actors.has(id) || shelf.has(id)));
-  return { actors, queued, worldIds, missing: missing.filter((id) => cookbookIds.includes(id)), known, shelf };
+  return { actors, queued, worldIds, missing: missing.filter((id) => cookbookIds.includes(id)), known, shelf, restamp };
 }
 
 /**
@@ -4756,7 +4838,14 @@ async function planCrossing(bookId, cookbookIds) {
  * @returns {Promise<{actors: Map<string, Actor>, copied: number}>}
  */
 async function bringAcross(bookId, plan, created) {
-  const { actors, queued, worldIds } = plan;
+  const { actors, queued, worldIds, restamp = new Map() } = plan;
+  for (const [copy, flag] of restamp) {
+    await copy.update({
+      [`flags.${MODULE_ID}.cookbook.id`]: flag.id,
+      [`flags.${MODULE_ID}.cookbook.book`]: flag.book,
+      [`flags.${MODULE_ID}.cookbook.merged`]: flag.merged ?? [],
+    });
+  }
   const sources = [];
   const label = bookLabel(bookId);
   const folders = new Map();
@@ -4780,9 +4869,9 @@ async function bringAcross(bookId, plan, created) {
   for (let i = 0; i < sources.length; i += WRITE_CHUNK) {
     const made = await Actor.createDocuments(sources.slice(i, i + WRITE_CHUNK), { keepId: true });
     for (const actor of made ?? []) {
-      const id = actor?.getFlag(MODULE_ID, "cookbook")?.id;
-      if (!id) continue;
-      actors.set(id, actor);
+      const ids = claimIds(actor?.getFlag(MODULE_ID, "cookbook"));
+      if (!ids.length) continue;
+      for (const id of ids) actors.set(id, actor);
       created.actors.push(actor.uuid);
       copied++;
     }
@@ -5582,22 +5671,27 @@ async function bookDocuments(bookId) {
   // A content row stamped with the book is the library's, not the book's
   // bundle: a series' classes stand on its open shelf for a player to pick,
   // and the Adventure carries the Judge's half alone.
-  const ofBook = (flags) => {
+  // A place another book took over is this book's too while it answers for one
+  // of its ids (`merged`), so either book's Adventure carries the place its
+  // own rooms sit in.
+  const ofBook = (flags, type) => {
     const flag = flags?.[MODULE_ID]?.cookbook;
-    return !!flag?.id && !isContentId(flag.id) && !flags[MODULE_ID].templatePart && bookOfCookbookId(flag.id, flag.book) === bookId;
+    if (!flag?.id || isContentId(flag.id) || flags[MODULE_ID].templatePart) return false;
+    if (bookOfCookbookId(flag.id, flag.book) === bookId) return true;
+    return type === "Actor" && (flag.merged ?? []).some((id) => bookOfCookbookId(id) === bookId);
   };
   const out = [];
   for (const type of BOOK_DOC_TYPES) {
     const keyOf = (doc) => `${doc.type ?? ""}|${cookbookId(doc)}`;
     const world = new Map();
     for (const doc of game.collections.get(type) ?? []) {
-      if (ofBook(doc.flags) && !world.has(keyOf(doc))) world.set(keyOf(doc), doc);
+      if (ofBook(doc.flags, type) && !world.has(keyOf(doc))) world.set(keyOf(doc), doc);
     }
     const shelved = [];
     for (const pack of ourPacksOfType(type)) {
-      const fields = ["type", ...["id", "book"].map((k) => `flags.${MODULE_ID}.cookbook.${k}`), `flags.${MODULE_ID}.templatePart`];
+      const fields = ["type", ...["id", "book", "merged"].map((k) => `flags.${MODULE_ID}.cookbook.${k}`), `flags.${MODULE_ID}.templatePart`];
       const index = await pack.getIndex({ fields }).catch(() => null);
-      const ids = [...(index ?? [])].filter((r) => ofBook(r.flags)).map((r) => r._id);
+      const ids = [...(index ?? [])].filter((r) => ofBook(r.flags, type)).map((r) => r._id);
       if (ids.length) shelved.push(...(await pack.getDocuments({ _id__in: ids })));
     }
     const taken = new Set();

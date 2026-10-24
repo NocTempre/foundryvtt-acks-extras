@@ -163,6 +163,49 @@ export const entryTable = (node, id, cite, columns = []) =>
  */
 export const stripBookText = (html) => String(html ?? "").replace(BOOK_TEXT_BLOCK, " ").replace(LEGACY_TAG, " ");
 
+/** Entry `id`'s stamped block in a stored string, or "" when it holds none. */
+export function bookTextBlock(html, id) {
+  const stamp = `data-acks-entry="${escapeAttr(id)}"`;
+  return String(html ?? "").match(BOOK_TEXT_BLOCK)?.find((block) => block.includes(stamp)) ?? "";
+}
+
+/**
+ * The same string with entry `id`'s stamped block replaced by `block`, every
+ * other character kept; where it holds no such block, `block` leads it.
+ */
+export function swapBookText(html, id, block) {
+  const text = String(html ?? "");
+  const held = bookTextBlock(text, id);
+  return held ? text.replace(held, () => block) : `${block}${text}`;
+}
+
+/**
+ * The same string with `block` set straight after entry `after`'s stamped
+ * block, every other character kept; where it holds no such block, `block`
+ * leads it.
+ */
+export function insertBookTextAfter(html, after, block) {
+  const text = String(html ?? "");
+  const held = bookTextBlock(text, after);
+  return held ? text.replace(held, () => `${held}${block}`) : `${block}${text}`;
+}
+
+/**
+ * A stamped block kept to the paragraphs `ordinals` names, 1-based in the
+ * order they were printed, with its citation line: what `bookText` builds from
+ * those paragraphs alone. "" when there is no block.
+ */
+export function keepParagraphs(block, ordinals) {
+  const m = /^(<div\b[^>]*>)([\s\S]*)<\/div>$/.exec(String(block ?? ""));
+  if (!m) return "";
+  const keep = new Set(ordinals);
+  const paras = m[2].match(/<p\b[^>]*>[\s\S]*?<\/p>/g) ?? [];
+  const cite = `<p class="${CITE_CLASS}">`;
+  let n = 0;
+  const kept = paras.filter((p) => p.startsWith(cite) || keep.has(++n));
+  return `${m[1]}${kept.join("")}</div>`;
+}
+
 /**
  * The legacy `@PdfText` tags in a stored string, in order.
  *

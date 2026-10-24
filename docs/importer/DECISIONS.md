@@ -7713,3 +7713,53 @@ only where the trace breaks.
 - Light and sound pass a window as sight does.
 - Which sides lost wall is read off the review sheet, side by side. No digest
   says it.
+
+## 2026-10-24 — A place two books print is joined by the row that arrives second
+
+Builds the mechanism "Later books supersede, by the year their printing
+carries" and "The earlier printing's unique paragraphs follow the later one's"
+(both 2026-10-17) ruled, and pairs AX1's first level with the AX3 region site
+it is (`meta.unique` keeps all 23 of AX1's paragraphs: the site's one
+paragraph summarises the level the module key describes).
+
+**Ruled.**
+- **The join is two pure patches** (`place-pair.mjs`): `takeoverPatch` when
+  the later row arrives with the earlier place held, `bindPatch` when the
+  earlier row arrives with the later place held. The places step applies them
+  from both of its row paths, a keyed place and a region site (`joinPaired`),
+  and asks the library's own document for the pair's place.
+- **A place stamps the name it was built with** (`cookbook.printed`), so a
+  takeover renames it only while the Judge has not.
+- **A merged id is answered everywhere a place is looked up**: the presence
+  checks, the importer index, the maps step's crossing and a book's Adventure
+  (`claimIds`, `answersFor`). A room still finds the place it sits in, and
+  each book's Adventure carries the place.
+- **A world copy made before its place joined is restamped, not copied
+  twice.** It keeps its library document's id, so the maps step finds it by
+  that id and writes the place's stamp onto it.
+- **The places step and `claimActorImport` ask for the library's own
+  document** (`importedActor(id, {copies: false})`). This applies "A copy of an
+  import is the Judge's, and a rebuild leaves it standing" (2026-09-23) where it
+  had not reached. Found when a world copy that answered for a merged id made
+  AX1's row read as held after the library's place was deleted, and the step
+  put its rooms inside the copy.
+- **AX1's fort and AX3's site 28 stay unpaired.** Site 28 binds onto a market,
+  so no place of its own is built to join, and joining two places that both
+  stand is not ruled. Lint refuses a pair with either row bound onto a market
+  or an adventure.
+
+*Rejected:* reusing `refreshPlan` for the takeover. It writes the stamp's
+`id`, `merged` and `book` back to what the entry builds and replaces a prose
+field whole, where a takeover moves the identity and swaps one block.
+
+*Cost:*
+- `unique` ordinals are counted against the compiled paragraphs, which no
+  offline gate reads. The AX1 walk compares the kept block's paragraphs with
+  the list's length.
+- Deleting one of the pair's places and importing again leaves the place a new
+  document id in either order. A book's Adventure that carried the old one is
+  stale until rebuilt, and a world copy under the old id stands on as the
+  place's copy.
+- A restamped world copy keeps the notes it was copied with.
+- In the earlier book's Adventure the place's parent is its own book's place,
+  which that Adventure does not carry, so the reference stays in library form.

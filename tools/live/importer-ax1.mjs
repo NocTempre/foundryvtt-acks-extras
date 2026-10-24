@@ -27,6 +27,15 @@
  * A shot of each level's plan, framed on its first pin with the interface
  * hidden, goes to the log directory to be read by eye.
  *
+ * A place AX1 prints that a later book prints too (`meta.sameAs`) is one
+ * place: section 2 expects AX1's row to bind onto the later book's place where
+ * the library holds it (its id joins the place's `merged`, its block follows
+ * the later book's), 2c that the maps step restamps a world copy made before
+ * the bind instead of copying the place twice, and section 3 that the Adventure
+ * carries it. Section 2d walks the other order: the later book's place is
+ * deleted, AX1's row makes its own, and the later book's row, imported again,
+ * takes it over; the place it leaves is the one the bind made.
+ *
  * Section 3 walks "A book lands in the library as one Adventure": the
  * journals step makes no page for a keyed area, and the book's Adventure
  * carries the places, their tree and their rosters beside the maps, whose
@@ -73,7 +82,17 @@
  *     removed with its scene;
  *   - the player seat's explored fog on that scene, which core keeps per user
  *     and scene. It is read back by id after the sweep and deleted if it
- *     outlived its scene.
+ *     outlived its scene;
+ *   - the later book's place a pair binds onto, and its world copy, are the
+ *     owner's: the bind writes the place's stamp and notes and the maps step
+ *     the copy's stamp, and no delete list of sections 2 to 3b names either,
+ *     since each keys on a document's own id. Section 2d runs only under
+ *     HELD_OK=1 with TAKEOVER_OK=1, the owner's go-ahead to delete that
+ *     place: it connects the later book on the GM seat (remember:false),
+ *     deletes the place, lets AX1's row make its own and the later row take
+ *     that over, then rebuilds AX1's Adventure. The place left standing is
+ *     the owner's; the later book's own Adventure still carries the deleted
+ *     one, and the report says so.
  */
 import { readFile } from "node:fs/promises";
 import path from "node:path";
@@ -89,6 +108,7 @@ const BOOK = "ax1";
 const BOOKS = books([BOOK]);
 const LEVEL = "ax1.level1Map";
 const HELD_OK = process.env.HELD_OK === "1";
+const TAKEOVER_OK = process.env.TAKEOVER_OK === "1";
 // Ledger entries per page-side sweep call, each well inside the driver's timeout.
 const SWEEP_CHUNK = 25;
 
@@ -127,6 +147,9 @@ const aboveOf = (id) => {
 };
 // Every place the plans bring into the world: theirs, their pins', and every place those sit in.
 const BROUGHT = [...new Set(PINNED.flatMap((p) => [p.place, ...p.pins]).flatMap((id) => [id, ...aboveOf(id)]))];
+// The places AX1 prints that a later book prints too: AX1's row, the later
+// row, and the reviewer's count of AX1's paragraphs the place keeps.
+const PAIRS = Object.entries(COOK).filter(([, e]) => e?.meta?.sameAs).map(([id, e]) => ({ id, later: e.meta.sameAs, unique: e.meta.unique?.length ?? 0 }));
 const sameSet = (a, b) => a.length === b.length && new Set(a).size === a.length && a.every((x) => b.includes(x));
 
 /* ------------------------------------------------------------------ */
@@ -247,24 +270,34 @@ const P = {
     return n;
   },
   /**
-   * The book's actors in the library: cookbook id, type, parent, and each
-   * roster row's link and figures as booleans — no name and no number read
-   * off a page rides out.
+   * The book's actors in the library: the id the book knows each by (its own,
+   * or the one it answers for under `merged` where another book's place took
+   * this one in), its own id, type, parent and the parent's own id, each
+   * stamped block's entry and paragraph count, and each roster row's link and
+   * figures as booleans — no name and no number read off a page rides out.
    */
   placesOf: async ({ book }) => {
     const MID = "acks-extras";
     const H = globalThis.__ax;
+    const inBook = (c) => [c?.id, ...(c?.merged ?? [])].filter(Boolean).find((x) => H.CB.bookOfCookbookId(x, x === c.id ? c.book : undefined) === book) ?? null;
+    const blocks = (html) => [...String(html ?? "").matchAll(/<div class="acks-extras-importer-book-text" data-acks-entry="([^"]*)">([\s\S]*?)<\/div>/g)]
+      .map((m) => ({ id: m[1], paras: (m[2].match(/<p>/g) ?? []).length }));
     const rows = [];
     for (const p of game.packs.filter((p) => p.documentName === "Actor" && p.metadata.packageType === "world")) {
       const idx = await p.getIndex({ fields: [`flags.${MID}.cookbook`] });
-      const ids = [...idx].filter((e) => { const c = e.flags?.[MID]?.cookbook; return c?.id && H.CB.bookOfCookbookId(c.id, c.book) === book; }).map((e) => e._id);
+      const ids = [...idx].filter((e) => inBook(e.flags?.[MID]?.cookbook)).map((e) => e._id);
       if (!ids.length) continue;
       for (const a of await p.getDocuments({ _id__in: ids })) {
+        const parent = a.system?.parentUuid ? await fromUuid(a.system.parentUuid).catch(() => null) : null;
         rows.push({
           uuid: a.uuid,
-          id: a.flags[MID].cookbook.id,
+          id: inBook(a.flags[MID].cookbook),
+          own: a.flags[MID].cookbook.id,
+          merged: a.flags[MID].cookbook.merged ?? [],
           type: a.type,
           parentUuid: a.system?.parentUuid ?? null,
+          parentId: parent?.flags?.[MID]?.cookbook?.id ?? null,
+          blocks: blocks(a.system?.notes),
           roster: (a.system?.roster ?? []).map((r) => ({
             uuid: r.uuid,
             quantity: r.quantity,
@@ -321,17 +354,21 @@ const P = {
    */
   planOf: async ({ id }) => {
     const MID = "acks-extras";
+    const H = globalThis.__ax;
+    const book = H.CB.bookOfCookbookId(id);
+    // The id this book knows a place by: its own, or a merged one.
+    const inBook = (c) => [c?.id, ...(c?.merged ?? [])].filter(Boolean).find((x) => H.CB.bookOfCookbookId(x, x === c.id ? c.book : undefined) === book) ?? c?.id ?? null;
     const s = game.scenes.find((x) => x.flags?.[MID]?.cookbook?.id === id);
     if (!s) return null;
     const link = s.flags[MID].location ?? null;
     const place = link ? await fromUuid(link).catch(() => null) : null;
     return {
       uuid: s.uuid,
-      linkId: place?.flags?.[MID]?.cookbook?.id ?? null,
+      linkId: place ? inBook(place.flags?.[MID]?.cookbook) : null,
       linkWorld: !!place && !place.pack,
       namedForIt: !!place && s.name === place.name,
       mapSystem: s.flags[MID].battlemap?.mapSystem ?? null,
-      tokens: [...s.tokens].map((t) => ({ id: t.id, hidden: !!t.hidden, place: game.actors.get(t.actorId)?.flags?.[MID]?.cookbook?.id ?? null })),
+      tokens: [...s.tokens].map((t) => ({ id: t.id, hidden: !!t.hidden, place: inBook(game.actors.get(t.actorId)?.flags?.[MID]?.cookbook) })),
       zones: await Promise.all([...s.regions].filter((r) => r.flags?.[MID]?.cookbook?.zone).map(async (r) => {
         const sys = r.behaviors.find((b) => b.type === `${MID}.encounterZone`)?.system ?? {};
         const list = sys.tableUuid ? await fromUuid(sys.tableUuid).catch(() => null) : null;
@@ -352,13 +389,68 @@ const P = {
     }
     return ids.filter((id) => held.has(id));
   },
-  /** The world's places of a book: cookbook id, uuid and parent. */
+  /**
+   * The world's places of a book: the id the book knows each by (its own or a
+   * merged one), whether that is its own (`here`), its document id, uuid,
+   * parent and the parent's own id.
+   */
   worldPlaces: async ({ book }) => {
     const MID = "acks-extras";
     const H = globalThis.__ax;
-    const ofBook = (a) => { const c = a.flags?.[MID]?.cookbook; return !!c?.id && H.CB.bookOfCookbookId(c.id, c.book) === book; };
-    return game.actors.filter((a) => a.type === H.LC.LOCATION_TYPE && ofBook(a))
-      .map((a) => ({ uuid: a.uuid, id: a.flags[MID].cookbook.id, parentUuid: a.system?.parentUuid ?? "" }));
+    const inBook = (c) => [c?.id, ...(c?.merged ?? [])].filter(Boolean).find((x) => H.CB.bookOfCookbookId(x, x === c.id ? c.book : undefined) === book) ?? null;
+    return game.actors.filter((a) => a.type === H.LC.LOCATION_TYPE && inBook(a.flags?.[MID]?.cookbook))
+      .map((a) => {
+        const c = a.flags[MID].cookbook;
+        const id = inBook(c);
+        const parent = a.system?.parentUuid ? fromUuidSync(a.system.parentUuid) : null;
+        return { uuid: a.uuid, _id: a.id, id, here: id === c.id, parentUuid: a.system?.parentUuid ?? "", parentOwn: parent?.flags?.[MID]?.cookbook?.id ?? null };
+      });
+  },
+  /**
+   * Each pair's later place as the library holds it under its own id: its uuid,
+   * document id, `merged`, and the parent's own id; null where it holds none.
+   */
+  laterPlaces: async ({ ids }) => {
+    const MID = "acks-extras";
+    const out = Object.fromEntries(ids.map((id) => [id, null]));
+    for (const p of game.packs.filter((p) => p.documentName === "Actor" && p.metadata.packageType === "world")) {
+      const idx = await p.getIndex({ fields: [`flags.${MID}.cookbook`] });
+      for (const e of idx) {
+        const c = e.flags?.[MID]?.cookbook;
+        if (!c?.id || !ids.includes(c.id) || out[c.id]) continue;
+        const a = await p.getDocument(e._id);
+        const parent = a.system?.parentUuid ? await fromUuid(a.system.parentUuid).catch(() => null) : null;
+        out[c.id] = { uuid: a.uuid, _id: a.id, merged: c.merged ?? [], parentUuid: a.system?.parentUuid ?? "", parentId: parent?.flags?.[MID]?.cookbook?.id ?? null };
+      }
+    }
+    return out;
+  },
+  /**
+   * The library place answering `id`, as booleans and ids: its own id, book,
+   * `merged`, block order and each block's paragraph count, and its parent's
+   * own id. `keep` remembers its name and region page-side; a later call
+   * reports whether they still read the same, so neither leaves the page.
+   */
+  pairShape: async ({ id, keep = false }) => {
+    const MID = "acks-extras";
+    const H = globalThis.__ax;
+    const a = await H.CB.importedActorFor(id, { copies: false });
+    if (!a) return null;
+    const c = a.flags[MID].cookbook;
+    const blocks = [...String(a.system?.notes ?? "").matchAll(/<div class="acks-extras-importer-book-text" data-acks-entry="([^"]*)">([\s\S]*?)<\/div>/g)]
+      .map((m) => ({ id: m[1], paras: (m[2].match(/<p>/g) ?? []).length }));
+    const parent = a.system?.parentUuid ? await fromUuid(a.system.parentUuid).catch(() => null) : null;
+    const was = (globalThis.__axPair ??= {})[id];
+    if (keep) globalThis.__axPair[id] = { name: a.name, region: a.system?.region ?? "" };
+    return {
+      uuid: a.uuid, _id: a.id, own: c.id, book: c.book, merged: c.merged ?? [], blocks, parentId: parent?.flags?.[MID]?.cookbook?.id ?? null,
+      sameName: was ? was.name === a.name : null, sameRegion: was ? was.region === (a.system?.region ?? "") : null,
+    };
+  },
+  /** A world actor by document id: whether it stands, and every id its stamp answers for. */
+  worldActorClaims: async ({ id }) => {
+    const c = game.actors.get(id)?.flags?.["acks-extras"]?.cookbook;
+    return c ? [c.id, ...(c.merged ?? [])] : null;
   },
   /**
    * Where each cookbook id stands as the maps step reads it: the world Actor
@@ -435,13 +527,18 @@ const P = {
     H.importHook = null;
     return true;
   },
-  /** The actors a stored Adventure carries: id, cookbook id, type, parent and roster links. */
-  adventureActors: async ({ uuid }) => {
+  /**
+   * The actors a stored Adventure carries: id, the cookbook id its book knows
+   * each by (its own or a merged one), type, parent and roster links.
+   */
+  adventureActors: async ({ uuid, book }) => {
+    const H = globalThis.__ax;
+    const inBook = (c) => [c?.id, ...(c?.merged ?? [])].filter(Boolean).find((x) => H.CB.bookOfCookbookId(x, x === c.id ? c.book : undefined) === book) ?? c?.id ?? null;
     const a = await fromUuid(uuid);
     if (!a) return null;
     return [...a.actors].map((x) => ({
       _id: x._id,
-      id: x.flags?.["acks-extras"]?.cookbook?.id ?? null,
+      id: inBook(x.flags?.["acks-extras"]?.cookbook),
       type: x.type,
       parentUuid: x.system?.parentUuid ?? null,
       roster: (x.system?.roster ?? []).map((r) => r.uuid),
@@ -747,6 +844,15 @@ try {
   const otherCreatures = await run(gm, P.otherBooksCreatures, { book: BOOK });
   note("2: creatures another book printed, in the library", otherCreatures);
 
+  // Each pair's later place as the library holds it before the step: a row
+  // whose later place stands binds onto it, one whose place already answers
+  // for it is held, and one with neither is made.
+  const laterBefore = await run(gm, P.laterPlaces, { ids: PAIRS.map((p) => p.later) });
+  const joined = PAIRS.filter((p) => laterBefore[p.later]?.merged.includes(p.id));
+  const binding = PAIRS.filter((p) => laterBefore[p.later] && !joined.includes(p));
+  const BOUND = new Map([...joined, ...binding].map((p) => [p.id, { ...p, ...laterBefore[p.later] }]));
+  note("2: pairs", { pairs: PAIRS.length, binding: binding.map((p) => p.id), joined: joined.map((p) => p.id), made: PAIRS.filter((p) => !BOUND.has(p.id)).map((p) => p.id) });
+
   const heldPlaces = await run(gm, P.heldPlaces, { book: BOOK, ids: [...KEYED, BOOK_PLACE] });
   const rebuildPlaces = heldPlaces.length > 0 && HELD_OK;
   check(rebuildPlaces ? "the owner's AX1 places are deleted to be made again (HELD_OK=1)" : "nothing stands under any AX1 place id",
@@ -757,20 +863,31 @@ try {
   const keep = (uuids, kind) => { if (!rebuildPlaces) for (const uuid of uuids ?? []) gm.track(uuid, kind); };
   keep(ps.created?.places, "Actor");
   keep(ps.created?.creatures, "Actor");
-  note("2: places step", { made: ps.made, already: ps.already, refused: ps.refused, rostered: ps.rostered, creatures: ps.creatures, places: ps.created?.places?.length ?? 0, madeCreatures: ps.created?.creatures?.length ?? 0, tracked: !rebuildPlaces });
+  note("2: places step", { made: ps.made, already: ps.already, paired: ps.paired, refused: ps.refused, rostered: ps.rostered, creatures: ps.creatures, places: ps.created?.places?.length ?? 0, madeCreatures: ps.created?.creatures?.length ?? 0, tracked: !rebuildPlaces });
   for (const c of (await run(gm, P.actorPacks)).filter((c) => !packsBefore.includes(c))) fogLeft.packs.push(c);
 
   const lib = await run(gm, P.placesOf, { book: BOOK });
   const under = (id) => lib.filter((r) => r.id === id);
   const one = (id) => (under(id).length === 1 ? under(id)[0] : null);
   const bookPlace = one(BOOK_PLACE);
-  check("2: the step made every keyed area and key space, and the book's own place, and refused none",
-    ps.made === KEYED.length && (ps.created?.places?.length ?? 0) === KEYED.length + 1 && !ps.refused,
-    { made: ps.made, listed: ps.created?.places?.length ?? 0, rows: KEYED.length, refused: ps.refused });
+  const madeRows = KEYED.length - BOUND.size;
+  check("2: the step made every keyed area and key space a later book's place does not stand for, and the book's own place, joined the rest, and refused none",
+    ps.made === madeRows && (ps.created?.places?.length ?? 0) === madeRows + 1 && (ps.paired ?? 0) === binding.length && !ps.refused,
+    { made: ps.made, listed: ps.created?.places?.length ?? 0, rows: KEYED.length, paired: ps.paired, binding: binding.length, refused: ps.refused });
   check("2: the book's own place stands once, a place", bookPlace?.type === LOCATION);
   check("2: every keyed area and key space is one place in the library", KEYED.every((id) => one(id)?.type === LOCATION), failing(KEYED, (id) => one(id)?.type === LOCATION));
-  check("2: every place sits inside the place its row names, a key space inside the book's",
-    KEYED.every((id) => one(id) && one(id).parentUuid === one(parentOf(id))?.uuid), failing(KEYED, (id) => one(id) && one(id).parentUuid === one(parentOf(id))?.uuid));
+  // A pair's place stays inside the place its own book put it in.
+  const sitsRight = (id) => (BOUND.has(id) ? one(id)?.parentId === BOUND.get(id).parentId : !!one(id) && one(id).parentUuid === one(parentOf(id))?.uuid);
+  check("2: every place sits inside the place its row names, a key space inside the book's, a pair's place where its own book put it",
+    KEYED.every(sitsRight), failing(KEYED, sitsRight));
+  if (BOUND.size) {
+    const joinedRight = (p) => {
+      const r = one(p.id);
+      return !!r && r.own === p.later && r.merged.includes(p.id) && JSON.stringify(r.blocks.map((b) => b.id)) === JSON.stringify([p.later, p.id]) && r.blocks[1]?.paras === p.unique;
+    };
+    check("2: a place a later book prints is that book's place, answering for AX1's row too, AX1's block after its own with the paragraphs the pair keeps",
+      [...BOUND.values()].every(joinedRight), [...BOUND.values()].map((p) => ({ id: p.id, own: one(p.id)?.own, merged: one(p.id)?.merged, blocks: one(p.id)?.blocks, unique: p.unique })));
+  } else note("2: not reached", "the library holds no later book's place for an AX1 pair, so each pair row is made as its own place");
 
   const printing = KEYED.filter((id) => labelsOf(id) > 0);
   const rows = KEYED.flatMap((id) => (one(id)?.roster ?? []).map((r) => ({ ...r, room: id })));
@@ -849,8 +966,12 @@ try {
   // map is never reshaped: each is made again, now that its pins have places.
   const before2c = await run(gm, P.heldMaps, { ids: MAPS });
   note("2c: maps deleted to be made again", await run(gm, P.deleteScenes, { uuids: before2c.map((m) => m.uuid) }));
-  const copiesBefore = await run(gm, P.worldPlaces, { book: BOOK });
+  // A world place under another book's id is that book's copy, and stays.
+  const copiesBefore = (await run(gm, P.worldPlaces, { book: BOOK })).filter((p) => p.here);
   if (copiesBefore.length) note("2c: world places deleted", await run(gm, P.deleteActors, { uuids: copiesBefore.map((p) => p.uuid) }));
+  const pairCopies = {};
+  for (const p of BOUND.values()) pairCopies[p.id] = (await run(gm, P.worldActorClaims, { id: p._id })) !== null;
+  note("2c: a pair's place already copied into the world, under the library's id", pairCopies);
   // Where the places the pins sit in stand, as the maps step reads them.
   const above2c = BROUGHT.filter((id) => !PINNED.some((p) => p.pins.includes(id)));
   const standing = (s) => ({
@@ -894,8 +1015,21 @@ try {
   const world2c = await run(gm, P.worldPlaces, { book: BOOK });
   const sitsInItsParent = (places) => {
     const byId = new Map(places.map((p) => [p.id, p]));
-    return (p) => (p.id === BOOK_PLACE ? p.parentUuid === "" : p.parentUuid === byId.get(parentOf(p.id))?.uuid);
+    return (p) => {
+      if (p.id === BOOK_PLACE) return p.parentUuid === "";
+      if (BOUND.has(p.id)) return p.parentOwn === BOUND.get(p.id).parentId;
+      return p.parentUuid === byId.get(parentOf(p.id))?.uuid;
+    };
   };
+  if (BOUND.size) {
+    const createdActors = new Set(sc?.created?.actors ?? []);
+    const copyRight = (p) => {
+      const w = world2c.find((x) => x.id === p.id);
+      return !!w && !w.here && w._id === p._id && createdActors.has(w.uuid) === !pairCopies[p.id];
+    };
+    check("2c: a pair's place is in the world as the later book's copy, under the library's id: one held before is restamped, not copied again",
+      [...BOUND.values()].every(copyRight), [...BOUND.values()].map((p) => ({ id: p.id, held: pairCopies[p.id], ok: copyRight(p) })));
+  }
   check("2c: the world holds the places the plans bring, once each, and no other of AX1's",
     sameSet(world2c.map((p) => p.id), BROUGHT), { world: world2c.length, brought: BROUGHT.length, copied: sc?.copied });
   check("2c: every world place sits in the world copy of the place its row names, the book's own in nothing",
@@ -947,12 +1081,14 @@ try {
   check("3: the Adventure carries every AX1 place, and its journals and maps",
     adv?.contents?.places === places.length && adv?.contents?.journals === after.journals.length && adv?.contents?.scenes === MAPS.length,
     { places: adv?.contents?.places, held: places.length, journals: adv?.contents?.journals, heldJournals: after.journals.length, scenes: adv?.contents?.scenes });
-  const carriedActors = adv ? await run(gm, P.adventureActors, { uuid: adv.uuid }) : [];
+  const carriedActors = adv ? await run(gm, P.adventureActors, { uuid: adv.uuid, book: BOOK }) : [];
   const carriedById = new Map(carriedActors.filter((a) => a.id).map((a) => [a.id, a]));
   const inWorld = (id) => (carriedById.has(id) ? `Actor.${carriedById.get(id)._id}` : null);
-  check("3: each carried place sits in the carried place its row names, in world form",
-    KEYED.every((id) => carriedById.get(id)?.parentUuid === inWorld(parentOf(id))) && carriedById.get(BOOK_PLACE)?.parentUuid === "",
-    failing(KEYED, (id) => carriedById.get(id)?.parentUuid === inWorld(parentOf(id))));
+  // A pair's place sits in its own book's place, which this Adventure does not
+  // carry: that reference stays as the library wrote it.
+  const carriedRight = (id) => carriedById.get(id)?.parentUuid === (BOUND.has(id) ? BOUND.get(id).parentUuid : inWorld(parentOf(id)));
+  check("3: each carried place sits in the carried place its row names, in world form, a pair's place in its own book's, as the library holds it",
+    KEYED.every(carriedRight) && carriedById.get(BOOK_PLACE)?.parentUuid === "", failing(KEYED, carriedRight));
   const carriedRows = KEYED.flatMap((id) => (carriedById.get(id)?.roster ?? []).map((u) => ({ u, room: id })));
   const carriedIds = new Set(carriedActors.map((a) => `Actor.${a._id}`));
   check("3: a carried row names a carried person or creature in world form, and another book's creature where the library holds it",
@@ -972,7 +1108,11 @@ try {
   const kept3b = PINNED.reduce((a, b) => (b.pins.length < a.pins.length ? b : a));
   const remade3b = PINNED.filter((p) => p !== kept3b);
   const plansHeld = await run(gm, P.heldMaps, { ids: remade3b.map((p) => p.id) });
-  const placesHeld = await run(gm, P.worldPlaces, { book: BOOK });
+  // A pair's place in the world is the later book's copy, and stays: the
+  // import finds it held and fills around it.
+  const world3a = await run(gm, P.worldPlaces, { book: BOOK });
+  const placesHeld = world3a.filter((p) => p.here);
+  const pairsStood = new Set(world3a.filter((p) => !p.here).map((p) => p.id));
   note("3b: deleted", {
     scenes: (await run(gm, P.deleteScenes, { uuids: plansHeld.map((m) => m.uuid) })).length,
     places: (await run(gm, P.deleteActors, { uuids: placesHeld.map((p) => p.uuid) })).length,
@@ -989,8 +1129,13 @@ try {
   const createdSet = new Set(Object.values(createdBy).flat());
   const world3b = await run(gm, P.worldPlaces, { book: BOOK });
   const createdPlaces = world3b.filter((p) => createdSet.has(p.uuid)).map((p) => p.id);
-  check("3b: it creates the plans' places, their pins and every place those sit in, and no other of AX1's",
-    sameSet(createdPlaces, BROUGHT) && world3b.length === BROUGHT.length, { created: createdPlaces.length, brought: BROUGHT.length, world: world3b.length });
+  check("3b: it creates the plans' places, their pins and every place those sit in but a pair's copy it found held, and no other of AX1's",
+    sameSet(createdPlaces, BROUGHT.filter((id) => !pairsStood.has(id))) && world3b.length === BROUGHT.length,
+    { created: createdPlaces.length, brought: BROUGHT.length, heldPairs: BROUGHT.filter((id) => pairsStood.has(id)).length, world: world3b.length });
+  if (pairsStood.size) {
+    const stillHeld = (id) => world3b.some((p) => p.id === id && !p.here && p._id === BOUND.get(id)?._id && !createdSet.has(p.uuid));
+    check("3b: a pair's copy the world held is held still, under the library's id", [...pairsStood].every(stillHeld), [...pairsStood]);
+  }
   const plans3b = {};
   for (const p of PINNED) plans3b[p.id] = await run(gm, P.planOf, { id: p.id });
   check("3b: it creates each plan it was handed, linked to its place's new copy and standing its pins",
@@ -1006,6 +1151,66 @@ try {
     ZONES.every((z) => laidRight(z, plans3b[z.scene])), ZONES.map((z) => ({ id: z.id, ok: laidRight(z, plans3b[z.scene]) })));
   const dry3b = await run(gm, P.pruneDry);
   check("3b: the empty-location prune, run dry, would remove none of them", doomedOf(dry3b, world3b) === 0, { doomed: doomedOf(dry3b, world3b) });
+
+  // Last, so every section above ran against the owner's place under its own
+  // document id: deleting it gives the place a new one in either order.
+  section("2d. the other order: AX1's place first, the later book's row takes it over");
+  const takeover = PAIRS.filter((p) => BOUND.has(p.id));
+  if (!takeover.length) note("2d: not reached", "no pair's later place stood in the library");
+  else if (!HELD_OK || !TAKEOVER_OK) note("2d: not run", "the later book's place is the owner's; HELD_OK=1 with TAKEOVER_OK=1 is the go-ahead to delete it");
+  else {
+    const laterBooks = [...new Set(takeover.map((p) => p.later.split(".")[0]))];
+    for (const b of laterBooks) {
+      if ((await run(gm, P.bookState, { id: b })).open) continue;
+      const [copy] = books([b]);
+      if (!copy) throw new Error(`2d: ${b} is not open on the GM seat and ACKS_TEST_BOOKS names no copy of it`);
+      note(`2d: connect ${b}`, await run(gm, P.connectBook, copy));
+      note(`2d: ${b}`, await poll(gm, P.bookState, { id: b }, { tries: 150, until: (s) => s?.done || s?.open }));
+    }
+    const bind = {};
+    for (const p of takeover) bind[p.id] = await run(gm, P.pairShape, { id: p.id, keep: true });
+    note("2d: the place the bind left", bind);
+    note("2d: deleted (the owner's, by HELD_OK and TAKEOVER_OK)", await run(gm, P.deleteActors, { uuids: takeover.map((p) => bind[p.id].uuid) }));
+    const mine = await step(gm, "cookbookImportPoiPlaces", [{ books: [BOOK] }], 900);
+    note("2d: AX1's places step", { made: mine.made, already: mine.already, paired: mine.paired, refused: mine.refused, places: mine.created?.places ?? [] });
+    const own = {};
+    for (const p of takeover) own[p.id] = await run(gm, P.pairShape, { id: p.id });
+    check("2d: with the later place gone, AX1's row makes a place of its own, and nothing else is made",
+      mine.made === takeover.length && !mine.paired && !mine.refused && takeover.every((p) => own[p.id]?.own === p.id && !own[p.id].merged.length),
+      { made: mine.made, paired: mine.paired, refused: mine.refused, own: takeover.map((p) => own[p.id]?.own ?? null) });
+    const roomsOf = (p) => KEYED.filter((k) => parentOf(k) === p.id);
+    const roomsIn = async (p, uuid) => {
+      const lib = await run(gm, P.placesOf, { book: BOOK });
+      return roomsOf(p).length > 0 && roomsOf(p).every((k) => lib.find((r) => r.id === k)?.parentUuid === uuid);
+    };
+    for (const p of takeover) check(`2d: ${p.id}'s rooms are moved onto it`, await roomsIn(p, own[p.id]?.uuid), { rooms: roomsOf(p).length });
+    const theirs = await step(gm, "cookbookImportPoiPlaces", [{ books: laterBooks, ids: takeover.map((p) => p.later) }], 600);
+    note("2d: the later rows imported again", { made: theirs.made, already: theirs.already, paired: theirs.paired, refused: theirs.refused });
+    const took = {};
+    for (const p of takeover) took[p.id] = await run(gm, P.pairShape, { id: p.id });
+    note("2d: the place the takeover left", took);
+    const asBound = (p) => {
+      const [a, b] = [bind[p.id], took[p.id]];
+      const same = (k) => JSON.stringify(a[k]) === JSON.stringify(b?.[k]);
+      return !!b && ["own", "book", "merged", "blocks", "parentId"].every(same) && b.sameName === true && b.sameRegion === true;
+    };
+    check("2d: the later row takes AX1's place over, and it is the place the bind made: id, book, merged ids, blocks and their paragraphs, parent, name and region",
+      theirs.paired === takeover.length && !theirs.made && !theirs.refused && takeover.every((p) => took[p.id]?.uuid === own[p.id]?.uuid && asBound(p)),
+      takeover.map((p) => ({ id: p.id, sameDocument: took[p.id]?.uuid === own[p.id]?.uuid, asBound: asBound(p) })));
+    for (const p of takeover) check(`2d: ${p.id}'s rooms still sit in it`, await roomsIn(p, took[p.id]?.uuid));
+    const again2d = await step(gm, "cookbookImportPoiPlaces", [{ books: [BOOK] }], 900);
+    check("2d: AX1's places step run again finds every place held", !again2d.made && !again2d.paired && !again2d.refused, { made: again2d.made, paired: again2d.paired, refused: again2d.refused });
+    for (const p of takeover) {
+      const claims = await run(gm, P.worldActorClaims, { id: bind[p.id]._id });
+      check(`2d: the world copy under the deleted place's id still answers for both rows (${p.id})`, !!claims && claims.includes(p.id) && claims.includes(p.later), claims);
+    }
+    const re2d = await step(gm, "cookbookImportAdventures", [{ books: [BOOK] }]);
+    const lib2d = await run(gm, P.placesOf, { book: BOOK });
+    const adv2d = (await run(gm, P.library, { book: BOOK })).adventures.find((a) => a.kind === "kind.bookAdventure");
+    check("2d: AX1's Adventure, rebuilt, carries every AX1 place again", ["written", "rebuilt"].includes(re2d?.books?.[BOOK]) && adv2d?.contents?.places === lib2d.filter((r) => r.type === LOCATION).length,
+      { outcome: re2d?.books?.[BOOK] ?? null, places: adv2d?.contents?.places, held: lib2d.filter((r) => r.type === LOCATION).length });
+    note("2d: left stale", { books: laterBooks, why: "each later book's own Adventure carries the deleted place's document id until it is rebuilt" });
+  }
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err);
   checks.push(["walk ran to the end", false]);

@@ -105,7 +105,9 @@ check("named as the caller read it off the page", place.name, "1. Salt Gate (“
 check("inside its quarter", place.system.parentUuid, "Actor.quarter");
 check("carrying the page's text as it was materialized", place.system.notes, notes);
 check("regioned by its quarter", place.system.region, "Old District");
-check("claimed under the entry's own id", place.flags[MODULE_ID].cookbook, { id: "ax3.poi1", book: "ax3", kind: "kind.location", unaudited: true });
+check("claimed under the entry's own id, the name it was built under kept", place.flags[MODULE_ID].cookbook, {
+  id: "ax3.poi1", book: "ax3", kind: "kind.location", unaudited: true, printed: "1. Salt Gate (“Sea Door”)",
+});
 check("in the book's folder", place.folder, "F1");
 check("with core's house for a picture", place.img, "icons/svg/house.svg");
 check("a place with no quarter falls back to the book for its region", poiLocationData({ name: "X", entryId: "b.x", book: "b", bookLabel: "Book" }).system.region, "Book");

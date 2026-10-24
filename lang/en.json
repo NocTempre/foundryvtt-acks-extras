@@ -7342,6 +7342,7 @@
   "ACKS-IMPORTER.ui.poiSitesBound": "{n} site(s) written onto a market or the settlement",
   "ACKS-IMPORTER.ui.poiOccupantsRostered": "{n} occupant(s) rostered",
   "ACKS-IMPORTER.ui.poiCreaturesMade": "{n} creature(s) made from a room's stat line",
+  "ACKS-IMPORTER.ui.poiPlacesPaired": "{n} place(s) joined to the one another book prints",
   "ACKS-IMPORTER.ui.poiOccupantHp": "hp {hp}",
   "ACKS-IMPORTER.character.asPrinted": "As printed",
   "ACKS-IMPORTER.character.differs": "printed {printed}; the character has {inForce}",

@@ -1134,6 +1134,19 @@ What each book still owes, in the order it is worth doing:
 - **An order for same-year printings.** AX2–AX6 all carry 2018, so
   `laterBook` cannot order them, and a place two of them print cannot be
   paired until the register records which came first.
+- **AX1's fort as AX3's site 28.** Site 28 binds onto its market, so it
+  builds no place of its own to join, and the fort stands apart until joining
+  two places that both stand is ruled.
+- **A restamped world copy's notes.** A world copy made before its place
+  joined is restamped by the maps step, and its notes stay as copied until the
+  copy is deleted and brought again.
+- **Removing one book of a pair.** Remove Imports for the later book deletes
+  the place, and the earlier book's rooms name a deleted parent until its
+  places step runs again. Removing the earlier book leaves its id in the
+  place's `merged`.
+- **A pair's parent in the earlier book's Adventure.** The place is carried
+  with its parent in library form, so importing that Adventure into a world
+  without the later book's places gives the place a library parent.
 
 ## The OSR Catgirl: what the first cut leaves
 

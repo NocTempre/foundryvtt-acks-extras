@@ -112,6 +112,9 @@ export function spaceProblems(rows) {
  * pair carries the reviewer's `meta.unique`: the 1-based ordinals of the
  * earlier printing's paragraphs that the later one lacks, positive and
  * unrepeated, `[]` for none. A book pairs one row with each later place.
+ * Neither side binds onto a market or an adventure (`meta.market`,
+ * `meta.place`): a pair joins two places the importer builds, and that row
+ * builds none.
  */
 export function pairProblems(rows) {
   const out = [];
@@ -140,7 +143,9 @@ export function pairProblems(rows) {
     else {
       if (t.kind !== r.kind) out.push(`${id}: meta.sameAs names ${sameAs}, a row of another kind`);
       if ((t.meta?.role ?? null) !== (meta.role ?? null)) out.push(`${id}: meta.sameAs names ${sameAs}, a place of another role`);
+      if (t.meta?.market !== undefined || t.meta?.place !== undefined) out.push(`${id}: meta.sameAs names ${sameAs}, which binds onto a market or an adventure and builds no place to pair`);
     }
+    if (meta.market !== undefined || meta.place !== undefined) out.push(`${id}: a row bound onto a market or an adventure builds no place to pair`);
     const key = `${r.book} ${sameAs}`;
     if (claimed.has(key)) out.push(`${id}: ${sameAs} is already paired with ${claimed.get(key)}; one place is one row per book`);
     else claimed.set(key, id);

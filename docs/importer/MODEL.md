@@ -581,7 +581,9 @@ included, as its notes. It sits inside the place its row names
 (`keyedParentId`): its parent row, else its space, else the book's own place
 (`oseAdventureId`), which every space sits in. A run asks for each place once
 and its parent first (`keyedRun`), so the rows may be listed in any order. A
-held place is not read again. It is given its parent where it names none, or
+held place, the library's own document, is not read again; a world copy is
+the Judge's and holds nothing for the step, as it answers no claim
+(`claimActorImport`). It is given its parent where it names none, or
 where the uuid it names resolves to nothing (a parent deleted and made
 again); a parent that still resolves is left as the Judge set it.
 
@@ -620,6 +622,40 @@ is created when a carried map shows it, and the places above it because a
 created place sits in each (`fillPlan`). A map made before its recipe carried
 pins keeps its shape (`repairHeldMap`); deleting it and running the maps step
 again lays them.
+
+## A place two books print
+
+A pair is declared on the earlier book's row: `meta.sameAs` names the later
+book's row, and `meta.unique` lists the ordinals of the earlier block's
+paragraphs the place keeps (`pairProblems` lints both, and refuses a row bound
+onto a market or an adventure, which builds no place). A run reads every
+cookbook's pairs once (`placePairs`). A keyed place or region site whose pair
+already stands in the library as a place of its own (`pairedPlace`) joins it
+(`joinPaired`) and makes no second one:
+
+- **The later row takes the place over** (`takeoverPatch`). The place takes
+  the later id and book, and the earlier id joins `merged`. Its name becomes
+  the later read only while it still equals `printed`, the name the place was
+  built with, which every place the step makes stamps. The earlier block is
+  replaced by the later one, followed by the earlier block cut to its kept
+  paragraphs (`keepParagraphs`). The parent and the region follow the later
+  build only while they still hold what the earlier build wrote, and a role is
+  written only where there is none. Folder, image, roster and ownership stay.
+- **The earlier row binds onto it** (`bindPatch`). Its id joins `merged`, its
+  block, cut to the kept paragraphs, follows the later block, and a parent, a
+  role or a roster is written only where the place holds none.
+
+Both orders end in the same place but for its folder and document id. A place
+answers for every id in `merged` (`claimIds`, `answersFor`) wherever a place
+is looked up: the presence checks, the importer index (`importedIdsOfType`),
+the maps step's crossing (`planCrossing`) and a book's Adventure
+(`bookDocuments`). So the earlier book's rooms sit in it, its plans stand on
+it, and both books' Adventures carry it. In the earlier book's Adventure the
+place's parent is its own book's place, which that Adventure does not carry,
+so the reference stays as the library wrote it. A world copy made before the
+place joined keeps its library document's id; the maps step finds it by that
+id and restamps it (`restamp`) rather than copy the place a second time, and
+leaves its notes as they were copied.
 
 ## A roll table's rows
 

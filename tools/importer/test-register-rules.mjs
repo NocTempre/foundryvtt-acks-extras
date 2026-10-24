@@ -75,6 +75,9 @@ flags("a unique list with no pair", pairProblems(rowsOf(earlier({ unique: [1] })
 flags("a pair with a missing row", pairProblems(rowsOf(earlier({ sameAs: "ax3.site99", unique: [] }))), /no row defines/);
 flags("a pair with a row of another kind", pairProblems(rowsOf({ ...later, kind: "kind.npc" }, earlier({ sameAs: "ax3.site27", unique: [] }))), /another kind/);
 flags("a pair with a place of another role", pairProblems(rowsOf({ ...later, meta: { role: "gate" } }, earlier({ sameAs: "ax3.site27", unique: [] }))), /another role/);
+flags("a pair onto a market's site", pairProblems(rowsOf({ ...later, meta: { market: "mkt20" } }, earlier({ sameAs: "ax3.site27", unique: [] }))), /builds no place to pair/);
+flags("a pair onto an adventure's site", pairProblems(rowsOf({ ...later, meta: { place: "adventure" } }, earlier({ sameAs: "ax3.site27", unique: [] }))), /builds no place to pair/);
+flags("a pair from a market's site", pairProblems(rowsOf(later, earlier({ sameAs: "ax3.site27", unique: [], market: "mkt1" }))), /builds no place to pair/);
 flags("a pair from a person", pairProblems(rowsOf(later, { ...earlier({ sameAs: "ax3.site27", unique: [] }), kind: "kind.npc" })), /location row only/);
 flags("a list of pairs", pairProblems(rowsOf(later, earlier({ sameAs: ["ax3.site27"], unique: [] }))), /one row id/);
 flags("two rows of one book on one place", pairProblems(rowsOf(later, earlier({ sameAs: "ax3.site27", unique: [] }), earlier({ sameAs: "ax3.site27", unique: [] }, "ax1.fortGate"))), /already paired with ax1\.fortPlace/);

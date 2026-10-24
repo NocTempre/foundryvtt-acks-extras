@@ -123,7 +123,9 @@ export function regionPlaceData({ book, bookLabel = "", folderId = null }) {
  * Actor data for one keyed point of interest. `notes` is the page's own text,
  * already materialized (`entryText`), reference last — the same text the
  * journal page carried, on the thing a place is. `roster` is its occupant rows
- * (`lib/place.mjs:occupantRow`), where it has any.
+ * (`lib/place.mjs:occupantRow`), where it has any. The stamp keeps the name
+ * as built (`printed`), which is how a later printing taking the place over
+ * tells a Judge's rename from its own (`place-pair.mjs`).
  */
 export function poiLocationData({
   name, entryId, notes = "", book, bookLabel = "", district = "", parentUuid = "", folderId = null, role = "", roster = [],
@@ -139,7 +141,7 @@ export function poiLocationData({
     },
     flags: {
       [MODULE_ID]: {
-        cookbook: { id: entryId, book, kind: "kind.location", unaudited: true },
+        cookbook: { id: entryId, book, kind: "kind.location", unaudited: true, printed: name },
       },
     },
   };

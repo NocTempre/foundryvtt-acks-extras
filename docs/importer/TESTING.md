@@ -1948,11 +1948,13 @@ are its `occupants.<i>.name` fields. Nothing of the page is read to check it.
 
 1. Run the step.
    *Observable:*
-   - `made` is the number of keyed rows, `created.places` one more, and
-     nothing refused;
+   - `made` is the number of keyed rows less those whose pair's place the
+     library holds ("A place two books print", below), `created.places` one
+     more, `paired` the pairs it bound, and nothing refused;
    - each keyed row is one place, and its `system.parentUuid` is the uuid of
      the place under the row's `meta.parent`, else its `meta.space`, else
-     `ax1.adventure`;
+     `ax1.adventure`. A pair's place stays inside the place its own book put
+     it in;
    - a room has a roster exactly when its row prints an occupant, never more
      rows than it prints, every row hidden, and `rostered` counts them;
    - each row's link resolves and is no world copy. Among the rows are a
@@ -1986,6 +1988,57 @@ are not tracked. Where the walk rebuilt the owner's AX1 Adventure over the
 swept documents, run the Adventure step once more after the sweep, so it
 carries only what the library still holds. Delete a shelf the run opened only
 when it is empty.
+
+## A place two books print
+
+One place in either order: AX1's first level (`ax1.l1`, `meta.sameAs`) and
+the AX3 region site it is. `tools/live/importer-ax1.mjs` walks the bind in
+section 2, the world copy in 2c and 3b, and the takeover in 2d. A check
+compares ids, block order and paragraph counts; a name and a region are
+compared page-side and only the boolean leaves the page.
+
+### Fixtures
+
+- AX3's region places in the library, imported by the owner. The pair's later
+  place and its world copy are the owner's: no delete list may name them,
+  which is why each list keys on a document's own id, never a merged one.
+- AX3 connected on the GM seat (`remember: false`) for the takeover, where the
+  walk connects it from `ACKS_TEST_BOOKS`.
+- The takeover deletes the owner's AX3 place, so it runs only on the owner's
+  go-ahead (`HELD_OK=1` with `TAKEOVER_OK=1`).
+
+### Steps
+
+1. Run AX1's places step with the AX3 place held.
+   *Observable:* `paired` is 1 and `ax1.l1` is not made. The AX3 place keeps
+   its own id and parent, `merged` holds `ax1.l1`, its blocks read
+   `[ax3.site27, ax1.l1]`, and AX1's block holds as many paragraphs as the
+   pair's `unique` lists. Level 1's rooms sit in it. A second run counts it
+   `already`.
+2. Run the maps step with an AX3 world copy of the place standing.
+   *Observable:* the copy, under the library document's id, is restamped to
+   answer `ax1.l1` and is not in `created.actors`; level 1's plan links it, and
+   its pins sit in it.
+3. Write AX1's Adventure and press its sheet's Import with the copy standing.
+   *Observable:* the Adventure carries the place, its parent the library's AX3
+   region place; the import creates every other place it brings and leaves the
+   copy held.
+4. Delete the AX3 place, run AX1's places step, then
+   `cookbookImportPoiPlaces({ books: ["ax3"], ids: ["ax3.site27"] })`.
+   *Observable:* the first run makes `ax1.l1` as its own place, nothing else,
+   and moves its rooms onto it. The second's `paired` is 1 and `made` 0: the
+   same document now stands as `ax3.site27` with the id, book, merged ids,
+   blocks and paragraph counts, parent, name and region step 1 left. The rooms
+   still sit in it, a third run makes nothing, and the world copy under the
+   deleted id still answers for both rows.
+5. Rebuild AX1's Adventure.
+   *Observable:* it carries every AX1 place again. AX3's own Adventure still
+   carries the deleted document's id until it is rebuilt; report it as stale.
+
+### Teardown
+
+Nothing the pair touches is swept: the place left standing and its copy are
+the owner's. Report each write to them.
 
 ## A plan is the place it draws
 
