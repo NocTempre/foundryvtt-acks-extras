@@ -1,0 +1,47 @@
+[
+  {
+    "id": "ax1.fort11Map",
+    "kind": "kind.scene",
+    "book": "ax1",
+    "name": "Fort 11 Map",
+    "pages": [12],
+    "scene": {
+      "note": "Page points, top-left origin: the crop is the plan in its frame; the grid block is one drawn square; the distance is the square other building plans measure at (areas 18, 19, 23). Walls trace the dark strokes; a box is a door, a splayed gap a window. Lines: double doors the box reader misses, two leaves each: corner arcades, N and S passages, east gate and passage. Drops: a star's ring, a window.",
+      "crop": { "x": 26.946, "y": 387, "w": 347.054, "h": 343 },
+      "place": "ax1.fort11",
+      "travel": "delve",
+      "grid": {
+        "family": "square",
+        "box": { "w": 20.6081, "h": 20.5643 },
+        "centre": [195.735, 552.894],
+        "distance": 5,
+        "units": "ft",
+        "pixels": 70
+      },
+      "walls": {
+        "mode": "stroke",
+        "threshold": 80,
+        "corrections": [
+          { "line": [83.13, 397.92, 94.54, 397.92], "is": "door" },
+          { "line": [94.54, 397.92, 104.01, 397.92], "is": "door" },
+          { "line": [288.46, 398.33, 299.6, 398.33], "is": "door" },
+          { "line": [299.6, 398.33, 310.72, 398.33], "is": "door" },
+          { "line": [84.39, 707.46, 94.34, 707.46], "is": "door" },
+          { "line": [94.34, 707.46, 104.27, 707.46], "is": "door" },
+          { "line": [288.38, 707.66, 299.6, 707.66], "is": "door" },
+          { "line": [299.6, 707.66, 310.4, 707.66], "is": "door" },
+          { "line": [185.63, 499.52, 196.55, 500.68], "is": "door" },
+          { "line": [196.55, 500.68, 207.89, 501.89], "is": "door" },
+          { "line": [185.22, 604.78, 196.55, 605.38], "is": "door" },
+          { "line": [196.55, 605.38, 207.47, 605.96], "is": "door" },
+          { "line": [352.55, 546.51, 351.99, 552.69], "is": "door" },
+          { "line": [351.99, 552.69, 350.91, 564.64], "is": "door" },
+          { "line": [249.38, 543.69, 248.88, 552.9], "is": "door" },
+          { "line": [248.88, 552.9, 248.28, 563.82], "is": "door" },
+          { "at": [204.9, 551.45], "drop": "island" },
+          { "at": [94.54, 708.49], "drop": "window" }
+        ]
+      }
+    }
+  }
+]
