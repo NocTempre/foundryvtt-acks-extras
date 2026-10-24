@@ -167,6 +167,17 @@ ok("a line names two points", wallsProblems(lineOf([crop.x + 5, crop.y + 5, crop
 ok("a line is never asserted open", wallsProblems(lineOf(slant, "open"), recipeOf(fine)).some((p) => /for a line/.test(p)));
 ok("a line asserted twice is refused", wallsProblems({ ...fine, corrections: [{ line: slant, is: "door" }, { line: slant, is: "wall" }] }, recipeOf(fine)).some((p) => /second time/.test(p)));
 
+const rectOf = (rect, is = "terrain") => ({ mode: "stroke", threshold: 80, corrections: [{ rect, is }] });
+const flat = [crop.x + 20, crop.y + 20, crop.x + 40, crop.y + 30];
+check("a rect between two points in the crop holds", wallsProblems(rectOf(flat), recipeOf(fine)), []);
+check("a rect may be turned", wallsProblems(rectOf([...flat, 30]), recipeOf(fine)), []);
+ok("a rect turned past the crop's edge is refused", wallsProblems(rectOf([crop.x + 1, crop.y + 1, crop.x + 41, crop.y + 11, 45]), recipeOf(fine))
+  .some((p) => /corner outside the crop/.test(p)));
+ok("a rect runs from its top-left corner", wallsProblems(rectOf([flat[2], flat[1], flat[0], flat[3]]), recipeOf(fine)).some((p) => /top-left/.test(p)));
+ok("a rect names two points and a turn at most", wallsProblems(rectOf(flat.slice(0, 3)), recipeOf(fine)).some((p) => /rect must be/.test(p)));
+ok("a rect is terrain", wallsProblems(rectOf(flat, "wall"), recipeOf(fine)).some((p) => /for a rect/.test(p)));
+ok("a rect weighs four against the budget", /weigh 17 /.test(warnedOf([...cellsUpTo(13), { rect: flat, is: "terrain" }])[0] ?? ""));
+
 /* ---------------- grid mode ---------------- */
 
 const traced = traceWalls(plan, recipeOf(fine), scale);
@@ -220,6 +231,18 @@ check("grid: a door asserted open is gone", opened.digest.doors, 0);
     [lined.digest.invisible, lined.digest.terrain, lined.digest.walls - d.walls, lined.walls.find((s) => s.invisible).door], [1, 1, 1, 0]);
   const apart = traceWalls(plan, recipeOf({ ...fine, corrections: [{ line: [crop.x + 13 * CELL, crop.y + 5 * CELL, crop.x + 14 * CELL, crop.y + 5 * CELL], is: "door" }] }), scale);
   check("grid: a door line far from the traced door replaces none", [apart.digest.doorsReplaced, apart.digest.doors], [0, 2]);
+
+  // A rect three cells by one, turned a quarter about its centre, stands
+  // upright: its four sides are terrain, on the turned corners.
+  const turned = traceWalls(plan, recipeOf({ ...fine, corrections: [
+    { rect: [crop.x + 11 * CELL, crop.y + 4 * CELL, crop.x + 14 * CELL, crop.y + 5 * CELL, 90], is: "terrain" },
+  ] }), scale);
+  const sides = turned.walls.filter((s) => s.terrain);
+  const corner = (x, y) => [crop.x + x * CELL, crop.y + y * CELL];
+  const want = [corner(13, 3), corner(13, 6), corner(12, 6), corner(12, 3)];
+  ok("grid: a turned rect stands as four terrain sides on its turned corners",
+    turned.digest.terrain === d.terrain + 4 && sides.length === 4
+      && sides.every((s, i) => near(s.c, [...want[i], ...want[(i + 1) % 4]], 1e-9)), JSON.stringify(sides.map((s) => s.c)));
 }
 
 {

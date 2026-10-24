@@ -153,8 +153,11 @@ A recipe with a square `grid` may carry a `walls` block, read by
   `[0, 0]` is the first whole drawn cell at the crop's top-left):
   `{cell: [c, r], is}`, `{edge: [c, r, "n"|"w"], is}`,
   `{box: [c0, r0, c1, r1], is: "terrain"}` on lattice lines, or
-  `{at: [x, y], drop: "island"|"door"}` and `{line: [x0, y0, x1, y1], is}`
-  in page points. Which states a cell may take depends on the mode
+  `{at: [x, y], drop: "island"|"door"}`, `{line: [x0, y0, x1, y1], is}` and
+  `{rect: [x0, y0, x1, y1, turn], is: "terrain"}` in page points. A rect is a
+  box off the lattice: the box between its two corners, turned `turn` degrees
+  clockwise about its centre (`turn` may be left out), its four sides laid as
+  terrain lines. Which states a cell may take depends on the mode
   (`CELL_STATES`). In `stroke`, `door` and `secret` name the kind of the
   drawn door whose box centre lies in the cell; a cell with none counts in
   `unplaced`. A line takes the same states
@@ -171,8 +174,8 @@ register lint and in the compiler. It refuses corrections that weigh more
 than `correctionCap`, which is `CORRECTION_CEILING` of the lattice's cells,
 so a recipe that needs more never compiles. Past `correctionBudget`,
 `CORRECTION_SHARE` of the cells, the lint and the compiler warn
-(`wallsWarnings`) and the row still compiles. A correction weighs one and a
-box `BOX_WEIGHT`.
+(`wallsWarnings`) and the row still compiles. A correction weighs one, and a
+box or a rect `BOX_WEIGHT`.
 
 What every mode does with a plan:
 - **The crop's own edge is no wall.** In `grid`, a floor cell on the

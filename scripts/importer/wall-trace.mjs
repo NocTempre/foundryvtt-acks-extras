@@ -61,6 +61,13 @@ const BOX_STATES = Object.freeze(["terrain"]);
 const BOX_WEIGHT = 4;
 
 /**
+ * What a rect may assert: the same four sides as a box, on a box drawn
+ * between two page points and turned about its centre, for a raised
+ * structure that stands off the lattice. A rect weighs `BOX_WEIGHT`.
+ */
+const RECT_STATES = BOX_STATES;
+
+/**
  * What a line may assert, in any mode: a wall, a door or secret door, or a
  * wall that blocks movement and passes senses, as `terrain` (only the second
  * such wall a sense crosses stops it) or `invisible` (no sense is stopped).
@@ -129,11 +136,23 @@ export const correctionBudget = (lattice) => Math.floor(CORRECTION_SHARE * cells
 /** How many corrections a lattice allows: `CORRECTION_CEILING` of its cells, rounded down. */
 export const correctionCap = (lattice) => Math.floor(CORRECTION_CEILING * cellsOf(lattice));
 
-/** What corrections weigh against the budget and the cap: one each, a box `BOX_WEIGHT`. */
-const correctionWeight = (list) => list.reduce((n, k) => n + (k?.box !== undefined ? BOX_WEIGHT : 1), 0);
+/** What corrections weigh against the budget and the cap: one each, a box or a rect `BOX_WEIGHT`. */
+const correctionWeight = (list) => list.reduce((n, k) => n + (k?.box !== undefined || k?.rect !== undefined ? BOX_WEIGHT : 1), 0);
+
+/**
+ * A rect's four corners in page points, clockwise from its first: the box
+ * between `[x0, y0]` and `[x1, y1]`, turned `turn` degrees clockwise on the
+ * page about its centre.
+ */
+function rectCorners([x0, y0, x1, y1, turn = 0]) {
+  const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+  const a = (turn * Math.PI) / 180, cos = Math.cos(a), sin = Math.sin(a);
+  return [[x0, y0], [x1, y0], [x1, y1], [x0, y1]].map(([x, y]) => [cx + (x - cx) * cos - (y - cy) * sin, cy + (x - cx) * sin + (y - cy) * cos]);
+}
 
 /** One correction's identity, so a cell, an edge, an island, a box or a line is asserted once. */
-const correctionKey = (k) => (k.cell ? `cell:${k.cell.join(",")}` : k.edge ? `edge:${k.edge.join(",")}` : k.box ? `box:${k.box.join(",")}` : k.line ? `line:${k.line.join(",")}` : `at:${(k.at ?? []).join(",")}`);
+const correctionKey = (k) => (k.cell ? `cell:${k.cell.join(",")}` : k.edge ? `edge:${k.edge.join(",")}` : k.box ? `box:${k.box.join(",")}`
+  : k.rect ? `rect:${k.rect.join(",")}` : k.line ? `line:${k.line.join(",")}` : `at:${(k.at ?? []).join(",")}`);
 
 /**
  * Everything wrong with a recipe's `walls` block, as sentences prefixed
@@ -165,8 +184,8 @@ export function wallsProblems(walls, recipe) {
   list.forEach((k, i) => {
     const where = `walls.corrections[${i}]`;
     if (!k || typeof k !== "object" || Array.isArray(k)) return void out.push(`${where} must be an object`);
-    const forms = ["cell", "edge", "at", "box", "line"].filter((f) => k[f] !== undefined);
-    if (forms.length !== 1) return void out.push(`${where} names exactly one of cell, edge, at, box or line`);
+    const forms = ["cell", "edge", "at", "box", "rect", "line"].filter((f) => k[f] !== undefined);
+    if (forms.length !== 1) return void out.push(`${where} names exactly one of cell, edge, at, box, rect or line`);
     const allowed = forms[0] === "at" ? ["at", "drop"] : [forms[0], "is"];
     for (const key of Object.keys(k)) if (!allowed.includes(key)) out.push(`${where} has an unknown key "${key}"`);
     if (k.cell !== undefined) {
@@ -190,6 +209,14 @@ export function wallsProblems(walls, recipe) {
         out.push(`${where}.box [${k.box.join(", ")}] must run from a lattice line to a later one, inside the ${lattice.cols}x${lattice.rows} lattice`);
       }
       if (!BOX_STATES.includes(k.is)) out.push(`${where}.is must be ${BOX_STATES.join(", ")} for a box`);
+    } else if (k.rect !== undefined) {
+      if (!Array.isArray(k.rect) || ![4, 5].includes(k.rect.length) || !k.rect.every(isNum)) {
+        return void out.push(`${where}.rect must be [x, y, x, y] or [x, y, x, y, degrees]`);
+      }
+      const crop = recipe.crop;
+      if (!(k.rect[2] > k.rect[0] && k.rect[3] > k.rect[1])) out.push(`${where}.rect must run from its top-left corner to its bottom-right`);
+      if (rectCorners(k.rect).some(([x, y]) => x < crop.x || y < crop.y || x > crop.x + crop.w || y > crop.y + crop.h)) out.push(`${where}.rect has a corner outside the crop`);
+      if (!RECT_STATES.includes(k.is)) out.push(`${where}.is must be ${RECT_STATES.join(", ")} for a rect`);
     } else if (k.line !== undefined) {
       const crop = recipe.crop;
       if (!Array.isArray(k.line) || k.line.length !== 4 || !k.line.every(isNum)) return void out.push(`${where}.line must be [x, y, x, y]`);
@@ -387,7 +414,8 @@ function renderLattice(lattice, crop, scale) {
 
 /**
  * The corrections sorted by what they assert, `at` points carried into render
- * pixels and each line made the wall segment it asserts.
+ * pixels, each line made the wall segment it asserts, and each rect made four
+ * terrain lines.
  */
 function readCorrections(list, crop, scale) {
   const cells = new Map();
@@ -401,7 +429,10 @@ function readCorrections(list, crop, scale) {
     if (k.cell) cells.set(`${k.cell[0]},${k.cell[1]}`, k.is);
     else if (k.edge) edges.set(`${k.edge[0]},${k.edge[1]},${k.edge[2]}`, k.is);
     else if (k.box) boxes.push(k.box);
-    else if (k.line) {
+    else if (k.rect) {
+      const p = rectCorners(k.rect).map(([x, y]) => px(x, y));
+      for (let i = 0; i < 4; i++) lines.push({ c: [...p[i], ...p[(i + 1) % 4]], door: DOOR.none, terrain: true });
+    } else if (k.line) {
       const c = [...px(k.line[0], k.line[1]), ...px(k.line[2], k.line[3])];
       lines.push(k.is === "terrain" ? { c, door: DOOR.none, terrain: true } : k.is === "invisible" ? { c, door: DOOR.none, invisible: true } : { c, door: doorOf(k.is) });
     } else if (k.at) (k.drop === "door" ? doorDrops : islands).push(px(k.at[0], k.at[1]));

@@ -7794,3 +7794,29 @@ weigh more than 5% of its lattice's cells.
 - **Keeping 5% hard.** The plans above.
 
 *Cost:* between 5% and 10% that line is held by a reviewer, not a gate.
+
+## 2026-10-24 — A raised structure off the lattice is a rect
+
+Amends the terrain box bullet of "A secret door stands on both mouths, a
+split box is a double door, and the crop's edge walls nothing" (2026-10-18).
+That bullet stands a box's sides on lattice lines only.
+
+**New evidence.** p.15's stepped dais stands off its plan's lattice. Its
+outer step lies 0.27 of a cell inside one lattice line, 0.35 short of
+another and 0.08 below a third, so a box would wall it up to a third of a
+cell from where it is drawn. Lines could state it, three of them. The user:
+"Clearly a technique is needed for off-grid terrain"; asked which, the user
+chose a shape that stands terrain on every side, with a reader for the
+plans' arrow slits beside it.
+
+**Ruled.** A correction may be a rect, `{rect: [x0, y0, x1, y1, turn], is:
+"terrain"}` in page points. Its four sides are the box between the two
+corners, turned `turn` degrees clockwise about its centre, each laid as a
+terrain line. A rect weighs 4, as a box does.
+
+*Rejected:* **a polygon of page points.** A list of segments is a tracing
+(2026-10-17), and so is a polygon. A rect states one shape by two corners
+and a turn.
+
+*Cost:* against a wall a rect's fourth side stands along the wall, and it
+weighs 4 where three lines would weigh 3.
