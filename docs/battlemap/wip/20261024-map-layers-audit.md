@@ -4,7 +4,9 @@ In-flight audit (2026-10-24), opened by the owner's report on the country
 brush: the brush paints through its own palette, the paint layers overlap,
 territory should read as a border colour over the terrain fill, climate
 should become a map-wide setting, markets should show their reach, and
-domains are a further layer to keep visually apart. When the work lands, its
+domains are a further layer to keep visually apart. A second request asked
+for the UI lessons of Paradox's grand strategy maps and of Hexographer, and
+weighed an embedded external tool that syncs both ways. When the work lands, its
 substance moves to `docs/battlemap/{MODEL,DECISIONS}.md` and this file is
 deleted.
 
@@ -103,27 +105,100 @@ paints the hex under the window. Live check: log `ev.nativeEvent.target` in
 the catcher's own `pointerdown` opened, and only while the event's target is
 the board canvas. Independent of every ruling below.
 
-## 4. Proposed scheme: one drawing channel per layer
+## 4. What the reference tools do
 
-| Layer | Channel | Seen by |
-|---|---|---|
-| Terrain | core Region fill (unchanged) | everyone |
-| Territory | a band of the class colour just inside each hex edge where the class changes (module overlay) | GM |
-| Domain | a line on the hex edge itself, coloured per domain, heavier per realm tier (module overlay) | GM; players' own domain an open question |
-| Market reach | a dashed outline of the reach, per market (module overlay) | GM |
-| Roads, water | lines (unchanged) | GM overlay |
-| Climate | no map drawing; the scene setting, shown in the Battlemap window and the party sheet | — |
+**Paradox (EU4, CK3, Victoria 3).** The map never shows every layer at once.
+A **map mode** picks which layer owns the fill; the rest stay out of the way.
+What carries over:
 
-Territory and domain then share an edge without colliding: the outer line
-says whose land, the inner band how settled. Territory and climate Regions
-stay the data store and drop to `REGION_VISIBILITY.LAYER`, so core draws them
-only on the Regions control. The `registerPaintLayer` registry gains the
-layer's drawing style (`fill` or `border`), so the domain layer chooses its
-own without battlemap naming it.
+- **One fill per mode, chosen by button or hotkey.** EU4 groups its modes in
+  four tabs and binds them to the top keyboard row; pressing a key again
+  cycles the modes bound to it.
+- **Stripes mean "a second answer here".** EU4 stripes a province whose
+  controller is not its owner, cores and claims outside a border, a religion
+  that differs from its owner's. It is the channel for a hex whose value
+  disagrees with the value it would otherwise inherit.
+- **Checkered means "out of range".** EU4's trade mode colours each province
+  by its trade node and checkers the ones outside the country's trade range;
+  hovering gives the effective distance. That is the closest published pattern
+  to a market's reach.
+- **The hover card reads every layer.** A province tooltip answers what the
+  active mode does not show, so no layer needs to be drawn just to be known.
+- **A legend per mode**, with a value scale where the mode is graded.
+- **Zoom changes the detail.** CK3's realm mode shows independent realms far
+  out, a liege's vassals in the middle and terrain close in; vassal borders
+  appear when a realm is selected. (The exact CK3 border and shading
+  conventions were not confirmed from a primary source.)
 
-## 5. Open rulings
+**Hexographer and Worldographer.**
 
-Answer each with its letter, e.g. "Q1 a, Q2 a, Q3 yes, Q4 a, Q5 a".
+- **Categories with show/hide.** Hexographer tags text and lines as
+  political, natural or infrastructure and toggles each category like a
+  layer, so a copy of the map can be saved with no political markings: a
+  player handout.
+- **Layer opacity.** Worldographer 2025 adds per-layer transparency in its
+  Layers toolbox.
+- **Border or fill is the user's choice.** Its nation generator asks whether
+  borders are one colour or varied, and whether the area is filled
+  translucently or not.
+- **Map levels.** World, continent and kingdom levels live in one file, and a
+  change on one can update the others. That is an answer to F2's
+  counter-argument (climate read from the continent level above a regional
+  map), kept for later; the owner's ruling makes climate map-wide now.
+- **Brush ergonomics**: flood fill, brush sizes over several hexes, an
+  eraser. The country brush paints one hex at a time.
+
+## 5. Proposed scheme: map modes over one data store
+
+The Regions stay the data store for every painted layer; core draws only the
+terrain fill (territory Regions drop to `REGION_VISIBILITY.LAYER`, shown only
+on the Regions control). A module overlay draws the GM's modes. The brush
+palette's layer pills become the mode switch, and painting a layer shows its
+mode.
+
+| Mode | Fill (overlay over the terrain) | Lines | Stripes / checker |
+|---|---|---|---|
+| Terrain (rest state) | the core terrain fill alone | domain borders, thin | — |
+| Territory | class colour per hex | domain borders | stripes where a Judge's territory differs from the domain's class (Q1 a) |
+| Domains | colour per domain; a vassal a shade of its liege's | border weight by realm tier; domain names across their land | stripes on hexes a domain's record holds that the map has not painted |
+| Markets | colour of the market whose reach covers the hex | roads and water | checkered outside every reach |
+
+Every mode gets the hover card (`countryAt` already returns each key's value
+and its `source`), a legend, an opacity slider, and a "handout" toggle that
+hides every GM overlay. Climate is not a mode: it is the scene's setting,
+shown as a chip in the legend. Players see the terrain mode only. The
+`registerPaintLayer` registry gains the mode a layer draws in, so the domain
+layer brings its own without battlemap naming it.
+
+## 6. An embedded external tool
+
+The owner accepts a dedicated external tool if it syncs both ways. What two-way
+sync needs here: the tool addresses hexes in a way that maps onto the offset
+keys; it models territory, domains with a hierarchy, and markets; it runs in
+the browser beside Foundry, or offers an API or a file the module can read and
+write; and its licence lets the module ship or call it.
+
+| Tool | Runs | Hex-native | Political model | Data | Licence | Sync available |
+|---|---|---|---|---|---|---|
+| Worldographer 2025 (Inkwell Ideas) | desktop, Java | yes | nation borders, labels, map levels | `.wxx`; gzip-compressed UTF-16 XML, inferred from the Apache-2.0 Go reader `mdhender/wxconv` (v1.73), not from a published spec | paid, closed | file round trip only; live needs a local companion process watching the file |
+| Hexfriend | browser (Svelte, PIXI) | yes | none: lines, fills, text, icons | its own JSON | GPL-2.0 | self-hosted fork in an iframe with a message bridge; GPL terms reach what bundles it |
+| Azgaar's Fantasy Map Generator | browser | no: Voronoi cells | states, provinces, burgs, routes, cultures | `.map`, full JSON export | MIT | one way today (the `azgaar-foundry` module imports journals); cell-to-hex resampling loses data both ways |
+| Lidarion Hexmap Studio | inside Foundry 14 | yes | Regions as solid territory overlays, Locations hatched | not documented | not stated; Patreon | none documented |
+
+**Finding: no candidate offers live two-way sync with hex identity.**
+Worldographer is the only hex-native tool with a political model, and its
+sync is a file round trip keyed by column and row. Recommendation: build the
+map modes in Foundry, where the hex key, the domain actors and the imported
+values already live, and treat a Worldographer import and export as a
+separate, optional piece if the owner maps there. Counter-argument (moderate):
+Worldographer's painting tools (art, labels, flood fill, map levels) took
+years to build and a Foundry brush will trail them; the cost of the external
+route is a sync seam with two sources of truth and a paid, closed dependency
+whose format is reverse-engineered.
+
+## 7. Open rulings
+
+Answer each with its letter, e.g. "Q1 a, Q2 a, Q3 yes, Q4 a, Q5 a, Q6 a".
 
 - **Q1 — Where does a hex's territory come from?**
   (a) the domain it is painted into, with a territory paint as the Judge's
@@ -136,12 +211,31 @@ Answer each with its letter, e.g. "Q1 a, Q2 a, Q3 yes, Q4 a, Q5 a".
   (c) both, as separate outlines.
 - **Q3 — "Permanent markets at class 6 and above"**: every placed location
   with a market class, Class VI through Class I — yes, or name the cut.
-- **Q4 — When do the GM overlays draw?**
-  (a) while the Judge works the map (the Battlemap tools or the Regions
-  control), each layer with a show/hide toggle in the brush palette;
-  (b) always, for a GM.
+- **Q4 — When does a GM map mode show?**
+  (a) the mode picked in the palette stays on until the Judge returns to
+  Terrain, through every control, with the handout toggle to hide it;
+  (b) only while the Judge works the map (the Battlemap tools or the Regions
+  control), as the road overlay does now.
 - **Q5 — Climate Regions already painted in worlds:**
   (a) fold the most-painted climate into the scene setting where the scene
   has none, and leave the Regions inert for the Judge to delete;
   (b) as (a), then delete them;
   (c) leave them untouched.
+- **Q6 — The external tool:**
+  (a) none; build the map modes in Foundry;
+  (b) as (a), plus a Worldographer `.wxx` import and export later;
+  (c) a tool you already use — name it.
+
+## Sources
+
+- EU4 map modes: <https://eu4.paradoxwikis.com/Map_modes>
+- CK3 map modes and vassal borders (community answers): <https://steamcommunity.com/app/1158310/discussions/0/3004423845035930917>
+- Victoria 3 map lenses (news coverage): <https://www.altchar.com/game-news/there-will-be-at-least-5-map-modes-in-victoria-3-a8dSi0K54DdL>
+- Hexographer categories with show/hide: <https://inkwellideas.com/2009/05/hexographer-free-hex-mapping-program-gets-more-updates/>
+- Worldographer map levels: <https://inkwellideas.com/2016/07/hexographer-2s-map-levels/>
+- Worldographer nation borders, fill: <https://inkwellideas.com/2021/01/worldographer-update-released/>
+- Worldographer 2025 layer opacity: <https://worldographer-2025.backerkit.com/hosted_preorders/project_updates>
+- `.wxx` reader: <https://pkg.go.dev/github.com/mdhender/wxconv/adapters>
+- Hexfriend: <https://github.com/Aidymouse/Hexfriend>
+- Azgaar FMG: <https://github.com/Azgaar/Fantasy-Map-Generator/wiki/Quick-Start-Tutorial>; Foundry importer: <https://github.com/Ethck/azgaar-foundry>
+- Lidarion Hexmap Studio: <https://foundryvtt.com/packages/lidarion-hexmaps>
