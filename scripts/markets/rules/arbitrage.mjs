@@ -61,9 +61,11 @@ export function diceRange(formula) {
  * at its tier's rate, a good marked exempt charged nothing. The rates are
  * percentages, passed in. The total rounds up to a whole copper, as the toll
  * does.
- * @param {{category: string, label: string, stones: number, basePriceGp: number, tier: string, exempt: boolean}[]} loads
+ * A line keeps its good's `holderName` and `kind` (a load, or an item
+ * declared for sale), so the quote can say whose goods it is.
+ * @param {{category: string, label: string, stones: number, basePriceGp: number, tier: string, exempt: boolean, holderName?: string, kind?: string}[]} loads
  * @param {{precious: number, common: number}} rates
- * @returns {{totalCp: number, lines: {category: string, label: string, stones: number, tier: string, exempt: boolean, pct: number, cp: number}[]}}
+ * @returns {{totalCp: number, lines: {category: string, label: string, stones: number, tier: string, exempt: boolean, pct: number, cp: number, holderName: string, kind: string}[]}}
  */
 export function tariffOn(loads, rates) {
   const lines = (loads ?? []).map((load) => {
@@ -71,7 +73,17 @@ export function tariffOn(loads, rates) {
     const pct = load.exempt ? 0 : Math.max(0, Number(rates?.[tier]) || 0);
     const stones = Math.max(0, Number(load.stones) || 0);
     const cp = stones * Math.max(0, Number(load.basePriceGp) || 0) * pct;
-    return { category: load.category, label: load.label, stones, tier, exempt: !!load.exempt, pct, cp };
+    return {
+      category: load.category,
+      label: load.label,
+      stones,
+      tier,
+      exempt: !!load.exempt,
+      pct,
+      cp,
+      holderName: load.holderName ?? "",
+      kind: load.kind ?? "load",
+    };
   });
   const sum = lines.reduce((n, l) => n + l.cp, 0);
   return { totalCp: sum > 0 ? Math.ceil(sum - 1e-9) : 0, lines };

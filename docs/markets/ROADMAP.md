@@ -25,7 +25,14 @@
   warehousing, exhaustion-of-arbitrage and price-reset options, passenger
   and cargo transport, passive investment. (The party's own vehicles
   setting its market impact, and loads bought into their holds, landed
-  2026-09-30; the tariff at the gate 2026-10-23 — MODEL, Ventures.)
+  2026-09-30; the tariff at the gate, smuggled goods and sneaking in
+  2026-10-23 — MODEL, Ventures.)
+- **Entering separately** (RR ch. 8, Entering the Market, step 2,
+  Parties): members arriving together enter as one party; entering one by
+  one, with its own impact limit, is not offered.
+- **The smuggling throw**: the gate records what is smuggled in and tells
+  the Judge; the Smuggling hijink itself (RR §VIII.5) and confiscation are
+  the domains feature's hijinks, not built.
 - **The Ruler's Privilege on moorage**, which waits on moorage above; the
   toll and tariff half is built.
 - **Calendar seasons for grain pricing** — the spring/autumn step waits on

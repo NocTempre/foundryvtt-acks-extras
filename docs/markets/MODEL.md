@@ -137,31 +137,66 @@ party's find.
   or drawn. The seat must own the hold as well as the trader.
   A day that cannot resolve because its imported table is missing posts a
   card to the actor's owners and the GM naming the table.
-  - **The gate** (`engine/gate.mjs` `entryQuote`, `settleTariff`; RR 372):
-    an entry pays the toll and the tariff in ONE payment as the day is
-    posted, refused whole when the purse falls short. The toll is the
-    class's per-stone toll on the declared capacity. The tariff is charged
-    on every merchandise load in the entering trader's own packs and in the
-    entering vehicles' holds (`manifestOf`, so goods kept for another owner
-    are passed over), on each load's base cost — its good's catalogue price
-    per stone, else the load's own cost, × stones — at its tier's rate
-    (`rules/arbitrage.mjs` `tariffOn`), a good marked `tariffExempt`
-    charged nothing. The rates are the class's tariff cell
-    (`parseTariffPct`: two percentages, precious first, or none); a cell
-    that is neither refuses the entry naming the table. With
-    `marketsRandomTariff` on and a taxable load aboard, each tier the class
-    tariffs is thrown once at the gate on the imported dice instead, and an
-    entry with no dice imported is refused naming that table. Where the
-    trader or a member of the trader's party rules the domain the market
-    lies in (`acksExtras.domains.domainOf`, read at call time), neither is
-    charged (the Ruler's Privilege). The Enter dialog shows the same quote,
-    recomputed as vehicles are ticked and capacity typed: the toll, a line
-    per load with its rate and charge, the span a thrown tariff can come
-    to, or the privilege. The quote is figured again on the seat that
-    posts, which can read loads the previewing seat may not. The action and
-    the venture row store `tollCp`, `tariffCp` and `privilegeUuid`; the
-    ledger row itemizes toll and tariff, the detail names any throws, and
-    the entered card says what was paid.
+  - **The gate** (`engine/gate.mjs` `entryQuote`, `settleTariff`; RR 372)
+    assesses the book's fees and no others. They fall on what the party
+    brings, never on its people, and the trader pays them.
+    - **What is assessed** (`enteringLoads`). This covers every merchandise
+      load in the packs of the members entering and in the entering
+      vehicles' holds. The members entering (`enteringMembers`) are the
+      trader and every other member of the party (`gateParty`: those the
+      declaring user can see; the Judge sees all) who stands at the market
+      (`coinReach`). A member elsewhere is not arriving with the party.
+      `manifestOf` runs over the members entering: a load unstamped or
+      stamped for one of them counts, and one kept for anybody else is
+      passed over. It also covers every item those members bring to sell
+      (`saleCandidates`: not a load, not magic, a merchandise type by
+      `categoryOf`, a cost), at that type's tier on its cost × quantity.
+      An item of no merchandise type is never offered or assessed. Each
+      good goes by a key (`goodKey`: its holder's uuid and item id), which
+      `forSale` and `smuggled` name.
+    - **The charges.** The toll is the class's per-stone toll on the
+      declared capacity. The tariff is each good's base cost (a load's
+      catalogue price per stone, else its own cost, × stones; an item's
+      cost × quantity) at its tier's rate (`tariffOn`), with a good marked
+      `tariffExempt` charged nothing. The rates are the class's tariff cell
+      (`parseTariffPct`: two percentages, precious first, or none); a cell
+      that is neither refuses the entry naming the table. With
+      `marketsRandomTariff` on and a taxable good assessed, each tier the
+      class tariffs is thrown once at the gate on the imported dice
+      instead, and an entry with no dice imported is refused naming that
+      table. Where a member entering rules the domain the market lies in
+      (`acksExtras.domains.domainOf`, read at call time), neither is
+      charged (the Ruler's Privilege).
+    - **Smuggling** is marked on goods, and resolving it is the Judge's.
+      A good in `smuggled` is listed apart and never assessed. A party
+      that sneaks in (`sneak`) pays neither toll nor tariff, and everything
+      it brings is smuggled. Marking every good smuggled without sneaking
+      in still pays the toll on the capacity. Either way a card tells the
+      Judge and the trader's owners what came in (RR §VIII.5, Smuggling).
+      Nothing is thrown and nothing is confiscated.
+    - **The Judge's own rules.** `entryQuote` then calls
+      `acksExtras.marketGateQuote` (`HOOKS.GATE_QUOTE`) with
+      `(quote, {location, trader})` on every seat that quotes. A handler
+      may push `{label, cp}` onto `quote.extra`. The trader pays these with
+      the book's, whatever the privilege or the sneaking. A handler answers
+      the same on every seat, or preview and payment disagree. The gate's
+      parts are on `acksExtras.markets.gate`.
+    - **The payment** is ONE spend from the trader's purse as the day is
+      posted (toll + tariff + `extraCpOf`), refused whole when the purse
+      falls short. Which member funds it is the players' bookkeeping.
+    - **What is shown and kept.** The Enter dialog lists the goods at the
+      gate: each load (a hold's only while its vehicle is ticked) with a
+      smuggled tick, each item that can be sold with a brought-to-sell and
+      a smuggled tick, and one tick that sneaks the party in. Beneath it is
+      the same quote, recomputed as the declaration changes: the toll, a
+      line per good with its holder, rate and charge, the span a thrown
+      tariff can come to, the privilege or the sneaking, any hook charge,
+      and what is smuggled. The quote is figured again on the seat that
+      posts, which can read goods the previewing seat may not. The action
+      stores `tollCp`, `tariffCp`, `privilegeUuid` and `sneaked`, and the
+      venture row the totals. The ledger row itemizes the charges and lists
+      what was smuggled; the detail names any throws; and the entered card
+      says what was paid.
   - **The assessment's roll is made on the influence page**, not by the
     sweep: the tab opens the influence feature's `marketAssessment` mode
     against the market as target (Charisma, one tone proficiency, Mystic

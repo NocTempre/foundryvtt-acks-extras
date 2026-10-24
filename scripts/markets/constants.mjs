@@ -43,4 +43,5 @@ export const HOOKS = Object.freeze({
   IMPORT_ORDERED: `${NAMESPACE}.marketImportOrdered`,
   IMPORT_RESOLVED: `${NAMESPACE}.marketImportResolved`,
   IDENTIFIED: `${NAMESPACE}.itemIdentified`,
+  GATE_QUOTE: `${NAMESPACE}.marketGateQuote`,
 });

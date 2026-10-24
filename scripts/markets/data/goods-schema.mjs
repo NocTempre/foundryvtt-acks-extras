@@ -200,6 +200,8 @@ export function goodsSchema() {
         tollCp: new f.NumberField({ required: false, nullable: true, integer: true, initial: null }),
         tariffCp: int(0),
         privilegeUuid: str(),
+        // enter: the party sneaked in, so the gate charged neither toll nor tariff.
+        sneaked: new f.BooleanField({ initial: false }),
       })
     ),
     // Venture state per party-month: entered, cargo, impact, toll and tariff paid.

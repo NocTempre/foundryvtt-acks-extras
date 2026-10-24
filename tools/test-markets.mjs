@@ -351,6 +351,9 @@ assert.strictEqual(diceRange(""), null, "no formula");
   assert.strictEqual(tariffOn([{ category: "d", label: "D", stones: 1, basePriceGp: 0.33, tier: "common", exempt: false }], { precious: 9, common: 3 }).totalCp, 1, "a fraction of a copper rounds up, as the toll does");
   assert.strictEqual(tariffOn([{ category: "e", label: "E", stones: 2, basePriceGp: 10, tier: "", exempt: false }], { precious: 9, common: 3 }).totalCp, 60, "a load of no stated tier is charged as common");
   assert.strictEqual(tariffOn([], { precious: 9, common: 3 }).totalCp, 0, "nothing aboard, nothing charged");
+  const kept = tariffOn([{ category: "a", label: "A", stones: 1, basePriceGp: 10, tier: "common", exempt: false, holderName: "Quill", kind: "item" }], { precious: 9, common: 3 }).lines[0];
+  assert.deepStrictEqual([kept.holderName, kept.kind], ["Quill", "item"], "a line keeps whose goods it is and what kind");
+  assert.deepStrictEqual(tariffOn(loads, { precious: 1, common: 1 }).lines.map((l) => l.kind), ["load", "load", "load"], "a good is a load by default");
 }
 
 {

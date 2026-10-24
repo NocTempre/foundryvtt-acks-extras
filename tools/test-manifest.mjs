@@ -66,6 +66,11 @@ check(() => {
 });
 check(() => assert.equal(rows[2].itemId, "t1", "a stack stamped for the trader is theirs"));
 check(() => assert.deepEqual(manifestRows(items, { ...opts, traderUuid: null }).map((r) => r.itemId), ["a1", "b1"], "with no trader, every stamped stack is excluded"));
+check(() => {
+  const both = manifestRows(items, { ...opts, traderUuid: ["Actor.me", "Actor.other"] });
+  assert.deepEqual(both.map((r) => r.itemId), ["a1", "b1", "o1", "t1"], "a list of owners admits each one's stamped stacks");
+  assert.deepEqual(both.map((r) => r.ownerUuid), ["", "", "Actor.other", "Actor.me"], "each row says whom it is stamped for");
+});
 check(() => assert.equal(manifestRows(items, { ...opts, monthStart: null })[0].priced, "base", "no month: base cost throughout"));
 check(() => assert.equal(manifestRows([load("f1", "alpha", 3, { cost: 0.333 })], { prices: [], monthStart: MONTH })[0].valueGp, 1, "value rounds to two decimals"));
 check(() => assert.deepEqual(manifestRows(null), []));

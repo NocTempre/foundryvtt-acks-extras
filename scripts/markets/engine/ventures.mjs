@@ -39,7 +39,7 @@ import { partyOf } from "./parties.mjs";
 import { marketMonthStart, abilityRanks, awayFromMarket } from "./trade.mjs";
 import { impactLimits, assessmentBands, priceShifts, negotiation, printedError } from "./printed.mjs";
 import { merchandiseCatalog, merchandiseFor } from "./merchandise.mjs";
-import { characteristicsFor, entryQuote, settleTariff } from "./gate.mjs";
+import { characteristicsFor, entryQuote, settleTariff, extraCpOf } from "./gate.mjs";
 import { writeReport } from "./trade-objects.mjs";
 import { VEHICLE_TYPE } from "../../vehicles/constants.mjs";
 import { holdOf } from "../../vehicles/hold.mjs";
@@ -146,17 +146,48 @@ export function ventureOf(location, partyId, monthStart = marketMonthStart()) {
   );
 }
 
+/** How a good smuggled past the gate reads on a card: its label, how much, and whose it is. */
+const smuggledText = (row) => `${row.label} (${row.kind === "item" ? row.stones : `${row.stones} st`}, ${row.holderName})`;
+
+/** The ledger's account of a gate: what was charged and paid, and what was smuggled past it. */
+function gateNote(gate, tariffCp) {
+  const paidCp = gate.tollCp + tariffCp + extraCpOf(gate);
+  const charges = [
+    gate.sneaked ? "sneaked in" : gate.privilege ? "ruler's privilege" : `toll ${toGp(gate.tollCp)}gp, tariff ${toGp(tariffCp)}gp`,
+    ...gate.extra.map((c) => `${c.label} ${toGp(c.cp)}gp`),
+  ].join(", ");
+  const paid = paidCp > 0 ? `${toGp(paidCp)}gp: ${charges} paid` : `${charges}, nothing paid`;
+  return ` (${paid})${gate.smuggled.length ? ` Smuggled: ${gate.smuggled.map(smuggledText).join(", ")}.` : ""}`;
+}
+
 /**
- * Post a dedicated-day venture action. Entering pays the gate NOW — toll and
- * tariff in one payment, collected on arrival — and an assessment its bribe
- * (the merchants pocket it whatever the day brings); the rest of the day's
- * outcome lands when the sweep resolves it. An assessment arrives with the Judge's roll already made
+ * Tell the Judge, and the trader's owners, what the party smuggles past the
+ * gate, or that it sneaks in. The attempt is the Judge's: this feature
+ * throws nothing for it.
+ */
+async function postSmuggling(location, actor, gate) {
+  if (!gate.sneaked && !gate.smuggled.length) return;
+  const esc = foundry.utils.escapeHTML;
+  const goods = gate.smuggled.map((row) => esc(smuggledText(row))).join(", ") || game.i18n.localize(`${LANG}.ventures.smuggledNothing`);
+  await postCard(actor, game.i18n.format(`${LANG}.ventures.${gate.sneaked ? "sneakedLine" : "smuggledLine"}`, { name: esc(actor.name), location: esc(location.name), goods }));
+}
+
+/**
+ * Post a dedicated-day venture action. Entering pays the gate NOW — toll,
+ * tariff and any charge a Judge's hook adds, in one payment from the trader,
+ * collected on arrival — and an assessment its bribe (the merchants pocket it
+ * whatever the day brings); the rest of the day's outcome lands when the
+ * sweep resolves it. An assessment arrives with the Judge's roll already made
  * on the influence page (`roll: {natural, total}`); one posted without a roll
  * is rolled bare (2d6 + Charisma) by the sweep. The same trader's same day
  * cannot wait in the queue twice.
+ *
+ * An entry's payload says what the party brings to the gate besides its
+ * vehicles (`entryQuote`): `forSale` and `smuggled` name goods by `goodKey`,
+ * and `sneak` sneaks the party in.
  */
 export async function postVentureAction(location, payload) {
-  const { kind, actorUuid, category = "", cargoSt = 0, vehicleUuids = [], requestUserId = null, resolutionId = "", roll = null, bribeGp = 0, networkMode = "auto" } = payload;
+  const { kind, actorUuid, category = "", cargoSt = 0, vehicleUuids = [], requestUserId = null, resolutionId = "", roll = null, bribeGp = 0, networkMode = "auto", forSale = [], smuggled = [], sneak = false } = payload;
   const actorDoc = await fromUuid(actorUuid).catch(() => null);
   const actor = actorDoc?.actor ?? actorDoc;
   if (!actor) return err("noBuyer");
@@ -182,6 +213,7 @@ export async function postVentureAction(location, payload) {
   let tollCp = 0;
   let tariff = null;
   let privilege = null;
+  let gate = null;
   const bribe = kind === "assess" ? Math.max(0, Number(bribeGp) || 0) : 0;
   let capacitySt = 0;
   let brought = { uuids: [], names: [] };
@@ -191,18 +223,18 @@ export async function postVentureAction(location, payload) {
     if (actions.some((a) => a.status === "pending" && a.kind === "enter" && a.partyId === party.id)) return err("alreadyEntered");
     brought = await enteringVehicles(vehicleUuids, requestUserId);
     if (brought.error) return brought;
-    // Entering declares what the party brings — the vehicles, plus any other
-    // capacity (porters, pack animals) stated as a number — and the gate
-    // charges on it: the toll, the tariff on the loads aboard, or neither
-    // under the Ruler's Privilege.
-    const quote = entryQuote(location, actor, { vehicles: brought.docs, otherSt: cargoSt });
-    if (quote.error) return quote;
-    capacitySt = quote.capacitySt;
-    tollCp = quote.tollCp;
-    privilege = quote.privilege;
-    tariff = await settleTariff(quote);
-    // One payment for both, so a purse that falls short pays neither.
-    const dueCp = tollCp + tariff.totalCp;
+    // Entering declares what the party brings: the vehicles, plus any other
+    // capacity (porters, pack animals) stated as a number, the goods declared
+    // for sale and those smuggled, or a party sneaking in. The gate assesses
+    // the book's charges on it.
+    gate = entryQuote(location, actor, { vehicles: brought.docs, otherSt: cargoSt, forSale, smuggled, sneak, requestUserId });
+    if (gate.error) return gate;
+    capacitySt = gate.capacitySt;
+    tollCp = gate.tollCp;
+    privilege = gate.privilege;
+    tariff = await settleTariff(gate);
+    // One payment for all of it, so a purse that falls short pays none.
+    const dueCp = tollCp + tariff.totalCp + extraCpOf(gate);
     if (dueCp > 0) {
       const reason = game.i18n.localize(`${LANG}.ventures.${tariff.totalCp > 0 ? "tollTariffReason" : "tollReason"}`);
       const paid = await adapter.spendGold(actor, toGp(dueCp), reason, { to: location, at: location, within: location, judge: judgeDeclares(requestUserId) });
@@ -226,6 +258,8 @@ export async function postVentureAction(location, payload) {
     privilege ? `ruler's privilege (${privilege.name})` : "",
     tollCp > 0 ? `toll ${toGp(tollCp)}gp` : "",
     tariffCp > 0 ? `tariff ${toGp(tariffCp)}gp${thrown ? ` (${thrown})` : ""}` : "",
+    gate?.sneaked ? "sneaked in" : "",
+    ...(gate?.extra ?? []).map((c) => `${c.label} ${toGp(c.cp)}gp`),
     bribe > 0 ? `bribe ${bribe}gp` : "",
     total !== null ? `rolled ${natural} → ${total}` : "",
   ]
@@ -250,16 +284,13 @@ export async function postVentureAction(location, payload) {
     tollCp: kind === "enter" ? tollCp : null,
     tariffCp,
     privilegeUuid: privilege?.uuid ?? "",
+    sneaked: !!gate?.sneaked,
   };
   const log = clone(location.system.market.marketLog);
-  const paidGp = toGp(tollCp + tariffCp) + bribe;
-  // An entry's payment is itemized, toll and tariff, so the ledger keeps them apart.
-  const paidNote =
-    kind === "enter" && (tariffCp > 0 || privilege)
-      ? ` (${privilege ? "ruler's privilege, nothing" : `${paidGp}gp: toll ${toGp(tollCp)}gp, tariff ${toGp(tariffCp)}gp`} paid)`
-      : paidGp > 0
-        ? ` (${paidGp}gp paid)`
-        : "";
+  const paidGp = toGp(gate ? tollCp + tariffCp + extraCpOf(gate) : 0) + bribe;
+  // An entry's payment is itemized (toll, tariff, any charge a Judge's hook
+  // added) beside what was smuggled, so the ledger keeps them apart.
+  const paidNote = gate ? gateNote(gate, tariffCp) : paidGp > 0 ? ` (${paidGp}gp paid)` : "";
   log.push({
     time: t,
     type: "ventureAction",
@@ -271,6 +302,7 @@ export async function postVentureAction(location, payload) {
     "system.market.goods.actions": [...actions, action],
     "system.market.marketLog": log.slice(-MARKET_LOG_CAP),
   });
+  if (gate) await postSmuggling(location, actor, gate);
   return { ok: true, resolveTime: action.resolveTime };
 }
 
@@ -451,9 +483,11 @@ export async function processVentureActions(location, log, t) {
       row.impactCap = cap;
       row.networkMode = NETWORK_MODES.includes(action.networkMode) ? action.networkMode : "auto";
       log.push({ time: t, type: "ventureEntered", note: `${actor.name}: entered the market, impact ${impact}`, actorUuid: actor.uuid, gp: 0 });
-      const paid = row.privilegeUuid
-        ? game.i18n.localize(`${LANG}.ventures.paidPrivilege`)
-        : game.i18n.format(`${LANG}.ventures.paidLine`, { toll: toGp(row.tollCp), tariff: toGp(row.tariffCp) });
+      const paid = action.sneaked
+        ? game.i18n.localize(`${LANG}.ventures.paidSneaked`)
+        : row.privilegeUuid
+          ? game.i18n.localize(`${LANG}.ventures.paidPrivilege`)
+          : game.i18n.format(`${LANG}.ventures.paidLine`, { toll: toGp(row.tollCp), tariff: toGp(row.tariffCp) });
       await postCard(actor, `<strong>${game.i18n.format(`${LANG}.ventures.enteredLine`, { name: actor.name, location: location.name, impact })}</strong><br>${paid}`);
     }
 

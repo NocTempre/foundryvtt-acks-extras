@@ -40,7 +40,8 @@ import {
 } from "../engine/trade.mjs";
 import { processImports, performItemSearch, performSearchCancel } from "../engine/imports.mjs";
 import { performVentureAction, performVentureCancel, performVentureLeave, ventureOf, ventureVehicles } from "../engine/ventures.mjs";
-import { entryQuote } from "../engine/gate.mjs";
+import { entryQuote, enteringMembers, goodKey, saleCandidates } from "../engine/gate.mjs";
+import { manifestOf } from "../engine/manifest.mjs";
 import { VEHICLE_TYPE } from "../../vehicles/constants.mjs";
 import { holdOf } from "../../vehicles/hold.mjs";
 import { carrierChain } from "../../lib/attachment.mjs";
@@ -480,46 +481,106 @@ async function promptNumber({ title, label, value, min, max }) {
 }
 
 /**
- * What the gate will charge on a declaration, as the Enter dialog shows it:
- * the toll, the tariff with a line per load aboard (or the span a thrown
- * tariff can come to), or nothing under the Ruler's Privilege. The figures
- * are the entry's own quote (`entryQuote`), so the payment matches them.
+ * What the gate will charge on a declaration, as the Enter dialog shows it.
+ * That is the toll, the tariff with a line per good assessed (or the span a
+ * thrown tariff can come to), nothing under the Ruler's Privilege or where
+ * the party sneaks in, any charge a Judge's hook added, and what is smuggled
+ * past. The figures are the entry's own quote (`entryQuote`), so the payment
+ * matches them.
  */
-function gateQuoteHtml(location, trader, vehicles, otherSt) {
+function gateQuoteHtml(location, trader, declaration) {
   const esc = foundry.utils.escapeHTML;
-  const quote = entryQuote(location, trader, { vehicles, otherSt });
+  const quote = entryQuote(location, trader, declaration);
   if (quote.error) return `<p class="hint">${esc(game.i18n.format(`${LANG}.trade.error.${quote.error}`, { remaining: 0, table: "", crowd: "", ...quote }))}</p>`;
-  if (quote.privilege) return `<p>${loc("ventures.quote.privilege", { domain: esc(quote.privilege.name) })}</p>`;
   const gp = (cp) => Math.round(Number(cp) || 0) / 100;
-  const out = [`<p>${loc("ventures.quote.toll", { gp: gp(quote.tollCp), stone: quote.capacitySt })}</p>`];
-  if (!quote.loads.length) {
-    out.push(`<p>${loc("ventures.quote.noLoads")}</p>`);
-    return out.join("");
-  }
-  const line = (l, figure) =>
-    `<li>${loc(l.exempt ? "ventures.quote.loadExempt" : figure ? "ventures.quote.load" : "ventures.quote.loadThrown", {
+  const line = (l, figure) => {
+    const key = l.kind === "item" ? "item" : "load";
+    const text = loc(l.exempt ? `ventures.quote.${key}Exempt` : figure ? `ventures.quote.${key}` : `ventures.quote.${key}Thrown`, {
       label: esc(l.label),
       stones: Math.round(l.stones * 100) / 100,
       pct: l.pct,
       gp: gp(l.cp),
-    })}</li>`;
-  if (quote.dice) {
-    out.push(`<p>${loc("ventures.quote.tariffThrown", { min: gp(quote.range.minCp), max: gp(quote.range.maxCp) })}</p>`);
-    out.push(`<ul>${quote.loads.map((l) => line(l, false)).join("")}</ul>`);
-  } else {
-    out.push(`<p>${loc("ventures.quote.tariff", { gp: gp(quote.tariff.totalCp) })}</p>`);
-    out.push(`<ul>${quote.tariff.lines.map((l) => line(l, true)).join("")}</ul>`);
+    });
+    return `<li>${l.holderName ? `<span class="hint">${esc(l.holderName)}:</span> ` : ""}${text}</li>`;
+  };
+  const out = [];
+  if (quote.sneaked) out.push(`<p>${loc("ventures.quote.sneaked")}</p>`);
+  else if (quote.privilege) out.push(`<p>${loc("ventures.quote.privilege", { domain: esc(quote.privilege.name) })}</p>`);
+  else {
+    out.push(`<p>${loc("ventures.quote.toll", { gp: gp(quote.tollCp), stone: quote.capacitySt })}</p>`);
+    if (!quote.loads.length) out.push(`<p>${loc("ventures.quote.noLoads")}</p>`);
+    else if (quote.dice) {
+      out.push(`<p>${loc("ventures.quote.tariffThrown", { min: gp(quote.range.minCp), max: gp(quote.range.maxCp) })}</p>`);
+      out.push(`<ul>${quote.loads.map((l) => line(l, false)).join("")}</ul>`);
+    } else {
+      out.push(`<p>${loc("ventures.quote.tariff", { gp: gp(quote.tariff.totalCp) })}</p>`);
+      out.push(`<ul>${quote.tariff.lines.map((l) => line(l, true)).join("")}</ul>`);
+    }
+  }
+  if (quote.extra.length) out.push(`<ul>${quote.extra.map((c) => `<li>${loc("ventures.quote.extra", { label: esc(c.label), gp: gp(c.cp) })}</li>`).join("")}</ul>`);
+  if (quote.smuggled.length) {
+    out.push(`<p>${loc("ventures.quote.smuggled")}</p><ul>${quote.smuggled.map((l) => line({ ...l, exempt: false }, false)).join("")}</ul>`);
   }
   return out.join("");
 }
 
 /**
- * Ask what the party brings to the gate: the vehicles it enters with, each at
- * the cargo capacity its hold states (vehicles/hold.mjs), and any other
- * capacity — porters, pack animals — as a number. A vehicle a party member
- * rides, drives or is harnessed to starts ticked. What the gate will charge
- * is shown beneath, and follows the declaration as it changes. Null when
- * dismissed.
+ * The Enter dialog's goods block. It lists every merchandise load the party
+ * brings: those in the packs of the members entering (`enteringMembers`) and
+ * those in the holds of `vehicles`, each hold's rows shown only while its
+ * vehicle is ticked. Each load can be marked smuggled. It also lists the
+ * items those members carry that can be brought to sell (`saleCandidates`),
+ * each declared for sale or smuggled in to sell. One tick sneaks the whole
+ * party in.
+ */
+function goodsFieldset(location, trader, vehicles, aboard) {
+  const esc = foundry.utils.escapeHTML;
+  const members = enteringMembers(location, trader);
+  const vehicleUuids = new Set(vehicles.map((v) => v.uuid));
+  const smuggle = (key, label) => `<label class="checkbox"><input type="checkbox" name="smuggle" value="${key}" aria-label="${esc(loc("ventures.goods.smuggleLabel", { label }))}"> ${loc("ventures.goods.smuggle")}</label>`;
+  const row = (inner, holder) => {
+    const onVehicle = vehicleUuids.has(holder) ? ` data-good-vehicle="${holder}"${aboard.has(holder) ? "" : " hidden"}` : "";
+    return `<div class="acks-extras-markets-good"${onVehicle}>${inner}</div>`;
+  };
+  const rows = [];
+  for (const r of manifestOf([...members, ...vehicles], { traderUuid: members.map((a) => a.uuid) }).rows) {
+    const key = goodKey(r.holderUuid, r.itemId);
+    rows.push(row(`<span>${esc(r.label)}, ${Math.round(r.stones * 100) / 100} st <span class="hint">${esc(r.holderName)}</span></span>${smuggle(key, r.label)}`, r.holderUuid));
+  }
+  for (const member of members) {
+    for (const c of saleCandidates(member)) {
+      const key = goodKey(member.uuid, c.itemId);
+      const sale = `<label class="checkbox"><input type="checkbox" name="forSale" value="${key}" aria-label="${esc(loc("ventures.goods.forSaleLabel", { label: c.name }))}"> ${loc("ventures.goods.forSale")}</label>`;
+      rows.push(row(`<span>${esc(c.name)}${c.quantity > 1 ? ` ×${c.quantity}` : ""} <span class="hint">${esc(member.name)}</span></span>${sale}${smuggle(key, c.name)}`, member.uuid));
+    }
+  }
+  return `<fieldset class="acks-extras-markets-goods"><legend>${loc("ventures.goods.legend")}</legend>
+    <p class="hint">${loc("ventures.goods.hint")}</p>${rows.join("") || `<p class="hint">${loc("ventures.goods.none")}</p>`}
+    <label class="checkbox"><input type="checkbox" name="sneak"> ${loc("ventures.goods.sneak")}</label></fieldset>`;
+}
+
+/** What the Enter dialog declares, read off its form: what `entryQuote` and the entry take. */
+function readDeclaration(root) {
+  const vehicleUuids = [...root.querySelectorAll('input[name="vehicle"]:checked')].map((el) => el.value);
+  const values = (name) => [...root.querySelectorAll(`input[name="${name}"]:checked`)].map((el) => el.value);
+  return {
+    vehicleUuids,
+    vehicles: vehicleUuids.map((uuid) => fromUuidSync(uuid)).filter(Boolean),
+    otherSt: Math.max(0, Number(root.querySelector('input[name="other"]')?.value) || 0),
+    forSale: values("forSale"),
+    smuggled: values("smuggle"),
+    sneak: !!root.querySelector('input[name="sneak"]')?.checked,
+  };
+}
+
+/**
+ * Ask what the party brings to the gate: the vehicles it enters with, each
+ * at the cargo capacity its hold states (vehicles/hold.mjs), any other
+ * capacity (porters, pack animals) as a number, the goods it brings to sell
+ * and smuggles (`goodsFieldset`), or whether it sneaks in. A vehicle a party
+ * member rides, drives or is harnessed to starts ticked. What the gate will
+ * charge is shown beneath and follows the declaration as it changes. Null
+ * when dismissed.
  */
 async function promptEntry(trader, location) {
   const party = partyOf(trader);
@@ -535,13 +596,14 @@ async function promptEntry(trader, location) {
     })
     .join("");
   const otherId = foundry.utils.randomID();
-  const gate = gateQuoteHtml(location, trader, vehicles.filter((v) => aboard.has(v.uuid)), 0);
+  const gate = gateQuoteHtml(location, trader, { vehicles: vehicles.filter((v) => aboard.has(v.uuid)), otherSt: 0 });
   const content = [
     vehicles.length
       ? `<fieldset><legend>${loc("ventures.vehiclesLegend")}</legend>${rows}</fieldset>`
       : `<p class="hint">${loc("ventures.noVehicles")}</p>`,
     `<div class="form-group"><label for="${otherId}">${loc("ventures.otherCargo")}</label><input id="${otherId}" type="number" name="other" value="0" min="0" step="1"></div>`,
     `<p class="hint">${loc("ventures.enterHint")}</p>`,
+    goodsFieldset(location, trader, vehicles, aboard),
     `<fieldset class="acks-extras-markets-gate"><legend>${loc("ventures.quote.legend")}</legend><div data-gate-quote aria-live="polite">${gate}</div></fieldset>`,
     network,
   ].join("");
@@ -550,25 +612,26 @@ async function promptEntry(trader, location) {
     window: { title: loc("ventures.enter") },
     content,
     render: (_event, dialog) => {
-      // The quote follows the declaration: a vehicle ticked or the other capacity typed.
+      // The quote follows the declaration: a vehicle ticked (its hold's goods
+      // shown with it), the other capacity typed, a good declared for sale or
+      // smuggled, or the party sneaking in.
       const root = dialog?.element;
       const refresh = (event) => {
-        if (!event.target?.matches?.('input[name="vehicle"], input[name="other"]')) return;
-        const ticked = [...root.querySelectorAll('input[name="vehicle"]:checked')].map((el) => fromUuidSync(el.value)).filter(Boolean);
-        const other = Number(root.querySelector('input[name="other"]')?.value) || 0;
+        if (!event.target?.matches?.('input[name="vehicle"], input[name="other"], input[name="forSale"], input[name="smuggle"], input[name="sneak"]')) return;
+        const declaration = readDeclaration(root);
+        for (const el of root.querySelectorAll("[data-good-vehicle]")) el.hidden = !declaration.vehicleUuids.includes(el.dataset.goodVehicle);
         const box = root.querySelector("[data-gate-quote]");
-        if (box) box.innerHTML = gateQuoteHtml(location, trader, ticked, other);
+        if (box) box.innerHTML = gateQuoteHtml(location, trader, declaration);
       };
       root?.addEventListener("change", refresh);
       root?.addEventListener("input", refresh);
     },
     ok: {
       label: loc("ventures.enterSubmit"),
-      callback: (_ev, button) => ({
-        vehicleUuids: [...button.form.querySelectorAll('input[name="vehicle"]:checked')].map((el) => el.value),
-        cargoSt: Math.max(0, Number(button.form.elements.other?.value) || 0),
-        networkMode: button.form.elements.networkMode?.value ?? "auto",
-      }),
+      callback: (_ev, button) => {
+        const { vehicleUuids, otherSt, forSale, smuggled, sneak } = readDeclaration(button.form);
+        return { vehicleUuids, cargoSt: otherSt, forSale, smuggled, sneak, networkMode: button.form.elements.networkMode?.value ?? "auto" };
+      },
     },
   }).catch(() => null);
 }

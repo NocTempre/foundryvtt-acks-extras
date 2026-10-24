@@ -228,20 +228,34 @@ page wrote.
 
 Ventures run on dedicated days that resolve as game time passes:
 
-1. **Enter the market** — declare cargo capacity, vehicles included
-   ([Taking it to market](vehicles.md#taking-it-to-market)); the gate takes
-   its toll on that capacity, loaded or empty, and your market impact is
-   fixed from the imported baselines (RR 371). The gate also takes its
-   tariff (RR 372) on every merchandise load in your own packs and aboard
-   the vehicles you enter with, at the rate your book prints for the
-   market's class on each good's base price; a good marked exempt on its
-   merchandise sheet pays nothing. The Enter dialog shows both charges,
-   load by load, before you confirm, and you pay them together. Where you
-   or a member of your party rules the domain the market lies in, the gate
-   takes neither. The Judge may instead have the tariff thrown at each
-   entry (the **Randomize the market tariff** setting); the dialog then
-   shows the span it can come to. After upgrading, re-import the Rules
-   tables so the dice arrive.
+1. **Enter the market** — declare what the party brings to the gate.
+   - **What you bring.** Declare cargo capacity, vehicles included
+     ([Taking it to market](vehicles.md#taking-it-to-market)). Under
+     **Goods at the gate** the dialog lists every merchandise load in the
+     packs of your party's members at the market and aboard each vehicle
+     you tick. It also lists the treasure or gear they carry that has a
+     merchandise type: tick **Brought to sell** on what you mean to sell.
+     Anything with no merchandise type is not listed and not charged.
+   - **What the gate takes.** The toll falls on your capacity, loaded or
+     empty, and your market impact is fixed from the imported baselines
+     (RR 371). The tariff (RR 372) falls on every load listed and on each
+     good brought to sell. It is charged at the rate your book prints for
+     the market's class on each good's base price; a good marked exempt on
+     its merchandise sheet pays nothing. The Enter dialog shows every
+     charge, good by good, before you confirm. The trader pays it all, in
+     one payment; who in the party chips in is yours to settle.
+   - **No charge.** If a member at the market rules the domain the market
+     lies in, the gate takes neither charge. A good you tick **Smuggled**
+     pays no tariff. Tick **The party sneaks in** and the gate takes no
+     toll either, and everything you bring is smuggled. Either way the
+     Judge is told what came in and resolves the attempt.
+   - **Judge's options.** The Judge may have the tariff thrown at each entry
+     (the **Randomize the market tariff** setting); the dialog then shows
+     the span it can come to. After upgrading, re-import the Rules tables
+     so the dice arrive. The module charges nothing the book does not. A
+     Judge who wants more, such as a bribe at the gate or a guild fee, adds
+     it with a world script on the `acksExtras.marketGateQuote` hook (see
+     below).
 2. **Assess supply & demand** — opens the influence page against the
    market: your Charisma, a tone proficiency, a bribe (RR 287) and your
    reaction effects set the Judge's throw against the imported bands, which
@@ -257,6 +271,27 @@ Ventures run on dedicated days that resolve as game time passes:
    and tariff stay with the gate, what you solicited closes, and any of your
    party's days still queued are withdrawn. Entering again pays the gate
    again.
+
+**Adding your own gate charges.** The gate charges what the book charges and
+nothing else. A house rule goes in a world script, which must run on every
+client: a module of your own, or a script macro run at startup. It listens on
+`acksExtras.marketGateQuote`, which runs whenever the gate quotes: in the
+Enter dialog's preview and again at payment. A handler reads the quote and
+pushes charges onto `quote.extra`, in copper, and the trader pays them with
+the rest. The Enter dialog lists each added charge and the ledger records
+it. A handler must give the same answer every time, or the preview
+and the payment disagree.
+
+```js
+Hooks.on("acksExtras.marketGateQuote", (quote, { location }) => {
+  if (location.name === "Example Port" && !quote.sneaked) quote.extra.push({ label: "Harbor watch", cp: 500 });
+});
+```
+
+The quote holds what is assessed (`loads`) and what is smuggled
+(`smuggled`), plus the book's charges (`tollCp`, `tariff`) and the
+`privilege` or `sneaked` that waived them. The
+same functions are on `acksExtras.markets.gate`.
 
 **A mercantile network counts in a market its holder has visited before.** On
 a venture each solicitation reads the goods of a market class larger or with

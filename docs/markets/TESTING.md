@@ -676,23 +676,36 @@ needs `items: []` ([../vehicles/TESTING.md](../vehicles/TESTING.md)).
    *Observable:* the sale answers `{ok: true}` and W's stack is gone; the
    packs purchase lands on A.
 
-## The gate walk (toll, tariff, the Ruler's Privilege)
+## The gate walk (toll, tariff, smuggled goods, sneaking in, the Ruler's Privilege)
 
-Steps G0–G7 of `tools/live/markets.mjs`; `STAGE=gate` stops the run after
-them.
+Steps G0–G7 and P0–P5 of `tools/live/markets.mjs`, in the order below;
+`STAGE=gate` stops the run after them.
 
 **Fixtures** (through `api.create`, tracked): market G of class III with
 `marketCharacteristics` imported (and `tariffProse` for G6–G7); three world
 merchandise Items with invented keys and prices — one `tier: "precious"`, one
-common, one common with `tariffExempt: true`; character T owned by the Player
-seat, a trader with coin, carrying a precious load in its packs; character Q
-owned by the Player seat (a party member under the implicit party); character
-NP created with `ownership: {default: 0}` — the world's default ownership
-for a new actor can make it player-owned, and so a party member; a land vehicle VH owned by the Player seat with an
-invented cargo capacity, holding a common load, an exempt load, and a common
-load stamped `flags["acks-extras"].storage.ownerUuid = NP.uuid`; an
-`acks-extras.domain` actor D. A load is an `item` with `system.quantity.value`
-stones, `system.cost`, `weight6: 6` and
+common, one common with `tariffExempt: true`; a land vehicle VH owned by the
+Player seat with an invented cargo capacity, holding a common load, an exempt
+load, and a common load stamped `flags["acks-extras"].storage.ownerUuid =
+NP.uuid`; an `acks-extras.domain` actor D; and these characters:
+
+- T, owned by the Player seat, a trader with coin: a precious load in its
+  packs, a cup (an `item`, not a load, with
+  `flags["acks-extras"].markets.category` set to the precious key, an
+  invented cost and a quantity of 2), and a charm like it also flagged
+  `markets.magic: true`;
+- Q, owned by the Player seat, with coin and a load of a tier the class
+  taxes;
+- A, a member who is elsewhere, with a common load: its ownership set after
+  creation to exactly `{default: 0, [second player]: 3, [Player]: 2}`;
+- NP, created with `ownership: {default: 0}`.
+
+T, Q and A are the party: a roster of the run's own appended to the world's
+`marketParties`, and removed by its id at the end. G's ownership is set after
+creation to exactly `{default: 0, [Player]: 3}`.
+
+A load is an `item` with `system.quantity.value` stones, `system.cost`,
+`weight6: 6` and
 `flags["acks-extras"].markets = {merchandise: true, category: <key>}`.
 
 **Drive mechanics**
@@ -701,9 +714,31 @@ stones, `system.cost`, `weight6: 6` and
   the rates the page parses from the imported cell (`parseTariffPct`), never
   from a remembered page: the tariff in copper is stones × gp per stone ×
   percent, summed and rounded up once.
+- Give the party a roster. Without one the implicit party is every player
+  character in the world, and each one at G brings its packs' loads through
+  the gate with the run's.
+- Presence: G is on no map, so a member is at G where one of its explicit
+  owners at OWNER owns G as well, G's `default` counting
+  (`location/reach.mjs` `ownersShare`). A new actor can carry the world's
+  default and its creator as an explicit owner: G read `default: 3`, and NP,
+  created with `default: 0`, read as at G. Set G's and A's ownership exactly
+  (`update({ownership}, {diff: false, recursive: false})`), then read every
+  member's `coinReach(member, G)` on the Player seat before relying on it.
+- A's owner is a second player where the world has one: role PLAYER or above
+  and not a Judge, since core gives a banned (role NONE) user no permission
+  on anything. The roster makes A a member either way.
+- The Player seat owns G, T and VH, so its entries run on its own client
+  (local-first dispatch): its cards are created there, and a handler on the
+  gate's hook must be registered on that seat as well as the GM's. Find the
+  smuggling card by its text with a time floor, and track only the ids the
+  Player seat did not already capture.
+- The goods block also lists the hold of every other vehicle the Player seat
+  owns, hidden until ticked: read only the packs' rows and VH's. Mark a good
+  through its own tick, taking the key (`holderUuid|itemId`,
+  `gate.goodKey`) off the row: two loads in one hold can share a name.
 - D holds G through `acksExtras.domains.hold(D, G)` on the GM seat; the ruler
   is `system.rulerUuid`.
-- Wait until the Player seat holds T and its load before opening the Trade
+- Wait until the Player seat holds T and its items before opening the Trade
   tab, and read the acting trader back. The picker lists only actors the
   client already holds; set to a uuid it lacks, it falls back to another
   character, and the walk then drives that one.
@@ -713,42 +748,79 @@ stones, `system.cost`, `weight6: 6` and
 
 **Steps**
 
-0. Read every class's tariff cell. *Observable:* each parses as a precious
-   and a common rate.
-1. Player seat, G's Trade tab acting as T: **Enter the market**, then tick VH,
-   untick it and type 5, then tick VH again. *Observable:* the "At the gate"
-   block shows, in turn: no capacity and T's packs load alone; VH's capacity,
-   and three load lines — the exempt one marked exempt, the stamped one
-   absent; 5 st and the packs load; then VH's figures again.
-2. Confirm. *Observable:* the pending action's `tollCp` and `tariffCp` equal
-   the driver's figures and `privilegeUuid` is empty; T's coin fell by their
-   sum once; the ledger row's note reads `toll …gp, tariff …gp paid`.
-3. GM seat: resolve. *Observable:* the venture row holds both figures; the
-   entered card reads "Paid at the gate: toll …gp, tariff …gp." Leave G.
-4. Set D's ruler to T, to Q, to NP. *Observable:* `domainOf(G)` is D each
-   time; the gate's privilege is D for T and Q and none for NP.
-5. Ruler T; Player seat: Enter with VH. *Observable:* the block reads "No
-   toll or tariff: Ruler's Privilege in D"; the action pays 0 and 0 and
-   records D's uuid; T's coin is unchanged; the ledger note reads "ruler's
-   privilege, nothing paid"; the card reads "Ruler's Privilege: no toll or
-   tariff paid." Leave G; clear the ruler.
-6. World setting `marketsRandomTariff` on (read it first). Where the world's
-   Mercantile document predates `tariffProse`: the Enter block names the
-   Randomized Tariff table, and a GM-seat entry refuses `printedMissing`
-   naming it with nothing paid. Then read the table off the connected book
-   through the shipped recipe (`locatePageNumber`, `pageItems`,
-   `extractTable`) and register it as a priority-30 `mercantile` layer on
-   BOTH seats — the player's dialog quotes on its own client — writing
-   nothing to the world. Player seat: open Enter with VH. *Observable:* the
-   block reads "thrown at the gate, …gp to …gp" at the span the dice give,
-   and the load lines carry no rate.
-7. GM seat, every die at its top face: enter T with VH. *Observable:* the
-   tariff is the top of the span, the toll is step 2's, the detail records
-   each throw (`… → N%`), and T paid their sum. Unregister the layers and
-   put the setting back.
+- **G0.** Read every class's tariff cell. *Observable:* each parses as a
+  precious and a common rate.
+- **P0.** Player seat: read where each member stands. *Observable:* T and Q
+  are members at G and owned; A is a member the seat sees, not at G; NP is
+  no member.
+- **P1.** Player seat, G's Trade tab acting as T: **Enter the market**.
+  *Observable:* "Goods at the gate" has, among the packs' rows and VH's, five
+  rows: T's load and Q's, shown; VH's common and exempt loads, hidden until
+  VH is ticked; and the cup, which alone offers "Brought to sell". Every row
+  offers "Smuggled", every tick carries an accessible name, and the sneak
+  tick is there. Nothing of A's, NP's stamped load, or the charm.
+- **G1.** In the same dialog: tick VH, untick it and type 5, then tick VH
+  again. *Observable:* the "At the gate" block shows, in turn: no capacity
+  and the two packs loads; VH's capacity and four load lines — the exempt
+  one marked exempt, the stamped one and A's absent; 5 st and the two packs
+  loads; then VH's figures again.
+- **G2.** Confirm. *Observable:* the pending action's `tollCp` and `tariffCp`
+  equal the driver's figures, `privilegeUuid` is empty and `sneaked` false;
+  T's coin fell by their sum once and Q's did not move; the ledger row's note
+  reads `toll …gp, tariff …gp paid`.
+- **G3.** GM seat: resolve. *Observable:* the venture row holds both
+  figures; the entered card reads "Paid at the gate: toll …gp, tariff …gp."
+  Leave G.
+- **P2.** Both seats: a handler on `acksExtras.marketGateQuote` that pushes
+  `{label: "QA watch", cp: 500}` at G unless the party sneaks in. Player
+  seat: Enter with VH, the cup brought to sell, Q's load and VH's 30 st
+  marked smuggled. *Observable:* the block quotes VH's toll; tariff lines
+  for T's load and the cup ("QA Cup … ×2 at …%") under T's name and VH's
+  exempt load; "QA watch: 5gp"; and "Smuggled past the gate:" with Q's load
+  and VH's 30 st and no rate; six lines in all, nothing of A's or NP's.
+- **P3.** Confirm; remove the handlers; GM seat: resolve. *Observable:* the
+  action charges the driver's toll and tariff, its detail names "QA watch
+  5gp" and no throw; T paid all three and Q nothing; the ledger note reads
+  `toll …gp, tariff …gp, QA watch 5gp paid)` and names each smuggled good
+  with its holder ("… (1 st, Q)", "… (30 st, VH)"); one card reads "T
+  smuggles into G: …. Resolving the attempt is the Judge's call (RR §VIII.5,
+  Smuggling)." Leave G.
+- **P4.** Player seat: Enter with VH and the sneak ticked. *Observable:* the
+  block reads "No toll or tariff: the party sneaks in" over four smuggled
+  load lines with no rate; the action charges 0 and 0 with `sneaked` true and
+  T's coin is unchanged; the ledger note reads "(sneaked in, nothing paid)
+  Smuggled: …"; one card reads "T's party sneaks into G, bringing …" with
+  T's and Q's packs loads and VH's two, not NP's or A's; resolved, the
+  entered card reads "Sneaked in: no toll or tariff paid." Leave G.
+- **G4.** Set D's ruler to T, then Q, then A, then NP. *Observable:*
+  `domainOf(G)` is D each time; the members entering are T and Q; the
+  gate's privilege is D for T and Q and none for A and NP.
+- **G5.** Ruler T; Player seat: Enter with VH. *Observable:* the block
+  reads "No toll or tariff: Ruler's Privilege in D"; the action pays 0 and 0
+  and records D's uuid; T's coin is unchanged; the ledger note reads
+  "ruler's privilege, nothing paid"; the card reads "Ruler's Privilege: no
+  toll or tariff paid." Leave G.
+- **P5.** Ruler Q, then A; Player seat each time: open Enter with VH, read
+  only. *Observable:* "Ruler's Privilege in D" with Q ruling, VH's toll with
+  A ruling. Close the dialog; clear the ruler.
+- **G6.** World setting `marketsRandomTariff` on (read it first). Where the
+  world's Mercantile document predates `tariffProse`: the Enter block names
+  the Randomized Tariff table, and a GM-seat entry refuses `printedMissing`
+  naming it with nothing paid. Then read the table off the connected book
+  through the shipped recipe (`locatePageNumber`, `pageItems`,
+  `extractTable`) and register it as a priority-30 `mercantile` layer on
+  BOTH seats — the player's dialog quotes on its own client — writing
+  nothing to the world. Player seat: open Enter with VH. *Observable:* the
+  block reads "thrown at the gate, …gp to …gp" at the span the dice give,
+  and the four load lines carry no rate.
+- **G7.** GM seat, every die at its top face: enter T with VH.
+  *Observable:* the tariff is the top of the span, the toll is G2's, the
+  detail records each throw (`… → N%`), and T paid their sum. Unregister the
+  layers and put the setting back.
 
 **Teardown**: `api.sweepTracked()`, which takes D, VH, the characters, the
-goods, G and the cards; the setting is restored in the walk's `finally`.
+goods, G and the cards; the setting is restored, the roster removed by its
+id and the hook handlers removed in the walk's `finally`.
 
 ## The manifest and load-removal API
 

@@ -551,6 +551,9 @@ the stone declared for sale (not the rule).
 
 ## 2026-10-23 — The gate charges the tariff with the toll; the Ruler's Privilege waives both; the Judge may throw it
 
+**Superseded in part** by the next entry (the book's fees on what the party
+brings): what is charged and whose rule earns the privilege.
+
 Builds the tariff the 2026-10-17 entry left unbuilt for a minor; nothing
 that entry ruled is reversed. The owner answered four questions:
 
@@ -592,3 +595,88 @@ at `ready` until its Rules tables are re-imported, and with the setting on
 an entry carrying taxable goods is refused until then. An entry posted
 before its action stored the toll records the toll refigured from its
 capacity when it resolves.
+
+## 2026-10-23 — The gate assesses the book's fees on what the party brings, and nothing else
+
+Supersedes part of the entry above, the same day. The new evidence is the
+owner's own goal for the gate and their reconciliation of two answers that
+disagreed. The build above had narrowed the charged goods to the trader's
+own packs without the owner seeing the narrowing. An answer the owner gave
+on reading it ("the party is blocked from entry until all members are
+accounted for (smuggle is another option to present) or a member chooses to
+stay outside") was built as a per-member muster, walked live and never
+released. The owner then asked for the book's cases to be checked before
+building, and answered again. In the owner's words:
+
+- The goal: "This whole mechanic is only to satisfy the RAW fees. Assess as
+  the book does when appropriate." And, from a side comment: "the module
+  goal is to realize the cost side of the protections of the city." The
+  toll, the tariff and smuggling are how this feature realizes it.
+- "Assess as the book does, demand no others, leave mechanism documented
+  and exposed in game for GM to invent new rules but you do not."
+- On the muster: "Build it per RAW", then, reconciling it with the answer
+  above: "Party or separately only".
+- On the tariff's base: "Base cost".
+- On an item brought to sell that has no merchandise type: "Not assessed".
+
+Ruled:
+
+- **The fees fall on transport and merchandise, never on people** (RR ch.
+  8, Entering the Market, step 3): the toll on the capacity declared, the
+  tariff on merchandise brought in to sell. No member is declared, and no
+  member is refused a later day.
+  - Assessed: the merchandise loads in the packs of the party's members at
+    the market and in the holds of the vehicles entering. "At the market"
+    is the presence the trade path already reads (`coinReach`), not a
+    declaration. A member elsewhere is not arriving with the party.
+  - An item a member brings to sell is assessed when it is merchandise: an
+    item `categoryOf` gives a merchandise type (JJ ch. 4, Special
+    Treasures). It is assessed at its type's tier on its cost times its
+    quantity.
+  - Not assessed: coin, kit not brought to sell, a magic item, and anything
+    of no merchandise type. A Judge who wants those charged adds the charge
+    through the hook.
+- **The trader pays**, in one payment as before. Which member funds it is
+  the players' bookkeeping.
+- **Entering as one party or separately** (step 2, Parties) is the one
+  choice about members the owner kept. It changes market impact, not the
+  fees, and is built on its own (ROADMAP until it lands).
+- **Smuggling is marked on goods, and the attempt is the Judge's.** A good
+  marked smuggled is not assessed. The entry lists it, and a card tells the
+  Judge, who resolves the Smuggling hijink (RR ch. 8, Hijinks). Nothing is
+  thrown and nothing is confiscated.
+- **Sneaking in is the party's choice and skips the toll** (step 3). One
+  tick sneaks the whole party in: no toll, no tariff, everything it brings
+  smuggled. Goods marked smuggled one by one still pay the toll, because
+  the toll falls on the transport that comes through the gate.
+- **The Ruler's Privilege needs its ruler among the members entering.**
+  This replaces "the trader or a member of the trader's party" above.
+- **The tariff's base is base cost**, as the entry above ruled. The owner
+  chose it over the reading taken from the Mercantile Income worked example
+  (RR ch. 8, Mercantile Income), which applies the rate to the price the
+  venture paid.
+- **The feature invents no fee; it exposes the mechanism instead.**
+  - The gate's quote is on `acksExtras.markets.gate`.
+  - The `acksExtras.marketGateQuote` hook lets the Judge's own script add
+    charges, which the trader pays with the book's (MODEL, Ventures).
+  - The world's existing levers stay the Judge's: the imported Market
+    Characteristics row and a market's class override.
+
+Rejected:
+- The per-member muster: each member declared entering, smuggling or
+  staying outside, with refusals for a member left undeclared, sent in from
+  elsewhere, or paying from a purse the seat does not own. It also split
+  the payment purse by purse. It attached the fees to people, which the
+  book does not do.
+- "Judge sets it" for an item of no merchandise type: the Judge picking its
+  type, or exempting it, at the gate. Superseded by "Not assessed".
+- Price paid as the tariff's base: the worked example's reading.
+- Throwing the smuggling attempt, and confiscating what it fails to move.
+  Hijinks belong to the domains feature.
+
+Cost: none for a world's data. The api's entry takes `forSale`, `smuggled`
+and `sneak`; an entry posted without them assesses every load the party
+brings and smuggles nothing. That is more than the entry above charged
+where a member besides the trader stands at the market with loads in their
+packs. An entry posted before this release has no `sneaked` field and
+resolves as it did.

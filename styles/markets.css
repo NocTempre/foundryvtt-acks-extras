@@ -469,3 +469,23 @@
 .acks-extras-markets-trader-table td {
   text-align: end;
 }
+
+/* The Enter dialog's goods block: a good and whose it is, then its ticks,
+   on one line that wraps on a narrow window. */
+.acks-extras-markets-good {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25em 0.5em;
+  padding: 0.2em 0;
+  border-bottom: var(--acks-rule-hair) solid var(--acks-rule-color-soft);
+}
+
+.acks-extras-markets-good[hidden] {
+  display: none;
+}
+
+.acks-extras-markets-good > span {
+  flex: 1 1 10em;
+  min-width: 0;
+}

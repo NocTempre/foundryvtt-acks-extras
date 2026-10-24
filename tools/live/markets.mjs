@@ -1,6 +1,7 @@
 /**
  * Live walk, markets: markets + location + the lib pointer.
- * Walks: the gate walk (G0–G7; STAGE=gate stops after it); the default-trader ad hoc; the
+ * Walks: the gate walk (G0–G7, and P0–P5 for the goods at the gate; STAGE=gate stops
+ * after it); the default-trader ad hoc; the
  * known-market walk (1–7); the network walk (1–6); reports step 10 and the step-4 hunk
  * (picks, the card's link); the ledger-length ad hoc; the hit-point tool from the party
  * sheet. Machine values arrive through ./_env.mjs.
@@ -9,11 +10,12 @@
  *
  * Writes outside the fixture ledger, each undone at teardown and reported:
  *   - the two seats' own client state: the dice rig, the patched notification methods,
- *     the wrapped ChatMessage.create, and each seat's `marketsActingTrader` client setting
- *     (read first, put back);
+ *     the wrapped ChatMessage.create, a handler on the gate's hook, and each seat's
+ *     `marketsActingTrader` client setting (read first, put back);
  *   - a book connected on the GM seat with remember:false; a rules document the run
  *     imported is removed; a trade house the run made is swept and its setting cleared;
  *   - the world's `marketsRandomTariff` setting, read first and put back;
+ *   - one roster of the gate walk's own in the world's `marketParties`, removed by its id;
  *   - the shared clock: one day per advance, counted and reported.
  */
 import { connect, sleep } from "./_driver.mjs";
@@ -112,7 +114,32 @@ const P = {
       AD: await import(base + "henchmen/acks-adapter.mjs"),
       MO: await import(base + "lib/money.mjs"),
       WT: await import(base + "lib/world-time.mjs"),
+      GT: await import(base + "markets/engine/gate.mjs"),
     };
+    /**
+     * Declare an open Enter dialog's goods through its own ticks: `forSale` and
+     * `smuggled` hold goods' "holderUuid|itemId" keys, `sneak` the party's tick.
+     * Every tick not named is cleared.
+     */
+    H.declare = (dialog, { forSale = [], smuggled = [], sneak = false } = {}) => {
+      const fire = (el) => el.dispatchEvent(new Event("change", { bubbles: true }));
+      const tick = (el, want) => { if (el && el.checked !== want) { el.checked = want; fire(el); } };
+      for (const el of dialog.querySelectorAll('input[name="forSale"]')) tick(el, forSale.includes(el.value));
+      for (const el of dialog.querySelectorAll('input[name="smuggle"]')) tick(el, smuggled.includes(el.value));
+      tick(dialog.querySelector('input[name="sneak"]'), !!sneak);
+    };
+    /** What an open Enter dialog's goods block shows: each good's row, whether it is shown, and the ticks it carries with their accessible names. */
+    H.goodsBlock = (dialog) => ({
+      rows: [...dialog.querySelectorAll(".acks-extras-markets-good")].map((div) => ({
+        text: H.text(div.querySelector(":scope > span")),
+        hidden: div.hidden,
+        vehicle: div.dataset.goodVehicle ?? "",
+        smuggle: div.querySelector('input[name="smuggle"]')?.value ?? "",
+        forSale: div.querySelector('input[name="forSale"]')?.value ?? "",
+        named: [...div.querySelectorAll("input")].every((el) => !!el.getAttribute("aria-label")),
+      })),
+      sneak: !!dialog.querySelector('input[name="sneak"]'),
+    });
     H.day = () => H.m.WT.dayOfWorldTime(game.time.worldTime);
     H.uFor = (face, faces) => (faces - face + 0.5) / faces;
     H.sheetOf = (actorId) => H.apps().find((x) => x.actor?.id === actorId && H.root(x)?.querySelector?.("nav.tabs, nav.acks-tabs")) ?? null;
@@ -321,8 +348,8 @@ const P = {
     const a = game.actors.get(actorId);
     return { pressed: true, knownButton: H.text(sec?.querySelector('[data-action="toggleKnownMarket"]')), classLine: H.text(sec?.querySelector("p.acks-extras-markets-class")), source: H.M.knownSource(loc, a), known: H.M.marketKnownTo(loc, a), notes: H.takeNotes() };
   },
-  /** Press Enter the market on the open Trade tab and read the dialog; submit with a cargo figure and a mode unless told to read only. */
-  ventureEnterUI: async ({ locationId, other = 0, mode = null, submit = true }) => {
+  /** Press Enter the market on the open Trade tab and read the dialog; submit with a cargo figure, a mode and the goods declared (`H.declare`) unless told to read only. */
+  ventureEnterUI: async ({ locationId, other = 0, mode = null, submit = true, declare = {} }) => {
     const H = globalThis.__c2;
     H.takeNotes();
     const btn = await H.poll(() => H.root(H.locSheet(locationId))?.querySelector('[data-action="ventureEnter"]') ?? null, { tries: 40, every: 200 });
@@ -332,6 +359,7 @@ const P = {
     if (!input) return { pressed: true, dialog: false, notes: H.takeNotes() };
     const dialog = input.closest(".application");
     dialog.dataset.qaEnter = "1";
+    H.declare(dialog, declare);
     const fieldset = [...dialog.querySelectorAll("fieldset")].find((f) => /Mercantile network/i.test(H.text(f.querySelector("legend"))));
     const select = dialog.querySelector('select[name="networkMode"]');
     const out = { pressed: true, dialog: true, networkText: H.text(fieldset), modes: select ? [...select.options].map((o) => o.value) : [], notes: H.takeNotes() };
@@ -398,7 +426,7 @@ const P = {
   recentCards: async ({ since, pattern }) => {
     const H = globalThis.__c2;
     const re = new RegExp(pattern, "i");
-    return game.messages.contents.filter((m) => m.timestamp >= since && re.test(m.content ?? "")).map((m) => { const div = document.createElement("div"); div.innerHTML = m.content; return { id: m.id, text: H.text(div).slice(0, 300), uuids: [...m.content.matchAll(/(?:data-uuid="|@UUID\[)([^"\]]+)/g)].map((x) => x[1]) }; });
+    return game.messages.contents.filter((m) => m.timestamp >= since && re.test(m.content ?? "")).map((m) => { const div = document.createElement("div"); div.innerHTML = m.content; return { id: m.id, text: H.text(div).slice(0, 600), uuids: [...m.content.matchAll(/(?:data-uuid="|@UUID\[)([^"\]]+)/g)].map((x) => x[1]) }; });
   },
   characteristics: async ({ marketClass }) => {
     const H = globalThis.__c2;
@@ -444,11 +472,15 @@ const P = {
     return { dice: !!H.m.PR.tariffDice() };
   },
   /**
-   * Press Enter on the open Trade tab, declare each of `declarations` in turn
-   * ({vehicleUuids, other}) through the dialog's own controls, and read the gate
-   * block after each; submit the last unless told to read only.
+   * Press Enter on the open Trade tab, read the goods block it opens on, then
+   * declare each of `declarations` in turn ({vehicleUuids, other}) through the
+   * dialog's own controls, ticking the goods `declare` names (`H.declare`)
+   * once the first declaration's vehicles are ticked. The gate block is read
+   * at the opening and after each declaration, and the goods block after the
+   * last; submit the last unless told to read only, and wait for `cards` chat
+   * cards.
    */
-  gateDialog: async ({ locationId, declarations, submit = true }) => {
+  gateDialog: async ({ locationId, declarations, submit = true, declare = {}, cards = 0 }) => {
     const H = globalThis.__c2;
     H.takeNotes();
     const btn = await H.poll(() => H.root(H.locSheet(locationId))?.querySelector('[data-action="ventureEnter"]') ?? null, { tries: 40, every: 200 });
@@ -458,26 +490,31 @@ const P = {
     if (!input) return { pressed: true, dialog: false, notes: H.takeNotes() };
     const dialog = input.closest(".application");
     dialog.dataset.qaEnter = "1";
+    const opening = H.goodsBlock(dialog);
     const read = () => { const box = dialog.querySelector("[data-gate-quote]"); return { text: H.text(box), lines: [...(box?.querySelectorAll("li") ?? [])].map((li) => H.text(li)) }; };
+    await H.sleep(250);
     const reads = [read()];
-    for (const d of declarations) {
+    for (const [n, d] of declarations.entries()) {
       for (const el of dialog.querySelectorAll('input[name="vehicle"]')) {
         const want = (d.vehicleUuids ?? []).includes(el.value);
         if (el.checked !== want) { el.checked = want; el.dispatchEvent(new Event("change", { bubbles: true })); }
       }
+      if (n === 0) H.declare(dialog, declare);
       input.value = String(d.other ?? 0);
       input.dispatchEvent(new Event("input", { bubbles: true }));
       await H.sleep(250);
       reads.push(read());
     }
-    if (!submit) return { pressed: true, dialog: true, reads, notes: H.takeNotes() };
-    const t0 = game.time.worldTime;
+    const goods = H.goodsBlock(dialog);
+    if (!submit) return { pressed: true, dialog: true, opening, goods, reads, notes: H.takeNotes() };
+    const loc = game.actors.get(locationId);
+    const known = new Set((loc.system.market.goods.actions ?? []).map((a) => a.id));
     H.takeChat();
     dialog.querySelector('button[data-action="ok"]').click();
-    const loc = game.actors.get(locationId);
-    const action = await H.poll(() => (loc.system.market.goods.actions ?? []).filter((a) => a.kind === "enter" && a.status === "pending" && a.postedTime >= t0).at(-1) ?? null, { tries: 40, every: 250 });
+    const action = await H.poll(() => (loc.system.market.goods.actions ?? []).find((a) => a.kind === "enter" && a.status === "pending" && !known.has(a.id)) ?? null, { tries: 40, every: 250 });
+    await H.poll(() => (H.chat.length >= cards ? true : null), { tries: 20, every: 250 });
     await H.sleep(400);
-    return { pressed: true, dialog: true, reads, submitted: true, notes: H.takeNotes(), chat: H.takeChat(), action: action ? { id: action.id, cargoSt: action.cargoSt, tollCp: action.tollCp, tariffCp: action.tariffCp, privilegeUuid: action.privilegeUuid, detail: action.detail, vehicleUuids: [...action.vehicleUuids] } : null };
+    return { pressed: true, dialog: true, opening, goods, reads, submitted: true, notes: H.takeNotes(), chat: H.takeChat(), action: action ? { id: action.id, cargoSt: action.cargoSt, tollCp: action.tollCp, tariffCp: action.tariffCp, privilegeUuid: action.privilegeUuid, sneaked: !!action.sneaked, detail: action.detail, vehicleUuids: [...action.vehicleUuids] } : null };
   },
   /** Wait until this seat holds the actor with at least `items` embedded items. */
   seen: async ({ actorId, items = 0 }) => {
@@ -519,14 +556,46 @@ const P = {
     const a = game.actors.get(actorId);
     return (loc.system.market.marketLog ?? []).filter((r) => r.actorUuid === a.uuid).slice(-n).map((r) => ({ type: r.type, gp: r.gp ?? null, note: String(r.note ?? "").replace(a.name, "T") }));
   },
-  /** GM: make the domain fixture hold the market under `rulerId` (none when null), and read whose privilege the gate finds for the trader. */
-  gateDomain: async ({ domainId, locationId, traderId, rulerId = null }) => {
+  /** GM: make the domain fixture hold the market under `rulerId` (none when null), and read whose privilege the gate finds for the party entering with the trader (`enteringMembers`, read on the player's sight when `asUserId` is given). */
+  gateDomain: async ({ domainId, locationId, traderId, rulerId = null, asUserId = null }) => {
     const D = game.actors.get(domainId);
     const loc = game.actors.get(locationId);
     const held = D.system.holdsPlace(loc.uuid) ? { ok: true, already: true } : await acksExtras.domains.hold(D, loc);
     await D.update({ "system.rulerUuid": rulerId ? game.actors.get(rulerId).uuid : "" });
-    const GT = await import("/modules/acks-extras/scripts/markets/engine/gate.mjs");
-    return { held, domainOf: acksExtras.domains.domainOf(loc)?.id ?? null, privilege: GT.privilegeDomain(loc, game.actors.get(traderId))?.id ?? null };
+    const gate = acksExtras.markets.gate;
+    const entering = gate.enteringMembers(loc, game.actors.get(traderId), asUserId ? game.users.get(asUserId) : game.user);
+    return { held, domainOf: acksExtras.domains.domainOf(loc)?.id ?? null, privilege: gate.privilegeDomain(loc, entering)?.id ?? null, entering: entering.map((a) => a.id) };
+  },
+  /** Set an actor's ownership to exactly the map given, dropping any entry the create added. */
+  ownershipSet: async ({ actorId, ownership }) => {
+    const a = game.actors.get(actorId);
+    await a.update({ ownership }, { diff: false, recursive: false });
+    return { ownership: { ...game.actors.get(actorId).ownership } };
+  },
+  /** Where each actor stands for this seat: present at the market, visible, owned, in the implicit party. */
+  presence: async ({ locationId, actorIds }) => {
+    const H = globalThis.__c2;
+    const loc = game.actors.get(locationId);
+    const party = new Set(H.m.PA.partyMembers(H.M.partyOf(game.actors.get(actorIds[0])).id).map((a) => a.uuid));
+    return Object.fromEntries(actorIds.map((id) => { const a = game.actors.get(id); return [id, a ? { present: H.m.MO.coinReach(a, loc).can, sees: a.testUserPermission(game.user, "LIMITED"), owns: a.testUserPermission(game.user, "OWNER"), member: party.has(a.uuid) } : null]; }));
+  },
+  itemsOf: async ({ actorId }) => Object.fromEntries(game.actors.get(actorId).items.map((i) => [i.name, i.id])),
+  /** Another player who can own a character (not a Judge, not banned), for a member owned by someone other than the player seat; only its id leaves the page. */
+  otherPlayer: async ({ not }) => game.users.find((u) => !u.isGM && u.role >= CONST.USER_ROLES.PLAYER && u.id !== not)?.id ?? null,
+  /** GM: add a roster to the world's party registry, or remove one by its id. The registry is read right before the write, and no other entry is touched. */
+  roster: async ({ add = null, off = null }) => {
+    const drop = add?.id ?? off;
+    const list = [...(game.settings.get("acks-extras", "marketParties") ?? [])].filter((p) => p?.id !== drop);
+    if (add) list.push(add);
+    await game.settings.set("acks-extras", "marketParties", list);
+    return { has: !!add && game.settings.get("acks-extras", "marketParties").some((p) => p?.id === add.id) };
+  },
+  /** This seat's handler on the gate's hook, adding `cp` under `label` at one market unless the party sneaks in, or removed. */
+  gateHook: async ({ on, locationId = null, label = "", cp = 0 }) => {
+    const H = globalThis.__c2;
+    if (H.gateHookId) { Hooks.off("acksExtras.marketGateQuote", H.gateHookId); H.gateHookId = null; }
+    if (on) H.gateHookId = Hooks.on("acksExtras.marketGateQuote", (quote, { location }) => { if (location.id === locationId && !quote.sneaked) quote.extra.push({ label, cp }); });
+    return { on: !!H.gateHookId };
   },
   probeDie: async ({ u, faces = 6 }) => {
     const H = globalThis.__c2;
@@ -639,6 +708,7 @@ const P = {
     if (H.notesPatched) { for (const k of Object.keys(H.orig)) ui.notifications[k] = H.orig[k]; H.notesPatched = false; out.notes = "restored"; }
     if (H.settingBefore !== undefined) { await game.settings.set("acks-extras", "marketsActingTrader", H.settingBefore); out.actingTrader = { restoredTo: H.settingBefore === "" ? "(empty)" : "(a uuid)" }; }
     if (H.gateLayer) { H.T.unregisterTable("mercantile", { priority: 30 }); H.gateLayer = false; out.tariffLayer = "unregistered"; }
+    if (H.gateHookId) { Hooks.off("acksExtras.marketGateQuote", H.gateHookId); H.gateHookId = null; out.gateHook = "removed"; }
     return out;
   },
   clearHouse: async ({ value }) => { await game.settings.set("acks-extras", "marketsTradeHouse", value); return { now: String(game.settings.get("acks-extras", "marketsTradeHouse") ?? "") }; },
@@ -677,6 +747,7 @@ let gm = null;
 let advances = 0;
 let housePre = null;
 let randomBefore = null;
+let gateRoster = null;
 const imported = [];
 const advance = async (locationId = null, actionId = null) => { advances++; const r = await run(gm, P.advanceDay, { locationId, actionId }); note(`advance ${advances}`, r); return r; };
 // What the rule gives a solicitation, by hand: the class option, the impact option, the better of them (class over impact on a tie, the plain entry when neither beats it).
@@ -728,7 +799,7 @@ try {
   note("characteristics read (class 3, class 1)", { hasRow3: ch3.hasRow, hasRow1: ch1.hasRow, cap: ch3.impactCap, bandsRead: !!ch3.bands });
   if (!ch3.hasRow || !ch3.impactCap || !ch3.bands) throw new Error("the mercantile document's characteristics, impact limits or assessment bands are not readable: the venture days cannot resolve");
 
-  section("the gate walk: toll, tariff, the Ruler's Privilege, the thrown tariff");
+  section("the gate walk: toll, tariff, smuggled goods, sneaking in, the Ruler's Privilege, the thrown tariff");
   {
     const gr = await run(gm, P.gateRates, { marketClass: 3 });
     note("the gate's imported inputs (class 3)", gr);
@@ -738,45 +809,75 @@ try {
     // Every price and stone count here is invented; the rates and dice are the import's.
     const PRICE = { p: 40, c: 3, e: 2 };
     const KEY = { p: `qgp${NONCE}`, c: `qgc${NONCE}`, e: `qge${NONCE}` };
+    // The gate labels a load by its good's catalogue name.
+    const LABEL = { p: `QA Precious ${NONCE}`, c: `QA Common ${NONCE}`, e: `QA Exempt ${NONCE}` };
     const CAP = 60;
     const G = await gm.create("Actor", { name: `QA Gate Town ${NONCE}`, type: "acks-extras.location" });
     note("market G", await run(gm, P.addMarket, { locationId: G.id, classOverride: 3 }));
+    // A place on no map is reached by its owners: with the player seat G's only owner, a member that seat does not own is elsewhere.
+    note("G owned by the player seat alone", await run(gm, P.ownershipSet, { actorId: G.id, ownership: gOwn }));
     for (const [k, tier, exempt, label] of [["p", "precious", false, "Precious"], ["c", "common", false, "Common"], ["e", "common", true, "Exempt"]]) {
       await gm.create("Item", { name: `QA ${label} ${NONCE}`, type: "acks-extras.merchandise", system: { key: KEY[k], tier, tariffExempt: exempt, pricePerStoneGp: PRICE[k], priceStepGp: 1, dailyStones: [10, 5, 2, 1, 1, 1] } });
     }
     const load = (k, stones, more = {}) => ({ name: `QA load ${k} ${NONCE}`, type: "item", system: { quantity: { value: stones, max: 0 }, cost: PRICE[k], weight6: 6 }, flags: { "acks-extras": { markets: { merchandise: true, category: KEY[k] }, ...more } } });
-    const T = await gm.create("Actor", { name: `QA Gate Trader ${NONCE}`, type: "character", ownership: gOwn, items: [load("p", 2)], flags: { "acks-extras": { markets: { trader: true } } } });
-    const Q = await gm.create("Actor", { name: `QA Gate Partner ${NONCE}`, type: "character", ownership: gOwn, items: [] });
-    // A new actor's default ownership is the world's; only an explicit none keeps NP out of the implicit party.
+    // Goods carried, not loads: the cup is of the precious type by its own flag and may be declared for sale; the charm is magic, which the gate never assesses.
+    const kit = (name, cost, quantity, more = {}) => ({ name: `QA ${name} ${NONCE}`, type: "item", system: { quantity: { value: quantity, max: 0 }, cost, weight6: 1 }, flags: { "acks-extras": { markets: { category: KEY.p, ...more } } } });
+    const CUP = { cost: 25, n: 2 };
+    // The partner's load is of a tier the class taxes, so assessing it moves the trader's coin.
+    const tk = gr.rates.precious > 0 ? "p" : "c";
+    const T = await gm.create("Actor", { name: `QA Gate Trader ${NONCE}`, type: "character", ownership: gOwn, items: [load("p", 2), kit("Cup", CUP.cost, CUP.n), kit("Charm", 30, 1, { magic: true })], flags: { "acks-extras": { markets: { trader: true } } } });
+    const Q = await gm.create("Actor", { name: `QA Gate Partner ${NONCE}`, type: "character", ownership: gOwn, items: [load(tk, 1)] });
+    // A is a member who is elsewhere: another player's character the player seat sees, with a load the gate never assesses.
+    const other = await run(gm, P.otherPlayer, { not: pc.userId });
+    const A = await gm.create("Actor", { name: `QA Gate Absent ${NONCE}`, type: "character", items: [load("c", 4)] });
+    note("A owned apart from G", await run(gm, P.ownershipSet, { actorId: A.id, ownership: { default: 0, ...(other ? { [other]: 3 } : {}), [pc.userId]: 2 } }));
     const NP = await gm.create("Actor", { name: `QA Gate Stranger ${NONCE}`, type: "character", ownership: { default: 0 }, items: [] });
     // Thirty common stones and ten exempt aboard, and five kept aboard for the stranger, which the gate never sees.
     const VH = await gm.create("Actor", { name: `QA Gate Wagon ${NONCE}`, type: "acks-extras.vehicle", ownership: gOwn, system: { kind: "land", cargo: { capacityStone: CAP } }, items: [load("c", 30), load("e", 10), load("c", 5, { storage: { ownerUuid: NP.uuid, ownerName: "QA" } })] });
     const D = await gm.create("Actor", { name: `QA Gate Barony ${NONCE}`, type: "acks-extras.domain" });
+    // The walk's party is a roster of its own, so no other character in the world brings goods to this gate.
+    gateRoster = `qa-gate-${NONCE}`;
+    note("the walk's party roster", await run(gm, P.roster, { add: { id: gateRoster, name: `QA Gate Party ${NONCE}`, memberUuids: [T.uuid, Q.uuid, A.uuid] } }));
+    await sleep(500);
     const gp = (cp) => Math.round(cp) / 100;
     const due = (sum) => (sum > 0 ? Math.ceil(sum - 1e-9) : 0);
     const tollOn = (st) => Math.ceil(gr.tollPerSt * st);
-    const tariffAt = (r, { packs = true, hold = true } = {}) => due((packs ? 2 * PRICE.p * r.precious : 0) + (hold ? 30 * PRICE.c * r.common : 0));
-    const coinOf = async () => (await run(gm, P.coin, { actorId: T.id })).gp;
+    // Each good's base cost at a set of rates, in coppers: the trader's packs, the partner's, the hold's thirty common stone, the cup.
+    const cpOf = (r) => ({ T: 2 * PRICE.p * r.precious, Q: PRICE[tk] * (tk === "p" ? r.precious : r.common), hold: 30 * PRICE.c * r.common, cup: CUP.n * CUP.cost * r.precious });
+    const tariffAt = (r, { hold = true } = {}) => { const c = cpOf(r); return due(c.T + c.Q + (hold ? c.hold : 0)); };
+    const coinOf = async (who = T) => (await run(gm, P.coin, { actorId: who.id })).gp;
     const near = (a, b) => Math.abs(a - b) < 0.005;
-    note("coin", await run(gm, P.coin, { actorId: T.id, mint: 5000 }));
+    note("coin", { T: await run(gm, P.coin, { actorId: T.id, mint: 5000 }), Q: await run(gm, P.coin, { actorId: Q.id, mint: 500 }) });
+
+    // P0: the members stand where the steps need them, as the player seat reads it.
+    for (const [a, n] of [[T, 3], [Q, 1], [A, 1]]) note(`${a.name.split(" ").slice(0, 3).join(" ")} as the player seat sees it`, await run(player, P.seen, { actorId: a.id, items: n }));
+    const pres = await run(player, P.presence, { locationId: G.id, actorIds: [T, Q, A, NP].map((a) => a.id) });
+    note("presence (player seat)", pres);
+    check("P0: the trader and the partner are members at the market, the absent member is a member the player seat sees who is not, and the stranger is no member", [T, Q].every((a) => pres[a.id]?.present && pres[a.id].member && pres[a.id].owns) && pres[A.id]?.member && pres[A.id].sees && !pres[A.id].present && !pres[NP.id]?.member, { pres, secondPlayer: !!other });
+    const cup = `${T.uuid}|${(await run(player, P.itemsOf, { actorId: T.id }))[`QA Cup ${NONCE}`]}`;
 
     // G1–G3: the printed tariff, previewed declaration by declaration, paid with the toll, carried to the venture row.
     // The picker lists only the actors this client holds: a tab opened before T reaches the player acts as someone else.
-    note("T and its load as the player seat sees them", await run(player, P.seen, { actorId: T.id, items: 1 }));
     const tab = await run(player, P.tradeTab, { locationId: G.id, traderId: T.id });
     note("trade tab at G as T (player)", { acting: tab.acting, isT: tab.acting === T.id, enterButton: tab.enterButton });
     if (tab.acting !== T.id) throw new Error("the player's Trade tab does not act as T: the gate walk would drive another character");
-    const coin0 = await coinOf();
+    const coin0 = { T: await coinOf(), Q: await coinOf(Q) };
     const d1 = await run(player, P.gateDialog, { locationId: G.id, declarations: [{ vehicleUuids: [VH.uuid], other: 0 }, { vehicleUuids: [], other: 5 }, { vehicleUuids: [VH.uuid], other: 0 }] });
     for (const id of d1.chat ?? []) player.track(id, "ChatMessage");
-    note("the gate block per declaration (player): none ticked, the wagon, five other stone, the wagon", d1.reads);
+    // The block also lists the hold of every other vehicle the player seat owns; the walk reads the packs' rows and its own wagon's.
+    const goods = (d1.opening?.rows ?? []).filter((r) => !r.vehicle || r.vehicle === VH.uuid);
+    note("the goods block the dialog opened on (player)", { goods, sneak: d1.opening?.sneak, otherHolds: (d1.opening?.rows ?? []).length - goods.length });
+    const rowOf = (text, holder) => goods.find((r) => r.text.includes(text) && r.text.includes(holder.name)) ?? null;
+    const packsT = rowOf(`${LABEL.p}, 2 st`, T), packsQ = rowOf(`${LABEL[tk]}, 1 st`, Q), hold30 = rowOf(`${LABEL.c}, 30 st`, VH), hold10 = rowOf(`${LABEL.e}, 10 st`, VH), cupRow = rowOf(`QA Cup ${NONCE} ×${CUP.n}`, T);
+    check("P1: the goods block opens on a row for the load in each present member's packs, one for each load of the wagon's own (hidden until the wagon is ticked), and one for the cup; every load can be marked smuggled and the cup brought to sell or smuggled, every tick is named, and the party can sneak in; nothing of the absent member's, the stranger's kept load, or the charm", goods.length === 5 && goods.every((r) => r.named && r.smuggle) && !!packsT && !packsT.hidden && !packsT.forSale && !!packsQ && !packsQ.hidden && hold30?.vehicle === VH.uuid && hold30.hidden && hold10?.vehicle === VH.uuid && hold10.hidden && cupRow?.forSale === cup && cupRow.smuggle === cup && !goods.some((r) => r.text.includes("Charm") || r.text.includes(A.name) || /, [45] st/.test(r.text)) && !!d1.opening?.sneak, { goods, cup });
+    note("the gate block per declaration (player): the opening, the wagon, five other stone, the wagon", d1.reads);
     const full = { toll: tollOn(CAP), tariff: tariffAt(gr.rates) };
     const [r0, r1, r2] = d1.reads ?? [];
-    check("G1: the Enter dialog's gate block follows the declaration — the packs' load alone with no capacity, the wagon's capacity and both its trader loads with the exempt one marked and the stranger's left out, then five other stone and the packs again — at the imported rates on the invented prices", d1.dialog && r0?.text.includes("Toll: 0gp on 0 st") && r0.text.includes(`Tariff (RR 372): ${gp(tariffAt(gr.rates, { hold: false }))}gp`) && r0.lines.length === 1 && r1?.text.includes(`Toll: ${gp(full.toll)}gp on ${CAP} st`) && r1.text.includes(`Tariff (RR 372): ${gp(full.tariff)}gp`) && r1.lines.length === 3 && r1.lines.filter((l) => l.endsWith(": exempt")).length === 1 && !r1.lines.some((l) => /, 5 st/.test(l)) && r2?.text.includes(`Toll: ${gp(tollOn(5))}gp on 5 st`) && r2.lines.length === 1, { r0, r1, r2, full });
-    const coin1 = await coinOf();
+    check("G1: the Enter dialog's gate block follows the declaration — the present members' packs alone with no capacity, the wagon's capacity with its two loads added and the exempt one marked, then five other stone and the packs again — at the imported rates on the invented prices", d1.dialog && r0?.text.includes("Toll: 0gp on 0 st") && r0.text.includes(`Tariff (RR 372): ${gp(tariffAt(gr.rates, { hold: false }))}gp`) && r0.lines.length === 2 && r1?.text.includes(`Toll: ${gp(full.toll)}gp on ${CAP} st`) && r1.text.includes(`Tariff (RR 372): ${gp(full.tariff)}gp`) && r1.lines.length === 4 && r1.lines.filter((l) => l.endsWith(": exempt")).length === 1 && !r1.lines.some((l) => /, [45] st/.test(l)) && r2?.text.includes(`Toll: ${gp(tollOn(5))}gp on 5 st`) && r2.lines.length === 2, { r0, r1, r2, full });
+    const coin1 = { T: await coinOf(), Q: await coinOf(Q) };
     const tail1 = await run(gm, P.ledgerTail, { locationId: G.id, actorId: T.id, n: 1 });
     note("posted entry, coin and ledger", { action: d1.action, notes: d1.notes, coin0, coin1, tail1 });
-    check("G2: the posted entry carries that toll and tariff and no privilege, the trader paid exactly their sum once, and the ledger row itemizes both", d1.action && d1.action.tollCp === full.toll && d1.action.tariffCp === full.tariff && d1.action.privilegeUuid === "" && d1.action.cargoSt === CAP && near(coin0 - coin1, gp(full.toll + full.tariff)) && tail1[0]?.type === "ventureAction" && near(tail1[0].gp, -gp(full.toll + full.tariff)) && tail1[0].note.includes(`toll ${gp(full.toll)}gp, tariff ${gp(full.tariff)}gp paid`), { action: d1.action, paid: coin0 - coin1, tail1 });
+    check("G2: the posted entry carries that toll and tariff and no privilege, the trader paid exactly their sum once and the partner whose load was assessed nothing, and the ledger row itemizes both", d1.action && d1.action.tollCp === full.toll && d1.action.tariffCp === full.tariff && d1.action.privilegeUuid === "" && !d1.action.sneaked && d1.action.cargoSt === CAP && near(coin0.T - coin1.T, gp(full.toll + full.tariff)) && near(coin0.Q, coin1.Q) && tail1[0]?.type === "ventureAction" && near(tail1[0].gp, -gp(full.toll + full.tariff)) && tail1[0].note.includes(`toll ${gp(full.toll)}gp, tariff ${gp(full.tariff)}gp paid`), { action: d1.action, paid: coin0.T - coin1.T, tail1 });
     const res1 = await run(gm, P.gateResolve, { locationId: G.id, actionId: d1.action?.id });
     for (const id of res1.chat ?? []) gm.track(id, "ChatMessage");
     const cards1 = await run(gm, P.cards, { ids: res1.chat ?? [] });
@@ -785,12 +886,61 @@ try {
     note("leave G", await run(player, P.ventureLeave, { locationId: G.id, actorId: T.id }));
     note("closed (player)", await run(player, P.closeAll));
 
+    // P2–P3: the wagon goes in with the cup brought to sell, the partner's load and the hold's thirty stone
+    // marked smuggled, and a charge of the Judge's own added through the hook.
+    const HOOK = { label: "QA watch", cp: 500 };
+    note("gate hook on (both seats)", { gm: await run(gm, P.gateHook, { on: true, locationId: G.id, ...HOOK }), player: await run(player, P.gateHook, { on: true, locationId: G.id, ...HOOK }) });
+    await run(player, P.tradeTab, { locationId: G.id, traderId: T.id });
+    const coin4a = { T: await coinOf(), Q: await coinOf(Q) };
+    const since4 = Date.now();
+    const d4 = await run(player, P.gateDialog, { locationId: G.id, declarations: [{ vehicleUuids: [VH.uuid], other: 0 }], declare: { forSale: [cup], smuggled: [packsQ?.smuggle, hold30?.smuggle].filter(Boolean) }, cards: 1 });
+    for (const id of d4.chat ?? []) player.track(id, "ChatMessage");
+    note("gate hook off (both seats)", { gm: await run(gm, P.gateHook, { on: false }), player: await run(player, P.gateHook, { on: false }) });
+    const coin4b = { T: await coinOf(), Q: await coinOf(Q) };
+    const tail4 = await run(gm, P.ledgerTail, { locationId: G.id, actorId: T.id, n: 1 });
+    const smug4 = await run(gm, P.recentCards, { since: since4, pattern: `smuggles into QA Gate Town ${NONCE}` });
+    for (const c of smug4) if (!(d4.chat ?? []).includes(c.id)) gm.track(c.id, "ChatMessage");
+    const c4 = cpOf(gr.rates);
+    const x4 = { toll: tollOn(CAP), tariff: due(c4.T + c4.cup) };
+    x4.paid = x4.toll + x4.tariff + HOOK.cp;
+    const read4 = d4.reads?.at(-1) ?? { text: "", lines: [] };
+    const lineOf = (who, text) => read4.lines.find((l) => l.startsWith(`${who.name}:`) && l.includes(text)) ?? null;
+    const smuggledQ = lineOf(Q, `${LABEL[tk]}, 1 st`), smuggled30 = lineOf(VH, `${LABEL.c}, 30 st`);
+    note("the entry with goods smuggled and the Judge's charge", { read: read4, action: d4.action, coin4a, coin4b, tail4, cards: smug4.map((c) => c.text), expect: x4 });
+    check("P2: the dialog quotes the toll, the trader's packs and the cup brought to sell at the precious rate, the exempt load, and the hook's charge, and lists the partner's load and the thirty stone apart and untaxed; the absent member's goods and the stranger's kept load appear nowhere", read4.text.includes(`Toll: ${gp(x4.toll)}gp on ${CAP} st`) && read4.text.includes(`Tariff (RR 372): ${gp(x4.tariff)}gp`) && !!lineOf(T, `${LABEL.p}, 2 st at ${gr.rates.precious}%: ${gp(c4.T)}gp`) && !!lineOf(T, `QA Cup ${NONCE} ×${CUP.n} at ${gr.rates.precious}%: ${gp(c4.cup)}gp`) && !!lineOf(VH, `${LABEL.e}, 10 st: exempt`) && read4.lines.some((l) => l.includes(`${HOOK.label}: ${gp(HOOK.cp)}gp`)) && read4.text.includes("Smuggled past the gate:") && !!smuggledQ && !smuggledQ.includes("%") && !!smuggled30 && !smuggled30.includes("%") && read4.lines.length === 6 && !read4.lines.some((l) => l.startsWith(`${A.name}:`) || /, [45] st/.test(l)), { read4, expect: x4 });
+    const res4 = await run(gm, P.gateResolve, { locationId: G.id, actionId: d4.action?.id });
+    for (const id of res4.chat ?? []) gm.track(id, "ChatMessage");
+    note("the entry resolved", res4.venture);
+    const named4 = [`${LABEL[tk]} (1 st, ${Q.name})`, `${LABEL.c} (30 st, ${VH.name})`];
+    check("P3: the entry charges that toll and tariff with the hook's charge in its detail, the trader paid the whole of it and the partner nothing, the ledger itemizes each charge and names what was smuggled and whose, one card tells the Judge the same, and nothing was thrown", d4.action?.tollCp === x4.toll && d4.action.tariffCp === x4.tariff && !d4.action.sneaked && !/→/.test(d4.action.detail) && d4.action.detail.includes(`${HOOK.label} ${gp(HOOK.cp)}gp`) && !!res4.venture?.entered && near(coin4a.T - coin4b.T, gp(x4.paid)) && near(coin4a.Q, coin4b.Q) && near(tail4[0]?.gp, -gp(x4.paid)) && tail4[0].note.includes(`toll ${gp(x4.toll)}gp, tariff ${gp(x4.tariff)}gp, ${HOOK.label} ${gp(HOOK.cp)}gp paid)`) && named4.every((s) => tail4[0].note.includes(s)) && smug4.length === 1 && smug4[0].text.includes(`${T.name} smuggles into QA Gate Town ${NONCE}: `) && named4.every((s) => smug4[0].text.includes(s)) && smug4[0].text.includes("RR §VIII.5"), { action: d4.action, venture: res4.venture, tail4, cards: smug4.map((c) => c.text) });
+    note("leave G", await run(player, P.ventureLeave, { locationId: G.id, actorId: T.id }));
+    note("closed (player)", await run(player, P.closeAll));
+
+    // P4: the party sneaks in.
+    await run(player, P.tradeTab, { locationId: G.id, traderId: T.id });
+    const coin7a = await coinOf();
+    const since7 = Date.now();
+    const d7 = await run(player, P.gateDialog, { locationId: G.id, declarations: [{ vehicleUuids: [VH.uuid], other: 0 }], declare: { sneak: true }, cards: 1 });
+    for (const id of d7.chat ?? []) player.track(id, "ChatMessage");
+    const coin7b = await coinOf();
+    const tail7 = await run(gm, P.ledgerTail, { locationId: G.id, actorId: T.id, n: 1 });
+    const smug7 = await run(gm, P.recentCards, { since: since7, pattern: `sneaks into QA Gate Town ${NONCE}` });
+    for (const c of smug7) if (!(d7.chat ?? []).includes(c.id)) gm.track(c.id, "ChatMessage");
+    const res7 = await run(gm, P.gateResolve, { locationId: G.id, actionId: d7.action?.id });
+    for (const id of res7.chat ?? []) gm.track(id, "ChatMessage");
+    const cards7 = await run(gm, P.cards, { ids: res7.chat ?? [] });
+    const read7 = d7.reads?.at(-1) ?? { text: "", lines: [] };
+    const brought7 = [`${LABEL.p} (2 st, ${T.name})`, `${LABEL[tk]} (1 st, ${Q.name})`, `${LABEL.c} (30 st, ${VH.name})`, `${LABEL.e} (10 st, ${VH.name})`];
+    note("sneaked in", { read: read7, action: d7.action, coin7a, coin7b, tail7, smuggled: smug7.map((c) => c.text), entered: cards7.map((c) => c.text) });
+    check("P4: with the sneak ticked the dialog says the party sneaks in and lists all four loads untaxed, the entry charges no toll or tariff, records the sneak and takes nothing, the ledger says so, one card tells the Judge everything the party brings (not the stranger's or the absent member's), and the entered card says nothing was paid", read7.text.includes("No toll or tariff: the party sneaks in") && read7.lines.length === 4 && !read7.lines.some((l) => l.includes("%")) && d7.action?.tollCp === 0 && d7.action.tariffCp === 0 && d7.action.sneaked && near(coin7a, coin7b) && !!tail7[0]?.note.includes("(sneaked in, nothing paid) Smuggled: ") && smug7.length === 1 && smug7[0].text.includes(`${T.name}'s party sneaks into QA Gate Town ${NONCE}, bringing `) && brought7.every((s) => smug7[0].text.includes(s)) && !smug7[0].text.includes("(5 st") && !smug7[0].text.includes(A.name) && cards7.some((c) => c.text.includes("Sneaked in: no toll or tariff paid.")), { read7, action: d7.action, tail7, smuggled: smug7.map((c) => c.text) });
+    note("leave G", await run(player, P.ventureLeave, { locationId: G.id, actorId: T.id }));
+    note("closed (player)", await run(player, P.closeAll));
+
     // G4–G5: the Ruler's Privilege.
-    const byT = await run(gm, P.gateDomain, { domainId: D.id, locationId: G.id, traderId: T.id, rulerId: T.id });
-    const byQ = await run(gm, P.gateDomain, { domainId: D.id, locationId: G.id, traderId: T.id, rulerId: Q.id });
-    const byNP = await run(gm, P.gateDomain, { domainId: D.id, locationId: G.id, traderId: T.id, rulerId: NP.id });
-    note("privilege by ruler", { byT, byQ, byNP });
-    check("G4: with the barony holding the market, the trader ruling it or a party member ruling it grants the privilege, and a stranger ruling it does not", byT.held?.ok && byT.domainOf === D.id && byT.privilege === D.id && byQ.privilege === D.id && byNP.domainOf === D.id && byNP.privilege === null, { byT, byQ, byNP });
+    const ruledBy = (rulerId) => run(gm, P.gateDomain, { domainId: D.id, locationId: G.id, traderId: T.id, rulerId });
+    const byT = await ruledBy(T.id), byQ = await ruledBy(Q.id), byA = await ruledBy(A.id), byNP = await ruledBy(NP.id);
+    note("privilege by ruler", { byT, byQ, byA, byNP });
+    check("G4: with the barony holding the market, a ruler among the members at the market grants the privilege, the trader or the partner alike, while a member who is elsewhere, or a stranger, does not; the members entering are the trader and the partner", byT.held?.ok && byT.domainOf === D.id && byT.privilege === D.id && byT.entering.length === 2 && [T.id, Q.id].every((id) => byT.entering.includes(id)) && byQ.privilege === D.id && byA.privilege === null && byNP.domainOf === D.id && byNP.privilege === null, { byT, byQ, byA, byNP });
     note("the trader rules", await run(gm, P.gateDomain, { domainId: D.id, locationId: G.id, traderId: T.id, rulerId: T.id }));
     await run(player, P.tradeTab, { locationId: G.id, traderId: T.id });
     const coin2 = await coinOf();
@@ -805,7 +955,20 @@ try {
     check("G5: under the trader's own rule the dialog names the privilege and the barony, the entry pays nothing and records the domain, the ledger says nothing was paid, and the entered card says so", (d2.reads?.at(-1)?.text ?? "").includes(`No toll or tariff: Ruler's Privilege in QA Gate Barony ${NONCE}`) && d2.action?.tollCp === 0 && d2.action.tariffCp === 0 && d2.action.privilegeUuid === D.uuid && near(coin2, coin3) && tail2[0]?.note.includes("ruler's privilege, nothing paid") && res2.venture?.privilegeUuid === D.uuid && cards2.some((c) => c.text.includes("Ruler's Privilege: no toll or tariff paid.")), { read: d2.reads?.at(-1)?.text, action: d2.action, tail2, venture: res2.venture });
     note("leave G", await run(player, P.ventureLeave, { locationId: G.id, actorId: T.id }));
     note("closed (player)", await run(player, P.closeAll));
-    note("no ruler", await run(gm, P.gateDomain, { domainId: D.id, locationId: G.id, traderId: T.id, rulerId: null }));
+
+    // P5: the player seat's dialog finds the same ruler among the members at the market.
+    const ruledRead = async (rulerId) => {
+      note("ruler", await ruledBy(rulerId));
+      await run(player, P.tradeTab, { locationId: G.id, traderId: T.id });
+      const d = await run(player, P.gateDialog, { locationId: G.id, declarations: [{ vehicleUuids: [VH.uuid], other: 0 }], submit: false });
+      note("dialog closed", await run(player, P.closeDialog));
+      return d.reads?.at(-1)?.text ?? "";
+    };
+    const q8in = await ruledRead(Q.id), q8away = await ruledRead(A.id);
+    note("the dialog with the partner ruling, then the absent member", { q8in, q8away });
+    check("P5: with the partner ruling the player's dialog names the privilege, and with the absent member ruling it charges the toll", q8in.includes(`No toll or tariff: Ruler's Privilege in QA Gate Barony ${NONCE}`) && q8away.includes(`Toll: ${gp(tollOn(CAP))}gp on ${CAP} st`) && !q8away.includes("Ruler's Privilege"), { q8in, q8away });
+    note("closed (player)", await run(player, P.closeAll));
+    note("no ruler", await ruledBy(null));
 
     // G6–G7: the Judge's randomized tariff. A world imported before the dice
     // recipe holds none: its refusal is checked, then the dice are read off the
@@ -841,7 +1004,7 @@ try {
       const coin4 = await coinOf();
       const end = (side) => ({ precious: thrown.rates.precious > 0 ? thrown.ranges.precious[side] : 0, common: thrown.rates.common > 0 ? thrown.ranges.common[side] : 0 });
       const lo = tariffAt(end("min")), hi = tariffAt(end("max"));
-      check(`G6: with the tariff randomized the dialog shows the span the ${whence} dice can come to and lists the loads without a rate`, read3.text.includes(`thrown at the gate, ${gp(lo)}gp to ${gp(hi)}gp`) && read3.lines.length === 3 && !read3.lines.some((l) => l.includes("%")), { read3, lo, hi });
+      check(`G6: with the tariff randomized the dialog shows the span the ${whence} dice can come to and lists the loads without a rate`, read3.text.includes(`thrown at the gate, ${gp(lo)}gp to ${gp(hi)}gp`) && read3.lines.length === 4 && !read3.lines.some((l) => l.includes("%")), { read3, lo, hi });
       const e3 = await run(gm, P.gateEnterApi, { locationId: G.id, actorId: T.id, vehicleUuids: [VH.uuid], u: 0.001 });
       for (const id of e3.chat ?? []) gm.track(id, "ChatMessage");
       const coin5 = await coinOf();
@@ -854,6 +1017,8 @@ try {
     } else check("G6–G7: the thrown tariff's dice are readable from the world or the connected book", false, { worldDice: !!gr.dice, books: BOOKS.length });
     note("tariff layers off", { gm: await run(gm, P.tariffLayer, { on: false }), player: await run(player, P.tariffLayer, { on: false }) });
     note("randomized tariff restored", await run(gm, P.settingSet, { key: "marketsRandomTariff", value: randomBefore }));
+    note("the walk's party roster removed", await run(gm, P.roster, { off: gateRoster }));
+    gateRoster = null;
     note("closed (player)", await run(player, P.closeAll));
     note("closed (gm)", await run(gm, P.closeAll));
   }
@@ -1158,6 +1323,7 @@ try {
   section("teardown");
   try { if (gm) note("closed windows", await run(gm, P.closeAll)); } catch (err) { console.error("closeAll:", err?.message ?? err); }
   try { if (gm && randomBefore !== null) note("randomized tariff setting", await run(gm, P.settingSet, { key: "marketsRandomTariff", value: randomBefore })); } catch (err) { console.error("randomTariff:", err?.message ?? err); }
+  try { if (gm && gateRoster) note("the gate walk's party roster removed", await run(gm, P.roster, { off: gateRoster })); } catch (err) { console.error("roster:", err?.message ?? err); }
   try { if (gm) note("restored (gm)", await run(gm, P.restore)); } catch (err) { console.error("restore:", err?.message ?? err); }
   try { if (seats.player) { note("closed windows (player)", await run(seats.player, P.closeAll)); note("restored (player)", await run(seats.player, P.restore)); } } catch (err) { console.error("restore player:", err?.message ?? err); }
   for (const id of imported) { try { note(`${id} document removed`, await run(gm, P.removeDoc, { id })); } catch (err) { console.error("removeDoc:", err?.message ?? err); } }

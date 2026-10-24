@@ -27,14 +27,17 @@ const stonesOf = (item) => Math.max(0, Number(item?.system?.quantity?.value ?? 0
  *
  * A load is an item-type row whose markets flag says `merchandise` with a
  * `category`, carrying more than zero stones (one unit per stone), and either
- * unstamped or stamped for `traderUuid` — goods kept for another owner are
- * that owner's and never listed. `unitGp` is the `prices` row
- * (`{category, monthStartTime, priceCp}`) for the category at `monthStart`
- * (`priced: "market"`), else the item's own `system.cost` (`priced: "base"`).
- * `merchFor(category)` supplies the catalogue row whose `label` names the load.
- * @returns {{holderUuid: string, holderName: string, itemId: string, category: string, label: string, stones: number, unitGp: number, valueGp: number, priced: "market"|"base"}[]}
+ * unstamped or stamped for `traderUuid` (one uuid, or a list of them) —
+ * goods kept for another owner are that owner's and never listed; `ownerUuid`
+ * says whom a listed stack is stamped for ("" unstamped). `unitGp` is the
+ * `prices` row (`{category, monthStartTime, priceCp}`) for the category at
+ * `monthStart` (`priced: "market"`), else the item's own `system.cost`
+ * (`priced: "base"`). `merchFor(category)` supplies the catalogue row whose
+ * `label` names the load.
+ * @returns {{holderUuid: string, holderName: string, ownerUuid: string, itemId: string, category: string, label: string, stones: number, unitGp: number, valueGp: number, priced: "market"|"base"}[]}
  */
 export function manifestRows(plainItems, { holderUuid = "", holderName = "", traderUuid = null, prices = [], monthStart = null, merchFor = () => null } = {}) {
+  const admitted = new Set((Array.isArray(traderUuid) ? traderUuid : [traderUuid]).filter(Boolean));
   const rows = [];
   for (const item of plainItems ?? []) {
     if (item?.type !== ITEM_TYPE.item) continue;
@@ -43,13 +46,14 @@ export function manifestRows(plainItems, { holderUuid = "", holderName = "", tra
     const stones = stonesOf(item);
     if (stones <= 0) continue;
     const owner = storageFlagOf(item)?.ownerUuid;
-    if (owner && owner !== traderUuid) continue;
+    if (owner && !admitted.has(owner)) continue;
     const price = monthStart == null ? null : (prices ?? []).find((p) => p.category === category && Number(p.monthStartTime) === Number(monthStart));
     const priced = price ? "market" : "base";
     const unitGp = price ? Number(price.priceCp) / 100 : Number(item.system?.cost) || 0;
     rows.push({
       holderUuid,
       holderName,
+      ownerUuid: owner ?? "",
       itemId: item._id,
       category,
       label: merchFor(category)?.label ?? item.name,
@@ -74,8 +78,8 @@ export function manifestTotals(rows) {
 /**
  * Every load the given holder actors carry (characters, vehicles), priced at
  * `market`'s current month where that location's goods hold a price for the
- * category. `traderUuid` admits goods stamped for that owner as well as
- * unstamped ones.
+ * category. `traderUuid` (one uuid or a list) admits goods stamped for those
+ * owners as well as unstamped ones.
  * @returns {{rows: object[], stones: number, valueGp: number}} rows as `manifestRows`, then their totals
  */
 export function manifestOf(holders, { market = null, traderUuid = null } = {}) {
