@@ -1082,6 +1082,16 @@ What each book still owes, in the order it is worth doing:
   import from the Judge's own page"). These three draw their walls as
   hatching, which every tracer mode reads as floor, so they land wall-less
   until a mode reads hatching.
+- **Walls on AX1 p12's plan.** It traces in `stroke` mode, but the box reader
+  misses eight of its drawn double doors. Four close the corners of the
+  corridor ring, each a box between pilasters with foliage beyond, so the
+  floor test fails. Two between the corridor and the courtyard are drawn in
+  ink lighter than the threshold. The east gate and the east passage are each
+  read as one leaf, and a door line replaces a traced leaf within half a cell,
+  so each takes two lines. Restated as lines, with the ring around the
+  courtyard's star dropped, the plan takes seventeen corrections against its
+  cap of twelve, so it lands wall-less (DECISIONS 2026-10-17, "The cap") until
+  the box reader takes those boxes.
 - **Walls on AX3's plans.** The building plans have no tracer run yet. The
   city map's streets and gates stay shelved.
 - **Label rings found on door boxes.** `labelRings` can find a ring on a door
