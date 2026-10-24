@@ -1,7 +1,7 @@
 /** Matching picked files to books, and telling a book by its fingerprint. No PDFs, no Foundry. */
 import assert from "node:assert";
 import { matchFilesToBooks } from "../../scripts/importer/book-match.mjs";
-import { BOOKS, identifyBook, laterBook } from "../../scripts/importer/books.mjs";
+import { BOOKS, identifyBook, keptBook, laterBook } from "../../scripts/importer/books.mjs";
 
 let pass = 0;
 const check = (label, cond) => { assert.ok(cond, label); pass++; };
@@ -155,6 +155,20 @@ check("a count collision with a foreign title names nobody", identifyBook(BOOKS.
   check("AX3 supersedes AX1", laterBook("ax1", "ax3") === "ax3");
   check("a book with no year names nobody", laterBook("ax1", "qd1") === null);
   check("an unknown book names nobody", laterBook("ax1", "nope") === null);
+
+  // An item's kept printing: the later year, else the earlier declaration, else the held one.
+  const declared = Object.keys(BOOKS);
+  for (const [a, ba] of dated) {
+    for (const [b, bb] of dated) {
+      if (a === b) continue;
+      const want = ba.published !== bb.published ? laterBook(a, b) : declared.indexOf(a) < declared.indexOf(b) ? a : b;
+      check(`keptBook(${a}, ${b}) keeps ${want}`, keptBook(a, b) === want);
+    }
+  }
+  check("an item AX3 prints too is AX3's, whichever arrives first", keptBook("ax1", "ax3") === "ax3" && keptBook("ax3", "ax1") === "ax3");
+  check("a book with no year yields to the one declared first", keptBook("qd1", "rr") === (declared.indexOf("qd1") < declared.indexOf("rr") ? "qd1" : "rr"));
+  check("between two undeclared books the held one stays", keptBook("nope", "nada") === "nada");
+  check("a declared book outranks an undeclared one either way", keptBook("nope", "rr") === "rr" && keptBook("rr", "nope") === "rr");
 }
 
 console.log(`\ntest-book-match: all ${pass} checks passed`);

@@ -378,3 +378,20 @@ export function laterBook(a, b) {
   if (!Number.isInteger(ya) || !Number.isInteger(yb) || ya === yb) return null;
   return ya > yb ? a : b;
 }
+
+/**
+ * Which of two books' printings of one item the library keeps when an import
+ * finds the other already held (`b`): the later (`laterBook`), and where the
+ * years tie or one is missing, the book this file declares first, the held
+ * one when neither is declared. Items alone fall back so; a place's pair
+ * refuses instead.
+ */
+export function keptBook(a, b) {
+  const later = laterBook(a, b);
+  if (later) return later;
+  const rank = (id) => {
+    const i = Object.keys(BOOKS).indexOf(id);
+    return i < 0 ? Number.MAX_SAFE_INTEGER : i;
+  };
+  return rank(a) < rank(b) ? a : b;
+}

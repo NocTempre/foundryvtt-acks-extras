@@ -888,7 +888,8 @@ changes: no rules words, no page values, no `ruledata/`.
 
 **Amended on a condition (2026-10-17)** by "Later books supersede, by the year
 their printing carries": precedence becomes publication order once a census
-shows that no merge changes its winner.
+shows that no merge changes its winner. **Condition met (2026-10-24)**: "An
+item two books print is the later printing's".
 
 **Ruled.** Two imports that share a printed name are ONE document unless they
 differ in more than where they came from. Identical-but-for-provenance merges,
@@ -7820,3 +7821,26 @@ and a turn.
 
 *Cost:* against a wall a rect's fourth side stands along the wall, and it
 weighs 4 where three lines would weigh 3.
+
+## 2026-10-24 — An item two books print is the later printing's
+
+Meets the condition "Later books supersede, by the year their printing
+carries" (2026-10-17) set for items: they kept `BOOKS` order until a census
+showed that publication order changes no merge's winner.
+
+**New evidence: the census.** `reconcileByName` merges equipment alone (its
+one caller is `importEquipmentItem`). Over every equipment row the registers
+hold, 190, seven cross-book pairs share a name key within one line, all
+between By This Axe and the Revised Rulebook. Publication order keeps the
+same copy as declaration order in all seven.
+
+**Ruled.** The merge keeps the printing `keptBook` names: the later by year
+(`laterBook`); where the years tie or one is missing, the book `BOOKS`
+declares first; between two undeclared books, the one already held.
+
+*Rejected:* refusing the merge on a tie, as a place's pair does. Two items
+that differ only in their source are one document either way, and a refusal
+would leave two.
+
+*Cost:* a book registered later is ordered by its year, with no census of
+its own. A census over its equipment rows says whether it changes a winner.

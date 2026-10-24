@@ -49,7 +49,7 @@ import { gridTypeFor } from "../battlemap/constants.mjs";
 import { mirrorCreatedLinks } from "../location/scene-link.mjs";
 import { occupantRow } from "../lib/place.mjs";
 import { oseAdventureData, oseAdventureId } from "./ose-location.mjs";
-import { BOOKS, bookIsJudges, bookLine, laterBook } from "./books.mjs";
+import { BOOKS, bookIsJudges, bookLine, keptBook, laterBook } from "./books.mjs";
 import { OSE_PREFIX, oseSourceLabel, oseSourceLine } from "./ose-source.mjs";
 import { oseGroupBookOf } from "./ose-template.mjs";
 import { executeEntry, materializeEffects, attackModel, convertName } from "./executor.mjs";
@@ -6399,19 +6399,6 @@ function rememberName(doc) {
 }
 
 /**
- * Book precedence — the order `BOOKS` declares, core first.
- *
- * When two books print the same thing, the earlier-declared one is the copy the
- * library keeps. That order is authored (Revised Rulebook, Judges Journal, By
- * This Axe, Monstrous Manual, …) and is read here rather than restated, so a
- * new book takes its precedence from where it is added.
- */
-const bookRank = (bookId) => {
-  const i = Object.keys(BOOKS).indexOf(bookId);
-  return i < 0 ? Number.MAX_SAFE_INTEGER : i;
-};
-
-/**
  * Does the document the library holds already say everything this import
  * would? DIRECTIONAL: only the keys the INCOMING data sets are checked,
  * against what the existing document holds for them — a live document's
@@ -6481,10 +6468,10 @@ async function reconcileByName(data, id, bookId) {
     // See docs/importer/DECISIONS.md, "Reconciling is a claim about one game's library".
     if (lineOfClaim(otherId, otherBook) !== lineOfClaim(id, bookId)) continue;
     if (sameMaterial(other, data)) {
-      // The same item, printed twice. Keep the higher-precedence copy and teach
-      // it this id; if THIS book outranks the one already imported, the kept
-      // document takes this entry's name and content instead.
-      const incomingWins = bookRank(bookId) < bookRank(otherBook);
+      // The same item, printed twice. Keep the printing `keptBook` names and
+      // teach it this id; if it is THIS book's, the kept document takes this
+      // entry's name and content instead.
+      const incomingWins = bookId !== otherBook && keptBook(bookId, otherBook) === bookId;
       const merged = new Set([...(other.getFlag(MODULE_ID, "cookbook")?.merged ?? []), incomingWins ? otherId : id]);
       await other.update({
         ...(incomingWins ? { name: data.name, system: data.system } : {}),
