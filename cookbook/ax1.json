@@ -31537,6 +31537,112 @@
         }
       }
     },
+    "ax1.fort20Map": {
+      "kind": "kind.scene",
+      "name": "Fort 20 Map",
+      "cite": "AX1 p.21",
+      "pages": [
+        22
+      ],
+      "scene": {
+        "page": 22,
+        "placement": {
+          "x": 309.78,
+          "y": 36,
+          "w": 264.22,
+          "h": 415.2
+        },
+        "crop": {
+          "x": 340,
+          "y": 76,
+          "w": 198,
+          "h": 336
+        },
+        "grid": {
+          "family": "square",
+          "box": {
+            "w": 18.8593,
+            "h": 18.8761
+          },
+          "centre": [
+            451.142,
+            234.124
+          ],
+          "distance": 5,
+          "units": "ft",
+          "pixels": 70
+        },
+        "walls": {
+          "mode": "stroke",
+          "threshold": 80,
+          "corrections": [
+            {
+              "line": [
+                363,
+                88.45,
+                519.92,
+                88.45
+              ],
+              "is": "invisible"
+            },
+            {
+              "line": [
+                519.92,
+                88.45,
+                519.92,
+                399.06
+              ],
+              "is": "invisible"
+            },
+            {
+              "line": [
+                519.92,
+                399.06,
+                363,
+                399.06
+              ],
+              "is": "invisible"
+            },
+            {
+              "line": [
+                363,
+                399.06,
+                363,
+                262.71
+              ],
+              "is": "invisible"
+            },
+            {
+              "line": [
+                363,
+                224.61,
+                363,
+                88.45
+              ],
+              "is": "invisible"
+            },
+            {
+              "line": [
+                363,
+                224.61,
+                363,
+                243.7
+              ],
+              "is": "door"
+            },
+            {
+              "line": [
+                363,
+                243.7,
+                363,
+                262.71
+              ],
+              "is": "door"
+            }
+          ]
+        }
+      }
+    },
     "ax1.fort24Map": {
       "kind": "kind.scene",
       "name": "Fort 24 Map",
