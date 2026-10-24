@@ -38,7 +38,7 @@ import {
 import { printedNameOf, withoutKeyNumber } from "./printed-name.mjs";
 import {
   isSceneRecipe, sceneFrame, sceneData, districtRegionData, placeTokenAt, worldCopySource, isWorldCopy, placementMatches, afterDarkShift, bandOfSection,
-  isZoneRow, gridScale, ringToScene, offsetsInside, zoneRegionData, coversCrop, wallSources,
+  isZoneRow, gridScale, ringToScene, offsetsInside, zoneRegionData, coversCrop, wallSources, isRegionRecipe,
 } from "./scene-binding.mjs";
 import { FACTION_TYPE } from "../factions/constants.mjs";
 import { LOCATION_TYPE, isPlaceRole } from "../location/constants.mjs";
@@ -3889,7 +3889,8 @@ export async function cookbookImportJournals({ books = null } = {}) {
  * book prints too is one place: a row whose pair already stands joins it
  * (`joinPaired`) instead of making a second. `books` scopes the run to those
  * book ids and `ids` to those rows; `created` lists the uuids of the keyed
- * places (the book's own place among them) and stat-line creatures it made.
+ * and region places (the book's own place and the region's among them) and
+ * stat-line creatures it made.
  */
 export async function cookbookImportPoiPlaces({ books = null, ids = null } = {}) {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates actors).`);
@@ -3919,7 +3920,7 @@ export async function cookbookImportPoiPlaces({ books = null, ids = null } = {})
       const { bookId, id, e, group } = job;
       bar.step(e.name);
       if (job.region) {
-        await importRegionRow(job, tally, run.pairs);
+        await importRegionRow(job, tally, run);
         continue;
       }
       if (job.keyed) {
@@ -4284,14 +4285,17 @@ async function joinPaired({ pair, place, takesOver }, built) {
  * onto the market or settlement its row names (`regionSiteClaim`), or joins
  * the place its pair already stands as (`joinPaired`). Presence and held notes
  * are asked of the library's own document before the page is read, as for a
- * point of interest. Counts into `tally`.
+ * point of interest. Counts into `tally`; a place it makes is listed in
+ * `run.created`.
  */
-async function importRegionRow({ bookId, id, e, region }, tally, pairs) {
+async function importRegionRow({ bookId, id, e, region }, tally, run) {
   const cb = data.books.get(bookId);
   const label = bookLabel(bookId);
   const folder = (await ensureFolderPath("Actor", [label, "Places"], lineOf(bookId)))?.id ?? null;
-  const place = await claimActorImport(regionPlaceId(bookId), () =>
-    createDoc(Actor, regionPlaceData({ book: bookId, bookLabel: label, folderId: folder })));
+  const heldRegion = await importedActor(regionPlaceId(bookId), { copies: false });
+  const place = heldRegion ?? (await claimActorImport(regionPlaceId(bookId), () =>
+    createDoc(Actor, regionPlaceData({ book: bookId, bookLabel: label, folderId: folder }))));
+  if (place && !heldRegion) run.created.places.push(place.uuid);
   const read = () => executeEntry(ctx.sessionDocs.get(bookId).doc, cb, data.registers, id).catch(() => null);
   const role = e.meta?.role ?? "";
   const parentUuid = place?.uuid ?? "";
@@ -4325,14 +4329,17 @@ async function importRegionRow({ bookId, id, e, region }, tally, pairs) {
   const name = printedNameOf(node, e.name);
   const notes = entryText(node, id, e.cite);
   if (claim.onto === "site") {
-    const paired = await pairedPlace(pairs, id);
+    const paired = await pairedPlace(run.pairs, id);
     if (paired) {
       await joinPaired(paired, { id, book: bookId, name, notes, parentUuid, region: label, role });
       return void tally.paired++;
     }
     const made = await claimActorImport(id, () =>
       createDoc(Actor, poiLocationData({ name, entryId: id, notes, book: bookId, bookLabel: label, parentUuid, folderId: folder, role })));
-    if (made) tally.made++;
+    if (made) {
+      tally.made++;
+      run.created.places.push(made.uuid);
+    }
     return;
   }
   const target = held ?? (await claimActorImport(claim.claimId, () =>
@@ -4340,6 +4347,7 @@ async function importRegionRow({ bookId, id, e, region }, tally, pairs) {
       ? marketActorData({ name, entryId: claim.claimId, book: bookId, bookLabel: label, folderId: folder })
       : oseAdventureData({ book: bookId, bookLabel: label, folderId: folder }))));
   if (!target) return void tally.refused++;
+  if (!held) run.created.places.push(target.uuid);
   const patch = siteBindPatch(target, { notes, parentUuid, role });
   if (Object.keys(patch).length) await target.update(patch);
   tally.bound++;
@@ -5078,20 +5086,13 @@ async function claimControlledQuarters(bookId, scene, recipe, districtIds) {
 }
 
 /**
- * Whether a recipe is a region's map: built on a grid of drawn cells, with no
- * quarters, and naming no place of its own. A plan names the place it draws,
- * and a dungeon's plan is drawn on a grid too.
- */
-const isRegionRecipe = (recipe) => !!recipe?.grid && !recipe.districts?.length && !recipe.place;
-
-/**
  * The cookbook ids a map stands on. A settlement's: the place the map is (the
  * recipe's `place`, else the book's own), each quarter's, each keyed place's,
  * and in `all` every place a keyed one sits in, up to the book's own.
  * A region's: the region's own place, no
- * quarters, and for each placed site the id its text was claimed under
- * (`regionSiteClaim`). `placeIds` runs index for index with the recipe's
- * `places`.
+ * quarters, for each placed site the id its text was claimed under
+ * (`regionSiteClaim`), and in `all` every place a keyed one sits in, as on a
+ * settlement's. `placeIds` runs index for index with the recipe's `places`.
  * @returns {{mapPlaceId: string, districtIds: string[], placeIds: string[], all: string[], region: boolean}}
  */
 function mapIds(bookId, recipe) {
@@ -5102,24 +5103,31 @@ function mapIds(bookId, recipe) {
       const entry = cb.entries[p.id];
       return isRegionSite(entry) ? regionSiteClaim(bookId, entry, p.id, cb.entries).claimId : p.id;
     });
-    return { mapPlaceId, districtIds: [], placeIds, all: [mapPlaceId, ...placeIds], region: true };
+    const all = [...new Set([mapPlaceId, ...placeIds, ...keyedAbove(cb, bookId, placeIds)])];
+    return { mapPlaceId, districtIds: [], placeIds, all, region: true };
   }
   const quarterOf = (entryId) => poiGroupOf(cb.entries[entryId]?.meta?.group)?.district ?? "";
   const mapPlaceId = recipe.place ?? oseAdventureId(bookId);
   const districtIds = (recipe.districts ?? []).map((d) => districtPlaceId(bookId, quarterOf(d.place)));
   const placeIds = (recipe.places ?? []).map((p) => p.id);
-  // Every place a keyed one sits in, up to the book's own, so the world's
-  // copies sit in one another and none in the library.
+  const all = [...new Set([mapPlaceId, ...districtIds, ...placeIds, ...keyedAbove(cb, bookId, [mapPlaceId, ...placeIds])])];
+  return { mapPlaceId, districtIds, placeIds, all, region: false };
+}
+
+/**
+ * Every place a keyed one of `starts` sits in, up to the book's own, so the
+ * world's copies sit in one another and none in the library.
+ */
+function keyedAbove(cb, bookId, starts) {
   const spaces = keySpacesOf(cb.entries);
   const above = new Set();
-  for (const start of [mapPlaceId, ...placeIds]) {
+  for (const start of starts) {
     for (let at = start; isKeyedPlace(cb.entries[at], at, spaces) && !above.has(keyedParentId(cb.entries[at], bookId));) {
       at = keyedParentId(cb.entries[at], bookId);
       above.add(at);
     }
   }
-  const all = [...new Set([mapPlaceId, ...districtIds, ...placeIds, ...above])];
-  return { mapPlaceId, districtIds, placeIds, all, region: false };
+  return above;
 }
 
 /** Whether a book prints a region's gazetteer, which its map waits on as a city's waits on its quarters. */

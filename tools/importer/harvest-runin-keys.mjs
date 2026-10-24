@@ -1,7 +1,7 @@
 /**
  * DEV-ONLY (chef-side): seed an AX adventure's run-in KEYED AREAS into a key
- * space, and list a page's display headings by the key a hash anchor finds
- * them by.
+ * space, and list a page's display headings, or its run-in titles, by the key
+ * a hash anchor finds them by.
  *
  * A run-in keyed area opens a paragraph with its key in the heading's face,
  * "9a. Title:", and its prose runs on after the colon. The compiler finds such
@@ -24,6 +24,7 @@
  *   node tools/importer/harvest-runin-keys.mjs ax1 --space ax1.fort --pages 9-27            report only
  *   node tools/importer/harvest-runin-keys.mjs ax1 --space ax1.fort --pages 9-27 --write    write register/ax1/
  *   node tools/importer/harvest-runin-keys.mjs ax1 --headings 36 [--wrap 40] [--min-h 20]   hash keys of p.36's headings
+ *   node tools/importer/harvest-runin-keys.mjs ax1 --titles 66                              hash keys of p.66's run-in titles
  *
  * `--write` merges by id into `register/<book>/p<A>-p<B>-<stem>-areas.json`:
  * a row it harvests again keeps its hand-written `assists`, `status` and other
@@ -33,7 +34,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { openBook } from "../../scripts/importer/extract.mjs";
-import { axColumns, axHeadingKeys, axKeyLines, axOpen, axPageItems, useAxBands } from "./compile-cookbook.mjs";
+import { axColumns, axHeadingKeys, axKeyLines, axOpen, axPageItems, axRuninHeadKeys, useAxBands } from "./compile-cookbook.mjs";
 import { spaceKeyed } from "./register-rules.mjs";
 import { FILES } from "./reference-lib.mjs";
 
@@ -51,6 +52,7 @@ const BOOK = argv.find((a, i) => !a.startsWith("--") && !argv[i - 1]?.startsWith
 const usage = () => {
   console.error("usage: node tools/importer/harvest-runin-keys.mjs <book> --space <row id> --pages A-B [--write]");
   console.error("       node tools/importer/harvest-runin-keys.mjs <book> --headings <page> [--wrap N] [--min-h N]");
+  console.error("       node tools/importer/harvest-runin-keys.mjs <book> --titles <page>");
   process.exit(1);
 };
 if (!BOOK || !FILES[BOOK]) usage();
@@ -72,6 +74,15 @@ if (opt("--headings")) {
   for (const h of axHeadingKeys(pd, assists)) {
     console.log(`p.${page} col ${h.col} y${h.y.toFixed(0)} x${h.x0.toFixed(0)} to y${h.endY.toFixed(0)}  hash ${h.hash}`);
   }
+  process.exit(0);
+}
+
+/* ---------------- titles: the hash a run-in title is found by ---------------- */
+
+if (opt("--titles")) {
+  const page = Number(opt("--titles"));
+  const pd = await axPageItems(doc, page);
+  for (const h of axRuninHeadKeys(pd)) console.log(`p.${page} col ${h.col} y${h.y.toFixed(0)} x${h.x0.toFixed(0)}  hash ${h.hash}`);
   process.exit(0);
 }
 

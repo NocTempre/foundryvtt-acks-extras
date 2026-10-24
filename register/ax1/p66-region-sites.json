@@ -1,0 +1,8 @@
+[
+  {"id": "ax1.site1", "kind": "kind.location", "book": "ax1", "name": "Site 1", "anchor": {"hash": "fkoaop", "as": "runin"}, "pages": [66], "meta": {"group": "Region — Sites", "sameAs": "ax3.site35", "unique": []}},
+  {"id": "ax1.site2", "kind": "kind.location", "book": "ax1", "name": "Site 2", "anchor": {"hash": "4e4bya", "as": "runin"}, "pages": [66], "meta": {"group": "Region — Sites", "sameAs": "ax3.site21", "unique": []}},
+  {"id": "ax1.site3", "kind": "kind.location", "book": "ax1", "name": "Site 3", "anchor": {"hash": "1e8hoc4", "as": "runin"}, "pages": [66], "meta": {"group": "Region — Sites", "sameAs": "ax3.site30", "unique": []}},
+  {"id": "ax1.site4", "kind": "kind.location", "book": "ax1", "name": "Site 4", "anchor": {"hash": "11xm7qg", "as": "runin"}, "pages": [66], "meta": {"group": "Region — Sites", "sameAs": "ax3.site45", "unique": []}},
+  {"id": "ax1.site5", "kind": "kind.location", "book": "ax1", "name": "Site 5", "anchor": {"hash": "xy20nx", "as": "runin"}, "pages": [66], "meta": {"group": "Region — Sites", "sameAs": "ax3.site31", "unique": []}},
+  {"id": "ax1.site6", "kind": "kind.location", "book": "ax1", "name": "Site 6", "anchor": {"hash": "1flnsys", "as": "runin"}, "pages": [66], "meta": {"group": "Region — Sites"}}
+]

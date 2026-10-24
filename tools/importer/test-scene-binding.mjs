@@ -392,7 +392,9 @@ check("a key space's rooms stand on the plan of the place they are in, however d
 check("a plan that names no place takes any keyed area", recipeProblems(level({ place: undefined, places: [{ id: "zz.down-1", at: [5, 5] }] }), spaceBook), []);
 says("a room of another level", recipeProblems(level({ places: [{ id: "zz.down-1", at: [5, 5] }] }), spaceBook), "is not inside zz.up");
 says("a room whose parent is itself", recipeProblems(level({ places: [{ id: "zz.loop", at: [5, 5] }] }), spaceBook), "is not inside zz.up");
-says("a space is no pin", recipeProblems(level({ place: undefined, places: [{ id: "zz.up", at: [5, 5] }] }), spaceBook), "is not a keyed place");
+says("a space is no pin on a plan", recipeProblems(level({ places: [{ id: "zz.down", at: [5, 5] }] }), spaceBook), "is not a keyed place");
+says("nor on its own plan", recipeProblems(level({ places: [{ id: "zz.up", at: [5, 5] }] }), spaceBook), "is not a keyed place");
+check("a space stands on a map that names no place, as a region's map draws it", recipeProblems(level({ place: undefined, places: [{ id: "zz.up", at: [5, 5] }, { id: "zz.down", at: [6, 6] }] }), spaceBook), []);
 says("a plan of a list", recipeProblems(level({ place: "zz.list" }), spaceBook), 'place "zz.list" is not a place');
 says("a plan of a place the book does not hold", recipeProblems(level({ place: "zz.gone", places: [] }), spaceBook), 'place "zz.gone" is not a place');
 

@@ -404,6 +404,24 @@ const BOOK_FILES = {
     schema: SCHEMA, book: { id: "uu" },
     entries: { "uu.region": loc("Region — Overview"), "uu.site1": { ...loc("Region — Sites"), name: "Later" } },
   },
+  // A region map that stands a key space beside a site, as an adventure's region map draws its fort.
+  qq: {
+    schema: SCHEMA, book: { id: "qq" },
+    entries: { "qq.l1": loc("Space"), "qq.l1-1": loc("Space", { space: "qq.l1" }), "qq.site1": loc("Region — Sites") },
+    scenes: { "qq.map": { ...REGION_MAP, scene: { ...REGION_MAP.scene, places: [{ id: "qq.l1", at: [200, 180] }, { id: "qq.site1", at: [260, 240] }] } } },
+  },
+  // A site two books print: ss's site is st's, and ss prints a site of its own.
+  ss: {
+    schema: SCHEMA, book: { id: "ss" },
+    entries: {
+      "ss.site1": { ...loc("Region — Sites", { sameAs: "st.site1", unique: [] }), name: "Earlier Site" },
+      "ss.site2": { ...loc("Region — Sites"), name: "Own Site" },
+    },
+  },
+  st: {
+    schema: SCHEMA, book: { id: "st" },
+    entries: { "st.region": loc("Region — Overview"), "st.site1": { ...loc("Region — Sites"), name: "Later Site" } },
+  },
 };
 
 /** A two-page PDF: the map's image placement on page 1, a zone's three figures on page 2. */
@@ -586,6 +604,7 @@ await MockActor.create({ name: "zz", type: LOCATION_TYPE, system: { notes: "", p
   ok("any other site is a place under the region", own?.type === LOCATION_TYPE && own.system.parentUuid === region.uuid);
   ok("no second place is made for a bound site", !shelved("zz.site1") && !shelved("zz.site2"));
   check("two documents are new: the region and its own site", pack.docs.size - before, 2);
+  check("the run lists the two it made, and neither place it bound onto", out.created.places, [region.uuid, own.uuid]);
   check("the counts", [out.made, out.regions, out.bound, out.refused], [1, 1, 2, 0]);
   const again = await cookbookImportPoiPlaces();
   check("a second run writes nothing", [again.made, again.regions, again.bound, again.already], [0, 0, 0, 4]);
@@ -726,6 +745,33 @@ const map = game.scenes.find((s) => s.getFlag(MODULE_ID, "cookbook")?.id === "zz
   sessions.delete("ww");
 }
 
+// --- a region map that stands a key space: the space comes with the place it sits in --------
+{
+  const lib = {};
+  const shelve = async (cbId, parent) => {
+    lib[cbId] = await MockActor.create({
+      name: `Place ${cbId}`, type: LOCATION_TYPE, system: { notes: "", parentUuid: parent ? lib[parent].uuid : "" },
+      flags: { [MODULE_ID]: { cookbook: { id: cbId, book: "qq", kind: "kind.location" } } },
+    }, { pack: ACTOR_PACK });
+  };
+  await shelve("qq.adventure");
+  await shelve("qq.l1", "qq.adventure");
+  await shelve("qq.region");
+  await shelve("qq.site1", "qq.region");
+  forgetImportedIndex();
+  sessions.set("qq", { doc: pdf([]) });
+  const out = await cookbookImportScenes({ books: ["qq"] });
+  const map = game.scenes.find((s) => s.getFlag(MODULE_ID, "cookbook")?.id === "qq.map");
+  const world = (cbId) => game.actors.find((a) => a.getFlag(MODULE_ID, "cookbook")?.id === cbId);
+  check("the region map is made, and nothing it needs is missing", [out.made, out.missing, !!map], [1, 0, true]);
+  check("the region, its site, the space and the book's own place are brought into the world", out.copied, 4);
+  check("each copy sits in its parent's copy, and none in the library",
+    ["qq.site1", "qq.l1", "qq.region", "qq.adventure"].map((id) => world(id)?.system.parentUuid), [world("qq.region")?.uuid, world("qq.adventure")?.uuid, "", ""]);
+  check("the map is the region's, and stands the space and the site, hidden",
+    [map?.flags[MODULE_ID].location, ...(map?.tokens.map((t) => [t.actorId, t.hidden]) ?? [])], [world("qq.region")?.uuid, [world("qq.l1")?.id, true], [world("qq.site1")?.id, true]]);
+  sessions.delete("qq");
+}
+
 // --- one place two books print: either book first, the same place ---------------------------
 {
   const docOf = (uuid) => pack.docs.get(String(uuid ?? "").split(".").pop());
@@ -781,6 +827,40 @@ const map = game.scenes.find((s) => s.getFlag(MODULE_ID, "cookbook")?.id === "zz
   check("the earlier book run again finds its place held", [held.paired, held.made, pack.docs.size], [0, 0, kept]);
   sessions.delete("uu");
   sessions.delete("vv");
+}
+
+// --- a site two books print: either book first, the later book's site ------------------------
+{
+  const docOf = (uuid) => pack.docs.get(String(uuid ?? "").split(".").pop());
+  const idOf = (d) => d?.flags?.[MODULE_ID]?.cookbook?.id;
+  const shape = (d) => {
+    const { id, book, merged } = d.flags[MODULE_ID].cookbook;
+    const blocks = [...String(d.system.notes ?? "").matchAll(/data-acks-entry="([^"]+)"/g)].map((m) => m[1]);
+    return { id, book, merged, name: d.name, blocks, region: d.system.region, parent: idOf(docOf(d.system.parentUuid)) };
+  };
+  sessions.set("ss", { doc: pdf([]) });
+  sessions.set("st", { doc: pdf([]) });
+
+  await cookbookImportPoiPlaces({ books: ["st"] });
+  const later = shelved("st.site1");
+  const bound = await cookbookImportPoiPlaces({ books: ["ss"] });
+  check("an earlier book's site joins the later book's, and its own site is made", [bound.paired, bound.made, !!shelved("ss.site1")], [1, 1, false]);
+  const bindShape = shape(later);
+  check("the joined site answers for both, its own block first, in its own book's region",
+    bindShape, { id: "st.site1", book: "st", merged: ["ss.site1"], name: "Later Site", blocks: ["st.site1", "ss.site1"], region: later.system.region, parent: "st.region" });
+  check("the earlier book's own site stands in that book's region", idOf(docOf(shelved("ss.site2")?.system.parentUuid)), "ss.region");
+  check("the run lists its region and its own site, never the place it joined", bound.created.places, [shelved("ss.region")?.uuid, shelved("ss.site2")?.uuid]);
+
+  for (const d of pack.docs.filter((x) => ["ss", "st"].includes(x.flags?.[MODULE_ID]?.cookbook?.book))) pack.docs.delete(d.id);
+  forgetImportedIndex();
+  await cookbookImportPoiPlaces({ books: ["ss"] });
+  const earlier = shelved("ss.site1");
+  check("the earlier site stands first in its own book's region", [earlier?.name, idOf(docOf(earlier?.system.parentUuid))], ["Earlier Site", "ss.region"]);
+  const took = await cookbookImportPoiPlaces({ books: ["st"] });
+  ok("the later book's site takes the earlier one over", took.paired === 1 && shelved("st.site1") === earlier && !shelved("ss.site1"));
+  check("and is the site the other order makes, moved into the later book's region", shape(earlier), bindShape);
+  sessions.delete("ss");
+  sessions.delete("st");
 }
 
 // --- shapes the Foundry half depends on -------------------------------------------------------

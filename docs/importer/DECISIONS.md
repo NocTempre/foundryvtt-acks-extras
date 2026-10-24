@@ -7844,3 +7844,60 @@ would leave two.
 
 *Cost:* a book registered later is ordered by its year, with no census of
 its own. A census over its equipment rows says whether it changes a winner.
+
+## 2026-10-24 — AX1's sites are places in its region, and its region map stands them on their hexes
+
+AX1 prints six sites around the fort on its region page (p.66) and draws
+them, with the fort and the first level, on its region map (p.33). Five are
+AX3 region sites.
+
+**Ruled.**
+- **A site set under a run-in title anchors by the title's head.** Each AX1
+  site's title runs in on the line its prose opens, so no whole line hashes to
+  the title. Where no whole run-in line answers a `{hash, as: "runin"}`
+  anchor, the compiler boxes a title closed by a colon by its head alone
+  (`axRuninHeads`). A row so anchored stops where the next titled row of its
+  group opens (`titleStops`).
+- **Five sites are AX3's, and keep none of AX1's paragraphs** (`meta.sameAs`,
+  `unique: []`). No heading hash matched, since AX1's headings carry the hex
+  and AX3's do not, so each pair was read on the two pages, in reading order.
+  AX1's text for each is an earlier wording of AX3's. The sixth site is
+  AX1's own place in AX1's region.
+- **AX1's region map is its own region place's, unpaired with AX3's.** Both
+  maps print the same hex scale, but AX1's covers about half of AX3's
+  columns. It is a crop of the same ground, and a map is one picture. It
+  stands on `ax1.region`, which the places step makes for the sites.
+- **A key space may stand on a map that names no place.** The region map
+  draws the fort and the first level each in its hex, among the sites. On a
+  plan a space is the map's place or holds it, and the recipe check still
+  refuses one there (`recipeProblems`). This extends "A plan is the place it
+  draws, and its rooms stand on it as pins" (above, same day). The new
+  evidence: the region map is the first recipe that stands a key space beside
+  other places. The test that refused a space as any map's pin was written
+  before any map did.
+- **A region map brings the places its keyed pins sit in**, as a plan does
+  (`mapIds`, `keyedAbove`). Found writing the live walk: the region branch
+  brought the fort alone, and its world copy kept a library parent.
+- **The places step lists every region place it makes** in `created.places`,
+  the region's own place and each site, as it lists keyed places. A run that
+  made them can sweep them by its own ledger.
+- **The lattice is measured.** The map's hex grid is fitted from the drawn
+  hex edges on the extracted image. Core's `HexagonalGrid`, shifted onto one
+  drawn centre, put a cell centre within a pixel of every other drawn centre,
+  for either column parity. Each place stands at its hex's centre. A site
+  drawn across hexes stands at its label's hex.
+
+*Rejected:*
+- **Pairing AX1's region map with AX3's.** One is a crop of the other's
+  ground. Two pictures of one region are two maps.
+- **Snapping each pin to the nearest cell at import.** A pin set at a drawn
+  centre already lands on a cell centre, and snapping would hide a lattice
+  that does not fit. The live walk measures the distance instead.
+
+*Cost:*
+- A book's region place is made whenever its region rows import, so a book
+  whose every site pairs onto another book's still gets a region place that
+  holds only its map. AX1's sixth site and its map use it.
+- The bind writes AX1's id and block onto five of AX3's library places. AX3's
+  Adventure carries them as they were until it is rebuilt.
+- The encounter area AX1 prints for its region map is no zone yet (ROADMAP).

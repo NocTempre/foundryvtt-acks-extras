@@ -1927,6 +1927,8 @@ room's stat lines are its roster. Sections 2 and 2b of
 place should be: the keyed rows are the `kind.location` rows with a
 `meta.space`, and the rows a `meta.space` names; a room's printed occupants
 are its `occupants.<i>.name` fields. Nothing of the page is read to check it.
+AX1's region sites (`meta.group` "Region — Sites") ride the same step: each
+is a place inside `ax1.region`, or binds onto the AX3 site its pair names.
 
 ### Fixtures
 
@@ -1936,25 +1938,27 @@ are its `occupants.<i>.name` fields. Nothing of the page is read to check it.
   imported by id with `cookbookImportIds` where the library lacks them, as
   Import Everything does before the places step. Read each back under its id
   and track it, with the ability definitions the import supplied on demand.
-- Nothing under an AX1 place id: no actor claimed under a keyed row's id or
-  `ax1.adventure`, and no creature under `ax1.<place>-o<i>`. Where one stands,
+- Nothing under an AX1 place id: no actor claimed under a keyed row's or a
+  site's id, `ax1.adventure` or `ax1.region`, and no creature under
+  `ax1.<place>-o<i>`. Where one stands,
   it is its owner's, and the walk stops unless the owner says to rebuild
   (`HELD_OK=1`): the held ones are deleted and the step makes them again as
   the owner's.
 - The step's own result is the ledger: track `created.places` (the book's own
-  place is among them) and `created.creatures`.
+  place and the region's are among them) and `created.creatures`.
 
 ### Steps
 
 1. Run the step.
    *Observable:*
-   - `made` is the number of keyed rows less those whose pair's place the
-     library holds ("A place two books print", below), `created.places` one
-     more, `paired` the pairs it bound, and nothing refused;
-   - each keyed row is one place, and its `system.parentUuid` is the uuid of
-     the place under the row's `meta.parent`, else its `meta.space`, else
-     `ax1.adventure`. A pair's place stays inside the place its own book put
-     it in;
+   - `made` is the number of keyed rows and sites less those whose pair's
+     place the library holds ("A place two books print", below),
+     `created.places` two more, `paired` the pairs it bound, and nothing
+     refused;
+   - each keyed row and site is one place, and its `system.parentUuid` is the
+     uuid of the place under the row's `meta.parent`, else its `meta.space`,
+     else `ax1.adventure`; a site's is `ax1.region`'s, which sits in nothing.
+     A pair's place stays inside the place its own book put it in;
    - a room has a roster exactly when its row prints an occupant, never more
      rows than it prints, every row hidden, and `rostered` counts them;
    - each row's link resolves and is no world copy. Among the rows are a
@@ -1968,8 +1972,8 @@ are its `occupants.<i>.name` fields. Nothing of the page is read to check it.
      prose, which makes no row), so on AX1 the walk notes this as not reached.
 2. Delete two rooms, one that holds others and one that links a creature made
    from its line, then run the step again.
-   *Observable:* `made` is 2, `already` is every other keyed row, and no
-   creature is made. Each room stands again under its id, a new document,
+   *Observable:* `made` is 2, `already` is every other keyed row and site,
+   and no creature is made. Each room stands again under its id, a new document,
    inside the place its row names. The rooms inside the first name its new
    uuid. The second's roster links the same line creatures as before. Track
    the new rooms from `created.places`; the deleted ones read as missing in
@@ -1992,7 +1996,8 @@ when it is empty.
 ## A place two books print
 
 One place in either order: AX1's first level (`ax1.l1`, `meta.sameAs`) and
-the AX3 region site it is. `tools/live/importer-ax1.mjs` walks the bind in
+the AX3 region site it is, and five of AX1's region sites and the AX3 sites
+they are. `tools/live/importer-ax1.mjs` walks the bind in
 section 2, the world copy in 2c and 3b, and the takeover in 2d. A check
 compares ids, block order and paragraph counts; a name and a region are
 compared page-side and only the boolean leaves the page.
@@ -2005,16 +2010,18 @@ compared page-side and only the boolean leaves the page.
 - AX3 connected on the GM seat (`remember: false`) for the takeover, where the
   walk connects it from `ACKS_TEST_BOOKS`.
 - The takeover deletes the owner's AX3 place, so it runs only on the owner's
-  go-ahead (`HELD_OK=1` with `TAKEOVER_OK=1`).
+  go-ahead (`HELD_OK=1` with `TAKEOVER_OK=1`), and only for the pairs
+  `TAKEOVER` names (AX1 row ids, comma-separated; `ax1.l1` by default). The
+  go-ahead covers the places it was given for and no other.
 
 ### Steps
 
-1. Run AX1's places step with the AX3 place held.
-   *Observable:* `paired` is 1 and `ax1.l1` is not made. The AX3 place keeps
-   its own id and parent, `merged` holds `ax1.l1`, its blocks read
-   `[ax3.site27, ax1.l1]`, and AX1's block holds as many paragraphs as the
-   pair's `unique` lists. Level 1's rooms sit in it. A second run counts it
-   `already`.
+1. Run AX1's places step with the AX3 places held.
+   *Observable:* `paired` counts the pairs whose AX3 place stands, and no
+   AX1 row of theirs is made. Each AX3 place keeps its own id and parent,
+   `merged` holds the AX1 id, its blocks read `[<AX3 id>, <AX1 id>]`, and
+   AX1's block holds as many paragraphs as the pair's `unique` lists. Level
+   1's rooms sit in its place. A second run counts each `already`.
 2. Run the maps step with an AX3 world copy of the place standing.
    *Observable:* the copy, under the library document's id, is restamped to
    answer `ax1.l1` and is not in `created.actors`; level 1's plan links it, and
@@ -2023,8 +2030,9 @@ compared page-side and only the boolean leaves the page.
    *Observable:* the Adventure carries the place, its parent the library's AX3
    region place; the import creates every other place it brings and leaves the
    copy held.
-4. Delete the AX3 place, run AX1's places step, then
-   `cookbookImportPoiPlaces({ books: ["ax3"], ids: ["ax3.site27"] })`.
+4. Delete each AX3 place `TAKEOVER` covers, run AX1's places step, then
+   `cookbookImportPoiPlaces({ books: ["ax3"], ids: [<their AX3 ids>] })`; on
+   the default, `ax3.site27`.
    *Observable:* the first run makes `ax1.l1` as its own place, nothing else,
    and moves its rooms onto it. The second's `paired` is 1 and `made` 0: the
    same document now stands as `ax3.site27` with the id, book, merged ids,
@@ -2043,8 +2051,9 @@ the owner's. Report each write to them.
 ## A plan is the place it draws
 
 A scene recipe that names a place (`scene.place`) is that place's plan, and
-its `places` pin the areas inside it. On AX1 every map is one: the plans of
-the two dungeon levels and of areas 18 and 24. Sections 2c and 3b of
+its `places` pin the areas inside it. On AX1 every map is one but the
+region's, which names no place: it is `ax1.region`'s map, and stands the
+fort, the first level and the sites on their hexes. Sections 2c and 3b of
 `tools/live/importer-ax1.mjs` walk it, once section 2 has put AX1's places in
 the library. The recipes in `cookbook/ax1.json` say which plan is whose and
 what each pins; nothing of the page is read to check it.
@@ -2089,12 +2098,19 @@ What a scripted walk meets:
    - every AX1 map is made, and `missing` is 0;
    - each plan's scene is linked to its place's world copy
      (`flags.acks-extras.location`) and named as that place is;
-   - its battlemap flag's `mapSystem` is `delve`;
+   - its battlemap flag's `mapSystem` is `delve`, and the region map's is
+     `journey`;
    - it stands one hidden token per pin, in the recipe's order, each the world
      copy of the area it pins;
+   - each token on the region map is within 2 px of a cell centre of the
+     scene's own grid (the walk's `pinsOnCells`, which measures from the
+     token's centre with `scene.grid.getCenterPoint`). The pins are set at
+     the drawn hexes' centres, so a larger miss is a grid that does not lie
+     on the drawn cells;
    - the world's AX1 places are exactly the plans' places, their pins and
-     every place those sit in, up to `ax1.adventure`. Each sits in the world
-     copy of the place its row names, and `ax1.adventure` in nothing. None
+     every place those sit in, up to `ax1.adventure`, or `ax1.region` for a
+     site. Each sits in the world copy of the place its row names, and
+     `ax1.adventure` and `ax1.region` in nothing. None but a pair's place
      names a library uuid;
    - the step lays every AX1 zone, and refuses none. Each level's plan carries
      its level's zone once, drawn on the Regions layer alone (a fill over
@@ -2105,12 +2121,16 @@ What a scripted walk meets:
    - framed on its first pin, relit and tinted, each level's plan shows a red
      pin on the key its page prints. An entry keyed to a range of numbers pins
      its first key, and a lettered cell with no entry of its own carries none.
+     The region map, framed the same way at half scale, shows each pin in the
+     middle of its hex, and the drawn hex lines under the scene's grid.
 2. Run the prune dry.
    *Observable:* its `doomed` holds none of AX1's world places, though a
    section holds no goods, roster or token. It holds both empty fixtures.
 3. Run the Adventure step, so the Adventure carries the plans as they now
    stand. Then delete every world AX1 place and every plan but the one with
-   fewest pins, open AX1's Adventure from the library, and press its sheet's
+   fewest pins among those that stand any, so the check on its pins can
+   fail. Open
+   AX1's Adventure from the library, and press its sheet's
    **Import**. Read what was created from core's `importAdventure` hook.
    *Observable:*
    - the Adventure carries each plan with a token per pin, and each level's

@@ -355,6 +355,13 @@ export function gridProblems(grid, crop = null) {
 }
 
 /**
+ * Whether a recipe is a region's map: built on a grid of drawn cells, with no
+ * quarters, and naming no place of its own. A plan names the place it draws,
+ * and a dungeon's plan is drawn on a grid too.
+ */
+export const isRegionRecipe = (recipe) => !!recipe?.grid && !recipe.districts?.length && !recipe.place;
+
+/**
  * Everything wrong with a recipe, as sentences; empty when it holds together.
  *
  * Asked by the compiler, the lint and the verifier over `recipeContext` of a
@@ -365,7 +372,9 @@ export function gridProblems(grid, crop = null) {
  * neighbour's; a map with no quarters has none to check. A place is a keyed
  * point of interest, a region site, or a key space's keyed area; a map that
  * names the place it is (`place`) holds only areas inside that place, so a
- * room set down on the wrong level's plan is refused. `feetPerPoint` is
+ * room set down on the wrong level's plan is refused. A key space itself
+ * stands only on a map that names no place: on a plan it is the map, or
+ * holds it. `feetPerPoint` is
  * required only of a recipe with no `grid`. A `walls` block is held to
  * `wallsProblems`, the corrections cap included.
  *
@@ -437,7 +446,7 @@ export function recipeProblems(recipe, entries = {}) {
   (Array.isArray(recipe.places) ? recipe.places : []).forEach((p, i) => {
     const where = `places[${i}]`;
     const entry = entries[p?.id];
-    const area = isKeyedPlace(entry, p?.id, spaces) && !spaces.has(p?.id);
+    const area = isKeyedPlace(entry, p?.id, spaces) && (!spaces.has(p?.id) || place === undefined);
     const keyed = !!entry && ((isPoiEntry(entry) && poiGroupOf(entry.meta.group).kind !== "overview") || isRegionSite(entry) || area);
     if (!keyed) return void out.push(`${where}.id "${p?.id}" is not a keyed place of this book`);
     if (seenPlaces.has(p.id)) return void out.push(`${where}.id "${p.id}" is placed twice`);

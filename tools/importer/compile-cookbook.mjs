@@ -2371,9 +2371,7 @@ const AX_RUNIN_KEY = /^\s*(\d+(?:[A-Za-z]\s*[-â€“]\s*[A-Za-z]|[A-Za-z]?(?:\s*[-â
  */
 export function axKeyLines(pd, cols) {
   const lines = axRuninLines(pd, cols);
-  const chars = new Map();
-  for (const it of pd.items) if (axBody(pd, it)) chars.set(it.alias, (chars.get(it.alias) ?? 0) + it.str.length);
-  const bodyFace = [...chars].sort((a, b) => b[1] - a[1])[0]?.[0];
+  const bodyFace = axBodyFace(pd);
   const headOf = (items, face) => {
     let end = -1;
     for (let i = 0; i < items.length; i++) {
@@ -2403,6 +2401,51 @@ export function axKeyLines(pd, cols) {
   return out;
 }
 
+/** The face that sets the most characters of a page's body type. */
+function axBodyFace(pd) {
+  const chars = new Map();
+  for (const it of pd.items) if (axBody(pd, it)) chars.set(it.alias, (chars.get(it.alias) ?? 0) + it.str.length);
+  return [...chars].sort((a, b) => b[1] - a[1])[0]?.[0];
+}
+
+/**
+ * Every line of a page that opens with a run-in title closed by a colon: its
+ * leading runs, each in a face other than the body face, through the first
+ * that ends in a colon. A ligature the title is set with is a run of a face of
+ * its own and is part of the title; a body-face run before the colon means the
+ * line opens with prose.
+ * @returns {{line: object, col: number, head: object[]}[]}
+ */
+function axRuninHeads(pd, cols) {
+  const bodyFace = axBodyFace(pd);
+  const out = [];
+  for (const { line, col } of axRuninLines(pd, cols)) {
+    const end = line.items.findIndex((it) => it.alias === bodyFace || /:\s*$/.test(it.str));
+    if (end < 0 || line.items[end].alias === bodyFace) continue;
+    out.push({ line, col, head: line.items.slice(0, end + 1) });
+  }
+  return out;
+}
+
+/** A run-in heading's box: from its line's start to its last run's origin, so the prose set on after it stays out. */
+function axHeadBox(line, head) {
+  return { x0: line.x0 - 3, x1: head[head.length - 1].x + 2, y0: line.y - 5, y1: line.y + 4 };
+}
+
+/**
+ * Every run-in title of a page with the key `anchor.hash` would find it by,
+ * read through the box it would ship. For authoring a row anchored by hash on
+ * a title its prose runs on from; it prints no word of a title.
+ * @returns {{y: number, x0: number, col: number, hash: string}[]}
+ */
+export function axRuninHeadKeys(pd, assists = {}) {
+  const cols = axColumns(pd, assists);
+  return axRuninHeads(pd, cols).map((h) => {
+    const instr = withFixes({ box: axHeadBox(h.line, h.head) }, pd);
+    return { y: h.line.y, x0: h.line.x0, col: h.col, hash: printKey(joinRuns(runsIn(pd, instr), instr.fixes)) };
+  });
+}
+
 /**
  * The anchor of a row keyed by a run-in number (`anchor: {number, as:
  * "runin"}`): the one key line of its page that opens with the number. The
@@ -2417,10 +2460,9 @@ function axOpenRuninKey(entry, page, pd, cols) {
   if (hits.length !== 1) throw new Error(`${hits.length} run-in keys numbered "${number}" on p.${page}`);
   const k = hits[0];
   if (!k.colon) throw new Error(`run-in key "${number}" on p.${page} sets no colon after its heading`);
-  const boxOf = (line, head) => ({ x0: line.x0 - 3, x1: head[head.length - 1].x + 2, y0: line.y - 5, y1: line.y + 4 });
   const name = k.wrap
-    ? { op: "heading", page, parts: [withFixes({ box: boxOf(k.line, k.head) }, pd), withFixes({ box: boxOf(k.wrap.line, k.wrap.head) }, pd)], number }
-    : withFixes({ op: "heading", page, box: boxOf(k.line, k.head), number }, pd);
+    ? { op: "heading", page, parts: [withFixes({ box: axHeadBox(k.line, k.head) }, pd), withFixes({ box: axHeadBox(k.wrap.line, k.wrap.head) }, pd)], number }
+    : withFixes({ op: "heading", page, box: axHeadBox(k.line, k.head), number }, pd);
   const read = (name.parts ?? [name])
     .map((p) => joinRuns(runsIn(pd, p), p.fixes))
     .join(" ")
@@ -2468,7 +2510,9 @@ export function axHeadingKeys(pd, assists = {}) {
  * opens with. `anchor.hash` finds a name the row may not spell: every candidate
  * line of its sort (`as`: "display" or "runin") is boxed the way it would ship
  * and the one whose box READS BACK to the key is the anchor, so what is located
- * here is by construction what the executor checks. `anchor.display` /
+ * here is by construction what the executor checks; where no whole run-in line
+ * answers, a title closed by a colon with prose set on after it is boxed by
+ * its head. `anchor.display` /
  * `anchor.runin` compare words, for the headings that are nobody's name. */
 export async function axOpen(doc, entry) {
   const assists = entry.assists ?? {};
@@ -2500,6 +2544,17 @@ export async function axOpen(doc, entry) {
       a = c;
       // Small capitals extract as a scatter of case; whoever sets the name is
       // told here, where the line can be seen, that its case carries nothing.
+      name = caseCarriesNothing(read) ? { ...instr, caps: true } : instr;
+      break;
+    }
+    // A run-in title its prose runs on from is boxed by its head, as a numbered
+    // key's is (`axOpenRuninKey`): the whole line reads the prose with it. The
+    // flow starts on the title's own line and `head` drops the title's runs.
+    for (const h of runin && !a ? axRuninHeads(pd, cols) : []) {
+      const instr = withFixes({ op: "heading", page, box: axHeadBox(h.line, h.head), hash }, pd);
+      const read = readOf(instr);
+      if (printKey(read) !== hash) continue;
+      a = { line: h.line, col: h.col, endY: h.line.y - 6, x1: h.head[h.head.length - 1].x, head: new Set(h.head) };
       name = caseCarriesNothing(read) ? { ...instr, caps: true } : instr;
       break;
     }
@@ -2560,7 +2615,11 @@ async function compileLocation(doc, entry, kindRow, bookCtx) {
   const { assists, page, pd, cols, a, name } = await axOpen(doc, entry);
   const fields = { name };
   const container = entry.meta?.space ?? (bookCtx?.spaces?.has(entry.id) ? entry.id : undefined);
-  const stops = container === undefined ? [] : (bookCtx?.keyedStops ?? []).filter((s) => s.container === container && s.id !== entry.id);
+  // A place under a run-in title outside any space stops where the next of its
+  // group opens, as a keyed area stops at the next of its space.
+  const stops = container !== undefined
+    ? (bookCtx?.keyedStops ?? []).filter((s) => s.container === container && s.id !== entry.id)
+    : a.head ? (bookCtx?.titleStops ?? []).filter((s) => s.group === entry.meta?.group && s.id !== entry.id) : [];
   const segs = await axFlow(
     doc, entry, assists,
     { page, pd, cols, col: a.col, endY: a.endY },
@@ -6103,6 +6162,15 @@ async function main() {
       const opened = await axOpen(doc, e).catch(() => null);
       if (opened) keyedStops.push({ id: e.id, container, page: opened.page, y: opened.a.line.y, x0: opened.a.line.x0 });
     }
+    // Where each place under a run-in title outside any space opens, its group
+    // beside it, for the same reason (see compileLocation).
+    const titleStops = [];
+    for (const e of list) {
+      if (e.kind !== "kind.location" || (e.status && e.status !== "active")) continue;
+      if (e.anchor?.hash == null || e.anchor.as !== "runin" || e.meta?.space !== undefined || spaces.has(e.id)) continue;
+      const opened = await axOpen(doc, e).catch(() => null);
+      if (opened?.a.head) titleStops.push({ id: e.id, group: e.meta?.group, page: opened.page, y: opened.a.line.y, x0: opened.a.line.x0 });
+    }
     // Where each of the book's items opens, for the same reason (see
     // compileAdventureItem).
     const itemStops = [];
@@ -6123,6 +6191,7 @@ async function main() {
       npcStops,
       spaces,
       keyedStops,
+      titleStops,
       itemStops,
       proseStops,
       // The template compiler reads the monster kind's stat-row map so a

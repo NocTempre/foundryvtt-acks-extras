@@ -256,8 +256,8 @@ const ax1 = JSON.parse(readFileSync(join(here, "..", "..", "cookbook", "ax1.json
 const ax1Spaces = keySpacesOf(ax1);
 const ax1Locations = Object.entries(ax1).filter(([, e]) => e.kind === "kind.location");
 ok("AX1 keys its areas in spaces", ax1Spaces.size > 0 && [...ax1Spaces].every((id) => ax1[id]?.kind === "kind.location"));
-const unkeyed = ax1Locations.filter(([id, e]) => !isKeyedPlace(e, id, ax1Spaces)).map(([id]) => id);
-check("every AX1 location row is a keyed place, so none is left to the journal step", unkeyed, []);
+const unkeyed = ax1Locations.filter(([id, e]) => !isKeyedPlace(e, id, ax1Spaces) && !isRegionSite(e) && !isRegionOverview(e)).map(([id]) => id);
+check("every AX1 location row is a keyed place or a region's row, so none is left to the journal step", unkeyed, []);
 const unparented = ax1Locations.filter(([id, e]) => {
   const parent = keyedParentId(e, "ax1");
   return parent !== "ax1.adventure" && !isKeyedPlace(ax1[parent], parent, ax1Spaces);

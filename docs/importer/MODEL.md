@@ -135,7 +135,8 @@ flag (`pixelsPerPoint`) for the zones laid later. A recipe with a grid, no
 quarters and no `place` of its own is a REGION's map (`mapIds`); a plan names
 its place and is drawn on a grid too. A region's map is the region's place
 (`regionPlaceId`), each placed site stands on the place its text was written to
-(`regionSiteClaim`), and there are no quarters to hand to organisations; the
+(`regionSiteClaim`), a keyed place on it comes with every place it sits in, as
+on a plan (`keyedAbove`), and there are no quarters to hand to organisations; the
 picture's thumbnail and the places' scene links are written as for a
 settlement, and the book's Adventure carries the map like any other. A region map whose book prints region rows waits
 (`unready`) until the region's place has been imported. Without a grid,
@@ -292,7 +293,8 @@ shape. The Region is named `Zone <n> (<book short>)` from a lang key.
 
 A region's gazetteer is not a settlement. Its rows sit under two whole group
 names (`REGION_GROUPS` in `poi-binding.mjs`): `Region — Sites` for keyed sites,
-which anchor by key number and are named `Site <n>` with the id
+which anchor by key number, or by hash where the site's title runs in (see "A
+run-in keyed area"), and are named `Site <n>` with the id
 `<book>.site<n>`, and `Region — Overview` for the region's own text, which
 anchors by hash. The quarter parse (`poiGroupOf`) never takes either, so
 nothing that reads quarters sees a region. `regionPlaceId` and
@@ -310,7 +312,8 @@ that market's record says `place: "adventure"`; a row with
 on a place of its own under the region. A bound site writes its notes, its
 parent (the region) and its role onto the place it lands on, each only where
 that place holds none (`siteBindPatch`), and never makes a second place. The
-journal step leaves region rows alone (`journalBound`).
+step lists the region's place and each place it makes for a site in its
+`created.places`. The journal step leaves region rows alone (`journalBound`).
 
 ## A body's unnamed people
 
@@ -566,6 +569,15 @@ written as `creatures.<i>`), `.count` (`countParen`) and `.stats`
 origin, the stats through the label's block, which ends at the book's
 paragraph gap.
 
+A row anchored by hash on a run-in (`{hash, as: "runin"}`) is found among
+the same page's run-in lines by the whole line's hash. Where no whole line
+answers, a title closed by a colon with prose set on after it is boxed by its
+head alone, from the line's start to the colon's run (`axRuninHeads`,
+`axHeadBox`): the head is the row's name and the flow starts on its line. A
+place row so anchored stops where the next titled row of its group opens
+(`titleStops`). `harvest-runin-keys.mjs --titles <page>` prints each head's
+hash.
+
 A space's rows are written by `tools/importer/harvest-runin-keys.mjs`, which
 walks the space's pages in reading order, writes one row per key under the
 id and label the space derives, gives each its pages through the next key's,
@@ -616,7 +628,9 @@ and reports what it rostered and made.
 A plan is the place it draws when its recipe says which (`place`): the map is
 named for that place and linked to it, where a recipe that names none is the
 book's own place's (`mapIds`). A plan of a place holds pins only for areas
-inside it, however deep (`recipeProblems`), and each pin is a hidden token of
+inside it, however deep (`recipeProblems`); a key space stands as a pin only
+on a map that names no place, as a region's map draws it among its sites.
+Each pin is a hidden token of
 the area at the point its page prints the key (`places`). A row that keys a
 range of rooms stands once, on its first key. A recipe's `travel` is the
 travel system its map declares (`mapCreateData`); a plan explored a turn at a

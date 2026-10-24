@@ -16,10 +16,15 @@
  * lines. The cookbook's own rows (cookbook/ax1.json) say what each room should
  * be; nothing of the page is read here.
  *
+ * AX1's region sites ride section 2 too: each is a place inside the region's
+ * own place, or binds onto the later book's site its pair names.
+ *
  * Section 2c walks "A plan is the place it draws": with the places in the
  * library, the maps are made again, and each plan is named for its place and
  * linked to it, is explored a turn at a time, and stands a hidden token on
- * each area it pins. Every place a pinned area sits in is in the world too,
+ * each area it pins. The region's map is the region's own place's, travelled
+ * as a journey, and each place it stands is on a cell centre of the scene's
+ * grid, which is where the drawn hex's centre is. Every place a pinned area sits in is in the world too,
  * each inside the copy of its parent, and the empty-location prune, run dry,
  * would remove none of them. Each dungeon level's plan carries its level's
  * encounter zone once, its list the level's table and its figures within the
@@ -92,7 +97,11 @@
  *     deletes the place, lets AX1's row make its own and the later row take
  *     that over, then rebuilds AX1's Adventure. The place left standing is
  *     the owner's; the later book's own Adventure still carries the deleted
- *     one, and the report says so.
+ *     one, and the report says so. Only the pairs TAKEOVER names
+ *     (comma-separated AX1 row ids, the first dungeon level's by default)
+ *     are taken over: the go-ahead covers those places and no other;
+ *   - the region's own place and the sites it holds, made by the places step
+ *     (`created.places`, tracked) under the same rule as the keyed areas.
  */
 import { readFile } from "node:fs/promises";
 import path from "node:path";
@@ -109,6 +118,7 @@ const BOOKS = books([BOOK]);
 const LEVEL = "ax1.level1Map";
 const HELD_OK = process.env.HELD_OK === "1";
 const TAKEOVER_OK = process.env.TAKEOVER_OK === "1";
+const TAKEOVER = (process.env.TAKEOVER ?? `${BOOK}.l1`).split(",").map((s) => s.trim()).filter(Boolean);
 // Ledger entries per page-side sweep call, each well inside the driver's timeout.
 const SWEEP_CHUNK = 25;
 
@@ -128,21 +138,27 @@ const COOK = COOKBOOK.entries;
 // Every map the scenes step makes for the book: its scene rows that carry a recipe.
 const MAPS = Object.entries(COOKBOOK.scenes ?? {}).filter(([, r]) => r?.scene?.crop).map(([id]) => id);
 const BOOK_PLACE = `${BOOK}.adventure`;
+const REGION_PLACE = `${BOOK}.region`;
 const SPACES = new Set(Object.values(COOK).map((e) => e?.meta?.space).filter(Boolean));
 const KEYED = Object.entries(COOK).filter(([id, e]) => e.kind === "kind.location" && (e.meta?.space || SPACES.has(id))).map(([id]) => id);
-const parentOf = (id) => COOK[id]?.meta?.parent ?? COOK[id]?.meta?.space ?? BOOK_PLACE;
+// The region's sites, by the group the importer reads (`isRegionSite`).
+const SITES = Object.entries(COOK).filter(([, e]) => e.kind === "kind.location" && e.meta?.group === "Region — Sites").map(([id]) => id);
+// Every row the places step makes a place of.
+const ROWS = [...KEYED, ...SITES];
+const parentOf = (id) => (id === REGION_PLACE ? null : SITES.includes(id) ? REGION_PLACE : COOK[id]?.meta?.parent ?? COOK[id]?.meta?.space ?? BOOK_PLACE);
 const labelsOf = (id) => new Set(Object.keys(COOK[id]?.fields ?? {}).map((k) => /^occupants\.(\d+)\.name$/.exec(k)?.[1]).filter((i) => i != null)).size;
 const PEOPLE = Object.entries(COOK).filter(([, e]) => ["kind.npc", "kind.monsterLegacy"].includes(e.kind)).map(([id]) => id);
 const LINE_ID = /^(.+)-o(\d+)$/;
-// The plans that are a place's own: each map's id, the place it draws, the areas it pins.
-const PINNED = Object.entries(COOKBOOK.scenes ?? {}).filter(([, r]) => r?.scene?.place)
-  .map(([id, r]) => ({ id, place: r.scene.place, pins: (r.scene.places ?? []).map((p) => p.id) }));
+// The maps that are a place's own: each map's id, the place it draws (a
+// plan's, or the region's for the map that names none), and the places it pins.
+const PINNED = Object.entries(COOKBOOK.scenes ?? {}).filter(([, r]) => r?.scene?.place || (r?.scene?.crop && r.scene.grid))
+  .map(([id, r]) => ({ id, place: r.scene.place ?? REGION_PLACE, region: !r.scene.place, pins: (r.scene.places ?? []).map((p) => p.id) }));
 // The book's encounter zones: each one's id, the map it lies over and its list.
 const ZONES = Object.entries(COOKBOOK.scenes ?? {}).filter(([, r]) => r?.zone).map(([id, r]) => ({ id, scene: r.zone.scene, table: r.zone.table ?? null }));
-// A place's parents, nearest first, up to the book's own.
+// A place's parents, nearest first, up to the book's own or the region's.
 const aboveOf = (id) => {
   const out = [];
-  for (let at = id; at !== BOOK_PLACE && out.length < 16;) out.push((at = parentOf(at)));
+  for (let at = id; at !== BOOK_PLACE && at !== REGION_PLACE && out.length < 16;) out.push((at = parentOf(at)));
   return out;
 };
 // Every place the plans bring into the world: theirs, their pins', and every place those sit in.
@@ -378,6 +394,22 @@ const P = {
         };
       })),
     };
+  },
+  /**
+   * A map by cookbook id: its grid type, and each token's distance in pixels
+   * from the nearest cell centre of the scene's own grid. A pin set at a drawn
+   * hex's centre stands on a cell's where the grid coincides with the drawing.
+   */
+  pinsOnCells: async ({ id }) => {
+    const s = game.scenes.find((x) => x.flags?.["acks-extras"]?.cookbook?.id === id);
+    if (!s) return null;
+    const size = s.grid.size;
+    const misses = [...s.tokens].map((t) => {
+      const c = { x: t.x + (t.width * size) / 2, y: t.y + (t.height * size) / 2 };
+      const q = s.grid.getCenterPoint(c);
+      return Math.round(Math.hypot(c.x - q.x, c.y - q.y) * 100) / 100;
+    });
+    return { type: s.grid.type, size, misses };
   },
   /** Which of these roll-table cookbook ids the world or a compendium holds. */
   tablesHeld: async ({ ids }) => {
@@ -853,7 +885,7 @@ try {
   const BOUND = new Map([...joined, ...binding].map((p) => [p.id, { ...p, ...laterBefore[p.later] }]));
   note("2: pairs", { pairs: PAIRS.length, binding: binding.map((p) => p.id), joined: joined.map((p) => p.id), made: PAIRS.filter((p) => !BOUND.has(p.id)).map((p) => p.id) });
 
-  const heldPlaces = await run(gm, P.heldPlaces, { book: BOOK, ids: [...KEYED, BOOK_PLACE] });
+  const heldPlaces = await run(gm, P.heldPlaces, { book: BOOK, ids: [...ROWS, BOOK_PLACE, REGION_PLACE] });
   const rebuildPlaces = heldPlaces.length > 0 && HELD_OK;
   check(rebuildPlaces ? "the owner's AX1 places are deleted to be made again (HELD_OK=1)" : "nothing stands under any AX1 place id",
     !heldPlaces.length || rebuildPlaces, { held: heldPlaces.length });
@@ -870,16 +902,19 @@ try {
   const under = (id) => lib.filter((r) => r.id === id);
   const one = (id) => (under(id).length === 1 ? under(id)[0] : null);
   const bookPlace = one(BOOK_PLACE);
-  const madeRows = KEYED.length - BOUND.size;
-  check("2: the step made every keyed area and key space a later book's place does not stand for, and the book's own place, joined the rest, and refused none",
-    ps.made === madeRows && (ps.created?.places?.length ?? 0) === madeRows + 1 && (ps.paired ?? 0) === binding.length && !ps.refused,
-    { made: ps.made, listed: ps.created?.places?.length ?? 0, rows: KEYED.length, paired: ps.paired, binding: binding.length, refused: ps.refused });
+  const madeRows = ROWS.filter((id) => !BOUND.has(id)).length;
+  // The book's own place and the region's are listed beside the rows' and counted with none.
+  const tops = 1 + (SITES.length ? 1 : 0);
+  check("2: the step made every keyed area, key space and site a later book's place does not stand for, the book's own place and the region's, joined the rest, and refused none",
+    ps.made === madeRows && (ps.created?.places?.length ?? 0) === madeRows + tops && (ps.paired ?? 0) === binding.length && !ps.refused,
+    { made: ps.made, listed: ps.created?.places?.length ?? 0, rows: ROWS.length, sites: SITES.length, paired: ps.paired, binding: binding.length, refused: ps.refused });
   check("2: the book's own place stands once, a place", bookPlace?.type === LOCATION);
-  check("2: every keyed area and key space is one place in the library", KEYED.every((id) => one(id)?.type === LOCATION), failing(KEYED, (id) => one(id)?.type === LOCATION));
+  if (SITES.length) check("2: the region's own place stands once, a place, in nothing", one(REGION_PLACE)?.type === LOCATION && one(REGION_PLACE).parentUuid === "");
+  check("2: every keyed area, key space and site is one place in the library", ROWS.every((id) => one(id)?.type === LOCATION), failing(ROWS, (id) => one(id)?.type === LOCATION));
   // A pair's place stays inside the place its own book put it in.
   const sitsRight = (id) => (BOUND.has(id) ? one(id)?.parentId === BOUND.get(id).parentId : !!one(id) && one(id).parentUuid === one(parentOf(id))?.uuid);
-  check("2: every place sits inside the place its row names, a key space inside the book's, a pair's place where its own book put it",
-    KEYED.every(sitsRight), failing(KEYED, sitsRight));
+  check("2: every place sits inside the place its row names, a key space inside the book's, a site inside the region's, a pair's place where its own book put it",
+    ROWS.every(sitsRight), failing(ROWS, sitsRight));
   if (BOUND.size) {
     const joinedRight = (p) => {
       const r = one(p.id);
@@ -950,7 +985,7 @@ try {
   const lib2 = await run(gm, P.placesOf, { book: BOOK });
   const now = (id) => lib2.filter((r) => r.id === id);
   const placeIn = (id) => lib2.find((r) => r.id === parentOf(id))?.uuid;
-  check("2b: a second run makes the deleted rooms alone, and finds every other place", picks.length === 2 && again.made === 2 && again.already === KEYED.length - 2 && !again.creatures,
+  check("2b: a second run makes the deleted rooms alone, and finds every other place", picks.length === 2 && again.made === 2 && again.already === ROWS.length - 2 && !again.creatures,
     { picks: picks.length, made: again.made, already: again.already, creatures: again.creatures });
   check("2b: each room stands again once, under its id, a new document, in the place its row names",
     picks.every((id) => now(id).length === 1 && now(id)[0].uuid !== was[id].uuid && now(id)[0].parentUuid === placeIn(id)));
@@ -993,11 +1028,19 @@ try {
   for (const p of PINNED) plans[p.id] = await run(gm, P.planOf, { id: p.id });
   note("2c: plans", PINNED.map((p) => ({ id: p.id, linkId: plans[p.id]?.linkId, linkWorld: plans[p.id]?.linkWorld, named: plans[p.id]?.namedForIt, mapSystem: plans[p.id]?.mapSystem, tokens: plans[p.id]?.tokens.length, pins: p.pins.length })));
   const standsItsPins = (p, plan) => !!plan && JSON.stringify(plan.tokens.map((t) => t.place)) === JSON.stringify(p.pins) && plan.tokens.every((t) => t.hidden);
-  check("2c: each plan is named for the place it draws and linked to that place's world copy",
+  check("2c: each plan is named for the place it draws and linked to that place's world copy, the region's map for the region's",
     PINNED.length === MAPS.length && PINNED.every((p) => plans[p.id]?.linkId === p.place && plans[p.id].linkWorld && plans[p.id].namedForIt));
-  check("2c: each plan is explored a turn at a time", PINNED.every((p) => plans[p.id]?.mapSystem === "delve"));
+  check("2c: each plan is explored a turn at a time, the region's map travelled as a journey",
+    PINNED.every((p) => plans[p.id]?.mapSystem === (p.region ? "journey" : "delve")), PINNED.map((p) => ({ id: p.id, mapSystem: plans[p.id]?.mapSystem })));
   check("2c: each plan stands one hidden token per pin, each the world copy of the area it pins",
     PINNED.every((p) => standsItsPins(p, plans[p.id])), PINNED.map((p) => ({ id: p.id, ok: standsItsPins(p, plans[p.id]) })));
+  // Each place a region map stands is set at its drawn hex's centre: within a
+  // couple of pixels of a cell centre, the scene's grid is the drawn one.
+  for (const p of PINNED.filter((x) => x.region)) {
+    const cells = await run(gm, P.pinsOnCells, { id: p.id });
+    check(`2c: every place on ${p.id} stands on a cell centre of its hex grid`,
+      !!cells && cells.type >= 2 && cells.misses.length === p.pins.length && cells.misses.every((d) => d <= 2), cells);
+  }
   // A zone's list is linked when the library holds its table, and blank until
   // then; its figures are read off the page and go to the log, not the check.
   const listsHeld = new Set(await run(gm, P.tablesHeld, { ids: ZONES.map((z) => z.table).filter(Boolean) }));
@@ -1016,7 +1059,7 @@ try {
   const sitsInItsParent = (places) => {
     const byId = new Map(places.map((p) => [p.id, p]));
     return (p) => {
-      if (p.id === BOOK_PLACE) return p.parentUuid === "";
+      if (p.id === BOOK_PLACE || p.id === REGION_PLACE) return p.parentUuid === "";
       if (BOUND.has(p.id)) return p.parentOwn === BOUND.get(p.id).parentId;
       return p.parentUuid === byId.get(parentOf(p.id))?.uuid;
     };
@@ -1032,7 +1075,7 @@ try {
   }
   check("2c: the world holds the places the plans bring, once each, and no other of AX1's",
     sameSet(world2c.map((p) => p.id), BROUGHT), { world: world2c.length, brought: BROUGHT.length, copied: sc?.copied });
-  check("2c: every world place sits in the world copy of the place its row names, the book's own in nothing",
+  check("2c: every world place sits in the world copy of the place its row names, the book's own and the region's in nothing",
     world2c.every(sitsInItsParent(world2c)), failing(world2c.map((p) => p.id), (id) => sitsInItsParent(world2c)(world2c.find((p) => p.id === id))));
   const dry2c = await run(gm, P.pruneDry);
   const doomedOf = (dry, places) => (dry?.doomed ?? []).filter((u) => places.some((p) => p.uuid === u)).length;
@@ -1042,11 +1085,12 @@ try {
   note("2c: fixtures", { outer: outer.uuid, inner: inner.uuid });
   const dryPair = await run(gm, P.pruneDry);
   check("2c: an empty place inside an empty one is listed with it", dryPair.doomed.includes(outer.uuid) && dryPair.doomed.includes(inner.uuid));
-  // The pins read by eye: each level's plan framed on its first pin.
-  for (const p of PINNED.filter((x) => x.pins.length > 20)) {
+  // The pins read by eye: each level's plan framed on its first pin, the
+  // region's map wide enough to show its hexes around it.
+  for (const p of PINNED.filter((x) => x.pins.length > 20 || x.region)) {
     const plan = plans[p.id];
     await run(gm, P.view, { uuid: plan.uuid });
-    const framed = await run(gm, P.frameToken, { tokenId: plan.tokens[0].id, scale: 0.8 });
+    const framed = await run(gm, P.frameToken, { tokenId: plan.tokens[0].id, scale: p.region ? 0.5 : 0.8 });
     note(`2c: ${p.id}'s first pin on the GM's canvas`, framed);
     try {
       if (framed.framed) note(`2c: shot ${p.id}`, await gm.shot(path.join(logDir(), `importer-ax1-pins-${p.id.split(".").pop()}.png`), "#board"));
@@ -1088,7 +1132,7 @@ try {
   // carry: that reference stays as the library wrote it.
   const carriedRight = (id) => carriedById.get(id)?.parentUuid === (BOUND.has(id) ? BOUND.get(id).parentUuid : inWorld(parentOf(id)));
   check("3: each carried place sits in the carried place its row names, in world form, a pair's place in its own book's, as the library holds it",
-    KEYED.every(carriedRight) && carriedById.get(BOOK_PLACE)?.parentUuid === "", failing(KEYED, carriedRight));
+    ROWS.every(carriedRight) && carriedById.get(BOOK_PLACE)?.parentUuid === "" && (!SITES.length || carriedById.get(REGION_PLACE)?.parentUuid === ""), failing(ROWS, carriedRight));
   const carriedRows = KEYED.flatMap((id) => (carriedById.get(id)?.roster ?? []).map((u) => ({ u, room: id })));
   const carriedIds = new Set(carriedActors.map((a) => `Actor.${a._id}`));
   check("3: a carried row names a carried person or creature in world form, and another book's creature where the library holds it",
@@ -1105,7 +1149,8 @@ try {
   section("3b. an Adventure import brings each plan with its rooms, inside the places they sit in");
   // The world loses its AX1 places and every plan but one; the import is what
   // brings them, and the plan it holds names its place's new copy.
-  const kept3b = PINNED.reduce((a, b) => (b.pins.length < a.pins.length ? b : a));
+  // The held plan stands pins of its own, so "still stands its pins" can fail.
+  const kept3b = PINNED.filter((p) => p.pins.length).reduce((a, b) => (b.pins.length < a.pins.length ? b : a));
   const remade3b = PINNED.filter((p) => p !== kept3b);
   const plansHeld = await run(gm, P.heldMaps, { ids: remade3b.map((p) => p.id) });
   // A pair's place in the world is the later book's copy, and stays: the
@@ -1155,8 +1200,9 @@ try {
   // Last, so every section above ran against the owner's place under its own
   // document id: deleting it gives the place a new one in either order.
   section("2d. the other order: AX1's place first, the later book's row takes it over");
-  const takeover = PAIRS.filter((p) => BOUND.has(p.id));
-  if (!takeover.length) note("2d: not reached", "no pair's later place stood in the library");
+  const takeover = PAIRS.filter((p) => BOUND.has(p.id) && TAKEOVER.includes(p.id));
+  note("2d: pairs left bound, outside TAKEOVER", PAIRS.filter((p) => BOUND.has(p.id) && !TAKEOVER.includes(p.id)).map((p) => p.id));
+  if (!takeover.length) note("2d: not reached", "no pair TAKEOVER names had its later place stand in the library");
   else if (!HELD_OK || !TAKEOVER_OK) note("2d: not run", "the later book's place is the owner's; HELD_OK=1 with TAKEOVER_OK=1 is the go-ahead to delete it");
   else {
     const laterBooks = [...new Set(takeover.map((p) => p.later.split(".")[0]))];
@@ -1183,7 +1229,7 @@ try {
       const lib = await run(gm, P.placesOf, { book: BOOK });
       return roomsOf(p).length > 0 && roomsOf(p).every((k) => lib.find((r) => r.id === k)?.parentUuid === uuid);
     };
-    for (const p of takeover) check(`2d: ${p.id}'s rooms are moved onto it`, await roomsIn(p, own[p.id]?.uuid), { rooms: roomsOf(p).length });
+    for (const p of takeover.filter((x) => roomsOf(x).length)) check(`2d: ${p.id}'s rooms are moved onto it`, await roomsIn(p, own[p.id]?.uuid), { rooms: roomsOf(p).length });
     const theirs = await step(gm, "cookbookImportPoiPlaces", [{ books: laterBooks, ids: takeover.map((p) => p.later) }], 600);
     note("2d: the later rows imported again", { made: theirs.made, already: theirs.already, paired: theirs.paired, refused: theirs.refused });
     const took = {};
@@ -1197,7 +1243,7 @@ try {
     check("2d: the later row takes AX1's place over, and it is the place the bind made: id, book, merged ids, blocks and their paragraphs, parent, name and region",
       theirs.paired === takeover.length && !theirs.made && !theirs.refused && takeover.every((p) => took[p.id]?.uuid === own[p.id]?.uuid && asBound(p)),
       takeover.map((p) => ({ id: p.id, sameDocument: took[p.id]?.uuid === own[p.id]?.uuid, asBound: asBound(p) })));
-    for (const p of takeover) check(`2d: ${p.id}'s rooms still sit in it`, await roomsIn(p, took[p.id]?.uuid));
+    for (const p of takeover.filter((x) => roomsOf(x).length)) check(`2d: ${p.id}'s rooms still sit in it`, await roomsIn(p, took[p.id]?.uuid));
     const again2d = await step(gm, "cookbookImportPoiPlaces", [{ books: [BOOK] }], 900);
     check("2d: AX1's places step run again finds every place held", !again2d.made && !again2d.paired && !again2d.refused, { made: again2d.made, paired: again2d.paired, refused: again2d.refused });
     for (const p of takeover) {

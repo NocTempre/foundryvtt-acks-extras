@@ -1144,6 +1144,15 @@ What each book still owes, in the order it is worth doing:
 - **A pair's parent in the earlier book's Adventure.** The place is carried
   with its parent in library form, so importing that Adventure into a world
   without the later book's places gives the place a library parent.
+- **AX1's region encounter area as a zone.** The region map stands its
+  places, but the area the book keys its wilderness encounters to is no
+  zone over it yet, and neither is AX3's over its own region map.
+- **A region place that holds nothing.** The places step makes a book's
+  region place whenever its region rows import, so a book whose every site
+  pairs onto another book's gets a region place holding only its map.
+- **One AX3 site's paragraph split at a column turn** (`ax3.site35`). Its
+  block breaks mid-sentence where the column turns; AX1's pair keeps none of
+  its own paragraphs, so the place reads AX3's text as split.
 
 ## The OSR Catgirl: what the first cut leaves
 
