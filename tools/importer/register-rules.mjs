@@ -1,11 +1,12 @@
 /**
  * Register rules over an adventure's rows that a suite can feed invented rows:
  * key spaces and parents, the pairing of a place two books print, revisions,
- * the kinds labelled by ordinal, and the shape of a scene link.
- * `lint-register.mjs` reports what they return. Each returns a list of
- * problems, every one opening with the row's id, and never throws.
+ * the kinds labelled by ordinal, the shape of a scene link, and a book's one
+ * region map. `lint-register.mjs` reports what they return. Each returns a
+ * list of problems, every one opening with the row's id, and never throws.
  */
 import { laterBook } from "../../scripts/importer/books.mjs";
+import { isRegionRecipe } from "../../scripts/importer/scene-binding.mjs";
 
 /** A row id of some book: `ax1.fort9a`. */
 const ROW_ID = /^[a-z][a-z0-9]{1,3}\.[A-Za-z0-9-]+$/;
@@ -225,6 +226,24 @@ const LINK_KEYS = new Set(["mode", "ends", "both", "confirm", "note"]);
 const END_KEYS = new Set(["scene", "box", "level", "note"]);
 /** How a link moves a token: to another scene, or to another level of one. */
 export const LINK_MODES = Object.freeze(["teleport", "level"]);
+
+/**
+ * A book's region maps (`isRegionRecipe`) among every row (`rows`: id -> row):
+ * one at most. A grid plan that names no place reads as the region's map and
+ * would stand on the region's place, so a second is a plan missing its
+ * `place`.
+ */
+export function regionMapProblems(rows) {
+  const out = [];
+  const first = new Map(); // book -> the first region map's id
+  for (const r of rows.values()) {
+    if (r?.kind !== "kind.scene" || !isRegionRecipe(r.scene)) continue;
+    const book = r.book ?? bookOf(r.id);
+    if (!first.has(book)) first.set(book, r.id);
+    else out.push(`${r.id}: a grid map that names no place is ${book}'s region map, and ${first.get(book)} already is one; a plan names the place it draws (scene.place)`);
+  }
+  return out;
+}
 
 /**
  * A scene link's block, against every row (`rows`: id -> row). Each end names

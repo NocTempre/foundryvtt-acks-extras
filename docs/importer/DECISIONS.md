@@ -7845,6 +7845,26 @@ would leave two.
 *Cost:* a book registered later is ordered by its year, with no census of
 its own. A census over its equipment rows says whether it changes a winner.
 
+## 2026-10-24 — A book holds one region map, and the register lint checks it
+
+The walls slice's three building plans (pp.16, 22, 24) arrived as grid
+recipes naming no place, so each read as AX1's region map: a plan of one
+building standing on the region's place under journey travel, beside the map
+"AX1's sites are places in its region" stands there. "A plan is the place it
+draws" had ruled this shape out, and it recurred.
+
+**Ruled.**
+- **The register lint refuses a second region map in one book**
+  (`regionMapProblems`). The first placeless grid recipe a book holds is its
+  region map. Any other is named with the one it collides with, and the fix
+  the message gives is the plan's `scene.place`.
+- The three plans name their buildings and take delve travel.
+
+*Rejected:* refusing every placeless grid recipe. A region map is one.
+
+*Cost:* a book that prints two region maps cannot register the second until
+a region map can name its region.
+
 ## 2026-10-24 — AX1's sites are places in its region, and its region map stands them on their hexes
 
 AX1 prints six sites around the fort on its region page (p.66) and draws

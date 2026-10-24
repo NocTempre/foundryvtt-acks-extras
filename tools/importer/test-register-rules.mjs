@@ -1,7 +1,7 @@
 /** The register rules between an adventure's rows, fed invented rows. No PDFs, no Foundry. */
 import assert from "node:assert";
 import {
-  KEY_NUMBER, bareKey, ordinalProblems, pairProblems, rowMetaProblems, sceneLinkProblems, siteProblems, spaceKeyed, spaceProblems,
+  KEY_NUMBER, bareKey, ordinalProblems, pairProblems, regionMapProblems, rowMetaProblems, sceneLinkProblems, siteProblems, spaceKeyed, spaceProblems,
 } from "./register-rules.mjs";
 
 let pass = 0;
@@ -132,5 +132,17 @@ flags("a level on a scene without levels", sceneLinkProblems(link({ mode: "telep
 flags("a level link across scenes", sceneLinkProblems(link({ mode: "level", ends: [{ scene: "ax1.fort9Map", box, level: 0 }, { scene: "ax1.fortMap", box }] }), scenes), /levels of one scene/);
 flags("a level link onto one level", sceneLinkProblems(link({ mode: "level", ends: [{ scene: "ax1.fort9Map", box, level: 1 }, { scene: "ax1.fort9Map", box, level: 1 }] }), scenes), /different level/);
 flags("a confirm that is not a flag", sceneLinkProblems(link({ mode: "teleport", confirm: "yes", ends: [{ scene: "ax1.fortMap", box }, { scene: "ax1.level1Map", box }] }), scenes), /confirm is true or false/);
+
+/* --- a book's one region map --- */
+
+const grid = { family: "hexCols", box: { w: 2, h: 2 }, centre: [1, 1], distance: 6, units: "mi" };
+const mapRow = (id, s) => ({ id, book: id.split(".")[0], kind: "kind.scene", scene: { crop: box, ...s } });
+none("one region map beside plans, quarters and another book's region map", regionMapProblems(rowsOf(
+  mapRow("ax1.regionMap", { grid }), mapRow("ax1.fort19Map", { grid, place: "ax1.fort19" }), mapRow("ax1.fortMap", {}),
+  mapRow("ax1.cityMap", { grid, districts: [{ place: "ax1.p1" }] }), mapRow("ax3.regionMap", { grid }))));
+flags("a grid plan that names no place beside the region map", regionMapProblems(rowsOf(mapRow("ax1.regionMap", { grid }), mapRow("ax1.fort19Map", { grid }))),
+  /ax1\.fort19Map: .*ax1's region map, and ax1\.regionMap already is one/);
+flags("two grid plans that name no place, with no region map", regionMapProblems(rowsOf(mapRow("ax1.fort19Map", { grid }), mapRow("ax1.fort20Map", { grid }))),
+  /ax1\.fort20Map: .*names the place it draws/);
 
 console.log(`test-register-rules: all ${pass} checks passed`);

@@ -8,6 +8,8 @@
     "scene": {
       "note": "Page points, top-left origin: the crop is the plan in its frame; the grid block is one drawn square; the distance is that square against the entrance's printed width (area 19). Walls trace the dark strokes; a drawn box is a door. Lines: the outer wall where windows break it; the entrance as two leaves; a wall read as a door up north; the west divider, read as doors, one dropped. A rect: the dais.",
       "crop": { "x": 245, "y": 84, "w": 314, "h": 302 },
+      "place": "ax1.fort19",
+      "travel": "delve",
       "grid": {
         "family": "square",
         "box": { "w": 18.4541, "h": 18.4757 },

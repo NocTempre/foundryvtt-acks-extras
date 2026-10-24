@@ -357,7 +357,8 @@ export function gridProblems(grid, crop = null) {
 /**
  * Whether a recipe is a region's map: built on a grid of drawn cells, with no
  * quarters, and naming no place of its own. A plan names the place it draws,
- * and a dungeon's plan is drawn on a grid too.
+ * and a dungeon's plan is drawn on a grid too, so a book holds one region map
+ * at most (the register lint's `regionMapProblems`).
  */
 export const isRegionRecipe = (recipe) => !!recipe?.grid && !recipe.districts?.length && !recipe.place;
 

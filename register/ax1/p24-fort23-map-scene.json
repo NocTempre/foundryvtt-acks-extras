@@ -8,6 +8,8 @@
     "scene": {
       "note": "Page points, top-left origin: the crop is the plan in its frame; the grid block is one drawn square; the distance is that square against the building's printed size (area 23). Walls trace the dark strokes; a drawn box is a door. Lines: the outer wall where slits break it, restating the top's window boxes; the corner door at the foot; the hall wall by its side room, closed above that room's door.",
       "crop": { "x": 326, "y": 78, "w": 215.5, "h": 332 },
+      "place": "ax1.fort23",
+      "travel": "delve",
       "grid": {
         "family": "square",
         "box": { "w": 17.9959, "h": 18.0018 },

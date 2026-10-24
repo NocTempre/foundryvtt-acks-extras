@@ -19,7 +19,8 @@ import { wallsProblems, wallsWarnings } from "../../scripts/importer/wall-trace.
 import { ABILITY_CATEGORIES, TRAVEL_MODES } from "../../scripts/lib/vocab.mjs";
 import { FACTION_KINDS, RELATION_STANCES } from "../../scripts/factions/constants.mjs";
 import {
-  KEY_NUMBER, ORDINAL_KINDS, bareKey, ordinalProblems, pairProblems, rowMetaProblems, sceneLinkProblems, siteProblems, spaceProblems,
+  KEY_NUMBER, ORDINAL_KINDS, bareKey, ordinalProblems, pairProblems, regionMapProblems, rowMetaProblems, sceneLinkProblems, siteProblems,
+  spaceProblems,
 } from "./register-rules.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -600,9 +601,10 @@ for (const { id, scene, table } of zoneRows) {
   else if (table !== undefined && !rowShapes.has(table)) err(`${id}: zone.table names "${table}", which no row defines`);
 }
 
-/* --- between rows: key spaces and parents, pairs across books, scene links --- */
+/* --- between rows: key spaces and parents, pairs across books, scene links, a book's region map --- */
 for (const problem of spaceProblems(allRows)) err(problem);
 for (const problem of pairProblems(allRows)) err(problem);
+for (const problem of regionMapProblems(allRows)) err(problem);
 for (const e of linkRows) for (const problem of sceneLinkProblems(e, allRows)) err(problem);
 
 /* --- reference registers --- */

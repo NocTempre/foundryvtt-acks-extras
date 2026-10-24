@@ -31818,6 +31818,8 @@
           "w": 314,
           "h": 302
         },
+        "place": "ax1.fort19",
+        "travel": "delve",
         "grid": {
           "family": "square",
           "box": {
@@ -31967,6 +31969,8 @@
           "w": 198,
           "h": 336
         },
+        "place": "ax1.fort20",
+        "travel": "delve",
         "grid": {
           "family": "square",
           "box": {
@@ -32073,6 +32077,8 @@
           "w": 215.5,
           "h": 332
         },
+        "place": "ax1.fort23",
+        "travel": "delve",
         "grid": {
           "family": "square",
           "box": {
