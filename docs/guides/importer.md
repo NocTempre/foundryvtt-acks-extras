@@ -402,9 +402,12 @@ organisation the quarters it controls.
 Some adventure maps are walled as they import. The maps step reads the plan
 off your own copy of the page and draws its walls, doors, secret doors,
 terrain walls and invisible walls (which stop movement and let sight through,
-like bars). The scene turns token vision on, so a token sees its room and
-nothing past the walls. A map already in your world is never re-drawn; to
-draw it again, delete the scene and run the step again.
+like bars). The scene is dark and turns token vision on, so a token sees what
+its own torch or lantern, or its party's, lights, and nothing past the walls.
+A creature that sees in the dark sees its own range too. Each player keeps
+the squares their tokens have explored. A map already in your world is never
+re-drawn. To draw it again, with these settings, delete the scene and run the
+step again.
 
 ### A book's passages, as journal pages
 

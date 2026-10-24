@@ -1133,9 +1133,3 @@ than on authoring:
   tier's cost line as a value with the tier's power, the history as its
   description. A content kind end to end — row, compiler, binding — rather
   than a row for a kind that exists.
-- **A book's journals in its Adventure.** The Essays and the Tavern stand on
-  the Judge's JournalEntry shelf and the book's Adventure carries none of
-  them: `bookDocuments` takes a document whose stamp names a row, and a
-  journal's names its group (its pages carry the rows). True of every book's
-  journals, a keyed-room journal included; the fix is a stamp or a second
-  gather, decided for the family rather than per book.

@@ -25,7 +25,7 @@ import {
   ADVENTURE_KINDS, BOOK_ADVENTURE_KIND, SETTLEMENT_ADVENTURE_KIND, adventureCookbookId, stableDocId,
   settlementAdventureId, bookAdventureCookbookId, bookAdventureId, refsOf, adventureRefs, withWorldIds, linkFields,
   seatsLeft, isRoot, isShelvedKind, fillPlan, includedKeys, applyFill, adventureFolderSources, withoutStats,
-  sourcesHashOf, WRITE_SLACK_MS, bookAdventureState, legacyAdventuresOf,
+  sourcesHashOf, WRITE_SLACK_MS, bookAdventureState, legacyAdventuresOf, journalCookbookId,
 } from "../../scripts/importer/adventure-binding.mjs";
 
 let failed = 0;
@@ -177,6 +177,11 @@ const sourceWorld = (drop = []) => ({
   check("a book's Adventure keeps the book first", bookAdventureCookbookId("zz"), "zz.book");
   check("a book's Adventure's id is its cookbook id's", bookAdventureId("zz"), stableDocId("zz.book"));
   ok("two books, two Adventures", bookAdventureId("zz") !== bookAdventureId("yy"));
+  const journal = journalCookbookId("zz", "B. Lower Vaults");
+  ok("a journal's id keeps the book first and carries none of the group's words",
+    journal.startsWith("zz.journal-") && !/Lower|Vaults/.test(journal), journal);
+  check("a journal's id is the same every time", journalCookbookId("zz", "B. Lower Vaults"), journal);
+  ok("two groups, two journals", journalCookbookId("zz", "C. Upper Vaults") !== journal);
   check("both kinds are steered, the retired one included", ADVENTURE_KINDS, [BOOK_ADVENTURE_KIND, SETTLEMENT_ADVENTURE_KIND]);
   ok("the kinds are cookbook kinds", ADVENTURE_KINDS.every((x) => x.startsWith("kind.")));
 }

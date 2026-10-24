@@ -70,6 +70,7 @@ import { ensureLibraryPack } from "../lib/library-target.mjs";
 import {
   ADVENTURE_TYPE, BOOK_ADVENTURE_KIND, adventureCookbookId, bookAdventureCookbookId, bookAdventureId, withWorldIds,
   adventureRefs, linkFields, seatsLeft, adventureFolderSources, sourcesHashOf, bookAdventureState, legacyAdventuresOf, stableDocId,
+  journalCookbookId,
 } from "./adventure-binding.mjs";
 import { ALIGN_WORD, sheetValuesFromStatline, asPrintedBlock, playerOwned } from "./character-binding.mjs";
 import { ensureSceneThumb } from "./book-adventure.mjs";
@@ -3760,18 +3761,21 @@ export async function cookbookImportJournals({ books = null } = {}) {
       const journalPack = await packFor("JournalEntry", lineOf(bookId));
       const journals = journalPack ? await game.packs.get(journalPack).getDocuments() : [...game.journal];
       for (const [group, list] of groups) {
+        // The cookbook id is what a book's Adventure carries a document by.
+        const journalId = journalCookbookId(bookId, group);
         let journal = journals.find((j) => j.getFlag(MODULE_ID, "cookbook")?.group === group && j.getFlag(MODULE_ID, "cookbook")?.book === bookId);
         if (journal) {
-          // Re-file (and re-title) a journal made by an earlier release.
+          // Re-file, re-title and stamp a journal made by an earlier release.
           const move = {};
           if (journal.name !== group) move.name = group;
           if ((journal.folder?.id ?? null) !== folder.id) move.folder = folder.id;
+          if (journal.getFlag(MODULE_ID, "cookbook")?.id !== journalId) move[`flags.${MODULE_ID}.cookbook.id`] = journalId;
           if (Object.keys(move).length) await journal.update(move);
         } else {
           journal = await createDoc(JournalEntry, {
             name: group,
             folder: folder.id,
-            flags: { [MODULE_ID]: { cookbook: { book: bookId, group } } },
+            flags: { [MODULE_ID]: { cookbook: { id: journalId, book: bookId, group } } },
           });
           if (journal?.uuid) created.journals.push(journal.uuid);
         }

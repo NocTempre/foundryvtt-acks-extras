@@ -1980,7 +1980,8 @@ connected and the map step already run, so the world holds AX3's maps. Step 9
 also needs the Player seat. The Adventure sheet's own **Import** button is
 the real trigger for steps 6 to 8. A scripted `adventure.import()` proves the
 hook and not the sheet, so script it only to read back.
-`tools/live/importer-adventure.mjs` walks it.
+`tools/live/importer-adventure.mjs` walks it. `tools/live/importer-ax1.mjs`
+walks the journals case on AX1, whose keyed areas are one journal.
 
 What a scripted walk meets:
 
@@ -2058,6 +2059,8 @@ it by that collection id, and only if its index is empty by then.
      null;
    - every carried document has `ownership.default === 0`;
    - the fixture Item is in `o.items`;
+   - every journal the book's import made is in `o.journal`, its
+     `cookbook.id` the one `journalCookbookId` gives its group;
    - every folder a carried document names is in `o.folders`;
    - after a reload, `o.actors.length` still equals the count. Core empties
      an Adventure's actors silently when its pack lacks `metadata.system`.
@@ -2341,7 +2344,15 @@ block what walls block.
    - every plain wall's and door's senses are 20/20/20/20, every terrain
      wall's light, sight and sound 10 and move 20, every invisible wall's
      light, sight and sound 0 and move 20, and every `levels` empty;
-   - `tokenVision` is true and global light is enabled.
+   - `tokenVision` is true, `fog.mode` is 1 (each user's own), darkness is
+     1 and global light is disabled. From the **Player** seat, a token of
+     the player's carrying a lit light shows its radius, and the dungeon
+     past it is black. A token with no light and no dark sense shows
+     nothing. Squares the token has seen stay explored after it moves on.
+     The GM seat sees every square whatever the fields say, so this step is
+     the Player's. `tools/live/importer-ax1.mjs` walks it on both of AX1's
+     levels: `canvas.visibility.testVisibility` reads the lit and unlit
+     squares and `canvas.fog.isPointExplored` the explored one.
 
    Compare the digest with an offline run of the same recipe on a
    reproduction of the importer's render: pdf.js' legacy build on

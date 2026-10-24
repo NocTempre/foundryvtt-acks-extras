@@ -547,9 +547,14 @@ ok("a render of the wrong size is not traced", /stated size/.test(threw));
 
   const level = { id: "levelAAAAAAAAAAA", name: "Level" };
   const walled = sceneData({ id: "zz1.map", book: "zz1", name: "Map", recipe, src: "a.webp", level, walls: rows, pixelsPerPoint: 10 });
-  check("a walled map turns vision on under global light", [walled.tokenVision, walled.environment?.globalLight?.enabled, walled.walls.length], [true, true, 1]);
+  check("a walled map is dark, seen by token vision, its fog each user's own",
+    [walled.tokenVision, walled.fog, walled.environment, walled.walls.length],
+    [true, { mode: 1 }, { darknessLevel: 1, globalLight: { enabled: false } }, 1]);
+  const again = sceneData({ id: "zz1.map", book: "zz1", name: "Map", recipe, src: "a.webp", level, walls: rows, pixelsPerPoint: 10 });
+  again.environment.darknessLevel = 0;
+  ok("each walled map gets its own copy of the sight fields", walled.environment.darknessLevel === 1);
   const bare = sceneData({ id: "zz1.map", book: "zz1", name: "Map", recipe, src: "a.webp", level, pixelsPerPoint: 10 });
-  check("a map without walls keeps sight off and states no light", [bare.tokenVision, bare.environment, bare.walls], [false, undefined, []]);
+  check("a map without walls keeps sight off and states no light", [bare.tokenVision, bare.fog, bare.environment, bare.walls], [false, { mode: 0 }, undefined, []]);
 
   const first = withWorldIds({ walls: [{ c: [0, 0, 100, 0], door: 0 }, { c: [0, 0, 100, 0], door: 0 }] }, null, "zz1.adventure");
   const ids = first.walls.map((w) => w._id);

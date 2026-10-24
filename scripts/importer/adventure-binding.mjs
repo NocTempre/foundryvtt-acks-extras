@@ -60,6 +60,13 @@ export const bookAdventureCookbookId = (book) => `${book}.book`;
 /** A book's Adventure's id. */
 export const bookAdventureId = (book) => stableDocId(bookAdventureCookbookId(book));
 
+/**
+ * A book journal's cookbook id. One journal holds a group's pages, and no
+ * register row names it. A group can be a printed heading, so the id carries
+ * a hash of it, never the words.
+ */
+export const journalCookbookId = (book, group) => `${book}.journal-${hash36(String(group))}`;
+
 /** Actor fields holding one uuid. */
 const ACTOR_UUIDS = ["parentUuid", "seatUuid", "leaderUuid", "sceneUuid", "regionUuid"];
 /** Actor row lists, and the uuid fields of each row. */

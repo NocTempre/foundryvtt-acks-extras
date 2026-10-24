@@ -37,11 +37,13 @@ writes one Adventure per open Judge's book to its line's Adventure shelf
 (`ensureBookAdventure`), under `bookAdventureId(book)` and the kind
 `kind.bookAdventure`. `bookAdventureSource` assembles it:
 
-- every Actor, RollTable and Item whose stamp names the book and a row
-  (`bookDocuments`): the library's copy under the id of its world twin where
-  the world holds one, else the world's own, the only source there is. A
-  journal's stamp names its group and its pages name the rows, so no journal
-  rides (ROADMAP, "A book's journals in its Adventure");
+- every Actor, RollTable, JournalEntry and Item whose stamp names the book
+  and an id (`bookDocuments`): the library's copy under the id of its world
+  twin where the world holds one, else the world's own, the only source there
+  is. A journal holds a group's pages, and no row names it, so the journals
+  step stamps it `journalCookbookId(book, group)`, a hash of the group and
+  never its words. A journal from before the stamp takes it on the step's
+  next run;
 - every map of the book, by page, rebuilt from its recipe over stand-ins for
   those documents (`mapCreateData`, a grid recipe through `gridScenePlan` as
   the map step builds it), under the world scene's ids (`withWorldIds`), with
@@ -210,7 +212,8 @@ and drops zero-length ones. A terrain segment takes core's Terrain wall
 senses (`TERRAIN_SENSES`): it blocks movement, and a sense stops at the
 second terrain wall it crosses. An invisible segment takes core's Invisible
 wall senses (`INVISIBLE_SENSES`): it blocks movement alone. The walls ride the scene's create
-(`sceneData`), and a walled scene turns on token vision under global light. A
+(`sceneData`), and a walled scene is dark: token vision on, each user's own
+explored fog, darkness 1 and no global light (`WALLED_SIGHT`). A
 trace that cannot run leaves the map without walls and counts it
 (`wallsFailed`). A held map is never re-traced.
 

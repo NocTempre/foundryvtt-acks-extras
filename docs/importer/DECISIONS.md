@@ -7314,6 +7314,45 @@ id: one changed uuid, not one per rebuild. An entry whose line changed is
 written to another shelf, and its uuid changes with the pack whatever its id.
 The live record is the typography walk's step 1a.
 
+## 2026-10-24 — A walled map is dark, and its tokens see by their own light
+
+**New evidence.** The user, running AX1 on 11.6.0, reported that the
+dungeon maps' vision "was not setup properly". The 2026-10-17 entry ("Walls
+are traced at import from the Judge's own page") lit a walled map with
+global light and left fog exploration off. Under global light every square in
+a token's line of sight is visible at any distance. That makes the carried
+lights and the senses the module puts on a token (`lib/light.mjs`,
+`lib/perception.mjs`, docs/lib/MODEL.md "Perception") inert on exactly the
+maps they exist for. A scene at darkness 0 also reads as day to the
+formation, so a party underground was never in the dark the rules ask about.
+With fog off, what a player had seen went black again behind them.
+
+**Ruled.** A walled map's scene states (`scene-binding.mjs:WALLED_SIGHT`):
+
+- token vision on;
+- fog exploration INDIVIDUAL, so each user keeps what their tokens have seen;
+- darkness 1, with global light off.
+
+A token sees what a light it or its party carries reaches, plus what its own
+senses reach. A map without walls keeps the 2026-09-17 settings. This
+supersedes the 2026-10-17 entry's sight bullet, which is 7 days old. The rest
+of that entry stands.
+
+**Rejected.**
+- *Global light with fog on.* It keeps what the party has explored, but a
+  lit dungeon still makes the light rules decoration.
+- *Darkness from a recipe field.* Every walled map registered is a place a
+  party enters on foot. A field nobody sets differently is a field without a
+  question to answer.
+- *`darknessLock`.* Core's lock only disables the slider in Scene Config, and
+  nothing in this module writes a scene's darkness.
+
+*Cost:* a walled building interior a party enters by day starts dark too, so
+the Judge raises the light for that scene. A map already in a world keeps
+the settings it was made with: the step never re-creates a held scene. To
+take the new settings, delete the scene and run the maps step again, which
+re-traces the walls (the guide's "A dungeon map's walls").
+
 ## 2026-10-24 — A stroke plan draws its walls dark, and its doors as boxes
 
 Amends one line of "Walls are traced at import from the Judge's own page"

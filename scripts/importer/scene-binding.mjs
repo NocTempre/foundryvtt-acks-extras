@@ -68,6 +68,22 @@ export const PLACE_TOKEN_SIZE = 0.5;
 /** Core's `DOCUMENT_OWNERSHIP_LEVELS.NONE`, spelled out because this file loads without Foundry. */
 const OWNERSHIP_NONE = 0;
 
+/** Core's `FOG_EXPLORATION_MODES`, DISABLED and INDIVIDUAL, spelled out for the same reason. */
+const FOG_DISABLED = 0;
+const FOG_INDIVIDUAL = 1;
+
+/**
+ * What a walled map's scene states about sight: token vision, each user's own
+ * explored fog, and full darkness with no global light. A token sees by the
+ * lights it carries and its own senses (`lib/light.mjs`, `lib/perception.mjs`),
+ * and the formation reads the scene as dark.
+ */
+const WALLED_SIGHT = Object.freeze({
+  tokenVision: true,
+  fog: { mode: FOG_INDIVIDUAL },
+  environment: { darknessLevel: 1, globalLight: { enabled: false } },
+});
+
 /** Whether a cookbook scene row carries a recipe a seat can build. */
 export const isSceneRecipe = (row) => row?.kind === SCENE_KIND && !!row?.scene?.crop;
 
@@ -422,8 +438,7 @@ export function recipeProblems(recipe, entries = {}) {
  * scaled by `pixelsPerPoint` (`gridScale` of the grid unless the caller
  * measured one live). Sight and fog are off, because a printed map is a plan
  * the party reads and not a place its tokens see from — except on a map with
- * walls, which turns token vision on under global light: walls exist to cut
- * sight and movement, and with sight off they are lines only. It is kept
+ * walls, which is a dark place its tokens explore (`WALLED_SIGHT`). It is kept
  * out of the navigation bar: a map that arrives with a book is for the Judge
  * to put in front of a table, not something a running session finds added to
  * its bar.
@@ -483,9 +498,7 @@ export function sceneData({
         shiftY: Number(shiftY) || 0,
       }
       : { grid: { type: 0, size: GRID_PIXELS, distance: GRID_PIXELS, units: "ft" } }),
-    tokenVision: walls.length > 0,
-    fog: { mode: 0 },
-    ...(walls.length ? { environment: { globalLight: { enabled: true } } } : {}),
+    ...(walls.length ? structuredClone(WALLED_SIGHT) : { tokenVision: false, fog: { mode: FOG_DISABLED } }),
     regions,
     tokens: tokens.map((token) => ({ ...token, level: level.id })),
     walls,
