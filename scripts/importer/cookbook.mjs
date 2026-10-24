@@ -72,7 +72,7 @@ import {
   adventureRefs, linkFields, seatsLeft, adventureFolderSources, sourcesHashOf, bookAdventureState, legacyAdventuresOf, stableDocId,
   journalCookbookId,
 } from "./adventure-binding.mjs";
-import { ALIGN_WORD, sheetValuesFromStatline, asPrintedBlock, playerOwned } from "./character-binding.mjs";
+import { ALIGN_WORD, sheetValuesFromStatline, asPrintedBlock, playerOwned, classBehindQualifier } from "./character-binding.mjs";
 import { ensureSceneThumb } from "./book-adventure.mjs";
 import { nameKeys, ABILITY_CATEGORIES, DAMAGE_TYPES } from "../lib/vocab.mjs";
 import { materializeTemplates, TEMPLATE_PART } from "../classes/template-packages.mjs";
@@ -1475,6 +1475,7 @@ function actorGroupOf(found, id, { type = null } = {}) {
   const byType = typeFolderOf(type);
   if (byType) return byType;
   if (kind === "kind.npc") return "NPCs";
+  if (kind === "kind.pregen") return "Pregenerated";
   return null;
 }
 
@@ -2574,7 +2575,7 @@ async function importOne(bookId, id, folderId) {
   // Adventure kinds route to their own binders; journals/tables have their own
   // importers and are never built here.
   const kind = found?.entry?.kind;
-  if (kind === "kind.npc" || kind === "kind.monsterLegacy") return importAdventureActor(bookId, id, folderId);
+  if (kind === "kind.npc" || kind === "kind.pregen" || kind === "kind.monsterLegacy") return importAdventureActor(bookId, id, folderId);
   if (kind === "kind.monsterTemplate") return importTemplate(bookId, id, folderId);
   if (kind === "kind.monsterFamily") return importFamily(bookId, id, folderId);
   if (kind && kind !== "kind.monster") return null;
@@ -3435,9 +3436,12 @@ export async function refillMonster(actor, { whole = false } = {}) {
 /*  RollTable, npc / monsterLegacy -> Actor     */
 /* -------------------------------------------- */
 
-const ACTOR_KINDS = new Set(["kind.monster", "kind.monsterLegacy", "kind.npc", "kind.monsterTemplate", "kind.monsterFamily"]);
+const ACTOR_KINDS = new Set(["kind.monster", "kind.monsterLegacy", "kind.npc", "kind.pregen", "kind.monsterTemplate", "kind.monsterFamily"]);
 /** kinds an actor-import flow may enumerate (unknown/absent kind = MM-era monster). */
 const actorKindOf = (e) => !e.kind || ACTOR_KINDS.has(e.kind);
+
+/** An entry that binds to a core character: a pregen, and a person whose row asks for one. */
+const characterEntry = (e) => e?.kind === "kind.pregen" || e?.meta?.actor === "character";
 
 /**
  * Defer-to-newest: an adventure entry reprinted in a book this seat has OPEN
@@ -3551,7 +3555,7 @@ async function importAdventureActor(bookId, id, folderId) {
     return null;
   }
   const kind = found.entry.kind;
-  if (found.entry.meta?.actor === "character") {
+  if (characterEntry(found.entry)) {
     const character = await importCharacter(bookId, id, folderId, node, found);
     await adventureActorArt(character, session, id, found, node);
     return character;
@@ -3620,10 +3624,12 @@ async function adventureActorArt(actor, session, id, found, node) {
 
 /**
  * The library's name for a printed one, by kind: a class or spell the library
- * answers keeps its name, else the conversion table's rename; a proficiency
- * resolves through the ability index, whose aliases carry the older names.
+ * answers keeps its name, else the conversion table's rename; a class neither
+ * answers is then read behind its qualifier, and pushed to `read` as
+ * `{printed, as}`; a proficiency resolves through the ability index, whose
+ * aliases carry the older names.
  */
-function libraryNameFor({ matchClass, matchSpell }) {
+function libraryNameFor({ matchClass, matchSpell }, read = []) {
   const nameIndex = abilityNameIndex();
   const present = new Set(loadedAbilityIndex().keys());
   const renamed = (name, category) => {
@@ -3631,7 +3637,14 @@ function libraryNameFor({ matchClass, matchSpell }) {
     return conv?.status === "renamed" && conv.category === category && conv.to ? conv.to : name;
   };
   return (kind, name) => {
-    if (kind === "class") return matchClass(name) ? name : renamed(name, "class");
+    if (kind === "class") {
+      if (matchClass(name)) return name;
+      const to = renamed(name, "class");
+      if (to !== name) return to;
+      const base = classBehindQualifier(name, matchClass);
+      if (base) read.push({ printed: name, as: base });
+      return base ?? name;
+    }
     if (kind === "spell") return matchSpell(name) ? name : renamed(name, "spell");
     const guess = idForName(nameIndex, name, present);
     return (guess && cookbookEntry(guess.id)?.entry?.name) || name;
@@ -3672,7 +3685,8 @@ async function importCharacter(bookId, id, folderId, node, found) {
   // Loaded on use: the sheet import's tree registers hooks as it loads, and
   // this module is also loaded where no Foundry runs.
   const [{ importSheet }, matchers] = await Promise.all([import("../character-sheet/pdf/apply.mjs"), import("../character-sheet/pdf/match.mjs")]);
-  const { values, morale, unplaced } = sheetValuesFromStatline(sl, { rename: libraryNameFor(matchers) });
+  const read = [];
+  const { values, morale, unplaced } = sheetValuesFromStatline(sl, { rename: libraryNameFor(matchers, read) });
   // The sheet import grants what the library holds, so a proficiency the
   // cookbook can supply is imported first, through the tiers a monster's list
   // resolves by; what nothing supplies is reported below as unmatched.
@@ -3685,6 +3699,7 @@ async function importCharacter(bookId, id, folderId, node, found) {
     differs: (d) => game.i18n.format(`${LANG_PREFIX}.character.differs`, { printed: d.sheet, inForce: d.inForce }),
   };
   const rows = [
+    ...read.map((r) => ({ label: game.i18n.localize(`${LANG_PREFIX}.character.readAs`), text: r.as })),
     ...missing.map((u) => ({ label: game.i18n.localize(`${LANG_PREFIX}.character.missing`), text: u.name })),
     ...report.noted,
   ];

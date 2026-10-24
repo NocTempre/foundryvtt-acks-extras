@@ -469,6 +469,21 @@ library lacks is imported from your open books first.
 A rebuild of the entry keeps the character's id, so links to it hold. A
 rebuild, or **Remove Imports**, never deletes a character that a player owns.
 
+An adventure's pregenerated characters are made the same way and filed in the
+book's **Pregenerated** folder, on the Judge's shelf. To give one to a player,
+right-click its entry in the compendium, choose **Import**, and give that
+player Owner permission on the copy it makes. A rebuild of the pregen leaves
+the player's copy alone. The copy keeps the entry's id, so importing the same
+pregen a second time asks whether to replace the first copy; choose **New
+Actor** for a second one.
+
+A class printed with a word before it, such as a tradition, is bound as the
+library class the rest of the name gives, and the as-printed block says
+**Class read as**. A class your library does not hold is named under **Not in
+the library**, and the character has no class. Build it with the class builder
+([Advanced mode](classes.md#advanced-mode--the-class-builder)) under the
+printed name, then rebuild the entry.
+
 ![](../releases/v11.8.0/importer-character.png)
 
 *An adventure's inhabitant as a character: the class bound at the printed level, and its saves and throws the class's own.*

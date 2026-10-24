@@ -54,6 +54,23 @@ function renamedAbility(token, rename) {
 }
 
 /**
+ * The library class a printed class name carries behind a qualifier (a
+ * tradition or an order set before the class), or null: the longest run of
+ * trailing words `matchClass` answers, never the whole name.
+ * @param {string} name the printed class name
+ * @param {(name: string) => ({name: string}|null)} matchClass
+ * @returns {string|null} the library class's own name
+ */
+export function classBehindQualifier(name, matchClass) {
+  const words = String(name ?? "").trim().split(/\s+/);
+  for (let i = 1; i < words.length; i++) {
+    const hit = matchClass(words.slice(i).join(" "));
+    if (hit) return hit.name;
+  }
+  return null;
+}
+
+/**
  * The sheet's boxes for one parsed quick-stat line (`parseStatline`) or
  * write-up (`parseWriteup`).
  *

@@ -1,10 +1,11 @@
 /**
  * Live walk, importer-characters: a person the page prints in full becomes a
  * character. Walks docs/importer/TESTING.md, "A person the page prints in full
- * becomes a character", steps 1–3, on AX1's inhabitants. Machine values arrive
- * through ./_env.mjs, the book through ACKS_TEST_BOOKS ("ax1"). A check
- * compares each imported figure with the page in the page and prints a
- * boolean; ids and counts are the only figures printed.
+ * becomes a character", steps 1–4, on AX1's character rows: its inhabitants
+ * and its pregens, or one set of them (ROWS=people or ROWS=pregens). Machine
+ * values arrive through ./_env.mjs, the book through ACKS_TEST_BOOKS ("ax1").
+ * A check compares each imported figure with the page in the page and prints
+ * a boolean; ids and counts are the only figures printed.
  *
  * Fixtures and writes, each reported:
  *   - the book connected on the GM seat with remember:false;
@@ -23,6 +24,9 @@
  *   - the rebuild of that inhabitant, driven through the entry picker's own
  *     dialogs (the rebuilt character keeps its id, so the ledger's uuid covers
  *     it);
+ *   - where the rows hold a pregen, the world copy a Judge's hand-out makes of
+ *     the last one (core's compendium Import, then OWNER for the player seat),
+ *     tracked, and a second rebuild of that pregen's entry;
  *   - a shelf the import opens (deleted at teardown when empty).
  * Two create hooks observe the run, never sweep it: one proves the import
  * posts no chat card, the other that it made no actor beyond its own.
@@ -41,6 +45,7 @@ const NONCE = "c" + Math.random().toString(36).slice(2, 8);
 const BOOK = "ax1";
 const BOOKS = books([BOOK]);
 const REBUILD_OK = process.env.REBUILD_OK === "1";
+const ROWS = process.env.ROWS ?? "all";
 
 const note = (label, value) => console.log(`${label}: ${typeof value === "string" ? value : JSON.stringify(value)}`);
 const section = (title) => console.log(`\n== ${title} ==`);
@@ -76,22 +81,30 @@ const P = {
     H.CH = await import("/modules/acks-extras/scripts/importer/character-binding.mjs");
     H.EX = await import("/modules/acks-extras/scripts/importer/executor.mjs");
     H.CA = await import("/modules/acks-extras/scripts/classes/apply.mjs");
+    H.MA = await import("/modules/acks-extras/scripts/character-sheet/pdf/match.mjs");
     H.LIB = await import("/modules/acks-extras/scripts/lib/library.mjs");
     await H.LIB.whenReady?.();
     return { installed: true };
   },
-  census: async ({ book }) => {
+  census: async ({ book, rows }) => {
     const H = globalThis.__ic;
     const doc = H.CB.cookbookSessionDoc(book);
     const ids = [];
+    const pregens = [];
     let classesAnswered = 0;
     if (doc) {
       const cb = H.CB.cookbookEntry(`${book}.npc1`)?.cb;
-      for (const [id, entry] of Object.entries(cb?.entries ?? {})) if (entry.meta?.actor === "character") ids.push(id);
+      for (const [id, entry] of Object.entries(cb?.entries ?? {})) {
+        const pregen = entry.kind === "kind.pregen";
+        const person = entry.meta?.actor === "character";
+        if ((pregen && rows !== "people") || (person && rows !== "pregens")) ids.push(id);
+        if (pregen && rows !== "people") pregens.push(id);
+      }
       const M = await import("/modules/acks-extras/scripts/character-sheet/pdf/match.mjs");
       for (const id of ids) {
         const node = await H.EX.executeEntry(doc, cb, {}, id);
-        if (M.matchClass(node.fields.statline?.class?.name ?? "")) classesAnswered++;
+        const name = node.fields.statline?.class?.name ?? "";
+        if (M.matchClass(name) || H.CH.classBehindQualifier(name, M.matchClass)) classesAnswered++;
       }
     }
     return {
@@ -100,6 +113,7 @@ const P = {
       open: !!doc,
       characterType: game.documentTypes.Actor.includes("character"),
       ids,
+      pregens,
       classesAnswered,
     };
   },
@@ -202,12 +216,22 @@ const P = {
       const box = new DOMParser().parseFromString(sys.details.biography ?? "", "text/html").querySelectorAll(`.${H.CH.AS_PRINTED_CLASS}`);
       const printed = actor.getFlag("acks-extras", "printed") ?? {};
       const lines = box[0]?.querySelectorAll("p").length ?? 0;
+      // A block row's text, by its label; compared here, never returned.
+      const rowTexts = (key) => [...(box[0]?.querySelectorAll("p") ?? [])]
+        .filter((p) => p.querySelector("strong")?.textContent === `${game.i18n.localize(key)}:`)
+        .map((p) => p.textContent.replace(/^[^:]*:\s*/, "").trim());
+      const className = sl.class?.name ?? "";
+      const behind = H.MA.matchClass(className) ? null : H.CH.classBehindQualifier(className, H.MA.matchClass);
       rows.push({
         id,
         uuid: actor.uuid,
         made: true,
         character: actor.type === "character" && actor.id === sid && actor.getFlag("acks-extras", "cookbook")?.id === id,
+        classAnswered: !!(classItem || H.MA.matchClass(className) || behind),
         classBound: !!classItem && Number(sys.details.level) === sl.class?.level,
+        classMissing: !classItem && rowTexts("ACKS-IMPORTER.character.missing").includes(className),
+        readBehind: !!behind,
+        readAsNoted: !behind || (classItem?.name === behind && rowTexts("ACKS-IMPORTER.character.readAs").includes(behind)),
         scores: Object.entries(sl.abilities ?? {}).every(([k, v]) => sys.scores[k]?.value === v),
         hp: sys.hp.value === sl.hp && sys.hp.max === sl.hp,
         alignment: sys.details.alignment === (H.CH.ALIGN_WORD[sl.al] ?? sl.al),
@@ -221,6 +245,8 @@ const P = {
         missing: printed.missing ?? null,
         judgeOnly: actor.ownership.default === 0 &&
           !Object.entries(actor.ownership).some(([u, l]) => u !== "default" && l >= OWNER && game.users.get(u)?.isGM === false),
+        kind: actor.getFlag("acks-extras", "cookbook")?.kind ?? null,
+        folder: actor.folder?.name ?? null,
       });
     }
     return rows;
@@ -264,6 +290,40 @@ const P = {
     return actor ? { uuid: actor.uuid, created: actor._stats?.createdTime ?? null } : null;
   },
   exists: async ({ uuid }) => !!(await fromUuid(uuid)),
+  /**
+   * A Judge's hand-out: the compendium entry's Import, with the options core's
+   * context menu passes (the dialog and the sheet aside), then OWNER for the
+   * player.
+   */
+  handOut: async ({ id, playerId }) => {
+    const H = globalThis.__ic;
+    const sid = H.AB.stableDocId(id);
+    const pack = game.packs.find((p) => p.documentName === "Actor" && p.metadata.packageType === "world" && p.index.has(sid));
+    if (!pack) return { shelved: false };
+    const copy = await game.actors.importFromCompendium(pack, sid, {}, { clearOwnership: false, renderSheet: false });
+    if (!copy) return { shelved: true, imported: false };
+    await copy.update({ [`ownership.${playerId}`]: CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER });
+    return {
+      shelved: true,
+      imported: true,
+      uuid: copy.uuid,
+      // Core's importDocument keeps the entry's id, so the copy shares it in the world collection.
+      world: copy.pack == null && game.actors.get(copy.id) === copy,
+      claims: copy.getFlag("acks-extras", "cookbook")?.id === id,
+      character: copy.type === "character",
+    };
+  },
+  /** On the player's seat: whether it owns the actor, and whether its sheet opens. */
+  playerOpens: async ({ uuid }) => {
+    const actor = await fromUuid(uuid);
+    if (!actor) return { found: false };
+    const sheet = actor.sheet;
+    await sheet.render({ force: true });
+    for (let i = 0; i < 50 && !sheet.rendered; i++) await new Promise((r) => setTimeout(r, 100));
+    const out = { found: true, owner: actor.isOwner, rendered: !!sheet.rendered };
+    await sheet.close({ force: true });
+    return out;
+  },
   /** A character's sheet opened on its Stats tab at the corner, for a plate: its window's `#id` and its sheet class. */
   sheetOnStats: async ({ uuid }) => {
     const app = (await fromUuid(uuid)).sheet;
@@ -341,15 +401,16 @@ try {
   section("seats and the book");
   gm = await seat("gm");
   note("install (gm)", await run(gm, P.install));
-  let census = await run(gm, P.census, { book: BOOK });
+  let census = await run(gm, P.census, { book: BOOK, rows: ROWS });
   if (!census.open) {
     if (!BOOKS.length) throw new Error(`${BOOK} is not open on the GM seat and ACKS_TEST_BOOKS names no copy of it`);
     note("connect", await run(gm, P.connectBook, BOOKS[0]));
     note("book", await poll(gm, P.bookState, { id: BOOK }, { tries: 150, until: (s) => s?.done || s?.open }));
-    census = await run(gm, P.census, { book: BOOK });
+    census = await run(gm, P.census, { book: BOOK, rows: ROWS });
   }
   const ids = census.ids;
-  note("gm census", { module: census.module, isGM: census.isGM, open: census.open, characterType: census.characterType, characters: ids.length, classesAnswered: census.classesAnswered });
+  const pregens = census.pregens;
+  note("gm census", { module: census.module, isGM: census.isGM, open: census.open, characterType: census.characterType, rows: ROWS, characters: ids.length, pregens: pregens.length, classesAnswered: census.classesAnswered });
   check("the GM seat is a GM, the book is open, the world knows the character type, and the cookbook names its characters",
     census.isGM && census.open && census.characterType && ids.length > 0, { characters: ids.length });
   if (!census.isGM || !census.open || !ids.length) throw new Error("preconditions not met");
@@ -399,14 +460,26 @@ try {
   }
   const rows = await run(gm, P.verify, { book: BOOK, ids });
   check("1: each is a character carrying its entry's stamp, under its stable id", all(rows, "made") && all(rows, "character"), failing(rows, "character"));
-  check("1: each has its class bound at the printed level", all(rows, "classBound"), failing(rows, "classBound"));
+  const answered = rows.filter((r) => r.classAnswered);
+  const lacking = rows.filter((r) => r.made && !r.classAnswered);
+  note("1: classes the library answers, and the rows whose class it lacks (ids)", { answered: answered.length, lacking: lacking.map((r) => r.id) });
+  check("1: each class the library answers is bound at the printed level", all(answered, "classBound"), failing(answered, "classBound"));
+  check("1: each class the library lacks is held by none, and the block names it as not in the library", all(lacking, "classMissing"), failing(lacking, "classMissing"));
+  check("1: a class read behind its qualifier is noted in the block as the class it was read as", all(rows, "readAsNoted"),
+    { read: rows.filter((r) => r.readBehind).map((r) => r.id), failing: failing(rows, "readAsNoted") });
   check("1: the scores, hit points and alignment are the page's", all(rows, "scores") && all(rows, "hp") && all(rows, "alignment"),
     { scores: failing(rows, "scores"), hp: failing(rows, "hp"), alignment: failing(rows, "alignment") });
   check("1: morale is the page's, within the system's bounds", all(rows, "morale"), failing(rows, "morale"));
-  check("1: the saves are the class's derivation", all(rows, "savesDerived"), failing(rows, "savesDerived"));
+  check("1: where a class is bound, the saves are its derivation", all(answered, "savesDerived"), failing(answered, "savesDerived"));
   check("1: the biography carries one stamped as-printed block, its lines the counts the actor records", all(rows, "block"), failing(rows, "block"));
   note("1: differences and missing names per character (counts)", rows.map((r) => ({ id: r.id, differences: r.differences, missing: r.missing, lines: r.blockLines })));
   check("1: each is owned by the Judges alone", all(rows, "judgeOnly"), failing(rows, "judgeOnly"));
+  if (pregens.length) {
+    const pregenRows = rows.filter((r) => pregens.includes(r.id));
+    const filed = pregenRows.filter((r) => r.kind === "kind.pregen" && r.folder === "Pregenerated");
+    check("1: each pregen carries its kind and is filed under Pregenerated", filed.length === pregens.length,
+      pregenRows.filter((r) => !filed.includes(r)).map((r) => r.id));
+  }
   check("1: the import posted no chat card", seen?.chat === 0, { chat: seen?.chat });
   const ours = new Set(made.map((m) => m.uuid));
   const strays = (seen?.actors ?? []).filter((u) => !ours.has(u));
@@ -421,7 +494,7 @@ try {
     name: `QA player's character ${NONCE}`,
     type: "character",
     ownership: { default: 0, [playerId]: 3 },
-    flags: { "acks-extras": { cookbook: { id: target, book: BOOK, kind: "kind.npc" } } },
+    flags: { "acks-extras": { cookbook: { id: target, book: BOOK, kind: rows.find((r) => r.id === target)?.kind ?? "kind.npc" } } },
   });
   note("fixture", { uuid: owned.uuid });
   await sleep(1100); // a rebuilt document's creation time must be able to differ
@@ -445,7 +518,26 @@ try {
   const player = await seat("player");
   const collections = [...new Set(made.map((m) => m.uuid.split(".").slice(1, 3).join(".")))];
   const sees = await run(player, P.playerSees, { collections });
-  check("3: no inhabitant's shelf is visible to the player", !sees.visible.length && !sees.listed.length, sees);
+  check("3: no character's shelf is visible to the player", !sees.visible.length && !sees.listed.length, sees);
+
+  if (pregens.length) {
+    section("4. a pregen handed to the player is the player's");
+    const given = pregens[pregens.length - 1];
+    const out = await run(gm, P.handOut, { id: given, playerId });
+    if (out.uuid) gm.track(out.uuid, "Actor");
+    check("4: the Judge's Import makes a world character that still claims the pregen's entry", out.imported && out.world && out.claims && out.character, out);
+    const shelvedBefore = await run(gm, P.stamp, { id: given });
+    await sleep(1100);
+    const again = await run(gm, P.rebuild, { key: "Monsters", ids: [given] });
+    check("4: the entry picker and its confirm are answered", again.picker && again.row && again.confirm, again);
+    const rb2 = await poll(gm, P.rebuildState, undefined, { tries: 150 });
+    if (rb2?.error) throw new Error(`the rebuild threw: ${rb2.error}`);
+    const shelvedAfter = await run(gm, P.stamp, { id: given });
+    check("4: the library's pregen is rebuilt under the same id", !!shelvedAfter && shelvedAfter.uuid === shelvedBefore?.uuid && shelvedAfter.created !== shelvedBefore?.created);
+    check("4: the player's copy is not deleted by the rebuild", !!out.uuid && (await run(gm, P.exists, { uuid: out.uuid })));
+    const opens = out.uuid ? await run(player, P.playerOpens, { uuid: out.uuid }) : null;
+    check("4: on the player's seat the copy is the player's, and its sheet opens", !!opens?.owner && !!opens?.rendered, opens);
+  }
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err);
   checks.push(["walk ran to the end", false]);

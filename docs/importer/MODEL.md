@@ -368,10 +368,13 @@ functional title".
 
 ## A person the page prints in full
 
-A `kind.npc` row carrying `meta.actor: "character"` imports as a core
-`character` (`importCharacter`); every other `kind.npc` row is a monster actor
-(`bindNpc`). The ruling is DECISIONS 2026-10-17, "A person the page prints in
-full becomes a character, and the derivation wins".
+A `kind.npc` row carrying `meta.actor: "character"`, and every `kind.pregen`
+row, imports as a core `character` (`importCharacter`, through
+`characterEntry`); every other `kind.npc` row is a monster actor (`bindNpc`).
+Both ride the monsters step, which runs after the classes and their template
+packages. A pregen files under the book's `Pregenerated` folder, a person under
+`NPCs`. The ruling is DECISIONS 2026-10-17, "A person the page prints in full
+becomes a character, and the derivation wins".
 
 - **Its id.** The character is made on the library shelf under
   `stableDocId(<cookbook id>)`, with `keepId`, so a rebuild (a delete, then a
@@ -396,9 +399,12 @@ full becomes a character, and the derivation wins".
 - **Its names.** Every class, proficiency and spell name passes through
   `libraryNameFor` first: a class or spell the library answers keeps its
   name, else the conversion table's rename of that category
-  (`registers.tables.conversion`); a proficiency resolves through the ability
-  index, whose aliases carry older printings' names. A name nothing answers
-  is reported, and the character is still made.
+  (`registers.tables.conversion`). A class neither answers is then read
+  behind its qualifier (`classBehindQualifier`: the longest run of trailing
+  words the library answers, as a tradition set before the class), and the
+  block notes the class it was read as. A proficiency resolves through the
+  ability index, whose aliases carry older printings' names. A name nothing
+  answers is reported, and the character is still made.
 - **Its shape on the page.** A quick-stat line is one `statline` op
   (`parseStatline`). A person the book spends a page on is written out as
   labelled lines under a display name — the class line and the scores, then
@@ -414,6 +420,16 @@ full becomes a character, and the derivation wins".
   class rows. The attack's routine stays text, never a weapon's name. The
   ruling is DECISIONS 2026-10-23, "A person written out is read by her
   labels".
+- **A pregen's write-up.** An adventure's pre-generated characters are set as
+  write-ups that run on past their column, and over the page, before their
+  prose. `compilePregen` reads the block the way prose flows (`axFlow`: body
+  type only, column to column, to the next display heading) and ships it as
+  one `writeup` op read in `parts`, one per column it spans, each with its own
+  page and fixes. The head opens level first ("Level <n> <alignment> <class>
+  (<title>)") over an unlabelled "AC, Move, HP, ATK" line, and the scores sit
+  under their own label; `parseWriteup` reads both shapes. The class line's
+  paragraph is read to its title's closing bracket and no further
+  (`fixes.keepPrefix` and `drop`).
 - **What the page printed.** The biography holds the entry's prose
   (`entryText`), then the "as printed" block (`asPrintedBlock`): the stat line
   as printed, a line per check, a line per name the library could not answer,

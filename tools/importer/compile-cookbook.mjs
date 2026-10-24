@@ -2747,6 +2747,84 @@ async function compileWriteup(doc, entry, bookCtx) {
 }
 
 /**
+ * kind.pregen: a character an adventure prints in full, as a write-up whose
+ * labelled lines run on past their column, and over the page, before its prose
+ * opens. The block is read the way prose flows (`axFlow`: body type only,
+ * column to column, to the next display heading), cut at the line whose label
+ * answers `writeup.proseLabelKey`, and ships as ONE value op in the `writeup`
+ * pattern with a part per column it spans; the flow from that label on is the
+ * description. The class line's paragraph is read to the close of its title's
+ * bracket and no further: what the page prints after it there is no field of
+ * the sheet.
+ */
+async function compilePregen(doc, entry) {
+  const { assists, page, pd, cols, a, name } = await axOpen(doc, entry);
+  const labelKey = assists.writeup?.proseLabelKey != null ? String(assists.writeup.proseLabelKey) : null;
+  if (!labelKey) throw new Error("a pregen names the label its prose opens with (assists.writeup.proseLabelKey)");
+  const segs = await axFlow(doc, entry, assists, { page, pd, cols, col: a.col, endY: a.endY }, new Set(), { stopKeys: assists.stopKeys ?? [] });
+  const rows = segs.flatMap((seg) =>
+    toLines(seg.items).map((ln) => ({ seg, y: ln.y, items: [...ln.items].sort((p, q) => p.x - q.x) })),
+  );
+  const opensProse = (r) => {
+    const c = r.items[0].str.indexOf(":");
+    return c > 0 && printKey(r.items[0].str.slice(0, c)) === labelKey;
+  };
+  const cut = rows.findIndex(opensProse);
+  if (cut < 0) throw new Error(`no label after the name on p.${page} answers to writeup.proseLabelKey`);
+  const block = rows.slice(0, cut);
+  if (!block.length) throw new Error(`no labelled lines under the name on p.${page}`);
+  const blockItems = new Set(block.flatMap((r) => r.items));
+  const hs = [...blockItems].map((i) => i.h).sort((p, q) => p - q);
+  const bodyH = hs[Math.floor(hs.length / 2)];
+  const drop = new Set([...blockItems].filter((it) => it.h < bodyH * 0.75));
+  // The class line's paragraph runs to the first paragraph gap; past its
+  // title's closing bracket, a run is dropped, or cut where it carries both.
+  const keep = new Map();
+  const gap = axParaGap(block[0].seg.pd) ?? 15;
+  const head = [block[0]];
+  for (let i = 1; i < block.length && block[i].seg === block[0].seg && block[i].y - block[i - 1].y < gap; i++) head.push(block[i]);
+  const headRuns = head.flatMap((r) => r.items);
+  const close = headRuns.findIndex((it) => it.str.includes(")"));
+  if (close >= 0) {
+    const run = headRuns[close];
+    const at = run.str.indexOf(")") + 1;
+    if (run.str.slice(at).trim()) keep.set(run, at);
+    for (const it of headRuns.slice(close + 1)) drop.add(it);
+  }
+  const parts = [];
+  for (const seg of segs) {
+    const mine = block.filter((r) => r.seg === seg);
+    if (!mine.length) continue;
+    const its = mine.flatMap((r) => r.items);
+    const box = {
+      x0: Math.min(...its.map((i) => i.x)) - 3,
+      x1: Math.max(...its.map((i) => i.x + (i.w ?? 0))) + 3,
+      y0: mine[0].y - 4,
+      y1: mine[mine.length - 1].y + 4,
+    };
+    const inBox = runsIn(seg.pd, { box });
+    // A run the box encloses that is not the block's (an aside, a picture's
+    // caption) is dropped with the rest.
+    const partDrop = new Set([...drop, ...inBox.filter((it) => !blockItems.has(it))]);
+    const part = withFixes({ page: seg.page, box }, seg.pd, partDrop);
+    const keepAt = {};
+    inBox.forEach((r, i) => {
+      if (keep.has(r)) keepAt[i] = keep.get(r);
+    });
+    if (Object.keys(keepAt).length) part.fixes = { ...(part.fixes ?? {}), keepPrefix: keepAt };
+    parts.push(part);
+  }
+  const fields = { name, statline: { op: "value", page, pattern: "writeup", parts } };
+  const proseSegs = segs.map((seg) => ({ ...seg, items: seg.items.filter((it) => !blockItems.has(it)) })).filter((s) => s.items.length);
+  const { paras } = axParas(proseSegs, page);
+  if (paras.length) fields.description = { op: "text", page, paras };
+  return {
+    kind: entry.kind, name: entry.name, cite: citeFor(entry.book, page), pages: entry.pages,
+    ...(entry.meta ? { meta: entry.meta } : {}), fields,
+  };
+}
+
+/**
  * kind.npc — prose plus ONE quick-stat block parsed by the statline pattern.
  * The block may sit on a different page than the prose (quick vs full
  * presentation); assists.statlineAt names it, assists.statLabel overrides the
@@ -3769,6 +3847,7 @@ const AX_COMPILERS = {
   "kind.marketGrid": (doc, entry, kindRow) => compileVehicleTable(doc, entry, kindRow),
   "kind.marketRecord": compileMarketRecord,
   "kind.npc": compileNpc,
+  "kind.pregen": compilePregen,
   "kind.rolltable": compileRollTable,
   "kind.settingTable": compileSettingTable,
   "kind.monsterLegacy": compileLegacyMonster,

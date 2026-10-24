@@ -7400,6 +7400,73 @@ entry's other rulings stand.
 - A window drawn as a gap in the wall reads as an opening. The plate's
   review sheet shows both, and a line corrects either.
 
+## 2026-10-24 — A pregen is a write-up read across its columns
+
+AX1 prints its pre-generated party as eight write-ups under display names.
+Each opens with a level-first class line ("Level <n> <alignment> <class>
+(<title>)") and an unlabelled "AC, Move, HP, ATK" line, then puts the scores
+under their own label. Most run on past their column, and one runs over the
+page, before their prose opens. `compileWriteup` reads one column to its foot.
+It would also take the 9-point summary table at the page foot into the first
+block, because it skips the body-type filter.
+
+**Ruled.**
+- **The block flows.** `compilePregen` reads the write-up the way prose flows
+  (`axFlow`), cuts it at the prose label, and ships ONE `writeup` value op read
+  in `parts`: a part per column, each with its own page, box and fixes. The
+  executor's `value` op reads parts in order and joins them with a space. The
+  flow from the prose label on is the description.
+- **`parseWriteup` reads the level-first head.** It reads the alignment and the
+  title from the class line, and the armour class, move, hit points and attack
+  from the stat line. The ATK clause runs to the end of the head. "Ability
+  Scores" and "Class Powers" are known labels. The cat's write-up and every AX
+  book's stat lines parse byte-identically before and after.
+- **What follows the title on the class line is not read.** Most of the class
+  lines then credit the backer who made the character, which is no field of
+  the sheet. The compiler ships the run's kept length as a count
+  (`fixes.keepPrefix`, the counterpart of `stripPrefix`) and drops the runs
+  after it. So no real person's name reaches the sheet's as-printed line, or a
+  release plate shot from it.
+- **Pregens ride the monsters step.** The design planned a `stepPregens` after
+  the template packages. The monsters step already runs there, and it imports
+  every actor kind through `importOne`. A pregen is one more kind on that path
+  (`ACTOR_KINDS`, `characterEntry`), filed under `Pregenerated`.
+- **A pregen stays in the library, like every person.** The 2026-10-24 fill
+  rule ("Maps and their places") keeps people in the library, and a pregen is
+  a person. A Judge hands one out with core's compendium Import, then gives the
+  player ownership. Core's `importDocument` keeps the entry's id, so the world
+  copy holds the library's id and its cookbook stamp, and a rebuild or Remove
+  Imports leaves it once a player owns it (`playersCharacter`). This
+  answers "Pregenerated characters are left to their own slice" in the
+  2026-10-17 entry on how a book's Adventure is assembled.
+- **A class printed behind a qualifier binds the class after it.** One pregen
+  prints a core class with its tradition before the class name. Where neither
+  the library nor the conversion table answers a class name,
+  `classBehindQualifier` takes the longest run of trailing words the library
+  answers, and the as-printed block adds a "Class read as" row naming it. The
+  fallback lives in the importer's `libraryNameFor`.
+
+*Rejected:*
+- **A `stepPregens` of its own.** It would sit at the same point in the order,
+  and a step whose only content is one kind costs the chain a narration line
+  and a second idempotence path.
+- **Reading the summary table.** It is a cross-check and not a source. One
+  pregen's hit points in the table differ from its write-up, and the write-up
+  is the one the binding reads.
+- **Carrying pregens into the world on an Adventure import.** That reverses
+  the fill rule the user kept the same day.
+- **The qualifier read in `matchClass`.** That would also change what the
+  character sheet's PDF import binds, and nothing walks that surface for it.
+
+*Cost:* a class line with no title in brackets gives no bound, so its whole
+paragraph is read, a credit included. The pregens' portraits are not imported
+(ROADMAP). A people word before a human class reads the same way as a
+tradition: a "<people> <class>" the library lacks binds the human class, and
+only the "Class read as" row says so. Two pregens (`ax1.pc7`, `ax1.pc8`) print
+a class no core book defines. They import with no class, and the block names
+the class as not in the library. A Judge builds it with the class builder
+under the printed name, then rebuilds the entry.
+
 ## 2026-10-24 — A line restates a traced door lying along it
 
 Amends today's "A stroke plan draws its walls dark, and its doors as boxes".

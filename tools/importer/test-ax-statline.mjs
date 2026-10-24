@@ -188,4 +188,59 @@ await t("a write-up with no labels is a class line and scores, and nothing missi
   assert.equal(w.proficiencies, undefined);
 });
 
+/* ---------------- a write-up set level first ---------------- */
+
+const LEVEL_FIRST =
+  "Level 3 Neutral Kiln Warden (Ash-Keeper) AC 5/6, Move 90’ (30’), HP 14, ATK Glaive or knife (9+, 1d8+1), sling (10+, 1d4) Ability Scores: STR 13 (+1), INT 9, WIS 11, DEX 15 (+1), CON 12, CHA 8 (−1) Saving Throws: Paralysis 13+, Death 12+ Class Powers: Banked fire (1/day), soot sight Proficiencies: Adventuring, Kiln Lore 2 Languages: Common Equipment: glaive; knife; sling with 20 stones; 30gp";
+
+await t("a level-first class line gives the class, its title and the alignment", () => {
+  const w = parseWriteup(LEVEL_FIRST);
+  assert.deepEqual(w.class, { name: "Kiln Warden", level: 3, note: "Ash-Keeper" });
+  assert.equal(w.al, "Neutral");
+  assert.equal(w.extra, undefined);
+});
+
+await t("the unlabelled stat line is armour class, move, hit points and the attack", () => {
+  const w = parseWriteup(LEVEL_FIRST);
+  assert.equal(w.ac, 5, "the first armour class printed");
+  assert.equal(w.mv, "90’ (30’)");
+  assert.equal(w.hp, 14);
+  assert.equal(w.atk.throw, 9);
+  assert.equal(w.atk.routine, "Glaive or knife (9+, 1d8+1), sling (10+, 1d4)", "the routine runs on over its commas");
+});
+
+await t("the scores sit under their own label, and Class Powers are the class abilities", () => {
+  const w = parseWriteup(LEVEL_FIRST);
+  assert.deepEqual(w.abilities, { str: 13, int: 9, wis: 11, dex: 15, con: 12, cha: 8 });
+  assert.equal(w.saves, "Paralysis 13+, Death 12+");
+  assert.equal(w.classAbilities, "Banked fire (1/day), soot sight");
+  assert.deepEqual(w.proficiencies, ["Adventuring", "Kiln Lore 2"]);
+  assert.equal(w.languages, "Common");
+  assert.equal(w.equipment, "glaive; knife; sling with 20 stones; 30gp");
+});
+
+/* ---------------- a value read in parts ---------------- */
+
+const run = (str, x, y) => ({ str, x, y, w: str.length * 5, h: 10, sp: false });
+const pageA = { width: 612, height: 792, items: [run("Lampwright 2 and a tail", 40, 700), run("Str 9", 40, 712)] };
+const pageB = { width: 612, height: 792, items: [run("HP: 6", 40, 50)] };
+
+await t("a value set over a page turn reads each part in order, joined with a space", async () => {
+  const fields = {
+    statline: {
+      op: "value", page: 1, pattern: "writeup",
+      parts: [
+        { page: 1, box: { x0: 30, x1: 300, y0: 695, y1: 716 }, fixes: { joinSpace: [0], keepPrefix: { 0: 12 } } },
+        { page: 2, box: { x0: 30, x1: 300, y0: 45, y1: 55 } },
+      ],
+    },
+  };
+  const cb = { schema: "acks-cookbook/2", entries: { "zz.pc1": { kind: "kind.pregen", name: "PC 1", pages: [1, 2], fields } } };
+  const node = await executeEntry(null, cb, {}, "zz.pc1", { pageCache: new Map([[1, pageA], [2, pageB]]) });
+  const w = node.fields.statline;
+  assert.equal(w.text, "Lampwright 2 Str 9 HP: 6", "the kept prefix ends the run at its count");
+  assert.deepEqual(w.class, { name: "Lampwright", level: 2 });
+  assert.equal(w.hp, 6);
+});
+
 console.log(`\nax-statline: ${n} checks OK`);

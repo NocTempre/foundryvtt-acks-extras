@@ -132,11 +132,15 @@ export function joinRuns(runs, fixes = {}, dropText) {
   // the heading would take the opening sentence with it; strip the heading's
   // characters off the front instead.
   const strip = fixes.stripPrefix ?? {};
+  // The other end: a run that carries a clause and then what follows it keeps
+  // only the clause's characters. Also a count, for the same reason.
+  const keep = fixes.keepPrefix ?? {};
   let out = "";
   runs.forEach((r, i) => {
     if (drop.has(i) || dropSet.has(r.str.trim())) return;
     let s = r.str;
     if (strip[i]) s = s.slice(strip[i]);
+    if (keep[i] != null) s = s.slice(0, keep[i]);
     if (mergeHyphen.has(i)) s = s.replace(/-\s*$/, "");
     out += s;
     if (joinSpace.has(i)) out += " ";
@@ -1332,10 +1336,39 @@ export function parseStatline(text) {
  * known ones read into fields, the rest keep their text.
  */
 const WRITEUP_LABEL =
-  /(?:^|\s)(HP|Hit Points|AC|Armou?r Class|Saves?|Saving Throws|Attacks?|Attack Throw|Damage|Class Proficiencies|General Proficiencies|Proficiencies|Racial Abilities|Class Abilities|Abilities|Inventory|Equipment|Spells|Repertoire|Languages|Alignment|Movement|MV|XP|[A-Z][a-z]+):\s+/g;
+  /(?:^|\s)(HP|Hit Points|AC|Armou?r Class|Saves?|Saving Throws|Attacks?|Attack Throw|Damage|Ability Scores|Class Proficiencies|General Proficiencies|Proficiencies|Racial Abilities|Class Abilities|Class Powers|Abilities|Inventory|Equipment|Spells|Repertoire|Languages|Alignment|Movement|MV|XP|[A-Z][a-z]+):\s+/g;
+
+/** A write-up's class line set level first: "Level <n> <alignment> <class> (<title>)". */
+const WRITEUP_LEVEL_FIRST = /^Level\s+(\d+)\s+(Lawful|Neutral|Chaotic)\s+([A-Za-z][A-Za-z' -]*?)\s*(?:\(([^)]*)\))?\s*$/i;
+
+/** The unlabelled stat line a level-first head carries after its class line. */
+const WRITEUP_STAT_LINE = /\bAC\s+-?\d/;
 
 /** A score key as a write-up may abbreviate it; the sheet's keys are `parseStatline`'s. */
 const WRITEUP_SCORE = { str: "str", int: "int", wis: "wis", wil: "wis", dex: "dex", con: "con", cha: "cha" };
+
+/**
+ * A level-first write-up's stat line, read into `out`: the armour class (the
+ * first of the values printed), the move as printed, the hit points, and the
+ * attack's routine with its first throw. The ATK clause takes the rest of the
+ * line, commas and all, since a routine lists its weapons with them.
+ */
+function readStatLine(line, out) {
+  const atkAt = line.search(/\bATK\s+/);
+  for (const clause of splitTop(atkAt >= 0 ? line.slice(0, atkAt) : line)) {
+    const m = /^(AC|Move|MV|HP)\s+(.+)$/i.exec(clause);
+    if (!m) continue;
+    const key = m[1].toUpperCase();
+    const n = /^-?\d+/.exec(m[2]);
+    if (key === "AC" && n) out.ac = parseInt(n[0], 10);
+    else if (key === "HP" && n) out.hp = parseInt(n[0], 10);
+    else if (key === "MOVE" || key === "MV") out.mv = m[2].trim();
+  }
+  if (atkAt < 0) return;
+  const routine = line.slice(atkAt).replace(/^ATK\s+/, "").trim();
+  const th = /(\d+)\s*\+/.exec(routine);
+  out.atk = { routine, ...(th ? { throw: parseInt(th[1], 10) } : {}) };
+}
 
 /**
  * `writeup` pattern: a person written out as labelled lines rather than one
@@ -1351,19 +1384,37 @@ const WRITEUP_SCORE = { str: "str", int: "int", wis: "wis", wil: "wis", dex: "de
  * under. Saves and abilities stay text; a one-word label this reader does not
  * know keeps its clause, labelled, under `extra`. Missing labels are absent,
  * never a throw; `text` keeps what the page printed.
+ *
+ * A head may instead open level first — "Level <n> <alignment> <class>
+ * (<title>)" — and carry an unlabelled stat line, "AC <n>, Move <rate>, HP
+ * <n>, ATK <routine>", with the scores under their own label. The alignment
+ * and the title are read from the class line, and the stat line's ATK clause
+ * runs to the end of the head.
  */
 export function parseWriteup(text) {
   const out = { text };
   const t = String(text ?? "").replace(/−/g, "-").replace(/\s+/g, " ").trim();
   const marks = [...t.matchAll(WRITEUP_LABEL)];
-  const head = (marks.length ? t.slice(0, marks[0].index) : t).trim();
+  let head = (marks.length ? t.slice(0, marks[0].index) : t).trim();
+  const statAt = head.search(WRITEUP_STAT_LINE);
+  if (statAt > 0) {
+    readStatLine(head.slice(statAt), out);
+    head = head.slice(0, statAt).trim();
+  }
   const scoreRe = /\b(Str|Int|Wis|Wil|Dex|Con|Cha)\s+(\d+)/gi;
-  for (const m of head.matchAll(scoreRe)) (out.abilities ??= {})[WRITEUP_SCORE[m[1].toLowerCase()]] = parseInt(m[2], 10);
+  const readScores = (s) => {
+    for (const m of s.matchAll(scoreRe)) (out.abilities ??= {})[WRITEUP_SCORE[m[1].toLowerCase()]] = parseInt(m[2], 10);
+  };
+  readScores(head);
   const firstScore = head.search(/\b(Str|Int|Wis|Wil|Dex|Con|Cha)\s+\d+/i);
   const classText = (firstScore >= 0 ? head.slice(0, firstScore) : head).replace(/\*+/g, "").replace(/[,;]\s*$/, "").trim();
   const cls = /^([A-Za-z][A-Za-z' -]*?)\s+(\d+)$/.exec(classText);
+  const levelFirst = WRITEUP_LEVEL_FIRST.exec(classText);
   if (cls) out.class = { name: cls[1].trim(), level: parseInt(cls[2], 10) };
-  else if (classText) out.extra = [classText];
+  else if (levelFirst) {
+    out.class = { name: levelFirst[3].trim(), level: parseInt(levelFirst[1], 10), ...(levelFirst[4]?.trim() ? { note: levelFirst[4].trim() } : {}) };
+    out.al = levelFirst[2][0].toUpperCase() + levelFirst[2].slice(1).toLowerCase();
+  } else if (classText) out.extra = [classText];
   const general = [];
   const klass = [];
   // A token's own marker outranks the label it stands under.
@@ -1390,7 +1441,8 @@ export function parseWriteup(text) {
         out.ac = parseInt(ac[1], 10);
         if (ac[2]?.trim()) out.acNote = ac[2].trim();
       }
-    } else if (/^saves?$/.test(key) || key === "saving throws") out.saves = body;
+    } else if (key === "ability scores") readScores(body);
+    else if (/^saves?$/.test(key) || key === "saving throws") out.saves = body;
     else if (/^attacks?$/.test(key)) {
       const th = /(\d+)\s*\+/.exec(body);
       out.atk = { routine: body, ...(th ? { throw: parseInt(th[1], 10) } : {}) };
@@ -1398,7 +1450,7 @@ export function parseWriteup(text) {
     else if (key === "class proficiencies") sortProfs(body, klass);
     else if (key === "general proficiencies" || key === "proficiencies") sortProfs(body, general);
     else if (key === "racial abilities") out.racialAbilities = body;
-    else if (key === "class abilities" || key === "abilities") out.classAbilities = body;
+    else if (key === "class abilities" || key === "class powers" || key === "abilities") out.classAbilities = body;
     else if (key === "inventory" || key === "equipment") out.equipment = body;
     else if (key === "spells") out.spells = body;
     else if (key === "repertoire") out.repertoire = body;
@@ -1533,9 +1585,23 @@ async function execInstruction(instr, ctx) {
       return paras.filter((p) => p.text || p.empty);
     }
     case "value": {
-      const runs = runsIn(pd, instr);
-      claim(runs, ctx.field);
-      return applyPattern(joinRuns(runs, instr.fixes, instr.dropText), instr, registers, misses);
+      if (!instr.parts) {
+        const runs = runsIn(pd, instr);
+        claim(runs, ctx.field);
+        return applyPattern(joinRuns(runs, instr.fixes, instr.dropText), instr, registers, misses);
+      }
+      // A value the page sets across a column or a page turn: each part is one
+      // stretch of it, on its own page, with its own fixes, read in order and
+      // joined with a space where the print turned.
+      const pieces = [];
+      for (const part of instr.parts) {
+        const ppd = part.page && part.page !== instr.page ? await getPage(part.page) : pd;
+        const runs = runsIn(ppd, part);
+        claim(runs, ctx.field);
+        const piece = joinRuns(runs, part.fixes, part.dropText).trim();
+        if (piece) pieces.push(piece);
+      }
+      return applyPattern(pieces.join(" "), instr, registers, misses);
     }
     /**
      * One COLUMN of a level-progression table, read as a LevelValue.

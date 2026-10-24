@@ -1,0 +1,148 @@
+[
+  {
+    "id": "ax1.pc1",
+    "kind": "kind.pregen",
+    "book": "ax1",
+    "name": "PC 1",
+    "anchor": {
+      "hash": "bidb1a",
+      "as": "display"
+    },
+    "pages": [
+      71
+    ],
+    "assists": {
+      "writeup": {
+        "proseLabelKey": "kzuxlp"
+      }
+    }
+  },
+  {
+    "id": "ax1.pc2",
+    "kind": "kind.pregen",
+    "book": "ax1",
+    "name": "PC 2",
+    "anchor": {
+      "hash": "1s8wp00",
+      "as": "display"
+    },
+    "pages": [
+      71,
+      72
+    ],
+    "assists": {
+      "writeup": {
+        "proseLabelKey": "kzuxlp"
+      }
+    }
+  },
+  {
+    "id": "ax1.pc3",
+    "kind": "kind.pregen",
+    "book": "ax1",
+    "name": "PC 3",
+    "anchor": {
+      "hash": "1f8w7wt",
+      "as": "display"
+    },
+    "pages": [
+      72
+    ],
+    "assists": {
+      "writeup": {
+        "proseLabelKey": "kzuxlp"
+      }
+    }
+  },
+  {
+    "id": "ax1.pc4",
+    "kind": "kind.pregen",
+    "book": "ax1",
+    "name": "PC 4",
+    "anchor": {
+      "hash": "4uh5sl",
+      "as": "display"
+    },
+    "pages": [
+      72
+    ],
+    "assists": {
+      "writeup": {
+        "proseLabelKey": "kzuxlp"
+      }
+    }
+  },
+  {
+    "id": "ax1.pc5",
+    "kind": "kind.pregen",
+    "book": "ax1",
+    "name": "PC 5",
+    "anchor": {
+      "hash": "1a1a2ie",
+      "as": "display"
+    },
+    "pages": [
+      72,
+      73
+    ],
+    "assists": {
+      "writeup": {
+        "proseLabelKey": "kzuxlp"
+      }
+    }
+  },
+  {
+    "id": "ax1.pc6",
+    "kind": "kind.pregen",
+    "book": "ax1",
+    "name": "PC 6",
+    "anchor": {
+      "hash": "1tnt1kn",
+      "as": "display"
+    },
+    "pages": [
+      73
+    ],
+    "assists": {
+      "writeup": {
+        "proseLabelKey": "kzuxlp"
+      }
+    }
+  },
+  {
+    "id": "ax1.pc7",
+    "kind": "kind.pregen",
+    "book": "ax1",
+    "name": "PC 7",
+    "anchor": {
+      "hash": "35x559",
+      "as": "display"
+    },
+    "pages": [
+      73
+    ],
+    "assists": {
+      "writeup": {
+        "proseLabelKey": "kzuxlp"
+      }
+    }
+  },
+  {
+    "id": "ax1.pc8",
+    "kind": "kind.pregen",
+    "book": "ax1",
+    "name": "PC 8",
+    "anchor": {
+      "hash": "7egqoo",
+      "as": "display"
+    },
+    "pages": [
+      74
+    ],
+    "assists": {
+      "writeup": {
+        "proseLabelKey": "kzuxlp"
+      }
+    }
+  }
+]

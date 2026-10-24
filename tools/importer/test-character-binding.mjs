@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { parseStatline, parseWriteup } from "../../scripts/importer/executor.mjs";
 import { stripBookText } from "../../scripts/importer/prose.mjs";
 import { buildPlan } from "../../scripts/character-sheet/pdf/plan.mjs";
-import { sheetValuesFromStatline, asPrintedBlock, playerOwned, AS_PRINTED_CLASS } from "../../scripts/importer/character-binding.mjs";
+import { sheetValuesFromStatline, asPrintedBlock, playerOwned, classBehindQualifier, AS_PRINTED_CLASS } from "../../scripts/importer/character-binding.mjs";
 
 let n = 0;
 const t = (name, fn) => Promise.resolve(fn()).then(() => {
@@ -186,6 +186,19 @@ await t("a coin with a closing note is still coin", () => {
     ["worn", 1, "oilskin coat"],
     ["worn", 3, "candles"],
   ]);
+});
+
+/* ---------------- a class behind a qualifier ---------------- */
+
+await t("a class printed behind a qualifier is the library class its trailing words name", () => {
+  const library = ["Lampwright", "Kiln Warden"].map((name) => ({ name }));
+  const matchClass = (name) => library.find((c) => c.name.toLowerCase() === name.toLowerCase()) ?? null;
+  assert.equal(classBehindQualifier("Ashen Lampwright", matchClass), "Lampwright");
+  assert.equal(classBehindQualifier("Old Kiln Warden", matchClass), "Kiln Warden", "the longest run of trailing words wins");
+  assert.equal(classBehindQualifier("Ashen Old Kiln Warden", matchClass), "Kiln Warden");
+  assert.equal(classBehindQualifier("Lampwright", matchClass), null, "the whole name is the caller's to match");
+  assert.equal(classBehindQualifier("Ashen Tinker", matchClass), null);
+  assert.equal(classBehindQualifier("", matchClass), null);
 });
 
 console.log(`\ncharacter-binding: ${n} checks OK`);

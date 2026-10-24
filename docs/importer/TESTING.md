@@ -2110,11 +2110,14 @@ above.
 
 ## A person the page prints in full becomes a character
 
-The rows are AX1's `kind.npc` rows carrying `meta.actor: "character"`, and
-`acksExtras.importer.cookbookImportIds(ids)` imports them. The walk needs the
-GM seat with AX1 connected and the library holding the classes the lines
-print. Step 3 also needs the Player seat.
-`tools/live/importer-characters.mjs` walks steps 1 to 3.
+The rows are AX1's `kind.npc` rows carrying `meta.actor: "character"` and its
+`kind.pregen` rows, and `acksExtras.importer.cookbookImportIds(ids)` imports
+them. The walk needs the GM seat with AX1 connected and the library holding
+the core books' classes. Some pregens print a class no core book defines;
+the walk reads which against the library, so a Judge who has built one with
+the class builder sees it bound. Steps 3 and 4 also need the Player seat.
+`tools/live/importer-characters.mjs` walks steps 1 to 4; `ROWS=people` or
+`ROWS=pregens` limits it to one set.
 
 What a scripted walk meets:
 
@@ -2154,20 +2157,34 @@ and after, and track none of them.
 
 1. Import every character row.
    *Observable:* the count is the row count, and each stands under its
-   stable id. Each is a `character` carrying its entry's stamp. Each has its
-   class bound at the printed level. Its scores, hit points and alignment
+   stable id. Each is a `character` carrying its entry's stamp. A class the
+   library answers (`matchClass`, whole or behind a qualifier) is bound at the
+   printed level, and the saves are what `classUpdateData` derives. A class
+   read behind a qualifier has a "Class read as" row naming the bound class.
+   A class the library lacks is held by none, and has a "Not in the library"
+   row naming it. Its scores, hit points and alignment
    are the page's. Its morale is the page's, clamped to the schema's bounds.
-   Its saves are what `classUpdateData` derives. Its biography holds one
+   Its biography holds one
    `.acks-extras-importer-as-printed` block, stamped with the entry id, with
    at least `1 + differences + missing` lines (`flags.acks-extras.printed`).
    Its ownership is the Judges' alone. No chat card was posted, and a
-   `createActor` observer saw no actor beyond these.
+   `createActor` observer saw no actor beyond these. A pregen's stamp names
+   `kind.pregen`, and it is filed in the book's `Pregenerated` folder.
 2. Rebuild the first row through the entry picker.
    *Observable:* a document stands under the same id with a later
    `createdTime`. The player-owned fixture still exists.
 3. Join as the Player seat.
    *Observable:* the shelf holding the characters is not visible in the
    Compendium tab.
+4. Hand a pregen out. On the GM seat, the compendium entry's **Import**
+   (`game.actors.importFromCompendium(pack, id, {}, {clearOwnership: false})`,
+   the options core's context menu passes), then OWNER for the Player seat's
+   user. Track the copy's uuid. Rebuild the same entry through the entry
+   picker.
+   *Observable:* the copy is a world `character` whose stamp still claims the
+   pregen's entry. After the rebuild the library's pregen stands under the
+   same id with a later `createdTime`, and the player's copy still exists. On
+   the Player seat the copy `isOwner`, and its sheet renders.
 
 Remove Imports' guard is not walked: it deletes every session's imports.
 `playerOwned` is pinned offline (`test-character-binding.mjs`), and the
@@ -2175,7 +2192,8 @@ filter beside it is read in the code.
 
 ### Teardown
 
-1. Run `api.sweepTracked()`: the characters and the fixture.
+1. Run `api.sweepTracked()`: the characters, the fixture and the handed-out
+   copy.
 2. Delete a shelf this run opened, only if its index is empty.
 3. Quote the sweep result.
 

@@ -7343,6 +7343,7 @@
   "ACKS-IMPORTER.character.asPrinted": "As printed",
   "ACKS-IMPORTER.character.differs": "printed {printed}; the character has {inForce}",
   "ACKS-IMPORTER.character.missing": "Not in the library",
+  "ACKS-IMPORTER.character.readAs": "Class read as",
   "ACKS-IMPORTER.adventure.caption": "{book} as the importer made it: every map, with the book's places, organisations, people, lists, journals and items.",
   "ACKS-IMPORTER.adventure.intro": "Built by the importer from your copy of {book}. Importing it sets the book up in a world: every map, the places and quarters on them, and the organisations of the book.",
   "ACKS-IMPORTER.adventure.contents": "{scenes} map(s), {places} place(s) and quarter(s), {factions} organisation(s), {actors} other actor(s), {tables} list(s), {journals} journal(s), {items} item(s).",

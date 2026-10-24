@@ -981,6 +981,21 @@ name (DECISIONS, 2026-10-17, "How a book's Adventure is assembled", Cost).
 Wanted: `adventureRefs` slots for a table result's document, a journal page's
 `@UUID` links and an item's references.
 
+## A pregen's portrait and spellbook
+
+AX1's pregens import as characters from their write-ups (DECISIONS,
+2026-10-24, "A pregen is a write-up read across its columns"). Two things the
+page prints still do not reach the sheet:
+
+- **The portrait.** The rows carry no `art` op, so each character takes the
+  default image. An inhabitant's art path (`adventureActorArt`) would serve
+  once the rows name the picture's placement.
+- **The spells a spellbook names.** A caster's spellbook lists its spells
+  inside the equipment clause, with no "Repertoire:" label, so the class
+  binding gives the slots and the repertoire stays empty. Reading the
+  spellbook's bracket as a repertoire needs a rule for telling a spell list
+  from an item's note.
+
 ## A book's Adventure in another world
 
 A world compendium is world-scoped, so a second world needs the pack moved by
