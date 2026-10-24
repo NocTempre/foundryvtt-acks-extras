@@ -2598,7 +2598,7 @@ block what walls block.
    - the console logged one `walls traced` digest for the map, with
      `regions: 1` on a grid plan, meaning one connected floor. A contour
      plan's digest quotes `loops`, `islandsDropped` and `doorsDropped`, and
-     a stroke plan's `paths`, `spurs`, `boxes` and `doorsDropped`;
+     a stroke plan's `paths`, `spurs`, `boxes`, `windows` and `doorsDropped`;
      `islandsRefused: 0` is the pass, and a refusal means the render drifted
      from the one the recipe was read on. In stroke, so is `unplaced: 0`: a
      cell that names a door's kind and finds no drawn box means the same;
@@ -2649,6 +2649,8 @@ block what walls block.
    - across one side of a terrain box `move` collides and `sight` does not;
      from outside, across the box to its far side, `sight` collides;
    - across an invisible wall `move` collides, and `sight` and `sound` do not;
+   - at a stroke plan's window, `sight` passes across its invisible segment
+     and collides across the flank wall beside it, a quarter cell along;
    - `polygonBackends.sight.create(point, { type: "sight" })` from inside a
      room covers a small share of the scene's area.
 4. A door opens by the real gesture: click its control on the canvas.

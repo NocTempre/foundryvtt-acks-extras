@@ -7984,3 +7984,49 @@ AX3 region sites.
 - The bind writes AX1's id and block onto five of AX3's library places. AX3's
   Adventure carries them as they were until it is rebuilt.
 - The encounter area AX1 prints for its region map is no zone yet (ROADMAP).
+
+## 2026-10-24 — A window is the throat of a splayed gap, read by the tracer
+
+Supersedes, in today's "A window is a wall that sight passes", the ruled
+bullet that closes a side with one `invisible` line, and the first *Cost*
+bullet. Under that entry sight passes the whole gap the trace leaves.
+
+**New evidence.**
+- A side line cannot narrow the gap. The trace pulls the wall back along an
+  embrasure's flanks, and the line stands on the wall's centre, so on p.21 a
+  slit that narrows to a point still lets sight through 0.7 to 1.2 cells.
+- The user, shown that slit: "Clearly a technique is needed for off-grid
+  terrain"; asked which, the user chose a reader for the plans' arrow slits
+  beside the rect.
+- Run with no corrections on AX1's six stroke plans, a reader of splayed
+  gaps finds 33 windows on p.11, 16 on p.15 with three false, 18 on p.21
+  with its outer wall closed, 15 on p.23, and none on p.14. p.25 reads 25:
+  its north wall's 8 slits, 9 in the annex under its wall lines, and 8 on
+  hatching, an arc and corners.
+
+**Ruled.**
+- **A window is the narrowest paper crossing between two facing jambs, no
+  wider than half a cell, where the gap widens away from it.** A splayed
+  jamb and a notch cut down to a slit both read; a doorway's square jambs
+  keep their width and are no window.
+- **The throat is drawn into the ink before thinning.** The wall runs on
+  across it and the stretch inside it is invisible, so sight passes at the
+  throat and the flanks stand as wall.
+- **A drawn door box stays a door**, and a line of any kind replaces a traced
+  window lying along it, as it does a door.
+- **A false window is dropped by its point** (`{at, drop: "window"}`), which
+  leaves its gap as drawn. A window the reader misses is still a line.
+
+*Rejected:*
+- **Side lines kept.** They pass sight along every break in the side, flanks
+  included.
+- **Pairing the skeleton's facing free ends.** Thinning has already pulled
+  the flanks back, so a pair names the gap where the trace stops, not at the
+  slit.
+
+*Cost:*
+- Ink that makes a funnel reads as a window, as on p.25; each costs a drop.
+  So does a doorway whose corridor is less than an eighth of a cell wider
+  than it, which is drawn as a stepped embrasure is.
+- The thresholds (`WINDOW_*`) are fitted on these six plates.
+- The pass adds about half a second on the largest of them.

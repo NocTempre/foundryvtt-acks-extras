@@ -167,7 +167,7 @@ A recipe with a square `grid` may carry a `walls` block, read by
   `[0, 0]` is the first whole drawn cell at the crop's top-left):
   `{cell: [c, r], is}`, `{edge: [c, r, "n"|"w"], is}`,
   `{box: [c0, r0, c1, r1], is: "terrain"}` on lattice lines, or
-  `{at: [x, y], drop: "island"|"door"}`, `{line: [x0, y0, x1, y1], is}` and
+  `{at: [x, y], drop: "island"|"door"|"window"}`, `{line: [x0, y0, x1, y1], is}` and
   `{rect: [x0, y0, x1, y1, turn], is: "terrain"}` in page points. A rect is a
   box off the lattice: the box between its two corners, turned `turn` degrees
   clockwise about its centre (`turn` may be left out), its four sides laid as
@@ -178,7 +178,8 @@ A recipe with a square `grid` may carry a `walls` block, read by
   in every mode (`LINE_STATES`): `wall`, `door`, `secret`, `terrain`, or
   `invisible`, a wall that blocks movement and no sense.
   `contour` and `stroke` drop a door by its point (`AT_DROPS`): the drawn
-  door nearest the point, within half a cell. An island point on the plan's
+  door nearest the point, within half a cell. `stroke` drops a window the
+  same way, by the throat nearest the point. An island point on the plan's
   floor or on the rock framing it, the largest component of its value, is
   refused (`islandsRefused` in the digest).
 - `note` — the compiler strips it.
@@ -216,13 +217,22 @@ What every mode does with a plan:
   along a box's axis into its end is the wall the door hangs in and is never
   pruned, so the door meets a wall at both ends. A door dropped by its point
   leaves its box cut, so the opening stands open.
+- **A window in `stroke` is the throat of a splayed gap** (`windowThroats`):
+  the narrowest paper crossing between two facing jambs, where the gap
+  widens away from it, as a splayed jamb or a notch cut down to a slit does.
+  Each throat is drawn into the ink before thinning, so the wall runs on
+  across it, and the stretch inside it is an invisible segment. Sight passes
+  at the throat alone; the flanks are wall. `windows` in the digest counts
+  them. A drawn door box covers the gap it hangs in and stays a door. A
+  window dropped by its point leaves its gap as drawn.
 - **A line is laid last.** A door or secret line replaces every traced door
   whose middle lies within half a cell of it (`doorsReplaced` in the
   digest), and in `contour` closes against the outline like a traced door.
-  A line of any kind replaces a traced door lying along it, both its ends
-  within 0.15 of a cell of the line, so a box that is no door (a window) is
-  restated by one line. Every line then stands as the kind it asserts;
-  `invisible` in the digest counts the invisible ones.
+  A line of any kind replaces a traced door or window lying along it, both
+  its ends within 0.15 of a cell of the line, so a box that is no door (a
+  window) is restated by one line. Every line then stands as the kind it
+  asserts; `invisible` in the digest counts the invisible segments, the
+  windows' among them.
 
 The map step traces after the picture is uploaded and before the one create.
 `traceSceneWalls` (`module.mjs`) renders the crop of the seat's page to gray

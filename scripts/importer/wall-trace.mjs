@@ -18,7 +18,8 @@
  * - `contour`: the same rock and floor, with walls on the floor's own
  *   outline. This mode is for caves, which follow no lattice.
  * - `stroke`: dark wall strokes on a light floor, thinned to their centre
- *   lines, with each door drawn as a box across a wall read as a door.
+ *   lines, with each door drawn as a box across a wall read as a door and
+ *   each window, a gap whose jambs splay, read as a wall that senses pass.
  *
  * Every size below is a share of the drawn cell, so a trace reads the same
  * plan the same way at any render scale.
@@ -79,12 +80,13 @@ const LINE_STATES = Object.freeze(["wall", "door", "secret", "terrain", "invisib
 /**
  * What a point correction may drop, per mode. Contour and stroke read drawn
  * doors as free segments off the lattice, where a cell asserted open would
- * cut the walls beside one too, so they drop a door by its point.
+ * cut the walls beside one too, so they drop a door by its point. Stroke
+ * drops a window by its point too, which leaves its gap as drawn.
  */
 const AT_DROPS = Object.freeze({
   grid: ["island"],
   contour: ["island", "door"],
-  stroke: ["island", "door"],
+  stroke: ["island", "door", "window"],
 });
 
 /** Core's `WALL_DOOR_TYPES`, spelled out because this file loads without Foundry. */
@@ -422,6 +424,7 @@ function readCorrections(list, crop, scale) {
   const edges = new Map();
   const islands = [];
   const doorDrops = [];
+  const windowDrops = [];
   const boxes = [];
   const lines = [];
   const px = (x, y) => [(x - crop.x) * scale, (y - crop.y) * scale];
@@ -435,9 +438,9 @@ function readCorrections(list, crop, scale) {
     } else if (k.line) {
       const c = [...px(k.line[0], k.line[1]), ...px(k.line[2], k.line[3])];
       lines.push(k.is === "terrain" ? { c, door: DOOR.none, terrain: true } : k.is === "invisible" ? { c, door: DOOR.none, invisible: true } : { c, door: doorOf(k.is) });
-    } else if (k.at) (k.drop === "door" ? doorDrops : islands).push(px(k.at[0], k.at[1]));
+    } else if (k.at) (k.drop === "door" ? doorDrops : k.drop === "window" ? windowDrops : islands).push(px(k.at[0], k.at[1]));
   }
-  return { cells, edges, islands, doorDrops, boxes, lines };
+  return { cells, edges, islands, doorDrops, windowDrops, boxes, lines };
 }
 
 /** The four sides of each terrain box, on the lattice lines it names. */
@@ -572,9 +575,10 @@ function correctSegments(walls, L, corr) {
  * A mode's walls with its line corrections laid over them, last of all. A
  * door or secret line replaces every traced door whose middle lies within half
  * a cell of it, and closes against `outline` when the mode gives one; a line of
- * any kind replaces a traced door lying along it, both ends within a few
- * pixels of the line, so a box that is not a door is restated by one line.
- * Every line then stands as the segment it asserts.
+ * any kind replaces a traced door or window lying along it, both ends within a
+ * few pixels of the line, so a box that is not a door, or a gap read for a
+ * window that is a doorway, is restated by one line. Every line then stands
+ * as the segment it asserts.
  * @returns {{walls: object[], replaced: number}} `replaced` counts the traced doors a line replaced
  */
 function applyLines(walls, L, lines, outline) {
@@ -582,9 +586,10 @@ function applyLines(walls, L, lines, outline) {
   const near = (s) => doors.some((l) => pointToSegment((s.c[0] + s.c[2]) / 2, (s.c[1] + s.c[3]) / 2, l.c) <= 0.5 * L.pitch);
   const tol = 0.15 * L.pitch;
   const along = (s) => lines.some((l) => pointToSegment(s.c[0], s.c[1], l.c) <= tol && pointToSegment(s.c[2], s.c[3], l.c) <= tol);
-  const kept = walls.filter((s) => !(s.door && (near(s) || along(s))));
+  const doorGone = (s) => s.door && (near(s) || along(s));
+  const kept = walls.filter((s) => !doorGone(s) && !(s.invisible && along(s)));
   const drawn = lines.map((l) => (l.door && outline ? closeDoor(l, outline, 0.25 * L.pitch, 0.02 * L.pitch) : l));
-  return { walls: [...kept, ...drawn], replaced: walls.length - kept.length };
+  return { walls: [...kept, ...drawn], replaced: walls.filter(doorGone).length };
 }
 
 /* ---------------------------------------------------------------------------
@@ -1542,10 +1547,158 @@ function drawnBoxes(gray, thick, w, h, cut, L) {
   return boxes;
 }
 
+/** A window's throat is no wider than this share of a cell. */
+const WINDOW_WIDTH = 0.5;
+
+/** Each jamb of a window runs on along its throat at least this share of a cell... */
+const WINDOW_JAMB = 0.4;
+
+/** ...and at least this many times its own band's thickness, so a round blob is no jamb. */
+const WINDOW_ELONGATION = 1.5;
+
+/** A window's gap widens past its throat by this factor while both jambs still stand beside it. */
+const WINDOW_SPLAY = 1.2;
+
 /**
- * stroke mode: dark strokes opened, compact marks dropped, thinned, and
- * walked node to node; a stroke's corner tines are pruned, and each drawn
- * door box stands as a door in its wall.
+ * The windows in a stroke plan's opened ink, each as its throat: the
+ * narrowest paper crossing between two facing jambs, no wider than
+ * `WINDOW_WIDTH` of a cell, whose gap widens past it by `WINDOW_SPLAY` while
+ * both jambs still stand on either side. That is a splayed jamb or a notch
+ * cut down to a slit; a doorway's square jambs keep their width and are no
+ * window. A jamb runs on along the crossing at least `WINDOW_JAMB` of a cell
+ * and `WINDOW_ELONGATION` times its band's thickness, read as the
+ * second-thinnest of four cross-sections near its end, so a junction behind
+ * it is not read as its band and a mark's tapered point is not either. A
+ * window dropped by a correction point within half a cell of its throat is
+ * left as drawn. Shortest first, one to each third of a cell.
+ * @returns {{a: number[], b: number[]}[]} each throat's two ink ends, in render pixels
+ */
+function windowThroats(thick, w, h, pitch, drops) {
+  const wmax = WINDOW_WIDTH * pitch, reach = 2 * wmax, kmax = Math.round(0.3 * pitch), jamb = WINDOW_JAMB * pitch;
+  const ink = (x, y) => {
+    x = Math.round(x);
+    y = Math.round(y);
+    return x >= 0 && y >= 0 && x < w && y < h && thick[y * w + x] === 1;
+  };
+  const K = 32, dirs = [];
+  for (let k = 0; k < K; k++) dirs.push([Math.cos((2 * Math.PI * k) / K), Math.sin((2 * Math.PI * k) / K)]);
+  // The paper run through a point along ±d to the ink on each side; null where a side has none near.
+  const gap = (x, y, d) => {
+    if (ink(x, y)) return null;
+    let a = 0, b = 0;
+    while (a < reach && !ink(x - d[0] * (a + 1), y - d[1] * (a + 1))) a++;
+    while (b < reach && !ink(x + d[0] * (b + 1), y + d[1] * (b + 1))) b++;
+    return a >= reach || b >= reach ? null : { len: a + b + 1, a, b };
+  };
+  // The length of the ink run through a point along ±v.
+  const band = (x, y, v) => {
+    let a = 0, b = 0;
+    while (a < pitch && ink(x - v[0] * (a + 1), y - v[1] * (a + 1))) a++;
+    while (b < pitch && ink(x + v[0] * (b + 1), y + v[1] * (b + 1))) b++;
+    return a + b + 1;
+  };
+  const found = [];
+  for (let y = 1; y < h - 1; y++) {
+    for (let x = 1; x < w - 1; x++) {
+      const i = y * w + x;
+      if (thick[i] !== 1 || (thick[i - 1] && thick[i + 1] && thick[i - w] && thick[i + w])) continue;
+      for (const d of dirs) {
+        if (ink(x + d[0], y + d[1])) continue;
+        let t = 1;
+        while (t <= wmax && !ink(x + d[0] * t, y + d[1] * t)) t++;
+        if (t > wmax || t < 3) continue;
+        let ja = 0, jb = 0;
+        while (ja < 2 * pitch && ink(x - d[0] * (ja + 1), y - d[1] * (ja + 1))) ja++;
+        while (jb < 2 * pitch && ink(x + d[0] * (t + jb), y + d[1] * (t + jb))) jb++;
+        if (ja < jamb || jb < jamb) continue;
+        const n = [-d[1], d[0]];
+        const thickness = (ox, oy, sgn, run) => [0.15, 0.25, 0.35, 0.5]
+          .map((f) => band(ox + sgn * d[0] * Math.min(run, pitch) * f, oy + sgn * d[1] * Math.min(run, pitch) * f, n))
+          .sort((p, q) => p - q)[1];
+        if (ja < WINDOW_ELONGATION * thickness(x, y, -1, ja) || jb < WINDOW_ELONGATION * thickness(x + d[0] * (t - 1), y + d[1] * (t - 1), 1, jb)) continue;
+        const m = [x + (d[0] * t) / 2, y + (d[1] * t) / 2];
+        const g0 = gap(m[0], m[1], d);
+        if (g0 === null) continue;
+        // Step off the throat both ways while each side's ink moves smoothly,
+        // which is to say while both jambs still stand beside the gap.
+        let widest = g0.len, least = g0.len;
+        for (const sgn of [-1, 1]) {
+          let prev = g0;
+          for (let k = 1; k <= kmax; k++) {
+            const gk = gap(m[0] + n[0] * sgn * k, m[1] + n[1] * sgn * k, d);
+            if (gk === null || Math.abs(gk.a - prev.a) > 3 || Math.abs(gk.b - prev.b) > 3) break;
+            prev = gk;
+            least = Math.min(least, gk.len);
+            widest = Math.max(widest, gk.len);
+          }
+        }
+        if (least < g0.len - 1 || widest < WINDOW_SPLAY * g0.len) continue;
+        found.push({ a: [x, y], b: [x + d[0] * (t - 1), y + d[1] * (t - 1)], t, m });
+      }
+    }
+  }
+  found.sort((p, q) => p.t - q.t);
+  const throats = [];
+  for (const f of found) if (!throats.some((g) => Math.hypot(g.m[0] - f.m[0], g.m[1] - f.m[1]) < 0.3 * pitch)) throats.push(f);
+  const dropped = new Set();
+  for (const [px, py] of drops) {
+    let best = -1, near = 0.5 * pitch;
+    throats.forEach((g, k) => {
+      const dd = Math.hypot(g.m[0] - px, g.m[1] - py);
+      if (dd <= near) { near = dd; best = k; }
+    });
+    if (best >= 0) dropped.add(best);
+  }
+  return throats.filter((_, k) => !dropped.has(k)).map(({ a, b }) => ({ a, b }));
+}
+
+/** A throat drawn into a mask as ink `r` pixels about its line, each pixel it adds labelled `id`. */
+function drawBridge(mask, label, w, h, [ax, ay], [bx, by], r, id) {
+  const steps = Math.max(1, Math.ceil(2 * Math.hypot(bx - ax, by - ay)));
+  for (let i = 0; i <= steps; i++) {
+    const cx = ax + ((bx - ax) * i) / steps, cy = ay + ((by - ay) * i) / steps;
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        const x = Math.round(cx + dx), y = Math.round(cy + dy);
+        if (x < 0 || y < 0 || x >= w || y >= h || dx * dx + dy * dy > r * r || mask[y * w + x]) continue;
+        mask[y * w + x] = 1;
+        label[y * w + x] = id;
+      }
+    }
+  }
+}
+
+/**
+ * A path's points cut where they enter or leave a window's bridge, each run
+ * sharing its end point with the next and carrying the bridge it lies in, 0
+ * for none. A closed path is opened at one of its cuts first.
+ * @returns {{id: number, pts: number[][]}[]}
+ */
+function windowRuns(pts, closed, label, w) {
+  const at = ([x, y]) => label[Math.round(y) * w + Math.round(x)];
+  if (closed) {
+    const k = pts.findIndex((q, i) => at(q) !== at(pts[(i - 1 + pts.length) % pts.length]));
+    if (k >= 0) pts = [...pts.slice(k), ...pts.slice(0, k + 1)];
+  }
+  const runs = [];
+  let cur = { id: at(pts[0]), pts: [pts[0]] };
+  for (let i = 1; i < pts.length; i++) {
+    const id = at(pts[i]);
+    if (id !== cur.id) {
+      cur.pts.push(pts[i]);
+      runs.push(cur);
+      cur = { id, pts: [pts[i - 1], pts[i]] };
+    } else cur.pts.push(pts[i]);
+  }
+  runs.push(cur);
+  return runs;
+}
+
+/**
+ * stroke mode: dark strokes opened, each window's throat bridged, compact
+ * marks dropped, thinned, and walked node to node; a stroke's corner tines
+ * are pruned, each drawn door box stands as a door in its wall, and where a
+ * wall runs through a window's bridge it is a wall that senses pass.
  */
 function traceStroke(gray, w, h, threshold, L, corr) {
   const pitch = L.pitch;
@@ -1555,6 +1708,11 @@ function traceStroke(gray, w, h, threshold, L, corr) {
   // door's or a bed's outline, hatching and speckle.
   const e = Math.max(1, Math.round(0.03 * pitch));
   const thick = morph(morph(inkMask, w, h, e, true), w, h, e, false);
+  // Bridged before the size cut, so a wall of short blocks between slits is
+  // one stroke network, and before thinning, so the centre line runs through
+  // each throat.
+  const bridges = new Int32Array(w * h);
+  windowThroats(thick, w, h, pitch, corr.windowDrops).forEach((g, k) => drawBridge(thick, bridges, w, h, g.a, g.b, e, k + 1));
   {
     // A stroke network spans most of a cell; a component shorter than that on
     // its long side is furniture, a label or an ornament.
@@ -1621,8 +1779,20 @@ function traceStroke(gray, w, h, threshold, L, corr) {
 
   const eps = Math.max(2, 0.04 * pitch);
   let walls = [];
+  const onBridge = ([x, y]) => bridges[Math.round(y) * w + Math.round(x)] > 0;
   for (const p of live) {
     if (!p.alive) continue;
+    if (p.pts.some(onBridge)) {
+      // Each run is simplified alone, so a window keeps its own segment.
+      for (const run of windowRuns(p.pts, p.closed, bridges, w)) {
+        const poly = simplify(run.pts, eps);
+        for (let i = 0; i + 1 < poly.length; i++) {
+          const c = [...poly[i], ...poly[i + 1]];
+          walls.push(run.id ? { c, door: DOOR.none, invisible: true, win: run.id } : { c, door: DOOR.none });
+        }
+      }
+      continue;
+    }
     let poly;
     if (p.closed) {
       let far = 0, fd = -1;
@@ -1710,10 +1880,11 @@ function traceStroke(gray, w, h, threshold, L, corr) {
     walls = walls.filter((s) => s.box !== best);
     doorsDropped++;
   }
-  walls = correctSegments([...walls.map(({ c, door }) => ({ c, door })), ...boxSides(L, corr.boxes)], L, corr);
+  const windows = new Set(walls.filter((s) => s.win).map((s) => s.win)).size;
+  walls = correctSegments([...walls.map(({ c, door, invisible }) => (invisible ? { c, door, invisible } : { c, door })), ...boxSides(L, corr.boxes)], L, corr);
   return {
     walls,
-    digest: { cells: L.cols * L.rows, paths: live.filter((p) => p.alive).length, spurs, boxes: kinds, islandsDropped: dropped, islandsRefused: refused, doorsDropped, unplaced },
+    digest: { cells: L.cols * L.rows, paths: live.filter((p) => p.alive).length, spurs, boxes: kinds, windows, islandsDropped: dropped, islandsRefused: refused, doorsDropped, unplaced },
   };
 }
 

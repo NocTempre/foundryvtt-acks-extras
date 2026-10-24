@@ -131,6 +131,9 @@ ok("grid mode drops no door by its point", wallsProblems({ ...fine, corrections:
 check("contour mode drops a door by its point", wallsProblems({ mode: "contour", threshold: 160, corrections: dropDoor }, recipeOf(fine)), []);
 check("stroke mode drops a door by its point, and names a drawn door's kind by its cell",
   wallsProblems({ mode: "stroke", threshold: 80, corrections: [...dropDoor, { cell: [1, 1], is: "secret" }] }, recipeOf(fine)), []);
+const dropWindow = [{ at: [crop.x + 5, crop.y + 5], drop: "window" }];
+check("stroke mode drops a window by its point", wallsProblems({ mode: "stroke", threshold: 80, corrections: dropWindow }, recipeOf(fine)), []);
+ok("contour mode reads no window to drop", wallsProblems({ mode: "contour", threshold: 160, corrections: dropWindow }, recipeOf(fine)).some((p) => /drop must be/.test(p)));
 ok("recipeProblems carries the walls checks", recipeProblems({ ...recipeOf({ ...fine, mode: "hatch" }) }).some((p) => /walls.mode/.test(p)));
 
 const boxOf = (box, is = "terrain") => ({ ...fine, corrections: [{ box, is }] });
@@ -567,6 +570,84 @@ check("grid: a door asserted open is gone", opened.digest.doors, 0);
   const gapOf = ([x, y], self) => Math.min(...teed.walls.filter((s) => s !== self).map((s) => toSeg(x, y, s.c)));
   const loose = teed.walls.filter((s) => s.door).flatMap((s) => [[s.c[0], s.c[1]], [s.c[2], s.c[3]]].map((p) => gapOf(p, s)));
   ok("stroke: a door short of a junction meets the wall at both ends", teed.digest.doors === 1 && loose.every((g) => g < 0.02 * CELL), JSON.stringify(loose.map((g) => +(g / CELL).toFixed(3))));
+
+  // A gap cut through the bottom wall at column 7, row by row from the inner
+  // face to the outer: as wide at both faces it is a doorway, wider at the
+  // outer face it is a window.
+  const cutGap = (c, inner, outer) => {
+    for (let y = Math.floor(10 * P - t / 2) - 1; y <= Math.ceil(10 * P + t / 2) + 1; y++) {
+      const f = Math.max(0, Math.min(1, (y - (10 * P - t / 2)) / t));
+      const half = (inner + (outer - inner) * f) / 2;
+      c.rect(7 * P - half, y, 7 * P + half, y + 1, 235);
+    }
+    return c;
+  };
+  const gapAt = [7, 10];
+  const windowed = traceWalls(cutGap(drawHouse(), 16, 32), recipeOf(rec), scale);
+  const sees = windowed.walls.filter((s) => s.invisible);
+  check("stroke: a gap that splays is one window", [windowed.digest.windows, crosses(sees, gapAt), crosses(windowed.walls.filter((s) => !s.invisible), gapAt)], [1, true, false]);
+  const doorway2 = traceWalls(cutGap(drawHouse(), 16, 16), recipeOf(rec), scale);
+  check("stroke: a gap as wide at both faces is a doorway, open", [doorway2.digest.windows, crosses(doorway2.walls, gapAt)], [0, false]);
+  check("stroke: a gap that widens by less than the splay is a doorway", traceWalls(cutGap(drawHouse(), 16, 18), recipeOf(rec), scale).digest.windows, 0);
+  check("stroke: a splayed gap wider than half a cell is a doorway", traceWalls(cutGap(drawHouse(), 28, 44), recipeOf(rec), scale).digest.windows, 0);
+  const corridor = cutGap(drawHouse(), 16, 16);
+  for (const side of [-1, 1]) corridor.rect(7 * P + side * 20 - t / 2, 8 * P, 7 * P + side * 20 + t / 2, 10 * P, 40);
+  check("stroke: a doorway at the end of a wider corridor is no window", traceWalls(corridor, recipeOf(rec), scale).digest.windows, 0);
+  const unglazed = traceWalls(cutGap(drawHouse(), 16, 32), recipeOf({ ...rec, corrections: [{ at: [crop.x + 7 * CELL, crop.y + 10 * CELL], drop: "window" }] }), scale);
+  check("stroke: a window dropped by its point leaves its gap as drawn", [unglazed.digest.windows, crosses(unglazed.walls, gapAt)], [0, false]);
+  const walled = traceWalls(cutGap(drawHouse(), 16, 32), recipeOf({ ...rec, corrections: [{ line: [crop.x + 6.5 * CELL, crop.y + 10 * CELL, crop.x + 7.5 * CELL, crop.y + 10 * CELL], is: "wall" }] }), scale);
+  check("stroke: a line along a window replaces it", [walled.digest.windows, walled.digest.invisible, crosses(walled.walls, gapAt)], [1, 0, true]);
+  const hung = cutGap(drawHouse(), 16, 32);
+  hung.rect(6.6 * P - 2, 10 * P - 6, 7.4 * P + 2, 10 * P + 6, 40);
+  hung.rect(6.6 * P, 10 * P - 4, 7.4 * P, 10 * P + 4, 235);
+  const boxedGap = traceWalls(hung, recipeOf(rec), scale);
+  check("stroke: a door drawn over a splayed gap covers its splay: a door, and no window", [boxedGap.digest.doors, boxedGap.digest.windows, boxedGap.digest.invisible], [1, 0, 0]);
+
+  // A thick top wall with a notch cut from its inner face down to a slit at
+  // its outer face: the window is the slit, and the notch's sides are wall.
+  const notched = drawHouse();
+  const T = 24;
+  notched.rect(3 * P - t / 2, 3 * P - T / 2, 12 * P + t / 2, 3 * P + T / 2, 40);
+  for (let y = 3 * P - T / 2; y < 3 * P + T / 2; y++) {
+    const half = 2 + (16 * (y - (3 * P - T / 2))) / T;
+    notched.rect(7 * P - half, y, 7 * P + half, y + 1, 235);
+  }
+  const slit = traceWalls(notched, recipeOf(rec), scale);
+  const glazed = slit.walls.filter((s) => s.invisible);
+  const outer = 3 - T / 2 / P;
+  check("stroke: a notch cut to a slit is one window", slit.digest.windows, 1);
+  ok("stroke: the notch's window is its slit, at the outer face",
+    glazed.length > 0 && glazed.every((s) => lengthOf([s]) < 0.3 * CELL && [s.c[1], s.c[3]].every((y) => Math.abs((y - crop.y) / CELL - outer) < 0.15)),
+    JSON.stringify(glazed.map((s) => s.c.map((v) => +v.toFixed(2)))));
+  ok("stroke: no wall a sense passes crosses the notch above its slit", !crosses(glazed, [7, 3]));
+
+  // Two round marks a third of a cell apart: neither is a jamb.
+  const posts = drawHouse();
+  for (const cx of [5 * P, 5 * P + 46]) {
+    for (let y = -13; y <= 13; y++) {
+      const half = Math.sqrt(169 - y * y);
+      posts.rect(cx - half, 7 * P + y, cx + half, 7 * P + y + 1, 40);
+    }
+  }
+  check("stroke: two round marks facing each other are no window", traceWalls(posts, recipeOf(rec), scale).digest.windows, 0);
+  // The same, the left one drawn out to a point toward the right: the point's
+  // thin cross-section is no measure of the mark's thickness.
+  const egg = drawHouse();
+  for (let y = -13; y <= 13; y++) {
+    const half = Math.sqrt(169 - y * y);
+    egg.rect(5 * P - half, 7 * P + y, 5 * P + Math.max(half, 18 * (1 - Math.abs(y) / 13)), 7 * P + y + 1, 40);
+    egg.rect(5 * P + 51 - half, 7 * P + y, 5 * P + 51 + half, 7 * P + y + 1, 40);
+  }
+  check("stroke: a pointed mark facing a round one is no window", traceWalls(egg, recipeOf(rec), scale).digest.windows, 0);
+
+  // A splayed gap, as at row 10, cut through a stroke too short to be jambs.
+  const dashes = drawHouse();
+  dashes.rect(7 * P - 30, 12 * P - t / 2, 7 * P + 30, 12 * P + t / 2, 40);
+  for (let y = Math.floor(12 * P - t / 2) - 1; y <= Math.ceil(12 * P + t / 2) + 1; y++) {
+    const half = 8 + 8 * Math.max(0, Math.min(1, (y - (12 * P - t / 2)) / t));
+    dashes.rect(7 * P - half, y, 7 * P + half, y + 1, 235);
+  }
+  check("stroke: a splayed gap between two short marks is no window", traceWalls(dashes, recipeOf(rec), scale).digest.windows, 0);
 }
 
 /* ---------------- refusals ---------------- */
