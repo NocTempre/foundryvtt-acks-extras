@@ -19,7 +19,8 @@
  * See docs/battlemap/DECISIONS.md, "Terrain paints as regions, and the
  * cell key is the identity."
  */
-import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
+import { MODULE_ID, LANG_PREFIX, FLAG_BATTLEMAP } from "./constants.mjs";
+import { writeSceneSetup } from "./scene-setup.mjs";
 import { TERRAIN, readTable, TRAVEL_DOC } from "../vehicles/vehicle-speed.mjs";
 import { ENCOUNTER_TERRAINS } from "../formation/encounter-terrains.mjs";
 import { TERRITORY_KEYS } from "../formation/country-keys.mjs";
@@ -75,13 +76,15 @@ export const PAINT_LAYERS = new Proxy({}, {
  * @param {(value: string) => string} layer.label  a value's name
  * @param {(value: string) => string} layer.color  a value's swatch and region colour
  * @param {boolean} [layer.visible]  whether its regions are drawn for players; the Judge's alone by default
+ * @param {boolean} [layer.regionsOnly]  whether its regions are drawn only on the Regions control, for a
+ *   layer a map mode draws instead (map-modes.mjs); never with `visible`
  * @param {string} [layer.title]  the i18n key of its palette pill, `<LANG_PREFIX>.terrain.layer.<key>` by default
  * @param {{of: (value: string) => string, label: (group: string) => string}} [layer.groups]
  *   how its swatches are grouped in the palette, in order of first appearance
  * @returns {() => void} removes the layer again; the brush returns to terrain if it was on it
  */
 export function registerPaintLayer({
-  key, flag, hexesFlag, values, label, color, visible = false, title = null, groups = null,
+  key, flag, hexesFlag, values, label, color, visible = false, regionsOnly = false, title = null, groups = null,
 } = {}) {
   const refuse = (why) => {
     throw new Error(`${MODULE_ID} | paint layer "${key}" refused: ${why}`);
@@ -97,10 +100,11 @@ export function registerPaintLayer({
   }
   if (layers.has(key)) refuse("registered twice, one layer to a key");
   if (flag === hexesFlag) refuse("flag and hexesFlag must differ");
+  if (visible && regionsOnly) refuse("visible and regionsOnly cannot both hold");
   const held = [...layers.values()].flatMap((l) => [l.flag, l.hexesFlag]);
   if ([flag, hexesFlag].some((f) => held.includes(f))) refuse("a flag is shared with another layer");
   const entry = Object.freeze({
-    key, flag, hexesFlag, values, label, color, visible: !!visible, title, groups,
+    key, flag, hexesFlag, values, label, color, visible: !!visible, regionsOnly: !!regionsOnly, title, groups,
     pair: Object.freeze({ flag, hexesFlag }),
   });
   layers.set(key, entry);
@@ -269,8 +273,9 @@ export function layerLabelFor(key, layer = "terrain") {
 }
 
 // The two layers the country is painted in. Terrain is the map everyone sees;
-// territory is the Judge's bookkeeping, drawn for a GM only, and named by the
-// strings the party sheet already names it by.
+// territory is the Judge's bookkeeping, named by the strings the party sheet
+// already names it by, and drawn by its map mode, its regions only on the
+// Regions control.
 registerPaintLayer({
   key: "terrain",
   flag: TERRAIN_FLAG,
@@ -285,6 +290,7 @@ registerPaintLayer({
   key: "territory",
   flag: "territory",
   hexesFlag: "territoryHexes",
+  regionsOnly: true,
   values: () => [...TERRITORY_KEYS],
   label: (key) => (TERRITORY_KEYS.includes(key) ? game.i18n.localize(`ACKS-FORMATION.travel.territory.${key}`) : String(key ?? "")),
   color: (key) => TERRITORY_COLORS[key] ?? colorFor(key),
@@ -415,12 +421,42 @@ async function eraseHexEverywhere(scene, key, { except = null, layer = "terrain"
   }
 }
 
+/** The visibility a layer's regions are made with: everyone's, the Regions control's alone, or a GM's. */
+function regionVisibilityOf(spec) {
+  const V = CONST.REGION_VISIBILITY ?? {};
+  if (spec.visible) return V.ALWAYS ?? 2;
+  if (spec.regionsOnly) return V.LAYER ?? 0;
+  return V.GAMEMASTER ?? 1;
+}
+
+/**
+ * Move a scene's regions on a `regionsOnly` layer that were painted to be
+ * drawn for a GM onto the Regions control alone, once. A scene holding any
+ * region of such a layer is marked `regionsSettled` in its setup record and
+ * never settled again, so a visibility the Judge sets by hand afterwards
+ * stands; a scene holding none is not written.
+ * @returns {Promise<number>} how many regions moved
+ */
+export async function settleRegionsOnly(scene) {
+  if (scene?.getFlag?.(MODULE_ID, FLAG_BATTLEMAP)?.regionsSettled) return 0;
+  const regions = [...layers.values()].filter((l) => l.regionsOnly).flatMap((l) => layerRegionsOf(scene, l.key));
+  if (!regions.length) return 0;
+  const gm = CONST.REGION_VISIBILITY?.GAMEMASTER ?? 1;
+  const updates = regions
+    .filter((r) => r.visibility === gm)
+    .map((r) => ({ _id: r.id, visibility: regionVisibilityOf({ regionsOnly: true }) }));
+  if (updates.length) await scene.updateEmbeddedDocuments("Region", updates);
+  await writeSceneSetup(scene, { regionsSettled: true });
+  return updates.length;
+}
+
 /**
  * Paint the hex containing `point` with a layer's value (or erase it from that
  * layer, when `value` is null). One value per hex per layer; the region is
  * created on first use and tinted. A region is visible to everyone where its
- * layer is registered `visible` (a hex map's terrain is the map) and drawn for
- * a GM only where it is not (a territory is the Judge's bookkeeping).
+ * layer is registered `visible` (a hex map's terrain is the map), only on the
+ * Regions control where it is `regionsOnly` (a territory, which its map mode
+ * draws), and for a GM otherwise.
  */
 export async function paintHexAt(scene, point, value, layer = "terrain") {
   const spec = layerSpec(layer);
@@ -441,9 +477,7 @@ export async function paintHexAt(scene, point, value, layer = "terrain") {
   await eraseHexEverywhere(scene, key, { except: region?.id ?? null, layer });
   const shape = hexShapeAt(scene, offset);
   if (!region) {
-    const visibility = spec.visible
-      ? CONST.REGION_VISIBILITY?.ALWAYS ?? 2
-      : CONST.REGION_VISIBILITY?.GAMEMASTER ?? 1;
+    const visibility = regionVisibilityOf(spec);
     const [made] = await scene.createEmbeddedDocuments("Region", [
       {
         // The layer's label and colour functions, never the frozen maps: an

@@ -19,9 +19,32 @@
    the surface select cuts its *Not a road* label short; the row's three
    controls want a width each, or a second line.
 6. **Worldographer import and export.** The owner's ruling of 2026-10-24
-   (map-layers audit, Q6b): the map modes are built in Foundry, and a `.wxx`
+   (DECISIONS, "The map shows one mode at a time", Q6b): the map modes are
+   built in Foundry, and a `.wxx`
    file is exchanged with them after. A file's hexes would be read into a hex
    scene's terrain regions and written back from them, through a table the
    Judge keeps from the file's tile names to the brush's terrain keys. The
    format is known only from an open converter (`mdhender/wxconv`): gzip over
    UTF-16 XML, unverified against a file of the user's own.
+7. **The domains and markets modes.** The owner's rulings of 2026-10-24
+   (DECISIONS, "The map shows one mode at a time").
+   - *Domains*: the domain a hex belongs to is a paint layer the domains
+     feature registers (`docs/domains/ROADMAP.md`, "Territory on the map"),
+     with its mode: a colour per domain, a vassal's a shade of its liege's,
+     borders weighted by realm tier. A hex's class is its domain's (RR
+     §VIII.3), which the domain actor already carries as `classification`;
+     a territory painted over it is the Judge's override, for land no domain
+     actor holds (JJ Ch6 Step 9 leaves an existing realm's class to the
+     Judge) and for sea hexes, striped where it differs from the domain's.
+   - *Markets*: every placed location with a market class (`marketClass`)
+     reaches the hexes within its Range of Trade (JJ Ch6 Step 7E), measured
+     along roads (`roadDistance`) and navigable water, never as a circle;
+     each hex is coloured by the market reaching it and checkered outside
+     every reach. The reach is a per-class figure the importer does not yet
+     write from the Judge's own copy; without it the mode says so. The
+     distances from a city that classify a new domain (RR §VIII.3) are a
+     different reach and are not this mode.
+8. **A hover card.** Every mode names, under the pointer, each key of
+   `countryAt` and the source that answered it.
+9. **Brush ergonomics.** A flood fill and brush sizes over several hexes
+   (Hexographer's); the brush paints one hex at a time.

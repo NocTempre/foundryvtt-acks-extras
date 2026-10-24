@@ -1,0 +1,41 @@
+{{! The map modes: one pill per mode, the active one pressed; the mode's
+    legend, each row a border in its colour; what an unpainted hex reads as;
+    the map's climate; the overlay's opacity and the handout switch. ONE root
+    element — an ApplicationV2 template part renders a single node. }}
+<div class="acks-extras-map-modes-body">
+  <div class="acks-extras-map-modes-pills" role="group" aria-label="{{localize 'ACKS-BATTLEMAP.mapMode.modesLabel'}}">
+    {{#each modes}}
+    <button type="button" class="acks-extras-map-mode{{#if active}} is-active{{/if}}"
+            data-action="pickMode" data-mode="{{key}}" aria-pressed="{{#if active}}true{{else}}false{{/if}}">{{label}}</button>
+    {{/each}}
+  </div>
+  {{#unless hexScene}}
+  <p class="hint">{{localize "ACKS-BATTLEMAP.mapMode.notHex"}}</p>
+  {{/unless}}
+  {{#if terrain}}
+  <p class="hint">{{localize "ACKS-BATTLEMAP.mapMode.terrainHint"}}</p>
+  {{/if}}
+  {{#if rows.length}}
+  <ul class="acks-extras-map-legend">
+    {{#each rows}}
+    <li><span class="acks-extras-map-legend-chip" style="border-color:{{color}}"></span><span>{{label}}</span></li>
+    {{/each}}
+  </ul>
+  {{/if}}
+  {{#if unpainted}}
+  <p class="hint">{{localize "ACKS-BATTLEMAP.mapMode.unpainted" value=unpainted}}</p>
+  {{/if}}
+  <p class="acks-extras-map-climate">
+    <span class="acks-extras-map-climate-label">{{localize "ACKS-BATTLEMAP.mapMode.climate"}}</span>
+    <span>{{#if climate}}{{climate}}{{else}}{{localize "ACKS-BATTLEMAP.mapMode.climateUnsaid"}}{{/if}}</span>
+  </p>
+  <label class="acks-extras-map-opacity">
+    <span>{{localize "ACKS-BATTLEMAP.mapMode.opacity"}}</span>
+    <input type="range" name="opacity" min="{{opacityFloor}}" max="100" step="5" value="{{opacity}}">
+  </label>
+  <label class="acks-extras-map-handout">
+    <input type="checkbox" name="handout" {{#if handout}}checked{{/if}}>
+    <span>{{localize "ACKS-BATTLEMAP.mapMode.handout"}}</span>
+  </label>
+  <p class="hint">{{localize "ACKS-BATTLEMAP.mapMode.handoutHint"}}</p>
+</div>

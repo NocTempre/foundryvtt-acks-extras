@@ -567,6 +567,10 @@ regions already draw, tint, and persist); painting roads (linear features do
 not cell-paint; the journey's road picker stays manual until the encounter
 work returns to it).
 
+**Superseded in part, 2026-10-24** (*The map shows one mode at a time*): a
+map mode draws a module overlay over the regions; the regions stay the store
+and still draw the terrain.
+
 ## 2026-08-29 — The terrain vocabulary opens to imported keys
 
 `TERRAIN` was a frozen list of eleven keys and the brush rejected everything
@@ -820,6 +824,10 @@ stayed where the Judge last set it.
 **Superseded in part, 2026-10-24** (*The climate is the map's*, below): the
 climate left the brush, and a map's climate is its scene default alone.
 
+**Superseded in part, 2026-10-24** (*The map shows one mode at a time*,
+below): territory regions are drawn on the Regions control alone, and the
+Territory map mode draws the territory for a GM.
+
 ## 2026-10-17 — The country brush's layers are a registry
 
 **Evidence.** The domains feature's automation wave (ruled 2026-10-17) paints a
@@ -869,6 +877,10 @@ Nothing about the three layers changes here: the 2026-10-15 ruling stands.
   swatches until another pill is pressed; the pill is hidden, not the layer.
 - Registrations are per client and per load. The regions a layer painted stay
   in the scene when its feature is absent, and nothing reads them.
+
+**Extended, 2026-10-24** (*The map shows one mode at a time*, below): a
+layer's visibility has a third word, `regionsOnly`, for a layer a map mode
+draws.
 
 ## 2026-10-24 — The brush paints the board alone
 
@@ -938,4 +950,82 @@ layers*.
 - An old map keeps its painted climate regions, GM-only and hatched, until the
   Judge deletes them.
 - Until a GM opens an old map, its climate reads unsaid.
+
+## 2026-10-24 — The map shows one mode at a time
+
+Reverses the rejection, 2026-08-28, of a PIXI overlay of the module's own.
+
+**Evidence.**
+- The owner's report: the layers paint over each other, with the suggestion
+  that how civilized a hex is reads as a border colour and the terrain stays
+  the fill. A v14 Region draws a hatched fill in its colour at a fixed alpha,
+  and its border only when hovered, controlled or highlighted (core
+  `Region#_refreshState`): two fills on one hex hide each other's colour, and
+  core offers no border-only look. What the 2026-08-28 rejection did not know
+  is that one painted layer would become several.
+- The owner pointed at grand-strategy map modes (Paradox's EU4, CK3 and
+  Victoria 3) and Hexographer. What carries over: one mode owns the map at a
+  time, picked by a button; stripes mark a hex whose value differs from the
+  one it would inherit; a checker marks a hex out of range (EU4's trade
+  mode); a hover card answers what the mode does not draw; a legend per
+  mode; categories hidden for a player handout (Hexographer) and a layer's
+  opacity (Worldographer 2025).
+- The map-layers audit (commit a6a6aa4; deleted once its substance moved
+  here and into the ROADMAP) weighed embedding an external tool that syncs
+  both ways. Worldographer is the one hex-native candidate with a political
+  model, and it syncs by a file keyed by column and row; Hexfriend (GPL-2.0)
+  has no political model; Azgaar's generator maps Voronoi cells, not hexes;
+  Lidarion Hexmap Studio documents no sync.
+- The owner's rulings on that audit: Q1a, a hex's territory comes from the
+  domain it is painted into, the territory paint the Judge's override for
+  land no domain holds and for sea hexes, striped where it differs from the
+  domain's class; Q2a, a market's sphere is its Range of Trade along roads
+  and navigable water; Q3, every placed location with a market class, Class
+  VI through I, shows one; Q4a, a mode stays on until the Judge returns to
+  Terrain, through every control, with a handout switch to hide it; Q6b, the
+  modes are built in Foundry, with a Worldographer exchange later.
+
+**Ruled.**
+- **A map mode is registered** (`registerMapMode`, MODEL "Map modes"), as
+  the paint layers are; Terrain is the rest state and draws nothing of its
+  own. Territory is the module's, and the domains and markets modes register
+  from the features that own the data, so battlemap names neither.
+- **Territory is a border, not a fill**: each painted hex draws, in its
+  class's colour, the sides where its neighbour's class differs or is
+  unpainted, inside the hex, so two classes meeting show two lines. The
+  audit proposed a class fill; the border is the owner's suggestion, and it
+  leaves the terrain fill the one colour inside the hex.
+- **A territory region is drawn on the Regions control alone**
+  (`REGION_VISIBILITY.LAYER`, `regionsOnly`), so core's hatch no longer
+  covers the terrain; the overlay is how the Judge sees the territory.
+  Painted maps are settled once on a GM's view (`settleRegionsOnly`).
+- **The view is the client's** (`mapView`): mode, opacity and the handout
+  switch, which hides every GM overlay, the road markers included. Arming the
+  brush on a layer, or switching it to one, shows that layer's mode.
+- **An unpainted hex draws no border**; the legend names what it reads as,
+  the scene default. The map's climate is shown in the same window.
+- **Q1a, Q2a and Q3 are the domains and markets modes**, which are not built
+  (ROADMAP, "The domains and markets modes").
+
+**Rejected.**
+- *A fill per mode over the terrain at partial opacity*: two colours mixed in
+  one hex read as neither, which is the report.
+- *Territory regions left drawn for a GM, the overlay drawn over them*: the
+  hatch under the border is the overlap the ruling removes. Moving a region's
+  visibility deletes nothing and is undone in its config; the climate regions
+  were left as they were because nothing reads them, while the territory
+  regions stay the layer's data.
+- *Settling on every view*: a visibility the Judge sets by hand would be
+  undone.
+- *The mode drawn only while the Judge works the map*, as the road markers
+  are (Q4b): the owner ruled Q4a.
+- *An external tool synced live*: none of the four keeps hex identity both
+  ways.
+
+**Cost.**
+- The territory regions vanish from the canvas outside the Regions control;
+  a Judge who read them there reads the mode instead.
+- The view is per client: a second GM sees their own mode, never the first's.
+- A hex with no neighbour painted draws a full ring, so a scattered paint
+  reads as rings rather than as a region.
 

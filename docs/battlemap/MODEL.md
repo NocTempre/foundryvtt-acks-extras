@@ -30,9 +30,9 @@ layer first, the eraser unpaints the armed layer alone, and a region whose
 last cell goes is deleted. A terrain and a territory answer different
 questions about the same hex, so a write on one layer never touches the
 other's regions. Terrain regions are visible to everyone (a hex map's terrain
-is the map); territory regions are drawn for a GM only, as the Judge's
-bookkeeping. Square-grid scenes refuse with a warning rather than
-approximating.
+is the map); territory regions are drawn on the Regions control alone, since
+the Territory map mode (§Map modes) is how the Judge sees them. Square-grid
+scenes refuse with a warning rather than approximating.
 
 Each layer's vocabulary is structural:
 
@@ -54,10 +54,12 @@ Each layer's vocabulary is structural:
 **The layer registry.** No code in the painter names a layer: each is
 registered, and the two above register through the same call at the foot of
 `terrain-paint.mjs`. `registerPaintLayer({key, flag, hexesFlag, values, label,
-color, visible, title, groups})` takes the layer's two region flags;
+color, visible, regionsOnly, title, groups})` takes the layer's two region flags;
 `values()`, asked on every read so a vocabulary may come from the world;
 `label(value)` and `color(value)`; `visible`, true where the layer's regions
-are drawn for everyone and otherwise the Judge's alone; an optional `title`,
+are drawn for everyone and otherwise the Judge's alone; `regionsOnly`, true
+where a map mode draws the layer and its regions show on the Regions control
+alone (never with `visible`); an optional `title`,
 the i18n key of the palette pill (`ACKS-BATTLEMAP.terrain.layer.<key>` by
 default); and optional `groups` (`of(value)` and `label(group)`), which fold the
 swatches under group headings in order of first appearance. Paint, erase, the reads (`layerValueAt`, `layerRegionsOf`), `paintableValues`,
@@ -126,6 +128,62 @@ does a party sheet's paint chip. Closing the palette disarms a brush the
 toolbar did not arm, because nothing else on screen says the canvas is
 captured.
 
+## Map modes
+
+A GM's map shows one MODE at a time over its terrain
+([map-modes.mjs](../../scripts/battlemap/map-modes.mjs)). Terrain is the rest
+state: core's terrain regions are the whole drawing. Every other mode is
+registered — `registerMapMode({key, label, layer, plan, legend})`, the
+module's own being Territory — and draws an overlay, a `PIXI.Container` added
+to the board's regions layer after core's region fills. `plan(scene)` lists
+the hexes the mode draws, `[{key, value, color}]` by offset key
+(`layerPlan(scene, layer)` makes one from a paint layer's regions);
+`legend(scene)` returns `{rows: [{color, label}], unpainted}`, `unpainted`
+the label a hex the mode has not painted reads as (Territory's: the scene
+default's territory). `layer` names the paint layer whose palette pill shows
+the mode (`modeForLayer`). Registration throws on a key already taken,
+Terrain's included, or a missing function, and returns a handle that takes
+the mode out; a view on a removed mode reads as Terrain.
+
+**The borders.** `borderSegments(scene, plan)` draws, for every planned hex,
+each side whose neighbour holds another value or none, in the hex's own
+colour, its two corners pulled a fraction of the way toward the hex's centre.
+Two values meeting therefore show as two lines side by side, one inside each
+hex, and the terrain fill between the borders stays readable. The neighbour
+across a side is the cell under the hex's centre mirrored across the side's
+midpoint, which holds on any grid whose cells are symmetric about their
+centre. Segments are drawn grouped by colour, at a width and an inset scaled
+by the grid size.
+
+**The view.** The mode, the overlay's opacity and a handout switch are this
+client's (`mapView`, the client setting `mapView`, `config: false`).
+`mapView()` resolves every field: a mode nobody registered reads as Terrain,
+the opacity is held between a floor and 1, and anything but `true` is no
+handout. A change redraws the overlay and calls `acksExtrasMapView`, on which
+the road markers redraw. The overlay is drawn only for a GM, on a hex scene,
+with a mode other than Terrain and the handout switch off; the handout switch
+hides the road markers too. The mode outlives the brush and every control:
+it changes when the Judge picks another in the Map modes window, or when the
+brush is armed on a layer or switched to one (the mode that layer's pill
+shows, which opens the window for any mode but Terrain). A swatch picked or a
+disarm leaves the mode as it is.
+
+**The Map modes window** (`MapModesApp`, the group's Map modes tool) shows a
+pill per mode with the view's pressed, the mode's legend and what an
+unpainted hex reads as, the map's climate, the opacity slider and the
+handout switch; every control writes the view at once. The overlay redraws
+on `canvasReady`, and 50 ms after a change to the viewed scene's regions or
+its module flags.
+
+**Regions on the Regions control.** A territory region is made with
+`REGION_VISIBILITY.LAYER`, since the mode draws it and core's fill would cover
+the terrain under it. A map painted before then holds territory regions drawn
+for a GM; the first time a GM's client draws it, `settleRegionsOnly` moves
+every such region of a `regionsOnly` layer onto the Regions control in one
+write and marks the setup record `regionsSettled`. A scene is settled once,
+so a visibility the Judge sets by hand afterwards stands; a scene holding no
+such region is never written.
+
 ## Files
 
 | File | Responsibility |
@@ -139,18 +197,19 @@ captured.
 | `assistant-app.mjs` | The window, a VIEW over the session: the setup section, the fit card, scale decisions, the token-size hotbar, and a pinned footer carrying the two apply actions. One module-level instance, so a second press focuses rather than stacks and a dragged position survives a close; it subscribes to the session while open and unsubscribes on close. Two PARTS — a part renders one root element, and the footer must be the body's sibling to stay pinned, which is why `.window-content` is the flex column. |
 | `apply.mjs` | Scene writes, one per family: `applyGridCalibration` (square), `applyHexCalibration` (hex), `applyScaleOnly` (no geometry), each one `scene.update`; plus `bakeCorrectedBackground` (render-to-texture de-skew, upload, repoint). |
 | `scene-setup.mjs` | What a scene has been set up AS: the flag record (`sceneSetup` / `writeSceneSetup`), its declared travel system, its default country (`sceneCountry`), the family it already uses, and `hexProbe` — a hex's bounding box, measured off a clone rather than restated. |
-| `terrain-paint.mjs` | The country brush: the paint-layer registry (`registerPaintLayer`, with the three built-in layers registered through it) as one region per value keyed by cell, each layer's vocabulary, colours and labels, the reads (`layerValueAt`, `paintedTerrainAt`), the writer `paintHexAt`, and the palette window with its layer pills. |
+| `terrain-paint.mjs` | The country brush: the paint-layer registry (`registerPaintLayer`, with the two built-in layers registered through it) as one region per value keyed by cell, each layer's vocabulary, colours and labels, the reads (`layerValueAt`, `paintedTerrainAt`), the writer `paintHexAt`, and the palette window with its layer pills. |
 | `country.mjs` | `countryAt`, the one reader of the country under a point: the painted layers, the drawn lines and the scene default, and which of them answered each key. |
+| `map-modes.mjs` | The map modes: the mode registry with Territory registered through it, this client's view (mode, opacity, handout), the plan and its border segments, the overlay in the regions layer, following the brush, and the Map modes window. |
 | `hex-fit.mjs` | `hexAlignment` — the shift that lays Foundry's lattice over a drawn cell centre, asked of a zero-shift clone. The one owner of lattice alignment. Document methods only. |
 | `../lib/distance-units.mjs` | What one `grid.units` is worth in FEET. Every feet→squares conversion divides by `sceneFeetPerCell`. |
 | `roads.mjs` | Roads as a WALL LAYER on any grid: the flag, the non-blocking wall shape, the memoised road network, `roadUnder` (which street is the party on) and `roadDistance` (how far along the streets), the drawing presets, and the road row on a wall's own sheet. |
 | `water.mjs` | Rivers and coasts as a WALL LAYER on any grid: the flag, the open wall shape, `waterUnder` (which water line is under the party), the two drawing presets, the from-selection tool, and the water row on a wall's own sheet. |
-| `road-markers.mjs` | The GM-side overlay that makes a street and a water line visible: a street tinted by surface and dashed where it is an alley, a river or a coast in its own blue and dashed where a boat cannot follow it, drawn only while a map-drawing control is open. Presentation only. |
+| `road-markers.mjs` | The GM-side overlay that makes a street and a water line visible: a street tinted by surface and dashed where it is an alley, a river or a coast in its own blue and dashed where a boat cannot follow it, drawn only while a map-drawing control is open and the handout view is off. Presentation only. |
 | `hex-topology.mjs` | Pure hex nodes and links, and `linksFromRoadSegments` — the links a set of drawn roads implies. No Foundry. |
 | `hex-routes.mjs` | The scene half of the topology: links DERIVED from road walls, the legacy declared flag still read beside them, `convertRoutesToWalls`, `nodeAtPoint` / `nodePoint`. |
 | `../lib/wall-geometry.mjs` | Segments and the graph they draw — the crossing, distance and along-the-lines measurement every wall layer shares. No Foundry. |
 | `../lib/wall-layers.mjs` | What a drawn line MEANS to this module: the flag read and write, the all-NONE shape, core's one drawing-preset slot, a region from an enclosed loop. |
-| `module.mjs` | Registrar: the scene-control group (the capture modes, the country brush, the road and water presets), the Walls-layer tools, the scene-config row, preCreateToken install, `acksExtras.battlemap` API. |
+| `module.mjs` | Registrar: the scene-control group (the capture modes, the country brush, the road and water presets, the Map modes window), the Walls-layer tools, the scene-config row, preCreateToken install, `acksExtras.battlemap` API. |
 
 ## Data flow
 

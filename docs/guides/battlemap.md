@@ -160,13 +160,30 @@ its palette. Two pills at the palette's head pick what the brush paints:
 Click or drag to paint hexes. Each pill holds one value per hex, and painting
 over replaces it; a hex can be a forest and borderlands at once. The eraser
 clears the hex on the pill you are on and leaves the other alone. Territory is
-drawn for you alone. A stroke paints only the map: dragging across a window in
-front of it paints nothing behind the window.
+drawn for you alone, as a map mode (below). A stroke paints only the map:
+dragging across a window in front of it paints nothing behind the window.
 
 ![](../releases/v11.4.0/battlemap-country-brush.png)
 
 *The Country brush on its Territory pill: one swatch per territory, and the
 eraser.*
+
+### Map modes
+
+Your map shows one mode at a time over its terrain. **Terrain** is the map as
+everyone sees it. **Territory** draws a border in each territory's colour
+around the land you painted it on, inside the hexes, so the terrain colour
+still fills each hex and two territories meeting show as two lines. The
+group's **Map modes** tool opens the window that picks the mode; pressing the
+Territory pill on the brush picks it too, and it stays on, through every
+control, until you pick Terrain again.
+
+The window lists what each colour means, what a hex with no border reads as
+(the scene's own territory), and the map's climate. **Opacity** fades the
+borders; **Handout view** hides them, and the road and water markers, while
+you show your screen. Players never see a map mode. The territory regions
+themselves show only on the Regions control; a map painted before this is
+moved there the first time you open it.
 
 A hex nobody painted reads as the scene's own country. The Battlemap window
 has **Ground here** and **Territory here** for it — for a map that is one

@@ -40,6 +40,7 @@ import {
   TERRAIN_COLORS,
   TERRITORY_COLORS,
   climateLabelFor,
+  settleRegionsOnly,
 } from "./terrain-paint.mjs";
 import {
   WATER_KINDS,
@@ -70,6 +71,7 @@ import {
   wallRoad,
 } from "./roads.mjs";
 import { installRoadMarkers } from "./road-markers.mjs";
+import { installMapModes, mapModes, mapView, openMapModes, registerMapMode, registerMapViewSetting, setMapView } from "./map-modes.mjs";
 import { convertRoutesToWalls, derivedRoutesOf, nodePoint, routesOf, stepBetweenHexes } from "./hex-routes.mjs";
 import { elementOf } from "../lib/util.mjs";
 
@@ -77,6 +79,7 @@ const TEMPLATES = [
   `modules/${MODULE_ID}/templates/battlemap/assistant-body.hbs`,
   `modules/${MODULE_ID}/templates/battlemap/assistant-foot.hbs`,
   `modules/${MODULE_ID}/templates/battlemap/terrain-palette.hbs`,
+  `modules/${MODULE_ID}/templates/battlemap/map-modes.hbs`,
 ];
 
 Hooks.once("init", () => {
@@ -89,14 +92,17 @@ Hooks.once("init", () => {
   registerWaterHooks();
   installWaterControls();
   installRoadMarkers();
+  registerMapViewSetting();
+  installMapModes();
   // The session owns the samples, so it is what a scene change clears — the
   // window is only a view and may not even be open.
   Hooks.on("canvasReady", () => session.onCanvasReady());
-  // A map painted with climates hex by hex is folded into its one climate the
-  // first time a GM opens it. The viewing GM writes it, never the active GM:
-  // canvasReady fires only on the client drawing the map, so a map opened by
-  // an assistant alone would otherwise never fold. Two GMs opening it at once
-  // write the same answer.
+  // A map painted with climates hex by hex is folded into its one climate,
+  // and its territory regions drawn for a GM are moved onto the Regions
+  // control, the first time a GM opens it. The viewing GM writes both, never
+  // the active GM: canvasReady fires only on the client drawing the map, so a
+  // map opened by an assistant alone would otherwise never settle. Two GMs
+  // opening it at once write the same answer.
   Hooks.on("canvasReady", (board) => {
     if (!game.user?.isGM || !board?.scene) return;
     foldPaintedClimate(board.scene)
@@ -104,7 +110,8 @@ Hooks.once("init", () => {
         if (!climate) return;
         ui.notifications?.info(game.i18n.format(`${LANG_PREFIX}.setup.climateFolded`, { climate: climateLabelFor(climate) }));
       })
-      .catch((err) => console.error(`${MODULE_ID} | painted climate fold failed`, err));
+      .then(() => settleRegionsOnly(board.scene))
+      .catch((err) => console.error(`${MODULE_ID} | settling the painted layers failed`, err));
   });
 
   foundry.applications.handlebars
@@ -175,6 +182,15 @@ Hooks.once("ready", () => {
       PAINT_LAYERS,
       TERRAIN_COLORS,
       TERRITORY_COLORS,
+    },
+    /** What a GM's map draws over its terrain (map-modes.mjs): the modes,
+     *  a feature's own registered beside Territory, and this client's view. */
+    mapModes: {
+      registerMapMode,
+      mapModes,
+      mapView,
+      setMapView,
+      openMapModes,
     },
     /** Rivers and coasts as walls (water.mjs): the layer and its preset. */
     water: {
@@ -250,7 +266,7 @@ function installSceneControls() {
     // The country brush is a canvas-arming tool like the capture modes, so
     // Foundry's one-active-tool rule is the exclusivity: arming it disarms
     // calibration, and vice versa. Hex map prep, GM-only, hex grids only; the
-    // palette picks which of the three layers it paints.
+    // palette picks which of its layers it paints.
     tools.terrain = {
       name: "terrain",
       title: game.i18n.localize(`${LANG_PREFIX}.terrain.tool`),
@@ -323,6 +339,17 @@ function installSceneControls() {
       order: CAPTURE_MODES.length + 11,
       button: true,
       onChange: () => openAssistant(),
+    };
+    // What the map shows over its terrain. A button, not a canvas mode: the
+    // mode it picks stays on through every control, and the window is only
+    // its editor.
+    tools.mapModes = {
+      name: "mapModes",
+      title: game.i18n.localize(`${LANG_PREFIX}.controls.mapModes`),
+      icon: "fa-solid fa-layer-group",
+      order: CAPTURE_MODES.length + 12,
+      button: true,
+      onChange: () => openMapModes(),
     };
 
     controls[CONTROL_GROUP] = {

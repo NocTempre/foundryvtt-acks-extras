@@ -422,15 +422,20 @@
   font-size: var(--acks-fs-label);
 }
 
-/* The layer pills at the palette's head: which question the brush answers.
-   The chosen one takes the reversed band, as an active chip does. */
-.acks-extras-terrain-layers {
+/* The layer pills at the palette's head, and the Map modes window's mode
+   pills: which question the brush answers, or the map shows. One column per
+   pill, however many layers or modes are registered. The chosen one takes the
+   reversed band, as an active chip does. */
+.acks-extras-terrain-layers,
+.acks-extras-map-modes-pills {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
   gap: calc(4px * var(--acks-extras-k));
 }
 
-.acks-extras-terrain-layer {
+.acks-extras-terrain-layer,
+.acks-extras-map-mode {
   padding: calc(3px * var(--acks-extras-k)) calc(6px * var(--acks-extras-k));
   border-radius: calc(999px * var(--acks-extras-k));
   font-size: var(--acks-fs-label);
@@ -441,13 +446,14 @@
   white-space: nowrap;
 }
 
-.acks-extras-terrain-layer.is-active {
+.acks-extras-terrain-layer.is-active,
+.acks-extras-map-mode.is-active {
   background: var(--acks-burgundy);
   color: var(--acks-on-burgundy);
   border-color: var(--acks-spot);
 }
 
-/* A group's name over its swatches (the climates). */
+/* A group's name over its swatches, for a layer that registers groups. */
 .acks-extras-terrain-group {
   font-family: var(--acks-font-display);
   font-size: var(--acks-fs-label);
@@ -455,4 +461,72 @@
   text-transform: uppercase;
   color: var(--acks-spot);
   margin-top: calc(4px * var(--acks-extras-k));
+}
+
+/* The Map modes window: the mode pills, the mode's legend as a border swatch
+   per value (a mode draws borders, so the chip is drawn as one), the map's
+   climate, and the view's two controls. */
+.acks-extras-map-modes .window-content {
+  padding: 0.5rem;
+}
+
+.acks-extras-map-modes-body {
+  display: flex;
+  flex-direction: column;
+  gap: calc(6px * var(--acks-extras-k));
+  font-size: var(--acks-fs-body);
+}
+
+.acks-extras-map-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: calc(4px * var(--acks-extras-k));
+}
+
+.acks-extras-map-legend li {
+  display: flex;
+  align-items: center;
+  gap: calc(6px * var(--acks-extras-k));
+  min-width: 0;
+}
+
+.acks-extras-map-legend li > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.acks-extras-map-legend-chip {
+  flex: 0 0 auto;
+  width: calc(18px * var(--acks-extras-k));
+  height: calc(14px * var(--acks-extras-k));
+  border: calc(3px * var(--acks-extras-k)) solid var(--acks-ink-soft);
+  background: var(--acks-field);
+}
+
+.acks-extras-map-climate {
+  margin: 0;
+}
+
+.acks-extras-map-climate-label {
+  font-family: var(--acks-font-display);
+  font-size: var(--acks-fs-label);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--acks-spot);
+}
+
+.acks-extras-map-opacity,
+.acks-extras-map-handout {
+  display: flex;
+  align-items: center;
+  gap: calc(6px * var(--acks-extras-k));
+}
+
+.acks-extras-map-opacity input[type="range"] {
+  flex: 1 1 auto;
+  min-width: 0;
 }

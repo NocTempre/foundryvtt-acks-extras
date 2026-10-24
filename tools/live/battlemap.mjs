@@ -2,6 +2,7 @@
  * Live walk, battlemap. Recipes walked:
  *   docs/battlemap/TESTING.md  "The country's layers and water" 1-8 and 10, and the changed
  *                              step 1 of "Terrain painting"                       (part "layers")
+ *   docs/battlemap/TESTING.md  "Map modes" 1-8                                    (part "modes")
  *   docs/formation/TESTING.md  "The country" 1-9, then on the same fixtures the changed
  *                              steps 5-7 of battlemap "Terrain painting" and step 12
  *                              of battlemap "Roads"                               (part "country")
@@ -16,10 +17,11 @@
  *   - the world setting `travelEncounters`, only if it was on (restored);
  *   - the GM seat's client state: dice rig, notification patches, country brush,
  *     the core wall preset (restored to what it read at start), the cursor layer;
+ *   - both seats' map view (restored to what each read at start);
  *   - the world clock, which the journey advances (reported as a delta).
  *
  * WALK_PLAN names an optional plan file:
- *   { "parts": ["layers", "country"], "retrack": ["<uuid>", ...] }
+ *   { "parts": ["layers", "modes", "country"], "retrack": ["<uuid>", ...] }
  */
 import fs from "node:fs";
 import { connect, sleep } from "./_driver.mjs";
@@ -40,8 +42,8 @@ const CLIMATE_SCENE = "BSk"; // the scene default's, and the fold's loser
 const TARGET = 11; // invented navigation target; the dice are rigged to a natural 20 for the country walk
 const SHOT_DIR = shotDir();
 
-// WALK_PLAN names an optional plan file ({ "parts": ["layers", "country"], "retrack": ["<uuid>", ...] }).
-let plan = { parts: ["layers", "country"], retrack: [] };
+// WALK_PLAN names an optional plan file ({ "parts": ["layers", "modes", "country"], "retrack": ["<uuid>", ...] }).
+let plan = { parts: ["layers", "modes", "country"], retrack: [] };
 if (process.env.WALK_PLAN) plan = { ...plan, ...JSON.parse(fs.readFileSync(process.env.WALK_PLAN, "utf8")) };
 const PARTS = new Set(plan.parts);
 
@@ -96,6 +98,7 @@ const P = {
     const base = "/modules/acks-extras/scripts/";
     H.m = {
       paint: await import(base + "battlemap/terrain-paint.mjs"),
+      modes: await import(base + "battlemap/map-modes.mjs"),
       session: await import(base + "battlemap/session.mjs"),
       tables: await import(base + "lib/tables.mjs"),
       model: await import(base + "formation/formation-model.mjs"),
@@ -495,6 +498,103 @@ const P = {
     await H.sleep(400);
     const s = H.m.paint.terrainPaint;
     return { closed: !document.querySelector("#acks-extras-terrain-palette"), state: { layer: s.layer, brush: s.brush, armedBy: s.armedBy } };
+  },
+
+  /**
+   * The map modes as this seat holds them: the view; the overlay (its children,
+   * its alpha, its border paths counted by colour) beside what `borderSegments`
+   * says it should draw for the territory; the Map modes window; the control.
+   */
+  modeState: async ({ sceneId = null } = {}) => {
+    const H = globalThis.__rb;
+    const MM = H.m.modes;
+    const scene = sceneId ? game.scenes.get(sceneId) : canvas.scene;
+    const hex = (c) => "#" + (c ?? 0).toString(16).padStart(6, "0");
+    const ov = canvas.regions?.getChildByName?.("acks-extras-map-modes") ?? null;
+    const drawn = {};
+    for (const g of ov?.children ?? []) {
+      g.finishPoly?.();
+      for (const d of g.geometry?.graphicsData ?? []) drawn[hex(d.lineStyle?.color)] = (drawn[hex(d.lineStyle?.color)] ?? 0) + 1;
+    }
+    const expected = {};
+    if (scene) for (const s of MM.borderSegments(scene, MM.layerPlan(scene, "territory"))) expected[s.color] = (expected[s.color] ?? 0) + 1;
+    const win = foundry.applications.instances.get("acks-extras-map-modes") ?? null;
+    const el = win?.rendered ? H.root(win) : null;
+    const ctx = el ? await win._prepareContext() : null;
+    return {
+      view: MM.mapView(),
+      overlay: ov ? { children: ov.children.length, alpha: Math.round(ov.alpha * 100) / 100, drawn, inRegions: ov.parent === canvas.regions } : null,
+      expected,
+      window: el ? {
+        pressed: el.querySelector('button[data-action="pickMode"][aria-pressed="true"]')?.dataset.mode ?? null,
+        pills: [...el.querySelectorAll('button[data-action="pickMode"]')].map((b) => b.dataset.mode),
+        rows: el.querySelectorAll(".acks-extras-map-legend li").length,
+        unpainted: ctx.unpainted, climate: ctx.climate, hexScene: ctx.hexScene,
+      } : null,
+      roadMarkers: canvas.controls?.getChildByName?.("acks-extras-road-markers")?.children?.length ?? 0,
+      control: ui.controls?.control?.name ?? null,
+      brush: { layer: H.m.paint.terrainPaint.layer, brush: H.m.paint.terrainPaint.brush },
+    };
+  },
+
+  /** This seat's view written whole, through the API. */
+  setView: async (view) => {
+    const H = globalThis.__rb;
+    await H.B.mapModes.setMapView(view);
+    await H.sleep(500);
+    return H.B.mapModes.mapView();
+  },
+
+  /** One control of the Map modes window driven as a user drives it: a pill pressed, the slider or the switch changed. */
+  modeWindow: async ({ mode = null, opacity = null, handout = null }) => {
+    const H = globalThis.__rb;
+    if (!foundry.applications.instances.get("acks-extras-map-modes")?.rendered) {
+      H.B.mapModes.openMapModes();
+      await H.sleep(700);
+    }
+    const el = H.root(foundry.applications.instances.get("acks-extras-map-modes"));
+    const change = (input, set) => { set(input); input.dispatchEvent(new Event("change", { bubbles: true })); };
+    if (mode) el.querySelector(`button[data-action="pickMode"][data-mode="${mode}"]`)?.click();
+    if (opacity != null) change(el.querySelector('input[name="opacity"]'), (i) => { i.value = String(opacity); });
+    if (handout != null) change(el.querySelector('input[name="handout"]'), (i) => { i.checked = handout; });
+    await H.sleep(800);
+    return globalThis.__P.modeState({});
+  },
+
+  controlTo: async ({ control, tool }) => {
+    const H = globalThis.__rb;
+    await ui.controls.render({ force: true });
+    ui.controls.activate({ control, tool });
+    await H.sleep(700);
+    return ui.controls.control?.name ?? null;
+  },
+
+  /** A territory region as the brush made one before the territory moved to the Regions control: drawn for a GM. */
+  oldTerritory: async ({ sceneId, offsets, value }) => {
+    const H = globalThis.__rb;
+    const scene = game.scenes.get(sceneId);
+    const [made] = await scene.createEmbeddedDocuments("Region", [{
+      name: `QA old territory ${value}`, color: "#c47a36", visibility: CONST.REGION_VISIBILITY?.GAMEMASTER ?? 1,
+      shapes: offsets.map((o) => ({ type: "polygon", hole: false, points: scene.grid.getVertices(o).flatMap((v) => [v.x, v.y]) })),
+      flags: { "acks-extras": { territory: value, territoryHexes: offsets.map((o) => `${o.i}:${o.j}`) } },
+    }]);
+    await H.sleep(300);
+    return { id: made.id, uuid: made.uuid, visibility: made.visibility };
+  },
+
+  /** A scene's regions by id with their visibility, and its settle mark. */
+  settleState: async ({ sceneId }) => {
+    const scene = game.scenes.get(sceneId);
+    return {
+      regions: Object.fromEntries(scene.regions.map((r) => [r.id, r.visibility])),
+      settled: scene.getFlag("acks-extras", "battlemap")?.regionsSettled === true,
+    };
+  },
+
+  setVisibility: async ({ sceneId, regionId, visibility }) => {
+    const region = game.scenes.get(sceneId).regions.get(regionId);
+    await region.update({ visibility });
+    return region.visibility;
   },
 
   /** Put an application at 16,16 in front, by its id; reports its box against the viewport. */
@@ -1161,7 +1261,7 @@ const P = {
   closeAll: async () => {
     let n = 0;
     try { await canvas?.hud?.token?.close?.(); } catch (_e) { /* closed */ }
-    for (const a of [...foundry.applications.instances.values()]) if (/Party|Formation|Dialog|Sheet|Config|Palette|Assistant/.test(a.constructor.name)) { try { await a.close({ animate: false }); n++; } catch (_e) { /* closed */ } }
+    for (const a of [...foundry.applications.instances.values()]) if (/Party|Formation|Dialog|Sheet|Config|Palette|Assistant|MapModes/.test(a.constructor.name)) { try { await a.close({ animate: false }); n++; } catch (_e) { /* closed */ } }
     return n;
   },
 };
@@ -1305,7 +1405,7 @@ async function walkLayers(W) {
   regs = await page(gm, P.regions, { sceneId: hex.id, layer: "territory" });
   note("territory regions", regs.map((g) => ({ value: g.value, hexes: g.hexes.length, visibility: g.visibility })));
   note("regions tracked", await track());
-  check("L1: one region per territory value, flagged territory and territoryHexes, GM-only", regs.length === 2 && regs.find((g) => g.value === X)?.hexes.length === 2 && regs.find((g) => g.value === Y)?.hexes.length === 1 && regs.every((g) => g.visibility === 1), regs.map((g) => ({ value: g.value, hexes: g.hexes.length, visibility: g.visibility })));
+  check("L1: one region per territory value, flagged territory and territoryHexes, on the Regions control alone", regs.length === 2 && regs.find((g) => g.value === X)?.hexes.length === 2 && regs.find((g) => g.value === Y)?.hexes.length === 1 && regs.every((g) => g.visibility === 0), regs.map((g) => ({ value: g.value, hexes: g.hexes.length, visibility: g.visibility })));
   const lv = await page(gm, P.layerValues, { sceneId: hex.id, point: pt("C") });
   check("L1: the terrain region of the third hex still lists that hex", lv.terrain === forest && lv.territory === Y, lv);
   note("player views the hex scene", await page(player, P.viewScene, hex.id));
@@ -1480,6 +1580,123 @@ async function walkLayers(W) {
 /* ------------------------------------------------------------------ */
 /*  Part: the water-lines snapshot, re-taken with the row in view         */
 /* ------------------------------------------------------------------ */
+
+/* ------------------------------------------------------------------ */
+/*  Part: the map modes                                                 */
+/* ------------------------------------------------------------------ */
+
+async function walkModes(W) {
+  const { gm, player } = W;
+  for (const api of [gm, player]) {
+    if (!(await api.eval(`typeof globalThis.acksExtras?.battlemap?.mapModes?.setMapView === "function"`))) {
+      throw new Error("modes: the seat runs module code without the map modes");
+    }
+  }
+  const hex = await gm.create("Scene", sceneData(`QA Modes hex ${NONCE}`, { type: 2 }));
+  const old = await gm.create("Scene", sceneData(`QA Modes old ${NONCE}`, { type: 2 }));
+  const square = await gm.create("Scene", sceneData(`QA Modes square ${NONCE}`, { type: 1 }));
+  const tracked = new Set();
+  const trackRegions = async (sceneId) => {
+    for (const layer of ["terrain", "territory"]) {
+      for (const r of await page(gm, P.regions, { sceneId, layer })) {
+        if (tracked.has(r.uuid)) continue;
+        gm.track(r.uuid, "Region");
+        tracked.add(r.uuid);
+      }
+    }
+  };
+  note("hex scene default", await page(gm, P.sceneDefault, { sceneId: hex.id, country: { territory: X, climate: CLIMATE_A } }));
+  note("view Terrain", await page(gm, P.setView, { mode: "terrain", opacity: 0.85, handout: false }));
+  note("hex scene viewed", await page(gm, P.viewScene, hex.id));
+  const L = await page(gm, P.layout, { sceneId: hex.id, i: 5, j: 5 });
+  const pt = (k) => L.cells[k].point;
+
+  section("modes 1. the Territory pill shows the Territory mode");
+  await page(gm, P.armTool);
+  await page(gm, P.pickLayer, { layer: "territory" });
+  note("pick X", await page(gm, P.pickBrush, { value: X }));
+  for (const k of ["C", "A", "B"]) note(`click ${k}`, await page(gm, P.clickHex, { sceneId: hex.id, point: pt(k) }));
+  note("pick Y", await page(gm, P.pickBrush, { value: Y }));
+  note("click D", await page(gm, P.clickHex, { sceneId: hex.id, point: pt("D") }));
+  await trackRegions(hex.id);
+  let m = await page(gm, P.modeState, { sceneId: hex.id });
+  note("mode state", m);
+  const regs = await page(gm, P.regions, { sceneId: hex.id, layer: "territory" });
+  check("M1: the Territory pill shows the Territory mode and opens the window on it", m.view.mode === "territory" && m.window?.pressed === "territory" && same(m.window?.pills, ["terrain", "territory"]), { view: m.view, window: m.window });
+  check("M1: the legend lists the four territories, names the scene default for an unpainted hex and the map's climate", m.window?.rows === 4 && !!m.window?.unpainted && typeof m.window?.climate === "string" && m.window.climate.startsWith(CLIMATE_A), m.window);
+  check("M1: the overlay sits in the regions layer and draws one border per side where the class changes, two classes meeting as two lines", m.overlay?.inRegions && m.overlay.children === 1 && same(m.overlay.drawn, m.expected) && Object.values(m.expected).reduce((s, n) => s + n, 0) === 18, { drawn: m.overlay?.drawn, expected: m.expected });
+  check("M1: the territory regions are on the Regions control alone", regs.length === 2 && regs.every((g) => g.visibility === 0), regs.map((g) => g.visibility));
+  note("placed window", await page(gm, P.placeApp, { id: "acks-extras-map-modes" }));
+  await shot(gm, "battlemap-map-modes", "#acks-extras-map-modes");
+
+  section("modes 2. the mode outlives the brush and the control");
+  note("disarm", await page(gm, P.resetControls));
+  note("control", await page(gm, P.controlTo, { control: "tokens", tool: "select" }));
+  m = await page(gm, P.modeState, { sceneId: hex.id });
+  check("M2: disarmed, on the Tokens control, the borders stay drawn", m.view.mode === "territory" && m.control === "tokens" && same(m.overlay?.drawn, m.expected), { view: m.view, control: m.control, drawn: m.overlay?.drawn });
+
+  section("modes 3. opacity and the handout view");
+  m = await page(gm, P.modeWindow, { opacity: 0 });
+  check("M3: the slider's floor holds the overlay at 0.2", m.view.opacity === 0.2 && m.overlay?.alpha === 0.2, { view: m.view, alpha: m.overlay?.alpha });
+  note("control", await page(gm, P.controlTo, { control: "walls", tool: "select" }));
+  const line = await page(gm, P.waterLine, { sceneId: hex.id, c: [100, 900, 900, 900] });
+  gm.track(line.uuid, "Wall");
+  note("water line for the markers", line);
+  const withMarkers = await page(gm, P.modeState, { sceneId: hex.id });
+  m = await page(gm, P.modeWindow, { handout: true });
+  check("M3: the handout view empties the overlay and the road and water markers", m.view.handout === true && m.overlay?.children === 0 && withMarkers.roadMarkers > 0 && m.roadMarkers === 0, { before: withMarkers.roadMarkers, after: m.roadMarkers, overlay: m.overlay });
+  m = await page(gm, P.modeWindow, { handout: false });
+  check("M3: unticked, both come back", m.view.handout === false && same(m.overlay?.drawn, m.expected) && m.roadMarkers > 0, { overlay: m.overlay?.drawn, markers: m.roadMarkers });
+  note("opacity back", (await page(gm, P.modeWindow, { opacity: 85 })).view);
+
+  section("modes 4. a player is drawn none");
+  note("player views the hex scene", await page(player, P.viewScene, hex.id));
+  note("player view Territory", await page(player, P.setView, { mode: "territory", opacity: 0.85, handout: false }));
+  const pm = await page(player, P.modeState, { sceneId: hex.id });
+  const pc = await page(player, P.playerCanvas, { sceneId: hex.id, regionIds: regs.map((g) => g.id) });
+  check("M4: a player holding the Territory mode is drawn no border and no territory region", pm.view.mode === "territory" && (!pm.overlay || pm.overlay.children === 0) && pc.regions.every((g) => g.placeable === false || g.visible === false), { overlay: pm.overlay, regions: pc.regions });
+
+  section("modes 5. back to Terrain, and the brush's way in");
+  m = await page(gm, P.modeWindow, { mode: "terrain" });
+  check("M5: Terrain empties the overlay and lists no legend", m.view.mode === "terrain" && m.overlay?.children === 0 && m.window?.rows === 0, { view: m.view, overlay: m.overlay, rows: m.window?.rows });
+  await page(gm, P.armTool);
+  m = await page(gm, P.modeState, { sceneId: hex.id });
+  check("M5: the brush armed again on its last layer, territory, shows that layer's mode", m.view.mode === "territory" && m.brush.layer === "territory", { view: m.view, brush: m.brush });
+  await page(gm, P.pickLayer, { layer: "terrain" });
+  m = await page(gm, P.modeState, { sceneId: hex.id });
+  check("M5: the Terrain pill returns the map to Terrain", m.view.mode === "terrain" && m.overlay?.children === 0, { view: m.view, overlay: m.overlay });
+  await page(gm, P.pickLayer, { layer: "territory" });
+  m = await page(gm, P.modeState, { sceneId: hex.id });
+  check("M5: the Territory pill brings the borders back", m.view.mode === "territory" && same(m.overlay?.drawn, m.expected), { view: m.view, drawn: m.overlay?.drawn });
+
+  section("modes 6. a repaint redraws");
+  note("pick Y", await page(gm, P.pickBrush, { value: Y }));
+  note("click B", await page(gm, P.clickHex, { sceneId: hex.id, point: pt("B") }));
+  await trackRegions(hex.id);
+  m = await page(gm, P.modeState, { sceneId: hex.id });
+  check("M6: repainting a hex the other class moves its borders", same(m.overlay?.drawn, m.expected) && Object.values(m.expected).reduce((s, n) => s + n, 0) !== 18, { drawn: m.overlay?.drawn, expected: m.expected });
+  note("closed palette", await page(gm, P.closePalette));
+
+  section("modes 7. a map painted before is settled once");
+  const o1 = await page(gm, P.oldTerritory, { sceneId: old.id, offsets: [{ i: 3, j: 3 }, { i: 3, j: 4 }], value: X });
+  const o2 = await page(gm, P.oldTerritory, { sceneId: old.id, offsets: [{ i: 4, j: 3 }], value: Y });
+  const t1 = await page(gm, P.handRegion, { sceneId: old.id, offset: { i: 6, j: 6 }, value: "forestTaiga" });
+  for (const r of [o1, o2, t1]) gm.track(r.uuid, "Region");
+  note("old regions", { o1: o1.visibility, o2: o2.visibility });
+  note("old scene viewed", await page(gm, P.viewScene, old.id));
+  let s = await page(gm, P.settleState, { sceneId: old.id });
+  check("M7: on a GM's view both territory regions move to the Regions control, the terrain stays as made, and the scene is marked", s.regions[o1.id] === 0 && s.regions[o2.id] === 0 && s.regions[t1.id] === 1 && s.settled, s);
+  note("set one back by hand", await page(gm, P.setVisibility, { sceneId: old.id, regionId: o1.id, visibility: 1 }));
+  note("hex scene viewed", await page(gm, P.viewScene, hex.id));
+  note("old scene viewed again", await page(gm, P.viewScene, old.id));
+  s = await page(gm, P.settleState, { sceneId: old.id });
+  check("M7: a scene is settled once: the visibility set by hand stands", s.regions[o1.id] === 1 && s.regions[o2.id] === 0, s);
+
+  section("modes 8. a square map");
+  note("square scene viewed", await page(gm, P.viewScene, square.id));
+  m = await page(gm, P.modeWindow, {});
+  check("M8: on a square map the window says the modes draw on a hex map and the overlay holds no child", m.window?.hexScene === false && m.overlay?.children === 0, { window: m.window, overlay: m.overlay });
+}
 
 async function walkWaterShot(W) {
   const { gm } = W;
@@ -1874,6 +2091,9 @@ try {
   if (!census.gm.activeGMIsSelf) throw new Error("another GM client is the active GM; the refresh and the throws would run there");
   note("install", { gm: await page(gm, P.install, { nonce: NONCE }), player: await page(player, P.install, { nonce: NONCE }) });
   Object.assign(W, { gm, player, playerId: census.player.userId });
+  // Both seats' map view before any part moves it: the Territory pill of every part sets it.
+  W.views = { gm: (await page(gm, P.modeState)).view, player: (await page(player, P.modeState)).view };
+  note("map views at start", W.views);
   if (census.gm.settings.travelEncounters === true) {
     encountersBefore = true;
     note("travelEncounters off for the walk", await page(gm, P.setSetting, { mod: MOD, key: "travelEncounters", value: false }));
@@ -1881,6 +2101,10 @@ try {
   if (PARTS.has("layers")) {
     section("PART: battlemap layers and water");
     await walkLayers(W);
+  }
+  if (PARTS.has("modes")) {
+    section("PART: battlemap map modes");
+    await walkModes(W);
   }
   if (PARTS.has("watershot")) {
     section("PART: water-lines snapshot");
@@ -1911,6 +2135,9 @@ try {
   try { if (gm && encountersBefore != null) note("travelEncounters restored", await page(gm, P.setSetting, { mod: MOD, key: "travelEncounters", value: encountersBefore })); } catch (err) { console.error("setting:", err?.message ?? err); }
   try { if (gm) note("seat restored", await page(gm, P.restoreSeat, { preset: W.preset ?? null })); } catch (err) { console.error("restoreSeat:", err?.message ?? err); }
   try { if (seats.player) note("player seat restored", await page(seats.player, P.restoreSeat, {})); } catch (err) { console.error("restoreSeat player:", err?.message ?? err); }
+  for (const k of ["gm", "player"]) {
+    try { if (seats[k] && W.views?.[k]) note(`${k} map view restored`, await page(seats[k], P.setView, W.views[k])); } catch (err) { console.error(`map view ${k}:`, err?.message ?? err); }
+  }
   try { if (gm) note("sweep", await gm.sweepTracked()); } catch (err) { console.error("sweep:", err?.message ?? err); }
   try { if (gm && worldTime0 != null) note("worldTime delta (s)", (await page(gm, P.census, MOD)).worldTime - worldTime0); } catch (err) { console.error("worldTime:", err?.message ?? err); }
   console.log("\n== shots ==");

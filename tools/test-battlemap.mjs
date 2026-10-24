@@ -868,8 +868,8 @@ assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an
   assert.equal(scene.regions.length, 2, "one region per layer value");
   const visibility = Object.fromEntries(
     Object.keys(PAINT_LAYERS).map((layer) => [layer, layerRegionsOf(scene, layer).map((r) => r.visibility)]));
-  assert.deepEqual(visibility, { terrain: [2], territory: [1] },
-    "the terrain is the map everyone sees; territory is the Judge's bookkeeping");
+  assert.deepEqual(visibility, { terrain: [2], territory: [0] },
+    "the terrain is the map everyone sees; territory is drawn by its map mode, its regions on the Regions control alone");
   assert.equal(layerRegionsOf(scene, "territory")[0].name, "ACKS-FORMATION.travel.territory.outlands",
     "a region is named by its layer's label");
   assert.deepEqual(layerRegionsOf(scene, "water"), [], "a layer the brush does not know has no regions");
@@ -1007,6 +1007,8 @@ assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an
     assert.throws(() => registerPaintLayer(), /non-empty/);
     assert.throws(() => registerPaintLayer({ ...plain, key: "dup", values: null }), /values must be a function/);
     assert.throws(() => registerPaintLayer({ ...plain, key: "dup", groups: { of: () => "g" } }), /groups/);
+    assert.throws(() => registerPaintLayer({ ...plain, key: "dup", visible: true, regionsOnly: true }), /cannot both hold/,
+      "a layer drawn for everyone is not also drawn on the Regions control alone");
     assert.deepEqual(Object.keys(PAINT_LAYERS), [...builtIns, "demo"], "a refused layer registers nothing");
     assert.equal(layerLabelFor("a1", "demo"), "demo a1", "and the first registration still stands");
 
@@ -1306,4 +1308,213 @@ assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an
   invalidateRoadGraph();
 }
 
-console.log("test-battlemap: OK (hex keys, labels, aligned paint/erase pairs, palette coverage, open vocabulary, road row escaping, whole-line segments, road distance, the territory layer, the brush over a window, the scene's default country and its painted climate folded, the country under a point)");
+/* --- map modes: what a GM's map draws over its terrain ----------------------
+   The view is a client setting, held in memory here; a mode's plan is a
+   layer's painted hexes; its borders are the sides where the value changes,
+   each drawn on its own hex's side. No board exists, so the overlay draws
+   nothing and what is asserted is the view, the plan, the segments and the
+   window's context. The cells stand on 100-pixel squares: the neighbour
+   across a side is found by mirroring the centre, which holds on any cell
+   that is symmetric about its centre, a hex included. See
+   docs/battlemap/DECISIONS.md, "The map shows one mode at a time". */
+{
+  const registered = new Map();
+  const held = new Map();
+  game.settings = {
+    register: (ns, key, spec) => registered.set(`${ns}.${key}`, spec),
+    get: (ns, key) => {
+      const spec = registered.get(`${ns}.${key}`);
+      if (!spec) throw new Error(`${ns}.${key} is not registered`);
+      return structuredClone(held.get(`${ns}.${key}`) ?? spec.default);
+    },
+    set: async (ns, key, value) => {
+      held.set(`${ns}.${key}`, structuredClone(value));
+      registered.get(`${ns}.${key}`).onChange?.(value);
+      return value;
+    },
+  };
+  const told = [];
+  Hooks.callAll = (name, ...args) => told.push([name, ...args]);
+
+  const {
+    MAP_VIEW_DEFAULT, MapModesApp, borderSegments, installMapModes, layerPlan, mapModes, mapView, modeForLayer,
+    registerMapMode, registerMapViewSetting, setMapView,
+  } = await import("../scripts/battlemap/map-modes.mjs");
+  const { TERRITORY_COLORS, layerLabelFor, layerRegionsOf, paintHexAt, settleRegionsOnly, terrainPaint } =
+    await import("../scripts/battlemap/terrain-paint.mjs");
+  const { TERRITORY_KEYS } = await import("../scripts/formation/country-keys.mjs");
+  const { MODULE_ID } = await import("../scripts/lib/constants.mjs");
+  game.user = { isGM: true };
+
+  // The view, before and after its setting exists.
+  assert.deepEqual(mapView(), MAP_VIEW_DEFAULT, "a view nobody registered is the default");
+  registerMapViewSetting();
+  const setting = registered.get(`${MODULE_ID}.mapView`);
+  assert.deepEqual([setting.scope, setting.config], ["client", false], "the view is this client's, edited in its own window");
+  assert.deepEqual(mapModes().map((m) => [m.key, m.layer]), [["terrain", "terrain"], ["territory", "territory"]],
+    "Terrain first, then the module's own mode");
+  assert.deepEqual([modeForLayer("territory"), modeForLayer("terrain"), modeForLayer("nowhere")],
+    ["territory", "terrain", "terrain"], "a layer's pill shows its mode, and a layer with none shows Terrain");
+
+  await setMapView({ mode: "territory" });
+  assert.deepEqual(mapView(), { mode: "territory", opacity: 0.85, handout: false });
+  assert.deepEqual(told.at(-1), ["acksExtrasMapView", mapView()], "a change is told to the road markers");
+  await setMapView({ opacity: 0.5, handout: true });
+  assert.deepEqual(mapView(), { mode: "territory", opacity: 0.5, handout: true }, "a patch keeps the rest of the view");
+  await game.settings.set(MODULE_ID, "mapView", { mode: "nowhere", opacity: 7, handout: "yes" });
+  assert.deepEqual(mapView(), { mode: "terrain", opacity: 1, handout: false },
+    "a mode nobody registered is Terrain, an opacity is held to its range, and only true is a handout");
+  await game.settings.set(MODULE_ID, "mapView", { mode: "territory", opacity: 0 });
+  assert.equal(mapView().opacity, 0.2, "the opacity never falls below the floor a border still reads at");
+  await game.settings.set(MODULE_ID, "mapView", { opacity: "x" });
+  assert.equal(mapView().opacity, MAP_VIEW_DEFAULT.opacity, "and an opacity that is no number is the default's");
+
+  // The registry.
+  const none = () => [];
+  const blank = () => ({ rows: [], unpainted: null });
+  assert.throws(() => registerMapMode({ key: "terrain", plan: none, legend: blank }), /already registered/, "Terrain is taken");
+  assert.throws(() => registerMapMode({ key: "territory", plan: none, legend: blank }), /already registered/);
+  assert.throws(() => registerMapMode({ key: "", plan: none, legend: blank }), /needs a key/);
+  assert.throws(() => registerMapMode({ key: "demo", legend: blank }), /plan and a legend/);
+  const dispose = registerMapMode({ key: "demo", layer: "demoLayer", plan: none, legend: blank });
+  // The default label is built from the key; no lang string exists for a test mode.
+  const demoKey = "demo";
+  assert.deepEqual(mapModes().at(-1), { key: demoKey, label: `ACKS-BATTLEMAP.mapMode.${demoKey}`, layer: "demoLayer" },
+    "a mode joins last, labelled by its key where it gives no label");
+  assert.equal(modeForLayer("demoLayer"), "demo");
+  await setMapView({ mode: "demo" });
+  dispose();
+  assert.equal(mapView().mode, "terrain", "a mode taken out reads as Terrain");
+  const again = registerMapMode({ key: "demo", plan: none, legend: blank });
+  dispose();
+  assert.ok(mapModes().some((m) => m.key === "demo"), "a spent handle cannot take a later registration");
+  again();
+  assert.deepEqual(mapModes().map((m) => m.key), ["terrain", "territory"]);
+
+  // A layer's plan, and the borders it draws.
+  const flags = { [MODULE_ID]: { battlemap: { calibrated: true, country: { territory: "outlands", climate: "Csb" } } } };
+  let rid = 0;
+  const updates = [];
+  const scene = {
+    id: "scene-modes",
+    grid: {
+      type: CONST.GRID_TYPES.HEXODDR,
+      size: 100,
+      getOffset: (p) => ({ i: Math.floor(p.y / 100), j: Math.floor(p.x / 100) }),
+      getVertices: ({ i, j }) => [
+        { x: j * 100, y: i * 100 }, { x: j * 100 + 100, y: i * 100 },
+        { x: j * 100 + 100, y: i * 100 + 100 }, { x: j * 100, y: i * 100 + 100 },
+      ],
+    },
+    regions: [],
+    getFlag: (ns, key) => flags[ns]?.[key],
+    setFlag: async (ns, key, value) => { flags[ns] = { ...(flags[ns] ?? {}), [key]: structuredClone(value) }; },
+    async createEmbeddedDocuments(_name, data) {
+      const made = data.map((d) => ({
+        id: `m${++rid}`,
+        visibility: d.visibility,
+        shapes: [...d.shapes],
+        flags: structuredClone(d.flags),
+        getFlag(ns, key) { return this.flags[ns]?.[key]; },
+        toObject() { return { shapes: [...this.shapes] }; },
+        async update(patch) {
+          for (const [path, value] of Object.entries(patch)) {
+            if (path === "shapes") this.shapes = value;
+            else this.flags[path.split(".")[1]][path.split(".")[2]] = value;
+          }
+        },
+        async delete() { scene.regions.splice(scene.regions.indexOf(this), 1); },
+      }));
+      scene.regions.push(...made);
+      return made;
+    },
+    async updateEmbeddedDocuments(name, data) {
+      updates.push([name, structuredClone(data)]);
+      for (const { _id, ...change } of data) Object.assign(scene.regions.find((r) => r.id === _id), change);
+    },
+  };
+  const centre = (i, j) => ({ x: j * 100 + 50, y: i * 100 + 50 });
+
+  assert.deepEqual(layerPlan(scene, "territory"), [], "a map with nothing painted plans nothing");
+  assert.deepEqual(layerPlan(scene, "nowhere"), [], "nor does a layer the brush does not know");
+  await paintHexAt(scene, centre(1, 1), "civilized", "territory");
+  await paintHexAt(scene, centre(1, 2), "civilized", "territory");
+  await paintHexAt(scene, centre(2, 1), "borderlands", "territory");
+  await paintHexAt(scene, centre(2, 1), "forestTaiga");
+  const plan = layerPlan(scene, "territory");
+  assert.deepEqual(plan.toSorted((a, b) => a.key.localeCompare(b.key)), [
+    { key: "1:1", value: "civilized", color: TERRITORY_COLORS.civilized },
+    { key: "1:2", value: "civilized", color: TERRITORY_COLORS.civilized },
+    { key: "2:1", value: "borderlands", color: TERRITORY_COLORS.borderlands },
+  ], "one entry per painted hex, coloured as the layer colours it, and no other layer's hexes");
+
+  const segments = borderSegments(scene, plan);
+  const count = (color) => segments.filter((s) => s.color === color).length;
+  assert.deepEqual([segments.length, count(TERRITORY_COLORS.civilized), count(TERRITORY_COLORS.borderlands)], [10, 6, 4],
+    "every side but the one two civilized hexes share; a lone hex is ringed");
+  // The side 1:1 and 2:1 share runs along y = 200 between x = 100 and 200.
+  const shared = (list, y) => list.filter((s) => s.from.y === y && s.to.y === y && Math.max(s.from.x, s.to.x) <= 200);
+  assert.deepEqual(shared(segments, 196).map((s) => s.color), [TERRITORY_COLORS.civilized],
+    "where two values meet, the hex above draws its line on its own side");
+  assert.deepEqual(shared(segments, 204).map((s) => s.color), [TERRITORY_COLORS.borderlands], "and the hex below on its own");
+  assert.deepEqual(shared(segments, 200), [], "so neither line lies on the other");
+  assert.equal(shared(borderSegments(scene, plan, 0), 200).length, 2, "with no inset the two lines share the side");
+  assert.deepEqual(borderSegments(scene, []), [], "an empty plan draws nothing");
+
+  // The window's context, which is what its template renders.
+  globalThis.canvas = { scene };
+  await setMapView({ mode: "territory" });
+  let ctx = await new MapModesApp()._prepareContext();
+  assert.deepEqual(ctx.modes, [
+    { key: "terrain", label: "ACKS-BATTLEMAP.mapMode.terrain", active: false },
+    { key: "territory", label: "ACKS-BATTLEMAP.mapMode.territory", active: true },
+  ], "one pill per mode, the view's pressed");
+  assert.deepEqual(ctx.rows.map((r) => r.color), TERRITORY_KEYS.map((k) => TERRITORY_COLORS[k]),
+    "the legend lists every territory in its colour");
+  assert.equal(ctx.unpainted, layerLabelFor("outlands", "territory"), "and names the scene's default for a hex with no border");
+  assert.equal(ctx.climate, "Csb — ACKS-FORMATION.travel.weather.climates.Csb", "the map's climate is shown beside it");
+  assert.deepEqual([ctx.terrain, ctx.opacity, ctx.opacityFloor, ctx.handout, ctx.hexScene], [false, 85, 20, false, true]);
+  await setMapView({ mode: "terrain" });
+  ctx = await new MapModesApp()._prepareContext();
+  assert.deepEqual([ctx.terrain, ctx.rows, ctx.unpainted], [true, [], null], "Terrain has no legend of its own");
+
+  // Following the brush. The window is opened, never drawn.
+  let opened = 0;
+  MapModesApp.prototype.render = function render() { opened++; this.rendered = true; return this; };
+  installMapModes();
+  try {
+    terrainPaint.arm(null, { layer: "territory", by: "sheet" });
+    assert.deepEqual([mapView().mode, opened], ["territory", 1], "arming the brush on a layer shows its mode and opens the window");
+    await setMapView({ mode: "terrain" });
+    terrainPaint.setBrush("borderlands");
+    assert.equal(mapView().mode, "terrain", "a swatch picked leaves the mode the Judge chose");
+    terrainPaint.setLayer("terrain");
+    terrainPaint.setLayer("territory");
+    assert.equal(mapView().mode, "territory", "a layer switched to shows its mode again");
+    terrainPaint.disarm();
+    assert.equal(mapView().mode, "territory", "and the mode outlives the brush");
+    terrainPaint.arm(null, { layer: "terrain", by: "sheet" });
+    assert.equal(mapView().mode, "terrain", "arming on terrain is the way back");
+  } finally {
+    terrainPaint.disarm();
+    terrainPaint.setLayer("terrain");
+    delete MapModesApp.prototype.render;
+    delete globalThis.canvas;
+  }
+
+  // Old territory regions, painted for a GM, move to the Regions control once.
+  const [territoryRegion] = layerRegionsOf(scene, "territory");
+  territoryRegion.visibility = CONST.REGION_VISIBILITY.GAMEMASTER;
+  assert.equal(await settleRegionsOnly(scene), 1, "a region drawn for a GM is moved");
+  assert.deepEqual(updates, [["Region", [{ _id: territoryRegion.id, visibility: CONST.REGION_VISIBILITY.LAYER }]]],
+    "in one write, of that region alone: the terrain is left drawn for everyone");
+  assert.deepEqual(flags[MODULE_ID].battlemap, { calibrated: true, country: { territory: "outlands", climate: "Csb" }, regionsSettled: true },
+    "and the scene is marked, the rest of its setup record kept");
+  territoryRegion.visibility = CONST.REGION_VISIBILITY.GAMEMASTER;
+  assert.equal(await settleRegionsOnly(scene), 0, "a scene is settled once, so a visibility the Judge sets afterwards stands");
+  assert.equal(updates.length, 1);
+  const bare = { regions: [], getFlag: () => undefined, setFlag: async () => assert.fail("a scene with no territory is not written") };
+  assert.equal(await settleRegionsOnly(bare), 0);
+}
+
+console.log("test-battlemap: OK (hex keys, labels, aligned paint/erase pairs, palette coverage, open vocabulary, road row escaping, whole-line segments, road distance, the territory layer, the brush over a window, the scene's default country and its painted climate folded, the country under a point, the map modes and their borders)");

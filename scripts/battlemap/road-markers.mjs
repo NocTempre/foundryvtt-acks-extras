@@ -6,11 +6,12 @@
  * cannot follow one. Decides nothing; the party's movement is measured off
  * the walls whether or not this ever draws. Drawn only while the Judge is
  * working the map (the Walls control, or the battlemap's own group), never
- * as a permanent overlay.
+ * as a permanent overlay, and never in the Map modes window's handout view.
  */
 import { MODULE_ID, CONTROL_GROUP } from "./constants.mjs";
 import { roadWallsOf, wallRoad } from "./roads.mjs";
 import { waterWallsOf, wallWater } from "./water.mjs";
+import { mapView } from "./map-modes.mjs";
 
 /**
  * Road tints by surface. Presentation, not rules — an imported surface nobody
@@ -28,8 +29,8 @@ export const WATER_TINT = Object.freeze({ river: 0x3f7fb5, coast: 0x2c5a85 });
  */
 const DRAW_CONTROLS = Object.freeze(["walls", CONTROL_GROUP]);
 
-/** Is this client, right now, laying out a map? */
-const drawingMap = () => !!game.user?.isGM && DRAW_CONTROLS.includes(ui.controls?.control?.name);
+/** Is this client, right now, laying out a map, and not showing it as a handout? */
+const drawingMap = () => !!game.user?.isGM && DRAW_CONTROLS.includes(ui.controls?.control?.name) && !mapView().handout;
 
 let layer = null;
 
@@ -37,6 +38,7 @@ let layer = null;
 function roadLayer() {
   if (layer && !layer.destroyed) return layer;
   layer = new PIXI.Container();
+  layer.name = `${MODULE_ID}-road-markers`;
   // `none`: this is a drawing, and it must never take a click meant for the
   // wall underneath it — which is the one thing the Judge is reaching for.
   layer.eventMode = "none";
@@ -107,5 +109,7 @@ export function installRoadMarkers() {
   // Switching scene control takes the Judge into or out of map-drawing mode,
   // which is what decides whether the overlay is drawn at all.
   Hooks.on("renderSceneControls", redraw);
+  // The Map modes window's handout switch hides this overlay too.
+  Hooks.on("acksExtrasMapView", redraw);
   for (const hook of ["createWall", "updateWall", "deleteWall"]) Hooks.on(hook, redraw);
 }

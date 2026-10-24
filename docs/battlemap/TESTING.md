@@ -485,8 +485,9 @@ bubbling `change`.
    colour, with the eraser; `paintHexAt` and a real click both paint. Paint two
    hexes one territory and a third, already painted with a terrain, another.
    One region per territory value appears, flagged `territory` and
-   `territoryHexes`, with `visibility` 1 (GAMEMASTER): a player seat sees no
-   territory drawn. The terrain region of the third hex still lists that hex.
+   `territoryHexes`, with `visibility` 0 (LAYER, the Regions control alone): a
+   player seat sees no territory drawn, and the GM sees it as the Territory
+   map mode (§Map modes). The terrain region of the third hex still lists that hex.
 2. Look for a **Climate** pill, and paint the third hex with a climate from
    the console (`paintHexAt(scene, point, <a climate code>, "climate")`).
    *Observable:* the pills are Terrain and Territory alone, the Territory pill
@@ -573,3 +574,69 @@ Teardown: `api.sweepTracked()` — the two scenes take their regions and walls
 with them, as do step 10's two — and quote its result. The wall preset is client state: arm core's
 ordinary wall once more if the run left a water preset armed, so this seat's
 next wall is not a river.
+
+## Map modes (added with the map modes)
+
+Fixtures, made through the capture driver's ledger and swept by its ids: a
+disposable HEX-gridded scene whose scene default names a territory and a
+climate, with one water line for step 3's markers; a second hex scene built
+in the shape of a map painted before the territory moved to the Regions
+control (step 7); and a square-gridded scene.
+
+**Drive mechanics.** The API is `acksExtras.battlemap.mapModes` (`mapModes`,
+`mapView`, `setMapView`, `openMapModes`, `registerMapMode`). The window is
+`foundry.applications.instances.get("acks-extras-map-modes")`; a mode pill is
+`button[data-action="pickMode"][data-mode="<key>"]`, the opacity
+`input[name="opacity"]` and the handout `input[name="handout"]`, driven by
+setting the value or `checked` and dispatching a bubbling `change`. The
+overlay is `canvas.regions.getChildByName("acks-extras-map-modes")`; its one
+`PIXI.Graphics` child is the drawing, and `borderSegments(scene,
+layerPlan(scene, "territory"))` from the loaded module (`await
+import("/modules/acks-extras/scripts/battlemap/map-modes.mjs")`) says what it
+should draw; `finishPoly()` on it closes the last path before its
+`geometry.graphicsData` is counted. The road and water markers are
+`canvas.controls.getChildByName("acks-extras-road-markers")`. The view is
+each seat's client setting, so the walk reads both at the start and sets them
+back at the end.
+
+1. Arm the Country brush, press the **Territory** pill and paint a cluster of
+   three hexes one territory and a fourth, beside them, another.
+   *Observable:* `mapView().mode` is "territory" and the Map modes window
+   opens with Territory pressed, the four territories listed in their colours,
+   the unpainted line naming the scene default's territory and the climate
+   line naming its climate. The overlay draws one Graphics child; each hex's
+   border runs inside the hex, only on its sides facing another class or
+   unpainted land, so the two classes meeting show two lines; the terrain fill
+   reads between them. No hatch is drawn for the territory regions.
+2. Disarm the brush and switch to the Tokens control.
+   *Observable:* the borders stay drawn.
+3. Drag the opacity to its floor, then tick **Handout view**.
+   *Observable:* the overlay's alpha is 0.2 at the floor; with the handout
+   ticked the overlay holds no child, and on the Walls control the road and
+   water markers are not drawn. Untick it: both come back.
+4. Join a player seat on the scene.
+   *Observable:* the player's overlay holds no child and no territory region
+   is drawn.
+5. As the GM, press **Terrain** in the window; re-arm the brush from the
+   toolbar; press the palette's Terrain pill, then its Territory pill.
+   *Observable:* Terrain empties the overlay and the window lists no legend;
+   the brush arms on its last layer, territory, and shows that mode; the
+   Terrain pill empties the overlay again; the Territory pill brings the
+   borders back.
+6. Repaint one hex of the cluster the other territory.
+   *Observable:* the overlay redraws within a moment, the hex's borders moved.
+7. On the second hex scene, make two regions flagged `territory` and
+   `territoryHexes` with `scene.createEmbeddedDocuments("Region", …)` at
+   `visibility` 1 (GAMEMASTER), as the brush made them before, and one
+   region flagged `terrain`; track their ids. View the scene as a GM.
+   *Observable:* both territory regions are at `visibility` 0, the terrain
+   region as it was made, and the setup record holds `regionsSettled` true. Set
+   one territory region back to 1 in its config, view another scene and
+   view this one again: it stays at 1.
+8. View the square scene with the window open.
+   *Observable:* the window says the modes are drawn on a hex map, and the
+   overlay holds no child.
+
+Teardown: `api.sweepTracked()`, which takes the three scenes and their
+regions, and quote its result. Set this seat's view back with
+`setMapView({mode: "terrain", opacity: 0.85, handout: false})`.
