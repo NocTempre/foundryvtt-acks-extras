@@ -141,7 +141,7 @@
   <div class="acks-extras-markets-ventures">
   <h3><i class="fas fa-scale-balanced"></i> {{localize "ACKS-MARKETS.ventures.header"}}</h3>
   {{#if venture.entered}}
-  <p class="hint">{{localize "ACKS-MARKETS.ventures.statusLine"}}: {{localize "ACKS-MARKETS.ventures.entered"}} — {{localize "ACKS-MARKETS.ventures.impact"}} {{venture.impact}} ({{venture.cargoSt}} st){{#if ventureVehicles}} — {{ventureVehicles}}{{/if}}</p>
+  <p class="hint">{{localize "ACKS-MARKETS.ventures.statusLine"}}: {{localize "ACKS-MARKETS.ventures.entered"}}{{#if ventureApart}} {{ventureApart}}{{/if}} — {{localize "ACKS-MARKETS.ventures.impact"}} {{venture.impact}} ({{venture.cargoSt}} st){{#if ventureVehicles}} — {{ventureVehicles}}{{/if}}</p>
   {{else}}
   <p class="hint">{{localize "ACKS-MARKETS.ventures.notEnteredHint"}}</p>
   {{/if}}
@@ -239,7 +239,7 @@
     {{#each partyBlocks}}
     <div class="acks-extras-markets-party">
       <strong>{{name}}</strong>
-      {{#if ventureLine}}<p class="hint">{{ventureLine}}</p>{{/if}}
+      {{#each ventureLines}}<p class="hint">{{this}}</p>{{/each}}
       {{#if beliefs.length}}
       <div class="acks-extras-markets-demand">
         {{#each beliefs}}<span class="acks-extras-markets-demand-chip"{{#if falseNote}} data-tooltip="{{falseNote}}"{{/if}}>{{label}} {{modifier}} ({{when}}){{#if falseNote}} <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>{{/if}}</span>{{/each}}

@@ -16,6 +16,13 @@ const TWO_D6 = Object.freeze({ min: 2, max: 12 });
 export const ASSESSMENT_RESULTS = Object.freeze(["false", "failed", "expertise", "partial", "success"]);
 export const NEGOTIATION_RESULTS = Object.freeze(["outrage", "refusal", "continue", "grudging", "agreement"]);
 
+/**
+ * How a party's characters enter a market (RR ch. 8, Entering the Market,
+ * step 2, Parties): as one party with one venture, or each character
+ * separately with a venture of their own.
+ */
+export const VENTURE_MODES = Object.freeze(["party", "separately"]);
+
 /** "30,000 st" → 30000; "-" → 0. */
 export function parseStones(text) {
   const m = String(text ?? "").replace(/,/g, "").match(/(\d+(?:\.\d+)?)/);
@@ -115,14 +122,21 @@ export function tariffOn(loads, rates) {
  * trades as the next lower class until it reaches 1, and always at least 1 in
  * the smallest class.
  *
+ * A character of a party entering separately (`entrants` above 1, step 2,
+ * Parties) is capped at the printed maximum shared among the party's
+ * characters, rounded down so the shares never add up past it, in every class
+ * the family-scaled one included. The cap holds at each class the drop
+ * reaches, so a share of none trades down the classes like an impact of 0.
+ *
  * @param {object} o
  * @param {number} o.impactCap - the printed maximum impact
  * @param {number} o.familyScaledClass - the market class whose cap scales with families
  * @param {number} o.familiesPerImpact - urban families per point of that scaled cap
+ * @param {number} [o.entrants] - the party's characters, where they enter separately
  * @returns {{impact:number, effectiveClass:number, rawImpact:number, cap:number}} `rawImpact`
  *   is the figure at the market's own class before any drop, capped; `cap` the maximum
  */
-export function marketImpact({ cargoSt, baselineCargoSt, marketClass, urbanFamilies = 0, baselineOfClass, impactCap, familyScaledClass, familiesPerImpact }) {
+export function marketImpact({ cargoSt, baselineCargoSt, marketClass, urbanFamilies = 0, baselineOfClass, impactCap, familyScaledClass, familiesPerImpact, entrants = 0 }) {
   const roundEven = (x) => {
     const f = Math.floor(x);
     const frac = x - f;
@@ -132,18 +146,20 @@ export function marketImpact({ cargoSt, baselineCargoSt, marketClass, urbanFamil
   const top = requireNumber("impactCap", impactCap);
   const scaledClass = requireNumber("familyScaledClass", familyScaledClass);
   const perImpact = requireNumber("familiesPerImpact", familiesPerImpact);
-  const cap = marketClass === scaledClass ? Math.max(top, Math.floor((Number(urbanFamilies) || 0) / perImpact)) : top;
+  const shares = Math.floor(Number(entrants) || 0);
+  const cap = shares > 1 ? Math.floor(top / shares) : marketClass === scaledClass ? Math.max(top, Math.floor((Number(urbanFamilies) || 0) / perImpact)) : top;
+  const at = (baseline) => (baseline > 0 ? Math.min(cap, roundEven(cargoSt / baseline)) : 0);
   let cls = marketClass;
   let baseline = baselineCargoSt;
-  let impact = baseline > 0 ? roundEven(cargoSt / baseline) : 0;
+  let impact = at(baseline);
   const raw = impact;
   while (impact < 1 && cls < 6) {
     cls += 1;
     baseline = baselineOfClass ? baselineOfClass(cls) : baseline;
-    impact = baseline > 0 ? roundEven(cargoSt / baseline) : 0;
+    impact = at(baseline);
   }
   if (cls === 6 && impact < 1) impact = 1;
-  return { impact: Math.min(cap, impact), effectiveClass: cls, rawImpact: Math.min(cap, raw), cap };
+  return { impact, effectiveClass: cls, rawImpact: raw, cap };
 }
 
 /**
@@ -183,19 +199,107 @@ export function assessmentPageBands(bands) {
   });
 }
 
+/** The character whose own venture a row belongs to: "" for a party entered as one, and on a row stored before entrants were. */
+const entrantOf = (row) => row?.entrantUuid ?? "";
+
 /**
- * The pending day this one would repeat: the same trader's same kind of day
- * (and, for a solicitation, the same merchandise) still waiting to resolve.
- * A day already resolved or withdrawn is no duplicate — the book lets a
- * trader assess again tomorrow; it is posting the same tomorrow twice that is
- * refused. Undefined when there is none.
- * @param {{kind:string, actorUuid:string, category?:string, status:string}[]} actions
- * @param {{kind:string, actorUuid:string, category?:string}} day
+ * Whether a venture, solicitation or venture-day row belongs to the venture
+ * `key` names (`ventureKey`). The one test those rows are matched by.
+ * @param {{partyId?: string, entrantUuid?: string}} row
+ * @param {{partyId: string, entrantUuid: string}} key
  */
-export function pendingDuplicate(actions, { kind, actorUuid, category = "" }) {
-  return (actions ?? []).find(
-    (a) => a.status === "pending" && a.kind === kind && a.actorUuid === actorUuid && (kind !== "solicit" || (a.category ?? "") === category)
-  );
+export const inVenture = (row, key) => !!row && row.partyId === key?.partyId && entrantOf(row) === (key?.entrantUuid ?? "");
+
+/**
+ * The venture a character acts in at a market this month: their own while
+ * any of the party stands or waits entered separately, so a character who
+ * has not entered beside them is not in; the party's (`entrantUuid` "")
+ * otherwise. The two never stand together (`entryConflict`).
+ * @param {{ventures?: object[], actions?: object[]}} state
+ * @param {{partyId: string, actorUuid: string, monthStart: number}} who
+ * @returns {{partyId: string, entrantUuid: string}}
+ */
+export function ventureKey({ ventures = [], actions = [] } = {}, { partyId, actorUuid, monthStart }) {
+  const { rows, waiting } = entriesOf({ ventures, actions }, partyId, monthStart);
+  return { partyId, entrantUuid: [...rows, ...waiting].some(entrantOf) ? actorUuid : "" };
+}
+
+/** A party's venture rows standing entered this month, and its entries waiting to resolve. */
+function entriesOf({ ventures = [], actions = [] }, partyId, monthStart) {
+  return {
+    rows: (ventures ?? []).filter((v) => v?.entered && v.partyId === partyId && Number(v.monthStartTime) === Number(monthStart)),
+    waiting: (actions ?? []).filter((a) => a?.status === "pending" && a.kind === "enter" && a.partyId === partyId),
+  };
+}
+
+/**
+ * Whether a character may enter a market this month as `mode` asks, and as
+ * one of how many. `characters` is the party's character count now. An entry
+ * as one is refused where the party stands or waits entered as one
+ * (`alreadyEntered`) or any of its characters separately
+ * (`enteredSeparately`). A separate entry is refused where the party stands
+ * or waits entered as one (`enteredAsParty`), or the character already
+ * stands or waits entered (`alreadyEntered`). It counts the party's
+ * characters as the month's first separate entry stored them, else as
+ * `characters`, and once that many stand or wait, another is refused
+ * (`separateFull`, with the count). A party of one has no separate entry to
+ * make, so it enters as one.
+ * @param {{ventures?: object[], actions?: object[]}} state
+ * @param {{partyId: string, actorUuid: string, monthStart: number, mode?: string, characters?: number}} o
+ * @returns {{error: string, entrants?: number}|{entrants: number}} `entrants` 0 for an entry as one
+ */
+export function entryConflict({ ventures = [], actions = [] } = {}, { partyId, actorUuid, monthStart, mode = "party", characters = 1 }) {
+  const { rows, waiting } = entriesOf({ ventures, actions }, partyId, monthStart);
+  const standing = [...rows, ...waiting];
+  const apart = standing.filter(entrantOf);
+  // Stored on every separate entry of the month, standing or left: the first is the count.
+  const stored = [...(ventures ?? []).filter((v) => v?.partyId === partyId && Number(v.monthStartTime) === Number(monthStart)), ...waiting]
+    .filter(entrantOf)
+    .map((x) => Math.floor(Number(x.entrants) || 0))
+    .find((n) => n > 1);
+  const entrants = stored ?? Math.floor(Number(characters) || 0);
+  if (mode !== "separately" || entrants < 2) {
+    if (standing.some((x) => !entrantOf(x))) return { error: "alreadyEntered" };
+    if (apart.length) return { error: "enteredSeparately" };
+    return { entrants: 0 };
+  }
+  if (standing.some((x) => !entrantOf(x))) return { error: "enteredAsParty" };
+  if (apart.some((x) => entrantOf(x) === actorUuid)) return { error: "alreadyEntered" };
+  if (new Set(apart.map(entrantOf)).size >= entrants) return { error: "separateFull", entrants };
+  return { entrants };
+}
+
+/**
+ * The vehicles already through a market's gate this month, whoever declared
+ * them: on a venture row standing entered, or on an entry waiting to
+ * resolve. A vehicle enters once.
+ * @returns {Set<string>}
+ */
+export function vehiclesEntered({ ventures = [], actions = [] } = {}, monthStart) {
+  const out = new Set();
+  for (const v of ventures ?? []) if (v?.entered && Number(v.monthStartTime) === Number(monthStart)) for (const uuid of v.vehicleUuids ?? []) out.add(uuid);
+  for (const a of actions ?? []) if (a?.status === "pending" && a.kind === "enter") for (const uuid of a.vehicleUuids ?? []) out.add(uuid);
+  return out;
+}
+
+/**
+ * The pending day this one would repeat, still waiting to resolve: the same
+ * trader's same kind of day, or for a solicitation the same merchandise
+ * solicited in the same venture (`venture`, a `ventureKey`), whoever of it
+ * posted it — two members soliciting one good on one day share what it
+ * opens rather than each opening it whole. A day already resolved or
+ * withdrawn is no duplicate — the book lets a trader assess again tomorrow;
+ * it is posting the same tomorrow twice that is refused. Undefined when
+ * there is none. Without `venture`, a solicitation is matched by trader.
+ * @param {{kind:string, actorUuid:string, partyId?:string, entrantUuid?:string, category?:string, status:string}[]} actions
+ * @param {{kind:string, actorUuid:string, category?:string, venture?:{partyId:string, entrantUuid:string}|null}} day
+ */
+export function pendingDuplicate(actions, { kind, actorUuid, category = "", venture = null }) {
+  return (actions ?? []).find((a) => {
+    if (a.status !== "pending" || a.kind !== kind) return false;
+    if (kind !== "solicit") return a.actorUuid === actorUuid;
+    return (a.category ?? "") === category && (venture ? inVenture(a, venture) : a.actorUuid === actorUuid);
+  });
 }
 
 /**
@@ -213,31 +317,35 @@ export function cancelVerdict(action, { isGM, ownsActor }) {
 }
 
 /**
- * A party leaves the market it entered this month. Nothing paid comes back:
- * the toll stays with the gate, and what a day of soliciting opened closes
- * with the party gone, so its solicitations are dropped. A venture day of
- * the party's still waiting to resolve is withdrawn with it — it cannot
- * resolve for a party that is not there. The month's row is kept, entered
- * no longer, so a later entry overwrites it with a fresh declaration and a
- * fresh toll. Mutates the given copies; `error` when the party is not in.
+ * A venture leaves the market it entered this month: the party's, or one
+ * character's where the party entered separately (`entrantUuid`). Nothing
+ * paid comes back: the toll stays with the gate, and what a day of
+ * soliciting opened closes with the venture gone, so its solicitations are
+ * dropped. A venture day of its own still waiting to resolve is withdrawn
+ * with it — it cannot resolve for a venture that is not there. The month's
+ * row is kept, entered no longer, so a later entry overwrites it with a fresh
+ * declaration and a fresh toll. Another venture's rows, the same party's
+ * included, are untouched. Mutates the given copies; `error` when the
+ * venture is not in.
  * @param {{ventures:object[], actions:object[], solicitations:object[]}} state - cloned goods rows
- * @param {{partyId:string, monthStart:number}} o
+ * @param {{partyId:string, entrantUuid?:string, monthStart:number}} o
  * @returns {{ok:true, cancelledIds:string[], droppedSolicitations:number}|{error:"notEntered"}}
  */
-export function leaveMarket({ ventures, actions, solicitations }, { partyId, monthStart }) {
-  const venture = (ventures ?? []).find((v) => v.partyId === partyId && Number(v.monthStartTime) === monthStart);
+export function leaveMarket({ ventures, actions, solicitations }, { partyId, entrantUuid = "", monthStart }) {
+  const key = { partyId, entrantUuid };
+  const venture = (ventures ?? []).find((v) => inVenture(v, key) && Number(v.monthStartTime) === monthStart);
   if (!venture?.entered) return { error: "notEntered" };
   venture.entered = false;
   const cancelledIds = [];
   for (const a of actions ?? []) {
-    if (a.status !== "pending" || a.partyId !== partyId || !["enter", "assess", "solicit"].includes(a.kind)) continue;
+    if (a.status !== "pending" || !inVenture(a, key) || !["enter", "assess", "solicit"].includes(a.kind)) continue;
     a.status = "cancelled";
     cancelledIds.push(a.id);
   }
   let droppedSolicitations = 0;
   for (let i = (solicitations ?? []).length - 1; i >= 0; i--) {
     const s = solicitations[i];
-    if (s.partyId !== partyId || Number(s.monthStartTime) !== monthStart) continue;
+    if (!inVenture(s, key) || Number(s.monthStartTime) !== monthStart) continue;
     solicitations.splice(i, 1);
     droppedSolicitations++;
   }

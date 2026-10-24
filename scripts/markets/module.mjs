@@ -47,6 +47,7 @@ import {
   tradeMerchandise,
   performVentureTrade,
   ventureOf,
+  ventureFor,
 } from "./engine/ventures.mjs";
 import { manifestOf, removeLoads, manifestRows, manifestTotals } from "./engine/manifest.mjs";
 import * as gate from "./engine/gate.mjs";
@@ -164,6 +165,8 @@ Hooks.once("setup", () => {
     tradeMerchandise,
     performVentureTrade,
     ventureOf,
+    // the venture a character acts in: their party's, or their own where they entered separately
+    ventureFor,
     // the market's gate: the book's assessment on what a party brings (entryQuote
     // and its parts), for a Judge's script beside the HOOKS.GATE_QUOTE hook
     gate,

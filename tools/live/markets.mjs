@@ -1,7 +1,8 @@
 /**
  * Live walk, markets: markets + location + the lib pointer.
  * Walks: the gate walk (G0–G7, and P0–P5 for the goods at the gate; STAGE=gate stops
- * after it); the default-trader ad hoc; the
+ * after it); the parties walk (S0–S9, characters of one party entering separately;
+ * STAGE=parties walks it alone); the default-trader ad hoc; the
  * known-market walk (1–7); the network walk (1–6); reports step 10 and the step-4 hunk
  * (picks, the card's link); the ledger-length ad hoc; the hit-point tool from the party
  * sheet. Machine values arrive through ./_env.mjs.
@@ -15,7 +16,8 @@
  *   - a book connected on the GM seat with remember:false; a rules document the run
  *     imported is removed; a trade house the run made is swept and its setting cleared;
  *   - the world's `marketsRandomTariff` setting, read first and put back;
- *   - one roster of the gate walk's own in the world's `marketParties`, removed by its id;
+ *   - one roster each of the gate walk's and the parties walk's own in the world's
+ *     `marketParties`, removed by its id;
  *   - the shared clock: one day per advance, counted and reported.
  */
 import { connect, sleep } from "./_driver.mjs";
@@ -28,7 +30,7 @@ const SEATS = { gm: MACHINE.gm, player: MACHINE.player };
 const NONCE = "m" + Math.random().toString(36).slice(2, 8);
 const MOD = "acks-extras";
 const SHOTS = process.env.SHOTS === "1";
-const STAGE = process.env.STAGE ?? ""; // "gate" stops after the gate walk
+const STAGE = process.env.STAGE ?? ""; // "gate" stops after the gate walk; "parties" walks only the parties walk
 const SHOT_DIR = shotDir();
 const BOOKS = books(["rr"]); // the GM's staged copies, from ACKS_TEST_BOOKS; empty, the walk takes the bookless path
 const DOCS = ["mercantile", "availability"];
@@ -699,6 +701,124 @@ const P = {
     const subtitle = hp ? H.text(H.root(hp).querySelector(".window-subtitle, .acks-extras-hp-subtitle")) : "";
     return { enrolled: formation.members.some((m) => m?.actorId === memberId), opened: true, hpOpen: !!hp, rows, subtitle, formationId: formation.id };
   },
+  /** The roster's characters as this seat resolves them, by id. */
+  partiesSeen: async ({ rosterId }) => ({ members: globalThis.__c2.m.PA.partyMembers(rosterId).map((a) => a.id), isGM: game.user.isGM }),
+  /**
+   * Press Enter on the open Trade tab and read the dialog it opens on: the
+   * entering mode, the vehicles, the goods rows and the gate block. Then choose
+   * `mode` through its radio where it is not fixed, tick exactly `vehicleUuids`
+   * and type `other` stone where given, read again, and submit unless told to
+   * read only.
+   */
+  partiesDialog: async ({ locationId, mode = null, vehicleUuids = null, other = null, submit = true }) => {
+    const H = globalThis.__c2;
+    H.takeNotes();
+    const btn = await H.poll(() => H.root(H.locSheet(locationId))?.querySelector('[data-action="ventureEnter"]') ?? null, { tries: 40, every: 200 });
+    if (!btn) return { pressed: false };
+    btn.click();
+    const input = await H.poll(() => document.querySelector('.application.dialog input[name="other"]'), { tries: 40, every: 200 });
+    if (!input) return { pressed: true, dialog: false, notes: H.takeNotes() };
+    const dialog = input.closest(".application");
+    dialog.dataset.qaEnter = "1";
+    const fire = (el) => el.dispatchEvent(new Event("change", { bubbles: true }));
+    const read = () => {
+      const box = dialog.querySelector("fieldset.acks-extras-markets-mode");
+      return {
+        mode: box ? { legend: H.text(box.querySelector("legend")), radios: [...box.querySelectorAll('input[name="mode"]')].map((el) => ({ value: el.value, checked: el.checked, disabled: el.disabled })), hints: [...box.querySelectorAll("p.hint")].map((p) => H.text(p)) } : null,
+        vehicles: [...dialog.querySelectorAll('input[name="vehicle"]')].map((el) => ({ uuid: el.value, checked: el.checked, disabled: el.disabled, text: H.text(el.closest("label")) })),
+        goods: H.goodsBlock(dialog).rows,
+        members: [...dialog.querySelectorAll("[data-good-member]")].map((el) => ({ holder: el.dataset.goodMember, hidden: el.hidden })),
+        quote: H.text(dialog.querySelector("[data-gate-quote]")),
+      };
+    };
+    await H.sleep(250);
+    const opening = read();
+    const radio = mode ? dialog.querySelector(`input[name="mode"][value="${mode}"]`) : null;
+    if (radio && !radio.disabled && !radio.checked) { radio.checked = true; fire(radio); }
+    if (vehicleUuids) for (const el of dialog.querySelectorAll('input[name="vehicle"]:not(:disabled)')) { const want = vehicleUuids.includes(el.value); if (el.checked !== want) { el.checked = want; fire(el); } }
+    if (other !== null) { input.value = String(other); input.dispatchEvent(new Event("input", { bubbles: true })); }
+    await H.sleep(250);
+    const chosen = read();
+    if (!submit) return { pressed: true, dialog: true, opening, chosen, notes: H.takeNotes() };
+    const loc = game.actors.get(locationId);
+    const known = new Set((loc.system.market.goods.actions ?? []).map((a) => a.id));
+    H.takeChat();
+    dialog.querySelector('button[data-action="ok"]').click();
+    const action = await H.poll(() => (game.actors.get(locationId).system.market.goods.actions ?? []).find((a) => a.kind === "enter" && !known.has(a.id)) ?? null, { tries: 40, every: 250 });
+    await H.sleep(400);
+    return { pressed: true, dialog: true, opening, chosen, submitted: true, notes: H.takeNotes(), chat: H.takeChat(), action: action ? { id: action.id, actorUuid: action.actorUuid, entrantUuid: action.entrantUuid, entrants: action.entrants, vehicleUuids: [...action.vehicleUuids], cargoSt: action.cargoSt, tollCp: action.tollCp, tariffCp: action.tariffCp, privilegeUuid: action.privilegeUuid, detail: action.detail } : null };
+  },
+  /** A venture day posted through the api as `actorId`, in `mode` for an entry; the action it queued, if any. */
+  partiesApi: async ({ locationId, kind, actorId, mode = "party", vehicleUuids = [], category = "" }) => {
+    const H = globalThis.__c2;
+    const loc = game.actors.get(locationId);
+    const a = game.actors.get(actorId);
+    const known = new Set((loc.system.market.goods.actions ?? []).map((x) => x.id));
+    H.takeChat();
+    const r = await H.M.performVentureAction(loc, { kind, actorUuid: a.uuid, mode, vehicleUuids, category, cargoSt: 0, resolutionId: foundry.utils.randomID() });
+    await H.sleep(500);
+    const action = (game.actors.get(locationId).system.market.goods.actions ?? []).find((x) => !known.has(x.id) && x.actorUuid === a.uuid) ?? null;
+    return { ok: !!r?.ok, error: r?.error ?? null, vehicle: r?.vehicle ?? null, chat: H.takeChat(), action: action ? { id: action.id, kind: action.kind, entrantUuid: action.entrantUuid, entrants: action.entrants, vehicleUuids: [...action.vehicleUuids], tollCp: action.tollCp, tariffCp: action.tariffCp, privilegeUuid: action.privilegeUuid, detail: action.detail } : null };
+  },
+  /** GM: resolve the named pending days now, without moving the shared clock; the cards the sweep posted. */
+  partiesResolve: async ({ locationId, actionIds }) => {
+    const H = globalThis.__c2;
+    const loc = game.actors.get(locationId);
+    const actions = (loc.system.market.goods.actions ?? []).map((a) => H.plain(a));
+    const found = actions.filter((a) => actionIds.includes(a.id));
+    for (const a of found) a.resolveTime = game.time.worldTime;
+    H.takeChat();
+    await loc.update({ "system.market.goods.actions": actions });
+    await H.M.processImports(loc);
+    const done = await H.poll(() => actionIds.every((id) => (game.actors.get(locationId).system.market.goods.actions ?? []).find((a) => a.id === id)?.status === "done") || null, { tries: 40, every: 250 });
+    await H.sleep(600);
+    return { found: found.length, done: !!done, chat: H.takeChat() };
+  },
+  /** The market's venture rows, pools and waiting days this month, as this seat reads them. */
+  partiesState: async ({ locationId }) => {
+    const H = globalThis.__c2;
+    const g = game.actors.get(locationId).system.market.goods;
+    const ms = H.m.TR.marketMonthStart();
+    return {
+      ventures: (g.ventures ?? []).filter((v) => Number(v.monthStartTime) === ms).map((v) => ({ partyId: v.partyId, entrantUuid: v.entrantUuid, entrants: v.entrants, entered: !!v.entered, impact: v.impact, rawImpact: v.rawImpact, impactCap: v.impactCap, effectiveClass: v.effectiveClass, cargoSt: v.cargoSt, vehicleUuids: [...(v.vehicleUuids ?? [])], tollCp: v.tollCp, tariffCp: v.tariffCp, privilegeUuid: v.privilegeUuid })),
+      pools: (g.solicitations ?? []).filter((s) => Number(s.monthStartTime) === ms).map((s) => ({ partyId: s.partyId, entrantUuid: s.entrantUuid, category: s.category, stones: s.stones })),
+      pending: (g.actions ?? []).filter((a) => a.status === "pending").map((a) => ({ id: a.id, kind: a.kind, actorUuid: a.actorUuid, entrantUuid: a.entrantUuid, category: a.category })),
+    };
+  },
+  /** Leave the market as `actorId`, in the venture that character acts in. */
+  partiesLeave: async ({ locationId, actorId }) => {
+    const r = await globalThis.__c2.M.performVentureLeave(game.actors.get(locationId), { actorUuid: game.actors.get(actorId).uuid });
+    return { ok: !!r?.ok, error: r?.error ?? null, cancelled: r?.cancelled ?? null };
+  },
+  /** What the venture trade dialog would offer `actorId`: its rows and holds, from the dialog's own context. */
+  partiesTradeRows: async ({ locationId, actorId }) => {
+    const H = globalThis.__c2;
+    const app = new H.M.VentureTradeDialog({ location: game.actors.get(locationId), trader: game.actors.get(actorId) });
+    const ctx = await app._prepareContext({});
+    return { entrantUuid: ctx.venture?.entrantUuid ?? null, rows: ctx.rows.map((r) => ({ category: r.category, stones: r.stones })), holds: ctx.holds.map((h) => h.uuid) };
+  },
+  /** A venture trade through the api as `actorId`, into or out of `holdUuid`. */
+  partiesTrade: async ({ locationId, actorId, category, stones, direction, holdUuid }) => {
+    const H = globalThis.__c2;
+    H.takeChat();
+    const r = await H.M.performVentureTrade(game.actors.get(locationId), { actorUuid: game.actors.get(actorId).uuid, category, stones, direction, holdUuid, negotiate: false, resolutionId: foundry.utils.randomID() });
+    await H.sleep(400);
+    return { ok: !!r?.ok, error: r?.error ?? null, stones: r?.stones ?? null, chat: H.takeChat() };
+  },
+  /** GM: write the party's venture row back without the keys entering separately added, and read how it comes back. */
+  partiesPreUpgrade: async ({ locationId, partyId }) => {
+    const H = globalThis.__c2;
+    const loc = game.actors.get(locationId);
+    const ms = H.m.TR.marketMonthStart();
+    const rows = (loc.system.market.goods.ventures ?? []).map((v) => H.plain(v));
+    const row = rows.find((v) => v.partyId === partyId && !v.entrantUuid && Number(v.monthStartTime) === ms);
+    if (!row) return { found: false };
+    delete row.entrantUuid;
+    delete row.entrants;
+    await loc.update({ "system.market.goods.ventures": rows });
+    const back = (game.actors.get(locationId).system.market.goods.ventures ?? []).find((v) => v.partyId === partyId && Number(v.monthStartTime) === ms && v.entered);
+    return { found: true, wrote: Object.keys(row).filter((k) => k === "entrantUuid" || k === "entrants"), back: back ? { entrantUuid: back.entrantUuid, entrants: back.entrants } : null };
+  },
   closeAll: async () => globalThis.__c2.closeAll(),
   restore: async () => {
     const H = globalThis.__c2 ?? {};
@@ -748,6 +868,7 @@ let advances = 0;
 let housePre = null;
 let randomBefore = null;
 let gateRoster = null;
+let partiesRoster = null;
 const imported = [];
 const advance = async (locationId = null, actionId = null) => { advances++; const r = await run(gm, P.advanceDay, { locationId, actionId }); note(`advance ${advances}`, r); return r; };
 // What the rule gives a solicitation, by hand: the class option, the impact option, the better of them (class over impact on a tie, the plain entry when neither beats it).
@@ -799,8 +920,8 @@ try {
   note("characteristics read (class 3, class 1)", { hasRow3: ch3.hasRow, hasRow1: ch1.hasRow, cap: ch3.impactCap, bandsRead: !!ch3.bands });
   if (!ch3.hasRow || !ch3.impactCap || !ch3.bands) throw new Error("the mercantile document's characteristics, impact limits or assessment bands are not readable: the venture days cannot resolve");
 
-  section("the gate walk: toll, tariff, smuggled goods, sneaking in, the Ruler's Privilege, the thrown tariff");
-  {
+  if (STAGE !== "parties") {
+    section("the gate walk: toll, tariff, smuggled goods, sneaking in, the Ruler's Privilege, the thrown tariff");
     const gr = await run(gm, P.gateRates, { marketClass: 3 });
     note("the gate's imported inputs (class 3)", gr);
     check("G0: every class's tariff cell in the imported Market Characteristics reads as a precious and a common rate", gr.everyCellReads && !!gr.rates, { everyCellReads: gr.everyCellReads, class3: !!gr.rates });
@@ -1023,6 +1144,199 @@ try {
     note("closed (gm)", await run(gm, P.closeAll));
   }
   if (STAGE === "gate") throw new StageDone("gate");
+
+  section("the parties walk: characters of one party entering separately (RR ch. 8, Entering the Market, step 2, Parties)");
+  {
+    // The gate's charges here are the printed ones, so the tariff is the fixed rate for the walk.
+    const rnd = await run(gm, P.settingSet, { key: "marketsRandomTariff", value: false });
+    if (randomBefore === null) randomBefore = rnd.before;
+    const gr = await run(gm, P.gateRates, { marketClass: 3 });
+    note("the gate's imported inputs (class 3)", gr);
+    if (!gr.rates || gr.tollPerSt === null) throw new Error("the class-3 toll or tariff cell is unreadable: the parties walk cannot price an entry");
+    const other = await run(gm, P.otherPlayer, { not: pc.userId });
+    const own = { default: 0, [pc.userId]: 3 };
+    // Every price, stone count, capacity and daily figure here is invented; the rates and the maximum impact are the import's.
+    const PRICE = { p: 40, c: 3 };
+    const KEY = { p: `qpp${NONCE}`, c: `qpc${NONCE}` };
+    const DAILY = [12, 8, 6, 4, 3, 2];
+    const CAP = { A: 40, B: 30 };
+    const M = await gm.create("Actor", { name: `QA Parties Town ${NONCE}`, type: "acks-extras.location" });
+    note("market M", await run(gm, P.addMarket, { locationId: M.id, classOverride: 3 }));
+    // Both players own M, so the second player's character, whom the player seat cannot see, stands there too.
+    note("M owned by the two players", await run(gm, P.ownershipSet, { actorId: M.id, ownership: { ...own, ...(other ? { [other]: 3 } : {}) } }));
+    for (const [k, tier, label] of [["p", "precious", "Precious"], ["c", "common", "Common"]]) {
+      await gm.create("Item", { name: `QA Parties ${label} ${NONCE}`, type: "acks-extras.merchandise", system: { key: KEY[k], tier, tariffExempt: false, pricePerStoneGp: PRICE[k], priceStepGp: 1, dailyStones: DAILY } });
+    }
+    const load = (k, stones, more = {}) => ({ name: `QA parties load ${k} ${NONCE}`, type: "item", system: { quantity: { value: stones, max: 0 }, cost: PRICE[k], weight6: 6 }, flags: { "acks-extras": { markets: { merchandise: true, category: KEY[k] }, ...more } } });
+    const wagon = (name, cap, items = []) => gm.create("Actor", { name: `QA Parties ${name} ${NONCE}`, type: "acks-extras.vehicle", ownership: own, system: { kind: "land", cargo: { capacityStone: cap } }, items });
+    // A driver is aboard their wagon without weighing on its hold.
+    const drives = (v) => ({ "acks-extras": { attachedTo: { uuid: v.uuid, role: "crew", station: "driver" } } });
+    const WA = await wagon("Wagon A", CAP.A);
+    const A = await gm.create("Actor", { name: `QA Parties Ann ${NONCE}`, type: "character", ownership: own, items: [load("p", 2)], flags: { "acks-extras": { ...drives(WA)["acks-extras"], markets: { trader: true } } } });
+    // B's wagon carries a load of its own and one stored for A, who arrives too.
+    const WB = await wagon("Wagon B", CAP.B, [load("c", 6), load("c", 4, { storage: { ownerUuid: A.uuid, ownerName: "QA" } })]);
+    const B = await gm.create("Actor", { name: `QA Parties Ben ${NONCE}`, type: "character", ownership: own, items: [load("p", 1)], flags: drives(WB) });
+    const C = await gm.create("Actor", { name: `QA Parties Cas ${NONCE}`, type: "character", ownership: { default: 0, ...(other ? { [other]: 3 } : {}) } });
+    const E = await gm.create("Actor", { name: `QA Parties Eli ${NONCE}`, type: "character", ownership: own });
+    const D = await gm.create("Actor", { name: `QA Parties Barony ${NONCE}`, type: "acks-extras.domain" });
+    partiesRoster = `qa-parties-${NONCE}`;
+    const roster = (ids) => run(gm, P.roster, { add: { id: partiesRoster, name: `QA Parties Party ${NONCE}`, memberUuids: ids.map((a) => a.uuid) } });
+    note("the walk's party roster: A, B and C", await roster([A, B, C]));
+    note("coin", { A: await run(gm, P.coin, { actorId: A.id, mint: 100 }), B: await run(gm, P.coin, { actorId: B.id, mint: 1000 }) });
+    // A rules the barony that holds M: the Ruler's Privilege is A's alone once the characters enter separately.
+    note("the barony holds M under A", await run(gm, P.gateDomain, { domainId: D.id, locationId: M.id, traderId: A.id, rulerId: A.id }));
+    await sleep(500);
+    const gp = (cp) => Math.round(cp) / 100;
+    const due = (sum) => (sum > 0 ? Math.ceil(sum - 1e-9) : 0);
+    const tollOn = (st) => Math.ceil(gr.tollPerSt * st);
+    const cap = ch3.impactCap;
+    const share = Math.floor(cap / 3);
+    const coinOf = async (who) => (await run(gm, P.coin, { actorId: who.id })).gp;
+    const near = (a, b) => Math.abs(a - b) < 0.005;
+    const state = () => run(gm, P.partiesState, { locationId: M.id });
+    const rowOf = (s, who) => s.ventures.find((v) => v.partyId === partiesRoster && v.entrantUuid === (who?.uuid ?? "")) ?? null;
+    const poolOf = (s, who) => s.pools.find((p) => p.partyId === partiesRoster && p.entrantUuid === (who?.uuid ?? "") && p.category === KEY.c) ?? null;
+    const trackChat = (api, r) => { for (const id of r?.chat ?? []) api.track(id, "ChatMessage"); return r; };
+    const shareLine = (n) => `Entering separately: maximum market impact ${share} each, for ${n} characters.`;
+    const wagons = (read) => Object.fromEntries((read?.vehicles ?? []).filter((v) => [WA.uuid, WB.uuid].includes(v.uuid)).map((v) => [v.uuid === WA.uuid ? "A" : "B", v]));
+    const goodRow = (read, text, holder) => (read?.goods ?? []).find((r) => r.text.includes(text) && r.text.includes(holder.name)) ?? null;
+
+    // S0: the roster's three characters, as each seat resolves them — the player seat cannot see C.
+    const seenGm = await run(gm, P.partiesSeen, { rosterId: partiesRoster });
+    const seenPl = await run(player, P.partiesSeen, { rosterId: partiesRoster });
+    note("the roster as each seat resolves it", { gm: seenGm.members.length, player: seenPl.members.length, secondPlayer: !!other });
+    check("S0: both seats count the roster's three characters, the player seat's including the one it cannot see", seenGm.members.length === 3 && seenPl.members.length === 3, { gm: seenGm.members.length, player: seenPl.members.length });
+    for (const [a, n] of [[A, 1], [B, 1]]) note(`${a.name.split(" ").slice(0, 3).join(" ")} as the player seat sees it`, await run(player, P.seen, { actorId: a.id, items: n }));
+
+    // S1: A enters separately through the dialog.
+    const tabA = await run(player, P.tradeTab, { locationId: M.id, traderId: A.id });
+    if (tabA.acting !== A.id) throw new Error("the player's Trade tab does not act as A: the parties walk would drive another character");
+    const dA = await run(player, P.partiesDialog, { locationId: M.id, mode: "separately" });
+    trackChat(player, dA);
+    const oA = dA.opening ?? {}, cA = dA.chosen ?? {};
+    note("A's Enter dialog: as it opened, then with Separately chosen (player)", { opening: { mode: oA.mode, wagons: wagons(oA), members: oA.members, quote: oA.quote }, chosen: { mode: cA.mode, wagons: wagons(cA), members: cA.members, quote: cA.quote }, notes: dA.notes });
+    const radios = (read) => Object.fromEntries((read?.mode?.radios ?? []).map((r) => [r.value, r]));
+    const packB = (read) => (read?.members ?? []).find((m) => m.holder === B.uuid) ?? null;
+    check("S1a: A's dialog opens on the entering choice, As the party chosen, with the maximum each of three separate entrants would have; both wagons ticked as the party, and B's packs listed", oA.mode?.legend.startsWith("Entering") && radios(oA).party?.checked && !radios(oA).separately?.checked && !radios(oA).party?.disabled && oA.mode.hints.includes(shareLine(3)) && wagons(oA).A?.checked && wagons(oA).B?.checked && packB(oA) && !packB(oA).hidden, { mode: oA.mode, wagons: wagons(oA), members: oA.members });
+    check("S1b: choosing Separately leaves only A's own wagon ticked, hides B's packs and the hold of B's wagon, and the gate names A's privilege", radios(cA).separately?.checked && wagons(cA).A?.checked && !wagons(cA).B?.checked && packB(cA)?.hidden && (cA.goods ?? []).filter((r) => r.vehicle === WB.uuid).every((r) => r.hidden) && !!goodRow(cA, "2 st", A) && !goodRow(cA, "2 st", A).hidden && cA.quote.includes(`No toll or tariff: Ruler's Privilege in QA Parties Barony ${NONCE}`), { chosen: cA });
+    const aA = dA.action;
+    check("S1c: A's entry is A's own, one of three, with A's wagon alone, A's privilege, nothing charged, and its detail says so", aA && aA.entrantUuid === A.uuid && aA.entrants === 3 && aA.vehicleUuids.length === 1 && aA.vehicleUuids[0] === WA.uuid && aA.privilegeUuid === D.uuid && aA.tollCp === 0 && aA.tariffCp === 0 && aA.detail.startsWith("separately, one of 3"), aA);
+    note("closed (player)", await run(player, P.closeAll));
+
+    // S2: B is held to entering separately, and A's wagon is through the gate.
+    await run(player, P.tradeTab, { locationId: M.id, traderId: B.id });
+    const rB = await run(player, P.partiesDialog, { locationId: M.id, submit: false });
+    note("dialog closed", await run(player, P.closeDialog));
+    const oB = rB.opening ?? {};
+    note("B's Enter dialog (player)", { mode: oB.mode, wagons: wagons(oB), members: oB.members, quote: oB.quote });
+    check("S2a: B's dialog opens fixed on Separately, saying the party's characters are entering separately, at the stored count; A's wagon is marked through the gate and cannot be ticked, B's own is ticked", radios(oB).separately?.checked && radios(oB).separately.disabled && radios(oB).party?.disabled && oB.mode.hints.includes("Your party's characters are entering separately this month.") && oB.mode.hints.includes(shareLine(3)) && wagons(oB).A?.disabled && !wagons(oB).A.checked && wagons(oB).A.text.includes("(already through the gate this month)") && wagons(oB).B?.checked && !wagons(oB).B.disabled, { mode: oB.mode, wagons: wagons(oB) });
+    const asOne = await run(player, P.partiesApi, { locationId: M.id, kind: "enter", actorId: B.id, mode: "party" });
+    const twice = await run(player, P.partiesApi, { locationId: M.id, kind: "enter", actorId: B.id, mode: "separately", vehicleUuids: [WA.uuid] });
+    note("B entering as the party, then separately with A's wagon", { asOne, twice });
+    check("S2b: B entering as the party is refused (enteredSeparately), and separately with A's wagon is refused naming it (vehicleEntered); neither posts", asOne.error === "enteredSeparately" && !asOne.action && twice.error === "vehicleEntered" && twice.vehicle === WA.name && !twice.action, { asOne, twice });
+
+    // S3: B enters separately with B's own wagon and other capacity enough for two
+    // more impact than a separate share at M's own class, and pays its own gate.
+    const OTHER = ch3.baseline * (share + 2);
+    const xB = { st: CAP.B + OTHER, toll: tollOn(CAP.B + OTHER), tariff: due(1 * PRICE.p * gr.rates.precious + 10 * PRICE.c * gr.rates.common) };
+    await run(player, P.tradeTab, { locationId: M.id, traderId: B.id });
+    const coinB0 = await coinOf(B);
+    const dB = trackChat(player, await run(player, P.partiesDialog, { locationId: M.id, other: OTHER }));
+    const coinB1 = await coinOf(B);
+    const qB = dB.chosen ?? {};
+    note("B's entry (player)", { quote: qB.quote, goods: (qB.goods ?? []).filter((r) => !r.vehicle || r.vehicle === WB.uuid), action: dB.action, coinB0, coinB1, expect: xB });
+    check("S3a: B's quote charges the toll on B's wagon and other capacity and the tariff on B's packs and both loads in B's hold, the one stored for A included; A's packs are listed hidden, and A's privilege does not reach B", qB.quote.includes(`Toll: ${gp(xB.toll)}gp on ${xB.st} st`) && qB.quote.includes(`Tariff (RR 372): ${gp(xB.tariff)}gp`) && !qB.quote.includes("Ruler's Privilege") && !!goodRow(qB, "4 st", WB) && !goodRow(qB, "4 st", WB).hidden && (qB.members ?? []).find((m) => m.holder === A.uuid)?.hidden, { quote: qB.quote });
+    const aB = dB.action;
+    check("S3b: B's entry is B's own, one of three, with B's wagon, no privilege, and B paid exactly its toll and tariff", aB && aB.entrantUuid === B.uuid && aB.entrants === 3 && aB.vehicleUuids.join() === WB.uuid && aB.privilegeUuid === "" && aB.tollCp === xB.toll && aB.tariffCp === xB.tariff && near(coinB0 - coinB1, gp(xB.toll + xB.tariff)), { action: aB, paid: coinB0 - coinB1 });
+    const res3 = trackChat(gm, await run(gm, P.partiesResolve, { locationId: M.id, actionIds: [aA?.id, aB?.id] }));
+    const cards3 = await run(gm, P.cards, { ids: res3.chat ?? [] });
+    const s3 = await state();
+    const vA = rowOf(s3, A), vB = rowOf(s3, B);
+    note("the two entries resolved", { res: { found: res3.found, done: res3.done }, rows: [vA, vB], cards: cards3.map((c) => c.text), cap, share });
+    check("S3c: two venture rows stand, A's and B's, each one of three with the divided maximum impact and an impact of its own cargo, B's held to the share at M's own class, and no party row", res3.done && vA?.entered && vB?.entered && vA.entrants === 3 && vB.entrants === 3 && vA.impactCap === share && vB.impactCap === share && vA.impact >= 1 && (share >= 1 ? vB.impact === share && vB.effectiveClass === 3 : vB.impact === 1 && vB.effectiveClass === 6) && vB.cargoSt === xB.st && vA.vehicleUuids.join() === WA.uuid && vB.vehicleUuids.join() === WB.uuid && !rowOf(s3, null), { vA, vB, share });
+    check("S3d: each entered card says its character entered separately, one of three", [A, B].every((a) => cards3.some((c) => c.text.includes(`${a.name} entered the market at ${M.name} separately, one of 3`))), cards3.map((c) => c.text));
+    const tabGm = await run(gm, P.tradeTab, { locationId: M.id });
+    const tabA3 = await run(player, P.tradeTab, { locationId: M.id, traderId: A.id });
+    note("the Judge's party block and A's status line", { partyBlock: tabGm.partyBlock, status: tabA3.ventureStatus });
+    check("S3e: the Judge's party block has a line for each, naming the character; A's Trade tab says A is in separately, one of three", [A, B].every((a) => tabGm.partyBlock.includes(`${a.name}, separately, one of 3`)) && tabA3.ventureStatus.includes("separately, one of 3"), { partyBlock: tabGm.partyBlock, status: tabA3.ventureStatus });
+    note("closed (player)", await run(player, P.closeAll));
+    note("closed (gm)", await run(gm, P.closeAll));
+
+    // S4: both solicit the same merchandise, each in a venture of their own.
+    const solA = await run(player, P.partiesApi, { locationId: M.id, kind: "solicit", actorId: A.id, category: KEY.c });
+    const solB = await run(player, P.partiesApi, { locationId: M.id, kind: "solicit", actorId: B.id, category: KEY.c });
+    const solA2 = await run(player, P.partiesApi, { locationId: M.id, kind: "solicit", actorId: A.id, category: KEY.c });
+    note("A, B, then A again solicit the common goods", { solA, solB, solA2 });
+    check("S4a: A and B each post a solicitation of the same merchandise, each in their own venture, and A's second is refused while the first waits (duplicatePending)", solA.ok && solA.action?.entrantUuid === A.uuid && solB.ok && solB.action?.entrantUuid === B.uuid && solA2.error === "duplicatePending" && !solA2.action, { solA, solB, solA2 });
+    const res4 = trackChat(gm, await run(gm, P.partiesResolve, { locationId: M.id, actionIds: [solA.action?.id, solB.action?.id] }));
+    const s4 = await state();
+    const pA = poolOf(s4, A), pB = poolOf(s4, B);
+    const expectStones = (v) => DAILY[v.effectiveClass - 1] * v.impact;
+    note("the pools", { pA, pB, expect: { A: expectStones(vA), B: expectStones(vB) } });
+    check("S4b: each has a pool of its own, at its own venture's class and impact, and none is the party's", res4.done && pA?.stones === expectStones(vA) && pB?.stones === expectStones(vB) && !poolOf(s4, null), { pA, pB });
+
+    // S5: each trades from their own pool, into their own vehicles.
+    const tA = await run(player, P.partiesTradeRows, { locationId: M.id, actorId: A.id });
+    const tB = await run(player, P.partiesTradeRows, { locationId: M.id, actorId: B.id });
+    const into = await run(player, P.partiesTrade, { locationId: M.id, actorId: B.id, category: KEY.c, stones: 1, direction: "buy", holdUuid: WA.uuid });
+    const own5 = trackChat(player, await run(player, P.partiesTrade, { locationId: M.id, actorId: B.id, category: KEY.c, stones: 1, direction: "buy", holdUuid: WB.uuid }));
+    const s5 = await state();
+    note("the trade dialogs, B buying into A's wagon, then into B's own", { tA, tB, into, own5, pools: { A: poolOf(s5, A), B: poolOf(s5, B) } });
+    check("S5a: A's trade dialog offers A's pool alone with A's packs and wagon; B's offers B's", tA.entrantUuid === A.uuid && tA.rows.length === 1 && tA.rows[0].stones === pA?.stones && tA.holds.join() === [A.uuid, WA.uuid].join() && tB.entrantUuid === B.uuid && tB.rows.length === 1 && tB.rows[0].stones === pB?.stones && tB.holds.join() === [B.uuid, WB.uuid].join(), { tA, tB });
+    check("S5b: B buying into A's wagon is refused (notInVenture); into B's own it lands, from B's pool, and A's pool is untouched", into.error === "notInVenture" && own5.ok && poolOf(s5, B)?.stones === pB.stones - 1 && poolOf(s5, A)?.stones === pA.stones, { into, own5 });
+
+    // S6: C, entered in no venture, then entering; then a character joining mid-month counts nothing new.
+    const cSol = await run(gm, P.partiesApi, { locationId: M.id, kind: "solicit", actorId: C.id, category: KEY.c });
+    const cOne = await run(gm, P.partiesApi, { locationId: M.id, kind: "enter", actorId: C.id, mode: "party" });
+    const cApart = trackChat(gm, await run(gm, P.partiesApi, { locationId: M.id, kind: "enter", actorId: C.id, mode: "separately" }));
+    note("C soliciting, entering as the party, then separately (gm)", { cSol, cOne, cApart });
+    check("S6a: C, not entered beside them, cannot solicit (notEntered), nor enter as the party (enteredSeparately), and enters separately as one of three", cSol.error === "notEntered" && cOne.error === "enteredSeparately" && cApart.ok && cApart.action?.entrantUuid === C.uuid && cApart.action.entrants === 3, { cSol, cOne, cApart });
+    trackChat(gm, await run(gm, P.partiesResolve, { locationId: M.id, actionIds: [cApart.action?.id] }));
+    note("the roster grows: A, B, C and E", await roster([A, B, C, E]));
+    await sleep(500);
+    await run(player, P.tradeTab, { locationId: M.id, traderId: E.id });
+    const rE = await run(player, P.partiesDialog, { locationId: M.id, submit: false });
+    note("dialog closed", await run(player, P.closeDialog));
+    const eApart = await run(player, P.partiesApi, { locationId: M.id, kind: "enter", actorId: E.id, mode: "separately" });
+    note("E's dialog and entry (player)", { mode: rE.opening?.mode, eApart });
+    check("S6b: the count stays the month's first: E's dialog says three, and E entering separately with three in is refused (separateFull)", (rE.opening?.mode?.hints ?? []).includes(shareLine(3)) && eApart.error === "separateFull" && !eApart.action, { mode: rE.opening?.mode, eApart });
+    note("the roster back to A, B and C", await roster([A, B, C]));
+    note("closed (player)", await run(player, P.closeAll));
+
+    // S7: B's visit is B's own, and the market is new to B.
+    const kB = await run(player, P.knownRead, { locationId: M.id, actorId: B.id });
+    note("is M known to B", kB);
+    check("S7: M, first entered this visit, is not a known market for B", kB.known === false, kB);
+
+    // S8: leaving is each one's own; once all have left, the party may enter as one, at the full maximum.
+    const leftA = await run(player, P.partiesLeave, { locationId: M.id, actorId: A.id });
+    const s8 = await state();
+    const aOneEarly = await run(player, P.partiesApi, { locationId: M.id, kind: "enter", actorId: A.id, mode: "party" });
+    note("A leaves; A entering as the party while B and C stand", { leftA, rows: { A: rowOf(s8, A), B: rowOf(s8, B) }, pools: { A: poolOf(s8, A), B: poolOf(s8, B) }, aOneEarly });
+    check("S8a: A leaving ends A's venture and A's pool, and leaves B's standing with its pool; A cannot yet enter as the party (enteredSeparately)", leftA.ok && rowOf(s8, A)?.entered === false && !poolOf(s8, A) && rowOf(s8, B)?.entered && poolOf(s8, B)?.stones === pB.stones - 1 && aOneEarly.error === "enteredSeparately", { leftA, aOneEarly });
+    const leftB = await run(player, P.partiesLeave, { locationId: M.id, actorId: B.id });
+    const leftC = await run(gm, P.partiesLeave, { locationId: M.id, actorId: C.id });
+    const aOne = trackChat(player, await run(player, P.partiesApi, { locationId: M.id, kind: "enter", actorId: A.id, mode: "party" }));
+    const res8 = trackChat(gm, await run(gm, P.partiesResolve, { locationId: M.id, actionIds: [aOne.action?.id] }));
+    const s8b = await state();
+    const vP = rowOf(s8b, null);
+    const tabB8 = await run(player, P.tradeTab, { locationId: M.id, traderId: B.id });
+    note("B and C leave; A enters as the party", { leftB, leftC, aOne, row: vP, status: tabB8.ventureStatus });
+    check("S8b: with every entrant gone, A enters as the party: the entry is no one's own, A's privilege covers the party, and its row has the full maximum impact; B's Trade tab now reads the party's venture", leftB.ok && leftC.ok && aOne.ok && aOne.action?.entrantUuid === "" && aOne.action.entrants === 0 && aOne.action.privilegeUuid === D.uuid && res8.done && vP?.entered && vP.entrants === 0 && vP.impactCap === cap && tabB8.ventureStatus.startsWith("This month: In the market") && !tabB8.ventureStatus.includes("separately"), { aOne: aOne.action, row: vP, status: tabB8.ventureStatus });
+
+    // S9: a row written before entering separately existed reads as the party's.
+    const pre = await run(gm, P.partiesPreUpgrade, { locationId: M.id, partyId: partiesRoster });
+    const tB9 = await run(player, P.partiesTradeRows, { locationId: M.id, actorId: B.id });
+    note("the party's row without the new keys", { pre, tradeVenture: tB9.entrantUuid });
+    check("S9: a venture row written without the keys reads back as the party's, and B trades in it", pre.found && pre.wrote.length === 0 && pre.back?.entrantUuid === "" && pre.back.entrants === 0 && tB9.entrantUuid === "", { pre, tB9 });
+
+    note("randomized tariff restored", await run(gm, P.settingSet, { key: "marketsRandomTariff", value: randomBefore }));
+    note("the walk's party roster removed", await run(gm, P.roster, { off: partiesRoster }));
+    partiesRoster = null;
+    note("closed (player)", await run(player, P.closeAll));
+    note("closed (gm)", await run(gm, P.closeAll));
+  }
+  if (STAGE === "parties") throw new StageDone("parties");
 
   section("fixtures");
   {
@@ -1324,6 +1638,7 @@ try {
   try { if (gm) note("closed windows", await run(gm, P.closeAll)); } catch (err) { console.error("closeAll:", err?.message ?? err); }
   try { if (gm && randomBefore !== null) note("randomized tariff setting", await run(gm, P.settingSet, { key: "marketsRandomTariff", value: randomBefore })); } catch (err) { console.error("randomTariff:", err?.message ?? err); }
   try { if (gm && gateRoster) note("the gate walk's party roster removed", await run(gm, P.roster, { off: gateRoster })); } catch (err) { console.error("roster:", err?.message ?? err); }
+  try { if (gm && partiesRoster) note("the parties walk's party roster removed", await run(gm, P.roster, { off: partiesRoster })); } catch (err) { console.error("roster:", err?.message ?? err); }
   try { if (gm) note("restored (gm)", await run(gm, P.restore)); } catch (err) { console.error("restore:", err?.message ?? err); }
   try { if (seats.player) { note("closed windows (player)", await run(seats.player, P.closeAll)); note("restored (player)", await run(seats.player, P.restore)); } } catch (err) { console.error("restore player:", err?.message ?? err); }
   for (const id of imported) { try { note(`${id} document removed`, await run(gm, P.removeDoc, { id })); } catch (err) { console.error("removeDoc:", err?.message ?? err); } }

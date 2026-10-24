@@ -249,6 +249,15 @@ Ventures run on dedicated days that resolve as game time passes:
      pays no tariff. Tick **The party sneaks in** and the gate takes no
      toll either, and everything you bring is smuggled. Either way the
      Judge is told what came in and resolves the attempt.
+   - **As the party or separately** (RR ch. 8, Entering the Market,
+     Parties). A party of more than one chooses at the top of the dialog.
+     Entering separately, each character posts an entry of their own, with
+     their own vehicles, goods and toll, and trades in a venture of their
+     own; the dialog shows the maximum market impact each then gets. Once
+     one of you enters separately, the rest of the party can only enter
+     separately that month, until everyone has left. A vehicle goes through
+     the gate once a month, so each brings their own. Only the character
+     who rules the domain enters free.
    - **Judge's options.** The Judge may have the tariff thrown at each entry
      (the **Randomize the market tariff** setting); the dialog then shows
      the span it can come to. After upgrading, re-import the Rules tables
@@ -290,7 +299,8 @@ Hooks.on("acksExtras.marketGateQuote", (quote, { location }) => {
 
 The quote holds what is assessed (`loads`) and what is smuggled
 (`smuggled`), plus the book's charges (`tollCp`, `tariff`) and the
-`privilege` or `sneaked` that waived them. The
+`privilege` or `sneaked` that waived them. The handler's second argument
+also says whether the trader enters `separately`. The
 same functions are on `acksExtras.markets.gate`.
 
 **A mercantile network counts in a market its holder has visited before.** On

@@ -6,10 +6,10 @@
  */
 import { MODULE_ID, LANG } from "../constants.mjs";
 import { merchandiseFor } from "../engine/merchandise.mjs";
-import { performVentureTrade, ventureOf, loadsHeld, ventureVehicles } from "../engine/ventures.mjs";
+import { performVentureTrade, ventureFor, loadsHeld, ventureVehicles } from "../engine/ventures.mjs";
 import { holdOf } from "../../vehicles/hold.mjs";
 import { marketMonthStart } from "../engine/trade.mjs";
-import { partyOf } from "../engine/parties.mjs";
+import { inVenture } from "../rules/arbitrage.mjs";
 import { toGp } from "../rules/pricing.mjs";
 
 const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
@@ -42,11 +42,12 @@ export class VentureTradeDialog extends HandlebarsApplicationMixin(ApplicationV2
     const context = await super._prepareContext(options);
     const goods = this.location.system.market.goods;
     const monthStart = marketMonthStart();
-    const party = partyOf(this.trader);
-    context.venture = ventureOf(this.location, party.id, monthStart);
+    // The venture the trader acts in: the party's, or their own where they entered separately.
+    context.venture = ventureFor(this.location, this.trader, monthStart);
+    const key = { partyId: context.venture?.partyId, entrantUuid: context.venture?.entrantUuid ?? "" };
     // Where the loads go or come from: the trader's own packs, or a vehicle
-    // the party entered with — the first of those, where there is one, since
-    // a market's loads belong in transport.
+    // the venture entered with — the first of those, where there is one,
+    // since a market's loads belong in transport.
     const vehicles = ventureVehicles(context.venture);
     const holders = [this.trader, ...vehicles];
     context.holds = [
@@ -58,7 +59,7 @@ export class VentureTradeDialog extends HandlebarsApplicationMixin(ApplicationV2
       })),
     ];
     context.rows = (goods.solicitations ?? [])
-      .filter((s) => s.partyId === party.id && Number(s.monthStartTime) === monthStart && Math.floor(s.stones) >= 1)
+      .filter((s) => context.venture && inVenture(s, key) && Number(s.monthStartTime) === monthStart && Math.floor(s.stones) >= 1)
       .map((s) => {
         const price = (goods.merchPrices ?? []).find((p) => p.category === s.category && Number(p.monthStartTime) === monthStart);
         const merch = merchandiseFor(s.category)?.label ?? s.category;
@@ -68,7 +69,7 @@ export class VentureTradeDialog extends HandlebarsApplicationMixin(ApplicationV2
           merchLabel: merch,
           held,
           // The option text the template prints: the loads of this category
-          // the trader could sell — their packs and the party's vehicles —
+          // the trader could sell — their packs and the venture's vehicles —
           // ride beside the name, so a seller sees what is in hand.
           label: game.i18n.format(`${LANG}.ventures.labelCarrying`, { label: merch, held }),
           stones: Math.floor(s.stones),

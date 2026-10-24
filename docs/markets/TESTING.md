@@ -822,6 +822,106 @@ A load is an `item` with `system.quantity.value` stones, `system.cost`,
 goods, G and the cards; the setting is restored, the roster removed by its
 id and the hook handlers removed in the walk's `finally`.
 
+## The parties walk (characters of one party entering separately)
+
+Steps S0–S9 of `tools/live/markets.mjs`, in the order below; `STAGE=parties`
+runs them alone.
+
+**Fixtures** (through `api.create`, tracked): market M of class III with
+`marketCharacteristics` and `impactProse` imported, its ownership set after
+creation to exactly `{default: 0, [Player]: 3, [second player]: 3}`; two
+world merchandise Items with invented keys, prices and daily stones, one
+precious and one common; wagons WA and WB owned by the Player seat with
+invented capacities, WB holding a common load and a common load stamped for
+A (`storage.ownerUuid = A.uuid`); an `acks-extras.domain` actor D holding M
+under A; and these characters:
+
+- A and B, owned by the Player seat, with coin and a precious load each in
+  their packs, A driving WA and B driving WB;
+- C, owned by the second player alone (no permission for the Player seat);
+- E, owned by the Player seat, joining the roster mid-walk.
+
+A, B and C are the party: a roster of the run's own in `marketParties`,
+re-written with E for S6b and back, removed by its id at the end. The world's
+`marketsRandomTariff` is read, set off for the walk and put back.
+
+**Drive mechanics**
+
+- A character is aboard a vehicle by `flags["acks-extras"].attachedTo =
+  {uuid, role, station}` on the character. Role `crew` (station `driver`)
+  puts them aboard without weighing on the hold, so a purchase into it is not
+  refused for room.
+- Both players own M, so C stands at M by `ownersShare` though the Player
+  seat cannot see C. The GM seat posts C's days: a Judge's act is carried past
+  presence.
+- Work the share out in the driver from the imported maximum
+  (`impactLimits().impactCap`): rounded down, a third of it. Make the
+  division bite by typing other capacity of the class's baseline × (share +
+  2) into B's dialog: an undivided maximum would give B more impact than the
+  share. A world whose share is 0 trades at Class VI, impact 1.
+- Resolve entries and solicitations without moving the clock: set the named
+  actions' `resolveTime` to now and run `processImports(M)` on the GM seat.
+- Read the venture trade dialog through `new VentureTradeDialog({location,
+  trader})._prepareContext({})`.
+- The Enter dialog's mode radios fire `change`; a mode re-ticks the
+  vehicles, so tick vehicles after choosing it.
+
+**Steps**
+
+- **S0.** Both seats: the roster's characters (`partyMembers`). *Observable:*
+  three on each, the Player seat's including C.
+- **S1.** Player seat, M's Trade tab acting as A: **Enter the market**, choose
+  **Separately**, confirm. *Observable:* the dialog opens on "Entering", As
+  the party chosen, a line "Entering separately: maximum market impact …
+  each, for 3 characters." at the driver's share, WA and WB ticked and B's
+  packs listed; Separately leaves WA alone ticked, hides B's packs and WB's
+  hold, and the gate names A's privilege in D; the action has `entrantUuid`
+  A, `entrants` 3, WA alone, D's privilege, nothing charged, and its detail
+  begins "separately, one of 3".
+- **S2.** As B: open Enter, read only. *Observable:* both radios disabled
+  with Separately chosen, "Your party's characters are entering separately
+  this month." with the same share line; WA disabled and marked "(already
+  through the gate this month)", WB ticked. Then through the api: B as the
+  party is refused `enteredSeparately`; B separately with WA is refused
+  `vehicleEntered` naming WA.
+- **S3.** As B: Enter with the other capacity typed, confirm; GM seat:
+  resolve A's and B's entries. *Observable:* B's quote charges the toll on
+  WB and the other capacity and the tariff on B's packs and both of WB's
+  loads, the one stored for A included, with A's packs hidden and no
+  privilege; B paid exactly that; two rows stand, each one of 3 with
+  `impactCap` the share, B's at the share in class III; each entered card
+  reads "… entered the market at M separately, one of 3"; the Judge's party
+  block has a line naming each; A's status line reads "separately, one of 3".
+- **S4.** Through the api, A, then B, then A again solicit the common good.
+  *Observable:* A's and B's post, each with its entrant; A's second is
+  refused `duplicatePending`. Resolved: one pool each, daily stones at its
+  own row's class × its impact, and no party pool.
+- **S5.** *Observable:* A's trade dialog offers A's pool alone with A's packs
+  and WA, B's B's with WB; B buying into WA is refused `notInVenture`, into
+  WB it lands from B's pool, and A's pool is untouched.
+- **S6.** GM seat, as C: solicit, enter as the party, enter separately.
+  *Observable:* `notEntered`, `enteredSeparately`, then an entry one of 3.
+  Resolve it. Add E to the roster; as E, open Enter, read only, then enter
+  separately through the api. *Observable:* the share line still says 3,
+  and the entry is refused `separateFull`. Put the roster back.
+- **S7.** *Observable:* `marketKnownTo(M, B)` is false.
+- **S8.** As A: leave. *Observable:* A's row stands with `entered` false and
+  A's pool is gone; B's row and pool stand; A entering as the party is
+  refused `enteredSeparately`. B leaves, then C (GM seat); A enters as the
+  party through the api and it is resolved. *Observable:* the entry has
+  `entrantUuid` "" and `entrants` 0 under D's privilege; its row's
+  `impactCap` is the full imported maximum; B's status line reads "This
+  month: In the market" with no "separately".
+- **S9.** GM seat: write the party's row back with `entrantUuid` and
+  `entrants` deleted. *Observable:* it reads back `""` and 0, and B's trade
+  dialog acts in it. The write goes through the client, which fills the
+  schema's defaults on the way in: this proves the read, not a row a
+  released version stored.
+
+**Teardown**: `api.sweepTracked()` on both seats, which takes D, the wagons,
+the characters, the goods, M and the cards; the setting is restored and the
+roster removed by its id, in the walk and again in its `finally`.
+
 ## The manifest and load-removal API
 
 **Fixtures:** a character holding a merchandise load stack (invented category

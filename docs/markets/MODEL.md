@@ -176,7 +176,7 @@ party's find.
       Nothing is thrown and nothing is confiscated.
     - **The Judge's own rules.** `entryQuote` then calls
       `acksExtras.marketGateQuote` (`HOOKS.GATE_QUOTE`) with
-      `(quote, {location, trader})` on every seat that quotes. A handler
+      `(quote, {location, trader, separately})` on every seat that quotes. A handler
       may push `{label, cp}` onto `quote.extra`. The trader pays these with
       the book's, whatever the privilege or the sneaking. A handler answers
       the same on every seat, or preview and payment disagree. The gate's
@@ -197,6 +197,50 @@ party's find.
       venture row the totals. The ledger row itemizes the charges and lists
       what was smuggled; the detail names any throws; and the entered card
       says what was paid.
+  - **Entering as the party or separately** (RR ch. 8, Entering the Market,
+    step 2, Parties; `rules/arbitrage.mjs` `entryConflict`, `ventureKey`,
+    `inVenture`). An entry's `mode` (`VENTURE_MODES`) is `party` or
+    `separately`.
+    - **A venture is keyed by `partyId` and `entrantUuid`**, `""` for the
+      party entered as one. Venture rows, solicitation pools and venture days
+      all carry both, and `inVenture` is the one test they are matched by. A
+      character acts in a venture of their own while any of the party stands
+      or waits entered separately this month, and in the party's otherwise
+      (`ventureKey`; `ventureFor` reads the row). A character who has not
+      entered beside them is in no venture.
+    - **The count.** A separate entry counts the party's characters
+      (`partyMembers`, with the trader). The month's first separate entry
+      stores that count (`entrants`) on its action and its row, and every
+      later entry reads it back, from a row standing or left, so a roster
+      that changes mid-month changes nothing. Once that many stand or wait,
+      another is refused (`separateFull`). A party of one enters as one.
+    - **Refusals.** The party never stands entered both ways
+      (`alreadyEntered`, `enteredAsParty`, `enteredSeparately`). A vehicle
+      goes through a market's gate once a month, whoever declares it
+      (`vehiclesEntered`, over standing rows and waiting entries;
+      `vehicleEntered`).
+    - **Impact.** A separate entrant's maximum is the imported maximum
+      (`impactLimits().impactCap`) divided by the count, rounded down, in
+      every class, the family-scaled Class I included (`marketImpact`
+      `entrants`). The class drop holds that share, so a share of 0 trades
+      down to Class VI at impact 1.
+    - **The gate** (`gateHolders`). Entering separately, the packs and the
+      items brought to sell are the entrant's own, and so is the Ruler's
+      Privilege: the members entering are the entrant alone. The holds of the
+      entrant's vehicles still bring in the loads stamped for any member
+      arriving (`owners`), so nothing aboard passes unassessed.
+    - **Every other day** posts in the trader's venture: soliciting fills
+      that venture's pool, a trade draws on it into that venture's vehicles,
+      and leaving ends that venture alone.
+    - **The Enter dialog** offers a party of more than one the choice, with
+      the maximum each separate entrant would get, and fixes it to Separately
+      while any of the party stands or waits so. Each choice starts from its
+      own vehicles: every one a member rides, drives or is harnessed to as
+      the party, the trader's own separately. Separately, another member's
+      packs leave the goods list and the network block is the trader's alone.
+      A vehicle through the gate this month is marked and cannot be ticked.
+      The Trade tab's status line marks a separate venture, and the Judge's
+      party block has a line per venture naming its entrant.
   - **The assessment's roll is made on the influence page**, not by the
     sweep: the tab opens the influence feature's `marketAssessment` mode
     against the market as target (Charisma, one tone proficiency, Mystic
@@ -211,9 +255,10 @@ party's find.
     merchants are ordinary people), and the Judge changes it on the page.
   - **The queue refuses a duplicate and allows a withdrawal**
     (`rules/arbitrage.mjs` `pendingDuplicate`, `cancelVerdict`): the same
-    trader's same kind of day (same merchandise, for a solicitation) cannot
-    wait twice; a pending day may be withdrawn by the Judge or the trader's
-    owner, its row kept as `cancelled`, nothing refunded.
+    trader's same kind of day cannot wait twice, and a solicitation of one
+    merchandise waits once per venture, whichever member posts it; a pending
+    day may be withdrawn by the Judge or the trader's owner, its row kept as
+    `cancelled`, nothing refunded.
   - **A mercantile network on a venture** (`engine/network.mjs`,
     `rules/arbitrage.mjs` `networkOptions` / `pickNetworkOption`): the entry
     stores the impact earned at the market's own class before any drop
@@ -235,10 +280,11 @@ party's find.
     of which is the network's. A power held by name alone has neither, and
     the Enter dialog says its value is not imported. The ledger note and
     the card name the option used.
-  - **A party may leave the market** (`leaveMarket`, `leaveVentureMarket`):
-    the month's row stays with `entered` false and the toll and tariff on
-    record, the party's solicitations for the month are dropped, and its
-    waiting enter/assess/solicit days are withdrawn. Entering again
+  - **A party may leave the market** (`leaveMarket`, `leaveVentureMarket`),
+    in the venture the trader acts in: the month's row stays with `entered`
+    false and the toll and tariff on record, the venture's solicitations for
+    the month are dropped, and its waiting enter/assess/solicit days are
+    withdrawn. Entering again
     overwrites the row with a fresh declaration and pays the gate afresh.
 - **Known markets** (`rules/known.mjs`, `engine/known-market.mjs`): a
   mercantile network's class shift is situational — it counts in a market the
@@ -247,9 +293,10 @@ party's find.
   whether to count it. The current visit never counts itself: every sign is
   dated by the calendar day (`lib/world-time.mjs` `dayOfWorldTime`) and counts
   only when it falls before the day the visit began (`visitStartDay`). A party
-  entered this month is on the visit its entry opened (the venture row's
-  `enteredTime`, the entry's `postedTime`); a party not entered is on a visit
-  of one day. The signs: a ledger row stamped to the trader (a purchase, a
+  entered this month is on the visit its earliest standing entry opened (the
+  venture row's `enteredTime`, the entry's `postedTime`): one row where it
+  entered as one, a row per character where they entered separately. A party
+  not entered is on a visit of one day. The signs: a ledger row stamped to the trader (a purchase, a
   sale, an import, a hiring search, a hire); a venture day the trader posted,
   or an entry their party posted; the party's venture row from an earlier
   month; or the Judge's list on the trader

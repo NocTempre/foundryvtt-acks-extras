@@ -640,7 +640,9 @@ Ruled:
   the players' bookkeeping.
 - **Entering as one party or separately** (step 2, Parties) is the one
   choice about members the owner kept. It changes market impact, not the
-  fees, and is built on its own (ROADMAP until it lands).
+  fees, and is built on its own (ROADMAP until it lands). *Superseded in
+  part* by the next entry: entering separately, the gate assesses the
+  entrant's own packs, and the privilege is the entrant's own.
 - **Smuggling is marked on goods, and the attempt is the Judge's.** A good
   marked smuggled is not assessed. The entry lists it, and a card tells the
   Judge, who resolves the Smuggling hijink (RR ch. 8, Hijinks). Nothing is
@@ -680,3 +682,59 @@ brings and smuggles nothing. That is more than the entry above charged
 where a member besides the trader stands at the market with loads in their
 packs. An entry posted before this release has no `sneaked` field and
 resolves as it did.
+
+## 2026-10-23 — A party's characters may enter separately, each with a share of the maximum impact
+
+Builds the choice the entry above kept (RR ch. 8, Entering the Market, step
+2, Parties), which it left on the ROADMAP. It narrows one sentence there:
+entering separately changes what one entry's gate assesses, not only market
+impact, as the gate bullet below says. The new evidence is the owner's
+answer on the privilege. Nothing else ruled above is reversed. The owner
+answered three questions, and the default on rounding stood unanswered:
+
+- **The count is the party's roster** ("Party roster"): the characters
+  `partyMembers` gives, with the trader. The month's first separate entry
+  counts them and stores the count, and every later entry that month reads
+  it back, even once that entrant has left, so a roster that changes
+  mid-month changes no share. Once that many stand or wait entered, another
+  separate entry is refused. A party of one has nobody to enter apart from
+  and enters as one. Rejected: counting the members at the market, a number
+  that moves with each arrival and with each seat's sight.
+- **Every class divides the printed maximum**, the family-scaled Class I
+  included. The owner chose the parties paragraph's own text over the
+  recommendation, which divided Class I's family-scaled maximum. The
+  numerator is the imported maximum (`impactLimits().impactCap`), the figure
+  the Class II-and-smaller maximum is read from, so no number ships.
+- **The share rounds down.** A share of 0 trades down the classes to Class
+  VI at impact 1, as any entry too small for its class does.
+- **The Ruler's Privilege is the entrant's own** ("Entrant's own only"): a
+  character entering separately pays unless they rule the domain themselves.
+  This is the entry above's rule, its ruler among the members entering,
+  applied to an entry whose only member entering is the entrant, so it
+  supersedes nothing. Rejected: a ruler in the party waiving every member's
+  separate entry.
+
+Built besides, because the rule leaves no choice:
+
+- A separate entrant's packs and items brought to sell are their own. The
+  holds of the entrant's vehicles still bring in the loads stamped for any
+  member arriving, so splitting the party passes nothing unassessed.
+- A vehicle goes through a market's gate once a month, whoever declares it.
+  Otherwise two separate entrants could each count one wagon's capacity
+  toward their impact.
+- A character not entered beside the party's separate entrants is in no
+  venture: they neither solicit nor enter as the party until every separate
+  entrant has left.
+
+Cost:
+
+- Entering as one, two members soliciting the same merchandise on the same
+  day now share one solicitation: the second is refused while the first
+  waits, where before each opened the pool whole (RR ch. 8, Arbitrage
+  Trading, step 3, Solicit Buyers or Sellers).
+- Two parties can no longer declare the same vehicle at one market in one
+  month.
+- None for a world's data. A venture row, pool or day stored without
+  `entrantUuid` reads as the party's, through the schema's defaults.
+- A Judge's `marketGateQuote` handler that ignores the new `separately` in
+  its context charges a separate entrant as it would the party.

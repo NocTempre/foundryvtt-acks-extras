@@ -25,6 +25,10 @@ import {
   NETWORK_MODES,
   networkOptions,
   pickNetworkOption,
+  ventureKey,
+  inVenture,
+  entryConflict,
+  vehiclesEntered,
 } from "../rules/arbitrage.mjs";
 import { networkSteps } from "./network.mjs";
 import { marketKnownTo } from "./known-market.mjs";
@@ -35,7 +39,7 @@ import { ITEM_TYPE } from "../../lib/vocab.mjs";
 import { judgesAndOwners } from "../../lib/util.mjs";
 import { now } from "../../henchmen/time.mjs";
 import * as adapter from "../../henchmen/acks-adapter.mjs";
-import { partyOf } from "./parties.mjs";
+import { partyOf, partyMembers } from "./parties.mjs";
 import { marketMonthStart, abilityRanks, awayFromMarket } from "./trade.mjs";
 import { impactLimits, assessmentBands, priceShifts, negotiation, printedError } from "./printed.mjs";
 import { merchandiseCatalog, merchandiseFor } from "./merchandise.mjs";
@@ -139,11 +143,29 @@ async function enteringVehicles(uuids, requestUserId) {
   return out;
 }
 
-/** This party's venture row for the month, if any. */
-export function ventureOf(location, partyId, monthStart = marketMonthStart()) {
-  return (location.system.market?.goods?.ventures ?? []).find(
-    (v) => v.partyId === partyId && Number(v.monthStartTime) === monthStart
-  );
+/**
+ * One venture row for the month, if any: the party's, or with `entrantUuid`
+ * the row of the party's character who entered separately.
+ */
+export function ventureOf(location, partyId, monthStart = marketMonthStart(), entrantUuid = "") {
+  return (location.system.market?.goods?.ventures ?? []).find((v) => inVenture(v, { partyId, entrantUuid }) && Number(v.monthStartTime) === monthStart);
+}
+
+/** The venture an actor acts in at a market this month (`ventureKey`), read from the location's rows. */
+function keyFor(location, actor, monthStart, actions = location.system.market?.goods?.actions) {
+  return ventureKey({ ventures: location.system.market?.goods?.ventures, actions }, { partyId: partyOf(actor).id, actorUuid: actor.uuid, monthStart });
+}
+
+/**
+ * The venture row an actor acts in this month, if any: their party's, or
+ * their own where the party's characters entered separately (`ventureKey`).
+ * Reading venture state for a character goes through this; `ventureOf` reads
+ * a row by its party.
+ */
+export function ventureFor(location, actor, monthStart = marketMonthStart()) {
+  if (!actor) return undefined;
+  const key = keyFor(location, actor, monthStart);
+  return ventureOf(location, key.partyId, monthStart, key.entrantUuid);
 }
 
 /** How a good smuggled past the gate reads on a card: its label, how much, and whose it is. */
@@ -184,10 +206,16 @@ async function postSmuggling(location, actor, gate) {
  *
  * An entry's payload says what the party brings to the gate besides its
  * vehicles (`entryQuote`): `forSale` and `smuggled` name goods by `goodKey`,
- * and `sneak` sneaks the party in.
+ * and `sneak` sneaks the party in. Its `mode` (`VENTURE_MODES`) says whether
+ * the trader enters as the party or separately (RR ch. 8, Entering the
+ * Market, step 2, Parties), the party's characters counted as its roster
+ * (`partyMembers`) with the trader; anything else enters as the party
+ * (`entryConflict` has the refusals). A vehicle already through the gate
+ * this month enters once. Every other day is posted in the venture the
+ * trader acts in (`ventureKey`).
  */
 export async function postVentureAction(location, payload) {
-  const { kind, actorUuid, category = "", cargoSt = 0, vehicleUuids = [], requestUserId = null, resolutionId = "", roll = null, bribeGp = 0, networkMode = "auto", forSale = [], smuggled = [], sneak = false } = payload;
+  const { kind, actorUuid, category = "", cargoSt = 0, vehicleUuids = [], requestUserId = null, resolutionId = "", roll = null, bribeGp = 0, networkMode = "auto", forSale = [], smuggled = [], sneak = false, mode = "party" } = payload;
   const actorDoc = await fromUuid(actorUuid).catch(() => null);
   const actor = actorDoc?.actor ?? actorDoc;
   if (!actor) return err("noBuyer");
@@ -200,34 +228,40 @@ export async function postVentureAction(location, payload) {
   const away = awayFromMarket(actor, location, requestUserId);
   if (away) return away;
   const actions = clone(goods.actions);
+  const t = now();
+  const monthStart = marketMonthStart(t);
+  const party = partyOf(actor);
+  const key = keyFor(location, actor, monthStart, actions);
   if (resolutionId && actions.some((a) => a.id === resolutionId)) return err("duplicate");
-  if (pendingDuplicate(actions, { kind, actorUuid: actor.uuid, category })) return err("duplicatePending");
+  if (pendingDuplicate(actions, { kind, actorUuid: actor.uuid, category, venture: key })) return err("duplicatePending");
   // Refused now, before the toll is taken, rather than spent as a day that cannot resolve.
   const unread = venturePrerequisite(kind);
   if (unread) return printedError(unread);
 
-  const t = now();
-  const monthStart = marketMonthStart(t);
-  const party = partyOf(actor);
-  const venture = ventureOf(location, party.id, monthStart);
   let tollCp = 0;
   let tariff = null;
   let privilege = null;
   let gate = null;
+  let entrants = 0;
   const bribe = kind === "assess" ? Math.max(0, Number(bribeGp) || 0) : 0;
   let capacitySt = 0;
   let brought = { uuids: [], names: [] };
 
   if (kind === "enter") {
-    if (venture?.entered) return err("alreadyEntered");
-    if (actions.some((a) => a.status === "pending" && a.kind === "enter" && a.partyId === party.id)) return err("alreadyEntered");
+    const characters = new Set([actor.uuid, ...partyMembers(party.id).map((a) => a.uuid)]).size;
+    const conflict = entryConflict({ ventures: goods.ventures, actions }, { partyId: party.id, actorUuid: actor.uuid, monthStart, mode, characters });
+    if (conflict.error) return err(conflict.error);
+    entrants = conflict.entrants;
     brought = await enteringVehicles(vehicleUuids, requestUserId);
     if (brought.error) return brought;
+    const through = vehiclesEntered({ ventures: goods.ventures, actions }, monthStart);
+    const twice = brought.docs.find((v) => through.has(v.uuid));
+    if (twice) return err("vehicleEntered", { vehicle: twice.name });
     // Entering declares what the party brings: the vehicles, plus any other
     // capacity (porters, pack animals) stated as a number, the goods declared
     // for sale and those smuggled, or a party sneaking in. The gate assesses
     // the book's charges on it.
-    gate = entryQuote(location, actor, { vehicles: brought.docs, otherSt: cargoSt, forSale, smuggled, sneak, requestUserId });
+    gate = entryQuote(location, actor, { vehicles: brought.docs, otherSt: cargoSt, forSale, smuggled, sneak, separately: entrants > 0, requestUserId });
     if (gate.error) return gate;
     capacitySt = gate.capacitySt;
     tollCp = gate.tollCp;
@@ -241,7 +275,7 @@ export async function postVentureAction(location, payload) {
       if (!paid) return err("insufficientGold");
     }
   } else {
-    if (!venture?.entered) return err("notEntered");
+    if (!ventureOf(location, key.partyId, monthStart, key.entrantUuid)?.entered) return err("notEntered");
     if (kind === "solicit" && !merchandiseFor(category)) return err("noCategory");
     if (bribe > 0) {
       const paid = await adapter.spendGold(actor, bribe, game.i18n.localize(`${LANG}.ventures.bribeReason`), { to: location, at: location, within: location, judge: judgeDeclares(requestUserId) });
@@ -254,6 +288,7 @@ export async function postVentureAction(location, payload) {
   const tariffCp = tariff?.totalCp ?? 0;
   const thrown = (tariff?.rolls ?? []).map((r) => `${r.tier} ${r.formula} → ${r.total}%`).join(", ");
   const detail = [
+    entrants > 0 ? `separately, one of ${entrants}` : "",
     brought.names.length ? `with ${brought.names.join(", ")}` : "",
     privilege ? `ruler's privilege (${privilege.name})` : "",
     tollCp > 0 ? `toll ${toGp(tollCp)}gp` : "",
@@ -285,6 +320,8 @@ export async function postVentureAction(location, payload) {
     tariffCp,
     privilegeUuid: privilege?.uuid ?? "",
     sneaked: !!gate?.sneaked,
+    entrantUuid: kind === "enter" ? (entrants > 0 ? actor.uuid : "") : key.entrantUuid,
+    entrants,
   };
   const log = clone(location.system.market.marketLog);
   const paidGp = toGp(gate ? tollCp + tariffCp + extraCpOf(gate) : 0) + bribe;
@@ -294,7 +331,7 @@ export async function postVentureAction(location, payload) {
   log.push({
     time: t,
     type: "ventureAction",
-    note: `${actor.name}: ${kind}${category ? ` (${category})` : ""} posted${paidNote} [${action.id}]`,
+    note: `${actor.name}: ${kind}${entrants > 0 ? " separately" : ""}${category ? ` (${category})` : ""} posted${paidNote} [${action.id}]`,
     actorUuid: actor.uuid,
     gp: -paidGp,
   });
@@ -343,11 +380,12 @@ export async function cancelVentureAction(location, { actionId, requestUserId = 
 }
 
 /**
- * Leave the market this month, as the acting trader's party. What the entry
- * cost stays spent and the party's waiting days are withdrawn with it
- * (`rules/arbitrage.mjs` `leaveMarket`); the Enter button then offers a fresh
- * declaration at a fresh toll. The Judge may leave for any party; anyone else
- * only through a trader they own.
+ * Leave the market this month, in the venture the acting trader acts in: the
+ * party's, or their own where they entered separately (`ventureKey`). What
+ * the entry cost stays spent and the venture's waiting days are withdrawn
+ * with it (`rules/arbitrage.mjs` `leaveMarket`); the Enter button then offers
+ * a fresh declaration at a fresh toll. The Judge may leave for any party;
+ * anyone else only through a trader they own.
  */
 export async function leaveVentureMarket(location, { actorUuid, requestUserId = null } = {}) {
   const goods = location?.system?.market?.goods;
@@ -360,8 +398,9 @@ export async function leaveVentureMarket(location, { actorUuid, requestUserId = 
     if (!user?.isGM && !actor.testUserPermission(user, "OWNER")) return err("notYours");
   }
   const t = now();
+  const monthStart = marketMonthStart(t);
   const state = { ventures: clone(goods.ventures), actions: clone(goods.actions), solicitations: clone(goods.solicitations) };
-  const result = leaveMarket(state, { partyId: partyOf(actor).id, monthStart: marketMonthStart(t) });
+  const result = leaveMarket(state, { ...keyFor(location, actor, monthStart), monthStart });
   if (result.error) return err(result.error);
   const log = clone(location.system.market.marketLog);
   log.push({
@@ -441,6 +480,10 @@ export async function processVentureActions(location, log, t) {
         await postTableMissing(actor, location, action, "impactProse", log, t);
         continue;
       }
+      // A character entering separately is the venture's entrant; an entry
+      // posted before entrants were stored entered as the party.
+      const key = { partyId: action.partyId, entrantUuid: action.entrantUuid ?? "" };
+      const entrants = key.entrantUuid ? Math.max(0, Math.floor(Number(action.entrants) || 0)) : 0;
       const { impact, effectiveClass, rawImpact, cap } = marketImpact({
         ...limits,
         cargoSt: action.cargoSt,
@@ -448,10 +491,13 @@ export async function processVentureActions(location, log, t) {
         marketClass: Number(location.system.marketClass) || 6,
         urbanFamilies: Number(location.system.market.urbanFamilies) || 0,
         baselineOfClass: (cls) => parseStones(characteristicsFor(cls)?.baselineCargo),
+        entrants,
       });
-      const existing = ventures.find((v) => v.partyId === action.partyId && Number(v.monthStartTime) === monthStart);
+      const existing = ventures.find((v) => inVenture(v, key) && Number(v.monthStartTime) === monthStart);
       const row = existing ?? {
         partyId: action.partyId,
+        entrantUuid: key.entrantUuid,
+        entrants: 0,
         monthStartTime: monthStart,
         cargoSt: 0,
         vehicleUuids: [],
@@ -467,6 +513,7 @@ export async function processVentureActions(location, log, t) {
         networkMode: "auto",
       };
       if (!existing) ventures.push(row);
+      row.entrants = entrants;
       row.cargoSt = action.cargoSt;
       row.vehicleUuids = [...(action.vehicleUuids ?? [])];
       row.impact = impact;
@@ -482,13 +529,14 @@ export async function processVentureActions(location, log, t) {
       row.rawImpact = rawImpact;
       row.impactCap = cap;
       row.networkMode = NETWORK_MODES.includes(action.networkMode) ? action.networkMode : "auto";
-      log.push({ time: t, type: "ventureEntered", note: `${actor.name}: entered the market, impact ${impact}`, actorUuid: actor.uuid, gp: 0 });
+      log.push({ time: t, type: "ventureEntered", note: `${actor.name}: entered the market${entrants ? ` separately, one of ${entrants}` : ""}, impact ${impact}`, actorUuid: actor.uuid, gp: 0 });
       const paid = action.sneaked
         ? game.i18n.localize(`${LANG}.ventures.paidSneaked`)
         : row.privilegeUuid
           ? game.i18n.localize(`${LANG}.ventures.paidPrivilege`)
           : game.i18n.format(`${LANG}.ventures.paidLine`, { toll: toGp(row.tollCp), tariff: toGp(row.tariffCp) });
-      await postCard(actor, `<strong>${game.i18n.format(`${LANG}.ventures.enteredLine`, { name: actor.name, location: location.name, impact })}</strong><br>${paid}`);
+      const entered = game.i18n.format(`${LANG}.ventures.${entrants ? "enteredSeparatelyLine" : "enteredLine"}`, { name: actor.name, location: location.name, impact, n: entrants });
+      await postCard(actor, `<strong>${entered}</strong><br>${paid}`);
     }
 
     if (action.kind === "assess") {
@@ -582,7 +630,8 @@ export async function processVentureActions(location, log, t) {
     }
 
     if (action.kind === "solicit") {
-      const venture = ventures.find((v) => v.partyId === action.partyId && Number(v.monthStartTime) === monthStart);
+      const key = { partyId: action.partyId, entrantUuid: action.entrantUuid ?? "" };
+      const venture = ventures.find((v) => inVenture(v, key) && Number(v.monthStartTime) === monthStart);
       const merch = merchandiseFor(action.category);
       if (!merch) {
         await postTableMissing(actor, location, action, "merchandiseTypes", log, t);
@@ -613,9 +662,9 @@ export async function processVentureActions(location, log, t) {
       const pick = pickNetworkOption({ base, ...options, mode: venture.networkMode ?? "auto", stonesAt });
       const gained = stonesAt(pick.cls, pick.imp);
       const srow =
-        solicitations.find((s) => s.partyId === action.partyId && s.category === action.category && Number(s.monthStartTime) === monthStart) ??
+        solicitations.find((s) => inVenture(s, key) && s.category === action.category && Number(s.monthStartTime) === monthStart) ??
         (() => {
-          const fresh = { partyId: action.partyId, category: action.category, monthStartTime: monthStart, stones: 0 };
+          const fresh = { partyId: action.partyId, entrantUuid: key.entrantUuid, category: action.category, monthStartTime: monthStart, stones: 0 };
           solicitations.push(fresh);
           return fresh;
         })();
@@ -667,12 +716,12 @@ export async function tradeMerchandise(location, payload) {
 
   const t = now();
   const monthStart = marketMonthStart(t);
-  const party = partyOf(actor);
-  const venture = ventureOf(location, party.id, monthStart);
+  const key = keyFor(location, actor, monthStart);
+  const venture = ventureOf(location, key.partyId, monthStart, key.entrantUuid);
   if (!venture?.entered) return err("notEntered");
 
   const solicitations = clone(goods.solicitations);
-  const srow = solicitations.find((s) => s.partyId === party.id && s.category === category && Number(s.monthStartTime) === monthStart);
+  const srow = solicitations.find((s) => inVenture(s, key) && s.category === category && Number(s.monthStartTime) === monthStart);
   if (!srow || Math.floor(srow.stones) < stones) return err("notSolicited", { remaining: Math.floor(srow?.stones ?? 0) });
 
   let hold = actor;

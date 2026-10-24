@@ -202,12 +202,22 @@ export function goodsSchema() {
         privilegeUuid: str(),
         // enter: the party sneaked in, so the gate charged neither toll nor tariff.
         sneaked: new f.BooleanField({ initial: false }),
+        // The venture the day is posted in: "" for the party's, else the
+        // character who entered separately (rules/arbitrage.mjs ventureKey).
+        entrantUuid: str(),
+        // enter, separately: the party's characters the maximum impact is shared among; 0 entering as one.
+        entrants: int(0),
       })
     ),
-    // Venture state per party-month: entered, cargo, impact, toll and tariff paid.
+    // Venture state per party-month, or per character-month where the party
+    // entered separately: entered, cargo, impact, toll and tariff paid.
     ventures: new f.ArrayField(
       new f.SchemaField({
         partyId: str(),
+        // "" for the party entered as one, else the character who entered separately.
+        entrantUuid: str(),
+        // Where entered separately, the party's characters the maximum is shared among; 0 entering as one.
+        entrants: int(0),
         monthStartTime: int(),
         cargoSt: int(0),
         // The vehicles the party entered with: where its loads are bought into
@@ -255,12 +265,14 @@ export function goodsSchema() {
         detail: str(),
       })
     ),
-    // Solicited quantities: what a party's day of soliciting opened up,
+    // Solicited quantities: what a venture's days of soliciting opened up,
     // spendable until replaced by a fresh solicitation (fractions carry
     // month-long for the sub-stone merchandise rows).
     solicitations: new f.ArrayField(
       new f.SchemaField({
         partyId: str(),
+        // The venture's entrant: "" for the party entered as one.
+        entrantUuid: str(),
         category: str(),
         monthStartTime: int(),
         stones: num({ min: 0 }),

@@ -407,6 +407,32 @@ assert.strictEqual(diceRange(""), null, "no formula");
   );
   assert.throws(() => marketImpact({ cargoSt: 10, baselineCargoSt: 10, marketClass: 3 }), /impactCap/, "no printed limits, no impact");
 
+  // Entering separately: the printed maximum shared among the party's characters, rounded down.
+  for (const entrants of [undefined, 0, 1]) {
+    assert.deepStrictEqual(
+      marketImpact({ cargoSt: 5000, baselineCargoSt: 130, marketClass: 6, entrants, ...LIMITS }),
+      { impact: 7, effectiveClass: 6, rawImpact: 7, cap: 7 },
+      `entrants ${entrants} is an entry as one`
+    );
+  }
+  assert.deepStrictEqual(
+    marketImpact({ cargoSt: 5000, baselineCargoSt: 130, marketClass: 6, entrants: 3, ...LIMITS }),
+    { impact: 2, effectiveClass: 6, rawImpact: 2, cap: 2 },
+    "three characters share a maximum of 7 as 2 each"
+  );
+  assert.strictEqual(marketImpact({ cargoSt: 130, baselineCargoSt: 130, marketClass: 6, entrants: 3, ...LIMITS }).impact, 1, "an impact under the share is its own");
+  assert.strictEqual(marketImpact({ cargoSt: 5000, baselineCargoSt: 130, marketClass: 6, entrants: 2, ...LIMITS }).cap, 3, "7 between two rounds down to 3, never to the even 4");
+  assert.strictEqual(
+    marketImpact({ cargoSt: 600000, baselineCargoSt: 2500, marketClass: 2, urbanFamilies: 9900, entrants: 2, ...LIMITS }).cap,
+    3,
+    "in the family-scaled class the share is of the printed maximum, not of the scaled one"
+  );
+  assert.deepStrictEqual(
+    marketImpact({ cargoSt: 5000, baselineCargoSt: 4200, marketClass: 3, baselineOfClass: of, entrants: 8, ...LIMITS }),
+    { impact: 1, effectiveClass: 6, rawImpact: 0, cap: 0 },
+    "a share of none trades down the classes to the smallest, at impact 1"
+  );
+
   // A mercantile network's options, with invented steps and an invented maximum.
   const { networkOptions, pickNetworkOption } = await import(new URL("../scripts/markets/rules/arbitrage.mjs", import.meta.url));
   const entry = { impact: 3, effectiveClass: 4, rawImpact: 3, trueClass: 4, cap: 7 };
@@ -740,6 +766,19 @@ assert.strictEqual(parseMoneyCp("-"), 0, "unreadable money is zero");
   assert.strictEqual(pendingDuplicate(queue, { kind: "solicit", actorUuid: "Actor.A", category: "silk" }), undefined, "another merchandise is another day");
   assert.strictEqual(pendingDuplicate(queue, { kind: "assess", actorUuid: "Actor.C" }), undefined, "another trader's day is theirs");
 
+  // Soliciting in a venture: the venture's same good waiting is a duplicate, whoever of it posted it.
+  const party = { partyId: "p1", entrantUuid: "" };
+  const shared = [
+    { id: "v1", kind: "solicit", partyId: "p1", actorUuid: "Actor.A", category: "salt", status: "pending" },
+    { id: "v2", kind: "solicit", partyId: "p1", entrantUuid: "Actor.B", actorUuid: "Actor.B", category: "wool", status: "pending" },
+    { id: "v3", kind: "assess", partyId: "p1", actorUuid: "Actor.A", category: "", status: "pending" },
+  ];
+  assert.strictEqual(pendingDuplicate(shared, { kind: "solicit", actorUuid: "Actor.Z", category: "salt", venture: party })?.id, "v1", "a second member of the party soliciting the same good the same day");
+  assert.strictEqual(pendingDuplicate(shared, { kind: "solicit", actorUuid: "Actor.Z", category: "silk", venture: party }), undefined, "another good is another day");
+  assert.strictEqual(pendingDuplicate(shared, { kind: "solicit", actorUuid: "Actor.C", category: "wool", venture: { partyId: "p1", entrantUuid: "Actor.C" } }), undefined, "another separate entrant's venture is theirs");
+  assert.strictEqual(pendingDuplicate(shared, { kind: "solicit", actorUuid: "Actor.B", category: "wool", venture: { partyId: "p1", entrantUuid: "Actor.B" } })?.id, "v2", "an entrant's own good twice");
+  assert.strictEqual(pendingDuplicate(shared, { kind: "assess", actorUuid: "Actor.Z", venture: party }), undefined, "assessing stays the assessor's own day");
+
   const owns = (uuid) => uuid === "Actor.A";
   assert.strictEqual(cancelVerdict(queue[0], { isGM: false, ownsActor: owns }), "ok", "a player withdraws their own pending day");
   assert.strictEqual(cancelVerdict(queue[2], { isGM: false, ownsActor: owns }), "notPending", "a resolved day cannot be withdrawn");
@@ -792,6 +831,86 @@ assert.strictEqual(parseMoneyCp("-"), 0, "unreadable money is zero");
   );
   assert.deepStrictEqual(leaveMarket(state, { partyId: "p1", monthStart: 1000 }), { error: "notEntered" }, "leaving twice is refused");
   assert.deepStrictEqual(leaveMarket(state, { partyId: "p3", monthStart: 1000 }), { error: "notEntered" }, "a party never in is refused");
+
+  // A character who entered separately leaves on their own: the party's other ventures stand.
+  const apart = {
+    ventures: [
+      { partyId: "p1", entrantUuid: "Actor.A", monthStartTime: 1000, entered: true },
+      { partyId: "p1", entrantUuid: "Actor.B", monthStartTime: 1000, entered: true },
+      { partyId: "p1", monthStartTime: 1000, entered: true },
+    ],
+    actions: [
+      { id: "r1", kind: "solicit", partyId: "p1", entrantUuid: "Actor.A", actorUuid: "Actor.A", category: "salt", status: "pending" },
+      { id: "r2", kind: "solicit", partyId: "p1", entrantUuid: "Actor.B", actorUuid: "Actor.B", category: "salt", status: "pending" },
+      { id: "r3", kind: "assess", partyId: "p1", actorUuid: "Actor.C", category: "", status: "pending" },
+    ],
+    solicitations: [
+      { partyId: "p1", entrantUuid: "Actor.A", category: "salt", monthStartTime: 1000, stones: 2 },
+      { partyId: "p1", entrantUuid: "Actor.B", category: "salt", monthStartTime: 1000, stones: 3 },
+      { partyId: "p1", category: "salt", monthStartTime: 1000, stones: 4 },
+    ],
+  };
+  assert.deepStrictEqual(leaveMarket(apart, { partyId: "p1", entrantUuid: "Actor.A", monthStart: 1000 }), { ok: true, cancelledIds: ["r1"], droppedSolicitations: 1 }, "only the entrant's own days and pool go");
+  assert.deepStrictEqual(apart.ventures.map((v) => v.entered), [false, true, true], "only the entrant's row is left");
+  assert.deepStrictEqual(apart.solicitations.map((s) => s.stones), [3, 4], "the other entrant's pool and the party's stand");
+  assert.deepStrictEqual(leaveMarket(apart, { partyId: "p1", monthStart: 1000 }), { ok: true, cancelledIds: ["r3"], droppedSolicitations: 1 }, "the party's key takes the party's rows only");
+  assert.deepStrictEqual(apart.ventures.map((v) => v.entered), [false, true, false], "and leaves the separate entrant in");
+}
+
+// ---- entering as one party or separately ----
+{
+  const { ventureKey, inVenture, entryConflict, vehiclesEntered } = await import(new URL("../scripts/markets/rules/arbitrage.mjs", import.meta.url));
+  const month = 1000;
+  const who = (actorUuid) => ({ partyId: "p1", actorUuid, monthStart: month });
+  const row = (entrantUuid, extra = {}) => ({ partyId: "p1", monthStartTime: month, entered: true, ...(entrantUuid === undefined ? {} : { entrantUuid }), ...extra });
+  const entry = (entrantUuid, extra = {}) => ({ kind: "enter", partyId: "p1", status: "pending", entrantUuid, ...extra });
+
+  assert.ok(inVenture({ partyId: "p1" }, { partyId: "p1", entrantUuid: "" }), "a row stored before entrants reads as the party's");
+  assert.ok(!inVenture({ partyId: "p1", entrantUuid: "Actor.A" }, { partyId: "p1", entrantUuid: "" }), "an entrant's row is not the party's");
+  assert.ok(!inVenture({ partyId: "p2" }, { partyId: "p1", entrantUuid: "" }), "another party's row is not this one's");
+
+  assert.deepStrictEqual(ventureKey({ ventures: [row(undefined)] }, who("Actor.B")), { partyId: "p1", entrantUuid: "" }, "a party entered as one: every member acts in its venture");
+  assert.deepStrictEqual(ventureKey({ ventures: [row("Actor.A")] }, who("Actor.A")), { partyId: "p1", entrantUuid: "Actor.A" }, "a character entered separately acts in their own");
+  assert.deepStrictEqual(ventureKey({ ventures: [row("Actor.A")] }, who("Actor.B")), { partyId: "p1", entrantUuid: "Actor.B" }, "a member who has not entered beside them is not in the party's");
+  assert.deepStrictEqual(ventureKey({ actions: [entry("Actor.A")] }, who("Actor.A")), { partyId: "p1", entrantUuid: "Actor.A" }, "a separate entry waiting is the character's own");
+  assert.deepStrictEqual(
+    ventureKey({ ventures: [row(undefined, { entered: false }), row("Actor.A")] }, who("Actor.A")),
+    { partyId: "p1", entrantUuid: "Actor.A" },
+    "a party row left earlier gives way to the character's own"
+  );
+  assert.deepStrictEqual(ventureKey({ ventures: [row("Actor.A", { monthStartTime: 900 })] }, who("Actor.B")), { partyId: "p1", entrantUuid: "" }, "last month's entrants say nothing of this one");
+  assert.deepStrictEqual(ventureKey({}, who("Actor.A")), { partyId: "p1", entrantUuid: "" }, "a party not in is the party");
+
+  const as = (mode, actor, characters = 3) => ({ ...who(actor), mode, characters });
+  assert.deepStrictEqual(entryConflict({}, as("party", "Actor.A")), { entrants: 0 }, "a party not in enters as one");
+  assert.deepStrictEqual(entryConflict({}, as("separately", "Actor.A")), { entrants: 3 }, "the first separate entry counts the party's characters");
+  assert.deepStrictEqual(entryConflict({}, as("separately", "Actor.A", 1)), { entrants: 0 }, "a party of one enters as one");
+  assert.deepStrictEqual(entryConflict({}, as("sideways", "Actor.A")), { entrants: 0 }, "an unknown mode is an entry as one");
+  assert.deepStrictEqual(entryConflict({ ventures: [row(undefined)] }, as("separately", "Actor.B")), { error: "enteredAsParty" }, "a party entered as one refuses a separate entry");
+  assert.deepStrictEqual(entryConflict({ actions: [entry("")] }, as("separately", "Actor.B")), { error: "enteredAsParty" }, "as does its entry waiting");
+  assert.deepStrictEqual(entryConflict({ ventures: [row(undefined)] }, as("party", "Actor.B")), { error: "alreadyEntered" }, "and a second entry as one");
+  assert.deepStrictEqual(entryConflict({ ventures: [row("Actor.A", { entrants: 3 })] }, as("party", "Actor.B")), { error: "enteredSeparately" }, "a character entered separately refuses an entry as one");
+  assert.deepStrictEqual(entryConflict({ actions: [entry("Actor.A", { entrants: 3 })] }, as("party", "Actor.B")), { error: "enteredSeparately" }, "as does their entry waiting");
+  assert.deepStrictEqual(entryConflict({ ventures: [row("Actor.A", { entrants: 3 })] }, as("separately", "Actor.A")), { error: "alreadyEntered" }, "a character entered separately enters once");
+  assert.deepStrictEqual(entryConflict({ ventures: [row("Actor.A", { entrants: 3 })] }, as("separately", "Actor.B", 5)), { entrants: 3 }, "a later entrant reads the count the first stored");
+  assert.deepStrictEqual(
+    entryConflict({ ventures: [row("Actor.A", { entrants: 2 })], actions: [entry("Actor.B", { entrants: 2 })] }, as("separately", "Actor.C", 3)),
+    { error: "separateFull", entrants: 2 },
+    "once as many as the count stand or wait, another is refused, at the stored count, not the roster's"
+  );
+  assert.deepStrictEqual(
+    entryConflict({ ventures: [row("Actor.A", { entrants: 3, entered: false })] }, as("separately", "Actor.A", 5)),
+    { entrants: 3 },
+    "a character who left enters again, at the month's count"
+  );
+  assert.deepStrictEqual(entryConflict({ ventures: [row("Actor.A", { entrants: 3, entered: false })] }, as("party", "Actor.A")), { entrants: 0 }, "once every entrant has left, the party may enter as one");
+  assert.deepStrictEqual(entryConflict({ ventures: [row("Actor.A", { entrants: 3, monthStartTime: 900 })] }, as("party", "Actor.A")), { entrants: 0 }, "last month's entrants refuse nothing");
+
+  const state = {
+    ventures: [row(undefined, { vehicleUuids: ["Actor.W1"] }), row("Actor.A", { vehicleUuids: ["Actor.W2"], entered: false }), row("Actor.B", { vehicleUuids: ["Actor.W5"], monthStartTime: 900 })],
+    actions: [entry("Actor.C", { vehicleUuids: ["Actor.W3"] }), entry("Actor.D", { vehicleUuids: ["Actor.W4"], status: "cancelled" })],
+  };
+  assert.deepStrictEqual([...vehiclesEntered(state, month)].sort(), ["Actor.W1", "Actor.W3"], "a vehicle on a standing row or a waiting entry is through the gate; one left, withdrawn or last month's is not");
 }
 
 // ---- known markets: where a mercantile network's shift applies ----
@@ -834,6 +953,27 @@ assert.strictEqual(parseMoneyCp("-"), 0, "unreadable money is zero");
   assert.strictEqual(visitStartDay({ ventures: oldRow, actions: entries, partyId: "p1", monthStart: month, at, dayOf }), 102, "a row with no entry time reads the latest entry posted");
   assert.strictEqual(visitStartDay({ ventures: oldRow, partyId: "p1", monthStart: month, at, dayOf }), 100, "and with none, the month's start");
   assert.strictEqual(visitStartDay({ ventures: [{ partyId: "p1", monthStartTime: month, entered: false }], partyId: "p1", monthStart: month, at, dayOf }), 103, "a party that left is on a fresh visit");
+
+  // Entered separately: the visit began with the party's earliest standing entry.
+  const apart = [
+    { partyId: "p1", entrantUuid: "Actor.Z", monthStartTime: month, entered: true, enteredTime: 1032 },
+    { partyId: "p1", entrantUuid: "Actor.A", monthStartTime: month, entered: true, enteredTime: 1012 },
+    { partyId: "p1", entrantUuid: "Actor.Y", monthStartTime: month, entered: false, enteredTime: 1002 },
+  ];
+  assert.strictEqual(visitStartDay({ ventures: apart, partyId: "p1", monthStart: month, at, dayOf }), 101, "the earliest of the entrants standing in, a left one aside");
+  const zEntered = [{ kind: "enter", actorUuid: "Actor.A", partyId: "p1", entrantUuid: "Actor.A", status: "done", postedTime: 1012 }];
+  const zWho = { actorUuid: "Actor.Z", partyId: "p1", locationUuid: L };
+  assert.strictEqual(
+    marketKnownTo({ actions: zEntered, ventures: apart }, zWho, on(visitStartDay({ ventures: apart, partyId: "p1", monthStart: month, at, dayOf }))),
+    false,
+    "a companion's separate entry earlier in the same visit is not a visit before"
+  );
+  const oldApart = [{ partyId: "p1", entrantUuid: "Actor.A", monthStartTime: month, entered: true }];
+  const theirs = [
+    { kind: "enter", partyId: "p1", entrantUuid: "Actor.A", status: "done", postedTime: 1014 },
+    { kind: "enter", partyId: "p1", status: "done", postedTime: 1024 },
+  ];
+  assert.strictEqual(visitStartDay({ ventures: oldApart, actions: theirs, partyId: "p1", monthStart: month, at, dayOf }), 101, "a row with no entry time reads its own entrant's entries");
 
   // Enter on one day, leave and enter again on a later one: the first entry is a visit before.
   const plan = { actions: [{ kind: "enter", actorUuid: "Actor.A", partyId: "p1", status: "done", postedTime: 1003 }] };

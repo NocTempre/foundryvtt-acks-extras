@@ -39,7 +39,7 @@ import {
   marketMonthStart,
 } from "../engine/trade.mjs";
 import { processImports, performItemSearch, performSearchCancel } from "../engine/imports.mjs";
-import { performVentureAction, performVentureCancel, performVentureLeave, ventureOf, ventureVehicles } from "../engine/ventures.mjs";
+import { performVentureAction, performVentureCancel, performVentureLeave, ventureFor, ventureVehicles } from "../engine/ventures.mjs";
 import { entryQuote, enteringMembers, goodKey, saleCandidates } from "../engine/gate.mjs";
 import { manifestOf } from "../engine/manifest.mjs";
 import { VEHICLE_TYPE } from "../../vehicles/constants.mjs";
@@ -50,9 +50,9 @@ import { effectiveMarketClass } from "../../henchmen/engine/recruitment.mjs";
 import { hasEffectFlag } from "../../henchmen/effects.mjs";
 import { networkSteps } from "../engine/network.mjs";
 import { dayOfWorldTime } from "../../lib/world-time.mjs";
-import { assessmentBands, printedError } from "../engine/printed.mjs";
+import { assessmentBands, impactLimits, printedError, tableLabel } from "../engine/printed.mjs";
 import { assessmentBribeBasisHd } from "../engine/assessment.mjs";
-import { assessmentPageBands } from "../rules/arbitrage.mjs";
+import { assessmentPageBands, entryConflict, vehiclesEntered, ventureKey, VENTURE_MODES } from "../rules/arbitrage.mjs";
 import { historyRows } from "../rules/ledger.mjs";
 import { historyContext } from "./trader-tab.mjs";
 import { partyOf, partiesConfig, partyMembers, DEFAULT_PARTY_ID } from "../engine/parties.mjs";
@@ -337,13 +337,15 @@ export async function prepareTradeTab(sheet, context) {
       count: r.beliefs.length,
     }));
 
-  // Venture state for the acting trader's party, and its queue.
+  // Venture state for the acting trader — their party's, or their own where
+  // they entered separately — and the party's queue.
   const monthStart = marketMonthStart(t);
-  context.venture = partyId ? (ventureOf(location, partyId, monthStart) ?? null) : null;
+  context.venture = trader ? (ventureFor(location, trader, monthStart) ?? null) : null;
+  context.ventureApart = context.venture?.entrantUuid ? loc("ventures.apartMarker", { n: context.venture.entrants }) : "";
   // The merchandise picker is the input of Solicit (shown once entered) and of the
   // Judge's Set demand; where neither is offered it is not rendered.
   context.ventureCategoryShown = !!context.venture?.entered || isGM;
-  // The vehicles the party entered with, named on its status line.
+  // The vehicles the venture entered with, named on its status line.
   context.ventureVehicles = ventureVehicles(context.venture).map((v) => v.name).join(", ");
   context.ventureActions = (goods.actions ?? [])
     .filter((a) => a.status === "pending" && (isGM || a.partyId === partyId))
@@ -404,8 +406,9 @@ function demandChips(goods, isGM) {
 
 /**
  * The GM's per-party picture: what each party believes about demand (from the
- * reports it holds) and how its venture stands this month. A party with
- * neither is left out.
+ * reports it holds) and how its ventures stand this month — one line for a
+ * party entered as one, one per character where they entered separately. A
+ * party with neither is left out.
  */
 function partyBlocks(goods, monthStart, reports) {
   const ventures = (goods.ventures ?? []).map(plain).filter((v) => Number(v.monthStartTime) === monthStart);
@@ -414,8 +417,8 @@ function partyBlocks(goods, monthStart, reports) {
   const blocks = [];
   for (const id of ids) {
     const mine = beliefsFor(reports, { partyId: id, memberUuids: partyMembers(id).map((a) => a.uuid) });
-    const venture = ventures.find((v) => v.partyId === id);
-    if (!mine.length && !venture) continue;
+    const rows = ventures.filter((v) => v.partyId === id);
+    if (!mine.length && !rows.length) continue;
     blocks.push({
       name: partyLabel(id),
       beliefs: mine.map((k) => ({
@@ -425,25 +428,26 @@ function partyBlocks(goods, monthStart, reports) {
         // The Judge's copy marks a belief a false assessment left.
         falseNote: k.outcome === "false" ? loc("report.falseNote") : "",
       })),
-      ventureLine: venture
-        ? [
-            loc("parties.ventureLine", {
-              state: game.i18n.localize(`${LANG}.ventures.${venture.entered ? "entered" : "notEntered"}`),
-              cargo: venture.cargoSt,
-              impact: venture.impact,
-              marketClass: venture.effectiveClass,
-              toll: Math.round(Number(venture.tollCp) || 0) / 100,
-              tariff: Math.round(Number(venture.tariffCp) || 0) / 100,
-            }),
-            venture.privilegeUuid ? loc("ventures.paidPrivilege") : "",
-            ventureVehicles(venture).map((v) => v.name).join(", "),
-            venture.networkMode && venture.networkMode !== "auto"
-              ? `${loc("ventures.network.legend")}: ${loc(`ventures.network.mode.${venture.networkMode}`)}`
-              : "",
-          ]
-            .filter(Boolean)
-            .join(" — ")
-        : "",
+      ventureLines: rows.map((venture) =>
+        [
+          venture.entrantUuid ? `${actorOfUuid(venture.entrantUuid)?.name ?? venture.entrantUuid}, ${loc("ventures.apartMarker", { n: venture.entrants })}` : "",
+          loc("parties.ventureLine", {
+            state: game.i18n.localize(`${LANG}.ventures.${venture.entered ? "entered" : "notEntered"}`),
+            cargo: venture.cargoSt,
+            impact: venture.impact,
+            marketClass: venture.effectiveClass,
+            toll: Math.round(Number(venture.tollCp) || 0) / 100,
+            tariff: Math.round(Number(venture.tariffCp) || 0) / 100,
+          }),
+          venture.privilegeUuid ? loc("ventures.paidPrivilege") : "",
+          ventureVehicles(venture).map((v) => v.name).join(", "),
+          venture.networkMode && venture.networkMode !== "auto"
+            ? `${loc("ventures.network.legend")}: ${loc(`ventures.network.mode.${venture.networkMode}`)}`
+            : "",
+        ]
+          .filter(Boolean)
+          .join(" — ")
+      ),
     });
   }
   return blocks;
@@ -528,19 +532,24 @@ function gateQuoteHtml(location, trader, declaration) {
  * The Enter dialog's goods block. It lists every merchandise load the party
  * brings: those in the packs of the members entering (`enteringMembers`) and
  * those in the holds of `vehicles`, each hold's rows shown only while its
- * vehicle is ticked. Each load can be marked smuggled. It also lists the
- * items those members carry that can be brought to sell (`saleCandidates`),
- * each declared for sale or smuggled in to sell. One tick sneaks the whole
- * party in.
+ * vehicle is ticked, and another member's packs only while the trader enters
+ * as the party (`gateHolders`). Each load can be marked smuggled. It also
+ * lists the items those members carry that can be brought to sell
+ * (`saleCandidates`), each declared for sale or smuggled in to sell. One tick
+ * sneaks the whole party in.
  */
-function goodsFieldset(location, trader, vehicles, aboard) {
+function goodsFieldset(location, trader, vehicles, aboard, separately) {
   const esc = foundry.utils.escapeHTML;
   const members = enteringMembers(location, trader);
   const vehicleUuids = new Set(vehicles.map((v) => v.uuid));
   const smuggle = (key, label) => `<label class="checkbox"><input type="checkbox" name="smuggle" value="${key}" aria-label="${esc(loc("ventures.goods.smuggleLabel", { label }))}"> ${loc("ventures.goods.smuggle")}</label>`;
   const row = (inner, holder) => {
-    const onVehicle = vehicleUuids.has(holder) ? ` data-good-vehicle="${holder}"${aboard.has(holder) ? "" : " hidden"}` : "";
-    return `<div class="acks-extras-markets-good"${onVehicle}>${inner}</div>`;
+    const where = vehicleUuids.has(holder)
+      ? ` data-good-vehicle="${holder}"${aboard.has(holder) ? "" : " hidden"}`
+      : holder !== trader.uuid
+        ? ` data-good-member="${holder}"${separately ? " hidden" : ""}`
+        : "";
+    return `<div class="acks-extras-markets-good"${where}>${inner}</div>`;
   };
   const rows = [];
   for (const r of manifestOf([...members, ...vehicles], { traderUuid: members.map((a) => a.uuid) }).rows) {
@@ -570,56 +579,95 @@ function readDeclaration(root) {
     forSale: values("forSale"),
     smuggled: values("smuggle"),
     sneak: !!root.querySelector('input[name="sneak"]')?.checked,
+    separately: root.querySelector('input[name="mode"]:checked')?.value === "separately",
   };
 }
 
 /**
- * Ask what the party brings to the gate: the vehicles it enters with, each
- * at the cargo capacity its hold states (vehicles/hold.mjs), any other
- * capacity (porters, pack animals) as a number, the goods it brings to sell
- * and smuggles (`goodsFieldset`), or whether it sneaks in. A vehicle a party
- * member rides, drives or is harnessed to starts ticked. What the gate will
- * charge is shown beneath and follows the declaration as it changes. Null
- * when dismissed.
+ * Ask what the trader brings to the gate: the vehicles entering, each at the
+ * cargo capacity its hold states (vehicles/hold.mjs), any other capacity
+ * (porters, pack animals) as a number, the goods brought to sell and
+ * smuggled (`goodsFieldset`), or whether the party sneaks in. What the gate
+ * will charge is shown beneath and follows the declaration as it changes.
+ *
+ * A party of more than one character also says whether the trader enters as
+ * the party or separately (RR ch. 8, Entering the Market, step 2, Parties),
+ * with the maximum impact each separate entrant gets; while any of them
+ * stands entered separately this month, the choice is fixed to that. Every
+ * vehicle a member rides, drives or is harnessed to starts ticked entering as
+ * the party, and only the trader's own entering separately, where another
+ * member's packs leave the goods list and the network block is the trader's
+ * alone. A vehicle already through the gate this month cannot be ticked.
+ * Null when dismissed.
  */
 async function promptEntry(trader, location) {
+  const esc = foundry.utils.escapeHTML;
   const party = partyOf(trader);
-  const members = [trader, ...partyMembers(party.id)];
-  const network = networkFieldset([...new Set(members)], location);
-  const aboard = new Set(members.flatMap((a) => carrierChain(a).map((c) => c?.uuid)));
+  const members = [...new Set([trader, ...partyMembers(party.id)])];
+  const goods = location.system.market.goods;
+  const monthStart = marketMonthStart();
+  const state = { ventures: goods.ventures ?? [], actions: goods.actions ?? [] };
+  const locked = !!ventureKey(state, { partyId: party.id, actorUuid: trader.uuid, monthStart }).entrantUuid;
+  const share = entryConflict(state, { partyId: party.id, actorUuid: trader.uuid, monthStart, mode: "separately", characters: members.length });
+  const n = share.entrants || members.length;
+  const limits = impactLimits();
+  const aboardOf = (actors) => new Set(actors.flatMap((a) => carrierChain(a).map((c) => c?.uuid)));
+  const aboard = { party: aboardOf(members), separately: aboardOf([trader]) };
+  const through = vehiclesEntered(state, monthStart);
+  const ticks = new Set([...aboard[locked ? "separately" : "party"]].filter((uuid) => !through.has(uuid)));
   const vehicles = game.actors.filter((a) => a.type === VEHICLE_TYPE && a.isOwner).sort((a, b) => a.name.localeCompare(b.name));
   const rows = vehicles
     .map((v) => {
       const stone = Math.round(holdOf(v)?.capacity ?? 0);
-      const ticked = aboard.has(v.uuid) ? " checked" : "";
-      return `<label class="checkbox"><input type="checkbox" name="vehicle" value="${v.uuid}"${ticked}> ${foundry.utils.escapeHTML(v.name)} <span class="hint">${loc("ventures.vehicleCapacity", { stone })}</span></label>`;
+      const gone = through.has(v.uuid);
+      // A vehicle through the gate is never ticked, so its hold's goods start hidden with it.
+      const attr = gone ? " disabled" : ticks.has(v.uuid) ? " checked" : "";
+      return `<label class="checkbox"><input type="checkbox" name="vehicle" value="${v.uuid}"${attr}> ${esc(v.name)} <span class="hint">${loc("ventures.vehicleCapacity", { stone })}${gone ? ` ${loc("ventures.vehicleThrough")}` : ""}</span></label>`;
     })
     .join("");
+  const modes =
+    locked || members.length > 1
+      ? `<fieldset class="acks-extras-markets-mode"><legend>${loc("ventures.mode.legend")}</legend>${VENTURE_MODES.map(
+          (m) => `<label class="checkbox"><input type="radio" name="mode" value="${m}"${(m === "separately") === locked ? " checked" : ""}${locked ? " disabled" : ""}> ${loc(`ventures.mode.${m}`)}</label>`
+        ).join("")}<p class="hint">${loc(locked ? "ventures.mode.locked" : "ventures.mode.hint")}</p><p class="hint">${
+          limits ? loc("ventures.mode.share", { max: Math.floor(limits.impactCap / n), n }) : loc("ventures.mode.shareUnread", { table: tableLabel("impactProse") })
+        }</p></fieldset>`
+      : "";
   const otherId = foundry.utils.randomID();
-  const gate = gateQuoteHtml(location, trader, { vehicles: vehicles.filter((v) => aboard.has(v.uuid)), otherSt: 0 });
+  const gate = gateQuoteHtml(location, trader, { vehicles: vehicles.filter((v) => ticks.has(v.uuid)), otherSt: 0, separately: locked });
   const content = [
+    modes,
     vehicles.length
       ? `<fieldset><legend>${loc("ventures.vehiclesLegend")}</legend>${rows}</fieldset>`
       : `<p class="hint">${loc("ventures.noVehicles")}</p>`,
     `<div class="form-group"><label for="${otherId}">${loc("ventures.otherCargo")}</label><input id="${otherId}" type="number" name="other" value="0" min="0" step="1"></div>`,
     `<p class="hint">${loc("ventures.enterHint")}</p>`,
-    goodsFieldset(location, trader, vehicles, aboard),
+    goodsFieldset(location, trader, vehicles, ticks, locked),
     `<fieldset class="acks-extras-markets-gate"><legend>${loc("ventures.quote.legend")}</legend><div data-gate-quote aria-live="polite">${gate}</div></fieldset>`,
-    network,
+    `<div data-entry-network>${networkFieldset(locked ? [trader] : members, location)}</div>`,
   ].join("");
   return foundry.applications.api.DialogV2.prompt({
     classes: DIALOG_CLASSES,
     window: { title: loc("ventures.enter") },
     content,
     render: (_event, dialog) => {
-      // The quote follows the declaration: a vehicle ticked (its hold's goods
-      // shown with it), the other capacity typed, a good declared for sale or
-      // smuggled, or the party sneaking in.
+      // The quote follows the declaration: the mode chosen, a vehicle ticked
+      // (its hold's goods shown with it), the other capacity typed, a good
+      // declared for sale or smuggled, or the party sneaking in.
       const root = dialog?.element;
       const refresh = (event) => {
-        if (!event.target?.matches?.('input[name="vehicle"], input[name="other"], input[name="forSale"], input[name="smuggle"], input[name="sneak"]')) return;
+        if (!event.target?.matches?.('input[name="vehicle"], input[name="other"], input[name="forSale"], input[name="smuggle"], input[name="sneak"], input[name="mode"]')) return;
+        if (event.type === "change" && event.target.name === "mode") {
+          // A mode starts from its own vehicles and its own network holders.
+          const apart = event.target.value === "separately";
+          const start = aboard[apart ? "separately" : "party"];
+          for (const el of root.querySelectorAll('input[name="vehicle"]:not(:disabled)')) el.checked = start.has(el.value);
+          const net = root.querySelector("[data-entry-network]");
+          if (net) net.innerHTML = networkFieldset(apart ? [trader] : members, location);
+        }
         const declaration = readDeclaration(root);
         for (const el of root.querySelectorAll("[data-good-vehicle]")) el.hidden = !declaration.vehicleUuids.includes(el.dataset.goodVehicle);
+        for (const el of root.querySelectorAll("[data-good-member]")) el.hidden = declaration.separately;
         const box = root.querySelector("[data-gate-quote]");
         if (box) box.innerHTML = gateQuoteHtml(location, trader, declaration);
       };
@@ -629,8 +677,8 @@ async function promptEntry(trader, location) {
     ok: {
       label: loc("ventures.enterSubmit"),
       callback: (_ev, button) => {
-        const { vehicleUuids, otherSt, forSale, smuggled, sneak } = readDeclaration(button.form);
-        return { vehicleUuids, cargoSt: otherSt, forSale, smuggled, sneak, networkMode: button.form.elements.networkMode?.value ?? "auto" };
+        const { vehicleUuids, otherSt, forSale, smuggled, sneak, separately } = readDeclaration(button.form);
+        return { vehicleUuids, cargoSt: otherSt, forSale, smuggled, sneak, mode: separately ? "separately" : "party", networkMode: button.form.elements.networkMode?.value ?? "auto" };
       },
     },
   }).catch(() => null);

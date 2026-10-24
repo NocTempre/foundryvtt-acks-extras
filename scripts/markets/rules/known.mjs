@@ -17,22 +17,32 @@
 
 /**
  * The day the trader's current visit began. A party entered this month is on
- * the visit its entry opened: the day the entry was posted (`enteredTime`), or
- * on a row written before that was stored, the party's latest entry posted this
- * month, else the month's start. A party not entered is on a visit of one day,
- * the day of `at`.
+ * the visit its earliest standing entry opened — one row where it entered as
+ * one, a row per character where they entered separately. A row's entry
+ * opened on the day it was posted (`enteredTime`), or on a row written before
+ * that was stored, the day of its latest entry posted this month, else the
+ * month's start. A party not entered is on a visit of one day, the day of
+ * `at`.
  * @param {{ventures?: object[], actions?: object[], partyId?: string|null, monthStart: number, at: number, dayOf: (t: number) => number}} state
  * @returns {number}
  */
 export function visitStartDay({ ventures = [], actions = [], partyId = null, monthStart, at, dayOf }) {
-  const row = partyId == null ? null : (ventures ?? []).find((v) => v?.partyId === partyId && Number(v.monthStartTime) === Number(monthStart));
-  if (!row?.entered) return dayOf(at);
-  if (Number(row.enteredTime) > 0) return dayOf(Number(row.enteredTime));
-  const entries = (actions ?? []).filter(
-    (a) => a?.kind === "enter" && a.partyId === partyId && a.status !== "cancelled" && Number(a.postedTime) >= Number(monthStart)
-  );
-  if (entries.length) return dayOf(Math.max(...entries.map((a) => Number(a.postedTime))));
-  return dayOf(Number(row.monthStartTime));
+  const rows = partyId == null ? [] : (ventures ?? []).filter((v) => v?.entered && v.partyId === partyId && Number(v.monthStartTime) === Number(monthStart));
+  if (!rows.length) return dayOf(at);
+  const opened = (row) => {
+    if (Number(row.enteredTime) > 0) return dayOf(Number(row.enteredTime));
+    const entries = (actions ?? []).filter(
+      (a) =>
+        a?.kind === "enter" &&
+        a.partyId === partyId &&
+        (a.entrantUuid ?? "") === (row.entrantUuid ?? "") &&
+        a.status !== "cancelled" &&
+        Number(a.postedTime) >= Number(monthStart)
+    );
+    if (entries.length) return dayOf(Math.max(...entries.map((a) => Number(a.postedTime))));
+    return dayOf(Number(row.monthStartTime));
+  };
+  return Math.min(...rows.map(opened));
 }
 
 /**

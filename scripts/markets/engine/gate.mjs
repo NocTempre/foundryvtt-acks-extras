@@ -60,6 +60,20 @@ export function enteringMembers(location, trader, user = game.user) {
   return gateParty(trader, user).filter((a) => a.uuid === trader.uuid || coinReach(a, location).can);
 }
 
+/**
+ * Whose goods the gate looks at for an entry: `members`, whose packs and
+ * items brought to sell come through, and `owners`, whose loads in the
+ * entering holds do. Entering as one, both are the members entering
+ * (`enteringMembers`). Entering separately (RR ch. 8, Entering the Market,
+ * step 2, Parties), the packs are the entrant's own, and a hold still brings
+ * in the loads of every member arriving.
+ * @returns {{members: Actor[], owners: Actor[]}}
+ */
+export function gateHolders(location, trader, { separately = false, user = game.user } = {}) {
+  const owners = enteringMembers(location, trader, user);
+  return { members: separately ? [trader] : owners, owners };
+}
+
 /** The key a good at the gate goes by in `forSale` and `smuggled`: its holder's uuid and its item id. */
 export const goodKey = (holderUuid, itemId) => `${holderUuid}|${itemId}`;
 
@@ -88,24 +102,25 @@ export function saleCandidates(member) {
 /**
  * What the gate looks at, sorted into what it assesses (`loads`) and what is
  * smuggled past it (`smuggled`):
- * - every merchandise load in the packs of the members entering and in the
- *   holds of the vehicles entering, unstamped or stamped for one of those
- *   members. A load kept for anybody else is left out;
- * - every item those members bring to sell (`saleCandidates`): declared in
+ * - every merchandise load in the packs of `members` and in the holds of the
+ *   vehicles entering, unstamped or stamped for one of `owners`. A load kept
+ *   for anybody else is left out;
+ * - every item `members` bring to sell (`saleCandidates`): declared in
  *   `forSale`, or named in `smuggled`.
  * A good named in `smuggled` (`goodKey`) is smuggled, and so is everything
  * where the party sneaks in. Each row carries its key, its good's base price
  * per unit (the catalogue's per stone for a load, else the load's own cost;
  * an item's cost), its tier and its exemption.
  * @param {object} o
- * @param {Actor[]} o.members - `enteringMembers`
+ * @param {Actor[]} o.members - `gateHolders`' members
+ * @param {Actor[]} [o.owners] - `gateHolders`' owners; `members` where omitted
  * @param {Actor[]} [o.vehicles]
  * @param {string[]} [o.forSale] - `goodKey`s of items declared for sale
  * @param {string[]} [o.smuggled] - `goodKey`s of goods smuggled
  * @param {boolean} [o.sneak] - the party sneaks in
  * @returns {{loads: object[], smuggled: object[]}}
  */
-export function enteringLoads({ members, vehicles = [], forSale = [], smuggled = [], sneak = false }) {
+export function enteringLoads({ members, owners = members, vehicles = [], forSale = [], smuggled = [], sneak = false }) {
   const hidden = new Set(smuggled ?? []);
   const out = { loads: [], smuggled: [] };
   const place = (row) => (sneak || hidden.has(row.key) ? out.smuggled : out.loads).push(row);
@@ -113,7 +128,7 @@ export function enteringLoads({ members, vehicles = [], forSale = [], smuggled =
     const good = merchandiseFor(category);
     return { good, tier: good?.tier ?? merchandiseTierOf(category) ?? "common", exempt: !!good?.tariffExempt };
   };
-  for (const row of manifestOf([...members, ...vehicles], { traderUuid: members.map((a) => a.uuid) }).rows) {
+  for (const row of manifestOf([...members, ...vehicles], { traderUuid: owners.map((a) => a.uuid) }).rows) {
     const { good, tier, exempt } = goodOf(row.category);
     const basePriceGp = Number(good?.pricePerStoneGp) || row.unitGp;
     place({ key: goodKey(row.holderUuid, row.itemId), category: row.category, label: row.label, holderName: row.holderName, stones: row.stones, basePriceGp, tier, exempt, kind: "load" });
@@ -175,13 +190,14 @@ export const extraCpOf = (quote) => (quote?.extra ?? []).reduce((n, c) => n + c.
  *   tier the class does not tariff), `range` gives the totals they can come
  *   to, and `tariff` stays null until `settleTariff` throws them;
  * - a member entering who rules the market's domain waives both
- *   (`privilege`);
+ *   (`privilege`); entering separately (`separately`), only the entrant's
+ *   own rule does, and the goods are those `gateHolders` gives;
  * - a party that sneaks in (`sneak`) is charged neither, and everything it
  *   brings is smuggled.
  *
  * Then the `acksExtras.marketGateQuote` hook is called with
- * `(quote, {location, trader})` on every seat that quotes, the preview's
- * and the paying one's alike. A handler may push charges of its own onto
+ * `(quote, {location, trader, separately})` on every seat that quotes, the
+ * preview's and the paying one's alike. A handler may push charges of its own onto
  * `quote.extra` as `{label, cp}` in whole coppers. The trader pays them with
  * the book's, whatever the privilege. A handler must answer the same on
  * every seat, or the preview and the payment disagree.
@@ -197,16 +213,17 @@ export const extraCpOf = (quote) => (quote?.extra ?? []).reduce((n, c) => n + c.
  * @param {string[]} [o.forSale] - `goodKey`s of items declared for sale (`saleCandidates`)
  * @param {string[]} [o.smuggled] - `goodKey`s of goods smuggled
  * @param {boolean} [o.sneak]
+ * @param {boolean} [o.separately] - the trader enters apart from the party
  * @param {string|null} [o.requestUserId] - the seat declaring, whose sight bounds the party (`gateParty`)
  * @returns {{error: string, table?: string}|{capacitySt: number, sneaked: boolean, privilege: {uuid: string, name: string}|null, tollCp: number, loads: object[], smuggled: object[], rates: {precious: number, common: number}|null, dice: {precious: string|null, common: string|null}|null, range: {minCp: number, maxCp: number}|null, tariff: {totalCp: number, lines: object[]}|null, extra: {label: string, cp: number}[]}}
  */
-export function entryQuote(location, trader, { vehicles = [], otherSt = 0, forSale = [], smuggled = [], sneak = false, requestUserId = null } = {}) {
+export function entryQuote(location, trader, { vehicles = [], otherSt = 0, forSale = [], smuggled = [], sneak = false, separately = false, requestUserId = null } = {}) {
   const capacitySt = Math.round(Math.round(Math.max(0, Number(otherSt) || 0)) + vehicles.reduce((n, v) => n + Math.max(0, holdOf(v)?.capacity ?? 0), 0));
   const ch = characteristicsFor(location.system.marketClass);
   if (!ch) return { error: "noCharacteristics" };
-  const members = enteringMembers(location, trader, requestUserId ? game.users.get(requestUserId) : game.user);
+  const { members, owners } = gateHolders(location, trader, { separately, user: requestUserId ? game.users.get(requestUserId) : game.user });
   const sneaked = !!sneak;
-  const sorted = enteringLoads({ members, vehicles, forSale, smuggled, sneak: sneaked });
+  const sorted = enteringLoads({ members, owners, vehicles, forSale, smuggled, sneak: sneaked });
   const quote = { capacitySt, sneaked, privilege: null, tollCp: 0, loads: sorted.loads, smuggled: sorted.smuggled, rates: null, dice: null, range: null, tariff: null, extra: [] };
   const domain = sneaked ? null : privilegeDomain(location, members);
   if (sneaked || domain) {
@@ -227,7 +244,7 @@ export function entryQuote(location, trader, { vehicles = [], otherSt = 0, forSa
       Object.assign(quote, { dice, range: { minCp: tariffOn(quote.loads, at("min")).totalCp, maxCp: tariffOn(quote.loads, at("max")).totalCp } });
     }
   }
-  Hooks.callAll(HOOKS.GATE_QUOTE, quote, { location, trader });
+  Hooks.callAll(HOOKS.GATE_QUOTE, quote, { location, trader, separately: !!separately });
   quote.extra = judgeCharges(quote.extra);
   return quote;
 }
