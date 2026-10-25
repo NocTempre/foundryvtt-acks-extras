@@ -21,7 +21,7 @@ import {
   afterDarkShift, placementMatches, placementHolding, recipeContext, recipeProblems, sceneData, districtRegionData,
   placeTokenAt, worldCopySource, isWorldCopy, turnMatrix, pictureKey, storeyCrops, storeyLevelId,
   SCENE_ZONE_KIND, isZoneRow, gridScale, recipeFeetPerPoint, offsetsInside, zoneProblems, zoneRegionData, coversCrop, inCropOf,
-  GRID_SCENE_PADDING, SCENE_LINK_KIND, isLinkRow, linkBoxOnFirstStorey, linkEndKey, linkRect, compassOf, spanOf, COMPASS, linkRegionData, LINK_ASK,
+  GRID_SCENE_PADDING, SCENE_LINK_KIND, isLinkRow, linkBoxOnFirstStorey, linkEndKey, linkRect, compassOf, spanOf, COMPASS, linkRegionData, LINK_ASK, linkQuestion,
 } from "../../scripts/importer/scene-binding.mjs";
 import { readCountWord } from "../../scripts/importer/executor.mjs";
 import { MODULE_ID } from "../../scripts/importer/constants.mjs";
@@ -578,6 +578,12 @@ check("and a choice between several by another", linkRegionData({ ...way, mode: 
 check("a way on a storey stands on its level alone", linkRegionData({ ...way, mode: "teleport", levels: [storeyLevelId(1)] }).levels, ["storey0000000001"]);
 const stair = linkRegionData({ ...way, mode: "level", levels: ["defaultLevel0000", storeyLevelId(1), storeyLevelId(2)] });
 check("a stair offers every level it stands on, by any movement", [stair.behaviors[0].type, stair.behaviors[0].system, stair.levels.length], ["changeLevel", { movementActions: [] }, 3]);
+const unasked = { choice: false, dialog: { revealed: null } };
+check("a way to one end asks nothing", linkQuestion(unasked, 1), { choice: false, revealed: null });
+check("a way to several asks which", linkQuestion(unasked, 2), { choice: true, revealed: LINK_ASK.several });
+check("a way that asked of one asks which once it leads to several", linkQuestion({ choice: true, dialog: { revealed: LINK_ASK.one } }, 2), { choice: true, revealed: LINK_ASK.several });
+check("a way asked to confirm asks of its one end", linkQuestion({ choice: true, dialog: { revealed: null } }, 1), { choice: true, revealed: LINK_ASK.one });
+check("a question the Judge wrote is kept", linkQuestion({ choice: true, dialog: { revealed: "Down?" } }, 3), { choice: true, revealed: "Down?" });
 
 /* ---------------- a count printed as a word ---------------- */
 

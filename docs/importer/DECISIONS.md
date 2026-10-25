@@ -8170,6 +8170,8 @@ storeys", which ruled the link row and left its pass unbuilt.
 - **Destinations are kept as core stores them.** The book's Adventure
   carries a link Region from the world's map as it carries a zone, its
   scenes under the world's ids, which are the ids it imports under.
+  *(Carrying from the world's map alone is superseded by the next entry, the
+  same day.)*
 - **A Region is named for its end's place**, else `Link <n>`, **and a
   compass word**: ends on one map under one name by thirds of the rectangle
   they span together, an end alone by thirds of the picture.
@@ -8196,3 +8198,47 @@ storeys", which ruled the link row and left its pass unbuilt.
   wall walks from the towers, which wait with the rest of AX1's ways
   (ROADMAP).
 - Each box is read off the Judge's page by an author, as a zone's outline is.
+
+## 2026-10-25 — The book's Adventure lays the ways the world lacks
+
+Supersedes one bullet of the entry above, written the same day: that the
+Adventure carries a link Region from the world's map as it carries a zone.
+
+**Evidence.**
+- The AX1 walk's teardown rebuilds the owner's Adventure over a world that
+  holds two of AX1's seventeen maps. Read back, the Adventure held 5 of the
+  14 link ends, and the first level's way in led to a Region none of its
+  scenes carried. Any world missing a map gets the same result.
+- A zone is carried only from a held map because it is another book's row,
+  rolling on a list the Adventure has to bring. A link is the book's own
+  row, on maps the Adventure builds from their recipes, so that reason does
+  not apply.
+
+**Ruled.**
+- **The Adventure lays every end whose row lies wholly on its own maps**
+  (`withAdventureLinks`), on a scene built like its own, by the map step's
+  own rectangle, name and question.
+- **An end the world holds is carried as held**, under its ids, and repaired
+  as the link pass repairs one. A destination that still resolves against
+  the world's behaviour stays, and the ends its rows name are added.
+- **A laid end's ids are derived from its map's seed and its end key**, the
+  same on every rebuild.
+- **A destination is written by core's `buildRelativeUuid`**, the form core
+  stores.
+- **One code for both passes**: the world's pass and the Adventure gather the
+  rows (`linkSlots`), place and name the ends (`placeLinkEnds`) and set the
+  question (`linkQuestion`) alike.
+
+*Rejected:*
+- **Rebuilding the owner's Adventure before the walk's sweep.** It hides the
+  defect, which any world missing a map has.
+- **Laying every end afresh under the world's ids.** `withWorldIds` pairs a
+  Region by the place it is drawn for, and four of AX1's ends share one place
+  while a stair names none. It would also discard a Judge's shape and
+  question.
+
+*Cost:*
+- A way to another book's map is in no Adventure. AX3's site to the first
+  level waits with the rest of AX1's ways (ROADMAP).
+- A destination the Judge added to a held end is kept even where it leads
+  outside the book, and in a world without that map it leads nowhere.

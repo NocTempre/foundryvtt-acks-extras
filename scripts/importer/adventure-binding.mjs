@@ -216,6 +216,73 @@ export function withWorldIds(scene, held, seed) {
   return out;
 }
 
+/** A link Region's end key, or "" for any other Region source. */
+const linkKeyOf = (region) => String(region?.flags?.[MODULE_ID]?.cookbook?.link ?? "");
+
+/**
+ * Every link end of a book's Adventure on the scenes it carries, whatever maps
+ * the world holds. An end a scene already carries (matched by its end key) is
+ * kept with its ids; one it lacks is laid from `lay`, under ids derived from
+ * its map's seed. Then each teleport leads to the Regions of the ends its rows
+ * name, as `relative` writes a uuid, beside every stored destination `keep`
+ * still resolves, and asks as `question` says. The sources in `scenes` are
+ * changed in place.
+ * @param {object} p
+ * @param {Map<string, object>} p.scenes the Adventure's scene source by map cookbook id
+ * @param {Map<string, {key: string, sceneId: string, dests: Set<string>}>} p.ends
+ *   the link ends whose every row lies on these scenes, by end key
+ * @param {(end: object) => object} p.lay a Region source for an end, without ids (`linkRegionData`)
+ * @param {(uuid: string, region: object, behavior: object, sceneId: string) => string|null} p.keep
+ *   a stored destination's absolute uuid while it still reaches a Region, else null
+ * @param {(target: string, origin: string) => string} p.relative core's `buildRelativeUuid`
+ * @param {(system: object, n: number) => {choice: boolean, revealed: string|null}} p.question `linkQuestion`
+ * @returns {{laid: number, repaired: number}}
+ */
+export function withAdventureLinks({ scenes, ends, lay, keep, relative, question }) {
+  let laid = 0;
+  let repaired = 0;
+  const at = new Map();
+  for (const end of ends.values()) {
+    const scene = scenes.get(end.sceneId);
+    if (!scene) continue;
+    scene.regions = Array.isArray(scene.regions) ? scene.regions : [];
+    let region = scene.regions.find((r) => linkKeyOf(r) === end.key);
+    if (!region) {
+      const seed = `${adventureCookbookId(end.sceneId)}|link|${end.key}`;
+      region = lay(end);
+      region._id = stableDocId(seed);
+      for (const [i, behavior] of (region.behaviors ?? []).entries()) behavior._id = stableDocId(`${seed}|behavior|${i}`);
+      scene.regions.push(region);
+      laid++;
+    }
+    at.set(end.key, `Scene.${scene._id}.Region.${region._id}`);
+  }
+  for (const [sceneId, scene] of scenes) {
+    for (const region of scene.regions ?? []) {
+      const key = linkKeyOf(region);
+      if (!key) continue;
+      const behavior = (region.behaviors ?? []).find((b) => b.type === "teleportToken");
+      if (!behavior) continue;
+      const system = (behavior.system ??= {});
+      const named = Array.isArray(system.destinations) ? system.destinations : [];
+      const kept = named.map((uuid) => ({ uuid, to: keep(uuid, region, behavior, sceneId) })).filter((d) => d.to);
+      const origin = `Scene.${scene._id}.Region.${region._id}.RegionBehavior.${behavior._id}`;
+      const wanted = [...(ends.get(key)?.dests ?? [])]
+        .map((k) => at.get(k))
+        .filter((to) => to && !kept.some((d) => d.to === to));
+      const destinations = [...kept.map((d) => d.uuid), ...wanted.map((to) => relative(to, origin))];
+      const { choice, revealed } = question(system, destinations.length);
+      const changed = destinations.length !== named.length || wanted.length
+        || choice !== !!system.choice || revealed !== (system.dialog?.revealed ?? null);
+      system.destinations = destinations;
+      system.choice = choice;
+      system.dialog = { ...(system.dialog ?? {}), revealed };
+      if (changed && named.length) repaired++;
+    }
+  }
+  return { laid, repaired };
+}
+
 /** The id a world-form Actor uuid names, or null. */
 const actorIdOf = (uuid) => /^Actor\.([A-Za-z0-9]{16})$/.exec(String(uuid ?? ""))?.[1] ?? null;
 

@@ -54,7 +54,8 @@
  * Section 3 walks "A book lands in the library as one Adventure": the
  * journals step makes no page for a keyed area, and the book's Adventure
  * carries the places, their tree and their rosters beside the maps, whose
- * scenes state the dark map's sight and carry their zones. Section 3b deletes
+ * scenes state the dark map's sight and carry their zones and every way
+ * between them, each leading to Regions of its own. Section 3b deletes
  * the world's AX1 places and every plan but one, and presses the Adventure
  * sheet's own Import: it brings each deleted plan back with its pins and its
  * zone, and the places 2c found and no other, and the plan it held names its
@@ -90,7 +91,8 @@
  *     The Adventure step rewrites what the library already holds of AX1, so it
  *     runs only when the library holds no AX1 Adventure or under HELD_OK; an
  *     Adventure it rebuilt is rebuilt again after the sweep, so it carries
- *     nothing the sweep removed;
+ *     nothing the sweep removed, and is checked there to carry every way
+ *     between the maps though the world then holds only the owner's;
  *   - one character owned by the player seat, made with `api.create`, its
  *     lit torch written to its own light flag as a lone character strikes one;
  *   - that character's token on the first level, made by the GM seat and
@@ -226,6 +228,12 @@ const LINKS = (() => {
   }
   return [...ends.values()].map((e) => ({ ...e, leads: [...e.leads], levels: [...e.levels], asks: e.mode === "teleport" && (e.asks || e.leads.size > 1 || e.region) }));
 })();
+// A stored Adventure's ways (`P.adventureLinks`) as the map step joins them:
+// every end once, each teleport leading to as many ends as its rows name, and
+// every destination one of the Adventure's own Regions.
+const adventureWaysRight = (ways) => !!ways && ways.unresolved === 0
+  && sameSet(ways.ends.map((e) => e.key), LINKS.map((e) => e.key))
+  && LINKS.every((l) => ways.ends.find((e) => e.key === l.key)?.leads === l.leads.length);
 
 /* ------------------------------------------------------------------ */
 /*  Page side                                                           */
@@ -421,6 +429,31 @@ const P = {
       zones: [...s.regions].map((r) => r.flags?.["acks-extras"]?.cookbook?.zone).filter(Boolean),
       walls: s.walls.length ?? s.walls.size, tokenVision: s.tokenVision, fogMode: s.fog?.mode, darkness: s.environment?.darknessLevel, globalLight: !!s.environment?.globalLight?.enabled,
     })) : null;
+  },
+  /**
+   * Every link end a stored Adventure carries, by end key, with how many ends
+   * its teleport leads to, and how many of its destinations, read as core
+   * reads them on a scene built from the Adventure's own source, name no
+   * Region the Adventure carries. Nothing is written.
+   */
+  adventureLinks: async ({ uuid }) => {
+    const a = await fromUuid(uuid);
+    if (!a) return null;
+    const scenes = [...a.scenes].map((s) => new Scene(foundry.utils.deepClone(s.toObject?.() ?? s)));
+    const carried = new Set(scenes.flatMap((s) => [...s.regions].map((r) => `Scene.${s.id}.Region.${r.id}`)));
+    const ends = [];
+    let unresolved = 0;
+    for (const s of scenes) {
+      for (const r of s.regions) {
+        const key = r.flags?.["acks-extras"]?.cookbook?.link;
+        if (!key) continue;
+        const b = r.behaviors.find((x) => x.type === "teleportToken");
+        const to = b ? [...(b._source.system?.destinations ?? [])].map((d) => foundry.utils.parseUuid(d, { relative: b })?.uuid ?? null) : [];
+        unresolved += to.filter((u) => !carried.has(u)).length;
+        ends.push({ key, leads: to.length });
+      }
+    }
+    return { ends, unresolved };
   },
   /**
    * A map by cookbook id: its link and whether that is a world place named as
@@ -1636,6 +1669,9 @@ try {
     PINNED.every((p) => carried?.find((s) => s.id === p.id)?.tokens === p.pins.length), carried?.map((s) => ({ id: s.id, tokens: s.tokens })));
   check("3: the Adventure carries each zone on its plan, once",
     ZONES.every((z) => carried?.find((s) => s.id === z.scene)?.zones.filter((id) => id === z.id).length === 1), carried?.map((s) => ({ id: s.id, zones: s.zones })));
+  const ways3 = adv ? await run(gm, P.adventureLinks, { uuid: adv.uuid }) : null;
+  check("3: the Adventure carries every way between its maps once, each leading to the ends its rows name, all of them its own",
+    adventureWaysRight(ways3), { ends: ways3?.ends.length, unresolved: ways3?.unresolved });
 
   section("3b. an Adventure import brings each plan with its rooms, inside the places they sit in");
   // The world loses its AX1 places and every plan but one; the import is what
@@ -1789,7 +1825,13 @@ try {
     // rebuilt again so it carries only what the library still holds.
     if (gm && ownersAdventure && swept) {
       const re = await step(gm, "cookbookImportAdventures", [{ books: [BOOK] }]);
-      note("the owner's Adventure, rebuilt over the swept library", { outcome: re?.books?.[BOOK] ?? null, contents: (await run(gm, P.library, { book: BOOK })).adventures.find((a) => a.kind === "kind.bookAdventure")?.contents ?? null });
+      const owners = (await run(gm, P.library, { book: BOOK })).adventures.find((a) => a.kind === "kind.bookAdventure");
+      note("the owner's Adventure, rebuilt over the swept library", { outcome: re?.books?.[BOOK] ?? null, contents: owners?.contents ?? null });
+      // The world now holds only the owner's maps, so the Adventure lays the
+      // ways the world lacks itself.
+      const ways = owners ? await run(gm, P.adventureLinks, { uuid: owners.uuid }) : null;
+      check("teardown: the owner's Adventure, built where the world holds fewer maps, still carries every way between them, all leading to its own ends",
+        adventureWaysRight(ways), { worldMaps: (await run(gm, P.heldMaps, { ids: MAPS })).length, ends: ways?.ends.length, unresolved: ways?.unresolved });
     }
   } catch (err) { console.error("adventure rebuild:", err?.message ?? err); }
   try {

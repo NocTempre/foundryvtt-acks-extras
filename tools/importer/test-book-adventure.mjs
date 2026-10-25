@@ -25,8 +25,9 @@ import {
   ADVENTURE_KINDS, BOOK_ADVENTURE_KIND, SETTLEMENT_ADVENTURE_KIND, adventureCookbookId, stableDocId,
   settlementAdventureId, bookAdventureCookbookId, bookAdventureId, refsOf, adventureRefs, withWorldIds, linkFields,
   seatsLeft, isRoot, isShelvedKind, fillPlan, includedKeys, applyFill, adventureFolderSources, withoutStats,
-  sourcesHashOf, WRITE_SLACK_MS, bookAdventureState, legacyAdventuresOf, journalCookbookId, standInsByClaim,
+  sourcesHashOf, WRITE_SLACK_MS, bookAdventureState, legacyAdventuresOf, journalCookbookId, standInsByClaim, withAdventureLinks,
 } from "../../scripts/importer/adventure-binding.mjs";
+import { linkRegionData, linkQuestion, LINK_ASK } from "../../scripts/importer/scene-binding.mjs";
 
 let failed = 0;
 const check = (name, got, want) => {
@@ -252,6 +253,62 @@ const sourceWorld = (drop = []) => ({
   check("with no world scene, the scene's id comes from the seed", fresh._id, stableDocId("zz.map.adventure|scene"));
   const twice = withWorldIds({ ...built, tokens: [{ actorId: I.p1 }, { actorId: I.p1 }] }, null, "s");
   ok("two tokens of one actor take two ids", twice.tokens[0]._id !== twice.tokens[1]._id);
+}
+
+// --- the ways between a book's maps, however few the world holds ----------------------------------
+{
+  // Map A is held with one end of a way; map B is not, and holds the way's
+  // other end and a stair over its storeys. A also carries a way whose row is
+  // gone. A destination is written as `rel:<target> from <origin>`.
+  const A = id16("sa");
+  const B = stableDocId("zz.mapB.adventure|scene");
+  const keyA = "zz.mapA|0|1,1,2,2";
+  const keyB = "zz.mapB|0|3,3,4,4";
+  const keyS = "zz.mapB|levels|5,5,6,6";
+  const keyGone = "zz.mapA|0|7,7,8,8";
+  const dead = `...${id16("gone")}.Region.${id16("dead")}`;
+  const extra = `...${id16("else")}.Region.${id16("extra")}`;
+  const heldWay = (tag, key, destinations) => ({
+    _id: id16(`r${tag}`), name: `Held ${tag}`, flags: { [MODULE_ID]: { cookbook: { link: key } } },
+    behaviors: [{ _id: id16(`b${tag}`), type: "teleportToken", system: { destinations, choice: false, dialog: { revealed: null, unrevealed: null } } }],
+  });
+  const scenes = new Map([
+    ["zz.mapA", { _id: A, regions: [heldWay("a", keyA, [dead, extra]), heldWay("g", keyGone, [dead])] }],
+    ["zz.mapB", { _id: B, regions: [] }],
+  ]);
+  const ends = new Map([
+    [keyA, { key: keyA, sceneId: "zz.mapA", mode: "teleport", dests: new Set([keyB]) }],
+    [keyB, { key: keyB, sceneId: "zz.mapB", mode: "teleport", dests: new Set([keyA]) }],
+    [keyS, { key: keyS, sceneId: "zz.mapB", mode: "level", dests: new Set() }],
+  ]);
+  const world = { [extra]: `Scene.${id16("else")}.Region.${id16("extra")}` };
+  const pass = () => withAdventureLinks({
+    scenes, ends,
+    lay: (end) => linkRegionData({ name: end.key, rect: { x: 0, y: 0, width: 1, height: 1 }, mode: end.mode, end: end.key, links: ["zz.link1"], book: "zz" }),
+    keep: (uuid) => world[uuid] ?? (uuid.startsWith("rel:") ? uuid.slice(4).split(" from ")[0] : null),
+    relative: (to, from) => `rel:${to} from ${from}`,
+    question: linkQuestion,
+  });
+  const result = pass();
+  const [held, gone] = scenes.get("zz.mapA").regions;
+  const regionsB = scenes.get("zz.mapB").regions;
+  const door = regionsB.find((r) => r.flags[MODULE_ID].cookbook.link === keyB);
+  const seed = `zz.mapB.adventure|link|${keyB}`;
+  check("the ends the world lacks are laid, and a held end is not laid again", [result.laid, regionsB.length, scenes.get("zz.mapA").regions.length], [2, 2, 2]);
+  check("a laid end takes its ids from its map's seed", [door._id, door.behaviors[0]._id], [stableDocId(seed), stableDocId(`${seed}|behavior|0`)]);
+  check("a held end keeps its ids", [held._id, held.behaviors[0]._id], [id16("ra"), id16("ba")]);
+  const origin = (scene, region) => `Scene.${scene}.Region.${region._id}.RegionBehavior.${region.behaviors[0]._id}`;
+  check("a held end drops a dead destination, keeps the Judge's, and leads to the laid end", held.behaviors[0].system.destinations,
+    [extra, `rel:Scene.${B}.Region.${door._id} from ${origin(A, held)}`]);
+  check("and, leading to several, asks which", [held.behaviors[0].system.choice, held.behaviors[0].system.dialog.revealed], [true, LINK_ASK.several]);
+  check("a laid end leads back to the held one, asking nothing", [door.behaviors[0].system.destinations, door.behaviors[0].system.choice, door.behaviors[0].system.dialog.revealed],
+    [[`rel:Scene.${A}.Region.${held._id} from ${origin(B, door)}`], false, null]);
+  check("a stair is laid over its storeys with no destinations", regionsB.find((r) => r.flags[MODULE_ID].cookbook.link === keyS).behaviors[0].type, "changeLevel");
+  check("a way whose row is gone keeps only what still resolves", gone.behaviors[0].system.destinations, []);
+  check("the held ends whose destinations changed are counted", result.repaired, 2);
+  const before = JSON.stringify([...scenes]);
+  const again = pass();
+  check("a second pass lays nothing and changes nothing", [again.laid, again.repaired, JSON.stringify([...scenes]) === before], [0, 0, true]);
 }
 
 // --- link fields ----------------------------------------------------------------------------
@@ -519,6 +576,8 @@ const sourceWorld = (drop = []) => ({
   ok("the made map is built by mapCreateData", scene.includes("mapCreateData(") && !scene.includes("districtRegionData("));
   const source = body(cookbook, "async function bookAdventureSource(");
   ok("the Adventure's maps are built by the same code, on the same plan", ["mapCreateData(", "gridScenePlan(", "withWorldIds("].every((s) => source.includes(s)));
+  ok("the Adventure lays its ways on its own scenes before their references are rewritten",
+    source.includes("withAdventureLinks(") && source.indexOf("withAdventureLinks(") < source.indexOf('adventureRefs("Scene"'));
   const ensure = body(cookbook, "async function ensureBookAdventure(");
   ok("a failed Adventure is counted, never thrown at the run", /catch \(err\) \{\s*counts\.failed\+\+/.test(ensure));
   const tryPart = ensure.slice(0, ensure.indexOf("} catch"));

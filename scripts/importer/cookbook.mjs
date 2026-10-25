@@ -40,7 +40,7 @@ import {
   GRID_SCENE_PADDING, zoneMovedBy,
   isSceneRecipe, sceneFrame, sceneData, districtRegionData, placeTokenAt, worldCopySource, isWorldCopy, placementMatches, afterDarkShift, bandOfSection,
   isZoneRow, gridScale, ringToScene, offsetsInside, zoneRegionData, coversCrop, wallSources, isRegionRecipe, storeyCrops, storeyLevelId,
-  isLinkRow, linkBoxOnFirstStorey, linkEndKey, linkRect, linkRegionData, compassOf, spanOf, LINK_ASK,
+  isLinkRow, linkBoxOnFirstStorey, linkEndKey, linkRect, linkRegionData, compassOf, spanOf, linkQuestion,
 } from "./scene-binding.mjs";
 import { FACTION_TYPE } from "../factions/constants.mjs";
 import { LOCATION_TYPE, isPlaceRole } from "../location/constants.mjs";
@@ -72,7 +72,7 @@ import * as services from "../lib/services.mjs";
 import { libraryPackLabel, judgeLine, findLibraryPack, cookbookId } from "../lib/library.mjs";
 import { ensureLibraryPack } from "../lib/library-target.mjs";
 import {
-  ADVENTURE_TYPE, BOOK_ADVENTURE_KIND, adventureCookbookId, bookAdventureCookbookId, bookAdventureId, withWorldIds,
+  ADVENTURE_TYPE, BOOK_ADVENTURE_KIND, adventureCookbookId, bookAdventureCookbookId, bookAdventureId, withWorldIds, withAdventureLinks,
   adventureRefs, linkFields, seatsLeft, adventureFolderSources, sourcesHashOf, bookAdventureState, legacyAdventuresOf, stableDocId,
   journalCookbookId, standInsByClaim,
 } from "./adventure-binding.mjs";
@@ -5583,17 +5583,26 @@ function storeyLevelOf(scene, level) {
   return levels.length > 1 ? (levels[Number(level) || 0]?.id ?? null) : null;
 }
 
+/** The level ids a link end's Region stands on: a level row's storeys, else its end's own storey. */
+function linkEndLevels(slot) {
+  const storeys = slot.mode === "level" ? [...slot.levels] : [slot.level];
+  return storeys.map((l) => storeyLevelOf(slot.scene, l)).filter(Boolean);
+}
+
 /**
- * Every link end's Region name: the place it stands for as this world names it,
- * else the first link's ordinal, and a compass word, so that the ends a choice
- * offers are told apart. Ends on one map under one name are placed by thirds of
- * the rectangle they span together, since a map's places can all lie in one
- * third of its picture; an end alone under its name, by thirds of the picture.
+ * Every link end's Region name: the place it stands for as `placeName` names
+ * it (this world's actor by default), else the first link's ordinal, and a
+ * compass word, so that the ends a choice offers are told apart. Ends on one
+ * map under one name are placed by thirds of the rectangle they span together,
+ * since a map's places can all lie in one third of its picture; an end alone
+ * under its name, by thirds of the picture.
+ * @param {object[]} slots `linkSlots` ends, each with its `rect` and `dims`
+ * @param {(cookbookId: string) => string|null|undefined} [placeName]
  * @returns {Map<object, string>} each slot's name
  */
-function linkEndNames(slots) {
+function linkEndNames(slots, placeName = (id) => game.actors.find((a) => cookbookId(a) === id)?.name) {
   const nameOf = (slot) => {
-    const place = slot.place ? game.actors.find((a) => cookbookId(a) === slot.place)?.name : null;
+    const place = slot.place ? placeName(slot.place) : null;
     const n = Number(/(\d+)$/.exec([...slot.links][0] ?? "")?.[1]) || 1;
     return place || game.i18n.format(`${LANG_PREFIX}.ui.sceneLink`, { n });
   };
@@ -5617,20 +5626,18 @@ function linkEndNames(slots) {
 }
 
 /**
- * Every cookbook's link rows joined on the maps the world holds: one Region per
- * distinct end, however many rows name it. A `teleport` end leads to every
- * other end of each row naming it (from the first end only where the row says
- * `both: false`), and asks first where it leads to several, where a row says
- * `confirm`, or where it stands on a region's map, so a journey crossing the
- * hex is not diverted. A `level` row is one Region over its storeys. A row
- * waits, counted with the books it waits on, until every map it names is held;
- * one naming a map no cookbook carries is refused. Held Regions are kept:
- * their dead destinations are dropped and missing ones added, and a teleport
- * that came to lead to several is made to ask. A destination the Judge added
- * stays, and a behaviour the Judge removed is not put back. No book has to be
- * open: a link is ids and boxes. Counts into `counts`.
+ * Every cookbook's link rows gathered into their ends, one per end key however
+ * many rows name it, each on the map `mapOf` gives for its scene id. A
+ * `teleport` end leads to every other end of each row naming it (from the
+ * first end only where the row says `both: false`) and asks where a row says
+ * `confirm`; a `level` row is one end over its storeys. A row with an end
+ * `mapOf` has no map for waits, and one naming a map no cookbook carries is
+ * refused, each counted into `counts` when it is given.
+ * @param {(sceneId: string) => object|null} mapOf the Scene an end stands on
+ * @param {object|null} [counts] `linkCounts`
+ * @returns {Map<string, object>} the ends by `linkEndKey`
  */
-async function joinLinks(counts) {
+function linkSlots(mapOf, counts = null) {
   const ends = new Map();
   const slotFor = (key, init) => {
     if (!ends.has(key)) ends.set(key, { key, dests: new Set(), links: new Set(), levels: new Set(), asks: false, ...init });
@@ -5643,15 +5650,17 @@ async function joinLinks(counts) {
       const resolved = link.ends.map((end) => {
         const recipe = recipeById(end.scene);
         const level = Number(end.level) || 0;
-        return { end, level, recipe, scene: recipe ? heldMapOf(end.scene) : null, box: recipe ? linkBoxOnFirstStorey(end.box, recipe, level) : null };
+        return { end, level, recipe, scene: recipe ? mapOf(end.scene) : null, box: recipe ? linkBoxOnFirstStorey(end.box, recipe, level) : null };
       });
       if (resolved.some((r) => !r.recipe || !r.box)) {
-        counts.linksRefused++;
+        if (counts) counts.linksRefused++;
         continue;
       }
       if (resolved.some((r) => !r.scene)) {
-        counts.linksWaiting++;
-        for (const r of resolved) if (!r.scene) counts.linksWaitingOn.add(bookOfCookbookId(r.end.scene));
+        if (counts) {
+          counts.linksWaiting++;
+          for (const r of resolved) if (!r.scene) counts.linksWaitingOn.add(bookOfCookbookId(r.end.scene));
+        }
         continue;
       }
       const at = (r, key, mode) => {
@@ -5673,27 +5682,52 @@ async function joinLinks(counts) {
       }
     }
   }
+  return ends;
+}
 
-  // Every end's Region first, so each destination has a uuid to be named by.
+/**
+ * Each link end's rectangle on the map it stands on and that map's dimensions,
+ * set on the slot, then every slot's Region name (`linkEndNames`).
+ * @returns {Map<object, string>}
+ */
+function placeLinkEnds(ends, placeName) {
   for (const slot of ends.values()) {
     const { placed, dims } = liveFrame(slot.recipe, slot.scene);
     Object.assign(slot, { rect: linkRect(slot.box, placed), dims });
   }
-  const names = linkEndNames([...ends.values()]);
+  return linkEndNames([...ends.values()], placeName);
+}
+
+/**
+ * A new link end's Region source: it asks where a row says so, where it leads
+ * to several, or where it stands on a region's map, so a journey crossing the
+ * hex is not diverted.
+ */
+const linkEndRegion = (slot, name) => linkRegionData({
+  name, rect: slot.rect, levels: linkEndLevels(slot), mode: slot.mode,
+  choice: slot.asks || slot.dests.size > 1 || isRegionRecipe(slot.recipe), end: slot.key, links: [...slot.links], book: slot.book,
+});
+
+/**
+ * Every cookbook's link rows joined on the maps the world holds
+ * (`linkSlots`): one Region per distinct end. A row waits, counted with the
+ * books it waits on, until every map it names is held. Held Regions are kept:
+ * their dead destinations are dropped and missing ones added, and a teleport
+ * that came to lead to several is made to ask (`linkQuestion`). A destination
+ * the Judge added stays, and a behaviour the Judge removed is not put back. No
+ * book has to be open: a link is ids and boxes. Counts into `counts`.
+ */
+async function joinLinks(counts) {
+  const ends = linkSlots(heldMapOf, counts);
+  // Every end's Region first, so each destination has a uuid to be named by.
+  const names = placeLinkEnds(ends);
   for (const slot of ends.values()) {
     slot.region = (slot.scene.regions ?? []).find((r) => linkIdOf(r) === slot.key) ?? null;
     if (slot.region) {
       counts.linksHeld++;
       continue;
     }
-    const levels = slot.mode === "level"
-      ? [...slot.levels].map((l) => storeyLevelOf(slot.scene, l)).filter(Boolean)
-      : [storeyLevelOf(slot.scene, slot.level)].filter(Boolean);
-    const source = linkRegionData({
-      name: names.get(slot), rect: slot.rect, levels, mode: slot.mode,
-      choice: slot.asks || slot.dests.size > 1 || isRegionRecipe(slot.recipe), end: slot.key, links: [...slot.links], book: slot.book,
-    });
-    const [made] = (await slot.scene.createEmbeddedDocuments("Region", [source])) ?? [];
+    const [made] = (await slot.scene.createEmbeddedDocuments("Region", [linkEndRegion(slot, names.get(slot))])) ?? [];
     if (!made) {
       counts.linksRefused++;
       continue;
@@ -5717,12 +5751,10 @@ async function joinLinks(counts) {
     const update = {};
     if (wanted.length || live.length !== named.length) update["system.destinations"] = destinations;
     // A Region is made before it has destinations, so its question is set
-    // here, from where it leads; a question the Judge wrote is theirs.
-    const choice = !!behavior.system?.choice || destinations.length > 1;
-    const ask = destinations.length > 1 ? LINK_ASK.several : LINK_ASK.one;
-    const said = behavior.system?.dialog?.revealed ?? null;
+    // here, from where it leads.
+    const { choice, revealed } = linkQuestion(behavior.system, destinations.length);
     if (choice && !behavior.system?.choice) update["system.choice"] = true;
-    if (choice && said !== ask && (said === null || Object.values(LINK_ASK).includes(said))) update["system.dialog.revealed"] = ask;
+    if (revealed !== (behavior.system?.dialog?.revealed ?? null)) update["system.dialog.revealed"] = revealed;
     if (!Object.keys(update).length) continue;
     await behavior.update(update);
     if (!slot.made) counts.linksRepaired++;
@@ -6010,6 +6042,7 @@ async function bookAdventureSource(bookId) {
     .filter(([, row]) => isSceneRecipe(row))
     .sort(([, a], [, b]) => (Number(a.scene.page) || 0) - (Number(b.scene.page) || 0));
   const scenes = [];
+  const sceneOf = new Map();
   let cover = null;
   for (const [id, row] of recipes) {
     const recipe = row.scene;
@@ -6031,8 +6064,8 @@ async function bookAdventureSource(bookId) {
     // A zone or a link end is no recipe's: it is a row, maybe another book's,
     // laid over this map. It was laid on the world map's picture, whose corner
     // a grid map made with another padding holds elsewhere on its canvas. A
-    // link's destinations name the world's scenes and regions by the ids the
-    // Adventure keeps.
+    // held link end keeps the Judge's shape; the ends the world lacks are laid
+    // below.
     const heldDims = held ? held.dimensions ?? held.getDimensions?.() ?? {} : {};
     const moved = grid && held
       ? { x: grid.origin.x - (Number(heldDims.sceneX) || 0), y: grid.origin.y - (Number(heldDims.sceneY) || 0) }
@@ -6045,8 +6078,32 @@ async function bookAdventureSource(bookId) {
       scene.regions = [...(scene.regions ?? []), zone];
     }
     scenes.push(scene);
+    sceneOf.set(id, scene);
   }
   if (!carried.length && !scenes.length) return null;
+
+  // Every way between the book's maps, on the Adventure's own scenes, however
+  // few of them the world holds: an end is placed on a scene built like the
+  // Adventure's, a held one's stored destinations are read from the world's
+  // behaviour, and a destination is written as core stores it.
+  const framed = new Map([...sceneOf].map(([id, s]) => [id, new Scene(foundry.utils.deepClone({ ...s, walls: [], tokens: [], regions: [] }))]));
+  const ends = linkSlots((id) => framed.get(id) ?? null);
+  const names = placeLinkEnds(ends, (id) => carried.find((e) => e.type === "Actor" && e.cbId === id)?.source.name);
+  withAdventureLinks({
+    scenes: sceneOf,
+    ends,
+    lay: (slot) => linkEndRegion(slot, names.get(slot)),
+    keep: (uuid, region, behavior, id) => {
+      const live = heldMapOf(id)?.regions?.get(region._id)?.behaviors?.get(behavior._id);
+      try {
+        return (live && fromUuidSync(uuid, { relative: live })?.uuid) || null;
+      } catch {
+        return null;
+      }
+    },
+    relative: foundry.utils.buildRelativeUuid,
+    question: linkQuestion,
+  });
 
   let actors = actorsNow();
   for (let i = 0; i < scenes.length; i++) {

@@ -944,6 +944,21 @@ export function linkEndKey(scene, box, level = null) {
 export const LINK_ASK = Object.freeze({ one: `${LANG_PREFIX}.ui.sceneLinkAsk`, several: `${LANG_PREFIX}.ui.sceneLinkAskWhich` });
 
 /**
+ * What a teleport asks once it leads to `n` ends: it asks where it leads to
+ * several or already asked, in the module's words for one way or a choice; a
+ * question the Judge wrote is kept.
+ * @param {object} system the `teleportToken` behaviour's system data
+ * @returns {{choice: boolean, revealed: string|null}}
+ */
+export function linkQuestion(system, n) {
+  const choice = !!system?.choice || n > 1;
+  const ask = n > 1 ? LINK_ASK.several : LINK_ASK.one;
+  const said = system?.dialog?.revealed ?? null;
+  const theirs = said !== null && !Object.values(LINK_ASK).includes(said);
+  return { choice, revealed: choice && !theirs ? ask : said };
+}
+
+/**
  * Region data for one end of a scene link: the rectangle (`linkRect`), seen
  * only by the GM and locked, on the levels named (none: every level of a
  * one-level scene), carrying one behaviour.

@@ -405,10 +405,17 @@ those missing are added, and a teleport that comes to lead to several is
 made to ask (`linksRepaired`). A destination the Judge added stays, and a
 behaviour the Judge removed is not put back.
 
-The book's Adventure carries a link Region as it carries a zone's. Core
-stores a destination relative to the behaviour that names it, so the
-Adventure keeps the world's scene and Region ids, which are the ids it
-imports under.
+The book's Adventure carries every link end its rows lay on its own maps,
+whichever of those maps the world holds (`withAdventureLinks`). An end the
+world's map holds is carried as that map holds it, under its ids. An end the
+world lacks is laid as the map step lays one, on a scene built like the
+Adventure's, under ids derived from its map's seed. Then every teleport is
+repaired as a held one is. Its stored destinations are read against the
+world's behaviour, the ones that resolve are kept, and the Regions of the
+ends its rows name are added in the form core stores
+(`foundry.utils.buildRelativeUuid`). A row with an end on another book's map
+is not laid. The Adventure keeps the world's scene and Region ids, which are
+the ids it imports under.
 
 ### A region's places
 

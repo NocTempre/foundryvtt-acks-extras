@@ -2724,7 +2724,7 @@ The map step joins a book's link rows into Regions after its last zone (MODEL,
 `test-cookbook-coherence` pin the shapes offline. Only a live run proves that
 core takes the Regions, that a token is carried where the rows say, and that
 the Adventure carries them. `tools/live/importer-ax1.mjs` walks it as section
-2e and in 3b.
+2e, in 3 and 3b, and after its sweep.
 
 ### Fixtures
 
@@ -2780,14 +2780,24 @@ the Adventure carries them. `tools/live/importer-ax1.mjs` walks it as section
      storey and the token stands on the stair of the storey picked;
    - on the region's map, walked into a way, the Player is asked first, and
      answered no, the token stays on the region's map.
-6. Frame each end on a walled plan on the GM's canvas and shoot `#board`.
-   *Observable, by eye:* the Region lies on its drawn way, and the floor
-   beside it is open, since the hops ignore walls. These frames show the
-   Judge's page: keep them local.
-7. Write the book's Adventure, delete every plan but one, and import the
-   Adventure from its sheet ("A book lands in the library as one
-   Adventure"). *Observable:* step 2's census holds, the plan that stayed
-   included.
+6. Delete the character's tokens by the uuids read back, so none stands over
+   the end it reached. Then frame each end on a walled plan on the GM's
+   canvas and shoot `#board`. *Observable, by eye:* the Region lies on its
+   drawn way, and the floor beside it is open, since the hops ignore walls.
+   These frames show the Judge's page: keep them local.
+7. Write the book's Adventure and read its scenes without importing them:
+   build each scene as a temporary `Scene` from the Adventure's source, and
+   read each destination with `foundry.utils.parseUuid(uuid, {relative:
+   behaviour})`. *Observable:* every end once, each teleport leading to as
+   many ends as its rows name, and every destination one of the Adventure's
+   own Regions.
+8. Delete every plan but one and import the Adventure from its sheet ("A
+   book lands in the library as one Adventure"). *Observable:* step 2's
+   census holds, the plan that stayed included.
+9. With the world holding only some of the maps, write the Adventure again
+   and repeat step 7's read. *Observable:* the same, though the world holds
+   fewer of the ends. The walk does this after its sweep, when the world
+   holds only the owner's maps.
 
 A party's formation across a hop is formation's own recipe
 (`docs/formation/TESTING.md`, "A teleport between scenes"); a link Region is
@@ -2795,8 +2805,8 @@ the same core behaviour.
 
 ### Teardown
 
-1. Delete the character's tokens by the uuids read back, then sweep the run's
-   ledger; a link Region goes with its map.
+1. Sweep the run's ledger; a link Region goes with its map. The character's
+   tokens went at step 6.
 2. Delete the Player's explored fog on every map a token stood on, by id.
 
 ## The region's adventures: their tables and monsters
