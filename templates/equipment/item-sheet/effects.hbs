@@ -100,15 +100,15 @@
     </div>
     {{/unless}}
     <div class="acks-extras-item-sheet__row acks-row--wrap">
-      <input class="acks-input acks-input--line acks-extras-item-sheet__grow" type="text" data-field="rename" value="{{effects.named.given}}" placeholder="{{localize 'ACKS-EQUIPMENT.named.renameHint'}}">
+      <input class="acks-input acks-input--line acks-extras-item-sheet__grow" type="text" data-field="rename" data-pick="rename" value="{{effects.named.given}}" placeholder="{{localize 'ACKS-EQUIPMENT.named.renameHint'}}">
       <button type="button" class="acks-btn acks-btn--secondary acks-btn--sm" data-action="renameItem">{{localize 'ACKS-EQUIPMENT.named.rename'}}</button>
     </div>
     {{/if}}
     {{#if (and gm editing)}}
     <div class="acks-extras-item-sheet__row acks-row--wrap">
-      <input class="acks-input acks-input--line acks-extras-item-sheet__grow" type="text" data-field="trueName" value="{{effects.named.trueName}}" placeholder="{{localize 'ACKS-EQUIPMENT.named.trueHint'}}">
-      <input class="acks-input acks-input--line acks-extras-item-sheet__grow" type="text" data-field="ladder" value="{{effects.named.ladderText}}" placeholder="{{localize 'ACKS-EQUIPMENT.named.ladderHint'}}">
-      <input class="acks-input acks-input--line acks-nums is-xs" type="number" data-field="unlocked" value="{{effects.named.unlockedRaw}}" min="0" step="1" placeholder="{{localize 'ACKS-EQUIPMENT.named.unlockedHint'}}">
+      <input class="acks-input acks-input--line acks-extras-item-sheet__grow" type="text" data-field="trueName" data-pick="trueName" value="{{effects.named.trueName}}" placeholder="{{localize 'ACKS-EQUIPMENT.named.trueHint'}}">
+      <input class="acks-input acks-input--line acks-extras-item-sheet__grow" type="text" data-field="ladder" data-pick="ladder" value="{{effects.named.ladderText}}" placeholder="{{localize 'ACKS-EQUIPMENT.named.ladderHint'}}">
+      <input class="acks-input acks-input--line acks-nums is-xs" type="number" data-field="unlocked" data-pick="unlocked" value="{{effects.named.unlockedRaw}}" min="0" step="1" placeholder="{{localize 'ACKS-EQUIPMENT.named.unlockedHint'}}">
       <button type="button" class="acks-btn acks-btn--secondary acks-btn--sm" data-action="saveNamed">{{localize 'ACKS-EQUIPMENT.named.save'}}</button>
       <button type="button" class="acks-btn acks-btn--quiet acks-btn--sm" data-action="unmakeNamed">{{localize 'ACKS-EQUIPMENT.named.unmake'}}</button>
     </div>

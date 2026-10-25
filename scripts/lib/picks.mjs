@@ -14,28 +14,67 @@
  * its change handler returns on, so a pick alone is never a submit.
  * `PicksMixin` is all three on one window.
  *
+ * Only a pick the user changed is carried: one still holding what its template
+ * rendered takes whatever the next render gives it. That lets a pick be
+ * rendered from the document (a name to edit, a record's fields) and still
+ * show a newer stored value when nobody has typed in it. An action that writes
+ * a pick into the document calls `spendPicks` before the write, so the redraw
+ * shows what was stored rather than what was typed.
+ *
  * A restore writes `value` and fires no change event, so a window that shows
  * or hides something by a pick's value sets that from the restored value in
  * `_onRender`, which runs after the parts are synced.
  *
  * Foundry-free: the controls are read through `querySelectorAll`, `dataset`,
- * `value` and, on a select, `options`; the mixin only calls up its base.
+ * `value`, `defaultValue` and, on a select, `options`; the mixin only calls
+ * up its base.
  */
 
 /** Every staging pick inside a part. */
 export const PICK_SELECTOR = "[data-pick]";
 
 /**
- * The value of every staging pick under `root`, by its `data-pick` key. A key
- * names one control: where a template repeats a pick per row, the row's key
- * goes into it, or every row is restored to the last row's value.
+ * Whether a pick holds something other than what its template rendered: an
+ * input against its `value` attribute, a select against the option it opened
+ * on (the one marked `selected`, else its first).
+ */
+export function pickChanged(control) {
+  if (control.options) {
+    const options = [...control.options];
+    const opened = options.find((option) => option.defaultSelected) ?? options[0];
+    return control.value !== (opened?.value ?? "");
+  }
+  return control.value !== (control.defaultValue ?? "");
+}
+
+/**
+ * The value of every changed staging pick under `root`, by its `data-pick`
+ * key. A key names one control: where a template repeats a pick per row, the
+ * row's key goes into it, or every row is restored to the last row's value.
  * @param {ParentNode|null|undefined} root
  * @returns {Map<string, string>}
  */
 export function readPicks(root) {
   const picks = new Map();
-  for (const control of root?.querySelectorAll?.(PICK_SELECTOR) ?? []) picks.set(control.dataset.pick, control.value);
+  for (const control of root?.querySelectorAll?.(PICK_SELECTOR) ?? []) {
+    if (pickChanged(control)) picks.set(control.dataset.pick, control.value);
+  }
   return picks;
+}
+
+/**
+ * Mark the named picks under `root` as read: each takes its current value as
+ * the one it was rendered with, so `readPicks` no longer carries it.
+ * @param {ParentNode|null|undefined} root
+ * @param {Iterable<string>} keys  `data-pick` keys
+ */
+export function spendPicks(root, keys) {
+  const spent = new Set(keys);
+  for (const control of root?.querySelectorAll?.(PICK_SELECTOR) ?? []) {
+    if (!spent.has(control.dataset.pick)) continue;
+    if (control.options) for (const option of control.options) option.defaultSelected = option.selected;
+    else control.defaultValue = control.value;
+  }
 }
 
 /**

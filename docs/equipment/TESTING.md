@@ -328,6 +328,20 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
     *Observable:* the sibling watch redraws the sheet and the typed name is
     still in the box. Press Speak it. *Observable:* `guesses` holds the
     character's level under its id and the box comes back empty.
+16. A field rendered from the record holds what was typed, and only that.
+    Same fixtures; tell the two items apart by `type`, since
+    `createEmbeddedDocuments` returned them in a different order from the one
+    passed. Write a new `givenName` to the record from a script. *Observable:*
+    the untouched Rename box shows it. Type a name there, then rename the
+    other item and write the record again. *Observable:* no write or render
+    from the typing, and the typed name survives both redraws. Press Rename.
+    *Observable:* the item takes the name; a later record write shows in the
+    box. With the pencil on, type a true name, a ladder holding one known
+    word and one that is not, and a different unlocked count; rename the other
+    item. *Observable:* all three survive. Press Save. *Observable:* the
+    record holds the true name, the known word alone and the count, and the
+    redraw shows the stored ladder rather than the typed one; a later
+    `trueName` write shows in its box.
 
 ## Teardown
 

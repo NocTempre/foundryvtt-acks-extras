@@ -58,7 +58,7 @@ import { drawForJudges, drawQuietly, postToJudges } from "../scripts/lib/roll-au
 import { elementOf, gmIds, judgesAndOwners } from "../scripts/lib/util.mjs";
 import { clientPages, keepDetachedMarks, pinFontScale, pinLook, pinTheme } from "../scripts/lib/client-pins.mjs";
 import { keepUnrenderedFields, rowListUpdate } from "../scripts/lib/sheet-rows.mjs";
-import { PICK_SELECTOR, PicksMixin, isPick, readPicks, restorePicks } from "../scripts/lib/picks.mjs";
+import { PICK_SELECTOR, PicksMixin, isPick, pickChanged, readPicks, restorePicks, spendPicks } from "../scripts/lib/picks.mjs";
 import { leashBreach, oneRoundFeet } from "../scripts/formation/deployment.mjs";
 import { clockReading, darkBounds, isDarkAt, secondsToNextDawn, untilNextDawn } from "../scripts/lib/world-time.mjs";
 import { isExpeditionScale, sceneMilesPerCell } from "../scripts/lib/distance-units.mjs";
@@ -2897,19 +2897,49 @@ function pickRoot(controls) {
     querySelectorAll: (selector) => (selector === PICK_SELECTOR ? controls : []),
   };
 }
-const pickSelect = (pick, value, offered) => ({ dataset: { pick }, value, options: offered.map((v) => ({ value: v })) });
-const pickInput = (pick, value) => ({ dataset: { pick }, value });
+/** A select now on `value`, rendered with `rendered` marked selected (none: it opened on its first). */
+const pickSelect = (pick, value, offered, rendered) => ({
+  dataset: { pick },
+  value,
+  options: offered.map((v) => ({ value: v, selected: v === value, defaultSelected: v === rendered })),
+});
+/** An input now holding `value`, rendered with `rendered` as its value attribute. */
+const pickInput = (pick, value, rendered = "") => ({ dataset: { pick }, value, defaultValue: rendered });
 
 t("picks: a re-render keeps every staging pick it still offers", () => {
-  const prior = pickRoot([pickSelect("lightBearer", "b", ["a", "b", "c"]), pickInput("spellName", "Probe"), pickSelect("lightType", "torch", ["torch", "lantern"])]);
+  const prior = pickRoot([pickSelect("lightBearer", "b", ["a", "b", "c"]), pickInput("spellName", "Probe"), pickSelect("lightType", "lantern", ["torch", "lantern"])]);
   const picks = readPicks(prior);
-  assert.deepEqual([...picks], [["lightBearer", "b"], ["spellName", "Probe"], ["lightType", "torch"]]);
+  assert.deepEqual([...picks], [["lightBearer", "b"], ["spellName", "Probe"], ["lightType", "lantern"]]);
 
-  const next = [pickSelect("lightBearer", "a", ["a", "b", "c"]), pickInput("spellName", ""), pickSelect("lightType", "lantern", ["lantern"])];
+  const next = [pickSelect("lightBearer", "a", ["a", "b", "c"]), pickInput("spellName", ""), pickSelect("lightType", "torch", ["torch"])];
   restorePicks(pickRoot(next), picks);
   assert.equal(next[0].value, "b", "the member picked before the redraw");
   assert.equal(next[1].value, "Probe", "typed text");
-  assert.equal(next[2].value, "lantern", "a value the redraw no longer offers leaves the template's default");
+  assert.equal(next[2].value, "torch", "a value the redraw no longer offers leaves the template's default");
+});
+
+t("picks: only a pick the user changed is carried, and a spent one is not", () => {
+  const rename = pickInput("rename", "Old", "Old");
+  const trueName = pickInput("trueName", "Typed", "Stored");
+  const ladder = pickInput("ladder", "hit", "damage");
+  const marked = pickSelect("stance", "b", ["a", "b"], "b");
+  const first = pickSelect("bearer", "a", ["a", "b"]);
+  const prior = pickRoot([rename, trueName, ladder, marked, first]);
+  assert.deepEqual([...readPicks(prior)], [["trueName", "Typed"], ["ladder", "hit"]], "untouched fields and selects on their opening option are not read");
+
+  const next = [pickInput("rename", "Newer", "Newer"), pickInput("trueName", "Stored", "Stored")];
+  restorePicks(pickRoot(next), readPicks(prior));
+  assert.equal(next[0].value, "Newer", "an untouched field shows the newer stored value");
+  assert.equal(next[1].value, "Typed", "a typed field keeps what was typed");
+
+  spendPicks(prior, ["trueName"]);
+  assert.deepEqual([...readPicks(prior)], [["ladder", "hit"]], "a spent field is no longer carried");
+  first.value = "b";
+  first.options.forEach((option) => (option.selected = option.value === "b"));
+  assert.equal(pickChanged(first), true);
+  spendPicks(prior, ["bearer"]);
+  assert.equal(pickChanged(first), false, "a spent select opens on its pick");
+  spendPicks(null, ["ladder"]);
 });
 
 t("picks: nothing to restore, nothing to read, and the submit test", () => {

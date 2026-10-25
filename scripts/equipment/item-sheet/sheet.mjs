@@ -38,7 +38,7 @@ import { rollById, rollIds } from "./rolls.mjs";
 import { bindScene, unbindScene, updateFromExploration, chartScene } from "./chart.mjs";
 import { splitOne, restack, canSplit, splitFromOf } from "./stack.mjs";
 import { ACCEPT_KINDS } from "./accept-kinds.mjs";
-import { PicksMixin } from "../../lib/picks.mjs";
+import { PicksMixin, spendPicks } from "../../lib/picks.mjs";
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ItemSheetV2 } = foundry.applications.sheets;
@@ -657,6 +657,7 @@ export default class AcksItemSheet extends PicksMixin(HandlebarsApplicationMixin
     const given = (this.element.querySelector('[data-field="rename"]')?.value ?? "").trim();
     if (!given) return;
     const wielderLevel = Number((item.parent ?? game.user.character)?.system?.details?.level ?? 1);
+    spendPicks(this.element, ["rename"]);
     await item.update(named.renameUpdates(item, given, wielderLevel));
     await item.update(named.applyUpdates(item));
     ui.notifications.info(game.i18n.format("ACKS-EQUIPMENT.named.renamed", { item: given }));
@@ -678,6 +679,8 @@ export default class AcksItemSheet extends PicksMixin(HandlebarsApplicationMixin
       revealed: rec?.revealed ?? false,
       base: rec?.base ?? named.captureBase(item),
     };
+    // The redraw shows the record as stored: the ladder keeps only the words it knows.
+    spendPicks(this.element, ["trueName", "ladder", "unlocked"]);
     await item.setFlag(MODULE_ID, ITEM_FLAGS.NAMED, record);
     await item.update(named.applyUpdates(item));
   }

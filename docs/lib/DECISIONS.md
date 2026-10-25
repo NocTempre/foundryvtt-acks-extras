@@ -4557,3 +4557,25 @@ shows or hides something by a pick's value sets it in `_onRender` as well
 stored record (the named panel's rename, true name, ladder and unlocked) are
 not picks yet: an unconditional restore would write a stale value over a
 newer stored one.
+
+### A pick is carried only when the user changed it (2026-10-25)
+
+Closes the cost the entry above names; that entry's ruling stands.
+
+**Ruled.**
+- `readPicks` carries a pick only when its value differs from what its
+  template rendered: an input against its `value` attribute, a select against
+  the option it opened on. An untouched pick takes the next render's value,
+  so a pick may be rendered from the document and still show a newer stored
+  value. The named panel's four fields carry `data-pick` on that footing.
+- An action that writes a pick into the document marks it read
+  (`spendPicks`) before the write, so the redraw shows what was stored. The
+  ladder is the case that needs it: Save keeps only the words it knows, and a
+  carried typed ladder would show words that were dropped.
+- A select picked onto the option it opened on is not carried. If a redraw
+  puts another option first, the select shows that option instead.
+
+**Rejected.**
+- *Carrying every pick, and clearing it after each action.* An untouched
+  field rendered from the document would still hide a write made elsewhere,
+  which is the defect this entry closes.
