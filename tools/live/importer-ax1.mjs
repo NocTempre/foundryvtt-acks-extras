@@ -107,6 +107,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { connect, sleep, pageSweep } from "./_driver.mjs";
 import { seats as machineSeats, PORTS, books, logDir } from "./_env.mjs";
+import { GRID_SCENE_PADDING } from "../../scripts/importer/scene-binding.mjs";
 
 const MACHINE = machineSeats();
 const browser = MACHINE.browser;
@@ -652,6 +653,16 @@ const P = {
       fogMode: s.fog?.mode ?? null,
       darkness: s.environment?.darknessLevel ?? null,
       globalLight: !!s.environment?.globalLight?.enabled,
+      // The canvas holds the picture and every wall's two ends.
+      padding: s.padding,
+      framed: (() => {
+        const { rect, sceneRect } = s.dimensions;
+        const inside = (x, y) => x >= rect.x && y >= rect.y && x <= rect.x + rect.width && y <= rect.y + rect.height;
+        return {
+          picture: inside(sceneRect.x, sceneRect.y) && inside(sceneRect.x + sceneRect.width, sceneRect.y + sceneRect.height),
+          wallsOut: [...s.walls].filter((w) => !inside(w.c[0], w.c[1]) || !inside(w.c[2], w.c[3])).length,
+        };
+      })(),
     };
   },
   playerId: async ({ name }) => game.users.find((u) => u.name === name)?.id ?? null,
@@ -862,6 +873,13 @@ try {
     { absent, walls: sights.map((s) => ({ id: s.id, walls: s.walls })) });
   check("1: a walled map states token vision, each user's own fog, darkness 1 and no global light; any other is lit, its sight and fog off",
     sights.filter((s) => s.uuid).every(sightRight), sights.filter((s) => s.uuid && !sightRight(s)).map((s) => s.id));
+  // A grid map is made with GRID_SCENE_PADDING, so its shifted picture and its
+  // walls lie whole on the canvas; a map without a grid keeps a padding of 0.
+  const gridded = (id) => !!COOKBOOK.scenes?.[id]?.scene?.grid;
+  const framedRight = (s) => (gridded(s.id) ? s.padding === GRID_SCENE_PADDING : s.padding === 0) && s.framed.picture && s.framed.wallsOut === 0;
+  check("1: each grid map carries its padding, and its picture and every wall lie on the canvas",
+    sights.filter((s) => s.uuid).every(framedRight),
+    sights.filter((s) => s.uuid).map((s) => ({ id: s.id, padding: s.padding, ...s.framed })));
 
   const level = sights.find((s) => s.id === LEVEL);
   if (!level?.uuid) throw new Error("the first level's map was not made");
