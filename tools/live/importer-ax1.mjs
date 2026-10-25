@@ -395,6 +395,19 @@ const P = {
       namedForIt: !!place && s.name === place.name,
       mapSystem: s.flags[MID].battlemap?.mapSystem ?? null,
       levels: [...s.levels].map((l) => ({ id: l.id, src: l.background?.src ?? null, bottom: l.elevation?.bottom, top: l.elevation?.top })),
+      // Each wall's levels: one of the scene's (counted by level), none (every
+      // level), or anything else (stray).
+      wallLevels: (() => {
+        const ids = new Set([...s.levels].map((l) => l.id));
+        const out = { by: {}, every: 0, stray: 0 };
+        for (const w of s.walls) {
+          const ls = [...(w.levels ?? [])];
+          if (!ls.length) out.every++;
+          else if (ls.length === 1 && ids.has(ls[0])) out.by[ls[0]] = (out.by[ls[0]] ?? 0) + 1;
+          else out.stray++;
+        }
+        return out;
+      })(),
       tokens: [...s.tokens].map((t) => ({ id: t.id, hidden: !!t.hidden, place: inBook(game.actors.get(t.actorId)?.flags?.[MID]?.cookbook) })),
       zones: await Promise.all([...s.regions].filter((r) => r.flags?.[MID]?.cookbook?.zone).map(async (r) => {
         const sys = r.behaviors.find((b) => b.type === `${MID}.encounterZone`)?.system ?? {};
@@ -1087,6 +1100,18 @@ try {
   };
   check("2c: each plan is a level per storey its plate prints, each storey its own picture, stacked bottom up",
     PINNED.every((p) => stacked(p, plans[p.id])), PINNED.filter((p) => p.storeys > 1).map((p) => ({ id: p.id, levels: plans[p.id]?.levels })));
+  // A walled plan of storeys stands each wall on its own storey's level alone,
+  // and every storey holds walls; a plan of one storey states no level, which
+  // core reads as every level.
+  const wallsOnLevels = (p, plan) => {
+    const w = plan?.wallLevels;
+    if (!w || w.stray) return false;
+    if (p.storeys === 1 || !WALLED.has(p.id)) return Object.keys(w.by).length === 0;
+    return w.every === 0 && plan.levels.every((l) => (w.by[l.id] ?? 0) > 0);
+  };
+  check("2c: each wall of a plan of storeys stands on one of its levels, and every storey holds walls",
+    PINNED.every((p) => wallsOnLevels(p, plans[p.id])),
+    PINNED.filter((p) => p.storeys > 1 || !wallsOnLevels(p, plans[p.id])).map((p) => ({ id: p.id, ...plans[p.id]?.wallLevels })));
   // Each place a region map stands is set at its drawn hex's centre: within a
   // couple of pixels of a cell centre, the scene's grid is the drawn one.
   for (const p of PINNED.filter((x) => x.region)) {

@@ -31803,6 +31803,57 @@
           "distance": 5,
           "units": "ft",
           "pixels": 70
+        },
+        "walls": {
+          "mode": "hatch",
+          "threshold": 160,
+          "corrections": [
+            {
+              "line": [
+                436,
+                336.1,
+                453.35,
+                336.1
+              ],
+              "is": "door"
+            },
+            {
+              "line": [
+                453.35,
+                336.1,
+                470.6,
+                336.1
+              ],
+              "is": "door"
+            },
+            {
+              "line": [
+                436,
+                388.55,
+                454.3,
+                388.55
+              ],
+              "is": "door"
+            },
+            {
+              "line": [
+                454.3,
+                388.55,
+                471,
+                388.55
+              ],
+              "is": "door"
+            },
+            {
+              "line": [
+                496.4,
+                206.2,
+                496.4,
+                223.6
+              ],
+              "is": "door"
+            }
+          ]
         }
       }
     },
@@ -31848,6 +31899,57 @@
           "distance": 5,
           "units": "ft",
           "pixels": 70
+        },
+        "walls": {
+          "mode": "hatch",
+          "threshold": 160,
+          "corrections": [
+            {
+              "line": [
+                436,
+                336.1,
+                453.35,
+                336.1
+              ],
+              "is": "door"
+            },
+            {
+              "line": [
+                453.35,
+                336.1,
+                470.6,
+                336.1
+              ],
+              "is": "door"
+            },
+            {
+              "line": [
+                436,
+                388.55,
+                454.3,
+                388.55
+              ],
+              "is": "door"
+            },
+            {
+              "line": [
+                454.3,
+                388.55,
+                471,
+                388.55
+              ],
+              "is": "door"
+            },
+            {
+              "line": [
+                496.4,
+                206.2,
+                496.4,
+                223.6
+              ],
+              "is": "door"
+            }
+          ]
         }
       }
     },
@@ -31897,6 +31999,10 @@
           "distance": 5,
           "units": "ft",
           "pixels": 70
+        },
+        "walls": {
+          "mode": "hatch",
+          "threshold": 160
         }
       }
     },
@@ -31917,9 +32023,9 @@
         },
         "crop": {
           "x": 36,
-          "y": 36,
+          "y": 64,
           "w": 266,
-          "h": 94.08
+          "h": 70.8
         },
         "place": "ax1.fort9",
         "travel": "delve",
@@ -31936,6 +32042,10 @@
           "distance": 10,
           "units": "ft",
           "pixels": 70
+        },
+        "walls": {
+          "mode": "stroke",
+          "threshold": 128
         },
         "places": [
           {
@@ -32021,9 +32131,9 @@
         },
         "crop": {
           "x": 36,
-          "y": 36,
+          "y": 64,
           "w": 266,
-          "h": 94.08
+          "h": 70.8
         },
         "place": "ax1.fort10",
         "travel": "delve",
@@ -32040,6 +32150,10 @@
           "distance": 10,
           "units": "ft",
           "pixels": 70
+        },
+        "walls": {
+          "mode": "stroke",
+          "threshold": 128
         }
       }
     },
@@ -32314,9 +32428,9 @@
         },
         "crop": {
           "x": 340,
-          "y": 34.9,
+          "y": 69,
           "w": 204,
-          "h": 80.3
+          "h": 51.6
         },
         "place": "ax1.fort14",
         "travel": "delve",
@@ -32333,6 +32447,11 @@
           "distance": 10,
           "units": "ft",
           "pixels": 70
+        },
+        "walls": {
+          "mode": "stroke",
+          "threshold": 80,
+          "opening": 0.02
         },
         "places": [
           {
@@ -32397,9 +32516,9 @@
         },
         "crop": {
           "x": 340,
-          "y": 34.9,
+          "y": 69,
           "w": 204,
-          "h": 80.3
+          "h": 51.6
         },
         "place": "ax1.fort15-17",
         "travel": "delve",
@@ -32416,6 +32535,11 @@
           "distance": 10,
           "units": "ft",
           "pixels": 70
+        },
+        "walls": {
+          "mode": "stroke",
+          "threshold": 80,
+          "opening": 0.02
         }
       }
     },

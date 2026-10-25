@@ -6,7 +6,7 @@
     "name": "Fort 1 Map",
     "pages": [10],
     "scene": {
-      "note": "Geometry in page points, top-left origin: one squared grid runs under every storey on the plate; the crop is the gatehouse's ground storey, and each of `levels` is that crop moved whole cells up to the storey above, so the stairs coincide; the grid block is one drawn square; the distance is the plate's printed square.",
+      "note": "Geometry in page points, top-left origin: one squared grid runs under every storey on the plate; the crop is the gatehouse's ground storey, and each of `levels` is that crop moved whole cells up to the storey above, so the stairs coincide; the grid block is one drawn square; the distance is the plate's printed square. Doors restated: both gates' leaves, an upper wall-walk's.",
       "crop": { "x": 339.79, "y": 306.99, "w": 224.14, "h": 93.83 },
       "levels": [{ "x": 339.79, "y": 167.98 }],
       "place": "ax1.fort1",
@@ -18,6 +18,17 @@
         "distance": 5,
         "units": "ft",
         "pixels": 70
+      },
+      "walls": {
+        "mode": "hatch",
+        "threshold": 160,
+        "corrections": [
+          { "line": [436, 336.1, 453.35, 336.1], "is": "door" },
+          { "line": [453.35, 336.1, 470.6, 336.1], "is": "door" },
+          { "line": [436, 388.55, 454.3, 388.55], "is": "door" },
+          { "line": [454.3, 388.55, 471, 388.55], "is": "door" },
+          { "line": [496.4, 206.2, 496.4, 223.6], "is": "door" }
+        ]
       }
     }
   },
@@ -40,6 +51,17 @@
         "distance": 5,
         "units": "ft",
         "pixels": 70
+      },
+      "walls": {
+        "mode": "hatch",
+        "threshold": 160,
+        "corrections": [
+          { "line": [436, 336.1, 453.35, 336.1], "is": "door" },
+          { "line": [453.35, 336.1, 470.6, 336.1], "is": "door" },
+          { "line": [436, 388.55, 454.3, 388.55], "is": "door" },
+          { "line": [454.3, 388.55, 471, 388.55], "is": "door" },
+          { "line": [496.4, 206.2, 496.4, 223.6], "is": "door" }
+        ]
       }
     }
   },
@@ -62,7 +84,8 @@
         "distance": 5,
         "units": "ft",
         "pixels": 70
-      }
+      },
+      "walls": { "mode": "hatch", "threshold": 160 }
     }
   }
 ]

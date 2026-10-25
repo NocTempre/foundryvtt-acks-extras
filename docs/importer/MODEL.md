@@ -111,7 +111,7 @@ and `levels` lists the storeys above it, bottom up, each as the corner
 `{x, y}` the crop moves to (`storeyCrops`). One frame serves them all, so a
 storey states no size. `recipeProblems` holds each corner to a whole number
 of cells from the crop, so the grid lies on every storey's drawing, and
-refuses `levels` off a square grid or beside `walls`. The maps step and the
+refuses `levels` off a square grid. The maps step and the
 Adventure cut each storey's picture as they cut the first's. The first
 storey keeps core's first level id and each one above takes
 `storeyLevelId(n)`; each stands four cells' distance over the last, core's
@@ -171,8 +171,14 @@ reaches it; `test-region-import` pins that data byte for byte.
 A recipe with a square `grid` may carry a `walls` block, read by
 `wall-trace.mjs` (its header says how each mode reads a plan):
 
-- `mode` — `grid`, `contour` or `stroke` (`WALL_MODES`).
+- `mode` — `grid`, `contour`, `hatch` or `stroke` (`WALL_MODES`). `hatch`
+  reads a plan as `contour` does once its hatched rock is closed, so what
+  this section says of `contour` holds of `hatch`.
 - `threshold` — the gray level, 1 to 254, the trace cuts the plan at.
+- `opening` — in `stroke` only, the radius of the opening that clears specks
+  off the ink before thinning, as a share of the cell, above 0 and at most
+  `MAX_OPENING`; `STROKE_OPENING` when absent. A plan whose partitions are
+  thinner than about twice the default states a smaller one.
 - `corrections` — assertions on the recipe's lattice (`wallLattice`: cell
   `[0, 0]` is the first whole drawn cell at the crop's top-left):
   `{cell: [c, r], is}`, `{edge: [c, r, "n"|"w"], is}`,
@@ -201,6 +207,12 @@ so a recipe that needs more never compiles. Past `correctionBudget`,
 `CORRECTION_SHARE` of the cells, the lint and the compiler warn
 (`wallsWarnings`) and the row still compiles. A correction weighs one, and a
 box or a rect `BOX_WEIGHT`.
+
+On a plan of storeys one `walls` block serves every storey, and the budget
+and the cap are the lattice's cells times the storeys. Its corrections are
+page points (`at`, `line`, `rect`), each lying inside one storey's crop, the
+storey it corrects; a correction on the lattice (`cell`, `edge`, `box`)
+names no storey and is refused, as are storeys whose crops overlap.
 
 What every mode does with a plan:
 - **The crop's own edge is no wall.** In `grid`, a floor cell on the
@@ -247,9 +259,17 @@ What every mode does with a plan:
 The map step traces after the picture is uploaded and before the one create.
 `traceSceneWalls` (`module.mjs`) renders the crop of the seat's page to gray
 at `TRACE_PITCH` pixels per drawn cell (`extractPageGray`, print intent on
-white). That render is separate from the picture, so the trace reads the same
-plan at any picture size. `traceWalls` returns segments in page points with
-core's door type, and a digest the console logs. In `contour` mode a door end
+white), and on a plan of storeys every storey's crop; a storey that does not
+render leaves the map without walls. That render is separate from the
+picture, so the trace reads the same plan at any picture size. `traceWalls`
+returns segments in page points with core's door type, and a digest the
+console logs. `traceStoreys` traces each storey with the corrections lying in
+its crop, moves its segments into the first storey's crop by the storeys'
+offset, and tags each with its storey's ordinal; its digest sums the
+storeys' counts and adds `storeys`. `wallSources` stands a tagged segment on
+its storey's level alone (`levels`), the first storey's being core's first
+level id and each above `storeyLevelId(n)`; a map of one storey states no
+`levels`, which core reads as every level. In `contour` mode a door end
 left on the floor side of the outline is carried to the nearest wall within a
 quarter cell, and just past it (`closeDoor`). `wallSources` carries the
 segments through the placed frame the tokens use, rounds them to whole pixels,

@@ -39,7 +39,7 @@ import { printedNameOf, withoutKeyNumber } from "./printed-name.mjs";
 import {
   GRID_SCENE_PADDING, zoneMovedBy,
   isSceneRecipe, sceneFrame, sceneData, districtRegionData, placeTokenAt, worldCopySource, isWorldCopy, placementMatches, afterDarkShift, bandOfSection,
-  isZoneRow, gridScale, ringToScene, offsetsInside, zoneRegionData, coversCrop, wallSources, isRegionRecipe, storeyCrops,
+  isZoneRow, gridScale, ringToScene, offsetsInside, zoneRegionData, coversCrop, wallSources, isRegionRecipe, storeyCrops, storeyLevelId,
 } from "./scene-binding.mjs";
 import { FACTION_TYPE } from "../factions/constants.mjs";
 import { LOCATION_TYPE, isPlaceRole } from "../location/constants.mjs";
@@ -5220,7 +5220,8 @@ export function gridScenePlan(recipe, scene) {
  * @param {{mapPlaceId: string, districtIds: string[], placeIds: string[]}} p.ids `mapIds`
  * @param {object|null} [p.grid] `gridScenePlan` of a grid recipe
  * @param {{c: number[], door: number, terrain?: true}[]|null} [p.walls] traced walls in page
- *   points (`traceWalls`), carried through the same placed frame as the rest
+ *   points (`traceWalls`), carried through the same placed frame as the rest;
+ *   a plan of storeys' (`traceStoreys`) each stand on their storey's level
  * @param {string[]} [p.storeys] uploaded pictures of the storeys above the
  *   first (`storeyCrops`), bottom up; each storey is named by its number
  */
@@ -5258,7 +5259,7 @@ export async function mapCreateData({ bookId, id, recipe, ids, actors, tableOf, 
     id: Scene.metadata.defaultLevelId,
     name: storeys.length ? storeyName(1) : game.i18n.localize(foundry.documents.Level.metadata.label),
   };
-  const wallData = wallSources(walls, frame);
+  const wallData = wallSources(walls, frame, storeys.length ? [level.id, ...storeys.map((_, i) => storeyLevelId(i + 1))] : null);
   const mapSystem = recipe.travel ?? null;
   if (!grid) {
     return sceneData({

@@ -13,8 +13,8 @@
  * picture under them.
  */
 import {
-  CORRECTION_CEILING, CORRECTION_SHARE, TRACE_PITCH, WALL_MODES, correctionBudget, correctionCap, traceWalls, wallLattice, wallsProblems,
-  wallsWarnings,
+  CORRECTION_CEILING, CORRECTION_SHARE, TRACE_PITCH, WALL_MODES, correctionBudget, correctionCap, traceStoreys, traceWalls, wallLattice,
+  wallsProblems, wallsWarnings,
 } from "../../scripts/importer/wall-trace.mjs";
 import { recipeProblems, sceneData, sceneFrame, wallSources } from "../../scripts/importer/scene-binding.mjs";
 import { withWorldIds } from "../../scripts/importer/adventure-binding.mjs";
@@ -108,12 +108,12 @@ check("a crop cutting a cell starts the lattice at the next line", (() => {
 check("the cap is a share of the cells, rounded down", correctionCap(wallLattice(recipeOf({}))), Math.floor(CORRECTION_CEILING * 300));
 check("the budget is a smaller share of the cells", [correctionBudget(wallLattice(recipeOf({}))), CORRECTION_SHARE < CORRECTION_CEILING],
   [Math.floor(CORRECTION_SHARE * 300), true]);
-check("three modes", WALL_MODES, ["grid", "contour", "stroke"]);
+check("four modes", WALL_MODES, ["grid", "contour", "stroke", "hatch"]);
 
 const fine = { mode: "grid", threshold: 160 };
 check("a plain walls block holds", wallsProblems(fine, recipeOf(fine)), []);
 ok("a hex grid cannot be traced", wallsProblems(fine, { crop, grid: { ...grid, family: "hexCols" } }).some((p) => /square grid/.test(p)));
-ok("an unknown mode is refused", wallsProblems({ ...fine, mode: "hatch" }, recipeOf(fine)).some((p) => /walls.mode/.test(p)));
+ok("an unknown mode is refused", wallsProblems({ ...fine, mode: "sketch" }, recipeOf(fine)).some((p) => /walls.mode/.test(p)));
 ok("a threshold must be a gray level", wallsProblems({ ...fine, threshold: 300 }, recipeOf(fine)).some((p) => /threshold/.test(p)));
 ok("an unknown key is named", wallsProblems({ ...fine, walls: [] }, recipeOf(fine)).some((p) => /unknown key "walls"/.test(p)));
 const overCap = Array.from({ length: correctionCap(wallLattice(recipeOf(fine))) + 1 }, (_, i) => ({ cell: [i % 20, Math.floor(i / 20)], is: "floor" }));
@@ -134,7 +134,7 @@ check("stroke mode drops a door by its point, and names a drawn door's kind by i
 const dropWindow = [{ at: [crop.x + 5, crop.y + 5], drop: "window" }];
 check("stroke mode drops a window by its point", wallsProblems({ mode: "stroke", threshold: 80, corrections: dropWindow }, recipeOf(fine)), []);
 ok("contour mode reads no window to drop", wallsProblems({ mode: "contour", threshold: 160, corrections: dropWindow }, recipeOf(fine)).some((p) => /drop must be/.test(p)));
-ok("recipeProblems carries the walls checks", recipeProblems({ ...recipeOf({ ...fine, mode: "hatch" }) }).some((p) => /walls.mode/.test(p)));
+ok("recipeProblems carries the walls checks", recipeProblems({ ...recipeOf({ ...fine, mode: "sketch" }) }).some((p) => /walls.mode/.test(p)));
 
 const boxOf = (box, is = "terrain") => ({ ...fine, corrections: [{ box, is }] });
 check("a terrain box holds", wallsProblems(boxOf([2, 2, 6, 6]), recipeOf(fine)), []);
@@ -467,6 +467,43 @@ check("grid: a door asserted open is gone", opened.digest.doors, 0);
   check("contour: a room the crop cuts keeps its other three sides", cut.walls.filter(({ c }) => Math.hypot(c[2] - c[0], c[3] - c[1]) > CELL).length, 3);
 }
 
+/* ---------------- hatch mode ---------------- */
+
+{
+  // Rock drawn as blocks of hatching parted by channels of paper, round two
+  // rooms joined by a corridor a cell wide. Each block's box mean is rock,
+  // and each is under a third of a cell, so contour mode takes it for a mark.
+  const P = TRACE_PITCH;
+  const hatched = canvas(250);
+  for (let by = 0; by < H; by += 32) for (let bx = 0; bx < W; bx += 32) for (let y = by; y < by + 24; y += 4) hatched.rect(bx, y, bx + 24, y + 2, 40);
+  const rooms = [[2, 3, 6, 9], [7, 5, 9, 5], [10, 2, 16, 11]];
+  for (const [c0, r0, c1, r1] of rooms) hatched.cells(c0, r0, c1, r1, 250);
+  const rec = { mode: "contour", threshold: 170 };
+  check("hatch: contour reads hatching parted by paper as floor", traceWalls(hatched, recipeOf(rec), scale).walls.length, 0);
+  const out = traceWalls(hatched, recipeOf({ ...rec, mode: "hatch" }), scale);
+  check("hatch: the closed rock rings the rooms and their corridor as one floor", out.digest.loops, 1);
+  // How far a point lies outside every room along either axis, in cells. A
+  // room's edge cuts the hatching anywhere, so the paper channel beside it
+  // and a block's sliver stay floor, as on a page; the outline lies within
+  // a channel and the box mean's reach of the drawn edge.
+  const outside = ([x, y]) => Math.min(...rooms.map(([c0, r0, c1, r1]) => {
+    const u = (x - crop.x) / CELL, v = (y - crop.y) / CELL;
+    return Math.max(0, c0 - u, u - c1 - 1, r0 - v, v - r1 - 1);
+  }));
+  const far = Math.max(...out.walls.flatMap(({ c }) => [outside([c[0], c[1]]), outside([c[2], c[3]])]));
+  ok("hatch: every wall end lies within a channel's reach of a room's or the corridor's outline", far < 0.4, `${far.toFixed(3)} cell`);
+  const len = wallLength(out.walls);
+  ok("hatch: the outline runs the rooms' and the corridor's length", Math.abs(len - 62 * CELL) < 0.12 * 62 * CELL, `${len.toFixed(1)} vs ${62 * CELL}`);
+  ok("hatch: the hatching beside the crop's edge is rock, not floor", !out.walls.some(({ c }) => (c[0] - crop.x) * scale < P / 2 || (c[1] - crop.y) * scale < P / 2));
+
+  // A grid of small dark marks on the second room's floor, closer together
+  // than the closing reaches: each is a speck, so they never close into a block.
+  for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) hatched.rect(12.5 * P + i * 16, 5.5 * P + j * 16, 12.5 * P + i * 16 + 9, 5.5 * P + j * 16 + 9, 40);
+  const marked = traceWalls(hatched, recipeOf({ ...rec, mode: "hatch" }), scale);
+  const deep = ([x, y]) => (x - crop.x) / CELL > 10.5 && (x - crop.x) / CELL < 16.5 && (y - crop.y) / CELL > 2.5 && (y - crop.y) / CELL < 11.5;
+  ok("hatch: marks on a floor are no wall", marked.digest.loops === 1 && !marked.walls.some(({ c }) => deep([c[0], c[1]]) || deep([c[2], c[3]])), `${marked.digest.loops} loops`);
+}
+
 /* ---------------- stroke mode ---------------- */
 
 {
@@ -650,6 +687,78 @@ check("grid: a door asserted open is gone", opened.digest.doors, 0);
   check("stroke: a splayed gap between two short marks is no window", traceWalls(dashes, recipeOf(rec), scale).digest.windows, 0);
 }
 
+{
+  // Partitions drawn four pixels wide inside a house drawn nine: the default
+  // opening takes them for the lattice, a stated opening of a pixel keeps them.
+  const P = TRACE_PITCH;
+  const thin = canvas(235);
+  const pen = (c0, r0, c1, r1, t) => thin.rect(c0 * P - Math.floor(t / 2), r0 * P - Math.floor(t / 2), c1 * P + Math.ceil(t / 2), r1 * P + Math.ceil(t / 2), 40);
+  pen(3, 3, 12, 3, 9);
+  pen(3, 10, 12, 10, 9);
+  pen(3, 3, 3, 10, 9);
+  pen(12, 3, 12, 10, 9);
+  for (const c of [6, 9]) pen(c, 3, c, 10, 4);
+  const rec = { mode: "stroke", threshold: 80 };
+  const partitions = (o) => o.walls.filter(({ c }) => [6, 9].some((k) => Math.abs((c[0] - crop.x) / CELL - k) < 0.15 && Math.abs((c[2] - crop.x) / CELL - k) < 0.15));
+  const plain = traceWalls(thin, recipeOf(rec), scale);
+  check("stroke: the default opening takes a four-pixel partition away", partitions(plain).length, 0);
+  check("stroke: an opening stated at the default traces the same walls", traceWalls(thin, recipeOf({ ...rec, opening: 0.03 }), scale).walls, plain.walls);
+  const kept = traceWalls(thin, recipeOf({ ...rec, opening: 0.02 }), scale);
+  ok("stroke: a stated opening of a pixel keeps both partitions, wall to wall",
+    [6, 9].every((k) => Math.abs(lengthOf(partitions(kept).filter(({ c }) => Math.abs((c[0] - crop.x) / CELL - k) < 0.15)) - 7 * CELL) < 0.3 * CELL), JSON.stringify(partitions(kept).map((s) => s.c)));
+  ok("an opening is stroke mode's alone", wallsProblems({ mode: "grid", threshold: 160, opening: 0.02 }, recipeOf(fine)).some((p) => /stroke mode only/.test(p)));
+  ok("an opening is a small share of the cell", wallsProblems({ ...rec, opening: 0.5 }, recipeOf(fine)).some((p) => /walls.opening/.test(p)));
+}
+
+/* ---------------- a plan of storeys ---------------- */
+
+{
+  // Two storeys sixteen cells apart down the page, each a room of its own; a
+  // wall line drawn across the upper storey's room is a correction in its
+  // own crop's page points.
+  const up = { x: crop.x, y: crop.y + 16 * CELL };
+  const ground = canvas(50);
+  ground.cells(2, 2, 6, 6, 250);
+  const upper = canvas(50);
+  upper.cells(10, 3, 15, 9, 250);
+  const split = { line: [up.x + 12 * CELL, up.y + 3 * CELL, up.x + 12 * CELL, up.y + 10 * CELL], is: "wall" };
+  const rec = { mode: "contour", threshold: 160, corrections: [split] };
+  const storeyed = recipeOf(rec, { levels: [up] });
+  check("a plan of storeys with a line in a storey's crop holds", wallsProblems(rec, storeyed), []);
+  const out = traceStoreys([ground, upper], storeyed, scale);
+  check("storeys: each wall is tagged with its storey", [...new Set(out.walls.map((s) => s.storey))], [0, 1]);
+  const alone = (image, corrections = []) => traceWalls(image, recipeOf({ ...rec, corrections }), scale).walls;
+  check("storeys: the first storey's walls are its own trace's", out.walls.filter((s) => s.storey === 0).map(({ c, door }) => ({ c, door })), alone(ground));
+  check("storeys: a storey above is carried into the first's page points, its own correction with it",
+    out.walls.filter((s) => s.storey === 1).map(({ c, door }) => ({ c, door })),
+    alone(upper, [{ line: split.line.map((v, k) => v - (k % 2 ? up.y - crop.y : 0)), is: "wall" }]));
+  ok("storeys: a storey's correction is drawn on it alone", !out.walls.some((s) => s.storey === 0 && Math.abs(s.c[0] - (crop.x + 12 * CELL)) < 0.01));
+  check("storeys: the digest sums the storeys", [out.digest.storeys, out.digest.loops, out.digest.corrections], [2, 2, 1]);
+  let refused = "";
+  try {
+    traceWalls(ground, storeyed, scale);
+  } catch (err) {
+    refused = err.message;
+  }
+  ok("storeys: traceWalls refuses a plan of storeys", /storey by storey/.test(refused));
+  refused = "";
+  try {
+    traceStoreys([ground], storeyed, scale);
+  } catch (err) {
+    refused = err.message;
+  }
+  ok("storeys: a render is owed for each storey", /one render of each/.test(refused));
+
+  ok("storeys: a cell names no storey", wallsProblems({ ...rec, corrections: [{ cell: [3, 3], is: "floor" }] }, storeyed).some((p) => /names no storey/.test(p)));
+  ok("storeys: a line between two storeys' crops is refused",
+    wallsProblems({ ...rec, corrections: [{ line: [crop.x + CELL, crop.y + CELL, up.x + CELL, up.y + CELL], is: "wall" }] }, storeyed).some((p) => /no one storey's crop/.test(p)));
+  ok("storeys: two storeys' crops may not overlap", wallsProblems(rec, recipeOf(rec, { levels: [{ x: crop.x, y: crop.y + 5 * CELL }] })).some((p) => /overlap/.test(p)));
+  const lattice = wallLattice(storeyed);
+  check("storeys: the cap counts every storey's cells", correctionCap(lattice, 2), 2 * correctionCap(lattice));
+  const points = Array.from({ length: correctionCap(lattice) + 1 }, (_, i) => ({ at: [up.x + 2 * CELL + (i % 15) * CELL, up.y + 2 * CELL + Math.floor(i / 15) * CELL], drop: "island" }));
+  ok("storeys: corrections past one storey's cap and within two storeys' hold", !wallsProblems({ ...rec, corrections: points }, storeyed).some((p) => /over the cap/.test(p)));
+}
+
 /* ---------------- refusals ---------------- */
 
 let threw = "";
@@ -682,6 +791,10 @@ ok("a render of the wrong size is not traced", /stated size/.test(threw));
   check("an invisible wall carries core's invisible senses and no door",
     wallSources([{ c: [crop.x + crop.w, crop.y, crop.x + crop.w, crop.y + CELL], door: 0, invisible: true }], frame),
     [{ c: [0, 0, 100, 0], door: 0, light: 0, sight: 0, sound: 0, move: 20 }]);
+  const onStoreys = [0, 1].map((storey) => ({ c: [crop.x + crop.w, crop.y, crop.x + crop.w, crop.y + CELL], door: 0, storey }));
+  check("a storey's wall stands on its storey's level alone",
+    wallSources(onStoreys, frame, ["levelAAAAAAAAAAA", "storey0000000001"]).map((s) => s.levels), [["levelAAAAAAAAAAA"], ["storey0000000001"]]);
+  ok("a wall of a map of one storey states no level, so core stands it on every one", wallSources(onStoreys, frame).every((s) => !("levels" in s)));
 
   const level = { id: "levelAAAAAAAAAAA", name: "Level" };
   const walled = sceneData({ id: "zz1.map", book: "zz1", name: "Map", recipe, src: "a.webp", level, walls: rows, pixelsPerPoint: 10 });

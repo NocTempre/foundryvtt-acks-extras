@@ -33,6 +33,8 @@ import { DISTANCE_UNITS } from "../lib/distance-units.mjs";
 import { wallsProblems } from "./wall-trace.mjs";
 import { polygonArea } from "../formation/zone-layers.mjs";
 
+export { storeyCrops } from "./wall-trace.mjs";
+
 /** The register kind a scene recipe is filed under. */
 export const SCENE_KIND = "kind.scene";
 
@@ -357,15 +359,6 @@ export function gridProblems(grid, crop = null) {
 /** How far off a whole cell a storey's corner may sit, as a share of the cell. */
 const STOREY_SLACK = 0.02;
 
-/**
- * The crop of each storey above a recipe's first, bottom up: `crop` moved to
- * each corner `levels` lists. One frame serves every storey, so a storey
- * states only its corner.
- */
-export function storeyCrops(recipe) {
-  return (Array.isArray(recipe?.levels) ? recipe.levels : []).map((l) => ({ ...recipe.crop, x: l?.x, y: l?.y }));
-}
-
 /** The scene level id of storey `n` above the first: core's sixteen characters. */
 export const storeyLevelId = (n) => `storey${String(n).padStart(10, "0")}`;
 
@@ -378,7 +371,6 @@ function levelsProblems(recipe) {
   if (!Array.isArray(recipe.levels) || !recipe.levels.length) return ["levels must list at least one storey above the first"];
   if (recipe.grid?.family !== "square") return ["levels stand only on a square grid"];
   const out = [];
-  if (recipe.walls !== undefined) out.push("walls are not traced on a plan of storeys");
   const { w, h } = recipe.grid.box;
   recipe.levels.forEach((l, i) => {
     if (!isNum(l?.x) || !isNum(l?.y)) return void out.push(`levels[${i}] needs numeric x and y`);
@@ -690,18 +682,27 @@ const INVISIBLE_SENSES = Object.freeze({ light: 0, sight: 0, sound: 0, move: 20 
  * crosses; an `invisible` segment takes `INVISIBLE_SENSES`, so it blocks
  * movement alone. The door type is the trace's.
  *
- * @param {{c: number[], door: number, terrain?: boolean, invisible?: boolean}[]} walls `traceWalls` output, in page points
+ * On a plan of storeys each segment stands on its own storey's level: a
+ * segment tagged `storey` (`traceStoreys`) takes `levels` of the one id
+ * `levelIds` holds at that ordinal. Core puts a wall whose `levels` is empty
+ * on every level, so a map of one storey states none.
+ *
+ * @param {{c: number[], door: number, storey?: number, terrain?: boolean, invisible?: boolean}[]} walls
+ *   `traceWalls` or `traceStoreys` output, in page points
  * @param {object} frame the frame the map's picture is placed by
- * @returns {{c: number[], door: number}[]}
+ * @param {string[]|null} [levelIds] the scene's level id of each storey, the first first
+ * @returns {{c: number[], door: number, levels?: string[]}[]}
  */
-export function wallSources(walls, frame) {
+export function wallSources(walls, frame, levelIds = null) {
   const out = [];
-  for (const { c, door, terrain, invisible } of walls ?? []) {
+  for (const { c, door, storey, terrain, invisible } of walls ?? []) {
     const [x0, y0] = frame.toScene(c[0], c[1]);
     const [x1, y1] = frame.toScene(c[2], c[3]);
     const seg = [Math.round(x0), Math.round(y0), Math.round(x1), Math.round(y1)];
     if (seg[0] === seg[2] && seg[1] === seg[3]) continue;
-    out.push(terrain ? { c: seg, door: 0, ...TERRAIN_SENSES } : invisible ? { c: seg, door: 0, ...INVISIBLE_SENSES } : { c: seg, door: Number(door) || 0 });
+    const row = terrain ? { c: seg, door: 0, ...TERRAIN_SENSES } : invisible ? { c: seg, door: 0, ...INVISIBLE_SENSES } : { c: seg, door: Number(door) || 0 };
+    const level = levelIds && Number.isInteger(storey) ? levelIds[storey] : undefined;
+    out.push(level ? { ...row, levels: [level] } : row);
   }
   return out;
 }

@@ -1086,11 +1086,6 @@ What each book still owes, in the order it is worth doing:
 
 ## Left out of AX1's minor (ruled 2026-10-17)
 
-- **Walls on the hatched plans** (AX1 p10, p11, p14). The importer traces
-  walls on AX1's other plans (DECISIONS 2026-10-17, "Walls are traced at
-  import from the Judge's own page"). These three draw their walls as
-  hatching, which every tracer mode reads as floor, so they land wall-less
-  until a mode reads hatching.
 - **Double doors the box reader misses** (AX1 p12). Of the plan's eighteen
   corrections, past its budget of twelve and under its ceiling of
   twenty-five, sixteen restate eight drawn double doors as two leaves each.

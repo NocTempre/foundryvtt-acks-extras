@@ -11,22 +11,28 @@
  * one cell, one cell edge, one island, one drawn door, one box of terrain or
  * one drawn line, and the cap keeps them a small share of the plan.
  *
- * Three modes, for three ways a plan is drawn:
+ * Four modes, for four ways a plan is drawn:
  * - `grid`: dark rock and light floor on the drawn squares. Each cell is
  *   classed by its floor share, walls run on the cell edges between floor and
  *   rock, and a one-cell throat is read for a door by the ink across it.
  * - `contour`: the same rock and floor, with walls on the floor's own
  *   outline. This mode is for caves, which follow no lattice.
+ * - `hatch`: rock drawn as hatching, strokes and wedges with paper between
+ *   them, read as `contour` once the rock is closed across that paper.
  * - `stroke`: dark wall strokes on a light floor, thinned to their centre
  *   lines, with each door drawn as a box across a wall read as a door and
  *   each window, a gap whose jambs splay, read as a wall that senses pass.
+ *
+ * A plan of storeys (`levels`) is traced storey by storey with one `walls`
+ * block, each storey's walls carried into the first storey's crop and tagged
+ * with its ordinal (`traceStoreys`).
  *
  * Every size below is a share of the drawn cell, so a trace reads the same
  * plan the same way at any render scale.
  */
 
 /** The tracer modes a recipe's `walls.mode` may name. */
-export const WALL_MODES = Object.freeze(["grid", "contour", "stroke"]);
+export const WALL_MODES = Object.freeze(["grid", "contour", "stroke", "hatch"]);
 
 /** How many pixels one drawn cell spans in the gray render a trace reads. */
 export const TRACE_PITCH = 50;
@@ -43,10 +49,35 @@ export const CORRECTION_CEILING = 0.1;
 /** The largest gray render a trace accepts, in pixels; past this the box sums overflow. */
 const MAX_TRACE_PIXELS = 16_000_000;
 
+/**
+ * How far `hatch` mode closes the rock, as a share of the cell: paper
+ * narrower than twice this between two strokes of hatching is rock, and a
+ * passage, a cell or more across, stays floor.
+ */
+const HATCH_CLOSE = 0.2;
+
+/**
+ * The largest rock `hatch` mode takes for a speck before it closes the rock,
+ * as a share of a cell's area: a grid of small marks on a floor, such as
+ * holes in it, would close into one block.
+ */
+const HATCH_SPECK = 0.05;
+
+/**
+ * The radius of stroke mode's opening, as a share of the cell, unless the
+ * recipe states its own (`walls.opening`): a stroke thinner than about twice
+ * this is no wall.
+ */
+const STROKE_OPENING = 0.03;
+
+/** The widest opening a recipe may state, as a share of the cell. */
+const MAX_OPENING = 0.1;
+
 /** What a correction may assert of a cell, of a cell edge, and of an island, per mode. */
 const CELL_STATES = Object.freeze({
   grid: ["floor", "solid", "door", "secret", "open"],
   contour: ["floor", "solid", "door", "secret", "open"],
+  hatch: ["floor", "solid", "door", "secret", "open"],
   stroke: ["open", "door", "secret"],
 });
 const EDGE_STATES = Object.freeze(["wall", "door", "secret", "open"]);
@@ -86,6 +117,7 @@ const LINE_STATES = Object.freeze(["wall", "door", "secret", "terrain", "invisib
 const AT_DROPS = Object.freeze({
   grid: ["island"],
   contour: ["island", "door"],
+  hatch: ["island", "door"],
   stroke: ["island", "door", "window"],
 });
 
@@ -132,11 +164,11 @@ export function wallLattice(recipe) {
 
 const cellsOf = (lattice) => (lattice?.cols ?? 0) * (lattice?.rows ?? 0);
 
-/** How many corrections a lattice's budget holds: `CORRECTION_SHARE` of its cells, rounded down. */
-export const correctionBudget = (lattice) => Math.floor(CORRECTION_SHARE * cellsOf(lattice));
+/** How many corrections a lattice's budget holds: `CORRECTION_SHARE` of its cells on each of `storeys`, rounded down. */
+export const correctionBudget = (lattice, storeys = 1) => Math.floor(CORRECTION_SHARE * cellsOf(lattice) * storeys);
 
-/** How many corrections a lattice allows: `CORRECTION_CEILING` of its cells, rounded down. */
-export const correctionCap = (lattice) => Math.floor(CORRECTION_CEILING * cellsOf(lattice));
+/** How many corrections a lattice allows: `CORRECTION_CEILING` of its cells on each of `storeys`, rounded down. */
+export const correctionCap = (lattice, storeys = 1) => Math.floor(CORRECTION_CEILING * cellsOf(lattice) * storeys);
 
 /** What corrections weigh against the budget and the cap: one each, a box or a rect `BOX_WEIGHT`. */
 const correctionWeight = (list) => list.reduce((n, k) => n + (k?.box !== undefined || k?.rect !== undefined ? BOX_WEIGHT : 1), 0);
@@ -156,6 +188,20 @@ function rectCorners([x0, y0, x1, y1, turn = 0]) {
 const correctionKey = (k) => (k.cell ? `cell:${k.cell.join(",")}` : k.edge ? `edge:${k.edge.join(",")}` : k.box ? `box:${k.box.join(",")}`
   : k.rect ? `rect:${k.rect.join(",")}` : k.line ? `line:${k.line.join(",")}` : `at:${(k.at ?? []).join(",")}`);
 
+/** The crop of each storey above a recipe's first, bottom up: `crop` moved to each corner `levels` lists. */
+export function storeyCrops(recipe) {
+  return (Array.isArray(recipe?.levels) ? recipe.levels : []).map((l) => ({ ...recipe.crop, x: l?.x, y: l?.y }));
+}
+
+/** Whether a page point lies in a crop, its edge included. */
+const inCrop = ([x, y], c) => x >= c.x && y >= c.y && x <= c.x + c.w && y <= c.y + c.h;
+
+/** What a correction's lattice phrase reads in a sentence: the cells it spans on how many storeys. */
+const latticeText = (lattice, storeys) => `${storeys > 1 ? `${storeys} storeys of ` : ""}${lattice.cols}x${lattice.rows} cells`;
+
+/** The page points a correction stands on: an `at`'s point, a line's two ends, a rect's corners; none for a lattice form. */
+const correctionPoints = (k) => (k.at ? [k.at] : k.line ? [k.line.slice(0, 2), k.line.slice(2, 4)] : k.rect ? rectCorners(k.rect) : []);
+
 /**
  * Everything wrong with a recipe's `walls` block, as sentences prefixed
  * `walls`; empty when it holds together. The recipe must carry a square grid,
@@ -164,23 +210,40 @@ const correctionKey = (k) => (k.cell ? `cell:${k.cell.join(",")}` : k.edge ? `ed
  * than `CORRECTION_CEILING` of its cells is refused wherever `recipeProblems`
  * runs; each correction weighs one, a box `BOX_WEIGHT`. A row past the
  * budget but within the cap holds here and is named by `wallsWarnings`.
+ *
+ * On a plan of storeys the cap counts every storey's cells, and a correction
+ * is placed by its page points in the one storey whose crop holds it: a cell,
+ * an edge or a box names a lattice square every storey shares, so it is
+ * refused there, as are storeys whose crops overlap.
  */
 export function wallsProblems(walls, recipe) {
   if (!walls || typeof walls !== "object" || Array.isArray(walls)) return ["walls must be an object"];
   const out = [];
-  for (const k of Object.keys(walls)) if (!["mode", "threshold", "corrections", "note"].includes(k)) out.push(`walls has an unknown key "${k}"`);
+  for (const k of Object.keys(walls)) if (!["mode", "threshold", "opening", "corrections", "note"].includes(k)) out.push(`walls has an unknown key "${k}"`);
   if (!WALL_MODES.includes(walls.mode)) out.push(`walls.mode must be ${WALL_MODES.join(", ")}`);
   if (!isInt(walls.threshold) || walls.threshold < 1 || walls.threshold > 254) out.push("walls.threshold must be a whole gray level from 1 to 254");
+  if (walls.opening !== undefined) {
+    if (walls.mode !== "stroke") out.push("walls.opening applies in stroke mode only");
+    else if (!isNum(walls.opening) || walls.opening <= 0 || walls.opening > MAX_OPENING) out.push(`walls.opening must be a share of the cell above 0 and at most ${MAX_OPENING}`);
+  }
   const lattice = wallLattice(recipe);
   if (!lattice) return [...out, "walls need a square grid to trace on"];
   if (!lattice.cols || !lattice.rows) return [...out, "walls: the crop spans no whole cell of the grid"];
   const list = walls.corrections ?? [];
   if (!Array.isArray(list)) return [...out, "walls.corrections must be a list"];
-  const cap = correctionCap(lattice);
+  const crops = [recipe.crop, ...storeyCrops(recipe)];
+  const storeyed = crops.length > 1;
+  if (storeyed && crops.every((c) => isNum(c.x) && isNum(c.y))) {
+    const overlap = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+    if (crops.some((a, i) => crops.some((b, j) => j > i && overlap(a, b)))) out.push("walls: two storeys' crops overlap, so a correction's page point names no one storey");
+  }
+  const cap = correctionCap(lattice, crops.length);
   const weight = correctionWeight(list);
   if (weight > cap) {
-    out.push(`walls.corrections weigh ${weight} (a box ${BOX_WEIGHT}), over the cap of ${cap} (${CORRECTION_CEILING * 100}% of ${lattice.cols}x${lattice.rows} cells); a plan that needs more is left wall-less`);
+    out.push(`walls.corrections weigh ${weight} (a box ${BOX_WEIGHT}), over the cap of ${cap} (${CORRECTION_CEILING * 100}% of ${latticeText(lattice, crops.length)}); a plan that needs more is left wall-less`);
   }
+  // A page-point correction lies wholly inside one storey's crop.
+  const placed = (k) => crops.some((c) => correctionPoints(k).every((p) => inCrop(p, c)));
   const cellStates = CELL_STATES[walls.mode] ?? [];
   const seen = new Set();
   list.forEach((k, i) => {
@@ -190,6 +253,9 @@ export function wallsProblems(walls, recipe) {
     if (forms.length !== 1) return void out.push(`${where} names exactly one of cell, edge, at, box, rect or line`);
     const allowed = forms[0] === "at" ? ["at", "drop"] : [forms[0], "is"];
     for (const key of Object.keys(k)) if (!allowed.includes(key)) out.push(`${where} has an unknown key "${key}"`);
+    if (storeyed && ["cell", "edge", "box"].includes(forms[0])) {
+      return void out.push(`${where}.${forms[0]} names no storey; a plan of storeys is corrected by page points (at, rect, line)`);
+    }
     if (k.cell !== undefined) {
       const [c, r] = Array.isArray(k.cell) ? k.cell : [];
       if (!Array.isArray(k.cell) || k.cell.length !== 2 || !isInt(c) || !isInt(r)) return void out.push(`${where}.cell must be [column, row]`);
@@ -215,22 +281,18 @@ export function wallsProblems(walls, recipe) {
       if (!Array.isArray(k.rect) || ![4, 5].includes(k.rect.length) || !k.rect.every(isNum)) {
         return void out.push(`${where}.rect must be [x, y, x, y] or [x, y, x, y, degrees]`);
       }
-      const crop = recipe.crop;
       if (!(k.rect[2] > k.rect[0] && k.rect[3] > k.rect[1])) out.push(`${where}.rect must run from its top-left corner to its bottom-right`);
-      if (rectCorners(k.rect).some(([x, y]) => x < crop.x || y < crop.y || x > crop.x + crop.w || y > crop.y + crop.h)) out.push(`${where}.rect has a corner outside the crop`);
+      if (!placed(k)) out.push(storeyed ? `${where}.rect lies inside no one storey's crop` : `${where}.rect has a corner outside the crop`);
       if (!RECT_STATES.includes(k.is)) out.push(`${where}.is must be ${RECT_STATES.join(", ")} for a rect`);
     } else if (k.line !== undefined) {
-      const crop = recipe.crop;
       if (!Array.isArray(k.line) || k.line.length !== 4 || !k.line.every(isNum)) return void out.push(`${where}.line must be [x, y, x, y]`);
       const [x0, y0, x1, y1] = k.line;
-      const outside = (x, y) => x < crop.x || y < crop.y || x > crop.x + crop.w || y > crop.y + crop.h;
-      if (outside(x0, y0) || outside(x1, y1)) out.push(`${where}.line has an end outside the crop`);
+      if (!placed(k)) out.push(storeyed ? `${where}.line lies inside no one storey's crop` : `${where}.line has an end outside the crop`);
       if (x0 === x1 && y0 === y1) out.push(`${where}.line has no length`);
       if (!LINE_STATES.includes(k.is)) out.push(`${where}.is must be ${LINE_STATES.join(", ")} for a line`);
     } else {
-      const crop = recipe.crop;
       if (!Array.isArray(k.at) || k.at.length !== 2 || !k.at.every(isNum)) return void out.push(`${where}.at must be [x, y]`);
-      if (k.at[0] < crop.x || k.at[1] < crop.y || k.at[0] > crop.x + crop.w || k.at[1] > crop.y + crop.h) out.push(`${where}.at lies outside the crop`);
+      if (!placed(k)) out.push(storeyed ? `${where}.at lies inside no storey's crop` : `${where}.at lies outside the crop`);
       const drops = AT_DROPS[walls.mode] ?? ["island"];
       if (!drops.includes(k.drop)) out.push(`${where}.drop must be ${drops.map((v) => `"${v}"`).join(" or ")} in ${walls.mode} mode`);
     }
@@ -250,10 +312,11 @@ export function wallsWarnings(walls, recipe) {
   const lattice = wallLattice(recipe);
   const list = walls?.corrections;
   if (!lattice || !Array.isArray(list)) return [];
-  const budget = correctionBudget(lattice);
+  const storeys = 1 + storeyCrops(recipe).length;
+  const budget = correctionBudget(lattice, storeys);
   const weight = correctionWeight(list);
-  if (weight <= budget || weight > correctionCap(lattice)) return [];
-  return [`walls.corrections weigh ${weight} (a box ${BOX_WEIGHT}), over the budget of ${budget} (${CORRECTION_SHARE * 100}% of ${lattice.cols}x${lattice.rows} cells)`];
+  if (weight <= budget || weight > correctionCap(lattice, storeys)) return [];
+  return [`walls.corrections weigh ${weight} (a box ${BOX_WEIGHT}), over the budget of ${budget} (${CORRECTION_SHARE * 100}% of ${latticeText(lattice, storeys)})`];
 }
 
 /* ---------------------------------------------------------------------------
@@ -1132,9 +1195,38 @@ function contourDoors(gray, rock, w, h, pitch) {
   return doors;
 }
 
-/** contour mode: walls on the floor's own outline, snapped to grid lines where they run along one. */
-function traceContour(gray, w, h, threshold, L, corr) {
+/**
+ * Close a rock mask in place by a square of radius `e`: paper narrower than
+ * the square between two rocks becomes rock. Outside the crop is rock, as
+ * `cleanRock` counts it, so rock running off the crop's edge is not eaten
+ * back from that edge.
+ */
+function closeRock(rock, w, h, e) {
+  const W = w + 2 * e, H = h + 2 * e;
+  const pad = new Uint8Array(W * H).fill(1);
+  for (let y = 0; y < h; y++) pad.set(rock.subarray(y * w, (y + 1) * w), (y + e) * W + e);
+  const shut = morph(morph(pad, W, H, e, false), W, H, e, true);
+  for (let y = 0; y < h; y++) rock.set(shut.subarray((y + e) * W + e, (y + e) * W + e + w), y * w);
+}
+
+/** hatch mode: contour mode over rock cleared of `HATCH_SPECK` marks and closed by `HATCH_CLOSE`. */
+const traceHatch = (gray, w, h, threshold, L, corr) => traceContour(gray, w, h, threshold, L, corr, { close: HATCH_CLOSE, speck: HATCH_SPECK });
+
+/**
+ * contour mode: walls on the floor's own outline, snapped to grid lines where
+ * they run along one. A `close` share closes the rock first (`closeRock`),
+ * once each rock under a `speck` share of a cell's area is floor, and before
+ * islands are judged on it.
+ */
+function traceContour(gray, w, h, threshold, L, corr, { close = 0, speck = 0 } = {}) {
   const rock = rockMask(gray, w, h, threshold, L.pitch);
+  if (speck) {
+    const { lab, comps } = components(rock, w, h, 1);
+    const kill = new Uint8Array(comps.length);
+    for (const c of comps) if (c.area < speck * L.pitch * L.pitch) kill[c.id] = 1;
+    for (let i = 0; i < rock.length; i++) if (rock[i] && kill[lab[i]]) rock[i] = 0;
+  }
+  if (close) closeRock(rock, w, h, Math.max(1, Math.round(close * L.pitch)));
   const isl = cleanRock(rock, w, h, L.pitch, corr.islands);
   let cellFixes = 0;
   for (const [key, state] of corr.cells) {
@@ -1699,14 +1791,15 @@ function windowRuns(pts, closed, label, w) {
  * marks dropped, thinned, and walked node to node; a stroke's corner tines
  * are pruned, each drawn door box stands as a door in its wall, and where a
  * wall runs through a window's bridge it is a wall that senses pass.
+ * `opening` is the opening's radius as a share of the cell.
  */
-function traceStroke(gray, w, h, threshold, L, corr) {
+function traceStroke(gray, w, h, threshold, L, corr, { opening = STROKE_OPENING } = {}) {
   const pitch = L.pitch;
   const inkMask = new Uint8Array(w * h);
   for (let i = 0; i < inkMask.length; i++) inkMask[i] = gray[i] < threshold ? 1 : 0;
   // The opening takes away what is thinner than a wall: the lattice, a
   // door's or a bed's outline, hatching and speckle.
-  const e = Math.max(1, Math.round(0.03 * pitch));
+  const e = Math.max(1, Math.round(opening * pitch));
   const thick = morph(morph(inkMask, w, h, e, true), w, h, e, false);
   // Bridged before the size cut, so a wall of short blocks between slits is
   // one stroke network, and before thinning, so the centre line runs through
@@ -1902,7 +1995,8 @@ function traceStroke(gray, w, h, threshold, L, corr) {
  * 2 secret), a wall that only stops movement marked `terrain` or `invisible`
  * as its correction asserted; the digest counts what the trace found, for
  * the import's report and the live gate. Throws on a recipe `wallsProblems`
- * refuses or a render too large to sum.
+ * refuses, a plan of storeys (`traceStoreys` traces one) or a render too
+ * large to sum.
  *
  * @param {{gray: Uint8Array|Uint8ClampedArray, width: number, height: number}} image
  * @param {object} recipe a compiled scene recipe carrying `walls`
@@ -1912,14 +2006,52 @@ function traceStroke(gray, w, h, threshold, L, corr) {
 export function traceWalls(image, recipe, scale) {
   const problems = wallsProblems(recipe?.walls, recipe);
   if (problems.length) throw new Error(problems.join("; "));
+  if (storeyCrops(recipe).length) throw new Error("walls: a plan of storeys is traced storey by storey (traceStoreys)");
+  return traceCrop(image, recipe, scale);
+}
+
+/**
+ * Trace a plan of storeys. `images[k]` is storey `k`'s crop rendered as
+ * `traceWalls` takes one: the recipe's own crop first, then each of `levels`
+ * bottom up. Every storey is traced with the one mode and threshold and the
+ * corrections inside its own crop, and its walls are carried into the first
+ * storey's page points, because one frame serves every storey; each wall is
+ * tagged with its `storey`, 0 the first. The digest sums the storeys' counts
+ * and states how many storeys there were. Throws as `traceWalls` does, and
+ * when the renders are not one per storey.
+ *
+ * @param {{gray: Uint8Array|Uint8ClampedArray, width: number, height: number}[]} images
+ * @param {object} recipe a compiled scene recipe carrying `walls` and `levels`
+ * @param {number} scale render pixels per page point
+ * @returns {{walls: {c: number[], door: number, storey: number, terrain?: true, invisible?: true}[], digest: object}}
+ */
+export function traceStoreys(images, recipe, scale) {
+  const problems = wallsProblems(recipe?.walls, recipe);
+  if (problems.length) throw new Error(problems.join("; "));
+  const crops = [recipe.crop, ...storeyCrops(recipe)];
+  if (!Array.isArray(images) || images.length !== crops.length) throw new Error(`walls: a plan of ${crops.length} storeys is traced off one render of each`);
+  const walls = [];
+  const digest = {};
+  crops.forEach((crop, storey) => {
+    const corrections = (recipe.walls.corrections ?? []).filter((k) => correctionPoints(k).every((p) => inCrop(p, crop)));
+    const one = traceCrop(images[storey], { ...recipe, crop, levels: undefined, walls: { ...recipe.walls, corrections } }, scale);
+    const dx = crop.x - recipe.crop.x, dy = crop.y - recipe.crop.y;
+    for (const s of one.walls) walls.push({ ...s, c: [s.c[0] - dx, s.c[1] - dy, s.c[2] - dx, s.c[3] - dy], storey });
+    for (const [key, v] of Object.entries(one.digest)) if (typeof v === "number") digest[key] = (digest[key] ?? 0) + v;
+  });
+  return { walls, digest: { mode: recipe.walls.mode, ...digest, storeys: crops.length } };
+}
+
+/** One crop's trace, its recipe already checked. */
+function traceCrop(image, recipe, scale) {
   const { gray, width: w, height: h } = image ?? {};
   if (!gray || !(w > 0) || !(h > 0) || gray.length !== w * h) throw new Error("walls: the render is not a gray image of its stated size");
   if (w * h > MAX_TRACE_PIXELS) throw new Error(`walls: a ${w}x${h} render is past the trace's ${MAX_TRACE_PIXELS} pixels`);
   const { mode, threshold, corrections } = recipe.walls;
   const L = renderLattice(wallLattice(recipe), recipe.crop, scale);
   const corr = readCorrections(corrections, recipe.crop, scale);
-  const run = mode === "grid" ? traceGrid : mode === "contour" ? traceContour : traceStroke;
-  const { walls: traced, outline, digest } = run(gray, w, h, threshold, L, corr);
+  const run = { grid: traceGrid, contour: traceContour, hatch: traceHatch, stroke: traceStroke }[mode];
+  const { walls: traced, outline, digest } = run(gray, w, h, threshold, L, corr, recipe.walls);
   const { walls, replaced } = applyLines(traced, L, corr.lines, outline);
   const toPage = (v, origin) => origin + v / scale;
   const out = [];

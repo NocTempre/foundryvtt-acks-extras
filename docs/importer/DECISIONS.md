@@ -6325,7 +6325,8 @@ import land in AX1's minor, reversing the no-walls answer."
 - **The hatched-wall plans stay wall-less** (AX1 p10, p11 and p14), because
   every mode failed on them. They are listed on the ROADMAP. The streets and
   gates of AX3's city map stay shelved, since this ruling covers plan walls
-  only.
+  only. *(Superseded 2026-10-25 by "The hatched plans and the storeys stand
+  walls": p10 is read by a `hatch` mode, p11 and p14 by `stroke`.)*
 
 *Rejected:*
 - **The book cipher**, which ships the tracing encrypted under a key read
@@ -7926,7 +7927,9 @@ one squared grid: the gatehouse in two storeys, the tower in three.
 - A token changes storey through core's level controls. Stairs that move it
   are not wired (ROADMAP).
 - The plates draw their walls as hatching, so the storeys are wall-less, as
-  the block plans are (ROADMAP).
+  the block plans are (ROADMAP). *(Superseded 2026-10-25 by "The hatched
+  plans and the storeys stand walls": each storey's walls stand on its
+  level.)*
 
 ## 2026-10-24 — AX1's sites are places in its region, and its region map stands them on their hexes
 
@@ -8081,3 +8084,52 @@ bullet. Under that entry sight passes the whole gap the trace leaves.
   Setting its padding to 5% in Scene Config is expected to move its objects
   with it (core's `autoReposition` fires on a padding change); that is read
   in core and not run.
+
+## 2026-10-25 — The hatched plans and the storeys stand walls
+
+Supersedes 2026-10-17's "The hatched-wall plans stay wall-less" and
+2026-10-24's cost line that left the storeys wall-less.
+
+**Evidence.**
+- p11 and p14 draw their walls as strokes, and `stroke` mode came after the
+  2026-10-17 ruling. It traces both with no correction: 253 walls and 47
+  doors on p11 at a threshold of 128, and 128 walls and 28 doors on p14 at
+  80 once the opening is narrowed to 0.02, which keeps the thin partitions
+  the default opening clears.
+- p10 draws its walls as hatching. `contour`'s rock mask reads the paper
+  between the strokes as floor; closed across that paper first, the same
+  mask reads the gatehouse's and the tower's walls whole. A grid of small
+  marks on the gatehouse's upper floor closed into one block until specks
+  were cut before the closing.
+- Core v14 walls carry `levels`, and a wall whose list is empty stands on
+  every level, so a storey's walls can stand on that storey alone.
+- The user asked for vision on these plans before the links between maps.
+
+**Ruled.**
+- **A fourth mode, `hatch`**, is `contour` after a speck cut
+  (`HATCH_SPECK`) and a closing of the rock (`HATCH_CLOSE`), padded with
+  rock past the crop so the plan's edge does not erode.
+- **`stroke` takes an `opening`** per recipe, its radius as a share of the
+  cell. The default stays `STROKE_OPENING`, so every stroke plan already
+  landed traces as it did.
+- **A plan of storeys takes one `walls` block**, traced storey by storey.
+  Its corrections are page points, each inside one storey's crop, the
+  storey it corrects; a lattice correction names no storey and is refused,
+  as are overlapping storey crops. The budget and the cap count every
+  storey's cells. Each storey's walls stand on its own level.
+- **p11's and p14's crops are the block plan under its heading**, half a
+  cell clear of the walls, so no letter of the heading traces as a wall. A
+  pair sharing one picture keeps one crop, one grid and one walls block.
+- p10's gatehouse takes five corrections, under its budget of six: each
+  gate's double door as two leaves, and a wall-walk door the box reader
+  misses. The tower takes none.
+
+*Rejected:*
+- **Narrowing the default opening.** Every stroke plan already landed would
+  trace differently.
+
+*Cost:*
+- The stair on each storey, and the engine on the gatehouse's roof and the
+  tower's, read as rock joined to the wall, so a token cannot step onto a
+  drawn stair; a link between storeys (ROADMAP) stands beside it.
+- `HATCH_CLOSE` and `HATCH_SPECK` are fitted on p10's two buildings.

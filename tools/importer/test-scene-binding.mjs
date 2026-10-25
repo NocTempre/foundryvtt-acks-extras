@@ -433,7 +433,9 @@ says("the first storey listed again", recipeProblems(storeyed({ levels: [{ x: 10
 says("a storey with half a corner", recipeProblems(storeyed({ levels: [{ x: 10 }] }), spaceBook), "levels[0] needs numeric x and y");
 says("no storey above the first", recipeProblems(storeyed({ levels: [] }), spaceBook), "at least one storey");
 says("storeys on a hex lattice", recipeProblems({ ...hexRecipe(), levels: [{ x: 0, y: 0 }] }, regionBook), "only on a square grid");
-ok("walls on a plan of storeys", recipeProblems(storeyed({ walls: { mode: "stroke", threshold: 80 } }), spaceBook).some((p) => p.includes("plan of storeys")));
+check("walls on a plan of storeys stand", recipeProblems(storeyed({ walls: { mode: "hatch", threshold: 170 } }), spaceBook), []);
+ok("a plan of storeys is corrected by page points", recipeProblems(storeyed({ walls: { mode: "hatch", threshold: 170, corrections: [{ cell: [1, 1], is: "floor" }] } }), spaceBook)
+  .some((p) => p.includes("names no storey")));
 
 const tower = sceneData({
   id: "zz.tower", book: "zz", name: "Tower", recipe: storeyed(), src: "a.webp",

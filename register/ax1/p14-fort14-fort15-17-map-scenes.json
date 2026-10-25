@@ -6,8 +6,8 @@
     "name": "Fort 14 Map",
     "pages": [14],
     "scene": {
-      "note": "Geometry in page points, top-left origin: the crop is the block plan above its scale brace, the detail drawing below it left out; the grid block is one drawn square near the middle; the distance is the plate's printed square. Each sub-area stands at its first letter.",
-      "crop": { "x": 340, "y": 34.9, "w": 204, "h": 80.3 },
+      "note": "Geometry in page points, top-left origin: the crop is the block plan under its heading and over its scale brace, the detail drawing below left out; the grid block is one drawn square near the middle; the distance is the plate's printed square. Each sub-area stands at its first letter. The opening is narrowed to keep the thin partitions.",
+      "crop": { "x": 340, "y": 69, "w": 204, "h": 51.6 },
       "place": "ax1.fort14",
       "travel": "delve",
       "grid": {
@@ -18,6 +18,7 @@
         "units": "ft",
         "pixels": 70
       },
+      "walls": { "mode": "stroke", "threshold": 80, "opening": 0.02 },
       "places": [
         { "id": "ax1.fort14a", "at": [363.24, 107.04] },
         { "id": "ax1.fort14b", "at": [364.32, 83.76] },
@@ -36,7 +37,7 @@
     "pages": [14],
     "scene": {
       "note": "The block plan of fort14Map, for the blocks built to the same plan; it keys no sub-areas.",
-      "crop": { "x": 340, "y": 34.9, "w": 204, "h": 80.3 },
+      "crop": { "x": 340, "y": 69, "w": 204, "h": 51.6 },
       "place": "ax1.fort15-17",
       "travel": "delve",
       "grid": {
@@ -46,7 +47,8 @@
         "distance": 10,
         "units": "ft",
         "pixels": 70
-      }
+      },
+      "walls": { "mode": "stroke", "threshold": 80, "opening": 0.02 }
     }
   }
 ]

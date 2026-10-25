@@ -39,7 +39,7 @@ import { readForm } from "../character-sheet/pdf/form.mjs";
 import { RECIPES } from "./recipes.mjs";
 import { openBook, useTypography, pageItems, extractRecipe, extractDisplay, extractRunin, extractSpoils, extractPageArt, extractPageArtRegion, extractPageGray, extractPageMap, listHeadings, setWorker, setWasmUrl } from "./extract.mjs";
 import { sceneFrame, turnMatrix, pictureKey } from "./scene-binding.mjs";
-import { TRACE_PITCH, traceWalls } from "./wall-trace.mjs";
+import { TRACE_PITCH, storeyCrops, traceStoreys, traceWalls } from "./wall-trace.mjs";
 import { extractStatPairs } from "./stats.mjs";
 import { mapPairs } from "./stats-map.mjs";
 import { createDocFor } from "./poc.mjs";
@@ -2630,8 +2630,9 @@ async function uploadSceneMap(doc, id, recipe, { pixelsPerPoint } = {}) {
 
 /**
  * Trace a scene recipe's walls off the Judge's own page: the crop rendered to
- * gray at `TRACE_PITCH` pixels to the drawn cell, read by `traceWalls`.
- * Returns `{walls, digest}` with the walls in page points, or null when the
+ * gray at `TRACE_PITCH` pixels to the drawn cell, read by `traceWalls`, or
+ * on a plan of storeys every storey's crop, read by `traceStoreys`.
+ * Returns `{walls, digest}` with the walls in page points, or null when a
  * render failed or the trace threw. A map whose walls failed is still made,
  * wall-less, because the walls are an addition to the map and not its
  * condition. Rendered apart from the picture: a held picture comes from the
@@ -2641,12 +2642,14 @@ async function uploadSceneMap(doc, id, recipe, { pixelsPerPoint } = {}) {
 async function traceSceneWalls(doc, id, recipe) {
   const scale = TRACE_PITCH / Number(recipe.grid?.box?.w);
   try {
-    const image = await extractPageGray(doc, recipe.page, recipe.crop, scale);
-    if (!image) {
+    const crops = [recipe.crop, ...storeyCrops(recipe)];
+    const images = [];
+    for (const crop of crops) images.push(await extractPageGray(doc, recipe.page, crop, scale));
+    if (images.some((image) => !image)) {
       console.warn(`${MODULE_ID} | map ${id}: its walls could not be rendered; the map is made without them.`);
       return null;
     }
-    const traced = traceWalls(image, recipe, scale);
+    const traced = crops.length > 1 ? traceStoreys(images, recipe, scale) : traceWalls(images[0], recipe, scale);
     console.log(`${MODULE_ID} | map ${id}: walls traced`, traced.digest);
     return traced;
   } catch (err) {

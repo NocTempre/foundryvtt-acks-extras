@@ -2617,7 +2617,11 @@ block what walls block.
      cut off at the canvas edge counts in the scene and blocks nothing;
    - every plain wall's and door's senses are 20/20/20/20, every terrain
      wall's light, sight and sound 10 and move 20, every invisible wall's
-     light, sight and sound 0 and move 20, and every `levels` empty;
+     light, sight and sound 0 and move 20. On a map of one storey every
+     `levels` is empty. On a plan of storeys every wall's `levels` holds
+     one id, one of the scene's levels, every level holds walls, and the
+     walls per level match an offline `traceStoreys` run's per-storey
+     counts;
    - `tokenVision` is true, `fog.mode` is 1 (each user's own), darkness is
      1 and global light is disabled. From the **Player** seat, a token of
      the player's carrying a lit light shows its radius, and the dungeon
