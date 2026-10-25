@@ -136,9 +136,10 @@ a step it does not name is walked by hand.
    holds no loyalty row, a hint saying why, and the morale throw alone, and
    its roster row reads a dash for loyalty.
 1b. The panel's figure tooltips (`tools/live/henchmen.mjs`, stage 1). A fresh
-   employer and hireling of this step's own: the employer holds a power whose
-   module effect targets `moraleBase` (an invented value; an Active Effect on
-   `flags.acks-extras.moraleBase` reads the same), and the hireling's record
+   employer and hireling of this step's own: the employer holds a power that
+   carries an Active Effect on `flags.acks-extras.moraleBase` (an invented
+   value; `moraleBase` has no typed target, so a typed modifier in the item's
+   module effects is never read for it), and the hireling's record
    states no share. Read each `.acks-extras-service .acks-extras-frame__row-value`
    against what `buildServicePanel` builds, then hover the loyalty figure: the
    capture driver has no pointer channel, so the walk hit-tests the figure's

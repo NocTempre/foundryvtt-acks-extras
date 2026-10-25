@@ -1483,13 +1483,16 @@ try {
     section("1b. the Service panel's figure tooltips");
     const SE = await gm.create("Actor", { name: `QA Service employer ${NONCE}`, type: "character", system: { scores: { cha: { value: 13 } }, details: { level: 4 } }, items: [] });
     const hS = await gm.create("Actor", { name: `QA Service hireling ${NONCE}`, type: "character", items: [] });
-    note("the service employer's morale power, an invented value", await run(gm, P.handAbilities, { actorId: SE.id, items: [{ name: `QA morale power ${NONCE}`, effects: [{ type: "modifier", target: "moraleBase", value: 1 }] }] }));
+    // moraleBase is read off Active Effects alone (it has no typed target), so the power is an effect on the item.
+    const powerS = await run(gm, P.handAbilities, { actorId: SE.id, items: [{ name: `QA morale power ${NONCE}` }] });
+    note("the service employer's morale power, an invented value", await run(gm, P.addEffect, { actorId: SE.id, itemId: powerS[0].id, key: "flags.acks-extras.moraleBase", value: 2, name: `QA morale ${NONCE}` }));
     note("link the service hireling", await run(gm, P.link, { employerId: SE.id, hirelingId: hS.id, wage: 5 }));
     const tipsS = await run(gm, P.serviceTips, { actorId: hS.id });
     note("the service hireling, Service", tipsS);
     check("1b: every value on the Service panel carries a data-tooltip-text, each one the view built", tipsS.rendered && tipsS.count >= 8 && tipsS.untipped.length === 0 && tipsS.mismatched.length === 0, { count: tipsS.count, untipped: tipsS.untipped, mismatched: tipsS.mismatched });
-    check("changed: the Obedience row reads the morale figure the obedience throw rolls on", tipsS.obedience !== null && tipsS.obedience === tipsS.morale && tipsS.morale === tipsS.moraleScore, { obedience: tipsS.obedience, morale: tipsS.morale, moraleScore: tipsS.moraleScore, loyalty: tipsS.loyalty });
-    check("changed: the morale line and its tooltip carry the employer's powers as a part", tipsS.powers === "+1" && tipsS.moraleLine.endsWith(`${tipsS.powersLabel} +1`) && (tipsS.moraleTip ?? "").includes(`${tipsS.powersLabel} +1`), { powers: tipsS.powers, line: tipsS.moraleLine, tip: tipsS.moraleTip });
+    // The power sets morale apart from loyalty, so a row reading loyalty cannot pass.
+    check("changed: the Obedience row reads the morale figure the obedience throw rolls on", tipsS.obedience !== null && tipsS.morale !== tipsS.loyalty && tipsS.obedience === tipsS.morale && tipsS.morale === tipsS.moraleScore, { obedience: tipsS.obedience, morale: tipsS.morale, moraleScore: tipsS.moraleScore, loyalty: tipsS.loyalty });
+    check("changed: the morale line and its tooltip carry the employer's powers as a part", tipsS.powers === "+2" && tipsS.moraleLine.endsWith(`${tipsS.powersLabel} +2`) && (tipsS.moraleTip ?? "").includes(`${tipsS.powersLabel} +2`), { powers: tipsS.powers, line: tipsS.moraleLine, tip: tipsS.moraleTip });
     check("1b: the loyalty figure, hovered, shows its own text in core's tooltip, and a pointer at its centre lands on it", tipsS.hover.hit && tipsS.hover.active && tipsS.hover.shown === tipsS.hover.attr, tipsS.hover);
     const ladderS = await run(gm, P.serviceTips, { actorId: hS.id, ladder: true });
     note("the service hireling, wage off the table", { wageTip: ladderS.wageTip, expect: ladderS.expectWageTip, ladderGp: ladderS.ladderGp, cite: ladderS.cite });
