@@ -52,6 +52,11 @@ batch — an issue in the queue may be the same defect and should close with it.
   which may disagree with the issue's home. The fix lands where the routing
   says; the close-out comment lands where the issue lives.
 
+Rows also arrive already registered: a session that could not write a
+figure's tooltip (`.claude/rules/ui-tooltips.md`) adds the row itself, source
+`tooltip:<YYYY-MM-DD>`, with the figure, the surface and which check failed.
+It is a lead on that figure, not yet a diagnosis.
+
 Register every symptom as a row **before diagnosing any of them**. Intake is
 cheap and global; diagnosis is expensive and blind to what it never heard
 about.

@@ -27,13 +27,14 @@ is `all`. `node plan-sweep.mjs --list-lenses` prints the current set.
 
 | Lens | Covers |
 | --- | --- |
-| `all` | all 36 categories (default) |
+| `all` | all 37 categories (default) |
 | `quick` | 7 high-signal categories — routine check-in |
 | `release` | 26 — everything that can produce a Critical or High; use before a release |
 | `foundry` | AppV2/v14, settings scope, hooks, flags, library reuse, manifest, coupling |
 | `ip` | licensed-content safety + rules-terminology fidelity |
 | `documentation` | comments, docstrings, type annotations, stale text |
 | `i18n` | display text bypassing the lang file |
+| `tooltips` | figures and controls without a provenance tooltip, and tooltips that paraphrase a rule |
 | `theming` | light/dark correctness + cascade layers (**styles/templates clusters only**) |
 | `correctness` `typing` `structure` `doctrine` | the remaining groups individually |
 
@@ -110,7 +111,8 @@ unrestricted lens correctly widens back to all clusters.
    ```
 
    It reports the agent count per phase, the return-value shape, and fails if a
-   not-checked category is marked clean, if checked+skipped ≠ 36, if a row
+   not-checked category is marked clean, if checked+skipped is not every
+   category in `categories.json`, if a row
    carries a category outside the lens, or if the summary disagrees with the
    rows. Spending 67 real agents to discover a typo is the thing to avoid.
 
@@ -154,7 +156,7 @@ not evidence of a fix.
 
 ## The checklist is permanent
 
-36 categories in six groups, in `categories.json` — the single source of truth.
+37 categories in six groups, in `categories.json` — the single source of truth.
 `plan-sweep.mjs` resolves a lens against it and passes the selected groups to
 the workflow, which generates its prompt text, its schema enum and its coverage
 table from what it receives. One edit there reaches every consumer.

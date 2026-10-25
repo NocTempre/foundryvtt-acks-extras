@@ -6,6 +6,8 @@
 import fs from "node:fs";
 
 const target = process.argv[2];
+const TAXONOMY = JSON.parse(fs.readFileSync(new URL("./categories.json", import.meta.url), "utf8"));
+const CATEGORY_COUNT = TAXONOMY.groups.reduce((n, g) => n + g.items.length, 0);
 let src = fs.readFileSync(target, "utf8").replace(/^export const meta =/m, "const meta =");
 
 const logs = [];
@@ -114,7 +116,7 @@ for (const l of logs) console.log("  " + l);
 // Invariants that must hold or the real run would write a bad audit.
 const bad = [];
 if (result.coverage.some((c) => c.checked === false && c.clean === true)) bad.push("a NOT-checked category is marked clean");
-if (result.checkedCategories.length + result.skippedCategories.length !== 36) bad.push("checked+skipped != 36");
+if (result.checkedCategories.length + result.skippedCategories.length !== CATEGORY_COUNT) bad.push(`checked+skipped != ${CATEGORY_COUNT}`);
 if (result.rows.some((r) => !result.checkedCategories.includes(r.category))) bad.push("a row uses a category outside the lens");
 if (result.summary.total !== result.rows.length) bad.push("summary.total disagrees with rows.length");
 console.log("");

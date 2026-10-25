@@ -61,7 +61,8 @@
         ["stray-comment", "TODO/FIXME/HACK/XXX in source (an explicit repo ban, not a style preference), or a comment carrying rationale, history, dates, or attribution that belongs in DECISIONS.md"],
         ["missing-docstring", "an exported function, class, or non-obvious constant with no docstring. In a single-class file the file header IS the class docstring — do not expect both"],
         ["stale-comment", "a comment or doc claim the current code contradicts — a described-as-pending migration that already ran, a referenced file that does not exist, a resolved problem still described as open"],
-        ["stale-reference", "code or comments naming a pre-merge module (acks-lib, acks-monsters, acks-content, acks-abilities, acks-equipment, acks-formation, acks-henchmen, acks-influence, acks-location) as if it were still a separately installable module. All were merged into acks-extras on 2026-08-01; a guard like \"if acks-monsters is installed\" is dead, not defensive"]
+        ["stale-reference", "code or comments naming a pre-merge module (acks-lib, acks-monsters, acks-content, acks-abilities, acks-equipment, acks-formation, acks-henchmen, acks-influence, acks-location) as if it were still a separately installable module. All were merged into acks-extras on 2026-08-01; a guard like \"if acks-monsters is installed\" is dead, not defensive"],
+        ["missing-provenance-tooltip", "a figure a user reads (a stat, throw target, modifier, price, count, rate) or a control whose face does not name it in full, rendered with no tooltip; or a figure's tooltip that does not say where the number came from — the imported row and page (lib/tables.mjs citeOf), the named parts of a computed figure, the hand or effect that set it, or 'not imported'. Also counts: a `title` attribute where core's tooltip manager belongs, and a tooltip assembled at render (a name, an imported row, a joined list) in `data-tooltip` instead of `data-tooltip-text`. A tooltip that states or paraphrases the rule is ip-leakage, not this. Canon: .claude/rules/ui-tooltips.md"]
       ]
     },
     {
@@ -96,6 +97,10 @@
     "i18n": {
       "description": "display text that bypasses the lang file",
       "categories": ["hardcoded-ui-text"]
+    },
+    "tooltips": {
+      "description": "figures and controls without a provenance tooltip, and tooltips that paraphrase a rule",
+      "categories": ["missing-provenance-tooltip", "ip-leakage"]
     },
     "theming": {
       "description": "light/dark seat correctness and cascade-layer hygiene",

@@ -145,7 +145,13 @@ function git(args, opts = {}) {
 }
 const lines = (text) => text.split("\n").filter(Boolean);
 const revParse = (ref) => git(["rev-parse", ref]).trim();
-const staged = () => lines(git(["diff", "--cached", "--name-only"]));
+/**
+ * The paths a diff writes, a removed one always under its own name. Rename
+ * detection is on unless config turns it off, and it reports a removed path
+ * beside a similar added one as the added path alone.
+ */
+const changedPaths = (...args) => lines(git(["diff", "--no-renames", "--name-only", ...args]));
+const staged = () => changedPaths("--cached");
 const headEntry = (file) => git(["ls-tree", "HEAD", "--", file]).trim();
 /** The blob id `git add` would write for the working file, with nothing written. */
 const hashOf = (file) => git(["hash-object", "--", file]).trim();
@@ -594,7 +600,7 @@ function build({ shared = false } = {}) {
   }
 
   const tree = git(["write-tree"], { env }).trim();
-  const changed = lines(git(["diff", "--name-only", "HEAD", tree])).sort();
+  const changed = changedPaths("HEAD", tree).sort();
   if (JSON.stringify(changed) !== JSON.stringify(change.all)) refuse(`the tree changes [${changed.join(", ")}] and change.json names [${change.all.join(", ")}]`);
   return { tree, head: revParse("HEAD"), leftOut };
 }
@@ -790,7 +796,7 @@ async function carryOver(change, gated) {
   } catch {
     refuse(`the gated base ${gated.head} is not an ancestor of HEAD`, EXIT.movedBase);
   }
-  const landed = lines(git(["diff", "--name-only", gated.head, head]));
+  const landed = changedPaths(gated.head, head);
   const mine = landed.filter((f) => change.all.includes(f));
   if (mine.length) refuse(`a commit that landed writes this change's files (${mine.join(", ")}); gate again`, EXIT.movedBase);
   const tooling = landed.filter((f) => change.tooling.test(f));
@@ -872,7 +878,7 @@ async function commit({ carry = false } = {}) {
     want = await carryOver(change, gated);
   } else {
     const again = build();
-    if (again.tree !== gated.tree) refuse(`the tree is now ${again.tree}, and ${gated.tree} is what passed:\n${git(["diff", "--stat", gated.tree, again.tree])}`);
+    if (again.tree !== gated.tree) refuse(`the tree is now ${again.tree}, and ${gated.tree} is what passed:\n${git(["diff", "--no-renames", "--stat", gated.tree, again.tree])}`);
   }
   await leakScan([...Object.keys(change.files), ...change.added], want.tree);
 
