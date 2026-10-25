@@ -12,7 +12,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { BOOKS } from "../../scripts/importer/books.mjs";
 import {
-  SCENE_ZONE_KIND, ZONE_FIGURES, bandOfSection, gridProblems, recipeContext, recipeProblems, zoneProblems,
+  SCENE_LINK_KIND, SCENE_ZONE_KIND, ZONE_FIGURES, bandOfSection, gridProblems, isLinkRow, recipeContext, recipeProblems, zoneProblems,
 } from "../../scripts/importer/scene-binding.mjs";
 import { regionGroupOf } from "../../scripts/importer/poi-binding.mjs";
 import { wallsProblems, wallsWarnings } from "../../scripts/importer/wall-trace.mjs";
@@ -675,6 +675,13 @@ if (fs.existsSync(COOKBOOK)) {
         for (const [field, instr] of Object.entries(sc.zone?.fields ?? {})) {
           if (instr.op !== "value" || !PATTERNS.has(instr.pattern)) err(`${label}: scenes.${id}.${field} must be a value instruction with a known pattern`);
         }
+        continue;
+      }
+      // A link is ids and boxes; its ends are checked against every book's
+      // recipes by the coherence suite.
+      if (sc.kind === SCENE_LINK_KIND) {
+        if (!isLinkRow(sc)) err(`${label}: scenes.${id} is a link with no mode or fewer than two ends`);
+        if (sc.link?.note !== undefined || (sc.link?.ends ?? []).some((end) => end?.note !== undefined)) err(`${label}: scenes.${id} ships its authoring note`);
         continue;
       }
       if (sc.kind !== "kind.scene") err(`${label}: scenes.${id} has kind "${sc.kind}"`);

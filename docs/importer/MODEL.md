@@ -342,6 +342,74 @@ offset, `getVertices` per kept cell), snapped by `offsetsInside`, and a zone
 holding no cell is refused; on a square or gridless map the outline is the
 shape. The Region is named `Zone <n> (<book short>)` from a lang key.
 
+### A way between maps
+
+A `kind.sceneLink` row (`register/_kinds/sceneLink.json`) joins boxes on scene
+recipes, which may be two books'. It is named `Link <n>` with the id
+`<book>.link<n>`, has no text anchor, and carries a `link` block:
+
+- `mode` — `teleport` (from one map to another, or to another spot of one)
+  or `level` (between the storeys of one plan of storeys).
+- `ends` — two or more `{scene, box, level?, place?}`: the recipe's id, a box
+  in page points on the storey `level` names (0, the recipe's crop, when
+  absent), and optionally the `kind.location` row the end stands for.
+- `both` — false when only the first end leads anywhere; else every end
+  leads to every other.
+- `confirm` — true when the end asks before it moves a token.
+
+`sceneLinkProblems` (`tools/importer/register-rules.mjs`) holds the row to
+that shape: a storey the scene has, a box on that storey's crop, a place that
+is a location, and a `level` row's ends on one scene, each on a different
+storey and on one spot once carried to the first storey. `compileSceneLink`
+files it under the cookbook's `scenes` beside the recipes and zones
+(`isLinkRow`), its notes dropped. `test-cookbook-coherence` asserts what one
+compile cannot see: every end's scene is a compiled recipe in some cookbook,
+and its box lies on that recipe's storey.
+
+The map step joins the links after its last zone (`joinLinks`), and
+`cookbookImportLinks` runs that pass alone. It reads every cookbook's link
+rows, open or not, against the maps the world holds (`heldMapOf`). A row
+naming a map no cookbook carries is refused (`linksRefused`); one naming a
+map the world does not hold yet waits (`linksWaiting`), and the notification
+names the books whose maps it waits for.
+
+Each distinct end is one Region, however many rows name it
+(`linkEndKey`: the scene, the storey, and the box carried to the first
+storey by `linkBoxOnFirstStorey`). `linkRect` carries the box through the
+map's live frame, at least one cell each way, and `linkRegionData` shapes
+the Region: visible to the GM only, locked, one rectangle, flagged with the
+end's key, the rows naming it and the book.
+
+- A `teleport` end's Region holds core's `teleportToken`, on its storey's
+  level alone (`storeyLevelOf`), since core refuses a destination standing
+  on several levels of a scene. Its destinations are the Regions of the ends
+  it leads to, set once every Region exists. It asks first (`choice`) where
+  it leads to several, where a row says `confirm`, and on a region's map
+  (`isRegionRecipe`), so a journey crossing the hex is not diverted; the
+  question is a lang key (`LINK_ASK`) core formats with the token, region
+  and scene.
+- A `level` row is one Region over every storey it names, holding core's
+  `changeLevel`, which asks a token entering it which storey to take and
+  keeps its position.
+
+A Region is named for the place its end stands for, as this world names that
+place, else `Link <n>`, and a compass word (`compassOf`), so that the options
+a choice offers are told apart. Ends on one map under one name are placed by
+thirds of the rectangle they span together (`spanOf`); an end alone under its
+name, by thirds of the picture.
+
+A map already carrying a Region flagged with an end's key holds it
+(`linksHeld`). Its teleport's destinations are read as core reads them,
+relative to the behaviour, and those that no longer resolve are dropped,
+those missing are added, and a teleport that comes to lead to several is
+made to ask (`linksRepaired`). A destination the Judge added stays, and a
+behaviour the Judge removed is not put back.
+
+The book's Adventure carries a link Region as it carries a zone's. Core
+stores a destination relative to the behaviour that names it, so the
+Adventure keeps the world's scene and Region ids, which are the ids it
+imports under.
+
 ### A region's places
 
 A region's gazetteer is not a settlement. Its rows sit under two whole group

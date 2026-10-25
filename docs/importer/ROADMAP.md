@@ -1153,10 +1153,21 @@ What each book still owes, in the order it is worth doing:
 - **A delve on a hex plan.** The fort's overview is explored a turn at a
   time on a hex lattice, so the party's formation is laid on hex cells. No
   live walk has delved one yet.
-- **Stairs between storeys.** A plate of storeys is a level per storey
-  (AX1 p.10), and a token changes storey through core's level controls. A
-  region on the drawn stairs that moves a token to the storey above or below
-  would take it there by walking.
+- **The rest of AX1's ways between maps.** The first link rows join the
+  region to the fort and to the first level, the two levels by two stairs,
+  the fort's four towers to the tower plan, and the tower's storeys
+  (DECISIONS 2026-10-25). Left:
+  - the fort's gates to the gatehouse plans, and its blocks and buildings to
+    theirs;
+  - the wall walks between the towers' and the gatehouses' upper storeys,
+    the only way to a gatehouse's upper storey;
+  - the shaft from the first level's key 42 to the second level's key 20,
+    and the way between the first level's key 75 and the second's key 1;
+  - the later book's site that is the first level (`ax3.site27`), on that
+    book's region map, to the first level's plan.
+- **A twin Adventure's links.** An Adventure imported where its scenes take
+  other ids keeps destinations naming the world's Regions, and the link pass
+  never visits it.
 
 ## The OSR Catgirl: what the first cut leaves
 

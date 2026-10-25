@@ -7925,7 +7925,8 @@ one squared grid: the gatehouse in two storeys, the tower in three.
 
 *Cost:*
 - A token changes storey through core's level controls. Stairs that move it
-  are not wired (ROADMAP).
+  are not wired (ROADMAP). *(Wired 2026-10-25 by "The map step joins the
+  maps by their link rows".)*
 - The plates draw their walls as hatching, so the storeys are wall-less, as
   the block plans are (ROADMAP). *(Superseded 2026-10-25 by "The hatched
   plans and the storeys stand walls": each storey's walls stand on its
@@ -8133,3 +8134,65 @@ Supersedes 2026-10-17's "The hatched-wall plans stay wall-less" and
   tower's, read as rock joined to the wall, so a token cannot step onto a
   drawn stair; a link between storeys (ROADMAP) stands beside it.
 - `HATCH_CLOSE` and `HATCH_SPECK` are fitted on p10's two buildings.
+
+## 2026-10-25 — The map step joins the maps by their link rows
+
+Builds on 2026-10-17's "Maps are joined as scenes, and Levels only stack
+storeys", which ruled the link row and left its pass unbuilt.
+
+**Evidence.**
+- Core v14 (`client/data/region-behaviors/teleport-token.mjs`) stores a
+  destination relative to the behaviour naming it and resolves it with
+  `fromUuidSync(uuid, {relative})`. It asks only through `choice`, formats
+  `dialog.revealed` with the token, the Region and the scene, and lists
+  destinations on one scene by the Region's name alone.
+- Core refuses a destination Region on more than one level of a scene, and
+  `changeLevel` asks a token entering it which of its levels to take,
+  keeping its position.
+- On AX1's fort plan the four towers' ends lie in the middle third of the
+  picture across, two in the top third and two in the middle third down, so
+  thirds of the picture name them as two pairs.
+
+**Ruled.**
+- **The map step joins the links** after its last zone, over every
+  cookbook's link rows, and `cookbookImportLinks` runs that pass alone. There
+  is no Judge step of its own: a link is ids and boxes, and its maps exist
+  only once the map step has run.
+- **One Region per end**, keyed by its map, its storey and its box carried
+  to the first storey. Ends that rows share are one Region leading to every
+  other end, and it asks which.
+- **A stair between storeys is one Region over them, with `changeLevel`**,
+  on the cell beside the drawn stair, which the trace reads as rock (the
+  entry before this one). A stair between two plans is a `teleport` row, one
+  end on each plan's stair.
+- **A teleport asks** where it leads to several, where its row says
+  `confirm`, and on a region's map. The question is a lang key core formats.
+- **Destinations are kept as core stores them.** The book's Adventure
+  carries a link Region from the world's map as it carries a zone, its
+  scenes under the world's ids, which are the ids it imports under.
+- **A Region is named for its end's place**, else `Link <n>`, **and a
+  compass word**: ends on one map under one name by thirds of the rectangle
+  they span together, an end alone by thirds of the picture.
+- **A held Region is repaired, never rebuilt.** Dead destinations go,
+  missing ones are added, and a destination the Judge added stays.
+- **AX1's first rows**: the region to the fort and to the first level, the
+  two levels by two stairs, the fort's four towers to the one tower plan,
+  and the tower's stair between its storeys. The rest follow once these
+  are walked live.
+
+*Rejected:*
+- **A link step for the Judge.** It would decide nothing a Judge can.
+- **A slot in `slotsOf` re-pointing destinations.** The Adventure imports
+  under the world's ids, so a stored destination resolves as it stands.
+- **Thirds of the picture alone** for the compass word: the towers' choice
+  would offer two pairs of identical names.
+
+*Cost:*
+- An Adventure imported where its scenes take other ids, a twin beside the
+  maps it was written from, keeps destinations naming the world's Regions.
+  The link pass reads the import before any copy (`heldMapOf`), so it never
+  re-points the twin.
+- The gatehouse's upper storey has no stair inside; it is reached by the
+  wall walks from the towers, which wait with the rest of AX1's ways
+  (ROADMAP).
+- Each box is read off the Judge's page by an author, as a zone's outline is.

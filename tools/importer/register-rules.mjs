@@ -223,7 +223,12 @@ export function siteProblems(e, bookId) {
 
 /** The keys a scene link's block, and each of its ends, may carry. */
 const LINK_KEYS = new Set(["mode", "ends", "both", "confirm", "note"]);
-const END_KEYS = new Set(["scene", "box", "level", "note"]);
+const END_KEYS = new Set(["scene", "box", "level", "place", "note"]);
+/** How far apart, in page points, the boxes of a level link's ends may sit once each is carried to the first storey. */
+const LEVEL_BOX_SLACK = 0.5;
+
+/** The page corner of storey `level` of a scene recipe: its crop's for 0, else that `levels` corner. */
+const storeyCorner = (scene, level) => (level ? scene?.levels?.[level - 1] : scene?.crop);
 /** How a link moves a token: to another scene, or to another level of one. */
 export const LINK_MODES = Object.freeze(["teleport", "level"]);
 
@@ -247,10 +252,13 @@ export function regionMapProblems(rows) {
 
 /**
  * A scene link's block, against every row (`rows`: id -> row). Each end names
- * a scene row of any book, a box in that scene's page points, and optionally a
- * level, a storey ordinal of a scene that has levels. A `level` link joins two
- * or more levels of one scene. The block names everything by id or number, so
- * no printed word can ride in it.
+ * a scene row of any book, a box in that scene's page points lying on the
+ * storey it is drawn on, optionally a level (a storey ordinal of a scene that
+ * has `levels`: 0 is the crop's storey, n the n-th corner) and optionally the
+ * place it stands for, a location row. A `level` link joins two or more levels
+ * of one scene through one box, so its ends' boxes coincide once each is
+ * carried to the first storey. The block names everything by id or number,
+ * so no printed word can ride in it.
  */
 export function sceneLinkProblems(e, rows) {
   const out = [];
@@ -270,12 +278,20 @@ export function sceneLinkProblems(e, rows) {
       out.push(`${id}: ${at}.box is {x0, x1, y0, y1} with x0 < x1 and y0 < y1`);
     }
     if (end.level !== undefined && !(Number.isInteger(end.level) && end.level >= 0)) out.push(`${id}: ${at}.level is a storey ordinal, 0 or more`);
+    if (end.place !== undefined) {
+      const place = rows.get(end.place);
+      if (typeof end.place !== "string" || !ROW_ID.test(end.place)) out.push(`${id}: ${at}.place is a location row's id`);
+      else if (place?.kind !== "kind.location") out.push(`${id}: ${at}.place names ${end.place}, which is no location row`);
+    }
     const scene = typeof end.scene === "string" ? rows.get(end.scene) : undefined;
-    if (typeof end.scene !== "string" || !ROW_ID.test(end.scene)) out.push(`${id}: ${at}.scene is a scene row's id`);
-    else if (scene?.kind !== "kind.scene") out.push(`${id}: ${at}.scene names ${end.scene}, which is no scene row`);
-    else if (end.level !== undefined) {
-      const levels = Array.isArray(scene.scene?.levels) ? scene.scene.levels.map((l) => l?.key) : [];
-      if (!levels.includes(end.level)) out.push(`${id}: ${at}.level ${end.level} is not a level of ${end.scene}`);
+    if (typeof end.scene !== "string" || !ROW_ID.test(end.scene)) return void out.push(`${id}: ${at}.scene is a scene row's id`);
+    if (scene?.kind !== "kind.scene") return void out.push(`${id}: ${at}.scene names ${end.scene}, which is no scene row`);
+    const storeys = Array.isArray(scene.scene?.levels) && scene.scene.levels.length ? scene.scene.levels.length + 1 : 0;
+    if (end.level !== undefined && Number.isInteger(end.level) && end.level >= storeys) out.push(`${id}: ${at}.level ${end.level} is not a level of ${end.scene}`);
+    const corner = storeyCorner(scene.scene, Number.isInteger(end.level) ? end.level : 0);
+    const crop = scene.scene?.crop;
+    if (b && crop && isNum(corner?.x) && isNum(corner?.y) && (b.x0 < corner.x || b.y0 < corner.y || b.x1 > corner.x + crop.w || b.y1 > corner.y + crop.h)) {
+      out.push(`${id}: ${at}.box does not lie on ${end.scene}'s ${end.level ? `storey ${end.level}` : "picture"}`);
     }
   });
   if (link.mode === "level") {
@@ -283,6 +299,15 @@ export function sceneLinkProblems(e, rows) {
     const levels = link.ends.map((end) => end?.level);
     if (scenes.size !== 1) out.push(`${id}: a level link joins levels of one scene`);
     if (levels.some((l) => l === undefined) || new Set(levels).size !== levels.length) out.push(`${id}: every end of a level link names a different level`);
+    const scene = rows.get(link.ends[0]?.scene)?.scene;
+    const firstStorey = link.ends.map((end) => {
+      const corner = storeyCorner(scene, end?.level);
+      const b = end?.box;
+      return corner && b ? [b.x0 - corner.x, b.y0 - corner.y, b.x1 - corner.x, b.y1 - corner.y] : null;
+    });
+    if (scenes.size === 1 && firstStorey.every(Boolean) && firstStorey.some((r) => r.some((v, k) => Math.abs(v - firstStorey[0][k]) > LEVEL_BOX_SLACK))) {
+      out.push(`${id}: a level link's ends stand on one spot of every storey, so their boxes coincide once each is carried to the first storey`);
+    }
   }
   return out;
 }

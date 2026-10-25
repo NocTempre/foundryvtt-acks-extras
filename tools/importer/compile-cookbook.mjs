@@ -26,7 +26,7 @@ import { openBook, pageItems as extractPageItems, listHeadings, detectColumns, c
 import { runsIn, joinRuns, attackModel } from "../../scripts/importer/executor.mjs";
 import { rowsByY, slugLabel } from "../../scripts/importer/table-extract.mjs";
 import { BOOKS, citeFor, fingerprintWarning } from "../../scripts/importer/books.mjs";
-import { SCENE_ZONE_KIND, ZONE_FIGURES, placementHolding, recipeContext, recipeProblems, zoneProblems } from "../../scripts/importer/scene-binding.mjs";
+import { SCENE_LINK_KIND, SCENE_ZONE_KIND, ZONE_FIGURES, placementHolding, recipeContext, recipeProblems, zoneProblems } from "../../scripts/importer/scene-binding.mjs";
 import { wallsWarnings } from "../../scripts/importer/wall-trace.mjs";
 import { caseCarriesNothing, opensWithNumber, printKey } from "../../scripts/importer/printed-name.mjs";
 import { FILES, OSE_FILES } from "./reference-lib.mjs";
@@ -3971,6 +3971,20 @@ async function compileSceneZone(doc, entry, compiled) {
   };
 }
 
+/**
+ * kind.sceneLink — a way between boxes on two or more scene recipes, which may
+ * be other books'. Geometry and ids only, so it passes through less its
+ * authoring notes; the lint checks it against every scene row, and the
+ * coherence test against every compiled recipe.
+ */
+function compileSceneLink(entry) {
+  const { note: _note, ends = [], ...link } = entry.link ?? {};
+  return {
+    kind: entry.kind, name: entry.name, cite: citeFor(entry.book, entry.pages[0]), pages: entry.pages,
+    link: { ...link, ends: ends.map(({ note: _endNote, ...end }) => end) },
+  };
+}
+
 /* -------------------------------------------- */
 /*  Class compilation (kind.class)              */
 /* -------------------------------------------- */
@@ -6293,7 +6307,7 @@ async function main() {
         }
         continue;
       }
-      if (entry.kind === "kind.scene" || entry.kind === SCENE_ZONE_KIND) {
+      if (entry.kind === "kind.scene" || entry.kind === SCENE_ZONE_KIND || entry.kind === SCENE_LINK_KIND) {
         // Compiled last, over what the rest of the book compiled to.
         pendingScenes.push(entry);
         continue;
@@ -6460,6 +6474,12 @@ async function main() {
           const zone = await compileSceneZone(doc, entry, out.entries);
           (out.scenes ??= {})[entry.id] = zone;
           console.error(`OK   ${entry.id}: scene zone over ${zone.zone.scene} (${Object.keys(zone.zone.fields).length} figure(s))`);
+          continue;
+        }
+        if (entry.kind === SCENE_LINK_KIND) {
+          const link = compileSceneLink(entry);
+          (out.scenes ??= {})[entry.id] = link;
+          console.error(`OK   ${entry.id}: scene link (${link.link.mode}, ${link.link.ends.length} end(s))`);
           continue;
         }
         const scene = await compileScene(doc, entry, out.entries);

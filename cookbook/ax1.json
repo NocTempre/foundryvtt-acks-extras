@@ -31761,6 +31761,146 @@
         ]
       }
     },
+    "ax1.link5": {
+      "kind": "kind.sceneLink",
+      "name": "Link 5",
+      "cite": "AX1 p.5",
+      "pages": [
+        6,
+        10
+      ],
+      "link": {
+        "mode": "teleport",
+        "ends": [
+          {
+            "scene": "ax1.fortMap",
+            "box": {
+              "x0": 203.5,
+              "x1": 227.5,
+              "y0": 152.5,
+              "y1": 174.5
+            },
+            "place": "ax1.fort5-8"
+          },
+          {
+            "scene": "ax1.fort5-8Map",
+            "box": {
+              "x0": 283,
+              "x1": 297,
+              "y0": 329,
+              "y1": 343
+            },
+            "level": 0,
+            "place": "ax1.fort5-8"
+          }
+        ]
+      }
+    },
+    "ax1.link6": {
+      "kind": "kind.sceneLink",
+      "name": "Link 6",
+      "cite": "AX1 p.5",
+      "pages": [
+        6,
+        10
+      ],
+      "link": {
+        "mode": "teleport",
+        "ends": [
+          {
+            "scene": "ax1.fortMap",
+            "box": {
+              "x0": 367,
+              "x1": 391,
+              "y0": 160,
+              "y1": 182
+            },
+            "place": "ax1.fort5-8"
+          },
+          {
+            "scene": "ax1.fort5-8Map",
+            "box": {
+              "x0": 283,
+              "x1": 297,
+              "y0": 329,
+              "y1": 343
+            },
+            "level": 0,
+            "place": "ax1.fort5-8"
+          }
+        ]
+      }
+    },
+    "ax1.link7": {
+      "kind": "kind.sceneLink",
+      "name": "Link 7",
+      "cite": "AX1 p.5",
+      "pages": [
+        6,
+        10
+      ],
+      "link": {
+        "mode": "teleport",
+        "ends": [
+          {
+            "scene": "ax1.fortMap",
+            "box": {
+              "x0": 364,
+              "x1": 388,
+              "y0": 249,
+              "y1": 271
+            },
+            "place": "ax1.fort5-8"
+          },
+          {
+            "scene": "ax1.fort5-8Map",
+            "box": {
+              "x0": 283,
+              "x1": 297,
+              "y0": 329,
+              "y1": 343
+            },
+            "level": 0,
+            "place": "ax1.fort5-8"
+          }
+        ]
+      }
+    },
+    "ax1.link8": {
+      "kind": "kind.sceneLink",
+      "name": "Link 8",
+      "cite": "AX1 p.5",
+      "pages": [
+        6,
+        10
+      ],
+      "link": {
+        "mode": "teleport",
+        "ends": [
+          {
+            "scene": "ax1.fortMap",
+            "box": {
+              "x0": 203.5,
+              "x1": 227.5,
+              "y0": 249,
+              "y1": 271
+            },
+            "place": "ax1.fort5-8"
+          },
+          {
+            "scene": "ax1.fort5-8Map",
+            "box": {
+              "x0": 283,
+              "x1": 297,
+              "y0": 329,
+              "y1": 343
+            },
+            "level": 0,
+            "place": "ax1.fort5-8"
+          }
+        ]
+      }
+    },
     "ax1.fort1Map": {
       "kind": "kind.scene",
       "name": "Fort 1 Map",
@@ -32004,6 +32144,49 @@
           "mode": "hatch",
           "threshold": 160
         }
+      }
+    },
+    "ax1.link9": {
+      "kind": "kind.sceneLink",
+      "name": "Link 9",
+      "cite": "AX1 p.9",
+      "pages": [
+        10
+      ],
+      "link": {
+        "mode": "level",
+        "ends": [
+          {
+            "scene": "ax1.fort5-8Map",
+            "box": {
+              "x0": 247.3,
+              "x1": 262.7,
+              "y0": 346,
+              "y1": 361.4
+            },
+            "level": 0
+          },
+          {
+            "scene": "ax1.fort5-8Map",
+            "box": {
+              "x0": 247.3,
+              "x1": 262.7,
+              "y0": 206.99,
+              "y1": 222.39
+            },
+            "level": 1
+          },
+          {
+            "scene": "ax1.fort5-8Map",
+            "box": {
+              "x0": 247.3,
+              "x1": 262.7,
+              "y0": 85.36,
+              "y1": 100.76
+            },
+            "level": 2
+          }
+        ]
       }
     },
     "ax1.fort9Map": {
@@ -33603,6 +33786,74 @@
         ]
       }
     },
+    "ax1.link1": {
+      "kind": "kind.sceneLink",
+      "name": "Link 1",
+      "cite": "AX1 p.32",
+      "pages": [
+        33,
+        6
+      ],
+      "link": {
+        "mode": "teleport",
+        "ends": [
+          {
+            "scene": "ax1.regionMap",
+            "box": {
+              "x0": 280,
+              "x1": 298.9,
+              "y0": 385.7,
+              "y1": 413.7
+            },
+            "place": "ax1.fort"
+          },
+          {
+            "scene": "ax1.fortMap",
+            "box": {
+              "x0": 230,
+              "x1": 254,
+              "y0": 441,
+              "y1": 463
+            },
+            "place": "ax1.fort"
+          }
+        ]
+      }
+    },
+    "ax1.link2": {
+      "kind": "kind.sceneLink",
+      "name": "Link 2",
+      "cite": "AX1 p.32",
+      "pages": [
+        33,
+        38
+      ],
+      "link": {
+        "mode": "teleport",
+        "ends": [
+          {
+            "scene": "ax1.regionMap",
+            "box": {
+              "x0": 329.2,
+              "x1": 348.1,
+              "y0": 300.4,
+              "y1": 328.4
+            },
+            "place": "ax1.l1"
+          },
+          {
+            "scene": "ax1.level1Map",
+            "box": {
+              "x0": 305.49,
+              "x1": 332.46,
+              "y0": 742.28,
+              "y1": 755.78
+            },
+            "place": "ax1.l1"
+          }
+        ]
+      }
+    },
     "ax1.zone1": {
       "kind": "kind.sceneZone",
       "name": "Zone 1",
@@ -34611,6 +34862,74 @@
             }
           ]
         }
+      }
+    },
+    "ax1.link3": {
+      "kind": "kind.sceneLink",
+      "name": "Link 3",
+      "cite": "AX1 p.37",
+      "pages": [
+        38,
+        55
+      ],
+      "link": {
+        "mode": "teleport",
+        "ends": [
+          {
+            "scene": "ax1.level1Map",
+            "box": {
+              "x0": 386.41,
+              "x1": 399.9,
+              "y0": 553.3,
+              "y1": 566.8
+            },
+            "place": "ax1.l1-18"
+          },
+          {
+            "scene": "ax1.level2Map",
+            "box": {
+              "x0": 454.67,
+              "x1": 469.68,
+              "y0": 620.99,
+              "y1": 636
+            },
+            "place": "ax1.l2-29"
+          }
+        ]
+      }
+    },
+    "ax1.link4": {
+      "kind": "kind.sceneLink",
+      "name": "Link 4",
+      "cite": "AX1 p.37",
+      "pages": [
+        38,
+        55
+      ],
+      "link": {
+        "mode": "teleport",
+        "ends": [
+          {
+            "scene": "ax1.level1Map",
+            "box": {
+              "x0": 494.31,
+              "x1": 521.29,
+              "y0": 161.85,
+              "y1": 175.35
+            },
+            "place": "ax1.l1-53"
+          },
+          {
+            "scene": "ax1.level2Map",
+            "box": {
+              "x0": 529.73,
+              "x1": 559.75,
+              "y0": 140.61,
+              "y1": 155.62
+            },
+            "place": "ax1.l2-18"
+          }
+        ]
       }
     },
     "ax1.zone2": {

@@ -2717,6 +2717,88 @@ step rewrites their Adventures, so leave it to that walk.
    changed (zero) and the sweep result.
 3. Log the pane out, so the seat is free for the next session.
 
+## A way between maps
+
+The map step joins a book's link rows into Regions after its last zone (MODEL,
+"A way between maps"). `test-scene-binding`, `test-register-rules` and
+`test-cookbook-coherence` pin the shapes offline. Only a live run proves that
+core takes the Regions, that a token is carried where the rows say, and that
+the Adventure carries them. `tools/live/importer-ax1.mjs` walks it as section
+2e and in 3b.
+
+### Fixtures
+
+1. The GM seat and the Player seat, and a character the Player owns.
+2. Every map the links name, made by the map step with the places in the
+   library, so each Region is named for its place. A map the world held
+   before the run is the owner's, made again only under `HELD_OK=1`.
+3. Each token of the character on a map, made beside a link end on the GM
+   seat and tracked; a token a teleport makes on another map keeps its id
+   there, so read each token's uuid back after every hop and track it.
+
+### Steps
+
+1. Read the map step's counts. *Observable:* `links` is the number of
+   distinct ends (rows sharing an end count it once; a level row is one), and
+   `linksWaiting` and `linksRefused` are 0.
+2. Census the Regions flagged `cookbook.link`, reading each destination with
+   `fromUuidSync(uuid, {relative: behaviour})`, as core does. *Observable:*
+   - one Region per end, GM-only and locked, on its map, with one behaviour;
+   - a teleport end on a plan of storeys carries its storey's one level, and
+     on any other map none; a level row's Region carries every storey it
+     names and holds `changeLevel`;
+   - each teleport leads to exactly the ends its rows name. It asks where it
+     leads to several (`LINK_ASK.several`), where a row says `confirm`, and
+     on the region's map (`LINK_ASK.one`); otherwise it does not ask;
+   - no two link Regions on one map share a name.
+
+   Record one stored destination as it stands: it shows the form the
+   Adventure carries.
+3. Run `cookbookImportLinks()`. *Observable:* `links` 0, `linksHeld` the
+   number of ends, `linksRepaired` 0.
+4. The DELETE path: delete one end whose partner leads only to it, and run
+   the pass again. *Observable:* before the run the partner's destination
+   resolves to nothing; after it, `links` 1, `linksRepaired` 1, and step 2's
+   census holds again.
+5. Hops from the **Player** seat. Drive each with `TokenDocument#move` and
+   `constrainOptions: {ignoreWalls: true}`, fired and not awaited: core holds
+   a move a question paused until the question is answered. The question is
+   a `DialogV2` on the mover's client with the id
+   `dialog-<behaviour uuid>-<token id>`. It carries a `destination` select
+   when it offers several ends, with options labelled by Region name when
+   they share a map, or a `level` select for a change of storey; press
+   `button[data-action="yes"]` or `"no"`. A token's `regions` set says which
+   ends its middle stands in. *Observable:*
+   - walked onto a stair between two plans, the token stands on the other
+     plan's stair and none is left behind; walked off that stair and onto it
+     again, it is back;
+   - walked into one of the ends sharing a way in, it arrives on that way in,
+     on its storey, unasked. Walked off it and back on, the Player is asked
+     which end; each option's compass word differs, and the token arrives at
+     the end picked;
+   - walked onto the stair between storeys, the Player is asked which
+     storey and the token stands on the stair of the storey picked;
+   - on the region's map, walked into a way, the Player is asked first, and
+     answered no, the token stays on the region's map.
+6. Frame each end on a walled plan on the GM's canvas and shoot `#board`.
+   *Observable, by eye:* the Region lies on its drawn way, and the floor
+   beside it is open, since the hops ignore walls. These frames show the
+   Judge's page: keep them local.
+7. Write the book's Adventure, delete every plan but one, and import the
+   Adventure from its sheet ("A book lands in the library as one
+   Adventure"). *Observable:* step 2's census holds, the plan that stayed
+   included.
+
+A party's formation across a hop is formation's own recipe
+(`docs/formation/TESTING.md`, "A teleport between scenes"); a link Region is
+the same core behaviour.
+
+### Teardown
+
+1. Delete the character's tokens by the uuids read back, then sweep the run's
+   ledger; a link Region goes with its map.
+2. Delete the Player's explored fog on every map a token stood on, by id.
+
 ## The region's adventures: their tables and monsters
 
 The adventure books' tables, legacy stat-block monsters and encounter zones

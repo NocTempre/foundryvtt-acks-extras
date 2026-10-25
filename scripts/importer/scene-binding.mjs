@@ -16,7 +16,8 @@
  * Judge's page at import (`wall-trace.mjs`); the walls themselves never ship.
  * A zone row
  * (`kind.sceneZone`) lays one book's rule over another book's recipe as an
- * outline on the target page.
+ * outline on the target page, and a link row (`kind.sceneLink`) joins boxes on
+ * two or more recipes, any book's, as Regions that move a token between them.
  *
  * Everything here is arithmetic and data shapes. The importer supplies the
  * documents (the world's places, the imported tables, the uploaded picture)
@@ -24,7 +25,7 @@
  * same checks, so a recipe that drifted from its page fails before a Judge
  * meets it.
  */
-import { MODULE_ID } from "./constants.mjs";
+import { LANG_PREFIX, MODULE_ID } from "./constants.mjs";
 import { SCENE_LINK_FLAG } from "../location/constants.mjs";
 import { isKeyedPlace, isPoiEntry, isRegionSite, keySpacesOf, poiGroupOf } from "./poi-binding.mjs";
 import { hash36 } from "./printed-name.mjs";
@@ -40,6 +41,9 @@ export const SCENE_KIND = "kind.scene";
 
 /** The register kind a zone laid over a scene recipe is filed under. */
 export const SCENE_ZONE_KIND = "kind.sceneZone";
+
+/** The register kind a way between two scene recipes is filed under. */
+export const SCENE_LINK_KIND = "kind.sceneLink";
 
 /** The grid a scene is given: gridless, one cell to a hundred feet. A grid recipe's cell defaults to the same size. */
 const GRID_PIXELS = 100;
@@ -94,6 +98,9 @@ export const isSceneRecipe = (row) => row?.kind === SCENE_KIND && !!row?.scene?.
 
 /** Whether a cookbook scene row is a zone laid over a recipe rather than a recipe. */
 export const isZoneRow = (row) => row?.kind === SCENE_ZONE_KIND && typeof row?.zone?.scene === "string" && !!row.zone.scene;
+
+/** Whether a cookbook scene row is a link between recipes: a mode and two or more ends. */
+export const isLinkRow = (row) => row?.kind === SCENE_LINK_KIND && typeof row?.link?.mode === "string" && Array.isArray(row?.link?.ends) && row.link.ends.length >= 2;
 
 /** The Foundry cell size a recipe is built on, in pixels: its grid's `pixels`, else the gridless default. */
 const cellPixels = (recipe) => (Number.isInteger(recipe?.grid?.pixels) && recipe.grid.pixels > 0 ? recipe.grid.pixels : GRID_PIXELS);
@@ -871,6 +878,117 @@ export function zoneMovedBy(zone, by, offsetOf = null) {
     : hexes;
   if (!("zoneHexes" in own)) return { ...zone, shapes };
   return { ...zone, shapes, flags: { ...zone.flags, [MODULE_ID]: { ...own, zoneHexes: reread } } };
+}
+
+/** The page corner of storey `level` of a recipe: its crop's for 0, else that corner of `levels`. */
+const storeyCorner = (recipe, level) => (level > 0 ? recipe?.levels?.[level - 1] : recipe?.crop) ?? null;
+
+/**
+ * A link end's box carried to the storey its recipe's frame is drawn from:
+ * the box less its own storey's corner, plus the crop's. Null when the recipe
+ * has no such storey.
+ * @returns {{x0: number, x1: number, y0: number, y1: number}|null}
+ */
+export function linkBoxOnFirstStorey(box, recipe, level = 0) {
+  const from = storeyCorner(recipe, Number(level) || 0);
+  const to = recipe?.crop;
+  if (!from || !to || !isNum(from.x) || !isNum(from.y)) return null;
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  return { x0: box.x0 + dx, x1: box.x1 + dx, y0: box.y0 + dy, y1: box.y1 + dy };
+}
+
+/** The canvas rectangle a box in page points covers through a frame, at least one cell of `frame.gridPixels` each way. */
+export function linkRect(box, frame) {
+  const corners = [[box.x0, box.y0], [box.x1, box.y1]].map(([x, y]) => frame.toScene(x, y));
+  const cell = frame.gridPixels ?? GRID_PIXELS;
+  const span = (a, b) => {
+    const size = Math.max(Math.abs(b - a), cell);
+    return [Math.round((a + b) / 2 - size / 2), Math.round(size)];
+  };
+  const [x, width] = span(corners[0][0], corners[1][0]);
+  const [y, height] = span(corners[0][1], corners[1][1]);
+  return { x, y, width, height };
+}
+
+/** The nine words of `compassOf`, from the top-left by rows. */
+export const COMPASS = Object.freeze(["nw", "n", "ne", "w", "c", "e", "sw", "s", "se"]);
+
+/** Where a rectangle's middle sits on an area, by thirds of it: one of `COMPASS`. */
+export function compassOf(rect, area) {
+  const third = (at, from, size) => (size > 0 ? Math.min(2, Math.max(0, Math.floor(((at - from) / size) * 3))) : 1);
+  const col = third(rect.x + rect.width / 2, area.x, area.width);
+  const row = third(rect.y + rect.height / 2, area.y, area.height);
+  return COMPASS[row * 3 + col];
+}
+
+/** The rectangle a set of rectangles spans together; null for none. */
+export function spanOf(rects) {
+  if (!rects.length) return null;
+  const x = Math.min(...rects.map((r) => r.x));
+  const y = Math.min(...rects.map((r) => r.y));
+  return { x, y, width: Math.max(...rects.map((r) => r.x + r.width)) - x, height: Math.max(...rects.map((r) => r.y + r.height)) - y };
+}
+
+/**
+ * A link end's identity: its scene, storey and box carried to the first
+ * storey (`linkBoxOnFirstStorey`), so that two rows naming one spot share it.
+ * A level link's one region is keyed by its scene and that box alone.
+ */
+export function linkEndKey(scene, box, level = null) {
+  const r = (v) => Math.round(Number(v) * 100) / 100;
+  return `${scene}|${level === null ? "levels" : Number(level) || 0}|${[box.x0, box.y0, box.x1, box.y1].map(r).join(",")}`;
+}
+
+/** The lang keys a link's teleport asks with: one way on, or a choice between several. */
+export const LINK_ASK = Object.freeze({ one: `${LANG_PREFIX}.ui.sceneLinkAsk`, several: `${LANG_PREFIX}.ui.sceneLinkAskWhich` });
+
+/**
+ * Region data for one end of a scene link: the rectangle (`linkRect`), seen
+ * only by the GM and locked, on the levels named (none: every level of a
+ * one-level scene), carrying one behaviour.
+ *
+ * A `teleport` end carries core's `teleportToken` toward `destinations`, the
+ * other ends' region uuids, placed at random in the arrival box; it asks first
+ * when `choice` is set, through a lang key core localizes as it shows the
+ * dialog. A `level` end carries core's `changeLevel`, which offers every other
+ * level the region stands on and keeps the token's spot.
+ *
+ * @param {object} p
+ * @param {string} p.name
+ * @param {{x: number, y: number, width: number, height: number}} p.rect
+ * @param {string[]} [p.levels] the scene level ids it stands on
+ * @param {"teleport"|"level"} p.mode
+ * @param {string[]} [p.destinations]
+ * @param {boolean} [p.choice]
+ * @param {string} p.end its `linkEndKey`
+ * @param {string[]} p.links the link rows it serves
+ * @param {string} p.book the book of the first of them
+ */
+export function linkRegionData({ name, rect, levels = [], mode, destinations = [], choice = false, end, links, book }) {
+  const behavior = mode === "level"
+    ? { type: "changeLevel", name, system: { movementActions: [] } }
+    : {
+      type: "teleportToken",
+      name,
+      system: {
+        destinations: [...destinations],
+        placement: "random",
+        snap: true,
+        choice: !!choice,
+        revealed: true,
+        dialog: { revealed: choice ? (destinations.length > 1 ? LINK_ASK.several : LINK_ASK.one) : null, unrevealed: null },
+      },
+    };
+  return {
+    name,
+    visibility: REGION_VISIBILITY_GAMEMASTER,
+    locked: true,
+    shapes: [{ type: "rectangle", x: rect.x, y: rect.y, width: rect.width, height: rect.height, rotation: 0, hole: false }],
+    ...(levels.length ? { levels: [...levels] } : {}),
+    behaviors: [behavior],
+    flags: { [MODULE_ID]: { cookbook: { link: end, links: [...links], book } } },
+  };
 }
 
 /**

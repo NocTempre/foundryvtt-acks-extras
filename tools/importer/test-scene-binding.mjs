@@ -21,7 +21,7 @@ import {
   afterDarkShift, placementMatches, placementHolding, recipeContext, recipeProblems, sceneData, districtRegionData,
   placeTokenAt, worldCopySource, isWorldCopy, turnMatrix, pictureKey, storeyCrops, storeyLevelId,
   SCENE_ZONE_KIND, isZoneRow, gridScale, recipeFeetPerPoint, offsetsInside, zoneProblems, zoneRegionData, coversCrop, inCropOf,
-  GRID_SCENE_PADDING,
+  GRID_SCENE_PADDING, SCENE_LINK_KIND, isLinkRow, linkBoxOnFirstStorey, linkEndKey, linkRect, compassOf, spanOf, COMPASS, linkRegionData, LINK_ASK,
 } from "../../scripts/importer/scene-binding.mjs";
 import { readCountWord } from "../../scripts/importer/executor.mjs";
 import { MODULE_ID } from "../../scripts/importer/constants.mjs";
@@ -528,6 +528,56 @@ check("a zone with no list or figures says so with a null list and zeroes", bare
   tableUuid: null, encounterTarget: 0, encounterEvery: 0, dungeonLevel: 0, journeyCadence: "", dayThrows: 0, nightThrows: 0,
 });
 check("a cadence the behaviour does not take is written blank", zoneRegionData(soundZone(), given, { ...zoneArgs, cadence: "daily" }).behaviors[0].system.journeyCadence, "");
+
+/* ---------------- a way between maps ---------------- */
+
+const linkRow = { kind: SCENE_LINK_KIND, name: "Link 1", link: { mode: "teleport", ends: [{ scene: "zz.a", box: {} }, { scene: "zy.b", box: {} }] } };
+ok("a compiled link row is a link", isLinkRow(linkRow));
+ok("and neither a recipe nor a zone", !isSceneRecipe(linkRow) && !isZoneRow(linkRow));
+ok("a link with one end is not", !isLinkRow({ ...linkRow, link: { ...linkRow.link, ends: linkRow.link.ends.slice(1) } }));
+ok("nor is one with no mode", !isLinkRow({ ...linkRow, link: { ends: linkRow.link.ends } }));
+
+const threeStoreys = { crop: { x: 10, y: 100, w: 40, h: 30 }, levels: [{ x: 10, y: 60 }, { x: 10, y: 20 }] };
+const onFirst = { x0: 12, x1: 14, y0: 110, y1: 112 };
+check("a box on a storey above is carried to the first storey's", linkBoxOnFirstStorey({ x0: 12, x1: 14, y0: 70, y1: 72 }, threeStoreys, 1), onFirst);
+check("as is one two storeys up", linkBoxOnFirstStorey({ x0: 12, x1: 14, y0: 30, y1: 32 }, threeStoreys, 2), onFirst);
+check("a box on the first storey stays where it is", linkBoxOnFirstStorey(onFirst, threeStoreys, 0), onFirst);
+check("a storey the recipe does not have carries nowhere", linkBoxOnFirstStorey(onFirst, threeStoreys, 3), null);
+check("a level link's one region is keyed by its scene and first-storey box", linkEndKey("zz.tower", onFirst), "zz.tower|levels|12,110,14,112");
+check("a teleport end's key names its storey too", linkEndKey("zz.tower", onFirst, 2), "zz.tower|2|12,110,14,112");
+ok("so one spot on two storeys is two teleport ends", linkEndKey("zz.tower", onFirst, 0) !== linkEndKey("zz.tower", onFirst, 1));
+
+check("a box is carried through the frame", linkRect({ x0: 10, x1: 40, y0: 10, y1: 30 }, given), { x: 50, y: 50, width: 150, height: 100 });
+check("one smaller than a cell grows to a cell about its middle", linkRect({ x0: 10, x1: 12, y0: 10, y1: 12 }, given), { x: 15, y: 15, width: 80, height: 80 });
+check("and a turned map turns the box with it", linkRect({ x0: 10, x1: 40, y0: 10, y1: 30 }, sceneFrame({ ...hexRecipe(), turn: 1 }, { pixelsPerPoint: 5 })), { x: 50, y: 800, width: 100, height: 150 });
+
+const picture = { x: 0, y: 0, width: 300, height: 300 };
+check("a corner reads as a corner", compassOf({ x: 0, y: 0, width: 10, height: 10 }, picture), "nw");
+check("the middle reads as the middle", compassOf({ x: 140, y: 140, width: 20, height: 20 }, picture), "c");
+check("an edge's middle reads as that side", compassOf({ x: 140, y: 290, width: 10, height: 10 }, picture), "s");
+check("the far corner is the last word", compassOf({ x: 295, y: 295, width: 10, height: 10 }, picture), "se");
+const keep = [{ x: 100, y: 100, width: 20, height: 20 }, { x: 180, y: 100, width: 20, height: 20 }, { x: 100, y: 160, width: 20, height: 20 }, { x: 180, y: 160, width: 20, height: 20 }];
+check("four ends in a picture's middle third span one rectangle", spanOf(keep), { x: 100, y: 100, width: 100, height: 80 });
+check("and by thirds of it each reads as its own corner", keep.map((r) => compassOf(r, spanOf(keep))), ["nw", "ne", "sw", "se"]);
+check("by thirds of the picture, two of them share a word", new Set(keep.map((r) => compassOf(r, picture))).size < keep.length, true);
+check("nothing spans nothing", spanOf([]), null);
+check("there are nine words, by rows", COMPASS.length, 9);
+
+const rect = { x: 50, y: 50, width: 80, height: 80 };
+const way = { name: "Link 1, north", rect, end: "zz.a|0|1,1,2,2", links: ["zz.link1"], book: "zz" };
+const going = linkRegionData({ ...way, mode: "teleport", destinations: ["Scene.a.Region.b"] });
+check("a way is a locked rectangle only the Judge sees", [going.visibility, going.locked, going.shapes], [1, true, [{ type: "rectangle", x: 50, y: 50, width: 80, height: 80, rotation: 0, hole: false }]]);
+check("it teleports to its destinations, placed at random and snapped, asking nothing", going.behaviors[0], {
+  type: "teleportToken", name: "Link 1, north",
+  system: { destinations: ["Scene.a.Region.b"], placement: "random", snap: true, choice: false, revealed: true, dialog: { revealed: null, unrevealed: null } },
+});
+ok("and stands on every level of a one-level map", !("levels" in going));
+check("and remembers its end and the rows it serves", going.flags[MODULE_ID], { cookbook: { link: "zz.a|0|1,1,2,2", links: ["zz.link1"], book: "zz" } });
+check("one that asks names its question by lang key", linkRegionData({ ...way, mode: "teleport", destinations: ["Scene.a.Region.b"], choice: true }).behaviors[0].system.dialog.revealed, LINK_ASK.one);
+check("and a choice between several by another", linkRegionData({ ...way, mode: "teleport", destinations: ["Scene.a.Region.b", "Scene.c.Region.d"], choice: true }).behaviors[0].system.dialog.revealed, LINK_ASK.several);
+check("a way on a storey stands on its level alone", linkRegionData({ ...way, mode: "teleport", levels: [storeyLevelId(1)] }).levels, ["storey0000000001"]);
+const stair = linkRegionData({ ...way, mode: "level", levels: ["defaultLevel0000", storeyLevelId(1), storeyLevelId(2)] });
+check("a stair offers every level it stands on, by any movement", [stair.behaviors[0].type, stair.behaviors[0].system, stair.levels.length], ["changeLevel", { movementActions: [] }, 3]);
 
 /* ---------------- a count printed as a word ---------------- */
 

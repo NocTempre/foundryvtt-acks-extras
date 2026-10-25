@@ -32,6 +32,16 @@
  * A shot of each plan that stands pins, framed on its first pin with the
  * interface hidden, goes to the log directory to be read by eye.
  *
+ * Section 2e walks "A way between maps": the maps 2c made carry one Region
+ * per link end, each leading where the cookbook's link rows say; the link
+ * pass run alone holds them all, and remakes and re-points an end deleted
+ * under it. From the Player seat a token takes a stair between two plans
+ * both ways, comes into a way several ends share and is asked which end on
+ * the way out, is asked which storey on a stair between storeys, and on the
+ * region's map is asked first and stays when it answers no. Each end on a
+ * walled plan is shot on the GM's canvas to be read by eye. Section 3b
+ * checks the Regions again once the Adventure has brought its plans back.
+ *
  * A place AX1 prints that a later book prints too (`meta.sameAs`) is one
  * place: section 2 expects AX1's row to bind onto the later book's place where
  * the library holds it (its id joins the place's `merged`, its block follows
@@ -88,6 +98,12 @@
  *   - the player seat's explored fog on that scene, which core keeps per user
  *     and scene. It is read back by id after the sweep and deleted if it
  *     outlived its scene;
+ *   - in 2e, that character's tokens beside link ends, made by the GM seat,
+ *     and the tokens core makes on another map when one is teleported, each
+ *     read back and tracked as it is seen, and removed before section 3; the
+ *     link Region 2e deletes and the pass makes again, which goes with its
+ *     map; and the player seat's explored fog on every map a token stood on,
+ *     deleted by id after the sweep;
  *   - the later book's place a pair binds onto, and its world copy, are the
  *     owner's: the bind writes the place's stamp and notes and the maps step
  *     the copy's stamp, and no delete list of sections 2 to 3b names either,
@@ -107,7 +123,9 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { connect, sleep, pageSweep } from "./_driver.mjs";
 import { seats as machineSeats, PORTS, books, logDir } from "./_env.mjs";
-import { GRID_SCENE_PADDING } from "../../scripts/importer/scene-binding.mjs";
+import {
+  GRID_SCENE_PADDING, LINK_ASK, isLinkRow, isRegionRecipe, linkBoxOnFirstStorey, linkEndKey,
+} from "../../scripts/importer/scene-binding.mjs";
 
 const MACHINE = machineSeats();
 const browser = MACHINE.browser;
@@ -178,6 +196,36 @@ const BROUGHT = [...new Set(PINNED.flatMap((p) => [p.place, ...p.pins]).flatMap(
 // row, and the reviewer's count of AX1's paragraphs the place keeps.
 const PAIRS = Object.entries(COOK).filter(([, e]) => e?.meta?.sameAs).map(([id, e]) => ({ id, later: e.meta.sameAs, unique: e.meta.unique?.length ?? 0 }));
 const sameSet = (a, b) => a.length === b.length && new Set(a).size === a.length && a.every((x) => b.includes(x));
+// The book's ways between maps, as the map step joins them: each distinct end
+// by its key, its map, the storey it stands on, the ends it leads to and
+// whether it asks first; a level row is one end over its storeys.
+const LINKS = (() => {
+  const ends = new Map();
+  const slot = (key, init) => {
+    if (!ends.has(key)) ends.set(key, { key, leads: new Set(), levels: new Set(), asks: false, ...init });
+    return ends.get(key);
+  };
+  for (const row of Object.values(COOKBOOK.scenes ?? {})) {
+    if (!isLinkRow(row)) continue;
+    const at = row.link.ends.map((end) => {
+      const level = Number(end.level) || 0;
+      const recipe = COOKBOOK.scenes[end.scene]?.scene;
+      return { end, level, recipe, box: recipe ? linkBoxOnFirstStorey(end.box, recipe, level) : null };
+    });
+    if (at.some((a) => !a.box)) continue;
+    if (row.link.mode === "level") {
+      const s = slot(linkEndKey(at[0].end.scene, at[0].box), { mode: "level", scene: at[0].end.scene });
+      for (const a of at) s.levels.add(a.level);
+      continue;
+    }
+    const keys = at.map((a) => slot(linkEndKey(a.end.scene, a.box, a.level), { mode: "teleport", scene: a.end.scene, level: a.level, region: isRegionRecipe(a.recipe) }).key);
+    for (const from of row.link.both === false ? keys.slice(0, 1) : keys) {
+      for (const to of keys) if (to !== from) ends.get(from).leads.add(to);
+      if (row.link.confirm) ends.get(from).asks = true;
+    }
+  }
+  return [...ends.values()].map((e) => ({ ...e, leads: [...e.leads], levels: [...e.levels], asks: e.mode === "teleport" && (e.asks || e.leads.size > 1 || e.region) }));
+})();
 
 /* ------------------------------------------------------------------ */
 /*  Page side                                                           */
@@ -597,6 +645,126 @@ const P = {
       };
     });
   },
+  /**
+   * Every link Region the world holds: its end key and map, the storeys it
+   * stands on (by height, 0 the lowest) and its map's level count, its
+   * behaviour, whether it asks and with which key, its destinations as stored
+   * and the end key each resolves to (null for one that resolves to nothing),
+   * the compass word that ends its name, and how many link Regions on its map
+   * bear that same name. No name rides out.
+   */
+  linkRegions: async () => {
+    const out = [];
+    for (const s of game.scenes) {
+      const links = s.regions.filter((r) => r.getFlag("acks-extras", "cookbook")?.link);
+      const byHeight = [...s.levels].sort((a, b) => (a.elevation?.bottom ?? 0) - (b.elevation?.bottom ?? 0)).map((l) => l.id);
+      for (const r of links) {
+        const b = r.behaviors.contents[0] ?? null;
+        const stored = [...(b?._source?.system?.destinations ?? [])];
+        out.push({
+          key: r.getFlag("acks-extras", "cookbook").link, uuid: r.uuid, scene: s.flags?.["acks-extras"]?.cookbook?.id ?? null,
+          storeys: [...r.levels].map((id) => byHeight.indexOf(id)).sort(), sceneLevels: s.levels.size,
+          type: b?.type ?? null, behaviors: r.behaviors.size, choice: !!b?.system?.choice, ask: b?.system?.dialog?.revealed ?? null,
+          stored, leads: stored.map((u) => fromUuidSync(u, { relative: b })?.getFlag?.("acks-extras", "cookbook")?.link ?? null),
+          way: r.name.split(", ").at(-1), sameName: links.filter((o) => o.name === r.name).length,
+          gmOnly: r.visibility === CONST.REGION_VISIBILITY.GAMEMASTER, locked: r.locked,
+        });
+      }
+    }
+    return out;
+  },
+  deleteRegion: async ({ uuid }) => {
+    await (await fromUuid(uuid))?.delete();
+    return !(await fromUuid(uuid));
+  },
+  /**
+   * One token of the actor beside a link end, made on the GM seat: its centre
+   * half a cell past the end's edge, in direction `dx`/`dy`, on storey `storey`.
+   */
+  placeBesideLink: async ({ key, actorUuid, dx = -1, dy = 0, storey = 0 }) => {
+    const s = game.scenes.find((x) => x.regions.some((r) => r.getFlag("acks-extras", "cookbook")?.link === key));
+    const r = s?.regions.find((x) => x.getFlag("acks-extras", "cookbook")?.link === key);
+    if (!r) return null;
+    const { x, y, width, height } = r.shapes[0];
+    const size = s.grid.size;
+    const cx = x + width / 2 + dx * (width / 2 + size / 2);
+    const cy = y + height / 2 + dy * (height / 2 + size / 2);
+    const level = [...s.levels].sort((a, b) => (a.elevation?.bottom ?? 0) - (b.elevation?.bottom ?? 0))[storey]?.id;
+    const a = await fromUuid(actorUuid);
+    const data = (await a.getTokenDocument({ x: Math.round(cx - size / 2), y: Math.round(cy - size / 2), ...(level ? { level } : {}) })).toObject();
+    const [t] = await s.createEmbeddedDocuments("Token", [data]);
+    return t ? { uuid: t.uuid, sceneUuid: s.uuid } : null;
+  },
+  /**
+   * The token walked onto a link end's middle, or `out` cells past its edge
+   * (`[dx, dy]`), walls ignored. Fired, not awaited: core holds a move that a
+   * question paused until the question is answered.
+   */
+  walkTo: async ({ tokenUuid, key, out = null }) => {
+    const t = await fromUuid(tokenUuid);
+    const r = t?.parent?.regions.find((x) => x.getFlag("acks-extras", "cookbook")?.link === key);
+    if (!t || !r) return { fired: false };
+    const { x, y, width, height } = r.shapes[0];
+    const size = t.parent.grid.size;
+    const cx = x + width / 2 + (out ? out[0] * (width / 2 + size / 2) : 0);
+    const cy = y + height / 2 + (out ? out[1] * (height / 2 + size / 2) : 0);
+    globalThis.__axWalk = { done: false };
+    t.move({ x: Math.round(cx - (size * t.width) / 2), y: Math.round(cy - (size * t.height) / 2) }, { constrainOptions: { ignoreWalls: true } })
+      .then((v) => { globalThis.__axWalk = { done: true, value: v }; })
+      .catch((e) => { globalThis.__axWalk = { done: true, error: String(e?.message ?? e) }; });
+    return { fired: true };
+  },
+  /**
+   * Answers the question a teleport or a change of storey puts to this user,
+   * waiting up to `wait` ms for it: picks the destination whose name ends with
+   * `way`, or the storey `storey` (0 the lowest), and presses yes or no. Reads
+   * back how many options it offered and their compass words; no name rides out.
+   */
+  answer: async ({ way = null, storey = null, yes = true, wait = 20000 }) => {
+    const find = () => [...foundry.applications.instances.values()].find((a) => String(a.id).startsWith("dialog-") && a.rendered);
+    let d = null;
+    for (let n = 0; n < wait / 250 && !(d = find()); n++) await new Promise((r) => setTimeout(r, 250));
+    if (!d) return { asked: false };
+    const where = d.element.querySelector('select[name="destination"]');
+    const level = d.element.querySelector('select[name="level"]');
+    const ways = where ? [...where.options].map((o) => o.textContent.split(", ").at(-1)) : [];
+    if (where && way) where.value = [...where.options].find((o) => o.textContent.endsWith(`, ${way}`))?.value ?? where.value;
+    if (level && storey !== null) {
+      // The options are the token's map's other levels, by id.
+      const scene = game.scenes.find((x) => x.levels.has(level.options[0]?.value));
+      const id = scene && [...scene.levels].sort((a, b) => (a.elevation?.bottom ?? 0) - (b.elevation?.bottom ?? 0))[storey]?.id;
+      if (id) level.value = id;
+    }
+    d.element.querySelector(`button[data-action="${yes ? "yes" : "no"}"]`)?.click();
+    return { asked: true, kind: where ? "destination" : level ? "storey" : "confirm", options: where ? ways.length : level ? level.options.length : 1, ways };
+  },
+  /** Where each token of an actor stands: its map, its storey (0 the lowest) and the link ends its middle is in. */
+  tokensOf: async ({ actorUuid }) => {
+    const a = await fromUuid(actorUuid);
+    const out = [];
+    for (const s of game.scenes) {
+      const byHeight = [...s.levels].sort((x, y) => (x.elevation?.bottom ?? 0) - (y.elevation?.bottom ?? 0)).map((l) => l.id);
+      for (const t of s.tokens) {
+        if (t.actorId !== a?.id) continue;
+        out.push({ uuid: t.uuid, scene: s.flags?.["acks-extras"]?.cookbook?.id ?? null, storey: byHeight.indexOf(t.level), at: [...t.regions].map((r) => r.getFlag("acks-extras", "cookbook")?.link).filter(Boolean) });
+      }
+    }
+    return out;
+  },
+  /** A link end framed on this client, at its own storey, with the interface hidden for a shot. */
+  frameLink: async ({ key, scale = 1.5 }) => {
+    const s = game.scenes.find((x) => x.regions.some((r) => r.getFlag("acks-extras", "cookbook")?.link === key));
+    const r = s?.regions.find((x) => x.getFlag("acks-extras", "cookbook")?.link === key);
+    if (!r) return { framed: false };
+    await s.view(r.levels.size ? { level: [...r.levels][0] } : {});
+    for (let n = 0; n < 120 && !(canvas.ready && canvas.scene?.id === s.id); n++) await new Promise((res) => setTimeout(res, 250));
+    const { x, y, width, height } = r.shapes[0];
+    canvas.environment.initialize({ environment: { darknessLevel: 0 } });
+    await canvas.animatePan({ x: x + width / 2, y: y + height / 2, scale, duration: 0 });
+    for (const id of ["interface", "pause"]) document.getElementById(id)?.style.setProperty("visibility", "hidden");
+    await new Promise((res) => setTimeout(res, 1500));
+    return { framed: canvas.scene?.id === s.id };
+  },
   showInterface: async () => {
     for (const id of ["interface", "pause"]) document.getElementById(id)?.style.removeProperty("visibility");
     for (const p of canvas.tokens?.placeables ?? []) if (p.mesh) p.mesh.tint = 0xffffff;
@@ -857,7 +1025,7 @@ const failing = (ids, ok) => {
 };
 
 let gm = null;
-let fogLeft = { sceneId: null, userId: null, packs: [] };
+let fogLeft = { sceneId: null, userId: null, packs: [], more: [] };
 let ownersAdventure = false;
 
 try {
@@ -928,7 +1096,7 @@ try {
 
   const player = await seat("player");
   note("player view", await run(player, P.view, { uuid: level.uuid }));
-  fogLeft = { sceneId: level.uuid.split(".").pop(), userId: playerId, packs: [] };
+  fogLeft = { sceneId: level.uuid.split(".").pop(), userId: playerId, packs: [], more: [] };
 
   // A token beside the first door whose line of sight runs past the torch's reach.
   let token = null;
@@ -1256,6 +1424,171 @@ try {
       && levels.some((l) => l.other > 0)),
     collisions);
 
+  section("2e. the ways between maps: one Region per end, leading where its rows say");
+  note("2e: links joined by the 2c step", { links: sc?.links, held: sc?.linksHeld, repaired: sc?.linksRepaired, waiting: sc?.linksWaiting, refused: sc?.linksRefused, ends: LINKS.length });
+  check("2e: the map step made one Region per link end, none waiting and none refused",
+    LINKS.length > 0 && sc?.links === LINKS.length && !sc?.linksHeld && !sc?.linksWaiting && !sc?.linksRefused, { links: sc?.links, ends: LINKS.length });
+  // Each end against the rows: one Region, on its map and storey, of its
+  // behaviour, leading to the ends its rows name and asking where it should.
+  const linkProblems = (regions) => LINKS.map((e) => {
+    const found = regions.filter((r) => r.key === e.key);
+    const r = found[0];
+    const problems = found.length === 1 ? [] : [`regions ${found.length}`];
+    if (!r) return { key: e.key, problems };
+    if (r.scene !== e.scene) problems.push("map");
+    if (!r.gmOnly || !r.locked || r.behaviors !== 1) problems.push("region");
+    if (r.sameName !== 1) problems.push("name shared on its map");
+    if (e.mode === "level") {
+      if (r.type !== "changeLevel") problems.push("behaviour");
+      if (!sameSet(r.storeys, e.levels)) problems.push("storeys");
+      return { key: e.key, problems };
+    }
+    if (r.type !== "teleportToken") problems.push("behaviour");
+    if (r.sceneLevels > 1 ? !sameSet(r.storeys, [e.level]) : r.storeys.length) problems.push("storeys");
+    if (!sameSet(r.leads, e.leads)) problems.push("leads");
+    if (r.choice !== e.asks || r.ask !== (!e.asks ? null : e.leads.length > 1 ? LINK_ASK.several : LINK_ASK.one)) problems.push("asks");
+    return { key: e.key, problems };
+  }).filter((x) => x.problems.length);
+  let linked = await run(gm, P.linkRegions);
+  note("2e: link regions", linked.map((r) => ({ key: r.key, type: r.type, storeys: r.storeys, choice: r.choice, leads: r.leads.length, way: r.way })));
+  // Core stores a destination relative to the behaviour naming it; the
+  // Adventure carries it as stored.
+  note("2e: a destination as core stores it", linked.find((r) => r.stored.length)?.stored[0] ?? null);
+  check("2e: each end is one GM-only, locked Region on its map and storey, named apart from the others there, leading to the ends its rows name, and asking where it leads to several, where its row says so, or on the region's map",
+    !linkProblems(linked).length, linkProblems(linked));
+  const alone = await step(gm, "cookbookImportLinks", []);
+  check("2e: the link pass run alone holds every Region and changes none",
+    alone?.links === 0 && alone?.linksHeld === LINKS.length && !alone?.linksRepaired && !alone?.linksRefused, alone);
+  // The DELETE path: an end's Region deleted leaves its partner's destination
+  // naming nothing; the pass makes the end again and re-points the partner.
+  const lost = LINKS.find((e) => e.mode === "teleport" && e.leads.length === 1 && LINKS.find((o) => o.key === e.leads[0])?.leads.length === 1);
+  if (lost) {
+    note("2e: deleted", { key: lost.key, gone: await run(gm, P.deleteRegion, { uuid: linked.find((r) => r.key === lost.key)?.uuid }) });
+    const dangling = (await run(gm, P.linkRegions)).filter((r) => r.leads.includes(null)).map((r) => r.key);
+    const repair = await step(gm, "cookbookImportLinks", []);
+    linked = await run(gm, P.linkRegions);
+    check("2e: with one end's Region deleted, its partner names nothing; the pass makes the end again and re-points the partner",
+      sameSet(dangling, lost.leads) && repair?.links === 1 && repair?.linksRepaired === 1 && repair?.linksHeld === LINKS.length - 1 && !linkProblems(linked).length,
+      { dangling: dangling.length, links: repair?.links, repaired: repair?.linksRepaired, held: repair?.linksHeld, problems: linkProblems(linked) });
+  }
+
+  // The Player's token through the ways, walked by the movement API with walls
+  // ignored; whether a drawn stair can be walked onto is read by eye from the
+  // shots after. Every token the pc stands on is tracked as it is seen.
+  const pcTokens = async () => {
+    const ts = await run(gm, P.tokensOf, { actorUuid: pc.uuid });
+    for (const t of ts) {
+      gm.track(t.uuid, "Token");
+      const sceneId = t.uuid.split(".")[1];
+      if (!fogLeft.more.includes(sceneId)) fogLeft.more.push(sceneId);
+    }
+    return ts;
+  };
+  const settle = async (done, tries = 40) => {
+    let ts = [];
+    for (let n = 0; n < tries; n++) {
+      ts = await pcTokens();
+      if (done(ts)) break;
+      await sleep(500);
+    }
+    return ts;
+  };
+  const endBy = (key) => LINKS.find((e) => e.key === key);
+  const wayOf = (key) => linked.find((r) => r.key === key)?.way ?? null;
+  const shown = (ts) => ts.map((t) => ({ scene: t.scene, storey: t.storey, at: t.at.length }));
+  const stand = async (key, dx, storey = 0) => {
+    const start = await run(gm, P.placeBesideLink, { key, actorUuid: pc.uuid, dx, storey });
+    if (start) {
+      gm.track(start.uuid, "Token");
+      note("2e: player view", await run(player, P.view, { uuid: start.sceneUuid }));
+    }
+    return start;
+  };
+  // A stair between two plans, both ways, unasked.
+  const stair = LINKS.find((e) => e.mode === "teleport" && e.scene === LEVEL && !e.asks && e.leads.length === 1 && endBy(e.leads[0])?.scene !== LEVEL && !endBy(e.leads[0])?.region);
+  const below = stair && endBy(stair.leads[0]);
+  if (stair && below) {
+    const start = await stand(stair.key, -1);
+    await run(player, P.walkTo, { tokenUuid: start.uuid, key: stair.key });
+    const down = await settle((ts) => ts.some((t) => t.scene === below.scene));
+    check("2e: from the Player seat, a token walked onto a stair stands on the stair of the other level's plan, and none is left behind",
+      down.length === 1 && down[0].scene === below.scene && down[0].at.includes(below.key), shown(down));
+    if (down[0]?.scene === below.scene) {
+      await run(player, P.walkTo, { tokenUuid: down[0].uuid, key: below.key, out: [-1, 0] });
+      await settle((ts) => ts.some((t) => t.uuid === down[0].uuid && !t.at.includes(below.key)), 12);
+      await run(player, P.walkTo, { tokenUuid: down[0].uuid, key: below.key });
+      const up = await settle((ts) => ts.some((t) => t.scene === stair.scene));
+      check("2e: and walked off that stair and onto it again, it is back on the first",
+        up.length === 1 && up[0].scene === stair.scene && up[0].at.includes(stair.key), shown(up));
+    }
+  }
+  // One end several rows share: a token comes in unasked, and going out is asked where.
+  const door = LINKS.find((e) => e.mode === "teleport" && e.leads.length > 1 && !e.region);
+  const towers = door ? door.leads.map(endBy).filter((e) => e?.leads.includes(door.key)) : [];
+  if (door && towers.length > 1) {
+    const [from, to] = [towers[0], towers.at(-1)];
+    const before = (await pcTokens()).length;
+    const start = await stand(from.key, -1);
+    await run(player, P.walkTo, { tokenUuid: start.uuid, key: from.key });
+    const inside = await settle((ts) => ts.some((t) => t.scene === door.scene));
+    const t = inside.find((x) => x.scene === door.scene);
+    check("2e: a token walked into one of the ends that share a way in arrives on it, on its storey, unasked",
+      inside.length === before + 1 && !!t && t.at.includes(door.key) && t.storey === (door.level ?? 0), shown(inside));
+    if (t) {
+      await run(player, P.walkTo, { tokenUuid: t.uuid, key: door.key, out: [1, 0] });
+      await settle((ts) => ts.some((x) => x.uuid === t.uuid && !x.at.includes(door.key)), 12);
+      await run(player, P.walkTo, { tokenUuid: t.uuid, key: door.key });
+      const asked = await run(player, P.answer, { way: wayOf(to.key) });
+      const out = await settle((ts) => ts.some((x) => x.scene === to.scene && x.at.includes(to.key)));
+      check("2e: walked back onto it, the Player is asked which end, each told apart by its compass word, and the token arrives at the one picked",
+        asked.asked && asked.kind === "destination" && asked.options === towers.length && new Set(asked.ways).size === towers.length
+          && out.some((x) => x.scene === to.scene && x.at.includes(to.key)),
+        { asked, at: shown(out) });
+    }
+  }
+  // A stair between storeys: asked which, and standing on the one picked.
+  const storeys = LINKS.find((e) => e.mode === "level");
+  if (storeys) {
+    const top = Math.max(...storeys.levels);
+    const start = await stand(storeys.key, 1, Math.min(...storeys.levels));
+    await run(player, P.walkTo, { tokenUuid: start.uuid, key: storeys.key });
+    const asked = await run(player, P.answer, { storey: top });
+    const up = await settle((ts) => ts.some((x) => x.uuid === start.uuid && x.storey === top));
+    check("2e: a token walked onto a stair between storeys is asked which, and stands on the stair of the storey picked",
+      asked.asked && asked.kind === "storey" && asked.options === storeys.levels.length - 1
+        && up.some((x) => x.uuid === start.uuid && x.storey === top && x.at.includes(storeys.key)),
+      { asked, at: shown(up.filter((x) => x.uuid === start.uuid)) });
+  }
+  // On the region's map a way asks first, so a journey through the hex is not diverted.
+  const journey = LINKS.find((e) => e.region && e.asks && e.leads.length === 1);
+  if (journey) {
+    const there = endBy(journey.leads[0]);
+    const before = (await pcTokens()).filter((x) => x.scene === there?.scene).length;
+    const start = await stand(journey.key, -1);
+    await run(player, P.walkTo, { tokenUuid: start.uuid, key: journey.key });
+    const asked = await run(player, P.answer, { yes: false });
+    await sleep(2000);
+    const after = await pcTokens();
+    check("2e: on the region's map a token walking into a way is asked first, and answered no, stays on the region's map",
+      asked.asked && asked.kind === "confirm" && after.some((x) => x.uuid === start.uuid && x.scene === journey.scene)
+        && after.filter((x) => x.scene === there?.scene).length === before,
+      { asked, at: shown(after.filter((x) => x.uuid === start.uuid)) });
+  }
+  // Each end on a walled plan, framed on the GM's canvas, to read by eye that
+  // it lies on its drawn way and is open to the floor beside it.
+  for (const [n, e] of LINKS.entries()) {
+    if (!WALLED.has(e.scene)) continue;
+    const framed = await run(gm, P.frameLink, { key: e.key });
+    try {
+      if (framed.framed) note(`2e: shot ${e.key}`, await gm.shot(path.join(logDir(), `importer-ax1-link-${n + 1}-${e.scene.split(".").pop()}.png`), "#board"));
+    } finally {
+      await run(gm, P.showInterface);
+    }
+  }
+  // Gone now, by this run's own uuids, so 3b's deletes and imports meet none.
+  const left2e = (await pcTokens()).map((t) => ({ uuid: t.uuid, kind: "Token" }));
+  if (left2e.length) note("2e: the pc's tokens, removed", JSON.parse(await gm.eval(pageSweep(left2e))));
+
   section("3. AX1's Adventure carries its places beside its maps");
   const before = await run(gm, P.library, { book: BOOK });
   const ownedAdventure = before.adventures.length > 0;
@@ -1351,6 +1684,11 @@ try {
     { id: kept3b.id, created: createdSet.has(held3b?.uuid), linkId: held3b?.linkId, world: held3b?.linkWorld, pins: standsItsPins(kept3b, held3b) });
   check("3b: each plan stands its zone again, as the maps step laid it",
     ZONES.every((z) => laidRight(z, plans3b[z.scene])), ZONES.map((z) => ({ id: z.id, ok: laidRight(z, plans3b[z.scene]) })));
+  // The Adventure carries each map's link Regions as core stores them, so the
+  // plans it brings back answer the held plan's destinations under their ids.
+  const linked3b = await run(gm, P.linkRegions);
+  check("3b: the ways between maps stand again, each leading where its rows say, the held plan's included",
+    !linkProblems(linked3b).length, linkProblems(linked3b));
   const dry3b = await run(gm, P.pruneDry);
   check("3b: the empty-location prune, run dry, would remove none of them", doomedOf(dry3b, world3b) === 0, { doomed: doomedOf(dry3b, world3b) });
 
@@ -1454,8 +1792,9 @@ try {
     }
   } catch (err) { console.error("adventure rebuild:", err?.message ?? err); }
   try {
-    if (gm && fogLeft.sceneId) {
-      const left = await run(gm, P.fogOf, { sceneId: fogLeft.sceneId, userId: fogLeft.userId });
+    // The first level of section 1, and every map section 2e's token stood on.
+    for (const sceneId of gm && fogLeft.sceneId ? [fogLeft.sceneId, ...fogLeft.more] : []) {
+      const left = await run(gm, P.fogOf, { sceneId, userId: fogLeft.userId });
       note("the player's explored fog this run made", left.length ? await run(gm, P.deleteFog, { ids: left }) : []);
     }
   } catch (err) { console.error("fog:", err?.message ?? err); }

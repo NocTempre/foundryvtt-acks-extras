@@ -12,7 +12,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { citeFor } from "../../scripts/importer/books.mjs";
-import { inCropOf, isSceneRecipe, isZoneRow } from "../../scripts/importer/scene-binding.mjs";
+import { inCropOf, isLinkRow, isSceneRecipe, isZoneRow, linkBoxOnFirstStorey } from "../../scripts/importer/scene-binding.mjs";
 
 const COOKBOOK = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "cookbook");
 
@@ -24,7 +24,7 @@ const check = (label, cond) => {
 
 /** Every entry in every cookbook, tagged with the book it will be read from. */
 const entries = new Map();
-/** Every compiled scene row — recipes and zones — tagged with the book whose cookbook holds it. */
+/** Every compiled scene row — recipes, zones and links — tagged with the book whose cookbook holds it. */
 const sceneRows = new Map();
 /** Each cookbook file's own entry ids, by file name. */
 const idsByFile = new Map();
@@ -186,6 +186,26 @@ for (const z of zones) {
     if (!inCrop(x, y)) outside.push(`(${x}, ${y})`);
   }
   check(`${z.id}: every outline point lies inside ${z.zone.scene}'s crop${outside.length ? ` — not ${outside.slice(0, 3).join(", ")}` : ""}`, !!crop && outside.length === 0);
+}
+
+/* --- a link's every end stands on a real map's storey --- */
+
+// A link is compiled in its own book but its ends name any book's recipes, so
+// only the shipped cookbooks together can say each end is a recipe, its level
+// one of that recipe's storeys and its box on that storey's picture.
+const links = [...sceneRows.values()].filter(isLinkRow);
+for (const l of links) {
+  for (const [i, end] of l.link.ends.entries()) {
+    const target = sceneRows.get(end.scene);
+    check(`${l.id}: end ${i} stands on ${end.scene}, a compiled scene recipe`, isSceneRecipe(target));
+    const recipe = target?.scene;
+    const level = end.level ?? 0;
+    const storeys = 1 + (recipe?.levels?.length ?? 0);
+    check(`${l.id}: end ${i}'s level ${level} is one of ${end.scene}'s ${storeys} storey(s)`, Number.isInteger(level) && level >= 0 && level < storeys);
+    const onFirst = recipe ? linkBoxOnFirstStorey(end.box, recipe, level) : null;
+    const inCrop = recipe?.crop ? inCropOf(recipe.crop) : null;
+    check(`${l.id}: end ${i}'s box lies on ${end.scene}'s storey ${level}`, !!onFirst && inCrop(onFirst.x0, onFirst.y0) && inCrop(onFirst.x1, onFirst.y1));
+  }
 }
 
 /* --- a revision points into the book its id names --- */

@@ -114,11 +114,17 @@ flags("a hash site under another ordinal's id", siteProblems({ id: "ax1.site3", 
 /* --- scene links --- */
 
 const box = { x0: 1, x1: 2, y0: 1, y1: 2 };
-const scene = (id, levels) => ({ id, book: id.split(".")[0], kind: "kind.scene", scene: levels ? { levels: levels.map((key) => ({ key })) } : {} });
-const scenes = rowsOf(scene("ax1.fortMap"), scene("ax1.level1Map"), scene("ax3.regionMap"), scene("ax1.fort9Map", [0, 1]));
+const above = { x0: 1, x1: 2, y0: 21, y1: 22 };
+const scene = (id, levels) => ({ id, book: id.split(".")[0], kind: "kind.scene", scene: levels ? { crop: { x: 0, y: 0, w: 10, h: 10 }, levels } : {} });
+const scenes = rowsOf(scene("ax1.fortMap"), scene("ax1.level1Map"), scene("ax3.regionMap"), scene("ax1.fort9Map", [{ x: 0, y: 20 }]),
+  loc("ax1.fort9"), { id: "ax1.link9", kind: "kind.sceneLink", name: "Link 9" });
 const link = (l) => ({ id: "ax1.link1", kind: "kind.sceneLink", name: "Link 1", link: l });
 none("a teleport between two books' maps", sceneLinkProblems(link({ mode: "teleport", ends: [{ scene: "ax1.fortMap", box }, { scene: "ax3.regionMap", box }], both: true }), scenes));
-none("a stair between two storeys", sceneLinkProblems(link({ mode: "level", ends: [{ scene: "ax1.fort9Map", box, level: 0 }, { scene: "ax1.fort9Map", box, level: 1 }] }), scenes));
+none("a stair between two storeys", sceneLinkProblems(link({ mode: "level", ends: [{ scene: "ax1.fort9Map", box, level: 0 }, { scene: "ax1.fort9Map", box: above, level: 1 }] }), scenes));
+none("an end standing for a place", sceneLinkProblems(link({ mode: "teleport", ends: [{ scene: "ax1.fortMap", box, place: "ax1.fort9" }, { scene: "ax1.fort9Map", box: above, level: 1 }] }), scenes));
+flags("an end standing for a row that is no place", sceneLinkProblems(link({ mode: "teleport", ends: [{ scene: "ax1.fortMap", box, place: "ax1.link9" }, { scene: "ax1.level1Map", box }] }), scenes), /no location row/);
+flags("a stair whose storeys' boxes stand on two spots", sceneLinkProblems(link({ mode: "level", ends: [{ scene: "ax1.fort9Map", box, level: 0 }, { scene: "ax1.fort9Map", box: { ...above, x0: 3, x1: 4 }, level: 1 }] }), scenes), /coincide/);
+flags("a box off its storey", sceneLinkProblems(link({ mode: "teleport", ends: [{ scene: "ax1.fort9Map", box: above }, { scene: "ax1.level1Map", box }] }), scenes), /does not lie on ax1\.fort9Map's picture/);
 flags("a link with no block", sceneLinkProblems({ id: "ax1.link1" }, scenes), /needs a "link" block/);
 flags("an unknown mode", sceneLinkProblems(link({ mode: "walk", ends: [{ scene: "ax1.fortMap", box }, { scene: "ax1.level1Map", box }] }), scenes), /not a way a link moves/);
 flags("one end", sceneLinkProblems(link({ mode: "teleport", ends: [{ scene: "ax1.fortMap", box }] }), scenes), /two or more ends/);

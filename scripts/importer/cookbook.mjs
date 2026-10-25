@@ -40,6 +40,7 @@ import {
   GRID_SCENE_PADDING, zoneMovedBy,
   isSceneRecipe, sceneFrame, sceneData, districtRegionData, placeTokenAt, worldCopySource, isWorldCopy, placementMatches, afterDarkShift, bandOfSection,
   isZoneRow, gridScale, ringToScene, offsetsInside, zoneRegionData, coversCrop, wallSources, isRegionRecipe, storeyCrops, storeyLevelId,
+  isLinkRow, linkBoxOnFirstStorey, linkEndKey, linkRect, linkRegionData, compassOf, spanOf, LINK_ASK,
 } from "./scene-binding.mjs";
 import { FACTION_TYPE } from "../factions/constants.mjs";
 import { LOCATION_TYPE, isPlaceRole } from "../location/constants.mjs";
@@ -5002,6 +5003,7 @@ export async function cookbookImportScenes({ books = null } = {}) {
   const counts = {
     made: 0, already: 0, repaired: 0, refused: 0, unready: 0, copied: 0, missing: 0, regions: 0, tokens: 0, controlled: 0,
     gridRefused: 0, zones: 0, zonesHeld: 0, zonesWaiting: 0, zonesRefused: 0, walls: 0, wallsFailed: 0,
+    ...linkCounts(),
     created: { scenes: [], actors: [], folders: [], regions: [] },
   };
   const bar = progressBar(game.i18n.localize(`${LANG_PREFIX}.ui.progressScenes`), jobs.length * SCENE_STEPS + zoneJobs.length);
@@ -5026,6 +5028,8 @@ export async function cookbookImportScenes({ books = null } = {}) {
         console.error(`${MODULE_ID} | zone ${job.id} failed`, err);
       });
     }
+    // Every map this run could make exists now, so every link can be joined.
+    await joinLinks(counts);
   } finally {
     bar.finish();
   }
@@ -5040,6 +5044,7 @@ export async function cookbookImportScenes({ books = null } = {}) {
     said("scenesZonesHeld", counts.zonesHeld),
     said("scenesZonesWaiting", counts.zonesWaiting),
     said("scenesZonesRefused", counts.zonesRefused),
+    ...linkParts(counts),
     counts.repaired ? game.i18n.format(`${LANG_PREFIX}.ui.scenesRepaired`, { n: counts.repaired }) : "",
     counts.made ? `${counts.regions} quarter(s), ${counts.tokens} place(s) set down hidden` : "",
     counts.copied ? `${counts.copied} place(s) and organisation(s) brought into the world` : "",
@@ -5048,8 +5053,8 @@ export async function cookbookImportScenes({ books = null } = {}) {
     counts.unready ? `${counts.unready} waiting on the points of interest step` : "",
     counts.refused ? `${counts.refused} refused (the page did not match the cookbook, or would not render)` : "",
   ].filter(Boolean);
-  const landed = counts.made || counts.already || counts.zones || counts.zonesHeld;
-  const say = landed && !counts.gridRefused && !counts.wallsFailed ? "info" : "warn";
+  const landed = counts.made || counts.already || counts.zones || counts.zonesHeld || counts.links || counts.linksHeld;
+  const say = landed && !counts.gridRefused && !counts.wallsFailed && !counts.linksRefused ? "info" : "warn";
   ui.notifications[say](`${MODULE_ID} | maps: ${parts.join(", ")}.`);
   return counts;
 }
@@ -5549,6 +5554,197 @@ async function ensureZone({ bookId, id, row }, counts) {
   counts.created.regions.push(made.uuid);
 }
 
+/** A link Region's end key (`linkEndKey`), or "" for any other Region. */
+const linkIdOf = (region) => String(region?.getFlag?.(MODULE_ID, "cookbook")?.link ?? "");
+
+/** The link pass's counters, zeroed; `linksWaitingOn` collects the books whose maps a waiting link names. */
+const linkCounts = () => ({ links: 0, linksHeld: 0, linksRepaired: 0, linksWaiting: 0, linksRefused: 0, linksWaitingOn: new Set() });
+
+/** The link pass's phrases for a maps notification, empty ones left out. */
+function linkParts(counts) {
+  const said = (key, n, extra = {}) => (n ? game.i18n.format(`${LANG_PREFIX}.ui.${key}`, { n, ...extra }) : "");
+  const books = [...counts.linksWaitingOn].map((b) => bookLabel(b)).join(", ");
+  return [
+    said("scenesLinksMade", counts.links),
+    said("scenesLinksHeld", counts.linksHeld),
+    said("scenesLinksRepaired", counts.linksRepaired),
+    said("scenesLinksWaiting", counts.linksWaiting, { books }),
+    said("scenesLinksRefused", counts.linksRefused),
+  ];
+}
+
+/**
+ * The level id storey `level` of a held map stands on: its levels by
+ * elevation, the bottom first. Null on a map of one level, where a Region
+ * naming no level is on its only one.
+ */
+function storeyLevelOf(scene, level) {
+  const levels = [...(scene.levels ?? [])].sort((a, b) => (Number(a.elevation?.bottom) || 0) - (Number(b.elevation?.bottom) || 0));
+  return levels.length > 1 ? (levels[Number(level) || 0]?.id ?? null) : null;
+}
+
+/**
+ * Every link end's Region name: the place it stands for as this world names it,
+ * else the first link's ordinal, and a compass word, so that the ends a choice
+ * offers are told apart. Ends on one map under one name are placed by thirds of
+ * the rectangle they span together, since a map's places can all lie in one
+ * third of its picture; an end alone under its name, by thirds of the picture.
+ * @returns {Map<object, string>} each slot's name
+ */
+function linkEndNames(slots) {
+  const nameOf = (slot) => {
+    const place = slot.place ? game.actors.find((a) => cookbookId(a) === slot.place)?.name : null;
+    const n = Number(/(\d+)$/.exec([...slot.links][0] ?? "")?.[1]) || 1;
+    return place || game.i18n.format(`${LANG_PREFIX}.ui.sceneLink`, { n });
+  };
+  const groups = new Map();
+  for (const slot of slots) {
+    const key = `${slot.scene.id}|${nameOf(slot)}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(slot);
+  }
+  const names = new Map();
+  for (const group of groups.values()) {
+    const { dims } = group[0];
+    const picture = { x: Number(dims.sceneX) || 0, y: Number(dims.sceneY) || 0, width: Number(dims.sceneWidth) || 0, height: Number(dims.sceneHeight) || 0 };
+    const area = group.length > 1 ? spanOf(group.map((slot) => slot.rect)) : picture;
+    for (const slot of group) {
+      const way = game.i18n.localize(`${LANG_PREFIX}.ui.compass.${compassOf(slot.rect, area)}`);
+      names.set(slot, game.i18n.format(`${LANG_PREFIX}.ui.sceneLinkEnd`, { name: nameOf(slot), way }));
+    }
+  }
+  return names;
+}
+
+/**
+ * Every cookbook's link rows joined on the maps the world holds: one Region per
+ * distinct end, however many rows name it. A `teleport` end leads to every
+ * other end of each row naming it (from the first end only where the row says
+ * `both: false`), and asks first where it leads to several, where a row says
+ * `confirm`, or where it stands on a region's map, so a journey crossing the
+ * hex is not diverted. A `level` row is one Region over its storeys. A row
+ * waits, counted with the books it waits on, until every map it names is held;
+ * one naming a map no cookbook carries is refused. Held Regions are kept:
+ * their dead destinations are dropped and missing ones added, and a teleport
+ * that came to lead to several is made to ask. A destination the Judge added
+ * stays, and a behaviour the Judge removed is not put back. No book has to be
+ * open: a link is ids and boxes. Counts into `counts`.
+ */
+async function joinLinks(counts) {
+  const ends = new Map();
+  const slotFor = (key, init) => {
+    if (!ends.has(key)) ends.set(key, { key, dests: new Set(), links: new Set(), levels: new Set(), asks: false, ...init });
+    return ends.get(key);
+  };
+  for (const [bookId, cb] of data.books) {
+    for (const [id, row] of Object.entries(cb.scenes ?? {})) {
+      if (!isLinkRow(row)) continue;
+      const link = row.link;
+      const resolved = link.ends.map((end) => {
+        const recipe = recipeById(end.scene);
+        const level = Number(end.level) || 0;
+        return { end, level, recipe, scene: recipe ? heldMapOf(end.scene) : null, box: recipe ? linkBoxOnFirstStorey(end.box, recipe, level) : null };
+      });
+      if (resolved.some((r) => !r.recipe || !r.box)) {
+        counts.linksRefused++;
+        continue;
+      }
+      if (resolved.some((r) => !r.scene)) {
+        counts.linksWaiting++;
+        for (const r of resolved) if (!r.scene) counts.linksWaitingOn.add(bookOfCookbookId(r.end.scene));
+        continue;
+      }
+      const at = (r, key, mode) => {
+        const slot = slotFor(key, { mode, sceneId: r.end.scene, scene: r.scene, recipe: r.recipe, box: r.box, level: r.level, book: bookId });
+        slot.links.add(id);
+        slot.place ??= r.end.place;
+        return slot;
+      };
+      if (link.mode === "level") {
+        const slot = at(resolved[0], linkEndKey(resolved[0].end.scene, resolved[0].box), "level");
+        for (const r of resolved) slot.levels.add(r.level);
+        continue;
+      }
+      const keys = resolved.map((r) => at(r, linkEndKey(r.end.scene, r.box, r.level), "teleport").key);
+      for (const from of link.both === false ? keys.slice(0, 1) : keys) {
+        const slot = ends.get(from);
+        for (const to of keys) if (to !== from) slot.dests.add(to);
+        if (link.confirm) slot.asks = true;
+      }
+    }
+  }
+
+  // Every end's Region first, so each destination has a uuid to be named by.
+  for (const slot of ends.values()) {
+    const { placed, dims } = liveFrame(slot.recipe, slot.scene);
+    Object.assign(slot, { rect: linkRect(slot.box, placed), dims });
+  }
+  const names = linkEndNames([...ends.values()]);
+  for (const slot of ends.values()) {
+    slot.region = (slot.scene.regions ?? []).find((r) => linkIdOf(r) === slot.key) ?? null;
+    if (slot.region) {
+      counts.linksHeld++;
+      continue;
+    }
+    const levels = slot.mode === "level"
+      ? [...slot.levels].map((l) => storeyLevelOf(slot.scene, l)).filter(Boolean)
+      : [storeyLevelOf(slot.scene, slot.level)].filter(Boolean);
+    const source = linkRegionData({
+      name: names.get(slot), rect: slot.rect, levels, mode: slot.mode,
+      choice: slot.asks || slot.dests.size > 1 || isRegionRecipe(slot.recipe), end: slot.key, links: [...slot.links], book: slot.book,
+    });
+    const [made] = (await slot.scene.createEmbeddedDocuments("Region", [source])) ?? [];
+    if (!made) {
+      counts.linksRefused++;
+      continue;
+    }
+    slot.region = made;
+    slot.made = true;
+    counts.links++;
+    counts.created.regions.push(made.uuid);
+  }
+
+  // Then where each teleport leads.
+  for (const slot of ends.values()) {
+    if (slot.mode !== "teleport" || !slot.region) continue;
+    const behavior = slot.region.behaviors?.find((b) => b.type === "teleportToken");
+    if (!behavior) continue;
+    // Core stores a destination relative to the behaviour, and reads it so.
+    const named = [...(behavior.system?.destinations ?? [])];
+    const live = named.map((uuid) => fromUuidSync(uuid, { relative: behavior })?.uuid).filter(Boolean);
+    const wanted = [...slot.dests].map((key) => ends.get(key)?.region?.uuid).filter((uuid) => uuid && !live.includes(uuid));
+    const destinations = [...live, ...wanted];
+    const update = {};
+    if (wanted.length || live.length !== named.length) update["system.destinations"] = destinations;
+    // A Region is made before it has destinations, so its question is set
+    // here, from where it leads; a question the Judge wrote is theirs.
+    const choice = !!behavior.system?.choice || destinations.length > 1;
+    const ask = destinations.length > 1 ? LINK_ASK.several : LINK_ASK.one;
+    const said = behavior.system?.dialog?.revealed ?? null;
+    if (choice && !behavior.system?.choice) update["system.choice"] = true;
+    if (choice && said !== ask && (said === null || Object.values(LINK_ASK).includes(said))) update["system.dialog.revealed"] = ask;
+    if (!Object.keys(update).length) continue;
+    await behavior.update(update);
+    if (!slot.made) counts.linksRepaired++;
+  }
+}
+
+/**
+ * The link pass alone (`joinLinks`), as the map step runs it after its last
+ * map: for a world whose maps are all made already, or when a later book's
+ * import gave a waiting link its other end.
+ * @returns {Promise<object|undefined>} the link counts, with `created.regions`
+ *   naming each Region it made
+ */
+export async function cookbookImportLinks() {
+  if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates regions).`);
+  const counts = { ...linkCounts(), created: { regions: [] } };
+  await joinLinks(counts);
+  const parts = linkParts(counts).filter(Boolean);
+  ui.notifications[counts.linksRefused ? "warn" : "info"](`${MODULE_ID} | maps: ${parts.join(", ") || game.i18n.format(`${LANG_PREFIX}.ui.scenesLinksMade`, { n: 0 })}.`);
+  return counts;
+}
+
 /**
  * Every adventure book open on this seat, written to its line's Adventure
  * shelf as ONE Adventure (`ensureBookAdventure`), after every step that makes
@@ -5832,16 +6028,18 @@ async function bookAdventureSource(bookId) {
     });
     const scene = withWorldIds(built, held?.toObject() ?? null, adventureCookbookId(id));
     scene.thumb = null;
-    // A zone is no recipe's: it is another book's row laid over this map. It
-    // was laid on the world map's picture, whose corner a grid map made with
-    // another padding holds elsewhere on its canvas.
+    // A zone or a link end is no recipe's: it is a row, maybe another book's,
+    // laid over this map. It was laid on the world map's picture, whose corner
+    // a grid map made with another padding holds elsewhere on its canvas. A
+    // link's destinations name the world's scenes and regions by the ids the
+    // Adventure keeps.
     const heldDims = held ? held.dimensions ?? held.getDimensions?.() ?? {} : {};
     const moved = grid && held
       ? { x: grid.origin.x - (Number(heldDims.sceneX) || 0), y: grid.origin.y - (Number(heldDims.sceneY) || 0) }
       : null;
     const lattice = moved ? new Scene({ name: row.name, grid: built.grid }).grid : null;
     for (const region of held?.regions ?? []) {
-      if (!zoneIdOf(region)) continue;
+      if (!zoneIdOf(region) && !linkIdOf(region)) continue;
       const zone = zoneMovedBy(region.toObject(), moved, lattice ? (p) => lattice.getOffset(p) : null);
       for (const behavior of zone.behaviors ?? []) await tableAt(behavior.system?.tableUuid);
       scene.regions = [...(scene.regions ?? []), zone];
