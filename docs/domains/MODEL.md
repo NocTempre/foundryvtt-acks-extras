@@ -206,7 +206,7 @@ a side between two vassals of one sovereign, or a sovereign and its vassal,
 is lighter; one deeper in a realm is lightest. The legend lists the domains
 painted on the scene in realm order, a vassal as its name under its liege's.
 A hex painted into a domain no longer in the world is drawn grey, named as
-such in the palette and the legend, and derives nothing.
+such in the legend, and derives nothing; the palette offers no swatch for it.
 
 **Rows from the map.** `territoryOf(domain)` is the record's territory with
 the map read in (`territoryRows`): every stored row first, then one row READ

@@ -251,5 +251,3 @@ never deletes a row") built ahead of the rest of the wave.
 **Cost:**
 - The read walks every hex scene's domain regions on each render of the
   sheet, and the sheet re-renders on every stroke over that domain.
-- *Inferred, unverified:* a player's client may not hold every scene, so a
-  player reading the sheet may count fewer read hexes than the Judge does.

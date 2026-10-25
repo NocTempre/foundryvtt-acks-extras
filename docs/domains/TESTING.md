@@ -220,10 +220,17 @@ and a count of 1 and one with a count of 3.
 `docs/battlemap/TESTING.md`, "The country's layers and water" and "Terrain
 painting"; the overlay and the Map modes window are its "Map modes". A domain hex is
 `paintHexAt(scene, point, domain.uuid, "domain")`, `null` to erase, and
-`layerRegionsOf(scene, "domain")` lists its regions. The drawing's weights:
-`mapModes().find((m) => m.key === "domain").weights(scene)` gives the side
-weight, and a drawn side's width is
-`geometry.graphicsData[n].lineStyle.width`. The sheet's Keep press is
+`layerRegionsOf(scene, "domain")` lists its regions. A stroke through the
+catcher carries `nativeEvent: { target: canvas.app.view }`, since a stroke
+opens only on a press over the board. `mapModes()` returns each mode's key,
+label and layer and none of its functions, so the drawing is read from the
+modules: `borderSegments(scene, layerPlan(scene, "domain"), undefined,
+domainWeights())`, `domainWeights` from `await
+import("/modules/acks-extras/scripts/domains/domain-map.mjs")`, gives each
+side's `weight`, and a drawn side's width is
+`geometry.graphicsData[n].lineStyle.width`. A region placeable's `visible`
+is set by its render flags, which a hidden pane applies at 1 frame a second:
+read `isVisible`, or `visible` after a refresh. The sheet's Keep press is
 `button[data-action="keepTract"]` on the read row; its picker is a prompt with
 one `select[name="choice"]`, as the other pickers are.
 
@@ -267,8 +274,9 @@ one `select[name="choice"]`, as the other pickers are.
    of its own and the count-1 row, not the count-3 row. Pick the count-1 row.
    *Observable:* that row's `map` is `{sceneUuid, key}` of the hex, the read
    row is gone, the row carries the painted mark, and the hexes rail is one
-   lower. Keep another, as a row of its own. *Observable:* a stored row naming
-   the hex's label, a count of 1 and its `map`; the rail unchanged.
+   lower. Keep another. *Observable:* with no row left to tie it to, no picker
+   opens; a stored row naming the hex's label, a count of 1 and its `map`;
+   the rail unchanged.
 8. **Erasing deletes no row.** Erase the hex kept in step 7 onto the count-1
    row. *Observable:* the row stands, with the broken-link mark. Paint the
    same hex into Realm 2. *Observable:* Realm 1's row stays stale, and Realm
@@ -280,10 +288,11 @@ one `select[name="choice"]`, as the other pickers are.
    scene default. The sweep then reports Realm 2 missing, which is expected.
 10. **A player.** Give the Player seat Observer on Realm 1 and join as that
     player. *Observable:* the sheet lists the read rows with no Keep press and
-    the same hexes rail as the Judge's; the player's overlay holds no child.
-    In that seat's console, record what `countryAt` reads at a Realm 1 hex and
-    at a Vassal 1 hex, which the player cannot observe: a derived territory
-    needs the domain actor on the asking client.
+    the same hexes rail as the Judge's; the player's overlay holds no child
+    and no region `isVisible`. Give the seat Observer on the scene to view it.
+    In that seat's console, `countryAt` reads the derived class with
+    "domain" at a Realm 1 hex and at a Vassal 1 hex, which the player cannot
+    observe: the client holds every scene and every domain actor.
 
 **Teardown:** `api.sweepTracked()`, which takes both scenes with their
 regions and the domains, and quote its result. Set this seat's view back with

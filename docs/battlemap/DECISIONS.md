@@ -1093,7 +1093,6 @@ territory from the paint or the scene default alone.
   when the party is read again (`docs/formation/ROADMAP.md`).
 - A hex painted into a domain with no class derives nothing and reads as the
   scene default, with nothing on the hex to say so but the legend's default.
-- A derived territory needs the domain actor on the asking client; `of` runs
-  on every read of a painted hex, and the Territory plan reads every one on a
-  redraw.
+- `of` runs on every read of a painted hex, and the Territory plan reads
+  every one on a redraw.
 

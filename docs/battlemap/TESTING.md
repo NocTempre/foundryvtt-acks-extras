@@ -305,7 +305,9 @@ window renders; a swatch press is `button[data-brush="<key>"]` `.click()` in
 the window's DOM, read back from `terrainPaint.brush`. The pointer path is the
 session's catcher, `canvas.stage.children.find((c) => c.zIndex ===
 10000).children[0]`, fed `emit("pointerdown", { getLocalPosition: () => point,
-buttons: 1 })` with `point` from `grid.getCenterPoint(offset)`; `"pointermove"`
+buttons: 1, nativeEvent: { target: canvas.app.view } })` with `point` from
+`grid.getCenterPoint(offset)` (a stroke opens only on a press over the board,
+`onBoard`); `"pointermove"`
 with the same shape is the drag. `paintHexAt(scene, point, key)` (`null` to
 erase) is the brush's own write and resolves `false` when nothing changes;
 `terrainRegionsOf(scene)` lists the regions with their flags. The hex-only
