@@ -2301,7 +2301,11 @@ it by that collection id, and only if its index is empty by then.
      every region and token id, is the held world scene's;
    - the region map's `grid.size` is its recipe's `grid.pixels`;
    - a zone the world laid over a map is among that scene's regions, and its
-     list is in `o.tables`;
+     list is in `o.tables`. Where the world map's picture corner
+     (`dimensions.sceneX/Y`) differs from the Adventure scene's, as on a map
+     made before grid maps carried `GRID_SCENE_PADDING`, each zone polygon is
+     moved by the difference and its centroid lies in the cell its
+     `zoneHexes` names on the Adventure scene's lattice;
    - tokens are all hidden; `active` and `navigation` are false; `thumb` is
      null;
    - every carried document has `ownership.default === 0`;
@@ -2530,7 +2534,8 @@ a mocked lattice; only a live run proves core's grid answers the same way.
    is 0; the scene's `grid.size` equals the
    recipe's `grid.pixels`, its `grid.type` is the family's hex type, and its
    battlemap flag says `mapSystem: "journey"` and its cookbook flag carries
-   `pixelsPerPoint`.
+   `pixelsPerPoint`. Its `padding` is `GRID_SCENE_PADDING`, and
+   `scene.dimensions.sceneRect` lies inside `scene.dimensions.rect`.
 5. A drawn hex centre lies under a Foundry hex centre. In the console, with
    `{sceneFrame} = await import("/modules/acks-extras/scripts/importer/scene-binding.mjs")`
    and `pixelsPerPoint` read off the scene's cookbook flag:
@@ -2606,6 +2611,10 @@ block what walls block.
      invisible`, and `c.wallsFailed` is 0;
    - the scene's `walls` count the same, split by `door` 0, 1 and 2 and by
      terrain and invisible as the digest splits them;
+   - on a grid plan, `padding` is `GRID_SCENE_PADDING`, `sceneRect` lies
+     inside `rect`, and so does every wall endpoint and token; the recorder
+     holds no "polygon origin is out of the scene bounds" warning. A wall
+     cut off at the canvas edge counts in the scene and blocks nothing;
    - every plain wall's and door's senses are 20/20/20/20, every terrain
      wall's light, sight and sound 10 and move 20, every invisible wall's
      light, sight and sound 0 and move 20, and every `levels` empty;
@@ -2645,7 +2654,9 @@ block what walls block.
    normal.
    *Observable:*
    - `move`, `sight` and `sound` collide across a sample of plain walls, and
-     `move` and `sight` across closed doors and secret doors;
+     `move` and `sight` across closed doors and secret doors. The sample
+     takes a wall on each side of the crop's edge: that is where a picture
+     cut off the canvas would lose its walls (AX1 p.16's north wall);
    - across one side of a terrain box `move` collides and `sight` does not;
      from outside, across the box to its far side, `sight` collides;
    - across an invisible wall `move` collides, and `sight` and `sound` do not;

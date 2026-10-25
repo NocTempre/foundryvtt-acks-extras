@@ -133,13 +133,19 @@ whose centres an outline holds; the shift itself is the battlemap's
 `hexAlignment` ([../battlemap/MODEL.md](../battlemap/MODEL.md)).
 
 The map step builds a grid recipe through `gridScenePlan`, asked of an
-UNSAVED `Scene` with the padding the scene is created with: `hexProbe`
-measures Foundry's cell for the recipe's family (a square lattice needs no
-probe), `gridScale` turns it into pixels per point, and `hexAlignment` solves
-the shift for the recipe's `centre` carried through `sceneFrame` and set on
-the clone's padded origin. A probe that cannot answer, or whose axes
-disagree, refuses the map (`gridRefused`, reported in the step's summary)
-before anything is written. The picture is cut at the plan's scale
+UNSAVED `Scene`: `hexProbe` measures Foundry's cell for the recipe's family
+(a square lattice needs no probe), `gridScale` turns it into pixels per
+point, and `hexAlignment` solves the shift for the recipe's `centre` carried
+through `sceneFrame` and set on the origin of a clone at
+`GRID_SCENE_PADDING`, the padding `sceneData` writes on every grid map. The
+shift moves the picture up to half a cell off that origin, and core rounds
+the padding up to a whole cell (a whole stride on a hex grid), so the picture
+keeps a margin of canvas on every side. A settlement map keeps a padding of
+0: it has no shift. A probe that cannot answer, an axis pair that disagrees,
+or a picture that would not lie whole on the canvas core sizes round it
+refuses the map (`gridRefused`, reported in the step's summary) before
+anything is written; the Adventure step, which builds the same plan, throws.
+The picture is cut at the plan's scale
 (`uploadSceneMap`'s `pixelsPerPoint`); `mapCreateData` sets every token and
 quarter down from the picture's corner on the canvas (the padded origin less
 the shift, `placedFrame`), hands the
@@ -151,7 +157,11 @@ its place and is drawn on a grid too. A region's map is the region's place
 (`regionSiteClaim`), a keyed place on it comes with every place it sits in, as
 on a plan (`keyedAbove`), and there are no quarters to hand to organisations; the
 picture's thumbnail and the places' scene links are written as for a
-settlement, and the book's Adventure carries the map like any other. A region map whose book prints region rows waits
+settlement, and the book's Adventure carries the map like any other. A zone
+the world laid over a map rides into the Adventure moved by the change of
+picture corner between the world map and the Adventure's (`zoneMovedBy`), its
+cells read again off the lattice, so a world map made at another padding
+still hands over its zones on the cells they cover. A region map whose book prints region rows waits
 (`unready`) until the region's place has been imported. Without a grid,
 `mapCreateData` builds a settlement map's data and no part of the grid path
 reaches it; `test-region-import` pins that data byte for byte.

@@ -37,6 +37,7 @@ import {
 } from "./faction-binding.mjs";
 import { printedNameOf, withoutKeyNumber } from "./printed-name.mjs";
 import {
+  GRID_SCENE_PADDING, zoneMovedBy,
   isSceneRecipe, sceneFrame, sceneData, districtRegionData, placeTokenAt, worldCopySource, isWorldCopy, placementMatches, afterDarkShift, bandOfSection,
   isZoneRow, gridScale, ringToScene, offsetsInside, zoneRegionData, coversCrop, wallSources, isRegionRecipe, storeyCrops,
 } from "./scene-binding.mjs";
@@ -5150,14 +5151,17 @@ const placedFrame = (frame, origin) => (origin && (origin.x || origin.y)
 /**
  * How a grid recipe's scene is laid: the scale, the picture's frame, the
  * lattice shift and where the picture's corner then sits on the canvas, or
- * null when Foundry's cell cannot be fitted to the drawn one. Asked of an
- * UNSAVED scene carrying the recipe's padding, so nothing is written to find
- * out.
+ * null when Foundry's cell cannot be fitted to the drawn one or the shifted
+ * picture would not lie whole on the canvas. Asked of an UNSAVED scene, cloned
+ * at `GRID_SCENE_PADDING` (the padding `sceneData` writes), so nothing is
+ * written to find out.
  *
  * The scale is `gridScale` over `hexProbe`'s measured cell (a square lattice
  * needs no probe; a hex probe that cannot answer refuses). The shift is
  * `hexAlignment`'s, solved for the recipe's drawn centre carried through the
- * frame and set on the clone's padded origin.
+ * frame and set on the clone's padded origin. The picture is then held to the
+ * canvas core sizes round it, to a pixel, so a padding core rounds away
+ * refuses the map rather than cutting its edge off.
  *
  * @param {object} recipe a compiled scene recipe with a `grid`
  * @param {Scene} scene an unsaved Scene document
@@ -5174,17 +5178,21 @@ export function gridScenePlan(recipe, scene) {
   if (!(pixelsPerPoint > 0)) return null;
   const frame = sceneFrame(recipe, { pixelsPerPoint });
   const [cx, cy] = frame.toScene(centre[0], centre[1]);
-  let padded = null;
-  const shift = hexAlignment(scene, {
+  let canvas = null;
+  const padded = scene.clone({ padding: GRID_SCENE_PADDING }, { keepId: true });
+  const shift = hexAlignment(padded, {
     width: frame.width, height: frame.height, gridSize: frame.gridPixels, type,
     point: (dims) => {
-      padded = { x: dims.sceneX, y: dims.sceneY };
+      canvas = { x: dims.sceneX, y: dims.sceneY, width: dims.width, height: dims.height };
       return { x: dims.sceneX + cx, y: dims.sceneY + cy };
     },
   });
-  if (!shift || !padded) return null;
+  if (!shift || !canvas) return null;
   // The clone's origin is the unshifted one; a shift moves the picture back by itself.
-  return { pixelsPerPoint, frame, type, ...shift, origin: { x: padded.x - shift.shiftX, y: padded.y - shift.shiftY } };
+  const origin = { x: canvas.x - shift.shiftX, y: canvas.y - shift.shiftY };
+  const onCanvas = origin.x >= -1 && origin.y >= -1
+    && origin.x + frame.width <= canvas.width + 1 && origin.y + frame.height <= canvas.height + 1;
+  return onCanvas ? { pixelsPerPoint, frame, type, ...shift, origin } : null;
 }
 
 /**
@@ -5398,7 +5406,7 @@ async function importScene({ bookId, id, row }, counts, tick) {
   if (region && hasRegionRows(bookId) && !plan.known.has(ids.mapPlaceId)) return void counts.unready++;
   // A grid's scale and shift are solved on an unsaved scene, before the
   // picture is cut at that scale.
-  const grid = recipe.grid ? gridScenePlan(recipe, new Scene({ name: row.name, padding: 0 })) : null;
+  const grid = recipe.grid ? gridScenePlan(recipe, new Scene({ name: row.name })) : null;
   if (recipe.grid && !grid) return void counts.gridRefused++;
 
   tick();
@@ -5809,7 +5817,7 @@ async function bookAdventureSource(bookId) {
   for (const [id, row] of recipes) {
     const recipe = row.scene;
     // The map step's own plan, solved the same way on an unsaved scene.
-    const grid = recipe.grid ? gridScenePlan(recipe, new Scene({ name: row.name, padding: 0 })) : null;
+    const grid = recipe.grid ? gridScenePlan(recipe, new Scene({ name: row.name })) : null;
     if (recipe.grid && !grid) throw new Error(`map ${id}: its grid could not be fitted`);
     const picture = await sceneMapPath(bookId, id, recipe, grid?.pixelsPerPoint);
     cover ??= picture;
@@ -5823,10 +5831,17 @@ async function bookAdventureSource(bookId) {
     });
     const scene = withWorldIds(built, held?.toObject() ?? null, adventureCookbookId(id));
     scene.thumb = null;
-    // A zone is no recipe's: it is another book's row laid over this map.
+    // A zone is no recipe's: it is another book's row laid over this map. It
+    // was laid on the world map's picture, whose corner a grid map made with
+    // another padding holds elsewhere on its canvas.
+    const heldDims = held ? held.dimensions ?? held.getDimensions?.() ?? {} : {};
+    const moved = grid && held
+      ? { x: grid.origin.x - (Number(heldDims.sceneX) || 0), y: grid.origin.y - (Number(heldDims.sceneY) || 0) }
+      : null;
+    const lattice = moved ? new Scene({ name: row.name, grid: built.grid }).grid : null;
     for (const region of held?.regions ?? []) {
       if (!zoneIdOf(region)) continue;
-      const zone = region.toObject();
+      const zone = zoneMovedBy(region.toObject(), moved, lattice ? (p) => lattice.getOffset(p) : null);
       for (const behavior of zone.behaviors ?? []) await tableAt(behavior.system?.tableUuid);
       scene.regions = [...(scene.regions ?? []), zone];
     }

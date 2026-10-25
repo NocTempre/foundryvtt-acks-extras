@@ -21,6 +21,7 @@ import {
   afterDarkShift, placementMatches, placementHolding, recipeContext, recipeProblems, sceneData, districtRegionData,
   placeTokenAt, worldCopySource, isWorldCopy, turnMatrix, pictureKey, storeyCrops, storeyLevelId,
   SCENE_ZONE_KIND, isZoneRow, gridScale, recipeFeetPerPoint, offsetsInside, zoneProblems, zoneRegionData, coversCrop, inCropOf,
+  GRID_SCENE_PADDING,
 } from "../../scripts/importer/scene-binding.mjs";
 import { readCountWord } from "../../scripts/importer/executor.mjs";
 import { MODULE_ID } from "../../scripts/importer/constants.mjs";
@@ -405,7 +406,8 @@ check("shifted as it was told", [hexData.shiftX, hexData.shiftY], [12, -7]);
 check("and set up for journey travel at its cell's distance", hexData.flags[MODULE_ID].battlemap, {
   calibrated: true, distance: 3, autoScale: false, mapSystem: "journey", blockFeet: null,
 });
-check("a grid map is still a plan, out of the bar, never active", [hexData.tokenVision, hexData.fog, hexData.navigation, hexData.active, hexData.padding], [false, { mode: 0 }, false, false, 0]);
+check("a grid map is still a plan, out of the bar, never active", [hexData.tokenVision, hexData.fog, hexData.navigation, hexData.active], [false, { mode: 0 }, false, false]);
+check("a grid map carries a margin of canvas round its picture", hexData.padding, GRID_SCENE_PADDING);
 check("the even variant is the other Foundry type", sceneData({ id: "zz.region", book: "zz", name: "R", recipe: withGrid({ even: true }), src: "r.webp" }).grid.type, 5);
 check("a pointy-topped grid is a row type", sceneData({ id: "zz.region", book: "zz", name: "R", recipe: withGrid({ family: "hexRows" }), src: "r.webp" }).grid.type, 2);
 const unshiftedHex = sceneData({ id: "zz.region", book: "zz", name: "R", recipe: hexRecipe(), src: "r.webp" });

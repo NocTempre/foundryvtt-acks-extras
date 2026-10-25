@@ -506,19 +506,29 @@ export function recipeProblems(recipe, entries = {}) {
 }
 
 /**
+ * The padding a grid map is made with. The lattice shift moves the picture up
+ * to half a cell off the canvas's origin, and with no padding the canvas is the
+ * picture's own size, so the strip the shift pushes past an edge is cut off
+ * with every wall drawn in it. Core rounds any padding up to whole cells (whole
+ * strides on a hex grid), so the smallest step it accepts leaves a cell of
+ * canvas round the picture; a value under half that step is rounded to none.
+ */
+export const GRID_SCENE_PADDING = 0.05;
+
+/**
  * Scene data for a recipe — the WHOLE map, as one create. Without a `grid` the
  * scene is gridless at one cell to a hundred feet, so a pixel is a foot and
  * every measure on the map reads in the book's own unit, and it is set up for
  * settlement travel. With one, the scene carries Foundry's lattice of that
  * family at the grid's cell size, distance and units, the shift that lays it
- * over the drawn cells, and is set up for journey travel; the picture is
- * scaled by `pixelsPerPoint` (`gridScale` of the grid unless the caller
- * measured one live). Sight and fog are off, because a printed map is a plan
- * the party reads and not a place its tokens see from — except on a map with
- * walls, which is a dark place its tokens explore (`WALLED_SIGHT`). It is kept
- * out of the navigation bar: a map that arrives with a book is for the Judge
- * to put in front of a table, not something a running session finds added to
- * its bar.
+ * over the drawn cells and `GRID_SCENE_PADDING` round it, and is set up for
+ * journey travel; the picture is scaled by `pixelsPerPoint` (`gridScale` of
+ * the grid unless the caller measured one live). Sight and fog are off,
+ * because a printed map is a plan the party reads and not a place its tokens
+ * see from — except on a map with walls, which is a dark place its tokens
+ * explore (`WALLED_SIGHT`). It is kept out of the navigation bar: a map that
+ * arrives with a book is for the Judge to put in front of a table, not
+ * something a running session finds added to its bar.
  *
  * A plate of storeys is one scene with a level per storey, each its own picture
  * under the one grid, and opens on the first.
@@ -587,6 +597,7 @@ export function sceneData({
           distance: Number(grid.distance),
           units: DISTANCE_UNITS[grid.units]?.abbr ?? grid.units,
         },
+        padding: GRID_SCENE_PADDING,
         shiftX: Number(shiftX) || 0,
         shiftY: Number(shiftY) || 0,
       }
@@ -817,6 +828,48 @@ export function zoneRegionData(zone, frame, {
     }],
     flags: { [MODULE_ID]: { cookbook: { zone: id, book }, zoneHexes: snapped.map(({ i, j }) => ({ i, j })) } },
   };
+}
+
+/**
+ * A zone's region source carried onto a map whose picture's corner sits at
+ * another point of the canvas: every shape moved by `by`, the new corner less
+ * the old, and each snapped cell read again off the polygon it is, by
+ * `offsetOf` on the new canvas, since a hex lattice's offsets do not move by
+ * whole rows. The source is returned as it is when the corner has not moved,
+ * and a cell list that no longer matches its polygons one for one is left as
+ * it was.
+ *
+ * @param {object} zone a region's source (`toObject()`)
+ * @param {{x: number, y: number}} by
+ * @param {((p: {x: number, y: number}) => {i: number, j: number})|null} [offsetOf]
+ * @returns {object}
+ */
+export function zoneMovedBy(zone, by, offsetOf = null) {
+  const dx = Number(by?.x) || 0;
+  const dy = Number(by?.y) || 0;
+  if (!dx && !dy) return zone;
+  const shapes = (zone.shapes ?? []).map((shape) => {
+    const moved = { ...shape };
+    if (Array.isArray(shape.points)) moved.points = shape.points.map((v, k) => v + (k % 2 ? dy : dx));
+    if (Number.isFinite(shape.x)) moved.x = shape.x + dx;
+    if (Number.isFinite(shape.y)) moved.y = shape.y + dy;
+    return moved;
+  });
+  const own = zone.flags?.[MODULE_ID] ?? {};
+  const hexes = own.zoneHexes ?? [];
+  const polygons = shapes.filter((s) => Array.isArray(s.points) && s.points.length >= 6);
+  const reread = offsetOf && hexes.length && polygons.length === hexes.length
+    ? polygons.map((s) => {
+      const n = s.points.length / 2;
+      let x = 0;
+      let y = 0;
+      for (let k = 0; k < s.points.length; k += 2) { x += s.points[k]; y += s.points[k + 1]; }
+      const { i, j } = offsetOf({ x: x / n, y: y / n });
+      return { i, j };
+    })
+    : hexes;
+  if (!("zoneHexes" in own)) return { ...zone, shapes };
+  return { ...zone, shapes, flags: { ...zone.flags, [MODULE_ID]: { ...own, zoneHexes: reread } } };
 }
 
 /**

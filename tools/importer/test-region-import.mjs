@@ -23,6 +23,7 @@ import { DISTRICT_TYPE } from "../../scripts/formation/district-find.mjs";
 import { libraryPackLabel } from "../../scripts/lib/library.mjs";
 import {
   sceneFrame, sceneData, districtRegionData, placeTokenAt, ringToScene, pointInRing, afterDarkShift, bandOfSection,
+  GRID_SCENE_PADDING, zoneMovedBy, zoneRegionData,
 } from "../../scripts/importer/scene-binding.mjs";
 import {
   initCookbook, loadCookbook, cookbookImportPoiPlaces, cookbookImportScenes, cookbookImportJournals, gridScenePlan, mapCreateData,
@@ -119,8 +120,53 @@ function makeGrid(type = 1, size = 100) {
     }
     return { i: best.i, j: best.j };
   };
+  // Core's canvas round a scene of this size, ported line for line from the
+  // square and hexagonal grids' `calculateDimensions`.
+  const calculateDimensions = (sceneWidth, sceneHeight, padding) => {
+    if (!hex) {
+      const x = Math.ceil((padding * sceneWidth) * (1 / size)) * size;
+      const y = Math.ceil((padding * sceneHeight) * (1 / size)) * size;
+      const width = sceneWidth + (2 * x);
+      const height = sceneHeight + (2 * y);
+      return { width, height, x, y, rows: Math.ceil((height / size) - 1e-6), columns: Math.ceil((width / size) - 1e-6) };
+    }
+    const strideX = columns ? 0.75 * sizeX : sizeX;
+    const strideY = columns ? sizeY : 0.75 * sizeY;
+    if (!padding) {
+      const cols = Math.ceil(((sceneWidth + (columns ? -sizeX / 4 : sizeX / 2)) / strideX) - 1e-6);
+      const rws = Math.ceil(((sceneHeight + (columns ? sizeY / 2 : -sizeY / 4)) / strideY) - 1e-6);
+      return { width: sceneWidth, height: sceneHeight, x: 0, y: 0, rows: rws, columns: cols };
+    }
+    let x = Math.ceil((padding * sceneWidth) * (1 / strideX)) * strideX;
+    let y = Math.ceil((padding * sceneHeight) * (1 / strideY)) * strideY;
+    let width = sceneWidth + (2 * Math.round(Math.ceil((padding * sceneWidth) * (1 / strideX)) / (1 / strideX)));
+    let height = sceneHeight + (2 * Math.round(Math.ceil((padding * sceneHeight) * (1 / strideY)) / (1 / strideY)));
+    const crossEven = Math.round(columns ? x / strideX : y / strideY) % 2 === 0;
+    if (!crossEven) {
+      if (columns) {
+        y += (sizeY / 2);
+        height += sizeY;
+      } else {
+        x += (sizeX / 2);
+        width += sizeX;
+      }
+    }
+    let cols = Math.round(width * (1 / strideX));
+    let rws = Math.round(height * (1 / strideY));
+    width = cols * strideX;
+    height = rws * strideY;
+    if (columns) {
+      rws++;
+      width += (sizeX / 4);
+    } else {
+      cols++;
+      height += (sizeY / 4);
+    }
+    return { width, height, x, y, rows: rws, columns: cols };
+  };
   return {
     type, size, sizeX, sizeY, isHexagonal: hex,
+    calculateDimensions,
     getOffset,
     getCenterPoint: (c) => (type === 0 ? { x: c.x, y: c.y } : centre("i" in c ? c : getOffset(c))),
     getOffsetRange: ({ x, y, width, height }) => {
@@ -203,14 +249,13 @@ class MockScene {
     const data = structuredClone(this.source);
     data._id = this.id;
     for (const [k, v] of Object.entries(changes)) setPath(data, k, v);
-    return new MockScene(data);
+    return new this.constructor(data);
   }
   getDimensions() {
-    const x = Math.round(this.padding * this.width);
-    const y = Math.round(this.padding * this.height);
+    const { width, height, x, y, rows, columns } = this.grid.calculateDimensions(this.width, this.height, this.padding);
     return {
-      sceneX: x - this.shiftX, sceneY: y - this.shiftY, sceneWidth: this.width, sceneHeight: this.height,
-      rows: Math.ceil(this.height / this.grid.sizeY), columns: Math.ceil(this.width / this.grid.sizeX),
+      width, height, sceneX: x - this.shiftX, sceneY: y - this.shiftY, sceneWidth: this.width, sceneHeight: this.height,
+      rows, columns,
     };
   }
   get dimensions() {
@@ -528,8 +573,7 @@ ok("the invented cookbooks load", await loadCookbook());
 // --- the grid plan, on an unsaved scene ------------------------------------------------------
 const recipe = REGION_MAP.scene;
 {
-  const padded = new MockScene({ name: "probe", padding: 0.2 });
-  const plan = gridScenePlan(recipe, padded);
+  const plan = gridScenePlan(recipe, new MockScene({ name: "probe", padding: 0.2 }));
   ok("a hex recipe is planned", !!plan);
   const scale = (GRID.pixels / GRID.box.h);
   ok("the scale is the probed cell over the drawn one", near(plan.pixelsPerPoint, scale, 1e-9), `${plan.pixelsPerPoint} vs ${scale}`);
@@ -540,13 +584,99 @@ const recipe = REGION_MAP.scene;
   const at = { x: plan.origin.x + cx, y: plan.origin.y + cy };
   const lattice = makeGrid(4, GRID.pixels).getCenterPoint(at);
   ok("a drawn centre lands on a Foundry centre", near(lattice.x, at.x, 1) && near(lattice.y, at.y, 1), JSON.stringify({ at, lattice }));
-  ok("the padded origin is carried", plan.origin.x === Math.round(0.2 * plan.frame.width) - plan.shiftX);
+  const made = new MockScene({ width: plan.frame.width, height: plan.frame.height, padding: GRID_SCENE_PADDING, grid: { type: plan.type, size: plan.frame.gridPixels } });
+  check("the origin is the grid map's padded corner, shifted", [plan.origin.x, plan.origin.y],
+    [made.getDimensions().sceneX - plan.shiftX, made.getDimensions().sceneY - plan.shiftY]);
+  check("whatever padding the asking scene carries", gridScenePlan(recipe, new MockScene({ padding: 0 })), plan);
+  ok("a grid map's padding is one core keeps", GRID_SCENE_PADDING > 0.025 && Number.isInteger(Math.round(GRID_SCENE_PADDING * 1e6) / 50000),
+    String(GRID_SCENE_PADDING));
 
   const skew = { ...recipe, grid: { ...GRID, box: { w: 20, h: 20 } } };
   check("a probe whose axes disagree refuses the fit", gridScenePlan(skew, new MockScene({ padding: 0 })), null);
   const deaf = new MockScene({ padding: 0 });
   deaf.clone = () => ({ grid: { sizeX: 100, sizeY: 100 } });
   check("a hex probe that cannot answer refuses", gridScenePlan(recipe, deaf), null);
+}
+
+// --- a grid map's picture lies whole on its canvas, wherever the drawn centre falls -----------
+{
+  /** A scene whose canvas ignores its padding: the picture's own size, as a padding of 0 makes it. */
+  class UnpaddedScene extends MockScene {
+    getDimensions() {
+      const { width, height, x, y, rows, columns } = this.grid.calculateDimensions(this.width, this.height, 0);
+      return { width, height, sceneX: x - this.shiftX, sceneY: y - this.shiftY, sceneWidth: this.width, sceneHeight: this.height, rows, columns };
+    }
+  }
+  const families = [["square", false], ["hexCols", false], ["hexCols", true], ["hexRows", false], ["hexRows", true]];
+  const boxOf = (family) => (family === "hexCols" ? { w: 40 / Math.sqrt(3), h: 20 } : family === "hexRows" ? { w: 20, h: 40 / Math.sqrt(3) } : { w: 20, h: 20 });
+  const crop = { x: 100, y: 100 };
+  const misses = [];
+  let laid = 0;
+  let unpadded = null;
+  for (const [family, even] of families) {
+    for (const pixels of [70, 80, 100]) {
+      for (const [w, h] of [[300, 240], [173, 311], [97.5, 64.25]]) {
+        const box = boxOf(family);
+        for (let step = 0; step < 16; step++) {
+          const centre = [crop.x + 0.37 + (box.w * step) / 16, crop.y + 0.61 + (box.h * step) / 16];
+          const sweep = { page: 1, crop: { ...crop, w, h }, turn: 0, grid: { family, even, box, centre, distance: 6, units: "mi", pixels } };
+          const tag = `${family}${even ? "/even" : ""} ${pixels}px ${w}x${h} step ${step}`;
+          const plan = gridScenePlan(sweep, new MockScene({ name: "sweep" }));
+          if (!plan) {
+            misses.push(`${tag}: refused`);
+            continue;
+          }
+          const edges = [[crop.x, crop.y, crop.x + w, crop.y], [crop.x + w, crop.y, crop.x + w, crop.y + h], [crop.x + w, crop.y + h, crop.x, crop.y + h], [crop.x, crop.y + h, crop.x, crop.y]];
+          const built = await mapCreateData({
+            bookId: "xx", id: "xx.sweep", recipe: sweep, ids: { mapPlaceId: "", districtIds: [], placeIds: [] }, actors: new Map(),
+            tableOf: async () => null, src: "maps/s.webp", folderId: null, fallbackName: "Sweep", grid: plan, walls: edges.map((c) => ({ c, door: 0 })),
+          });
+          const dims = new MockScene(built).getDimensions();
+          const inside = (x, y) => x >= 0 && y >= 0 && x <= dims.width && y <= dims.height;
+          const [cx, cy] = plan.frame.toScene(...centre);
+          const at = { x: dims.sceneX + cx, y: dims.sceneY + cy };
+          const lattice = makeGrid(plan.type, plan.frame.gridPixels).getCenterPoint(at);
+          const fault = built.padding !== GRID_SCENE_PADDING ? `padding ${built.padding}`
+            : dims.sceneX !== plan.origin.x || dims.sceneY !== plan.origin.y ? `corner ${dims.sceneX},${dims.sceneY} vs plan ${plan.origin.x},${plan.origin.y}`
+              : !inside(dims.sceneX, dims.sceneY) || !inside(dims.sceneX + dims.sceneWidth, dims.sceneY + dims.sceneHeight)
+                ? `picture ${dims.sceneX},${dims.sceneY} ${dims.sceneWidth}x${dims.sceneHeight} on ${dims.width}x${dims.height}`
+                : built.walls.length !== 4 || !built.walls.every(({ c }) => inside(c[0], c[1]) && inside(c[2], c[3])) ? `edge walls ${JSON.stringify(built.walls.map((x) => x.c))}`
+                  : !(near(lattice.x, at.x, 1) && near(lattice.y, at.y, 1)) ? `centre ${JSON.stringify({ at, lattice })}` : "";
+          if (fault) misses.push(`${tag}: ${fault}`);
+          else laid++;
+          if (!unpadded && (Math.abs(plan.shiftX) >= 2 || Math.abs(plan.shiftY) >= 2)) unpadded = sweep;
+        }
+      }
+    }
+  }
+  ok("every swept grid map lies whole on its canvas, centre on a Foundry centre", !misses.length, `${misses.length} of ${misses.length + laid}: ${misses.slice(0, 4).join("; ")}`);
+  ok("the sweep reached a shifted picture", !!unpadded);
+  check("a picture that would overhang an unpadded canvas is refused", unpadded && gridScenePlan(unpadded, new UnpaddedScene({ name: "bare" })), null);
+}
+
+// --- a zone carried onto a map whose picture sits elsewhere ----------------------------------
+{
+  const grid = makeGrid(4, 100);
+  const hexes = [{ i: 2, j: 3 }, { i: 2, j: 4 }, { i: 3, j: 3 }];
+  const frame = sceneFrame(REGION_MAP.scene, { pixelsPerPoint: 1 });
+  const zone = zoneRegionData({ outline: ZZ_OUTLINE }, frame, { name: "Zone", hexes, cells: hexes.map((h) => grid.getVertices(h)), book: "zz", id: "zz.zone" });
+  const from = grid.getCenterPoint({ i: 2, j: 3 });
+  const to = grid.getCenterPoint({ i: 5, j: 8 });
+  const by = { x: to.x - from.x, y: to.y - from.y };
+  const moved = zoneMovedBy(zone, by, (p) => grid.getOffset(p));
+  const want = hexes.map((h) => {
+    const c = grid.getCenterPoint(h);
+    return grid.getOffset({ x: c.x + by.x, y: c.y + by.y });
+  });
+  check("a carried zone's cells are read again where its polygons now lie", moved.flags[MODULE_ID].zoneHexes, want);
+  ok("and not merely shifted by whole rows", JSON.stringify(want) !== JSON.stringify(hexes.map((h) => ({ i: h.i + 3, j: h.j + 5 }))));
+  ok("its polygons move by the corner's change",
+    moved.shapes.every((s, k) => s.points.every((v, n) => near(v, zone.shapes[k].points[n] + (n % 2 ? by.y : by.x)))));
+  ok("its behaviours and name ride along", moved.name === zone.name && moved.behaviors === zone.behaviors && moved.flags[MODULE_ID].cookbook === zone.flags[MODULE_ID].cookbook);
+  ok("a zone whose corner has not moved is the same source", zoneMovedBy(zone, { x: 0, y: 0 }, (p) => grid.getOffset(p)) === zone && zoneMovedBy(zone, null) === zone);
+  check("without a lattice its cells are kept", zoneMovedBy(zone, by).flags[MODULE_ID].zoneHexes, zone.flags[MODULE_ID].zoneHexes);
+  const outlined = { ...zone, flags: { [MODULE_ID]: { cookbook: zone.flags[MODULE_ID].cookbook } } };
+  ok("a zone with no cell list gains none", !("zoneHexes" in zoneMovedBy(outlined, by, (p) => grid.getOffset(p)).flags[MODULE_ID]));
 }
 
 // --- a city map's creation data is what it always was -----------------------------------------

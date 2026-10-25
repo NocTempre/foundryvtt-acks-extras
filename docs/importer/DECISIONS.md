@@ -8030,3 +8030,54 @@ bullet. Under that entry sight passes the whole gap the trace leaves.
   than it, which is drawn as a stepped embrasure is.
 - The thresholds (`WINDOW_*`) are fitted on these six plates.
 - The pass adds about half a second on the largest of them.
+
+## 2026-10-24 — A grid map carries a cell of canvas round its picture
+
+**Evidence.**
+- Core puts the picture at the canvas's padded origin less the shift
+  (`Scene#getDimensions`: `sceneX = x - shiftX`), and with a padding of 0
+  the canvas is the picture's own size and the origin is 0. `hexAlignment`'s
+  shift runs to half a cell either way, so every grid map with a shift had a
+  strip of its picture off the canvas, on one side or the other.
+- The live walk of AX1's walled plans found that strip's walls off the
+  canvas: 79 wall endpoints up to 17 px past the top of `ax1.fort19Map`, 13
+  up to 5 px past the right of `ax1.fort23Map`, 3 on `ax1.fort18Map` and 8 on
+  `ax1.level2Map`. The walk's collision probes crossed walls there unblocked
+  (5 of 17 window segments and a terrain side on `ax1.fort19Map`, 2 of 17 on
+  `ax1.fort23Map`), and the console warned that a polygon's origin was out
+  of the scene bounds.
+- The user chose to fix the framing in the importer, for every grid map,
+  over widening those recipes' crops.
+
+**Ruled.**
+- **A grid map is made with a padding of `GRID_SCENE_PADDING` (0.05), the
+  smallest step core's field takes.** Core rounds a padding up to whole
+  cells, or whole strides on a hex grid, so the picture keeps at least a cell
+  of canvas on every side; a shift moves it at most half of that.
+- **`gridScenePlan` asks at that padding whatever scene it is handed**, and
+  refuses a plan whose shifted picture would not lie whole on the canvas
+  (a pixel's slack), so a padding core rounds to nothing refuses the map
+  instead of cutting its edge off.
+- **A settlement map keeps a padding of 0.** It has no shift, and its
+  creation data stays byte for byte what it was.
+- **A zone carried into a book's Adventure moves with the picture's corner.**
+  A world map made before this keeps its corner where it was, and the
+  Adventure's scene puts it a margin further in.
+
+*Rejected:*
+- **A half-cell margin on each walled recipe's crop.** It mends three
+  recipes and not the next one, and every recipe would have to remember it.
+- **A shift held in [0, cell) with no padding.** The picture then never
+  overhangs the origin side, and overhangs the far side by the same strip.
+- **Core's default padding (0.25).** A wider tinted border, for nothing
+  0.05 does not already give.
+
+*Cost:*
+- Every grid map shows a tinted border a cell or more wide round its
+  picture.
+- Each grid book's Adventure is rewritten once at the next Adventures step:
+  its scenes' padding and every token, wall and zone coordinate move.
+- A world map made before this keeps its cut edge until it is made again.
+  Setting its padding to 5% in Scene Config is expected to move its objects
+  with it (core's `autoReposition` fires on a padding change); that is read
+  in core and not run.
