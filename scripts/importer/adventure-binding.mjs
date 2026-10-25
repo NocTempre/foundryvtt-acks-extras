@@ -17,6 +17,7 @@ import { hash36 } from "./printed-name.mjs";
 import { SCENE_LINK_FLAG, LOCATION_TYPE } from "../location/constants.mjs";
 import { FACTION_TYPE } from "../factions/constants.mjs";
 import { controlledRegions } from "./faction-binding.mjs";
+import { claimIds } from "./place-pair.mjs";
 
 /** The document type the shelf holds. */
 export const ADVENTURE_TYPE = "Adventure";
@@ -249,6 +250,24 @@ export function linkFields(scene, actors, book) {
     if (actor.type !== FACTION_TYPE || flag?.book !== book || !flag?.controls?.length) continue;
     const elsewhere = (actor.system?.controls ?? []).filter((uuid) => !String(uuid).startsWith(`${sceneUuid}.`));
     actor.system = { ...actor.system, controls: controlledRegions(elsewhere, flag.controls, regionOf, () => true) ?? elsewhere };
+  }
+  return out;
+}
+
+/**
+ * One stand-in per carried actor (`make` builds it from the source), under
+ * every id its place claims (`claimIds`), so a pin of the earlier book's row
+ * finds the place a later book took it over into. The first actor to claim an
+ * id keeps it, as in the world (`cookbook.mjs` `planCrossing`).
+ * @param {object[]} actors carried actor sources
+ * @param {(source: object) => object} make
+ * @returns {Map<string, object>} cookbook id to stand-in
+ */
+export function standInsByClaim(actors, make) {
+  const out = new Map();
+  for (const source of actors ?? []) {
+    const standIn = make(source);
+    for (const id of claimIds(source?.flags?.[MODULE_ID]?.cookbook)) if (!out.has(id)) out.set(id, standIn);
   }
   return out;
 }

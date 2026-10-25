@@ -25,7 +25,7 @@ import {
   ADVENTURE_KINDS, BOOK_ADVENTURE_KIND, SETTLEMENT_ADVENTURE_KIND, adventureCookbookId, stableDocId,
   settlementAdventureId, bookAdventureCookbookId, bookAdventureId, refsOf, adventureRefs, withWorldIds, linkFields,
   seatsLeft, isRoot, isShelvedKind, fillPlan, includedKeys, applyFill, adventureFolderSources, withoutStats,
-  sourcesHashOf, WRITE_SLACK_MS, bookAdventureState, legacyAdventuresOf, journalCookbookId,
+  sourcesHashOf, WRITE_SLACK_MS, bookAdventureState, legacyAdventuresOf, journalCookbookId, standInsByClaim,
 } from "../../scripts/importer/adventure-binding.mjs";
 
 let failed = 0;
@@ -282,6 +282,23 @@ const sourceWorld = (drop = []) => ({
 
   const left = [faction("f1", { system: { seatUuid: `${LIB}.${id16("far")}`, holdings: [{ uuid: `${LIB}.${id16("h1")}` }, { uuid: `Actor.${I.p1}` }] } })];
   check("seats and holdings off the maps are counted", seatsLeft(left), 2);
+}
+
+// --- stand-ins a map is rebuilt over ----------------------------------------------------------
+{
+  // yy's place took zz's row over: it answers for zz.p2 as well as its own id.
+  const own = { _id: I.p1, flags: stamp("zz.p1", "kind.location") };
+  const later = { _id: I.p2, flags: { [MODULE_ID]: { cookbook: { id: "yy.p9", book: "yy", kind: "kind.location", merged: ["zz.p2"] } } } };
+  const rival = { _id: I.p3, flags: stamp("zz.p2", "kind.location") };
+  const made = [];
+  const standIns = standInsByClaim([own, later, rival], (a) => (made.push(a._id), { id: a._id }));
+  check("a stand-in per carried actor", made, [I.p1, I.p2, I.p3]);
+  check("a place stands in under its own id", standIns.get("zz.p1")?.id, I.p1);
+  check("a place another book took over stands in under the earlier book's id too",
+    [standIns.get("yy.p9")?.id, standIns.get("zz.p2")?.id], [I.p2, I.p2]);
+  ok("both ids name the one stand-in", standIns.get("yy.p9") === standIns.get("zz.p2"));
+  check("the first to claim an id keeps it, and the rival claims none", [standIns.size, [...standIns.values()].some((s) => s.id === I.p3)], [3, false]);
+  check("an actor with no stamp stands under no id", standInsByClaim([{ _id: I.n1 }], (a) => a).size, 0);
 }
 
 // --- what an import creates: the retired per-map Adventure ------------------------------------

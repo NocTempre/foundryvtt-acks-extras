@@ -137,6 +137,13 @@ const COOKBOOK = JSON.parse(await readFile(new URL("../../cookbook/ax1.json", im
 const COOK = COOKBOOK.entries;
 // Every map the scenes step makes for the book: its scene rows that carry a recipe.
 const MAPS = Object.entries(COOKBOOK.scenes ?? {}).filter(([, r]) => r?.scene?.crop).map(([id]) => id);
+// The maps whose recipe traces walls.
+const WALLED = new Set(Object.entries(COOKBOOK.scenes ?? {}).filter(([, r]) => r?.scene?.crop && r.scene.walls).map(([id]) => id));
+// Sight as the maps step states it: a walled map dark and seen by a token's
+// own light, any other lit with sight and fog off.
+const sightRight = (s) => (WALLED.has(s.id)
+  ? s.walls > 0 && s.tokenVision === true && s.fogMode === 1 && s.darkness === 1 && s.globalLight === false
+  : s.walls === 0 && s.tokenVision === false && s.fogMode === 0 && s.darkness === 0);
 const BOOK_PLACE = `${BOOK}.adventure`;
 const REGION_PLACE = `${BOOK}.region`;
 const SPACES = new Set(Object.values(COOK).map((e) => e?.meta?.space).filter(Boolean));
@@ -818,13 +825,25 @@ try {
   if (!rebuild) for (const uuid of st?.created?.folders ?? []) gm.track(uuid, "Folder");
   if (!rebuild) for (const uuid of st?.created?.actors ?? []) gm.track(uuid, "Actor");
   note("1: maps made", { owners: made.filter((m) => rebuild && ownersIds.has(m.id)).map((m) => m.uuid), tracked: made.filter((m) => !rebuild || !ownersIds.has(m.id)).map((m) => m.uuid), folders: st?.created?.folders ?? [], foldersTracked: !rebuild, copies: st?.created?.actors?.length ?? 0 });
-  note("maps step", { made: st?.made, walls: st?.walls, wallsFailed: st?.wallsFailed, scenes: st?.created?.scenes?.length ?? 0 });
+  note("maps step", {
+    made: st?.made, already: st?.already, unready: st?.unready, refused: st?.refused, gridRefused: st?.gridRefused,
+    walls: st?.walls, wallsFailed: st?.wallsFailed, scenes: st?.created?.scenes?.length ?? 0,
+  });
   const sights = [];
   for (const id of MAPS) sights.push({ id, ...(await run(gm, P.sightOf, { id })) });
   note("1: sight fields", sights);
-  check("1: every AX1 map is made and walled", sights.every((s) => s.uuid && s.walls > 0), sights.map((s) => ({ id: s.id, walls: s.walls })));
-  check("1: each states token vision, each user's own fog, darkness 1 and no global light",
-    sights.every((s) => s.tokenVision === true && s.fogMode === 1 && s.darkness === 1 && s.globalLight === false));
+  // The region's map waits on its places until section 2 makes them, unless
+  // an earlier run left them: the step counts it unready, and it is the one
+  // map that may be absent here.
+  const regionMap = PINNED.find((p) => p.region)?.id;
+  const absent = sights.filter((s) => !s.uuid).map((s) => s.id);
+  check("1: every AX1 plan is made, walled where its recipe traces walls, and only the region's map waits",
+    (st?.made ?? 0) + (st?.already ?? 0) + (st?.unready ?? 0) === MAPS.length && !st?.refused && !st?.gridRefused
+      && absent.length === (st?.unready ?? 0) && absent.every((id) => id === regionMap)
+      && sights.every((s) => !s.uuid || (WALLED.has(s.id) ? s.walls > 0 : s.walls === 0)),
+    { absent, walls: sights.map((s) => ({ id: s.id, walls: s.walls })) });
+  check("1: a walled map states token vision, each user's own fog, darkness 1 and no global light; any other is lit, its sight and fog off",
+    sights.filter((s) => s.uuid).every(sightRight), sights.filter((s) => s.uuid && !sightRight(s)).map((s) => s.id));
 
   const level = sights.find((s) => s.id === LEVEL);
   if (!level?.uuid) throw new Error("the first level's map was not made");
@@ -1179,8 +1198,8 @@ try {
     carriedRows.length === rows.length && carriedRows.every(({ u }) => carriedIds.has(u) || String(u).startsWith("Compendium.")),
     { rows: carriedRows.length, carried: carriedRows.filter(({ u }) => carriedIds.has(u)).length, library: carriedRows.filter(({ u }) => String(u).startsWith("Compendium.")).length });
   const carried = adv ? await run(gm, P.adventureScenes, { uuid: adv.uuid }) : null;
-  check("3: each map the Adventure carries is dark, as the world's are",
-    !!carried?.length && carried.every((s) => s.tokenVision === true && s.fogMode === 1 && s.darkness === 1 && s.globalLight === false), carried);
+  check("3: each map the Adventure carries states the world's sight, dark where walled and lit elsewhere",
+    !!carried?.length && carried.every(sightRight), carried?.filter((s) => !sightRight(s)).map((s) => s.id));
   check("3: the Adventure carries each plan with a token per pin",
     PINNED.every((p) => carried?.find((s) => s.id === p.id)?.tokens === p.pins.length), carried?.map((s) => ({ id: s.id, tokens: s.tokens })));
   check("3: the Adventure carries each zone on its plan, once",

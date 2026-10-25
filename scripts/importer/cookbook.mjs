@@ -72,7 +72,7 @@ import { ensureLibraryPack } from "../lib/library-target.mjs";
 import {
   ADVENTURE_TYPE, BOOK_ADVENTURE_KIND, adventureCookbookId, bookAdventureCookbookId, bookAdventureId, withWorldIds,
   adventureRefs, linkFields, seatsLeft, adventureFolderSources, sourcesHashOf, bookAdventureState, legacyAdventuresOf, stableDocId,
-  journalCookbookId,
+  journalCookbookId, standInsByClaim,
 } from "./adventure-binding.mjs";
 import { ALIGN_WORD, sheetValuesFromStatline, asPrintedBlock, playerOwned, classBehindQualifier } from "./character-binding.mjs";
 import { ensureSceneThumb } from "./book-adventure.mjs";
@@ -5800,7 +5800,7 @@ async function bookAdventureSource(bookId) {
   // The maps, by page, over stand-ins: a temporary document answers for a
   // world one's name, uuid and token.
   const actorsNow = () => carried.filter((e) => e.type === "Actor").map((e) => adventureRefs("Actor", e.source, uuidMap));
-  const standIns = new Map(actorsNow().map((a) => [cookbookId(a), new Actor.implementation(a)]));
+  const standIns = standInsByClaim(actorsNow(), (a) => new Actor.implementation(a));
   const recipes = Object.entries(data.books.get(bookId)?.scenes ?? {})
     .filter(([, row]) => isSceneRecipe(row))
     .sort(([, a], [, b]) => (Number(a.scene.page) || 0) - (Number(b.scene.page) || 0));
