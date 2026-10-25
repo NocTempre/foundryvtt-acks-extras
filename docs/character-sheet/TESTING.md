@@ -252,6 +252,11 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
     reads, and a rename does.
 15. The Mount line. Walked with the drop that fills it, from a player's seat:
     `docs/lib/TESTING.md`, "A mount bound by a drop".
+16. The Notes tab, on a fixture whose notes and biography each hold eight
+    paragraphs. *Observable:* on the Notes tab the prose's `clientHeight`
+    equals its `scrollHeight` (710 px at base 14) and its `max-height` is
+    `none`, the frame's scroller carrying the length; the art row's prose
+    beside the portrait stays a 130 px snippet that scrolls in place.
 
 ## Type scale (the `fontScale` knob)
 

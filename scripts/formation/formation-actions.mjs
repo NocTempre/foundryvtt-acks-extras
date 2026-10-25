@@ -669,8 +669,8 @@ export const SHARED_ACTIONS = {
   async addLight() {
     const formation = gmFormation(this);
     if (!formation) return;
-    const type = this.element.querySelector("[name=lightType]")?.value;
-    const bearerId = this.element.querySelector("[name=lightBearer]")?.value;
+    const type = this.element.querySelector("[data-pick=lightType]")?.value;
+    const bearerId = this.element.querySelector("[data-pick=lightBearer]")?.value;
     if (!type || !bearerId) return;
     // A GM handing out a light is describing the world, not shopping in it.
     await addLight(formation, type, bearerId, { override: true });
@@ -702,10 +702,10 @@ export const SHARED_ACTIONS = {
   async addSpell() {
     const formation = gmFormation(this);
     if (!formation) return;
-    const pick = this.element.querySelector("[name=spellPick]")?.value ?? "";
-    const manualName = this.element.querySelector("[name=spellName]")?.value?.trim() ?? "";
-    const manualTurns = Number(this.element.querySelector("[name=spellTurns]")?.value) || 0;
-    const manualCaster = this.element.querySelector("[name=spellCaster]")?.value ?? null;
+    const pick = this.element.querySelector("[data-pick=spellPick]")?.value ?? "";
+    const manualName = this.element.querySelector("[data-pick=spellName]")?.value?.trim() ?? "";
+    const manualTurns = Number(this.element.querySelector("[data-pick=spellTurns]")?.value) || 0;
+    const manualCaster = this.element.querySelector("[data-pick=spellCaster]")?.value ?? null;
 
     let name = manualName;
     let casterId = manualCaster;

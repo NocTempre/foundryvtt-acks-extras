@@ -434,6 +434,27 @@ carry `flags["acks-extras"].templatePart`), and the fixture `Staff` weapon.
 Confirm no `acks-extras.class` or `acks-extras.race` items named for the
 fixture remain and the template folders are empty.
 
+## The SYSTEM sheet's Notes tab: the prose shows whole
+
+Fixture: a disposable character whose `system.details.biography` and
+`system.details.notes` each hold eight paragraphs (about 2,600 characters),
+opened on the system's sheet with the GM seat — construct it directly,
+`new CONFIG.Actor.sheetClasses.character["acks.Ct"].cls({document: actor})`,
+so the actor's own sheet choice is untouched. Render it at `height: 700` and
+`changeTab("notes", "primary")`.
+
+1. *Observable:* the window carries `acks-extras-classes-charsheet`; each
+   displayed editor's `clientHeight` equals its `.editor-content`
+   `scrollHeight` (the whole text, 561 px at base 14), each `.col-stretch` row's
+   `clientHeight` equals its `scrollHeight`, and the tab is the scroller
+   (`scrollHeight` above `clientHeight`). Without the fix both editors are
+   150 px with the text scrolling inside, and the rows clip their feet.
+2. Open the notes editor (its toggle). *Observable:* core's own box — the
+   editor stays at its 150 px floor with the menu above the text, and the text
+   scrolls inside it. Close it without saving.
+
+Teardown: close the sheet and delete the character by id.
+
 ## Class modifiers (the SYSTEM sheet's Effects tab section)
 
 The module's own character sheet edits training on its Stats tab — that

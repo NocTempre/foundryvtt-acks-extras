@@ -338,6 +338,12 @@
   font-size: calc(13.5px * var(--acks-extras-k));
   line-height: 1.45;
   color: var(--acks-ink);
+}
+
+/* Beside the portrait the prose is a snippet the art row's height holds to a
+   few lines, and it scrolls in place. A panel that shows the prose alone (the
+   Notes tab) takes no cap: the sheet's own scroller carries its length. */
+.acks-extras-frame__prose .acks-extras-frame__description {
   max-height: calc(130px * var(--acks-extras-k));
   overflow: auto;
 }

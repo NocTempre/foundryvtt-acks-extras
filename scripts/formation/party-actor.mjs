@@ -8,6 +8,7 @@ import { drawPlate } from "./plate.mjs";
 import { travelOf } from "./travel.mjs";
 import { acksCompatStubs } from "../lib/actor-compat.mjs";
 import { refuseGoods } from "../lib/bundles.mjs";
+import { isPick, readPicks, restorePicks } from "../lib/picks.mjs";
 import { atTypeScale } from "../lib/util.mjs";
 import { clockReading } from "../lib/world-time.mjs";
 
@@ -464,6 +465,18 @@ export class PartySheet extends HandlebarsApplicationMixin(foundry.applications.
     }
   }
 
+  /** @override — a staging pick's value is read off the part being replaced (lib/picks.mjs). */
+  _preSyncPartState(partId, newElement, priorElement, state) {
+    super._preSyncPartState(partId, newElement, priorElement, state);
+    state.picks = readPicks(priorElement);
+  }
+
+  /** @override — and written into its replacement, so a redraw keeps the member or spell picked. */
+  _syncPartState(partId, newElement, priorElement, state) {
+    super._syncPartState(partId, newElement, priorElement, state);
+    restorePicks(newElement, state.picks);
+  }
+
   /**
    * Remove a part this render did not configure. Core replaces the parts it
    * renders and appends new ones, but never removes one that left the list, so
@@ -501,9 +514,13 @@ export class PartySheet extends HandlebarsApplicationMixin(foundry.applications.
 
   /**
    * The form's submit: the formation's own handler, and the description editor
-   * closed once a submit has carried its field.
+   * closed once a submit has carried its field. A change to a staging pick is
+   * no submit, refused before the closing below: core submits on every
+   * control's change, and the travel write and redraw would put the pick back
+   * on its first option and close an open description editor.
    */
   static async #onSubmit(event, form, formData) {
+    if (isPick(event?.target)) return;
     const closing = this.#ui.editing && "system.description" in (formData?.object ?? {});
     if (closing) this.#ui.editing = false;
     await onChangeForm.call(this, event, form, formData);

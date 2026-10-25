@@ -655,6 +655,29 @@ legend > .acks-extras-classes-ctl {
   overflow-y: auto;
 }
 
+/* The Notes tab's rows and editors size to what they hold. Core splits the
+   tab's height evenly between its rows, each clipping what it cannot fit, and
+   draws each editor at its fixed `--min-height` with the text laid out inside
+   it, so a long biography or notes field shows a few lines in a scrolling box
+   whose foot the row cuts off. Displayed, each editor is returned to the flow
+   and the active tab above scrolls the whole; the floor stays, so an empty
+   field is still a box to click. An open editor keeps core's own box, which
+   holds its toolbar above the line being written. */
+.acks-extras-classes-charsheet > .window-content > .tab.sheet-notes .height-100 > .col-stretch {
+  flex: 0 0 auto;
+  overflow: visible;
+}
+
+.acks-extras-classes-charsheet > .window-content > .tab.sheet-notes prose-mirror.inactive {
+  height: auto;
+  overflow: visible;
+}
+
+.acks-extras-classes-charsheet > .window-content > .tab.sheet-notes prose-mirror.inactive .editor-content {
+  position: static;
+  overflow: visible;
+}
+
 /* The window is made resizable so a Judge can see the whole build at once
    (scripts/classes/stat-page.mjs). Core's `.application .window-content` is
    `overflow: hidden`, so dragging it larger would otherwise reveal nothing and

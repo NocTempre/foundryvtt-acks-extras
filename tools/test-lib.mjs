@@ -58,6 +58,7 @@ import { drawForJudges, drawQuietly, postToJudges } from "../scripts/lib/roll-au
 import { elementOf, gmIds, judgesAndOwners } from "../scripts/lib/util.mjs";
 import { clientPages, keepDetachedMarks, pinFontScale, pinLook, pinTheme } from "../scripts/lib/client-pins.mjs";
 import { keepUnrenderedFields, rowListUpdate } from "../scripts/lib/sheet-rows.mjs";
+import { PICK_SELECTOR, isPick, readPicks, restorePicks } from "../scripts/lib/picks.mjs";
 import { leashBreach, oneRoundFeet } from "../scripts/formation/deployment.mjs";
 import { clockReading, darkBounds, isDarkAt, secondsToNextDawn, untilNextDawn } from "../scripts/lib/world-time.mjs";
 import { isExpeditionScale, sceneMilesPerCell } from "../scripts/lib/distance-units.mjs";
@@ -2888,6 +2889,43 @@ t("expeditionFrom states hexes per day only against a stated hex", () => {
   assert.equal(expeditionFrom(120, { milesPerHex: 0 }).hexesPerDay, null);
   assert.equal(expeditionFrom(120, { milesPerHex: null }).hexesPerDay, null);
   assert.equal(expeditionFrom(120, { milesPerHex: 6 }).milesPerDay, expeditionFrom(120).milesPerDay, "the hex changes no mileage");
+});
+
+/** A part root holding staging picks: a select offers `options`, an input has none. */
+function pickRoot(controls) {
+  return {
+    querySelectorAll: (selector) => (selector === PICK_SELECTOR ? controls : []),
+  };
+}
+const pickSelect = (pick, value, offered) => ({ dataset: { pick }, value, options: offered.map((v) => ({ value: v })) });
+const pickInput = (pick, value) => ({ dataset: { pick }, value });
+
+t("picks: a re-render keeps every staging pick it still offers", () => {
+  const prior = pickRoot([pickSelect("lightBearer", "b", ["a", "b", "c"]), pickInput("spellName", "Probe"), pickSelect("lightType", "torch", ["torch", "lantern"])]);
+  const picks = readPicks(prior);
+  assert.deepEqual([...picks], [["lightBearer", "b"], ["spellName", "Probe"], ["lightType", "torch"]]);
+
+  const next = [pickSelect("lightBearer", "a", ["a", "b", "c"]), pickInput("spellName", ""), pickSelect("lightType", "lantern", ["lantern"])];
+  restorePicks(pickRoot(next), picks);
+  assert.equal(next[0].value, "b", "the member picked before the redraw");
+  assert.equal(next[1].value, "Probe", "typed text");
+  assert.equal(next[2].value, "lantern", "a value the redraw no longer offers leaves the template's default");
+});
+
+t("picks: nothing to restore, nothing to read, and the submit test", () => {
+  const next = [pickSelect("lightBearer", "a", ["a", "b"])];
+  restorePicks(pickRoot(next), new Map());
+  restorePicks(pickRoot(next), undefined);
+  assert.equal(next[0].value, "a");
+  assert.equal(readPicks(null).size, 0);
+  assert.equal(readPicks({}).size, 0, "a root that is no element");
+
+  const inside = { closest: (selector) => (selector === PICK_SELECTOR ? {} : null) };
+  const outside = { closest: () => null };
+  assert.equal(isPick(inside), true);
+  assert.equal(isPick(outside), false);
+  assert.equal(isPick(null), false, "a submit with no event");
+  assert.equal(isPick({}), false, "a target with no closest");
 });
 
 console.log(`\n${n} tests passed (including the location migration)`);

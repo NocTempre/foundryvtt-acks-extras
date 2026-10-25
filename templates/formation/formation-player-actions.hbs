@@ -5,12 +5,12 @@
 <section class="player-actions">
   <h3>{{localize "ACKS-FORMATION.request.section"}}</h3>
   <div class="add-light">
-    <select class="player-light-type">
+    <select class="player-light-type" data-pick="playerLightType">
       {{#each playerLightTypes}}
       <option value="{{this.key}}">{{this.label}}</option>
       {{/each}}
     </select>
-    <select class="player-light-bearer">
+    <select class="player-light-bearer" data-pick="playerLightBearer">
       {{#each ownedMembers}}
       <option value="{{this.id}}">{{this.name}}</option>
       {{/each}}
@@ -21,12 +21,12 @@
   </div>
   {{#if playerSpells.length}}
   <div class="add-light add-spell">
-    <select class="player-spell">
+    <select class="player-spell" data-pick="playerSpell">
       {{#each playerSpells}}
       <option value="{{this.key}}">{{this.label}}</option>
       {{/each}}
     </select>
-    <input type="number" class="player-spell-turns" min="1" placeholder="{{localize 'ACKS-FORMATION.app.spellTurns'}}" />
+    <input type="number" class="player-spell-turns" data-pick="playerSpellTurns" min="1" placeholder="{{localize 'ACKS-FORMATION.app.spellTurns'}}" />
     <button type="button" data-action="playerSpell" data-tooltip="{{localize 'ACKS-FORMATION.request.spellHint'}}">
       <i class="fa-solid fa-wand-sparkles"></i> {{localize "ACKS-FORMATION.app.trackSpell"}}
     </button>

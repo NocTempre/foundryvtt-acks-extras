@@ -2449,6 +2449,17 @@ RollTable for Tweaks to pick. Read each seat's
    frame (ROADMAP): the Order tab's member arrows and blank-row remove, the
    Kit tab's light and spell pickers and removes, and the requests section's
    pickers.
+8. **A pick holds until its button reads it.** On a party of three, Kit tab:
+   pick the second member and the torch, arm `updateSetting` and
+   `renderPartySheet` counters, and dispatch a `change` on each select.
+   *Observable:* no write and no render, and the second member still shows;
+   `await sheet.render()` and it still shows; type a spell name and turns and
+   pick a caster — the same holds; rename the party in the band — the name
+   lands and every pick survives that redraw. **Light it**: the light's
+   `bearerId` is the second member's. On the Player seat, owning two members,
+   the requests section's bearer pick survives `sheet.render()` too (do not
+   press its button while a peer holds the Gamemaster seat — the request runs
+   on their client).
 
 Teardown: `api.sweepTracked()` (the scene, the party actor and with it the
 formation, the members, the table, every tracked card); remove the fixture

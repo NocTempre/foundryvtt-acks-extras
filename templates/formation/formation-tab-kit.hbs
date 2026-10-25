@@ -24,12 +24,12 @@
     {{/each}}
     {{#if isGM}}
     <div class="add-light">
-      <select name="lightType">
+      <select data-pick="lightType">
         {{#each lightTypes}}
         <option value="{{this.key}}">{{this.label}} ({{this.turns}} {{localize "ACKS-FORMATION.app.turns"}})</option>
         {{/each}}
       </select>
-      <select name="lightBearer">
+      <select data-pick="lightBearer">
         {{#each bearerOptions}}
         <option value="{{this.id}}">{{this.name}}</option>
         {{/each}}
@@ -55,15 +55,15 @@
     {{/each}}
     {{#if isGM}}
     <div class="add-light add-spell">
-      <select name="spellPick" data-tooltip="{{localize 'ACKS-FORMATION.app.spellPickHint'}}">
+      <select data-pick="spellPick" data-tooltip="{{localize 'ACKS-FORMATION.app.spellPickHint'}}">
         <option value="">{{localize "ACKS-FORMATION.app.spellManual"}}</option>
         {{#each spellOptions}}
         <option value="{{this.key}}">{{this.label}}</option>
         {{/each}}
       </select>
-      <input type="text" name="spellName" placeholder="{{localize 'ACKS-FORMATION.app.spellName'}}" />
-      <input type="number" name="spellTurns" min="1" placeholder="{{localize 'ACKS-FORMATION.app.spellTurns'}}" />
-      <select name="spellCaster">
+      <input type="text" data-pick="spellName" placeholder="{{localize 'ACKS-FORMATION.app.spellName'}}" />
+      <input type="number" data-pick="spellTurns" min="1" placeholder="{{localize 'ACKS-FORMATION.app.spellTurns'}}" />
+      <select data-pick="spellCaster">
         {{#each bearerOptions}}
         <option value="{{this.id}}">{{this.name}}</option>
         {{/each}}
