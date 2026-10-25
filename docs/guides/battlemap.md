@@ -157,13 +157,16 @@ its palette. Two pills at the palette's head pick what the brush paints:
   becomes a tinted region everyone can see.
 - **Territory** — civilized, borderlands, outlands or unsettled.
 
+A third pill, **Domain**, appears once the world holds a domain: it paints
+hexes into a domain ([Domains](domains.md#on-the-map)).
+
 Click or drag to paint hexes. Each pill holds one value per hex, and painting
 over replaces it; a hex can be a forest and borderlands at once. The eraser
 clears the hex on the pill you are on and leaves the other alone. Territory is
 drawn for you alone, as a map mode (below). A stroke paints only the map:
 dragging across a window in front of it paints nothing behind the window.
 
-![](../releases/v11.4.0/battlemap-country-brush.png)
+![](../releases/v11.10.0/battlemap-country-brush.png)
 
 *The Country brush on its Territory pill: one swatch per territory, and the
 eraser.*
@@ -185,6 +188,11 @@ you show your screen. Players never see a map mode. The territory regions
 themselves show only on the Regions control; a map painted before this is
 moved there the first time you open it.
 
+![](../releases/v11.10.0/battlemap-map-modes.png)
+
+*The Map modes window on Territory: the legend, what an unpainted hex reads
+as, the map's climate, the opacity and the handout view.*
+
 A hex nobody painted reads as the scene's own country. The Battlemap window
 has **Ground here** and **Territory here** for it — for a map that is one
 country throughout, or that is not a hex map at all — and **Climate of this
@@ -196,10 +204,10 @@ climate most of its hexes held the first time you open it where it names no
 climate of its own, and a notification says which. Its old climate regions
 stay in the Regions tab, read by nothing, for you to delete.
 
-![](../releases/v11.4.0/battlemap-scene-country.png)
+![](../releases/v11.10.0/battlemap-scene-country.png)
 
-*The Battlemap window with the scene's own ground, territory and climate set
-under the party system.*
+*The Battlemap window with the scene's own ground and territory, and the
+climate of the whole map.*
 
 A journeying party reads all of it: the hex it stands in answers the ground its
 speed, road and foraging are priced on, the table its encounters draw from,

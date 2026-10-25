@@ -110,6 +110,14 @@ in-service chip until the Judge rolls it.
 *A henchman's Service tab: standing, terms and employer, then the ledger and
 events, with the employer's chip in the window header.*
 
+Hover any figure on the Service tab to see where it came from: a score's
+parts, the wage's terms or the wage table it was read from, with the page.
+
+![](../releases/v11.10.0/henchmen-service-provenance.png)
+
+*The morale figure hovered: its parts, the employer's morale power among them.
+Obedience reads the same morale score.*
+
 **A hireling opens on the same sheet as any character.** The compact Follower
 Card is there if you want it: right-click the hireling in the Actors
 directory and choose **Use Follower Card sheet** (**Use full sheet** turns it

@@ -239,7 +239,10 @@ Class shows the bound class document, the XP pair, and — while the bar is
 full — what the next level changes, grants and asks, with the Level up button.
 Magic appears for a caster, with the casting pools and the repertoire. Followers
 renders the hirelings as Follower Cards beside the Roster chip. Notes holds the
-notes and the relationships on record.
+notes and the relationships on record, the notes shown whole however long
+they run.
+
+![](../releases/v11.10.0/character-sheet-notes.png)
 
 ![](../releases/v6.5.0/character-sheet-effects.png)
 

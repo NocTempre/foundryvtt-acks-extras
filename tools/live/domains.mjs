@@ -590,7 +590,7 @@ try {
   gm = await seat("gm");
   const census = await run(gm, P.census, { mod: MOD, type: DOMAIN });
   note("gm census", census);
-  check("before anything else: the world declares the domain sub-type, the api is published, and this seat is the active GM", census.domainType && census.api === 2 && census.activeGMIsSelf, census);
+  check("before anything else: the world declares the domain sub-type, the api is published, and this seat is the active GM", census.domainType && census.api === 3 && census.activeGMIsSelf, census);
   if (!census.domainType) throw new Error("the world does not declare acks-extras.domain: shut it down and relaunch it");
   prunePre = census.prune;
   fontPre = census.fontScale;

@@ -1049,8 +1049,8 @@ with the build plan in `wip/20261017-ax1-adventure-design.md`: one Adventure
 per book, with AX3's per-map one retired; key spaces of neutral rows; four
 maps and the fort's floor plans joined as scenes, with walls traced at import
 on the plans a tracer mode reads; characters from the page;
-later books superseding a shared place. It ships as one minor when AX1
-imports whole.
+later books superseding a shared place. Its first part shipped in 11.10.0;
+what is left is listed under "Left out of AX1's minor" below.
 
 - **AX1's narrower encounter rules.** Two areas and a room of the first
   level print their own interval and chance inside the level's (pp. 37, 43,

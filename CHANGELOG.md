@@ -1,5 +1,120 @@
 # Changelog
 
+## 11.10.0
+
+### Added
+
+- **AX1 imports as an adventure.** *Import Everything* on AX1 now brings
+  in the adventure from your own copy, not only the tables its region
+  needed:
+  - **The pregenerated party** imports as characters in the book's
+    *Pregenerated* folder, each read from its write-up and rebuilt under
+    the ACKS II rules. To hand one to a player, right-click its entry,
+    choose *Import*, and give that player Owner on the copy. A class
+    printed with a word before it binds the library class the rest of the
+    name gives, and the as-printed block says *Class read as*.
+  - **The keyed areas are places**, each inside the area or level it
+    belongs to, with the room's text as its notes. A room's roster lists
+    who is there: your library's creature where it holds one, the book's
+    own person or creature, or a creature made from the room's stat line.
+    Roster rows are hidden from players.
+  - **The maps are scenes.** The region map stands its sites, the fort and
+    the first level on their hexes. The fort's overview, its blocks, its
+    gatehouse and tower (a level per storey) and both dungeon levels are
+    plans, each named for the place it draws, with every room a hidden pin
+    on the key the page prints. Each dungeon level is an encounter zone
+    over its plan.
+  - **The plans have walls**, traced at import from your copy's page:
+    doors where the plan draws them, windows and arrow slits that sight
+    passes, raised floors as terrain. A walled map is dark: a token sees by
+    its own torch or lantern, or its party's, or its own dark sight, and
+    each player keeps the squares their tokens explored.
+  - **Ways between maps.** The region leads to the fort and the first
+    level, the two levels join at their stairs, the fort's towers lead to
+    the tower plan, and the tower's storeys to each other. A token that
+    enters a way leading to more than one place is asked which.
+  - **One Adventure for the book** in the library carries its maps, places,
+    rosters, journals and ways, and its *Import* brings them into a world.
+    The first press after the library has sat idle says it is loading the
+    library and then imports, where it used to refuse.
+  - **A place AX1 and AX3 both print is one place.** The later printing
+    gives it its identity and text, and the earlier book's paragraphs the
+    later one lacks are kept after it. AX1's first level is AX3's site.
+
+  Still to come, listed in the importer's roadmap: walls on the p.12 plan,
+  the fort's gates, blocks and wall walks joined to their plans, the shaft
+  and second stair between the levels, the encounter area over the region,
+  and the domain record (p.28).
+- **Domains on the map.** The country brush has a *Domain* layer: paint a
+  hex into a domain. A *Domains* map mode draws each domain in a colour of
+  its own, a vassal in a shade of its liege's, with the border heaviest
+  where two realms part. A hex painted into a domain takes the domain's
+  class as its territory unless you paint one, and the Territory mode
+  stripes a hex where the two differ. A domain's *Territory* tab lists the
+  hexes painted into it after its own rows; *Keep* makes one a row of the
+  record. A party standing in such a hex says its Country is "The hex's
+  domain", and follows when the domain is reclassified.
+- **Map modes.** The map shows one mode at a time over its terrain:
+  *Terrain*, as everyone sees it, or *Territory*, a border in each
+  territory's colour drawn inside the hexes it was painted on, the terrain
+  still filling them. The group's *Map modes* tool opens a window with the
+  modes, the legend, what an unpainted hex reads as, the map's climate, an
+  *Opacity* slider and a *Handout view* that hides the borders and the road
+  and water markers while you share your screen. Players never see a map
+  mode.
+- **Every figure on a hireling's Service panel names its source** in a
+  tooltip: a score's parts and page, the wage's terms or the wage table's
+  level and page, the shares, and the counters the record keeps.
+- **Range of Trade is imported** from the Judges Journal (JJ 203) with the
+  Rules tables, and answered by `rangeOfTradeFor(marketClass)` on
+  `acksExtras.markets`. Nothing in markets uses it yet.
+
+### Changed
+
+- **The climate belongs to the whole map.** The country brush paints
+  terrain and territory only; *Climate of this map* in the scene's setup
+  sets the climate every hex shares. A map painted with climates hex by
+  hex takes the one most of its hexes held the first time a Judge opens
+  it, and a notification says which.
+- **Territory regions live on the Regions control**, so core's hatching no
+  longer covers the terrain. A map painted before is moved there the first
+  time a Judge opens it.
+- **The country brush paints the map alone.** Picking a swatch, dragging
+  the palette or a stroke crossing a window no longer paints the hex
+  behind it.
+- **An item two books print is the later printing's** when the importer
+  merges them.
+- **A grid map has a cell of canvas round its picture**, so no strip of the
+  picture or its walls is pushed off the scene's edge.
+
+### Fixed
+
+- **A pick holds until its button reads it.** On the party sheet, the light,
+  spell and request pickers kept resetting to the first member after any
+  redraw, so *Light it* lit the wrong person's torch. The same is fixed for
+  the faction sheet's control and relation picks, the demand generator's
+  good, the Trade tab's venture category, the storage manager's move target
+  and new name, a named item's guess, rename, true name, ladder and unlocked
+  fields, and each group stack's deploy count. An empty guess is now refused
+  instead of spending the speaker's guess for the level.
+- **The Notes tab shows its text whole.** The module's character sheet no
+  longer cuts the notes off after a few lines, and on the system's sheet the
+  Notes tab's rows and editors size to their text and the tab scrolls.
+- **The Service panel's Obedience row reads morale**, which the obedience
+  throw rolls (RR 167); it showed loyalty. The morale line now counts the
+  employer's morale powers, which the score already added.
+- **An empty place that other places sit in** is no longer removed when the
+  world loads, so a level holding only its rooms stays.
+
+### Upgrading
+
+- Run *Reimport One Shelf → Rules tables* once to bring in the Range of
+  Trade.
+- To get AX1's adventure, import AX1 again (*Import Everything*). A map
+  already in your world is never redrawn: delete its scene and run the maps
+  step again to get walls, pins and ways on it. A world that imported AX3
+  keeps its sites; AX1's rows join them.
+
 ## 11.9.0
 
 ### Added

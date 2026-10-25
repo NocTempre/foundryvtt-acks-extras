@@ -54,6 +54,25 @@ hex numbers separated by commas, or a count where the numbers are not listed.
 **Families** on each row add up to the domain's peasant families. **Shown**
 lets players who can read the sheet see that row's land value.
 
+### On the map
+
+On a hex map, the Country brush's **Domain** pill paints hexes into a domain
+(see [Painting the country](battlemap.md#painting-the-country)). The
+**Domains** map mode draws each domain in a colour of its own, a vassal in a
+shade of its liege's, with the border heaviest where two realms part. A hex
+painted into a domain reads as the domain's classification unless you paint
+it a territory of its own.
+
+The Territory tab lists the hexes painted into the domain after its own rows,
+each with a paintbrush mark. **Keep** turns one into a row of the record, or
+ties it to a row that counts hexes without naming them. Erasing a hex on the
+map deletes no row; the row is marked until you remove it.
+
+![](../releases/v11.10.0/domains-map-mode.png)
+
+*The Domains map mode: two realms and a vassal, the vassal a lighter shade of
+its liege, and the Map modes window's legend.*
+
 ## Holdings
 
 ![](../releases/v11.8.0/domains-holdings.png)
