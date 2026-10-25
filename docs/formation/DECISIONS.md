@@ -4273,8 +4273,8 @@ reclassified domain writes, so the party kept the old class until it moved.
   written.
 - A layer keyed as one of formation's own words (`override`, `declared`,
   `default`) would read as that source. None is.
-- The card names the class and its source, not which domain: that is the
-  Domains map mode's.
+- The card names the class and its source, not which domain
+  (`docs/domains/ROADMAP.md`, "The party sheet naming its domain").
 
 - Walked (TESTING, *A territory a domain derives*), on the Gamemaster seat
   as the active GM, page at apiVersion 19: painting the party's hex into a
