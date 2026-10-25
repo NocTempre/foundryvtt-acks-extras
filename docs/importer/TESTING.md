@@ -2655,12 +2655,17 @@ block what walls block.
    stays inactive for everyone else), then probe with
    `CONFIG.Canvas.polygonBackends[type].testCollision(a, b, { type, mode: "any" })`,
    where `a` and `b` are 20 px either side of a wall's midpoint along its
-   normal.
+   normal. Keep both inside `sceneRect`: sight from inside the scene stops
+   at the picture's edge, so a probe that reaches past it collides there and
+   not at the wall, as across the outer-wall windows of AX1 p.15 and p.23
+   that lie within 20 px of the crop. Where another wall stands within 20 px
+   of a terrain side, probe that side at 5 px (p.15's dais, 8 px from a room
+   wall).
    *Observable:*
    - `move`, `sight` and `sound` collide across a sample of plain walls, and
      `move` and `sight` across closed doors and secret doors. The sample
      takes a wall on each side of the crop's edge: that is where a picture
-     cut off the canvas would lose its walls (AX1 p.16's north wall);
+     cut off the canvas would lose its walls (AX1 p.15's north wall);
    - across one side of a terrain box `move` collides and `sight` does not;
      from outside, across the box to its far side, `sight` collides;
    - across an invisible wall `move` collides, and `sight` and `sound` do not;

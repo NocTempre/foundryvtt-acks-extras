@@ -8045,10 +8045,10 @@ bullet. Under that entry sight passes the whole gap the trace leaves.
 - The live walk of AX1's walled plans found that strip's walls off the
   canvas: 79 wall endpoints up to 17 px past the top of `ax1.fort19Map`, 13
   up to 5 px past the right of `ax1.fort23Map`, 3 on `ax1.fort18Map` and 8 on
-  `ax1.level2Map`. The walk's collision probes crossed walls there unblocked
-  (5 of 17 window segments and a terrain side on `ax1.fort19Map`, 2 of 17 on
-  `ax1.fort23Map`), and the console warned that a polygon's origin was out
-  of the scene bounds.
+  `ax1.level2Map`. Across the windows in those strips, 5 on
+  `ax1.fort19Map`'s top and 2 on `ax1.fort23Map`'s right, the walk's probes
+  found sound stopped at the canvas's edge, and the console warned that a
+  polygon's origin was out of the scene bounds.
 - The user chose to fix the framing in the importer, for every grid map,
   over widening those recipes' crops.
 
