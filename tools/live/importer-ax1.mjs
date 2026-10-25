@@ -495,6 +495,11 @@ const P = {
     const c = game.actors.get(id)?.flags?.["acks-extras"]?.cookbook;
     return c ? [c.id, ...(c.merged ?? [])] : null;
   },
+  /** The document id of the first world actor whose stamp answers for a cookbook id, as the maps step finds it held; null where none does. */
+  worldClaimant: async ({ id }) => {
+    const answers = (c) => !!c && [c.id, ...(c.merged ?? [])].includes(id);
+    return game.actors.find((a) => answers(a.flags?.["acks-extras"]?.cookbook))?.id ?? null;
+  },
   /**
    * Where each cookbook id stands as the maps step reads it: the world Actor
    * packs' index rows carrying it (the step's own fields), and the world
@@ -1039,9 +1044,12 @@ try {
   // A world place under another book's id is that book's copy, and stays.
   const copiesBefore = (await run(gm, P.worldPlaces, { book: BOOK })).filter((p) => p.here);
   if (copiesBefore.length) note("2c: world places deleted", await run(gm, P.deleteActors, { uuids: copiesBefore.map((p) => p.uuid) }));
+  // A pair's copy the world holds answers for the row whatever its document
+  // id: the library's, or one an earlier run's 2d deleted and made again.
   const pairCopies = {};
-  for (const p of BOUND.values()) pairCopies[p.id] = (await run(gm, P.worldActorClaims, { id: p._id })) !== null;
-  note("2c: a pair's place already copied into the world, under the library's id", pairCopies);
+  for (const p of BOUND.values()) pairCopies[p.id] = await run(gm, P.worldClaimant, { id: p.id });
+  note("2c: a pair's place already copied into the world, and whether under the library's id",
+    Object.fromEntries([...BOUND.values()].map((p) => [p.id, pairCopies[p.id] ? { libraryId: pairCopies[p.id] === p._id } : null])));
   // Where the places the pins sit in stand, as the maps step reads them.
   const above2c = BROUGHT.filter((id) => !PINNED.some((p) => p.pins.includes(id)));
   const standing = (s) => ({
@@ -1113,10 +1121,10 @@ try {
     const createdActors = new Set(sc?.created?.actors ?? []);
     const copyRight = (p) => {
       const w = world2c.find((x) => x.id === p.id);
-      return !!w && !w.here && w._id === p._id && createdActors.has(w.uuid) === !pairCopies[p.id];
+      return !!w && !w.here && w._id === (pairCopies[p.id] ?? p._id) && createdActors.has(w.uuid) === !pairCopies[p.id];
     };
-    check("2c: a pair's place is in the world as the later book's copy, under the library's id: one held before is restamped, not copied again",
-      [...BOUND.values()].every(copyRight), [...BOUND.values()].map((p) => ({ id: p.id, held: pairCopies[p.id], ok: copyRight(p) })));
+    check("2c: a pair's place is in the world as the later book's copy: one held before is restamped, not copied again, and one the world lacks is copied under the library's id",
+      [...BOUND.values()].every(copyRight), [...BOUND.values()].map((p) => ({ id: p.id, held: !!pairCopies[p.id], ok: copyRight(p) })));
   }
   check("2c: the world holds the places the plans bring, once each, and no other of AX1's",
     sameSet(world2c.map((p) => p.id), BROUGHT), { world: world2c.length, brought: BROUGHT.length, copied: sc?.copied });
@@ -1237,8 +1245,8 @@ try {
     sameSet(createdPlaces, BROUGHT.filter((id) => !pairsStood.has(id))) && world3b.length === BROUGHT.length,
     { created: createdPlaces.length, brought: BROUGHT.length, heldPairs: BROUGHT.filter((id) => pairsStood.has(id)).length, world: world3b.length });
   if (pairsStood.size) {
-    const stillHeld = (id) => world3b.some((p) => p.id === id && !p.here && p._id === BOUND.get(id)?._id && !createdSet.has(p.uuid));
-    check("3b: a pair's copy the world held is held still, under the library's id", [...pairsStood].every(stillHeld), [...pairsStood]);
+    const stillHeld = (id) => world3b.some((p) => p.id === id && !p.here && p._id === world3a.find((x) => x.id === id && !x.here)?._id && !createdSet.has(p.uuid));
+    check("3b: a pair's copy the world held is held still, under its own id", [...pairsStood].every(stillHeld), [...pairsStood].map((id) => ({ id, ok: stillHeld(id) })));
   }
   const plans3b = {};
   for (const p of PINNED) plans3b[p.id] = await run(gm, P.planOf, { id: p.id });
@@ -1275,6 +1283,9 @@ try {
     const bind = {};
     for (const p of takeover) bind[p.id] = await run(gm, P.pairShape, { id: p.id, keep: true });
     note("2d: the place the bind left", bind);
+    // The world copy answering for each row before its library place goes.
+    const copy2d = {};
+    for (const p of takeover) copy2d[p.id] = await run(gm, P.worldClaimant, { id: p.id });
     note("2d: deleted (the owner's, by HELD_OK and TAKEOVER_OK)", await run(gm, P.deleteActors, { uuids: takeover.map((p) => bind[p.id].uuid) }));
     const mine = await step(gm, "cookbookImportPoiPlaces", [{ books: [BOOK] }], 900);
     note("2d: AX1's places step", { made: mine.made, already: mine.already, paired: mine.paired, refused: mine.refused, places: mine.created?.places ?? [] });
@@ -1306,13 +1317,16 @@ try {
     const again2d = await step(gm, "cookbookImportPoiPlaces", [{ books: [BOOK] }], 900);
     check("2d: AX1's places step run again finds every place held", !again2d.made && !again2d.paired && !again2d.refused, { made: again2d.made, paired: again2d.paired, refused: again2d.refused });
     for (const p of takeover) {
-      const claims = await run(gm, P.worldActorClaims, { id: bind[p.id]._id });
-      check(`2d: the world copy under the deleted place's id still answers for both rows (${p.id})`, !!claims && claims.includes(p.id) && claims.includes(p.later), claims);
+      const claims = copy2d[p.id] ? await run(gm, P.worldActorClaims, { id: copy2d[p.id] }) : null;
+      check(`2d: the world copy that answered before the delete still answers for both rows (${p.id})`, !!claims && claims.includes(p.id) && claims.includes(p.later),
+        { libraryId: copy2d[p.id] === bind[p.id]._id, claims });
     }
     const re2d = await step(gm, "cookbookImportAdventures", [{ books: [BOOK] }]);
     const lib2d = await run(gm, P.placesOf, { book: BOOK });
     const adv2d = (await run(gm, P.library, { book: BOOK })).adventures.find((a) => a.kind === "kind.bookAdventure");
-    check("2d: AX1's Adventure, rebuilt, carries every AX1 place again", ["written", "rebuilt"].includes(re2d?.books?.[BOOK]) && adv2d?.contents?.places === lib2d.filter((r) => r.type === LOCATION).length,
+    // Held is right where the place's remade document carries what the old one
+    // did: the Adventure carries it under its world copy's id either way.
+    check("2d: AX1's Adventure, brought up to date, carries every AX1 place again", ["written", "rebuilt", "held"].includes(re2d?.books?.[BOOK]) && adv2d?.contents?.places === lib2d.filter((r) => r.type === LOCATION).length,
       { outcome: re2d?.books?.[BOOK] ?? null, places: adv2d?.contents?.places, held: lib2d.filter((r) => r.type === LOCATION).length });
     note("2d: left stale", { books: laterBooks, why: "each later book's own Adventure carries the deleted place's document id until it is rebuilt" });
   }
