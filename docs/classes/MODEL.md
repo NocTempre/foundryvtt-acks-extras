@@ -805,6 +805,19 @@ tabs appear the day such spells exist. A skinned item's sheet carries a
 badge naming what it is an instance of, with the embellishment parsed
 apart from the base at grant time (`flags.skin.embellishment`).
 
+## The system's character sheet: layout under the marker
+
+`assign.mjs` adds `acks-extras-classes-charsheet` to a system character
+sheet its viewer owns — the module's handle on a window whose classes are
+the system's, put there for the class drop and the picker. Two layout rules
+hang off it in `styles/classes.css`, because core's own sheet hides what it
+cannot fit: the active tab is the scroller under a pinned header and tab
+strip, so a short window scrolls instead of clipping its tab; and on the
+Notes tab the rows and the displayed editors size to their text, where core
+gives each row an even share of the tab and each editor a fixed floor with
+the text scrolling inside it. An open editor keeps core's box. A viewer who
+does not own the character is given no marker and sees core's layout.
+
 ## Save-reference repair
 
 `repairSaveReferences` (lib/actor-compat.mjs) finds references to save keys
