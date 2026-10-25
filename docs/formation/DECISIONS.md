@@ -4275,3 +4275,13 @@ reclassified domain writes, so the party kept the old class until it moved.
   `default`) would read as that source. None is.
 - The card names the class and its source, not which domain: that is the
   Domains map mode's.
+
+- Walked (TESTING, *A territory a domain derives*), on the Gamemaster seat
+  as the active GM, page at apiVersion 19: painting the party's hex into a
+  civilized domain re-read it in 319 ms, sourced "domain", the card "The
+  hex's domain"; reclassifying the domain wrote one reading (outlands, same
+  hex, no region written, no drag) and the open sheet followed, and a rename
+  wrote none; the Judge's borderlands drew the Override chip naming outlands,
+  and its clear restored the domain's source; clearing the class fell to the
+  scene default, sourced "scene". The sweep removed the region, the token,
+  both actors and the scene, found none missing and was refused none.

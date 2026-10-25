@@ -2621,16 +2621,24 @@ other control.
 
 ## A territory a domain derives (added with the derived provenance)
 
-Fixtures, beside the country recipe's (its hex scene, viewed; its party, in a
-journey with the token in hex C, which no territory paint holds): one
-disposable `acks-extras.domain` actor classified civilized, `api.create`d,
-and hex C painted into it with `acksExtras.battlemap.terrain.paintHexAt(scene,
-point, domain.uuid, "domain")`, its region tracked as the country recipe's
-are. `countryAt` reads a domain's class as [domains
-TESTING](../domains/TESTING.md) steps 3 and 5 walk it; this recipe walks what
-the party makes of it. The refresh runs on the active GM's client, so that
-client must have loaded the working tree since the change; read
-`acksExtras.formation.apiVersion` there before step 2.
+Fixtures, each recorded as made: a mile-scale HEX scene created with
+`active: false` (it need not be viewed: every read here is canvas-free), its
+default territory borderlands through `writeSceneSetup`; a disposable
+`acks-extras.party` actor, whose formation the `createActor` hook adopts (no
+members: the reading needs none); its token created at hex C's centre from
+`party.getTokenDocument()` with `scene.createEmbeddedDocuments("Token", …)`,
+which the `createToken` hook adopts (poll the record's `tokenId`); then
+`setJourneyMode(id, "journey")`, which reads the scene default under it. One
+disposable `acks-extras.domain` actor classified civilized, and hex C painted
+into it with `acksExtras.battlemap.terrain.paintHexAt(scene, point,
+domain.uuid, "domain")`, its region's id read back from `scene.regions`.
+`countryAt` reads a domain's class as [domains TESTING](../domains/TESTING.md)
+steps 3 and 5 walk it; this recipe walks what the party makes of it. The
+refresh runs on the active GM's client, so that client must have loaded the
+working tree since the change: read `acksExtras.formation.apiVersion` and
+`game.users.activeGM` there first. The party sheet is `party.sheet`, rendered
+with `{force: true}`; the Territory card is
+`[data-section="country"] .acks-extras-country-card[data-key="territory"]`.
 
 1. **The class reads as the domain's.** Poll the record after the paint.
    *Observable:* within two seconds `travel.map.territory` reads civilized with
@@ -2655,8 +2663,9 @@ client must have loaded the working tree since the change; read
    *Observable:* one counted write; the reading falls to the scene default,
    sourced "scene", and the card to "The scene's default".
 
-Teardown: the country recipe's, which takes the domain with the rest; quote
-the sweep result.
+Teardown: delete the region, the token, the two actors and the scene by the
+ids recorded; the formation record goes with its party actor. Quote the
+sweep result.
 
 ## The hex the party is shown (added with the redesign's phase 2b)
 
