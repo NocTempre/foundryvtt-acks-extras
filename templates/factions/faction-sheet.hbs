@@ -127,7 +127,7 @@
       <div class="faction-control-pick">
         <label>
           {{localize "ACKS-FACTIONS.sheet.controlPick"}}
-          <select name="controlPick">
+          <select data-pick="controlPick">
             {{#each districtOptions}}<option value="{{uuid}}">{{label}}</option>{{/each}}
           </select>
         </label>
@@ -317,7 +317,7 @@
       <div class="faction-control-pick">
         <label>
           {{localize "ACKS-FACTIONS.sheet.relationPick"}}
-          <select name="relationPick">
+          <select data-pick="relationPick">
             {{#each relationOptions}}<option value="{{uuid}}">{{label}}</option>{{/each}}
           </select>
         </label>

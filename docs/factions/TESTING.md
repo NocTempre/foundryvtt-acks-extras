@@ -230,6 +230,17 @@ Shut the world down and relaunch it, then check again.
     above zero. The shared recipe is step 8 of the coin walk in
     [`docs/lib/TESTING.md`](../lib/TESTING.md), which also walks a unit and a
     party.
+19. **A pick holds until its button reads it.** On two disposable
+    organisations, open the first's sheet, arm `updateActor` and
+    `renderFactionSheet` counters, pick a district other than the first under
+    Control and the other fixture under Relations, and dispatch a
+    `change` on each select. *Observable:* no write and no render, and both
+    picks still show; an `actor.update` redraws the sheet once and both
+    survive. Press each Add. *Observable:* the relation and the control
+    written are the ones picked, and each select falls back to its first
+    option, since the added row has left its list. Pick again under
+    Relations, then change the new row's stance with a `change`. *Observable:*
+    the stance lands, the sheet redraws once, and the pick still shows.
 
 A domain dropped on an organisation's sheet, refused with a warning naming it
 and the organisation unchanged, is walked in

@@ -28,6 +28,7 @@ import { ownCoin } from "../money.mjs";
 import { coinOrderView } from "../coin-order.mjs";
 import { isCurrency } from "../item-model.mjs";
 import { landCoin, refuseGoods } from "../bundles.mjs";
+import { PicksMixin } from "../picks.mjs";
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -38,7 +39,7 @@ export { GROUP_TYPE };
  * which is a different shape from a single creature and so gets its own sheet
  * rather than an alternate character one.
  */
-export class GroupSheet extends HandlebarsApplicationMixin(foundry.applications.sheets.ActorSheetV2) {
+export class GroupSheet extends PicksMixin(HandlebarsApplicationMixin(foundry.applications.sheets.ActorSheetV2)) {
   static DEFAULT_OPTIONS = {
     classes: ["acks-ui", "acks-extras", "acks-extras-scroll", "acks-lib-group-sheet"],
     position: { width: 600, height: 680 },
@@ -151,10 +152,6 @@ export class GroupSheet extends HandlebarsApplicationMixin(foundry.applications.
         if (stackKey) await groups.patchStack(this.actor, stackKey, (s) => (s.size[field] = val));
         this.render();
       });
-    }
-    // The transient deploy/casualty count must not trip submitOnChange.
-    for (const input of this.element.querySelectorAll("input.deploy-count")) {
-      input.addEventListener("change", (ev) => ev.stopPropagation());
     }
   }
 

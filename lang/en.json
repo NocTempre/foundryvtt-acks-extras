@@ -1676,6 +1676,7 @@
       "revealed": "true name spoken: full power",
       "guess": "Speak it",
       "guessHint": "Speak a name…",
+      "guessBlank": "Type the name to speak first.",
       "noSpeaker": "No character to speak the name (open it from an actor, or assign your character).",
       "noGuess": "{name} has already guessed this level — no guess until the next level of experience.",
       "correct": "The name is TRUE — {item} awakens to its full power.",

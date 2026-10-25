@@ -78,14 +78,14 @@
         <div class="acks-location-manager-target">
           <label>
             {{localize "ACKS-LOCATION.manager.moveTo"}}
-            <select name="target">
+            <select data-pick="target">
               {{#each targets as |t|}}
                 <option value="{{t.uuid}}">{{t.name}}</option>
               {{/each}}
               <option value="__new__">{{localize "ACKS-LOCATION.manager.newLocation"}}</option>
             </select>
           </label>
-          <input class="acks-location-manager-newname hidden" type="text" name="newName"
+          <input class="acks-location-manager-newname hidden" type="text" data-pick="newName"
                  placeholder="{{localize 'ACKS-LOCATION.manager.newLocationName'}}" />
         </div>
         <div class="acks-location-manager-buttons">

@@ -33,6 +33,7 @@ import {
   hasRandomBands,
 } from "../rules/demand.mjs";
 import { optTable } from "../../henchmen/rules/tables.mjs";
+import { PicksMixin } from "../../lib/picks.mjs";
 
 const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 
@@ -66,7 +67,7 @@ function countsFor(revenueGp) {
 /** One d100 for a random-merchandise draw. */
 const rollGood = async () => (await new Roll(`1d${RANDOM_GOOD_DIE}`).evaluate()).total;
 
-export class DemandGenerator extends HandlebarsApplicationMixin(ApplicationV2) {
+export class DemandGenerator extends PicksMixin(HandlebarsApplicationMixin(ApplicationV2)) {
   /**
    * @param {object} o
    * @param {Actor} o.location  The market location the result is written to.
@@ -210,9 +211,9 @@ export class DemandGenerator extends HandlebarsApplicationMixin(ApplicationV2) {
       if (value !== undefined) s.a[key] = Math.trunc(Number(value) || 0);
     }
     s.pickDelta = wholeOrNull(d.pickDelta);
-    // The add-a-pick controls are read by their button; redrawing on their
-    // change would replace the button under the click.
-    if (["pickCategory", "pickDelta"].includes(event?.target?.name)) return;
+    // The typed change is read by Add pick; redrawing on its change would
+    // replace the button under the click.
+    if (event?.target?.name === "pickDelta") return;
     await this.render();
   }
 
@@ -236,7 +237,7 @@ export class DemandGenerator extends HandlebarsApplicationMixin(ApplicationV2) {
 
   /** Add one hand-picked good with the signed change typed beside it. */
   static async #onAddPick() {
-    const category = this.element.querySelector("[name='pickCategory']")?.value;
+    const category = this.element.querySelector("[data-pick='pickCategory']")?.value;
     const delta = wholeOrNull(this.element.querySelector("[name='pickDelta']")?.value);
     if (!category || !delta) return void ui.notifications.warn(t("pickNeeds"));
     this.draft.picks.push({ category, delta });

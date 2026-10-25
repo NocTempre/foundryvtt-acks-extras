@@ -2761,6 +2761,23 @@ character alone. Open the domain token's HUD. *Observable:* it has no
 form-up press. Track the party the press made from `getFormations()`, read
 back after it, and `api.sweepTracked()`.
 
+## A group stack's count holds until its button reads it
+
+Fixtures: a disposable group with two stacks (`groups.addStack(group, source,
+{count})` twice, from disposable sources). Open its sheet and arm
+`updateActor` and `renderGroupSheet` counters.
+
+1. Type a different count in each stack's row, with a `change` on each.
+   *Observable:* no write and no render.
+2. Change the second stack's current headcount.
+   *Observable:* one write and a redraw, and each row still shows its own
+   count.
+3. Press Record casualties on the first stack.
+   *Observable:* its headcount drops by exactly that row's count, and the
+   second stack's is unchanged.
+
+Teardown: delete the group and its sources by id.
+
 ## Teardown
 
 Delete every fixture actor and the items the storage and money steps created.

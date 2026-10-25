@@ -95,7 +95,7 @@
     {{#if editable}}
     {{#unless effects.named.revealed}}
     <div class="acks-extras-item-sheet__row acks-row--wrap">
-      <input class="acks-input acks-input--line acks-extras-item-sheet__grow" type="text" data-field="guess" placeholder="{{localize 'ACKS-EQUIPMENT.named.guessHint'}}">
+      <input class="acks-input acks-input--line acks-extras-item-sheet__grow" type="text" data-field="guess" data-pick="guess" placeholder="{{localize 'ACKS-EQUIPMENT.named.guessHint'}}">
       <button type="button" class="acks-btn acks-btn--secondary acks-btn--sm" data-action="guessName" data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.named.guessHint'}}">{{localize 'ACKS-EQUIPMENT.named.guess'}}</button>
     </div>
     {{/unless}}

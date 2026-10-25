@@ -58,7 +58,7 @@ import { drawForJudges, drawQuietly, postToJudges } from "../scripts/lib/roll-au
 import { elementOf, gmIds, judgesAndOwners } from "../scripts/lib/util.mjs";
 import { clientPages, keepDetachedMarks, pinFontScale, pinLook, pinTheme } from "../scripts/lib/client-pins.mjs";
 import { keepUnrenderedFields, rowListUpdate } from "../scripts/lib/sheet-rows.mjs";
-import { PICK_SELECTOR, isPick, readPicks, restorePicks } from "../scripts/lib/picks.mjs";
+import { PICK_SELECTOR, PicksMixin, isPick, readPicks, restorePicks } from "../scripts/lib/picks.mjs";
 import { leashBreach, oneRoundFeet } from "../scripts/formation/deployment.mjs";
 import { clockReading, darkBounds, isDarkAt, secondsToNextDawn, untilNextDawn } from "../scripts/lib/world-time.mjs";
 import { isExpeditionScale, sceneMilesPerCell } from "../scripts/lib/distance-units.mjs";
@@ -2926,6 +2926,38 @@ t("picks: nothing to restore, nothing to read, and the submit test", () => {
   assert.equal(isPick(outside), false);
   assert.equal(isPick(null), false, "a submit with no event");
   assert.equal(isPick({}), false, "a target with no closest");
+});
+
+t("picks: a per-row pick carries its row's key, since one key restores one value", () => {
+  const shared = readPicks(pickRoot([pickInput("deployCount", "5"), pickInput("deployCount", "2")]));
+  assert.deepEqual([...shared], [["deployCount", "2"]], "two rows under one key keep only the last");
+  const keyed = readPicks(pickRoot([pickInput("deployCount-a", "5"), pickInput("deployCount-b", "2")]));
+  const next = [pickInput("deployCount-a", "1"), pickInput("deployCount-b", "1")];
+  restorePicks(pickRoot(next), keyed);
+  assert.deepEqual(next.map((c) => c.value), ["5", "2"]);
+});
+
+t("picks: the mixin carries picks across a part sync and keeps a pick's change from the form", () => {
+  const calls = [];
+  class Base {
+    _preSyncPartState(...args) { calls.push(["pre", ...args]); }
+    _syncPartState(...args) { calls.push(["sync", ...args]); }
+    _onChangeForm(formConfig, event) { calls.push(["change", formConfig, event]); return "submitted"; }
+  }
+  const app = new (PicksMixin(Base))();
+  const state = {};
+  const prior = pickRoot([pickSelect("relationPick", "b", ["a", "b"])]);
+  const next = [pickSelect("relationPick", "a", ["a", "b"])];
+  app._preSyncPartState("body", pickRoot(next), prior, state);
+  app._syncPartState("body", pickRoot(next), prior, state);
+  assert.equal(next[0].value, "b", "the pick survives the sync");
+  assert.deepEqual(calls.map((c) => c[0]), ["pre", "sync"], "both sync hooks reach the base");
+
+  const pick = { closest: (selector) => (selector === PICK_SELECTOR ? {} : null) };
+  const field = { closest: () => null };
+  assert.equal(app._onChangeForm({ submitOnChange: true }, { target: pick }), undefined, "a pick's change submits nothing");
+  assert.equal(app._onChangeForm({ submitOnChange: true }, { target: field }), "submitted", "any other change reaches the form");
+  assert.equal(calls.filter((c) => c[0] === "change").length, 1);
 });
 
 console.log(`\n${n} tests passed (including the location migration)`);

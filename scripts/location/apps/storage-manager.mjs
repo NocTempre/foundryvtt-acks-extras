@@ -17,6 +17,7 @@ import { makeLoc, libStorage as storage } from "../../lib/util.mjs";
 import { MODULE_ID, LANG_PREFIX, LOCATION_TYPE } from "../constants.mjs";
 import { vaultFor } from "../vault-sweep.mjs";
 import { ACTOR_TYPE } from "../../lib/vocab.mjs";
+import { PicksMixin } from "../../lib/picks.mjs";
 
 const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 const { DialogV2 } = foundry.applications.api;
@@ -28,7 +29,7 @@ const loc = makeLoc(LANG_PREFIX);
  * what, whose it is, and the reassign / release actions for attribution that has
  * gone stale (a deleted owner, goods stored before attribution existed).
  */
-export class StorageManager extends HandlebarsApplicationMixin(ApplicationV2) {
+export class StorageManager extends PicksMixin(HandlebarsApplicationMixin(ApplicationV2)) {
   static DEFAULT_OPTIONS = {
     id: "acks-location-storage-manager",
     classes: ["acks-ui", "acks-extras", "acks-extras-scroll", "acks-location-manager"],
@@ -145,9 +146,14 @@ export class StorageManager extends HandlebarsApplicationMixin(ApplicationV2) {
         this.#selection.set(id, raw === "" ? null : Number(raw));
       });
     }
-    root.querySelector("select[name=target]")?.addEventListener("change", (event) => {
-      root.querySelector(".acks-location-manager-newname")?.classList.toggle("hidden", event.currentTarget.value !== "__new__");
-    });
+    // The name box shows while the target is a new place; a restored target
+    // fires no change, so it is set from the select's value here as well.
+    const target = root.querySelector("select[data-pick=target]");
+    const showName = () => root.querySelector(".acks-location-manager-newname")?.classList.toggle("hidden", target.value !== "__new__");
+    if (target) {
+      showName();
+      target.addEventListener("change", showName);
+    }
   }
 
   #updateCount() {
@@ -189,7 +195,7 @@ export class StorageManager extends HandlebarsApplicationMixin(ApplicationV2) {
       return;
     }
     const root = this.element;
-    const choice = root.querySelector("select[name=target]")?.value;
+    const choice = root.querySelector("select[data-pick=target]")?.value;
     if (!choice) {
       ui.notifications.warn(loc("manager.noTarget"));
       return;
@@ -197,11 +203,15 @@ export class StorageManager extends HandlebarsApplicationMixin(ApplicationV2) {
 
     let target;
     if (choice === "__new__") {
-      const name = root.querySelector("input[name=newName]")?.value?.trim();
+      const nameBox = root.querySelector("input[data-pick=newName]");
+      const name = nameBox?.value?.trim();
       if (!name) {
         ui.notifications.warn(loc("manager.noName"));
         return;
       }
+      // The name is spent before the create redraws the window, so the box
+      // carries nothing into the next render for a second Move to reuse.
+      nameBox.value = "";
       target = await Actor.create({ name, type: LOCATION_TYPE, img: "icons/svg/village.svg" });
     } else {
       target = storage().resolveActorSync(choice);

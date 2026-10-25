@@ -88,7 +88,7 @@
     <div class="acks-extras-markets-generator-grid">
       <label class="acks-extras-markets-generator-field">
         <span>{{localize "ACKS-MARKETS.demand.pickGood"}}</span>
-        <select name="pickCategory">
+        <select data-pick="pickCategory">
           {{#each goodOptions}}<option value="{{value}}">{{label}}</option>{{/each}}
         </select>
       </label>

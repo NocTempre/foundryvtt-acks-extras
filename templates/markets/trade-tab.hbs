@@ -159,7 +159,7 @@
     {{/if}}
     {{#if ventureCategoryShown}}
     <label class="acks-extras-markets-category">{{localize "ACKS-MARKETS.ventures.category"}}
-      <select data-venture-category>
+      <select data-venture-category data-pick="ventureCategory">
         {{#each merchOptions}}<option value="{{key}}">{{label}}</option>{{/each}}
       </select>
     </label>

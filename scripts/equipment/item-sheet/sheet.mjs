@@ -38,6 +38,7 @@ import { rollById, rollIds } from "./rolls.mjs";
 import { bindScene, unbindScene, updateFromExploration, chartScene } from "./chart.mjs";
 import { splitOne, restack, canSplit, splitFromOf } from "./stack.mjs";
 import { ACCEPT_KINDS } from "./accept-kinds.mjs";
+import { PicksMixin } from "../../lib/picks.mjs";
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ItemSheetV2 } = foundry.applications.sheets;
@@ -54,7 +55,7 @@ const loc = makeLoc(LANG);
 const enrich = (html, item) =>
   foundry.applications.ux.TextEditor.implementation.enrichHTML(html ?? "", { relativeTo: item, secrets: item.isOwner });
 
-export default class AcksItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
+export default class AcksItemSheet extends PicksMixin(HandlebarsApplicationMixin(ItemSheetV2)) {
   static DEFAULT_OPTIONS = {
     // no-scroll: this sheet scrolls at its PART root, not at `.window-content`.
     // The shared contract would move the scroller onto `.window-content`, which
@@ -632,11 +633,16 @@ export default class AcksItemSheet extends HandlebarsApplicationMixin(ItemSheetV
 
   static async #onGuessName() {
     const item = this.item;
-    const spoken = this.element.querySelector('[data-field="guess"]')?.value ?? "";
+    const box = this.element.querySelector('[data-field="guess"]');
+    const spoken = (box?.value ?? "").trim();
+    // An empty box is no guess: resolving it would spend the speaker's guess for the level.
+    if (!spoken) return void ui.notifications.warn(game.i18n.localize("ACKS-EQUIPMENT.named.guessBlank"));
     const speaker = item.parent ?? game.user.character ?? null;
     if (!speaker) return void ui.notifications.warn(game.i18n.localize("ACKS-EQUIPMENT.named.noSpeaker"));
     const res = named.resolveGuess(item, speaker, spoken);
     if (!res.allowed) return void ui.notifications.warn(game.i18n.format("ACKS-EQUIPMENT.named.noGuess", { name: speaker.name }));
+    // The guess is spent before the write redraws the sheet, so the box comes back empty.
+    box.value = "";
     await item.update(res.updates);
     if (res.correct) {
       await item.update(named.applyUpdates(item));

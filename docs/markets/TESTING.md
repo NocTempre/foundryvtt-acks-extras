@@ -274,6 +274,16 @@ exactly them):
    base row.
 9. Pin a good, then Apply the generator again.
    *Observable:* the pin is still present and still wins.
+10. A pick holds until its button reads it. In the generator, pick a good
+    other than the first under the add-a-pick select, then tick a biome.
+    *Observable:* the pick renders nothing; the tick redraws once and the
+    good still shows; typing the change renders nothing; Add pick adds the
+    picked good with the typed change and empties the change box. On the
+    location's Trade tab, pick a category other than the first and Set demand
+    a value. *Observable:* the pick writes and renders nothing; the value
+    lands on the picked category, the sheet redraws, the pick still shows,
+    and a second Set demand opens prefilled with that value. Solicit reads
+    the same select.
 
 **Drive mechanics**
 

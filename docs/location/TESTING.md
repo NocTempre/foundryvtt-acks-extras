@@ -24,8 +24,9 @@ through the monthly row (`node tools/live/run.mjs markets`;
   postings, candidates, slander, the search ledger and the market log all live
   there. It goes away with the location, which is what makes a location a
   clean disposable fixture.
-- `openStorageManager()` and `openRuledataBrowser()` take **no arguments** —
-  they are world-wide GM tools, reachable from the settings menus as well.
+- `openRuledataBrowser()` takes no arguments and `openStorageManager(place)`
+  opens on `place`, or on the first provider without one — both are
+  world-wide GM tools, reachable from the settings menus as well.
 - A location is a storage **provider** (`lib.storage.isProvider`) as soon as it
   exists; nothing has to be enabled for goods to be stashable in it.
 - Coin stored in a location belongs to `HOUSE_OWNER` unless stamped with an
@@ -378,6 +379,18 @@ through the monthly row (`node tools/live/run.mjs markets`;
     and re-render the sheet.
     *Observable:* the Player seat sees a **gate** tag on the identity line, not
     the picker itself.
+22. **The storage manager's move target holds.** Make two disposable
+    locations providers (`lib.storage.setProvider`), stock goods at the first
+    (`stockProvider`), and `openStorageManager(first)`. Pick the second under
+    Move to, then make a third location a provider, which redraws the
+    manager. *Observable:* the pick renders nothing, the redraw keeps it, and
+    the third is offered. Pick the new-place option and type a name, then
+    turn the third provider off. *Observable:* the redraw keeps the option
+    and the name, with the name box shown. Tick the goods and press Move.
+    *Observable:* one place is made under the typed name and holds the goods,
+    and the name box comes back empty. Move reports no id: read the made
+    place's from a `createActor` hook filtered to this seat's own `userId`,
+    armed across the click alone, and match it to the typed name.
 
 The repair tool's location checks (stale links, banked coin, storage whose
 owner is gone) are walked in docs/lib/TESTING.md, "The repair tool". Coin

@@ -45,6 +45,7 @@ import { refuseGoods } from "../../lib/bundles.mjs";
 import { DISTRICT_TYPE } from "../../formation/district-zone.mjs";
 import { readFormations } from "../../formation/formation-model.mjs";
 import { SECONDS_PER_DAY } from "../../henchmen/constants.mjs";
+import { PicksMixin } from "../../lib/picks.mjs";
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ActorSheetV2 } = foundry.applications.sheets;
@@ -86,7 +87,7 @@ export function districtRegionOptions() {
   return out;
 }
 
-export class FactionSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
+export class FactionSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSheetV2)) {
   static DEFAULT_OPTIONS = {
     classes: ["acks-ui", "acks-extras", "acks-extras-scroll", "acks-extras-faction-sheet"],
     position: { width: 680, height: 640 },
@@ -403,7 +404,7 @@ export class FactionSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   }
 
   static async #onAddControl() {
-    const uuid = this.element.querySelector('[name="controlPick"]')?.value;
+    const uuid = this.element.querySelector('[data-pick="controlPick"]')?.value;
     if (!uuid) return;
     const held = [...(this.actor.system.controls ?? [])];
     if (held.includes(uuid)) return;
@@ -511,7 +512,7 @@ export class FactionSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   }
 
   static async #onAddRelation() {
-    const uuid = this.element.querySelector('[name="relationPick"]')?.value;
+    const uuid = this.element.querySelector('[data-pick="relationPick"]')?.value;
     const other = uuid ? await fromUuid(uuid).catch(() => null) : null;
     if (other) await this.#addRelation(other);
   }

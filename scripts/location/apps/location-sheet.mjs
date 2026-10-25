@@ -38,6 +38,7 @@ import { openHireGroupDialog } from "../../henchmen/apps/hire-group-dialog.mjs";
 import { now, advanceDays, nextMarketRollTime } from "../../henchmen/time.mjs";
 import { ACTOR_TYPE } from "../../lib/vocab.mjs";
 import { prepareTradeTab, bindTradeTab, TRADE_TAB_ACTIONS } from "../../markets/apps/trade-tab.mjs";
+import { PicksMixin } from "../../lib/picks.mjs";
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ActorSheetV2 } = foundry.applications.sheets;
 
@@ -78,7 +79,7 @@ function directedSpecMatches(spec, c) {
 /** Controls a non-owner viewer acts through: the Trade tab's, and the pure-DOM candidate filters. */
 const VIEWER_CONTROLS = '[data-tab="trade"] :is(button, select, input), [data-candidate-filter]';
 
-export class LocationSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
+export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSheetV2)) {
   static DEFAULT_OPTIONS = {
     // "location-sheet" was unprefixed and only passed validation because the
     // CSS rule scans styles/*.css, not JS class arrays.

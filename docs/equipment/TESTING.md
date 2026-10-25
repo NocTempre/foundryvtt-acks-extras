@@ -319,6 +319,15 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
     clear, and `flags.acks-extras.pristine` is gone after the last. The
     importer's library notices stack over the top of a sheet at load; move the
     sheet below them before clicking the pencil.
+15. A typed guess holds, and an empty one is no guess. On a disposable
+    character holding a weapon with an unrevealed `named` record and one other
+    item, open the weapon's sheet and press Speak it with the box empty.
+    *Observable:* a warning, no write and no `guesses` entry. Arm
+    `updateItem` and `renderAcksItemSheet` counters and type a wrong name with
+    a `change`. *Observable:* no write and no render. Rename the other item.
+    *Observable:* the sibling watch redraws the sheet and the typed name is
+    still in the box. Press Speak it. *Observable:* `guesses` holds the
+    character's level under its id and the box comes back empty.
 
 ## Teardown
 
