@@ -2620,8 +2620,9 @@ block what walls block.
      light, sight and sound 0 and move 20. On a map of one storey every
      `levels` is empty. On a plan of storeys every wall's `levels` holds
      one id, one of the scene's levels, every level holds walls, and the
-     walls per level match an offline `traceStoreys` run's per-storey
-     counts;
+     walls per level meet an offline `traceStoreys` run's per-storey counts
+     within a wall or two, as the digest does (`ax1.fort1Map`: 59 and 75
+     live, 59 and 77 offline);
    - `tokenVision` is true, `fog.mode` is 1 (each user's own), darkness is
      1 and global light is disabled. From the **Player** seat, a token of
      the player's carrying a lit light shows its radius, and the dungeon
@@ -2671,6 +2672,9 @@ block what walls block.
    - across an invisible wall `move` collides, and `sight` and `sound` do not;
    - at a stroke plan's window, `sight` passes across its invisible segment
      and collides across the flank wall beside it, a quarter cell along;
+   - on a plan of storeys, with `level` passed to `testCollision`, `move` and
+     `sight` collide across that level's walls and pass across another
+     level's where none of this level's crosses the probe;
    - `polygonBackends.sight.create(point, { type: "sight" })` from inside a
      room covers a small share of the scene's area.
 4. A door opens by the real gesture: click its control on the canvas.

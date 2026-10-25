@@ -561,6 +561,42 @@ const P = {
     await new Promise((r) => setTimeout(r, 1500));
     return { framed: canvas.scene?.id === s.id, level: canvas.level?.id ?? null };
   },
+  /**
+   * Collision on each level of a plan of storeys, the scene viewed on this
+   * client alone: across a sample of a level's own plain walls `move` and
+   * `sight` collide on that level, and across a sample of the other levels'
+   * plain walls, where no wall of this level crosses the probe, neither does.
+   * A probe runs 20 px either side of a wall's midpoint along its normal.
+   */
+  storeyCollisions: async ({ uuid, sample = 6 }) => {
+    const s = await fromUuid(uuid);
+    await s.view();
+    for (let n = 0; n < 120 && !(canvas.ready && canvas.scene?.id === s.id); n++) await new Promise((r) => setTimeout(r, 250));
+    if (canvas.scene?.id !== s.id) return null;
+    const ccw = (a, b, c) => (c.y - a.y) * (b.x - a.x) > (b.y - a.y) * (c.x - a.x);
+    const crosses = (a, b, [x0, y0, x1, y1]) => {
+      const p = { x: x0, y: y0 }, q = { x: x1, y: y1 };
+      return ccw(a, p, q) !== ccw(b, p, q) && ccw(a, b, p) !== ccw(a, b, q);
+    };
+    const across = ({ c: [x0, y0, x1, y1] }) => {
+      const len = Math.hypot(x1 - x0, y1 - y0) || 1;
+      const mx = (x0 + x1) / 2, my = (y0 + y1) / 2, nx = -(y1 - y0) / len, ny = (x1 - x0) / len;
+      return [{ x: mx + 20 * nx, y: my + 20 * ny }, { x: mx - 20 * nx, y: my - 20 * ny }];
+    };
+    const pick = (list) => list.filter((_, i) => i % Math.max(1, Math.floor(list.length / sample)) === 0).slice(0, sample);
+    const plain = [...s.walls].filter((w) => !w.door && w.move === 20 && w.sight === 20);
+    return [...s.levels].map((level) => {
+      const hits = ([a, b], type) => CONFIG.Canvas.polygonBackends[type].testCollision(a, b, { type, mode: "any", level });
+      const own = [...s.walls].filter((w) => w.levels.has(level.id));
+      const ownProbes = pick(plain.filter((w) => w.levels.has(level.id))).map(across);
+      const otherProbes = pick(plain.filter((w) => !w.levels.has(level.id)).map(across).filter(([a, b]) => !own.some((o) => crosses(a, b, o.c))));
+      return {
+        level: level.id,
+        own: ownProbes.length, ownBlocked: ownProbes.filter((ab) => hits(ab, "move") && hits(ab, "sight")).length,
+        other: otherProbes.length, otherOpen: otherProbes.filter((ab) => !hits(ab, "move") && !hits(ab, "sight")).length,
+      };
+    });
+  },
   showInterface: async () => {
     for (const id of ["interface", "pause"]) document.getElementById(id)?.style.removeProperty("visibility");
     for (const p of canvas.tokens?.placeables ?? []) if (p.mesh) p.mesh.tint = 0xffffff;
@@ -1208,6 +1244,17 @@ try {
       await run(gm, P.showInterface);
     }
   }
+  // Each storey's walls cut that storey alone: a wall blocks on its own level,
+  // and another storey's wall lets a probe on this one pass.
+  const collisions = [];
+  for (const p of PINNED.filter((x) => x.storeys > 1 && WALLED.has(x.id))) {
+    collisions.push({ id: p.id, levels: await run(gm, P.storeyCollisions, { uuid: plans[p.id].uuid }) });
+  }
+  check("2c: on a plan of storeys a storey's walls block on that storey, and another storey's walls do not",
+    collisions.length > 0 && collisions.every(({ levels }) => levels?.length > 1
+      && levels.every((l) => l.own > 0 && l.ownBlocked === l.own && l.otherOpen === l.other)
+      && levels.some((l) => l.other > 0)),
+    collisions);
 
   section("3. AX1's Adventure carries its places beside its maps");
   const before = await run(gm, P.library, { book: BOOK });
