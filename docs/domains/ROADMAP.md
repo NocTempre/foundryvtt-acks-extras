@@ -23,14 +23,15 @@ Work that is designed but absent, deliberately. How the feature behaves now is
   favors' and duties' times, religion, occupation, tithes, the treasury (the
   Ledger's empty treasury row then shows it), magistrates, the month's inputs,
   the last month applied, the ledger rows.
-- **Territory on the map**: battlemap gains a paint-layer seam (its own three
-  layers re-registered on it), and a GM-only domain layer paints the rows; a
-  painted row is read from the map, the stored row wins, and erasing a cell
-  never deletes a row.
 - **The cut-over**: the henchmen facts read domain income, social rank and
   stronghold from here first; the location's market class and
   `market.domainUuid` lose their third-party reads; the template canon stops
   routing domains out of scope.
+
+## On the map
+
+- **A map colour the Judge picks**: a field on the record, set from the
+  Overview, which the Domains mode reads before the hashed one.
 
 ## Not in any wave
 

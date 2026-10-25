@@ -1517,4 +1517,156 @@ assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an
   assert.equal(await settleRegionsOnly(bare), 0);
 }
 
-console.log("test-battlemap: OK (hex keys, labels, aligned paint/erase pairs, palette coverage, open vocabulary, road row escaping, whole-line segments, road distance, the territory layer, the brush over a window, the scene's default country and its painted climate folded, the country under a point, the map modes and their borders)");
+/* --- a layer that derives the territory -------------------------------------
+   A hex painted on a deriving layer — the domains feature's, here a stand-in
+   whose values are invented realms — takes the territory its value implies,
+   and `source` names the layer. A territory painted on the hex is the Judge's
+   word over it; the Territory mode draws both, and stripes a hex in the
+   derived class where the painted one differs. A mode may weigh its sides,
+   and a heavier line is drawn further in. 100-pixel square cells, as above.
+   See docs/battlemap/DECISIONS.md, "A layer derives the territory". */
+{
+  const { countryAt } = await import("../scripts/battlemap/country.mjs");
+  const { MapModesApp, borderSegments, registerMapMode, setMapView, stripeSegments, territoryPlan } =
+    await import("../scripts/battlemap/map-modes.mjs");
+  const {
+    DERIVED_KEYS, PAINT_LAYER_CHANGED_HOOK, TERRITORY_COLORS, derivedHexes, derivedValueAt, paintLayerChanged, registerPaintLayer,
+  } = await import("../scripts/battlemap/terrain-paint.mjs");
+  const { MODULE_ID } = await import("../scripts/lib/constants.mjs");
+
+  const classOf = { realm1: "civilized", realm2: "borderlands", realm3: null };
+  const spec = (over = {}) => ({
+    key: "demoRealm",
+    flag: "demoRealm",
+    hexesFlag: "demoRealmHexes",
+    values: () => Object.keys(classOf),
+    label: (v) => v,
+    color: () => "#123456",
+    derives: { key: "territory", of: (v) => classOf[v] ?? null },
+    ...over,
+  });
+  assert.deepEqual(DERIVED_KEYS, ["territory"], "the territory is the one key a reader asks a layer to derive");
+  assert.throws(() => registerPaintLayer(spec({ derives: { key: "climate", of: () => null } })), /derives names no key/);
+  assert.throws(() => registerPaintLayer(spec({ derives: { key: "territory" } })), /needs an `of`/);
+  const dispose = registerPaintLayer(spec());
+  try {
+    assert.throws(() => registerPaintLayer(spec({ key: "demoRival", flag: "demoRival", hexesFlag: "demoRivalHexes" })),
+      /"demoRealm" already derives territory/, "one layer to a derived key, as one to a flag");
+
+    const region = (flag, value, hexesFlag, hexes) => ({
+      getFlag: (_ns, key) => (key === flag ? value : key === hexesFlag ? hexes : undefined),
+    });
+    const realm = (value, hexes) => region("demoRealm", value, "demoRealmHexes", hexes);
+    const territory = (value, hexes) => region("territory", value, "territoryHexes", hexes);
+    const scene = {
+      id: "scene-derived",
+      grid: {
+        type: CONST.GRID_TYPES.HEXODDR,
+        size: 100,
+        getOffset: (p) => ({ i: Math.floor(p.y / 100), j: Math.floor(p.x / 100) }),
+        getVertices: ({ i, j }) => [
+          { x: j * 100, y: i * 100 }, { x: j * 100 + 100, y: i * 100 },
+          { x: j * 100 + 100, y: i * 100 + 100 }, { x: j * 100, y: i * 100 + 100 },
+        ],
+      },
+      regions: [
+        realm("realm1", ["1:1", "1:2", "1:3"]), realm("realm2", ["2:1"]), realm("realm3", ["1:4"]), realm("realmGone", ["1:5"]),
+        territory("outlands", ["1:2"]), territory("civilized", ["1:3"]), territory("borderlands", ["1:6"]),
+      ],
+      walls: [],
+      getFlag: (_ns, key) => (key === "battlemap" ? { country: { territory: "unsettled" } } : undefined),
+    };
+    const centre = (i, j) => ({ x: j * 100 + 50, y: i * 100 + 50 });
+    const territoryAt = (i, j) => {
+      const got = countryAt(scene, centre(i, j));
+      return [got.territory, got.source.territory];
+    };
+
+    // The derived answer, at a point and across the scene.
+    assert.deepEqual(derivedValueAt(scene, centre(1, 1), "territory"), { value: "civilized", layer: "demoRealm" });
+    assert.equal(derivedValueAt(scene, centre(1, 4), "territory"), null, "a value that implies no class derives nothing");
+    assert.equal(derivedValueAt(scene, centre(1, 5), "territory"), null, "nor does one its layer no longer knows");
+    assert.equal(derivedValueAt(scene, centre(1, 1), "climate"), null, "and no layer derives any other key");
+    assert.deepEqual(derivedHexes(scene, "territory").map((h) => [h.key, h.value, h.layer]), [
+      ["1:1", "civilized", "demoRealm"], ["1:2", "civilized", "demoRealm"], ["1:3", "civilized", "demoRealm"],
+      ["2:1", "borderlands", "demoRealm"],
+    ], "every hex its layer derives a class for, and no other");
+
+    // The one reader.
+    assert.deepEqual(territoryAt(1, 1), ["civilized", "demoRealm"], "a hex painted into a realm takes its class, and names the layer");
+    assert.deepEqual(territoryAt(2, 1), ["borderlands", "demoRealm"]);
+    assert.deepEqual(territoryAt(1, 2), ["outlands", "map"], "a territory painted over it is the Judge's word");
+    assert.deepEqual(territoryAt(1, 3), ["civilized", "map"], "and answers as the map's even where it agrees, so it outlives a change of class");
+    assert.deepEqual(territoryAt(1, 4), ["unsettled", "scene"], "a realm with no class leaves the scene's default to answer");
+    assert.deepEqual(territoryAt(1, 5), ["unsettled", "scene"]);
+    assert.deepEqual(territoryAt(1, 6), ["borderlands", "map"], "a territory painted where no realm is, as on a sea hex");
+
+    // The Territory mode's plan.
+    const plan = territoryPlan(scene).toSorted((a, b) => a.key.localeCompare(b.key));
+    assert.deepEqual(plan, [
+      { key: "1:1", value: "civilized", color: TERRITORY_COLORS.civilized, stripe: null },
+      { key: "1:2", value: "outlands", color: TERRITORY_COLORS.outlands, stripe: TERRITORY_COLORS.civilized },
+      { key: "1:3", value: "civilized", color: TERRITORY_COLORS.civilized, stripe: null },
+      { key: "1:6", value: "borderlands", color: TERRITORY_COLORS.borderlands, stripe: null },
+      { key: "2:1", value: "borderlands", color: TERRITORY_COLORS.borderlands, stripe: null },
+    ], "every hex with a territory, painted or derived; a painted one striped in the derived class where the two differ");
+    const sharesBorder = borderSegments(scene, plan).filter((s) => s.from.x === s.to.x && Math.abs(s.from.x - 200) < 5
+      && Math.min(s.from.y, s.to.y) >= 100 && Math.max(s.from.y, s.to.y) <= 200);
+    assert.deepEqual(sharesBorder.map((s) => s.color).sort(), [TERRITORY_COLORS.civilized, TERRITORY_COLORS.outlands].sort(),
+      "the override meets its realm's class with two lines, one in each hex");
+
+    // The stripes: lines of one sum x + y, each ending on the hex as the borders pull it in.
+    const stripes = stripeSegments(scene, plan);
+    // The cell's corners pulled 8% of the way to its centre: 204..296 by 104..196.
+    assert.equal(stripes.length, 9, "a hundred-pixel cell at a fourteen-pixel spacing");
+    assert.ok(stripes.every((s) => s.color === TERRITORY_COLORS.civilized), "only the striped hex, in the derived class");
+    const inRing = (p) => p.x >= 203.99 && p.x <= 296.01 && p.y >= 103.99 && p.y <= 196.01;
+    const onEdge = (p) => [204, 296].some((x) => Math.abs(p.x - x) < 1e-6) || [104, 196].some((y) => Math.abs(p.y - y) < 1e-6);
+    assert.ok(stripes.every((s) => inRing(s.from) && inRing(s.to) && onEdge(s.from) && onEdge(s.to)),
+      "each stripe runs edge to edge of the inset cell and never across a border");
+    assert.ok(stripes.every((s) => Math.abs((s.from.x + s.from.y) - (s.to.x + s.to.y)) < 1e-6), "each runs up to the right");
+    const sums = stripes.map((s) => s.from.x + s.from.y).sort((a, b) => a - b);
+    assert.ok(sums.slice(1).every((c, n) => Math.abs((c - sums[n]) / Math.SQRT2 - 14) < 1e-6), "fourteen pixels apart, measured across");
+    assert.deepEqual(stripeSegments(scene, plan.map((h) => ({ ...h, stripe: null }))), [], "a plan with no stripe draws none");
+
+    // A side's weight, and the inset that keeps a heavy line inside its hex.
+    const top = (list) => list.find((s) => s.from.y === s.to.y && s.from.x > 100 && s.to.x < 200 && s.from.y < 150);
+    assert.equal(top(borderSegments(scene, plan)).weight, 1, "a mode that gives no weights draws every side at 1");
+    assert.equal(top(borderSegments(scene, plan)).from.y, 104);
+    const weighed = borderSegments(scene, plan, undefined, (_value, across) => (across === null ? 5 : 0.1));
+    assert.equal(top(weighed).weight, 2, "a weight is held to the heaviest a hex takes");
+    near(top(weighed).from.y, 108, 1e-9, "and its corners are pulled in by as much again");
+    const right = weighed.find((s) => s.from.x === s.to.x && s.from.x > 150 && s.from.x < 200 && s.from.y > 100 && s.to.y < 200);
+    assert.equal(right.weight, 0.4, "and to the lightest that still reads, against a neighbour holding another value");
+    near(right.from.x, 198.4, 1e-9, "a light line keeps its outer edge on the side too");
+    assert.ok(borderSegments(scene, plan, undefined, () => "x").every((s) => s.weight === 1), "a weight that is no number weighs 1");
+    assert.throws(() => registerMapMode({ key: "demoWeights", plan: () => [], legend: () => ({ rows: [] }), weights: 3 }), /no function/);
+
+    // The window says what a stripe means where the map shows one. The block
+    // above opened the window, so a view change redraws it: drawn, never rendered.
+    MapModesApp.prototype.render = function render() { return this; };
+    globalThis.canvas = { scene };
+    await setMapView({ mode: "territory" });
+    let ctx = await new MapModesApp()._prepareContext();
+    assert.equal(ctx.stripes, "ACKS-BATTLEMAP.mapMode.stripes");
+    scene.regions = scene.regions.filter((r) => r.getFlag(MODULE_ID, "territory") !== "outlands");
+    ctx = await new MapModesApp()._prepareContext();
+    assert.equal(ctx.stripes, null, "and says nothing of stripes where none is drawn");
+    await setMapView({ mode: "terrain" });
+    delete globalThis.canvas;
+    delete MapModesApp.prototype.render;
+
+    // A layer whose values changed meaning is told on, for the overlay and the palette.
+    const told = [];
+    Hooks.callAll = (...args) => told.push(args);
+    paintLayerChanged("demoRealm");
+    assert.deepEqual(told, [[PAINT_LAYER_CHANGED_HOOK, "demoRealm"]]);
+  } finally {
+    dispose();
+  }
+  assert.equal(derivedValueAt({ regions: [], grid: { type: CONST.GRID_TYPES.HEXODDR } }, { x: 0, y: 0 }, "territory"), null,
+    "a layer taken out derives nothing more");
+  assert.doesNotThrow(() => dispose(), "and its spent handle removes nothing");
+}
+
+console.log("test-battlemap: OK (hex keys, labels, aligned paint/erase pairs, palette coverage, open vocabulary, road row escaping, whole-line segments, road distance, the territory layer, the brush over a window, the scene's default country and its painted climate folded, the country under a point, the map modes and their borders, a layer deriving the territory, its stripes and weighed sides)");

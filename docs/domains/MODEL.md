@@ -8,20 +8,22 @@ everything the rest of the module does with an actor works on it unchanged.
 
 This is the **record**: every field a printed domain record fills, in its
 final shape, a sheet in the character sheet's frame that edits it, and the
-sums read off what it states. Nothing here derives a figure the record does
-not hold — a line nobody has entered is unset, not zero. The rules tables are
-read but not yet used. The automation (the derivations, the month, territory
-painted on the map) is [ROADMAP.md](ROADMAP.md); why it is shaped this way is
+sums read off what it states, with the hexes painted into a domain on the map
+read in beside its rows. Nothing here derives a figure the record does not
+hold — a line nobody has entered is unset, not zero. The rules tables are
+read but not yet used. The automation (the derivations, the month) is
+[ROADMAP.md](ROADMAP.md); why it is shaped this way is
 [DECISIONS.md](DECISIONS.md); the live recipe is [TESTING.md](TESTING.md).
 
 | File | Owns |
 |---|---|
 | `scripts/domains/constants.mjs` | The sub-type id, the lang root, the vocabularies: classifications, holding roles, revenue and expense lines, a line's four figures. |
-| `scripts/domains/domain-logic.mjs` | The pure half: the row normalisers and `normalizeDomain`, the sums (families, hexes, stronghold value, a line's amount, tribute in, the ledger), the realm walks (the loop guard, which domain holds a place) and `promoteVassalRow`, the record a vassal row becomes. Foundry-free. |
+| `scripts/domains/domain-logic.mjs` | The pure half: the row normalisers and `normalizeDomain`, the sums (families, hexes, stronghold value, a line's amount, tribute in, the ledger), the realm walks (the loop guard, which domain holds a place), `promoteVassalRow`, the record a vassal row becomes, and the realm on the map (`realmChain`, `borderTier`, `realmOrder`, `domainColors`, and the territory with the map read in: `territoryRows`, `keepCandidates`, `keepPaintedRow`). Foundry-free. |
+| `scripts/domains/domain-map.mjs` | The domain paint layer and the Domains map mode, registered into battlemap's registries; the hexes painted into a domain on every scene (`paintedHexesOf`, `territoryOf`, `hexCountFor`); the redraw when a domain the map draws changes. The one file here that imports battlemap. |
 | `scripts/domains/data/domain-data.mjs` | `DomainData` — the schema, and readers delegating to the logic (`peasantFamilies`, `hexCount`, `strongholdValue`, `holdsPlace`, `placeUuids`, `hasLiege`). |
 | `scripts/domains/domains.mjs` | The world-facing readers and the Judge's writers: `setLiege`, `hold` and `release`, checked against every other domain, and `promoteVassal` and `foundSettlement`, which make a document. |
 | `scripts/domains/domain-frame.mjs` | The frame decided over the sums: the ruler and liege chips, the classification and alignment tags, the rail cells, and what the figures leave out. Foundry-free. |
-| `scripts/domains/apps/domain-sheet.mjs` | The sheet: the band, the frame, six pill tabs, row add and remove, the pickers, promoting and founding, every drop a domain takes. |
+| `scripts/domains/apps/domain-sheet.mjs` | The sheet: the band, the frame, six pill tabs, row add and remove, keeping a row read from the map, the pickers, promoting and founding, every drop a domain takes. |
 | `scripts/domains/module.mjs` | Registration (data model, sheet, templates, token defaults) and the `acksExtras.domains` api. |
 
 ## Design doctrine
@@ -33,7 +35,8 @@ painted on the map) is [ROADMAP.md](ROADMAP.md); why it is shaped this way is
   and the formation feature's territory keys.
 - **Extend**: the `acks-extras.domain` sub-type (TypeDataModel). Every field
   defaults, so a field a later wave adds needs no migration.
-- **Enhance**: the domain sheet; one clause in the location feature's
+- **Enhance**: the domain sheet; a paint layer and a map mode registered into
+  battlemap's registries; one clause in the location feature's
   empty-location prune; the location sheet's Domain line, and the location
   and faction sheets' refusal of a dropped domain, each asked through
   `acksExtras.domains` so neither feature imports this one.
@@ -57,9 +60,10 @@ HTML.
 improvement, families, revealed, note}`. A row stands for one hex or for a run
 of them: its hex count is the length of `hexLabels` where any are given, else
 `count`, else unknown. A record that prints only totals is one row. Peasant
-families are the rows' `families` summed. `map` is null until wave 3 paints a
-row; `landValue` is null until someone knows it, and `revealed` says whether a
-player reading the sheet sees it.
+families are the rows' `families` summed. `map` is `{sceneUuid, key}`, the
+hex on a map the row stands for, or null (§Territory on the map); `landValue`
+is null until someone knows it, and `revealed` says whether a player reading
+the sheet sees it.
 
 **Holdings** are places, by reference: `{uuid, name, role, families,
 marketClass, investmentGp, note, hidden}`. The role is `settlement`,
@@ -172,6 +176,60 @@ tribute and its additional tax, and now counts the new domain's tribute out.
 world location with a market — the location model's empty one unless a
 market is passed — and holds it at once as a settlement.
 
+## Territory on the map
+
+`domain-map.mjs` registers into battlemap's two registries
+(`docs/battlemap/MODEL.md`, "The layer registry" and "Map modes"); battlemap
+imports nothing of this feature.
+
+**The domain layer.** The Country brush gains a Domain pill. A hex is painted
+into a domain by the domain's uuid (`flags["acks-extras"].domain`, its cells
+in `domainHexes`), one region per domain, drawn on the Regions control alone.
+The palette lists the world's domains in realm order (`realmOrder`: each
+sovereign by name, its vassals depth first under it, a domain caught in a loop
+of lieges last), its swatches folded under each realm's sovereign.
+
+**The territory a hex derives.** The layer derives a hex's territory: its
+domain's `classification` (RR §VIII.3), or nothing where the domain has none.
+A territory painted on the hex is the Judge's override and wins; `countryAt`
+names a derived territory's source `"domain"`, and the Territory mode stripes
+a painted hex in its domain's class where the two differ
+(`docs/battlemap/MODEL.md`, "One reader").
+
+**The Domains mode** draws each painted hex's border in its domain's colour.
+A sovereign's colour is hashed from its uuid, so every client draws the same
+one; a vassal's is its liege's lightened by its place among the liege's
+vassals ordered by uuid, so a rename moves no colour and no vassal takes its
+liege's own. A side weighs by where the two hexes' realms part (`borderTier`):
+the edge of a realm, against another realm or unpainted land, is heaviest;
+a side between two vassals of one sovereign, or a sovereign and its vassal,
+is lighter; one deeper in a realm is lightest. The legend lists the domains
+painted on the scene in realm order, a vassal as its name under its liege's.
+A hex painted into a domain no longer in the world is drawn grey, named as
+such in the palette and the legend, and derives nothing.
+
+**Rows from the map.** `territoryOf(domain)` is the record's territory with
+the map read in (`territoryRows`): every stored row first, then one row READ
+from the map for each hex painted into the domain on any hex scene that no
+stored row's `map` names, a hex and no families. A stored row's `map` state
+is *painted* where its hex is still painted into this domain, *stale* where it
+is not (erased, painted to another domain, its scene gone) and *unmapped*
+where it names none. The stored row wins its hex, a read row is never written
+by a paint, and erasing a cell deletes no row. `hexCountFor` counts over
+`territoryOf`; the families stay the stored rows'.
+
+**The sheet's Territory tab** lists the read rows after the stored ones as
+text, with the map's name, and a Keep press for the Judge. Keep stores the
+hex as a row: tied to one of `keepCandidates` (a stored row naming no hex on a
+map and covering one hex at most) where the Judge picks it, else a row of its
+own. A stale stored row carries a broken-link mark. The frame's hex count is
+`hexCountFor`'s.
+
+**The map follows the domains.** A domain created, deleted, renamed, given
+another liege or another class changes no region, so `installDomainMap`
+calls battlemap's `paintLayerChanged("domain")` and the overlay and an open
+palette redraw.
+
 ## The sheet
 
 The sheet stands in the character sheet's frame, as the party sheet does:
@@ -238,7 +296,10 @@ token for a body by lib's `isMarkerActor` ([PLACES.md](../lib/PLACES.md)).
 own document only; `registerDomainSheetRefresh` re-renders every open domain
 sheet when another domain, a place or its ruler is created, changed or
 deleted, gathered into one render per burst. Without it a liege's sheet keeps
-listing a released vassal and a deleted settlement's families.
+listing a released vassal and a deleted settlement's families. A region
+painting hexes into a domain re-renders that domain's open sheet when it is
+made, changed or deleted, and a scene deleted re-renders every open one,
+since no region hook fires for the regions it takes.
 
 ## The official sheet's domain page
 
@@ -275,11 +336,12 @@ patterns and takes on invented text.
 
 ## The api
 
-`acksExtras.domains`, published at `init`, `apiVersion` 2 (2 added
-`promoteVassal` and `foundSettlement`):
+`acksExtras.domains`, published at `init`, `apiVersion` 3 (2 added
+`promoteVassal` and `foundSettlement`, 3 `territoryOf` and `hexCountFor`):
 
 - readers — `isDomain`, `allDomains`, `domainOf`, `domainsHolding`,
-  `holdsPlace`, `domainsRuledBy`, `vassalsOf`, `liegeOf`, `wouldCycle`;
+  `holdsPlace`, `domainsRuledBy`, `vassalsOf`, `liegeOf`, `wouldCycle`,
+  `territoryOf`, `hexCountFor`;
 - the record — `normalizeDomain` (what a writer, the importer's binding
   included, hands `system`), `blankDomain`, and the sums `familiesOf`,
   `ledgerFor`, `ledgerOf`, `peasantFamiliesOf`, `urbanFamiliesOf`,

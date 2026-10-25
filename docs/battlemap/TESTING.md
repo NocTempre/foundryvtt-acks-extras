@@ -591,8 +591,9 @@ control (step 7); and a square-gridded scene.
 setting the value or `checked` and dispatching a bubbling `change`. The
 overlay is `canvas.regions.getChildByName("acks-extras-map-modes")`; its one
 `PIXI.Graphics` child is the drawing, and `borderSegments(scene,
-layerPlan(scene, "territory"))` from the loaded module (`await
-import("/modules/acks-extras/scripts/battlemap/map-modes.mjs")`) says what it
+territoryPlan(scene))` and `stripeSegments(scene, territoryPlan(scene))` from
+the loaded module (`await
+import("/modules/acks-extras/scripts/battlemap/map-modes.mjs")`) say what it
 should draw; `finishPoly()` on it closes the last path before its
 `geometry.graphicsData` is counted. The road and water markers are
 `canvas.controls.getChildByName("acks-extras-road-markers")`. The view is
@@ -640,3 +641,8 @@ back at the end.
 Teardown: `api.sweepTracked()`, which takes the three scenes and their
 regions, and quote its result. Set this seat's view back with
 `setMapView({mode: "terrain", opacity: 0.85, handout: false})`.
+
+A territory derived from a deriving layer, the stripes over an overridden hex,
+a weighted side and a redraw on `paintLayerChanged` need a registrant's data,
+and are walked with the Domains mode (`docs/domains/TESTING.md`, "Territory
+on the map").

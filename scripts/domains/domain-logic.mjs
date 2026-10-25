@@ -5,8 +5,9 @@
  * UNSET and stays out of every total, so a partial ledger is reported as
  * partial, never as a smaller number.
  */
-import { ancestorUuids } from "../lib/place-logic.mjs";
+import { ancestorUuids, indexPlaces } from "../lib/place-logic.mjs";
 import { ALIGNMENTS } from "../lib/vocab.mjs";
+import { hashedColor, lighten } from "../lib/color.mjs";
 import { CLASSIFICATIONS, EXPENSE_LINES, HOLDING_ROLES, LINE_FIELDS, REVENUE_LINES } from "./constants.mjs";
 
 const ALIGNMENT_KEYS = Object.freeze(Object.keys(ALIGNMENTS));
@@ -495,4 +496,171 @@ export function domainHolding(records, chain) {
 /** The record already holding a place, other than `domainUuid` — the one a second hold would collide with. */
 export function holdConflict(records, domainUuid, placeUuid) {
   return (records ?? []).find((r) => r.uuid !== domainUuid && holdsIn(r, placeUuid)) ?? null;
+}
+
+/* -------------------------------------------- */
+/*  The realm on the map                         */
+/* -------------------------------------------- */
+
+/**
+ * A domain's realm, its sovereign first and the domain last: the lieges above
+ * it that are domains of the index, then itself. A domain the index does not
+ * hold is a realm of its own; a liege that is gone ends the walk, so the
+ * domain under it reads as a sovereign. Cycle-safe (`ancestorUuids`).
+ * @param {Map<string, {parentUuid: string}>} index domain records by uuid (`indexPlaces`)
+ */
+export function realmChain(uuid, index) {
+  if (!index?.has?.(uuid)) return [uuid];
+  return [...ancestorUuids(uuid, index).filter((u) => index.has(u)).reverse(), uuid];
+}
+
+/**
+ * How high in the realm a border between two domains runs: 0 where they
+ * answer to different sovereigns or `across` is null (no domain on the far
+ * side), and otherwise how many lieges, from the top, their realm chains share
+ * — 1 between two vassals of one sovereign, or a sovereign and its vassal.
+ */
+export function borderTier(uuid, across, index) {
+  if (!across) return 0;
+  const a = realmChain(uuid, index);
+  const b = realmChain(across, index);
+  let shared = 0;
+  while (shared < a.length && shared < b.length && a[shared] === b[shared]) shared++;
+  return shared;
+}
+
+const byName = (a, b) => String(a.name ?? "").localeCompare(String(b.name ?? "")) || String(a.uuid).localeCompare(String(b.uuid));
+
+/**
+ * Domain uuids in realm order: each sovereign by name, followed by its vassals
+ * depth first, each level by name. A domain caught in a loop of lieges, which
+ * no sovereign reaches, comes last.
+ * @param {Array<{uuid: string, parentUuid: string, name?: string}>} records
+ */
+export function realmOrder(records) {
+  const index = indexPlaces(records);
+  const under = new Map();
+  for (const r of records ?? []) {
+    if (!index.has(r.parentUuid) || r.parentUuid === r.uuid) continue;
+    if (!under.has(r.parentUuid)) under.set(r.parentUuid, []);
+    under.get(r.parentUuid).push(r);
+  }
+  const out = [];
+  const seen = new Set();
+  const walk = (r) => {
+    if (seen.has(r.uuid)) return;
+    seen.add(r.uuid);
+    out.push(r.uuid);
+    for (const v of (under.get(r.uuid) ?? []).sort(byName)) walk(v);
+  };
+  for (const r of [...(records ?? [])].filter((r) => realmChain(r.uuid, index).length === 1).sort(byName)) walk(r);
+  for (const r of [...(records ?? [])].sort(byName)) walk(r);
+  return out;
+}
+
+/**
+ * A colour per domain, as `#rrggbb`: a sovereign's from `base` (a hash of its
+ * uuid, so the same on every client), and a vassal's its liege's lightened by
+ * its place among the liege's vassals, ordered by uuid so a rename moves no
+ * colour. The first of n vassals is lightened `step / (n + 1)`, never zero, so
+ * no vassal takes its liege's own colour.
+ * @param {Array<{uuid: string, parentUuid: string}>} records
+ * @param {{base?: (uuid: string) => string, step?: number}} [opts]
+ * @returns {Map<string, string>}
+ */
+export function domainColors(records, { base = hashedColor, step = 0.5 } = {}) {
+  const index = indexPlaces(records);
+  const kin = new Map();
+  for (const r of records ?? []) {
+    if (!index.has(r.parentUuid)) continue;
+    if (!kin.has(r.parentUuid)) kin.set(r.parentUuid, []);
+    kin.get(r.parentUuid).push(r.uuid);
+  }
+  for (const list of kin.values()) list.sort();
+  const colors = new Map();
+  for (const r of records ?? []) {
+    const chain = realmChain(r.uuid, index);
+    let color = base(chain[0]);
+    for (let k = 1; k < chain.length; k++) {
+      const siblings = kin.get(chain[k - 1]) ?? [chain[k]];
+      color = lighten(color, ((siblings.indexOf(chain[k]) + 1) / (siblings.length + 1)) * step);
+    }
+    colors.set(r.uuid, color);
+  }
+  return colors;
+}
+
+const mapKeyOf = (map) => `${map?.sceneUuid ?? ""}|${map?.key ?? ""}`;
+const isMapped = (row) => !!(row?.map?.sceneUuid || row?.map?.key);
+
+/**
+ * A domain's territory with the map read in. Every stored row comes first, in
+ * its stored order with its stored `index`, and `mapState` says where its hex
+ * stands: "painted" where the hex its `map` names is still painted into this
+ * domain, "stale" where it is not (erased, painted to another domain, or its
+ * scene gone), "unmapped" where it names none. Then one row READ from the map
+ * (`stored: false`, `mapState: "read"`, no index) for each painted hex no
+ * stored row names: one hex and no families. The stored row wins its hex, and
+ * an erased hex leaves its row standing.
+ * @param {object[]} stored the record's territory rows
+ * @param {Array<{sceneUuid: string, key: string, label: string, sceneName?: string}>} painted
+ *   the hexes painted into this domain, on every scene
+ */
+export function territoryRows(stored, painted = []) {
+  const paintedKeys = new Set((painted ?? []).map(mapKeyOf));
+  const rows = rowsOf(stored).map((raw, index) => {
+    const row = raw?.toObject?.() ?? raw;
+    const mapState = !isMapped(row) ? "unmapped" : paintedKeys.has(mapKeyOf(row.map)) ? "painted" : "stale";
+    return { ...row, index, stored: true, mapState };
+  });
+  const claimed = new Set(rows.filter(isMapped).map((r) => mapKeyOf(r.map)));
+  for (const hex of painted ?? []) {
+    const key = mapKeyOf(hex);
+    if (claimed.has(key)) continue;
+    claimed.add(key);
+    const row = normalizeTerritoryRow({
+      id: `map.${hex.sceneUuid}.${hex.key}`,
+      hexLabels: [hex.label],
+      count: 1,
+      map: { sceneUuid: hex.sceneUuid, key: hex.key },
+    });
+    rows.push({ ...row, sceneName: text(hex.sceneName), index: null, stored: false, mapState: "read" });
+  }
+  return rows;
+}
+
+/**
+ * The stored rows a painted hex may be kept as instead of a new row: those
+ * naming no hex on a map and covering one hex at most, so a record's row for
+ * a hex is tied to the hex painted for it rather than counted beside it.
+ * @returns {Array<{row: object, index: number}>}
+ */
+export function keepCandidates(stored) {
+  return rowsOf(stored)
+    .map((raw, index) => ({ row: raw?.toObject?.() ?? raw, index }))
+    .filter(({ row }) => {
+      if (isMapped(row)) return false;
+      const n = hexCountOf([row]);
+      return n.unknown === 0 && n.total <= 1;
+    });
+}
+
+/**
+ * The territory rows with a painted hex kept: tied to the stored row at
+ * `index` where that row is one of `keepCandidates`, else added as a row of
+ * its own naming the hex. Every other row is unchanged.
+ * @param {object[]} stored
+ * @param {{sceneUuid: string, key: string, label: string}} hex
+ * @param {number|null} [index]
+ * @returns {object[]}
+ */
+export function keepPaintedRow(stored, hex, index = null, makeId = defaultId) {
+  const rows = rowsOf(stored).map((raw) => ({ ...(raw?.toObject?.() ?? raw) }));
+  const map = { sceneUuid: text(hex?.sceneUuid), key: text(hex?.key) };
+  if (index !== null && keepCandidates(rows).some((c) => c.index === index)) {
+    rows[index] = { ...rows[index], map };
+  } else {
+    rows.push(normalizeTerritoryRow({ id: makeId(), hexLabels: hex?.label ? [hex.label] : [], count: 1, map }, makeId));
+  }
+  return rows;
 }

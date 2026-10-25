@@ -190,3 +190,66 @@ importing domains back is a cycle, and the api is the seam between features.
 
 **Rejected:** a treasury field now. Wave 3's month is its one writer, and a
 field added before its writer is a stored figure nobody keeps.
+
+### Territory on the map: a hex is painted into a domain (2026-10-25)
+
+**Ruled:** the domain a hex belongs to is a layer of the Country brush that
+this feature registers (`domain-map.mjs`; battlemap's registry, its
+DECISIONS 2026-10-17), drawn on the Regions control alone, its value the
+domain's uuid. The hex's territory is its domain's `classification` (the
+owner's ruling Q1a, battlemap DECISIONS 2026-10-24), derived through the
+layer, and a territory painted on the hex is the Judge's override (battlemap
+DECISIONS 2026-10-25, which also names the derived source `"domain"`). The
+Domains mode draws a colour per domain, a sovereign's hashed from its uuid
+and a vassal's a shade of its liege's, and weighs a side by where the two
+hexes' realm chains part: a realm's edge, then a side within one sovereign's
+realm at its first level, then anything deeper.
+
+**Why the uuid:** a rename changes nothing painted, and a domain is named the
+same way by `parentUuid` already.
+
+**Rejected:**
+- *The weight by the ruler's title tier*: the tier is read off a printed
+  table, and the record's `title` is the Judge's free word, so the weight
+  would need an import and a parse for what the realm's own edges already
+  say.
+- *A weight per domain by its depth under the sovereign*: a side between two
+  domains of different depths would have two weights, and a side is drawn
+  once.
+- *A map colour the Judge picks, now* (`mapColor`): a field with no control on
+  the sheet to set it (ROADMAP).
+- *The colour by the domain's name*: a rename would move it.
+
+**Cost:**
+- Two sovereigns can hash to hues close enough to read as one.
+- A painted region is named for its domain when it is made; a rename leaves
+  the old name in the Regions tab, while the palette, the legend and the sheet
+  read the current one.
+- A hex painted into a domain since deleted stays painted, drawn grey, until
+  the Judge erases it.
+
+### Territory rows from the map (2026-10-25)
+
+**Ruled:** a domain's territory is its stored rows and then one row read from
+the map for each hex painted into it that no stored row's `map` names
+(`territoryOf`). The stored row wins its hex; erasing a cell deletes no row,
+and a stored row whose hex is no longer painted into this domain is marked
+stale. A read row is written only by the Judge's Keep, which ties the hex to
+a stored row naming no hex and covering one at most, where the Judge picks
+one, or stores it as a row of its own. This is the ROADMAP's wave-3 bullet
+("a painted row is read from the map, the stored row wins, and erasing a cell
+never deletes a row") built ahead of the rest of the wave.
+
+**Rejected:**
+- *Writing a stored row on every paint*: a stroke across twenty hexes writes
+  twenty rows nobody asked for, and erasing would then have to delete them.
+- *A read row rendered as the stored row's named inputs*: the next submit
+  would store it, a write by any edit of any other field.
+- *A read row carrying families*: a painted hex says where the land is, not
+  who lives on it.
+
+**Cost:**
+- The read walks every hex scene's domain regions on each render of the
+  sheet, and the sheet re-renders on every stroke over that domain.
+- *Inferred, unverified:* a player's client may not hold every scene, so a
+  player reading the sheet may count fewer read hexes than the Judge does.

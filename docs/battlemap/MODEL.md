@@ -54,24 +54,34 @@ Each layer's vocabulary is structural:
 **The layer registry.** No code in the painter names a layer: each is
 registered, and the two above register through the same call at the foot of
 `terrain-paint.mjs`. `registerPaintLayer({key, flag, hexesFlag, values, label,
-color, visible, regionsOnly, title, groups})` takes the layer's two region flags;
+color, visible, regionsOnly, title, groups, derives})` takes the layer's two region flags;
 `values()`, asked on every read so a vocabulary may come from the world;
 `label(value)` and `color(value)`; `visible`, true where the layer's regions
 are drawn for everyone and otherwise the Judge's alone; `regionsOnly`, true
 where a map mode draws the layer and its regions show on the Regions control
 alone (never with `visible`); an optional `title`,
 the i18n key of the palette pill (`ACKS-BATTLEMAP.terrain.layer.<key>` by
-default); and optional `groups` (`of(value)` and `label(group)`), which fold the
-swatches under group headings in order of first appearance. Paint, erase, the reads (`layerValueAt`, `layerRegionsOf`), `paintableValues`,
+default); optional `groups` (`of(value)` and `label(group)`), which fold the
+swatches under group headings in order of first appearance; and an optional
+`derives` (`{key, of(value)}`), the country key a hex painted on the layer
+answers — `DERIVED_KEYS`, the territory alone — and that key's value for one of
+the layer's, or null where it implies none (§One reader). Paint, erase, the reads (`layerValueAt`, `layerRegionsOf`), `paintableValues`,
 `layerLabelFor`, `layerColorFor`, `openCountryBrush` and the palette all read the
 registry; a key it does not hold paints nothing, reads null and arms on terrain.
-The palette leaves out the pill of a layer whose `values()` is empty. A feature
+`derivedValueAt(scene, point, key)` reads a derived key at a point, `{value,
+layer}` or null, and `derivedHexes(scene, key)` every hex of a scene it is
+derived for. The palette leaves out the pill of a layer whose `values()` is empty. A feature
 registers its layer from its own module, so battlemap imports no feature.
 
 Registration throws, naming the layer, on a key already taken, a flag another
-layer holds (or one flag standing for both of a layer's), a missing function or
-a half-given `groups`. It returns a handle that takes the layer out again; a
+layer holds (or one flag standing for both of a layer's), a missing function,
+a half-given `groups`, or a `derives` naming a key outside `DERIVED_KEYS` or
+one another layer already derives. It returns a handle that takes the layer out again; a
 brush on it returns to terrain, and a handle already spent removes nothing.
+A feature whose values change MEANING with no region written — a value
+renamed, recoloured, or deriving another key — calls `paintLayerChanged(key)`,
+which calls `acksExtrasPaintLayerChanged`; the map modes and an open palette
+redraw on it.
 `PAINT_LAYERS` is a live read-only view of the registered pairs, `{flag,
 hexesFlag}` by key: it answers `Object.keys`, `Object.hasOwn` and a key read,
 and refuses every write.
@@ -108,7 +118,12 @@ journey asks — `ground`, `encounterTerrain`, `territory`, `climate`, `road`,
 `following` — and `source` names, per key, which answered: `"map"` (a painted
 hex, a drawn line), `"scene"` (the default), or null. A painted layer answers
 on a hex scene, and the default answers where the layer does not; `climate`
-is the default's alone. A drawn
+is the default's alone. The territory has a source between the two: a hex
+with no territory painted takes the one a layer derives for it (the domains
+feature's, from the domain the hex is painted into), and `source` names that
+layer by its key, `"domain"`; a territory painted on the hex is the Judge's
+override and answers `"map"`, the same where it agrees with the derived one.
+A drawn
 layer speaks only on a scene that has one: `road` is the surface of the road
 wall under the point, or `"none"`, where the scene has road walls; `following`
 is `"river"` where a navigable water line is under the point, or `"none"`,
@@ -118,9 +133,11 @@ names no encounter table leaves the table null rather than borrowing the
 default's, which describes other country. With `waterBorne` (the party moving
 on the water) and any water line under the point, the encounter table is the
 river's for the ground (`riverTableFor`); the formation does not pass it, and
-applies the same rule at resolution from the cached `water`. The reader is pure over the scene
-document, so any client holding the scene can ask; the formation caches its
-answer on the party's record (`docs/formation/MODEL.md`, "The country").
+applies the same rule at resolution from the cached `water`. The reader needs
+no canvas: it reads the scene document and what a deriving layer reads from the
+world (a domain actor), so any client holding both can ask; the formation
+caches its answer on the party's record (`docs/formation/MODEL.md`, "The
+country").
 
 **The brush from a sheet.** `openCountryBrush({layer, brush, by})` arms the
 brush on a registered layer and opens its palette: the toolbar's tool calls it, and so
@@ -133,17 +150,28 @@ captured.
 A GM's map shows one MODE at a time over its terrain
 ([map-modes.mjs](../../scripts/battlemap/map-modes.mjs)). Terrain is the rest
 state: core's terrain regions are the whole drawing. Every other mode is
-registered — `registerMapMode({key, label, layer, plan, legend})`, the
-module's own being Territory — and draws an overlay, a `PIXI.Container` added
+registered — `registerMapMode({key, label, layer, plan, legend, weights})`, the
+module's own being Territory, the domains feature's Domains
+(`docs/domains/MODEL.md`, "Territory on the map") — and draws an overlay, a `PIXI.Container` added
 to the board's regions layer after core's region fills. `plan(scene)` lists
-the hexes the mode draws, `[{key, value, color}]` by offset key
-(`layerPlan(scene, layer)` makes one from a paint layer's regions);
-`legend(scene)` returns `{rows: [{color, label}], unpainted}`, `unpainted`
+the hexes the mode draws, `[{key, value, color, stripe}]` by offset key,
+`stripe` a colour or null (`layerPlan(scene, layer)` makes a plan from a paint
+layer's regions, with no stripes);
+`legend(scene)` returns `{rows: [{color, label}], unpainted, stripes}`, `unpainted`
 the label a hex the mode has not painted reads as (Territory's: the scene
-default's territory). `layer` names the paint layer whose palette pill shows
+default's territory) and `stripes` what a striped hex means, each or null.
+`weights(scene)`, where given, returns `(value, across) => number`, the
+weight of a side between a hex of `value` and a neighbour of `across` (null
+for an unpainted one), asked once per drawing. `layer` names the paint layer whose palette pill shows
 the mode (`modeForLayer`). Registration throws on a key already taken,
-Terrain's included, or a missing function, and returns a handle that takes
+Terrain's included, a missing function or `weights` that is no function, and returns a handle that takes
 the mode out; a view on a removed mode reads as Terrain.
+
+**Territory's plan** (`territoryPlan`) is every hex with a territory: a hex
+painted one is drawn in it, and one a layer derives a class for and nobody
+painted is drawn in the derived class. A painted hex whose derived class
+differs carries that class as its `stripe`, and the legend then says what a
+stripe means.
 
 **The borders.** `borderSegments(scene, plan)` draws, for every planned hex,
 each side whose neighbour holds another value or none, in the hex's own
@@ -152,8 +180,17 @@ Two values meeting therefore show as two lines side by side, one inside each
 hex, and the terrain fill between the borders stays readable. The neighbour
 across a side is the cell under the hex's centre mirrored across the side's
 midpoint, which holds on any grid whose cells are symmetric about their
-centre. Segments are drawn grouped by colour, at a width and an inset scaled
-by the grid size.
+centre. A side weighs 1, or what the mode's `weights` says, held between 0.4
+and 2; its width and its inset are both scaled by the weight, so a heavier
+line moves inward and keeps its outer edge on the side, never over the
+neighbour's. Segments are drawn grouped by colour and width, at a width and
+an inset scaled by the grid size.
+
+**The stripes.** `stripeSegments(scene, plan)` draws, for every planned hex
+with a `stripe`, parallel lines a fixed fraction of the grid size apart,
+running up to the right, each cut to the hex as the border inset pulls it in,
+so a stripe ends at the border's inner edge. They are drawn thinner than a
+border and before the borders, on the same Graphics.
 
 **The view.** The mode, the overlay's opacity and a handout switch are this
 client's (`mapView`, the client setting `mapView`, `config: false`).
@@ -173,7 +210,7 @@ pill per mode with the view's pressed, the mode's legend and what an
 unpainted hex reads as, the map's climate, the opacity slider and the
 handout switch; every control writes the view at once. The overlay redraws
 on `canvasReady`, and 50 ms after a change to the viewed scene's regions or
-its module flags.
+its module flags, or a `paintLayerChanged`.
 
 **Regions on the Regions control.** A territory region is made with
 `REGION_VISIBILITY.LAYER`, since the mode draws it and core's fill would cover
@@ -197,9 +234,9 @@ such region is never written.
 | `assistant-app.mjs` | The window, a VIEW over the session: the setup section, the fit card, scale decisions, the token-size hotbar, and a pinned footer carrying the two apply actions. One module-level instance, so a second press focuses rather than stacks and a dragged position survives a close; it subscribes to the session while open and unsubscribes on close. Two PARTS — a part renders one root element, and the footer must be the body's sibling to stay pinned, which is why `.window-content` is the flex column. |
 | `apply.mjs` | Scene writes, one per family: `applyGridCalibration` (square), `applyHexCalibration` (hex), `applyScaleOnly` (no geometry), each one `scene.update`; plus `bakeCorrectedBackground` (render-to-texture de-skew, upload, repoint). |
 | `scene-setup.mjs` | What a scene has been set up AS: the flag record (`sceneSetup` / `writeSceneSetup`), its declared travel system, its default country (`sceneCountry`), the family it already uses, and `hexProbe` — a hex's bounding box, measured off a clone rather than restated. |
-| `terrain-paint.mjs` | The country brush: the paint-layer registry (`registerPaintLayer`, with the two built-in layers registered through it) as one region per value keyed by cell, each layer's vocabulary, colours and labels, the reads (`layerValueAt`, `paintedTerrainAt`), the writer `paintHexAt`, and the palette window with its layer pills. |
-| `country.mjs` | `countryAt`, the one reader of the country under a point: the painted layers, the drawn lines and the scene default, and which of them answered each key. |
-| `map-modes.mjs` | The map modes: the mode registry with Territory registered through it, this client's view (mode, opacity, handout), the plan and its border segments, the overlay in the regions layer, following the brush, and the Map modes window. |
+| `terrain-paint.mjs` | The country brush: the paint-layer registry (`registerPaintLayer`, with the two built-in layers registered through it) as one region per value keyed by cell, each layer's vocabulary, colours and labels, the reads (`layerValueAt`, `paintedTerrainAt`, and the derived `derivedValueAt` / `derivedHexes`), `paintLayerChanged`, the writer `paintHexAt`, and the palette window with its layer pills. |
+| `country.mjs` | `countryAt`, the one reader of the country under a point: the painted layers, a derived territory, the drawn lines and the scene default, and which of them answered each key. |
+| `map-modes.mjs` | The map modes: the mode registry with Territory registered through it, this client's view (mode, opacity, handout), the plan with its border segments, side weights and stripes, the overlay in the regions layer, following the brush, and the Map modes window. |
 | `hex-fit.mjs` | `hexAlignment` — the shift that lays Foundry's lattice over a drawn cell centre, asked of a zero-shift clone. The one owner of lattice alignment. Document methods only. |
 | `../lib/distance-units.mjs` | What one `grid.units` is worth in FEET. Every feet→squares conversion divides by `sceneFeetPerCell`. |
 | `roads.mjs` | Roads as a WALL LAYER on any grid: the flag, the non-blocking wall shape, the memoised road network, `roadUnder` (which street is the party on) and `roadDistance` (how far along the streets), the drawing presets, and the road row on a wall's own sheet. |

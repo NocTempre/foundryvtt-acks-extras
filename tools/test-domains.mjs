@@ -454,4 +454,89 @@ const foundedUnnamed = await api.foundSettlement(vassal, { market: {} });
 assert.equal(foundedUnnamed.place.name, "ACKS-DOMAINS.sheet.newSettlement", "a settlement founded with no name takes the sheet's word for one");
 delete globalThis.Actor;
 
+/* ------------------------- the realm on the map ---------------------------- */
+// A realm of invented domains: Domain 1 rules Domains 2 and 3, Domain 3 rules
+// Domain 4; Domain 5 rules itself; Domain 6 answers to a liege no longer in
+// the world; Domains 7 and 8 answer to each other.
+{
+  const { realmChain, borderTier, realmOrder, domainColors, territoryRows, keepCandidates, keepPaintedRow } = logic;
+  const { hashedColor, lighten } = await import("../scripts/lib/color.mjs");
+  const realm = [
+    { uuid: "Actor.d3", parentUuid: "Actor.d1", name: "Domain 3" },
+    { uuid: "Actor.d1", parentUuid: "", name: "Domain 1" },
+    { uuid: "Actor.d4", parentUuid: "Actor.d3", name: "Domain 4" },
+    { uuid: "Actor.d2", parentUuid: "Actor.d1", name: "Domain 2" },
+    { uuid: "Actor.d5", parentUuid: "", name: "Domain 5" },
+    { uuid: "Actor.d6", parentUuid: "Actor.gone", name: "Domain 6" },
+    { uuid: "Actor.d7", parentUuid: "Actor.d8", name: "Domain 7" },
+    { uuid: "Actor.d8", parentUuid: "Actor.d7", name: "Domain 8" },
+  ];
+  const index = indexPlaces(realm);
+
+  assert.deepEqual(realmChain("Actor.d4", index), ["Actor.d1", "Actor.d3", "Actor.d4"], "a realm reads sovereign first");
+  assert.deepEqual(realmChain("Actor.d1", index), ["Actor.d1"]);
+  assert.deepEqual(realmChain("Actor.d6", index), ["Actor.d6"], "a liege no longer in the world leaves its vassal sovereign");
+  assert.deepEqual(realmChain("Actor.nobody", index), ["Actor.nobody"], "a domain nobody knows is a realm of its own");
+  assert.equal(realmChain("Actor.d7", index).length, 2, "a loop of lieges ends where it began");
+
+  assert.equal(borderTier("Actor.d2", null, index), 0, "the edge of a realm, where the far side holds no domain");
+  assert.equal(borderTier("Actor.d2", "Actor.d5", index), 0, "and where it meets another sovereign's");
+  assert.equal(borderTier("Actor.d2", "Actor.nobody", index), 0, "or a domain no longer in the world");
+  assert.equal(borderTier("Actor.d2", "Actor.d3", index), 1, "two vassals of one sovereign");
+  assert.equal(borderTier("Actor.d1", "Actor.d2", index), 1, "a sovereign and its own vassal");
+  assert.equal(borderTier("Actor.d3", "Actor.d4", index), 2, "a vassal and its vassal, one liege deeper");
+  assert.equal(borderTier("Actor.d4", "Actor.d2", index), 1, "the line runs as high as the chains part");
+
+  assert.deepEqual(realmOrder(realm), ["Actor.d1", "Actor.d2", "Actor.d3", "Actor.d4", "Actor.d5", "Actor.d6", "Actor.d7", "Actor.d8"],
+    "sovereigns by name, each followed by its vassals depth first; a loop no sovereign reaches comes last");
+
+  const base = (uuid) => ({ "Actor.d1": "#204060", "Actor.d5": "#602040", "Actor.d6": "#406020" })[uuid] ?? "#000000";
+  const colors = domainColors(realm, { base });
+  assert.equal(colors.get("Actor.d1"), "#204060", "a sovereign takes its own colour");
+  assert.equal(colors.get("Actor.d2"), lighten("#204060", (1 / 3) * 0.5), "the first of two vassals, ordered by uuid, a third of the step lighter");
+  assert.equal(colors.get("Actor.d3"), lighten("#204060", (2 / 3) * 0.5), "the second, two thirds");
+  assert.equal(colors.get("Actor.d4"), lighten(colors.get("Actor.d3"), 0.25), "a vassal's vassal a shade of its own liege's");
+  assert.notEqual(colors.get("Actor.d2"), colors.get("Actor.d1"), "no vassal takes its liege's own colour");
+  assert.equal(colors.get("Actor.d6"), "#406020");
+  const renamed = realm.map((r) => (r.uuid === "Actor.d2" ? { ...r, name: "Domain 99" } : r));
+  assert.deepEqual([...domainColors(renamed, { base })], [...colors], "a rename moves no colour");
+  assert.equal(domainColors(realm).get("Actor.d1"), hashedColor("Actor.d1"), "by default a sovereign's colour is hashed from its uuid");
+  assert.match(hashedColor("Actor.d1"), /^#[0-9a-f]{6}$/, "as a colour the overlay reads by its hex digits");
+  assert.equal(hashedColor("Actor.d1"), hashedColor("Actor.d1"));
+
+  // Rows read from the map. Hex keys and labels are invented.
+  const hex = (key, label, sceneUuid = "Scene.a") => ({ sceneUuid, sceneName: "Scene A", key, label });
+  const stored = [
+    { id: "r1", label: "Tract 1", hexLabels: ["0101"], count: 1, map: null, families: 30 },
+    { id: "r2", label: "", hexLabels: [], count: 1, map: { sceneUuid: "Scene.a", key: "1:1" }, families: 10 },
+    { id: "r3", label: "", hexLabels: [], count: 1, map: { sceneUuid: "Scene.a", key: "4:4" }, families: 5 },
+    { id: "r4", label: "Tract 4", hexLabels: [], count: 6, map: null, families: 0 },
+  ];
+  const rows = territoryRows(stored, [hex("1:1", "B2"), hex("2:2", "C3"), hex("2:2", "C3"), hex("1:1", "B2", "Scene.b")]);
+  assert.deepEqual(rows.map((r) => [r.id, r.index, r.stored, r.mapState]), [
+    ["r1", 0, true, "unmapped"], ["r2", 1, true, "painted"], ["r3", 2, true, "stale"], ["r4", 3, true, "unmapped"],
+    ["map.Scene.a.2:2", null, false, "read"], ["map.Scene.b.1:1", null, false, "read"],
+  ], "the stored rows first, under their stored index; the stored row wins its hex; an erased hex leaves its row; a hex painted twice reads once");
+  const read = rows.find((r) => !r.stored);
+  assert.deepEqual([read.hexLabels, read.count, read.families, read.map, read.sceneName], [["C3"], 1, 0, { sceneUuid: "Scene.a", key: "2:2" }, "Scene A"],
+    "a row read from the map is one hex and no families, naming where it is painted");
+  assert.deepEqual(hexCountOf(rows), { total: 1 + 1 + 1 + 6 + 2, unknown: 0 }, "the painted hexes count beside the stored rows");
+  assert.equal(peasantFamiliesOf(rows), peasantFamiliesOf(stored), "and add no families");
+  assert.deepEqual(territoryRows(stored, []).map((r) => r.mapState), ["unmapped", "stale", "stale", "unmapped"],
+    "every hex erased: the rows stand, marked");
+
+  assert.deepEqual(keepCandidates(stored).map((c) => c.index), [0],
+    "a row naming no hex on a map and covering one hex at most; a run of six is no candidate");
+  const kept = keepPaintedRow(stored, hex("2:2", "C3"), 0);
+  assert.deepEqual(kept[0], { ...stored[0], map: { sceneUuid: "Scene.a", key: "2:2" } }, "tied to the record's row, which keeps its own labels and families");
+  assert.deepEqual(kept.slice(1), stored.slice(1), "every other row unchanged");
+  assert.equal(territoryRows(kept, [hex("2:2", "C3")]).filter((r) => !r.stored).length, 0, "the kept hex now reads as its stored row");
+  const added = keepPaintedRow(stored, hex("2:2", "C3"), null, () => "new1");
+  assert.deepEqual(added.at(-1), normalizeTerritoryRow({ id: "new1", hexLabels: ["C3"], count: 1, map: { sceneUuid: "Scene.a", key: "2:2" } }),
+    "or added as a row of its own");
+  assert.equal(added.length, stored.length + 1);
+  assert.equal(keepPaintedRow(stored, hex("2:2", "C3"), 3, () => "new2").at(-1).id, "new2", "a row that is no candidate is never overwritten");
+  assert.deepEqual(stored[0].map, null, "the stored rows passed in are not mutated");
+}
+
 console.log("test-domains: all checks passed");

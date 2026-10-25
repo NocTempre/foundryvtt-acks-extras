@@ -7,7 +7,10 @@
  * regions layer above core's region fills: a border, in the value's colour,
  * along every side of a hex whose neighbour across it holds another value or
  * none, drawn on the hex's own side so two values meeting show as two lines.
- * The terrain fill under it stays readable.
+ * The terrain fill under it stays readable. A mode may weight each side by
+ * the two values it parts (a realm's edge heavier than a barony's), and
+ * stripe a hex whose painted value differs from the one it would take
+ * otherwise (a territory painted over its domain's class).
  *
  * The mode, the overlay's opacity and the handout switch are this client's
  * view (`mapView`, a client setting the Map modes window writes), and they
@@ -20,10 +23,11 @@
  */
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import {
-  PAINT_LAYERS, climateLabelFor, hexKeyOf, isHexScene, layerColorFor, layerLabelFor, layerRegionsOf,
-  paintableValues, terrainPaint,
+  PAINT_LAYERS, PAINT_LAYER_CHANGED_HOOK, climateLabelFor, derivedHexes, hexKeyOf, isHexScene, layerColorFor,
+  layerLabelFor, layerRegionsOf, paintableValues, terrainPaint,
 } from "./terrain-paint.mjs";
 import { sceneCountry } from "./scene-setup.mjs";
+import { TERRITORY_KEYS } from "../formation/country-keys.mjs";
 
 /** The client setting the view is held in. */
 export const MAP_VIEW_SETTING = "mapView";
@@ -37,9 +41,21 @@ export const MAP_VIEW_DEFAULT = Object.freeze({ mode: TERRAIN_MODE, opacity: 0.8
 /** The faintest the opacity slider goes; below it a border no longer reads at all. */
 const OPACITY_FLOOR = 0.2;
 
-/** A border's width, and how far its hex's corners are pulled toward the centre, as fractions of the grid size. */
+/**
+ * A border's width, and how far its hex's corners are pulled toward the
+ * centre, as fractions of the grid size. At these two a line's outer edge runs
+ * along the hex's side, so both scale with a side's weight: a heavier line is
+ * drawn further in, never over the neighbour's.
+ */
 const BORDER_WIDTH = 0.08;
 const BORDER_INSET = 0.08;
+
+/** The range a mode's side weight is held to: thinner than this does not read, thicker eats the hex. */
+const WEIGHT_RANGE = Object.freeze([0.4, 2]);
+
+/** A stripe's spacing and width, as fractions of the grid size. */
+const STRIPE_SPACING = 0.14;
+const STRIPE_WIDTH = 0.025;
 
 /** The registered modes, by key, in registration order. */
 const modes = new Map();
@@ -51,21 +67,27 @@ let legendWindow = null;
 /**
  * Register a map mode. `label` is its i18n key; `layer`, where given, is the
  * paint layer whose palette pill shows the mode; `plan(scene)` lists the hexes
- * it draws, `[{key, value, color}]` by offset key; `legend(scene)` returns
- * `{rows: [{color, label}], unpainted}`, `unpainted` the label of what a hex
- * the mode has not painted reads as, or null. Throws, naming the mode, on a
- * key already taken (Terrain's included) or a missing function.
+ * it draws, `[{key, value, color, stripe?}]` by offset key, `stripe` the colour
+ * a hex is striped in or null; `legend(scene)` returns `{rows: [{color,
+ * label}], unpainted, stripes?}`, `unpainted` the label of what a hex the mode
+ * has not painted reads as, or null, and `stripes` what a striped hex means,
+ * or null; `weights(scene)`, where given, returns `(value, across) => number`,
+ * the weight of a side between a hex of `value` and its neighbour's (null
+ * where the neighbour holds none), asked once per drawing. Throws, naming the
+ * mode, on a key already taken (Terrain's included) or a missing function.
  *
- * @param {{key: string, label: string, layer?: string|null, plan: Function, legend: Function}} spec
+ * @param {{key: string, label: string, layer?: string|null, plan: Function, legend: Function,
+ *   weights?: Function|null}} spec
  * @returns {() => void} a handle that takes the mode out again
  */
-export function registerMapMode({ key, label, layer = null, plan, legend }) {
+export function registerMapMode({ key, label, layer = null, plan, legend, weights = null }) {
   if (typeof key !== "string" || !key) throw new Error(`${MODULE_ID} | a map mode needs a key`);
   if (key === TERRAIN_MODE || modes.has(key)) throw new Error(`${MODULE_ID} | map mode "${key}" is already registered`);
   if (typeof plan !== "function" || typeof legend !== "function") {
     throw new Error(`${MODULE_ID} | map mode "${key}" needs a plan and a legend`);
   }
-  const entry = { key, label: label ?? `${LANG_PREFIX}.mapMode.${key}`, layer, plan, legend };
+  if (weights != null && typeof weights !== "function") throw new Error(`${MODULE_ID} | map mode "${key}" has weights that are no function`);
+  const entry = { key, label: label ?? `${LANG_PREFIX}.mapMode.${key}`, layer, plan, legend, weights };
   modes.set(key, entry);
   refreshMapView();
   return () => {
@@ -150,15 +172,23 @@ const centreOf = (corners) => ({
 
 const pulled = (p, c, t) => ({ x: p.x + (c.x - p.x) * t, y: p.y + (c.y - p.y) * t });
 
+/** A side weight held to `WEIGHT_RANGE`; anything that is no number weighs 1. */
+function heldWeight(w) {
+  const n = Number(w);
+  return Number.isFinite(n) ? Math.min(WEIGHT_RANGE[1], Math.max(WEIGHT_RANGE[0], n)) : 1;
+}
+
 /**
  * The border segments a plan draws: each side of a planned hex whose
  * neighbour across it holds another value, or none, as its two corners pulled
- * `inset` of the way toward the hex's centre, in the hex's colour. The
- * neighbour is the hex whose centre mirrors this one's across the side's
- * midpoint, which holds on any hex grid, stretched or not.
- * @returns {Array<{color: string, from: {x: number, y: number}, to: {x: number, y: number}}>}
+ * toward the hex's centre, in the hex's colour. The neighbour is the hex whose
+ * centre mirrors this one's across the side's midpoint, which holds on any hex
+ * grid, stretched or not. `weightOf(value, across)` weighs the side, 1 where
+ * it is not given; the corners are pulled `inset` times the weight, so a
+ * heavier line keeps its outer edge on the side.
+ * @returns {Array<{color: string, weight: number, from: {x: number, y: number}, to: {x: number, y: number}}>}
  */
-export function borderSegments(scene, plan, inset = BORDER_INSET) {
+export function borderSegments(scene, plan, inset = BORDER_INSET, weightOf = null) {
   const valueAt = new Map(plan.map((h) => [h.key, h.value]));
   const segments = [];
   for (const hex of plan) {
@@ -168,12 +198,74 @@ export function borderSegments(scene, plan, inset = BORDER_INSET) {
     for (let n = 0; n < corners.length; n++) {
       const a = corners[n];
       const b = corners[(n + 1) % corners.length];
-      const across = hexKeyOf(scene.grid.getOffset({ x: a.x + b.x - centre.x, y: a.y + b.y - centre.y }));
-      if (valueAt.has(across) && valueAt.get(across) === hex.value) continue;
-      segments.push({ color: hex.color, from: pulled(a, centre, inset), to: pulled(b, centre, inset) });
+      const across = valueAt.get(hexKeyOf(scene.grid.getOffset({ x: a.x + b.x - centre.x, y: a.y + b.y - centre.y }))) ?? null;
+      if (across !== null && across === hex.value) continue;
+      const weight = weightOf ? heldWeight(weightOf(hex.value, across)) : 1;
+      segments.push({ color: hex.color, weight, from: pulled(a, centre, inset * weight), to: pulled(b, centre, inset * weight) });
     }
   }
   return segments;
+}
+
+/**
+ * The stripes a plan draws: for each planned hex carrying a `stripe` colour,
+ * parallel lines `spacing` of the grid size apart, running up to the right,
+ * each cut to the hex as the borders' `inset` pulls it in, so a stripe ends
+ * at the border's inner edge rather than across it.
+ * @returns {Array<{color: string, from: {x: number, y: number}, to: {x: number, y: number}}>}
+ */
+export function stripeSegments(scene, plan, { inset = BORDER_INSET, spacing = STRIPE_SPACING } = {}) {
+  // A stripe is a line of constant x + y; lines a distance d apart differ in it by d·√2.
+  const step = Math.max(1, (scene.grid.size ?? 100) * spacing * Math.SQRT2);
+  const segments = [];
+  for (const hex of plan) {
+    if (!hex.stripe) continue;
+    const [i, j] = hex.key.split(":").map(Number);
+    const corners = scene.grid.getVertices({ i, j });
+    const centre = centreOf(corners);
+    const ring = corners.map((p) => pulled(p, centre, inset));
+    const sums = ring.map((p) => p.x + p.y);
+    const hi = Math.max(...sums);
+    for (let c = Math.min(...sums) + step / 2; c < hi; c += step) {
+      // Where the line crosses the ring: a cell is convex, so at two points.
+      const cut = [];
+      for (let n = 0; n < ring.length; n++) {
+        const a = ring[n];
+        const b = ring[(n + 1) % ring.length];
+        const fa = a.x + a.y - c;
+        const fb = b.x + b.y - c;
+        if (fa === fb || (fa < 0) === (fb < 0)) continue;
+        const t = fa / (fa - fb);
+        cut.push({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+      }
+      if (cut.length < 2) continue;
+      cut.sort((p, q) => (p.x - p.y) - (q.x - q.y));
+      segments.push({ color: hex.stripe, from: cut[0], to: cut.at(-1) });
+    }
+  }
+  return segments;
+}
+
+/**
+ * The Territory mode's plan: every hex with a territory, painted or derived.
+ * A hex with a territory painted is drawn in it, and striped in the class a
+ * layer derives for it (a domain's) where the two differ; a hex with none
+ * painted is drawn in the derived class.
+ * @returns {Array<{key: string, value: string, color: string, stripe: string|null}>}
+ */
+export function territoryPlan(scene) {
+  const color = (v) => layerColorFor(v, "territory");
+  const derived = new Map(
+    derivedHexes(scene, "territory").filter((h) => TERRITORY_KEYS.includes(h.value)).map((h) => [h.key, h.value]),
+  );
+  const painted = layerPlan(scene, "territory");
+  const plan = painted.map((hex) => {
+    const under = derived.get(hex.key);
+    return { ...hex, stripe: under && under !== hex.value ? color(under) : null };
+  });
+  const seen = new Set(painted.map((h) => h.key));
+  for (const [key, value] of derived) if (!seen.has(key)) plan.push({ key, value, color: color(value), stripe: null });
+  return plan;
 }
 
 /* -------------------------------------------------------------------- */
@@ -216,16 +308,27 @@ function drawMapView() {
   const mode = modes.get(view.mode);
   if (!game.user?.isGM || !mode || view.handout || !isHexScene(scene)) return;
   container.alpha = view.opacity;
-  const width = Math.max(2, (scene.grid.size ?? 100) * BORDER_WIDTH);
-  const byColor = new Map();
-  for (const s of borderSegments(scene, mode.plan(scene))) {
-    if (!byColor.has(s.color)) byColor.set(s.color, []);
-    byColor.get(s.color).push(s);
-  }
+  const size = scene.grid.size ?? 100;
+  const width = Math.max(2, size * BORDER_WIDTH);
+  const plan = mode.plan(scene);
   const g = container.addChild(new PIXI.Graphics());
-  for (const [color, segments] of byColor) {
+  // The stripes first, so the borders are drawn over their ends.
+  stroke(g, stripeSegments(scene, plan), () => Math.max(1, size * STRIPE_WIDTH));
+  stroke(g, borderSegments(scene, plan, BORDER_INSET, mode.weights?.(scene) ?? null), (s) => width * s.weight);
+}
+
+/** Draw segments on one Graphics, one line style per colour and width. */
+function stroke(g, segments, widthOf) {
+  const groups = new Map();
+  for (const s of segments) {
+    const width = widthOf(s);
+    const key = `${s.color}|${width}`;
+    if (!groups.has(key)) groups.set(key, { color: s.color, width, segments: [] });
+    groups.get(key).segments.push(s);
+  }
+  for (const { color, width, segments: list } of groups.values()) {
     g.lineStyle({ width, color: parseInt(String(color).slice(1), 16) || 0, alpha: 1, cap: "round" });
-    for (const { from, to } of segments) {
+    for (const { from, to } of list) {
       g.moveTo(from.x, from.y);
       g.lineTo(to.x, to.y);
     }
@@ -275,6 +378,8 @@ export function installMapModes() {
   Hooks.on("updateScene", (scene, change) => {
     if (scene === canvas?.scene && foundry.utils.hasProperty(change, `flags.${MODULE_ID}`)) later();
   });
+  // A layer whose values changed meaning with no region written: a domain renamed, re-lieged or reclassified.
+  Hooks.on(PAINT_LAYER_CHANGED_HOOK, later);
   terrainPaint.onChange(followBrush);
 }
 
@@ -283,18 +388,20 @@ export function installMapModes() {
 /* -------------------------------------------------------------------- */
 
 // Territory: the border colour says how settled the land is; the terrain
-// stays the fill. A hex nobody painted is drawn no border and reads as the
-// scene's default, which the legend names.
+// stays the fill. A hex painted into a domain takes its class, and one painted
+// a territory over it is striped where the two differ. A hex with neither is
+// drawn no border and reads as the scene's default, which the legend names.
 registerMapMode({
   key: "territory",
   label: `${LANG_PREFIX}.mapMode.territory`,
   layer: "territory",
-  plan: (scene) => layerPlan(scene, "territory"),
+  plan: territoryPlan,
   legend: (scene) => {
     const unpainted = sceneCountry(scene).territory;
     return {
       rows: paintableValues("territory").map((v) => ({ color: layerColorFor(v, "territory"), label: layerLabelFor(v, "territory") })),
       unpainted: unpainted ? layerLabelFor(unpainted, "territory") : null,
+      stripes: territoryPlan(scene).some((h) => h.stripe) ? game.i18n.localize(`${LANG_PREFIX}.mapMode.stripes`) : null,
     };
   },
 });
@@ -312,7 +419,7 @@ const { ApplicationV2, HandlebarsApplicationMixin } = globalThis.foundry?.applic
 
 /**
  * The Map modes window: one pill per mode, the active one pressed; the mode's
- * legend and what an unpainted hex reads as; the map's climate; the overlay's
+ * legend, what an unpainted hex reads as and what a stripe means; the map's climate; the overlay's
  * opacity; and the handout switch. Every control writes the view at once.
  */
 export class MapModesApp extends HandlebarsApplicationMixin(ApplicationV2) {
@@ -339,6 +446,7 @@ export class MapModesApp extends HandlebarsApplicationMixin(ApplicationV2) {
       terrain: view.mode === TERRAIN_MODE,
       rows: legend?.rows ?? [],
       unpainted: legend?.unpainted ?? null,
+      stripes: legend?.stripes ?? null,
       climate: climate ? climateLabelFor(climate) : null,
       opacity: Math.round(view.opacity * 100),
       opacityFloor: Math.round(OPACITY_FLOOR * 100),

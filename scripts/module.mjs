@@ -31,7 +31,10 @@
  *   domains    after factions — its sheet reads the place layer and the
  *              faction sub-type through direct imports, and it publishes its
  *              api at init, before location's ready-time prune asks it which
- *              places are held; nothing imports it.
+ *              places are held; nothing imports it. It registers a paint
+ *              layer and a map mode into battlemap's registries through
+ *              direct imports of battlemap's files, which those imports
+ *              evaluate first whatever this order says.
  *   markets    after location — it consumes lib registries, equipment's gear
  *              grant, henchmen's coin adapter/time/market-class rules, and
  *              location's market subtree; nothing consumes it.

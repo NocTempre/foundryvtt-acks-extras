@@ -1,6 +1,7 @@
 {{! The map modes: one pill per mode, the active one pressed; the mode's
-    legend, each row a border in its colour; what an unpainted hex reads as;
-    the map's climate; the overlay's opacity and the handout switch. ONE root
+    legend, each row a border in its colour; what an unpainted hex reads as
+    and what a stripe means; the map's climate; the overlay's opacity and the
+    handout switch. ONE root
     element — an ApplicationV2 template part renders a single node. }}
 <div class="acks-extras-map-modes-body">
   <div class="acks-extras-map-modes-pills" role="group" aria-label="{{localize 'ACKS-BATTLEMAP.mapMode.modesLabel'}}">
@@ -24,6 +25,9 @@
   {{/if}}
   {{#if unpainted}}
   <p class="hint">{{localize "ACKS-BATTLEMAP.mapMode.unpainted" value=unpainted}}</p>
+  {{/if}}
+  {{#if stripes}}
+  <p class="hint acks-extras-map-stripes"><span class="acks-extras-map-legend-chip acks-extras-map-legend-chip--striped"></span><span>{{stripes}}</span></p>
   {{/if}}
   <p class="acks-extras-map-climate">
     <span class="acks-extras-map-climate-label">{{localize "ACKS-BATTLEMAP.mapMode.climate"}}</span>

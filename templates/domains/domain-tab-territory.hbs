@@ -1,5 +1,9 @@
 {{!-- Territory: one row per hex, or per run of hexes a record gives only in
-      total. A land value shows to a reader only on a row the Judge reveals. --}}
+      total, then a row per hex painted into the domain that no stored row
+      names. A stored row is named form rows under its stored index; a row read
+      from the map is text with a Keep press, since a named input would store
+      it on the next submit. A land value shows to a reader only on a row the
+      Judge reveals. --}}
 <div class="tab acks-extras-domain-sheet__panel{{#if tabs.territory.active}} active{{/if}}" data-group="primary" data-tab="territory">
   <div class="acks-extras-domain-sheet__block">
     <h3 class="acks-extras-domain-sheet__block-title">{{localize "ACKS-DOMAINS.sheet.territory"}} ({{territory.length}})</h3>
@@ -21,6 +25,7 @@
       </thead>
       <tbody>
         {{#each territory}}
+        {{#if stored}}
         <tr>
           <td><input type="text" name="system.territory.{{index}}.label" value="{{label}}" {{@root.lock}}
                      aria-label="{{localize 'ACKS-DOMAINS.field.label'}}" /></td>
@@ -46,9 +51,26 @@
                      aria-label="{{localize 'ACKS-DOMAINS.field.note'}}" /></td>
           <td class="row-actions">
             {{#if painted}}<i class="fa-solid fa-paintbrush" data-tooltip="{{localize 'ACKS-DOMAINS.hint.painted'}}"></i>{{/if}}
+            {{#if stale}}<i class="fa-solid fa-link-slash" data-tooltip="{{localize 'ACKS-DOMAINS.hint.stale'}}"></i>{{/if}}
             {{#if @root.canEdit}}<button type="button" class="acks-btn acks-btn--quiet acks-btn--icon" data-action="rowDelete" data-array="territory" data-index="{{index}}" aria-label="{{localize 'ACKS-DOMAINS.sheet.removeRowTitle'}}"><i class="fa-solid fa-xmark" inert></i></button>{{/if}}
           </td>
         </tr>
+        {{else}}
+        <tr class="acks-extras-domain-table__read">
+          <td>—</td>
+          <td>{{hexLabelsText}}</td>
+          <td>{{count}}</td>
+          <td>—</td>
+          <td>—</td>
+          <td>—</td>
+          {{#if @root.isGM}}<td></td>{{/if}}
+          <td>{{sceneName}}</td>
+          <td class="row-actions">
+            <i class="fa-solid fa-paintbrush" data-tooltip="{{localize 'ACKS-DOMAINS.hint.readFromMap'}}"></i>
+            {{#if @root.canEdit}}<button type="button" class="acks-btn acks-btn--quiet acks-btn--sm" data-action="keepTract" data-scene="{{map.sceneUuid}}" data-key="{{map.key}}" data-label="{{hexLabelsText}}" data-tooltip="{{localize 'ACKS-DOMAINS.hint.keepTract'}}">{{localize "ACKS-DOMAINS.sheet.keepTract"}}</button>{{/if}}
+          </td>
+        </tr>
+        {{/if}}
         {{/each}}
       </tbody>
     </table>

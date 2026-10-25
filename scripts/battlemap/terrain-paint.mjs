@@ -13,7 +13,10 @@
  * Terrain is one LAYER of a registry (`registerPaintLayer`): territory is
  * painted the same way into regions of its own, under flags of its own, one
  * value per hex per layer, and a feature adds a layer of its own by
- * registering it. The climate is no layer: it is the map's, never a hex's. The terrain names below keep their meaning; each
+ * registering it. A layer may DERIVE a country key — a hex painted into a
+ * domain takes the domain's class as its territory — which the territory
+ * painted on the hex overrides. The climate is no layer: it is the map's,
+ * never a hex's. The terrain names below keep their meaning; each
  * layer-aware form takes a trailing `layer`, "terrain" by default.
  *
  * See docs/battlemap/DECISIONS.md, "Terrain paints as regions, and the
@@ -25,6 +28,7 @@ import { TERRAIN, readTable, TRAVEL_DOC } from "../vehicles/vehicle-speed.mjs";
 import { ENCOUNTER_TERRAINS } from "../formation/encounter-terrains.mjs";
 import { TERRITORY_KEYS } from "../formation/country-keys.mjs";
 import { CLIMATES } from "../formation/weather.mjs";
+import { lighten } from "../lib/color.mjs";
 
 /** Region flags: the terrain kind, and the painted cells as offset keys. */
 export const TERRAIN_FLAG = "terrain";
@@ -42,6 +46,28 @@ const layers = new Map();
 
 /** The entry of a layer the brush knows, or null. */
 const layerSpec = (layer) => layers.get(layer) ?? null;
+
+/**
+ * The country keys a layer may derive (`registerPaintLayer`'s `derives`): the
+ * keys a reader asks a derived answer for. `countryAt` reads a derived
+ * territory beneath a painted one.
+ */
+export const DERIVED_KEYS = Object.freeze(["territory"]);
+
+/** The layer deriving a country key, or null. */
+const derivingLayer = (key) => [...layers.values()].find((l) => l.derives?.key === key) ?? null;
+
+/**
+ * The hook a feature calls (through `paintLayerChanged`) when what a layer's
+ * values MEAN has changed with no region written — a domain renamed, given
+ * another liege or another class. The map modes and an open palette redraw on it.
+ */
+export const PAINT_LAYER_CHANGED_HOOK = "acksExtrasPaintLayerChanged";
+
+/** Tell the map modes and the palette that a layer's labels, colours or derived values have changed. */
+export function paintLayerChanged(layer) {
+  Hooks.callAll(PAINT_LAYER_CHANGED_HOOK, layer);
+}
 
 /**
  * The registered layers' region flags, `{flag, hexesFlag}` by layer key: a live
@@ -81,10 +107,15 @@ export const PAINT_LAYERS = new Proxy({}, {
  * @param {string} [layer.title]  the i18n key of its palette pill, `<LANG_PREFIX>.terrain.layer.<key>` by default
  * @param {{of: (value: string) => string, label: (group: string) => string}} [layer.groups]
  *   how its swatches are grouped in the palette, in order of first appearance
+ * @param {{key: string, of: (value: string) => string|null}} [layer.derives]
+ *   a country key a hex painted on this layer answers (`DERIVED_KEYS`), and the
+ *   key's value for a value of this layer, or null where it implies none; one
+ *   layer derives a key
  * @returns {() => void} removes the layer again; the brush returns to terrain if it was on it
  */
 export function registerPaintLayer({
   key, flag, hexesFlag, values, label, color, visible = false, regionsOnly = false, title = null, groups = null,
+  derives = null,
 } = {}) {
   const refuse = (why) => {
     throw new Error(`${MODULE_ID} | paint layer "${key}" refused: ${why}`);
@@ -98,6 +129,12 @@ export function registerPaintLayer({
   if (groups && (typeof groups.of !== "function" || typeof groups.label !== "function")) {
     refuse("groups needs an `of` and a `label` function");
   }
+  if (derives) {
+    if (!DERIVED_KEYS.includes(derives.key)) refuse(`derives names no key a reader asks (${DERIVED_KEYS.join(", ")})`);
+    if (typeof derives.of !== "function") refuse("derives needs an `of` function");
+    const other = derivingLayer(derives.key);
+    if (other) refuse(`"${other.key}" already derives ${derives.key}, one layer to a key`);
+  }
   if (layers.has(key)) refuse("registered twice, one layer to a key");
   if (flag === hexesFlag) refuse("flag and hexesFlag must differ");
   if (visible && regionsOnly) refuse("visible and regionsOnly cannot both hold");
@@ -105,6 +142,7 @@ export function registerPaintLayer({
   if ([flag, hexesFlag].some((f) => held.includes(f))) refuse("a flag is shared with another layer");
   const entry = Object.freeze({
     key, flag, hexesFlag, values, label, color, visible: !!visible, regionsOnly: !!regionsOnly, title, groups,
+    derives: derives ? Object.freeze({ key: derives.key, of: derives.of }) : null,
     pair: Object.freeze({ flag, hexesFlag }),
   });
   layers.set(key, entry);
@@ -234,14 +272,6 @@ export const CLIMATE_GROUP_COLORS = Object.freeze({
   D: "#3f6a9e",
   E: "#6f8798",
 });
-
-/** A `#rrggbb` colour mixed toward white by `t`, from 0 (itself) to 1 (white). */
-function lighten(hex, t) {
-  const n = parseInt(String(hex).slice(1), 16);
-  const mix = (c) => Math.round(c + (255 - c) * t);
-  const rgb = (mix((n >> 16) & 255) << 16) | (mix((n >> 8) & 255) << 8) | mix(n & 255);
-  return `#${rgb.toString(16).padStart(6, "0")}`;
-}
 
 /** A climate's colour: its group's, lightened by its place in the group. */
 export function climateColorFor(code) {
@@ -376,6 +406,35 @@ export function layerValueAt(scene, point, layer = "terrain") {
     }
   }
   return null;
+}
+
+/**
+ * A country key as the layer deriving it answers at `point`: `{value, layer}`,
+ * the value the hex's paint on that layer implies and the layer's key, or null
+ * where no layer derives the key, the hex holds no paint on it, or the paint
+ * implies nothing (a domain with no class, or one no longer in the world).
+ */
+export function derivedValueAt(scene, point, key) {
+  const spec = derivingLayer(key);
+  if (!spec) return null;
+  const painted = layerValueAt(scene, point, spec.key);
+  const value = painted == null ? null : (spec.derives.of(painted) ?? null);
+  return value == null ? null : { value, layer: spec.key };
+}
+
+/**
+ * Every hex of a scene for which a layer derives `key`: `[{key, value, layer}]`
+ * by offset key, as `derivedValueAt` would answer at each, so a map mode can
+ * draw them all without asking hex by hex.
+ */
+export function derivedHexes(scene, key) {
+  const spec = derivingLayer(key);
+  if (!spec || !isHexScene(scene)) return [];
+  return layerRegionsOf(scene, spec.key).flatMap((region) => {
+    const value = spec.derives.of(region.getFlag(MODULE_ID, spec.flag)) ?? null;
+    if (value == null) return [];
+    return (region.getFlag(MODULE_ID, spec.hexesFlag) ?? []).map((hex) => ({ key: hex, value, layer: spec.key }));
+  });
 }
 
 /** The painted terrain of the hex containing `point`, or null (`layerValueAt` on the terrain layer). */
@@ -694,6 +753,8 @@ export class TerrainPaletteApp extends HandlebarsApplicationMixin(ApplicationV2)
   };
 
   #unsubscribe = null;
+  /** The hook id of the palette's redraw on a layer whose values changed meaning (`paintLayerChanged`). */
+  #layerHook = null;
 
   async _prepareContext() {
     const layer = terrainPaint.layer;
@@ -726,12 +787,18 @@ export class TerrainPaletteApp extends HandlebarsApplicationMixin(ApplicationV2)
   _onRender(context, options) {
     super._onRender?.(context, options);
     this.#unsubscribe ??= terrainPaint.onChange(() => this.render());
+    // A swatch names and colours a value as its layer does now: a domain renamed redraws it.
+    this.#layerHook ??= Hooks.on(PAINT_LAYER_CHANGED_HOOK, () => {
+      if (this.rendered) this.render();
+    });
   }
 
   _onClose(options) {
     super._onClose?.(options);
     this.#unsubscribe?.();
     this.#unsubscribe = null;
+    if (this.#layerHook != null) Hooks.off(PAINT_LAYER_CHANGED_HOOK, this.#layerHook);
+    this.#layerHook = null;
     if (terrainPaint.armedBy !== "tool") terrainPaint.disarm();
   }
 

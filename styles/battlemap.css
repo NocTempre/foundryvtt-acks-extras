@@ -507,6 +507,22 @@
   background: var(--acks-field);
 }
 
+/* What a stripe means, under the legend: its chip is striped as the hex is. */
+.acks-extras-map-stripes {
+  display: flex;
+  align-items: center;
+  gap: calc(6px * var(--acks-extras-k));
+  margin: 0;
+}
+
+.acks-extras-map-legend-chip--striped {
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--acks-ink-soft) 0 calc(2px * var(--acks-extras-k)),
+    transparent calc(2px * var(--acks-extras-k)) calc(5px * var(--acks-extras-k))
+  );
+}
+
 .acks-extras-map-climate {
   margin: 0;
 }

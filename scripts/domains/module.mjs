@@ -4,9 +4,11 @@
  * lines, its morale, and its place in a realm of lieges and vassals.
  *
  * Owns the `acks-extras.domain` sub-type (`data/domain-data.mjs`) and its
- * sheet. The api is published at `init`, not `ready`, because the location
- * feature's empty-location prune runs at `ready` and asks `holdsPlace` before
- * it deletes anything.
+ * sheet, and registers the country brush's domain layer and the Domains map
+ * mode into battlemap's registries (`domain-map.mjs`, at import). The api is
+ * published at `init`, not `ready`, because the location feature's
+ * empty-location prune runs at `ready` and asks `holdsPlace` before it
+ * deletes anything.
  */
 import { acksExtras } from "../namespace.mjs";
 import {
@@ -22,6 +24,7 @@ import {
   blankDomain, hexCountOf, ledgerOf, normalizeDomain, peasantFamiliesOf, strongholdValueOf, tributeInOf,
   urbanFamiliesOf,
 } from "./domain-logic.mjs";
+import { hexCountFor, installDomainMap, territoryOf } from "./domain-map.mjs";
 
 /** The picture a domain is made with when its maker names none: core's castle. */
 const DOMAIN_IMG = "icons/svg/castle.svg";
@@ -38,6 +41,7 @@ Hooks.once("init", () => {
   CONFIG.Actor.dataModels[DOMAIN_TYPE] = DomainData;
   registerDomainSheet();
   registerDomainSheetRefresh();
+  installDomainMap();
 
   foundry.applications.handlebars
     .loadTemplates(TEMPLATES)
@@ -70,8 +74,8 @@ Hooks.once("init", () => {
   });
 
   acksExtras.domains = {
-    // 2: promoteVassal and foundSettlement.
-    apiVersion: 2,
+    // 2: promoteVassal and foundSettlement. 3: territoryOf and hexCountFor.
+    apiVersion: 3,
     DOMAIN_TYPE,
     CLASSIFICATIONS,
     HOLDING_ROLES,
@@ -101,6 +105,10 @@ Hooks.once("init", () => {
     hexCountOf,
     strongholdValueOf,
     tributeInOf,
+    // The territory with the map read in: the stored rows, then a row per
+    // hex painted into the domain that none names; and the hexes it covers.
+    territoryOf,
+    hexCountFor,
     // The Judge's writers. GM only; each says why it refused.
     setLiege,
     hold,

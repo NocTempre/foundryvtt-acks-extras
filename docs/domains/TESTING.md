@@ -202,3 +202,89 @@ go with it). Holdings, vassal rows
 and every other list are rows on the domains, so they go when the domains do;
 steps 5 and 14 write `parentUuid` only on Domain 2. Quote
 `api.sweepTracked()`'s result. Restore the prune and type-size settings.
+
+## Territory on the map (added with the domain layer)
+
+Walked by hand from a browser pane; not yet in `tools/live/domains.mjs`.
+"Before anything else" above holds here too.
+
+**Fixtures**, every one tracked by id as it is made: a disposable HEX-gridded
+scene made with `active: false`, whose scene default names a territory; a
+second hex scene for step 9; three `acks-extras.domain` actors, **Realm 1**
+(classification civilized), **Vassal 1** (borderlands, `parentUuid` Realm 1's)
+and **Realm 2** (outlands), each created bare and then updated (Core drive
+mechanics); Realm 1 updated with two territory rows, one with no hex labels
+and a count of 1 and one with a count of 3.
+
+**Drive mechanics.** The brush, the palette, a point and a stroke are
+`docs/battlemap/TESTING.md`, "The country's layers and water" and "Terrain
+painting"; the overlay and the Map modes window are its "Map modes". A domain hex is
+`paintHexAt(scene, point, domain.uuid, "domain")`, `null` to erase, and
+`layerRegionsOf(scene, "domain")` lists its regions. The drawing's weights:
+`mapModes().find((m) => m.key === "domain").weights(scene)` gives the side
+weight, and a drawn side's width is
+`geometry.graphicsData[n].lineStyle.width`. The sheet's Keep press is
+`button[data-action="keepTract"]` on the read row; its picker is a prompt with
+one `select[name="choice"]`, as the other pickers are.
+
+1. **A hex painted into a domain through the palette.** View the scene, open
+   the Country brush, press the **Domain** pill, Realm 1's swatch, and stroke
+   one hex. *Observable:* the palette's context lists the domains in realm
+   order, Realm 1 and Vassal 1 under Realm 1, Realm 2 under itself; one region
+   flagged `domain` with Realm 1's uuid and `domainHexes` naming the hex, at
+   `visibility` 0. Paint by `paintHexAt` two more Realm 1 hexes, two Vassal 1
+   hexes beside them and two Realm 2 hexes beside Realm 1's.
+2. **The Domains mode.** *Observable:* `mapView().mode` is "domain"; the
+   legend lists Realm 1, Vassal 1 under Realm 1, then Realm 2, and Vassal 1's
+   colour is Realm 1's hue, lighter. A side between Realm 1 and Realm 2, or
+   facing unpainted land, weighs 1.75; one between Realm 1 and Vassal 1 weighs
+   1; the drawn widths stand in the same ratio, and no hatch is drawn.
+3. **The territory a hex derives.** *Observable:* `countryAt` at a Realm 1
+   hex reads civilized with `source.territory` "domain"; at a Vassal 1 hex,
+   borderlands; at an unpainted hex, the scene default with "scene". Clear
+   Realm 2's classification. *Observable:* its hexes read the scene default.
+   Set it back.
+4. **The Judge's override, striped.** On the territory layer paint one Realm
+   1 hex outlands, and one unpainted hex any class. *Observable:* `countryAt`
+   at the first reads outlands with "map". In the Territory mode the
+   overridden hex is planned with civilized's colour as its `stripe`, the
+   overlay holds `stripeSegments(scene, territoryPlan(scene)).length` stripe
+   lines, the legend carries the stripes line, the hexes of every classified
+   domain have borders in their class, and the unpainted hex painted a class
+   is not striped.
+5. **The map follows the domains.** With the palette and the Domains mode
+   open, rename Realm 1, set Vassal 1's classification to outlands, then clear
+   Vassal 1's liege. *Observable:* within a moment the palette and the legend
+   name the new name and no region was written; `countryAt` at a Vassal 1 hex
+   reads outlands; Vassal 1 takes a colour of its own, and the side between it
+   and Realm 1 now weighs 1.75. Set its liege back.
+6. **Rows read from the map.** Open Realm 1's sheet on Territory.
+   *Observable:* the two stored rows, then one read row per Realm 1 hex,
+   naming the scene, with the paintbrush mark and a Keep press; the hexes rail
+   is the stored rows' count plus the painted hexes. Paint a fourth Realm 1
+   hex with the sheet open. *Observable:* within a moment a read row more.
+7. **Keep.** Press Keep on a read row. *Observable:* the picker offers a row
+   of its own and the count-1 row, not the count-3 row. Pick the count-1 row.
+   *Observable:* that row's `map` is `{sceneUuid, key}` of the hex, the read
+   row is gone, the row carries the painted mark, and the hexes rail is one
+   lower. Keep another, as a row of its own. *Observable:* a stored row naming
+   the hex's label, a count of 1 and its `map`; the rail unchanged.
+8. **Erasing deletes no row.** Erase the hex kept in step 7 onto the count-1
+   row. *Observable:* the row stands, with the broken-link mark. Paint the
+   same hex into Realm 2. *Observable:* Realm 1's row stays stale, and Realm
+   2's sheet lists the hex as a read row.
+9. **The delete paths.** Paint one Realm 1 hex on the second scene, with Realm
+   1's sheet open, then delete that scene. *Observable:* its read row goes.
+   Delete Realm 2. *Observable:* its hexes draw grey, the legend's last row
+   names a domain no longer in the world, and `countryAt` at one reads the
+   scene default. The sweep then reports Realm 2 missing, which is expected.
+10. **A player.** Give the Player seat Observer on Realm 1 and join as that
+    player. *Observable:* the sheet lists the read rows with no Keep press and
+    the same hexes rail as the Judge's; the player's overlay holds no child.
+    In that seat's console, record what `countryAt` reads at a Realm 1 hex and
+    at a Vassal 1 hex, which the player cannot observe: a derived territory
+    needs the domain actor on the asking client.
+
+**Teardown:** `api.sweepTracked()`, which takes both scenes with their
+regions and the domains, and quote its result. Set this seat's view back with
+`setMapView({mode: "terrain", opacity: 0.85, handout: false})`.

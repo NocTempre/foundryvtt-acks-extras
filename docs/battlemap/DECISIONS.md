@@ -828,6 +828,10 @@ climate left the brush, and a map's climate is its scene default alone.
 below): territory regions are drawn on the Regions control alone, and the
 Territory map mode draws the territory for a GM.
 
+**Extended, 2026-10-25** (*A layer can derive the territory*, below): the one
+reader has a third answer for territory, between the map's and the scene
+default's, which a registered layer derives.
+
 ## 2026-10-17 — The country brush's layers are a registry
 
 **Evidence.** The domains feature's automation wave (ruled 2026-10-17) paints a
@@ -881,6 +885,10 @@ Nothing about the three layers changes here: the 2026-10-15 ruling stands.
 **Extended, 2026-10-24** (*The map shows one mode at a time*, below): a
 layer's visibility has a third word, `regionsOnly`, for a layer a map mode
 draws.
+
+**Extended, 2026-10-25** (*A layer can derive the territory*, below): a layer
+may derive a key the reader asks, and a registrant says when what its values
+mean has changed.
 
 ## 2026-10-24 — The brush paints the board alone
 
@@ -1028,4 +1036,64 @@ Reverses the rejection, 2026-08-28, of a PIXI overlay of the module's own.
 - The view is per client: a second GM sees their own mode, never the first's.
 - A hex with no neighbour painted draws a full ring, so a scattered paint
   reads as rings rather than as a region.
+
+**Extended, 2026-10-25** (*A layer can derive the territory*, below): Q1a is
+built, the Domains mode and the derived territory with its stripes; Q2a and
+Q3, the markets mode, are not.
+
+## 2026-10-25 — A layer can derive the territory
+
+**Evidence.** The owner's ruling Q1a (quoted in *The map shows one mode at a
+time*, above): a hex's territory comes from the domain it is painted into,
+and the territory paint is the Judge's override for land no domain holds and
+for sea hexes, striped where it differs from the domain's class. The domain
+layer is registered from the domains feature, which battlemap never imports,
+so battlemap cannot ask a domain for its class; and `countryAt` read the
+territory from the paint or the scene default alone.
+
+**Ruled.**
+- **A layer may derive a key the reader asks** (`registerPaintLayer`'s
+  `derives: {key, of}`, MODEL "The layer registry"): `of` turns the value
+  painted on a hex into that key's value, or null. The keys open to
+  derivation are `DERIVED_KEYS`, territory alone, and one layer derives a
+  key.
+- **The painted territory wins, then the derived, then the scene default**
+  (`countryAt`). A derived territory's `source` is the deriving layer's key,
+  `"domain"`; a painted one stays `"map"`. The source names who answered, and
+  for a derived value that is the layer, so a second deriving layer would
+  need no new word, and battlemap holds no feature's name.
+- **Territory's plan covers the derived hexes**, and a painted hex whose
+  derived class differs is striped in that class. A stripe is a line pattern
+  on an overridden hex only; the fill per mode rejected on 2026-10-24 stays
+  rejected, and the terrain stays the one fill inside a hex.
+- **A mode may weigh its sides** (`weights`), held between 0.4 and 2; a
+  heavier line moves inward, so it never crosses onto its neighbour's. The
+  domains feature's weighting is its own (`docs/domains/DECISIONS.md`,
+  2026-10-25).
+- **A registrant says when what its values mean has changed**
+  (`paintLayerChanged`, the hook `acksExtrasPaintLayerChanged`), and the
+  overlay and an open palette redraw on it as on a region change: a domain
+  renamed, given a new liege or reclassified changes no region.
+
+**Rejected.**
+- *The domains feature writing territory regions to match its domains*: a
+  second copy of the class, stale the moment the class changes, and
+  indistinguishable from the Judge's own override, which is what the stripe
+  reads.
+- *A derived territory reported as `"map"`*: a reader could not tell the
+  Judge's paint from a domain's class.
+- *Derivation open to every key*: only territory has a deriver, and a key no
+  reader asks for would be derived for nothing; a registrant naming one fails
+  at registration.
+
+**Cost.**
+- The formation folds every source but the scene's into its provenance
+  `"map"`, so a party standing in a derived territory reads "Read off the
+  map", and its cached reading is not refreshed when a domain changes, only
+  when the party is read again (`docs/formation/ROADMAP.md`).
+- A hex painted into a domain with no class derives nothing and reads as the
+  scene default, with nothing on the hex to say so but the legend's default.
+- A derived territory needs the domain actor on the asking client; `of` runs
+  on every read of a painted hex, and the Territory plan reads every one on a
+  redraw.
 

@@ -28,7 +28,8 @@
 import {
   MODULE_ID, LANG_PREFIX, DOMAIN_TYPE, CLASSIFICATIONS, EXPENSE_LINES, HOLDING_ROLES, REVENUE_LINES,
 } from "../constants.mjs";
-import { ROW_LISTS, rowsOf } from "../domain-logic.mjs";
+import { ROW_LISTS, hexCountOf, keepCandidates, keepPaintedRow, rowsOf } from "../domain-logic.mjs";
+import { DOMAIN_FLAG, territoryOf } from "../domain-map.mjs";
 import { buildDomainFrame, shownFigure } from "../domain-frame.mjs";
 import {
   allDomains, familiesOf, foundSettlement, hold, isDomain, ledgerFor, promoteVassal, setLiege, vassalsOf, wouldCycle,
@@ -147,6 +148,7 @@ export class DomainSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       clearLiege: DomainSheet.#onClearLiege,
       rowAdd: DomainSheet.#onRowAdd,
       rowDelete: DomainSheet.#onRowDelete,
+      keepTract: DomainSheet.#onKeepTract,
       releaseVassal: DomainSheet.#onReleaseVassal,
       promoteVassal: DomainSheet.#onPromoteVassal,
       foundSettlement: DomainSheet.#onFoundSettlement,
@@ -220,11 +222,15 @@ export class DomainSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     ];
 
     // --- the sums ----------------------------------------------------------
+    // The territory with the map read in: the hexes painted into this domain
+    // count beside the stored rows, and add no families.
+    const territory = territoryOf(actor);
+    const hexCount = hexCountOf(territory);
     const families = familiesOf(actor);
     const ledger = ledgerFor(actor);
     const partialNote = loc("sheet.partial", { unset: ledger.unset, unknown: ledger.unknown });
     context.families = families;
-    context.hexCount = sys.hexCount;
+    context.hexCount = hexCount;
     context.strongholdValue = { ...sys.strongholdValue, shown: shownFigure(sys.strongholdValue.total) };
     context.frame = buildDomainFrame({
       ruler: context.ruler,
@@ -235,18 +241,21 @@ export class DomainSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       classification: sys.classification,
       alignment: sys.alignment,
       families,
-      hexCount: sys.hexCount,
+      hexCount,
       strongholdValue: sys.strongholdValue,
       ledger,
       partialNote,
     }, loc);
 
     // --- the land ----------------------------------------------------------
-    context.territory = rowsOf(sys.territory).map((row, index) => ({
+    // A stored row renders as named form rows under its stored index; a row
+    // read from the map renders as text, since a named input would store it
+    // on the next submit, and is kept only by its Keep press.
+    context.territory = territory.map((row) => ({
       ...row,
-      index,
       hexLabelsText: (row.hexLabels ?? []).join(", "),
-      painted: !!row.map,
+      painted: row.mapState === "painted",
+      stale: row.mapState === "stale",
       landShown: isGM || row.revealed,
     }));
 
@@ -493,6 +502,39 @@ export class DomainSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     if (update) await this.actor.update(update);
   }
 
+  /**
+   * Keep a hex read from the map as a stored row, so it can carry figures:
+   * tied to a stored row naming no hex on a map and covering one hex at most,
+   * where the Judge picks one (a record's row for that hex), else a row of its
+   * own. Either way the row names the hex, and wins it from then on.
+   */
+  static async #onKeepTract(_event, target) {
+    if (!game.user.isGM) return;
+    const { scene: sceneUuid, key, label = "" } = target.dataset;
+    if (!sceneUuid || !key) return;
+    await this.submit();
+    const candidates = keepCandidates(this.actor.system.territory);
+    let index = null;
+    if (candidates.length) {
+      const tractName = (row, i) => row.label || (row.hexLabels ?? []).join(", ") || loc("sheet.tractN", { n: i + 1 });
+      const picked = await pickOne({
+        title: loc("sheet.keepTitle", { hex: label }),
+        label: loc("sheet.keepAs"),
+        options: [
+          { value: "new", label: loc("sheet.keepNew") },
+          ...candidates.map(({ row, index: i }) => ({ value: String(i), label: tractName(row, i) })),
+        ],
+      });
+      if (!picked) return;
+      index = picked === "new" ? null : Number(picked);
+    }
+    const hex = { sceneUuid, key, label };
+    const update = rowListUpdate(this.actor.system.toObject(), "territory", (list) => {
+      list.splice(0, list.length, ...keepPaintedRow(list, hex, index, () => foundry.utils.randomID()));
+    });
+    if (update) await this.actor.update(update);
+  }
+
   /** Cut a vassal domain loose: it keeps its record and answers to no liege. */
   static async #onReleaseVassal(_event, target) {
     const uuid = target.closest("[data-uuid]")?.dataset.uuid;
@@ -549,8 +591,9 @@ export function registerDomainSheet() {
  * re-renders a sheet for its own document only, and a domain's sheet reads
  * others: every other domain (its vassals, its liege, the liege picker), the
  * places (a held settlement's families and market class, a held place
- * deleted) and its ruler. Renders are gathered and run once per burst of
- * changes. Called from init.
+ * deleted), its ruler, and the regions painting hexes into it (its territory
+ * read off the map). Renders are gathered and run once per burst of changes.
+ * Called from init.
  */
 export function registerDomainSheetRefresh() {
   const pending = new Set();
@@ -571,5 +614,22 @@ export function registerDomainSheetRefresh() {
   Hooks.on("deleteActor", changed);
   Hooks.on("createActor", (actor) => {
     if (isDomain(actor)) changed(actor);
+  });
+  // A region names the one domain it paints, and its hexes change on every stroke.
+  const painted = (region) => {
+    const uuid = region?.getFlag?.(MODULE_ID, DOMAIN_FLAG);
+    if (!uuid) return;
+    for (const app of foundry.applications.instances.values()) {
+      if (app instanceof DomainSheet && app.rendered && app.actor?.uuid === uuid) pending.add(app);
+    }
+    if (pending.size) flush();
+  };
+  for (const hook of ["createRegion", "updateRegion", "deleteRegion"]) Hooks.on(hook, painted);
+  // A scene deleted takes its regions with it, and no region hook fires for them.
+  Hooks.on("deleteScene", () => {
+    for (const app of foundry.applications.instances.values()) {
+      if (app instanceof DomainSheet && app.rendered) pending.add(app);
+    }
+    if (pending.size) flush();
   });
 }
