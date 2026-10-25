@@ -6239,7 +6239,9 @@ Mechanics, with no ruling reversed:
   same world finds its folders held. The world folder's id is used where one
   matches. This replaces the fixed per-map folder set.
 - An import is refused while any library shelf is cold. A cold shelf reads
-  every library document as missing.
+  every library document as missing. *(Amended 2026-10-25, "A book
+  Adventure's import waits for the library": the import waits for the warm
+  first, and the refusal stands only for a shelf that does not load.)*
 - A map whose page does not match its recipe fails its whole book, and the
   error names the map. The alternative is an Adventure that silently lacks
   the map.
@@ -8265,3 +8267,43 @@ pass that made, repaired and refused nothing.
 *Cost:* the pass reads every cookbook's link rows against the whole world. An
 import can therefore also join another book's ways that were waiting on a map
 the import brought.
+
+## 2026-10-25 — A book Adventure's import waits for the library
+
+**Evidence.** Core empties a compendium's documents 300 seconds after its
+last read (`CompendiumCollection.CACHE_LIFETIME_SECONDS`), so a cold library
+is the normal state of a working session (`docs/lib/MODEL.md`), not a
+startup one. The 2026-10-17 refusal therefore met the first press after any
+idle spell. The AX1 walk's section 3b pressed Import once and the import
+never ran; a rerun logged the library cold at that same press.
+
+**Ruled.** `book-adventure.mjs` wraps `Adventure#prepareImport` (libWrapper
+`WRAPPER`, a prototype fallback where libWrapper is absent). For a cookbook
+Adventure, while `libraryCold()`, it posts `adventure.libraryWarming` and
+awaits `warmLibrary()`, at most `WARM_TRIES` times, then calls through.
+`steerImport` is unchanged: it still fills synchronously and still refuses a
+cold shelf, which is now the net for a shelf that does not load. Core calls
+the hook straight after `prepareImport` resolves, with no await between, so
+the fill reads the library the wait warmed. The legacy V1 path reaches
+`prepareImport` through `_prepareImportData`, so it waits too.
+
+*Rejected:*
+- **Filling in an `options.preImport` step, when cold or always.** Core's
+  loop ignores a step's return, so a step cannot cancel: an empty import
+  still records `adventureImports` and fires `importAdventure`, and filling
+  always would make every nothing-to-add one. A later hook that replaces
+  `options.preImport` drops the step and hands core's overwrite the whole
+  lists. A throw only logs on a V1 sheet, and on a V2 one leaves Import
+  disabled under two notifications. The legacy path runs no steps at all and
+  would still need the synchronous fill.
+- **Wrapping `Adventure#import`.** It starts before the sheet's
+  `_configureImport`, so whatever that awaits sits between the warm and the
+  fill, and the legacy path reaches `prepareImport` without passing through
+  it.
+- **Wrapping the sheet's `_configureImport`.** A V1 sheet does not define it.
+
+*Cost:* a library document invalid enough that core keeps it as source only
+may hold its shelf cold for good, and then every book Adventure's import is
+refused (plausible, not seen). A cold press shows one more notification. The
+wait is pinned in `tools/importer/test-book-adventure.mjs` and walked live by
+importer-ax1, which empties every shelf before each press.

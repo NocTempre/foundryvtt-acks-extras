@@ -13,8 +13,9 @@
  * organisations, three people, two lists, a journal and an item, under
  * made-up ids. No book text, no printed name, no printed figure. The foot of
  * the file pins the shapes the Foundry half depends on and cannot be
- * exercised offline: the import hook stays synchronous and refuses a cold
- * library, the map step writes no Adventure, and the adventures step closes
+ * exercised offline: the import waits for a cold library before core lists
+ * its documents, the hook stays synchronous and refuses a shelf that never
+ * loaded, the map step writes no Adventure, and the adventures step closes
  * the import chain.
  */
 import { readFileSync } from "node:fs";
@@ -568,6 +569,16 @@ const sourceWorld = (drop = []) => ({
   ok("a cold library cancels the import before the fill", /if \(libraryCold\(\)\) \{[\s\S]*?return false;/.test(steerBody) &&
     steerBody.indexOf("libraryCold()") < steerBody.indexOf("fillImport("));
   ok("both hooks are registered", steer.includes('Hooks.on("preImportAdventure", steerImport)') && steer.includes('Hooks.on("importAdventure", afterImport)'));
+  // Core awaits prepareImport and calls the hook straight after it, so the
+  // wait goes there; the hook's own refusal stays for a shelf that never loads.
+  const wait = body(steer, "async function warmBeforePrepare(");
+  ok("the import waits for a cold library before core lists its documents, a cookbook Adventure's alone",
+    /isCookbookAdventure\(this\) && libraryCold\(\)/.test(wait) && wait.indexOf("await warmLibrary()") > 0 && wait.indexOf("await warmLibrary()") < wait.indexOf("return wrapped("));
+  ok("the wait is bounded", /for \(let n = 0; n < WARM_TRIES && libraryCold\(\); n\+\+\)/.test(wait) && /const WARM_TRIES = \d+;/.test(steer));
+  ok("the wait always calls through, once, last", /\n {2}return wrapped\(\.\.\.args\);\n\}\n?$/.test(wait) && wait.split("wrapped(").length === 2);
+  const wrap = body(steer, "function wrapPrepareImport(");
+  ok("prepareImport is wrapped through libWrapper, with a fallback", wrap.includes('"CONFIG.Adventure.documentClass.prototype.prepareImport", warmBeforePrepare, "WRAPPER"') && wrap.includes("proto.prepareImport = function"));
+  ok("the wrap registers with the hooks", body(steer, "export function registerBookAdventureHooks(").includes("wrapPrepareImport();"));
   const after = body(steer, "function afterImport(");
   ok("an import runs the link pass once its maps are mirrored", after.indexOf("cookbookImportLinks(") > after.indexOf("mirrorCreatedLinks(") && after.includes("mirrorCreatedLinks("));
   ok("a book's Adventure fills as one", /book = kindOf\(adventure\) === BOOK_ADVENTURE_KIND/.test(body(steer, "function fillImport(")));
@@ -600,7 +611,7 @@ const sourceWorld = (drop = []) => ({
 
   const lang = JSON.parse(read("lang/en.json"));
   const keys = [
-    ...["caption", "intro", "contents", "fillRule", "resetRule", "seatsLeft", "filled", "nothingToAdd", "fillFailed", "libraryLoading"]
+    ...["caption", "intro", "contents", "fillRule", "resetRule", "seatsLeft", "filled", "nothingToAdd", "fillFailed", "libraryLoading", "libraryWarming"]
       .map((x) => `adventure.${x}`),
     ...["Written", "Rebuilt", "Kept", "Held", "Empty", "Retired", "Failed"].map((x) => `ui.adventures${x}`),
     "ui.progressAdventures", "gs.stepAdventures", "ui.booksAdventure", "ui.booksAdventureHeld", "ui.booksAdventureNone", "ui.booksAdventureLegacy",

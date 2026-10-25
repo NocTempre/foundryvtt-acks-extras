@@ -2327,10 +2327,7 @@ it by that collection id, and only if its index is empty by then.
    *Observable:* `"kept"`, and the edit stands. Delete the Adventure, then
    run the step again: `"written"`, under the same id.
 6. Arm a createActor/createScene/createRollTable/createFolder OBSERVER. Open
-   the Adventure and click Import. A scripted press first awaits the
-   library's `whenReady()` and records whether it was cold: core empties an
-   idle shelf (`docs/lib/MODEL.md`, "A warm shelf does not stay warm"), so a
-   press five minutes after the last library read meets step 8's refusal.
+   the Adventure and click Import.
    *Observable:* no overwrite dialog. Either "…nothing was added…", or the
    documents the world lacked are added. Pass every uuid the import created
    (from `Hooks.once("importAdventure", (a, o, created) => …)`, this call's
@@ -2339,10 +2336,16 @@ it by that collection id, and only if its index is empty by then.
 7. Delete the fixture Item from the world, and import again.
    *Observable:* the Item comes back under its id, or stays in the library
    when the library holds it (counted as left in the library).
-8. Reload (F5), and import before the library has warmed.
-   *Observable:* "…the library is still loading…", and nothing is created.
-   If the warm finishes before the click lands, record this step as not
-   reached.
+8. Empty the library's shelves with core's own `clear()` on each
+   (`for (const p of game.packs) if (p.documentName !== "Adventure" &&
+   isLibraryPack(p.collection)) p.clear()`, the call core's idle eviction
+   makes five minutes after a shelf's last read), confirm `libraryCold()`,
+   and click Import.
+   *Observable:* "…loading this world's library first…", then the import
+   runs to its hook and creates what step 6 would, with no world copy of a
+   library document. importer-ax1 walks this at 3b and 3c. The refusal of a
+   shelf that never loads ("…the library is still loading…") is pinned
+   offline.
 9. Join as the Player seat.
    *Observable:* no Adventure shelf in the Compendium tab.
 10. Open the Books window on the GM seat.

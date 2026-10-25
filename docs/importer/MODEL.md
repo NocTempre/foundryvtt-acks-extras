@@ -74,10 +74,14 @@ Books window reads each open Judge's book's census off the shelf's index
 Core's `Adventure#import` is steered, not replaced. For an Adventure whose
 `flags.acks-extras.cookbook.kind` is one of `ADVENTURE_KINDS` (a book's, and
 the retired per-map one, which a backup or an unrun shelf can still hold), a
-`preImportAdventure` hook (`book-adventure.mjs`) refuses while any library
-shelf is cold (`libraryCold`), since a cold shelf reads every library document
-as missing; otherwise it empties `toUpdate` and narrows `toCreate` to the fill
-(`fillPlan`), synchronously. In a book's Adventure every document is a root,
+`preImportAdventure` hook (`book-adventure.mjs`) empties `toUpdate` and
+narrows `toCreate` to the fill (`fillPlan`), synchronously. The fill reads the
+library, and a cold shelf (`libraryCold`) reads every library document as
+missing, so `Adventure#prepareImport` is wrapped (libWrapper, `WRAPPER`):
+before core lists what such an import would create, it says it is loading the
+library and awaits `warmLibrary`, at most `WARM_TRIES` times. The hook still
+refuses an import that meets a cold shelf, which by then is one that would
+not load. In a book's Adventure every document is a root,
 and a person, a list, a journal, an item, or a place no carried map shows
 stays in the library when the library holds it, unless a place the import
 creates sits in that place. `importAdventure` then
@@ -85,7 +89,7 @@ mirrors the links of every created or held map and draws its thumbnail, then
 runs the link pass ("A way between maps"). The
 patch lives here and not in `lib/` because only this feature builds these
 Adventures; every other Adventure passes through untouched. One owner:
-nothing else in the family hooks either.
+nothing else in the family hooks either or wraps `prepareImport`.
 
 The shelf is an importer shelf (`importedPacks` files it, Remove All Imports
 deletes it) but not a library type (`library.mjs` `LIBRARY_TYPES`): nothing

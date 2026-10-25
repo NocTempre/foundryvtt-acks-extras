@@ -1,12 +1,12 @@
-/* global game, Hooks, ui, console, foundry */
+/* global game, Hooks, ui, console, foundry, CONFIG */
 /**
  * A book's Adventure's import, steered: an import adds what this world is
  * missing and writes to nothing it holds. Core's own import runs; this only
- * narrows what it was handed, and only for an Adventure carrying one of
- * `ADVENTURE_KINDS`: a book's, or a retired per-map one that outlived its
- * retirement. Every other Adventure imports as core imports it. The
- * arithmetic is `adventure-binding.mjs`; the step that writes the Adventure is
- * `cookbook.mjs` (`ensureBookAdventure`).
+ * waits for the library before it, narrows what it was handed, and only for
+ * an Adventure carrying one of `ADVENTURE_KINDS`: a book's, or a retired
+ * per-map one that outlived its retirement. Every other Adventure imports as
+ * core imports it. The arithmetic is `adventure-binding.mjs`; the step that
+ * writes the Adventure is `cookbook.mjs` (`ensureBookAdventure`).
  */
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import { mirrorCreatedLinks } from "../location/scene-link.mjs";
@@ -103,6 +103,8 @@ function steerImport(adventure, options, toCreate, toUpdate) {
   const say = (key, data = {}) => game.i18n.format(`${LANG_PREFIX}.adventure.${key}`, { name: adventure.name, ...data });
   // A cold shelf answers the library lookups with nothing, which would read
   // every library document as missing and create a world twin of each.
+  // `warmBeforePrepare` has waited for the library, so a shelf still cold
+  // here is one that would not load.
   if (libraryCold()) {
     warmLibrary();
     ui.notifications.warn(say("libraryLoading"));
@@ -159,8 +161,46 @@ function afterImport(adventure, options, created) {
   })().catch((err) => console.error(`${MODULE_ID} | ${adventure.name}: links after import`, err));
 }
 
-/** Register both import hooks; called once, after the legacy-importer guard. */
+/** How many warms an import waits through before it leaves a cold shelf to the hook's refusal. */
+const WARM_TRIES = 3;
+
+/**
+ * `Adventure#prepareImport`, wrapped: a cookbook Adventure's import waits for
+ * the library before core lists what it would create, so the fill core runs
+ * next, in a hook it does not await, reads every shelf whole. Core empties an
+ * idle shelf (docs/lib/MODEL.md, "A warm shelf does not stay warm"), so this
+ * is the common case and not a startup one. Each warm reads only the shelves
+ * cold when it starts, so one emptied during it is warmed by the next; a
+ * shelf that never loads is left to `steerImport`, which refuses.
+ */
+async function warmBeforePrepare(wrapped, ...args) {
+  if (isCookbookAdventure(this) && libraryCold()) {
+    ui.notifications.info(game.i18n.format(`${LANG_PREFIX}.adventure.libraryWarming`, { name: this.name }));
+    for (let n = 0; n < WARM_TRIES && libraryCold(); n++) await warmLibrary();
+  }
+  return wrapped(...args);
+}
+
+/** Wrap `prepareImport` on the configured Adventure class, through libWrapper where it is active. */
+function wrapPrepareImport() {
+  const proto = CONFIG.Adventure?.documentClass?.prototype;
+  if (typeof proto?.prepareImport !== "function") {
+    console.warn(`${MODULE_ID} | no Adventure#prepareImport to wrap; a book Adventure's import refuses while the library is cold.`);
+    return;
+  }
+  if (globalThis.libWrapper?.register) {
+    globalThis.libWrapper.register(MODULE_ID, "CONFIG.Adventure.documentClass.prototype.prepareImport", warmBeforePrepare, "WRAPPER");
+    return;
+  }
+  const original = proto.prepareImport;
+  proto.prepareImport = function (...args) {
+    return warmBeforePrepare.call(this, (...a) => original.apply(this, a), ...args);
+  };
+}
+
+/** Register both import hooks and the wait before them; called once, after the legacy-importer guard. */
 export function registerBookAdventureHooks() {
   Hooks.on("preImportAdventure", steerImport);
   Hooks.on("importAdventure", afterImport);
+  wrapPrepareImport();
 }

@@ -65,8 +65,9 @@
  * brings them under its seeded ids, and with no link pass run by hand every
  * way stands after it. From the Player seat a token goes through a laid end,
  * and on the region's map through an end the import re-pointed. Before each
- * press the library is warmed, since the import refuses while a shelf is
- * cold and core empties an idle shelf; whether it was cold is logged.
+ * press every library shelf is emptied with core's own `clear()`, as core's
+ * idle eviction empties it, and each import waits for the library, then
+ * copies none of it into the world.
  *
  * Fixtures and writes, each reported:
  *   - the book connected on the GM seat with remember:false;
@@ -836,10 +837,11 @@ const P = {
   },
   /**
    * Press the book's Adventure sheet's own Import; what it created arrives from
-   * core's hook, and a refusal from the steering's notification, by its key.
-   * Core drops a shelf's documents five idle minutes after its last read and
-   * the import refuses while one is cold, so the library is warmed first, as
-   * a Judge's second press finds it; whether it was cold rides back.
+   * core's hook, a refusal from the steering's notification by its key, and
+   * whether the import waited for the library from its own. Every library
+   * shelf is emptied first with core's `clear()`, the call core's idle
+   * eviction makes, so the press always meets a cold library; whether it was
+   * cold already rides back.
    */
   importViaSheet: async ({ book }) => {
     const H = globalThis.__ax;
@@ -848,15 +850,17 @@ const P = {
     const doc = pack ? await pack.getDocument(H.AB.bookAdventureId(book)) : null;
     if (!doc) return { clicked: false, adventure: false };
     const coldBefore = H.LIB.libraryCold();
-    await H.LIB.whenReady();
-    const state = (globalThis.__axImport = { done: false, refused: null });
+    for (const shelf of game.packs) if (shelf.documentName !== "Adventure" && H.LIB.isLibraryPack(shelf.collection)) shelf.clear();
+    const state = (globalThis.__axImport = { done: false, refused: null, waited: false });
     const said = (key) => new RegExp(`^${game.i18n.localize(`ACKS-IMPORTER.adventure.${key}`).split(/\{[^}]*\}/).map((s) => s.replace(/[.*+?^$()|[\]\\]/g, "\\$&")).join("[\\s\\S]*")}$`);
     const refusals = ["libraryLoading", "nothingToAdd", "fillFailed"].map((key) => [key, said(key)]);
+    const waiting = said("libraryWarming");
     H.notified = { warn: ui.notifications.warn, info: ui.notifications.info, error: ui.notifications.error };
     for (const level of Object.keys(H.notified)) {
       ui.notifications[level] = function (msg, opts) {
         const hit = refusals.find(([, re]) => re.test(String(msg)));
         if (hit) state.refused = hit[0];
+        if (waiting.test(String(msg))) state.waited = true;
         return H.notified[level].call(this, msg, opts);
       };
     }
@@ -874,9 +878,10 @@ const P = {
       if (button && !button.disabled) break;
       await new Promise((r) => setTimeout(r, 250));
     }
-    if (!button || button.disabled) return { clicked: false, adventure: true, sheetClass: sheet.constructor.name, coldBefore };
+    const coldAtPress = H.LIB.libraryCold();
+    if (!button || button.disabled) return { clicked: false, adventure: true, sheetClass: sheet.constructor.name, coldBefore, coldAtPress };
     button.click();
-    return { clicked: true, adventure: true, sheetClass: sheet.constructor.name, coldBefore };
+    return { clicked: true, adventure: true, sheetClass: sheet.constructor.name, coldBefore, coldAtPress };
   },
   importState: async () => globalThis.__axImport ?? { done: false },
   endImport: async () => {
@@ -1749,10 +1754,17 @@ try {
   const createdBy = imported?.created ?? {};
   if (!rebuild) for (const [type, uuids] of Object.entries(createdBy)) for (const uuid of uuids) gm.track(uuid, type);
   note("3b: created", { ...Object.fromEntries(Object.entries(createdBy).map(([type, uuids]) => [type, uuids.length])), tracked: !rebuild });
-  check("3b: the sheet's Import ran to core's hook", imported?.done === true, { refused: imported?.refused ?? null, coldBefore: click.coldBefore });
+  check("3b: pressed with the library cold, the sheet's Import waits for it, then runs to core's hook",
+    click.coldAtPress === true && imported?.waited === true && imported?.done === true,
+    { coldBefore: click.coldBefore, coldAtPress: click.coldAtPress, waited: imported?.waited === true, refused: imported?.refused ?? null });
   const createdSet = new Set(Object.values(createdBy).flat());
   const world3b = await run(gm, P.worldPlaces, { book: BOOK });
   const createdPlaces = world3b.filter((p) => createdSet.has(p.uuid)).map((p) => p.id);
+  // A shelf read cold answers every library lookup with nothing, and the fill
+  // would copy each library document into the world as an Actor or Item.
+  check("3b: the import copies no library document: what it creates is AX1's places and plans",
+    Object.keys(createdBy).every((t) => t === "Actor" || t === "Scene") && (createdBy.Actor?.length ?? 0) === createdPlaces.length,
+    { types: Object.keys(createdBy), actors: createdBy.Actor?.length ?? 0, places: createdPlaces.length });
   check("3b: it creates the plans' places, their pins and every place those sit in but a pair's copy it found held, and no other of AX1's",
     sameSet(createdPlaces, BROUGHT.filter((id) => !pairsStood.has(id))) && world3b.length === BROUGHT.length,
     { created: createdPlaces.length, brought: BROUGHT.length, heldPairs: BROUGHT.filter((id) => pairsStood.has(id)).length, world: world3b.length });
@@ -1821,9 +1833,10 @@ try {
     if (mine3c) for (const [type, uuids] of Object.entries(made3c)) for (const uuid of uuids) gm.track(uuid, type);
     note("3c: created", { ...Object.fromEntries(Object.entries(made3c).map(([type, uuids]) => [type, uuids.length])), tracked: mine3c });
     const madeMaps = await run(gm, P.sceneIdsOf, { uuids: made3c.Scene ?? [] });
-    check("3c: the sheet's Import creates the two plans and nothing else",
-      imported3c?.done === true && Object.keys(made3c).every((t) => t === "Scene") && sameSet(madeMaps.map((m) => m.id), gone3c),
-      { done: imported3c?.done === true, refused: imported3c?.refused ?? null, coldBefore: click3c.coldBefore, types: Object.keys(made3c), plans: madeMaps.length });
+    check("3c: pressed with the library cold, the sheet's Import waits for it and creates the two plans and nothing else",
+      click3c.coldAtPress === true && imported3c?.waited === true && imported3c?.done === true
+        && Object.keys(made3c).every((t) => t === "Scene") && sameSet(madeMaps.map((m) => m.id), gone3c),
+      { done: imported3c?.done === true, waited: imported3c?.waited === true, refused: imported3c?.refused ?? null, coldBefore: click3c.coldBefore, coldAtPress: click3c.coldAtPress, types: Object.keys(made3c), plans: madeMaps.length });
     const seeded = await run(gm, P.seededLinks, { ids: gone3c });
     check("3c: each plan, and each end on it, stands under the id the Adventure laid it with",
       seeded.length === 2 && seeded.every((s) => s.seeded && s.links.every((l) => l.seeded)) && sameSet(seeded.flatMap((s) => s.links.map((l) => l.key)), laid3c),

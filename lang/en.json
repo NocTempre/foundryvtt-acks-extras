@@ -7430,6 +7430,7 @@
   "ACKS-IMPORTER.adventure.nothingToAdd": "{name}: this world already holds everything it would add, so nothing was added. To put part of it back as it was imported, delete that part and import again.",
   "ACKS-IMPORTER.adventure.fillFailed": "{name} was not imported: working out what this world is missing failed, and importing it as it stands would overwrite what the world holds. The console has the reason.",
   "ACKS-IMPORTER.adventure.libraryLoading": "{name} was not imported yet: this world's library is still loading, and importing now would copy documents the library already holds. Try again in a moment.",
+  "ACKS-IMPORTER.adventure.libraryWarming": "{name}: loading this world's library first, so the import copies nothing the library already holds.",
   "ACKS-IMPORTER.ui.progressTables": "Reading rules tables from your books…",
   "ACKS-IMPORTER.ui.progressAbilities": "Importing abilities…",
   "ACKS-IMPORTER.ui.progressEquipment": "Importing equipment…",

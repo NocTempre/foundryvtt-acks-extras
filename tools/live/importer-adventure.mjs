@@ -2,7 +2,7 @@
  * Live walk, importer-adventure: an adventure book in the library as one
  * Adventure. Walks docs/importer/TESTING.md, "A book lands in the library as
  * one Adventure", steps 1–7, 9 and 10 on AX3; step 8 (a cold library) is
- * reported as not reached, since a scripted click lands after the warm. Step 5's
+ * walked by importer-ax1, whose presses meet a library emptied first. Step 5's
  * edit is a scripted update of the stored Adventure, the write its sheet's save
  * makes. Machine values arrive through ./_env.mjs, the book through
  * ACKS_TEST_BOOKS ("ax3"). Every fixture is invented: a world Item stamped to
@@ -552,7 +552,7 @@ try {
   check("5: deleted, it is written again under the same id", c5b.books?.[BOOK] === "written" && s5.uuid === s1.uuid, { outcome: c5b.books?.[BOOK] });
 
   section("8. a cold library");
-  console.log("NOTE  8: not reached — a scripted click lands after the library warms; the refusal is pinned offline (test-book-adventure)");
+  console.log("NOTE  8: walked by importer-ax1 (3b, 3c), whose presses meet an emptied library; the refusal of a shelf that never loads is pinned offline (test-book-adventure)");
 
   section("10. the Books window");
   const bw = await run(gm, P.booksWindow, { book: BOOK });
