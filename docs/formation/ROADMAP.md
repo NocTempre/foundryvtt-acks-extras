@@ -520,22 +520,6 @@ against its line below.
   `cityTravel.encounters100` when no RollTable is handed in. A Judge can author
   it through the Ruledata Browser's absent row; no import writes it.
 
-## A territory a domain derives
-
-A hex painted into a domain reads its domain's class through `countryAt`, with
-the source `"domain"` (`docs/battlemap/DECISIONS.md`, 2026-10-25). Two halves
-of the party's reading do not follow it yet:
-
-- **The provenance.** `resolveCountry` folds every source but `"scene"` into
-  `map`, so the Country card says "Read off the map" for a class the Judge
-  never painted. It needs a provenance of its own, and a label, passed through
-  from the source.
-- **The refresh.** The party's map reading is re-read on a change to the
-  scene's regions, walls or country (`requestCountryRefresh`); a domain
-  renamed, reclassified or moved under another liege writes none of them. A
-  listener on battlemap's `acksExtrasPaintLayerChanged` would re-read every
-  party on the viewed scenes.
-
 ## The party sheet: what the frame leaves
 
 The frame shipped first (MODEL, "The frame"). The redesign's later phases are

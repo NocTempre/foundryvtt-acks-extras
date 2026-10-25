@@ -1979,7 +1979,7 @@ async function seat(key) {
   const api = await connect({ browser, origin, user: SEATS[key], port: PORTS[key] });
   seats[key] = api;
   note(`${key} ready after (s)`, await ready(api, key));
-  const fresh = await api.eval(`typeof globalThis.acksExtras?.formation?.travel?.trueTravelOf === "function" && globalThis.acksExtras?.formation?.apiVersion === 18`);
+  const fresh = await api.eval(`typeof globalThis.acksExtras?.formation?.travel?.trueTravelOf === "function" && globalThis.acksExtras?.formation?.apiVersion === 19`);
   if (!fresh) throw new Error(`${key}: stale module code loaded; the page did not pick up the working tree`);
   note(`${key} install`, await page(api, P.install));
   return api;

@@ -649,7 +649,12 @@ game.user = game.users.get("GM1");
 /*  Load the module (registers all hooks)        */
 /* -------------------------------------------- */
 
+const paintLayerListeners = hooks.get("acksExtrasPaintLayerChanged")?.length ?? 0;
 await import("../scripts/formation/module.mjs");
+// A layer's change that writes no region re-reads the parties standing on its
+// paint (test-journey drives the re-read itself).
+assert.equal((hooks.get("acksExtrasPaintLayerChanged")?.length ?? 0) - paintLayerListeners, 1,
+  "the formation listens for a paint layer's change");
 // The formation keeps a placed member's hit points through lib's hook, which
 // lib installs at init; this harness does not load lib, so install it here.
 const formationPreCreateHooks = hooks.get("preCreateToken")?.length ?? 0;

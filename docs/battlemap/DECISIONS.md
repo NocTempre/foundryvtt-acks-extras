@@ -1090,7 +1090,9 @@ territory from the paint or the scene default alone.
 - The formation folds every source but the scene's into its provenance
   `"map"`, so a party standing in a derived territory reads "Read off the
   map", and its cached reading is not refreshed when a domain changes, only
-  when the party is read again (`docs/formation/ROADMAP.md`).
+  when the party is read again (`docs/formation/ROADMAP.md`). **Resolved,
+  2026-10-25** (formation DECISIONS, *A territory a layer derives reads as its
+  own source*): both are built.
 - A hex painted into a domain with no class derives nothing and reads as the
   scene default, with nothing on the hex to say so but the legend's default.
 - `of` runs on every read of a painted hex, and the Territory plan reads

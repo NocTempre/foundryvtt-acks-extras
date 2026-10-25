@@ -112,6 +112,7 @@ import { addLight, advanceRounds, advanceTurns, removeLight, storedPosition, tog
 import { onPartyTokenMoved } from "./journey.mjs";
 import * as journey from "./journey.mjs";
 import * as travel from "./travel.mjs";
+import { PAINT_LAYER_CHANGED_HOOK } from "../battlemap/terrain-paint.mjs";
 import { primaryGMSettled } from "../lib/util.mjs";
 import * as weather from "./weather.mjs";
 import * as settlement from "./settlement.mjs";
@@ -691,8 +692,14 @@ Hooks.once("init", () => {
      * episode is open. `hexStock.pure.stockSummary(record, {secondsPerDay})`
      * adds `stockedDay`, and `hexStockView` says its age as `stockedAgo` and
      * `stockedLine`.
+     *
+     * 19 passes the map's `source` through: a key a paint layer derived reads
+     * provenance that layer's key (battlemap's `countryAt` source), which 17
+     * folded into `map`. `travel` gains `partyScenesPaintedWith(layer)`, and
+     * a layer's change (`acksExtrasPaintLayerChanged`) re-reads the parties
+     * standing on its paint.
      */
-    apiVersion: 18,
+    apiVersion: 19,
     travel: { ...travel, ...journey, closeDay, offerDayEnd },
     weather,
     settlement,
@@ -1293,6 +1300,12 @@ for (const hook of ["createWall", "updateWall", "deleteWall"]) {
 }
 Hooks.on("updateScene", (scene, changes) => {
   if (foundry.utils.hasProperty(changes, `flags.${MODULE_ID}.battlemap.country`)) requestCountryRefresh(scene.id);
+});
+/* A layer's values change what they derive with no region written, and the
+ * registrant says so by the layer alone: every scene a party stands on that
+ * holds that layer's paint is re-read. Nothing drawn changed. */
+Hooks.on(PAINT_LAYER_CHANGED_HOOK, (layer) => {
+  for (const sceneId of travel.partyScenesPaintedWith(layer)) requestCountryRefresh(sceneId);
 });
 
 /* Placing a party actor's token adopts it as THE party token (also how a

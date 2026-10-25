@@ -1108,7 +1108,7 @@ try {
   gm = await seat("gm");
   const census = await run(gm, P.census, MOD);
   note("gm census", census);
-  check("the GM seat is the active GM, the page runs the working tree (formation apiVersion 18), and the world declares the report and merchandise item types", census.activeGMIsSelf && census.role === 4 && census.working === 18 && census.reportType && census.merchType, { role: census.role, manifest: census.module, working: census.working, reportType: census.reportType, merchType: census.merchType });
+  check("the GM seat is the active GM, the page runs the working tree (formation apiVersion 19), and the world declares the report and merchandise item types", census.activeGMIsSelf && census.role === 4 && census.working === 19 && census.reportType && census.merchType, { role: census.role, manifest: census.module, working: census.working, reportType: census.reportType, merchType: census.merchType });
   if (!census.activeGMIsSelf) throw new Error("another GM client is the active GM");
   note("install (gm)", await run(gm, P.install));
   const player = await seat("player");

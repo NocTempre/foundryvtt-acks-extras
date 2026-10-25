@@ -1312,7 +1312,7 @@ async function seat(key) {
   seats[key] = api;
   note(`${key} ready after (s)`, await ready(api, key));
   // The seat must run the working tree, not a cached copy: functions this release added are the marker.
-  const fresh = await api.eval(`typeof globalThis.acksExtras?.formation?.travel?.trueTravelOf === "function" && typeof globalThis.acksExtras?.formation?.travel?.clearDeclaredCountry === "function" && globalThis.acksExtras?.formation?.apiVersion === 18`);
+  const fresh = await api.eval(`typeof globalThis.acksExtras?.formation?.travel?.trueTravelOf === "function" && typeof globalThis.acksExtras?.formation?.travel?.clearDeclaredCountry === "function" && globalThis.acksExtras?.formation?.apiVersion === 19`);
   if (!fresh) throw new Error(`${key}: stale module code loaded; the page did not pick up the working tree`);
   note(`${key} runs the working tree`, fresh);
   await installP(api);

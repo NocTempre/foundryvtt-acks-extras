@@ -23,6 +23,7 @@ import {
   patchSettlement,
   pushLog,
   rollWeatherNow,
+  sameReading,
   sceneScaleChanged,
   setJourneyMode,
   storedTravelOf,
@@ -302,6 +303,21 @@ t = travelOf(placed({ ...declaredRecord.travel, map: fromMap }, { sceneId: "S.c"
 assert.equal(t.ground, "hills", "nor does any reading while the party has no token");
 assert.equal(countryOf(placed({ map: fromMap }, { sceneId: "S.c", tokenId: null })).mapValues.ground, null);
 
+/* A key a paint layer derived reads as the reading names its source: that
+   layer's key, passed through, and never folded into the map's. The layer
+   here is an invented one, so nothing below names a layer the module ships. */
+const derived = readingOf({ ground: "forest", territory: "civilized" }, { ground: "map", territory: "demoRealm" });
+t = travelOf(placed({ ...declaredRecord.travel, map: derived }));
+assert.deepEqual([t.territory, t.provenance.territory], ["civilized", "demoRealm"], "a derived territory names the layer that derived it");
+assert.equal(t.provenance.ground, "map", "beside a painted key that stays the map's");
+assert.equal(travelOf(placed({ map: readingOf({ ground: "forest" }) })).provenance.ground, "map", "a reading that names no source is the map's");
+const overDerived = placed({ map: derived, override: { territory: "outlands" } });
+assert.deepEqual([travelOf(overDerived).territory, travelOf(overDerived).provenance.territory], ["outlands", "override"],
+  "the Judge's word stands over a derived territory");
+assert.equal(countryOf(overDerived).mapValues.territory, "civilized", "and the derived class stays known under it");
+assert.equal(sameReading(readingOf({ territory: "civilized" }, { territory: "map" }), readingOf({ territory: "civilized" }, { territory: "demoRealm" })),
+  false, "the same territory from another source is a change worth a write");
+
 /* The river's table answers only while the party moves on the water over a
    water line; the ground it runs through picks which. */
 const riverHex = (ground) => readingOf({ ground, encounterTerrain: "grassland" }, { ground: "map", encounterTerrain: "map" },
@@ -310,6 +326,8 @@ assert.equal(travelOf(placed({ movement: { mode: "vessel" }, map: riverHex("dese
 assert.equal(travelOf(placed({ movement: { mode: "vessel" }, map: riverHex("jungle") })).encounterTerrain, "riverDesertJungle");
 assert.equal(travelOf(placed({ movement: { mode: "vessel" }, map: riverHex("forest") })).encounterTerrain, "riverLand");
 assert.equal(travelOf(placed({ movement: { mode: "vessel" }, map: riverHex("forest") })).provenance.encounterTerrain, "map");
+assert.equal(travelOf(placed({ movement: { mode: "vessel" }, map: { ...riverHex("forest"), source: { ground: "map", encounterTerrain: "scene" } } }))
+  .provenance.encounterTerrain, "map", "the river's table is the water's, whatever answered the hex's own");
 assert.equal(travelOf(placed({ movement: { mode: "foot" }, map: riverHex("forest") })).encounterTerrain, "grassland",
   "a party on foot beside the river throws on the land's table");
 assert.equal(travelOf(placed({ movement: { mode: "vessel" }, map: { ...riverHex("forest"), water: null } })).encounterTerrain, "grassland",

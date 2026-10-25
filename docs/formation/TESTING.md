@@ -2619,6 +2619,45 @@ and quote its result; unregister the invented `travel` document
 close the palette, and if the run left the toolbar's brush armed, press any
 other control.
 
+## A territory a domain derives (added with the derived provenance)
+
+Fixtures, beside the country recipe's (its hex scene, viewed; its party, in a
+journey with the token in hex C, which no territory paint holds): one
+disposable `acks-extras.domain` actor classified civilized, `api.create`d,
+and hex C painted into it with `acksExtras.battlemap.terrain.paintHexAt(scene,
+point, domain.uuid, "domain")`, its region tracked as the country recipe's
+are. `countryAt` reads a domain's class as [domains
+TESTING](../domains/TESTING.md) steps 3 and 5 walk it; this recipe walks what
+the party makes of it. The refresh runs on the active GM's client, so that
+client must have loaded the working tree since the change; read
+`acksExtras.formation.apiVersion` there before step 2.
+
+1. **The class reads as the domain's.** Poll the record after the paint.
+   *Observable:* within two seconds `travel.map.territory` reads civilized with
+   `source.territory` "domain", and `travelOf(f).provenance.territory`
+   "domain"; the Territory card shows civilized, sourced "The hex's domain",
+   with no chip and still the **Paint this hex** chip (the territory layer
+   holds nothing there).
+2. **A reclassified domain re-reads the party.** Count, as the country
+   recipe's step 7 does, the `updateSetting` events after which this
+   formation's `travel.map` differs. Set the domain's classification to
+   outlands (`domain.update({"system.classification": "outlands"})`, what the
+   domain sheet's select writes).
+   *Observable:* within two seconds one counted write: `travel.map.territory`
+   outlands, still sourced "domain", with no drag and no region written
+   (`layerRegionsOf(scene, "domain")` and its hexes as before), and the open
+   sheet's Territory card reads outlands. Rename the domain: no counted write.
+3. **The Judge's word over it.** Set the hand's territory to borderlands.
+   *Observable:* the Territory card wears the **Override** chip, whose tooltip
+   names outlands as the map's reading. Clear it from the chip: the card reads
+   outlands, sourced "The hex's domain" again.
+4. **A class cleared.** Set the classification to none (`""`).
+   *Observable:* one counted write; the reading falls to the scene default,
+   sourced "scene", and the card to "The scene's default".
+
+Teardown: the country recipe's, which takes the domain with the rest; quote
+the sweep result.
+
 ## The hex the party is shown (added with the redesign's phase 2b)
 
 The plate's drawing, the day's navigation throw at its first step off a road,

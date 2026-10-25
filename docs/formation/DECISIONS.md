@@ -4231,3 +4231,47 @@ re-places the token.
   posted one encounter card (evasion target on it) and one navigation card.
   Back to feet and a pixel-size change switched nothing, and a Delve picked by
   hand survived a pixel-size change.
+
+## 2026-10-25 — A territory a layer derives reads as its own source
+
+**Evidence.** Battlemap's *A layer can derive the territory* (2026-10-25)
+gave `countryAt` a third territory source, the deriving layer's key
+(`"domain"`), and named two costs here. `resolveCountry` folded every source
+but `"scene"` into `map`, so a party standing in a domain's class read "Read
+off the map", which is the paint the Judge never laid. And the cached reading
+was re-read on a Region, Wall or scene-country change, none of which a
+reclassified domain writes, so the party kept the old class until it moved.
+
+**Ruled.**
+- **The map's provenance is its reading's `source`, passed through.**
+  `resolveCountry` hands `map`, `scene` and a deriving layer's key on as the
+  reading names them; a reading naming no source is the map's, and the river's
+  table stays `map`. Formation code names no layer. The one word it holds is a
+  label, `ACKS-FORMATION.country.provenance.domain` ("The hex's domain").
+- **A paint layer's change re-reads the parties on its paint.** On
+  `acksExtrasPaintLayerChanged` formation asks `countryRefresher` for each
+  scene a party token stands on that holds that layer's paint
+  (`partyScenesPaintedWith`), as a burst with no Wall in it, so a walked road
+  stands. The refresher keeps it to the active GM, and a re-read that finds the
+  same reading writes nothing: a rename or a new liege costs a read.
+- **`apiVersion` 19**: `provenance` takes a value 17's note did not list.
+
+**Rejected.**
+- *One provenance, `derived`, labelled with the layer's registered title*: no
+  lang key per layer, but the layer moves out of `provenance` into a second
+  field every consumer would read beside it, and battlemap would export a
+  title reader for one label.
+- *Every scene a party stands on*: a scene holding none of the layer's paint
+  cannot read differently.
+- *The scene the Judge is viewing*: the active GM's client may be viewing
+  another than the party's.
+
+**Cost.**
+- A second deriving layer owes formation a label under
+  `ACKS-FORMATION.country.provenance`, or the card shows the bare key.
+  `test-domain-map` holds the domain layer's; nothing holds a layer not yet
+  written.
+- A layer keyed as one of formation's own words (`override`, `declared`,
+  `default`) would read as that source. None is.
+- The card names the class and its source, not which domain: that is the
+  Domains map mode's.

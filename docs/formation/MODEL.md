@@ -681,7 +681,7 @@ what the table already read: the country's cards, the sky's chips and night
 band, the camp's forecast and who is suffering, the log, and in a city the
 places underfoot — never a picker, a reading's source, the day board, or the
 LOST state, which is the Judge's alone. `acksExtras.formation.travel`
-(apiVersion 18) publishes the mode switch, the day board writers, the journey's
+(apiVersion 19) publishes the mode switch, the day board writers, the journey's
 functions, the country's resolution, the navigation record, the pure march
 arithmetic and the two hook names.
 
@@ -736,9 +736,11 @@ one place, as the first of four sources that answers it:
 1. **The Judge's word**, `travel.override.<key>`.
 2. **The map**, `travel.map`: the cached reading of the hex the party token
    stands in. It is `countryAt`'s ([battlemap MODEL](../battlemap/MODEL.md),
-   "Country layers") — the three painted layers, the drawn roads and water
-   lines, and the scene's default country — and its own `source` says, per
-   key, whether the hex or the scene's default answered. It counts only while
+   "Country layers") — the three painted layers, a territory a layer derives
+   (the class of the domain a hex is painted into, [domains
+   MODEL](../domains/MODEL.md)), the drawn roads and water lines, and the
+   scene's default country — and its own `source` says, per key, whether the
+   hex's paint, the deriving layer or the scene's default answered. It counts only while
    its `sceneId` is the party's scene and the party has a token; anywhere else
    the map says nothing and the next source answers.
 3. **The declared record**: the six keys as an older record stores them. A
@@ -747,9 +749,11 @@ one place, as the first of four sources that answers it:
 4. **The module's default** (`COUNTRY_DEFAULTS`).
 
 `provenance` names the answer per key — `override`, `map`, `scene` (the map's
-reading, answered by the scene's default), `declared` or `default` — and
-every consumer reads the keys it always read; none resolves a source of its
-own. While the party moves by vessel and a water line runs under it, the map's
+reading, answered by the scene's default), a deriving layer's key (the map's
+reading, answered by that layer: `domain` for a domain's class), `declared` or
+`default` — and every consumer reads the keys it always read; none resolves a
+source of its own. The map's three are its reading's `source`, passed through
+as handed, so formation names no layer. While the party moves by vessel and a water line runs under it, the map's
 encounter terrain is the river's table for the resolved ground
 (`riverTableFor`). That is decided at resolution, so a change of movement mode
 changes the table with no re-read. An overridden ground takes the table with
@@ -785,7 +789,12 @@ read at. Three writers keep it current:
   On the active GM's client (`isPrimaryGM`), a Region or a Wall created,
   updated or deleted on a scene, a change to the scene's
   `flags["acks-extras"].battlemap.country`, and a party token's arrival each
-  ask `countryRefresher` for that scene: one `refreshCountryOn` per scene per
+  ask `countryRefresher` for that scene. A paint layer whose values changed
+  what they derive with no region written (battlemap's
+  `acksExtrasPaintLayerChanged`, which names the layer alone: a domain
+  reclassified, renamed or given another liege) asks for each scene a party
+  token stands on that holds that layer's paint (`partyScenesPaintedWith`);
+  only a reclassification reads differently. One `refreshCountryOn` per scene per
   burst, a quiet interval after the last call, re-reads the map at every
   journeying party token there and writes only a reading that changed
   (`sameReading`); the party sheets redraw when one did. A burst with no Wall
@@ -809,7 +818,9 @@ encounters draw on (the resolved encounter terrain, else the ground's own
 table; on the Judge's seat, the true hex's while an episode is open); the Sky
 section carries the climate as a fifth card on the Judge's seat. The section
 reaches every seat, and a player's cards carry the values alone; under unknown
-country it is one line on both seats (§Lost). On the Judge's seat each card names its source and wears the chip its
+country it is one line on both seats (§Lost). On the Judge's seat each card names its source, by the label
+`ACKS-FORMATION.country.provenance.<provenance>` (a deriving layer's key has
+one there too: "The hex's domain"), and wears the chip its
 provenance earns against the map's own value (`countryChip`):
 
 | Provenance | The map under it | Chip |
@@ -817,7 +828,7 @@ provenance earns against the map's own value (`countryChip`):
 | override | a different value | **Override**, with a clear (`clearOverride`) |
 | override | the same value | none |
 | override or declared | nothing | the pen mark, with a clear (`clearOverride` for the Judge's word, `clearDeclared` for an older record's) |
-| map, scene or default | — | none |
+| map, scene, a deriving layer or default | — | none |
 
 A card on a layer the brush paints (ground, territory) offers **Paint this
 hex** (`paintThisHex`) while the party's hex has no paint on that layer; the

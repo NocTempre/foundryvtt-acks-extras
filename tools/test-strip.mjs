@@ -704,6 +704,19 @@ const stripOf = (id) => {
   assert.deepEqual(chips(cardsOf(plain, true)), {
     ground: ["map", null], road: ["default", null], following: ["default", null], territory: ["scene", null],
   }, "the map's and the scene's answers earn no chip, and nor does the default");
+  // A territory a paint layer derived is sourced by that layer's key and the
+  // label kept under it, and earns no chip; the Judge's word over it does. The
+  // layer is an invented one.
+  const derivedReading = { ...reading, source: { ...reading.source, territory: "demoRealm" } };
+  const derivedCard = cardsOf(makeFormation(land, walker, { travel: { map: derivedReading } }), true).territory;
+  assert.deepEqual([derivedCard.provenance, derivedCard.chip], ["demoRealm", null], "a derived territory names its layer and earns no chip");
+  assert.equal(derivedCard.provenanceLabel, `ACKS-FORMATION.country.provenance.${derivedCard.provenance}`,
+    "and is labelled by the label kept under that key");
+  const overDerivedCard = cardsOf(makeFormation(land, walker, {
+    travel: { map: derivedReading, override: { territory: "civilized" } },
+  }), true).territory;
+  assert.deepEqual([overDerivedCard.provenance, overDerivedCard.chip, overDerivedCard.mapValue], ["override", "override", "outlands"],
+    "and the Judge's word over it is an override of the class it derived");
   const toldCards = cardsOf(told, true);
   assert.deepEqual([toldCards.ground.value, toldCards.ground.mapValue], ["desert", "forest"], "the card shows the word and keeps the map's");
   assert.deepEqual(

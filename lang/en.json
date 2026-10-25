@@ -3801,6 +3801,7 @@
         "override": "The Judge's word",
         "map": "Read off the map",
         "scene": "The scene's default",
+        "domain": "The hex's domain",
         "declared": "Declared on the sheet",
         "default": "Nothing says"
       },

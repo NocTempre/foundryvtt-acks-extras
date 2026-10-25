@@ -1345,6 +1345,59 @@ function makeZone(scene, id, { x, y, width, height }, fields = {}) {
   refresh("");
   assert.equal(timers.length, 0, "a change on no scene reads nothing");
 
+  // A layer deriving the territory answers under the party by its own key, and
+  // its values can change what they derive with no region written: the change
+  // names the layer, and the scenes a party stands on its paint are re-read,
+  // as the module's listener asks. The layer is an invented one.
+  {
+    const { registerPaintLayer } = await import("../scripts/battlemap/terrain-paint.mjs");
+    const { partyScenesPaintedWith } = await import("../scripts/formation/travel.mjs");
+    const classOf = { realm1: "civilized" };
+    const dispose = registerPaintLayer({
+      key: "demoRealm", flag: "demoRealm", hexesFlag: "demoRealmHexes",
+      values: () => Object.keys(classOf), label: (v) => v, color: () => "#123456",
+      derives: { key: "territory", of: (v) => classOf[v] ?? null },
+    });
+    const layerChanged = async () => {
+      for (const sceneId of partyScenesPaintedWith("demoRealm")) refresh(sceneId);
+      await runTimers();
+    };
+    try {
+      assert.deepEqual(partyScenesPaintedWith("demoRealm"), [], "a layer no party stands on the paint of names no scene");
+      const realm = painted("demoRealm", "realm1", ["0:0"]);
+      scene.regions.push(realm);
+      assert.deepEqual(partyScenesPaintedWith("demoRealm"), ["S.country"], "painted, the scene the party stands on is named");
+
+      refresh("S.country");
+      await runTimers();
+      let read = travelOf(getFormation(id));
+      assert.deepEqual([read.territory, read.provenance.territory], ["civilized", "demoRealm"],
+        "the derived class reads, named by the layer that derived it");
+
+      await patchFormation(id, (record) => {
+        record.travel.map = { ...record.travel.map, road: "earth", source: { ...record.travel.map.source, road: "map" } };
+      });
+      classOf.realm1 = "outlands";
+      await layerChanged();
+      assert.deepEqual(changed.at(-1), [id], "a value that now derives another class re-reads the party standing on it");
+      read = travelOf(getFormation(id));
+      assert.deepEqual([read.territory, read.provenance.territory], ["outlands", "demoRealm"]);
+      assert.equal(getFormation(id).travel.map.road, "earth", "and keeps the walked road, since nothing drawn changed");
+
+      await layerChanged();
+      assert.deepEqual(changed.at(-1), [], "a change that derives nothing new writes nothing");
+
+      classOf.realm1 = null;
+      await layerChanged();
+      read = travelOf(getFormation(id));
+      assert.deepEqual([read.territory, read.provenance.territory], ["borderlands", "scene"],
+        "a value that implies no class leaves the scene's default to answer");
+      scene.regions.splice(scene.regions.indexOf(realm), 1);
+    } finally {
+      dispose();
+    }
+  }
+
   // The refresh reads the parties on the scene it was given and no other, and
   // a seat by hand off a hex grid caches the reading and names no hex.
   const { seatJourneyHex, refreshCountryOn } = await import("../scripts/formation/travel.mjs");

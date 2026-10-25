@@ -36,7 +36,7 @@ import { hasCapability } from "./ability-bridge.mjs";
 import { mayAdvanceWorldTime, untilNextDawn, calendarDay, calendarSeason } from "../lib/world-time.mjs";
 import { TRAVEL_PACE } from "../lib/movement-scales.mjs";
 import { isExpeditionScale } from "../lib/distance-units.mjs";
-import { hexLabelFromOffset, isHexScene } from "../battlemap/terrain-paint.mjs";
+import { hexLabelFromOffset, isHexScene, layerRegionsOf } from "../battlemap/terrain-paint.mjs";
 import { sceneTravelSystem } from "../battlemap/scene-setup.mjs";
 import { COUNTRY_KEYS, countryAt, riverTableFor } from "../battlemap/country.mjs";
 import { FOLLOWING_KINDS, TERRITORY_KEYS } from "./country-keys.mjs";
@@ -273,11 +273,15 @@ function mapReadingOf(formation, t) {
 /**
  * The six country keys resolved, each by the first source that answers it:
  * the Judge's override (`travel.override`), the map's reading of the party's
- * hex (`travel.map`, whose own `source` says whether the hex or the scene's
- * default answered), the declared record (the six keys as an older record
- * stores them), then the module's default. A declared value equal to the
- * default reads as the default: a stored default says nothing about what was
- * declared.
+ * hex (`travel.map`, whose own `source` says whether the hex, the scene's
+ * default or a layer deriving the key answered), the declared record (the six
+ * keys as an older record stores them), then the module's default. A declared
+ * value equal to the default reads as the default: a stored default says
+ * nothing about what was declared.
+ *
+ * The map's provenance is the reading's own `source`, passed through as it is
+ * handed: `map`, `scene`, or the key of the layer that derived the value. A
+ * reading that names no source is the map's.
  *
  * While the party moves on the water and a water line runs under it, the map's
  * encounter terrain is the river's table for the ground. An overridden ground
@@ -291,8 +295,9 @@ function mapReadingOf(formation, t) {
  * above it won.
  *
  * @returns {{values: Record<string, string>, provenance: Record<string,
- *   "override"|"map"|"scene"|"declared"|"default">,
- *   mapValues: Record<string, string|null>, map: object|null}}
+ *   string>, mapValues: Record<string, string|null>, map: object|null}}
+ *   `provenance` is `override`, `map`, `scene`, a deriving layer's key,
+ *   `declared` or `default`
  */
 function resolveCountry(formation, t, movementMode) {
   const map = mapReadingOf(formation, t);
@@ -325,7 +330,8 @@ function resolveCountry(formation, t, movementMode) {
     const grounded = key === "encounterTerrain" && !river && provenance.ground === "override";
     if (mapValues[key] != null && !grounded) {
       values[key] = fromMap;
-      provenance[key] = !river && map.source?.[key] === "scene" ? "scene" : "map";
+      // Afloat, the river's table is the map's water, whatever answered the hex's own.
+      provenance[key] = (!river && map.source?.[key]) || "map";
       continue;
     }
     if (!grounded && valid(declared[key]) && declared[key] !== COUNTRY_DEFAULTS[key]) {
@@ -1158,6 +1164,23 @@ export async function refreshCountryOn(sceneId, { walls = true } = {}) {
     if (wrote) changed.push(formation.id);
   }
   return changed;
+}
+
+/**
+ * The scenes a change to one paint layer can re-read a party on: each scene a
+ * party's token stands on that holds paint of that layer. A layer's values can
+ * change what they mean with no region written, which `paintLayerChanged`
+ * reports by the layer alone.
+ *
+ * @returns {string[]} scene ids, each once
+ */
+export function partyScenesPaintedWith(layer) {
+  const ids = new Set();
+  for (const formation of Object.values(getFormations())) {
+    const scene = getPartyToken(formation)?.parent;
+    if (scene?.id && layerRegionsOf(scene, layer).length) ids.add(scene.id);
+  }
+  return [...ids];
 }
 
 /**

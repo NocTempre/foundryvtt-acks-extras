@@ -6,7 +6,8 @@
  * What is pinned here. The layer offers the world's domains in realm order,
  * named and coloured as their realm places them, its regions on the Regions
  * control alone. A hex painted into a domain takes the domain's class as its
- * territory, and `source` names the layer; a domain with no class, or gone,
+ * territory, and `source` names the layer, which the party sheet's Country
+ * card has a label for; a domain with no class, or gone,
  * implies none. The mode draws each domain in its colour, a vassal under its
  * liege in the legend, a hex of a domain no longer in the world in one neutral
  * colour, and weighs each side by where the two realms part. A domain's
@@ -17,6 +18,7 @@
  * Run: npm test
  */
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 /* ------------------------- the world --------------------------------------- */
 const hasProperty = (obj, path) => path.split(".").reduce((o, k) => (o !== null && typeof o === "object" && k in o ? o[k] : undefined), obj) !== undefined;
@@ -169,6 +171,11 @@ assert.deepEqual(territoryAt(1, 5), [null, null], "a domain with no class implie
 assert.deepEqual(territoryPlan(scene).map((h) => [h.key, h.value, h.stripe]).toSorted(), [
   ["1:1", "civilized", null], ["1:2", "outlands", TERRITORY_COLORS.civilized], ["1:3", "borderlands", null], ["1:4", "outlands", null],
 ], "the Territory mode draws each domain's class, and stripes the override where it differs");
+// The party sheet's Country card labels a reading by its source, so the layer's
+// key, which a derived territory reads as its source, has a label there.
+const lang = JSON.parse(readFileSync(new URL("../lang/en.json", import.meta.url), "utf8"));
+assert.equal(typeof lang["ACKS-FORMATION"]?.country?.provenance?.[DOMAIN_LAYER], "string",
+  "the party sheet names a territory this layer derived");
 
 /* ------------------------- the mode ---------------------------------------- */
 assert.equal(modeForLayer("domain"), "domain", "the layer's pill shows the Domains mode");
