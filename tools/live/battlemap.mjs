@@ -6,7 +6,7 @@
  *   docs/formation/TESTING.md  "The country" 1-9, then on the same fixtures the changed
  *                              steps 5-7 of battlemap "Terrain painting" and step 12
  *                              of battlemap "Roads"                               (part "country")
- * and the release's six snapshots for those entries.
+ * and, under SHOTS=1, the release's snapshots for those entries.
  *
  * Machine values arrive through ./_env.mjs; nothing here names a port, a world or
  * a seat. Every figure and name
@@ -40,7 +40,9 @@ const Y = "unsettled"; // cadence = two cells -> "miles", one cell carried
 const CLIMATE_A = "Csa"; // a map's own, and the one a map painted with climates folds into
 const CLIMATE_SCENE = "BSk"; // the scene default's, and the fold's loser
 const TARGET = 11; // invented navigation target; the dice are rigged to a natural 20 for the country walk
-const SHOT_DIR = shotDir();
+// Release plates are taken only under SHOTS=1; shotDir() makes the release directory, so it is not asked otherwise.
+const SHOTS = process.env.SHOTS === "1";
+const SHOT_DIR = SHOTS ? shotDir() : null;
 
 // WALK_PLAN names an optional plan file ({ "parts": ["layers", "modes", "country"], "retrack": ["<uuid>", ...] }).
 let plan = { parts: ["layers", "modes", "country"], retrack: [] };
@@ -523,6 +525,7 @@ const P = {
     const ctx = el ? await win._prepareContext() : null;
     return {
       view: MM.mapView(),
+      registered: MM.mapModes().map((m) => m.key),
       overlay: ov ? { children: ov.children.length, alpha: Math.round(ov.alpha * 100) / 100, drawn, inRegions: ov.parent === canvas.regions } : null,
       expected,
       window: el ? {
@@ -771,21 +774,28 @@ const P = {
     const el = H.root(app) ?? document.querySelector("#acks-extras-battlemap");
     const flagBefore = foundry.utils.deepClone(scene.getFlag("acks-extras", "battlemap") ?? {});
     const names = [...(el?.querySelectorAll("select[name^='country.']") ?? [])].map((s) => s.name);
-    for (const [k, v] of Object.entries(country ?? {})) {
+    // Each change is waited for until the record holds it (or 5 s pass), and the wait is reported.
+    const held = (k) => scene.getFlag("acks-extras", "battlemap")?.country?.[k] ?? null;
+    let waitedMs = 0;
+    const pick = async (k, v) => {
       const sel = (H.root(app) ?? document.querySelector("#acks-extras-battlemap"))?.querySelector(`select[name="country.${k}"]`);
-      if (!sel) return { error: `no select for ${k}`, names };
+      if (!sel) return false;
+      const t0 = performance.now();
       H.change(sel, v);
-      await H.sleep(800);
+      await H.poll(() => held(k) === (v || null), { tries: 50, every: 100 });
+      waitedMs = Math.max(waitedMs, Math.round(performance.now() - t0));
+      await H.sleep(300);
+      return true;
+    };
+    for (const [k, v] of Object.entries(country ?? {})) {
+      if (!(await pick(k, v))) return { error: `no select for ${k}`, names };
     }
-    if (clearKey) {
-      H.change((H.root(app) ?? document.querySelector("#acks-extras-battlemap")).querySelector(`select[name="country.${clearKey}"]`), "");
-      await H.sleep(800);
-    }
+    if (clearKey && !(await pick(clearKey, ""))) return { error: `no select for ${clearKey}`, names };
     const flagAfter = foundry.utils.deepClone(scene.getFlag("acks-extras", "battlemap") ?? {});
     const otherKeys = (o) => Object.fromEntries(Object.entries(o).filter(([k]) => k !== "country"));
     const root = H.root(app) ?? document.querySelector("#acks-extras-battlemap");
     const selects = Object.fromEntries([...(root?.querySelectorAll("select[name^='country.']") ?? [])].map((s) => [s.name, s.value]));
-    return { names, selects, flagCountry: flagAfter.country ?? null, othersUnchanged: JSON.stringify(otherKeys(flagBefore)) === JSON.stringify(otherKeys(flagAfter)), sceneCountry: H.B.country.sceneCountry(scene) };
+    return { names, selects, flagCountry: flagAfter.country ?? null, othersUnchanged: JSON.stringify(otherKeys(flagBefore)) === JSON.stringify(otherKeys(flagAfter)), sceneCountry: H.B.country.sceneCountry(scene), waitedMs };
   },
 
   closeAssistant: async () => {
@@ -908,11 +918,15 @@ const P = {
     const hook = Hooks.on("acksExtras.hexEntered", (p) => entered.push({ cadence: p.cadence, territory: p.territory, hex: p.hex ? { i: p.hex.i, j: p.hex.j } : null, throwOwed: p.throwOwed }));
     H.action = "drag";
     const before = { worldTime: game.time.worldTime, dayKey: H.T.journeyDayKey(H.T.travelOf(f)) };
+    const t0 = performance.now();
     await tok.update({ x: xy.x, y: xy.y }, { animate: false });
-    await H.poll(() => {
+    // The move is heard at the corner core stored, in whole pixels, not at the fractional one asked for.
+    const to = { x: tok._source.x, y: tok._source.y };
+    const followed = !!(await H.poll(() => {
       const r = H.formation(fid);
-      return r?.clock?.lastPosition?.x === xy.x && r?.clock?.lastPosition?.y === xy.y;
-    }, { tries: 50, every: 100 });
+      return r?.clock?.lastPosition?.x === to.x && r?.clock?.lastPosition?.y === to.y;
+    }, { tries: 50, every: 100 }));
+    const waitedMs = Math.round(performance.now() - t0);
     await H.sleep(1200);
     Hooks.off("acksExtras.hexEntered", hook);
     let offer = null;
@@ -921,7 +935,7 @@ const P = {
     H.action = null;
     const got = H.collect();
     const during = got.all.filter((m) => m.action === "drag");
-    return { entered, messages: got.claimed, unclaimed: got.unclaimed, navCards: during.filter((m) => m.nav).length, messagesDelta: during.length, worldTimeDelta: game.time.worldTime - before.worldTime, offer, dayKeyBefore: before.dayKey, dayKeyAfter: H.T.journeyDayKey(H.T.travelOf(H.formation(fid))) };
+    return { followed, waitedMs, asked: xy, to, entered, messages: got.claimed, unclaimed: got.unclaimed, navCards: during.filter((m) => m.nav).length, messagesDelta: during.length, worldTimeDelta: game.time.worldTime - before.worldTime, offer, dayKeyBefore: before.dayKey, dayKeyAfter: H.T.journeyDayKey(H.T.travelOf(H.formation(fid))) };
   },
 
   /** Open the sheet and describe its country surfaces; closes unless `keep`. */
@@ -1314,6 +1328,7 @@ async function sheetShot(api, partyId, tab, slug, sel) {
 
 /** A release shot: cursors hidden, the subject scrolled into view, clipped, its box logged. */
 async function shot(api, slug, selector) {
+  if (!SHOTS) return null;
   try {
     const seen = await api.eval(`(() => {
       try { if (canvas?.controls?.cursors) canvas.controls.cursors.visible = false; } catch (e) {}
@@ -1567,7 +1582,10 @@ async function walkLayers(W) {
   note("fold", f1);
   check("L10: on first view the map takes the climate most of its hexes were painted, is marked folded, and says which", f1.climate === CLIMATE_A && f1.folded && f1.notes.length === 1 && f1.notes[0].text.includes(CLIMATE_A), f1);
   check("L10: the painted regions stay and nothing reads them: a hex painted the other climate answers the map's, sourced scene", f1.regions === 2 && f1.at?.climate === CLIMATE_A && f1.at?.source === "scene", f1.at);
-  note("climate cleared", await page(gm, P.sceneDefault, { sceneId: painted.id, country: {} }));
+  // Cleared as the Judge clears it, in the Battlemap window: an empty patch merges into the record and clears nothing.
+  const clearedClimate = await page(gm, P.assistant, { sceneId: painted.id, country: {}, clearKey: "climate" });
+  note("climate cleared", { flagCountry: clearedClimate.flagCountry, sceneCountry: clearedClimate.sceneCountry, waitedMs: clearedClimate.waitedMs });
+  note("assistant closed", await page(gm, P.closeAssistant));
   note("square viewed", await page(gm, P.viewScene, square.id));
   note("painted map viewed again", await page(gm, P.viewScene, painted.id));
   const f2 = await page(gm, P.foldState, { sceneId: painted.id });
@@ -1622,7 +1640,8 @@ async function walkModes(W) {
   let m = await page(gm, P.modeState, { sceneId: hex.id });
   note("mode state", m);
   const regs = await page(gm, P.regions, { sceneId: hex.id, layer: "territory" });
-  check("M1: the Territory pill shows the Territory mode and opens the window on it", m.view.mode === "territory" && m.window?.pressed === "territory" && same(m.window?.pills, ["terrain", "territory"]), { view: m.view, window: m.window });
+  // Other features register modes of their own, so the window is held to the registry, Terrain first.
+  check("M1: the Territory pill shows the Territory mode and opens the window on it, one pill per registered mode", m.view.mode === "territory" && m.window?.pressed === "territory" && same(m.window?.pills, m.registered) && m.registered?.[0] === "terrain" && m.registered.includes("territory"), { view: m.view, window: m.window, registered: m.registered });
   check("M1: the legend lists the four territories, names the scene default for an unpainted hex and the map's climate", m.window?.rows === 4 && !!m.window?.unpainted && typeof m.window?.climate === "string" && m.window.climate.startsWith(CLIMATE_A), m.window);
   check("M1: the overlay sits in the regions layer and draws one border per side where the class changes, two classes meeting as two lines", m.overlay?.inRegions && m.overlay.children === 1 && same(m.overlay.drawn, m.expected) && Object.values(m.expected).reduce((s, n) => s + n, 0) === 18, { drawn: m.overlay?.drawn, expected: m.expected });
   check("M1: the territory regions are on the Regions control alone", regs.length === 2 && regs.every((g) => g.visibility === 0), regs.map((g) => g.visibility));
@@ -1815,7 +1834,7 @@ async function walkCountry(W) {
   check("C2: the navigation throw at the day's first step off a road made its way: no episode opened", r.lostPhase === null, { navCards: d2.navCards, lost: r.lostPhase });
   s = await page(gm, P.sheet, { partyId: party.id });
   note("sheet", { cards: s.cards, draw: s.draw, sky: s.skyCard, chips: s.chips });
-  check("C2: the cards read the painted values, sourced Read off the map", card("ground")?.provenance === "map" && card("territory")?.provenance === "map" && s.skyCard?.provenance === "map" && card("ground")?.source === provLabel.map, { ground: card("ground"), territory: card("territory"), sky: s.skyCard });
+  check("C2: the Ground and Territory cards read the painted values, sourced Read off the map, and the Sky's climate the scene's", card("ground")?.provenance === "map" && card("territory")?.provenance === "map" && s.skyCard?.provenance === "scene" && card("ground")?.source === provLabel.map, { ground: card("ground"), territory: card("territory"), sky: s.skyCard });
   const yLabel = await page(gm, P.territoryLabel, { key: Y });
   check("C2: the band's territory chip reads Y", s.chips.some((c) => c.key === "territory" && (c.label === yLabel || String(c.label ?? "").includes(yLabel))), { chips: s.chips, yLabel });
   const forestLabel = await page(gm, P.label, { key: forest });
@@ -1859,14 +1878,14 @@ async function walkCountry(W) {
   trackCards(pC);
   note("paused drag D->C", pC);
   r = await page(gm, P.record, { fid });
-  check("C4: a paused drag into C: travel.hex and travel.map follow, no clock, no card", r.hex?.i === C.i && r.hex?.j === C.j && r.map?.i === C.i && r.map?.j === C.j && pC.worldTimeDelta === 0 && pC.messagesDelta === 0 && pC.entered.length === 0, { hex: r.hex, map: r.map && { i: r.map.i, j: r.map.j }, delta: pC.worldTimeDelta, messages: pC.messagesDelta, entered: pC.entered });
+  check("C4: a paused drag into C: travel.hex and travel.map follow, no clock, no card", r.hex?.i === C.i && r.hex?.j === C.j && r.map?.i === C.i && r.map?.j === C.j && pC.worldTimeDelta === 0 && pC.messagesDelta === 0 && pC.entered.length === 0, { heard: pC.followed, hex: r.hex, map: r.map && { i: r.map.i, j: r.map.j }, delta: pC.worldTimeDelta, messages: pC.messagesDelta, entered: pC.entered });
   const milesPaused = r.day?.miles ?? 0;
   const Doff = off("D");
   const pD = await page(gm, P.drag, { fid, xy: xy("D") });
   trackCards(pD);
   note("paused drag C->D", pD);
   r = await page(gm, P.record, { fid });
-  check("C4: and back into D: both follow again, the clock and the day's miles unchanged, no card", r.hex?.i === Doff.i && r.hex?.j === Doff.j && r.map?.i === Doff.i && r.map?.j === Doff.j && pD.worldTimeDelta === 0 && pD.messagesDelta === 0 && (r.day?.miles ?? 0) === milesPaused, { hex: r.hex, delta: pD.worldTimeDelta, miles: r.day?.miles, before: milesPaused });
+  check("C4: and back into D: both follow again, the clock and the day's miles unchanged, no card", r.hex?.i === Doff.i && r.hex?.j === Doff.j && r.map?.i === Doff.i && r.map?.j === Doff.j && pD.worldTimeDelta === 0 && pD.messagesDelta === 0 && (r.day?.miles ?? 0) === milesPaused, { heard: pD.followed, hex: r.hex, map: r.map && { i: r.map.i, j: r.map.j }, delta: pD.worldTimeDelta, miles: r.day?.miles, before: milesPaused });
   note("unpause", await page(gm, P.pause, { fid, paused: false }));
 
   section("country 5. the Judge's word");

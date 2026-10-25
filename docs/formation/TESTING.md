@@ -2511,7 +2511,10 @@ reading `.travel.map`; the resolution
 (`.mapValues`). The sheet's decision is `(await
 party.sheet._prepareContext({})).travel.country` (`cards`, `climate`,
 `encountersDrawOn`) and `.countryOverrides` (the hand). A drag is the march
-in miles recipe's, centre to centre with `{animate: false}`; a throw it owes
+in miles recipe's, centre to centre with `{animate: false}`. A hex's centre
+puts the corner on a fractional pixel and core stores the corner whole, so
+the move is heard when `clock.lastPosition` equals the token's `_source`
+after the update, never the corner asked for; a throw it owes
 posts a whispered card, whose id is read back at once (the newest
 `game.messages` entry) and tracked. Count `acksExtras.hexEntered` with a
 `Hooks.on` removed after the step. The Judge's refresh is debounced and runs
@@ -2538,7 +2541,8 @@ off the world while the walk runs. A hand select is
    gained none of `ground`, `encounterTerrain`, `territory`, `road` or
    `following`. No `hexEntered` fired and `travel.day.cadenceCarry` holds one
    cell's miles: the step was counted in Y, the territory it arrived in. The
-   cards read the painted values, sourced "Read off the map"; the band's
+   Ground and Territory cards read the painted values, sourced "Read off the
+   map", and the Sky's climate card the scene default's; the band's
    territory chip reads Y; the Encounters line names hex A's table.
 3. **The cadence on the way back.** Drag back into hex C.
    *Observable:* one `hexEntered` with `cadence` "grid" and `territory` X.
