@@ -568,6 +568,8 @@ const sourceWorld = (drop = []) => ({
   ok("a cold library cancels the import before the fill", /if \(libraryCold\(\)\) \{[\s\S]*?return false;/.test(steerBody) &&
     steerBody.indexOf("libraryCold()") < steerBody.indexOf("fillImport("));
   ok("both hooks are registered", steer.includes('Hooks.on("preImportAdventure", steerImport)') && steer.includes('Hooks.on("importAdventure", afterImport)'));
+  const after = body(steer, "function afterImport(");
+  ok("an import runs the link pass once its maps are mirrored", after.indexOf("cookbookImportLinks(") > after.indexOf("mirrorCreatedLinks(") && after.includes("mirrorCreatedLinks("));
   ok("a book's Adventure fills as one", /book = kindOf\(adventure\) === BOOK_ADVENTURE_KIND/.test(body(steer, "function fillImport(")));
 
   const cookbook = read("scripts/importer/cookbook.mjs");

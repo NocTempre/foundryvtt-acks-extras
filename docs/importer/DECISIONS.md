@@ -8242,3 +8242,26 @@ Adventure carries a link Region from the world's map as it carries a zone.
   level waits with the rest of AX1's ways (ROADMAP).
 - A destination the Judge added to a held end is kept even where it leads
   outside the book, and in a world without that map it leads nowhere.
+
+## 2026-10-25 — An Adventure's import runs the link pass
+
+**Evidence.** The import writes to nothing the world holds, so a held map's
+end keeps the destination it had. Once the map it led to is deleted and the
+Adventure brings that map back, the end leads to a Region that no longer
+exists. After the AX1 walk's sweep, the world's first level still led to a
+deleted region-map Region. No step had run the link pass since.
+
+**Ruled.** `importAdventure` (`book-adventure.mjs` `afterImport`) runs
+`cookbookImportLinks({quiet: true})` after its mirrors and thumbnails,
+whenever the import made or held a map. `quiet` posts no notification for a
+pass that made, repaired and refused nothing.
+
+*Rejected:*
+- **Writing the held map's Regions from the import.** That breaks the rule the
+  import is steered by, and the link pass already repairs a held end.
+- **Leaving the pass to the Judge.** A way that leads nowhere does not look
+  broken until a token walks into it.
+
+*Cost:* the pass reads every cookbook's link rows against the whole world. An
+import can therefore also join another book's ways that were waiting on a map
+the import brought.

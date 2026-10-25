@@ -2327,7 +2327,10 @@ it by that collection id, and only if its index is empty by then.
    *Observable:* `"kept"`, and the edit stands. Delete the Adventure, then
    run the step again: `"written"`, under the same id.
 6. Arm a createActor/createScene/createRollTable/createFolder OBSERVER. Open
-   the Adventure and click Import.
+   the Adventure and click Import. A scripted press first awaits the
+   library's `whenReady()` and records whether it was cold: core empties an
+   idle shelf (`docs/lib/MODEL.md`, "A warm shelf does not stay warm"), so a
+   press five minutes after the last library read meets step 8's refusal.
    *Observable:* no overwrite dialog. Either "…nothing was added…", or the
    documents the world lacked are added. Pass every uuid the import created
    (from `Hooks.once("importAdventure", (a, o, created) => …)`, this call's
@@ -2724,7 +2727,7 @@ The map step joins a book's link rows into Regions after its last zone (MODEL,
 `test-cookbook-coherence` pin the shapes offline. Only a live run proves that
 core takes the Regions, that a token is carried where the rows say, and that
 the Adventure carries them. `tools/live/importer-ax1.mjs` walks it as section
-2e, in 3 and 3b, and after its sweep.
+2e, in 3, 3b and 3c, and after its sweep.
 
 ### Fixtures
 
@@ -2798,6 +2801,27 @@ the Adventure carries them. `tools/live/importer-ax1.mjs` walks it as section
    and repeat step 7's read. *Observable:* the same, though the world holds
    fewer of the ends. The walk does this after its sweep, when the world
    holds only the owner's maps.
+10. Import into a world lacking two plans: delete two, the plan of a way
+    several ends share and the plan of an end leading into it, and census.
+    Both are the run's, or both the owner's under the owner's go-ahead; the
+    owner's come back under the Adventure's seeded ids and stay the owner's. *Observable:* every end on them is missing, and each end leading
+    into them names nothing. Write the Adventure again (step 7's observable
+    holds), import it from its sheet, and run no link pass by hand.
+    *Observable:*
+    - the import creates the two plans and nothing else, and each plan and
+      each end on it stands under the Adventure's seeded id
+      (`stableDocId` of `<map>.adventure|scene` and
+      `<map>.adventure|link|<end key>`, `adventure-binding.mjs`);
+    - step 2's census holds once the import's hook has run. Poll for it:
+      core does not await the hook;
+    - from the Player seat, a token walked into the end leading into the
+      shared way arrives on it, on its storey, unasked; on the region's map,
+      walked into the end leading to a deleted plan and answered yes, it
+      arrives on that plan's end.
+
+    The import's plans take new ids that no ledger holds: track what core's
+    `importAdventure` hook reports it created where the deleted plans were
+    the run's, and delete the character's tokens by uuid after the hops.
 
 A party's formation across a hop is formation's own recipe
 (`docs/formation/TESTING.md`, "A teleport between scenes"); a link Region is
@@ -2806,7 +2830,7 @@ the same core behaviour.
 ### Teardown
 
 1. Sweep the run's ledger; a link Region goes with its map. The character's
-   tokens went at step 6.
+   tokens went at steps 6 and 10.
 2. Delete the Player's explored fog on every map a token stood on, by id.
 
 ## The region's adventures: their tables and monsters

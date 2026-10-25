@@ -996,6 +996,20 @@ page prints still do not reach the sheet:
   spellbook's bracket as a repertoire needs a rule for telling a spell list
   from an item's note.
 
+## A book Adventure's first Import press after an idle spell
+
+The import is refused while any library shelf is cold (DECISIONS,
+2026-10-17, "How a book's Adventure is assembled"), and core empties a shelf
+five idle minutes after its last read (`docs/lib/MODEL.md`, "A warm shelf
+does not stay warm"). In a working session, then, the first press after any
+idle spell is refused with "try again in a moment", and the second press
+imports. On 2026-10-25 the AX1 walk's section 3b pressed once and the import
+never ran. Pressed again with the library warmed, the same import ran in
+seconds, and a rerun of the walk found the library cold at that same press.
+Wanted: an import that waits for the
+warm it starts instead of asking for a second press. The preImport hook
+cannot await, so this changes how the import is steered.
+
 ## A book's Adventure in another world
 
 A world compendium is world-scoped, so a second world needs the pack moved by

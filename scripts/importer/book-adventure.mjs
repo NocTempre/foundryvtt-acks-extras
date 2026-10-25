@@ -129,7 +129,7 @@ function steerImport(adventure, options, toCreate, toUpdate) {
 /**
  * `importAdventure`: the mirrors and thumbnail of every map the import made,
  * and of a map it found held (a part-failed earlier import never reached
- * this hook), then the counts.
+ * this hook), then the link pass, then the counts.
  */
 function afterImport(adventure, options, created) {
   const report = reports.get(options);
@@ -144,6 +144,12 @@ function afterImport(adventure, options, created) {
     for (const scene of scenes) {
       await mirrorCreatedLinks(scene);
       await ensureSceneThumb(scene);
+    }
+    // The import makes maps without the link pass, and a map the world held
+    // still leads to the Regions its ends named before; the pass joins both.
+    if (scenes.length) {
+      const { cookbookImportLinks } = await import("./cookbook.mjs");
+      await cookbookImportLinks({ quiet: true });
     }
     ui.notifications.info(
       game.i18n.format(`${LANG_PREFIX}.adventure.filled`, {

@@ -59,7 +59,14 @@
  * the world's AX1 places and every plan but one, and presses the Adventure
  * sheet's own Import: it brings each deleted plan back with its pins and its
  * zone, and the places 2c found and no other, and the plan it held names its
- * place's new copy.
+ * place's new copy. Section 3c deletes two of this run's plans, the one of a
+ * way several ends share and one leading into it, rebuilds the Adventure and
+ * presses Import again: the Adventure lays every end on them, the import
+ * brings them under its seeded ids, and with no link pass run by hand every
+ * way stands after it. From the Player seat a token goes through a laid end,
+ * and on the region's map through an end the import re-pointed. Before each
+ * press the library is warmed, since the import refuses while a shelf is
+ * cold and core empties an idle shelf; whether it was cold is logged.
  *
  * Fixtures and writes, each reported:
  *   - the book connected on the GM seat with remember:false;
@@ -82,7 +89,11 @@
  *     step brings across (`created.actors`) and the folders it opens, under
  *     section 1's rule; the plans and places 3b deletes, and what the
  *     Adventure import creates in their stead (read from core's
- *     `importAdventure` hook), under the same rule;
+ *     `importAdventure` hook), under the same rule; the two plans 3c deletes,
+ *     both this run's or, under HELD_OK, both the owner's, and what its import
+ *     creates in their stead under the Adventure's seeded ids: tracked where
+ *     the plans were this run's, and the owner's, under those new ids, where
+ *     they were the owner's;
  *   - two empty places, one inside the other, made with `api.create` to show
  *     the prune's dry run lists both;
  *   - AX1's journal, stamped by an earlier release's journals step and left
@@ -102,7 +113,8 @@
  *     outlived its scene;
  *   - in 2e, that character's tokens beside link ends, made by the GM seat,
  *     and the tokens core makes on another map when one is teleported, each
- *     read back and tracked as it is seen, and removed before section 3; the
+ *     read back and tracked as it is seen, and removed before section 3, and
+ *     the same in 3c, removed before 2d; the
  *     link Region 2e deletes and the pass makes again, which goes with its
  *     map; and the player seat's explored fog on every map a token stood on,
  *     deleted by id after the sweep;
@@ -456,6 +468,23 @@ const P = {
     return { ends, unresolved };
   },
   /**
+   * Each world map under one of the cookbook ids, by id: whether its scene and
+   * each link Region on it stand under the id the book's Adventure seeds for a
+   * map the world lacked.
+   */
+  seededLinks: async ({ ids }) => {
+    const MID = "acks-extras";
+    const AB = await import("/modules/acks-extras/scripts/importer/adventure-binding.mjs");
+    return game.scenes.filter((s) => ids.includes(s.flags?.[MID]?.cookbook?.id)).map((s) => {
+      const seed = AB.adventureCookbookId(s.flags[MID].cookbook.id);
+      const links = s.regions.map((r) => r.getFlag(MID, "cookbook")?.link).filter(Boolean);
+      return {
+        id: s.flags[MID].cookbook.id, seeded: s.id === AB.stableDocId(`${seed}|scene`),
+        links: links.map((key) => ({ key, seeded: s.regions.some((r) => r.id === AB.stableDocId(`${seed}|link|${key}`)) })),
+      };
+    });
+  },
+  /**
    * A map by cookbook id: its link and whether that is a world place named as
    * the map is, its travel system, each token's place and whether it is
    * hidden, and each zone's list and figures. No name rides out.
@@ -805,16 +834,34 @@ const P = {
     if (stored != null) canvas.environment.initialize({ environment: { darknessLevel: stored } });
     return { darkness: canvas.environment?.darknessLevel ?? null, stored: stored ?? null };
   },
-  /** Press the book's Adventure sheet's own Import; what it created arrives from core's hook. */
+  /**
+   * Press the book's Adventure sheet's own Import; what it created arrives from
+   * core's hook, and a refusal from the steering's notification, by its key.
+   * Core drops a shelf's documents five idle minutes after its last read and
+   * the import refuses while one is cold, so the library is warmed first, as
+   * a Judge's second press finds it; whether it was cold rides back.
+   */
   importViaSheet: async ({ book }) => {
     const H = globalThis.__ax;
     H.AB ??= await import("/modules/acks-extras/scripts/importer/adventure-binding.mjs");
     const pack = H.LIB.findLibraryPack("Adventure", H.CB.lineOf(book));
     const doc = pack ? await pack.getDocument(H.AB.bookAdventureId(book)) : null;
     if (!doc) return { clicked: false, adventure: false };
-    globalThis.__axImport = { done: false };
+    const coldBefore = H.LIB.libraryCold();
+    await H.LIB.whenReady();
+    const state = (globalThis.__axImport = { done: false, refused: null });
+    const said = (key) => new RegExp(`^${game.i18n.localize(`ACKS-IMPORTER.adventure.${key}`).split(/\{[^}]*\}/).map((s) => s.replace(/[.*+?^$()|[\]\\]/g, "\\$&")).join("[\\s\\S]*")}$`);
+    const refusals = ["libraryLoading", "nothingToAdd", "fillFailed"].map((key) => [key, said(key)]);
+    H.notified = { warn: ui.notifications.warn, info: ui.notifications.info, error: ui.notifications.error };
+    for (const level of Object.keys(H.notified)) {
+      ui.notifications[level] = function (msg, opts) {
+        const hit = refusals.find(([, re]) => re.test(String(msg)));
+        if (hit) state.refused = hit[0];
+        return H.notified[level].call(this, msg, opts);
+      };
+    }
     H.importHook = Hooks.once("importAdventure", (adv, opts, created) => {
-      globalThis.__axImport = { done: true, created: Object.fromEntries(Object.entries(created ?? {}).map(([type, docs]) => [type, docs.map((d) => d.uuid)])) };
+      Object.assign(state, { done: true, created: Object.fromEntries(Object.entries(created ?? {}).map(([type, docs]) => [type, docs.map((d) => d.uuid)])) });
     });
     const sheet = doc.sheet;
     await sheet.render({ force: true });
@@ -827,15 +874,17 @@ const P = {
       if (button && !button.disabled) break;
       await new Promise((r) => setTimeout(r, 250));
     }
-    if (!button || button.disabled) return { clicked: false, adventure: true, sheetClass: sheet.constructor.name };
+    if (!button || button.disabled) return { clicked: false, adventure: true, sheetClass: sheet.constructor.name, coldBefore };
     button.click();
-    return { clicked: true, adventure: true, sheetClass: sheet.constructor.name };
+    return { clicked: true, adventure: true, sheetClass: sheet.constructor.name, coldBefore };
   },
   importState: async () => globalThis.__axImport ?? { done: false },
   endImport: async () => {
     const H = globalThis.__ax;
     if (H.importHook) Hooks.off("importAdventure", H.importHook);
     H.importHook = null;
+    if (H.notified) Object.assign(ui.notifications, H.notified);
+    H.notified = null;
     return true;
   },
   /**
@@ -1037,6 +1086,9 @@ async function poll(api, fn, args, { tries = 300, every = 2000, until = (s) => s
   }
   return state;
 }
+// An Adventure import pressed from its sheet has ended once core's hook ran or
+// the steering refused it.
+const importEnded = (s) => s?.done || !!s?.refused;
 async function step(api, name, args, tries = 450) {
   await run(api, P.fire, { step: name, args });
   const st = await poll(api, P.stepState, undefined, { tries });
@@ -1692,12 +1744,12 @@ try {
   const click = await run(gm, P.importViaSheet, { book: BOOK });
   note("3b: sheet", click);
   if (!click.clicked) throw new Error("the Adventure sheet's Import button could not be pressed");
-  const imported = await poll(gm, P.importState, undefined, { tries: 120, every: 2000 });
+  const imported = await poll(gm, P.importState, undefined, { tries: 120, every: 2000, until: importEnded });
   await run(gm, P.endImport);
   const createdBy = imported?.created ?? {};
   if (!rebuild) for (const [type, uuids] of Object.entries(createdBy)) for (const uuid of uuids) gm.track(uuid, type);
   note("3b: created", { ...Object.fromEntries(Object.entries(createdBy).map(([type, uuids]) => [type, uuids.length])), tracked: !rebuild });
-  check("3b: the sheet's Import ran to core's hook", imported?.done === true);
+  check("3b: the sheet's Import ran to core's hook", imported?.done === true, { refused: imported?.refused ?? null, coldBefore: click.coldBefore });
   const createdSet = new Set(Object.values(createdBy).flat());
   const world3b = await run(gm, P.worldPlaces, { book: BOOK });
   const createdPlaces = world3b.filter((p) => createdSet.has(p.uuid)).map((p) => p.id);
@@ -1728,6 +1780,83 @@ try {
     !linkProblems(linked3b).length, linkProblems(linked3b));
   const dry3b = await run(gm, P.pruneDry);
   check("3b: the empty-location prune, run dry, would remove none of them", doomedOf(dry3b, world3b) === 0, { doomed: doomedOf(dry3b, world3b) });
+
+  section("3c. an Adventure built where the world lacks two plans lays their ways, and its import joins them to the maps the world holds");
+  // The plan of the way several ends share and the plan of an end leading
+  // into it: with both gone, every end on them is one the Adventure lays.
+  const shared = LINKS.find((e) => e.mode === "teleport" && e.leads.length > 1 && !e.region);
+  const into = shared ? shared.leads.map(endBy).find((e) => e?.leads.includes(shared.key) && e.scene !== shared.scene) : null;
+  const gone3c = into ? [shared.scene, into.scene] : [];
+  const maps3c = await run(gm, P.heldMaps, { ids: gone3c });
+  const ours3c = new Set(gm.tracked().map((e) => e.uuid));
+  // Both this run's, or under HELD_OK both the owner's, as 3b deletes them.
+  const mine3c = maps3c.every((m) => ours3c.has(m.uuid));
+  const owners3c = HELD_OK && !maps3c.some((m) => ours3c.has(m.uuid));
+  if (gone3c.length < 2 || maps3c.length !== 2 || !(mine3c || owners3c)) {
+    note("3c: not run", { plans: gone3c.length, held: maps3c.length, thisRun: maps3c.filter((m) => ours3c.has(m.uuid)).length });
+  } else {
+    const onGone = (key) => gone3c.includes(endBy(key)?.scene);
+    const laid3c = LINKS.filter((e) => onGone(e.key)).map((e) => e.key);
+    const into3c = LINKS.filter((e) => !onGone(e.key) && e.leads.some(onGone)).map((e) => e.key);
+    note(mine3c ? "3c: deleted (this run's)" : "3c: deleted (the owner's, by HELD_OK)", await run(gm, P.deleteScenes, { uuids: maps3c.map((m) => m.uuid) }));
+    const broken = linkProblems(await run(gm, P.linkRegions)).map((p) => p.key);
+    check("3c: with the two plans gone, the census misses every end on them, and each end leading into them names nothing",
+      sameSet(broken, [...laid3c, ...into3c]), { broken: broken.length, onPlans: laid3c.length, leadingIn: into3c.length });
+    const re3c = await step(gm, "cookbookImportAdventures", [{ books: [BOOK] }]);
+    for (const uuid of re3c?.created?.adventures ?? []) gm.track(uuid, "Adventure");
+    fogLeft.packs.push(...(re3c?.created?.packs ?? []).filter((c) => !fogLeft.packs.includes(c)));
+    const adv3c = (await run(gm, P.library, { book: BOOK })).adventures.find((a) => a.kind === "kind.bookAdventure");
+    const ways3c = adv3c ? await run(gm, P.adventureLinks, { uuid: adv3c.uuid }) : null;
+    check("3c: the Adventure, rebuilt where the world lacks the two plans, carries every way between its maps, all leading to its own ends",
+      ["written", "rebuilt"].includes(re3c?.books?.[BOOK]) && adventureWaysRight(ways3c),
+      { outcome: re3c?.books?.[BOOK] ?? null, ends: ways3c?.ends.length, unresolved: ways3c?.unresolved });
+    const click3c = await run(gm, P.importViaSheet, { book: BOOK });
+    note("3c: sheet", click3c);
+    if (!click3c.clicked) throw new Error("3c: the Adventure sheet's Import button could not be pressed");
+    const imported3c = await poll(gm, P.importState, undefined, { tries: 120, every: 2000, until: importEnded });
+    await run(gm, P.endImport);
+    const made3c = imported3c?.created ?? {};
+    // The plans come back under the Adventure's seeded ids, which no ledger
+    // holds: this run's where the deleted ones were, else the owner's.
+    if (mine3c) for (const [type, uuids] of Object.entries(made3c)) for (const uuid of uuids) gm.track(uuid, type);
+    note("3c: created", { ...Object.fromEntries(Object.entries(made3c).map(([type, uuids]) => [type, uuids.length])), tracked: mine3c });
+    const madeMaps = await run(gm, P.sceneIdsOf, { uuids: made3c.Scene ?? [] });
+    check("3c: the sheet's Import creates the two plans and nothing else",
+      imported3c?.done === true && Object.keys(made3c).every((t) => t === "Scene") && sameSet(madeMaps.map((m) => m.id), gone3c),
+      { done: imported3c?.done === true, refused: imported3c?.refused ?? null, coldBefore: click3c.coldBefore, types: Object.keys(made3c), plans: madeMaps.length });
+    const seeded = await run(gm, P.seededLinks, { ids: gone3c });
+    check("3c: each plan, and each end on it, stands under the id the Adventure laid it with",
+      seeded.length === 2 && seeded.every((s) => s.seeded && s.links.every((l) => l.seeded)) && sameSet(seeded.flatMap((s) => s.links.map((l) => l.key)), laid3c),
+      seeded.map((s) => ({ id: s.id, seeded: s.seeded, ends: s.links.length, laid: s.links.filter((l) => l.seeded).length })));
+    // No link pass is run here: the import's own hook is what re-points the
+    // held ends at the laid ones.
+    const census3c = await poll(gm, P.linkRegions, undefined, { tries: 120, every: 1000, until: (l) => !!l && !linkProblems(l).length });
+    note("3c: link census", { ends: LINKS.length, regions: census3c?.length ?? 0, problems: linkProblems(census3c ?? []) });
+    check("3c: with no link pass run by hand, every way stands after the import: one Region per end, the laid ends leading to the held maps and the held ends that named the deleted plans leading to the laid ones",
+      !!census3c && !linkProblems(census3c).length, linkProblems(census3c ?? []));
+    // Through a laid end onto the laid end it leads to, unasked; then from the
+    // region's map through an end the hook re-pointed, asked first.
+    const before3c = (await pcTokens()).length;
+    const start3c = await stand(into.key, -1);
+    await run(player, P.walkTo, { tokenUuid: start3c.uuid, key: into.key });
+    const in3c = await settle((ts) => ts.some((t) => t.scene === shared.scene));
+    const t3c = in3c.find((x) => x.scene === shared.scene);
+    check("3c: from the Player seat, a token walked into a laid end arrives on the laid end it leads to, on its storey, unasked",
+      in3c.length === before3c + 1 && !!t3c && t3c.at.includes(shared.key) && t3c.storey === (shared.level ?? 0), shown(in3c));
+    const journey3c = LINKS.find((e) => e.region && e.asks && e.leads.length === 1 && onGone(e.leads[0]));
+    if (!journey3c) note("3c: not reached", "no end on the region's map leads into the deleted plans");
+    else {
+      const there = endBy(journey3c.leads[0]);
+      const start = await stand(journey3c.key, -1);
+      await run(player, P.walkTo, { tokenUuid: start.uuid, key: journey3c.key });
+      const asked = await run(player, P.answer, { yes: true });
+      const out = await settle((ts) => ts.some((x) => x.scene === there.scene && x.at.includes(there.key)));
+      check("3c: on the region's map, a token walked into an end the import re-pointed is asked first, and answered yes, arrives on the laid end it leads to",
+        asked.asked && asked.kind === "confirm" && out.some((x) => x.scene === there.scene && x.at.includes(there.key)), { asked, at: shown(out) });
+    }
+    const left3c = (await pcTokens()).map((t) => ({ uuid: t.uuid, kind: "Token" }));
+    if (left3c.length) note("3c: the pc's tokens, removed", JSON.parse(await gm.eval(pageSweep(left3c))));
+  }
 
   // Last, so every section above ran against the owner's place under its own
   // document id: deleting it gives the place a new one in either order.
@@ -1827,10 +1956,10 @@ try {
       const re = await step(gm, "cookbookImportAdventures", [{ books: [BOOK] }]);
       const owners = (await run(gm, P.library, { book: BOOK })).adventures.find((a) => a.kind === "kind.bookAdventure");
       note("the owner's Adventure, rebuilt over the swept library", { outcome: re?.books?.[BOOK] ?? null, contents: owners?.contents ?? null });
-      // The world now holds only the owner's maps, so the Adventure lays the
-      // ways the world lacks itself.
+      // The world now holds only the owner's maps, which may be fewer than
+      // the book's; the Adventure lays the ways the world lacks itself.
       const ways = owners ? await run(gm, P.adventureLinks, { uuid: owners.uuid }) : null;
-      check("teardown: the owner's Adventure, built where the world holds fewer maps, still carries every way between them, all leading to its own ends",
+      check("teardown: the owner's Adventure, built over the owner's maps alone, carries every way between them, all leading to its own ends",
         adventureWaysRight(ways), { worldMaps: (await run(gm, P.heldMaps, { ids: MAPS })).length, ends: ways?.ends.length, unresolved: ways?.unresolved });
     }
   } catch (err) { console.error("adventure rebuild:", err?.message ?? err); }

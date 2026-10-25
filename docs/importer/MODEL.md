@@ -81,7 +81,8 @@ as missing; otherwise it empties `toUpdate` and narrows `toCreate` to the fill
 and a person, a list, a journal, an item, or a place no carried map shows
 stays in the library when the library holds it, unless a place the import
 creates sits in that place. `importAdventure` then
-mirrors the links of every created or held map and draws its thumbnail. The
+mirrors the links of every created or held map and draws its thumbnail, then
+runs the link pass ("A way between maps"). The
 patch lives here and not in `lib/` because only this feature builds these
 Adventures; every other Adventure passes through untouched. One owner:
 nothing else in the family hooks either.
@@ -366,8 +367,10 @@ files it under the cookbook's `scenes` beside the recipes and zones
 compile cannot see: every end's scene is a compiled recipe in some cookbook,
 and its box lies on that recipe's storey.
 
-The map step joins the links after its last zone (`joinLinks`), and
-`cookbookImportLinks` runs that pass alone. It reads every cookbook's link
+The map step joins the links after its last zone (`joinLinks`), an
+Adventure's import after it has made its maps (notifying only where it made,
+repaired or refused an end), and `cookbookImportLinks` runs that pass alone.
+It reads every cookbook's link
 rows, open or not, against the maps the world holds (`heldMapOf`). A row
 naming a map no cookbook carries is refused (`linksRefused`); one naming a
 map the world does not hold yet waits (`linksWaiting`), and the notification
@@ -415,7 +418,10 @@ world's behaviour, the ones that resolve are kept, and the Regions of the
 ends its rows name are added in the form core stores
 (`foundry.utils.buildRelativeUuid`). A row with an end on another book's map
 is not laid. The Adventure keeps the world's scene and Region ids, which are
-the ids it imports under.
+the ids it imports under. Its import brings the laid ends with their scenes
+and writes to no map the world holds, so a held map's ends still name the
+Regions they named when the Adventure was built until the pass re-points
+them.
 
 ### A region's places
 

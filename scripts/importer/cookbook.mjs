@@ -5763,15 +5763,20 @@ async function joinLinks(counts) {
 
 /**
  * The link pass alone (`joinLinks`), as the map step runs it after its last
- * map: for a world whose maps are all made already, or when a later book's
- * import gave a waiting link its other end.
+ * map: for a world whose maps are all made already, when a later book's
+ * import gave a waiting link its other end, or after an Adventure's import,
+ * which makes maps without it.
+ * @param {object} [options]
+ * @param {boolean} [options.quiet] notify only where a Region was made,
+ *   repaired or refused
  * @returns {Promise<object|undefined>} the link counts, with `created.regions`
  *   naming each Region it made
  */
-export async function cookbookImportLinks() {
+export async function cookbookImportLinks({ quiet = false } = {}) {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates regions).`);
   const counts = { ...linkCounts(), created: { regions: [] } };
   await joinLinks(counts);
+  if (quiet && !counts.links && !counts.linksRepaired && !counts.linksRefused) return counts;
   const parts = linkParts(counts).filter(Boolean);
   ui.notifications[counts.linksRefused ? "warn" : "info"](`${MODULE_ID} | maps: ${parts.join(", ") || game.i18n.format(`${LANG_PREFIX}.ui.scenesLinksMade`, { n: 0 })}.`);
   return counts;
