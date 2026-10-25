@@ -3043,8 +3043,35 @@ export const TABLE_RECIPES = {
   // revenue figure and its two signed counts. The table spans both print
   // columns, so the page is read as one stream.
   demand: {
-    source: { book: "ACKS II Judges Journal", pages: "JJ 201" },
+    source: { book: "ACKS II Judges Journal", pages: "JJ 201, 203" },
     tables: {
+      // Range of Trade (JJ ch. 6 Step 7E): how far a market of each class
+      // trades by road and by water. One row per class, in print order from
+      // the smallest market up, so each spec claims the row below the last;
+      // the small-caps label face splits "c" from "lass" and sets the numeral
+      // in mixed case. Both cells stay raw for markets to read the miles from.
+      rangeOfTrade: {
+        shape: "gridRows",
+        book: "jj",
+        printedPage: 203,
+        locate: "Range of Trade",
+        startAfter: "(Water)",
+        labelMaxX: 120,
+        minCells: 2,
+        cellColumns: [
+          { key: "road", x: 131, w: 85, row: true, pattern: "raw" },
+          { key: "water", x: 222, w: 85, row: true, pattern: "raw" },
+        ],
+        rows: [
+          { key: 6, labelRe: "^c\\s*lass\\s*v\\s*i$" },
+          { key: 5, labelRe: "^c\\s*lass\\s*v$" },
+          { key: 4, labelRe: "^c\\s*lass\\s*i\\s*v$" },
+          { key: 3, labelRe: "^c\\s*lass\\s*i\\s*i\\s*i$" },
+          { key: 2, labelRe: "^c\\s*lass\\s*i\\s*i$" },
+          { key: 1, labelRe: "^c\\s*lass\\s*i$" },
+        ],
+        emit: { container: "rows", keyField: "marketClass" },
+      },
       landRevenueProse: {
         shape: "proseValues",
         book: "jj",

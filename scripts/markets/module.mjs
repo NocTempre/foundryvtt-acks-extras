@@ -58,6 +58,7 @@ import { openCommissionDialog, CommissionDialog } from "./apps/commission-dialog
 import * as arbitrageRules from "./rules/arbitrage.mjs";
 import * as demandRules from "./rules/demand.mjs";
 import { writeDemand, applyGenerated } from "./engine/demand.mjs";
+import { rangeOfTradeFor } from "./engine/printed.mjs";
 import { openDemandGenerator, DemandGenerator } from "./apps/demand-generator.mjs";
 import { buildMagicPanel } from "./apps/magic-panel.mjs";
 // Registers the merchandise Item sub-type, its sheet and its setting at init.
@@ -125,7 +126,7 @@ Hooks.once("setup", () => {
     ]);
     acksExtras.lib?.tables?.expectTables?.("magicItems", ["transactionsByMarketClass", "priceProse", "identifyProse"]);
     acksExtras.lib?.tables?.expectTables?.("construction", ["wageAndConstructionRates"]);
-    acksExtras.lib?.tables?.expectTables?.("demand", ["landRevenueProse"]);
+    acksExtras.lib?.tables?.expectTables?.("demand", ["landRevenueProse", "rangeOfTrade"]);
   } catch (err) {
     console.warn(`${MODULE_ID} | markets expectTables failed`, err);
   }
@@ -211,6 +212,8 @@ Hooks.once("setup", () => {
     applyGenerated,
     openDemandGenerator,
     DemandGenerator,
+    // trade routes: a market class's Range of Trade, {road, water} in miles, or null while the table is unread
+    rangeOfTradeFor,
     // rules (pure)
     rules: { ...availabilityRules, ...pricingRules, imports: importRules, commissions: commissionRules, arbitrage: arbitrageRules, demand: demandRules, reports: reportRules },
   };

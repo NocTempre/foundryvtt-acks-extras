@@ -34,8 +34,8 @@ profiles) shipped in 9.2.0 and are described in MODEL.
 - The Trade Network window: routes, suggest-from-map (battlemap roads and hex
   routes with location tokens), the derived matrix with a trace, class
   events.
-- Table recipes: `demand.rangeOfTrade` (JJ 203), `campaign.commerceEvents`
-  (JJ 111).
+- Table recipe: `campaign.commerceEvents` (JJ 111). The Range of Trade
+  table and its reader are built (MODEL, Range of Trade).
 - Recompute writes `goods.demandDerived` on the primary GM only, debounced,
   per component, on route create/update/delete, on a location update to
   class, families, events, base, overrides or profile (never to the derived

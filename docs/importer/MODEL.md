@@ -525,6 +525,14 @@ printed, so both arrive by import from the Judge's copy and are registered
 through the settlement feature's table expectations (`docs/formation/MODEL.md`,
 "The gate action" ROADMAP).
 
+The `demand` rules-table document carries `rangeOfTrade` beside the
+land-revenue window: a `gridRows` recipe over the Range of Trade table (JJ ch.
+6 Step 7E, JJ 203), one row per market class keyed `marketClass`, its road and
+water cells kept raw. The rows are declared in print order, smallest market
+first, because each spec claims the first matching row below the one before
+it. It registers at the world layer with every rules table, and markets reads
+it (`docs/markets/MODEL.md`, "Range of Trade").
+
 ## A point of interest
 
 The points-of-interest step (`cookbookImportPoiPlaces`) brings location actors

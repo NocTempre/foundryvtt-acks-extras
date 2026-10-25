@@ -14,7 +14,8 @@
 - **Trade routes and demand equalisation (P3)**: route Items (network and
   steady), the suggest-from-map helper, JJ Ch6 Step 7E over the base layer,
   timed class events, and the steady route's impact and price step (a
-  mercantile network itself is built: MODEL, Known markets and Ventures).
+  mercantile network itself is built: MODEL, Known markets and Ventures; so
+  is the Range of Trade table's import and reader: MODEL, Range of Trade).
   `goods.demandDerived` is reserved for it and unread until then.
 - **A disreputable venturer loses the network** (RR ch. 2, Venturer, Access
   to Capital): nothing records a missed interest payment, so the network

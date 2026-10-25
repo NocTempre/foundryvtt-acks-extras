@@ -24,6 +24,7 @@ import { isMissingRow, missingRowKeys } from "../../scripts/lib/tables.mjs";
 import { parseCell } from "../../scripts/markets/rules/availability.mjs";
 import { parseStones, parseTollCpPerSt, parseTariffPct, parseStayFee, diceRange } from "../../scripts/markets/rules/arbitrage.mjs";
 import { parseMoneyCp } from "../../scripts/markets/rules/commissions.mjs";
+import { parseMiles } from "../../scripts/markets/rules/routes.mjs";
 import { FILES } from "./reference-lib.mjs";
 
 /** The tables under test, by recipe document. Each is one entry of `TABLE_RECIPES`. */
@@ -36,6 +37,8 @@ const TABLES = {
     "moorageRates",
   ],
   construction: ["wageAndConstructionRates"],
+  // The trade routes' reach: a road and a water distance per market class.
+  demand: ["rangeOfTrade"],
   settlement: ["marketClassByFamilies"],
   // The influence roller's two morale pages: a result column and a modifier
   // list each, every modifier with the wording of its own row.
@@ -186,6 +189,15 @@ const VERIFY = {
         if (!fee) fail(`row ${r.kind}: ${col.key} does not parse through parseStayFee`);
         // Only a ship's berth is priced by size; any other cell with a unit welded a neighbour in.
         else if ((fee.perShp !== null) !== (r.kind === "ship" && col.key === "berth")) fail(`row ${r.kind}: ${col.key} ${fee.perShp === null ? "lacks" : "carries"} a per-shp unit`);
+      }
+    }
+  },
+  "demand.rangeOfTrade": (out, recipe, fail) => {
+    for (const r of declaredRows(out, recipe, fail)) {
+      for (const col of recipe.cellColumns) {
+        if (!(parseMiles(r[col.key]) > 0)) fail(`row ${r.marketClass}: ${col.key} does not parse through parseMiles to a distance above zero`);
+        // One distance per cell: a second unit is a neighbouring cell welded in.
+        else if ((String(r[col.key]).match(/miles/gi) ?? []).length !== 1) fail(`row ${r.marketClass}: ${col.key} does not hold exactly one distance`);
       }
     }
   },

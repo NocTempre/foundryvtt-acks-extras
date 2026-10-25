@@ -4,10 +4,13 @@
  * its own cell pattern. No page is read; the runs are laid out the way the
  * printed tables set them (a label column, result text beside it, some
  * results over two lines with the label on either). Also the band, rate and
- * list cell patterns, on invented cells.
+ * list cell patterns, on invented cells, and the shipped Range of Trade
+ * recipe on a page of invented figures laid out as the book sets it.
  */
 import assert from "node:assert";
 import { applyCellPattern, extractTable } from "../../scripts/importer/table-extract.mjs";
+import { TABLE_RECIPES } from "../../scripts/importer/table-recipes.mjs";
+import { parseMiles } from "../../scripts/markets/rules/routes.mjs";
 
 let pass = 0;
 const check = (label, cond) => { assert.ok(cond, label); pass++; };
@@ -106,5 +109,40 @@ check("one rate is both ends, silver read as gp", rate("6sp/ cart") === '{"min":
 check("a word for a rate is null", applyCellPattern("Ask", "gpRate") === null);
 check("a signed list reads each figure", JSON.stringify(applyCellPattern("+2/+4", "signedList")) === "[2,4]" && JSON.stringify(applyCellPattern("−5", "signedList")) === "[-5]");
 check("a list with a word in it is no list", applyCellPattern("+2/some", "signedList") === null);
+
+/* --- the shipped Range of Trade recipe on invented runs ---------------------- */
+// The page's layout with invented figures: a two-line header, then one row per
+// class from the smallest market up, each label split by the small-caps face
+// ("c" + "lass" + a mixed-case numeral) and two cells of miles and hexes. A
+// run from the other print column shares one row's baseline.
+const at = (str, x, y, w) => ({ str, x, y, w, h: 9 });
+const RANGE_ROWS = [
+  [[["c", 76.1, 5.3], ["lass", 81.3, 12.1], ["v", 95.3, 5.4], ["I", 100.6, 2.1]], "23 miles (4 hexes)", "71 miles (12 hexes)"],
+  [[["c", 76.1, 5.3], ["lass", 81.3, 12.1], ["v", 95.3, 5.4]], "5 miles (1 hexes)", "140 miles (23 hexes)"],
+  [[["c", 76.1, 5.3], ["lass I", 81.3, 16.1], ["v", 97.4, 5.4]], "88 miles (15 hexes)", "12 miles (2 hexes)"],
+  [[["c", 76.1, 5.3], ["lass III", 81.3, 20.5]], "301 miles (50 hexes)", "47 miles (8 hexes)"],
+  [[["c", 76.1, 5.3], ["lass II", 81.3, 18.3]], "9 miles (2 hexes)", "1,020 miles (170 hexes)"],
+  [[["c", 76.1, 5.3], ["lass I", 81.3, 16.1]], "64 miles (11 hexes)", "333 miles (56 hexes)"],
+];
+const rangePage = [
+  at("Range of Trade", 72, 160.5, 81.7),
+  at("Market", 76.5, 176.3, 31.2), at("r", 132.2, 176.3, 5.3), at("ange of", 137.5, 176.3, 31.7), at("t", 171.3, 176.3, 5.4), at("rade", 176.1, 176.3, 19.3),
+  at("r", 223.1, 176.3, 5.3), at("ange of", 228.5, 176.3, 31.7), at("t", 262.2, 176.3, 5.4), at("rade", 267, 176.3, 19.3),
+  at("c", 76.5, 186.3, 5.8), at("lass", 82.3, 186.3, 16.7), at("(", 132.2, 186.3, 3.3), at("r", 135.4, 186.3, 5.3), at("oad)", 140.7, 186.3, 19.3), at("(Water)", 223.1, 186.3, 32.2),
+  ...RANGE_ROWS.flatMap(([label, road, water], i) => {
+    const y = 199.5 + i * 11.3;
+    return [...label.map(([s, x, w]) => at(s, x, y, w)), at(road, 131.8, y, 66), at(water, 222.7, y, 68)];
+  }),
+  at("19 miles across the other column", 330, 210.8, 200),
+];
+const rangeOfTrade = TABLE_RECIPES.demand.tables.rangeOfTrade;
+const ranges = extractTable(rangePage, rangeOfTrade).rows;
+check("every class row is read, smallest market first", JSON.stringify(ranges.map((r) => r.marketClass)) === "[6,5,4,3,2,1]");
+check("no class row reads missing", ranges.every((r) => !r.__missing));
+check("each row holds its class and two cells, nothing more", ranges.every((r) => Object.keys(r).sort().join() === "marketClass,road,water"));
+check("the road cell keeps its printed text", ranges[0].road === "23 miles (4 hexes)");
+check("each cell reads as its own row's miles", JSON.stringify(ranges.map((r) => [parseMiles(r.road), parseMiles(r.water)])) ===
+  JSON.stringify([[23, 71], [5, 140], [88, 12], [301, 47], [9, 1020], [64, 333]]));
+check("the other print column never joins a cell", !ranges.some((r) => /across/.test(r.road + r.water)));
 
 console.log(`test-grid-rows: all ${pass} checks passed`);

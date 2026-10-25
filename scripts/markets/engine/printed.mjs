@@ -20,7 +20,8 @@ import { numOrNull } from "../../lib/util.mjs";
 import { tiersNamed } from "../rules/identification.mjs";
 import { stepFractionOf } from "../rules/pricing.mjs";
 import { diceRange, parseStayFee } from "../rules/arbitrage.mjs";
-import { isMissingRow } from "../../lib/tables.mjs";
+import { parseMiles } from "../rules/routes.mjs";
+import { findRow, isMissingRow } from "../../lib/tables.mjs";
 import { merchandiseFor } from "./merchandise.mjs";
 
 /** A prose table is a flat object of keys; anything else is not one. */
@@ -156,6 +157,25 @@ export function stayRates() {
     if (berth && anchor) out[row.kind] = { berth, anchor };
   }
   return out;
+}
+
+/* ------------------------------- trade routes ------------------------------- */
+
+/**
+ * A market class's Range of Trade (JJ ch. 6, Step 7E): `{road, water}` in
+ * miles, or null when the table is not imported, the class has no row, or
+ * either cell does not read as miles. The class is taken as given, never
+ * clamped: a class the table does not print has no range.
+ * @param {number|string} marketClass
+ * @returns {{road: number, water: number}|null}
+ */
+export function rangeOfTradeFor(marketClass) {
+  const rows = optTable("demand", "rangeOfTrade")?.rows;
+  if (!Array.isArray(rows)) return null;
+  const row = findRow(rows, (r) => Number(r.marketClass) === Number(marketClass));
+  const road = parseMiles(row?.road);
+  const water = parseMiles(row?.water);
+  return road !== null && water !== null ? { road, water } : null;
 }
 
 /**

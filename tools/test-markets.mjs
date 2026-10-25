@@ -679,6 +679,16 @@ assert.strictEqual(parseMoneyCp("-"), 0, "unreadable money is zero");
         ],
       },
     },
+    demand: {
+      rangeOfTrade: {
+        rows: [
+          { marketClass: 6, road: "17 miles (3 hexes)", water: "41 miles (7 hexes)" },
+          { marketClass: 5, road: "1,250 miles", water: "9" },
+          { marketClass: 4, road: "29 hexes", water: "33 miles" },
+          { __missing: true, marketClass: 3 },
+        ],
+      },
+    },
   };
   globalThis.acksExtras = {
     lib: {
@@ -722,6 +732,20 @@ assert.strictEqual(parseMoneyCp("-"), 0, "unreadable money is zero");
     "the daily rates by kind; a row with an unread cell and a missing-row placeholder are left out"
   );
 
+  assert.deepStrictEqual(printed.rangeOfTradeFor(6), { road: 17, water: 41 }, "a class's range by road and by water, in miles");
+  assert.deepStrictEqual(printed.rangeOfTradeFor("5"), { road: 1250, water: 9 }, "a class given as a string; a grouped figure and a bare one both read");
+  assert.strictEqual(printed.rangeOfTradeFor(4), null, "a cell in another unit is no range");
+  assert.strictEqual(printed.rangeOfTradeFor(3), null, "a missing-row placeholder is no range");
+  assert.strictEqual(printed.rangeOfTradeFor(1), null, "a class the table holds no row for has no range");
+  assert.strictEqual(printed.rangeOfTradeFor(7), null, "a class past the table is not clamped onto its last row");
+  assert.strictEqual(printed.rangeOfTradeFor(null), null, "no class, no range");
+  const ranges = STORE.demand.rangeOfTrade;
+  delete STORE.demand.rangeOfTrade;
+  assert.strictEqual(printed.rangeOfTradeFor(6), null, "the demand document without the table has no range");
+  STORE.demand.rangeOfTrade = { rows: "none" };
+  assert.strictEqual(printed.rangeOfTradeFor(6), null, "a table with no row list has no range");
+  STORE.demand.rangeOfTrade = ranges;
+
   const id = printed.identification();
   assert.strictEqual(id.researchCasterLevel, 9, "the research caster level");
   assert.deepStrictEqual([...id.engineeringTiers].sort(), ["legendary", "veryRare"], "the tiers named by the imported window");
@@ -742,10 +766,28 @@ assert.strictEqual(parseMoneyCp("-"), 0, "unreadable money is zero");
   assert.strictEqual(printed.negotiation(), null, "no registry document, no profile");
   assert.strictEqual(printed.tariffDice(), null, "no registry document, no dice");
   assert.strictEqual(printed.stayRates(), null, "no registry document, no rates");
+  assert.strictEqual(printed.rangeOfTradeFor(6), null, "no registry document, no range");
   assert.deepStrictEqual(printed.identification(), { researchCasterLevel: null, engineeringTiers: null, dabblingBackfire: null }, "no registry document, every threshold null");
   assert.strictEqual(printed.stepFractionFor("salt"), null, "no registry document, no step");
   delete globalThis.acksExtras;
   delete globalThis.game;
+}
+
+// ---- a Range of Trade cell as miles ----
+{
+  const { parseMiles } = await import(new URL("../scripts/markets/rules/routes.mjs", import.meta.url));
+  assert.strictEqual(parseMiles("23 miles (4 hexes)"), 23, "the figure before miles, the hexes beside it ignored");
+  assert.strictEqual(parseMiles("2,345 miles"), 2345, "a grouped figure");
+  assert.strictEqual(parseMiles("13 mi"), 13, "an abbreviated unit");
+  assert.strictEqual(parseMiles(" 31 "), 31, "a bare figure is miles");
+  assert.strictEqual(parseMiles(0), 0, "a stored zero is a range of none, not an absent one");
+  assert.strictEqual(parseMiles("11 hexes"), null, "another unit is no range");
+  assert.strictEqual(parseMiles("about 19 miles"), null, "a cell that does not open with its figure is no range");
+  assert.strictEqual(parseMiles("37 miles or more"), 37, "trailing words after the unit do not stop the read");
+  assert.strictEqual(parseMiles(-5), null, "a negative stored figure is no range");
+  assert.strictEqual(parseMiles(Number.NaN), null, "a non-number is no range");
+  assert.strictEqual(parseMiles(""), null, "an empty cell is no range");
+  assert.strictEqual(parseMiles(undefined), null, "no cell is no range");
 }
 
 // ---- the venture queue: duplicates, withdrawal, the page's bands ----

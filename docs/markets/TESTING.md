@@ -1048,6 +1048,38 @@ A roster of the run's own holds T alone, removed by its id at the end.
 the characters, D, both markets and the cards; the roster is removed by its
 id, and `restore` removes the hook and the table layer on each seat.
 
+## The Range of Trade reader
+
+Walked by hand. Nothing is written to the world: a world whose `demand`
+document was imported before the table's recipe holds no `rangeOfTrade`, and
+this walk reads the table off the connected book instead of re-importing over
+the world's document, as the moorage walk does.
+
+**Fixtures:** none. A GM or Assistant GM seat with the Judges Journal
+connected (`acksExtras.importer.connectBookUrl("jj", <staged path>, {remember:
+false, bridge: false})`). `acksExtras.importer` attaches a few seconds after
+`ready`, so poll for it rather than reading it once.
+
+1. Read the table through the shipped recipe
+   (`TABLE_RECIPES.demand.tables.rangeOfTrade`, `locatePageNumber`,
+   `pageItems`, `extractTable`, each imported from
+   `/modules/acks-extras/scripts/importer/`).
+   *Observable:* six rows, `marketClass` 6 down to 1, none `__missing`, each
+   holding `road` and `water` text.
+2. Register it as an in-memory layer on this seat:
+   `acksExtras.lib.tables.registerTable({id: "demand", tables: {rangeOfTrade}},
+   {priority: 31, source: "qa-range"})`.
+   *Observable:* `acksExtras.markets.rangeOfTradeFor(c)` answers
+   `{road, water}`, two positive numbers, for each class 1–6, and the figures
+   match your own copy's page (compare there; never into a report).
+   `rangeOfTradeFor(0)` and `rangeOfTradeFor(7)` answer `null`.
+3. Unregister the layer (`unregisterTable("demand", {priority: 31})`).
+   *Observable:* the reader answers what the world holds again: `null` for
+   every class in a world imported before the recipe.
+
+**Teardown:** the layer, if step 3 did not run; it never persists past a
+reload.
+
 ## The manifest and load-removal API
 
 **Fixtures:** a character holding a merchandise load stack (invented category

@@ -28,7 +28,7 @@ writer. One writer path: the GM-routed socket handlers in
 No availability value, price step, or transaction count ships in this repo.
 Tables arrive per world through acks-importer (`availability.
 equipmentAvailability`, `mercantile.merchandiseTypes`,
-`magicItems.transactionsByMarketClass`) and are read at runtime through the
+`magicItems.transactionsByMarketClass`, `demand.rangeOfTrade`) and are read at runtime through the
 lib tables registry; `expectTables` declarations generate fillable
 placeholders for GMs without the books.
 
@@ -490,6 +490,20 @@ table's; `rules/demand.mjs` carries the shape only. The age-band labels are
 the world setting `marketsDemandAgeHeaders`, written by the merchandise import
 (JJ 202), falling back to "Age band N". A good with no environment data shows
 B as a dash and takes A, C and D alone. Nothing is written until Apply.
+
+### Range of Trade
+
+`rangeOfTradeFor(marketClass)` (`engine/printed.mjs`, published on
+`acksExtras.markets`) answers how far a market of that class trades, as
+`{road, water}` in miles. It reads the imported `demand.rangeOfTrade` (JJ ch. 6
+Step 7E, JJ 203; the recipe is in `scripts/importer/table-recipes.mjs`), one
+row per class keyed `marketClass`, whose two cells arrive as printed and are
+read by `parseMiles` (`rules/routes.mjs`): the figure that opens the cell, bare
+or before "miles". It answers `null` when the table is not imported, the class
+has no row, or either cell does not read as miles, and never a default. The
+class is not clamped, so a class the table does not print has no range.
+Nothing in this feature acts on a range yet; route qualification and
+equalisation are ROADMAP (P3).
 
 ## Setting-book market profiles
 
