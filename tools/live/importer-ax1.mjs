@@ -1574,6 +1574,10 @@ try {
         && after.filter((x) => x.scene === there?.scene).length === before,
       { asked, at: shown(after.filter((x) => x.uuid === start.uuid)) });
   }
+  // Gone now, by this run's own uuids, so no shot below shows a token over
+  // the end it reached and 3b's deletes and imports meet none.
+  const left2e = (await pcTokens()).map((t) => ({ uuid: t.uuid, kind: "Token" }));
+  if (left2e.length) note("2e: the pc's tokens, removed", JSON.parse(await gm.eval(pageSweep(left2e))));
   // Each end on a walled plan, framed on the GM's canvas, to read by eye that
   // it lies on its drawn way and is open to the floor beside it.
   for (const [n, e] of LINKS.entries()) {
@@ -1585,9 +1589,6 @@ try {
       await run(gm, P.showInterface);
     }
   }
-  // Gone now, by this run's own uuids, so 3b's deletes and imports meet none.
-  const left2e = (await pcTokens()).map((t) => ({ uuid: t.uuid, kind: "Token" }));
-  if (left2e.length) note("2e: the pc's tokens, removed", JSON.parse(await gm.eval(pageSweep(left2e))));
 
   section("3. AX1's Adventure carries its places beside its maps");
   const before = await run(gm, P.library, { book: BOOK });
