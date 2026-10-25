@@ -4518,3 +4518,42 @@ system sheet's Hirelings grid (`hirelings-grid.mjs`) renders the card with
 `controls` on for every seat the system sheet opens for, as before. The
 release shots `docs/releases/v10.1.0/lib-follower-card.png` and
 `henchmen-wages.png` show the old card and are retaken at the next release.
+
+### A staging pick is restored by the window, not stored (2026-10-25)
+
+A control an action reads when its button is pressed, and that nothing
+stores, came back on its first option (or empty) after any redraw: core
+submits a submit-on-change form on a change to ANY control in it, named or
+not, and every write the feature makes redraws the window. A reporter met it
+on the party sheet's torch bearer; the sweep after found six more windows of
+the same shape.
+
+**Ruled.**
+- Such a control carries `data-pick="<key>"` and no `name`. `picks.mjs`
+  reads every pick out of the part being replaced and writes it into its
+  replacement from `_preSyncPartState` / `_syncPartState`, and keeps a
+  pick's change from the form's submit. `PicksMixin` is the three on one
+  window; the party sheet carries the two sync overrides inline, from before
+  the mixin.
+- A value the redrawn select no longer offers is not restored; the select
+  keeps the template's default.
+- A pick repeated per row carries the row's key, since one key restores one
+  value.
+- The group sheet's `stopPropagation` on its count, cited in the
+  label-binding entry above as "the deploy-count guard", is replaced by the
+  mixin.
+
+**Rejected.**
+- *A `name` on the control.* It writes an unrecognised path on every change,
+  the label-binding entry's reason.
+- *The pick rendered back from the context.* It needs the pick stored
+  somewhere between renders, on the instance or the document, for a value
+  that has no meaning after its button is pressed; each window grows its own
+  copy of the same state.
+
+**Cost.** A restore writes `value` and fires no change event, so a window that
+shows or hides something by a pick's value sets it in `_onRender` as well
+(the storage manager's name box). Fields that render prefilled from the
+stored record (the named panel's rename, true name, ladder and unlocked) are
+not picks yet: an unconditional restore would write a stale value over a
+newer stored one.
