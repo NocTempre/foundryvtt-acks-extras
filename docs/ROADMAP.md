@@ -209,3 +209,22 @@ beside it, and `validate.mjs` calls the gate instead of each repo's
 `validate-extra`.
 
 ---
+
+## Live walks keep their fixtures
+
+`.claude/rules/live-testing.md` step 4 keeps a fixture once built and deletes
+one only where setup is the subject. Every walk in `tools/live/` still builds
+its fixtures afresh and sweeps them all in its `finally`, and each recipe's
+fixtures and teardown lines describe that. Owed:
+
+- a capture-driver helper that finds a fixture by its marker
+  (`flags.world.fixture`) or builds and marks it, in acks-module-template's
+  `bin/foundry-capture.mjs`, so no walk spells the lookup itself;
+- each walk converted to find-or-build, with its sweep kept only for the
+  sections whose subject is setup (importer first runs, create hooks, delete
+  paths, pre-upgrade shapes), and each step that needs a known shape
+  asserting it at its start;
+- each recipe's fixtures section naming its markers, and its teardown lines
+  cut to the setup sections.
+
+---

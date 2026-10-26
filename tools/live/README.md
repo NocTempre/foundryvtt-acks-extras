@@ -37,8 +37,11 @@ owner's word.
 
 - imports the driver from `./_driver.mjs` and its seats and paths from
   `./_env.mjs`, and names no path, port, world, user or book of its own;
-- creates what it needs and sweeps it by id (`api.create`, `api.track`,
-  `api.sweepTracked`), and restores in a `finally` any setting it flipped;
+- creates what it needs by id (`api.create`, `api.track`) and sweeps it all
+  in a `finally` (`api.sweepTracked`), where live-testing step 4 keeps a
+  fixture and sweeps only a section whose subject is setup (ROADMAP, "Live
+  walks keep their fixtures"); it restores in a `finally` any setting it
+  flipped;
 - invents its fixtures, compares an imported figure in page and prints a
   boolean, and never prints a book's words;
 - prints `== <section> ==` per recipe section, `PASS  <observable>  <detail>`
