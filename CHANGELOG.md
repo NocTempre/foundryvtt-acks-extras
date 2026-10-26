@@ -1,5 +1,29 @@
 # Changelog
 
+## 11.10.1
+
+### Fixed
+
+- **A party whose fight is over counts turns and deploys again.** If you
+  toggled every party fighter out of the combat tracker, or deleted the combat
+  while no GM window was running the party automation, the party stayed "in
+  combat". Its moves billed no dungeon turns, and adding it to a new combat
+  quietly took it back out. Now the party's next drag puts it back in
+  formation where it stands and bills the move, and adding it to a combat
+  re-forms it first, then deploys. A world already stuck this way recovers on
+  its first drag after the upgrade.
+- **Form Up gathers a party whose fight is over.** It re-forms the party,
+  then puts it in the saved marching order. A party with a fighter still in
+  any tracker is refused as before.
+- **Adding the party to a combat while it is still fighting says so.** The
+  GMs get a whisper naming the encounter it is fighting in, instead of the
+  party token silently leaving the tracker.
+- **A party deployed into a combat already under way counts rounds from
+  that combat's round,** so the dungeon clock bills only the rounds after it
+  joined.
+- **A deploy lays the block where the party token is stored,** not part way
+  along a move still being drawn on screen.
+
 ## 11.10.0
 
 ### Added
