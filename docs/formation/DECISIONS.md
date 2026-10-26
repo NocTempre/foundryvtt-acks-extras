@@ -3951,6 +3951,8 @@ by a flows scenario that failed on the code before this entry:
   (`gatheredBy`, `combat-bridge.mjs`). Such a member is evidence of the deploy
   without the record's `combat` flag. Besides that flag, the party counts as
   already fighting only through a member a combat still running took over.
+  *Superseded in part by "A fight no combat holds a body of is over"
+  (2026-10-26): the party is fighting only while a combat holds a body.*
 - A member left behind is out of the fight, as a detached member on another
   scene is (`outOfTheFight`): no combatant, not taken over, not gathered. The
   Judge can still add their token to the combat. The user's ruling, from the
@@ -3996,7 +3998,8 @@ by a flows scenario that failed on the code before this entry:
   stays on the map until some combat ends, as before. If the party is
   fighting another combat by then and that member was not taken over again
   (left behind meanwhile, or a Non-combatant), an unrelated combat's end
-  re-forms the party mid-fight.
+  re-forms the party mid-fight. *Retired by "A fight no combat holds a body
+  of is over" (2026-10-26): the party's next move or deploy gathers them.*
 - An old record still reads its takeover from who is on the map: a member
   taken over before the field and marked left mid-combat stays on the map
   when that combat ends.
@@ -4285,3 +4288,104 @@ reclassified domain writes, so the party kept the old class until it moved.
   and its clear restored the domain's source; clearing the class fell to the
   scene default, sourced "scene". The sweep removed the region, the token,
   both actors and the scene, found none missing and was refused none.
+
+## 2026-10-26 — A fight no combat holds a body of is over
+
+**Evidence.** T-0333 and T-0334: a delve that stopped billing turns, and a
+party that would not deploy for a fight. Both were reproduced live on 11.10.0,
+in two ways, and each way left the record's `combat` flag standing with no
+fight behind it:
+- the GM toggled every deployed fighter out of the encounter with the token
+  HUD. The Combat document stays, so no end is heard;
+- a combat was deleted where no automation window heard `deleteCombat`, so the
+  flag names a combat no longer in the world.
+
+While the flag stands, the turn engine skips every move, and a new combat's
+deploy deleted the party's combatant and posted nothing. The 2026-10-17 entry's
+Cost named only the members left on the map ("until some combat ends"). It did
+not know that the flag also stops the clock and every later deploy.
+
+**Ruled.** The user ruled the timing: "a party whose open encounter holds none
+of its fighters (or whose encounter is gone) re-forms on its next drag or
+deploy".
+- **Fighting is read from the trackers** (`fightingIn`, `combat-bridge.mjs`).
+  The party is fighting only while some combat in the world holds a combatant
+  whose token is a body of a member a combat took over. A body is identified
+  by `standsAs` (`deployment.mjs`): an individual's own token on its scene, a
+  stack's by its group flag, never by actor. Any combat counts, not only the
+  record's, so a fight the GM moved into another encounter is still a fight.
+- **A tie with no fight is over** (`reformIfOver`): the flag or a member's
+  takeover names a combat, and no combat holds a body. The party reforms as
+  that combat's end would have, with the Combat, or with `{id}` for one that
+  is gone.
+- **On a move it reforms in place**, in the move's turn (`journey.mjs`
+  `dispatchPartyTokenMoved`, on the primary window, in every travel mode). The
+  party token stays where the move put it and the clock's baseline where it
+  was, so the move is billed as dragged.
+- **On a deploy it reforms as an end would**: the token and the baseline go
+  to where the first gathered body stood, then the party deploys afresh. A
+  deploy into a combat already under way counts its rounds from the combat's
+  round, not from 0.
+- **The refusal says why.** A party still fighting has its new combatant
+  removed, and the GMs get a whisper naming the encounter: its name, else its
+  place among the encounters on the party's scene, else the scene.
+- **One formation's combat work runs at a time** (`oneAtATime`): a deploy, a
+  heard end and a heal each read the record fresh and wait for the one before.
+  A deploy records its takeover before its combatants exist, which a heal
+  running beside it would read as a fight already over.
+- **The deploy lays the block at the party token's stored corner**
+  (`_source`), never at a drawn move's tween.
+
+**Rejected.**
+- *Reform when the last fighter leaves the tracker* (`deleteCombatant`;
+  moderate). It would also clear the sheet's "in combat" at once. But a combat
+  deleted unheard sends no event, so the lazy heal is needed anyway. It would
+  also gather the bodies on a removal the GM may be about to undo, against the
+  ruled timing.
+- *Reform at the fighters on a move*: it undoes the GM's drag with a second
+  write.
+- *Read only the record's combat*: a fight moved into another encounter would
+  be gathered mid-fight.
+- *Match bodies by actor*: an unlinked member shares its actor with every token
+  placed from it.
+- *Heal outside the move queue*: two quick moves would both recall the same
+  bodies.
+- *Heal in the turn engine*: the import is circular, and a journey would never
+  heal.
+- *Take the bodies over in place on a re-deploy* (moderate). Positions are
+  kept, but a member whose body is gone is never sent out again, and the old
+  fight's fallen are never gathered.
+- *Give the party actor surprise data* (T-0335, which a party combatant left
+  in the tracker throws): the party would join the surprise throw as an
+  opponent with no modifier. That fix is separate.
+
+**Cost.**
+- Until the next move or deploy the record still reads "in combat". The party
+  sheet's warning and detach, Form Up, a relayed leave-behind and the map
+  session all refuse as before (ROADMAP, "Combat: a fight that is over").
+- A GM who clears every fighter out of every tracker, meaning to rebuild the
+  fight, and moves the camp first, loses the deployment. The bodies are
+  gathered, and their placement with them; their hit points come home in the
+  stash.
+- A flag lost while its combat runs reforms with the combat's whole round
+  count billed, as a heard end does.
+- The 2026-10-17 Cost's first bullet is retired: a member taken over by a
+  combat deleted unheard is gathered at the party's next move or deploy.
+
+- Pinned offline by nine flows scenarios, "a fight emptied of the party's
+  fighters is over at the party's next move" and the eight after it. Six fail
+  on the code before this entry. Six single edits in a scratch replica each
+  fail the scenario meant to catch them: only the record's combat read, no
+  stack branch in `standsAs`, no per-formation turn, the new flag counting
+  from round 0, a reform on a move that moves the token and the baseline,
+  and the block laid at the drawn corner.
+- Walked live after the fix on core 14.369, the Gamemaster alone on its seat
+  (TESTING, "A fight that is over", steps 1 to 4). Step 5's regression ran
+  the heard end only: another combat's end left the fight alone, and the
+  party's own end re-formed it. Every observable held. Step 3's whisper was
+  checked by its recipients (the GM seats, not the Player's), not from the
+  Player seat. The sweep removed 23 (4 actors, the scene, a combat and 17
+  chat cards), could not find 5 (the combats the steps deleted) and refused
+  none. The pane's console recorder ran from page load and recorded no error
+  through `ready` or during the walk. "A combat's takeover" steps 1 to 3 and
+  7 (the scout and the member left behind) ran offline only.

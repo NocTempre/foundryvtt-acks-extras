@@ -1,6 +1,6 @@
 /* global game, foundry */
-import { KEEP_HIT_POINTS_OPTION } from "../lib/constants.mjs";
-import { deployedBodies } from "../lib/group-logic.mjs";
+import { KEEP_HIT_POINTS_OPTION, MODULE_ID } from "../lib/constants.mjs";
+import { GROUP_FLAG, deployedBodies } from "../lib/group-logic.mjs";
 import {
   blockOrigin,
   cellPosition,
@@ -71,6 +71,21 @@ const holdsToken = (formation, member, tokenId, sceneId) =>
   !!tokenId && member?.deployedTokenId === tokenId && deployedSceneIdOf(formation, member) === sceneId;
 
 /**
+ * Is `token` one of this member's bodies on the map? An individual's own token
+ * on the scene it stands on (`holdsToken`); a stack's, any token carrying the
+ * stack's group. Never by actor: an unlinked member shares its actor with
+ * every other token placed from it.
+ */
+export function standsAs(formation, member, token) {
+  if (!token || !isMemberDeployed(member)) return false;
+  if (member.deployedStack) {
+    const group = getMemberActor(member);
+    return !!group?.uuid && token.getFlag?.(MODULE_ID, GROUP_FLAG) === group.uuid;
+  }
+  return holdsToken(formation, member, token.id, token.parent?.id);
+}
+
+/**
  * Every token on `scene` this member is standing on: one for an individual,
  * one per body for a stack, none for a member inside the party token, already
  * gone, or standing on another scene. A stack's bodies are found by
@@ -131,7 +146,10 @@ export async function deployMembers(formation, { members = formation.members, de
   // Read once and passed to every placement below — see docs/formation/MODEL.md,
   // "Which way the block points".
   const heading = formationHeading(formation);
-  const origin = blockOrigin(formation, scene, { x: partyToken.x, y: partyToken.y }, { heading });
+  // The stored corner: on a client drawing the party token, `x`/`y` are a
+  // move's tween, which starts at the corner the token is leaving.
+  const at = partyToken._source ?? partyToken;
+  const origin = blockOrigin(formation, scene, { x: at.x, y: at.y }, { heading });
 
   const toCreate = [];
   const stacked = [];

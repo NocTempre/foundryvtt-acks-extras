@@ -894,7 +894,8 @@ Gamemaster seat alone; no walk in `tools/live` covers it.
    `deployedCombatId` and keeps `left` and the same token.
 4. **The party token re-added is dropped.** Add the party token to the same
    combat again.
-   **Observable:** the combatants are those of step 3.
+   **Observable:** the combatants are those of step 3, and one card,
+   whispered to the GMs, names the encounter.
 5. **Another combat's end leaves the fight alone.** Create and delete another
    combat on A.
    **Observable:** `combat.active` is still true, the scout and the guard
@@ -916,6 +917,68 @@ Gamemaster seat alone; no walk in `tools/live` covers it.
 chat cards: track them as in "A detached member moved between scenes". The
 three combats, and the tokens the reform and the recall deleted, sweep as
 missing.
+
+## A fight that is over (added with the heal)
+
+Covers `fightingIn`, `reformIfOver` and the refusal's whisper
+(`combat-bridge.mjs`), the heal at the head of a move (`journey.mjs`
+`dispatchPartyTokenMoved`), and a deploy laid at the party token's stored
+corner (`deployMembers`). The Gamemaster seat is the primary GM, viewing the
+scene.
+
+**Fixtures**, each `api.create()`d or `api.track()`ed:
+- A delve scene on a feet grid, viewed by the seat.
+- Two `character` actors as members, and a `monster` with a token on the
+  scene as the enemy.
+- A party actor holding the two, its token on the scene.
+
+**Drive mechanics.**
+- Deploy: `TokenDocument.createCombatants([partyToken])`, the HUD's own call,
+  creates a combat when none is active. Read the combat back as the one
+  holding a member's actor, and `api.track()` it.
+- The HUD's toggle on a fighter:
+  `TokenDocument.deleteCombatants(memberTokens, {combat})`. It removes the
+  combatants and keeps the encounter.
+- A combat deleted where no automation window hears it: replace
+  `Hooks.callAll` with a wrapper that drops the first `deleteCombat`, delete
+  the combat, and restore `Hooks.callAll` in a `finally`.
+- A move: `partyToken.update({x}, {animate: false})`; the hidden pane does
+  not animate, and core's own move would never land.
+- Each step posts cards: read the run's new messages by id and `api.track()`
+  them.
+
+1. **Every fighter toggled out.** Deploy with the enemy in the combat, toggle
+   both fighters out, then move the party token one exploration move.
+   **Observable:** the record's `combat` is null, the members hold `tokenData`
+   and no `deployedTokenId` or `deployedCombatId`, and no member token stands.
+   The party token is visible at the move's end (`_source`). A re-formed card
+   posted, one move's turns are billed, and `clock.lastPosition` is the
+   move's end. The combat still stands with the enemy.
+2. **The party added again to that encounter.** Deploy into a new combat,
+   advance it to round 3, toggle both fighters out, and add the party token to
+   the same combat.
+   **Observable:** a re-formed card, then a deploy card. The record's `combat`
+   names that combat with `roundsCounted` 3. The combat holds one combatant
+   per member and none for the party token. The next round advances the clock
+   by one round.
+3. **One fighter still in.** Toggle one fighter out and move the party token.
+   **Observable:** no re-form and nothing billed. Then add the party token to
+   the combat: its combatant goes, and one card whispered to the GMs names
+   the encounter. From the Player seat no card shows.
+4. **A combat deleted unheard.** Deploy, then delete the combat with
+   `deleteCombat` dropped.
+   **Observable:** the record's `combat` still names it and
+   `game.combats.has(id)` is false. A move then re-forms the party as in step
+   1. Repeat with a deploy into a new combat in place of the move: the party
+   re-forms, then deploys into the new combat.
+5. **Regression.** "A combat's takeover", steps 1 to 7.
+
+Never Begin a combat whose tracker holds the party's own combatant: when no
+member deploys, that combatant stays, and the system's surprise throw fails
+on it (T-0335).
+
+**Teardown.** `api.sweepTracked()`. The combats a step deleted, and the
+tokens the reform and the recall deleted, sweep as missing.
 
 ## End day, the whole tick (added with survival and the throw)
 

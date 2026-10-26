@@ -539,3 +539,12 @@ The frame shipped first (MODEL, "The frame"). The redesign's later phases are
 | The strip's next-hex line | The design names the hex ahead of the party on the strip; nothing in the record says which way the party is heading. Under unknown country it would hide with the hex label. | a heading the party walks: the token's rotation, or the Judge's word. |
 | A player's pace with an unowned member | A player's strip prices the party at 0 when a member is not theirs: the system derives a character's encumbrance only on a client that owns it, and the party's speed is read from that derived field on whichever seat renders. | the pace read from the record, priced on the Judge's seat, or a relay that prices it there. |
 | The redesign's later phases | measure on the Judge's tab (phase 2; its brush layers, Country cards and override, the `travel.map` and `travel.override` records, the drawn hex on the plate, the `travel.shown` record, the believed hex and quiet navigation are built, MODEL "The country", "The plate", "Lost" and "The navigation throw"); the conveyance tiles and Fastest for all (phase 3); the day's boxes and their confirm, camp time's night rows, Make camp and Break camp (phase 4); the train's groups (phase 5); the sightings feed, its flags, reveal and count badges (phase 6); combat and night as gold states, and the Dungeon tab's own lights and spells sections (unscheduled). | each phase's own build. |
+
+## Combat: a fight that is over
+
+A party whose fight is over reforms at its next move or deploy (DECISIONS,
+"A fight no combat holds a body of is over").
+
+| Not built | What it is | What it needs first |
+|---|---|---|
+| The record read before the next move | Until that move or deploy, the party still reads "in combat": the sheet's warning and its detach, Form Up, a relayed leave-behind and the map session refuse. Form Up is the Judge's own re-form gesture. | a ruling: Form Up reforms too (`reformIfOver` at its head), or the readers ask whether the party is fighting. |

@@ -31,6 +31,7 @@ import {
   travelOf, traceStep, trueTravelOf,
 } from "./travel.mjs";
 import { beginEpisode, walkAstrayPath } from "./lost-episode.mjs";
+import { reformIfOver } from "./combat-bridge.mjs";
 import { shadowFor } from "./shadow.mjs";
 import { postNavigationThrow } from "./navigation-card.mjs";
 import { travelReadout } from "./formation-view.mjs";
@@ -87,9 +88,16 @@ export async function onPartyTokenMoved(tokenDoc, formationId, to = storedPositi
 /**
  * One move, spent: a journey whose Judge has paused it (`clock.pausedBy ===
  * "judge"`) bills nothing and follows the token; any other journey spends
- * miles; every other mode keeps the turn clock.
+ * miles; every other mode keeps the turn clock. On the primary window a party
+ * whose fight is over first reforms where the move put it
+ * (`reformIfOver`), in the move's turn, so a second move waiting behind it
+ * finds the party already reformed.
  */
 async function dispatchPartyTokenMoved(tokenDoc, formationId, to, primary) {
+  if (primary) {
+    const reforming = reformIfOver(formationId, { inPlace: true });
+    if (reforming) await reforming;
+  }
   const formation = getFormation(formationId);
   if (!formation) return null;
   if (travelOf(formation).mode !== "journey") return onTurnClockTokenMoved(tokenDoc, formationId, to);

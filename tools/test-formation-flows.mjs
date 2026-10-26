@@ -543,9 +543,14 @@ class CombatMock {
     this.id = uid("cmb");
     this.round = 0;
     this.combatants = new Coll();
+    this.creations = 0;
+    /** `{call, until}`: the `call`-th creation waits for the `until` promise. */
+    this.hold = null;
   }
   async createEmbeddedDocuments(type, arr) {
     assert.equal(type, "Combatant");
+    this.creations++;
+    if (this.hold?.call === this.creations) await this.hold.until;
     const out = [];
     for (const data of arr) {
       const combatant = new CombatantMock(this, data);
@@ -2216,11 +2221,12 @@ await scenario("a combat that ends with no one to gather re-anchors where a draw
     await drain();
     const fighter = onlyFormation().members.find((m) => m.actorId === walker.id);
     assert.ok(onlyFormation().combat?.active && fighter.deployedTokenId, "the party deployed for the fight");
-    await scene.deleteEmbeddedDocuments("Token", [fighter.deployedTokenId]);
-    await drain();
 
     const end = { x: partyToken.x + step, y: partyToken.y };
     await partyToken.update({ x: end.x });
+    await drain();
+    // Gone only now: a fight with no body left is over at the party's next move.
+    await scene.deleteEmbeddedDocuments("Token", [fighter.deployedTokenId]);
     await drain();
     await combat.delete();
     await drain();
@@ -3215,6 +3221,310 @@ await scenario("a combat deploy from before the takeover was recorded is read as
   await drain();
   for (const actor of actors) await actor.delete();
   await drain();
+});
+
+/**
+ * A party of its own for a fight that ends without its combat's end being
+ * heard: the party token, one exploration move of it in pixels, and the
+ * rounds the clock bills for that move. The party has moved once, so the
+ * clock has a baseline.
+ */
+async function fightingParty(name, ...people) {
+  const { id, actors } = await isolatedParty(name, ...people);
+  const partyToken = scene.tokens.get(onlyFormation().tokenId);
+  const speed = model.partySpeed(model.getFormation(id));
+  const squares = Math.round(speed / scene.grid.distance);
+  const step = squares * scene.grid.size;
+  await partyToken.update({ x: partyToken.x + step });
+  await drain();
+  const cell = (actor) => onlyFormation().members.find((m) => m.actorId === actor.id);
+  return { id, actors, partyToken, step, turnRounds: Math.floor((squares * scene.grid.distance * 10) / speed), cell };
+}
+
+/** End the combats a `fightingParty` used that are still in the world, then disband it and delete its people. */
+async function dismissFighting({ id, actors }, ...combats) {
+  for (const combat of combats) {
+    if (!game.combats.has(combat.id)) continue;
+    await combat.delete();
+    await drain();
+  }
+  const formation = model.getFormation(id);
+  if (formation) await model.disband(formation);
+  await drain();
+  for (const actor of actors) await actor.delete();
+  await drain();
+}
+
+/**
+ * Wait until `ready()` holds, for at most two seconds: a heal and a deploy
+ * in one gesture outlast `drain` on a loaded machine. The assertion after it
+ * reports a state that never arrived.
+ */
+async function until(ready) {
+  for (let waited = 0; waited < 2000 && !ready(); waited += 5) await sleep(5);
+  await drain();
+}
+
+/** What the party left on the map: tokens of its people. */
+const peopleOn = (actors) => scene.tokens.filter((t) => actors.some((a) => a.id === t.actorId));
+
+/** The GM's HUD toggle on each of the party's fighters: their combatants removed, the encounter kept. */
+async function toggleOut(combat, actors) {
+  for (const combatant of combat.combatants.filter((c) => actors.some((a) => a.id === c.actorId))) await combatant.delete();
+  await drain();
+}
+
+await scenario("a fight emptied of the party's fighters is over at the party's next move", async () => {
+  // See docs/formation/DECISIONS.md, "A fight no combat holds a body of is over".
+  const party = await fightingParty("Emptied Party", "Toggler", "Stayer");
+  const { actors, partyToken, step, turnRounds, cell } = party;
+  const combat = new CombatMock();
+  try {
+    await partyJoins(combat);
+    assert.ok(onlyFormation().combat?.active, "the party deployed for combat");
+    await toggleOut(combat, actors);
+
+    const before = clockRounds(onlyFormation().clock);
+    const cards = chat.length;
+    const drop = { x: partyToken.x + step, y: partyToken.y };
+    await partyToken.update({ x: drop.x });
+    await until(() => onlyFormation().combat === null && onlyFormation().clock.lastPosition?.x === drop.x);
+    const after = onlyFormation();
+    assert.equal(after.combat, null, "the party re-formed");
+    for (const actor of actors) {
+      assert.ok(!cell(actor).deployedTokenId && !cell(actor).deployedCombatId, `${actor.name} is back inside the party token`);
+      assert.ok(cell(actor).tokenData, `${actor.name}'s token is stashed`);
+    }
+    assert.equal(peopleOn(actors).length, 0, "no member token is left on the map");
+    assert.ok(!partyToken.hidden, "the party token shows again");
+    assert.deepEqual({ x: partyToken.x, y: partyToken.y }, drop, "where the move put it, not where a fighter stood");
+    assert.ok(chat.slice(cards).some((m) => m.content.includes("chat.combatReformed")), "the re-forming is announced");
+    assert.equal(clockRounds(after.clock) - before, turnRounds, "the move is billed");
+    assert.deepEqual(after.clock.lastPosition, drop, "and measured to where it ended");
+    assert.ok(game.combats.has(combat.id), "the emptied encounter is left to the GM");
+  } finally {
+    await dismissFighting(party, combat);
+  }
+});
+
+await scenario("a fight whose combat was deleted unheard is over at the party's next move", async () => {
+  // See docs/formation/DECISIONS.md, "A fight no combat holds a body of is over".
+  const party = await fightingParty("Orphaned Party", "Sword", "Bow");
+  const { actors, partyToken, step, turnRounds, cell } = party;
+  const combat = new CombatMock();
+  try {
+    await partyJoins(combat);
+    assert.ok(onlyFormation().combat?.active, "the party deployed for combat");
+    game.combats.delete(combat.id); // no window ran the end
+    await drain();
+    assert.equal(onlyFormation().combat?.combatId, combat.id, "the record still names the gone combat");
+
+    const before = clockRounds(onlyFormation().clock);
+    const drop = { x: partyToken.x + step, y: partyToken.y };
+    await partyToken.update({ x: drop.x });
+    await until(() => onlyFormation().combat === null && onlyFormation().clock.lastPosition?.x === drop.x);
+    const after = onlyFormation();
+    assert.equal(after.combat, null, "the party re-formed");
+    assert.ok(actors.every((a) => !cell(a).deployedTokenId && cell(a).tokenData), "everyone is back inside the party token");
+    assert.equal(peopleOn(actors).length, 0, "no member token is left on the map");
+    assert.deepEqual({ x: partyToken.x, y: partyToken.y }, drop, "the party token stands where the move put it");
+    assert.ok(!partyToken.hidden, "and shows");
+    assert.equal(clockRounds(after.clock) - before, turnRounds, "the move is billed");
+  } finally {
+    await dismissFighting(party, combat);
+  }
+});
+
+await scenario("the party added again to the encounter it was toggled out of re-forms and deploys", async () => {
+  // See docs/formation/DECISIONS.md, "A fight no combat holds a body of is over".
+  const party = await fightingParty("Rejoining Party", "Vanguard", "Archer");
+  const { actors, partyToken, cell } = party;
+  const combat = new CombatMock();
+  try {
+    await partyJoins(combat);
+    await combat.setRound(3);
+    await drain();
+    await toggleOut(combat, actors);
+
+    const cards = chat.length;
+    await partyJoins(combat); // the party token added again, as core adds it
+    await until(() => onlyFormation().combat?.active && chat.slice(cards).some((m) => m.content.includes("chat.combatDeployed")));
+    const after = onlyFormation();
+    assert.deepEqual(after.combat, { combatId: combat.id, active: true, roundsCounted: 3 }, "the party fights again, from round 3");
+    assert.equal(combat.combatants.contents.length, actors.length, "one combatant per member");
+    assert.ok(!combat.combatants.some((c) => c.tokenId === partyToken.id), "and none for the party token");
+    assert.ok(actors.every((a) => cell(a).deployedCombatId === combat.id), "every member is this combat's");
+    assert.equal(peopleOn(actors).length, actors.length, "one body each on the map, the old ones gathered");
+    const posted = chat.slice(cards).map((m) => m.content);
+    const reformed = posted.findIndex((c) => c.includes("chat.combatReformed"));
+    const deployed = posted.findIndex((c) => c.includes("chat.combatDeployed"));
+    assert.ok(reformed >= 0 && deployed > reformed, "the re-forming is announced, then the deploy");
+
+    const before = clockRounds(after.clock);
+    await combat.setRound(4);
+    await drain();
+    assert.equal(clockRounds(onlyFormation().clock) - before, 1, "the next round bills one round");
+  } finally {
+    await dismissFighting(party, combat);
+  }
+});
+
+await scenario("a fight whose combat was deleted unheard is over when the party joins another", async () => {
+  // See docs/formation/DECISIONS.md, "A fight no combat holds a body of is over".
+  const party = await fightingParty("Regrouped Party", "Pike", "Mace");
+  const { actors, cell } = party;
+  const gone = new CombatMock();
+  const next = new CombatMock();
+  try {
+    await partyJoins(gone);
+    game.combats.delete(gone.id); // no window ran the end
+    await drain();
+    await partyJoins(next);
+    await until(() => onlyFormation().combat?.combatId === next.id && next.combatants.contents.length === actors.length);
+    const after = onlyFormation();
+    assert.equal(after.combat?.combatId, next.id, "the party fights in the new combat");
+    assert.ok(actors.every((a) => cell(a).deployedCombatId === next.id), "every member is the new combat's");
+    assert.equal(next.combatants.contents.length, actors.length, "one combatant per member");
+    assert.equal(peopleOn(actors).length, actors.length, "one body each on the map");
+  } finally {
+    await dismissFighting(party, gone, next);
+  }
+});
+
+await scenario("a fight still holding a fighter is not over, and joining again says where it is", async () => {
+  // See docs/formation/DECISIONS.md, "A fight no combat holds a body of is over".
+  const party = await fightingParty("Stubborn Party", "Holdout", "Runner");
+  const { actors, partyToken, step } = party;
+  const [holdout, runner] = actors;
+  const combat = new CombatMock();
+  try {
+    await partyJoins(combat);
+    await toggleOut(combat, [runner]);
+    const baseline = onlyFormation().clock.lastPosition;
+    const before = clockRounds(onlyFormation().clock);
+    await partyToken.update({ x: partyToken.x + step });
+    await drain();
+    assert.ok(onlyFormation().combat?.active, "one fighter still in the tracker keeps the fight");
+    assert.equal(peopleOn(actors).length, 2, "nobody is gathered");
+    assert.equal(clockRounds(onlyFormation().clock), before, "a move of the camp mid-fight is not billed");
+    assert.deepEqual(onlyFormation().clock.lastPosition, baseline, "nor measured");
+
+    combat.name = "Ambush";
+    const cards = chat.length;
+    await partyJoins(combat);
+    await until(() => chat.length > cards);
+    assert.ok(!combat.combatants.some((c) => c.tokenId === partyToken.id), "the party token is taken back out of the tracker");
+    assert.ok(combat.combatants.some((c) => c.actorId === holdout.id), "the fighter still fights");
+    const posted = chat.slice(cards);
+    assert.equal(posted.length, 1, "one card");
+    assert.ok(posted[0].content.includes("chat.combatAlreadyFighting") && posted[0].content.includes("Ambush"), "naming the encounter");
+    assert.ok(posted[0].whisper.length > 0, "whispered to the GMs");
+  } finally {
+    await dismissFighting(party, combat);
+  }
+});
+
+await scenario("a fight the GM moved into another encounter is not over", async () => {
+  // See docs/formation/DECISIONS.md, "A fight no combat holds a body of is over".
+  const party = await fightingParty("Moved Party", "Brawler", "Slinger");
+  const { actors, partyToken, step } = party;
+  const first = new CombatMock();
+  const second = new CombatMock();
+  game.combats.set(second.id, second);
+  try {
+    await partyJoins(first);
+    const moved = first.combatants.filter((c) => actors.some((a) => a.id === c.actorId));
+    await second.createEmbeddedDocuments("Combatant", moved.map(({ tokenId, sceneId, actorId }) => ({ tokenId, sceneId, actorId })));
+    await toggleOut(first, actors);
+    await partyToken.update({ x: partyToken.x + step });
+    await drain();
+    assert.equal(onlyFormation().combat?.combatId, first.id, "the record still names the first encounter");
+    assert.equal(peopleOn(actors).length, 2, "the fighters still stand, fighting in the second");
+  } finally {
+    await dismissFighting(party, first, second);
+  }
+});
+
+await scenario("a stack's bodies in the tracker keep the party's fight", async () => {
+  // See docs/formation/DECISIONS.md, "A fight no combat holds a body of is over".
+  const party = await fightingParty("Warband Party", "Chief");
+  const { id, actors, partyToken, step } = party;
+  const group = await stackStandingOn("Raiders", [{ on: scene, x: 1400, y: 1000 }]);
+  const combat = new CombatMock();
+  try {
+    await partyJoins(combat);
+    await toggleOut(combat, actors);
+    await model.patchFormation(id, (rec) => {
+      rec.members.push({ actorId: group.id, roles: [], tokenData: null, deployedStack: true, deployedCombatId: combat.id });
+    });
+    const [body] = scene.tokens.filter((t) => t.getFlag(MODULE_ID, "group") === group.uuid);
+    await combat.createEmbeddedDocuments("Combatant", [{ tokenId: body.id, sceneId: scene.id, actorId: group.id }]);
+    await drain();
+    await partyToken.update({ x: partyToken.x + step });
+    await drain();
+    assert.ok(onlyFormation().combat?.active, "the stack's body in the tracker keeps the fight");
+    assert.ok(onlyFormation().members.find((m) => m.actorId === group.id).deployedStack, "the stack is still out");
+  } finally {
+    await dismissFighting(party, combat);
+    await group.delete();
+    await drain();
+  }
+});
+
+await scenario("a move made while the party deploys does not re-form the deploy", async () => {
+  // See docs/formation/DECISIONS.md, "A fight no combat holds a body of is over".
+  // The deploy records its takeover before its combatants exist.
+  const party = await fightingParty("Hasty Party", "Quick", "Slow");
+  const { actors, partyToken, step, cell } = party;
+  const combat = new CombatMock();
+  let open;
+  combat.hold = { call: 2, until: new Promise((resolve) => (open = resolve)) };
+  try {
+    game.combats.set(combat.id, combat);
+    const cards = chat.length;
+    const joining = combat.createEmbeddedDocuments("Combatant", [
+      { tokenId: partyToken.id, sceneId: scene.id, actorId: onlyFormation().actorId, hidden: false },
+    ]);
+    await drain();
+    assert.ok(actors.every((a) => cell(a).deployedCombatId === combat.id), "the deploy recorded its takeover");
+    assert.equal(combat.combatants.filter((c) => c.tokenId !== partyToken.id).length, 0, "before its combatants exist");
+    await partyToken.update({ x: partyToken.x + step });
+    await drain();
+    open();
+    await joining;
+    await until(() => onlyFormation().combat?.active && combat.combatants.contents.length === actors.length);
+    assert.ok(onlyFormation().combat?.active && onlyFormation().combat.combatId === combat.id, "the party fights");
+    assert.equal(peopleOn(actors).length, actors.length, "every body stands");
+    assert.equal(combat.combatants.contents.length, actors.length, "each one a combatant");
+    assert.ok(!chat.slice(cards).some((m) => m.content.includes("chat.combatReformed")), "nothing re-formed");
+  } finally {
+    open?.();
+    await dismissFighting(party, combat);
+  }
+});
+
+await scenario("a deploy while a move is still drawn lays the block where the move ends", async () => {
+  // The block is laid at the party token's stored corner.
+  const party = await drawnParty("Hurried");
+  const { walker, partyToken, step } = party;
+  const combat = new CombatMock();
+  try {
+    const start = { x: partyToken.x, y: partyToken.y };
+    const end = { x: start.x + step, y: start.y };
+    await partyToken.update({ x: end.x });
+    await drain();
+    assert.deepEqual({ x: partyToken.x, y: partyToken.y }, start, "the drawing still stands where the move began");
+    await partyJoins(combat);
+    await until(() => onlyFormation().combat?.active);
+    const fighter = scene.tokens.get(onlyFormation().members.find((m) => m.actorId === walker.id).deployedTokenId);
+    assert.ok(fighter, "the fighter is on the map");
+    assert.ok(Math.abs(fighter.x - end.x) < Math.abs(fighter.x - start.x), "laid around where the move ends");
+  } finally {
+    await combat.delete();
+    await drain();
+    game.combats.delete(combat.id);
+    await dismissDrawn(party);
+  }
 });
 
 await scenario("overlapping environment sweeps coalesce instead of racing", async () => {

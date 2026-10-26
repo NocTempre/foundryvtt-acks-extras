@@ -569,8 +569,21 @@ deployed or took over (`combat-bridge.mjs`). Its end gathers those members and
 no one else (`gatheredBy`), with or without the record's `combat` flag, and
 another combat's end gathers none of them. A member taken over by a combat no
 longer in the world is gathered by any combat's end, since no client heard its
-own. A record from before the field reads a member on the map with no detach
-and no leave as taken over by the party's running combat (`takeoverOf`).
+own, and at the party's next move or deploy. A record from before the field
+reads a member on the map with no detach and no leave as taken over by the
+party's running combat (`takeoverOf`).
+
+The party is fighting while some combat in the world holds a combatant whose
+token is a body of a member a combat took over (`fightingIn`; a body is
+`standsAs`, `deployment.mjs`). A party tied to a fight it is not fighting —
+every fighter toggled out of the tracker, or its combat deleted where no
+automation window heard it — reforms at its next move or deploy
+(`reformIfOver`). On a move it reforms where the token stands and the move is
+billed as dragged; on a deploy it reforms as a combat's end would, then deploys
+afresh. Adding the party token to a combat while the party is fighting removes
+the new combatant and whispers the GMs the encounter's name. A deploy, a heard
+end and a heal of one formation run one at a time, each on a fresh read
+(`oneAtATime`).
 
 Two members are out of the fight (`outOfTheFight`): one the party left behind,
 and a detached member standing on another scene (`standsElsewhere`,
