@@ -4363,6 +4363,8 @@ deploy".
 - Until the next move or deploy the record still reads "in combat". The party
   sheet's warning and detach, Form Up, a relayed leave-behind and the map
   session all refuse as before (ROADMAP, "Combat: a fight that is over").
+  *Form Up's part is superseded by 2026-10-26, "Form Up reforms a fight that
+  is over".*
 - A GM who clears every fighter out of every tracker, meaning to rebuild the
   fight, and moves the camp first, loses the deployment. The bodies are
   gathered, and their placement with them; their hit points come home in the
@@ -4389,3 +4391,37 @@ deploy".
   none. The pane's console recorder ran from page load and recorded no error
   through `ready` or during the walk. "A combat's takeover" steps 1 to 3 and
   7 (the scout and the member left behind) ran offline only.
+
+## 2026-10-26 — Form Up reforms a fight that is over
+
+**Evidence.** The entry above left Form Up refusing a party whose fight is
+over until a drag or deploy cleared it, and put the choice in ROADMAP. A
+Judge's Form Up is the gesture that means "the fight is done, gather them".
+Refusing it for a fight nobody is fighting asks the Judge to drag the party
+first, which is the same reform reached by a stranger route.
+
+**Ruled.** The user: "Include the form up". `formUp`
+(`marching-templates.mjs`) asks `reformIfOver` before it refuses a party in
+combat. If the fight is over, the party reforms as a combat's end would,
+then the saved order is applied to the party that came back. A party still
+fighting is refused as before.
+
+**Rejected.** *Reform in place*, as a move does: Form Up already gathers its
+bodies to the recall's anchor, and an end's reform does the same.
+
+**Cost.** The sheet's warning and detach, a relayed leave-behind and the map
+session still read the stale flag until a move, deploy or Form Up (ROADMAP,
+"Combat: a fight that is over").
+
+- Pinned offline by two flows scenarios, "a fight emptied of the party's
+  fighters is over at Form Up" and "Form Up is refused while a fight still
+  holds a fighter". In a scratch replica, the code before this entry fails
+  the first, and an edit that applies the order whatever the heal answered
+  fails the second.
+- Walked live on core 14.369 (TESTING, "A fight that is over", step 5),
+  pressing the party token HUD's Form Up with one saved order. With one
+  fighter still in the tracker it warned and gathered nobody. With both
+  toggled out it posted the re-formed card, cleared the record's `combat`,
+  left no member token on the map and showed the party token. The encounter
+  stood with the foe alone. The sweep removed 10 and found nothing missing or
+  refused. The pane's console, read from page load, held no error.

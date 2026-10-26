@@ -542,9 +542,10 @@ The frame shipped first (MODEL, "The frame"). The redesign's later phases are
 
 ## Combat: a fight that is over
 
-A party whose fight is over reforms at its next move or deploy (DECISIONS,
-"A fight no combat holds a body of is over").
+A party whose fight is over reforms at its next move, deploy or Form Up
+(DECISIONS, "A fight no combat holds a body of is over" and "Form Up reforms
+a fight that is over").
 
 | Not built | What it is | What it needs first |
 |---|---|---|
-| The record read before the next move | Until that move or deploy, the party still reads "in combat": the sheet's warning and its detach, Form Up, a relayed leave-behind and the map session refuse. Form Up is the Judge's own re-form gesture. | a ruling: Form Up reforms too (`reformIfOver` at its head), or the readers ask whether the party is fighting. |
+| The record read before the next move | Until that move, deploy or Form Up, the party still reads "in combat": the sheet's warning and its detach, a relayed leave-behind and the map session refuse. | a ruling: each reader asks whether the party is fighting, or reforms first. |

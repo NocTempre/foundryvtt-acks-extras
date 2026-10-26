@@ -922,9 +922,10 @@ missing.
 
 Covers `fightingIn`, `reformIfOver` and the refusal's whisper
 (`combat-bridge.mjs`), the heal at the head of a move (`journey.mjs`
-`dispatchPartyTokenMoved`), and a deploy laid at the party token's stored
-corner (`deployMembers`). The Gamemaster seat is the primary GM, viewing the
-scene.
+`dispatchPartyTokenMoved`), the heal at the head of Form Up
+(`marching-templates.mjs` `formUp`), and a deploy laid at the party token's
+stored corner (`deployMembers`). The Gamemaster seat is the primary GM, viewing
+the scene.
 
 **Fixtures**, each `api.create()`d or `api.track()`ed:
 - A delve scene on a feet grid, viewed by the seat.
@@ -973,7 +974,13 @@ scene.
    `game.combats.has(id)` is false. A move then re-forms the party as in step
    1. Repeat with a deploy into a new combat in place of the move: the party
    re-forms, then deploys into the new combat.
-5. **Regression.** "A combat's takeover", steps 1 to 7.
+5. **Form Up.** Save a marching order on the party sheet first. Deploy, toggle
+   one fighter out, and press the party token HUD's Form Up.
+   **Observable:** a "cannot form up during a combat" warning, and nothing
+   gathered. Toggle the other fighter out and press it again: a re-formed
+   card, the record's `combat` null, no member token on the map, and the
+   members in the saved order.
+6. **Regression.** "A combat's takeover", steps 1 to 7.
 
 Never Begin a combat whose tracker holds the party's own combatant: when no
 member deploys, that combatant stays, and the system's surprise throw fails

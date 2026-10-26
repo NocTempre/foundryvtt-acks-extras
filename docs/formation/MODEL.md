@@ -577,10 +577,10 @@ The party is fighting while some combat in the world holds a combatant whose
 token is a body of a member a combat took over (`fightingIn`; a body is
 `standsAs`, `deployment.mjs`). A party tied to a fight it is not fighting —
 every fighter toggled out of the tracker, or its combat deleted where no
-automation window heard it — reforms at its next move or deploy
+automation window heard it — reforms at its next move, deploy or Form Up
 (`reformIfOver`). On a move it reforms where the token stands and the move is
 billed as dragged; on a deploy it reforms as a combat's end would, then deploys
-afresh. Adding the party token to a combat while the party is fighting removes
+afresh; on Form Up it reforms as an end would, then takes the saved order. Adding the party token to a combat while the party is fighting removes
 the new combatant and whispers the GMs the encounter's name. A deploy, a heard
 end and a heal of one formation run one at a time, each on a fresh read
 (`oneAtATime`).

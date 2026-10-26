@@ -3424,6 +3424,55 @@ await scenario("a fight still holding a fighter is not over, and joining again s
   }
 });
 
+await scenario("a fight emptied of the party's fighters is over at Form Up", async () => {
+  // See docs/formation/DECISIONS.md, "A fight no combat holds a body of is over".
+  const { captureOrder, formUp } = await import("../scripts/formation/marching-templates.mjs");
+  const party = await fightingParty("Formed Party", "Leader", "Follower");
+  const { id, actors, cell } = party;
+  const combat = new CombatMock();
+  try {
+    const order = captureOrder(model.getFormation(id));
+    await partyJoins(combat);
+    assert.ok(onlyFormation().combat?.active, "the party deployed for combat");
+    await toggleOut(combat, actors);
+
+    const cards = chat.length;
+    const warned = notices.length;
+    const result = await formUp(model.getFormation(id), order);
+    await drain();
+    assert.ok(result, "Form Up ran");
+    assert.equal(onlyFormation().combat, null, "the party re-formed");
+    for (const actor of actors) assert.ok(!cell(actor).deployedTokenId && !cell(actor).deployedCombatId, `${actor.name} is back inside the party token`);
+    assert.equal(peopleOn(actors).length, 0, "no member token is left on the map");
+    assert.ok(chat.slice(cards).some((m) => m.content.includes("chat.combatReformed")), "the re-forming is announced");
+    assert.ok(!notices.slice(warned).some(([kind]) => kind === "warn"), "nothing is refused");
+  } finally {
+    await dismissFighting(party, combat);
+  }
+});
+
+await scenario("Form Up is refused while a fight still holds a fighter", async () => {
+  // See docs/formation/DECISIONS.md, "A fight no combat holds a body of is over".
+  const { captureOrder, formUp } = await import("../scripts/formation/marching-templates.mjs");
+  const party = await fightingParty("Holding Party", "Stander", "Leaver");
+  const { id, actors } = party;
+  const [, leaver] = actors;
+  const combat = new CombatMock();
+  try {
+    const order = captureOrder(model.getFormation(id));
+    await partyJoins(combat);
+    await toggleOut(combat, [leaver]);
+    const warned = notices.length;
+    assert.equal(await formUp(model.getFormation(id), order), null, "Form Up declines");
+    await drain();
+    assert.ok(onlyFormation().combat?.active, "the fight stands");
+    assert.equal(peopleOn(actors).length, 2, "nobody is gathered");
+    assert.ok(notices.slice(warned).some(([kind, m]) => kind === "warn" && m.includes("marching.notInCombat")), "and says why");
+  } finally {
+    await dismissFighting(party, combat);
+  }
+});
+
 await scenario("a fight the GM moved into another encounter is not over", async () => {
   // See docs/formation/DECISIONS.md, "A fight no combat holds a body of is over".
   const party = await fightingParty("Moved Party", "Brawler", "Slinger");

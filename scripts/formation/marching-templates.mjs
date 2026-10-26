@@ -1,6 +1,6 @@
 /* global game, foundry, ui */
 import { MODULE_ID } from "./constants.mjs";
-import { getFrontage, getMemberActor, getPartyToken, missingRoleGear, updateFormation } from "./formation-model.mjs";
+import { getFormation, getFrontage, getMemberActor, getPartyToken, missingRoleGear, updateFormation } from "./formation-model.mjs";
 import { isMemberDeployed, recallMembers } from "./deployment.mjs";
 import { announceChange } from "../lib/util.mjs";
 
@@ -320,7 +320,9 @@ export async function applyTemplate(formation, template) {
  *
  * Refused during a combat, on the same ground `toggleDetachMember` refuses:
  * the fight owns who is on the field, and recalling a fighter mid-battle would
- * take them out of the initiative they are in.
+ * take them out of the initiative they are in. A fight no combat still holds a
+ * body of is over: it reforms first, as a combat's end would, and the order is
+ * applied to the party that comes back.
  *
  * The clock's last position is re-anchored BEFORE the party token moves to the
  * reform point, or the jump would read as the party having walked there and
@@ -342,8 +344,15 @@ export async function formUp(formation, template) {
   assertFormation(formation, "formUp", template);
   template = resolveOrder(template, "formUp");
   if (formation.combat?.active) {
-    ui.notifications.warn(game.i18n.localize("ACKS-FORMATION.marching.notInCombat"));
-    return null;
+    // Loaded late, as the turn engine below: the bridge imports it.
+    const { reformIfOver } = await import("./combat-bridge.mjs");
+    const reformed = await reformIfOver(formation.id);
+    const fresh = reformed ? getFormation(formation.id) : null;
+    if (!fresh) {
+      ui.notifications.warn(game.i18n.localize("ACKS-FORMATION.marching.notInCombat"));
+      return null;
+    }
+    formation = fresh;
   }
 
   const result = await applyTemplate(formation, template);
