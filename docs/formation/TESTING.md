@@ -943,7 +943,9 @@ scene.
   `Hooks.callAll` with a wrapper that drops the first `deleteCombat`, delete
   the combat, and restore `Hooks.callAll` in a `finally`.
 - A move: `partyToken.update({x}, {animate: false})`; the hidden pane does
-  not animate, and core's own move would never land.
+  not animate, and core's own move would never land. Keep the move inside the
+  scene's bounds: core drops an update past the edge with no error, and no
+  move hook fires.
 - Each step posts cards: read the run's new messages by id and `api.track()`
   them.
 

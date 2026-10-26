@@ -20,8 +20,9 @@
  *
  * This file is the one owner of the `acksExtras.hexEntered` and
  * `acksExtras.searchHourSpent` hooks. It sits above `turn-engine.mjs` (the
- * delve's tracker, which a journey never uses), `travel.mjs` (the record) and
- * `march.mjs` (the arithmetic); nothing below it imports it.
+ * delve's tracker, which a journey never uses), `travel.mjs` (the record),
+ * `march.mjs` (the arithmetic) and `combat-bridge.mjs` (a fight that is over,
+ * re-formed before any move is spent); nothing below it imports it.
  */
 import { TURN_SECONDS } from "./constants.mjs";
 import { isActiveGMSeat } from "../lib/util.mjs";
