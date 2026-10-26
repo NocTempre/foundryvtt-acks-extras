@@ -219,7 +219,9 @@ fixtures and teardown lines describe that. Owed:
 
 - a capture-driver helper that finds a fixture by its marker
   (`flags.world.fixture`) or builds and marks it, in acks-module-template's
-  `bin/foundry-capture.mjs`, so no walk spells the lookup itself;
+  `bin/foundry-capture.mjs`, so no walk spells the lookup itself. It settles
+  what step 4 leaves open: how a peer's own marker is spelled beside the
+  recipe's, and which document a lookup returns when two carry one marker;
 - each walk converted to find-or-build, with its sweep kept only for the
   sections whose subject is setup (importer first runs, create hooks, delete
   paths, pre-upgrade shapes), and each step that needs a known shape
