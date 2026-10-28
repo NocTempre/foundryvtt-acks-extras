@@ -24,16 +24,33 @@
  *                dark, leaves no marker and no promote button; quiet, unpriced
  *                and no-list stays.
  *
- * Every fixture and figure is invented. The documents registered at priority
- * 30 (`travel`, `encounters`, `cityTravel`) are unregistered at teardown; the
- * settings `travelEncounters`, `advanceWorldTime` and `transientIncidentTurns`
- * are restored; the dice rig and the notification patches are undone. The
- * world clock moves forward (End day, the stay) and is reported, not set back.
+ * Every fixture and figure is invented. The fixtures are kept and found again
+ * by marker (`api.fixture`): the scenes `formation/steps-doors`,
+ * `formation/steps-march` and `formation/steps-city`; the doors
+ * `formation/steps-door-1` and `-2`; the parties `formation/steps-door-party`,
+ * `-rearguard`, `-march-party` and `-city-party`, each with its token
+ * (`<party>-token`); the characters `formation/steps-basher`, `-stranger`,
+ * `-fallen-owned`, `-fallen-judge`, `-hungry` and `-fed`, the basher's and the
+ * stranger's tokens (`<name>-token`); and the city list
+ * `formation/steps-city-list`. Each step brings what it reads to shape at its
+ * start: every party's record as a new one holds it (`P.reset`: no travel, a
+ * fresh clock), the doors closed and unmarked, the hit points, the walkers'
+ * survival rungs, no member left behind, no fight on the rearguard, the march
+ * on Dedicated march. The march party's
+ * drag steps toward the scene's middle, so a kept token never walks off it.
+ * Every chat card the walk reads is a create path's product: it is marked
+ * `formation/steps-card-<n>` in the order posted, and the next run retires the
+ * last run's before its first step, as it does a token a member was left
+ * behind as (`formation/steps-left-token`). The documents registered at
+ * priority 30 (`travel`, `encounters`, `cityTravel`) are unregistered at
+ * teardown; the settings `travelEncounters`, `advanceWorldTime` and
+ * `transientIncidentTurns` are restored; the dice rig and the notification
+ * patches are undone. The world clock moves forward (End day, the stay) and is
+ * reported, not set back.
  */
 import { connect, sleep } from "./_driver.mjs";
 import { seats, PORTS, shotDir } from "./_env.mjs";
 
-const NONCE = "s" + Math.random().toString(36).slice(2, 8);
 const MOD = "acks-extras";
 const SHOTS = process.env.SHOTS === "1";
 
@@ -53,11 +70,19 @@ const check = (label, ok, detail) => {
 const P = {
   census: async (mod) => {
     const read = (k) => { try { return game.settings.get(mod, k); } catch (_e) { return undefined; } };
+    // Core elects a user; every window on it hears each hook, and the seat's own election picks the one that runs the automation.
+    let election;
+    try {
+      const ac = await import(`/modules/${mod}/scripts/lib/automation-client.mjs`);
+      await Promise.race([ac.automationSettled(), new Promise((r) => setTimeout(r, 5000))]);
+      election = { isLead: ac.isLeadClient(), ...(ac.automationCensus() ?? { joined: false }) };
+    } catch (err) { election = { error: err?.message ?? String(err) }; }
     return {
       module: game.modules.get(mod)?.version ?? null,
       role: game.user.role,
       userId: game.user.id,
       activeGMIsSelf: !!game.users.activeGM?.isSelf,
+      election,
       gmIds: game.users.filter((u) => u.isGM).map((u) => u.id).sort(),
       settings: {
         travelEncounters: read("travelEncounters"), advanceWorldTime: read("advanceWorldTime"),
@@ -148,38 +173,101 @@ const P = {
     return { x: tl.x, y: tl.y };
   },
 
-  /** Place the party token, enrol the members by a real drop on the sheet, and set the mode. */
-  buildParty: async ({ partyId, sceneId, memberIds, xy, mode }) => {
+  /**
+   * The party's formation with the token adopted, every member enrolled by a
+   * real drop on the sheet, and the mode set. A kept party already holds its
+   * members, and core's drop of one already enrolled is not the step: only a
+   * missing member is dropped, and a mode already set is not set again.
+   */
+  buildParty: async ({ partyId, sceneId, tokenId, memberIds, mode }) => {
     const H = globalThis.__d;
     const party = game.actors.get(partyId);
-    const scene = game.scenes.get(sceneId);
     const found = await H.poll(() => Object.values(H.F.getFormations()).find((f) => f.actorId === partyId), { tries: 50, every: 200 });
     if (!found) return { error: "no formation for the party actor" };
-    const td = await party.getTokenDocument({ x: xy.x, y: xy.y });
-    const [token] = await scene.createEmbeddedDocuments("Token", [td.toObject()]);
-    const adopted = await H.poll(() => H.F.getFormations()[found.id]?.tokenId === token.id, { tries: 100, every: 200 });
+    const adopted = await H.poll(() => H.F.getFormations()[found.id]?.tokenId === tokenId, { tries: 100, every: 200 });
     const enrolled = [];
-    if (memberIds.length) {
+    const isMember = (id) => !!H.F.getFormations()[found.id]?.members?.some((m) => m?.actorId === id);
+    const missing = memberIds.filter((id) => !isMember(id));
+    if (missing.length) {
       const app = await party.sheet.render(true);
       await H.sleep(1500);
       const el = H.root(app);
-      for (const id of memberIds) {
+      for (const id of missing) {
         const dt = new DataTransfer();
         dt.setData("text/plain", JSON.stringify({ type: "Actor", uuid: game.actors.get(id).uuid }));
         el.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: dt }));
-        enrolled.push(!!(await H.poll(() => H.F.getFormations()[found.id]?.members?.some((m) => m?.actorId === id), { tries: 40, every: 200 })));
+        await H.poll(() => isMember(id), { tries: 40, every: 200 });
       }
       try { await app.close({ animate: false }); } catch (_e) { /* closed */ }
     }
-    if (mode) { await H.T.setJourneyMode(found.id, mode, { sceneId }); await H.sleep(800); }
+    for (const id of memberIds) enrolled.push(isMember(id));
+    if (mode && H.T.travelOf(H.formation(found.id)).mode !== mode) { await H.T.setJourneyMode(found.id, mode, { sceneId }); await H.sleep(800); }
     const f = H.formation(found.id);
-    return { formationId: found.id, tokenUuid: token.uuid, adopted: !!adopted, enrolled, mode: H.T.travelOf(f).mode };
+    return { formationId: found.id, adopted: !!adopted, enrolled, dropped: missing.length, mode: H.T.travelOf(f).mode };
   },
 
-  placeToken: async ({ actorId, sceneId, xy }) => {
-    const td = await game.actors.get(actorId).getTokenDocument({ x: xy.x, y: xy.y });
-    const [token] = await game.scenes.get(sceneId).createEmbeddedDocuments("Token", [td.toObject()]);
-    return { uuid: token.uuid, id: token.id };
+  /** A member the last run left behind is gone back for through the GM seat's own sheet control. */
+  goneBackFor: async ({ fid, partyId, actorId }) => {
+    const H = globalThis.__d;
+    const left = () => !!H.formation(fid)?.members?.find((x) => x?.actorId === actorId)?.left;
+    if (!left()) return { wasLeft: false, left: false };
+    const app = game.actors.get(partyId).sheet;
+    await app.render(true);
+    await H.sleep(1500);
+    H.root(app)?.querySelector(`li.member[data-actor-id="${actorId}"] a[data-action="toggleLeftBehind"]`)?.click();
+    await H.poll(() => !left(), { tries: 50, every: 200 });
+    try { await app.close({ animate: false }); } catch (_e) { /* closed */ }
+    return { wasLeft: true, left: left() };
+  },
+
+  /** The party's formation put in `mode` where it is in another; returns the mode it holds. */
+  setMode: async ({ partyId, mode }) => {
+    const H = globalThis.__d;
+    const f = Object.values(H.F.getFormations()).find((x) => x.actorId === partyId);
+    if (!f) return { error: "no formation for the party actor" };
+    const was = H.T.travelOf(f).mode;
+    if (was !== mode) { await H.T.setJourneyMode(f.id, mode, {}); await H.sleep(800); }
+    return { was, mode: H.T.travelOf(H.formation(f.id)).mode };
+  },
+
+  /** The token data an actor would place at `xy`, for the driver to build as a fixture. */
+  tokenData: async ({ actorId, xy }) => (await game.actors.get(actorId).getTokenDocument({ x: xy.x, y: xy.y })).toObject(),
+
+  /**
+   * A kept party's record brought to the shape a new record has: no travel, a
+   * fresh clock, no table, lights or spells. The members, the name and the
+   * token's linkage stand.
+   */
+  reset: async ({ partyId }) => {
+    const H = globalThis.__d;
+    const f = await H.poll(() => Object.values(H.F.getFormations()).find((x) => x.actorId === partyId), { tries: 50, every: 200 });
+    if (!f) return { error: "no formation for the party actor" };
+    await H.m.model.patchFormation(f.id, (record) => {
+      const lastPosition = record.clock?.lastPosition;
+      delete record.travel;
+      record.clock = { turnsTotal: 0, turnsSinceRest: 0, encounterCounter: 0, carryFeet: 0, winded: false, paused: false, ...(lastPosition ? { lastPosition } : {}) };
+      record.tableId = null;
+      record.lights = [];
+      record.spells = [];
+      record.combat = null;
+    });
+    await H.sleep(600);
+    return { fid: f.id, mode: H.T.travelOf(H.formation(f.id)).mode };
+  },
+
+  /** Hit points written onto a kept character, whatever the last run left. */
+  setHp: async ({ actorId, hp }) => {
+    const actor = game.actors.get(actorId);
+    if (actor.system?.hp?.value !== hp) await actor.update({ "system.hp.value": hp });
+    return { hp: game.actors.get(actorId).system?.hp?.value };
+  },
+
+  /** A kept door closed and carrying no marks of this module, whatever the last run left. */
+  resetDoor: async ({ sceneId, wallId }) => {
+    const wall = game.scenes.get(sceneId).walls.get(wallId);
+    if (wall.ds !== 0) await wall.update({ ds: 0 });
+    if (wall.getFlag("acks-extras", "door") !== undefined) await wall.unsetFlag("acks-extras", "door");
+    return { ds: wall.ds, flag: wall.getFlag("acks-extras", "door") ?? null };
   },
 
   /* --- Steps 13: the door dialog ---------------------------------- */
@@ -297,6 +385,8 @@ const P = {
     const t0 = Date.now();
     axe.querySelector('[data-action="batter"]').click();
     await H.sleep(3000);
+    // The charge is one formation write among the world's; a world that holds more formations takes longer to land it.
+    if (fid) await H.poll(() => turns()[fid] - before[fid] === shown, { tries: 50, every: 200 });
     const notes = H.takeNotes();
     const after = turns();
     const f = fid ? H.formation(fid) : null;
@@ -307,6 +397,7 @@ const P = {
     const msgs = H.mine(t0);
     return {
       roseByShown: fid ? after[fid] - before[fid] === shown : null,
+      shown, rose: fid ? after[fid] - before[fid] : null,
       othersStill: watch.filter((id) => id !== fid).every((id) => after[id] === before[id]),
       ds: wall.ds, noteOk: notes.some((n) => n.kind === "info" && n.text === expect),
       cards: msgs.length, uuids: H.uuids(msgs), worldTimeDelta: game.time.worldTime - w0,
@@ -392,8 +483,11 @@ const P = {
 
   /* --- Steps 14: the forced march bar ------------------------------- */
 
-  setSurvival: async ({ actorId, value }) => {
-    await game.actors.get(actorId).setFlag("acks-extras", "survival", value);
+  /** `replace` clears what a kept actor carries first; without it the flag merges, as a write does. */
+  setSurvival: async ({ actorId, value, replace = false }) => {
+    const actor = game.actors.get(actorId);
+    if (replace) await actor.unsetFlag("acks-extras", "survival");
+    if (value) await actor.setFlag("acks-extras", "survival", value);
     await new Promise((r) => setTimeout(r, 500));
     return { ok: true };
   },
@@ -508,7 +602,11 @@ const P = {
     return { ok: true };
   },
 
-  /** Drag the party token one cell east; answer the day-end offer it raises. */
+  /**
+   * Drag the party token one cell toward the scene's middle column; answer the
+   * day-end offer it raises. The token is a kept fixture, so a drag that only
+   * ever went one way would walk it off the scene over enough runs.
+   */
   dragOffer: async ({ fid, answer, rigFace = null, names = [] }) => {
     const H = globalThis.__d;
     const f = H.formation(fid);
@@ -517,7 +615,8 @@ const P = {
     if (!tok) return { error: "no party token" };
     const scene = tok.parent;
     const o = scene.grid.getOffset(H.T.tokenCentre(tok, scene));
-    const tl = scene.grid.getTopLeftPoint({ i: o.i, j: o.j + 1 });
+    const middle = scene.grid.getOffset({ x: scene.dimensions.sceneX + scene.dimensions.sceneWidth / 2, y: scene.dimensions.sceneY + scene.dimensions.sceneHeight / 2 });
+    const tl = scene.grid.getTopLeftPoint({ i: o.i, j: o.j < middle.j ? o.j + 1 : o.j - 1 });
     const rigOk = rigFace ? (await H.rig(rigFace, 20)).ok : null;
     const t0 = Date.now();
     const wDrag = game.time.worldTime;
@@ -681,6 +780,42 @@ const P = {
     return { mode: t.mode, where: t.settlement.where, hour: t.settlement.hour, days: t.settlement.days ?? 0, stamped: t.settlement.holeUpSince != null, othersHoledUp: others };
   },
 
+  /**
+   * Records every write of the formations setting this seat hears: this
+   * window's own carry a sequence number in their update options, so an
+   * update without one came from another window. Each entry holds the
+   * watched records' travel as that write carried it.
+   */
+  watchFormations: async ({ mod, fids }) => {
+    const H = globalThis.__d;
+    if (H.watch) { H.watch.fids = fids; return { installed: false, fids }; }
+    const w = (H.watch = { fids, sets: 0, log: [] });
+    const set = game.settings.set;
+    game.settings.set = function watchedSet(ns, key, value, options = {}) {
+      if (ns !== mod || key !== "formations") return set.call(this, ns, key, value, options);
+      w.sets += 1;
+      return set.call(this, ns, key, value, { ...options, formationWatch: w.sets });
+    };
+    Hooks.on("updateSetting", (doc, changed, options, userId) => {
+      if (doc.key !== `${mod}.formations` || !("value" in changed)) return;
+      let all = changed.value;
+      if (typeof all === "string") { try { all = JSON.parse(all); } catch (_e) { all = null; } }
+      const travel = Object.fromEntries(w.fids.map((fid) => {
+        const t = all?.[fid]?.travel;
+        return [fid, t ? { mode: t.mode, where: t.settlement?.where ?? null, hour: t.settlement?.hour ?? null, days: t.settlement?.days ?? 0 } : null];
+      }));
+      w.log.push({ at: Date.now(), worldTime: game.time.worldTime, own: options?.formationWatch ?? null, userId, travel });
+    });
+    return { installed: true, fids };
+  },
+
+  watchRead: async ({ since = 0 } = {}) => {
+    const w = globalThis.__d.watch;
+    if (!w) return null;
+    const log = w.log.filter((e) => e.at >= since);
+    return { sets: w.sets, updates: log.length, foreign: log.filter((e) => e.own == null).length, log };
+  },
+
   advance: async ({ seconds }) => {
     const before = game.time.worldTime;
     await game.time.advance(seconds);
@@ -803,8 +938,8 @@ async function ready(api, label, seconds = 240) {
 
 const open = {};
 async function seat(key, user) {
-  const { browser, origin } = seats();
-  const api = await connect({ browser, origin, user, port: PORTS[key] });
+  const { browser, origin, own } = seats();
+  const api = await connect({ browser, origin, user, port: PORTS[key], own });
   open[key] = api;
   note(`${key} seat ready after (s)`, await ready(api, key));
   const inst = await run(api, P.install);
@@ -833,11 +968,27 @@ try {
   note("settings at start", census.gm.settings);
   check("the GM seat is the active GM and the player seat is a player", census.gm.activeGMIsSelf && census.gm.role === 4 && census.player.role <= 2, { gmRole: census.gm.role, playerRole: census.player.role });
   if (!census.gm.activeGMIsSelf) throw new Error("another client is the active GM; the automation would run there");
+  check("the GM seat's window leads its seat's election, so the world-time automation runs in it", census.gm.election?.isLead === true, census.gm.election);
+  if (census.gm.election?.isLead !== true) throw new Error("another window on the GM seat leads its election; the automation would run there");
+  note("formations writes watched", await run(gm, P.watchFormations, { mod: MOD, fids: [] }));
   const playerId = census.player.userId;
   const gmIds = census.gm.gmIds;
 
+  // Every card the walk reads is marked in the order posted; the last run's go before the first step posts one.
   const tracked = new Set();
-  const trackAll = (uuids) => { for (const u of uuids ?? []) if (u && !tracked.has(u)) { tracked.add(u); gm.track(u); } };
+  let cardN = 0;
+  const trackAll = async (uuids) => {
+    for (const u of uuids ?? []) if (u && !tracked.has(u)) { tracked.add(u); cardN += 1; await gm.mark(u, `formation/steps-card-${cardN}`); }
+  };
+  const retiredCards = [];
+  for (let n = 1, misses = 0; misses < 5; n++) {
+    const out = await gm.retire(`formation/steps-card-${n}`, "ChatMessage");
+    if (out.removed.length || out.missing.length || out.failed.length) { misses = 0; retiredCards.push(...out.removed.map((e) => e.uuid)); }
+    else misses += 1;
+  }
+  note("the last run's cards retired", retiredCards.length);
+  // A kept party's token, built on its scene where none stands; its formation adopts it on create.
+  const partyToken = async (marker, actorId, scene, xy) => gm.fixture(marker, "Token", await run(gm, P.tokenData, { actorId, xy }), { parent: scene.uuid });
   const flip = async (key, value) => {
     if (!(key in restore.settings)) restore.settings[key] = census.gm.settings[key];
     note(`setting ${key} for the walk`, await run(gm, P.setSetting, { mod: MOD, key, value }));
@@ -846,22 +997,23 @@ try {
 
   /* ---------------------------------------------------------------- */
   section("Steps 13: the door dialog");
-  const s1 = await gm.create("Scene", sceneData(`QA Steps ${NONCE}`, { type: 1, distance: 5, units: "ft" }));
+  const s1 = await gm.fixture("formation/steps-doors", "Scene", sceneData("QA Steps", { type: 1, distance: 5, units: "ft" }));
   note("steps scene viewed", await run(gm, P.viewScene, s1.id));
-  const door1 = await gm.create("Wall", { c: [600, 200, 600, 400], door: 1, ds: 0 }, { parent: s1.uuid });
-  const door2 = await gm.create("Wall", { c: [1000, 200, 1000, 400], door: 1, ds: 0 }, { parent: s1.uuid });
-  const p1 = await gm.create("Actor", { name: `QA Door Party ${NONCE}`, type: "acks-extras.party" });
-  const basher = await gm.create("Actor", character(`QA Basher ${NONCE}`, 6));
-  const stranger = await gm.create("Actor", character(`QA Stranger ${NONCE}`, 6));
-  const b1 = await run(gm, P.buildParty, { partyId: p1.id, sceneId: s1.id, memberIds: [basher.id], xy: { x: 100, y: 1100 }, mode: null });
+  const door1 = await gm.fixture("formation/steps-door-1", "Wall", { c: [600, 200, 600, 400], door: 1, ds: 0 }, { parent: s1.uuid });
+  const door2 = await gm.fixture("formation/steps-door-2", "Wall", { c: [1000, 200, 1000, 400], door: 1, ds: 0 }, { parent: s1.uuid });
+  note("doors closed and unmarked", [await run(gm, P.resetDoor, { sceneId: s1.id, wallId: door1.id }), await run(gm, P.resetDoor, { sceneId: s1.id, wallId: door2.id })]);
+  const p1 = await gm.fixture("formation/steps-door-party", "Actor", { name: "QA Door Party", type: "acks-extras.party" });
+  note("the door party brought to a new record's shape", await run(gm, P.reset, { partyId: p1.id }));
+  const basher = await gm.fixture("formation/steps-basher", "Actor", character("QA Basher", 6));
+  const stranger = await gm.fixture("formation/steps-stranger", "Actor", character("QA Stranger", 6));
+  note("hit points", [await run(gm, P.setHp, { actorId: basher.id, hp: 6 }), await run(gm, P.setHp, { actorId: stranger.id, hp: 6 })]);
+  const p1Token = await partyToken("formation/steps-door-party-token", p1.id, s1, { x: 100, y: 1100 });
+  const b1 = await run(gm, P.buildParty, { partyId: p1.id, sceneId: s1.id, tokenId: p1Token.id, memberIds: [basher.id], mode: null });
   if (b1.error) throw new Error(b1.error);
-  gm.track(b1.tokenUuid);
   const f1 = b1.formationId;
-  check("the door formation holds the basher, its token adopted", b1.adopted && b1.enrolled.every(Boolean), { adopted: b1.adopted, enrolled: b1.enrolled });
-  const tBasher = await run(gm, P.placeToken, { actorId: basher.id, sceneId: s1.id, xy: { x: 400, y: 250 } });
-  gm.track(tBasher.uuid);
-  const tStranger = await run(gm, P.placeToken, { actorId: stranger.id, sceneId: s1.id, xy: { x: 800, y: 250 } });
-  gm.track(tStranger.uuid);
+  check("the door formation holds the basher, its token adopted", b1.adopted && b1.enrolled.every(Boolean), { adopted: b1.adopted, enrolled: b1.enrolled, dropped: b1.dropped });
+  const tBasher = await partyToken("formation/steps-basher-token", basher.id, s1, { x: 400, y: 250 });
+  const tStranger = await partyToken("formation/steps-stranger-token", stranger.id, s1, { x: 800, y: 250 });
 
   let r = await run(gm, P.doorOpen, { wallId: door1.id, tokenId: tBasher.id });
   check("the door tool opens the dialog on the selected door, heaving with the selected token", r.controlled && r.tool && r.open && r.wallMatches && r.tokenControlled && r.basher && r.nameShown, r);
@@ -894,47 +1046,53 @@ try {
   check("Marks: untick Evil reads false/true on the wall and in doorState, spikes unchanged", r.flag.evil === false && r.flag.jammed === true && r.stateMatchesFlag && r.spikes === spikes0, { flag: r.flag, stateMatchesFlag: r.stateMatchesFlag });
 
   r = await run(gm, P.doorBash, { face: 1, actorId: basher.id });
-  trackAll(r.uuids);
+  await trackAll(r.uuids);
   check("Botch: a natural 1 posts the rebound line and the reported-not-applied note; hit points unchanged", r.rigOk && r.card && r.damageLine && r.reportedNote && r.hpUnchanged, r);
   const miss = await run(gm, P.doorBash, { face: 2, actorId: basher.id });
-  trackAll(miss.uuids);
+  await trackAll(miss.uuids);
   if (miss.missPossible) check("Botch: an ordinary miss carries neither line", miss.rigOk && miss.card && !miss.damageLine && !miss.reportedNote, miss);
   else note("ordinary miss not walked", "the basher's throw makes a 2; no miss is possible");
   r = await run(gm, P.doorRead, { sceneId: s1.id, wallId: door1.id });
   check("the heaves left the door closed", r.ds === 0, { ds: r.ds });
 
   r = await run(gm, P.doorBatter, { fid: f1, sceneId: s1.id, wallId: door1.id, watch: [f1] });
-  trackAll(r.uuids);
+  await trackAll(r.uuids);
   clockMoves += r.worldTimeDelta;
   check("Batter: the turns shown are charged to the basher's formation, a card posts, the door opens, the notice names turns and formation", r.roseByShown && r.cards >= 1 && r.ds === 1 && r.noteOk, r);
 
   r = await run(gm, P.doorOpen, { wallId: door2.id, tokenId: tStranger.id });
   check("the dialog reopens on the second door with the unformed character heaving", r.open && r.wallMatches && r.basher, r);
   r = await run(gm, P.doorBatter, { fid: null, sceneId: s1.id, wallId: door2.id, watch: [f1] });
-  trackAll(r.uuids);
+  await trackAll(r.uuids);
   clockMoves += r.worldTimeDelta;
   check("Batter, no formation: the door opens, no clock moved, the notice says no formation holds the basher", r.ds === 1 && r.othersStill && r.noteOk && r.worldTimeDelta === 0, r);
   await run(gm, P.closeAll);
 
   /* ---------------------------------------------------------------- */
   section("Steps 11a: leave behind, from the player seat");
-  const p2 = await gm.create("Actor", { name: `QA Rearguard ${NONCE}`, type: "acks-extras.party", ownership: { default: 0, [playerId]: 2 } });
-  const fallenA = await gm.create("Actor", character(`QA Fallen Owned ${NONCE}`, 0, { default: 0, [playerId]: 3 }));
-  const fallenB = await gm.create("Actor", character(`QA Fallen Judge ${NONCE}`, 0));
-  const b2 = await run(gm, P.buildParty, { partyId: p2.id, sceneId: s1.id, memberIds: [fallenA.id, fallenB.id], xy: { x: 300, y: 800 }, mode: null });
+  // A token a member was left behind as is the press's product; one a run stranded goes first.
+  note("a stranded left-behind token retired", await gm.retire("formation/steps-left-token", "Token", { parent: s1.uuid }));
+  const p2 = await gm.fixture("formation/steps-rearguard", "Actor", { name: "QA Rearguard", type: "acks-extras.party", ownership: { default: 0, [playerId]: 2 } });
+  note("the rearguard brought to a new record's shape", await run(gm, P.reset, { partyId: p2.id }));
+  const fallenA = await gm.fixture("formation/steps-fallen-owned", "Actor", character("QA Fallen Owned", 0, { default: 0, [playerId]: 3 }));
+  const fallenB = await gm.fixture("formation/steps-fallen-judge", "Actor", character("QA Fallen Judge", 0));
+  note("hit points", [await run(gm, P.setHp, { actorId: fallenA.id, hp: 0 }), await run(gm, P.setHp, { actorId: fallenB.id, hp: 0 })]);
+  const p2Token = await partyToken("formation/steps-rearguard-token", p2.id, s1, { x: 300, y: 800 });
+  const b2 = await run(gm, P.buildParty, { partyId: p2.id, sceneId: s1.id, tokenId: p2Token.id, memberIds: [fallenA.id, fallenB.id], mode: null });
   if (b2.error) throw new Error(b2.error);
-  gm.track(b2.tokenUuid);
   const f2 = b2.formationId;
-  check("the rearguard holds both casualties, its token adopted", b2.adopted && b2.enrolled.every(Boolean), { adopted: b2.adopted, enrolled: b2.enrolled });
+  check("the rearguard holds both casualties, its token adopted", b2.adopted && b2.enrolled.every(Boolean), { adopted: b2.adopted, enrolled: b2.enrolled, dropped: b2.dropped });
+  note("the rearguard out of any fight", await run(gm, P.setCombat, { fid: f2, value: null }));
+  note("the owned casualty not left behind", await run(gm, P.goneBackFor, { fid: f2, partyId: p2.id, actorId: fallenA.id }));
 
   r = await run(player, P.orderRows, { partyId: p2.id, aId: fallenA.id, bId: fallenB.id });
   check("the player's own casualty offers Leave behind; the Judge's casualty offers this seat nothing", r.rowA && r.casualtyA && r.linkA === "leave" && r.rowB && !r.linkB, r);
   let t0 = Date.now();
   note("player presses Leave behind", await run(player, P.pressLeft, { partyId: p2.id, actorId: fallenA.id }));
   let m = await run(gm, P.memberState, { fid: f2, actorId: fallenA.id, sceneId: s1.id, wait: true });
-  if (m.tokenUuid) gm.track(m.tokenUuid);
+  if (m.tokenUuid) await gm.mark(m.tokenUuid, "formation/steps-left-token");
   let d = await run(gm, P.declarations, { t0, name: fallenA.name, keys: ["leftBehind", "wentBackFor"] });
-  trackAll(d.uuids);
+  await trackAll(d.uuids);
   check("the declaration reaches the Judge: left, a token where the party stands, not detached, the public line", m.left && !!m.deployed && !!m.tokenUuid && m.near && !m.detached && d.leftBehind === 1, { left: m.left, deployed: !!m.deployed, near: m.near, detached: m.detached, publicLine: d.leftBehind });
   const leftToken = m.tokenUuid;
 
@@ -944,17 +1102,17 @@ try {
   note("player presses Go back for them", await run(player, P.pressLeft, { partyId: p2.id, actorId: fallenA.id }));
   m = await run(gm, P.memberState, { fid: f2, actorId: fallenA.id, sceneId: s1.id, wait: false });
   d = await run(gm, P.declarations, { t0, name: fallenA.name, keys: ["leftBehind", "wentBackFor"] });
-  trackAll(d.uuids);
+  await trackAll(d.uuids);
   check("going back recalls the token and posts the public line", !m.left && !m.deployed && d.wentBackFor === 1, { left: m.left, deployed: !!m.deployed, publicLine: d.wentBackFor, leftTokenWas: !!leftToken });
 
-  const combat = await run(gm, P.setCombat, { fid: f2, value: { combatId: `qa${NONCE}`, active: true, roundsCounted: 0 } });
+  const combat = await run(gm, P.setCombat, { fid: f2, value: { combatId: "qasteps", active: true, roundsCounted: 0 } });
   note("rearguard set in combat", { prior: combat.prior, active: !!combat.now?.active });
   r = await run(player, P.orderRows, { partyId: p2.id, aId: fallenA.id, bId: fallenB.id });
   t0 = Date.now();
   note("player presses during the fight", await run(player, P.pressLeft, { partyId: p2.id, actorId: fallenA.id }));
   m = await run(gm, P.memberState, { fid: f2, actorId: fallenA.id, sceneId: s1.id });
   d = await run(gm, P.declarations, { t0, name: fallenA.name, keys: ["leftBehind", "wentBackFor"] });
-  trackAll(d.uuids);
+  await trackAll(d.uuids);
   const refusal = d.refusals[0] ?? null;
   const seenR = refusal ? (await run(player, P.seen, { ids: [refusal.id] }))[0] : null;
   check("during a fight the press posts nothing public and whispers this seat a refusal", m.combat && !m.left && d.publicCount === 0 && d.refusals.length === 1 && JSON.stringify(refusal.whisper) === JSON.stringify([playerId]) && seenR?.visible, { combat: m.combat, left: m.left, publicCount: d.publicCount, refusals: d.refusals.length, whisperedToSeat: refusal ? JSON.stringify(refusal.whisper) === JSON.stringify([playerId]) : null, seenOnSeat: seenR });
@@ -963,22 +1121,27 @@ try {
 
   /* ---------------------------------------------------------------- */
   section("Steps 14: a marcher's survival state bars the forced march");
-  const s2 = await gm.create("Scene", sceneData(`QA March ${NONCE}`, { type: 2, distance: 6, units: "mi" }));
+  const s2 = await gm.fixture("formation/steps-march", "Scene", sceneData("QA March", { type: 2, distance: 6, units: "mi" }));
   note("march scene viewed", await run(gm, P.viewScene, s2.id));
-  const p3 = await gm.create("Actor", { name: `QA March Party ${NONCE}`, type: "acks-extras.party", ownership: { default: 0, [playerId]: 2 } });
-  const hungry = await gm.create("Actor", character(`QA Hungry Walker ${NONCE}`, 6));
+  const p3 = await gm.fixture("formation/steps-march-party", "Actor", { name: "QA March Party", type: "acks-extras.party", ownership: { default: 0, [playerId]: 2 } });
+  const hungry = await gm.fixture("formation/steps-hungry", "Actor", character("QA Hungry Walker", 6));
   // The party actor's ownership is re-derived from its members at enrolment
   // (scene-sync.mjs syncPartyActorOwnership): a grant written on the party
   // actor alone is wiped, so the player seat reaches this sheet through a
   // member it owns.
-  const fed = await gm.create("Actor", character(`QA Fed Walker ${NONCE}`, 6, { default: 0, [playerId]: 3 }));
+  const fed = await gm.fixture("formation/steps-fed", "Actor", character("QA Fed Walker", 6, { default: 0, [playerId]: 3 }));
+  note("hit points", [await run(gm, P.setHp, { actorId: hungry.id, hp: 6 }), await run(gm, P.setHp, { actorId: fed.id, hp: 6 })]);
+  // The last run's End day left survival rungs on both walkers; only the hungry one is to bar the march.
+  note("survival rungs", [await run(gm, P.setSurvival, { actorId: hungry.id, value: { nourishment: "underfed" }, replace: true }), await run(gm, P.setSurvival, { actorId: fed.id, value: null, replace: true })]);
+  note("the march party brought to a new record's shape", await run(gm, P.reset, { partyId: p3.id }));
   const xy3 = await run(gm, P.cellXY, { sceneId: s2.id, i: 4, j: 3 });
-  const b3 = await run(gm, P.buildParty, { partyId: p3.id, sceneId: s2.id, memberIds: [hungry.id, fed.id], xy: xy3, mode: "journey" });
+  const p3Token = await partyToken("formation/steps-march-party-token", p3.id, s2, xy3);
+  const b3 = await run(gm, P.buildParty, { partyId: p3.id, sceneId: s2.id, tokenId: p3Token.id, memberIds: [hungry.id, fed.id], mode: "journey" });
   if (b3.error) throw new Error(b3.error);
-  gm.track(b3.tokenUuid);
   const f3 = b3.formationId;
   const names = [hungry.name, fed.name];
-  check("the march party journeys with both walkers enrolled", b3.adopted && b3.enrolled.every(Boolean) && b3.mode === "journey", { adopted: b3.adopted, enrolled: b3.enrolled, mode: b3.mode });
+  check("the march party journeys with both walkers enrolled", b3.adopted && b3.enrolled.every(Boolean) && b3.mode === "journey", { adopted: b3.adopted, enrolled: b3.enrolled, dropped: b3.dropped, mode: b3.mode });
+  note("the march back on Dedicated march", await run(gm, P.apiDay, { fid: f3, kind: "march", names }));
   await run(gm, P.setSurvival, { actorId: hungry.id, value: { nourishment: "underfed" } });
   r = await run(gm, P.daySheet, { partyId: p3.id });
   check("the Day section's select is on the GM seat, on Dedicated march", r.daySection && r.select === "march", r);
@@ -990,7 +1153,7 @@ try {
   let ds = await run(gm, P.dayState, { fid: f3 });
   let sel = await run(gm, P.daySelect, { partyId: p3.id });
   let bc = await run(gm, P.barCards, { t0, names });
-  trackAll(bc.uuids);
+  await trackAll(bc.uuids);
   check("Refusal: Leave the day as it is keeps march, the select redraws on it, no note posts", ds.kind === "march" && sel === "march" && bc.count === 0, { kind: ds.kind, select: sel, notes: bc.count });
 
   t0 = Date.now();
@@ -998,7 +1161,7 @@ try {
   await run(gm, P.answer, { actions: ["yes", "no"], action: "yes" });
   ds = await run(gm, P.dayState, { fid: f3 });
   bc = await run(gm, P.barCards, { t0, names });
-  trackAll(bc.uuids);
+  await trackAll(bc.uuids);
   const seenBar = await run(player, P.seen, { ids: bc.ids });
   check("Override: Set it anyway writes forced, all four slots travel, one Judge-whispered card naming the walker", r.dialog && ds.kind === "forced" && ds.allTravel && bc.count === 1 && bc.gmOnly && !bc.othersNamed, { dialog: r.dialog, kind: ds.kind, allTravel: ds.allTravel, cards: bc.count, gmOnly: bc.gmOnly });
   check("Override: the player seat is not shown the whispered card", seenBar.every((x) => !x.visible && !x.inLog), { seen: seenBar });
@@ -1025,7 +1188,7 @@ try {
   t0 = Date.now();
   r = await run(gm, P.apiDay, { fid: f3, kind: "forced", override: true, names });
   bc = await run(gm, P.barCards, { t0, names });
-  trackAll(bc.uuids);
+  await trackAll(bc.uuids);
   check("The Judge's override: the record resolves, forced is set, one more whispered card", r.result === true && r.kind === "forced" && bc.count === 1 && bc.gmOnly, { result: r.result, kind: r.kind, cards: bc.count });
   r = await run(gm, P.apiDay, { fid: f3, kind: "march", names });
   note("day back on march", { kind: r.kind });
@@ -1041,7 +1204,7 @@ try {
   await run(gm, P.patchDay, { fid: f3, patch: { hours: 99, offered: false } });
   ds = await run(gm, P.dayState, { fid: f3 });
   r = await run(gm, P.dragOffer, { fid: f3, answer: "push", rigFace: 20, names });
-  trackAll(r.uuids);
+  await trackAll(r.uuids);
   clockMoves += (r.dragDelta ?? 0) + (r.worldDelta ?? 0);
   let ds2 = await run(gm, P.dayState, { fid: f3 });
   check("The dusk offer: a step past the spent day raises the question", r.dialog && r.titleOk && r.offeredAtDialog, { dialog: r.dialog, titleOk: r.titleOk, offered: r.offeredAtDialog, rigOk: r.rigOk });
@@ -1053,7 +1216,7 @@ try {
   await run(gm, P.patchDay, { fid: f3, patch: { hours: 99, offered: false } });
   ds = await run(gm, P.dayState, { fid: f3 });
   r = await run(gm, P.dragOffer, { fid: f3, answer: "end", names });
-  trackAll(r.uuids);
+  await trackAll(r.uuids);
   clockMoves += (r.dragDelta ?? 0) + (r.worldDelta ?? 0);
   ds2 = await run(gm, P.dayState, { fid: f3 });
   check("Call it a day: a log entry, dayCount up one, hexesEntered back to 0", r.dialog && ds2.logLen === ds.logLen + 1 && ds2.dayCount === ds.dayCount + 1 && ds2.hexesEntered === 0, { dialog: r.dialog, logUp: ds2.logLen - ds.logLen, dayUp: ds2.dayCount - ds.dayCount, hexesEntered: ds2.hexesEntered });
@@ -1062,7 +1225,7 @@ try {
   /* ---------------------------------------------------------------- */
   section("End day, the whole tick");
   r = await run(gm, P.endDayApi, { fid: f3 });
-  trackAll(r.uuids);
+  await trackAll(r.uuids);
   clockMoves += r.worldDelta;
   check("endDay on forest off the road: the day count advances, the log grows, no navigation card", r.dayUp && r.logUp && r.navCards === 0, { dayUp: r.dayUp, logUp: r.logUp, navCards: r.navCards, worldDelta: r.worldDelta });
   note("travel layer unregistered", await run(gm, P.unregister, { id: "travel" }));
@@ -1076,9 +1239,9 @@ try {
   note("encounters layer", await run(gm, P.registerEncounters));
   restore.registered.add("encounters");
   const far = await run(gm, P.encounterCard, { fid: f3, r: 11 / 12 });
-  if (far.uuid) trackAll([far.uuid]);
+  if (far.uuid) await trackAll([far.uuid]);
   const near = await run(gm, P.encounterCard, { fid: f3, r: 1 / 12 });
-  if (near.uuid) trackAll([near.uuid]);
+  if (near.uuid) await trackAll([near.uuid]);
   for (const [label, c] of [["far", far], ["near", near]]) {
     check(`the ${label} throw: the card's sight lines follow its printed distance and the sky's visibility`, c.outcome === "monster" && c.terrain === "grassland" && Number.isFinite(c.printed) && c.lineSays.partySees === c.expect.partySees && c.lineSays.monstersSee === c.expect.monstersSee, { printed: c.printed, expect: c.expect, line: c.lineSays, skyClear: c.skyClear });
     check(`the ${label} throw: the message carries the same facts as flags`, c.flagDistance === c.printed && c.flagStart === c.expectStart && c.flagSays.partySees === c.lineSays.partySees && c.flagSays.monstersSee === c.lineSays.monstersSee, { flagDistance: c.flagDistance, flagStart: c.flagStart, flags: c.flagSays });
@@ -1090,20 +1253,24 @@ try {
 
   /* ---------------------------------------------------------------- */
   section("The city: the stay draws what found it, day by day");
-  const s3 = await gm.create("Scene", sceneData(`QA City ${NONCE}`, { type: 1, distance: 50, units: "ft" }));
+  const s3 = await gm.fixture("formation/steps-city", "Scene", sceneData("QA City", { type: 1, distance: 50, units: "ft" }));
   note("city scene viewed", await run(gm, P.viewScene, s3.id));
-  const p4 = await gm.create("Actor", { name: `QA City Party ${NONCE}`, type: "acks-extras.party" });
-  const b4 = await run(gm, P.buildParty, { partyId: p4.id, sceneId: s3.id, memberIds: [], xy: { x: 500, y: 500 }, mode: "settlement" });
+  const p4 = await gm.fixture("formation/steps-city-party", "Actor", { name: "QA City Party", type: "acks-extras.party" });
+  const p4Token = await partyToken("formation/steps-city-party-token", p4.id, s3, { x: 500, y: 500 });
+  // The board a run left (its tally, its stay's stamp and day count) goes with the record's travel.
+  note("the city party brought to a new record's shape", await run(gm, P.reset, { partyId: p4.id }));
+  const b4 = await run(gm, P.buildParty, { partyId: p4.id, sceneId: s3.id, tokenId: p4Token.id, memberIds: [], mode: "settlement" });
   if (b4.error) throw new Error(b4.error);
-  gm.track(b4.tokenUuid);
   const f4 = b4.formationId;
+  await run(gm, P.watchFormations, { mod: MOD, fids: [f4] });
+  const cityWatch0 = Date.now();
   check("the city party stands in settlement mode", b4.adopted && b4.mode === "settlement", { adopted: b4.adopted, mode: b4.mode });
-  const listName = `QQ City List ${NONCE}`;
   const rowPrefix = "QQ incident";
-  const list = await gm.create("RollTable", {
-    name: listName, formula: "1d10",
+  const list = await gm.fixture("formation/steps-city-list", "RollTable", {
+    name: "QQ City List", formula: "1d10",
     results: Array.from({ length: 13 }, (_, k) => ({ type: "text", name: `${rowPrefix} ${k + 1}`, description: `${rowPrefix} ${k + 1}`, range: [k + 1, k + 1], weight: 1 })),
   });
+  const listName = list.name;
   note("city list named on the map", await run(gm, P.setIncidents, { sceneId: s3.id, patch: { tableUuid: list.uuid, afterDark: 3, bandFrom: 8, bandTo: 9 } }));
   note("cityTravel layer", await run(gm, P.registerCity, { target: 1 }));
   restore.registered.add("cityTravel");
@@ -1116,14 +1283,15 @@ try {
   const adv = async (seconds) => { const a = await run(gm, P.advance, { seconds }); clockMoves += a.moved; return a; };
   await adv(3600);
   b = await run(gm, P.settleBoard, { fid: f4 });
+  note("formations writes heard since the city party was built", await run(gm, P.watchRead, { since: cityWatch0 }));
   check("the stay is stamped by an hour's advance and charged nothing", b.where === "holedUp" && b.hour === "day" && b.stamped && b.days === 0, b);
 
-  const stayTrack = (c) => { if (othersHoledUp === 0) trackAll(c.uuids); };
+  const stayTrack = async (c) => { if (othersHoledUp === 0) await trackAll(c.uuids); };
   let from = b.days;
   t0 = Date.now();
   await adv(86400 * 3);
   let c = await run(gm, P.stayCards, { t0, listName, rowPrefix, from, night: false, shift: 3 });
-  stayTrack(c);
+  await stayTrack(c);
   b = await run(gm, P.settleBoard, { fid: f4 });
   const notes1 = await run(gm, P.noteCount, { sceneId: s3.id });
   check("By day: one stay card, a Day row for each of the three days, numbered on from the board", c.cards === 1 && c.rows === 3 && c.labelsOk && c.interrupted && b.days === from + 3, { cards: c.cards, rows: c.rows, labelsOk: c.labelsOk, interrupted: c.interrupted, days: b.days });
@@ -1145,7 +1313,7 @@ try {
   t0 = Date.now();
   await adv(86400 * 3);
   c = await run(gm, P.stayCards, { t0, listName, rowPrefix, from, night: true, shift: 3 });
-  stayTrack(c);
+  await stayTrack(c);
   check("After dark: three Day rows numbered on from the first stay, each the shifted total's row", c.cards === 1 && c.rows === 3 && c.labelsOk && c.linesOk, { rows: c.rows, labelsOk: c.labelsOk, linesOk: c.linesOk });
   let shiftSeen = c.shiftOnly;
   if (!shiftSeen) {
@@ -1157,7 +1325,7 @@ try {
     await adv(86400);
     note("dice restored", await gm.eval(`globalThis.__d.unrig()`));
     c = await run(gm, P.stayCards, { t0, listName, rowPrefix, from, night: true, shift: 3 });
-    stayTrack(c);
+    await stayTrack(c);
     shiftSeen = c.shiftOnly && c.linesOk;
   }
   check("After dark: a total only the shift reaches appears, with its own row", shiftSeen, { shiftOnly: shiftSeen });
@@ -1167,7 +1335,7 @@ try {
   t0 = Date.now();
   await adv(86400);
   c = await run(gm, P.stayCards, { t0, listName: null, rowPrefix, from: b.days, night: true, shift: 3 });
-  stayTrack(c);
+  await stayTrack(c);
   check("Quiet: a target the die cannot meet says nothing found them over one day, with no Day row", c.cards >= 1 && c.undisturbed1 && c.rows === 0, { undisturbed: c.undisturbed1, rows: c.rows });
 
   note("cityTravel holed-up row emptied", await run(gm, P.registerCity, { empty: true }));
@@ -1175,7 +1343,7 @@ try {
   t0 = Date.now();
   await adv(86400);
   c = await run(gm, P.stayCards, { t0, listName: null, rowPrefix, from: b.days, night: true, shift: 3 });
-  stayTrack(c);
+  await stayTrack(c);
   check("Gap: an empty holed-up row reads Not imported: encounters, with no Day row", c.cards >= 1 && c.unpriced && c.rows === 0, { unpriced: c.unpriced, rows: c.rows });
 
   note("cityTravel target 1", await run(gm, P.registerCity, { target: 1 }));
@@ -1185,11 +1353,14 @@ try {
   t0 = Date.now();
   await adv(86400 * 2);
   c = await run(gm, P.stayCards, { t0, listName: null, rowPrefix, from: b.days, night: true, shift: 3 });
-  stayTrack(c);
+  await stayTrack(c);
   if (world.held) check("No map list, a world list held: two Day rows read from the world's own list", c.rows === 2 && c.labelsOk && !c.anyNoTable, { rows: c.rows, labelsOk: c.labelsOk, noTableLine: c.anyNoTable });
   else check("No map list and none imported: each of the two Day rows says No incident table yet", c.rows === 2 && c.labelsOk && c.noTableRows, { rows: c.rows, labelsOk: c.labelsOk, noTableRows: c.noTableRows });
   if (othersHoledUp) note("stay cards not tracked", "another formation is holed up, so a stay card cannot be told for this run's");
-  note("scene incident record cleared with the scene at the sweep", true);
+  // The stay ends with its check: every clock advance in the world, any
+  // session's, credits a party holed up in settlement mode a stay, so a kept
+  // one left in the city would post cards between runs.
+  note("the city party out of the city", await run(gm, P.setMode, { partyId: p4.id, mode: "delve" }));
 } catch (err) {
   console.log(`WALK ERROR: ${err?.message ?? err}`);
   console.error(err?.stack ?? err);
@@ -1206,7 +1377,10 @@ try {
   }
   try { if (gm) note("GM seat restored", await run(gm, P.restoreSeat)); } catch (err) { console.error("restoreSeat:", err?.message ?? err); }
   try { if (open.player) note("player seat restored", await run(open.player, P.restoreSeat)); } catch (err) { console.error("restoreSeat player:", err?.message ?? err); }
-  try { if (gm) note("sweep", await gm.sweepTracked()); } catch (err) { console.error("sweep:", err?.message ?? err); }
+  try {
+    const w = gm ? await run(gm, P.watchRead, {}) : null;
+    if (w) note("formations writes heard over the walk", { sets: w.sets, updates: w.updates, foreign: w.foreign, foreignAt: w.log.filter((e) => e.own == null).map((e) => ({ at: new Date(e.at).toISOString(), worldTime: e.worldTime, userId: e.userId })) });
+  } catch (err) { console.error("watchRead:", err?.message ?? err); }
   try { if (gm && worldTime0 != null) note("world clock moved (s)", { total: (await run(gm, P.census, MOD)).worldTime - worldTime0, byThisWalk: clockMoves }); } catch (err) { console.error("worldTime:", err?.message ?? err); }
   console.log(`\nchecks: ${tally.pass} passed, ${tally.fail} failed`);
   if (tally.fail) process.exitCode = 1;

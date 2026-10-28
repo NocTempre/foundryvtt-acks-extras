@@ -122,7 +122,12 @@ it covers; a section no walk names is walked by hand.
   moves, and one still running code from before the election bills them
   again: a move billed twice, a write lost. `game.users.filter(u =>
   u.active)` lists the seat once however many clients hold it. The server's
-  debug log names each authentication (TEST_ENVIRONMENT).
+  debug log names each authentication (TEST_ENVIRONMENT). A window's own view
+  of the election is `automationCensus()` and `isLeadClient()` in
+  `scripts/lib/automation-client.mjs`: `formation-steps` reads both at its
+  start and stops when another window leads, and logs every write of the
+  formations setting it hears, a write without its own mark being another
+  window's.
 - **Drag a token with trusted mouse input**, CDP `Input.dispatchMouseEvent`
   on the driver's page. `Token#_canDrag` refuses unless the token is
   controlled and `game.activeTool === "select"`
@@ -254,9 +259,17 @@ it covers; a section no walk names is walked by hand.
     {name} behind."; the control now reads **Go back for them**, and pressing
     it recalls the token. Pressing the GM-owned member's control is not
     offered to this seat. With the formation in combat the press posts nothing
-    public and whispers the seat a refusal. Teardown by the run's own ids: the
-    token the press made is tracked by reading `deployedTokenId` back, and the
-    chat card ids the same way.
+    public and whispers the seat a refusal. Fixtures (`formation-steps`), kept:
+    the party `formation/steps-rearguard` with its token
+    `formation/steps-rearguard-token`, the members
+    `formation/steps-fallen-owned` (Player-owned) and
+    `formation/steps-fallen-judge`. At the step's start the party's record is
+    brought to a new record's shape (no `travel`, a fresh clock, no table,
+    lights, spells or fight; members, name and linkage kept), the owned
+    member's hit points are set to 0, and a member already left is gone back
+    for. The token the press makes is a create path's product: the step
+    retires `formation/steps-left-token` at its start and marks the one read
+    back from `deployedTokenId` where Go back does not recall it.
 12. **An item dropped on the party sheet is refused.** As GM drop a piece of
     a member's gear on the party sheet, then a coin row with a count above
     zero. Give the Player seat ownership of the party actor and of that member,
@@ -271,10 +284,17 @@ it covers; a section no walk names is walked by hand.
     `flags["acks-extras"].formationId` naming no formation: its sheet opens and
     no formation record is written.
 13. **The door dialog writes the door, reports a botch, and spends a batter.**
-    Fixtures: a disposable scene holding two door walls (`door: 1`); a disposable character with a token on the
-    scene; a disposable formation holding that character (`api.create` the
-    actor, add it with the formation's own add-member path); a second character
-    in no formation. Select the door on the Walls layer, select the first
+    Fixtures, kept: a scene `formation/steps-doors` holding two door walls
+    (`door: 1`), `formation/steps-door-1` and `-door-2`; a character
+    `formation/steps-basher` with its token `formation/steps-basher-token`
+    on the scene; a formation, the party `formation/steps-door-party` with
+    its token `formation/steps-door-party-token`, holding that character (a
+    drop on the party sheet, the formation's own add-member path, enrols it
+    where the kept party lacks it); a second character
+    `formation/steps-stranger` (token `formation/steps-stranger-token`) in no
+    formation. At the step's start both doors are written closed (`ds: 0`)
+    with the `door` flag unset, both characters' hit points set to 6, and the
+    party's record brought to a new record's shape. Select the door on the Walls layer, select the first
     character's token, and press the **ACKS door actions** tool.
     - *Construction.* Pick another construction in the select.
       *Observable:* re-read `wall.flags["acks-extras"].door.kind` from the
@@ -299,14 +319,21 @@ it covers; a section no walk names is walked by hand.
       unformed character selected on the second door.
       *Observable:* the door opens, no clock moved, and the notification says
       no formation holds the basher.
-    Teardown by the run's own ids: the actors, the scene (its walls go with
-    it) and the formation; track each chat card id as it lands.
+    Mark each chat card as it lands, `formation/steps-card-<n>` in the order
+    posted; the next run retires them before its first step, counting up from
+    1 and stopping after five markers in a row that nothing carries.
 14. **A marcher's survival state bars the forced march; only the Judge
-    overrides it.** Fixtures (each recorded with `api.create`): a disposable
-    scene with a disposable `acks-extras.party` actor on it, and two disposable
-    character actors enrolled through the token HUD (see the drive mechanics
-    above). Put one member on a barring rung by writing that disposable
-    actor's own flag through the API: `await actor.setFlag("acks-extras",
+    overrides it.** Fixtures, kept: a scene `formation/steps-march` with an
+    `acks-extras.party` actor `formation/steps-march-party` on it (token
+    `formation/steps-march-party-token`), and two character actors
+    `formation/steps-hungry` and `formation/steps-fed` enrolled through the
+    token HUD (see the drive mechanics above). At the step's start the party's
+    record is brought to a new record's shape and the members' hit points set.
+    The party's drag steps one cell toward the scene's middle column, so a
+    kept token never walks off its scene. Put one member on a barring rung by
+    writing that actor's own flag through the API, the whole flag REPLACED and
+    never merged into what a run left, and clear the other's:
+    `await actor.setFlag("acks-extras",
     "survival", { nourishment: "underfed" })` (`hydration: "dehydrated"` and
     `exposure: "hypothermic"` are the other two ladders' barring rungs; a flag
     with no keys, or `nourishment: "hungry"`, is a plain rung). Set the party's
@@ -341,10 +368,9 @@ it covers; a section no walk names is walked by hand.
     - *A Player seat.* Join the Player seat on the formation's scene.
       *Observable:* the Day section, its select and the override dialog are
       absent (the section is the Judge's alone).
-    Teardown by the run's own ids: `api.sweepTracked()` removes the scene and
-    the actors (the party actor dissolves its formation); track each chat card
-    id as it lands. No world document outside that ledger is touched: the
-    survival flag lives on the disposable actors and goes with them.
+    Mark each chat card as it lands, as in step 13. No world document outside
+    the walk's markers is touched: the survival flag lives on the kept
+    `formation/steps-hungry` and is written again at the step's start.
 
 ## A move the GM's client is drawing (added with the stored-position fix)
 
@@ -1304,7 +1330,14 @@ lets steps 6 and 11 be read off the coordinates rather than believed.
    `encounterAfterDark` is `3`. **No die needs rigging**: a `1d6` meets a
    target of 1 every day, and a target of 7 on the same row meets none. Arm
    the marker setting (`transientIncidentTurns`) to a nonzero value so that a
-   marker the stay should not leave would be left. Track the list by id.
+   marker the stay should not leave would be left. The walk
+   (`formation-steps`) keeps the scene `formation/steps-city`, the party
+   `formation/steps-city-party` with its token
+   `formation/steps-city-party-token`, and the list
+   `formation/steps-city-list`, and at the step's start brings the party's
+   record to a new record's shape (no `travel`, a fresh clock, no table,
+   lights, spells or fight; members, name and linkage kept) before it enters
+   settlement mode, so `days` starts at 0.
    With `where` on `holedUp` and `hour` on `By day`
    (`patchSettlement(id, {hour})`), stamp the stay with an hour's advance,
    then `game.time.advance(86400 * 3)`.
@@ -1326,16 +1359,17 @@ lets steps 6 and 11 be read off the coordinates rather than believed.
    imported the settlement document only uncovers that cell and the stay stays
    priced. Advance a day: "Not imported: encounters." and no "Day" row. The
    stay card is the client's that credited it, so read the cards by author and
-   by the `acks-extras-settlement-card` class, never by time alone, and track
-   none for the sweep while another formation is holed up. Restore the target of
+   by the `acks-extras-settlement-card` class, never by time alone, and mark
+   none while another formation is holed up. Restore the target of
    1, clear the city list from Scene Configuration and advance two days: on a
    world holding no imported incident list each "Day" row says "No incident
    table yet" in the turn's words and no incident is claimed; on one that
    holds it, the rows read from the world's own list instead, and the
    missing-list line is left to the offline suite.
-   *Teardown:* unregister the layer, clear the scene's incident record, sweep
-   the tracked list, restore `transientIncidentTurns`. The advances moved the
-   shared clock, as step 9's do.
+   *Teardown:* unregister the layer, clear the scene's incident record,
+   restore `transientIncidentTurns`, and leave the party in delve: a party
+   holed up in settlement mode is credited a stay on every clock advance any
+   walk makes. The advances moved the shared clock, as step 9's do.
 10. Leave with `setJourneyMode(id, "delve")`.
     *Observable:* mode is `delve`, the clock still runs, and the wandering
     monster throw returns. Go straight back in with
