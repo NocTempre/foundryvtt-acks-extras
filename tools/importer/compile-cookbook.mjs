@@ -1852,6 +1852,10 @@ const AX_DIE_RE = /^\d+(?:\s*[-–]\s*\d+)?(?:\s*,\s*\d+(?:\s*[-–]\s*\d+)?)*$/
 // A die the printer fused with the first run of its cell: the die, then the
 // space before the text ("15 The members…" -> "15", 3 characters to strip).
 const AX_DIE_FUSED = /^(\s*\d+(?:\s*[-–]\s*\d+)?(?:\s*,\s*\d+(?:\s*[-–]\s*\d+)?)*)(\s+)(?=\S)/;
+// A die cell that bounds its row on one side only ("1 or less", "12 or more"):
+// the whole run is the die, read as its number, so its words never open the
+// row's text the way a fused die's do.
+const AX_DIE_OPEN = /^(\d+)\s+or\s+(?:less|more)$/i;
 const axColOf = (x, cols) => colOf(x + AX_HANG, cols);
 
 const collapse = (s) => s.replace(/\s+/g, " ").trim();
@@ -3047,12 +3051,15 @@ async function compileNpc(doc, entry, kindRow, bookCtx) {
  */
 export function gridBandParas(gpd, g, { entryId, gpage, page }) {
   const rows = [];
-  // A run in the die column that is a die ("12", "3-4", "8, 18"), or opens
-  // with one and a space before its cell's text: `{label, fusedLen}`, or null.
+  // A run in the die column that is a die ("12", "3-4", "8, 18", "1 or less"),
+  // or opens with one and a space before its cell's text: `{label, fusedLen}`,
+  // or null.
   const dieOf = (it) => {
     if (it.x < g.dieX0 || it.x > g.dieX1) return null;
     const s = it.str.trim();
     if (AX_DIE_RE.test(s)) return { label: s, fusedLen: 0 };
+    const open = AX_DIE_OPEN.exec(s);
+    if (open) return { label: open[1], fusedLen: 0 };
     const m = AX_DIE_FUSED.exec(it.str);
     return m ? { label: m[1].trim(), fusedLen: m[0].length } : null;
   };

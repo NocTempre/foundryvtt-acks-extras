@@ -1084,6 +1084,14 @@ What each book still owes, in the order it is worth doing:
   import again)*; the mode belongs to shelves and books and should fold away
   under a table pick.
 
+## A die cell bounded on one side
+
+A roll-table row whose die cell reads `<n> or less` or `<n> or more`
+(`AX_DIE_OPEN` in `gridBandParas`) is stored as `<n>` alone, so its range is
+that one result. A roll modified past the bound finds no row. An open range
+needs the row's bound carried into the compiled section and the RollTable's
+range widened to the die's floor or ceiling at import.
+
 ## Owed before AX1's minor ships
 
 - **AX3's grid row keyed `mkt21` holds another market's figures.** AX1 p.27's

@@ -1,0 +1,33 @@
+[
+  {
+    "id": "ax1.pool",
+    "kind": "kind.rolltable",
+    "book": "ax1",
+    "name": "Pool Effects",
+    "anchor": { "hash": "1x2bm5r", "as": "display" },
+    "pages": [43],
+    "meta": { "group": "Adventure Tables" },
+    "assists": {
+      "headingLines": { "minH": 10.5 },
+      "descStopY": 590,
+      "grid": { "page": 43, "y0": 605, "y1": 760, "dieX0": 38, "dieX1": 95, "cellX0": 97, "cellX1": 580, "claimDie": true, "headerSkip": [590, 600] }
+    }
+  },
+  {
+    "id": "ax1.mutations",
+    "kind": "kind.rolltable",
+    "book": "ax1",
+    "name": "Mutations",
+    "anchor": { "hash": "d5ctkq", "as": "display" },
+    "pages": [59],
+    "meta": { "group": "Adventure Tables" },
+    "assists": {
+      "headingLines": { "minH": 10.5 },
+      "descStopY": 129,
+      "grids": [
+        { "page": 59, "y0": 140, "y1": 758, "dieX0": 38, "dieX1": 60, "cellX0": 72, "cellX1": 302, "claimDie": true, "centerDies": true, "headerSkip": [129, 139] },
+        { "page": 59, "y0": 140, "y1": 758, "dieX0": 317, "dieX1": 340, "cellX0": 350, "cellX1": 580, "claimDie": true, "centerDies": true, "headerSkip": [129, 139] }
+      ]
+    }
+  }
+]

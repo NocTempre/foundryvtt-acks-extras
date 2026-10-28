@@ -368,6 +368,16 @@ await ta("number-keyed details join their rows, in row order, with the pure key 
   ], "a fused key strips by count; a row with no details keeps none");
 });
 
+await ta("a die bounded on one side only is its number, and its words open no row", async () => {
+  const pd = page(
+    run("1 or less", 32, 100), run("QQ calm", 62, 100),
+    run("2-11", 32, 112), run("QQ ripples", 62, 112),
+    run("12 or more", 32, 124), run("QQ surge", 62, 124),
+  );
+  const out = await readRows({ 1: pd }, gridBandParas(pd, GRID, where));
+  assert.deepEqual(out.map((p) => [p.section, p.text]), [["r1", "QQ calm"], ["r2-11", "QQ ripples"], ["r12", "QQ surge"]]);
+});
+
 await ta("heading-keyed details keep their heading and continue into a second region overleaf", async () => {
   const pd1 = page(
     run("1-2", 32, 100), run("QQ first", 62, 100),

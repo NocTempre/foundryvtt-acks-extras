@@ -271,4 +271,12 @@ t("the demand grid reads sideways, its goods under AX3's keys, its columns namin
   assert.deepEqual(entries["ax1.marketGrid1"].meta.markets, { mkt1: { sameAs: "ax3.mkt21" }, mkt2: { place: "ax1.fort" } });
 });
 
+t("each room table reads one row per die result, from the first without a gap", () => {
+  for (const id of ["ax1.pool", "ax1.mutations"]) {
+    const sections = (entries[id]?.fields?.rows?.paras ?? []).map((p) => p.section);
+    assert.ok(sections.length > 1, `${id} has rows`);
+    assert.deepEqual(sections, sections.map((_, i) => `r${i + 1}`), id);
+  }
+});
+
 console.log(`ax1-cookbook: ${n} checks OK`);
