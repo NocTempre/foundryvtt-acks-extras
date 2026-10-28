@@ -16,6 +16,15 @@ it covers; a section no walk names is walked by hand.
   formation (createActor hook); placing its token adopts the token.
 - Two or three disposable character actors as members.
 - A trap Item of the flavor under test.
+- A walk's fixtures are kept and found again by marker
+  (`flags.world.fixture`, `formation/<name>`), or built carrying one
+  (`api.fixture`); each walked section below names its markers, and brings
+  them to the shape its steps need at its start. A party a walk keeps is left
+  in delve: a journeying or settled record is billed and rolled for on every
+  clock advance any walk makes. Each chat card a walk reads is marked in the
+  order posted (`formation/<walk>-card-<n>`), and the next run retires them
+  before its first section, counting up from 1 and stopping after five
+  markers in a row that nothing carries.
 
 ## Core drive mechanics (non-obvious, learned live)
 
@@ -1850,8 +1859,8 @@ and both have to be walked: nothing registered, and a document registered. The
 first is the one that regresses silently — a missing figure that becomes `0`
 hands the Judge a number that looks calculated.
 
-**Fixtures**: one disposable character Actor. No scene, no token, no canvas —
-every call is API-level.
+**Fixtures**: one character Actor, kept as `formation/day-swimmer`. No scene,
+no token, no canvas — every call is API-level.
 
 **Steps and observables**
 
@@ -1904,7 +1913,7 @@ every call is API-level.
    The priority goes in the option bag: a bare number is read as no priority
    and drops every layer of the document.
 
-**Teardown**: delete the actor; unregister the document if step 7 did not.
+**Teardown**: unregister the document if step 7 did not.
 Leaving a fabricated `formation` document registered poisons every later check
 in the same world session. Then
 `acksExtras.lib.services.get("ruledata-import").reload()` mirrors the world's
@@ -1912,7 +1921,7 @@ store back into this client, which restores an import step 1 took off.
 
 ## The march in miles (added with movement-driven travel)
 
-Fixtures, all through `api.create` and swept with `api.sweepTracked()`: a
+Fixtures, each kept and found again by its marker or built carrying one: a
 hex scene whose cell is a mile-scale hex (`grid.type` hexagonal,
 `grid.distance` a whole number of miles, `grid.units` "mi"), a square scene
 at the same scale, a gridless scene in miles, a hex scene of a wider cell
@@ -1928,6 +1937,18 @@ delta at the end. The dawn and dusk hours default to nothing and the per-hex
 throw setting may be off in the world: read all three, set them for the walk
 (a dawn, a dusk, the throw on) and restore them at teardown, and say so in
 the report.
+
+The walk's changed steps (`formation-day`, with "The journey") keep the feet
+and hex scenes `formation/day-journey-feet` and `formation/day-journey-hex`,
+the party `formation/day-journey-party` and its members
+`formation/day-journey-ranger` (Player-owned) and
+`formation/day-journey-smith`. At the section's start an open lost episode is
+ended (`lostEpisode.endEpisode`) and the record brought to a new record's
+shape; the move's product on the hex scene, the token
+`formation/day-journey-hex-token`, and the true-position marker Chosen places,
+`formation/day-journey-shadow`, are retired, and each is marked again once
+made. The party's token on the feet scene, `formation/day-journey-feet-token`,
+is consumed by the move and placed again every run.
 
 1. Drop the party token on the undeclared mile-scale hex scene.
    *Observable:* `travel.mode` reads `journey` with a scale notice in chat;
@@ -2225,13 +2246,21 @@ the world, `w = t.getDoc("formation").tables` and
 `nav = t.getDoc("travel").tables.navigationBonus`, where
 `t = acksExtras.lib.tables`.
 
-Fixtures, all through `api.create` and swept with `api.sweepTracked()`: a party
-actor (its formation comes with it) and four character actors seated as
-members (*Core drive mechanics*, above). Wayfinder carries an `ability` item
-named Navigation; Scout carries nothing yet; Porter holds the Carrier role
+Fixtures, kept and found again by marker: a party actor
+`formation/day-delve-party` (its formation comes with it) and four character
+actors seated as members (*Core drive mechanics*, above),
+`formation/day-delve-wayfinder`, `-delve-scout`, `-delve-porter` and
+`-delve-fallen`. Wayfinder carries an `ability` item named Navigation; Scout
+carries nothing yet; Porter holds the Carrier role
 (`[data-action="toggleRole"][data-role="carrier"]` on its row of the Order
-tab); Fallen stands at 0 hit points and carries nothing. The Revised Rulebook
-is connected on the GM seat, which runs every step.
+tab); Fallen stands at 0 hit points and carries nothing. At the section's
+start the party's record is brought to a new record's shape (no `travel`, a
+fresh clock, no table, lights or spells; the members stay), a drop enrols any
+member the kept party lacks, and Porter's Carrier chip is pressed off first
+when the kept Porter already holds it. Scout's Pathfinding is step 6's
+create-path product, `formation/day-scout-pathfinding`: retired at the step's
+start and marked once made. The Revised Rulebook is connected on the GM seat,
+which runs every step.
 `f = () => acksExtras.formation.getFormations()[formationId]`.
 
 1. **The world before the import.** *Observable:* `t.getLayer("formation",
@@ -2318,9 +2347,8 @@ message this seat created during a call (`author` is this user) the moment
 the call resolves, the navigation card's too, with
 `api.track(id, "ChatMessage")`.
 
-Teardown: `api.sweepTracked()` — the party actor (its formation goes with it),
-the four characters (their items and effects with them) and every tracked
-card; quote what it returns. The import's product is no fixture: the
+Teardown: the party is left in delve, and its cards stand marked for the next
+run to retire. The import's product is no fixture: the
 `formation` and `travel` layers in the world's store, and the pages
 materialized from them, are what the Judge's own import leaves, and no sweep
 undoes a re-read. On a shared world step 2 is therefore the owner's call, as
@@ -2328,12 +2356,16 @@ the importer's *Rules tables from Reimport One Shelf* recipe says.
 
 ## The day change (added with the calendar key)
 
-Fixtures: two party actors (`api.create`), each with a formation in journey
-mode and the generator on (*Roll each new day*), one invented climate
-for both; the `weather` document imported from the Judge's own pages, or an
+Fixtures: two party actors, kept as `formation/day-sky-a` and
+`formation/day-sky-b`, each with a formation put in journey mode and the
+generator on (*Roll each new day*) at the section's start, one invented
+climate for both; the Player-owned member `formation/day-sky-walker` and the
+finding probe's `formation/day-sky-porter`, taken off A at the start so that
+every member of A is the player seat's until the probe enrols it again; the `weather` document imported from the Judge's own pages, or an
 invented one registered at priority 20 (`climateModifiers` for the climate in
 two seasons, the four band tables and `accumulation`) and unregistered after.
-A third formation left in delve mode is the control. Note each formation's
+A third formation left in delve mode, `formation/day-sky-c`, is the control;
+each of the three is brought to a new record's shape first. Note each formation's
 `travel.weather.settledDay`, `travel.weather.footing.runs` and
 `travel.weather.rolls`, and the sky cache (`game.settings.get("acks-extras",
 "skyCache")`) key count.
@@ -2389,19 +2421,27 @@ sits in the player seat's `game.messages` collection varies from run to run
 is the message's `visible` getter on that seat and its absence from that
 seat's chat log, never its presence or absence in the collection.
 
-Teardown: `api.sweepTracked()` over the ledger: the party actors (their
-formations go with them) and every tracked message. Unregister the invented
-`weather` document. The cache keys the run created age out of the window on
-their own; the world clock is not set back.
+Teardown: the three are left in delve with the generator off, since a
+journeying record with the generator on is settled, and its sky rolled into
+the shared cache, on every day change any walk makes; a delve record is only
+stamped (`settledDay`). Unregister the invented `weather` document. The cache
+keys the run created age out of the window on their own; the world clock is
+not set back.
 
 ## The frame (added with the redesign's phase 1)
 
-Fixtures (each recorded with `api.create`, or `api.track` for what a gesture
-makes): a mile-scale hex scene created with `active: false` and viewed; a
-disposable `acks-extras.party` actor with its token placed there and adopted;
-two disposable character actors enrolled through the token HUD, one owned by
-the provisioned Player user so that seat holds a member; a disposable
-RollTable for Tweaks to pick. Read each seat's
+Fixtures, kept and found again by marker: a mile-scale hex scene
+`formation/day-frame-scene`, created with `active: false` and viewed; an
+`acks-extras.party` actor `formation/day-frame-party` with its token
+`formation/day-frame-party-token` placed there and adopted when none stands;
+two character actors, `formation/day-frame-ranger` (owned by the provisioned
+Player user, so that seat holds a member) and `formation/day-frame-smith`,
+enrolled through the token HUD when the kept party lacks them (the HUD's input
+tokens are tracked, and the HUD removes them); a RollTable
+`formation/day-frame-table` for Tweaks to pick. At the section's start the
+record is brought to a new record's shape, so Tweaks' `tableId` lands from
+null, and the party actor's `system.description` is emptied; step 1's rename
+types the name the kept party does not carry. Read each seat's
 `flags["acks-extras"].partyPanel` before the walk.
 
 1. **The band is the header.** Open the party sheet on the GM seat.
@@ -2533,9 +2573,8 @@ RollTable for Tweaks to pick. Read each seat's
    press its button while a peer holds the Gamemaster seat — the request runs
    on their client).
 
-Teardown: `api.sweepTracked()` (the scene, the party actor and with it the
-formation, the members, the table, every tracked card); remove the fixture
-actor's key from each seat's `partyPanel` flag and read the flag back; set
+Teardown: the party is left in delve; remove the fixture actor's key from
+each seat's `partyPanel` flag and read the flag back; set
 `fontScale` back to 14 on every seat that changed it, since a client setting
 follows you into the next session.
 
