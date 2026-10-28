@@ -2821,18 +2821,22 @@ and every move of the shadow runs on the ACTIVE GM's client: drive from that
 seat, keep a second GM client off the world, and rig the dice and register the
 invented table there.
 
-Fixtures, each recorded with `api.create`, or `api.track` for what a call, a
-gesture or the feature makes, read back by the id it returns:
+Fixtures, each found again by its marker or built carrying one, or recorded
+with `api.track` for what a call, a gesture or the feature makes, read back by
+the id it returns:
 
 - a mile-scale hex scene (*The march in miles*'s first scene; `grid.type` 2,
   hex rows, at least ten hexes across and six down) created with `active: false` and
-  `ownership.default` OBSERVER, and viewed. Its background is Foundry's own
+  `ownership.default` OBSERVER, and viewed, kept as `formation/hex-scene` and
+  written back to its grid and frame (the create fields but its name and
+  `active`) at the start. Its background is Foundry's own
   `ui/parchment.jpg`, never book art: confirm it is served
   (`(await fetch(foundry.utils.getRoute("ui/parchment.jpg"), {method: "HEAD"})).ok`),
   then set it through the scene's level after creation
   (`scene.levels.contents[0].update({"background.src": "ui/parchment.jpg"})`,
-  the battlemap recipe's mechanic). A second disposable scene of any grid,
-  also `active: false`, for the Judge to be looking at in step 11;
+  the battlemap recipe's mechanic). A second scene of any grid, also
+  `active: false`, for the Judge to be looking at in step 11, kept as
+  `formation/hex-other-scene` and written back the same way;
 - the scene's default country, ground `grassland`:
   `acksExtras.battlemap.country.writeSceneSetup(scene, {country: {ground: "grassland", territory: X}})`;
 - six hexes picked by offset and read as points with
@@ -2843,21 +2847,34 @@ gesture or the feature makes, read back by the id it returns:
   (`(await import("/modules/acks-extras/scripts/formation/plate.mjs")).neighbourToward(scene, D, "se")`);
 - through `acksExtras.battlemap.terrain.paintHexAt(scene, point, value,
   "terrain")`: hex C painted `grassland` and hex T a second ground (any value
-  `paintableValues("terrain")` lists other than grassland). List
-  `layerRegionsOf(scene, "terrain")` after the painting and track every
-  region id;
+  `paintableValues("terrain")` lists other than grassland), painted again
+  every run, since the brush merges into the region standing. List
+  `layerRegionsOf(scene, "terrain")` after the painting and track any region
+  the painting made;
 - a paved road from C's centre to A's centre,
   `scene.createEmbeddedDocuments("Wall", [{c: [Cx, Cy, Ax, Ay], ...acksExtras.battlemap.roads.roadWallData({surface: "paved"})}])`,
-  its id tracked. *Probe:* `acksExtras.battlemap.roads.stepBetweenHexes(scene,
+  kept as `formation/hex-road` and written back to that data at the start.
+  *Probe:* `acksExtras.battlemap.roads.stepBetweenHexes(scene,
   C, A).on` is true and `stepBetweenHexes(scene, A, B).on` false;
 - a river no boat can follow, across hex C a quarter of the cell's height
   above its centre, edge to edge:
   `{c: [Cx - sizeX / 2, Cy - sizeY / 4, Cx + sizeX / 2, Cy - sizeY / 4], ...acksExtras.battlemap.water.waterWallData({kind: "river", navigable: false})}`
-  (`sizeX`/`sizeY` the grid's), its id tracked. A navigable one would spare
-  the throw on its own;
-- a disposable `acks-extras.party` actor with two disposable members enrolled
-  through the token HUD, one owned by the provisioned Player user, its token
-  placed in hex C and adopted (poll the record for `tokenId`), then
+  (`sizeX`/`sizeY` the grid's), kept as `formation/hex-river` and written
+  back the same way. A navigable one would spare the throw on its own;
+- the world clock moved on to the next 07:00 before the party is built: steps
+  3 to 9 are one calendar day, and the shared clock stands wherever the last
+  walk left it;
+- an `acks-extras.party` actor, `formation/hex-party`, built again every run:
+  its journey record (the navigation, the episode, the day) has no shape a
+  step can write back, so the start retires its token and then the actor (its
+  delete dissolves the formation; wait for `getFormations()` to drop it). Two
+  members enrolled through the token HUD are kept, `formation/hex-walker-a`,
+  owned by the provisioned Player user, and `formation/hex-walker-b`, their
+  ownership and `prototypeToken.actorLink` written back. Its token is placed
+  in hex C and adopted (a hand-made party's record lands a moment after
+  `Actor.create` resolves, so poll `getFormations()` for its `actorId` before
+  placing it, and the record for `tokenId` after) and marked
+  `formation/hex-party-token`, then
   `acksExtras.formation.travel.setJourneyMode(id, "journey")`;
 - hex C stocked by hand with two invented points, P found by this formation
   and Q not:
@@ -2869,7 +2886,7 @@ gesture or the feature makes, read back by the id it returns:
   foundry.utils.randomID(), kind: "placed", name: "Point P", sub: null,
   rarity: null, creature: null, draw: null, found, placeUuid: null, note:
   ""}`, P's `found` `{[formationId]: game.time.worldTime}` and Q's `{}`. The
-  stock is a flag on the scene and goes with it;
+  stock is a flag on the scene, written again every run;
 - an invented `travel` document registered at priority 30 on the active GM's
   client: the country recipe's `encounterFrequency` and `gettingLost:
   {grassland: <a target of your own that a 20 makes>}`, through
@@ -2887,9 +2904,10 @@ party.sheet._prepareContext({})`: `ctx.travel.plate`, `ctx.travel.judge.where`,
 A drag is `tokenDoc.update({x, y}, {animate: false})` to
 `scene.grid.getTopLeftPoint(offset)`. The movement hook posts the card after
 the update resolves, so poll `game.messages` for up to two seconds for a
-message authored by this seat and newer than the drag, and `api.track(msg.id,
-"ChatMessage")` it the moment it appears; track the cards a press posts the
-same way. A ledger write takes a moment to read back (*Lost*): settle ~1.5 s
+message authored by this seat and newer than the drag, and mark it
+`formation/hex-message-<n>`, in arrival order, the moment it appears; mark
+the cards a press posts the same way. The next run retires them before its
+fixtures, stopping after five markers in a row that nothing carries. A ledger write takes a moment to read back (*Lost*): settle ~1.5 s
 before asserting on `f()`. Rig the d20 through `CONFIG.Dice.randomUniform`,
 saving the original first, and read one `new Roll("1d20")` back after each
 rig (*The hex stock*: `() => 0.975` throws a 1 and `() => 0.025` a 20 on core
@@ -2947,8 +2965,8 @@ the background and the token art are the world's own origin.
    *Observable:* `lost.phase` "astray", `lost.sceneId` the scene's id,
    `lost.anchor` B's offset; the card's note says the episode is open, and it
    carries no button. A hidden token flagged `shadowFor` the formation stands
-   in hex B: `s = shadow.shadowFor(scene, id)`, and `api.track(s.uuid)` at
-   once. The GM seat's band wears the astray chip; the Player seat's does
+   in hex B: `s = shadow.shadowFor(scene, id)`. A shadow is the feature's to
+   remove, and the party's dissolve clears one a dead run left. The GM seat's band wears the astray chip; the Player seat's does
    not, and the Player's canvas shows no new token.
 5. **A further drag moves the shadow with the token.** Drag from B to D.
    *Observable:* no new navigation card (the day's throw is made); the shadow
@@ -2990,7 +3008,7 @@ the background and the token art are the world's own origin.
    and the one line. `T.trueTravelOf(f())` is what it was. Click the believed
    hex tile: every seat draws again.
 9. **They realise they are lost.** Rig a 20 and press **Throw now**.
-   *Observable:* one card (track it), "Thrown true while they are astray", with
+   *Observable:* one card (mark it), "Thrown true while they are astray", with
    the **They realise they are lost** button (`.acks-extras-nav-realise`);
    `history[0]` is by "judge" with step 3's day, `thrownOn` unchanged, and
    `lost.phase` still astray. Press the card's button (no dialog follows).
@@ -2998,20 +3016,20 @@ the background and the token art are the world's own origin.
    empty, the shadow where it stood, the players told on the Player seat, and
    Where they are still shows two plates that differ. A second press does
    nothing.
-10. **The next day, aware.** Press End day (track every card it posts). With
+10. **The next day, aware.** Press End day (mark every card it posts). With
     *Advance the world clock* off the calendar day stays where it is, and the
     key still moves with the count.
     *Observable:* End day posts no navigation card and `thrownOn` is
     unchanged; Navigation, quietly reads *Owed at the day's first step off the
     road.* Rig a 1 and press **Next hex** (`[data-action="travelEnterHex"]`)
     with the hex field as it stands.
-    *Observable:* one card (track it), "They already know they are lost", no
+    *Observable:* one card (mark it), "They already know they are lost", no
     button; one shadow, no second; `thrownOn` the new day's key, its count
     half one up, and `history[0]` by "step". Drag from E to D. *Observable:*
     no card, and the shadow moved one hex west. With the day open, advance
     the clock past midnight by hand (`game.time.advance(<seconds to the next
     calendar day>)`, forward only, the total reported) and drag from D to E.
-    *Observable:* one card (track it): the calendar half of `thrownOn` is the
+    *Observable:* one card (mark it): the calendar half of `thrownOn` is the
     new day's and the count half unchanged, and the shadow stands one hex
     east.
 11. **The refused opening, and the card's Begin.** Press **They turn back**
@@ -3019,22 +3037,19 @@ the background and the token art are the world's own origin.
     *Observable:* `lost.phase` null, no `shadowFor` token on any scene, both
     plates read the party token's hex, no pad. View the second scene, rig a 1
     and press **Throw now**.
-    *Observable:* a warning to open the party's scene, and one card (track
+    *Observable:* a warning to open the party's scene, and one card (mark
     it) with the strayed verdict, the note that the episode could not be
     opened and a **Begin the lost episode** button (`.acks-extras-nav-begin`);
     `lost.phase` still null and no shadow. Press the button there.
     *Observable:* the same warning, nothing opens, the button stays. View the
     hex scene again and press it.
-    *Observable:* no dialog; `lost.phase` "astray", a shadow (track it) in the
+    *Observable:* no dialog; `lost.phase` "astray", a shadow in the
     party token's own hex, both plates the same hex and no badge, and the pad
     shown. Press **They turn back** and answer yes.
 
 Teardown: restore `CONFIG.Dice.randomUniform` to the function saved before
-the first rig; `api.sweepTracked()` — the two scenes with their regions,
-walls, stock and shadows, the party actor and with it the formation, the
-members, every tracked card — and quote its result: the shadows They turn back
-retired, and anything the scenes took with them, are its "could not find".
-Unregister the invented `travel` document
+the first rig. The scenes, the members, the party and the marked cards stand
+for the next run's start. Unregister the invented `travel` document
 (`acksExtras.lib.tables.unregisterTable("travel", {priority: 30})`) and
 restore *Journey encounter throws*. The world clock is not set back; report
 how far step 10 moved it.
