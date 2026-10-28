@@ -6,6 +6,22 @@
  * a world or a seat. WALK_PLAN names an optional plan file that picks sections
  * ({ "sections": [...], "shots": true }). Every figure typed here
  * is invented; imported figures are compared in page context and never printed.
+ *
+ * The fixtures are kept and found again by marker (flags.world.fixture):
+ * formation/day-delve-party with -wayfinder, -scout, -porter and -fallen;
+ * formation/day-swimmer; formation/day-frame-scene, -frame-party (its token
+ * -frame-party-token), -frame-ranger, -frame-smith and -frame-table;
+ * formation/day-journey-feet and -journey-hex (scenes), -journey-party,
+ * -journey-ranger and -journey-smith; formation/day-sky-a, -sky-b, -sky-c,
+ * -sky-walker and -sky-porter. Each section brings its parties to a fresh
+ * record's shape at its start (`P.reset`) and leaves them in delve with the
+ * sky generator off. The products of create paths are retired at the start of
+ * their step and marked after it: the cards (formation/day-card-<n>), Scout's
+ * Pathfinding (formation/day-scout-pathfinding), the party token the march
+ * fixture places on the hex scene (formation/day-journey-hex-token) and the
+ * lost episode's true-position marker (formation/day-journey-shadow). The
+ * journey party's token on the feet scene (formation/day-journey-feet-token)
+ * is consumed by that move, so every run places it again.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -21,7 +37,8 @@ const MACHINE = machineSeats();
 const browser = MACHINE.browser;
 const origin = MACHINE.origin;
 const SEATS = { gm: MACHINE.gm, player: MACHINE.player };
-const NONCE = "a1" + Math.random().toString(36).slice(2, 6);
+// Every fixture's name carries the tag, so a card naming one is this walk's (H.nonce).
+const TAG = MACHINE.own ? `[day@${MACHINE.own}]` : "[day]";
 const MOD = "acks-extras";
 const SHOT_DIR = shotDir();
 
@@ -137,7 +154,7 @@ const P = {
           searchCard: !!doc.querySelector(".acks-extras-search-card"),
           text,
           encounter,
-          // A fixture's name carries the run's nonce, so a card naming one is this run's.
+          // A fixture's name carries the walk's tag, so a card naming one is this walk's.
           mine: H.mineAliases.has(alias) || (!!encounter && H.mineFids.has(encounter.formationId)) || (!!H.nonce && text.includes(H.nonce)),
         };
       });
@@ -456,6 +473,7 @@ const P = {
   },
 
   /** The party's formation once the createActor hook has made it; members dropped on its sheet. */
+  /** Each member the party lacks dropped on its sheet; a kept member is already enrolled. */
   enrolDrop: async ({ partyId, memberIds }) => {
     const H = globalThis.__a1;
     const f = await H.poll(() => Object.values(H.F.getFormations()).find((x) => x.actorId === partyId), { tries: 60, every: 200 });
@@ -466,29 +484,41 @@ const P = {
     const app = await party.sheet.render(true);
     await H.sleep(1500);
     const el = H.root(app);
+    const isMember = (id) => !!H.F.getFormations()[f.id]?.members?.some((m) => m?.actorId === id);
     const enrolled = [];
+    let dropped = 0;
     for (const id of memberIds) {
-      const dt = new DataTransfer();
-      dt.setData("text/plain", JSON.stringify({ type: "Actor", uuid: game.actors.get(id).uuid }));
-      el.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: dt }));
-      const ok = await H.poll(() => H.F.getFormations()[f.id]?.members?.some((m) => m?.actorId === id), { tries: 40, every: 200 });
-      enrolled.push(!!ok);
+      if (!isMember(id)) {
+        const dt = new DataTransfer();
+        dt.setData("text/plain", JSON.stringify({ type: "Actor", uuid: game.actors.get(id).uuid }));
+        el.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: dt }));
+        dropped++;
+        await H.poll(() => isMember(id), { tries: 40, every: 200 });
+      }
+      enrolled.push(isMember(id));
     }
     await H.sleep(500);
-    return { fid: f.id, enrolled, mode: H.T.travelOf(H.formation(f.id)).mode ?? null };
+    return { fid: f.id, enrolled, dropped, mode: H.T.travelOf(H.formation(f.id)).mode ?? null };
   },
 
-  /** Press the carrier chip on a member's row of the Order tab. */
+  /** Press the carrier chip on a member's row of the Order tab; a kept carrier's chip is pressed off first. */
   carrier: async ({ partyId, fid, actorId }) => {
     const H = globalThis.__a1;
     const app = game.actors.get(partyId).sheet;
     H.root(app)?.querySelector('.tabs [data-group="primary"][data-tab="order"]')?.click();
     await H.sleep(600);
-    const chip = H.root(app)?.querySelector(`li.member[data-actor-id="${actorId}"] [data-action="toggleRole"][data-role="carrier"]`);
-    if (!chip) return { found: false };
-    chip.click();
-    const ok = await H.poll(() => H.formation(fid)?.members?.find((m) => m.actorId === actorId)?.roles?.includes("carrier"), { tries: 40, every: 200 });
-    return { found: true, carrier: !!ok };
+    const chip = () => H.root(app)?.querySelector(`li.member[data-actor-id="${actorId}"] [data-action="toggleRole"][data-role="carrier"]`);
+    const isCarrier = () => !!H.formation(fid)?.members?.find((m) => m.actorId === actorId)?.roles?.includes("carrier");
+    if (!chip()) return { found: false };
+    const was = isCarrier();
+    if (was) {
+      chip().click();
+      await H.poll(() => !isCarrier() && chip(), { tries: 40, every: 200 });
+      await H.sleep(600);
+    }
+    chip()?.click();
+    const ok = await H.poll(isCarrier, { tries: 40, every: 200 });
+    return { found: true, carrier: !!ok, was };
   },
 
   /** What step 3 and step 5 read, compared in the page against the imported figures. */
@@ -606,7 +636,7 @@ const P = {
     if (phase === "pathfinding") {
       const [item] = await game.actors.get(scoutId).createEmbeddedDocuments("Item", [{ name: "Pathfinding", type: "ability" }]);
       await H.sleep(600);
-      return { item: !!item, competence: comp() };
+      return { item: !!item, itemUuid: item?.uuid ?? null, competence: comp() };
     }
     const before = (H.formation(fid)?.travel?.navigation?.history ?? []).length;
     const t0 = Date.now();
@@ -698,7 +728,12 @@ const P = {
   /* ---------------------------- the frame ---------------------------- */
 
   /** The party token placed and adopted on the hex scene, then each member enrolled through the token HUD. */
-  frameFixtures: async ({ sceneId, partyId, memberIds, xy }) => {
+  /**
+   * The party token (a kept fixture, built on the scene where none stands)
+   * adopted by the party's formation, and each member the party lacks
+   * enrolled through the token HUD from a token placed beside it.
+   */
+  frameFixtures: async ({ sceneId, partyId, tokenId, memberIds, xy }) => {
     const H = globalThis.__a1;
     const scene = game.scenes.get(sceneId);
     const party = game.actors.get(partyId);
@@ -706,14 +741,15 @@ const P = {
     if (!f) return { error: "no formation for the party actor" };
     H.claim({ alias: f.name, fid: f.id });
     H.claim({ alias: party.name });
-    const td = await party.getTokenDocument({ x: xy.x, y: xy.y });
-    const [token] = await scene.createEmbeddedDocuments("Token", [td.toObject()]);
-    const adopted = await H.poll(() => { const r = H.F.getFormations()[f.id]; return r?.tokenId === token.id && r?.sceneId === sceneId; }, { tries: 75, every: 200 });
+    const token = scene.tokens.get(tokenId);
+    const adopted = await H.poll(() => { const r = H.F.getFormations()[f.id]; return r?.tokenId === tokenId && r?.sceneId === sceneId; }, { tries: 75, every: 200 });
     await H.sleep(2000);
-    const out = { fid: f.id, tokenUuid: token.uuid, tokenId: token.id, adopted: !!adopted, mode: H.T.travelOf(H.formation(f.id)).mode, memberTokens: [], enrolled: [] };
+    const out = { fid: f.id, tokenUuid: token?.uuid ?? null, tokenId, adopted: !!adopted, mode: H.T.travelOf(H.formation(f.id)).mode, memberTokens: [], enrolled: [] };
     if (!adopted) return out;
+    const isMember = (id) => !!H.F.getFormations()[f.id]?.members?.some((m) => m?.actorId === id);
     let i = 0;
     for (const id of memberIds) {
+      if (isMember(id)) { out.enrolled.push({ kept: true, ok: true }); continue; }
       const actor = game.actors.get(id);
       const mtd = await actor.getTokenDocument({ x: xy.x + 300 + 150 * i, y: xy.y + 300 });
       const [mt] = await scene.createEmbeddedDocuments("Token", [mtd.toObject()]);
@@ -1288,6 +1324,91 @@ const P = {
     return { nonce: globalThis.__a1.nonce === nonce };
   },
 
+  /* --------------------------- kept fixtures --------------------------- */
+
+  /** The token data an actor would place at `xy`, for the driver to build as a fixture. */
+  tokenData: async ({ actorId, xy }) => (await game.actors.get(actorId).getTokenDocument({ x: xy.x, y: xy.y })).toObject(),
+
+  /**
+   * A kept party's record brought to the shape a new record has: an open lost
+   * episode ended, then no travel, a fresh clock, no table, lights or spells.
+   * The members, the name and the token's linkage stand.
+   */
+  reset: async ({ partyId }) => {
+    const H = globalThis.__a1;
+    const f = await H.poll(() => Object.values(H.F.getFormations()).find((x) => x.actorId === partyId), { tries: 60, every: 200 });
+    if (!f) return { error: "no formation for the party actor" };
+    const lost = H.T.travelOf(H.formation(f.id)).lost?.phase ?? null;
+    let ended = null;
+    if (lost) {
+      const episode = await import("/modules/acks-extras/scripts/formation/lost-episode.mjs");
+      ended = await episode.endEpisode(H.formation(f.id));
+    }
+    await H.m.model.patchFormation(f.id, (record) => {
+      const lastPosition = record.clock?.lastPosition;
+      delete record.travel;
+      record.clock = { turnsTotal: 0, turnsSinceRest: 0, encounterCounter: 0, carryFeet: 0, winded: false, paused: false, ...(lastPosition ? { lastPosition } : {}) };
+      record.tableId = null;
+      record.lights = [];
+      record.spells = [];
+      record.combat = null;
+    });
+    await H.sleep(600);
+    const t = H.T.travelOf(H.formation(f.id));
+    return { fid: f.id, lost, ended: ended ? { ended: ended.ended, cleared: ended.cleared ?? null } : null, mode: t.mode, members: (H.formation(f.id)?.members ?? []).filter((m) => m?.actorId).length };
+  },
+
+  /**
+   * Kept characters at the hit points they were built with and on no survival
+   * rung: an End day a run pressed moves both, and a rung bars a forced march.
+   */
+  memberShape: async ({ list }) => {
+    const out = [];
+    for (const { actorId, hp } of list) {
+      const actor = game.actors.get(actorId);
+      if (actor.getFlag("acks-extras", "survival")) await actor.unsetFlag("acks-extras", "survival");
+      if (actor.system?.hp?.value !== hp) await actor.update({ "system.hp.value": hp });
+      out.push({ hp: actor.system?.hp?.value ?? null, survival: !!actor.getFlag("acks-extras", "survival") });
+    }
+    return out;
+  },
+
+  /** Members a section adds itself, taken off a kept party first. */
+  removeFrom: async ({ fid, actorIds }) => {
+    const H = globalThis.__a1;
+    const has = () => actorIds.filter((id) => H.formation(fid)?.members?.some((m) => m?.actorId === id));
+    const had = has();
+    if (had.length) await H.F.removeMembers(H.formation(fid), had);
+    await H.sleep(400);
+    return { had: had.length, left: has().length };
+  },
+
+  /**
+   * Kept formations left in delve with the sky generator off. A journeying
+   * record is settled, and an automatic sky rolled, on every day change any
+   * walk makes; one in delve is only stamped.
+   */
+  quiet: async ({ fids }) => {
+    const H = globalThis.__a1;
+    const out = {};
+    for (const fid of fids) {
+      if (!H.formation(fid)) { out[fid] = null; continue; }
+      if (H.T.travelOf(H.formation(fid)).weather?.auto) await H.T.applyTravelForm(fid, { weather: { auto: false } });
+      if (H.T.travelOf(H.formation(fid)).mode !== "delve") await H.T.setJourneyMode(fid, "delve");
+      await H.sleep(300);
+      const t = H.T.travelOf(H.formation(fid));
+      out[fid] = { mode: t.mode, auto: !!t.weather?.auto };
+    }
+    return out;
+  },
+
+  /** The party actor's description emptied, so the description tool's save is seen to land. */
+  clearDescription: async ({ partyId }) => {
+    const actor = game.actors.get(partyId);
+    if (actor.system?.description) await actor.update({ "system.description": "" });
+    return { empty: !actor.system?.description };
+  },
+
   /** Put the formation in a mode and redraw the open sheet on the mode tab. */
   frameMode: async ({ partyId, fid, mode }) => {
     const H = globalThis.__a1;
@@ -1470,12 +1591,11 @@ const P = {
   },
 
   /** A scene move: the party token deleted on its scene, the new scene viewed, a fresh token placed there and its adoption polled. */
+  /** The party placed on another scene; the walk has already retired its token on the first. */
   jMoveTo: async ({ partyId, fid, sceneId, xy }) => {
     const H = globalThis.__a1;
     const f0 = H.formation(fid);
-    const old = game.scenes.get(f0?.sceneId)?.tokens.get(f0?.tokenId) ?? null;
-    const oldUuid = old?.uuid ?? null;
-    if (old) await old.parent.deleteEmbeddedDocuments("Token", [old.id]);
+    const oldGone = !game.scenes.get(f0?.sceneId)?.tokens.get(f0?.tokenId);
     await H.sleep(800);
     const scene = game.scenes.get(sceneId);
     await scene.view();
@@ -1487,7 +1607,7 @@ const P = {
     const [token] = await scene.createEmbeddedDocuments("Token", [td]);
     const adopted = await H.poll(() => { const r = H.formation(fid); return r?.tokenId === token.id && r?.sceneId === sceneId; }, { tries: 75, every: 200 });
     await H.sleep(2000);
-    return { oldUuid, tokenUuid: token.uuid, adopted: !!adopted, mode: H.T.travelOf(H.formation(fid)).mode, viewed: canvas.scene?.id === sceneId };
+    return { oldGone, tokenUuid: token.uuid, adopted: !!adopted, mode: H.T.travelOf(H.formation(fid)).mode, viewed: canvas.scene?.id === sceneId };
   },
 
   /** The territory set in the Judge's hand through applyTravelForm; the truth, the belief and the Country card's source read before and after. */
@@ -1976,7 +2096,7 @@ async function ready(api, label, seconds = 240) {
 
 const seats = {};
 async function seat(key) {
-  const api = await connect({ browser, origin, user: SEATS[key], port: PORTS[key] });
+  const api = await connect({ browser, origin, user: SEATS[key], port: PORTS[key], own: MACHINE.own });
   seats[key] = api;
   note(`${key} ready after (s)`, await ready(api, key));
   const fresh = await api.eval(`typeof globalThis.acksExtras?.formation?.travel?.trueTravelOf === "function" && globalThis.acksExtras?.formation?.apiVersion === 19`);
@@ -2025,16 +2145,22 @@ async function probe(gm, player, census) {
   note("reimport closed unsubmitted", await page(gm, P.closeReimport));
 }
 
-/** Track the run's own cards; a card another formation's automation wrote on this seat is listed, never tracked. */
+/**
+ * Mark the run's own cards in the order posted (formation/day-card-<n>), which
+ * the next run retires before its first section; a card another formation's
+ * automation wrote on this seat is listed, never marked.
+ */
 const trackedMsgs = new Set();
-const trackMsgs = (api, list, label) => {
+let cardN = 0;
+const trackMsgs = async (api, list, label) => {
   let n = 0;
   const foreign = [];
   for (const m of list ?? []) {
     if (trackedMsgs.has(m.uuid)) continue;
     if (!m.mine) { foreign.push({ uuid: m.uuid, alias: m.alias }); continue; }
-    api.track(m.uuid, "ChatMessage");
     trackedMsgs.add(m.uuid);
+    cardN += 1;
+    await api.mark(m.uuid, `formation/day-card-${cardN}`);
     n++;
   }
   if (foreign.length) note(`${label}: cards this seat wrote for no formation of this run (not tracked)`, foreign);
@@ -2062,23 +2188,26 @@ async function delve(gm, player, census) {
   section("delve: fixtures (GM seat; the world already holds the import, so the recipe starts at step 2)");
   const playerId = census.player.userId;
   const t0 = await page(gm, P.now);
-  const party = await gm.create("Actor", { name: `QA Delve Party ${NONCE}`, type: "acks-extras.party", ownership: { default: 0, [playerId]: 2 } });
-  const mk = (name, hp, items = [], extra = {}) => gm.create("Actor", { name: `QA ${name} ${NONCE}`, type: "character", system: { hp: { value: hp, max: Math.max(hp, 6) } }, items, ...extra });
+  await page(gm, P.claimNonce, { nonce: TAG });
+  const party = await gm.fixture("formation/day-delve-party", "Actor", { name: `QA Delve Party ${TAG}`, type: "acks-extras.party", ownership: { default: 0, [playerId]: 2 } });
+  const mk = (marker, name, hp, items = [], extra = {}) => gm.fixture(marker, "Actor", { name: `QA ${name} ${TAG}`, type: "character", system: { hp: { value: hp, max: Math.max(hp, 6) } }, items, ...extra });
   // The party actor's ownership follows its members' owners (syncPartyActorOwnership), so the
   // player seat is "given the party actor" by owning a member.
-  const wayfinder = await mk("Wayfinder", 9, [{ name: "Navigation", type: "ability" }], { ownership: { default: 0, [playerId]: 3 } });
-  const scout = await mk("Scout", 8);
-  const porter = await mk("Porter", 8, [{ name: `QA Sack ${NONCE}`, type: "item", system: { weight6: 12, quantity: { value: 1 } } }]);
-  const fallen = await mk("Fallen", 0);
+  const wayfinder = await mk("formation/day-delve-wayfinder", "Wayfinder", 9, [{ name: "Navigation", type: "ability" }], { ownership: { default: 0, [playerId]: 3 } });
+  const scout = await mk("formation/day-delve-scout", "Scout", 8);
+  const porter = await mk("formation/day-delve-porter", "Porter", 8, [{ name: `QA Sack ${TAG}`, type: "item", system: { weight6: 12, quantity: { value: 1 } } }]);
+  const fallen = await mk("formation/day-delve-fallen", "Fallen", 0);
   const memberIds = [wayfinder.id, scout.id, porter.id, fallen.id];
+  note("delve members as built", await page(gm, P.memberShape, { list: [[wayfinder, 9], [scout, 8], [porter, 8], [fallen, 0]].map(([a, hp]) => ({ actorId: a.id, hp })) }));
+  note("delve party brought to a new record's shape", await page(gm, P.reset, { partyId: party.id }));
   const en = await page(gm, P.enrolDrop, { partyId: party.id, memberIds });
   note("enrolled", en);
   if (en.error) throw new Error(en.error);
   const fid = en.fid;
-  check("delve fixtures: the four characters are enrolled by a drop on the party sheet", en.enrolled.length === 4 && en.enrolled.every(Boolean) && en.mode === "delve", en);
+  check("delve fixtures: the four characters are enrolled, a drop on the party sheet enrolling each one the kept party lacks", en.enrolled.length === 4 && en.enrolled.every(Boolean) && en.mode === "delve", en);
   const car = await page(gm, P.carrier, { partyId: party.id, fid, actorId: porter.id });
   check("Porter holds the Carrier role, pressed on its chip on the Order tab", car.found && car.carrier, car);
-  trackMsgs(gm, await page(gm, P.messages, { t0 }), "fixtures");
+  await trackMsgs(gm, await page(gm, P.messages, { t0 }), "fixtures");
 
   section("delve step 2: the import's product, read back from the world");
   const sh = await page(gm, P.delveShapes);
@@ -2101,9 +2230,9 @@ async function delve(gm, player, census) {
   section("delve step 3: the clock winds the party one turn past the interval");
   note("advanceWorldTime (each turn moves the shared clock)", census.gm.settings.advanceWorldTime);
   let a = await page(gm, P.advance, { fid, turns: 1, resting: true });
-  trackMsgs(gm, a.messages, "rest 1");
+  await trackMsgs(gm, a.messages, "rest 1");
   a = await page(gm, P.advance, { fid, turns: "interval" });
-  trackMsgs(gm, a.messages, "advance interval");
+  await trackMsgs(gm, a.messages, "advance interval");
   note("advance interval", { cards: a.cards, whispered: a.whispered, worldTimeDelta: a.worldTimeDelta });
   let r = await page(gm, P.delveRead, { partyId: party.id, fid, porterId: porter.id, memberIds });
   note("at the interval", r);
@@ -2111,14 +2240,14 @@ async function delve(gm, player, census) {
   const pv0 = await page(player, P.playerRest, { partyId: party.id, open: true });
   note("player sheet opened before the winding turn", pv0);
   a = await page(gm, P.advance, { fid, turns: 1 });
-  trackMsgs(gm, a.messages, "advance 1");
+  await trackMsgs(gm, a.messages, "advance 1");
   r = await page(gm, P.delveRead, { partyId: party.id, fid, porterId: porter.id, memberIds });
   note("one past", { ...r, cards: a.cards, windedLine: a.windedLine, becameWinded: a.becameWinded });
   check("step 3: one turn past it the party is winded, every member carries the effect, the Rest stat is bad under the winded badge, and the turn card carries the winded line", r.winded && r.effects.every((e) => e === true) && r.restBad && r.windedBadge && r.windedWarn && a.windedLine, { effects: r.effects, restBad: r.restBad, windedBadge: r.windedBadge, windedWarn: r.windedWarn, windedLine: a.windedLine, becameWinded: a.becameWinded });
   const pv1 = await page(player, P.playerRest, { partyId: party.id, wantBad: true, close: true });
   check("step 3: the player seat's sheet, opened before the turn, shows the bad Rest stat under the badge without a reload", pv0.rendered && pv0.found && !pv0.bad && pv1.rendered && pv1.bad && pv1.windedBadge, { before: pv0, after: pv1 });
   a = await page(gm, P.advance, { fid, turns: 1, resting: true });
-  trackMsgs(gm, a.messages, "rest after");
+  await trackMsgs(gm, a.messages, "rest after");
   r = await page(gm, P.delveRead, { partyId: party.id, fid, porterId: porter.id, memberIds });
   check("step 3: a rest turn takes the flag, the effects and the warning away, and the card says the party has recovered", !r.winded && r.effects.every((e) => e === false) && !r.windedWarn && !r.restBad && a.recovered, { effects: r.effects, windedWarn: r.windedWarn, recovered: a.recovered });
 
@@ -2132,10 +2261,13 @@ async function delve(gm, player, census) {
   check("step 5: Porter's line shows its own encumbrance left of the arrow and that plus the body's figure, to a tenth, on the right (Order row and warning agree)", !!r.porter && r.porter.leftIsOwn && r.porter.leftNonZero && r.porter.rightIsLeftPlusBody && !r.porter.sameBothSides && !!r.porterWarn && r.porterWarn.rightIsLeftPlusBody && r.porterWarn.sameRow, { porter: r.porter, porterWarn: r.porterWarn });
 
   section("delve step 6: the navigation bonus is priced");
+  // The Pathfinding the last run gave Scout goes first, so Scout starts with one competence.
+  note("Scout's Pathfinding retired", await gm.retire("formation/day-scout-pathfinding", "Item", { parent: scout.uuid }));
   const n1 = await page(gm, P.navStep, { fid, scoutId: scout.id, phase: "journey" });
   note("journey", n1);
   check("step 6: journeying on forest with no road, one competence earns the either figure and nothing is unpriced", n1.mode === "journey" && n1.ground === "forest" && n1.road === "none" && n1.competence.navigation && !n1.competence.pathfinding && n1.competence.eitherBonus && !n1.competence.unpriced, n1);
   const n2 = await page(gm, P.navStep, { fid, scoutId: scout.id, phase: "pathfinding" });
+  if (n2.itemUuid) await gm.mark(n2.itemUuid, "formation/day-scout-pathfinding");
   note("pathfinding", n2);
   check("step 6: with Pathfinding on Scout, both competences earn the both figure", n2.item && n2.competence.pathfinding && n2.competence.bothBonus && !n2.competence.unpriced, n2);
   note("rig", await page(gm, P.rig, { want: 20 }));
@@ -2145,16 +2277,17 @@ async function delve(gm, player, census) {
   } finally {
     note("unrig", await page(gm, P.unrig));
   }
-  trackMsgs(gm, n3.messages, "navigation throw");
+  await trackMsgs(gm, n3.messages, "navigation throw");
   note("throw", { navCards: n3.navCards, card: n3.card, historyGrew: n3.historyGrew, result: n3.result });
   check("step 6: the whispered navigation card carries the both line and no unpriced line, and the history gained the row", n3.navCards === 1 && n3.card?.whispered && n3.card.both && !n3.card.unpriced && n3.historyGrew, { card: n3.card, historyGrew: n3.historyGrew });
-  trackMsgs(gm, await page(gm, P.messages, { t0 }), "delve, all");
+  await trackMsgs(gm, await page(gm, P.messages, { t0 }), "delve, all");
+  note("delve party left in delve", await page(gm, P.quiet, { fids: [fid] }));
 }
 
 async function swim(gm, player, census) {
   section("swimming: steps 1-7 on the player seat's registry (no automation runs there)");
   const playerId = census.player.userId;
-  const swimmer = await gm.create("Actor", { name: `QA Swimmer ${NONCE}`, type: "character", ownership: { default: 0, [playerId]: 3 }, system: { hp: { value: 5, max: 5 } } });
+  const swimmer = await gm.fixture("formation/day-swimmer", "Actor", { name: `QA Swimmer ${TAG}`, type: "character", ownership: { default: 0, [playerId]: 3 }, system: { hp: { value: 5, max: 5 } } });
   ctx.afterTeardown.push(async () => note("swimming teardown reload (player seat)", await page(player, P.reloadTables)));
   await sleep(800);
   const s = await page(player, P.swim, { actorId: swimmer.id });
@@ -2266,25 +2399,31 @@ async function frame(gm, player, census) {
   section("frame: fixtures (a mile-scale hex scene, a party adopted there, two members enrolled through the token HUD, a table)");
   const playerId = census.player.userId;
   note("partyPanel keys before the walk", { gm: census.gm.partyPanelKeys, player: census.player.partyPanelKeys });
-  await page(gm, P.claimNonce, { nonce: NONCE });
-  await page(player, P.claimNonce, { nonce: NONCE });
+  await page(gm, P.claimNonce, { nonce: TAG });
+  await page(player, P.claimNonce, { nonce: TAG });
   const t0 = await page(gm, P.now);
-  const scene = await gm.create("Scene", sceneData(`QA Frame hex ${NONCE}`, { type: 2 }));
+  const scene = await gm.fixture("formation/day-frame-scene", "Scene", sceneData(`QA Frame hex ${TAG}`, { type: 2 }));
   note("hex scene viewed on the GM seat", await page(gm, P.viewScene, scene.id));
-  const party = await gm.create("Actor", { name: `QA Frame Party ${NONCE}`, type: "acks-extras.party" });
-  const mk = (name, hp, extra = {}) => gm.create("Actor", { name: `QA ${name} ${NONCE}`, type: "character", system: { hp: { value: hp, max: Math.max(hp, 6) } }, items: [], ...extra });
-  const ranger = await mk("Frame Ranger", 7, { ownership: { default: 0, [playerId]: 3 } });
-  const smith = await mk("Frame Smith", 6);
-  const table = await gm.create("RollTable", { name: `QA Frame Table ${NONCE}`, formula: "1d2" });
-  const fx = await page(gm, P.frameFixtures, { sceneId: scene.id, partyId: party.id, memberIds: [ranger.id, smith.id], xy: { x: 500, y: 500 } });
-  if (fx.tokenUuid) gm.track(fx.tokenUuid, "Token");
+  const PARTY_NAMES = [`QA Frame Party ${TAG}`, `QA Frame Company ${TAG}`];
+  const party = await gm.fixture("formation/day-frame-party", "Actor", { name: PARTY_NAMES[0], type: "acks-extras.party" });
+  const mk = (marker, name, hp, extra = {}) => gm.fixture(marker, "Actor", { name: `QA ${name} ${TAG}`, type: "character", system: { hp: { value: hp, max: Math.max(hp, 6) } }, items: [], ...extra });
+  const ranger = await mk("formation/day-frame-ranger", "Frame Ranger", 7, { ownership: { default: 0, [playerId]: 3 } });
+  const smith = await mk("formation/day-frame-smith", "Frame Smith", 6);
+  note("frame members as built", await page(gm, P.memberShape, { list: [{ actorId: ranger.id, hp: 7 }, { actorId: smith.id, hp: 6 }] }));
+  const table = await gm.fixture("formation/day-frame-table", "RollTable", { name: `QA Frame Table ${TAG}`, formula: "1d2" });
+  // The reset waits for the formation, so the token built next has a record to adopt it.
+  note("frame party brought to a new record's shape", await page(gm, P.reset, { partyId: party.id }));
+  note("frame party's description emptied", await page(gm, P.clearDescription, { partyId: party.id }));
+  const xy = { x: 500, y: 500 };
+  const token = await gm.fixture("formation/day-frame-party-token", "Token", await page(gm, P.tokenData, { actorId: party.id, xy }), { parent: scene.uuid });
+  const fx = await page(gm, P.frameFixtures, { sceneId: scene.id, partyId: party.id, tokenId: token.id, memberIds: [ranger.id, smith.id], xy });
   for (const u of fx.memberTokens ?? []) gm.track(u, "Token");
   note("fixtures", fx);
   if (fx.error) throw new Error(fx.error);
   const fid = fx.fid;
-  check("frame fixtures: the party token is adopted on the hex scene and both characters enrol through the token HUD (the HUD removes each member's own token)", fx.adopted && fx.enrolled.length === 2 && fx.enrolled.every((e) => e.hud && e.ok), { adopted: fx.adopted, mode: fx.mode, enrolled: fx.enrolled, hudError: fx.hudError ?? null });
+  check("frame fixtures: the party token is adopted on the hex scene and both characters are enrolled, each one the kept party lacks through the token HUD (the HUD removes each member's own token)", fx.adopted && fx.enrolled.length === 2 && fx.enrolled.every((e) => (e.kept || e.hud) && e.ok), { adopted: fx.adopted, mode: fx.mode, enrolled: fx.enrolled, hudError: fx.hudError ?? null });
   if (!fx.adopted || !fx.enrolled.every((e) => e.ok)) throw new Error("frame fixtures incomplete");
-  trackMsgs(gm, await page(gm, P.messages, { t0 }), "fixtures");
+  await trackMsgs(gm, await page(gm, P.messages, { t0 }), "fixtures");
   ctx.afterTeardown.push(async () => note("partyPanel key cleared (GM seat)", await page(gm, P.framePanelFlagClear, { partyId: party.id })));
   ctx.afterTeardown.push(async () => note("partyPanel key cleared (player seat)", await page(player, P.framePanelFlagClear, { partyId: party.id })));
 
@@ -2302,7 +2441,8 @@ async function frame(gm, player, census) {
   const moved = await page(gm, P.framePosition, { partyId: party.id });
   check("step 1: a real pointer drag that starts on the bar (no data-action) moves the window: position.left changes", !!o.bar && o.bar.action === null && moved.left !== o.left, { bar: o.bar ? { action: o.bar.action, w: o.bar.w, h: o.bar.h } : null, before: { left: o.left, top: o.top }, after: moved });
   note("home", await page(gm, P.frameHome, { partyId: party.id }));
-  const newName = `QA Frame Company ${NONCE}`;
+  // The kept party carries the name the last run typed; the band is given the other one.
+  const newName = party.name === PARTY_NAMES[1] ? PARTY_NAMES[0] : PARTY_NAMES[1];
   const cn = await page(gm, P.frameCrestName, { partyId: party.id, fid, newName });
   note("crest and name", cn);
   check("step 1: the crest opens the Order tab", cn.before !== "order" && cn.crestTab === "order", { before: cn.before, after: cn.crestTab });
@@ -2350,7 +2490,7 @@ async function frame(gm, player, census) {
   const press = async (which, extra = {}) => {
     await page(gm, P.frameHome, { partyId: party.id });
     const r = await page(gm, P.framePress, { partyId: party.id, fid, which, ...extra });
-    trackMsgs(gm, r.messages, `press ${which}`);
+    await trackMsgs(gm, r.messages, `press ${which}`);
     note(`press ${which}`, (({ messages, ...rest }) => rest)(r));
     return r;
   };
@@ -2372,7 +2512,7 @@ async function frame(gm, player, census) {
   check("step 2: pause flips clock.pausedBy (judge, then back)", p.pausedBy1 === "judge" && p.pausedBy2 === null, { first: p.pausedBy1, second: p.pausedBy2 });
   p = await press("xp");
   check("step 2: experience opens the XP dialog (closed unsubmitted)", p.found && p.opened.length >= 1, p.opened);
-  p = await press("description", { marker: `QA note ${NONCE}` });
+  p = await press("description", { marker: `QA note ${TAG}` });
   check("step 2: the description tool opens an editor in the reading column, and what it saves lands in the actor's system.description (editor closed, prose shown)", p.editor && p.saved && p.editorClosed && p.proseShown, { editor: p.editor, saved: p.saved, editorClosed: p.editorClosed, proseShown: p.proseShown });
   p = await press("image");
   check("step 2: the image tool opens the file picker", p.found && p.opened.some((n) => /Picker/.test(n)), p.opened);
@@ -2386,7 +2526,7 @@ async function frame(gm, player, census) {
   check("step 2: the encounter tool posts this formation's throw card", p.found && p.encounterCard, { cards: p.cards, encounterCard: p.encounterCard });
   p = await press("search");
   check("step 2: the search tool spends an hour of the world clock and posts its card", p.found && p.worldTimeDelta === 3600 && p.searchCards === 1, { worldTimeDelta: p.worldTimeDelta, searchCards: p.searchCards });
-  trackMsgs(gm, p.messages, "press search (search card)");
+  await trackMsgs(gm, p.messages, "press search (search card)");
 
   section("frame step 3: every fold's control has one home (journey, GM seat)");
   note("home", await page(gm, P.frameHome, { partyId: party.id }));
@@ -2420,7 +2560,7 @@ async function frame(gm, player, census) {
     ["travel.weather.temperature", "select", null, "travel.weather.temperature"],
     ["travel.hour", "select", null, "travel.hour"],
     ["travel.camp.steal", "check", null, "travel.camp.steal"],
-    ["travel.lostNote", "text", `QA note ${NONCE}`, "travel.lost.judgeNote"],
+    ["travel.lostNote", "text", `QA note ${TAG}`, "travel.lost.judgeNote"],
   ];
   for (const [name, kind, value, path] of FIELDS) {
     const f = await page(gm, P.frameField, { partyId: party.id, fid, name, kind, value, path });
@@ -2433,7 +2573,7 @@ async function frame(gm, player, census) {
   note("calm", await page(gm, P.calm));
   await shot(gm, "formation-camp-section", '[data-application-part="mode"] [data-section="camp"]');
   const ed = await page(gm, P.frameEndDay, { partyId: party.id, fid });
-  trackMsgs(gm, ed.messages, "End day");
+  await trackMsgs(gm, ed.messages, "End day");
   note("End day", (({ messages, ...rest }) => rest)(ed));
   check("step 3: End day, pressed once on the Wilderness head, adds one row to travel.log, and Sightings lists it", ed.after === ed.before + 1 && ed.rowsInSightings === ed.after, { before: ed.before, after: ed.after, rowsInSightings: ed.rowsInSightings, worldTimeDelta: ed.worldTimeDelta });
 
@@ -2515,7 +2655,8 @@ async function frame(gm, player, census) {
   const unnamedC = kc.unnamed.filter((e) => !e.requests);
   check("step 7 (city): every control reached is named (the requests section's pickers excepted)", unnamedC.length === 0, unnamedC.map((e) => `${e.region}/${e.section ?? "-"}:${e.tag}:${e.id}:${e.named}`));
   await input.park(PARK.x, PARK.y);
-  trackMsgs(gm, await page(gm, P.messages, { t0 }), "frame, all");
+  await trackMsgs(gm, await page(gm, P.messages, { t0 }), "frame, all");
+  note("frame party left in delve", await page(gm, P.quiet, { fids: [fid] }));
 }
 
 /* ------------------------------------------------------------------ */
@@ -2528,25 +2669,33 @@ const strip = ({ messages, ...rest }) => rest;
 async function journey(gm, player, census) {
   section("journey: fixtures (a feet-scale square scene, a mile-scale hex scene, a party adopted on the first, two members enrolled through the token HUD)");
   const playerId = census.player.userId;
-  await page(gm, P.claimNonce, { nonce: NONCE });
-  await page(player, P.claimNonce, { nonce: NONCE });
+  await page(gm, P.claimNonce, { nonce: TAG });
+  await page(player, P.claimNonce, { nonce: TAG });
   const t0 = await page(gm, P.now);
-  const feetScene = await gm.create("Scene", { ...sceneData(`QA Journey feet ${NONCE}`, { type: 1, distance: 13, units: "ft" }), width: 3200, height: 2000 });
-  const hexScene = await gm.create("Scene", sceneData(`QA Journey hex ${NONCE}`, { type: 2, distance: 7, units: "mi" }));
+  const feetScene = await gm.fixture("formation/day-journey-feet", "Scene", { ...sceneData(`QA Journey feet ${TAG}`, { type: 1, distance: 13, units: "ft" }), width: 3200, height: 2000 });
+  const hexScene = await gm.fixture("formation/day-journey-hex", "Scene", sceneData(`QA Journey hex ${TAG}`, { type: 2, distance: 7, units: "mi" }));
+  // Where the last run left the party: lost on the hex scene, its true-position
+  // marker and its token there. Both go, and the record is brought to a new
+  // one's shape, before the party is placed on the feet scene again.
+  note("the last run's true-position marker retired", await gm.retire("formation/day-journey-shadow", "Token", { parent: hexScene.uuid }));
+  note("the last run's hex-scene token retired", await gm.retire("formation/day-journey-hex-token", "Token", { parent: hexScene.uuid }));
   note("feet scene viewed on the GM seat", await page(gm, P.viewScene, feetScene.id));
-  const party = await gm.create("Actor", { name: `QA Journey Party ${NONCE}`, type: "acks-extras.party" });
-  const mk = (name, hp, extra = {}) => gm.create("Actor", { name: `QA ${name} ${NONCE}`, type: "character", system: { hp: { value: hp, max: Math.max(hp, 6) } }, items: [], ...extra });
-  const ranger = await mk("Journey Ranger", 7, { ownership: { default: 0, [playerId]: 3 } });
-  const smith = await mk("Journey Smith", 6);
-  const fx = await page(gm, P.frameFixtures, { sceneId: feetScene.id, partyId: party.id, memberIds: [ranger.id, smith.id], xy: { x: 300, y: 300 } });
-  if (fx.tokenUuid) gm.track(fx.tokenUuid, "Token");
+  const party = await gm.fixture("formation/day-journey-party", "Actor", { name: `QA Journey Party ${TAG}`, type: "acks-extras.party" });
+  const mk = (marker, name, hp, extra = {}) => gm.fixture(marker, "Actor", { name: `QA ${name} ${TAG}`, type: "character", system: { hp: { value: hp, max: Math.max(hp, 6) } }, items: [], ...extra });
+  const ranger = await mk("formation/day-journey-ranger", "Journey Ranger", 7, { ownership: { default: 0, [playerId]: 3 } });
+  const smith = await mk("formation/day-journey-smith", "Journey Smith", 6);
+  note("journey members as built", await page(gm, P.memberShape, { list: [{ actorId: ranger.id, hp: 7 }, { actorId: smith.id, hp: 6 }] }));
+  note("journey party brought to a new record's shape", await page(gm, P.reset, { partyId: party.id }));
+  const xy = { x: 300, y: 300 };
+  const feetToken = await gm.fixture("formation/day-journey-feet-token", "Token", await page(gm, P.tokenData, { actorId: party.id, xy }), { parent: feetScene.uuid });
+  const fx = await page(gm, P.frameFixtures, { sceneId: feetScene.id, partyId: party.id, tokenId: feetToken.id, memberIds: [ranger.id, smith.id], xy });
   for (const u of fx.memberTokens ?? []) gm.track(u, "Token");
   note("fixtures", fx);
   if (fx.error) throw new Error(fx.error);
   const fid = fx.fid;
-  check("journey fixtures: the party token is adopted on the feet-scale scene in delve mode, and both characters enrol through the token HUD", fx.adopted && fx.mode === "delve" && fx.enrolled.length === 2 && fx.enrolled.every((e) => e.hud && e.ok), { adopted: fx.adopted, mode: fx.mode, enrolled: fx.enrolled });
+  check("journey fixtures: the party token is adopted on the feet-scale scene in delve mode, and both characters are enrolled, each one the kept party lacks through the token HUD", fx.adopted && fx.mode === "delve" && fx.enrolled.length === 2 && fx.enrolled.every((e) => (e.kept || e.hud) && e.ok), { adopted: fx.adopted, mode: fx.mode, enrolled: fx.enrolled });
   if (!fx.adopted || !fx.enrolled.every((e) => e.ok)) throw new Error("journey fixtures incomplete");
-  trackMsgs(gm, await page(gm, P.messages, { t0 }), "fixtures");
+  await trackMsgs(gm, await page(gm, P.messages, { t0 }), "fixtures");
   ctx.afterTeardown.push(async () => note("journey teardown reload (player seat)", await page(player, P.reloadTables)));
   ctx.afterTeardown.push(async () => note("partyPanel key cleared (GM seat)", await page(gm, P.framePanelFlagClear, { partyId: party.id })));
   ctx.afterTeardown.push(async () => note("partyPanel key cleared (player seat)", await page(player, P.framePanelFlagClear, { partyId: party.id })));
@@ -2595,7 +2744,7 @@ async function journey(gm, player, census) {
 
   section("journey step 1: the party token moved while journeying (feet-scale scene; the earth road is followed, so no navigation throw is owed)");
   const d1 = await page(gm, P.jDrag, { fid, dx: 0, dy: 500 });
-  trackMsgs(gm, d1.messages, "journey move");
+  await trackMsgs(gm, d1.messages, "journey move");
   note("journey move", strip(d1));
   check("step 1: moving the party token while journeying ticks no dungeon turn: clock.turnsTotal and the partial rounds unchanged, the move spent as miles", d1.processed && d1.after.mode === "journey" && d1.after.turnsTotal === d1.before.turnsTotal && d1.after.roundsPartial === d1.before.roundsPartial && d1.after.miles > d1.before.miles, { processed: d1.processed, turns: [d1.before.turnsTotal, d1.after.turnsTotal], rounds: [d1.before.roundsPartial, d1.after.roundsPartial], milesUp: d1.after.miles > d1.before.miles, cards: d1.cards, offer: d1.offer, worldTimeDelta: d1.worldTimeDelta });
 
@@ -2609,27 +2758,29 @@ async function journey(gm, player, census) {
   const plan = await page(gm, P.jDelvePlan, { fid });
   note("delve plan (pixels for 0.95 and 0.1 of an exploration move)", { ok: plan.ok, units: plan.units, d95: plan.d95, d10: plan.d10, r0: plan.r0 });
   const e1 = await page(gm, P.jDrag, { fid, dx: plan.d95 });
-  trackMsgs(gm, e1.messages, "delve move 1");
+  await trackMsgs(gm, e1.messages, "delve move 1");
   note("delve move 1", strip(e1));
   const e2 = await page(gm, P.jDrag, { fid, dx: plan.d10 });
-  trackMsgs(gm, e2.messages, "delve move 2");
+  await trackMsgs(gm, e2.messages, "delve move 2");
   note("delve move 2", strip(e2));
   check("step 6 / march 11: 0.95 of an exploration move from where the mode changed marks no turn and posts no card; 0.1 more completes exactly one turn, with its card", plan.ok && plan.r0.roundsPartial === 0 && e1.processed && e1.after.turnsTotal === e1.before.turnsTotal && e1.cards === 0 && e2.processed && e2.after.turnsTotal === e2.before.turnsTotal + 1 && e2.cards >= 1, { r0: plan.r0, move1: { turns: [e1.before.turnsTotal, e1.after.turnsTotal], rounds: [e1.before.roundsPartial, e1.after.roundsPartial], cards: e1.cards }, move2: { turns: [e2.before.turnsTotal, e2.after.turnsTotal], rounds: [e2.before.roundsPartial, e2.after.roundsPartial], cards: e2.cards } });
   const jm = await page(gm, P.jMode, { partyId: party.id, fid, mode: "journey" });
   check("step 6: re-entering journey mode finds the day board where it stood", jm.ok && canon(jm.day) === canon(board0), { same: canon(jm.day) === canon(board0), activities: jm.day?.activities });
 
   section("march fixture: the party moved to the mile-scale hex scene, its territory set through applyTravelForm(id, {override: {territory}})");
+  // The move is a delete and a create: the feet-scene token goes by the ledger, and the next run places it again.
+  note("the feet-scene token retired", await gm.retire("formation/day-journey-feet-token", "Token", { parent: feetScene.uuid }));
   const mv = await page(gm, P.jMoveTo, { partyId: party.id, fid, sceneId: hexScene.id, xy: { x: 600, y: 500 } });
-  if (mv.tokenUuid) gm.track(mv.tokenUuid, "Token");
+  if (mv.tokenUuid) await gm.mark(mv.tokenUuid, "formation/day-journey-hex-token");
   note("moved", mv);
-  check("march fixture: the token re-created on the hex scene is adopted (the record's tokenId and sceneId) and the party journeys", mv.adopted && mv.mode === "journey", mv);
-  trackMsgs(gm, await page(gm, P.messages, { t0 }), "move to the hex scene");
+  check("march fixture: the token re-created on the hex scene is adopted (the record's tokenId and sceneId) and the party journeys", mv.oldGone && mv.adopted && mv.mode === "journey", mv);
+  await trackMsgs(gm, await page(gm, P.messages, { t0 }), "move to the hex scene");
   note("open", strip(await page(gm, P.frameOpen, { partyId: party.id, fresh: true })));
   const tr = await page(gm, P.jTerritory, { partyId: party.id, fid, territory: "outlands" });
   note("territory", tr);
   check("march fixture: the unpainted hex scene answers no territory of its own (the Country card's source is not the map), and applyTravelForm sets the one the party truly stands in, shown as the Judge's word", tr.ok && tr.before.provenance !== "map" && tr.after.truth === "outlands" && tr.after.believed === "outlands" && tr.after.override === "outlands" && tr.after.provenance === "override", tr);
   const nd = await page(gm, P.jDrag, { fid, dx: 5 });
-  trackMsgs(gm, nd.messages, "nudge");
+  await trackMsgs(gm, nd.messages, "nudge");
   const hx = await page(gm, P.jHex, { fid });
   note("nudge", { ...strip(nd), hex: hx });
   check("march fixture: a 5 px nudge on the hex scene records the hex the party stands in and bills no card", nd.processed && hx.recorded && nd.cards === 0, { processed: nd.processed, hex: hx, cards: nd.cards, worldTimeDelta: nd.worldTimeDelta });
@@ -2644,7 +2795,7 @@ async function journey(gm, player, census) {
     check(`step 8 fixture: ${name} takes ${value}`, f.found && f.recordOk, { found: f.found, recordOk: f.recordOk });
   }
   const en = await page(gm, P.jEncounter, { partyId: party.id, fid });
-  trackMsgs(gm, en.messages, "encounter throws");
+  await trackMsgs(gm, en.messages, "encounter throws");
   note("encounter throws", strip(en));
   check("day change step 8: an encounter card carries its two sight lines (who saw whom), and the created message's flags[acks-extras].encounter carries the card's facts in agreement with them", !!en.card && !!en.card.partyLine && !!en.card.monstersLine && en.card.flag.formationId && en.card.flag.terrain === "grassland" && en.card.flag.found && en.card.flag.distance && en.card.flag.start && typeof en.card.flag.partySees === "boolean" && typeof en.card.flag.monstersSee === "boolean" && !!en.card.flag.light && en.card.agrees && en.card.whispered, { throws: en.throws, outcomes: en.outcomes, forced: en.forced, card: en.card ? { ...en.card, id: undefined } : null });
   if (en.card?.id) {
@@ -2656,10 +2807,10 @@ async function journey(gm, player, census) {
 
   section("journey step 5: Lost marked with a judge note (GM seat), a day logged while lost, then the player seat");
   const lo = await page(gm, P.jLost, { partyId: party.id, fid });
-  if (lo.shadowUuid) gm.track(lo.shadowUuid, "Token");
+  if (lo.shadowUuid) await gm.mark(lo.shadowUuid, "formation/day-journey-shadow");
   note("lost", lo);
   check("step 5: The episode's lostBegin asks which way the party strayed, and Chosen opens the episode with its true-position marker placed hidden", lo.dialog && !!lo.phase && !!lo.shadowUuid && lo.shadowHidden === true, lo);
-  const noteText = `QA lost note ${NONCE}`;
+  const noteText = `QA lost note ${TAG}`;
   const ln = await page(gm, P.frameField, { partyId: party.id, fid, name: "travel.lostNote", kind: "text", value: noteText, path: "travel.lost.judgeNote" });
   check("step 5: the judge note typed in The episode lands in travel.lost.judgeNote", ln.found && ln.recordOk, { found: ln.found, recordOk: ln.recordOk });
   const off = await page(gm, P.setSetting, { mod: MOD, key: "advanceWorldTime", value: false });
@@ -2667,7 +2818,7 @@ async function journey(gm, player, census) {
   note("advanceWorldTime off for one End day (window opens)", off);
   const ed = await page(gm, P.frameEndDay, { partyId: party.id, fid });
   note("advanceWorldTime restored (window closes)", await page(gm, P.setSetting, { mod: MOD, key: "advanceWorldTime", value: off.before }));
-  trackMsgs(gm, ed.messages, "End day while lost");
+  await trackMsgs(gm, ed.messages, "End day while lost");
   note("End day while lost", strip(ed));
   check("step 5 fixture: End day while lost, with the module's clock writes off, logs one row and leaves the world clock where it stood", ed.after === ed.before + 1 && ed.worldTimeDelta === 0, { before: ed.before, after: ed.after, worldTimeDelta: ed.worldTimeDelta });
   const gl = await page(gm, P.jGmLost, { partyId: party.id, fid, note: noteText });
@@ -2703,7 +2854,8 @@ async function journey(gm, player, census) {
   note("scroll across a field change at 18", sc);
   check("frame step 6 re-check: across a field change in the 520-high Wilderness tab, the content in view stays put (the anchor block's offset within 2 px)", sc.anchorHeld || !sc.stillOverflows, sc);
   note("fontScale back to 14", await page(gm, P.setSetting, { mod: MOD, key: "fontScale", value: 14 }));
-  trackMsgs(gm, await page(gm, P.messages, { t0 }), "journey, all");
+  await trackMsgs(gm, await page(gm, P.messages, { t0 }), "journey, all");
+  note("journey party left in delve", await page(gm, P.quiet, { fids: [fid] }));
 }
 
 /* ------------------------------------------------------------------ */
@@ -2713,15 +2865,22 @@ async function journey(gm, player, census) {
 async function daychange(gm, player, census) {
   section("day change: fixtures (three party actors: two journeying with the generator on in one climate, one left in delve; a player-owned member on the first)");
   const playerId = census.player.userId;
-  await page(gm, P.claimNonce, { nonce: NONCE });
-  await page(player, P.claimNonce, { nonce: NONCE });
+  await page(gm, P.claimNonce, { nonce: TAG });
+  await page(player, P.claimNonce, { nonce: TAG });
   const t0 = await page(gm, P.now);
   const cal = census.gm.calendar;
   const DAY = cal.hoursPerDay * cal.minutesPerHour * cal.secondsPerMinute;
-  const pa = await gm.create("Actor", { name: `QA Sky Party A ${NONCE}`, type: "acks-extras.party" });
-  const pb = await gm.create("Actor", { name: `QA Sky Party B ${NONCE}`, type: "acks-extras.party" });
-  const pc = await gm.create("Actor", { name: `QA Sky Party C ${NONCE}`, type: "acks-extras.party" });
-  const walker = await gm.create("Actor", { name: `QA Sky Walker ${NONCE}`, type: "character", system: { hp: { value: 6, max: 6 } }, items: [], ownership: { default: 0, [playerId]: 3 } });
+  const pa = await gm.fixture("formation/day-sky-a", "Actor", { name: `QA Sky Party A ${TAG}`, type: "acks-extras.party" });
+  const pb = await gm.fixture("formation/day-sky-b", "Actor", { name: `QA Sky Party B ${TAG}`, type: "acks-extras.party" });
+  const pc = await gm.fixture("formation/day-sky-c", "Actor", { name: `QA Sky Party C ${TAG}`, type: "acks-extras.party" });
+  const walker = await gm.fixture("formation/day-sky-walker", "Actor", { name: `QA Sky Walker ${TAG}`, type: "character", system: { hp: { value: 6, max: 6 } }, items: [], ownership: { default: 0, [playerId]: 3 } });
+  const porter = await gm.fixture("formation/day-sky-porter", "Actor", { name: `QA Sky Porter ${TAG}`, type: "character", system: { hp: { value: 6, max: 6 } }, items: [] });
+  note("walker and porter as built", await page(gm, P.memberShape, { list: [{ actorId: walker.id, hp: 6 }, { actorId: porter.id, hp: 6 }] }));
+  const resets = {};
+  for (const [k, p] of [["A", pa], ["B", pb], ["C", pc]]) resets[k] = await page(gm, P.reset, { partyId: p.id });
+  note("the three parties brought to a new record's shape", resets);
+  // The finding probe enrols the porter on A; until then every member of A is the player seat's.
+  if (resets.A.fid) note("porter taken off A", await page(gm, P.removeFrom, { fid: resets.A.fid, actorIds: [porter.id] }));
   const enr = await page(gm, P.enrolDrop, { partyId: pa.id, memberIds: [walker.id] });
   note("member enrolled on A", enr);
   const fx = await page(gm, P.dcFixtures, { ids: { A: pa.id, B: pb.id, C: pc.id } });
@@ -2740,7 +2899,7 @@ async function daychange(gm, player, census) {
   note("A through the sheet", { mode: ja.mode, climate: fc.recordOk, auto: { want: fa.want, recordOk: fa.recordOk }, roll: ra });
   note("B through the API", sb);
   check("day change fixtures: A (through its sheet) and B (through the API) journey in one climate with the generator on, the third stays in delve, member enrolled on A", fx.ready && enr.enrolled.every(Boolean) && ja.ok && fc.recordOk && fa.want === true && fa.recordOk && sb.mode === "journey" && sb.climate === C && sb.auto, { ready: fx.ready, enrolled: enr.enrolled, a: { mode: ja.mode, climate: fc.recordOk, auto: fa.recordOk }, b: sb });
-  trackMsgs(gm, await page(gm, P.messages, { t0 }), "fixtures");
+  await trackMsgs(gm, await page(gm, P.messages, { t0 }), "fixtures");
   const S0 = await page(gm, P.dcState, { fids, climate: C });
   note("baseline", S0);
   check("day change baseline: A and B read the same sky today (one cache key, identical rolls), and the delve control is in delve", canon(S0.per.A.rolls) === canon(S0.per.B.rolls) && S0.per.A.rolls != null && S0.per.C.mode === "delve", { A: S0.per.A.bands, B: S0.per.B.bands, mine: S0.mine });
@@ -2790,12 +2949,12 @@ async function daychange(gm, player, census) {
   check("step 3: runs moved by three days (the footing is the settling rule applied to each finished day in turn)", xA4.footingMatch && xB4.footingMatch && xA4.bandsMatch && xA4.rollsMatch && S4.per.A.settledDay === S3.day + 3, { A: xA4, B: xB4, settled: S4.per.A.settledDay });
   check("step 3: three new keys for the climate, one per crossed day", same(added4.slice().sort(), days3.map((d) => `${d}|${C}|${season}`).sort()), { added: added4 });
   check("step 3: the cache setting written once for the step (one write added all three keys)", writesAdding.length === 1 && writesAdding[0].length === 3, { writesAdding, writesInWindow: a4.writes.length });
-  trackMsgs(gm, await page(gm, P.messages, { t0 }), "advances");
+  await trackMsgs(gm, await page(gm, P.messages, { t0 }), "advances");
 
   section("day change step 4: End day with Advance the world clock on");
   note("open A", strip(await page(gm, P.frameOpen, { partyId: pa.id, fresh: true })));
   const e4 = await page(gm, P.dcEndDay, { partyId: pa.id, fid: fids.A, climate: C });
-  trackMsgs(gm, e4.messages, "End day (clock on)");
+  await trackMsgs(gm, e4.messages, "End day (clock on)");
   note("End day, clock on", strip(e4));
   const crossed = e4.day1 > e4.day0;
   check("step 4: a new log row, and the clock at the next dawn", e4.may === true && e4.logAdded === 1 && e4.moved === e4.jump && e4.atDawn, { may: e4.may, logAdded: e4.logAdded, jump: e4.jump, moved: e4.moved, atDawn: e4.atDawn });
@@ -2806,7 +2965,7 @@ async function daychange(gm, player, census) {
   ctx.settingsToRestore.push({ seat: "gm", key: "advanceWorldTime", value: off.before });
   const e5 = await page(gm, P.dcEndDay, { partyId: pa.id, fid: fids.A, climate: C });
   note("advanceWorldTime restored", await page(gm, P.setSetting, { mod: MOD, key: "advanceWorldTime", value: off.before }));
-  trackMsgs(gm, e5.messages, "End day (clock off)");
+  await trackMsgs(gm, e5.messages, "End day (clock off)");
   note("End day, clock off", strip(e5));
   check("step 5: a log row, the clock not moved, and the same sky, footing and cache", e5.may === false && e5.logAdded === 1 && e5.moved === 0 && e5.skySame && e5.added.length === 0, { may: e5.may, logAdded: e5.logAdded, moved: e5.moved, skySame: e5.skySame, added: e5.added });
 
@@ -2840,7 +2999,7 @@ async function daychange(gm, player, census) {
     note("player view, rain set", pv);
   }
   check("step 7: the sky shows on the player seat, with no controls", pv.visible && !!pv.sky && (pv.sky.chips > 0 || pv.sky.night) && pv.sky.controls === 0, { level: pv.level, sky: pv.sky, ctxSky: pv.ctxSky, sections: pv.sections });
-  trackMsgs(gm, await page(gm, P.messages, { t0 }), "day change, all");
+  await trackMsgs(gm, await page(gm, P.messages, { t0 }), "day change, all");
   ctx.afterTeardown.push(async () => note("day change teardown reload (player seat)", await page(player, P.reloadTables)));
 
   section("journey step 2 again: the readout on the player seat for a party whose every member that seat owns (A, after the day change steps)");
@@ -2867,8 +3026,7 @@ async function daychange(gm, player, census) {
   check("step 2 again teardown: the world's travel document back on the player seat", qBack.hasTravel === qNone.before?.hasTravel && qBack.layer20Keys === qNone.before?.layer20Keys && !qBack.liveCheck && !qBack.invented && qBack.override === qNone.before?.override, { qBack, before: qNone.before });
 
   section("finding probe: the party's pace on each seat once a member the player seat does not own joins A");
-  const porter = await gm.create("Actor", { name: `QA Sky Porter ${NONCE}`, type: "character", system: { hp: { value: 6, max: 6 } }, items: [] });
-  note("porter enrolled on A", await page(gm, P.enrolDrop, { partyId: pa.id, memberIds: [porter.id] }));
+  note("porter enrolled on A",await page(gm, P.enrolDrop, { partyId: pa.id, memberIds: [porter.id] }));
   const sp1 = { gm: await page(gm, P.jSpeed, { partyId: pa.id, fid: fids.A }), player: await page(player, P.jSpeed, { partyId: pa.id, fid: fids.A }) };
   note("pace, one member not owned by the player seat", sp1);
   check("finding probe (before): with every member owned by the player seat, both seats price a non-zero pace", !sp0.gm.partySpeedZero && !sp0.player.partySpeedZero && !sp0.player.stripMilesZero, sp0);
@@ -2902,7 +3060,8 @@ async function daychange(gm, player, census) {
   note("scroll across a field change at 18", sc);
   check("frame step 6, third read: across a field change the Wilderness tab's content in view stays put, or the scroll is clamped only because the re-fitted window left less to scroll", sc.anchorHeld || sc.clampedToMax || !sc.stillOverflows, sc);
   note("fontScale back to 14", await page(gm, P.setSetting, { mod: MOD, key: "fontScale", value: 14 }));
-  trackMsgs(gm, await page(gm, P.messages, { t0 }), "day change, extras");
+  await trackMsgs(gm, await page(gm, P.messages, { t0 }), "day change, extras");
+  note("the three parties left in delve, the generator off", await page(gm, P.quiet, { fids: Object.values(fids) }));
 }
 
 /* ------------------------------------------------------------------ */
@@ -2911,7 +3070,7 @@ async function daychange(gm, player, census) {
 
 try {
   section("seats");
-  note("plan", { sections: [...RUN], shots: SHOTS, retrack: (PLAN.retrack ?? []).length, nonce: NONCE });
+  note("plan", { sections: [...RUN], shots: SHOTS, retrack: (PLAN.retrack ?? []).length, tag: TAG });
   const gm = await seat("gm");
   const player = await seat("player");
   const census = { gm: await page(gm, P.census, MOD), player: await page(player, P.census, MOD) };
@@ -2921,7 +3080,15 @@ try {
   ctx.census = census;
   check("the GM seat is the active GM and the player seat is a player", census.gm.activeGMIsSelf && census.gm.role === 4 && census.player.role === 1, { gmRole: census.gm.role, playerRole: census.player.role, activeRoles: census.gm.activeRoles });
   if (!census.gm.activeGMIsSelf) throw new Error("another GM client is the active GM; the automation would run there");
-  for (const e of PLAN.retrack ?? []) gm.track(e.uuid, e.kind);
+  // A dead run's products it never marked, named by the plan from that run's log, go by the ledger alone.
+  if ((PLAN.retrack ?? []).length) note("retracked swept", await gm.sweepTracked({ only: PLAN.retrack.map((e) => gm.track(e.uuid, e.kind)) }));
+  const retiredCards = [];
+  for (let n = 1, misses = 0; misses < 5; n++) {
+    const out = await gm.retire(`formation/day-card-${n}`, "ChatMessage");
+    if (out.removed.length || out.missing.length || out.failed.length) { misses = 0; retiredCards.push(...out.removed.map((e) => e.uuid)); }
+    else misses += 1;
+  }
+  note("the last run's cards retired", retiredCards.length);
 
   if (RUN.has("probe")) await probe(gm, player, census);
   if (RUN.has("shot-importer")) await shotImporter(gm);
@@ -2946,7 +3113,6 @@ try {
     try { note(`${key} recorder`, await page(api, P.recorder)); } catch (err) { console.error("recorder:", err?.message ?? err); }
     try { note(`${key} seat restored`, await page(api, P.restoreSeat)); } catch (err) { console.error("restoreSeat:", err?.message ?? err); }
   }
-  try { if (gm) note("sweep", await gm.sweepTracked()); } catch (err) { console.error("sweep:", err?.message ?? err); }
   try { if (gm && ctx.worldTime0 != null) note("worldTime delta (s)", (await page(gm, P.census, MOD)).worldTime - ctx.worldTime0); } catch (err) { console.error("worldTime:", err?.message ?? err); }
   console.log("\n== summary ==");
   for (const [label, ok] of checks) console.log(`${ok ? "PASS" : "FAIL"}  ${label}`);
