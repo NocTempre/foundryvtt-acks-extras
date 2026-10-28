@@ -8307,3 +8307,44 @@ may hold its shelf cold for good, and then every book Adventure's import is
 refused (plausible, not seen). A cold press shows one more notification. The
 wait is pinned in `tools/importer/test-book-adventure.mjs` and walked live by
 importer-ax1, which empties every shelf before each press.
+
+## 2026-10-28 — The importer walks keep only what no import reads
+
+**Evidence.** `.claude/rules/live-testing.md` step 4 (2026-10-26) keeps a
+fixture once built and deletes one only where setup is the subject. Every
+section of the four importer walks is setup by that rule's own list: an
+import's first run, a rebuild through the entry picker, a hand-out, a
+document deleted and brought back. Their products are also what the next
+import answers to. `importedActor(id, {copies: false})` counts any world
+actor claiming an entry that is not a world copy, so a world character left
+claiming an AX1 inhabitant's entry stops the next import from making that
+inhabitant; a standing AX1 or AX3 import trips the held-document guards of
+the other walks that import the same book (importer-ax1, importer-adventure,
+importer-characters); a carried Item left stamped to AX3 rides into the
+next Adventure of the book, the owner's included; and an empty place left
+standing is pruned by the primary GM's ready and counted by the domains
+walk's prune as someone else's.
+
+**Ruled.** The importer walks keep the end-of-walk sweep of what they made,
+by the run's own ids, as the sweep of their setup sections. The one fixture
+they keep is the one no import reads: importer-ax1's lamplighter
+(`importer/lamplighter`), a player's character that carries the light, whose
+step gives it back the player's ownership and a fresh unlit torch first. A
+fixture a dead run could leave in an import's way carries a marker and is
+retired before the step that would read it: importer-characters' claimant
+(`importer/claimant`, retired before the import) and importer-adventure's
+carried Item (`importer/carried-item`, retired before the fixtures are
+built).
+
+*Rejected:*
+- **Keeping a book's import between runs, marked.** Each import walk's first
+  step needs the import absent, so a kept one is retired at the next run's
+  start and the churn is the same; the products sit in compendium shelves,
+  which the driver's marker lookup does not read (template DECISIONS,
+  2026-10-28: a fixture is a world document); and a kept import is exactly
+  what trips the held-document guards of the other walks on the same book.
+- **Clearing the import first with `cookbookRemoveImports()`.** It deletes
+  every session's import, not the run's own, which step 4 forbids.
+
+*Cost:* the importer walks rebuild their whole import on every run, as
+before; only the lamplighter is found again.

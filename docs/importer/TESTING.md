@@ -2398,17 +2398,24 @@ What a scripted walk meets:
 
 ### Fixtures
 
-Read first, write nothing: every world Actor shelf and the world, for a
+Every step is setup, and nothing the walk makes is kept: what it makes is
+what the next import's presence check needs absent (DECISIONS, 2026-10-28).
+First retire `importer/claimant` (`api.retire`), the claimant a run that died
+before its sweep left standing.
+
+Then read, write nothing: every world Actor shelf and the world, for a
 document under any row's stable id. Where one stands and this run did not
 make it, stop: it is another session's. The one exception is a library its
 owner imported and handed over (the walk's `REBUILD_OK=1`), holding every
 row once. Step 1 then rebuilds all of them through the entry picker, ticking
 every row. Each keeps its id, so read each one's `_stats.createdTime` before
-and after, and track none of them.
+and after, and track none of them. Where a library stands for one set
+only, `ROWS=` walks the other set beside it.
 
 - The rebuild's fixture is a world `character` claiming the first row's
   entry (`flags.acks-extras.cookbook: {id, book: "ax1", kind: "kind.npc"}`),
-  with OWNER for the Player seat's user. Make it with `api.create`.
+  with OWNER for the Player seat's user. Make it with `api.fixture` under
+  `importer/claimant`; it is built every run.
 
 ### Steps
 
@@ -2449,8 +2456,8 @@ filter beside it is read in the code.
 
 ### Teardown
 
-1. Run `api.sweepTracked()`: the characters, the fixture and the handed-out
-   copy.
+1. Run `api.sweepTracked()`: the characters, the claimant and the handed-out
+   copy, all of them setup.
 2. Delete a shelf this run opened, only if its index is empty.
 3. Quote the sweep result.
 

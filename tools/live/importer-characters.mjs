@@ -7,6 +7,16 @@
  * A check compares each imported figure with the page in the page and prints
  * a boolean; ids and counts are the only figures printed.
  *
+ * Every section is setup (`.claude/rules/live-testing.md` step 4): the import's
+ * first run, a rebuild through the entry picker, and a Judge's hand-out, each
+ * a path by which a document comes to exist. Nothing the run makes is kept: a
+ * standing inhabitant, or a world character claiming its entry, answers the
+ * import's own "already imported?" question, so section 1 of the next run, and
+ * every other walk that imports AX1, needs them absent (docs/importer/
+ * DECISIONS.md, 2026-10-28). The sweep at teardown takes them by the run's own
+ * ids. The claimant is marked `importer/claimant`, and section 1 retires one a
+ * run that died before its sweep left standing.
+ *
  * Fixtures and writes, each reported:
  *   - the book connected on the GM seat with remember:false;
  *   - every inhabitant the import makes, found under its stable id and
@@ -20,7 +30,7 @@
  *     character embeds that the library did not hold before the import, read
  *     back under that id and tracked;
  *   - one world character claiming an inhabitant's entry and owned by the
- *     player seat, made with `api.create`;
+ *     player seat, built with `api.fixture` under `importer/claimant`;
  *   - the rebuild of that inhabitant, driven through the entry picker's own
  *     dialogs (the rebuilt character keeps its id, so the ledger's uuid covers
  *     it);
@@ -41,7 +51,6 @@ const MACHINE = machineSeats();
 const browser = MACHINE.browser;
 const origin = MACHINE.origin;
 const SEATS = { gm: MACHINE.gm, player: MACHINE.player };
-const NONCE = "c" + Math.random().toString(36).slice(2, 8);
 const BOOK = "ax1";
 const BOOKS = books([BOOK]);
 const REBUILD_OK = process.env.REBUILD_OK === "1";
@@ -386,7 +395,7 @@ async function poll(api, fn, args, { tries = 300, every = 2000, until = (s) => s
 }
 const seats = {};
 async function seat(key) {
-  const api = await connect({ browser, origin, user: SEATS[key], port: PORTS[key] });
+  const api = await connect({ browser, origin, user: SEATS[key], port: PORTS[key], own: MACHINE.own });
   seats[key] = api;
   note(`${key} ready after (s)`, await ready(api, key));
   return api;
@@ -417,6 +426,8 @@ try {
   note("printed classes the library answers", `${census.classesAnswered} of ${ids.length}`);
 
   section("what stands under the inhabitants' ids");
+  // A claimant answers the import's presence check for its entry; one a dead run left goes first.
+  note("retired importer/claimant", await gm.retire("importer/claimant", "Actor"));
   const standing = await run(gm, P.standing, { ids });
   // The library holds every inhabitant once, or none: a partial or doubled
   // set is nobody's known state, and neither path below answers for it.
@@ -490,13 +501,14 @@ try {
   const before = await run(gm, P.stamp, { id: target });
   const playerId = await run(gm, P.playerId, { name: SEATS.player });
   if (!playerId) throw new Error("the player seat's user is not in the world");
-  const owned = await gm.create("Actor", {
-    name: `QA player's character ${NONCE}`,
+  const owned = await gm.fixture("importer/claimant", "Actor", {
+    name: "QA player's character",
     type: "character",
     ownership: { default: 0, [playerId]: 3 },
     flags: { "acks-extras": { cookbook: { id: target, book: BOOK, kind: rows.find((r) => r.id === target)?.kind ?? "kind.npc" } } },
   });
-  note("fixture", { uuid: owned.uuid });
+  note("fixture", { uuid: owned.uuid, built: owned.built });
+  check("2: the claimant is built this run, section 1 having retired any left standing", owned.built, { uuid: owned.uuid });
   await sleep(1100); // a rebuilt document's creation time must be able to differ
   const drove = await run(gm, P.rebuild, { key: "Monsters", ids: [target] });
   check("2: the entry picker and its confirm are answered", drove.picker && drove.row && drove.confirm, drove);
@@ -544,6 +556,7 @@ try {
 } finally {
   section("teardown");
   try { if (gm) note("closed windows", await run(gm, P.closeAll)); } catch (err) { console.error("closeAll:", err?.message ?? err); }
+  // Every section is setup, and what it made answers the next import's presence check: all of it goes.
   try {
     const sw = gm ? await gm.sweepTracked() : null;
     if (sw) note("sweep (gm)", { removed: sw.removed.map((e) => e.uuid), missing: sw.missing.map((e) => e.uuid), failed: sw.failed.map((e) => ({ uuid: e.uuid, error: e.error })) });
