@@ -317,6 +317,7 @@ t("a table headed by an instruction is proved by a key of it and covers its die 
   const e = entries["ax1.whereabouts"];
   assert.equal(e?.fields?.name?.op, "heading");
   assert.ok(e.fields.name.hash && e.fields.name.text === undefined, "the header's words stay out of the cookbook");
+  assert.equal(e.fields.name.names, false, "the header names nothing, so the table keeps the row's name");
   const ranges = e.fields.rows.paras.map((p) => /^r(\d+)(?:-(\d+))?$/.exec(p.section)).map((m) => [Number(m[1]), Number(m[2] ?? m[1])]);
   assert.equal(ranges[0][0], 1);
   ranges.slice(1).forEach(([lo], i) => assert.equal(lo, ranges[i][1] + 1, `row ${i + 2} follows row ${i + 1}`));

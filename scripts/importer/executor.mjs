@@ -1537,9 +1537,12 @@ async function execInstruction(instr, ctx) {
       }
       const ok = instr.number != null ? opensWithNumber(title, instr.number) : !!instr.hash && printKey(title) === instr.hash;
       // A box that failed its check names nothing: the words in it are some
-      // other entry's. `caps` is the compiler's word that the line's case
-      // carries nothing, handed on for whoever sets the name.
-      return { ok, found: title.slice(0, 60), title: ok ? title.slice(0, 200) : null, ...(instr.caps === true ? { caps: true } : {}) };
+      // other entry's, and a box proved as a header that is not a title
+      // (`names: false`) names nothing either. `caps` is the compiler's word
+      // that the line's case carries nothing, handed on for whoever sets the
+      // name.
+      const names = ok && instr.names !== false;
+      return { ok, found: title.slice(0, 60), title: names ? title.slice(0, 200) : null, ...(instr.caps === true ? { caps: true } : {}) };
     }
     case "text": {
       const paras = [];

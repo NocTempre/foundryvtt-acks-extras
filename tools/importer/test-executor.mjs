@@ -18,6 +18,7 @@
 import assert from "node:assert/strict";
 import { executeEntry, materializeEffects, materializeRolls } from "../../scripts/importer/executor.mjs";
 import { axAsideBoxes, gridBandParas, rollTableDetails } from "./compile-cookbook.mjs";
+import { printKey } from "../../scripts/importer/printed-name.mjs";
 
 let n = 0;
 const t = (name, fn) => {
@@ -326,6 +327,22 @@ const ta = async (name, fn) => {
   n++;
   console.log(`ok - ${name}`);
 };
+
+await ta("a header proved by a key names nothing when it is not a title", async () => {
+  const words = "QQ throw once for each";
+  const pd = page(run(words, 40, 60));
+  const read = (extra) => {
+    const name = { op: "heading", page: 1, box: { x0: 35, x1: 200, y0: 55, y1: 65 }, hash: printKey(words), ...extra };
+    const cookbook = { schema: "acks-cookbook/3", entries: { "qq.table": { kind: "kind.rolltable", fields: { name } } } };
+    return executeEntry(null, cookbook, {}, "qq.table", { pageCache: new Map([[1, pd]]) });
+  };
+  const named = await read({});
+  assert.equal(named.ok, true);
+  assert.equal(named.fields.name.title, words);
+  const proved = await read({ names: false });
+  assert.equal(proved.ok, true);
+  assert.equal(proved.fields.name.title, null);
+});
 
 const rowsPage = (...extra) =>
   page(

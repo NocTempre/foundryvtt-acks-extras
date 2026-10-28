@@ -141,8 +141,10 @@ for (const file of bookFiles) {
     ).length;
     // A name the cookbook does not carry has to come back READ, not merely
     // checked: a heading that proved its box and handed on no words would name
-    // the document after its neutral label.
-    const nameOk = f.name?.ok && (cb.entries[id].fields?.name?.op !== "heading" || !!String(f.name?.title ?? "").trim());
+    // the document after its neutral label. A header proved without naming
+    // (`names: false`) leaves the row's own name standing.
+    const nameOp = cb.entries[id].fields?.name;
+    const nameOk = f.name?.ok && (nameOp?.op !== "heading" || nameOp.names === false || !!String(f.name?.title ?? "").trim());
     // Pass criteria are KIND-shaped: a location is prose, an npc is a parsed
     // statline, a rolltable is rows; only monster kinds owe a stat block.
     const rows = Array.isArray(f.rows) ? f.rows : [];

@@ -3388,11 +3388,12 @@ async function compileRollTable(doc, entry, kindRow) {
     // header cell (the AX2 wandering grid). The expect box is chef geometry;
     // the executor's fold-compare absorbs the small-caps casing. A header that
     // is an instruction rather than a name is proved by a key of its letters
-    // (`hash`), so its words stay out of the cookbook.
+    // (`hash`), so its words stay out of the cookbook, and names nothing, so
+    // the table keeps the row's name.
     const ne = assists.nameExpect;
     pd = await pageItems(doc, ne.page ?? page);
     fields.name = ne.hash != null
-      ? withFixes({ op: "heading", page: ne.page ?? page, box: ne.box, hash: String(ne.hash) }, pd)
+      ? withFixes({ op: "heading", page: ne.page ?? page, box: ne.box, hash: String(ne.hash), names: false }, pd)
       : { op: "expect", page: ne.page ?? page, box: ne.box, text: ne.text ?? entry.name };
   } else {
     opened = await axOpen(doc, entry);
