@@ -23,7 +23,7 @@ globalThis.CONFIG = {
   Item: { dataModels: { weapon: { prototype: { getAttackTypes: noop, getDamageModes: noop, getDamageFormula: noop } } } },
 };
 // Core's `Roll.validate` parses the formula; here, the one text it refuses.
-globalThis.Roll = { validate: (f) => !/\bweapon\b/i.test(f) };
+globalThis.Roll = { validate: (f) => f !== "x y" };
 globalThis.ui = { notifications: { warn: (m) => warnings.push(m) } };
 
 const { installAttackThrowPatch } = await import("../scripts/lib/patches/attack-throw.mjs");
@@ -43,14 +43,14 @@ ok("an empty formula is left empty, with nothing said", () => {
 });
 
 ok("a formula that does not parse is answered as none, and the Judge is told once", () => {
-  const club = weapon("club", "By weapon");
+  const club = weapon("club", "x y");
   assert.equal(ask(club), "");
   assert.equal(ask(club), "");
-  assert.deepEqual(warnings, ["ACKS-LIB.attack.badDamage|club,By weapon"]);
+  assert.deepEqual(warnings, ["ACKS-LIB.attack.badDamage|club,x y"]);
 });
 
 ok("another weapon with the same text is told about on its own", () => {
-  assert.equal(ask(weapon("spear", "By weapon")), "");
+  assert.equal(ask(weapon("spear", "x y")), "");
   assert.equal(warnings.length, 2);
 });
 
