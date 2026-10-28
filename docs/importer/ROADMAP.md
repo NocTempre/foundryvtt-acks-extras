@@ -1135,16 +1135,6 @@ seven classes:
   from their write-ups on pp.71–74. The grid that sums them up beside the
   party passage is not read.
 
-## Owed before AX1's minor ships
-
-- **AX1 p.27's columns 3 and 5 against AX3's corrected grid.** AX3's grid
-  is now read past its printing error (`ERRATA.md`, `ax3-p223-offset`). Under
-  it, AX1's column 3 carries `ax3.mkt22`'s figures and column 5 carries site
-  29's place's. Each column's header names that same market. Whether they
-  pair through `meta.markets` (`sameAs`, `place`) is for AX1's register
-  (markets DECISIONS 2026-10-28, "AX3's demand grid is corrected as printing
-  errata").
-
 ## Left out of AX1's minor (ruled 2026-10-17)
 
 - **Double doors the box reader misses** (AX1 p12). Of the plan's eighteen
@@ -1190,10 +1180,6 @@ seven classes:
   later AXIOMS issue over an earlier one; no AXIOMS book is registered yet.
   Until `laterBook` carries it, a base demand from one of those books never
   replaces another's (`baseIsImportable`).
-- **AX1's other demand columns beside AX3's markets.** AX1 p.27's columns 3
-  and 6 print the figures of AX3's grid rows 23 and 17 cell for cell, and
-  column 2, the fort, row 20's. Each stays two actors until a reviewer pairs
-  them by more than figures.
 - **A sideways grid's reports.** An unmapped or duplicate good on a
   transposed grid is reported by its key, not its printed label.
 - **AX1's fort as AX3's site 28.** Site 28 binds onto its market, so it

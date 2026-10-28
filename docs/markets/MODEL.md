@@ -546,10 +546,13 @@ executes both and hands the reads to `market-profile-binding.mjs`:
 A market is claimed as `<book>.mkt<n>`, or, for a record whose `meta.place`
 is `"adventure"`, as the book's city actor. A grid's `meta.markets` may say
 which place a column is: `place` (the city, or a place another row builds,
-which the column waits for), or `sameAs`, a later book's market record it
-pairs with. `claimMarketPlace` (`cookbook.mjs`) claims a market from a
-region site, a market step or a column alike: the place that answers for the
-id, else the pair's place joined through `takeoverPatch` or `bindPatch`
+which the column waits for), or `sameAs`, the id a later book's own step
+claims the place under: a market's (`<book>.mkt<n>`, whether its record, a
+site naming it or its grid alone prints it), or a site's that builds its own
+place, where the later grid's column lands. `claimMarketPlace`
+(`cookbook.mjs`) claims a market from a region site, a market step or a
+column alike: the place that answers for the id, else the pair's place
+joined through `takeoverPatch` or `bindPatch`
 (`place-pair.mjs`), else a new one. A market is named by the record's printed
 heading when there is one, else its column's header when the grid prints it
 as text, else `Market N`, and stamps that name as `printed`.

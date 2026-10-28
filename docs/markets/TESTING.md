@@ -445,11 +445,13 @@ Walked by `tools/live/importer-ax1-markets.mjs`
 Fixtures: the AX1 PDF connected on the GM seat and no other book with a market
 grid open (the step imports every open one), merchandise imported first, and
 nothing standing under `ax1.mkt<n>`. A paired column joins its later book's
-market where the library holds it, and a column that names a place lands on
+place where the library holds it, and a column that names a place lands on
 the owner's place, so the walk steers both in memory, as the AX3 walk did its
-city: the pair is dropped while the later market stands (unless
+city: the pair is dropped while the later place stands (unless
 `MARKET_BIND_OK=1`), and the placed column is pointed at an id of the walk's
-own. That column's place is kept, marked `markets/ax1-place-<column>`; steps 2
+own. A join stays on the owner's place, so after a bind the column's id
+answers from it, which the walk accepts only under `MARKET_BIND_OK=1`. The
+placed column's place is kept, marked `markets/ax1-place-<column>`; steps 2
 and 3 are its absence and its arrival, so the walk retires the last run's
 before step 2 and builds it again in step 3.
 
@@ -462,13 +464,18 @@ before step 2 and builds it again in step 3.
    library holds joined, each placed column waiting and no actor made for it.
    Each made market is a library place stamped `kind.marketRecord`, named for
    its column's header with `printed` equal to that name, its base the
-   column's and `dmProfile.source` the grid's page.
+   column's and `dmProfile.source` the grid's page. A joined column's id
+   answers from the library's later place alone (a world copy of it is
+   restamped by the maps step, not here), which holds the id in `merged` and
+   keeps its name, notes, parent, region, class and base; a place that held
+   no base takes the column's.
 3. Build a world place carrying the placed column's id, run again.
    *Observable:* the column lands on it (base and source as in step 2), nothing
    is made under the column's own id, and the made markets count `updated` (a
    base from the same page is written again).
 4. Move one good of a made market's base through `writeDemand` (the Trade
-   tab's Set), run again.
+   tab's Set), run again. Where every column joins, the placed column's place
+   is the market moved, and opened in step 5.
    *Observable:* the source is cleared, the run counts that market `kept`, and
    its base is unchanged.
 5. Open a made market's sheet on its Trade tab.

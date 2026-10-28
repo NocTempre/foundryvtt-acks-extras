@@ -859,6 +859,9 @@ market class.
   17 likewise; column 4 matches none (26 of 31 at best). So the fort and AX3's
   market 20, and two AX1 markets beside AX3's markets 23 and 17, are each two
   actors carrying one market's figures until a reviewer pairs them.
+  *Superseded the same day by "AX1's demand columns 3 to 6 pair with AX3's
+  places by their names": columns 3 and 6 pair with AX3's markets 22 and 17;
+  the fort and market 20 stay two actors.*
 - Column 1 matches AX3's grid row 22 on all 31 cells and row 21 on 15; column
   5 matches row 21 on all 31. AX3's row keyed `mkt21` holds another market's
   figures, so until AX3's grid keys are corrected its market step writes them
@@ -935,6 +938,8 @@ record beside it. `ERRATA.md` records both (`ax3-p223-offset`,
   `mkt22`. That is by design, since the printed name is the misprint.
 - AX1's column 3 now meets `ax3.mkt22`'s figures, and its column 5 meets site
   29's. Whether they pair is for AX1's register (docs/importer/ROADMAP.md).
+  *Superseded the same day by "AX1's demand columns 3 to 6 pair with AX3's
+  places by their names": they pair.*
 - On a world imported before the correction, a corrected market whose base
   came from another source, or from the Judge, keeps the class it held.
 - The unprinted clear and its note reach only a market whose place exists.
@@ -942,3 +947,53 @@ record beside it. `ERRATA.md` records both (`ax3-p223-offset`,
   market on its next market step.
 - A note is written once and never refreshed. Its stamp finds the held block,
   so a reworded string reaches only places that do not yet hold one.
+
+## 2026-10-28 — AX1's demand columns 3 to 6 pair with AX3's places by their names
+
+AX1 p.27's columns 3 to 6 stood as AX1's own markets, since a column pairs
+by its header and never by figures. AX3's grid, now corrected, moves the
+figures three of them meet.
+
+**Ruled.**
+- **Columns 3, 4 and 6 pair with AX3's markets 22, 25 and 17, and column 5
+  with site 29.** A pair is found by the id the later book's step claims the
+  place under, so a column names that id. For a site that binds onto a
+  market (sites 36, 44 and 22), that is the market's id. For a site that
+  builds its own place, onto which AX3's grid lands a market (`mkt26` on
+  site 29), it is the site's id. Column 2 stays on the fort.
+- **`sameAs` names a later book's place by the id its step claims**
+  (`pairTargetProblem`, the register lint): a market record; a market that
+  a location row names (`meta.market`) or a grid alone prints; or a location
+  that builds a place. A location bound onto a market is refused with that
+  market's id. A market that a grid column lands on a place is refused with
+  that place. Amends the first entry of this day, where `sameAs` named a
+  later market record only.
+- No runtime change. A site's market claim, a site's own claim and the market
+  step already ask for a pair by those ids (`claimMarketPlace`,
+  `pairedPlace`).
+
+*New evidence* (the amended entry is under 7 days old):
+- The proper word of each column's header folds to the key of exactly one AX3
+  site's name, at distance 0, where the next nearest is 4. Columns 1 to 6
+  give sites 34, 28, 36, 44, 29 and 22. The first entry's probe compared only
+  the whole name and its last word, so it found no site for columns 3 to 6.
+- Under the corrected grid, columns 3, 5 and 6 print the figures of the
+  markets those sites carry (22, 26 on site 29, and 17), all 31 cells of
+  each.
+- The user ruled on 2026-10-28 to pair columns 3 and 5, then 4 and 6 with
+  them, and to join the library's AX3 places in the live walk.
+
+*Rejected:*
+- Pairing column 5 with `ax3.mkt26`. AX3's market step lands that market on
+  site 29 through the column's `place` and never claims `ax3.mkt26`, so
+  nothing would ever ask for that pair.
+- Pairing columns 3, 4 and 6 with sites 36, 44 and 22. Those sites claim
+  their markets' ids, never their own.
+
+*Cost:*
+- Column 4 pairs by its name alone. AX3 prints no figures for market 25
+  (`ax3-p223-offset`), so AX1's base is that market's only demand. The
+  corrected grid's clear leaves it, since it comes from another page
+  (`unprintedMarketUpdate`).
+- The lint accepts a pair onto any location that builds a place. It does not
+  ask whether a later market lands there.

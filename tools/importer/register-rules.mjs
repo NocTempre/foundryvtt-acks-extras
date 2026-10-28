@@ -162,11 +162,11 @@ export function pairProblems(rows) {
  * A market grid's columns that say which place they are (`meta.markets`), over
  * every row at once. Each key is one of the grid's own column keys and names
  * exactly one of `sameAs` or `place`. `sameAs` pairs the column's market with
- * a later book's (`laterBook`) market record, one that builds a market of its
- * own; the pair is declared on the earlier book's grid for the reason a place
- * pair is, and a later market pairs with one row of a book, the location rows
- * that pair with it counted. `place` is the book's own settlement
- * ("adventure") or a location row of the same book that builds a place.
+ * a place a later book's (`laterBook`) own steps claim (`pairTargetProblem`);
+ * the pair is declared on the earlier book's grid for the reason a place pair
+ * is, and a later place pairs with one row of a book, the location rows that
+ * pair with it counted. `place` is the book's own settlement ("adventure") or
+ * a location row of the same book that builds a place.
  */
 export function marketColumnProblems(rows) {
   const out = [];
@@ -217,16 +217,40 @@ export function marketColumnProblems(rows) {
         if (later === null) out.push(`${at}: no printing year orders ${r.book} and ${other}; a pair between them waits until the register records which came first`);
         else if (later !== other) out.push(`${at}.sameAs is declared on the earlier book's grid, and ${other} is earlier than ${r.book}`);
       }
-      const t = rows.get(to);
-      if (!t) out.push(`${at}.sameAs names ${to}, which no row defines`);
-      else if (t.kind !== "kind.marketRecord") out.push(`${at}.sameAs names ${to}, which is no market record`);
-      else if (t.meta?.place !== undefined) out.push(`${at}.sameAs names ${to}, which binds onto its book's settlement and builds no market to pair`);
+      const problem = pairTargetProblem(rows, to);
+      if (problem) out.push(`${at}.sameAs names ${to}, ${problem}`);
       const key = `${r.book} ${to}`;
       if (claimed.has(key)) out.push(`${at}: ${to} is already paired with ${claimed.get(key)}; one place is one row per book`);
       else claimed.set(key, `${id} ${col}`);
     }
   }
   return out;
+}
+
+/**
+ * Why a grid column cannot pair with `to`, or null. A pair is found by the id
+ * the later book's step claims the place under, so `to` is that id: a market's
+ * (`<book>.mkt<n>`), which its record, a location row naming it
+ * (`meta.market`) or its grid alone prints, or the row's own id for a location
+ * that builds a place. A market a grid column lands on a place, and a location
+ * bound onto a market or a settlement, are claimed under another id.
+ */
+function pairTargetProblem(rows, to) {
+  const t = rows.get(to);
+  if (t?.kind === "kind.marketRecord") return t.meta?.place === undefined ? null : "which binds onto its book's settlement and builds no market to pair";
+  if (t?.kind === "kind.location") {
+    if (t.meta?.market !== undefined) return `which is claimed as its market; pair with ${bookOf(to)}.${t.meta.market}`;
+    return t.meta?.place === undefined ? null : "which binds onto its book's settlement and builds no place to pair";
+  }
+  if (t) return "which is no market record or place";
+  const book = bookOf(to);
+  const key = to.slice(book.length + 1);
+  const ofBook = [...rows.values()].filter((r) => r.book === book);
+  const lands = ofBook.find((r) => r.kind === "kind.marketGrid" && r.meta?.markets?.[key]?.place !== undefined);
+  if (lands) return `which ${lands.id} lands on ${lands.meta.markets[key].place}; pair with that place`;
+  if (ofBook.some((r) => r.kind === "kind.location" && r.meta?.market === key && r.meta?.place === undefined)) return null;
+  if (ofBook.some((r) => r.kind === "kind.marketGrid" && marketKeysOf(r).has(key))) return null;
+  return "which no row defines";
 }
 
 /** A market grid's market keys: its columns where it is transposed, else its row bands. */

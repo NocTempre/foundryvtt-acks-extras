@@ -269,7 +269,10 @@ t("the demand grid reads sideways, its goods under AX3's keys, its columns namin
   assert.deepEqual(grid.rowBands.map((b) => b.key), goods, "one band per AX3 good, in AX3's order");
   assert.deepEqual(grid.cols.map((c) => c.key), ["mkt1", "mkt2", "mkt3", "mkt4", "mkt5", "mkt6"]);
   assert.ok(grid.headerBand, "the header is read, so a market is named from its column");
-  assert.deepEqual(entries["ax1.marketGrid1"].meta.markets, { mkt1: { sameAs: "ax3.mkt21" }, mkt2: { place: "ax1.fort" } });
+  assert.deepEqual(entries["ax1.marketGrid1"].meta.markets, {
+    mkt1: { sameAs: "ax3.mkt21" }, mkt2: { place: "ax1.fort" }, mkt3: { sameAs: "ax3.mkt22" },
+    mkt4: { sameAs: "ax3.mkt25" }, mkt5: { sameAs: "ax3.site29" }, mkt6: { sameAs: "ax3.mkt17" },
+  });
 });
 
 t("a level's text stops short of its wandering section, which its table reads", () => {

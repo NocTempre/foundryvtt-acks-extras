@@ -107,7 +107,15 @@ flags("a pair with a book printed earlier", columns(record("ax1.mkt9"), demandGr
 flags("a pair within one book", columns(record("ax1.mkt9"), demandGrid({ mkt1: { sameAs: "ax1.mkt9" } })), /another book's market/);
 flags("a pair between books whose years tie", columns(record("ax6.mkt9"), demandGrid({ mkt1: { sameAs: "ax6.mkt9" } }, "ax5.marketGrid1")), /no printing year orders/);
 flags("a pair with a row no record defines", columns(demandGrid({ mkt1: { sameAs: "ax3.mkt9" } })), /no row defines/);
-flags("a pair with a row that is no record", columns(loc("ax3.mkt9"), demandGrid({ mkt1: { sameAs: "ax3.mkt9" } })), /no market record/);
+flags("a pair with a row that is no market or place", columns({ id: "ax3.box9", book: "ax3", kind: "kind.prose" }, demandGrid({ mkt1: { sameAs: "ax3.box9" } })), /no market record or place/);
+none("a pair with a market a later site names, one its grid alone prints, and a later site's own place",
+  columns(loc("ax3.site36", { meta: { market: "mkt22" } }), bandGrid({}), loc("ax3.site29"),
+    demandGrid({ mkt1: { sameAs: "ax3.mkt22" }, mkt2: { sameAs: "ax3.mkt2" }, mkt3: { sameAs: "ax3.site29" } })));
+flags("a pair with a site bound onto its market", columns(loc("ax3.site36", { meta: { market: "mkt22" } }), demandGrid({ mkt1: { sameAs: "ax3.site36" } })), /pair with ax3\.mkt22/);
+flags("a pair with a site bound onto its settlement", columns(loc("ax3.site9", { meta: { place: "adventure" } }), demandGrid({ mkt1: { sameAs: "ax3.site9" } })), /builds no place to pair/);
+flags("a pair with a market its grid lands on a place", columns(loc("ax3.home"), bandGrid({ markets: { mkt2: { place: "ax3.home" } } }), demandGrid({ mkt1: { sameAs: "ax3.mkt2" } })), /lands on ax3\.home; pair with that place/);
+flags("a pair with a market no later row claims", columns(bandGrid({}), demandGrid({ mkt1: { sameAs: "ax3.mkt7" } })), /no row defines/);
+flags("a column and a place of one book on one later place", columns(loc("ax3.site29"), earlier({ sameAs: "ax3.site29", unique: [] }), demandGrid({ mkt1: { sameAs: "ax3.site29" } })), /already paired with ax1\.fortPlace/);
 flags("a pair with a record that is its book's settlement", columns(record("ax3.mkt9", { place: "adventure" }), demandGrid({ mkt1: { sameAs: "ax3.mkt9" } })), /builds no market to pair/);
 flags("two columns of one book on one market", columns(record("ax3.mkt9"), demandGrid({ mkt1: { sameAs: "ax3.mkt9" }, mkt2: { sameAs: "ax3.mkt9" } })), /already paired with ax1\.marketGrid1 mkt1/);
 flags("a column and a place of one book on one market", columns(record("ax3.mkt9"), earlier({ sameAs: "ax3.mkt9", unique: [] }), demandGrid({ mkt1: { sameAs: "ax3.mkt9" } })), /already paired with ax1\.fortPlace/);

@@ -1168,6 +1168,83 @@ const map = game.scenes.find((s) => s.getFlag(MODULE_ID, "cookbook")?.id === "zz
   sessions.delete("ax3");
 }
 
+// --- a column paired with a later book's site, onto which that book's grid lands the market -----
+{
+  const docs = {
+    ax1: textPdf([["Alpha", 110, 88], ["Beta", 210, 88], ["Rock", 10, 110], ["+1", 110, 110], ["+2", 210, 110], ["Bark", 10, 130], ["0", 110, 130], ["-1", 210, 130]]),
+    ax3: textPdf([["+3", 110, 210], ["-2", 210, 210], ["III", 310, 210]]),
+  };
+  const saved = { ax1: BOOK_FILES.ax1, ax3: BOOK_FILES.ax3 };
+  const ax1 = structuredClone(saved.ax1);
+  ax1.entries["ax1.grid1"].meta = { markets: { mkt1: { sameAs: "ax3.site1" }, mkt2: { place: "ax1.l1" } } };
+  const ax3 = structuredClone(saved.ax3);
+  ax3.entries["ax3.site1"] = { ...loc("Region — Sites"), name: "Later Site" };
+  delete ax3.entries["ax3.mkt1"];
+  ax3.entries["ax3.grid1"].meta = { markets: { mkt1: { place: "ax3.site1" } } };
+  BOOK_FILES.ax1 = ax1;
+  BOOK_FILES.ax3 = ax3;
+  await loadCookbook();
+  const shelf = game.packs.get(JUDGE_ACTOR_PACK);
+  const flagOf = (d) => d?.flags?.[MODULE_ID]?.cookbook ?? {};
+  const docOf = (uuid) => shelf.docs.get(String(uuid ?? "").split(".").pop());
+  const answering = () => shelf.docs.filter((d) => [flagOf(d).id, ...(flagOf(d).merged ?? [])].some((id) => id === "ax1.mkt1" || id === "ax3.site1"));
+  const shape = (d) => ({
+    id: flagOf(d).id, book: flagOf(d).book, merged: flagOf(d).merged ?? [], region: d.system.region, parent: flagOf(docOf(d.system.parentUuid)).id ?? null,
+    blocks: [...String(d.system.notes ?? "").matchAll(/data-acks-entry="([^"]+)"/g)].map((m) => m[1]),
+    marketClass: d.system.market?.marketClassOverride ?? null, demand: d.system.market?.goods?.demand ?? [], from: d.system.market?.goods?.dmProfile?.source?.book ?? null,
+  });
+  const open = (book) => {
+    sessions.delete("ax1");
+    sessions.delete("ax3");
+    sessions.set(book, { doc: docs[book] });
+  };
+  const places = (book) => (open(book), cookbookImportPoiPlaces({ books: [book] }));
+  const markets = (book) => (open(book), cookbookImportMarketProfiles());
+  const wipe = () => {
+    for (const d of shelf.docs.filter((x) => ["ax1", "ax3"].includes(flagOf(x).book))) shelf.docs.delete(d.id);
+    forgetImportedIndex();
+  };
+  wipe();
+  // The later book whole, then the earlier book.
+  await places("ax3");
+  await markets("ax3");
+  const site = answering();
+  const bound = await markets("ax1");
+  check("the earlier book's column binds onto the later book's site", [bound.paired, bound.made, answering().length, answering()[0] === site[0]], [1, 0, 1, true]);
+  const want = {
+    id: "ax3.site1", book: "ax3", merged: ["ax1.mkt1"], region: site[0].system.region, parent: "ax3.region", blocks: ["ax3.site1"],
+    marketClass: 3, demand: [{ category: "salt", modifier: 3 }, { category: "spices", modifier: -2 }], from: "ax3",
+  };
+  check("the site answers for both and carries the later book's market", shape(site[0]), want);
+
+  // The earlier book first: the later book's site takes its market over, and
+  // the later grid's column lands on the site.
+  wipe();
+  const made = await markets("ax1");
+  check("the earlier book alone makes its column's market", [made.made, flagOf(answering()[0]).id], [1, "ax1.mkt1"]);
+  const took = await places("ax3");
+  check("the later book's site takes that market over", [took.paired, answering().length, flagOf(answering()[0]).id], [1, 1, "ax3.site1"]);
+  const landed = await markets("ax3");
+  check("and the later grid's column lands its market on it", [landed.updated, landed.waiting, shape(answering()[0])], [1, 0, want]);
+
+  // The later grid first waits for its site; the earlier book makes its
+  // market, and the site and the column's market join it.
+  wipe();
+  const early = await markets("ax3");
+  check("the later grid waits for the site its column names", [early.waiting, early.made, answering().length], [1, 0, 0]);
+  await markets("ax1");
+  await places("ax3");
+  await markets("ax3");
+  check("every order ends in one place", [answering().length, shape(answering()[0])], [1, want]);
+
+  wipe();
+  BOOK_FILES.ax1 = saved.ax1;
+  BOOK_FILES.ax3 = saved.ax3;
+  await loadCookbook();
+  sessions.delete("ax1");
+  sessions.delete("ax3");
+}
+
 // --- a grid's printing errata: each band read under the market whose figures it holds ----------
 {
   // One page before and after its correction. The page prints the second

@@ -9,7 +9,11 @@
     "meta": {
       "markets": {
         "mkt1": { "sameAs": "ax3.mkt21" },
-        "mkt2": { "place": "ax1.fort" }
+        "mkt2": { "place": "ax1.fort" },
+        "mkt3": { "sameAs": "ax3.mkt22" },
+        "mkt4": { "sameAs": "ax3.mkt25" },
+        "mkt5": { "sameAs": "ax3.site29" },
+        "mkt6": { "sameAs": "ax3.mkt17" }
       }
     },
     "assists": {

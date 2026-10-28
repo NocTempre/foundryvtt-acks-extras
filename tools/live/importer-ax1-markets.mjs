@@ -11,11 +11,13 @@
  * columns are steered in memory onto this run's own documents
  * (`cookbookEntry(...).entry.meta.markets`, restored in the `finally`), as the
  * AX3 walk steered its city:
- *   - a column paired with a later book's market (`sameAs`) joins that
- *     market where the library holds it, a write onto the owner's document.
+ *   - a column paired with a later book's place (`sameAs`) joins that place
+ *     where the library holds it, a write onto the owner's document: the
+ *     column's id in its `merged`, and the column's base where it held none.
  *     Unless MARKET_BIND_OK=1, the owner's go-ahead, the pair is dropped
- *     when its later market stands, and the column lands as a market of its
- *     own like the unpaired ones;
+ *     when its later place stands, and the column lands as a market of its
+ *     own like the unpaired ones. A join stays, so a later run takes a column
+ *     an earlier bind joined only under MARKET_BIND_OK=1, and stops without;
  *   - a column that names a place (`place`) lands on the owner's place where
  *     it stands, so it is pointed at an id of the walk's instead: absent on
  *     the first run, which counts it waiting, then a world place the walk
@@ -32,9 +34,9 @@
  *     `markets/ax1-place-<column>`: steps 2 and 3 are its absence and its
  *     arrival, so the walk retires the last run's before step 2 and builds it
  *     again (`api.fixture`) in step 3;
- *   - a Judge's base demand on one made market, written through the demand
- *     engine's own base write (`writeDemand`, which the Trade tab's Set
- *     calls).
+ *   - a Judge's base demand on one made market, or on the placed column's
+ *     place where every column joins, written through the demand engine's own
+ *     base write (`writeDemand`, which the Trade tab's Set calls).
  * A create hook observes the first run, never sweeps it: it proves a column
  * waiting for its place stubs nothing. The made markets are a library's,
  * which carry no marker, and the step's first run is the subject, which a
@@ -164,6 +166,22 @@ const P = {
     const H = globalThis.__am;
     const out = {};
     for (const id of ids) out[id] = await H.held(id);
+    return out;
+  },
+  /** What a join may touch on each place, held in the driver and compared there, never printed. */
+  snapshot: async ({ uuids }) => {
+    const out = {};
+    for (const uuid of uuids) {
+      const d = await fromUuid(uuid);
+      const goods = d?.system?.market?.goods ?? {};
+      let notes = 0;
+      for (const c of String(d?.system?.notes ?? "")) notes = (notes * 31 + c.codePointAt(0)) >>> 0;
+      out[uuid] = {
+        found: !!d, name: d?.name ?? null, notes, parent: d?.system?.parentUuid ?? "", region: d?.system?.region ?? "",
+        cls: d?.system?.market?.marketClassOverride ?? null, merged: d?.getFlag("acks-extras", "cookbook")?.merged ?? [],
+        base: (goods.demand ?? []).map((x) => `${x.category}:${x.modifier}`).sort(), source: goods.dmProfile?.source ?? null,
+      };
+    }
     return out;
   },
   /** Point the grid's columns at this run's documents: drop the pairs named, move each placed column to its id. */
@@ -376,17 +394,32 @@ try {
   for (const k of PLACED) note(`retired ${PLACE_MARKER(k)}`, await gm.retire(PLACE_MARKER(k), "Actor"));
   const later = PAIRED.map((k) => COLUMNS[k].sameAs);
   const before = await run(gm, P.standing, { ids: [...MARKETS.map(idOf), ...later, ...Object.values(REDIRECT)] });
-  const ours = MARKETS.map(idOf).filter((id) => before[id].length);
-  check("nothing stands under any of the book's market ids", !ours.length, ours);
-  if (ours.length) throw new Error("stopped before the step: a market this run did not make stands under one of the book's ids");
+  const sameDocs = (a, b) => a.length > 0 && JSON.stringify(a) === JSON.stringify(b);
   const laterHeld = PAIRED.filter((k) => before[COLUMNS[k].sameAs].length);
-  note("paired columns whose later market the library holds", laterHeld.map((k) => ({ column: k, later: COLUMNS[k].sameAs })));
+  // A column an earlier bind joined answers from its later place alone (the
+  // library's document; a world copy of it does not carry the join).
+  const alreadyJoined = laterHeld.filter((k) => before[idOf(k)].length > 0 && before[idOf(k)].every((u) => before[COLUMNS[k].sameAs].includes(u)));
+  note("paired columns whose later place the library holds", laterHeld.map((k) => ({ column: k, later: COLUMNS[k].sameAs, joined: alreadyJoined.includes(k) })));
+  const ours = MARKETS.filter((k) => before[idOf(k)].length && !(MARKET_BIND_OK && alreadyJoined.includes(k))).map(idOf);
+  check("nothing stands under any of the book's market ids, but a later place an earlier bind joined", !ours.length, ours);
+  if (ours.length) {
+    throw new Error(alreadyJoined.length && !MARKET_BIND_OK
+      ? "stopped before the step: an earlier bind joined a column to the owner's place (MARKET_BIND_OK=1 walks that state)"
+      : "stopped before the step: a market this run did not make stands under one of the book's ids");
+  }
   const drop = MARKET_BIND_OK ? [] : laterHeld;
-  if (drop.length) note("pairs dropped in memory (the later market is the owner's; MARKET_BIND_OK=1 is the go-ahead to join it)", drop);
+  if (drop.length) note("pairs dropped in memory (the later place is the owner's; MARKET_BIND_OK=1 is the go-ahead to join it)", drop);
+  const bound = laterHeld.filter((k) => !drop.includes(k));
+  const joining = bound.filter((k) => !alreadyJoined.includes(k));
+  const fresh = OWN.filter((k) => !bound.includes(k));
+  // The join writes the library's own document, never a world copy.
+  const owners = Object.fromEntries(bound.map((k) => {
+    const held = before[COLUMNS[k].sameAs];
+    return [k, held.find((u) => u.startsWith("Compendium.")) ?? held[0]];
+  }));
+  const ownersBefore = bound.length ? await run(gm, P.snapshot, { uuids: Object.values(owners) }) : {};
   note("steer", await run(gm, P.steer, { gridId: GRID, drop, places: REDIRECT }));
   steered = true;
-  const joining = PAIRED.filter((k) => !drop.includes(k) && laterHeld.includes(k));
-  const fresh = OWN.filter((k) => !joining.includes(k));
 
   section("2. a column with no place of its own is a market; a column naming a place waits for it");
   const packsBefore = await run(gm, P.actorPacks);
@@ -404,7 +437,37 @@ try {
   }
   note("2: made (tracked)", made);
   check("2: the run makes a market for each column with no place, joins each pair the library holds, and counts each placed column waiting",
-    r1.made === fresh.length && r1.paired === joining.length && r1.waiting === PLACED.length && !r1.updated && !r1.kept && !r1.refused, counts(r1));
+    r1.made === fresh.length && r1.paired === joining.length && r1.waiting === PLACED.length && r1.updated + r1.kept === alreadyJoined.length && !r1.refused, counts(r1));
+  // A join writes the column's id into the later place's `merged`, and the
+  // column's base only where the place held none; nothing else of it moves.
+  const ownBase = [];
+  if (bound.length) {
+    const joinedNow = await run(gm, P.standing, { ids: bound.map(idOf) });
+    // A world copy of the later place is restamped by the maps step, not here.
+    check("2: each joined column's id answers from the library's later place alone",
+      bound.every((k) => sameDocs(joinedNow[idOf(k)], [owners[k]])),
+      Object.fromEntries(bound.map((k) => [k, { answering: joinedNow[idOf(k)].length, laterCopies: before[COLUMNS[k].sameAs].length - 1 }])));
+    const ownersAfter = await run(gm, P.snapshot, { uuids: Object.values(owners) });
+    const joins = {};
+    for (const k of bound) {
+      const b = ownersBefore[owners[k]];
+      const a = ownersAfter[owners[k]];
+      const same = (f) => JSON.stringify(a?.[f]) === JSON.stringify(b?.[f]);
+      const mine = await run(gm, P.market, { uuid: owners[k], book: BOOK, gridId: GRID, key: k, fresh: false });
+      if (mine.sourceIsThePage) ownBase.push(k);
+      joins[k] = {
+        merged: !!a?.merged.includes(idOf(k)),
+        untouched: ["name", "notes", "parent", "region", "cls"].every(same),
+        base: b?.base.length ? (same("base") && same("source") ? "kept" : "moved") : (mine.demandIsTheGrid && mine.sourceIsThePage ? "landed" : "missing"),
+        columnFigures: mine.demandIsTheGrid,
+      };
+    }
+    note("2: the joined places (columnFigures: the place's base equals the column's read)", joins);
+    check("2: each joined place answers for its column and keeps its name, notes, parent, region and class",
+      bound.every((k) => joins[k].merged && joins[k].untouched), bound.filter((k) => !joins[k].merged || !joins[k].untouched));
+    check("2: a joined place's base stands, and one that held none takes the column's",
+      bound.every((k) => ["kept", "landed"].includes(joins[k].base)), bound.filter((k) => !["kept", "landed"].includes(joins[k].base)));
+  }
   check("2: each made market stands once, under its column's id", fresh.every((k) => made[idOf(k)].length === 1), Object.fromEntries(fresh.map((k) => [k, made[idOf(k)].length])));
   const rows1 = {};
   for (const k of fresh) rows1[k] = made[idOf(k)][0] ? await run(gm, P.market, { uuid: made[idOf(k)][0], book: BOOK, gridId: GRID, key: k, fresh: true }) : { found: false };
@@ -433,14 +496,9 @@ try {
   const r2 = await step(gm);
   note("3: second run", counts(r2));
   // A base from the same page is written again and counts updated; a joined
-  // market's base is the later book's, which this book's never replaces.
-  check("3: the second run lands each placed column on its place, writes its own markets' bases again, and keeps each joined market's",
-    r2.updated === fresh.length + PLACED.length && r2.kept === joining.length && !r2.made && !r2.paired && !r2.waiting && !r2.refused, counts(r2));
-  if (joining.length) {
-    const joined = await run(gm, P.standing, { ids: joining.map(idOf) });
-    check("3: each joined column's id answers from its later market alone",
-      joining.every((k) => joined[idOf(k)].length === 1 && JSON.stringify(joined[idOf(k)]) === JSON.stringify(before[COLUMNS[k].sameAs])), joined);
-  }
+  // place's base from a later book is never replaced by this book's.
+  check("3: the second run lands each placed column on its place, writes this page's bases again, and keeps each joined place's own",
+    r2.updated === fresh.length + PLACED.length + ownBase.length && r2.kept === bound.length - ownBase.length && !r2.made && !r2.paired && !r2.waiting && !r2.refused, counts(r2));
   const placed = {};
   for (const k of PLACED) placed[k] = await run(gm, P.market, { uuid: fixtures[k].uuid, book: BOOK, gridId: GRID, key: k, fresh: false });
   note("3: the places", placed);
@@ -449,19 +507,24 @@ try {
   const afterPlaced = await run(gm, P.standing, { ids: PLACED.map(idOf) });
   check("3: no market stands under a placed column's own id", PLACED.every((k) => !afterPlaced[idOf(k)].length));
 
+  // Where every column joins, the placed column's place is the walk's own
+  // market to drive.
+  const ownMarket = (i) => (fresh[i] ? made[idOf(fresh[i])][0] : PLACED[0] ? fixtures[PLACED[0]].uuid : null);
   section("4. a base the Judge set stands through a third run");
-  const judged = fresh[0] ? made[idOf(fresh[0])][0] : null;
+  const judged = ownMarket(0);
+  note("4: the Judge's market", fresh[0] ? "a made market" : "the placed column's place");
   const hand = judged ? await run(gm, P.judgeBase, { uuid: judged }) : null;
   check("4: the demand engine's base write lands and makes the base the Judge's", !!hand?.ok && hand.sourceCleared, hand && { ok: hand.ok, sourceCleared: hand.sourceCleared });
   const r3 = await step(gm);
   note("4: third run", counts(r3));
-  check("4: the third run makes, joins and waits for nothing, and keeps the Judge's market beside each joined one",
-    !r3.made && !r3.paired && !r3.waiting && !r3.refused && r3.kept === joining.length + 1 && r3.updated === fresh.length - 1 + PLACED.length, counts(r3));
+  check("4: the third run makes, joins and waits for nothing, and keeps the Judge's market beside each joined place's own",
+    !r3.made && !r3.paired && !r3.waiting && !r3.refused && r3.kept === bound.length - ownBase.length + 1 && r3.updated === fresh.length + ownBase.length + PLACED.length - 1, counts(r3));
   const kept = judged ? await run(gm, P.baseOf, { uuid: judged }) : null;
   check("4: the Judge's base is unchanged and still the Judge's", !!kept && JSON.stringify(kept.base) === JSON.stringify(hand?.base) && kept.sourceCleared);
 
-  section("5. a made market's Trade tab shows its base");
-  const shown = fresh[1] ? await run(gm, P.tradeTab, { uuid: made[idOf(fresh[1])][0] }) : null;
+  section("5. a market of the walk's own shows its base on its Trade tab");
+  const shownUuid = ownMarket(1);
+  const shown = shownUuid ? await run(gm, P.tradeTab, { uuid: shownUuid }) : null;
   check("5: the sheet opens on its Trade tab with one chip per stored good, each showing its modifier",
     !!shown?.opened && shown.tab && shown.chips === shown.stored && shown.chips > 0 && shown.modifiersShown, shown);
 } catch (err) {
