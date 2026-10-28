@@ -391,6 +391,52 @@ compendium equivalents, and `api.track` each one.
    *Observable:* that market's base now includes the aliased good, and the
    unmapped list no longer names it.
 
+## Setting-book market profiles walk (AX1: a sideways grid)
+
+Walked by `tools/live/importer-ax1-markets.mjs`
+(`node tools/live/run.mjs importer-ax1-markets`); its header lists the writes.
+
+Fixtures: the AX1 PDF connected on the GM seat and no other book with a market
+grid open (the step imports every open one), merchandise imported first, and
+nothing standing under `ax1.mkt<n>`. A paired column joins its later book's
+market where the library holds it, and a column that names a place lands on
+the owner's place, so the walk steers both in memory, as the AX3 walk did its
+city: the pair is dropped while the later market stands (unless
+`MARKET_BIND_OK=1`), and the placed column is pointed at an id of the walk's
+own. That column's place is kept, marked `markets/ax1-place-<column>`; steps 2
+and 3 are its absence and its arrival, so the walk retires the last run's
+before step 2 and builds it again in step 3.
+
+1. Read the grid in the page.
+   *Observable:* one row per column key, one cell per banded good, every cell
+   a modifier, every column headed; the world's merchandise answers each
+   market's goods.
+2. Run `cookbookImportMarketProfiles()`.
+   *Observable:* a market made for each column with no place, a pair the
+   library holds joined, each placed column waiting and no actor made for it.
+   Each made market is a library place stamped `kind.marketRecord`, named for
+   its column's header with `printed` equal to that name, its base the
+   column's and `dmProfile.source` the grid's page.
+3. Build a world place carrying the placed column's id, run again.
+   *Observable:* the column lands on it (base and source as in step 2), nothing
+   is made under the column's own id, and the made markets count `updated` (a
+   base from the same page is written again).
+4. Move one good of a made market's base through `writeDemand` (the Trade
+   tab's Set), run again.
+   *Observable:* the source is cleared, the run counts that market `kept`, and
+   its base is unchanged.
+5. Open a made market's sheet on its Trade tab.
+   *Observable:* one demand chip per stored good, each showing its modifier.
+
+Not walkable without the later book: a later printing's base replacing an
+earlier one's, and a later book's market taking an earlier column's over.
+Both are pinned offline in `tools/importer/test-region-import.mjs`.
+
+**Teardown:** the made markets are a library's, which carry no marker, and a
+market standing under the book's id stops the next run's step 2, so the sweep
+takes every market the run made and any folder or shelf the step opened, by
+tracked id; the place stays. The in-memory steering is restored.
+
 ## Market reports and the Trader tab walk
 
 The sub-type is declared in `module.json`, which the server reads at world
