@@ -25,9 +25,11 @@ report the same symptom.
   built carrying it where none stands: `lib/follower-employer` (a
   `character`), `lib/follower-hench` (a `character` on the employer's
   hireling list), `lib/follower-beast` (a `monster`) and its power
-  `lib/follower-power`. The attack row's two throws are a create path: their
-  messages are `lib/follower-throw-row` and `lib/follower-throw-die`, and a
-  walk retires each before it throws again.
+  `lib/follower-power`. The attack row's two throws and the two
+  number-appearing dice are a create path: their messages are
+  `lib/follower-throw-row`, `lib/follower-throw-die`,
+  `lib/follower-appearing-dungeon` and `lib/follower-appearing-wilderness`,
+  and a walk retires each before it throws again.
 
 ## Core drive mechanics (non-obvious, learned live)
 
@@ -144,14 +146,16 @@ report the same symptom.
    the chips — and its **Full sheet** chip (`data-action="fcOpenFull"`) opens
    `FullMonsterSheet` beside it. The body is `.acks-lib-follower-card` (no
    `readonly` class) with `.acks-extras-frame__cols.is-3`.
-   Give the monster `system.details.appearing` `{d: "2d6", w: "3d10"}`.
-   *Observable:* the Vitals column carries a **Number appearing** rule with a
-   Dungeon and a Wilderness row, each with a die
-   (`[data-action="fcRollAppearing"][data-check]`); pressing the wilderness
-   die posts the system's appearing card with the formula `3d10`. Read it
-   off the card's `.dice-formula` and `.dice-total`: the system renders its
-   roll into the message's content and attaches no `rolls`. A monster
-   storing neither formula shows no such block.
+   Give the monster `system.details.appearing` `{d: "", w: ""}`, then
+   `{d: "2d6", w: "3d10"}`.
+   *Observable:* with neither formula stored the card shows no number-appearing
+   block. With both, the Vitals column carries a **Number appearing** rule
+   with a Dungeon and a Wilderness row, each with a die
+   (`[data-action="fcRollAppearing"][data-check]`), and pressing each die
+   posts one message under the monster's speaker, the system's appearing card
+   rolling that row's formula. Read it off the card's `.dice-formula` and
+   `.dice-total`: the system renders its roll into the message's content and
+   attaches no `rolls`.
    Set a saves-as class on the monster's extras and star one of its powers
    (`[data-action="fcStar"]`, which writes `flags.acks-extras.fcStarred`).
    Make a `character` with a hireling list naming the monster and open its

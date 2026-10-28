@@ -3,7 +3,8 @@
  * sheet on the frame (band in the header, three columns), the star, the two
  * fields the features set through FOLLOWER_CARD_HOOK (the saves-as line, the
  * pending dot), the employer's controls drawn by ownership on the compact
- * card, and an attack row that throws from the row and from its die.
+ * card, an attack row that throws from the row and from its die, and the
+ * number-appearing rows, each die posting the system's roll of its formula.
  * Machine values arrive through ./_env.mjs; nothing here names a port, a
  * world, a seat or a book. Every figure typed into a fixture is invented.
  *
@@ -12,10 +13,13 @@
  * `lib/follower-beast` and its power `lib/follower-power`. Each step brings
  * what it reads to shape first: the wiring writes the hireling link, the
  * pending flag, the beast's saves-as line and the player seat's observer
- * ownership of the employer, and the star is unpressed before it is pressed.
- * The attack row's two throws are a create path: the messages they post,
- * read back by a create observer for the beast's own speaker the moment each
- * resolves, are marked `lib/follower-throw-row` and `lib/follower-throw-die`,
+ * ownership of the employer, the star is unpressed before it is pressed, and
+ * the beast's number-appearing formulas are written empty and then set.
+ * The attack row's two throws and the two number-appearing dice are a create
+ * path: the messages they post, read back by a create observer for the
+ * beast's own speaker the moment each resolves, are marked
+ * `lib/follower-throw-row`, `lib/follower-throw-die`,
+ * `lib/follower-appearing-dungeon` and `lib/follower-appearing-wilderness`,
  * and the next run retires each before it throws. Writes outside the ledger:
  * none.
  */
@@ -201,6 +205,54 @@ const P = {
     return { found: true, same, fromRow, fromDie, posted, rolls: posted.map((m) => game.messages.get(m)?.rolls?.length ?? 0) };
   },
 
+  /** Write the beast's number-appearing formulas, whatever the last run left. */
+  appearing: async ({ actorId, d, w }) => {
+    const actor = game.actors.get(actorId);
+    await actor.update({ "system.details.appearing": { d, w } });
+    return { d: actor.system.details?.appearing?.d ?? null, w: actor.system.details?.appearing?.w ?? null };
+  },
+
+  /** The open card's number-appearing rows: each die's side, whether it is named, and the formula beside it. */
+  appearingRows: async ({ actorId }) => {
+    const H = globalThis.__fc1;
+    const root = H.root(H.appBy("acks-lib-follower-card-sheet", actorId));
+    if (!root) return { rendered: false };
+    return {
+      rendered: true,
+      rows: [...root.querySelectorAll("[data-action='fcRollAppearing']")].map((b) => ({
+        check: b.dataset.check,
+        named: !!b.getAttribute("aria-label"),
+        formula: H.text(b.closest(".acks-extras-frame__fact")?.querySelector(".acks-extras-frame__fact-value")),
+      })),
+    };
+  },
+
+  /**
+   * Press each number-appearing die and read back the message the beast
+   * posts, from a create observer scoped to its speaker. The system renders
+   * its roll into the message's content and attaches no `rolls`, so the
+   * formula and the total are read off the card.
+   */
+  rollAppearing: async ({ actorId }) => {
+    const H = globalThis.__fc1;
+    const app = H.appBy("acks-lib-follower-card-sheet", actorId);
+    const out = [];
+    for (const side of ["dungeon", "wilderness"]) {
+      const die = H.root(app)?.querySelector(`[data-action='fcRollAppearing'][data-check='${side}']`);
+      if (!die) { out.push({ side, found: false, posted: [] }); continue; }
+      const posted = [];
+      const id = Hooks.on("createChatMessage", (m) => { if (m.speaker?.actor === actorId) posted.push(m.id); });
+      die.click();
+      await H.poll(() => posted.length > 0, { tries: 60, every: 200 });
+      Hooks.off("createChatMessage", id);
+      const card = document.createElement("div");
+      card.innerHTML = game.messages.get(posted[0])?.content ?? "";
+      const total = H.text(card.querySelector(".dice-total"));
+      out.push({ side, found: true, posted, formula: H.text(card.querySelector(".dice-formula")) || null, total: total === "" ? null : Number(total) });
+    }
+    return out;
+  },
+
   /** Open the employer's sheet from this module and read the Followers tab's cards. */
   followers: async ({ employerId }) => {
     const H = globalThis.__fc1;
@@ -338,6 +390,32 @@ try {
   check("the row and its die name the same attack", thrown.found && thrown.same);
   check("a press on the row's text posts a throw, and a press on the die posts another", thrown.fromRow && thrown.fromDie && (thrown.posted ?? []).length === 2 && thrown.rolls.every((n) => n >= 1), { posted: (thrown.posted ?? []).length, rolls: thrown.rolls });
   note("closed (gm card)", await run(gm, P.closeAll));
+
+  section("9. number appearing: a row per stored formula, each die posting the system's roll");
+  note("appearing cleared", await run(gm, P.appearing, { actorId: beast.id, d: "", w: "" }));
+  await run(gm, P.openCard, { actorId: beast.id });
+  const bare = await run(gm, P.appearingRows, { actorId: beast.id });
+  check("a monster storing neither formula shows no number-appearing rows", bare.rendered && bare.rows.length === 0, bare);
+  note("closed (gm bare card)", await run(gm, P.closeAll));
+  // Invented formulas; each total is held to its dice's range.
+  const SIDES = [
+    { side: "dungeon", formula: "2d6", low: 2, high: 12, marker: "lib/follower-appearing-dungeon" },
+    { side: "wilderness", formula: "3d10", low: 3, high: 30, marker: "lib/follower-appearing-wilderness" },
+  ];
+  note("appearing set", await run(gm, P.appearing, { actorId: beast.id, d: SIDES[0].formula, w: SIDES[1].formula }));
+  await run(gm, P.openCard, { actorId: beast.id });
+  const shown = await run(gm, P.appearingRows, { actorId: beast.id });
+  note("appearing rows", shown);
+  check("the card lists a Dungeon and a Wilderness row, each with its formula and a named die", shown.rendered && shown.rows.length === 2 && SIDES.every((s, n) => shown.rows[n].check === s.side && shown.rows[n].formula === s.formula && shown.rows[n].named), shown.rows);
+  for (const s of SIDES) note(`retired ${s.marker}`, await gm.retire(s.marker, "ChatMessage"));
+  const rolled = await run(gm, P.rollAppearing, { actorId: beast.id });
+  note("rolled", rolled.map((r) => ({ side: r.side, posted: r.posted.length, formula: r.formula, total: r.total })));
+  for (const [n, r] of rolled.entries()) {
+    if (r.posted.length === 1) await gm.mark(`ChatMessage.${r.posted[0]}`, SIDES[n].marker);
+    else for (const id of r.posted) gm.track(id, "ChatMessage");
+  }
+  check("each die posts one message under the beast's speaker, rolling its stored formula", rolled.length === 2 && SIDES.every((s, n) => rolled[n].found && rolled[n].posted.length === 1 && rolled[n].formula === s.formula && rolled[n].total >= s.low && rolled[n].total <= s.high), rolled.map((r) => ({ side: r.side, formula: r.formula, total: r.total })));
+  note("closed (gm appearing card)", await run(gm, P.closeAll));
 
   section("9. the compact card on the employer's Followers tab (owner)");
   const owner = await run(gm, P.followers, { employerId: employer.id });
