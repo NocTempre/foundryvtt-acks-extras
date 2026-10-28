@@ -213,20 +213,19 @@ beside it, and `validate.mjs` calls the gate instead of each repo's
 ## Live walks keep their fixtures
 
 `.claude/rules/live-testing.md` step 4 keeps a fixture once built and deletes
-one only where setup is the subject. Every walk in `tools/live/` still builds
-its fixtures afresh and sweeps them all in its `finally`, and each recipe's
-fixtures and teardown lines describe that. Owed:
+one only where setup is the subject; the capture driver finds a kept one by its
+marker (`api.fixture`). Owed:
 
-- a capture-driver helper that finds a fixture by its marker
-  (`flags.world.fixture`) or builds and marks it, in acks-module-template's
-  `bin/foundry-capture.mjs`, so no walk spells the lookup itself. It settles
-  what step 4 leaves open: how a peer's own marker is spelled beside the
-  recipe's, and which document a lookup returns when two carry one marker;
-- each walk converted to find-or-build, with its sweep kept only for the
-  sections whose subject is setup (importer first runs, create hooks, delete
-  paths, pre-upgrade shapes), and each step that needs a known shape
-  asserting it at its start;
-- each recipe's fixtures section naming its markers, and its teardown lines
-  cut to the setup sections.
+- importer-typography, importer-adventure and importer-ax1 still build their
+  fixtures afresh and sweep them in a `finally`. Their sections are setup and
+  keep their sweeps, and the AX1 lamplighter is the one fixture kept
+  (docs/importer/DECISIONS.md, 2026-10-28). Each walk stops on the owner's
+  standing imports, so walking the change twice waits on the owner's
+  go-ahead to run over them (`HELD_OK`, `SHELF_OK`);
+- formation-hex claims a card by its author and a time window
+  (`messagesSince`), so a card the module posts during its drags for another
+  walk's kept hireling is marked with its own and retired by its next run.
+  battlemap claims a card by its own actor and scene names, which formation-hex
+  can do too.
 
 ---

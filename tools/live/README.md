@@ -37,11 +37,13 @@ owner's word.
 
 - imports the driver from `./_driver.mjs` and its seats and paths from
   `./_env.mjs`, and names no path, port, world, user or book of its own;
-- creates what it needs by id (`api.create`, `api.track`) and sweeps it all
-  in a `finally` (`api.sweepTracked`), where live-testing step 4 keeps a
-  fixture and sweeps only a section whose subject is setup (ROADMAP, "Live
-  walks keep their fixtures"); it restores in a `finally` any setting it
-  flipped;
+- finds each fixture by the marker its recipe names, or builds it carrying
+  one (`api.fixture`), and brings it to the shape a step needs at that step's
+  start; it deletes only in a section whose subject is setup, by the run's
+  own ids (`api.retire`, `api.sweepTracked({only})`), as live-testing step 4
+  rules; it restores in a `finally` any setting it flipped. `FIXTURE_OWN=<tag>`
+  makes it build and find its own fixtures beside a peer's, and the log ends
+  with the driver's ledger: what the run built, and what it reused;
 - invents its fixtures, compares an imported figure in page and prints a
   boolean, and never prints a book's words;
 - prints `== <section> ==` per recipe section, `PASS  <observable>  <detail>`
