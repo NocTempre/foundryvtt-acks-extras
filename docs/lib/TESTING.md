@@ -148,7 +148,9 @@ report the same symptom.
    *Observable:* the Vitals column carries a **Number appearing** rule with a
    Dungeon and a Wilderness row, each with a die
    (`[data-action="fcRollAppearing"][data-check]`); pressing the wilderness
-   die posts the system's appearing card with the formula `3d10`. A monster
+   die posts the system's appearing card with the formula `3d10`. Read it
+   off the card's `.dice-formula` and `.dice-total`: the system renders its
+   roll into the message's content and attaches no `rolls`. A monster
    storing neither formula shows no such block.
    Set a saves-as class on the monster's extras and star one of its powers
    (`[data-action="fcStar"]`, which writes `flags.acks-extras.fcStarred`).
