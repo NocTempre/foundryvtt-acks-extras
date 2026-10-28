@@ -1,0 +1,32 @@
+[
+  {
+    "id": "def.equip.ballistaRepeating",
+    "icon": "icons/weapons/crossbows/crossbow-heavy-black.webp",
+    "kind": "kind.equipment",
+    "book": "ax1",
+    "name": "Ballista, Repeating",
+    "anchor": { "runin": "Ballista, Repeating:" },
+    "pages": [70],
+    "meta": { "category": "equipment", "group": "weapon" }
+  },
+  {
+    "id": "def.equip.craftsmansTools",
+    "icon": "icons/tools/hand/chisel-steel-brown.webp",
+    "kind": "kind.equipment",
+    "book": "ax1",
+    "name": "Craftsman’s Tools",
+    "anchor": { "runin": "Craftsman’s Tools:" },
+    "pages": [70],
+    "meta": { "category": "equipment", "group": "gear" }
+  },
+  {
+    "id": "def.equip.portableMedicineChest",
+    "icon": "icons/containers/chest/chest-simple-box-steel-brown.webp",
+    "kind": "kind.equipment",
+    "book": "ax1",
+    "name": "Portable Medicine Chest",
+    "anchor": { "runin": "Portable Medicine Chest:" },
+    "pages": [70],
+    "meta": { "category": "equipment", "group": "gear" }
+  }
+]

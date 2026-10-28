@@ -15,6 +15,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { nameKeys } from "../../scripts/lib/vocab.mjs";
 import { bareKey, spaceKeyed } from "./register-rules.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -302,6 +303,20 @@ t("the book's item reads across its two pages", () => {
   assert.equal(e?.kind, "kind.adventureItem");
   const paras = e.fields.description.paras;
   assert.ok(paras.some((p) => !p.page) && paras.some((p) => p.page === e.pages[1]), "paragraphs on both pages");
+});
+
+t("the book's equipment is the rows no other register prints, each read under its run-in", () => {
+  const rows = JSON.parse(fs.readFileSync(path.join(here, "..", "..", "register", "ax1", "p70-equipment.json"), "utf8"));
+  const equip = JSON.parse(fs.readFileSync(path.join(here, "..", "..", "cookbook", "equipment.json"), "utf8")).entries;
+  const others = new Set(Object.values(equip).filter((e) => e.book !== "ax1").flatMap((e) => [...nameKeys(e.name)]));
+  assert.deepEqual(Object.keys(equip).filter((id) => equip[id].book === "ax1"), rows.map((r) => r.id));
+  for (const row of rows) {
+    const e = equip[row.id];
+    assert.deepEqual([...nameKeys(e.name)].filter((k) => others.has(k)), [], `${row.id} is printed by no other book`);
+    assert.equal(e.fields.name.op, "expect", row.id);
+    const paras = e.fields.description.paras;
+    assert.ok(paras.length > 0 && paras.every((p) => p.fixes?.drop?.[0] === 0), `${row.id} reads its body, its run-in dropped`);
+  }
 });
 
 console.log(`ax1-cookbook: ${n} checks OK`);

@@ -175,7 +175,18 @@ for (const file of bookFiles) {
       console.log(`OK   ${id}: ${f.description.length} paras/${words}w`);
       continue;
     }
-    if (kind === "kind.npc") {
+    if (kind === "kind.prose" || kind === "kind.adventureItem") {
+      // A passage and a book's item are a name and the paragraphs under it;
+      // neither carries stats.
+      if (!nameOk || !words) {
+        fail(`descWords=${words}`);
+        continue;
+      }
+      console.log(`OK   ${id}: ${f.description.length} paras/${words}w`);
+      continue;
+    }
+    // A pregen's block is an NPC's statline, read the same way.
+    if (kind === "kind.npc" || kind === "kind.pregen") {
       if (!nameOk || !slOk) {
         fail(`statline=${sl ? Object.keys(sl).join(",") : "none"} descWords=${words}`);
         continue;

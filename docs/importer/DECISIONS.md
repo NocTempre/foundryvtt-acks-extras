@@ -8353,3 +8353,26 @@ built).
 
 *Cost:* the importer walks rebuild their whole import on every run, as
 before; only the lamplighter is found again.
+
+## 2026-10-28 — AX1 registers the three items no later book prints
+
+The census that "An item two books print is the later printing's"
+(2026-10-24) owes a book registered after it. AX1's equipment appendix
+(AX1 p.69) describes twelve items. Nine share a name key with a row the
+Revised Rulebook or By This Axe already registers, and both carry a later
+year than AX1, so the merge would keep their copy of all nine. The other
+three share a name key with no row in any register, so they change no
+winner.
+
+**Ruled.** AX1 registers the three (`register/ax1/p70-equipment.json`) and
+none of the nine. Its body is set at 10pt, as BTA's is, so its definitions
+take BTA's body ceiling (`DEF_BODY_MAX_H_BY_BOOK`).
+
+*Rejected:* registering all twelve and letting `reconcileByName` keep the
+later copy. Under the printing rule the nine can only lose that merge, so
+their rows would compile passages no import keeps.
+
+*Cost:* a world without By This Axe gets no copy of the one item AX1 shares
+with it alone. test-ax1-cookbook checks that no AX1 equipment row shares a
+name key with another book's row, so a later register that prints one of
+the three shows up there.

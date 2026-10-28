@@ -78,6 +78,12 @@ What is still unpriced, and why:
   joined to them.
 - A handful of grid rows read a cost of zero where the page shows a dash or a
   qualifier, rather than declining to answer.
+- **An adventure's own price table.** AX1 prints the cost of the three items
+  it introduces in a grid beside their descriptions (AX1 p.69). Only the
+  Revised Rulebook's grids are read by name, and the three descriptions state
+  no cost, so the three import unpriced. A reader for a book's own gear grid,
+  keyed by the item's row, closes it. The ballista's description also states
+  no damage die, so it imports as a weapon without one.
 
 ## What the ACKS Extras sample packs still answer that this importer does not
 

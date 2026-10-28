@@ -77,12 +77,12 @@ const HEADING_MIN_H = 12; // mirrors extract.mjs
 // the entry, so definition body collection caps below them.
 // The ceiling is PER BOOK: RR/JJ table headers print at exactly 10 and must
 // stay out of RR/JJ bodies (at a global 10.5 the fighter's progression header
-// row leaked into Castle's continuation paragraph), while BTA sets its whole
-// body at exactly 10 — at a global 10 no BTA item survived the gate and no
-// BTA run-in anchored. The definition dispatcher sets the working value from
-// the entry's book; compilation is strictly sequential, so the module-level
-// slot never sees two entries at once.
-const DEF_BODY_MAX_H_BY_BOOK = { bta: 10.5 };
+// row leaked into Castle's continuation paragraph), while BTA and AX1 set their
+// whole body at exactly 10 — at a global 10 no BTA item survived the gate and
+// no BTA or AX1 run-in anchored. The definition dispatcher sets the working
+// value from the entry's book; compilation is strictly sequential, so the
+// module-level slot never sees two entries at once.
+const DEF_BODY_MAX_H_BY_BOOK = { ax1: 10.5, bta: 10.5 };
 let DEF_BODY_MAX_H = 10;
 // Body text starts below the running head; definition blocks are COLUMN-FLOWED,
 // so one that reaches the bottom of its column continues at the top of the next.

@@ -2,6 +2,188 @@
   "schema": "acks-cookbook/2",
   "content": "equipment",
   "entries": {
+    "def.equip.ballistaRepeating": {
+      "id": "def.equip.ballistaRepeating",
+      "kind": "kind.equipment",
+      "name": "Ballista, Repeating",
+      "book": "ax1",
+      "cite": "AX1 p.69",
+      "pages": [
+        70
+      ],
+      "meta": {
+        "category": "equipment",
+        "group": "weapon"
+      },
+      "icon": "icons/weapons/crossbows/crossbow-heavy-black.webp",
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 70,
+          "box": {
+            "x0": 26,
+            "x1": 107.22999999999999,
+            "y0": 389.1694,
+            "y1": 398.1694
+          },
+          "text": "Ballista, Repeating:"
+        },
+        "description": {
+          "op": "text",
+          "page": 70,
+          "paras": [
+            {
+              "box": {
+                "x0": 25,
+                "x1": 224,
+                "y0": 391.1694,
+                "y1": 493.1694
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  5,
+                  6,
+                  8,
+                  9,
+                  11,
+                  12,
+                  13,
+                  16
+                ],
+                "mergeHyphen": [
+                  1
+                ],
+                "drop": [
+                  0
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "def.equip.craftsmansTools": {
+      "id": "def.equip.craftsmansTools",
+      "kind": "kind.equipment",
+      "name": "Craftsman’s Tools",
+      "book": "ax1",
+      "cite": "AX1 p.69",
+      "pages": [
+        70
+      ],
+      "meta": {
+        "category": "equipment",
+        "group": "gear"
+      },
+      "icon": "icons/tools/hand/chisel-steel-brown.webp",
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 70,
+          "box": {
+            "x0": 26,
+            "x1": 100.94999999999999,
+            "y0": 503.1694,
+            "y1": 512.1694
+          },
+          "text": "Craftsman’s Tools:"
+        },
+        "description": {
+          "op": "text",
+          "page": 70,
+          "paras": [
+            {
+              "box": {
+                "x0": 25,
+                "x1": 224,
+                "y0": 505.1694,
+                "y1": 547.1694
+              },
+              "fixes": {
+                "joinSpace": [
+                  2,
+                  5,
+                  10,
+                  12,
+                  16,
+                  17
+                ],
+                "drop": [
+                  0,
+                  1,
+                  2
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "def.equip.portableMedicineChest": {
+      "id": "def.equip.portableMedicineChest",
+      "kind": "kind.equipment",
+      "name": "Portable Medicine Chest",
+      "book": "ax1",
+      "cite": "AX1 p.69",
+      "pages": [
+        70
+      ],
+      "meta": {
+        "category": "equipment",
+        "group": "gear"
+      },
+      "icon": "icons/containers/chest/chest-simple-box-steel-brown.webp",
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 70,
+          "box": {
+            "x0": 308,
+            "x1": 413.97000000000037,
+            "y0": 284.2699,
+            "y1": 293.2699
+          },
+          "text": "Portable Medicine Chest:"
+        },
+        "description": {
+          "op": "text",
+          "page": 70,
+          "paras": [
+            {
+              "box": {
+                "x0": 305,
+                "x1": 612,
+                "y0": 286.2699,
+                "y1": 412.2699
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9,
+                  11,
+                  12,
+                  13,
+                  14,
+                  17
+                ],
+                "drop": [
+                  0
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
     "def.equip.dwarvenBelts": {
       "id": "def.equip.dwarvenBelts",
       "kind": "kind.equipment",
