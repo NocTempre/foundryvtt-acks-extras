@@ -108,8 +108,14 @@
  *     Adventure it rebuilt is rebuilt again after the sweep, so it carries
  *     nothing the sweep removed, and is checked there to carry every way
  *     between the maps though the world then holds only the owner's;
- *   - one character owned by the player seat, made with `api.create`, its
- *     lit torch written to its own light flag as a lone character strikes one;
+ *   - one character owned by the player seat, the lamplighter, kept and found
+ *     again by marker (`importer/lamplighter`): the one fixture the run keeps,
+ *     since every section is setup (`.claude/rules/live-testing.md` step 4) and
+ *     each of its products is what the next run's step needs absent
+ *     (docs/importer/DECISIONS.md, 2026-10-28). Section 1 gives it back the
+ *     player's ownership and a fresh unlit torch before the player lights it,
+ *     its torch written to its own light flag as a lone character strikes one.
+ *     The teardown sweep takes everything else on the ledger and leaves it;
  *   - that character's token on the first level, made by the GM seat and
  *     removed with its scene;
  *   - the player seat's explored fog on that scene, which core keeps per user
@@ -998,6 +1004,15 @@ const P = {
     const t = (await fromUuid(sceneUuid))?.tokens.get(tokenId);
     return t ? { bright: t.light.bright, dim: t.light.dim, sight: !!t.sight.enabled, range: t.sight.range } : null;
   },
+  /** The lamplighter as section 1 needs it, whatever the last run left: the player's, carrying one fresh torch, unlit. */
+  shapeLamplighter: async ({ actorUuid, playerId }) => {
+    const a = await fromUuid(actorUuid);
+    const torch = (a.getFlag("acks-extras", "lights") ?? [])[0];
+    await a.update({ ownership: { default: 0, [playerId]: CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER } });
+    await a.setFlag("acks-extras", "lights", [{ id: torch?.id ?? foundry.utils.randomID(), type: "torch", bearerId: a.id, remaining: 6, lit: false }]);
+    const lights = a.getFlag("acks-extras", "lights");
+    return { owner: a.ownership[playerId] === CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER, torches: lights.length, lit: lights.some((l) => l.lit) };
+  },
   setLit: async ({ actorUuid, lit }) => {
     const a = await fromUuid(actorUuid);
     const lights = a.getFlag("acks-extras", "lights") ?? [];
@@ -1108,7 +1123,7 @@ async function step(api, name, args, tries = 450) {
 }
 const seats = {};
 async function seat(key) {
-  const api = await connect({ browser, origin, user: SEATS[key], port: PORTS[key] });
+  const api = await connect({ browser, origin, user: SEATS[key], port: PORTS[key], own: MACHINE.own });
   seats[key] = api;
   note(`${key} ready after (s)`, await ready(api, key));
   return api;
@@ -1121,6 +1136,8 @@ const failing = (ids, ok) => {
 
 let gm = null;
 let fogLeft = { sceneId: null, userId: null, packs: [], more: [] };
+/** The uuids of the fixtures the run keeps; the teardown sweep leaves them. */
+const KEPT = new Set();
 let ownersAdventure = false;
 
 try {
@@ -1184,8 +1201,11 @@ try {
   if (!level?.uuid) throw new Error("the first level's map was not made");
   const playerId = await run(gm, P.playerId, { name: SEATS.player });
   if (!playerId) throw new Error("the player seat's user is not in the world");
-  const pc = await gm.create("Actor", { name: `QA lamplighter ${NONCE}`, type: "character", ownership: { default: 0, [playerId]: 3 } });
-  note("fixture", { actor: pc.uuid });
+  const pc = await gm.fixture("importer/lamplighter", "Actor", { name: "QA lamplighter", type: "character", ownership: { default: 0, [playerId]: 3 } });
+  KEPT.add(pc.uuid);
+  note("fixture", { actor: pc.uuid, built: pc.built });
+  const shaped = await run(gm, P.shapeLamplighter, { actorUuid: pc.uuid, playerId });
+  check("1: the lamplighter is the player's and carries one unlit torch", shaped.owner && shaped.torches === 1 && !shaped.lit, shaped);
   const floors = await run(gm, P.doorFloors, { uuid: level.uuid });
   if (!floors.points.length) throw new Error("the level has no plain door to stand a token beside");
 
@@ -1954,13 +1974,15 @@ try {
       // call over a ledger the places step has filled outlives the driver's
       // evaluate timeout, and the call it abandons still deletes, unreported.
       // The driver's own sweep then finds nothing left and empties the ledger.
+      // Everything but the kept lamplighter: every section is setup, and its products go.
       const sw = { removed: [], missing: [], failed: [] };
-      const left = gm.tracked().reverse();
+      const setup = gm.tracked().filter((e) => !KEPT.has(e.uuid));
+      const left = [...setup].reverse();
       for (let i = 0; i < left.length; i += SWEEP_CHUNK) {
         const r = JSON.parse(await gm.eval(pageSweep(left.slice(i, i + SWEEP_CHUNK))));
         for (const k of Object.keys(sw)) sw[k].push(...r[k]);
       }
-      const rest = await gm.sweepTracked();
+      const rest = await gm.sweepTracked({ only: setup.map((e) => e.uuid) });
       sw.removed.push(...rest.removed);
       sw.failed = rest.failed;
       swept = sw.removed.length;

@@ -2153,7 +2153,9 @@ What a scripted walk meets:
 - No AX1 map in the world and no world copy of an AX1 place. Where the walk
   made them earlier, it deletes them; under `HELD_OK` they are the owner's,
   and what the steps make in their place is the owner's too.
-- Two empty places, the second inside the first, made with `api.create`.
+- Two empty places, the second inside the first, made with `api.create`
+  and swept every run: a place with nothing in it is pruned at a GM seat's
+  `ready`, so it cannot be kept (DECISIONS, 2026-10-28).
 
 ### Steps
 
@@ -2339,8 +2341,14 @@ scene: "ax3.cityMap" } } } }, { pack: shelf.collection })` and `api.track`
 it.
 
 **A carried source of your own.** Make one world Item stamped `{ id:
-"ax3.fixture~<salt>", book: "ax3" }` and track it. Steps 4 and 5 change what
-the Adventure carries through it, and through nothing else.
+"ax3.fixture~<salt>", book: "ax3" }` with `api.fixture` under
+`importer/carried-item`, after retiring one a dead run left standing
+(`api.retire`): a standing one rides into every Adventure of the book, the
+owner's included, so it is built every run. Steps 4 and 5 change what the
+Adventure carries through it, and through nothing else.
+
+Every step is setup, and nothing the walk makes is kept (DECISIONS,
+2026-10-28).
 
 The run's own ledger is what the step RETURNS. Pass `created.adventures` to
 `api.track`. `created.packs` names a shelf this run made; at teardown, delete
@@ -2802,7 +2810,11 @@ the Adventure carries them. `tools/live/importer-ax1.mjs` walks it as section
 
 ### Fixtures
 
-1. The GM seat and the Player seat, and a character the Player owns.
+1. The GM seat and the Player seat, and a character the Player owns, kept:
+   `api.fixture` finds it again under `importer/lamplighter`, and its step
+   gives it back the Player's ownership and one fresh unlit torch before
+   anything reads it. It is the one fixture the importer walks keep
+   (DECISIONS, 2026-10-28).
 2. Every map the links name, made by the map step with the places in the
    library, so each Region is named for its place. A map the world held
    before the run is the owner's, made again only under `HELD_OK=1`.
@@ -2900,8 +2912,9 @@ the same core behaviour.
 
 ### Teardown
 
-1. Sweep the run's ledger; a link Region goes with its map. The character's
-   tokens went at steps 6 and 10.
+1. Sweep the run's ledger, all but the character, `sweepTracked({only})`; a
+   link Region goes with its map. The character's tokens went at steps 6
+   and 10.
 2. Delete the Player's explored fog on every map a token stood on, by id.
 
 ## The region's adventures: their tables and monsters
@@ -3117,7 +3130,8 @@ untagged seat would read every line as a heading and import nothing.
   (TEST_ENVIRONMENT.md, "Staged files"), connected with
   `acksExtras.importer.connectBookUrl("cat", "acks-test-books/cat.pdf", { remember: false })`.
 - Nothing else: every document below is created by the import and swept by
-  its id.
+  its id. Every step is setup, and nothing is kept: a standing import is what
+  the next run's first import needs absent (DECISIONS, 2026-10-28).
 - A world whose owner already imported part of the book (the walk's
   `HELD_OK=1`) runs the same steps. A class or power imported while the book
   was closed holds no text and no hit die, only what the cookbook entry

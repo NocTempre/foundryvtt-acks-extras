@@ -24,6 +24,12 @@
  * seat reopens the world's shelved books after ready, and a step with no scope
  * would write every one of them.
  *
+ * Every step is setup (`.claude/rules/live-testing.md` step 4): the line's
+ * first import, which opens its shelves, and reads of what that import made.
+ * Nothing the run makes is kept, since a standing import is what the next
+ * run's first import needs absent (docs/importer/DECISIONS.md, 2026-10-28);
+ * step 8's sweep takes it by the run's own ids.
+ *
  * The run expects a world that holds nothing under the book's ids. With
  * HELD_OK=1, the library owner's go-ahead, a document already standing under
  * one of them is the owner's: a held class or power is first rebuilt from the
@@ -463,7 +469,7 @@ async function poll(api, fn, args, { tries = 300, every = 2000, until = (s) => s
 }
 const seats = {};
 async function seat(key) {
-  const api = await connect({ browser, origin, user: SEATS[key], port: PORTS[key] });
+  const api = await connect({ browser, origin, user: SEATS[key], port: PORTS[key], own: MACHINE.own });
   seats[key] = api;
   note(`${key} ready after (s)`, await ready(api, key));
   return api;
@@ -746,6 +752,7 @@ try {
   section("8. teardown");
   try { if (gm) note("closed windows", await run(gm, P.closeAll)); } catch (err) { console.error("closeAll:", err?.message ?? err); }
   try { if (gm) note("restored (gm)", await run(gm, P.restore)); } catch (err) { console.error("restore:", err?.message ?? err); }
+  // Every step is setup, and the import is what the next run's first import needs absent: all of it goes.
   try {
     const sw = gm ? await gm.sweepTracked() : null;
     if (sw) note("sweep (gm)", { removed: sw.removed.map((e) => e.uuid), missing: sw.missing.map((e) => e.uuid), failed: sw.failed.map((e) => ({ uuid: e.uuid, error: e.error })) });

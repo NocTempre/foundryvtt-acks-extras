@@ -9,6 +9,16 @@
  * the book under a salted id, and a per-map Adventure carrying the retired stamp
  * and no content. A check prints ids, counts and booleans, never a book's words.
  *
+ * Every step is setup (`.claude/rules/live-testing.md` step 4): the book's
+ * Adventure is written, held, rebuilt, deleted and written again, the per-map
+ * fixture is retired by the step itself, and the carried Item is deleted and
+ * comes back. Nothing the run makes is kept: a carried Item left standing rides
+ * into the next Adventure of the book, the owner's included, and a written
+ * Adventure is what the next run's step 1 needs absent (docs/importer/
+ * DECISIONS.md, 2026-10-28). The sweep at teardown takes all of it by the run's
+ * own ids. The carried Item is marked `importer/carried-item`, and the fixtures
+ * section retires one a run that died before its sweep left standing.
+ *
  * The step writes every open Judge book, and the GM seat reopens the books it
  * remembers one at a time after ready, so the walk lets the open set settle
  * before it reads anything, and checks each run's outcome for AX3 alone.
@@ -380,7 +390,7 @@ async function poll(api, fn, args, { tries = 300, every = 2000, until = (s) => s
 }
 const seats = {};
 async function seat(key) {
-  const api = await connect({ browser, origin, user: SEATS[key], port: PORTS[key] });
+  const api = await connect({ browser, origin, user: SEATS[key], port: PORTS[key], own: MACHINE.own });
   seats[key] = api;
   note(`${key} ready after (s)`, await ready(api, key));
   return api;
@@ -468,7 +478,9 @@ try {
   note("the book's own Adventure stood before the run (the owner's; rebuilt, never tracked)", ownersBook);
 
   section("fixtures");
-  const item = await gm.create("Item", { name: `QA carried item ${NONCE}`, type: "item", flags: { "acks-extras": { cookbook: { id: `${BOOK}.fixture~${NONCE}`, book: BOOK } } } });
+  // A carried Item a dead run left standing would ride into this run's Adventure; it goes first.
+  note("retired importer/carried-item", await gm.retire("importer/carried-item", "Item"));
+  const item = await gm.fixture("importer/carried-item", "Item", { name: `QA carried item ${NONCE}`, type: "item", flags: { "acks-extras": { cookbook: { id: `${BOOK}.fixture~${NONCE}`, book: BOOK } } } });
   let legacy = null;
   const shelfBefore = before[BOOK]?.pack ?? null;
   if (shelfBefore) {
@@ -573,6 +585,7 @@ try {
   try { if (gm) note("closed windows", await run(gm, P.closeAll)); } catch (err) { console.error("closeAll:", err?.message ?? err); }
   try { if (gm) note("restored (gm)", await run(gm, P.restore)); } catch (err) { console.error("restore:", err?.message ?? err); }
   try {
+    // Every step is setup, and what it made is what the next run needs absent: all of it goes.
     // By uuid: a retired or carried document's name can be the book's.
     const sw = gm ? await gm.sweepTracked() : null;
     if (sw) note("sweep (gm)", { removed: sw.removed.map((e) => e.uuid), missing: sw.missing.map((e) => e.uuid), failed: sw.failed.map((e) => ({ uuid: e.uuid, error: e.error })) });
