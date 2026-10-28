@@ -2145,6 +2145,17 @@ function axAsideBoxes(pd, lines, box) {
   return boxes.map(({ beside: _b, ...b }) => b);
 }
 
+/**
+ * A sidebar's runs as one flow segment: the aside-size type (body-size, and
+ * not `axBody`) inside `box` from below its head `a` down to `box.y1`.
+ */
+function axAsideSegs(pd, page, a, box) {
+  const items = pd.items.filter(
+    (it) => it.h <= AX_BODY_MAX_H && !axBody(pd, it) && it.x >= box.x0 && it.x <= box.x1 && it.y > a.endY + 2 && it.y <= box.y1,
+  );
+  return items.length ? [{ page, pd, x0: box.x0, x1: box.x1, items }] : [];
+}
+
 /** The bounding box of an op read through `box` or `boxes`. */
 const axBoundsOf = (op) =>
   op.box ?? {
@@ -3892,13 +3903,19 @@ async function compileAdventureItem(doc, entry, kindRow, bookCtx) {
  * the passage's and not a name's, and nothing in the body is parsed: the page
  * prints paragraphs and paragraphs are what ship. A sibling passage's first
  * line ends this one's flow (`bookCtx.proseStops`), as an item's does.
+ *
+ * A sidebar (`assists.aside`: `x0`, `x1`, and `y1` its foot) is read from
+ * its own box instead: the aside-size runs under its head, which no flow
+ * reads (`axBody`), anchored on the head as a display heading.
  */
 async function compileProse(doc, entry, kindRow, bookCtx) {
   const { assists, page, pd, cols, a, name } = await axOpen(doc, entry);
   const stops = (bookCtx?.proseStops ?? []).filter((s) => s.id !== entry.id);
   // `axFlow` reads from `endY + 2` down, so the anchor line's own y has to
   // clear it by less than a line pitch: the line above stays out.
-  const segs = await axFlow(doc, entry, assists, { page, pd, cols, col: a.col, endY: a.line.y - 3 }, new Set(), { stopKeys: assists.stopKeys ?? [], stops });
+  const segs = assists.aside
+    ? axAsideSegs(pd, page, a, assists.aside)
+    : await axFlow(doc, entry, assists, { page, pd, cols, col: a.col, endY: a.line.y - 3 }, new Set(), { stopKeys: assists.stopKeys ?? [], stops });
   const { paras } = axParas(segs, page);
   if (!paras.length) throw new Error(`no paragraphs from "${entry.name}" p.${page}`);
   return {

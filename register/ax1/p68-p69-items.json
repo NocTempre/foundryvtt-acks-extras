@@ -1,0 +1,10 @@
+[
+  {
+    "id": "ax1.item1",
+    "kind": "kind.adventureItem",
+    "book": "ax1",
+    "name": "Item 1",
+    "anchor": { "hash": "6qjksw", "as": "display" },
+    "pages": [68, 69]
+  }
+]

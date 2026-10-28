@@ -279,4 +279,29 @@ t("each room table reads one row per die result, from the first without a gap", 
   }
 });
 
+t("each sidebar is a note of its own, read from its box alone", () => {
+  const rows = JSON.parse(fs.readFileSync(path.join(here, "..", "..", "register", "ax1", "p9-p68-notes.json"), "utf8"));
+  assert.ok(rows.length > 0);
+  for (const row of rows) {
+    const e = entries[row.id];
+    assert.equal(e?.kind, "kind.prose", row.id);
+    assert.equal(e.meta?.group, "Notes", row.id);
+    assert.ok(e.meta?.title, `${row.id} is titled`);
+    const box = row.assists.aside;
+    const paras = e.fields.description.paras;
+    assert.ok(paras.length > 0, `${row.id} reads paragraphs`);
+    for (const b of paras.flatMap((p) => p.boxes ?? [p.box])) {
+      assert.ok(b.x0 >= box.x0 - 1 && b.x1 <= box.x1 + 1 && b.y1 <= box.y1 + 3, `${row.id} stays in its box`);
+    }
+  }
+  assert.equal(new Set(rows.map((r) => entries[r.id].meta.title)).size, rows.length, "every note's title differs");
+});
+
+t("the book's item reads across its two pages", () => {
+  const e = entries["ax1.item1"];
+  assert.equal(e?.kind, "kind.adventureItem");
+  const paras = e.fields.description.paras;
+  assert.ok(paras.some((p) => !p.page) && paras.some((p) => p.page === e.pages[1]), "paragraphs on both pages");
+});
+
 console.log(`ax1-cookbook: ${n} checks OK`);

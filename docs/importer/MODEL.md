@@ -494,9 +494,11 @@ strength grid on its heading and its level rows plus the total.
 ## An item a book introduces
 
 A `kind.adventureItem` row (`register/_kinds/adventureItem.json`) is a
-body-size name line and the prose under it, to the next item's name line
+name line and the prose under it, to the next item's name line
 (`compileAdventureItem`; the book's item lines are the compiler's
-`itemStops`). The items step (`cookbookImportAdventureItems`) makes each a
+`itemStops`). The name line is a body-size run-in, or a display heading where
+the book sets one (`anchor.as`); a sidebar set beside the prose stays out of
+it, as it does of every flow. The items step (`cookbookImportAdventureItems`) makes each a
 core `item` named from the page, its description the prose with the page
 reference last, filed under the book's folder in its line's Item pack, and
 claimed by its cookbook id like every item. Nothing beside the prose is
@@ -521,6 +523,13 @@ page reference last. A key the passage prints inline — a tavern's room
 numbers — stays in the text; the keyed-room shape is `kind.location`. The
 ruling is DECISIONS 2026-10-23, "A passage is a journal page under a
 functional title".
+
+A sidebar is a passage too, set in the book's aside band (`asideH`), which no
+flow reads. Its row anchors by hash on the sidebar's head as a display
+heading and names the sidebar's box (`assists.aside`: `x0`, `x1`, and `y1`
+its foot); `compileProse` reads the aside-size runs in that box below the
+head, and nothing around it. AX1's twelve are the `Notes` journal, one page
+each.
 
 ## A person the page prints in full
 
