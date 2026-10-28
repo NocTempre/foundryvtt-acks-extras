@@ -1,5 +1,65 @@
 # Changelog
 
+## 11.11.0
+
+### Added
+
+- **AX1 brings in its text, tables, gear and demand.** *Import Everything*
+  on AX1 now also imports these from your own copy:
+  - **Its passages**, the text no keyed area reads, as pages of the book's
+    *Adventure* journal. **Its twelve sidebars and its optional rule** become
+    pages of its *Notes* journal. Each page carries its page reference.
+  - **Its room tables and the fort's tables**, as roll tables that roll as
+    printed.
+  - **The item its appendix introduces**, and the three pieces of equipment
+    no later book prints, as items.
+  - **Its settlement demand** (p. 27), as markets. The five settlements AX3
+    also prints join AX3's places instead of becoming second actors,
+    whichever book you import first, and the later printing's demand
+    replaces the earlier one's. The fort's column lands on the fort.
+- **The Follower Card rolls number appearing.** A monster that stores dungeon
+  or wilderness number-appearing formulas lists them under its vitals, each
+  with a roll button.
+
+### Changed
+
+- **A player's seat opens only the books the Judge shared with it.** Before,
+  joining a world made every player's browser fetch and read every staged
+  book. A GM seat still opens the whole shelf. *Your Books* tells a player
+  which shelf books are not shared with them, and a seat with nothing it may
+  open is no longer offered the first-run walkthrough.
+
+### Fixed
+
+- **A field an active effect changes shows its stored value** on the Follower
+  Card, and in the character sheet's spell slot maximum and movement rates.
+  Before, editing any other field wrote the effect's result back as the base.
+- **The Rules tables notices name each shelf's missing tables**, and say the
+  books must be open on the seat that runs *Rules tables*.
+- **A character or monster the system's 14.1.0 migration stamped keeps its
+  attack throw and saves.** One stamped without being converted read 10 and
+  15. It now reads its own, and its record is unchanged.
+- **The Surprise Matrix rolls with a party, group or vehicle token in the
+  tracker.** Before, such a combatant silently stopped every roll. Now the
+  matrix leaves it out and names it. A side left with nobody to roll says
+  so, and the matrix stays open.
+- **An attack whose damage is not dice posts its hit**, with no damage, where
+  it used to fail.
+- **A player's End Turn on the last combatant starts the next round for every
+  seat.** Before, that player's tracker kept a stale order until a reload.
+  The round now advances on the GM's seat. With no GM connected, the player
+  is told one is needed.
+- **AX3's demand grid is read past its printing error.** On p. 223, five rows
+  print each market's name one row out of step with its figures. The figures
+  now land on the market they belong to, and each corrected market's place
+  carries a note citing the page. A world imported earlier is corrected on
+  its next market import. `ERRATA.md`, shipped with the module, records the
+  correction.
+- **AX1's level text, wandering tables and table names read as printed.**
+  Each level's opening stops before its wandering section, and no room
+  repeats a sidebar's heading. The first wandering table reads its whole
+  page. A table whose header prints an instruction keeps its own name.
+
 ## 11.10.1
 
 ### Fixed

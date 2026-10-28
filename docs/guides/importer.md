@@ -444,7 +444,7 @@ Your edits to the Adventure are kept. A later run rebuilds it only when what
 it carries has changed and you have not edited it since. A book's per-map
 Adventures from earlier versions are retired once its Adventure stands.
 
-![](../releases/v11.10.0/importer-adventure.png)
+![](../releases/v11.11.0/importer-adventure.png)
 
 *An adventure book's Adventure in the library, from beneath its title and map: what it carries, counted, and the Import button.*
 

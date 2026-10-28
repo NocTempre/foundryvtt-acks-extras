@@ -27,6 +27,10 @@ Under the vitals, **Number appearing** lists the monster's dungeon and
 wilderness formulas, each with a die that rolls it to chat — the same roll the
 full sheet's Statblock makes.
 
+![](../releases/v11.11.0/monsters-number-appearing.png)
+
+*Number appearing under the vitals, a die beside each formula.*
+
 Everything else is one click away on **Full sheet** — the chip in the card's
 header band, or the portrait beside the name. If you would rather land on the
 full block, set it once under **Sheet Configuration** on any monster — that
