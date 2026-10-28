@@ -4,6 +4,24 @@
  * is invented and every name is a neutral label, so the log holds nothing a
  * book printed.
  *
+ * Fixtures, kept and found again by marker (`api.fixture`): the domains
+ * `domains/domain-1` and `domains/domain-2`, the ruler `domains/ruler` and
+ * its gear `domains/gear`, the organisation `domains/organisation`, the world
+ * item `domains/goods`, and the places `domains/place-held`,
+ * `domains/place-control`, `domains/place-inner` and `domains/place-free`.
+ * Step 1 writes both records whole, which is each domain's shape; the
+ * fixtures section puts Domain 1's name back, and step 9 the inner place
+ * inside the town. A prune takes the control and step 9's two places, which
+ * the next lookup of each builds again: step 8's, and the one the primary GM
+ * runs at ready wherever the world's prune setting is on, so in such a world
+ * all three are built every run. Setup sections: the town `domains/town` is step 10's delete path and
+ * is built again by the run after; step 15's promoted vassal
+ * (`domains/promoted-vassal`) and step 16's founded settlement
+ * (`domains/founded-settlement`) are create paths, retired before step 1
+ * since a promoted vassal still answers to Domain 1; and step 18 retires its
+ * scene `domains/marker-scene`, with the tokens the last run placed on it,
+ * and builds it again.
+ *
  * Writes outside the fixture ledger, each undone at teardown and reported:
  *   - each seat's own client state: the patched notification methods and the
  *     console recorder, and the GM seat's `fontScale` client setting (read
@@ -25,11 +43,12 @@ const MACHINE = machineSeats();
 const browser = MACHINE.browser;
 const origin = MACHINE.origin;
 const SEATS = { gm: MACHINE.gm, player: MACHINE.player };
-const NONCE = "d" + Math.random().toString(36).slice(2, 8);
 const MOD = "acks-extras";
 const DOMAIN = "acks-extras.domain";
 const LOCATION = "acks-extras.location";
 const FACTION = "acks-extras.faction";
+// Domain 1's name before step 2 renames it, which the fixtures section puts back.
+const D1_NAME = "Domain 1";
 
 const note = (label, value) => console.log(`${label}: ${typeof value === "string" ? value : JSON.stringify(value)}`);
 const section = (title) => console.log(`\n== ${title} ==`);
@@ -463,12 +482,6 @@ const P = {
     return { result, exists: Object.fromEntries(ids.map((id) => [id, !!game.actors.get(id)])) };
   },
 
-  remove: async ({ id }) => {
-    await game.actors.get(id)?.delete();
-    await globalThis.__dm.sleep(1000);
-    return { gone: !game.actors.get(id) };
-  },
-
   /** The player's view: what is enabled, which buttons render, what the hidden and revealed rows show. */
   playerView: async ({ id, hiddenName, gmText }) => {
     const H = globalThis.__dm;
@@ -575,7 +588,7 @@ async function ready(api, label, seconds = 240) {
 }
 const seats = {};
 async function seat(key) {
-  const api = await connect({ browser, origin, user: SEATS[key], port: PORTS[key] });
+  const api = await connect({ browser, origin, user: SEATS[key], port: PORTS[key], own: MACHINE.own });
   seats[key] = api;
   note(`${key} ready after (s)`, await ready(api, key));
   return api;
@@ -600,18 +613,26 @@ try {
   note("install (player)", await run(player, P.install));
 
   section("fixtures");
-  const mk = (name, type, extra = {}) => gm.create("Actor", { name: `${name} ${NONCE}`, type, ...extra });
-  const D1 = await mk("Domain 1", DOMAIN);
-  const D2 = await mk("Domain 2", DOMAIN);
-  const R = await mk("NPC 1", "character", { items: [] });
-  const F = await mk("Organisation 1", FACTION);
-  const S = await mk("Town 2", LOCATION);
-  const K = await mk("Place 1", LOCATION);
-  const C = await mk("Place 2", LOCATION);
-  const W = await gm.create("Item", { name: `Item 1 ${NONCE}`, type: "item" });
-  const G = await gm.create("Item", { name: `Item 2 ${NONCE}`, type: "item" }, { parent: R.uuid });
+  // The last run's create-path products go first: a promoted vassal still
+  // answers to Domain 1, and would count in its tribute in at step 5.
+  for (const marker of ["domains/promoted-vassal", "domains/founded-settlement"]) note(`retired ${marker}`, await gm.retire(marker, "Actor"));
+  const fx = (marker, name, type, extra = {}) => gm.fixture(marker, "Actor", { name, type, ...extra });
+  const D1 = await fx("domains/domain-1", D1_NAME, DOMAIN);
+  const D2 = await fx("domains/domain-2", "Domain 2", DOMAIN);
+  const R = await fx("domains/ruler", "NPC 1", "character", { items: [] });
+  const F = await fx("domains/organisation", "Organisation 1", FACTION);
+  const S = await fx("domains/town", "Town 2", LOCATION);
+  const K = await fx("domains/place-held", "Place 1", LOCATION);
+  const C = await fx("domains/place-control", "Place 2", LOCATION);
+  // Step 9's two places stand from here so that step 8 counts them as this
+  // run's empty places; step 9 looks them up again, since a prune takes them.
+  const placed = [await fx("domains/place-inner", "Place 3", LOCATION), await fx("domains/place-free", "Place 4", LOCATION)];
+  const W = await gm.fixture("domains/goods", "Item", { name: "Item 1", type: "item" });
+  const G = await gm.fixture("domains/gear", "Item", { name: "Item 2", type: "item" }, { parent: R.uuid });
+  // A kept Domain 1 carries the name step 2 gave it.
+  note("shape: Domain 1's name", await run(gm, P.update, { id: D1.id, data: { name: D1_NAME } }));
   note("settlement market", await run(gm, P.addMarket, { id: S.id, families: 75, marketClass: 4 }));
-  note("fixtures", { D1: D1.uuid, D2: D2.uuid, R: R.uuid, F: F.uuid, S: S.uuid, K: K.uuid, C: C.uuid, W: W.uuid, G: G.uuid });
+  note("fixtures", { D1: D1.uuid, D2: D2.uuid, R: R.uuid, F: F.uuid, S: S.uuid, K: K.uuid, C: C.uuid, placed: placed.map((p) => p.uuid), W: W.uuid, G: G.uuid });
 
   section("1. a record, written the way the binding writes it");
   note("populate Domain 1", await run(gm, P.populate, { id: D1.id, record: RECORD }));
@@ -628,7 +649,7 @@ try {
   note("errors (1)", await run(gm, P.take));
 
   section("2. every kind of field");
-  const d1Name = `Domain 1 ${NONCE} A`;
+  const d1Name = `${D1_NAME} A`;
   const edits = [
     ["overview", "system.title", "Title 2"],
     ["overview", "name", d1Name],
@@ -683,7 +704,7 @@ try {
   await run(gm, P.dropOn, { id: D2.id, tab: "holdings", uuid: S.uuid });
   const n4b = await run(gm, P.take);
   const s4b = await run(gm, P.system, { id: D2.id });
-  check("4: a second domain is refused the place, with a warning naming the first", s4b.holdings.length === 0 && n4b.notes.some((n) => n.kind === "warn" && n.text.includes(`Domain 1 ${NONCE}`)), { holdings: s4b.holdings.length, notes: n4b.notes });
+  check("4: a second domain is refused the place, with a warning naming the first", s4b.holdings.length === 0 && n4b.notes.some((n) => n.kind === "warn" && n.text.includes(D1_NAME)), { holdings: s4b.holdings.length, notes: n4b.notes });
   note("errors (4)", { first: n4.errors, second: n4b.errors });
   await plate(gm, "domains", { id: D1.id, tab: "ledger" });
 
@@ -701,7 +722,7 @@ try {
   const n5 = await run(gm, P.take);
   const s5 = await run(gm, P.system, { id: D1.id });
   const v5b = await run(gm, P.system, { id: D2.id });
-  check("5: the vassal dropped on the liege row is refused as a loop, naming both, and neither edge moved", s5.parentUuid === "" && v5b.parentUuid === D1.uuid && n5.notes.some((n) => n.kind === "warn" && n.text.includes(`Domain 1 ${NONCE}`) && n.text.includes(`Domain 2 ${NONCE}`)), { d1: s5.parentUuid, d2: v5b.parentUuid, notes: n5.notes });
+  check("5: the vassal dropped on the liege row is refused as a loop, naming both, and neither edge moved", s5.parentUuid === "" && v5b.parentUuid === D1.uuid && n5.notes.some((n) => n.kind === "warn" && n.text.includes(D1_NAME) && n.text.includes(D2.name)), { d1: s5.parentUuid, d2: v5b.parentUuid, notes: n5.notes });
   const p5 = await run(gm, P.pick, { id: D1.id, tab: "overview", selector: '[data-drop-zone="liege"] [data-action="pickLiege"]', probe: [D2.uuid, D1.uuid] });
   check("5: the liege picker offers neither the vassal nor the domain itself", p5.found && !p5.offered[D2.uuid] && !p5.offered[D1.uuid], p5);
   await run(gm, P.press, { id: D1.id, tab: "realm", selector: `tr[data-uuid="${D2.uuid}"] [data-action="releaseVassal"]` });
@@ -713,7 +734,7 @@ try {
   await run(gm, P.dropOn, { id: D1.id, tab: "overview", uuid: R.uuid, zone: "ruler" });
   const s6 = await run(gm, P.system, { id: D1.id });
   const ruled = await run(gm, P.ask, { fn: "domainsRuledBy", args: [R.uuid] });
-  check("6: a character dropped on the ruler row rules the domain, by uuid and by name", s6.rulerUuid === R.uuid && s6.rulerName === `NPC 1 ${NONCE}` && same(ruled, [D1.uuid]), { rulerUuid: s6.rulerUuid, rulerName: s6.rulerName, ruled });
+  check("6: a character dropped on the ruler row rules the domain, by uuid and by name", s6.rulerUuid === R.uuid && s6.rulerName === R.name && same(ruled, [D1.uuid]), { rulerUuid: s6.rulerUuid, rulerName: s6.rulerName, ruled });
   await run(gm, P.take);
   await run(gm, P.dropOn, { id: D1.id, tab: "overview", uuid: F.uuid, zone: "ruler" });
   const n6 = await run(gm, P.take);
@@ -731,7 +752,7 @@ try {
   check("7: one warning per goods drop, and the domain holds nothing while the ruler keeps the gear", n7.notes.filter((n) => n.kind === "warn").length === 2 && i7.domain === 0 && i7.ruler, { notes: n7.notes, ...i7 });
 
   section("8. a held place survives the prune");
-  const others = await run(gm, P.pruneCandidates, { own: [S.id, K.id, C.id] });
+  const others = await run(gm, P.pruneCandidates, { own: [S.id, K.id, C.id, ...placed.map((p) => p.id)] });
   if (others.length) {
     note("8: NOT RUN", `the world holds ${others.length} empty place(s) this run did not make; the prune would delete them`);
     const kept = await run(gm, P.ask, { fn: "holdsPlace", args: [K.uuid] });
@@ -745,24 +766,27 @@ try {
   }
 
   section("9. the place around it");
-  const inner = await mk("Place 3", LOCATION, { system: { parentUuid: S.uuid } });
-  const of9 = await run(gm, P.ask, { fn: "domainOf", args: [inner.uuid] });
+  const inner = await fx("domains/place-inner", "Place 3", LOCATION);
+  const free = await fx("domains/place-free", "Place 4", LOCATION);
+  // A kept inner place names the town the last run's delete path took.
+  note("shape: the inner place inside the town", await run(gm, P.update, { id: inner.id, data: { "system.parentUuid": S.uuid } }));
+  const of9 =await run(gm, P.ask, { fn: "domainOf", args: [inner.uuid] });
   const holds9 = await run(gm, P.ask, { fn: "holdsPlace", args: [inner.uuid] });
   check("9: a place inside a held settlement answers to its domain, and is not itself held", of9 === D1.uuid && holds9 === false, { domainOf: of9, holdsPlace: holds9 });
   const line9s = await run(gm, P.sheetText, { id: S.id, selector: ".acks-extras-place-domain" });
   const line9i = await run(gm, P.sheetText, { id: inner.id, selector: ".acks-extras-place-domain" });
-  check("9: the held place's sheet names its domain, holding it", line9s.found && line9s.text.includes(`Domain 1 ${NONCE}`) && line9s.text.includes("holds this place"), line9s);
+  check("9: the held place's sheet names its domain, holding it", line9s.found && line9s.text.includes(D1_NAME) && line9s.text.includes("holds this place"), line9s);
   await plate(gm, "location-domain", { id: S.id });
-  check("9: the inner place's sheet names the domain and the place around it that is held", line9i.found && line9i.text.includes(`Domain 1 ${NONCE}`) && line9i.text.includes(`Town 2 ${NONCE}`), line9i);
-  // The prune took the control, so the place no domain holds is made here.
-  const free = await mk("Place 4", LOCATION);
+  check("9: the inner place's sheet names the domain and the place around it that is held", line9i.found && line9i.text.includes(D1_NAME) && line9i.text.includes(S.name), line9i);
   const line9f = await run(gm, P.sheetText, { id: free.id, selector: ".acks-extras-place-domain" });
   check("9: a place no domain holds renders with no Domain line", line9f.rendered && !line9f.found, line9f);
   await run(gm, P.closeAll);
 
   section("10. the delete path");
   await run(gm, P.take);
-  note("delete the settlement", await run(gm, P.remove, { id: S.id }));
+  // The delete path's subject is the town, so the run after builds it again.
+  note("delete the settlement", await gm.retire("domains/town", "Actor"));
+  await sleep(1000);
   const r10 = await run(gm, P.read, { id: D1.id });
   const l10 = await run(gm, P.look, { id: D1.id, tab: "holdings", count: ['div.tab[data-tab="holdings"] tr.is-missing'] });
   const n10 = await run(gm, P.take);
@@ -774,7 +798,7 @@ try {
   const s11 = await run(gm, P.system, { id: D1.id });
   const holdings11 = s11.holdings.map((h) => (h.uuid === K.uuid ? { ...h, hidden: true } : h));
   note("observer, hidden holding", await run(gm, P.update, { id: D1.id, data: { ownership: { default: 0, [pc.userId]: 2 }, "system.holdings": holdings11 } }));
-  const pv = await run(player, P.playerView, { id: D1.id, hiddenName: `Place 1 ${NONCE}`, gmText: "Judge only 1" });
+  const pv = await run(player, P.playerView, { id: D1.id, hiddenName: K.name, gmText: "Judge only 1" });
   note("player view", pv);
   check("11: on the player's sheet every control is disabled and no writing button renders — row, chip, promote, found or heraldry", pv.rendered && pv.enabled.length === 0 && pv.buttons === 0, { enabled: pv.enabled, buttons: pv.buttons });
   check("11: the player's band sits in the header and names the domain", pv.bandInHeader && pv.bandName === d1Name, { bandInHeader: pv.bandInHeader, bandName: pv.bandName });
@@ -808,7 +832,7 @@ try {
   check("13: after every re-render the window holds one band, in its header, with the record's title, name and morale", f13.bands === 1 && f13.inHeader && f13.title === "Title 2" && f13.name === d1Name && same(f13.morale, ["", "2"]), f13);
   check("13: the rails equal the api's sums, the urban count reading as a floor while a settlement gives no figure", r13.rails.peasant === r13.families.peasant && r13.rails.urban === r13.families.urban && r13.rails.revenue === r13.api.revenue && r13.rails.expenses === r13.api.expenses && r13.rails.income === r13.api.income, { rails: r13.rails, families: r13.families, api: r13.api });
   check("13: over a partial ledger the month's three cells are marked partial, and the land's are not", r13.partial.length > 0 && same(f13.partial, ["revenue", "expenses", "income"]), { partialCells: f13.partial, note: r13.partial });
-  check("13: the chips name the ruler and the liege's absence, and the tags the classification and the ruler's alignment", f13.chips.ruler === `NPC 1 ${NONCE}` && f13.chips.liege.length > 0 && f13.tags.length === 2, { chips: f13.chips, tags: f13.tags });
+  check("13: the chips name the ruler and the liege's absence, and the tags the classification and the ruler's alignment", f13.chips.ruler === R.name && f13.chips.liege.length > 0 && f13.tags.length === 2, { chips: f13.chips, tags: f13.tags });
   const c13a = await run(gm, P.cellOpens, { id: D1.id, key: "hexes" });
   const c13b = await run(gm, P.cellOpens, { id: D1.id, key: "income" });
   check("13: a rail cell opens the tab its figure is kept on", c13a.active && c13a.tab === "territory" && c13b.active && c13b.tab === "ledger", { hexes: c13a, income: c13b });
@@ -817,7 +841,7 @@ try {
   section("14. the ruler and liege chips");
   await run(gm, P.press, { id: D1.id, tab: "overview", selector: '[data-drop-zone="ruler"] [data-action="clearRuler"]' });
   const s14a = await run(gm, P.system, { id: D1.id });
-  check("14: clearing the ruler drops the actor and keeps the record's word for them", s14a.rulerUuid === "" && s14a.rulerName === `NPC 1 ${NONCE}`, { rulerUuid: s14a.rulerUuid, rulerName: s14a.rulerName });
+  check("14: clearing the ruler drops the actor and keeps the record's word for them", s14a.rulerUuid === "" && s14a.rulerName === R.name, { rulerUuid: s14a.rulerUuid, rulerName: s14a.rulerName });
   const p14a = await run(gm, P.pick, { id: D1.id, tab: "overview", selector: '[data-drop-zone="ruler"] [data-action="pickRuler"]', probe: [R.uuid, D1.uuid, D2.uuid, K.uuid, F.uuid], choice: R.uuid });
   const s14b = await run(gm, P.system, { id: D1.id });
   check("14: the ruler picker offers the character and no place, organisation or domain; choosing sets the ruler", p14a.offered[R.uuid] && !p14a.offered[D1.uuid] && !p14a.offered[D2.uuid] && !p14a.offered[K.uuid] && !p14a.offered[F.uuid] && p14a.chosen && s14b.rulerUuid === R.uuid, { offered: p14a.offered, rulerUuid: s14b.rulerUuid });
@@ -828,7 +852,7 @@ try {
   await run(gm, P.press, { id: D2.id, tab: "overview", selector: '[data-drop-zone="liege"] [data-action="clearLiege"]' });
   const n14 = await run(gm, P.take);
   const s14d = await run(gm, P.system, { id: D2.id });
-  check("14: clearing the liege cuts the vassalage and says so", s14d.parentUuid === "" && n14.notes.some((n) => n.kind === "info" && n.text.includes(`Domain 2 ${NONCE}`)), { parentUuid: s14d.parentUuid, notes: n14.notes });
+  check("14: clearing the liege cuts the vassalage and says so", s14d.parentUuid === "" && n14.notes.some((n) => n.kind === "info" && n.text.includes(D2.name)), { parentUuid: s14d.parentUuid, notes: n14.notes });
   note("errors (14)", n14.errors);
   await run(gm, P.closeAll);
 
@@ -840,8 +864,9 @@ try {
   note("promote", await run(gm, P.press, { id: D1.id, tab: "realm", selector: `fieldset[data-row-id="${row15.id}"] [data-action="promoteVassal"]`, answer: "yes" }));
   const after15 = await run(gm, P.ask, { fn: "vassalsOf", args: [`@${D1.id}`] });
   const made15 = after15.filter((u) => !before15.includes(u));
-  for (const uuid of made15) gm.track(uuid, "Actor");
-  note("promoted (tracked)", made15);
+  if (made15.length === 1) await gm.mark(made15[0], "domains/promoted-vassal");
+  else for (const uuid of made15) gm.track(uuid, "Actor");
+  note("promoted (marked)", made15);
   const s15b = await run(gm, P.system, { id: D1.id });
   const tIn15b = (await run(gm, P.ask, { fn: "ledgerFor", args: [`@${D1.id}`] })).tributeIn;
   const m15 = made15.length === 1 ? await run(gm, P.made, { uuid: made15[0] }) : null;
@@ -857,8 +882,9 @@ try {
   note("found", await run(gm, P.press, { id: D1.id, tab: "holdings", selector: '[data-action="foundSettlement"]', answer: "ok" }));
   const s16b = await run(gm, P.system, { id: D1.id });
   const new16 = s16b.holdings.filter((h) => h.uuid && !s16a.holdings.some((o) => o.uuid === h.uuid));
-  for (const h of new16) gm.track(h.uuid, "Actor");
-  note("founded (tracked)", new16.map((h) => h.uuid));
+  if (new16.length === 1) await gm.mark(new16[0].uuid, "domains/founded-settlement");
+  else for (const h of new16) gm.track(h.uuid, "Actor");
+  note("founded (marked)", new16.map((h) => h.uuid));
   const m16 = new16.length === 1 ? await run(gm, P.made, { uuid: new16[0].uuid }) : null;
   const of16 = new16.length === 1 ? await run(gm, P.ask, { fn: "domainOf", args: [new16[0].uuid] }) : null;
   const n16 = await run(gm, P.take);
@@ -875,14 +901,17 @@ try {
   const n17 = await run(gm, P.take);
   const k17b = await run(gm, P.system, { id: K.id });
   const f17b = await run(gm, P.system, { id: F.id });
-  check("17: dropped on a place's sheet and on an organisation's, a domain is refused with a warning naming it, and neither record moves", same(k17a, k17b) && same(f17a, f17b) && n17.notes.filter((n) => n.kind === "warn" && n.text.includes(`Domain 1 ${NONCE}`)).length === 2, { notes: n17.notes, placeSame: same(k17a, k17b), orgSame: same(f17a, f17b) });
+  check("17: dropped on a place's sheet and on an organisation's, a domain is refused with a warning naming it, and neither record moves", same(k17a, k17b) && same(f17a, f17b) && n17.notes.filter((n) => n.kind === "warn" && n.text.includes(D1_NAME)).length === 2, { notes: n17.notes, placeSame: same(k17a, k17b), orgSame: same(f17a, f17b) });
   note("errors (17)", n17.errors);
   await run(gm, P.closeAll);
 
   section("18. a domain's token is a marker");
+  // Placing the tokens is the step's create path: the last run's scene goes,
+  // with the tokens on it, and a bare one is built in its place.
+  note("retired the last run's scene", await gm.retire("domains/marker-scene", "Scene"));
   // Inactive by name: core activates a new scene when none is active, which
   // pulls every seated client to it and draws its canvas under the tokens.
-  const scene18 = await gm.create("Scene", { name: `Scene 1 ${NONCE}`, active: false, width: 1000, height: 600, grid: { size: 100, distance: 5, units: "ft" } });
+  const scene18 = await gm.fixture("domains/marker-scene", "Scene", { name: "Scene 1", active: false, width: 1000, height: 600, grid: { size: 100, distance: 5, units: "ft" } });
   await run(gm, P.take);
   const m18 = await run(gm, P.markers, { sceneId: scene18.id, ids: [D1.id, F.id, K.id, R.id] });
   note("markers", m18);
@@ -903,9 +932,9 @@ try {
     try { note(`restored (${key})`, await run(api, P.restore)); } catch (err) { console.error(`restore ${key}:`, err?.message ?? err); }
   }
   for (const [key, api] of Object.entries(seats)) {
-    try { note(`sweep (${key})`, await api.sweepTracked()); } catch (err) { console.error(`sweep ${key}:`, err?.message ?? err); }
+    note(`ledger (${key})`, "");
+    try { await api.close(); } catch {}
   }
-  for (const api of Object.values(seats)) { try { await api.close(); } catch {} }
   section("summary");
   for (const [label, ok] of checks) console.log(`${ok ? "PASS" : "FAIL"}  ${label}`);
   const passed = checks.filter(([, ok]) => ok).length;

@@ -15,21 +15,37 @@ Shut the world down and relaunch it, then check again.
 
 ## Fixtures
 
-Every one disposable, tracked by id as it is made.
-
-- Two `acks-extras.domain` actors: **Domain 1** (the liege) and **Domain 2**
-  (the vassal).
-- A character to rule Domain 1.
-- An organisation, refused as a ruler and refusing a domain.
-- An `acks-extras.location` with a market (press **Add a market**) and urban
-  families entered — the settlement.
-- An `acks-extras.location` with nothing in it — the stronghold.
-- A second empty `acks-extras.location` — the prune's control.
-- A world `item` and a piece of gear on the ruler, for the refused drops.
-- A scene, for the tokens of step 18.
-
-Steps 15 and 16 make a domain and a location of their own; each is tracked
-the moment its id is read back (below).
+Kept, and found again by marker (`flags.world.fixture`); one is built
+carrying its marker where none stands:
+- Two `acks-extras.domain` actors: **Domain 1** (the liege,
+  `domains/domain-1`) and **Domain 2** (the vassal, `domains/domain-2`).
+  Step 1 writes each record whole, which is its shape; Domain 1's name,
+  which step 2 changes, is put back before it.
+- A character to rule Domain 1 (`domains/ruler`), carrying a piece of gear
+  (`domains/gear`).
+- An organisation (`domains/organisation`), refused as a ruler and refusing
+  a domain.
+- An `acks-extras.location` with nothing in it — the stronghold
+  (`domains/place-held`).
+- A second empty `acks-extras.location` — the prune's control
+  (`domains/place-control`).
+- Two more for step 9: one put inside the settlement at the step's start
+  (`domains/place-inner`), and one with no parent (`domains/place-free`).
+  These two and the control are empty, so where the world's prune setting
+  is on, the prune the primary GM runs at ready takes them, and each run
+  builds them again.
+- A world `item` (`domains/goods`), for the refused drops.
+- Built again every run, because a step's subject is their setup:
+  - The settlement (`domains/town`): an `acks-extras.location` with a
+    market (press **Add a market**) and urban families entered. Step 10
+    deletes it.
+  - The domain step 15 promotes (`domains/promoted-vassal`) and the
+    location step 16 founds (`domains/founded-settlement`), each marked the
+    moment its id is read back (below). A run retires both before step 1: a
+    promoted vassal still answers to Domain 1, and would count in its
+    tribute in.
+  - The scene of step 18 (`domains/marker-scene`), retired with the tokens
+    the last run set on it and built again.
 
 ## Core drive mechanics
 
@@ -113,20 +129,22 @@ the moment its id is read back (below).
 8. **A held place survives the prune.** The prune deletes every empty place
    in the WORLD, not this run's alone: run it only when every empty location
    the world holds is a fixture of this run, and otherwise report the step not
-   run. Turn the prune setting on and run it. *Observable:* the held
-   stronghold survives; the control location is gone. The sweep then reports
-   the control missing, which is expected.
-9. **A place a domain holds, and the place around it.** Create a location
-   inside the settlement (`system.parentUuid` the settlement's uuid).
+   run; step 9's two places count as this run's. Turn the prune setting on
+   and run it. *Observable:* the held stronghold survives; the control
+   location is gone. It takes step 9's two places with it, and the next
+   lookup of each builds it again.
+9. **A place a domain holds, and the place around it.** Put the inner
+   location inside the settlement (`system.parentUuid` the settlement's uuid).
    *Observable:* `acksExtras.domains.domainOf(it)` is Domain 1, and
    `holdsPlace(it)` is false. Open the settlement's sheet. *Observable:* its
    Domain line (`.acks-extras-place-domain`) names Domain 1, holding it. Open
    the inner place's. *Observable:* its line names Domain 1 and the
-   settlement around it. Create a location with no parent, which no domain
-   holds (the prune took the control), and open its sheet. *Observable:* it
+   settlement around it. Open the sheet of the location with no parent,
+   which no domain holds. *Observable:* it
    renders, with no Domain line. Walk this before step 10 deletes the
    settlement.
-10. **The delete path.** Delete the settlement. *Observable:* its holding row
+10. **The delete path.** Delete the settlement, retiring its marker so the
+    run's ledger takes it by id. *Observable:* its holding row
     stays, marked missing; the urban families drop to the unplaced town's and
     say one settlement gives no figure; the urban rates make the ledger
     partial rather than smaller; the sheet renders without a console error.
@@ -195,13 +213,12 @@ the moment its id is read back (below).
 
 ## Teardown
 
-Delete by the run's own ids: both domains, the character, the organisation,
-the locations (the inner one of step 9 with them), the world item, the
-domain step 15 made, the location step 16 founded, and the scene (its tokens
-go with it). Holdings, vassal rows
-and every other list are rows on the domains, so they go when the domains do;
-steps 5 and 14 write `parentUuid` only on Domain 2. Quote
-`api.sweepTracked()`'s result. Restore the prune and type-size settings.
+Nothing is swept: the fixtures stay for the next run, and what the setup
+steps built is retired by marker where the next run reaches it. Restore the
+prune and type-size settings. Quote the driver's closing `kept` and `reused`
+lines: a run after the first builds only the settlement, the promoted
+domain, the founded location and the scene, and where the prune setting is
+on, the three empty places.
 
 ## Territory on the map (added with the domain layer)
 
