@@ -181,11 +181,13 @@ Steps:
 
 ## The hiring page
 
-Fixtures: three disposable `character` actors, each created with `items: []`
-— one holding a Diplomacy built fresh from the books (docs/henchmen/TESTING.md
+Fixtures: three `character` actors, each created with `items: []` — one
+holding a Diplomacy built fresh from the books (docs/henchmen/TESTING.md
 step 14, "Build the powers fresh"), one holding a hand-made `ability` named
-Diplomacy with no effects, one holding nothing; the `influence` document,
-imported by the run and removed by it.
+Diplomacy with no effects, one holding nothing. The walk keeps them as
+`henchmen/employer-a`, `-b` and `-c`, and brings each to its creation shape,
+holding no item, before step 14 builds the powers again (docs/henchmen/TESTING.md,
+Fixtures). The `influence` document is imported by the run and removed by it.
 
 Drive mechanics:
 
@@ -242,6 +244,9 @@ read layers and the drive are docs/henchmen/TESTING.md step 16.
 Delete the influencer, the target, and every `acks-extras.attitude` item the
 rolls minted. Confirm none remain on either actor. For the morale pages:
 every actor and chat message the run made, by its own uuid, and the `morale`
-document, if the run imported it. For the hiring page: the same, and the
-`influence` document if the run imported it, or the figures it registered.
+document, if the run imported it. For the hiring and loyalty pages, walked by
+`tools/live/henchmen.mjs`: no actor is swept, since its fixtures are kept and
+its cards are retired by the next run (docs/henchmen/TESTING.md, Teardown);
+remove the `influence` document if the run imported it, or unregister the
+figures it registered.
 Unregister any condition figures the run registered in the client.

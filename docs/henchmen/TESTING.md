@@ -21,6 +21,41 @@ a step it does not name is walked by hand.
   `classKey`, `hitDice` line and `attributes` a new character does not carry
   (a 1d6 die, a level above 1), so a stat block the create path emptied cannot
   pass for the candidate's.
+- The walk's, kept and found again by marker (`flags.world.fixture`), and
+  built carrying it where none stands. Stage 1: the hall `henchmen/hall`;
+  employers `henchmen/employer-a`, `-b` and `-c`; hirelings
+  `henchmen/hireling-a`, `-b` and `-beast`; the monsters `henchmen/beast`,
+  `henchmen/beast-employer` and `henchmen/beast-hireling`; the service pair
+  `henchmen/service-employer` and `henchmen/service-hireling`; the doubter
+  `henchmen/doubter`; the novices `henchmen/novice-unread` and
+  `henchmen/novice-read`. Stage 2: the halls `henchmen/muster-hall` and
+  `henchmen/exchange-town`; `henchmen/captain` and `henchmen/factor`, owned
+  by a player who is not the Player seat; and the Player seat's
+  `henchmen/paymaster` and `henchmen/second`. The GM's posting dialog offers
+  player characters only, and step 13's Player seat must own neither
+  employer.
+- **Bring each kept actor to its creation shape at the stage's start,
+  before any step reads a roster:** delete its embedded items and effects,
+  write its `flags.acks-extras` scope as the data's, its system as the
+  creation data over the type's defaults
+  (`new Actor.implementation(data).toObject()`), and its name and ownership
+  as the data's (`{diff: false, recursive: false}` for the ownership). A
+  hall also takes what a place's create hook gives a new one, which the data
+  alone does not hold: the storage flag, and the table as OWNER where the
+  data names no default; without it the player seat cannot open the hall's
+  sheet. A kept hireling still names the
+  employer it was linked to, and both core's `addHenchman` and the roster
+  read go by that. The write clears `retainer.managerid` in the same update
+  that resets the level, so the level-gain watcher, which acts only on a
+  managed hireling, takes no gain from it. Then add each market again over
+  its hall. The novices take their level at step 16, once the rungs are read.
+- The hires and the chat cards are create paths. Each is marked in a numbered
+  series as its ids are read back — B's hire `henchmen/hire-b-<n>`, the
+  company and its prototype `henchmen/company-<n>`, the porters
+  `henchmen/porter-<n>` (each once: the roster read names every porter hired
+  so far), and each site's cards `henchmen/card-<site>-<n>` — and a stage
+  retires the last run's series, from `-1` until one is not standing, before
+  it builds anything: a kept hire still answers to its employer.
 
 ## Core drive mechanics (non-obvious, learned live)
 
@@ -561,8 +596,8 @@ walked in docs/lib/TESTING.md, "The repair tool".
 
 ## Teardown
 
-`api.sweepTracked()`: the employer, the hires, the location, and every actor
-the recruit path created, each tracked from the id read back when it was
-made, and the chat cards the hires posted. Deleting a place that keeps coin
-posts a "was destroyed" card; track it and sweep again. Confirm
-`location.system.market.candidates` is gone with the location.
+Nothing is swept: the fixtures stay, and the next run brings them to shape
+and retires the series the create paths left. Restore the layers, the limit
+policy and the client state the walk changed, and remove the `influence`
+document if the run imported it. Quote the driver's closing `kept` and
+`reused` lines: a run after the first builds only its hires and cards.

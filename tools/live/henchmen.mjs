@@ -7,6 +7,22 @@
  * figure typed into a fixture is invented; no imported figure is printed by
  * name.
  *
+ * Fixtures, kept and found again by marker (`api.fixture`), every one an
+ * actor brought back at its stage's start to the shape its data creates (its
+ * embedded items and effects deleted, its acks-extras flags gone, its system,
+ * name and ownership the data's): stage 1 `henchmen/hall`,
+ * `henchmen/employer-a`, `-b` and `-c`, `henchmen/hireling-a`, `-b` and
+ * `-beast`, `henchmen/beast`, `henchmen/beast-employer`,
+ * `henchmen/beast-hireling`, `henchmen/service-employer`,
+ * `henchmen/service-hireling`, `henchmen/doubter`, `henchmen/novice-unread`
+ * and `henchmen/novice-read` (the novices brought again to their level at
+ * step 16); stage 2 `henchmen/muster-hall`, `henchmen/captain`,
+ * `henchmen/paymaster`, `henchmen/exchange-town`, `henchmen/factor` and
+ * `henchmen/second`. Each market is added again over its hall. The hires and
+ * the chat cards are create paths: each is marked in a numbered series
+ * (`henchmen/hire-b-1`, `henchmen/card-…-1`, …), and the stage retires the
+ * last run's series before it builds anything.
+ *
  * Writes outside the fixture ledger, each undone at teardown and reported:
  *   - an `influence` override layer at priority 30 (unregistered); in
  *     stage 1 it also holds the apparent-level figure, first as an empty
@@ -30,12 +46,14 @@ const MACHINE = machineSeats();
 const browser = MACHINE.browser;
 const origin = MACHINE.origin;
 const SEATS = { gm: MACHINE.gm, player: MACHINE.player };
-const NONCE = "c" + Math.random().toString(36).slice(2, 8);
 const MOD = "acks-extras";
 const STAGE = process.env.STAGE ?? "1";
 const SHOTS = process.env.SHOTS === "1";
 const SHOT_DIR = shotDir();
 const BOOKS = books(["rr","jj"]); // the GM's staged copies, from ACKS_TEST_BOOKS; empty, the walk takes the bookless path
+// The chat cards each stage's create paths post, one marker series apiece (`henchmen/card-<name>-<n>`).
+const STAGE1_CARDS = ["hire-b", "obedience-a", "monster-recruit", "hiring-18", "loyalty-unread", "loyalty-read", "gain-0", "gain-1", "gain-2", "gain-3"];
+const STAGE2_CARDS = ["company", "porters-1", "porters-2", "posting-1", "posting-2", "posting-3", "cap"];
 const POWER_IDS = ["def.prof.leadership", "def.power.bloodOfKings", "def.prof.command", "def.prof.diplomacy", "def.prof.beastFriendship", "def.power.commandOfVoice"];
 // Invented hiring-offer figures for the influence document where the world holds none.
 const INVENTED_OFFER = { bands: [{ max: 2 }, { min: 3, max: 5 }, { min: 6, max: 8 }, { min: 9, max: 11 }, { min: 12 }], refusalPenalty: -1, slanderPenalty: -2 };
@@ -803,6 +821,32 @@ const P = {
   /** Give a user ownership of an actor (from the GM seat). */
   own: async ({ actorId, userId, level = 3 }) => { const a = game.actors.get(actorId); await a.update({ ownership: { ...a.ownership, [userId]: level } }); return { ownership: a.ownership }; },
 
+  /**
+   * A kept actor put back in the shape `data` creates: its embedded items and
+   * effects deleted, its acks-extras flags the data's, its system the data's
+   * over the type's defaults (arrays and lists included), its name, and its
+   * ownership the data's with this seat's own kept. A place also takes what
+   * its create hook (location/module.mjs) gives a new one: the storage flag,
+   * and the table as OWNER where the data names no default. Returns what it
+   * then holds.
+   */
+  reshape: async ({ id, data }) => {
+    const a = game.actors.get(id);
+    const before = { ...a.ownership };
+    if (a.items.size) await a.deleteEmbeddedDocuments("Item", a.items.map((i) => i.id));
+    if (a.effects.size) await a.deleteEmbeddedDocuments("ActiveEffect", a.effects.map((e) => e.id));
+    const fresh = new Actor.implementation({ name: data.name, type: data.type, system: foundry.utils.deepClone(data.system ?? {}) }).toObject();
+    const place = data.type === "acks-extras.location";
+    const flags = foundry.utils.deepClone(data.flags?.["acks-extras"] ?? {});
+    if (place && !flags.storage) flags.storage = { provider: true };
+    const L = CONST.DOCUMENT_OWNERSHIP_LEVELS;
+    const ownership = { default: place ? L.OWNER : L.NONE, ...(data.ownership ?? {}), [game.user.id]: L.OWNER };
+    await a.update({ name: data.name, system: fresh.system, "flags.acks-extras": new foundry.data.operators.ForcedDeletion() });
+    if (Object.keys(flags).length) await a.update({ "flags.acks-extras": flags });
+    await a.update({ ownership }, { diff: false, recursive: false });
+    return { name: a.name, items: a.items.size, effects: a.effects.size, flags: Object.keys(a.flags["acks-extras"] ?? {}), henchmen: (a.system.henchmenList ?? []).length, monsters: (a.system.monsterHenchmenList ?? []).length, managerid: a.system.retainer?.managerid ?? null, retainer: !!a.system.retainer?.enabled, before, wrote: ownership, holds: { ...a.ownership }, market: !!a.system.market };
+  },
+
   /** Coin on an actor: mint some, and read what it can spend. */
   reloadDocs: async () => {
     const svc = (await import("/modules/acks-extras/scripts/lib/services.mjs")).get("ruledata-import");
@@ -1007,7 +1051,11 @@ const P = {
     sel.value = employerId; sel.dispatchEvent(new Event("change", { bubbles: true }));
     await H.sleep(250);
     const field = el.querySelector("[data-network-field]"), box = el.querySelector('input[name="network"]'), status = el.querySelector("p[data-network-status]");
-    return { opened: true, employerFound: sel.value === employerId, optionNetwork: sel.selectedOptions[0]?.dataset.network ?? null, fieldShown: !!field && field.style.display !== "none", checked: box?.checked ?? null, status: status && status.style.display !== "none" ? H.text(status) : "", notes: H.takeNotes() };
+    const emp = game.actors.get(employerId);
+    const found = sel.value === employerId;
+    // Where the employer is not offered, what the dialog's employer filter reads of it.
+    const why = found ? null : { options: sel.options.length, playerOwned: !!emp?.hasPlayerOwner, retainer: !!emp?.system?.retainer?.enabled, type: emp?.type ?? null };
+    return { opened: true, employerFound: found, why, optionNetwork: sel.selectedOptions[0]?.dataset.network ?? null, fieldShown: !!field && field.style.display !== "none", checked: box?.checked ?? null, status: status && status.style.display !== "none" ? H.text(status) : "", notes: H.takeNotes() };
   },
   /** Submit the open posting dialog with a kind and the network box as named; the notes and the fee card. */
   postingSubmit: async ({ kind, network }) => {
@@ -1282,10 +1330,30 @@ async function ready(api, label, seconds = 240) {
 
 const seats = {};
 async function seat(key) {
-  const api = await connect({ browser, origin, user: SEATS[key], port: PORTS[key] });
+  const api = await connect({ browser, origin, user: SEATS[key], port: PORTS[key], own: MACHINE.own });
   seats[key] = api;
   note(`${key} ready after (s)`, await ready(api, key));
   return api;
+}
+
+/** The kept actor marked `marker`, brought back to the shape `data` creates, or one built from it now. */
+async function keep(marker, data) {
+  const doc = await gm.fixture(marker, "Actor", data);
+  if (!doc.built) note(`shape: ${marker}`, await run(gm, P.reshape, { id: doc.id, data }));
+  return doc;
+}
+/** Retire the last run's products of a create path: `<prefix>-1`, `-2`, … until one is not standing. */
+async function retireSeries(prefix, kind) {
+  for (let n = 1; ; n++) {
+    const r = await gm.retire(`${prefix}-${n}`, kind);
+    if (!r.removed.length && !r.missing.length && !r.failed.length) return n - 1;
+  }
+}
+/** Mark what a create path made, `<prefix>-<from>` onwards; returns the next number. */
+async function markSeries(prefix, kind, ids, from = 1) {
+  let n = from;
+  for (const id of ids ?? []) await gm.mark(`${kind}.${id}`, `${prefix}-${n++}`);
+  return n;
 }
 
 const byLabel = (rows, re) => rows.filter((r) => re.test(r.label ?? ""));
@@ -1348,15 +1416,30 @@ try {
 
   if (STAGE === "1") {
     section("fixtures (stage 1): the hall, employers A and B, a hireling each, a monster, a monster employer");
-    const hall = await gm.create("Actor", { name: `QA Hiring Hall ${NONCE}`, type: "acks-extras.location" });
+    // The last run's hire and cards go first: a hire still answers to B.
+    const retired = { hires: await retireSeries("henchmen/hire-b", "Actor") };
+    for (const c of STAGE1_CARDS) retired[c] = await retireSeries(`henchmen/card-${c}`, "ChatMessage");
+    note("retired", retired);
+    // Every stage 1 actor is brought to shape here, before any step reads a
+    // roster: a kept hireling still names the employer it was linked to.
+    const hall = await keep("henchmen/hall", { name: "QA Hiring Hall", type: "acks-extras.location" });
     note("market", await run(gm, P.addMarket, { locationId: hall.id, classOverride: 4 }));
-    const A = await gm.create("Actor", { name: `QA Employer A ${NONCE}`, type: "character", system: { scores: { cha: { value: 16 } }, details: { level: 5 } }, items: [] });
-    const B = await gm.create("Actor", { name: `QA Employer B ${NONCE}`, type: "character", system: { scores: { cha: { value: 3 } }, details: { level: 3 } }, items: [] });
-    const hA = await gm.create("Actor", { name: `QA Hireling of A ${NONCE}`, type: "character", items: [] });
-    const hB = await gm.create("Actor", { name: `QA Hireling of B ${NONCE}`, type: "character", items: [] });
-    const hM = await gm.create("Actor", { name: `QA Hireling of the beast ${NONCE}`, type: "character", items: [] });
-    const M = await gm.create("Actor", { name: `QA Beast ${NONCE}`, type: "monster", system: { hp: { hd: "2d8" } } });
-    const ME = await gm.create("Actor", { name: `QA Beast employer ${NONCE}`, type: "monster", system: { hp: { hd: "4d8" } } });
+    const A = await keep("henchmen/employer-a", { name: "QA Employer A", type: "character", system: { scores: { cha: { value: 16 } }, details: { level: 5 } }, items: [] });
+    const B = await keep("henchmen/employer-b", { name: "QA Employer B", type: "character", system: { scores: { cha: { value: 3 } }, details: { level: 3 } }, items: [] });
+    const hA = await keep("henchmen/hireling-a", { name: "QA Hireling of A", type: "character", items: [] });
+    const hB = await keep("henchmen/hireling-b", { name: "QA Hireling of B", type: "character", items: [] });
+    const hM = await keep("henchmen/hireling-beast", { name: "QA Hireling of the beast", type: "character", items: [] });
+    const M = await keep("henchmen/beast", { name: "QA Beast", type: "monster", system: { hp: { hd: "2d8" } } });
+    const ME = await keep("henchmen/beast-employer", { name: "QA Beast employer", type: "monster", system: { hp: { hd: "4d8" } } });
+    const M2 = await keep("henchmen/beast-hireling", { name: "QA Beast hireling", type: "monster", system: { hp: { hd: "1d8" } } });
+    const SE = await keep("henchmen/service-employer", { name: "QA Service employer", type: "character", system: { scores: { cha: { value: 13 } }, details: { level: 4 } }, items: [] });
+    const hS = await keep("henchmen/service-hireling", { name: "QA Service hireling", type: "character", items: [] });
+    const C = await keep("henchmen/employer-c", { name: "QA Employer C", type: "character", system: { scores: { cha: { value: 10 } } }, items: [] });
+    const hD = await keep("henchmen/doubter", { name: "QA Doubter", type: "character", system: { retainer: { category: "henchman" } }, items: [] });
+    // Step 16 brings the novices to their level once the rungs are read.
+    const novice = (name, level) => ({ name, type: "character", system: { ...(level === undefined ? {} : { details: { level } }), retainer: { category: "henchman" } }, items: [] });
+    await keep("henchmen/novice-unread", novice("QA Novice unread"));
+    await keep("henchmen/novice-read", novice("QA Novice read"));
 
     section("14. the henchman limit's base");
     await ensureLimit();
@@ -1404,7 +1487,6 @@ try {
       await shot(gm, "character-sheet-morale", sheetA.sel);
       note("closed", await run(gm, P.closeAll));
     }
-    const M2 = await gm.create("Actor", { name: `QA Beast hireling ${NONCE}`, type: "monster", system: { hp: { hd: "1d8" } } });
     note("a monster hired by the beast employer", await run(gm, P.hireMonsterFor, { monsterId: M2.id, employerId: ME.id }));
 
     section("14. the rosters");
@@ -1434,8 +1516,8 @@ try {
     await ensureOffer();
 
     section("14. the feature's own hiring dialog (integration swapped) for A and for B");
-    const cand1 = await run(gm, P.addCandidate, { locationId: hall.id, row: { name: `QA Candidate one ${NONCE}`, kind: "henchman", level: 1, segment: "henchman:1", wageGp: 10 } });
-    const cand2 = await run(gm, P.addCandidate, { locationId: hall.id, row: { name: `QA Candidate two ${NONCE}`, kind: "henchman", level: 1, segment: "henchman:1", wageGp: 10 } });
+    const cand1 = await run(gm, P.addCandidate, { locationId: hall.id, row: { name: "QA Candidate one", kind: "henchman", level: 1, segment: "henchman:1", wageGp: 10 } });
+    const cand2 = await run(gm, P.addCandidate, { locationId: hall.id, row: { name: "QA Candidate two", kind: "henchman", level: 1, segment: "henchman:1", wageGp: 10 } });
     note("swap", await run(gm, P.swapIntegration, { hosts: false }));
     const ownA = await run(gm, P.recruitOwn, { locationId: hall.id, candidateId: cand1.id, employerId: A.id });
     note("A's own dialog", ownA);
@@ -1449,8 +1531,8 @@ try {
     note("the world's henchman-limit policy (the warning fires under warn or block; set to warn for this check and restored at once)", policy);
     const rollB = await run(gm, P.ownRoll, { u: 0.02, misc: 10, employerId: B.id });
     note("B's offer, carried to a hire", rollB);
-    for (const id of rollB.chat ?? []) gm.track(id, "ChatMessage");
-    for (const id of rollB.newIds ?? []) gm.track(id, "Actor");
+    await markSeries("henchmen/card-hire-b", "ChatMessage", rollB.chat);
+    await markSeries("henchmen/hire-b", "Actor", rollB.newIds);
     check("14: B's recruit, carried to an accepted offer, warns of the limit naming Leadership", rollB.found && rollB.notes.some((n) => /Leadership/.test(n.text) && /henchmen/.test(n.text)), { notes: rollB.notes, cards: rollB.cards, newIds: rollB.newIds });
     note("policy restored", await run(gm, P.limitPolicyRestore));
 
@@ -1471,7 +1553,7 @@ try {
     note("tick Command", await run(gm, P.hostedTick, { key: hostedCmdA[0]?.key ?? "", on: true }));
     const rObA = await run(gm, P.hostedRoll, { u: 0.5 });
     note("obedience roll (Command ticked)", rObA);
-    for (const id of rObA.chat ?? []) gm.track(id, "ChatMessage");
+    await markSeries("henchmen/card-obedience-a", "ChatMessage", rObA.chat);
     const cmdActive = (rObA.cards?.[0]?.flags?.rollResult?.activeModifiers ?? []).find((a) => /^Command\b/.test(a.label ?? ""));
     check("15: with the integration back, the obedience page opens on A's hireling offering Command unticked, and ticked it adds the located value to the roll", hostedObA.opened && hostedCmdA.length === 1 && hostedCmdA[0].isEffect && hostedCmdA[0].checked !== true && cmdActive?.value === readA.henchmanMorale[0]?.value, { hostedCmdA: hostedCmdA.map((m) => [m.label, m.checked, m.isEffect]), cmdActive, located: readA.henchmanMorale });
     note("closed", await run(gm, P.closeAll));
@@ -1481,11 +1563,9 @@ try {
 
     // The service employer and its hireling are this step's alone, so its invented power reaches no other step's figures.
     section("1b. the Service panel's figure tooltips");
-    const SE = await gm.create("Actor", { name: `QA Service employer ${NONCE}`, type: "character", system: { scores: { cha: { value: 13 } }, details: { level: 4 } }, items: [] });
-    const hS = await gm.create("Actor", { name: `QA Service hireling ${NONCE}`, type: "character", items: [] });
     // moraleBase is read off Active Effects alone (it has no typed target), so the power is an effect on the item.
-    const powerS = await run(gm, P.handAbilities, { actorId: SE.id, items: [{ name: `QA morale power ${NONCE}` }] });
-    note("the service employer's morale power, an invented value", await run(gm, P.addEffect, { actorId: SE.id, itemId: powerS[0].id, key: "flags.acks-extras.moraleBase", value: 2, name: `QA morale ${NONCE}` }));
+    const powerS = await run(gm, P.handAbilities, { actorId: SE.id, items: [{ name: "QA morale power" }] });
+    note("the service employer's morale power, an invented value", await run(gm, P.addEffect, { actorId: SE.id, itemId: powerS[0].id, key: "flags.acks-extras.moraleBase", value: 2, name: "QA morale" }));
     note("link the service hireling", await run(gm, P.link, { employerId: SE.id, hirelingId: hS.id, wage: 5 }));
     const tipsS = await run(gm, P.serviceTips, { actorId: hS.id });
     note("the service hireling, Service", tipsS);
@@ -1501,9 +1581,9 @@ try {
 
     section("15. the hosted hiring page: B's hiring effect, the note, Diplomacy's box");
     const cov = await run(gm, P.handAbilities, { actorId: B.id, items: [{ name: "Command of Voice" }] });
-    const ae = await run(gm, P.addEffect, { actorId: B.id, itemId: cov[0].id, key: "flags.acks-extras.hiring", value: 3, name: `QA voice ${NONCE}` });
+    const ae = await run(gm, P.addEffect, { actorId: B.id, itemId: cov[0].id, key: "flags.acks-extras.hiring", value: 3, name: "QA voice" });
     note("AE on Command of Voice", ae);
-    const cand3 = await run(gm, P.addCandidate, { locationId: hall.id, row: { name: `QA Candidate three ${NONCE}`, kind: "henchman", level: 1, segment: "henchman:1", wageGp: 10 } });
+    const cand3 = await run(gm, P.addCandidate, { locationId: hall.id, row: { name: "QA Candidate three", kind: "henchman", level: 1, segment: "henchman:1", wageGp: 10 } });
     const hostB1 = await run(gm, P.hosted, { kind: "recruit", locationId: hall.id, candidateId: cand3.id, employerId: B.id });
     note("B's hosted hiring page", { opened: hostB1.opened, notes: hostB1.notes, external: hostB1.external, groups: hostB1.groups?.map((g) => ({ group: g.group, mods: g.mods.map((m) => [m.label, m.value, m.isUnvalued, m.control]) })) });
     const powers1 = (hostB1.groups ?? []).filter((g) => /powers/i.test(g.group ?? "")).flatMap((g) => g.mods);
@@ -1515,13 +1595,13 @@ try {
     note("AE removed", await run(gm, P.removeEffect, { actorId: B.id, itemId: cov[0].id, effectId: ae.id }));
     const hostB2 = await run(gm, P.hosted, { kind: "recruit", locationId: hall.id, candidateId: cand3.id, employerId: B.id });
     check("15: with the effect gone the note names Command of Voice and the row is gone", hostB2.opened && hostB2.external.some((e) => /Command of Voice/.test(e.label ?? "")) && !modsOf(hostB2).some((m) => /QA voice|Command of Voice/.test(m.label ?? "")), { external: hostB2.external });
-    const aeA = await run(gm, P.addEffect, { actorId: A.id, key: "flags.acks-extras.loyaltyRoll", value: 2, name: `QA loyal ${NONCE}` });
+    const aeA = await run(gm, P.addEffect, { actorId: A.id, key: "flags.acks-extras.loyaltyRoll", value: 2, name: "QA loyal" });
     const loyal = await run(gm, P.hosted, { kind: "loyalty", hirelingId: hA.id });
     note("A's hireling, loyalty page", { opened: loyal.opened, mods: modsOf(loyal).map((m) => [m.label, m.value]) });
     const loyalRow = modsOf(loyal).find((m) => /QA loyal/.test(m.label ?? ""));
     note("loyal row raw", loyalRow?.raw ?? null);
     check("15: the loyalty page offers A's loyalty-roll effect as a row at its figure", loyal.opened && !!loyalRow && loyalRow.isEffect && figureOf(loyalRow) === 2, { mods: modsOf(loyal).map((m) => [m.label, m.value]), figure: figureOf(loyalRow) });
-    note("A's loyalty AE kept on the fixture (swept with it)", aeA);
+    note("A's loyalty AE kept on the fixture (gone at the next run's shape)", aeA);
 
     section("15 / influence 17–18. the hiring table: the throw dialog's steppers, the card's band, and the table missing");
     await ensureOffer();
@@ -1534,7 +1614,7 @@ try {
     await shot(gm, "henchmen-hiring-table", ".application.throw-dialog");
     const mrRoll = await run(gm, P.monsterRecruit, { monsterId: M.id, employerId: A.id, roll: true, u: 0.5 });
     note("monster recruit rolled", { cards: mrRoll.cards, notes: mrRoll.notesAfter, stillOpen: mrRoll.stillOpen });
-    for (const id of mrRoll.chat ?? []) gm.track(id, "ChatMessage");
+    await markSeries("henchmen/card-monster-recruit", "ChatMessage", mrRoll.chat);
     check("15: the card names the imported band in flags.acks-extras.outcome", (mrRoll.cards ?? []).some((c) => typeof c.outcome === "string" && c.outcome), mrRoll.cards);
     note("closed", await run(gm, P.closeAll));
     note("table hidden (override with no bands)", await run(gm, P.overrideInfluence, { on: true, table: { bands: null, refusalPenalty: null, slanderPenalty: null } }));
@@ -1565,14 +1645,13 @@ try {
     check("18: no badge and no notice; each count row shows its count and the figure each count adds", p18.opened && !p18.dom?.notice && countRows18.length === 2 && countRows18.every((m) => !m.isUnread) && Number(refRow18?.value) === 2 && Number(slRow18?.value) === 1 && eachOf(refRow18) === offer2.refusalPenalty && eachOf(slRow18) === offer2.slanderPenalty, { rows: countRows18.map((m) => [m.label, m.value]), figures: [offer2.refusalPenalty, offer2.slanderPenalty] });
     const r18 = await run(gm, P.hostedRoll, { u: 0.5 });
     note("roll 18", r18);
-    for (const id of r18.chat ?? []) gm.track(id, "ChatMessage");
+    await markSeries("henchmen/card-hiring-18", "ChatMessage", r18.chat);
     const active18 = r18.cards?.[0]?.flags?.rollResult?.activeModifiers ?? [];
     const prod = (re) => active18.find((a) => re.test(a.label ?? ""))?.value ?? null;
     check("18: Roll posts a card whose refusal and slander lines carry count × figure, and the roll-complete payload names a band key", r18.found && r18.chat.length >= 1 && typeof r18.payload?.outcome === "string" && r18.payload.outcome && prod(/refus/i) === 2 * offer2.refusalPenalty && prod(/slander/i) === 1 * offer2.slanderPenalty, { payload: r18.payload, active18 });
     note("closed", await run(gm, P.closeAll));
 
     section("influence 19. one page per fixture actor");
-    const C = await gm.create("Actor", { name: `QA Employer C ${NONCE}`, type: "character", system: { scores: { cha: { value: 10 } } }, items: [] });
     const pA = await run(gm, P.hosted, { kind: "open", actorId: A.id, ctx, keep: true, place: true });
     const profA = modsOf(pA).filter((m) => /Diplomacy|Intimidation|Seduction|Mystic Aura/.test(m.label ?? ""));
     note("A's page proficiency rows", profA.map((m) => [m.label, m.value, m.isUnvalued, m.control]));
@@ -1604,12 +1683,11 @@ try {
     };
 
     section("16 / influence 20. the loyalty roll's apparent-level figure, unread then read");
-    const hD = await gm.create("Actor", { name: `QA Doubter ${NONCE}`, type: "character", system: { retainer: { category: "henchman" } }, items: [] });
     note("link the doubter to A", await run(gm, P.link, { employerId: A.id, hirelingId: hD.id, wage: 5 }));
     note("told A's level plus two", await run(gm, P.claimLevel, { hirelingId: hD.id, employerId: A.id, over: 2 }));
     note("unread", await run(gm, P.layerTable, { doc: "influence", id: "apparentLevel", table: printed0.apparentKnown ? {} : null }));
     const l20a = await run(gm, P.loyaltyRow, { hirelingId: hD.id, count: 2, roll: true });
-    for (const id of l20a.chat ?? []) gm.track(id, "ChatMessage");
+    await markSeries("henchmen/card-loyalty-unread", "ChatMessage", l20a.chat);
     note("loyalty page, unread", l20a);
     check("16: unread, the apparent-level row is a typed field with the unread badge under its bare name, the page shows no notice, and it rolls to one of its own bands with no line for the row", l20a.opened && l20a.found && l20a.unread && l20a.labelBare && l20a.badges >= 1 && !l20a.notice && l20a.rolled && l20a.bandKey && !l20a.partShown, l20a);
     note("integration hidden", await run(gm, P.swapIntegration, { hosts: false }));
@@ -1621,7 +1699,7 @@ try {
     note("the apparent-level figure stands", apparent);
     check("changed: the apparent-level figure stands, from the world's import or read off the book through the shipped recipe", apparent.layer.apparentKnown && (apparent.source === "world" || apparent.source === "book"), { source: apparent.source });
     const l20b = await run(gm, P.loyaltyRow, { hirelingId: hD.id, count: 2, roll: true });
-    for (const id of l20b.chat ?? []) gm.track(id, "ChatMessage");
+    await markSeries("henchmen/card-loyalty-read", "ChatMessage", l20b.chat);
     note("loyalty page, read", l20b);
     check("16: read, the row counts the two levels and adds two times the figure, the figure beside its name and no badge, and the roll's payload carries that line", l20b.opened && l20b.found && !l20b.unread && !l20b.labelBare && l20b.counted && l20b.contributes && l20b.badges === 0 && !l20b.notice && l20b.rolled && l20b.bandKey && l20b.partOk, l20b);
     note("integration hidden", await run(gm, P.swapIntegration, { hosts: false }));
@@ -1638,29 +1716,29 @@ try {
     note("the level-gain rungs stand", rungs);
     check("changed: the level-gain morale rungs stand, from the world's import or read off the book through the shipped recipe", rungs.layer.levelKnown && (rungs.source === "world" || rungs.source === "book"), { source: rungs.source });
     const [first, second] = await run(gm, P.rungLevels);
-    const z0 = await gm.create("Actor", { name: `QA Novice unread ${NONCE}`, type: "character", system: { details: { level: first - 1 }, retainer: { category: "henchman" } }, items: [] });
+    const z0 = await keep("henchmen/novice-unread", novice("QA Novice unread", first - 1));
     note("link the unread novice to A", await run(gm, P.link, { employerId: A.id, hirelingId: z0.id, wage: 5 }));
     note("unread", await run(gm, P.layerTable, { doc: "wages", id: "levelMorale", table: {} }));
     const g0 = await run(gm, P.gainLevel, { hirelingId: z0.id, to: first });
-    for (const id of g0.chat ?? []) gm.track(id, "ChatMessage");
+    await markSeries("henchmen/card-gain-0", "ChatMessage", g0.chat);
     note("level gain onto the first rung, unread", g0);
     check("16: unread, a level gain onto the first rung records no morale bonus and its card says the bonuses are not imported", g0.gained && g0.recorded && g0.entries === 0 && g0.unreadCard && !g0.plainCard, g0);
     note("read again", await run(gm, P.layerTable, { doc: "wages", id: "levelMorale", table: rungs.source === "world" ? null : rungs.source === "book" ? { fromBook: true } : INVENTED_LEVEL_MORALE }));
-    const z1 = await gm.create("Actor", { name: `QA Novice read ${NONCE}`, type: "character", system: { details: { level: first - 1 }, retainer: { category: "henchman" } }, items: [] });
+    const z1 = await keep("henchmen/novice-read", novice("QA Novice read", first - 1));
     note("link the read novice to A", await run(gm, P.link, { employerId: A.id, hirelingId: z1.id, wage: 5 }));
     const g1 = await run(gm, P.gainLevel, { hirelingId: z1.id, to: "rung0" });
-    for (const id of g1.chat ?? []) gm.track(id, "ChatMessage");
+    await markSeries("henchmen/card-gain-1", "ChatMessage", g1.chat);
     note("level gain onto the first rung", g1);
     check("16: read, reaching the first rung records one morale entry at its bonus, its note naming the level, under the plain card", g1.gained && g1.recorded && g1.want === 1 && g1.entries === 1 && g1.match && g1.plainCard && !g1.unreadCard, g1);
     const g2 = await run(gm, P.gainLevel, { hirelingId: z1.id, to: "rung1" });
-    for (const id of g2.chat ?? []) gm.track(id, "ChatMessage");
+    await markSeries("henchmen/card-gain-2", "ChatMessage", g2.chat);
     note("level gain onto the second rung", g2);
     check("16: read, reaching the second rung records the second entry the same way", g2.gained && g2.recorded && g2.want === 1 && g2.entries === 1 && g2.match && g2.plainCard, g2);
     const led = await run(gm, P.ledgerShown, { employerId: A.id, hirelingId: z1.id });
     note("roster ledger", led);
     check("16: the roster's ledger shows both as level gains on the morale track, each note naming a rung's level", led.rendered && led.shown === 2 && led.notesMatch, led);
     const g3 = await run(gm, P.gainLevel, { hirelingId: z0.id, to: first + 1 });
-    for (const id of g3.chat ?? []) gm.track(id, "ChatMessage");
+    await markSeries("henchmen/card-gain-3", "ChatMessage", g3.chat);
     note("the unread novice's next gain", g3);
     check("16: a gain recorded while unread is not made up later: the unread novice's next gain records only the rungs it crosses itself", g3.gained && g3.recorded && g3.entries === (second === first + 1 ? 1 : 0) && g3.entries === g3.want && g3.match, g3);
     note("level-gain layer lifted", await run(gm, P.layerTable, { doc: "wages", id: "levelMorale", table: null }));
@@ -1674,24 +1752,36 @@ try {
     note("player census", pc);
     note("install (player)", await run(player, P.install));
     note("rules documents the world holds", await run(gm, P.docs));
-    const hall = await gm.create("Actor", { name: `QA Muster Hall ${NONCE}`, type: "acks-extras.location" });
+    // The last run's hires and cards go first: its porters still answer to the
+    // paymaster, and the roster read at step 12 counts every one.
+    const retired = { company: await retireSeries("henchmen/company", "Actor"), porters: await retireSeries("henchmen/porter", "Actor") };
+    for (const c of STAGE2_CARDS) retired[c] = await retireSeries(`henchmen/card-${c}`, "ChatMessage");
+    note("retired", retired);
+    const hall = await keep("henchmen/muster-hall", { name: "QA Muster Hall", type: "acks-extras.location" });
     note("market", await run(gm, P.addMarket, { locationId: hall.id, classOverride: 4 }));
-    const A = await gm.create("Actor", { name: `QA Captain ${NONCE}`, type: "character", system: { scores: { cha: { value: 13 } }, details: { level: 5 } }, items: [] });
-    const Pp = await gm.create("Actor", { name: `QA Paymaster ${NONCE}`, type: "character", ownership: { default: 0, [pc.userId]: 3 }, system: { scores: { cha: { value: 13 } }, details: { level: 4 } }, items: [] });
+    // The GM's posting dialog offers player characters only, and step 13's Player seat owns neither employer: a player who is not that seat owns both.
+    const npcOwner = await gm.eval(`game.users.find((u) => !u.isGM && u.role >= CONST.USER_ROLES.PLAYER && u.id !== ${JSON.stringify(pc.userId)})?.id ?? null`);
+    check("fixture: a player other than the Player seat can own the captain and the factor", !!npcOwner);
+    const npcOwn = { default: 0, ...(npcOwner ? { [npcOwner]: 3 } : {}) };
+    const A = await keep("henchmen/captain", { name: "QA Captain", type: "character", ownership: npcOwn, system: { scores: { cha: { value: 13 } }, details: { level: 5 } }, items: [] });
+    const Pp = await keep("henchmen/paymaster", { name: "QA Paymaster", type: "character", ownership: { default: 0, [pc.userId]: 3 }, system: { scores: { cha: { value: 13 } }, details: { level: 4 } }, items: [] });
     note("paymaster owned by the player seat", await run(gm, P.own, { actorId: Pp.id, userId: pc.userId }));
+    const hall2 = await keep("henchmen/exchange-town", { name: "QA Exchange Town", type: "acks-extras.location" });
+    const N = await keep("henchmen/factor", { name: "QA Factor", type: "character", ownership: npcOwn, system: { scores: { cha: { value: 12 } }, details: { level: 4 } }, items: [] });
+    const S = await keep("henchmen/second", { name: "QA Second", type: "character", ownership: { default: 0, [pc.userId]: 3 }, system: { details: { level: 2 } }, items: [] });
 
     section("10. Hire as Group from the Mercenaries tab");
-    const troop = await run(gm, P.addCandidate, { locationId: hall.id, row: { name: `QA Spearmen ${NONCE}`, kind: "mercenary", troopType: "lightInfantry", segment: "mercenary:lightInfantry", level: 1, classKey: "fighter", hitDice: "1d8", attributes: { str: 13, int: 9, wil: 10, dex: 11, con: 12, cha: 8 }, wageGp: 6, quantity: 10 } });
+    const troop = await run(gm, P.addCandidate, { locationId: hall.id, row: { name: "QA Spearmen", kind: "mercenary", troopType: "lightInfantry", segment: "mercenary:lightInfantry", level: 1, classKey: "fighter", hitDice: "1d8", attributes: { str: 13, int: 9, wil: 10, dex: 11, con: 12, cha: 8 }, wageGp: 6, quantity: 10 } });
     const sheetM = await run(gm, P.sheetRows, { locationId: hall.id, tab: "mercenaries" });
     note("sheet (mercenaries)", sheetM);
     const direct = !!census.character;
     if (direct) note("the GM seat has an assigned character, which the dialog would pick: the dialog is read and closed, and the engine is called for the captain", census.character);
     const hg = await run(gm, P.hireGroup, { locationId: hall.id, employerId: A.id, candidateId: troop.id, count: 4, direct });
     note("hire as group", hg);
-    for (const a of hg.newActors ?? []) gm.track(a.id, "Actor");
-    for (const id of hg.chat ?? []) gm.track(id, "ChatMessage");
+    await markSeries("henchmen/company", "Actor", (hg.newActors ?? []).map((a) => a.id));
+    await markSeries("henchmen/card-company", "ChatMessage", hg.chat);
     const rowsAfter = hg.rows ?? [];
-    const orig = rowsAfter.find((r) => r.id === troop.id), hiredRow = rowsAfter.find((r) => r.id !== troop.id && r.name === `QA Spearmen ${NONCE}` && r.status === "hired");
+    const orig = rowsAfter.find((r) => r.id === troop.id), hiredRow = rowsAfter.find((r) => r.id !== troop.id && r.name === "QA Spearmen" && r.status === "hired");
     check("10: the dialog opens for the employer with the troop row capped at the market's count", hg.pressed && hg.cells?.some((c) => c.name === `q_${troop.id}` && String(c.cap) === "10") && (direct || hg.employerPrompt || !!census.character === false), { employerPrompt: hg.employerPrompt, forLine: hg.forLine, cells: hg.cells, how: hg.how });
     check("10: a group named for the employer holds one stack of the count taken", !!hg.group && hg.group.name === `${A.name}'s Company` && hg.stacks?.length === 1 && hg.stacks[0].count === 4, { group: hg.group, stacks: hg.stacks?.map((st) => [st.label, st.count]) });
     check("10: the troop row keeps its id with the heads not taken, available; a new row of the count taken reads hired", orig?.status === "available" && orig?.quantity === 6 && !!hiredRow && hiredRow.quantity === 4, { orig, hiredRow });
@@ -1703,7 +1793,7 @@ try {
     note("offer as the player reads it", await run(player, P.offerRead));
 
     section("12. an offer to part of a bulk row, head by head (player seat)");
-    const porters = `QA Porters ${NONCE}`;
+    const porters = "QA Porters";
     const spec = await run(gm, P.addCandidate, { locationId: hall.id, row: { name: porters, kind: "specialist", specialistType: "laborer", segment: "specialist:laborer", level: 0, wageGp: 3, quantity: 20 } });
     note("coin for the paymaster", await run(gm, P.coin, { actorId: Pp.id, mint: 400 }));
     const purse0 = (await run(gm, P.coin, { actorId: Pp.id })).gp;
@@ -1725,7 +1815,7 @@ try {
     const SEQ = [0.01, 0.01, 0.99, 0.99, 0.5, 0.5, 0.2, 0.4, 0.8, 0.6, 0.1, 0.3];
     const roll = await run(player, P.bulkRoll, { tier: tier1?.value ?? null, seq: SEQ, waitFor: 5 });
     note("roll", roll);
-    for (const id of roll.chat ?? []) gm.track(id, "ChatMessage");
+    await markSeries("henchmen/card-porters-1", "ChatMessage", roll.chat);
     const headsCard = (roll.cards ?? []).find((c) => c.rolls.length === 5) ?? null;
     const tallyOf = (flavor) => { const out = {}; const tail = String(flavor ?? "").split(":").slice(1).join(":"); for (const part of tail.split("·")) { const m = part.trim().match(/^(\d+)\s+(.+)$/); if (!m) continue; const n = Number(m[1]), label = m[2]; const key = /slander/i.test(label) ? "refuseSlander" : /élan|elan/i.test(label) ? "acceptElan" : /try/i.test(label) ? "tryAgain" : /accept/i.test(label) ? "accept" : /refuse/i.test(label) ? "refuse" : label; out[key] = (out[key] ?? 0) + n; } return out; };
     const tally = headsCard ? tallyOf(headsCard.flavor) : {};
@@ -1735,7 +1825,9 @@ try {
     let after12 = await run(gm, P.rowsOf, { locationId: hall.id, name: porters, employerId: Pp.id });
     if (after12.pending > 0) { note("hires queued (the seat could not create actors): materialized on the GM seat", await run(gm, P.materialize, { locationId: hall.id })); after12 = await run(gm, P.rowsOf, { locationId: hall.id, name: porters, employerId: Pp.id }); }
     const hired12 = await run(gm, P.hiredOf, { employerId: Pp.id });
-    for (const a of hired12.actors) gm.track(a.id, "Actor");
+    // The roster read names every porter hired so far, so each is marked once.
+    const portersMarked = new Set(hired12.actors.map((a) => a.id));
+    const nextPorter = await markSeries("henchmen/porter", "Actor", [...portersMarked]);
     note("rows after", after12);
     note("hired", hired12);
     const origRow = after12.rows.find((r) => r.id === spec.id);
@@ -1756,21 +1848,18 @@ try {
     note("offer to the remainder", { prompt: offer2.headsPrompt, subject: offer2.subject, opened: offer2.opened });
     const roll2 = await run(player, P.bulkRoll, { tier: null, seq: [0.5, 0.5, 0.3, 0.7], waitFor: 13 });
     note("roll 2", { payload: roll2.payload, cards: roll2.cards?.length, draws: roll2.draws });
-    for (const id of roll2.chat ?? []) gm.track(id, "ChatMessage");
+    await markSeries("henchmen/card-porters-2", "ChatMessage", roll2.chat);
     await sleep(3000);
     let after14 = await run(gm, P.rowsOf, { locationId: hall.id, name: porters, employerId: Pp.id });
     if (after14.pending > 0) { note("materialized", await run(gm, P.materialize, { locationId: hall.id })); after14 = await run(gm, P.rowsOf, { locationId: hall.id, name: porters, employerId: Pp.id }); }
     const hired14 = await run(gm, P.hiredOf, { employerId: Pp.id });
-    for (const a of hired14.actors) gm.track(a.id, "Actor");
+    await markSeries("henchmen/porter", "Actor", hired14.actors.map((a) => a.id).filter((id) => !portersMarked.has(id)), nextPorter);
     check("12: offered all 14 of the remainder, no row carries the old id", offer2.opened && offer2.subject === `${porters} ×14` && !after14.rows.some((r) => r.id === spec.id) && after14.rows.reduce((n, r) => n + (r.quantity ?? 0), 0) === 20, { rows: after14.rows });
     note("closed (player)", await run(player, P.closeAll));
     note("closed", await run(gm, P.closeAll));
 
     section("13. a posting with a mercantile network");
-    const hall2 = await gm.create("Actor", { name: `QA Exchange Town ${NONCE}`, type: "acks-extras.location" });
     note("market 2", await run(gm, P.addMarket, { locationId: hall2.id, classOverride: 5 }));
-    const N = await gm.create("Actor", { name: `QA Factor ${NONCE}`, type: "character", system: { scores: { cha: { value: 12 } }, details: { level: 4 } }, items: [] });
-    const S = await gm.create("Actor", { name: `QA Second ${NONCE}`, type: "character", ownership: { default: 0, [pc.userId]: 3 }, system: { details: { level: 2 } }, items: [] });
     note("second owned by the player seat", await run(gm, P.own, { actorId: S.id, userId: pc.userId }));
     note("network power on the factor", await run(gm, P.addTypedPower, { actorId: N.id, name: "Mercantile Network", target: "marketClass", flat: 2, condition: "in a market entered before" }));
     note("coin for the factor", await run(gm, P.coin, { actorId: N.id, mint: 300 }));
@@ -1785,7 +1874,7 @@ try {
     note("posting dialog, factor again", await run(gm, P.postingOpen, { locationId: hall2.id, employerId: N.id }));
     const post1 = await run(gm, P.postingSubmit, { kind: "henchmanGeneral", network: true });
     note("post 1", { notes: post1.notes, cards: post1.cards?.map((c) => ({ rolls: c.rolls.length, fee: /search fee/i.test(c.flavor) })), stillOpen: post1.stillOpen });
-    for (const id of post1.chat ?? []) gm.track(id, "ChatMessage");
+    await markSeries("henchmen/card-posting-1", "ChatMessage", post1.chat);
     const fee1 = (post1.cards ?? []).find((c) => /search fee/i.test(c.flavor))?.flavor ?? "";
     const m1 = await run(gm, P.marketRead, { locationId: hall2.id, employerId: N.id, feeCardFlavor: fee1, feeClass: 3 });
     note("market after post 1", { marketClass: m1.marketClass, effective: m1.effective, postings: m1.postings, networkRolls: m1.networkRolls, marketRolls: m1.marketRolls, candidates: m1.candidates.length, networkCands: m1.candidates.filter((c) => c.networkFor === "employer").length, feeMatches: m1.feeMatches });
@@ -1816,13 +1905,13 @@ try {
     await run(gm, P.postingOpen, { locationId: hall2.id, employerId: N.id });
     const post2 = await run(gm, P.postingSubmit, { kind: "henchmanGeneral", network: true });
     note("post 2", { notes: post2.notes });
-    for (const id of post2.chat ?? []) gm.track(id, "ChatMessage");
+    await markSeries("henchmen/card-posting-2", "ChatMessage", post2.chat);
     const m2 = await run(gm, P.marketRead, { locationId: hall2.id, employerId: N.id });
     check("13: closing the posting and posting again adds no network roll and no candidate", m2.networkRolls.length === m1.networkRolls.length && m2.candidates.length === m1.candidates.length && m2.postings.length === m1.postings.length + 1, { networkRolls: [m1.networkRolls.length, m2.networkRolls.length], candidates: [m1.candidates.length, m2.candidates.length], postings: m2.postings.map((p) => [p.segment, p.status, p.network]) });
     await run(gm, P.postingOpen, { locationId: hall2.id, employerId: N.id });
     const post3 = await run(gm, P.postingSubmit, { kind: "mercenary", network: false });
     note("post 3", { notes: post3.notes });
-    for (const id of post3.chat ?? []) gm.track(id, "ChatMessage");
+    await markSeries("henchmen/card-posting-3", "ChatMessage", post3.chat);
     const fee3 = (post3.cards ?? []).find((c) => /search fee/i.test(c.flavor))?.flavor ?? "";
     const m3 = await run(gm, P.marketRead, { locationId: hall2.id, employerId: N.id, feeCardFlavor: fee3, feeClass: 5 });
     const merc = m3.postings.find((p) => /^mercenary/.test(p.segment ?? ""));
@@ -1852,10 +1941,11 @@ try {
     }
     check("changed: the employer-level cap stands, from the world's import or read off the book through the shipped recipe", capSource === "world" || capSource === "book", { capSource });
     note("more coin for the captain", await run(gm, P.coin, { actorId: A.id, mint: 500 }));
+    let capCard = 1;
     const leveled = async (label, args) => {
       await run(gm, P.postingOpen, { locationId: hall2.id, employerId: A.id });
       const r = await run(gm, P.postingLeveled, { locationId: hall2.id, employerId: A.id, ...args });
-      for (const id of r.chat ?? []) gm.track(id, "ChatMessage");
+      capCard = await markSeries("henchmen/card-cap", "ChatMessage", r.chat, capCard);
       const seen = { fields: r.fields, landed: r.landed, capError: r.capError, notes: r.noteKinds };
       note(label, seen);
       return { ...r, seen };
@@ -1897,7 +1987,7 @@ try {
   try { if (seats.player) { note("closed windows (player)", await run(seats.player, P.closeAll)); note("restored (player)", await run(seats.player, P.restore)); } } catch (err) { console.error("restore player:", err?.message ?? err); }
   try { if (gm && globalThis.__c1ImportedDoc) note("influence document removed", await run(gm, P.removeDoc, { id: "influence" })); } catch (err) { console.error("removeDoc:", err?.message ?? err); }
   for (const [key, api] of Object.entries(seats)) {
-    try { note(`sweep (${key})`, await api.sweepTracked()); } catch (err) { console.error(`sweep ${key}:`, err?.message ?? err); }
+    note(`ledger (${key})`, "");
     try { await api.close(); } catch {}
   }
   section("summary");
