@@ -884,6 +884,14 @@ mark on to the roll-table import, which joins a row's paragraphs into its
 result text in order. Lint checks the assist shapes; the cookbook coherence
 test checks that every detail follows its own row.
 
+`assists.nameExpect` proves a table's header box. With `text` it compiles to
+an `expect` op that matches those words. With `hash` it compiles to a
+`heading` op with `names: false`, which proves the box by the key of its
+letters and returns no title. The hash form is for a header that prints an
+instruction instead of a caption: the RollTable keeps its row's name, and the
+header's words stay out of the cookbook. A `heading` op without the flag
+returns the printed title, and `printedNameOf` names the table with it.
+
 A value instruction's `throw` pattern reads a throw target, the first
 `<n>+`, where `int` would read a die expression's count first; it is null
 when the text prints no target.
