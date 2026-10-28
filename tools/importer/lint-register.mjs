@@ -19,13 +19,14 @@ import { wallsProblems, wallsWarnings } from "../../scripts/importer/wall-trace.
 import { ABILITY_CATEGORIES, TRAVEL_MODES } from "../../scripts/lib/vocab.mjs";
 import { FACTION_KINDS, RELATION_STANCES } from "../../scripts/factions/constants.mjs";
 import {
-  KEY_NUMBER, ORDINAL_KINDS, bareKey, marketColumnProblems, ordinalProblems, pairProblems, regionMapProblems, rowMetaProblems, sceneLinkProblems, siteProblems,
-  spaceProblems,
+  KEY_NUMBER, ORDINAL_KINDS, bareKey, erratumProblems, errataIdsOf, marketColumnProblems, ordinalProblems, pairProblems, regionMapProblems, rowMetaProblems,
+  sceneLinkProblems, siteProblems, spaceProblems,
 } from "./register-rules.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REGISTER = path.join(HERE, "..", "..", "register");
 const COOKBOOK = path.join(HERE, "..", "..", "cookbook");
+const ERRATA = path.join(HERE, "..", "..", "ERRATA.md");
 
 const MAX_STR = 60; // labels/names/headings/citations — never a sentence
 const MAX_NOTE = 400; // authoring commentary in register sources ("note" keys)
@@ -605,6 +606,7 @@ for (const { id, scene, table } of zoneRows) {
 for (const problem of spaceProblems(allRows)) err(problem);
 for (const problem of pairProblems(allRows)) err(problem);
 for (const problem of marketColumnProblems(allRows)) err(problem);
+for (const problem of erratumProblems(allRows, errataIdsOf(fs.existsSync(ERRATA) ? fs.readFileSync(ERRATA, "utf8") : ""))) err(problem);
 for (const problem of regionMapProblems(allRows)) err(problem);
 for (const e of linkRows) for (const problem of sceneLinkProblems(e, allRows)) err(problem);
 

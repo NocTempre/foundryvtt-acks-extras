@@ -369,9 +369,10 @@ read them back afterwards with `game.actors.filter((a) =>
 compendium equivalents, and `api.track` each one.
 
 1. Run `acksExtras.importer.cookbookImportMarketProfiles()`.
-   *Observable:* the summary counts 24 markets created; the class-conflict
-   warning names two markets; the unmapped warning lists the goods with no
-   ACKS II match. The book's city actor gains `system.market` and is not
+   *Observable:* the summary counts 23 markets created: one per band, less
+   the city's and the one keyed `mkt26`, which waits for site 29's place. No
+   class-conflict warning appears (`ax3.mkt6` declares its grid class a
+   misprint); the unmapped warning lists the goods with no ACKS II match. The book's city actor gains `system.market` and is not
    duplicated. **This city branch has not been walked live**: the test
    world's city actor belongs to another session, so the 9.2.0 walk removed
    `meta.place` from the entry in memory
@@ -390,6 +391,51 @@ compendium equivalents, and `api.track` each one.
    one grid-only market's base demand, re-run.
    *Observable:* that market's base now includes the aliased good, and the
    unmapped list no longer names it.
+
+## AX3's printing errata walk (a world imported before the correction)
+
+`ERRATA.md` `ax3-p223-offset` and `ax3-p222-class`, over the shape an
+11.10.1 world holds. The world's AX3 markets are the library's and carry no
+marker, so the walk drives places of its own and steers the step onto them in
+memory.
+
+**Fixtures** (kept by marker): seven `acks-extras.location` world actors,
+`markets/ax3-erratum-<key>` for `mkt6` and `mkt21`–`mkt26`, each stamped
+`flags.acks-extras.cookbook.id = "ax3.qa-erratum-<key>"`. Build one where its
+marker finds nothing. AX3 open on a GM seat (Assistant GM will do).
+
+1. **Setup, every run:** give each fixture the notes `<p>QA erratum
+   fixture</p>`, and the `system.market` of the shelf original it stands in
+   for (the Judge shelf's `ax3.mkt<n>`; `mkt26` stands in for `ax3.site29`).
+   *Observable:* each shelf original of `mkt21`–`mkt25` holds the figures the
+   page now reads under the key one step earlier (`mkt26` for `mkt21`).
+   Without that, the world was not imported as printed, and the walk proves
+   nothing about migration.
+2. Snapshot `_stats.modifiedTime` of every document answering for
+   `ax3.mkt1`–`ax3.mkt26`, `ax3.site29`, `ax1.fort` and `ax1.mkt1`–`ax1.mkt6`.
+   Steer every key of `ax3.marketGrid1`, `ax3.marketGrid2` and
+   `ax1.marketGrid1` (bands, columns and errata keys) in memory:
+   `cookbookEntry(id).entry.meta.markets[key] = { place }`, the fixture's id
+   for the seven keys under test and an id nothing carries for the rest.
+   Arm a `createActor` observer and run the step.
+   *Observable:* 0 made, 7 updated, every other key waiting, no conflict, and
+   no class-conflict warning.
+3. Read the fixtures back.
+   *Observable:* `mkt21`–`mkt24` and `mkt26` hold the page's figures for their
+   key, sourced to the grid's page, with the row's class. `mkt25` holds no base,
+   no source and no class. `mkt6` keeps its class. Each fixture holds exactly
+   one `ax3.<key>#erratum` block after its own text, and the block's citation
+   carries `data-book="ax3"` and the grid's PDF page.
+4. Run the step again.
+   *Observable:* the fixtures read back identically, the observer saw no
+   create, and no snapshotted document's `modifiedTime` moved.
+5. Open a fixture's sheet and click its erratum citation.
+   *Observable:* AX3's shelf PDF opens at `#page=` the grid's PDF page. In a
+   hidden pane pdf.js has no viewport and reports page 1, so read the iframe's
+   hash there.
+
+**Teardown:** restore each steered `meta` and the notifier, and close the
+sheets. The fixtures stay.
 
 ## Setting-book market profiles walk (AX1: a sideways grid)
 

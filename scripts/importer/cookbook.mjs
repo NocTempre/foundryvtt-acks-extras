@@ -87,7 +87,8 @@ import { MERCHANDISE_TYPE } from "../markets/constants.mjs";
 import { DEMAND_AGE_HEADERS_SETTING } from "../markets/merchandise-keys.mjs";
 import { planMerchandise, bindMerchandiseRow, planDemand, describeUnmapped } from "./merchandise-binding.mjs";
 import {
-  goodsResolver, marketProfiles, marketProfileUpdate, marketActorData, marketEntryId, marketOrdinal, placeName,
+  goodsResolver, heldErratumNotes, marketProfiles, marketProfileUpdate, marketActorData, marketEntryId, marketOrdinal, placeName,
+  unprintedMarketUpdate, withErratumNote,
 } from "./market-profile-binding.mjs";
 import { merchandiseCatalog, primeMerchandiseCatalog } from "../markets/engine/merchandise.mjs";
 import { TRAP_ITEM_TYPE } from "../formation/constants.mjs";
@@ -4235,7 +4236,10 @@ export function regionSiteClaim(bookId, entry, id, entries = {}) {
 export function siteBindPatch(target, { notes = "", parentUuid = "", role = "" } = {}) {
   const sys = target?.system ?? {};
   const patch = {};
-  if (notes && !sys.notes) patch["system.notes"] = notes;
+  // A market step that ran first may have left an erratum note, which is not
+  // the site's text: the site's notes land ahead of it.
+  const errata = heldErratumNotes(sys.notes, claimIds(target?.flags?.[MODULE_ID]?.cookbook));
+  if (notes && !errata.rest.trim()) patch["system.notes"] = `${notes}${errata.blocks.join("")}`;
   if (parentUuid && !sys.parentUuid && parentUuid !== target?.uuid) patch["system.parentUuid"] = parentUuid;
   if (isPlaceRole(role) && !sys.role) patch["system.role"] = role;
   return patch;
@@ -4342,8 +4346,8 @@ async function importRegionRow({ bookId, id, e, region }, tally, run) {
     return void tally.already++;
   }
   // A bound place whose notes are written needs no page: only its parent and
-  // role can still be owed.
-  if (held?.system?.notes) {
+  // role can still be owed. An erratum note alone is not its text.
+  if (held && heldErratumNotes(held.system?.notes, claimIds(held.getFlag?.(MODULE_ID, "cookbook"))).rest.trim()) {
     const patch = siteBindPatch(held, { parentUuid, role });
     if (Object.keys(patch).length) await held.update(patch);
     return void tally.already++;
@@ -4399,9 +4403,13 @@ async function importRegionRow({ bookId, id, e, region }, tally, run) {
  * A class or family count the place already holds is left standing, and a
  * base demand unless an earlier printing wrote it (`baseIsImportable`). Goods
  * that translate to no merchandise, and a record whose class differs from its
- * grid row, are reported. See docs/markets/DECISIONS.md, "A setting book's
- * market profile lands as the base" and "A later printing's demand replaces an
- * earlier one's".
+ * grid row unless the record declares the grid's class a misprint
+ * (`meta.gridClassErratum`), are reported. A market the grid's `meta.errata`
+ * names carries a note citing the page, and one no band holds is cleared of
+ * what this page wrote (`unprintedMarketUpdate`). See docs/markets/DECISIONS.md,
+ * "A setting book's market profile lands as the base", "A later printing's
+ * demand replaces an earlier one's" and "AX3's demand grid is corrected as
+ * printing errata".
  */
 export async function cookbookImportMarketProfiles() {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates actors).`);
@@ -4439,6 +4447,7 @@ export async function cookbookImportMarketProfiles() {
         marketClass: node.fields?.marketClass,
         name: placeName(printedNameOf(node, "")),
         place: e.meta.place ?? null,
+        gridClassErratum: e.meta.gridClassErratum ?? null,
       };
     }
     const label = bookLabel(bookId);
@@ -4454,6 +4463,14 @@ export async function cookbookImportMarketProfiles() {
         }
         const source = { book: bookId, page: e.cite ?? "" };
         const folder = (await ensureFolderPath("Actor", [label, "Places"], lineOf(bookId)))?.id ?? null;
+        // A market the grid's errata names carries a note citing this page,
+        // so the Judge can see what was corrected and open the printing.
+        const errata = e.meta?.errata ?? {};
+        const noteErratum = async (place, entryId, key, erratum) => {
+          const text = game.i18n.format(`${LANG_PREFIX}.markets.${key}`, { id: erratum });
+          const notes = withErratumNote(place.system?.notes ?? "", { entryId, text, cite: e.cite ?? "", book: bookId, page: e.pages?.[0] });
+          if (notes !== null) await place.update({ "system.notes": notes });
+        };
         for (const profile of marketProfiles({ grids: [grid], records: recordOf, resolve })) {
           const record = recordOf[profile.market] ?? null;
           for (const u of profile.unmapped) unmapped.set(u.column, u.header);
@@ -4491,12 +4508,32 @@ export async function cookbookImportMarketProfiles() {
             counts.refused++;
             continue;
           }
-          const { update, wrote } = marketProfileUpdate(place.system?.market ?? null, profile, source);
+          const corrected = errata[profile.market] ?? null;
+          const { update, wrote } = marketProfileUpdate(place.system?.market ?? null, profile, source, { corrected: !!corrected });
           if (Object.keys(update).length) await place.update(update);
+          if (corrected) await noteErratum(place, entryId, "erratumMoved", corrected);
+          else if (record?.gridClassErratum) await noteErratum(place, entryId, "erratumClass", record.gridClassErratum);
           if (fresh) counts.made++;
           else if (paired) counts.paired++;
           else if (wrote.marketClass || wrote.families || wrote.demand) counts.updated++;
           else counts.kept++;
+        }
+        // A corrected market no band holds: the page prints its name and no
+        // figures of its own, so what an earlier import wrote from it goes.
+        // Its place is found as a banded market's is, and never made.
+        const banded = new Set((grid.rows ?? []).map((row) => row?.key));
+        for (const [market, erratum] of Object.entries(errata)) {
+          if (banded.has(market)) continue;
+          const entryId = marketEntryId(bookId, market);
+          const at = e.meta?.markets?.[market]?.place ?? recordOf[market]?.place ?? null;
+          const place = await importedActor(at === "adventure" ? oseAdventureId(bookId) : at ?? entryId, { copies: false });
+          if (!place) continue;
+          const update = unprintedMarketUpdate(place.system?.market ?? null, source);
+          if (Object.keys(update).length) {
+            await place.update(update);
+            counts.updated++;
+          }
+          await noteErratum(place, entryId, "erratumUnprinted", erratum);
         }
       }
     } finally {

@@ -1,7 +1,7 @@
 /**
  * Register rules over an adventure's rows that a suite can feed invented rows:
  * key spaces and parents, the pairing of a place two books print, the places
- * a market grid's columns name, revisions,
+ * a market grid's columns name, the printing errors its rows declare, revisions,
  * the kinds labelled by ordinal, the shape of a scene link, and a book's one
  * region map. `lint-register.mjs` reports what they return. Each returns a
  * list of problems, every one opening with the row's id, and never throws.
@@ -183,10 +183,10 @@ export function marketColumnProblems(rows) {
       out.push(`${id}: meta.markets maps a column key to what it names`);
       continue;
     }
-    const cols = new Set(Object.values(r.assists?.grids ?? {}).flatMap((g) => (g?.cols ?? []).map((c) => c.key)));
+    const cols = marketKeysOf(r);
     for (const [col, named] of Object.entries(meta.markets)) {
       const at = `${id}: meta.markets.${col}`;
-      if (!cols.has(col)) out.push(`${at} is no column of the grid`);
+      if (!cols.has(col)) out.push(`${at} is no market of the grid`);
       const keys = Object.keys(named ?? {});
       if (keys.length !== 1 || !["sameAs", "place"].includes(keys[0])) {
         out.push(`${at} names exactly one of sameAs or place`);
@@ -228,6 +228,62 @@ export function marketColumnProblems(rows) {
   }
   return out;
 }
+
+/** A market grid's market keys: its columns where it is transposed, else its row bands. */
+const marketKeysOf = (r) =>
+  new Set(Object.values(r.assists?.grids ?? {}).flatMap((g) => (g?.transpose ? g?.cols : g?.rowBands) ?? []).map((b) => b.key));
+
+/**
+ * The printing errors a book's market rows declare, each by an id `ERRATA.md`
+ * holds. A grid's `meta.errata` names the markets whose figures the module
+ * reads from a band other than the one printed beside the name: a market of
+ * the grid, or one a row of the book claims (`meta.market`) whose figures no
+ * band of any of its grids holds. A record's `meta.gridClassErratum` says the
+ * grid's class for its row is the misprint, so the two are not a conflict.
+ * @param {Map<string, object>} rows every register row, by id
+ * @param {Set<string>} errataIds the ids `ERRATA.md` defines
+ */
+export function erratumProblems(rows, errataIds) {
+  const out = [];
+  const known = (id, at) => {
+    if (typeof id !== "string" || !errataIds.has(id)) out.push(`${at} names ${JSON.stringify(id)}, which ERRATA.md does not define`);
+  };
+  const banded = new Map(); // book -> every market key a grid of it bands
+  const claimed = new Map(); // book -> every market key a row of it claims
+  for (const r of rows.values()) {
+    if (r.kind === "kind.marketGrid") for (const k of marketKeysOf(r)) (banded.get(r.book) ?? banded.set(r.book, new Set()).get(r.book)).add(k);
+    if (typeof r.meta?.market === "string") (claimed.get(r.book) ?? claimed.set(r.book, new Set()).get(r.book)).add(r.meta.market);
+  }
+  for (const r of rows.values()) {
+    const { id, meta = {} } = r;
+    if (meta.errata !== undefined) {
+      if (r.kind !== "kind.marketGrid") out.push(`${id}: meta.errata names a market grid's corrected markets; it belongs on a market grid row only`);
+      else if (!meta.errata || typeof meta.errata !== "object" || Array.isArray(meta.errata)) out.push(`${id}: meta.errata maps a market key to an erratum id`);
+      else {
+        const own = marketKeysOf(r);
+        for (const [market, erratum] of Object.entries(meta.errata)) {
+          const at = `${id}: meta.errata.${market}`;
+          known(erratum, at);
+          if (own.has(market)) continue;
+          if (banded.get(r.book)?.has(market)) out.push(`${at} is a market another grid of ${r.book} bands`);
+          else if (!claimed.get(r.book)?.has(market)) out.push(`${at} is no market of the grid, and no row of ${r.book} claims it`);
+        }
+      }
+    }
+    if (meta.gridClassErratum !== undefined) {
+      if (r.kind !== "kind.marketRecord") out.push(`${id}: meta.gridClassErratum belongs on a market record only`);
+      else known(meta.gridClassErratum, `${id}: meta.gridClassErratum`);
+    }
+  }
+  return out;
+}
+
+/**
+ * The erratum ids an `ERRATA.md` defines: each entry opens with a level-two
+ * heading that is its id alone, so its anchor is the id.
+ */
+export const errataIdsOf = (markdown) =>
+  new Set([...String(markdown ?? "").matchAll(/^##[ \t]+([a-z0-9]+(?:-[a-z0-9]+)*)[ \t]*$/gm)].map((m) => m[1]));
 
 /**
  * Meta keys one row decides alone. `meta.revisedBy` sends a row's import to a

@@ -16,6 +16,7 @@
 import { MODULE_ID } from "./constants.mjs";
 import { LOCATION_TYPE } from "../location/constants.mjs";
 import { laterBook } from "./books.mjs";
+import { bookText, bookTextBlock } from "./prose.mjs";
 
 /**
  * The module's ACKS I → ACKS II goods translation, by the register's column
@@ -119,7 +120,8 @@ export function goodsResolver(catalog = []) {
  * One profile per market row across a book's grids.
  * @param {object} args
  * @param {Array<{rows: Array<{key: string, cells: object}>, header?: object}>} args.grids executed grid outputs
- * @param {Record<string, {families?: string, marketClass?: string}>} [args.records] domain-record reads by market key
+ * @param {Record<string, {families?: string, marketClass?: string, gridClassErratum?: string|null}>} [args.records]
+ *   domain-record reads by market key; `gridClassErratum` says the grid's class for that row is a misprint
  * @param {(column: string, header?: string) => string|null} args.resolve see `goodsResolver`
  * @returns {Array<{market: string, marketClass: number|null, gridClass: number|null, recordClass: number|null,
  *   families: number|null, demand: Array<{category: string, modifier: number}>,
@@ -171,7 +173,7 @@ export function marketProfiles({ grids = [], records = {}, resolve }) {
         demand,
         unmapped,
         duplicates,
-        classConflict: gridClass !== null && recordClass !== null && gridClass !== recordClass,
+        classConflict: gridClass !== null && recordClass !== null && gridClass !== recordClass && !record?.gridClassErratum,
       });
     }
   }
@@ -202,21 +204,28 @@ export function baseIsImportable(goods, source) {
   if (!(goods?.demand ?? []).length) return true;
   const held = goods?.dmProfile?.source;
   if (!held) return false;
-  if (held.book === source.book && held.page === source.page) return true;
+  if (sameSource(held, source)) return true;
   return laterBook(held.book, source.book) === source.book;
 }
+
+const sameSource = (held, source) => !!held && held.book === source.book && held.page === source.page;
 
 /**
  * The update that lands a profile on a place. Class and families are written
  * only where the place holds none; the base demand only where
- * `baseIsImportable`. A place with no market yet gains the whole subtree.
+ * `baseIsImportable`. A place with no market yet gains the whole subtree. A
+ * `corrected` market (one a grid's errata names) whose base this same page
+ * stocked takes the class with the base: an earlier import wrote both from the
+ * band the erratum moves it off.
  * @param {object|null} market the place's current `system.market`
  * @param {object} profile one `marketProfiles` row
  * @param {{book: string, page: string}} source
+ * @param {{corrected?: boolean}} [options]
  * @returns {{update: object, wrote: {marketClass: boolean, families: boolean, demand: boolean}}}
  */
-export function marketProfileUpdate(market, profile, source) {
-  const writeClass = profile.marketClass !== null && !market?.marketClassOverride;
+export function marketProfileUpdate(market, profile, source, { corrected = false } = {}) {
+  const restocked = corrected && sameSource(market?.goods?.dmProfile?.source, source);
+  const writeClass = profile.marketClass !== null && (!market?.marketClassOverride || restocked);
   const writeFamilies = profile.families !== null && (market?.urbanFamilies ?? null) === null;
   const writeDemand = profile.demand.length > 0 && baseIsImportable(market?.goods, source);
   const wrote = { marketClass: writeClass, families: writeFamilies, demand: writeDemand };
@@ -240,6 +249,53 @@ export function marketProfileUpdate(market, profile, source) {
     update["system.market.goods.dmProfile.source"] = source;
   }
   return { update, wrote };
+}
+
+/**
+ * The update for a market a grid's errata names but no band of the book
+ * holds: an earlier import stocked it from the band the erratum moves off, so
+ * a base and class that page wrote are cleared. A base from anywhere else, or
+ * one the Judge set, stays, and so does the class beside it. Empty when
+ * nothing is owed.
+ * @param {object|null} market the place's current `system.market`
+ * @param {{book: string, page: string}} source the grid that declares the erratum
+ */
+export function unprintedMarketUpdate(market, source) {
+  if (!sameSource(market?.goods?.dmProfile?.source, source)) return {};
+  return {
+    "system.market.goods.demand": [],
+    "system.market.goods.dmProfile.source": null,
+    "system.market.marketClassOverride": null,
+  };
+}
+
+/** The stamp of the note a corrected market's place carries: its id's erratum section. */
+export const erratumStamp = (entryId) => `${entryId}#erratum`;
+
+/**
+ * A place's notes with the erratum note appended: one sentence and the
+ * citation that opens the page the correction is read off, stamped so a second
+ * run finds it. `null` when the notes already hold it.
+ * @param {string} notes the place's current notes
+ * @param {{entryId: string, text: string, cite: string, book: string, page: number}} note
+ */
+export function withErratumNote(notes, { entryId, text, cite, book, page }) {
+  const id = erratumStamp(entryId);
+  if (bookTextBlock(notes, id)) return null;
+  return `${notes ?? ""}${bookText([text], cite, { id, book, page })}`;
+}
+
+/**
+ * The erratum notes a place holds under any of its ids, and its notes without
+ * them: a place whose notes are nothing else holds no text of its own.
+ * @param {string} notes
+ * @param {string[]} ids every id the place answers for
+ * @returns {{blocks: string[], rest: string}}
+ */
+export function heldErratumNotes(notes, ids) {
+  const blocks = ids.map((id) => bookTextBlock(notes, erratumStamp(id))).filter(Boolean);
+  const rest = blocks.reduce((text, block) => text.replace(block, ""), String(notes ?? ""));
+  return { blocks, rest };
 }
 
 /**

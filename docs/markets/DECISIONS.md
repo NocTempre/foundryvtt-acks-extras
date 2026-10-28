@@ -863,8 +863,82 @@ market class.
   5 matches row 21 on all 31. AX3's row keyed `mkt21` holds another market's
   figures, so until AX3's grid keys are corrected its market step writes them
   onto `ax3.mkt21`, and they replace column 1's base in every order. AX1's
-  minor holds for that fix (docs/importer/ROADMAP.md).
+  minor holds for that fix (docs/importer/ROADMAP.md). *Superseded the same
+  day by "AX3's demand grid is corrected as printing errata": the keys are
+  corrected, and `ax3.mkt21` holds column 1's figures.*
 - AX2 to AX6 share a year, so between them nothing replaces; the user's order
   among them waits on a tie-break `laterBook` does not have.
 - A transposed grid's unmapped and duplicate reports name a good by its key,
   not by its printed label.
+
+## 2026-10-28 — AX3's demand grid is corrected as printing errata
+
+AX3 p.223 prints its last five demand rows with names and figures one row out
+of step, and AX3 p.222 prints one class cell that disagrees with the domain
+record beside it. `ERRATA.md` records both (`ax3-p223-offset`,
+`ax3-p222-class`), with the evidence for each.
+
+**Ruled.**
+- **A grid band is keyed to the market whose figures it holds,** which is the
+  name printed beside it except where a page prints the two out of step. A
+  re-keyed band is declared: the grid's `meta.errata` names every market the
+  correction touches, each with its `ERRATA.md` id. AX3's rows 22–25 read onto
+  markets 21–24 (sites 34, 36, 42, 43). Row 21 reads as `mkt26`, which
+  `meta.markets` lands on site 29's place, and `mkt25` (site 44) has no band.
+- **A corrected market carries a note** (`withErratumNote`). The note is one
+  sentence naming the erratum, stamped `<market id>#erratum`, with a citation
+  that opens the grid's page. The places step keeps the note when it writes a
+  site's text onto a place whose notes hold nothing else
+  (`heldErratumNotes`).
+- **A corrected market's class goes with its base.** Where this page stocked
+  the base, the class is rewritten with it (`marketProfileUpdate`,
+  `corrected`), since an earlier import wrote both off the wrong band. A
+  market the errata name and no band holds loses the base and class this page
+  wrote (`unprintedMarketUpdate`). A base from another source, or one the
+  Judge set, stays.
+- **A record may declare its grid row's class a misprint**
+  (`meta.gridClassErratum`). The import keeps the record's class, as for any
+  disagreement, and writes the note instead of the warning. `ax3.mkt6`
+  declares `ax3-p222-class`.
+- **The register lint holds both declarations to `ERRATA.md`**
+  (`erratumProblems`). It refuses an id the file does not define, an errata
+  key that is no market of the grid and that no row claims, and a flag on the
+  wrong kind. `check-market-classes` (local PDFs) fails on a record whose
+  class differs from its row's without a declaration, and on a declaration
+  where the two agree.
+
+*New evidence,* superseding part of the entry above in the same day:
+- Every site's `meta.market` matches the rotated name of its row (25 of 25),
+  and every record's anchor hash matches the name in its row (7 of 7). The
+  keys followed the printed names correctly; the names are what is out of
+  step.
+- AX1 matches three of the shifted rows 31 of 31, against a median of 8 for
+  rows that hold different markets.
+- AX3's own record for site 34, and its urban families, put it at row 22.
+- The user ruled on 2026-10-28 to correct the whole shift and waive `ax3.mkt6`.
+
+*Rejected:*
+- Reading the page as printed, with a warning. In every order of the AX1/AX3
+  pair, site 29's figures would land on site 34's market and replace AX1's
+  column 1 base.
+- Correcting only the steps a second printing attests (rows 21–23). That
+  would leave rows 24 and 25 holding a neighbour's figures by the same
+  pattern, and the user ruled the whole shift.
+- A ledger beside the gate (`tools/importer/market-classes.json`). The waiver
+  belongs on the record the importer reads, so the import and the gate honour
+  one flag.
+
+*Cost:*
+- Rows 24 and 25, and site 44 having no figures, are inferred from the pattern;
+  no second printing checks them.
+- `ax3.mkt21`'s anchor hash matches the name printed beside the band now keyed
+  `mkt22`. That is by design, since the printed name is the misprint.
+- AX1's column 3 now meets `ax3.mkt22`'s figures, and its column 5 meets site
+  29's. Whether they pair is for AX1's register (docs/importer/ROADMAP.md).
+- On a world imported before the correction, a corrected market whose base
+  came from another source, or from the Judge, keeps the class it held.
+- The unprinted clear and its note reach only a market whose place exists.
+  Import Everything builds places first. A markets-first run notes site 44's
+  market on its next market step.
+- A note is written once and never refreshed. Its stamp finds the held block,
+  so a reworded string reaches only places that do not yet hold one.

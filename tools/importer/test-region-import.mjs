@@ -29,6 +29,7 @@ import {
   initCookbook, loadCookbook, cookbookImportPoiPlaces, cookbookImportScenes, cookbookImportJournals, cookbookImportMarketProfiles, gridScenePlan,
   mapCreateData, regionSiteClaim, siteBindPatch, forgetImportedIndex, repairHeldMap,
 } from "../../scripts/importer/cookbook.mjs";
+import { withErratumNote } from "../../scripts/importer/market-profile-binding.mjs";
 
 let failed = 0;
 const check = (name, got, want) => {
@@ -629,6 +630,13 @@ ok("the invented cookbooks load", await loadCookbook());
     siteBindPatch({ uuid: "Actor.a", system: { notes: "kept", parentUuid: "", role: "" } }, { notes: "new", parentUuid: "Actor.r", role: "nope" }),
     { "system.parentUuid": "Actor.r" });
   check("a place is never made its own parent", siteBindPatch({ uuid: "Actor.a", system: {} }, { parentUuid: "Actor.a" }), {});
+  // A market step that ran before the region rows left only its erratum note.
+  const erratum = withErratumNote("", { entryId: "zz.mkt3", text: "Corrected.", cite: "ZZ p.9", book: "zz", page: 11 });
+  const marketFirst = { uuid: "Actor.m", system: { notes: erratum }, flags: { [MODULE_ID]: { cookbook: { id: "zz.mkt3" } } } };
+  check("a site's notes land ahead of an erratum note that is all the place holds",
+    siteBindPatch(marketFirst, { notes: "<p>site</p>" }), { "system.notes": `<p>site</p>${erratum}` });
+  check("an erratum note beside the Judge's text keeps both untouched",
+    siteBindPatch({ ...marketFirst, system: { notes: `<p>judge</p>${erratum}` } }, { notes: "<p>site</p>" }), {});
 }
 
 // --- the grid plan, on an unsaved scene ------------------------------------------------------
@@ -1158,6 +1166,103 @@ const map = game.scenes.find((s) => s.getFlag(MODULE_ID, "cookbook")?.id === "zz
   check("the Judge's name stands", named.name, "Judged");
   sessions.delete("ax1");
   sessions.delete("ax3");
+}
+
+// --- a grid's printing errata: each band read under the market whose figures it holds ----------
+{
+  // One page before and after its correction. The page prints the second
+  // market's name over the first market's figures; corrected, the band reads
+  // under the first market and the second is left with nothing from the page.
+  const rawCol = (key, x0) => ({ key, x0, x1: x0 + 90, pattern: "raw" });
+  const gridOf = (key, meta) => ({
+    kind: "kind.marketGrid", name: "Grid", cite: "R 1", pages: [1], ...(meta ? { meta } : {}),
+    fields: {
+      "grids.markets": {
+        op: "grid", page: 1, box: { x0: 0, x1: 400, y0: 200, y1: 220 }, rowBands: [{ key, y0: 205, y1: 215 }],
+        cols: [rawCol("salt", 100), rawCol("spices", 200), rawCol("marketClass", 300)],
+      },
+    },
+  });
+  const record = (market) => ({ kind: "kind.marketRecord", name: "Record", cite: "R 2", pages: [1], meta: { market }, fields: {} });
+  const bookOf = (grid) => ({
+    schema: SCHEMA, book: { id: "er" },
+    entries: {
+      "er.region": loc("Region — Overview"),
+      "er.site1": { ...loc("Region — Sites", { market: "mkt1" }), name: "First Site" },
+      "er.site2": { ...loc("Region — Sites", { market: "mkt2" }), name: "Second Site" },
+      "er.mkt1": record("mkt1"),
+      "er.mkt2": record("mkt2"),
+      "er.grid1": grid,
+    },
+  });
+  const printed = bookOf(gridOf("mkt2"));
+  const corrected = bookOf(gridOf("mkt1", { errata: { mkt1: "er-1", mkt2: "er-1" } }));
+  // An unregistered book files its places on the library shelf.
+  const shelf = game.packs.get(ACTOR_PACK);
+  const flagOf = (d) => d?.flags?.[MODULE_ID]?.cookbook ?? {};
+  const shelved = (cbId) => shelf.docs.find((d) => flagOf(d).id === cbId);
+  const shape = (d) => ({
+    blocks: [...String(d?.system.notes ?? "").matchAll(/data-acks-entry="([^"]+)"/g)].map((m) => m[1]),
+    marketClass: d?.system.market?.marketClassOverride ?? null, demand: d?.system.market?.goods?.demand ?? [], from: d?.system.market?.goods?.dmProfile?.source?.book ?? null,
+  });
+  const load = async (cb) => {
+    BOOK_FILES.er = cb;
+    await loadCookbook();
+    sessions.set("er", { doc: textPdf([["+3", 110, 210], ["-2", 210, 210], ["III", 310, 210]]) });
+  };
+  const figures = { marketClass: 3, demand: [{ category: "salt", modifier: 3 }, { category: "spices", modifier: -2 }], from: "er" };
+  const none = { marketClass: null, demand: [], from: null };
+
+  // A world that imported the page as printed.
+  await load(printed);
+  await cookbookImportPoiPlaces({ books: ["er"] });
+  await cookbookImportMarketProfiles();
+  check("as printed, the figures land under the name the page prints over them",
+    [shape(shelved("er.mkt1")), shape(shelved("er.mkt2"))], [{ blocks: ["er.site1"], ...none }, { blocks: ["er.site2"], ...figures }]);
+
+  // The corrected grid run over that world.
+  await load(corrected);
+  const run = await cookbookImportMarketProfiles();
+  check("corrected, the figures move to their market and the unprinted one is cleared of them",
+    [shape(shelved("er.mkt1")), shape(shelved("er.mkt2"))],
+    [{ blocks: ["er.site1", "er.mkt1#erratum"], ...figures }, { blocks: ["er.site2", "er.mkt2#erratum"], ...none }]);
+  check("both count as updated, and nothing conflicts", [run.updated, run.made, run.conflicts], [2, 0, []]);
+  const note = /<div[^>]*data-acks-entry="er\.mkt2#erratum"[\s\S]*?<\/div>/.exec(shelved("er.mkt2")?.system.notes ?? "")?.[0] ?? "";
+  ok("the note links the page the correction is read off", /data-book="er"/.test(note) && /data-page="1"/.test(note));
+  await cookbookImportMarketProfiles();
+  await cookbookImportPoiPlaces({ books: ["er"] });
+  check("run again, nothing is written twice", [shape(shelved("er.mkt1")), shape(shelved("er.mkt2"))],
+    [{ blocks: ["er.site1", "er.mkt1#erratum"], ...figures }, { blocks: ["er.site2", "er.mkt2#erratum"], ...none }]);
+
+  // A fresh world that runs the corrected markets before its places: the
+  // site's text lands ahead of the note the market step left.
+  for (const d of shelf.docs.filter((x) => flagOf(x).book === "er")) shelf.docs.delete(d.id);
+  forgetImportedIndex();
+  await cookbookImportMarketProfiles();
+  await cookbookImportPoiPlaces({ books: ["er"] });
+  check("markets first, the site's text joins the note", shape(shelved("er.mkt1")), { blocks: ["er.site1", "er.mkt1#erratum"], ...figures });
+
+  // A market a column places on a row of its own is cleared on that place.
+  const placed = (cb) => {
+    cb.entries["er.own"] = loc("Space");
+    cb.entries["er.own-1"] = loc("Space", { space: "er.own" });
+    cb.entries["er.grid1"].meta = { ...cb.entries["er.grid1"].meta, markets: { mkt2: { place: "er.own" } } };
+    return cb;
+  };
+  for (const d of shelf.docs.filter((x) => flagOf(x).book === "er")) shelf.docs.delete(d.id);
+  forgetImportedIndex();
+  await load(placed(bookOf(gridOf("mkt2"))));
+  await cookbookImportPoiPlaces({ books: ["er"] });
+  await cookbookImportMarketProfiles();
+  const own = shelved("er.own");
+  check("as printed, the placed column's figures land on its place", shape(own).demand, figures.demand);
+  await load(placed(bookOf(gridOf("mkt1", { errata: { mkt1: "er-1", mkt2: "er-1" } }))));
+  await cookbookImportMarketProfiles();
+  check("corrected, that place is cleared and noted, and the market's own id is not made",
+    [shape(own).demand, shape(own).from, shape(own).blocks.includes("er.mkt2#erratum"), !!shelved("er.mkt2")?.system.market?.goods?.demand?.length],
+    [[], null, true, false]);
+  sessions.delete("er");
+  delete BOOK_FILES.er;
 }
 
 // --- shapes the Foundry half depends on -------------------------------------------------------

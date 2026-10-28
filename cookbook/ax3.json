@@ -3997,7 +3997,8 @@
         31
       ],
       "meta": {
-        "market": "mkt6"
+        "market": "mkt6",
+        "gridClassErratum": "ax3-p222-class"
       },
       "fields": {
         "name": {
@@ -25771,6 +25772,21 @@
       "pages": [
         225
       ],
+      "meta": {
+        "markets": {
+          "mkt26": {
+            "place": "ax3.site29"
+          }
+        },
+        "errata": {
+          "mkt21": "ax3-p223-offset",
+          "mkt22": "ax3-p223-offset",
+          "mkt23": "ax3-p223-offset",
+          "mkt24": "ax3-p223-offset",
+          "mkt25": "ax3-p223-offset",
+          "mkt26": "ax3-p223-offset"
+        }
+      },
       "fields": {
         "name": {
           "op": "expect",
@@ -26027,27 +26043,27 @@
               "y1": 490
             },
             {
-              "key": "mkt21",
+              "key": "mkt26",
               "y0": 517,
               "y1": 537
             },
             {
-              "key": "mkt22",
+              "key": "mkt21",
               "y0": 564,
               "y1": 584
             },
             {
-              "key": "mkt23",
+              "key": "mkt22",
               "y0": 613,
               "y1": 633
             },
             {
-              "key": "mkt24",
+              "key": "mkt23",
               "y0": 661,
               "y1": 681
             },
             {
-              "key": "mkt25",
+              "key": "mkt24",
               "y0": 709,
               "y1": 729
             }

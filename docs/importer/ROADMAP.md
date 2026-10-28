@@ -1137,13 +1137,13 @@ seven classes:
 
 ## Owed before AX1's minor ships
 
-- **AX3's grid row keyed `mkt21` holds another market's figures.** AX1 p.27's
-  first column, which names AX3's market 21 by its header, matches AX3's grid
-  row 22 on all 31 cells and row 21 on 15; AX1's fifth column matches row 21
-  on all 31. AX3's market step writes row 21's figures onto `ax3.mkt21`, and
-  since a later printing's base replaces an earlier one's, they replace AX1's
-  in every order. The audit reads every AX3 grid key against the record it
-  names, and the fix lands in the same minor (markets DECISIONS 2026-10-28).
+- **AX1 p.27's columns 3 and 5 against AX3's corrected grid.** AX3's grid
+  is now read past its printing error (`ERRATA.md`, `ax3-p223-offset`). Under
+  it, AX1's column 3 carries `ax3.mkt22`'s figures and column 5 carries site
+  29's place's. Each column's header names that same market. Whether they
+  pair through `meta.markets` (`sameAs`, `place`) is for AX1's register
+  (markets DECISIONS 2026-10-28, "AX3's demand grid is corrected as printing
+  errata").
 
 ## Left out of AX1's minor (ruled 2026-10-17)
 

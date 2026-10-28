@@ -33,6 +33,9 @@
  *   check-encounter-grids  Do the encounter grids read whole off the book —
  *                       every cell one name, every band tiling its die? Needs
  *                       the PDFs and skips without them, like the drift check.
+ *   check-market-classes  Does each domain record read the class of the grid
+ *                       row it names, or declare the misprint it reads past?
+ *                       Needs the PDFs and skips without them.
  *
  * Cheapest and most universal first: a register that fails its lint should say
  * so in a second, not after a 40s recompile.
@@ -179,7 +182,7 @@ if (failed) {
 // the others read, so they run side by side, each to its end.
 const importerTool = ([tool, ...args]) => [path.join(ROOT, "tools", "importer", tool), ...args];
 execFileSync(process.execPath, importerTool(["lint-register.mjs"]), { stdio: "inherit" });
-const checks = await sideBySide([["icon-ledger.mjs", "--check"], ["test-ose-statline.mjs"], ["test-ose-convert.mjs"], ["test-ose-blocks.mjs"], ["test-ose-binding.mjs"], ["test-ose-template.mjs"], ["test-ose-location.mjs"], ["test-ose-manual.mjs"], ["test-ose-lang.mjs"], ["audit-transcription.mjs"], ["check-prose-boxes.mjs"], ["check-prose-stops.mjs"], ["check-cookbook-drift.mjs"], ["check-encounter-grids.mjs"]].map(importerTool));
+const checks = await sideBySide([["icon-ledger.mjs", "--check"], ["test-ose-statline.mjs"], ["test-ose-convert.mjs"], ["test-ose-blocks.mjs"], ["test-ose-binding.mjs"], ["test-ose-template.mjs"], ["test-ose-location.mjs"], ["test-ose-manual.mjs"], ["test-ose-lang.mjs"], ["audit-transcription.mjs"], ["check-prose-boxes.mjs"], ["check-prose-stops.mjs"], ["check-cookbook-drift.mjs"], ["check-encounter-grids.mjs"], ["check-market-classes.mjs"]].map(importerTool));
 if (checks.some((check) => check.status !== 0)) {
   console.error(`validate-extra: FAILED — ${checks.filter((check) => check.status !== 0).map((check) => path.basename(check.args[0])).join(", ")}`);
   process.exit(1);

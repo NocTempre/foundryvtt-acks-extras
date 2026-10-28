@@ -82,7 +82,8 @@
       31
     ],
     "meta": {
-      "market": "mkt6"
+      "market": "mkt6",
+      "gridClassErratum": "ax3-p222-class"
     },
     "assists": {
       "nameBox": {

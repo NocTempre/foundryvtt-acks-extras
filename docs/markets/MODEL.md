@@ -509,9 +509,14 @@ equalisation are ROADMAP (P3).
 
 A gazetteer that prints a regional demand grid (AX3 p.222–223) and domain
 records (AX3 p.27–33) imports through two register kinds:
-`kind.marketGrid` (one grid page; each market keyed `mkt<n>` by position,
-never by name) and `kind.marketRecord` (one domain record; the heading proved
-by its `printKey` hash, plus the families and class cells). A grid printed
+`kind.marketGrid` (one grid page; each band keyed `mkt<n>` for the market
+whose figures it holds, never by reading the name) and `kind.marketRecord`
+(one domain record; the heading proved by its `printKey` hash, plus the
+families and class cells). A page that prints names and figures out of step
+is re-keyed and declared: the grid's `meta.errata` names each market the
+correction touches, and a record's `meta.gridClassErratum` declares its grid
+row's class cell a misprint. Each names an id in the repo's `ERRATA.md`, which
+the register lint holds them to. A grid printed
 sideways (AX1 p.27: goods down the side, markets across) is the same kind with
 `transpose`, its goods keyed by authored band keys, AX3's column keys, and its
 header read per market column.
@@ -522,12 +527,21 @@ executes both and hands the reads to `market-profile-binding.mjs`:
   catalogue row whose `aliases` name the column key or its printed header
   first, then `ACKS1_GOODS`. A column that resolves nowhere is reported.
 - `marketProfiles` builds, per market, the class (record over grid, a
-  mismatch flagged; none where the page prints none), the families and the
-  base demand rows.
+  mismatch flagged unless the record declares `gridClassErratum`; none where
+  the page prints none), the families and the base demand rows.
 - `marketProfileUpdate` writes class and families only where the place holds
   none, and the base where `baseIsImportable` allows: the base is empty, or
   its `dmProfile.source` is the same page, or a book `laterBook` ranks earlier
   than the importing one. A base the Judge set carries no source and stays.
+  A market the errata name takes the class with a base from the same page.
+- `unprintedMarketUpdate` clears the base and class the same page wrote onto
+  a market the errata name and no band holds. Its place is found as a banded
+  market's is (`meta.markets`, the record's `place`, else its own id), and
+  never made.
+- `withErratumNote` appends to a corrected market's place one note, stamped
+  `<market id>#erratum`, citing the grid's page with a link that opens it.
+  `heldErratumNotes` lets the places step count a place whose notes hold only
+  such notes as empty.
 
 A market is claimed as `<book>.mkt<n>`, or, for a record whose `meta.place`
 is `"adventure"`, as the book's city actor. A grid's `meta.markets` may say

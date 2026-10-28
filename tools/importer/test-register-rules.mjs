@@ -1,7 +1,8 @@
 /** The register rules between an adventure's rows, fed invented rows. No PDFs, no Foundry. */
 import assert from "node:assert";
 import {
-  KEY_NUMBER, bareKey, marketColumnProblems, ordinalProblems, pairProblems, regionMapProblems, rowMetaProblems, sceneLinkProblems, siteProblems, spaceKeyed, spaceProblems,
+  KEY_NUMBER, bareKey, erratumProblems, errataIdsOf, marketColumnProblems, ordinalProblems, pairProblems, regionMapProblems, rowMetaProblems, sceneLinkProblems,
+  siteProblems, spaceKeyed, spaceProblems,
 } from "./register-rules.mjs";
 
 let pass = 0;
@@ -87,13 +88,18 @@ flags("two rows of one book on one place", pairProblems(rowsOf(later, earlier({ 
 const record = (id, meta = {}) => ({ id, book: id.split(".")[0], kind: "kind.marketRecord", meta: { market: id.split(".")[1], ...meta } });
 const demandGrid = (markets, id = "ax1.marketGrid1") => ({
   id, book: id.split(".")[0], kind: "kind.marketGrid", meta: { markets },
-  assists: { grids: { markets: { cols: [{ key: "mkt1" }, { key: "mkt2" }, { key: "mkt3" }] } } },
+  assists: { grids: { markets: { transpose: true, cols: [{ key: "mkt1" }, { key: "mkt2" }, { key: "mkt3" }] } } },
+});
+// A grid printed the other way round: its markets are its row bands, its columns goods.
+const bandGrid = (meta, id = "ax3.marketGrid2") => ({
+  id, book: id.split(".")[0], kind: "kind.marketGrid", meta,
+  assists: { grids: { markets: { rowBands: [{ key: "mkt1" }, { key: "mkt2" }], cols: [{ key: "salt" }, { key: "marketClass" }] } } },
 });
 const ownPlace = loc("ax1.home");
 const columns = (...rows) => marketColumnProblems(rowsOf(...rows));
 none("a column paired with a later market, one on a place of its book, one on its settlement",
   columns(record("ax3.mkt9"), ownPlace, demandGrid({ mkt1: { sameAs: "ax3.mkt9" }, mkt2: { place: "ax1.home" }, mkt3: { place: "adventure" } })));
-flags("a column the grid does not print", columns(ownPlace, demandGrid({ mkt7: { place: "ax1.home" } })), /no column of the grid/);
+flags("a market the grid does not print", columns(ownPlace, demandGrid({ mkt7: { place: "ax1.home" } })), /no market of the grid/);
 flags("a column naming both", columns(record("ax3.mkt9"), ownPlace, demandGrid({ mkt1: { sameAs: "ax3.mkt9", place: "ax1.home" } })), /exactly one of sameAs or place/);
 flags("a column naming neither", columns(demandGrid({ mkt1: {} })), /exactly one of sameAs or place/);
 flags("meta.markets on a place", columns({ ...ownPlace, meta: { markets: {} } }), /market grid row only/);
@@ -108,6 +114,25 @@ flags("a column and a place of one book on one market", columns(record("ax3.mkt9
 flags("a place of another book", columns(loc("ax3.home"), demandGrid({ mkt1: { place: "ax3.home" } })), /a row of ax1/);
 flags("a place no row defines", columns(demandGrid({ mkt1: { place: "ax1.nowhere" } })), /no row defines/);
 flags("a place that builds none", columns(loc("ax1.home", { meta: { market: "mkt2" } }), demandGrid({ mkt1: { place: "ax1.home" } })), /builds none/);
+none("a row band of a grid printed the other way round lands on a place", columns(loc("ax3.home"), bandGrid({ markets: { mkt2: { place: "ax3.home" } } })));
+flags("a goods column of that grid is no market", columns(loc("ax3.home"), bandGrid({ markets: { salt: { place: "ax3.home" } } })), /no market of the grid/);
+
+/* --- the printing errors a market row declares --- */
+
+const ERRATA_IDS = errataIdsOf("# Errata\n\n## bk-p9-offset\n\ntext\n\n### not-an-entry\n");
+const errata = (...rows) => erratumProblems(rowsOf(...rows), ERRATA_IDS);
+none("ERRATA.md defines its level-two headings only", ERRATA_IDS.has("not-an-entry") ? ["defined"] : []);
+none("a corrected market of the grid, and one only a row claims",
+  errata(loc("ax3.home", { meta: { market: "mkt5" } }), bandGrid({ errata: { mkt1: "bk-p9-offset", mkt5: "bk-p9-offset" } })));
+flags("an erratum ERRATA.md does not define", errata(bandGrid({ errata: { mkt1: "bk-p9-nothing" } })), /does not define/);
+flags("a market nobody claims", errata(bandGrid({ errata: { mkt7: "bk-p9-offset" } })), /no row of ax3 claims it/);
+flags("a market another grid bands", errata(bandGrid({ errata: { mkt9: "bk-p9-offset" } }), {
+  ...bandGrid({}, "ax3.marketGrid1"), assists: { grids: { markets: { rowBands: [{ key: "mkt9" }], cols: [] } } },
+}), /another grid of ax3 bands/);
+flags("errata on a place", errata(loc("ax3.home", { meta: { errata: {} } })), /market grid row only/);
+none("a record whose grid class is the misprint", errata(record("ax3.mkt1", { gridClassErratum: "bk-p9-offset" })));
+flags("a grid-class erratum ERRATA.md does not define", errata(record("ax3.mkt1", { gridClassErratum: "bk-p9-class" })), /does not define/);
+flags("a grid-class erratum on a grid", errata(bandGrid({ gridClassErratum: "bk-p9-offset" })), /market record only/);
 
 /* --- one row's own meta: revisions and character binding --- */
 

@@ -13,8 +13,8 @@
 import assert from "node:assert/strict";
 import { MODULE_ID } from "../../scripts/importer/constants.mjs";
 import {
-  ACKS1_GOODS, baseIsImportable, goodsResolver, marketActorData, marketEntryId, marketOrdinal, marketProfileUpdate,
-  marketProfiles, parseDm, parseFamilies, parseMarketClass, placeName,
+  ACKS1_GOODS, baseIsImportable, erratumStamp, goodsResolver, heldErratumNotes, marketActorData, marketEntryId, marketOrdinal,
+  marketProfileUpdate, marketProfiles, parseDm, parseFamilies, parseMarketClass, placeName, unprintedMarketUpdate, withErratumNote,
 } from "../../scripts/importer/market-profile-binding.mjs";
 
 let passed = 0;
@@ -105,6 +105,52 @@ ok("the domain record's class and families outrank the grid, and a disagreement 
   assert.equal(profiles[0].families, 1204);
   assert.equal(profiles[0].classConflict, true);
   assert.equal(profiles[1].classConflict, false);
+});
+
+ok("a record that declares the grid's class a misprint keeps its class with no conflict", () => {
+  const records = { mkt1: { marketClass: "III", gridClassErratum: "bk-p9-class" } };
+  const [p] = marketProfiles({ grids: [GRID], records, resolve: goodsResolver([]) });
+  assert.equal(p.marketClass, 3);
+  assert.equal(p.gridClass, 5);
+  assert.equal(p.classConflict, false);
+});
+
+ok("a corrected market whose base this page stocked takes the class with it; any other keeps its class", () => {
+  const [p] = marketProfiles({ grids: [GRID], resolve: goodsResolver([]) });
+  const stocked = (source) => ({ marketClassOverride: 4, urbanFamilies: null, goods: { demand: [{ category: "salt", modifier: 1 }], dmProfile: { source } } });
+  const plain = marketProfileUpdate(stocked({ ...SOURCE }), p, SOURCE).update;
+  assert.equal("system.market.marketClassOverride" in plain, false);
+  assert.deepEqual(plain["system.market.goods.demand"], p.demand);
+  const fixed = marketProfileUpdate(stocked({ ...SOURCE }), p, SOURCE, { corrected: true }).update;
+  assert.equal(fixed["system.market.marketClassOverride"], 5);
+  const elsewhere = marketProfileUpdate(stocked({ book: "bk", page: "BK p.10" }), p, SOURCE, { corrected: true }).update;
+  assert.deepEqual(elsewhere, {});
+  const judged = marketProfileUpdate(stocked(null), p, SOURCE, { corrected: true }).update;
+  assert.deepEqual(judged, {});
+});
+
+ok("a corrected market no band holds loses only what this page wrote", () => {
+  const market = (source) => ({ marketClassOverride: 4, goods: { demand: [{ category: "salt", modifier: 1 }], dmProfile: { source } } });
+  assert.deepEqual(unprintedMarketUpdate(market({ ...SOURCE }), SOURCE), {
+    "system.market.goods.demand": [], "system.market.goods.dmProfile.source": null, "system.market.marketClassOverride": null,
+  });
+  assert.deepEqual(unprintedMarketUpdate(market({ book: "bk", page: "BK p.10" }), SOURCE), {});
+  assert.deepEqual(unprintedMarketUpdate(market(null), SOURCE), {});
+  assert.deepEqual(unprintedMarketUpdate(null, SOURCE), {});
+});
+
+ok("an erratum note cites the page it corrects, lands once, and follows the notes held", () => {
+  const note = { entryId: "bk.mkt4", text: "Corrected.", cite: "BK p.9", book: "bk", page: 11 };
+  const once = withErratumNote("<p>Judge</p>", note);
+  assert.ok(once.startsWith("<p>Judge</p>"));
+  assert.ok(once.includes(`data-acks-entry="${erratumStamp("bk.mkt4")}"`));
+  assert.ok(once.includes('data-book="bk"') && once.includes('data-page="11"'));
+  assert.equal(withErratumNote(once, note), null);
+  const held = heldErratumNotes(once, ["bk.mkt4"]);
+  assert.equal(held.blocks.length, 1);
+  assert.equal(held.rest, "<p>Judge</p>");
+  assert.equal(heldErratumNotes(withErratumNote("", note), ["bk.mkt4"]).rest, "");
+  assert.deepEqual(heldErratumNotes(once, ["bk.mkt5"]).blocks, []);
 });
 
 ok("a place with no market gains the whole subtree", () => {
