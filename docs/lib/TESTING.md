@@ -5,7 +5,10 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 
 Of this recipe, `tools/live/markets.mjs` drives the party sheet's entry to the
 hit-point tool (`node tools/live/run.mjs markets`; `tools/live/README.md` is
-the contract); the rest is walked by hand.
+the contract), on a party and member it keeps as `markets/company` and
+`markets/member` and brings to shape at its start
+([../markets/TESTING.md](../markets/TESTING.md), Fixtures); the rest is walked
+by hand.
 
 `lib` is the shared surface every other feature reads, so a break here shows up
 as ten features breaking. Walk this recipe before the others when several

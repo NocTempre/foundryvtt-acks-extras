@@ -5,7 +5,10 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 
 Of this recipe, `tools/live/markets.mjs` drives the market ledger's one length
 through the monthly row (`node tools/live/run.mjs markets`;
-`tools/live/README.md` is the contract); the rest is walked by hand.
+`tools/live/README.md` is the contract), on a location it keeps as
+`markets/ledger-town` and brings to shape at its start
+([../markets/TESTING.md](../markets/TESTING.md), Fixtures); the rest is walked
+by hand.
 
 ## Fixtures
 

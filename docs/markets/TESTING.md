@@ -15,6 +15,24 @@ walked by hand.
   subtree does not exist.
 - A disposable `character` as the buyer, holding coin minted through
   `lib.money.creditCoin`.
+- `tools/live/markets.mjs` keeps its fixtures: each walk's towns,
+  characters, vehicles, domains and goods are found again by marker
+  (`flags.world.fixture`) — the gate walk's `markets/gate-*`, the parties
+  walk's `markets/parties-*`, the moorage walk's `markets/moorage-*`, the
+  rest's `markets/<name>` (`QA Report Town` is `markets/report-town`) — and
+  built carrying it where none stands. **Bring each to its creation shape
+  where its walk starts:** delete its embedded items and effects and make
+  the data's again, write its `flags.acks-extras` as the data's, its system
+  as the creation data over the type's defaults
+  (`new Actor.implementation(data).toObject()`), and its name and ownership
+  as the data's (`{diff: false, recursive: false}` for the ownership); then
+  add each market again over its town. A town also takes what a place's
+  create hook gives a new one, which the data alone does not hold: the
+  storage flag, and the table as OWNER where the data names no default;
+  without it the player seat's Trade tab never renders. Merchandise keys and party ids are
+  fixed strings, not a run's nonce. A run's chat cards are a create path,
+  marked `markets/card-<n>` at teardown, and the next run retires the series
+  before it builds anything.
 
 ## Core drive mechanics (non-obvious, learned live)
 
@@ -391,7 +409,7 @@ Open control needs a decision before anything below means anything. The sheet is
 a plain window (`tag: "div"`), so no submit path is involved; a refusal would
 come from `isVisible` (LIMITED) or from a missing sheet registration.
 
-**Fixtures** (all through `api.create`, tracked): two `character` actors,
+**Fixtures** (kept by marker, Fixtures above): two `character` actors,
 A owned by the Player seat and given a Bargaining ability item, B owned by the
 same or another seat with no trader fact; two `acks-extras.location` actors
 with a market (see [../location/TESTING.md](../location/TESTING.md)) with a base
@@ -400,10 +418,12 @@ demand names (Merchandise walk). **The trade house is not a fixture you
 create:** the engine makes it on the first report. Read the setting before the
 run; if it was empty, the run made the house, so track it (`api.track(uuid,
 "Actor")`) and clear the setting at teardown; if it named an actor, the house
-belongs to another session and only the reports are yours. Track every report
-the run writes as it lands (`api.track(item.uuid, "Item")`) — read the id from
-the result of `writeReport`, or from `objectsOf(A.uuid)` immediately after
-the step that wrote it, never by scanning the house.
+belongs to another session and only the reports are yours. Mark every report
+the run writes in such a house as it lands (`api.mark(item.uuid,
+"markets/report-<n>")`), and retire the series at the next run's start — read
+the id from the result of `writeReport`, or from `objectsOf(A.uuid)`
+immediately after the step that wrote it, never by scanning the house. In a
+house the run made, the reports go with it.
 
 **Steps**
 
@@ -547,9 +567,9 @@ reports walk.
 
 ## The known-market walk (a mercantile network's class)
 
-**Fixtures**: character V (Player seat) with the Mercantile Network power
-carrying its class step (the re-imported power, or a tracked Active Effect
-on the item with the change `flags.acks-extras.marketClass` and a
+**Fixtures** (kept by marker, Fixtures above): character V (Player seat)
+with the Mercantile Network power carrying its class step (the re-imported
+power, or an Active Effect on the item with the change `flags.acks-extras.marketClass` and a
 `condition` flag) and coin; character W in another party with no network;
 market M2 of class III and M3 of class III with the availability tables and
 the venture tables imported, neither holding a row of V's. Read the day
@@ -580,15 +600,15 @@ step and quote it.
 7. Class I stays Class I: set M2's override to 1 and read
    `effectiveMarketClass(M2, V)` — 1.
 
-**Teardown**: `api.sweepTracked()`; quote what it removed, could not find
-and refused. The clock advances are the shared world's; say how many.
+**Teardown**: none of the fixtures; quote the driver's closing `kept` and
+`reused` lines. The clock advances are the shared world's; say how many.
 
 ## The network walk (a known market on a venture)
 
-**Fixtures** (through `api.create`, tracked): character V (Player seat, coin)
+**Fixtures** (kept by marker, Fixtures above): character V (Player seat, coin)
 holding the re-imported Mercantile Network power (its `extras.effects` carry
-the `marketClass` and `marketImpact` modifiers), or an ability item with a
-tracked Active Effect carrying both keys and a `condition` flag; market M3 of
+the `marketClass` and `marketImpact` modifiers), or an ability item with an
+Active Effect carrying both keys and a `condition` flag; market M3 of
 class III and M4 overridden to class 1, both with `marketCharacteristics`,
 `impactProse`, `priceShiftProse` and the merchandise imported. Pick two goods
 from the merchandise items' `dailyStones`: X, whose next-larger-class column
@@ -619,8 +639,8 @@ beats one more impact, and Y the other way round. Quote the day at every step.
    *Observable:* the select offers no impact mode, and an item with no value
    at all is named as having none imported.
 
-**Teardown**: `api.sweepTracked()`; quote what it removed, could not find and
-refused. Count the clock advances.
+**Teardown**: none of the fixtures; quote the driver's closing `kept` and
+`reused` lines. Count the clock advances.
 
 ## The fleet walk (a venture's vehicles, and the hold a load goes in)
 
@@ -691,7 +711,7 @@ needs `items: []` ([../vehicles/TESTING.md](../vehicles/TESTING.md)).
 Steps G0–G7 and P0–P5 of `tools/live/markets.mjs`, in the order below;
 `STAGE=gate` stops the run after them.
 
-**Fixtures** (through `api.create`, tracked): market G of class III with
+**Fixtures** (kept by marker, Fixtures above): market G of class III with
 `marketCharacteristics` imported (and `tariffProse` for G6–G7); three world
 merchandise Items with invented keys and prices — one `tier: "precious"`, one
 common, one common with `tariffExempt: true`; a land vehicle VH owned by the
@@ -828,8 +848,8 @@ A load is an `item` with `system.quantity.value` stones, `system.cost`,
   detail records each throw (`… → N%`), and T paid their sum. Unregister the
   layers and put the setting back.
 
-**Teardown**: `api.sweepTracked()`, which takes D, VH, the characters, the
-goods, G and the cards; the setting is restored, the roster removed by its
+**Teardown**: D, VH, the characters, the goods and G stay for the next run,
+and the cards are marked; the setting is restored, the roster removed by its
 id and the hook handlers removed in the walk's `finally`.
 
 ## The parties walk (characters of one party entering separately)
@@ -837,7 +857,7 @@ id and the hook handlers removed in the walk's `finally`.
 Steps S0–S9 of `tools/live/markets.mjs`, in the order below; `STAGE=parties`
 runs them alone.
 
-**Fixtures** (through `api.create`, tracked): market M of class III with
+**Fixtures** (kept by marker, Fixtures above): market M of class III with
 `marketCharacteristics` and `impactProse` imported, its ownership set after
 creation to exactly `{default: 0, [Player]: 3, [second player]: 3}`; two
 world merchandise Items with invented keys, prices and daily stones, one
@@ -932,9 +952,9 @@ re-written with E for S6b and back, removed by its id at the end. The world's
   schema's defaults on the way in: this proves the read, not a row a
   released version stored.
 
-**Teardown**: `api.sweepTracked()` on both seats, which takes D, the wagons,
-the characters, the goods, M and the cards; the setting is restored and the
-roster removed by its id, in the walk and again in its `finally`.
+**Teardown**: D, the wagons, the characters, the goods and M stay for the
+next run, and the cards are marked; the setting is restored and the roster
+removed by its id, in the walk and again in its `finally`.
 
 ## The moorage walk (the stay's daily fee, settled on leaving and at the month's end)
 
@@ -952,7 +972,7 @@ at priority 31 on both seats (`registerTable({id: "mercantile", tables:
 {moorageRates}}, {priority: 31})`), and `restore` unregisters it. The
 report says when the layer stood in for the import.
 
-**Fixtures** (through `api.create`, tracked; every size, capacity, count
+**Fixtures** (kept by marker, Fixtures above; every size, capacity, count
 and daily figure invented, every rate the table's): market M of class III,
 owned by the Player seat; vehicles owned by the Player seat:
 
@@ -1054,9 +1074,9 @@ A roster of the run's own holds T alone, removed by its id at the end.
   through the client, which fills the schema's defaults: the keyless row
   proves the read, not a row a released version stored.
 
-**Teardown**: `api.sweepTracked()` on both seats, which takes the vehicles,
-the characters, D, both markets and the cards; the roster is removed by its
-id, and `restore` removes the hook and the table layer on each seat.
+**Teardown**: the vehicles, the characters, D and both markets stay for the
+next run, and the cards are marked; the roster is removed by its id, and
+`restore` removes the hook and the table layer on each seat.
 
 ## The Range of Trade reader
 
@@ -1113,8 +1133,11 @@ name and figures, tracked by id). Create by hand with `system.cost` and
 
 ## Teardown
 
-Delete the location, the buyer and the merchandise fixtures by their tracked
-ids (`api.sweepTracked()`), and any items the purchases created. Sweep the
+By hand, delete the location, the buyer and the merchandise fixtures by their
+tracked ids (`api.sweepTracked()`), and any items the purchases created.
+`tools/live/markets.mjs` sweeps none of its kept fixtures: it marks its cards
+(Fixtures above), and quotes the driver's closing `kept` and `reused` lines;
+a run after the first builds only its cards and reports. Sweep the
 reports and, when this run made it, the trade house, by their tracked ids;
 after deleting a house this run made, set `marketsTradeHouse` back to `""`. Confirm the
 market log goes with the location. The fleet walk also tracks the stacks its
