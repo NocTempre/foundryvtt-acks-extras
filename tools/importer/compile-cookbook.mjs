@@ -2125,10 +2125,15 @@ async function axFlow(doc, entry, assists, start, exclude = new Set(), opts = {}
  * the gutter shares the prose's baselines, so the paragraph is boxed line by
  * line: a line beside the aside spans its own runs only, the others the
  * column, and each line's band meets the next one's halfway between them.
+ * The aside is its type and its head: any run in the box that is not body
+ * type, save a larger one among the paragraph's own lines.
  */
-function axAsideBoxes(pd, lines, box) {
+export function axAsideBoxes(pd, lines, box) {
+  const own = new Set(lines.flatMap((ln) => ln.items));
   const aside = pd.items.filter(
-    (it) => it.h <= AX_BODY_MAX_H && !axBody(pd, it) && it.x >= box.x0 && it.x <= box.x1 && it.y >= box.y0 && it.y <= box.y1,
+    (it) =>
+      !axBody(pd, it) && (it.h <= AX_BODY_MAX_H || (!own.has(it) && it.str.trim())) &&
+      it.x >= box.x0 && it.x <= box.x1 && it.y >= box.y0 && it.y <= box.y1,
   );
   if (!aside.length) return null;
   const boxes = [];

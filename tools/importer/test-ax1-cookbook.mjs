@@ -272,6 +272,17 @@ t("the demand grid reads sideways, its goods under AX3's keys, its columns namin
   assert.deepEqual(entries["ax1.marketGrid1"].meta.markets, { mkt1: { sameAs: "ax3.mkt21" }, mkt2: { place: "ax1.fort" } });
 });
 
+t("a level's text stops short of its wandering section, which its table reads", () => {
+  const meets = (p, q) => Math.min(p.x1, q.x1) > Math.max(p.x0, q.x0) && Math.min(p.y1, q.y1) > Math.max(p.y0, q.y0);
+  const boxesOf = (op) => (op?.paras ?? []).flatMap((p) => (p.boxes ?? [p.box]).map((b) => ({ page: p.page ?? op.page, b })));
+  for (const [level, table] of [["ax1.l1", "ax1.wanderingLevel1"], ["ax1.l2", "ax1.wanderingLevel2"]]) {
+    const theirs = ["description", "rows"].flatMap((k) => boxesOf(entries[table].fields[k]));
+    assert.ok(theirs.length > 0, `${table} reads its section`);
+    const meeting = boxesOf(entries[level].fields.description).filter((o) => theirs.some((q) => q.page === o.page && meets(o.b, q.b)));
+    assert.deepEqual(meeting, [], level);
+  }
+});
+
 t("each room table reads one row per die result, from the first without a gap", () => {
   for (const id of ["ax1.pool", "ax1.mutations"]) {
     const sections = (entries[id]?.fields?.rows?.paras ?? []).map((p) => p.section);

@@ -17,7 +17,7 @@
  */
 import assert from "node:assert/strict";
 import { executeEntry, materializeEffects, materializeRolls } from "../../scripts/importer/executor.mjs";
-import { gridBandParas, rollTableDetails } from "./compile-cookbook.mjs";
+import { axAsideBoxes, gridBandParas, rollTableDetails } from "./compile-cookbook.mjs";
 
 let n = 0;
 const t = (name, fn) => {
@@ -376,6 +376,15 @@ await ta("a die bounded on one side only is its number, and its words open no ro
   );
   const out = await readRows({ 1: pd }, gridBandParas(pd, GRID, where));
   assert.deepEqual(out.map((p) => [p.section, p.text]), [["r1", "QQ calm"], ["r2-11", "QQ ripples"], ["r12", "QQ surge"]]);
+});
+
+await ta("a paragraph beside a sidebar reads around the sidebar's head as well as its type", async () => {
+  const body = (str, x, y) => ({ ...run(str, x, y), h: 10 });
+  const lines = [body("QQ one", 30, 100), body("QQ two", 30, 112), body("QQ three", 30, 124), body("QQ four", 30, 136)].map((it) => ({ y: it.y, x0: it.x, items: [it] }));
+  const pd = { ...page(...lines.flatMap((l) => l.items), { ...run("QQ HEAD", 240, 112), h: 12 }, run("QQ aside", 240, 124), run("QQ aside", 240, 136)), axBands: { asideH: [8.5, 9.5] } };
+  const boxes = axAsideBoxes(pd, lines, { x0: 26, x1: 306, y0: 97, y1: 139 });
+  const [out] = await readRows({ 1: pd }, [{ boxes }]);
+  assert.deepEqual(["one", "two", "three", "four", "HEAD", "aside"].filter((w) => out.text.includes(w)), ["one", "two", "three", "four"]);
 });
 
 await ta("heading-keyed details keep their heading and continue into a second region overleaf", async () => {

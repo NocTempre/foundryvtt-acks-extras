@@ -529,7 +529,9 @@ flow reads. Its row anchors by hash on the sidebar's head as a display
 heading and names the sidebar's box (`assists.aside`: `x0`, `x1`, and `y1`
 its foot); `compileProse` reads the aside-size runs in that box below the
 head, and nothing around it. AX1's twelve are the `Notes` journal, one page
-each.
+each. A paragraph the sidebar is set into is boxed line by line around it
+(`axAsideBoxes`), around its head as well as its type, so the prose reads
+neither.
 
 ## A person the page prints in full
 

@@ -1098,6 +1098,15 @@ that one result. A roll modified past the bound finds no row. An open range
 needs the row's bound carried into the compiled section and the RollTable's
 range widened to the die's floor or ceiling at import.
 
+## A roll table's description that turns a column
+
+AX1's second wandering table (AX1 p.53) opens its section with a description
+that ends at the head of the next column, above the first result's details.
+`descStopY` ends a table's description flow in the column it opens in, so
+that paragraph is read by neither the table nor the level, which stops
+short of the section (`excludeBoxes`). A description bound per column, or a
+stop at the first detail region, would carry it.
+
 ## Owed before AX1's minor ships
 
 - **AX3's grid row keyed `mkt21` holds another market's figures.** AX1 p.27's
