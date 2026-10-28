@@ -100,8 +100,8 @@ it covers; a section no walk names is walked by hand.
   never comes. Resize, then reload.
 - **A player lands on the ACTIVE scene**, which may be another session's leftover.
   Give your own fixture scene `ownership.default = OBSERVER` and `scene.view()`
-  it from the player seat rather than activating it — the scene is deleted at
-  teardown, so nothing needs restoring.
+  it from the player seat rather than activating it: a view moves that client
+  alone, so nothing needs restoring.
 - **Create a fixture scene with `active: false`.** When no scene is active,
   core activates a newly created one (`Scene._preCreateOperation`), and every
   joined client, a peer session's included, starts drawing it. A party token
@@ -113,9 +113,10 @@ it covers; a section no walk names is walked by hand.
 - **A formation that vanishes mid-walk was deleted from outside.** Deleting a
   party actor dissolves its formation, so a record that is gone between
   `setJourneyMode` and the next read was taken by another session sweeping
-  outside its own ledger. Teardown is by the run's own ids
-  (`.claude/rules/live-testing.md`, step 4); a walk that died before its
-  sweep has its ids in its log — re-track them and `sweepTracked()`.
+  outside its own ledger. A delete is by the run's own ids, and only in a
+  setup section (`.claude/rules/live-testing.md`, step 4); a setup section
+  that died before its sweep has its ids in its log — re-track them and
+  `sweepTracked()`.
 - **Hold the Gamemaster seat alone.** The seat's windows elect one to run the
   automation (docs/lib/MODEL.md, "Which window automates"). A second one,
   whether a peer's walk or an idle pane, may be the window that bills your
