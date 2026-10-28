@@ -366,6 +366,22 @@ export const bookIsJudges = (bookId) => BOOKS[bookId]?.judge === true;
 export const bookIsForm = (bookId) => BOOKS[bookId]?.form === true;
 
 /**
+ * The shelved books a seat opens at join: each one the registry knows, not
+ * open here already, whose shelf record `observes` passes for this seat. A
+ * book and a form answer to the same test, because the journal is what the
+ * Judge shares.
+ *
+ * @param {Record<string, object>} staged the shelf, book id → shelf record
+ * @param {(record: object) => boolean} observes whether this seat may read the record's page
+ * @param {(bookId: string) => boolean} isOpen whether the book is open on this seat
+ * @returns {string[]} book ids, in shelf order
+ */
+export const shelfBooksToOpen = (staged, observes, isOpen) =>
+  Object.entries(staged)
+    .filter(([id, record]) => BOOKS[id] && !isOpen(id) && observes(record))
+    .map(([id]) => id);
+
+/**
  * The later of two books by the year their printings carry (`published`), or
  * null when the years tie or either book has none. A tie is never broken by
  * declaration order: that order is a habit of this file, not a fact of

@@ -88,6 +88,8 @@ under *Your Books*: one entry per book, holding a PDF page. Open it and press
 button on the book's row in the Books window goes to the same place. The
 journal is yours alone until you share it — give a player Observer permission
 on it the way you would on any other journal, and they can read the book too.
+A player's seat reads at launch only the books you have shared with it, so a
+book you keep to yourself costs their seat nothing when they join.
 
 The official fillable **character sheet** has a row of its own. Nothing is
 imported from it: the character sheet's export writes characters into it

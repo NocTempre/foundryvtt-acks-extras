@@ -8376,3 +8376,52 @@ their rows would compile passages no import keeps.
 with it alone. test-ax1-cookbook checks that no AX1 equipment row shares a
 name key with another book's row, so a later register that prints one of
 the three shows up there.
+
+## 2026-10-28 — A seat opens only the shelved books it may read
+
+**Evidence.** The join-time restore (`restoreShelf`) asked the shelf
+journal's permission of the form alone, so every seat opened every staged
+book, though a book's journal is the creating GM's alone ("A book the server
+holds is a journal", 2026-09-03) and the shelf is the GM seats' to read on
+join ("A book the server holds asks nobody for anything", 2026-08-21). A
+player's client holds every shelf journal, the withheld ones included, so
+the restore found them all. Measured on 14.369 from a fresh browser on the
+server's own machine, as the Player seat of a world with 23 staged books
+and none shared with it: the seat fetched all 23 (830 MB) and finished the
+restore 34–41 s after `ready`, holding 23 pdf.js workers and 1.45–1.54 GB
+of renderer private memory. Under this ruling it fetches nothing and holds
+0.46 GB. `ready` arrives at the same time either way, since the restore
+runs after it.
+
+**Ruled.** A seat opens a shelved book whose PDF page is open to it at
+Observer: every one on a GM seat, on a player seat what the Judge shared,
+the form among them (`books.mjs` `shelfBooksToOpen`, asked by
+`restoreShelf` at join and from Reconnect all). It is the test a citation
+applies (`openBookPage`), on the page that is the shelf record.
+
+**What a player sees.**
+- *A citation*: unchanged. `openBookPage` reads the shelf page and hands
+  the viewer the server's file whether or not the seat opened the book, so
+  a player the book is withheld from is told they lack permission and
+  nothing opens, as before, and a player it is shared with opens the page.
+  No reference a player could open stops opening.
+- *Your Books*: a withheld book's shelf row says it is on the server and
+  not shared with them (`shelfWithheld`), where it said their seat reads it
+  at every launch; its book row reads Not connected.
+- *No walkthrough*: a seat with nothing open in a world whose shelf holds
+  books is not a new table, so the first-run window also waits on an empty
+  shelf, as the window's own "nothing yet" already did. Without it, every
+  player seat would be offered the walkthrough at every join until it
+  ticked it away.
+- *The official sheet*: unchanged; the form was already gated this way.
+
+**Rejected: GM seats, and the form when shared.** Literal to the
+2026-08-21 wording, and leaner: every import is GM-only, so on a player
+seat a book other than the form is read by nothing the module does. It
+keeps a second rule beside the journal's, and a book the Judge shares
+reads Not connected on the very seat it was shared with.
+
+*Cost:* a Judge who shares the shelf so the table can read the books in the
+journal puts each shared book's fetch and parse back on every player seat
+at every join, for no reader the module has today. The rejected rule is one
+condition in `restoreShelf` if that proves common.

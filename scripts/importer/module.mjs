@@ -33,7 +33,7 @@
  */
 import { MODULE_ID, LANG_PREFIX, ACTOR_TYPE, DEFAULT_IMG } from "./constants.mjs";
 import { bookText, CITE_CLASS, CITE_LINK_CLASS } from "./prose.mjs";
-import { BOOKS, bookIsForm, bookIsJudges, fingerprintWarning, identifyBook, parseCite } from "./books.mjs";
+import { BOOKS, bookIsForm, bookIsJudges, fingerprintWarning, identifyBook, parseCite, shelfBooksToOpen } from "./books.mjs";
 import { matchFilesToBooks } from "./book-match.mjs";
 import { readForm } from "../character-sheet/pdf/form.mjs";
 import { RECIPES } from "./recipes.mjs";
@@ -332,6 +332,14 @@ const shelfJournal = (bookId) => game.journal.find((j) => j.getFlag(MODULE_ID, S
 
 /** The PDF page of a shelf journal — the one that carries the staged path. */
 const shelfPage = (journal) => journal?.pages.find((p) => p.type === "pdf") ?? null;
+
+/**
+ * Whether this seat may read a shelved book: its PDF page is open to the user
+ * at Observer, the test a citation applies too. A player's client holds every
+ * shelf journal, withheld or not, so the journal's presence is no answer.
+ */
+const shelfReadable = (record) =>
+  !!shelfPage(game.journal.get(record.journalId))?.testUserPermission(game.user, "OBSERVER");
 
 /**
  * Open the shelved copy of a book at one PDF page — what a citation does when
@@ -712,19 +720,17 @@ async function stageFile(bookId, file) {
 }
 
 /**
- * Open every shelved book. Runs on join before the per-seat restore, so a book
- * the server holds never asks this seat for anything and never appears in the
- * list of books waiting for a gesture.
+ * Open every shelved book this seat may read: all of them on a GM seat, on a
+ * player seat only what the Judge shared. Each is a fetch and a parse of the
+ * whole PDF, so a seat never opens a book it may not read. Runs on join before
+ * the per-seat restore, so a book the server holds never asks this seat for
+ * anything and never appears in the list of books waiting for a gesture.
  */
 async function restoreShelf() {
-  const staged = Object.entries(shelf());
-  if (!staged.length) return [];
+  const staged = shelf();
   const opened = [];
-  for (const [bookId, record] of staged) {
-    if (!BOOKS[bookId] || sessionDocs.has(bookId)) continue;
-    // A form's journal decides who exports from it, so a seat it is not
-    // shared with does not open it.
-    if (bookIsForm(bookId) && !game.journal.get(record.journalId)?.testUserPermission(game.user, "OBSERVER")) continue;
+  for (const bookId of shelfBooksToOpen(staged, shelfReadable, (id) => sessionDocs.has(id))) {
+    const record = staged[bookId];
     try {
       await connectBookUrl(bookId, record.path, { remember: false, bridge: false });
       opened.push(bookId);
@@ -1637,10 +1643,11 @@ async function booksDialog(capture, { firstRun = false, autoClose = false, notic
 
   // GM-only: staging a book writes world settings and uploads to the data
   // directory, neither of which a player may do. A player still SEES the shelf
-  // rows, because a book the server holds is why their seat needs nothing.
-  // Each row opens its own journal — the book itself, in the sidebar's PDF
-  // viewer — on any seat that can see that journal; a seat the Judge has not
-  // shared it with gets the row and no button.
+  // rows, each saying whether this seat reads that book from the server or
+  // the Judge has not shared it. Each row opens its own journal — the book
+  // itself, in the sidebar's PDF viewer — on any seat that can see that
+  // journal; a seat the Judge has not shared it with gets the row and no
+  // button.
   const openable = (record) => !!game.journal.get(record.journalId)?.visible;
   const shelfRows = Object.entries(staged)
     .filter(([id]) => BOOKS[id])
@@ -1651,7 +1658,7 @@ async function booksDialog(capture, { firstRun = false, autoClose = false, notic
           ${openable(record) ? `<button type="button" data-shelf-open="${esc(record.journalId)}">${L("shelfOpen")}</button>` : ""}
           ${isGM ? `<button type="button" data-unshelve="${esc(id)}">${L("shelfRemove")}</button>` : ""}
         </div>
-        <p class="notes" data-shelf-status="${esc(id)}">${L("shelfHeld", { name: esc(record.name ?? record.path) })}</p>
+        <p class="notes" data-shelf-status="${esc(id)}">${L(shelfReadable(record) ? "shelfHeld" : "shelfWithheld", { name: esc(record.name ?? record.path) })}</p>
       </div>`,
     )
     .join("");
@@ -2985,13 +2992,15 @@ Hooks.once("ready", async () => {
   // The shelf first: a book the server holds needs nothing from this seat, and
   // opening it before the per-seat restore keeps it out of the list of books
   // waiting for a gesture. Then reopen what this browser remembers, and offer
-  // the window for whatever is left. A seat with nothing anywhere is
-  // (probably) brand new and gets the same window with its walkthrough open —
-  // one surface either way, never two stacked dialogs.
+  // the window for whatever is left. A seat with nothing anywhere, in a world
+  // with nothing on its shelf, is (probably) brand new and gets the same
+  // window with its walkthrough open — one surface either way, never two
+  // stacked dialogs. A player seat the shelf is withheld from opens nothing
+  // and is still not new.
   await restoreShelf();
   const pending = await restoreBooks();
   if (pending.length) await openBooksDialog({ autoClose: true });
-  else if (!sessionDocs.size && !(await locations()).size && !gettingStartedDismissed()) {
+  else if (!sessionDocs.size && !(await locations()).size && !Object.keys(shelf()).length && !gettingStartedDismissed()) {
     await openBooksDialog({ firstRun: true });
   }
 });

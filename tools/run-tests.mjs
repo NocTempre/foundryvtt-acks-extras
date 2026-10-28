@@ -127,6 +127,7 @@ const COMMITTED = [
   "test-location-reach.mjs",
   "importer/test-prose.mjs",
   "importer/test-book-match.mjs",
+  "importer/test-shelf-restore.mjs",
   "importer/test-executor.mjs",
   "importer/test-typography.mjs",
   "importer/test-hit-dice.mjs",

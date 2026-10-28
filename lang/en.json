@@ -7659,6 +7659,7 @@
   "ACKS-IMPORTER.ui.shelfEmpty": "No books staged yet. A staged book is read automatically on every launch, by every GM seat, with no file picking at all — pick your PDFs here, add one from its own row below, or copy them into the folder and scan.",
   "ACKS-IMPORTER.ui.shelfEmptyPlayer": "No books are staged on the server yet.",
   "ACKS-IMPORTER.ui.shelfHeld": "Read from the server on every launch — {name}.",
+  "ACKS-IMPORTER.ui.shelfWithheld": "On the server, not shared with you — {name}.",
   "ACKS-IMPORTER.ui.shelfSource": " [from the server]",
   "ACKS-IMPORTER.ui.shelfAdd": "Add to server",
   "ACKS-IMPORTER.ui.shelfRemove": "Remove",

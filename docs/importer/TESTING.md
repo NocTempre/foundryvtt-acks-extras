@@ -97,11 +97,13 @@ drives "A community book, read through its declared typography"
    *Observable:* the folder control is a directory input, per-book rows are
    file inputs rather than pick buttons, and books are remembered by NAME.
 9. Join as the **Player** seat.
-   *Observable:* the window does not auto-open; opening it by macro shows the
-   server band read-only, with no Add/Remove/Scan controls. The shelf
-   journals are not in the player's Journal sidebar (Foundry's default
-   ownership — the GM alone) and the rows carry no **Open** button; give the
-   seat Observer on one journal and that row's button appears.
+   *Observable:* the window does not auto-open (a seat with nothing open in a
+   world whose shelf holds books is offered no walkthrough); opening it by
+   macro shows the server band read-only, with no Add/Remove/Scan controls.
+   The shelf journals are not in the player's Journal sidebar (Foundry's
+   default ownership — the GM alone), the rows carry no **Open** button and
+   each says the book is not shared with this seat; give the seat Observer on
+   one journal and that row's button appears.
 10. The migration. Delete one book's journal, then put the old record back by
    hand — `game.settings.set("acks-extras","shelf",{wld1:{path:"acks-extras-books/wld1.pdf",name:"wld1.pdf",size:0}})`
    — and reload as the GM.
@@ -557,9 +559,10 @@ step 10, the entry step 7 creates.
     override this step created; nothing else needs sweeping, and the override
     layer is absent again if it held nothing before.
 
-**Closing a book on one seat.** A world whose books are SHELVED reopens every
-one of them on every seat at join (`restoreShelf`), so a GM seat never holds a
-closed book unless the book is unshelved for the whole world, and
+**Closing a book on one seat.** A world whose books are SHELVED reopens each
+one at join on every seat its shelf page is open to (`restoreShelf`; every GM
+seat), so a GM seat never holds a closed book unless the book is unshelved for
+the whole world, and
 `forgetBooks()` drops this computer's remembered locations for good. Steps 8
 and 9 are reached by masking one book on this client for the length of one
 evaluation: wrap `Map.prototype.has` to answer false for that book id on the
@@ -1174,6 +1177,64 @@ check is one click on each shape, from two seats.
 
 8. Delete the imported document and the hand-set one; leave the shelf as it
    was.
+
+## The shelf opens on the seats it is shared with
+
+At join, `restoreShelf` opens each shelved book whose shelf page the seat may
+observe: every one on a GM seat, on a player seat only what the Judge shared.
+Each open book is a fetch of the whole PDF and a pdf.js worker of its own, so
+the observable is what the seat fetched and holds, not only what it shows.
+
+### Fixtures
+
+1. **The world's shelf** — books a GM staged, their journals at Foundry's
+   default ownership. Read it, never drive it:
+   `game.journal.filter(j => j.getFlag("acks-extras", "shelf")?.book)`. Each
+   step asserts at its start which of them the Player seat may observe
+   (`testUserPermission(game.user, "OBSERVER")` on the PDF page); a peer who
+   shared one moves the count, not the rule.
+2. **`importer/shelf-shared`** — a shelf journal for a registry book that has
+   none on the shelf, its PDF page pointed at a staged copy of that book under
+   the Data directory, Observer for the Player seat and nobody else. Build it
+   from a GM seat with `api.fixture` in the shape `shelfPut` writes: named for
+   the book's label, in the shelf-flagged *Your Books* folder,
+   `flags.acks-extras.shelf` = `{book, name, size}`, one `pdf` page. Every GM
+   seat opens it at join as well, so pick the smallest book that fits. Kept.
+
+### Drive mechanics
+
+- **Join from a capture browser of its own profile**, so no pane's seat is
+  taken, and time the join from the page. The restore runs after `ready` and
+  holds the main thread while it parses, so a probe sent at `ready` waits on
+  it. A script added with `Page.addScriptToEvaluateOnNewDocument` before the
+  navigation to `/game` registers `Hooks.once("ready")` as soon as `Hooks`
+  exists, wraps `fetch` to count `.pdf` requests, and wraps `console.log` to
+  catch `opened N book(s) from the shelf` — the restore's last act whenever it
+  opened anything.
+- **The main-thread heap misses the books.** pdf.js hands each buffer to a
+  worker of its own, outside `performance.memory` and the page's
+  `Runtime.getHeapUsage` alike. Count the workers (`Target.setAutoAttach`)
+  and read the renderer processes' private bytes, found by the capture
+  profile's path on their command line.
+
+### Steps
+
+3. Join as the **Player**. *Observable:* of the world's shelf, only
+   `importer/shelf-shared`'s book is open (`acksExtras.importer.bookOpen`);
+   the seat fetched one PDF and holds one pdf.js worker; the console reads
+   `opened 1 book(s) from the shelf`; no Getting Started window opened.
+   *Your Books*: each withheld row says the book is not shared with this
+   seat, and the shared row says it is read from the server on every launch.
+4. Press a citation to a withheld book (step 7 above). *Observable:* the
+   permission warning and nothing opens. A citation reads the shelf page, not
+   the seat's open book, so this answer does not depend on step 3.
+5. Join as a **GM** seat. *Observable:* every shelved book is open, the
+   fixture's included. Joined alone, this seat is the primary GM and runs the
+   GM-at-ready duties; say so in the report.
+
+### Teardown
+
+None: the fixture is kept, and the world's shelf was only read.
 
 ## Location journals refuse a page they cannot anchor
 
