@@ -1107,6 +1107,34 @@ that paragraph is read by neither the table nor the level, which stops
 short of the section (`excludeBoxes`). A description bound per column, or a
 stop at the first detail region, would carry it.
 
+## AX1's text no row reads
+
+`verify-cookbook ax1` lists the runs of each page that no row claims. Once
+the passages, sidebars and room tables are claimed, what is left falls in
+seven classes:
+
+- **Headings and titles** (pp.4, 6, 9, 29, 32, 34, 36, 59, 66, 67, 68, 72,
+  74). These are chapter titles, section heads a passage opens under, and
+  captions. A heading names its section and is not read as body text, so
+  these stay unclaimed until each row that opens under one claims its box as
+  a skip.
+- **A notice board** (p.15). Five short notices are set in the aside size
+  with no head of their own. A passage anchors on a body line or on a
+  display head, so none of these can anchor one.
+- **A table with three result columns** (p.18). A roll table reads one
+  result per band, so a row that prints three results needs one table per
+  column or results that hold several texts.
+- **A price list** (p.24). It is a grid of offerings and prices, which is
+  content a market or a journal table would carry, and no kind reads it yet.
+- **A wandering table's description** (p.54). See "A roll table's
+  description that turns a column" above.
+- **A person printed as prose before the statistics** (p.65). The write-up
+  opens with paragraphs and gives the stat line last. `kind.npc` reads a
+  stat line first.
+- **The pregenerated characters' summary grid** (p.71). The pregens import
+  from their write-ups on pp.71–74. The grid that sums them up beside the
+  party passage is not read.
+
 ## Owed before AX1's minor ships
 
 - **AX3's grid row keyed `mkt21` holds another market's figures.** AX1 p.27's

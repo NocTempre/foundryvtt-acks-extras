@@ -52,7 +52,8 @@
  * takes it over; the place it leaves is the one the bind made.
  *
  * Section 3 walks "A book lands in the library as one Adventure": the
- * journals step makes no page for a keyed area, and the book's Adventure
+ * journals step makes a page for each passage and none for a keyed area, and
+ * the book's Adventure
  * carries the places, their tree and their rosters beside the maps, whose
  * scenes state the dark map's sight and carry their zones and every way
  * between them, each leading to Regions of its own. Section 3b deletes
@@ -98,7 +99,9 @@
  *   - two empty places, one inside the other, made with `api.create` to show
  *     the prune's dry run lists both;
  *   - AX1's journal, stamped by an earlier release's journals step and left
- *     standing, and AX1's Adventure, written or rebuilt by the Adventure step
+ *     standing, the passage journals the journals step makes
+ *     (`created.journals`, tracked), and AX1's Adventure, written or rebuilt by
+ *     the Adventure step
  *     (one it writes is tracked, and a shelf it opens is deleted when empty).
  *     The Adventure step rewrites what the library already holds of AX1, so it
  *     runs only when the library holds no AX1 Adventure or under HELD_OK; an
@@ -186,6 +189,8 @@ const KEYED = Object.entries(COOK).filter(([id, e]) => e.kind === "kind.location
 const SITES = Object.entries(COOK).filter(([, e]) => e.kind === "kind.location" && e.meta?.group === "Region — Sites").map(([id]) => id);
 // Every row the places step makes a place of.
 const ROWS = [...KEYED, ...SITES];
+// The rows the journals step writes a page of: the passages, and no place.
+const PASSAGES = Object.values(COOK).filter((e) => e.kind === "kind.prose").length;
 const parentOf = (id) => (id === REGION_PLACE ? null : SITES.includes(id) ? REGION_PLACE : COOK[id]?.meta?.parent ?? COOK[id]?.meta?.space ?? BOOK_PLACE);
 const labelsOf = (id) => new Set(Object.keys(COOK[id]?.fields ?? {}).map((k) => /^occupants\.(\d+)\.name$/.exec(k)?.[1]).filter((i) => i != null)).size;
 const PEOPLE = Object.entries(COOK).filter(([, e]) => ["kind.npc", "kind.monsterLegacy"].includes(e.kind)).map(([id]) => id);
@@ -1690,9 +1695,9 @@ try {
   for (const uuid of js?.created?.journals ?? []) gm.track(uuid, "JournalEntry");
   const mid = await run(gm, P.library, { book: BOOK });
   note("3: journals step", { made: js?.made ?? 0, updated: js?.updated ?? 0, journals: js?.created?.journals?.length ?? 0 });
-  check("3: the journals step writes no page for a keyed area, and the journals the library held stay",
-    !(js?.made > 0) && !(js?.updated > 0) && !(js?.created?.journals?.length) && mid.journals.length === before.journals.length,
-    { made: js?.made ?? 0, updated: js?.updated ?? 0, held: before.journals.length, now: mid.journals.length });
+  check("3: the journals step writes a page for each passage and none for a keyed area, and the journals the library held stay",
+    (js?.made ?? 0) + (js?.updated ?? 0) === PASSAGES && !(js?.refused > 0) && mid.journals.length === before.journals.length + (js?.created?.journals?.length ?? 0),
+    { made: js?.made ?? 0, updated: js?.updated ?? 0, passages: PASSAGES, held: before.journals.length, now: mid.journals.length });
   const as = await step(gm, "cookbookImportAdventures", [{ books: [BOOK] }]);
   for (const uuid of as?.created?.adventures ?? []) gm.track(uuid, "Adventure");
   fogLeft.packs.push(...(as?.created?.packs ?? []).filter((c) => !before.packs.includes(c)));

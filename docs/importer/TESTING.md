@@ -3001,6 +3001,110 @@ holding the text a reader expects.
    what it could not find and what refused. A book opened with
    `{ remember: false }` is closed by a reload.
 
+## An adventure's text: passages, tables, an item and gear
+
+AX1's passages (`kind.prose`), roll tables, appendix item and gear rows
+become documents, each holding what the executor reads off its page.
+`tools/live/importer-ax1-text.mjs` walks it on the GM seat. Every comparison
+runs in the page against `executeEntry`'s read and is printed as a boolean or
+an id, never as text.
+
+What a scripted walk meets:
+
+- After `ready` the GM seat reopens every book it remembers, one at a time.
+  The table step reads every open book, so let the open set settle, then
+  count every open book's tables. A table the step makes for another book is
+  this run's too: find it by uuid and sweep it.
+- Each step decides presence by cookbook id. A table or item that stands is
+  skipped, not written, so it proves nothing about this build. A journal under
+  a passage group's id is written over in place, which is a write onto its
+  owner's document.
+- A gear entry whose printed name an item in the library already carries
+  joins or tags that item (`reconcileByName`), which is a write onto its owner's.
+- `importAllEquipment` takes `only` as a Set. The api passes it through
+  positionally, so build the Set in the page.
+
+### Fixtures
+
+Read first, write nothing:
+
+- the library's JournalEntry, RollTable and Item documents stamped with AX1's
+  ids, and every open book's tables;
+- the journals of AX1 that no passage group names (an earlier release's
+  keyed-area journal), with each one's page count and `_stats.modifiedTime`;
+- every world shelf of those three types and the folders on it, and the
+  sidebar's folders of those types.
+
+The walk stops when a journal stands under a passage group's id
+(`journalCookbookId(book, group)`). A table, item or gear row that stands
+is the owner's: the walk proves it through the executor's read, never as a
+document. The gear step does not run while an item carries a gear entry's
+printed name.
+
+Every step is setup, and nothing the walk makes is kept. The run's ledger is
+what each step returns (`created.journals`, `created.items`) or, where it
+returns counts, the uuids the library did not hold before it. It also covers
+the folders and shelves found by difference.
+
+### Steps
+
+1. `await acksExtras.importer.cookbookImportJournals({ books: ["ax1"] })`.
+   *Observable:*
+   - `made` is the passage count, and `updated` and `refused` are 0;
+   - `created.journals` holds one journal per group: `Adventure` (10 pages)
+     and `Notes` (13 pages);
+   - each journal stands once under its group's id, named for its group, in
+     the library;
+   - its pages are its passages in page order, each titled by `meta.title`;
+   - each page's `text.content` is exactly `entryText(node, id, cite)` of the
+     executor's read, and no read is empty;
+   - each page's last element is the cite line, reading the row's `cite`;
+   - the keyed-area journal keeps its page count and modified time.
+2. Run step 1 again.
+   *Observable:* `made` is 0, `updated` is the passage count, and
+   `created.journals` is empty. No journal or page doubles.
+3. `await acksExtras.importer.cookbookImportRollTables()`, then track every
+   RollTable uuid the library did not hold before it.
+   *Observable:*
+   - `skipped` is the count of open-book table ids the library held, and
+     `made` is the count of new uuids;
+   - each AX1 table the library lacked stands once under its id;
+   - its results are the read's row bands, built as the step builds them;
+   - its bands run without a gap, and its formula spans them
+     (`evaluate({ minimize })` and `({ maximize })`);
+   - its description is `entryText` of the read;
+   - its name is `printedNameOf(node, name)`. `ax1.whereabouts` keeps its
+     row's own name, since its header check is a key (`names: false`);
+   - `table.roll()` returns one result whose band holds the total. `draw()`
+     would post a chat message.
+4. For each AX1 table the library already held, read it through the executor.
+   *Observable:* it reads, and its bands run without a gap. `ax1.rumors` and
+   `ax1.motivations` each read a paragraph above their grid. A table an earlier
+   build made may lack that paragraph, and only the read shows it.
+5. Run step 3 again.
+   *Observable:* `made` is 0, and `skipped` counts every table now standing.
+6. `await acksExtras.importer.cookbookImportAdventureItems({ books: ["ax1"] })`.
+   *Observable:*
+   - `made` is 1, and `refused` is 0;
+   - `ax1.item1` is a library item stamped with its row, in the book's `Items`
+     folder;
+   - its name is the page's, not the row's ordinal label;
+   - its description is `entryText` of the read, and not empty.
+   A second run counts it `already`.
+7. Gear: in the page, `importAllEquipment({ only: new Set(<AX1's def.equip
+   ids>) })`. Track each id's item where its uuid is new.
+   *Observable:*
+   - `total` and `created` are 3;
+   - each item stands once, stamped with its row and book, in a folder;
+   - each wears its row's `icon`.
+   A second run creates nothing.
+
+### Teardown
+
+8. `api.sweepTracked()` over the whole ledger, then delete any shelf the run
+   opened, but only if its index is empty. Quote what the sweep removed, what
+   it could not find and what refused.
+
 ## A community book, read through its declared typography
 
 `cat` is set off the family's ladder (MODEL, "A book's typography"). This
