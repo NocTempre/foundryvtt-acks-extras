@@ -1,4 +1,4 @@
-/* global game, Hooks, ChatMessage */
+/* global game, Hooks, ChatMessage, ui */
 /**
  * Core patch: the Surprise Matrix's results, gathered onto ONE chat card.
  *
@@ -124,7 +124,8 @@ function cardHtml(rows, { hidden }) {
 }
 
 /**
- * Run core's roll with its chat output diverted into `rows`.
+ * Run core's roll with its chat output diverted into `rows`, which the caller
+ * owns so that what was captured before a throw is still in its hands.
  *
  * The capture is deliberately narrow — this user's own messages, speaking for a
  * combatant in this matrix's pools, matching one of core's two result templates.
@@ -132,9 +133,8 @@ function cardHtml(rows, { hidden }) {
  * normally, which is what keeps an unrelated message from vanishing into a card
  * it has nothing to do with.
  */
-async function captureRolls(app, original, event, target, readers) {
+async function captureRolls(app, original, event, target, readers, rows) {
   const { byToken, byActor } = groupIndex(app.options?.pools);
-  const rows = [];
 
   const capture = (_message, data) => {
     if (data?.author !== game.user.id) return true;
@@ -163,7 +163,6 @@ async function captureRolls(app, original, event, target, readers) {
   } finally {
     Hooks.off("preCreateChatMessage", capture);
   }
-  return rows;
 }
 
 /** Post the public card, and the Judges-only card for rows core would whisper. */
@@ -196,6 +195,36 @@ function isSurpriseMatrix(app) {
   );
 }
 
+/** The pools core rolls as each side. */
+const SIDES = { monsters: ["hostile", "neutral", "secret"], adventurers: ["friendly"] };
+
+/**
+ * Take out of the matrix's own pools every combatant with no surprise figures:
+ * no actor, or an actor type with no `system.surprise` (a party, a group, a
+ * vehicle). Core reads both figures from every combatant on either side with no
+ * guard, so one such combatant throws the roll. The arrays are the app's own
+ * copies, never the combat's. Returns the names taken out.
+ */
+export function leaveOutUnrollable(pools) {
+  const left = [];
+  for (const key of Object.values(SIDES).flat()) {
+    const pool = pools?.[key];
+    if (!Array.isArray(pool)) continue;
+    for (let i = pool.length - 1; i >= 0; i--) {
+      const surprise = pool[i]?.actor?.system?.surprise;
+      if (surprise && typeof surprise === "object") continue;
+      left.unshift(pool[i]?.name ?? pool[i]?.id ?? "");
+      pool.splice(i, 1);
+    }
+  }
+  return left;
+}
+
+/** The sides with no combatant left in their pools. */
+export function emptySides(pools) {
+  return Object.keys(SIDES).filter((side) => !SIDES[side].some((key) => pools?.[key]?.length));
+}
+
 /**
  * Swap one instance's `rollSurprise` for the consolidating wrapper. Core's
  * roll runs inside `withSurpriseConditions` whether or not the card is on:
@@ -206,6 +235,12 @@ function isSurpriseMatrix(app) {
  * off takes effect on the next encounter with no reload. The wrapper is marked
  * because the render hook fires again on every re-render, and a second pass
  * would wrap the wrapper.
+ *
+ * Foundry neither awaits nor catches an action handler, so a throw out of
+ * core's roll would leave the matrix open with nothing said. The wrapper
+ * catches it and says so; core's `close` was never reached, so the matrix stays
+ * open for another cell. Rows already captured still post: their combatants'
+ * statuses have landed.
  */
 function wrapRollAction(app) {
   const actions = app?.options?.actions;
@@ -215,14 +250,34 @@ function wrapRollAction(app) {
   const original = function (event, target) {
     return withSurpriseConditions(this.options?.pools, () => core.call(this, event, target));
   };
-  const wrapper = async function (event, target) {
-    if (!game.settings.get(MODULE_ID, SETTING_SURPRISE_CARD)) return original.call(this, event, target);
+  const roll = async function (event, target) {
+    if (!game.settings.get(MODULE_ID, SETTING_SURPRISE_CARD)) return await original.call(this, event, target);
     // No readable template means no readable total: leave core's messages be
     // rather than blocking output this cannot reproduce.
     const readers = resultReaders();
-    if (!readers) return original.call(this, event, target);
-    const rows = await captureRolls(this, original, event, target, readers);
-    if (rows.length) await postCards(rows);
+    if (!readers) return await original.call(this, event, target);
+    const rows = [];
+    try {
+      await captureRolls(this, original, event, target, readers, rows);
+    } finally {
+      if (rows.length) await postCards(rows);
+    }
+  };
+  const wrapper = async function (event, target) {
+    const pools = this.options?.pools;
+    const left = leaveOutUnrollable(pools);
+    if (left.length) ui.notifications.info(loc("surprise.leftOut", { names: left.join(", ") }));
+    try {
+      await roll.call(this, event, target);
+    } catch (err) {
+      console.error(`${MODULE_ID} | the surprise roll failed`, err);
+      const empty = emptySides(pools);
+      ui.notifications.error(
+        empty.length
+          ? loc("surprise.sideEmpty", { sides: empty.map((side) => loc(`surprise.${side}`)).join(", ") })
+          : loc("surprise.failed"),
+      );
+    }
   };
   wrapper[MODULE_ID] = true;
   actions.rollSurprise = wrapper;

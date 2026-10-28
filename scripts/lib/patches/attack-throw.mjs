@@ -201,9 +201,26 @@ function onWeaponDamageModes(wrapped, attackType) {
   return ask("damageModes", [this.parent, attackType], [...(wrapped(attackType) ?? [])]);
 }
 
-/** WRAPPER around the weapon model's `getDamageFormula`. */
+/** The weapons already reported as holding a damage that is not dice, by uuid and text. */
+const reportedDamage = new Set();
+
+/**
+ * WRAPPER around the weapon model's `getDamageFormula`, whose only caller is
+ * the system's attack-throw builder. A formula that does not parse is answered
+ * as none, so the attack rolls no damage: the system parses it only on a hit,
+ * and its throw there escapes every sheet's click handler, so the hit would post
+ * no card at all. The Judge is told once per weapon and text.
+ */
 function onWeaponDamageFormula(wrapped, mode) {
-  return ask("damageFormula", [this.parent, mode], wrapped(mode) ?? "");
+  const formula = ask("damageFormula", [this.parent, mode], wrapped(mode) ?? "");
+  if (typeof formula !== "string" || !formula.trim() || globalThis.Roll?.validate?.(formula) !== false) return formula;
+  const item = this.parent;
+  const key = `${item?.uuid}|${formula}`;
+  if (!reportedDamage.has(key)) {
+    reportedDamage.add(key);
+    globalThis.ui?.notifications?.warn(game.i18n.format("ACKS-LIB.attack.badDamage", { item: item?.name ?? "", formula }));
+  }
+  return "";
 }
 
 /** Register one wrapper, naming what is lost when the target is absent. */

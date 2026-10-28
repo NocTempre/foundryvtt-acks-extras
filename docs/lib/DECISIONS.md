@@ -4645,3 +4645,64 @@ the stamp the same way, and its runner writes embedded items through the same
 diffed update. An armor record keeping `aac`, or a weapon keeping a string
 `damage`, would load with defaults too. No world on this machine holds one, so
 this is unverified and not wrapped.
+
+### The Surprise Matrix leaves out a combatant that cannot roll, and says when a roll fails (2026-10-28)
+
+Records a ruling made on 2026-10-26 that until now lived only in the bug
+ledger, and adds the half it did not cover.
+
+**Asked.** A Judge reported that the matrix "does not allow all selections":
+most cells did nothing, and only the cell where neither side rolls started
+the combat. The system's roll reads `system.surprise` from every combatant on
+both sides with no guard. A party, group or vehicle token in the tracker has
+no such field, so every cell that rolls threw. Foundry neither awaits nor
+catches an action handler, so the throw left the matrix open with nothing
+said. Reproduced live on 14.369 with a vehicle token in a combat:
+`fore`/`fore` rejected reading `surpriseothers`.
+
+**Ruled.**
+- The 2026-10-26 ruling stands. The fix is in the lib's surprise wrapper, not
+  in the formation combat bridge: the wrapper takes such combatants out of the
+  matrix's own pools before the system's roll and names them in a notice. A
+  party with nobody to deploy still leaves its combatant in the tracker, and a
+  group or vehicle token can be added by hand, so the bridge cannot be the
+  only place this is answered.
+- The wrapper also catches a throw out of the roll and raises an error notice.
+  This is the new evidence the 2026-10-26 ruling did not have: where the
+  combatant left out was its side's only one, the system's opponent maximum
+  over the empty side is `-Infinity`, which no roll formula parses. The prune
+  alone would still leave every cell where the other side rolls failing in
+  silence. The notice names the empty side, and the matrix stays open.
+- Rows captured before a throw still post. Their combatants' `surprised`
+  statuses have already landed, and a status with no card is what the
+  reporter would otherwise find.
+
+**Rejected.**
+- *Refusing a click when a side is empty.* The cell where neither side rolls
+  still starts the combat, and it is the one the reporter was using.
+
+### A weapon damage that is not dice rolls no damage, and the Judge is told (2026-10-28)
+
+**Asked.** A reporter's console showed an attack failing with a parse error
+at a letter in the damage formula. The importer stores a stat block's damage
+cell as the weapon's formula when the cell holds no dice, so a placeholder
+word becomes `system.damage.base.formula`. The system parses that formula only
+on a hit, and the throw escapes every sheet's click handler. A miss posts its
+card and a hit posts nothing, so the same attack row seems to work only some
+of the time.
+
+**Ruled.**
+- The lib's `getDamageFormula` wrapper answers a formula `Roll.validate`
+  refuses as none, so the system's builder makes no damage roll and the hit
+  posts its card. The system's builder is the method's only caller.
+- A warning names the weapon and its stored text, once per weapon and text in
+  a session. The text is the Judge's own imported content, shown at runtime.
+- The orphaned `ACKS-LIB.attack.badDamage` string is reused. Its old wording,
+  from the lib's own attack roll that was deleted with the move to acks
+  14.1.0, said the roll fell back to a fixed die, and it explained what the
+  printed placeholder means. The new wording says only what the module does.
+
+**Not covered.** The importer still writes the placeholder as the formula.
+Writing no formula and flagging the attack is an importer change for a minor.
+Whether a placeholder attack should take an equipped weapon's die is a ruling
+for the owner.

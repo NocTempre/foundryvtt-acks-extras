@@ -1498,6 +1498,24 @@ The `surpriseCard` world setting gates it, read per click so it takes effect
 with no reload; off, the wrapper defers to core's handler and nothing is
 intercepted.
 
+Two things run on every click, whether or not the card is on:
+
+- **A combatant with no surprise figures is taken out first.** Core reads
+  `system.surprise` from every combatant on both sides with no guard. A
+  combatant with no actor, or with an actor type that has no such field
+  (party, group, vehicle), would throw the roll. `leaveOutUnrollable` splices
+  such combatants out of the matrix's own pool arrays, which ApplicationV2
+  deep-clones per instance, so the combat's pools are untouched. An info notice
+  names them.
+- **A throw out of core's roll is caught.** Foundry neither awaits nor catches
+  an action handler, so an uncaught throw would leave the matrix open with
+  nothing said. The wrapper logs the throw and raises an error notice. The
+  notice names a side left with no combatant when there is one: core's
+  opponent maximum over an empty side is `-Infinity`, which no roll formula
+  parses. Core's `close` was never reached, so the matrix stays open for
+  another cell. Rows captured before the throw still post, since their
+  combatants' statuses have already landed.
+
 ## The consolidated initiative card
 
 `scripts/lib/patches/initiative-card.mjs` does for a round's initiative what the
@@ -1620,6 +1638,12 @@ fire around the throw with the per-attack context, which
 `lib.attack.inFlight(actor)` answers while the throw runs. Rulings: DECISIONS,
 "The attack seam rides the system's labelled modifiers" and "A Judge-only
 card attaches no rolls".
+
+The system's builder is `getDamageFormula`'s only caller, and it parses the
+formula only on a hit. A formula `Roll.validate` refuses would throw there,
+outside every sheet's click handler, so the hit would post no card. The
+wrapper answers such a formula as none, so the throw rolls no damage, and warns
+the Judge once per weapon and text.
 
 ## Movement modes
 

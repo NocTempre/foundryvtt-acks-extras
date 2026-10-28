@@ -117,6 +117,8 @@ const COMMITTED = [
   "test-adventuring-roll.mjs",
   "test-stored-inputs.mjs",
   "test-legacy-source.mjs",
+  "test-surprise-pools.mjs",
+  "test-attack-damage-formula.mjs",
   "test-provisions.mjs",
   "test-foraging.mjs",
   "test-searching.mjs",

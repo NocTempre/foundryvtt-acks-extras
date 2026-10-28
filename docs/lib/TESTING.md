@@ -1195,6 +1195,15 @@ interaction.
    **Observable:** the finding names the effect; Fix rewrites the key to
    `system.ac.mod` and `system.ac.value` climbs by one. An effect on
    `system.surprise.mod` is reported with no fix offered.
+9. **A damage that is not dice.** Give a `monster` an equipped melee weapon
+   whose `system.damage.base.formula` is two plain words (`"x y"`), and open
+   its Follower Card. Rig a hit (`CONFIG.Dice.randomUniform = () => 0.025`)
+   and shift-click the weapon's attack row, then restore the rig.
+   **Observable:** one attack card posts with its hit and no damage roll, one
+   warning names the weapon and its text, and no unhandled rejection is
+   recorded. A second hit with the same weapon posts its card with no second
+   warning. Without the guard, the hit rejects with a parse error and posts
+   nothing.
 
 **Teardown.** `api.sweepTracked()`; delete the chat messages the steps posted
 by the ids read back from `game.messages`, and the scene.
@@ -2471,6 +2480,40 @@ The morale page's condition rows are influence's own recipe.
 a deleted combat sweeps as missing. The imported `conditions` document is
 world ruledata and stays, like every other imported table. The stored
 arrangement is swept with the rest, after step 16's Reset and Save.
+
+## The Surprise Matrix with a combatant that cannot roll
+
+Covers `leaveOutUnrollable` and the caught throw in
+`patches/surprise-card.mjs`. One GM seat; the conditions recipe's drive notes
+on the matrix's cells, notifications and rejections apply.
+
+**Fixtures (each tracked):** two `character` actors and a `monster`, and an
+actor of a type with no `system.surprise` (an `acks-extras.vehicle` is the
+simplest, since it has no automation of its own). A scene with a linked token
+for each: the characters and the vehicle friendly, the monster hostile.
+Combat A holds all four. Combat B holds the vehicle and the monster.
+
+**Drive mechanics.** `combat.startCombat()` opens the matrix; on a page with
+the pane hidden, poll `foundry.applications.instances` for the instance whose
+`options.combat` is that combat before clicking. A second call before the
+first renders opens a second matrix.
+
+1. **The vehicle is left out.** Start combat A and click `fore`/`fore`.
+   **Observable:** an info notice names the vehicle; one surprise card posts
+   with the monster and both characters and no vehicle row; the matrix closes;
+   `combat.getFlag("acks", "initDone")` is true; `combat.pools.friendly`
+   still lists the vehicle. Without the prune, the click rejects reading
+   `surpriseothers` and the matrix stays open with nothing said.
+2. **A side left empty.** Start combat B and click `fore`/`fore`.
+   **Observable:** the info notice names the vehicle; an error notice says the
+   Adventurers side has no combatant with surprise figures; no unhandled
+   rejection; no card; the matrix stays open and `initDone` is unset.
+3. **A cell where neither side rolls.** In the same matrix click
+   `forelos`/`forelos`.
+   **Observable:** the matrix closes and `initDone` is true.
+
+**Teardown.** Close any dialog the combat start opened, then delete the
+combats, the card and the actors by their tracked ids, and the scene.
 
 ## A deposit at a place the seat does not own
 
