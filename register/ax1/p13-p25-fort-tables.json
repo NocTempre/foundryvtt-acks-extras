@@ -1,0 +1,33 @@
+[
+  {
+    "id": "ax1.meditations",
+    "kind": "kind.rolltable",
+    "book": "ax1",
+    "name": "Meditations",
+    "anchor": { "hash": "13c6240", "as": "display" },
+    "pages": [13],
+    "meta": { "group": "Adventure Tables" },
+    "assists": {
+      "headingLines": { "minH": 10.5 },
+      "descStopY": 60,
+      "grid": {
+        "page": 13, "y0": 75, "y1": 295, "dieX0": 40, "dieX1": 66, "cellX0": 70, "cellX1": 580, "claimDie": true, "headerSkip": [60, 72],
+        "bands": [[77, 90], [93, 106], [110, 123], [126, 139], [143, 156], [159, 172], [176, 199], [202, 225], [229, 241], [245, 258], [262, 274], [278, 291]]
+      },
+      "rollAt": { "page": 13, "box": { "x0": 40, "x1": 66, "y0": 60, "y1": 72 } }
+    }
+  },
+  {
+    "id": "ax1.whereabouts",
+    "kind": "kind.rolltable",
+    "book": "ax1",
+    "name": "NPC Whereabouts",
+    "anchor": { "hash": "q9ln6z" },
+    "pages": [25],
+    "meta": { "group": "Adventure Tables" },
+    "assists": {
+      "nameExpect": { "page": 25, "box": { "x0": 432, "x1": 540, "y0": 226, "y1": 238 }, "hash": "q9ln6z" },
+      "grid": { "page": 25, "y0": 240, "y1": 325, "dieX0": 432, "dieX1": 460, "cellX0": 505, "cellX1": 585, "claimDie": true }
+    }
+  }
+]

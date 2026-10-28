@@ -313,8 +313,17 @@ t("a table opened by a section head carries the paragraph between the head and i
   }
 });
 
+t("a table headed by an instruction is proved by a key of it and covers its die without a gap", () => {
+  const e = entries["ax1.whereabouts"];
+  assert.equal(e?.fields?.name?.op, "heading");
+  assert.ok(e.fields.name.hash && e.fields.name.text === undefined, "the header's words stay out of the cookbook");
+  const ranges = e.fields.rows.paras.map((p) => /^r(\d+)(?:-(\d+))?$/.exec(p.section)).map((m) => [Number(m[1]), Number(m[2] ?? m[1])]);
+  assert.equal(ranges[0][0], 1);
+  ranges.slice(1).forEach(([lo], i) => assert.equal(lo, ranges[i][1] + 1, `row ${i + 2} follows row ${i + 1}`));
+});
+
 t("each room table reads one row per die result, from the first without a gap", () => {
-  for (const id of ["ax1.pool", "ax1.mutations"]) {
+  for (const id of ["ax1.pool", "ax1.mutations", "ax1.meditations"]) {
     const sections = (entries[id]?.fields?.rows?.paras ?? []).map((p) => p.section);
     assert.ok(sections.length > 1, `${id} has rows`);
     assert.deepEqual(sections, sections.map((_, i) => `r${i + 1}`), id);

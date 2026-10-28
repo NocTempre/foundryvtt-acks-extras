@@ -3687,6 +3687,253 @@
         }
       }
     },
+    "ax1.meditations": {
+      "kind": "kind.rolltable",
+      "name": "Meditations",
+      "cite": "AX1 p.12",
+      "pages": [
+        13
+      ],
+      "meta": {
+        "group": "Adventure Tables"
+      },
+      "fields": {
+        "name": {
+          "op": "heading",
+          "page": 13,
+          "box": {
+            "x0": 222.3114,
+            "x1": 399.69140000000004,
+            "y0": 33.8759,
+            "y1": 52.8759
+          },
+          "hash": "13c6240"
+        },
+        "rows": {
+          "op": "text",
+          "page": 13,
+          "paras": [
+            {
+              "box": {
+                "x0": 40,
+                "x1": 580,
+                "y0": 77,
+                "y1": 90
+              },
+              "section": "r1",
+              "fixes": {
+                "joinSpace": [
+                  0
+                ],
+                "drop": [
+                  0
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 40,
+                "x1": 580,
+                "y0": 93,
+                "y1": 106
+              },
+              "section": "r2",
+              "fixes": {
+                "joinSpace": [
+                  0
+                ],
+                "drop": [
+                  0
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 40,
+                "x1": 580,
+                "y0": 110,
+                "y1": 123
+              },
+              "section": "r3",
+              "fixes": {
+                "joinSpace": [
+                  0
+                ],
+                "drop": [
+                  0
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 40,
+                "x1": 580,
+                "y0": 126,
+                "y1": 139
+              },
+              "section": "r4",
+              "fixes": {
+                "joinSpace": [
+                  0
+                ],
+                "drop": [
+                  0
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 40,
+                "x1": 580,
+                "y0": 143,
+                "y1": 156
+              },
+              "section": "r5",
+              "fixes": {
+                "joinSpace": [
+                  0
+                ],
+                "drop": [
+                  0
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 40,
+                "x1": 580,
+                "y0": 159,
+                "y1": 172
+              },
+              "section": "r6",
+              "fixes": {
+                "joinSpace": [
+                  0
+                ],
+                "drop": [
+                  0
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 40,
+                "x1": 580,
+                "y0": 176,
+                "y1": 199
+              },
+              "section": "r7",
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1
+                ],
+                "drop": [
+                  1
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 40,
+                "x1": 580,
+                "y0": 202,
+                "y1": 225
+              },
+              "section": "r8",
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1
+                ],
+                "drop": [
+                  1
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 40,
+                "x1": 580,
+                "y0": 229,
+                "y1": 241
+              },
+              "section": "r9",
+              "fixes": {
+                "joinSpace": [
+                  0
+                ],
+                "drop": [
+                  0
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 40,
+                "x1": 580,
+                "y0": 245,
+                "y1": 258
+              },
+              "section": "r10",
+              "fixes": {
+                "joinSpace": [
+                  0
+                ],
+                "drop": [
+                  0
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 40,
+                "x1": 580,
+                "y0": 262,
+                "y1": 274
+              },
+              "section": "r11",
+              "fixes": {
+                "joinSpace": [
+                  0
+                ],
+                "drop": [
+                  0
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 40,
+                "x1": 580,
+                "y0": 278,
+                "y1": 291
+              },
+              "section": "r12",
+              "fixes": {
+                "joinSpace": [
+                  0
+                ],
+                "drop": [
+                  0
+                ]
+              }
+            }
+          ]
+        },
+        "roll": {
+          "op": "value",
+          "page": 13,
+          "pattern": "dice",
+          "box": {
+            "x0": 40,
+            "x1": 66,
+            "y0": 60,
+            "y1": 72
+          }
+        }
+      }
+    },
     "ax1.fort11m-p": {
       "kind": "kind.location",
       "name": "Fort 11m-p",
@@ -11000,6 +11247,155 @@
               0
             ]
           }
+        }
+      }
+    },
+    "ax1.whereabouts": {
+      "kind": "kind.rolltable",
+      "name": "NPC Whereabouts",
+      "cite": "AX1 p.24",
+      "pages": [
+        25
+      ],
+      "meta": {
+        "group": "Adventure Tables"
+      },
+      "fields": {
+        "name": {
+          "op": "heading",
+          "page": 25,
+          "box": {
+            "x0": 432,
+            "x1": 540,
+            "y0": 226,
+            "y1": 238
+          },
+          "hash": "q9ln6z"
+        },
+        "rows": {
+          "op": "text",
+          "page": 25,
+          "paras": [
+            {
+              "box": {
+                "x0": 432,
+                "x1": 585,
+                "y0": 240.6898,
+                "y1": 248.6898
+              },
+              "section": "r1",
+              "fixes": {
+                "joinSpace": [
+                  0
+                ],
+                "drop": [
+                  0
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 432,
+                "x1": 585,
+                "y0": 253.1368,
+                "y1": 261.1368
+              },
+              "section": "r2",
+              "fixes": {
+                "joinSpace": [
+                  0
+                ],
+                "drop": [
+                  0
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 432,
+                "x1": 585,
+                "y0": 265.5838,
+                "y1": 273.5838
+              },
+              "section": "r3-4",
+              "fixes": {
+                "joinSpace": [
+                  0
+                ],
+                "drop": [
+                  0
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 432,
+                "x1": 585,
+                "y0": 278.0308,
+                "y1": 286.0308
+              },
+              "section": "r5",
+              "fixes": {
+                "joinSpace": [
+                  0
+                ],
+                "drop": [
+                  0
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 432,
+                "x1": 585,
+                "y0": 290.4778,
+                "y1": 298.4778
+              },
+              "section": "r6",
+              "fixes": {
+                "joinSpace": [
+                  0
+                ],
+                "drop": [
+                  0
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 432,
+                "x1": 585,
+                "y0": 302.9248,
+                "y1": 310.9248
+              },
+              "section": "r7",
+              "fixes": {
+                "joinSpace": [
+                  0
+                ],
+                "drop": [
+                  0
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 432,
+                "x1": 585,
+                "y0": 315.3718,
+                "y1": 323.3718
+              },
+              "section": "r8-10",
+              "fixes": {
+                "joinSpace": [
+                  0
+                ],
+                "drop": [
+                  0
+                ]
+              }
+            }
+          ]
         }
       }
     },
@@ -34587,6 +34983,13 @@
         "y0": 0,
         "y1": 792,
         "reason": "margin-furniture"
+      },
+      {
+        "x0": 38,
+        "x1": 582,
+        "y0": 60,
+        "y1": 72,
+        "reason": "table-header"
       }
     ],
     "14": [
