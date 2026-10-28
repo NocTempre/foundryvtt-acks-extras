@@ -7,8 +7,9 @@ Of this recipe, `tools/live/markets.mjs` drives the party sheet's entry to the
 hit-point tool (`node tools/live/run.mjs markets`; `tools/live/README.md` is
 the contract), on a party and member it keeps as `markets/company` and
 `markets/member` and brings to shape at its start
-([../markets/TESTING.md](../markets/TESTING.md), Fixtures); the rest is walked
-by hand.
+([../markets/TESTING.md](../markets/TESTING.md), Fixtures).
+`tools/live/combat-round.mjs` drives "A player's End Turn starts the next
+round". The rest is walked by hand.
 
 `lib` is the shared surface every other feature reads, so a break here shows up
 as ten features breaking. Walk this recipe before the others when several
@@ -488,6 +489,79 @@ UNLINKED token will not reproduce it: its delta is the actor.
 
 **Teardown.** Sweep the combat, the scene and the surviving actor by uuid; the
 deleted actor is already gone and reads back as `missing`.
+
+## A player's End Turn starts the next round
+
+Covers the relay in `patches/combat-round.mjs`. `tools/live/combat-round.mjs`
+walks the whole section (`node tools/live/run.mjs combat-round`). The defect
+is one client's copy of the combat disagreeing with the server's. Nothing
+offline holds a second client, so this needs a GM seat and a player seat open
+at once: the driver's two browsers, never two pane tabs.
+
+**Fixtures, kept and found by marker.**
+- The scene `lib/round-scene`, never activated or viewed.
+- Three actors: `lib/round-ally` and `lib/round-foe`, `monster`s only the GM
+  owns, and `lib/round-pc`, a `character` the Player seat owns.
+- A linked token for each on the scene: `lib/round-ally-token` (friendly),
+  `lib/round-foe-token` (hostile) and `lib/round-pc-token` (friendly).
+- The unlinked combat `lib/round-combat` (`scene: null`), with a row per
+  token: `lib/round-ally-row`, `lib/round-foe-row` and `lib/round-pc-row`.
+
+Each section brings them to shape at its start:
+- ownership is written whole, and every seat may observe the scene;
+- no actor carries an effect with a status;
+- the combat has `flags.acks.initDone` set and `lock-turns` cleared;
+- initiatives are ally 6, foe 4 and PC 1, at round 1 with the turn on the
+  PC's row, so the PC is up and last.
+
+The advance posts an announcement, which is a create path. The message is
+marked `lib/round-message`, and the next run retires it before it advances.
+An out-of-turn call that gets through posts one too: it is marked
+`lib/round-message-out-of-turn` and retired the same way.
+
+**Drive mechanics.**
+- Three conditions make the desync, and the walk asserts each:
+  - The system's `initiativePersistence` setting reads `reset` or `reroll`.
+    `keep` never calls `resetAll`. The walk sets `reset` where it finds `keep`
+    and restores it afterwards.
+  - At least one row is one the player does not own. A player who owns every
+    row may write them all, so nothing desyncs.
+  - The player's row is last. The footer gives a player End Turn (`nextTurn`),
+    which reaches `nextRound` only past the last row.
+- With every initiative equal, the system sorts a hostile row first. So the
+  friendly ally must outroll the foe; otherwise both seats put the foe up and
+  the desync hides in the order.
+- `ui.combat.render({combat})` views a combat in a seat's tracker without
+  activating it, since activating it would also move a peer's tracker.
+- Compare `_source.initiative` on the two seats.
+
+**Steps and what proves each.**
+1. **The real trigger.** From the Player seat, run
+   `ui.combat.element.querySelector('.combat-controls [data-action="nextTurn"]').click()`.
+   **Observable:** both seats read round 2, with the same order, the same
+   combatant up, the same highlighted row and the same initiatives. The GM
+   reads every initiative empty, so the round's reset reached the server. The
+   player's page records no refused write, neither an unhandled rejection nor
+   an error toast. One announcement is posted, by the GM's seat.
+   Unguarded, only the round agrees. The player reads every initiative empty
+   and puts the foe up, while the GM keeps last round's initiatives and puts
+   the ally up. The player's page records "lacks permission to update Combat".
+2. **The next initiatives reach the player whole.** The GM writes ally 6 (last
+   round's value), foe 3 and PC 2.
+   **Observable:** both seats hold the same initiatives, order and combatant
+   up. Unguarded, the ally stays empty on the player's seat: a write equal to
+   the server's value changes nothing, so nothing is sent to correct the
+   seat, and it stays wrong until a reload.
+3. **Refusals.** From the player's page, call
+   `socketlib.modules.get("acks-extras").executeAsGM("libNextRound", {combatId, round: round - 1, turn})`.
+   **Observable:** it answers `{error: "stale"}`. With the turn moved to the
+   ally, the same call at the current round and turn answers
+   `{error: "notYourTurn"}`. The player's own `combat.nextRound()` then
+   changes no round on either seat, leaves the player's initiatives as the
+   server holds them, and posts nothing.
+
+**Teardown.** The fixtures stay. The persistence setting is restored where the
+walk changed it.
 
 ## Captions bound to their controls
 

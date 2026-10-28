@@ -4706,3 +4706,61 @@ of the time.
 Writing no formula and flagging the attack is an importer change for a minor.
 Whether a placeholder attack should take an equipped weapon's die is a ruling
 for the owner.
+
+### A player's round advance runs on the GM's seat (2026-10-28)
+
+**Asked.** Two reports from player seats: the turn order did not refresh for
+one player until a reload, and one player's tracker showed a different
+combatant up from everyone else's. Detaching the tracker did not help. The
+system's `AcksCombat#nextRound` runs on whichever client calls it. A player
+reaches it with End Turn on the last row. Under the default initiative
+persistence (`reset`, and also `reroll`) it calls Foundry's
+`Combat#resetAll`. That method writes every combatant's empty initiative into
+the calling client's own copy and re-sorts it before it asks the server. The
+server refuses a player's write to combatants the player does not own, and
+nothing rolls the copy back. The round and turn update that follows is allowed
+for a player, so the round lands everywhere.
+
+Reproduced live on 14.369 with the system at 14.1.0, from a real Player seat
+beside the GM seat (`tools/live/combat-round.mjs`):
+- Both seats read round 2. The player read every initiative empty, ordered
+  foe, ally, PC and put the foe up. The GM kept 6, 4 and 1, ordered ally, foe,
+  PC and put the ally up.
+- The player's page recorded "lacks permission to update Combat".
+- The GM then wrote ally 6, foe 3 and PC 2. The player's ally stayed empty,
+  since a value equal to the server's is no change and nothing was sent to
+  correct it.
+
+**Ruled.**
+- `patches/combat-round.mjs`, the existing owner of the `nextRound` wrapper,
+  sends a seat that is not a GM's to the active GM over the lib's socket
+  (`libNextRound`) instead of running the system's method. The GM's seat runs
+  it, so the reset, the effect removals and the announcement are the GM's, and
+  every seat reads one state from the server.
+- The GM's handler advances only when four things hold: the combat still
+  stands at the round and turn the request was made on; no advance of that
+  combat is in flight; the requester owns a combatant that is up; and a GM is
+  connected. The first two stop a double press or two players advancing a
+  round twice. The third is the test the tracker uses to offer a player End
+  Turn.
+- The wrapper's libWrapper type moves from `WRAPPER` to `MIXED`. A `WRAPPER`
+  that does not call the chain is unregistered by libWrapper, and a player's
+  call no longer calls it.
+- With no GM connected, a player's advance does nothing and the seat gets the
+  lib's "a GM must be connected" warning.
+
+**Rejected.**
+- *Running the system's method on the player's seat and skipping only
+  `resetAll`.* The round's reset would never happen. The system's removal of
+  `delayed` and `done` from actors the player does not own would still be
+  refused.
+- *Letting a player advance with no GM connected.* That path is the defect. A
+  table playing without a GM also loses Foundry's own round events, which run
+  only on a GM's client.
+- *A setting.* It would only be a toggle for the broken state.
+
+**Not covered.** Read from the system's source and not reproduced: in round 2
+and later, when the next combatant still carries `surprised`, `nextTurn`
+awaits its removal before it moves the turn. Where the player does not own
+that combatant, the refused delete would abort their End Turn. That is the
+system's, and goes upstream with this report.

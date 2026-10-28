@@ -659,6 +659,7 @@
   "ACKS-LIB.settings.coinScope.scene": "Coin on hand, and coin kept on the scene the payer stands on",
   "ACKS-LIB.settings.coinScope.hand": "Coin on hand only",
   "ACKS-LIB.socket.noGm": "A GM must be connected for that: it changes something your seat does not own.",
+  "ACKS-LIB.combatRound.notYourTurn": "The round did not advance: only a player whose combatant is up can start the next round.",
   "ACKS-LIB.storage.duplicated": "The move half-finished and the goods now exist BOTH on the source and at {name}. Delete one copy.",
   "ACKS-LIB.storage.returnedTitle": "{place} was destroyed — stored goods returned",
   "ACKS-LIB.storage.lostTitle": "{place} was destroyed — stored goods lost",
