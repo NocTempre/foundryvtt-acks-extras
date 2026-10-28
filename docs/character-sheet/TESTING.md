@@ -420,9 +420,10 @@ back.
   report or the captured download with a bound of minutes, not a fixed
   sleep.
 - **The importer's api arrives after `ready`** (5–17 s on this world): poll
-  `acksExtras.importer` before reading `bookOpen("sheet")`. On a Player seat
-  the sheet opened from the server 18 s later still, behind the other
-  shelved books.
+  `acksExtras.importer` before reading `bookOpen("sheet")`. The shelf opens
+  one book at a time, so the sheet waits behind every shelved book the seat
+  may read: on a GM seat the whole shelf, on a Player seat only what the
+  Judge shared with it.
 - **Your Books' row controls are file-system pickers** on localhost and
   cannot be scripted. The shelf band's `input[data-shelf-bulk]` (GM) and the
   local band's `input[data-bulk]` take Files as above and match the sheet by
