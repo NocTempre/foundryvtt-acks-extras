@@ -67,7 +67,7 @@
       "grid": { "page": 37, "y0": 660, "y1": 758, "dieX0": 40, "dieX1": 60, "cellX0": 66, "cellX1": 160, "claimDie": true, "headerSkip": [643, 658] },
       "rollAt": { "page": 37, "box": { "x0": 40, "x1": 60, "y0": 644, "y1": 656 } },
       "skips": [
-        { "page": 37, "box": { "x0": 160, "x1": 320, "y0": 643, "y1": 758 }, "reason": "stat-columns" },
+        { "page": 37, "box": { "x0": 160, "x1": 580, "y0": 643, "y1": 758 }, "reason": "stat-columns" },
         { "page": 37, "box": { "x0": 210, "x1": 420, "y0": 628, "y1": 640 }, "reason": "table-caption" }
       ],
       "descStopY": 195,
