@@ -4599,3 +4599,49 @@ maximum and the typed (not computed) movement rates.
 - The two character-sheet inputs render from `storedSystem`. A computed
   movement rate stays the prepared figure, since it renders disabled and
   submits nothing.
+
+### A stamped record's old combat fields are read at load (2026-10-28)
+
+Corrects one sentence of "The attack seam rides the system's labelled
+modifiers" (2026-10-20): "The system migrates stored documents". It stamps
+them without always migrating them.
+
+**Asked.** Judges reported that Blast saves had reverted to 15 and attack
+throws to 10 on characters whose class had set both by level. Both figures are
+the system's schema defaults. Its world migration builds each update from
+`actor.toObject()`, which its own `migrateData` has already renamed in memory,
+and sends it as a diffed update. So the only change sent is
+`_schemaVersion: 5`. Live on 14.369 with acks 14.1.0, a character created with
+the 14.0 fields (`thac0.throw` 9, `saves.breath` 14) went through that write.
+The server kept `thac0` and `breath` under the new stamp. On the next load,
+`migrateData` skipped its renames on the stamp, and the actor read attack 10,
+Blast 15 and Implements 16. Paralysis, which never changed key, kept its value.
+The first session after the upgrade looks right; every later load reverts.
+
+**Ruled.**
+- `patches/legacy-source.mjs` wraps the static `migrateData` of the system's
+  `character` and `monster` models at init. It runs `migrateLegacyCombatSource`
+  first, the helper the module's own models already call on every load. The
+  helper fills a new field from the old one only where the new one is absent,
+  so a record the system did migrate is untouched.
+- It reads and writes nothing else. The rescued values live in memory. They
+  reach the record only when a later edit of that field writes them.
+- The repair is unconditional and has no setting. With it off, the actor
+  shows the system's defaults in place of its own values.
+
+**Rejected.**
+- *Writing the rescued values back at ready.* That is a data migration and
+  needs a minor. A GM can persist an actor now: re-apply its class at its
+  current level, or clear its stamp
+  (`actor.update({"system._schemaVersion": 0})`) and reload. The system's own
+  Force World Migration does not repair it, because it re-stamps from the
+  in-memory document, which already holds the defaults.
+- *Patching the system's migration runner.* The runner has already run in
+  every upgraded world, so a patch to it repairs nothing that exists. The
+  runner's update needs `diff: false`, and that fix belongs to the system.
+
+**Not covered.** The system's armor and weapon models skip their renames on
+the stamp the same way, and its runner writes embedded items through the same
+diffed update. An armor record keeping `aac`, or a weapon keeping a string
+`damage`, would load with defaults too. No world on this machine holds one, so
+this is unverified and not wrapped.

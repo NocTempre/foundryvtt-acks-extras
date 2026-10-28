@@ -1425,6 +1425,19 @@ Card submits on change too, and calls the same `showStoredInputs` from its own
 `_onRender`; its wrapper carries the actor's own id in `data-item-id`, which
 the item-row test reads as the actor's fields rather than an item's.
 
+### A record the system stamped without renaming
+
+The system's `character` and `monster` models rename the 14.0 combat fields
+(`thac0`, `aac`, the saves `breath` and `wand`) in `migrateData`, but only
+while the record's `_schemaVersion` is below current. A record its world
+migration stamped and left on the old fields would build with the schema's
+defaults in their place. `patches/legacy-source.mjs` wraps both models'
+static `migrateData` at init, so the wrap is in place before
+`initializeDocuments` builds any world actor. The wrap runs
+`migrateLegacyCombatSource` ahead of the system's method. The helper fills
+each new field from the old one where the new one is absent, and the record
+itself is not written.
+
 ## The multi-roller chat card
 
 `scripts/lib/roll-card.mjs` is the one renderer for every card where several

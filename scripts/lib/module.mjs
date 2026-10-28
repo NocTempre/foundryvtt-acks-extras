@@ -91,6 +91,7 @@ import { installCombatRoundPatch } from "./patches/combat-round.mjs";
 import { installMoraleRollPatch, SETTING_MORALE_PAGE } from "./patches/morale-roll.mjs";
 import { installAdventuringRollPatch } from "./patches/adventuring-roll.mjs";
 import { installStoredInputs } from "./patches/stored-inputs.mjs";
+import { installLegacyCombatRescue } from "./patches/legacy-source.mjs";
 import * as senses from "./senses.mjs";
 import * as light from "./light.mjs";
 import * as perception from "./perception.mjs";
@@ -422,6 +423,9 @@ Hooks.once("init", () => {
   CONFIG.Actor.dataModels[ANIMAL_TYPE] = AnimalData;
   CONFIG.Actor.dataModels[GROUP_TYPE] = GroupData;
   CONFIG.Actor.dataModels[TEMPLATE_TYPE] = TemplateData;
+  // At init for the same reason: the system's own models build each world
+  // actor from its stored record in `initializeDocuments`.
+  installLegacyCombatRescue();
 
   registerMountCleanup();
   registerMountDrop();

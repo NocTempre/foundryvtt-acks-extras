@@ -2719,6 +2719,43 @@ holding the same effect.
 
 **Teardown.** Delete both actors by their tracked ids.
 
+## A record the system stamped without renaming
+
+Covers `patches/legacy-source.mjs`. One GM seat. Each step reloads the page,
+so drive it from a pane or the driver, and poll `game.ready` after each reload.
+
+**Drive mechanics.**
+- The record as stored, before any client-side `migrateData`:
+  `(await foundry.helpers.SocketInterface.dispatch("modifyDocument", {type: "Actor", action: "get", operation: {query: {_id}}})).result[0].system`.
+  `actor._source` and `toObject()` are already migrated and cannot show it.
+- A raw socket `create` (`action: "create"`, `operation: {data: [data]}`)
+  stores `system` exactly as given. The requesting client does not add the
+  actor to `game.actors` until a reload.
+
+**Fixture (tracked by id):** a `character` created raw with the 14.0 fields:
+`details.level` 2, `saves` with `paralysis` 13, `breath` 14 and `wand` 15,
+and `thac0` `{value: 19, bba: 1, throw: 9, mod: {melee: 0, missile: 0}}`.
+Mark it `flags.world.fixture`.
+
+1. **The system's migration write.** Reload. Then send the update the
+   system's runner sends: `raw = actor.toObject()`,
+   `raw.system._schemaVersion = 5`, drop `items` and `effects`,
+   `Actor.implementation.updateDocuments([{_id, ...raw}])`.
+   **Observable:** `foundry.utils.diffObject(actor._source, raw)` is
+   `{system: {_schemaVersion: 5}}`, and the raw record reads stamp 5 with
+   `thac0.throw` 9, `saves.breath` 14 and no `attack` or `blast`.
+2. **The next load.** Reload.
+   **Observable:** the actor reads attack 9, Blast 14, Implements 15 and
+   Paralysis 13, and the raw record is unchanged. Without the wrap it reads
+   10, 15 and 16.
+3. **A record on the new fields.** Read any other character.
+   **Observable:** its figures are its own. In-page,
+   `new Actor.implementation({name, type: "monster", system: {_schemaVersion: 5, attack: {throw: 6}, saves: {blast: {value: 9}}}})`
+   keeps 6 and 9, and the same build with `thac0.throw` 7 and no `attack`
+   reads 7.
+
+**Teardown.** Delete the character by its tracked id.
+
 ## A group body moved between scenes
 
 Covers the roster's `deleteToken` hook (GROUPS.md, "A deleted body, and a

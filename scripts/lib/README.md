@@ -130,6 +130,7 @@ sibling modules) — never the import path for this module's own features.
 | `patches/combat-round.mjs` | Core patch: a combatant whose actor was deleted no longer throws out of `nextRound`, which froze the round counter. |
 | `patches/goods-drag.mjs` | Core patch: drag sources for the goods rows core leaves un-draggable, and the two guards that keep a dropped coin from being copied — on the system sheets' money drop and on Foundry's own `ActorSheetV2#_onDropItem`. |
 | `patches/initiative-card.mjs` | Core patch: a round's initiative gathered onto one chat card, a combat group as one row. |
+| `patches/legacy-source.mjs` | Core patch: a character or monster record the system's migration stamped without renaming loads its old `thac0`, `aac`, `breath` and `wand` values under the new names, at init, ahead of the system's `migrateData`. |
 | `patches/morale-roll.mjs` | Core patch: an actor's morale roll handed to the feature providing the `morale-roll` contract, with the system's own roll behind a setting and the skip key. |
 | `patches/stored-inputs.mjs` | Core patch: on the system's actor sheets, a field an Active Effect changes shows its stored value, so a save cannot write the effect back into the base. |
 | `patches/surprise-card.mjs` | Core patch: the Surprise Matrix's results gathered onto one chat card. |
