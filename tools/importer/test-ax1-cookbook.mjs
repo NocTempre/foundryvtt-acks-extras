@@ -283,6 +283,36 @@ t("a level's text stops short of its wandering section, which its table reads", 
   }
 });
 
+t("a passage reads no text another row reads", () => {
+  // A column's box reaches a few points into the gutter from either side, so
+  // two boxes meet only across more than that.
+  const meets = (p, q) => Math.min(p.x1, q.x1) - Math.max(p.x0, q.x0) > 10 && Math.min(p.y1, q.y1) > Math.max(p.y0, q.y0);
+  const boxesOf = (op) => (op?.paras ?? []).flatMap((p) => (p.boxes ?? [p.box]).map((b) => ({ page: p.page ?? op.page, b })));
+  const rows = JSON.parse(fs.readFileSync(path.join(here, "..", "..", "register", "ax1", "p4-p71-passages.json"), "utf8"));
+  const passages = rows.filter((r) => !r.assists?.aside);
+  assert.ok(passages.length > 0);
+  for (const row of passages) {
+    const mine = boxesOf(entries[row.id]?.fields?.description);
+    assert.ok(mine.length > 0, `${row.id} reads paragraphs`);
+    for (const [id, e] of Object.entries(entries)) {
+      if (id === row.id || !(e.pages ?? []).some((p) => row.pages.includes(p))) continue;
+      const theirs = ["description", "rows"].flatMap((k) => boxesOf(e.fields?.[k]));
+      const meeting = mine.filter((o) => theirs.some((q) => q.page === o.page && meets(o.b, q.b)));
+      assert.deepEqual(meeting, [], `${row.id} against ${id}`);
+    }
+  }
+});
+
+t("a table opened by a section head carries the paragraph between the head and its grid", () => {
+  const rows = JSON.parse(fs.readFileSync(path.join(here, "..", "..", "register", "ax1", "p5-p56-tables.json"), "utf8"));
+  for (const id of ["ax1.motivations", "ax1.rumors"]) {
+    const grid = rows.find((r) => r.id === id).assists.grid;
+    const boxes = (entries[id]?.fields?.description?.paras ?? []).flatMap((p) => p.boxes ?? [p.box]);
+    assert.ok(boxes.length > 0, `${id} has a description`);
+    assert.ok(boxes.every((b) => b.y1 < grid.headerSkip[0] && b.x0 < grid.cellX1 && b.x1 > grid.dieX0), `${id}'s description is above its grid, in its column`);
+  }
+});
+
 t("each room table reads one row per die result, from the first without a gap", () => {
   for (const id of ["ax1.pool", "ax1.mutations"]) {
     const sections = (entries[id]?.fields?.rows?.paras ?? []).map((p) => p.section);

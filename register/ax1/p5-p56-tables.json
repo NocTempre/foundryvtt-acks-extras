@@ -4,13 +4,14 @@
     "kind": "kind.rolltable",
     "book": "ax1",
     "name": "Adventure Motivations",
-    "anchor": { "display": "Adventure Motivation Table" },
+    "anchor": { "display": "Adventure Motivation (Optional)" },
     "pages": [5],
     "meta": { "group": "Adventure Tables" },
     "assists": {
       "headingLines": { "minH": 11 },
       "grid": { "page": 5, "y0": 212, "y1": 466, "dieX0": 38, "dieX1": 60, "cellX0": 62, "cellX1": 312, "claimDie": true, "headerSkip": [198, 211] },
-      "rollAt": { "page": 5, "box": { "x0": 38, "x1": 62, "y0": 198, "y1": 210 } }
+      "rollAt": { "page": 5, "box": { "x0": 38, "x1": 62, "y0": 198, "y1": 210 } },
+      "skips": [{ "page": 5, "box": { "x0": 105, "x1": 235, "y0": 182, "y1": 193 }, "reason": "table-caption" }]
     }
   },
   {
@@ -18,7 +19,7 @@
     "kind": "kind.rolltable",
     "book": "ax1",
     "name": "Rumors",
-    "anchor": { "display": "Random Rumor Table" },
+    "anchor": { "display": "Random Rumors" },
     "pages": [5],
     "meta": { "group": "Adventure Tables" },
     "assists": {
@@ -27,7 +28,8 @@
         "page": 5, "y0": 163, "y1": 455, "dieX0": 320, "dieX1": 335, "cellX0": 350, "cellX1": 585, "claimDie": true, "headerSkip": [148, 162],
         "bands": [[165, 185], [187, 207], [209, 230], [232, 262], [264, 284], [286, 307], [309, 329], [331, 352], [354, 374], [376, 397], [399, 429], [431, 452]]
       },
-      "rollAt": { "page": 5, "box": { "x0": 320, "x1": 345, "y0": 148, "y1": 160 } }
+      "rollAt": { "page": 5, "box": { "x0": 320, "x1": 345, "y0": 148, "y1": 160 } },
+      "skips": [{ "page": 5, "box": { "x0": 400, "x1": 503, "y0": 132, "y1": 143 }, "reason": "table-caption" }]
     }
   },
   {

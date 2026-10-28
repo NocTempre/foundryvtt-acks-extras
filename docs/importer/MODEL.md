@@ -513,22 +513,25 @@ book prints under a title set as a picture, which the heading detector cannot
 read. The row anchors by hash on the passage's first body line (`anchor: {hash,
 as: "runin"}`), the one line it can prove it found, and `compileProse` flows
 from that line — on it, not under it — down the column, across the page and
-over the leaf to the last page the row names, ending where a sibling passage
-opens (`proseStops`). Nothing in the body is parsed; the paragraphs ship as
-the page sets them, opened by the book's declared `paraGap`, from its declared
-`bodyTop` down. The journals step binds each as a page of the JournalEntry
+over the leaf to the last page the row names. A passage is the text no row of
+its page reads, so it ends where a sibling passage opens (`proseStops`) or any
+other row of its pages does (`rowStops`). Nothing in the body is parsed; the
+paragraphs ship as the page sets them, opened by the book's declared
+`paraGap`, from its declared `bodyTop` down. The journals step binds each as a
+page of the JournalEntry
 its `meta.group` names, titled by what the passage IS (`meta.title`: an
 introduction, a tavern, conversion notes), its body the paragraphs with the
 page reference last. A key the passage prints inline — a tavern's room
 numbers — stays in the text; the keyed-room shape is `kind.location`. The
 ruling is DECISIONS 2026-10-23, "A passage is a journal page under a
-functional title".
+functional title". AX1's chapter openings, its backgrounds and the sections no
+keyed row reads are its `Adventure` journal.
 
 A sidebar is a passage too, set in the book's aside band (`asideH`), which no
 flow reads. Its row anchors by hash on the sidebar's head as a display
 heading and names the sidebar's box (`assists.aside`: `x0`, `x1`, and `y1`
 its foot); `compileProse` reads the aside-size runs in that box below the
-head, and nothing around it. AX1's twelve are the `Notes` journal, one page
+head, and nothing around it. AX1's thirteen are the `Notes` journal, one page
 each. A paragraph the sidebar is set into is boxed line by line around it
 (`axAsideBoxes`), around its head as well as its type, so the prose reads
 neither.

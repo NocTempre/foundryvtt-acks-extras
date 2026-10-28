@@ -1,0 +1,216 @@
+[
+  {
+    "id": "ax1.prose13",
+    "kind": "kind.prose",
+    "book": "ax1",
+    "name": "Prose 13",
+    "anchor": {
+      "hash": "1oyp7me",
+      "as": "runin"
+    },
+    "pages": [
+      4
+    ],
+    "meta": {
+      "group": "Adventure",
+      "title": "Introduction"
+    }
+  },
+  {
+    "id": "ax1.prose14",
+    "kind": "kind.prose",
+    "book": "ax1",
+    "name": "Prose 14",
+    "anchor": {
+      "hash": "1vikjil",
+      "as": "runin"
+    },
+    "pages": [
+      4
+    ],
+    "meta": {
+      "group": "Adventure",
+      "title": "Judge's Background"
+    }
+  },
+  {
+    "id": "ax1.prose15",
+    "kind": "kind.prose",
+    "book": "ax1",
+    "name": "Prose 15",
+    "anchor": {
+      "hash": "2cbesv",
+      "as": "runin"
+    },
+    "pages": [
+      4,
+      5
+    ],
+    "meta": {
+      "group": "Adventure",
+      "title": "Adventurers' Background"
+    },
+    "assists": {
+      "headingLines": {
+        "minH": 11
+      }
+    }
+  },
+  {
+    "id": "ax1.prose16",
+    "kind": "kind.prose",
+    "book": "ax1",
+    "name": "Prose 16",
+    "anchor": {
+      "hash": "i8z5x9",
+      "as": "runin"
+    },
+    "pages": [
+      29
+    ],
+    "meta": {
+      "group": "Adventure",
+      "title": "Inhabitants"
+    }
+  },
+  {
+    "id": "ax1.prose17",
+    "kind": "kind.prose",
+    "book": "ax1",
+    "name": "Prose 17",
+    "anchor": {
+      "hash": "1co8ftl",
+      "as": "runin"
+    },
+    "pages": [
+      32
+    ],
+    "meta": {
+      "group": "Adventure",
+      "title": "NPC notes"
+    }
+  },
+  {
+    "id": "ax1.prose18",
+    "kind": "kind.prose",
+    "book": "ax1",
+    "name": "Prose 18",
+    "anchor": {
+      "hash": "1drhvm6",
+      "as": "runin"
+    },
+    "pages": [
+      34
+    ],
+    "meta": {
+      "group": "Adventure",
+      "title": "Wilderness"
+    },
+    "assists": {
+      "excludeBoxes": [
+        {
+          "page": 34,
+          "x0": 300,
+          "x1": 600,
+          "y0": 135,
+          "y1": 770
+        }
+      ]
+    }
+  },
+  {
+    "id": "ax1.prose19",
+    "kind": "kind.prose",
+    "book": "ax1",
+    "name": "Prose 19",
+    "anchor": {
+      "hash": "5no3as",
+      "as": "runin"
+    },
+    "pages": [
+      35
+    ],
+    "meta": {
+      "group": "Adventure",
+      "title": "Wilderness travel"
+    }
+  },
+  {
+    "id": "ax1.prose20",
+    "kind": "kind.prose",
+    "book": "ax1",
+    "name": "Prose 20",
+    "anchor": {
+      "hash": "96ztzx",
+      "as": "runin"
+    },
+    "pages": [
+      66
+    ],
+    "meta": {
+      "group": "Adventure",
+      "title": "Further adventures"
+    }
+  },
+  {
+    "id": "ax1.prose21",
+    "kind": "kind.prose",
+    "book": "ax1",
+    "name": "Prose 21",
+    "anchor": {
+      "hash": "1yu47ls",
+      "as": "runin"
+    },
+    "pages": [
+      71
+    ],
+    "meta": {
+      "group": "Adventure",
+      "title": "Pre-generated characters"
+    }
+  },
+  {
+    "id": "ax1.prose22",
+    "kind": "kind.prose",
+    "book": "ax1",
+    "name": "Prose 22",
+    "anchor": {
+      "hash": "uf3a6r",
+      "as": "runin"
+    },
+    "pages": [
+      71
+    ],
+    "meta": {
+      "group": "Adventure",
+      "title": "The party"
+    }
+  },
+  {
+    "id": "ax1.prose23",
+    "kind": "kind.prose",
+    "book": "ax1",
+    "name": "Prose 23",
+    "anchor": {
+      "hash": "1tg13f3",
+      "as": "display"
+    },
+    "pages": [
+      40
+    ],
+    "meta": {
+      "group": "Notes",
+      "title": "Optional rule"
+    },
+    "assists": {
+      "headingLines": {
+        "minH": 11
+      },
+      "aside": {
+        "x0": 224,
+        "x1": 375,
+        "y1": 735
+      }
+    }
+  }
+]

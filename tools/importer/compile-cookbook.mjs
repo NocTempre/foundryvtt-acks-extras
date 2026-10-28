@@ -2467,6 +2467,20 @@ export function axRuninHeadKeys(pd, assists = {}) {
 }
 
 /**
+ * Every whole body line of a page that `anchor: {hash, as: "runin"}` can
+ * anchor on, with its key, read through the box it would ship. For authoring a
+ * passage anchored by its first line (`kind.prose`); it prints no word.
+ * @returns {{y: number, x0: number, col: number, hash: string}[]}
+ */
+export function axRuninLineKeys(pd, assists = {}) {
+  const cols = axColumns(pd, assists);
+  return axRuninLines(pd, cols).map((c) => {
+    const instr = withFixes({ box: axNameBox(pd, cols, c, true) }, pd);
+    return { y: c.line.y, x0: c.line.x0, col: c.col, hash: printKey(joinRuns(runsIn(pd, instr), instr.fixes)) };
+  });
+}
+
+/**
  * The anchor of a row keyed by a run-in number (`anchor: {number, as:
  * "runin"}`): the one key line of its page that opens with the number. The
  * heading is boxed by its runs' ORIGINS, the first run's to the last's, so the
@@ -3906,8 +3920,10 @@ async function compileAdventureItem(doc, entry, kindRow, bookCtx) {
  * cannot read, so the first line of body is the one line the row can prove it
  * found. The flow starts ON that line rather than under it, since the line is
  * the passage's and not a name's, and nothing in the body is parsed: the page
- * prints paragraphs and paragraphs are what ship. A sibling passage's first
- * line ends this one's flow (`bookCtx.proseStops`), as an item's does.
+ * prints paragraphs and paragraphs are what ship. A passage is the text no
+ * row of its page reads, so a sibling passage's first line ends its flow
+ * (`bookCtx.proseStops`), and so does any other row's opening line on its
+ * pages (`bookCtx.rowStops`).
  *
  * A sidebar (`assists.aside`: `x0`, `x1`, and `y1` its foot) is read from
  * its own box instead: the aside-size runs under its head, which no flow
@@ -3915,7 +3931,7 @@ async function compileAdventureItem(doc, entry, kindRow, bookCtx) {
  */
 async function compileProse(doc, entry, kindRow, bookCtx) {
   const { assists, page, pd, cols, a, name } = await axOpen(doc, entry);
-  const stops = (bookCtx?.proseStops ?? []).filter((s) => s.id !== entry.id);
+  const stops = [...(bookCtx?.proseStops ?? []), ...(bookCtx?.rowStops ?? [])].filter((s) => s.id !== entry.id);
   // `axFlow` reads from `endY + 2` down, so the anchor line's own y has to
   // clear it by less than a line pitch: the line above stays out.
   const segs = assists.aside
@@ -6230,6 +6246,15 @@ async function main() {
       const opened = await axOpen(doc, e).catch(() => null);
       if (opened) proseStops.push({ id: e.id, page: opened.page, y: opened.a.line.y, x0: opened.a.line.x0 });
     }
+    // Where every other row on a passage's pages opens: a passage is the text
+    // no row of its page reads, so any row's opening line ends it.
+    const prosePages = new Set(list.filter((e) => e.kind === "kind.prose" && !(e.status && e.status !== "active")).flatMap((e) => e.pages));
+    const rowStops = [];
+    for (const e of list) {
+      if (e.kind === "kind.prose" || (e.status && e.status !== "active") || !e.pages?.some((p) => prosePages.has(p))) continue;
+      const opened = await axOpen(doc, e).catch(() => null);
+      if (opened?.a?.line) rowStops.push({ id: e.id, page: opened.page, y: opened.a.line.y, x0: opened.a.line.x0 });
+    }
     const bookCtx = {
       npcStops,
       spaces,
@@ -6237,6 +6262,7 @@ async function main() {
       titleStops,
       itemStops,
       proseStops,
+      rowStops,
       // The template compiler reads the monster kind's stat-row map so a
       // template page's FIXED rows ("Type: Monstrosity") bind like any
       // monster's; the "varies by …" rows fail their patterns and stay raw.
