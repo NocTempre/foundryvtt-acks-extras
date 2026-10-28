@@ -88,7 +88,7 @@ drives the test world), `doc-scribe` (haiku: docs chores).
 ## Live testing
 
 The go-live gate. Read `.claude/rules/live-testing.md` before any live test —
-it is the canonical procedure (fixtures you create and destroy, real player
+it is the canonical procedure (fixtures built once and kept, real player
 seats, world-shutdown-before-build, what to report). The machine's server is
 defined in `C:\Proj\acks-rules\TEST_ENVIRONMENT.md` (LOCAL-ONLY — no port,
 world id, user name or password ever enters a repo); if that file is absent,

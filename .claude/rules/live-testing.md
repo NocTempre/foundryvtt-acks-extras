@@ -46,35 +46,61 @@ rather than inventing one.
      its unit test. Sheet/DOM integrations, drag-and-drop, and Active Effect
      writes are the surfaces mocks cannot reach; verify the write actually
      landed on the target field, not merely that the code ran.
-4. **Create whatever fixtures the check needs — that is part of the check.**
-   The test world rarely already holds the actors, items, or documents a
-   feature touches. "No data existed to exercise it" is not a limitation to
-   report; it is test data you were expected to build. Make it, run the
-   feature through it, then sweep it — by id, as below.
+4. **Build whatever fixtures the check needs — that is part of the check.**
+   The test world holds the actors, items, or documents a feature touches
+   only once some check has built them. "No data existed to exercise it" is
+   not a limitation to report; it is test data you were expected to build.
 
-   **Create-and-destroy, never mutate-and-restore.** Editing the world's
-   existing documents and rolling back afterwards is the failure this rule
-   exists to prevent — and it recurs. A rollback is a second write with all
-   the failure modes of the first: it can report success and not apply (an
-   ownership rollback did exactly that), it cannot restore state you did not
-   think to snapshot, and an exception mid-test strands the world broken. A
-   document you created is disposable by construction: deleting it is total,
-   needs no snapshot, and cannot half-succeed.
+   **A fixture, once built, stays.** The next check of the same surface
+   reuses it instead of building it again; a sweep at the end of every walk
+   spends the next walk on setup that is already proven. A fixture is found
+   again by its **marker**, `flags.world.fixture` set to the
+   `<feature>/<name>` its recipe gives it, and never by its document name,
+   which two sessions spell alike as a matter of course. A recipe's fixtures
+   section names each marker and how to build the fixture when nothing
+   carries it. A document with no marker is work nobody recorded: read it,
+   never drive it.
 
-   **Teardown is by the run's own ids; the capture driver's fixture ledger is
-   the mechanism.** `api.create(kind, data)` records the uuid of what it
-   makes; `api.track(uuidOrId, kind)` records a document made any other way,
-   including one the feature wrote itself once its id is read back from the
-   action's result; `api.sweepTracked()` deletes exactly that list and returns
+   **A step that needs a known shape asserts it at its start.** A kept
+   fixture carries whatever the last walk left, and nothing restores it at
+   the end. A rollback is a second write with all the failure modes of the
+   first: it can report success and not apply (an ownership rollback did
+   exactly that), it cannot restore state nobody snapshotted, and an
+   exception mid-test strands it half-done. Where a fixture cannot be brought
+   to the shape a step needs, rebuilding it is setup, below.
+
+   **A fixture you drive is yours alone while you drive it.** One that a walk
+   only reads or renders serves every session at once. One a walk moves,
+   fights, bills or edits has two writers the moment a peer walks the same
+   surface. Before driving one, find out who is seated (Concurrency, below);
+   where a peer is on the same surface, build your own under a marker of
+   your own.
+
+   **Delete a fixture only where setup is the subject.** A check of how a
+   document comes to exist or stops existing needs it absent: a create path
+   or create hook, an import's first run (a standing import blocks the fresh
+   create), the DELETE path (Driving techniques, below), a migration of a
+   pre-upgrade shape. That check deletes the fixture first, under the
+   seated-peer rule above, then runs the setup under test; what the setup
+   produced is the fixture from then on, and carries the marker.
+
+   **Every delete is by the run's own ids; the capture driver's fixture
+   ledger is the mechanism.** `api.create(kind, data)` records the uuid of
+   what it makes; `api.track(uuidOrId, kind)` records a document made any
+   other way, including one the feature wrote itself once its id is read
+   back from the action's result, and a kept fixture a setup check retires
+   once its marker lookup returns it. The ledger is the run's record of what
+   it built, and `api.sweepTracked()` deletes exactly that list and returns
    what it removed, what it could not find and what refused, and the report
-   quotes that object. A sweep keyed on anything else — a name, a name
-   prefix, a folder, a type, a time window, "looks like a fixture" — is
-   forbidden: the world is shared, and every one of those keys matches
-   another session's documents as readily as yours. A run that dies before
-   its sweep has printed its ids into its log; the next run re-tracks those
-   ids and sweeps them, and never goes looking by name. A session driving a
-   browser pane instead of the driver keeps the same list by hand and deletes
-   by it, with the driver's exported `pageSweep(entries)` as the expression.
+   quotes that object. A delete keyed on anything else — a name, a name
+   prefix, a folder, a type, a time window, a pattern over markers, "looks
+   like a fixture" — is forbidden: the world is shared, and every one of
+   those keys matches another session's documents as readily as yours.
+   Every `track` prints its uuid, so a run's log holds every id it built,
+   and a setup check that dies before its sweep re-tracks those ids on the
+   next run and never goes looking by name. A session driving a browser pane
+   instead of the driver keeps the same list by hand and deletes by it, with
+   the driver's exported `pageSweep(entries)` as the expression.
 
    Seats are provisioned: the world carries one user of every permission
    level, so verify player-facing behaviour by **joining as that player**.
@@ -92,8 +118,9 @@ rather than inventing one.
 6. **Report what you exercised, and name what you did not.** "Live-verified"
    with no list is not a result. If a surface could not be reached, say which
    and why — a gap you could have closed by creating fixtures is not a gap;
-   close it. Quote the sweep result — removed, could not find, refused — as
-   the record of what you created and what became of it.
+   close it. Quote the ledger, with each fixture's marker, as the record of
+   what the run built and kept, and a setup check's sweep result — removed,
+   could not find, refused — as the record of what it deleted.
 
    **A claim is as wide as the check behind it.** Sort the report three ways:
    exercised live, checked offline only, not checked. A count is quoted from

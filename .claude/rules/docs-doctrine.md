@@ -18,7 +18,8 @@ it; a pointer is not duplication.
   week with no stated cause is the signature of deciding by mood.
 - `docs/<feature>/ROADMAP.md` — what is not built.
 - `docs/<feature>/TESTING.md` — the surface's live-test recipe: **fixtures to
-  create → steps to walk → the observable that proves each → teardown.** It
+  find or build, each with its marker → steps to walk → the observable that
+  proves each → teardown, where setup is the subject.** It
   records the non-obvious drive mechanics live testing discovers (how a thing
   is actually created, which API finds it, what a real user gesture looks
   like scripted), so the next session walks in minutes what the last one

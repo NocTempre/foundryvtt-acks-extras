@@ -98,9 +98,9 @@ the full pipeline (build + validate, no publish) is available anytime:
    pass — fix, don't skip.
 5. **Live-verify on the local test server. This is a GO-LIVE GATE**, not an
    optional extra — offline checks run against mocked globals and have
-   shipped dead modules green. The canonical procedure (environment, the
-   create-and-destroy fixture discipline, real player seats, pre-upgrade
-   shapes, what to report) is `.claude/rules/live-testing.md` — follow it.
+   shipped dead modules green. The canonical procedure (environment,
+   fixtures built once and kept, real player seats, pre-upgrade shapes, what
+   to report) is `.claude/rules/live-testing.md` — follow it.
    Skip only when `C:\Proj\acks-rules\TEST_ENVIRONMENT.md` is absent (no
    test server on this machine), and say so in the report.
 5a. **Capture the release snapshots the kind calls for (TOOLCHAIN §4b) — in
@@ -114,8 +114,8 @@ the full pipeline (build + validate, no publish) is available anytime:
    - Update `docs/GALLERY.md`: rewrite **every** row on a major release, only
      the re-shot rows on a minor. Rows left pointing at an older version are
      the staleness record — that is intended, not an oversight to tidy.
-   - Point the camera at the disposable fixtures you built for step 5; a
-     fixture named for what it demonstrates makes the better guide image.
+   - Point the camera at the fixtures step 5 walked; a fixture named for
+     what it demonstrates makes the better guide image.
    - **Clip to the app window.** That keeps world id, user name and server URL
      out of frame by construction — Foundry paints them into the players
      panel, settings tab and title bar. Book-derived text showing up
