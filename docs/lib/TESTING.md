@@ -1195,10 +1195,14 @@ interaction.
    **Observable:** the finding names the effect; Fix rewrites the key to
    `system.ac.mod` and `system.ac.value` climbs by one. An effect on
    `system.surprise.mod` is reported with no fix offered.
-9. **A damage that is not dice.** Give a `monster` an equipped melee weapon
-   whose `system.damage.base.formula` is two plain words (`"x y"`), and open
-   its Follower Card. Rig a hit (`CONFIG.Dice.randomUniform = () => 0.025`)
-   and shift-click the weapon's attack row, then restore the rig.
+9. **A damage that is not dice.** Find or build the `monster` marked
+   `lib/seam-placeholder-damage`, holding one equipped melee weapon whose
+   `system.damage.base.formula` is two plain words (`"x y"`); assert that
+   formula before the step, since a kept fixture carries whatever the last
+   walk left. Open its Follower Card. Rig a hit
+   (`CONFIG.Dice.randomUniform = () => 0.025`) and shift-click the weapon's
+   attack row, then restore the rig. The warning is once per weapon and text
+   in a session, so reload before the step on a seat that has already seen it.
    **Observable:** one attack card posts with its hit and no damage roll, one
    warning names the weapon and its text, and no unhandled rejection is
    recorded. A second hit with the same weapon posts its card with no second
@@ -2487,11 +2491,19 @@ Covers `leaveOutUnrollable` and the caught throw in
 `patches/surprise-card.mjs`. One GM seat; the conditions recipe's drive notes
 on the matrix's cells, notifications and rejections apply.
 
-**Fixtures (each tracked):** two `character` actors and a `monster`, and an
-actor of a type with no `system.surprise` (an `acks-extras.vehicle` is the
-simplest, since it has no automation of its own). A scene with a linked token
-for each: the characters and the vehicle friendly, the monster hostile.
-Combat A holds all four. Combat B holds the vehicle and the monster.
+**Fixtures, kept and found again by marker (`flags.world.fixture`), built
+carrying it where none stands:** `lib/surprise-pc-a` and `lib/surprise-pc-b`
+(`character`), `lib/surprise-monster` (a `monster`), `lib/surprise-cart` (an
+actor of a type with no `system.surprise`; an `acks-extras.vehicle` is the
+simplest, since it has no automation of its own), and the scene
+`lib/surprise-scene` with a linked token for each: the characters and the cart
+friendly, the monster hostile. Each step starts a combat of its own, so the
+combats are a create path: `lib/surprise-combat-all` holds all four,
+`lib/surprise-combat-cart` holds the cart and the monster, and a walk deletes
+its last run's before it builds them again. So are the surprise card and its
+combatants' `surprised` statuses: a walk retires its last run's card,
+`lib/surprise-card`, and starts step 1 by clearing the statuses from the four
+actors.
 
 **Drive mechanics.** `combat.startCombat()` opens the matrix; on a page with
 the pane hidden, poll `foundry.applications.instances` for the instance whose
@@ -2512,8 +2524,9 @@ first renders opens a second matrix.
    `forelos`/`forelos`.
    **Observable:** the matrix closes and `initDone` is true.
 
-**Teardown.** Close any dialog the combat start opened, then delete the
-combats, the card and the actors by their tracked ids, and the scene.
+**Teardown.** Close any dialog the combat start opened. The actors and the
+scene stay; the two combats and the card stay until the next walk retires
+them.
 
 ## A deposit at a place the seat does not own
 
@@ -2775,10 +2788,12 @@ so drive it from a pane or the driver, and poll `game.ready` after each reload.
   stores `system` exactly as given. The requesting client does not add the
   actor to `game.actors` until a reload.
 
-**Fixture (tracked by id):** a `character` created raw with the 14.0 fields:
-`details.level` 2, `saves` with `paralysis` 13, `breath` 14 and `wand` 15,
-and `thac0` `{value: 19, bba: 1, throw: 9, mod: {melee: 0, missile: 0}}`.
-Mark it `flags.world.fixture`.
+**Fixture, a setup check:** `lib/legacy-stamped-fighter`, a `character`
+created raw with the 14.0 fields: `details.level` 2, `saves` with `paralysis`
+13, `breath` 14 and `wand` 15, and `thac0`
+`{value: 19, bba: 1, throw: 9, mod: {melee: 0, missile: 0}}`. Step 1 needs
+it unstamped, so a walk retires the one its marker finds, tracking it first,
+and builds it again raw.
 
 1. **The system's migration write.** Reload. Then send the update the
    system's runner sends: `raw = actor.toObject()`,
@@ -2797,7 +2812,8 @@ Mark it `flags.world.fixture`.
    keeps 6 and 9, and the same build with `thac0.throw` 7 and no `attack`
    reads 7.
 
-**Teardown.** Delete the character by its tracked id.
+**Teardown.** None: the stamped character stays as the fixture until the
+next walk retires it.
 
 ## A group body moved between scenes
 
