@@ -7,11 +7,17 @@
  * Machine values arrive through ./_env.mjs; nothing here names a port, a
  * world, a seat or a book. Every figure typed into a fixture is invented.
  *
- * Writes outside the fixture ledger: none. The three actors and the item are
- * `api.create`d; the chat messages the two throws post are tracked by the ids
- * a create observer reads back for the beast's own speaker, the moment each
- * resolves. The player seat is given observer ownership of an actor this run
- * made, which the sweep removes with it.
+ * Fixtures, kept and found again by marker (`api.fixture`): the employer
+ * `lib/follower-employer`, the henchman `lib/follower-hench`, the beast
+ * `lib/follower-beast` and its power `lib/follower-power`. Each step brings
+ * what it reads to shape first: the wiring writes the hireling link, the
+ * pending flag, the beast's saves-as line and the player seat's observer
+ * ownership of the employer, and the star is unpressed before it is pressed.
+ * The attack row's two throws are a create path: the messages they post,
+ * read back by a create observer for the beast's own speaker the moment each
+ * resolves, are marked `lib/follower-throw-row` and `lib/follower-throw-die`,
+ * and the next run retires each before it throws. Writes outside the ledger:
+ * none.
  */
 import { connect, sleep } from "./_driver.mjs";
 import { seats as machineSeats, PORTS } from "./_env.mjs";
@@ -20,7 +26,6 @@ const MACHINE = machineSeats();
 const browser = MACHINE.browser;
 const origin = MACHINE.origin;
 const SEATS = { gm: MACHINE.gm, player: MACHINE.player };
-const NONCE = "f" + Math.random().toString(36).slice(2, 8);
 const MOD = "acks-extras";
 
 const note = (label, value) => console.log(`${label}: ${typeof value === "string" ? value : JSON.stringify(value)}`);
@@ -83,16 +88,18 @@ const P = {
     return "installed";
   },
 
-  /** The hook's two inputs and the hireling link, on the run's own fixtures. */
+  /** The hook's two inputs and the hireling link, written onto the kept fixtures whatever the last run left. */
   wire: async ({ employerId, henchId, beastId, playerName }) => {
     const employer = game.actors.get(employerId);
     const hench = game.actors.get(henchId);
     const beast = game.actors.get(beastId);
     // Core keeps the employer's roster as its own list: the retainer fields
-    // alone do not place a hireling in the buckets.
+    // alone do not place a hireling in the buckets. Core refuses a hireling
+    // already on a list, so a kept one is added only when it is missing.
     await hench.update({ "system.retainer": { enabled: true, managerid: employer.id, category: "henchman", wage: "5", quantity: 1 } });
-    await employer.addHenchman(hench.id);
+    if (!(employer.system.henchmenList ?? []).includes(hench.id)) await employer.addHenchman(hench.id);
     await hench.update({ [`flags.acks-extras.record.special.pendingCalamity`]: true });
+    await beast.update({ "flags.acks-extras.extras.saveAs": { class: "fighter", level: 3 } });
     await employer.setFlag("acks-extras", "monsterHenchmenList", [beast.id]);
     const player = game.users.find((u) => u.name === playerName);
     if (player) await employer.update({ ownership: { ...employer.ownership, [player.id]: CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER } });
@@ -135,6 +142,14 @@ const P = {
       nameWidth: root.querySelector(".window-header .acks-extras-frame__name")?.getBoundingClientRect().width ?? 0,
       scoreWidth: root.querySelector(".acks-lib-follower-card__score-v")?.getBoundingClientRect().width ?? 0,
     };
+  },
+
+  /** Clear the star from one power, so the press that follows starts unpressed whatever the last run left. */
+  unstar: async ({ actorId, itemId }) => {
+    const actor = game.actors.get(actorId);
+    const starred = actor.getFlag("acks-extras", "fcStarred") ?? [];
+    if (starred.includes(itemId)) await actor.setFlag("acks-extras", "fcStarred", starred.filter((id) => id !== itemId));
+    return { was: starred.includes(itemId), now: actor.getFlag("acks-extras", "fcStarred") ?? [] };
   },
 
   /** Press the star on one power and read the flag and the pressed state back. */
@@ -259,7 +274,7 @@ async function ready(api, label, seconds = 240) {
 
 const seats = {};
 async function seat(key) {
-  const api = await connect({ browser, origin, user: SEATS[key], port: PORTS[key] });
+  const api = await connect({ browser, origin, user: SEATS[key], port: PORTS[key], own: MACHINE.own });
   seats[key] = api;
   note(`${key} ready after (s)`, await ready(api, key));
   return api;
@@ -276,13 +291,16 @@ try {
   note("install", await run(gm, P.install));
 
   section("fixtures");
-  const employer = await gm.create("Actor", { name: `FC Employer ${NONCE}`, type: "character" });
-  const hench = await gm.create("Actor", { name: `FC Hench ${NONCE}`, type: "character" });
-  const beast = await gm.create("Actor", { name: `FC Beast ${NONCE}`, type: "monster", flags: { [MOD]: { extras: { saveAs: { class: "fighter", level: 3 } } } } });
-  const power = await gm.create("Item", { name: `Keen Nose ${NONCE}`, type: "ability", system: { description: "<p>Tracks by scent across a day's trail. A second sentence the card never shows.</p>" } }, { parent: beast.uuid });
+  const employer = await gm.fixture("lib/follower-employer", "Actor", { name: "FC Employer", type: "character" });
+  const hench = await gm.fixture("lib/follower-hench", "Actor", { name: "FC Hench", type: "character" });
+  const beast = await gm.fixture("lib/follower-beast", "Actor", { name: "FC Beast", type: "monster" });
+  const power = await gm.fixture("lib/follower-power", "Item", { name: "Keen Nose", type: "ability", system: { description: "<p>Tracks by scent across a day's trail. A second sentence the card never shows.</p>" } }, { parent: beast.uuid });
   const wired = await run(gm, P.wire, { employerId: employer.id, henchId: hench.id, beastId: beast.id, playerName: SEATS.player });
   note("wired", wired);
   check("the character hireling is in the employer's henchman bucket and the monster in its list", (wired.hirelings.henchman ?? []).includes(hench.id) && wired.pending === true && wired.saveAs?.class === "fighter", wired.hirelings);
+  const unstarred = await run(gm, P.unstar, { actorId: beast.id, itemId: power.id });
+  note("unstarred", unstarred);
+  check("the power starts unstarred", !unstarred.now.includes(power.id), unstarred);
 
   section("9. the follower's own sheet on the frame");
   const card = await run(gm, P.openCard, { actorId: beast.id });
@@ -310,9 +328,13 @@ try {
   check("pressing the star writes the lib flag and the button reads pressed", starred.found && (starred.flag ?? []).includes(power.id) && starred.pressed, starred);
 
   section("9. the attack row throws from the row and from its die");
+  // A create path: the last run's two messages go first, and this run's are marked in their place.
+  const THROWS = ["lib/follower-throw-row", "lib/follower-throw-die"];
+  for (const marker of THROWS) note(`retired ${marker}`, await gm.retire(marker, "ChatMessage"));
   const thrown = await run(gm, P.rollAttack, { actorId: beast.id });
   note("thrown", thrown);
-  for (const id of thrown.posted ?? []) gm.track(id, "ChatMessage");
+  if ((thrown.posted ?? []).length === THROWS.length) for (const [n, id] of thrown.posted.entries()) await gm.mark(`ChatMessage.${id}`, THROWS[n]);
+  else for (const id of thrown.posted ?? []) gm.track(id, "ChatMessage");
   check("the row and its die name the same attack", thrown.found && thrown.same);
   check("a press on the row's text posts a throw, and a press on the die posts another", thrown.fromRow && thrown.fromDie && (thrown.posted ?? []).length === 2 && thrown.rolls.every((n) => n >= 1), { posted: (thrown.posted ?? []).length, rolls: thrown.rolls });
   note("closed (gm card)", await run(gm, P.closeAll));
@@ -326,7 +348,7 @@ try {
   check("the tab draws no tools row of its own", owner.rendered && owner.toolsRow === false);
   check("the name is a button that opens the follower", !!beastCard?.nameButton && !!henchCard?.nameButton);
   check("the owner gets Dismiss and the two throws on each card", !!beastCard?.dismiss && !!henchCard?.dismiss && ["hirelingMorale", "hirelingLoyalty"].every((a) => beastCard.rolls.includes(a) && henchCard.rolls.includes(a)), { beast: beastCard?.rolls, hench: henchCard?.rolls });
-  check("the starred power is listed on the beast's card", !!beastCard && beastCard.rows.includes(`Keen Nose ${NONCE}`), beastCard?.rows);
+  check("the starred power is listed on the beast's card", !!beastCard && beastCard.rows.includes(power.name), beastCard?.rows);
   check("the saves row reads the monsters feature's saves-as line", !!beastCard && !!wired.expectedSavesAs && beastCard.rows.includes(wired.expectedSavesAs), { expected: wired.expectedSavesAs });
   check("the henchman's name carries the pending dot with the henchmen feature's title", typeof henchCard?.dot === "string" && henchCard.dot.length > 0, henchCard?.dot);
   check("the beast's name carries no dot", !!beastCard && beastCard.dot === null);
@@ -355,7 +377,7 @@ try {
   section("teardown");
   for (const [key, api] of Object.entries(seats)) {
     try { note(`closed (${key})`, await run(api, P.closeAll)); } catch (err) { console.error(`closeAll ${key}:`, err?.message ?? err); }
-    try { note(`sweep (${key})`, await api.sweepTracked()); } catch (err) { console.error(`sweep ${key}:`, err?.message ?? err); }
+    note(`ledger (${key})`, "");
     try { await api.close(); } catch {}
   }
   section("summary");

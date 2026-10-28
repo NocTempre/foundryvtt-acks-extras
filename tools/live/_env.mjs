@@ -14,6 +14,9 @@
  *   ACKS_TEST_BOOKS     a JSON map of book id to the path the Books window
  *                       reads for the GM's own staged copy; absent, no book
  *   ACKS_LIVE_LOGS      where a run's logs go; default aia-tmp/live (ignored)
+ *   FIXTURE_OWN         a tag of lowercase letters, digits and dashes: the run
+ *                       builds and finds its own fixtures, `<marker>@<tag>`,
+ *                       instead of the recipe's, beside a peer driving them
  *   SHOTS=1             take the release plates
  */
 import fs from "node:fs";
@@ -29,9 +32,13 @@ const need = (name) => {
   return value;
 };
 
-/** The two seats a walk drives: the browser, the server, and each seat's user name. Throws naming the first variable that is missing. */
+/**
+ * The two seats a walk drives: the browser, the server, each seat's user name,
+ * and `own`, the tag its fixtures go under (null for the recipe's markers).
+ * Throws naming the first variable that is missing.
+ */
 export function seats() {
-  return { browser: need("CAPTURE_BROWSER"), origin: need("CAPTURE_ORIGIN"), gm: need("SEAT_GM"), player: need("SEAT_PLAYER") };
+  return { browser: need("CAPTURE_BROWSER"), origin: need("CAPTURE_ORIGIN"), gm: need("SEAT_GM"), player: need("SEAT_PLAYER"), own: process.env.FIXTURE_OWN || null };
 }
 
 /** The CDP port the driver opens for each seat. One browser per seat is why two walks never run at once. */

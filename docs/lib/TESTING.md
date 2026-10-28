@@ -17,6 +17,13 @@ report the same symptom.
   `acks-extras.template` actors.
 - A disposable `acks-extras.location` actor (a storage provider).
 - A disposable `character` and a `monster` to put inside them.
+- Step 9's, kept and found again by marker (`flags.world.fixture`), and
+  built carrying it where none stands: `lib/follower-employer` (a
+  `character`), `lib/follower-hench` (a `character` on the employer's
+  hireling list), `lib/follower-beast` (a `monster`) and its power
+  `lib/follower-power`. The attack row's two throws are a create path: their
+  messages are `lib/follower-throw-row` and `lib/follower-throw-die`, and a
+  walk retires each before it throws again.
 
 ## Core drive mechanics (non-obvious, learned live)
 
