@@ -19,14 +19,25 @@ const CORE_ACTOR_SHEET = "actor-v2";
 function showStoredValues(app, element) {
   if (game.system?.id !== "acks") return;
   if (!app?.options?.classes?.includes?.(CORE_ACTOR_SHEET)) return;
-  const actor = app.actor ?? app.document;
+  showStoredInputs(app.actor ?? app.document, element);
+}
+
+/**
+ * Put the stored value into every input under `element` that names an actor
+ * field an Active Effect changes, with the value in force in its tooltip. For
+ * a sheet whose inputs bind to prepared data and submit on change: the
+ * system's (above) and the Follower Card.
+ */
+export function showStoredInputs(actor, element) {
   const overrides = actor?.overrides;
   if (!overrides || foundry.utils.isEmpty(overrides)) return;
   const root = elementOf(element);
   if (!root) return;
   for (const input of root.querySelectorAll('input[name^="system."], select[name^="system."]')) {
-    // An embedded item's row names its own document's fields, not the actor's.
-    if (input.closest("[data-item-id], [data-item-uuid]")) continue;
+    // An embedded item's row names its own document's fields, not the actor's;
+    // a wrapper carrying the actor's own id (the Follower Card's) is no row.
+    const row = input.closest("[data-item-id], [data-item-uuid]");
+    if (row && row.dataset?.itemId !== actor.id) continue;
     if (!foundry.utils.hasProperty(overrides, input.name)) continue;
     const stored = foundry.utils.getProperty(actor._source, input.name);
     if (input.type === "checkbox") input.checked = !!stored;

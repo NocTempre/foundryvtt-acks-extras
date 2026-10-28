@@ -79,6 +79,17 @@
         <input class="acks-input acks-extras-frame__fact-input acks-nums" type="number" name="system.retainer.loyalty" value="{{loyalty}}" data-dtype="Number" min="-4" max="4">
       </label>
 
+      {{#if appearing}}
+      <div class="acks-extras-frame__rule"><span class="acks-extras-frame__rule-title">{{localize "ACKS-LIB.followerCard.appearingTitle"}}</span></div>
+      {{#each appearing}}
+      <div class="acks-extras-frame__fact">
+        <span class="acks-extras-frame__fact-label">{{this.where}}</span>
+        <span class="acks-extras-frame__fact-value acks-nums">{{this.formula}}</span>
+        <button type="button" class="acks-extras-frame__mini" data-action="fcRollAppearing" data-check="{{this.check}}" data-tooltip="" aria-label="{{this.tip}}"><i class="fa-solid fa-dice" inert></i></button>
+      </div>
+      {{/each}}
+      {{/if}}
+
       {{#if hasAbilities}}
       <div class="acks-lib-follower-card__scores">
         {{#each abilities}}

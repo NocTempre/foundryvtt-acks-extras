@@ -63,8 +63,10 @@ controls, **Full sheet** the way out.
 
 The body is the frame's three columns. **Vitals**: hit points, the three
 card-only overrides (AC, speed, encumbrance, each `is-overridden` while it
-stands against the sheet's figure), morale and loyalty, the six scores with
-their modifiers. **Powers & proficiencies**: one row per power with its text
+stands against the sheet's figure), morale and loyalty, **Number appearing**
+where the body stores a dungeon or wilderness formula (a row per formula, its
+die rolling through the system's `rollAppearing`, as the full monster sheet's
+encounter rows do), the six scores with their modifiers. **Powers & proficiencies**: one row per power with its text
 shortened to a line, a roll for a proficiency with a throw, a star (below)
 and show; **Adventuring** throws, a typed figure being a card-only target;
 **Attacks**, each row a throw on the row itself and on its die, with the

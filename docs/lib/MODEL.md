@@ -1420,7 +1420,10 @@ runs on every render of such a sheet: each actor-field input or select whose
 path appears in `actor.overrides` is given the value from `actor._source`, an
 underline, and a tooltip naming the figure in force. Inputs inside an item row
 are left alone, since they name the item's fields. The module's character
-sheet does the same from its own render, so the patch skips it.
+sheet does the same from its own render, so the patch skips it. The Follower
+Card submits on change too, and calls the same `showStoredInputs` from its own
+`_onRender`; its wrapper carries the actor's own id in `data-item-id`, which
+the item-row test reads as the actor's fields rather than an item's.
 
 ## The multi-roller chat card
 

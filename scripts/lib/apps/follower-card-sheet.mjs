@@ -25,6 +25,7 @@ import { ITEM_TYPE } from "../vocab.mjs";
 import { skipDialogFor } from "../roll-dialog.mjs";
 import { SECRET_ADVENTURING, rollSecretAdventuring } from "../patches/adventuring-roll.mjs";
 import { promptDivide } from "../stack-prompt.mjs";
+import { showStoredInputs } from "../patches/stored-inputs.mjs";
 
 /** The actions that only look, kept live on a seat that cannot edit. */
 const VIEW_ACTIONS = new Set(["fcOpenFull", "fcShowItem"]);
@@ -51,6 +52,7 @@ export class FollowerCardSheet extends foundry.applications.api.HandlebarsApplic
       fcRollProficiency: FollowerCardSheet.#onRollProficiency,
       fcRollAttack: FollowerCardSheet.#onRollAttack,
       fcRollAdventuring: FollowerCardSheet.#onRollAdventuring,
+      fcRollAppearing: FollowerCardSheet.#onRollAppearing,
       fcResetSheet: FollowerCardSheet.#onResetSheet,
       fcCommit: FollowerCardSheet.#onCommit,
       fcAddAttack: FollowerCardSheet.#onAddAttack,
@@ -75,6 +77,11 @@ export class FollowerCardSheet extends foundry.applications.api.HandlebarsApplic
 
   static #onOpenFull() {
     this.#openFull();
+  }
+
+  /** Roll number appearing for the side the button names, through the system's own roll. */
+  static async #onRollAppearing(event, target) {
+    await this.actor.rollAppearing?.({ event, check: target.dataset.check === "wilderness" ? "wilderness" : "dungeon" });
   }
 
   static PARTS = {
@@ -130,6 +137,9 @@ export class FollowerCardSheet extends foundry.applications.api.HandlebarsApplic
   async _onRender(context, options) {
     await super._onRender(context, options);
     moveBandIntoHeader(this.element);
+    // The card renders the figures in force and submits on change: a field an
+    // effect changes shows its stored value, or each save compounds the effect.
+    showStoredInputs(this.actor, this.element);
 
     // DocumentSheetV2 disables every control on a seat that cannot edit; the
     // ones that only look stay live.

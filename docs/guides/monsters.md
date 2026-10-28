@@ -23,6 +23,10 @@ still sits on its own d20, and a power with no prose gets no button.
 
 *A named power posted to chat for the table to read.*
 
+Under the vitals, **Number appearing** lists the monster's dungeon and
+wilderness formulas, each with a die that rolls it to chat — the same roll the
+full sheet's Statblock makes.
+
 Everything else is one click away on **Full sheet** — the chip in the card's
 header band, or the portrait beside the name. If you would rather land on the
 full block, set it once under **Sheet Configuration** on any monster — that

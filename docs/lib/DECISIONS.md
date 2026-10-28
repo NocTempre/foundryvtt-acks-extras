@@ -4579,3 +4579,23 @@ Closes the cost the entry above names; that entry's ruling stands.
 - *Carrying every pick, and clearing it after each action.* An untouched
   field rendered from the document would still hide a write made elsewhere,
   which is the defect this entry closes.
+
+### The Follower Card shows the stored value of a field an effect changes (2026-10-28)
+
+Extends the 2026-10-15 entry above to a surface it missed.
+
+**Asked.** Investigating a repeat of the compounding Avoid Surprise report
+turned up the card doing the same thing. It also submits on change and renders
+the figures in force. Live, with a +1 STR effect, each hit-point edit from the
+card raised the stored score by one (10 to 11 to 12). The module's character
+sheet had two inputs that missed its own 2026-09-16 ruling: the spell slot
+maximum and the typed (not computed) movement rates.
+
+**Ruled.**
+- The card calls the patch's `showStoredInputs` from its own `_onRender`, so
+  one function decides which inputs take the stored value. The item-row skip
+  reads a wrapper whose `data-item-id` is the actor's own id as the actor's
+  fields. The card's root carries that id.
+- The two character-sheet inputs render from `storedSystem`. A computed
+  movement rate stays the prepared figure, since it renders disabled and
+  submits nothing.

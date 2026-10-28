@@ -68,6 +68,16 @@ export function savesLine(targets) {
 }
 
 /**
+ * The number-appearing formulas a body stores, as `{check, formula}` in the
+ * order dungeon (`d`), wilderness (`w`); a side with no formula is left out.
+ */
+export function appearingSides(appearing) {
+  return [["d", "dungeon"], ["w", "wilderness"]]
+    .map(([key, check]) => ({ check, formula: String(appearing?.[key] ?? "").trim() }))
+    .filter((side) => side.formula);
+}
+
+/**
  * Prose shortened to one line: tags and entities gone, whitespace folded,
  * cut at the first sentence end past the floor or at the ceiling with an
  * ellipsis.

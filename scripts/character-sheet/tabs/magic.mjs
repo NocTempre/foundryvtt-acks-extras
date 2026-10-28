@@ -9,6 +9,7 @@ import { LANG } from "../constants.mjs";
 import { makeLoc } from "../../lib/util.mjs";
 import { poolState } from "../../classes/casting.mjs";
 import { ITEM_TYPE } from "../../lib/vocab.mjs";
+import { storedSystem } from "../view-model.mjs";
 
 const loc = makeLoc(LANG);
 const num = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
@@ -16,6 +17,8 @@ const num = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallb
 /** Build the tab's data. */
 export function buildMagicTab(actor) {
   const sys = actor.system ?? {};
+  // The slot maximum is an input: it renders the stored value, which a submit writes back.
+  const stored = storedSystem(actor);
   const spells = actor.items.filter((i) => i.type === ITEM_TYPE.spell);
   const byLevel = new Map();
   for (const spell of spells) {
@@ -29,7 +32,7 @@ export function buildMagicTab(actor) {
     return {
       n,
       used,
-      max: num(sys.spells?.[n]?.max),
+      max: num(stored.spells?.[n]?.max),
       maxPath: `system.spells.${n}.max`,
       rows: rows.map((spell) => ({
         id: spell.id,

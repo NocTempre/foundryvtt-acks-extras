@@ -140,6 +140,12 @@ report the same symptom.
    the chips — and its **Full sheet** chip (`data-action="fcOpenFull"`) opens
    `FullMonsterSheet` beside it. The body is `.acks-lib-follower-card` (no
    `readonly` class) with `.acks-extras-frame__cols.is-3`.
+   Give the monster `system.details.appearing` `{d: "2d6", w: "3d10"}`.
+   *Observable:* the Vitals column carries a **Number appearing** rule with a
+   Dungeon and a Wilderness row, each with a die
+   (`[data-action="fcRollAppearing"][data-check]`); pressing the wilderness
+   die posts the system's appearing card with the formula `3d10`. A monster
+   storing neither formula shows no such block.
    Set a saves-as class on the monster's extras and star one of its powers
    (`[data-action="fcStar"]`, which writes `flags.acks-extras.fcStarred`).
    Make a `character` with a hireling list naming the monster and open its
@@ -2702,6 +2708,14 @@ holding the same effect.
 5. **Monster sheets.** Open the monster with each registered monster sheet.
    **Observable:** on the system's monster sheet and the module's full monster
    sheet, the input reads 0 and the tooltip names −1.
+6. **The Follower Card.** Add a second effect to the character, +1 to
+   `system.scores.str.value`, and open the card
+   (`Object.values(CONFIG.Actor.sheetClasses.character).find(s => s.id === "acks-extras.FollowerCardSheet").cls`).
+   Lower hit points twice from the card.
+   **Observable:** the STR input reads the stored score with the
+   `acks-extras-overridden` class and a tooltip naming the score in force, and
+   the stored score is unchanged after both edits. Without the call, it rises by
+   one per edit.
 
 **Teardown.** Delete both actors by their tracked ids.
 

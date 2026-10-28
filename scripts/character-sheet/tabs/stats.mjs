@@ -163,13 +163,15 @@ export function buildStatsTab(actor, { openBuckets = new Set(), editing = false,
     anyEdited: edited.weapons.size + edited.armour.size + edited.styles.size > 0,
   };
 
+  // Computed speeds render disabled and submit nothing; typed ones are inputs.
+  const moveAuto = !!sys.config?.movementAuto;
   const movement = {
-    auto: !!sys.config?.movementAuto,
+    auto: moveAuto,
     rows: MOVE_MODES.map((m) => ({
       key: m.key,
       icon: m.icon,
       label: game.i18n.localize(`ACKS.movement.${m.key}`),
-      value: num(sys.movementacks?.[m.key]),
+      value: num((moveAuto ? sys : stored).movementacks?.[m.key]),
       unit: loc(`unit.${m.unit}`),
       path: `system.movementacks.${m.key}`,
     })),

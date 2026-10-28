@@ -44,7 +44,7 @@ export function missingTablesList(docIds) {
     if (missing.length || (!expected.length && !incomplete.length)) {
       items.push(
         present.length
-          ? game.i18n.format("ACKS-LIB.tables.partialDoc", { doc: docId, have: present.length, total: expected.length })
+          ? game.i18n.format("ACKS-LIB.tables.partialDoc", { doc: docId, have: present.length, total: expected.length, missing: missing.join("/") })
           : docId,
       );
     }

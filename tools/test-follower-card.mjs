@@ -6,7 +6,7 @@
  * shortens, and which rows a star list picks.
  */
 import assert from "node:assert";
-import { stones, hdText, withMod, rankLine, saveTargets, savesLine, oneLine, starredRows, toggleStar, STAR_FLAG } from "../scripts/lib/follower-card-model.mjs";
+import { stones, hdText, withMod, rankLine, saveTargets, savesLine, appearingSides, oneLine, starredRows, toggleStar, STAR_FLAG } from "../scripts/lib/follower-card-model.mjs";
 
 let passed = 0;
 const test = (name, fn) => {
@@ -64,6 +64,15 @@ test("a body that stores no save has no targets", () => {
   assert.equal(saveTargets(null), null);
   assert.equal(saveTargets({}), null);
   assert.deepEqual(saveTargets({ death: { value: 13 } }), [0, 13, 0, 0, 0]);
+});
+
+test("number appearing offers a roll per side that stores a formula, dungeon first", () => {
+  assert.deepEqual(appearingSides({ w: "3d10", d: " 2d6 " }), [
+    { check: "dungeon", formula: "2d6" },
+    { check: "wilderness", formula: "3d10" },
+  ]);
+  assert.deepEqual(appearingSides({ d: "", w: "1d4" }), [{ check: "wilderness", formula: "1d4" }]);
+  assert.deepEqual(appearingSides(null), []);
 });
 
 console.log("follower card: the lines");

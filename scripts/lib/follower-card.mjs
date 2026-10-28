@@ -27,7 +27,7 @@ import { profileStrips, isProfileAbility, sizePips } from "./proficiency-strip.m
 import { ITEM_TYPE } from "./vocab.mjs";
 import { ANIMAL_TRAINING } from "./data/animal-data.mjs";
 import { signed } from "./frame-model.mjs";
-import { STAR_FLAG, stones, hdText, withMod, rankLine, saveTargets, savesLine, oneLine, starredRows } from "./follower-card-model.mjs";
+import { STAR_FLAG, stones, hdText, withMod, rankLine, saveTargets, savesLine, appearingSides, oneLine, starredRows } from "./follower-card-model.mjs";
 
 export { STAR_FLAG };
 
@@ -81,6 +81,15 @@ const coreLabel = (key, fallback) => (game.i18n?.has?.(key) ? game.i18n.localize
 export function actorProvides(actor, path) {
   if (actor?.system?.schema?.getField?.(path)) return true;
   return path.split(".").reduce((o, k) => (o == null ? undefined : o[k]), actor?.system) !== undefined;
+}
+
+/** The number-appearing rolls a body offers, labelled; null when it stores no formula. */
+function appearingRolls(appearing) {
+  const rows = appearingSides(appearing).map((side) => {
+    const where = game.i18n.localize(`ACKS-LIB.followerCard.appearing.${side.check}`);
+    return { ...side, where, tip: game.i18n.format("ACKS-LIB.followerCard.appearingRoll", { where, formula: side.formula }) };
+  });
+  return rows.length ? rows : null;
 }
 
 /**
@@ -256,6 +265,12 @@ export async function followerCardContext(actor, { editable = false, interactive
   // card prints beside the class it saves as.
   const saveTargetsOf = actorProvides(actor, "saves") ? saveTargets(sys.saves) : null;
   ctx.saves = saveTargetsOf ? { targets: saveTargetsOf, line: savesLine(saveTargetsOf) } : null;
+
+  // Number appearing, where the body stores the formulas: the card's own
+  // window rolls them as the full monster sheet's encounter rows do.
+  ctx.appearing = editable && interactive && actorProvides(actor, "details.appearing")
+    ? appearingRolls(sys.details?.appearing)
+    : null;
 
   // An animal's training and whether it bears a rider — the lib's own
   // sub-type fields, labelled from its own vocabulary.

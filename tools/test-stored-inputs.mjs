@@ -26,22 +26,24 @@ globalThis.foundry = {
   },
 };
 
-/** An input the patch reads: a name, a type, a value, and whether it sits in an item row. */
-function input(name, value, { type = "text", inItem = false } = {}) {
+/** An input the patch reads: a name, a type, a value, and the id of the `data-item-id` wrapper it sits in. */
+function input(name, value, { type = "text", inItem = false, wrapperId = null } = {}) {
   const classes = new Set();
+  const itemId = inItem ? "item0000000001" : wrapperId;
   return {
     nodeType: 1, name, type, value: String(value), checked: !!value, dataset: {},
     classList: { add: (c) => classes.add(c), has: (c) => classes.has(c) },
-    closest: (sel) => (inItem && sel.includes("data-item-id") ? {} : null),
+    closest: (sel) => (itemId && sel.includes("data-item-id") ? { dataset: { itemId } } : null),
   };
 }
 const root = (inputs) => ({ nodeType: 1, querySelectorAll: () => inputs });
 
-const { installStoredInputs } = await import("../scripts/lib/patches/stored-inputs.mjs");
+const { installStoredInputs, showStoredInputs } = await import("../scripts/lib/patches/stored-inputs.mjs");
 installStoredInputs();
 const render = (app, el) => hooks.renderActorSheetV2.forEach((fn) => fn(app, el));
 
 const actor = {
+  id: "actor000000001",
   _source: { system: { surprise: { avoidsurprise: 0 }, hp: { value: 7 }, retainer: { enabled: false } } },
   system: { surprise: { avoidsurprise: -1 }, hp: { value: 7 }, retainer: { enabled: true } },
   overrides: { system: { surprise: { avoidsurprise: -1 }, retainer: { enabled: true } } },
@@ -79,6 +81,15 @@ ok("a sheet not built on core's base class is left alone", () => {
   const avoid = input("system.surprise.avoidsurprise", -1);
   render({ actor, options: { classes: ["acks-extras", "acks-extras-character-sheet"] } }, root([avoid]));
   assert.equal(avoid.value, "-1");
+});
+
+ok("on the Follower Card, a wrapper carrying the actor's own id holds the actor's fields", () => {
+  const avoid = input("system.surprise.avoidsurprise", -1, { wrapperId: actor.id });
+  const itemRow = input("system.surprise.avoidsurprise", -1, { inItem: true });
+  showStoredInputs(actor, root([avoid, itemRow]));
+  assert.equal(avoid.value, 0);
+  assert.ok(avoid.classList.has("acks-extras-overridden"));
+  assert.equal(itemRow.value, "-1");
 });
 
 ok("an actor with no effect in force is left alone", () => {

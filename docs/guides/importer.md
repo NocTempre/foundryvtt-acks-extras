@@ -318,6 +318,13 @@ henchmen and location features read them. The pick is every table at once, or
 one table's own entry beneath it, so the formation's figures or the travel
 tables can be read again on their own.
 
+The re-read needs the books those tables come from open in the browser that
+runs it. A book is connected per browser, so on another computer or browser
+connect it again under **Books** first. A run with a book closed says which
+book it wanted and leaves the old tables in place. An update that adds tables
+to a document is caught up by the same re-read: the notice at load names the
+tables still missing, by document.
+
 ![](../releases/v11.4.0/importer-rules-tables-formation.png)
 
 *Reimport One Shelf with the rules tables open: every table, or one table's

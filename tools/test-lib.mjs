@@ -530,7 +530,7 @@ t("ruledata: the notice list names a partly-read table apart from a missing one"
     T.registerTable({ id: "invented", tables: { grid: { rows: [{ cls: 1, __missing: true }] } } }, { priority: T.PRIORITY.WORLD });
     T.registerTable({ id: "whole", tables: { grid: { rows: [{ cls: 1, __missing: true }] } } }, { priority: T.PRIORITY.WORLD });
     assert.deepEqual(missingTablesList(["invented", "whole"]), [
-      "ACKS-LIB.tables.partialDoc|doc=invented,have=1,total=2",
+      "ACKS-LIB.tables.partialDoc|doc=invented,have=1,total=2,missing=gone",
       "ACKS-LIB.tables.partialRows|doc=invented,tables=grid,count=1",
       "ACKS-LIB.tables.partialRows|doc=whole,tables=grid,count=1",
     ]);
