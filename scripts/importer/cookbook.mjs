@@ -4261,7 +4261,8 @@ async function pairedPlace(pairs, id) {
  * kept to the paragraphs its pair names. `built` is the arriving row's own
  * build — id, book, read name, materialized notes, parent, region, role and
  * roster. The earlier row's side of a takeover is what its own build wrote:
- * the parent its row names and its book's label.
+ * the parent its row names and its book's label. A market column is no row of
+ * its own and wrote no parent.
  * @returns {Promise<Actor>} the place joined
  */
 async function joinPaired({ pair, place, takesOver }, built) {
@@ -4270,14 +4271,35 @@ async function joinPaired({ pair, place, takesOver }, built) {
   if (takesOver) {
     const book = bookOfCookbookId(pair.earlier);
     const entry = data.books.get(book)?.entries?.[pair.earlier];
-    const parentId = isRegionSite(entry) ? regionPlaceId(book) : keyedParentId(entry, book);
-    const parent = await importedActor(parentId, { copies: false });
+    const parentId = !entry ? null : isRegionSite(entry) ? regionPlaceId(book) : keyedParentId(entry, book);
+    const parent = parentId ? await importedActor(parentId, { copies: false }) : null;
     patch = takeoverPatch(source, built, { id: pair.earlier, parentUuid: parent?.uuid ?? "", region: bookLabel(book), unique: pair.unique });
   } else {
     patch = bindPatch(source, { ...built, notes: keepParagraphs(built.notes, pair.unique) });
   }
   if (Object.keys(patch).length) await place.update(patch);
   return place;
+}
+
+/**
+ * The place a market is claimed as: the one that answers for `id` already,
+ * else the place its pair stands as, joined (`joinPaired` with `built`), else
+ * a fresh one from `build`. One answer for a market record's site, a book's
+ * market step and an earlier book's market column, so whichever lands first,
+ * the other joins it.
+ * @returns {Promise<{place: Actor|null, paired: boolean, fresh: boolean}>}
+ */
+async function claimMarketPlace(id, pairs, built, build) {
+  const held = await importedActor(id, { copies: false });
+  if (held) return { place: held, paired: false, fresh: false };
+  const paired = await pairedPlace(pairs, id);
+  if (paired) return { place: await joinPaired(paired, built), paired: true, fresh: false };
+  let fresh = false;
+  const place = await claimActorImport(id, () => {
+    fresh = true;
+    return build();
+  });
+  return { place, paired: false, fresh };
 }
 
 /**
@@ -4344,12 +4366,21 @@ async function importRegionRow({ bookId, id, e, region }, tally, run) {
     }
     return;
   }
-  const target = held ?? (await claimActorImport(claim.claimId, () =>
-    createDoc(Actor, claim.onto === "market"
-      ? marketActorData({ name, entryId: claim.claimId, book: bookId, bookLabel: label, folderId: folder })
-      : oseAdventureData({ book: bookId, bookLabel: label, folderId: folder }))));
+  let target = held;
+  if (!target && claim.onto === "market") {
+    // A market an earlier book's grid already made is taken over, not doubled.
+    const claimed = await claimMarketPlace(claim.claimId, run.pairs,
+      { id: claim.claimId, book: bookId, name, notes, parentUuid, region: label, role },
+      () => createDoc(Actor, marketActorData({ name, entryId: claim.claimId, book: bookId, bookLabel: label, folderId: folder })));
+    if (claimed.paired) return void tally.paired++;
+    target = claimed.place;
+    if (target) run.created.places.push(target.uuid);
+  } else if (!target) {
+    target = await claimActorImport(claim.claimId, () =>
+      createDoc(Actor, oseAdventureData({ book: bookId, bookLabel: label, folderId: folder })));
+    if (target) run.created.places.push(target.uuid);
+  }
   if (!target) return void tally.refused++;
-  if (!held) run.created.places.push(target.uuid);
   const patch = siteBindPatch(target, { notes, parentUuid, role });
   if (Object.keys(patch).length) await target.update(patch);
   tally.bound++;
@@ -4359,14 +4390,18 @@ async function importRegionRow({ bookId, id, e, region }, tally, run) {
  * Market profiles: a setting book's regional demand grid and domain records,
  * as market class, urban families and base demand on location actors
  * (`market-profile-binding.mjs` holds the translation and the write rule). A
- * market with a domain record is named by the heading the Judge's page prints;
- * the rest keep their neutral label. A record marked `place: "adventure"`
- * binds onto the book's own city, the actor the POI step nests under. A
- * class, family count or base demand the place already holds is the Judge's
- * and is left standing. Goods that translate to no merchandise, and a record
- * whose class differs from its grid row, are reported. See
- * docs/markets/DECISIONS.md, "A setting book's market profile lands as the
- * base".
+ * market with a domain record is named by the heading the Judge's page prints,
+ * one a sideways grid heads by its column's header, and the rest keep their
+ * neutral label. A record marked `place: "adventure"` binds onto the book's
+ * own city, the actor the POI step nests under; a grid column's
+ * `meta.markets` may name that city, a place another row builds (waited for,
+ * never stubbed), or a later book's market it pairs with (`claimMarketPlace`).
+ * A class or family count the place already holds is left standing, and a
+ * base demand unless an earlier printing wrote it (`baseIsImportable`). Goods
+ * that translate to no merchandise, and a record whose class differs from its
+ * grid row, are reported. See docs/markets/DECISIONS.md, "A setting book's
+ * market profile lands as the base" and "A later printing's demand replaces an
+ * earlier one's".
  */
 export async function cookbookImportMarketProfiles() {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates actors).`);
@@ -4381,10 +4416,11 @@ export async function cookbookImportMarketProfiles() {
       };
     })
     .filter((b) => b.grids.length);
-  if (!books.length) return ui.notifications.warn(`${MODULE_ID} | no market grids in any open book — connect AX3 first.`);
+  if (!books.length) return ui.notifications.warn(`${MODULE_ID} | no market grids in any open book.`);
   await primeMerchandiseCatalog().catch(() => null);
   const resolve = goodsResolver(merchandiseCatalog());
-  const counts = { made: 0, updated: 0, kept: 0, refused: 0 };
+  const pairs = placePairs(data.books);
+  const counts = { made: 0, updated: 0, kept: 0, paired: 0, waiting: 0, refused: 0 };
   const unmapped = new Map();
   const duplicates = new Map();
   const conflicts = [];
@@ -4424,16 +4460,33 @@ export async function cookbookImportMarketProfiles() {
           for (const column of profile.duplicates) duplicates.set(column, String(grid.header?.[column] ?? column));
           if (profile.classConflict) conflicts.push(record?.name || profile.market);
           const entryId = marketEntryId(bookId, profile.market);
+          // A grid printed sideways heads each market's column with its name,
+          // as text; one printed the other way keys its rows by position.
           const name = record?.name
+            || placeName(grid.header?.[profile.market])
             || game.i18n.format(`${LANG_PREFIX}.markets.label`, { n: marketOrdinal(profile.market) });
+          // A column may name the place it is (`meta.markets`): the book's own
+          // settlement, a place another row builds, or another book's market.
+          const column = e.meta?.markets?.[profile.market] ?? {};
+          const at = column.place ?? record?.place ?? null;
+          let place = null;
           let fresh = false;
-          const place = record?.place === "adventure"
-            ? await claimActorImport(oseAdventureId(bookId), () =>
-              createDoc(Actor, oseAdventureData({ book: bookId, bookLabel: label, folderId: folder })))
-            : await claimActorImport(entryId, () => {
-              fresh = true;
-              return createDoc(Actor, marketActorData({ name, entryId, book: bookId, bookLabel: label, folderId: folder }));
-            });
+          let paired = false;
+          if (at === "adventure") {
+            place = await claimActorImport(oseAdventureId(bookId), () =>
+              createDoc(Actor, oseAdventureData({ book: bookId, bookLabel: label, folderId: folder })));
+          } else if (at) {
+            // That row's own step builds it from its page; a stub here would
+            // keep its text from ever landing.
+            place = await importedActor(at, { copies: false });
+            if (!place) {
+              counts.waiting++;
+              continue;
+            }
+          } else {
+            ({ place, fresh, paired } = await claimMarketPlace(entryId, pairs, { id: entryId, book: bookId, name, notes: "", region: label },
+              () => createDoc(Actor, marketActorData({ name, entryId, book: bookId, bookLabel: label, folderId: folder }))));
+          }
           if (!place) {
             counts.refused++;
             continue;
@@ -4441,6 +4494,7 @@ export async function cookbookImportMarketProfiles() {
           const { update, wrote } = marketProfileUpdate(place.system?.market ?? null, profile, source);
           if (Object.keys(update).length) await place.update(update);
           if (fresh) counts.made++;
+          else if (paired) counts.paired++;
           else if (wrote.marketClass || wrote.families || wrote.demand) counts.updated++;
           else counts.kept++;
         }

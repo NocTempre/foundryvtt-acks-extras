@@ -7768,6 +7768,11 @@ field whole, where a takeover moves the identity and swaps one block.
 - In the earlier book's Adventure the place's parent is its own book's place,
   which that Adventure does not carry, so the reference stays in library form.
 
+**Extended (2026-10-28)** to a market grid's column, which pairs with a later
+book's market through the same patches: docs/markets/DECISIONS.md, "A later
+printing's demand replaces an earlier one's, and a sideways grid's columns say
+which market they are".
+
 ## 2026-10-24 — The cap is a ceiling at 10%, and 5% is a budget that warns
 
 Amends the bullet "The cap" in "Walls are traced at import from the Judge's

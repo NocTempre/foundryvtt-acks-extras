@@ -26,8 +26,8 @@ import {
   GRID_SCENE_PADDING, zoneMovedBy, zoneRegionData,
 } from "../../scripts/importer/scene-binding.mjs";
 import {
-  initCookbook, loadCookbook, cookbookImportPoiPlaces, cookbookImportScenes, cookbookImportJournals, gridScenePlan, mapCreateData,
-  regionSiteClaim, siteBindPatch, forgetImportedIndex, repairHeldMap,
+  initCookbook, loadCookbook, cookbookImportPoiPlaces, cookbookImportScenes, cookbookImportJournals, cookbookImportMarketProfiles, gridScenePlan,
+  mapCreateData, regionSiteClaim, siteBindPatch, forgetImportedIndex, repairHeldMap,
 } from "../../scripts/importer/cookbook.mjs";
 
 let failed = 0;
@@ -467,7 +467,63 @@ const BOOK_FILES = {
     schema: SCHEMA, book: { id: "st" },
     entries: { "st.region": loc("Region — Overview"), "st.site1": { ...loc("Region — Sites"), name: "Later Site" } },
   },
+  // One market two books print. The earlier book's sideways grid names the
+  // later book's market in its first column and a place of its own in its
+  // second; the later book seats the market at a region site and prints it in
+  // a grid of its own. These two borrow the registered ids ax1 and ax3 for the
+  // printing years that order them; every row, name and figure is invented.
+  ax1: {
+    schema: SCHEMA, book: { id: "ax1" },
+    entries: {
+      "ax1.grid1": {
+        kind: "kind.marketGrid", name: "Grid", cite: "E 1", pages: [1],
+        meta: { markets: { mkt1: { sameAs: "ax3.mkt1" }, mkt2: { place: "ax1.l1" } } },
+        fields: {
+          "grids.markets": {
+            op: "grid", page: 1, transpose: true, box: { x0: 0, x1: 300, y0: 100, y1: 140 }, label: { x0: 0, x1: 90 },
+            headerBand: { y0: 82, y1: 95 }, rowBands: [{ key: "salt", y0: 105, y1: 115 }, { key: "spices", y0: 125, y1: 135 }],
+            cols: [{ key: "mkt1", x0: 100, x1: 190, pattern: "raw" }, { key: "mkt2", x0: 200, x1: 290, pattern: "raw" }],
+          },
+        },
+      },
+      "ax1.l1": { ...loc("Space"), name: "Own Place" },
+      "ax1.l1-1": loc("Space", { space: "ax1.l1" }),
+    },
+  },
+  ax3: {
+    schema: SCHEMA, book: { id: "ax3" },
+    entries: {
+      "ax3.region": loc("Region — Overview"),
+      "ax3.site1": { ...loc("Region — Sites", { market: "mkt1" }), name: "Later Site" },
+      "ax3.mkt1": { kind: "kind.marketRecord", name: "Record", cite: "L 1", pages: [1], meta: { market: "mkt1" }, fields: {} },
+      "ax3.grid1": {
+        kind: "kind.marketGrid", name: "Grid", cite: "L 1", pages: [1],
+        fields: {
+          "grids.markets": {
+            op: "grid", page: 1, box: { x0: 0, x1: 400, y0: 200, y1: 220 }, rowBands: [{ key: "mkt1", y0: 205, y1: 215 }],
+            cols: [{ key: "salt", x0: 100, x1: 190, pattern: "raw" }, { key: "spices", x0: 200, x1: 290, pattern: "raw" }, { key: "marketClass", x0: 300, x1: 390, pattern: "raw" }],
+          },
+        },
+      },
+    },
+  },
 };
+
+/** A one-page PDF of text runs, each `[str, x, top]`. */
+function textPdf(runs) {
+  const H = 792;
+  const items = runs.map(([str, x, top]) => ({ str, transform: [1, 0, 0, 1, x, H - top], width: 12, height: 10, fontName: "F1" }));
+  return {
+    numPages: 1,
+    async getPage() {
+      return {
+        getViewport: () => ({ width: 612, height: H }),
+        getTextContent: async () => ({ items }),
+        getOperatorList: async () => ({ fnArray: [], argsArray: [] }),
+      };
+    },
+  };
+}
 
 /** A two-page PDF: the map's image placement on page 1, a zone's three figures on page 2. */
 function pdf(figures) {
@@ -501,7 +557,12 @@ globalThis.ui = {
     error: (m) => notices.push(["error", m]),
   },
 };
-const packs = new Coll([[ACTOR_PACK, new MockPack(ACTOR_PACK, "Actor", libraryPackLabel("Actor"))]]);
+/** The shelf a Judge's book (the two market books) files its places on. */
+const JUDGE_ACTOR_PACK = "world.judge-actors";
+const packs = new Coll([
+  [ACTOR_PACK, new MockPack(ACTOR_PACK, "Actor", libraryPackLabel("Actor"))],
+  [JUDGE_ACTOR_PACK, new MockPack(JUDGE_ACTOR_PACK, "Actor", libraryPackLabel("Actor", "Judge"))],
+]);
 const folders = new Coll();
 globalThis.game = {
   user: { isGM: true },
@@ -1008,6 +1069,95 @@ const map = game.scenes.find((s) => s.getFlag(MODULE_ID, "cookbook")?.id === "zz
   check("and is the site the other order makes, moved into the later book's region", shape(earlier), bindShape);
   sessions.delete("ss");
   sessions.delete("st");
+}
+
+// --- a market two books print: every order, one market, the later book's demand --------------
+{
+  const docs = {
+    ax1: textPdf([["Alpha", 110, 88], ["Beta", 210, 88], ["Rock", 10, 110], ["+1", 110, 110], ["+2", 210, 110], ["Bark", 10, 130], ["0", 110, 130], ["-1", 210, 130]]),
+    ax3: textPdf([["+3", 110, 210], ["-2", 210, 210], ["III", 310, 210]]),
+  };
+  const shelf = game.packs.get(JUDGE_ACTOR_PACK);
+  const docOf = (uuid) => shelf.docs.get(String(uuid ?? "").split(".").pop());
+  const flagOf = (d) => d?.flags?.[MODULE_ID]?.cookbook ?? {};
+  const shelved = (cbId) => shelf.docs.find((d) => flagOf(d).id === cbId);
+  const answering = () => shelf.docs.filter((d) => [flagOf(d).id, ...(flagOf(d).merged ?? [])].some((id) => id === "ax1.mkt1" || id === "ax3.mkt1"));
+  const shape = (d) => ({
+    id: flagOf(d).id, book: flagOf(d).book, merged: flagOf(d).merged ?? [], region: d.system.region, parent: flagOf(docOf(d.system.parentUuid)).id ?? null,
+    blocks: [...String(d.system.notes ?? "").matchAll(/data-acks-entry="([^"]+)"/g)].map((m) => m[1]),
+    marketClass: d.system.market?.marketClassOverride ?? null, demand: d.system.market?.goods?.demand ?? [], from: d.system.market?.goods?.dmProfile?.source?.book ?? null,
+  });
+  const open = (book) => {
+    sessions.delete("ax1");
+    sessions.delete("ax3");
+    sessions.set(book, { doc: docs[book] });
+  };
+  const places = (book) => (open(book), cookbookImportPoiPlaces({ books: [book] }));
+  const markets = (book) => (open(book), cookbookImportMarketProfiles());
+  const wipe = () => {
+    for (const d of shelf.docs.filter((x) => ["ax1", "ax3"].includes(flagOf(x).book))) shelf.docs.delete(d.id);
+    forgetImportedIndex();
+  };
+  // The later book's places, then its markets, then the earlier book.
+  await places("ax3");
+  await markets("ax3");
+  const late = answering();
+  const bound = await markets("ax1");
+  check("the earlier book's column joins the later book's market, and its place column waits", [bound.paired, bound.waiting, bound.made], [1, 1, 0]);
+  check("one market answers for both", answering().length === 1 && answering()[0] === late[0], true);
+  const want = {
+    id: "ax3.mkt1", book: "ax3", merged: ["ax1.mkt1"], region: late[0].system.region, parent: "ax3.region", blocks: ["ax3.site1"],
+    marketClass: 3, demand: [{ category: "salt", modifier: 3 }, { category: "spices", modifier: -2 }], from: "ax3",
+  };
+  const first = shape(late[0]);
+  check("it carries the later book's id, text, class and demand, and the earlier id", first, want);
+  const again = await markets("ax1");
+  check("the earlier book run again keeps what the later book wrote", [again.kept, again.paired, again.waiting], [1, 0, 1]);
+  await places("ax1");
+  const landed = await markets("ax1");
+  const own = shelved("ax1.l1");
+  check("once its place is built, the place column lands on it", [landed.updated, landed.waiting, own?.system.market?.goods?.demand], [1, 0, [{ category: "salt", modifier: 2 }, { category: "spices", modifier: -1 }]]);
+  check("and no stub stood in for it", shelf.docs.filter((d) => flagOf(d).id === "ax1.l1").length, 1);
+
+  // The later book's markets alone, then the earlier book, then the later book's places.
+  wipe();
+  await markets("ax3");
+  await markets("ax1");
+  await places("ax3");
+  check("the later book's market first, its places last: the same market", [answering().length, shape(answering()[0])], [1, want]);
+
+  // The earlier book first, then the later book's places, then its markets.
+  wipe();
+  const made = await markets("ax1");
+  const early = answering()[0];
+  check("the earlier book alone makes its column's market, named by its header, with its own demand",
+    [made.made, early?.name, flagOf(early).id, early?.system.market?.goods?.dmProfile?.source?.book], [1, "Alpha", "ax1.mkt1", "ax1"]);
+  check("its other columns name no market of their own here", shelf.docs.filter((d) => /^ax1\.mkt/.test(flagOf(d).id ?? "")).length, 1);
+  // The Judge files it in the earlier book's own place, which no column
+  // wrote: the takeover leaves that parent standing.
+  const home = await MockActor.create({
+    name: "Home", type: LOCATION_TYPE, system: { notes: "", parentUuid: "" },
+    flags: { [MODULE_ID]: { cookbook: { id: "ax1.adventure", book: "ax1", kind: "kind.oseAdventure" } } },
+  }, { pack: JUDGE_ACTOR_PACK });
+  early.system.parentUuid = home.uuid;
+  const took = await places("ax3");
+  check("the later book's site takes that market over", [took.paired, answering().length, answering()[0] === early, early.name], [1, 1, true, "Later Site"]);
+  await markets("ax3");
+  check("and its markets replace the earlier printing's demand; the Judge's parent stands", shape(early), { ...want, parent: "ax1.adventure" });
+
+  // The earlier book first, then the later book's markets, then its places;
+  // a name the Judge gave the market stands through the takeover.
+  wipe();
+  await markets("ax1");
+  const named = answering()[0];
+  named.name = "Judged";
+  const over = await markets("ax3");
+  check("the later book's market step takes the earlier market over", [over.paired, over.made, answering().length], [1, 0, 1]);
+  await places("ax3");
+  check("and ends where every other order does", shape(named), want);
+  check("the Judge's name stands", named.name, "Judged");
+  sessions.delete("ax1");
+  sessions.delete("ax3");
 }
 
 // --- shapes the Foundry half depends on -------------------------------------------------------

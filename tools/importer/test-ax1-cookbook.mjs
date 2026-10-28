@@ -7,7 +7,8 @@
  * it. An area's quick-stat lines become occupants, each read from its label's
  * origin. The inhabitants are read by key the same way, each with its prose and
  * one quick-stat block. No two areas' or inhabitants' boxes meet on a page,
- * which is how a stop that failed to fire shows in the compiled data.
+ * which is how a stop that failed to fire shows in the compiled data. The
+ * demand grid keys its goods as AX3's grid does.
  */
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -257,6 +258,17 @@ t("no two areas' or inhabitants' boxes meet on a page", () => {
     }
   }
   assert.deepEqual(meet, []);
+});
+
+t("the demand grid reads sideways, its goods under AX3's keys, its columns naming their places", () => {
+  const grid = entries["ax1.marketGrid1"]?.fields?.["grids.markets"];
+  assert.ok(grid?.transpose, "transposed");
+  const ax3 = JSON.parse(fs.readFileSync(path.join(here, "..", "..", "cookbook", "ax3.json"), "utf8")).entries;
+  const goods = ax3["ax3.marketGrid1"].fields["grids.markets"].cols.map((c) => c.key).filter((k) => k !== "marketClass");
+  assert.deepEqual(grid.rowBands.map((b) => b.key), goods, "one band per AX3 good, in AX3's order");
+  assert.deepEqual(grid.cols.map((c) => c.key), ["mkt1", "mkt2", "mkt3", "mkt4", "mkt5", "mkt6"]);
+  assert.ok(grid.headerBand, "the header is read, so a market is named from its column");
+  assert.deepEqual(entries["ax1.marketGrid1"].meta.markets, { mkt1: { sameAs: "ax3.mkt21" }, mkt2: { place: "ax1.fort" } });
 });
 
 console.log(`ax1-cookbook: ${n} checks OK`);

@@ -7374,7 +7374,7 @@
   "ACKS-IMPORTER.markets.unmapped": "Market profiles: {n} printed good(s) match no merchandise and were left out. Add the name to a merchandise item's Aliases, then import again: {list}",
   "ACKS-IMPORTER.markets.classConflict": "Market profiles: the domain record and the demand grid print different market classes for {list}. The record's class was used.",
   "ACKS-IMPORTER.markets.duplicates": "Market profiles: {n} printed good(s) feed a merchandise item another column already fills, and were left out: {list}. A good mapped through Aliases takes precedence.",
-  "ACKS-IMPORTER.markets.done": "Market profiles: {made} market(s) created, {updated} updated, {kept} already set by the Judge, {refused} skipped (page did not match the cookbook).",
+  "ACKS-IMPORTER.markets.done": "Market profiles: {made} market(s) created, {updated} updated, {paired} joined to the same market from another book, {kept} kept as set by the Judge or a later printing, {waiting} waiting for their place to be imported, {refused} skipped (page did not match the cookbook).",
   "ACKS-IMPORTER.ui.progressFactions": "Importing organisations…",
   "ACKS-IMPORTER.ui.progressRollTables": "Importing roll tables…",
   "ACKS-IMPORTER.ui.progressScenes": "Standing up maps…",

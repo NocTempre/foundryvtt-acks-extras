@@ -19,7 +19,7 @@ import { wallsProblems, wallsWarnings } from "../../scripts/importer/wall-trace.
 import { ABILITY_CATEGORIES, TRAVEL_MODES } from "../../scripts/lib/vocab.mjs";
 import { FACTION_KINDS, RELATION_STANCES } from "../../scripts/factions/constants.mjs";
 import {
-  KEY_NUMBER, ORDINAL_KINDS, bareKey, ordinalProblems, pairProblems, regionMapProblems, rowMetaProblems, sceneLinkProblems, siteProblems,
+  KEY_NUMBER, ORDINAL_KINDS, bareKey, marketColumnProblems, ordinalProblems, pairProblems, regionMapProblems, rowMetaProblems, sceneLinkProblems, siteProblems,
   spaceProblems,
 } from "./register-rules.mjs";
 
@@ -604,6 +604,7 @@ for (const { id, scene, table } of zoneRows) {
 /* --- between rows: key spaces and parents, pairs across books, scene links, a book's region map --- */
 for (const problem of spaceProblems(allRows)) err(problem);
 for (const problem of pairProblems(allRows)) err(problem);
+for (const problem of marketColumnProblems(allRows)) err(problem);
 for (const problem of regionMapProblems(allRows)) err(problem);
 for (const e of linkRows) for (const problem of sceneLinkProblems(e, allRows)) err(problem);
 

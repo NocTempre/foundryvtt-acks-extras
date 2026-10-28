@@ -1,7 +1,7 @@
 /** The register rules between an adventure's rows, fed invented rows. No PDFs, no Foundry. */
 import assert from "node:assert";
 import {
-  KEY_NUMBER, bareKey, ordinalProblems, pairProblems, regionMapProblems, rowMetaProblems, sceneLinkProblems, siteProblems, spaceKeyed, spaceProblems,
+  KEY_NUMBER, bareKey, marketColumnProblems, ordinalProblems, pairProblems, regionMapProblems, rowMetaProblems, sceneLinkProblems, siteProblems, spaceKeyed, spaceProblems,
 } from "./register-rules.mjs";
 
 let pass = 0;
@@ -81,6 +81,33 @@ flags("a pair from a market's site", pairProblems(rowsOf(later, earlier({ sameAs
 flags("a pair from a person", pairProblems(rowsOf(later, { ...earlier({ sameAs: "ax3.site27", unique: [] }), kind: "kind.npc" })), /location row only/);
 flags("a list of pairs", pairProblems(rowsOf(later, earlier({ sameAs: ["ax3.site27"], unique: [] }))), /one row id/);
 flags("two rows of one book on one place", pairProblems(rowsOf(later, earlier({ sameAs: "ax3.site27", unique: [] }), earlier({ sameAs: "ax3.site27", unique: [] }, "ax1.fortGate"))), /already paired with ax1\.fortPlace/);
+
+/* --- the places a market grid's columns name --- */
+
+const record = (id, meta = {}) => ({ id, book: id.split(".")[0], kind: "kind.marketRecord", meta: { market: id.split(".")[1], ...meta } });
+const demandGrid = (markets, id = "ax1.marketGrid1") => ({
+  id, book: id.split(".")[0], kind: "kind.marketGrid", meta: { markets },
+  assists: { grids: { markets: { cols: [{ key: "mkt1" }, { key: "mkt2" }, { key: "mkt3" }] } } },
+});
+const ownPlace = loc("ax1.home");
+const columns = (...rows) => marketColumnProblems(rowsOf(...rows));
+none("a column paired with a later market, one on a place of its book, one on its settlement",
+  columns(record("ax3.mkt9"), ownPlace, demandGrid({ mkt1: { sameAs: "ax3.mkt9" }, mkt2: { place: "ax1.home" }, mkt3: { place: "adventure" } })));
+flags("a column the grid does not print", columns(ownPlace, demandGrid({ mkt7: { place: "ax1.home" } })), /no column of the grid/);
+flags("a column naming both", columns(record("ax3.mkt9"), ownPlace, demandGrid({ mkt1: { sameAs: "ax3.mkt9", place: "ax1.home" } })), /exactly one of sameAs or place/);
+flags("a column naming neither", columns(demandGrid({ mkt1: {} })), /exactly one of sameAs or place/);
+flags("meta.markets on a place", columns({ ...ownPlace, meta: { markets: {} } }), /market grid row only/);
+flags("a pair with a book printed earlier", columns(record("ax1.mkt9"), demandGrid({ mkt1: { sameAs: "ax1.mkt9" } }, "ax3.marketGrid9")), /earlier book's grid/);
+flags("a pair within one book", columns(record("ax1.mkt9"), demandGrid({ mkt1: { sameAs: "ax1.mkt9" } })), /another book's market/);
+flags("a pair between books whose years tie", columns(record("ax6.mkt9"), demandGrid({ mkt1: { sameAs: "ax6.mkt9" } }, "ax5.marketGrid1")), /no printing year orders/);
+flags("a pair with a row no record defines", columns(demandGrid({ mkt1: { sameAs: "ax3.mkt9" } })), /no row defines/);
+flags("a pair with a row that is no record", columns(loc("ax3.mkt9"), demandGrid({ mkt1: { sameAs: "ax3.mkt9" } })), /no market record/);
+flags("a pair with a record that is its book's settlement", columns(record("ax3.mkt9", { place: "adventure" }), demandGrid({ mkt1: { sameAs: "ax3.mkt9" } })), /builds no market to pair/);
+flags("two columns of one book on one market", columns(record("ax3.mkt9"), demandGrid({ mkt1: { sameAs: "ax3.mkt9" }, mkt2: { sameAs: "ax3.mkt9" } })), /already paired with ax1\.marketGrid1 mkt1/);
+flags("a column and a place of one book on one market", columns(record("ax3.mkt9"), earlier({ sameAs: "ax3.mkt9", unique: [] }), demandGrid({ mkt1: { sameAs: "ax3.mkt9" } })), /already paired with ax1\.fortPlace/);
+flags("a place of another book", columns(loc("ax3.home"), demandGrid({ mkt1: { place: "ax3.home" } })), /a row of ax1/);
+flags("a place no row defines", columns(demandGrid({ mkt1: { place: "ax1.nowhere" } })), /no row defines/);
+flags("a place that builds none", columns(loc("ax1.home", { meta: { market: "mkt2" } }), demandGrid({ mkt1: { place: "ax1.home" } })), /builds none/);
 
 /* --- one row's own meta: revisions and character binding --- */
 

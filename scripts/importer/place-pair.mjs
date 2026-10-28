@@ -14,6 +14,7 @@
 import { MODULE_ID } from "./constants.mjs";
 import { isPlaceRole } from "../location/constants.mjs";
 import { bookTextBlock, insertBookTextAfter, keepParagraphs, swapBookText } from "./prose.mjs";
+import { marketEntryId } from "./market-profile-binding.mjs";
 
 /** Every id a stamped document answers for: its own, then those merged into it. */
 export const claimIds = (flag) => [flag?.id, ...(flag?.merged ?? [])].filter(Boolean);
@@ -24,19 +25,25 @@ export const answersFor = (flag, id) => !!id && claimIds(flag).includes(id);
 /**
  * The place pairs the cookbooks declare, reachable from either row's id. A
  * pair is declared on the earlier book's row, so the later row's cookbook need
- * not be loaded for its own side to be found.
+ * not be loaded for its own side to be found. A market grid declares its
+ * columns' pairs in `meta.markets`; the earlier side is the market id the
+ * column is claimed under (`marketEntryId`), and it prints no paragraphs.
  * @param {Iterable<[string, {entries?: object}]>} books each book's compiled cookbook, by book id
  * @returns {Map<string, {earlier: string, later: string, unique: number[]}>}
  */
 export function placePairs(books) {
   const out = new Map();
-  for (const [, cb] of books) {
+  const add = (earlier, later, unique = []) => {
+    const pair = Object.freeze({ earlier, later, unique: Object.freeze([...unique]) });
+    out.set(earlier, pair);
+    out.set(later, pair);
+  };
+  for (const [bookId, cb] of books) {
     for (const [id, e] of Object.entries(cb?.entries ?? {})) {
-      const later = e?.meta?.sameAs;
-      if (!later) continue;
-      const pair = Object.freeze({ earlier: id, later, unique: Object.freeze([...(e.meta.unique ?? [])]) });
-      out.set(id, pair);
-      out.set(later, pair);
+      if (e?.meta?.sameAs) add(id, e.meta.sameAs, e.meta.unique ?? []);
+      for (const [market, col] of Object.entries(e?.meta?.markets ?? {})) {
+        if (col?.sameAs) add(marketEntryId(bookId, market), col.sameAs);
+      }
     }
   }
   return out;

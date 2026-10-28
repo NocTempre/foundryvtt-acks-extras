@@ -6,12 +6,14 @@
  * SHAPE: a printed cell parses or is skipped; a column translates through the
  * Judge's alias before the default map, and one that translates nowhere is
  * reported rather than dropped; the domain record's class outranks the
- * grid's and a disagreement is flagged; and an import never overwrites a
- * class, a family count or a base demand the Judge already set.
+ * grid's and a disagreement is flagged; an import never overwrites a class,
+ * a family count or a base demand the Judge already set; and a later
+ * printing's base replaces an earlier one's, never the reverse.
  */
 import assert from "node:assert/strict";
+import { MODULE_ID } from "../../scripts/importer/constants.mjs";
 import {
-  ACKS1_GOODS, baseIsImportable, goodsResolver, marketEntryId, marketOrdinal, marketProfileUpdate,
+  ACKS1_GOODS, baseIsImportable, goodsResolver, marketActorData, marketEntryId, marketOrdinal, marketProfileUpdate,
   marketProfiles, parseDm, parseFamilies, parseMarketClass, placeName,
 } from "../../scripts/importer/market-profile-binding.mjs";
 
@@ -133,6 +135,34 @@ ok("a base from the same source refreshes; from another source it stands", () =>
   assert.deepEqual(update["system.market.goods.demand"], p.demand);
   assert.equal(update["system.market.marketClassOverride"], 5);
   assert.equal("system.market.urbanFamilies" in update, false);
+});
+
+ok("a later printing's base replaces an earlier one's; never the reverse, a tie, or the Judge's", () => {
+  const held = (book) => ({ demand: [{ category: "salt", modifier: 1 }], dmProfile: { source: book ? { book, page: `${book} p.1` } : null } });
+  const from = (book) => ({ book, page: `${book} p.2` });
+  // ax1 is printed before ax3; ax5 and ax6 share a year.
+  assert.equal(baseIsImportable(held("ax1"), from("ax3")), true);
+  assert.equal(baseIsImportable(held("ax3"), from("ax1")), false);
+  assert.equal(baseIsImportable(held("ax5"), from("ax6")), false);
+  assert.equal(baseIsImportable(held("ax6"), from("ax5")), false);
+  assert.equal(baseIsImportable(held("bk"), from("ax3")), false);
+  assert.equal(baseIsImportable(held(null), from("ax3")), false);
+});
+
+ok("a sideways grid's market carries no class, and lands without one", () => {
+  const sideways = { rows: [{ key: "mkt2", cells: { salt: "+1", gems: "-2" } }], header: { mkt2: "Header Name" } };
+  const [p] = marketProfiles({ grids: [sideways], resolve: goodsResolver([]) });
+  assert.equal(p.marketClass, null);
+  assert.deepEqual(p.unmapped, []);
+  const { update, wrote } = marketProfileUpdate(null, p, SOURCE);
+  assert.equal(wrote.marketClass, false);
+  assert.equal("marketClassOverride" in update["system.market"], false);
+  assert.equal(update["system.market"].goods.demand.length, 2);
+});
+
+ok("a market place keeps the name it was built under", () => {
+  const data = marketActorData({ name: "Market 4", entryId: "bk.mkt4", book: "bk" });
+  assert.equal(data.flags[MODULE_ID].cookbook.printed, "Market 4");
 });
 
 ok("a record heading's trailing parenthetical is not the place's name", () => {

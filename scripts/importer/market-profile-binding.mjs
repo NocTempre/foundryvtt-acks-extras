@@ -15,6 +15,7 @@
  */
 import { MODULE_ID } from "./constants.mjs";
 import { LOCATION_TYPE } from "../location/constants.mjs";
+import { laterBook } from "./books.mjs";
 
 /**
  * The module's ACKS I → ACKS II goods translation, by the register's column
@@ -192,13 +193,17 @@ export const marketOrdinal = (market) => Number(/(\d+)$/u.exec(String(market ?? 
 
 /**
  * Whether a place's base demand may be written by a book import: it is empty,
- * or it already came from this same source. A base the Judge generated or
- * typed is theirs and is left standing.
+ * it already came from this same source, or it came from a book `laterBook`
+ * ranks earlier than this one. A base from a later book, from a book whose
+ * year ties or is unknown, and a base the Judge generated or typed (no source)
+ * are left standing.
  */
 export function baseIsImportable(goods, source) {
   if (!(goods?.demand ?? []).length) return true;
   const held = goods?.dmProfile?.source;
-  return !!held && held.book === source.book && held.page === source.page;
+  if (!held) return false;
+  if (held.book === source.book && held.page === source.page) return true;
+  return laterBook(held.book, source.book) === source.book;
 }
 
 /**
@@ -237,7 +242,11 @@ export function marketProfileUpdate(market, profile, source) {
   return { update, wrote };
 }
 
-/** Actor data for a market the book gives no other place for. */
+/**
+ * Actor data for a market the book gives no other place for. `printed` keeps
+ * the name it was built under, so a later printing that takes the place over
+ * renames it only while the Judge has not (`takeoverPatch`).
+ */
 export function marketActorData({ name, entryId, book, bookLabel = "", folderId = null }) {
   return {
     name,
@@ -247,7 +256,7 @@ export function marketActorData({ name, entryId, book, bookLabel = "", folderId 
     system: { region: bookLabel, notes: "", parentUuid: "" },
     flags: {
       [MODULE_ID]: {
-        cookbook: { id: entryId, book, kind: "kind.marketRecord", unaudited: true },
+        cookbook: { id: entryId, book, kind: "kind.marketRecord", unaudited: true, printed: name },
       },
     },
   };

@@ -11057,6 +11057,254 @@
         }
       }
     },
+    "ax1.marketGrid1": {
+      "id": "ax1.marketGrid1",
+      "kind": "kind.marketGrid",
+      "name": "Settlement demand modifiers",
+      "book": "ax1",
+      "cite": "AX1 p.26",
+      "pages": [
+        27
+      ],
+      "meta": {
+        "markets": {
+          "mkt1": {
+            "sameAs": "ax3.mkt21"
+          },
+          "mkt2": {
+            "place": "ax1.fort"
+          }
+        }
+      },
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 27,
+          "box": {
+            "x0": 231.4095,
+            "x1": 390.5935,
+            "y0": 43.53800000000001,
+            "y1": 55.53800000000001
+          },
+          "text": "Settlement Demand Modifiers"
+        },
+        "grids.markets": {
+          "op": "grid",
+          "page": 27,
+          "box": {
+            "x0": 70,
+            "x1": 545,
+            "y0": 76,
+            "y1": 466
+          },
+          "label": {
+            "x0": 70,
+            "x1": 170
+          },
+          "cols": [
+            {
+              "key": "mkt1",
+              "x0": 178,
+              "x1": 230,
+              "pattern": "raw"
+            },
+            {
+              "key": "mkt2",
+              "x0": 232,
+              "x1": 292,
+              "pattern": "raw"
+            },
+            {
+              "key": "mkt3",
+              "x0": 294,
+              "x1": 353,
+              "pattern": "raw"
+            },
+            {
+              "key": "mkt4",
+              "x0": 355,
+              "x1": 417,
+              "pattern": "raw"
+            },
+            {
+              "key": "mkt5",
+              "x0": 419,
+              "x1": 483,
+              "pattern": "raw"
+            },
+            {
+              "key": "mkt6",
+              "x0": 485,
+              "x1": 545,
+              "pattern": "raw"
+            }
+          ],
+          "transpose": true,
+          "headerBand": {
+            "y0": 62,
+            "y1": 72
+          },
+          "rowBands": [
+            {
+              "key": "grainVegetables",
+              "y0": 75,
+              "y1": 83
+            },
+            {
+              "key": "fishPreserved",
+              "y0": 88,
+              "y1": 96
+            },
+            {
+              "key": "woodCommon",
+              "y0": 101,
+              "y1": 109
+            },
+            {
+              "key": "animals",
+              "y0": 114,
+              "y1": 122
+            },
+            {
+              "key": "salt",
+              "y0": 126,
+              "y1": 134
+            },
+            {
+              "key": "beerAle",
+              "y0": 139,
+              "y1": 147
+            },
+            {
+              "key": "oilLamp",
+              "y0": 151,
+              "y1": 159
+            },
+            {
+              "key": "textiles",
+              "y0": 164,
+              "y1": 172
+            },
+            {
+              "key": "hidesFurs",
+              "y0": 176,
+              "y1": 184
+            },
+            {
+              "key": "teaCoffee",
+              "y0": 189,
+              "y1": 197
+            },
+            {
+              "key": "metalsCommon",
+              "y0": 201,
+              "y1": 209
+            },
+            {
+              "key": "meatsPreserved",
+              "y0": 214,
+              "y1": 222
+            },
+            {
+              "key": "cloth",
+              "y0": 227,
+              "y1": 235
+            },
+            {
+              "key": "wineSpirits",
+              "y0": 239,
+              "y1": 247
+            },
+            {
+              "key": "pottery",
+              "y0": 252,
+              "y1": 260
+            },
+            {
+              "key": "tools",
+              "y0": 265,
+              "y1": 273
+            },
+            {
+              "key": "armorWeapons",
+              "y0": 278,
+              "y1": 286
+            },
+            {
+              "key": "dyePigments",
+              "y0": 291,
+              "y1": 299
+            },
+            {
+              "key": "glassware",
+              "y0": 304,
+              "y1": 312
+            },
+            {
+              "key": "mounts",
+              "y0": 316,
+              "y1": 324
+            },
+            {
+              "key": "monsterParts",
+              "y0": 329,
+              "y1": 337
+            },
+            {
+              "key": "woodRare",
+              "y0": 342,
+              "y1": 350
+            },
+            {
+              "key": "fursRare",
+              "y0": 355,
+              "y1": 363
+            },
+            {
+              "key": "metalsPrecious",
+              "y0": 368,
+              "y1": 376
+            },
+            {
+              "key": "ivory",
+              "y0": 380,
+              "y1": 388
+            },
+            {
+              "key": "spices",
+              "y0": 393,
+              "y1": 401
+            },
+            {
+              "key": "porcelainFine",
+              "y0": 405,
+              "y1": 413
+            },
+            {
+              "key": "booksRare",
+              "y0": 418,
+              "y1": 426
+            },
+            {
+              "key": "silk",
+              "y0": 430,
+              "y1": 438
+            },
+            {
+              "key": "semipreciousStones",
+              "y0": 443,
+              "y1": 451
+            },
+            {
+              "key": "gems",
+              "y0": 455,
+              "y1": 463
+            }
+          ]
+        }
+      },
+      "_col": 1
+    },
     "ax1.npc1": {
       "kind": "kind.npc",
       "name": "NPC 1",

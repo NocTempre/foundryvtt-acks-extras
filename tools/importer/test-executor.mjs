@@ -636,4 +636,27 @@ await ta("the rollTarget pattern reads the first number no die or modifier owns,
   assert.equal(node.fields.e, null, "throw wants a +, which is why rollTarget exists");
 });
 
+await ta("a sideways grid keys its cells by the authored band key, and reads its header by column", async () => {
+  const pd = page(
+    run("Qa", 110, 88), run("Qb", 210, 88),
+    run("Qq or qq", 10, 110), run("+", 110, 110), run("1", 116, 110), run("-2", 210, 110),
+    run("Qx", 10, 130), run("0", 110, 130), run("3", 210, 130),
+  );
+  const cookbook = {
+    schema: "acks-cookbook/3",
+    entries: { "qq.grid": { kind: "kind.marketGrid", fields: {
+      "grids.markets": {
+        op: "grid", page: 1, transpose: true, box: { x0: 0, x1: 300, y0: 100, y1: 140 }, label: { x0: 0, x1: 90 },
+        headerBand: { y0: 82, y1: 95 }, rowBands: [{ key: "qqKey", y0: 105, y1: 115 }, { y0: 125, y1: 135 }],
+        cols: [{ key: "mkt1", x0: 100, x1: 190 }, { key: "mkt2", x0: 200, x1: 290 }],
+      },
+    } } },
+  };
+  const node = await executeEntry(null, cookbook, {}, "qq.grid", { pageCache: new Map([[1, pd]]) });
+  const grid = node.fields["grids.markets"] ?? node.fields.grids?.markets;
+  assert.deepEqual(grid.rows.map((r) => [r.key, r.cells]), [["mkt1", { qqKey: "+1", qx: "0" }], ["mkt2", { qqKey: "-2", qx: "3" }]],
+    "a band's key names its property where it has one, the slugged label where it has none");
+  assert.deepEqual(grid.header, { mkt1: "Qa", mkt2: "Qb" });
+});
+
 console.log(`\n${n} tests passed`);

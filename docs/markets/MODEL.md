@@ -509,24 +509,36 @@ equalisation are ROADMAP (P3).
 
 A gazetteer that prints a regional demand grid (AX3 p.222–223) and domain
 records (AX3 p.27–33) imports through two register kinds:
-`kind.marketGrid` (one grid page; each row keyed `mkt<n>` by row position,
+`kind.marketGrid` (one grid page; each market keyed `mkt<n>` by position,
 never by name) and `kind.marketRecord` (one domain record; the heading proved
-by its `printKey` hash, plus the families and class cells).
+by its `printKey` hash, plus the families and class cells). A grid printed
+sideways (AX1 p.27: goods down the side, markets across) is the same kind with
+`transpose`, its goods keyed by authored band keys, AX3's column keys, and its
+header read per market column.
 `cookbookImportMarketProfiles` (the Import Everything step after factions)
 executes both and hands the reads to `market-profile-binding.mjs`:
 
 - `goodsResolver` translates each ACKS I column to a merchandise key: a
   catalogue row whose `aliases` name the column key or its printed header
   first, then `ACKS1_GOODS`. A column that resolves nowhere is reported.
-- `marketProfiles` builds, per row, the class (record over grid, a mismatch
-  flagged), the families and the base demand rows.
-- `marketProfileUpdate` writes only what the place does not already hold
-  (`baseIsImportable`: an empty base, or one whose `dmProfile.source` is the
-  same page).
+- `marketProfiles` builds, per market, the class (record over grid, a
+  mismatch flagged; none where the page prints none), the families and the
+  base demand rows.
+- `marketProfileUpdate` writes class and families only where the place holds
+  none, and the base where `baseIsImportable` allows: the base is empty, or
+  its `dmProfile.source` is the same page, or a book `laterBook` ranks earlier
+  than the importing one. A base the Judge set carries no source and stays.
 
 A market is claimed as `<book>.mkt<n>`, or, for a record whose `meta.place`
-is `"adventure"`, as the book's city actor. It is named by the record's
-printed heading when there is one, else `Market N`.
+is `"adventure"`, as the book's city actor. A grid's `meta.markets` may say
+which place a column is: `place` (the city, or a place another row builds,
+which the column waits for), or `sameAs`, a later book's market record it
+pairs with. `claimMarketPlace` (`cookbook.mjs`) claims a market from a
+region site, a market step or a column alike: the place that answers for the
+id, else the pair's place joined through `takeoverPatch` or `bindPatch`
+(`place-pair.mjs`), else a new one. A market is named by the record's printed
+heading when there is one, else its column's header when the grid prints it
+as text, else `Market N`, and stamps that name as `printed`.
 
 ## Market reports and the trade house
 

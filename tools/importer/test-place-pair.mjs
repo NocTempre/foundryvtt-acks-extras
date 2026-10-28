@@ -60,6 +60,13 @@ const pairs = placePairs(new Map([
 eq("the pair answers from the earlier row", pairs.get(E.id), { earlier: E.id, later: L.id, unique: [2] });
 ok("and from the later row, the same pair", pairs.get(L.id) === pairs.get(E.id));
 ok("a row with no sameAs is in no pair", !pairs.has("ea.place2"));
+const columns = placePairs(new Map([
+  ["ea", { entries: { "ea.grid": { kind: "kind.marketGrid", meta: { markets: { mkt1: { sameAs: "lb.mkt4" }, mkt2: { place: "ea.place2" } } } } } }],
+]));
+eq("a grid column pairs its market id, under the book that holds the grid, with no paragraphs of its own",
+  columns.get("lb.mkt4"), { earlier: "ea.mkt1", later: "lb.mkt4", unique: [] });
+ok("and is found from that id too", columns.get("ea.mkt1") === columns.get("lb.mkt4"));
+ok("a column naming a place of its own book is in no pair", !columns.has("ea.mkt2") && !columns.has("ea.place2"));
 
 /* --- the stamped notes --- */
 

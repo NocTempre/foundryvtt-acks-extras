@@ -1789,14 +1789,16 @@ async function execInstruction(instr, ctx) {
         // Property labels come from the label span of every y-row; each
         // authored column becomes one output row (an option). A sideways table
         // mixes value shapes BY ROW (speeds are text, damage type is glyphs),
-        // so `props[slug]` may override the column pattern per property.
+        // so `props[key]` may override the column pattern per property. An
+        // authored band key names its property, so two books' grids of one
+        // vocabulary key their cells alike; else the slugged label does.
         const props = yRows
-          .map((r) => ({ y: r.y, label: spanText(r.items, instr.label.x0, instr.label.x1), items: r.items }))
-          .filter((r) => r.label);
+          .map((r) => ({ y: r.y, key: r.key, label: spanText(r.items, instr.label.x0, instr.label.x1), items: r.items }))
+          .filter((r) => r.label || r.key);
         for (const col of instr.cols ?? []) {
           const cells = {};
           for (const p of props) {
-            const slug = slugLabel(p.label);
+            const slug = p.key ?? slugLabel(p.label);
             if (instr.dropRows?.includes(slug)) continue; // claimed header/title row
             const eff = instr.props?.[slug] ? { ...col, ...instr.props[slug] } : col;
             const v = cellValue(spanText(p.items, col.x0, col.x1), eff, spanRaw(p.items, col.x0, col.x1));

@@ -1084,6 +1084,16 @@ What each book still owes, in the order it is worth doing:
   import again)*; the mode belongs to shelves and books and should fold away
   under a table pick.
 
+## Owed before AX1's minor ships
+
+- **AX3's grid row keyed `mkt21` holds another market's figures.** AX1 p.27's
+  first column, which names AX3's market 21 by its header, matches AX3's grid
+  row 22 on all 31 cells and row 21 on 15; AX1's fifth column matches row 21
+  on all 31. AX3's market step writes row 21's figures onto `ax3.mkt21`, and
+  since a later printing's base replaces an earlier one's, they replace AX1's
+  in every order. The audit reads every AX3 grid key against the record it
+  names, and the fix lands in the same minor (markets DECISIONS 2026-10-28).
+
 ## Left out of AX1's minor (ruled 2026-10-17)
 
 - **Double doors the box reader misses** (AX1 p12). Of the plan's eighteen
@@ -1109,8 +1119,8 @@ What each book still owes, in the order it is worth doing:
   p55's outline around its three asserted door cells, whose doors already
   stand in their passages, so an asserted cell is left as traced.
 - **AX1's domain record (p.28)** waits for the domain sheet. When the sheet
-  exists, the record's market fields could ride the market-record path, but
-  only if the fort is one of a demand grid's markets.
+  exists, the record's market fields could ride the market-record path: the
+  fort is the second market of AX1's demand grid.
 - **Occupants deployed as tokens.** A room's roster carries count and
   per-instance hit points as notes. A structured hit-point field, or members
   as a group actor's deltas (`docs/lib/GROUPS.md`), waits for something that
@@ -1124,7 +1134,17 @@ What each book still owes, in the order it is worth doing:
   slot that names them.
 - **An order for same-year printings.** AX2–AX6 all carry 2018, so
   `laterBook` cannot order them, and a place two of them print cannot be
-  paired until the register records which came first.
+  paired until the register records which came first. The user ruled the
+  order (2026-10-28): ACKS II over AX6 over AX5 and down the series, and a
+  later AXIOMS issue over an earlier one; no AXIOMS book is registered yet.
+  Until `laterBook` carries it, a base demand from one of those books never
+  replaces another's (`baseIsImportable`).
+- **AX1's other demand columns beside AX3's markets.** AX1 p.27's columns 3
+  and 6 print the figures of AX3's grid rows 23 and 17 cell for cell, and
+  column 2, the fort, row 20's. Each stays two actors until a reviewer pairs
+  them by more than figures.
+- **A sideways grid's reports.** An unmapped or duplicate good on a
+  transposed grid is reported by its key, not its printed label.
 - **AX1's fort as AX3's site 28.** Site 28 binds onto its market, so it
   builds no place of its own to join, and the fort stands apart until joining
   two places that both stand is ruled.

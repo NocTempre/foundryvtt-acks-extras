@@ -1,6 +1,7 @@
 /**
  * Register rules over an adventure's rows that a suite can feed invented rows:
- * key spaces and parents, the pairing of a place two books print, revisions,
+ * key spaces and parents, the pairing of a place two books print, the places
+ * a market grid's columns name, revisions,
  * the kinds labelled by ordinal, the shape of a scene link, and a book's one
  * region map. `lint-register.mjs` reports what they return. Each returns a
  * list of problems, every one opening with the row's id, and never throws.
@@ -153,6 +154,77 @@ export function pairProblems(rows) {
     if (unique === undefined) out.push(`${id}: a pair carries meta.unique, the reviewer's list of this printing's paragraphs the later one lacks ([] for none)`);
     else if (!Array.isArray(unique) || !unique.every((n) => Number.isInteger(n) && n > 0)) out.push(`${id}: meta.unique is a list of 1-based paragraph ordinals`);
     else if (new Set(unique).size !== unique.length) out.push(`${id}: meta.unique repeats an ordinal`);
+  }
+  return out;
+}
+
+/**
+ * A market grid's columns that say which place they are (`meta.markets`), over
+ * every row at once. Each key is one of the grid's own column keys and names
+ * exactly one of `sameAs` or `place`. `sameAs` pairs the column's market with
+ * a later book's (`laterBook`) market record, one that builds a market of its
+ * own; the pair is declared on the earlier book's grid for the reason a place
+ * pair is, and a later market pairs with one row of a book, the location rows
+ * that pair with it counted. `place` is the book's own settlement
+ * ("adventure") or a location row of the same book that builds a place.
+ */
+export function marketColumnProblems(rows) {
+  const out = [];
+  const claimed = new Map(); // `${book} ${target}` -> the row (and column) that pairs with it
+  for (const r of rows.values()) if (typeof r.meta?.sameAs === "string") claimed.set(`${r.book} ${r.meta.sameAs}`, r.id);
+  for (const r of rows.values()) {
+    const { id, meta = {} } = r;
+    if (meta.markets === undefined) continue;
+    if (r.kind !== "kind.marketGrid") {
+      out.push(`${id}: meta.markets names a market grid's columns; it belongs on a market grid row only`);
+      continue;
+    }
+    if (!meta.markets || typeof meta.markets !== "object" || Array.isArray(meta.markets)) {
+      out.push(`${id}: meta.markets maps a column key to what it names`);
+      continue;
+    }
+    const cols = new Set(Object.values(r.assists?.grids ?? {}).flatMap((g) => (g?.cols ?? []).map((c) => c.key)));
+    for (const [col, named] of Object.entries(meta.markets)) {
+      const at = `${id}: meta.markets.${col}`;
+      if (!cols.has(col)) out.push(`${at} is no column of the grid`);
+      const keys = Object.keys(named ?? {});
+      if (keys.length !== 1 || !["sameAs", "place"].includes(keys[0])) {
+        out.push(`${at} names exactly one of sameAs or place`);
+        continue;
+      }
+      if (named.place !== undefined) {
+        const to = named.place;
+        if (to === "adventure") continue;
+        if (typeof to !== "string" || !ROW_ID.test(to) || bookOf(to) !== r.book) {
+          out.push(`${at}.place is "adventure" or the id of a row of ${r.book}`);
+          continue;
+        }
+        const t = rows.get(to);
+        if (!t) out.push(`${at}.place names ${to}, which no row defines`);
+        else if (t.kind !== "kind.location") out.push(`${at}.place names ${to}, which builds no place`);
+        else if (t.meta?.market !== undefined || t.meta?.place !== undefined) out.push(`${at}.place names ${to}, which binds onto another place and builds none`);
+        continue;
+      }
+      const to = named.sameAs;
+      if (typeof to !== "string" || !ROW_ID.test(to)) {
+        out.push(`${at}.sameAs is one row id of another book`);
+        continue;
+      }
+      const other = bookOf(to);
+      if (other === r.book) out.push(`${at}.sameAs pairs with another book's market, never one of ${r.book}`);
+      else {
+        const later = laterBook(r.book, other);
+        if (later === null) out.push(`${at}: no printing year orders ${r.book} and ${other}; a pair between them waits until the register records which came first`);
+        else if (later !== other) out.push(`${at}.sameAs is declared on the earlier book's grid, and ${other} is earlier than ${r.book}`);
+      }
+      const t = rows.get(to);
+      if (!t) out.push(`${at}.sameAs names ${to}, which no row defines`);
+      else if (t.kind !== "kind.marketRecord") out.push(`${at}.sameAs names ${to}, which is no market record`);
+      else if (t.meta?.place !== undefined) out.push(`${at}.sameAs names ${to}, which binds onto its book's settlement and builds no market to pair`);
+      const key = `${r.book} ${to}`;
+      if (claimed.has(key)) out.push(`${at}: ${to} is already paired with ${claimed.get(key)}; one place is one row per book`);
+      else claimed.set(key, `${id} ${col}`);
+    }
   }
   return out;
 }
