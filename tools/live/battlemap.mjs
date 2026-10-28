@@ -12,6 +12,23 @@
  * a seat. Every figure and name
  * is invented; no imported table is printed (factor lines are logged as booleans).
  *
+ * Fixtures, kept and found again by marker (`api.fixture`): the square scenes
+ * `battlemap/layers-square`, `battlemap/modes-square` and
+ * `formation/country-other-scene`, written back to their grid and frame with
+ * the battlemap record a run left on them unset, and the walkers
+ * `formation/country-walker-a` and `formation/country-walker-b`, written back
+ * to their ownership and linked token. A square scene holding a region, wall
+ * or token has no shape a step can write back and is rebuilt. The hex maps are
+ * rebuilt every run, since what each is walked for is a brush, a line tool or
+ * a first view on an empty map: `battlemap/layers-hex`,
+ * `battlemap/layers-painted-climate`, `battlemap/layers-declared-climate`,
+ * `battlemap/modes-hex`, `battlemap/modes-old`, `battlemap/water-shot` and
+ * `formation/country-hex-scene` are retired first and take their regions,
+ * walls and tokens with them. The party `formation/country-party` is retired
+ * before its map, its delete dissolving the formation, and built again. The
+ * chat cards the run claims are marked `formation/country-message-<n>` in the
+ * order they arrive, and the country part retires the last run's first.
+ *
  * Writes outside the fixture ledger, each undone at teardown and reported:
  *   - an invented `travel` document registered at priority 30 (unregistered);
  *   - the world setting `travelEncounters`, only if it was on (restored);
@@ -22,6 +39,7 @@
  *
  * WALK_PLAN names an optional plan file:
  *   { "parts": ["layers", "modes", "country"], "retrack": ["<uuid>", ...] }
+ * where `retrack` lists ids a dead run printed, swept alone at the seats.
  */
 import fs from "node:fs";
 import { connect, sleep } from "./_driver.mjs";
@@ -31,6 +49,7 @@ const MACHINE = machineSeats();
 const browser = MACHINE.browser;
 const origin = MACHINE.origin;
 const SEATS = { gm: MACHINE.gm, player: MACHINE.player };
+// The run's tag on the chat cards this client creates (`install`), so a card is claimed only from this run.
 const NONCE = "rb" + Math.random().toString(36).slice(2, 7);
 const MOD = "acks-extras";
 const CELL = 100;
@@ -141,9 +160,10 @@ const P = {
     }
     // The run's own chat cards. A message THIS client creates carries the run's nonce (and the action in
     // flight) in a world flag, so a peer seated as the same user is never mistaken for the run; a tagged
-    // card is claimed when it speaks as one of the run's fixtures, names its formation, carries the nonce,
-    // or is a navigation card thrown during one of the run's own moves.
+    // card is claimed when it speaks as one of the run's fixtures, names its formation, names one of the
+    // run's actors in its text, or is a navigation card thrown during one of the run's own moves.
     H.claimed = H.claimed ?? { aliases: new Set(), fids: new Set() };
+    H.claimed.names = H.claimed.names ?? new Set();
     H.mine = H.mine ?? [];
     H.action = null;
     if (!H.msgHooks) {
@@ -152,14 +172,14 @@ const P = {
         post: Hooks.on("createChatMessage", (msg) => {
           const tag = msg.getFlag?.("world", "relb");
           if (!H.nonce || tag?.n !== H.nonce) return;
-          H.mine.push({ uuid: msg.uuid, nav: /acks-extras-nav-card/.test(msg.content ?? ""), alias: msg.speaker?.alias ?? null, action: tag.a ?? null, fid: msg.getFlag?.("acks-extras", "encounter")?.formationId ?? null, hasNonce: (msg.content ?? "").includes(H.nonce) });
+          H.mine.push({ uuid: msg.uuid, nav: /acks-extras-nav-card/.test(msg.content ?? ""), alias: msg.speaker?.alias ?? null, action: tag.a ?? null, fid: msg.getFlag?.("acks-extras", "encounter")?.formationId ?? null, named: [...H.claimed.names].some((n) => (msg.content ?? "").includes(n)) });
         }),
       };
     }
     H.collect = () => {
       const all = H.mine.splice(0);
-      const isMine = (m) => H.claimed.aliases.has(m.alias) || (!!m.fid && H.claimed.fids.has(m.fid)) || m.hasNonce || (m.nav && !!m.action);
-      return { all, claimed: all.filter(isMine).map((m) => m.uuid), unclaimed: all.filter((m) => !isMine(m)).map((m) => ({ alias: m.alias, nav: m.nav, action: m.action })) };
+      const isMine = (m) => H.claimed.aliases.has(m.alias) || (!!m.fid && H.claimed.fids.has(m.fid)) || m.named || (m.nav && !!m.action);
+      return { all, claimed: all.filter(isMine).map((m) => m.uuid), unclaimed: all.filter((m) => !isMine(m)).map((m) => ({ alias: m.alias, nav: m.nav, action: m.action, fid: !!m.fid })) };
     };
     H.change = (el, value) => {
       el.value = value;
@@ -430,6 +450,9 @@ const P = {
     return {
       palette: !!pal,
       pills: [...(pal?.querySelectorAll('button[data-action="pickLayer"]') ?? [])].map((b) => ({ layer: b.dataset.layer, pressed: b.getAttribute("aria-pressed") })),
+      // A layer another feature registers shows a pill once the world gives it values (a domain does, for Domains).
+      worldLayers: [...(pal?.querySelectorAll('button[data-action="pickLayer"]') ?? [])].map((b) => b.dataset.layer)
+        .filter((l) => !["terrain", "territory", "climate"].includes(l) && H.B.terrain.paintableValues(l).length > 0),
       pressed: pal?.querySelector('button[data-action="pickLayer"][aria-pressed="true"]')?.dataset.layer ?? null,
       armedSwatch: pal?.querySelector("button[data-brush].is-active")?.dataset.brush ?? null,
       swatches: [...(pal?.querySelectorAll("button[data-brush]") ?? [])].map((b) => b.dataset.brush),
@@ -840,6 +863,7 @@ const P = {
     H.claimed.aliases.add(f0.name);
     H.claimed.aliases.add(party.name);
     H.claimed.fids.add(f0.id);
+    for (const id of [partyId, memberA, memberB]) { const name = game.actors.get(id)?.name; if (name) H.claimed.names.add(name); }
     const td = await party.getTokenDocument({ x: xy.x, y: xy.y });
     const [token] = await scene.createEmbeddedDocuments("Token", [td.toObject()]);
     const adopted = await H.poll(() => { const r = H.F.getFormations()[f0.id]; return r?.tokenId === token.id && r?.sceneId === sceneId; }, { tries: 75, every: 200 });
@@ -890,6 +914,8 @@ const P = {
     const c = H.T.countryOf(f);
     const pick = (o) => ({ ground: o.ground, encounterTerrain: o.encounterTerrain, territory: o.territory, climate: o.weather?.climate ?? o.climate, road: o.road, following: o.following });
     return {
+      // The journey, its throws and the refresh run on the active GM's client alone.
+      activeGMIsSelf: !!game.users.activeGM?.isSelf,
       keys: Object.keys(f.travel ?? {}).sort(),
       map: f.travel?.map ?? null,
       override: f.travel?.override ?? null,
@@ -935,7 +961,7 @@ const P = {
     H.action = null;
     const got = H.collect();
     const during = got.all.filter((m) => m.action === "drag");
-    return { followed, waitedMs, asked: xy, to, entered, messages: got.claimed, unclaimed: got.unclaimed, navCards: during.filter((m) => m.nav).length, messagesDelta: during.length, worldTimeDelta: game.time.worldTime - before.worldTime, offer, dayKeyBefore: before.dayKey, dayKeyAfter: H.T.journeyDayKey(H.T.travelOf(H.formation(fid))) };
+    return { followed, waitedMs, asked: xy, to, entered, messages: got.claimed, unclaimed: got.unclaimed, navCards: during.filter((m) => m.nav).length, messagesDelta: during.length, worldTimeDelta: game.time.worldTime - before.worldTime, offer, dayKeyBefore: before.dayKey, dayKeyAfter: H.T.journeyDayKey(H.T.travelOf(H.formation(fid))), activeGMIsSelf: !!game.users.activeGM?.isSelf, activeRoles: game.users.filter((u) => u.active).map((u) => u.role).sort() };
   },
 
   /** Open the sheet and describe its country surfaces; closes unless `keep`. */
@@ -1252,6 +1278,37 @@ const P = {
     return out;
   },
 
+  /**
+   * Write a kept scene back to `data` (an update payload) and unset the battlemap record a run left on it.
+   * Reports what stands on it, which no update can take away.
+   */
+  shapeScene: async ({ uuid, data }) => {
+    const scene = await fromUuid(uuid);
+    await scene.update(data);
+    if (scene.getFlag("acks-extras", "battlemap") !== undefined) await scene.unsetFlag("acks-extras", "battlemap");
+    return { uuid, record: scene.getFlag("acks-extras", "battlemap") ?? null, regions: scene.regions.size, walls: scene.walls.size, tokens: scene.tokens.size };
+  },
+
+  /** Write a kept document back to the fields a step reads: `data` is an update payload. */
+  shape: async ({ uuid, data }) => {
+    const doc = await fromUuid(uuid);
+    await doc.update(data);
+    return { uuid, updated: true };
+  },
+
+  /** Wait until no formation names a retired party actor: its dissolve runs in the actor's delete hook. */
+  dissolved: async ({ actorIds }) => {
+    const H = globalThis.__rb;
+    const gone = await H.poll(() => !Object.values(H.F.getFormations()).some((f) => actorIds.includes(f.actorId)), { tries: 50, every: 200 });
+    return { dissolved: !!gone };
+  },
+
+  /** Claim the cards that name these: the run's scenes, which a card may name while speaking as no one. */
+  claimNames: async ({ names }) => {
+    for (const n of names) globalThis.__rb.claimed.names.add(n);
+    return globalThis.__rb.claimed.names.size;
+  },
+
   /** The run's tagged cards gathered since the last collection: claimed uuids, and what is left alone. */
   collectMessages: async () => { const got = globalThis.__rb.collect(); return { claimed: got.claimed, unclaimed: got.unclaimed }; },
 
@@ -1308,7 +1365,7 @@ const installP = (api) => api.eval(`globalThis.__P = {${Object.entries(P).map(([
 
 const seats = {};
 async function seat(key) {
-  const api = await connect({ browser, origin, user: SEATS[key], port: PORTS[key] });
+  const api = await connect({ browser, origin, user: SEATS[key], port: PORTS[key], own: MACHINE.own });
   seats[key] = api;
   note(`${key} ready after (s)`, await ready(api, key));
   // The seat must run the working tree, not a cached copy: functions this release added are the marker.
@@ -1357,14 +1414,42 @@ const sceneData = (name, grid, extra = {}) => ({
   ownership: { default: 2 }, ...extra,
 });
 
+/** A hex map rebuilt every run (setup): the last run's is retired with what was drawn on it, and a fresh one built. */
+async function rebuiltScene(gm, marker, data) {
+  note(`retired ${marker}`, await gm.retire(marker, "Scene"));
+  await page(gm, P.claimNames, { names: [data.name] });
+  return gm.fixture(marker, "Scene", data);
+}
+
+/** A kept scene, written back to `data`'s grid and frame; one holding what a step cannot take away is rebuilt. */
+async function keptScene(gm, marker, data) {
+  const scene = await gm.fixture(marker, "Scene", data);
+  await page(gm, P.claimNames, { names: [data.name] });
+  if (scene.built) return scene;
+  const { name: _n, active: _a, ...fields } = data;
+  const shaped = await page(gm, P.shapeScene, { uuid: scene.uuid, data: fields });
+  note(`shape ${marker}`, shaped);
+  return shaped.regions || shaped.walls || shaped.tokens ? rebuiltScene(gm, marker, data) : scene;
+}
+
+/** The chat cards the run claims, marked `formation/country-message-<n>` in the order they arrive. */
+const cardsMarked = new Set();
+async function markCards(gm, uuids) {
+  for (const u of uuids ?? []) {
+    if (cardsMarked.has(u)) continue;
+    cardsMarked.add(u);
+    await gm.mark(u, `formation/country-message-${cardsMarked.size}`);
+  }
+}
+
 /* ------------------------------------------------------------------ */
 /*  Part: the battlemap's country layers and water                      */
 /* ------------------------------------------------------------------ */
 
 async function walkLayers(W) {
   const { gm, player } = W;
-  const hex = await gm.create("Scene", sceneData(`QA Layers hex ${NONCE}`, { type: 2 }));
-  const square = await gm.create("Scene", sceneData(`QA Layers square ${NONCE}`, { type: 1 }));
+  const hex = await rebuiltScene(gm, "battlemap/layers-hex", sceneData("QA Layers hex", { type: 2 }));
+  const square = await keptScene(gm, "battlemap/layers-square", sceneData("QA Layers square", { type: 1 }));
   note("hex scene viewed", await page(gm, P.viewScene, hex.id));
   const L = await page(gm, P.layout, { sceneId: hex.id, i: 5, j: 5 });
   note("layout", { cells: Object.fromEntries(["C", "A", "B", "D", "E", "F", "G"].map((k) => [k, L.cells[k].offset])), steps: L.steps });
@@ -1397,7 +1482,7 @@ async function walkLayers(W) {
   const tv = await page(gm, P.terrainVocab);
   note("terrain vocabulary", tv);
   check("TP1: arming the Country brush disarms calibration (the square mode was armed, now none)", cal.mode === "square" && pal.calibration === null, { before: cal.mode, after: pal.calibration });
-  check("TP1: the palette opens on the Terrain pill, the two pills terrain / territory", pal.palette && pal.pressed === "terrain" && same(pal.pills.map((p) => p.layer), ["terrain", "territory"]), pal.pills);
+  check("TP1: the palette opens on the Terrain pill, the two pills terrain / territory beside the world's layers", pal.palette && pal.pressed === "terrain" && same(pal.pills.map((p) => p.layer).filter((l) => !pal.worldLayers.includes(l)), ["terrain", "territory"]), { pills: pal.pills, worldLayers: pal.worldLayers });
   check("TP1: one swatch per encounter terrain on a ground (21), no bare ground, no river, imported extras beside them, and the eraser", tv.fine === 21 && tv.fineAll === 21 && tv.rivers.length === 0 && tv.bare.length === 0 && tv.eraser && tv.swatchCount === tv.fine + tv.extras, tv);
   check("TP1: the toolbar shows the brush armed", pal.tool === "terrain" && pal.control === "acksBattlemap" && pal.state.armedBy === "tool" && !!pal.state.brush && !!pal.toolDom && (/\bactive\b/.test(pal.toolDom.cls) || pal.toolDom.pressed === "true"), { tool: pal.tool, control: pal.control, state: pal.state, toolDom: pal.toolDom });
 
@@ -1413,7 +1498,7 @@ async function walkLayers(W) {
   // The snapshot: the palette with its two pills, the Territory layer armed and X chosen.
   const palNow = await page(gm, P.palette);
   note("placed palette", await page(gm, P.placeApp, { id: "acks-extras-terrain-palette" }));
-  check("shot state: Territory pressed and X the armed swatch", palNow.pressed === "territory" && palNow.armedSwatch === X && palNow.pills.length === 2, { pressed: palNow.pressed, armed: palNow.armedSwatch });
+  check("shot state: Territory pressed and X the armed swatch", palNow.pressed === "territory" && palNow.armedSwatch === X && palNow.pills.length - palNow.worldLayers.length === 2, { pressed: palNow.pressed, armed: palNow.armedSwatch, worldLayers: palNow.worldLayers });
   await shot(gm, "battlemap-country-brush", "#acks-extras-terrain-palette");
   note("C terrain (paintHexAt)", await page(gm, P.paintAt, { sceneId: hex.id, point: pt("C"), value: forest, layer: "terrain" }));
   note("C Y (paintHexAt)", await page(gm, P.paintAt, { sceneId: hex.id, point: pt("C"), value: Y, layer: "territory" }));
@@ -1565,8 +1650,8 @@ async function walkLayers(W) {
   note("palette closed", await page(gm, P.closePalette));
 
   section("layers 10. a map painted with climates folds into its one climate");
-  const painted = await gm.create("Scene", sceneData(`QA Layers painted climate ${NONCE}`, { type: 2 }));
-  const declared = await gm.create("Scene", sceneData(`QA Layers declared climate ${NONCE}`, { type: 2 }, { flags: { [MOD]: { battlemap: { country: { climate: CLIMATE_SCENE } } } } }));
+  const painted = await rebuiltScene(gm, "battlemap/layers-painted-climate", sceneData("QA Layers painted climate", { type: 2 }));
+  const declared = await rebuiltScene(gm, "battlemap/layers-declared-climate", sceneData("QA Layers declared climate", { type: 2 }, { flags: { [MOD]: { battlemap: { country: { climate: CLIMATE_SCENE } } } } }));
   for (const [sceneId, offsets, value] of [
     [painted.id, [{ i: 5, j: 5 }, { i: 5, j: 6 }], CLIMATE_A],
     [painted.id, [{ i: 6, j: 5 }], CLIMATE_SCENE],
@@ -1610,9 +1695,9 @@ async function walkModes(W) {
       throw new Error("modes: the seat runs module code without the map modes");
     }
   }
-  const hex = await gm.create("Scene", sceneData(`QA Modes hex ${NONCE}`, { type: 2 }));
-  const old = await gm.create("Scene", sceneData(`QA Modes old ${NONCE}`, { type: 2 }));
-  const square = await gm.create("Scene", sceneData(`QA Modes square ${NONCE}`, { type: 1 }));
+  const hex = await rebuiltScene(gm, "battlemap/modes-hex", sceneData("QA Modes hex", { type: 2 }));
+  const old = await rebuiltScene(gm, "battlemap/modes-old", sceneData("QA Modes old", { type: 2 }));
+  const square = await keptScene(gm, "battlemap/modes-square", sceneData("QA Modes square", { type: 1 }));
   const tracked = new Set();
   const trackRegions = async (sceneId) => {
     for (const layer of ["terrain", "territory"]) {
@@ -1719,7 +1804,7 @@ async function walkModes(W) {
 
 async function walkWaterShot(W) {
   const { gm } = W;
-  const hex = await gm.create("Scene", sceneData(`QA Water shot ${NONCE}`, { type: 2 }));
+  const hex = await rebuiltScene(gm, "battlemap/water-shot", sceneData("QA Water shot", { type: 2 }));
   note("hex scene viewed", await page(gm, P.viewScene, hex.id));
   W.preset = W.preset ?? await page(gm, P.wallPreset);
   note("wall preset at start", { key: W.preset.key, scope: W.preset.scope, flagged: !!W.preset.value?.flags?.["acks-extras"] });
@@ -1744,8 +1829,19 @@ async function walkWaterShot(W) {
 
 async function walkCountry(W) {
   const { gm, player, playerId } = W;
-  const hexScene = await gm.create("Scene", sceneData(`QA Country hex ${NONCE}`, { type: 2 }));
-  const otherScene = await gm.create("Scene", sceneData(`QA Country other ${NONCE}`, { type: 1 }));
+  // Setup: the last run's cards, then its party, whose delete dissolves the formation before its map goes.
+  const messagesRetired = [];
+  for (let n = 1, misses = 0; misses < 5; n++) {
+    const out = await gm.retire(`formation/country-message-${n}`, "ChatMessage");
+    if (out.removed.length || out.failed.length) { misses = 0; messagesRetired.push(...out.removed.map((e) => e.uuid)); }
+    else misses++;
+  }
+  note("messages retired", messagesRetired.length);
+  const retiredParty = await gm.retire("formation/country-party", "Actor");
+  note("retired party", retiredParty);
+  if (retiredParty.removed.length) note("formation dissolved", await page(gm, P.dissolved, { actorIds: retiredParty.removed.map((e) => e.uuid.split(".").pop()) }));
+  const hexScene = await rebuiltScene(gm, "formation/country-hex-scene", sceneData("QA Country hex", { type: 2 }));
+  const otherScene = await keptScene(gm, "formation/country-other-scene", sceneData("QA Country other", { type: 1 }));
   note("controls reset", await page(gm, P.resetControls));
   note("hex scene viewed", await page(gm, P.viewScene, hexScene.id));
   W.preset = W.preset ?? await page(gm, P.wallPreset);
@@ -1786,9 +1882,14 @@ async function walkCountry(W) {
   const def = await page(gm, P.sceneDefault, { sceneId: hexScene.id, country: { ground: "grassland", territory: X, climate: CLIMATE_SCENE } });
   check("fixture: the scene default holds a ground, X and a second climate", def.ground === "grassland" && def.territory === X && def.climate === CLIMATE_SCENE, def);
 
-  const party = await gm.create("Actor", { name: `QA Company ${NONCE}`, type: "acks-extras.party", ownership: { default: 0, [playerId]: 2 } });
-  const memberA = await gm.create("Actor", { name: `QA Walker A ${NONCE}`, type: "character", ownership: { default: 0, [playerId]: 3 }, prototypeToken: { actorLink: true } });
-  const memberB = await gm.create("Actor", { name: `QA Walker B ${NONCE}`, type: "character", prototypeToken: { actorLink: true } });
+  // Names no other walk's actors carry: a card is claimed by naming one (`install`).
+  const memberA = await gm.fixture("formation/country-walker-a", "Actor", { name: "QA Country Walker A", type: "character", ownership: { default: 0, [playerId]: 3 }, prototypeToken: { actorLink: true } });
+  const memberB = await gm.fixture("formation/country-walker-b", "Actor", { name: "QA Country Walker B", type: "character", prototypeToken: { actorLink: true } });
+  note("walkers shaped", [
+    await page(gm, P.shape, { uuid: memberA.uuid, data: { name: "QA Country Walker A", ownership: { default: 0, [playerId]: 3 }, "prototypeToken.actorLink": true } }),
+    await page(gm, P.shape, { uuid: memberB.uuid, data: { name: "QA Country Walker B", "prototypeToken.actorLink": true } }),
+  ]);
+  const party = await gm.fixture("formation/country-party", "Actor", { name: "QA Country Company", type: "acks-extras.party", ownership: { default: 0, [playerId]: 2 } });
   const built = await page(gm, P.buildParty, { partyId: party.id, sceneId: hexScene.id, memberA: memberA.id, memberB: memberB.id, xy: xy("C"), hudXY: xy("G") });
   note("party", built);
   if (built.error) throw new Error(built.error);
@@ -1802,8 +1903,8 @@ async function walkCountry(W) {
   let s;
   const card = (k) => s?.cards?.find((c) => c.key === k);
   const ctxCard = (k) => s?.ctx?.cards?.find((c) => c.key === k);
-  const trackCards = (d) => {
-    for (const u of d.messages ?? []) gm.track(u, "ChatMessage");
+  const trackCards = async (d) => {
+    await markCards(gm, d.messages);
     if (d.unclaimed?.length) note("cards this seat made that the run does not claim (left alone)", d.unclaimed);
   };
   const provLabel = { scene: await page(gm, P.provenanceLabel, { key: "scene" }), map: await page(gm, P.provenanceLabel, { key: "map" }), override: await page(gm, P.provenanceLabel, { key: "override" }), declared: await page(gm, P.provenanceLabel, { key: "declared" }) };
@@ -1822,7 +1923,7 @@ async function walkCountry(W) {
   section("country 2. a drag caches the hex and writes no country key");
   const keysBefore = r.keys;
   const d2 = await page(gm, P.drag, { fid, xy: xy("A") });
-  trackCards(d2);
+  await trackCards(d2);
   note("drag C->A", d2);
   r = await page(gm, P.record, { fid });
   note("record", { map: r.map, keys: r.keys, day: r.day, provenance: r.provenance, values: r.values, lost: r.lostPhase });
@@ -1830,7 +1931,7 @@ async function walkCountry(W) {
   check("C2: following reads none (the scene has a water line, none under A) and road null", r.map?.following === "none" && r.map?.road === null, { following: r.map?.following, road: r.map?.road });
   const gained = r.keys.filter((k) => !keysBefore.includes(k));
   check("C2: no country key was written to the record", !["ground", "encounterTerrain", "territory", "road", "following"].some((k) => gained.includes(k)), { gained, keys: r.keys });
-  check("C2: no hexEntered fired and one cell's miles are carried (the step was counted in Y)", d2.entered.length === 0 && Math.abs((r.day.cadenceCarry ?? 0) - MILES) < 1e-6, { entered: d2.entered, carry: r.day.cadenceCarry });
+  check("C2: no hexEntered fired and one cell's miles are carried (the step was counted in Y)", d2.entered.length === 0 && Math.abs((r.day.cadenceCarry ?? 0) - MILES) < 1e-6, { entered: d2.entered, carry: r.day.cadenceCarry, activeGMIsSelf: d2.activeGMIsSelf, activeRoles: d2.activeRoles });
   check("C2: the navigation throw at the day's first step off a road made its way: no episode opened", r.lostPhase === null, { navCards: d2.navCards, lost: r.lostPhase });
   s = await page(gm, P.sheet, { partyId: party.id });
   note("sheet", { cards: s.cards, draw: s.draw, sky: s.skyCard, chips: s.chips });
@@ -1842,9 +1943,9 @@ async function walkCountry(W) {
 
   section("country 3. the cadence on the way back");
   const d3 = await page(gm, P.drag, { fid, xy: xy("C") });
-  trackCards(d3);
+  await trackCards(d3);
   note("drag A->C", d3);
-  check("C3: one hexEntered with cadence grid and territory X", d3.entered.length === 1 && d3.entered[0].cadence === "grid" && d3.entered[0].territory === X, d3.entered);
+  check("C3: one hexEntered with cadence grid and territory X", d3.entered.length === 1 && d3.entered[0].cadence === "grid" && d3.entered[0].territory === X, { entered: d3.entered, activeGMIsSelf: d3.activeGMIsSelf, activeRoles: d3.activeRoles });
   // The snapshot: dragged from the painted hex A into unpainted C, the cards read the scene's own country.
   s = await page(gm, P.sheet, { partyId: party.id, keep: true });
   const xLabel = await page(gm, P.territoryLabel, { key: X });
@@ -1853,7 +1954,7 @@ async function walkCountry(W) {
 
   section("country 4. a river");
   const d4 = await page(gm, P.drag, { fid, xy: xy("D") });
-  trackCards(d4);
+  await trackCards(d4);
   note("drag C->D", d4);
   r = await page(gm, P.record, { fid });
   note("record", { map: r.map, values: r.values, provenance: r.provenance });
@@ -1875,14 +1976,14 @@ async function walkCountry(W) {
   check("C4: back on foot the ground's own table returns", r.movement === "foot" && r.values.encounterTerrain !== "riverLand" && r.provenance.encounterTerrain === "scene", { movement: r.movement, table: r.values.encounterTerrain, provenance: r.provenance.encounterTerrain });
   note("pause", await page(gm, P.pause, { fid, paused: true }));
   const pC = await page(gm, P.drag, { fid, xy: xy("C") });
-  trackCards(pC);
+  await trackCards(pC);
   note("paused drag D->C", pC);
   r = await page(gm, P.record, { fid });
   check("C4: a paused drag into C: travel.hex and travel.map follow, no clock, no card", r.hex?.i === C.i && r.hex?.j === C.j && r.map?.i === C.i && r.map?.j === C.j && pC.worldTimeDelta === 0 && pC.messagesDelta === 0 && pC.entered.length === 0, { heard: pC.followed, hex: r.hex, map: r.map && { i: r.map.i, j: r.map.j }, delta: pC.worldTimeDelta, messages: pC.messagesDelta, entered: pC.entered });
   const milesPaused = r.day?.miles ?? 0;
   const Doff = off("D");
   const pD = await page(gm, P.drag, { fid, xy: xy("D") });
-  trackCards(pD);
+  await trackCards(pD);
   note("paused drag C->D", pD);
   r = await page(gm, P.record, { fid });
   check("C4: and back into D: both follow again, the clock and the day's miles unchanged, no card", r.hex?.i === Doff.i && r.hex?.j === Doff.j && r.map?.i === Doff.i && r.map?.j === Doff.j && pD.worldTimeDelta === 0 && pD.messagesDelta === 0 && (r.day?.miles ?? 0) === milesPaused, { heard: pD.followed, hex: r.hex, map: r.map && { i: r.map.i, j: r.map.j }, delta: pD.worldTimeDelta, miles: r.day?.miles, before: milesPaused });
@@ -1939,7 +2040,7 @@ async function walkCountry(W) {
 
   section("country 6. paint this hex");
   const d6 = await page(gm, P.drag, { fid, xy: xy("C") });
-  trackCards(d6);
+  await trackCards(d6);
   note("drag D->C", d6);
   note("other scene viewed", await page(gm, P.viewScene, otherScene.id));
   s = await page(gm, P.sheet, { partyId: party.id, keep: true });
@@ -1976,7 +2077,7 @@ async function walkCountry(W) {
   note("paint C terrain+territory", two);
   const w2 = await page(gm, P.readWatch, { waitMs: 2000 });
   r = await page(gm, P.record, { fid });
-  check("C7: one counted write carries both the terrain and the territory", w2.writes === 1 && r.map?.encounterTerrain === hill && r.map?.ground === "hills" && r.map?.territory === Y && r.map?.source?.territory === "map", { writes: w2.writes, map: r.map });
+  check("C7: one counted write carries both the terrain and the territory", w2.writes === 1 && r.map?.encounterTerrain === hill && r.map?.ground === "hills" && r.map?.territory === Y && r.map?.source?.territory === "map", { writes: w2.writes, map: r.map, activeGMIsSelf: r.activeGMIsSelf });
   note("regions tracked", await trackRegions());
   await page(gm, P.resetWatch);
   note("paint B territory", await page(gm, P.paintAt, { sceneId: hexScene.id, point: pt("B"), value: Y, layer: "territory" }));
@@ -2024,14 +2125,14 @@ async function walkCountry(W) {
   check("fixture: the hand-flagged regions read back on the terrain layer; forest is a bare ground and riverLand stands on none", bare.read === "forest" && riverHex.read === "riverLand" && voc.forest.fine === false && voc.riverLand.fine === true && voc.riverLand.ground === null, { bare: bare.read, river: riverHex.read, voc });
   note("pause", await page(gm, P.pause, { fid, paused: true }));
   const toR0 = await page(gm, P.drag, { fid, xy: xy("R0") });
-  trackCards(toR0);
+  await trackCards(toR0);
   note("unpause", await page(gm, P.pause, { fid, paused: false }));
   r = await page(gm, P.record, { fid });
   note("seated at R0 (paused drag)", { hex: r.hex, day: r.day, keys: r.keys });
   const stepTo = async (k) => {
     const before = await page(gm, P.record, { fid });
     const d = await page(gm, P.drag, { fid, xy: xy(k) });
-    trackCards(d);
+    await trackCards(d);
     const after = await page(gm, P.record, { fid });
     note(`drag to ${k}`, { entered: d.entered.length, navCards: d.navCards, dayKey: [d.dayKeyBefore, d.dayKeyAfter], hex: after.hex, map: after.map, hexesEntered: [before.day.hexesEntered, after.day.hexesEntered], lost: after.lostPhase });
     const countOk = after.day.hexesEntered === (before.day.hexesEntered ?? 0) + 1 || (before.dayKey !== after.dayKey && after.day.hexesEntered === 1);
@@ -2066,6 +2167,7 @@ async function walkCountry(W) {
   }
   check("TP5: no navigation episode opened along the row (the rigged throws made their way)", st.after.lostPhase === null, { lost: st.after.lostPhase });
   const down = await page(gm, P.setDown, { fid, xy: xy("R1") });
+  await trackCards(down);
   note("set down on R1", { before: down.before, entered: down.entered, hex: down.hex, map: down.map, day: down.day });
   check("TP7: set down on painted R1 without walking: the hex is named, travel.map reads R1, hexesEntered does not move", named(down, "R1") && down.map?.i === off("R1").i && down.map?.j === off("R1").j && down.map?.encounterTerrain === hill && down.map?.source?.encounterTerrain === "map" && down.day.hexesEntered === down.before.hexesEntered && down.entered === 0, { hex: down.hex, map: down.map, hexesEntered: [down.before.hexesEntered, down.day.hexesEntered], entered: down.entered });
 
@@ -2077,7 +2179,7 @@ async function walkCountry(W) {
   note("road", road);
   note("pause", await page(gm, P.pause, { fid, paused: true }));
   const toS0 = await page(gm, P.drag, { fid, xy: xy("S0") });
-  trackCards(toS0);
+  await trackCards(toS0);
   note("unpause", await page(gm, P.pause, { fid, paused: false }));
   st = await stepTo("S1");
   s = await page(gm, P.sheet, { partyId: party.id, keep: true });
@@ -2101,7 +2203,8 @@ try {
   note("plan", { parts: [...PARTS], retrack: plan.retrack.length, nonce: NONCE });
   const gm = await seat("gm");
   const player = await seat("player");
-  for (const u of plan.retrack ?? []) gm.track(u);
+  const retracked = (plan.retrack ?? []).map((u) => gm.track(u));
+  if (retracked.length) note("retracked swept", await gm.sweepTracked({ only: retracked }));
   const census = { gm: await page(gm, P.census, MOD), player: await page(player, P.census, MOD) };
   note("gm census", { ...census.gm, userId: undefined });
   note("player census", { role: census.player.role, activeRoles: census.player.activeRoles });
@@ -2145,7 +2248,7 @@ try {
   try {
     if (gm) {
       const got = await page(gm, P.collectMessages);
-      for (const u of got.claimed) gm.track(u, "ChatMessage");
+      await markCards(gm, got.claimed);
       note("late cards", { claimed: got.claimed.length, unclaimed: got.unclaimed });
     }
   } catch (err) { console.error("collect:", err?.message ?? err); }
@@ -2157,8 +2260,13 @@ try {
   for (const k of ["gm", "player"]) {
     try { if (seats[k] && W.views?.[k]) note(`${k} map view restored`, await page(seats[k], P.setView, W.views[k])); } catch (err) { console.error(`map view ${k}:`, err?.message ?? err); }
   }
-  try { if (gm) note("sweep", await gm.sweepTracked()); } catch (err) { console.error("sweep:", err?.message ?? err); }
-  try { if (gm && worldTime0 != null) note("worldTime delta (s)", (await page(gm, P.census, MOD)).worldTime - worldTime0); } catch (err) { console.error("worldTime:", err?.message ?? err); }
+  try {
+    if (gm && worldTime0 != null) {
+      const end = await page(gm, P.census, MOD);
+      note("worldTime delta (s)", end.worldTime - worldTime0);
+      check("the GM seat is still the active GM at the end", end.activeGMIsSelf, { activeRoles: end.activeRoles });
+    }
+  } catch (err) { console.error("worldTime:", err?.message ?? err); }
   console.log("\n== shots ==");
   for (const sh of shots) console.log(JSON.stringify(sh));
   console.log("\n== summary ==");

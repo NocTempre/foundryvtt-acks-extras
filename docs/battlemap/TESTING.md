@@ -294,7 +294,9 @@ read).
    `hexesEntered` does not move.
 
 Teardown: delete both scenes (their regions go with them) and the party
-fixtures.
+fixtures. The walk takes steps 1 and 5-7 on the fixtures of "The country's
+layers and water" and the formation recipe's "The country", which it keeps,
+and deletes none of these.
 
 Drive mechanics (walked 2026-10-09 through the capture driver). View the hex
 scene first (`scene.view()`, then wait for `canvas.ready` with
@@ -457,15 +459,21 @@ Teardown: delete the three scenes (their walls go with them) and the party
 fixtures. Press a road preset once more if the run left the trap preset armed —
 the preset is CLIENT state — one slot per seat, not per world — so it outlives
 the run on the browser profile that drove it while disturbing no other seat, and
-it is the one thing here a sweep cannot delete.
+it is the one thing here a sweep cannot delete. The walk takes step 12 on the
+formation recipe's "The country" fixtures, which it keeps.
 
 ## The country's layers and water (added with the party-sheet redesign's phase 2a)
 
-Fixtures, each made through the capture driver's ledger (`api.create`, or
-`api.track` for what a tool made) and swept by its ids: a disposable
-HEX-gridded scene and a disposable square-gridded scene, both with a scale in
-miles, and step 10's two more hex scenes. Nothing else: every read here is `countryAt` over the scene document,
-and the party's half is `docs/formation/TESTING.md`, "The country".
+Fixtures, found by marker (`flags.world.fixture`) or built carrying it: a
+square-gridded scene `battlemap/layers-square` with a scale in miles, kept and
+written back to its grid with its battlemap record unset (one holding a
+region, a wall or a token is rebuilt); and three HEX-gridded scenes rebuilt every run, since
+what each is walked for is a brush, a line tool or a first view on an empty
+map — `battlemap/layers-hex` for steps 1-8 and step 10's
+`battlemap/layers-painted-climate` and `battlemap/layers-declared-climate`.
+Each is retired before it is built, and takes the regions and walls drawn on
+it with it. Nothing else: every read here is `countryAt` over the scene
+document, and the party's half is `docs/formation/TESTING.md`, "The country".
 
 **Drive mechanics.** View the hex scene first, as for terrain painting. The
 API is `acksExtras.battlemap.terrain` (`paintHexAt(scene, point, value,
@@ -572,18 +580,22 @@ bubbling `change`.
     cleared and nothing is said. View the second scene: its own climate
     stands, `climateFolded` is true, and nothing is said.
 
-Teardown: `api.sweepTracked()` — the two scenes take their regions and walls
-with them, as do step 10's two — and quote its result. The wall preset is client state: arm core's
-ordinary wall once more if the run left a water preset armed, so this seat's
-next wall is not a river.
+Teardown: none of the scenes; the next run retires the hex maps. The wall
+preset is client state: arm core's ordinary wall once more if the run left a
+water preset armed, so this seat's next wall is not a river.
 
 ## Map modes (added with the map modes)
 
-Fixtures, made through the capture driver's ledger and swept by its ids: a
-disposable HEX-gridded scene whose scene default names a territory and a
-climate, with one water line for step 3's markers; a second hex scene built
-in the shape of a map painted before the territory moved to the Regions
-control (step 7); and a square-gridded scene.
+Fixtures, found by marker (`flags.world.fixture`) or built carrying it: a
+HEX-gridded scene `battlemap/modes-hex` whose scene default names a territory
+and a climate, with one water line for step 3's markers; a second hex scene
+`battlemap/modes-old` built in the shape of a map painted before the
+territory moved to the Regions control (step 7); and a square-gridded scene
+`battlemap/modes-square`. The two hex scenes are rebuilt every run — retired
+with what was drawn on them, then built — since the steps paint and draw on
+them and step 7 walks a first view; the square one is kept and written back
+to its grid with its battlemap record unset (one holding a region, a wall or
+a token is rebuilt).
 
 **Drive mechanics.** The API is `acksExtras.battlemap.mapModes` (`mapModes`,
 `mapView`, `setMapView`, `openMapModes`, `registerMapMode`). The window is
@@ -640,9 +652,9 @@ back at the end.
    *Observable:* the window says the modes are drawn on a hex map, and the
    overlay holds no child.
 
-Teardown: `api.sweepTracked()`, which takes the three scenes and their
-regions, and quote its result. Set this seat's view back with
-`setMapView({mode: "terrain", opacity: 0.85, handout: false})`.
+Teardown: none of the scenes; the next run retires the hex ones. Set this
+seat's view back with `setMapView({mode: "terrain", opacity: 0.85, handout:
+false})`.
 
 A territory derived from a deriving layer, the stripes over an overridden hex,
 a weighted side and a redraw on `paintLayerChanged` need a registrant's data,
