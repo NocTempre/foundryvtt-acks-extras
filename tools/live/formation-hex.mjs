@@ -6,13 +6,28 @@
  * printed. FIXES=1 adds the fix block after step 1; ONLY_FIXES=1 runs that and
  * nothing after it.
  *
+ * Fixtures, kept and found again by marker (`api.fixture`), each written back
+ * to the shape step 1 needs before it runs: the scenes `formation/hex-scene`
+ * and `formation/hex-other-scene`, the road and river walls
+ * `formation/hex-road` and `formation/hex-river` on the hex scene, and the
+ * walkers `formation/hex-walker-a` and `formation/hex-walker-b`. The terrain
+ * the brush paints is painted again; a region the paint makes is tracked. The
+ * party is rebuilt every run: its journey record (navigation, episode, day)
+ * has no shape a step can write back, so its token `formation/hex-party-token`
+ * and its actor `formation/hex-party` are retired first, which dissolves the
+ * formation, and built again. The chat messages the steps post are marked
+ * `formation/hex-message-<n>` in the order they arrive, and the next run
+ * retires them first. The shadows the episode stands are the feature's to
+ * remove, and the party's dissolve clears any a dead run left.
+ *
  * Writes outside the fixture ledger, each undone at teardown and reported:
  *   - an invented `travel` document registered at priority 30 (unregistered);
  *   - the world setting `travelEncounters`, set off for the walk (restored);
  *   - the driver GM seat's own client state: the dice rig and the patched
  *     notification methods (restored);
- *   - the world clock, which the journey and step 10 advance (reported as a
- *     delta, not restored — the march recipe's own convention).
+ *   - the world clock, which the fixtures bring to the next 07:00 and the
+ *     journey and step 10 advance (reported as a delta, not restored — the
+ *     march recipe's own convention).
  */
 import { connect, sleep } from "./_driver.mjs";
 import { seats as machineSeats, PORTS, shotDir } from "./_env.mjs";
@@ -21,7 +36,6 @@ const MACHINE = machineSeats();
 const browser = MACHINE.browser;
 const origin = MACHINE.origin;
 const SEATS = { gm: MACHINE.gm, player: MACHINE.player };
-const NONCE = "b" + Math.random().toString(36).slice(2, 8);
 const MOD = "acks-extras";
 const CELL = 100;
 const MILES = 7; // invented cell width, equal to the invented cadence figure for X
@@ -245,30 +259,45 @@ const P = {
     return H.B.country.sceneCountry(scene);
   },
 
-  roadWall: async ({ sceneId, c, surface, from, to, off }) => {
+  /** The wall a road or a water line is, as the battlemap feature writes it: the create payload, never written here. */
+  wallData: async ({ c, road = null, water = null }) => {
     const H = globalThis.__p2b;
-    const scene = game.scenes.get(sceneId);
-    const [wall] = await scene.createEmbeddedDocuments("Wall", [{ c, ...H.B.roads.roadWallData({ surface }) }]);
+    return { c, ...(road ? H.B.roads.roadWallData(road) : H.B.water.waterWallData(water)) };
+  },
+
+  /** Write a kept wall back to `data` and read what the steps read of it. */
+  shapeWall: async ({ uuid, data, from = null, to = null, off = null }) => {
+    const H = globalThis.__p2b;
+    const wall = await fromUuid(uuid);
+    await wall.update(data);
     await H.sleep(300);
+    const scene = wall.parent;
     return {
-      id: wall.id, uuid: wall.uuid, road: wall.getFlag("acks-extras", "road") ?? null,
-      on: H.B.roads.stepBetweenHexes(scene, from, to)?.on ?? null, offStep: H.B.roads.stepBetweenHexes(scene, to, off)?.on ?? null,
+      id: wall.id, uuid: wall.uuid, road: wall.getFlag("acks-extras", "road") ?? null, water: wall.getFlag("acks-extras", "water") ?? null,
+      on: from ? H.B.roads.stepBetweenHexes(scene, from, to)?.on ?? null : null, offStep: from ? H.B.roads.stepBetweenHexes(scene, to, off)?.on ?? null : null,
     };
   },
 
-  waterLine: async ({ sceneId, c, kind, navigable }) => {
+  /** Write a kept document back to the fields a step reads: `data` is an update payload. */
+  shape: async ({ uuid, data }) => {
+    const doc = await fromUuid(uuid);
+    await doc.update(data);
+    return { uuid, updated: true };
+  },
+
+  /** Wait until no formation names a retired party actor: its dissolve runs in the actor's delete hook. */
+  dissolved: async ({ actorIds }) => {
     const H = globalThis.__p2b;
-    const scene = game.scenes.get(sceneId);
-    const [wall] = await scene.createEmbeddedDocuments("Wall", [{ c, ...H.B.water.waterWallData({ kind, navigable }) }]);
-    await H.sleep(300);
-    return { id: wall.id, uuid: wall.uuid, water: wall.getFlag("acks-extras", "water") ?? null };
+    const gone = await H.poll(() => !Object.values(H.F.getFormations()).some((f) => actorIds.includes(f.actorId)), { tries: 50, every: 200 });
+    return { dissolved: !!gone };
   },
 
   buildParty: async ({ partyId, sceneId, memberIds, xy, mode }) => {
     const H = globalThis.__p2b;
     const party = game.actors.get(partyId);
     const scene = game.scenes.get(sceneId);
-    let formation = Object.values(H.F.getFormations()).find((f) => f.actorId === partyId) ?? null;
+    // The create hook adopts a hand-made party asynchronously, so its record lands after the create resolves.
+    let formation = await H.poll(() => Object.values(H.F.getFormations()).find((f) => f.actorId === partyId), { tries: 50, every: 200 });
     if (!formation) return { error: "no formation for the party actor" };
     const td = await party.getTokenDocument({ x: xy.x, y: xy.y });
     const [token] = await scene.createEmbeddedDocuments("Token", [td.toObject()]);
@@ -330,6 +359,23 @@ const P = {
     const d = game.time.calendar?.days ?? null;
     const secondsPerDay = d ? Number(d.hoursPerDay) * Number(d.minutesPerHour) * Number(d.secondsPerMinute) : null;
     return { calendarDay: H.m.worldTime.calendarDay(), secondsPerDay, worldTime: game.time.worldTime, hour: game.time.components?.hour ?? null };
+  },
+
+  /** Advance the clock to the next `hour`:00 of the calendar, or not at all when it stands there. */
+  clockTo: async ({ hour }) => {
+    const H = globalThis.__p2b;
+    const d = game.time.calendar.days;
+    const perMinute = Number(d.secondsPerMinute);
+    const perHour = Number(d.minutesPerHour) * perMinute;
+    const perDay = Number(d.hoursPerDay) * perHour;
+    const c = game.time.components;
+    const into = c.hour * perHour + c.minute * perMinute + c.second;
+    const seconds = (((hour * perHour - into) % perDay) + perDay) % perDay;
+    if (seconds) {
+      await game.time.advance(seconds);
+      await H.sleep(800);
+    }
+    return { seconds, hour: game.time.components.hour, minute: game.time.components.minute };
   },
 
   advanceClock: async ({ seconds }) => {
@@ -820,7 +866,7 @@ const installP = (api) => api.eval(`globalThis.__P = {${Object.entries(P).map(([
 
 const seats = {};
 async function seat(key) {
-  const api = await connect({ browser, origin, user: SEATS[key], port: PORTS[key] });
+  const api = await connect({ browser, origin, user: SEATS[key], port: PORTS[key], own: MACHINE.own });
   seats[key] = api;
   note(`${key} ready after (s)`, await ready(api, key));
   // The seat must run the working tree, not a cached copy: a function this change added is the marker.
@@ -856,8 +902,28 @@ try {
   section("fixtures");
   encountersBefore = census.gm.settings.travelEncounters;
   note("travelEncounters off", await page(gm, P.setSetting, { mod: MOD, key: "travelEncounters", value: false }));
-  const hexScene = await gm.create("Scene", sceneData(`QA Shown hex ${NONCE}`, { type: 2 }));
-  const otherScene = await gm.create("Scene", sceneData(`QA Shown other ${NONCE}`, { type: 1 }));
+  const hexData = sceneData("QA Shown hex", { type: 2 });
+  const otherData = sceneData("QA Shown other", { type: 1 });
+  const hexScene = await gm.fixture("formation/hex-scene", "Scene", hexData);
+  const otherScene = await gm.fixture("formation/hex-other-scene", "Scene", otherData);
+  // A kept scene is written back to the grid and frame the layout is computed on.
+  for (const [doc, data] of [[hexScene, hexData], [otherScene, otherData]]) {
+    const { name: _n, active: _a, ...fields } = data;
+    note(`shape ${doc.marker}`, await page(gm, P.shape, { uuid: doc.uuid, data: fields }));
+  }
+  // The party goes first: its token, then its actor, whose delete dissolves the formation.
+  note("retired party token", await gm.retire("formation/hex-party-token", "Token", { parent: hexScene.uuid }));
+  const retiredParty = await gm.retire("formation/hex-party", "Actor");
+  note("retired party", retiredParty);
+  if (retiredParty.removed.length) note("formation dissolved", await page(gm, P.dissolved, { actorIds: retiredParty.removed.map((e) => e.uuid.split(".").pop()) }));
+  // The last run's messages, marked 1..n in the order they arrived; five misses in a row end the run of them.
+  const messagesRetired = [];
+  for (let n = 1, misses = 0; misses < 5; n++) {
+    const out = await gm.retire(`formation/hex-message-${n}`, "ChatMessage");
+    if (out.removed.length || out.failed.length) { misses = 0; messagesRetired.push(...out.removed.map((e) => e.uuid)); }
+    else misses++;
+  }
+  note("messages retired", messagesRetired.length);
   note("background", await page(gm, P.setBackground, { sceneId: hexScene.id, src: "ui/parchment.jpg" }));
   note("hex scene viewed", await page(gm, P.viewScene, hexScene.id));
   const L = await page(gm, P.layout, { sceneId: hexScene.id });
@@ -869,30 +935,40 @@ try {
   const tGround = paintable.grounds[tValue] ?? null;
   check("the brush offers grassland and a second ground for T", paintable.terrain.includes("grassland") && !!tValue && !!tGround && tGround !== "grassland", { tValue, tGround, terrains: paintable.terrain.length });
   note("scene default", await page(gm, P.sceneDefault, { sceneId: hexScene.id, country: { ground: "grassland", territory: X } }));
+  const regionsBefore = new Set((await page(gm, P.regions, { sceneId: hexScene.id, layer: "terrain" })).map((r) => r.uuid));
   note("C terrain", await page(gm, P.paintAt, { sceneId: hexScene.id, point: cell("C").point, value: "grassland", layer: "terrain" }));
   note("T terrain", await page(gm, P.paintAt, { sceneId: hexScene.id, point: cell("T").point, value: tValue, layer: "terrain" }));
   const regions = await page(gm, P.regions, { sceneId: hexScene.id, layer: "terrain" });
-  for (const r of regions) gm.track(r.uuid, "Region");
-  note("regions tracked", regions.length);
-  const road = await page(gm, P.roadWall, { sceneId: hexScene.id, c: [cell("C").point.x, cell("C").point.y, cell("A").point.x, cell("A").point.y], surface: "paved", from: cell("C").offset, to: cell("A").offset, off: cell("B").offset });
-  gm.track(road.uuid, "Wall");
+  for (const r of regions) if (!regionsBefore.has(r.uuid)) gm.track(r.uuid, "Region");
+  note("regions", { standing: regions.length, painted: regions.filter((r) => !regionsBefore.has(r.uuid)).length });
+  const roadData = await page(gm, P.wallData, { c: [cell("C").point.x, cell("C").point.y, cell("A").point.x, cell("A").point.y], road: { surface: "paved" } });
+  const roadWall = await gm.fixture("formation/hex-road", "Wall", roadData, { parent: hexScene.uuid });
+  const road = await page(gm, P.shapeWall, { uuid: roadWall.uuid, data: roadData, from: cell("C").offset, to: cell("A").offset, off: cell("B").offset });
   note("road", road);
   check("the road is a paved wall; C-A steps on it and A-B does not", road.road?.surface === "paved" && road.on === true && road.offStep === false, road);
   const Cp = cell("C").point;
-  const river = await page(gm, P.waterLine, { sceneId: hexScene.id, c: [Cp.x - L.size.sizeX / 2, Cp.y - L.size.sizeY / 4, Cp.x + L.size.sizeX / 2, Cp.y - L.size.sizeY / 4], kind: "river", navigable: false });
-  gm.track(river.uuid, "Wall");
+  const riverData = await page(gm, P.wallData, { c: [Cp.x - L.size.sizeX / 2, Cp.y - L.size.sizeY / 4, Cp.x + L.size.sizeX / 2, Cp.y - L.size.sizeY / 4], water: { kind: "river", navigable: false } });
+  const riverWall = await gm.fixture("formation/hex-river", "Wall", riverData, { parent: hexScene.uuid });
+  const river = await page(gm, P.shapeWall, { uuid: riverWall.uuid, data: riverData });
   note("river", river);
   check("the river is a wall flagged river, not navigable", river.water?.kind === "river" && river.water?.navigable === false, river.water);
   note("travel document", await page(gm, P.registerTravel, { X, miles: MILES, target: TARGET, grounds: ["grassland", tGround] }));
   registered = true;
 
-  const party = await gm.create("Actor", { name: `QA Company ${NONCE}`, type: "acks-extras.party", ownership: { default: 0, [playerId]: 2 } });
-  const memberA = await gm.create("Actor", { name: `QA Walker A ${NONCE}`, type: "character", ownership: { default: 0, [playerId]: 3 }, prototypeToken: { actorLink: true } });
-  const memberB = await gm.create("Actor", { name: `QA Walker B ${NONCE}`, type: "character", prototypeToken: { actorLink: true } });
+  const memberA = await gm.fixture("formation/hex-walker-a", "Actor", { name: "QA Walker A", type: "character", ownership: { default: 0, [playerId]: 3 }, prototypeToken: { actorLink: true } });
+  const memberB = await gm.fixture("formation/hex-walker-b", "Actor", { name: "QA Walker B", type: "character", prototypeToken: { actorLink: true } });
+  note("walkers shaped", [
+    await page(gm, P.shape, { uuid: memberA.uuid, data: { ownership: { default: 0, [playerId]: 3 }, "prototypeToken.actorLink": true } }),
+    await page(gm, P.shape, { uuid: memberB.uuid, data: { "prototypeToken.actorLink": true } }),
+  ]);
+  // Steps 3-9 fall on one calendar day, and the shared clock stands wherever the world's last walk left it:
+  // the party's journey starts in the morning.
+  note("clock to the morning", await page(gm, P.clockTo, { hour: 7 }));
+  const party = await gm.fixture("formation/hex-party", "Actor", { name: "QA Company", type: "acks-extras.party", ownership: { default: 0, [playerId]: 2 } });
   const built = await page(gm, P.buildParty, { partyId: party.id, sceneId: hexScene.id, memberIds: [memberA.id, memberB.id], xy: cell("C").xy, mode: "journey" });
   note("party", built);
   if (built.error) throw new Error(built.error);
-  gm.track(built.tokenUuid, "Token");
+  await gm.mark(built.tokenUuid, "formation/hex-party-token");
   const fid = built.formationId;
   check("the party journeys with two members enrolled and its token adopted", built.mode === "journey" && built.enrolled.every(Boolean) && built.partyTokenOf === built.tokenId, built);
   const stock = await page(gm, P.writeStock, { sceneId: hexScene.id, offset: cell("C").offset, label: cell("C").label, fid, X });
@@ -903,8 +979,14 @@ try {
 
   let r;
   let s;
-  const tracked = new Set();
-  const trackMessages = (list) => { for (const m of list ?? []) { if (!tracked.has(m.uuid)) { gm.track(m.uuid, "ChatMessage"); tracked.add(m.uuid); } } };
+  const marked = new Set();
+  const trackMessages = async (list) => {
+    for (const m of list ?? []) {
+      if (marked.has(m.uuid)) continue;
+      marked.add(m.uuid);
+      await gm.mark(m.uuid, `formation/hex-message-${marked.size}`);
+    }
+  };
   const navCards = (list) => (list ?? []).filter((m) => m.navCard);
   const sameNav = (a, b) => same(a, b);
   const gmIdsCheck = (m) => Array.isArray(m.whisper) && m.whisper.length > 0;
@@ -962,7 +1044,7 @@ try {
   if (process.env.ONLY_FIXES !== "1") {
   section("2. a drag on the road owes nothing");
   const d2 = await page(gm, P.drag, { fid, xy: cell("A").xy });
-  trackMessages(d2.messages);
+  await trackMessages(d2.messages);
   note("drag C->A", d2);
   r = await page(gm, P.record, { fid });
   note("record", { map: r.map, navigation: r.navigation, owed: r.owed, dayKey: r.dayKey });
@@ -972,7 +1054,7 @@ try {
   note("navigation", s.navDom);
   check("Navigation, quietly's line reads following and names the paved road", s.navDom?.state === "following" && /paved/i.test(s.navDom?.line ?? ""), s.navDom);
   const p2 = await page(gm, P.press, { partyId: party.id, selector: '[data-action="navigationThrowNow"]' });
-  trackMessages(p2.messages);
+  await trackMessages(p2.messages);
   note("throw now on the road", p2);
   r = await page(gm, P.record, { fid });
   check("Throw now on the road: an info toast, no card, no history row", p2.found && p2.notes.some((n) => n.kind === "info") && navCards(p2.messages).length === 0 && r.navigation.history.length === 0, { notes: p2.notes, cards: navCards(p2.messages).length, history: r.navigation.history.length });
@@ -980,7 +1062,7 @@ try {
   section("3. the day's first step off the road throws, once");
   note("rig 1", await page(gm, P.rig, { want: 1 }));
   const d3 = await page(gm, P.drag, { fid, xy: cell("B").xy });
-  trackMessages(d3.messages);
+  await trackMessages(d3.messages);
   note("drag A->B", { messages: d3.messages, delta: d3.worldTimeDelta, notes: d3.notes, offer: d3.offer });
   r = await page(gm, P.record, { fid });
   note("record", { navigation: r.navigation, dayKey: r.dayKey, lost: r.lost, hex: r.hex });
@@ -996,7 +1078,6 @@ try {
   section("4. the episode opens");
   const sh4 = await page(gm, P.shadow, { sceneId: hexScene.id, fid });
   note("shadow", sh4);
-  if (sh4.shadow) gm.track(sh4.shadow.uuid, "Token");
   check("lost.phase is astray on the scene with B as the anchor; the card says the episode is open and carries no button", r.lost.phase === "astray" && r.lost.sceneId === hexScene.id && sameHex(r.lost.anchor, cell("B").offset) && card3[0]?.buttons === 0 && card3[0]?.hints.length >= 1, { lost: r.lost, card: card3[0] });
   check("a hidden shadow flagged for the formation stands in hex B", !!sh4.shadow && sh4.shadow.hidden === true && sameHex(sh4.shadow.offset, cell("B").offset) && sh4.count === 1, sh4);
   s = await page(gm, P.sheet, { partyId: party.id, keep: true });
@@ -1009,7 +1090,7 @@ try {
 
   section("5. a further drag moves the shadow with the token");
   const d5 = await page(gm, P.drag, { fid, xy: cell("D").xy });
-  trackMessages(d5.messages);
+  await trackMessages(d5.messages);
   note("drag B->D", { messages: d5.messages, delta: d5.worldTimeDelta, offer: d5.offer });
   r = await page(gm, P.record, { fid });
   const sh5 = await page(gm, P.shadow, { sceneId: hexScene.id, fid });
@@ -1050,7 +1131,7 @@ try {
     note("tab mode", await page(gm, P.tab, { partyId: party.id, tab: "mode" }));
   }
   const d7 = await page(gm, P.drag, { fid, xy: cell("E").xy });
-  trackMessages(d7.messages);
+  await trackMessages(d7.messages);
   note("drag D->E", { messages: d7.messages, delta: d7.worldTimeDelta, offer: d7.offer });
   const sh7 = await page(gm, P.shadow, { sceneId: hexScene.id, fid });
   const tEast = await gm.eval(`(() => { const H = globalThis.__p2b; const n = H.m.plate.neighbourToward(game.scenes.get(${JSON.stringify(hexScene.id)}), ${JSON.stringify(cell("T").offset)}, "e"); return JSON.stringify(n ? { i: n.i, j: n.j } : null); })()`).then(JSON.parse);
@@ -1095,7 +1176,7 @@ try {
   note("rig 20", await page(gm, P.rig, { want: 20 }));
   const pmBefore = (await page(player, P.census, MOD)).messages;
   const p9 = await page(gm, P.press, { partyId: party.id, selector: '[data-action="navigationThrowNow"]', settle: 2000 });
-  trackMessages(p9.messages);
+  await trackMessages(p9.messages);
   note("throw now astray", p9);
   r = await page(gm, P.record, { fid });
   const card9 = navCards(p9.messages);
@@ -1103,7 +1184,7 @@ try {
   check("one card, kept while astray, with the realise button; history[0] by judge on step 3's day; thrownOn unchanged; phase still astray", card9.length === 1 && card9[0].realise && !card9[0].begin && r.navigation.history[0]?.by === "judge" && r.navigation.history[0]?.success === true && r.navigation.history[0]?.day === day3 && r.navigation.thrownOn === day3 && r.lost.phase === "astray", { cards: card9, history: r.navigation.history.slice(0, 2), thrownOn: r.navigation.thrownOn, phase: r.lost.phase });
   const sh9 = await page(gm, P.shadow, { sceneId: hexScene.id, fid });
   const pr9 = await page(gm, P.pressCard, { cls: "acks-extras-nav-realise", fid });
-  trackMessages(pr9.messages);
+  await trackMessages(pr9.messages);
   note("press realise", pr9);
   r = await page(gm, P.record, { fid });
   const sh9b = await page(gm, P.shadow, { sceneId: hexScene.id, fid });
@@ -1126,7 +1207,7 @@ try {
   note("unrig", await page(gm, P.unrig));
   const calA = await page(gm, P.calendar);
   const ed = await page(gm, P.endDay, { partyId: party.id });
-  trackMessages(ed.messages);
+  await trackMessages(ed.messages);
   note("end day", { messages: ed.messages.length, navCards: navCards(ed.messages).length, delta: ed.worldTimeDelta, calendarDay: ed.calendarDay, advanceWorldTime: census.gm.settings.advanceWorldTime });
   r = await page(gm, P.record, { fid });
   const keyParts = (k) => (typeof k === "string" ? k.split(":") : [null, null]);
@@ -1142,14 +1223,14 @@ try {
   check("the day log's rows name their hex while the party is shown the believed hex", s.logHexes.length >= 1 && s.logHexes.every((h) => typeof h === "string" && h.length > 0), { logHexes: s.logHexes });
   note("rig 1", await page(gm, P.rig, { want: 1 }));
   const p10 = await page(gm, P.press, { partyId: party.id, selector: '[data-action="travelEnterHex"]', settle: 2500 });
-  trackMessages(p10.messages);
+  await trackMessages(p10.messages);
   note("next hex", { messages: p10.messages, notes: p10.notes });
   r = await page(gm, P.record, { fid });
   const sh10 = await page(gm, P.shadow, { sceneId: hexScene.id, fid });
   const card10 = navCards(p10.messages);
   check("Next hex: one card for the aware party with no button; one shadow; thrownOn the new day's key with its count; history[0] by step", card10.length === 1 && card10[0].buttons === 0 && sh10.count === 1 && r.navigation.thrownOn === keyB && r.navigation.history[0]?.by === "step" && r.navigation.history[0]?.day === keyB && r.navigation.history[0]?.count === r.dayCount, { cards: card10, shadows: sh10.count, thrownOn: r.navigation.thrownOn, keyB, entry: r.navigation.history[0], dayCount: r.dayCount });
   const d10 = await page(gm, P.drag, { fid, xy: cell("D").xy });
-  trackMessages(d10.messages);
+  await trackMessages(d10.messages);
   const sh10b = await page(gm, P.shadow, { sceneId: hexScene.id, fid });
   const westOf = await gm.eval(`(() => { const H = globalThis.__p2b; const n = H.m.plate.neighbourToward(game.scenes.get(${JSON.stringify(hexScene.id)}), ${JSON.stringify(sh10.shadow?.offset)}, "w"); return JSON.stringify(n ? { i: n.i, j: n.j } : null); })()`).then(JSON.parse);
   note("drag E->D", { messages: d10.messages, from: sh10.shadow?.offset, to: sh10b.shadow?.offset, westOf });
@@ -1166,7 +1247,7 @@ try {
   check("the new key's calendar half is the new day's and its count half the old", keyParts(rPre.dayKey)[0] === String(calD.calendarDay) && keyParts(rPre.dayKey)[1] === keyParts(keyB)[1] && rPre.owed?.state === "owed", { dayKey: rPre.dayKey, keyB, owed: rPre.owed });
   note("rig 1", await page(gm, P.rig, { want: 1 }));
   const d10b = await page(gm, P.drag, { fid, xy: cell("E").xy });
-  trackMessages(d10b.messages);
+  await trackMessages(d10b.messages);
   r = await page(gm, P.record, { fid });
   const sh10c = await page(gm, P.shadow, { sceneId: hexScene.id, fid });
   const eastOf = await gm.eval(`(() => { const H = globalThis.__p2b; const n = H.m.plate.neighbourToward(game.scenes.get(${JSON.stringify(hexScene.id)}), ${JSON.stringify(sh10b.shadow?.offset)}, "e"); return JSON.stringify(n ? { i: n.i, j: n.j } : null); })()`).then(JSON.parse);
@@ -1185,7 +1266,7 @@ try {
   note("other scene viewed", await page(gm, P.viewScene, otherScene.id));
   note("rig 1", await page(gm, P.rig, { want: 1 }));
   const p11b = await page(gm, P.press, { partyId: party.id, selector: '[data-action="navigationThrowNow"]', settle: 2000 });
-  trackMessages(p11b.messages);
+  await trackMessages(p11b.messages);
   note("throw now off the scene", p11b);
   r = await page(gm, P.record, { fid });
   const card11 = navCards(p11b.messages);
@@ -1203,7 +1284,6 @@ try {
   note("dialog after begin", dlgAfter);
   r = await page(gm, P.record, { fid });
   const sh11c = await page(gm, P.shadow, { sceneId: hexScene.id, fid });
-  if (sh11c.shadow) gm.track(sh11c.shadow.uuid, "Token");
   s = await page(gm, P.sheet, { partyId: party.id, keep: true });
   check("Begin on the party's scene: no dialog; the episode opens astray with the shadow in the party token's own hex, both plates the same hex, no badge, and the pad shown", pr11.found && !dlgAfter.found && r.lost.phase === "astray" && r.lost.sceneId === hexScene.id && !!sh11c.shadow && sameHex(sh11c.shadow.offset, sh11c.party?.offset) && sameHex(r.lost.anchor, sh11c.party?.offset) && s.judge?.where.differ === false && s.judge?.where.compass === null && s.whereDom?.truth.hex === s.whereDom?.belief.hex && s.whereDom?.pad.length === 7, { phase: r.lost.phase, anchor: r.lost.anchor, shadow: sh11c.shadow?.offset, party: sh11c.party?.offset, where: s.judge?.where, pad: s.whereDom?.pad, dialog: dlgAfter });
   const p11c = await page(gm, P.press, { partyId: party.id, selector: '[data-action="lostEnd"]', settle: 800 });
@@ -1226,7 +1306,6 @@ try {
   try { if (gm && encountersBefore != null) note("travelEncounters restored", await page(gm, P.setSetting, { mod: MOD, key: "travelEncounters", value: encountersBefore })); } catch (err) { console.error("setting:", err?.message ?? err); }
   try { if (gm) note("seat restored", await page(gm, P.restoreSeat)); } catch (err) { console.error("restoreSeat:", err?.message ?? err); }
   try { if (seats.player) note("player seat restored", await page(seats.player, P.restoreSeat)); } catch (err) { console.error("restoreSeat player:", err?.message ?? err); }
-  try { if (gm) note("sweep", await gm.sweepTracked()); } catch (err) { console.error("sweep:", err?.message ?? err); }
   try { if (gm && worldTime0 != null) note("worldTime delta (s)", (await page(gm, P.census, MOD)).worldTime - worldTime0); } catch (err) { console.error("worldTime:", err?.message ?? err); }
   console.log("\n== summary ==");
   for (const [label, ok] of checks) console.log(`${ok ? "PASS" : "FAIL"}  ${label}`);
