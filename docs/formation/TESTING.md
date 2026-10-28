@@ -2622,16 +2622,30 @@ with a real press.
 
 ## The country (added with the redesign's phase 2a)
 
-Fixtures, each recorded with `api.create`, or `api.track` for what a call or
-a gesture makes, read back by the id it returns:
+Fixtures, each found again by its marker or built carrying one, or recorded
+with `api.track` for what a call or a gesture makes, read back by the id it
+returns:
 
 - a mile-scale HEX scene created with `active: false` and viewed (the march in
-  miles recipe's first scene), and a second disposable scene of any grid, also
-  `active: false`, for the seat to be looking at in step 6;
-- a disposable `acks-extras.party` actor with two disposable members enrolled
-  through the token HUD, one owned by the provisioned Player user, and the
-  party token placed on the hex scene and adopted (poll the record for
-  `tokenId`);
+  miles recipe's first scene), `formation/country-hex-scene`, built again every
+  run: the steps paint, erase and draw on it and a run's paint has no
+  write-back, so the part's start retires it with its regions, walls and
+  tokens. A second scene of any grid, also `active: false`, for the seat to be
+  looking at in step 6, kept as `formation/country-other-scene` and written
+  back to its grid and frame with its battlemap record unset (built again
+  where it holds a region, a wall or a token);
+- an `acks-extras.party` actor, `formation/country-party`, built again every
+  run and retired before its map (its delete dissolves the formation and puts
+  the member tokens back), with two members enrolled through the token HUD,
+  kept as `formation/country-walker-a`, owned by the provisioned Player user,
+  and `formation/country-walker-b`, their names, ownership and
+  `prototypeToken.actorLink` written back at the start; the party token placed
+  on the hex scene and adopted (poll the record for `tokenId`) rides the
+  rebuilt map and is not marked. The members' names are no other walk's
+  (*QA Country Walker A* and *B*, the party *QA Country Company*), since a
+  card is claimed by an actor's or a scene's name in its text;
+- each card the walk claims, marked `formation/country-message-<n>` in
+  arrival order and retired at the part's start;
 - the march in miles recipe's invented `travel` document, registered at
   priority 30 with `encounterFrequency.traveling.<territory>.mileHex` for TWO
   territories: X at the scene's cell, Y at twice it;
@@ -2661,7 +2675,7 @@ puts the corner on a fractional pixel and core stores the corner whole, so
 the move is heard when `clock.lastPosition` equals the token's `_source`
 after the update, never the corner asked for; a throw it owes
 posts a whispered card, whose id is read back at once (the newest
-`game.messages` entry) and tracked. Count `acksExtras.hexEntered` with a
+`game.messages` entry) and marked. Count `acksExtras.hexEntered` with a
 `Hooks.on` removed after the step. The Judge's refresh is debounced and runs
 on the active GM's client alone (`game.users.activeGM`): poll the record for
 up to two seconds rather than reading it at once, and keep a second GM client
@@ -2757,10 +2771,10 @@ off the world while the walk runs. A hand select is
    `.acks-extras-country-chip` and no `[data-action]` inside it; no climate
    card wherever the Sky section shows; no Judge tab.
 
-Teardown: `api.sweepTracked()` — the two scenes with their regions and walls,
-the party actor and with it the formation, the members, every tracked card —
-and quote its result; unregister the invented `travel` document
-(`acksExtras.lib.tables.unregisterTable`). The country brush is client state:
+Teardown: unregister the invented `travel` document
+(`acksExtras.lib.tables.unregisterTable`). The scenes, the party, its members
+and the marked cards stand for the next run's start. The country brush is
+client state:
 close the palette, and if the run left the toolbar's brush armed, press any
 other control.
 
