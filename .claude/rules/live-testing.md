@@ -58,8 +58,11 @@ rather than inventing one.
    `<feature>/<name>` its recipe gives it, and never by its document name,
    which two sessions spell alike as a matter of course. A recipe's fixtures
    section names each marker and how to build the fixture when nothing
-   carries it. A document with no marker is work nobody recorded: read it,
-   never drive it.
+   carries it. The capture driver's `api.fixture(marker, kind, data)` is the
+   lookup: it returns the one document carrying the marker, or builds one
+   from `data` carrying it and tracks that, and it throws on two, since a
+   twin is two runs that both missed and both built. A document with no
+   marker is work nobody recorded: read it, never drive it.
 
    **A step that needs a known shape asserts it at its start.** A kept
    fixture carries whatever the last walk left, and nothing restores it at
@@ -73,16 +76,19 @@ rather than inventing one.
    only reads or renders serves every session at once. One a walk moves,
    fights, bills or edits has two writers the moment a peer walks the same
    surface. Before driving one, find out who is seated (Concurrency, below);
-   where a peer is on the same surface, build your own under a marker of
-   your own.
+   where a peer is on the same surface, build your own: connect with
+   `own: <tag>`, and every marker the run looks up or builds becomes
+   `<feature>/<name>@<tag>`, which never meets the recipe's or a peer's.
 
    **Delete a fixture only where setup is the subject.** A check of how a
    document comes to exist or stops existing needs it absent: a create path
    or create hook, an import's first run (a standing import blocks the fresh
    create), the DELETE path (Driving techniques, below), a migration of a
    pre-upgrade shape. That check deletes the fixture first, under the
-   seated-peer rule above, then runs the setup under test; what the setup
-   produced is the fixture from then on, and carries the marker.
+   seated-peer rule above, with `api.retire(marker, kind)`, which tracks the
+   lookup's one document and sweeps it alone. It then runs the setup under
+   test, and what the setup produced is the fixture from then on:
+   `api.mark(uuid, marker)` puts the marker on it.
 
    **Every delete is by the run's own ids; the capture driver's fixture
    ledger is the mechanism.** `api.create(kind, data)` records the uuid of
