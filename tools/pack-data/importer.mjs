@@ -84,13 +84,18 @@ const apiMacro = (id, name, img, fn, sort, folderId, args = "") => macro(id, nam
 
 function buildMacros() {
   return [
-    // Four entries: connect your books (the prerequisite), import everything,
-    // delete everything, rebuild one shelf. See docs/importer/DECISIONS.md,
-    // "Three controls, not twenty-one (2026-08-24)".
+    // Six entries: connect your books (the prerequisite), the management
+    // window, import everything, rebuild one shelf, rebuild picked entries,
+    // delete everything. See docs/importer/DECISIONS.md, "Three controls, not
+    // twenty-one (2026-08-24)" and "One management window (2026-10-28)".
     folder(FOLDERS.setup, "Your Books", 100),
     folder(FOLDERS.import, "Import from your books", 200),
 
     apiMacro("ackscMacStatus00", "Your ACKS Books (this seat)", "icons/svg/book.svg", "bookStatus", 100, FOLDERS.setup),
+
+    // The window every other control here is a tab of: books, the import
+    // chain step by step, rebuilds, each adventure book, and the tools.
+    apiMacro("ackscMacManage00", "Manage Imports (GM)", "icons/svg/hanging-sign.svg", "openImportManager", 190, FOLDERS.import),
 
     macro(
       "ackscMacImportAl",

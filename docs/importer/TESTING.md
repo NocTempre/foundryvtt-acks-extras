@@ -402,9 +402,10 @@ The dedup rules, each with a case that used to break it.
 ## Three controls, and one shelf at a time
 
 *Observable:* the "ACKS Extras Macros" compendium's two importer folders hold
-FIVE macros — your books, import everything, reimport one shelf, reimport
-individual entries, delete everything. A sixth is a regression. The four are
-the controls; the entry picker is the debug tool beside them.
+SIX macros — your books, manage imports, import everything, reimport one
+shelf, reimport individual entries, delete everything. A seventh is a
+regression. The management window is the surface; the four controls are
+shortcuts into it, and the entry picker is the debug tool beside them.
 
 Reimport one shelf, e.g. Weapons:
 *Observable:* the confirm names the count; afterwards the shelf holds exactly

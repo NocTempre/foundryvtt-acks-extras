@@ -5,6 +5,6 @@
   "type": "script",
   "scope": "global",
   "img": "icons/svg/chest.svg",
-  "command": "if (!game.user.isGM) return ui.notifications.warn(\"The storage manager is a GM tool.\");\ngame.modules.get(\"acks-extras\").api.location.openStorageManager();",
+  "command": "// Open the storage manager: every place that holds goods, and whose they are — GM only.\nconst api = game.modules.get(\"acks-extras\")?.api?.location ?? globalThis.acksExtras?.location;\nif (!api) return ui.notifications.error(\"ACKS Extras is not active.\");\nif (typeof api.openStorageManager !== \"function\") return ui.notifications.warn(\"ACKS Extras | Open Storage Manager needs a newer build of this module.\");\nif (!game.user.isGM) return ui.notifications.warn(\"The storage manager is a GM tool.\");\napi.openStorageManager();",
   "folder": "acks420ff1a0388a"
 }

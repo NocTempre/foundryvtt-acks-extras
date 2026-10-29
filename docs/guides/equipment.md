@@ -429,6 +429,32 @@ button unfolds that one panel when you need it.
 — the rate, then what the stack weighs — the art, and the record of what one is
 worth, how many there are and how many make a stone.*
 
+## Macros
+
+The *ACKS Extras* macro compendium carries seven equipment macros. Each acts
+on the selected token's actor, or on your own character when nothing is
+selected.
+
+- **Loadout Inspector** shows the actor's loadout as the module reads it:
+  hands in use, the fighting style in force, armour and shield, and any
+  violation.
+- **Containers** stamps capacities onto every carrying device the actor owns,
+  then opens the sheet's equipment tab, where containers are worked.
+- **Item Loss from Damage** resolves the optional rule for equipment destroyed
+  by an area attack (JJ p. 398): it asks for the hit points after the attack
+  and the damage type, and posts what is lost to chat. The *Item loss from
+  damage* overlay must be on in the module settings.
+- **Recover Thrown Weapons** clears the thrown state of the actor's weapons,
+  so they are back in hand and weigh again.
+- **Configure Proficiencies** sets the actor's fighting styles, weapon
+  proficiency grants and armour cap from a form of the grant vocabulary.
+- **Annotate Equipment (RAW profiles)** stamps the feature's profiles onto the
+  actor's gear, or onto every item in the world when nothing is selected
+  (above).
+- **Uninstall — Strip Equipment Data** removes everything the equipment
+  feature wrote to the world (GM only), for a world that is leaving the
+  module.
+
 ## Common problems
 
 **The container section vanished.** It should not — sections always render, even

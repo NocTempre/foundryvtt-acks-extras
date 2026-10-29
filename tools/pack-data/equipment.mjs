@@ -24,9 +24,10 @@ const MACROS = [
     _id: "acksEqInspect000",
     name: "Loadout Inspector",
     img: "icons/svg/upgrade.svg",
-    command: `// Show the selected actor's RAW loadout: hands, fighting style, and any violations.
-const api = game.modules.get("acks-extras")?.api?.equipment ?? globalThis.acksExtras.equipment;
-if (!api) { ui.notifications.error("ACKS Equipment is not active."); return; }
+    command: `// Show the selected actor's loadout as the module reads it: hands, fighting style, and any violations.
+const api = game.modules.get("acks-extras")?.api?.equipment ?? globalThis.acksExtras?.equipment;
+if (!api) { ui.notifications.error("ACKS Extras is not active."); return; }
+if (typeof api.getLoadout !== "function") { ui.notifications.warn("ACKS Extras | Loadout Inspector needs a newer build of this module."); return; }
 const actor = canvas.tokens.controlled[0]?.actor ?? game.user.character;
 if (!actor) { ui.notifications.warn("Select a token or assign a character."); return; }
 const lo = api.getLoadout(actor);
@@ -60,8 +61,9 @@ new foundry.applications.api.DialogV2({
 // equipment tab, next to the gear they act on. This macro does the one thing
 // that was genuinely bulk — stamping capacities onto every carrying device the
 // character owns — and then shows you the tab.
-const api = game.modules.get("acks-extras")?.api?.equipment ?? globalThis.acksExtras.equipment;
-if (!api) { ui.notifications.error("ACKS Equipment is not active."); return; }
+const api = game.modules.get("acks-extras")?.api?.equipment ?? globalThis.acksExtras?.equipment;
+if (!api) { ui.notifications.error("ACKS Extras is not active."); return; }
+if (typeof api.annotateItem !== "function" || typeof api.isContainer !== "function") { ui.notifications.warn("ACKS Extras | Containers needs a newer build of this module."); return; }
 const actor = canvas.tokens.controlled[0]?.actor ?? game.user.character;
 if (!actor) { ui.notifications.warn("Select a token or assign a character first."); return; }
 
@@ -77,12 +79,15 @@ actor.sheet.render(true);`,
     _id: "acksEqItemLoss00",
     name: "Item Loss from Damage",
     img: "icons/svg/fire.svg",
-    command: `// JJ p. 398 (optional): an area attack that drops a creature to -6 hp or lower
-// destroys 1 stone of equipment, +1 per further 6 damage, in a fixed positional
-// order, skipping materials the damage type cannot harm.
+    command: `// JJ p. 398 (optional rule): the equipment an area attack destroys on a
+// creature it took far below zero hit points, in the page's positional order,
+// skipping materials the damage type cannot harm. The thresholds and the
+// order are the module's planItemLoss; this asks for its inputs and posts
+// what it resolves.
 const MOD = "acks-extras";
-const api = game.modules.get(MOD)?.api?.equipment ?? globalThis.acksExtras.equipment;
-if (!api) { ui.notifications.error("ACKS Equipment is not active."); return; }
+const api = game.modules.get(MOD)?.api?.equipment ?? globalThis.acksExtras?.equipment;
+if (!api) { ui.notifications.error("ACKS Extras is not active."); return; }
+if (typeof api.planItemLoss !== "function" || typeof api.getLoadout !== "function") { ui.notifications.warn("ACKS Extras | Item Loss from Damage needs a newer build of this module."); return; }
 if (!game.settings.get(MOD, "overlayItemLoss")) { ui.notifications.warn("Enable the 'Item loss from damage' overlay in module settings first."); return; }
 const actor = canvas.tokens.controlled[0]?.actor ?? game.user.character;
 if (!actor) { ui.notifications.warn("Select a token."); return; }
@@ -91,8 +96,8 @@ const form = await foundry.applications.api.DialogV2.prompt({
   classes: ["acks-extras", "acks-extras-scroll"],
   window: { title: \`Item Loss — \${actor.name}\` },
   content: \`<div style="display:grid;gap:.5rem">
-    <p>Applies only when the creature was reduced to <b>-6 hp or lower</b> by an area attack it did not save against.</p>
-    <label>Hit points after the attack <input type="number" name="hp" value="\${actor.system.hp?.value ?? -6}"></label>
+    <p>For a creature an area attack it did not save against took below zero hit points (JJ p. 398).</p>
+    <label>Hit points after the attack <input type="number" name="hp" value="\${actor.system.hp?.value ?? 0}"></label>
     <label>Damage type <select name="dt">\${types.map((t) => \`<option value="\${t}">\${t}</option>\`).join("")}</select></label>
     <label><input type="checkbox" name="rear"> Damaged from the flank or rear (reverses the order)</label>
   </div>\`,
@@ -102,7 +107,7 @@ const form = await foundry.applications.api.DialogV2.prompt({
 if (!form) return;
 const loadout = api.getLoadout(actor);
 const plan = api.planItemLoss(actor, loadout, { hp: Number(form.get("hp")), damageType: form.get("dt"), fromRear: !!form.get("rear") });
-if (!plan.stones) { ui.notifications.info("Not at -6 hp or lower: no equipment is at risk."); return; }
+if (!plan.stones) { ui.notifications.info("Not low enough: no equipment is at risk (JJ p. 398)."); return; }
 const list = plan.destroyed.length
   ? plan.destroyed.map((d) => \`<li><b>\${d.item.name}</b> <span style="opacity:.7">(\${d.material})</span></li>\`).join("")
   : "<li><em>nothing vulnerable to that damage type</em></li>";
@@ -111,7 +116,7 @@ ChatMessage.create({
   content: \`<div class="acks-equipment-loadout"><h3>Item Loss — \${actor.name}</h3>
     <p><b>\${plan.stones}</b> stone at risk (\${form.get("dt")}\${form.get("rear") ? ", from the rear" : ""}).</p>
     <ul>\${list}</ul>
-    <p style="opacity:.75;font-size:.9em">\${plan.survivors} item(s) were immune to this damage type and skipped. Magic items get a saving throw (wielder's progression) before being destroyed; items of 2+ stone are damaged rather than destroyed, losing 1 AC per full stone.</p>
+    <p style="opacity:.75;font-size:.9em">\${plan.survivors} item(s) were immune to this damage type and skipped. A magic item saves before it is destroyed, and a heavy item is damaged rather than destroyed (JJ p. 398).</p>
   </div>\`,
 });`,
   },
@@ -125,8 +130,9 @@ ChatMessage.create({
 // Fired ammunition (arrows/bolts/stones) is restocked by hand — RAW gives no
 // automatic recovery percentage.
 const MOD = "acks-extras";
-const api = game.modules.get(MOD)?.api?.equipment ?? globalThis.acksExtras.equipment;
-if (!api) { ui.notifications.error("ACKS Equipment is not active."); return; }
+const api = game.modules.get(MOD)?.api?.equipment ?? globalThis.acksExtras?.equipment;
+if (!api) { ui.notifications.error("ACKS Extras is not active."); return; }
+if (typeof api.recoverThrown !== "function") { ui.notifications.warn("ACKS Extras | Recover Thrown Weapons needs a newer build of this module."); return; }
 const actor = canvas.tokens.controlled[0]?.actor ?? game.user.character;
 if (!actor) { ui.notifications.warn("Select a token or assign a character."); return; }
 const names = await api.recoverThrown(actor);
@@ -149,13 +155,14 @@ ChatMessage.create({
 // token matching no weapon used to save silently and leave the character
 // non-proficient with everything it owned.
 const MOD = "acks-extras";
-const api = game.modules.get(MOD)?.api?.equipment ?? globalThis.acksExtras.equipment;
-if (!api) { ui.notifications.error("ACKS Equipment is not active."); return; }
+const api = game.modules.get(MOD)?.api?.equipment ?? globalThis.acksExtras?.equipment;
+if (!api) { ui.notifications.error("ACKS Extras is not active."); return; }
+if (typeof api.classifyGrantToken !== "function" || typeof api.normalizeGrantToken !== "function") { ui.notifications.warn("ACKS Extras | Configure Proficiencies needs a newer build of this module."); return; }
 const actor = canvas.tokens.controlled[0]?.actor ?? game.user.character;
 if (!actor) { ui.notifications.warn("Select a token or assign a character."); return; }
 
-// RAW: every character is trained in the single-weapon and missile styles
-// (RR p. 15), so those two are stated, not offered.
+// The single-weapon and missile styles are written on every profile this
+// saves (RR p. 15), so those two are stated, not offered.
 const STYLES = [["dual", "Two weapons (dual wield)"], ["twoHanded", "Two-handed"], ["weaponShield", "Weapon &amp; shield"]];
 const SIZES = [
   ["tiny", "Tiny"],
@@ -195,7 +202,7 @@ const render = (st) => \`<div style="display:grid;gap:.75rem;align-content:start
   <fieldset><legend>Fighting styles (weapon style proficiencies)</legend>
     <p class="notes">How the character is trained to hold weapons — the book calls these <em>fighting styles</em>;
       character sheets and class tables often call the same thing <em>weapon style proficiencies</em>.
-      Single-weapon and missile styles are always trained and are not listed.</p>
+      The single-weapon and missile styles are written on every profile and are not listed (RR p. 15).</p>
     \${STYLES.map(([k, l]) => box("style", k, l, on(st.styles, k))).join("")}
   </fieldset>
   <fieldset><legend>Weapon proficiency</legend>
@@ -277,8 +284,9 @@ ui.notifications.info(\`\${actor.name}: styles \${styles.join(", ")} · weapons 
 // Optionally also reverts masterwork/scavenged stat layers to pristine.
 // Run this BEFORE disabling the module — the macro needs the module's code.
 if (!game.user.isGM) { ui.notifications.warn("GM only."); return; }
-const api = game.modules.get("acks-extras")?.api?.equipment ?? globalThis.acksExtras.equipment;
-if (!api?.stripModuleData) { ui.notifications.error("ACKS Equipment is not active."); return; }
+const api = game.modules.get("acks-extras")?.api?.equipment ?? globalThis.acksExtras?.equipment;
+if (!api) { ui.notifications.error("ACKS Extras is not active."); return; }
+if (typeof api.stripModuleData !== "function") { ui.notifications.warn("ACKS Extras | Strip Equipment Data needs a newer build of this module."); return; }
 const form = await foundry.applications.api.DialogV2.prompt({
   classes: ["acks-extras", "acks-extras-scroll"],
   window: { title: "Strip ACKS Equipment data from this world?" },
@@ -328,8 +336,9 @@ ui.notifications.info(
 // The slot is a best guess you can correct: open any item and use the Slot
 // control on its Construction tab. Gear that belongs nowhere (rations, tools,
 // loot) is left declaring nothing, which is how it stays plain goods.
-const api = game.modules.get("acks-extras")?.api?.equipment ?? globalThis.acksExtras.equipment;
-if (!api) { ui.notifications.error("ACKS Equipment is not active."); return; }
+const api = game.modules.get("acks-extras")?.api?.equipment ?? globalThis.acksExtras?.equipment;
+if (!api) { ui.notifications.error("ACKS Extras is not active."); return; }
+if (typeof api.annotateItem !== "function") { ui.notifications.warn("ACKS Extras | Annotate Equipment needs a newer build of this module."); return; }
 const actor = canvas.tokens.controlled[0]?.actor ?? game.user.character;
 const ANNOTATABLE = ["weapon", "armor", "item", "money"];
 const source = actor ? actor.items : game.items;

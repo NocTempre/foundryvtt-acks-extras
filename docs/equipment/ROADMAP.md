@@ -79,3 +79,10 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   nothing extra, as that file's header says, and no import changes it until a
   recipe reads the fields off a page. `tools/validate-producers.mjs` waives the
   document against this entry.
+- **Three macros still carry a form of their own.** *Configure
+  Proficiencies*, *Item Loss from Damage* and *Loadout Inspector*
+  (`tools/pack-data/equipment.mjs`) build their dialog and their chat card in
+  the macro body, so their strings are not in `lang/` and their layout is not
+  under the window contract. Each becomes a window of the feature (an app
+  under `scripts/equipment/apps/`, a template, lang keys), and the macro its
+  launcher, as docs/DECISIONS.md §25 rules for every macro.

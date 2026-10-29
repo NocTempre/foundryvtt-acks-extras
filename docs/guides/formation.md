@@ -1188,3 +1188,11 @@ party may evade, are settled by the system's Surprise Matrix when combat starts.
 
 **Saves look wrong.** The party does not save — `rollPartySave` reads each
 member's own saves.
+
+## Macros
+
+The *ACKS Extras* macro compendium carries two formation macros.
+
+- **Party Sheet** opens the exploration party sheet (above).
+- **Merge Fog Copies on This Scene (GM)** folds each seat's older fog copies
+  on the viewed scene into its newest ([Seeing in the dark](#seeing-in-the-dark)).

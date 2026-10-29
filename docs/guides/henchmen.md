@@ -226,6 +226,22 @@ coin offered because two rows hold the same coin.*
 The Judge adds permanents (a rescue, a betrayal), and can mark an entry
 **Compensated** — it stays on record but stops scoring.
 
+## Macros
+
+The *ACKS Extras* macro compendium carries five henchmen macros. Each acts on
+the selected token's actor, or on your own character when nothing is selected.
+
+- **Loyalty Check (Selected)** rolls a loyalty check for the selected hireling,
+  with its employer's modifiers, the way the retinue's own button does.
+- **Obedience Check (Selected)** rolls an obedience check for the selected
+  hireling.
+- **Generate Followers (Selected)** opens the followers dialog for the selected
+  character.
+- **Recruit Monster (Targeted)** recruits the targeted monster for the selected
+  character, as a captive or by an offer; it asks which first.
+- **Process Recruitment Time Now** advances every place's postings by the time
+  that has passed (GM only). The same happens on its own as the calendar moves.
+
 ## Common problems
 
 **"No market at this place."** Add one from the location's GM Settings.

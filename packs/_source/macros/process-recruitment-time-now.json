@@ -5,6 +5,6 @@
   "type": "script",
   "scope": "global",
   "img": "icons/svg/regen.svg",
-  "command": "acksExtras.henchmen.processAllLocations().then(() => ui.notifications.info(\"Recruitment postings processed.\"));",
+  "command": "// Advance every place's recruitment postings by the time that has passed — GM only.\nconst api = game.modules.get(\"acks-extras\")?.api?.henchmen ?? globalThis.acksExtras?.henchmen;\nif (!api) return ui.notifications.error(\"ACKS Extras is not active.\");\nif (typeof api.processAllLocations !== \"function\") return ui.notifications.warn(\"ACKS Extras | Process Recruitment Time needs a newer build of this module.\");\nif (!game.user.isGM) return ui.notifications.warn(\"Processing recruitment time is a GM tool.\");\napi.processAllLocations().then(() => ui.notifications.info(\"Recruitment postings processed.\"));",
   "folder": "acks420ff1a0388a"
 }

@@ -960,3 +960,38 @@ it ran to their end.
 
 Not checked: the gate's length on a CI runner, which has fewer processors
 than the sixteen of the machine this was measured on.
+
+## 25. The macro pack is launchers (2026-10-28)
+
+**What was found.** The pack held thirty-four macros. Four reached nothing a
+sheet did not already reach better — the recruitment board and the posting
+notice (the place sheet's tabs), the dungeon turn (the party sheet's clock)
+and the vault sweep (run at ready and from the repair tool) — and no prose
+named any of them. Fourteen were in no guide at all, reachable only by a
+reader who opened the compendium and guessed from a name. Most bodies called
+the api bare, so a macro imported into a world and run on an older build, or
+with the module off, threw. Two carried the book's figures in their strings.
+
+**Ruled.** Four things.
+
+- **A macro is a launcher.** Its body guards twice — the api slice is
+  present, the function exists on this build — and calls one api function.
+  Logic a macro carried that a feature owns moves to the feature: *Loyalty
+  Check (Selected)* calls `openLoyaltyRoll`, which weighs the employer's
+  modifiers, instead of a throw it assembled itself. The bodies that still
+  hold a form of their own (*Configure Proficiencies*, *Item Loss from Damage*,
+  *Loadout Inspector*) stay until the feature grows the window; the
+  equipment roadmap names them.
+- **A macro no sheet needs is not built.** The four above are dropped from
+  the build; their ids are never reissued (§22 and §23 hold the prose and the
+  strings; neither named them). A world that imported them keeps its copies.
+- **Every macro the pack builds is in a guide.** Each feature guide ends with
+  a *Macros* section naming each and what it does; the lib macros are in the
+  README. The compendia reference lists names and is not that.
+- **A macro string is held to the IP line** like any other shipped string:
+  *Item Loss from Damage* keeps its page reference and loses the threshold
+  and the saving-throw sentence.
+
+**Cost.** A world that leaned on the dungeon-turn macro from the hotbar now
+opens the party sheet for its clock. The guards add three lines to every
+body.

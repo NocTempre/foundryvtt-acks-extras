@@ -186,6 +186,10 @@ The foundation the other features are built on, and useful on its own.
   damage rule. It opens on the selected tokens from the Tokens controls or its
   macro, and on a whole party from the party sheet. Undo works while the
   window is open.
+- **Restore the Compendium Library (GM).** Re-files every ACKS compendium to
+  the folder its manifest declares and resets each pack's sort, lock and
+  ownership, for a world whose packs were moved or unfiled. Its macro is in
+  the *ACKS Extras* macro compendium.
 - **Theming.** One design-token layer (`--acks-*`) across every ACKS surface —
   including the ones the *system* renders — measured from the books and carrying
   a light and a dark value for every colour. Per-client controls for colour

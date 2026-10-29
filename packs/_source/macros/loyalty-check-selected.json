@@ -5,6 +5,6 @@
   "type": "script",
   "scope": "global",
   "img": "icons/svg/daze.svg",
-  "command": "const actor = canvas.tokens.controlled[0]?.actor ?? game.user.character;\nif (!actor) return ui.notifications.warn(\"Select a hireling token first.\");\nacksExtras.henchmen.openThrowDialog(\"hirelingLoyalty\", {\n  title: actor.name,\n  actor,\n  derived: { effectiveLoyalty: actor.system?.retainer?.loyalty ?? 0 },\n});",
+  "command": "// Roll a loyalty check for the selected hireling, with its employer's modifiers.\nconst api = game.modules.get(\"acks-extras\")?.api?.henchmen ?? globalThis.acksExtras?.henchmen;\nif (!api) return ui.notifications.error(\"ACKS Extras is not active.\");\nif (typeof api.openLoyaltyRoll !== \"function\") return ui.notifications.warn(\"ACKS Extras | Loyalty Check needs a newer build of this module.\");\nconst actor = canvas.tokens.controlled[0]?.actor ?? game.user.character;\nif (!actor) return ui.notifications.warn(\"Select a hireling token first.\");\napi.openLoyaltyRoll(actor);",
   "folder": "acks420ff1a0388a"
 }

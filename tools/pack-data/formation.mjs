@@ -7,19 +7,19 @@
  * docs/DECISIONS.md, "formation and influence had no `tools/pack-data.mjs`
  * — RESOLVED".
  */
+/**
+ * The two guards every command runs behind: the formation slice of the module
+ * api must be ready, and the function must exist on this build, since a macro
+ * imported into a world outlives the build that shipped it.
+ */
+const guard = (name, fn) => `const api = game.modules.get("acks-extras")?.api?.formation ?? globalThis.acksExtras?.formation;
+if (!api) return ui.notifications.error("ACKS Extras is not active.");
+if (typeof api.${fn} !== "function") return ui.notifications.warn("ACKS Extras | ${name} needs a newer build of this module.");`;
+
+// The dungeon-turn macro (acksfmMacroTurn0) is no longer built: the party
+// sheet's own clock advances a turn. Its id is never reissued.
 export function buildMacros() {
   return [
-  {
-    _id: "acksfmMacroTurn0",
-    _key: "!macros!acksfmMacroTurn0",
-    name: "Dungeon Turn (+10 min)",
-    type: "script",
-    scope: "global",
-    img: "icons/svg/clockwork.svg",
-    command: "// Mark off one dungeon turn for the (first) formation — GM only.\nconst api = game.modules.get(\"acks-extras\")?.api?.formation ?? globalThis.acksExtras?.formation;\nif (!api) return ui.notifications.error(\"ACKS Exploration Formations is not active.\");\nconst formation = Object.values(api.getFormations())[0];\nif (!formation) return ui.notifications.warn(\"No formation exists yet.\");\napi.advanceTurns(formation, 1, { reason: \"manual\" });",
-    ownership: { default: 0 },
-    _stats: { coreVersion: "13", createdTime: 1785551134915, modifiedTime: 1785551134915 },
-  },
   {
     _id: "acksfmMacroSheet",
     _key: "!macros!acksfmMacroSheet",
@@ -27,7 +27,9 @@ export function buildMacros() {
     type: "script",
     scope: "global",
     img: "icons/svg/combat.svg",
-    command: "// Open the exploration party sheet.\nconst api = game.modules.get(\"acks-extras\")?.api?.formation ?? globalThis.acksExtras?.formation;\nif (api?.open) api.open();\nelse ui.notifications.error(\"ACKS Exploration Formations is not active.\");",
+    command: `// Open the exploration party sheet.
+${guard("Party Sheet", "open")}
+api.open();`,
     ownership: { default: 0 },
     _stats: { coreVersion: "13", createdTime: 1785551134915, modifiedTime: 1785551134915 },
   },
@@ -38,7 +40,10 @@ export function buildMacros() {
     type: "script",
     scope: "global",
     img: "icons/svg/eye.svg",
-    command: "// Fold each seat's older fog copies on the viewed scene into its newest — GM only.\nconst api = game.modules.get(\"acks-extras\")?.api?.formation ?? globalThis.acksExtras?.formation;\nif (!api?.mergeFogCopies) return ui.notifications.error(\"ACKS Exploration Formations is not active.\");\nif (!game.user.isGM) return ui.notifications.warn(\"Merging fog copies is a GM tool.\");\nawait api.mergeFogCopies();",
+    command: `// Fold each seat's older fog copies on the viewed scene into its newest — GM only.
+${guard("Merge Fog Copies", "mergeFogCopies")}
+if (!game.user.isGM) return ui.notifications.warn("Merging fog copies is a GM tool.");
+await api.mergeFogCopies();`,
     ownership: { default: 0 },
     _stats: { coreVersion: "14", createdTime: 1790182800000, modifiedTime: 1790182800000 },
   },

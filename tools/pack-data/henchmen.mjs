@@ -1,11 +1,13 @@
 /**
- * The henchmen feature's macros — the hiring board, the loyalty and obedience
- * throws, follower generation, monster recruitment and the recruitment clock.
- * Pure data; consumed by tools/build-packs.mjs.
+ * The henchmen feature's macros — the loyalty and obedience throws, follower
+ * generation, monster recruitment and the recruitment clock. Pure data;
+ * consumed by tools/build-packs.mjs.
  *
  * Ids are content-hashed from the macro NAME, so adding or dropping one leaves
  * every other id untouched and no world's imported copy is orphaned. An id is
- * identity: rename freely, never re-issue.
+ * identity: rename freely, never re-issue. The recruitment board and the
+ * posting notice are no longer built: both are the place sheet's own tabs
+ * (docs/DECISIONS.md, "The macro pack is launchers").
  */
 import crypto from "node:crypto";
 
@@ -13,6 +15,18 @@ import crypto from "node:crypto";
 function did(seed) {
   return "acksHm" + crypto.createHash("sha1").update(seed).digest("hex").slice(0, 10);
 }
+
+/**
+ * The two guards every command runs behind: the henchmen slice of the module
+ * api must be ready, and the function must exist on this build, since a macro
+ * imported into a world outlives the build that shipped it.
+ */
+const guard = (name, fn) => `const api = game.modules.get("acks-extras")?.api?.henchmen ?? globalThis.acksExtras?.henchmen;
+if (!api) return ui.notifications.error("ACKS Extras is not active.");
+if (typeof api.${fn} !== "function") return ui.notifications.warn("ACKS Extras | ${name} needs a newer build of this module.");`;
+
+/** The selected token's actor, else the user's own character. */
+const SELECTED = `const actor = canvas.tokens.controlled[0]?.actor ?? game.user.character;`;
 
 export function buildMacros() {
   const macro = (name, img, command) => {
@@ -29,61 +43,54 @@ export function buildMacros() {
   };
   return [
     macro(
-      "Open Recruitment Board",
-      "icons/svg/tankard.svg",
-      `const locations = game.actors.filter((a) => a.type === "acks-extras.location");
-if (!locations.length) return ui.notifications.warn("Create a Location actor first.");
-(locations.find((l) => l.testUserPermission(game.user, "OBSERVER")) ?? locations[0]).sheet.render(true);`
-    ),
-    macro(
-      "Post Recruitment Notice",
-      "icons/sundries/scrolls/scroll-bound-black-brown.webp",
-      `const locations = game.actors.filter((a) => a.type === "acks-extras.location");
-if (!locations.length) return ui.notifications.warn("Create a Location actor first.");
-acksExtras.henchmen.openPostingDialog(locations[0]);`
-    ),
-    macro(
       "Loyalty Check (Selected)",
       "icons/svg/daze.svg",
-      `const actor = canvas.tokens.controlled[0]?.actor ?? game.user.character;
+      `// Roll a loyalty check for the selected hireling, with its employer's modifiers.
+${guard("Loyalty Check", "openLoyaltyRoll")}
+${SELECTED}
 if (!actor) return ui.notifications.warn("Select a hireling token first.");
-acksExtras.henchmen.openThrowDialog("hirelingLoyalty", {
-  title: actor.name,
-  actor,
-  derived: { effectiveLoyalty: actor.system?.retainer?.loyalty ?? 0 },
-});`
+api.openLoyaltyRoll(actor);`
     ),
     macro(
       "Obedience Check (Selected)",
       "icons/svg/combat.svg",
-      `const actor = canvas.tokens.controlled[0]?.actor ?? game.user.character;
+      `// Roll an obedience check for the selected hireling.
+${guard("Obedience Check", "openObedienceRoll")}
+${SELECTED}
 if (!actor) return ui.notifications.warn("Select a hireling token first.");
-acksExtras.henchmen.openObedienceRoll(actor);`
+api.openObedienceRoll(actor);`
     ),
     macro(
       "Generate Followers (Selected)",
       "icons/svg/castle.svg",
-      `const actor = canvas.tokens.controlled[0]?.actor ?? game.user.character;
-if (!actor) return ui.notifications.warn("Select a 9th+ level character token first.");
-acksExtras.henchmen.openFollowersDialog(actor);`
+      `// Open the followers dialog for the selected character: who arrives when a character of rank earns them.
+${guard("Generate Followers", "openFollowersDialog")}
+${SELECTED}
+if (!actor) return ui.notifications.warn("Select a character token first.");
+api.openFollowersDialog(actor);`
     ),
     macro(
       "Recruit Monster (Targeted)",
       "icons/svg/pawprint.svg",
-      `const employer = canvas.tokens.controlled[0]?.actor ?? game.user.character;
+      `// Recruit the targeted monster for the selected character, as a captive or by offer.
+${guard("Recruit Monster", "recruitMonster")}
+const employer = canvas.tokens.controlled[0]?.actor ?? game.user.character;
 const monster = game.user.targets.first()?.actor;
 if (!employer || !monster) return ui.notifications.warn("Select your character's token and TARGET the monster.");
 const captured = await foundry.applications.api.DialogV2.confirm({
   window: { title: "Recruit " + monster.name },
   classes: ["acks-extras", "acks-extras-scroll"],
-  content: "<p>Was the monster defeated and captured (Irrefusable Offer, MM 351)? Choose No for a peaceful/market offer.</p>",
+  content: "<p>Was the monster defeated and captured (MM 351)? Choose No for an offer made in peace or at market.</p>",
 });
-acksExtras.henchmen.recruitMonster(monster, employer, { captured });`
+api.recruitMonster(monster, employer, { captured });`
     ),
     macro(
       "Process Recruitment Time Now",
       "icons/svg/regen.svg",
-      `acksExtras.henchmen.processAllLocations().then(() => ui.notifications.info("Recruitment postings processed."));`
+      `// Advance every place's recruitment postings by the time that has passed — GM only.
+${guard("Process Recruitment Time", "processAllLocations")}
+if (!game.user.isGM) return ui.notifications.warn("Processing recruitment time is a GM tool.");
+api.processAllLocations().then(() => ui.notifications.info("Recruitment postings processed."));`
     ),
   ];
 }

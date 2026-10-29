@@ -139,6 +139,12 @@ against the printed page. It is probably right and is genuinely offered — it i
 just not asserted as the book's ruling. Treat it as a suggestion until you have
 checked it.
 
+## Macros
+
+**Influence Roller**, in the *ACKS Extras* macro compendium, opens the roller
+on the selected token's actor, or on your own character when nothing is
+selected.
+
 ## Common problems
 
 **A modifier shows as "undetermined".** A value it needs could not be resolved —

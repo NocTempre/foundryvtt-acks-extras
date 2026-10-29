@@ -219,6 +219,18 @@ rarity table says. A university town where mages are easy to find is one row.
 Who holds the town can matter too: see
 [what standing does](factions.md#what-standing-does).
 
+## Macros
+
+The *ACKS Extras* macro compendium carries four storage macros.
+
+- **Open Storage Manager** opens the storage manager (GM only): every place
+  that holds goods, whose they are, and the controls to move them.
+- **Enable Storage Here** and **Disable Storage Here** turn storage on or off
+  for the selected place, cart or stronghold (GM only). Disabling refuses while
+  the place still holds anyone's goods.
+- **My Stored Goods** opens your character's sheet on its Storage tab, which
+  lists what you have in storage and where.
+
 ## Common problems
 
 **The market tabs aren't there.** The place has no market. Add one from GM

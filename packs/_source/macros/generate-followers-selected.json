@@ -5,6 +5,6 @@
   "type": "script",
   "scope": "global",
   "img": "icons/svg/castle.svg",
-  "command": "const actor = canvas.tokens.controlled[0]?.actor ?? game.user.character;\nif (!actor) return ui.notifications.warn(\"Select a 9th+ level character token first.\");\nacksExtras.henchmen.openFollowersDialog(actor);",
+  "command": "// Open the followers dialog for the selected character: who arrives when a character of rank earns them.\nconst api = game.modules.get(\"acks-extras\")?.api?.henchmen ?? globalThis.acksExtras?.henchmen;\nif (!api) return ui.notifications.error(\"ACKS Extras is not active.\");\nif (typeof api.openFollowersDialog !== \"function\") return ui.notifications.warn(\"ACKS Extras | Generate Followers needs a newer build of this module.\");\nconst actor = canvas.tokens.controlled[0]?.actor ?? game.user.character;\nif (!actor) return ui.notifications.warn(\"Select a character token first.\");\napi.openFollowersDialog(actor);",
   "folder": "acks420ff1a0388a"
 }

@@ -5,6 +5,6 @@
   "type": "script",
   "scope": "global",
   "img": "icons/svg/combat.svg",
-  "command": "const actor = canvas.tokens.controlled[0]?.actor ?? game.user.character;\nif (!actor) return ui.notifications.warn(\"Select a hireling token first.\");\nacksExtras.henchmen.openObedienceRoll(actor);",
+  "command": "// Roll an obedience check for the selected hireling.\nconst api = game.modules.get(\"acks-extras\")?.api?.henchmen ?? globalThis.acksExtras?.henchmen;\nif (!api) return ui.notifications.error(\"ACKS Extras is not active.\");\nif (typeof api.openObedienceRoll !== \"function\") return ui.notifications.warn(\"ACKS Extras | Obedience Check needs a newer build of this module.\");\nconst actor = canvas.tokens.controlled[0]?.actor ?? game.user.character;\nif (!actor) return ui.notifications.warn(\"Select a hireling token first.\");\napi.openObedienceRoll(actor);",
   "folder": "acks420ff1a0388a"
 }

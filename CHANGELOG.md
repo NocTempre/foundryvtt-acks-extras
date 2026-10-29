@@ -12,6 +12,21 @@
   tick. *Clean Up After the Merge (GM)* now opens the repair window on that
   check and *Stranded coin*, already scanned, instead of its own dialog; it is
   the same macro document.
+- **Every shipped macro checks for the module first.** A macro run on a world
+  where ACKS Extras is off, or on an older build than the one that shipped it,
+  says so instead of throwing. *Loyalty Check (Selected)* rolls through the
+  retinue's own loyalty roll, with the employer's modifiers. *Item Loss from
+  Damage* keeps its page reference and no longer prints the rule's figures.
+- **Every shipped macro is in a guide.** Each feature's guide ends with its
+  macros and what each does.
+
+### Removed
+
+- **Four macros the module no longer builds**: *Open Recruitment Board* and
+  *Post Recruitment Notice* (the place sheet's own tabs), *Dungeon Turn
+  (+10 min)* (the party sheet's clock) and *Run Vault Sweep Now* (the sweep
+  runs at ready and from the repair tool). A world that imported them keeps
+  its copies.
 
 ## 11.11.0
 
