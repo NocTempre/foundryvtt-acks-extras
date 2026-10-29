@@ -163,7 +163,10 @@ supply.
 
 What you get depends on the entry's kind — a monster becomes an Actor with its
 weapons and abilities as embedded Items; a proficiency becomes an `ability` Item;
-a piece of gear becomes a weapon, armour or item.
+a piece of gear becomes a weapon, armour or item. An entry is read from your
+own copy of its book: one whose book is not open on this seat is passed over,
+and the step's notice says how many it passed over and why. Connect the book
+and run the step again to import them.
 
 The descriptor text is read from your PDF as the document is created and saved
 into it, with the book and page as its closing line. Everyone at the table can

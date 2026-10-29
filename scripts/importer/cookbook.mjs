@@ -1684,6 +1684,54 @@ async function repairFromEntry(doc, id, build, policy) {
 }
 
 /**
+ * Read one entry off the seat's own book for an import: `{node}` when the
+ * page yielded one, else `{node: null, reason}` — `book-closed` when the
+ * entry's book is not open here, `no-match` when its page no longer matches
+ * the cookbook. An import creates nothing from a null node: a document built
+ * from the entry's shape alone reads as the thing on every sheet, and a book
+ * opened later imports what was passed over, since every import steps over
+ * what the world holds and builds the rest. `opts` is `executeEntry`'s.
+ */
+async function readForImport(id, opts = {}) {
+  const found = cookbookEntry(id);
+  const session = found ? ctx.sessionDocs.get(bookOf(found)) : null;
+  if (!session) return { node: null, reason: "book-closed" };
+  const node = await executeEntry(session.doc, found.cb, data.registers, id, opts);
+  return node?.ok ? { node, reason: null } : { node: null, reason: "no-match" };
+}
+
+/**
+ * What an import run passed over with nothing read, counted by
+ * `readForImport`'s reason. `count` records one and returns null, so a build
+ * returns it; `lines` says each count in a notice's words, and `clause` is
+ * those lines ready to follow a notice's own counts.
+ */
+function passedOver() {
+  const counts = { "book-closed": 0, "no-match": 0 };
+  return {
+    count(reason) {
+      if (reason in counts) counts[reason]++;
+      return null;
+    },
+    get closed() {
+      return counts["book-closed"];
+    },
+    get unmatched() {
+      return counts["no-match"];
+    },
+    get lines() {
+      const out = [];
+      if (counts["book-closed"]) out.push(`${counts["book-closed"]} passed over — their book is not open on this seat`);
+      if (counts["no-match"]) out.push(`${counts["no-match"]} passed over — their page did not match the cookbook`);
+      return out;
+    },
+    get clause() {
+      return this.lines.map((l) => `; ${l}`).join("");
+    },
+  };
+}
+
+/**
  * Whether this seat can read `fullId` now, asked before anything is read:
  * `{ok, name}`, or a `reason` — `no-entry` when the cookbook does not know the
  * id, `book-closed` (with `book`, the label of the book to connect) when its
@@ -7106,10 +7154,11 @@ function runPageCache() {
 /**
  * Build — or REUSE — the shared ability item for a definition id. Deduped by
  * cookbook id, so every monster/NPC referencing a proficiency links to the SAME
- * item instead of minting a per-actor copy. Works bookless: without the citing
- * book the item still imports with its structure and its citation.
+ * item instead of minting a per-actor copy. Nothing is imported without the
+ * citing book: the entry is passed over (`readForImport`), counted into
+ * `passed` where a `passedOver` tally is given.
  */
-export async function importAbility(id, folderId, { pageCache = null } = {}) {
+export async function importAbility(id, folderId, { pageCache = null, passed = null } = {}) {
   const found = cookbookEntry(id);
   if (!found) return null;
   // NOTE an alias gets its OWN item. The books list a name whose rules text is
@@ -7118,35 +7167,33 @@ export async function importAbility(id, folderId, { pageCache = null } = {}) {
   // pointer to where that text lives, so it extracts and classifies normally —
   // it just does not stack with the entry it points at.
   return claimImport(id, async () => {
-    const built = await abilityData(id, { folderId, pageCache });
-    return built ? createDoc(Item, built) : null;
+    const { data: built, reason } = await abilityData(id, { folderId, pageCache });
+    if (!built) return passed?.count(reason) ?? null;
+    return createDoc(Item, built);
   });
 }
 
 /**
  * Everything an ability import does EXCEPT the write. Split out so a bulk
  * run can build every document first and write them in chunks (`createDocs`),
- * which building and writing as one call cannot do. Returns creation data
- * with its folder already resolved, or null when the entry is unknown. See
- * docs/importer/DECISIONS.md, "Writes are batched, because a write costs
- * what the shelf already holds".
+ * which building and writing as one call cannot do. Resolves to `{data}`,
+ * the creation data with its folder resolved, or to `{data: null, reason}` —
+ * `no-entry` when the cookbook does not know the id, else `readForImport`'s
+ * reason. See docs/importer/DECISIONS.md, "Writes are batched, because a
+ * write costs what the shelf already holds".
  */
 async function abilityData(id, { folderId = null, pageCache = null } = {}) {
   const found = cookbookEntry(id);
-  if (!found) return null;
+  if (!found) return { data: null, reason: "no-entry" };
   const bookId = bookOf(found);
-  const session = ctx.sessionDocs.get(bookId);
-  let node = null;
-  if (session) {
-    node = await executeEntry(session.doc, found.cb, data.registers, id, pageCache ? { pageCache: pageCache(bookId) } : {});
-    if (!node.ok) node = null;
-  }
+  const { node, reason } = await readForImport(id, pageCache ? { pageCache: pageCache(bookId) } : {});
+  if (!node) return { data: null, reason };
   const folder = folderId ?? (await ensureItemFolder(id))?.id ?? null;
   const ladders = await laddersForEntry(found.entry, { pageCache: pageCache ? pageCache(bookId) : null });
   const doc = bindAbility(found.entry, node, id, ladders ? { ladders } : {});
   const extras = doc.flags[MODULE_ID].extras;
   extras.effects = await resolveCompanions(extras.effects);
-  return { ...doc, folder };
+  return { data: { ...doc, folder }, reason: null };
 }
 
 /**
@@ -7891,8 +7938,9 @@ export async function laddersFromSpec(spec, { pageCache = null } = {}) {
 
 /**
  * Bind one executed class entry to `acks-extras.class` item data. Everything
- * numeric or listed comes from `node` (the reader's own book); with no book
- * the item still imports as a stub the constructor sheet explains.
+ * numeric or listed comes from `node` (the reader's own book). An import
+ * never calls this with a null node (`readForImport` passes the entry over);
+ * a stub a world imported before that rule the constructor sheet explains.
  * `opts.gains` is this class's Proficiencies-Gained-per-Level row — each C
  * becomes a class-proficiency ChoiceSpec award, each G a general one.
  * `opts.gear` is the grid-materialized half of the equipment menu (see
@@ -8942,6 +8990,7 @@ export async function importClasses({ only = null } = {}) {
   const repaired = await repairClassLadderKeys();
   const made = [];
   let skipped = 0;
+  const passed = passedOver();
   const gainsNode = await executeProfGains();
   const commonName = await executeCommonTongue();
   const gear = await materializedGearMenu();
@@ -8954,14 +9003,8 @@ export async function importClasses({ only = null } = {}) {
       continue;
     }
     const doc = await claimImport(id, async () => {
-      const found = cookbookEntry(id);
-      const bookId = found ? bookOf(found) : null;
-      const session = bookId ? ctx.sessionDocs.get(bookId) : null;
-      let node = null;
-      if (session) {
-        node = await executeEntry(session.doc, found.cb, data.registers, id);
-        if (!node?.ok) node = null;
-      }
+      const { node, reason } = await readForImport(id);
+      if (!node) return passed.count(reason);
       const folder = (await ensureItemFolder(id))?.id ?? null;
       const built = bindClass(entry, node, id, {
         gains: classGainsFor(gainsNode, entry.name),
@@ -8978,7 +9021,7 @@ export async function importClasses({ only = null } = {}) {
   await syncRaceTongues(made);
   await materializeClassTemplates(made);
   ui.notifications?.info(
-    `${MODULE_ID} | classes: ${made.length} imported, ${skipped} already present${repaired ? `, ${repaired} corrected` : ""}.`,
+    `${MODULE_ID} | classes: ${made.length} imported, ${skipped} already present${repaired ? `, ${repaired} corrected` : ""}${passed.clause}.`,
   );
   return made;
 }
@@ -9521,6 +9564,7 @@ export async function importVariations({ only = null, repair = null } = {}) {
   }
   const made = [];
   let skipped = 0;
+  const passed = passedOver();
   for (const [id, entry] of variationEntries()) {
     if (only && !only.has(id)) continue;
     const have = await importedItem(id);
@@ -9530,21 +9574,15 @@ export async function importVariations({ only = null, repair = null } = {}) {
       continue;
     }
     const doc = await claimImport(id, async () => {
-      const found = cookbookEntry(id);
-      const bookId = found ? bookOf(found) : null;
-      const session = bookId ? ctx.sessionDocs.get(bookId) : null;
-      let node = null;
-      if (session) {
-        node = await executeEntry(session.doc, found.cb, data.registers, id);
-        if (!node?.ok) node = null;
-      }
+      const { node, reason } = await readForImport(id);
+      if (!node) return passed.count(reason);
       const folder = (await ensureItemFolder(id))?.id ?? null;
       return createDoc(Item, { ...bindVariation(entry, node, id), folder });
     });
     if (doc) made.push(doc);
   }
   ui.notifications?.info(
-    `${MODULE_ID} | variations: ${made.length} imported, ${skipped} already present${repair ? ", repaired in place" : ""}.`,
+    `${MODULE_ID} | variations: ${made.length} imported, ${skipped} already present${repair ? ", repaired in place" : ""}${passed.clause}.`,
   );
   return made;
 }
@@ -9655,6 +9693,7 @@ export async function importTraps({ only = null, repair = null } = {}) {
   }
   const made = [];
   let skipped = 0;
+  const passed = passedOver();
   for (const [id, entry] of trapEntries()) {
     if (only && !only.has(id)) continue;
     const have = await importedItem(id);
@@ -9664,21 +9703,15 @@ export async function importTraps({ only = null, repair = null } = {}) {
       continue;
     }
     const doc = await claimImport(id, async () => {
-      const found = cookbookEntry(id);
-      const bookId = found ? bookOf(found) : null;
-      const session = bookId ? ctx.sessionDocs.get(bookId) : null;
-      let node = null;
-      if (session) {
-        node = await executeEntry(session.doc, found.cb, data.registers, id);
-        if (!node?.ok) node = null;
-      }
+      const { node, reason } = await readForImport(id);
+      if (!node) return passed.count(reason);
       const folder = (await ensureItemFolder(id))?.id ?? null;
       return createDoc(Item, { ...bindTrap(entry, node, id), folder });
     });
     if (doc) made.push(doc);
   }
   ui.notifications?.info(
-    `${MODULE_ID} | traps: ${made.length} imported, ${skipped} already present${repair ? ", repaired in place" : ""}.`,
+    `${MODULE_ID} | traps: ${made.length} imported, ${skipped} already present${repair ? ", repaired in place" : ""}${passed.clause}.`,
   );
   return made;
 }
@@ -9740,6 +9773,7 @@ export async function importSpells({ only = null, repair = null } = {}) {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates items).`);
   const made = [];
   let skipped = 0;
+  const passed = passedOver();
   for (const [id, entry] of spellEntries()) {
     if (only && !only.has(id)) continue;
     const have = await importedItem(id);
@@ -9749,21 +9783,15 @@ export async function importSpells({ only = null, repair = null } = {}) {
       continue;
     }
     const doc = await claimImport(id, async () => {
-      const found = cookbookEntry(id);
-      const bookId = found ? bookOf(found) : null;
-      const session = bookId ? ctx.sessionDocs.get(bookId) : null;
-      let node = null;
-      if (session) {
-        node = await executeEntry(session.doc, found.cb, data.registers, id);
-        if (!node?.ok) node = null;
-      }
+      const { node, reason } = await readForImport(id);
+      if (!node) return passed.count(reason);
       const folder = (await ensureItemFolder(id))?.id ?? null;
       return createDoc(Item, { ...bindSpell(entry, node, id), folder });
     });
     if (doc) made.push(doc);
   }
   ui.notifications?.info(
-    `${MODULE_ID} | spells: ${made.length} imported, ${skipped} already present${repair ? ", repaired in place" : ""}.`,
+    `${MODULE_ID} | spells: ${made.length} imported, ${skipped} already present${repair ? ", repaired in place" : ""}${passed.clause}.`,
   );
   return made;
 }
@@ -10193,16 +10221,17 @@ const isAnimalEntry = (entry) => entry?.meta?.group === "animal";
  * Most entries become world ITEMS. An animal becomes an ACTOR — a mule is a
  * creature you buy, not a thing you carry — provided ACKS Extras is present to
  * supply the sub-type. Without it the animal falls back to an item rather than
- * failing the import, because a bookless, lib-less seat should still get the
- * shop list.
+ * failing the import, because a lib-less seat should still get the shop list.
  *
- * Bookless seats still get the document — name, icon, citation stub — the same
- * bring-your-own-book posture as abilities.
+ * An entry whose book is not open on this seat, or whose page no longer
+ * matches, is passed over (`readForImport`) and counted into `passed`, a
+ * `passedOver` tally, where one is given; nothing is created from the entry's
+ * shape alone.
  *
  * `repair`, a tally, writes the entry over a document this world already
  * holds for it, in place (`repairEquipment`), instead of returning it as is.
  */
-export async function importEquipment(id, folderId, { repair = null } = {}) {
+export async function importEquipment(id, folderId, { repair = null, passed = null } = {}) {
   const found = cookbookEntry(id);
   if (!found) return null;
 
@@ -10217,24 +10246,23 @@ export async function importEquipment(id, folderId, { repair = null } = {}) {
   }
 
   const build = async () => {
-    const bookId = bookOf(found);
-    const session = ctx.sessionDocs.get(bookId);
-    let node = null;
-    if (session) {
-      node = await executeEntry(session.doc, found.cb, data.registers, id);
-      if (!node?.ok) node = null;
-    }
+    const { node, reason } = await readForImport(id);
+    if (!node) passed?.count(reason);
     return node;
   };
 
   if (asActor) {
     const node = await build();
+    if (!node) return null;
     // The one actor destination rule (actorFolderFor → the "Animals" home).
     const folder = (await actorFolderFor(id, found))?.id ?? null;
     return createDoc(Actor, { ...bindAnimal(found.entry, node, id), folder });
   }
 
-  return claimImport(id, async () => importEquipmentItem(found, id, folderId, await build()));
+  return claimImport(id, async () => {
+    const node = await build();
+    return node ? importEquipmentItem(found, id, folderId, node) : null;
+  });
 }
 
 /**
@@ -10333,7 +10361,9 @@ export const cookbookEquipmentIds = () =>
  * Remove `ability` items mis-created from equipment entries. An item's type
  * cannot be changed in place, so they are deleted and re-created properly by
  * the equipment import. Only OUR generated documents are touched; a
- * hand-made item is never deleted.
+ * hand-made item is never deleted, and neither is one whose entry cannot be
+ * read on this seat (`readableHere`): the import that would re-create it
+ * passes it over, so the delete would leave nothing in its place.
  * @returns {Promise<number>} how many were removed
  */
 export async function repairEquipmentAbilities() {
@@ -10341,7 +10371,8 @@ export async function repairEquipmentAbilities() {
     (i) =>
       i.type === ITEM_TYPE.ABILITY &&
       i.getFlag(MODULE_ID, "minted") &&
-      String(i.getFlag(MODULE_ID, "cookbook")?.id ?? "").startsWith("def.equip."),
+      String(i.getFlag(MODULE_ID, "cookbook")?.id ?? "").startsWith("def.equip.") &&
+      readableHere(claimedId(i)),
   );
   if (!wrong.length) return 0;
   await deleteImported("Item", wrong);
@@ -10356,7 +10387,9 @@ export async function repairEquipmentAbilities() {
  * (the `minted` flag + a `def.equip.` cookbook id whose entry is an animal).
  *
  * A no-op before `game.actors` exists — without the animal sub-type reachable
- * yet, removing the items would delete data with nothing to replace it.
+ * yet, removing the items would delete data with nothing to replace it. An
+ * item whose entry cannot be read on this seat is kept for the same reason:
+ * the import passes it over instead of re-creating it.
  *
  * @returns {Promise<number>} how many were removed
  */
@@ -10369,7 +10402,7 @@ export async function repairAnimalItems() {
       .map(([id]) => id),
   );
   const wrong = (await importedDocs("Item")).filter(
-    (i) => i.getFlag(MODULE_ID, "minted") && animalIds.has(i.getFlag(MODULE_ID, "cookbook")?.id),
+    (i) => i.getFlag(MODULE_ID, "minted") && animalIds.has(i.getFlag(MODULE_ID, "cookbook")?.id) && readableHere(claimedId(i)),
   );
   if (!wrong.length) return 0;
   await deleteImported("Item", wrong);
@@ -10382,12 +10415,15 @@ export async function repairAnimalItems() {
  * the equipment import can re-create them as the `armor` shield items they
  * now are. Only the LIBRARY copies go, matched on the id they were imported
  * under; a variation a Judge already applied to a shield is an embedded copy
- * on that document and is never touched.
+ * on that document and is never touched. Nothing goes while the book that
+ * prints the armour table is not open on this seat: `importArmor` reads the
+ * shields off that table and imports none without it.
  * See docs/importer/DECISIONS.md, "A shield form is a shield, not a difference applied to one".
  *
  * @returns {Promise<number>} how many were removed
  */
 export async function repairShieldVariations() {
+  if (!ctx?.sessionDocs?.has(ARMOR_TABLE.book)) return 0;
   const wrong = (await importedDocs("Item")).filter((i) =>
     String(i.getFlag(MODULE_ID, "cookbook")?.id ?? "").startsWith("def.variation.shield"),
   );
@@ -10448,6 +10484,7 @@ export async function importAllEquipment({ only = null, repair = null } = {}) {
   const bar = progressBar(game.i18n.localize(`${LANG_PREFIX}.ui.progressEquipment`), ids.length);
   let created = 0;
   let animals = 0;
+  const passed = passedOver();
   try {
     await prepareItemShelves();
     const folder = null; // per-id shelf
@@ -10461,7 +10498,7 @@ export async function importAllEquipment({ only = null, repair = null } = {}) {
       const asActor = isAnimalEntry(entry) && canImportAnimals();
       const before = asActor ? await importedActor(id, { copies: false }) : await importedItem(id);
 
-      const doc = await importEquipment(id, folder, { repair });
+      const doc = await importEquipment(id, folder, { repair, passed });
       if (doc && !before) {
         created++;
         if (asActor) animals++;
@@ -10471,12 +10508,14 @@ export async function importAllEquipment({ only = null, repair = null } = {}) {
   } finally {
     bar.finish();
   }
+  if (passed.lines.length) ui.notifications?.info(`${MODULE_ID} | equipment: ${passed.lines.join("; ")}.`);
+  const over = { closed: passed.closed, unmatched: passed.unmatched };
   // The weapon, armour and price TABLES are no entry's, so a pass narrowed to
   // entries never reaches them; their shelves rebuild on their own, and a
   // repair in place leaves them to that rebuild.
   if (only || repair) {
     reportOverlaps();
-    return { total: ids.length, created, animals, repaired, repairedAnimals, repairedShields, weapons: null, armor: null, priced: null };
+    return { total: ids.length, created, animals, passed: over, repaired, repairedAnimals, repairedShields, weapons: null, armor: null, priced: null };
   }
   const weapons = await importWeapons();
   const armor = await importArmor();
@@ -10484,7 +10523,7 @@ export async function importAllEquipment({ only = null, repair = null } = {}) {
   // to run after they have had their chance at them.
   const priced = await importPricedGear();
   reportOverlaps();
-  return { total: ids.length, created, animals, repaired, repairedAnimals, repairedShields, weapons, armor, priced };
+  return { total: ids.length, created, animals, passed: over, repaired, repairedAnimals, repairedShields, weapons, armor, priced };
 }
 
 /* -------------------------------------------- */
@@ -11010,10 +11049,9 @@ function reportGuess(text, guess) {
 /**
  * GM: browse every shipped ability and pick which to import.
  *
- * The counterpart to the monster import dialog. Works WITHOUT a connected book
- * — an ability always imports with its name, classification and citation
- * — but the header says whether the citing book is open, because that is the
- * difference between importing structure and importing structure + mechanics.
+ * The counterpart to the monster import dialog. The header says which books
+ * are open, because an ability imports from its book alone: one whose book is
+ * not open on this seat is passed over, and the closing notice says how many.
  */
 export async function cookbookImportAbilitiesDialog() {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates items).`);
@@ -11111,17 +11149,21 @@ export async function cookbookImportAbilitiesDialog() {
         if (!picked.length) return ui.notifications.warn(`${MODULE_ID} | nothing selected.`);
         const bar = progressBar(game.i18n.localize(`${LANG_PREFIX}.ui.progressAbilities`), picked.length);
         let done = 0;
+        const passed = passedOver();
         try {
           await prepareItemShelves();
           const folder = null; // per-id shelf
           for (const id of picked) {
-            if (await importAbility(id, folder).catch((err) => (console.error(`${MODULE_ID} | import ${id}`, err), null))) done++;
+            if (await importAbility(id, folder, { passed }).catch((err) => (console.error(`${MODULE_ID} | import ${id}`, err), null))) done++;
             bar.step(cookbookEntry(id)?.entry?.name ?? id);
           }
         } finally {
           bar.finish();
         }
-        ui.notifications.info(game.i18n.format(`${LANG_PREFIX}.ui.abilDone`, { done, picked: picked.length, pack: packLabel("Item") }));
+        ui.notifications.info(
+          game.i18n.format(`${LANG_PREFIX}.ui.abilDone`, { done, picked: picked.length, pack: packLabel("Item") }) +
+            (passed.closed ? ` ${game.i18n.format(`${LANG_PREFIX}.ui.abilPassed`, { n: passed.closed })}` : ""),
+        );
       },
     },
   });
@@ -11135,6 +11177,7 @@ export async function cookbookImportAbilities({ only = null } = {}) {
   const bar = progressBar(game.i18n.localize(`${LANG_PREFIX}.ui.progressAbilities`), ids.length);
   let made = 0;
   let reused = 0;
+  const passed = passedOver();
   try {
     await prepareItemShelves();
     const pageCache = runPageCache();
@@ -11156,11 +11199,14 @@ export async function cookbookImportAbilities({ only = null } = {}) {
         reused++;
         continue;
       }
-      const data = await abilityData(id, { pageCache }).catch((err) => {
+      const { data, reason } = await abilityData(id, { pageCache }).catch((err) => {
         console.error(`${MODULE_ID} | build ${id}`, err);
-        return null;
+        return { data: null, reason: null };
       });
-      if (!data) continue;
+      if (!data) {
+        passed.count(reason);
+        continue;
+      }
       batch.push({ id, data });
       if (batch.length >= WRITE_CHUNK) await flush();
     }
@@ -11168,8 +11214,8 @@ export async function cookbookImportAbilities({ only = null } = {}) {
   } finally {
     bar.finish();
   }
-  ui.notifications.info(`${MODULE_ID} | abilities: ${made} imported, ${reused} already present.`);
-  return { made, reused };
+  ui.notifications.info(`${MODULE_ID} | abilities: ${made} imported, ${reused} already present${passed.clause}.`);
+  return { made, reused, closed: passed.closed, unmatched: passed.unmatched };
 }
 
 /** A description reduced to one readable line, so a dialog row fits on screen. */
@@ -11878,7 +11924,8 @@ export async function cookbookImportMonsters() {
  * tokens into embeddable ability ItemData. Tier 1 reuses the world's own
  * imported items (the same name index the monster import uses, including its
  * proficiency-vs-class-power disambiguation); tier 2 imports the definition
- * from the cookbook; an unresolvable token is reported, never fatal. A
+ * from the cookbook, where its book is open on this seat; an unresolvable
+ * token, a definition whose book is closed included, is reported, never fatal. A
  * "(specialty)" suffix survives onto the embedded copy's name only.
  */
 export async function resolveAbilities(tokens) {

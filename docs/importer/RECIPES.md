@@ -177,14 +177,18 @@ be detailed in ACKS I and revised in ACKS II:
 `{ "editions": { "acks1": {book, pages}, "acks2": {book, pages, revises: "acks1"} } }`.
 Resolution prefers the newest edition the seat owns and falls back to the
 original for unrestated detail. Cross-book and cross-edition references are the
-normal case; every tier degrades to a stub, never an error.
+normal case; a reference whose book is closed degrades to a keyword, never an
+error.
 
-**Graceful degradation (three independent tiers).**
-1. *Structure & refs — always*: the graph renders bookless as stubs+citations.
-2. *Values — with the citing book*: materialized via assists, deterministic.
-3. *Descriptor prose — with the defining book* (whichever book that is).
-Registry-miss (unknown token → keyword, no ref) and book-not-owned (known id →
-stub) are orthogonal degradations; neither can fail.
+**Graceful degradation (two tiers, and a gate before them).** An entry is
+imported only from an open copy of its book: one whose book is not open on the
+seat, or whose page no longer matches, is passed over and counted, and nothing
+is created from its shape alone (`cookbook.mjs` `readForImport`; importer
+DECISIONS 2026-10-29, "Nothing is imported without the book"). Within an open
+book:
+1. *Values — with the citing book*: materialized via assists, deterministic.
+2. *Descriptor prose — with the defining book* (whichever book that is).
+A registry miss (unknown token → keyword, no ref) degrades; a closed book skips.
 
 ## Registers and promotion
 

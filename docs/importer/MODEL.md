@@ -11,6 +11,20 @@ invent**:
 - **Enhance**: alternate sheets, libWrapper wraps, socketlib GM routing.
 - **Invent**: kept to nothing the system already provides.
 
+## What an import reads
+
+Every importer that builds a document from one cookbook entry reads the entry
+off the seat's own copy of its book first (`cookbook.mjs` `readForImport`).
+An entry whose book is not open on the seat, or whose page no longer matches
+the cookbook, is passed over and counted into the run's notice (`passedOver`);
+nothing is created from the entry's shape alone, and a book opened later
+imports what was passed over, since every import steps over what the world
+holds and builds the rest. The equipment sweeps that delete what the import is
+trusted to rebuild keep what it would pass over. The one bookless build left
+is a monster's embedded copy of a proficiency whose book is closed, on an
+actor whose own book is open (`bindMonster`, step 2). The ruling is DECISIONS
+2026-10-29, "Nothing is imported without the book".
+
 ## The import manager
 
 One window (`apps/import-manager.mjs`, `openImportManager({tab})`) holds a

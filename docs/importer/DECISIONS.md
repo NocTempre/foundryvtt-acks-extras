@@ -8657,3 +8657,112 @@ said", and belongs to formation's roadmap if anywhere.
 minted value exactly, has it brought to the recipe's `delve` by the next map
 step; the battlemap setup tool sets it back. The live record: the T-0361
 repair walk in TESTING.md, "A held plan's travel system".
+
+## 2026-10-28 — An item a book introduces is worn where its page says
+
+The catgirl's ten items (DECISIONS 2026-10-19) came in as plain core items
+of one paragraph, and a Judge found none of them wearable: core's `equipped`
+field lives on `weapon` and `armor` alone, a plain item is wearable only by
+a declared slot, and the items step declared none. The module item sheet's
+Equip guesses a slot from the name and knew gloves, gauntlets, bracers and
+mittens, so the first item, a wrap, warned "no slot"; the character sheet's
+Equipment tab offers wear to a declared slot alone; and the Follower Card
+asked core's field, so it offered wear to no plain item at all. The report
+blamed the system update; the cause predates it.
+
+**Ruled.**
+
+- **The place is read from the paragraph.** Each paragraph opens by saying
+  where the thing is worn — around the palms, the wrists, the waist, the
+  tail — and `adventure-item-binding.mjs` reads a wearing verb and the
+  earliest body place named into the lib's slot, declared as the item's one
+  slot. The words it knows are the body's places and the garments that stand
+  for them, the module's vocabulary; a tail, a torso or a wearing clause
+  with no place is the uncapped `worn`; "finger", never "ring", since the
+  verb rings a bell in the same sentences. A thing nobody wears (a dose)
+  declares no slot and stays goods.
+- **The price is read from the cost line**, through the one reader
+  `buildEquipmentItem` already used for a prose-priced piece of equipment,
+  now shared (`priceStatedIn`).
+- **A crafting time is the magic mark.** A paragraph that states one is a
+  made magic item and takes `markets.magic`, so `isMagical` counts it
+  against its place's magic capacity and the item sheet treats it as one.
+- **The Follower Card wears what the lib calls wearable.** Its equipment
+  rows read `isWearable`/`isWorn` and its toggle writes core's field where
+  the type has one, else `setWorn` at the first declared slot — the same two
+  stores every other sheet reads.
+
+**Rejected.**
+
+- *Reading the grants into effects now.* Three of the items add to natural
+  attacks, two to thrown weapons, and six make those attacks extraordinary:
+  the equipment contract's attack domains are flat melee and missile, the
+  extraordinary flag is per weapon, nothing gates a plain item's
+  transferred effects on its worn state, and a player character's claws are
+  prose powers. Each is a design of its own (ROADMAP, "The items' grants").
+- *Adding the wrap's word to the sheet's name heuristic.* The heuristic is
+  the fallback for gear nobody declared; an import that knows the place
+  declares it.
+- *Leaving the magic mark to the Judge.* The mark is what makes the
+  one-of-a-form rule count the item, and the paragraph states it as plainly
+  as the price.
+
+*Cost:* an item already in a world keeps what it was imported with; delete
+it and run the items step again to take the slot, the price and the mark.
+The live record: the typography walk's step 2, extended.
+
+## 2026-10-29 — Nothing is imported without the book
+
+**Ruled.** Every importer that builds a document from one cookbook entry
+reads the entry off the seat's own copy of its book first (`cookbook.mjs`
+`readForImport`), and an entry whose book is not open on the seat, or whose
+page no longer matches the cookbook, is passed over and counted in the run's
+notice. Nothing is created from the entry's shape alone. This reaches the
+abilities (the bulk run, the picker and the `ability-provider` service), the
+equipment entries (items and animals), the classes, the spells, the traps and
+the variations; the monsters, vehicles, merchandise, journals, roll tables,
+adventure items, places, scenes and the weapon, armour and price grids already
+imported from an open book alone. The three equipment sweeps that delete what
+the import is trusted to rebuild (`repairEquipmentAbilities`,
+`repairAnimalItems`, `repairShieldVariations`) keep what the import would now
+pass over. A book opened later imports what a closed run passed over, since
+every import steps over what the world holds and builds the rest.
+
+**Superseded:** RECIPES.md's first degradation tier, "structure & refs —
+always: the graph renders bookless as stubs+citations", and the equipment
+import's "bookless seats still get the document — name, icon, citation stub",
+both older than this file's dated entries. "Importing again refreshes what it
+did not create" (2026-09-02, above: "an entry whose book yielded no node is
+now passed over entirely") ruled the same for the UPDATE pass, on the
+evidence that a rebuild with nothing read is the entry's shape without its
+content; this extends it to the create pass, which that entry left building
+stubs.
+
+**What this knew that the tier did not.** The owner's report of 2026-10-29:
+the importer creates the reference documents without the book instead of
+skipping. A stub carries the entry's name, type, icon and page reference, so
+every sheet, picker and compendium lists it as the thing — a class a player
+can take, a spell a caster can learn, a glove a character can wear — and
+nothing on its face says it is empty until it is opened. The module's own
+header has said since the PoC that "a session that cannot open the PDF
+imports nothing"; the tier contradicted it for six importers. Live, the test
+world held a book's classes and powers as stubs on a seat where the book was
+never open, which is what the report describes.
+
+**Rejected:** pruning the stubs a world already holds. The update passes
+leave a document whose book is closed as it is (the 2026-08-29 entry), and a
+stub whose book opens is filled by Repair; a prune would delete a Judge's
+edits to a stub along with the stub. A world that wants them gone removes the
+shelf and imports again with its books open. **Rejected:** keeping the stub
+for a monster's embedded proficiency copy (`bindAbility` with no node at
+`bindMonster`'s step 2). That copy sits on an actor whose own book IS open,
+names the proficiency the stat line prints and is not a library document;
+it stays, and is named here as the one bookless build left.
+
+*Cost:* a seat with none of a content type's books open now imports none of
+it, where it used to get a shelf of empty documents; the notice says how many
+and why. The `ability-provider` service reports a proficiency whose book is
+closed as missing instead of embedding a stub, so a hireling hired on such a
+seat lacks that proficiency until the book is open. The abilities picker's
+header no longer promises "structure only"; its closing notice counts what it
+passed over.

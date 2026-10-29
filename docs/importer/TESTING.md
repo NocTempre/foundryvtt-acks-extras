@@ -1072,9 +1072,10 @@ await Item.create({name:"Kite Shield", type:"acks-extras.variation", system:{key
    stone; a form reading 0 means its locator missed and the shield weighs
    nothing.
 2. Disconnect the Journal and import into a world that has none of them.
-   *Observable:* the six still arrive, named and typed, with no description, no
-   AC and no encumbrance. That is the bookless tier working: structure ships,
-   the numbers are the reader's. A "+1" appearing here means a value was baked.
+   *Observable:* none of the six arrives, and the equipment notice counts them
+   as passed over with their book not open on this seat. A shield appearing
+   here, with or without an AC, means something was built from the entry's
+   shape alone (see "An import with a book closed", below).
 3. Put one on a character and equip it.
    *Observable:* AC rises by the number the sheet shows, not by a number this
    module chose. With the overlay on, cycle the strap to the back: the ordinary
@@ -1102,6 +1103,57 @@ rules, the specialization gate — is acks-extras' surface; its
 ### Teardown
 
 Delete the fixtures you created; the imported library is the world's.
+
+## An import with a book closed
+
+Every importer that builds a document from one entry reads it off the seat's
+own book first; with the book not open, the entry is passed over and counted,
+and nothing is created (MODEL, "What an import reads"). Walk:
+`tools/live/importer-bookless.mjs`, steps 1–4. Offline, the same for spells,
+abilities, equipment and the shield sweep: `tools/importer/test-bookless-import.mjs`.
+
+### Fixtures
+
+None are kept. The walk needs a content book that is **not** open on the GM
+seat (step 1 reads which off the seat: `cookbookSessionDoc(book)` for every
+book the content cookbooks name) and entries of it the library does not hold
+(`importedItemFor(id)` null). Where the shelf has opened every content book
+on the seat, step 1 closes them on that seat alone (`api.forgetBooks()`
+forgets this browser's copies and leaves the shelf; the walk's browser is a
+throwaway profile) and reopens one shelf book with `{remember: false}` as the
+control. Never unstage a book from the shared shelf for this. "Held" is asked
+of both sides of the library (`importedItemFor`, then `importedActorFor` for
+an animal). A world that holds every entry of every book cannot walk steps
+2–3: the walk prints GAP for them, since a library document is nobody's
+fixture and is never deleted to make one, and the create path is then the
+offline suite's.
+
+### Steps
+
+1. On the GM seat, list the content books and which are open; pick up to four
+   entries of a closed book, not held, per importer: abilities, equipment,
+   classes, spells, traps, variations.
+   *Observable:* at least one book is closed, and at least one importer has a
+   pick or the walk prints GAP for steps 2–3. Arm a `createItem` observer: it
+   proves what the steps create, and is never a delete list.
+2. Run each importer narrowed to its picks (`{only}`).
+   *Observable:* the step imports nothing (`made`/`created` 0, an empty
+   array); the abilities and equipment results count the picks as `closed`;
+   a notice reads "N passed over — their book is not open on this seat" with
+   N the number of picks; the observer saw no document under any pick's id.
+3. Ask the library again for every pick.
+   *Observable:* every one is still unheld. A document appearing here, named
+   and iconed with no description, is the stub this recipe exists to refuse.
+4. Control: one ability of an **open** book the library does not hold, run
+   the same way.
+   *Observable:* `made` 1, the document held, no passed-over count and no
+   such notice. Where every open book's ability is already held, the open
+   path is the offline suite's and the walk says so.
+
+### Teardown
+
+Nothing was built unless the control ran; its document is tracked and swept
+by the walk's own ledger. The notice patch and the observer come off.
 
 ## Class template packages
 
