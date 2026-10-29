@@ -209,15 +209,3 @@ beside it, and `validate.mjs` calls the gate instead of each repo's
 `validate-extra`.
 
 ---
-
-## Live walks keep their fixtures
-
-`.claude/rules/live-testing.md` step 4 keeps a fixture once built and deletes
-one only where setup is the subject; the capture driver finds a kept one by its
-marker (`api.fixture`). Owed: formation-hex claims a card by its author and a
-time window (`messagesSince`), so a card the module posts during its drags
-for another walk's kept hireling is marked with its own and retired by its
-next run. battlemap claims a card by its own actor and scene names, which
-formation-hex can do too.
-
----

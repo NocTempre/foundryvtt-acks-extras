@@ -15,9 +15,13 @@
  * party is rebuilt every run: its journey record (navigation, episode, day)
  * has no shape a step can write back, so its token `formation/hex-party-token`
  * and its actor `formation/hex-party` are retired first, which dissolves the
- * formation, and built again. The chat messages the steps post are marked
+ * formation, and built again. The chat cards the run claims are marked
  * `formation/hex-message-<n>` in the order they arrive, and the next run
- * retires them first. The shadows the episode stands are the feature's to
+ * retires them first. A card is claimed only when this client made it under
+ * the run's nonce and it speaks as one of the run's fixtures, carries its
+ * formation, names one of its actors or scenes, or is a navigation card thrown
+ * during one of the run's own actions; a card the module posts for another
+ * walk's kept fixture is left alone and listed. The shadows the episode stands are the feature's to
  * remove, and the party's dissolve clears any a dead run left.
  *
  * Writes outside the fixture ledger, each undone at teardown and reported:
@@ -36,6 +40,8 @@ const MACHINE = machineSeats();
 const browser = MACHINE.browser;
 const origin = MACHINE.origin;
 const SEATS = { gm: MACHINE.gm, player: MACHINE.player };
+// The run's tag on the chat cards this client creates (`install`), so a card is claimed only from this run.
+const NONCE = "hx" + Math.random().toString(36).slice(2, 7);
 const MOD = "acks-extras";
 const CELL = 100;
 const MILES = 7; // invented cell width, equal to the invented cadence figure for X
@@ -86,8 +92,9 @@ const P = {
   }),
 
   /** Helpers every other page function reaches through `globalThis.__p2b`. */
-  install: async () => {
+  install: async ({ nonce = null } = {}) => {
     const H = (globalThis.__p2b = globalThis.__p2b ?? {});
+    H.nonce = nonce ?? H.nonce ?? null;
     H.sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     H.poll = async (fn, { tries = 25, every = 100 } = {}) => {
       for (let n = 0; n < tries; n++) {
@@ -138,21 +145,41 @@ const P = {
       const o = scene.grid.getOffset(c);
       return { i: o.i, j: o.j };
     };
-    H.messagesSince = (t0) => game.messages.contents
-      .filter((m) => (m.author?.id ?? m.user?.id) === game.user.id && m.timestamp >= t0 - 50)
-      .map((m) => {
-        const doc = new DOMParser().parseFromString(m.content ?? "", "text/html");
-        const card = doc.querySelector(".acks-extras-nav-card");
-        return {
-          id: m.id, uuid: m.uuid, whisper: m.whisper ?? [], navCard: !!card,
-          verdict: card?.querySelector(".acks-extras-nav-verdict")?.textContent.trim() ?? null,
-          hints: card ? [...card.querySelectorAll("p.hint")].map((p) => p.textContent.trim()) : [],
-          begin: !!card?.querySelector(".acks-extras-nav-begin"),
-          realise: !!card?.querySelector(".acks-extras-nav-realise"),
-          buttons: card ? card.querySelectorAll("button").length : 0,
-          rows: card ? [...card.querySelectorAll("li")].map((li) => li.textContent.trim()) : [],
-        };
-      });
+    H.cardOf = (m) => {
+      const doc = new DOMParser().parseFromString(m.content ?? "", "text/html");
+      const card = doc.querySelector(".acks-extras-nav-card");
+      return {
+        id: m.id, uuid: m.uuid, whisper: m.whisper ?? [], navCard: !!card,
+        verdict: card?.querySelector(".acks-extras-nav-verdict")?.textContent.trim() ?? null,
+        hints: card ? [...card.querySelectorAll("p.hint")].map((p) => p.textContent.trim()) : [],
+        begin: !!card?.querySelector(".acks-extras-nav-begin"),
+        realise: !!card?.querySelector(".acks-extras-nav-realise"),
+        buttons: card ? card.querySelectorAll("button").length : 0,
+        rows: card ? [...card.querySelectorAll("li")].map((li) => li.textContent.trim()) : [],
+      };
+    };
+    // The run's own chat cards. A message THIS client creates carries the run's nonce (and the action in
+    // flight) in a world flag, so a peer seated as the same user is never mistaken for the run; a tagged
+    // card is claimed when it speaks as one of the run's fixtures, carries or names its formation, names
+    // one of the run's actors or scenes in its text, or is a navigation card thrown during one of the
+    // run's own actions. A navigation card speaks as no party, so the action is what claims it.
+    H.claimed = H.claimed ?? { aliases: new Set(), fids: new Set(), names: new Set() };
+    H.mine = H.mine ?? [];
+    H.action = null;
+    if (!H.msgHooks) {
+      H.msgHooks = {
+        pre: Hooks.on("preCreateChatMessage", (doc) => { if (H.nonce) { try { doc.updateSource({ flags: { world: { hexb: { n: H.nonce, a: H.action ?? null } } } }); } catch (_e) { /* untagged */ } } }),
+        post: Hooks.on("createChatMessage", (msg) => {
+          const tag = msg.getFlag?.("world", "hexb");
+          if (!H.nonce || tag?.n !== H.nonce) return;
+          const text = msg.content ?? "";
+          H.mine.push({ at: Date.now(), ...H.cardOf(msg), alias: msg.speaker?.alias ?? null, action: tag.a ?? null, fid: msg.getFlag?.("acks-extras", "encounter")?.formationId ?? null, named: [...H.claimed.names, ...H.claimed.fids].some((n) => text.includes(n)) });
+        }),
+      };
+    }
+    H.isMine = (m) => H.claimed.aliases.has(m.alias) || (!!m.fid && H.claimed.fids.has(m.fid)) || m.named || (m.navCard && !!m.action);
+    /** The run's claimed cards this client created from `t0` on, each as `cardOf` reads it. */
+    H.messagesSince = (t0) => H.mine.filter((m) => m.at >= t0 - 50 && H.isMine(m));
     H.rgb = (css) => {
       const s = String(css ?? "").trim();
       const m6 = /^#([0-9a-f]{6})$/i.exec(s);
@@ -419,6 +446,7 @@ const P = {
     const t0 = Date.now();
     const before = { messages: game.messages.size, worldTime: game.time.worldTime };
     H.takeNotes();
+    H.action = "drag";
     await tok.update({ x: xy.x, y: xy.y }, { animate: false });
     await H.poll(() => {
       const r = H.formation(fid);
@@ -428,6 +456,7 @@ const P = {
     let offer = null;
     const later = document.querySelector('dialog button[data-action="later"], .dialog button[data-action="later"], .application.dialog button[data-action="later"]');
     if (later) { later.click(); offer = "answered later"; await H.sleep(400); }
+    H.action = null;
     return { messages: H.messagesSince(t0), messagesDelta: game.messages.size - before.messages, worldTimeDelta: game.time.worldTime - before.worldTime, offer, notes: H.takeNotes() };
   },
 
@@ -608,8 +637,10 @@ const P = {
     if (!n) return { found: false };
     H.takeNotes();
     const t0 = Date.now();
+    H.action = "press";
     n.click();
     await H.sleep(settle);
+    H.action = null;
     return { found: true, notes: H.takeNotes(), messages: H.messagesSince(t0) };
   },
 
@@ -717,8 +748,10 @@ const P = {
     if (!button) return { found: false, inLog: document.querySelectorAll("#chat-log .acks-extras-nav-card").length };
     H.takeNotes();
     const t0 = Date.now();
+    H.action = "pressCard";
     button.click();
     await H.sleep(1500);
+    H.action = null;
     return { found: true, disabled: button.disabled, notes: H.takeNotes(), messages: H.messagesSince(t0) };
   },
 
@@ -747,10 +780,12 @@ const P = {
     if (!n) return { found: false };
     const t0 = Date.now();
     const before = game.time.worldTime;
+    H.action = "endDay";
     n.click();
     await H.sleep(4000);
     const later = document.querySelector('.application.dialog button[data-action="later"], dialog button[data-action="later"]');
     if (later) { later.click(); await H.sleep(400); }
+    H.action = null;
     return { found: true, messages: H.messagesSince(t0), worldTimeDelta: game.time.worldTime - before, calendarDay: H.m.worldTime.calendarDay() };
   },
 
@@ -830,7 +865,43 @@ const P = {
     if (H?.origUniform) { CONFIG.Dice.randomUniform = H.origUniform; H.origUniform = null; out.diceRestored = true; }
     try { ui.controls.activate({ control: "tokens", tool: "select" }); } catch (_e) { /* fine */ }
     if (H?.notesPatched) { for (const [k, fn] of Object.entries(H.orig)) ui.notifications[k] = fn; H.notesPatched = false; out.notesRestored = true; }
+    if (H?.msgHooks) { Hooks.off("preCreateChatMessage", H.msgHooks.pre); Hooks.off("createChatMessage", H.msgHooks.post); H.msgHooks = null; out.messageHooksRemoved = true; }
     return out;
+  },
+
+  /** Add the run's fixtures to what claims a card: aliases it speaks as, names its text holds, its formation (and that formation's own name). */
+  claim: async ({ aliases = [], names = [], fid = null }) => {
+    const H = globalThis.__p2b;
+    for (const a of aliases) H.claimed.aliases.add(a);
+    for (const n of names) H.claimed.names.add(n);
+    if (fid) {
+      H.claimed.fids.add(fid);
+      const name = H.formation(fid)?.name;
+      if (name) H.claimed.aliases.add(name);
+    }
+    return { aliases: H.claimed.aliases.size, names: H.claimed.names.size, fids: H.claimed.fids.size };
+  },
+
+  /** The cards this client made under the run's nonce that the run does not claim. */
+  leftAlone: async () => globalThis.__p2b.mine.filter((m) => !globalThis.__p2b.isMine(m)).map((m) => ({ alias: m.alias, navCard: m.navCard, action: m.action, fid: !!m.fid })),
+
+  /**
+   * The cards at `uuids` (the ones the run marked) read against the world's actors: `foreign` speak as an
+   * actor no `formation/hex-` marker names, `missing` are gone, and `stray` carry a `formation/hex-message-`
+   * marker the run did not give.
+   */
+  markedCensus: async ({ uuids }) => {
+    const own = new Set(game.actors.filter((a) => String(a.getFlag("world", "fixture") ?? "").startsWith("formation/hex-")).map((a) => a.id));
+    const foreignName = (alias) => !!alias && game.actors.some((a) => a.name === alias && !own.has(a.id)) && !game.actors.some((a) => a.name === alias && own.has(a.id));
+    const want = new Set(uuids);
+    const msgs = uuids.map((u) => game.messages.find((m) => m.uuid === u) ?? null);
+    const held = msgs.filter(Boolean);
+    return {
+      marked: uuids.length,
+      missing: msgs.length - held.length,
+      foreign: held.filter((m) => (m.speaker?.actor && !own.has(m.speaker.actor)) || foreignName(m.speaker?.alias)).length,
+      stray: game.messages.filter((m) => String(m.getFlag("world", "fixture") ?? "").startsWith("formation/hex-message-") && !want.has(m.uuid)).length,
+    };
   },
 
   closeAll: async () => {
@@ -896,7 +967,7 @@ try {
   worldTime0 = census.gm.worldTime;
   check("the GM seat is the active GM and the player seat is a player", census.gm.activeGMIsSelf && census.gm.role === 4 && census.player.role === 1, { gmRole: census.gm.role, playerRole: census.player.role, activeRoles: census.gm.activeRoles });
   if (!census.gm.activeGMIsSelf) throw new Error("another GM client is the active GM; the throw would run there");
-  note("install", { gm: await page(gm, P.install), player: await page(player, P.install) });
+  note("install", { gm: await page(gm, P.install, { nonce: NONCE }), player: await page(player, P.install, { nonce: NONCE }), nonce: NONCE });
   const playerId = census.player.userId;
 
   section("fixtures");
@@ -911,6 +982,7 @@ try {
     const { name: _n, active: _a, ...fields } = data;
     note(`shape ${doc.marker}`, await page(gm, P.shape, { uuid: doc.uuid, data: fields }));
   }
+  note("claimed", await page(gm, P.claim, { names: [hexData.name, otherData.name] }));
   // The party goes first: its token, then its actor, whose delete dissolves the formation.
   note("retired party token", await gm.retire("formation/hex-party-token", "Token", { parent: hexScene.uuid }));
   const retiredParty = await gm.retire("formation/hex-party", "Actor");
@@ -958,18 +1030,21 @@ try {
   const memberA = await gm.fixture("formation/hex-walker-a", "Actor", { name: "QA Walker A", type: "character", ownership: { default: 0, [playerId]: 3 }, prototypeToken: { actorLink: true } });
   const memberB = await gm.fixture("formation/hex-walker-b", "Actor", { name: "QA Walker B", type: "character", prototypeToken: { actorLink: true } });
   note("walkers shaped", [
-    await page(gm, P.shape, { uuid: memberA.uuid, data: { ownership: { default: 0, [playerId]: 3 }, "prototypeToken.actorLink": true } }),
-    await page(gm, P.shape, { uuid: memberB.uuid, data: { "prototypeToken.actorLink": true } }),
+    await page(gm, P.shape, { uuid: memberA.uuid, data: { name: "QA Walker A", ownership: { default: 0, [playerId]: 3 }, "prototypeToken.actorLink": true } }),
+    await page(gm, P.shape, { uuid: memberB.uuid, data: { name: "QA Walker B", "prototypeToken.actorLink": true } }),
   ]);
+  note("claimed", await page(gm, P.claim, { aliases: ["QA Walker A", "QA Walker B"], names: ["QA Walker A", "QA Walker B"] }));
   // Steps 3-9 fall on one calendar day, and the shared clock stands wherever the world's last walk left it:
   // the party's journey starts in the morning.
   note("clock to the morning", await page(gm, P.clockTo, { hour: 7 }));
-  const party = await gm.fixture("formation/hex-party", "Actor", { name: "QA Company", type: "acks-extras.party", ownership: { default: 0, [playerId]: 2 } });
+  // A name no other walk's party carries: a card speaking as it is claimed.
+  const party = await gm.fixture("formation/hex-party", "Actor", { name: "QA Shown Company", type: "acks-extras.party", ownership: { default: 0, [playerId]: 2 } });
   const built = await page(gm, P.buildParty, { partyId: party.id, sceneId: hexScene.id, memberIds: [memberA.id, memberB.id], xy: cell("C").xy, mode: "journey" });
   note("party", built);
   if (built.error) throw new Error(built.error);
   await gm.mark(built.tokenUuid, "formation/hex-party-token");
   const fid = built.formationId;
+  note("claimed", await page(gm, P.claim, { aliases: ["QA Shown Company"], names: ["QA Shown Company"], fid }));
   check("the party journeys with two members enrolled and its token adopted", built.mode === "journey" && built.enrolled.every(Boolean) && built.partyTokenOf === built.tokenId, built);
   const stock = await page(gm, P.writeStock, { sceneId: hexScene.id, offset: cell("C").offset, label: cell("C").label, fid, X });
   note("stock", stock);
@@ -1293,6 +1368,11 @@ try {
   check("They turn back again: no episode, no shadow", p11c.found && dlg11c.pressed && r.lost.phase === null && sh11d.count === 0, { phase: r.lost.phase, shadows: sh11d.count });
 
   }
+  section("the cards the run claims");
+  note("cards this seat made that the run does not claim (left alone)", await page(gm, P.leftAlone));
+  const cards = await page(gm, P.markedCensus, { uuids: [...marked] });
+  note("marked cards", cards);
+  check("every card the run marked is still standing and speaks as none of another walk's actors", cards.missing === 0 && cards.foreign === 0, cards);
   note("closed", await page(gm, P.closeAll));
 } catch (err) {
   console.error("WALK FAILED:", err?.stack ?? err);
