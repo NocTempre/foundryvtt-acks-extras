@@ -1,6 +1,6 @@
 {{!-- The import manager's tab strip: its own part, so it stays while the body scrolls. --}}
 <nav class="tabs sheet-tabs acks-extras-importer-manager-tabs" data-group="primary">
   {{#each tabs as |tab|}}
-  <a class="{{tab.cssClass}}" data-action="tab" data-group="primary" data-tab="{{tab.id}}"><i class="{{tab.icon}}" aria-hidden="true"></i> {{tab.label}}</a>
+  <a class="{{tab.cssClass}}" data-action="tab" data-group="primary" data-tab="{{tab.id}}"><i class="{{tab.icon}}" aria-hidden="true"></i> {{localize tab.label}}</a>
   {{/each}}
 </nav>
