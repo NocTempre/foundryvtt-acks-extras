@@ -50,6 +50,7 @@ const COMMITTED = [
   "test-hp.mjs",
   "test-group-lifecycle.mjs",
   "test-battlemap.mjs",
+  "test-battlemap-scene-nav.mjs",
   "test-equipment.mjs",
   "test-item-sheet.mjs",
   "test-character-sheet.mjs",

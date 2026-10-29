@@ -242,11 +242,12 @@ such region is never written.
 | `roads.mjs` | Roads as a WALL LAYER on any grid: the flag, the non-blocking wall shape, the memoised road network, `roadUnder` (which street is the party on) and `roadDistance` (how far along the streets), the drawing presets, and the road row on a wall's own sheet. |
 | `water.mjs` | Rivers and coasts as a WALL LAYER on any grid: the flag, the open wall shape, `waterUnder` (which water line is under the party), the two drawing presets, the from-selection tool, and the water row on a wall's own sheet. |
 | `road-markers.mjs` | The GM-side overlay that makes a street and a water line visible: a street tinted by surface and dashed where it is an alley, a river or a coast in its own blue and dashed where a boat cannot follow it, drawn only while a map-drawing control is open and the handout view is off. Presentation only. |
+| `scene-nav.mjs` | The navigation card's system icon: one per scene card in core's Scene Navigation, showing the system the setup record declares (`sceneSystemFace`) or the undeclared face. For a GM it is the control: a click opens the picker (core's ContextMenu, bound once to the navigation root, `pickerEntries`), a right click clears, both through `writeSceneSystem`; a player's navigation gets none. `sessionFollowsScene` keeps the setup panel's session on what the viewed scene's card wrote. |
 | `hex-topology.mjs` | Pure hex nodes and links, and `linksFromRoadSegments` — the links a set of drawn roads implies. No Foundry. |
 | `hex-routes.mjs` | The scene half of the topology: links DERIVED from road walls, the legacy declared flag still read beside them, `convertRoutesToWalls`, `nodeAtPoint` / `nodePoint`. |
 | `../lib/wall-geometry.mjs` | Segments and the graph they draw — the crossing, distance and along-the-lines measurement every wall layer shares. No Foundry. |
 | `../lib/wall-layers.mjs` | What a drawn line MEANS to this module: the flag read and write, the all-NONE shape, core's one drawing-preset slot, a region from an enclosed loop. |
-| `module.mjs` | Registrar: the scene-control group (the capture modes, the country brush, the road and water presets, the Map modes window), the Walls-layer tools, the scene-config row, preCreateToken install, `acksExtras.battlemap` API. |
+| `module.mjs` | Registrar: the scene-control group (the capture modes, the country brush, the road and water presets, the Map modes window), the Walls-layer tools, the scene-config row, the navigation card's icon, preCreateToken install, `acksExtras.battlemap` API. |
 
 ## Data flow
 
@@ -382,6 +383,22 @@ The select writes the flag the moment it is chosen rather than waiting for an
 apply — it is a statement about the map, not part of the calibration
 arithmetic, and an already-aligned scene should not need re-aligning to be
 labelled.
+
+The declaration is also on every scene's card in core's Scene Navigation
+(`scene-nav.mjs`): an icon for the declared system — dungeon, wilderness,
+settlement — and a distinct face for a map that declares nothing. For a GM
+the icon is the control: a click opens a picker over the three systems, with
+the declared one marked and a clearing entry where one is declared, and a
+right click on the icon clears outright; a player's navigation shows no icon.
+Both write through `writeSceneSystem`, the writer the select uses, so there
+is one flag shape and one "unchanged, no write" rule. Core re-renders the
+navigation from the scenes collection on every scene update, which is what
+makes the icon follow the flag, whichever surface wrote it; and the setup
+panel's session takes the viewed scene's new value from the same update, so
+an open panel's select does not show what the card just replaced. The icon
+carries a `data-action` core has no handler for, which is what keeps a press
+on it from viewing the scene; the right click is taken on the icon alone, so
+the rest of the card keeps core's scene menu.
 
 ## Grid-type seam
 

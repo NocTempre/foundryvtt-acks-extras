@@ -71,6 +71,7 @@ import {
   wallRoad,
 } from "./roads.mjs";
 import { installRoadMarkers } from "./road-markers.mjs";
+import { installSceneNavigation, sessionFollowsScene } from "./scene-nav.mjs";
 import { installMapModes, mapModes, mapView, openMapModes, registerMapMode, registerMapViewSetting, setMapView } from "./map-modes.mjs";
 import { convertRoutesToWalls, derivedRoutesOf, nodePoint, routesOf, stepBetweenHexes } from "./hex-routes.mjs";
 import { elementOf } from "../lib/util.mjs";
@@ -94,9 +95,12 @@ Hooks.once("init", () => {
   installRoadMarkers();
   registerMapViewSetting();
   installMapModes();
+  installSceneNavigation();
   // The session owns the samples, so it is what a scene change clears — the
   // window is only a view and may not even be open.
   Hooks.on("canvasReady", () => session.onCanvasReady());
+  // A system declared from a navigation card reaches an open panel's select.
+  Hooks.on("updateScene", (scene, changes) => sessionFollowsScene(session, scene, changes));
   // A map painted with climates hex by hex is folded into its one climate,
   // and its territory regions drawn for a GM are moved onto the Regions
   // control, the first time a GM opens it. The viewing GM writes both, never

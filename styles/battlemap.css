@@ -546,3 +546,39 @@
   flex: 1 1 auto;
   min-width: 0;
 }
+
+/* The navigation card's system icon: a bare glyph in the card's own colour
+   and type, since the card is core's and its size answers to core's knob;
+   core's button chrome is taken off. A map that declares nothing is drawn
+   faint, so the declared ones read at a glance. */
+.acks-extras-scene-system {
+  flex: 0 0 auto;
+  width: auto;
+  height: auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  box-shadow: none;
+  line-height: 1;
+  font-size: inherit;
+  color: inherit;
+  cursor: var(--cursor-pointer);
+}
+
+.acks-extras-scene-system:hover,
+.acks-extras-scene-system:focus-visible {
+  background: none;
+  box-shadow: none;
+  text-shadow: 0 0 4px currentColor;
+}
+
+.acks-extras-scene-system[data-system="none"] {
+  opacity: 0.55;
+}
+
+/* The picker marks the system the map declares now. */
+.acks-extras-scene-system-current > span {
+  font-weight: bold;
+}

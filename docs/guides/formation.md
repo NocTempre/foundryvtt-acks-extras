@@ -1182,7 +1182,8 @@ pruned at world load. If one survives, its actor still exists somewhere.
 encounter card, no navigation card: the party is still in Delve, which counts
 turns and bills nothing on a map whose cells are a mile or more across (you
 are told so once, in a whisper). Pick **Journey** in the selector beside the
-party's name, or set the map up as a wilderness map. The encounter card prints
+party's name, or declare the map a wilderness map with the icon on its card
+in the navigation bar (click it to pick). The encounter card prints
 the party's evasion target but does not roll it; surprise, and whether the
 party may evade, are settled by the system's Surprise Matrix when combat starts.
 

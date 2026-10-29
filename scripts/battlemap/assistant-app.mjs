@@ -16,7 +16,7 @@ import { imageToCanvas } from "./capture.mjs";
 import { session } from "./session.mjs";
 import { boxCells, feetPerSquare, hexSizeFromBox, pixelsPerUnit, roundSuggestions, outputGridSize, scaleOnlyGrid } from "./calibrate-logic.mjs";
 import { applyGridCalibration, applyHexCalibration, applyScaleOnly, bakeCorrectedBackground } from "./apply.mjs";
-import { hexProbe, sceneCountry, sceneSetup, writeSceneSetup } from "./scene-setup.mjs";
+import { hexProbe, sceneCountry, writeSceneSetup, writeSceneSystem } from "./scene-setup.mjs";
 import { rescaleSceneTokens, applyFootprintToSelected, resetSelectedFootprints } from "./token-scale.mjs";
 import { backgroundTexture } from "./scene-image.mjs";
 import { climateLabelFor, layerLabelFor, paintableValues } from "./terrain-paint.mjs";
@@ -512,9 +512,7 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
   static #writeSystem(mapSystem) {
     const scene = canvas?.scene;
     if (!scene || !game.user.isGM) return;
-    const current = sceneSetup(scene).mapSystem;
-    if (current === mapSystem) return;
-    writeSceneSetup(scene, { mapSystem }).catch((err) => console.error(`${MODULE_ID} | scene system write failed`, err));
+    writeSceneSystem(scene, mapSystem).catch((err) => console.error(`${MODULE_ID} | scene system write failed`, err));
   }
 
   /**

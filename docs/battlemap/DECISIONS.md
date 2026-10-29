@@ -1098,3 +1098,66 @@ territory from the paint or the scene default alone.
 - `of` runs on every read of a painted hex, and the Territory plan reads
   every one on a redraw.
 
+## 2026-10-28 — The map's declaration is on its navigation card
+
+**What was found.** A bug triage of "the party is still not tracking dungeon
+exploration" came to the declaration: the delve clock bills on a scene that
+declares delve, a dungeon scene that declares nothing keeps a party that
+arrived on a journey in journey mode, and a scene imported before 11.10.0
+carries `mapSystem: "journey"` on every gridded plan (the importer's old
+default). Declaring delve on the scene while the party stands on it switches
+the party at once through the formation's `updateScene` hook. The declaration
+worked; it was invisible, and settable only by opening the setup panel on the
+viewed scene. The owner asked for it on the navigation card.
+
+**Ruled.**
+- **Every scene card carries the declaration**, as an icon per system and a
+  distinct face for a map that declares nothing, and the icon is the control:
+  a left click opens a picker, a right click on the icon clears. One writer,
+  `writeSceneSystem`, which the setup panel's select now goes through too.
+- **A picker, not a cycle.** The choice is made once per map and rarely
+  changed; a cycle would hide two of the four states behind presses and read
+  a stray click as a declaration. The picker shows what is declared and what
+  can be, and carries the clearing entry, so the right click is a shortcut
+  and not the only way to clear.
+- **GM only, icon included.** A player's navigation shows nothing. The
+  declaration is the Judge's statement about the map; a player has no act to
+  take on it, what their party is doing is read off the party sheet's mode
+  selector, and the undeclared face would be a question a player cannot
+  answer on every scene they can see.
+- **The icon is a button with a `data-action` of its own.** Core's click
+  handling takes the nearest `[data-action]` and, finding no handler under
+  that name, does nothing, which keeps a press on the icon from viewing the
+  scene with no propagation games; a button is reachable from the keyboard,
+  which core's `<i>` icons are not. The picker is core's ContextMenu opened
+  by click and placed at the icon, so a keyboard press opens it where a
+  pointer would.
+- **No render hook of the icon's own.** Core re-renders the navigation from
+  the scenes collection on every scene update; the icon follows the flag on
+  that render. Verified live 2026-10-29: a pick on a card re-drew it with the
+  new face without a render call from the module.
+- **The setup panel follows the card.** The session held `mapSystem` from
+  the scene it adopted at `canvasReady`; a pick on the viewed scene's card
+  would have left an open panel's select on the old value. The session now
+  takes the viewed scene's value from the same scene update.
+
+**Rejected.**
+- *The undeclared face showing the inferred system* (journey from scale,
+  settlement from districts). That inference is the formation's, and the
+  icon exists to show that nobody said: a map reading "wilderness" because
+  its cells are miles across is the case the triage found hiding the gap.
+  The tooltip says the fallback exists; the face says silence.
+- *A read-only icon for players.* See the ruling; revisit if a player ever
+  needs to tell the Judge the map is unmarked.
+- *A `title` attribute.* Core's tooltip manager and an `aria-label`
+  (`ui-tooltips.md`).
+
+**Cost.**
+- One more control on every scene card for a GM, drawn on every render of
+  the navigation.
+- The picker is positioned at the icon, so on a card inside a collapsed
+  navigation (hidden) it does not open; a user cannot click a hidden card
+  either, and a scripted check expands the navigation first.
+- The writer treats a word outside `TRAVEL_MODES` as a clear, which is what
+  the read already made of it; a typo'd API call clears rather than errors.
+

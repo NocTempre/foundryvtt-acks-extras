@@ -67,6 +67,14 @@ follows if you change it while they are standing there. Leave it at *Leave to
 the party* and nothing is imposed. It saves the moment you choose it — there
 is no need to apply a grid to label a map.
 
+You do not need this panel to see or set it. Every scene's card in the
+navigation bar at the top of the canvas carries an icon for the system the
+map declares — a dungeon, a wilderness map, a settlement — and a faint
+question mark for a map that declares nothing. Hover it for what it means.
+Click the icon to pick a system (the one declared is marked, and *Leave to
+the party* clears it); right-click the icon to clear it outright. A party
+standing on the map switches as soon as you choose. Players see no icon.
+
 ![](../releases/v5.5.0/battlemap-hex.png)
 
 *The same panel set to hexes. One box has been drawn around a single hex; the

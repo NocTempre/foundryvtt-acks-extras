@@ -46,6 +46,9 @@ owner's word.
   with the driver's ledger: what the run built, and what it reused;
 - invents its fixtures, compares an imported figure in page and prints a
   boolean, and never prints a book's words;
+- asserts a toast by the text that names its fixture, never by the tray
+  being empty: the importer opens the shelf's books after `ready` and
+  toasts each one on its own schedule, minutes into a walk;
 - prints `== <section> ==` per recipe section, `PASS  <observable>  <detail>`
   or `FAIL  <observable>  <detail>` per check and `WALK ERROR:` on a throw,
   and exits non-zero on any FAIL;

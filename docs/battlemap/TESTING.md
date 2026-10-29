@@ -660,3 +660,84 @@ A territory derived from a deriving layer, the stripes over an overridden hex,
 a weighted side and a redraw on `paintLayerChanged` need a registrant's data,
 and are walked with the Domains mode (`docs/domains/TESTING.md`, "Territory
 on the map").
+
+## The navigation card's system icon (added with the scene-nav icon)
+
+The walk is `tools/live/battlemap-nav.mjs` (`node tools/live/run.mjs
+battlemap-nav`), steps 1-7 below.
+
+Fixtures, found by marker (`flags.world.fixture`) or built carrying it, all
+kept: a square-gridded scene `battlemap/scene-nav-map` with a dungeon-scale
+grid in feet, no district and nothing declared, in the navigation and
+readable by a player (ownership default observer), so an undeclared map has
+no fallback and the player seat lists its card; a second such scene
+`battlemap/scene-nav-other` the GM views while picking on the map's card; a
+party actor `battlemap/scene-nav-party`; and its token on the map,
+`battlemap/scene-nav-party-token`, found on the map's tokens by its marker or
+placed carrying it, which the formation adopts as the party token. Each step
+starts from the map declaring nothing, the party on a journey
+(`setJourneyMode`), the GM viewing the other scene with the navigation
+expanded (`ui.nav.expand()`), and no picker open.
+
+**Drive mechanics.** The icon is `#scene-navigation .scene[data-scene-id="<id>"]
+.acks-extras-scene-system`, a `<button>` with `data-system` (`delve`,
+`journey`, `settlement` or `none`), `data-tooltip` (the lang key) and an
+`aria-label`. A click is dispatched as a `MouseEvent("click", {bubbles: true,
+clientX, clientY})` with the icon's own box coordinates: core's ContextMenu
+positions the picker at the icon and refuses to open on a card that is not
+visible, so the navigation must be expanded first. The picker is
+`#context-menu`; an entry is `.context-item` whose `span` holds the localized
+label, pressed with a bubbling click. The right click is a bubbling
+`MouseEvent("contextmenu")` on the icon. The flag is read with
+`acksExtras.battlemap.sceneTravelSystem(scene)`, the party's mode with
+`acksExtras.formation.travel.travelOf(record).mode`, and an adoption is
+announced as a toast (`ui.notifications.info`, patched to record), never as
+a chat card. The setup panel's select is `select[name="mapSystem"]` in
+`foundry.applications.instances.get("acks-extras-battlemap")`.
+
+1. Shape the fixtures, GM on the other scene.
+   *Observable:* every scene card in the navigation carries exactly one icon,
+   no card two, no level row one; the map's icon is a button with
+   `data-action="acksExtrasSceneSystem"`, `data-system="none"`, the
+   `fa-circle-question` glyph, `data-tooltip` `ACKS-BATTLEMAP.nav.tip.none`,
+   an `aria-label` equal to the formatted `ACKS-BATTLEMAP.nav.face` with the
+   "not declared" label, `aria-haspopup="menu"`, no `title`, visible.
+2. Click the map's icon; press **Dungeon**.
+   *Observable:* the picker opens (`ui.context` is the click-opened menu)
+   listing Dungeon, Wilderness, Settlement and no clearing entry, none
+   marked; the GM still views the other scene (the click viewed nothing).
+   After the press the flag reads `delve`, the card's icon reads
+   `data-system="delve"` with the `fa-dungeon` glyph, its tooltip key and
+   label (core re-rendered the navigation on the flag write), the picker is
+   closed, and the standing party's mode is `delve` within a few seconds,
+   announced as a toast naming the party.
+3. Right-click the map's icon.
+   *Observable:* the flag is null and the icon reads `none`; no
+   `#context-menu` is open and `ui.context` is null (neither the picker nor
+   core's scene menu); the party's mode is still `delve` and no toast names
+   the party (other toasts, the importer's book openings among them, arrive
+   on their own schedule): a map that declares nothing leaves the party
+   where it was.
+4. Click the icon and press **Wilderness**; click it again; press **Leave to
+   the party**.
+   *Observable:* the party's mode is `journey`; the second picker lists four
+   entries with Wilderness marked (`acks-extras-scene-system-current`) and
+   the clearing entry last; the clearing entry clears the flag and the face,
+   and the party stays on its journey with no toast naming it.
+5. View the map and open the setup panel; click the viewed card's icon and
+   press **Settlement**; then right-click the icon.
+   *Observable:* the panel opens with its select on *Leave to the party* and
+   the session's `mapSystem` null; after the press the select reads
+   `settlement` and so does the session; the party crosses in blocks
+   (`settlement`); after the right click the select and the session are
+   empty again.
+6. On the player seat, expand the navigation.
+   *Observable:* the map's card is listed; it carries no
+   `.acks-extras-scene-system`, and no card of the player's does.
+7. Read both seats' console recorders.
+   *Observable:* no console error since the recorder was installed (after
+   `ready`).
+
+Teardown: none of the fixtures; the map is left declaring nothing and the
+party on whatever mode the last step left. Each seat's notification patch
+is undone, the panel and any picker closed, and the navigation collapsed.

@@ -4,8 +4,9 @@
  *
  * Core's fields say what the grid is; this flag says what nobody else can —
  * that the map was calibrated here, whether tokens placed on it are auto-sized,
- * and which travel system a party adopts on arrival. The setup tool is the one
- * writer; formation and token sizing are readers.
+ * and which travel system a party adopts on arrival. The setup tool writes
+ * it, and the navigation card's icon writes the travel system through the
+ * same writer; formation and token sizing are readers.
  *
  * Document methods only — no canvas, no `game` — so any client can ask.
  */
@@ -171,6 +172,19 @@ export function writeSceneIncidents(scene, patch) {
  */
 export function writeSceneSetup(scene, patch) {
   return scene.setFlag(MODULE_ID, FLAG_BATTLEMAP, { ...(scene.getFlag(MODULE_ID, FLAG_BATTLEMAP) ?? {}), ...patch });
+}
+
+/**
+ * Declare the travel system a scene calls for, or clear it with null: the ONE
+ * writer of `mapSystem`, which the setup panel's select and the navigation
+ * card's icon both come through. A value outside `TRAVEL_MODES` is written as
+ * null, which is what the read makes of it. Resolves to null with no write
+ * when the scene already says so.
+ */
+export function writeSceneSystem(scene, mapSystem) {
+  const next = TRAVEL_MODES.includes(mapSystem) ? mapSystem : null;
+  if (sceneSetup(scene).mapSystem === next) return Promise.resolve(null);
+  return writeSceneSetup(scene, { mapSystem: next });
 }
 
 /**
