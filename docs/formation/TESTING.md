@@ -3161,6 +3161,68 @@ its id back from the newest `game.messages` entry right after the move, and
 `api.track(id, "ChatMessage")` it. Then confirm `getFormations()` no longer
 lists the formation.
 
+## A city over several maps (added with the city stamp)
+
+A party crosses AX1's ways between maps, as the importer's maps step makes
+them, and each map engages its own navigation. The fort's grounds and its
+building are one city (MODEL, "A board is counted in one city, and a city may
+span maps"). `tools/live/formation-city-maps.mjs` walks it from the GM seat.
+
+**Fixtures.**
+
+- AX1's maps in the world, with their ways between them: the region's map, the
+  fort's grounds, one building's plan (`ax1.fort5-8Map`) and the dungeon's
+  first level, found by their cookbook ids. The walk reads them and never
+  writes them; where they are absent it stops and says so. The importer-ax1
+  walk, or the Judge's own import, makes them.
+- The party, `formation/city-maps-party`, kept. Its formation is core's create.
+- The party token: made each run beside the region map's way into the fort,
+  and tracked. Each token core makes for it on another map is read back and
+  tracked as it appears.
+
+**Drive mechanics.**
+
+- The GM seat's window must lead its seat's election, or the formation's
+  hooks run in another window, on whatever code it loaded.
+- A crossing starts from the cell beside a way, reached by a move with
+  `action: "displace"`. Core's teleport behaviour ignores a displacement, so
+  the token can be brought beside any way without crossing the others on the
+  map. Then an ordinary `move` onto the way's middle crosses.
+- Core's teleport keeps the token's id, so a token back on a map it left has
+  the uuid it had there before. Tell the arrival by its map and by not
+  standing before the crossing; move the token the record names.
+- The record follows the arrival in two writes on the primary GM, after
+  core's create: the linkage (`sceneId`, `tokenId`) and the mode the map
+  declares. One run read the old map a second after the token stood on the
+  new one. Poll until the record names the new map, its token and the mode,
+  then read it.
+- A way on the region's map, and a building's way that several of the
+  grounds' ways share, asks first. Press yes on the dialog; its default
+  destination is fine.
+- Before each crossing, pause the party's clock as the Judge's Pause does
+  (`clock.paused`, `pausedBy: "judge"`), so the step bills no turn, block or
+  mile and throws nothing. A mode change clears the pause, so pause after it.
+
+**Steps and observables.**
+
+1. Journey mode on the region's map; cross into the fort. The record names the
+   grounds' map and the arrival's token, the mode is settlement and the board's
+   `sceneId` is the grounds' map.
+2. Stamp the board with the dungeon level's map and give it blocks and turns;
+   cross into the building. The board re-enters (blocks and turns 0) and is
+   stamped with the GROUNDS' map, not the building's. Before the city stamp it
+   named the building.
+3. Give the board 7 blocks, 3 turns and the hunted flag; cross back out. The
+   board is untouched: the same stamp, 7, 3 and hunted.
+4. Cross into the building again and out: 7 and 3 both ways.
+5. Cross to the region's map: journey. Cross into the dungeon's first level:
+   delve.
+
+**Teardown.** The party is set back to delve, so it is not counted a stay
+between runs. `api.sweepTracked({only})`, naming the run's tokens and cards,
+deletes them and nothing else. A token a teleport replaced shows as missing.
+The party stays.
+
 ## Teardown
 
 `api.sweepTracked()` over the ledger: the scene, the party actor (its

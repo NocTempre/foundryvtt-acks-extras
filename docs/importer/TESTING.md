@@ -2263,8 +2263,9 @@ What a scripted walk meets:
    - every AX1 map is made, and `missing` is 0;
    - each plan's scene is linked to its place's world copy
      (`flags.acks-extras.location`) and named as that place is;
-   - its battlemap flag's `mapSystem` is `delve`, and the region map's is
-     `journey`;
+   - its battlemap flag's `mapSystem` is the recipe's `travel`: `settlement`
+     on the fort's overview and each of its building plans, `delve` on the
+     dungeon's levels, `journey` on the region map;
    - it stands one hidden token per pin, in the recipe's order, each the world
      copy of the area it pins;
    - each token on the region map is within 2 px of a cell centre of the
@@ -2805,7 +2806,12 @@ block what walls block.
      within a wall or two, as the digest does (`ax1.fort1Map`: 59 and 75
      live, 59 and 77 offline);
    - `tokenVision` is true, `fog.mode` is 1 (each user's own), darkness is
-     1 and global light is disabled. From the **Player** seat, a token of
+     1 and locked, global light is disabled and `weather` is empty. One
+     Region flagged `cookbook.indoors` carries a `suppressWeather` behaviour
+     and its rectangle spans `dimensions.rect`. An update naming
+     `environment.darknessLevel: 0` alone, as a time module writes it, reads
+     back 1. The fort's overview and the region map, which have no walls,
+     state none of this: no lock and no such Region. From the **Player** seat, a token of
      the player's carrying a lit light shows its radius, and the dungeon
      past it is black. A token with no light and no dark sense shows
      nothing. Squares the token has seen stay explored after it moves on.

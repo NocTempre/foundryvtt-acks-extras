@@ -1482,6 +1482,23 @@ thirty-metre block as ninety-eight. A city map that has not said falls back to t
 party's walking speed and the panel states which of the two is in force — a
 party that moves and is told nothing happened reads as a broken module.
 
+**A board is counted in one city, and a city may span maps.** The settlement
+board carries the stamp of the city its blocks, turns, stay and hunt were
+counted in (`travel.settlement.sceneId`, a scene id). An arrival on a
+settlement scene whose city is not the stamp's re-enters: the tallies, the
+stay's stamp and the hunt go, and what the Judge set stays
+(`reenterSettlement`). A scene's city is `cityStampOf`'s. From the place the
+scene draws (location's scene link) up the places' parents, it is the map of
+the outermost place that has one calling for a settlement: the place's
+verified mirror, else the lowest-id scene linked to it. So a city's streets and
+the map of each building inside it are one city, and stepping indoors keeps the
+tally. A scene no place links is its own city, and so is every scene while the
+location feature is not loaded. The board's writer stamps whatever scene it is
+handed as that scene's city (`enteredSettlement`), and an unstamped board is
+claimed at startup for the city its party stands in
+(`claimUnstampedSettlements`). A dungeon map inside a city is another mode, so
+coming back out of it is an entry and starts a fresh tally.
+
 Because it is the same tracker, a city turn costs what a dungeon turn costs:
 the torch burns down, the spell runs out, the rest interval accrues, the world
 clock advances. The delve's action surface comes with it — listening, a hasty

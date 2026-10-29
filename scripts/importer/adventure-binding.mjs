@@ -162,13 +162,16 @@ export function adventureRefs(type, data, map) {
   return copy;
 }
 
-/** The quarter a region is drawn for, by its place's cookbook id. */
-const placeOfRegion = (region) => region?.flags?.[MODULE_ID]?.cookbook?.place ?? null;
+/** What a region is drawn for: its quarter, by the place's cookbook id, or `indoors` for an indoor map's roof. */
+const placeOfRegion = (region) => {
+  const cookbook = region?.flags?.[MODULE_ID]?.cookbook;
+  return cookbook?.place ?? (cookbook?.indoors ? "indoors" : null);
+};
 
 /**
  * A map rebuilt from its recipe, given the ids the world's own copy of it
  * carries: the scene's, each region's (matched by the quarter it is drawn
- * for), each behaviour's (by type, inside its region), each token's (by the
+ * for, or as the roof), each behaviour's (by type, inside its region), each token's (by the
  * actor it stands for) and each wall's (by its coordinates and door type).
  * What the world copy lacks takes an id derived from the seed, the same on
  * every rebuild. Neither input is changed.

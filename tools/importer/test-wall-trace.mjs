@@ -18,6 +18,7 @@ import {
 } from "../../scripts/importer/wall-trace.mjs";
 import { recipeProblems, sceneData, sceneFrame, wallSources } from "../../scripts/importer/scene-binding.mjs";
 import { withWorldIds } from "../../scripts/importer/adventure-binding.mjs";
+import { MODULE_ID } from "../../scripts/importer/constants.mjs";
 
 let failed = 0;
 const check = (name, got, want) => {
@@ -797,15 +798,34 @@ ok("a render of the wrong size is not traced", /stated size/.test(threw));
   ok("a wall of a map of one storey states no level, so core stands it on every one", wallSources(onStoreys, frame).every((s) => !("levels" in s)));
 
   const level = { id: "levelAAAAAAAAAAA", name: "Level" };
-  const walled = sceneData({ id: "zz1.map", book: "zz1", name: "Map", recipe, src: "a.webp", level, walls: rows, pixelsPerPoint: 10 });
-  check("a walled map is dark, seen by token vision, its fog each user's own",
-    [walled.tokenVision, walled.fog, walled.environment, walled.walls.length],
-    [true, { mode: 1 }, { darknessLevel: 1, globalLight: { enabled: false } }, 1]);
+  const walled = sceneData({ id: "zz1.map", book: "zz1", name: "Map", recipe, src: "a.webp", level, walls: rows, pixelsPerPoint: 10, indoorName: "Indoors" });
+  check("a walled map is dark and locked so, seen by token vision, its fog each user's own, with no weather",
+    [walled.tokenVision, walled.fog, walled.environment, walled.weather, walled.walls.length],
+    [true, { mode: 1 }, { darknessLevel: 1, darknessLock: true, globalLight: { enabled: false } }, "", 1]);
+  check("a walled map is roofed: one region over its picture, drawn on the Regions layer, keeping weather out", walled.regions, [{
+    name: "Indoors", visibility: 0, locked: true,
+    shapes: [{ type: "rectangle", x: 0, y: 0, width: walled.width, height: walled.height, rotation: 0, hole: false }],
+    behaviors: [{ type: "suppressWeather", name: "Indoors", system: {} }],
+    flags: { [MODULE_ID]: { cookbook: { indoors: true } } },
+  }]);
+  const quarter = { name: "Q", shapes: [], behaviors: [], flags: { [MODULE_ID]: { cookbook: { place: "zz1.q" } } } };
+  const padded = sceneData({ id: "zz1.map", book: "zz1", name: "Map", recipe, src: "a.webp", level, walls: rows, pixelsPerPoint: 10, regions: [quarter], canvas: { width: 900, height: 700 } });
+  check("the roof comes after the map's own regions and spans the padded canvas it is given",
+    [padded.regions.length, padded.regions[0], padded.regions[1].shapes[0].width, padded.regions[1].shapes[0].height], [2, quarter, 900, 700]);
+  const storeyed = sceneData({ id: "zz1.map", book: "zz1", name: "Map", recipe, src: "a.webp", level, walls: rows, pixelsPerPoint: 10, storeys: [{ src: "b.webp", name: "Storey 2" }] });
+  check("on a plan of storeys the roof stands on every storey's level", storeyed.regions.at(-1).levels, ["levelAAAAAAAAAAA", "storey0000000001"]);
+  ok("on a map of one storey it states no level, so core stands it on every one", !("levels" in walled.regions[0]));
   const again = sceneData({ id: "zz1.map", book: "zz1", name: "Map", recipe, src: "a.webp", level, walls: rows, pixelsPerPoint: 10 });
   again.environment.darknessLevel = 0;
   ok("each walled map gets its own copy of the sight fields", walled.environment.darknessLevel === 1);
   const bare = sceneData({ id: "zz1.map", book: "zz1", name: "Map", recipe, src: "a.webp", level, pixelsPerPoint: 10 });
-  check("a map without walls keeps sight off and states no light", [bare.tokenVision, bare.fog, bare.environment, bare.walls], [false, { mode: 0 }, undefined, []]);
+  check("a map without walls is outdoors: sight off, no light, lock or weather stated, and no roof",
+    [bare.tokenVision, bare.fog, bare.environment, bare.weather, bare.regions, bare.walls], [false, { mode: 0 }, undefined, undefined, [], []]);
+  const roofed = withWorldIds({ regions: [quarter, walled.regions[0]] }, null, "zz1.adventure");
+  const heldRoof = { _id: "heldSceneAAAAAAA", regions: [{ ...walled.regions[0], _id: "heldRoofAAAAAAAA", behaviors: [{ ...walled.regions[0].behaviors[0], _id: "heldRoofBhvAAAAA" }] }] };
+  const rebuilt = withWorldIds({ regions: [quarter, walled.regions[0]] }, heldRoof, "zz1.adventure");
+  check("a rebuilt map's roof keeps the world copy's id and its behaviour's, beside a quarter that takes a seeded one",
+    [rebuilt.regions[1]._id, rebuilt.regions[1].behaviors[0]._id, rebuilt.regions[0]._id], ["heldRoofAAAAAAAA", "heldRoofBhvAAAAA", roofed.regions[0]._id]);
 
   const first = withWorldIds({ walls: [{ c: [0, 0, 100, 0], door: 0 }, { c: [0, 0, 100, 0], door: 0 }] }, null, "zz1.adventure");
   const ids = first.walls.map((w) => w._id);

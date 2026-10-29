@@ -31,6 +31,7 @@
  */
 import { MODULE_ID } from "../lib/constants.mjs";
 import { isPrimaryGM, numOrNull } from "../lib/util.mjs";
+import { parentUuidOf, resolvePlaceSync } from "../lib/place.mjs";
 import { patchFormation, getFormation, getFormations, getPartyToken, realMembers, getMemberActor, hasAbility } from "./formation-model.mjs";
 import { hasCapability } from "./ability-bridge.mjs";
 import { mayAdvanceWorldTime, untilNextDawn, calendarDay, calendarSeason } from "../lib/world-time.mjs";
@@ -614,8 +615,9 @@ const logCap = () => {
  * @param {string} formationId
  * @param {string|boolean} journey the mode to adopt (a bare boolean is the
  *   older journey/delve switch)
- * @param {string|null} [opts.sceneId] the city a settlement board is being
- *   counted in. Naming none leaves whatever stamp the board carries — a
+ * @param {string|null} [opts.sceneId] the scene a settlement board is being
+ *   counted on; the board is stamped with its city (`cityStampOf`). Naming
+ *   none leaves whatever stamp the board carries — a
  *   re-entry wherever the party already is. Callers that know the scene pass
  *   it: a board left unstamped is the one state the next arrival reads as
  *   foreign.
@@ -668,11 +670,12 @@ export function setJourneyMode(formationId, journey, { sceneId = null } = {}) {
  * has just reached and be charged the journey as a stay.
  *
  * A board reaching a NAMED city that it does not itself name is foreign, an
- * unstamped board included — see `boardIsElsewhere`.
+ * unstamped board included — see `boardIsElsewhere`. The scene it is handed
+ * is stamped as its city (`cityStampOf`), whoever handed it.
  */
 function enteredSettlement(travel, sceneId) {
   const board = travel.settlement;
-  const stamp = sceneStamp(sceneId);
+  const stamp = cityStampOf(sceneId);
   if (travel.mode !== "settlement" || boardIsElsewhere(board, stamp)) return reenterSettlement(board, stamp);
   return { ...board, sceneId: stamp ?? board.sceneId };
 }
@@ -704,6 +707,53 @@ function boardIsElsewhere(board, stamp) {
   return stamp != null && board.sceneId !== stamp;
 }
 
+/** The location feature's scene ↔ place links, or null when it is not loaded. */
+const sceneLinks = () => globalThis.acksExtras?.location?.scenes ?? null;
+
+/**
+ * The stamp a board arriving on this scene is counted under: the city map of
+ * the outermost place, from the scene's own place up its parents, that has
+ * one; else the scene's own id. Takes a scene or its id.
+ *
+ * A city drawn over several maps — its streets on one, a map for each building
+ * inside it — is one city, so stepping indoors keeps the tally and only a
+ * scene outside every city's chain is somewhere new. The chain is the places'
+ * own parent walk, and a place's city map is `cityMapOf`'s. A place with no
+ * city map is climbed through: one with no map at all, and one whose map
+ * calls for something else, such as the region map a city stands on. A city
+ * map's own stamp is itself, so stamping a stamp changes nothing.
+ * Synchronous, because the board's writers decide inside one ledger patch.
+ *
+ * @returns {string|null}
+ */
+export function cityStampOf(scene) {
+  const own = sceneStamp(typeof scene === "string" ? scene : scene?.id);
+  const links = sceneLinks();
+  const at = typeof scene === "string" ? game.scenes?.get?.(scene) : scene;
+  let place = own && at ? links?.locationOfScene?.(at) ?? null : null;
+  let city = own;
+  // A parent chain that loops back on itself ends where it first repeats.
+  for (const seen = new Set(); place && !seen.has(place.uuid); place = resolvePlaceSync(parentUuidOf(place))) {
+    seen.add(place.uuid);
+    const map = cityMapOf(place, links);
+    if (map) city = map.id;
+  }
+  return city;
+}
+
+/**
+ * The map a place is a city on, or null: its verified mirror where that calls
+ * for a settlement, else the lowest-id scene linked to it that does, so two
+ * copies of one map name the same city whichever is asked.
+ */
+function cityMapOf(place, links) {
+  const isCity = (s) => inferredTravelSystem(s).system === "settlement";
+  const mirror = links.sceneOfLocation?.(place) ?? null;
+  if (mirror && isCity(mirror)) return mirror;
+  const linked = game.scenes?.filter?.((s) => links.locationOfScene(s)?.uuid === place.uuid && isCity(s)) ?? [];
+  return linked.reduce((low, s) => (!low || s.id < low.id ? s : low), null);
+}
+
 /**
  * Stamp every unstamped settlement board with the city its party stands in.
  * Run once, at startup.
@@ -728,9 +778,10 @@ export async function claimUnstampedSettlements() {
   for (const formation of Object.values(getFormations())) {
     const t = travelOf(formation);
     if (t.mode !== "settlement" || t.settlement.sceneId != null) continue;
-    const sceneId = sceneStamp(formation.sceneId);
+    const scene = game.scenes?.get(sceneStamp(formation.sceneId));
+    if (inferredTravelSystem(scene).system !== "settlement") continue;
+    const sceneId = cityStampOf(scene);
     if (!sceneId) continue;
-    if (inferredTravelSystem(game.scenes?.get(sceneId)).system !== "settlement") continue;
     let wrote = false;
     // Re-read under the ledger's lock: the startup sync and every other
     // background writer hold copies of these records, and a board claimed or
@@ -785,9 +836,10 @@ export function sceneScaleChanged(changes) {
  * an unlabelled scene.
  *
  * A second CITY is an arrival even though the mode does not change: the board
- * belongs to the scene it was counted in, so a scene declaring settlement
- * while the board names a different one enters afresh — `boardIsElsewhere` is
- * the whole of that test, and is the same one the write itself asks.
+ * belongs to the city it was counted in, so a scene declaring settlement
+ * while the board names a different city enters afresh — `boardIsElsewhere` is
+ * the whole of that test, and is the same one the write itself asks. A map of
+ * a building inside the city is the same city (`cityStampOf`).
  *
  * @returns {Promise<{mode: string, source: string}|null>} the mode adopted and
  *   what called for it, or null if nothing moved.
@@ -798,7 +850,7 @@ export async function adoptSceneSystem(formationId, scene) {
   const formation = getFormation(formationId);
   if (!formation) return null;
   const t = travelOf(formation);
-  const sceneId = sceneStamp(scene?.id);
+  const sceneId = cityStampOf(scene);
   const elsewhere = system === "settlement" && boardIsElsewhere(t.settlement, sceneId);
   if (t.mode === system && !elsewhere) return null;
   await setJourneyMode(formationId, system, { sceneId });

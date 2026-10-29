@@ -35673,7 +35673,7 @@
           "h": 425.84
         },
         "place": "ax1.fort",
-        "travel": "delve",
+        "travel": "settlement",
         "grid": {
           "family": "hexCols",
           "even": false,
@@ -35987,7 +35987,7 @@
           }
         ],
         "place": "ax1.fort1",
-        "travel": "delve",
+        "travel": "settlement",
         "grid": {
           "family": "square",
           "box": {
@@ -36083,7 +36083,7 @@
           }
         ],
         "place": "ax1.fort2-3",
-        "travel": "delve",
+        "travel": "settlement",
         "grid": {
           "family": "square",
           "box": {
@@ -36183,7 +36183,7 @@
           }
         ],
         "place": "ax1.fort5-8",
-        "travel": "delve",
+        "travel": "settlement",
         "grid": {
           "family": "square",
           "box": {
@@ -36269,7 +36269,7 @@
           "h": 70.8
         },
         "place": "ax1.fort9",
-        "travel": "delve",
+        "travel": "settlement",
         "grid": {
           "family": "square",
           "box": {
@@ -36377,7 +36377,7 @@
           "h": 70.8
         },
         "place": "ax1.fort10",
-        "travel": "delve",
+        "travel": "settlement",
         "grid": {
           "family": "square",
           "box": {
@@ -36420,7 +36420,7 @@
           "h": 343
         },
         "place": "ax1.fort11",
-        "travel": "delve",
+        "travel": "settlement",
         "places": [
           {
             "id": "ax1.fort11a",
@@ -36674,7 +36674,7 @@
           "h": 51.6
         },
         "place": "ax1.fort14",
-        "travel": "delve",
+        "travel": "settlement",
         "grid": {
           "family": "square",
           "box": {
@@ -36762,7 +36762,7 @@
           "h": 51.6
         },
         "place": "ax1.fort15-17",
-        "travel": "delve",
+        "travel": "settlement",
         "grid": {
           "family": "square",
           "box": {
@@ -36806,7 +36806,7 @@
           "h": 402
         },
         "place": "ax1.fort18",
-        "travel": "delve",
+        "travel": "settlement",
         "places": [
           {
             "id": "ax1.fort18a",
@@ -37010,7 +37010,7 @@
           "h": 302
         },
         "place": "ax1.fort19",
-        "travel": "delve",
+        "travel": "settlement",
         "places": [
           {
             "id": "ax1.fort19a",
@@ -37265,7 +37265,7 @@
           "h": 336
         },
         "place": "ax1.fort20",
-        "travel": "delve",
+        "travel": "settlement",
         "places": [
           {
             "id": "ax1.fort20a",
@@ -37407,7 +37407,7 @@
           "h": 332
         },
         "place": "ax1.fort23",
-        "travel": "delve",
+        "travel": "settlement",
         "places": [
           {
             "id": "ax1.fort23a",
@@ -37546,7 +37546,7 @@
           "h": 426
         },
         "place": "ax1.fort24",
-        "travel": "delve",
+        "travel": "settlement",
         "places": [
           {
             "id": "ax1.fort24a",

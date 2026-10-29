@@ -9,7 +9,7 @@
       "note": "Page points, top-left origin: the crop is the plan in its frame; the grid block is one drawn square; the distance is that square against the entrance's printed width (area 19). Walls trace the dark strokes; a box is a door, a splayed gap a window. Lines: the entrance's leaves; a slit shut at its tip; a wall read as a door; the west divider, a door dropped. A rect: the dais. Drops: 3 false windows.",
       "crop": { "x": 245, "y": 84, "w": 314, "h": 302 },
       "place": "ax1.fort19",
-      "travel": "delve",
+      "travel": "settlement",
       "places": [
         { "id": "ax1.fort19a", "at": [510.56, 230.64] },
         { "id": "ax1.fort19b", "at": [508.04, 288.84] },

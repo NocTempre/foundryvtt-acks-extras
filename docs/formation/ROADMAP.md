@@ -333,6 +333,14 @@ Three smaller things the same work left open:
   buildings and the per-shop availability fractions are printed figures with
   no register yet; the place a point of interest now is has the `market`
   subtree to receive them when they arrive.
+- **A quarter left and re-entered is asked again.** `applyHunt` asks once per
+  quarter (`huntRegion`), so a turn on a building's map with no district clears
+  `huntedBy` and keeps `wanted`, and walking back out into the quarter asks it
+  again: a hunter the Judge unticked marks the party hunted once more. A city's
+  buildings are its own maps since the city stamp (DECISIONS 2026-10-28, "A
+  city's buildings are the city"), so this happens at every door. It needs a
+  ruling: the quarter's ask remembered across a building, or a building's map
+  read as the quarter it stands in.
 
 ## 5. Rulings taken 2026-08-29, and what each unblocks
 

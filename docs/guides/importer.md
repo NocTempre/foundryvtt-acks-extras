@@ -436,7 +436,12 @@ terrain walls and invisible walls (which stop movement and let sight through,
 like bars). The scene is dark and turns token vision on, so a token sees what
 its own torch or lantern, or its party's, lights, and nothing past the walls.
 A creature that sees in the dark sees its own range too. Each player keeps
-the squares their tokens have explored. A map already in your world is never
+the squares their tokens have explored. A walled map is indoors: its darkness
+is locked, so a module that runs the day and night leaves it dark, and a
+Region over the whole map keeps that module's weather out. To light a
+building by day, uncheck **Darkness Level Lock** in its Scene Configuration first.
+A map without walls is outdoors and takes the day, the night and the weather.
+A map already in your world is never
 re-drawn. To draw it again, with these settings, delete the scene and run the
 step again.
 

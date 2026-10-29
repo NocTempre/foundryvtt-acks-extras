@@ -19,6 +19,17 @@
   Damage* keeps its page reference and no longer prints the rule's figures.
 - **Every shipped macro is in a guide.** Each feature's guide ends with its
   macros and what each does.
+- **A walled map is indoors.** A map the maps step walls, a dungeon level or
+  a building, locks its darkness and keeps weather out, so a module that runs
+  the day and the weather leaves it dark and dry. A map without walls takes
+  the day, the night and the weather. **AX1's fort maps are city maps:** the
+  fort's grounds and each of its buildings engage city travel, its dungeon
+  levels the dungeon turn, and its region map the journey. A map already in
+  your world keeps its old settings; delete it and run the maps step again.
+- **A city's buildings are the city.** Walking from a city's map into the map
+  of one of its buildings, and out again, keeps the city's tally (its blocks,
+  turns, stay and hunt) instead of starting it afresh at every door. Maps are
+  one city when each building's place sits inside the city's.
 
 ### Removed
 

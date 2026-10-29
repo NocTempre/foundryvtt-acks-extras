@@ -8569,6 +8569,60 @@ template push.
 *Cost:* a Judge who reads an erratum id in a place's note finds its entry on
 GitHub, not in the module folder. 11.11.0's zip keeps the root copy.
 
+## 2026-10-28 — A walled map is indoors, and the fort's maps are a city
+
+**New evidence.**
+- The user reported daylight and rain inside AX1's walled maps, from a
+  time/weather module. Such a module writes each scene's darkness and weather
+  by the clock.
+- The 2026-10-24 entry "A walled map is dark, and its tokens see by their own
+  light" rejected `darknessLock` because core's lock "only disables the
+  slider" and nothing in this module writes darkness. The first half is wrong:
+  core's `Scene#_preUpdate` drops a darkness change from any update that does
+  not also name the lock. The second half holds, but the writer is another
+  module.
+- The user ruled the fort's maps city maps: the overview and every building
+  plan.
+
+**Ruled.**
+- **A walled map is indoors.** Its darkness is locked, it states no weather,
+  and it carries one Region over its whole canvas with core's Suppress Weather
+  behaviour (`indoorRegionData`). This supersedes that entry's `darknessLock`
+  rejection, 4 days old; the evidence above is new.
+- **A map without walls is outdoors** and states neither, so the world's clock
+  lights it and may send weather over it.
+- **Every fort map declares `travel: "settlement"`.** That is the overview and
+  its 13 building plans. The dungeon's levels keep `delve` and the region's map
+  `journey`. This supersedes, for the fort, the overview's "explored a turn at
+  a time (`delve`)" ("The fort's overview is its hex plan…") and the bullet
+  "A plan explored a turn at a time declares `travel: "delve"`" ("A plan is the
+  place it draws…"), both 4 days old; the user's ruling is the new evidence.
+  Formation counts a city's maps as one city (formation DECISIONS,
+  2026-10-28).
+
+**Rejected.**
+- *The time module's own per-scene opt-out.* It answers one module. The lock
+  and Suppress Weather are core's and hold against any writer.
+- *An empty `weather` alone.* A module that sets weather on every scene writes
+  over it.
+- *Indoors from a recipe field.* Walls are the fact: every walled AX1 map is a
+  building or a dungeon, and each unwalled one (the fort's grounds, the region)
+  is open ground.
+
+*Cost:*
+- A map already in a world keeps what it was made with: the step never
+  re-creates a held scene. To take the new settings, delete the scene and run
+  the maps step again.
+- A Judge who wants a building lit by day unchecks its darkness lock first.
+- A time module's darkness no longer reaches a walled map at any hour.
+
+Walked live on core 14.369 (`tools/live/importer-ax1.mjs`, 88 of 88), with the
+owner's go-ahead to rebuild their AX1 maps. Each walled map came in locked,
+with no weather and one roof over its canvas, and the fort's grounds and the
+region's map without either. A darkness write naming the level alone read
+back 1 on a walled map. Each plan declared its recipe's `travel`, and the
+Adventure carried the same sight.
+
 ## 2026-10-29 — A held map's travel system is a link when the importer minted it
 
 **Ruled.** `repairHeldMap` brings a held map's declared travel system

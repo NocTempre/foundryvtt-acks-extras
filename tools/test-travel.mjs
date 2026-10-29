@@ -13,6 +13,7 @@ import {
   DAY_KINDS,
   adoptSceneSystem,
   applyTravelForm,
+  cityStampOf,
   claimUnstampedSettlements,
   clearDeclaredCountry,
   composeLogEntry,
@@ -563,6 +564,122 @@ assert.equal(await adopt("f4", { getFlag: () => ({ mapSystem: "settlement" }) })
   "a scene with no id names no city, so it is not another one");
 assert.equal(boardOf("f4").blocks, 11, "and the tally is untouched");
 assert.equal(boardOf("f4").sceneId, "Scene.riverport");
+
+/* --- one city over several maps ---------------------------------------------
+   A town's streets on one map and a map for each building inside it: the
+   places' parent walk says which maps are one city, and the stamp is the
+   city map of the outermost place up that walk that has one. Invented places:
+   a vale (a journey map), a town in it with its map and a copy of that map,
+   an inn in the town and a cellar under the inn, a yard with no map of its
+   own and a stable in the yard, a second town, a port with two maps and no
+   mirror, a map nobody linked, and two places that name each other as
+   parent. */
+{
+  const savedScenes = globalThis.game.scenes;
+  const places = new Map();
+  const place = (uuid, parentUuid = "") => places.set(uuid, {
+    uuid, documentName: "Actor", type: "acks-extras.location", system: { parentUuid }, getFlag: () => undefined,
+  });
+  place("Actor.vale");
+  place("Actor.town", "Actor.vale");
+  place("Actor.inn", "Actor.town");
+  place("Actor.cellar", "Actor.inn");
+  place("Actor.yard", "Actor.town");
+  place("Actor.stable", "Actor.yard");
+  place("Actor.burg");
+  place("Actor.port");
+  place("Actor.loopA", "Actor.loopB");
+  place("Actor.loopB", "Actor.loopA");
+  const map = (id, system, placeUuid = null) => ({ id, placeUuid, getFlag: () => ({ mapSystem: system }) });
+  const scenes = [
+    map("Scene.vale", "journey", "Actor.vale"), map("Scene.copyOfTown", "settlement", "Actor.town"),
+    map("Scene.town", "settlement", "Actor.town"),
+    map("Scene.inn", "settlement", "Actor.inn"), map("Scene.cellar", "settlement", "Actor.cellar"),
+    map("Scene.stable", "settlement", "Actor.stable"), map("Scene.burg", "settlement", "Actor.burg"),
+    map("Scene.portB", "settlement", "Actor.port"), map("Scene.portA", "settlement", "Actor.port"),
+    map("Scene.loose", "settlement"), map("Scene.loopA", "settlement", "Actor.loopA"),
+    map("Scene.loopB", "settlement", "Actor.loopB"),
+  ];
+  // The places whose mirror names their map; the port's names none.
+  const mirrors = new Map([["Actor.town", "Scene.town"], ["Actor.inn", "Scene.inn"]]);
+  const sceneOf = (id) => scenes.find((s) => s.id === id) ?? null;
+  globalThis.game.scenes = { get: sceneOf, filter: (fn) => scenes.filter(fn) };
+  globalThis.fromUuidSync = (uuid) => places.get(uuid) ?? null;
+  globalThis.acksExtras = {
+    location: {
+      scenes: {
+        locationOfScene: (s) => places.get(s?.placeUuid) ?? null,
+        sceneOfLocation: (p) => sceneOf(mirrors.get(p?.uuid)),
+      },
+    },
+  };
+
+  assert.equal(cityStampOf(sceneOf("Scene.inn")), "Scene.town", "a building's map is counted in the town it stands in");
+  assert.equal(cityStampOf("Scene.inn"), "Scene.town", "asked by id as by scene");
+  assert.equal(cityStampOf(sceneOf("Scene.cellar")), "Scene.town", "the outermost city, not the nearest settlement map");
+  assert.equal(cityStampOf(sceneOf("Scene.stable")), "Scene.town", "a place with no map of its own is climbed through");
+  assert.equal(cityStampOf(sceneOf("Scene.town")), "Scene.town", "the region map a town stands on is no city");
+  assert.equal(cityStampOf(sceneOf("Scene.copyOfTown")), "Scene.town",
+    "a copy of the town's map is the town its mirror names, though the copy's id is the lower");
+  assert.equal(cityStampOf(sceneOf("Scene.portB")), "Scene.portA", "with no mirror, two maps of one place name the lower id");
+  assert.equal(cityStampOf(sceneOf("Scene.portA")), "Scene.portA", "whichever is asked");
+  assert.equal(cityStampOf(sceneOf("Scene.loose")), "Scene.loose", "a map no place links is its own city");
+  assert.equal(cityStampOf(sceneOf("Scene.loopB")), "Scene.loopA", "a parent chain that loops ends where it repeats");
+  assert.equal(cityStampOf(sceneOf("Scene.loopA")), "Scene.loopB",
+    "and each of the loop's two maps names the other, so a loop resets at every crossing");
+  assert.equal(cityStampOf(null), null, "no scene names no city");
+  for (const id of ["Scene.inn", "Scene.cellar", "Scene.copyOfTown", "Scene.portB"]) {
+    assert.equal(cityStampOf(cityStampOf(id)), cityStampOf(id), `a city's stamp is itself (${id})`);
+  }
+
+  settings.formations.f5 = {
+    id: "f5",
+    sceneId: "Scene.town",
+    travel: { mode: "settlement", settlement: { sceneId: "Scene.town", pace: "commuting", blocks: 9, turns: 4, holeUpSince: 700, wanted: true } },
+  };
+  assert.equal(await adopt("f5", sceneOf("Scene.inn")), null, "walking into a building is no arrival");
+  assert.equal(boardOf("f5").blocks, 9, "so the town's tally stays");
+  assert.equal(boardOf("f5").turns, 4);
+  assert.equal(boardOf("f5").holeUpSince, 700, "and so does the stay");
+  assert.equal(boardOf("f5").wanted, true, "and the hunt");
+  assert.equal(boardOf("f5").sceneId, "Scene.town");
+  assert.equal(await adopt("f5", sceneOf("Scene.cellar")), null, "nor is going down into its cellar");
+  assert.equal(await adopt("f5", sceneOf("Scene.copyOfTown")), null, "nor coming out on a copy of the town's map");
+  assert.equal(await adopt("f5", sceneOf("Scene.burg")), "settlement", "the next town is still an arrival");
+  assert.equal(boardOf("f5").sceneId, "Scene.burg");
+  assert.equal(boardOf("f5").blocks, 0);
+
+  /* A party standing in a building when its board was written unstamped is
+     claimed for the town, so the walk back out to the streets keeps the tally. */
+  settings.formations.f6 = {
+    id: "f6",
+    sceneId: "Scene.stable",
+    travel: { mode: "settlement", settlement: { pace: "commuting", blocks: 5 } },
+  };
+  assert.equal(await claimUnstampedSettlements(), 1);
+  assert.equal(boardOf("f6").sceneId, "Scene.town", "claimed for the town the stable stands in");
+  assert.equal(await adopt("f6", sceneOf("Scene.town")), null);
+  assert.equal(boardOf("f6").blocks, 5);
+
+  /* The panel names the town too, from a building's map. */
+  settings.formations.f7 = { id: "f7", sceneId: "Scene.inn", travel: { mode: "delve", settlement: { pace: "commuting" } } };
+  await panelToggle("f7");
+  assert.equal(boardOf("f7").sceneId, "Scene.town", "a board entered from the panel in a building is the town's");
+
+  /* And so does the board's writer, whoever calls it with a building's map. */
+  settings.formations.f8 = { id: "f8", travel: { mode: "delve", settlement: { pace: "commuting" } } };
+  await setJourneyMode("f8", "settlement", { sceneId: "Scene.cellar" });
+  assert.equal(boardOf("f8").sceneId, "Scene.town", "the api's caller handing a raw scene id stamps the town");
+
+  /* Without the location feature nothing says which maps are one town, and
+     every map is its own city, as before. */
+  globalThis.acksExtras = undefined;
+  assert.equal(cityStampOf(sceneOf("Scene.inn")), "Scene.inn");
+
+  delete globalThis.acksExtras;
+  delete globalThis.fromUuidSync;
+  globalThis.game.scenes = savedScenes;
+}
 
 /* --- the system a scene calls for -------------------------------------------
    A declaration wins; else a cell of a mile or more is a journey; else a

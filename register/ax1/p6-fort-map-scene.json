@@ -9,7 +9,7 @@
       "note": "Geometry in page points, top-left origin: the crop is the map image's placement below its header strip; the grid block is one drawn hex of its lattice, upright (w across corners, h across flats), centred on a hex centre near the middle, fitted from the drawn edges; the distance is the map's checked hex scale. Each top-level area stands at its circled key, a row of several at its first.",
       "crop": { "x": 16.75, "y": 39.8, "w": 560.25, "h": 425.84 },
       "place": "ax1.fort",
-      "travel": "delve",
+      "travel": "settlement",
       "grid": {
         "family": "hexCols",
         "even": false,

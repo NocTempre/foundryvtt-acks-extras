@@ -9,7 +9,7 @@
       "note": "Page points, top-left origin: the crop is the plan in its frame; the grid block is one drawn square; the distance is that square measured against the building's printed size (area 18). Walls trace the dark strokes, and a drawn box is a door. Corrections are lines: three fences a sense passes, each with its gate as a door, and the dais's terrain, open at its stair's mouth.",
       "crop": { "x": 28, "y": 328, "w": 256, "h": 402 },
       "place": "ax1.fort18",
-      "travel": "delve",
+      "travel": "settlement",
       "places": [
         { "id": "ax1.fort18a", "at": [162.9, 452.5] },
         { "id": "ax1.fort18b", "at": [162.9, 609.4] },

@@ -5427,7 +5427,8 @@ const placedFrame = (frame, origin) => (origin && (origin.x || origin.y)
  * @param {object} recipe a compiled scene recipe with a `grid`
  * @param {Scene} scene an unsaved Scene document
  * @returns {{pixelsPerPoint: number, frame: object, type: number, shiftX: number, shiftY: number,
- *   origin: {x: number, y: number}}|null}
+ *   origin: {x: number, y: number}, canvas: {width: number, height: number}}|null}
+ *   `canvas` is the padded canvas's size
  */
 export function gridScenePlan(recipe, scene) {
   const { family, even = false, centre } = recipe?.grid ?? {};
@@ -5453,7 +5454,7 @@ export function gridScenePlan(recipe, scene) {
   const origin = { x: canvas.x - shift.shiftX, y: canvas.y - shift.shiftY };
   const onCanvas = origin.x >= -1 && origin.y >= -1
     && origin.x + frame.width <= canvas.width + 1 && origin.y + frame.height <= canvas.height + 1;
-  return onCanvas ? { pixelsPerPoint, frame, type, ...shift, origin } : null;
+  return onCanvas ? { pixelsPerPoint, frame, type, ...shift, origin, canvas: { width: canvas.width, height: canvas.height } } : null;
 }
 
 /**
@@ -5522,19 +5523,20 @@ export async function mapCreateData({ bookId, id, recipe, ids, actors, tableOf, 
   };
   const wallData = wallSources(walls, frame, storeys.length ? [level.id, ...storeys.map((_, i) => storeyLevelId(i + 1))] : null);
   const mapSystem = recipe.travel ?? null;
+  const indoorName = game.i18n.localize(`${LANG_PREFIX}.ui.sceneIndoors`);
   if (!grid) {
     return sceneData({
       id, book: bookId, name: city?.name ?? fallbackName, recipe, src, incidents, folderId,
       locationUuid: city?.uuid ?? "",
       level,
-      regions, tokens, walls: wallData, mapSystem,
+      regions, tokens, walls: wallData, mapSystem, indoorName,
     });
   }
   const made = sceneData({
     id, book: bookId, name: city?.name ?? fallbackName, recipe, src, incidents, folderId,
     locationUuid: city?.uuid ?? "",
     level,
-    regions, tokens, walls: wallData, mapSystem,
+    regions, tokens, walls: wallData, mapSystem, indoorName, canvas: grid.canvas,
     grid: recipe.grid, pixelsPerPoint: grid.pixelsPerPoint, shiftX: grid.shiftX, shiftY: grid.shiftY,
     storeys: storeys.map((path, i) => ({ src: path, name: storeyName(i + 2) })),
   });

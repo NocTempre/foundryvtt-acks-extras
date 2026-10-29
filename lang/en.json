@@ -7385,6 +7385,7 @@
   "ACKS-IMPORTER.ui.progressScenes": "Standing up maps…",
   "ACKS-IMPORTER.ui.sceneQuarter": "Quarter {n}",
   "ACKS-IMPORTER.ui.sceneStorey": "Storey {n}",
+  "ACKS-IMPORTER.ui.sceneIndoors": "Indoors",
   "ACKS-IMPORTER.ui.scenesRepaired": "{n} held map link(s) repaired (lists named again, after-dark figures filled)",
   "ACKS-IMPORTER.ui.progressAdventures": "Writing adventure books to the library…",
   "ACKS-IMPORTER.ui.progressAdventureItems": "Importing a book's items…",

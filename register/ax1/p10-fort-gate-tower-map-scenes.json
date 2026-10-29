@@ -10,7 +10,7 @@
       "crop": { "x": 339.79, "y": 306.99, "w": 224.14, "h": 93.83 },
       "levels": [{ "x": 339.79, "y": 167.98 }],
       "place": "ax1.fort1",
-      "travel": "delve",
+      "travel": "settlement",
       "grid": {
         "family": "square",
         "box": { "w": 17.376, "h": 17.376 },
@@ -43,7 +43,7 @@
       "crop": { "x": 339.79, "y": 306.99, "w": 224.14, "h": 93.83 },
       "levels": [{ "x": 339.79, "y": 167.98 }],
       "place": "ax1.fort2-3",
-      "travel": "delve",
+      "travel": "settlement",
       "grid": {
         "family": "square",
         "box": { "w": 17.376, "h": 17.376 },
@@ -76,7 +76,7 @@
       "crop": { "x": 209.47, "y": 306.99, "w": 119.88, "h": 93.83 },
       "levels": [{ "x": 209.47, "y": 167.98 }, { "x": 209.47, "y": 46.35 }],
       "place": "ax1.fort5-8",
-      "travel": "delve",
+      "travel": "settlement",
       "grid": {
         "family": "square",
         "box": { "w": 17.376, "h": 17.376 },

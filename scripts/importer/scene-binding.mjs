@@ -83,15 +83,22 @@ const FOG_INDIVIDUAL = 1;
 
 /**
  * What a walled map's scene states about sight: token vision, each user's own
- * explored fog, and full darkness with no global light. A token sees by the
- * lights it carries and its own senses (`lib/light.mjs`, `lib/perception.mjs`),
- * and the formation reads the scene as dark.
+ * explored fog, and full darkness with no global light, locked, and no weather.
+ * A token sees by the lights it carries and its own senses (`lib/light.mjs`,
+ * `lib/perception.mjs`), and the formation reads the scene as dark. A walled
+ * map is indoors: core drops a darkness change from any update that does not
+ * also name the lock, so a module that sets darkness by the clock leaves it
+ * dark, and its `indoorRegionData` keeps out any weather drawn over it.
  */
 const WALLED_SIGHT = Object.freeze({
   tokenVision: true,
   fog: { mode: FOG_INDIVIDUAL },
-  environment: { darknessLevel: 1, globalLight: { enabled: false } },
+  environment: { darknessLevel: 1, darknessLock: true, globalLight: { enabled: false } },
+  weather: "",
 });
+
+/** Core's Region behaviour that draws no weather inside its Region. */
+const SUPPRESS_WEATHER_TYPE = "suppressWeather";
 
 /** Whether a cookbook scene row carries a recipe a seat can build. */
 export const isSceneRecipe = (row) => row?.kind === SCENE_KIND && !!row?.scene?.crop;
@@ -524,8 +531,11 @@ export const GRID_SCENE_PADDING = 0.05;
  * journey travel; the picture is scaled by `pixelsPerPoint` (`gridScale` of
  * the grid unless the caller measured one live). Sight and fog are off,
  * because a printed map is a plan the party reads and not a place its tokens
- * see from — except on a map with walls, which is a dark place its tokens
- * explore (`WALLED_SIGHT`). It is kept out of the navigation bar: a map that
+ * see from — except on a map with walls, which is an indoor place its tokens
+ * explore in the dark (`WALLED_SIGHT`) and carries, after the caller's
+ * regions, one over its whole canvas (`indoorRegionData`). A map without walls
+ * is outdoors and states nothing of its sky, so whatever keeps the world's
+ * clock may light it and send weather over it. It is kept out of the navigation bar: a map that
  * arrives with a book is for the Judge to put in front of a table, not
  * something a running session finds added to its bar.
  *
@@ -562,11 +572,14 @@ export const GRID_SCENE_PADDING = 0.05;
  * @param {{src: string, name: string}[]} [p.storeys] the storeys above the
  *   first, bottom up, each a level over the last at core's own default height
  *   of four cells' distance
+ * @param {string} [p.indoorName] what a walled map's indoor Region is called
+ * @param {{width: number, height: number}|null} [p.canvas] the padded canvas a
+ *   grid recipe is laid on (`gridScenePlan`); the picture's own size otherwise
  */
 export function sceneData({
   id, book, name, recipe, src, incidents = null, folderId = null, locationUuid = "", level = { id: "defaultLevel0000", name: "Level" },
   regions = [], tokens = [], grid = recipe?.grid ?? null, pixelsPerPoint = null, shiftX = 0, shiftY = 0, mapSystem = null, walls = [],
-  storeys = [],
+  storeys = [], indoorName = "", canvas = null,
 }) {
   const frame = grid ? sceneFrame({ ...recipe, grid }, { pixelsPerPoint: pixelsPerPoint ?? gridScale({ grid }) }) : sceneFrame(recipe);
   const storey = Number(grid?.distance) * 4;
@@ -578,6 +591,13 @@ export function sceneData({
       elevation: { bottom: (i + 1) * storey, top: (i + 2) * storey },
     })),
   ];
+  const indoors = walls.length
+    ? [indoorRegionData({
+      name: indoorName,
+      rect: { x: 0, y: 0, width: canvas?.width ?? frame.width, height: canvas?.height ?? frame.height },
+      levels: above.length ? levels.map((l) => l._id) : [],
+    })]
+    : [];
   return {
     name,
     folder: folderId,
@@ -602,7 +622,7 @@ export function sceneData({
       }
       : { grid: { type: 0, size: GRID_PIXELS, distance: GRID_PIXELS, units: "ft" } }),
     ...(walls.length ? structuredClone(WALLED_SIGHT) : { tokenVision: false, fog: { mode: FOG_DISABLED } }),
-    regions,
+    regions: [...regions, ...indoors],
     tokens: tokens.map((token) => ({ ...token, level: level.id })),
     walls,
     flags: {
@@ -663,6 +683,30 @@ export function districtRegionData(district, frame, {
       system: specialTableUuid ? { specialTableUuid, specialAfterDark: Number(specialAfterDark) || 0 } : {},
     }],
     flags: { [MODULE_ID]: { cookbook: { place: district.place }, ...(locationUuid ? { [SCENE_LINK_FLAG]: locationUuid } : {}) } },
+  };
+}
+
+/**
+ * Region data for an indoor map's roof: the rectangle `rect` over the whole
+ * canvas, drawn only while the Regions layer is active and locked, on the
+ * levels named (none: every level of a one-level scene), carrying core's
+ * `suppressWeather`, so no weather a scene is given is drawn under it. Flagged
+ * `cookbook.indoors`, which tells it from the map's other Regions.
+ *
+ * @param {object} p
+ * @param {string} p.name
+ * @param {{x: number, y: number, width: number, height: number}} p.rect
+ * @param {string[]} [p.levels] the scene level ids it stands on
+ */
+export function indoorRegionData({ name, rect, levels = [] }) {
+  return {
+    name,
+    visibility: REGION_VISIBILITY_LAYER,
+    locked: true,
+    shapes: [{ type: "rectangle", x: rect.x, y: rect.y, width: rect.width, height: rect.height, rotation: 0, hole: false }],
+    ...(levels.length ? { levels: [...levels] } : {}),
+    behaviors: [{ type: SUPPRESS_WEATHER_TYPE, name, system: {} }],
+    flags: { [MODULE_ID]: { cookbook: { indoors: true } } },
   };
 }
 

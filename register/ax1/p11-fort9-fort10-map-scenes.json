@@ -9,7 +9,7 @@
       "note": "Geometry in page points, top-left origin: the crop is the block plan under its heading and over its scale brace, the detail drawing below left out; the grid block is one drawn square near the middle; the distance is the plate's printed square. Each sub-area stands at its first letter; a shared label stands its two letters apart.",
       "crop": { "x": 36, "y": 64, "w": 266, "h": 70.8 },
       "place": "ax1.fort9",
-      "travel": "delve",
+      "travel": "settlement",
       "grid": {
         "family": "square",
         "box": { "w": 11.566, "h": 11.561 },
@@ -42,7 +42,7 @@
       "note": "The block plan of fort9Map, for the block built to the same plan; it keys no sub-areas.",
       "crop": { "x": 36, "y": 64, "w": 266, "h": 70.8 },
       "place": "ax1.fort10",
-      "travel": "delve",
+      "travel": "settlement",
       "grid": {
         "family": "square",
         "box": { "w": 11.566, "h": 11.561 },

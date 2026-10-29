@@ -9,7 +9,7 @@
       "note": "Page points, top-left origin: the crop is the plan in its frame; the grid block is one drawn square; the distance is the square other building plans measure at (areas 18, 19, 23). Walls trace the dark strokes; a drawn box is a door, a splayed gap a window. Lines: the entrance as two leaves meeting at its bar.",
       "crop": { "x": 340, "y": 76, "w": 198, "h": 336 },
       "place": "ax1.fort20",
-      "travel": "delve",
+      "travel": "settlement",
       "places": [
         { "id": "ax1.fort20a", "at": [442.12, 242.08] },
         { "id": "ax1.fort20b", "at": [490, 196.6] },

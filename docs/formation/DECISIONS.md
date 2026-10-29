@@ -1830,6 +1830,8 @@ is made once at `ready`, from the scene the formation is already recorded on,
 which is by construction the city those blocks were counted in. The panel's own
 settlement toggle names its scene for the same reason.
 
+*Superseded 2026-10-28 ("A city's buildings are the city"): this clause, and
+the panel's toggle naming its scene, which now names its city.*
 **A city split across two scenes resets on the crossing.** Scene identity is
 this module's notion of a city everywhere else — `mapSystem`, the block width,
 districts and encounter zones are all per-scene — and a second identity key would
@@ -4288,6 +4290,65 @@ reclassified domain writes, so the party kept the old class until it moved.
   and its clear restored the domain's source; clearing the class fell to the
   scene default, sourced "scene". The sweep removed the region, the token,
   both actors and the scene, found none missing and was refused none.
+
+## 2026-10-28 — A city's buildings are the city
+
+**New evidence.** The importer now declares every map of AX1's fort a
+settlement: its grounds and each of its 13 building plans (importer
+DECISIONS, 2026-10-28, "A walled map is indoors, and the fort's maps are a
+city"). Each map is linked to the place it draws, and every building's place
+sits inside the fort's. Under the 2026-09-15 clause "A city split across two
+scenes resets on the crossing", every door the party walked through
+re-entered. The blocks, the turns, the stay's stamp and the hunt went at each
+step indoors and again at each step out.
+
+**Ruled.**
+- **A board is stamped with its city's map (`cityStampOf`).** From the scene's
+  own place up its parents, that is the map of the outermost place that has
+  one calling for a settlement. The stamp stays a scene id, and its one
+  reader, `boardIsElsewhere`, is unchanged.
+- **A place's city map is its verified mirror, else the lowest-id scene linked
+  to it**, so a Judge's copy of a city's map is the same city whichever copy is
+  asked.
+- **The board's writer stamps whatever scene it is handed (`enteredSettlement`)**,
+  so an arrival, the panel, the startup claim and an api caller agree.
+- This supersedes the 2026-09-15 clause above, 43 days old, and that entry's
+  "The panel's own settlement toggle names its scene", which now names its
+  city.
+
+**Rejected.**
+- *The place's uuid as the stamp.* That is a second kind of stamp: every held
+  board's scene id would read as foreign once, and `sceneStamp`'s one
+  definition would split in two.
+- *The nearest settlement map up the chain.* A cellar under an inn would be a
+  city of its own beside the inn's street.
+- *A recipe field naming a building's city.* The place tree already says it,
+  and a city the Judge builds from linked places gets the same answer.
+
+*Cost:*
+- The stamp depends on the links and parents when it is written. Unlinking a
+  scene, re-parenting a place or a world without the location feature makes
+  each map its own city again. That costs one reset, the cheaper of the two
+  errors `boardIsElsewhere` weighs.
+- A board an older build stamped on a building's map re-enters once, on its
+  next arrival in that city.
+- Two places that name each other as parent each give the other's map, so a
+  crossing between them resets.
+- A dungeon map inside a city is another mode, so coming back out of it starts
+  a fresh tally (`enteredSettlement`), as it did before.
+- A turn on a building's map with no district leaves the quarter the hunt was
+  asked for (ROADMAP, "A quarter left and re-entered is asked again").
+- Each arrival reads the world's scenes once per place up the chain.
+
+Pinned offline in `tools/test-travel.mjs`, "one city over several maps". Ten
+in-memory mutations each turn it red: no walk, the nearest map, no settlement
+filter, a raw id at the arrival, at the claim or at the writer, the scene's own
+place left out, the mirror ignored, the highest id, and a lookup by id dropped.
+Walked live on core 14.369 on the owner's AX1 maps, rebuilt by the maps step
+(`tools/live/formation-city-maps.mjs`, TESTING "A city over several maps"):
+11 of 11 twice, the second run on the kept party. Into the building from a
+board stamped elsewhere, the board re-entered and named the grounds' map. Out,
+in and out again, it kept 7 blocks, 3 turns and the hunt.
 
 ## 2026-10-26 — A fight no combat holds a body of is over
 

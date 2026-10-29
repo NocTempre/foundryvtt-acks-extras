@@ -354,8 +354,17 @@ and drops zero-length ones. A terrain segment takes core's Terrain wall
 senses (`TERRAIN_SENSES`): it blocks movement, and a sense stops at the
 second terrain wall it crosses. An invisible segment takes core's Invisible
 wall senses (`INVISIBLE_SENSES`): it blocks movement alone. The walls ride the scene's create
-(`sceneData`), and a walled scene is dark: token vision on, each user's own
-explored fog, darkness 1 and no global light (`WALLED_SIGHT`). A
+(`sceneData`), and a walled scene is indoors: token vision on, each user's own
+explored fog, darkness 1 locked, no global light and no weather
+(`WALLED_SIGHT`). After the recipe's own Regions it carries one more over the
+whole canvas, padding included (`indoorRegionData`): locked, drawn on the
+Regions layer only, standing on every storey's level, flagged
+`cookbook.indoors`, with core's Suppress Weather behaviour. Core drops a
+darkness change from any update that does not also name the lock, so a module
+that sets darkness by the clock leaves the map dark, and the Region hides any
+weather drawn over it. A map without walls is outdoors and states neither, so
+the world's clock may light it and send weather over it. `withWorldIds` gives
+a rebuilt roof the held one's id. A
 trace that cannot run leaves the map without walls and counts it
 (`wallsFailed`). A held map is never re-traced.
 
@@ -868,7 +877,8 @@ range of rooms stands once, on its first key. Two blocks built to one plan
 are two recipes of one crop, each naming its own place; only the block whose
 sub-areas the page keys stands pins. A recipe's `travel` is the
 travel system its map declares (`mapCreateData`); a plan explored a turn at a
-time says `delve`. A pinned room comes into the world inside the places it
+time says `delve`, and each map of a settlement, its streets' and each
+building's, says `settlement`. A pinned room comes into the world inside the places it
 sits in. The maps step brings every place a pinned room or the plan's own place
 sits in, up to the book's own (`mapIds` `all`). In a book's Adventure a place
 is created when a carried map shows it, and the places above it because a

@@ -182,11 +182,14 @@ const COOK = COOKBOOK.entries;
 const MAPS = Object.entries(COOKBOOK.scenes ?? {}).filter(([, r]) => r?.scene?.crop).map(([id]) => id);
 // The maps whose recipe traces walls.
 const WALLED = new Set(Object.entries(COOKBOOK.scenes ?? {}).filter(([, r]) => r?.scene?.crop && r.scene.walls).map(([id]) => id));
-// Sight as the maps step states it: a walled map dark and seen by a token's
-// own light, any other lit with sight and fog off.
+// Sight as the maps step states it: a walled map indoors, dark with the
+// darkness locked, no weather, roofed by one weather-suppressing region over
+// its whole canvas, and seen by a token's own light; any other outdoors, lit,
+// unlocked, unroofed, with sight and fog off.
 const sightRight = (s) => (WALLED.has(s.id)
   ? s.walls > 0 && s.tokenVision === true && s.fogMode === 1 && s.darkness === 1 && s.globalLight === false
-  : s.walls === 0 && s.tokenVision === false && s.fogMode === 0 && s.darkness === 0);
+    && s.locked === true && s.weather === "" && s.roofs === 1 && s.roofCovers !== false
+  : s.walls === 0 && s.tokenVision === false && s.fogMode === 0 && s.darkness === 0 && s.locked === false && s.roofs === 0);
 const BOOK_PLACE = `${BOOK}.adventure`;
 const REGION_PLACE = `${BOOK}.region`;
 const SPACES = new Set(Object.values(COOK).map((e) => e?.meta?.space).filter(Boolean));
@@ -452,6 +455,8 @@ const P = {
       id: s.flags?.["acks-extras"]?.cookbook?.id ?? null, tokens: s.tokens.length ?? s.tokens.size,
       zones: [...s.regions].map((r) => r.flags?.["acks-extras"]?.cookbook?.zone).filter(Boolean),
       walls: s.walls.length ?? s.walls.size, tokenVision: s.tokenVision, fogMode: s.fog?.mode, darkness: s.environment?.darknessLevel, globalLight: !!s.environment?.globalLight?.enabled,
+      locked: !!s.environment?.darknessLock, weather: s.weather ?? "",
+      roofs: [...s.regions].filter((r) => r.flags?.["acks-extras"]?.cookbook?.indoors && [...r.behaviors].some((b) => b.type === "suppressWeather")).length,
     })) : null;
   },
   /**
@@ -955,6 +960,19 @@ const P = {
       fogMode: s.fog?.mode ?? null,
       darkness: s.environment?.darknessLevel ?? null,
       globalLight: !!s.environment?.globalLight?.enabled,
+      locked: !!s.environment?.darknessLock,
+      weather: s.weather ?? "",
+      // The roof: one weather-suppressing region, and whether its rectangle
+      // spans the whole canvas, padding included.
+      ...(() => {
+        const roofs = s.regions.filter((r) => r.getFlag("acks-extras", "cookbook")?.indoors && r.behaviors.some((b) => b.type === "suppressWeather"));
+        const { rect } = s.dimensions;
+        const shape = roofs[0]?.shapes?.[0];
+        return {
+          roofs: roofs.length,
+          roofCovers: shape ? shape.x <= rect.x && shape.y <= rect.y && shape.x + shape.width >= rect.x + rect.width && shape.y + shape.height >= rect.y + rect.height : null,
+        };
+      })(),
       // The canvas holds the picture and every wall's two ends.
       padding: s.padding,
       framed: (() => {
@@ -966,6 +984,13 @@ const P = {
         };
       })(),
     };
+  },
+  // A clock's darkness write, made the way a time module makes it: an update
+  // naming the level alone. Core drops it on a locked scene.
+  clockDarkness: async ({ uuid, level }) => {
+    const s = await fromUuid(uuid);
+    await s.update({ "environment.darknessLevel": level });
+    return s.environment.darknessLevel;
   },
   playerId: async ({ name }) => game.users.find((u) => u.name === name)?.id ?? null,
   /**
@@ -1187,8 +1212,13 @@ try {
       && absent.length === (st?.unready ?? 0) && absent.every((id) => id === regionMap)
       && sights.every((s) => !s.uuid || (WALLED.has(s.id) ? s.walls > 0 : s.walls === 0)),
     { absent, walls: sights.map((s) => ({ id: s.id, walls: s.walls })) });
-  check("1: a walled map states token vision, each user's own fog, darkness 1 and no global light; any other is lit, its sight and fog off",
+  check("1: a walled map is indoors: token vision, each user's own fog, darkness 1 locked, no global light, no weather and one roof over its canvas; any other is outdoors, lit, unlocked and unroofed, its sight and fog off",
     sights.filter((s) => s.uuid).every(sightRight), sights.filter((s) => s.uuid && !sightRight(s)).map((s) => s.id));
+  // Probed only on a map already locked, so a lock that fails to hold is the
+  // one way the write can land.
+  const lockedMap = sights.find((s) => s.uuid && WALLED.has(s.id) && s.locked);
+  const afterClock = lockedMap ? await run(gm, P.clockDarkness, { uuid: lockedMap.uuid, level: 0 }) : null;
+  check("1: a clock's darkness write leaves a walled map dark", afterClock === 1, { id: lockedMap?.id ?? null, darkness: afterClock });
   // A grid map is made with GRID_SCENE_PADDING, so its shifted picture and its
   // walls lie whole on the canvas; a map without a grid keeps a padding of 0.
   const gridded = (id) => !!COOKBOOK.scenes?.[id]?.scene?.grid;
@@ -1423,8 +1453,9 @@ try {
   const standsItsPins = (p, plan) => !!plan && JSON.stringify(plan.tokens.map((t) => t.place)) === JSON.stringify(p.pins) && plan.tokens.every((t) => t.hidden);
   check("2c: each plan is named for the place it draws and linked to that place's world copy, the region's map for the region's",
     PINNED.length === MAPS.length && PINNED.every((p) => plans[p.id]?.linkId === p.place && plans[p.id].linkWorld && plans[p.id].namedForIt));
-  check("2c: each plan is explored a turn at a time, the region's map travelled as a journey",
-    PINNED.every((p) => plans[p.id]?.mapSystem === (p.region ? "journey" : "delve")), PINNED.map((p) => ({ id: p.id, mapSystem: plans[p.id]?.mapSystem })));
+  check("2c: each plan engages the navigation its recipe declares: the fort's maps a city, the dungeon's levels a delve, the region's map a journey",
+    PINNED.every((p) => plans[p.id]?.mapSystem === COOKBOOK.scenes[p.id].scene.travel),
+    PINNED.map((p) => ({ id: p.id, mapSystem: plans[p.id]?.mapSystem, declared: COOKBOOK.scenes[p.id].scene.travel })));
   check("2c: each plan stands one hidden token per pin, each the world copy of the area it pins",
     PINNED.every((p) => standsItsPins(p, plans[p.id])), PINNED.map((p) => ({ id: p.id, ok: standsItsPins(p, plans[p.id]) })));
   // A plate of storeys is a level per storey, each its own picture, stacked

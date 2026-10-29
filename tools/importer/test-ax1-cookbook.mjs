@@ -201,11 +201,32 @@ const insideOf = (place) => Object.keys(entries).filter((id) => {
   return false;
 });
 
-t("each plan is the place it draws, explored a turn at a time", () => {
-  for (const [map, place] of Object.entries(PLANS)) {
-    assert.equal(cb.scenes[map]?.scene?.place, place, map);
-    assert.equal(cb.scenes[map].scene.travel, "delve", map);
-  }
+t("each plan is the place it draws", () => {
+  for (const [map, place] of Object.entries(PLANS)) assert.equal(cb.scenes[map]?.scene?.place, place, map);
+});
+
+/** The fort's maps, its overview and every building plan: the cookbook's map rows of `ax1.fort` and the places inside it. */
+const fortMaps = () => Object.entries(cb.scenes)
+  .filter(([, row]) => row.kind === "kind.scene" && [row.scene.place, ...parentChain(row.scene.place)].includes("ax1.fort"))
+  .map(([id]) => id);
+function parentChain(id) {
+  const out = [];
+  for (let at = parentOf(id); at && out.length < 9; at = parentOf(at)) out.push(at);
+  return out;
+}
+
+t("the fort's maps are city maps, its dungeon's levels are delved, and the region is journeyed", () => {
+  const travel = Object.fromEntries(Object.entries(cb.scenes).filter(([, row]) => row.kind === "kind.scene").map(([id, row]) => [id, row.scene.travel]));
+  const fort = fortMaps();
+  assert.equal(fort.length, 14, "the overview and its thirteen building plans");
+  for (const map of fort) assert.equal(travel[map], "settlement", map);
+  assert.deepEqual(Object.fromEntries(Object.entries(travel).filter(([id]) => !fort.includes(id))),
+    { "ax1.level1Map": "delve", "ax1.level2Map": "delve", "ax1.regionMap": "journey" });
+});
+
+t("a map is indoors exactly when its walls are traced: every building plan and both levels, and not the fort's overview or the region", () => {
+  const walled = Object.entries(cb.scenes).filter(([, row]) => row.kind === "kind.scene").map(([id, row]) => [id, !!row.scene.walls]);
+  assert.deepEqual(walled.filter(([, w]) => !w).map(([id]) => id).sort(), ["ax1.fortMap", "ax1.regionMap"]);
 });
 
 t("every area inside a plan's place that holds no other is pinned on it, once", () => {
