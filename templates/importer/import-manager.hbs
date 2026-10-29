@@ -1,0 +1,111 @@
+{{!-- The import manager's body: one section per tab. The part root is the scroller. --}}
+<div class="acks-extras-importer-manager-body">
+  {{#unless ready}}
+  <p class="acks-extras-importer-manager-warn">{{localize "ACKS-IMPORTER.manager.notReady"}}</p>
+  {{/unless}}
+  {{#if busy}}
+  <p class="acks-extras-importer-manager-busy" aria-live="polite"><i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> {{busyText}}</p>
+  {{/if}}
+
+  <section class="tab {{tabs.books.cssClass}}" data-group="primary" data-tab="books">
+    <p class="notes">{{localize "ACKS-IMPORTER.manager.booksIntro"}}</p>
+    <div class="acks-extras-importer-manager-bar">
+      <button type="button" data-action="openBooks" {{disabled busy}}><i class="fa-solid fa-book-open" aria-hidden="true"></i> {{localize "ACKS-IMPORTER.manager.openBooks"}}</button>
+      <span class="notes">{{localize "ACKS-IMPORTER.manager.openCount" n=openCount}}</span>
+    </div>
+    <table class="acks-extras-importer-manager-table">
+      <thead><tr>
+        <th scope="col">{{localize "ACKS-IMPORTER.manager.colBook"}}</th>
+        <th scope="col">{{localize "ACKS-IMPORTER.manager.colState"}}</th>
+        <th scope="col">{{localize "ACKS-IMPORTER.manager.colScope"}}</th>
+      </tr></thead>
+      <tbody>
+        {{#each books as |b|}}
+        <tr class="acks-extras-importer-manager-row {{#if b.open}}is-open{{else}}is-closed{{/if}}">
+          <td>{{b.label}}{{#if b.judge}} <span class="acks-extras-importer-manager-tag">{{localize "ACKS-IMPORTER.manager.judges"}}</span>{{/if}}</td>
+          <td>{{#if b.open}}{{localize "ACKS-IMPORTER.manager.bookOpen"}}{{else}}{{localize "ACKS-IMPORTER.manager.bookClosed"}}{{/if}}</td>
+          <td>{{localize "ACKS-IMPORTER.manager.bookScope" entries=b.entries recipes=b.recipes}}</td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </section>
+
+  <section class="tab {{tabs.import.cssClass}}" data-group="primary" data-tab="import">
+    <p class="notes">{{localize "ACKS-IMPORTER.manager.importIntro"}}</p>
+    <div class="acks-extras-importer-manager-bar">
+      <button type="button" data-action="importAll" {{disabled busy}}><i class="fa-solid fa-download" aria-hidden="true"></i> {{localize "ACKS-IMPORTER.manager.importAll"}}</button>
+    </div>
+    <ol class="acks-extras-importer-manager-steps">
+      {{#each steps as |s|}}
+      <li>
+        <div class="acks-extras-importer-manager-step">
+          <span>{{s.label}}</span>
+          <button type="button" data-action="runStep" data-step="{{s.key}}" {{disabled @root.busy}} aria-label="{{localize 'ACKS-IMPORTER.manager.runStepOne' step=s.label}}">{{localize "ACKS-IMPORTER.manager.runStep"}}</button>
+        </div>
+      </li>
+      {{/each}}
+    </ol>
+  </section>
+
+  <section class="tab {{tabs.rebuild.cssClass}}" data-group="primary" data-tab="rebuild">
+    <p class="notes">{{localize "ACKS-IMPORTER.manager.rebuildIntro"}}</p>
+    <div class="acks-extras-importer-manager-form" data-rebuild-form>
+      <label>
+        <span>{{localize "ACKS-IMPORTER.manager.rebuildPick"}}</span>
+        <select name="pick">
+          {{#each rebuild as |g|}}
+          <optgroup label="{{g.label}}">
+            {{#each g.options as |o|}}<option value="{{o.value}}">{{o.label}}</option>{{/each}}
+          </optgroup>
+          {{/each}}
+        </select>
+      </label>
+      <label>
+        <span>{{localize "ACKS-IMPORTER.ui.reimportMode"}}</span>
+        <select name="mode">
+          {{#each modes as |m|}}<option value="{{m.value}}">{{m.label}}</option>{{/each}}
+        </select>
+      </label>
+      <button type="button" data-action="rebuild" {{disabled busy}}><i class="fa-solid fa-rotate" aria-hidden="true"></i> {{localize "ACKS-IMPORTER.manager.rebuildGo"}}</button>
+    </div>
+    <p class="notes">{{localize "ACKS-IMPORTER.ui.reimportModeHint"}}</p>
+  </section>
+
+  <section class="tab {{tabs.adventures.cssClass}}" data-group="primary" data-tab="adventures">
+    <p class="notes">{{localize "ACKS-IMPORTER.manager.adventuresIntro"}}</p>
+    {{#if adventures.length}}
+    <ul class="acks-extras-importer-manager-adventures">
+      {{#each adventures as |a|}}
+      <li>
+        <div class="acks-extras-importer-manager-adventure-head">
+          <strong>{{a.label}}</strong>
+          <span class="notes">{{a.census}}</span>
+        </div>
+        <div class="acks-extras-importer-manager-actions">
+          <button type="button" data-action="adventureDrop" data-book="{{a.id}}" {{disabled @root.busy}}>{{localize "ACKS-IMPORTER.manager.adventureRebuild"}}</button>
+          <button type="button" data-action="adventureRepair" data-book="{{a.id}}" {{disabled @root.busy}}>{{localize "ACKS-IMPORTER.manager.adventureRepair"}}</button>
+          <button type="button" data-action="adventureWrite" data-book="{{a.id}}" {{disabled @root.busy}}>{{localize "ACKS-IMPORTER.manager.adventureWrite"}}</button>
+        </div>
+      </li>
+      {{/each}}
+    </ul>
+    {{else}}
+    <p class="notes">{{localize "ACKS-IMPORTER.manager.adventureNone"}}</p>
+    {{/if}}
+  </section>
+
+  <section class="tab {{tabs.tools.cssClass}}" data-group="primary" data-tab="tools">
+    <p class="notes">{{localize "ACKS-IMPORTER.manager.toolsIntro"}}</p>
+    <div class="acks-extras-importer-manager-tools">
+      <button type="button" data-action="entries" {{disabled busy}}>{{localize "ACKS-IMPORTER.manager.toolEntries"}}</button>
+      <button type="button" data-action="audit" {{disabled busy}}>{{localize "ACKS-IMPORTER.manager.toolAudit"}}</button>
+      <button type="button" data-action="repair" {{disabled busy}}>{{localize "ACKS-IMPORTER.manager.toolRepair"}}</button>
+      <button type="button" data-action="merchandise" {{disabled busy}}>{{localize "ACKS-IMPORTER.gs.merchGo"}}</button>
+      <button type="button" class="acks-extras-importer-manager-danger" data-action="removeAll" {{disabled busy}}>{{localize "ACKS-IMPORTER.manager.toolRemove"}}</button>
+    </div>
+    <div class="acks-extras-importer-manager-bar">
+      <button type="button" data-action="refresh" {{disabled busy}}><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i> {{localize "ACKS-IMPORTER.manager.refresh"}}</button>
+    </div>
+  </section>
+</div>

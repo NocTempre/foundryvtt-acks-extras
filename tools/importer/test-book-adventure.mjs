@@ -27,6 +27,7 @@ import {
   settlementAdventureId, bookAdventureCookbookId, bookAdventureId, refsOf, adventureRefs, withWorldIds, linkFields,
   seatsLeft, isRoot, isShelvedKind, fillPlan, includedKeys, applyFill, adventureFolderSources, withoutStats,
   sourcesHashOf, WRITE_SLACK_MS, bookAdventureState, legacyAdventuresOf, journalCookbookId, standInsByClaim, withAdventureLinks,
+  adventureDropRows,
 } from "../../scripts/importer/adventure-binding.mjs";
 import { linkRegionData, linkQuestion, LINK_ASK } from "../../scripts/importer/scene-binding.mjs";
 
@@ -535,6 +536,11 @@ const sourceWorld = (drop = []) => ({
   check("the stamp's own write is inside the slack", bookAdventureState({ stamp: { sourcesHash: "h", writtenAt: at }, modifiedTime: at + WRITE_SLACK_MS, sourcesHash: "g" }), "stale");
   check("modified after the write: the Judge's, whatever the sources", bookAdventureState({ stamp: { sourcesHash: "h", writtenAt: at }, modifiedTime: at + WRITE_SLACK_MS + 1, sourcesHash: "g" }), "edited");
   check("a stamp with no write time reads as unedited", bookAdventureState({ stamp: { sourcesHash: "h" }, modifiedTime: at * 9, sourcesHash: "h" }), "held");
+  // A repair writes the Adventure anew whatever its state, a Judge's edit
+  // included; a shelf without one is still absent.
+  check("forced: held is rewritten", bookAdventureState({ stamp: { sourcesHash: "h", writtenAt: at }, modifiedTime: at, sourcesHash: "h", force: true }), "stale");
+  check("forced: the Judge's edit is rewritten", bookAdventureState({ stamp: { sourcesHash: "h", writtenAt: at }, modifiedTime: at + WRITE_SLACK_MS + 1, sourcesHash: "g", force: true }), "stale");
+  check("forced: no stored Adventure is still absent", bookAdventureState({ stamp: null, sourcesHash: "h", force: true }), "absent");
 
   const rows = [
     { _id: "1", flags: stamp("zz.map.adventure", SETTLEMENT_ADVENTURE_KIND) },
@@ -543,6 +549,29 @@ const sourceWorld = (drop = []) => ({
     { _id: "4", flags: {} },
   ];
   check("a book's retired per-map Adventures, and nothing else", legacyAdventuresOf(rows, "zz").map((r) => r._id), ["1"]);
+}
+
+// What a book's rebuild deletes: every document of the book's own, the
+// library's copy and its world twin alike, and never a copy a Judge dragged
+// out, a character a player owns, or a document another book took over.
+{
+  const mk = (tag, owner, extra = {}) => ({ tag, owner, ...extra });
+  const lib = mk("lib", "zz");
+  const twin = mk("twin", "zz");
+  const alone = mk("alone", "zz");
+  const copy = mk("copy", "zz", { worldCopy: true });
+  const pc = mk("pc", "zz", { players: true });
+  const theirs = mk("theirs", "yy");
+  const rows = [
+    { type: "Actor", doc: lib, filed: twin },
+    { type: "Actor", doc: alone, filed: alone },
+    { type: "Actor", doc: copy, filed: copy },
+    { type: "Actor", doc: pc, filed: pc },
+    { type: "Item", doc: theirs, filed: theirs },
+  ];
+  const got = adventureDropRows(rows, "zz", { ownerOf: (d) => d.owner, isWorldCopy: (d) => !!d.worldCopy, isPlayers: (d) => !!d.players });
+  check("drop rows: the book's own, both copies of a twinned row, once each", got.map((r) => `${r.type}:${r.doc.tag}`), ["Actor:lib", "Actor:twin", "Actor:alone"]);
+  check("drop rows: another book's are not offered", adventureDropRows(rows, "yy", { ownerOf: (d) => d.owner, isWorldCopy: () => false, isPlayers: () => false }).map((r) => r.doc.tag), ["theirs"]);
 }
 
 // --- shapes the Foundry half depends on -----------------------------------------------------

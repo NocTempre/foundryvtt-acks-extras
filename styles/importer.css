@@ -566,3 +566,154 @@
   white-space: nowrap;
   font-weight: bold;
 }
+
+/* -------------------------------------------- */
+/*  The import manager                          */
+/* -------------------------------------------- */
+
+/* The tab strip is a part of its own above the body, which is the scroller:
+   the frame keeps its cap and the body takes the surplus (ui-layout.md,
+   "A part root scrolls"). Core pins a type size on `.window-content`, so
+   the body and the strip re-take theirs from the ramp. */
+.acks-extras-importer-manager.application .window-content {
+  padding: 0;
+}
+
+.acks-extras-importer-manager .acks-extras-importer-manager-tabs {
+  flex: 0 0 auto;
+  margin: 0 var(--acks-sp-3);
+  font-size: var(--acks-fs-body);
+}
+
+.acks-extras-importer-manager .acks-extras-importer-manager-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--acks-sp-2) var(--acks-sp-3) var(--acks-sp-3);
+  font-size: var(--acks-fs-body);
+  overflow-wrap: anywhere;
+}
+
+.acks-extras-importer-manager .acks-extras-importer-manager-body button {
+  font-size: var(--acks-fs-body);
+  width: auto;
+  flex: 0 0 auto;
+}
+
+.acks-extras-importer-manager .acks-extras-importer-manager-bar,
+.acks-extras-importer-manager .acks-extras-importer-manager-actions,
+.acks-extras-importer-manager .acks-extras-importer-manager-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--acks-sp-2);
+  align-items: center;
+  margin: var(--acks-sp-2) 0;
+}
+
+.acks-extras-importer-manager .acks-extras-importer-manager-busy,
+.acks-extras-importer-manager .acks-extras-importer-manager-warn {
+  margin: 0 0 var(--acks-sp-2);
+  padding: var(--acks-sp-1) var(--acks-sp-2);
+  border: var(--acks-border-soft);
+  font-size: var(--acks-fs-label);
+}
+
+.acks-extras-importer-manager .acks-extras-importer-manager-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.acks-extras-importer-manager .acks-extras-importer-manager-table th,
+.acks-extras-importer-manager .acks-extras-importer-manager-table td {
+  text-align: left;
+  vertical-align: top;
+  padding: var(--acks-sp-1) var(--acks-sp-2);
+  border-bottom: var(--acks-border-soft);
+}
+
+.acks-extras-importer-manager .acks-extras-importer-manager-table th {
+  font-size: var(--acks-fs-label);
+  text-transform: uppercase;
+  letter-spacing: var(--acks-tracking-caps);
+}
+
+.acks-extras-importer-manager .acks-extras-importer-manager-table tr.is-closed td {
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-importer-manager .acks-extras-importer-manager-tag {
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
+}
+
+/* The chain, numbered in its order (the list keeps its markers; the row
+   inside each item is the flex box), each step's control on its row. */
+.acks-extras-importer-manager .acks-extras-importer-manager-steps {
+  margin: 0;
+  padding-left: 2em;
+}
+
+.acks-extras-importer-manager .acks-extras-importer-manager-steps li {
+  padding: var(--acks-sp-1) 0;
+  border-bottom: var(--acks-border-soft);
+}
+
+.acks-extras-importer-manager .acks-extras-importer-manager-step {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-2);
+}
+
+.acks-extras-importer-manager .acks-extras-importer-manager-step > span {
+  flex: 1 1 auto;
+}
+
+.acks-extras-importer-manager .acks-extras-importer-manager-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--acks-sp-2);
+  align-items: flex-end;
+  margin: var(--acks-sp-2) 0;
+}
+
+.acks-extras-importer-manager .acks-extras-importer-manager-form label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-1);
+  flex: 1 1 12em;
+  min-width: 0;
+  font-size: var(--acks-fs-label);
+}
+
+.acks-extras-importer-manager .acks-extras-importer-manager-form select {
+  font-size: var(--acks-fs-body);
+  min-width: 0;
+}
+
+.acks-extras-importer-manager .acks-extras-importer-manager-adventures {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.acks-extras-importer-manager .acks-extras-importer-manager-adventures li {
+  padding: var(--acks-sp-2);
+  border: var(--acks-border-soft);
+  margin-bottom: var(--acks-sp-2);
+}
+
+.acks-extras-importer-manager .acks-extras-importer-manager-adventure-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--acks-sp-2);
+  align-items: baseline;
+}
+
+.acks-extras-importer-manager .acks-extras-importer-manager-adventure-head .notes {
+  margin: 0;
+}
+
+.acks-extras-importer-manager .acks-extras-importer-manager-danger {
+  margin-left: auto;
+}

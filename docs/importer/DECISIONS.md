@@ -8426,6 +8426,132 @@ journal puts each shared book's fetch and parse back on every player seat
 at every join, for no reader the module has today. The rejected rule is one
 condition in `restoreShelf` if that proves common.
 
+## 2026-10-28 — One management window
+
+The owner asked that importing "have more controls and get merged into one
+management window", during a review of the macro pack that found functions
+no surface reached: a chain step that could be re-run only by hunting its
+api name, a book rebuild offered in one dialog's picker, a repair window
+with no door from the importer, an adventure book with no way to be rebuilt
+at all.
+
+**Ruled.**
+
+- **One window, five tabs** (`apps/import-manager.mjs`): Books, Import,
+  Rebuild, Adventures, Tools. It is reached from the *Manage Imports (GM)*
+  macro, the settings menu and the Books window's walkthrough band. It
+  holds no state and runs nothing of its own: every press hands off to a
+  run that already exists and asks its own questions, so the window adds
+  surface and no second implementation.
+- **Every chain step is a control.** The Import tab lists `GM_STEPS` in the
+  chain's order and runs any one (`runImportStep`). This supersedes IN PART
+  "Three controls, not twenty-one (2026-08-24)": that ruling's reason — a
+  Judge offered twenty-one macros runs them in the wrong order — stands, and
+  the macro count still falls; what changes is that the steps are now
+  offered *in their order, numbered, under the whole-chain button*, which is
+  the shape that ruling found missing. `cookbookUpdateClasses` is still not
+  offered: its modal and its ownership gap are what kept it out of the
+  chain, and a list of steps is the chain.
+- **The Books dialog is not merged.** Connecting, staging, status and the
+  walkthrough are a window of their own with their own live record (TESTING,
+  "The Books window"); the Books tab shows which books are open and opens
+  that window. Folding it in would have moved a tested surface to retest it
+  for no gain in reach.
+- **The Rebuild tab and the Reimport One Shelf dialog share one source**
+  (`rebuildOptions`, `runRebuildPick`), so neither can offer what the other
+  lacks. The dialog stays: the live walks drive it by api.
+
+**Rejected:** a settings-menu entry per tab (five doors to one window);
+registering the window's own repair checks (it opens the repair window on
+the importer's checks instead, one owner per check).
+
+*Cost:* one more AppV2 window to walk live; two tabs (Books, Tools) that
+mostly launch other windows.
+
+## 2026-10-28 — An adventure book is a reimport unit
+
+The owner asked for "a reimport and repair option" for adventure imports
+specifically. A shelf rebuild could not reach an adventure book: its
+documents land as world journals, places, factions, scenes and items, none
+of them on a refill shelf, and `cookbookReimportBook` takes shelf Items
+alone (its own ruling, "A book is a reimport unit too", 2026-09-16).
+
+**Ruled.**
+
+- **`cookbookReimportAdventure(bookId, {mode})` treats the book as one
+  unit.** *Rebuild* (`drop`) deletes every Actor, RollTable, JournalEntry
+  and Item its stamp names — the library's copy and the world twin it is
+  filed under — and the book's Adventure off its shelf, then runs the
+  book's steps again, narrowed to it. *Repair* deletes nothing and runs the
+  same steps with the adventures step forced.
+- **Maps are kept.** A scene carries what no import can put back: the
+  Judge's regions and tokens, fog, drawings, notes. The scenes step already
+  repairs a held map's links in place (`repairHeldMap`); a rebuild runs
+  that. A map a Judge wants fresh is deleted by hand first, as before.
+- **Kept too:** a copy dragged out of the library (`isWorldCopy`), a
+  character a player owns (`playersCharacter`), and a document another book
+  owns that merged one of this book's ids, each by the predicate the shelf
+  rebuild already keeps it by.
+- **Ids are stable across the drop.** Every document the rebuild deletes
+  comes back under the id it stood under ("Every rebuilt document keeps its
+  id", below), so a map's pins and an organisation's seats resolve again
+  without a link pass over them. This is what makes a rebuild safe to offer
+  beside the maps it keeps, and the first review of this change found it
+  false for every type but Item.
+- **Repair forces the Adventure.** `bookAdventureState({force})` reads a
+  stored Adventure as stale whatever its stamp says, a Judge's edit
+  included — a repair is asked for because the Adventure is suspect, and
+  the confirm says the edit goes.
+- **Each narrowed run is quiet about nothing.** `cookbookImportFactions`,
+  `cookbookImportMarketProfiles` and `cookbookImportRollTables` gain
+  `{books}` and return their empty counts without a warning when the books
+  named hold nothing for them; the places and scenes steps are skipped by
+  the caller where the book has no rows of theirs, since their "nothing in
+  any open book" warning is right for a chain run and wrong for one book.
+
+**Rejected:** deleting the maps too (what they carry cannot be put back);
+a rebuild that deletes by type across every book (the shelf rebuild's
+reason, "A book is a reimport unit too"); a repair that writes over the
+Judge's Adventure silently (the confirm names it).
+
+*Cost:* a rebuild re-reads the book's pages once more — minutes for a book
+with maps; a region laid over a map by another book is kept with the map
+and may name a place the rebuild re-created under the same id, which is why
+the ids must stay stable.
+
+## 2026-10-28 — Every rebuilt document keeps its id
+
+**New evidence.** "A rebuilt Item keeps its id" (2026-10-23) rejected
+*actors in the same change* because no walk then rebuilt an actor. The
+adventure-book rebuild above does: it deletes a book's places, people,
+organisations, lists and journals and keeps the book's maps, whose pins,
+region seats and roll-table links point at the deleted documents by id.
+With the Item-only record every pin on a kept map would have dangled after
+the first rebuild — the failure the 2026-10-23 ruling fixed for Items,
+reproduced for every other type by the control that needs it most. The
+2026-10-23 ruling's own note, that `bringAcross` keys a map's world copies
+by their library actor's id, is the same evidence from the other side.
+
+**Ruled.** `deleteImported` records the id of every document it removes, by
+type and cookbook id, and `createDoc` and `createDocs` settle every type's
+id through `itemIds` (named for what it was written for, now given the
+type): the recorded id, else the cookbook id's `stableDocId`, else core's
+own, with `keepId` on every write. A caller's own `_id` stands only under
+its own `keepId`, as before. The ROADMAP row "A rebuilt actor keeps no id"
+is closed by this.
+
+**Rejected:** keeping ids for the adventure rebuild alone (the picker's
+monster rebuild dangled links by the same route, and one funnel is the
+2026-10-23 design); recording ids without the derived fallback (an entry
+never imported in this world would still take core's id, and its first
+rebuild would cut links once more).
+
+*Cost:* a document first imported after this ruling takes a derived id, the
+same in every world; a world copy made by `bringAcross` keeps the library
+id as before. The live record is the adventure rebuild's recipe, step 2
+(every noted id answers again); the picker's monster rebuild owes its own
+walk.
+
 ## 2026-10-28 — ERRATA.md is a repo document, not shipped
 
 11.11.0 shipped `ERRATA.md` at the repo root, which `module.zip` takes whole:

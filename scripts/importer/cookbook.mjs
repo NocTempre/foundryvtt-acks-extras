@@ -74,7 +74,7 @@ import { ensureLibraryPack } from "../lib/library-target.mjs";
 import {
   ADVENTURE_TYPE, BOOK_ADVENTURE_KIND, adventureCookbookId, bookAdventureCookbookId, bookAdventureId, withWorldIds, withAdventureLinks,
   adventureRefs, linkFields, seatsLeft, adventureFolderSources, sourcesHashOf, bookAdventureState, legacyAdventuresOf, stableDocId,
-  journalCookbookId, standInsByClaim,
+  journalCookbookId, standInsByClaim, adventureDropRows,
 } from "./adventure-binding.mjs";
 import { ALIGN_WORD, sheetValuesFromStatline, asPrintedBlock, playerOwned, classBehindQualifier } from "./character-binding.mjs";
 import { ensureSceneThumb } from "./book-adventure.mjs";
@@ -912,39 +912,48 @@ const packOpts = async (type, line = null) => {
 export const createDoc = async (cls, data, { line = null, ...opts } = {}) => {
   const packOptions = await packOpts(cls.documentName, lineOfData(data) ?? line);
   warnStrayFolder(cls.documentName, data, packOptions.pack ?? null);
-  if (cls.documentName !== "Item") return remembered(await cls.create(data, { ...opts, ...packOptions }));
-  const [row] = itemIds([data], { pack: packOptions.pack ?? null, keepId: !!opts.keepId });
+  const [row] = itemIds([data], { type: cls.documentName, pack: packOptions.pack ?? null, keepId: !!opts.keepId });
   return remembered(await cls.create(row, { ...opts, keepId: true, ...packOptions }));
 };
 
 /**
- * The id each imported Item stood under, by cookbook id, recorded as
- * `deleteImported` removes it and taken by the create that puts it back.
+ * The id each imported document stood under, by type then cookbook id,
+ * recorded as `deleteImported` removes it and taken by the create that puts
+ * it back.
  */
-const deletedItemIds = new Map();
+const deletedIds = new Map();
+
+/** The id record of one document type. */
+const deletedIdsOf = (type) => {
+  if (!deletedIds.has(type)) deletedIds.set(type, new Map());
+  return deletedIds.get(type);
+};
 
 /** Whether the collection a write lands in already holds a document id: the pack's index, else the sidebar's. */
 const holdsIn = (type, pack) => (id) =>
   pack ? !!game.packs.get(pack)?.index?.has(id) : !!game.collections?.get(type)?.has(id);
 
 /**
- * Imported Items' creation data under the ids they are written with
+ * Imported documents' creation data under the ids they are written with
  * `keepId`: first the id the entry's document stood under before a rebuild
  * deleted it, else the one its cookbook id derives (`stableDocId`), so a
  * rebuild keeps every uuid that pointed at it. An id the target already
  * holds, or that an earlier row of the same write took, is passed over, and a
  * row left with neither gets core's own: one duplicate id rejects a whole
  * write. A caller's `_id` stands only under its own `keepId`; otherwise it is
- * dropped, as a write without `keepId` drops it. See
- * docs/importer/DECISIONS.md, "A rebuilt Item keeps its id".
+ * dropped, as a write without `keepId` drops it. Named for the Items it was
+ * written for; every type `createDoc` writes goes through it. See
+ * docs/importer/DECISIONS.md, "A rebuilt Item keeps its id" and "Every
+ * rebuilt document keeps its id".
  *
  * @param {object[]} dataList creation data, one per document
- * @param {{pack?: string|null, keepId?: boolean, has?: (id: string) => boolean, deleted?: Map<string, string>}} [opts]
- *   `pack` names the target (null: the sidebar), `has` overrides the lookup in it,
- *   `keepId` is the caller's own option.
+ * @param {{type?: string, pack?: string|null, keepId?: boolean, has?: (id: string) => boolean, deleted?: Map<string, string>}} [opts]
+ *   `type` is the document type (Item), `pack` names the target (null: the
+ *   sidebar), `has` overrides the lookup in it, `deleted` the type's id
+ *   record, `keepId` is the caller's own option.
  * @returns {object[]} new creation data, in input order
  */
-export function itemIds(dataList, { pack = null, keepId = false, has = holdsIn("Item", pack), deleted = deletedItemIds } = {}) {
+export function itemIds(dataList, { type = "Item", pack = null, keepId = false, has = holdsIn(type, pack), deleted = deletedIdsOf(type) } = {}) {
   const taken = new Set();
   return dataList.map((data) => {
     if (keepId && data?._id) {
@@ -1018,14 +1027,13 @@ export async function createDocs(cls, dataList, opts = {}) {
   });
 
   const { line: _ignored, ...callerOpts } = opts;
-  const items = cls.documentName === "Item";
-  const createOpts = items ? { ...callerOpts, keepId: true } : callerOpts;
+  const createOpts = { ...callerOpts, keepId: true };
   for (const { line, entries: given } of byLine.values()) {
     const packOptions = await packOpts(cls.documentName, line);
     // Ids are settled over the whole line at once, so no two chunks of it hand
     // out the same one.
-    const rows = items ? itemIds(given.map((e) => e.data), { pack: packOptions.pack ?? null, keepId: !!callerOpts.keepId }) : null;
-    const entries = rows ? given.map((e, n) => ({ ...e, data: rows[n] })) : given;
+    const rows = itemIds(given.map((e) => e.data), { type: cls.documentName, pack: packOptions.pack ?? null, keepId: !!callerOpts.keepId });
+    const entries = given.map((e, n) => ({ ...e, data: rows[n] }));
     for (let i = 0; i < entries.length; i += WRITE_CHUNK) {
       const chunk = entries.slice(i, i + WRITE_CHUNK);
       const made = await cls
@@ -1211,7 +1219,7 @@ async function deleteImported(type, docs) {
       .deleteDocuments(ids, pack ? { pack } : {})
       .catch((err) => (console.warn(`${MODULE_ID} | delete ${ids.length} ${type}(s) from ${pack || "the sidebar"}`, err), null));
     // What the rebuild puts back takes the id this one stood under (`itemIds`).
-    if (type === "Item") for (const doc of gone ?? []) if (claimedId(doc)) deletedItemIds.set(claimedId(doc), doc.id);
+    for (const doc of gone ?? []) if (claimedId(doc)) deletedIdsOf(type).set(claimedId(doc), doc.id);
   }
   return docs.length;
 }
@@ -2010,50 +2018,26 @@ export const reimportableShelves = () =>
  */
 export async function cookbookReimportShelf(shelf = null, { mode = "drop" } = {}) {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (deletes and re-creates documents).`);
-  const shelves = reimportableShelves();
   if (!shelf) {
     const esc = foundry.utils.escapeHTML ?? ((x) => x);
-    // A shelf no run writes in place says so beside its name.
-    const rebuildOnly = ` (${game.i18n.localize(`${LANG_PREFIX}.ui.reimportRebuildOnly`)})`;
-    const shelfOptions = shelves
-      .map((n) => `<option value="shelf:${esc(n)}">${esc(n)}${REPAIR_RUNS[SHELF_REFILL[n]] ? "" : esc(rebuildOnly)}</option>`)
-      .join("");
-    // Books beside shelves, in one picker: the value says which kind it names.
-    const books = reimportableBooks();
-    const bookOptions = books.map((b) => `<option value="book:${esc(b.id)}">${esc(b.label)}</option>`).join("");
-    // The rules tables are no shelf: they are read into the ruledata store and
-    // merge there, so the option re-reads them in place and deletes nothing.
-    // One document may be re-read alone: the run locates pages for every recipe
-    // it makes, so a single document is seconds where the whole store is minutes.
-    const tablesOption =
-      `<option value="tables:">${esc(game.i18n.localize(`${LANG_PREFIX}.ui.reimportTablesAll`))}</option>` +
-      Object.keys(TABLE_RECIPES)
-        .sort()
-        .map((docId) => `<option value="tables:${esc(docId)}">${esc(game.i18n.format(`${LANG_PREFIX}.ui.reimportTablesOne`, { doc: docId }))}</option>`)
-        .join("");
+    const groups = rebuildOptions();
+    const optionsOf = (rows) => rows.map((o) => `<option value="${esc(o.value)}">${esc(o.label)}</option>`).join("");
     return foundry.applications.api.DialogV2.prompt({
       window: { title: game.i18n.localize(`${LANG_PREFIX}.ui.reimportTitle`) },
       classes: ["acks-ui", "acks-extras-importer-dialog"],
       content: `<p class="notes">${game.i18n.localize(`${LANG_PREFIX}.ui.reimportHint`)}</p>
         <div class="form-group"><label>${game.i18n.localize(`${LANG_PREFIX}.ui.reimportPick`)}</label>
         <select name="pick">
-          <optgroup label="${esc(game.i18n.localize(`${LANG_PREFIX}.ui.reimportGroupShelves`))}">${shelfOptions}</optgroup>
-          ${books.length ? `<optgroup label="${esc(game.i18n.localize(`${LANG_PREFIX}.ui.reimportGroupBooks`))}">${bookOptions}</optgroup>` : ""}
-          <optgroup label="${esc(game.i18n.localize(`${LANG_PREFIX}.ui.reimportGroupTables`))}">${tablesOption}</optgroup>
+          ${groups.map((g) => `<optgroup label="${esc(g.label)}">${optionsOf(g.options)}</optgroup>`).join("")}
         </select></div>
         ${modeSelect()}`,
       ok: {
         label: game.i18n.localize(`${LANG_PREFIX}.ui.reimportGo`),
-        callback: (event, button) => {
-          const [kind, ...rest] = String(button.form.elements.pick.value).split(":");
-          const picked = rest.join(":");
-          const mode = String(button.form.elements.mode?.value ?? "drop");
-          if (kind === "tables") return api().cookbookImportTables(picked ? [picked] : null);
-          return kind === "book" ? cookbookReimportBook(picked, { mode }) : cookbookReimportShelf(picked, { mode });
-        },
+        callback: (event, button) => runRebuildPick(button.form.elements.pick.value, button.form.elements.mode?.value),
       },
     });
   }
+  const shelves = reimportableShelves();
   if (!SHELF_REFILL[shelf]) return ui.notifications.warn(`${MODULE_ID} | "${shelf}" is not a shelf that can be rebuilt on its own.`);
   if (mode === "repair") return repairShelf(shelf);
 
@@ -2084,6 +2068,49 @@ export async function cookbookReimportShelf(shelf = null, { mode = "drop" } = {}
 
 /** The module's own api, for `SHELF_REFILL` to name a run without importing it. */
 const api = () => acksExtras.importer ?? {};
+
+/**
+ * What a rebuild control offers, in groups: every shelf that can be rebuilt
+ * on its own (a shelf no run writes in place says so beside its name), every
+ * book open on this seat with something to rebuild, and the rules tables,
+ * which are no shelf — they are read into the ruledata store and merge there,
+ * so their options re-read in place and delete nothing; one document may be
+ * re-read alone, seconds where the whole store is minutes. An option's
+ * `value` is `<kind>:<id>`, which `runRebuildPick` dispatches on. The
+ * Reimport One Shelf dialog and the import manager's Rebuild tab both draw
+ * from here, so they can never offer different things.
+ * @returns {{key: string, label: string, options: {value: string, label: string}[]}[]}
+ */
+export function rebuildOptions() {
+  const t = (key, data) => (data ? game.i18n.format(`${LANG_PREFIX}.ui.${key}`, data) : game.i18n.localize(`${LANG_PREFIX}.ui.${key}`));
+  const rebuildOnly = ` (${t("reimportRebuildOnly")})`;
+  const shelves = reimportableShelves().map((n) => ({ value: `shelf:${n}`, label: `${n}${REPAIR_RUNS[SHELF_REFILL[n]] ? "" : rebuildOnly}` }));
+  const books = reimportableBooks().map((b) => ({ value: `book:${b.id}`, label: b.label }));
+  const tables = [
+    { value: "tables:", label: t("reimportTablesAll") },
+    ...Object.keys(TABLE_RECIPES)
+      .sort()
+      .map((docId) => ({ value: `tables:${docId}`, label: t("reimportTablesOne", { doc: docId }) })),
+  ];
+  return [
+    { key: "shelves", label: t("reimportGroupShelves"), options: shelves },
+    ...(books.length ? [{ key: "books", label: t("reimportGroupBooks"), options: books }] : []),
+    { key: "tables", label: t("reimportGroupTables"), options: tables },
+  ];
+}
+
+/**
+ * Run one `rebuildOptions` value under `mode`: a shelf or a book is rebuilt
+ * or repaired, the rules tables are re-read in place (every table, or one
+ * document). Resolves to the run's own result.
+ */
+export function runRebuildPick(value, mode = "drop") {
+  const [kind, ...rest] = String(value ?? "").split(":");
+  const picked = rest.join(":");
+  const how = String(mode ?? "drop");
+  if (kind === "tables") return api().cookbookImportTables(picked ? [picked] : null);
+  return kind === "book" ? cookbookReimportBook(picked, { mode: how }) : cookbookReimportShelf(picked, { mode: how });
+}
 
 /** The rebuildable shelf a cookbook id files onto, or null when its shelf has no refill run. */
 const refillShelfOf = (id) => {
@@ -2154,6 +2181,141 @@ export async function cookbookReimportBook(bookId, { mode = "drop" } = {}) {
   for (const run of runs) refill[run] = (await api()[run]()) ?? null;
   ui.notifications.info(game.i18n.format(`${LANG_PREFIX}.ui.reimportDoneBook`, { n: doomed.length, book: label }));
   return { book: bookId, removed: doomed.length, shelves: [...shelves].sort(), refill };
+}
+
+/**
+ * Every adventure book open on this seat with a cookbook, labelled, in label
+ * order, each with what the library holds of its Adventure (`bookCensus`).
+ * What a control that rebuilds or repairs an adventure book offers.
+ * @returns {Promise<{id: string, label: string, census: {adventure: object|null, legacy: number}}[]>}
+ */
+export async function adventureBooks() {
+  const rows = [];
+  for (const id of Object.keys(BOOKS)) {
+    if (!bookIsJudges(id) || !ctx?.sessionDocs?.has(id) || !data.books.has(id)) continue;
+    rows.push({ id, label: bookLabel(id), census: await bookCensus(id) });
+  }
+  return rows.sort((a, b) => a.label.localeCompare(b.label));
+}
+
+/** Whether a book's cookbook holds a row the places step would make a place of. */
+function hasPlaceRows(bookId) {
+  const entries = data.books.get(bookId)?.entries ?? {};
+  const spaces = keySpacesOf(entries);
+  return Object.entries(entries).some(([id, e]) => isPoiEntry(e) || isRegionSite(e) || isRegionOverview(e) || isKeyedPlace(e, id, spaces));
+}
+
+/**
+ * The import chain's steps that read ONE adventure book, narrowed to it, in
+ * the chain's order: its monsters and people the world lacks first, since
+ * every later step stands on them, and its Adventure last, since that is a
+ * copy of what the rest made. A step with nothing of the book to read is
+ * skipped rather than left to warn about an empty run. One failed step does
+ * not stop the rest; each is reported.
+ * @returns {Promise<{steps: {key: string, result: unknown}[], errors: {key: string, message: string}[]}>}
+ */
+async function runAdventureBookSteps(bookId, { force = false } = {}) {
+  const a = api();
+  const steps = [];
+  const errors = [];
+  const run = async (key, fn) => {
+    try {
+      steps.push({ key, result: (await fn()) ?? null });
+    } catch (err) {
+      console.error(`${MODULE_ID} | reimport ${bookId}: ${key}`, err);
+      errors.push({ key, message: err?.message ?? String(err) });
+    }
+  };
+  const only = { books: [bookId] };
+  await run("stepMonsters", async () => {
+    const members = familyMemberIds();
+    const present = await importedIdSet();
+    const ids = actorEntriesAcrossBooks()
+      .rows.filter((r) => r.bookId === bookId && !members.has(r.id) && !present.has(r.id))
+      .map((r) => r.id);
+    return ids.length ? importMany(ids, game.i18n.localize(`${LANG_PREFIX}.gs.stepMonsters`)) : 0;
+  });
+  await run("stepJournals", () => a.cookbookImportJournals(only));
+  if (hasPlaceRows(bookId)) await run("stepPoi", () => a.cookbookImportPoiPlaces(only));
+  await run("stepFactions", () => a.cookbookImportFactions(only));
+  await run("stepMarkets", () => a.cookbookImportMarketProfiles(only));
+  await run("stepRollTables", () => a.cookbookImportRollTables(only));
+  await run("stepAdventureItems", () => a.cookbookImportAdventureItems(only));
+  if (Object.keys(data.books.get(bookId)?.scenes ?? {}).length) {
+    await run("stepScenes", () => a.cookbookImportScenes(only));
+    await run("stepLinks", () => a.cookbookImportLinks({ quiet: true }));
+  }
+  await run("stepAdventures", () => a.cookbookImportAdventures({ ...only, force }));
+  return { steps, errors };
+}
+
+/**
+ * GM: rebuild or repair everything imported from ONE adventure book.
+ *
+ * `mode: "drop"` deletes every Actor, RollTable, JournalEntry and Item the
+ * book's stamp names, in the library and in the world, and the book's
+ * Adventure off its shelf, then runs the book's steps again
+ * (`runAdventureBookSteps`). What comes back stands under the same ids
+ * (`stableDocId`), so a map's pins and an organisation's seats still resolve.
+ * Kept: the book's maps, which the scenes step refreshes in place and which
+ * carry a Judge's regions, fog and tokens; a copy dragged out of the library
+ * (`isWorldCopy`); a character a player owns (`playersCharacter`); a
+ * document another book owns that merged one of this book's ids. See
+ * docs/importer/DECISIONS.md, "An adventure book is a reimport unit".
+ *
+ * `mode: "repair"` deletes nothing: it imports what the world lacks of the
+ * book, refreshes its held maps, and writes its Adventure anew whatever its
+ * state — a Judge's edit to the Adventure on the shelf included (`force`).
+ *
+ * @param {string} bookId a Judge's book of BOOKS, open on this seat.
+ * @param {{mode?: "drop"|"repair"}} [opts]
+ * @returns {Promise<{book: string, mode: string, removed: number, steps: object[], errors: object[]}|null|undefined>}
+ */
+export async function cookbookReimportAdventure(bookId, { mode = "drop" } = {}) {
+  if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (deletes and re-creates documents).`);
+  const label = bookLabel(bookId);
+  const t = (key, data) => game.i18n.format(`${LANG_PREFIX}.ui.${key}`, data ?? {});
+  if (!bookIsJudges(bookId) || !data.books.has(bookId)) return ui.notifications.warn(t("reimportAdventureNotJudges", { book: label }));
+  if (!ctx?.sessionDocs?.has(bookId)) return ui.notifications.warn(t("reimportNotConnected", { book: label }));
+  const force = mode === "repair";
+  let removed = 0;
+  if (!force) {
+    const ownerOf = (doc) => {
+      const flag = doc.getFlag?.(MODULE_ID, "cookbook") ?? doc.flags?.[MODULE_ID]?.cookbook ?? null;
+      return flag?.id ? bookOfCookbookId(flag.id, flag.book) : null;
+    };
+    const doomed = adventureDropRows(await bookDocuments(bookId), bookId, { ownerOf, isWorldCopy, isPlayers: playersCharacter });
+    const byType = new Map();
+    for (const { type, doc } of doomed) byType.set(type, [...(byType.get(type) ?? []), doc]);
+    const plural = (type, n) => {
+      const key = foundry.utils.getDocumentClass(type)?.metadata?.[n === 1 ? "label" : "labelPlural"];
+      return key ? game.i18n.localize(key) : type;
+    };
+    const counts = [...byType].map(([type, docs]) => `${docs.length} ${plural(type, docs.length)}`).join(", ") || t("reimportAdventureNothing");
+    const ok = await confirmRepair([t("reimportAdventureConfirmDrop", { book: label, counts }), t("reimportAdventureKeeps")], "reimportAdventureTitle");
+    if (!ok) return null;
+    for (const [type, docs] of byType) removed += await deleteImported(type, docs);
+    // The Adventure is the copy of what was just deleted; the last step
+    // writes a fresh one, and a shelf without one is the "absent" state.
+    const pack = findLibraryPack(ADVENTURE_TYPE, lineOf(bookId));
+    const advId = bookAdventureId(bookId);
+    if (pack && [...((await pack.getIndex().catch(() => null)) ?? [])].some((r) => r._id === advId)) {
+      await foundry.utils
+        .getDocumentClass(ADVENTURE_TYPE)
+        .deleteDocuments([advId], { pack: pack.collection })
+        .catch((err) => console.warn(`${MODULE_ID} | delete the Adventure of ${bookId}`, err));
+    }
+    forgetImportedIndex();
+  } else {
+    const ok = await confirmRepair([t("reimportAdventureConfirmRepair", { book: label })], "reimportAdventureTitle");
+    if (!ok) return null;
+  }
+  const { steps, errors } = await runAdventureBookSteps(bookId, { force });
+  const tail = errors.length ? t("reimportAdventureErrors", { n: errors.length }) : "";
+  ui.notifications[errors.length ? "warn" : "info"](
+    force ? t("reimportAdventureRepaired", { book: label, steps: steps.length, errors: tail }) : t("reimportAdventureDone", { book: label, removed, steps: steps.length, errors: tail }),
+  );
+  return { book: bookId, mode: force ? "repair" : "drop", removed, steps, errors };
 }
 
 /* -------------------------------------------- */
@@ -4411,10 +4573,10 @@ async function importRegionRow({ bookId, id, e, region }, tally, run) {
  * demand replaces an earlier one's" and "AX3's demand grid is corrected as
  * printing errata".
  */
-export async function cookbookImportMarketProfiles() {
+export async function cookbookImportMarketProfiles({ books: only = null } = {}) {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates actors).`);
   const books = [...data.books.keys()]
-    .filter((b) => ctx.sessionDocs.has(b))
+    .filter((b) => ctx.sessionDocs.has(b) && (!only || only.includes(b)))
     .map((bookId) => {
       const entries = Object.entries(data.books.get(bookId).entries);
       return {
@@ -4424,7 +4586,8 @@ export async function cookbookImportMarketProfiles() {
       };
     })
     .filter((b) => b.grids.length);
-  if (!books.length) return ui.notifications.warn(`${MODULE_ID} | no market grids in any open book.`);
+  // Narrowed to books that print no grid, the step has nothing to say.
+  if (!books.length) return only ? { made: 0, updated: 0, kept: 0, paired: 0, waiting: 0, refused: 0 } : ui.notifications.warn(`${MODULE_ID} | no market grids in any open book.`);
   await primeMerchandiseCatalog().catch(() => null);
   const resolve = goodsResolver(merchandiseCatalog());
   const pairs = placePairs(data.books);
@@ -4569,9 +4732,9 @@ export async function cookbookImportMarketProfiles() {
  * is an authored row", "A body becomes a faction one way: a row that was
  * read" and "A body's unnamed people are a grid the page prints".
  */
-export async function cookbookImportFactions() {
+export async function cookbookImportFactions({ books = null } = {}) {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates actors).`);
-  const openBooks = [...data.books.keys()].filter((b) => ctx.sessionDocs.has(b));
+  const openBooks = [...data.books.keys()].filter((b) => ctx.sessionDocs.has(b) && (!books || books.includes(b)));
   const authored = [];
   const grids = [];
   for (const bookId of openBooks) {
@@ -4581,8 +4744,9 @@ export async function cookbookImportFactions() {
       else if (isStrengthGridRow(e)) grids.push({ bookId, id, e, plan: strengthPlan(e) });
     }
   }
-  if (!authored.length) return ui.notifications.warn(`${MODULE_ID} | no organisations in any open book — connect AX3 first.`);
   const counts = { made: 0, already: 0, rostered: 0, missing: 0, refused: 0, related: 0, counted: 0, figuresKept: 0 };
+  // Narrowed to books that print no organisation, the step has nothing to say.
+  if (!authored.length) return books ? counts : ui.notifications.warn(`${MODULE_ID} | no organisations in any open book — connect AX3 first.`);
 
   // The quarter's own place, made the way the POI step makes it, so whichever
   // step runs first the other finds the same document.
@@ -4733,9 +4897,10 @@ export async function cookbookImportFactions() {
  * The formula comes from the page (dice locator) or, when the rows start at
  * 1, mechanically from the shipped range structure.
  */
-export async function cookbookImportRollTables() {
+export async function cookbookImportRollTables({ books = null } = {}) {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates roll tables).`);
-  const openBooks = [...data.books.keys()].filter((b) => ctx.sessionDocs.has(b));
+  const wanted = books ? new Set(books) : null;
+  const openBooks = [...data.books.keys()].filter((b) => ctx.sessionDocs.has(b) && (!wanted || wanted.has(b)));
   const present = await importedIdsOfType("RollTable", game.tables);
   let made = 0;
   let skipped = 0;
@@ -5883,7 +6048,7 @@ export async function cookbookImportLinks({ quiet = false } = {}) {
  * @returns {Promise<object|undefined>} the counts, with `created` naming each
  *   Adventure and shelf this run made, and `retired` each per-map Adventure it deleted
  */
-export async function cookbookImportAdventures({ books: only = null } = {}) {
+export async function cookbookImportAdventures({ books: only = null, force = false } = {}) {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (writes the library).`);
   const wanted = only ? new Set(only) : null;
   const books = Object.keys(BOOKS).filter((b) => bookIsJudges(b) && ctx.sessionDocs.has(b) && data.books.has(b) && (!wanted || wanted.has(b)));
@@ -5896,7 +6061,7 @@ export async function cookbookImportAdventures({ books: only = null } = {}) {
   try {
     for (const bookId of books) {
       bar.step(bookLabel(bookId));
-      counts.books[bookId] = await ensureBookAdventure(bookId, counts);
+      counts.books[bookId] = await ensureBookAdventure(bookId, counts, { force });
     }
   } finally {
     bar.finish();
@@ -5922,9 +6087,11 @@ export async function cookbookImportAdventures({ books: only = null } = {}) {
  * records its own time in the stamp (`writtenAt`), read back from the stored
  * document, which is what the next run tells an edit by. The book's retired
  * per-map Adventures are deleted once its own stands, never after a failure.
+ * `force` rebuilds a held or Judge-edited Adventure too: the Judge asked for
+ * it (`cookbookReimportAdventure`).
  * @returns {Promise<string>} what became of it: written, rebuilt, kept, held, empty or failed
  */
-async function ensureBookAdventure(bookId, counts) {
+async function ensureBookAdventure(bookId, counts, { force = false } = {}) {
   try {
     const source = await bookAdventureSource(bookId);
     if (!source) {
@@ -5941,6 +6108,7 @@ async function ensureBookAdventure(bookId, counts) {
       stamp: stored ? (stored.flags?.[MODULE_ID]?.cookbook ?? {}) : null,
       modifiedTime: stored?._stats?.modifiedTime ?? null,
       sourcesHash: source.flags[MODULE_ID].cookbook.sourcesHash,
+      force,
     });
     let outcome = state === "edited" ? "kept" : state;
     if (state === "absent" || state === "stale") {

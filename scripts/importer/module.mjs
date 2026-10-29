@@ -87,10 +87,11 @@ import {
   importWeapons, importArmor,
   importClasses, cookbookUpdateClasses, importTemplatePackages, importTraps, importSpells, importVariations, importVehicles, importMerchandise,
   cookbookImportJournals, cookbookImportPoiPlaces, cookbookImportMarketProfiles, cookbookImportFactions, cookbookImportRollTables, cookbookImportScenes, cookbookAudit, lastAudit, cookbookReimportShelf, reimportableShelves, cookbookReimportBook, reimportableBooks, cookbookReimportEntries,
-  cookbookImportAdventures, bookCensus,
+  cookbookImportAdventures, bookCensus, cookbookReimportAdventure, adventureBooks, rebuildOptions, runRebuildPick,
   cookbookImportAdventureItems, cookbookImportLinks,
 } from "./cookbook.mjs";
-import { registerGettingStartedSettings, runImportEverything, gettingStartedDismissed, SETTING_DISMISSED } from "./getting-started.mjs";
+import { registerGettingStartedSettings, runImportEverything, runImportStep, GM_STEPS, gettingStartedDismissed, SETTING_DISMISSED } from "./getting-started.mjs";
+import { ImportManagerMenu, installImportManager, openImportManager } from "./apps/import-manager.mjs";
 import { registerOseSourceSetting } from "./ose-source.mjs";
 import { registerLegacyTextCheck, resolveLegacyText } from "./legacy-text.mjs";
 import { registerOseSourceDialog, oseBrowseDialog, oseCalibrateDialog, oseConvertAll } from "./ose-app.mjs";
@@ -1628,6 +1629,10 @@ async function booksDialog(capture, { firstRun = false, autoClose = false, notic
        <div class="acks-extras-importer-gs-action">
          <button type="button" data-gs-merch><i class="fa-solid fa-boxes-stacked"></i> ${G("merchGo")}</button>
          <span class="notes">${G("merchNote")}</span>
+       </div>
+       <div class="acks-extras-importer-gs-action">
+         <button type="button" data-gs-manage><i class="fa-solid fa-hanging-sign"></i> ${G("manageGo")}</button>
+         <span class="notes">${G("manageNote")}</span>
        </div>`
     : "";
   const intro = `<details class="acks-extras-importer-gs"${startOpen ? " open" : ""}>
@@ -1900,6 +1905,7 @@ async function booksDialog(capture, { firstRun = false, autoClose = false, notic
 
       root.querySelector("[data-gs-import]")?.addEventListener("click", () => runImportEverything(root));
       root.querySelector("[data-gs-merch]")?.addEventListener("click", () => acksExtras.markets?.buildMerchandiseFromTables?.());
+      root.querySelector("[data-gs-manage]")?.addEventListener("click", () => openImportManager());
       // Persists the moment it is toggled: a dialog closed via Escape or the
       // X never reads its form, and "don't show this again" must stick however
       // the reader leaves.
@@ -2895,6 +2901,15 @@ Hooks.once("init", () => {
   game.settings.register(MODULE_ID, SETTING_SHELF, { scope: "world", config: false, type: Object, default: {} });
   registerGettingStartedSettings();
   registerLegacyTextCheck();
+  // The GM's way in from settings to every import control.
+  game.settings.registerMenu(MODULE_ID, "importManager", {
+    name: `${LANG_PREFIX}.manager.menuName`,
+    label: `${LANG_PREFIX}.manager.menuLabel`,
+    hint: `${LANG_PREFIX}.manager.menuHint`,
+    icon: "fa-solid fa-hanging-sign",
+    type: ImportManagerMenu,
+    restricted: true,
+  });
   // An Adventure the importer wrote imports as a fill, never an overwrite.
   registerBookAdventureHooks();
   setWorker(`modules/${MODULE_ID}/vendor/pdfjs/pdf.worker.mjs`);
@@ -2944,10 +2959,18 @@ Hooks.once("ready", async () => {
     cookbookImportTables,
     cookbookImportJournals, cookbookImportPoiPlaces, cookbookImportMarketProfiles, cookbookImportFactions, cookbookImportRollTables, cookbookImportScenes, cookbookAudit, lastAudit,
     cookbookReimportShelf, reimportableShelves, cookbookReimportBook, reimportableBooks, cookbookReimportEntries,
+    /** What the rebuild control offers (shelves, books, tables), and the run of one of its values. */
+    rebuildOptions, runRebuildPick,
     cookbookImportAdventures, bookCensus,
+    /** An adventure book rebuilt (`mode: "drop"`) or repaired (`mode: "repair"`) as one unit, and the books it offers. */
+    cookbookReimportAdventure, adventureBooks,
     cookbookImportAdventureItems, cookbookImportLinks,
     /** The whole import chain, in dependency order — the "Import Everything" control. */
     importEverything: () => runImportEverything(),
+    /** One step of the chain by its `GM_STEPS` key. */
+    importStep: runImportStep,
+    /** The import manager window, on `tab` when given. */
+    openImportManager,
     importEquipment, importAllEquipment, cookbookEquipmentIds, repairEquipmentAbilities,
     /** Book-text placeholders an earlier version left, replaced where this seat can read their books. */
     resolveLegacyText,
@@ -2973,6 +2996,24 @@ Hooks.once("ready", async () => {
     RECIPES, BOOKS,
   };
   acksExtras.importer = api;
+  installImportManager({
+    api,
+    openBooks: () => openBooksDialog(),
+    bookRows: () =>
+      Object.keys(BOOKS).map((id) => ({
+        id,
+        label: BOOKS[id]?.label ?? id,
+        judge: bookIsJudges(id),
+        open: sessionDocs.has(id),
+        entries: cookbookCount(id),
+        recipes: allRecipes().filter((r) => r.book === id).length,
+      })),
+    steps: GM_STEPS,
+    runStep: runImportStep,
+    runEverything: () => runImportEverything(),
+    merchandise: () => acksExtras.markets?.buildMerchandiseFromTables?.(),
+    lib: () => acksExtras.lib,
+  });
   document.addEventListener("click", onCiteClick, { capture: true });
 
   // Provide the ability-resolution contract (lib docs/API.md): other features

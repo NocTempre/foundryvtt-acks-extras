@@ -436,6 +436,104 @@ welded clause), no lowercase run straight into uppercase, and the Earthshooter
 description is one paragraph that ends above the table following it on its
 page. Portable Battering Ram and Personal Automaton read as separate words.
 
+## The import manager
+
+**Manage Imports (GM)** — `acksExtras.importer.openImportManager({tab})`.
+One AppV2 window, five tabs; it runs nothing of its own, so the walk is each
+tab's primary action reaching the run it names.
+
+### Fixtures
+
+- A Judge's adventure book open on this seat (AX1 is the one with maps,
+  places, items and tables all at once), already imported once by *Import
+  Everything*, so its Adventure stands on its shelf and the Adventures tab
+  has a row with a census.
+- A second non-adventure book open (the Rulebook), for the Books tab's
+  "open" column and the Rebuild tab's book group.
+
+### Steps
+
+1. Run the macro on the GM seat.
+   *Observable:* one window titled Manage Imports, a tab strip of five, the
+   Books tab open; the frame scrolls its body, not the strip
+   (`.acks-extras-importer-manager-body` is the element with `overflow-y:
+   auto`); no `id=` on anything inside the body
+   (`root.querySelectorAll("[id]")` is empty below the window root). Run
+   the macro again: the same window is raised, not a second.
+2. Books tab: the open count equals the books `api.bookOpen(id)` answers
+   true for over `Object.keys(api.BOOKS)`; each row's "What it brings"
+   matches `cookbookCount(id)`. **Open the Books window** opens it; the
+   Books window walkthrough band's **Manage imports…** opens this window
+   back.
+3. Import tab: the steps are listed in `GM_STEPS` order, numbered. Press
+   **Run** on *Importing roll tables…*.
+   *Observable:* the window's status line names the step while it runs and
+   its buttons are disabled; the step's own notification lands; the buttons
+   return.
+4. Rebuild tab: the picker's groups equal `rebuildOptions()` — the same
+   options as *Reimport One Shelf*'s picker, in the same order. Pick
+   *Rules tables → one document*, mode Repair, **Go**.
+   *Observable:* the table's re-read notification, nothing deleted.
+5. Adventures tab: one row per open Judge's book, each with the census line
+   (`bookCensus`). The three actions are walked in the recipe below.
+6. Tools tab: **Repair checks** opens the repair window already scanning;
+   **(Re)import individual entries** opens the picker; **Audit the recipes**
+   runs the audit. **Remove ALL imports** asks first — Cancel.
+7. Settings → Module settings → ACKS Extras → *Manage imports*: opens the
+   same window; with it already open, raises it.
+8. Join as a player: the macro warns "Only a GM can manage imports" and
+   opens nothing; the settings menu is not listed.
+
+### Teardown
+
+Close the window. Nothing was built; the roll-table step and the table
+re-read wrote in place.
+
+## Rebuild or repair an adventure book
+
+`acksExtras.importer.cookbookReimportAdventure(bookId, {mode})`, from the
+Adventures tab's **Rebuild** and **Repair**.
+
+### Fixtures
+
+- AX1 open and imported, as above. Note before the walk: the ids of its
+  places (`game.actors.filter(a => a.getFlag("acks-extras","cookbook")?.book
+  === "ax1")`), its journals, its roll tables, its items, and the id of its
+  Adventure on the shelf (`bookAdventureId("ax1")`).
+- One place dragged out of the library into the sidebar (a world copy), one
+  of the book's pregen characters handed to a player (owner), and one scene
+  of the book with a drawing added by hand. Each is what the rebuild must
+  keep.
+
+### Steps
+
+1. **Repair** on the AX1 row. Edit the Adventure's description on the shelf
+   first.
+   *Observable:* the confirm says the edited Adventure is written anew;
+   after it, the Adventure's `flags.acks-extras.cookbook.writtenAt` is
+   fresh and the description edit is gone; no place, journal, table or item
+   was deleted (same ids, same `_stats.createdTime`); the scenes step's
+   summary names the held maps it repaired; the result object lists one
+   entry per step and no errors.
+2. **Rebuild** on the AX1 row.
+   *Observable:* the confirm names a count per document type and says the
+   maps, the dragged copy and the player's character are kept. After it:
+   every noted place, journal, table and item id answers again with a later
+   `_stats.createdTime`; the Adventure stands again under the same id with a
+   fresh `writtenAt`; the scene still carries the hand-drawn drawing; the
+   dragged copy and the player's character are untouched; a pin on the
+   scene's region still resolves to its place; the result's `removed`
+   equals the confirm's total.
+3. The same two actions on a row for a book that is not open (close it,
+   reload): the Adventures tab lists no such row, and the api call warns
+   "not open on this seat" and deletes nothing.
+
+### Teardown
+
+The rebuilt documents are the fixtures from then on, under the ids they
+had. Delete the hand drawing, return the pregen to the Judge, delete the
+dragged copy by id.
+
 ## One entry at a time
 
 **(Re)import Individual Entries (GM)** —

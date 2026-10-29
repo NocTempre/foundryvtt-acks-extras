@@ -138,7 +138,34 @@ class ItemMock {
   }
 }
 
-const packs = [shelf];
+/** An Actor shelf beside the Item one: every type is written through the same funnel. */
+const APACK = "world.acks-cookbook--actor";
+const ashelf = {
+  collection: APACK,
+  documentName: "Actor",
+  metadata: { packageType: "world", label: libraryPackLabel("Actor"), type: "Actor" },
+  index: new Map(),
+  docs: new Map(),
+  async getDocuments() {
+    return [...this.docs.values()];
+  },
+};
+const actorWrites = [];
+class ActorMock {
+  static documentName = "Actor";
+  static async create(data, opts = {}) {
+    actorWrites.push({ ids: [data._id], keepId: !!opts.keepId, pack: opts.pack ?? null });
+    const target = opts.pack === APACK ? ashelf : null;
+    const _id = opts.keepId && data._id ? data._id : mint();
+    if (target?.index.has(_id)) throw new Error("duplicate _id");
+    const doc = { ...makeDoc(data, _id), documentName: "Actor", pack: APACK };
+    target?.docs.set(_id, doc);
+    target?.index.set(_id, { _id });
+    return doc;
+  }
+}
+
+const packs = [shelf, ashelf];
 globalThis.game = {
   packs: {
     filter: (fn) => packs.filter(fn),
@@ -147,7 +174,7 @@ globalThis.game = {
   },
   items: [],
   actors: [],
-  collections: new Map([["Item", new Map()]]),
+  collections: new Map([["Item", new Map()], ["Actor", new Map()]]),
   user: { isGM: true },
   i18n: { format: () => "", localize: () => "" },
 };
@@ -168,6 +195,16 @@ globalThis.foundry = {
   check("a single write is made with keepId, under the derived id", writes.at(-1).keepId && one.id === stableDocId("def.class.epsilon"));
   const twin = await createDoc(ItemMock, row("def.class.epsilon"));
   check("a second document under a held id is written under core's own, not refused", !!twin && twin.id.startsWith("minted"));
+}
+{
+  // A place, a person, a list or a journal is written as an Item is: under
+  // the id it stood under, else its derived one, with keepId — a book
+  // rebuild keeps the maps that point at them by id.
+  const place = { name: "a place", type: "location", flags: claim("zz.district.one") };
+  const made = await createDoc(ActorMock, place);
+  check("an Actor is written with keepId under its derived id", actorWrites.at(-1).keepId && made.id === stableDocId("zz.district.one"));
+  const twin = await createDoc(ActorMock, { ...place });
+  check("a second Actor under a held id takes core's own", !!twin && twin.id.startsWith("minted"));
 }
 {
   ItemMock.failBatch = true;

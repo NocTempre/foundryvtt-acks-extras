@@ -310,6 +310,28 @@ left too; open the book and repair again.
 *The entry picker in Repair mode: a monster family's row carries the hammer,
 its members do not.*
 
+### Managing imports
+
+**Manage Imports (GM)**, in the macro compendium's *Import from your books*
+folder, in *Module settings*, and as **Manage imports…** in the Books
+window's walkthrough band, opens one window with every import control:
+
+- **Books** — which books this build reads and which are open on this seat,
+  and the way to the Books window.
+- **Import** — the import chain, step by step in its order. **Import
+  everything** runs the whole chain; **Run** beside a step runs that one,
+  for when its documents were deleted or a book was connected after the
+  chain ran. Every step passes over what the world already holds.
+- **Rebuild** — a shelf, a book or the rules tables, in either mode above.
+  The same choices as **Reimport One Shelf**.
+- **Adventures** — each adventure book open on this seat, with what its
+  Adventure carries: see *Rebuild or repair an adventure book* below.
+- **Tools** — the entry picker, the recipe audit, the repair window, the
+  merchandise build and **Remove ALL imports**.
+
+The window runs one thing at a time and says what is running; each control
+asks before it deletes.
+
 ### Rules tables
 
 The rules tables arrive with **Import Everything**. To read them again on
@@ -452,6 +474,27 @@ The Books window shows each open adventure book's count of what its Adventure
 holds, under the book's row in **Open this session**.
 
 ![](../releases/v11.6.0/importer-census.png)
+
+### Rebuild or repair an adventure book
+
+The **Adventures** tab of *Manage Imports* lists each adventure book open on
+this seat with three actions:
+
+- **Rebuild** deletes everything imported from the book — its people and
+  monsters, journals, places, organisations, roll tables and items, and its
+  Adventure on the shelf — and imports the book again. Everything comes
+  back under the same ids, so pins on its maps and seats in its
+  organisations still point at the right thing. Its **maps are kept**, with
+  your regions, fog and tokens, and refreshed in place. A copy you dragged
+  out of the library, a character a player owns, and a document another
+  book took over are kept too. The confirm names the count per type.
+- **Repair** deletes nothing. It imports what your world lacks of the book,
+  refreshes its maps, and writes its Adventure anew — including one you
+  edited on the shelf, which the confirm says.
+- **Write Adventure** writes the Adventure alone, as the last step of
+  *Import Everything* does.
+
+To rebuild a map as well, delete the scene first and then Rebuild or Repair.
 
 ### People an adventure prints in full
 

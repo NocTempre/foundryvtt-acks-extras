@@ -11,6 +11,75 @@ invent**:
 - **Enhance**: alternate sheets, libWrapper wraps, socketlib GM routing.
 - **Invent**: kept to nothing the system already provides.
 
+## The import manager
+
+One window (`apps/import-manager.mjs`, `openImportManager({tab})`) holds a
+Judge's import controls, reached from the *Manage Imports (GM)* macro, the
+settings menu (`importManager`, `ImportManagerMenu`) and the Books window's
+walkthrough band. It keeps no state: `installImportManager(host)` is given
+the importer api, the chain and the runs at ready, every tab reads them at
+render, and every press hands off to a run that already exists and asks its
+own questions. Five tabs:
+
+- **Books** — every book this build reads (`BOOKS`), whether it is open on
+  this seat and what it brings (`cookbookCount`, the recipes naming it), and
+  the button that opens the Books window. Connecting, staging and status stay
+  in that window; the tab is the status line and the way there.
+- **Import** — the chain (`GM_STEPS`, exported from `getting-started.mjs`) in
+  its order, numbered, run whole (`runImportEverything`) or one step at a
+  time (`runImportStep(key)`, `api.importStep`).
+- **Rebuild** — the shelf, book and rules-table options of
+  `rebuildOptions()` under a mode, run by `runRebuildPick(value, mode)`. The
+  Reimport One Shelf dialog draws from the same two functions, so the two
+  surfaces can never offer different things.
+- **Adventures** — each adventure book open on this seat (`adventureBooks()`,
+  each with its `bookCensus`): Rebuild and Repair run
+  `cookbookReimportAdventure` in its two modes (below), Write Adventure runs
+  the adventures step for that book alone.
+- **Tools** — the entry picker, the audit, the repair window on the
+  importer's checks (every check where it registers none), the merchandise
+  build, Remove All Imports.
+
+One run at a time: the window names what runs in a status line and disables
+its buttons until the run resolves, then re-renders.
+
+## An adventure book, rebuilt or repaired
+
+`cookbookReimportAdventure(bookId, {mode})` treats one Judge's book as a
+unit, as `cookbookReimportBook` treats a book's shelf items.
+
+**Rebuild** (`mode: "drop"`) deletes every Actor, RollTable, JournalEntry and
+Item the book's stamp names (`bookDocuments`, both the library's copy and
+the world twin it is filed under, `adventureDropRows`) and the book's
+Adventure off its shelf, forgets the import index, then runs the book's
+steps again. Not deleted: the book's maps, which the scenes step refreshes in
+place (`repairHeldMap`) and which carry the Judge's regions, fog and tokens;
+a copy dragged out of the library (`isWorldCopy`); a character a player owns
+(`playersCharacter`); a document another book owns that merged one of this
+book's ids. What comes back stands under the ids it had: `deleteImported`
+records every removed document's id by type and cookbook id, and
+`createDoc`/`createDocs` settle every type's id through `itemIds` (the
+record, else `stableDocId`, else core's), so a map's pins and an
+organisation's seats resolve again.
+
+**Repair** (`mode: "repair"`) deletes nothing: the same steps run, each
+passing over what the world holds, and the adventures step runs with
+`force`, which `bookAdventureState` reads as stale whatever the stamp says,
+so the Adventure is written anew, a Judge's edit to it included.
+
+The steps (`runAdventureBookSteps`) are the chain's that read an adventure
+book, narrowed to it in the chain's order: its monsters and people the world
+lacks (`importMany`), journals, places (only where the book has place rows),
+factions, market profiles, roll tables, the items it introduces, its maps and
+their links (only where it has scene rows), and its Adventure. The narrowed
+runs (`cookbookImportJournals`, `cookbookImportPoiPlaces`,
+`cookbookImportFactions`, `cookbookImportMarketProfiles`,
+`cookbookImportRollTables`, `cookbookImportAdventureItems`,
+`cookbookImportScenes`, `cookbookImportAdventures`) each take `{books}` and
+return their empty counts quietly when the books named hold nothing for them.
+One failed step is logged and reported; the rest run. The result is
+`{book, mode, removed, steps, errors}`.
+
 ## A settlement's map
 
 The map step (`cookbookImportScenes`) makes a WORLD scene from a scene recipe

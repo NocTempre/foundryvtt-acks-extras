@@ -628,16 +628,45 @@ export const WRITE_SLACK_MS = 60_000;
  * is written. EDITED: its own modified time is past the write the stamp
  * records (`writtenAt`), so it is the Judge's and kept. STALE: the stamp's
  * `sourcesHash` differs from the one just assembled, so it is rebuilt. HELD
- * otherwise. A stamp without `writtenAt` reads as unedited.
- * @param {{stamp?: object|null, modifiedTime?: number|null, sourcesHash: string}} p
+ * otherwise. A stamp without `writtenAt` reads as unedited. With `force` a
+ * present Adventure is STALE whatever its stamp says: the Judge asked for the
+ * rewrite, an edit of their own included.
+ * @param {{stamp?: object|null, modifiedTime?: number|null, sourcesHash: string, force?: boolean}} p
  *   `stamp` null when the shelf lacks the Adventure
  * @returns {"absent"|"edited"|"stale"|"held"}
  */
-export function bookAdventureState({ stamp = null, modifiedTime = null, sourcesHash }) {
+export function bookAdventureState({ stamp = null, modifiedTime = null, sourcesHash, force = false }) {
   if (!stamp) return "absent";
+  if (force) return "stale";
   const at = Number(stamp.writtenAt);
   if (Number.isFinite(at) && at > 0 && Number(modifiedTime) - at > WRITE_SLACK_MS) return "edited";
   return stamp.sourcesHash === sourcesHash ? "held" : "stale";
+}
+
+/**
+ * What a rebuild of one book deletes, out of the rows `bookDocuments` lists
+ * for it: a document the book is the primary owner of (`ownerOf` its stamp),
+ * never one another book owns that merged one of this book's ids, never a
+ * world copy of a library document (the Judge's), never a character a player
+ * owns. Scenes are no row of the list and are never deleted: they are world
+ * documents owned by nobody, and the Judge's walls and tokens stand on them.
+ * @param {{type: string, doc: object}[]} rows
+ * @param {{ownerOf: (doc: object) => string|null, isWorldCopy: (doc: object) => boolean, isPlayers: (doc: object) => boolean}} deps
+ * @returns {{type: string, doc: object}[]} the rows to delete, in the order given
+ */
+export function adventureDropRows(rows, bookId, { ownerOf, isWorldCopy, isPlayers }) {
+  const out = [];
+  const seen = new Set();
+  for (const row of rows) {
+    // The library's copy and the world twin it is filed under are both the
+    // book's; a row with no twin names one document twice.
+    for (const doc of [row.doc, row.filed]) {
+      if (!doc || seen.has(doc)) continue;
+      seen.add(doc);
+      if (ownerOf(doc) === bookId && !isWorldCopy(doc) && !isPlayers(doc)) out.push({ type: row.type, doc });
+    }
+  }
+  return out;
 }
 
 /** One book's retired per-map Adventures among a shelf's index rows, read with the cookbook flag. */

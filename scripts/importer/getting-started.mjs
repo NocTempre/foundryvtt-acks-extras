@@ -65,7 +65,7 @@ export const gettingStartedDismissed = () => !!game.settings.get(MODULE_ID, SETT
  * Each step is idempotent and reports through its own notifications; this only
  * sequences them and narrates which one is running.
  */
-const GM_STEPS = [
+export const GM_STEPS = [
   // Import CREATES; it steps over every document that already exists, so a
   // description written before this module materialized book text keeps
   // whatever it held. The update pass is the only path that rewrites an
@@ -110,10 +110,11 @@ const GM_STEPS = [
   ["stepTemplatePackages", (api) => api.importTemplatePackages()],
   ["stepMonsters", (api) => api.cookbookImportMonsters()],
   ["stepCompanions", (api) => api.cookbookFillCompanions()],
-  // Every authored third-party book the seat has open. Reachable ONLY from
-  // here and the api: there is no per-book control, exactly as there is none
-  // for traps or vehicles, because choosing between them is not a decision a
-  // Judge has to make to import their own books.
+  // Every authored third-party book the seat has open. Reachable from here,
+  // from the api and from the import manager's step list, which runs any one
+  // step: there is no per-book control, exactly as there is none for traps or
+  // vehicles, because choosing between them is not a decision a Judge has to
+  // make to import their own books.
   ["stepOseBooks", (api) => api.oseImportAuthored()],
   ["stepJournals", (api) => api.cookbookImportJournals()],
   // A settlement's keyed places are actors, not pages: after the journals,
@@ -140,6 +141,20 @@ const GM_STEPS = [
   // written last, once nothing above has more to add or to bring over.
   ["stepAdventures", (api) => api.cookbookImportAdventures()],
 ];
+
+/**
+ * Run ONE step of the chain by its key, as the import manager's step list
+ * does; the step reports through its own notifications. Resolves to the
+ * step's own result. An unknown key throws: the list is `GM_STEPS`, and a
+ * key no step carries is a caller's error, not a Judge's.
+ */
+export async function runImportStep(key) {
+  const api = acksExtras.importer;
+  if (!api) return ui.notifications.warn(`${MODULE_ID} | not ready.`);
+  const step = GM_STEPS.find(([k]) => k === key);
+  if (!step) throw new Error(`${MODULE_ID} | no import step "${key}"`);
+  return step[1](api);
+}
 
 /**
  * Run every importer in order, narrating the step as it goes.
