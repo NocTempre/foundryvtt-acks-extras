@@ -13,7 +13,7 @@
  * Wages: every `daysPerMonth` of worldTime per hireling, a per-employer
  * whisper offers [Pay] / [Mark missed]; missed wages are calamities (RR 166).
  */
-import { MODULE_ID, HOOKS, FLAG_RECORD, FLAG_MONSTER_LIST } from "../constants.mjs";
+import { MODULE_ID, HOOKS, FLAG_RECORD, FLAG_MONSTER_LIST, FLAG_WAGE_REMINDED } from "../constants.mjs";
 import { isPrimaryGM } from "../../lib/util.mjs";
 import HenchmanRecord from "../data/henchman-record.mjs";
 import { effectiveLoyalty, effectiveMorale, loyaltyDeltaForOutcome, outcomeLeavesService, clampScore, reasonKey, apparentLevelPenalty } from "../rules/loyalty.mjs";
@@ -719,7 +719,12 @@ async function runPayday(employer, { markMissed = false } = {}) {
   return { status: "paid", paid: movedCp / 100, arrears: bookedCp / 100, count };
 }
 
-/** Whisper per-employer wages-due cards (time watcher). */
+/**
+ * Whisper each employer's wages-due card once per month owed: an employer is
+ * reminded when the latest month boundary it owes is past the one its last
+ * card named (`FLAG_WAGE_REMINDED`), and the card moves that mark on. A
+ * payday moves the boundaries, so the next month owed is reminded once again.
+ */
 async function checkWagesDue(currentTime) {
   if (!getSetting("wageReminders")) return;
   for (const employer of allEmployers()) {
@@ -728,6 +733,8 @@ async function checkWagesDue(currentTime) {
     // one figure and charge another.
     const due = dueOf(employer, currentTime);
     if (!due.length) continue;
+    const owedThrough = Math.max(...due.map((d) => d.paidThrough));
+    if (owedThrough <= (employer.getFlag(MODULE_ID, FLAG_WAGE_REMINDED) ?? -Infinity)) continue;
     const total = due.reduce((s, d) => s + d.amount, 0);
     await postEventCard({
       titleKey: "ACKS-HENCHMEN.wage.dueTitle",
@@ -739,9 +746,21 @@ async function checkWagesDue(currentTime) {
       ],
       actor: employer,
     });
-    // lastPaidTime is set only on GM action, so a repeat reminder needs
-    // another full month elapsed.
+    await employer.setFlag(MODULE_ID, FLAG_WAGE_REMINDED, owedThrough);
   }
+}
+
+let wageCheck = Promise.resolve();
+
+/**
+ * Run the wages-due check at `worldTime` once every check queued before it has
+ * finished. Ticks arrive faster than a card posts, and a check that started
+ * before the last one wrote its mark would remind the same month twice.
+ * @returns {Promise<void>} settles when this tick's check has run
+ */
+export function queueWagesDue(worldTime) {
+  wageCheck = wageCheck.then(() => checkWagesDue(worldTime)).catch((err) => console.error(`${MODULE_ID} | wage reminder failed`, err));
+  return wageCheck;
 }
 
 /* ------------------------- watchers ------------------------- */
@@ -818,7 +837,7 @@ export function registerEventEngine() {
   Hooks.on("updateActor", (actor, changes) => {
     onUpdateActor(actor, changes).catch((err) => console.error(`${MODULE_ID} | event watcher failed`, err));
   });
-  onTimeAdvanced((worldTime) => checkWagesDue(worldTime));
+  onTimeAdvanced((worldTime) => queueWagesDue(worldTime));
 
   registerCardAction("rollLoyaltySecret", async ({ actorUuid, reason }) => {
     const actor = await fromUuid(actorUuid);

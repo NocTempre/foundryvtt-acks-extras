@@ -1107,7 +1107,7 @@ await test("a refusal the Judge's seat reaches is said once, and a hand-over is 
 foundry.abstract = { DataModel: class {} };
 foundry.data = { fields: {} };
 foundry.applications = { api: { ApplicationV2: class {}, HandlebarsApplicationMixin: (Base) => class extends Base {} } };
-const { payWagesFor, wageBill } = await import("../scripts/henchmen/engine/events.mjs");
+const { payWagesFor, wageBill, queueWagesDue } = await import("../scripts/henchmen/engine/events.mjs");
 const { secondsPerMonth } = await import("../scripts/henchmen/time.mjs");
 const wording = JSON.parse((await import("node:fs")).readFileSync(new URL("../lang/en.json", import.meta.url), "utf8"));
 
@@ -1242,6 +1242,42 @@ await test("a payday with nothing due says how many days until something is, whi
   assert.deepEqual(told, [["gm", "info", `ACKS-HENCHMEN.wage.nothingDueUntil ${JSON.stringify({ name: "Boss", days: 25 })}`]], "a part day counts as a whole one");
   assert.deepEqual(purse(boss), ["Gold ×9"], "and no coin moved");
   assert.ok("ACKS-HENCHMEN.wage.nothingDueUntil" in wording && "ACKS-CHARACTER.followers.monthlyNext" in wording, "the language file holds both sentences");
+});
+await test("the Judge is reminded of each month owed once, however many ticks cross it", async () => {
+  const boss = makeActor({ id: "boss", name: "Boss", items: [gold(20)] });
+  worldActors.set(boss.id, boss);
+  onPayroll(boss, { id: "hand", name: "Hand", wageGp: 4 });
+  const posted = [];
+  const { applications } = foundry;
+  // A card takes a render to post, so a tick that lands meanwhile runs while the one before it is still posting.
+  foundry.applications = { ...applications, handlebars: { renderTemplate: async () => new Promise((resolve) => setImmediate(() => resolve(""))) } };
+  globalThis.ChatMessage = { getSpeaker: ({ actor }) => ({ actor: actor?.id }), create: async (data) => posted.push(data) };
+  const counts = [];
+  try {
+    await toldBy(async () => {
+      const month = secondsPerMonth();
+      game.settings = { get: (_scope, key) => key === "wageReminders" };
+      queueWagesDue(month + 60);
+      await queueWagesDue(month + 120);
+      counts.push(posted.length);
+      await queueWagesDue(month + 86400);
+      counts.push(posted.length);
+      await queueWagesDue(2 * month + 60);
+      counts.push(posted.length);
+      game.time.worldTime = 2 * month + 120;
+      await payWagesFor(boss);
+      await queueWagesDue(2 * month + 180);
+      counts.push(posted.length);
+      await queueWagesDue(3 * month + 60);
+      counts.push(posted.length);
+    });
+  } finally {
+    foundry.applications = applications;
+    delete globalThis.ChatMessage;
+  }
+  assert.deepEqual(counts, [1, 1, 2, 2, 3], "two ticks at once in the first month owed, a day later, the second month, the payday's own month, the month after it");
+  assert.deepEqual(posted.map((m) => m.speaker.actor), ["boss", "boss", "boss"], "each card speaks as the employer");
+  assert.deepEqual(purse(boss), ["Gold ×12"], "the payday paid the two months owed");
 });
 
 /* -------------------------------------------- */

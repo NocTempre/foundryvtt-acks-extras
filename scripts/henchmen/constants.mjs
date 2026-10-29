@@ -13,6 +13,8 @@ export const FLAG_RECORD = "record";
 export const FLAG_MONSTER_LIST = "monsterHenchmenList";
 /** Flag key on employer actors: extra henchman slots granted manually. */
 export const FLAG_RETAIN_BONUS = "retainBonus";
+/** Flag key on employer actors: the latest wage-month boundary its wages-due card has reminded the Judge of. */
+export const FLAG_WAGE_REMINDED = "wageRemindedThrough";
 
 /**
  * Book-table document ids checked at `ready` and named to the GM when the

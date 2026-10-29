@@ -359,6 +359,19 @@ A signing bonus and a week's recruiting fee are paid where the hire is made:
 they state the market as their reach, so they draw on coin on hand and coin
 that market keeps for the employer.
 
+**The Judge's reminder.** With `wageReminders` on, every forward move of the
+world clock runs `checkWagesDue` on the seat that processes time (lib
+`onWorldTimeAdvanced`). For each employer it enrols newcomers and reads
+`dueOf`, and it whispers the GMs a wages-due card, speaking as the employer,
+with Pay and Mark missed buttons. Each month owed is reminded once: the card
+is posted only when the latest month boundary owed (`paidThrough`) is past
+the employer's `flags.acks-extras.wageRemindedThrough`, and posting writes
+that boundary there. A payday moves the boundaries on, so the next month
+owed is reminded once again. Ticks are queued (`queueWagesDue`), so each
+check reads the mark the one before it wrote. A tick writes nothing else
+about wages except the clock `enrollNewcomers` starts for an unenrolled
+entry: no coin, arrears, loyalty, morale or calamity.
+
 ## 4d. The Service panel and the roster
 
 Two surfaces read the record on the lib frame's vocabulary

@@ -382,6 +382,17 @@ a step it does not name is walked by hand.
    *Observable:* `monthly` is the mercenary's 6 plus the henchman's ladder
    wage for 1st level, and `count` is 2. The wageless specialist is not
    billed and adds nothing to `nextDue`.
+5g. The Judge's wages-due reminder (`tools/live/henchmen.mjs`, stage 1, on
+   employer A once its hireling is linked). Assert the shape first: write
+   the hireling's `terms.lastPaidTime` a month and a minute back, unset A's
+   `flags.acks-extras.wageRemindedThrough`, and read that `wageReminders` is
+   on, `wageBill(A).count` is 1 and the GM seat leads its election (lib
+   `automation-client.mjs` `isLeadClient`; the reminder is posted only where
+   the time hook runs). Then `game.time.advance(1)` twice, back to back.
+   *Observable:* this client creates one card speaking as A, marked
+   `henchmen/card-wages-due-1`, and A's mark is the hireling's
+   `lastPaidTime` plus a month. Other kept employers' reminders made in the
+   same ticks are left alone.
 6. Loyalty and obedience: `openLoyaltyRoll` / `openObedienceRoll` on a hired
    henchman, and `recordCalamity`. Then write
    `flags.acks-extras.record.terms.claimedEmployerLevel` to the employer's

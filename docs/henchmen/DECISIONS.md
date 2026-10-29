@@ -996,3 +996,48 @@ ledger.
 **What it cost.** The wage's tooltip names the table's page only where the
 importer recorded one; a Judge's override layer and a module sample record
 none, so their wage reads "no page recorded".
+
+### Wage reminders post once per month owed, and walks leave the module's cards alone (2026-10-28)
+
+**Found.** The live walks that move the world clock (formation-hex, -day,
+-steps, battlemap, markets) drew wages-due whispers for the employers other
+walks keep: 10 to 15 cards in one formation-hex run. `checkWagesDue` kept no
+mark of what it had reminded, so once a month was owed it posted on every
+forward tick until a payday. That broke `onWorldTimeAdvanced`'s rule that
+each callback keeps its own watermark, and the setting's hint, which promises
+a card each game month. A comment at the end of the function said the
+opposite of what it did. formation-steps and markets claimed those cards by
+author and time window, so each run's next run deleted them.
+
+**Ruled.**
+
+- `checkWagesDue` posts for an employer only when the latest month boundary
+  it owes is past `flags.acks-extras.wageRemindedThrough`, and writes that
+  boundary with the card (MODEL §4c). Ticks are queued, because two arrive
+  within one card's render and the second would read the mark before the
+  first writes it.
+- The kept fixtures keep their wages. A tick writes no arrears, loyalty,
+  morale, calamity or coin. Its only wage write is `enrollNewcomers` starting
+  an unenrolled clock, and no walk reads what a tick writes. A step that needs
+  a wage state writes it on the record at its start.
+- A walk claims a card only when its own client made it under the run's nonce
+  and it speaks as, carries or names one of the run's fixtures, or came from
+  the action in flight (`tools/live/README.md`). The module's cards for other
+  walks' fixtures are left alone.
+
+**Rejected.**
+
+- *Fixtures without a wage outside the wage steps.* A henchman's zero wage
+  falls back to the imported ladder. A vassal domain, or a `lastPaidTime` in
+  the future, is a false record the next walk inherits.
+- *Journey walks switching henchmen's time processing off.* Their seat is the
+  one that processes time, so this stops it for every session. `wageReminders`
+  is a world setting, so it would also be a restore at the end. And it would
+  have hidden this defect.
+- *Closing the postings and unlinking the hirelings at a run's end.* That too
+  is a restore at the end (`.claude/rules/live-testing.md`, step 4).
+
+**What it cost.** Each kept employer still posts one card per month of world
+time. Each posting that henchmen stage 2 leaves open still rolls its fee and
+moves coin every week, until the next stage 2 run reshapes its halls. Proving
+the cadence live (TESTING 5g) moves the shared clock by two seconds.

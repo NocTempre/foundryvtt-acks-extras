@@ -19,7 +19,9 @@
  * its town: the gate walk's `markets/gate-*`, the parties walk's
  * `markets/parties-*`, the moorage walk's `markets/moorage-*`, and the rest's
  * towns, characters, party and goods under `markets/<name>`. The chat cards
- * are a create path, marked `markets/card-<n>` at teardown, and the reports
+ * this client makes that speak as one of those actors, or as nobody, are a
+ * create path, marked `markets/card-<n>` at teardown; the module's cards for
+ * other walks' kept fixtures are left alone. The reports
  * written into a trade house the run did not make `markets/report-<n>`; a run
  * retires both series before it builds anything. A trade house the run made
  * is that create path's setup: it is deleted by its id at teardown, its
@@ -175,12 +177,17 @@ const P = {
       H.notesPatched = true;
     }
     H.takeNotes = () => H.notes.splice(0);
+    // A card this client makes is the run's when it speaks as one of the run's actors (`claim`) or as nobody.
+    // The module's cards for other walks' kept fixtures (a hireling's wages, a posting's fee, another walk's
+    // import) speak as those, and are left alone.
+    H.claimed = H.claimed ?? { ids: new Set(), names: new Set() };
+    H.isMine = (m) => (m.speaker?.actor ? H.claimed.ids.has(m.speaker.actor) : !m.speaker?.alias || H.claimed.names.has(m.speaker.alias));
     if (!H.chatWrapped) {
       H.chat = [];
       H.chatCreate = ChatMessage.create;
       ChatMessage.create = async function (...args) {
         const made = await H.chatCreate.apply(this, args);
-        for (const m of Array.isArray(made) ? made : [made]) if (m?.id) H.chat.push(m.id);
+        for (const m of Array.isArray(made) ? made : [made]) if (m?.id && H.isMine(m)) H.chat.push(m.id);
         return made;
       };
       H.chatWrapped = true;
@@ -1099,6 +1106,13 @@ const P = {
     if (H.stayHookId) { Hooks.off("acksExtras.marketGateQuote", H.stayHookId); H.stayHookId = null; out.stayHook = "removed"; }
     return out;
   },
+  /** Claim the cards that speak as these actors, by id, or by name where a card names no actor. */
+  claim: async ({ ids = [], names = [] }) => {
+    const H = globalThis.__c2;
+    for (const id of ids) H.claimed.ids.add(id);
+    for (const n of names) H.claimed.names.add(n);
+    return { ids: H.claimed.ids.size };
+  },
   clearHouse: async ({ value }) => { await game.settings.set("acks-extras", "marketsTradeHouse", value); return { now: String(game.settings.get("acks-extras", "marketsTradeHouse") ?? "") }; },
 };
 
@@ -1132,6 +1146,8 @@ async function seat(key) {
 async function keep(marker, kind, data) {
   const doc = await gm.fixture(marker, kind, data);
   if (!doc.built) note(`shape: ${marker}`, await run(gm, P.reshape, { kind, id: doc.id, data }));
+  // Every seat that collects cards claims the ones this actor speaks.
+  if (kind === "Actor") for (const api of Object.values(seats)) await run(api, P.claim, { ids: [doc.id], names: [doc.name] });
   return doc;
 }
 /** Retire the last run's products of a create path: `<prefix>-1`, `-2`, … until one is not standing. */
@@ -1143,12 +1159,21 @@ async function retireSeries(prefix, kind, opts) {
 }
 // Every chat card a step posts, by id, marked `markets/card-<n>` at teardown.
 const cardsPosted = [];
-/** Mark the run's cards as one series; a card the run already lost is counted, not marked. */
+/**
+ * Mark the run's cards as one series; a card the run already lost is counted, not marked. A mark that times
+ * out can still land later under its number, so marking stops there: that card and the rest are printed by
+ * id, the rest are left unmarked, and the series stays one marker per card.
+ */
 async function markCards() {
   let n = 1;
   const lost = [];
-  for (const id of new Set(cardsPosted.splice(0))) {
-    try { await gm.mark(`ChatMessage.${id}`, `markets/card-${n}`); n++; } catch (err) { lost.push(id); }
+  const ids = [...new Set(cardsPosted.splice(0))];
+  for (const [i, id] of ids.entries()) {
+    try { await gm.mark(`ChatMessage.${id}`, `markets/card-${n}`); n++; } catch (err) {
+      if (!/timeout/i.test(String(err?.message))) { lost.push(id); continue; }
+      for (const rest of ids.slice(i)) console.log(`  unmarked after timeout: ChatMessage.${rest}`);
+      return { marked: n - 1, lost: lost.length, unmarked: ids.length - i - 1, timedOut: id };
+    }
   }
   return { marked: n - 1, lost: lost.length };
 }

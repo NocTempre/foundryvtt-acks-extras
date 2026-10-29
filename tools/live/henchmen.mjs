@@ -1,6 +1,6 @@
 /**
  * Live walk, henchmen: henchmen + influence.
- * STAGE=1: henchmen steps 14, 15 and 16, influence steps 17–20, on the GM seat.
+ * STAGE=1: henchmen steps 14, 15, 16 and 5g, influence steps 17–20, on the GM seat.
  * STAGE=2: henchmen steps 10, 12 (player seat), 13, 3b and 3a.
  * Machine values arrive through ./_env.mjs; nothing here names a port, a
  * world, a seat or a book. Every
@@ -38,6 +38,8 @@
  *     ChatMessage.create (all restored);
  *   - a book connected on the GM seat with remember:false (forgotten with
  *     the page).
+ * And one that is not undone: step 5g advances the shared world clock by a
+ * second twice.
  */
 import { connect, sleep } from "./_driver.mjs";
 import { seats as machineSeats, PORTS, shotDir, books } from "./_env.mjs";
@@ -52,7 +54,7 @@ const SHOTS = process.env.SHOTS === "1";
 const SHOT_DIR = shotDir();
 const BOOKS = books(["rr","jj"]); // the GM's staged copies, from ACKS_TEST_BOOKS; empty, the walk takes the bookless path
 // The chat cards each stage's create paths post, one marker series apiece (`henchmen/card-<name>-<n>`).
-const STAGE1_CARDS = ["hire-b", "obedience-a", "monster-recruit", "hiring-18", "loyalty-unread", "loyalty-read", "gain-0", "gain-1", "gain-2", "gain-3"];
+const STAGE1_CARDS = ["hire-b", "obedience-a", "monster-recruit", "hiring-18", "loyalty-unread", "loyalty-read", "gain-0", "gain-1", "gain-2", "gain-3", "wages-due"];
 const STAGE2_CARDS = ["company", "porters-1", "porters-2", "posting-1", "posting-2", "posting-3", "cap"];
 const POWER_IDS = ["def.prof.leadership", "def.power.bloodOfKings", "def.prof.command", "def.prof.diplomacy", "def.prof.beastFriendship", "def.power.commandOfVoice"];
 // Invented hiring-offer figures for the influence document where the world holds none.
@@ -316,6 +318,34 @@ const P = {
     await hireling.update({ "system.retainer.enabled": true, "system.retainer.wage": wage });
     try { await H.A.enrollNewcomers(employer); } catch (e) { return { how, error: String(e?.message ?? e) }; }
     return { how, linked: (employer.system.henchmenList ?? []).includes(hirelingId), manager: hireling.system?.retainer?.managerid ?? null, record: !!hireling.getFlag("acks-extras", "record") };
+  },
+
+  /**
+   * Step 5g: a month owed on `hirelingId`'s wage clock and `employerId`'s reminder mark unset, then the world
+   * clock advanced a second twice. Answers the shape at the start, the cards this client made meanwhile that
+   * speak as the employer, how many it made for anyone else (left alone), and the mark the reminder left.
+   */
+  remindWages: async ({ employerId, hirelingId }) => {
+    const H = globalThis.__c1;
+    const employer = game.actors.get(employerId);
+    const hireling = game.actors.get(hirelingId);
+    const { secondsPerMonth, now } = await import("/modules/acks-extras/scripts/henchmen/time.mjs");
+    const { isLeadClient } = await import("/modules/acks-extras/scripts/lib/automation-client.mjs");
+    const record = hireling.getFlag("acks-extras", "record") ?? {};
+    const lastPaidTime = now() - secondsPerMonth() - 60;
+    await hireling.setFlag("acks-extras", "record", { ...record, terms: { ...(record.terms ?? {}), lastPaidTime } });
+    if (employer.getFlag("acks-extras", "wageRemindedThrough") !== undefined) await employer.unsetFlag("acks-extras", "wageRemindedThrough");
+    const shape = { reminders: game.settings.get("acks-extras", "wageReminders"), due: H.A.wageBill(employer).count, mark: employer.getFlag("acks-extras", "wageRemindedThrough") ?? null, lead: isLeadClient() };
+    H.takeChat();
+    await game.time.advance(1);
+    await game.time.advance(1);
+    const speaksAs = (id) => game.messages.get(id)?.speaker?.actor === employerId;
+    await H.poll(() => H.chat.some(speaksAs) || null, { tries: 40, every: 150 });
+    // A second card would follow the first within a render; the wait outlasts one.
+    await H.sleep(2500);
+    const chat = H.takeChat();
+    const mine = chat.filter(speaksAs);
+    return { shape, mine, others: chat.length - mine.length, mark: employer.getFlag("acks-extras", "wageRemindedThrough") ?? null, owedThrough: lastPaidTime + secondsPerMonth() };
   },
 
   /** The roster window and what it says. */
@@ -1743,6 +1773,13 @@ try {
     check("16: a gain recorded while unread is not made up later: the unread novice's next gain records only the rungs it crosses itself", g3.gained && g3.recorded && g3.entries === (second === first + 1 ? 1 : 0) && g3.entries === g3.want && g3.match, g3);
     note("level-gain layer lifted", await run(gm, P.layerTable, { doc: "wages", id: "levelMorale", table: null }));
     note("closed", await run(gm, P.closeAll));
+
+    section("5g. the wages-due reminder, once per month owed");
+    const r5g = await run(gm, P.remindWages, { employerId: A.id, hirelingId: hA.id });
+    await markSeries("henchmen/card-wages-due", "ChatMessage", r5g.mine);
+    note("two ticks with a month owed", r5g);
+    check("5g: at the start A owes one entry, its reminder mark is unset, reminders are on and this seat leads", r5g.shape.due === 1 && r5g.shape.mark === null && r5g.shape.reminders === true && r5g.shape.lead === true, r5g.shape);
+    check("5g: two one-second ticks post one wages-due card speaking as A, and A's mark is the month boundary it owes", r5g.mine.length === 1 && r5g.mark === r5g.owedThrough, { mine: r5g.mine.length, mark: r5g.mark, owedThrough: r5g.owedThrough, others: r5g.others });
   }
 
   if (STAGE === "2") {

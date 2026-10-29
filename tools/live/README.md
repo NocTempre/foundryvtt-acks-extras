@@ -44,6 +44,13 @@ owner's word.
   rules; it restores in a `finally` any setting it flipped. `FIXTURE_OWN=<tag>`
   makes it build and find its own fixtures beside a peer's, and the log ends
   with the driver's ledger: what the run built, and what it reused;
+- claims a chat card as its own create-path product only when its own client
+  made it during the run (tagged with the run's nonce, or caught by the run's
+  own wrapper) and it speaks as, names or carries one of the run's fixtures,
+  or is of a kind the action in flight makes. Never by author and time
+  window: the module posts cards on the GM seat for other walks' kept
+  fixtures (a hireling's wages, a posting's fee, another party's day), and
+  a claim that takes them retires them on its next run;
 - invents its fixtures, compares an imported figure in page and prints a
   boolean, and never prints a book's words;
 - asserts a toast by the text that names its fixture, never by the tray

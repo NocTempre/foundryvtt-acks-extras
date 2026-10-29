@@ -2925,9 +2925,8 @@ is the walk's only when this client made it during the run (a
 `preCreateChatMessage` hook tags each with the run's nonce and the action in
 flight) and it speaks as one of the walk's fixtures, carries or names its
 formation, names one of its actors or scenes, or is a navigation card thrown
-during one of its own drags or presses. The module posts cards on this seat
-for other walks' kept fixtures too, a hireling's wages at every journey move,
-and a claim by author and time window takes them. Mark each claimed card
+during one of its own drags or presses (`tools/live/README.md`, "A walk",
+says why). Mark each claimed card
 `formation/hex-message-<n>`, in arrival order; the next run retires them
 before its fixtures, stopping after five markers in a row that nothing
 carries, and the walk ends by checking that no marked card speaks as another

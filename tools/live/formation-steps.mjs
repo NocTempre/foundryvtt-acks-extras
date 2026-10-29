@@ -38,7 +38,11 @@
  * survival rungs, no member left behind, no fight on the rearguard, the march
  * on Dedicated march. The march party's
  * drag steps toward the scene's middle, so a kept token never walks off it.
- * Every chat card the walk reads is a create path's product: it is marked
+ * Every chat card the walk reads is a create path's product, and is the walk's
+ * only when this client made it under the run's nonce and it speaks as, names
+ * or carries one of the run's fixtures or formations, speaks as nobody, or is
+ * a navigation or stay card read by the step whose action threw it; the
+ * module's cards for other walks' kept fixtures are left alone. Each is marked
  * `formation/steps-card-<n>` in the order posted, and the next run retires the
  * last run's before its first step, as it does a token a member was left
  * behind as (`formation/steps-left-token`). The documents registered at
@@ -53,6 +57,8 @@ import { seats, PORTS, shotDir } from "./_env.mjs";
 
 const MOD = "acks-extras";
 const SHOTS = process.env.SHOTS === "1";
+/** The run's tag on the chat cards this client creates (`install`), so a card is claimed only from this run. */
+const NONCE = "st" + Math.random().toString(36).slice(2, 7);
 
 const note = (label, value) => console.log(`${label}: ${typeof value === "string" ? value : JSON.stringify(value)}`);
 const section = (title) => console.log(`\n== ${title} ==`);
@@ -93,8 +99,9 @@ const P = {
   },
 
   /** Helpers every other page function reaches through `globalThis.__d`. */
-  install: async () => {
+  install: async ({ nonce = null } = {}) => {
     const H = (globalThis.__d = globalThis.__d ?? {});
+    H.nonce = nonce ?? H.nonce ?? null;
     H.sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     H.poll = async (fn, { tries = 25, every = 100 } = {}) => {
       for (let n = 0; n < tries; n++) {
@@ -119,7 +126,23 @@ const P = {
     };
     H.formation = (id) => H.m.model.getFormation(id) ?? H.F.getFormations()[id] ?? null;
     H.parse = (html) => new DOMParser().parseFromString(html ?? "", "text/html");
-    H.mine = (t0) => game.messages.contents.filter((m) => (m.author?.id ?? m.user?.id) === game.user.id && m.timestamp >= t0 - 50);
+    // The run's own chat cards. A message THIS client creates carries the run's nonce, and the run claims it
+    // when it speaks as or names one of the run's fixtures or formations (`claim`), or speaks as nobody. A
+    // card of the generic kinds an action makes (`kinds`: "nav", "settlement") is claimed only by the page
+    // function reading that action. The module's cards for other walks' kept fixtures (a hireling's wages, a
+    // posting's fee, another party's weather) speak as those, and are left alone.
+    H.claimed = H.claimed ?? { names: new Set(), fids: new Set() };
+    if (!H.msgHook) H.msgHook = Hooks.on("preCreateChatMessage", (doc) => { if (H.nonce) { try { doc.updateSource({ flags: { world: { stepsb: { n: H.nonce } } } }); } catch (_e) { /* untagged */ } } });
+    const KIND = { nav: "acks-extras-nav-card", settlement: "acks-extras-settlement-card" };
+    H.isMine = (m, kinds = []) => {
+      const alias = m.speaker?.alias ?? null;
+      const html = m.content ?? "";
+      if (alias && H.claimed.names.has(alias)) return true;
+      if ([...H.claimed.names, ...H.claimed.fids].some((n) => html.includes(n))) return true;
+      if (kinds.some((k) => html.includes(KIND[k]))) return true;
+      return !m.speaker?.actor && !alias;
+    };
+    H.mine = (t0, kinds = []) => game.messages.contents.filter((m) => !!H.nonce && m.flags?.world?.stepsb?.n === H.nonce && m.timestamp >= t0 - 50 && H.isMine(m, kinds));
     H.uuids = (list) => list.map((m) => m.uuid);
     H.findDialog = (actions) => [...document.querySelectorAll("dialog, .application.dialog")]
       .find((d) => actions.every((a) => d.querySelector(`button[data-action="${a}"]`))) ?? null;
@@ -400,7 +423,9 @@ const P = {
       shown, rose: fid ? after[fid] - before[fid] : null,
       othersStill: watch.filter((id) => id !== fid).every((id) => after[id] === before[id]),
       ds: wall.ds, noteOk: notes.some((n) => n.kind === "info" && n.text === expect),
-      cards: msgs.length, uuids: H.uuids(msgs), worldTimeDelta: game.time.worldTime - w0,
+      // The charge's own card speaks as the basher's formation.
+      cards: f ? msgs.filter((m) => m.speaker?.alias === f.name).length : msgs.length,
+      uuids: H.uuids(msgs), worldTimeDelta: game.time.worldTime - w0,
     };
   },
 
@@ -635,11 +660,11 @@ const P = {
     await H.sleep(4000);
     const notes = H.takeNotes();
     const nav = (m) => !!H.parse(m.content).querySelector(".acks-extras-nav-card");
-    const answered = H.mine(tAnswer);
+    const answered = H.mine(tAnswer, ["nav"]);
     return {
       rigOk, dialog: !!dlg, titleOk, offeredAtDialog, dragDelta, worldDelta: game.time.worldTime - w0, dawn,
       warned: notes.some((n) => n.kind === "warn" && names.length && n.text === game.i18n.format("ACKS-FORMATION.warn.forcedMarchBarred", { names: names[0] })),
-      navOnAnswer: answered.filter(nav).length, uuids: H.uuids(H.mine(t0)),
+      navOnAnswer: answered.filter(nav).length, uuids: H.uuids(H.mine(t0, ["nav"])),
     };
   },
 
@@ -677,7 +702,7 @@ const P = {
     await H.T.endDay(fid, { miles: 3, hexes: 1 });
     await H.sleep(2000);
     const a = H.T.travelOf(H.formation(fid));
-    const msgs = H.mine(t0);
+    const msgs = H.mine(t0, ["nav"]);
     return {
       dayUp: a.dayCount === before.dayCount + 1, logUp: (a.log ?? []).length === before.logLen + 1,
       navCards: msgs.filter((m) => !!H.parse(m.content).querySelector(".acks-extras-nav-card")).length,
@@ -833,9 +858,9 @@ const P = {
   stayCards: async ({ t0, listName, rowPrefix, from, night, shift }) => {
     const H = globalThis.__d;
     const isStay = (m) => !!H.parse(m.content).querySelector(".acks-extras-settlement-card");
-    await H.poll(() => H.mine(t0).filter(isStay).length, { tries: 80, every: 250 });
+    await H.poll(() => H.mine(t0, ["settlement"]).filter(isStay).length, { tries: 80, every: 250 });
     await H.sleep(1000);
-    const cards = H.mine(t0).filter(isStay);
+    const cards = H.mine(t0, ["settlement"]).filter(isStay);
     const pick = (listName ? cards.find((m) => H.parse(m.content).body.textContent.includes(listName)) : null) ?? cards.at(-1) ?? null;
     const doc = H.parse(pick?.content);
     const root = doc.querySelector(".acks-extras-settlement-card > ul");
@@ -907,9 +932,22 @@ const P = {
     return n;
   },
 
+  /** Claim the cards that speak as or name these fixtures, or carry one of these formations or its name. */
+  claim: async ({ names = [], fids = [] }) => {
+    const H = globalThis.__d;
+    for (const n of names) H.claimed.names.add(n);
+    for (const fid of fids) {
+      H.claimed.fids.add(fid);
+      const name = H.formation(fid)?.name;
+      if (name) H.claimed.names.add(name);
+    }
+    return { names: H.claimed.names.size, fids: H.claimed.fids.size };
+  },
+
   restoreSeat: async () => {
     const H = globalThis.__d;
     const out = { diceRestored: H?.unrig?.() ?? false };
+    if (H?.msgHook) { Hooks.off("preCreateChatMessage", H.msgHook); H.msgHook = null; out.messageHookRemoved = true; }
     try { ui.controls.activate({ control: "tokens", tool: "select" }); } catch (_e) { /* no canvas */ }
     if (H?.notesPatched) { for (const [k, fn] of Object.entries(H.orig)) ui.notifications[k] = fn; H.notesPatched = false; out.notesRestored = true; }
     return out;
@@ -942,7 +980,7 @@ async function seat(key, user) {
   const api = await connect({ browser, origin, user, port: PORTS[key], own });
   open[key] = api;
   note(`${key} seat ready after (s)`, await ready(api, key));
-  const inst = await run(api, P.install);
+  const inst = await run(api, P.install, { nonce: NONCE });
   if (!inst.fresh) throw new Error(`${key} seat: the loaded module lacks this tree's door and settlement API`);
   return api;
 }
@@ -1011,6 +1049,7 @@ try {
   const b1 = await run(gm, P.buildParty, { partyId: p1.id, sceneId: s1.id, tokenId: p1Token.id, memberIds: [basher.id], mode: null });
   if (b1.error) throw new Error(b1.error);
   const f1 = b1.formationId;
+  note("cards claimed", await run(gm, P.claim, { names: [s1.name, p1.name, basher.name, stranger.name], fids: [f1] }));
   check("the door formation holds the basher, its token adopted", b1.adopted && b1.enrolled.every(Boolean), { adopted: b1.adopted, enrolled: b1.enrolled, dropped: b1.dropped });
   const tBasher = await partyToken("formation/steps-basher-token", basher.id, s1, { x: 400, y: 250 });
   const tStranger = await partyToken("formation/steps-stranger-token", stranger.id, s1, { x: 800, y: 250 });
@@ -1081,6 +1120,7 @@ try {
   const b2 = await run(gm, P.buildParty, { partyId: p2.id, sceneId: s1.id, tokenId: p2Token.id, memberIds: [fallenA.id, fallenB.id], mode: null });
   if (b2.error) throw new Error(b2.error);
   const f2 = b2.formationId;
+  note("cards claimed", await run(gm, P.claim, { names: [p2.name, fallenA.name, fallenB.name], fids: [f2] }));
   check("the rearguard holds both casualties, its token adopted", b2.adopted && b2.enrolled.every(Boolean), { adopted: b2.adopted, enrolled: b2.enrolled, dropped: b2.dropped });
   note("the rearguard out of any fight", await run(gm, P.setCombat, { fid: f2, value: null }));
   note("the owned casualty not left behind", await run(gm, P.goneBackFor, { fid: f2, partyId: p2.id, actorId: fallenA.id }));
@@ -1140,6 +1180,7 @@ try {
   if (b3.error) throw new Error(b3.error);
   const f3 = b3.formationId;
   const names = [hungry.name, fed.name];
+  note("cards claimed", await run(gm, P.claim, { names: [s2.name, p3.name, ...names], fids: [f3] }));
   check("the march party journeys with both walkers enrolled", b3.adopted && b3.enrolled.every(Boolean) && b3.mode === "journey", { adopted: b3.adopted, enrolled: b3.enrolled, dropped: b3.dropped, mode: b3.mode });
   note("the march back on Dedicated march", await run(gm, P.apiDay, { fid: f3, kind: "march", names }));
   await run(gm, P.setSurvival, { actorId: hungry.id, value: { nourishment: "underfed" } });
@@ -1262,6 +1303,7 @@ try {
   const b4 = await run(gm, P.buildParty, { partyId: p4.id, sceneId: s3.id, tokenId: p4Token.id, memberIds: [], mode: "settlement" });
   if (b4.error) throw new Error(b4.error);
   const f4 = b4.formationId;
+  note("cards claimed", await run(gm, P.claim, { names: [s3.name, p4.name], fids: [f4] }));
   await run(gm, P.watchFormations, { mod: MOD, fids: [f4] });
   const cityWatch0 = Date.now();
   check("the city party stands in settlement mode", b4.adopted && b4.mode === "settlement", { adopted: b4.adopted, mode: b4.mode });

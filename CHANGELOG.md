@@ -17,6 +17,10 @@
   tick. *Clean Up After the Merge (GM)* now opens the repair window on that
   check and *Stranded coin*, already scanned, instead of its own dialog; it is
   the same macro document.
+- **The wages-due card comes once per month owed.** With *Monthly wage
+  reminders* on, an employer's card was whispered to the Judge at every
+  advance of the clock once a month was owed, until payday. It now comes once
+  for each month the employer owes; a payday starts the count again.
 - **Every shipped macro checks for the module first.** A macro run on a world
   where ACKS Extras is off, or on an older build than the one that shipped it,
   says so instead of throwing. *Loyalty Check (Selected)* rolls through the
