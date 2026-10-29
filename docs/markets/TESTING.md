@@ -626,7 +626,11 @@ house the run made, the reports go with it.
    `processAllImports`), so a player's Process never sees a due assessment and
    the player-side hold is not observable while a GM is online; a day that
    crosses a month boundary ends the venture, and the next post answers
-   `notEntered` until the party enters again. Retries advance the shared world
+   `notEntered` until the party enters again. A rig of
+   `CONFIG.Dice.randomUniform` serves every draw on the page, and a month's
+   first day re-rolls every location's hiring market (thousands of draws ahead
+   of the assessment's), so the walk enters with at least two days left in the
+   month, skipping into the next one when fewer remain. Retries advance the shared world
    clock a day each — say so in the report. A hand-written report's `outcome`
    must be one of `REPORT_OUTCOMES` (`rules/reports.mjs`); anything else is
    refused as `notWritten`.

@@ -286,7 +286,7 @@ const P = {
     while (daysLeft < 90 && marketMonthStart(t + (daysLeft + 1) * 86400) === monthStart) daysLeft++;
     return { monthStart, daysLeft };
   },
-  skipDays: async ({ n }) => { const before = game.time.worldTime; await game.time.advance(n * 86400); return { before, after: game.time.worldTime, days: n }; },
+  skipDays: async ({ n }) => { const before = game.time.worldTime; await game.time.advance(n * 86400); await globalThis.__c2.sleep(2500); return { before, after: game.time.worldTime, days: n, chat: globalThis.__c2.takeChat() }; },
   /** GM: one day forward, then wait for the venture days that were due. */
   advanceDay: async ({ locationId = null, actionId = null } = {}) => {
     const H = globalThis.__c2;
@@ -1869,6 +1869,7 @@ try {
     if (room.daysLeft < 18) {
       const skipped = await run(gm, P.skipDays, { n: room.daysLeft + 1 });
       advances += skipped.days;
+      cardsPosted.push(...(skipped.chat ?? []));
       note("clock moved into the next market month", skipped);
     }
   }
@@ -2118,6 +2119,17 @@ try {
   check("10: a seat that does not own the stamp calling performChoose gets notYours and nothing is written", !ownN.owns && !ownN.isGM && ny.error === "notYours" && ny.picks === 1, { ownN, ny });
   if (ownW.visible) { const nw = await run(player, P.performChoose, { uuid: rW.uuid, keys: [keys.X] }); note("performChoose on W's report from the player seat (W " + (ownW.owns ? "owned" : "not owned") + ")", nw); }
 
+  {
+    // The entry's day and the rigged day stay in one month: the roll ends the venture, and a month's first
+    // day re-rolls every location's hiring market, whose draws reach the rig before the assessment's.
+    const room = await run(gm, P.monthRoom);
+    if (room.daysLeft < 2) {
+      const skipped = await run(gm, P.skipDays, { n: room.daysLeft + 1 });
+      advances += skipped.days;
+      cardsPosted.push(...(skipped.chat ?? []));
+      note("clock moved into the next market month before the rigged assessment", { room, skipped });
+    }
+  }
   const fe = await run(player, P.ventureApi, { locationId: M1.id, kind: "enter", actorId: V.id, cargoSt: 0 });
   note("enter M1 (cargo 0)", fe);
   const fa = await advance(M1.id, fe.action?.id);
