@@ -582,10 +582,18 @@ the book sets one (`anchor.as`); a sidebar set beside the prose stays out of
 it, as it does of every flow. The items step (`cookbookImportAdventureItems`) makes each a
 core `item` named from the page, its description the prose with the page
 reference last, filed under the book's folder in its line's Item pack, and
-claimed by its cookbook id like every item. Nothing beside the prose is
-read: a bonus, a cost or a crafting time the page prints stays in the
-description. The ruling is DECISIONS 2026-10-19, "An item a book introduces
-is a core item read whole".
+claimed by its cookbook id like every item. Beside the prose, three things
+are read from the paragraph (`adventure-item-binding.mjs`): the place it
+says the item is worn, declared as the item's one slot
+(`flags.acks-extras.gear.slots`, the earliest body place the paragraph
+names, a tail or an unnamed place being the uncapped `worn`), which is what
+makes a plain item wearable on every sheet; its cost line, as `system.cost`
+in gp; and a stated crafting time, which marks it magic
+(`flags.acks-extras.markets.magic`) so the one-of-a-form rule counts it. A
+thing nobody wears, a dose, declares no slot. What the paragraph grants — a
+bonus, a daily power — stays in the description. The rulings are DECISIONS
+2026-10-19, "An item a book introduces is a core item read whole", and
+2026-10-28, "An item a book introduces is worn where its page says".
 
 ## A passage read whole
 

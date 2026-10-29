@@ -77,6 +77,7 @@ import {
   journalCookbookId, standInsByClaim, adventureDropRows,
 } from "./adventure-binding.mjs";
 import { ALIGN_WORD, sheetValuesFromStatline, asPrintedBlock, playerOwned, classBehindQualifier } from "./character-binding.mjs";
+import { adventureItemShape, priceStatedIn } from "./adventure-item-binding.mjs";
 import { ensureSceneThumb } from "./book-adventure.mjs";
 import { nameKeys, creatureKeys, ABILITY_CATEGORIES, DAMAGE_TYPES } from "../lib/vocab.mjs";
 import { materializeTemplates, TEMPLATE_PART } from "../classes/template-packages.mjs";
@@ -5193,7 +5194,13 @@ export async function cookbookImportAdventureItems({ books = null } = {}) {
   return counts;
 }
 
-/** One book item, built from its page: a core item carrying the printed name and the prose under it. */
+/**
+ * One book item, built from its page: a core item carrying the printed name
+ * and the prose under it, declaring the place its paragraph says it is worn
+ * (`flags.acks-extras.gear.slots`, which makes it wearable on every sheet),
+ * priced from its cost line, and marked magic where the paragraph states a
+ * crafting time (`adventure-item-binding.mjs`). What it grants stays prose.
+ */
 async function importAdventureItem(bookId, id, entry) {
   const found = cookbookEntry(id);
   const session = ctx.sessionDocs.get(bookId);
@@ -5203,14 +5210,18 @@ async function importAdventureItem(bookId, id, entry) {
     return null;
   }
   const folder = (await targetFolder("Item", bookId, "Items"))?.id ?? null;
+  const shape = adventureItemShape((node.fields?.description ?? []).map((p) => p.text ?? "").join(" "));
+  const flags = { cookbook: { id, book: bookId, kind: entry.kind, cite: entry.cite } };
+  if (shape.slot) flags.gear = { slots: [shape.slot] };
+  if (shape.magic) flags.markets = { magic: true };
   return createDoc(Item, {
     // The row ships an ordinal label; the item is named from the page.
     name: printedNameOf(node, entry.name),
     type: "item",
     img: DEFAULT_IMG.ITEM,
     folder,
-    system: { description: entryText(node, id, entry.cite), subtype: "item", quantity: { value: 1, max: 0 }, cost: 0, weight: 0, weight6: 0 },
-    flags: { [MODULE_ID]: { cookbook: { id, book: bookId, kind: entry.kind, cite: entry.cite } } },
+    system: { description: entryText(node, id, entry.cite), subtype: "item", quantity: { value: 1, max: 0 }, cost: shape.cost ?? 0, weight: 0, weight6: 0 },
+    flags: { [MODULE_ID]: flags },
   });
 }
 
@@ -10291,11 +10302,8 @@ async function buildEquipmentItem(found, id, node) {
   if (node?.fields?.description) {
     const prose = node.fields.description.map((p) => p.text ?? "").join(" ");
     if (!doc.system.cost) {
-      const m = /Cost:?\s{0,8}([\d,]+(?:\.\d+)?)\s*(gp|sp|cp)/i.exec(prose);
-      if (m) {
-        const n = parseFloat(m[1].replace(/,/g, ""));
-        doc.system.cost = m[2].toLowerCase() === "gp" ? n : m[2].toLowerCase() === "sp" ? n / 10 : n / 100;
-      }
+      const stated = priceStatedIn(prose);
+      if (stated != null) doc.system.cost = stated;
     }
     if (!doc.system.weight6) {
       const m = /weighs?\s+(?:about\s+)?(a half|half a|one|an|a|two|three|four|five|six|\d+(?:\/\d+)?)\s*stones?/i.exec(prose);

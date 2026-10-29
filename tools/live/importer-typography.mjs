@@ -341,13 +341,56 @@ const P = {
     for (const id of ids.actors ?? []) held[id] = (await H.CB.importedActorFor(id))?.uuid ?? null;
     return held;
   },
-  /** A class-power item: its type and how many paragraphs its description holds. */
+  /** A class-power or book item: its type, how many paragraphs its description holds, and — for an item — its declared slots, its cost and its magic mark. */
   power: async ({ uuid }) => {
     const doc = await fromUuid(uuid);
     if (!doc) return null;
     const html = String(doc.system?.description ?? "");
+    const x = doc.flags?.["acks-extras"] ?? {};
     // Bare `<p>` is a printed paragraph; the page reference closes the text as a classed one.
-    return { type: doc.type, paragraphs: (html.match(/<p>/g) ?? []).length, cite: /<p class=/.test(html), chars: html.replace(/<[^>]*>/g, "").length };
+    return {
+      type: doc.type, paragraphs: (html.match(/<p>/g) ?? []).length, cite: /<p class=/.test(html), chars: html.replace(/<[^>]*>/g, "").length,
+      slots: Array.isArray(x.gear?.slots) ? x.gear.slots : null, cost: doc.system?.cost ?? null, magic: !!x.markets?.magic,
+    };
+  },
+  /**
+   * A copy of an imported item embedded on the character, then worn and put
+   * away through her Follower Card's own toggle — the card's gesture, not the
+   * store — and removed again. Reports whether the card offered the toggle,
+   * where the item was worn after the first press and whether the second
+   * press put it away.
+   */
+  wearOnCard: async ({ actorUuid, itemUuid }) => {
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const actor = await fromUuid(actorUuid);
+    const src = await fromUuid(itemUuid);
+    if (!actor || !src) return null;
+    const data = src.toObject();
+    delete data._id;
+    delete data.folder;
+    const [embedded] = await actor.createEmbeddedDocuments("Item", [data]);
+    const wornAt = () => actor.items.get(embedded.id)?.getFlag("acks-extras", "gear")?.wornAt ?? "";
+    const app = new acksExtras.lib.followerCard.Sheet({ document: actor });
+    await app.render({ force: true });
+    const root = () => (app.element?.nodeType === 1 ? app.element : app.element?.[0]) ?? null;
+    const button = () => root()?.querySelector(`[data-action="fcToggleEquip"][data-item-id="${embedded.id}"]`);
+    for (let i = 0; i < 50 && !button(); i++) await wait(100);
+    const out = { embedded: embedded.id, slots: embedded.flags?.["acks-extras"]?.gear?.slots ?? null, offered: !!button(), wornBefore: wornAt() };
+    if (out.offered) {
+      button().click();
+      for (let i = 0; i < 50 && !wornAt(); i++) await wait(100);
+      out.wornAt = wornAt();
+      // The card re-renders on the item's update; its pressed state follows the store.
+      for (let i = 0; i < 30 && button()?.getAttribute("aria-pressed") !== "true"; i++) await wait(100);
+      out.pressed = button()?.getAttribute("aria-pressed") ?? null;
+      button()?.click();
+      for (let i = 0; i < 50 && wornAt(); i++) await wait(100);
+      out.wornAfter = wornAt();
+    }
+    await app.close({ force: true });
+    await actor.deleteEmbeddedDocuments("Item", [embedded.id]);
+    out.removed = !actor.items.get(embedded.id);
+    return out;
   },
   /** The monster actor: which stats landed, its attack modes, spoils and the order and wholeness of its prose sections. */
   monster: async ({ uuid }) => {
@@ -629,6 +672,13 @@ try {
   const itemShapes = [];
   for (const uuid of it.created?.items ?? []) itemShapes.push(await run(gm, P.power, { uuid }));
   check("2: each item is a core item of one paragraph with a page reference", itemShapes.length === 10 && itemShapes.every((p) => p && p.type === "item" && p.paragraphs === 1 && p.cite), itemShapes.map((p) => p && { type: p.type, paragraphs: p.paragraphs, chars: p.chars }));
+  check("2: each item is priced from its cost line", itemShapes.length === 10 && itemShapes.every((p) => p && p.cost > 0), itemShapes.map((p) => p?.cost));
+  const wornItems = itemShapes.filter((p) => p?.slots?.length);
+  const doses = itemShapes.filter((p) => p && !p.slots?.length);
+  const slotCount = (slot) => wornItems.filter((p) => p.slots[0] === slot).length;
+  check("2: the eight worn items declare one slot each — four at the hands, two at the belt, two worn — and are marked magic; the two doses declare none and are not",
+    wornItems.length === 8 && wornItems.every((p) => p.slots.length === 1 && p.magic) && slotCount("hands") === 4 && slotCount("belt") === 2 && slotCount("worn") === 2 && doses.length === 2 && doses.every((p) => !p.magic),
+    itemShapes.map((p) => p && { slots: p.slots, magic: p.magic }));
   const jr = journals.result ?? {};
   const proseIds = Object.keys(IDS.prose);
   check("2: seven passages written as pages, none refused, two journals made", jr.made === proseIds.length && proseIds.length === 7 && jr.refused === 0 && (jr.created?.journals ?? []).length === 2, jr);
@@ -674,6 +724,13 @@ try {
   check("3: the proficiencies the library answers ride as embedded abilities, and the rest are counted as printed", !!k && k.abilities >= 1 && Number.isInteger(k.printed?.missing), k && { abilities: k.abilities, printed: k.printed });
   check("3: the inventory is worn and the coin is counted", !!k && k.gear >= 1 && k.gp > 0, k && { gear: k.gear, gp: k.gp > 0 });
   check("3: the biography is the page's paragraph about her house with its page reference, then the as-printed block", !!k && k.prose >= 1 && k.cite && k.asPrinted, k && { prose: k.prose, cite: k.cite, asPrinted: k.asPrinted });
+  // The Follower Card's wear toggle, pressed for real on a copy of a hand-worn
+  // item embedded on her: the card offers a slotted plain item and wears it at
+  // its declared slot, which core's `equipped` field never could.
+  const handWornUuid = (it.created?.items ?? [])[itemShapes.findIndex((p) => p?.slots?.[0] === "hands")] ?? null;
+  const wear = held[keeperId] && handWornUuid ? await run(gm, P.wearOnCard, { actorUuid: held[keeperId], itemUuid: handWornUuid }) : null;
+  note("a hand-worn item on her Follower Card", wear);
+  check("3: a copy of a hand-worn item embedded on her is offered on her Follower Card, worn at the hands by its toggle, put away by the next press, and removed", !!wear && wear.offered && wear.wornBefore === "" && wear.wornAt === "hands" && wear.pressed === "true" && wear.wornAfter === "" && wear.removed, wear);
 
   section("4. the classes");
   const classShapes = [];

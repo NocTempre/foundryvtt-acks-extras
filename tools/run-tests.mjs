@@ -177,6 +177,7 @@ const COMMITTED = [
   "importer/test-register-rules.mjs",
   "importer/test-ax-statline.mjs",
   "importer/test-character-binding.mjs",
+  "importer/test-adventure-item-binding.mjs",
   "importer/test-ax1-cookbook.mjs",
   "../discord/test/config.test.mjs",
   "../discord/test/format.test.mjs",

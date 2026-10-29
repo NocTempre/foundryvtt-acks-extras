@@ -1237,9 +1237,16 @@ than on authoring:
   per book rather than as `def.equip` — the destination moves from the book's
   flag to the row's kind (the rejected design in DECISIONS 2026-10-18, "A
   mixed book"). Not before: it re-points every folder site in the importer.
-- **The items' figures (p24–26).** Each item ships as a core item with its
-  prose; the bonus, cost and crafting time it prints stay in the description
-  until a magic-item binding reads them into fields.
+- **The items' grants (p24–26).** Each item is worn where its page says and
+  priced from its cost line (DECISIONS 2026-10-28); what it grants stays in
+  the description. Reading the grants into effects needs what no feature has
+  yet: an attack and damage bonus scoped to natural or thrown attacks (the
+  equipment contract's melee and missile domains are flat), a wearer-level
+  mark that the wearer's own attacks deal extraordinary damage (the flag is
+  per weapon), a plain item's transferred effects gated on its worn state,
+  and a ruling on what a player character's claws are, since the class
+  powers carry them as prose. Daily powers and the hidden-weapons searching
+  penalty stay prose in any design.
 - **The classes' progression tables.** Two spreads print them as images; the
   third's saves-and-attack table is text (p21, the page foot). Until a table
   is read the Judge finishes the ladder; the chassis carries the fighter

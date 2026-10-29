@@ -1,7 +1,7 @@
 {
   "id": "kind.adventureItem",
   "role": "composite",
-  "note": "An item an adventure introduces, such as a new magic item, bound as a core item whose name and description are read at import. Named Item <n>, id <book>.item<n>, anchors by hash. Its figures stay prose until a magic-item binding can upgrade it in place.",
+  "note": "An item an adventure introduces, such as a new magic item, bound as a core item whose name and description are read at import, declaring the place its paragraph says it is worn, priced from its cost line and marked magic where it states a crafting time. Named Item <n>, id <book>.item<n>, anchors by hash. What it grants stays prose until a magic-item binding reads it.",
   "fields": {
     "name": { "locate": "display" },
     "description": { "locate": "proseFlow", "type": "blocks" }

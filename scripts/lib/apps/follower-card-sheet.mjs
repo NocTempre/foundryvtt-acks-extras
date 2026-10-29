@@ -22,6 +22,7 @@ import { toggleStar } from "../follower-card-model.mjs";
 import { FRAME_CLASS } from "../frame.mjs";
 import { moveBandIntoHeader } from "../header-band.mjs";
 import { ITEM_TYPE } from "../vocab.mjs";
+import { isEquippable, isWorn, slotsOf, setWorn } from "../item-model.mjs";
 import { skipDialogFor } from "../roll-dialog.mjs";
 import { SECRET_ADVENTURING, rollSecretAdventuring } from "../patches/adventuring-roll.mjs";
 import { promptDivide } from "../stack-prompt.mjs";
@@ -331,12 +332,16 @@ export class FollowerCardSheet extends foundry.applications.api.HandlebarsApplic
   /*  Rolls                                       */
   /* -------------------------------------------- */
 
-  /** Toggle a weapon/armour item's worn/wielded state. */
+  /**
+   * Toggle a wearable item's worn state: core's `equipped` field where the
+   * type has one, else the lib's worn store at the item's first declared slot.
+   */
   static async #onToggleEquip(_event, target) {
     const item = this.actor.items.get(target.dataset.itemId);
-    if (item && "equipped" in (item.system ?? {})) {
-      await item.update({ "system.equipped": !item.system.equipped });
-    }
+    if (!item) return;
+    if (isEquippable(item)) return void (await item.update({ "system.equipped": !item.system.equipped }));
+    const slot = slotsOf(item)[0];
+    if (slot) await setWorn(item, isWorn(item) ? null : slot);
   }
 
   /** Roll a proficiency/power the way the system does (formula, else its card). */

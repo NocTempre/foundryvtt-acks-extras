@@ -19,7 +19,7 @@
 import { toNum as num } from "./util.mjs";
 import { MODULE_ID } from "./constants.mjs";
 import { monsterHd } from "./actor-read.mjs";
-import { isCurrency, isEquippable, isEquipped, stackCountOf } from "./item-model.mjs";
+import { isCurrency, isWearable, isWorn, stackCountOf } from "./item-model.mjs";
 import { borneWeight6 } from "./capacity.mjs";
 import { coinOrderView } from "./coin-order.mjs";
 import { attackOptionsFor, damageTypeLabel, DAMAGE_TYPE_ICONS, UNTYPED_ICON } from "./damage-type.mjs";
@@ -187,8 +187,11 @@ export async function followerCardContext(actor, { editable = false, interactive
       return {
         id: i.id,
         name: q > 1 || isCurrency(i) ? `${i.name} ×${q}` : i.name,
-        equippable: isEquippable(i),
-        equipped: isEquipped(i),
+        // Wearable is the lib's reading — core's `equipped` field OR a declared
+        // slot — so a slotted plain item (an imported pair of gloves) is offered
+        // beside the weapons and armour, and read through the same two stores.
+        equippable: isWearable(i),
+        equipped: isWorn(i),
         divisible: editable && interactive && q > 1,
       };
     });

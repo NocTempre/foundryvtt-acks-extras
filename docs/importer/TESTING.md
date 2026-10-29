@@ -3273,7 +3273,12 @@ untagged seat would read every line as a heading and import nothing.
    none refused, and the line's Judge Item shelf ("ACKS Cookbook — The OSR
    Catgirl — Judge — Item"), absent before the step, holds ten core items in
    the book's folder under "Items", each named from the page, with one
-   paragraph of description closed by a page reference; the series' OPEN Item
+   paragraph of description closed by a page reference, each priced from its
+   cost line, the eight worn ones declaring one slot (four at the hands, two
+   at the belt, two at the uncapped worn place) and marked magic, the two
+   doses declaring none; a copy of a worn one embedded on the keeper is
+   offered on her Follower Card and the card's toggle wears it at its slot
+   and puts it away again; the series' OPEN Item
    shelf ("ACKS Cookbook — The OSR Catgirl — Item"), absent before the run
    and opened by the classes and powers steps, holds five class-power items
    (Catgirl 0–4, one paragraph each) and three class items with hit die,
