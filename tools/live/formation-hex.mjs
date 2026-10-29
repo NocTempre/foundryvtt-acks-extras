@@ -628,8 +628,12 @@ const P = {
     return { found, active: app.tabGroups?.primary ?? null, li: messageId ? !!li : undefined, pos: place ? { left: app.position.left, top: app.position.top, width: app.position.width, height: app.position.height } : undefined, viewport: { w: window.innerWidth, h: window.innerHeight } };
   },
 
-  /** Click a control on the OPEN sheet. */
-  press: async ({ partyId, selector, settle = 1200 }) => {
+  /**
+   * Click a control on the OPEN sheet. With `untilNote` (a notification kind), wait for the first note of
+   * that kind, up to `cap` ms, in place of the fixed `settle`: an action that toasts once its write resolves
+   * can outlast any fixed wait.
+   */
+  press: async ({ partyId, selector, settle = 1200, untilNote = null, cap = 10000 }) => {
     const H = globalThis.__p2b;
     const app = game.actors.get(partyId).sheet;
     const el = H.root(app);
@@ -639,7 +643,8 @@ const P = {
     const t0 = Date.now();
     H.action = "press";
     n.click();
-    await H.sleep(settle);
+    if (untilNote) await H.poll(() => H.notes.some((x) => x.kind === untilNote), { tries: Math.ceil(cap / 100), every: 100 });
+    else await H.sleep(settle);
     H.action = null;
     return { found: true, notes: H.takeNotes(), messages: H.messagesSince(t0) };
   },
@@ -1212,7 +1217,7 @@ try {
   const tEast = await gm.eval(`(() => { const H = globalThis.__p2b; const n = H.m.plate.neighbourToward(game.scenes.get(${JSON.stringify(hexScene.id)}), ${JSON.stringify(cell("T").offset)}, "e"); return JSON.stringify(n ? { i: n.i, j: n.j } : null); })()`).then(JSON.parse);
   s = await page(gm, P.sheet, { partyId: party.id, keep: true });
   check("the shadow moved one hex east of T and the badge still reads south-east", sameHex(sh7.shadow?.offset, tEast) && s.judge?.where.compass?.dir === "se" && navCards(d7.messages).length === 0, { shadow: sh7.shadow?.offset, tEast, compass: s.judge?.where.compass, cards: navCards(d7.messages).length });
-  const p7 = await page(gm, P.press, { partyId: party.id, selector: '[data-action="shiftTruth"][data-direction="roll"]', settle: 3500 });
+  const p7 = await page(gm, P.press, { partyId: party.id, selector: '[data-action="shiftTruth"][data-direction="roll"]', untilNote: "info", cap: 10000 });
   note("press roll", p7);
   const sh7b = await page(gm, P.shadow, { sceneId: hexScene.id, fid });
   const dist = await gm.eval(`(() => { const g = game.scenes.get(${JSON.stringify(hexScene.id)}).grid; return g.measurePath([g.getCenterPoint(${JSON.stringify(sh7.shadow?.offset)}), g.getCenterPoint(${JSON.stringify(sh7b.shadow?.offset)})]).spaces; })()`);
