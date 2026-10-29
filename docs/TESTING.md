@@ -73,21 +73,21 @@ A feature's recipe states only what is its own.
 
 ## The merge cleaner macro
 
-*Clean Up After the Merge (GM)* (`DECISIONS.md` §11). The walk covers every
-kind of row its scan lists except a document of a removed sub-type, which no
-fixture can make.
+*Clean Up After the Merge (GM)* (`DECISIONS.md` §11) opens the repair window
+on `lib.mergeResidue` and `lib.strandedCoin`, scanned. The walk covers every
+kind of row the residue check lists, and its fix, except a document of a
+removed sub-type, which no fixture can make.
 
-**The macro removes everything its scan finds, in the whole world.** In a
-shared world that is another session's documents as readily as this run's.
-Step 1 is therefore a gate: when the world as found holds any residue, stop
-and report it. In step 3, press *Remove them* only when every row of the
-report names a fixture of this run; otherwise press *Cancel*.
+**The scan reads the whole world.** In a shared world that is another
+session's documents as readily as this run's. Step 1 is therefore a gate: when
+the world as found holds any residue, stop and report it. In step 3, tick only
+rows that name a fixture of this run.
 
 ### Fixtures
 
 Created after step 1. Each carries something that must survive beside what
-must go. The retired ids are the `OLD` list at the head of the macro
-(`tools/pack-data/cleanup.mjs`).
+must go. The retired ids are `OLD_MODULES` at the head of
+`scripts/lib/repair-checks.mjs`.
 
 | Document | Carries |
 |---|---|
@@ -118,14 +118,21 @@ setting row: 13 leftovers.
 - **None of the retired ids may be an active package** in the test world, or
   `unsetFlag` accepts the scope and the deletion under test never runs. Read
   `game.modules.get(id)?.active` for each before the run.
-- **The macro's id** is `acks39f78242e2b3`; its report is a dialog titled
-  `ACKS II — Clean Up After the Merge`, where *Remove them* is
-  `button[data-action="yes"]` and *Cancel* is `"no"`.
-- **The report lists twelve rows a heading and counts the rest.** Keep the
-  fixture set under that, so every row can be read against the run's ids.
-- **A second reading of the scan** is the repair tool's:
-  `acksExtras.lib.repair.scan({only: ["lib.mergeResidue"]})` answers the same
-  rows as `findings` and removes nothing.
+- **The macro's id** is `acks39f78242e2b3`. It opens the window
+  `#acks-extras-repair` showing the two checks under *Shared*, scanned; the
+  window's rows are `input[data-pick]` boxes keyed `lib.mergeResidue|<key>`,
+  *Fix selected* is `[data-action="fixSelected"]`, and its confirm dialog's
+  *Yes* is `button[data-action="yes"]`. The window is the one
+  `acksExtras.lib.repair.open()` and the settings menu open, so close it
+  before the macro, or the macro narrows and rescans the open one.
+- **A reading of the scan without the window** is
+  `acksExtras.lib.repair.scan({only: ["lib.mergeResidue"]})`: it answers the
+  same rows as `findings` and removes nothing.
+- **The fix's writes are read in the whispered report card** (one per press)
+  and in the client's requests: an unloadable document's `delete`, a region's
+  `deleteEmbedded` of its behaviour, one `update` per flagged document, one
+  per effect with a retired change key, one `unsetFlag` per sheet choice, and
+  the setting's `delete`.
 - **What the client sends is readable.** Wrap `game.socket.emit` before the
   run and keep every `modifyDocument` request: each names the documents it
   writes by id, which is how a write to anything outside the run's ledger is
@@ -133,25 +140,23 @@ setting row: 13 leftovers.
 
 ### Steps
 
-1. **The world as found.** Before any fixture, read the repair scan and run
-   the macro.
-   *Observable:* the scan has no findings; the macro opens no dialog, sends no
-   request and says `Nothing left from the old modules — this world is already
-   clean.` Anything else ends the walk here.
+1. **The world as found.** Before any fixture, run the macro.
+   *Observable:* the window opens on the two checks, both scanned, with no
+   findings and no `Fix selected` to press; it sent no write. Anything else
+   ends the walk here. Close the window.
 2. **The report.** Create the fixtures and run the macro.
-   *Observable:* the dialog counts 13 under `Flag scopes (9) — removed`,
-   `Effect change keys (2) — removed`, `Sheet pointers (1) — cleared` and
-   `World settings (1) — deleted`; every row names a fixture; the repair scan
-   lists the same 13; nothing has been written yet.
-3. **Remove them.** Press it.
-   *Observable:* the notice says `Cleaned up 13 leftover(s).`; in each
-   document's `_source.flags` every retired scope is gone and every other
-   scope is as created; each effect keeps its other change key and has lost
-   the retired one; the sheet pointer is gone; the setting document is gone;
-   each flagged document was sent one update naming exactly its retired
-   scopes; no request names a document outside the run's ledger; no
-   `forced deletion` line.
-4. **Nothing left.** Read the repair scan and run the macro again.
+   *Observable:* the window lists 13 rows under *Merge residue*: 9 flag rows,
+   2 effect rows, 1 sheet row and 1 setting row; every row names a fixture
+   and is offered; nothing has been written yet.
+3. **Fix selected.** Tick the 13 rows, press it, confirm.
+   *Observable:* the report card counts 13 fixed and 0 failed, each row
+   `Removed.`; in each document's `_source.flags` every retired scope is gone
+   and every other scope is as created; each effect keeps its other change key
+   and has lost the retired one; the sheet pointer is gone; the setting
+   document is gone; each flagged document was sent one update naming exactly
+   its retired scopes; no request names a document outside the run's ledger;
+   no `forced deletion` line; the window's rescan lists no rows.
+4. **Nothing left.** Close the window and run the macro again.
    *Observable:* as step 1.
 5. **A reload keeps it.** Reload the client.
    *Observable:* the documents read as in step 3 and the scan has no findings.
@@ -159,4 +164,4 @@ setting row: 13 leftovers.
 ### Teardown
 
 `api.sweepTracked()`; quote what it removed, what it could not find and what
-refused. The `Setting` fixture comes back as not found: the macro deleted it.
+refused. The `Setting` fixture comes back as not found: the fix deleted it.

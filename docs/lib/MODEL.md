@@ -1943,8 +1943,12 @@ its default and the order to by-name while keeping the Judge's own statuses.
 One window for data this module left damaged: a link to a document that is
 gone, a bundle no sheet lists, a write that stopped part-way. It is GM-only.
 It opens from the restricted settings menu **Repair this world**, from the
-*Repair This World (GM)* macro, and from `acksExtras.lib.repair.open({only})`
-(`apps/repair-app.mjs`).
+*Repair This World (GM)* macro, and from
+`acksExtras.lib.repair.open({only, scan})` (`apps/repair-app.mjs`). `only`
+limits the window to the named checks; `scan` scans them as the window opens,
+or at once when it is already open. *Clean Up After the Merge (GM)* is that
+call on `lib.mergeResidue` and `lib.strandedCoin` with `scan` set
+(`tools/pack-data/cleanup.mjs`).
 
 **A check is registered where its knowledge lives.** Each feature's
 `repair-checks.mjs` registers its checks at `init` through
@@ -1964,8 +1968,9 @@ when the fix said so, and `unverified` when the rescan itself failed. This is
 what catches a write that says it worked and did not apply.
 
 **Nothing scans on its own.** There is no scan at `ready`; the window scans
-when asked. Henchmen's own reference sweep at ready (`autoRepairReferences`) is
-that feature's, and the tool does not replace it.
+when asked, and a launcher that passes `scan` is asking. Henchmen's own
+reference sweep at ready (`autoRepairReferences`) is that feature's, and the
+tool does not replace it.
 
 **One report per fix.** After a fix the GMs get one whispered card
 (`postToJudges`). It lists, per check, the counts and each subject, with the
@@ -1978,7 +1983,7 @@ it does not.
 | `lib.attachments` | An actor attached to a carrier that is gone | Unsets the attachment |
 | `lib.mountPairs` | A legacy rider or mount flag naming an actor that is gone or does not name it back | Unsets that flag |
 | `lib.strandedCoin` | An actor that cannot load because its sub-type's package is absent or disabled, holding coin. Only a money row whose carried and banked figures come to more than nothing is coin | Report only. A disabled package is named so it can be enabled, unless it is one of the retired acks-* modules. |
-| `lib.mergeResidue` | What the retired acks-* modules left: Actors, Items and region behaviours of their sub-types that cannot load, their flag scopes, AE change keys into them, sheet choices naming their sheets, and their world settings | Report only. *Clean Up After the Merge (GM)* removes all of it except the region behaviours ([DECISIONS §11](../DECISIONS.md#11-the-cleaner-macro--why-it-is-not-a-migration)). An actor row that holds coin, counted as `lib.strandedCoin` counts it, warns that the macro deletes the coin with the actor. |
+| `lib.mergeResidue` | What the retired acks-* modules left: Actors, Items and region behaviours of their sub-types that cannot load, their flag scopes, AE change keys into them, sheet choices naming their sheets, and their world settings | Removes the row: an Actor or Item that cannot load is deleted through the collection's `getInvalid` handle, a region behaviour through its region's `deleteEmbeddedDocuments`, the retired scopes go as deletion operators in one `flags` update per document, the retired change keys are filtered out of the effect's `changes`, the sheet choice is unset, and the setting document is deleted. An actor row that holds coin, counted as `lib.strandedCoin` counts it, says so: fixing it deletes the coin with the actor ([DECISIONS §11](../DECISIONS.md#11-the-cleaner-macro--why-it-is-not-a-migration)). |
 | `henchmen.references` | An employer's hireling or monster list, or a hireling's employer, naming a deleted actor, or a hireling listed twice | `repairActor` (henchmen `repair.mjs`) |
 | `location.links` | A place's map or region link naming a scene or region that is gone or names another place, and a scene or region naming a place that is gone | Clears the stale link. The place, scene and region stay. |
 | `location.vaultSweep` | Coin in an actor's bank column, on a world actor or an unlinked token's own, or owed to a vault by a sweep that stopped part-way (the `acks` system only) | `runVaultSweep` for the chosen actors: a character's balance goes into their vault, and anyone else's joins the coin they carry |

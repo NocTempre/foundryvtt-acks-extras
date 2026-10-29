@@ -2,11 +2,12 @@
 /**
  * The repair checks lib owns: bundles embedded where no sheet lists them,
  * carry and mount links to actors that are gone, and what packages no longer
- * installed left in the world. The two invalid-document checks report only:
- * they list what they find and write nothing.
+ * installed left in the world. The stranded-coin check reports only: it lists
+ * what it finds and writes nothing. The merge-residue check removes what it
+ * lists.
  */
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
-import { makeLoc } from "./util.mjs";
+import { makeLoc, unset } from "./util.mjs";
 import { ITEM_TYPE } from "./vocab.mjs";
 import { danglingRefCheck, fixEach, registerRepairCheck, worldActors } from "./repair.mjs";
 import { resolveBundleRow, unpackEmbeddedBundle } from "./bundles.mjs";
@@ -19,10 +20,7 @@ import { isLegacyChangeKey, migrateChangeKey } from "./actor-compat.mjs";
 const loc = makeLoc(LANG_PREFIX);
 const key = (name) => `${LANG_PREFIX}.repair.check.${name}`;
 
-/**
- * The acks-* modules the merge retired, and the patterns their residue matches.
- * The cleaner macro carries the same list: a macro cannot import.
- */
+/** The acks-* modules the merge retired, and the patterns their residue matches. */
 const OLD_MODULES = Object.freeze([
   "acks-lib", "acks-abilities", "acks-equipment", "acks-formation",
   "acks-henchmen", "acks-influence", "acks-location", "acks-monsters", "acks-content",
@@ -98,6 +96,55 @@ function residueOn(doc, label, out) {
     const fxScopes = OLD_MODULES.filter((s) => fx.flags?.[s] !== undefined);
     if (fxScopes.length) out.push({ key: `flags:${fx.uuid}`, uuid: fx.uuid, name: fxLabel, detail: loc("repair.check.mergeResidue.flags", { scopes: fxScopes.join(", ") }) });
   }
+}
+
+/**
+ * Remove one residue finding, by the kind its key names. A document that
+ * cannot load is reached through its collection's invalid-document accessor
+ * and deleted; a region behaviour through its region. A retired flag scope is
+ * a forced deletion in the document's own update, since `unsetFlag` refuses a
+ * scope that is no active package. A sheet choice is unset, an effect keeps
+ * only the changes keyed elsewhere, and a world setting document is deleted.
+ * @returns {Promise<string>} the summary the outcome prints
+ */
+async function removeResidue(f) {
+  const kind = f.key.slice(0, f.key.indexOf(":"));
+  const removed = loc("repair.check.mergeResidue.removed");
+  if (kind === "invalid") {
+    const rest = f.key.slice("invalid:".length);
+    const at = rest.lastIndexOf(":");
+    const where = rest.slice(0, at);
+    const id = rest.slice(at + 1);
+    if (where === "Actor" || where === "Item") {
+      const coll = where === "Actor" ? game.actors : game.items;
+      await coll.getInvalid(id, { strict: false }).delete();
+      return removed;
+    }
+    const region = await fromUuid(where);
+    if (!region) throw new Error(loc("repair.subjectGone"));
+    await region.deleteEmbeddedDocuments("RegionBehavior", [id]);
+    return removed;
+  }
+  if (kind === "setting") {
+    const store = game.settings.storage.get("world");
+    const doc = store?.get?.(f.settingId) ?? [...(store ?? [])].find((s) => s.key === f.name) ?? null;
+    if (!doc) throw new Error(loc("repair.subjectGone"));
+    await doc.delete();
+    return removed;
+  }
+  const doc = await fromUuid(f.uuid);
+  if (!doc) throw new Error(loc("repair.subjectGone"));
+  if (kind === "flags") {
+    const scopes = OLD_MODULES.filter((s) => doc.flags?.[s] !== undefined);
+    await doc.update({ flags: Object.fromEntries(scopes.map((s) => [s, unset()])) });
+  } else if (kind === "sheet") {
+    await doc.unsetFlag("core", "sheetClass");
+  } else if (kind === "effect") {
+    await doc.update({ changes: (doc.changes ?? []).map((c) => c.toObject?.() ?? c).filter((c) => !OLD_CHANGE_KEY.test(String(c.key ?? ""))) });
+  } else {
+    throw new Error(`repair: unknown residue "${f.key}"`);
+  }
+  return removed;
 }
 
 /** Every effect a world actor or its items carry, labelled as the findings print them. */
@@ -271,21 +318,17 @@ export function registerLibRepairChecks() {
     order: 50,
     scan: () => {
       const out = [];
-      const viaMacro = loc("repair.check.mergeResidue.viaMacro");
-      // The macro deletes an unloadable actor whole, so one holding coin says so
-      // rather than sending the Judge to a fix that destroys the coin.
+      // The fix deletes an unloadable actor whole, so one holding coin says so
+      // before the Judge ticks it.
       const invalid = (doc, id, src, where) => {
         if (!OLD_TYPE.test(String(src?.type ?? ""))) return;
         const coin = doc === "Actor" ? strandedCoin(src) : { rows: 0 };
-        let reason = viaMacro;
-        if (doc === "RegionBehavior") reason = loc("repair.check.mergeResidue.regionReport");
-        else if (coin.rows) reason = loc("repair.check.mergeResidue.holdsCoin", { coin: coin.text });
         out.push({
           key: `invalid:${where}:${id}`,
           uuid: null,
           name: src.name ?? id,
           detail: loc("repair.check.mergeResidue.invalid", { doc, type: src.type }),
-          reason,
+          ...(coin.rows ? { reason: loc("repair.check.mergeResidue.holdsCoin", { coin: coin.text }) } : {}),
         });
       };
       for (const [doc, coll] of [["Actor", game.actors], ["Item", game.items]]) {
@@ -300,9 +343,12 @@ export function registerLibRepairChecks() {
       for (const [doc, label] of residueDocs()) residueOn(doc, label, out);
       for (const s of game.settings.storage.get("world") ?? []) {
         const k = String(s.key ?? "");
-        if (OLD_MODULES.includes(k.split(".")[0])) out.push({ key: `setting:${k}`, uuid: null, name: k, detail: loc("repair.check.mergeResidue.setting") });
+        if (OLD_MODULES.includes(k.split(".")[0])) {
+          out.push({ key: `setting:${k}`, uuid: null, name: k, settingId: s.id ?? null, detail: loc("repair.check.mergeResidue.setting") });
+        }
       }
-      return out.map((f) => ({ reason: viaMacro, ...f }));
+      return out;
     },
+    fix: (findings) => fixEach(findings, removeResidue),
   });
 }

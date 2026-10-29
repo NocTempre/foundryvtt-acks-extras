@@ -2434,7 +2434,9 @@ behaviours the macro lost.
   (ROADMAP).
 - **The cleaner macro keeps its own command.** The design made it a launcher
   into this window. With merge residue report-only, a launcher would remove the
-  only way to clean up.
+  only way to clean up. *Superseded in part 2026-10-28 ("The merge residue
+  check removes what it lists", below): the residue check now fixes, and the
+  macro is the launcher; stranded coin still reports only.*
 - **A residue row that holds coin says so.** The macro deletes an unloadable
   actor whole, so such a row names the coin and warns that the macro deletes
   it, rather than sending the Judge to it bare.
@@ -4764,3 +4766,44 @@ and later, when the next combatant still carries `surprised`, `nextTurn`
 awaits its removal before it moves the turn. Where the player does not own
 that combatant, the refused delete would abort their End Turn. That is the
 system's, and goes upstream with this report.
+
+### The merge residue check removes what it lists (2026-10-28)
+
+**Ruled.** `lib.mergeResidue` has a fix: a ticked row is removed the way *Clean
+Up After the Merge (GM)* removed it, and a region behaviour of a retired
+sub-type, which the macro had stopped reaching, is deleted through its region
+(MODEL, "The repair tool"). The macro keeps its id and name and becomes the
+launcher the 2026-09-23 design drew: `acksExtras.lib.repair.open` on the two
+invalid-document checks with the new `scan` option, which scans what the
+window shows as it opens. `lib.strandedCoin` still reports only.
+
+This **supersedes in part** "One standing repair tool" (2026-09-23), whose
+second and third bullets kept both checks report-only and the macro its own
+command, and closes docs/DECISIONS.md §11 for the residue walk. **New
+evidence:** the user asked that the repair tool do more than inform. Reread
+against that, the scratch-world argument held only for the two rows that
+delete a document the world cannot load, and those were the macro's own
+live-verified writes (§11: 43 leftovers, then a clean load) moved into the
+check: a `delete` on the collection's `getInvalid` handle. The flag, effect,
+sheet and setting rows were always writes on documents a fixture can make,
+and docs/TESTING.md walks them. Stranded coin is different in kind: its fix
+mints coin from a document it cannot read back, and the ledger that keeps a
+rescan from minting it twice is not built (ROADMAP).
+
+- **A row that holds coin is offered, and says so.** The ROADMAP design had
+  the fix skip such an actor unless the Judge said otherwise. The tick is the
+  Judge saying so, and the row's reason names the coin that goes with the
+  actor, so the warning stands where the decision is made.
+- **One update per flagged document.** The retired scopes go as deletion
+  operators in a nested `flags` object, as "A deletion is the operator,
+  spelled once" (2026-10-07) rules, never one write per scope.
+- **A region behaviour is keyed by its region.** The finding's key carries
+  the region uuid and the behaviour id, so the fix resolves the region and
+  deletes the embedded document; a region that is gone refuses the row.
+- **The macro's dialog is gone with its command.** Its report was the
+  window's rows, its *Remove them* is *Fix selected*, and the whispered card
+  is its notice. The id is unchanged, so a world keeps the one macro document.
+
+**Cost.** A world that ran the macro from a seat where the repair window was
+already open sees that window narrowed to the two checks and rescanned,
+rather than a second window.

@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- **The repair tool removes what the old modules left.** The *Merge residue*
+  check's rows can be ticked and fixed: a document of a retired module's
+  sub-type that cannot load is deleted, its region behaviours too, the retired
+  flag scopes, effect change keys and sheet choices are cleared, and its world
+  settings are deleted. A row for an actor that holds coin says so before the
+  tick. *Clean Up After the Merge (GM)* now opens the repair window on that
+  check and *Stranded coin*, already scanned, instead of its own dialog; it is
+  the same macro document.
+
 ## 11.11.0
 
 ### Added

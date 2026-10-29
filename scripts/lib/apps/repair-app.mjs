@@ -51,16 +51,24 @@ export class RepairApp extends HandlebarsApplicationMixin(ApplicationV2) {
   /** The check ids this window shows, or null for all. */
   #only = null;
   #busy = false;
+  /** Whether the first render scans what it shows (a launcher's opening). */
+  #scanOnOpen = false;
 
   constructor(options = {}) {
     super(options);
     this.#only = Array.isArray(options.only) && options.only.length ? [...options.only] : null;
+    this.#scanOnOpen = !!options.scan;
   }
 
   /** Limit the window to `only` (null for every check) and redraw it. */
   showOnly(only) {
     this.#only = Array.isArray(only) && only.length ? [...only] : null;
     return this.render(true);
+  }
+
+  /** Scan `ids` (null: every check this window shows) as the Scan buttons do. */
+  scan(ids = null) {
+    return this.#scan(ids);
   }
 
   /** @override */
@@ -107,6 +115,10 @@ export class RepairApp extends HandlebarsApplicationMixin(ApplicationV2) {
   async _onFirstRender(context, options) {
     await super._onFirstRender(context, options);
     this.element.addEventListener("change", (event) => this.#onPick(event));
+    if (this.#scanOnOpen) {
+      this.#scanOnOpen = false;
+      this.#scan(null);
+    }
   }
 
   /** @override */
@@ -212,11 +224,12 @@ export class RepairMenu extends RepairApp {
 }
 
 /**
- * Open the repair window, showing every check or only those in `only`. GM only;
- * a second call raises the open window instead of making another.
+ * Open the repair window, showing every check or only those in `only`, and
+ * with `scan` scanning what it shows at once. GM only; a second call raises
+ * the open window instead of making another.
  * @returns {RepairApp|null}
  */
-export function openRepairTool({ only = null } = {}) {
+export function openRepairTool({ only = null, scan = false } = {}) {
   if (!game.user?.isGM) {
     ui.notifications.warn(loc("repair.gmOnly"));
     return null;
@@ -224,9 +237,10 @@ export function openRepairTool({ only = null } = {}) {
   if (instance?.rendered) {
     instance.showOnly(only);
     instance.bringToFront();
+    if (scan) instance.scan(null);
     return instance;
   }
-  instance = new RepairApp({ only });
+  instance = new RepairApp({ only, scan });
   instance.render(true);
   return instance;
 }

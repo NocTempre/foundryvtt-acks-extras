@@ -260,6 +260,12 @@ assigns the deletion operator to each scope, in a nested `flags` object. On
 Foundry 14.367 the two spellings send the same request and leave the same
 flags, and the legacy one logged a compatibility warning for every scope.
 
+**Amended 2026-10-28** (docs/lib/DECISIONS.md, "The merge residue check
+removes what it lists"). The walk and the removals now live in the
+`lib.mergeResidue` check, region behaviours included; the macro keeps its id
+and name and opens the repair window on that check and `lib.strandedCoin`,
+scanned. The ticked rows are the report before anything is touched.
+
 ## 12. Single-branch development — RESOLVED (isolation off, guard on)
 
 The convention was always one branch. It read `Branch `main`; tags `v<semver>`.`

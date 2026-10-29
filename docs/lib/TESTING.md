@@ -1396,8 +1396,9 @@ the rows `lib.mergeResidue` lists for a document of a removed sub-type, need a
 document the world cannot load, which no fixture here can make. Walk them only
 in a scratch world, and otherwise report them as not exercised; offline,
 `tools/test-repair-checks.mjs` holds what both scans list for such a document,
-against stand-in collections. The rows `lib.mergeResidue` lists for documents
-that do load are read in docs/TESTING.md, "The merge cleaner macro".
+and what the residue fix writes for every kind of row, against stand-in
+collections. The rows `lib.mergeResidue` lists for documents that do load, and
+their fix, are walked in docs/TESTING.md, "The merge cleaner macro".
 
 The scan reads the whole world, so a shared world shows other sessions' rows.
 **Tick only the rows that name your own fixtures.**

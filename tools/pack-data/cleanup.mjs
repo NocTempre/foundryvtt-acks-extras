@@ -1,139 +1,35 @@
 /**
- * The post-switch cleaner: finds and removes what the pre-merge acks-* modules
- * left in a world (flag scopes, Active Effect change keys, world settings,
- * sheet-class pointers, and documents of a removed sub-type). Consumed by the
- * synced tools/build-packs.mjs harness via the `packs` map exported at the
- * bottom of this file; registered as a feature in tools/pack-data.mjs, whose
- * aggregator concatenates this `macros` pack with every other feature's into
- * the one shared `macros` compendium.
+ * The post-switch cleaner: opens the repair tool on what the pre-merge acks-*
+ * modules left in a world (flag scopes, Active Effect change keys, world
+ * settings, sheet-class pointers, documents and region behaviours of a removed
+ * sub-type), scanned on opening. The walk and the removals are the
+ * `lib.mergeResidue` check (scripts/lib/repair-checks.mjs); the macro is its
+ * launcher, beside the coin check that warns what an unloadable actor holds.
+ * Consumed by the synced tools/build-packs.mjs harness via the `packs` map
+ * exported at the bottom of this file; registered as a feature in
+ * tools/pack-data.mjs, whose aggregator concatenates this `macros` pack with
+ * every other feature's into the one shared `macros` compendium. See
+ * docs/DECISIONS.md, "The cleaner macro — why it is not a migration".
  *
- * Reports before it deletes, is idempotent, and runs with the old modules
- * uninstalled — flags of an uninstalled module are still readable, and invalid
- * Actors are reached through the collection's invalid-document accessors
- * rather than the normal lookup. See docs/DECISIONS.md, "The cleaner macro —
- * why it is not a migration".
- *
- * It does NOT touch anything acks-extras owns. `_id` is content-hashed from the
- * macro name and carries the declared "acks" idPrefix; dropping or re-adding
- * this pack entry never reissues it, so a world that already has this macro
- * keeps the same document identity.
+ * `_id` is content-hashed from the macro name and carries the declared "acks"
+ * idPrefix; dropping or re-adding this pack entry never reissues it, so a world
+ * that already has this macro keeps the same document identity.
  */
 import crypto from "node:crypto";
 
 const did = (seed) => "acks" + crypto.createHash("sha1").update(seed).digest("hex").slice(0, 12);
 const STATS = { coreVersion: "13", createdTime: 1785551134915, modifiedTime: 1785551134915 };
 
-const COMMAND = String.raw`
-// ACKS II — clean up after the module merge.
-// Removes what the nine old acks-* modules left in this world. Nothing is
-// migrated: the merge was a clean break, so this is residue, not data.
-if (!game.user.isGM) { ui.notifications.warn("GM only."); return; }
-
-const OLD = ["acks-lib","acks-abilities","acks-equipment","acks-formation",
-             "acks-henchmen","acks-influence","acks-location","acks-monsters",
-             "acks-content"];
-const OLD_TYPE = /^acks-(lib|abilities|equipment|formation|henchmen|influence|location|monsters|content)\./;
-const CHANGE_KEY = /^flags\.acks-(lib|abilities|equipment|formation|henchmen|influence|location|monsters|content)\./;
-
-const plan = { flags: [], effects: [], settings: [], sheets: [], invalid: [] };
-
-/* --- documents whose sub-type belonged to an old module ------------------ */
-// These never instantiate, so game.actors.get() cannot see them. The collection
-// keeps their ids and raw source separately; that is the only way in.
-for (const [name, coll] of [["Actor", game.actors], ["Item", game.items]]) {
-  for (const id of (coll.invalidDocumentIds ?? new Set())) {
-    let src = null;
-    try { src = coll.getInvalid(id, { strict: false })?.toObject?.() ?? null; } catch (e) { /* unreadable */ }
-    const type = src?.type ?? "(unknown)";
-    if (OLD_TYPE.test(type)) plan.invalid.push({ doc: name, id, name: src?.name ?? "(unnamed)", type });
-  }
+const COMMAND = `// ACKS II — clean up after the module merge.
+// Opens the repair tool on what the nine old acks-* modules left in this world,
+// already scanned: tick the rows and press Fix selected to remove them. Nothing
+// is migrated: the merge was a clean break, so this is residue, not data.
+const api = game.modules.get("acks-extras")?.api?.lib ?? globalThis.acksExtras?.lib;
+if (!api) return ui.notifications.error("ACKS Extras is not active.");
+if (typeof api.repair?.open !== "function") {
+  return ui.notifications.warn("ACKS Extras | Clean Up After the Merge needs a newer build of this module.");
 }
-
-/* --- flag scopes, AE change keys, sheet pointers ------------------------- */
-const scan = (doc, label) => {
-  const scopes = OLD.filter((s) => doc.flags?.[s] !== undefined);
-  if (scopes.length) plan.flags.push({ uuid: doc.uuid, label, scopes });
-  const sheet = doc.flags?.core?.sheetClass;
-  if (typeof sheet === "string" && OLD.some((s) => sheet.startsWith(s + "."))) {
-    plan.sheets.push({ uuid: doc.uuid, label, sheet });
-  }
-  for (const fx of (doc.effects ?? [])) {
-    const bad = (fx.changes ?? []).filter((c) => CHANGE_KEY.test(String(c.key ?? "")));
-    if (bad.length) plan.effects.push({ uuid: fx.uuid, label: label + " → " + fx.name, keys: bad.map((c) => c.key) });
-    const fxScopes = OLD.filter((s) => fx.flags?.[s] !== undefined);
-    if (fxScopes.length) plan.flags.push({ uuid: fx.uuid, label: label + " → " + fx.name, scopes: fxScopes });
-  }
-};
-for (const a of game.actors) { scan(a, a.name); for (const i of a.items) scan(i, a.name + " → " + i.name); }
-for (const i of game.items) scan(i, i.name);
-for (const j of game.journal) scan(j, j.name);
-for (const t of game.tables) scan(t, t.name);
-for (const s of game.scenes) { scan(s, s.name); for (const tk of s.tokens) scan(tk, s.name + " → " + tk.name); }
-
-/* --- world settings in the old namespaces -------------------------------- */
-for (const s of game.settings.storage.get("world")) {
-  const ns = String(s.key ?? "").split(".")[0];
-  if (OLD.includes(ns)) plan.settings.push({ id: s.id, key: s.key });
-}
-
-const total = plan.invalid.length + plan.flags.length + plan.effects.length + plan.settings.length + plan.sheets.length;
-if (!total) { ui.notifications.info("Nothing left from the old modules — this world is already clean."); return; }
-
-const li = (rows, f) => rows.length ? "<ul>" + rows.slice(0, 12).map(f).join("") + (rows.length > 12 ? "<li><em>…and " + (rows.length - 12) + " more</em></li>" : "") + "</ul>" : "";
-const content =
-  "<p>Found <strong>" + total + "</strong> leftover(s) from the pre-merge modules. Nothing here is carried over by the merge.</p>" +
-  (plan.invalid.length  ? "<h4>Documents of a removed sub-type (" + plan.invalid.length + ") — deleted</h4>" + li(plan.invalid, (r) => "<li>" + r.doc + " <b>" + r.name + "</b> <code>" + r.type + "</code></li>") : "") +
-  (plan.flags.length    ? "<h4>Flag scopes (" + plan.flags.length + ") — removed</h4>" + li(plan.flags, (r) => "<li>" + r.label + " <code>" + r.scopes.join(", ") + "</code></li>") : "") +
-  (plan.effects.length  ? "<h4>Effect change keys (" + plan.effects.length + ") — removed</h4>" + li(plan.effects, (r) => "<li>" + r.label + " <code>" + r.keys.join(", ") + "</code></li>") : "") +
-  (plan.sheets.length   ? "<h4>Sheet pointers (" + plan.sheets.length + ") — cleared</h4>" + li(plan.sheets, (r) => "<li>" + r.label + " <code>" + r.sheet + "</code></li>") : "") +
-  (plan.settings.length ? "<h4>World settings (" + plan.settings.length + ") — deleted</h4>" + li(plan.settings, (r) => "<li><code>" + r.key + "</code></li>") : "") +
-  "<p><strong>This cannot be undone.</strong> Back the world up first if you have not.</p>";
-
-const go = await foundry.applications.api.DialogV2.confirm({
-  window: { title: "ACKS II — Clean Up After the Merge" },
-  classes: ["acks-extras", "acks-extras-scroll"],
-  content,
-  yes: { label: "Remove them" },
-  no: { label: "Cancel", default: true },
-});
-if (!go) return;
-
-let done = 0;
-// invalid documents first: they are the ones breaking world load
-for (const r of plan.invalid) {
-  const coll = r.doc === "Actor" ? game.actors : game.items;
-  try { await coll.getInvalid(r.id, { strict: false }).delete(); done++; }
-  catch (e) { console.error("acks-extras | could not delete " + r.doc + " " + r.id, e); }
-}
-for (const r of plan.effects) {
-  const fx = await fromUuid(r.uuid).catch(() => null);
-  if (!fx) continue;
-  const keep = (fx.changes ?? []).filter((c) => !CHANGE_KEY.test(String(c.key ?? "")));
-  try { await fx.update({ changes: keep }); done++; } catch (e) { console.error(e); }
-}
-for (const r of plan.flags) {
-  const d = await fromUuid(r.uuid).catch(() => null);
-  if (!d) continue;
-  try { for (const s of r.scopes) await d.unsetFlag(s, ""); done++; }
-  catch (e) {
-    // unsetFlag refuses a scope that is not an active package; the document's
-    // own update takes a forced deletion of each scope instead.
-    try { await d.update({ flags: Object.fromEntries(r.scopes.map((s) => [s, new foundry.data.operators.ForcedDeletion()])) }); done++; }
-    catch (e2) { console.error("acks-extras | could not clear flags on " + r.uuid, e2); }
-  }
-}
-for (const r of plan.sheets) {
-  const d = await fromUuid(r.uuid).catch(() => null);
-  if (d) { try { await d.unsetFlag("core", "sheetClass"); done++; } catch (e) { console.error(e); } }
-}
-for (const r of plan.settings) {
-  try { await game.settings.storage.get("world").get(r.id).delete(); done++; }
-  catch (e) { console.error("acks-extras | could not delete setting " + r.key, e); }
-}
-
-ui.notifications.info("Cleaned up " + done + " leftover(s). Reload the world (F5) to clear the console errors.");
-console.log("acks-extras | cleanup plan", plan);
-`;
+api.repair.open({ only: ["lib.mergeResidue", "lib.strandedCoin"], scan: true });`;
 
 export function buildMacros() {
   const id = did("macro:cleanup-after-merge");
@@ -145,7 +41,7 @@ export function buildMacros() {
       type: "script",
       scope: "global",
       img: "icons/svg/daze.svg",
-      command: COMMAND.trim(),
+      command: COMMAND,
       ownership: { default: 0 },
       _stats: STATS,
     },
