@@ -4,6 +4,11 @@
 
 ### Changed
 
+- **ERRATA.md is no longer in the module download.** The record of the
+  printing errors the importer reads past, which 11.11.0 shipped in the
+  module folder, now lives in the repository at
+  [docs/importer/ERRATA.md](https://github.com/NocTempre/foundryvtt-acks-extras/blob/main/docs/importer/ERRATA.md).
+  An erratum id in a place's note is looked up there.
 - **The repair tool removes what the old modules left.** The *Merge residue*
   check's rows can be ticked and fixed: a document of a retired module's
   sub-type that cannot load is deleted, its region behaviours too, the retired
