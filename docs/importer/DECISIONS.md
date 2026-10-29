@@ -8425,3 +8425,20 @@ reads Not connected on the very seat it was shared with.
 journal puts each shared book's fetch and parse back on every player seat
 at every join, for no reader the module has today. The rejected rule is one
 condition in `restoreShelf` if that proves common.
+
+## 2026-10-28 — ERRATA.md is a repo document, not shipped
+
+11.11.0 shipped `ERRATA.md` at the repo root, which `module.zip` takes whole:
+the release workflow excludes named paths, and the root file was none of
+them. The owner ruled the same day to take it out of the zip.
+
+**Ruled.** It lives at `docs/importer/ERRATA.md`. The zip excludes `docs/*`,
+so the synced release workflow is unchanged, and `lint-register` reads the
+ids from there.
+
+*Rejected:* an `ERRATA.md` exclude in the template's release workflow. The
+file is this repo's, and the exclude would sync to every module and need a
+template push.
+
+*Cost:* a Judge who reads an erratum id in a place's note finds its entry on
+GitHub, not in the module folder. 11.11.0's zip keeps the root copy.

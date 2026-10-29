@@ -515,7 +515,7 @@ whose figures it holds, never by reading the name) and `kind.marketRecord`
 families and class cells). A page that prints names and figures out of step
 is re-keyed and declared: the grid's `meta.errata` names each market the
 correction touches, and a record's `meta.gridClassErratum` declares its grid
-row's class cell a misprint. Each names an id in the repo's `ERRATA.md`, which
+row's class cell a misprint. Each names an id in `docs/importer/ERRATA.md`, which
 the register lint holds them to. A grid printed
 sideways (AX1 p.27: goods down the side, markets across) is the same kind with
 `transpose`, its goods keyed by authored band keys, AX3's column keys, and its

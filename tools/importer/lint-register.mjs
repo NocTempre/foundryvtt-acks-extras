@@ -26,7 +26,7 @@ import {
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REGISTER = path.join(HERE, "..", "..", "register");
 const COOKBOOK = path.join(HERE, "..", "..", "cookbook");
-const ERRATA = path.join(HERE, "..", "..", "ERRATA.md");
+const ERRATA = path.join(HERE, "..", "..", "docs", "importer", "ERRATA.md");
 
 const MAX_STR = 60; // labels/names/headings/citations — never a sentence
 const MAX_NOTE = 400; // authoring commentary in register sources ("note" keys)

@@ -394,7 +394,7 @@ compendium equivalents, and `api.track` each one.
 
 ## AX3's printing errata walk (a world imported before the correction)
 
-`ERRATA.md` `ax3-p223-offset` and `ax3-p222-class`, over the shape an
+`docs/importer/ERRATA.md` `ax3-p223-offset` and `ax3-p222-class`, over the shape an
 11.10.1 world holds. The world's AX3 markets are the library's and carry no
 marker, so the walk drives places of its own and steers the step onto them in
 memory.

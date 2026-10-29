@@ -17,6 +17,9 @@ concerns:
 - [EXTRACTION.md](EXTRACTION.md) — the map of the extraction engine and
   pipeline operators, and the running ledger of extractor gotchas (double-strikes,
   column starvation, run seams — each row points at its gate).
+- [ERRATA.md](ERRATA.md) — the printing errors the importer reads past, one
+  entry per id a register row declares; the register lint holds every
+  declaration to it.
 
 [TESTING.md](TESTING.md) carries the live-test recipes — the go-live gate.
 

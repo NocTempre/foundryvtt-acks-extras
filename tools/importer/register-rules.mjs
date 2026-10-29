@@ -258,8 +258,8 @@ const marketKeysOf = (r) =>
   new Set(Object.values(r.assists?.grids ?? {}).flatMap((g) => (g?.transpose ? g?.cols : g?.rowBands) ?? []).map((b) => b.key));
 
 /**
- * The printing errors a book's market rows declare, each by an id `ERRATA.md`
- * holds. A grid's `meta.errata` names the markets whose figures the module
+ * The printing errors a book's market rows declare, each by an id
+ * `docs/importer/ERRATA.md` holds. A grid's `meta.errata` names the markets whose figures the module
  * reads from a band other than the one printed beside the name: a market of
  * the grid, or one a row of the book claims (`meta.market`) whose figures no
  * band of any of its grids holds. A record's `meta.gridClassErratum` says the
