@@ -12,7 +12,8 @@ importing from larger hubs, and the magic-item market with identification.
   here, composed in by location — see Ownership below), and
   `flags["acks-extras"].markets` on Item documents (magic/identification
   state, merchandise-category override).
-- **Enhance**: a Trade tab on the location sheet.
+- **Enhance**: Trade and Ventures tabs on the location sheet, and a Shop
+  sources window in the settings.
 - **Invent**: nothing core provides.
 
 ## Ownership
@@ -110,6 +111,22 @@ party's find.
   catalog skips class-template copies (`isTemplateCopy`: a starting-kit skin
   or any template part), so a shop item is listed once as its base, never
   once per printed descriptor.
+- **The shop's sources** (`engine/catalog-sources.mjs`, `rules/sources.mjs`,
+  `apps/catalog-sources.mjs`): the catalog reads the world's items and every
+  Item compendium except the sources the Judge leaves out in Shop sources
+  (`marketsCatalogExcluded`, one world list of source keys: `world`, or a
+  pack's collection id). The list names what is out, so a compendium a
+  module adds later stocks every shop until it is unticked. Every catalog row
+  carries `sourceUuid`, the document it was listed from, and a purchase,
+  import order, commission or directed search places that document
+  (`listedSource`). A uuid whose source is left out, or one naming an item
+  embedded on an actor, is refused (`noSource`); with no uuid the name is
+  looked up among the listed sources only (equipment's `findGearEntry`,
+  scoped). An order, commission or search stores the uuid, and its delivery
+  follows it (`orderedSource`), then the name among the listed sources, then
+  the name anywhere, so what was placed before a source was left out still
+  arrives. A change to the list drops every open sheet's cached catalog and
+  redraws it.
 - **Imports, commissions, searches** (`engine/imports.mjs`): all deliver
   through one due-work sweep the GM time watcher runs (`onTimeAdvanced`,
   watermarked) with an owner-facing process button. Import fates are rolled
@@ -240,7 +257,7 @@ party's find.
       `stayCpPerDay`, and the venture row the totals. The ledger row
       itemizes the charges, lists what was smuggled and gives the stay's
       lines; the detail names any throws; the entered card says what was
-      paid and the day's fee; and the Trade tab's status line gives the
+      paid and the day's fee; and the Ventures tab's status line gives the
       fee while the visit stands.
   - **Entering as the party or separately** (RR ch. 8, Entering the Market,
     step 2, Parties; `rules/arbitrage.mjs` `entryConflict`, `ventureKey`,
@@ -284,7 +301,7 @@ party's find.
       the party, the trader's own separately. Separately, another member's
       packs leave the goods list and the network block is the trader's alone.
       A vehicle through the gate this month is marked and cannot be ticked.
-      The Trade tab's status line marks a separate venture, and the Judge's
+      The Ventures tab's status line marks a separate venture, and the Judge's
       party block has a line per venture naming its entrant.
   - **The assessment's roll is made on the influence page**, not by the
     sweep: the tab opens the influence feature's `marketAssessment` mode
@@ -364,10 +381,16 @@ party's find.
   trader) and the character Trade tab for that character across every
   market. The assessment row masks a false outcome as partial, since the
   trader reads it.
-- **The Trade tab** (`apps/trade-tab.mjs`): the location sheet mounts it
-  with one prepare call, one spread of `TRADE_TAB_ACTIONS` into its actions
-  and one bind call; markets owns everything behind the buttons. Every action
-  is taken by one ACTING TRADER, picked in the tab (a GM among the player
+- **The Trade and Ventures tabs** (`apps/trade-tab.mjs`): the location sheet
+  mounts both with one prepare call, one spread of `TRADE_TAB_ACTIONS` into
+  its actions and one bind call; markets owns everything behind the buttons.
+  Trade is the shop: the catalog, selling, imports, commissions, searches and
+  the exchange. Ventures is the arbitrage: the venture block and its queue,
+  the reports held at this market, Set demand, the Demand Generator and the
+  GM's per-party blocks. Each tab carries the acting-trader picker, the class
+  line, the demand chips and the trade history, since a trader at either
+  needs them. Every action
+  is taken by one ACTING TRADER, picked in either tab (a GM among the player
   characters, a player among their own) and remembered per client in
   `marketsActingTrader`. With none remembered, the first candidate who is not
   a hireling acts; a hireling stays pickable but never becomes the default by
@@ -471,7 +494,7 @@ read through one function.
 
 ### The Demand Generator
 
-`apps/demand-generator.mjs` (opened by a GM button on the Trade tab) runs
+`apps/demand-generator.mjs` (opened by a GM button on the Ventures tab) runs
 JJ 199-202, Step 7 A-D, for every good in `merchandiseCatalog()`, Judge-made
 goods included.
 
@@ -595,7 +618,7 @@ report whose beliefs are wrong, and the market's true demand never enters it.
   party's or whose assessor is a member (`heldByParty`), the newest belief per
   good, ties to the later report. `partyMembers` (`engine/parties.mjs`) gives
   a party's characters: its roster, or for the implicit party the player
-  characters no roster claims. The Trade tab's belief chips and the GM's
+  characters no roster claims. Both market tabs' belief chips and the GM's
   per-party block read through it.
 - **Choosing the goods** (`chooseGoods`, GM-side; `performChoose` through the
   relay): the report's owner or the GM ticks up to `picks` goods on the sheet.

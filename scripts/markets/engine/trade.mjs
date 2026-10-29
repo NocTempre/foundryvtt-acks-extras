@@ -29,7 +29,7 @@ import { getTable, optTable } from "../../henchmen/rules/tables.mjs";
 import { now, calendarMonthStart, secondsPerMonth } from "../../henchmen/time.mjs";
 import * as adapter from "../../henchmen/acks-adapter.mjs";
 import { effectiveMarketClass } from "../../henchmen/engine/recruitment.mjs";
-import { findGearEntry } from "../../equipment/grant.mjs";
+import { excludedSources, listedSource, shopListsWorld, shopPacks } from "./catalog-sources.mjs";
 import { deliverItems } from "../../lib/bundles.mjs";
 import { goodsForRow } from "../../lib/bundles-logic.mjs";
 import { quantityOf } from "../../lib/storage-logic.mjs";
@@ -257,20 +257,37 @@ export function availabilityFor(location, { itemName, costGp, trader = null, dir
   return tag({ status: remaining > 0 ? "available" : "exhausted", band: band.band, remaining, capParty, capMarket });
 }
 
+/** The index fields a catalog read takes from a compendium: what `shopListable` and a row read. */
+export const CATALOG_INDEX_FIELDS = Object.freeze(["system.cost", "system.subtype", "flags"]);
+
 /**
- * The purchasable catalog: every distinct tradeable item this world knows —
- * world items first (a Judge's customisation wins), then every Item
- * compendium — priced above zero, masterwork gated behind the market's
- * contact, class-template copies (starting-kit skins) left to their base.
- * One row per distinct item key, the identity the ledger caps on.
- * Every row says whether it trades as magic stock (`magic`, with the
- * `magicBaseGp` its band and price read; 0 when mundane). The market's own
- * holdings follow: each magic item a sale left embedded on the location is a
- * row of its own (`held`, `heldItemId`, `heldQty`), bought by moving that
- * item rather than copying a source.
+ * Whether item data can stand in the shop at all: a tradeable type other than
+ * a bundle, priced above zero, and not a class-template copy (a starting-kit
+ * skin trades as its base). The masterwork gate is the market's, applied apart.
+ */
+export function shopListable(data) {
+  if (isTemplateCopy(data)) return false;
+  if (!TRADE_TYPES.includes(data?.type) || data.type === ITEM_TYPE.bundle) return false;
+  return Number(data.system?.cost ?? 0) > 0;
+}
+
+/**
+ * The purchasable catalog: every distinct tradeable item the shop's sources
+ * hold (`catalog-sources.mjs`) — world items first (a Judge's customisation
+ * wins), then each Item compendium the shop lists, in `game.packs` order — priced
+ * above zero, masterwork gated behind the market's contact, class-template
+ * copies (starting-kit skins) left to their base. One row per distinct item
+ * key, the identity the ledger caps on, carrying the document it came from
+ * (`sourceUuid`), which is what a buy of the row takes. Every row says
+ * whether it trades as magic stock (`magic`, with the `magicBaseGp` its band
+ * and price read; 0 when mundane). The market's own holdings follow: each
+ * magic item a sale left embedded on the location is a row of its own
+ * (`held`, `heldItemId`, `heldQty`), bought by moving that item rather than
+ * copying a source.
  */
 export async function buildCatalog(location) {
   const contact = !!location.system.market?.goods?.masterworkContact;
+  const excluded = excludedSources();
   const byKey = new Map();
   const rowOf = (data, costGp, extra = {}) => {
     const { magic, baseGp } = magicBasisOf(data);
@@ -294,20 +311,19 @@ export async function buildCatalog(location) {
     if (isMasterwork(data) && !contact) return 0;
     return costGp;
   };
-  const consider = (data) => {
-    if (isTemplateCopy(data)) return;
+  const consider = (data, sourceUuid) => {
+    if (!shopListable(data)) return;
     const costGp = tradeable(data);
     if (!costGp) return;
     const key = itemKeyOf(data.name);
     if (byKey.has(key)) return;
-    byKey.set(key, rowOf(data, costGp));
+    byKey.set(key, rowOf(data, costGp, { sourceUuid }));
   };
-  for (const item of game.items) consider(item.toObject());
-  for (const pack of game.packs) {
-    if (pack.documentName !== "Item") continue;
+  if (shopListsWorld(excluded)) for (const item of game.items) consider(item.toObject(), item.uuid);
+  for (const pack of shopPacks(excluded)) {
     try {
-      const index = await pack.getIndex({ fields: ["system.cost", "system.subtype", "flags"] });
-      for (const e of index) consider(e);
+      const index = await pack.getIndex({ fields: [...CATALOG_INDEX_FIELDS] });
+      for (const e of index) consider(e, e.uuid ?? `Compendium.${pack.collection}.Item.${e._id}`);
     } catch (e) {
       console.warn(`${MODULE_ID} | catalog index failed for ${pack.collection}`, e);
     }
@@ -345,6 +361,7 @@ export async function purchase(location, payload) {
     requestUserId = null,
     resolutionId = "",
     heldItemId = null,
+    sourceUuid = "",
   } = payload;
 
   const qty = Math.max(1, Math.floor(Number(rawQty) || 1));
@@ -369,7 +386,9 @@ export async function purchase(location, payload) {
   // and never a character's stored goods.
   const held = heldItemId ? location.items.get(heldItemId) ?? null : null;
   if (heldItemId && (!held || ownerOf(held) || !magicBasisOf(held.toObject()).magic)) return err("heldGone");
-  const entry = held ? { data: held.toObject(), uuid: held.uuid, inCompendium: false } : await findGearEntry(itemName);
+  // A catalog row is bought as the document it was listed from; the item's
+  // own name, not the request's, keys the month's rows and the ledger.
+  const entry = held ? { data: held.toObject(), uuid: held.uuid, inCompendium: false } : await listedSource({ sourceUuid, itemName });
   if (!entry) return err("noSource");
   const itemData = entry.data;
   if (!TRADE_TYPES.includes(itemData.type)) return err("untradeable");

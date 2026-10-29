@@ -189,7 +189,8 @@ const P = {
     H.unrig = () => { if (H.rig0) { CONFIG.Dice.randomUniform = H.rig0; H.rig0 = null; } };
     H.closeAll = async () => {
       let n = 0;
-      for (const a of H.apps()) { try { await a.close({ force: true }); n++; } catch {} }
+      // Unanimated: an animated close waits on a transition a hidden page never runs.
+      for (const a of H.apps()) { try { await a.close({ force: true, animate: false }); n++; } catch {} }
       for (const w of Object.values(ui.windows ?? {})) { try { await w.close({ force: true }); n++; } catch {} }
       return n;
     };
@@ -315,7 +316,11 @@ const P = {
     const a = game.actors.get(actorId);
     return { day: H.day(), known: H.M.marketKnownTo(loc, a), source: H.M.knownSource(loc, a), effective: H.A.effectiveMarketClass(loc, a), judgeList: H.m.KM.knownMarketsOf(a).includes(loc.uuid) };
   },
-  /** The location sheet's Trade tab on this seat, acting as a trader when one is named. */
+  /**
+   * The location sheet's Trade and Ventures tabs on this seat, acting as a
+   * trader when one is named: the class line from the Trade tab, the venture
+   * controls from the Ventures tab, which is the one left showing.
+   */
   tradeTab: async ({ locationId, traderId = null }) => {
     const H = globalThis.__c2;
     const loc = game.actors.get(locationId);
@@ -334,9 +339,10 @@ const P = {
     }
     app = H.locSheet(locationId);
     const el = H.root(app);
-    H.root(app).querySelector('nav.tabs a[data-tab="trade"]')?.click();
+    H.root(app).querySelector('nav.tabs a[data-tab="ventures"]')?.click();
     await H.sleep(300);
     const sec = el.querySelector('section[data-tab="trade"]');
+    const vsec = el.querySelector('section[data-tab="ventures"]');
     const pick = el.querySelector("select[data-trade-trader]");
     return {
       opened: true,
@@ -346,11 +352,11 @@ const P = {
       candidates: H.m.TT.tradeCandidates().map((a) => ({ id: a.id, name: a.name, retainer: !!a.system?.retainer?.enabled })),
       classLine: H.text(sec?.querySelector("p.acks-extras-markets-class")),
       knownButton: H.text(sec?.querySelector('[data-action="toggleKnownMarket"]')),
-      categories: [...(sec?.querySelectorAll("[data-venture-category] option") ?? [])].map((o) => o.value),
-      picker: (() => { const s = sec?.querySelector("[data-venture-category]"); return { present: !!s, captioned: !!s?.labels?.length && !!H.text(s.labels[0]).length }; })(),
-      enterButton: !!sec?.querySelector('[data-action="ventureEnter"]'),
-      partyBlock: H.text(sec?.querySelector("details.acks-extras-markets-parties")),
-      ventureStatus: H.text(sec?.querySelector(".acks-extras-markets-ventures p.hint")),
+      categories: [...(vsec?.querySelectorAll("[data-venture-category] option") ?? [])].map((o) => o.value),
+      picker: (() => { const s = vsec?.querySelector("[data-venture-category]"); return { present: !!s, captioned: !!s?.labels?.length && !!H.text(s.labels[0]).length }; })(),
+      enterButton: !!vsec?.querySelector('[data-action="ventureEnter"]'),
+      partyBlock: H.text(vsec?.querySelector("details.acks-extras-markets-parties")),
+      ventureStatus: H.text(vsec?.querySelector(".acks-extras-markets-ventures p.hint")),
     };
   },
   knownToggle: async ({ locationId, actorId }) => {
@@ -365,11 +371,12 @@ const P = {
     const a = game.actors.get(actorId);
     return { pressed: true, knownButton: H.text(sec?.querySelector('[data-action="toggleKnownMarket"]')), classLine: H.text(sec?.querySelector("p.acks-extras-markets-class")), source: H.M.knownSource(loc, a), known: H.M.marketKnownTo(loc, a), notes: H.takeNotes() };
   },
-  /** Press Enter the market on the open Trade tab and read the dialog; submit with a cargo figure, a mode and the goods declared (`H.declare`) unless told to read only. */
+  /** Press Enter the market on the open sheet's Ventures tab and read the dialog; submit with a cargo figure, a mode and the goods declared (`H.declare`) unless told to read only. */
   ventureEnterUI: async ({ locationId, other = 0, mode = null, submit = true, declare = {} }) => {
     const H = globalThis.__c2;
     H.takeNotes();
-    const btn = await H.poll(() => H.root(H.locSheet(locationId))?.querySelector('[data-action="ventureEnter"]') ?? null, { tries: 40, every: 200 });
+    H.root(H.locSheet(locationId))?.querySelector('nav.tabs a[data-tab="ventures"]')?.click();
+    const btn = await H.poll(() => H.root(H.locSheet(locationId))?.querySelector('section[data-tab="ventures"] [data-action="ventureEnter"]') ?? null, { tries: 40, every: 200 });
     if (!btn) return { pressed: false };
     btn.click();
     const input = await H.poll(() => document.querySelector('.application.dialog input[name="other"]'), { tries: 40, every: 200 });
@@ -392,7 +399,7 @@ const P = {
     const action = (loc.system.market.goods.actions ?? []).filter((a) => a.kind === "enter" && a.postedTime >= t0).at(-1) ?? null;
     return { ...out, submitted: true, notes: H.takeNotes(), action: action ? { id: action.id, postedTime: action.postedTime, cargoSt: action.cargoSt, networkMode: action.networkMode, status: action.status } : null };
   },
-  closeDialog: async () => { const d = document.querySelector(".application.dialog[data-qa-enter]"); const app = globalThis.__c2.apps().find((a) => globalThis.__c2.root(a) === d); await app?.close({ force: true }); return { closed: !!app }; },
+  closeDialog: async () => { const d = document.querySelector(".application.dialog[data-qa-enter]"); const app = globalThis.__c2.apps().find((a) => globalThis.__c2.root(a) === d); await app?.close({ force: true, animate: false }); return { closed: !!app }; },
   ventureApi: async ({ locationId, kind, actorId, cargoSt = 0, category = "", networkMode = "auto" }) => {
     const H = globalThis.__c2;
     const loc = game.actors.get(locationId);
@@ -523,7 +530,9 @@ const P = {
   gateDialog: async ({ locationId, declarations, submit = true, declare = {}, cards = 0 }) => {
     const H = globalThis.__c2;
     H.takeNotes();
-    const btn = await H.poll(() => H.root(H.locSheet(locationId))?.querySelector('[data-action="ventureEnter"]') ?? null, { tries: 40, every: 200 });
+    // The gate's Enter is on the Ventures tab, which a fresh sheet does not open on.
+    H.root(H.locSheet(locationId))?.querySelector('nav.tabs a[data-tab="ventures"]')?.click();
+    const btn = await H.poll(() => H.root(H.locSheet(locationId))?.querySelector('section[data-tab="ventures"] [data-action="ventureEnter"]') ?? null, { tries: 40, every: 200 });
     if (!btn) return { pressed: false };
     btn.click();
     const input = await H.poll(() => document.querySelector('.application.dialog input[name="other"]'), { tries: 40, every: 200 });
@@ -949,7 +958,7 @@ const P = {
     await H.sleep(300);
     const chosen = read();
     if (!submit) {
-      await H.apps().find((a) => H.root(a) === dialog)?.close({ force: true });
+      await H.apps().find((a) => H.root(a) === dialog)?.close({ force: true, animate: false });
       return { pressed: true, dialog: true, opening, chosen, notes: H.takeNotes() };
     }
     const known = new Set((game.actors.get(locationId).system.market.goods.actions ?? []).map((a) => a.id));
@@ -993,12 +1002,13 @@ const P = {
     await loc.update({ "system.market.goods.ventures": rows });
     return { found: true, arrivalDay: H.m.WT.dayOfWorldTime(row.enteredTime), today: H.day() };
   },
-  /** Press Leave on the open Trade tab, read the confirmation, and confirm it. */
+  /** Press Leave on the open sheet's Ventures tab, read the confirmation, and confirm it. */
   moorageLeaveUI: async ({ locationId }) => {
     const H = globalThis.__c2;
     H.takeNotes();
     H.takeChat();
-    const btn = await H.poll(() => H.root(H.locSheet(locationId))?.querySelector('[data-action="ventureLeave"]') ?? null, { tries: 40, every: 200 });
+    H.root(H.locSheet(locationId))?.querySelector('nav.tabs a[data-tab="ventures"]')?.click();
+    const btn = await H.poll(() => H.root(H.locSheet(locationId))?.querySelector('section[data-tab="ventures"] [data-action="ventureLeave"]') ?? null, { tries: 40, every: 200 });
     if (!btn) return { pressed: false };
     btn.click();
     const yes = await H.poll(() => document.querySelector('.application.dialog button[data-action="yes"]'), { tries: 40, every: 200 });
@@ -1692,7 +1702,10 @@ try {
     const exp1 = shipCp("berth", SHP) + flat("cartElephant", "berth") + flat("horse", "berth", 2) + flat("camelDonkeyOx", "berth", 1);
     const c1 = d1.chosen;
     check("M1: declared — the wain stabled as a cart, the litter not stabled, the cog, two horses and a camel — the quote charges the ship pro rata on its size and each kind per head, line by line, and the entry records that day's fee within", !!c1?.quote.includes(`Moorage and stabling (RR 372): ${gp(exp1)}gp a day, berthed and stabled in the market`) && c1.lines.includes(`${S.name}: ${gp(shipCp("berth", SHP))}gp`) && c1.lines.includes(`${W.name}: ${gp(flat("cartElephant", "berth"))}gp`) && c1.lines.includes(`Horses ×2: ${gp(flat("horse", "berth", 2))}gp`) && c1.lines.includes(`Camels, donkeys and oxen ×1: ${gp(flat("camelDonkeyOx", "berth"))}gp`) && !c1.lines.some((l) => l.startsWith(`${HC.name}:`)) && d1.action?.stayCpPerDay === exp1 && d1.action.stayAt === "berth" && d1.action.detail.includes(`stay ${gp(exp1)}gp a day`), { lines: c1?.lines, action: d1.action, expect: exp1 });
-    const flags1 = { W: await run(gm, P.moorageFlag, { actorId: W.id }), HC: await run(gm, P.moorageFlag, { actorId: HC.id }), S: await run(gm, P.moorageFlag, { actorId: S.id }) };
+    // The entry lands before the stabling it remembers: read the wain until its flag arrives, bounded.
+    let wain1 = null;
+    for (let n = 0; n < 20 && wain1 !== "cart"; n++) { wain1 = await run(gm, P.moorageFlag, { actorId: W.id }); if (wain1 !== "cart") await sleep(500); }
+    const flags1 = { W: wain1, HC: await run(gm, P.moorageFlag, { actorId: HC.id }), S: await run(gm, P.moorageFlag, { actorId: S.id }) };
     check("M1: the wain remembers it was stabled as a cart; the litter, left as it read, and the ship remember nothing", flags1.W === "cart" && flags1.HC === null && flags1.S === null, flags1);
 
     // M2: the entry resolves.

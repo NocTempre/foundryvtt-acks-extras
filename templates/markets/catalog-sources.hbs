@@ -1,0 +1,18 @@
+<div class="acks-extras-markets-dialog-body">
+  <p class="hint">{{localize "ACKS-MARKETS.catalog.hint"}}</p>
+
+  <fieldset>
+    <legend>{{localize "ACKS-MARKETS.catalog.legend"}}</legend>
+    {{#each rows}}
+    <label class="checkbox">
+      <input type="checkbox" name="rows.{{index}}" data-source="{{key}}" {{#if included}}checked{{/if}}>
+      {{label}}{{#if origin}} <span class="hint">{{origin}}</span>{{/if}}
+      <span class="hint acks-nums" data-tooltip="{{localize 'ACKS-MARKETS.catalog.countTip'}}">{{localize "ACKS-MARKETS.catalog.count" n=count}}</span>
+    </label>
+    {{/each}}
+  </fieldset>
+
+  <footer class="form-footer">
+    <button type="submit"><i class="fas fa-save"></i> {{localize "ACKS-MARKETS.catalog.save"}}</button>
+  </footer>
+</div>

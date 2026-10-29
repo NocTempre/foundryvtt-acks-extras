@@ -1,13 +1,6 @@
 <div class="acks-extras-markets-trade">
   <div class="acks-extras-markets-toolbar">
-    {{#if tradeShowPicker}}
-    <label class="acks-extras-markets-trader">
-      <span>{{localize "ACKS-MARKETS.trade.actingAs"}}</span>
-      <select data-trade-trader>
-        {{#each tradeTraders}}<option value="{{uuid}}" {{#if selected}}selected{{/if}}>{{name}}</option>{{/each}}
-      </select>
-    </label>
-    {{/if}}
+    {{> "modules/acks-extras/templates/markets/trade-picker.hbs"}}
     <button type="button" class="acks-location-btn" data-action="marketsExchange"
             data-tooltip="{{localize 'ACKS-MARKETS.market.exchangeHint'}}">
       <i class="fas fa-right-left"></i> {{localize "ACKS-MARKETS.market.exchange"}}
@@ -30,47 +23,10 @@
       <i class="fas fa-gem"></i> {{localize "ACKS-MARKETS.trade.masterworkContact"}}:
       {{#if masterworkContact}}{{localize "ACKS-MARKETS.on"}}{{else}}{{localize "ACKS-MARKETS.off"}}{{/if}}
     </button>
-    <button type="button" class="acks-location-btn {{#if playersSeeDemand}}active{{/if}}" data-action="togglePlayersSeeDemand"
-            data-tooltip="{{localize 'ACKS-MARKETS.trade.playersSeeDemandHint'}}">
-      <i class="fas fa-eye"></i> {{localize "ACKS-MARKETS.trade.playersSeeDemand"}}:
-      {{#if playersSeeDemand}}{{localize "ACKS-MARKETS.on"}}{{else}}{{localize "ACKS-MARKETS.off"}}{{/if}}
-    </button>
     {{/if}}
   </div>
 
-  {{#if tradeClass}}
-  <p class="hint acks-extras-markets-class">
-    {{localize "ACKS-MARKETS.trade.marketClass"}}: {{tradeClass.trueLabel}}{{#if tradeClass.shifted}} · {{localize "ACKS-MARKETS.trade.classFor" name=tradeClass.traderName}}: <strong>{{tradeClass.effectiveLabel}}</strong>{{/if}}{{#if tradeClass.network}}{{#unless tradeClass.known}} · {{localize "ACKS-MARKETS.trade.networkUnknown"}}{{/unless}}{{/if}}
-    {{#if isGM}}{{#if tradeClass.network}}
-    <button type="button" class="acks-location-btn {{#if tradeClass.judgeListed}}active{{/if}}" data-action="toggleKnownMarket"
-            data-tooltip="{{localize 'ACKS-MARKETS.trade.knownMarketHint'}}">
-      <i class="fas fa-map-pin"></i> {{localize "ACKS-MARKETS.trade.knownMarket"}}:
-      {{#if tradeClass.judgeListed}}{{localize "ACKS-MARKETS.on"}}{{else}}{{localize "ACKS-MARKETS.off"}}{{/if}}
-    </button>
-    {{/if}}{{/if}}
-  </p>
-  {{/if}}
-
-  {{#if demandRows.length}}
-  <div class="acks-extras-markets-demand">
-    <strong>{{localize "ACKS-MARKETS.trade.demandHeader"}}:</strong>
-    {{#each demandRows}}<span class="acks-extras-markets-demand-chip {{#if pinned}}pinned{{/if}}">{{label}} {{modifier}}{{#if pinned}} <i class="fas fa-thumbtack" aria-hidden="true"></i> {{localize "ACKS-MARKETS.trade.pinned"}}{{#if baseNote}} ({{baseNote}}){{/if}}{{/if}}</span>{{/each}}
-  </div>
-  {{/if}}
-
-  {{#if reportRows.length}}
-  <div class="acks-extras-markets-reports">
-    <strong>{{localize "ACKS-MARKETS.report.heldHere"}}:</strong>
-    <ul class="acks-extras-markets-queue">
-      {{#each reportRows}}
-      <li>
-        <a data-action="openReport" data-uuid="{{uuid}}">{{when}}{{#if assessorName}} · {{assessorName}}{{/if}}</a>
-        · {{outcomeLabel}} · {{localize "ACKS-MARKETS.report.goodsCount" n=count}}{{#if @root.isGM}}{{#if ownerName}} · {{ownerName}}{{/if}}{{/if}}
-      </li>
-      {{/each}}
-    </ul>
-  </div>
-  {{/if}}
+  {{> "modules/acks-extras/templates/markets/trade-header.hbs"}}
 
   <div class="candidate-filter">
     <i class="fas fa-magnifying-glass"></i>
@@ -137,119 +93,6 @@
   </table>
   {{/if}}
 
-  {{!-- ------------------------- Ventures (RR §VIII.6) ------------------------- --}}
-  <div class="acks-extras-markets-ventures">
-  <h3><i class="fas fa-scale-balanced"></i> {{localize "ACKS-MARKETS.ventures.header"}}</h3>
-  {{#if venture.entered}}
-  <p class="hint">{{localize "ACKS-MARKETS.ventures.statusLine"}}: {{localize "ACKS-MARKETS.ventures.entered"}}{{#if ventureApart}} {{ventureApart}}{{/if}} — {{localize "ACKS-MARKETS.ventures.impact"}} {{venture.impact}} ({{venture.cargoSt}} st){{#if ventureVehicles}} — {{ventureVehicles}}{{/if}}{{#if ventureStay}} — {{ventureStay}}{{/if}}</p>
-  {{else}}
-  <p class="hint">{{localize "ACKS-MARKETS.ventures.notEnteredHint"}}</p>
-  {{/if}}
-  <div class="acks-extras-markets-toolbar">
-    {{#unless venture.entered}}
-    <button type="button" class="acks-location-btn" data-action="ventureEnter">
-      <i class="fas fa-door-open"></i> {{localize "ACKS-MARKETS.ventures.enter"}}
-    </button>
-    {{/unless}}
-    {{#if venture.entered}}
-    <button type="button" class="acks-location-btn" data-action="ventureAssess"
-            data-tooltip="{{localize 'ACKS-MARKETS.ventures.assessHint'}}">
-      <i class="fas fa-magnifying-glass-chart"></i> {{localize "ACKS-MARKETS.ventures.assess"}}
-    </button>
-    {{/if}}
-    {{#if ventureCategoryShown}}
-    <label class="acks-extras-markets-category">{{localize "ACKS-MARKETS.ventures.category"}}
-      <select data-venture-category data-pick="ventureCategory">
-        {{#each merchOptions}}<option value="{{key}}">{{label}}</option>{{/each}}
-      </select>
-    </label>
-    {{/if}}
-    {{#if venture.entered}}
-    <button type="button" class="acks-location-btn" data-action="ventureSolicit"
-            data-tooltip="{{localize 'ACKS-MARKETS.ventures.solicitHint'}}">
-      <i class="fas fa-bullhorn"></i> {{localize "ACKS-MARKETS.ventures.solicit"}}
-    </button>
-    <button type="button" class="acks-location-btn" data-action="ventureTrade">
-      <i class="fas fa-scale-balanced"></i> {{localize "ACKS-MARKETS.ventures.trade"}}
-    </button>
-    <button type="button" class="acks-location-btn" data-action="ventureLeave"
-            data-tooltip="{{localize 'ACKS-MARKETS.ventures.leaveHint'}}">
-      <i class="fas fa-door-closed"></i> {{localize "ACKS-MARKETS.ventures.leave"}}
-    </button>
-    {{/if}}
-    {{#if isGM}}
-    <button type="button" class="acks-location-btn" data-action="setDemand"
-            data-tooltip="{{localize 'ACKS-MARKETS.ventures.setDemandHint'}}">
-      <i class="fas fa-sliders"></i> {{localize "ACKS-MARKETS.ventures.setDemand"}}
-    </button>
-    <button type="button" class="acks-location-btn" data-action="openDemandGenerator"
-            data-tooltip="{{localize 'ACKS-MARKETS.demand.openHint'}}">
-      <i class="fas fa-dice"></i> {{localize "ACKS-MARKETS.demand.open"}}
-    </button>
-    {{/if}}
-  </div>
-  {{#if ventureActions.length}}
-  <ul class="acks-extras-markets-queue">
-    {{#each ventureActions}}
-    <li>{{kindLabel}}{{#if category}} — {{category}}{{/if}} · {{localize "ACKS-MARKETS.imports.etaDays" days=etaDays}}{{#if @root.isGM}}{{#if traderName}} · {{traderName}}{{/if}}{{/if}}
-      {{#if canCancel}}
-      <button type="button" class="acks-extras-markets-queue-cancel" data-action="ventureCancel" data-action-id="{{id}}"
-              data-tooltip="{{localize 'ACKS-MARKETS.ventures.cancel'}}" aria-label="{{localize 'ACKS-MARKETS.ventures.cancel'}}"><i class="fas fa-xmark" inert></i></button>
-      {{/if}}
-    </li>
-    {{/each}}
-  </ul>
-  {{/if}}
-  </div>
-
-  {{!-- ------------------------- Trade history (this market's ledger) ------------------------- --}}
-  {{#if history.rows.length}}
-  <details class="acks-extras-markets-history">
-    <summary>{{localize "ACKS-MARKETS.history.header"}} ({{history.rows.length}}) · {{localize "ACKS-MARKETS.history.net"}} <span class="acks-nums">{{history.net}}</span> gp</summary>
-    <p class="hint">{{localize "ACKS-MARKETS.history.note"}}</p>
-    <table class="candidates-table acks-extras-markets-table">
-      <thead>
-        <tr>
-          <th>{{localize "ACKS-MARKETS.history.when"}}</th>
-          {{#if isGM}}<th>{{localize "ACKS-MARKETS.history.trader"}}</th>{{/if}}
-          <th>{{localize "ACKS-MARKETS.history.what"}}</th>
-          <th>{{localize "ACKS-MARKETS.report.field.notes"}}</th>
-          <th class="acks-nums">gp</th>
-        </tr>
-      </thead>
-      <tbody>
-        {{#each history.rows}}
-        <tr>
-          <td>{{when}}</td>
-          {{#if @root.isGM}}<td>{{traderName}}</td>{{/if}}
-          <td>{{typeLabel}}</td>
-          <td>{{note}}</td>
-          <td class="acks-nums">{{gp}}</td>
-        </tr>
-        {{/each}}
-      </tbody>
-    </table>
-  </details>
-  {{/if}}
-
-  {{#if isGM}}{{#if partyBlocks.length}}
-  <details class="acks-extras-markets-parties">
-    <summary>{{localize "ACKS-MARKETS.parties.blockHeader"}} ({{partyBlocks.length}})</summary>
-    <p class="hint">{{localize "ACKS-MARKETS.parties.blockHint"}}</p>
-    {{#each partyBlocks}}
-    <div class="acks-extras-markets-party">
-      <strong>{{name}}</strong>
-      {{#each ventureLines}}<p class="hint">{{this}}</p>{{/each}}
-      {{#if beliefs.length}}
-      <div class="acks-extras-markets-demand">
-        {{#each beliefs}}<span class="acks-extras-markets-demand-chip"{{#if falseNote}} data-tooltip="{{falseNote}}"{{/if}}>{{label}} {{modifier}} ({{when}}){{#if falseNote}} <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>{{/if}}</span>{{/each}}
-      </div>
-      {{/if}}
-    </div>
-    {{/each}}
-  </details>
-  {{/if}}{{/if}}
-
   {{#if searchRows.length}}
   <h3><i class="fas fa-binoculars"></i> {{localize "ACKS-MARKETS.searches.header"}}</h3>
   <table class="candidates-table acks-extras-markets-table">
@@ -305,4 +148,6 @@
     </tbody>
   </table>
   {{/if}}
+
+  {{> "modules/acks-extras/templates/markets/trade-history.hbs"}}
 </div>

@@ -1,0 +1,28 @@
+{{#if history.rows.length}}
+<details class="acks-extras-markets-history">
+  <summary>{{localize "ACKS-MARKETS.history.header"}} ({{history.rows.length}}) · {{localize "ACKS-MARKETS.history.net"}} <span class="acks-nums">{{history.net}}</span> gp</summary>
+  <p class="hint">{{localize "ACKS-MARKETS.history.note"}}</p>
+  <table class="candidates-table acks-extras-markets-table">
+    <thead>
+      <tr>
+        <th>{{localize "ACKS-MARKETS.history.when"}}</th>
+        {{#if isGM}}<th>{{localize "ACKS-MARKETS.history.trader"}}</th>{{/if}}
+        <th>{{localize "ACKS-MARKETS.history.what"}}</th>
+        <th>{{localize "ACKS-MARKETS.report.field.notes"}}</th>
+        <th class="acks-nums">gp</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#each history.rows}}
+      <tr>
+        <td>{{when}}</td>
+        {{#if @root.isGM}}<td>{{traderName}}</td>{{/if}}
+        <td>{{typeLabel}}</td>
+        <td>{{note}}</td>
+        <td class="acks-nums">{{gp}}</td>
+      </tr>
+      {{/each}}
+    </tbody>
+  </table>
+</details>
+{{/if}}

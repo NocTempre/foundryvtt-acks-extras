@@ -122,6 +122,9 @@ export function goodsSchema() {
         buyerUuid: str(),
         itemKey: str(),
         itemName: str(),
+        // The document the order was placed for, which delivery takes
+        // (engine/catalog-sources.mjs); "" on an order placed before it was kept.
+        sourceUuid: str(),
         qty: int(0),
         unitPriceCp: int(0),
         totalCp: int(0),
@@ -149,6 +152,7 @@ export function goodsSchema() {
         buyerUuid: str(),
         itemKey: str(),
         itemName: str(),
+        sourceUuid: str(), // as on an import order
         qty: int(1),
         createdTime: int(),
         lastRolledMonth: int(0),
@@ -163,6 +167,7 @@ export function goodsSchema() {
         buyerUuid: str(),
         itemKey: str(),
         itemName: str(),
+        sourceUuid: str(), // as on an import order
         qty: int(1),
         worker: str(), // wageAndConstructionRates row key
         wagesCp: int(0),

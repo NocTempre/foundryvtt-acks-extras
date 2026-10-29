@@ -19,7 +19,7 @@ export class PurchaseDialog extends HandlebarsApplicationMixin(ApplicationV2) {
   constructor({ location, item, ...options } = {}) {
     super(options);
     this.location = location;
-    /** @type {{name: string, costGp: number, img: string, type: string, system: object}} */
+    /** @type {{name: string, costGp: number, img: string, type: string, system: object, sourceUuid?: string}} */
     this.item = item;
   }
 
@@ -85,6 +85,7 @@ export class PurchaseDialog extends HandlebarsApplicationMixin(ApplicationV2) {
       ? await performImportOrder(this.location, {
           buyerUuid: data.buyerUuid,
           itemName: this.item.name,
+          sourceUuid: this.item.sourceUuid ?? "",
           qty: Number(data.qty) || 1,
           hub,
           merchantRanks: Number(data.merchantRanks) || 0,
@@ -93,6 +94,7 @@ export class PurchaseDialog extends HandlebarsApplicationMixin(ApplicationV2) {
       : await performPurchase(this.location, {
           buyerUuid: data.buyerUuid,
           itemName: this.item.name,
+          sourceUuid: this.item.sourceUuid ?? "",
           qty: Number(data.qty) || 1,
           dedicated: !!data.dedicated,
           merchantRanks: Number(data.merchantRanks) || 0,

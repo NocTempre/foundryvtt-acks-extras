@@ -19,7 +19,8 @@ walked by hand.
   characters, vehicles, domains and goods are found again by marker
   (`flags.world.fixture`) — the gate walk's `markets/gate-*`, the parties
   walk's `markets/parties-*`, the moorage walk's `markets/moorage-*`, the
-  rest's `markets/<name>` (`QA Report Town` is `markets/report-town`) — and
+  rest's `markets/<name>` (`QA Report Town` is `markets/report-town`), and
+  the sources walk's `markets/sources-*` (`tools/live/markets-sources.mjs`) — and
   built carrying it where none stands. **Bring each to its creation shape
   where its walk starts:** delete its embedded items and effects and make
   the data's again, write its `flags.acks-extras` as the data's, its system
@@ -38,7 +39,9 @@ walked by hand.
 
 - **`purchase(location, payload)` takes a `buyerUuid` and an `itemName`** —
   not a buyer document and not a catalogue row. A document returns
-  `{error: "noBuyer"}`; the guard resolves the uuid itself.
+  `{error: "noBuyer"}`; the guard resolves the uuid itself. A row's
+  `sourceUuid` beside them buys that document and the name is never looked
+  up, so a check that means to test the name path leaves it out.
 - **Coin `cv` is the COPPER value: a gold piece is 100.** Minting 500 "Gold"
   at `cv: 1` shows 500 coins on the sheet worth 5 gp, and every purchase then
   answers `insufficientGold` — which reads as a broken spender rather than a
@@ -46,8 +49,11 @@ walked by hand.
 - **`availabilityFor(location, row)` wants a CATALOGUE row**, one of the
   objects `buildCatalog(location)` returns. An ad-hoc `{name, cost}` answers
   `{status: "untradeable"}`, which looks like a rules verdict and is not.
-- The catalogue is built from the shipped equipment packs, so its row count is
-  a real assertion: an empty catalogue means `build:packs` was not run.
+- The catalogue is built from the world's items and every Item compendium
+  Shop sources leaves in (`marketsCatalogExcluded`). With nothing left out its
+  row count is a real assertion: an empty catalogue means `build:packs` was
+  not run. Read the setting before reading a count; a peer's walk may have
+  left a source out.
 - Availability bands come from the market-class rarity table through
   `lib/tables.mjs`'s `bracketRow`; the verdict names the band as well as the
   caps, and the party cap and the market cap are different numbers.
@@ -58,8 +64,9 @@ walked by hand.
 ## Steps
 
 1. `buildCatalog(location)`.
-   *Observable:* a non-empty row list drawn from the shipped packs, each row
-   carrying `key`, `name`, `type`, `costGp` and the item data to create from.
+   *Observable:* a non-empty row list drawn from the listed sources, each row
+   carrying `key`, `name`, `type`, `costGp`, `sourceUuid` (the document it was
+   listed from) and the item data to create from.
 2. `availabilityFor(location, row)` for a common row and a rare one.
    *Observable:* `{status, band, remaining, capParty, capMarket}`; the band is
    the rarity table's, and the two caps differ.
@@ -111,7 +118,8 @@ row, a `type: "item"` on A with `system.cost` and
    have a player owner (and the GM's own). Choosing A stores the uuid in the
    client setting `marketsActingTrader` and re-renders; no actor update fires.
    *Observable:* the picker reads A; Sell rows list A's goods.
-2. GM seat: **Masterwork contact** and **Players see demand** flip
+2. GM seat: **Masterwork contact** (Trade tab) and **Players see demand**
+   (Ventures tab) flip
    `goods.masterworkContact` / `goods.playersSeeDemand`. Player seat: the two
    buttons are absent; with demand shown the tab carries one chip per true
    modifier, with it hidden only the party's belief chips remain.
@@ -143,8 +151,9 @@ row, a `type: "item"` on A with `system.cost` and
    fault.
 9. GM seat: Clear on a demand row (`writeDemand(M, {layer: "base", category,
    modifier: null})`) removes the row.
-10. Player seat, M's sheet opened and switched to Trade: every button, select
-    and input in the tab reads `disabled === false`, while the name field
+10. Player seat, M's sheet opened and switched to Trade, then to Ventures:
+    every button, select and input in each tab reads `disabled === false`,
+    while the name field
     outside it stays disabled. Core disables every form control on a sheet
     the viewer does not own, and the engine calls in steps 5–8 bypass the
     button, so only a real `element.click()` on **Enter the market** proves
@@ -160,6 +169,62 @@ relay warning (it needs no GM connected), a venture day refused for a missing
 table (it needs the table un-imported), and the import cap under
 `marketsEnforceCaps` off (a world setting other sessions read). Say so in the
 report rather than toggling shared state.
+
+## Shop sources and the Ventures tab walk
+
+`node tools/live/run.mjs markets-sources`.
+
+**Fixtures,** kept by marker and brought to their creation shape where the
+walk starts (as in Fixtures above): the town `markets/sources-town` (the table
+OBSERVER, a class override, a market added again), the Player seat's
+characters `markets/sources-buyer` (coin minted) and `markets/sources-partner`,
+and the world item `markets/sources-lamp`, a priced `item` no compendium
+holds. The walk writes `marketsCatalogExcluded` empty at its start and puts
+both settings it touches (that one and each seat's `marketsActingTrader`) back
+at teardown. The chat cards S6's purchase posts (a payment and a sale) are
+marked `markets/sources-card-<n>` at teardown, and the next run retires the
+series before it builds.
+
+- **S1.** The world registers `marketsCatalogExcluded` and the
+  `marketCatalogMenu` window.
+- **S2.** With nothing left out, `buildCatalog(town)`. *Observable:* the
+  lamp's row carries the lamp's own uuid as `sourceUuid`; every row's
+  `sourceUuid` resolves to `world` or an Item pack's collection id
+  (`rules/sources.mjs` `sourceOfUuid`); at least one pack lists rows.
+- **S3.** Open the window as the settings screen does
+  (`new (game.settings.menus.get("acks-extras.marketCatalogMenu").type)()`).
+  *Observable:* it carries `acks-extras-scroll`; World items is the first row;
+  every row is ticked, captioned, and its count carries a tooltip; a pack's
+  count is no less than the rows the catalog lists from it (the count is
+  before the masterwork gate).
+- **S4.** Untick the pack that lists the most rows (`input[data-source]`) and
+  press Save. *Observable:* the setting holds that pack's id and the window
+  closes; the catalog lists nothing from the pack and still lists the lamp;
+  the town's open sheet redraws and its Trade tab's count drops.
+- **S5.** `performItemSearch` with a name nothing carries and the lamp's
+  uuid. *Observable:* the stored search names the lamp and keeps its uuid. A
+  row uuid from the pack left out answers `noSource`, and so does
+  `performPurchase` with the uuid of an item a character carries.
+- **S6.** The lamp's row on the Trade tab, pressed. Where the market can
+  supply it this month, Buy and the dialog's submit for the buyer deliver the
+  lamp; otherwise Search and the prompt's OK store a search carrying the
+  lamp's uuid. Clear the town's searches first, or S5's stands and the search
+  answers `alreadySearching`.
+- **V1.** The nav has Trade, then Ventures. *Observable:* Trade holds catalog
+  rows and the exchange and no `ventureEnter` or `[data-venture-category]`;
+  Ventures holds both and no `tr[data-trade-name]`; each has the picker and the
+  class line.
+- **V2.** Press Ventures. *Observable:* its section has height and Trade's
+  none.
+- **V3.** Pick the partner on the Ventures picker. *Observable:*
+  `marketsActingTrader` holds the partner's uuid, and both pickers show it
+  after the redraw.
+- **V4.** Player seat, the town's sheet (observed, not owned), Ventures.
+  *Observable:* Enter and the picker read `disabled === false`.
+
+**Not reachable live:** delivery after a source is left out (an import or
+search placed earlier still arriving from it) needs a month to pass on a
+shared clock; `tools/test-markets.mjs` holds `orderedSource` to it.
 
 ## Coin at the market walk (reach, proceeds, the changer)
 
@@ -243,7 +308,7 @@ told.
 **Fixtures** (all created with `api.create`, so `api.sweepTracked()` removes
 exactly them):
 
-- a location with a market (as above), opened on its Trade tab as the GM;
+- a location with a market (as above), opened on its Ventures tab as the GM;
 - three world `acks-extras.merchandise` Items with invented keys, each with
   `environment` values (a half in one column, a negative in another), one
   `racial` entry, and `random` bands (two on the common table, one on the
@@ -254,7 +319,7 @@ exactly them):
 
 **Steps**
 
-1. Open the Trade tab as GM and press Generate demand. Then repeat as a player
+1. Open the Ventures tab as GM and press Generate demand. Then repeat as a player
    seat owning a character.
    *Observable:* the GM sees the window titled with the location's name and one
    preview row per catalogue good, the Judge-made good included; the player
@@ -297,7 +362,7 @@ exactly them):
     *Observable:* the pick renders nothing; the tick redraws once and the
     good still shows; typing the change renders nothing; Add pick adds the
     picked good with the typed change and empties the change box. On the
-    location's Trade tab, pick a category other than the first and Set demand
+    location's Ventures tab, pick a category other than the first and Set demand
     a value. *Observable:* the pick writes and renders nothing; the value
     lands on the picked category, the sheet redraws, the pick still shows,
     and a second Set demand opens prefilled with that value. Solicit reads
@@ -542,7 +607,7 @@ house the run made, the reports go with it.
    *Observable:* the report is listed under M1 with its date, the assessor and
    the outcome **Partial** (the stored outcome is `false`); the GM seat's
    copy of the same row says False. The believed modifiers match what was
-   written, not the market's true demand. M1's location Trade tab, Reports held
+   written, not the market's true demand. M1's location Ventures tab, Reports held
    here, lists it for the player (party) and for the GM, and the belief chips
    read the report.
 4. Assessment through the flow. As the Player seat post `performVentureAction(M1,
@@ -616,7 +681,7 @@ reports walk.
 
 **Steps**
 
-1. Player seat, M1's Trade tab, acting as A: **Enter the market** with no
+1. Player seat, M1's Ventures tab, acting as A: **Enter the market** with no
    vehicle ticked and other cargo 0.
    Advance a day on the GM seat. *Observable:* the status line reads In the
    market; the ledger row `ventureEntered` carries `actorUuid` A and `gp: 0`;
@@ -659,7 +724,7 @@ reports walk.
    (negative); B's sheet, opened by the same seat, lists none of A's rows.
    The GM seat's copy of M1's history lists every stamped trader with a
    trader column.
-7. Player seat that does not own A: M1's Trade tab shows no withdraw button
+7. Player seat that does not own A: M1's Ventures tab shows no withdraw button
    on A's queued day, and `performVentureCancel(M1, {actionId})` from the
    console answers `notYours`; `performVentureLeave(M1, {actorUuid: A.uuid})`
    answers `notYours` too.
@@ -757,7 +822,7 @@ needs `items: []` ([../vehicles/TESTING.md](../vehicles/TESTING.md)).
 
 - `marketsActingTrader` is a CLIENT setting: set it on the acting seat
   (`game.settings.set("acks-extras", "marketsActingTrader", A.uuid)`) before
-  opening the Trade tab.
+  opening the Ventures tab.
 - The entry dialog is a `DialogV2` found among
   `foundry.applications.instances` by its `input[name="other"]`; each vehicle
   is an `input[name="vehicle"]` checkbox whose value is the vehicle's uuid;
@@ -783,7 +848,7 @@ needs `items: []` ([../vehicles/TESTING.md](../vehicles/TESTING.md)).
 1. Player seat: `performVentureAction(L, {kind: "enter", actorUuid: A.uuid,
    cargoSt: 5, vehicleUuids: [W.uuid, V.uuid], resolutionId})`.
    *Observable:* `{error: "notYourVehicle"}`; nothing posts.
-2. Player seat, L's Trade tab acting as A: **Enter the market**
+2. Player seat, L's Ventures tab acting as A: **Enter the market**
    (`[data-action="ventureEnter"]`).
    *Observable:* the dialog lists W with its capacity, ticked because A rides
    it, and does not list V. Type other cargo 5 and confirm: the pending
@@ -791,7 +856,7 @@ needs `items: []` ([../vehicles/TESTING.md](../vehicles/TESTING.md)).
    `vehicleUuids` `[W]`, and a detail naming W and the toll.
 3. GM seat: resolve the entry.
    *Observable:* a `goods.ventures` row with `entered: true` and
-   `vehicleUuids` `[W]`; the Trade tab's venture line names W.
+   `vehicleUuids` `[W]`; the Ventures tab's venture line names W.
 4. Player seat: open the trade dialog and buy 2 stone of the good into W.
    *Observable:* the hold select offers A's own packs and W with its free
    stone, W preselected; a merchandise stack of 2 lands in W's hold.
@@ -882,7 +947,7 @@ A load is an `item` with `system.quantity.value` stones, `system.cost`,
 - **P0.** Player seat: read where each member stands. *Observable:* T and Q
   are members at G and owned; A is a member the seat sees, not at G; NP is
   no member.
-- **P1.** Player seat, G's Trade tab acting as T: **Enter the market**.
+- **P1.** Player seat, G's Ventures tab acting as T: **Enter the market**.
   *Observable:* "Goods at the gate" has, among the packs' rows and VH's, five
   rows: T's load and Q's, shown; VH's common and exempt loads, hidden until
   VH is ticked; and the cup, which alone offers "Brought to sell". Every row
@@ -1003,7 +1068,7 @@ re-written with E for S6b and back, removed by its id at the end. The world's
 
 - **S0.** Both seats: the roster's characters (`partyMembers`). *Observable:*
   three on each, the Player seat's including C.
-- **S1.** Player seat, M's Trade tab acting as A: **Enter the market**, choose
+- **S1.** Player seat, M's Ventures tab acting as A: **Enter the market**, choose
   **Separately**, confirm. *Observable:* the dialog opens on "Entering", As
   the party chosen, a line "Entering separately: maximum market impact …
   each, for 3 characters." at the driver's share, WA and WB ticked and B's
@@ -1123,7 +1188,7 @@ A roster of the run's own holds T alone, removed by its id at the end.
 
 - **M0.** *Observable:* `printed.stayRates()` gives ship, wagon,
   cartElephant, horse and camelDonkeyOx a rate both within and outside.
-- **M1.** Player seat, M's Trade tab acting as T: **Enter the market**.
+- **M1.** Player seat, M's Ventures tab acting as T: **Enter the market**.
   *Observable:* the block opens at "berth" with both options and a caption;
   the wain reads wagon and shows, the litter reads not stabled and is
   hidden, no ship has a row; three animal counts at 0, each captioned; the
@@ -1135,7 +1200,7 @@ A roster of the run's own holds T alone, removed by its id at the end.
   berth, and its detail "stay …gp a day"; the wain's flag reads cart, and
   neither the litter nor the cog carry one.
 - **M2.** Resolve. *Observable:* the row is entered with the fee, T its
-  payer, unsettled; the entered card's stay line and the Trade tab's status
+  payer, unsettled; the entered card's stay line and the Ventures tab's status
   line give the fee.
 - **M3.** Press **Leave the market** and confirm. *Observable:* the
   confirmation names T as the payer, the fee and "days charged: 1"; T's

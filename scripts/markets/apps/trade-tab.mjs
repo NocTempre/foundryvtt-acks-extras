@@ -1,14 +1,19 @@
 /* global game, ui, foundry, fromUuid, fromUuidSync */
 /**
- * The Trade tab the location sheet mounts (the magic-panel precedent: the
- * location owns the sheet, the tab bar and one mount line per hook; markets
- * owns what the tab prepares and every handler behind its buttons).
+ * The Trade and Ventures tabs the location sheet mounts (the magic-panel
+ * precedent: the location owns the sheet, the tab bar and one mount line per
+ * hook; markets owns what the tabs prepare and every handler behind their
+ * buttons). Trade is the shop: buying, selling, imports, commissions and
+ * searches. Ventures is the merchant's: entering the market, assessing,
+ * soliciting and trading merchandise. Both carry the acting-trader picker,
+ * the market class and demand, and the trade history.
  *
  * `prepareTradeTab(sheet, context)` fills the context keys
- * `templates/markets/trade-tab.hbs` reads; `TRADE_TAB_ACTIONS` are AppV2
- * action handlers the sheet spreads into its `actions` (invoked with the
- * sheet as `this`); `bindTradeTab(sheet)` wires the one control an action
- * cannot reach, the "acting as" picker, and runs from the sheet's render.
+ * `templates/markets/trade-tab.hbs` and `ventures-tab.hbs` read;
+ * `TRADE_TAB_ACTIONS` are AppV2 action handlers the sheet spreads into its
+ * `actions` (invoked with the sheet as `this`); `bindTradeTab(sheet)` wires
+ * the one control an action cannot reach, the "acting as" picker on each
+ * tab, and runs from the sheet's render.
  *
  * Every trade action is taken by one ACTING TRADER: a character the viewer
  * may act through, chosen in the picker and remembered per client. The
@@ -175,7 +180,7 @@ function reportResult(sheet, result, successMessage) {
 /* ------------------------------ tab preparation --------------------------- */
 
 /**
- * Everything the Trade tab renders: the catalog with each row's live
+ * Everything the Trade and Ventures tabs render: the catalog with each row's live
  * availability for the acting trader, that trader's sellable goods, the
  * viewer's party's orders, searches, ventures and demand knowledge, and for a
  * GM the per-party beliefs and ventures across the whole table.
@@ -456,19 +461,20 @@ function partyBlocks(goods, monthStart, reports) {
 }
 
 /**
- * Wire the controls a click action cannot reach: the acting-trader picker
- * stores the choice on this client and re-renders. The change is kept from the
- * sheet's submit-on-change form, which has nothing to save from it.
+ * Wire the controls a click action cannot reach: each tab's acting-trader
+ * picker stores the choice on this client and re-renders, so both tabs act as
+ * the trader last picked on either. The change is kept from the sheet's
+ * submit-on-change form, which has nothing to save from it.
  * @param {Application} sheet  The hosting sheet, after a render.
  */
 export function bindTradeTab(sheet) {
-  const picker = sheet.element?.querySelector("[data-trade-trader]");
-  if (!picker) return;
-  picker.addEventListener("change", async (event) => {
-    event.stopPropagation();
-    await game.settings.set(MODULE_ID, "marketsActingTrader", picker.value);
-    sheet.render();
-  });
+  for (const picker of sheet.element?.querySelectorAll("[data-trade-trader]") ?? []) {
+    picker.addEventListener("change", async (event) => {
+      event.stopPropagation();
+      await game.settings.set(MODULE_ID, "marketsActingTrader", picker.value);
+      sheet.render();
+    });
+  }
 }
 
 /* --------------------------------- prompts -------------------------------- */
@@ -880,6 +886,7 @@ export const TRADE_TAB_ACTIONS = {
     const result = await performItemSearch(this.actor, {
       buyerUuid: trader.uuid,
       itemName: row.name,
+      sourceUuid: row.sourceUuid ?? "",
       qty: Math.max(1, Math.floor(asked) || 1),
       resolutionId: foundry.utils.randomID(),
     });

@@ -54,6 +54,7 @@ import * as gate from "./engine/gate.mjs";
 import * as stay from "./rules/stay.mjs";
 import { openVentureTradeDialog, VentureTradeDialog } from "./apps/venture-dialog.mjs";
 import { PartyConfigApp } from "./apps/party-config.mjs";
+import { CatalogSourcesApp } from "./apps/catalog-sources.mjs";
 import { openCommissionDialog, CommissionDialog } from "./apps/commission-dialog.mjs";
 import * as arbitrageRules from "./rules/arbitrage.mjs";
 import * as demandRules from "./rules/demand.mjs";
@@ -91,10 +92,24 @@ Hooks.once("init", () => {
     restricted: true,
   });
 
+  game.settings.registerMenu(MODULE_ID, "marketCatalogMenu", {
+    name: `${LANG}.catalog.title`,
+    label: `${LANG}.catalog.open`,
+    hint: `${LANG}.catalog.menuHint`,
+    icon: "fas fa-store",
+    type: CatalogSourcesApp,
+    restricted: true,
+  });
+
   try {
     const T = `modules/${MODULE_ID}/templates/markets`;
     foundry.applications.handlebars.loadTemplates([
       `${T}/trade-tab.hbs`,
+      `${T}/ventures-tab.hbs`,
+      `${T}/trade-picker.hbs`,
+      `${T}/trade-header.hbs`,
+      `${T}/trade-history.hbs`,
+      `${T}/catalog-sources.hbs`,
       `${T}/purchase-dialog.hbs`,
       `${T}/sell-dialog.hbs`,
       `${T}/commission-dialog.hbs`,

@@ -47,18 +47,23 @@ export async function findGearSource(name) {
 /**
  * The same lookup, keeping the source document's address — for callers that
  * must reference the found item rather than copy it (a purchase bundling
- * thirty swords points its bundle rows at the source).
+ * thirty swords points its bundle rows at the source). A caller that draws on
+ * fewer sources narrows the search: `world: false` skips the world's items,
+ * and `pack` is asked of each Item compendium before it is searched.
+ * @param {string} name
+ * @param {{world?: boolean, pack?: (pack: object) => boolean}} [scope]
  * @returns {Promise<{data: object, uuid: string, inCompendium: boolean}|null>}
  */
-export async function findGearEntry(name) {
+export async function findGearEntry(name, { world: searchWorld = true, pack: packAllowed = null } = {}) {
   if (!name) return null;
   const wanted = name.toLowerCase();
 
-  const world = game.items?.find?.((i) => i.name?.toLowerCase() === wanted);
+  const world = searchWorld ? game.items?.find?.((i) => i.name?.toLowerCase() === wanted) : null;
   if (world) return { data: world.toObject(), uuid: world.uuid, inCompendium: false };
 
   for (const pack of game.packs ?? []) {
     if (pack.documentName !== "Item") continue;
+    if (packAllowed && !packAllowed(pack)) continue;
     const entry = pack.index?.find?.((e) => e.name?.toLowerCase() === wanted);
     if (!entry) continue;
     try {

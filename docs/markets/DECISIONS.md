@@ -997,3 +997,49 @@ figures three of them meet.
   (`unprintedMarketUpdate`).
 - The lint accepts a pair onto any location that builds a place. It does not
   ask whether a later market lands there.
+
+## 2026-10-28 — The Judge chooses the shop's sources, a row is bought as its own document, and ventures get a tab
+
+A user asked to choose which compendiums stock the shop, or to put buying on
+a page apart from the arbitrage. The owner asked for both: one world-wide list
+of shop compendiums, every pack in by default, with each purchase following
+the item the row lists; and a Ventures tab on the location sheet.
+
+**Ruled.**
+- **One world list of what is left out** (`marketsCatalogExcluded`, edited in
+  Shop sources). Every shop reads the same sources, and the world's items are
+  a source like any compendium. The list names exclusions, so the default is
+  every source and a compendium a module adds later stocks the shop until the
+  Judge unticks it.
+- **A catalog row carries the document it was listed from** (`sourceUuid`),
+  and buying, importing, commissioning and searching place that document.
+  Placement is gated: a left-out source or an item a character carries is
+  refused. Delivery is not: an order or search placed earlier follows its
+  stored document, then the name among the listed sources, then the name
+  anywhere, since a delivery that fails strands coin already paid.
+- **Trade and Ventures are separate tabs.** Trade is the shop (catalog,
+  selling, imports, commissions, searches, exchange). Ventures holds the
+  venture block and queue, the reports held here, Set demand, the Demand
+  Generator and the GM's party blocks. Both carry the acting-trader picker
+  (one remembered trader), the class line, the demand chips and the trade
+  history: demand moves a shop's prices as well as a venture's, and the
+  history spans both.
+
+*Rejected:*
+- **An inclusion list where empty means every source.** Unticking the last
+  source would read as "all", and a list of what is IN would leave a new
+  compendium out until someone noticed.
+- **A per-market list.** Nobody asked for one, and it multiplies one choice by
+  every settlement. A shop's stock still varies by its class and month.
+- **Narrowing by name alone.** A left-out compendium's item of the same name
+  as a listed one would still be delivered, and a template copy of a base
+  item could arrive in its place. The uuid closes both.
+
+*Cost:*
+- A catalog row's uuid relays from the player's seat. The GM side re-checks
+  its source and refuses an embedded item, so a forged uuid reaches only an
+  item in a listed source. It is not held to the catalog's own filter
+  (priced, a trade type, not a template copy), which the name it replaces
+  never was either.
+- `findGearEntry` takes a scope (`world`, `pack`). Grants are never scoped.
+- An order placed before a source was left out still delivers from it.

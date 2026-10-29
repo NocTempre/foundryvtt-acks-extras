@@ -26,7 +26,7 @@ import { now, onTimeAdvanced } from "../../henchmen/time.mjs";
 import { getSetting as henchmenSetting } from "../../henchmen/settings.mjs";
 import * as adapter from "../../henchmen/acks-adapter.mjs";
 import { effectiveMarketClass } from "../../henchmen/engine/recruitment.mjs";
-import { findGearEntry } from "../../equipment/grant.mjs";
+import { listedSource, orderedSource } from "./catalog-sources.mjs";
 import { partyOf } from "./parties.mjs";
 import { processVentureActions } from "./ventures.mjs";
 import { MARKET_LOG_CAP } from "../../location/data/market-log.mjs";
@@ -68,7 +68,7 @@ async function postCard(buyer, html) {
  * goods are printed figures read from the imported market rules.
  */
 export async function placeImportOrder(location, payload) {
-  const { buyerUuid, itemName, qty: rawQty, hub: rawHub, hubShift: legacyShift, merchantRanks = 0, requestUserId = null, resolutionId = "" } = payload;
+  const { buyerUuid, itemName, sourceUuid = "", qty: rawQty, hub: rawHub, hubShift: legacyShift, merchantRanks = 0, requestUserId = null, resolutionId = "" } = payload;
   const hub = Object.hasOwn(HUBS, rawHub) ? rawHub : legacyShift === 2 ? "regional" : "local";
   const qty = Math.max(1, Math.floor(Number(rawQty) || 1));
 
@@ -87,7 +87,7 @@ export async function placeImportOrder(location, payload) {
   const existing = (goods.imports ?? []).map((r) => r.toObject?.() ?? foundry.utils.deepClone(r));
   if (resolutionId && existing.some((o) => o.id === resolutionId)) return err("duplicate");
 
-  const entry = await findGearEntry(itemName);
+  const entry = await listedSource({ sourceUuid, itemName });
   if (!entry) return err("noSource");
   const itemData = entry.data;
   if (!TRADE_TYPES.includes(itemData.type) || itemData.type === ITEM_TYPE.bundle) return err("untradeable");
@@ -144,6 +144,7 @@ export async function placeImportOrder(location, payload) {
     buyerUuid: buyer.uuid,
     itemKey: itemKeyOf(itemData.name),
     itemName: itemData.name,
+    sourceUuid: entry.uuid,
     qty,
     unitPriceCp: priced.unitCp,
     totalCp: priced.unitCp * qty,
@@ -219,7 +220,7 @@ export async function processImports(location) {
         await postCard(buyer, `<strong>${game.i18n.format(`${LANG}.imports.lostLine`, { qty: order.qty, name: order.itemName })}</strong>`);
       }
     } else {
-      const entry = await findGearEntry(order.itemName);
+      const entry = await orderedSource(order);
       if (!entry || !buyer) {
         // Nothing to deliver to — leave the record for the Judge rather than
         // silently consuming it.
@@ -244,7 +245,7 @@ export async function processImports(location) {
   for (const order of built) {
     const buyerDoc = await fromUuid(order.buyerUuid).catch(() => null);
     const buyer = buyerDoc?.actor ?? buyerDoc;
-    const entry = await findGearEntry(order.itemName);
+    const entry = await orderedSource(order);
     order.status = "delivered";
     resolved += 1;
     if (!entry || !buyer) {
@@ -300,7 +301,7 @@ export async function processImports(location) {
  * completion through the same due-work sweep as imports.
  */
 export async function placeCommission(location, payload) {
-  const { buyerUuid, itemName, qty: rawQty, worker, requestUserId = null, resolutionId = "" } = payload;
+  const { buyerUuid, itemName, sourceUuid = "", qty: rawQty, worker, requestUserId = null, resolutionId = "" } = payload;
   const qty = Math.max(1, Math.floor(Number(rawQty) || 1));
   const buyerDoc = await fromUuid(buyerUuid).catch(() => null);
   const buyer = buyerDoc?.actor ?? buyerDoc;
@@ -316,7 +317,7 @@ export async function placeCommission(location, payload) {
   const existing = (goods.commissions ?? []).map((r) => r.toObject?.() ?? foundry.utils.deepClone(r));
   if (resolutionId && existing.some((o) => o.id === resolutionId)) return err("duplicate");
 
-  const entry = await findGearEntry(itemName);
+  const entry = await listedSource({ sourceUuid, itemName });
   if (!entry) return err("noSource");
   const itemData = entry.data;
   if (!TRADE_TYPES.includes(itemData.type) || itemData.type === ITEM_TYPE.bundle) return err("untradeable");
@@ -344,6 +345,7 @@ export async function placeCommission(location, payload) {
     buyerUuid: buyer.uuid,
     itemKey: itemKeyOf(itemData.name),
     itemName: itemData.name,
+    sourceUuid: entry.uuid,
     qty,
     worker,
     wagesCp: plan.wagesCp,
@@ -378,7 +380,7 @@ export async function placeCommission(location, payload) {
  * the due-work sweep; a find is announced, never auto-bought.
  */
 export async function createItemSearch(location, payload) {
-  const { buyerUuid, itemName, qty: rawQty, requestUserId = null, resolutionId = "" } = payload;
+  const { buyerUuid, itemName, sourceUuid = "", qty: rawQty, requestUserId = null, resolutionId = "" } = payload;
   const qty = Math.max(1, Math.floor(Number(rawQty) || 1));
   const buyerDoc = await fromUuid(buyerUuid).catch(() => null);
   const buyer = buyerDoc?.actor ?? buyerDoc;
@@ -391,9 +393,9 @@ export async function createItemSearch(location, payload) {
   }
   const existing = (goods.searches ?? []).map((r) => r.toObject?.() ?? foundry.utils.deepClone(r));
   if (resolutionId && existing.some((o) => o.id === resolutionId)) return err("duplicate");
-  const entry = await findGearEntry(itemName);
+  const entry = await listedSource({ sourceUuid, itemName });
   if (!entry) return err("noSource");
-  const key = itemKeyOf(itemName);
+  const key = itemKeyOf(entry.data.name);
   if (existing.some((o) => o.status === "active" && o.itemKey === key && o.partyId === partyOf(buyer).id)) {
     return err("alreadySearching");
   }
@@ -404,6 +406,7 @@ export async function createItemSearch(location, payload) {
     buyerUuid: buyer.uuid,
     itemKey: key,
     itemName: entry.data.name,
+    sourceUuid: entry.uuid,
     qty,
     createdTime: t,
     // This month's shelves were already in view when the search was posted;
@@ -454,7 +457,7 @@ async function processSearches(location, goodsWrites, log, t) {
     changed = true;
     const buyerDoc = await fromUuid(search.buyerUuid).catch(() => null);
     const buyer = buyerDoc?.actor ?? buyerDoc;
-    const entry = buyer ? await findGearEntry(search.itemName) : null;
+    const entry = buyer ? await orderedSource(search) : null;
     if (!entry) continue;
     const { magic, baseGp } = magicBasisOf(entry.data);
     const state = await resolveMonthlyAvailability(location, goodsWrites.goods, {

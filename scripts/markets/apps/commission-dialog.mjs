@@ -66,6 +66,7 @@ export class CommissionDialog extends HandlebarsApplicationMixin(ApplicationV2) 
     const result = await performCommission(this.location, {
       buyerUuid: data.buyerUuid,
       itemName: this.item.name,
+      sourceUuid: this.item.sourceUuid ?? "",
       qty: Number(data.qty) || 1,
       worker: data.worker,
       resolutionId: foundry.utils.randomID(),

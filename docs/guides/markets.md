@@ -25,14 +25,21 @@ available this month.*
    Merchandise Item in the cookbook compendium. A world Item of the same key
    overrides it, and a good you make yourself joins every roll and window.
 3. Give a location a market (its market class derives from urban families,
-   or set the override). The location sheet grows a **Trade** tab.
+   or set the override). The location sheet grows a **Trade** tab for the
+   shop and a **Ventures** tab for mercantile ventures.
 4. Optional: **Configure parties** (module settings) if more than one group
    trades separately; otherwise the whole table is one party.
+5. Optional: **Shop sources** (module settings, Judge only) chooses where
+   every shop's stock comes from: the world's items and each Item compendium,
+   with how many priced items each holds. Untick a source and no shop lists
+   it. Every source is in until you untick it, so a compendium a module adds
+   later stocks the shops at once.
 
 ## Acting as
 
-Every trade action on a market's Trade tab is taken as one character: the
-**Acting as** picker at the top of the tab. A player chooses among the
+Every action on a market's Trade and Ventures tabs is taken as one character:
+the **Acting as** picker at the top of either tab, one choice for both. A
+player chooses among the
 characters they own; the Judge among the player characters and their own.
 The choice is remembered on that client. Orders, searches and ventures show
 to the party that made them; the Judge sees every party's, labelled, with a
@@ -41,14 +48,16 @@ stands.
 
 ## Buying and selling
 
-The Trade tab lists every priced item known to the world and its
-compendiums, with live availability: so many per month per party at this
+The Trade tab lists every priced item in the sources the shops stock from
+(Setup, step 5), with live availability: so many per month per party at this
 market's class, scarce goods as a percent chance your merchants find one.
 Buy opens the purchase dialog — quantity, an optional merchant Bargaining
 profile (GM), and for a large party the dedicated shopping day (RR 124).
 Purchases stack: countable gear merges, and thirty swords arrive as thirty
-swords to hand out. Sell offers your own priced goods at their
-condition-reduced value; sold goods leave play.
+swords to hand out. What arrives is the item the row lists, from the source
+it was listed from, even where another source holds one of the same name.
+Sell offers your own priced goods at their condition-reduced value; sold
+goods leave play.
 
 A **search day** (button on the toolbar) spends another dedicated day
 looking: your party's caps rise by one base increment and scarce goods get
@@ -163,7 +172,7 @@ them first.
 
 A market's demand modifier per good is three layers: the **base** the
 Demand Generator or a book wrote, a derived layer reserved for trade routes,
-and the Judge's **pins**, which win. *Set demand* on the Trade tab sets,
+and the Judge's **pins**, which win. *Set demand* on the Ventures tab sets,
 pins, clears or unpins one good; **Players see demand** is the Judge switch
 that shows players the true modifiers rather than only what their party
 believes.
@@ -173,7 +182,7 @@ believes.
 *The Demand Generator: the settlement's inputs, Step A rolled per good, the
 land-revenue picks, and (below) the preview of what Apply writes.*
 
-The **Demand Generator** (Trade tab, Judge) builds the base from the
+The **Demand Generator** (Ventures tab, Judge) builds the base from the
 settlement's age, water, biome, elevation, land revenue and peoples (JJ Ch6
 Step 7 A–D). Every good's roll and total is shown before anything is
 written; Apply replaces the base and leaves pins alone, and a base you typed
@@ -195,8 +204,8 @@ profession or a report of their own (or one the Judge marks as a trader on
 their sheet) has a **Trade** tab: Research lists the party's reports by
 market, and Compare sets two markets side by side on believed demand only.
 A report can be opened and annotated, given to another character of the
-party, or discarded. A market's own Trade tab lists the reports held about
-it. A false assessment is a report with wrong beliefs; only the Judge's copy
+party, or discarded. A market's own Ventures tab lists the reports held
+about it. A false assessment is a report with wrong beliefs; only the Judge's copy
 says so.
 
 **A partial assessment leaves the choice to the trader.** A partial result of
@@ -226,7 +235,8 @@ page wrote.
 
 ## Mercantile ventures
 
-Ventures run on dedicated days that resolve as game time passes:
+Ventures run from a market's **Ventures** tab, on dedicated days that
+resolve as game time passes:
 
 1. **Enter the market** — declare what the party brings to the gate.
    - **What you bring.** Declare cargo capacity, vehicles included

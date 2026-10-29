@@ -20,7 +20,7 @@ by hand.
 - **A location starts with no market, and most of its sheet with it.** A fresh
   location shows only Contents / Storage / GM Settings / GM View. Pressing
   **Add a market** (`data-action="addMarket"`) is what raises the Recruitment,
-  Henchmen, Mercenaries, Specialists and Trade tabs — so any henchmen or
+  Henchmen, Mercenaries, Specialists, Trade and Ventures tabs — so any henchmen or
   markets check against a location has to add the market first or its tabs are
   simply absent, which reads as the feature being broken.
 - The market subtree is `system.market`, and it holds far more than goods:
@@ -83,8 +83,10 @@ by hand.
    *Observable:* `LocationSheet`, with Contents (0) and Storage (0).
 2. Press **Add a market**.
    *Observable:* Market class and search fee appear; the Recruitment,
-   Henchmen, Mercenaries, Specialists and Trade tabs appear, Trade carrying
-   the shipped catalogue's row count.
+   Henchmen, Mercenaries, Specialists, Trade and Ventures tabs appear, Trade
+   carrying the catalogue's row count (every source Shop sources leaves in)
+   and Ventures the count of queued venture days the viewer's party (the
+   GM: every party) has pending.
 3. Storage: stash an item and coin from the character (see
    [../lib/TESTING.md](../lib/TESTING.md) for the argument order), then
    retrieve them.

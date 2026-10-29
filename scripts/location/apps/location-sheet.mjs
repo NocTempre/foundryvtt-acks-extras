@@ -48,7 +48,7 @@ const { ActorSheetV2 } = foundry.applications.sheets;
 const loc = makeLoc(LANG_PREFIX);
 
 /** The tabs that exist only where there is a market. */
-const MARKET_TABS = ["recruitment", "henchmen", "mercenaries", "specialists", "trade"];
+const MARKET_TABS = ["recruitment", "henchmen", "mercenaries", "specialists", "trade", "ventures"];
 
 /**
  * Does a directed-search spec match this candidate? A directed CLASS search
@@ -76,8 +76,8 @@ function directedSpecMatches(spec, c) {
   return !!name && String(c.notes ?? "").toLowerCase().includes(name);
 }
 
-/** Controls a non-owner viewer acts through: the Trade tab's, and the pure-DOM candidate filters. */
-const VIEWER_CONTROLS = '[data-tab="trade"] :is(button, select, input), [data-candidate-filter]';
+/** Controls a non-owner viewer acts through: the Trade and Ventures tabs', and the pure-DOM candidate filters. */
+const VIEWER_CONTROLS = ':is([data-tab="trade"], [data-tab="ventures"]) :is(button, select, input), [data-candidate-filter]';
 
 export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSheetV2)) {
   static DEFAULT_OPTIONS = {
@@ -154,6 +154,7 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
         { id: "mercenaries", icon: "fas fa-shield-halved" },
         { id: "specialists", icon: "fas fa-user-gear" },
         { id: "trade", icon: "fas fa-coins" },
+        { id: "ventures", icon: "fas fa-scale-balanced" },
         { id: "storage", icon: "fas fa-boxes-stacked" },
         { id: "gmSettings", icon: "fas fa-gears" },
         { id: "gmView", icon: "fas fa-eye" },
@@ -227,6 +228,7 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
       mercenaries: context.mercenaryRows?.length ?? 0,
       specialists: context.specialistRows?.length ?? 0,
       trade: context.tradeRows?.length ?? 0,
+      ventures: context.ventureActions?.length ?? 0,
       storage: context.groups.length,
     };
     for (const [id, tab] of Object.entries(context.tabs)) {

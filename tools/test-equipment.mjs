@@ -2162,7 +2162,7 @@ check("reveal restores the true item + clears the disguise", magic.name === "Fla
 /*  The Judge's override: granting gear, and clearing hands to hold it     */
 /* ---------------------------------------------------------------------- */
 
-const { grantGear, clearHands, findGearSource } = await import(new URL("grant.mjs", S));
+const { grantGear, clearHands, findGearSource, findGearEntry } = await import(new URL("grant.mjs", S));
 
 /** An actor that can be given items — enough shape for grantGear/clearHands. */
 const grantee = (items = []) => {
@@ -2218,6 +2218,30 @@ check("granting twice is a no-op — gear already carried is left alone", again.
 const halfKitted = grantee([{ id: "q", name: "Swan Quill", type: "item", system: { cost: 1, weight6: 0 } }]);
 await grantGear(halfKitted, [QUILL, PARCHMENT]);
 check("only the missing half is supplied", halfKitted.items.length === 2 && halfKitted.items.filter((i) => /quill/i.test(i.name)).length === 1);
+
+// A narrowed search (the markets' shop sources) skips what it is told to; the
+// default, which every grant takes, searches the world and every Item pack.
+{
+  const saved = { items: globalThis.game.items, packs: globalThis.game.packs };
+  const quillDoc = (uuid) => ({ uuid, name: "Quill, writing", toObject: () => ({ name: "Quill, writing", type: "item", system: { cost: 1 } }) });
+  const packOf = (collection, id) => ({
+    collection,
+    documentName: "Item",
+    index: [{ _id: id, name: "Quill, writing" }],
+    getDocument: async () => quillDoc(`Compendium.${collection}.Item.${id}`),
+  });
+  globalThis.game.items = [quillDoc("Item.w1")];
+  globalThis.game.packs = [packOf("mod.alpha", "a1"), packOf("mod.beta", "b1")];
+  check("by default the world's item answers first", (await findGearEntry("Quill, writing"))?.uuid === "Item.w1");
+  check("world: false searches the packs only", (await findGearEntry("Quill, writing", { world: false }))?.uuid === "Compendium.mod.alpha.Item.a1");
+  check("a pack the scope refuses is not searched", (await findGearEntry("Quill, writing", { world: false, pack: (p) => p.collection !== "mod.alpha" }))?.uuid === "Compendium.mod.beta.Item.b1");
+  check("a scope refusing everything finds nothing", (await findGearEntry("Quill, writing", { world: false, pack: () => false })) === null);
+  const kitted = grantee();
+  await grantGear(kitted, [QUILL]);
+  check("a grant is never narrowed: it takes the world's item", kitted.items.length === 1 && kitted.items[0].system.cost === 1);
+  globalThis.game.items = saved.items;
+  globalThis.game.packs = saved.packs;
+}
 
 // clearHands: shields go first, then weapons newest-first, and it stops as soon
 // as there is room rather than stripping the character bare. The fixtures need a

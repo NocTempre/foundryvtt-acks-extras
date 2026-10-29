@@ -1136,4 +1136,75 @@ assert.strictEqual(parseMoneyCp("-"), 0, "unreadable money is zero");
   assert.deepStrictEqual(stayOwed({ cpPerDay: 0, arrivalDay: 4, departureDay: 30 }), { days: 27, cp: 0 }, "a stay figured free is free whatever its length");
 }
 
-console.log("test-markets: OK (availability, caps, pricing, magic pricing, imports, commissions, arbitrage, result bands, venture queue, ledger, item flags, identification, printed reader, load draws, moorage and stabling)");
+/* ------------------------- the shop's sources ------------------------- */
+{
+  const { WORLD_SOURCE, normalizeExcluded, sourceOfUuid, sourceAllowed, excludedFromPicks } = await import(new URL("../scripts/markets/rules/sources.mjs", import.meta.url));
+  assert.strictEqual(sourceOfUuid("Item.w1"), WORLD_SOURCE, "a world item is the world's");
+  assert.strictEqual(sourceOfUuid("Compendium.mod.alpha.Item.a1"), "mod.alpha", "a compendium item is its pack's");
+  assert.strictEqual(sourceOfUuid("Actor.x1.Item.e1"), null, "an item embedded on an actor is no source");
+  assert.strictEqual(sourceOfUuid("Compendium.mod.beasts.Actor.m1"), null, "a compendium actor is no source");
+  assert.strictEqual(sourceOfUuid("Item."), null, "a uuid with no id is no source");
+  assert.strictEqual(sourceOfUuid(""), null, "no uuid is no source");
+  assert.deepStrictEqual(normalizeExcluded(["mod.alpha", "", 3, "mod.alpha", "world"]), ["mod.alpha", "world"], "the stored list is cleaned: strings, each once");
+  assert.deepStrictEqual(normalizeExcluded("mod.alpha"), [], "a list that is not an array excludes nothing");
+  assert.ok(sourceAllowed("mod.alpha", []) && !sourceAllowed("mod.alpha", ["mod.alpha"]) && !sourceAllowed(null, []), "a source is drawn on unless left out; no source never is");
+  assert.deepStrictEqual(
+    excludedFromPicks([{ key: "world", included: true }, { key: "mod.alpha", included: false }, { key: "mod.beta", included: true }], ["mod.beta", "mod.gone"]),
+    ["mod.gone", "mod.alpha"],
+    "a save leaves out what is unticked, takes back what is ticked, and keeps a pack it did not list out"
+  );
+
+  // A world of three sources. Pack alpha comes first and holds a class-kit copy
+  // named "Sword"; pack beta holds the base "Sword"; the world holds a Lantern.
+  const docs = new Map();
+  const doc = (uuid, data, parent = null) => {
+    const d = { uuid, documentName: "Item", parent, pack: uuid.startsWith("Compendium.") ? uuid.split(".").slice(1, 3).join(".") : null, name: data.name, ...data, toObject: () => structuredClone(data) };
+    docs.set(uuid, d);
+    return d;
+  };
+  const kitSword = doc("Compendium.mod.alpha.Item.k1", { name: "Sword", type: "weapon", system: { cost: 10 }, flags: { "acks-extras": { skin: "fighter" } } });
+  const rope = doc("Compendium.mod.alpha.Item.r1", { name: "Rope", type: "item", system: { cost: 1 }, flags: {} });
+  const baseSword = doc("Compendium.mod.beta.Item.s1", { name: "Sword", type: "weapon", system: { cost: 10 }, flags: {} });
+  const lantern = doc("Item.w1", { name: "Lantern", type: "item", system: { cost: 10 }, flags: {} });
+  const embedded = doc("Actor.x1.Item.e1", { name: "Sword", type: "weapon", system: { cost: 10 }, flags: {} }, {});
+  const packOf = (collection, members) => {
+    const index = members.map((m) => ({ _id: m.uuid.split(".").pop(), uuid: m.uuid, ...m.toObject() }));
+    return { collection, documentName: "Item", index, getIndex: async () => index, getDocument: async (id) => docs.get(`Compendium.${collection}.Item.${id}`) ?? null };
+  };
+  let excluded = [];
+  const saved = { game: globalThis.game, fromUuid: globalThis.fromUuid, Hooks: globalThis.Hooks };
+  globalThis.game = {
+    settings: { get: (_module, key) => (key === "marketsCatalogExcluded" ? excluded : undefined) },
+    items: [lantern],
+    packs: [packOf("mod.alpha", [kitSword, rope]), packOf("mod.beta", [baseSword])],
+  };
+  globalThis.fromUuid = async (uuid) => docs.get(uuid) ?? null;
+  globalThis.Hooks ??= { on() {}, once() {}, callAll() {} };
+  const { listedSource, orderedSource, shopPacks } = await import(new URL("../scripts/markets/engine/catalog-sources.mjs", import.meta.url));
+  const { buildCatalog } = await import(new URL("../scripts/markets/engine/trade.mjs", import.meta.url));
+  const market = { system: { market: { goods: { masterworkContact: false } } }, items: [] };
+  const listed = async () => Object.fromEntries((await buildCatalog(market)).map((r) => [r.name, r.sourceUuid]));
+
+  assert.deepStrictEqual(await listed(), { Lantern: lantern.uuid, Rope: rope.uuid, Sword: baseSword.uuid }, "every source lists, each row carrying its document; a kit copy is passed over for the base");
+  assert.strictEqual((await listedSource({ sourceUuid: baseSword.uuid, itemName: "Sword" }))?.uuid, baseSword.uuid, "a row is bought as its own document");
+  assert.strictEqual((await listedSource({ itemName: "Sword" }))?.uuid, kitSword.uuid, "by name alone the first copy answers, which is why a row carries its uuid");
+  assert.strictEqual(await listedSource({ sourceUuid: embedded.uuid, itemName: "Sword" }), null, "an item embedded on an actor is never bought from");
+
+  excluded = ["mod.beta"];
+  assert.deepStrictEqual(await listed(), { Lantern: lantern.uuid, Rope: rope.uuid }, "a pack left out lists nothing, and a kit copy does not stand in for its base");
+  assert.deepStrictEqual(shopPacks().map((p) => p.collection), ["mod.alpha"], "the shop's packs are the ones not left out");
+  assert.strictEqual(await listedSource({ sourceUuid: baseSword.uuid, itemName: "Sword" }), null, "a row of a pack left out is refused");
+  assert.strictEqual((await orderedSource({ sourceUuid: baseSword.uuid, itemName: "Sword" }))?.uuid, baseSword.uuid, "a paid order arrives as what it was placed for, left out since or not");
+  assert.strictEqual((await orderedSource({ sourceUuid: "Compendium.mod.beta.Item.gone", itemName: "Rope" }))?.uuid, rope.uuid, "an order whose document is gone arrives by name from the shop's sources");
+
+  excluded = ["world", "mod.alpha", "mod.beta"];
+  assert.deepStrictEqual(await listed(), {}, "nothing ticked lists nothing");
+  assert.strictEqual(await listedSource({ itemName: "Lantern" }), null, "the world's items left out are not bought by name");
+  assert.strictEqual((await orderedSource({ itemName: "Lantern" }))?.uuid, lantern.uuid, "an order placed before orders kept their source still arrives, by name from anywhere");
+
+  globalThis.game = saved.game;
+  globalThis.fromUuid = saved.fromUuid;
+  globalThis.Hooks = saved.Hooks;
+}
+
+console.log("test-markets: OK (availability, caps, pricing, magic pricing, imports, commissions, arbitrage, result bands, venture queue, ledger, item flags, identification, printed reader, load draws, moorage and stabling, shop sources)");

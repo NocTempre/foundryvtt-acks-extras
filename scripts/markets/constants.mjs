@@ -30,6 +30,9 @@ export const REPORT_TYPE = `${MODULE_ID}.marketReport`;
 /** The world setting holding the uuid of the actor that houses every trade Item. */
 export const TRADE_HOUSE_SETTING = "marketsTradeHouse";
 
+/** The world setting listing the sources the shop leaves out (rules/sources.mjs). */
+export const CATALOG_EXCLUDED_SETTING = "marketsCatalogExcluded";
+
 /** The actor flag a GM sets to give a character the Trade tab (`flags["acks-extras"].markets.trader`). */
 export const TRADER_FLAG = "trader";
 

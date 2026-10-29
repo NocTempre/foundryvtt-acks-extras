@@ -1,0 +1,8 @@
+{{#if tradeShowPicker}}
+<label class="acks-extras-markets-trader">
+  <span>{{localize "ACKS-MARKETS.trade.actingAs"}}</span>
+  <select data-trade-trader>
+    {{#each tradeTraders}}<option value="{{uuid}}" {{#if selected}}selected{{/if}}>{{name}}</option>{{/each}}
+  </select>
+</label>
+{{/if}}

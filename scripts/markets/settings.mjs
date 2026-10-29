@@ -1,10 +1,10 @@
-/* global game */
+/* global game, foundry */
 /**
  * World settings for the markets feature. All under the module namespace,
  * `markets`-prefixed to keep clear of the other features' keys; registered
  * at init.
  */
-import { MODULE_ID, LANG, TRADE_HOUSE_SETTING } from "./constants.mjs";
+import { MODULE_ID, LANG, TRADE_HOUSE_SETTING, CATALOG_EXCLUDED_SETTING } from "./constants.mjs";
 
 export function registerSettings() {
   const reg = (key, data) => game.settings.register(MODULE_ID, key, data);
@@ -66,6 +66,22 @@ export function registerSettings() {
     config: false,
     type: String,
     default: "",
+  });
+  // The sources the shop leaves out: `world` and Item pack collection ids.
+  // Edited from the shop-sources app. A sheet caches its catalog, so a change
+  // drops every open sheet's copy and redraws it.
+  reg(CATALOG_EXCLUDED_SETTING, {
+    scope: "world",
+    config: false,
+    type: Array,
+    default: [],
+    onChange: () => {
+      for (const app of foundry.applications.instances.values()) {
+        if (!Object.hasOwn(app, "_tradeCatalog")) continue;
+        app._tradeCatalog = null;
+        app.render();
+      }
+    },
   });
 }
 
