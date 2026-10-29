@@ -25,7 +25,7 @@ import { getLoadout, cycleGrip, heldHandsClause } from "./loadout.mjs";
 import { prepareTorch, rollUnarmed, drawItem, sheatheItem, wearItem, removeItem } from "./actions.mjs";
 import { STONE, slotsOf, isWorn, isEquippable, isCurrency } from "../lib/item-model.mjs";
 import { ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
-import { LIGHT_SOURCES } from "../lib/light.mjs";
+import { lightTypeOf } from "../lib/light.mjs";
 import { profileStripElement } from "../lib/proficiency-strip.mjs";
 import { cycleStrap, strapOf, overlayEnabled as shieldOverlayEnabled } from "./overlays/shield-variants.mjs";
 import { wearBuckets, wearLabel } from "./wear.mjs";
@@ -156,20 +156,11 @@ function buildWornSection(actor, tab, loadout) {
   return moved || unarmed ? section : null;
 }
 
-/** A light source's formation light type from its name, or null. A torch is a
- * WEAPON, lanterns/candles are items — so match by name, not type.
- * The name test is the light model's own — the device's pattern where the
- * source has one (a lantern is named for the lamp, not the oil it burns), the
- * fuel's otherwise — so the controls this gates and the ready step they lead
- * to recognise the same items. Exported for the character sheet, which offers
- * the same controls. */
-export function lightTypeOf(item) {
-  const n = String(item?.name ?? "");
-  for (const [type, cfg] of Object.entries(LIGHT_SOURCES)) {
-    if ((cfg.holder ?? cfg.consumes).test(n)) return type;
-  }
-  return null;
-}
+/** Which light source an item is, by name (lib/light.mjs `lightTypeOf`): a torch
+ * is a WEAPON once readied and the stack an item, so the controls this gates
+ * and the ready step they lead to recognise the same names. Re-exported for
+ * the character sheet, which offers the same controls. */
+export { lightTypeOf };
 
 /**
  * The same three actions for a character in no formation, written to their own

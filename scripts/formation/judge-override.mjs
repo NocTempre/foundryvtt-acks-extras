@@ -79,6 +79,9 @@ function announce(actor, { granted, released }) {
  * lantern arrives with its flask of oil and a torch arrives as a bundle.
  */
 export async function equipForLight(actor, type) {
+  // A source of the type already drawn and unlit is lit where it is: nothing
+  // to supply, no hand to empty — emptying one would sheathe the very torch.
+  if (gearApi()?.unlitInHand?.(actor, type)) return { granted: [], released: [], handsSpare: null };
   return supplyGear(actor, lightGear(type), { hands: 1 });
 }
 

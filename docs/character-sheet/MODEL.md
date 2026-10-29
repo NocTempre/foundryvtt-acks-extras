@@ -149,7 +149,10 @@ whose button runs the abilities feature's picker.
 **Equipment** (`tabs/equipment.mjs`) is the body map made a list. The Load
 header's underline is the encumbrance bar with the system's breakpoints as
 ticks, beside the hands badge (used of budget, the active style, the clause
-for hands a light or the map is taking) and the annotate chip. `loadBar`
+for hands no listed row explains — a light burning in no drawn source, a
+piece of the mapper's kit the places cannot show) and the annotate chip. The
+mapper's quill and parchment are listed at the hands while the role is held,
+each row saying *held for mapping* and taking the hand's capacity. `loadBar`
 draws the bar from two readings: core's burden as the fill, and the lib's
 `carriedWeight6` — every item at what it weighs, clothing included — as a
 dashed phantom running on from the fill, stopped at the end of the track when
@@ -194,7 +197,7 @@ its row control or its own sheet is placed by the resolver — the main hand,
 unless another one-hand weapon already holds it and no shield holds the off
 hand, then the off hand — so a second weapon lists opposite the first, and
 never both under one hand. Sheathing forgets the hand. The hands badge on the
-Load rule states the hands the party sheet holds beside the count. A stack
+Load rule states the hands no row explains beside the count. A stack
 let go on another row of the same thing joins it (`joinStacks`: the same
 stack signature, owner and container), once the move has put the two in the
 same place. Coin is never copied: off another actor it is handed over, and

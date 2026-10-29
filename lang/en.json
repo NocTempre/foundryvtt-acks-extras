@@ -2538,6 +2538,8 @@
       "spellNeedsName": "Pick a spell or enter a name to track.",
       "spellNeedsTurns": "Enter a duration in turns (the spell's duration couldn't be parsed).",
       "noRoleGear": "{name} cannot take the {role} role without {items}.",
+      "noRoleHands": "{name} has no hands free for the {role} role: it takes {n}. Sheathe or stow something first.",
+      "noRoleHandsHeld": "{name} has no hands free for the {role} role: it takes {n} ({held}). Sheathe or stow something first.",
       "noFreeHand": "{bearer} has no free hand to hold a light — sheathe or stow something to carry it properly."
     },
     "kit": {
@@ -7909,6 +7911,7 @@
   "ACKS-CHARACTER.equipment.loadState.slowed": "slowed",
   "ACKS-CHARACTER.equipment.loadState.overburdened": "overburdened",
   "ACKS-CHARACTER.equipment.hands": "Hands",
+  "ACKS-CHARACTER.equipment.kitInHand": "held for mapping",
   "ACKS-CHARACTER.equipment.annotate": "Annotate gear",
   "ACKS-CHARACTER.equipment.attack": "Attack with it",
   "ACKS-CHARACTER.equipment.split": "Split one off the stack",

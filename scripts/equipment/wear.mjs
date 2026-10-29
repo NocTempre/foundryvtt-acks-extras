@@ -35,6 +35,15 @@ export function wearLocation(actor, item, loadout = getLoadout(actor)) {
   // slot it would occupy if you put it on.
   if (containedIn(item)) return WEAR.stowed;
 
+  // The mapper's kit is in hand for as long as the role is held, quill in the
+  // main hand and parchment in the off hand (the loadout's `mappingKit`, in
+  // that order). It is held without being worn — a plain item with no place
+  // of its own — so it is placed before the worn gate, and the hand count it
+  // already carries is then explained by a row.
+  const kitAt = loadout.mappingKit?.findIndex((k) => k.id === item.id) ?? -1;
+  if (kitAt === 0) return WEAR.mainHand;
+  if (kitAt === 1) return WEAR.offHand;
+
   // IS IT ON? BEFORE WHERE IT GOES. A declared slot says where a thing sits
   // when it is worn; it cannot say that it is. The two stores drift the moment
   // core's own equip toggle writes `system.equipped = false`, which knows

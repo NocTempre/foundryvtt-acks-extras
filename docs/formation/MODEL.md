@@ -269,7 +269,7 @@ empties a hand to hold it, then the action proceeds.
 
 | Action | GM | Player |
 |---|---|---|
-| Light a torch / lantern / candle | gear supplied, a hand emptied | refused without the gear and a spare hand |
+| Light a torch / lantern / candle | gear supplied, a hand emptied — unless a source of the type is drawn and unlit, which is lit where it is with nothing supplied or emptied (equipment `unlitInHand`) | refused without the gear and a spare hand; a drawn unlit source needs neither |
 | Take up a role with a kit (mapper, 10' pole) | kit supplied, hands emptied | refused without the kit |
 
 The override **never blocks**. Where it cannot finish — no such item exists in
@@ -298,10 +298,17 @@ API reads — so ONE list both refuses the role and, under override, supplies it
   (`ROLE_HAND_COST`), for as long as the role is held. That is what makes mapping
   and a drawn sword mutually exclusive.
 
-`handsOccupied(actorId)` is the single call the equipment feature's loadout makes for
-hands the party sheet has filled — lights borne plus role kits — and taking up or
-setting down a role fires `acksExtras.roleChanged` so the loadout recomputes,
-exactly as `acksExtras.lightChanged` does for a struck light.
+Taking up a role whose kit is held asks the equipment feature for the spare
+hands first — through `spareHands`, as `prepareToLight` does for a light — and
+refuses with the held-hands clause when they are short; the Judge's override
+has already emptied them. Setting a role down is never gated.
+
+`handsOccupied(actorId)` is the equipment feature's count of the hands a role's
+kit has filled (its lights it reads through lib's `bearerLights`), and
+`kitInHand(actorId)` the kit items the holder carries in hand order — the
+quill, then the parchment — which the equipment feature lists at the hands.
+Taking up or setting down a role fires `acksExtras.roleChanged` so the loadout
+recomputes, exactly as `acksExtras.lightChanged` does for a struck light.
 
 ## Which way the block points
 

@@ -75,6 +75,7 @@ import {
   getPartyActor,
   handsOccupied,
   heldLightCount,
+  kitInHand,
   lightsForBearer,
   getPartyToken,
   marchingOrder,
@@ -811,11 +812,13 @@ Hooks.once("init", () => {
     mergeFogCopies,
     requestPartyAction,
     // Hand integration (acks-equipment). handsOccupied tells equipment how many
-    // hands the party sheet has already filled — lights borne, and the mapper's
-    // kit — and is the ONE call its loadout makes; getFormationForActor + the
-    // light mutators let equipment's sheet controls light/douse/shutter by actor.
+    // hands the mapper's kit has filled and kitInHand which items it lists at
+    // them (lights it reads through lib's bearerLights); getFormationForActor
+    // + the light mutators let equipment's sheet controls light/douse/shutter
+    // by actor.
     handsOccupied,
     heldLightCount,
+    kitInHand,
     getFormationForActor,
     // A vehicle deploying as a place stands its marker beside the party whose
     // train it is in (vehicles/deploy.mjs); vehicles reaches formation through

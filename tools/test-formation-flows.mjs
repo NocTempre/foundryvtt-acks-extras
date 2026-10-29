@@ -4682,6 +4682,131 @@ await scenario("a forced march is barred by a marcher's survival state; only the
   await drain();
 });
 
+// The hand counts the two scenarios below read stand in for acks-equipment's;
+// the loadout's own reading of lights and the kit is tools/test-equipment.mjs.
+await scenario("taking the mapper role needs the hands, and the kit is listed at them", async () => {
+  const scribe = await member("Scribe");
+  await drain();
+  await game.settings.set(MODULE_ID, "formations", {}); // isolate
+  let formation = await model.createFormation("Kit Party");
+  formation = await model.addMember(formation, scribe, null);
+  await drain();
+  const id = onlyFormation().id;
+  await scribe.createEmbeddedDocuments("Item", [
+    { name: "Quill, writing", type: "item", system: { quantity: { value: 1 } } },
+    { name: "Parchment", type: "item", system: { quantity: { value: 1 } } },
+  ]);
+  const roles = () => onlyFormation().members.find((m) => m.actorId === scribe.id)?.roles ?? [];
+  const nameOf = (itemId) => scribe.items.find((i) => i.id === itemId)?.name ?? null;
+
+  // Stand in for acks-equipment's room count: two hands less what is drawn.
+  globalThis.acksExtras.equipment = {
+    spareHands: (actor) => Math.max(0, 2 - (actor.system.__handsUsed ?? 0)),
+    heldHandsClause: () => "",
+  };
+  try {
+    // A hand short — a sword drawn — the kit cannot be taken up: refused, as a
+    // light is, and nothing is in hand for the role.
+    scribe.system.__handsUsed = 1;
+    notices.length = 0;
+    await model.toggleRole(model.getFormation(id), scribe.id, "mapper");
+    await drain();
+    assert.ok(!roles().includes("mapper"), "a hand short, the role is refused");
+    assert.ok(notices.some(([lvl, m]) => lvl === "warn" && /noRoleHands/.test(String(m))), "and the refusal names the hands");
+    assert.deepEqual(model.kitInHand(scribe.id), [], "no role, no kit in hand");
+
+    // Hands empty, the role goes on, and the kit is in hand quill first.
+    scribe.system.__handsUsed = 0;
+    await model.toggleRole(model.getFormation(id), scribe.id, "mapper");
+    await drain();
+    assert.ok(roles().includes("mapper"), "with the hands free the role is taken");
+    const ids = model.kitInHand(scribe.id);
+    assert.equal(ids.length, 2, "both pieces of the kit are in hand");
+    assert.match(nameOf(ids[0]), /quill/i, "the quill takes the first hand");
+    assert.match(nameOf(ids[1]), /parchment/i, "the parchment the second");
+
+    // Setting the role down is never gated, and empties the hands of the kit.
+    scribe.system.__handsUsed = 2;
+    await model.toggleRole(model.getFormation(id), scribe.id, "mapper");
+    await drain();
+    assert.ok(!roles().includes("mapper"), "the role is set down whatever the hands hold");
+    assert.deepEqual(model.kitInHand(scribe.id), [], "and the kit leaves the hands");
+
+    // An unreadable count skips the check rather than refusing.
+    globalThis.acksExtras.equipment.spareHands = () => { throw new Error("equipment exploded"); };
+    await model.toggleRole(model.getFormation(id), scribe.id, "mapper");
+    await drain();
+    assert.ok(roles().includes("mapper"), "a hand count that throws does not refuse the role");
+  } finally {
+    delete globalThis.acksExtras.equipment;
+  }
+  await model.disband(model.getFormation(id));
+  await drain();
+});
+
+await scenario("a torch already in hand is lit where it is: no hand emptied, nothing off the stack", async () => {
+  const bearer = await member("Bearer");
+  await drain();
+  await game.settings.set(MODULE_ID, "formations", {}); // isolate
+  let formation = await model.createFormation("Held Torch Party");
+  formation = await model.addMember(formation, bearer, null);
+  await drain();
+  const id = onlyFormation().id;
+  await game.settings.set(MODULE_ID, "lightItemEnforcement", "require");
+  // A readied torch (a weapon, no stock to count) drawn beside a dagger, and
+  // the stack it was readied from: both hands full, and the torch is one of them.
+  const [torch] = await bearer.createEmbeddedDocuments("Item", [
+    { name: "Torch", type: "weapon", system: { equipped: true } },
+    { name: "Torches (6)", type: "item", system: { quantity: { value: 5 } } },
+  ]);
+  bearer.system.__handsUsed = 2;
+  const stack = () => bearer.items.find((i) => /torches/i.test(i.name)).system.quantity.value;
+  const calls = { clearHands: 0, grantGear: 0, consume: 0 };
+  globalThis.acksExtras.equipment = {
+    spareHands: (actor) => Math.max(0, 2 - (actor.system.__handsUsed ?? 0)),
+    roomForLight: (actor, type) => type === "torch" || Math.max(0, 2 - (actor.system.__handsUsed ?? 0)) > 0,
+    unlitInHand: (actor, type) => (type === "torch" ? torch : null),
+    async grantGear() { calls.grantGear++; return []; },
+    async clearHands(actor) { calls.clearHands++; actor.system.__handsUsed -= 1; return { handsSpare: 1, released: [{ name: "Dagger" }] }; },
+    async consumeItem(item, n) { calls.consume++; await item.update({ "system.quantity.value": item.system.quantity.value - n }); },
+  };
+  try {
+    // The player path: lit on the torch in hand, through the hands check that
+    // a spare-hand count alone would refuse.
+    await engine.addLight(model.getFormation(id), "torch", bearer.id);
+    await drain();
+    assert.equal(onlyFormation().lights.length, 1, "the held torch lights with no spare hand");
+    assert.equal(stack(), 5, "the stack is not spent for a torch already in hand");
+    assert.equal(calls.consume, 0, "and nothing was consumed");
+
+    // The Judge's path, with the same torch drawn and unlit again: nothing
+    // supplied, no hand emptied — emptying one sheathed the torch itself.
+    await engine.removeLight(model.getFormation(id), onlyFormation().lights[0].id);
+    await drain();
+    await engine.addLight(model.getFormation(id), "torch", bearer.id, { override: true });
+    await drain();
+    assert.equal(onlyFormation().lights.length, 1, "the Judge's light is lit on the held torch");
+    assert.equal(calls.clearHands, 0, "no hand was emptied");
+    assert.equal(calls.grantGear, 0, "no gear was supplied");
+    assert.equal(stack(), 5, "the stack is still whole");
+    assert.equal(bearer.system.__handsUsed, 2, "the torch and the dagger are both still in hand");
+
+    // With no readied torch at all the stack pays as before.
+    await engine.removeLight(model.getFormation(id), onlyFormation().lights[0].id);
+    await drain();
+    bearer.items.delete(torch.id);
+    globalThis.acksExtras.equipment.unlitInHand = () => null;
+    globalThis.acksExtras.equipment.roomForLight = () => true;
+    await engine.addLight(model.getFormation(id), "torch", bearer.id);
+    await drain();
+    assert.equal(onlyFormation().lights.length, 1, "a torch from the stack lights");
+    assert.equal(stack(), 4, "and the stack pays for it");
+  } finally {
+    delete globalThis.acksExtras.equipment;
+  }
+  await model.disband(model.getFormation(id));
+  await drain();
+}); // held torch
 if (failures) {
   console.error(`test-flows: ${failures} scenario(s) FAILED`);
   process.exit(1);

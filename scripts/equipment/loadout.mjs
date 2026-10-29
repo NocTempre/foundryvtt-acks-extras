@@ -13,6 +13,8 @@ import { EFFECT_DOMAINS } from "./constants.mjs";
 import { weaponProficiency, isWeaponProficient, armorMax, isArmorProficient, thiefSkillsGated, swashbucklingAC, lightInit, enforcementActive } from "./proficiency.mjs";
 import { occupiesHand } from "./overlays/shield-variants.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
+import { bearerLights, lightTypeOf } from "../lib/light.mjs";
+import { containedIn } from "../lib/item-model.mjs";
 
 /** Violation type keys (for i18n + auto-resolve). */
 export const VIOLATION = Object.freeze({
@@ -42,34 +44,62 @@ export async function cycleGrip(item) {
 }
 
 /**
- * Hands the party sheet says are already full (acks-formation, optional): the
- * light sources this actor bears, and the mapper's kit if they are the one
- * drawing the map. Degrades to zero of each when nothing is tracking the actor.
- * @returns {{lights: number, mapping: number, total: number}}
+ * Hands held full by something other than a drawn weapon or a shield in hand:
+ * the light sources this actor bears that are burning (lib's `bearerLights`,
+ * which reads the party sheet's record for a member and the actor's own flag
+ * for anyone else), and the mapper's kit when the party sheet has them
+ * drawing the map (acks-formation, optional; zero when nothing tracks the
+ * actor). `kit` is the kit the sheet can list: the quill and parchment the
+ * mapper carries, in the order they take the hands, less any piece stowed in
+ * a container.
+ * @returns {{lights: object[], mapping: number, kit: Item[]}}
  */
 export function formationHands(actor) {
+  const lights = bearerLights(actor).filter((l) => l?.lit || l?.shielded);
   const busy = globalThis.acksExtras?.formation?.handsOccupied?.(actor?.id);
-  const lights = Number.isFinite(busy?.lights) ? busy.lights : 0;
   const mapping = Number.isFinite(busy?.mapping) ? busy.mapping : 0;
-  return { lights, mapping, total: lights + mapping };
+  const ids = mapping > 0 ? globalThis.acksExtras?.formation?.kitInHand?.(actor?.id) ?? [] : [];
+  const kit = ids.map((id) => actor?.items?.get?.(id)).filter((i) => i && !containedIn(i));
+  return { lights, mapping, kit };
 }
 
-/** Hands occupied by lit light sources this actor bears (acks-formation, optional). */
+/** Hands occupied by lit light sources this actor bears that no drawn light accounts for. */
 export function heldLightHands(actor) {
-  return formationHands(actor).lights;
+  return getLoadout(actor).heldLights;
 }
 
 /**
- * Name the hands that hold nothing this sheet lists — a torch the party sheet
- * is tracking, the mapper's quill and parchment — as a short display clause,
- * or "" when every occupied hand is accounted for by gear.
+ * Whether a light of `type` can be struck without a further hand: a source of
+ * that type already drawn and not yet burning is lit where it is, and
+ * otherwise one spare hand holds the new flame. Lib's `prepareToLight` asks
+ * this through the API before it asks for a spare hand.
+ */
+export function roomForLight(actor, type) {
+  return !!unlitInHand(actor, type) || getLoadout(actor).handsSpare > 0;
+}
+
+/**
+ * The drawn source of `type` not yet burning, or null: the item a flame of
+ * that type is struck on. A light lit on it needs no hand freed and no fuel
+ * off a stack — the source in hand is the gear, and burns on its own timer.
+ */
+export function unlitInHand(actor, type) {
+  return getLoadout(actor).lightsInHand.find((l) => l.type === type && !l.lit)?.item ?? null;
+}
+
+/**
+ * Name the hands that hold nothing this sheet lists — a light burning in no
+ * drawn source, the mapper's kit the sheet cannot show — as a short display
+ * clause, or "" when every occupied hand is accounted for by a listed row.
  *
  * A hand count the visible gear cannot explain reads as a miscount, and the
  * player's only remedy is to unequip things that were never the problem. Every
- * surface quoting a hand total states this alongside it.
+ * surface quoting a hand total states this alongside it. A readied torch in
+ * hand explains the light burning in it, and the quill and parchment listed at
+ * the hands explain the mapping hands, so neither is named here.
  *
- * @param {{heldLights?: number, mappingHands?: number}} source a Loadout, or a
- *   hand-overflow violation's `detail` — both carry the two counts.
+ * @param {{heldLights?: number, mappingUnlisted?: number}} source a Loadout,
+ *   or a hand-overflow violation's `detail` — both carry the two counts.
  */
 export function heldHandsClause(source) {
   const say = (key, n) => {
@@ -78,7 +108,7 @@ export function heldHandsClause(source) {
   };
   const parts = [];
   if (source?.heldLights > 0) parts.push(say("handsLights", source.heldLights));
-  if (source?.mappingHands > 0) parts.push(say("handsMapping", source.mappingHands));
+  if (source?.mappingUnlisted > 0) parts.push(say("handsMapping", source.mappingUnlisted));
   return parts.join(", ");
 }
 
@@ -212,13 +242,24 @@ export function getLoadout(actor, opts = {}) {
   // Only a shield carried IN HAND costs a hand; a strapped one (JJ variant
   // overlay) rides the back or front and leaves both hands free.
   const handShields = shields.filter(occupiesHand);
-  // The party sheet fills hands too (degrades to 0 when nothing is tracking this
-  // actor): a lit light source is held, and a mapper works with a quill in one
-  // hand and parchment in the other. This is the read half of the two-way hook —
-  // formation owns both states; we count them as used hands so hands-available
-  // matches what the character is actually holding.
-  const { lights: heldLights, mapping: mappingHands, total: formationBusy } = formationHands(actor);
-  let handsUsed = weapons.reduce((n, w) => n + w.handsMin, 0) + handShields.length + formationBusy;
+  // A burning light is held, and a mapper works with a quill in one hand and
+  // parchment in the other. A light record is the party sheet's (or the lone
+  // actor's flag), a drawn light source is a weapon above: a readied torch
+  // that is lit is ONE hand, so each drawn light source absorbs one burning
+  // record of its type, and only the records left over cost a hand of their
+  // own. The kit counts whether or not the sheet can list it.
+  const { lights: burning, mapping: mappingHands, kit: mappingKit } = formationHands(actor);
+  const unabsorbed = burning.slice();
+  const lightsInHand = equippedWeapons
+    .filter((i) => i.getFlag?.(MODULE_ID, "light") === true)
+    .map((item) => {
+      const type = lightTypeOf(item);
+      const at = unabsorbed.findIndex((l) => l.type === type);
+      const record = at >= 0 ? unabsorbed.splice(at, 1)[0] : null;
+      return { item, type, lit: !!record, light: record };
+    });
+  const heldLights = unabsorbed.length;
+  let handsUsed = weapons.reduce((n, w) => n + w.handsMin, 0) + handShields.length + heldLights + mappingHands;
   // What is COMMITTED — every hand that something would have to be put down to
   // free. Captured before the two-handed grip below, which is elective: a
   // versatile weapon takes the spare hand for the better damage die and gives it
@@ -302,10 +343,10 @@ export function getLoadout(actor, opts = {}) {
     violations.push({
       type: VIOLATION.HAND_OVERFLOW,
       items: candidates.map((c) => c.item),
-      // The party-sheet hands travel with the violation. They are the only
+      // The unlisted hands travel with the violation. They are the only
       // occupied hands holding nothing this sheet lists, so a message built
       // from `items` alone can never account for the count it quotes.
-      detail: { handsUsed, budget, heldLights, mappingHands },
+      detail: { handsUsed, budget, heldLights, mappingHands, mappingUnlisted: mappingHands - mappingKit.length },
     });
   }
   if (suits.length > 1) {
@@ -367,8 +408,11 @@ export function getLoadout(actor, opts = {}) {
     handsFree: Math.max(0, budget - handsUsed),
     handsCommitted,
     handsSpare: Math.max(0, budget - handsCommitted),
-    heldLights, // hands occupied by lit light sources (acks-formation)
+    heldLights, // hands occupied by burning lights no drawn source accounts for
+    lightsInHand, // the drawn light sources, each with the burning record it absorbed
     mappingHands, // hands occupied by the mapper's kit (acks-formation)
+    mappingKit, // the kit items listed at the hands, main hand first
+    mappingUnlisted: mappingHands - mappingKit.length, // kit hands no listed row explains
     weapons,
     armor,
     armorProficient,
@@ -405,6 +449,11 @@ function canUseShieldStyle(actor, trained = trainedStyles(actor)) {
  * @property {number} handsFree hands not in use right now
  * @property {number} handsCommitted hands something would have to be put down to free
  * @property {number} handsSpare room for one more thing (elective grips yield)
+ * @property {number} heldLights burning lights held in no drawn source
+ * @property {{item: Item, type: string, lit: boolean, light: object|null}[]} lightsInHand drawn light sources and the burning record each absorbed
+ * @property {number} mappingHands hands the mapper's kit takes
+ * @property {Item[]} mappingKit the kit listed at the hands, main hand first
+ * @property {number} mappingUnlisted kit hands no listed row explains
  * @property {object[]} weapons
  * @property {object|null} armor
  * @property {object[]} shields

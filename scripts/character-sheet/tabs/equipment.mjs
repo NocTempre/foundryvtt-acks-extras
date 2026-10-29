@@ -148,11 +148,14 @@ function containerControls(actor, report) {
 /** One gear row. A container row carries its contents and its capacity bar. */
 function rowOf(actor, item, ctx, depth = 0) {
   const { loadout, lights, reports, wieldedIds } = ctx;
+  // The mapper's quill and parchment are listed at the hands while the role is
+  // held; the row says why a plain item sits there.
+  const kit = loadout.mappingKit.some((k) => k.id === item.id);
   const row = {
     id: item.id,
     name: item.name,
     img: item.img,
-    line: lineOf(item),
+    line: [lineOf(item), kit ? loc("equipment.kitInHand") : ""].filter(Boolean).join(" · "),
     qty: stackCountOf(item),
     // A coin row always shows its count — an empty purse reads as empty.
     stack: isCurrency(item) || (stackCountOf(item) ?? 1) > 1,
@@ -253,6 +256,12 @@ export function buildEquipmentTab(actor) {
     // Two counts against two rules — magic by form, armour and weapons by
     // the body — and clothing against neither; the badge shows the larger.
     const use = slotUse(key, items);
+    const kit = items.filter((i) => loadout.mappingKit.some((k) => k.id === i.id)).length;
+    if (kit) {
+      use.equip += kit;
+      use.used = Math.max(use.equip, use.magic);
+      use.full = use.full || (use.cap !== Infinity && use.equip > 1);
+    }
     return {
       key,
       label: wearLabel(key),

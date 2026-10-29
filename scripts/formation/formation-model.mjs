@@ -24,7 +24,7 @@ import { bodyCount, isGroupActor } from "../lib/group-logic.mjs";
 import { tokenHasStatus, tokenHitPoints } from "../lib/hp-logic.mjs";
 import { monsterExplorationSpeed } from "./monster-traits.mjs";
 import { canSeeInDark } from "../lib/senses.mjs";
-import { carriesItem } from "../lib/item-model.mjs";
+import { carriesItem, findCarried } from "../lib/item-model.mjs";
 import { capacityStone } from "../lib/capacity.mjs";
 import { announceChange } from "../lib/util.mjs";
 import { equipForRole } from "./judge-override.mjs";
@@ -161,6 +161,35 @@ export function handsOccupied(actorId) {
   }
   busy.total = busy.lights + busy.mapping;
   return busy;
+}
+
+/**
+ * The kit this actor holds for a role that costs hands, as item ids in the
+ * order the hands take them — for the mapper, the quill then the parchment
+ * (`ROLE_GEAR`, one hand per piece). Empty when no formation has the actor in
+ * such a role, or the actor carries none of the kit. The equipment feature
+ * lists these at the hands the role has already filled, so a hand count it
+ * quotes is explained by a row.
+ * @returns {string[]}
+ */
+export function kitInHand(actorId) {
+  const ids = [];
+  if (!actorId) return ids;
+  const actor = game.actors?.get?.(actorId);
+  if (!actor) return ids;
+  for (const f of Object.values(readFormations())) {
+    for (const m of f?.members ?? []) {
+      if (m?.actorId !== actorId) continue;
+      for (const role of m.roles ?? []) {
+        if (!(ROLE_HAND_COST[role] > 0)) continue;
+        for (const spec of ROLE_GEAR[role] ?? []) {
+          const item = findCarried(actor, spec.pattern);
+          if (item && !ids.includes(item.id)) ids.push(item.id);
+        }
+      }
+    }
+  }
+  return ids;
 }
 
 /**
@@ -1670,6 +1699,34 @@ export async function toggleRole(formation, actorId, role, { override = false } 
       // A Judge who overrode is told what could not be supplied, not stopped by
       // it — the role goes on regardless.
       if (!override) return formation;
+    }
+    // The kit is HELD, so the hands it takes must be spare, as a light's one
+    // hand must be before it is struck. Room, not free hands (an elective
+    // two-handed grip yields), read through the equipment feature as the light
+    // path reads it; an unreadable count skips the check rather than refusing.
+    // The override has already emptied the hands (`equipForRole`), and a Judge
+    // is told what could not be emptied, not stopped by it.
+    const needed = ROLE_HAND_COST[role] ?? 0;
+    if (needed > 0 && !override) {
+      let spare = null;
+      let held = "";
+      try {
+        spare = globalThis.acksExtras?.equipment?.spareHands?.(actor) ?? null;
+        held = globalThis.acksExtras?.equipment?.heldHandsClause?.(actor) ?? "";
+      } catch (err) {
+        console.error(`${MODULE_ID} | acks-equipment hand count failed`, err);
+      }
+      if (Number.isFinite(spare) && spare < needed) {
+        ui.notifications.warn(
+          game.i18n.format(held ? "ACKS-FORMATION.warn.noRoleHandsHeld" : "ACKS-FORMATION.warn.noRoleHands", {
+            name: actor?.name ?? "?",
+            role: game.i18n.localize(ROLE_LABELS[role] ?? role),
+            n: needed,
+            held,
+          }),
+        );
+        return formation;
+      }
     }
     member.roles.push(role);
   } else {

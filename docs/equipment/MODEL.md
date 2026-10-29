@@ -155,8 +155,8 @@ tab, which carries Weapon type, Class, Size, Grips and Worn at.
 `focusGroup`, `weaponKey`, `weaponIdentity`, `isUnidentifiedWeapon`,
 `inferredGrips`, `setWeaponProfile`, `setWeaponSize`, `setWeaponGrips`,
 `setGearSlotList`, `annotateItem(item)`, `refreshLoadout(actor)`, the
-effect collectors, `config`, `HOOKS`, `VIOLATION`, plus the hand and gear
-surfaces below.
+effect collectors, `config`, `HOOKS`, `VIOLATION`, `roomForLight(actor, type)`,
+`unlitInHand(actor, type)`, plus the hand and gear surfaces below.
 
 ### Hands: free, committed, spare
 
@@ -209,17 +209,42 @@ effect takes the deeper of the two cuts, once: two rules cancelling the same
 addition never cancel it twice. The style's own benefit is the shield's AC;
 Specialization in it adds its bonus above that.
 
-`formationHands(actor)` is the one call into the formation feature for hands the party
-sheet has already filled: lights borne, and the mapper's kit.
+`formationHands(actor)` gathers the hands held full by something other than a
+drawn weapon or a shield in hand: the actor's burning lights (lib's
+`bearerLights`, which reads the party sheet's record for a member and the
+actor's own flag for anyone else — a lone character's lit torch costs the
+same hand a member's does), the hands the mapper's kit takes
+(`handsOccupied`, the formation feature's count), and the kit items it lists
+at them (`kitInHand`, the quill then the parchment the mapper carries, less a
+piece stowed in a container).
 
-Those hands hold nothing the equipment sheet lists, so every surface quoting a
-hand total says so: `heldHandsClause(source)` turns a Loadout — or a hand-overflow
-violation's `detail`, which carries the same two counts — into a display clause,
-and the Worn & Wielded status line, the character sheet's hands badge, the
-`handOverflow` violation, the auto-unequip notice and lib's light refusal
-(through the API's `heldHandsClause(actor)`) all append it. A total the visible
-gear cannot add up to reads as a miscount, and sends the player unequipping
-things that were never the problem.
+**A light burns in the hand that holds it.** A readied torch in hand is a
+weapon flagged `light`; a burning record is the party sheet's or the actor's
+flag. Both describe one torch, so each drawn light source absorbs one burning
+record of its type (`lightsInHand`, each with the record it absorbed), and
+only the records left over — a lantern, a torch lit from the stack, a torch
+burning with its weapon sheathed — hold a hand of their own (`heldLights`).
+A sheathed torch's record keeps burning and keeps its hand: the record is the
+authority on whether the flame is lit, the weapon on where it is. Striking a
+light asks `roomForLight(actor, type)` (API) before it asks for a spare hand:
+a source of that type drawn and unlit is lit where it is. `unlitInHand(actor,
+type)` names that source, and lib's `prepareToLight` and the formation
+feature's Judge override both ask it: a flame struck on a torch in hand
+empties no hand (emptying one sheathed the torch itself) and spends nothing
+off the stack it was readied from — the torch in hand is the gear, and burns
+on its own timer.
+
+**The clause names the hands no listed row explains.** `heldHandsClause(source)`
+turns a Loadout — or a hand-overflow violation's `detail`, which carries the
+same counts — into a display clause: the burning lights no drawn source
+absorbed (`heldLights`) and the kit hands no row lists (`mappingUnlisted`,
+the kit hands less the kit shown at the hands). The Worn & Wielded status
+line, the character sheet's hands badge, the `handOverflow` violation, the
+auto-unequip notice and lib's light refusal (through the API's
+`heldHandsClause(actor)`) all append it. A total the visible gear cannot add
+up to reads as a miscount, and sends the player unequipping things that were
+never the problem; a lit torch listed in hand and a quill listed in the main
+hand explain their hands themselves.
 
 A torch is carried as a stack (an `item`, `equipmentClass` `prepareAs: weapon`)
 and held as a weapon: `prepareTorch(actor, stack, {draw})` readies one — a 1d4
@@ -229,6 +254,13 @@ so "equip a torch" is that gesture: a stack dropped on a hand place, or its
 sheet's Equip control, readies one torch into the hand, where the hand count
 charges it like any weapon. Dropped anywhere else the stack is refused as gear
 declaring no such place.
+
+The mapper's kit is held, not worn: `wearLocation` lists the loadout's
+`mappingKit` at the hands — the quill in the main hand, the parchment in the
+off hand — ahead of the worn gate, so the character sheet's places and core's
+inventory buckets both show what the mapping hands hold. The rows are plain
+items with no wear control; the character sheet's row says *held for mapping*
+and counts the piece against the hand's capacity like a weapon.
 
 Putting a carried item at a body place is `placement.mjs` `placeItem`: a
 weapon is drawn into the hand named, anything core equips is equipped, a torch

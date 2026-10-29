@@ -489,6 +489,8 @@ check(
 const priorFormation = globalThis.acksExtras.formation;
 const partySheetHands = (lights, mapping = 0) => ({
   handsOccupied: () => ({ lights, mapping, total: lights + mapping }),
+  // The burning records the loadout reads through lib's bearerLights.
+  lightsForBearer: (id) => Array.from({ length: lights }, (_, i) => ({ id: `l${i}`, type: "torch", lit: true, bearerId: id })),
 });
 globalThis.acksExtras.formation = partySheetHands(1);
 const shieldLight = getLoadout(wsActor([weapon("Sword", { melee: true, id: "sl" }), shieldItem("Auxiliary Shield", "auxiliary", "back")], true));
@@ -1789,6 +1791,7 @@ check("no formation → heldLights 0", noLight.heldLights === 0);
 // and a sword uses both hands, and a second weapon would overflow.
 const litFor = (wanted) => ({
   handsOccupied: (id) => ({ lights: id === wanted ? 1 : 0, mapping: 0, total: id === wanted ? 1 : 0 }),
+  lightsForBearer: (id) => (id === wanted ? [{ id: "lit1", type: "torch", lit: true, bearerId: id }] : null),
 });
 globalThis.acksExtras.formation = litFor("a1");
 const oneLight = getLoadout(withItems([weapon("Sword", { melee: true, id: "hl2" })]));
@@ -2679,4 +2682,92 @@ console.log("test-equipment: OK (mounted economy, vehicle mirror, save triggers,
   game.actors = saved.actors;
   game.scenes = saved.scenes;
   console.log("test-equipment: OK (the damage prompt, once, whoever deals it)");
+}
+
+/* ---------------------------------------------------------------------- */
+/*  A light burns in the hand that holds it, and the kit is listed at the   */
+/*  hands (docs/equipment/DECISIONS.md, 2026-10-29)                         */
+/* ---------------------------------------------------------------------- */
+{
+  const { roomForLight, unlitInHand, heldHandsClause: clauseOf } = await import(new URL("loadout.mjs", S));
+  const priorFormation = globalThis.acksExtras.formation;
+  const burning = (type, id = "L1") => ({ id, type, lit: true, bearerId: "a1" });
+  const party = ({ lights = [], mapping = 0, kit = [] } = {}) => ({
+    handsOccupied: () => ({ lights: lights.length, mapping, total: lights.length + mapping }),
+    lightsForBearer: () => lights,
+    kitInHand: () => kit,
+  });
+  // A readied torch is a weapon flagged `light`, under the torch's own name.
+  const torchW = (over = {}) => weapon("Torch", { melee: true, missile: true, damage: "1d4", id: "tw", flags: { light: true }, ...over });
+  const dagger = (over = {}) => weapon("Dagger", { melee: true, id: "dg", ...over });
+
+  // The torch in hand absorbs the record burning in it: one hand, no clause.
+  globalThis.acksExtras.formation = party({ lights: [burning("torch")] });
+  const held = getLoadout(withItems([torchW(), dagger()]));
+  check("a lit torch in hand is one hand, not two", held.handsUsed === 2 && held.heldLights === 0 && held.legal);
+  check("the drawn torch carries the record it absorbed", held.lightsInHand.length === 1 && held.lightsInHand[0].lit === true && held.lightsInHand[0].light.id === "L1");
+  check("the torch row explains the light, so the clause names nothing", clauseOf(held) === "");
+
+  // The record outlives the sheathe: a light burning in no drawn source holds its hand.
+  const sheathed = getLoadout(withItems([torchW({ equipped: false }), dagger()]));
+  check("a burning record whose torch is sheathed still holds a hand", sheathed.handsUsed === 2 && sheathed.heldLights === 1 && sheathed.lightsInHand.length === 0);
+  check("and the clause names it", clauseOf(sheathed) === "1 handsLights");
+
+  // Only a record of the torch's own type is absorbed.
+  globalThis.acksExtras.formation = party({ lights: [burning("lantern")] });
+  const lamp = getLoadout(withItems([torchW()]));
+  check("a lantern burning beside an unlit torch is a hand of its own", lamp.handsUsed === 2 && lamp.heldLights === 1 && lamp.lightsInHand[0].lit === false);
+
+  // Room for a light: the torch already in hand is lit where it is.
+  globalThis.acksExtras.formation = party();
+  const bearer = withItems([torchW(), dagger()]);
+  check("a drawn, unlit torch beside a dagger has room to be lit", roomForLight(bearer, "torch") === true);
+  check("the same hands have no room for a lantern", roomForLight(bearer, "lantern") === false);
+  check("empty hands have room for either", roomForLight(withItems([]), "torch") && roomForLight(withItems([]), "lantern"));
+  // The source a flame is struck on: the drawn unlit torch, and nothing once it burns.
+  check("the drawn unlit torch is the source in hand", unlitInHand(bearer, "torch")?.id === "tw" && unlitInHand(bearer, "lantern") === null);
+  globalThis.acksExtras.formation = party({ lights: [burning("torch")] });
+  check("a torch already burning is no longer one", unlitInHand(withItems([torchW(), dagger()]), "torch") === null);
+
+  // A lone actor's own flag lights count like a member's.
+  globalThis.acksExtras.formation = { handsOccupied: () => ({ lights: 0, mapping: 0, total: 0 }), lightsForBearer: () => null, kitInHand: () => [] };
+  const alone = getLoadout(withItems([dagger()], { flags: { lights: [burning("torch", "own1")] } }));
+  check("a lone actor's lit torch holds a hand", alone.handsUsed === 2 && alone.heldLights === 1);
+  const aloneHeld = getLoadout(withItems([torchW(), dagger()], { flags: { lights: [burning("torch", "own1")] } }));
+  check("and the torch they hold absorbs it", aloneHeld.handsUsed === 2 && aloneHeld.heldLights === 0);
+
+  // The mapper's kit is listed at the hands, quill in the main hand and
+  // parchment in the off hand, and the clause then names nothing.
+  const quill = gear("Quill, writing", 0, { id: "q1" });
+  const parchment = gear("Parchment", 0, { id: "p1" });
+  globalThis.acksExtras.formation = party({ mapping: 2, kit: ["q1", "p1"] });
+  const scribe = withItems([quill, parchment, dagger({ equipped: false })]);
+  const sLo = getLoadout(scribe);
+  check("the kit takes both hands", sLo.handsUsed === 2 && sLo.mappingHands === 2 && sLo.mappingKit.map((k) => k.id).join() === "q1,p1");
+  check("the quill is listed in the main hand", wearLocation(scribe, quill, sLo) === WEAR.mainHand);
+  check("the parchment in the off hand", wearLocation(scribe, parchment, sLo) === WEAR.offHand);
+  check("both listed, the clause names nothing", sLo.mappingUnlisted === 0 && clauseOf(sLo) === "");
+  check("the core inventory buckets agree", wearBuckets(scribe, sLo).map((b) => `${b.key}:${b.items.map((i) => i.id)}`).join(" ") === "mainHand:q1 offHand:p1");
+
+  // A piece stowed in a container is still counted, and the clause says so.
+  const stowedParchment = gear("Parchment", 0, { id: "p1", flags: { containedIn: "sack" } });
+  const sack = gear("Sack", 0, { id: "sack", flags: { container: { capacity: 2 } } });
+  const packed = withItems([quill, stowedParchment, sack]);
+  const pLo = getLoadout(packed);
+  check("a stowed parchment is counted but not listed", pLo.handsUsed === 2 && pLo.mappingKit.length === 1 && pLo.mappingUnlisted === 1 && clauseOf(pLo) === "1 handsMapping");
+  check("and it stays stowed", wearLocation(packed, stowedParchment, pLo) === WEAR.stowed);
+
+  // No kit carried at all: both hands named, as before.
+  globalThis.acksExtras.formation = party({ mapping: 2, kit: [] });
+  const bare = getLoadout(withItems([]));
+  check("a mapper carrying no kit still has both hands named", bare.handsUsed === 2 && clauseOf(bare) === "2 handsMapping");
+
+  // The overflow detail carries the unlisted count the notice reads.
+  globalThis.acksExtras.formation = party({ mapping: 2, kit: ["q1", "p1"] });
+  const armedScribe = getLoadout(withItems([quill, parchment, dagger()]));
+  const overflow = armedScribe.violations.find((v) => v.type === VIOLATION.HAND_OVERFLOW);
+  check("a mapper with a drawn dagger overflows, and the detail names no unlisted hand", !!overflow && overflow.detail.handsUsed === 3 && overflow.detail.mappingUnlisted === 0 && clauseOf(overflow.detail) === "");
+
+  globalThis.acksExtras.formation = priorFormation;
+  console.log("test-equipment: OK (a light burns in the hand that holds it; the kit is listed at the hands)");
 }

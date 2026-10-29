@@ -1820,3 +1820,62 @@ through `expectTables` so the import names them while they are missing.
 rulebook and the Journal open loses the throw replacement until it does: a
 non-proficient attack is degraded by the cancelled attribute bonus alone, and
 the import's missing-table notice names the two tables.
+
+### A light burns in the hand that holds it, and the kit is listed at the hands (2026-10-29)
+
+Field report: unequipping a weapon that needs both hands "doesn't seem to
+release both", and torches and mapping "run into bugs with this"; the quill
+and parchment should show as equipped while mapping. Reproduced on a marked
+fixture (`equipment/hands-probe`) through every unequip route — the row
+control's sheathe, core's own `system.equipped` write, a drop on a hand then
+a sheathe — and the model released both hands on each; no store went stale.
+What did reproduce, three ways:
+
+- **A lit torch cost two hands.** A readied torch in hand is a weapon and
+  costs one; lighting it writes a burning record with the bearer's id, and
+  `handsOccupied` charged one for every burning record. One torch, 2 / 2,
+  "1 held for light". Sheathing the weapon left "1 / 2, 1 held for light"
+  with the torch carried. A lone character's record, kept on the actor's
+  flag, cost nothing at all.
+- **A torch already in hand could not be lit.** A dagger and a readied torch
+  commit both hands, so `prepareToLight`'s spare-hand check refused the
+  flame the hand was already holding.
+- **The mapper's hands read as a weapon not released.** With the mapper's
+  kit counted, drawing a bow was auto-resolved and sheathing it left the
+  badge at 2 / 2 beside two empty hand places; the clause said why in words
+  the places did not show.
+
+**Ruled.** A light burns in the hand that holds it: each drawn light source
+absorbs one burning record of its type, and only the records left over hold
+a hand of their own. The loadout reads the records through lib's
+`bearerLights`, so a member's and a lone character's torch cost the same
+hand. A record whose weapon is sheathed keeps burning and keeps its hand:
+the record is the authority on the flame, the weapon on where it is.
+Striking a light asks `roomForLight` before it asks for a spare hand, and
+`unlitInHand` for the source the flame goes on: the live walk of this ruling
+found the sheet's Light control, pressed on a readied torch in hand, emptying
+a hand (the Judge override's `clearHands` sheathed the torch itself) and
+burning a torch off the stack (`findCarried` reached the stack before the
+weapon), so a lit press left the torch sheathed, the stack one short and the
+badge a hand off; a torch in hand is now the gear, nothing is freed and
+nothing is spent. The
+mapper's kit is listed at the hands — quill main, parchment off — ahead of
+the worn gate, and the clause names only the hands no listed row explains
+(`mappingUnlisted`, `heldLights`). Taking up a role whose kit is held needs
+the hands spare, as a light does (formation DECISIONS, same date).
+
+**Rejected.**
+- *Writing `wornAt` on the kit when the role is taken.* Three new write
+  paths — role set down, member leaving, item deleted — each able to leave a
+  quill "worn" in a hand nobody is mapping with. The row is derived from the
+  role, which already owns the count.
+- *Dousing the record when its torch is sheathed.* Two owners of one flame;
+  the record stays the authority and the hand stays charged, which the badge
+  states.
+- *Absorbing by count rather than by type.* A lantern burning beside an
+  unlit torch would have read as the torch's flame.
+
+**What it cost.** A lone character's lit torch now costs a hand it did not
+before, which is the rule the party sheet already applied. The one call the
+formation feature's comment named is now two: `handsOccupied` for the count
+and `kitInHand` for the rows, with the lights read through lib.

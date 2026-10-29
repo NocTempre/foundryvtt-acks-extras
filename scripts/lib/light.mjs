@@ -112,6 +112,20 @@ export const LIGHT_SOURCES = Object.freeze({
 });
 
 /**
+ * Which light source an item is, by its name — the device where the source has
+ * one (a lantern), else the fuel (a torch, a candle) — or null for anything
+ * else. A readied torch, a weapon under the torch's own name, answers "torch"
+ * like the stack it came off.
+ */
+export function lightTypeOf(item) {
+  const n = String(item?.name ?? "");
+  for (const [type, cfg] of Object.entries(LIGHT_SOURCES)) {
+    if ((cfg.holder ?? cfg.consumes).test(n)) return type;
+  }
+  return null;
+}
+
+/**
  * Everything a light source needs in the pack before it can burn, device first.
  *
  * ONE list answers both halves of the equipment rule: what is missing (test each
@@ -201,19 +215,26 @@ export async function prepareToLight(actor, type, { override = false } = {}) {
 
   // Two-way hand check (acks-equipment). ROOM, not free hands: a two-handed
   // grip widens for a spare hand and gives it back for the torch, so asking
-  // what is free would wrongly refuse it. An unreadable hand count skips the
-  // check rather than refusing.
+  // what is free would wrongly refuse it. A source of this type already drawn
+  // and unlit needs no hand beyond the one it is in, so `roomForLight` is
+  // asked first and the spare-hand count only where it is absent. An
+  // unreadable hand count skips the check rather than refusing.
   let freeHands;
   let held = "";
+  let room = null;
+  let inHand = null;
   try {
     const equipment = globalThis.acksExtras?.equipment;
+    inHand = equipment?.unlitInHand?.(actor, type) ?? null;
+    room = equipment?.roomForLight?.(actor, type) ?? null;
     freeHands = equipment?.spareHands?.(actor) ?? equipment?.freeHands?.(actor);
     // Names what the sheet already shows in hand, so the refusal is not unexplained.
     held = equipment?.heldHandsClause?.(actor) ?? "";
   } catch (err) {
     console.error(`${MODULE_ID} | acks-equipment hand count failed`, err);
   }
-  if (Number.isFinite(freeHands) && freeHands <= 0) {
+  const noRoom = typeof room === "boolean" ? !room : Number.isFinite(freeHands) && freeHands <= 0;
+  if (noRoom) {
     warnLight(held ? "noFreeHandHeld" : "noFreeHand", { bearer: actor.name, held });
     // Hands the override could not empty are full of lit sources, which
     // sheathing cannot fix. Say so; do not stop a Judge over it.
@@ -225,9 +246,13 @@ export async function prepareToLight(actor, type, { override = false } = {}) {
   const enforcement = lightEnforcement();
   if (enforcement === "off") return true;
 
+  // A source already drawn is the gear it matches: a readied torch in hand is
+  // the fuel, and lighting it spends nothing off the stack it was readied from.
   const gear = lightGear(type);
-  const fuel = findCarried(actor, gear.find((g) => g.fuel).pattern);
-  const missing = gear.filter((g) => !findCarried(actor, g.pattern)).map((g) => localize(g.label));
+  const inHandIs = (g) => !!inHand && g.pattern.test(inHand.name ?? "");
+  const fuelGear = gear.find((g) => g.fuel);
+  const fuel = inHandIs(fuelGear) ? null : findCarried(actor, fuelGear.pattern);
+  const missing = gear.filter((g) => !inHandIs(g) && !findCarried(actor, g.pattern)).map((g) => localize(g.label));
   if (missing.length) {
     warnLight("needLightItem", { bearer: actor.name, items: missing.join(", ") });
     // "require" blocks — unless the Judge overrode and the world simply had no

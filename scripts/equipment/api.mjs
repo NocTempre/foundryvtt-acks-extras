@@ -7,7 +7,7 @@
  */
 import { acksExtras } from "../namespace.mjs";
 import { MODULE_ID, HOOKS, EFFECT_DOMAINS, ITEM_FLAGS } from "./constants.mjs";
-import { getLoadout, VIOLATION, trainedStyles, specializedStyles, handBudget, heldLightHands, heldHandsClause, releaseOrder, bestAttackBonus } from "./loadout.mjs";
+import { getLoadout, VIOLATION, trainedStyles, specializedStyles, handBudget, heldLightHands, heldHandsClause, releaseOrder, bestAttackBonus, roomForLight, unlitInHand } from "./loadout.mjs";
 import { grantGear, clearHands, findGearSource } from "./grant.mjs";
 import {
   mountedCombatCard,
@@ -202,6 +202,13 @@ export function buildApi() {
     // Room for one more thing (see docs/equipment/MODEL.md, "Hands: free,
     // committed, spare"); acks-formation asks this before lighting a torch.
     spareHands: (actor) => getLoadout(actor).handsSpare,
+    // Whether a light of this type can be struck without a further hand: one
+    // already drawn and unlit is lit where it is. lib's `prepareToLight` asks
+    // this before it asks for a spare hand.
+    roomForLight,
+    // The drawn, unlit source of this type, or null: lit where it is, with no
+    // hand freed and no fuel off a stack. lib and the Judge's override ask it.
+    unlitInHand,
     // The hands the party sheet holds, as the clause every hand total carries;
     // "" when the gear accounts for every hand. lib names it in a light refusal.
     heldHandsClause: (actor) => heldHandsClause(getLoadout(actor)),

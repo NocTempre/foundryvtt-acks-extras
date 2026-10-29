@@ -9,6 +9,15 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 - On it: a `weapon` whose name matches a RAW weapon (e.g. "… Sword"), an
   `armor`, and a plain `item` to serve as a container.
 - A disposable `acks-extras.variation` Item for the variation path.
+- **Kept, found by marker** (`tools/live/equipment.mjs` walks steps 2b–2e on
+  it): `equipment/hands-probe`, a `character` carrying a "Long Bow"
+  (missile only), a "Sword, Two-Handed", a "Dagger", a "Torches (6)" stack,
+  a "Quill, writing" and a "Parchment". Each step brings it to shape first:
+  every weapon sheathed with its hand flag cleared, any readied torch
+  deleted and the stack back to six, the actor's own light flag cleared, and
+  the actor out of every formation. The walk's party ("QA Hands Probe
+  Party") is created and deleted by the run; the torch it readies is tracked
+  and swept.
 
 ## Core drive mechanics (non-obvious, learned live)
 
@@ -88,11 +97,32 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    created with `system.equipped` true and `getLoadout(actor).handsUsed` is
    1; with a bow already drawn the overflow notice names the torch and the
    torch comes back off, as for any weapon.
+   A light burns in the hand that holds it: with the Torch in hand and a
+   Dagger drawn (2 / 2), press the Torch row's Light control on the
+   character sheet. *Observable:* the flame lights (a burning record with the
+   actor's id, in the party's record when they are a member, else the actor's
+   own `lights` flag), the badge still reads 2 / 2 with no clause, and
+   `getLoadout(actor).lightsInHand[0].lit` is true. Sheathe the Torch by its
+   row control: *Observable:* the badge reads 2 / 2 with "1 held for light"
+   and the Torch row sits under Carried, still burning; douse it and the hand
+   comes back. A torch lit from the stack with no Torch readied holds a hand
+   of its own, member or not.
 2d. The light refusal names held hands: with the character a formation's
    mapper (`toggleRole(formation, actor.id, "mapper", {override: true})`)
    and nothing drawn, light a torch from the sheet. *Observable:* the notice
    reads "no free hand … (2 held for mapping)" — the same clause the hands
-   badge shows — rather than a bare refusal.
+   badge shows — rather than a bare refusal. (The kit is in a container for
+   this line, or the clause is empty: see 2e.)
+2e. The kit is listed at the hands. With the quill and parchment loose on
+   the actor and the role taken: *Observable:* the character sheet's Main
+   hand place lists the quill and the Off hand the parchment, each row's
+   line reading *held for mapping*, each place at 1 / 1; the badge reads
+   2 / 2 with no clause; `wearLocation` answers `mainHand` and `offHand`.
+   Draw the bow by its row control: *Observable:* the overflow is resolved
+   and the bow comes back off; sheathe it and the badge still reads 2 / 2
+   beside the two kit rows. Taking the role with a weapon drawn and no
+   override is refused with a notice naming the hands. Set the role down:
+   *Observable:* both rows return to Carried and the badge reads 0 / 2.
 3. Proficiency enforcement: set the enforcement setting to its strict mode and
    attack with a weapon the character is not proficient in.
    *Observable:* the violation is reported, and the setting genuinely gates it
@@ -345,8 +375,9 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 
 ## Teardown
 
-Delete the character, its items and the variation item. Confirm no fixture
-items remain in `game.items`.
+Delete the disposable character, its items and the variation item. Confirm
+no fixture items remain in `game.items`. The kept fixture
+(`equipment/hands-probe`) stays, reset to its start shape.
 
 
 ## The mounted overlay (added with its first release)
