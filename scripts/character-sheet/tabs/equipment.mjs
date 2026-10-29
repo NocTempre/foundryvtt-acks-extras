@@ -254,7 +254,8 @@ export function buildEquipmentTab(actor) {
   const places = bridgeHands(WEAR_SLOT_ORDER.map((key) => {
     const items = actor.items.filter((i) => where.get(i.id) === key);
     // Two counts against two rules — magic by form, armour and weapons by
-    // the body — and clothing against neither; the badge shows the larger.
+    // the body — and clothing against neither; the badge shows the larger. A
+    // piece of the mapper's kit takes the hand it is listed at like a weapon.
     const use = slotUse(key, items);
     const kit = items.filter((i) => loadout.mappingKit.some((k) => k.id === i.id)).length;
     if (kit) {
