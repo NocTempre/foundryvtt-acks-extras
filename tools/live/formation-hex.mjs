@@ -76,20 +76,30 @@ const shot = async (seat, slug, selector) => {
 /* ------------------------------------------------------------------ */
 
 const P = {
-  census: async (mod) => ({
-    foundry: game.version,
-    module: game.modules.get(mod)?.version ?? null,
-    role: game.user.role,
-    userId: game.user.id,
-    activeRoles: game.users.filter((u) => u.active).map((u) => u.role).sort(),
-    activeGMIsSelf: !!game.users.activeGM?.isSelf,
-    settings: {
-      travelEncounters: game.settings.get(mod, "travelEncounters"),
-      advanceWorldTime: game.settings.get(mod, "advanceWorldTime"),
-    },
-    worldTime: game.time.worldTime,
-    messages: game.messages.size,
-  }),
+  census: async (mod) => {
+    // Core elects a user; every window on it hears each hook, and the seat's own election picks the one that runs the automation.
+    let election;
+    try {
+      const ac = await import(`/modules/${mod}/scripts/lib/automation-client.mjs`);
+      await Promise.race([ac.automationSettled(), new Promise((r) => setTimeout(r, 5000))]);
+      election = { isLead: ac.isLeadClient(), ...(ac.automationCensus() ?? { joined: false }) };
+    } catch (err) { election = { error: err?.message ?? String(err) }; }
+    return {
+      foundry: game.version,
+      module: game.modules.get(mod)?.version ?? null,
+      role: game.user.role,
+      userId: game.user.id,
+      activeRoles: game.users.filter((u) => u.active).map((u) => u.role).sort(),
+      activeGMIsSelf: !!game.users.activeGM?.isSelf,
+      election,
+      settings: {
+        travelEncounters: game.settings.get(mod, "travelEncounters"),
+        advanceWorldTime: game.settings.get(mod, "advanceWorldTime"),
+      },
+      worldTime: game.time.worldTime,
+      messages: game.messages.size,
+    };
+  },
 
   /** Helpers every other page function reaches through `globalThis.__p2b`. */
   install: async ({ nonce = null } = {}) => {
@@ -972,6 +982,8 @@ try {
   worldTime0 = census.gm.worldTime;
   check("the GM seat is the active GM and the player seat is a player", census.gm.activeGMIsSelf && census.gm.role === 4 && census.player.role === 1, { gmRole: census.gm.role, playerRole: census.player.role, activeRoles: census.gm.activeRoles });
   if (!census.gm.activeGMIsSelf) throw new Error("another GM client is the active GM; the throw would run there");
+  check("the GM seat's window leads its seat's election, so the throw and its card run in it", census.gm.election?.isLead === true, census.gm.election);
+  if (census.gm.election?.isLead !== true) throw new Error("another window on the GM seat leads its election; the throw would run there, outside the run's dice");
   note("install", { gm: await page(gm, P.install, { nonce: NONCE }), player: await page(player, P.install, { nonce: NONCE }), nonce: NONCE });
   const playerId = census.player.userId;
 

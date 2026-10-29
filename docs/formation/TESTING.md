@@ -125,10 +125,12 @@ it covers; a section no walk names is walked by hand.
   u.active)` lists the seat once however many clients hold it. The server's
   debug log names each authentication (TEST_ENVIRONMENT). A window's own view
   of the election is `automationCensus()` and `isLeadClient()` in
-  `scripts/lib/automation-client.mjs`: `formation-steps` reads both at its
-  start and stops when another window leads, and logs every write of the
-  formations setting it hears, a write without its own mark being another
-  window's.
+  `scripts/lib/automation-client.mjs`: `formation-steps`, `formation-hex`
+  and `battlemap` read both at their start and stop when another window
+  leads, and `formation-steps` logs every write of the formations setting it
+  hears, a write without its own mark being another window's. A walk that
+  goes on under another window's lead reads that window's work: a throw it
+  rigged comes out on unrigged dice, and a hook it waits on fires elsewhere.
 - **Drag a token with trusted mouse input**, CDP `Input.dispatchMouseEvent`
   on the driver's page. `Token#_canDrag` refuses unless the token is
   controlled and `game.activeTool === "select"`
