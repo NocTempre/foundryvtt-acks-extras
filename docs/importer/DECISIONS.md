@@ -8766,3 +8766,41 @@ closed as missing instead of embedding a stub, so a hireling hired on such a
 seat lacks that proficiency until the book is open. The abilities picker's
 header no longer promises "structure only"; its closing notice counts what it
 passed over.
+
+## 2026-10-29 — A player character's natural attack is a power's row
+
+The item-grants design (`wip/20261029-item-grants-as-effects-design.md`,
+not in effect) put two questions to the owner, who ruled: follow the rules
+as written and the design's findings, and take whichever answer is more
+easily kept consistent. The community book's class carries a claw power
+with a better natural attack than a bare hand.
+
+**Ruled.**
+
+- **A player character's natural attack is a roll-time weapon built from
+  the power's typed `naturalAttack` row** (the design's E2), the way the
+  unarmed strike is built at roll time, and flagged natural so the worn
+  gear's natural-attack domains and the wearer-level extraordinary mark
+  apply to it. The power is the one store; nothing becomes goods, costs a
+  hand or needs re-making when the class is re-applied.
+- **An ordinary unarmed strike is not a natural attack.** The rules name
+  natural weapons as a creature's own horns, tusks and claws (RR ch. 6,
+  "Melee attacks") and give a fist or foot its own section (RR ch. 6,
+  "Brawling"), so an item that improves natural attacks leaves a punch
+  alone. A character without such a power has no natural attack.
+- **A thrown bonus follows the attack in flight's kind, not the weapon's
+  class.** A dagger stabbed takes nothing; the same dagger thrown takes the
+  bonus.
+
+**Rejected.**
+
+- *An embedded weapon the power grants (E1).* It is physical, so it lists
+  in inventory, markets, storage and handover, counts against a hand, and
+  needs an exemption in each place and a rebuild on re-application.
+- *The unarmed strike as the natural attack (E3).* It takes brawling's die
+  and non-lethality, which the power's row is printed to improve on.
+
+*Cost:* the class register rows gain a typed natural-attack row whose die
+is a page value and arrives from the Judge's book at import; `executor.mjs`
+needs a locator for it. The ruling settles the design's section (e); the
+build is the design's seven slices and lands under its own entries.

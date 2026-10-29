@@ -253,8 +253,10 @@ No core method gains a second owner.
 
 ## Questions
 
-1. **E**, as above.
-2. **Thrown:** does the bonus follow the attack's kind (recommended) or the weapon's class?
+Both ruled 2026-10-29 — DECISIONS, "A player character's natural attack is a
+power's row": E2, the unarmed strike is not a natural attack, and a thrown
+bonus follows the attack's kind. Section (e) is settled; the design is still
+not in effect until its slices land.
 
 ## Unverified
 
