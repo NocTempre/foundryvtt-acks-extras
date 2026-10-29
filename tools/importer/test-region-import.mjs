@@ -246,6 +246,10 @@ class MockScene {
   getFlag(scope, key) {
     return getFlag.call(this, scope, key);
   }
+  async setFlag(scope, key, value) {
+    (this.flags[scope] ??= {})[key] = value;
+    return this;
+  }
   clone(changes = {}) {
     const data = structuredClone(this.source);
     data._id = this.id;
@@ -916,6 +920,20 @@ const map = game.scenes.find((s) => s.getFlag(MODULE_ID, "cookbook")?.id === "zz
   const dead = "RollTable.gone000000000000";
   crossed.system.tableUuid = dead;
   check("a held map's repair relinks its zones", [await repairHeldMap(recipe, map), crossed.system.tableUuid], [1, late.uuid]);
+  // The travel system the step minted before recipes declared one: a gridded
+  // plan read `journey`, and a party arriving on it kept the journey's clock.
+  const declared = (held) => held.getFlag(MODULE_ID, "battlemap")?.mapSystem;
+  const heldPlan = (mapSystem) => new MockScene({ name: "held", grid: { type: 1, size: 70 }, flags: { [MODULE_ID]: { battlemap: { calibrated: true, distance: 10, autoScale: false, mapSystem } } } });
+  const level = { grid: { family: "square", size: 70, distance: 10, units: "ft" }, travel: "delve" };
+  const minted = heldPlan("journey");
+  check("a held plan carrying the minted journey is brought to the recipe's delve", [await repairHeldMap(level, minted), declared(minted)], [1, "delve"]);
+  check("and is not written twice", [await repairHeldMap(level, minted), declared(minted)], [0, "delve"]);
+  const judges = heldPlan("settlement");
+  check("a declaration that is not the minted one is the Judge's and stays", [await repairHeldMap(level, judges), declared(judges)], [0, "settlement"]);
+  const silent = heldPlan("journey");
+  check("a recipe declaring no travel leaves the held value", [await repairHeldMap({ grid: level.grid }, silent), declared(silent)], [0, "journey"]);
+  const ungridded = new MockScene({ name: "held", flags: { [MODULE_ID]: { battlemap: { calibrated: true, distance: 100, autoScale: false, mapSystem: "settlement" } } } });
+  check("an ungridded map's minted settlement is brought to a declared journey", [await repairHeldMap({ travel: "journey" }, ungridded), declared(ungridded)], [1, "journey"]);
   crossed.system.tableUuid = dead;
   const zzDoc = sessions.get("zz");
   sessions.delete("zz");

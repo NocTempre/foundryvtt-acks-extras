@@ -1186,6 +1186,17 @@ party's name, or set the map up as a wilderness map. The encounter card prints
 the party's evasion target but does not roll it; surprise, and whether the
 party may evade, are settled by the system's Surprise Matrix when combat starts.
 
+**The party walks a dungeon map and no turns pass.** No turn card, the delve
+clock still: the party is still on a **Journey**, which counts miles and
+hours, and a dungeon's corridors are not many of either. Two maps do this. A
+map that declares nothing leaves the party in whatever mode it arrived in, so
+a party that came off the wilderness map stays on its journey; and a dungeon
+level imported by Extras before 11.10.0 was marked as a wilderness map when
+it was made. The mode selector beside the party's name shows which mode
+the party is in. Pick **Delve** there, or declare the map a dungeon in the
+battlemap setup tool (the party standing on it switches at once); for an
+imported level, running the book's map step again mends the mark.
+
 **Saves look wrong.** The party does not save — `rollPartySave` reads each
 member's own saves.
 

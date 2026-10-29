@@ -45,7 +45,7 @@ import {
 import { FACTION_TYPE } from "../factions/constants.mjs";
 import { LOCATION_TYPE, isPlaceRole } from "../location/constants.mjs";
 import { DISTRICT_TYPE } from "../formation/district-find.mjs";
-import { sceneIncidents, writeSceneIncidents, hexProbe } from "../battlemap/scene-setup.mjs";
+import { sceneIncidents, writeSceneIncidents, hexProbe, sceneTravelSystem, writeSceneSetup } from "../battlemap/scene-setup.mjs";
 import { hexAlignment } from "../battlemap/hex-fit.mjs";
 import { gridTypeFor } from "../battlemap/constants.mjs";
 import { mirrorCreatedLinks } from "../location/scene-link.mjs";
@@ -5564,6 +5564,17 @@ function reachable(uuid) {
  */
 export async function repairHeldMap(recipe, scene) {
   let written = 0;
+  // The travel system is a link too, when the importer minted it: a map step
+  // that wrote no declaration left `journey` on a gridded plan and
+  // `settlement` on an ungridded one, and a party arriving on a dungeon level
+  // so marked keeps the journey's clock. The value is brought to the recipe
+  // only while it still reads as that default; any other value is the Judge's
+  // declaration and is never read.
+  const minted = recipe.grid ? "journey" : "settlement";
+  if (recipe.travel && recipe.travel !== minted && sceneTravelSystem(scene) === minted) {
+    await writeSceneSetup(scene, { mapSystem: recipe.travel });
+    written++;
+  }
   if (recipe.incidents?.table && !reachable(sceneIncidents(scene)?.tableUuid)) {
     const list = await importedTable(recipe.incidents.table);
     if (list) {

@@ -94,10 +94,13 @@ reads it: the battlemap flag and the District behaviour's `specialAfterDark`.
 
 A held map is repaired by its LINKS and nothing else (`repairHeldMap`): the
 city list is named again where the map names none or one that is gone, each
-quarter's special list likewise, and a quarter's after-dark figure is filled
-where it was never stated (null). A rebuilt roll-table shelf mints new ids,
-which is what leaves a map naming lists that no longer exist. What the Judge
-drew, moved or typed is not read; the step's summary counts the writes.
+quarter's special list likewise, a quarter's after-dark figure is filled
+where it was never stated (null), and the declared travel system is brought
+to the recipe's `travel` where the map still carries the default the step
+minted before recipes declared one (`journey` on a gridded plan, `settlement`
+on an ungridded one). A rebuilt roll-table shelf mints new ids, which is
+what leaves a map naming lists that no longer exist. What the Judge drew,
+moved, typed or declared is not read; the step's summary counts the writes.
 
 ## A book as one Adventure
 

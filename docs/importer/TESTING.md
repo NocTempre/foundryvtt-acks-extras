@@ -3340,3 +3340,41 @@ untagged seat would read every line as a heading and import nothing.
 step 6's Books-window row and the boot check it leaves to the reader. The
 seat reopens the world's shelved books after ready, so a step with no scope
 would write every one of them; the walk runs only the scoped steps.
+
+## A held plan's travel system
+
+What the map step's repair brings to a held map besides its lists: the
+declared travel system, where the map still carries the mark the step minted
+before recipes declared one. `repairHeldMap` is exported for this walk.
+
+**Fixtures** (kept, by marker): `formation/t0361-delve` — a scene with a
+square 70 px grid at 10 ft, `flags.acks-extras.battlemap`
+`{calibrated: true, distance: 10, autoScale: false, mapSystem: "delve"}`;
+`formation/t0361-party` — an `acks-extras.party` actor, with
+`formation/t0361-a` and `-b` as its members. The party token the walk places
+is a create path: track it and sweep it.
+
+1. Write the minted mark on the scene: `mapSystem: "journey"`. Set the
+   party's mode to journey (`travel.setJourneyMode(id, "journey")`), zero
+   its clock, place the party token on the scene and wait for adoption
+   (the record's `tokenId` becomes the token's).
+   *Observable:* the record's `travelOf(...).mode` is `journey`.
+2. In page context, `repairHeldMap({ grid: { family: "square", size: 70,
+   distance: 10, units: "ft" }, travel: "delve" }, scene)`.
+   *Observable:* it resolves `1`; the scene's `battlemap.mapSystem` reads
+   `delve`; within two seconds the record's mode is `delve` — the formation
+   module's `updateScene` hook re-adopted it for the standing party, no
+   formation code of the repair's own.
+3. Move the token 12 cells with `{animate: false}`.
+   *Observable:* `clock.turnsTotal` 1, one "dungeon turn(s) pass" card under
+   the party's name.
+4. Call the repair again on the same scene. *Observable:* `0`; nothing
+   written.
+
+Teardown: sweep the token and the party's card by their uuids; leave the
+scene's mark at `delve`. Walked 2026-10-29, steps 1–3: written 1, mode
+journey → delve, the drag billed 1 turn, no console errors; sweep removed
+the token and the one card, none missing, none refused. Step 4 is held
+offline by `tools/importer/test-region-import.mjs` ("and is not written
+twice"), beside the cases the repair must refuse: a mark that is not the
+minted one, and a recipe declaring no travel.

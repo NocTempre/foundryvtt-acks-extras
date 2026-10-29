@@ -8568,3 +8568,38 @@ template push.
 
 *Cost:* a Judge who reads an erratum id in a place's note finds its entry on
 GitHub, not in the module folder. 11.11.0's zip keeps the root copy.
+
+## 2026-10-29 — A held map's travel system is a link when the importer minted it
+
+**Ruled.** `repairHeldMap` brings a held map's declared travel system
+(`flags.acks-extras.battlemap.mapSystem`) to the recipe's `travel` when the
+recipe declares one and the held value still reads as the default the map
+step minted before recipes declared any: `journey` on a gridded plan,
+`settlement` on an ungridded one. Any other value is the Judge's own
+declaration and is never read; a recipe declaring no travel writes nothing;
+the write is counted as a repair.
+
+**What this knew that 2026-09-30 did not** ("A held map has its links
+repaired, never its shape"). Until 0706286 (11.10.0) the map step passed no
+travel system, so `sceneData` wrote `journey` on every gridded plan, and the
+AX1 dungeon levels shipped in 11.6.0 with exactly that on them. A party
+token arriving on such a level adopts the declaration (`adoptSceneSystem`,
+"a declaration outranks both") and keeps the journey's clock: on the test
+world a 120 ft drag on a 10 ft grid spent 0.02 miles, posted no card and
+billed no turn, which is the 2026-10-28 field report "the party is still not
+tracking dungeon exploration". A re-import did not mend it, because the repair
+read links alone. The declaration was never the Judge's: it is the step's
+own write, and it is a link in the sense the ruling means — what the map
+names, not what the Judge drew — so the repair owns it.
+
+**Rejected:** re-creating the held level — the 2026-09-30 cost, every room pin
+and note a Judge added. **Rejected:** bringing every held declaration to the
+recipe — a Judge who set a plan to `settlement` by hand would lose it on the
+next map step. **Rejected:** reading `delve` from a feet-scale grid in
+`inferredTravelSystem` — it reverses docs/formation's "silence is nobody has
+said", and belongs to formation's roadmap if anywhere.
+
+*Cost:* a Judge who set a gridded plan to `journey` on purpose, matching the
+minted value exactly, has it brought to the recipe's `delve` by the next map
+step; the battlemap setup tool sets it back. The live record: the T-0361
+repair walk in TESTING.md, "A held plan's travel system".
