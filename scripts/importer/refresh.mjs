@@ -150,7 +150,7 @@ export const REPAIR = Object.freeze({
   // experience or title the build could not read and a Judge typed stay.
   class: {
     prose: ["description"],
-    flags: ["tongues"],
+    flags: ["tongues", "xpBuild"],
     minted: ["effects"],
     name: true,
     rows: "replace",

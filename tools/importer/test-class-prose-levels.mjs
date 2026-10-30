@@ -129,6 +129,8 @@ ok("a race page that prints no cost prices nothing", noRace.system.levels.every(
 const noDivine = { ...TABLES, magicTypes: { arcane: TABLES.magicTypes.arcane } };
 ok("a category the tables cannot price leaves every level unread", bindClass(priced, pricedNode, "def.class.inventedWarden", { builderTables: noDivine }).system.levels.every((r) => r.xp === null));
 ok("a thief or crusader chassis takes their shared step", buildXp(spec.build, RACE_PAGE, TABLES, 9, "thief").xp[8] === 95000);
+const repairedPrice = refreshPlan({ type: "acks-extras.class", system: { levels: [] }, flags: {} }, pricedClass, REPAIR.class);
+ok("the repair carries the price's provenance onto a held class", repairedPrice.update.flags?.["acks-extras"]?.xpBuild?.base === 1406, JSON.stringify(repairedPrice.update.flags));
 ok("a level a grid read keeps its own figure", bindClass(priced, { fields: { ...pricedNode.fields, progression: { rows: [{ label: "1", cells: { xp: "0", title: "Tyro", hd: "1d6" } }, { label: "2", cells: { xp: "5", title: "B", hd: "2d6" } }] } } }, "def.class.inventedWarden", { builderTables: TABLES }).system.levels[1].xp === 5);
 
 /* --- the repair keeps what a Judge typed into an unread cell ----------------------------- */
