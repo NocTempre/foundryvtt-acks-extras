@@ -4807,3 +4807,55 @@ rescan from minting it twice is not built (ROADMAP).
 **Cost.** A world that ran the macro from a seat where the repair window was
 already open sees that window narrowed to the two checks and rescanned,
 rather than a second window.
+
+## 2026-10-30 — Automated Animations is told what a card cannot say
+
+*Ruled:* the module supports Automated Animations with one listener on
+`aa.getRequiredData`, recommended in the manifest and registered unconditionally,
+since the hook never fires without that module. It adds no setting, no libWrapper
+and no flag. The reader already finds the item and the token on the system's
+cards, so the listener answers only what a card cannot: the target the throw was
+made at, the hit or the miss, a row for a weapon nothing matches, and the wait for
+the dice.
+
+*Evidence:* the walk (TESTING, "Automated Animations"), on Automated Animations
+7.1.8, Sequencer 4.3.0, JB2A 0.9.4 and Dice So Nice 6.4.4. Unaided, its control
+step draws a natural 1 as a hit: the "play on a miss" setting is not registered on
+this system, and `system-handlers/workflow-data.js` defaults it on only for the
+systems it names.
+
+- **The result comes from the card.** The hook fires before `makeAttackThrow`
+  returns, so the throw's outcome object does not exist yet. The class core puts
+  on the card's outcome does, and a card without one is left as it reads, so a
+  core change falls back to the unaided behaviour and throws nothing.
+- **Coverage comes from Automated Animations' own default rows.** `extraNames`
+  are tried after the item's name, so a weapon with a row keeps it, and nothing
+  ships that a Judge would have to keep up. A creature's melee takes *Unarmed
+  Strike*, because a claw that swings a sword is what a Judge would report.
+- **A whispered or blind attack plays, with no result.** The strongest case the
+  other way is that a secret attack should show nothing at all, which is one line.
+  It is rejected because a table watching a GM's hidden rolls still sees the swing
+  it would see at a real table, and only the result is the secret. The cost is
+  that a whispered miss looks like a hit.
+- **A hidden token's card plays nothing,** for any card, because there the
+  position is the secret.
+- **The attack is looked up on the world actor as well.** A card can name an
+  unlinked token for an attack its world actor made; the first walk showed the
+  listener finding no attack there, so the card read as unaided.
+
+*Rejected:*
+
+- **`POST_ATTACK_HOOK` with `AutomatedAnimations.playAnimation`.** It would reach
+  item-less attacks and hold a structured outcome, but it needs a veto of the chat
+  path to stop a double play, and the hook has no message id for the dice wait.
+- **A name-keyed preset of rows.** Weapon words pass `ip-doctrine.md`'s
+  common-word test; spell names are a judgment call. The default rows give the
+  same coverage with nothing to ship, so the call need not be made.
+- **Writing in `AutomatedAnimations-WorkflowStart`.** It also honours these
+  fields, but it fires after the reader's awaits, where `attackInFlight` is no
+  longer dependable.
+
+**Cost.** `aa.getRequiredData` and `deferrals` are in that module's source, not its
+documented API, and the row names are its data. A rename leaves the listener
+silent and that module back on its unaided behaviour, a miss played as a hit; the
+walk's default-row check and its control are what would show it.

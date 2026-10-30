@@ -240,6 +240,20 @@ takes the header's height as its line height and loses nothing. A taller line
 changes the title's box on every window, and wants its own before-and-after
 reading (TESTING, "A long window title stays on one line").
 
+## What Automated Animations does not hear yet
+
+The listener sees only what passes `aa.getRequiredData` (MODEL, "Automated
+Animations"). Three things do not:
+
+- **A status effect on a hidden token** plays, and shows where the token stands.
+  `AutomatedAnimations-WorkflowStart` carries `stopWorkflow` and fires for that
+  path too, so the stop could move there; nothing has tried it.
+- **An attack with no item** plays nothing, having no name to match. The
+  post-attack hook could call `AutomatedAnimations.playAnimation`, with a row name
+  in place of an item, but it holds no message id for the dice wait.
+- **A template row** plays on the scene's last region. Read from the source, not
+  walked: no system spell places a region for the module to name.
+
 ## A creature that is bought, kept, trained and ridden
 
 A mount is reached by four records and none is whole: a priced livestock row

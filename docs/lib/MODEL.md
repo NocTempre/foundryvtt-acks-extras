@@ -1596,9 +1596,11 @@ followed by the table's own result card whispered to the GMs, with a
 `preCreateChatMessage` hook — scoped to this user and this table's flag,
 removed in a `finally` — taking the roll and the dice sound off it.
 
-**Dice So Nice** is reached through `showDice(rolls, {whisper, blind})` alone. It
-passes the whisper list as the viewers, or `null` when the list is empty,
-because Dice So Nice reads an empty list as nobody.
+**Dice So Nice** is reached through `roll-audience.mjs` alone. `showDice(rolls,
+{whisper, blind})` passes the whisper list as the viewers, or `null` when the
+list is empty, because Dice So Nice reads an empty list as nobody.
+`diceSettled(messageId)` is the promise of a message's dice finishing, undefined
+without Dice So Nice.
 
 **A secret adventuring throw** is Listening or Searching
 (`SECRET_ADVENTURING`), the two Judge-secret throws (RR 265).
@@ -1644,6 +1646,59 @@ formula only on a hit. A formula `Roll.validate` refuses would throw there,
 outside every sheet's click handler, so the hit would post no card. The
 wrapper answers such a formula as none, so the throw rolls no damage, and warns
 the Judge once per weapon and text.
+
+## Automated Animations
+
+Automated Animations has no handler for this system, so its generic chat reader
+serves every card: it takes the item and the actor from the card, the token from
+the speaker and the targets from the seat, and matches a row of its menus by the
+item's name. A cast and an attack reach it with nothing here. It reads no result
+from a card, and its own "play on a miss" setting is not registered on this
+system, so unaided every attack it plays is a hit. It draws through Sequencer,
+with JB2A's art.
+
+`animations.mjs` is one listener on the hook that reader fires as it gathers a
+message, `aa.getRequiredData`. The hook fires inside the card's
+`createChatMessage`, so the attack that posted the card is still in flight on
+the card's actor (`attackInFlight`). Where a card names an unlinked token for an
+attack its world actor made, a world actor's sheet being the usual case, the
+speaker resolves to the token's actor and the attack is found on the world actor
+instead.
+
+| Card | What the listener writes |
+| --- | --- |
+| Any card from a hidden token | `stopWorkflow`, since an effect would draw where the token stands |
+| An attack card | `targets`: the target the throw was made at, whatever the seat targets now. `extraNames`: the default row. `deferrals`: the wait for the dice |
+| An attack card that is neither whispered nor blind | `playOnMiss` and `hitTargets`, from the outcome class on the card |
+| Anything else | Nothing |
+
+**The default row.** The item's own name is tried first, so a weapon a row
+matches keeps it, and `extraNames` follow it. They are rows of the module's
+default menus, named by the kind of attack the throw resolved: `Sword`, `Bow`,
+`Dagger`, with `Unarmed Strike` for a melee attack by anything but a character.
+A world that has renamed the row loses the fallback and plays nothing for that
+weapon. The menus match by the rinsed name holding the row's name, so one word in
+a weapon's name is enough ("Bite" is a row of the on-token menu).
+
+**A hit and a miss.** A miss lands off the target through Sequencer's `missed()`.
+A whispered or blind attack writes neither field, so the module plays it as it
+plays every attack and the map keeps the result.
+
+**The dice.** The wait resolves at once unless Dice So Nice has marked the
+message as animating. Dice So Nice does that in its own `createChatMessage`
+listener, registered as its code loads, so it runs ahead of the reader, which
+registers at `ready`.
+
+**What the listener never sees.** A status effect's animation does not pass
+through the hook (`active-effects/handleActiveEffects.js`, in Automated
+Animations' source), so it plays on a hidden token too. An attack with no item
+leaves the card's item id empty and the reader stops there. A spell plays as it
+reads. Automated Animations' template rows, on a system it does not name, take
+the scene's last region (`router/traffic-cop.js`), since nothing here tells it
+where a spell landed.
+
+Rulings: DECISIONS, "Automated Animations is told what a card cannot say". The
+recipe is TESTING, "Automated Animations".
 
 ## Movement modes
 

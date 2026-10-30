@@ -2979,6 +2979,87 @@ Fixtures: a disposable group with two stacks (`groups.addStack(group, source,
 
 Teardown: delete the group and its sources by id.
 
+## Automated Animations
+
+Covers `animations.mjs` and `diceSettled`. `node tools/live/run.mjs animations`
+walks all of it on both seats; the walk's header lists its fixtures and what it
+restores.
+
+**Needs on the server:** Automated Animations, Sequencer, JB2A and Dice So Nice
+installed. A module folder added by hand is found at the next world launch, and
+the free JB2A is about 1.6 GB. The walk turns each on for the run through
+`core.moduleConfiguration` and writes the old value back, and refuses to start
+while a seat that is not its own is joined.
+
+**Fixtures** (`flags.world.fixture`): the scene `animations/scene`; the actors
+`animations/attacker`, `animations/target`, `animations/creature` and
+`animations/loose`; the tokens `animations/attacker-token`,
+`animations/target-token` and the unlinked `animations/creature-token`; the items
+`animations/sword`, `animations/blade`, `animations/bow`, `animations/sling`,
+`animations/knife`, `animations/missile`, `animations/maw` and
+`animations/loose-sword`. The walk builds what is missing. Nothing is deleted:
+this is not a check of how a document comes to exist.
+
+Drive mechanics:
+
+- `actor.makeAttackThrow({item, attackType, skipDialog: true})` is the attack. The
+  system replaces an `attackType` the weapon cannot make with its first kind, and
+  a weapon is melee by default, so a missile fixture sets `system.melee: false`
+  and `system.missile: true`, and a thrown one `system.special.thrown`.
+- A fixture's name is a match: the menus find a row's name anywhere in the rinsed
+  item name, and "Bite" is a row. A weapon meant to have no row carries a name
+  checked against all seven menus.
+- `Hooks.on("createSequencerEffect", (effect) => …)` hands the effect itself:
+  `effect.data.missed`, `effect.source` and `effect.target` (placeables),
+  `effect.targetPosition`, and `effect.sprite.currentTime`, whose two readings a
+  moment apart show the file playing. The first effect of a page loads its file
+  after the hook, so wait for the clock to pass 0 before reading it.
+- `AutomatedAnimations-WorkflowStart` fires before `stopWorkflow` is honoured, so
+  a stopped workflow still shows a read there. What proves the stop is no effect.
+- `core.messageMode` (`gm`, `blind`) is what makes the system's card private on
+  core 14, and it is the seat's own setting.
+- The item sheet's button is in `sheet._headerControlButtons()`, not
+  `_getHeaderControls()`, which the hook does not reach.
+- Load errors need the recorder the walk adds from a second DevTools session
+  before its reload, since the driver hooks the page after `ready`.
+- A headless seat plays the video and shows the 3D dice, so nothing here needs
+  the pane.
+
+1. **A hit lands and a miss does not.** `Probe Sword`, tokens adjacent, at a
+   natural 20 and a natural 1. *Observable:* the `Sword` row both times, `missed`
+   false with the effect on the target's centre, `missed` true with it off, and
+   the video's clock moving.
+2. **The control.** Take the listener off the page and throw the miss again.
+   *Observable:* the card says miss and the effect is not `missed`.
+3. **At range.** `Probe Bow`, tokens five squares apart. *Observable:* as step 1.
+4. **The default rows.** `Probe Blade`, `Probe Sling`, `Probe Shiv` as melee,
+   missile and thrown. *Observable:* the `Sword`, `Bow` and `Dagger` rows.
+5. **An unlinked creature.** `Probe Maw` from the token's actor, at a natural 1.
+   *Observable:* the `Unarmed Strike` row, `missed` true, the effect starting at
+   the unlinked token.
+6. **The target.** Move the seat's target from a `preCreateChatMessage` hook.
+   *Observable:* the effect goes to the first target. Attack at nothing.
+   *Observable:* no effect, nothing refused.
+7. **A world actor's sheet.** `Probe Maw` from the world actor. *Observable:* as
+   step 5. `Probe Sword` from `animations/loose`, with no token anywhere.
+   *Observable:* no effect, nothing refused.
+8. **The Judge's tool.** Press the item sheet's Automated Animations button.
+   *Observable:* its menu renders on a system item.
+9. **A spell.** `Probe Magic Missile` through `item.use()`. *Observable:* its own
+   row, `playOnMiss` unwritten.
+10. **A second seat.** The Player's rigged miss. *Observable:* `missed` true on
+    both seats, the rig being on the Player's page.
+11. **What is kept.** `core.messageMode` at `gm` and at `blind`, a natural 1.
+    *Observable:* the card is not public, no `playOnMiss`, and `missed` false on
+    both seats. Hide the attacker's token, then attack and cast. *Observable:*
+    the cards post, and neither seat sees an effect.
+12. **The dice.** Turn on Dice So Nice and reload. *Observable:* no load error,
+    one deferral on the workflow, `diceSoNiceRollComplete` for the card, and the
+    effect's start after it.
+
+Teardown: the walk restores the module configuration and the message mode, and
+reports both. The fixtures stay.
+
 ## Teardown
 
 Delete every fixture actor and the items the storage and money steps created.

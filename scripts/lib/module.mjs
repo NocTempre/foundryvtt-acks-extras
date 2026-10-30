@@ -86,6 +86,7 @@ import {
 import { drawQuietly } from "./roll-audience.mjs";
 import { installGoodsDrag } from "./patches/goods-drag.mjs";
 import { installSurpriseCardPatch, SETTING_SURPRISE_CARD } from "./patches/surprise-card.mjs";
+import { installAnimationBridge } from "./animations.mjs";
 import { installInitiativeCardPatch, SETTING_INITIATIVE_CARD } from "./patches/initiative-card.mjs";
 import { installCombatRoundPatch } from "./patches/combat-round.mjs";
 import { installMoraleRollPatch, SETTING_MORALE_PAGE } from "./patches/morale-roll.mjs";
@@ -870,6 +871,7 @@ Hooks.once("ready", () => {
   // "The attack seam rides the system's labelled modifiers". At ready: the
   // system's Actor class and data models are final here.
   installAttackThrowPatch();
+  installAnimationBridge();
 
   // Conditions on every roll they reach; the attack half registers into the
   // seam installed above.

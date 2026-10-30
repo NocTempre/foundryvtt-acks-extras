@@ -45,7 +45,9 @@ https://github.com/NocTempre/foundryvtt-acks-extras/releases/latest/download/mod
 **Recommended:** [game-icons-net](https://foundryvtt.com/packages/game-icons-net)
 for ability icons in the ACKS-shaped corners of the imported corpus (Acrobatics,
 Blind Fighting, Caving, Mapping). Without it those fall back to core Foundry
-icons.
+icons. [Automated Animations](https://foundryvtt.com/packages/autoanimations),
+with Sequencer and JB2A, animates attacks and spells on the map, a miss included
+([guide](docs/guides/appearance.md#animate-attacks-and-spells-on-the-map)).
 
 ### Installing from source
 

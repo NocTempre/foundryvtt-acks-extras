@@ -194,6 +194,14 @@
         "id": "game-icons-net",
         "type": "module",
         "reason": "Niche ability icons for the ACKS-shaped corners of the imported corpus (Acrobatics, Blind Fighting, Caving, Mapping). Optional: without it every ability falls back to a core Foundry icon."
+      },
+      {
+        "id": "autoanimations",
+        "type": "module",
+        "reason": "Animates attacks, spells and status effects on the map, with Sequencer and JB2A for the art. A listener tells it what an attack card cannot: the target, the hit or miss, and a default animation for a weapon it has no row for. Optional: without it nothing here runs.",
+        "compatibility": {
+          "minimum": "7.1.8"
+        }
       }
     ],
     "conflicts": [

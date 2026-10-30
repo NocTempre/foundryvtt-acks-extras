@@ -135,6 +135,34 @@ of leaving them loose at the root among everything else installed.
 The folder is matched by name, so every ACKS module declaring it lands in the
 same one rather than each making its own.
 
+## Animate attacks and spells on the map
+
+Install and enable [Automated Animations](https://foundryvtt.com/packages/autoanimations),
+with [Sequencer](https://foundryvtt.com/packages/sequencer) and
+[JB2A](https://foundryvtt.com/packages/JB2A_DnD5e) (the free edition is enough).
+There is nothing to set up in this module: each attack and spell card then plays
+an effect on the map.
+
+- **A hit lands on the target and a miss goes wide.** The effect goes to the
+  target the attack was made at, even if you have targeted someone else since.
+- **A weapon takes the row of Automated Animations' menus its name matches.** A
+  weapon no row matches plays that module's *Sword* row in melee, *Bow* for a
+  missile and *Dagger* when thrown. A creature's melee attack plays *Unarmed
+  Strike*.
+- **To give a weapon its own animation,** press the **Automated Animations**
+  button in the menu on the item sheet's header, or add a row for its name to
+  that module's **Automatic Recognition** menu.
+- **A spell needs a row of its own.** It plays only if its name matches one.
+- **A whispered or blind attack keeps its result.** It plays, on every seat, the
+  way a hit does, whether it hit or not.
+- **A hidden token's cards play nothing,** so an effect never shows where it
+  stands. A status effect is the exception: Automated Animations plays those
+  apart from the card, on a hidden token too.
+- **With Dice So Nice,** the effect waits for the dice, so the map never gives
+  the roll away.
+
+An attack rolled with no weapon behind it has no name to match and plays nothing.
+
 ## Colour is never the only signal
 
 No distinction in this module is carried by hue alone. A lit lamp and an unlit

@@ -1,7 +1,7 @@
 /* global game, ChatMessage, Hooks */
 /**
  * Who sees which part of a roll this module posts: the card meant for the
- * Judges alone, and the one Dice So Nice call.
+ * Judges alone, and the Dice So Nice calls.
  *
  * Foundry shows every seat a whispered message that carries rolls, as a
  * "privately rolled some dice" placeholder naming the roller. A card meant for
@@ -31,6 +31,11 @@ export async function showDice(rolls, { whisper = null, blind = false } = {}) {
       console.warn(`${MODULE_ID} | Dice So Nice could not show a roll`, err);
     }
   }
+}
+
+/** A promise that settles once Dice So Nice has shown a message's dice; undefined without Dice So Nice. */
+export function diceSettled(messageId) {
+  return game.dice3d?.waitFor3DAnimationByMessageID?.(messageId);
 }
 
 /**

@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Added
+
+- **Attacks animate truthfully with Automated Animations.** With that module,
+  Sequencer and JB2A installed, a hit lands on the target the attack was made at
+  and a miss goes wide. A weapon with no row of its own plays a default by kind of
+  attack, a whispered or blind attack keeps its result, a hidden token's cards
+  play nothing, and with Dice So Nice the effect waits for the dice. Nothing to
+  set up, and nothing runs without it.
 ## 11.12.2
 
 ### Fixed
