@@ -108,6 +108,21 @@ rather than inventing one.
    instead of the driver keeps the same list by hand and deletes by it, with
    the driver's exported `pageSweep(entries)` as the expression.
 
+   **A run's own leavings are its own to remove, and nobody is asked.** A
+   run that hangs or dies leaves what it made before it could track it: the
+   cards its own fixtures posted while it drove them, a document it created
+   and lost. Those are the session's, and clearing them is teardown, not a
+   ruling: read them, list them by id with what makes each one its own (the
+   fixture it speaks as, the marker it carries, the minute of the run), and
+   sweep that list. The forbidden keys above are forbidden as a DELETE key;
+   they are how a session finds its own leavings to list, and the list is
+   then the key. What is not the session's — a card on a peer's fixture, a
+   document carrying a marker it did not look up, anything it cannot place
+   in a run of its own — stays off the list. The owner is asked for one
+   thing only: emptying the world, which is never a session's call. A
+   session that asks before sweeping its own leavings has misread this
+   rule; that ask is the cost the 2026-10-26 ruling was made to remove.
+
    Seats are provisioned: the world carries one user of every permission
    level, so verify player-facing behaviour by **joining as that player**.
    Rendering a template with `isGM: false` proves the template branches; it
