@@ -36,6 +36,7 @@
   "ACKS-CLASSES.sheet.key": "Key",
   "ACKS-CLASSES.sheet.cite": "Cite",
   "ACKS-CLASSES.sheet.stubNotice": "This class has no progression rows yet. Fill the Progression tab by hand, or import the class from your book with a macro in ACKS Extras Macros → Import from your books.",
+  "ACKS-CLASSES.sheet.xpUnread": "Some levels have no experience figure: the import could not read it from your book. Type each level's experience and title on the Progression tab from your copy ({cite}).",
   "ACKS-CLASSES.sheet.tab.overview": "Overview",
   "ACKS-CLASSES.sheet.tab.progression": "Progression",
   "ACKS-CLASSES.sheet.tab.awards": "Awards",

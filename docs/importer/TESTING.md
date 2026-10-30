@@ -3321,6 +3321,59 @@ the run's own.
 The sweep removes the ledger's items; a shelf the run opened and left empty
 is deleted. The notice patch is restored.
 
+## A community book's classes, read from their sentences
+
+A class whose spread states its levels in sentences imports with rows, its
+throws lent by its chassis, and a held one is repaired in place (MODEL, "A
+class stated in sentences"). Walk: `tools/live/importer-class-rows.mjs`,
+steps 1–4 on `cat`. Offline, the readers and the repair's keep:
+`tools/importer/test-class-prose-levels.mjs`.
+
+### Fixtures
+
+None are kept. Step 1 imports the book's classes where the world lacks them
+and tracks what it made; a class the world holds under another hand is read,
+never driven, and the walk stops if every one is held. The chassis check
+needs the core fighter class imported from the Judge's own core book; where
+the world holds none the walk names the check not reached. Step 4 is a book
+repair, which takes no `only`: it writes over every document the world holds
+from the book, its items and abilities too. Run it only when no peer is
+walking that book's other surfaces, and report the count it replaced beside
+the run's own.
+
+### Steps
+
+1. On the GM seat with the book open, run the class step for the classes the
+   world lacks (`acksExtras.importer.importClasses({ only })`).
+   *Observable:* it imports each one it was given.
+2. Read each class. *Observable:* one level row per level to its maximum,
+   each with its hit dice — a die per level to the cap, then the flat step;
+   experience unread on every level past the first; a damage ladder under
+   the key its row declares, rising at each rung; a cleave per level; the
+   fighter chassis for saves and attack, and at 1st level the save band and
+   attack throw equal the fighter class's own; its proficiency picks as
+   choice awards. The class sheet renders without the *no progression rows
+   yet* notice and with the notice naming the page to copy experience from.
+3. Write the run's classes into the stub shape (no levels, no ladder, no
+   cleave), then run `cookbookUpdateClasses({ only, confirm: false, repair })`
+   with a `repairTally()`.
+   *Observable:* each class reads as a stub before; after, the step rewrote
+   each, the tally replaced each and refused none, and each is back in the
+   step-2 shape under the uuid it had.
+4. Type an experience figure and a title of the walk's own into level 2 of
+   the first class, stub the others again, and run the book repair
+   (`cookbookReimportBook(book, { mode: "repair" })`, its confirm answered yes
+   by the walk).
+   *Observable:* one confirm; the refill names the class step and the
+   replaced count covers the run's classes; the typed figure and title stand
+   on level 2 with the build's hit dice; the stubbed classes are back in the
+   step-2 shape.
+
+### Teardown
+
+The sweep removes the ledger's classes; a shelf the run opened and left empty
+is deleted. The notice patch is restored.
+
 ## A community book, read through its declared typography
 
 `cat` is set off the family's ladder (MODEL, "A book's typography"). This
@@ -3395,12 +3448,12 @@ untagged seat would read every line as a heading and import nothing.
    order across the page turn — the Combat section's last paragraph is whole,
    not cut at the column foot — and Spoils lists two components with weight,
    value and effects. Open the keeper. *Observable:* her import step warned
-   once, that her class has no progression rows yet (the book prints its
-   classes' tables as pictures), and of nothing else; a core character on
+   of nothing; a core character on
    the Judge Actor shelf under "NPCs", named from the page and owned by
    nobody,
-   her class one of the book's three (bound, so the class's title, throws
-   and saves are derived) at the printed level, her six scores and hit
+   her class one of the book's three (bound, so the class's hit dice,
+   throws and saves are derived; its titles are the Judge's to type) at the
+   printed level, her six scores and hit
    points written, her proficiencies embedded as abilities where the library
    answers the name — class ones with the throw the page prints — and the
    rest counted on the sheet's as-printed block, her inventory worn and her

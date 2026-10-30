@@ -4,6 +4,16 @@
 
 ### Fixed
 
+- **A community book's classes import with their levels.** The OSR Catgirl's
+  three classes arrived with *no progression rows yet*, so a character could
+  not take one and its keeper imported without her class. Each now arrives
+  with a row per level and its hit dice, its damage bonus, a cleave per
+  level and its proficiency picks, read from the book's own sentences; its
+  attack throws and saves are the fighter's, as the book says, from the
+  fighter class you imported from your rulebook. The book prints experience
+  and titles only in a picture, so the class sheet names the page and you
+  type them on the Progression tab once — a repair keeps what you typed.
+  A world that imported the classes before: **Manage → the book → Repair**.
 - **An item a book introduces is repaired in place.** The items step used to
   pass over every item the world already held, so an item imported before
   11.12.0 read its paragraph kept its old shape — no slot, no price, no magic

@@ -146,8 +146,16 @@ export const REPAIR = Object.freeze({
     minted: ["items"],
   },
   // A class is rewritten whole, as Update Classes always has; only a
-  // description a Judge wrote and an effect a Judge took over stay.
-  class: { prose: ["description"], flags: ["tongues"], minted: ["effects"], name: true, rows: "replace" },
+  // description a Judge wrote, an effect a Judge took over, and a level's
+  // experience or title the build could not read and a Judge typed stay.
+  class: {
+    prose: ["description"],
+    flags: ["tongues"],
+    minted: ["effects"],
+    name: true,
+    rows: "replace",
+    fillUnread: [{ path: "levels", key: "level", fields: ["xp", "title"] }],
+  },
   // A spell's cast counter, memorized mark and favourite star are play's;
   // the primitive is rewritten from the page, except effect rows a Judge
   // authored on a spell whose build carries none.
@@ -197,6 +205,21 @@ export function refreshPlan(source, built, policy = {}) {
   // An array row is written whole, so a row field the build leaves out would
   // reset to its schema initial: the stored row at the same index fills it.
   if (policy.rows !== "replace") keepUnrenderedFields(system, stored);
+  // A row field the build could not read (null or "") keeps the stored row's
+  // value, matched by the row's key: a figure a Judge typed from the page
+  // survives the repair, and one the build does read replaces it.
+  for (const { path, key, fields } of policy.fillUnread ?? []) {
+    const rows = getPath(system, path);
+    const have = getPath(stored, path);
+    if (!Array.isArray(rows) || !Array.isArray(have)) continue;
+    const byKey = new Map(have.map((r) => [r?.[key], r]));
+    const unread = (v) => v === null || v === undefined || v === "";
+    for (const row of rows) {
+      const old = byKey.get(row?.[key]);
+      if (!old) continue;
+      for (const field of fields) if (unread(row[field]) && !unread(old[field])) row[field] = old[field];
+    }
+  }
 
   const update = {};
   if (Object.keys(system).length) update.system = system;

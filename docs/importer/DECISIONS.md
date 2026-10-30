@@ -8836,3 +8836,61 @@ standing, and the repair is the way to refresh them.
 *Cost:* a world imported before 11.12.0 needs one Repair per book to bring
 its items to the bound shape. `tools/importer/test-adventure-item-repair.mjs`
 and `tools/live/importer-item-repair.mjs` pin the behaviour.
+
+## 2026-10-30 — A class stated in sentences
+
+Narrows "What ships first" in "A community book joins the shelf" (2026-10-18),
+which shipped the community book's three classes with their chassis and their
+progression tables unread. The new evidence: the owner's world showed each
+class sheet's "no progression rows yet" banner and asked that the imports be
+playable, and the keeper's character import warned the same at apply, so she
+imported unbound. Reading the spreads again found that every number the rows
+need except experience and title is stated in sentences beside the tables:
+the hit dice to a cap and the flat step past it, the damage bonus and the
+levels it rises at, a cleave per level, the proficiency gains. Their tables
+are pictures with no text under them (the three level tables, p13, p17 and
+p20, and one spell-slot table, p14); only one class's attack-and-saves
+table, at a page foot, is text, and it prints the fighter's bands, as each
+spread says in words.
+
+*Ruled:*
+
+- **Attack and saves are the chassis's, lent at read time.** The row keeps
+  naming `fighter`/`fighter`; `registry.mjs` already lends the chassis
+  class's bands one hop wherever a class prints none, and the chassis class
+  is the one the Judge imported from their own core book. Copying the
+  fighter's bands onto the class would be a second store of the same table.
+  The one text table is left unread: it says what the chassis says.
+- **Level rows come from the hit-dice sentence** (`proseLevels.hitDice`), one
+  per level to the maximum, experience `null` and title empty. Neither is
+  derived: the spreads' printed experience is not the fighter's, rounds
+  differently from class to class, and appears in no sentence, so a
+  chassis-derived or formula-derived ladder would contradict the page.
+- **The damage ladder and the cleave are typed rows read from their
+  sentences**, never constants: `damageBonus` (its key carrying who the bonus
+  applies to) and the core rows' cleave pattern, its phrase widened to a bare
+  "per level".
+- **The class sheet names the unread levels and the page**, and a repair
+  keeps a level's experience and title a Judge typed where the build reads
+  none (`REPAIR.class` `fillUnread`), so typing them from the book is done
+  once.
+- **The compiler reads a class page's body from the book's declared body
+  top** (`typography.bodyTop`), not from a fixed 50: the community book sets
+  its first line above it, which cut the middle out of the sentences that
+  turn a page. Only that book declares one.
+
+*Rejected:* a fighter-chassis progression for experience and hit dice (the
+hit dice are the class's own die, and the experience is not the fighter's);
+the class builder's derivation (the spreads print no build values, and its
+rounding does not reproduce the printed figures); the class powers as
+`def.power` rows in this change (a content kind per power, its own work; the
+abilities stay in the description), and the natural attack, which is the
+item-grants design's (2026-10-29), not this one's.
+
+*Open:* reading a picture table (an image-region read in the executor) would
+bring experience, titles and the thief-skill and slot columns in; it is a new
+dependency and a new extraction surface, put to the owner (ROADMAP).
+
+*Cost:* a world holding the stubs needs one Repair of the book.
+`tools/importer/test-class-prose-levels.mjs` and
+`tools/live/importer-class-rows.mjs` pin the behaviour.

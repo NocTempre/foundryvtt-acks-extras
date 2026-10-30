@@ -7873,17 +7873,70 @@ export function proseGainSchedule(body) {
   };
   // Anchored to the SELECT sentence — plain "at 1st level" also opens damage-
   // ladder sentences ("+1 at 1st level, and an additional +1 at 3rd…").
-  const start = /at\s*1\s*st\s*level\s*,?[^.]{0,40}?select\s*one[^.]{0,240}/i.exec(text)?.[0] ?? "";
+  // A spread may instead state the starting picks as what the class "starts
+  // with", beside the one it is given outright.
+  const start =
+    /at\s*1\s*st\s*level\s*,?[^.]{0,40}?select\s*one[^.]{0,240}/i.exec(text)?.[0] ??
+    /starts\s*with[^.]{0,60}?\bone\s*(?:general|class)\s*proficienc[^.]{0,80}/i.exec(text)?.[0] ??
+    "";
   if (/one\s*class\s*proficienc/i.test(start)) add(1, "C");
   if (/one\s*general\s*proficienc/i.test(start)) add(1, "G");
   // The level list runs to four entries on the longer classes ("at 3rd, 6th,
   // 9th, and 12th level") — capture the whole span, then read every number.
-  const later = /additional\s*(class|general)\s*proficienc\w*\s*at\s*((?:\d+\s*(?:st|nd|rd|th)\s*(?:,|and|\s)*)+)level/gi;
+  // The gain is "an additional" one or plainly "a" one; "one" stays the
+  // starting sentence's word and is never read here.
+  const later = /(?:additional|\ban?)\s*(class|general)\s*proficienc\w*\s*at\s*((?:\d+\s*(?:st|nd|rd|th)\s*(?:,|and|\s)*)+)level/gi;
   for (const m of text.matchAll(later)) {
     const tag = m[1].toLowerCase() === "class" ? "C" : "G";
     for (const g of m[2].matchAll(/\d+/g)) add(parseInt(g[0], 10), tag);
   }
   return Object.keys(cells).length ? cells : null;
+}
+
+/**
+ * Level rows for a class whose page states its hit dice in a sentence
+ * instead of a text table: one die per level up to a cap, then a flat
+ * number of hit points per level past it (RR ch. 3's shape). The register's
+ * pattern captures, in order, the die size, the cap and the flat step; every
+ * number is the reader's. Experience and title are left unread — `xp` null,
+ * `title` empty — for the Judge to fill.
+ * @returns {Array<{level:number, xp:null, title:string, hd:string}>} empty
+ *   when the pattern is absent or does not match
+ */
+export function proseHitDiceLevels(body, spec, maximumLevel) {
+  if (!spec?.pattern || !Number.isInteger(maximumLevel) || maximumLevel < 1) return [];
+  const m = new RegExp(spec.pattern, "i").exec(String(body ?? "")) ?? [];
+  const [die, cap, per] = [m[1], m[2], m[3]].map((n) => parseInt(n, 10));
+  if (![die, cap, per].every(Number.isInteger)) return [];
+  const rows = [];
+  for (let level = 1; level <= maximumLevel; level++) {
+    const hd = level <= cap ? `${level}d${die}` : `${cap}d${die}+${(level - cap) * per}`;
+    rows.push({ level, xp: null, title: "", hd });
+  }
+  return rows;
+}
+
+/**
+ * A damage-bonus ladder stated as a sentence: a first bonus at a starting
+ * level, then a step added at each level of a list. The register's pattern
+ * captures, in order, the first bonus, its level, the step and the list of
+ * levels; its key's prefix says who the bonus applies to (`apply.mjs`
+ * `damageBonusLadder`).
+ * @returns {{key:string, label:string, values:Array<{atLevel:number, value:number, text:string}>}|null}
+ */
+export function proseDamageLadder(body, spec) {
+  if (!spec?.pattern || !spec.key) return null;
+  const m = new RegExp(spec.pattern, "i").exec(String(body ?? "")) ?? [];
+  const [first, start, step] = [m[1], m[2], m[3]].map((n) => parseInt(n, 10));
+  if (![first, start, step].every(Number.isInteger)) return null;
+  const at = [...String(m[4] ?? "").matchAll(/\d+/g)].map((m) => parseInt(m[0], 10)).filter((n) => n > start);
+  const values = [{ atLevel: start, value: first }];
+  for (const level of [...new Set(at)].sort((a, b) => a - b)) values.push({ atLevel: level, value: values.at(-1).value + step });
+  return {
+    key: spec.key,
+    label: spec.key.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/^./, (c) => c.toUpperCase()),
+    values: values.map((r) => ({ ...r, text: `+${r.value}` })),
+  };
 }
 
 /**
@@ -8048,12 +8101,21 @@ export function bindClass(
       ladderMap.set(key, rungs);
     }
   }
+  // A class with no progression grid to read states its hit dice and damage
+  // bonus in sentences; the rows and the ladder come from those instead.
+  if (!levels.length && entry.proseLevels?.hitDice) {
+    levels.push(...proseHitDiceLevels(body, entry.proseLevels.hitDice, f.maximumLevel));
+  }
   levels.sort((a, b) => a.level - b.level);
   const ladders = [...ladderMap.entries()].map(([key, values]) => ({
     key,
     label: key.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/^./, (c) => c.toUpperCase()),
     values,
   }));
+  if (!ladders.some((l) => /damagebonus$/i.test(l.key))) {
+    const damage = proseDamageLadder(body, entry.damageBonus);
+    if (damage) ladders.push(damage);
+  }
 
   // A grid keyed on a NAME rather than on a level (the crusader's rebuking
   // table) — see `gridLadders`.
@@ -8231,7 +8293,7 @@ export function bindClass(
     const m = new RegExp(entry.cleaves.pattern, "i").exec(body);
     // Extraction joins can drop inter-run spaces, so the phrase folds first.
     const phrase = (m?.[1] ?? "").toLowerCase().replace(/\s+/g, "");
-    if (phrase.startsWith("classlevel")) cleaves = { kind: "perLevel", base: 1, per: 1 };
+    if (phrase.startsWith("classlevel") || phrase === "level") cleaves = { kind: "perLevel", base: 1, per: 1 };
     else if (phrase.includes("twoclasslevels")) cleaves = { kind: "perLevel", base: 0.5, per: 0.5, round: "down" };
   }
 
@@ -9837,7 +9899,8 @@ export async function importSpells({ only = null, repair = null } = {}) {
  * generated in this phase — a hand-tuned document keeps its edits only until
  * Update, and the confirm says so. Two things stay: a description a Judge
  * wrote in, and an effect a Judge took over (the training editor unmints what
- * it writes), which also stops the build's twin of it being added.
+ * it writes), which also stops the build's twin of it being added. A level's
+ * experience or title the build could not read keeps what a Judge typed.
  *
  * A class whose book is not open on this seat, or whose entry read nothing,
  * is left exactly as it is: this write takes the build's rows whole, and a
@@ -9873,7 +9936,7 @@ export async function cookbookUpdateClasses({ only = null, confirm = true, repai
       classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
       window: { title: "Update Classes" },
       content:
-        `<p>Rewrite ${readable.length} imported class document(s) from the connected book? Hand edits on them are replaced, except a description you wrote and training you edited.</p>` +
+        `<p>Rewrite ${readable.length} imported class document(s) from the connected book? Hand edits on them are replaced, except a description you wrote, training you edited, and a level's experience or title you typed where the book's could not be read.</p>` +
         (closed ? `<p>${closed} more come from a book that is not open on this seat and are left as they are.</p>` : ""),
       modal: true,
     }));

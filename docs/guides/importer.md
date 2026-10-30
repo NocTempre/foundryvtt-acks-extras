@@ -277,6 +277,17 @@ Adventure) stays on the Judge's shelves. Nothing from it merges into an
 ACKS II compendium. A world that imported such a book before keeps its
 classes where they are.
 
+A community class whose book states its levels in sentences arrives with a
+row per level and its hit dice, its damage bonus, its cleaves and its
+proficiency picks, read from those sentences. Its attack throws and saving
+throws are those of the core class the book says it advances like, so import
+the core classes from your own rulebook first. Where the book prints the
+experience and titles only in a picture, the class sheet says so above its
+tabs and names the page: type each level's experience and title on the
+**Progression** tab from your copy. You type them once; a repair keeps them.
+A class imported before these rows were read shows *no progression rows yet*;
+**Manage → the book → Repair** fills it in.
+
 ![](../releases/v11.8.0/importer-open-shelf.png)
 
 *A player's Compendium sidebar: the community book's open Item shelf in its own folder, and none of the book's Judge shelves.*
@@ -304,7 +315,8 @@ hold yet are imported as usual.
 *Reimport One Shelf with the Traps shelf picked and Repair in place chosen.*
 
 - **A class** is written whole: its name and any edit to it are replaced,
-  except a description you wrote and training you edited on its sheet.
+  except a description you wrote, training you edited on its sheet, and a
+  level's experience or title you typed where the book's could not be read.
 - **A monster** is read again whole: its stats, its token size, and the
   attacks and abilities its page yields replace the imported ones. Attacks you
   added stay, and so does a prose field you wrote in.

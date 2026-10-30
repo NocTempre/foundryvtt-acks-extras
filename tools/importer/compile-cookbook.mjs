@@ -4835,11 +4835,15 @@ async function compileClass(doc, entry, kindRow) {
     // match the SAME phrase in a neighbouring class's column instead.
     const bcols = defColumns(bpd).filter((x, i, a) => i === 0 || x - a[i - 1] >= 150);
     const edges = [...bcols.slice(1).map((x) => x - 6), bpd.width - 30];
+    // The top edge is the book's declared body top where it declares one: a
+    // book whose text starts above 50 loses each page's first line otherwise,
+    // and a sentence that turns the page loses its middle.
+    const by0 = bpd.typography?.bodyTop ?? 50;
     let bx0 = 30;
     edges.forEach((bx1, ci) => {
       fields[`body${p}c${ci}`] = {
         op: "value", page: p,
-        box: { x0: bx0, x1: bx1, y0: 50, y1: bpd.height },
+        box: { x0: bx0, x1: bx1, y0: by0, y1: bpd.height },
         pattern: "raw",
       };
       bx0 = bx1;
@@ -4869,6 +4873,10 @@ async function compileClass(doc, entry, kindRow) {
     },
     ...(spec.awards?.length ? { awards: spec.awards } : {}),
     ...(spec.cleaves ? { cleaves: spec.cleaves } : {}),
+    // A class that states its hit dice and damage bonus in sentences rather
+    // than a text table: patterns the binder reads the reader's body with.
+    ...(spec.proseLevels ? { proseLevels: spec.proseLevels } : {}),
+    ...(spec.damageBonus ? { damageBonus: spec.damageBonus } : {}),
     // The run-in the spread states its combat training under — declared per
     // class because the label is not the same on every spread.
     ...(spec.training ? { training: spec.training } : {}),

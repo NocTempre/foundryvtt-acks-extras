@@ -1247,10 +1247,22 @@ than on authoring:
   and a ruling on what a player character's claws are, since the class
   powers carry them as prose. Daily powers and the hidden-weapons searching
   penalty stay prose in any design.
-- **The classes' progression tables.** Two spreads print them as images; the
-  third's saves-and-attack table is text (p21, the page foot). Until a table
-  is read the Judge finishes the ladder; the chassis carries the fighter
-  progressions each spread names.
+- **The classes' picture tables.** All three spreads print their level table
+  as a picture (p13, p17, p20), and one its spell-slot table too; the rows,
+  hit dice, damage ladder, cleave and gains come from the sentences
+  (DECISIONS 2026-10-30), but experience, titles, the thief-skill and
+  backstab columns and the slots are only in the pictures, so the Judge types
+  them. Reading them is half built: the executor's `art` op already reads a
+  page's placed pictures (`pageArtInfo`/`getArt`) and the scene binding cuts
+  a region of a page into a picture. The missing half is recognizing the
+  cells — a character-recognition library (its wasm and language data,
+  shipped or fetched, and its licence) — which is the owner's call. Against
+  it: a misread cell imports a wrong figure silently, where a typed one is
+  at least the Judge's; any build would need the rows checked against the
+  picture before they are written.
+- **The classes' powers.** Each spread's class abilities stay in its
+  description; a `def.power` row per ability, awarded at its level, is a
+  content row each.
 - **A race document.** The five tiers ship as class powers under one group
   and the race's history as a journal page; a kind for a race as a document
   (`acks-extras.race`, which the class builder already lists) would hold

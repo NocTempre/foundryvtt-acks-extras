@@ -11,7 +11,15 @@
     "class": {
       "key": "catgirlOathkeeper",
       "chassis": { "saves": "fighter", "attack": "fighter" },
-      "profList": { "page": 16, "label": "Her proficiency list is:", "continues": { "page": 16, "col": 1 } }
+      "profList": { "page": 16, "label": "Her proficiency list is:", "continues": { "page": 16, "col": 1 } },
+      "cleaves": { "pattern": "cleave\\s*once\\s*per\\s*round\\s*per\\s*(level|class\\s*level|two\\s*class\\s*levels)" },
+      "proseLevels": {
+        "hitDice": { "pattern": "Hit\\s*Dice:\\s*1\\s*d\\s*(\\d+)\\s*until\\s*(\\d+)\\s*[a-z]{2}\\s*level,?\\s*then\\s*\\+\\s*(\\d+)\\s*hp\\s*per\\s*level" }
+      },
+      "damageBonus": {
+        "key": "meleeDamageBonus",
+        "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*to\\s*damage[^.]{0,40}?at\\s*(\\d+)\\s*[a-z]{2}\\s*level,?[^.]{0,20}?additional\\s*\\+\\s*(\\d+)\\s*at\\s*((?:\\d+\\s*[a-z]{2}[,\\s]*(?:and)?\\s*)+)levels"
+      }
     },
     "assists": {
       "pageColumns": { "16": [40, 320] },
@@ -37,7 +45,15 @@
     "class": {
       "key": "catgirlRaider",
       "chassis": { "saves": "fighter", "attack": "fighter" },
-      "profList": { "page": 19, "label": "Her proficiency list is:" }
+      "profList": { "page": 19, "label": "Her proficiency list is:" },
+      "cleaves": { "pattern": "cleave\\s*once\\s*per\\s*round\\s*per\\s*(level|class\\s*level|two\\s*class\\s*levels)" },
+      "proseLevels": {
+        "hitDice": { "pattern": "Hit\\s*Dice:\\s*1\\s*d\\s*(\\d+)\\s*until\\s*(\\d+)\\s*[a-z]{2}\\s*level,?\\s*then\\s*\\+\\s*(\\d+)\\s*hp\\s*per\\s*level" }
+      },
+      "damageBonus": {
+        "key": "damageBonus",
+        "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*to\\s*damage[^.]{0,40}?at\\s*(\\d+)\\s*[a-z]{2}\\s*level,?[^.]{0,20}?additional\\s*\\+\\s*(\\d+)\\s*at\\s*((?:\\d+\\s*[a-z]{2}[,\\s]*(?:and)?\\s*)+)levels"
+      }
     },
     "assists": {
       "pageColumns": { "19": [40] },
@@ -61,7 +77,15 @@
     "class": {
       "key": "catgirlRevelmistress",
       "chassis": { "saves": "fighter", "attack": "fighter" },
-      "profList": { "page": 23, "label": "Her proficiency list is:" }
+      "profList": { "page": 23, "label": "Her proficiency list is:" },
+      "cleaves": { "pattern": "cleave\\s*once\\s*per\\s*round\\s*per\\s*(level|class\\s*level|two\\s*class\\s*levels)" },
+      "proseLevels": {
+        "hitDice": { "pattern": "Hit\\s*Dice:\\s*1\\s*d\\s*(\\d+)\\s*until\\s*(\\d+)\\s*[a-z]{2}\\s*level,?\\s*then\\s*\\+\\s*(\\d+)\\s*hp\\s*per\\s*level" }
+      },
+      "damageBonus": {
+        "key": "damageBonus",
+        "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*to\\s*damage[^.]{0,40}?at\\s*(\\d+)\\s*[a-z]{2}\\s*level,?[^.]{0,20}?additional\\s*\\+\\s*(\\d+)\\s*at\\s*((?:\\d+\\s*[a-z]{2}[,\\s]*(?:and)?\\s*)+)levels"
+      }
     },
     "assists": {
       "continuation": [

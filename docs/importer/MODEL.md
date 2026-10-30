@@ -615,6 +615,37 @@ bonus, a daily power — stays in the description. The rulings are DECISIONS
 2026-10-19, "An item a book introduces is a core item read whole", and
 2026-10-28, "An item a book introduces is worn where its page says".
 
+## A class stated in sentences
+
+A `kind.class` row whose spread prints no text table for its levels carries,
+beside its `chassis`, patterns the binder reads the reader's own body text
+with (`bindClass`; the compiler passes `proseLevels` and `damageBonus`
+through, and reads each page's body from the book's declared body top):
+
+- `proseLevels.hitDice` captures the die, the level the dice stop at and the
+  flat hit points per level past it; `proseHitDiceLevels` writes one level
+  row per level to the class's maximum, each with its hit dice, its
+  experience `null` and its title empty.
+- `damageBonus` names the ladder's key, whose prefix says who the bonus
+  applies to (`melee…`, `missile…`, or none for both; `apply.mjs`
+  `damageBonusLadder`), and captures the first bonus, its level, the step and
+  the levels it is added at; `proseDamageLadder` builds the rungs.
+- `cleaves.pattern` is the core rows' own, its phrase widened to a bare "per
+  level".
+- The proficiency gains come from `proseGainSchedule`, which reads a "starts
+  with … one general proficiency, and one class proficiency" sentence and a
+  gain stated as "a" or "an additional" one.
+
+Attack throws and saves stay the chassis's, lent at read time
+(`classes/registry.mjs` `effectiveSaves`/`effectiveAttack`) from the
+chassis class the world imported from the Judge's own core book; a class
+row never copies them. A printed grid, where one is read, wins over the
+sentence. The class sheet says, above its tabs, which levels have no
+experience figure and which page to copy it from. A repair (`REPAIR.class`,
+`fillUnread`) keeps a level's experience and title where the build read
+none and a Judge typed one, and replaces it where the build reads one. The
+ruling is DECISIONS 2026-10-30, "A class stated in sentences".
+
 ## A passage read whole
 
 A `kind.prose` row is an essay, a tavern's text, a page of notes: prose the

@@ -92,6 +92,11 @@ export default class ClassSheet extends HandlebarsApplicationMixin(ItemSheetV2) 
     }));
     context.show = Object.fromEntries(TABS.map((id) => [id, id === this.#tab]));
     context.isStub = sys.isStub;
+    // Rows whose experience the import could not read (a book that prints its
+    // table as a picture): the sheet says so and points at the page, rather
+    // than leaving blank cells that read as "no experience needed".
+    context.xpUnread = !sys.isStub && (sys.levels ?? []).some((r) => r.level > 1 && r.xp == null);
+    context.cite = sys.source?.cite ?? "";
     // Ladders are read through the class key; a class with ladders and no key
     // has tables nothing can reach.
     context.keyMissing = !sys.key && (sys.ladders ?? []).length > 0;

@@ -15,6 +15,7 @@
 </header>
 
 {{#if isStub}}<p class="notification info">{{localize "ACKS-CLASSES.sheet.stubNotice"}}</p>{{/if}}
+{{#if xpUnread}}<p class="notification info">{{localize "ACKS-CLASSES.sheet.xpUnread" cite=cite}}</p>{{/if}}
 {{#if keyMissing}}<p class="notification warning">{{localize "ACKS-CLASSES.sheet.keyMissing"}}</p>{{/if}}
 
 <nav class="acks-extras-classes-tabs">
