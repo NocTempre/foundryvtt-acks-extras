@@ -10,6 +10,7 @@
   attack, a whispered or blind attack keeps its result, a hidden token's cards
   play nothing, and with Dice So Nice the effect waits for the dice. Nothing to
   set up, and nothing runs without it.
+
 ## 11.12.2
 
 ### Fixed

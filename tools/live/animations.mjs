@@ -6,8 +6,10 @@
  * row of its own takes the kind of attack's default row; an unlinked creature's
  * attack reads; a whispered or blind attack plays with no result on every seat;
  * a hidden token plays nothing on any seat; the target is the one the throw was
- * made at; a spell plays as it reads; a Player's attack shows on both seats; and,
- * with Dice So Nice on, the effect waits for the dice. Machine values arrive
+ * made at; the character sheet's own button reaches it; a spell plays as it
+ * reads; a Player's attack shows on both seats; and, with Dice So Nice on, the
+ * effect waits for the dice. A control with the listener off draws the same
+ * miss as a hit. Machine values arrive
  * through ./_env.mjs; nothing here names a port, a world, a seat or a book.
  *
  * Fixtures, kept and found again by marker (`api.fixture`): the scene
@@ -22,7 +24,8 @@
  * the start of a section: ownership written whole, each weapon's kinds, tokens
  * placed and shown.
  * Writes outside the ledger: `core.moduleConfiguration`, and this seat's
- * `core.messageMode`, each restored in the finally.
+ * `core.messageMode`, each restored in the finally. The cards the run posts are
+ * tracked by id and swept there.
  */
 import path from "node:path";
 import { connect, sleep } from "./_driver.mjs";
@@ -206,6 +209,32 @@ const P = {
     return { posted: H.posted.slice(seen) };
   },
 
+  /** The attack button on a character sheet's gear row, pressed with the system's skip-dialog key held. */
+  press: async ({ token, item, die, target }) => {
+    const H = globalThis.__aaw;
+    const actor = canvas.tokens.get(token).actor;
+    const weapon = actor.items.find((i) => i.name === item);
+    canvas.tokens.setTargets(target ? [target] : []);
+    await actor.sheet.render({ force: true });
+    let button = null;
+    const drawn = Date.now() + 5000;
+    while (Date.now() < drawn && !button) {
+      button = actor.sheet.element?.querySelector(`[data-item-id="${weapon.id}"] button[data-action="roll"]`) ?? null;
+      if (!button) await H.sleep(50);
+    }
+    if (!button) return { error: "no attack button on the sheet's gear row" };
+    const key = game.settings.get("acks", "skip-dialog-key");
+    const rig = CONFIG.Dice.randomUniform;
+    CONFIG.Dice.randomUniform = () => die;
+    const seen = H.posted.length;
+    button.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, ...(key ? { [key]: true } : {}) }));
+    const stop = Date.now() + 5000;
+    while (Date.now() < stop && H.posted.length === seen) await H.sleep(25);
+    CONFIG.Dice.randomUniform = rig;
+    await actor.sheet.close();
+    return { sheet: actor.sheet.constructor.name, posted: H.posted.slice(seen) };
+  },
+
   cast: async ({ token, item, target }) => {
     const H = globalThis.__aaw;
     const actor = canvas.tokens.get(token).actor;
@@ -321,6 +350,8 @@ async function reloadRecorded(api, port, label) {
 }
 
 const seats = {};
+/** The uuid of every card the run posted, swept at teardown. */
+const cards = [];
 async function seat(key) {
   const api = await connect({ browser, origin, user: SEATS[key], port: PORTS[key], own: MACHINE.own });
   seats[key] = api;
@@ -331,7 +362,8 @@ async function seat(key) {
 /** One throw from `api`, and what each seat in `watch` saw of it. */
 async function strike(api, input, { watch = [api], want = 1, seconds = 12 } = {}) {
   const marks = await Promise.all(watch.map((seated) => run(seated, P.mark)));
-  const thrown = await run(api, input.cast ? P.cast : P.attack, input);
+  const thrown = await run(api, input.cast ? P.cast : input.press ? P.press : P.attack, input);
+  for (const { id } of thrown.posted ?? []) cards.push(seats.gm.track(id, "ChatMessage"));
   const seen = await Promise.all(watch.map((seated, i) => run(seated, P.seen, { mark: marks[i], want, seconds })));
   note(`  ${input.item ?? "?"}`, { thrown, seen });
   return { thrown, seen };
@@ -416,6 +448,12 @@ try {
     check("a melee miss: Sequencer draws it missed", effects.length >= 1 && effects[0].missed, effects[0]);
     check("a melee miss: lands off the target", distance(drawn[0]?.at, centre) > 0, { at: drawn[0]?.at, centre });
     await gm.shot(path.join(logDir(), "animations-melee-miss.png"), "#board").catch((err) => note("shot", err.message));
+  }
+
+  section("the sheet's own button");
+  {
+    const { thrown, seen: [{ effects, reads }] } = await strike(gm, { ...at(NATURAL.one), press: true, item: "Probe Blade" });
+    check("a miss pressed on the sheet is drawn missed on the default row", thrown.posted?.[0]?.outcome?.includes("miss") && reads[0]?.row === "Sword" && effects[0]?.missed === true, { thrown, read: reads[0], effect: effects[0] });
   }
 
   section("the control: the same miss with the listener off");
@@ -555,6 +593,7 @@ try {
 } finally {
   section("teardown");
   if (seats.gm) {
+    try { note("cards swept", await seats.gm.sweepTracked({ only: cards })); } catch (err) { console.error("sweep cards:", err?.message ?? err); }
     if (restoreMode !== null) {
       try { note("message mode restored", await run(seats.gm, P.setMode, { mode: restoreMode })); } catch (err) { console.error("restore message mode:", err?.message ?? err); }
     }

@@ -3029,36 +3029,39 @@ Drive mechanics:
    natural 20 and a natural 1. *Observable:* the `Sword` row both times, `missed`
    false with the effect on the target's centre, `missed` true with it off, and
    the video's clock moving.
-2. **The control.** Take the listener off the page and throw the miss again.
+2. **The sheet's own button.** Press `Probe Blade`'s attack button on the
+   character sheet's gear row, the system's skip-dialog key held on the click,
+   at a natural 1. *Observable:* the default row and `missed` true.
+3. **The control.** Take the listener off the page and throw the miss again.
    *Observable:* the card says miss and the effect is not `missed`.
-3. **At range.** `Probe Bow`, tokens five squares apart. *Observable:* as step 1.
-4. **The default rows.** `Probe Blade`, `Probe Sling`, `Probe Shiv` as melee,
+4. **At range.** `Probe Bow`, tokens five squares apart. *Observable:* as step 1.
+5. **The default rows.** `Probe Blade`, `Probe Sling`, `Probe Shiv` as melee,
    missile and thrown. *Observable:* the `Sword`, `Bow` and `Dagger` rows.
-5. **An unlinked creature.** `Probe Maw` from the token's actor, at a natural 1.
+6. **An unlinked creature.** `Probe Maw` from the token's actor, at a natural 1.
    *Observable:* the `Unarmed Strike` row, `missed` true, the effect starting at
    the unlinked token.
-6. **The target.** Move the seat's target from a `preCreateChatMessage` hook.
+7. **The target.** Move the seat's target from a `preCreateChatMessage` hook.
    *Observable:* the effect goes to the first target. Attack at nothing.
    *Observable:* no effect, nothing refused.
-7. **A world actor's sheet.** `Probe Maw` from the world actor. *Observable:* as
-   step 5. `Probe Sword` from `animations/loose`, with no token anywhere.
+8. **A world actor's sheet.** `Probe Maw` from the world actor. *Observable:* as
+   step 6. `Probe Sword` from `animations/loose`, with no token anywhere.
    *Observable:* no effect, nothing refused.
-8. **The Judge's tool.** Press the item sheet's Automated Animations button.
+9. **The Judge's tool.** Press the item sheet's Automated Animations button.
    *Observable:* its menu renders on a system item.
-9. **A spell.** `Probe Magic Missile` through `item.use()`. *Observable:* its own
-   row, `playOnMiss` unwritten.
-10. **A second seat.** The Player's rigged miss. *Observable:* `missed` true on
+10. **A spell.** `Probe Magic Missile` through `item.use()`. *Observable:* its own
+    row, `playOnMiss` unwritten.
+11. **A second seat.** The Player's rigged miss. *Observable:* `missed` true on
     both seats, the rig being on the Player's page.
-11. **What is kept.** `core.messageMode` at `gm` and at `blind`, a natural 1.
+12. **What is kept.** `core.messageMode` at `gm` and at `blind`, a natural 1.
     *Observable:* the card is not public, no `playOnMiss`, and `missed` false on
     both seats. Hide the attacker's token, then attack and cast. *Observable:*
     the cards post, and neither seat sees an effect.
-12. **The dice.** Turn on Dice So Nice and reload. *Observable:* no load error,
+13. **The dice.** Turn on Dice So Nice and reload. *Observable:* no load error,
     one deferral on the workflow, `diceSoNiceRollComplete` for the card, and the
     effect's start after it.
 
-Teardown: the walk restores the module configuration and the message mode, and
-reports both. The fixtures stay.
+Teardown: the walk sweeps the cards it posted by id, restores the module
+configuration and the message mode, and reports all three. The fixtures stay.
 
 ## Teardown
 
