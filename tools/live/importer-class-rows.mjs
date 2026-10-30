@@ -275,7 +275,7 @@ async function drive(mine, heldAfter, fresh) {
   for (const u of mine.slice(1)) await run(gm, P.stub, { uuid: u });
   const byBook = await run(gm, P.repairBook);
   note("repair book", { asked: byBook.asked, result: byBook.result && { mode: byBook.result.mode, replaced: byBook.result.replaced, refused: byBook.result.refused, runs: Object.keys(byBook.result.refill ?? {}) } });
-  check("4: the book repair asked once, ran the class step and replaced at least this run's classes", byBook.asked === 1 && byBook.result?.mode === "repair" && !!byBook.result.refill?.cookbookUpdateClasses && byBook.result.replaced >= mine.length, byBook.result && { replaced: byBook.result.replaced, refill: Object.keys(byBook.result.refill ?? {}) });
+  check("4: the book repair asked once, ran the class step and replaced at least this run's classes", byBook.asked === 1 && byBook.result?.mode === "repair" && "importClasses" in (byBook.result.refill ?? {}) && byBook.result.replaced >= mine.length, byBook.result && { replaced: byBook.result.replaced, refill: Object.keys(byBook.result.refill ?? {}) });
   const after = {};
   for (const u of mine) after[u] = await run(gm, P.shape, { uuid: u });
   check("4: the typed figure and title survived, and the row's hit dice are the build's", after[mine[0]].level2?.xp === TYPED.xp && after[mine[0]].level2?.title === TYPED.title && after[mine[0]].level2?.hd === fresh[mine[0]].level2?.hd, after[mine[0]].level2);
