@@ -281,10 +281,14 @@ A community class whose book states its levels in sentences arrives with a
 row per level and its hit dice, its damage bonus, its cleaves and its
 proficiency picks, read from those sentences. Its attack throws and saving
 throws are those of the core class the book says it advances like, so import
-the core classes from your own rulebook first. Where the book prints the
-experience and titles only in a picture, the class sheet says so above its
-tabs and names the page: type each level's experience and title on the
-**Progression** tab from your copy. You type them once; a repair keeps them.
+the core classes from your own rulebook first. Where the book says a class
+was built with the Judges Journal's class-creation procedure, its experience
+is priced that way from the class-builder tables your Judges Journal import
+holds; hover an experience cell to see the build. Where the book prints the
+experience and titles only in a picture and nothing prices them, the class
+sheet says so above its tabs and names the page: type each level's
+experience and title on the **Progression** tab from your copy. You type
+them once; a repair keeps them.
 A class imported before these rows were read shows *no progression rows yet*;
 **Manage → the book → Repair** fills it in.
 
@@ -316,7 +320,8 @@ hold yet are imported as usual.
 
 - **A class** is written whole: its name and any edit to it are replaced,
   except a description you wrote, training you edited on its sheet, and a
-  level's experience or title you typed where the book's could not be read.
+  level's experience or title you typed where neither the book nor the
+  class's build could supply one.
 - **A monster** is read again whole: its stats, its token size, and the
   attacks and abilities its page yields replace the imported ones. Attacks you
   added stay, and so does a prose field you wrote in.

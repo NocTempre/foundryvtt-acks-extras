@@ -640,11 +640,24 @@ Attack throws and saves stay the chassis's, lent at read time
 (`classes/registry.mjs` `effectiveSaves`/`effectiveAttack`) from the
 chassis class the world imported from the Judge's own core book; a class
 row never copies them. A printed grid, where one is read, wins over the
-sentence. The class sheet says, above its tabs, which levels have no
-experience figure and which page to copy it from. A repair (`REPAIR.class`,
+sentence.
+
+A row may also declare `build`, the class's allocation under the JJ
+class-creation procedure, with `build.race` naming the race's pages and the
+pattern that reads its racial value's cost there. `buildXp` prices every
+level whose experience is unread against the world's `acks.classBuilder`
+tables (`baseXpCost`, then `xpSchedule` with the tables' smoothing and the
+saves chassis's post-8 step) and records what priced it in
+`flags.acks-extras.xpBuild`, which the sheet's experience cells name. No
+tables, no readable cost, or an unpriced category leaves every level unread.
+
+The class sheet says, above its tabs, which levels have no experience figure
+and which page to copy it from, or, where every level lacks a title, that the
+titles are the Judge's to type. A repair (`REPAIR.class`,
 `fillUnread`) keeps a level's experience and title where the build read
 none and a Judge typed one, and replaces it where the build reads one. The
-ruling is DECISIONS 2026-10-30, "A class stated in sentences".
+rulings are DECISIONS 2026-10-30, "A class stated in sentences" and "A
+community class's experience is priced from its build".
 
 ## A passage read whole
 

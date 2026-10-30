@@ -15,6 +15,7 @@
  */
 import { MODULE_ID, LANG_PREFIX, ITEM_TYPE, DEFAULT_IMG } from "./constants.mjs";
 import { trainingChanges } from "../classes/training-logic.mjs";
+import { BUILDER_DOC_ID, baseXpCost, xpSchedule } from "../classes/builder-logic.mjs";
 import { bookText, entryText, entryTable, escapeText, keepParagraphs, nodeParagraphs } from "./prose.mjs";
 import { answersFor, bindPatch, claimIds, placePairs, takeoverPatch } from "./place-pair.mjs";
 import {
@@ -57,7 +58,7 @@ import { oseGroupBookOf } from "./ose-template.mjs";
 import { executeEntry, materializeEffects, attackModel, convertName } from "./executor.mjs";
 import { slugLabel } from "./table-extract.mjs";
 import { TABLE_RECIPES } from "./table-recipes.mjs";
-import { getLayer, PRIORITY } from "../lib/tables.mjs";
+import { getDoc, getLayer, hasDoc, PRIORITY } from "../lib/tables.mjs";
 import { pageItems, pageArtPlacements } from "./extract.mjs";
 import { WEAPON_TABLE, extractWeaponsFromDoc, bindWeaponRow, bindAmmoRow } from "./weapon-tables.mjs";
 import { ARMOR_TABLE, extractArmorFromDoc, bindArmorRow } from "./armor-tables.mjs";
@@ -7917,6 +7918,61 @@ export function proseHitDiceLevels(body, spec, maximumLevel) {
 }
 
 /**
+ * The experience thresholds of a class built by the JJ class-creation
+ * procedure, priced against the world's builder tables: the register's
+ * allocation, the racial value's cost read from the race's own page by the
+ * register's pattern, and the saves chassis's post-8 increment.
+ * @param {object} build - the register's `build` block (allocation + race)
+ * @param {string} raceText - the race page's raw text
+ * @param {object|null} tables - the assembled `acks.classBuilder` tables
+ * @param {number} maximumLevel
+ * @param {string} chassis - the class's saves chassis
+ * @returns {{xp:number[], base:number, raceCost:number}|null} null where the
+ *   tables, the race cost or a priced row is missing — a partial price is
+ *   never written
+ */
+export function buildXp(build, raceText, tables, maximumLevel, chassis) {
+  if (!build || !tables?.budget || !Number.isInteger(maximumLevel)) return null;
+  const raceValue = build.race?.value ?? 0;
+  let raceCost = 0;
+  if (build.race?.pattern) {
+    const m = new RegExp(build.race.pattern, "i").exec(String(raceText ?? ""));
+    raceCost = m ? parseInt(m[1].replace(/,/g, ""), 10) : NaN;
+    if (!Number.isInteger(raceCost)) return null;
+  }
+  const state = {
+    hdValue: build.hdValue ?? 0,
+    fighting: { value: build.fighting?.value ?? 0, sub: build.fighting?.sub ?? "" },
+    thievery: { value: build.thievery?.value ?? 0 },
+    magic: build.magic ?? [],
+    race: { value: raceValue },
+    tradeoffs: build.tradeoffs ?? [],
+  };
+  const issues = [];
+  const base = baseXpCost(state, tables, { values: [{ value: raceValue, xpCost: raceCost }] }, issues);
+  const post = tables.budget.postEight ?? {};
+  const increment = chassis === "crusader" || chassis === "thief" ? post.crusaderThief : post[chassis];
+  if (issues.length || !Number.isInteger(increment)) return null;
+  const xp = xpSchedule(base, maximumLevel, { smoothing: tables.budget.smoothing, postEightIncrement: increment });
+  return { xp, base, raceCost };
+}
+
+/** The class-builder tables the world imported from the Judge's JJ, or null. */
+const worldBuilderTables = () => (hasDoc(BUILDER_DOC_ID) ? (getDoc(BUILDER_DOC_ID).tables ?? null) : null);
+
+/** The allocation and figures a priced class's experience came from. */
+const buildProvenance = (build, priced) => ({
+  base: priced.base,
+  hd: build.hdValue ?? 0,
+  fighting: `${build.fighting?.value ?? 0}${build.fighting?.sub ?? ""}`,
+  thievery: build.thievery?.value ?? 0,
+  magic: (build.magic ?? []).map((m) => `${m.type} ${m.value}`).join(", "),
+  race: build.race?.value ?? 0,
+  raceCost: priced.raceCost,
+  tradeoffs: (build.tradeoffs ?? []).length,
+});
+
+/**
  * A damage-bonus ladder stated as a sentence: a first bonus at a starting
  * level, then a step added at each level of a list. The register's pattern
  * captures, in order, the first bonus, its level, the step and the list of
@@ -8038,7 +8094,7 @@ export function bindClass(
   entry,
   node,
   id,
-  { gains = null, commonName = null, gear = [], spellTitles = null, printedRepertoire = null } = {},
+  { gains = null, commonName = null, gear = [], spellTitles = null, printedRepertoire = null, builderTables = null } = {},
 ) {
   const cite = entry.cite ?? "";
   const f = node?.fields ?? {};
@@ -8107,6 +8163,16 @@ export function bindClass(
     levels.push(...proseHitDiceLevels(body, entry.proseLevels.hitDice, f.maximumLevel));
   }
   levels.sort((a, b) => a.level - b.level);
+  // A class whose experience the book prints only in a picture is priced by
+  // the procedure it was built with; a level the grid did read keeps its own.
+  const raceText = Object.entries(f)
+    .filter(([k, v]) => /^race\d+c\d+$/.test(k) && typeof v === "string")
+    .map(([, v]) => v)
+    .join(" ");
+  const priced = levels.some((r) => r.xp == null)
+    ? buildXp(entry.build, raceText, builderTables, Math.max(...levels.map((r) => r.level)), entry.meta?.chassis?.saves ?? "")
+    : null;
+  if (priced) for (const row of levels) row.xp ??= priced.xp[row.level - 1] ?? null;
   const ladders = [...ladderMap.entries()].map(([key, values]) => ({
     key,
     label: key.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/^./, (c) => c.toUpperCase()),
@@ -8388,6 +8454,8 @@ export function bindClass(
         // subject. Kept so a sibling can lend its list to a class whose page
         // does not parse, and so the race document is brought in step.
         ...(raceKey ? { tongues: { race: raceKey, parsed: !!tongues } } : {}),
+        // What priced the experience column, for the sheet's provenance.
+        ...(priced ? { xpBuild: buildProvenance(entry.build, priced) } : {}),
         minted: true,
       },
     },
@@ -9108,6 +9176,7 @@ export async function importClasses({ only = null } = {}) {
         gear,
         spellTitles,
         printedRepertoire: classRepertoireFor(repertoires, entry.name),
+        builderTables: worldBuilderTables(),
       });
       return createDoc(Item, { ...built, folder });
     });
@@ -9973,6 +10042,7 @@ export async function cookbookUpdateClasses({ only = null, confirm = true, repai
       gear,
       spellTitles,
       printedRepertoire: classRepertoireFor(repertoires, entry.name),
+      builderTables: worldBuilderTables(),
     });
     const plan = await refreshImported(item, doc, REPAIR.class);
     countRepair(repair, plan);

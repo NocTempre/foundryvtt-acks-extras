@@ -15,7 +15,7 @@
 </header>
 
 {{#if isStub}}<p class="notification info">{{localize "ACKS-CLASSES.sheet.stubNotice"}}</p>{{/if}}
-{{#if xpUnread}}<p class="notification info">{{localize "ACKS-CLASSES.sheet.xpUnread" cite=cite}}</p>{{/if}}
+{{#if xpUnread}}<p class="notification info">{{localize "ACKS-CLASSES.sheet.xpUnread" cite=cite}}</p>{{else if titlesUnread}}<p class="notification info">{{localize "ACKS-CLASSES.sheet.titlesUnread" cite=cite}}</p>{{/if}}
 {{#if keyMissing}}<p class="notification warning">{{localize "ACKS-CLASSES.sheet.keyMissing"}}</p>{{/if}}
 
 <nav class="acks-extras-classes-tabs">
@@ -270,7 +270,7 @@
         {{#each levels}}
           <tr>
             <td><input name="system.levels.{{index}}.level" type="number" value="{{level}}" aria-label="{{localize "ACKS-CLASSES.sheet.level"}}" /></td>
-            <td><input name="system.levels.{{index}}.xp" type="number" value="{{xp}}" class="acks-extras-classes-num-wide" aria-label="{{localize "ACKS-CLASSES.sheet.xp"}}" /></td>
+            <td><input name="system.levels.{{index}}.xp" type="number" value="{{xp}}" class="acks-extras-classes-num-wide" aria-label="{{localize "ACKS-CLASSES.sheet.xp"}}"{{#if @root.xpTip}} data-tooltip-text="{{@root.xpTip}}"{{/if}} /></td>
             <td><input name="system.levels.{{index}}.title" type="text" value="{{title}}" aria-label="{{localize "ACKS-CLASSES.sheet.title"}}" /></td>
             <td><input name="system.levels.{{index}}.hd" type="text" value="{{hd}}" aria-label="{{localize "ACKS-CLASSES.sheet.hd"}}" /></td>
             <td><button type="button" class="acks-extras-classes-ctl" data-action="rowDelete" data-array="levels" data-index="{{index}}" aria-label="{{localize "ACKS-CLASSES.sheet.ctl.remove" what=(localize "ACKS-CLASSES.sheet.what.level")}}" data-tooltip="{{localize "ACKS-CLASSES.sheet.ctl.remove" what=(localize "ACKS-CLASSES.sheet.what.level")}}"><i class="fa-solid fa-trash" inert></i></button></td>

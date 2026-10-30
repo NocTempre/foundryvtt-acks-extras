@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- **A community book's classes arrive with their experience.** The OSR
+  Catgirl's book says each class was built with the class-creation and
+  race-creation procedures of the Judges Journal, and prints each racial
+  value's cost in its text. The import now prices each class's experience
+  that way, against the class-builder tables your Judges Journal import
+  holds, and the experience cells name the build they came from on hover.
+  Titles stay yours to type. Where the book's picture table differs from the
+  procedure, the procedure's figure is imported. Without the class-builder
+  tables the experience stays unread, as before. A world that imported the
+  classes before: **Manage → the book → Repair**; a priced figure replaces
+  one you typed.
+
 ## 11.12.1
 
 ### Fixed

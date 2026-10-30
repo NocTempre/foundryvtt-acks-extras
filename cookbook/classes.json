@@ -5227,6 +5227,39 @@
         "key": "meleeDamageBonus",
         "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*to\\s*damage[^.]{0,40}?at\\s*(\\d+)\\s*[a-z]{2}\\s*level,?[^.]{0,20}?additional\\s*\\+\\s*(\\d+)\\s*at\\s*((?:\\d+\\s*[a-z]{2}[,\\s]*(?:and)?\\s*)+)levels"
       },
+      "build": {
+        "hdValue": 0,
+        "fighting": {
+          "value": 2
+        },
+        "magic": [
+          {
+            "type": "arcane",
+            "value": 1
+          },
+          {
+            "type": "divine",
+            "value": 1
+          }
+        ],
+        "race": {
+          "value": 2,
+          "pages": [
+            8,
+            9
+          ],
+          "pattern": "Catgirl\\s*2:[\\s\\S]{0,300}?Cost:\\s*([\\d,]+)\\s*XP"
+        },
+        "tradeoffs": [
+          "weapons.unrestrictedBroad",
+          "weapons.broadNarrow",
+          "weapons.narrowRestricted",
+          "armor.heavyMedium",
+          "armor.mediumLight",
+          "armor.lightVeryLight",
+          "armor.veryLightNone"
+        ]
+      },
       "fields": {
         "name": {
           "op": "expect",
@@ -5954,6 +5987,39 @@
             "y1": 792
           },
           "pattern": "raw"
+        },
+        "race8c0": {
+          "op": "value",
+          "page": 8,
+          "box": {
+            "x0": 30,
+            "x1": 354,
+            "y0": 40,
+            "y1": 792
+          },
+          "pattern": "raw"
+        },
+        "race8c1": {
+          "op": "value",
+          "page": 8,
+          "box": {
+            "x0": 354,
+            "x1": 582,
+            "y0": 40,
+            "y1": 792
+          },
+          "pattern": "raw"
+        },
+        "race9c0": {
+          "op": "value",
+          "page": 9,
+          "box": {
+            "x0": 30,
+            "x1": 582,
+            "y0": 40,
+            "y1": 792
+          },
+          "pattern": "raw"
         }
       }
     },
@@ -5987,6 +6053,24 @@
       "damageBonus": {
         "key": "damageBonus",
         "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*to\\s*damage[^.]{0,40}?at\\s*(\\d+)\\s*[a-z]{2}\\s*level,?[^.]{0,20}?additional\\s*\\+\\s*(\\d+)\\s*at\\s*((?:\\d+\\s*[a-z]{2}[,\\s]*(?:and)?\\s*)+)levels"
+      },
+      "build": {
+        "hdValue": 1,
+        "fighting": {
+          "value": 2
+        },
+        "thievery": {
+          "value": 1
+        },
+        "race": {
+          "value": 4,
+          "pages": [
+            8,
+            9
+          ],
+          "pattern": "Catgirl\\s*4:[\\s\\S]{0,300}?Cost:\\s*([\\d,]+)\\s*XP"
+        },
+        "tradeoffs": []
       },
       "fields": {
         "name": {
@@ -6452,6 +6536,39 @@
             "y1": 792
           },
           "pattern": "raw"
+        },
+        "race8c0": {
+          "op": "value",
+          "page": 8,
+          "box": {
+            "x0": 30,
+            "x1": 354,
+            "y0": 40,
+            "y1": 792
+          },
+          "pattern": "raw"
+        },
+        "race8c1": {
+          "op": "value",
+          "page": 8,
+          "box": {
+            "x0": 354,
+            "x1": 582,
+            "y0": 40,
+            "y1": 792
+          },
+          "pattern": "raw"
+        },
+        "race9c0": {
+          "op": "value",
+          "page": 9,
+          "box": {
+            "x0": 30,
+            "x1": 582,
+            "y0": 40,
+            "y1": 792
+          },
+          "pattern": "raw"
         }
       }
     },
@@ -6486,6 +6603,30 @@
       "damageBonus": {
         "key": "damageBonus",
         "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*to\\s*damage[^.]{0,40}?at\\s*(\\d+)\\s*[a-z]{2}\\s*level,?[^.]{0,20}?additional\\s*\\+\\s*(\\d+)\\s*at\\s*((?:\\d+\\s*[a-z]{2}[,\\s]*(?:and)?\\s*)+)levels"
+      },
+      "build": {
+        "hdValue": 1,
+        "fighting": {
+          "value": 2
+        },
+        "thievery": {
+          "value": 1
+        },
+        "race": {
+          "value": 3,
+          "pages": [
+            8,
+            9
+          ],
+          "pattern": "Catgirl\\s*3:[\\s\\S]{0,300}?Cost:\\s*([\\d,]+)\\s*XP"
+        },
+        "tradeoffs": [
+          "weapons.unrestrictedBroad",
+          "weapons.broadNarrow",
+          "weapons.narrowRestricted",
+          "armor.heavyMedium",
+          "armor.mediumLight"
+        ]
       },
       "fields": {
         "name": {
@@ -7101,6 +7242,39 @@
         "body23c0": {
           "op": "value",
           "page": 23,
+          "box": {
+            "x0": 30,
+            "x1": 582,
+            "y0": 40,
+            "y1": 792
+          },
+          "pattern": "raw"
+        },
+        "race8c0": {
+          "op": "value",
+          "page": 8,
+          "box": {
+            "x0": 30,
+            "x1": 354,
+            "y0": 40,
+            "y1": 792
+          },
+          "pattern": "raw"
+        },
+        "race8c1": {
+          "op": "value",
+          "page": 8,
+          "box": {
+            "x0": 354,
+            "x1": 582,
+            "y0": 40,
+            "y1": 792
+          },
+          "pattern": "raw"
+        },
+        "race9c0": {
+          "op": "value",
+          "page": 9,
           "box": {
             "x0": 30,
             "x1": 582,

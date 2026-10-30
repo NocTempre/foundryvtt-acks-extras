@@ -9,10 +9,12 @@
  * them and tracks what it made; a class the world already holds under another
  * hand is read, never driven. Step 3 writes the run's OWN classes into the
  * stub shape a world imported before this change holds — no rows, no ladder,
- * no cleave — and repairs them through the class step's tally. Step 4 types an
- * experience figure and a title into one level, as a Judge copying the page
- * would, and repairs through the book repair's own gesture, its confirm
- * answered yes by the walk. Teardown sweeps the ledger and empties a shelf
+ * no cleave — and repairs them through the class step's tally. Step 2 checks
+ * the experience priced from each class's build where the world holds the JJ
+ * builder tables, by structure only. Step 4 types an experience figure and a
+ * title into one level, as a Judge copying the page would, and repairs
+ * through the book repair's own gesture, its confirm answered yes by the
+ * walk; a priced figure replaces the typed one, the title stays. Teardown sweeps the ledger and empties a shelf
  * this run opened. Every id printed is a cookbook id; the typed figure and
  * title are the walk's own, and no book word or number leaves the page.
  */
@@ -52,6 +54,7 @@ const P = {
     H.CB = await import("/modules/acks-extras/scripts/importer/cookbook.mjs");
     H.RF = await import("/modules/acks-extras/scripts/importer/refresh.mjs");
     H.REG = await import("/modules/acks-extras/scripts/classes/registry.mjs");
+    H.T = await import("/modules/acks-extras/scripts/lib/tables.mjs");
     if (!H.notesPatched) {
       H.notes = [];
       H.orig = {};
@@ -94,6 +97,15 @@ const P = {
       pastCap: s.levels.filter((r) => /\+/.test(r.hd)).length,
       unreadXp: s.levels.filter((r) => r.level > 1 && r.xp == null).length,
       level2: s.levels.find((r) => r.level === 2) ?? null,
+      // The price's structure, with no figure leaving the page: 2nd level is
+      // the recorded base, and every level after it costs more than the last.
+      tables: H.T.hasDoc("acks.classBuilder"),
+      build: doc.getFlag("acks-extras", "xpBuild") ?? null,
+      priced: (() => {
+        const b = doc.getFlag("acks-extras", "xpBuild");
+        const xp = s.levels.map((r) => r.xp);
+        return !!b && s.levels.find((r) => r.level === 2)?.xp === b.base && xp.every((v, i) => typeof v === "number" && (i === 0 || v > xp[i - 1]));
+      })(),
       ladder: (s.ladders ?? []).filter((l) => /damagebonus$/i.test(l.key)).map((l) => ({ key: l.key, rungs: l.values.length, rising: l.values.every((r, i, a) => i === 0 || r.value > a[i - 1].value) })),
       cleaves: s.cleaves,
       chassis: [s.saveChassis, s.attackChassis],
@@ -111,7 +123,8 @@ const P = {
     const text = doc.sheet.element?.textContent ?? "";
     const stub = game.i18n.localize("ACKS-CLASSES.sheet.stubNotice");
     const unread = game.i18n.format("ACKS-CLASSES.sheet.xpUnread", { cite: doc.system.source?.cite ?? "" });
-    const out = { rendered: !!doc.sheet.rendered, stubShown: text.includes(stub), unreadShown: text.includes(unread) };
+    const tip = doc.sheet.element?.querySelector('input[name="system.levels.1.xp"]')?.dataset.tooltipText ?? "";
+    const out = { rendered: !!doc.sheet.rendered, stubShown: text.includes(stub), unreadShown: text.includes(unread), xpTip: tip.length > 0 };
     await doc.sheet.close();
     return out;
   },
@@ -224,13 +237,17 @@ try {
   for (const u of all) fresh[u] = await run(gm, P.shape, { uuid: u });
   for (const [id, u] of Object.entries(heldAfter)) note(id, { uuid: u, ...fresh[u] });
   check("2: each class has a row per level with its hit dice, a rising damage ladder, a cleave per level, the fighter chassis and its gains", all.length === IDS.length && all.every((u) => rowsShape(fresh[u])), all.map((u) => fresh[u]));
-  check("2: experience is unread on every level past the first, or a hand typed it", all.every((u) => fresh[u].unreadXp <= fresh[u].levels - 1));
+  const tables = fresh[all[0]]?.tables;
+  note("2: the world holds the JJ builder tables", tables);
+  if (mine.length) check(tables ? "2: each class this run imported is priced from its build, 2nd level at the recorded base and rising" : "2: with no builder tables, each class this run imported leaves its experience unread", mine.every((u) => (tables ? fresh[u].priced : fresh[u].unreadXp === fresh[u].levels - 1 && !fresh[u].build)), mine.map((u) => ({ priced: fresh[u].priced, unread: fresh[u].unreadXp, build: fresh[u].build })));
+  check("2: no class carries a partial price — priced throughout, or its build unrecorded", all.every((u) => fresh[u].priced || !fresh[u].build));
+  note("2: classes held under another hand, priced", all.filter((u) => !mine.includes(u)).map((u) => fresh[u].priced));
   const lent = all.map((u) => fresh[u].lent);
   if (fresh[all[0]].fighterHeld) check("2: the throws at 1st level are the fighter's, lent through the chassis", lent.every((l) => l.save && l.attack), lent);
   else note("2: not reached", "the world holds no fighter class, so the chassis lends nothing — import the core classes first");
   const sheet = await run(gm, P.sheet, { uuid: all[0] });
   note("sheet", sheet);
-  check("2: the class sheet renders with no stub notice, and with the unread-experience notice where a level is unread", sheet.rendered && !sheet.stubShown && sheet.unreadShown === fresh[all[0]].unreadXp > 0, sheet);
+  check("2: the class sheet renders with no stub notice, with the unread-experience notice where a level is unread, and names the build on a priced figure", sheet.rendered && !sheet.stubShown && sheet.unreadShown === fresh[all[0]].unreadXp > 0 && sheet.xpTip === fresh[all[0]].priced, sheet);
   if (!mine.length) note("3–4: not reached", "the world holds every class under another hand, and a document with no marker is read, never driven (live-testing.md step 4)");
   else await drive(mine, heldAfter, fresh);
 } catch (err) {
@@ -278,6 +295,9 @@ async function drive(mine, heldAfter, fresh) {
   check("4: the book repair asked once, ran the class step and replaced at least this run's classes", byBook.asked === 1 && byBook.result?.mode === "repair" && "importClasses" in (byBook.result.refill ?? {}) && byBook.result.replaced >= mine.length, byBook.result && { replaced: byBook.result.replaced, refill: Object.keys(byBook.result.refill ?? {}) });
   const after = {};
   for (const u of mine) after[u] = await run(gm, P.shape, { uuid: u });
-  check("4: the typed figure and title survived, and the row's hit dice are the build's", after[mine[0]].level2?.xp === TYPED.xp && after[mine[0]].level2?.title === TYPED.title && after[mine[0]].level2?.hd === fresh[mine[0]].level2?.hd, after[mine[0]].level2);
+  // A priced figure is the build's reading, so the repair replaces a typed one;
+  // the title stays the Judge's either way.
+  const wantXp = fresh[mine[0]].priced ? fresh[mine[0]].level2?.xp : TYPED.xp;
+  check(fresh[mine[0]].priced ? "4: the typed title survived, the typed figure gave way to the price, and the row's hit dice are the build's" : "4: the typed figure and title survived, and the row's hit dice are the build's", after[mine[0]].level2?.xp === wantXp && after[mine[0]].level2?.title === TYPED.title && after[mine[0]].level2?.hd === fresh[mine[0]].level2?.hd, after[mine[0]].level2);
   check("4: the other classes, stubbed again, are back in the fresh shape", mine.slice(1).every((u) => rowsShape(after[u])), mine.slice(1).map((u) => after[u]));
 }

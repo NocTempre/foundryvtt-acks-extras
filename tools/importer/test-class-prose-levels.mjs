@@ -6,9 +6,11 @@
  * where it steps, how often it cleaves, and when it gains proficiencies. The
  * binder reads each from the reader's own body text through the register
  * row's patterns (`proseHitDiceLevels`, `proseDamageLadder`, the cleave
- * phrase, `proseGainSchedule`), leaving experience and title unread; the class
- * repair keeps what a Judge typed into an unread cell (`REPAIR.class`
- * `fillUnread`).
+ * phrase, `proseGainSchedule`), leaving the title unread. The experience is
+ * priced from the row's class-creation build against the world's builder
+ * tables (`buildXp`), and stays unread where they or the race's cost are
+ * absent; the class repair keeps what a Judge typed into an unread cell
+ * (`REPAIR.class` `fillUnread`).
  *
  * Every paragraph and number here is invented; the patterns are the shipped
  * register row's, read from `register/cat/`.
@@ -17,7 +19,7 @@ import assert from "node:assert";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { bindClass, proseHitDiceLevels, proseDamageLadder, proseGainSchedule } from "../../scripts/importer/cookbook.mjs";
+import { bindClass, buildXp, proseHitDiceLevels, proseDamageLadder, proseGainSchedule } from "../../scripts/importer/cookbook.mjs";
 import { REPAIR, refreshPlan } from "../../scripts/importer/refresh.mjs";
 
 let pass = 0;
@@ -95,6 +97,39 @@ const grid = bindClass(entry, { fields: { ...node.fields, progression: { rows: [
 ok("a printed grid wins over the sentence", grid.levels.length === 1 && grid.levels[0].hd === "1d6", JSON.stringify(grid.levels));
 const bookless = bindClass(entry, null, "def.class.inventedWarden").system;
 ok("bookless, the class stays a stub", bookless.levels.length === 0 && !bookless.ladders.length);
+
+/* --- the experience priced from the class's build ---------------------------------------- */
+
+// Invented tables in the shape `assembleBuilderTables` emits, and an invented
+// race page; the allocation and its race pattern are the shipped row's.
+const TABLES = {
+  budget: { smoothing: { level: 7, nearest: 1000 }, postEight: { fighter: 7000, crusaderThief: 5000, mage: 9000 } },
+  hd: [{ value: 0, cost: 10 }, { value: 1, cost: 20 }],
+  fighting: [{ value: 2, sub: "", cost: 200 }],
+  thievery: [{ value: 0, cost: 0 }],
+  magicTypes: { arcane: { values: [{ value: 1, cost: 30 }] }, divine: { values: [{ value: 1, cost: 40 }] } },
+  tradeoffs: ["weapons.unrestrictedBroad", "weapons.broadNarrow", "weapons.narrowRestricted"].map((key) => ({ key, xpDelta: 5, xpDeltaMinFighting: 2 })),
+};
+const RACE_PAGE = "Catgirl 1: invented.Cost: 99 XP. Catgirl 2:invented features over two lines. Cost:1,111 XP.Catgirl 3: invented. Cost: 7 XP.";
+const priced = { ...entry, build: spec.build };
+const pricedNode = { fields: { ...node.fields, race8c0: RACE_PAGE.slice(0, 40), race8c1: RACE_PAGE.slice(40) } };
+const pricedClass = bindClass(priced, pricedNode, "def.class.inventedWarden", { builderTables: TABLES });
+const EXPECTED = [0, 1406, 2812, 5624, 11248, 22496, 45000, 90000, 97000];
+ok(
+  "every level is priced: the allocation's costs and its rung's printed cost at 2nd, doubling, the smoothed 7th, then the chassis's flat step",
+  JSON.stringify(pricedClass.system.levels.map((r) => r.xp)) === JSON.stringify(EXPECTED),
+  JSON.stringify(pricedClass.system.levels.map((r) => r.xp)),
+);
+ok("the dice still come from the sentence", pricedClass.system.levels[8].hd === "7d10+6");
+const prov = pricedClass.flags["acks-extras"].xpBuild;
+ok("the flag records what priced it", prov?.base === 1406 && prov.raceCost === 1111 && prov.race === 2 && prov.magic === "arcane 1, divine 1" && prov.tradeoffs === 7, JSON.stringify(prov));
+ok("no tables in the world, no price and no flag", bindClass(priced, pricedNode, "def.class.inventedWarden").system.levels.every((r) => r.xp === null));
+const noRace = bindClass(priced, node, "def.class.inventedWarden", { builderTables: TABLES });
+ok("a race page that prints no cost prices nothing", noRace.system.levels.every((r) => r.xp === null) && !noRace.flags["acks-extras"].xpBuild);
+const noDivine = { ...TABLES, magicTypes: { arcane: TABLES.magicTypes.arcane } };
+ok("a category the tables cannot price leaves every level unread", bindClass(priced, pricedNode, "def.class.inventedWarden", { builderTables: noDivine }).system.levels.every((r) => r.xp === null));
+ok("a thief or crusader chassis takes their shared step", buildXp(spec.build, RACE_PAGE, TABLES, 9, "thief").xp[8] === 95000);
+ok("a level a grid read keeps its own figure", bindClass(priced, { fields: { ...pricedNode.fields, progression: { rows: [{ label: "1", cells: { xp: "0", title: "Tyro", hd: "1d6" } }, { label: "2", cells: { xp: "5", title: "B", hd: "2d6" } }] } } }, "def.class.inventedWarden", { builderTables: TABLES }).system.levels[1].xp === 5);
 
 /* --- the repair keeps what a Judge typed into an unread cell ----------------------------- */
 

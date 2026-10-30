@@ -96,7 +96,19 @@ export default class ClassSheet extends HandlebarsApplicationMixin(ItemSheetV2) 
     // table as a picture): the sheet says so and points at the page, rather
     // than leaving blank cells that read as "no experience needed".
     context.xpUnread = !sys.isStub && (sys.levels ?? []).some((r) => r.level > 1 && r.xp == null);
+    context.titlesUnread = !sys.isStub && (sys.levels ?? []).length > 0 && sys.levels.every((r) => !r.title);
     context.cite = sys.source?.cite ?? "";
+    // An experience column the import priced from the class's build names the
+    // build it came from, while it still holds the priced figure at 2nd level.
+    const build = this.document.getFlag(MODULE_ID, "xpBuild");
+    const second = (sys.levels ?? []).find((r) => r.level === 2)?.xp;
+    context.xpTip =
+      build && second === build.base
+        ? game.i18n.format(`${LANG_PREFIX}.sheet.xpBuildTip`, {
+            ...build,
+            magic: build.magic || game.i18n.localize(`${LANG_PREFIX}.sheet.xpBuildNoMagic`),
+          })
+        : "";
     // Ladders are read through the class key; a class with ladders and no key
     // has tables nothing can reach.
     context.keyMissing = !sys.key && (sys.ladders ?? []).length > 0;

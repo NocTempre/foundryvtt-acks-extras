@@ -1249,10 +1249,10 @@ than on authoring:
   penalty stay prose in any design.
 - **The classes' picture tables.** All three spreads print their level table
   as a picture (p13, p17, p20), and one its spell-slot table too; the rows,
-  hit dice, damage ladder, cleave and gains come from the sentences
-  (DECISIONS 2026-10-30), but experience, titles, the thief-skill and
-  backstab columns and the slots are only in the pictures, so the Judge types
-  them. Reading them is half built: the executor's `art` op already reads a
+  hit dice, damage ladder, cleave and gains come from the sentences and the
+  experience from each class's build (DECISIONS 2026-10-30), but titles, the
+  thief-skill and backstab columns and the slots are only in the pictures, so
+  the Judge types them. Reading them is half built: the executor's `art` op already reads a
   page's placed pictures (`pageArtInfo`/`getArt`) and the scene binding cuts
   a region of a page into a picture. The missing half is recognizing the
   cells — a character-recognition library (its wasm and language data,

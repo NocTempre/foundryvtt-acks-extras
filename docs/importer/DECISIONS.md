@@ -8894,3 +8894,53 @@ dependency and a new extraction surface, put to the owner (ROADMAP).
 *Cost:* a world holding the stubs needs one Repair of the book.
 `tools/importer/test-class-prose-levels.mjs` and
 `tools/live/importer-class-rows.mjs` pin the behaviour.
+
+## 2026-10-30 — A community class's experience is priced from its build
+
+Supersedes the rejection of "the class builder's derivation" in "A class
+stated in sentences" (same day). The new evidence: the book's own design
+pages (p5–6) say each class was assembled with the JJ class-creation and
+race-creation procedures on a racial value, and print each racial value's
+cost in text on the race pages. With those costs, one allocation per class
+— read from what its spread says it can do — reproduces its printed 2nd-level
+experience exactly under the module's own `baseXpCost`, and the printed
+maximum level of two of the three under the racial level-limit table. The
+earlier ruling assumed the build was unknowable; it is stated, in the
+procedure the book names. Where the printed table and the procedure then
+disagree, the owner ruled: import the procedure's figures and note the
+printed ones as errata (2026-10-30).
+
+*Ruled:*
+
+- **The register row declares the build** (`class.build`: Hit Dice,
+  Fighting, Thievery and magic values, trade-off keys, the racial value) —
+  a classification of the spread like `chassis`, not a figure read off a
+  page. The racial value's cost is a page value: the row's `build.race`
+  names the race's pages and the pattern that reads it, and the compiler
+  emits those pages' text column by column (`race<page>c<col>`).
+- **`buildXp` prices it against the world's builder tables**
+  (`acks.classBuilder`, imported from the Judge's JJ): `baseXpCost` for 2nd
+  level, `xpSchedule` with the tables' smoothing and the saves chassis's
+  post-8 step. Only a level whose experience is still unread takes the
+  price. No tables, no readable race cost, or a category the tables cannot
+  price leaves every level unread — a partial price is never written.
+- **Experience only.** Hit dice stay the hit-dice sentence's: one class's
+  die is its Hit Dice value raised by its racial value, which the race model
+  does not carry, so `derivePlan` would write the wrong die.
+- **Provenance rides the class** (`flags.acks-extras.xpBuild`), and the
+  sheet's experience cells name the build while 2nd level still holds the
+  priced figure. A Judge's typed experience is replaced on repair, since
+  the build now reads one; the titles stay the Judge's to type, and the sheet
+  says so when every level lacks one.
+
+*Rejected:* writing `system.builder` from the import (the builder tab's
+Apply would re-derive the hit dice from the die alone); adding the racial
+costs to the register (page values); the printed figures as a fallback
+(content).
+
+*Not applied:* where the printed hit points past 9th level, or a printed
+maximum level, differ from the procedure, the sentence and the page stand;
+the import reads them and the difference is reported to the owner.
+
+*Cost:* a held class takes the price on the next Repair of the book; a world
+without the JJ builder tables keeps unread experience and its notice.

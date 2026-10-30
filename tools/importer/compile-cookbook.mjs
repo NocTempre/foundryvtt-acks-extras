@@ -4827,28 +4827,34 @@ async function compileClass(doc, entry, kindRow) {
          emission order (page, then column), preserving reading order. The
          >=150px filter drops phantom columns a table's cell alignment can
          vote into the histogram — a real text column is never that narrow. --- */
-  for (const p of entry.pages) {
-    const bpd = p === page ? pd : await pageItems(doc, p);
-    // Margins at 30, not 45: BTA's recto pages set their left column at x36,
-    // and a 45 margin silently dropped that whole column from the body — every
-    // award printed there parked level-unresolved, and a pattern could then
-    // match the SAME phrase in a neighbouring class's column instead.
-    const bcols = defColumns(bpd).filter((x, i, a) => i === 0 || x - a[i - 1] >= 150);
-    const edges = [...bcols.slice(1).map((x) => x - 6), bpd.width - 30];
-    // The top edge is the book's declared body top where it declares one: a
-    // book whose text starts above 50 loses each page's first line otherwise,
-    // and a sentence that turns the page loses its middle.
-    const by0 = bpd.typography?.bodyTop ?? 50;
-    let bx0 = 30;
-    edges.forEach((bx1, ci) => {
-      fields[`body${p}c${ci}`] = {
-        op: "value", page: p,
-        box: { x0: bx0, x1: bx1, y0: by0, y1: bpd.height },
-        pattern: "raw",
-      };
-      bx0 = bx1;
-    });
-  }
+  const rawColumns = async (prefix, pages) => {
+    for (const p of pages) {
+      const bpd = p === page ? pd : await pageItems(doc, p);
+      // Margins at 30, not 45: BTA's recto pages set their left column at x36,
+      // and a 45 margin silently dropped that whole column from the body — every
+      // award printed there parked level-unresolved, and a pattern could then
+      // match the SAME phrase in a neighbouring class's column instead.
+      const bcols = defColumns(bpd).filter((x, i, a) => i === 0 || x - a[i - 1] >= 150);
+      const edges = [...bcols.slice(1).map((x) => x - 6), bpd.width - 30];
+      // The top edge is the book's declared body top where it declares one: a
+      // book whose text starts above 50 loses each page's first line otherwise,
+      // and a sentence that turns the page loses its middle.
+      const by0 = bpd.typography?.bodyTop ?? 50;
+      let bx0 = 30;
+      edges.forEach((bx1, ci) => {
+        fields[`${prefix}${p}c${ci}`] = {
+          op: "value", page: p,
+          box: { x0: bx0, x1: bx1, y0: by0, y1: bpd.height },
+          pattern: "raw",
+        };
+        bx0 = bx1;
+      });
+    }
+  };
+  await rawColumns("body", entry.pages);
+  // A class built by the JJ procedure on a racial value reads that value's
+  // cost from the page the race prints it on, column by column like the body.
+  if (spec.build?.race?.pages?.length) await rawColumns("race", spec.build.race.pages);
 
   return {
     kind: entry.kind,
@@ -4877,6 +4883,10 @@ async function compileClass(doc, entry, kindRow) {
     // than a text table: patterns the binder reads the reader's body with.
     ...(spec.proseLevels ? { proseLevels: spec.proseLevels } : {}),
     ...(spec.damageBonus ? { damageBonus: spec.damageBonus } : {}),
+    // The class's allocation under the JJ class-creation procedure, where the
+    // book prints a build's results but not its experience in text: the
+    // binder prices it against the world's builder tables.
+    ...(spec.build ? { build: spec.build } : {}),
     // The run-in the spread states its combat training under — declared per
     // class because the label is not the same on every spread.
     ...(spec.training ? { training: spec.training } : {}),

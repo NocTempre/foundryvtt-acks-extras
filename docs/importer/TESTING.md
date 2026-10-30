@@ -3348,12 +3348,19 @@ the run's own.
    *Observable:* it imports each one it was given.
 2. Read each class. *Observable:* one level row per level to its maximum,
    each with its hit dice — a die per level to the cap, then the flat step;
+   where the world holds the JJ builder tables (`acks.classBuilder`), each
+   class this run imported priced from its build — level 2 at the base its
+   `xpBuild` flag records, every level above the last — and otherwise
    experience unread on every level past the first; a damage ladder under
    the key its row declares, rising at each rung; a cleave per level; the
    fighter chassis for saves and attack, and at 1st level the save band and
    attack throw equal the fighter class's own; its proficiency picks as
-   choice awards. The class sheet renders without the *no progression rows
-   yet* notice and with the notice naming the page to copy experience from.
+   choice awards. No class carries a partial price. The class sheet renders
+   without the *no progression rows yet* notice, with the notice naming the
+   page to copy experience from where a level is unread, and with a
+   tooltip naming the build on a priced experience cell. Compare the priced
+   column with the printed table by eye, off the repo: the differences are
+   the errata DECISIONS 2026-10-30 reports, not a failed read.
 3. Write the run's classes into the stub shape (no levels, no ladder, no
    cleave), then run `cookbookUpdateClasses({ only, confirm: false, repair })`
    with a `repairTally()`.
@@ -3365,9 +3372,10 @@ the run's own.
    (`cookbookReimportBook(book, { mode: "repair" })`, its confirm answered yes
    by the walk).
    *Observable:* one confirm; the refill names the class step and the
-   replaced count covers the run's classes; the typed figure and title stand
-   on level 2 with the build's hit dice; the stubbed classes are back in the
-   step-2 shape.
+   replaced count covers the run's classes; the typed title stands on level 2
+   with the build's hit dice, and so does the typed figure where the class is
+   unpriced — a priced class takes its price back; the stubbed classes are
+   back in the step-2 shape.
 
 ### Teardown
 
