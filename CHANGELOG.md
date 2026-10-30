@@ -11,6 +11,13 @@
   slot, the price and the mark over the item where it stands and keeps a
   description the Judge wrote: **Manage → the book → Repair**, or tick the
   items under *A book's items* in the entry picker and repair them.
+- **An older book's cloth is clothing, and its tea or coffee is botanicals.**
+  Importing AX3's or AX1's demand grid warned that four of its goods matched
+  no merchandise and left each one out of every market's base demand. Cloth
+  now feeds Clothing and tea or coffee feeds Botanicals, so the warning names
+  only animals and mounts, which have no merchandise type and still wait on a
+  merchandise item's Aliases. A market takes the two goods the next time the
+  import runs; a base demand you set yourself stays as you set it.
 
 ## 11.12.0
 

@@ -16,6 +16,7 @@ import {
   ACKS1_GOODS, baseIsImportable, erratumStamp, goodsResolver, heldErratumNotes, marketActorData, marketEntryId, marketOrdinal,
   marketProfileUpdate, marketProfiles, parseDm, parseFamilies, parseMarketClass, placeName, unprintedMarketUpdate, withErratumNote,
 } from "../../scripts/importer/market-profile-binding.mjs";
+import { MERCHANDISE_TYPES } from "../../scripts/markets/config.mjs";
 
 let passed = 0;
 const ok = (name, fn) => { fn(); passed++; console.log("ok   " + name); };
@@ -54,6 +55,16 @@ ok("the default map only names keys a stocked catalogue holds", () => {
   assert.equal(thin("salt"), "salt");
   assert.equal(thin("fishPreserved"), null);
   assert.equal(none("animals"), null);
+});
+
+ok("every default translation lands on a merchandise type; cloth and tea or coffee feed two of them", () => {
+  const types = new Set(MERCHANDISE_TYPES.map((t) => t.key));
+  for (const [column, key] of Object.entries(ACKS1_GOODS)) assert.ok(types.has(key), `${column} → ${key}`);
+  const stocked = goodsResolver(MERCHANDISE_TYPES);
+  assert.equal(stocked("cloth"), "clothing");
+  assert.equal(stocked("teaCoffee"), "botanicals");
+  assert.equal(stocked("animals"), null);
+  assert.equal(stocked("mounts"), null);
 });
 
 ok("a Judge alias wins over the default map, by column key or printed header", () => {

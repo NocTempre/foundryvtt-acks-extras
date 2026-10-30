@@ -32,6 +32,8 @@ export const ACKS1_GOODS = Object.freeze({
   beerAle: "beerAle",
   oilLamp: "oilsSauces",
   textiles: "textiles",
+  cloth: "clothing",
+  teaCoffee: "botanicals",
   hidesFurs: "commonFurs",
   metalsCommon: "commonMetal",
   meatsPreserved: "preservedMeat",

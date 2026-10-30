@@ -233,8 +233,10 @@ Importing a setting book that prints a regional demand grid and domain
 records (AX3) gives each market its class, urban families and base demand.
 A market the book gives no other entry becomes a location of its own; its
 printed name arrives with the import. Older-edition goods translate to your
-merchandise through the Judge's aliases first, then the module's map; a good
-that translates nowhere is reported, never dropped. A class, family count or
+merchandise through the Judge's aliases first, then the module's map. A good
+that translates nowhere is left out and named in a warning after the import;
+add that name to a merchandise item's **Aliases** and import again to bring
+it in. A class, family count or
 base you already set is kept, and a re-import refreshes only what the same
 page wrote.
 
