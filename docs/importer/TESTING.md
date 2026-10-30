@@ -3331,7 +3331,10 @@ steps 1–4 on `cat`. Offline, the readers and the repair's keep:
 
 ### Fixtures
 
-None are kept. Step 1 imports the book's classes where the world lacks them
+One is kept: `classes/titled-sheet`, a world class with a title and an
+experience figure on every level, built where nothing carries the marker. Its
+sheet is the control for the notices and the build tooltip: it renders with
+neither. Step 1 imports the book's classes where the world lacks them
 and tracks what it made; a class the world holds under another hand is read,
 never driven, and the walk stops if every one is held. The chassis check
 needs the core fighter class imported from the Judge's own core book; where

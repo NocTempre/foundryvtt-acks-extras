@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 11.12.2
+
 ### Fixed
 
 - **A community book's classes arrive with their experience.** The OSR
