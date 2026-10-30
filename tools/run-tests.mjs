@@ -179,6 +179,7 @@ const COMMITTED = [
   "importer/test-character-binding.mjs",
   "importer/test-adventure-item-binding.mjs",
   "importer/test-bookless-import.mjs",
+  "importer/test-adventure-item-repair.mjs",
   "importer/test-ax1-cookbook.mjs",
   "../discord/test/config.test.mjs",
   "../discord/test/format.test.mjs",

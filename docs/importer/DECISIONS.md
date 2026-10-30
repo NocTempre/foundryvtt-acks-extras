@@ -8804,3 +8804,35 @@ with a better natural attack than a bare hand.
 is a page value and arrives from the Judge's book at import; `executor.mjs`
 needs a locator for it. The ruling settles the design's section (e); the
 build is the design's seven slices and lands under its own entries.
+
+## 2026-10-29 — A book's own item is repaired in place
+
+Supersedes the *Cost* line of "An item a book introduces is worn where its
+page says" (2026-10-28), one day old. The new evidence: after 11.12.0 shipped
+the binding, the owner's world still showed the community book's items
+unslotted, unmarked and at 0 gp. The items step passed every one as "already
+present" and wrote nothing, and no repair gesture reached them: `repairBook`
+walked only the shelves `SHELF_REFILL` names, and a book's own items are on
+none, so Manage → the book → Repair never ran their step. The only route was
+the cost line's "delete and import again", and nothing on the surface said so.
+
+*Ruled:* the items step, given a repair tally, writes the fresh build over each
+held item under `REPAIR.adventureItem` — slot, magic mark and cost rewritten,
+the quantity a Judge set kept, a description a Judge wrote kept. The run is
+reached from the book's Repair and from the entry picker's *A book's items*
+source, which is `bookOwn`: its rows file on the book's own folder, not on a
+cookbook shelf, so the shelf test that admits every other source does not
+apply to them. A repair's run order is `SHELF_REFILL`'s followed by every run
+no shelf names. `adventureItemData` is the item's one builder, shared by the
+import and the repair.
+
+*Rejected:* retracting a flag the build does not carry. A slot a hand set
+where the page gives none stays, as every other kind's binder flags do; a
+repair writes the binder's answers and leaves what it has no answer for.
+Also rejected: teaching the book REBUILD (drop mode) to delete a book's own
+items. It still walks shelves only, so a rebuild leaves the book's items
+standing, and the repair is the way to refresh them.
+
+*Cost:* a world imported before 11.12.0 needs one Repair per book to bring
+its items to the bound shape. `tools/importer/test-adventure-item-repair.mjs`
+and `tools/live/importer-item-repair.mjs` pin the behaviour.

@@ -596,7 +596,13 @@ the book sets one (`anchor.as`); a sidebar set beside the prose stays out of
 it, as it does of every flow. The items step (`cookbookImportAdventureItems`) makes each a
 core `item` named from the page, its description the prose with the page
 reference last, filed under the book's folder in its line's Item pack, and
-claimed by its cookbook id like every item. Beside the prose, three things
+claimed by its cookbook id like every item. One the world holds is passed as
+already present, and written over in place where the run carries a repair
+tally (`REPAIR.adventureItem`: slot, mark and cost rewritten, a Judge's
+description and the quantity kept); the entry picker lists the items under
+"A book's items", and a book repair takes them with the book's shelves
+(`bookOwn` on the source, since the items stand in the book's folder and on
+no cookbook shelf). Beside the prose, three things
 are read from the paragraph (`adventure-item-binding.mjs`): the place it
 says the item is worn, declared as the item's one slot
 (`flags.acks-extras.gear.slots`, the earliest body place the paragraph

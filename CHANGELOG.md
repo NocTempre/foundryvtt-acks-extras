@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- **An item a book introduces is repaired in place.** The items step used to
+  pass over every item the world already held, so an item imported before
+  11.12.0 read its paragraph kept its old shape — no slot, no price, no magic
+  mark — and only deleting it brought the new one. A repair now writes the
+  slot, the price and the mark over the item where it stands and keeps a
+  description the Judge wrote: **Manage → the book → Repair**, or tick the
+  items under *A book's items* in the entry picker and repair them.
+
 ## 11.12.0
 
 ### Added

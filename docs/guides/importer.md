@@ -168,6 +168,15 @@ own copy of its book: one whose book is not open on this seat is passed over,
 and the step's notice says how many it passed over and why. Connect the book
 and run the step again to import them.
 
+An import never rewrites a document the world already holds; a **repair**
+does. An item a book introduces that was imported before the importer read
+its paragraph (no slot to wear it at, no price, no magic mark) takes its
+shape through **Manage → the book → Repair**, or by ticking it under *A
+book's items* in the entry picker and repairing; a description you edited
+stays yours. Choose **Repair**, not the window's default Rebuild: a rebuild
+empties and refills the cookbook shelves, and a book's own items stand on
+none of them, so it leaves them as they are.
+
 The descriptor text is read from your PDF as the document is created and saved
 into it, with the book and page as its closing line. Everyone at the table can
 read it from then on, and you can edit it like any other description.

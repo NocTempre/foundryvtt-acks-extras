@@ -135,6 +135,9 @@ export const REPAIR = Object.freeze({
     flags: ["light", "shieldVariant"],
   },
   animal: { prose: ["details.biography"], flags: ["extras"] },
+  // An item a book introduces: the place it is worn and its magic mark are
+  // the binder's flags, its cost is the page's; how many a Judge holds is play's.
+  adventureItem: { keep: ["quantity"], prose: ["description"], flags: ["gear", "markets"] },
   monster: {
     retract: REFILL_STAT_PATHS,
     proseFlags: MONSTER_PROSE,

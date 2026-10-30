@@ -3275,6 +3275,52 @@ the folders and shelves found by difference.
    opened, but only if its index is empty. Quote what the sweep removed, what
    it could not find and what refused.
 
+## A book's items repaired in place
+
+An item a book introduces that the world already holds is passed as already
+present by the items step and written over in place by a repair (MODEL, "An
+item a book introduces"). Walk: `tools/live/importer-item-repair.mjs`, steps
+1–4 on `cat`. Offline, the policy and the step's repair branch:
+`tools/importer/test-adventure-item-repair.mjs`.
+
+### Fixtures
+
+None are kept. Step 1 imports the book's items where the world lacks them and
+tracks what it made; the walk strips only its own. Where another hand holds
+every one, the walk stops: a library document is read, never driven. Step 4
+is the exception the recipe cannot avoid: a book repair takes no `only`, so
+it writes over every document the world holds from the book — its classes
+and abilities too, under their own policies. Run it only when no peer is
+walking that book's other surfaces, and report the count it replaced beside
+the run's own.
+
+### Steps
+
+1. On the GM seat with the book open, run the items step for the book.
+   *Observable:* it imports what the world lacked, passes the rest as already
+   present, refuses none; each fresh item is worn at one slot and marked
+   magic, or a dose with neither, priced, with the binder's one paragraph.
+2. Write the run's own items into the pre-binding shape (no `gear` flag, no
+   `markets` flag, cost 0) with a quantity of 3, then run the plain items
+   step again.
+   *Observable:* every item reads stripped; the plain step passes them all
+   as already present, imports nothing and rewrites nothing.
+3. Run the items step narrowed to the run's ids with a repair tally
+   (`repairTally()` from `refresh.mjs`).
+   *Observable:* already present N, made 0, the tally replaced N and refused
+   0; the notice says "repaired in place"; each item has its slot, mark and
+   price back exactly as the fresh import gave them; the quantity of 3 and
+   the binder's one paragraph stay.
+4. Strip them again and run the book repair (`cookbookReimportBook(book,
+   {mode: "repair"})`, its confirm answered yes by the walk).
+   *Observable:* one confirm, the result's refill names the items step, the
+   replaced count covers the run's items, and each is back in the fresh shape.
+
+### Teardown
+
+The sweep removes the ledger's items; a shelf the run opened and left empty
+is deleted. The notice patch is restored.
+
 ## A community book, read through its declared typography
 
 `cat` is set off the family's ladder (MODEL, "A book's typography"). This

@@ -1787,7 +1787,20 @@ const REPAIR_RUNS = {
   importVariations: (only, tally) => importVariations({ only, repair: tally }),
   importVehicles: (only, tally) => importVehicles({ only, repair: tally }),
   importMerchandise: (only, tally) => importMerchandise({ only, repair: tally }),
+  cookbookImportAdventureItems: (only, tally) => cookbookImportAdventureItems({ only, repair: tally }),
 };
+
+/** The items every open or closed book introduces, as `[id, entry]` rows: a source of the entry picker. */
+function adventureItemEntries() {
+  const rows = [];
+  for (const cb of data.books.values()) {
+    for (const [id, e] of Object.entries(cb.entries ?? {})) if (e.kind === "kind.adventureItem") rows.push([id, e]);
+  }
+  return rows;
+}
+
+/** Is this id an item a book introduces? Such a row files on its book's own folder, not on a cookbook shelf. */
+const bookOwnEntry = (id) => cookbookEntry(id)?.entry?.kind === "kind.adventureItem";
 
 /** Every entry id a repair run can write in place, across the picker's sources. */
 const repairableEntryIds = () =>
@@ -1893,7 +1906,7 @@ async function repairBook(bookId, label) {
   for (const src of ENTRY_SOURCES) {
     if (src.type !== "Item" || !REPAIR_RUNS[src.refill]) continue;
     for (const [id] of src.entries()) {
-      if (bookOf(cookbookEntry(id)) !== bookId || !refillShelfOf(id)) continue;
+      if (bookOf(cookbookEntry(id)) !== bookId || !(src.bookOwn || refillShelfOf(id))) continue;
       if (!runs.has(src.refill)) runs.set(src.refill, new Set());
       runs.get(src.refill).add(id);
     }
@@ -1902,11 +1915,12 @@ async function repairBook(bookId, label) {
   const ofBook = (d) => {
     if (d.flags?.[MODULE_ID]?.templatePart) return false;
     const flag = d.getFlag(MODULE_ID, "cookbook");
-    return !!flag?.id && bookOfFlag(flag) === bookId && !!refillShelfOf(flag.id);
+    return !!flag?.id && bookOfFlag(flag) === bookId && !!(refillShelfOf(flag.id) || bookOwnEntry(flag.id));
   };
   // Actors too: an animal is an equipment entry filed as a creature.
   const docs = [...(await importedDocs("Item")), ...(await importedDocs("Actor"))].filter(ofBook);
-  const shelfOf = (d) => refillShelfOf(claimedId(d));
+  // A book's own item names its folder for a shelf, the group `targetFolder` files it under.
+  const shelfOf = (d) => refillShelfOf(claimedId(d)) ?? "Items";
   const over = docs.filter((d) => touched.has(claimedId(d)));
   const left = docs.filter((d) => !touched.has(claimedId(d)));
   const shelves = [...new Set(over.map(shelfOf))].sort();
@@ -1923,8 +1937,9 @@ async function repairBook(bookId, label) {
   if (!ok) return null;
   const tally = repairTally();
   const refill = {};
-  // In SHELF_REFILL's order, which is Import Everything's.
-  for (const run of new Set(Object.values(SHELF_REFILL))) {
+  // In SHELF_REFILL's order, which is Import Everything's; a run no shelf
+  // names (a book's own items) follows them.
+  for (const run of new Set([...Object.values(SHELF_REFILL), ...Object.keys(REPAIR_RUNS)])) {
     if (runs.has(run)) refill[run] = (await REPAIR_RUNS[run](runs.get(run), tally)) ?? null;
   }
   reportRepair(tally);
@@ -2394,6 +2409,9 @@ const ENTRY_SOURCES = [
     entries: () => cookbookEquipmentIds().map((id) => [id, cookbookEntry(id)?.entry ?? {}]),
   },
   { key: "Traps", type: "Item", refill: "importTraps", entries: () => [...trapEntries()] },
+  // A book's own items stand in its folder, on no cookbook shelf: `bookOwn`
+  // lets a book repair take them where `refillShelfOf` answers nothing.
+  { key: "BookItems", type: "Item", refill: "cookbookImportAdventureItems", bookOwn: true, entries: () => adventureItemEntries() },
   { key: "Spells", type: "Item", refill: "importSpells", entries: () => [...spellEntries()] },
   { key: "Variations", type: "Item", refill: "importVariations", entries: () => [...variationEntries()] },
   { key: "Vehicles", type: "Actor", refill: "importVehicles", entries: () => [...vehicleEntries()] },
@@ -5197,21 +5215,26 @@ async function bringAcross(bookId, plan, created) {
 /**
  * Items a book introduces (`kind.adventureItem`): each becomes a core item
  * whose name and description are the page's own, filed under the book's
- * folder in its line's Item pack. Only the row's prose is read; what an item
- * prints beside its description stays in it until a binding reads it.
- * `books` narrows the run to the open books it names; without it every open
- * book's items are imported. Quiet when no open book prints any, since the
- * step runs in every Import Everything.
+ * folder in its line's Item pack, read beside its prose for the place it is
+ * worn, its price and its magic mark (`adventureItemData`). `books` narrows
+ * the run to the open books it names; without it every open book's items are
+ * imported; `only` narrows it to a set of ids. An item the world holds is
+ * passed as already present, and written over in place where a `repair`
+ * tally is given (`REPAIR.adventureItem`: the slot, the mark and the cost are
+ * rewritten, a description a Judge wrote and the quantity stay), which is
+ * how an item imported before the binding read its paragraph takes its
+ * shape. Quiet when no open book prints any, since the step runs in every
+ * Import Everything.
  * @returns {Promise<{made: number, already: number, refused: number, created: {items: string[]}}>}
  */
-export async function cookbookImportAdventureItems({ books = null } = {}) {
+export async function cookbookImportAdventureItems({ books = null, only = null, repair = null } = {}) {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only.`);
   const wanted = books ? new Set(books) : null;
   const openBooks = [...data.books.keys()].filter((b) => ctx.sessionDocs.has(b) && (!wanted || wanted.has(b)));
   const jobs = [];
   for (const bookId of openBooks) {
     for (const [id, entry] of Object.entries(data.books.get(bookId).entries ?? {})) {
-      if (entry.kind === "kind.adventureItem") jobs.push({ bookId, id, entry });
+      if (entry.kind === "kind.adventureItem" && (!only || only.has(id))) jobs.push({ bookId, id, entry });
     }
   }
   const counts = { made: 0, already: 0, refused: 0, created: { items: [] } };
@@ -5220,8 +5243,12 @@ export async function cookbookImportAdventureItems({ books = null } = {}) {
   try {
     for (const { bookId, id, entry } of jobs) {
       bar.step(entry.name);
-      if (await importedItem(id)) {
+      const have = await importedItem(id);
+      if (have) {
         counts.already++;
+        if (unrepaired(repair, have)) {
+          countRepair(repair, await repairFromEntry(have, id, (node) => adventureItemData(bookId, id, entry, node), REPAIR.adventureItem));
+        }
         continue;
       }
       const doc = await claimImport(id, () => importAdventureItem(bookId, id, entry)).catch((err) => {
@@ -5237,18 +5264,37 @@ export async function cookbookImportAdventureItems({ books = null } = {}) {
     bar.finish();
   }
   ui.notifications[counts.refused ? "warn" : "info"](
-    `${MODULE_ID} | items: ${counts.made} imported, ${counts.already} already present${counts.refused ? `, ${counts.refused} refused (the page did not match the cookbook)` : ""}.`,
+    `${MODULE_ID} | items: ${counts.made} imported, ${counts.already} already present${repair ? ", repaired in place" : ""}${counts.refused ? `, ${counts.refused} refused (the page did not match the cookbook)` : ""}.`,
   );
   return counts;
 }
 
 /**
- * One book item, built from its page: a core item carrying the printed name
- * and the prose under it, declaring the place its paragraph says it is worn
- * (`flags.acks-extras.gear.slots`, which makes it wearable on every sheet),
- * priced from its cost line, and marked magic where the paragraph states a
- * crafting time (`adventure-item-binding.mjs`). What it grants stays prose.
+ * The creation data of one book item, from its executed page: a core item
+ * carrying the printed name and the prose under it, declaring the place its
+ * paragraph says it is worn (`flags.acks-extras.gear.slots`, which makes it
+ * wearable on every sheet), priced from its cost line, and marked magic where
+ * the paragraph states a crafting time (`adventure-item-binding.mjs`). What it
+ * grants stays prose. `folder` is the created item's; a repair writes none.
+ * Exported for the offline suite; Foundry-free.
  */
+export function adventureItemData(bookId, id, entry, node, folder = null) {
+  const shape = adventureItemShape((node.fields?.description ?? []).map((p) => p.text ?? "").join(" "));
+  const flags = { cookbook: { id, book: bookId, kind: entry.kind, cite: entry.cite } };
+  if (shape.slot) flags.gear = { slots: [shape.slot] };
+  if (shape.magic) flags.markets = { magic: true };
+  return {
+    // The row ships an ordinal label; the item is named from the page.
+    name: printedNameOf(node, entry.name),
+    type: "item",
+    img: DEFAULT_IMG.ITEM,
+    folder,
+    system: { description: entryText(node, id, entry.cite), subtype: "item", quantity: { value: 1, max: 0 }, cost: shape.cost ?? 0, weight: 0, weight6: 0 },
+    flags: { [MODULE_ID]: flags },
+  };
+}
+
+/** One book item created from its page (`adventureItemData`), or null when the page did not match. */
 async function importAdventureItem(bookId, id, entry) {
   const found = cookbookEntry(id);
   const session = ctx.sessionDocs.get(bookId);
@@ -5258,19 +5304,7 @@ async function importAdventureItem(bookId, id, entry) {
     return null;
   }
   const folder = (await targetFolder("Item", bookId, "Items"))?.id ?? null;
-  const shape = adventureItemShape((node.fields?.description ?? []).map((p) => p.text ?? "").join(" "));
-  const flags = { cookbook: { id, book: bookId, kind: entry.kind, cite: entry.cite } };
-  if (shape.slot) flags.gear = { slots: [shape.slot] };
-  if (shape.magic) flags.markets = { magic: true };
-  return createDoc(Item, {
-    // The row ships an ordinal label; the item is named from the page.
-    name: printedNameOf(node, entry.name),
-    type: "item",
-    img: DEFAULT_IMG.ITEM,
-    folder,
-    system: { description: entryText(node, id, entry.cite), subtype: "item", quantity: { value: 1, max: 0 }, cost: shape.cost ?? 0, weight: 0, weight6: 0 },
-    flags: { [MODULE_ID]: flags },
-  });
+  return createDoc(Item, adventureItemData(bookId, id, entry, node, folder));
 }
 
 /** How many times one map steps its bar: the anchor, the plan, the picture, the scene. */

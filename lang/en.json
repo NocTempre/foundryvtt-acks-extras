@@ -7740,6 +7740,7 @@
   "ACKS-IMPORTER.ui.reimportKindClasses": "Classes",
   "ACKS-IMPORTER.ui.reimportKindEquipment": "Equipment",
   "ACKS-IMPORTER.ui.reimportKindTraps": "Traps",
+  "ACKS-IMPORTER.ui.reimportKindBookItems": "A book's items",
   "ACKS-IMPORTER.ui.reimportKindVariations": "Variations",
   "ACKS-IMPORTER.ui.reimportKindVehicles": "Vehicles",
   "ACKS-IMPORTER.ui.reimportKindMerchandise": "Merchandise",
