@@ -4486,3 +4486,24 @@ session still read the stale flag until a move, deploy or Form Up (ROADMAP,
   left no member token on the map and showed the party token. The encounter
   stood with the foe alone. The sweep removed 10 and found nothing missing or
   refused. The pane's console, read from page load, held no error.
+
+### Taking up the mapper's kit needs the hands, as a light does (2026-10-29)
+
+Live probe: a member holding a readied torch took the mapper role and stood
+at 3 / 2 until their next equip toggle, which then stripped the torch and
+the weapon just drawn. `toggleRole` gated the role on the kit being carried
+and never on the hands the kit takes, while `addLight` refuses a flame with
+no spare hand.
+
+**Ruled.** Taking up a role whose kit is held (`ROLE_HAND_COST`) asks the
+equipment feature for spare hands first, as `prepareToLight` does, and
+refuses with the held-hands clause when they are short; the Judge's
+override has already emptied them (`equipForRole`) and is told what could
+not be emptied, not stopped. Setting a role down is never gated. The kit a
+mapper carries is reported in hand order by `kitInHand(actorId)` so the
+equipment feature lists it at the hands (equipment DECISIONS, same date).
+
+Rejected: resolving the overflow on the role change the way an equip toggle
+is resolved. That writes to the character's items from the party sheet, and
+the light path's refusal is the shape already documented as blocking by
+design for a player.

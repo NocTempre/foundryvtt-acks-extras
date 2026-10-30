@@ -5,12 +5,12 @@ availability and prices — with merchant imports, commissions, directed
 searches, the magic-item market, mercantile ventures, market research, and
 the goods and demand a settlement trades in.
 
-![](../releases/v11.0.0/markets.png)
+![](../releases/v11.12.0/markets.png)
 
 *A market's Trade tab: who the Judge is acting as, the coin, search-day and
-process controls, the two Judge switches, the settlement's demand modifier per
-good, the one report held about it, and the catalog with what the class makes
-available this month.*
+process controls, the Judge's contact switch, the market class, and the
+catalog with what the class makes available this month, each row carrying its
+cost, its availability and its buy and order controls.*
 
 ## Setup
 
@@ -34,6 +34,11 @@ available this month.*
    with how many priced items each holds. Untick a source and no shop lists
    it. Every source is in until you untick it, so a compendium a module adds
    later stocks the shops at once.
+
+![](../releases/v11.12.0/markets-shop-sources.png)
+
+*Shop sources with every source ticked: the world's items and each Item
+compendium, each with how many priced items it holds.*
 
 ## Acting as
 

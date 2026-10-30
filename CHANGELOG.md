@@ -1,9 +1,109 @@
 # Changelog
 
-## Unreleased
+## 11.12.0
+
+### Added
+
+- **The map's party system is on its navigation card.** Every scene's card
+  in the navigation bar carries an icon for the travel system the map
+  declares — dungeon, wilderness or settlement — and a question mark for a
+  map that declares nothing, with a tooltip saying what it means. For the
+  Judge the icon is the control: click it to pick a system (the declared one
+  is marked, *Leave to the party* clears it) or right-click it to clear; a
+  party standing on the map switches at once, and the map setup panel's own
+  select follows. Players see no icon. A new user-facing surface, so this
+  ships as a **minor** release.
+- **An item a book introduces is worn where its page says.** The items step
+  reads each item's paragraph for the place it is worn and declares that
+  slot, so the item can be worn from every sheet; it reads the cost line
+  into the item's cost, and marks an item whose paragraph states a crafting
+  time as magic. A dose declares no slot. What an item grants stays in its
+  description. An item already imported keeps its old shape; delete it and
+  run the items step again.
+- **One window for every import control.** *Manage Imports (GM)*, also in
+  *Module settings* and in the Books window's walkthrough band, opens five
+  tabs: Books (what is open, and the Books window), Import (the chain step
+  by step, run whole or one step at a time), Rebuild (a shelf, a book or the
+  rules tables, the same choices as *Reimport One Shelf*), Adventures and
+  Tools (the entry picker, the audit, the repair window, the merchandise
+  build, *Remove ALL imports*). The api gains `openImportManager`,
+  `importStep`, `rebuildOptions` and `runRebuildPick`.
+- **An adventure book can be rebuilt or repaired as one unit.** The
+  Adventures tab lists each adventure book open on this seat with what its
+  Adventure carries. *Rebuild* deletes everything imported from the book and
+  its Adventure and imports it again under the same ids, keeping its maps
+  (refreshed in place), a copy dragged out of the library, a player's
+  character and a document another book took over. *Repair* imports what the
+  world lacks, refreshes the maps and writes the Adventure anew, an edited
+  one included. *Write Adventure* writes the Adventure alone. The api gains
+  `cookbookReimportAdventure(bookId, {mode})` and `adventureBooks()`; the
+  factions, market-profile and roll-table steps take `{books}`.
+- **Every rebuilt document keeps its id.** A rebuild put an Item back under
+  the id it stood under; now every document the importer writes (a monster,
+  a place, an organisation, a journal, a roll table) does too, and a document
+  first imported from now on takes an id derived from its cookbook id, the
+  same in every world. Links to a rebuilt monster, and a kept map's pins and
+  seats, resolve again after a rebuild.
+- **The Judge chooses which compendiums stock the shops.** *Shop sources*
+  (Module settings, Judge only) lists the world's items and each Item
+  compendium, with how many priced items each holds. Untick one and no
+  market's Trade tab lists it. Every source is in until you untick it, so a
+  compendium installed later stocks the shops at once. A purchase, import
+  order, commission or search takes the very item its row lists, from the
+  source it was listed from, never another item of the same name; an order
+  placed before its source was unticked still arrives.
+
+### Fixed
+
+- **A dungeon level imported before 11.10.0 counts turns again.** Every
+  gridded plan the map step made before recipes declared a travel system
+  was marked as a wilderness map, so a party arriving on an imported dungeon
+  level took up a journey and its drags spent a few hundredths of a mile and
+  no turns. Running the book's map step again now brings a held level's mark
+  to what its recipe declares, where the level still carries the mark the
+  step minted; a mark a Judge set by hand is left alone. A party standing on
+  the level switches to the delve as the mark changes. The party guide's
+  Common problems says what to do for a party left on a journey in a dungeon.
+- **The Follower Card wears a slotted item.** Its equipment rows offered the
+  wear toggle to weapons and armour alone; a plain item with a declared slot
+  (gloves, a belt, a ribbon) is now offered too, and the toggle wears it at
+  that slot.
+- **Nothing is imported without the book.** The abilities, equipment,
+  classes, spells, traps and variations steps used to create an empty
+  document — name, icon and page reference, nothing read — for every entry
+  whose book was not open on the seat, and every sheet and picker then listed
+  it as the thing. Such an entry is now passed over, and the step's notice
+  says how many it passed over and why; open the book and run the step again
+  to import them. Empty documents a world already holds are left as they are
+  and are filled by Repair once their book is open.
+
+- **A lit torch is one hand.** Lighting a readied torch in hand counted the
+  flame as a second hand, so one torch read as 2 / 2 and a sword beside it
+  came off; and a torch already in hand beside a dagger could not be lit at
+  all, refused for the hand it was in. The flame now burns in the hand that
+  holds the torch, and a torch drawn and unlit is lit where it is: the Light
+  control on its row no longer sheathes it to free a hand or burns a second
+  torch off the stack. A character in no party pays the same hand for a lit
+  torch as a party member.
+- **The mapper's quill and parchment show in the hands.** While a character
+  holds the Mapper role the quill is listed in the main hand and the
+  parchment in the off hand, each marked *held for mapping*, so the two hands
+  the hands badge counts are visible on the sheet instead of only in its
+  clause. Unequipping a bow beside them had read as the bow keeping a hand.
+- **Taking the Mapper role needs the hands.** A character holding a torch or
+  a drawn weapon who takes the role is refused, as striking a light with no
+  free hand is, instead of standing over the hand budget until their next
+  equip. The Judge's override still empties the hands and goes on.
 
 ### Changed
 
+- **A market's ventures have a tab of their own.** The location sheet's new
+  **Ventures** tab holds entering, assessing, soliciting, trading and leaving,
+  the queue of venture days, the reports held about the market, *Set demand*,
+  the Demand Generator and the Judge's party blocks. **Trade** keeps buying,
+  selling, imports, commissions, searches and the money changer. Both carry
+  the *Acting as* picker (one choice for both), the market class, the demand
+  chips and the trade history.
 - **ERRATA.md is no longer in the module download.** The record of the
   printing errors the importer reads past, which 11.11.0 shipped in the
   module folder, now lives in the repository at

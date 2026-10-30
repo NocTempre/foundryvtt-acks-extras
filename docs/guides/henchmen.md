@@ -196,6 +196,12 @@ connected it is refused and says so, and no coin moves.
 *The Followers tab with a wage due: what is owed stated beside Pay wages, and
 the hireling's card listing the coin they hold.*
 
+![](../releases/v11.12.0/henchmen-wages-due.png)
+
+*The card the Judge is whispered once for each month an employer owes, with
+Monthly wage reminders on: who is owed and the total, and the buttons that pay
+the wages or mark the month missed.*
+
 ![](../releases/v10.2.0/henchmen-next-due.png)
 
 *The same tab with nothing due: what the payroll costs a month and the days

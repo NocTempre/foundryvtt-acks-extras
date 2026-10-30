@@ -545,10 +545,10 @@ row carrying its id.
 
 An imported world. Note the document id, `img` and `_stats.createdTime` of ONE
 imported trap and ONE imported proficiency, and the `_stats.createdTime` of
-every other trap and proficiency, before starting. A rebuild writes an Item
-again under the id it had and a monster under a new one (DECISIONS,
-2026-10-23, "A rebuilt Item keeps its id"), so the creation time is what tells
-a rebuilt Item from an untouched one. Either way the documents are the
+every other trap and proficiency, before starting. A rebuild writes every
+document again under the id it had, a monster included (DECISIONS,
+2026-10-28, "Every rebuilt document keeps its id"), so the creation time is
+what tells a rebuilt document from an untouched one. Either way the documents are the
 library's, not the run's: never track or
 sweep them, or the shelf is left short of the very entries the step rebuilt.
 Only what the run adds to the world is tracked, as it is made — the copies in
@@ -624,8 +624,8 @@ step 10, the entry step 7 creates.
     *Observable:* the confirm's removed count is 2 (the library's two
     documents, not the copies). Afterwards both copies keep their ids and the
     trap keeps your description. The compendiums hold both again, written
-    anew — the trap under the id it had with a later `_stats.createdTime`, the
-    monster under a new id — because the refill did not take a copy for the
+    anew — each under the id it had with a later `_stats.createdTime`, the
+    monster included — because the refill did not take a copy for the
     library's own document. Then *Reimport one shelf* for the trap's shelf.
     *Observable:* the copy is still there, unchanged, and the shelf's count
     matches the count before the step.

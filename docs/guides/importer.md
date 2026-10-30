@@ -335,6 +335,11 @@ window's walkthrough band, opens one window with every import control:
 The window runs one thing at a time and says what is running; each control
 asks before it deletes.
 
+![](../releases/v11.12.0/importer-manager.png)
+
+*The Import tab: the chain in its order, each step numbered with its Run
+button, and Import everything above them.*
+
 ### Rules tables
 
 The rules tables arrive with **Import Everything**. To read them again on
@@ -501,6 +506,11 @@ this seat with three actions:
   edited on the shelf, which the confirm says.
 - **Write Adventure** writes the Adventure alone, as the last step of
   *Import Everything* does.
+
+![](../releases/v11.12.0/importer-adventures.png)
+
+*The Adventures tab: each adventure book open on this seat with what its
+Adventure carries, and its Rebuild, Repair and Write Adventure buttons.*
 
 To rebuild a map as well, delete the scene first and then Rebuild or Repair.
 
@@ -888,4 +898,26 @@ anything is deleted.
 
 *The OSE creatures group narrowed to one book's templates: each a single row,
 rebuilt with all its steps.*
+
+## Macros
+
+Beside the import macros named above, the *ACKS Extras* macro compendium
+carries three Judge macros for the world's data as a whole.
+
+- **Repair This World (GM)** opens the repair window: scan for data this
+  module left damaged, tick the findings and press *Fix selected*; every fix
+  is checked by scanning again.
+- **Clean Up After the Merge (GM)** opens the same window on what the old
+  acks-* modules left behind — their flag scopes, effect keys, sheet choices
+  and settings, and documents of their sub-types that cannot load — already
+  scanned. Nothing is migrated: tick the rows and fix them, and the residue
+  is removed.
+- **Restore the Compendium Library (GM)** puts every ACKS compendium back in
+  the folder its package's manifest names.
+
+![](../releases/v11.12.0/lib-merge-cleaner.png)
+
+*The repair window as Clean Up After the Merge opens it: the stranded-coin
+check with nothing found, and the residue check listing each leftover with
+where it is and what was found, a tick per row and Fix selected beneath.*
 

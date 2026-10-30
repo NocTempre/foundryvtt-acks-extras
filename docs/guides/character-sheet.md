@@ -397,3 +397,8 @@ it, and the window says the changes are not saved yet.*
 
 Nothing changes until **Save**. **Reset to default** returns to the list above,
 by name, and keeps the statuses you made.
+
+## Macros
+
+- **Adjust Hit Points (GM)** opens the hit-point window on the canvas's
+  selected tokens, to change their hit points together.

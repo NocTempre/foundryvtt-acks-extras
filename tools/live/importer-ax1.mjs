@@ -1407,8 +1407,10 @@ try {
   const placeIn = (id) => lib2.find((r) => r.id === parentOf(id))?.uuid;
   check("2b: a second run makes the deleted rooms alone, and finds every other place", picks.length === 2 && again.made === 2 && again.already === ROWS.length - 2 && !again.creatures,
     { picks: picks.length, made: again.made, already: again.already, creatures: again.creatures });
-  check("2b: each room stands again once, under its id, a new document, in the place its row names",
-    picks.every((id) => now(id).length === 1 && now(id)[0].uuid !== was[id].uuid && now(id)[0].parentUuid === placeIn(id)));
+  // A rebuilt document keeps its id, so the room comes back under the uuid it had; that it is a new document is what the delete above and `made` prove.
+  check("2b: each room stands again once, under its id and the uuid it had, in the place its row names",
+    picks.every((id) => now(id).length === 1 && now(id)[0].uuid === was[id].uuid && now(id)[0].parentUuid === placeIn(id)),
+    Object.fromEntries(picks.map((id) => [id, { was: was[id].uuid, now: now(id).map((r) => r.uuid) }])));
   check("2b: the rooms inside the one made again are moved onto it", inside.length > 0 && inside.every((k) => lib2.find((r) => r.id === k)?.parentUuid === now(holder)[0]?.uuid),
     { inside: inside.length, moved: inside.filter((k) => lib2.find((r) => r.id === k)?.parentUuid === now(holder)[0]?.uuid).length });
   check("2b: a room made again links the creatures already made from its lines, none made twice",
