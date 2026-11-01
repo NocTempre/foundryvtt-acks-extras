@@ -61,6 +61,9 @@ function groupActor(name, stacks, { isOwner = true, isToken = false, compendium,
     system,
     refuse,
     mirrored: null,
+    toObject() {
+      return { system: { hp: { hd: "blank" } } };
+    },
     async update(changes) {
       if (this.refuse) throw new Error(`${name} refused the write`);
       writes.push(name);
@@ -291,6 +294,14 @@ t("a source that refuses the write takes the target back to what it held", async
   assert.deepEqual(await moveStack(from, to, "s"), { ok: false, reason: "failed" });
   assert.deepEqual(to.system.stacks, held);
   assert.equal(from.system.stacks.length, 1);
+});
+
+t("a source that refuses the write takes back the block a first stack seeded", async () => {
+  const from = groupActor("Source", [stackOf("s", "Actor.base", 2)], { refuse: true });
+  const to = groupActor("Target", []);
+  assert.deepEqual(await moveStack(from, to, "s"), { ok: false, reason: "failed" });
+  assert.deepEqual(to.system.stacks, []);
+  assert.equal(to.mirrored?.["system.hp"]?.hd, "blank");
 });
 
 t("a group's first stack seeds its representative block, and a later one does not", async () => {

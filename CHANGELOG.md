@@ -1,6 +1,8 @@
 # Changelog
 
 ## Unreleased
+
+## 11.13.1
 ### Added
 
 - **Drag a group's row onto the map to deploy it.** Drag its art or name onto the scene

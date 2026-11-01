@@ -402,6 +402,10 @@ export async function moveStack(from, to, stackKey) {
   const left = { "system.stacks": rest };
   if (rest.length && leaving[0].key === stackKey) Object.assign(left, representativeMirror(rest[0].template?.snapshot ?? {}));
 
+  const source = to.toObject();
+  const undo = Object.fromEntries(Object.keys(gained).map((path) => [path, foundry.utils.getProperty(source, path)]));
+  undo["system.stacks"] = held;
+
   let reached = false;
   try {
     await to.update(gained);
@@ -409,7 +413,7 @@ export async function moveStack(from, to, stackKey) {
     await from.update(left);
   } catch (err) {
     console.warn(`${MODULE_ID} | a stack's move failed`, err);
-    if (reached) await to.update({ "system.stacks": held });
+    if (reached) await to.update(undo);
     return { ok: false, reason: "failed" };
   }
   return { ok: true, name: stack.template?.label ?? "", into: landed.key, merged };
