@@ -9,6 +9,7 @@
  */
 import { savesForLevel, parseHitDice } from "./stats.mjs";
 import { hdFormula } from "../lib/actor-read.mjs";
+import { parseEncounterLine, appearingFormula } from "../lib/encounter-line.mjs";
 import { MODULE_ID, DEFAULT_IMG } from "./constants.mjs";
 
 const TYPE_KEYS = ["animal", "beastman", "construct", "enchanted", "giant", "humanoid", "incarnation", "monstrosity", "ooze", "plant", "undead", "vermin"];
@@ -112,20 +113,6 @@ const firstInt = (v) => {
   return m ? parseInt(m[1].replace(/,/g, ""), 10) : null;
 };
 
-/** "Wandering-noun (2d4) / Lair-noun (2d4)" -> encounter side object. */
-function encSide(value) {
-  if (!value || /^none/i.test(value)) return null;
-  const parts = value.split("/").map((s) => s.trim());
-  const parse = (part) => {
-    const m = /^([^(]+?)\s*\((\d+d\d+(?:[+-]\d+)?)\)/.exec(part ?? "");
-    return m ? { noun: m[1].trim(), number: m[2] } : null;
-  };
-  const wandering = parse(parts[0]);
-  const lair = parse(parts[1] ?? parts[0]);
-  if (!wandering && !lair) return null;
-  return { wandering: wandering ?? { noun: "", number: "" }, lair: lair ?? { noun: "", number: "" } };
-}
-
 export function mapPairs(pairs) {
   const system = {};
   const extras = {};
@@ -179,11 +166,10 @@ export function mapPairs(pairs) {
 
   const dungeonEnc = take("Dungeon Enc");
   const wildernessEnc = take("Wilderness Enc");
-  const dice = (v) => /\d+d\d+(?:[+-]\d+)?/.exec(v ?? "")?.[0] ?? "";
   if (dungeonEnc || wildernessEnc) {
-    system.details.appearing = { d: dice(dungeonEnc), w: dice(wildernessEnc) };
-    const d = encSide(dungeonEnc);
-    const w = encSide(wildernessEnc);
+    const d = parseEncounterLine(dungeonEnc);
+    const w = parseEncounterLine(wildernessEnc);
+    system.details.appearing = { d: appearingFormula(d), w: appearingFormula(w) };
     if (d || w) extras.encounter = { ...(d ? { dungeon: d } : {}), ...(w ? { wilderness: w } : {}) };
   }
   const lair = take("Lair");

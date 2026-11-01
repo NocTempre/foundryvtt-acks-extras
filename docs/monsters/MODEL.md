@@ -30,7 +30,7 @@ behavior.
 | **Normal / max load** | extras | `.load.{normal,capacity}` |
 | **Noncombatant** | extras | `.noncombatant` |
 | **Secondary characteristics** | extras | `.secondary.*` (expeditionSpeed, supplyCost, trainingMonths, intelligence, trainingModifier, battleRating, lifespan, oviparous, reproduction, untrainedValue, trainedValue[]) |
-| **Encounter (rich)** | extras | `.encounter.{lairChance, dungeon, wilderness}` |
+| **Encounter (rich)** | extras | `.encounter.{lairChance, dungeon, wilderness}`; each context `{wandering, lair}`, each side `{noun, number, unit}` |
 | **Immunities / resistances / susceptibilities** | extras | `.defenses.{immunities,resistances,susceptibilities}` = `{damage:Set, mundane, extraordinary, silverFlaw, effects, note}`. `silverFlaw` is RR ch.6's common flaw — silver counts as magic against this defence — and rides immunities and resistances only, never a susceptibility. |
 | **Spellcasting** | extras + items | `.spellcasting.{class,level,note}`, read off the prose at import; the repertoire is `system.spells` slots plus embedded `spell` items — copies of the imported documents the prose names, or a draw to the slots (`docs/magic/MODEL.md`, Repertoires) — `usage`-flagged where the page prints a frequency beside the name |
 | **HD / save ranges** | extras | `.hd.countMax`, `.saveAs.levelMax` (e.g. hydra "5 to 12") |
@@ -40,6 +40,23 @@ behavior.
 | **Proficiencies / special abilities** | items | `ability` items (`rollTarget`, `proficiencytype`) + flags below |
 | **Spoils / harvestable parts** | items | `item` items (`weight6` = N/6 stone, `cost` = gp) + flags below |
 | **Active effects** | core | actor `ActiveEffect`s |
+
+## Encounter lines
+
+`scripts/lib/encounter-line.mjs` reads a printed line for both importers. A
+side's `number` is a formula core's `Roll` takes; `unit` names what it counts
+when that is not bodies, and is blank otherwise. A line of one side is wandering
+only.
+
+Core's `details.appearing.{d,w}` holds `appearingFormula` of the matching line:
+the first side stating a count, blank when that count is in units. So a count of
+units never reaches a roll: the follower card shows no die for it, the Statblock
+reads it with its unit and offers no roll, and `sizeFromEcology` gives nothing.
+The Ecology tab edits all three fields, and its submit keeps core's field in step
+(`appearingChanges`).
+
+Walking a unit to the bodies it holds is the recipe engine's, not built:
+`docs/lib/wip/20261031-encounter-group.md`, §3d.
 
 ## Item flag metadata (`flags["acks-extras"]`)
 

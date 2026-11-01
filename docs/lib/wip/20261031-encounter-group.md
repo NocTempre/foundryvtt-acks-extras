@@ -15,9 +15,9 @@ runway's own condition was that the Judge decides when a group is sized, and a
 Roll button is that decision. Both lines are rewritten by the slice that lands
 the Roll.
 
-## 1. Ruling to take: a group, not a new sub-type
+## 1. The ruling: a group, not a new sub-type
 
-**Proposed: an encounter is an `acks-extras.group`.** The party is its own type
+**An encounter is an `acks-extras.group`.** The party is its own type
 because a formation record holds its state and the actor is a stub. For monsters
 the group already is the record, so a new type would add a document with no new
 state to put in it.
@@ -147,7 +147,6 @@ before it flattens into stacks.
 
 ### e. The importer
 
-- **X** Fix the line parsers first (§4).
 - **N** `scripts/importer/ecology-recipe.mjs`, following `proseLeaderRoles`: regex
   locators ship, every number is read at import from the seat's own text. It reads
   the paragraphs `monsterProseChannels` already routes to `ecology`, and it adds
@@ -178,6 +177,10 @@ sees what it left out.
 - **X** Template generation lives inside `TemplateSheet.#onGenerate`. Lift it over
   `chooseAxes` + `resolveActor` so a role cell becomes a stack source. `stackFromSource`
   wants a document, so it gains a plain-payload form.
+- **R** Every body rolls its own hit points. A rolled stack stays pristine, with no
+  hit points of its own, until `materializeMembers` gives each body its own roll of
+  the stack's `hp.hd` as it first becomes individual. The Roll must not write one
+  figure for a whole stack.
 - **X** `rollBodyHp` always rolls `hp.hd`. A printed leader's hit points are a fixed
   figure on the role cell, so such a stack keeps its snapshot's value.
 - **X** `ensureBaseActor` mints a world actor per compendium stack, and its
@@ -232,32 +235,13 @@ a roll on a template's other axis (tier D); a wandering band moved by the clock 
 journey map, the party's travel half; mass-combat routing of an attack on the stack,
 already `GROUPS.md`, "Boundaries".
 
-## 4. Defects found while mapping
+## 4. Build order
 
-**The encounter lines import wrong, in two copies of one parser** (`cookbook.mjs`
-`encSide`/`diceOf`, `importer/stats-map.mjs` `encSide`/`dice`). Measured by running the
-shipped regex over the local reference's lines, not on a live import, and real
-extraction may differ in spacing.
-
-- A literal count, a multiplied die and `<dice> <unit>` all fail the side regex. Of 287
-  entries, 78 wilderness lines and 40 dungeon lines parse to nothing, and 30 and 62 parse
-  on one side only.
-- `diceOf` then takes the first dice it finds, so a unit-of-units line stores N units as
-  N bodies in `details.appearing`, a multiplied die loses its multiplier, and a literal
-  count stores an empty formula or the other side's dice. The Follower Card's
-  number-appearing roll (T-0339) and the monster sheet both read that field.
-- A one-sided line is read as the lair side too.
-
-No ledger entry covers this. It is `acks-bug-triage` intake; monsters already imported
-keep the wrong figures until refreshed.
-
-## 5. Build order
-
-Each slice ships usable; the tier is what it reaches.
+The line parser this builds on landed first: `docs/monsters/MODEL.md`, "Encounter
+lines". Each slice ships usable; the tier is what it reaches.
 
 | Slice | Delivers | Reaches |
 |---|---|---|
-| 0 | The line parsers fixed, one implementation, refresh for imported monsters | correct numbers everywhere |
 | 1 | The Roll on the group sheet, Make Encounter, token defaults, noun, card | A, and B as a bare quantity |
 | 2 | Recipe schema, engine, Ecology-tab editor, units of units, parts into stacks | B and C, Judge-authored |
 | 3 | The importer writes recipes: young, leaders, ratios, branches, role XP | B and C, imported |
@@ -265,7 +249,7 @@ Each slice ships usable; the tier is what it reaches.
 | 5 | Stand Up from the card and hex stock, the detection and evasion feeds | |
 | 6 | XP prefill, treasure by unit | |
 
-## 6. Verification
+## 5. Verification
 
 - **Offline:** `tools/test-encounter-recipe.mjs` on the pure engine. A rolled die's size
   is asserted, not only its result (a suite that supplies the roll hides a wrong die).
@@ -280,10 +264,12 @@ Each slice ships usable; the tier is what it reaches.
 - **The window:** every new control at the raised type size, and a second sheet open
   (`ui-layout.md`).
 
-## 7. Open points
+## 6. The owner's rulings (2026-10-31)
 
-1. The ruling in §1.
-2. Whether the Roll writes stacks at once or shows a confirm first. Proposed: writes,
-   because every count is then editable on the sheet and the card shows the work.
-3. What a player sees of the token: its name, a count, or neither. Proposed: the noun,
-   no count.
+1. An encounter is a group, as §1 proposes.
+2. The Roll writes stacks at once. Every count is then editable on the sheet, and the
+   card shows the work.
+3. What a player sees of the token depends on scouting: the noun with no count, or the
+   name and the count. The Judge's reveal, and whether scouting sets it, are Slice 1's
+   to design.
+4. Each body rolls its own hit points (§3g).

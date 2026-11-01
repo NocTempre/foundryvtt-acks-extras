@@ -225,3 +225,38 @@ actor shares one fold state and one set of pins, because the fold is a user
 flag keyed by document id and the pins are the actor's sheet flag. The
 release that ships this owes a live walk of docs/monsters/TESTING.md on a
 relaunched world; the walk could not run in the session that built it.
+
+## 2026-10-31 — One encounter-line parser, and a count of units is no headcount
+
+Two copies of the parser read only a noun with dice in parentheses, and core's
+`details.appearing` took the first die anywhere on the line. A literal count, a
+multiplied die or a count of units failed the side, and the field then held the
+other side's die, a die short of its multiplier, or N units as N bodies.
+`scripts/lib/encounter-line.mjs` is now the one reader, and the importers, the
+sheet's mirror and `sizeFromEcology` go through it. Run over every line the
+shipping executor extracts from the local reference (334 entries, 1,051 printed
+sides), it reads 1,040 sides where the old parser read 706; the 11 left print no
+count. Of core's 668 fields, 94 gain a value, 78 change one, and 31 go blank
+because their count is in units.
+
+A side's `number` stays the printed count, as a formula, and `unit` says what it
+counts. A line of one side is wandering only: the page states no lair count
+there, and the old parser copied one. A count others stand beside stays this
+creature's own, and who stands beside it is left to the recipe.
+
+Foundry's `Roll` throws on a blank formula, which core's `rollAppearing` hands it
+unguarded, so a Statblock row on a line of none already threw when pressed. A
+row with no formula no longer rolls.
+
+**Rejected.** Composing a body formula through the unit chain now. The units do
+resolve (96 of 100 name a noun on another line of the same entry), but it writes
+a nested formula into a field a Judge reads, and leaders key on units, so the
+tree has to survive to the part step (`docs/lib/wip/20261031-encounter-group.md`,
+§3d). Keeping the printed text in `number` and parsing on read: it needs no new
+field, but every reader of `number` would need a parser, and a typed formula
+would stop being a formula.
+
+**What it cost.** A monster whose first stated count is in units has no
+number-appearing roll until the recipe engine lands. A monster already imported
+keeps the old figures until it is repaired in place; there is nothing to migrate
+from, because the old sides are blank where the page printed a count.

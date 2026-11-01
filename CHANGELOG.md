@@ -30,6 +30,18 @@
 - **A player's sheet no longer prices the party at nothing** because a member is
   not theirs. A seat that does not own a character now reads their speed off
   what they carry.
+- **Number appearing imports what the line prints.** A fixed count, a multiplied
+  die and a line with one side now read correctly, where they came in blank,
+  short of their multiplier or holding the other side's die. Repair a monster in
+  place to correct one already imported.
+- **A line that counts groups is no longer rolled as a headcount.** It keeps its
+  count and its unit, the Statblock shows both, and the Ecology tab gains a unit
+  field beside each count. Such a monster has no number-appearing die for now.
+- **A number-appearing row with no formula no longer fails when pressed.** It
+  offers no roll.
+- **A lair chance printed as a percent now imports,** for the adventure books'
+  monsters.
+
 ## 11.12.3
 
 ### Added

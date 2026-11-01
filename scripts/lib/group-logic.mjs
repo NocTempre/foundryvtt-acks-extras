@@ -9,6 +9,7 @@
  * and `structuredClone` is a standard built-in in both Node and the browser.
  */
 import { MODULE_ID } from "./constants.mjs";
+import { appearingFormula } from "./encounter-line.mjs";
 
 /** The registered actor sub-type a stack is stored as. */
 export const GROUP_ACTOR_TYPE = `${MODULE_ID}.group`;
@@ -166,9 +167,8 @@ export function cleanDelta(delta) {
 export function sizeFromEcology(source, context = "wilderness") {
   if (!source) return null;
   const extras = source.getFlag?.("acks-extras", "extras");
-  const side = extras?.encounter?.[context];
-  const rich = side?.wandering?.number || side?.lair?.number;
-  if (rich) return String(rich).trim();
+  const rich = appearingFormula(extras?.encounter?.[context]);
+  if (rich) return rich;
   const core = source.system?.details?.appearing?.[context === "dungeon" ? "d" : "w"];
   return core ? String(core).trim() : null;
 }

@@ -176,6 +176,51 @@ negative half.
 Delete both actors and any tokens placed for the vision step. Confirm no
 fixture actors remain.
 
+## Encounter lines
+
+Walked by `tools/live/monsters-encounter.mjs`, with `mm` and `ax2` on
+`ACKS_TEST_BOOKS`.
+
+**Fixtures.** Kept, and each brought to shape at its step's start.
+
+- `monsters/encounter-typed`: a hand-built monster, its wilderness line blank.
+- `monsters/encounter-units`, `monsters/encounter-times`,
+  `monsters/encounter-literal`, `monsters/encounter-percent`: a bare monster
+  carrying a cookbook id in its `cookbook` flag, for an entry of that shape. A
+  repair fills it from the open book.
+
+**Steps.**
+
+1. Parse invented lines in the page and roll each formula on Foundry's `Roll`:
+   a die, a literal, a multiplied die, a sum, a sum under a multiplier.
+   *Observable:* every total sits in its dice's range, and `new Roll("")` throws.
+2. On the Ecology tab of the typed monster, type a count into a side.
+   *Observable:* the four sides each show a unit field, and the count lands in
+   `extras.encounter` and in `system.details.appearing`.
+3. Type a unit beside it.
+   *Observable:* the unit lands and core's field goes blank. The Statblock reads
+   the count with its unit and the row offers no roll, its line carrying the
+   tooltip that says why; a press posts nothing. The follower card has no die
+   for it, and `sizeFromEcology` gives null.
+4. Clear the unit.
+   *Observable:* core's field holds the count again and the row rolls it.
+5. Write the old parser's shape on each kept entry actor (a stale noun and die on
+   both sides, a die in core's field) and call `refillMonster(actor, {whole:
+   true})`.
+   *Observable:* the stale noun is gone from every side. The units entry keeps a
+   unit and a count that rolls, core's field blank, and the group sizes nothing.
+   The multiplied entry keeps its multiplier and states no lair count. The
+   literal entry holds a bare figure. The percent entry's `lairChance` reads as a
+   number.
+
+- **A row that cannot roll has no `data-roll`.** Its pin button always does, so
+  find a row from its pin.
+- **The walk opens its books on its own seat** (`remember: false`), so a shelf
+  book is not needed in the world.
+
+**Teardown.** The cards the run posts, by id: `api.sweepTracked({only})`; quote
+it. The fixtures stay.
+
 ## A spellcasting monster
 
 Needs the MM PDF connected, and the spells and classes imported: the class

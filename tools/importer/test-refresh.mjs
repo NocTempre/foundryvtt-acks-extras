@@ -224,6 +224,13 @@ check(
   "an unstamped item of the build's type and name stands in for it",
   !unstamped.replace.items.add.length && !unstamped.replace.items.remove.length,
 );
+const appearing = refreshPlan(
+  { type: "monster", system: { details: { appearing: { d: "3d5", w: "2d7" } } }, flags: {} },
+  { type: "monster", system: { details: { appearing: { d: "3", w: "" } } }, flags: {} },
+  REPAIR.monster,
+);
+check("a corrected appearing formula is written", appearing.update.system.details.appearing.d === "3");
+check("a formula the page's count no longer gives is written blank", appearing.update.system.details.appearing.w === "");
 
 /* --- a class: rewritten whole, an effect a Judge took over stands --------- */
 const KEYS = { weapons: `flags.${M}.weaponProf`, styles: `flags.${M}.styleProficient` };

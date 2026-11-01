@@ -841,6 +841,12 @@ t("sizeFromEcology: reads the rich block, falls back to core, else null", () => 
   };
   assert.equal(sizeFromEcology(rich, "wilderness"), "4d6");
   assert.equal(sizeFromEcology(rich, "dungeon"), "2d4", "lair number when no wandering");
+  // A count of units sizes nothing, and no body count stands behind it.
+  const units = {
+    getFlag: () => ({ encounter: { wilderness: { wandering: { number: "4d6", unit: "knots" } } } }),
+    system: { details: { appearing: { w: "" } } },
+  };
+  assert.equal(sizeFromEcology(units, "wilderness"), null);
   // No extras: fall back to the core details.appearing mirror.
   const core = { getFlag: () => undefined, system: { details: { appearing: { w: "1d8", d: "1" } } } };
   assert.equal(sizeFromEcology(core, "wilderness"), "1d8");

@@ -26,6 +26,7 @@ import * as CFG from "./config.mjs";
 import { loadStone, capacityStone, borneBy6 } from "../lib/capacity.mjs";
 import { riderOf } from "../lib/mount.mjs";
 import { hdFormula } from "../lib/actor-read.mjs";
+import { appearingChanges, countText } from "../lib/encounter-line.mjs";
 import { ANIMAL_TRAINING } from "../lib/data/animal-data.mjs";
 import { FRAME_CLASS, FRAME_LANG_PREFIX, FRAME_VIEW_ACTIONS, FrameMixin } from "../lib/frame.mjs";
 import { SAVE_KEYS, saveCells, hpCell, num, sheetFlag } from "../lib/frame-model.mjs";
@@ -450,7 +451,7 @@ export function createFullMonsterSheet(Base) {
       const flagsOf = (item) => item.flags?.[MODULE_ID] ?? {};
       const side = (key, core) => {
         const s = extras.encounter?.[key] ?? {};
-        return { wandering: s.wandering?.number || core || "", lair: s.lair?.number || "" };
+        return { wandering: countText(s.wandering) || core || "", lair: countText(s.lair), formula: core || "" };
       };
       const def = extras.defenses ?? {};
       const band = (b, silverFlawToo) => [
@@ -652,9 +653,12 @@ export function createFullMonsterSheet(Base) {
           await plainRoll(actor, `1d6 + ${mod}`, {}, game.i18n.localize(a === "others" ? "ACKS.SurpriseOthers" : "ACKS.AvoidSurprise"));
           return true;
         }
-        case "enc":
+        case "enc": {
+          // Core's roll hands the formula to `Roll`, which throws on a blank one.
+          if (!sys.details?.appearing?.[a === "wilderness" ? "w" : "d"]) return false;
           await actor.rollAppearing({ event, check: a === "wilderness" ? "wilderness" : "dungeon" });
           return true;
+        }
         case "lair": {
           const chance = MonsterExtras.fromActor(actor).encounter?.lairChance;
           if (chance == null) return false;
@@ -892,12 +896,8 @@ export function createFullMonsterSheet(Base) {
         }
         foundry.utils.setProperty(submitData, path, cleaned);
 
-        const firstOf = (enc, side) => enc?.[side]?.wandering?.number || enc?.[side]?.lair?.number || "";
-        for (const [side, key] of [["dungeon", "d"], ["wilderness", "w"]]) {
-          const next = firstOf(cleaned.encounter, side);
-          if (next && next !== firstOf(stored.encounter, side)) {
-            foundry.utils.setProperty(submitData, `system.details.appearing.${key}`, next);
-          }
+        for (const [key, formula] of Object.entries(appearingChanges(stored.encounter, cleaned.encounter))) {
+          foundry.utils.setProperty(submitData, `system.details.appearing.${key}`, formula);
         }
         // Only the rating's own change rewrites `system.hp.hd`. See
         // docs/monsters/DECISIONS.md, "The Hit Dice rating writes core's

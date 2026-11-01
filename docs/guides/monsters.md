@@ -25,7 +25,9 @@ still sits on its own d20, and a power with no prose gets no button.
 
 Under the vitals, **Number appearing** lists the monster's dungeon and
 wilderness formulas, each with a die that rolls it to chat — the same roll the
-full sheet's Statblock makes.
+full sheet's Statblock makes. A line that counts groups rather than bodies has
+no die: the Statblock shows the count with its unit, and the roll waits for the
+Judge.
 
 ![](../releases/v11.11.0/monsters-number-appearing.png)
 
@@ -79,7 +81,8 @@ The tabs:
   the silver flaw, and what the creature casts as (class and level). The
   spell page itself is the **Spells** tab, on for any creature that carries
   a spell.
-- **Ecology** — habitat, number appearing, lair chance, treasure.
+- **Ecology** — habitat, number appearing (each side's noun, count and unit;
+  leave the unit blank when the count is bodies), lair chance, treasure.
 - **Animal** — on an animal only: body form, carrying load and training.
 - **Service** — core's retainer fields and the manager picker, and, while
   the creature serves, the same Service panel a hireling's character sheet
@@ -149,7 +152,8 @@ named.*
 
 A monster's **number appearing** sizes a group: the group feature reads it into a
 dice formula, but nothing auto-rolls it — the Judge decides when a group is
-sized. A source with no ecology data returns nothing, and you type the size.
+sized. A source with no ecology data returns nothing, and you type the size; so
+does a count in units, which is not a number of bodies.
 
 ![](../releases/v3.0.0/group-sheet.png)
 

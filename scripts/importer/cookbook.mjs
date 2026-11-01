@@ -65,6 +65,7 @@ import { ARMOR_TABLE, extractArmorFromDoc, bindArmorRow } from "./armor-tables.m
 import { extractPriceMapFromDoc, extractPriceRowsFromDoc, priceFor, priceKey, PRICE_TABLES } from "./gear-prices.mjs";
 import { savesForLevel, parseHitDice } from "./stats.mjs";
 import { hdFormula } from "../lib/actor-read.mjs";
+import { parseEncounterLine, appearingFormula } from "../lib/encounter-line.mjs";
 
 /** A class or race key: the name with everything but letters and digits gone. */
 const foldKey = (s) => String(s ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -334,20 +335,6 @@ const DAMAGE_WORDS = {
   poisonous: "poisonous", seismic: "seismic", slashing: "slashing",
 };
 
-/** "Wandering noun (2d4) / Lair noun (2d6)" -> encounter side object. */
-function encSide(value) {
-  if (!value || /^none/i.test(String(value))) return null;
-  const parse = (part) => {
-    const m = /^([^(]+?)\s*\((\d+d\d+(?:[+-]\d+)?)\)/.exec((part ?? "").trim());
-    return m ? { noun: m[1].trim(), number: m[2] } : null;
-  };
-  const parts = String(value).split("/");
-  const wandering = parse(parts[0]);
-  const lair = parse(parts[1] ?? parts[0]);
-  if (!wandering && !lair) return null;
-  return { wandering: wandering ?? { noun: "", number: "" }, lair: lair ?? { noun: "", number: "" } };
-}
-
 /**
  * Map executor output onto the Full Monster Sheet's extras schema
  * (Classification / Rating & Saves / Vision / Movement / Ecology / Defenses).
@@ -397,13 +384,14 @@ export function buildExtras(node) {
   if (speeds.length) extras.speeds = speeds;
 
   /* --- encounter --- */
-  const d = encSide(s.dungeonEnc);
-  const w = encSide(s.wildernessEnc);
-  if (d || w || s.lairChance != null) {
+  const d = parseEncounterLine(s.dungeonEnc);
+  const w = parseEncounterLine(s.wildernessEnc);
+  const lairChance = firstInt(s.lairChance);
+  if (d || w || lairChance != null) {
     extras.encounter = {
       ...(d ? { dungeon: d } : {}),
       ...(w ? { wilderness: w } : {}),
-      ...(s.lairChance != null ? { lairChance: s.lairChance } : {}),
+      ...(lairChance != null ? { lairChance } : {}),
     };
   }
 
@@ -562,7 +550,10 @@ export function bindStatsScalars(s) {
     ...(s.treasureType ? { treasure: { type: /^none/i.test(s.treasureType) ? "None" : s.treasureType } } : {}),
   };
   if (s.dungeonEnc || s.wildernessEnc) {
-    system.details.appearing = { d: diceOf(s.dungeonEnc), w: diceOf(s.wildernessEnc) };
+    system.details.appearing = {
+      d: appearingFormula(parseEncounterLine(s.dungeonEnc)),
+      w: appearingFormula(parseEncounterLine(s.wildernessEnc)),
+    };
   }
 
   const speed = String(s.speedLand ?? "");

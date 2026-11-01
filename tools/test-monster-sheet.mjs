@@ -89,7 +89,10 @@ const snap = () => ({
   initiative: 1,
   surpriseOthers: 0,
   surpriseAvoid: 2,
-  encounter: { dungeon: { wandering: "2d4", lair: "1d6" }, wilderness: { wandering: "", lair: "3d10" } },
+  encounter: {
+    dungeon: { wandering: "2d4", lair: "1d6", formula: "2d4" },
+    wilderness: { wandering: "", lair: "3d10", formula: "3d10" },
+  },
   lairChance: 35,
   treasure: { type: "F", linked: true },
   attackThrow: 7,
@@ -148,6 +151,22 @@ test("the encounter rows: the sides' figures on the line, the lair chance only w
   assert.equal(bare.columns[0][2].rows[2].rollable, false);
   assert.equal(bare.columns[0][2].rows[3].rollable, false);
   assert.equal(bare.columns[0][2].rows[3].line, "statblock.row.treasureNone");
+});
+test("an encounter row rolls only a formula; a count in units reads and offers no roll", () => {
+  const { columns } = statblockColumns(snap(), loc);
+  assert.equal(columns[0][2].rows[0].rollable, true);
+  const units = { wandering: "2d7 knots", lair: "1 muster", formula: "" };
+  const counted = statblockColumns({ ...snap(), encounter: { dungeon: units, wilderness: units } }, loc);
+  const [dungeon, wilderness] = counted.columns[0][2].rows;
+  assert.ok(dungeon.line.includes("2d7 knots") && dungeon.line.includes("1 muster"));
+  assert.equal(dungeon.rollable, false);
+  assert.equal(wilderness.rollable, false);
+  assert.equal(dungeon.lineTip, "statblock.row.inUnits");
+  assert.equal(columns[0][2].rows[0].lineTip, "", "a line that rolls carries no such note");
+  const none = { wandering: "", lair: "", formula: "" };
+  const bare = statblockColumns({ ...snap(), encounter: { dungeon: none, wilderness: none } }, loc);
+  assert.equal(bare.columns[0][2].rows[0].rollable, false);
+  assert.equal(bare.columns[0][2].rows[0].lineTip, "", "no line, nothing to explain");
 });
 test("an attack row carries the throw, the damage, the counter and the item; a missing damage reads as a dash", () => {
   const { columns } = statblockColumns(snap(), loc);

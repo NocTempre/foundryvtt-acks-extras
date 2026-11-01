@@ -52,8 +52,8 @@ export default class MonsterExtras extends foundry.abstract.DataModel {
 
     const encSide = () =>
       new SchemaField({
-        wandering: new SchemaField({ noun: str(), number: str() }),
-        lair: new SchemaField({ noun: str(), number: str() }),
+        wandering: new SchemaField({ noun: str(), number: str(), unit: str() }),
+        lair: new SchemaField({ noun: str(), number: str(), unit: str() }),
       });
 
     return {

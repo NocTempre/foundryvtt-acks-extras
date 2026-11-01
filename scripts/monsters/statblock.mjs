@@ -175,6 +175,15 @@ export function statblockColumns(snap, loc) {
     if (side?.lair) parts.push(loc("statblock.row.inLair", { n: side.lair }));
     return parts.join(" · ");
   };
+  // A side with a line and no formula counts units: it reads and does not roll.
+  const encRow = (id, label, side) => {
+    const line = encLine(side);
+    return row(pins, id, label, "", {
+      line,
+      rollable: !!side?.formula,
+      lineTip: line && !side?.formula ? loc("statblock.row.inUnits") : "",
+    });
+  };
   const treasure = snap.treasure ?? {};
   const encounter = {
     key: "encounter",
@@ -182,8 +191,8 @@ export function statblockColumns(snap, loc) {
     name: loc("statblock.group.encounter"),
     note: loc("statblock.note.ecologyPen"),
     rows: [
-      row(pins, "enc:dungeon", loc("statblock.row.dungeon"), "", { line: encLine(snap.encounter?.dungeon) }),
-      row(pins, "enc:wilderness", loc("statblock.row.wilderness"), "", { line: encLine(snap.encounter?.wilderness) }),
+      encRow("enc:dungeon", loc("statblock.row.dungeon"), snap.encounter?.dungeon),
+      encRow("enc:wilderness", loc("statblock.row.wilderness"), snap.encounter?.wilderness),
       row(pins, "lair", loc("statblock.row.lair"), snap.lairChance != null ? `${num(snap.lairChance)}%` : "", { rollable: snap.lairChance != null }),
       row(pins, "treasure", loc("statblock.row.treasure"), "", {
         line: treasure.linked
