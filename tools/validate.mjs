@@ -1478,7 +1478,9 @@ if (module_?.id) {
  *       the viewport height and gives `.window-content` `overflow: hidden`, so a
  *       window taller than the cap is amputated — trailing footer first — with
  *       no scrollbar to say so. The contract is the class `<id>-scroll`, and
- *       membership in it is the whole of the fix.
+ *       membership in it is the whole of the fix. A dialog takes its classes
+ *       per call, so a `DialogV2` call that names none has no array to read
+ *       and is held to the same contract by its call.
  *    b. Scroll retention that can never fire. ApplicationV2 restores a part's
  *       scroll position by resolving `selector === "" ? partRoot :
  *       partRoot.querySelector(selector)`, and querySelector searches
@@ -1535,12 +1537,16 @@ if (module_?.id) {
 if (module_?.id) {
   const id = module_.id;
   const SCROLL_CLASS = `${id}-scroll`;
+  const DIALOG_CALLS = new Set(["wait", "prompt", "confirm", "input", "query"]);
 
   // Which classes actually CARRY a scroll contract, read from the stylesheets
   // rather than assumed: a rule that claims the `.window-content` box for a
   // class is that class taking responsibility for the window's overflow. The
   // shared `<id>-scroll` is the common one, and a subsystem may own another
-  // (an importer dialog, a battlemap panel) without being wrong.
+  // (an importer dialog, a battlemap panel) without being wrong. The class read
+  // is the one directly before `.application`: `.<id>.<id>-sheet.application`
+  // is the sheet's contract, and reading its first class would hand the
+  // contract to every window wearing the bare module class.
   //
   // Opt-in per repo: a module whose styles claim no window-content box has no
   // contract to join, so 8a stays silent rather than inventing one.
@@ -1548,7 +1554,7 @@ if (module_?.id) {
   walk(path.join(ROOT, "styles"), (full) => {
     if (!full.endsWith(".css")) return;
     const css = fs.readFileSync(full, "utf8");
-    for (const m of css.matchAll(/\.([A-Za-z][\w-]*)(?:\.[\w-]+)*\.application\s+\.window-content/g)) contracts.add(m[1]);
+    for (const m of css.matchAll(/\.([A-Za-z][\w-]*)\.application\s+\.window-content/g)) contracts.add(m[1]);
   });
   const contractDefined = contracts.size > 0;
 
@@ -1570,22 +1576,47 @@ if (module_?.id) {
 
     // 8a. every declared `classes` array joins the scroll contract.
     if (contractDefined) {
-      for (const m of text.matchAll(/classes:\s*\[([^\]]*)\]/g)) {
-        const declared = [...m[1].matchAll(/["'`]([^"'`]+)["'`]/g)].map((c) => c[1]);
-        if (declared.some((c) => contracts.has(c))) continue;
-        const lineNo = lineOf(text, m.index);
-        // The declaration itself, plus the contiguous comment block above it —
-        // a reason worth stating is usually longer than one line, and a waiver
-        // that has to fit on one encourages a reason that explains nothing.
-        let i = lineNo - 1; // 0-based index of the declaration line
+      // The declaration itself, plus the contiguous comment block above it —
+      // a reason worth stating is usually longer than one line, and a waiver
+      // that has to fit on one encourages a reason that explains nothing.
+      const waivedAt = (lineNo) => {
+        const i = lineNo - 1; // 0-based index of the declaration line
         let waived = lines[i]?.includes("no-scroll:") ?? false;
         for (let j = i - 1; j >= 0 && /^\s*(\/\/|\*|\/\*)/.test(lines[j] ?? ""); j--) {
           if (lines[j].includes("no-scroll:")) waived = true;
         }
-        if (waived) continue;
+        return waived;
+      };
+      for (const m of text.matchAll(/classes:\s*\[([^\]]*)\]/g)) {
+        const declared = [...m[1].matchAll(/["'`]([^"'`]+)["'`]/g)].map((c) => c[1]);
+        if (declared.some((c) => contracts.has(c))) continue;
+        const lineNo = lineOf(text, m.index);
+        if (waivedAt(lineNo)) continue;
         fail(
           rel(full),
           `line ${lineNo}: classes array joins no scroll contract — a window outside one clips its own content on a short display, with no scrollbar to say so. Add "${SCROLL_CLASS}" (or another contract class: ${[...contracts].join(", ")}), or state why not with "// no-scroll: <reason>"`,
+        );
+      }
+
+      // A dialog call with no `classes` key. The dialog is read at its call,
+      // under whatever name it goes by here, and a bag holding a spread or
+      // passed by name says nothing readable, so it is left alone.
+      const tokens = /\bDialog(?:V2)?\b/.test(text) ? tokenizeJs(text) : [];
+      for (let t = 0; t < tokens.length; t++) {
+        if (tokens[t].type !== "ident" || !/^Dialog(?:V2)?$/.test(tokens[t].value)) continue;
+        let head = t; // the first word of a dotted path to the name
+        while (punctAt(tokens, head - 1, ".") && tokens[head - 2]?.type === "ident") head -= 2;
+        const built = tokens[head - 1]?.value === "new";
+        if (!built && !(punctAt(tokens, t + 1, ".") && DIALOG_CALLS.has(tokens[t + 2]?.value))) continue;
+        const call = built ? t + 1 : t + 3;
+        if (!punctAt(tokens, call, "(") || !punctAt(tokens, call + 1, "{")) continue;
+        const bag = objectLiteralKeys(tokens, call + 1);
+        if (!bag || bag.keys.includes("classes")) continue;
+        const lineNo = lineOf(text, tokens[t].start);
+        if (waivedAt(lineNo)) continue;
+        fail(
+          rel(full),
+          `line ${lineNo}: dialog declares no classes, so it joins no scroll contract and a tall one clips its own footer with no scrollbar to say so. Add classes with "${SCROLL_CLASS}" (or another contract class: ${[...contracts].join(", ")}), or state why not with "// no-scroll: <reason>"`,
         );
       }
     }

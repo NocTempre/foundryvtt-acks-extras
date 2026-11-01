@@ -14,14 +14,24 @@ application frame at the viewport height and gives `.window-content`
 footer first — with no scrollbar to say anything is missing. Nothing offline
 sees it, because nothing offline has a viewport.
 
+## The drag corner
+
+Core gives a corner only to a window that asks for one, and `DialogV2.prompt`
+and `.confirm` do not. A module asks once, in a `preRenderApplicationV2` hook
+keyed on its own classes (acks-extras: `scripts/lib/window-resize.mjs`), so no
+window declares the corner and none can opt out of it. A window comes under the
+hook by naming a module class, the same declaration that joins it to a scroll
+contract, which is why the gate holds a dialog to naming its classes.
+
 ## What the gate enforces
 
 `tools/validate.mjs` §8 fails the build on the seven halves that are decidable
 from source. Read that section for the mechanics; they are not restated here.
 
 - **Scroll-contract membership** — a window whose `classes` array omits
-  `<module-id>-scroll`. The contract is opt-in per repo: a module that never
-  defines the class has none, and the check stays silent.
+  `<module-id>-scroll`, or a `DialogV2` call that names no `classes` at all.
+  The contract is opt-in per repo: a module that never defines the class has
+  none, and the check stays silent.
 - **Dead scroll retention** — a part whose `scrollable` names its own root
   element. `querySelector` searches descendants only, so the retention is
   written, correct in intent, and never fires.

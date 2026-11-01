@@ -172,7 +172,8 @@ Recurring causes in this family, worth checking by name:
   `type: String` that silently collapses an array.
 - `DialogV2.prompt`/`.confirm` default to `width: 400`, `height: "auto"` and
   **`resizable: false`** — a dialog that grows with its content clips its own
-  footer and offers no handle to recover it.
+  footer and offers no handle to recover it, unless it names a module class
+  (`ui-layout.md`, "The drag corner").
 - ApplicationV2 `position: {height: "auto"}` around an inner `overflow` region —
   collapses, putting the footer below the fold.
 - A flex column whose scrollable child lacks `min-height: 0` — content clips
