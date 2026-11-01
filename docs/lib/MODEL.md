@@ -602,6 +602,36 @@ take no pointer. A hover while a tour runs, since the tour holds the manager's
 one tooltip element. A touch pointer, whose arrival and press are one event
 pair.
 
+## The drag corner
+
+Every window naming a class of this module has a drag corner. The class is
+`acks-extras` or anything it prefixes, read from `options.classes`, and
+`window-resize.mjs` is the one hook that acts on it. A window declares a class
+and nothing else. `resizable: false` at a declaration has no effect, and a
+`resizable: true` is redundant.
+
+Core reads the option in two places. The frame builds the handle from
+`app.options.window.resizable`, once, and the frame update then shows or hides
+it from the render's `options.window.resizable` first. The hook runs at
+`preRender`, ahead of both, and writes both: writing the first alone builds a
+handle and hides it.
+
+**What being resizable changes.** Core's `_refit` returns at once for a
+resizable window, so a tab change no longer re-fits an auto-height sheet. A
+re-render still measures an auto height until the first drag, and that drag
+writes the measured size into `options.position`, so a dragged size holds
+across every render after it.
+
+**Reach.** A tabbed sheet's body takes what its header and strip leave. Dragged
+shorter than those two, about 190px, the body has no height and its controls
+are out of reach until the corner brings the window back. Every other window
+scrolls at any height.
+
+**What it does not reach.** A window naming no module class: core's own, the
+system's, and a dialog of ours that forgot its classes, which validate refuses.
+The Scores Generator is core's page and `classes/stat-page.mjs` gives it a
+corner itself, recognising it by what it does.
+
 ## Perception: senses, light, and the token
 
 Three files answer "what can this creature see, and how brightly does it burn?"

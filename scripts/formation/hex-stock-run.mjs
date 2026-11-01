@@ -222,6 +222,7 @@ export async function openStockDialog(formation) {
   }
   if (readStock(here.scene, here.key)?.stocked) {
     const replace = await foundry.applications.api.DialogV2.confirm({
+      classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
       window: { title: loc("hexStock.restock") },
       content: `<p>${esc(loc("hexStock.restockConfirm", { hex: here.label }))}</p>`,
       rejectClose: false,

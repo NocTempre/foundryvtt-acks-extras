@@ -54,6 +54,7 @@ import { installPolyglotBridge, publishWorldLanguages } from "./polyglot.mjs";
 import { registerManagedEffectGuard, lockManagedEffectRows } from "./managed-effects.mjs";
 import { associateLabels } from "./a11y.mjs";
 import { watchWindowTitle } from "./window-title.mjs";
+import { installWindowResize } from "./window-resize.mjs";
 import { keepDetachedMarks, pinFontScale, pinLook, pinTheme } from "./client-pins.mjs";
 import * as moneyLogic from "./money-logic.mjs";
 import * as storage from "./storage.mjs";
@@ -786,6 +787,8 @@ Hooks.on("renderApplicationV2", (app, element) => {
   root.classList.toggle("acks-palette", palette);
   watchWindowTitle(root);
 });
+
+installWindowResize();
 
 /**
  * Lock the trash control on module-managed effect rows, wherever core lists

@@ -200,6 +200,7 @@
 
 .acks-extras.acks-extras-location-sheet .header-fields {
   flex: 1;
+  min-width: 0;
 }
 
 .acks-extras.acks-extras-location-sheet input.location-name {

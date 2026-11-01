@@ -46,6 +46,11 @@
   offers no roll.
 - **A lair chance printed as a percent now imports,** for the adventure books'
   monsters.
+- **Every window can be resized from its corner.** Most dialogs had no drag corner,
+  along with the market dialogs and the door, trapbreaking, map mode and terrain
+  palette windows and the variation, trap and attitude sheets.
+- **The confirm before restocking a hex now scrolls** like every other dialog.
+- **A location sheet's name no longer runs past the window's edge.**
 
 ## 11.12.3
 

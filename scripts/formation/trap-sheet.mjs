@@ -32,7 +32,6 @@ export default class TrapSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     position: { width: 460, height: "auto" },
     tag: "form",
     form: { submitOnChange: true, closeOnSubmit: false },
-    window: { resizable: false },
   };
 
   static PARTS = {

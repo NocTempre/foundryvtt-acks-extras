@@ -2066,7 +2066,7 @@ and two more `character`s, each named with the 85-character phrase. For steps
    sheet, click the Equipment tab, and click the stack's Divide control
    (`[data-action="divideStack"]`).
    **Observable:** a `DialogV2` wearing `acks-ui`, 400px wide with
-   `options.window.resizable` false, titled "Divide" and the item's name. The
+   `options.window.resizable` true, titled "Divide" and the item's name. The
    name is cut off the end, and a long hover shows the whole title.
 9. **Popped out.** On the dressed dialog, click the header's controls button
    and then Detach Window. Hover the title in the popup, then call
@@ -3062,6 +3062,55 @@ Drive mechanics:
 
 Teardown: the walk sweeps the cards it posted by id, restores the module
 configuration and the message mode, and reports all three. The fixtures stay.
+
+## Every window has a drag corner and reaches its controls
+
+`tools/live/window-contract.mjs` walks this section on both seats, with a
+recorder in the page before it loads.
+
+**Fixtures,** kept and found by marker: `lib/window-variation`,
+`lib/window-trap`, `lib/window-attitude` (observed by every seat),
+`lib/window-ability`, `lib/window-spell`, the character `lib/window-trader`
+holding a stack of three, `lib/window-monster`, `lib/window-domain`, the scene
+`lib/window-scene` holding one door, and one `lib/window-sheet-<type>` for each
+remaining sheet type. Read and never driven: `markets/gate-town`, and the first
+formation standing on a map.
+
+**Drive mechanics.**
+
+- A real drag needs a hand's steps. Core captures the pointer on its first move,
+  and that move has to land on the corner, which is 11px across on a window not
+  wearing `acks-ui`. A 7px step leaves it, and `pointerdown` then fires with no
+  capture and no resize. The driver's 40 steps over the distance hold.
+- A location with no market of its own is pruned at a GM's `ready`, so the market
+  windows open on the kept town.
+- The restock confirm asks only whether a hex is stocked. The walk answers that
+  one `getFlag` in the page for the synchronous length of the call, and writes
+  nothing to the world.
+- A window opened through a macro or a dialog call returns no application, so
+  the walk takes the first new instance of its class from
+  `foundry.applications.instances`.
+
+**Steps.** For each window: open it, read the corner, drag it with a real
+pointer, shorten it, and bring every visible control into view.
+
+1. **The corner.** *Observable:* `options.window.resizable` true,
+   `:scope > .window-resize-handle` built, not `hidden`, and the top element at
+   its centre.
+2. **The drag.** *Observable:* the frame's size changes.
+3. **A dragged size holds.** Drag the variation sheet, an auto-height window, and
+   re-render it. *Observable:* the size is the dragged size.
+4. **Reach.** Set the height to 150, or 300 for a tabbed sheet (MODEL, "The drag
+   corner", Reach). `scrollIntoView` every visible control. *Observable:* each
+   lands inside the frame, or for one taller than the view, at least 20px of it.
+5. **The control.** Open `DialogV2.confirm` with no `classes`. *Observable:* no
+   corner: core's dialog is left as core built it.
+6. **A player's seat.** Open `lib/window-attitude`. *Observable:* the corner shows.
+
+**Observable throughout:** `init`, `setup` and `ready` each ran, and the recorder
+holds no error.
+
+Teardown: nothing. No window is submitted, and the fixtures stay.
 
 ## Teardown
 

@@ -44,6 +44,7 @@ const COMMITTED = [
   "test-encounter-line.mjs",
   "test-automation-client.mjs",
   "test-window-title.mjs",
+  "test-window-resize.mjs",
   "test-magic.mjs",
   "test-repair.mjs",
   "test-repair-checks.mjs",

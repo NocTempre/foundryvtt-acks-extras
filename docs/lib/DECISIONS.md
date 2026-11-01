@@ -4859,3 +4859,37 @@ systems it names.
 documented API, and the row names are its data. A rename leaves the listener
 silent and that module back on its unaided behaviour, a miss played as a hit; the
 walk's default-row check and its control are what would show it.
+
+## 2026-11-01 — The drag corner is asked for once
+
+*Ruled:* every window naming a class of this module gets its drag corner from one
+`preRenderApplicationV2` hook, `lib/window-resize.mjs`, and no window declares it
+or can decline it. The owner reported windows breaking the rule. The audit found
+108 of them: 92 `DialogV2` calls in `scripts/`, 5 in pack macros and 11 window
+classes, 3 of those declaring `resizable: false`. Nothing gated the corner, and
+`DialogV2.prompt` and `.confirm` never ask for one, so every new dialog started
+out in breach.
+
+*Rejected:*
+
+- **`resizable: true` at each of the 108 sites, with a validate check.** It reads
+  better at a declaration, which is what every other half of the window contract
+  does. It costs a pack rebuild and an edit in files other sessions hold, and the
+  check is blind where the options are passed by name or by spread, 6 of the 113
+  calls. The rule is "every window", which a hook states and a list of sites only
+  approaches.
+- **A window declaring itself fixed.** The strongest case for one is a confirm of
+  one line and two buttons. It is rejected because the owner's rule says always,
+  and because a corner on a small dialog costs nothing.
+
+*Also changed:* validate's 8a read the first class of a compound selector, so
+`.acks-extras.acks-extras-domain-sheet.application` made the bare module class a
+scroll contract and every window wearing it passed. It reads the class before
+`.application` now. It also refuses a dialog call that names no `classes`, which
+is how the hex restock confirm stood outside both the scroll contract and this
+hook (`acks-module-template`, `tools/validate.mjs` §8a).
+
+**Cost.** A resizable window no longer re-fits on a tab change (MODEL, "The drag
+corner"). The corner is not visible at a declaration, so a reader of one
+`DialogV2` call cannot see that it has one. The `resizable: true` already written
+at 58 sites stays, redundant, rather than spend a commit on it.

@@ -11,7 +11,6 @@ export default class AttitudeSheet extends HandlebarsApplicationMixin(ItemSheetV
     position: { width: 380, height: "auto" },
     tag: "form",
     form: { submitOnChange: true, closeOnSubmit: false },
-    window: { resizable: false },
   };
 
   static PARTS = {
