@@ -273,3 +273,8 @@ lines". Each slice ships usable; the tier is what it reaches.
    name and the count. The Judge's reveal, and whether scouting sets it, are Slice 1's
    to design.
 4. Each body rolls its own hit points (§3g).
+5. (2026-11-01) The group sheet reads as an inventory, its entries draggable: a row
+   dragged onto the map deploys, and a row dragged onto another group moves. That move
+   needs the split and merge `GROUPS.md` lists as not built. A stack stays one row with
+   its count and the bodies holding a record nest under it, as proposed and not
+   overruled, since a row per body would mean a record, and a hit-point roll, per body.
