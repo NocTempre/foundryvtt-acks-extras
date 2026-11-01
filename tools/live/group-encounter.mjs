@@ -8,14 +8,14 @@
  * from the monster sheet; a family dropped on a sheet; the line a scene opens the
  * dialog on; an Observer and an Owner on a Player seat; two sheets, two rows and
  * their dialogs open at once; a row dragged to the map; a row dragged onto another
- * group on both seats; and the raised type size and a narrow window on every new
- * control.
+ * group on both seats; a group's first row removed; and the raised type size and a
+ * narrow window on every new control.
  * Machine values arrive through ./_env.mjs. A check prints shapes and invented
  * figures; every line in here is invented.
  *
  * Fixtures, kept and found again by marker (`api.fixture`): the monsters
- * `lib/encounter-lined`, `lib/encounter-units` and `lib/encounter-mute`, the
- * groups `lib/encounter-band`, `lib/encounter-second`, `lib/encounter-from`,
+ * `lib/encounter-lined`, `lib/encounter-units`, `lib/encounter-mute`,
+ * `lib/encounter-front` and `lib/encounter-behind`, the groups `lib/encounter-band`, `lib/encounter-second`, `lib/encounter-from`,
  * `lib/encounter-into` and `lib/encounter-unlinked`, the family
  * `lib/encounter-family`, and the scene
  * `lib/encounter-scene` with the tokens the walk places on it. Each section
@@ -305,6 +305,9 @@ const P = {
     await group.update({ "system.stacks": stacks });
     return true;
   },
+
+  /** The hit dice of a group's representative block, as stored. */
+  blockDice: async ({ groupId }) => game.actors.get(groupId).system.toObject().hp?.hd ?? null,
 
   /** A group's stacks as stored, beside what this seat's open sheet says of them. */
   totals: async ({ groupId }) => {
@@ -689,6 +692,10 @@ try {
   const lined = await gm.fixture("lib/encounter-lined", "Actor", beast("QA Knot"));
   const units = await gm.fixture("lib/encounter-units", "Actor", beast("QA Swarm"));
   const mute = await gm.fixture("lib/encounter-mute", "Actor", beast("QA Mute"));
+  const FRONT_DICE = "2d6";
+  const BEHIND_DICE = "3d4";
+  const front = await gm.fixture("lib/encounter-front", "Actor", { ...beast("QA Front"), system: { hp: { hd: FRONT_DICE } } });
+  const behind = await gm.fixture("lib/encounter-behind", "Actor", { ...beast("QA Behind"), system: { hp: { hd: BEHIND_DICE } } });
   await run(gm, P.setLines, { actorId: lined.id, encounter: LINED });
   await run(gm, P.setLines, { actorId: units.id, encounter: UNITS });
   await run(gm, P.setLines, { actorId: mute.id, encounter: MUTE });
@@ -1306,6 +1313,31 @@ try {
     await run(gm, P.close, { actorId: group.id });
     await run(gm, P.open, { actorId: group.id });
   }
+
+  section("a group's first row removed");
+  const rowsHeld = async (n) => (await until(gm, P.state, { groupId: second.id }, (s) => s.list.length === n)).list;
+  const dropRow = async (actor, n) => {
+    await run(gm, P.drop, { groupId: second.id, actorId: actor.id });
+    return rowsHeld(n);
+  };
+  const removeRow = async (key, n) => {
+    await run(gm, P.press, { groupId: second.id, selector: stackKey(key, "removeStack") });
+    return rowsHeld(n);
+  };
+  const dice = () => run(gm, P.blockDice, { groupId: second.id });
+  await run(gm, P.reset, { groupId: second.id });
+  await rowsHeld(0);
+  await dropRow(front, 1);
+  check("the first row seeds the group's block", (await dice()) === FRONT_DICE, await dice());
+  const [firstRow] = await dropRow(behind, 2);
+  check("a second row leaves it", (await dice()) === FRONT_DICE, await dice());
+  const [nextRow] = await removeRow(firstRow.key, 1);
+  check("the first row's ✕ reseeds from the row that takes its place", nextRow.uuid === behind.uuid && (await dice()) === BEHIND_DICE, await dice());
+  const [, laterRow] = await dropRow(front, 2);
+  await removeRow(laterRow.key, 1);
+  check("another row's ✕ leaves it", (await dice()) === BEHIND_DICE, await dice());
+  await removeRow(nextRow.key, 0);
+  check("an emptied group keeps what it showed", (await dice()) === BEHIND_DICE, await dice());
 
   section("a family dropped on a sheet");
   await run(gm, P.reset, { groupId: second.id });

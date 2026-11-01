@@ -2987,8 +2987,9 @@ Player seat, under a recorder added before reload. The rules it exercises are
 it is invented.
 
 Fixtures, found by marker: the monsters `lib/encounter-lined` (both lines, both
-sides, a lair chance), `lib/encounter-units` (a wilderness wandering side in units)
-and `lib/encounter-mute` (no count); the groups `lib/encounter-band`,
+sides, a lair chance), `lib/encounter-units` (a wilderness wandering side in units),
+`lib/encounter-mute` (no count), and `lib/encounter-front` and `lib/encounter-behind`
+(two different hit dice); the groups `lib/encounter-band`,
 `lib/encounter-second`, `lib/encounter-from`, `lib/encounter-into` and
 `lib/encounter-unlinked` (`prototypeToken.actorLink` false); the family `lib/encounter-family`, one axis of two options whose flags carry
 the lines; and the scene `lib/encounter-scene`, with the tokens placed on it. Each
@@ -3116,6 +3117,11 @@ and an immediate read holds the old path beside the new name.
     bleeds sideways or leaves the sheet.
 22. **An unlinked token's sheet.** Drop a row on a token's own copy.
     *Observable:* it warns where to move it from, and the row stays.
+23. **A group's first row removed.** Drop the two monsters of different hit dice on an
+    empty group, press the first row's ✕, drop the first monster back, press that later
+    row's ✕, then the last row's.
+    *Observable:* the group's stored `system.hp.hd` reads the first row's, then the row
+    that took its place, and neither of the later presses changes it.
 
 Recall folds the bodies of 19 as it does those of 16, so a clean run's sweep reports them
 as not found.

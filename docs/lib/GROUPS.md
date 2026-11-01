@@ -64,6 +64,10 @@ system touches on every actor, `savingThrowFields()` for the full five saves,
 and explicit `hp`/`aac`/`details`. Same reasoning as `acks-extras.animal`
 (`actor-compat.mjs`).
 
+The block follows the group's first stack. It seeds when a group gains one, and when
+that stack leaves, removed or moved, it reseeds from the stack that takes its place. An
+emptied group keeps what it showed.
+
 ### The collective noun is data
 
 `system.noun` is what a Roll read off the side it rolled (`encounter.*.noun` — a
@@ -170,8 +174,7 @@ stand as a second row beside one of the same creature.
 
 An empty stack that a hand and a roll never sized takes the crossing stack's roll with
 its count. Any other stack keeps its own, so its count's tooltip reads as changed by
-hand. A group gaining its first stack seeds its representative block from it, and a
-group losing its first reseeds from the stack that takes its place.
+hand.
 
 `moveRefusal(from, to, stack)` says why not, or null. The seat must own both groups,
 and a sheet it cannot edit still takes the drop, so that seat hears which group stopped

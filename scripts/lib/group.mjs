@@ -286,7 +286,7 @@ export function registerGroupCleanup() {
 /* -------------------------------------------- */
 
 /** The one-body stat block the GROUP token shows: mirror the source onto the
- *  representative fields. Called when the FIRST stack's prototype is set. */
+ *  representative fields. Called when the group's FIRST stack changes. */
 function representativeMirror(source) {
   const sys = source.system ?? {};
   const mirror = {};
@@ -298,6 +298,15 @@ function representativeMirror(source) {
   if (sys.details?.alignment) mirror["system.details.alignment"] = sys.details.alignment;
   if (sys.details?.morale != null) mirror["system.details.morale"] = sys.details.morale;
   return mirror;
+}
+
+/** The write that takes a stack off its group. Losing the first stack reseeds the
+ *  representative block from the one that takes its place; an emptied group keeps it. */
+function stackTaken(stacks, stackKey) {
+  const rest = stacks.filter((s) => s.key !== stackKey);
+  const update = { "system.stacks": rest };
+  if (rest.length && stacks[0].key === stackKey) Object.assign(update, representativeMirror(rest[0].template?.snapshot ?? {}));
+  return update;
 }
 
 /** A stack source object seeded from an actor: snapshot + label + type + size. */
@@ -362,8 +371,7 @@ export async function setStackPrototype(group, stackKey, source) {
 /** Remove a stack entirely (its bodies and records go with it). */
 export async function removeStack(group, stackKey) {
   if (!isGroup(group)) return false;
-  const stacks = group.system.toObject().stacks.filter((s) => s.key !== stackKey);
-  await group.update({ "system.stacks": stacks });
+  await group.update(stackTaken(group.system.toObject().stacks, stackKey));
   return true;
 }
 
@@ -398,9 +406,7 @@ export async function moveStack(from, to, stackKey) {
   const { stack: landed, merged } = receiveStack(stacks, stack, foundry.utils.randomID());
   const gained = { "system.stacks": stacks };
   if (!held.length) Object.assign(gained, representativeMirror(stack.template?.snapshot ?? {}));
-  const rest = leaving.filter((s) => s.key !== stackKey);
-  const left = { "system.stacks": rest };
-  if (rest.length && leaving[0].key === stackKey) Object.assign(left, representativeMirror(rest[0].template?.snapshot ?? {}));
+  const left = stackTaken(leaving, stackKey);
 
   const source = to.toObject();
   const undo = Object.fromEntries(Object.keys(gained).map((path) => [path, foundry.utils.getProperty(source, path)]));

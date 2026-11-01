@@ -1,6 +1,10 @@
 # Changelog
 
 ## Unreleased
+### Fixed
+
+- Removing a group's first stack now updates the stats the group's token shows, which
+  otherwise went on showing the removed creature's.
 
 ## 11.13.1
 ### Added

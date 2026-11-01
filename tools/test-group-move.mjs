@@ -2,6 +2,7 @@
  * Offline tests for a stack's move between groups (scripts/lib/group.mjs,
  * `moveStack`, and its decisions in scripts/lib/group-logic.mjs): what crosses,
  * what it joins, who is refused, and what two writes leave behind when one fails.
+ * `removeStack` is here for the representative block both of them reseed.
  * Every creature, count and hit point in here is invented.
  *
  * Run: node tools/test-group-move.mjs
@@ -34,7 +35,7 @@ globalThis.fromUuidSync = (uuid) => docs.get(uuid) ?? null;
 const MODULE_ID = "acks-extras";
 
 const { default: GroupData } = await import("../scripts/lib/data/group-data.mjs");
-const { moveStack, moveRefusal } = await import("../scripts/lib/group.mjs");
+const { moveStack, moveRefusal, removeStack } = await import("../scripts/lib/group.mjs");
 const { matchingStack, mergeStack, receiveStack } = await import("../scripts/lib/group-logic.mjs");
 const { countOrigin, stackHeld } = await import("../scripts/lib/group-encounter-logic.mjs");
 
@@ -327,6 +328,25 @@ t("a group losing its first stack reseeds from the next, and losing another does
 
   const alone = groupActor("Source", [stackOf("s", "Actor.base", 2)]);
   await moveStack(alone, groupActor("Target", []), "s");
+  assert.equal(alone.mirrored, null, "an emptied group keeps what it showed");
+});
+
+t("removing a group's first stack reseeds from the next, and removing another does not", async () => {
+  const next = stackOf("n", "Actor.next", 1);
+  next.template.snapshot.system.hp.hd = "2d3";
+  const lead = groupActor("Group", [stackOf("s", "Actor.base", 2), next]);
+  assert.equal(await removeStack(lead, "s"), true);
+  assert.deepEqual(lead.system.stacks.map((s) => s.key), ["n"]);
+  assert.equal(lead.mirrored?.["system.hp"]?.hd, "2d3");
+
+  const tail = groupActor("Group", [next, stackOf("s", "Actor.base", 2)]);
+  await removeStack(tail, "s");
+  assert.deepEqual(tail.system.stacks.map((s) => s.key), ["n"]);
+  assert.equal(tail.mirrored, null);
+
+  const alone = groupActor("Group", [stackOf("s", "Actor.base", 2)]);
+  await removeStack(alone, "s");
+  assert.deepEqual(alone.system.stacks, []);
   assert.equal(alone.mirrored, null, "an emptied group keeps what it showed");
 });
 
