@@ -22,6 +22,15 @@ When a formation takes the field, member tokens are stashed and one party token
 stands in their place. Disbanding restores every stashed token to where it came
 from.
 
+Players choose who comes along. Once the party's token is on the map, a player
+right-clicks a token of their own and presses **Bring into the party**. From the
+sheet's Order tab, **Yours to bring in** lists their people who are in no party,
+henchmen with no token on the map among them, and a press or a drag from the
+Actors tab brings one in. The control at the end of a member's row takes them out,
+and their token comes back beside the party token if they had one. A player moves
+only what they own, the table sees each move in chat, and nobody moves during a
+combat. The Judge can still add or remove anyone.
+
 ## The party sheet
 
 The party's name and the mode it travels in sit in the window's title bar,

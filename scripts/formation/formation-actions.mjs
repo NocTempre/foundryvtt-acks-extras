@@ -39,7 +39,7 @@ import {
 } from "./marching-templates.mjs";
 import { PARTY_CHECKS, rollPartyCheck } from "./party-rolls.mjs";
 import { deploymentOf, deployVehicle, strikeVehicle } from "../vehicles/deploy.mjs";
-import { requestPartyAction } from "./player-requests.mjs";
+import { requestBringIn, requestPartyAction, requestTakeOut } from "./player-requests.mjs";
 import { arrangeFastest, chooseConveyance, setGroupMovement, undoArrangement } from "./conveyance.mjs";
 import { announce } from "./announce.mjs";
 import { toggleDetachMember, toggleMemberLeft } from "./deployment.mjs";
@@ -529,11 +529,21 @@ export const SHARED_ACTIONS = {
     this._afterDisband?.();
   },
 
+  /** Out of the party. A player takes out their own, through the GM client. */
   async removeMember(event, target) {
-    const formation = gmFormation(this);
-    if (!formation) return;
-    await removeMember(formation, target.closest("[data-actor-id]")?.dataset.actorId);
+    const formation = this.formation;
+    const actorId = target.closest("[data-actor-id]")?.dataset.actorId;
+    if (!formation || !actorId) return;
+    if (!game.user.isGM) return void (await requestTakeOut(formation, actorId));
+    await removeMember(formation, actorId);
     this.render();
+  },
+
+  /** One of a player's own actors into the party, from the Order tab's list. */
+  async bringIn(event, target) {
+    const formation = this.formation;
+    const actor = game.actors.get(target.dataset.actorId);
+    if (formation && actor) await requestBringIn(formation, actor);
   },
 
   /** Up/down move by a full rank when marching multiple abreast. */
@@ -1112,29 +1122,29 @@ export async function onChangeForm(event, form, formData) {
   if (changed || redraw) this.render();
 }
 
-/** Bind GM drag-drop of actors/tokens as new members; a dropped item is refused (`refuseGoods`). */
+/**
+ * Bind drag-drop of actors/tokens as new members: the Judge's directly, a
+ * player's own through the GM client. A dropped item is refused (`refuseGoods`).
+ */
 export function bindMemberDrop(app) {
-  if (!game.user.isGM) return;
+  if (!game.user.isGM && !app.isEditable) return;
   const dragDropConfig = {
-    permissions: { drop: () => game.user.isGM },
+    permissions: { drop: () => game.user.isGM || app.isEditable },
     callbacks: { drop: (event) => onDropMember(app, event) },
   };
   new foundry.applications.ux.DragDrop.implementation(dragDropConfig).bind(app.element);
 }
 
 async function onDropMember(app, event) {
-  if (!game.user.isGM) return;
   const data = foundry.applications.ux.TextEditor.implementation.getDragEventData(event);
   // A party carries nothing itself; its members do.
   if (data.type === "Item") return void refuseGoods(app.actor);
   const formation = app.formation;
   if (!formation) return;
-  if (data.type === "Actor") {
-    const actor = await foundry.utils.getDocumentClass("Actor").fromDropData(data);
-    if (actor) await addMember(formation, actor);
-  } else if (data.type === "Token") {
-    const tokenDoc = await foundry.utils.getDocumentClass("Token").fromDropData(data);
-    if (tokenDoc?.actor) await addMember(formation, tokenDoc.actor, tokenDoc);
-  }
+  const tokenDoc = data.type === "Token" ? await foundry.utils.getDocumentClass("Token").fromDropData(data) : null;
+  const actor = data.type === "Actor" ? await foundry.utils.getDocumentClass("Actor").fromDropData(data) : tokenDoc?.actor;
+  if (!actor) return;
+  if (!game.user.isGM) return void (await requestBringIn(formation, actor, tokenDoc));
+  await addMember(formation, actor, tokenDoc);
   app.render();
 }

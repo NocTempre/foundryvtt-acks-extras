@@ -2386,6 +2386,21 @@
       "trapbreakMethodicalHint": "Takes a turn. A skilled thief rolls with the methodical bonus; anyone else tries through Adventuring (RR p. 267).",
       "trapbreakMethodicalNote": "Methodical trapbreaking (RR p. 267)."
     },
+    "membership": {
+      "bringHeading": "Yours to bring in",
+      "bringHint": "Your people who are in no party. The table sees who comes and goes.",
+      "bringLocked": "The party's line-up cannot change during a combat.",
+      "bring": "Bring {name} into the party",
+      "takeOutHint": "Take out of the party: their token returns beside the party token",
+      "refused": {
+        "cannotMarch": "{name} cannot stand in a party.",
+        "notYours": "{name} is not yours to move in or out of a party.",
+        "inCombat": "The party's line-up cannot change during a combat.",
+        "inParty": "{name} is already in {party}. Take them out of it first.",
+        "elsewhere": "{name} stands on another map from this party.",
+        "notMember": "{name} is not in this party."
+      }
+    },
     "conveyance": {
       "automatic": "Automatic",
       "onFoot": "On foot",
@@ -2452,6 +2467,8 @@
       "leftBehind": "leaves {name} behind.",
       "wentBackFor": "goes back for {name}.",
       "conveyance": "sends {name} {how}.",
+      "bringIn": "brings {name} into the party.",
+      "takeOut": "takes {name} out of the party.",
       "leftBehindDeclined": "That declaration could not be carried out — the party is in combat.",
       "shield": "closes the shutter on {bearer}'s lantern.",
       "unshield": "opens the shutter on {bearer}'s lantern.",
@@ -2572,6 +2589,7 @@
     },
     "hud": {
       "addToParty": "Add to party (adds all controlled tokens; creates a formation if the scene has none)",
+      "bringIn": "Bring into the party (brings every controlled token of yours)",
       "formUp": "Form up (put the party back into a saved marching order)"
     },
     "warn": {

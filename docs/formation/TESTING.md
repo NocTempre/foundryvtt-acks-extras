@@ -3153,6 +3153,55 @@ on a tall window, since `gm.shot` clips to what is on screen.
 Teardown: the clock is put back, the carriers leave the Player seat, the cards
 the relay posted are swept by id. The nine fixtures stay.
 
+## A player's own actors, in and out (added with the membership floor)
+
+A player's way into a party and out of it, from a seat that begins with no member
+and so cannot open the sheet at all. The walk is
+`node tools/live/run.mjs formation-membership`, on the GM and Player seats, under a
+recorder added before reload. A declaration runs on the primary GM's client, so
+the GM seat must be it.
+
+Fixtures, each found again by its marker or built carrying one:
+`membership/scene`, viewable by a player; `membership/party` with
+`membership/anchor`, the Judge's, whose token seeds the party token;
+`membership/rival`, a second party, holding `membership/taken`; the Player seat's
+`membership/lead`, on the map, `membership/follower`, with no token, and
+`membership/pony`; and `membership/stranger`, nobody's. The walk brings them to its
+start: only the anchor in the party, the lead's token on the map, nobody mounted.
+The party stays in delve, where a player's choice of who comes along matters.
+
+1. **No member, no sheet.** Read the party's permission on the Player seat.
+   *Observable:* it neither sees nor owns the party.
+2. **The way in.** View the scene as the player, control the lead's token, bind
+   its HUD and press the party button: `canvas.hud.token.bind(placeable)`, then
+   `#token-hud .acks-formation-hud`. *Observable:* the button reads for a player;
+   the lead is a member with a stash and no token on the map; the seat owns the
+   party within a beat, which is `syncPartyActorOwnership` on the GM client.
+3. **The list.** Open the sheet on the Order tab. *Observable:* the follower is
+   listed; the stranger, the taken and the pony are not; the lead's row has a
+   leave control with a name, the anchor's has none. Press the follower.
+   *Observable:* they join with no stash and off the list, on a row of their own.
+4. **Out, and in by a drop.** Press the follower's leave control. *Observable:*
+   they are gone and back on the list. A `drop` event with a `DataTransfer` naming
+   the actor on the sheet's root, the event a sidebar drag ends in, brings them in.
+5. **Refusals.** Drop the stranger, then the taken. *Observable:* a warning with the
+   reason, the second naming the other party, and no write. Then send `bringIn` for
+   the stranger and for the party itself, and `takeOut` for the anchor, through
+   `requestPartyAction`, past the sheet's check. *Observable:* no write, and no card.
+6. **A fight.** Write `combat` on the record, `{active: true, combatId}`, with no
+   Combat behind it: only the flag is read here, and a real one is "A combat's
+   takeover"'s subject. *Observable:* the list and the leave control are disabled
+   and the section says why; a relayed `bringIn` and `takeOut` write nothing.
+7. **The plates.** The walk writes `membership-order*.png` wide and at the sheet's
+   minimum. *Observable:* the list wraps and nothing passes the edge. Read the PNGs.
+8. **Leaving mounted.** Mount the lead on the pony, press their own leave control,
+   then the HUD again. *Observable:* their token returns beside the party token, the
+   seat loses the party with its last member, the mount stays through both moves.
+9. **The table.** *Observable:* a card for every move and none for a refusal.
+
+Teardown: the combat flag is cleared and the cards are swept by id. The nine
+fixtures stay. The lead ends in the party, and the next run's start takes them out.
+
 ## A teleport between scenes (added with the teleport fix)
 
 The party follows its token through a `teleportToken` Region to another scene,

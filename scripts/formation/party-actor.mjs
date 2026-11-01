@@ -1,5 +1,5 @@
 /* global game, foundry, document, CSS, Hooks */
-import { MODULE_ID, PANEL_FLAG } from "./constants.mjs";
+import { MODULE_ID, PANEL_FLAG, PARTY_TYPE } from "./constants.mjs";
 import { SHARED_ACTIONS, bindMemberDrop, onChangeForm } from "./formation-actions.mjs";
 import { cellBodies, getFormations, getMemberActor, isStackMember, memberHp, partyHeadcount, realMembers } from "./formation-model.mjs";
 import { seatChanged } from "./conveyance.mjs";
@@ -19,7 +19,7 @@ import { clockReading } from "../lib/world-time.mjs";
  * player's seat, and member-owning players get a declaration panel.
  */
 
-export const PARTY_TYPE = `${MODULE_ID}.party`;
+export { PARTY_TYPE };
 
 /**
  * A party actor holds almost NO data of its own — the formation record does.

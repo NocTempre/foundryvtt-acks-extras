@@ -1043,7 +1043,7 @@ export async function syncPartyActorSpeed(formation) {
  * is deleted. Anything that fails or interleaves after that point can at
  * worst leave a duplicate, never lose the character.
  */
-export async function addMember(formation, actor, tokenDoc = null) {
+export async function addMember(formation, actor, tokenDoc = null, { scene: searched = game.scenes.viewed ?? getPartyScene(formation) } = {}) {
   if (!actor) return formation;
   if (formation.members.some((m) => m.actorId === actor.id)) {
     ui.notifications.warn(game.i18n.format("ACKS-FORMATION.warn.alreadyMember", { name: actor.name }));
@@ -1051,10 +1051,7 @@ export async function addMember(formation, actor, tokenDoc = null) {
   }
 
   // Find the actor's token on its scene if not given one explicitly.
-  if (!tokenDoc) {
-    const scene = game.scenes.viewed ?? getPartyScene(formation);
-    tokenDoc = scene?.tokens?.find((t) => t.actorId === actor.id && !t.getFlag(MODULE_ID, FLAG_FORMATION_ID)) ?? null;
-  }
+  tokenDoc ??= searched?.tokens?.find((t) => t.actorId === actor.id && !t.getFlag(MODULE_ID, FLAG_FORMATION_ID)) ?? null;
 
   const member = { actorId: actor.id, roles: [], tokenData: tokenDoc ? tokenDoc.toObject() : null };
 

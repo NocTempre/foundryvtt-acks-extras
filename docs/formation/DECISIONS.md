@@ -4577,3 +4577,55 @@ wants them walking presses On foot, which holds it.
   survived its first draft, and it gained the foot pin's dismount, the word
   Fastest clears, the holds inside a pass and a step that starts on a dawn.
 - Walked live on both seats (TESTING, "Conveyance").
+
+## 2026-11-01 — A player brings their own actors in and out of the party
+
+The owner's requirement for the next release, 2026-10-31: players group their
+entourage and manage who is in that group for this delve, cut to its floor as
+"players can bring in and out their actors to the party so it's not GM locked".
+Until now only the Judge could add or remove a member. MODEL "The player surface"
+says how it works; grouping is phase 5's, and the redesign's §4f keeps the rest of
+the requirement.
+
+**Ruled.**
+
+- **Ownership of the actor is the whole test.** No approval and no setting: the
+  owner asked for the lock to go, an approval would be the lock again, and a world
+  setting has nothing to gate but the requirement. The table sees every move on a
+  public card, and the Judge's add and remove stand over a player's.
+- **A fight holds the line-up**, on the list, the leave control and the GM client
+  alike, as it holds a pick of ride.
+- **A player joins and never founds.** The HUD button needs a party standing on
+  the scene; making one stays the Judge's, since it makes a world document.
+- **One party at a time.** An actor in another party is refused by that party's
+  name, and the player takes them out of it first. The Judge's own add does not
+  ask, as before.
+- **The list offers people.** A mount or a wagon carries members without being
+  one (MODEL "Conveyance"), so the list leaves them off and a drop still takes them.
+- **Several parties on one scene:** the HUD joins one holding a member of the
+  player's, else the first. The sheet's list and drop name their own party.
+- **A mount stays under a member who leaves.** `removeMembers` leaves attachments
+  alone for the Judge too.
+
+**Rejected.**
+
+- *A range test on joining.* A token anywhere on the scene steps in. Nobody asked
+  for a rule there, and the card is the check.
+- *Returning a refusal over the relay.* The transport's fallback carries no answer,
+  so the requesting client reads the same refusal first, and the GM client's
+  reading is the gate.
+- *`travel.train.groups` now.* It is the journey's, party-wide, and says nothing of
+  who comes along; building it would have delayed the floor without reaching it.
+
+**Cost.**
+
+- `addMember` takes the scene it searches, because the default read the Judge's
+  view: a player's request would have stepped a token off whichever map the Judge
+  had open.
+- `PARTY_TYPE` moved to `constants.mjs`, so that `membership.mjs` can run under the
+  offline suites without the sheet class.
+
+**Verified.**
+
+- Pinned offline in `tools/test-formation-flows.mjs`, forged requests included.
+- Walked live on both seats (TESTING, "A player's own actors, in and out").

@@ -14,6 +14,8 @@ export { MODULE_ID };
 
 /** Flag on the party TokenDocument / party Actor pointing back at a formation. */
 export const FLAG_FORMATION_ID = "formationId";
+/** The dedicated party actor sub-type (`party-actor.mjs`). */
+export const PARTY_TYPE = `${MODULE_ID}.party`;
 /** Flag on member actors while the party is winded (marker Active Effect id). */
 export const WINDED_EFFECT_NAME = "Winded";
 

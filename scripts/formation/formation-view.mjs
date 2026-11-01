@@ -31,6 +31,7 @@ import {
   partySpeed,
 } from "./formation-model.mjs";
 import { isMemberDeployed } from "./deployment.mjs";
+import { bringableActors } from "./membership.mjs";
 import { senseProfile } from "../lib/senses.mjs";
 import { mountOf } from "../lib/mount.mjs";
 import { carrierChain } from "../lib/attachment.mjs";
@@ -160,6 +161,7 @@ export function buildFormationView(formation) {
       // Players steer their own characters: reorder + roles on owned members.
       owned,
       canControl: game.user.isGM || owned,
+      takeOutLocked: !game.user.isGM && !!formation.combat?.active,
       conveyance: going && actor
         ? buildMemberConveyance(formation, member, actor, { ...going, canControl: (game.user.isGM || owned) && !formation.combat?.active })
         : null,
@@ -231,6 +233,13 @@ export function buildFormationView(formation) {
   // wagon's traces — each with its pace and, for a vehicle, its stations at a
   // glance. Carriers are not members; this is where they show anyway.
   view.train = buildTrain(formation, speed);
+
+  // What a player could bring in. The Judge has the drop and the HUD, and every actor in the world.
+  view.bringIn = game.user.isGM ? [] : bringableActors(game.user).map((actor) => ({
+    ...actor,
+    label: game.i18n.format("ACKS-FORMATION.membership.bring", { name: actor.name }),
+  }));
+  view.bringInLocked = !!formation.combat?.active;
 
   // The JOURNEY: the day board, the ground, the derived day's march, the log.
   view.travel = buildTravelView(formation);

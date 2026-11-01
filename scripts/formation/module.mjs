@@ -105,7 +105,8 @@ import * as obstacles from "./obstacles.mjs";
 import * as swimming from "./swimming.mjs";
 import * as jumping from "./jumping.mjs";
 import * as encounterScaling from "./encounter-scaling.mjs";
-import { registerRequestSocket, requestPartyAction } from "./player-requests.mjs";
+import { registerRequestSocket, requestBringIn, requestPartyAction } from "./player-requests.mjs";
+import { canJoin, partyOnScene } from "./membership.mjs";
 import { registerSkillFlagEditor } from "./skill-audit.mjs";
 import { RESIZE_OPTION, syncEnvironments, syncPartyTokenSize } from "./scene-sync.mjs";
 import { SHADOW_FLAG, TRUTH_MOVE_OPTION, clearOrphanShadows } from "./shadow.mjs";
@@ -132,7 +133,6 @@ import {
   SETTING_TRANSIENT_TURNS, TRAVEL_OPTION, dropIncidentNote, expireTransientNotes, installIncidentCardActions,
   pickAndTravel, poiTargets, promoteIncident, transientNotesOn, travelToPlace,
 } from "./poi.mjs";
-import { isMarkerActor } from "../lib/place.mjs";
 import { closeDay, offerDayEnd } from "./day-close.mjs";
 import { onWorldTimeAdvanced, calendarDay, clockReading, dawnWithin } from "../lib/world-time.mjs";
 import { arrangeAllAtDawn, arrangeJoined, seatChanged } from "./conveyance.mjs";
@@ -1213,12 +1213,8 @@ Hooks.on("chatMessage", (_chatLog, message) => {
  */
 async function addTokensToParty(seedToken) {
   const scene = seedToken.parent;
-  // A marker's token (a place, an organisation, a domain) is not a body that can march.
-  const eligible = (tokenDoc) =>
-    tokenDoc.actor && tokenDoc.actor.type !== PARTY_TYPE && !isMarkerActor(tokenDoc.actor)
-    && !tokenDoc.getFlag(MODULE_ID, FLAG_FORMATION_ID);
-  const tokens = (canvas?.tokens?.controlled ?? []).map((t) => t.document).filter(eligible);
-  if (!tokens.some((t) => t.id === seedToken.id) && eligible(seedToken)) tokens.unshift(seedToken);
+  const tokens = (canvas?.tokens?.controlled ?? []).map((t) => t.document).filter(canJoin);
+  if (!tokens.some((t) => t.id === seedToken.id) && canJoin(seedToken)) tokens.unshift(seedToken);
   if (!tokens.length) return;
 
   const formations = Object.values(getFormations());
@@ -1261,33 +1257,42 @@ async function formUpFromHud(tokenDoc) {
   game.actors.get(formation.actorId)?.sheet?.render(false);
 }
 
+/** A player's own controlled tokens, and the one they pressed on, into the party. */
+async function bringTokensIn(formation, seedToken) {
+  const tokens = (canvas?.tokens?.controlled ?? []).map((t) => t.document).filter((t) => canJoin(t) && t.actor.isOwner);
+  if (!tokens.some((t) => t.id === seedToken.id)) tokens.unshift(seedToken);
+  for (const token of tokens) await requestBringIn(formation, token.actor, token);
+}
+
 /**
  * One HUD button per token kind: an ordinary token joins the party, and the
- * party token forms it back up.
+ * party token forms it back up. A player has only the first, on a token of
+ * their own, and only where a party already stands on the scene.
  */
 Hooks.on("renderTokenHUD", (hud, html) => {
-  if (!game.user.isGM) return;
   const tokenDoc = hud.object?.document;
   if (!tokenDoc?.actor) return;
   const root = elementOf(html);
   if (!root || root.querySelector(".acks-formation-hud")) return;
 
+  const isGM = game.user.isGM;
   const isParty = tokenDoc.actor.type === PARTY_TYPE;
   // A saved order is what the button restores, so with none saved there is
   // nothing to offer and the button stays off the HUD entirely.
-  if (isParty && !listTemplates().length) return;
-  if (!isParty && (tokenDoc.getFlag(MODULE_ID, FLAG_FORMATION_ID) || isMarkerActor(tokenDoc.actor))) return;
+  if (isParty && (!isGM || !listTemplates().length)) return;
+  if (!isParty && !canJoin(tokenDoc)) return;
+  const party = isGM ? null : partyOnScene(tokenDoc.parent, game.user);
+  if (!isGM && (!party || !tokenDoc.actor.isOwner)) return;
 
   const button = document.createElement("button");
   button.type = "button";
   button.className = "control-icon acks-formation-hud";
-  button.dataset.tooltip = game.i18n.localize(
-    isParty ? "ACKS-FORMATION.hud.formUp" : "ACKS-FORMATION.hud.addToParty",
-  );
+  const tip = isParty ? "formUp" : isGM ? "addToParty" : "bringIn";
+  button.dataset.tooltip = game.i18n.localize(`ACKS-FORMATION.hud.${tip}`);
   button.innerHTML = `<i class="fa-solid ${isParty ? "fa-people-line" : "fa-people-group"}"></i>`;
   button.addEventListener("click", (event) => {
     event.preventDefault();
-    const run = isParty ? formUpFromHud(tokenDoc) : addTokensToParty(tokenDoc);
+    const run = isParty ? formUpFromHud(tokenDoc) : isGM ? addTokensToParty(tokenDoc) : bringTokensIn(party, tokenDoc);
     run.catch((err) => console.error(`${MODULE_ID} | ${isParty ? "form up" : "add to party"} failed`, err));
   });
   (root.querySelector(".col.right") ?? root).appendChild(button);

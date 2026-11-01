@@ -669,6 +669,7 @@ installRecreatedHitPoints();
 const model = await import("../scripts/formation/formation-model.mjs");
 const engine = await import("../scripts/formation/turn-engine.mjs");
 const requests = await import("../scripts/formation/player-requests.mjs");
+const membership = await import("../scripts/formation/membership.mjs");
 const { getSocket } = await import("../scripts/lib/sockets.mjs");
 const sceneSync = await import("../scripts/formation/scene-sync.mjs");
 const deployment = await import("../scripts/formation/deployment.mjs");
@@ -1371,6 +1372,96 @@ await scenario("players steer their own members via the GM relay", async () => {
   await drain();
 });
 
+await scenario("a player brings their own actors in and takes them out through the GM relay", async () => {
+  const theirs = (name) => ActorMock.create({
+    name,
+    type: "character",
+    ownership: { default: 0, PL1: 3 },
+    system: { hp: { value: 5, max: 5 }, details: { level: 1 }, movementacks: { exploration: 120 } },
+  });
+  const seated = await theirs("Kell");
+  const walker = await theirs("Hale");
+  const follower = await theirs("Ives");
+  const stranger = await member("Jory"); // GM-owned only
+  const outsider = await member("Lark"); // GM-owned only, in no party
+  await drain();
+
+  await game.settings.set(MODULE_ID, "formations", {}); // isolate
+  const [seatedToken, walkerToken] = await scene.createEmbeddedDocuments("Token", [
+    { name: "Kell", actorId: seated.id, x: 0, y: 0 },
+    { name: "Hale", actorId: walker.id, x: 100, y: 100 },
+  ]);
+  let formation = await model.createFormation("Door Party");
+  formation = await model.addMember(formation, seated, seatedToken);
+  await model.addMember(model.getFormation(formation.id), stranger, null);
+  await drain();
+  const id = onlyFormation().id;
+  const ids = () => onlyFormation().members.map((m) => m.actorId);
+  const player = game.users.get("PL1");
+
+  assert.deepEqual(
+    membership.bringableActors(player).filter((a) => [walker.id, follower.id, seated.id, stranger.id].includes(a.id)).map((a) => a.name),
+    ["Hale", "Ives"],
+    "the list holds the seat's own people who stand in no party, by name",
+  );
+  assert.equal(membership.partyOnScene(scene, player)?.id, id, "the party on the scene is the one a token of theirs joins");
+  assert.equal(membership.canMarch({ type: `${MODULE_ID}.party` }), false, "a party is no member");
+  assert.equal(membership.canMarch({ type: `${MODULE_ID}.location`, documentName: "Actor" }), false, "a place is no member");
+
+  const gmUser = game.user;
+  game.user = player;
+  const seen = chat.length;
+  try {
+    const noticed = notices.length;
+    await requests.requestBringIn(onlyFormation(), outsider);
+    await drain();
+    assert.ok(notices.slice(noticed).some((n) => String(n.msg ?? n).includes("Lark") || String(n.msg ?? n).includes("notYours")), "the seat is told why it cannot bring another's actor");
+    await getSocket().executeAsGM("partyRequest", { formationId: id, type: "bringIn", payload: { actorId: outsider.id } });
+    await drain();
+    assert.deepEqual(ids(), [seated.id, stranger.id], "a forged request for an actor the sender does not own writes nothing");
+
+    await requests.requestBringIn(onlyFormation(), walker, walkerToken);
+    await drain();
+    assert.deepEqual(ids(), [seated.id, stranger.id, walker.id], "their token's actor joins");
+    assert.ok(!scene.tokens.some((t) => t.actorId === walker.id), "stepping in takes the token off the map");
+    assert.ok(onlyFormation().members.at(-1).tokenData, "and stashes it on the record");
+
+    await requests.requestBringIn(onlyFormation(), follower);
+    await drain();
+    assert.deepEqual(ids(), [seated.id, stranger.id, walker.id, follower.id], "an actor with no token joins from the list");
+    assert.equal(onlyFormation().members.at(-1).tokenData, null, "with nothing to stash");
+    assert.equal(membership.bringInRefusal(onlyFormation(), follower, player)?.key, "inParty", "and cannot join twice");
+
+    await getSocket().executeAsGM("partyRequest", { formationId: id, type: "takeOut", payload: { actorId: stranger.id } });
+    await drain();
+    assert.ok(ids().includes(stranger.id), "a forged request cannot take out a member the sender does not own");
+
+    await requests.requestTakeOut(onlyFormation(), walker.id);
+    await drain();
+    assert.ok(!ids().includes(walker.id), "their own member leaves");
+    assert.ok(scene.tokens.some((t) => t.actorId === walker.id), "and the token stashed for them returns to the map");
+    assert.equal(chat.length - seen, 3, "the table is told each time, and of no refusal");
+
+    game.user = gmUser; // the combat flag is the Judge's write
+    const inCombat = onlyFormation();
+    inCombat.combat = { active: true, combatId: "stub" };
+    await model.updateFormation(inCombat);
+    await drain();
+    game.user = player;
+    assert.equal(membership.takeOutRefusal(onlyFormation(), follower.id, player)?.key, "inCombat", "a fight refuses the leaving");
+    assert.equal(membership.bringInRefusal(onlyFormation(), walker, player)?.key, "inCombat", "and the joining");
+    await requests.requestTakeOut(onlyFormation(), follower.id);
+    await getSocket().executeAsGM("partyRequest", { formationId: id, type: "bringIn", payload: { actorId: walker.id } });
+    await drain();
+    assert.deepEqual(ids(), [seated.id, stranger.id, follower.id], "nor does the GM client take either during a fight");
+  } finally {
+    game.user = gmUser;
+  }
+
+  await model.disband(model.getFormation(id));
+  await drain();
+});
+
 await scenario("leaving a member behind is the owner's declaration, refused otherwise and in combat", async () => {
   const owned = await ActorMock.create({
     name: "Ferris",
@@ -1741,10 +1832,12 @@ await scenario("template renders live controls for a member-owner", async () => 
   assert.ok(daveChips.length > 0, "role chips rendered for owned member");
   assert.ok(daveChips.every((disabled) => !disabled), "owned member's role chips are ENABLED for the player");
   assert.ok(daveSeg.includes('data-action="memberUp"'), "owned member has reorder controls");
-  assert.ok(!daveSeg.includes('data-action="removeMember"'), "remove stays GM-only");
+  assert.ok(daveSeg.includes('data-action="removeMember"'), "a player can take out their own member");
 
-  const eveChips = chipStates(seg(eve.id));
+  const eveSeg = seg(eve.id);
+  const eveChips = chipStates(eveSeg);
   assert.ok(eveChips.length > 0 && eveChips.every(Boolean), "unowned member's role chips are disabled");
+  assert.ok(!eveSeg.includes('data-action="removeMember"'), "and no player can take out another's");
 
   assert.ok(html.includes("ACKS-FORMATION.map.section"), "maps section renders for players");
   assert.ok(!html.includes("distorted"), "no distortion tell in a player render");

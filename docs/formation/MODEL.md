@@ -37,6 +37,7 @@ All paths are under `scripts/formation/` unless noted.
 | `turn-engine.mjs` | Dungeon-turn tick: world time, lights, rest/winded, effect expiry, wandering-monster throws, rations, movement→turn conversion, chat cards. |
 | `formation-view.mjs`, `formation-actions.mjs` | The party sheet's context (the strip, the travel and city sections, the members; the Judge's extras) and its action handlers (`SHARED_ACTIONS`). |
 | `conveyance.mjs`, `movement-view.mjs` | What carries each member on a journey: the carriers they count, the fastest of them, the member's pin, the group's presses and their Undo, the dawn and the join; and what the sheet shows of it (§Conveyance). |
+| `membership.mjs` | Who stands in a party as a player decides it: what may march, why a request is refused, the party a token joins, and the Order tab's list (§The player surface). |
 | `frame-view.mjs` | The party sheet's frame, decided offline: the parts and tabs a seat gets, the band's bar, every rail cell with its reading and its press, the reading column, the Key, each tab's head (§The frame). |
 | `party-actor.mjs` | The `acks-extras.party` Actor sub-type (its one field, `description`) and its sheet: the parts, the band moved into the window header, the tab row and its chevron, the GM's member drop, and the refusal of a dropped item. |
 | `zones.mjs` | Point-in-region geometry shared by every zone behavior: core `testPoint` when available, manual shape math as a headless fallback, `findZone(formation, type)` testing the party token's CENTRE at its stored corner (as the movement hook reads it, below), `zonesAt` for every zone over a point, `regionArea`, `truePartyPoint` (the centre of `truePositionToken`), and `streetUnder(formation, board)` — the one reader of what the party is standing on. |
@@ -244,22 +245,45 @@ Nothing in the payload names who asked. Players act on what is THEIRS:
 | Traps | Work on a trap the party has found, or re-arm one they disarmed, with their own character | `trapbreak` / `trapRearm` |
 | Train | Deploy a vehicle they own as a place beside the party token, or strike it | none: the vehicle is theirs to write (`docs/vehicles/MODEL.md`, "Deployed as a place"); only its marker token goes through the `vehicleMarker` relay |
 | Conveyance | Pin their own member on foot or on a carrier they count, or hand the choice back (§Conveyance) | `conveyance` |
+| Who is in the party | Bring an actor of their own in, or take one out (below) | `bringIn` / `takeOut` |
 
 Judge secrets never reach a player's DOM: map `quality`/`distorted` and the
 mapper's proficiency exist only in the GM render context — a warped map must
-be indistinguishable from an accurate one to its holders. Removals, blanks,
-frontage, the clock, saves, tables, and session lifecycle stay GM-only.
-Role and light declarations are announced publicly, so the table sees who
-changed the party's posture.
+be indistinguishable from an accurate one to its holders. Taking out another's
+member, blanks, frontage, the clock, saves, tables, and session lifecycle stay
+GM-only. Role, light and membership declarations are announced publicly, so the
+table sees who changed the party's posture.
 
-**A drop on the party sheet.** A GM's seat binds its own drop on the sheet
-(`bindMemberDrop`): an actor or a token dropped there joins the party. A party
-carries nothing itself — its members do — so an item is refused with the
-library's one warning (`refuseGoods`, [lib MODEL](../lib/MODEL.md), "Refused
-aloud") and nothing is written. The GM's seat refuses it in the member drop,
-which replaces the base class's on the element; every other seat refuses it in
-`_onDropItem`, where Foundry's base class would create a copy on the party
-actor.
+**A drop on the party sheet.** Every seat the sheet is live for binds a drop on
+it (`bindMemberDrop`). On the GM's seat an actor or a token dropped there joins
+the party; on a player's it is a `bringIn`. A party carries nothing itself — its
+members do — so an item is refused with the library's one warning
+(`refuseGoods`, [lib MODEL](../lib/MODEL.md), "Refused aloud") and nothing is
+written. The member drop refuses it, replacing the base class's on the element;
+a seat the sheet is not live for has no drop to reach, and `_onDropItem` stands
+behind it, where Foundry's base class would create a copy on the party actor.
+
+**A player's own actors, in and out.** Three ways in, one way out, each a
+declaration. The token HUD gives a player the party button on a token they own
+where a party already stands on the scene (`partyOnScene`: one holding a member
+of theirs, else the first); it is the only way in for a seat with no member,
+since a party actor grants a player nothing until they have one
+(`syncPartyActorOwnership`). The Order tab lists their people who stand in no
+party (`bringableActors`: characters, monsters and companies, so a mount or a
+wagon is left off and a drop still takes it), which is what brings in a henchman
+with no token on the map. A drop takes any of their own. Each member they own
+carries the leave control.
+
+The test is ownership of the actor, never of a member: `bringInRefusal` and
+`takeOutRefusal` run on the requesting client to say why, since the relay
+carries no answer back, and again on the GM client against the attested sender,
+which is what makes them a gate. They refuse another's actor, one already in a
+party, and any change during a fight (`formation.combat.active`). A request
+writes through `addMember` and `removeMember`, so a token is stashed and returned
+as the Judge's own add and remove do, a join raises `acksExtras.memberJoined`, and
+an attachment stays as it was. The token searched for is on the party's scene,
+never the one the Judge happens to be viewing. A member brought in with no token
+has none to return. A player never starts a party.
 
 ## The Judge's override
 

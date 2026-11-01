@@ -2518,6 +2518,36 @@
   margin: 0.4rem 0 0.2rem;
 }
 
+/* A player's own people who stand in no party: one button each, wrapping, so a
+   long name takes its own line rather than pushing the row past the sheet. */
+.acks-extras-formation-bring-in h3 {
+  margin: 0.4rem 0 0.2rem;
+}
+
+.acks-extras-formation-bring-in-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.acks-extras-formation-bring-in-list button {
+  flex: 0 1 auto;
+  width: auto;
+  max-width: 100%;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  overflow-wrap: anywhere;
+}
+
+.acks-extras-formation-bring-in-list img {
+  width: 1.5em;
+  height: 1.5em;
+  object-fit: cover;
+  border: none;
+  flex: 0 0 auto;
+}
+
 .acks-extras-formation-train-row {
   display: flex;
   align-items: center;

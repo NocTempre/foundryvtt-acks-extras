@@ -153,6 +153,11 @@
           <button type="button" data-action="removeMember" class="danger" data-tooltip="{{localize 'ACKS-FORMATION.app.removeMemberHint'}}">
             <i class="fa-solid fa-user-minus"></i>
           </button>
+          {{else}}
+          <button type="button" data-action="removeMember" class="danger" {{#if this.takeOutLocked}}disabled{{/if}}
+                  aria-label="{{localize 'ACKS-FORMATION.membership.takeOutHint'}}" data-tooltip="">
+            <i class="fa-solid fa-user-minus"></i>
+          </button>
           {{/if}}
         </div>
         {{/if}}
@@ -164,6 +169,22 @@
     <p class="hint">{{localize "ACKS-FORMATION.app.emptyMembers"}}</p>
     {{/if}}
   </section>
+
+  {{! A player's own people who stand in no party, a press from joining it. }}
+  {{#if bringIn.length}}
+  <section class="acks-extras-formation-bring-in">
+    <h3>{{localize "ACKS-FORMATION.membership.bringHeading"}}</h3>
+    <p class="hint">{{#if bringInLocked}}{{localize "ACKS-FORMATION.membership.bringLocked"}}{{else}}{{localize "ACKS-FORMATION.membership.bringHint"}}{{/if}}</p>
+    <div class="acks-extras-formation-bring-in-list">
+      {{#each bringIn}}
+      <button type="button" data-action="bringIn" data-actor-id="{{id}}" {{#if ../bringInLocked}}disabled{{/if}}
+              aria-label="{{label}}" data-tooltip="">
+        <img src="{{img}}" alt=""> {{name}}
+      </button>
+      {{/each}}
+    </div>
+  </section>
+  {{/if}}
 
   {{! The train: every carrier under a member — mounts, wagons, the horse in
       the traces. Carriers are not members; this is where they show. }}

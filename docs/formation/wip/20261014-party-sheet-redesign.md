@@ -445,6 +445,24 @@ groups, so the pill is gone from the tab and the delve's Order tab keeps it.
 Whether a hex scene should size the marker by the hex instead is a scene-sync
 question (§9).
 
+**The owner's needs, 2026-10-31.** "Players grouping their entourage and
+importantly letting them manage who is in that subgroup for this delve." The floor
+of that lands ahead of this phase: a player brings their own actors in and out of
+the party (DECISIONS 2026-11-01). What it leaves for phase 5, as needs and not yet
+rulings:
+
+- **A group a player makes and fills.** The groups above are the party's, one set
+  in a journey's marching order. An entourage is one player's: they name it, and
+  they choose its members from the actors they own, with no Judge in the loop. The
+  relays for a ride and for membership are the route; the test stays ownership of
+  the actor.
+- **It reaches the delve.** This section is the journey's Order tab, and the owner
+  named the delve. The delve's Order tab needs the same groups, or a shared surface
+  in both modes.
+- **Who is in it for this delve.** The membership floor answers who is in the
+  party. A group adds who is in the entourage for this expedition, so its store may
+  need to be scoped to one rather than standing (§9).
+
 ### g. Sightings: the journey's results, kept
 
 The owner's scope (ruling 6): sightings are encounter rolls, the results of
@@ -576,7 +594,7 @@ the owner's call.
 | 2 | brush layers, scene default, the river and coast line layer, `travel.map` and `travel.override`, the Country cards and plate, the believed hex driving them while an episode is open, `travel.shown` | medium | paint territory, draw a river, drag; the cards, the plate and the encounter column follow; override and clear; open an episode: a player's sheet reads the believed hex, the Judge's the true one; unknown country blanks the plate |
 | 3 | conveyance, derived mode, dawn and join application, Fastest for all and Undo, the relay | medium: writes to holds | a player pins foot; a member joins and is mounted; the Judge presses Fastest for all, then Undo |
 | 4 | the day's boxes, confirm, camp time, the Camp tab with the night one row a head, the offer's answers | high: supersedes rulings | a player seat fills and confirms; the Judge changes a box; Make camp, one head wet and out an hour, then Break camp: that head alone owes the throw |
-| 5 | the train with the party's own groups (`travel.train.groups`), standing tags, the `led` role | medium: a new lib role needs its ruling | a player names a group and adds one; a drag into the front group marks the scout; a mule led by a handler slows the party; a herd without a herder reads red |
+| 5 | the train with the party's own groups (`travel.train.groups`), a player's own groups in delve and journey (§4f, the owner's needs), standing tags, the `led` role | medium: a new lib role needs its ruling | a player names a group and adds one; a player moves an actor of theirs out of their group for this delve, no Judge involved; a drag into the front group marks the scout; a mule led by a handler slows the party; a herd without a herder reads red |
 | 6 | sightings: the results feed, the encounter flags, reveal, the tab | low | a search hour and a throw appear as entries; Reveal from the Judge; a player seat sees only the public ones |
 
 Files, by phase: `travel.mjs` (`travelOf` resolution, `endDay`,
@@ -631,6 +649,9 @@ The owner's answers to the first round's eight questions, as given:
 - Watches (who stands which, and the night sighting naming the watch) are a
   Camp-tab row with no store behind it yet; it rides with phase 4 or later.
 - The `led` role's weight and pace rules are a lib ruling before phase 5.
+- Whether a group stands from delve to delve or is made for one, and if it stands,
+  how a player leaves someone out for this delve without undoing it (§4f, the
+  owner's needs). Ruled before phase 5.
 - A restock day: `stockedAt` is stamped and nothing reads it. Whether the
   world clock restocks a hex on a Judge-set day, or a restock stays a
   gesture, is phase 2's ruling.

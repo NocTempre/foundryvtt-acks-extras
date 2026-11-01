@@ -4,6 +4,11 @@
 
 ### Added
 
+- **Players bring their own actors in and out of the party.** A player's token
+  offers **Bring into the party** where a party stands on the scene, the Order tab
+  lists their people who are in no party, and a drop on the sheet works for them
+  too. A control on each member they own takes that member out. The table sees
+  every move, and a fight holds the line-up.
 - **The party arranges its own rides on a journey.** A member who joins takes
   the fastest ride they have, and so does everyone at each dawn, with a note
   saying who moved. A ride counts when the same player owns the member and the

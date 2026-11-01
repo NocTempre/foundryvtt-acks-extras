@@ -1,10 +1,11 @@
-/* global game, foundry, ChatMessage, ui, fromUuid */
+/* global game, foundry, ChatMessage, ui, fromUuid, fromUuidSync */
 import { makeLoc } from "../lib/util.mjs";
-import { getFormation, getFrontage, swapCells, toggleRole } from "./formation-model.mjs";
+import { addMember, getFormation, getFrontage, getPartyScene, removeMember, swapCells, toggleRole } from "./formation-model.mjs";
 import { ROLE_LABELS, LIGHT_SOURCES } from "./constants.mjs";
 import { anchorMap } from "./map-items.mjs";
 import { toggleDetachMember, toggleMemberLeft } from "./deployment.mjs";
 import { chooseConveyance, rideLabel } from "./conveyance.mjs";
+import { bringInRefusal, refusalText, takeOutRefusal } from "./membership.mjs";
 import { executeAsGM, registerHandler } from "../lib/sockets.mjs";
 import { rollPartyCheck, PARTY_CHECKS } from "./party-rolls.mjs";
 import { attemptDisarm, attemptRearm } from "./trap-zone.mjs";
@@ -25,6 +26,8 @@ import { addLight, addSpell, advanceTurns, toggleLight, toggleShield } from "./t
  * - leave their own character behind where they fell, or go back for them
  *   (leftBehind);
  * - say how their own character travels (conveyance);
+ * - bring an actor of their own into the party, or take one out (bringIn /
+ *   takeOut);
  * - douse/relight or shutter a light their character carries (lightToggle /
  *   lightShield);
  * - consult — anchor — a map their character holds (anchorMap);
@@ -214,6 +217,23 @@ async function executeRequest(formation, user, type, payload) {
       break;
     }
 
+    /* --- Who stands in the party: a player's own actors, in or out --- */
+    case "bringIn": {
+      const token = payload.tokenUuid ? fromUuidSync(payload.tokenUuid) : null;
+      const actor = token?.actor ?? game.actors.get(payload.actorId);
+      if (bringInRefusal(formation, actor, user, token)) return;
+      await addMember(formation, actor, token, { scene: getPartyScene(formation) });
+      await announceDeclaration(formation, user, loc("request.bringIn", { name: foundry.utils.escapeHTML(actor.name) }));
+      break;
+    }
+    case "takeOut": {
+      if (takeOutRefusal(formation, payload.actorId, user)) return;
+      const name = game.actors.get(payload.actorId)?.name ?? "?";
+      await removeMember(formation, payload.actorId);
+      await announceDeclaration(formation, user, loc("request.takeOut", { name: foundry.utils.escapeHTML(name) }));
+      break;
+    }
+
     /* --- Light discipline on a light the player's character carries --- */
     case "lightToggle":
     case "lightShield": {
@@ -291,6 +311,20 @@ export async function requestPartyAction(formationId, type, payload = {}) {
   }
   await executeAsGM(REQUEST_HANDLER, { formationId, type, payload });
   ui.notifications.info(game.i18n.localize("ACKS-FORMATION.request.sent"));
+}
+
+/** A player's own actor into the party, refused here with the reason where the GM client would refuse it silently. */
+export async function requestBringIn(formation, actor, token = null) {
+  const refused = bringInRefusal(formation, actor, game.user, token);
+  if (refused) return void ui.notifications.warn(refusalText(refused, actor));
+  await requestPartyAction(formation.id, "bringIn", { actorId: actor.id, tokenUuid: token?.uuid ?? null });
+}
+
+/** A player's own actor out of the party, refused the same way. */
+export async function requestTakeOut(formation, actorId) {
+  const refused = takeOutRefusal(formation, actorId, game.user);
+  if (refused) return void ui.notifications.warn(refusalText(refused, game.actors.get(actorId)));
+  await requestPartyAction(formation.id, "takeOut", { actorId });
 }
 
 /** Register the GM-side request handler with socketlib. */
