@@ -1,6 +1,8 @@
 # Changelog
 
 ## Unreleased
+
+## 11.13.2
 ### Fixed
 
 - Removing a group's first stack now updates the stats the group's token shows, which
