@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+## 11.13.0
 ### Added
 
 - **Players bring their own actors in and out of the party.** A player's token

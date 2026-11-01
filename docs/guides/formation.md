@@ -31,6 +31,11 @@ and their token comes back beside the party token if they had one. A player move
 only what they own, the table sees each move in chat, and nobody moves during a
 combat. The Judge can still add or remove anyone.
 
+![](../releases/v11.13.0/formation-membership.png)
+
+*A player's Order tab: their own member with the control that takes them out, and
+their people still to bring in.*
+
 ## The party sheet
 
 The party's name and the mode it travels in sit in the window's title bar,
@@ -238,6 +243,11 @@ decides which of everything else the party actually meets. A flier ignores roads
 entirely; a vessel ignores the ground, and over a river or a coast it draws its
 encounters from the river's table.
 
+![](../releases/v11.13.0/formation-movement.png)
+
+*Movement on the Judge's seat: who sets the pace, the chip for a faster ride, the
+five tiles, and Undo after a pass.*
+
 Players see all of this and press none of it. Press a tile yourself and it is
 your word for the whole party, shown as **Set for the group**: on foot takes
 everyone off everything, mounted and by vehicle put each member on the fastest
@@ -252,6 +262,11 @@ it. A ride counts for a member when the same player owns both, in the train or
 not, and a wagon someone in the party is already in counts for everyone, so a
 hireling no player owns can board it. **Fastest for all** at the head of that
 tab gives each member their pick, or the fastest they have.
+
+![](../releases/v11.13.0/formation-member-ride.png)
+
+*A member's row: what they ride now, the faster ride they could take, and their
+own pick, each ride with its pace.*
 
 The party also does this by itself. A member who joins takes their ride, and at
 each dawn on a journey everyone without a pick of their own takes the fastest

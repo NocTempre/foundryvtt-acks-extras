@@ -33,6 +33,11 @@ Judge.
 
 *Number appearing under the vitals, a die beside each formula.*
 
+![](../releases/v11.13.0/monsters-count-units.png)
+
+*The Ecology tab's sides, each with its noun, count and unit; a side in knots is
+counted in groups.*
+
 Everything else is one click away on **Full sheet** — the chip in the card's
 header band, or the portrait beside the name. If you would rather land on the
 full block, set it once under **Sheet Configuration** on any monster — that
@@ -159,9 +164,17 @@ or the wilderness line, and choose wandering, in lair or by lair chance, which t
 that monster's chance first and lets it pick the side. Its line reads out in the dialog
 before you press, and the dialog opens on the line the scene calls for.
 
+![](../releases/v11.13.0/group-encounter-dialog.png)
+
+*One monster's Roll: which line, how it was found, and both lines read out.*
+
 That monster's stack is sized at once, and a card only the Judges see shows each die.
 Every other stack stays as it is, so a mixed group is rolled a monster at a time. Every
 count stays editable, and hovering one says where it came from.
+
+![](../releases/v11.13.0/group-encounter-card.png)
+
+*The Judges' card: the lair chance thrown, then the count.*
 
 **Roll again** replaces what that monster's last Roll sized, your change to it included.
 A row you typed a count on has no Roll: zero both counts to get it back. A side counted
@@ -183,9 +196,14 @@ replaced. Hide the token with Foundry's own toggle until they meet it.
 A family dropped on the sheet asks which variant the stack is, and generates that
 creature, as the template's own Generate does.
 
-![](../releases/v3.0.0/group-sheet.png)
+![](../releases/v11.13.0/group-encounter-variant.png)
 
-*A retinue kept as one document rather than a dozen.*
+*A family asks which variant the stack is; an axis left on its die is rolled.*
+
+![](../releases/v11.13.0/group-encounter-sheet.png)
+
+*An encounter kept as one document: the token's reading, and each monster's Roll
+and its count.*
 
 ## Where an imported creature came from
 

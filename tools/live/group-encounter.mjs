@@ -878,6 +878,7 @@ try {
   const variant = await until(gm, P.dialogs, null, (d) => d.count === 1);
   note("variant", variant.list[0]);
   check("a family asks which variant", variant.count === 1 && variant.list[0].selects === 1, variant.list[0]?.title);
+  await gm.shot(plate("group-encounter-variant.png"), ".acks-lib-group-dialog").catch((err) => console.log(`plate not taken: ${err?.message ?? err}`));
   await run(gm, P.answer, { values: { size: "large" } });
   state = await until(gm, P.state, { groupId: second.id }, (s) => s.list.length === 1);
   const generated = state.list[0]?.uuid;

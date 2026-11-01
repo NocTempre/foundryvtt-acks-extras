@@ -250,15 +250,28 @@ const P = {
    * The clock to just past the next dawn. A dawn arranges every party on a
    * journey, a peer walk's kept one among them, so whatever it moved beyond
    * this run's party goes back by that party's own Undo, in the same step.
+   * The pass follows the day's settling of every party, so its length grows with
+   * the world: `moves` waits for this party's record to change, and either way
+   * the step ends on a quiet stretch with no party's record changing.
    */
-  toDawn: async ({ fid }) => {
+  toDawn: async ({ fid, moves = false }) => {
     const H = globalThis.__cv;
-    const others = () => Object.values(H.model.getFormations()).filter((f) => f.id !== fid);
+    const parties = () => Object.values(H.model.getFormations());
+    const others = () => parties().filter((f) => f.id !== fid);
     const lastOf = (f) => JSON.stringify(H.travel.travelOf(f).lastArrangement ?? null);
-    const before = new Map(others().map((f) => [f.id, lastOf(f)]));
+    const stamp = () => parties().map(lastOf).join();
+    const before = new Map(parties().map((f) => [f.id, lastOf(f)]));
     const step = H.time.untilNextDawn();
     await game.time.advance(step);
-    await H.sleep(3000);
+    const started = Date.now();
+    let seen = stamp();
+    let quietSince = started;
+    while (Date.now() - started < 30000) {
+      await H.sleep(500);
+      if (stamp() !== seen) { seen = stamp(); quietSince = Date.now(); }
+      const own = before.get(fid) !== lastOf(H.model.getFormation(fid));
+      if ((moves ? own : Date.now() - started >= 8000) && Date.now() - quietSince >= 3000) break;
+    }
     const putBack = [];
     for (const f of others()) {
       if (before.get(f.id) === lastOf(f)) continue;
@@ -509,7 +522,7 @@ try {
   const afoot = await run(gm, P.toFoot, { actorId: late.id });
   check("the member starts the dawn on foot, by hand", !afoot.on, afoot);
   await run(gm, P.takeNotes);
-  note("the clock to the dawn", await run(gm, P.toDawn, { fid }));
+  note("the clock to the dawn", await run(gm, P.toDawn, { fid, moves: true }));
   s = await read();
   // Parties go in the record's order, and a peer's on this seat may take the pony first.
   check("the clock crossing a dawn seats them", !!s.seats[late.id].on, s.seats[late.id]);
