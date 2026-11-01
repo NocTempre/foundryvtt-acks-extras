@@ -278,3 +278,6 @@ lines". Each slice ships usable; the tier is what it reaches.
    needs the split and merge `GROUPS.md` lists as not built. A stack stays one row with
    its count and the bodies holding a record nest under it, as proposed and not
    overruled, since a row per body would mean a record, and a hit-point roll, per body.
+6. (2026-11-01) The Roll is per monster, not the whole group. Each monster's row has its
+   own, a press rolls that monster alone, and a re-roll replaces only what that monster's
+   roll made.
