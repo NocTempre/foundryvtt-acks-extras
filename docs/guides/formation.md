@@ -220,10 +220,38 @@ declare there, because nothing on the map draws one.
 *The Judge's hand: a ground and a road given, each with its clear, and under
 every select what the map reads there.*
 
-**Movement**, yours alone, holds **Moving by** — on foot, mounted, by vehicle,
-flying, or by vessel — which decides which of everything else the party
-actually meets. A flier ignores roads entirely; a vessel ignores the ground,
-and over a river or a coast it draws its encounters from the river's table.
+**Movement** heads with who is setting the party's pace and on what, how many
+ride, are carried and walk, and the pace; hover the figure for each member's. A
+gold chip says when a faster ride is there to take. Below it are five tiles — on
+foot, mounted, by vehicle, flying and by vessel. Without your touching them the
+lit tile is how the party moves right now, read off who is on what, and it
+decides which of everything else the party actually meets. A flier ignores roads
+entirely; a vessel ignores the ground, and over a river or a coast it draws its
+encounters from the river's table.
+
+Players see all of this and press none of it. Press a tile yourself and it is
+your word for the whole party, shown as **Set for the group**: on foot takes
+everyone off everything, mounted and by vehicle put each member on the fastest
+of that kind they have, by vessel puts them aboard, and flying moves nobody.
+Your word outranks what a member picked for themselves, and their pick comes
+back when you clear it. **Back to automatic** clears it, and **Undo the
+arrangement** puts everyone back where your last press found them.
+
+What each member travels on is theirs to say, on the Order tab's row beneath
+their name: **Automatic**, **On foot**, or a ride, with each ride's pace beside
+it. A ride counts for a member when the same player owns both, in the train or
+not, and a wagon someone in the party is already in counts for everyone, so a
+hireling no player owns can board it. **Fastest for all** at the head of that
+tab gives each member their pick, or the fastest they have.
+
+The party also does this by itself. A member who joins takes their ride, and at
+each dawn on a journey everyone without a pick of their own takes the fastest
+they have, and a note tells you who moved. Nothing moves while your word stands,
+in a fight, or for a member who is down, left behind, out on the map, carrying a
+casualty or at a station. A world with no calendar has its dawn when you end the
+day. A ride nobody is on goes to the first of that player's parties to meet a
+dawn, so if you keep a spare horse for a second party, have someone ride it.
+
 The **Sky** section is the day's
 weather; the **Day** section is one **kind of day** (a dedicated march, a forced
 march, or a day in camp), the **ancillary hours** you give to travel,
@@ -671,7 +699,7 @@ and dragging the token still works the way it always has.
 
 ### Flying
 
-Pick **Flying** under *Moving by* and two more fields appear: how many **hours
+Press the **Flying** tile and two more fields appear: how many **hours
 aloft**, out of a day of how many, and what the flier is **carrying**. A party
 that spends only part of the day in the air is priced on that share. A flier
 still meets the ground below it and still feels the weather — except the wind,

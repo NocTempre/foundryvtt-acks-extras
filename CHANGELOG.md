@@ -2,6 +2,34 @@
 
 ## Unreleased
 
+### Added
+
+- **The party arranges its own rides on a journey.** A member who joins takes
+  the fastest ride they have, and so does everyone at each dawn, with a note
+  saying who moved. A ride counts when the same player owns the member and the
+  ride, and a wagon someone in the party is already in counts for everyone.
+- **A member's say over how they travel.** The Order tab's row beneath each name
+  offers Automatic, On foot or a ride, with each ride's pace, for a player on
+  their own member through the Judge's client as much as for the Judge. A pick
+  holds against every arrangement but the Judge's tile.
+- **Fastest for all, and Undo.** The Judge gives everyone their pick or their
+  fastest in one press, and takes it back in another.
+- **The Movement section tells a player how the party moves.** Who sets the pace
+  and on what, how many ride, are carried and walk, the pace with each member's
+  figure on hover, and a chip when a faster ride is there. Every seat reads it.
+
+### Changed
+
+- **Five tiles replace the Moving by select**, and how the party moves is read
+  off who is on what, so it can no longer disagree with the party's speed. A tile
+  the Judge presses arranges the party and stands as their word until Back to
+  automatic. An older record's Flying or Vessel keeps standing as that word.
+
+### Fixed
+
+- **A player's sheet no longer prices the party at nothing** because a member is
+  not theirs. A seat that does not own a character now reads their speed off
+  what they carry.
 ## 11.12.3
 
 ### Added

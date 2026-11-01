@@ -1258,7 +1258,9 @@ and its **End day** moves the calendar to the next dawn through
 `untilNextDawn()`. `secondsToNextDawn(reading, {secondsPerHour})` is the pure
 arithmetic under it — the seconds from a reading to the next time the clock
 reads the dawn hour, strictly after now, so standing exactly at dawn waits a
-whole day.
+whole day. `dawnWithin(reading, dt)` asks the same arithmetic backwards, from a
+reading taken after a step of the clock: a step that lands on the dawn crossed
+it, and one that starts there did not, so no watcher needs a stored last dawn.
 
 ## The socket transport
 

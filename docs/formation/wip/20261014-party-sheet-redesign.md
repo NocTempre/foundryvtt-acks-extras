@@ -55,6 +55,7 @@ not a UI change, it is a correctness fix the UI then shows.
    `postEncounterCard` writes no flags, so nothing structured survives it.
 5. **Two answers to "is the party mounted".** The `travel.movement.mode`
    select on one hand; `partyHeads` reading `mountOf` live on the other.
+   Closed by phase 3: the mode is read off the attachments.
 6. **Stale pointer.** The `landNavigationSpec` docstring (`travel.mjs`) cites
    an open ruling in `docs/vehicles/DECISIONS.md` that is not there; formation
    DECISIONS 2026-08-29 (Lost) answers it.
@@ -92,6 +93,19 @@ GM clients, the plate's crop off a background that does not fill the scene,
 and the faked reveal when the active GM is viewing another scene. The guide's
 lost-episode shots (v8.1.0) show the old Begin wording and are the next
 release's to re-take.**
+
+**Phase 3 landed 2026-10-31: `formation/conveyance.mjs` (the offers, the pin,
+the group's presses and Undo, the dawn and the join), the mode read off the
+attachments, the pace line and the five tiles on every seat, each member's row
+on the Order tab, the `conveyance` relay, and a pace that reads the same on a
+seat owning only part of the party (DECISIONS 2026-10-31, *What carries a member
+is arranged, and the mode is read off it*). Walked live on both seats, 46 of 46
+(TESTING, *Conveyance*). Two readings differ from the above: a tile outranks a
+pin, the plan's reading over the canvas's, and the GM's client writes the pin
+with its ride, so §4a's "written by the actor's owner" no longer holds. What it
+leaves is ROADMAP: a carrying rule on another seat, and a free carrier across
+parties. Any guide shot of the Movement section still shows the old select and
+is the next release's to re-take.**
 
 ## 2. Principles
 

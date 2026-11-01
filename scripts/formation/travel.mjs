@@ -32,7 +32,7 @@
 import { MODULE_ID } from "../lib/constants.mjs";
 import { isPrimaryGM, numOrNull } from "../lib/util.mjs";
 import { parentUuidOf, resolvePlaceSync } from "../lib/place.mjs";
-import { patchFormation, getFormation, getFormations, getPartyToken, realMembers, getMemberActor, hasAbility } from "./formation-model.mjs";
+import { patchFormation, getFormation, getFormations, getPartyToken, realMembers, getMemberActor, hasAbility, derivedMovementMode } from "./formation-model.mjs";
 import { hasCapability } from "./ability-bridge.mjs";
 import { mayAdvanceWorldTime, untilNextDawn, calendarDay, calendarSeason } from "../lib/world-time.mjs";
 import { TRAVEL_PACE } from "../lib/movement-scales.mjs";
@@ -260,6 +260,27 @@ export const countryValueValid = (key, value) => !!COUNTRY_VALID[key]?.(value);
 const WATER_BORNE = "vessel";
 
 /**
+ * The modes that stand on the Judge's word alone: hours aloft are declared, and
+ * a boat nobody holds a sheet for has no attachment to read.
+ */
+const DECLARED_MODES = Object.freeze(["flying", WATER_BORNE]);
+
+/**
+ * The Judge's word on how the whole party moves (`movement.set`), a mode key,
+ * or null for the automatic reading. A record older than the word holds the
+ * `mode` its select wrote: a declared mode reads as the word, and the rest said
+ * nothing the attachments do not, the default `foot` above all.
+ */
+function movementSetOf(t) {
+  const m = t.movement;
+  if (m && Object.hasOwn(m, "set")) return isMode(m.set) ? m.set : null;
+  return DECLARED_MODES.includes(m?.mode) ? m.mode : null;
+}
+
+/** The mode in force: a declared mode's word, else what the attachments say. */
+const movementModeOf = (formation, set) => (DECLARED_MODES.includes(set) ? set : derivedMovementMode(formation));
+
+/**
  * The map's cached reading (`travel.map`) where it still describes the party:
  * written on the scene the party's token stands on now. Anywhere else, or with
  * no party token, the map says nothing.
@@ -475,9 +496,11 @@ function travelBase(formation) {
     // HOW the order moves, which decides which factors it meets at all. Named
     // `movement` rather than `mode`, because `mode` above is already the kind
     // of adventuring (delve / journey / settlement) and the two are
-    // independent: a party can fly a journey or walk one.
+    // independent: a party can fly a journey or walk one. `mode` is the answer
+    // and is never stored (`storedTravelOf`); `set` is the Judge's word.
     movement: {
-      mode: isMode(t.movement?.mode) ? t.movement.mode : "foot",
+      mode: movementModeOf(formation, movementSetOf(t)),
+      set: movementSetOf(t),
       hoursAloft: Math.max(0, Number(t.movement?.hoursAloft) || 0),
       // How long the travelling day was. Declared, never assumed: how many
       // hours a day's travel takes is printed, and a flier that spent part of
@@ -496,6 +519,8 @@ function travelBase(formation) {
       wet: !!t.exposure?.wet,
     },
     settlement: settlementOf(t),
+    // The arrangement as the last group press found it, for its Undo.
+    lastArrangement: t.lastArrangement && typeof t.lastArrangement === "object" ? t.lastArrangement : null,
     log: Array.isArray(t.log) ? t.log : [],
   };
 }
@@ -541,6 +566,8 @@ export function storedTravelOf(formation) {
   for (const key of ["ground", "road", "following", "territory", "encounterTerrain", "map", "override"]) {
     if (t[key] !== undefined) stored[key] = t[key];
   }
+  // The mode is an answer, never a fact of the record.
+  delete stored.movement.mode;
   return stored;
 }
 
@@ -1578,11 +1605,11 @@ export async function applyTravelForm(formationId, tv = {}, { override = false }
       };
       next.weather = w;
     }
-    // How the order moves. Read as a group for the same reason the cold's
+    // A flier's hours and load. Read as a group for the same reason the cold's
     // inputs are: a picker and two fields submit together.
     if (tv.movement) {
       next.movement = {
-        mode: isMode(tv.movement.mode) ? tv.movement.mode : t.movement.mode,
+        ...t.movement,
         hoursAloft: Math.max(0, Number(tv.movement.hoursAloft) || 0),
         dayHours: Math.max(0, Number(tv.movement.dayHours) || 0),
         load: FLIGHT_LOADS[tv.movement.load] ? tv.movement.load : "normal",

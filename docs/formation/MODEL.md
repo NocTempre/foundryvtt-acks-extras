@@ -36,6 +36,7 @@ All paths are under `scripts/formation/` unless noted.
 | `formation-model.mjs` | Formation records: storage (world setting `acks-extras.formations`), membership, party actor/token lifecycle, marching order, derived speeds. |
 | `turn-engine.mjs` | Dungeon-turn tick: world time, lights, rest/winded, effect expiry, wandering-monster throws, rations, movement→turn conversion, chat cards. |
 | `formation-view.mjs`, `formation-actions.mjs` | The party sheet's context (the strip, the travel and city sections, the members; the Judge's extras) and its action handlers (`SHARED_ACTIONS`). |
+| `conveyance.mjs`, `movement-view.mjs` | What carries each member on a journey: the carriers they count, the fastest of them, the member's pin, the group's presses and their Undo, the dawn and the join; and what the sheet shows of it (§Conveyance). |
 | `frame-view.mjs` | The party sheet's frame, decided offline: the parts and tabs a seat gets, the band's bar, every rail cell with its reading and its press, the reading column, the Key, each tab's head (§The frame). |
 | `party-actor.mjs` | The `acks-extras.party` Actor sub-type (its one field, `description`) and its sheet: the parts, the band moved into the window header, the tab row and its chevron, the GM's member drop, and the refusal of a dropped item. |
 | `zones.mjs` | Point-in-region geometry shared by every zone behavior: core `testPoint` when available, manual shape math as a headless fallback, `findZone(formation, type)` testing the party token's CENTRE at its stored corner (as the movement hook reads it, below), `zonesAt` for every zone over a point, `regionArea`, `truePartyPoint` (the centre of `truePositionToken`), and `streetUnder(formation, board)` — the one reader of what the party is standing on. |
@@ -242,6 +243,7 @@ Nothing in the payload names who asked. Players act on what is THEIRS:
 | Casualties | Leave their own character behind where they fell, or go back for them (refused in combat) | `leftBehind` |
 | Traps | Work on a trap the party has found, or re-arm one they disarmed, with their own character | `trapbreak` / `trapRearm` |
 | Train | Deploy a vehicle they own as a place beside the party token, or strike it | none: the vehicle is theirs to write (`docs/vehicles/MODEL.md`, "Deployed as a place"); only its marker token goes through the `vehicleMarker` relay |
+| Conveyance | Pin their own member on foot or on a carrier they count, or hand the choice back (§Conveyance) | `conveyance` |
 
 Judge secrets never reach a player's DOM: map `quality`/`distorted` and the
 mapper's proficiency exist only in the GM render context — a warped map must
@@ -745,6 +747,90 @@ consumer here (no healing mechanic exists).
 `closeDay` is the one closer: the Wilderness tab's **End day** pill and the
 tracker's own offer both go through it, so a day can never be ended two
 different ways.
+
+## Conveyance
+
+Who is on what is the one attachment ([attachment.mjs](../../scripts/lib/attachment.mjs),
+roles `rider` and `passenger`), which `partySpeed` reads through
+`rootCarrierOf`. [conveyance.mjs](../../scripts/formation/conveyance.mjs) only
+decides, and writes through `mountActor` and `attach` as a hand would. Two
+things are stored beside the attachment: a member's **pin**, the actor flag
+`conveyance = { pinned }`, `ON_FOOT` or a carrier's uuid, held against the
+arrangement; and the Judge's **word** for the group, `travel.movement.set`.
+
+**How the party moves is read, never stored.** `derivedMovementMode` reads what
+carries the members on the march: `vessel` with every one of them aboard one,
+`vehicle` with any root carrier a land vehicle, `mounted` with anyone carried by
+anything else, otherwise `foot`. `movementModeOf` is the word where one stands
+and that reading where none does, and `travelOf` serves it as
+`movement.mode`, so the country, the readout and the flight rules read one
+answer. `storedTravelOf` drops the key. An older record's `movement.mode` of
+`flying` or `vessel` reads as the word it was (`movementSetOf`, `DECLARED_MODES`);
+`foot`, `mounted` and `vehicle` said nothing the attachments do not say, and read
+as no word.
+
+**A carrier counts for a member** when a player who owns the member also owns
+the carrier, in the train or not, and a vehicle already under a member counts
+for the whole party (`offersFor`). A member no player owns has only the second.
+`offerOf` then asks whether it can take them: a vehicle not deployed, its wheels
+able to enter the country (`wheelsEnter`, the gate the sheet's wheel refusals
+read) and room in its hold; an animal unattached and unridden, within what it
+can bear. A wagon quotes its pace with this member aboard (`carrierSpeedFor`'s
+`adding`), so taking the offer cannot land them below the figure that won it. A
+vessel's speed is null, its clock not being a march's: it is a member's pick and
+a tile's, and the automatic arrangement never takes one.
+
+`bestConveyance` answers the fastest, keeping the current ride unless something
+is strictly faster, so a tie moves nobody; among equals an animal beats a wagon,
+since a wagon's room is the party's. A member aboard a vessel stays.
+`heldReason` names who nothing moves: a body that is not a person, one left
+behind, one out on the map, a casualty, a Carrier hauling one, a member at a
+station. Riders and passengers are the only roles a pass touches.
+
+**The passes** go slowest first (`runPass`), since that member is the one holding
+the party back, and every move re-reads the holds, so a wagon's tier and free
+room are the load already boarded. The first move snapshots the arrangement to
+`travel.lastArrangement` with the word it found; a pass that moves nobody takes
+no snapshot, so a dawn that changes nothing keeps the one a Judge may still want.
+
+| Press or moment | What it does | The pin | The word |
+|---|---|---|---|
+| **Fastest for all**, **Back to automatic** (`arrangeFastest`) | every member takes their pin, or the fastest they have | honoured | cleared |
+| A **tile** (`setGroupMovement`) | On foot takes everyone off; Mounted, Wagon and Vessel put each member on the fastest of that kind they have, or leave them; Flying moves nobody | overridden, and kept | set |
+| **Undo** (`undoArrangement`) | puts back what the last pass found | not touched | restored |
+| A dawn, a join (`arrangeAtDawn`, `arrangeJoined`) | the pin or the fastest; a join moves only the one who joined | honoured | held off: nothing self-arranges under a word |
+| A member's own press (`chooseConveyance`) | Automatic hands the choice back; a pick moves them and pins it | written | stands |
+
+`selfArranging` is the gate on the last-but-one row: a journey, no word, no
+fight. A dawn arranges every party that passes it, each in its own guard, and
+says who moved. A dawn is a crossing of the clock, read off the step
+(`dawnWithin`, `onWorldTimeAdvanced`), so nothing is stored to say it has
+happened; a world with no calendar has no such crossing, and `closeDay` is its
+dawn. A join is `acksExtras.memberJoined`, which `addMember` raises on the GM's
+client that wrote the record, and that client answers it.
+
+A player's press goes through the `conveyance` relay; the GM's client checks
+the member is theirs and writes pin and ride together.
+
+**On the sheet** ([movement-view.mjs](../../scripts/formation/movement-view.mjs)):
+the Movement section heads with the pace line, who sets the pace and on what,
+how many ride, are carried and walk, and the pace, whose tooltip lists each
+member's figure; a gold chip names a faster ride for the member setting it. Every
+seat reads the line and the five tiles, and only the Judge's tiles press. A tile
+lights for the word where one stands, otherwise for how the party reads, so a
+press with nothing to board still shows. The Order tab carries each member's row,
+how they travel and what they may pick from, on a seat that may press for them;
+a wagon that cannot roll is no pick. **Fastest for all** heads the Order tab, and
+**Undo** sits beside it and in the Movement section.
+
+**A seat that does not own a member** has no figure for them: core derives a
+character's encumbrance and speed on its owner's and a GM's clients alone. Such a
+seat weighs what the character bears (`borneWeight6`) and reads the same tiers
+(`explorationSpeedOf`, `encumbranceOf`), so the pace, its setter and a Carrier's
+figure agree across seats. It is the borne reading, without the carrying rules
+core's own sum is corrected by (`docs/lib/MODEL.md`, "Capacity"), so a member
+those rules lighten can read a tier slower there than on the Judge's seat. A
+character's hand-set speed is on the document and needs none of this.
 
 ## The country
 

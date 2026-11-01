@@ -1007,7 +1007,7 @@ const P = {
     const where = (n) => ({ part: n.closest("[data-application-part]")?.dataset.applicationPart ?? null, section: n.closest("[data-section]")?.dataset.section ?? null, head: !!n.closest("header.acks-extras-party-sheet__head") });
     const out = {};
     for (const k of keys) {
-      const sel = k.startsWith("@") ? `[data-action="${k.slice(1)}"]` : k.endsWith("*") ? `[name^="${k.slice(0, -1)}"]` : `[name="${k}"]`;
+      const sel = k.startsWith("@") ? `[data-action="${k.slice(1).replace(/\*$/u, "")}"]` : k.endsWith("*") ? `[name^="${k.slice(0, -1)}"]` : `[name="${k}"]`;
       out[k] = [...el.querySelectorAll(sel)].filter((n) => !n.closest(".acks-extras-party-sheet__art-row") && n.type !== "hidden").map(where);
     }
     const day = el.querySelector('[data-section="day"]');
@@ -2099,7 +2099,7 @@ async function seat(key) {
   const api = await connect({ browser, origin, user: SEATS[key], port: PORTS[key], own: MACHINE.own });
   seats[key] = api;
   note(`${key} ready after (s)`, await ready(api, key));
-  const fresh = await api.eval(`typeof globalThis.acksExtras?.formation?.travel?.trueTravelOf === "function" && globalThis.acksExtras?.formation?.apiVersion === 19`);
+  const fresh = await api.eval(`typeof globalThis.acksExtras?.formation?.travel?.trueTravelOf === "function" && globalThis.acksExtras?.formation?.apiVersion === 20`);
   if (!fresh) throw new Error(`${key}: stale module code loaded; the page did not pick up the working tree`);
   note(`${key} install`, await page(api, P.install));
   return api;
@@ -2534,7 +2534,7 @@ async function frame(gm, player, census) {
     ["band", { part: "band" }, ["travel.mode", "name"]],
     ["Wilderness head", { part: "mode", head: true }, ["travel.hexLabel", "@travelEnterHex", "@forageDay", "@travelEndDay"]],
     ["Points of interest", { part: "mode", section: "poi" }, ["@hexStock", "travel.camp.present", "travel.camp.target"]],
-    ["Movement", { part: "mode", section: "movement" }, ["travel.movement.mode"]],
+    ["Movement", { part: "mode", section: "movement" }, ["@movementTile*"]],
     ["Sky", { part: "mode", section: "sky" }, ["travel.weather.season", "travel.weather.auto", "travel.weather.fronts", "travel.weather.temperature", "travel.weather.precipitation", "travel.weather.wind", "travel.weather.footingMud", "travel.weather.footingSnow", "@travelWeatherRoll"]],
     ["Day", { part: "mode", section: "day" }, ["travel.day.kind", "travel.day.slot.*", "travel.hour", "travel.day.traps", "travel.day.noSleep"]],
     ["Camp", { part: "mode", section: "camp" }, ["travel.exposure.hours", "travel.exposure.atHeatSource", "travel.exposure.wet", "travel.camp.steal", "travel.camp.water", "travel.camp.sleepInArmour"]],
@@ -2556,7 +2556,6 @@ async function frame(gm, player, census) {
   const FIELDS = [
     ["travel.override.territory", "select", null, "travel.override.territory"],
     ["travel.camp.present", "select", null, "travel.camp.present"],
-    ["travel.movement.mode", "select", null, "travel.movement.mode"],
     ["travel.weather.temperature", "select", null, "travel.weather.temperature"],
     ["travel.hour", "select", null, "travel.hour"],
     ["travel.camp.steal", "check", null, "travel.camp.steal"],

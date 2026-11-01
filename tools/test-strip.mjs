@@ -549,7 +549,7 @@ const stripOf = (id) => {
     mode: [
       'name="travel.hexLabel"', 'data-action="travelEnterHex"', 'data-action="forageDay"', 'data-action="travelEndDay"',
       'data-action="hexStock"', 'name="travel.camp.present"', 'name="travel.camp.target"',
-      'name="travel.movement.mode"',
+      'data-action="movementTile"',
       'name="travel.weather.season"', 'data-action="travelWeatherRoll"',
       'name="travel.day.kind"', 'name="travel.hour"', 'name="travel.day.traps"', 'name="travel.day.noSleep"',
       'name="travel.exposure.hours"', 'name="travel.camp.steal"', 'name="travel.camp.water"', 'name="travel.camp.sleepInArmour"',
@@ -654,9 +654,13 @@ const stripOf = (id) => {
   assert.ok(!playerHtml.includes('name="travel.mode"'), "but not the mode picker");
   assert.ok(!playerHtml.includes('name="name"'), "nor the name field");
   assert.ok(!playerHtml.includes('data-action="travelEndDay"'), "nor the Judge's buttons");
-  for (const key of ["poi", "movement", "day"]) {
+  for (const key of ["poi", "day"]) {
     assert.ok(!playerHtml.includes(`data-section="${key}"`), `no ${key} section for a player`);
   }
+  const playerMovement = sectionOf(playerJourney.mode, "movement");
+  assert.ok(playerMovement.includes('data-action="movementTile"'), "the five tiles reach a player");
+  assert.equal(playerMovement.match(/data-action="movementTile"[^>]*disabled/g)?.length, 5, "with none to press");
+  assert.ok(!playerMovement.includes('data-action="movementFastest"') && !playerMovement.includes('data-action="movementUndo"'), "and neither of the Judge's presses");
   const playerCountry = sectionOf(playerJourney.mode, "country");
   assert.ok(playerCountry.includes('data-key="territory"'), "the Country cards reach a player");
   assert.ok(!playerCountry.includes("data-action="), "with nothing to press");

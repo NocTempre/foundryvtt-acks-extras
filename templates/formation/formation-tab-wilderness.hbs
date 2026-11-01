@@ -143,16 +143,52 @@
       </label>
     </div>
   </section>
+  {{/if}}
 
+  {{! How the party moves: every seat reads the pace and the tiles; only the
+      Judge's seat presses them. A member's own say is on the Order tab. }}
   <section class="acks-extras-party-sheet__section" data-section="movement">
     <h2 class="acks-extras-party-sheet__section-title">{{localize "ACKS-FORMATION.frame.section.movement"}}</h2>
+    {{#with travel.arrangement as |go|}}
+    {{#if go.pace}}
+    <div class="acks-extras-movement-pace">
+      <i class="{{go.pace.icon}} acks-extras-movement-pace-glyph" inert></i>
+      <div class="acks-extras-movement-pace-text">
+        <span class="acks-extras-movement-pace-lead">{{go.pace.lead}}</span>
+        <span class="acks-extras-movement-pace-sub">{{go.pace.sub}}</span>
+      </div>
+      {{#if go.pace.faster}}<span class="acks-extras-party-sheet__chip is-gold">{{go.pace.faster}}</span>{{/if}}
+      <span class="acks-extras-movement-pace-figure" data-tooltip-text="{{go.pace.tip}}">{{go.pace.speed}}'</span>
+    </div>
+    {{/if}}
+    <div class="acks-extras-movement-tiles" role="group" aria-label="{{localize 'ACKS-FORMATION.conveyance.groupLabel'}}">
+      {{#each go.tiles}}
+      <button type="button" class="acks-extras-movement-tile{{#if pressed}} is-on{{/if}}" data-action="movementTile" data-mode="{{key}}"
+              aria-pressed="{{#if pressed}}true{{else}}false{{/if}}" {{#unless ../judge}}disabled{{/unless}}>
+        <i class="{{icon}}" inert></i> {{label}}
+      </button>
+      {{/each}}
+    </div>
+    <div class="acks-extras-movement-state">
+      {{#if go.automatic}}
+      <span class="acks-extras-party-sheet__chip is-gold">{{localize "ACKS-FORMATION.conveyance.automatic"}}</span>
+      {{else}}
+      <span class="acks-extras-party-sheet__chip">{{localize "ACKS-FORMATION.conveyance.groupSet"}}</span>
+      {{#if go.judge}}
+      <button type="button" class="acks-extras-party-sheet__head-pill" data-action="movementFastest"
+              data-tooltip="{{localize 'ACKS-FORMATION.conveyance.backHint'}}">{{localize "ACKS-FORMATION.conveyance.back"}}</button>
+      {{/if}}
+      {{/if}}
+      {{#if go.canUndo}}
+      <button type="button" class="acks-extras-party-sheet__head-pill" data-action="movementUndo"
+              data-tooltip="{{localize 'ACKS-FORMATION.conveyance.undoHint'}}">
+        <i class="fa-solid fa-rotate-left" inert></i> {{localize "ACKS-FORMATION.conveyance.undo"}}
+      </button>
+      {{/if}}
+    </div>
+    {{/with}}
+    {{#if isGM}}{{#if travel.flying}}
     <div class="acks-extras-formation-travel-pickers">
-      <label data-tooltip="{{localize 'ACKS-FORMATION.travel.movement.hint'}}">{{localize "ACKS-FORMATION.travel.movement.label"}}
-        <select name="travel.movement.mode">
-          {{#each travel.movementModes}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
-        </select>
-      </label>
-      {{#if travel.flying}}
       <label data-tooltip="{{localize 'ACKS-FORMATION.travel.movement.aloftHint'}}">{{localize "ACKS-FORMATION.travel.movement.aloft"}}
         <input type="number" min="0" step="1" name="travel.movement.hoursAloft" value="{{travel.movement.hoursAloft}}">
       </label>
@@ -164,10 +200,9 @@
           {{#each travel.flightLoads}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
         </select>
       </label>
-      {{/if}}
     </div>
+    {{/if}}{{/if}}
   </section>
-  {{/if}}
 
   {{#if travel.skyShown}}
   <section class="acks-extras-party-sheet__section" data-section="sky">

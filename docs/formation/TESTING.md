@@ -2522,7 +2522,7 @@ types the name the kept party does not carry. Read each seat's
    | Wilderness head | `travel.hexLabel`, `travelEnterHex`, `forageDay`, `travelEndDay` |
    | Country | no field (the cards are readings); `clearOverride` on a card whose chip reads override; `paintThisHex` on a card whose layer the party's hex has not painted (since phase 2a, below) |
    | Points of interest | `hexStock`; once stocked `hexAddPoint`, `hexClear` and, while the hex can be surveyed, `hexSurvey`; per point `hexFound`, `hexPlace` (or `openPlace` once placed) and `hexRemovePoint`; `travel.camp.present`, `travel.camp.target` |
-   | Movement | `travel.movement.mode`; while flying `travel.movement.hoursAloft`, `travel.movement.dayHours`, `travel.movement.load` |
+   | Movement | `movementTile` (five, one per mode); by state `movementFastest`, `movementUndo`; while flying `travel.movement.hoursAloft`, `travel.movement.dayHours`, `travel.movement.load` |
    | Sky | `travel.weather.season`, `.auto`, `.fronts`, `.temperature`, `.precipitation`, `.wind`, `.footingMud`, `.footingSnow`; `travelWeatherRoll`; on the climate card, `clearOverride` while climate is overridden |
    | Day | `travel.day.kind`, `travel.day.slot.<n>` (one per slot), `travel.hour`, `travel.day.traps`, `travel.day.noSleep` |
    | Camp | `travel.exposure.hours`, `.atHeatSource`, `.wet`; `travel.camp.steal`, `.water`, `.sleepInArmour` |
@@ -2537,9 +2537,9 @@ types the name the kept party does not carry. Read each seat's
    `travel.settlement.pace`, `.where`, `.route`, `.hour`, `.intent` and
    `.conveyance`.
    *Observable:* each is found exactly once (a point's own controls once per
-   point), where the table says. Change one field per section and re-read the
-   record: `travel.override.territory`, `travel.camp.present`, `travel.movement.mode`,
-   `travel.weather.temperature`, `travel.hour`, `travel.camp.steal`,
+   point, a tile once per mode), where the table says. Change one field per
+   section and re-read the record: `travel.override.territory`,
+   `travel.camp.present`, `travel.weather.temperature`, `travel.hour`, `travel.camp.steal`,
    `travel.lost.judgeNote` and, in a district, `travel.settlement.wanted` each
    take the new value. The Camp section renders after Day, its forecast first;
    End day pressed once adds one row to `travel.log`, and Sightings lists it.
@@ -2708,7 +2708,7 @@ off the world while the walk runs. A hand select is
    territory chip reads Y; the Encounters line names hex A's table.
 3. **The cadence on the way back.** Drag back into hex C.
    *Observable:* one `hexEntered` with `cadence` "grid" and `territory` X.
-4. **A river.** Drag into hex D, then set **Moving by** to vessel.
+4. **A river.** Drag into hex D, then press the **By vessel** tile.
    *Observable:* `travel.map.following` "river" and `water` `{kind: "river",
    navigable: true}`; the Following card reads the river, sourced from the
    map; the Camp section says water is already at hand, with its declaration
@@ -3076,6 +3076,82 @@ for the next run's start. Unregister the invented `travel` document
 (`acksExtras.lib.tables.unregisterTable("travel", {priority: 30})`) and
 restore *Journey encounter throws*. The world clock is not set back; report
 how far step 10 moved it.
+
+## Conveyance (added with the redesign's phase 3)
+
+The pace line, the five tiles, Fastest for all and Undo, a member's own pick
+through the relay, the join and the dawn. The walk is
+`node tools/live/run.mjs formation-conveyance`, on the GM and Player seats, under
+a recorder added before reload. An arrangement runs on the primary GM's client,
+so the GM seat must be it.
+
+Fixtures, each found again by its marker or built carrying one:
+
+- the scene `conveyance/scene`, and the party `conveyance/party` on a journey;
+- the characters `conveyance/rider`, `conveyance/mate` and `conveyance/late`, the
+  Player seat's, and `conveyance/hand`, nobody's;
+- the animals `conveyance/pony` and `conveyance/mule`, which differ in pace, and
+  the wagon `conveyance/cart`, slower than either, with a team.
+
+Each step asserts its own start: nobody on anything, no pin, no word, nothing to
+undo, `conveyance/late` out of the party. **The carriers are the Player seat's
+for the run alone.** Every party a player owns a member of counts that player's
+free carriers, so a carrier left in their hands is taken by a peer walk's kept
+party at its next dawn; the walk gives them to the seat at its start and takes
+them back in its `finally`.
+
+A dawn arranges every party on a journey, a peer walk's kept one among them, in
+the record's order. So `P.toDawn` puts any other party back by its own Undo in
+the same step and reports which. A party that must stay on foot through a dawn
+presses the On foot tile first. Check `putBack` in the log.
+
+Drive mechanics: a hand that takes a passenger down uses `detach`; `dismount` is
+a rider's alone, and a walk that calls it on a passenger starts its dawn with
+the member still aboard, which reads as a dawn that seated them. Read the sheet
+on a tall window, since `gm.shot` clips to what is on screen.
+
+1. **Every seat reads the pace.** Open the sheet on the Wilderness tab on both
+   seats.
+   *Observable:* five tiles on each, none live on the Player's; the pace line's
+   setter, figure and tooltip are the same on both, the Player owning only some
+   of the party; the chip names the faster ride.
+2. **A player pins foot.** On the Player's Order tab press On foot for
+   `conveyance/rider`.
+   *Observable:* the pin lands on the actor through the relay, nobody moves, a
+   card says so, the row redraws pressed. `conveyance/hand`'s row shows no picks.
+3. **A member joins and is mounted.** Drop `conveyance/late` on the sheet.
+   *Observable:* they take the fastest they have, nobody else moves, a toast
+   names them.
+4. **Fastest for all, then Undo.** Press it on the Order head.
+   *Observable:* the pin holds, the next member takes the faster animal over the
+   wagon, `conveyance/hand` stays afoot with nothing to count, both seats read
+   the same seats, the party actor's speed agrees. Undo takes back what the pass
+   moved and spends itself, and the speed returns.
+5. **A wagon in the train.** Press the cart for `conveyance/mate`.
+   *Observable:* they board with a pin; `conveyance/hand` now has it to pick; the
+   mode reads `vehicle` and the record stores no `mode`.
+6. **The tiles.** Press On foot.
+   *Observable:* everyone off, over a pin that survives; the word shows, with
+   Back to automatic and Undo. Cross a dawn: nobody moves. Press By vessel with
+   nothing to board: it stands as the word and lights. Press Flying: the hours
+   appear on the Judge's seat. Back to automatic clears it, the pin going to its
+   carrier.
+7. **The dawn.** Take a member off by hand, then cross a dawn.
+   *Observable:* they are on foot before it and seated after, and the toast names
+   them.
+8. **The relay refuses.** From the Player's seat, send a pick for
+   `conveyance/hand`, and a pick naming a character as the carrier.
+   *Observable:* nothing changes.
+9. **A record from before.** Write `movement.mode` as `mounted`, then `flying`.
+   *Observable:* the first reads as no word, the second as the word. Back to
+   automatic moves it onto the new shape.
+10. **The plates.** Size the sheet wide and at its minimum; the walk writes
+    `conveyance-movement*.png` and `conveyance-order*.png` to the log directory.
+    *Observable:* the section does not overflow, no tile or figure clips, a
+    member's picks wrap. Read the PNGs.
+
+Teardown: the clock is put back, the carriers leave the Player seat, the cards
+the relay posted are swept by id. The nine fixtures stay.
 
 ## A teleport between scenes (added with the teleport fix)
 

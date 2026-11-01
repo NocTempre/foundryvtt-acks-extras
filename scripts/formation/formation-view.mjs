@@ -26,6 +26,7 @@ import {
   isPartyInDark,
   mapperIsProficient,
   maxFrontage,
+  memberPace,
   missingRoleGear,
   partySpeed,
 } from "./formation-model.mjs";
@@ -68,7 +69,9 @@ import { streetUnder } from "./zones.mjs";
 import { findEncounterZone } from "./encounter-zone.mjs";
 import { findDistrict } from "./district-zone.mjs";
 import { hunterName } from "./hunt.mjs";
-import { TERRAIN, travelMultiplier, canEnter } from "../vehicles/vehicle-speed.mjs";
+import { TERRAIN, travelMultiplier } from "../vehicles/vehicle-speed.mjs";
+import { carrierPool, wheelsEnter } from "./conveyance.mjs";
+import { buildMemberConveyance, buildMovementView } from "./movement-view.mjs";
 import {
   CLIMATES,
   CONDITIONS,
@@ -132,6 +135,8 @@ export function buildFormationView(formation) {
   view.partyImg = getPartyActor(formation)?.img ?? null;
   const load = carriedLoad(formation);
   const count = formation.members.length;
+  // Each member's own say on how they travel is a journey's; a fight freezes it.
+  const going = journeying ? { load, pool: carrierPool(), t: travelOf(formation) } : null;
   let ordinal = 0;
   view.members = formation.members.map((member, index) => {
     const grid = {
@@ -146,7 +151,7 @@ export function buildFormationView(formation) {
     };
     if (member?.blank || !member?.actorId) return { ...grid, blank: true };
     const actor = getMemberActor(member);
-    const memberSpeed = explorationSpeedOf(actor);
+    const memberSpeed = (actor && memberPace(formation, member, actor, load)) ?? explorationSpeedOf(actor);
     const owned = actor?.testUserPermission?.(game.user, "OWNER") ?? false;
     return {
       ...grid,
@@ -155,6 +160,9 @@ export function buildFormationView(formation) {
       // Players steer their own characters: reorder + roles on owned members.
       owned,
       canControl: game.user.isGM || owned,
+      conveyance: going && actor
+        ? buildMemberConveyance(formation, member, actor, { ...going, canControl: (game.user.isGM || owned) && !formation.combat?.active })
+        : null,
       // A casualty's row says so, and offers the only two things that clear it.
       casualty: isCasualty(actor, member),
       // Leaving in place is offered to a casualty (who otherwise stops the
@@ -1213,8 +1221,7 @@ export function buildTravelView(formation, { asPlayer = !game.user?.isGM } = {})
   // hours aloft mean nothing to a party on foot and an always-visible field
   // that never applies reads as one the Judge forgot to fill.
   view.movement = t.movement;
-  view.movementModes = Object.entries(MOVEMENT_MODES).map(([value, cfg]) =>
-    opt(value, game.i18n.localize(cfg.label), value === t.movement.mode));
+  view.arrangement = buildMovementView(formation, t);
   view.flying = t.movement.mode === "flying";
   view.flightLoads = Object.entries(FLIGHT_LOADS).map(([value, cfg]) =>
     opt(value, game.i18n.localize(cfg.label), value === t.movement.load));
@@ -1730,11 +1737,7 @@ function wheelRefusals(formation, t) {
     for (const carrier of carrierChain(actor)) {
       if (carrier.type !== VEHICLE_TYPE || seen.has(carrier.uuid)) continue;
       seen.add(carrier.uuid);
-      const verdict = canEnter(carrier.system, t.ground, {
-        road: t.road,
-        mud: t.weather.footing?.mud ?? "none",
-        snow: !!t.weather.footing?.snow,
-      });
+      const verdict = wheelsEnter(carrier, t);
       if (!verdict.ok) {
         out.push({
           name: carrier.name,

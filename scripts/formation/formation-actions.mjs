@@ -40,6 +40,7 @@ import {
 import { PARTY_CHECKS, rollPartyCheck } from "./party-rolls.mjs";
 import { deploymentOf, deployVehicle, strikeVehicle } from "../vehicles/deploy.mjs";
 import { requestPartyAction } from "./player-requests.mjs";
+import { arrangeFastest, chooseConveyance, setGroupMovement, undoArrangement } from "./conveyance.mjs";
 import { announce } from "./announce.mjs";
 import { toggleDetachMember, toggleMemberLeft } from "./deployment.mjs";
 import { dismount } from "../lib/mount.mjs";
@@ -132,6 +133,45 @@ async function adjustTrackedSpell(app, target, delta) {
 }
 
 export const SHARED_ACTIONS = {
+  /** A group tile: the Judge's word for how the whole party moves. */
+  async movementTile(event, target) {
+    const formation = gmFormation(this);
+    if (!formation) return;
+    await setGroupMovement(formation.id, target.dataset.mode);
+    this.render?.();
+  },
+
+  /** Fastest for all, and the way back to automatic: the Judge's word clears. */
+  async movementFastest() {
+    const formation = gmFormation(this);
+    if (!formation) return;
+    await arrangeFastest(formation.id);
+    this.render?.();
+  },
+
+  /** Put the arrangement back as the last group press found it. */
+  async movementUndo() {
+    const formation = gmFormation(this);
+    if (!formation) return;
+    await undoArrangement(formation.id);
+    this.render?.();
+  },
+
+  /** A member's own say on how they travel. A player relays it to the GM client. */
+  async conveyancePick(event, target) {
+    const formation = this.formation;
+    const actorId = target.closest("[data-actor-id]")?.dataset.actorId;
+    const pick = target.dataset.pick;
+    if (!formation || !actorId || !pick) return;
+    if (game.user.isGM) {
+      await chooseConveyance(formation.id, actorId, pick);
+      this.render?.();
+      return;
+    }
+    if (!ownsActor(actorId)) return;
+    await requestPartyAction(formation.id, "conveyance", { actorId, pick });
+  },
+
   /**
    * Divide an adventure's experience among the formation, including
    * henchmen, with the split shown to the Judge before it lands.

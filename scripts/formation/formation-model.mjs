@@ -1,4 +1,4 @@
-/* global game, foundry, ui, Actor, CONST */
+/* global game, foundry, ui, Actor, CONST, Hooks */
 import { rootCarrierOf, attachmentOf, carrierChain, ATTACH_ROLES } from "../lib/attachment.mjs";
 import { landSpeed } from "../vehicles/vehicle-speed.mjs";
 import { draftPullOf } from "../vehicles/occupants.mjs";
@@ -28,7 +28,7 @@ import { carriesItem, findCarried } from "../lib/item-model.mjs";
 import { capacityStone } from "../lib/capacity.mjs";
 import { announceChange } from "../lib/util.mjs";
 import { equipForRole } from "./judge-override.mjs";
-import { ITEM_TYPE } from "../lib/vocab.mjs";
+import { ACTOR_TYPE, ITEM_TYPE } from "../lib/vocab.mjs";
 import { clearShadows } from "./shadow.mjs";
 
 /** World-setting key holding all formation records, keyed by formation id. */
@@ -524,12 +524,25 @@ export function mapperIsProficient(formation) {
   return hasCapability(mapper, "kw:mapping") || hasAbility(mapper, /mapping/i);
 }
 
+/** Whether this seat lacks a character's derived figures: core computes them for its owner and a GM alone. */
+const seatLacksDerived = (actor) => actor?.type === ACTOR_TYPE.character && actor.isOwner === false && !game.user?.isGM;
+
+/** A character's encumbrance in stone. A seat core gave no figure weighs what the character bears. */
+const encumbranceOf = (actor) => (seatLacksDerived(actor)
+  ? Math.round(borneWeight6(actor) / STONE)
+  : Number(actor?.system?.encumbrance?.value ?? 0));
+
 /** Exploration speed in feet/turn. Monsters with a Full Monster Sheet report
  *  their own Speed table (running/exploration rate); otherwise the acks system
- *  value computed from encumbrance is used. */
+ *  value computed from encumbrance is used, and a seat core computed none for
+ *  reads the same tiers off the character's weight, so every seat agrees. */
 export function explorationSpeedOf(actor) {
   const monster = monsterExplorationSpeed(actor);
   if (typeof monster === "number") return monster;
+  if (seatLacksDerived(actor) && actor.system?.config?.movementAuto) {
+    const tier = encToExplorationSpeed(encumbranceOf(actor), actor.system?.scores?.str?.mod ?? 0);
+    return Math.max(tier + (Number(actor.system?.movement?.mod) || 0), 0);
+  }
   const v = actor?.system?.movementacks?.exploration;
   if (typeof v === "number") return v;
   return actor?.system?.movement?.base ?? 0;
@@ -708,7 +721,7 @@ export function carriedLoad(formation) {
   return {
     down: down.map((e) => e.actor),
     carriers: carriers.map((e) => {
-      const baseEnc = Number(e.actor?.system?.encumbrance?.value ?? 0);
+      const baseEnc = encumbranceOf(e.actor);
       // The primitive answers with core's own maximum, which resolves a GM's
       // forced max against 20 + STR — never re-derive the formula here.
       const capacity = capacityStone(e.actor) ?? 20 + (e.actor?.system?.scores?.str?.mod ?? 0);
@@ -736,8 +749,12 @@ export function carriedLoad(formation) {
  * A vessel is not asked: a party at sea moves at the ship's voyage speed,
  * which is a different clock entirely (miles per day, not feet per turn) and
  * belongs to the voyage rules rather than to marching order.
+ * @param {Actor} carrier
+ * @param {object} formation
+ * @param {object} [o]
+ * @param {number} [o.adding]  stone to price a wagon's tier with beyond its load
  */
-export function carrierSpeedFor(carrier, formation) {
+export function carrierSpeedFor(carrier, formation, { adding = 0 } = {}) {
   // A wagon answers from its own load/speed tiers; a horse is just an actor
   // with a movement rate, so it answers the same way any member would.
   if (carrier?.type === VEHICLE_TYPE) {
@@ -745,18 +762,36 @@ export function carrierSpeedFor(carrier, formation) {
     // The whole load — freight and everyone riding — prices the tier. No
     // ground here — see docs/formation/DECISIONS.md, "Ruled: the party's
     // speeds are compared on a common UNSCALED base".
-    return landSpeed(carrier.system, holdOf(carrier).used, formation?.ground ?? null, { pull: draftPullOf(carrier) }).feetPerTurn;
+    return landSpeed(carrier.system, holdOf(carrier).used + adding, formation?.ground ?? null, { pull: draftPullOf(carrier) }).feetPerTurn;
   }
   return explorationSpeedOf(carrier);
 }
 
+/** The carrier setting this actor's pace, or null for an actor on their own legs. */
+function pacingCarrierOf(actor) {
+  return ATTACH_ROLES[attachmentOf(actor)?.role]?.setsPace ? rootCarrierOf(actor) : null;
+}
+
 /**
- * The party moves at the pace of its slowest walking member. A member
- * riding in a wagon is not walking and contributes the vehicle's pace
- * instead; down members do not walk either, and Carriers move at the speed
- * of their own encumbrance plus their share of the carried load. `dark`
- * defaults to the scene's reading; a journey passes `dark: false` because
- * daylight is the clock's to say, not the scene's.
+ * What one member moves at, before any dark. Riding anything means these legs
+ * are not setting the pace: the root of the chain answers, so a rider whose
+ * horse is in a wagon's traces travels at the wagon's pace. A Carrier moves at
+ * the speed of their own encumbrance plus their share of the carried load.
+ * Null where no figure answers, as for a vessel's passenger.
+ */
+export function memberPace(formation, member, actor = getMemberActor(member), load = carriedLoad(formation)) {
+  const carrier = pacingCarrierOf(actor);
+  if (carrier) return carrierSpeedFor(carrier, formation);
+  if (load.down.length && member.roles?.includes(ROLES.CARRIER)) {
+    return encToExplorationSpeed(encumbranceOf(actor) + load.sharePerCarrier, actor.system?.scores?.str?.mod ?? 0);
+  }
+  return explorationSpeedOf(actor);
+}
+
+/**
+ * The party moves at the pace of its slowest walking member; down members do
+ * not walk. `dark` defaults to the scene's reading; a journey passes
+ * `dark: false` because daylight is the clock's to say, not the scene's.
  * @param {object} formation
  * @param {object} [o]
  * @param {boolean} [o.dark]  whether the dark slows members who cannot see in it
@@ -776,20 +811,7 @@ export function partySpeed(formation, { dark = isPartyInDark(formation) } = {}) 
       if (load.carriers.length) continue; // somebody has them up
       return 0;
     }
-    let speed;
-    // Riding anything means these legs are not setting the pace. The root
-    // of the chain answers: a rider whose horse is in a wagon's traces
-    // travels at the wagon's pace.
-    const attachment = attachmentOf(actor);
-    const carrier = ATTACH_ROLES[attachment?.role]?.setsPace ? rootCarrierOf(actor) : null;
-    if (carrier) {
-      speed = carrierSpeedFor(carrier, formation);
-    } else if (load.down.length && member.roles?.includes(ROLES.CARRIER)) {
-      const enc = Number(actor.system?.encumbrance?.value ?? 0) + load.sharePerCarrier;
-      speed = encToExplorationSpeed(enc, actor.system?.scores?.str?.mod ?? 0);
-    } else {
-      speed = explorationSpeedOf(actor);
-    }
+    let speed = memberPace(formation, member, actor, load);
     if (typeof speed !== "number") continue;
     // Blinded creatures move at 1/3 speed (RULES §4) — members who cannot
     // see in the dark slow the whole party unless they have dark senses.
@@ -798,6 +820,48 @@ export function partySpeed(formation, { dark = isPartyInDark(formation) } = {}) 
   }
   if (!speeds.length) return 0;
   return Math.min(...speeds);
+}
+
+/**
+ * The member the party's pace answers to: the slowest figure `memberPace`
+ * gives among those on the march, the first in marching order on a tie. A
+ * casualty nobody carries stops the column and is that member, at 0.
+ * @returns {{member: object, actor: Actor, speed: number}|null} null with nobody to read
+ */
+export function paceSetter(formation) {
+  const load = carriedLoad(formation);
+  let slowest = null;
+  for (const member of realMembers(formation)) {
+    const actor = getMemberActor(member);
+    if (!actor) continue;
+    if (isCasualty(actor, member)) {
+      if (member.left || load.carriers.length) continue;
+      return { member, actor, speed: 0 };
+    }
+    const speed = memberPace(formation, member, actor, load);
+    if (typeof speed === "number" && (!slowest || speed < slowest.speed)) slowest = { member, actor, speed };
+  }
+  return slowest;
+}
+
+/**
+ * How the party moves, read off what carries it: `vessel` with every marching
+ * member aboard one, `vehicle` with anyone's root carrier a land vehicle (its
+ * wheel and footing gates then apply), `mounted` with anyone carried by
+ * anything else, otherwise `foot`. Read live, so it cannot disagree with the
+ * attachments `partySpeed` reads. A member left behind is not on the march.
+ */
+export function derivedMovementMode(formation) {
+  const roots = realMembers(formation)
+    .filter((m) => !m.left)
+    .map((m) => getMemberActor(m))
+    .filter(Boolean)
+    .map(pacingCarrierOf);
+  const carried = roots.filter(Boolean);
+  if (!carried.length) return "foot";
+  const afloat = (c) => c.type === VEHICLE_TYPE && c.system?.kind !== "land";
+  if (carried.length === roots.length && carried.every(afloat)) return "vessel";
+  return carried.some((c) => c.type === VEHICLE_TYPE && !afloat(c)) ? "vehicle" : "mounted";
 }
 
 /** Any lit, unshuttered light source? */
@@ -1014,6 +1078,7 @@ export async function addMember(formation, actor, tokenDoc = null) {
   // persists its own linkage. Re-saving the record here would only replay a
   // copy that is now older than what those steps wrote.
   await syncPartyActorSpeed(formation);
+  Hooks.callAll("acksExtras.memberJoined", { formationId: formation.id, actorId: actor.id });
   return formation;
 }
 

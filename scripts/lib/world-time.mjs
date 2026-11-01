@@ -178,6 +178,21 @@ export function untilNextDawn() {
 }
 
 /**
+ * Whether the clock's step of `dt` seconds crossed a dawn, reading the clock
+ * after the step, so a step that lands on the dawn crossed it. Pure, as
+ * `secondsToNextDawn` is; a day's worth of step or more always crossed one.
+ * @param {object|null} reading  a `clockReading()` result
+ * @param {number} dt  the step, in seconds
+ * @returns {boolean}
+ */
+export function dawnWithin(reading, dt) {
+  const next = secondsToNextDawn(reading, { secondsPerHour: reading?.secondsPerHour ?? 3600 });
+  if (next == null) return false;
+  const day = reading.hoursPerDay * (reading.secondsPerHour ?? 3600);
+  return day - next < dt;
+}
+
+/**
  * Register a callback fired when world time moves forward, on the one window
  * that runs the automation (`isPrimaryGM`).
  *

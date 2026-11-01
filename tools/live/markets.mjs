@@ -402,8 +402,8 @@ const P = {
     const t0 = game.time.worldTime;
     dialog.querySelector('button[data-action="ok"]').click();
     await H.sleep(1500);
-    const loc = game.actors.get(locationId);
-    const action = (loc.system.market.goods.actions ?? []).filter((a) => a.kind === "enter" && a.postedTime >= t0).at(-1) ?? null;
+    // The entry reaches this seat through the GM client, which can take longer than the wait above.
+    const action = await H.poll(() => (game.actors.get(locationId).system.market.goods.actions ?? []).filter((a) => a.kind === "enter" && a.postedTime >= t0).at(-1) ?? null, { tries: 40, every: 250 });
     return { ...out, submitted: true, notes: H.takeNotes(), action: action ? { id: action.id, postedTime: action.postedTime, cargoSt: action.cargoSt, networkMode: action.networkMode, status: action.status } : null };
   },
   closeDialog: async () => { const d = document.querySelector(".application.dialog[data-qa-enter]"); const app = globalThis.__c2.apps().find((a) => globalThis.__c2.root(a) === d); await app?.close({ force: true, animate: false }); return { closed: !!app }; },
@@ -1189,6 +1189,7 @@ let randomBefore = null;
 let gateRoster = null;
 let partiesRoster = null;
 let moorageRoster = null;
+let networkRoster = null;
 const imported = [];
 const advance = async (locationId = null, actionId = null) => { advances++; const r = await run(gm, P.advanceDay, { locationId, actionId }); note(`advance ${advances}`, r); return r; };
 // What the rule gives a solicitation, by hand: the class option, the impact option, the better of them (class over impact on a tie, the plain entry when neither beats it).
@@ -1207,7 +1208,7 @@ try {
   gm = await seat("gm");
   const census = await run(gm, P.census, MOD);
   note("gm census", census);
-  check("the GM seat is the active GM, the page runs the working tree (formation apiVersion 19), and the world declares the report and merchandise item types", census.activeGMIsSelf && census.role === 4 && census.working === 19 && census.reportType && census.merchType, { role: census.role, manifest: census.module, working: census.working, reportType: census.reportType, merchType: census.merchType });
+  check("the GM seat is the active GM, the page runs the working tree (formation apiVersion 20), and the world declares the report and merchandise item types", census.activeGMIsSelf && census.role === 4 && census.working === 20 && census.reportType && census.merchType, { role: census.role, manifest: census.module, working: census.working, reportType: census.reportType, merchType: census.merchType });
   if (!census.activeGMIsSelf) throw new Error("another GM client is the active GM");
   note("install (gm)", await run(gm, P.install));
   const player = await seat("player");
@@ -2075,12 +2076,18 @@ try {
   note("a bare power named on V", bare);
   { let ps = null, fs = null; for (let n = 0; n < 25; n++) { ps = await run(player, P.stepsOf, { actorId: V.id }); fs = await run(player, P.stepsOf, { actorId: F.id }); if (ps.impactStep === 0 && ps.missing.length > 0 && fs.impactStep === 0) break; await sleep(400); } note("V's and F's steps as the player seat reads them", { V: ps, F: fs }); }
   note("left before step 6", await run(player, P.ventureLeave, { locationId: M5.id, actorId: V.id }));
+  // The default party holds whatever kept characters other walks left in it, and any of them with a value of its own keeps the mode offered: step 6 reads a roster of V and F alone.
+  networkRoster = "qa-network";
+  note("the network walk's party roster", await run(gm, P.roster, { add: { id: networkRoster, name: "QA Network Party", memberUuids: [V.uuid, F.uuid] } }));
+  await sleep(500);
   await run(player, P.tradeTab, { locationId: M5.id, traderId: V.id });
   const ne6 = await run(player, P.ventureEnterUI, { locationId: M5.id, submit: false });
   note("enter dialog (step 6)", { pressed: ne6.pressed, dialog: ne6.dialog, networkText: ne6.networkText, modes: ne6.modes });
   check("N6: with the impact value removed from both networks in the party the select offers no impact mode, and the item with no value at all is named as having none imported",ne6.dialog && !ne6.modes.includes("impact") && ne6.modes.includes("class") && /Mercantile Network has no value imported/.test(ne6.networkText), { modes: ne6.modes, networkText: ne6.networkText });
   note("dialog closed", await run(player, P.closeDialog));
   note("closed (player)", await run(player, P.closeAll));
+  note("the network walk's party roster removed", await run(gm, P.roster, { off: networkRoster }));
+  networkRoster = null;
 
   section("market reports: step 10 and the step-4 hunk");
   const rP = await run(gm, P.writeReport, { ownerId: V.id, marketId: M1.id, outcome: "partial", picks: 2 });
@@ -2179,6 +2186,7 @@ try {
   try { if (gm && gateRoster) note("the gate walk's party roster removed", await run(gm, P.roster, { off: gateRoster })); } catch (err) { console.error("roster:", err?.message ?? err); }
   try { if (gm && partiesRoster) note("the parties walk's party roster removed", await run(gm, P.roster, { off: partiesRoster })); } catch (err) { console.error("roster:", err?.message ?? err); }
   try { if (gm && moorageRoster) note("the moorage walk's party roster removed", await run(gm, P.roster, { off: moorageRoster })); } catch (err) { console.error("roster:", err?.message ?? err); }
+  try { if (gm && networkRoster) note("the network walk's party roster removed", await run(gm, P.roster, { off: networkRoster })); } catch (err) { console.error("roster:", err?.message ?? err); }
   try { if (gm) note("restored (gm)", await run(gm, P.restore)); } catch (err) { console.error("restore:", err?.message ?? err); }
   try { if (seats.player) { note("closed windows (player)", await run(seats.player, P.closeAll)); note("restored (player)", await run(seats.player, P.restore)); } } catch (err) { console.error("restore player:", err?.message ?? err); }
   for (const id of imported) { try { note(`${id} document removed`, await run(gm, P.removeDoc, { id })); } catch (err) { console.error("removeDoc:", err?.message ?? err); } }

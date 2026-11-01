@@ -889,8 +889,129 @@
   color: var(--acks-on-burgundy);
 }
 
+.acks-extras.acks-extras-party-sheet .acks-extras-party-sheet__head-pill.is-gold {
+  border-color: var(--acks-gold-deep);
+  background: var(--acks-warning-tint);
+  color: var(--acks-warning-ink);
+}
+
 .acks-extras.acks-extras-party-sheet .acks-extras-party-sheet__head-pill.danger {
   color: var(--acks-danger-ink);
+}
+
+/* The Movement section: who sets the pace, the five tiles, the Judge's word. */
+.acks-extras-movement-pace {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--acks-sp-3);
+  padding: calc(6px * var(--acks-extras-k)) calc(10px * var(--acks-extras-k));
+  border: var(--acks-rule-hair) solid var(--acks-ink-faint);
+}
+
+.acks-extras-movement-pace-glyph {
+  color: var(--acks-spot);
+}
+
+.acks-extras-movement-pace-text {
+  display: grid;
+  flex: 1 1 calc(160px * var(--acks-extras-k));
+  gap: 1px;
+  min-width: 0;
+}
+
+.acks-extras-movement-pace-lead {
+  font-size: calc(13px * var(--acks-extras-k));
+  font-weight: var(--acks-weight-medium);
+}
+
+.acks-extras-movement-pace-sub {
+  color: var(--acks-ink-soft);
+  font-size: calc(11px * var(--acks-extras-k));
+}
+
+.acks-extras-movement-pace-figure {
+  font-family: var(--acks-font-display);
+  font-size: calc(15px * var(--acks-extras-k));
+  font-weight: var(--acks-weight-bold);
+}
+
+.acks-extras-movement-tiles,
+.acks-extras-movement-state {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--acks-sp-3);
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-movement-tile {
+  display: inline-flex;
+  flex: 1 1 calc(96px * var(--acks-extras-k));
+  align-items: center;
+  justify-content: center;
+  gap: calc(6px * var(--acks-extras-k));
+  width: auto;
+  height: calc(34px * var(--acks-extras-k));
+  min-height: 0;
+  margin: 0;
+  padding: 0 calc(12px * var(--acks-extras-k));
+  border: var(--acks-rule-hair) solid var(--acks-ink-faint);
+  border-radius: 0;
+  background: transparent;
+  color: var(--acks-ink-soft);
+  font-family: var(--acks-font-display);
+  font-size: calc(10px * var(--acks-extras-k));
+  font-weight: var(--acks-weight-bold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-movement-tile.is-on {
+  border-color: var(--acks-spot);
+  background: var(--acks-burgundy);
+  color: var(--acks-on-burgundy);
+}
+
+/* One member's own say on the Order tab: how they travel, then what they may pick. */
+.acks-extras-formation-conveyance {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--acks-sp-2);
+  margin-top: var(--acks-sp-1);
+  font-size: var(--acks-fs-label);
+}
+
+.acks-extras-formation-conveyance-how {
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-formation-conveyance-picks {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--acks-sp-1);
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-formation-conveyance-picks button {
+  width: auto;
+  height: auto;
+  min-height: 0;
+  margin: 0;
+  padding: calc(2px * var(--acks-extras-k)) calc(5px * var(--acks-extras-k));
+  border: var(--acks-rule-hair) solid var(--acks-ink-faint);
+  border-radius: 0;
+  background: transparent;
+  color: var(--acks-ink-soft);
+  font-size: var(--acks-fs-fine);
+  line-height: 1.1;
+}
+
+.acks-extras.acks-extras-party-sheet .acks-extras-formation-conveyance-picks button.is-on {
+  border-color: var(--acks-spot);
+  background: var(--acks-burgundy);
+  color: var(--acks-on-burgundy);
 }
 
 /* A pill that is a checkbox: the box covers its label unseen, so the pill is

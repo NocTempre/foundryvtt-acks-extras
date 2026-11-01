@@ -93,6 +93,7 @@ const COMMITTED = [
   "test-travel.mjs",
   "test-march.mjs",
   "test-journey.mjs",
+  "test-conveyance.mjs",
   "test-strip.mjs",
   "test-party-frame.mjs",
   "test-plate.mjs",

@@ -803,7 +803,10 @@ beats one more impact, and Y the other way round. Quote the day at every step.
    `effectiveClass` is the dropped class, and the solicitation trades at the
    market's own class with impact equal to the step.
 6. Remove the `marketImpact` value (delete the AE's change, or use a power
-   named Mercantile Network that carries no effects) and open Enter.
+   named Mercantile Network that carries no effects), give V a roster of its
+   own and open Enter. The select reads every member of the party, and the
+   default party holds any kept character another walk left there, so one
+   with a value of its own keeps the mode offered.
    *Observable:* the select offers no impact mode, and an item with no value
    at all is named as having none imported.
 

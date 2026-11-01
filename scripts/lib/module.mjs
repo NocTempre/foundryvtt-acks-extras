@@ -113,7 +113,7 @@ import {
 import {
   SETTING_ADVANCE_WORLD_TIME, SETTING_DAWN_HOUR, SETTING_DUSK_HOUR,
   mayAdvanceWorldTime, onWorldTimeAdvanced, clockReading, darkBounds, isDarkAt,
-  secondsToNextDawn, untilNextDawn,
+  secondsToNextDawn, untilNextDawn, dawnWithin,
 } from "./world-time.mjs";
 import * as movementModes from "./movement-modes.mjs";
 import * as survival from "./survival.mjs";
@@ -156,7 +156,8 @@ const localImpl = Object.freeze({
   // `acMath` stands against; `giverOf`, `endingAtTurn`, `lostTo`, `LOSSES`
   // and a subject's `gifts`.
   // 30: places — `isMarkerActor`, the bodies whose token marks a place.
-  apiVersion: 30,
+  // 31: worldTime — whether a step of the clock crossed a dawn.
+  apiVersion: 31,
   vocab,
   fields,
   /**
@@ -222,9 +223,9 @@ const localImpl = Object.freeze({
    * The world clock as this module reads it (world-time.mjs): whether it may
    * move the clock, the one watcher for a clock that moved, and `clockReading`
    * — the hour, the day's length, the dark's bounds from the two hour settings,
-   * and whether it is dark now. `isDarkAt`, `darkBounds` and `secondsToNextDawn`
-   * are the pure halves; `untilNextDawn` is the seconds from the clock now to
-   * the next dawn.
+   * and whether it is dark now. `isDarkAt`, `darkBounds`, `secondsToNextDawn`
+   * and `dawnWithin` are the pure halves; `untilNextDawn` is the seconds from
+   * the clock now to the next dawn.
    */
   worldTime: {
     SETTING_ADVANCE_WORLD_TIME,
@@ -237,6 +238,7 @@ const localImpl = Object.freeze({
     isDarkAt,
     secondsToNextDawn,
     untilNextDawn,
+    dawnWithin,
   },
   /**
    * A RollTable drawn with nothing posted (roll-audience.mjs): the dice show

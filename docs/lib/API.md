@@ -1,4 +1,4 @@
-# lib API (apiVersion 30)
+# lib API (apiVersion 31)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -31,7 +31,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 30,
+  apiVersion: 31,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -587,6 +587,7 @@ acksExtras.lib.worldTime = {
   isDarkAt(hour, {dawn, dusk}), // → boolean | null (Foundry-free)
   secondsToNextDawn(reading, {secondsPerHour?}),  // → whole seconds, a whole day at the dawn itself | null (Foundry-free)
   untilNextDawn(),              // → secondsToNextDawn(clockReading()) | null
+  dawnWithin(reading, dt),      // → whether a step of dt seconds, read after it, crossed a dawn (Foundry-free)
 }
 ```
 

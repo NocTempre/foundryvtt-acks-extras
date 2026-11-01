@@ -4,6 +4,7 @@ import { getFormation, getFrontage, swapCells, toggleRole } from "./formation-mo
 import { ROLE_LABELS, LIGHT_SOURCES } from "./constants.mjs";
 import { anchorMap } from "./map-items.mjs";
 import { toggleDetachMember, toggleMemberLeft } from "./deployment.mjs";
+import { chooseConveyance, rideLabel } from "./conveyance.mjs";
 import { executeAsGM, registerHandler } from "../lib/sockets.mjs";
 import { rollPartyCheck, PARTY_CHECKS } from "./party-rolls.mjs";
 import { attemptDisarm, attemptRearm } from "./trap-zone.mjs";
@@ -23,6 +24,7 @@ import { addLight, addSpell, advanceTurns, toggleLight, toggleShield } from "./t
  *   (detach);
  * - leave their own character behind where they fell, or go back for them
  *   (leftBehind);
+ * - say how their own character travels (conveyance);
  * - douse/relight or shutter a light their character carries (lightToggle /
  *   lightShield);
  * - consult — anchor — a map their character holds (anchorMap);
@@ -195,6 +197,19 @@ async function executeRequest(formation, user, type, payload) {
       if (leaving === null) return;
       await announceDeclaration(formation, user, loc(leaving ? "request.leftBehind" : "request.wentBackFor", {
         name: foundry.utils.escapeHTML(game.actors.get(payload.actorId)?.name ?? "?"),
+      }));
+      break;
+    }
+
+    /* --- How the player's own character travels --- */
+    case "conveyance": {
+      if (!userOwnsMember(formation, user, payload.actorId)) return;
+      if (typeof payload.pick !== "string") return;
+      const landed = await chooseConveyance(formation.id, payload.actorId, payload.pick);
+      if (!landed) return;
+      await announceDeclaration(formation, user, loc("request.conveyance", {
+        name: foundry.utils.escapeHTML(game.actors.get(payload.actorId)?.name ?? "?"),
+        how: foundry.utils.escapeHTML(rideLabel(landed.pick)),
       }));
       break;
     }

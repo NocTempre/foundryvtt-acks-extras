@@ -11,8 +11,10 @@ import { journeyNight } from "./journey.mjs";
 import { getFormation, partySpeed, patchFormation } from "./formation-model.mjs";
 import { rollDayEncounters } from "./encounter-card.mjs";
 import { runRestNight } from "./rest.mjs";
+import { arrangeAtDawn } from "./conveyance.mjs";
 import { MODULE_ID } from "./constants.mjs";
 import { makeLoc } from "../lib/util.mjs";
+import { calendarDay } from "../lib/world-time.mjs";
 
 const loc = makeLoc("ACKS-FORMATION");
 
@@ -44,6 +46,9 @@ export async function closeDay(formation) {
       console.error(`${MODULE_ID} | the night's rest failed; the day still ends`, err);
     }
   }
+  // A world with a calendar gets its dawn from the clock; this is the only one
+  // a world without one has.
+  if (entry && calendarDay() == null) await arrangeAtDawn(formation.id);
   return entry;
 }
 

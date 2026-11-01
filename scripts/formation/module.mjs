@@ -134,7 +134,8 @@ import {
 } from "./poi.mjs";
 import { isMarkerActor } from "../lib/place.mjs";
 import { closeDay, offerDayEnd } from "./day-close.mjs";
-import { onWorldTimeAdvanced, calendarDay } from "../lib/world-time.mjs";
+import { onWorldTimeAdvanced, calendarDay, clockReading, dawnWithin } from "../lib/world-time.mjs";
+import { arrangeAllAtDawn, arrangeJoined, seatChanged } from "./conveyance.mjs";
 import { SETTING_SKY_CACHE } from "./sky.mjs";
 import * as provisions from "./provisions.mjs";
 import * as foraging from "./foraging.mjs";
@@ -699,8 +700,13 @@ Hooks.once("init", () => {
      * folded into `map`. `travel` gains `partyScenesPaintedWith(layer)`, and
      * a layer's change (`acksExtrasPaintLayerChanged`) re-reads the parties
      * standing on its paint.
+     *
+     * 20 reads `travel.movement.mode` off the attachments and stores only
+     * `travel.movement.set`, the Judge's word. `addMember` raises
+     * `acksExtras.memberJoined`, and `carrierSpeedFor` takes `adding`, the stone
+     * to price a wagon's tier with beyond its load.
      */
-    apiVersion: 19,
+    apiVersion: 20,
     travel: { ...travel, ...journey, closeDay, offerDayEnd },
     weather,
     settlement,
@@ -883,12 +889,19 @@ Hooks.once("ready", () => {
   // credited off the calendar instead. Idempotent: the board carries the world
   // time each stay is counted from, so a clock the Judge drags forward pays
   // once for the days it crossed.
-  onWorldTimeAdvanced(() => {
+  onWorldTimeAdvanced((_worldTime, dt) => {
     creditHoledUpDays().catch((err) => console.error(`${MODULE_ID} | holed-up day failed`, err));
     // The sky and the ground's footing move with the calendar day, however the
     // clock came to move. Idempotent: each formation keeps the day it settled.
     const today = calendarDay();
-    if (today != null) settleAllOnDayChange(today).catch((err) => console.error(`${MODULE_ID} | day change failed`, err));
+    const settled = today != null
+      ? settleAllOnDayChange(today).catch((err) => console.error(`${MODULE_ID} | day change failed`, err))
+      : Promise.resolve();
+    // Each party takes its ride for the new day once its sky is settled. Read
+    // off the crossing, with no watermark: arranging twice moves nobody.
+    if (dawnWithin(clockReading(), dt)) {
+      settled.then(arrangeAllAtDawn).catch((err) => console.error(`${MODULE_ID} | the dawn arrangement failed`, err));
+    }
     // An incident's marker lasts a stated number of turns of the same clock.
     expireTransientNotes().catch((err) => console.error(`${MODULE_ID} | incident marker expiry failed`, err));
   });
@@ -1094,10 +1107,16 @@ Hooks.on("deleteToken", (tokenDoc, options) => {
 /*  Keep party speed in sync with members       */
 /* -------------------------------------------- */
 
+// Whoever added the member is a GM, so this one client takes the arrangement.
+Hooks.on("acksExtras.memberJoined", ({ formationId, actorId }) => {
+  if (!game.user.isGM) return;
+  arrangeJoined(formationId, actorId).catch((err) => console.error(`${MODULE_ID} | a joining member could not be arranged`, err));
+});
+
 Hooks.on("updateActor", (actor, changes) => {
   if (!isPrimaryGM()) return;
   const ownershipChanged = foundry.utils.hasProperty(changes, "ownership");
-  const dataChanged = foundry.utils.hasProperty(changes, "system") || foundry.utils.hasProperty(changes, "items");
+  const dataChanged = foundry.utils.hasProperty(changes, "system") || foundry.utils.hasProperty(changes, "items") || seatChanged(changes);
   if (!ownershipChanged && !dataChanged) return;
   const formations = Object.values(getFormations()).filter((f) => f.members.some((m) => m.actorId === actor.id));
   if (!formations.length) return;

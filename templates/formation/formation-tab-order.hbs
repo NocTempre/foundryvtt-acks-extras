@@ -13,6 +13,18 @@
     </div>
     {{#if isGM}}
     <div class="acks-extras-party-sheet__head-actions">
+      {{#if travel.arrangement}}
+      <button type="button" class="acks-extras-party-sheet__head-pill is-gold" data-action="movementFastest"
+              data-tooltip="{{localize 'ACKS-FORMATION.conveyance.fastestHint'}}">
+        <i class="fa-solid fa-gauge-high" inert></i> {{localize "ACKS-FORMATION.conveyance.fastest"}}
+      </button>
+      {{#if travel.arrangement.canUndo}}
+      <button type="button" class="acks-extras-party-sheet__head-pill" data-action="movementUndo"
+              data-tooltip="{{localize 'ACKS-FORMATION.conveyance.undoHint'}}">
+        <i class="fa-solid fa-rotate-left" inert></i> {{localize "ACKS-FORMATION.conveyance.undo"}}
+      </button>
+      {{/if}}
+      {{/if}}
       <button type="button" class="acks-extras-party-sheet__head-pill" data-action="autoArrange"
               data-tooltip="{{localize 'ACKS-FORMATION.app.autoArrangeHint'}}">
         <i class="fa-solid fa-arrow-down-wide-short" inert></i> {{localize "ACKS-FORMATION.app.autoArrange"}}
@@ -97,6 +109,26 @@
             </button>
             {{/each}}
           </span>
+          {{#with this.conveyance as |ride|}}
+          <div class="acks-extras-formation-conveyance">
+            <span class="acks-extras-formation-conveyance-how">{{ride.how}}</span>
+            {{#if ride.held}}
+            <span class="hint">{{ride.held}}</span>
+            {{else}}
+            {{#if ride.faster}}<span class="acks-extras-party-sheet__chip is-gold">{{ride.faster}}</span>{{/if}}
+            {{#if ride.pinOut}}<span class="hint">{{localize "ACKS-FORMATION.conveyance.pinOut"}}</span>{{/if}}
+            {{#if ride.options}}
+            <span class="acks-extras-formation-conveyance-picks" role="group" aria-label="{{localize 'ACKS-FORMATION.conveyance.memberLabel'}}">
+              {{#each ride.options}}
+              <button type="button" class="{{#if pressed}}is-on{{/if}}" data-action="conveyancePick" data-pick="{{pick}}"
+                      aria-pressed="{{#if pressed}}true{{else}}false{{/if}}"
+                      {{#if tip}}data-tooltip-text="{{tip}}"{{/if}}>{{label}}{{#if figure}} {{figure}}'{{/if}}</button>
+              {{/each}}
+            </span>
+            {{/if}}
+            {{/if}}
+          </div>
+          {{/with}}
           {{#if this.mount}}
           <span class="acks-extras-formation-mount">
             <i class="fa-solid fa-horse" data-tooltip="{{localize 'ACKS-FORMATION.app.ridingBadge'}}"></i>

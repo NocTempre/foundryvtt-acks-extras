@@ -2386,6 +2386,51 @@
       "trapbreakMethodicalHint": "Takes a turn. A skilled thief rolls with the methodical bonus; anyone else tries through Adventuring (RR p. 267).",
       "trapbreakMethodicalNote": "Methodical trapbreaking (RR p. 267)."
     },
+    "conveyance": {
+      "automatic": "Automatic",
+      "onFoot": "On foot",
+      "groupLabel": "How the whole party moves",
+      "memberLabel": "How this member travels",
+      "groupSet": "Set for the group",
+      "back": "Back to automatic",
+      "backHint": "Clear the word set for the group: each member takes their own choice, or the fastest they have.",
+      "fastest": "Fastest for all",
+      "fastestHint": "Each member takes their own choice, or the fastest they have.",
+      "undo": "Undo the arrangement",
+      "undoHint": "Put everyone back where the last group press found them.",
+      "paceSet": "Pace set by {name}, {how}",
+      "paceParts": "The slowest of: {parts}",
+      "noRide": "no faster ride",
+      "faster": "Could go faster: {name}",
+      "couldRide": "Could ride {name}",
+      "pinOut": "Their chosen ride cannot take them just now",
+      "arranged": "The party's arrangement moved {names}.",
+      "how": {
+        "foot": "on foot",
+        "animal": "riding {name}",
+        "land": "in {name}",
+        "vessel": "aboard {name}"
+      },
+      "count": {
+        "ride": "{n} ride",
+        "carried": "{n} carried",
+        "walk": "{n} walk"
+      },
+      "held": {
+        "notPerson": "goes where led",
+        "left": "left behind",
+        "deployed": "out on the map",
+        "casualty": "down",
+        "hauling": "carrying a casualty",
+        "station": "at a station"
+      },
+      "offerTip": {
+        "foot": "Their own pace, on their own legs.",
+        "animal": "{name}'s own pace.",
+        "land": "{name}'s pace with this member aboard.",
+        "vessel": "{name} keeps a voyage's clock, not a march's."
+      }
+    },
     "request": {
       "section": "Declare Actions",
       "hint": "Declarations are sent to the Judge's client for execution; a GM must be connected. Search and listen results go to the Judge.",
@@ -2406,6 +2451,7 @@
       "detachDeclined": "That declaration could not be carried out — the party has no token on the canvas to step out from, or the character cannot leave the party right now.",
       "leftBehind": "leaves {name} behind.",
       "wentBackFor": "goes back for {name}.",
+      "conveyance": "sends {name} {how}.",
       "leftBehindDeclined": "That declaration could not be carried out — the party is in combat.",
       "shield": "closes the shutter on {bearer}'s lantern.",
       "unshield": "opens the shutter on {bearer}'s lantern.",
@@ -2991,8 +3037,6 @@
       },
       "followingLabel": "Following",
       "movement": {
-        "label": "Moving by",
-        "hint": "How the order travels. It decides which factors it meets at all — a flier ignores roads, a vessel ignores the ground.",
         "aloft": "Hours aloft",
         "aloftHint": "How much of the travelling day was spent in the air.",
         "day": "Of a day of",

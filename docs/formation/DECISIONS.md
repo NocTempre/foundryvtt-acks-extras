@@ -4507,3 +4507,73 @@ Rejected: resolving the overflow on the role change the way an equip toggle
 is resolved. That writes to the character's items from the party sheet, and
 the light path's refusal is the shape already documented as blocking by
 design for a player.
+
+## 2026-10-31 — What carries a member is arranged, and the mode is read off it
+
+Extends 2026-08-28, "Travel state lives on the formation record, as a mode".
+The redesign's phase 3 (`docs/formation/wip/20261014-party-sheet-redesign.md`
+§4a; rulings 1a and 2a are the owner's, §8). MODEL "Conveyance" says how it works.
+
+**Ruled.**
+
+- **The mode is read off the attachments and never stored.** A stored mode could
+  disagree with what `partySpeed` reads, which was the redesign's defect 5.
+  `travel.movement.set` is the one stored word, the Judge's. An older record's
+  `flying` and `vessel` read as that word, since nothing carries a flier and a
+  boat is the Judge's say; its `foot`, `mounted` and `vehicle` read as nothing.
+- **A tile holds automation until Back to automatic.** A tile with nobody to move
+  stands as the word. Fastest for all and Back to automatic are one action:
+  both mean "each takes their own or the fastest, and the word clears".
+- **A tile outranks a pin, and the pin survives it.** The plan's table reads "on
+  foot (everyone dismounts and disembarks)". The design canvas's Movement board
+  says a member's own setting wins over the group's. The two disagree on a
+  member pinned to a horse under the On foot tile; the plan is taken, so the
+  Judge's press does what it says. Reversing it is one filter in
+  `setGroupMovement`'s `decide`. A member's own press still works while a word
+  stands.
+- **Ruling 2a's "owners include the member's player" reads a non-GM owner in
+  common**, a GM owning everything; there is no location test, the record not
+  holding where an unridden horse is. A vehicle under a member counts for
+  everyone, or a hireling no player owns could never board the party's wagon.
+- **A wagon quotes its pace with the member aboard.** Going slowest first keeps a
+  pass above each member's own legs.
+- **A dawn is a stateless crossing of the clock**, read off the step, with
+  `closeDay` the only dawn a calendar-less world has. **A join is a hook**, since
+  `conveyance.mjs` imports the model that `addMember` lives in.
+- **One relay writes pin and ride together on the GM's client.** The plan had
+  the owner write the pin, which a press could leave written with its ride
+  refused. A pick off the member's offers changes neither.
+- **No snapshot when nobody moves**, so a quiet dawn keeps the Judge's Undo.
+- **A seat core gave no figure weighs the character.** ROADMAP's "A player's pace
+  with an unowned member" read 0 on the strip, and the pace line, new to a
+  player's seat, would have named the wrong member as the pace's setter.
+  `explorationSpeedOf` reads the same tiers off `borneWeight6` there, the lib's
+  sum `lib/follower-card.mjs` already falls back to on the same gate.
+- **A wagon that cannot roll is no pick.** Its speed is 0, and boarding it stops
+  the party. A vessel's null is another clock and stays a pick.
+
+**Rejected.** *A pace the Judge's seat prices and the record holds*, ROADMAP's
+two named routes for the player's pace: a second copy of a reading, needing a
+write on every change to every member's kit, for what the items on the actor
+already answer. *A watermark for the last dawn*: the step says it, and a
+watermark is a second clock to keep right. *A snapshot per dawn*, which would
+overwrite the Judge's Undo with nothing. *A separate Train tab for the picks*:
+the canvas draws them with the marching order, and the Order tab is it.
+
+**Cost.** A carrier owned by a player and ridden by nobody goes to whichever of
+that player's parties meets a dawn first: the walk found this on its first run,
+when three other parties in the test world took its pony, mule and cart. It
+follows from ruling 2a; a test on party membership would narrow it. A seat that
+does not own a member reads borne weight, not burden, so a member a harness
+lightens can read a tier slower there. `conveyance.paceParts` cites no page: RR
+ch. 6 and ch. 10 give the slowest for a pursuit and an army and no page was found
+for a party's march, so the tooltip names its parts and no reference until a
+reader with the printed page finds one.
+A dawn now moves a party's members in a world the Judge left alone: a Judge who
+wants them walking presses On foot, which holds it.
+
+- Pinned offline by `tools/test-conveyance.mjs` (38 checks). Thirty-three
+  single edits to the modules it covers, each loaded in memory, all fail it; four
+  survived its first draft, and it gained the foot pin's dismount, the word
+  Fastest clears, the holds inside a pass and a step that starts on a dawn.
+- Walked live on both seats (TESTING, "Conveyance").

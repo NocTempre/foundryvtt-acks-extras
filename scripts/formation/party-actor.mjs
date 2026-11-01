@@ -2,6 +2,7 @@
 import { MODULE_ID, PANEL_FLAG } from "./constants.mjs";
 import { SHARED_ACTIONS, bindMemberDrop, onChangeForm } from "./formation-actions.mjs";
 import { cellBodies, getFormations, getMemberActor, isStackMember, memberHp, partyHeadcount, realMembers } from "./formation-model.mjs";
+import { seatChanged } from "./conveyance.mjs";
 import { buildFormationView, buildGMExtras, buildPlayerPanel } from "./formation-view.mjs";
 import { MODE_TEMPLATES, TAB_IDS, buildFrameView, framePartIds, frameTabs } from "./frame-view.mjs";
 import { drawPlate } from "./plate.mjs";
@@ -256,10 +257,10 @@ export class PartySheet extends HandlebarsApplicationMixin(foundry.applications.
       if (this.rendered) this.render();
     }, 60);
     // The primary GM's formation refresh does not reach other seats when only a
-    // member's hit points move, and the hurt figure reads them.
+    // member's hit points or seat move, and the hurt figure and the pace read them.
     const isMember = (actorId) => !!actorId && (this.formation?.members ?? []).some((m) => m?.actorId === actorId);
     const onActor = (actor, changes) => {
-      if (isMember(actor?.id) && foundry.utils.hasProperty(changes, "system.hp")) this.#renderSoon();
+      if (isMember(actor?.id) && (foundry.utils.hasProperty(changes, "system.hp") || seatChanged(changes))) this.#renderSoon();
     };
     const onToken = (token, changes) => {
       if (isMember(token?.actorId) && foundry.utils.hasProperty(changes, "delta.system.hp")) this.#renderSoon();

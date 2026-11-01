@@ -933,7 +933,7 @@ const P = {
       day: { cadenceCarry: f.travel?.day?.cadenceCarry ?? null, hexesEntered: f.travel?.day?.hexesEntered ?? null, miles: f.travel?.day?.miles ?? null, hours: f.travel?.day?.hours ?? null },
       dayKey: H.T.journeyDayKey(t),
       dayCount: t.dayCount ?? null,
-      movement: f.travel?.movement?.mode ?? null,
+      movement: t.movement?.mode ?? null,
       lostPhase: t.lost?.phase ?? null,
       tokenId: f.tokenId ?? null,
       sceneId: f.sceneId ?? null,
@@ -1017,7 +1017,7 @@ const P = {
         overrides: (ctx.countryOverrides ?? []).map((r) => ({ key: r.key, set: r.set, hasMap: r.hasMap })),
       } : null,
       partsLine: ctx.strip?.speed?.partsLine ?? null,
-      movement: el.querySelector('select[name="travel.movement.mode"]')?.value ?? null,
+      movement: el.querySelector('[data-action="movementTile"][aria-pressed="true"]')?.dataset.mode ?? null,
     };
     if (!keep) { try { await app.close({ animate: false }); } catch (_e) { /* closed */ } }
     return out;
@@ -1379,7 +1379,7 @@ async function seat(key) {
   seats[key] = api;
   note(`${key} ready after (s)`, await ready(api, key));
   // The seat must run the working tree, not a cached copy: functions this release added are the marker.
-  const fresh = await api.eval(`typeof globalThis.acksExtras?.formation?.travel?.trueTravelOf === "function" && typeof globalThis.acksExtras?.formation?.travel?.clearDeclaredCountry === "function" && globalThis.acksExtras?.formation?.apiVersion === 19`);
+  const fresh = await api.eval(`typeof globalThis.acksExtras?.formation?.travel?.trueTravelOf === "function" && typeof globalThis.acksExtras?.formation?.travel?.clearDeclaredCountry === "function" && globalThis.acksExtras?.formation?.apiVersion === 20`);
   if (!fresh) throw new Error(`${key}: stale module code loaded; the page did not pick up the working tree`);
   note(`${key} runs the working tree`, fresh);
   await installP(api);
@@ -1974,14 +1974,14 @@ async function walkCountry(W) {
   note("sheet", { following: card("following"), camp: s.camp, movement: s.movement });
   check("C4: the Following card reads the river, sourced the map", card("following")?.provenance === "map" && ctxCard("following")?.value === "river", { card: card("following"), ctx: ctxCard("following") });
   check("C4: the Camp section says water is at hand with its declaration unticked", s.camp?.waterAuto === true && s.camp?.waterHint === true && s.camp?.waterChecked === false, s.camp);
-  note("vessel", await page(gm, P.setSelect, { partyId: party.id, name: "travel.movement.mode", value: "vessel" }));
+  note("vessel", await page(gm, P.press, { partyId: party.id, selector: '[data-action="movementTile"][data-mode="vessel"]' }));
   r = await page(gm, P.record, { fid });
   note("record", { movement: r.movement, values: r.values, provenance: r.provenance, at: r.map?.at });
   check("C4: on the vessel the encounter terrain is the land river table with provenance map", r.movement === "vessel" && r.values.encounterTerrain === "riverLand" && r.provenance.encounterTerrain === "map", { movement: r.movement, table: r.values.encounterTerrain, provenance: r.provenance.encounterTerrain });
   check("C4: travel.map.at is unchanged (no re-read)", r.map?.at === mapAt, { before: mapAt, after: r.map?.at ?? null });
   s = await page(gm, P.sheet, { partyId: party.id, keep: true });
   check("C4: the Encounters line names the river table", !!s.draw && !!s.labels?.riverLand && s.draw.includes(s.labels.riverLand), { draw: s.draw, label: s.labels?.riverLand });
-  note("foot", await page(gm, P.setSelect, { partyId: party.id, name: "travel.movement.mode", value: "foot" }));
+  note("foot", await page(gm, P.press, { partyId: party.id, selector: '[data-action="movementTile"][data-mode="foot"]' }));
   r = await page(gm, P.record, { fid });
   check("C4: back on foot the ground's own table returns", r.movement === "foot" && r.values.encounterTerrain !== "riverLand" && r.provenance.encounterTerrain === "scene", { movement: r.movement, table: r.values.encounterTerrain, provenance: r.provenance.encounterTerrain });
   note("pause", await page(gm, P.pause, { fid, paused: true }));
