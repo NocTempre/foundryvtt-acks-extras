@@ -3,9 +3,10 @@
 ## Unreleased
 ### Added
 
-- **Drag a group's row onto the map to deploy it.** Set the row's Count and drag its
-  art or name onto the scene. The bodies land under the cursor, with Shift and Alt
-  working as they do for a dropped actor.
+- **Drag a group's row onto the map to deploy it.** Drag its art or name onto the scene
+  and the whole stack lands under the cursor, the row and the bodies beneath it, with
+  Shift and Alt working as they do for a dropped actor. The row's Deploy button still
+  sends just its Count.
 
 ### Changed
 

@@ -225,12 +225,11 @@ export class GroupSheet extends PicksMixin(HandlebarsApplicationMixin(foundry.ap
     }
   }
 
-  /** @override — a stack's grip carries the stack and its Count; a purse row is the base class's. */
+  /** @override — a stack's grip carries its stack; a purse row is the base class's. */
   async _onDragStart(event) {
-    const grip = event.currentTarget;
-    const stackKey = GroupSheet.#stackKey(grip);
+    const stackKey = GroupSheet.#stackKey(event.currentTarget);
     if (!stackKey) return super._onDragStart(event);
-    const drag = { type: groups.STACK_DRAG_TYPE, group: this.actor.uuid, stackKey, count: GroupSheet.#count(grip) };
+    const drag = { type: groups.STACK_DRAG_TYPE, group: this.actor.uuid, stackKey };
     event.dataTransfer.setData("text/plain", JSON.stringify(drag));
   }
 

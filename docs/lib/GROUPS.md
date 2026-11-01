@@ -139,12 +139,15 @@ the row's actions. It stays one row however many bodies it holds, because a row 
 body would mean a record and a hit-point roll per body. The bodies that hold a record
 nest under it, with the fallen and the detached.
 
-A row's grip, its art and name, drags on a seat `canDeploy` answers for. It carries
-`STACK_DRAG_TYPE`, and `registerStackDrop` answers the drop on the map: the row's Count
-deploys where core would seat a dropped actor, the first body centred on the cursor
-and snapped unless Shift is held, hidden where a Judge holds Alt, the rest five
-abreast. The row's Deploy takes the same Count. The fields stay outside the grip,
-because a field inside a dragged element loses its text selection to the drag.
+A row is a subgroup, and its grip, its art and name, drags on a seat `canDeploy`
+answers for. It carries `STACK_DRAG_TYPE`, and `registerStackDrop` answers the drop on
+the map: the row and those beneath it deploy, every body the stack holds off the map,
+with `deploy`'s `count: Infinity`. The fallen and the detached have left the stack, and
+a body already out stays where it stands. They land where core would seat a dropped
+actor, the first body centred on the cursor and snapped unless Shift is held, hidden
+where a Judge holds Alt, the rest five abreast. The row's Deploy takes its Count, for
+part of a stack. The fields stay outside the grip, because a field inside a dragged
+element loses its text selection to the drag.
 
 ## The Roll
 

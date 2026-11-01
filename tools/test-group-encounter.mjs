@@ -854,7 +854,7 @@ const warned = [];
 globalThis.ui = { notifications: { warn: (message) => warned.push(message) } };
 const rowGroup = { type: "acks-extras.group", uuid: "Actor.row", isOwner: true, system: {} };
 docs.set(rowGroup.uuid, rowGroup);
-const rowDrop = { type: STACK_DRAG_TYPE, group: rowGroup.uuid, stackKey: "missing", count: 2, x: 10, y: 10 };
+const rowDrop = { type: STACK_DRAG_TYPE, group: rowGroup.uuid, stackKey: "missing", x: 10, y: 10 };
 const boardOf = (contains) => ({ dimensions: { rect: { contains: () => contains } } });
 
 await ok("a seat deploys where it owns the group and may create tokens", () => {

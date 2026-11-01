@@ -236,6 +236,26 @@ t("deploy asks for its bodies' own hit points, and is not a move", async () => {
   );
 });
 
+t("a whole stack sends its resting records and its pristine bodies, and no one else", async () => {
+  const out = { ...record("m2", { value: 2, max: 2 }), state: "deployed", tokenUuid: "Scene.s.Token.out" };
+  docs.set(out.tokenUuid, { documentName: "Token" });
+  const fallen = { ...record("m3", { value: 0, max: 4 }), state: "dead" };
+  const left = { ...record("m4", { value: 6, max: 6 }), state: "detached" };
+  const group = groupActor(monster(), 4, [record("m1", { value: 1, max: 12 }), out, fallen, left]);
+  bodyRolls.push(7, 11);
+  systemRolls.push(15, 3, 9);
+  const made = await deploy(group, scene(), { count: Infinity });
+  assert.deepEqual(arrivedHp(made), [
+    { value: 1, max: 12 },
+    { value: 7, max: 7 },
+    { value: 11, max: 11 },
+  ]);
+  const byKey = Object.fromEntries(group.system.stacks[0].roster.map((m) => [m.key, m.state]));
+  assert.equal(byKey.m3, "dead");
+  assert.equal(byKey.m4, "detached");
+  assert.equal(group.system.stacks[0].roster.filter((m) => m.state === "deployed").length, 4, "the three sent and the one already out");
+});
+
 let failures = 0;
 for (const [name, fn] of tests) {
   try {

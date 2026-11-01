@@ -3066,15 +3066,18 @@ and an immediate read holds the old path beside the new name.
     on an undeclared scene gives its mode's line.
 15. **An unlinked token.** Open the sheet of a token whose actor is its own copy.
     *Observable:* the Roll refuses and says where to press it.
-16. **A row to the map.** Give a stack seven bodies, set the row's Count to 3 and drag
-    its grip onto the scene. Then drag one with Shift, one with Alt, and one off the
-    map, press Recall, and press the row's Deploy.
+16. **A row to the map.** Give a stack seven bodies. Press the row's Deploy at a Count
+    of 2 and Recall, so two rest on records under the row, then drag its grip onto the
+    scene. Recall, record one casualty and drag with Shift. Recall, Deploy 2 and drag
+    with Alt. Then drag off the map, drag with every body out, and Recall.
     *Observable:* the row shows the art, the name, what it is and the bodies with no
-    record, and every field on it names itself. The drag carries the stack and the
-    Count. Three unlinked bodies land, the first on the square under the cursor and the
-    next beside it, on record, with the count unchanged. Shift lands off the grid, Alt
-    lands hidden, and off the map nothing lands. Recall folds them back to rest on
-    their records. Deploy takes the same Count.
+    record, and every field on it names itself. Deploy takes its Count. The drag
+    carries the stack and no count, and all seven land unlinked, the two records among
+    them: the first on the square under the cursor, the next beside it, the sixth
+    starting a second rank, every body on record and the count unchanged. The fallen
+    stays behind, and the Shift drag lands off the grid. With two out, the Alt drag
+    lands the other four, hidden. Off the map, or with every body out, nothing lands.
+    Recall folds them back to rest on their records.
 
 Teardown: the swept ledger. Everything else stays for the next walk.
 

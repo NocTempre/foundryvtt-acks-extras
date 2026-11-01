@@ -252,7 +252,7 @@ const P = {
     const point = { x: sceneX + at.x, y: sceneY + at.y };
     const client = canvas.clientCoordinatesFromCanvas(point);
     const dataTransfer = new DataTransfer();
-    if (forged) dataTransfer.setData("text/plain", JSON.stringify({ type: "acks-extras.groupStack", group: game.actors.get(groupId).uuid, stackKey, count: 1 }));
+    if (forged) dataTransfer.setData("text/plain", JSON.stringify({ type: "acks-extras.groupStack", group: game.actors.get(groupId).uuid, stackKey }));
     else {
       const grip = H.root(H.sheetOf(groupId))?.querySelector(`[data-stack-key="${stackKey}"] .stack-grab`);
       grip?.dispatchEvent(new DragEvent("dragstart", { bubbles: true, cancelable: true, dataTransfer }));
@@ -932,8 +932,22 @@ try {
   await until(gm, P.view, { groupId: second.id }, (v) => v.sizeInputs === 2);
   const countField = `[data-stack-key="${dragged}"] input.deploy-count`;
   const onMap = () => run(gm, P.bodies, { sceneId: scene.id, groupId: second.id });
-  const drag = async (count, options) => {
+  const pressRow = async (action, count) => {
     await run(gm, P.field, { groupId: second.id, selector: countField, value: count });
+    await run(gm, P.press, { groupId: second.id, selector: stackKey(dragged, action) });
+  };
+  const sendOut = async (count) => {
+    await pressRow("deploy", count);
+    const bodies = await until(gm, P.bodies, { sceneId: scene.id, groupId: second.id }, (b) => b.length === count);
+    swept.push(...(bodies ?? []).map((b) => gm.track(b.uuid, "Token")));
+    return bodies ?? [];
+  };
+  const recallAll = async () => {
+    await run(gm, P.press, { groupId: second.id, selector: "[data-action='recall']" });
+    await until(gm, P.bodies, { sceneId: scene.id, groupId: second.id }, (b) => !b.length);
+    return until(gm, P.state, { groupId: second.id }, (s) => s.list[0].deployed === 0);
+  };
+  const drag = async (count, options) => {
     const had = new Set((await onMap()).map((b) => b.uuid));
     const out = await run(gm, P.dragRow, { groupId: second.id, stackKey: dragged, ...options });
     const bodies = await until(gm, P.bodies, { sceneId: scene.id, groupId: second.id }, (b) => b.length === had.size + count);
@@ -946,37 +960,43 @@ try {
   check("a stack is one row: art, name, what it is, its count and its actions", row.art === ART && row.name === "QA Knot" && row.detail.includes("Unindividuated: 7") && row.deploy, row);
   check("every field on the row names itself", row.fields.length === 3 && row.fields.every(Boolean), row.fields);
   check("a seat that can place tokens has a grip, and it says what it does", row.draggable && row.tip === "ACKS-LIB.group.dragRow", row);
-  const three = await drag(3, { at: { x: 630, y: 330 } });
-  note("dragged", three);
-  check("the grip carries the stack and the row's Count", three.carried?.stackKey === dragged && three.carried?.count === 3 && three.carried?.group === `Actor.${second.id}`, three.carried);
-  check("the drop places that many bodies, unlinked", three.fresh.length === 3 && three.fresh.every((b) => !b.linked && !b.hidden), three.fresh);
-  const [firstBody, nextBody] = three.fresh;
-  check("the first stands on the square under the cursor", firstBody?.x % 100 === 0 && firstBody?.y % 100 === 0 && Math.abs(firstBody?.x + 50 - three.point.x) <= 50 && Math.abs(firstBody?.y + 50 - three.point.y) <= 50, { firstBody, point: three.point });
+  const partOf = await sendOut(2);
+  check("the row's Deploy takes its Count", partOf.length === 2, partOf.length);
+  state = await recallAll();
+  check("and those bodies rest on their records under the row", state?.list[0].roster === 2 && state?.list[0].current === 7, state?.list[0]);
+  const whole = await drag(7, { at: { x: 630, y: 330 } });
+  note("dragged", whole);
+  check("the grip carries the stack and no count", whole.carried?.stackKey === dragged && whole.carried?.group === `Actor.${second.id}` && !("count" in (whole.carried ?? { count: 0 })), whole.carried);
+  check("the drop places the row and those beneath it, unlinked", whole.fresh.length === 7 && whole.fresh.every((b) => !b.linked && !b.hidden), whole.fresh);
+  const [firstBody, nextBody] = whole.fresh;
+  check("the first stands on the square under the cursor", firstBody?.x % 100 === 0 && firstBody?.y % 100 === 0 && Math.abs(firstBody?.x + 50 - whole.point.x) <= 50 && Math.abs(firstBody?.y + 50 - whole.point.y) <= 50, { firstBody, point: whole.point });
   check("the next stands beside it", nextBody?.x - firstBody?.x === 100 && nextBody?.y === firstBody?.y, { firstBody, nextBody });
+  check("and the sixth starts the next rank", whole.fresh[5]?.x === firstBody?.x && whole.fresh[5]?.y - firstBody?.y === 100, whole.fresh[5]);
   state = await run(gm, P.state, { groupId: second.id });
-  check("the bodies go out on record and the count stands", state.list[0].deployed === 3 && state.list[0].current === 7, state.list[0]);
-  const loose = await drag(1, { at: { x: 437, y: 533 }, shift: true });
-  check("Shift places the body where the cursor is, off the grid", loose.fresh[0]?.x === loose.point.x - 50 && loose.fresh[0]?.y === loose.point.y - 50, { body: loose.fresh[0], point: loose.point });
-  const unseen = await drag(1, { at: { x: 830, y: 530 }, alt: true });
-  check("Alt places it hidden on a Judge's seat", unseen.fresh[0]?.hidden === true, unseen.fresh[0]);
-  const before = (await onMap()).length;
-  await run(gm, P.dragRow, { groupId: second.id, stackKey: dragged, at: { x: -9000, y: -9000 } });
-  check("a drop off the map places nothing", (await onMap()).length === before && before === 5, before);
-  await run(gm, P.press, { groupId: second.id, selector: "[data-action='recall']" });
-  await until(gm, P.bodies, { sceneId: scene.id, groupId: second.id }, (b) => !b.length);
-  const left = await onMap();
-  check("Recall folds them back", !left.length, left.length);
-  state = await until(gm, P.state, { groupId: second.id }, (s) => s.list[0].deployed === 0);
-  check("and every body is resting on its record", state?.list[0].roster === 5 && state?.list[0].current === 7, state?.list[0]);
+  check("the bodies go out on record and the count stands", state.list[0].deployed === 7 && state.list[0].roster === 7 && state.list[0].current === 7, state.list[0]);
+  state = await recallAll();
+  check("Recall rests every body on its record", state?.list[0].roster === 7 && state?.list[0].current === 7, state?.list[0]);
+  await pressRow("addCasualty", 1);
+  state = await until(gm, P.state, { groupId: second.id }, (s) => s.list[0].current === 6);
+  check("a casualty with no pristine left falls on a record", state?.list[0].roster === 7, state?.list[0]);
   const sheetOf = async (actorId) => `#${await gm.eval(`game.actors.get(${JSON.stringify(actorId)}).sheet.id`)}`;
   await gm.shot(path.join(logDir(), "group-encounter-nested.png"), await sheetOf(second.id)).catch((err) => console.log(`plate not taken: ${err?.message ?? err}`));
-  await run(gm, P.field, { groupId: second.id, selector: countField, value: 2 });
-  await run(gm, P.press, { groupId: second.id, selector: stackKey(dragged, "deploy") });
-  const fromButton = await until(gm, P.bodies, { sceneId: scene.id, groupId: second.id }, (b) => b.length === 2);
-  swept.push(...fromButton.map((b) => gm.track(b.uuid, "Token")));
-  check("the row's Deploy takes the same Count", fromButton.length === 2, fromButton.length);
-  await run(gm, P.press, { groupId: second.id, selector: "[data-action='recall']" });
-  await until(gm, P.bodies, { sceneId: scene.id, groupId: second.id }, (b) => !b.length);
+  const loose = await drag(6, { at: { x: 437, y: 533 }, shift: true });
+  check("the fallen stay behind", loose.fresh.length === 6, loose.fresh.length);
+  check("Shift places the first where the cursor is, off the grid", loose.fresh[0]?.x === loose.point.x - 50 && loose.fresh[0]?.y === loose.point.y - 50, { body: loose.fresh[0], point: loose.point });
+  await recallAll();
+  await sendOut(2);
+  const unseen = await drag(4, { at: { x: 830, y: 530 }, alt: true });
+  check("a row with bodies out sends the rest", unseen.fresh.length === 4, unseen.fresh.length);
+  check("Alt places them hidden on a Judge's seat", unseen.fresh.every((b) => b.hidden === true), unseen.fresh);
+  const before = (await onMap()).length;
+  await run(gm, P.dragRow, { groupId: second.id, stackKey: dragged, at: { x: -9000, y: -9000 } });
+  check("a drop off the map places nothing", (await onMap()).length === before && before === 6, before);
+  await run(gm, P.dragRow, { groupId: second.id, stackKey: dragged, at: { x: 630, y: 330 } });
+  check("a row with every body out places nothing", (await onMap()).length === before, before);
+  await recallAll();
+  const left = await onMap();
+  check("Recall folds them back", !left.length, left.length);
 
   section("the raised type size");
   await until(gm, P.view, { groupId: band.id }, (v) => v.reveal === "noun");

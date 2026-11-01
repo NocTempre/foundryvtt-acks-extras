@@ -4974,9 +4974,9 @@ under it. The mechanics are `GROUPS.md`, "The sheet".
 
 *Ruled here:*
 
-- **A drag deploys the row's Count.** The owner did not say how many. The Count field
-  is what the Deploy button reads, so the two cannot disagree. This is a default, open
-  to a ruling; the other reading is the whole stack.
+- **A drag deploys the row's Count.** *Superseded by the entry below.* The owner did
+  not say how many. The Count field is what the Deploy button reads, so the two cannot
+  disagree. This is a default, open to a ruling; the other reading is the whole stack.
 - **The grip is the art and the name, not the whole row.** A field inside a dragged
   element loses its text selection to the drag, and the row holds three.
 - **The counts sit on the row**, editable in place, and the row's actions are icons
@@ -4992,3 +4992,25 @@ under it. The mechanics are `GROUPS.md`, "The sheet".
 **Cost.** Individuate, Record casualties and Deploy read as icons where they were words,
 so a new Judge hovers to learn them. The internal `_getDropActorPosition` can move
 under a core update, and a drop would then fail with an error on the console.
+
+## 2026-11-01 — A row's drag takes the whole stack
+
+*Ruled by the owner, 2026-11-01:* asked whether a drag onto the map takes the row's
+Count or the whole stack, "Whole stack", "the row and those beneath it", "as in a
+subgroup". This supersedes the default in the entry above, written the same day. The
+new evidence is that ruling, which the default said it was waiting for.
+
+*Ruled here:*
+
+- **Those beneath a row are the bodies it still holds off the map.** Resting records go,
+  and so do the row's bodies with no record. A body already out stays where it stands,
+  and the fallen and the detached have left the stack.
+- **The drag carries no count.** `deploy` takes `Infinity` and its own caps decide at
+  the drop, after it has reconciled stranded records, so the number cannot go stale
+  between a drag's start and its end.
+- **The Count field stays**, for Deploy and Record casualties, which is how a Judge
+  sends part of a stack.
+
+**Cost.** A drag makes a record and rolls hit points for every pristine body it sends,
+so a large stack dragged whole costs what the one-row layout otherwise avoids. Five
+abreast has no bound, so a long column can run past the scene's edge.

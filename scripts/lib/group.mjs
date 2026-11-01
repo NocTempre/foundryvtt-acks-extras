@@ -533,7 +533,8 @@ function defaultPlacer(scene, x, y) {
  * @param {Scene} scene
  * @param {object} [opts]
  * @param {string} [opts.stackKey] which stack (default: the primary one)
- * @param {number} [opts.count] how many bodies to send out
+ * @param {number} [opts.count] how many bodies to send out; Infinity sends every
+ *   one the stack holds off the map
  * @param {number} [opts.x] anchor for the default five-abreast placement
  * @param {number} [opts.y] anchor for the default five-abreast placement
  * @param {(i: number) => {x: number, y: number}} [opts.place] the caller's own
@@ -595,11 +596,11 @@ export const STACK_DRAG_TYPE = `${MODULE_ID}.groupStack`;
 export const canDeploy = (group) => !!group?.isOwner && game.user.can("TOKEN_CREATE");
 
 /**
- * Deploy a dropped row where core would seat a dropped actor: the first body
- * centred on the cursor and snapped unless Shift is held, hidden where a Judge
- * holds Alt, the rest five abreast from it.
+ * Deploy a dropped row's whole stack where core would seat a dropped actor: the
+ * first body centred on the cursor and snapped unless Shift is held, hidden where
+ * a Judge holds Alt, the rest five abreast from it.
  */
-async function deployDrop(board, { group: uuid, stackKey, count, x, y, elevation }, event) {
+async function deployDrop(board, { group: uuid, stackKey, x, y, elevation }, event) {
   const group = await fromUuid(uuid);
   if (!isGroup(group)) return;
   if (!canDeploy(group)) return ui.notifications.warn(game.i18n.localize("ACKS-LIB.group.warn.noTokens"));
@@ -611,7 +612,7 @@ async function deployDrop(board, { group: uuid, stackKey, count, x, y, elevation
   const anchor = CONFIG.Token.objectClass._getDropActorPosition(token, { x, y, elevation }, { snap: !event.shiftKey });
   const square = defaultPlacer(scene, anchor.x, anchor.y);
   const hidden = game.user.isGM && event.altKey;
-  const made = await deploy(group, scene, { stackKey, count, place: (i) => ({ ...anchor, ...square(i), hidden }) });
+  const made = await deploy(group, scene, { stackKey, count: Infinity, place: (i) => ({ ...anchor, ...square(i), hidden }) });
   board.tokens.activate();
   ui.notifications.info(game.i18n.format("ACKS-LIB.group.info.deployed", { n: made.length }));
 }

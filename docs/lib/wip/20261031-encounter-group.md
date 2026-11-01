@@ -282,3 +282,5 @@ lines". Each slice ships usable; the tier is what it reaches.
 6. (2026-11-01) The Roll is per monster, not the whole group. Each monster's row has its
    own, a press rolls that monster alone, and a re-roll replaces only what that monster's
    roll made.
+7. (2026-11-01) A row's drag onto the map takes the whole stack: "the row and those
+   beneath it", "as in a subgroup".
