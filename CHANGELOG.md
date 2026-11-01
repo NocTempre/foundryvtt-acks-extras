@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+## 11.12.3
 ### Added
 
 - **Attacks animate truthfully with Automated Animations.** With that module,
