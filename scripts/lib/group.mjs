@@ -1,4 +1,4 @@
-/* global game, foundry, Actor, Roll, Hooks, CONST, fromUuid, fromUuidSync */
+/* global game, foundry, ui, Actor, Roll, Hooks, CONFIG, CONST, fromUuid, fromUuidSync */
 /**
  * Group operations — the lifecycle of a stacked actor (see data/group-data.mjs).
  * A group holds a LIST of stacks, each with a SPARSE roster (a record per body
@@ -586,6 +586,46 @@ export async function deploy(group, scene, { stackKey, count = 1, x = 0, y = 0, 
   });
   if (created.length) Hooks.callAll(GROUP_HOOKS.DEPLOYED, group, created, key);
   return created;
+}
+
+/** What a stack's row on the group sheet carries when it is dragged. */
+export const STACK_DRAG_TYPE = `${MODULE_ID}.groupStack`;
+
+/** Whether this seat can put a group's bodies on a map. */
+export const canDeploy = (group) => !!group?.isOwner && game.user.can("TOKEN_CREATE");
+
+/**
+ * Deploy a dropped row where core would seat a dropped actor: the first body
+ * centred on the cursor and snapped unless Shift is held, hidden where a Judge
+ * holds Alt, the rest five abreast from it.
+ */
+async function deployDrop(board, { group: uuid, stackKey, count, x, y, elevation }, event) {
+  const group = await fromUuid(uuid);
+  if (!isGroup(group)) return;
+  if (!canDeploy(group)) return ui.notifications.warn(game.i18n.localize("ACKS-LIB.group.warn.noTokens"));
+  if (!board.dimensions.rect.contains(x, y)) return;
+  const base = await ensureBaseActor(group, stackKey);
+  if (!base) return;
+  const scene = board.scene;
+  const token = await base.getTokenDocument({}, { parent: scene });
+  const anchor = CONFIG.Token.objectClass._getDropActorPosition(token, { x, y, elevation }, { snap: !event.shiftKey });
+  const square = defaultPlacer(scene, anchor.x, anchor.y);
+  const hidden = game.user.isGM && event.altKey;
+  const made = await deploy(group, scene, { stackKey, count, place: (i) => ({ ...anchor, ...square(i), hidden }) });
+  board.tokens.activate();
+  ui.notifications.info(game.i18n.format("ACKS-LIB.group.info.deployed", { n: made.length }));
+}
+
+/**
+ * A stack's row dropped on the map deploys. The hook cannot wait on the work, so
+ * it answers at once, and false ends the drop there.
+ */
+export function registerStackDrop() {
+  Hooks.on("dropCanvasData", (board, data, event) => {
+    if (data?.type !== STACK_DRAG_TYPE) return true;
+    deployDrop(board, data, event).catch((err) => console.error(`${MODULE_ID} | stack drop failed`, err));
+    return false;
+  });
 }
 
 /**

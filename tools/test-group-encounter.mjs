@@ -843,4 +843,57 @@ await ok("a Judge's nameplate reads the count, and a player's reads the document
   Hooks.call("refreshToken", { actor: group });
 });
 
+/* -------------------------------------------- */
+/*  A row dropped on the map                    */
+/* -------------------------------------------- */
+
+const { STACK_DRAG_TYPE, canDeploy, registerStackDrop } = await import("../scripts/lib/group.mjs");
+registerStackDrop();
+const dropHook = hooks.get("dropCanvasData")[0];
+const warned = [];
+globalThis.ui = { notifications: { warn: (message) => warned.push(message) } };
+const rowGroup = { type: "acks-extras.group", uuid: "Actor.row", isOwner: true, system: {} };
+docs.set(rowGroup.uuid, rowGroup);
+const rowDrop = { type: STACK_DRAG_TYPE, group: rowGroup.uuid, stackKey: "missing", count: 2, x: 10, y: 10 };
+const boardOf = (contains) => ({ dimensions: { rect: { contains: () => contains } } });
+
+await ok("a seat deploys where it owns the group and may create tokens", () => {
+  const can = game.user.can;
+  game.user.can = (permission) => permission === "TOKEN_CREATE";
+  assert.equal(canDeploy(rowGroup), true);
+  assert.equal(canDeploy({ ...rowGroup, isOwner: false }), false, "owning nothing");
+  assert.equal(canDeploy(null), false);
+  game.user.can = () => false;
+  assert.equal(canDeploy(rowGroup), false, "no right to tokens");
+  game.user.can = can;
+});
+
+await ok("any other drop on the map passes through the hook", () => {
+  assert.equal(dropHook(boardOf(true), { type: "Actor" }, {}), true);
+  assert.equal(dropHook(boardOf(true), {}, {}), true);
+});
+
+await ok("a row's drop ends there, and answers before the work is done", () => {
+  game.user.can = () => false;
+  assert.equal(dropHook(boardOf(true), rowDrop, {}), false, "a promise would let core go on");
+});
+
+await ok("a seat that cannot place tokens is told so, and asks nothing of the board", async () => {
+  game.user.can = () => false;
+  warned.length = 0;
+  const board = { get dimensions() { throw new Error("read the board"); } };
+  dropHook(board, rowDrop, {});
+  await settle();
+  assert.deepEqual(warned, [game.i18n.localize("ACKS-LIB.group.warn.noTokens")]);
+});
+
+await ok("a drop off the map places nothing and warns nothing", async () => {
+  game.user.can = () => true;
+  warned.length = 0;
+  const board = { dimensions: { rect: { contains: () => false } }, get scene() { throw new Error("went on past the bounds"); } };
+  dropHook(board, rowDrop, {});
+  await settle();
+  assert.deepEqual(warned, []);
+});
+
 console.log(`\n${passed} encounter group checks passed`);

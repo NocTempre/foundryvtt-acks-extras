@@ -201,6 +201,12 @@ A scouting result does not set the reveal. Nothing in the module produces one fo
 group yet: the Judge's select is the control. The first result that can reach it is
 `detection()`'s `partySees`, when an encounter card stands a group up.
 
+A row dragged onto another group moves it, which the owner has asked for and which
+needs the split and merge. Three questions come first: a move writes two actors and a
+seat may be able to edit only one, a body's record and hit points have to cross with
+it, and a deployed body probably needs the refusal a re-roll gives. The drag already
+carries `STACK_DRAG_TYPE`, so the piece left is a sheet's drop.
+
 Supply cost and battle rating are documented in `group-data.mjs` and deliberately
 unread, waiting on the domain work that would give them somewhere to be spent.
 

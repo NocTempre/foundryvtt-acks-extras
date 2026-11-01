@@ -1,6 +1,17 @@
 # Changelog
 
 ## Unreleased
+### Added
+
+- **Drag a group's row onto the map to deploy it.** Set the row's Count and drag its
+  art or name onto the scene. The bodies land under the cursor, with Shift and Alt
+  working as they do for a dropped actor.
+
+### Changed
+
+- **The group sheet reads as an inventory.** Each stack is one row with its art, its
+  name, counts you edit in place and its actions, and bodies on record nest under it.
+- A player who owns a group but cannot create tokens is no longer offered Deploy.
 
 ## 11.13.0
 ### Added

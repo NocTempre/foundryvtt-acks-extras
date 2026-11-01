@@ -86,6 +86,7 @@ the formation feature all read it with no special-casing.
 | `materializeMember(group)` | pristine body → record; rolls its HP |
 | `applyCasualties(group, n)` | pristine fall first (no record lost), then records → `dead` |
 | `deploy(group, scene, {count})` | spawn unlinked tokens, member delta pre-applied, its hit points kept over the system's roll |
+| `canDeploy(group)` | whether this seat can: it owns the group and may create tokens |
 | `recall(group)` | fold `token.delta` back in, drop ≤0-HP bodies, delete tokens |
 | `detach(group, key)` | promote a member to a standalone actor; `size.current--` |
 
@@ -129,6 +130,21 @@ wrote. Run side by side, two bodies deleted in one batch each read the roster
 before the other's write, and one fold is lost. A body sent out and straight
 back is two deletions before the first write lands, and the second one's
 guard is the uuid the first one recorded.
+
+## The sheet
+
+The group sheet reads as an inventory. A stack is one row: its art, its name, what it
+is and how many of its bodies hold no record, then its counts, editable in place, and
+the row's actions. It stays one row however many bodies it holds, because a row per
+body would mean a record and a hit-point roll per body. The bodies that hold a record
+nest under it, with the fallen and the detached.
+
+A row's grip, its art and name, drags on a seat `canDeploy` answers for. It carries
+`STACK_DRAG_TYPE`, and `registerStackDrop` answers the drop on the map: the row's Count
+deploys where core would seat a dropped actor, the first body centred on the cursor
+and snapped unless Shift is held, hidden where a Judge holds Alt, the rest five
+abreast. The row's Deploy takes the same Count. The fields stay outside the grip,
+because a field inside a dragged element loses its text selection to the drag.
 
 ## The Roll
 
@@ -208,7 +224,9 @@ documented and read by nothing.
 - **Abstract-mode damage routing** (an attack on the undeployed stack →
   auto-casualty) → the data + `applyCasualties` primitive exist; hooking the
   system's damage application is a follow-up, live-tested.
-- **Split / merge** of stacks → planned, not built.
+- **Split / merge** of stacks → planned, not built. A row dragged onto another group
+  needs them, and until then a drop of `STACK_DRAG_TYPE` on a sheet does nothing
+  (`docs/ROADMAP.md`, "Groups").
 - **Socket routing** — these ops write documents on the calling client under
   Foundry's own permissions; a consumer needing GM-routed writes wraps them.
   The lib layer writes on the calling client and owns no socket of its own;
@@ -224,6 +242,7 @@ documented and read by nothing.
   scene. `tools/test-group-encounter.mjs` drives the Roll, Make Encounter and
   the token hooks, its dice asserted by the formula thrown.
 - Live: a body moved between scenes is docs/lib/TESTING.md, "A group body
-  moved between scenes"; the Roll and the reveal are "The encounter group".
+  moved between scenes"; the Roll, the reveal and a row's drag are "The encounter
+  group".
 - Live: the model registration, sheet, and deploy/recall/detach round-trip need
   the test world (they write tokens and actors) and are a release gate.

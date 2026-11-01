@@ -123,11 +123,13 @@ export class GroupSheet extends PicksMixin(HandlebarsApplicationMixin(foundry.ap
       hasActor: !!m.actorUuid,
     });
 
+    context.canDeploy = this.isEditable && groups.canDeploy(this.actor);
     context.stacks = sys.stacks.map((stack, i) => {
       const view = viewFor(stack);
       const tmpl = stack.template ?? {};
       return {
         key: stack.key,
+        img: tmpl.snapshot?.img || "",
         label: tmpl.label || "",
         type: tmpl.type || "",
         hasTemplate: !!(tmpl.uuid || tmpl.label),
@@ -198,8 +200,8 @@ export class GroupSheet extends PicksMixin(HandlebarsApplicationMixin(foundry.ap
    * @override — bind the sheet's own drop (formation's PartySheet pattern) and
    * wire the per-stack count inputs, which are NOT form fields (see the class
    * note). The drop bound here replaces the base class's on the same element,
-   * so an item reaches `#onDropItem` and never the base's copy-on-drop; the
-   * purse rows' drag start is the base class's, bound to `.draggable`.
+   * so an item reaches `#onDropItem` and never the base's copy-on-drop. The
+   * base class binds every `.draggable`, a stack's grip and a purse row alike.
    */
   async _onRender(context, options) {
     await super._onRender(context, options);
@@ -221,6 +223,15 @@ export class GroupSheet extends PicksMixin(HandlebarsApplicationMixin(foundry.ap
         this.render();
       });
     }
+  }
+
+  /** @override — a stack's grip carries the stack and its Count; a purse row is the base class's. */
+  async _onDragStart(event) {
+    const grip = event.currentTarget;
+    const stackKey = GroupSheet.#stackKey(grip);
+    if (!stackKey) return super._onDragStart(event);
+    const drag = { type: groups.STACK_DRAG_TYPE, group: this.actor.uuid, stackKey, count: GroupSheet.#count(grip) };
+    event.dataTransfer.setData("text/plain", JSON.stringify(drag));
   }
 
   /**

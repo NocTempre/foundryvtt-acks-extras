@@ -159,6 +159,13 @@ Drop a monster on a group's sheet, or press **Make an encounter group** on the
 monster's tools rail for a new group with the creature already in it, filed under
 Encounters.
 
+The sheet lists the group like an inventory. Each monster is one row, with its art, its
+name and its counts, which you edit where they stand. Anyone with a record of their own
+nests under the row. To put bodies on the map, set the small Count field and drag the
+row's art or name onto the scene. Hold Shift to place them off the grid, or Alt to
+place them hidden. The row's Deploy button does the same at the group's token, or at
+the middle of the scene.
+
 Each monster in the group has its own **Roll** on its row. Press it, choose the dungeon
 or the wilderness line, and choose wandering, in lair or by lair chance, which throws
 that monster's chance first and lets it pick the side. Its line reads out in the dialog

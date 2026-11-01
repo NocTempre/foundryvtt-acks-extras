@@ -7,7 +7,8 @@
  * the token's face on both seats and the Judge's own nameplate; Make Encounter
  * from the monster sheet; a family dropped on a sheet; the line a scene opens the
  * dialog on; an Observer and an Owner on a Player seat; two sheets, two rows and
- * their dialogs open at once; and the raised type size on every new control.
+ * their dialogs open at once; a row dragged to the map; and the raised type size
+ * and a narrow window on every new control.
  * Machine values arrive through ./_env.mjs. A check prints shapes and invented
  * figures; every line in here is invented.
  *
@@ -18,7 +19,9 @@
  * `lib/encounter-scene` with the tokens the walk places on it. Each section
  * writes the shape it needs first. What the run makes that is no fixture, the
  * cards, the group Make Encounter creates, its token and the monster a family
- * generates, is tracked by id and swept in the finally.
+ * generates, is tracked by id and swept in the finally. So are the bodies a drag
+ * puts on the map: the sheet's Recall folds them back, so the sweep reports them
+ * not found, and finds them only where the walk died first.
  */
 import path from "node:path";
 import { connect, sleep } from "./_driver.mjs";
@@ -192,7 +195,7 @@ const P = {
       total: H.text(q(".size-current")),
       totalTip: q(".size-current")?.dataset.tooltipText ?? "",
       noun: H.text(q(".size-noun")),
-      counts: stacks.map((s) => H.text(s.querySelector(".stack-count"))),
+      canPlace: game.user.can("TOKEN_CREATE"),
       tips: stacks.map((s) => s.querySelector(".stack-count")?.dataset.tooltipText ?? ""),
       notes: stacks.map((s) => [...s.querySelectorAll(".stack-roll-note")].map(H.text)),
       sizeInputs: body.querySelectorAll("input[data-stack-size]").length,
@@ -218,6 +221,56 @@ const P = {
     el.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: dt }));
     await H.sleep(400);
     return true;
+  },
+
+  /** One stack's row as this seat has it. */
+  row: async ({ groupId, stackKey }) => {
+    const H = globalThis.__ge;
+    const stack = H.root(H.sheetOf(groupId))?.querySelector(`[data-stack-key="${stackKey}"]`);
+    if (!stack) return null;
+    const grip = stack.querySelector(".stack-grab");
+    return {
+      draggable: grip.draggable,
+      tip: grip.dataset.tooltip ?? null,
+      art: stack.querySelector(".stack-img")?.getAttribute("src") ?? null,
+      name: H.text(stack.querySelector(".stack-title")),
+      detail: H.text(stack.querySelector(".stack-detail")),
+      count: H.text(stack.querySelector(".stack-count")),
+      deploy: !!stack.querySelector("[data-action='deploy']"),
+      fields: [...stack.querySelectorAll(".stack-head input")].map((input) => input.getAttribute("aria-label")),
+    };
+  },
+
+  /**
+   * A row dragged to the map by the events a browser sends: the grip's dragstart
+   * writes the transfer and the board's drop reads it. `forged` sends the drop
+   * alone, which is what a seat with no grip can still do. `at` is scene pixels.
+   */
+  dragRow: async ({ groupId, stackKey, at, shift = false, alt = false, forged = false }) => {
+    const H = globalThis.__ge;
+    const { sceneX, sceneY } = canvas.dimensions;
+    const point = { x: sceneX + at.x, y: sceneY + at.y };
+    const client = canvas.clientCoordinatesFromCanvas(point);
+    const dataTransfer = new DataTransfer();
+    if (forged) dataTransfer.setData("text/plain", JSON.stringify({ type: "acks-extras.groupStack", group: game.actors.get(groupId).uuid, stackKey, count: 1 }));
+    else {
+      const grip = H.root(H.sheetOf(groupId))?.querySelector(`[data-stack-key="${stackKey}"] .stack-grab`);
+      grip?.dispatchEvent(new DragEvent("dragstart", { bubbles: true, cancelable: true, dataTransfer }));
+    }
+    const carried = dataTransfer.getData("text/plain");
+    document.getElementById("board").dispatchEvent(new DragEvent("drop", {
+      bubbles: true, cancelable: true, dataTransfer, clientX: client.x, clientY: client.y, shiftKey: shift, altKey: alt,
+    }));
+    await H.sleep(500);
+    return { carried: carried ? JSON.parse(carried) : null, point };
+  },
+
+  /** A group's bodies on a scene. The collection does not hold them in the order they were placed. */
+  bodies: async ({ sceneId, groupId }) => {
+    const uuid = game.actors.get(groupId).uuid;
+    return game.scenes.get(sceneId).tokens
+      .filter((t) => t.getFlag("acks-extras", "group") === uuid)
+      .map((t) => ({ uuid: t.uuid, x: t.x, y: t.y, hidden: t.hidden, linked: t.actorLink }));
   },
 
   press: async ({ groupId, selector }) => {
@@ -297,6 +350,7 @@ const P = {
         formula: s.size.formula,
         rolled: s.rolled,
         roster: s.roster.length,
+        deployed: s.roster.filter((m) => m.state === "deployed").length,
         hp: s.roster.map((m) => m.delta?.system?.hp?.max ?? null),
       })),
     };
@@ -401,7 +455,10 @@ const P = {
     const root = H.root(H.sheetOf(groupId));
     const px = (el) => (el ? parseFloat(getComputedStyle(el).fontSize) : null);
     const bands = [...root.querySelectorAll(".acks-lib-group-encounter, .stack-head")];
+    const grip = root.querySelector(".stack-grab")?.getBoundingClientRect();
+    const actions = root.querySelector(".stack-actions")?.getBoundingClientRect();
     return {
+      oneLine: actions?.left >= grip?.right && actions?.top < grip?.bottom && grip?.top < actions?.bottom,
       roll: px(root.querySelector("[data-action='rollEncounter']")),
       reveal: px(root.querySelector("select[name='system.reveal']")),
       face: px(root.querySelector(".acks-lib-group-encounter__face")),
@@ -409,8 +466,15 @@ const P = {
       bands: bands.length,
       overflow: bands.some((band) => band.scrollWidth > band.clientWidth),
       width: Math.round(root.getBoundingClientRect().width),
-      clipped: bands.flatMap((band) => [...band.querySelectorAll("button, select")]).filter((el) => el.getBoundingClientRect().right > root.getBoundingClientRect().right + 1).length,
+      clipped: bands.flatMap((band) => [...band.querySelectorAll("button, select, input")]).filter((el) => el.getBoundingClientRect().right > root.getBoundingClientRect().right + 1).length,
     };
+  },
+
+  setWidth: async ({ groupId, width }) => {
+    const H = globalThis.__ge;
+    H.sheetOf(groupId).setPosition({ width });
+    await H.sleep(200);
+    return true;
   },
 
   measureDialog: async () => {
@@ -504,7 +568,7 @@ async function record(port, label, api) {
 
 const open = {};
 const swept = [];
-const stackKey = (key, action) => `[data-stack-key="${key}"] [data-action="${action}"]`;
+const stackKey = (key, action) =>`[data-stack-key="${key}"] [data-action="${action}"]`;
 const stackField = (key, field) => `[data-stack-key="${key}"] input[data-stack-size="${field}"]`;
 
 /** One count typed on the sheet, waited for: a second patch read before the first lands writes over it. */
@@ -792,12 +856,21 @@ try {
   view = await until(player, P.view, { groupId: band.id }, (v) => !!v);
   note("observer", view);
   check("an Observer reads the sheet and has no Roll, no reveal, no field", view?.roll === null && view?.reveal === null && view?.sizeInputs === 0 && view?.fields === 0, view);
+  const [{ key: held, current: heldCount, initial: heldStart }] = (await run(gm, P.state, { groupId: band.id })).list;
+  let heldRow = await run(player, P.row, { groupId: band.id, stackKey: held });
+  check("an Observer reads the row's count as text, with nothing on it to drag", heldRow.count.startsWith(`${heldCount} / ${heldStart}`) && !heldRow.fields.length && !heldRow.draggable, heldRow);
   await run(player, P.close, { actorId: band.id });
   await run(gm, P.grant, { actorId: band.id, name: SEATS.player, level: 3 });
   await run(player, P.open, { actorId: band.id });
   view = await until(player, P.view, { groupId: band.id }, (v) => !!v);
   note("owner", view);
   check("an Owner has the fields and still no Roll and no reveal: both are the Judge's", view?.sizeInputs === 2 && view?.roll === null && view?.reveal === null, view);
+  heldRow = await run(player, P.row, { groupId: band.id, stackKey: held });
+  check("an Owner with no right to place tokens has no grip and no Deploy", !view?.canPlace && !heldRow.draggable && !heldRow.tip && !heldRow.deploy, { canPlace: view?.canPlace, heldRow });
+  warned = await run(player, P.warnCount);
+  await run(player, P.dragRow, { groupId: band.id, stackKey: held, at: { x: 330, y: 330 }, forged: true });
+  warns = await until(player, P.warnsAfter, warned, (w) => w.length > 0);
+  check("and a drop sent anyway warns and places nothing", warns?.[0]?.includes("cannot place tokens") && !(await run(gm, P.bodies, { sceneId: scene.id, groupId: band.id })).length, warns);
   await run(player, P.close, { actorId: band.id });
   await run(gm, P.grant, { actorId: band.id, name: SEATS.player, level: 0 });
   await run(gm, P.grant, { actorId: lined.id, name: SEATS.player, level: 3 });
@@ -847,6 +920,64 @@ try {
   check("two presses post two cards", rowCards.length === 2, rowCards.length);
   for (const id of rowCards) swept.push(gm.track(id, "ChatMessage"));
 
+  section("a row dragged to the map");
+  await run(gm, P.reset, { groupId: second.id });
+  await run(gm, P.close, { actorId: second.id });
+  await run(gm, P.open, { actorId: second.id });
+  await run(gm, P.drop, { groupId: second.id, actorId: lined.id });
+  await until(gm, P.view, { groupId: second.id }, (v) => v.stacks === 1);
+  const [{ key: dragged }] = (await run(gm, P.state, { groupId: second.id })).list;
+  await setCount(second.id, dragged, "current", 7);
+  await setCount(second.id, dragged, "initial", 7);
+  await until(gm, P.view, { groupId: second.id }, (v) => v.sizeInputs === 2);
+  const countField = `[data-stack-key="${dragged}"] input.deploy-count`;
+  const onMap = () => run(gm, P.bodies, { sceneId: scene.id, groupId: second.id });
+  const drag = async (count, options) => {
+    await run(gm, P.field, { groupId: second.id, selector: countField, value: count });
+    const had = new Set((await onMap()).map((b) => b.uuid));
+    const out = await run(gm, P.dragRow, { groupId: second.id, stackKey: dragged, ...options });
+    const bodies = await until(gm, P.bodies, { sceneId: scene.id, groupId: second.id }, (b) => b.length === had.size + count);
+    const fresh = (bodies ?? []).filter((b) => !had.has(b.uuid)).sort((a, b) => a.y - b.y || a.x - b.x);
+    swept.push(...fresh.map((b) => gm.track(b.uuid, "Token")));
+    return { ...out, fresh };
+  };
+  const row = await run(gm, P.row, { groupId: second.id, stackKey: dragged });
+  note("row", row);
+  check("a stack is one row: art, name, what it is, its count and its actions", row.art === ART && row.name === "QA Knot" && row.detail.includes("Unindividuated: 7") && row.deploy, row);
+  check("every field on the row names itself", row.fields.length === 3 && row.fields.every(Boolean), row.fields);
+  check("a seat that can place tokens has a grip, and it says what it does", row.draggable && row.tip === "ACKS-LIB.group.dragRow", row);
+  const three = await drag(3, { at: { x: 630, y: 330 } });
+  note("dragged", three);
+  check("the grip carries the stack and the row's Count", three.carried?.stackKey === dragged && three.carried?.count === 3 && three.carried?.group === `Actor.${second.id}`, three.carried);
+  check("the drop places that many bodies, unlinked", three.fresh.length === 3 && three.fresh.every((b) => !b.linked && !b.hidden), three.fresh);
+  const [firstBody, nextBody] = three.fresh;
+  check("the first stands on the square under the cursor", firstBody?.x % 100 === 0 && firstBody?.y % 100 === 0 && Math.abs(firstBody?.x + 50 - three.point.x) <= 50 && Math.abs(firstBody?.y + 50 - three.point.y) <= 50, { firstBody, point: three.point });
+  check("the next stands beside it", nextBody?.x - firstBody?.x === 100 && nextBody?.y === firstBody?.y, { firstBody, nextBody });
+  state = await run(gm, P.state, { groupId: second.id });
+  check("the bodies go out on record and the count stands", state.list[0].deployed === 3 && state.list[0].current === 7, state.list[0]);
+  const loose = await drag(1, { at: { x: 437, y: 533 }, shift: true });
+  check("Shift places the body where the cursor is, off the grid", loose.fresh[0]?.x === loose.point.x - 50 && loose.fresh[0]?.y === loose.point.y - 50, { body: loose.fresh[0], point: loose.point });
+  const unseen = await drag(1, { at: { x: 830, y: 530 }, alt: true });
+  check("Alt places it hidden on a Judge's seat", unseen.fresh[0]?.hidden === true, unseen.fresh[0]);
+  const before = (await onMap()).length;
+  await run(gm, P.dragRow, { groupId: second.id, stackKey: dragged, at: { x: -9000, y: -9000 } });
+  check("a drop off the map places nothing", (await onMap()).length === before && before === 5, before);
+  await run(gm, P.press, { groupId: second.id, selector: "[data-action='recall']" });
+  await until(gm, P.bodies, { sceneId: scene.id, groupId: second.id }, (b) => !b.length);
+  const left = await onMap();
+  check("Recall folds them back", !left.length, left.length);
+  state = await until(gm, P.state, { groupId: second.id }, (s) => s.list[0].deployed === 0);
+  check("and every body is resting on its record", state?.list[0].roster === 5 && state?.list[0].current === 7, state?.list[0]);
+  const sheetOf = async (actorId) => `#${await gm.eval(`game.actors.get(${JSON.stringify(actorId)}).sheet.id`)}`;
+  await gm.shot(path.join(logDir(), "group-encounter-nested.png"), await sheetOf(second.id)).catch((err) => console.log(`plate not taken: ${err?.message ?? err}`));
+  await run(gm, P.field, { groupId: second.id, selector: countField, value: 2 });
+  await run(gm, P.press, { groupId: second.id, selector: stackKey(dragged, "deploy") });
+  const fromButton = await until(gm, P.bodies, { sceneId: scene.id, groupId: second.id }, (b) => b.length === 2);
+  swept.push(...fromButton.map((b) => gm.track(b.uuid, "Token")));
+  check("the row's Deploy takes the same Count", fromButton.length === 2, fromButton.length);
+  await run(gm, P.press, { groupId: second.id, selector: "[data-action='recall']" });
+  await until(gm, P.bodies, { sceneId: scene.id, groupId: second.id }, (b) => !b.length);
+
   section("the raised type size");
   await until(gm, P.view, { groupId: band.id }, (v) => v.reveal === "noun");
   await until(gm, P.view, { groupId: band.id }, (v) => v.stacks === 2);
@@ -863,12 +994,18 @@ try {
   await until(gm, P.dialogs, null, (d) => d.count === 1);
   const largeDialog = await run(gm, P.measureDialog);
   await run(gm, P.dismiss);
+  await run(gm, P.setWidth, { groupId: band.id, width: 340 });
+  const narrow = await run(gm, P.measure, { groupId: band.id });
+  await gm.shot(path.join(logDir(), "group-encounter-narrow.png"), await sheetOf(band.id)).catch((err) => console.log(`plate not taken: ${err?.message ?? err}`));
+  await run(gm, P.setWidth, { groupId: band.id, width: 600 });
   await run(gm, P.setBase, { base: knob.before });
   await run(gm, P.close, { actorId: band.id });
   await run(gm, P.open, { actorId: band.id });
-  note("measures", { plain, large, plainDialog, largeDialog });
+  note("measures", { plain, large, narrow, plainDialog, largeDialog });
   check("the knob reaches the Roll, the reveal, its line and a stack's note", ["roll", "reveal", "face", "note"].every((k) => large[k] > plain[k]), { plain, large });
+  check("at the opening width and the default type a row's actions sit beside its grip", plain.oneLine === true, plain);
   check("and the band still fits", !large.overflow && large.clipped === 0, large);
+  check("and at the narrowest window every control stays on it", narrow.width < 500 && !narrow.overflow && narrow.clipped === 0 && !narrow.oneLine, narrow);
   check("it reaches the dialog", largeDialog?.select > plainDialog?.select && largeDialog?.line > plainDialog?.line, { plainDialog, largeDialog });
   check("and the dialog scrolls where it must, with no sideways bleed", largeDialog?.scroll === "auto" && !largeDialog?.overflow, largeDialog);
 

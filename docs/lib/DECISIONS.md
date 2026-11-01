@@ -4964,3 +4964,31 @@ it stands and the snapshot only when that is gone, so a roll after an edit can d
 from the line the stack was added with. The recipe editor in the map's §3f waits for
 the recipe's schema; until then the Ecology tab's line fields are the Judge's tool, and
 they are enough for a hand-built monster to roll.
+
+## 2026-11-01 — A stack is one row, and its grip deploys on the map
+
+*Ruled by the owner, 2026-11-01:* the group sheet reads as an inventory, its entries
+draggable. A row dragged onto the map deploys, and a row dragged onto another group
+moves. A stack stays one row with its count, and the bodies holding a record nest
+under it. The mechanics are `GROUPS.md`, "The sheet".
+
+*Ruled here:*
+
+- **A drag deploys the row's Count.** The owner did not say how many. The Count field
+  is what the Deploy button reads, so the two cannot disagree. This is a default, open
+  to a ruling; the other reading is the whole stack.
+- **The grip is the art and the name, not the whole row.** A field inside a dragged
+  element loses its text selection to the drag, and the row holds three.
+- **The counts sit on the row**, editable in place, and the row's actions are icons
+  that name themselves. There is no fold, so no open state to keep across a re-render.
+- **Placement is core's.** `_getDropActorPosition` seats the first body, so a row lands
+  as a dropped actor does, Shift and Alt included.
+- **A seat that cannot place tokens has no grip and no Deploy.** Core refuses such a
+  seat's token, so the button had nothing to offer it. The drop asks again, for a drop
+  sent with no grip.
+- **The move between groups lands apart.** It writes two actors and needs the split and
+  merge, so the rows shipped first (`docs/ROADMAP.md`, "Groups").
+
+**Cost.** Individuate, Record casualties and Deploy read as icons where they were words,
+so a new Judge hovers to learn them. The internal `_getDropActorPosition` can move
+under a core update, and a drop would then fail with an error on the console.

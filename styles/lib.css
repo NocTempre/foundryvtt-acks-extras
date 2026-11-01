@@ -256,35 +256,77 @@
 .acks-ui.acks-lib-group-sheet button {
   font-size: var(--acks-fs-body);
 }
-/* A stack's head: its name, its count and its removal on one line. */
+/* A stack is one inventory row: the grip with its art and name, then the count
+   over the row's actions, which wrap under the grip once the two cannot share a
+   line. The grab cursor is the only thing that says the grip drags. */
 .acks-lib-group-sheet .stack-head {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 0.15rem 0.6rem;
 }
-.acks-lib-group-sheet .stack-title {
+.acks-lib-group-sheet .stack-grab {
   flex: 1 1 12em;
   min-width: 0;
-  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
-.acks-lib-group-sheet .stack-head > button {
+.acks-lib-group-sheet .stack-grab.draggable {
+  cursor: grab;
+}
+.acks-lib-group-sheet .stack-img {
+  flex: 0 0 auto;
+  width: 2.6em;
+  height: 2.6em;
+  object-fit: contain;
+  border: none;
+}
+.acks-lib-group-sheet .stack-name {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.acks-ui.acks-lib-group-sheet .stack-title {
+  margin: 0;
+  border: none;
+  font-size: var(--acks-fs-body);
+}
+.acks-lib-group-sheet .stack-detail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 0.5rem;
+  font-size: var(--acks-fs-label);
+}
+.acks-lib-group-sheet .stack-actions {
+  flex: 0 1 21em;
+  margin-left: auto;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.2rem 0.3rem;
+}
+.acks-lib-group-sheet .stack-count {
+  flex: 1 0 100%;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.25rem;
+}
+.acks-ui.acks-lib-group-sheet .stack-actions input {
+  flex: 0 0 auto;
+  width: 3.5em;
+}
+.acks-lib-group-sheet .stack-actions > button {
   flex: 0 0 auto;
   width: auto;
 }
-.acks-lib-group-sheet .stack-controls {
+/* What hangs from a row sits under its name, past the art. */
+.acks-lib-group-sheet .stack-nest {
   display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 0.3rem 0.6rem;
-  margin-top: 0.35rem;
-}
-.acks-lib-group-sheet .stack-controls > label {
-  flex: 0 1 5em;
-}
-.acks-lib-group-sheet .stack-controls > button {
-  flex: 0 1 auto;
-  width: auto;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding-left: 3.1em;
 }
 
 /* The broken-invariant banner is the sheet's one alarm: a danger tint carrying
@@ -333,7 +375,6 @@
   color: var(--acks-ink-soft);
 }
 .acks-lib-group-sheet .size-fields,
-.acks-lib-group-sheet .stack-size-fields,
 .acks-lib-group-sheet .unit-fields {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
@@ -390,6 +431,10 @@
    the theme, which a flat black wash cannot. */
 .acks-lib-group-sheet .member:nth-child(odd) {
   background: var(--acks-tint);
+}
+/* The design system bullets every `ul > li`; a member row reads as a table row. */
+.acks-lib-group-sheet .member::before {
+  display: none;
 }
 .acks-lib-group-sheet .member-name {
   flex: 1 1 auto;
@@ -723,6 +768,11 @@ body .actor-v2 :is(input, select).acks-extras-overridden {
   flex-direction: column;
   gap: 0.3rem;
   margin-bottom: 0.4rem;
+}
+
+.acks-lib-group-stack {
+  padding-bottom: 0.3rem;
+  border-bottom: var(--acks-rule-hair) solid var(--acks-rule-color-soft);
 }
 
 /* The invitation to drop, dashed like every other drop target in the family. */

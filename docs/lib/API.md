@@ -1,4 +1,4 @@
-# lib API (apiVersion 31)
+# lib API (apiVersion 33)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -60,6 +60,7 @@ acksExtras.lib = {
   drawQuietly,         // lib/roll-audience.mjs — a table draw with nothing posted (below); 28
   // 30: places.isMarkerActor — the bodies whose token marks a place (docs/lib/PLACES.md)
   groupEncounter,      // lib/group-encounter.mjs — the Roll, Make Encounter, the reveal (docs/lib/GROUPS.md); 32
+  // 33: groups.canDeploy, groups.STACK_DRAG_TYPE — a stack's row dragged to the map (docs/lib/GROUPS.md, "The sheet")
 }
 ```
 

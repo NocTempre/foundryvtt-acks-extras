@@ -2993,10 +2993,16 @@ false); the family `lib/encounter-family`, one axis of two options whose flags c
 the lines; and the scene `lib/encounter-scene`, with the tokens placed on it. Each
 section writes the lines and empties the group it needs first, since a kept fixture
 holds what the last walk left. The walk tracks the cards, the group Make Encounter
-creates, its token and the monster a family generates, and sweeps them by id.
+creates, its token and the monster a family generates, and sweeps them by id. The
+bodies a drag places are tracked too. Recall folds them back, so a clean run's sweep
+reports them as not found, and removes them only where the walk died first.
 
 Drive mechanics: the drop is a `DragEvent` carrying a `DataTransfer` on the sheet's
-root. A row's Roll is `[data-stack-key="<key>"] [data-action="rollEncounter"]`. The
+root. A row's drag is a `dragstart` on `.stack-grab`, which writes the transfer, then a
+`drop` on `#board` with that transfer and `clientX`/`clientY` from
+`canvas.clientCoordinatesFromCanvas`, plus `shiftKey` or `altKey`. The handler writes
+the transfer before its first await, so it can be read back at once. A row's Roll is
+`[data-stack-key="<key>"] [data-action="rollEncounter"]`. The
 dialogs are found in `foundry.applications.instances` by `.acks-lib-group-roll`, their
 selects set and `[data-action='ok']` clicked. Two counts typed in one stack wait for
 the first to land: `patchStack` reads and writes
@@ -3041,15 +3047,18 @@ and an immediate read holds the old path beside the new name.
    linked and hostile, and a token placed before the Roll gives nothing away. A
    player who owns a monster is not offered the tool.
 10. **The Player seat.** Grant Observer, then Owner, on a group.
-    *Observable:* an Observer has no field, and an Owner has the counts. Neither has
-    a Roll or the reveal.
+    *Observable:* an Observer has no field and reads the row's count as text, and an
+    Owner has the counts. Neither has a Roll or the reveal. An Owner who cannot create
+    tokens has no grip and no Deploy, and a drop sent anyway warns and places nothing.
 11. **Two windows.** Open two groups' sheets and both dialogs at once, then two rows'
     dialogs on one sheet.
     *Observable:* each drop reaches its own sheet, each dialog its own group or row,
     both rolls stand, and two presses post two cards.
 12. **The type size.** Raise `--acks-fs-base` and reopen.
     *Observable:* the Roll, the reveal, its line, a stack's note and the dialog all
-    grow, and neither a stack's head nor the reveal bleeds sideways.
+    grow, and neither a stack's row nor the reveal bleeds sideways, at the opening
+    width or dragged down to 340. At the default type and opening width a row's grip
+    and actions share a line.
 13. **A family.** Drop the family and pick a variant.
     *Observable:* the stack is of that variant, and its line rolls.
 14. **The scene.** Declare the scene a delve, a journey, then a settlement.
@@ -3057,6 +3066,15 @@ and an immediate read holds the old path beside the new name.
     on an undeclared scene gives its mode's line.
 15. **An unlinked token.** Open the sheet of a token whose actor is its own copy.
     *Observable:* the Roll refuses and says where to press it.
+16. **A row to the map.** Give a stack seven bodies, set the row's Count to 3 and drag
+    its grip onto the scene. Then drag one with Shift, one with Alt, and one off the
+    map, press Recall, and press the row's Deploy.
+    *Observable:* the row shows the art, the name, what it is and the bodies with no
+    record, and every field on it names itself. The drag carries the stack and the
+    Count. Three unlinked bodies land, the first on the square under the cursor and the
+    next beside it, on record, with the count unchanged. Shift lands off the grid, Alt
+    lands hidden, and off the map nothing lands. Recall folds them back to rest on
+    their records. Deploy takes the same Count.
 
 Teardown: the swept ledger. Everything else stays for the next walk.
 

@@ -46,113 +46,123 @@
         re-point it. --}}
   {{#each stacks}}
     <section class="acks-lib-group-stack" data-stack-key="{{this.key}}">
+      {{!-- The stack's row. The grip is what a seat that can place tokens drags; the
+            fields stay outside it, because a field inside a dragged element loses
+            its own text selection to the drag. --}}
       <header class="stack-head">
-        <h3 class="stack-title">
-          {{#if this.hasTemplate}}{{this.label}}{{else}}{{localize "ACKS-LIB.group.emptyStack"}}{{/if}}
-          {{#if this.type}}<span class="proto-type">{{this.type}}</span>{{/if}}
-        </h3>
-        {{!-- The same words the marching order uses for this stack: a count and
-              the group's collective noun, so one concept reads one way. --}}
-        <span class="stack-count" data-tooltip-text="{{this.countTip}}">{{this.size.current}} / {{this.size.initial}}
-          <span class="size-noun">{{@root.noun}}</span>
-        </span>
-        {{#if this.rollLabel}}
-          <button type="button" data-action="rollEncounter">
-            <i class="fa-solid fa-dice" inert></i> {{this.rollLabel}}
-          </button>
-        {{/if}}
-        {{#if @root.editable}}
-          <button type="button" class="icon" data-action="removeStack" data-tooltip
-                  aria-label="{{localize 'ACKS-LIB.group.removeStack'}}">✕</button>
-        {{/if}}
+        <div class="stack-grab{{#if @root.canDeploy}} draggable{{/if}}" {{#if @root.canDeploy}}data-tooltip="ACKS-LIB.group.dragRow"{{/if}}>
+          {{#if this.img}}<img class="stack-img" src="{{this.img}}" alt="" />{{/if}}
+          <div class="stack-name">
+            <h3 class="stack-title">{{#if this.hasTemplate}}{{this.label}}{{else}}{{localize "ACKS-LIB.group.emptyStack"}}{{/if}}</h3>
+            <div class="stack-detail">
+              {{#if this.type}}<span class="proto-type">{{this.type}}</span>{{/if}}
+              <span data-tooltip="ACKS-LIB.group.pristineHint">{{localize "ACKS-LIB.group.pristine"}}: {{this.size.pristine}}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="stack-actions">
+          {{!-- The same words the marching order uses for this stack: a count and
+                the group's collective noun, so one concept reads one way. --}}
+          <span class="stack-count" data-tooltip-text="{{this.countTip}}">
+            {{#if @root.editable}}
+              <input type="number" data-stack-size="current" value="{{this.size.current}}" min="0"
+                     aria-label="{{localize 'ACKS-LIB.group.current'}}" />
+              /
+              <input type="number" data-stack-size="initial" value="{{this.size.initial}}" min="0"
+                     aria-label="{{localize 'ACKS-LIB.group.initial'}}" />
+            {{else}}
+              {{this.size.current}} / {{this.size.initial}}
+            {{/if}}
+            <span class="size-noun">{{@root.noun}}</span>
+          </span>
+          {{#if @root.editable}}
+            <input type="number" class="deploy-count" data-pick="deployCount-{{this.key}}" value="1" min="1"
+                   data-tooltip="ACKS-LIB.group.countHint" aria-label="{{localize 'ACKS-LIB.group.count'}}" />
+            {{#if @root.canDeploy}}
+              <button type="button" class="icon" data-action="deploy" data-tooltip
+                      aria-label="{{localize 'ACKS-LIB.group.deploy'}}"><i class="fa-solid fa-location-dot" inert></i></button>
+            {{/if}}
+            <button type="button" class="icon" data-action="materialize" data-tooltip
+                    aria-label="{{localize 'ACKS-LIB.group.materialize'}}"><i class="fa-solid fa-user-plus" inert></i></button>
+            <button type="button" class="icon danger" data-action="addCasualty" data-tooltip
+                    aria-label="{{localize 'ACKS-LIB.group.casualties'}}"><i class="fa-solid fa-skull" inert></i></button>
+          {{/if}}
+          {{#if this.rollLabel}}
+            <button type="button" data-action="rollEncounter">
+              <i class="fa-solid fa-dice" inert></i> {{this.rollLabel}}
+            </button>
+          {{/if}}
+          {{#if @root.editable}}
+            <button type="button" class="icon" data-action="removeStack" data-tooltip
+                    aria-label="{{localize 'ACKS-LIB.group.removeStack'}}">✕</button>
+          {{/if}}
+        </div>
       </header>
 
-      <div class="stack-detail">
-        <span data-tooltip="ACKS-LIB.group.pristineHint">
-          {{localize "ACKS-LIB.group.pristine"}}: {{this.size.pristine}}
-        </span>
-      </div>
+      <div class="stack-nest">
+        {{!-- What a Roll cannot do with this stack, for the Judge who would press it. --}}
+        {{#each this.rollNotes}}
+          <p class="hint stack-roll-note">{{this}}</p>
+        {{/each}}
 
-      {{!-- What a Roll cannot do with this stack, for the Judge who would press it. --}}
-      {{#each this.rollNotes}}
-        <p class="hint stack-roll-note">{{this}}</p>
-      {{/each}}
-
-      {{#if @root.editable}}
-        <div class="stack-size-fields">
-          <label>{{localize "ACKS-LIB.group.current"}}
-            <input type="number" data-stack-size="current" value="{{this.size.current}}" min="0" />
-          </label>
-          <label>{{localize "ACKS-LIB.group.initial"}}
-            <input type="number" data-stack-size="initial" value="{{this.size.initial}}" min="0" />
-          </label>
-        </div>
-        <div class="stack-controls">
-          <label class="count">{{localize "ACKS-LIB.group.count"}}
-            <input type="number" class="deploy-count" data-pick="deployCount-{{this.key}}" value="1" min="1" />
-          </label>
-          <button type="button" data-action="deploy">{{localize "ACKS-LIB.group.deploy"}}</button>
-          <button type="button" data-action="materialize">{{localize "ACKS-LIB.group.materialize"}}</button>
-          <button type="button" data-action="addCasualty" class="danger">{{localize "ACKS-LIB.group.casualties"}}</button>
-        </div>
-      {{/if}}
-
-      {{!-- This stack's roster: only bodies interesting enough to have a record. --}}
-      {{#if this.members.length}}
-        <ul class="member-list">
-          {{#each this.members}}
-            <li class="member" data-member-key="{{this.key}}">
-              <span class="member-name">{{this.name}}</span>
-              <span class="member-state state-{{this.state}}">{{this.state}}</span>
-              {{#if this.hp}}<span class="member-hp">{{this.hp.value}}/{{this.hp.max}}</span>{{/if}}
-              {{#if @root.editable}}
-                <button type="button" class="icon" data-action="detach" data-tooltip
-                        aria-label="{{localize 'ACKS-LIB.group.detach'}}">➜</button>
-              {{/if}}
-            </li>
-          {{/each}}
-        </ul>
-      {{/if}}
-
-      {{!-- This stack's fallen and departed. --}}
-      {{#if this.dead.length}}
-        <div class="stack-fallen">
-          <span class="muted">{{localize "ACKS-LIB.group.fallen"}} ({{this.dead.length}}):</span>
+        {{!-- This stack's roster: only bodies interesting enough to have a record. --}}
+        {{#if this.members.length}}
           <ul class="member-list">
-            {{#each this.dead}}
-              <li class="member dead" data-member-key="{{this.key}}">
-                <span class="member-name">{{this.name}}</span>
-                <span class="member-note">{{this.note}}</span>
-                {{#if @root.editable}}
-                  <button type="button" class="icon" data-action="deleteRecord" data-tooltip
-                          aria-label="{{localize 'ACKS-LIB.group.deleteRecord'}}">✕</button>
-                {{/if}}
-              </li>
-            {{/each}}
-          </ul>
-        </div>
-      {{/if}}
-
-      {{#if this.detached.length}}
-        <div class="stack-detached">
-          <span class="muted">{{localize "ACKS-LIB.group.detachedHeading"}} ({{this.detached.length}}):</span>
-          <ul class="member-list">
-            {{#each this.detached}}
+            {{#each this.members}}
               <li class="member" data-member-key="{{this.key}}">
                 <span class="member-name">{{this.name}}</span>
-                {{#if this.hasActor}}
-                  <button type="button" class="icon" data-action="openMember" data-tooltip
-                          aria-label="{{localize 'ACKS-LIB.group.open'}}">↗</button>
-                {{/if}}
+                <span class="member-state state-{{this.state}}">{{this.state}}</span>
+                {{#if this.hp}}<span class="member-hp">{{this.hp.value}}/{{this.hp.max}}</span>{{/if}}
                 {{#if @root.editable}}
-                  <button type="button" class="icon" data-action="deleteRecord" data-tooltip
-                          aria-label="{{localize 'ACKS-LIB.group.deleteRecord'}}">✕</button>
+                  <button type="button" class="icon" data-action="detach" data-tooltip
+                          aria-label="{{localize 'ACKS-LIB.group.detach'}}">➜</button>
                 {{/if}}
               </li>
             {{/each}}
           </ul>
-        </div>
-      {{/if}}
+        {{/if}}
+
+        {{!-- This stack's fallen and departed. --}}
+        {{#if this.dead.length}}
+          <div class="stack-fallen">
+            <span class="muted">{{localize "ACKS-LIB.group.fallen"}} ({{this.dead.length}}):</span>
+            <ul class="member-list">
+              {{#each this.dead}}
+                <li class="member dead" data-member-key="{{this.key}}">
+                  <span class="member-name">{{this.name}}</span>
+                  <span class="member-note">{{this.note}}</span>
+                  {{#if @root.editable}}
+                    <button type="button" class="icon" data-action="deleteRecord" data-tooltip
+                            aria-label="{{localize 'ACKS-LIB.group.deleteRecord'}}">✕</button>
+                  {{/if}}
+                </li>
+              {{/each}}
+            </ul>
+          </div>
+        {{/if}}
+
+        {{#if this.detached.length}}
+          <div class="stack-detached">
+            <span class="muted">{{localize "ACKS-LIB.group.detachedHeading"}} ({{this.detached.length}}):</span>
+            <ul class="member-list">
+              {{#each this.detached}}
+                <li class="member" data-member-key="{{this.key}}">
+                  <span class="member-name">{{this.name}}</span>
+                  {{#if this.hasActor}}
+                    <button type="button" class="icon" data-action="openMember" data-tooltip
+                            aria-label="{{localize 'ACKS-LIB.group.open'}}">↗</button>
+                  {{/if}}
+                  {{#if @root.editable}}
+                    <button type="button" class="icon" data-action="deleteRecord" data-tooltip
+                            aria-label="{{localize 'ACKS-LIB.group.deleteRecord'}}">✕</button>
+                  {{/if}}
+                </li>
+              {{/each}}
+            </ul>
+          </div>
+        {{/if}}
+      </div>
     </section>
   {{/each}}
 
