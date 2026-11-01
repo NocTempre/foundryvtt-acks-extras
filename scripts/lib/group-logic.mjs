@@ -75,6 +75,9 @@ export function nextOrdinal(stack) {
   return roster.reduce((max, m) => Math.max(max, m.ordinal ?? 0), 0) + 1;
 }
 
+/** Roster order within one band: by ordinal, so "#3 fell" stays legible. */
+export const byOrdinal = (a, b) => (a.ordinal ?? 0) - (b.ordinal ?? 0);
+
 /**
  * A member's display name: its own name, else the stack's template label +
  * ordinal ("Swordsman #7").
@@ -85,6 +88,78 @@ export function memberName(stack, member) {
   if (member?.name) return member.name;
   const label = stack?.template?.label || "Member";
   return `${label} #${member?.ordinal ?? "?"}`;
+}
+
+/**
+ * The stack on a group that a crossing stack joins: the one over the same base
+ * actor, so every record's delta still overlays what it was written against. A
+ * stack with no base matches none, and a shared label never matches.
+ * @param {object[]} stacks - the receiving group's stacks
+ * @param {object} stack - the stack crossing
+ * @returns {object|null}
+ */
+export function matchingStack(stacks, stack) {
+  const uuid = stack?.template?.uuid;
+  return (uuid && stacks?.find((s) => s.template?.uuid === uuid)) || null;
+}
+
+/**
+ * Fold a crossing stack into one over the same base, in place. Its records take
+ * this stack's next ordinals in their own order, since a number here already
+ * means a body, and both counts add, so bodies that fell stay counted as fallen.
+ * An empty stack nothing sized takes the crossing stack's roll with its count.
+ * @param {object} into - the stack receiving, a plain source
+ * @param {object} stack - the stack crossing, a plain source
+ * @returns {object} `into`
+ */
+export function mergeStack(into, stack) {
+  let ordinal = nextOrdinal(into);
+  const records = [...(stack.roster ?? [])].sort(byOrdinal).map((m) => ({ ...m, ordinal: ordinal++ }));
+  into.roster = [...(into.roster ?? []), ...records];
+  if (into.rolled?.total == null && !into.size.current && !into.size.initial) {
+    into.rolled = structuredClone(stack.rolled);
+    into.size.formula = stack.size?.formula ?? "";
+  }
+  into.size.current = (into.size.current ?? 0) + (stack.size?.current ?? 0);
+  into.size.initial = (into.size.initial ?? 0) + (stack.size?.initial ?? 0);
+  return into;
+}
+
+/**
+ * Take a crossing stack onto a group's stacks, in place: into its match, else
+ * whole under `key`, its roll, its records and their ordinals as they stand.
+ * @param {object[]} stacks - the receiving group's stacks, plain sources
+ * @param {object} stack - the stack crossing, a plain source
+ * @param {string} key - the key it stands under where it matches nothing
+ * @returns {{stack: object, merged: boolean}} the stack that holds it now
+ */
+export function receiveStack(stacks, stack, key) {
+  const match = matchingStack(stacks, stack);
+  if (match) return { stack: mergeStack(match, stack), merged: true };
+  const added = { ...stack, key };
+  stacks.push(added);
+  return { stack: added, merged: false };
+}
+
+/**
+ * Why a stack cannot move from one group to another now, or null. Both sides are
+ * written, so a seat must be able to write both. A token's own copy would write
+ * its stacks to that token's delta. A deployed body stays with its group, because
+ * its token's flags name the group, the stack and the record that recall and the
+ * deletion hook fold it back through.
+ * @param {object} from - the group it leaves
+ * @param {object} to - the group it joins
+ * @param {object|null} stack - the stack on `from`, already read
+ * @returns {{reason: string, name?: string, n?: number}|null}
+ */
+export function moveRefusal(from, to, stack) {
+  if (!isGroupActor(from) || !isGroupActor(to) || !stack) return { reason: "gone" };
+  if (from.uuid === to.uuid) return { reason: "same" };
+  const shut = [from, to].find((group) => !group.isOwner || group.compendium?.locked);
+  if (shut) return { reason: "notOwner", name: shut.name ?? "" };
+  if (from.isToken || to.isToken) return { reason: "unlinked" };
+  const out = (stack.roster ?? []).filter((m) => m.state === "deployed").length;
+  return out ? { reason: "deployed", name: stack.template?.label ?? "", n: out } : null;
 }
 
 /**

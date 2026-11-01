@@ -46,11 +46,12 @@
         re-point it. --}}
   {{#each stacks}}
     <section class="acks-lib-group-stack" data-stack-key="{{this.key}}">
-      {{!-- The stack's row. The grip is what a seat that can place tokens drags; the
-            fields stay outside it, because a field inside a dragged element loses
-            its own text selection to the drag. --}}
+      {{!-- The stack's row. The grip is what an owner drags, onto another group and,
+            on a seat that can place tokens, onto the map; the fields stay outside
+            it, because a field inside a dragged element loses its own text
+            selection to the drag. --}}
       <header class="stack-head">
-        <div class="stack-grab{{#if @root.canDeploy}} draggable{{/if}}" {{#if @root.canDeploy}}data-tooltip="ACKS-LIB.group.dragRow"{{/if}}>
+        <div class="stack-grab{{#if @root.editable}} draggable{{/if}}" {{#if @root.editable}}data-tooltip="{{@root.dragTip}}"{{/if}}>
           {{#if this.img}}<img class="stack-img" src="{{this.img}}" alt="" />{{/if}}
           <div class="stack-name">
             <h3 class="stack-title">{{#if this.hasTemplate}}{{this.label}}{{else}}{{localize "ACKS-LIB.group.emptyStack"}}{{/if}}</h3>

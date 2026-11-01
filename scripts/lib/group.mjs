@@ -19,12 +19,15 @@ import {
   MEMBER_FLAG,
   STACK_FLAG,
   bodyCount,
+  byOrdinal,
   cleanDelta,
   deployedBodies,
   isDerivedEffect,
   isGroupActor,
   memberName,
+  moveRefusal,
   nextOrdinal,
+  receiveStack,
   sizeFromEcology,
 } from "./group-logic.mjs";
 import { isPrimaryGM, replacementToken } from "./util.mjs";
@@ -43,6 +46,7 @@ export {
   isDerivedEffect,
   isGroupActor,
   memberName,
+  moveRefusal,
   nextOrdinal,
   sizeFromEcology,
 };
@@ -99,9 +103,6 @@ export async function patchMember(group, stackKey, memberKey, mutate) {
 function fellNote() {
   return game?.i18n?.localize?.("ACKS-LIB.group.fellInBattle") || "fell in battle";
 }
-
-/** Roster order within one band: by ordinal, so "#3 fell" stays legible. */
-const byOrdinal = (a, b) => (a.ordinal ?? 0) - (b.ordinal ?? 0);
 
 /**
  * The token a deployed member is standing on, or null when it is gone.
@@ -187,25 +188,34 @@ async function foldMembers(group, folds) {
 
 /**
  * A `deployed` record whose token no longer exists is a body still standing,
- * not a body spent: flip it back to `materialized` so it is chosen again,
- * rather than shrinking the headcount. See docs/lib/DECISIONS.md, "The roster
- * follows the canvas, not the other way round".
+ * not a body spent: flip it back to `materialized` in place so it is chosen
+ * again, rather than shrinking the headcount. See docs/lib/DECISIONS.md, "The
+ * roster follows the canvas, not the other way round".
+ *
+ * @param {object} stack a plain source
+ * @returns {number} how many records were freed
+ */
+function freeStranded(stack) {
+  let freed = 0;
+  for (const member of stack.roster ?? []) {
+    if (member.state !== GROUP_STATE.deployed) continue;
+    if (memberToken(member)) continue;
+    member.state = GROUP_STATE.materialized;
+    member.tokenUuid = "";
+    freed++;
+  }
+  return freed;
+}
+
+/**
+ * Free every stranded record of a group (`freeStranded`) in one write.
  *
  * @returns {Promise<number>} how many records were freed
  */
 export async function reconcileStrandedMembers(group) {
   if (!isGroup(group)) return 0;
   const stacks = group.system.toObject().stacks;
-  let freed = 0;
-  for (const stack of stacks) {
-    for (const member of stack.roster ?? []) {
-      if (member.state !== GROUP_STATE.deployed) continue;
-      if (memberToken(member)) continue;
-      member.state = GROUP_STATE.materialized;
-      member.tokenUuid = "";
-      freed++;
-    }
-  }
+  const freed = stacks.reduce((n, stack) => n + freeStranded(stack), 0);
   if (freed) await group.update({ "system.stacks": stacks });
   return freed;
 }
@@ -355,6 +365,54 @@ export async function removeStack(group, stackKey) {
   const stacks = group.system.toObject().stacks.filter((s) => s.key !== stackKey);
   await group.update({ "system.stacks": stacks });
   return true;
+}
+
+/**
+ * Move a stack to another group, the row and everything beneath it: its pristine
+ * bodies, its resting records with their hit points, its fallen and its detached.
+ * It joins the stack there over the same base (`receiveStack`), else stands as a
+ * new one, and it leaves its own group. A record stranded off a deleted token
+ * crosses at rest. A group gaining its first stack seeds its representative block
+ * from it, and a group losing its first reseeds from the stack that takes its place.
+ *
+ * Two actors take two writes and no transaction, so the target goes first: bodies
+ * caught between the writes stand twice rather than nowhere. A source that then
+ * refuses the write takes the target back to what it held.
+ *
+ * @param {Actor} from the group it leaves
+ * @param {Actor} to the group it joins
+ * @param {string} stackKey the stack on `from`
+ * @returns {Promise<{ok: boolean, reason?: string, name?: string, n?: number, into?: string, merged?: boolean}>}
+ *   `into` is the stack's key on `to`; `reason`, `name` and `n` are `moveRefusal`'s,
+ *   or `failed` where a write did
+ */
+export async function moveStack(from, to, stackKey) {
+  const leaving = isGroup(from) ? from.system.toObject().stacks : [];
+  const stack = leaving.find((s) => s.key === stackKey) ?? null;
+  if (stack) freeStranded(stack);
+  const refusal = moveRefusal(from, to, stack);
+  if (refusal) return { ok: false, ...refusal };
+
+  const held = to.system.toObject().stacks;
+  const stacks = structuredClone(held);
+  const { stack: landed, merged } = receiveStack(stacks, stack, foundry.utils.randomID());
+  const gained = { "system.stacks": stacks };
+  if (!held.length) Object.assign(gained, representativeMirror(stack.template?.snapshot ?? {}));
+  const rest = leaving.filter((s) => s.key !== stackKey);
+  const left = { "system.stacks": rest };
+  if (rest.length && leaving[0].key === stackKey) Object.assign(left, representativeMirror(rest[0].template?.snapshot ?? {}));
+
+  let reached = false;
+  try {
+    await to.update(gained);
+    reached = true;
+    await from.update(left);
+  } catch (err) {
+    console.warn(`${MODULE_ID} | a stack's move failed`, err);
+    if (reached) await to.update({ "system.stacks": held });
+    return { ok: false, reason: "failed" };
+  }
+  return { ok: true, name: stack.template?.label ?? "", into: landed.key, merged };
 }
 
 /**
@@ -576,14 +634,14 @@ export async function deploy(group, scene, { stackKey, count = 1, x = 0, y = 0, 
 
   // The system rolls every unlinked monster token it creates; the option keeps each record's hit points.
   const created = await scene.createEmbeddedDocuments("Token", toCreate, { [KEEP_HIT_POINTS_OPTION]: true });
-  // Creation preserves order, so the i-th token is the i-th body's.
+  // Core promises no order for the tokens it returns, so each is matched by the key it carries.
   await patchStack(group, key, (s) => {
-    created.forEach((tokenDoc, i) => {
-      const record = s.roster.find((m) => m.key === going[i]?.key);
-      if (!record || !tokenDoc) return;
+    for (const tokenDoc of created) {
+      const record = s.roster.find((m) => m.key === tokenDoc?.getFlag(MODULE_ID, MEMBER_FLAG));
+      if (!record) continue;
       record.state = GROUP_STATE.deployed;
       record.tokenUuid = tokenDoc.uuid;
-    });
+    }
   });
   if (created.length) Hooks.callAll(GROUP_HOOKS.DEPLOYED, group, created, key);
   return created;

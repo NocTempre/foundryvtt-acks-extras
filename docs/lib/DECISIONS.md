@@ -4983,9 +4983,10 @@ under it. The mechanics are `GROUPS.md`, "The sheet".
   that name themselves. There is no fold, so no open state to keep across a re-render.
 - **Placement is core's.** `_getDropActorPosition` seats the first body, so a row lands
   as a dropped actor does, Shift and Alt included.
-- **A seat that cannot place tokens has no grip and no Deploy.** Core refuses such a
-  seat's token, so the button had nothing to offer it. The drop asks again, for a drop
-  sent with no grip.
+- **A seat that cannot place tokens has no grip and no Deploy.** *The grip half is
+  superseded by "A row moves between groups, and the seat owns both", below.* Core
+  refuses such a seat's token, so the button had nothing to offer it. The drop asks
+  again, for a drop sent with no grip.
 - **The move between groups lands apart.** It writes two actors and needs the split and
   merge, so the rows shipped first (`docs/ROADMAP.md`, "Groups").
 
@@ -5014,3 +5015,54 @@ new evidence is that ruling, which the default said it was waiting for.
 **Cost.** A drag makes a record and rolls hit points for every pristine body it sends,
 so a large stack dragged whole costs what the one-row layout otherwise avoids. Five
 abreast has no bound, so a long column can run past the scene's edge.
+
+## 2026-11-01 — A row moves between groups, and the seat owns both
+
+*Ruled by the owner, 2026-11-01:* a row dropped on another group's sheet moves it. Asked
+who may move, "Own both groups". Asked whether the fallen and the detached cross, they
+cross. The whole-row reading is the same day's "the row and those beneath it", "as in a
+subgroup", which was asked of the map and which the drag's payload now carries for
+both. The mechanics are `GROUPS.md`, "A row moved between groups".
+
+*Ruled here:*
+
+- **The grip needs an owner, not `TOKEN_CREATE`.** This supersedes the grip half of an
+  entry above, written the same day. The new evidence is the second drop target: a move
+  places no token, and core gives `TOKEN_CREATE` to an Assistant GM and up by default,
+  so a Player who owned both groups could not have dragged at all. Deploy keeps its
+  gate, and a drop on the map still asks `canDeploy`.
+- **A sheet that cannot be edited still takes a row's drop.** Core's silence there would
+  read as a failed drag, and the refusal has to name the group. Every other drop on such
+  a sheet stops at `isEditable`.
+- **A move does not reuse the Roll's refusal.** `stackHeld` holds on any record or
+  fallen body, because a new count would erase them. A move carries both, so only a
+  body on a map refuses. Rewriting that body's token flags to go with it was rejected:
+  it writes tokens on any scene, and a recall already answers it.
+- **A body on a map refuses the row, and no part of it moves.** A count no longer exists
+  to fall short of, so the rest going without it would leave a row nobody dragged.
+- **A match is the same `template.uuid`.** A record's delta overlays a base actor, so
+  a shared label could lay it over another creature. The cost is two rows of one
+  creature, which is visible and harmless. A wrong merge is neither.
+- **A merge renumbers the crossing records.** Ordinals are unique within a stack, so
+  "#7" keeps meaning one body there and an unnamed body can read differently after a
+  move. Freezing the old number into `name` was rejected: two bodies would then read
+  the same.
+- **The target is written first.** Between two writes a body stands twice rather than
+  nowhere. The source refusing its write takes the target back, which is a second write
+  with the failure modes of the first, and nothing further catches it.
+- **A crossing stack's key is always new.** Migration gives every old group's stack the
+  key `primary`, and nothing outside the group holds a key once no body is deployed.
+- **No hook.** Nothing listens for a move, and the deployed tokens a listener would care
+  about cannot cross.
+- **A deploy's record finds its token by the key the token carries.** The walk of this
+  move found it: `deploy` paired records and tokens by position, and core hands created
+  tokens back in no promised order. A probe of three whole-stack deploys of 15 bodies
+  gave one with 5 out of place. Each of those records named another body's token, so a
+  casualty would have removed the wrong body and the deletion hook's guard would have
+  missed the right one. Older than this move, and fixed here because a crossed body
+  relies on it.
+
+**Cost.** A Player cannot hand troops to another player's unit without a Judge pressing
+it. Any body on a map holds back the whole row, so a Judge recalls one scout to move
+thirty. Nothing here splits a stack, so a Judge who wants part of one across has no
+gesture for it.

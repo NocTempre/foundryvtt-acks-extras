@@ -7,15 +7,17 @@
  * the token's face on both seats and the Judge's own nameplate; Make Encounter
  * from the monster sheet; a family dropped on a sheet; the line a scene opens the
  * dialog on; an Observer and an Owner on a Player seat; two sheets, two rows and
- * their dialogs open at once; a row dragged to the map; and the raised type size
- * and a narrow window on every new control.
+ * their dialogs open at once; a row dragged to the map; a row dragged onto another
+ * group on both seats; and the raised type size and a narrow window on every new
+ * control.
  * Machine values arrive through ./_env.mjs. A check prints shapes and invented
  * figures; every line in here is invented.
  *
  * Fixtures, kept and found again by marker (`api.fixture`): the monsters
  * `lib/encounter-lined`, `lib/encounter-units` and `lib/encounter-mute`, the
- * groups `lib/encounter-band`, `lib/encounter-second` and
- * `lib/encounter-unlinked`, the family `lib/encounter-family`, and the scene
+ * groups `lib/encounter-band`, `lib/encounter-second`, `lib/encounter-from`,
+ * `lib/encounter-into` and `lib/encounter-unlinked`, the family
+ * `lib/encounter-family`, and the scene
  * `lib/encounter-scene` with the tokens the walk places on it. Each section
  * writes the shape it needs first. What the run makes that is no fixture, the
  * cards, the group Make Encounter creates, its token and the monster a family
@@ -117,6 +119,12 @@ const P = {
       H.warns.push(String(message));
       return warn(message, options);
     };
+    H.infos = [];
+    const info = ui.notifications.info.bind(ui.notifications);
+    ui.notifications.info = (message, options) => {
+      H.infos.push(String(message));
+      return info(message, options);
+    };
     return { module: game.modules.get("acks-extras")?.version ?? null, isGM: game.user.isGM };
   },
 
@@ -124,6 +132,7 @@ const P = {
   boot: async () => globalThis.__geBoot ?? null,
   warnsAfter: async (n) => globalThis.__ge.warns.slice(n),
   warnCount: async () => globalThis.__ge.warns.length,
+  lastInfo: async () => globalThis.__ge.infos.at(-1) ?? null,
 
   setLines: async ({ actorId, encounter }) => {
     const actor = game.actors.get(actorId);
@@ -263,6 +272,87 @@ const P = {
     }));
     await H.sleep(500);
     return { carried: carried ? JSON.parse(carried) : null, point };
+  },
+
+  /**
+   * A row dragged onto another group's sheet by the events a browser sends: the
+   * grip's dragstart writes the transfer and the sheet's drop reads it. `onto` is a
+   * stack to land on, and `forged` sends the drop alone, for a seat with no grip.
+   */
+  dragToSheet: async ({ fromId, stackKey, toId, onto = null, forged = false }) => {
+    const H = globalThis.__ge;
+    const dataTransfer = new DataTransfer();
+    if (forged) dataTransfer.setData("text/plain", JSON.stringify({ type: "acks-extras.groupStack", group: game.actors.get(fromId).uuid, stackKey }));
+    else {
+      const grip = H.root(H.sheetOf(fromId))?.querySelector(`[data-stack-key="${stackKey}"] .stack-grab`);
+      grip?.dispatchEvent(new DragEvent("dragstart", { bubbles: true, cancelable: true, dataTransfer }));
+    }
+    const root = H.root(H.sheetOf(toId));
+    const target = onto ? root?.querySelector(`[data-stack-key="${onto}"]`) : root;
+    target?.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer }));
+    await H.sleep(500);
+    const carried = dataTransfer.getData("text/plain");
+    return carried ? JSON.parse(carried) : null;
+  },
+
+  /** A stack's counts and roster set directly: the shape a step starts from, never the surface under test. */
+  shape: async ({ groupId, stackKey, size, roster }) => {
+    const group = game.actors.get(groupId);
+    const stacks = group.system.toObject().stacks;
+    const stack = stacks.find((s) => s.key === stackKey);
+    Object.assign(stack.size, size);
+    stack.roster = roster;
+    await group.update({ "system.stacks": stacks });
+    return true;
+  },
+
+  /** A group's stacks as stored, beside what this seat's open sheet says of them. */
+  totals: async ({ groupId }) => {
+    const H = globalThis.__ge;
+    const { system } = game.actors.get(groupId);
+    const root = H.root(H.sheetOf(groupId));
+    const names = (el, selector) => [...(el?.querySelectorAll(selector) ?? [])].map((m) => H.text(m.querySelector(".member-name")));
+    return {
+      shown: Number(H.text(root?.querySelector(".size-current"))),
+      rows: [...(root?.querySelectorAll(".acks-lib-group-stack") ?? [])].map((row) => ({
+        key: row.dataset.stackKey,
+        current: Number(row.querySelector("input[data-stack-size='current']")?.value ?? H.text(row.querySelector(".stack-count")).split(" ")[0]),
+        living: names(row, ".stack-nest > .member-list .member"),
+        hp: [...row.querySelectorAll(".stack-nest > .member-list .member-hp")].map(H.text),
+        fallen: names(row, ".stack-fallen .member"),
+        detached: names(row, ".stack-detached .member"),
+      })),
+      stored: { current: system.totalCurrent, pristine: system.totalPristine, dead: system.totalDead, holds: system.invariantHolds },
+      stacks: system.stacks.map((s) => ({
+        key: s.key,
+        uuid: s.template?.uuid,
+        current: s.size.current,
+        initial: s.size.initial,
+        rolled: s.rolled?.total ?? null,
+        roster: s.roster.map((m) => ({ key: m.key, ordinal: m.ordinal, state: m.state, hp: m.delta?.system?.hp ?? null, note: m.note, actorUuid: m.actorUuid, tokenUuid: m.tokenUuid })),
+      })),
+    };
+  },
+
+  /** A wound on a deployed body, on the token's own delta, as a hit in a fight leaves one. */
+  wound: async ({ tokenUuid, value }) => {
+    const token = await fromUuid(tokenUuid);
+    await token.actor.update({ "system.hp.value": value });
+    return token.actor.system.hp.value;
+  },
+
+  /** What a body standing on a scene arrived with and answers to. */
+  body: async ({ tokenUuid }) => {
+    const token = await fromUuid(tokenUuid);
+    const flag = (key) => token.getFlag("acks-extras", key);
+    return { hp: token.actor.system.hp.value, group: flag("group"), stack: flag("stack"), member: flag("member") };
+  },
+
+  /** How many of a stack's deployed records name a token that carries another's key. */
+  ownTokens: async ({ groupId, stackKey }) => {
+    const out = game.actors.get(groupId).system.stackOf(stackKey).roster.filter((m) => m.state === "deployed");
+    const wrong = out.filter((m) => fromUuidSync(m.tokenUuid)?.getFlag("acks-extras", "member") !== m.key);
+    return { deployed: out.length, wrong: wrong.length };
   },
 
   /** A group's bodies on a scene. The collection does not hold them in the order they were placed. */
@@ -463,6 +553,7 @@ const P = {
       reveal: px(root.querySelector("select[name='system.reveal']")),
       face: px(root.querySelector(".acks-lib-group-encounter__face")),
       note: px(root.querySelector(".stack-roll-note")),
+      hint: px(root.querySelector(".acks-lib-group-dropzone")),
       bands: bands.length,
       overflow: bands.some((band) => band.scrollWidth > band.clientWidth),
       width: Math.round(root.getBoundingClientRect().width),
@@ -603,7 +694,9 @@ try {
   await run(gm, P.setLines, { actorId: mute.id, encounter: MUTE });
   const band = await gm.fixture("lib/encounter-band", "Actor", { name: "QA Band", type: GROUP, items: [] });
   const second = await gm.fixture("lib/encounter-second", "Actor", { name: "QA Second", type: GROUP, items: [] });
-  const unlinked = await gm.fixture("lib/encounter-unlinked", "Actor", { name: "QA Unlinked", type: GROUP, items: [], prototypeToken: { actorLink: false } });
+  const leaving = await gm.fixture("lib/encounter-from", "Actor", { name: "QA Leaving", type: GROUP, items: [] });
+  const joining = await gm.fixture("lib/encounter-into", "Actor", { name: "QA Joining", type: GROUP, items: [] });
+  const unlinked =await gm.fixture("lib/encounter-unlinked", "Actor", { name: "QA Unlinked", type: GROUP, items: [], prototypeToken: { actorLink: false } });
   const scene = await gm.fixture("lib/encounter-scene", "Scene", { name: "Encounter Walk", width: 1200, height: 800, grid: { size: 100 }, ownership: { default: 2 } });
   const flags = { [SCOPE]: { extras: { encounter: LINED } } };
   const family = await gm.fixture("lib/encounter-family", "Actor", {
@@ -866,7 +959,7 @@ try {
   note("owner", view);
   check("an Owner has the fields and still no Roll and no reveal: both are the Judge's", view?.sizeInputs === 2 && view?.roll === null && view?.reveal === null, view);
   heldRow = await run(player, P.row, { groupId: band.id, stackKey: held });
-  check("an Owner with no right to place tokens has no grip and no Deploy", !view?.canPlace && !heldRow.draggable && !heldRow.tip && !heldRow.deploy, { canPlace: view?.canPlace, heldRow });
+  check("an Owner with no right to place tokens has a grip that names the move alone, and no Deploy", !view?.canPlace && heldRow.draggable && heldRow.tip === "ACKS-LIB.group.dragRowMove" && !heldRow.deploy, { canPlace: view?.canPlace, heldRow });
   warned = await run(player, P.warnCount);
   await run(player, P.dragRow, { groupId: band.id, stackKey: held, at: { x: 330, y: 330 }, forged: true });
   warns = await until(player, P.warnsAfter, warned, (w) => w.length > 0);
@@ -1029,6 +1122,191 @@ try {
   check("it reaches the dialog", largeDialog?.select > plainDialog?.select && largeDialog?.line > plainDialog?.line, { plainDialog, largeDialog });
   check("and the dialog scrolls where it must, with no sideways bleed", largeDialog?.scroll === "auto" && !largeDialog?.overflow, largeDialog);
 
+  section("a row dragged onto another group");
+  const moveRecord = (key, ordinal, hp, state = "materialized", more = {}) => ({ key, ordinal, name: "", delta: { system: { hp } }, state, tokenUuid: "", actorUuid: "", note: "", ...more });
+  const agrees = (t) => t.shown === t.stored.current && t.rows.reduce((n, r) => n + r.current, 0) === t.shown && t.stored.holds;
+  const leavingTotals = (api = gm) => run(api, P.totals, { groupId: leaving.id });
+  const joiningTotals = (api = gm) => run(api, P.totals, { groupId: joining.id });
+  const dragAcross = (api, moved, more = {}) => run(api, P.dragToSheet, { fromId: leaving.id, stackKey: moved, toId: joining.id, ...more });
+  /** A new row of the lined monster on the leaving group, in the shape given. */
+  const rowOfKnots = async (size, roster = []) => {
+    const had = new Set((await run(gm, P.state, { groupId: leaving.id })).list.map((s) => s.key));
+    await run(gm, P.drop, { groupId: leaving.id, actorId: lined.id });
+    const read = await until(gm, P.state, { groupId: leaving.id }, (s) => s.list.some((one) => !had.has(one.key)));
+    const { key } = read.list.find((one) => !had.has(one.key));
+    await run(gm, P.shape, { groupId: leaving.id, stackKey: key, size, roster });
+    await until(gm, P.totals, { groupId: leaving.id }, (t) => t.rows.find((one) => one.key === key)?.current === size.current);
+    return key;
+  };
+  for (const group of [leaving, joining]) {
+    await run(gm, P.reset, { groupId: group.id });
+    await run(gm, P.grant, { actorId: group.id, name: SEATS.player, level: 0 });
+    await run(gm, P.close, { actorId: group.id });
+    await run(gm, P.open, { actorId: group.id });
+  }
+  await run(gm, P.drop, { groupId: joining.id, actorId: mute.id });
+  const [{ key: muteRow }] = (await until(gm, P.state, { groupId: joining.id }, (s) => s.list.length === 1)).list;
+  await setCount(joining.id, muteRow, "current", 2);
+  await setCount(joining.id, muteRow, "initial", 2);
+  await run(gm, P.drop, { groupId: leaving.id, actorId: lined.id });
+  const [{ key: crossing }] = (await until(gm, P.state, { groupId: leaving.id }, (s) => s.list.length === 1)).list;
+  await roll(leaving.id, { context: "wilderness", state: "wandering" }, crossing);
+  const [sized] = (await until(gm, P.state, { groupId: leaving.id }, (s) => s.list[0].rolled.total != null)).list;
+  const living = sized.current - 1;
+  await run(gm, P.shape, {
+    groupId: leaving.id,
+    stackKey: crossing,
+    size: { current: living },
+    roster: [
+      moveRecord("qamovefallen", 1, { value: 0, max: 5 }, "dead", { note: "QA note" }),
+      moveRecord("qamovewound", 2, { value: 3, max: 8 }),
+      moveRecord("qamoveparted", 3, { value: 4, max: 4 }, "detached", { actorUuid: "Actor.qaparted" }),
+    ],
+  });
+  let parted = await until(gm, P.totals, { groupId: leaving.id }, (t) => t.rows[0]?.living.length === 1 && t.rows[0].fallen.length === 1);
+  check("the row starts with a record, a fallen body, a detached one and pristine bodies", parted.rows[0].detached.length === 1 && parted.stored.pristine === living - 1, parted.rows[0]);
+
+  warned = await run(gm, P.warnCount);
+  await run(gm, P.dragToSheet, { fromId: leaving.id, stackKey: crossing, toId: leaving.id });
+  parted = await leavingTotals();
+  check("a row dropped back on its own sheet moves nothing and says nothing", parted.stacks.length === 1 && parted.stacks[0].key === crossing && !(await run(gm, P.warnsAfter, warned)).length, parted.stacks.length);
+
+  const carried = await dragAcross(gm, crossing);
+  let joined = await until(gm, P.totals, { groupId: joining.id }, (t) => t.rows.length === 2);
+  parted = await until(gm, P.totals, { groupId: leaving.id }, (t) => !t.rows.length);
+  const knotRow = joined?.stacks.find((s) => s.key !== muteRow)?.key;
+  const landed = joined?.stacks.find((s) => s.key === knotRow);
+  const landedRow = joined?.rows.find((r) => r.key === knotRow);
+  note("crossed", landed);
+  check("the grip carries the group and the stack, and no count", carried?.group === `Actor.${leaving.id}` && carried?.stackKey === crossing && !("count" in (carried ?? { count: 0 })), carried);
+  check("a row with no match stands as a new row, and its own group's row goes", landed?.uuid === `Actor.${lined.id}` && !parted?.stacks.length, { landed: landed?.uuid, left: parted?.stacks.length });
+  check("its counts and its roll cross with it", landed?.current === living && landed?.initial === sized.initial && landed?.rolled === sized.rolled.total, landed);
+  check("the wounded body crosses with its hit points, on the row and in the record", landedRow?.hp[0] === "3/8" && landed?.roster.find((m) => m.key === "qamovewound")?.hp?.value === 3, landedRow);
+  check("the fallen and the detached cross beneath it", landedRow?.fallen.length === 1 && landedRow?.detached.length === 1 && landed?.roster.find((m) => m.state === "dead")?.note === "QA note" && landed?.roster.find((m) => m.state === "detached")?.actorUuid === "Actor.qaparted", landedRow);
+  check("neither sheet's totals disagree with its roster", agrees(joined) && agrees(parted), { joined: joined?.stored, parted: parted?.stored });
+  view = await run(gm, P.view, { groupId: joining.id });
+  check("the row's count still says where it came from", view.tips[1]?.startsWith("Rolled"), view.tips);
+  const told = await run(gm, P.lastInfo);
+  check("the seat hears what moved and where", told?.includes("QA Knot") && told.includes("QA Joining"), told);
+
+  const merging = await rowOfKnots({ current: 4, initial: 5 }, [moveRecord("qamoveb", 1, { value: 5, max: 5 }), moveRecord("qamovec", 2, { value: 1, max: 6 })]);
+  await dragAcross(gm, merging, { onto: muteRow });
+  const knots = (t) => t?.stacks.find((s) => s.key === knotRow);
+  joined = await until(gm, P.totals, { groupId: joining.id }, (t) => knots(t)?.current === living + 4);
+  parted = await until(gm, P.totals, { groupId: leaving.id }, (t) => !t.rows.length);
+  note("merged", knots(joined));
+  check("a row over the same base joins that stack, wherever it lands", joined?.rows.length === 2 && joined?.stacks.find((s) => s.key === muteRow)?.current === 2, joined?.stacks.map((s) => s.current));
+  check("both counts add, so the bodies that fell stay counted as fallen", knots(joined)?.initial === sized.initial + 5, knots(joined));
+  const ordinals = knots(joined)?.roster.map((m) => m.ordinal) ?? [];
+  check("each crossing record takes that stack's next number", new Set(ordinals).size === 5 && ordinals.at(-2) === 4 && ordinals.at(-1) === 5, ordinals);
+  const knotsRow = joined?.rows.find((r) => r.key === knotRow);
+  check("and the sheet reads them under it, their hit points kept", knotsRow?.living.includes("QA Knot #4") && knotsRow?.living.includes("QA Knot #5") && knotsRow?.hp.includes("5/5") && knotsRow?.hp.includes("1/6"), knotsRow);
+  check("and the totals still agree", agrees(joined) && agrees(parted), joined?.stored);
+
+  const outRow = await rowOfKnots({ current: 3, initial: 3 }, [moveRecord("qamovescar", 1, { value: 6, max: 6 })]);
+  await run(gm, P.field, { groupId: leaving.id, selector: `[data-stack-key="${outRow}"] input.deploy-count`, value: 1 });
+  await run(gm, P.press, { groupId: leaving.id, selector: stackKey(outRow, "deploy") });
+  const [standing] = await until(gm, P.bodies, { sceneId: scene.id, groupId: leaving.id }, (b) => b.length === 1);
+  swept.push(gm.track(standing.uuid, "Token"));
+  await run(gm, P.wound, { tokenUuid: standing.uuid, value: 2 });
+  const beforeRefusal = JSON.stringify([(await leavingTotals()).stacks, (await joiningTotals()).stacks]);
+  warned = await run(gm, P.warnCount);
+  await dragAcross(gm, outRow);
+  warns = await until(gm, P.warnsAfter, warned, (w) => w.length > 0);
+  check("a row with a body on the map refuses and says to recall it", warns?.[0]?.includes("1 of QA Knot stand on a map"), warns);
+  check("and nothing moved on either side", JSON.stringify([(await leavingTotals()).stacks, (await joiningTotals()).stacks]) === beforeRefusal);
+  await run(gm, P.press, { groupId: leaving.id, selector: "[data-action='recall']" });
+  await until(gm, P.bodies, { sceneId: scene.id, groupId: leaving.id }, (b) => !b.length);
+  parted = await until(gm, P.totals, { groupId: leaving.id }, (t) => t.stacks[0]?.roster[0]?.state === "materialized");
+  check("recalled, the body rests with the wound it took out there", parted?.stacks[0].roster[0].hp?.value === 2, parted?.stacks[0].roster[0]);
+  await dragAcross(gm, outRow);
+  const scarred = (t) => knots(t)?.roster.find((m) => m.key === "qamovescar");
+  joined = await until(gm, P.totals, { groupId: joining.id }, (t) => !!scarred(t));
+  check("then the row crosses, the wound with it", scarred(joined)?.hp?.value === 2 && scarred(joined)?.state === "materialized", scarred(joined));
+
+  const expected = knots(joined).current;
+  await run(gm, P.dragRow, { groupId: joining.id, stackKey: knotRow, at: { x: 130, y: 130 } });
+  const marching = await until(gm, P.bodies, { sceneId: scene.id, groupId: joining.id }, (b) => b.length === expected);
+  swept.push(...(marching ?? []).map((b) => gm.track(b.uuid, "Token")));
+  joined = await until(gm, P.totals, { groupId: joining.id }, (t) => scarred(t)?.state === "deployed");
+  const named = await run(gm, P.ownTokens, { groupId: joining.id, stackKey: knotRow });
+  check("every body's record names the token carrying its key", named.deployed === expected && named.wrong === 0, named);
+  const arrived = await run(gm, P.body, { tokenUuid: scarred(joined).tokenUuid });
+  check("from its new group the body deploys with its wound and answers to that group", arrived.hp === 2 && arrived.group === `Actor.${joining.id}` && arrived.stack === knotRow && arrived.member === "qamovescar", arrived);
+  await run(gm, P.press, { groupId: joining.id, selector: "[data-action='recall']" });
+  await until(gm, P.bodies, { sceneId: scene.id, groupId: joining.id }, (b) => !b.length);
+  joined = await until(gm, P.totals, { groupId: joining.id }, (t) => scarred(t)?.state === "materialized");
+  check("and Recall folds it back there, the headcount unchanged", scarred(joined)?.hp?.value === 2 && knots(joined)?.current === expected && agrees(joined), knots(joined)?.current);
+
+  section("a row dragged onto another group, on a Player seat");
+  const playerRow = await rowOfKnots({ current: 2, initial: 2 }, [moveRecord("qamoveplayer", 1, { value: 4, max: 7 })]);
+  for (const group of [leaving, joining]) await run(gm, P.grant, { actorId: group.id, name: SEATS.player, level: 3 });
+  await run(player, P.open, { actorId: leaving.id });
+  await run(player, P.open, { actorId: joining.id });
+  const owned = await until(player, P.row, { groupId: leaving.id, stackKey: playerRow }, (r) => !!r);
+  check("a Player who owns the group has the grip, and it names the move alone", owned?.draggable && owned?.tip === "ACKS-LIB.group.dragRowMove" && !owned?.deploy, owned);
+  const beforePlayer = knots(await joiningTotals()).current;
+  await dragAcross(player, playerRow);
+  joined = await until(gm, P.totals, { groupId: joining.id }, (t) => knots(t)?.current === beforePlayer + 2);
+  check("a seat that owns both groups moves the row", knots(joined)?.roster.some((m) => m.key === "qamoveplayer" && m.hp?.value === 4) && !(await leavingTotals()).stacks.length, knots(joined)?.current);
+  const playerJoined = await until(player, P.totals, { groupId: joining.id }, (t) => knots(t)?.current === beforePlayer + 2);
+  const playerParted = await until(player, P.totals, { groupId: leaving.id }, (t) => !t.rows.length);
+  check("and both of that seat's sheets agree with their rosters", agrees(playerJoined) && agrees(playerParted), { joined: playerJoined?.stored, parted: playerParted?.stored });
+
+  const shutOut = await rowOfKnots({ current: 2, initial: 2 });
+  await run(gm, P.grant, { actorId: joining.id, name: SEATS.player, level: 2 });
+  await run(player, P.close, { actorId: joining.id });
+  await run(player, P.open, { actorId: joining.id });
+  await until(player, P.row, { groupId: leaving.id, stackKey: shutOut }, (r) => !!r);
+  const beforeShut = JSON.stringify([(await leavingTotals()).stacks, (await joiningTotals()).stacks]);
+  warned = await run(player, P.warnCount);
+  await dragAcross(player, shutOut);
+  warns = await until(player, P.warnsAfter, warned, (w) => w.length > 0);
+  check("an Observer of the target is told which group it cannot edit", warns?.[0]?.includes("QA Joining") && warns[0].includes("did not move"), warns);
+  check("and nothing moved", JSON.stringify([(await leavingTotals()).stacks, (await joiningTotals()).stacks]) === beforeShut);
+  await run(player, P.drop, { groupId: joining.id, actorId: lined.id });
+  check("an Observer's sheet takes a row's drop and no other", JSON.stringify((await joiningTotals()).stacks) === JSON.stringify(JSON.parse(beforeShut)[1]));
+
+  await run(gm, P.grant, { actorId: joining.id, name: SEATS.player, level: 3 });
+  await run(gm, P.grant, { actorId: leaving.id, name: SEATS.player, level: 2 });
+  for (const group of [leaving, joining]) {
+    await run(player, P.close, { actorId: group.id });
+    await run(player, P.open, { actorId: group.id });
+  }
+  const observed = await until(player, P.row, { groupId: leaving.id, stackKey: shutOut }, (r) => !!r);
+  check("an Observer of the source has no grip", !observed?.draggable && !observed?.tip, observed);
+  warned = await run(player, P.warnCount);
+  await dragAcross(player, shutOut, { forged: true });
+  warns = await until(player, P.warnsAfter, warned, (w) => w.length > 0);
+  check("and a drop sent anyway names the group it cannot edit, and moves nothing", warns?.[0]?.includes("QA Leaving") && JSON.stringify([(await leavingTotals()).stacks, (await joiningTotals()).stacks]) === beforeShut, warns);
+  for (const group of [leaving, joining]) {
+    await run(player, P.close, { actorId: group.id });
+    await run(gm, P.grant, { actorId: group.id, name: SEATS.player, level: 0 });
+  }
+
+  section("a row dragged onto another group, at the raised type size");
+  const plainHint = await run(gm, P.measure, { groupId: joining.id });
+  const raisedKnob = await run(gm, P.setBase, { base: `${LARGEST_TYPE}px` });
+  for (const group of [leaving, joining]) {
+    await run(gm, P.close, { actorId: group.id });
+    await run(gm, P.open, { actorId: group.id });
+  }
+  await run(gm, P.setWidth, { groupId: joining.id, width: 340 });
+  const beforeRaised = knots(await joiningTotals()).current;
+  await dragAcross(gm, shutOut);
+  joined = await until(gm, P.totals, { groupId: joining.id }, (t) => knots(t)?.current === beforeRaised + 2);
+  check("a row moves at the raised type, into a sheet dragged down to 340", knots(joined)?.current === beforeRaised + 2 && agrees(joined), knots(joined)?.current);
+  const raisedFit = await run(gm, P.measure, { groupId: joining.id });
+  note("measures", { plainHint, raisedFit });
+  check("the knob reaches the sheet's drop hint", raisedFit.hint > plainHint.hint, { plain: plainHint.hint, raised: raisedFit.hint });
+  check("and the rows it landed in fit, with every control on the sheet", raisedFit.width < 500 && !raisedFit.overflow && raisedFit.clipped === 0, raisedFit);
+  await run(gm, P.setWidth, { groupId: joining.id, width: 600 });
+  await run(gm, P.setBase, { base: raisedKnob.before });
+  for (const group of [leaving, joining]) {
+    await run(gm, P.close, { actorId: group.id });
+    await run(gm, P.open, { actorId: group.id });
+  }
+
   section("a family dropped on a sheet");
   await run(gm, P.reset, { groupId: second.id });
   await run(gm, P.drop, { groupId: second.id, actorId: family.id });
@@ -1073,6 +1351,12 @@ try {
   await run(gm, P.press, { groupId: "synthetic", selector: "[data-action='rollEncounter']" });
   warns = await until(gm, P.warnsAfter, warned, (w) => w.length > 0);
   check("a token's own copy refuses the Roll and says where to press it", warns[0]?.includes("Actors sidebar") && (await run(gm, P.dialogs)).count === 0, warns);
+  await run(gm, P.open, { actorId: leaving.id });
+  const spare = await rowOfKnots({ current: 1, initial: 1 });
+  warned = await run(gm, P.warnCount);
+  await run(gm, P.dragToSheet, { fromId: leaving.id, stackKey: spare, toId: "synthetic" });
+  warns = await until(gm, P.warnsAfter, warned, (w) => w.length > 0);
+  check("and refuses a row, saying where to move it", warns?.[0]?.includes("Actors sidebar") && (await leavingTotals()).stacks.some((s) => s.key === spare), warns);
   await run(gm, P.close, { actorId: "synthetic" });
 
   section("plates");

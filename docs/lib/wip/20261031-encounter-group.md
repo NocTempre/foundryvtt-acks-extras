@@ -242,7 +242,7 @@ lines". Each slice ships usable; the tier is what it reaches.
 
 | Slice | Delivers | Reaches |
 |---|---|---|
-| 1 | Landed: `GROUPS.md`, "The sheet", "The Roll" and "The reveal"; the move between groups is `docs/ROADMAP.md`, "Groups" | A, and B as a bare quantity |
+| 1 | Landed: `GROUPS.md`, "The sheet", "A row moved between groups", "The Roll" and "The reveal" | A, and B as a bare quantity |
 | 2 | Recipe schema, engine, Ecology-tab editor, units of units, parts into stacks | B and C, Judge-authored |
 | 3 | The importer writes recipes: young, leaders, ratios, branches, role XP | B and C, imported |
 | 4 | Fight: deploy count, combat bridge, morale, non-fighters stay in | |
@@ -284,3 +284,5 @@ lines". Each slice ships usable; the tier is what it reaches.
    roll made.
 7. (2026-11-01) A row's drag onto the map takes the whole stack: "the row and those
    beneath it", "as in a subgroup".
+8. (2026-11-01) A row dragged onto another group moves the same subgroup, its fallen and
+   detached records with it, and the seat must own both groups.

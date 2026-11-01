@@ -53,6 +53,7 @@ const COMMITTED = [
   "test-animations.mjs",
   "test-group-lifecycle.mjs",
   "test-group-encounter.mjs",
+  "test-group-move.mjs",
   "test-battlemap.mjs",
   "test-battlemap-scene-nav.mjs",
   "test-equipment.mjs",

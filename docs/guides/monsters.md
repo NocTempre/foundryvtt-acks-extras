@@ -167,6 +167,12 @@ or who are already out. Hold Shift to place them off the grid, or Alt to place t
 hidden. To send only some, set the small Count field and press the row's Deploy button,
 which places them at the group's token, or at the middle of the scene.
 
+To move a monster to another group, open both sheets and drag the row's art or name onto
+the other sheet. Everyone under the row goes with it, the fallen and those who left
+included. If the other group already has that monster, the two rows become one and the
+bodies on record may take new numbers. You need to own both groups, and anyone on a map
+has to be recalled first.
+
 Each monster in the group has its own **Roll** on its row. Press it, choose the dungeon
 or the wilderness line, and choose wandering, in lair or by lair chance, which throws
 that monster's chance first and lets it pick the side. Its line reads out in the dialog

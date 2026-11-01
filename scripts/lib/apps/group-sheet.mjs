@@ -8,6 +8,7 @@
  * (10 swordsmen + 10 spearmen) is several, each with its own prototype, count,
  * and roster. Drop an actor to add a stack; drop onto a stack to re-point it. A
  * family template dropped here picks a variant first, and the stack is of that.
+ * A row dragged from another group's sheet moves here, the bodies beneath it too.
  *
  * The group's coin is listed as its purse: a paid unit's wage lands on the
  * group's own actor, and this is the sheet that shows it. A purse row drags
@@ -124,6 +125,7 @@ export class GroupSheet extends PicksMixin(HandlebarsApplicationMixin(foundry.ap
     });
 
     context.canDeploy = this.isEditable && groups.canDeploy(this.actor);
+    context.dragTip = `ACKS-LIB.group.${context.canDeploy ? "dragRow" : "dragRowMove"}`;
     context.stacks = sys.stacks.map((stack, i) => {
       const view = viewFor(stack);
       const tmpl = stack.template ?? {};
@@ -202,14 +204,16 @@ export class GroupSheet extends PicksMixin(HandlebarsApplicationMixin(foundry.ap
    * note). The drop bound here replaces the base class's on the same element,
    * so an item reaches `#onDropItem` and never the base's copy-on-drop. The
    * base class binds every `.draggable`, a stack's grip and a purse row alike.
+   * A sheet this seat cannot edit still takes the drop, so a row dropped on it
+   * says why it did not move; `#onDrop` refuses everything else there.
    */
   async _onRender(context, options) {
     await super._onRender(context, options);
-    if (!this.isEditable) return;
     new foundry.applications.ux.DragDrop.implementation({
-      permissions: { drop: () => this.isEditable },
+      permissions: { drop: () => true },
       callbacks: { drop: (event) => this.#onDrop(event) },
     }).bind(this.element);
+    if (!this.isEditable) return;
 
     // Per-stack headcount edits go straight to that ONE stack (never the form,
     // which would rewrite the whole stacks array). A blank/NaN reads as 0.
@@ -246,8 +250,19 @@ export class GroupSheet extends PicksMixin(HandlebarsApplicationMixin(foundry.ap
     else refuseGoods(this.actor);
   }
 
+  /** Another group's row moves here. Its own row dropped back moves nothing. */
+  async #onDropStack({ group, stackKey }) {
+    if (group === this.actor.uuid) return;
+    const from = await fromUuid(group);
+    const result = await groups.moveStack(from, this.actor, stackKey);
+    if (!result.ok) return ui.notifications.warn(loc(`move.refused.${result.reason}`, result));
+    ui.notifications.info(loc("move.done", { name: result.name, group: this.actor.name }));
+  }
+
   async #onDrop(event) {
     const data = foundry.applications.ux.TextEditor.implementation.getDragEventData(event);
+    if (data?.type === groups.STACK_DRAG_TYPE) return this.#onDropStack(data);
+    if (!this.isEditable) return;
     if (data?.type === "Item") return this.#onDropItem(data);
     if (data?.type !== "Actor") return;
     const dropped = await foundry.utils.getDocumentClass("Actor").fromDropData(data);

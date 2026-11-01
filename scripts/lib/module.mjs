@@ -163,7 +163,8 @@ const localImpl = Object.freeze({
   // 32: groupEncounter — the Roll, Make Encounter and the reveal;
   // `sizeFromEcology` reads one named side where a state is given.
   // 33: groups `canDeploy` and `STACK_DRAG_TYPE`, what a stack's row carries.
-  apiVersion: 33,
+  // 34: groups `moveStack` and `moveRefusal`, a stack's row between groups.
+  apiVersion: 34,
   vocab,
   fields,
   /**

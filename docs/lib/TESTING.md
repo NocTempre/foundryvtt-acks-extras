@@ -2983,13 +2983,14 @@ Teardown: delete the group and its sources by id.
 
 The walk is `tools/live/group-encounter.mjs`: every step below on a GM seat and a
 Player seat, under a recorder added before reload. The rules it exercises are
-`GROUPS.md`, "The Roll" and "The reveal". Every line in it is invented.
+`GROUPS.md`, "The Roll", "A row moved between groups" and "The reveal". Every line in
+it is invented.
 
 Fixtures, found by marker: the monsters `lib/encounter-lined` (both lines, both
 sides, a lair chance), `lib/encounter-units` (a wilderness wandering side in units)
 and `lib/encounter-mute` (no count); the groups `lib/encounter-band`,
-`lib/encounter-second` and `lib/encounter-unlinked` (`prototypeToken.actorLink`
-false); the family `lib/encounter-family`, one axis of two options whose flags carry
+`lib/encounter-second`, `lib/encounter-from`, `lib/encounter-into` and
+`lib/encounter-unlinked` (`prototypeToken.actorLink` false); the family `lib/encounter-family`, one axis of two options whose flags carry
 the lines; and the scene `lib/encounter-scene`, with the tokens placed on it. Each
 section writes the lines and empties the group it needs first, since a kept fixture
 holds what the last walk left. The walk tracks the cards, the group Make Encounter
@@ -3001,7 +3002,10 @@ Drive mechanics: the drop is a `DragEvent` carrying a `DataTransfer` on the shee
 root. A row's drag is a `dragstart` on `.stack-grab`, which writes the transfer, then a
 `drop` on `#board` with that transfer and `clientX`/`clientY` from
 `canvas.clientCoordinatesFromCanvas`, plus `shiftKey` or `altKey`. The handler writes
-the transfer before its first await, so it can be read back at once. A row's Roll is
+the transfer before its first await, so it can be read back at once. A row moved is
+that `dragstart`, then a `drop` with the same transfer on the other sheet's root, or on
+one of its stacks. A forged drop writes the transfer itself, for a seat with no grip. A
+row's Roll is
 `[data-stack-key="<key>"] [data-action="rollEncounter"]`. The
 dialogs are found in `foundry.applications.instances` by `.acks-lib-group-roll`, their
 selects set and `[data-action='ok']` clicked. Two counts typed in one stack wait for
@@ -3049,7 +3053,8 @@ and an immediate read holds the old path beside the new name.
 10. **The Player seat.** Grant Observer, then Owner, on a group.
     *Observable:* an Observer has no field and reads the row's count as text, and an
     Owner has the counts. Neither has a Roll or the reveal. An Owner who cannot create
-    tokens has no grip and no Deploy, and a drop sent anyway warns and places nothing.
+    tokens has a grip that names the move alone and no Deploy, and a drop on the map
+    warns and places nothing.
 11. **Two windows.** Open two groups' sheets and both dialogs at once, then two rows'
     dialogs on one sheet.
     *Observable:* each drop reaches its own sheet, each dialog its own group or row,
@@ -3078,6 +3083,42 @@ and an immediate read holds the old path beside the new name.
     stays behind, and the Shift drag lands off the grid. With two out, the Alt drag
     lands the other four, hidden. Off the map, or with every body out, nothing lands.
     Recall folds them back to rest on their records.
+17. **A row to another group.** Open both move groups. Roll a row on the first, shape it
+    to hold a wounded record, a fallen body, a detached one and pristine bodies, and drop
+    it back on its own sheet. Then drop it on the second, which holds a row of another
+    creature.
+    *Observable:* its own sheet moves nothing and says nothing. On the other, the drag
+    carries the group and the stack and no count, the row stands whole, its counts, roll
+    and tooltip kept, the record reading its hit points, the fallen and the detached
+    beneath it. Its own row is gone. Each sheet's total equals the sum of its rows and
+    the stored total, and the seat hears what moved and where.
+18. **A row that merges.** Give the first group a row of the same creature, one fallen
+    and two records, and drop it on the OTHER creature's row.
+    *Observable:* it joins its own creature's stack anyway. Both counts add, the fallen
+    stay counted, the records read the next numbers with their hit points kept, and the
+    totals agree.
+19. **A body on the map.** Deploy one body of a new row, wound its token, drag the row
+    across, press Recall and drag it again. Then drag the joined row onto the map and
+    press Recall on that group.
+    *Observable:* the first drag warns to recall it and neither group changes by a
+    field. The second crosses, the wound in the record. From the new group every
+    record names the token carrying its own key, the body deploys wounded, its token's
+    flags naming that group and stack, and Recall folds it back there.
+20. **A Player seat.** Owner on both, then Observer of the target, then Observer of the
+    source with a forged drop, and a monster dropped on an Observer's sheet.
+    *Observable:* the Owner's grip names the move alone and the row crosses, both of that
+    seat's sheets agreeing. An Observer of either side is told which group it cannot
+    edit, and neither group changes. An Observer of the source has no grip. An
+    Observer's sheet takes a row's drop and no other.
+21. **The raised type size.** Raise `--acks-fs-base`, reopen both sheets, drag the
+    target down to 340 and move a row into it.
+    *Observable:* the row lands and the totals agree, the drop hint grows, and nothing
+    bleeds sideways or leaves the sheet.
+22. **An unlinked token's sheet.** Drop a row on a token's own copy.
+    *Observable:* it warns where to move it from, and the row stays.
+
+Recall folds the bodies of 19 as it does those of 16, so a clean run's sweep reports them
+as not found.
 
 Teardown: the swept ledger. Everything else stays for the next walk.
 

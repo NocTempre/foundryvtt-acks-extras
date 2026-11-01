@@ -7,12 +7,18 @@
   and the whole stack lands under the cursor, the row and the bodies beneath it, with
   Shift and Alt working as they do for a dropped actor. The row's Deploy button still
   sends just its Count.
+- **Drag a group's row onto another group to move it.** The row goes whole, with the
+  bodies on record, their hit points, the fallen and the detached. It joins a row of the
+  same creature there, or stands as a new one. You need to own both groups, and bodies on
+  a map have to be recalled first.
 
 ### Changed
 
 - **The group sheet reads as an inventory.** Each stack is one row with its art, its
   name, counts you edit in place and its actions, and bodies on record nest under it.
 - A player who owns a group but cannot create tokens is no longer offered Deploy.
+- Deploying several bodies at once no longer leaves a body's record pointing at another
+  body's token, which could take the wrong body off the map under Record casualties.
 
 ## 11.13.0
 ### Added

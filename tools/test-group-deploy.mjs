@@ -107,8 +107,11 @@ function monster() {
   return actor;
 }
 
-/** A scene whose token create runs core's client pre-create and the system's roll. */
-function scene() {
+/**
+ * A scene whose token create runs core's client pre-create and the system's roll.
+ * `shuffled` hands the tokens back in reverse, which core does some of the time.
+ */
+function scene({ shuffled = false } = {}) {
   const where = {
     id: uid("scn"),
     grid: { size: 100 },
@@ -147,7 +150,7 @@ function scene() {
         docs.set(token.uuid, token);
         made.push(token);
       }
-      return made;
+      return shuffled ? made.reverse() : made;
     },
   };
   return where;
@@ -254,6 +257,19 @@ t("a whole stack sends its resting records and its pristine bodies, and no one e
   assert.equal(byKey.m3, "dead");
   assert.equal(byKey.m4, "detached");
   assert.equal(group.system.stacks[0].roster.filter((m) => m.state === "deployed").length, 4, "the three sent and the one already out");
+});
+
+t("every record names the token carrying its own key, whatever order core hands them back in", async () => {
+  const group = groupActor(monster(), 3, [record("m1", { value: 1, max: 12 }), record("m2", { value: 5, max: 5 })]);
+  bodyRolls.push(7);
+  systemRolls.push(15, 3, 9);
+  await deploy(group, scene({ shuffled: true }), { count: Infinity });
+  const { roster } = group.system.stacks[0];
+  assert.equal(roster.length, 3);
+  for (const member of roster) {
+    assert.equal(member.state, "deployed");
+    assert.equal(docs.get(member.tokenUuid)?.getFlag(MODULE_ID, "member"), member.key);
+  }
 });
 
 let failures = 0;

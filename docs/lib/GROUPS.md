@@ -89,6 +89,7 @@ the formation feature all read it with no special-casing.
 | `canDeploy(group)` | whether this seat can: it owns the group and may create tokens |
 | `recall(group)` | fold `token.delta` back in, drop ≤0-HP bodies, delete tokens |
 | `detach(group, key)` | promote a member to a standalone actor; `size.current--` |
+| `moveStack(from, to, stackKey)` | the row and everything beneath it to another group ("A row moved between groups") |
 
 `group-logic.mjs` is the **Foundry-free** half (the pure decisions —
 `nextOrdinal`, `memberName`, `isDerivedEffect`, `cleanDelta`, `sizeFromEcology`),
@@ -139,8 +140,10 @@ the row's actions. It stays one row however many bodies it holds, because a row 
 body would mean a record and a hit-point roll per body. The bodies that hold a record
 nest under it, with the fallen and the detached.
 
-A row is a subgroup, and its grip, its art and name, drags on a seat `canDeploy`
-answers for. It carries `STACK_DRAG_TYPE`, and `registerStackDrop` answers the drop on
+A row is a subgroup, and its grip, its art and name, drags on an editable sheet. It
+carries `STACK_DRAG_TYPE` and names the group and the stack. On a seat that cannot place
+tokens the tooltip names the move alone, and a drop on the map warns and places nothing
+(`canDeploy`). `registerStackDrop` answers the drop on
 the map: the row and those beneath it deploy, every body the stack holds off the map,
 with `deploy`'s `count: Infinity`. The fallen and the detached have left the stack, and
 a body already out stays where it stands. They land where core would seat a dropped
@@ -148,6 +151,42 @@ actor, the first body centred on the cursor and snapped unless Shift is held, hi
 where a Judge holds Alt, the rest five abreast. The row's Deploy takes its Count, for
 part of a stack. The fields stay outside the grip, because a field inside a dragged
 element loses its text selection to the drag.
+
+### A row moved between groups
+
+A row dropped on another group's sheet moves there, `moveStack(from, to, stackKey)`:
+its pristine bodies, its resting records with their deltas, its fallen and its
+detached. A drop is the whole row, so a stack moves or it stays, and it never splits.
+Where it lands on the sheet decides nothing.
+
+| On the target | What happens |
+|---|---|
+| A stack over the same `template.uuid` | They merge. Both counts add, so bodies that fell stay counted as fallen, and the crossing records take that stack's next ordinals in their own order. An unnamed "#3" can read as a new number there, and a named body keeps its name |
+| No such stack | The row stands whole under a new key, its roll, ordinals, `mounted` and `baseMorale` as they were |
+
+The match is the base actor, because a record's delta overlays what it was written
+against. A shared label does not merge, so a stack minted from a compendium entry can
+stand as a second row beside one of the same creature.
+
+An empty stack that a hand and a roll never sized takes the crossing stack's roll with
+its count. Any other stack keeps its own, so its count's tooltip reads as changed by
+hand. A group gaining its first stack seeds its representative block from it, and a
+group losing its first reseeds from the stack that takes its place.
+
+`moveRefusal(from, to, stack)` says why not, or null. The seat must own both groups,
+and a sheet it cannot edit still takes the drop, so that seat hears which group stopped
+the row. A token's own copy refuses as the Roll does.
+
+A body on a map refuses the whole row, and the warning says to recall it first. Its
+token's flags name the group, the stack and the record that recall and the deletion hook
+fold it back through, so a body that crossed would be deleted unfolded and its wounds
+lost. A resting record refuses nothing, which is why this is not the Roll's `stackHeld`.
+A record whose token is gone crosses at rest.
+
+The two actors take two writes and no transaction. The target goes first, so bodies
+caught between the writes stand twice rather than nowhere. A source that then refuses
+the write takes the target back to what it held. A write between those two would be
+lost to that rollback.
 
 ## The Roll
 
@@ -227,9 +266,8 @@ documented and read by nothing.
 - **Abstract-mode damage routing** (an attack on the undeployed stack →
   auto-casualty) → the data + `applyCasualties` primitive exist; hooking the
   system's damage application is a follow-up, live-tested.
-- **Split / merge** of stacks → planned, not built. A row dragged onto another group
-  needs them, and until then a drop of `STACK_DRAG_TYPE` on a sheet does nothing
-  (`docs/ROADMAP.md`, "Groups").
+- **A split** of a stack into two, within a group or across → not built. A drag takes
+  the whole row, as the owner ruled, so nothing asks for one yet.
 - **Socket routing** — these ops write documents on the calling client under
   Foundry's own permissions; a consumer needing GM-routed writes wraps them.
   The lib layer writes on the calling client and owns no socket of its own;
@@ -244,8 +282,9 @@ documented and read by nothing.
   deletion, a successor that is not the same body, and a twin on another
   scene. `tools/test-group-encounter.mjs` drives the Roll, Make Encounter and
   the token hooks, its dice asserted by the formula thrown.
+  `tools/test-group-move.mjs` drives a row's move between groups.
 - Live: a body moved between scenes is docs/lib/TESTING.md, "A group body
-  moved between scenes"; the Roll, the reveal and a row's drag are "The encounter
-  group".
+  moved between scenes"; the Roll, the reveal, a row's drag and its move are "The
+  encounter group".
 - Live: the model registration, sheet, and deploy/recall/detach round-trip need
   the test world (they write tokens and actors) and are a release gate.
