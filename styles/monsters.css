@@ -132,13 +132,19 @@
   opacity: 0.8;
 }
 
-/* Encounter grid: two columns of noun/number pairs. */
+/* Encounter grid: two columns of noun, number and unit. A basis in em wraps the
+   three before a raised type size outgrows a field. */
 .acks-extras.monster-v2 .acksm-enc-grid .form-group {
   flex: 1 1 45%;
 }
 .acks-extras.monster-v2 .acksm-enc-grid .form-fields {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--acks-sp-2);
+}
+.acks-extras.monster-v2 .acksm-enc-grid .form-fields input {
+  flex: 1 1 6em;
+  min-width: 0;
 }
 
 /* Repeatable rows (speeds, senses, values, variants). */

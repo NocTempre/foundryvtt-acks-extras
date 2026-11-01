@@ -194,17 +194,26 @@ Walked by `tools/live/monsters-encounter.mjs`, with `mm` and `ax2` on
 1. Parse invented lines in the page and roll each formula on Foundry's `Roll`:
    a die, a literal, a multiplied die, a sum, a sum under a multiplier.
    *Observable:* every total sits in its dice's range, and `new Roll("")` throws.
-2. On the Ecology tab of the typed monster, type a count into a side.
+2. On the Ecology tab of the typed monster, measure the line fields at the
+   window's width and at the narrowest it can reach, then again at `fontScale`'s
+   maximum on a window opened after the knob moves.
+   *Observable:* the window narrows, the type grows, the longest count the parser
+   writes fits every number field, a run of it does not, and the grid has no
+   overflow.
+3. Type a count into a side.
    *Observable:* the four sides each show a unit field, and the count lands in
    `extras.encounter` and in `system.details.appearing`.
-3. Type a unit beside it.
+4. Type a unit beside it.
    *Observable:* the unit lands and core's field goes blank. The Statblock reads
    the count with its unit and the row offers no roll, its line carrying the
    tooltip that says why; a press posts nothing. The follower card has no die
    for it, and `sizeFromEcology` gives null.
-4. Clear the unit.
+5. Clear the unit.
    *Observable:* core's field holds the count again and the row rolls it.
-5. Write the old parser's shape on each kept entry actor (a stale noun and die on
+6. Join as the Player seat, granted Observer on the typed monster, and open its
+   Ecology tab.
+   *Observable:* every line field shows and none can be edited.
+7. Write the old parser's shape on each kept entry actor (a stale noun and die on
    both sides, a die in core's field) and call `refillMonster(actor, {whole:
    true})`.
    *Observable:* the stale noun is gone from every side. The units entry keeps a
@@ -215,6 +224,10 @@ Walked by `tools/live/monsters-encounter.mjs`, with `mm` and `ax2` on
 
 - **A row that cannot roll has no `data-roll`.** Its pin button always does, so
   find a row from its pin.
+- **The sheet theme's floor stops the window at its opening width.** The
+  narrowest reachable frame is the one with `acks-lib-sheet-theme` off, so the
+  probe drops that body class, sets a width of zero for `min-width` to clamp, and
+  puts both back in the same task.
 - **The walk opens its books on its own seat** (`remember: false`), so a shelf
   book is not needed in the world.
 

@@ -3,7 +3,9 @@
  * count the parser writes rolls on Foundry's own `Roll`; the Ecology tab's number
  * and unit reach core's number-appearing field by the sheet's own submit; the
  * statblock, the follower card and the group read a count of units as no body
- * count; and a repair in place turns a monster holding the old parser's shape
+ * count; a count fits the line fields at the narrowest window and the largest
+ * type, and an observer can edit none of them;
+ * and a repair in place turns a monster holding the old parser's shape
  * into what the page prints. Machine values arrive through ./_env.mjs, the book
  * through ACKS_TEST_BOOKS ("mm", "ax2"). A check prints ids, shapes and booleans, never
  * a book's words or figures; every line typed here is invented.
@@ -37,6 +39,10 @@ const ENTRIES = [
   { marker: "monsters/encounter-literal", id: "mm.bearBlack", context: "dungeon", key: "d" },
   { marker: "monsters/encounter-percent", id: "ax2.golemUndeadBoneLesser", context: "dungeon", key: "d" },
 ];
+
+/** The longest shape the parser writes, in invented figures, and the fontScale setting's maximum. */
+const LONGEST_COUNT = "(1d6+2)*10";
+const LARGEST_TYPE = 18;
 
 const note = (label, value) => console.log(`${label}: ${typeof value === "string" ? value : JSON.stringify(value)}`);
 const section = (title) => console.log(`\n== ${title} ==`);
@@ -138,6 +144,72 @@ const P = {
     await app.changeTab("ecology", "primary");
     const root = await H.poll(() => (H.root(app)?.querySelector(".acksm-enc-grid") ? H.root(app) : null));
     return { rendered: !!root, units: root?.querySelectorAll(".acksm-enc-grid input[name$='.unit']").length ?? 0 };
+  },
+
+  /**
+   * The line fields' room at the window's own width and at the narrowest a hand
+   * can reach. A resize stops at `min-width`, and the sheet theme's floor stands
+   * above the frame's own, so the second measure drops the theme's body class and
+   * lets a width of zero clamp to the floor left. `tooLong` is the control: the
+   * measure that says `count` fits must say a run of it does not.
+   */
+  layout: async ({ count }) => {
+    const H = globalThis.__el;
+    const root = H.root(H.sheet);
+    const fits = (input, text) => {
+      const value = input.value;
+      input.value = text;
+      const ok = input.scrollWidth <= input.clientWidth;
+      input.value = value;
+      return ok;
+    };
+    const read = () => {
+      const grid = root.querySelector(".acksm-enc-grid");
+      const inputs = [...grid.querySelectorAll("input")];
+      const numbers = inputs.filter((i) => i.name.endsWith(".number"));
+      return {
+        width: Math.round(root.getBoundingClientRect().width),
+        font: getComputedStyle(numbers[0]).fontSize,
+        slimmest: Math.round(Math.min(...inputs.map((i) => i.getBoundingClientRect().width))),
+        rows: new Set(inputs.map((i) => Math.round(i.getBoundingClientRect().top))).size,
+        overflow: grid.scrollWidth > grid.clientWidth,
+        fits: numbers.every((i) => fits(i, count)),
+        tooLong: !numbers.some((i) => fits(i, count.repeat(20))),
+      };
+    };
+    const own = read();
+    const body = document.body.classList;
+    const themed = body.contains("acks-lib-sheet-theme");
+    const before = root.style.width;
+    body.remove("acks-lib-sheet-theme");
+    root.style.width = "0px";
+    const small = read();
+    root.style.width = before;
+    if (themed) body.add("acks-lib-sheet-theme");
+    return { own, small, themed };
+  },
+
+  /** Writes the type knob on this page as `applyFontScale` does; the client setting stays as it was. */
+  setBase: async ({ base }) => {
+    const style = document.documentElement.style;
+    const before = style.getPropertyValue("--acks-fs-base");
+    if (base) style.setProperty("--acks-fs-base", base);
+    else style.removeProperty("--acks-fs-base");
+    return { before };
+  },
+
+  grantObserver: async ({ actorId, name }) => {
+    const actor = game.actors.get(actorId);
+    const user = game.users.find((u) => u.name === name);
+    await actor.update({ ownership: { ...actor.ownership, [user.id]: CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER } });
+    return actor.ownership[user.id];
+  },
+
+  /** How this seat's Ecology tab offers the line fields. */
+  lineFields: async () => {
+    const H = globalThis.__el;
+    const inputs = [...(H.root(H.sheet)?.querySelectorAll(".acksm-enc-grid input") ?? [])];
+    return { inputs: inputs.length, disabled: inputs.filter((i) => i.disabled || i.readOnly).length };
   },
 
   /** Type into one Ecology field the way a user does: a value, then the change event its form submits on. */
@@ -264,6 +336,7 @@ async function ready(api, label, seconds = 240) {
 }
 
 let gm = null;
+let player = null;
 const cards = [];
 try {
   section("seat and book");
@@ -294,6 +367,21 @@ try {
   note("cleared", await run(gm, P.blankLines, { actorId: typed.id }));
   const sheet = await run(gm, P.openSheet, { actorId: typed.id });
   check("the Ecology tab draws a unit field on all four sides", sheet.rendered && sheet.units === 4, sheet);
+  const roomy = ({ own, small }) => [own, small].every((l) => l.fits && l.tooLong && !l.overflow);
+  const layout = await run(gm, P.layout, { count: LONGEST_COUNT });
+  note("layout", layout);
+  check("the window narrowed to the floor a hand can reach", layout.small.width < layout.own.width, layout);
+  check("a count fits the line fields at the window's width and at that floor, with no overflow", roomy(layout), layout);
+  const knob = await run(gm, P.setBase, { base: `${LARGEST_TYPE}px` });
+  await run(gm, P.closeAll);
+  await run(gm, P.openSheet, { actorId: typed.id });
+  const large = await run(gm, P.layout, { count: LONGEST_COUNT });
+  await run(gm, P.setBase, { base: knob.before });
+  await run(gm, P.closeAll);
+  await run(gm, P.openSheet, { actorId: typed.id });
+  note("layout at the largest type", large);
+  check("the largest type size reaches the line fields", parseFloat(large.own.font) > parseFloat(layout.own.font), { from: layout.own.font, to: large.own.font });
+  check("and a count still fits them at both widths", roomy(large), large);
   const count = await run(gm, P.type, { actorId: typed.id, field: "wilderness.wandering.number", value: "2d7", read: "w" });
   check("a typed count reaches core's field", count.landed && count.appearing === "2d7", count);
   const unit = await run(gm, P.type, { actorId: typed.id, field: "wilderness.wandering.unit", value: "knots", read: "w" });
@@ -320,6 +408,16 @@ try {
   for (const id of posted.posted ?? []) cards.push(gm.track(id, "ChatMessage"));
   check("the statblock's row then rolls it", bodyRow.rollable && posted.posted.length === 1 && posted.formula === "2d7", { formula: posted.formula });
   note("closed", await run(gm, P.closeAll));
+
+  section("a seat that only observes");
+  note("granted", await run(gm, P.grantObserver, { actorId: typed.id, name: MACHINE.player }));
+  player = await connect({ browser, origin, user: MACHINE.player, port: PORTS.player, own: MACHINE.own });
+  note("player ready after (s)", await ready(player, "player"));
+  await run(player, P.install);
+  await run(player, P.openSheet, { actorId: typed.id });
+  const offered = await run(player, P.lineFields);
+  check("an observer sees the line fields and can edit none", offered.inputs === 12 && offered.disabled === 12, offered);
+  note("closed (player)", await run(player, P.closeAll));
 
   section("a repair in place");
   if (BOOKS.length < 2) throw new Error("ACKS_TEST_BOOKS names no path for mm and ax2");
@@ -351,6 +449,9 @@ try {
   checks.push(["the walk ran to its end", false]);
 } finally {
   section("teardown");
+  if (player) {
+    try { await player.close(); } catch {}
+  }
   if (gm) {
     try { note("closed", await run(gm, P.closeAll)); } catch (err) { console.error("closeAll:", err?.message ?? err); }
     try { note("cards swept", await gm.sweepTracked({ only: cards })); } catch (err) { console.error("sweep:", err?.message ?? err); }
