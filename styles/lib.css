@@ -246,10 +246,45 @@
   font-weight: normal;
 }
 
-.acks-lib-group-sheet .hint {
+.acks-ui.acks-lib-group-sheet .hint {
+  font-size: var(--acks-fs-label);
   font-style: italic;
   color: var(--acks-ink-soft);
   margin: 0.2rem 0;
+}
+/* Core pins a button's size, so the type knob reaches one only from here. */
+.acks-ui.acks-lib-group-sheet button {
+  font-size: var(--acks-fs-body);
+}
+/* A stack's head: its name, its count and its removal on one line. */
+.acks-lib-group-sheet .stack-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.15rem 0.6rem;
+}
+.acks-lib-group-sheet .stack-title {
+  flex: 1 1 12em;
+  min-width: 0;
+  margin: 0;
+}
+.acks-lib-group-sheet .stack-head > button {
+  flex: 0 0 auto;
+  width: auto;
+}
+.acks-lib-group-sheet .stack-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.3rem 0.6rem;
+  margin-top: 0.35rem;
+}
+.acks-lib-group-sheet .stack-controls > label {
+  flex: 0 1 5em;
+}
+.acks-lib-group-sheet .stack-controls > button {
+  flex: 0 1 auto;
+  width: auto;
 }
 
 /* The broken-invariant banner is the sheet's one alarm: a danger tint carrying
@@ -298,6 +333,7 @@
   color: var(--acks-ink-soft);
 }
 .acks-lib-group-sheet .size-fields,
+.acks-lib-group-sheet .stack-size-fields,
 .acks-lib-group-sheet .unit-fields {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
@@ -308,6 +344,20 @@
   display: flex;
   flex-direction: column;
   font-size: var(--acks-fs-label);
+}
+/* The Judge's encounter band: the reveal beside what the token shows. */
+.acks-lib-group-sheet .acks-lib-group-encounter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.3rem 0.6rem;
+}
+.acks-lib-group-sheet .acks-lib-group-encounter__face {
+  flex: 1 1 100%;
+  margin: 0;
+}
+.acks-lib-group-sheet .stack-roll-note {
+  margin: 0.15rem 0;
 }
 /* Destructive action: ink, not fill, so it takes the `-ink` variant. */
 .acks-lib-group-sheet button.danger {
@@ -1364,4 +1414,42 @@ body .actor-v2 :is(input, select).acks-extras-overridden {
   flex: 1 1 12em;
   min-width: 0;
   font-size: var(--acks-fs-body);
+}
+
+/* A group's dialogs: the Roll's choice and a family's variant. */
+.acks-lib-group-roll {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-2);
+  font-size: var(--acks-fs-body);
+}
+
+.acks-lib-group-roll label {
+  display: flex;
+  flex-direction: column;
+  font-size: var(--acks-fs-label);
+}
+
+.acks-lib-group-roll__line {
+  display: block;
+  font-size: var(--acks-fs-label);
+}
+
+/* One monster's Roll on a card. */
+.acks-lib-group-roll-card {
+  font-size: var(--acks-fs-label);
+}
+
+.acks-lib-group-roll-card__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.15rem 0.35rem;
+  border-bottom: var(--acks-rule-hair) solid var(--acks-rule-color-soft);
+  padding-bottom: 0.15rem;
+  margin-bottom: 0.25rem;
+}
+
+.acks-lib-group-roll-card__stack {
+  margin: 0.15rem 0;
 }

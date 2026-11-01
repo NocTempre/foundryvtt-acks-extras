@@ -54,6 +54,16 @@ export function parseEncounterLine(value) {
 }
 
 /**
+ * The formula one side may roll: its count, blank when that count is in units.
+ *
+ * @param {{number?: string, unit?: string}} [side]
+ * @returns {string}
+ */
+export function sideFormula(side) {
+  return side?.number && !side.unit ? String(side.number).trim() : "";
+}
+
+/**
  * The formula a number-appearing roll may use: the first side that states a
  * count, blank when that count is in units.
  *
@@ -61,8 +71,7 @@ export function parseEncounterLine(value) {
  * @returns {string}
  */
 export function appearingFormula(line) {
-  const side = line?.wandering?.number ? line.wandering : line?.lair;
-  return side?.number && !side.unit ? String(side.number).trim() : "";
+  return sideFormula(line?.wandering?.number ? line.wandering : line?.lair);
 }
 
 /** A side's count as a reader sees it, its unit named. */

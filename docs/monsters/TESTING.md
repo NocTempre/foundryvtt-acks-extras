@@ -96,7 +96,8 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    and the Description tab shows no appearance editor. The tags tool prompts
    for alignment and XP award and writes both. On an imported creature the
    book tool opens the Source dialog with the printed block and its tables;
-   a hand-built monster shows no book tool. Join as a player with observer
+   a hand-built monster shows no book tool. Make Encounter is
+   docs/lib/TESTING.md, "The encounter group". Join as a player with observer
    permission on the monster: the rolls, the menus and the fold work and
    every field is disabled.
 5. Defenses: declare an immunity and a susceptibility, including the

@@ -75,8 +75,8 @@ Feature-scoped roadmaps live in `docs/<feature>/ROADMAP.md`.
   the wilderness tab's camp forecast and throws), `character-sheet/` 9,
   `lib/` 7 (the follower card, the group sheet), `influence/` 6,
   `location/` 6, `equipment/` 5, `abilities/` 3, `markets/` 2, `factions/` 2,
-  `vehicles/` 1. Beside them, 14 `title=` attributes (the group sheet 7, the
-  domain realm and ledger tabs 4, the class, race and template sheets) and
+  `vehicles/` 1. Beside them, 7 `title=` attributes (the domain realm and
+  ledger tabs 4, the class, race and template sheets) and
   the tooltips assembled at render in `data-tooltip` rather than
   `data-tooltip-text`, most of them on the class sheet. A figure whose
   tooltip cannot be written goes on the bug-intake ledger as the rule says,
@@ -192,10 +192,17 @@ reading of the lair's stock and its place on the map waits on that read.
 
 ## Groups
 
-`lib/group-logic.mjs` reads a monster's number-appearing to size a group. The
-richer seams — lair chance, supply cost, battle rating — are documented in
-`group-data.mjs` and deliberately unread, waiting on the domain work that would
-give them somewhere to be spent.
+The Roll sizes a group from a creature's encounter line (`docs/lib/GROUPS.md`). The
+rest of the encounter group, the recipe a side's units, leaders and young need
+through to the fight and its aftermath, is mapped in
+`docs/lib/wip/20261031-encounter-group.md`.
+
+A scouting result does not set the reveal. Nothing in the module produces one for a
+group yet: the Judge's select is the control. The first result that can reach it is
+`detection()`'s `partySees`, when an encounter card stands a group up.
+
+Supply cost and battle rating are documented in `group-data.mjs` and deliberately
+unread, waiting on the domain work that would give them somewhere to be spent.
 
 ---
 

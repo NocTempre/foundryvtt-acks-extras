@@ -1,4 +1,5 @@
 /* global Hooks, game, foundry, canvas, ui, CONFIG, Actor */
+import { ROLL_CONTEXT_HOOK } from "../lib/group-encounter-logic.mjs";
 import { elementOf, isPrimaryGM, replacementToken } from "../lib/util.mjs";
 import { acksExtras, assertAcksSystem } from "../namespace.mjs";
 import {
@@ -923,6 +924,11 @@ Hooks.once("ready", () => {
       .then(() => travel.claimUnstampedSettlements())
       .catch((err) => console.error(`${MODULE_ID} | startup sync failed`, err));
   });
+});
+
+/* A group's Roll opens on the line the viewed scene reads. */
+Hooks.on(ROLL_CONTEXT_HOOK, (answer) => {
+  answer.context = travel.sceneEncounterLine(answer.scene) ?? answer.context;
 });
 
 /* -------------------------------------------- */

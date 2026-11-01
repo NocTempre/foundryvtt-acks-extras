@@ -6,11 +6,16 @@
  * STACKS, each a HEADCOUNT and a ROSTER — so it gets its own sheet rather than
  * the monster sheet an animal borrows. A uniform pack is one stack; a mixed unit
  * (10 swordsmen + 10 spearmen) is several, each with its own prototype, count,
- * and roster. Drop an actor to add a stack; drop onto a stack to re-point it.
+ * and roster. Drop an actor to add a stack; drop onto a stack to re-point it. A
+ * family template dropped here picks a variant first, and the stack is of that.
  *
  * The group's coin is listed as its purse: a paid unit's wage lands on the
  * group's own actor, and this is the sheet that shows it. A purse row drags
  * off like any goods row, and coin dropped on the sheet joins the purse.
+ *
+ * Where a stack has a creature whose line gives bodies, a Judge has a Roll on its
+ * row, which sizes that stack from its ecology, and once the group is an encounter
+ * the reveal, a schema field the form writes (group-encounter.mjs).
  *
  * Group-level fields (noun, unit bookkeeping) submit through the default
  * document-sheet pipeline. Per-stack COUNTS do NOT: a partial form write to
@@ -20,9 +25,26 @@
  * stack's `size.current` and roster so the invariant is never edited into an
  * inconsistent state.
  */
-import { MODULE_ID, GROUP_TYPE } from "../constants.mjs";
+import { GROUP_LANG_PREFIX, GROUP_TYPE, MODULE_ID, TEMPLATE_TYPE } from "../constants.mjs";
 import { GROUP_CATEGORY, GROUP_STATE } from "../data/group-data.mjs";
 import * as groups from "../group.mjs";
+import { citeOf, defaultRollContext, groupNoun, judgeCaption, rollEncounter, rollRefusal, stackSource } from "../group-encounter.mjs";
+import {
+  BY_LAIR_CHANCE,
+  REVEAL,
+  ROLL_CONTEXTS,
+  ROLL_STATES,
+  countOrigin,
+  isCreatureStack,
+  lairChanceOf,
+  lineReading,
+  offersRoll,
+  rollsOver,
+  statesACount,
+  unitSides,
+} from "../group-encounter-logic.mjs";
+import { generateFromTemplate } from "../template-generate.mjs";
+import { makeLoc } from "../util.mjs";
 import { coinCount, coinTotalGC } from "../money-logic.mjs";
 import { ownCoin } from "../money.mjs";
 import { coinOrderView } from "../coin-order.mjs";
@@ -30,9 +52,18 @@ import { isCurrency } from "../item-model.mjs";
 import { landCoin, refuseGoods } from "../bundles.mjs";
 import { PicksMixin } from "../picks.mjs";
 
-const { HandlebarsApplicationMixin } = foundry.applications.api;
+const { DialogV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
 export { GROUP_TYPE };
+
+const loc = makeLoc(GROUP_LANG_PREFIX);
+
+/** The classes a dialog this sheet opens carries. */
+const DIALOG_CLASSES = ["acks-ui", "acks-extras", "acks-extras-scroll", "acks-lib-group-dialog"];
+
+/** A template in this sheet's folder, rendered for a dialog. */
+const dialogContent = (name, view) =>
+  foundry.applications.handlebars.renderTemplate(`modules/${MODULE_ID}/templates/lib/${name}.hbs`, view);
 
 /**
  * The sheet for a STACK — a headcount plus a roster of the individuals in it,
@@ -54,6 +85,7 @@ export class GroupSheet extends PicksMixin(HandlebarsApplicationMixin(foundry.ap
       openMember: GroupSheet.#onOpenMember,
       deleteRecord: GroupSheet.#onDeleteRecord,
       removeStack: GroupSheet.#onRemoveStack,
+      rollEncounter: GroupSheet.#onRollEncounter,
     },
   };
 
@@ -74,9 +106,12 @@ export class GroupSheet extends PicksMixin(HandlebarsApplicationMixin(foundry.ap
       sys.details?.biography ?? "",
       { relativeTo: this.actor, secrets: this.actor.isOwner }
     );
-    context.noun = sys.noun || this.#defaultNoun(sys);
+    context.noun = groupNoun(this.actor);
     context.invariantBroken = !sys.invariantHolds;
     context.totals = { current: sys.totalCurrent, pristine: sys.totalPristine, dead: sys.totalDead };
+    context.totalsTip = sys.stacks.map((s) => `${s.template?.label ?? ""} ${s.size?.current ?? 0}`).join(" · ");
+    const sources = await Promise.all(sys.stacks.map(stackSource));
+    const judge = game.user.isGM && this.isEditable;
 
     const viewFor = (stack) => (m) => ({
       key: m.key,
@@ -88,7 +123,7 @@ export class GroupSheet extends PicksMixin(HandlebarsApplicationMixin(foundry.ap
       hasActor: !!m.actorUuid,
     });
 
-    context.stacks = sys.stacks.map((stack) => {
+    context.stacks = sys.stacks.map((stack, i) => {
       const view = viewFor(stack);
       const tmpl = stack.template ?? {};
       return {
@@ -97,6 +132,9 @@ export class GroupSheet extends PicksMixin(HandlebarsApplicationMixin(foundry.ap
         type: tmpl.type || "",
         hasTemplate: !!(tmpl.uuid || tmpl.label),
         size: { current: stack.size?.current ?? 0, initial: stack.size?.initial ?? 0, pristine: sys.pristineCountOf(stack) },
+        countTip: GroupSheet.#countTip(stack, sources[i]),
+        rollLabel: judge && offersRoll(stack, sources[i]) ? loc(stack.rolled?.total != null ? "roll.again" : "roll.press") : null,
+        rollNotes: judge ? GroupSheet.#rollNotes(stack, sources[i]) : [],
         members: sys.livingRecordedOf(stack).map(view).sort((a, b) => a.ordinal - b.ordinal),
         dead: sys.deadOf(stack).map(view).sort((a, b) => a.ordinal - b.ordinal),
         detached: (stack.roster ?? []).filter((m) => m.state === GROUP_STATE.detached).map(view),
@@ -107,7 +145,9 @@ export class GroupSheet extends PicksMixin(HandlebarsApplicationMixin(foundry.ap
     const coin = ownCoin(this.actor);
     const order = coinOrderView(this.actor);
     const gold = (rows) => coinTotalGC(rows).toLocaleString(game.i18n.lang);
+    context.isMonsterBand = sys.unit?.category === "monster";
     context.purse = {
+      shown: !context.isMonsterBand || coin.length > 0,
       rows: coin.map((row) => ({ id: row.id, name: row.name, img: row.img, count: coinCount(row), gp: gold([row]) })),
       gp: gold(coin),
       order: order.shown ? order : null,
@@ -117,13 +157,41 @@ export class GroupSheet extends PicksMixin(HandlebarsApplicationMixin(foundry.ap
     context.categories = Object.fromEntries(
       Object.entries(GROUP_CATEGORY).map(([k, label]) => [k, game.i18n.has(label) ? game.i18n.localize(label) : k])
     );
+    context.reveal = judge && sys.reveal ? this.#revealView() : null;
     return context;
   }
 
-  #defaultNoun(sys) {
-    const cat = sys.unit?.category;
-    const key = `ACKS-LIB.group.noun.${cat || "monster"}`;
-    return game.i18n.has(key) ? game.i18n.localize(key) : "group";
+  /** The Judge's control over what a seat reads off the token. */
+  #revealView() {
+    const sys = this.actor.system;
+    const option = (value) => ({ value, label: loc(`reveal.${value}`), selected: sys.reveal === value });
+    return {
+      options: Object.values(REVEAL).map(option),
+      reads: loc("reveal.reads", { name: this.actor.prototypeToken?.name ?? "" }),
+    };
+  }
+
+  /** Where a stack's count came from, with the group's own numbers. */
+  static #countTip(stack, source) {
+    const { kind, total } = countOrigin(stack);
+    return loc(`roll.tip.${kind}`, {
+      total,
+      formula: stack.size?.formula ?? "",
+      found: stack.rolled?.state ? loc(`roll.state.${stack.rolled.state}`) : "",
+      where: stack.rolled?.context ? loc(`roll.context.${stack.rolled.context}`) : "",
+      name: stack.template?.label ?? "",
+      cite: citeOf(source) || loc("roll.noCite"),
+    });
+  }
+
+  /** What a Roll cannot do with this stack, said on the sheet before anyone presses it. */
+  static #rollNotes(stack, source) {
+    if (!isCreatureStack(stack)) return [];
+    if (!rollsOver(stack)) return [loc("roll.note.hand")];
+    if (!statesACount(source)) return [loc("roll.note.none")];
+    const sides = unitSides(source).map(({ context, state, count }) =>
+      `${loc(`roll.context.${context}`)}, ${loc(`roll.state.${state}`)}: ${count}`);
+    return sides.length ? [loc("roll.note.units", { sides: sides.join(" · ") })] : [];
   }
 
   /**
@@ -172,13 +240,16 @@ export class GroupSheet extends PicksMixin(HandlebarsApplicationMixin(foundry.ap
     const data = foundry.applications.ux.TextEditor.implementation.getDragEventData(event);
     if (data?.type === "Item") return this.#onDropItem(data);
     if (data?.type !== "Actor") return;
-    const source = await foundry.utils.getDocumentClass("Actor").fromDropData(data);
-    if (!source) return;
-    if (source.uuid === this.actor.uuid || groups.isGroup(source)) {
+    const dropped = await foundry.utils.getDocumentClass("Actor").fromDropData(data);
+    if (!dropped) return;
+    if (dropped.uuid === this.actor.uuid || groups.isGroup(dropped)) {
       return ui.notifications.warn(game.i18n.localize("ACKS-LIB.group.warn.badPrototype"));
     }
-    // Dropped ONTO a stack → re-point that stack; dropped elsewhere → add a stack.
+    // Read before the dialog a family opens: the event's target does not outlive it.
     const stackKey = event.target?.closest?.("[data-stack-key]")?.dataset?.stackKey;
+    const source = dropped.type === TEMPLATE_TYPE ? await GroupSheet.#pickVariant(dropped) : dropped;
+    if (!source) return;
+    // Dropped ONTO a stack → re-point that stack; dropped elsewhere → add a stack.
     if (stackKey) {
       await groups.setStackPrototype(this.actor, stackKey, source);
       ui.notifications.info(game.i18n.format("ACKS-LIB.group.info.stackRepointed", { name: source.name }));
@@ -187,6 +258,77 @@ export class GroupSheet extends PicksMixin(HandlebarsApplicationMixin(foundry.ap
       ui.notifications.info(game.i18n.format("ACKS-LIB.group.info.stackAdded", { name: source.name }));
     }
     this.render();
+  }
+
+  /**
+   * A family dropped here is no body until it is one variant: the Judge picks
+   * along its axes, and what generates is the creature the stack copies.
+   * @returns {Promise<Actor|null>} null where the dialog closed or nothing generated
+   */
+  static async #pickVariant(template) {
+    const sys = template.system;
+    if (sys.isStub) {
+      ui.notifications.warn(game.i18n.localize("ACKS-LIB.template.warn.stub"));
+      return null;
+    }
+    const axes = (sys.axes ?? []).filter((axis) => !axis.multi).map((axis) => ({
+      key: axis.key,
+      label: axis.label || axis.key,
+      rollLabel: axis.roll
+        ? game.i18n.format("ACKS-LIB.template.rollDie", { die: axis.roll })
+        : game.i18n.localize("ACKS-LIB.template.rollUniform"),
+      options: (axis.options ?? []).map((o) => ({ key: o.key, label: o.label || o.key })),
+    }));
+    const pins = await DialogV2.prompt({
+      classes: DIALOG_CLASSES,
+      window: { title: loc("variant.title", { name: template.name }) },
+      content: await dialogContent("group-variant", { axes }),
+      ok: {
+        label: loc("variant.press"),
+        callback: (_event, button) =>
+          Object.fromEntries(axes.map(({ key }) => [key, button.form.elements.namedItem(key).value]).filter(([, value]) => value)),
+      },
+      rejectClose: false,
+    });
+    if (!pins) return null;
+    const created = await generateFromTemplate(template, { pins });
+    if (!created) ui.notifications.warn(game.i18n.localize("ACKS-LIB.template.warn.rejected"));
+    return created;
+  }
+
+  /** One monster's choice, its line read out beside it. Null where the dialog closed. */
+  static async #askRoll(stack) {
+    const source = await stackSource(stack);
+    const chance = lairChanceOf(source);
+    const opening = defaultRollContext();
+    const count = (context, state) => lineReading(source, context, state).count || "—";
+    const content = await dialogContent("group-roll", {
+      contexts: ROLL_CONTEXTS.map((value) => ({ value, label: loc(`roll.context.${value}`), selected: value === opening })),
+      states: [
+        ...ROLL_STATES.map((value) => ({ value, label: loc(`roll.state.${value}`) })),
+        {
+          value: BY_LAIR_CHANCE,
+          label: chance == null ? loc("roll.state.noChance") : loc("roll.state.chance", { n: chance }),
+          disabled: chance == null,
+        },
+      ],
+      lineTip: loc("roll.lineTip", { cite: citeOf(source) || loc("roll.noCite") }),
+      lines: ROLL_CONTEXTS.map((context) => loc("roll.line", {
+        where: loc(`roll.context.${context}`),
+        wandering: count(context, "wandering"),
+        lair: count(context, "lair"),
+      })),
+    });
+    return DialogV2.prompt({
+      classes: DIALOG_CLASSES,
+      window: { title: loc("roll.title", { name: stack.template?.label ?? "" }) },
+      content,
+      ok: {
+        label: loc("roll.press"),
+        callback: (_event, button) => ({ context: button.form.elements.context.value, state: button.form.elements.state.value }),
+      },
+      rejectClose: false,
+    });
   }
 
   /* -------------------------------------------- */
@@ -281,6 +423,20 @@ export class GroupSheet extends PicksMixin(HandlebarsApplicationMixin(foundry.ap
     const stackKey = GroupSheet.#stackKey(target);
     if (!stackKey) return;
     await groups.removeStack(this.actor, stackKey);
+    this.render();
+  }
+
+  /** A row's Roll: a refusal says why before the dialog opens, and the side chosen may still give no bodies. */
+  static async #onRollEncounter(event, target) {
+    const stack = this.actor.system.stackOf(GroupSheet.#stackKey(target));
+    if (!stack) return;
+    const refused = (result) => ui.notifications.warn(loc(`roll.refused.${result.reason}`, result));
+    const refusal = rollRefusal(this.actor, stack);
+    if (refusal) return refused(refusal);
+    const choice = await GroupSheet.#askRoll(stack);
+    if (!choice) return;
+    const result = await rollEncounter(this.actor, stack.key, choice);
+    if (!result.ok) refused(result);
     this.render();
   }
 }

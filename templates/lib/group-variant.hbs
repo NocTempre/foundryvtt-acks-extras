@@ -1,0 +1,15 @@
+{{!-- A family dropped on a group sheet: pick the variant its stack is made of.
+      An axis left on its die is rolled, as the template's own sheet does. --}}
+<div class="acks-lib-group-roll">
+  <p class="hint">{{localize "ACKS-LIB.group.variant.hint"}}</p>
+  {{#each axes}}
+    <label>{{label}}
+      <select name="{{key}}">
+        <option value="">{{rollLabel}}</option>
+        {{#each options}}
+          <option value="{{key}}">{{label}}</option>
+        {{/each}}
+      </select>
+    </label>
+  {{/each}}
+</div>

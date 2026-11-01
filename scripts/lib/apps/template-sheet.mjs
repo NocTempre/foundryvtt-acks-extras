@@ -1,4 +1,4 @@
-/* global game, foundry, ui, Actor, Folder, fromUuid, Hooks */
+/* global game, foundry, ui, fromUuid */
 /**
  * The `acks-lib.template` BUILDER sheet: one select per axis (defaulting to
  * "Roll"), a drop zone for an optional base actor, and Generate. Pins and the
@@ -6,28 +6,12 @@
  * "The template actor is a generator, never a bulk import" and
  * docs/lib/API.md for the generation engine (template-logic.mjs).
  */
-import { MODULE_ID, LANG_PREFIX, TEMPLATE_TYPE, TEMPLATE_HOOKS } from "../constants.mjs";
-import { chooseAxes, mergePatch, resolveActor, rollMenu } from "../template-logic.mjs";
-import { hitDiceOrLevel } from "../actor-read.mjs";
+import { MODULE_ID, TEMPLATE_TYPE } from "../constants.mjs";
+import { generateFromTemplate } from "../template-generate.mjs";
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 
 export { TEMPLATE_TYPE };
-
-/**
- * Where a generated creature goes: a top-level folder of its own, made on
- * demand, never the template's — a template in a compendium has a folder id
- * the sidebar cannot resolve. An existing folder of this name is adopted
- * rather than duplicated. See docs/lib/DECISIONS.md, "Generated actors file
- * into their own folder, never the template's".
- */
-async function generatedFolder() {
-  const name = game.i18n?.localize?.(`${LANG_PREFIX}.template.folder`) ?? "Generated";
-  return (
-    game.folders?.find((f) => f.type === "Actor" && f.name === name && !f.folder) ??
-    (await Folder.create({ name, type: "Actor", sorting: "a" }))
-  );
-}
 
 /** The sheet for a template actor: builds one concrete actor on demand rather than materializing the cross product. */
 export class TemplateSheet extends HandlebarsApplicationMixin(foundry.applications.sheets.ActorSheetV2) {
@@ -257,100 +241,9 @@ export class TemplateSheet extends HandlebarsApplicationMixin(foundry.applicatio
   }
 
   static async #onGenerate() {
-    const sys = this.actor.system;
-    if (sys.isStub) return ui.notifications.warn(game.i18n.localize("ACKS-LIB.template.warn.stub"));
-
-    // Values an axis may derive from a dropped base (the thrall's victim HD).
-    let base = null;
-    const baseValues = {};
-    if (this.#baseUuid) {
-      base = await fromUuid(this.#baseUuid);
-      if (base) {
-        const hd = hitDiceOrLevel(base);
-        if (hd != null) baseValues.hd = hd;
-      }
-    }
-
-    const { choices, log } = chooseAxes(sys, { pinned: this.#pins, baseValues });
-    const resolved = resolveActor(sys, choices, { baseName: base?.name ?? "", templateName: this.actor.name });
-
-    // A dropped base actor seeds generation (full system/items/flags), the
-    // template's patches layered on top — what makes templates compose.
-    if (base) {
-      const seeded = base.system.toObject();
-      mergePatch(seeded, resolved.system);
-      resolved.system = seeded;
-      resolved.items = [...base.items.map((i) => i.toObject()), ...resolved.items];
-      const baseFlags = foundry.utils.deepClone(base.flags ?? {});
-      delete baseFlags.core;
-      if (baseFlags[MODULE_ID]) delete baseFlags[MODULE_ID].generated;
-      const stackedFlags = baseFlags;
-      mergePatch(stackedFlags, resolved.flags ?? {});
-      resolved.flags = stackedFlags;
-      if (!resolved.art && base.img) resolved.art = base.img;
-    }
-
-    // The rolled ability menu: budget printed on the budget axis's chosen row.
-    let menuPicks = [];
-    if ((sys.menu?.rows ?? []).length) {
-      const axis = (sys.axes ?? []).find((a) => a.key === sys.menu.budgetAxis);
-      const option = axis?.options?.find((o) => o.key === choices[axis.key]);
-      const budget = option?.menuBudget ?? 0;
-      menuPicks = rollMenu(sys.menu, budget).picks;
-    }
-
-    // Description: the option snippets, then the rolled abilities. A resolved
-    // sub-roll rides its ability as a rolled note.
-    const htmlParts = [...resolved.htmlParts];
-    for (const pick of menuPicks) {
-      let part = pick.html || `<p>${pick.label}</p>`;
-      if (pick.subResult) {
-        const s = pick.subResult;
-        part += `<p><em>${s.die}${s.twice ? " ×2" : ""} → ${s.rolls.join(", ")}: ${s.texts.join("; ")}</em></p>`;
-      }
-      htmlParts.push(part);
-    }
-    const biography = htmlParts.join("");
-
-    const type = sys.output?.actorType || "monster";
-    const system = resolved.system;
-    if (biography) {
-      system.details = { ...(system.details ?? {}), biography: `${system.details?.biography ?? ""}${biography}` };
-    }
-
-    // Actor-level channels from preset options (family variants): sheet-extras
-    // flags and prototype-token fragments ride the resolved payload; the
-    // provenance flag is ours and always wins its own key.
-    const prototypeToken = {
-      ...(resolved.art || resolved.tint
-        ? { texture: { ...(resolved.art ? { src: resolved.art } : {}), ...(resolved.tint ? { tint: resolved.tint } : {}) } }
-        : {}),
-      ...(resolved.token ?? {}),
-    };
-    // What a generated creature carries beyond its patches is a listener's
-    // to add before the write — a repertoire drawn onto its slot block.
-    Hooks.callAll(TEMPLATE_HOOKS.RESOLVED, { resolved, template: this.actor, type, choices });
-    const created = await Actor.create({
-      name: resolved.name || this.actor.name,
-      type,
-      folder: (await generatedFolder())?.id ?? null,
-      ...(resolved.art ? { img: resolved.art } : {}),
-      ...(Object.keys(prototypeToken).length ? { prototypeToken } : {}),
-      system,
-      items: resolved.items,
-      flags: {
-        ...(resolved.flags ?? {}),
-        [MODULE_ID]: {
-          ...(resolved.flags?.[MODULE_ID] ?? {}),
-          generated: {
-            templateUuid: this.actor.uuid,
-            choices,
-            log,
-            menu: menuPicks.map((p) => p.label),
-          },
-        },
-      },
-    });
+    if (this.actor.system.isStub) return ui.notifications.warn(game.i18n.localize("ACKS-LIB.template.warn.stub"));
+    const base = this.#baseUuid ? await fromUuid(this.#baseUuid) : null;
+    const created = await generateFromTemplate(this.actor, { pins: this.#pins, base });
     if (!created) {
       return ui.notifications.warn(game.i18n.localize("ACKS-LIB.template.warn.rejected"));
     }

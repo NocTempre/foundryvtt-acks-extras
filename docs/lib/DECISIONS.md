@@ -4893,3 +4893,74 @@ hook (`acks-module-template`, `tools/validate.mjs` §8a).
 corner"). The corner is not visible at a declaration, so a reader of one
 `DialogV2` call cannot see that it has one. The `resizable: true` already written
 at 58 sites stays, redundant, rather than spend a commit on it.
+
+## 2026-11-01 — A monster's Roll writes at once, and the token says what the Judge lets it
+
+*Ruled by the owner, 2026-10-31:* an encounter is a group, the Roll writes stacks at
+once, what a player sees of the token depends on scouting, and each body rolls its own
+hit points. The reveal's design and whether scouting sets it were left to this slice.
+*Ruled by the owner, 2026-11-01:* the Roll is per monster, each row its own, and a
+re-roll replaces only what that monster's roll made. The mechanics are `GROUPS.md`,
+"The Roll" and "The reveal".
+
+*Ruled here:*
+
+- **One press per row, in a dialog.** The dialog takes the line and the side with that
+  monster's line read out beside them. By lair chance is a third side, because the book
+  throws the chance and then the number, so one press does both and the card shows both.
+  The chance is the pressed monster's, and one card reports one press.
+- **A row offers a Roll only where a press can size it.** A hand's count, a line of
+  units on every side and a line with no count draw a note in its place, so no button
+  does nothing. Some sides in units keep the Roll, and a press on one warns and writes
+  nothing.
+- **A hand's count stands, and a body stops its own monster's press.** A Roll writes an
+  empty stack or one a roll made. A record, or a living count under the initial one,
+  refuses before a die, and the stack beside it still rolls. A hand's count asks for a
+  zeroing first rather than being replaced by a press: the ruling lets a re-roll replace
+  what a roll made, and a hand made this. The strongest case against is that a Judge who
+  presses Roll on that row has said what they want. It stands as a weak case while the
+  row offers no Roll to press and its note says how to get one.
+- **The noun is the first monster's.** One noun cannot speak for mixed stacks, so a
+  second monster's Roll leaves it, and only the re-roll of the monster that wrote it
+  replaces it. A mixed group reads as a list on the Judge's nameplate and at `full`.
+- **The reveal has two states, and scouting does not set it yet.** Nothing in the
+  module produces a scouting result for a group, and a token in sight says nothing of
+  how well they counted. The Judge's select is the control, and `detection()`'s
+  `partySees` is the first result that could feed it (`docs/ROADMAP.md`). The strongest
+  case against is that the owner's ruling names scouting, so a Judge-set reveal delivers
+  the display and not the link. It stands as a moderate case: the link has nothing to
+  read until an encounter card stands a group up, and the select is what that link
+  would write.
+- **The mask covers the art.** Below `full` the token takes core's default art, since
+  the creature's art names it.
+- **The name is written to the token document.** A per-seat name would leave the
+  tracker and a chat speaker saying what the map does not. The Judge's own nameplate is
+  the one per-seat read, because two masked tokens must stay two.
+- **Every new group is linked**, at `_preCreate`, a hired one included. An unlinked
+  group writes its stacks to a delta, which is a roll on one token. A token placed
+  unlinked before this stays so and refuses the Roll.
+- **`rollDice` is not extended.** The map asked for it to take multiplied dice.
+  Foundry's `Roll` already takes every formula the line parser writes, and shows on
+  Dice So Nice; the pure `rng` engine belongs to the recipe, which walks units.
+- **`encounterShift` is not applied.** A monster met on the wrong floor is scaled once
+  `encounter-scaling.mjs`'s rate leaves source (`docs/formation/ROADMAP.md`).
+- **Lib asks, and formation answers.** Lib cannot import a feature, so the scene's
+  default line is `ROLL_CONTEXT_HOOK`, the follower card's pattern.
+- **Template generation left `TemplateSheet`** for `lib/template-generate.mjs`, so a
+  family dropped on a group makes a real creature for its stack to copy.
+
+*Rejected:*
+
+- **Rolling on the drop.** The owner's ruling is a Roll that writes at once, not a
+  drop that does. A Judge also needs a stack on the sheet to read before choosing.
+- **One Roll for the whole group.** It was built and walked first: one button, one
+  dialog, one card naming every stack. The owner's ruling of 2026-11-01 replaced it
+  before it landed.
+
+**Cost.** Sizing a mixed group takes a press and a card per monster, where the first
+build took one. While `reveal` is set, a hand's token name or art is overwritten, and
+the combat tracker reads the noun for the Judge too. A Roll reads a stack's creature as
+it stands and the snapshot only when that is gone, so a roll after an edit can differ
+from the line the stack was added with. The recipe editor in the map's §3f waits for
+the recipe's schema; until then the Ecology tab's line fields are the Judge's tool, and
+they are enough for a hand-built monster to roll.

@@ -1,4 +1,4 @@
-/* global game, Hooks, foundry, fromUuidSync */
+/* global game, Hooks, foundry, fromUuidSync, Folder */
 /**
  * Tiny cross-feature helpers. Everything here used to exist as N identical
  * copies across the merged features (loc ×11, num ×5, gmIds ×4, …); the
@@ -36,6 +36,18 @@ export function coreItemSheetFor(type) {
     console.warn(`acks-extras | no ${type} sheet is flagged default; extending ${chosen.cls?.name} by registry order.`);
   }
   return chosen?.cls ?? null;
+}
+
+/**
+ * A top-level Actor folder of this name, made on demand. An existing one is
+ * adopted rather than duplicated. See docs/lib/DECISIONS.md, "Generated actors
+ * file into their own folder, never the template's".
+ */
+export async function actorFolder(name) {
+  return (
+    game.folders?.find((f) => f.type === "Actor" && f.name === name && !f.folder) ??
+    (await Folder.create({ name, type: "Actor", sorting: "a" }))
+  );
 }
 
 /** Prefix-bound i18n formatter: `makeLoc("ACKS-FORMATION")` → `loc(key, data)`. */

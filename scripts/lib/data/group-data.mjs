@@ -66,8 +66,16 @@ export default class GroupData extends foundry.abstract.TypeDataModel {
         size: new SchemaField({
           current: int(0, { min: 0 }), // living bodies in THIS stack
           initial: int(0, { min: 0 }),
-          // Ecology seam (group.mjs sizeFromEcology): a dice formula, NOT auto-rolled.
+          // The dice formula the Roll reads (sizeFromEcology), or last rolled.
           formula: str(),
+        }),
+        // What the last Roll made of this stack. A null total is a stack no roll
+        // sized, whose count a roll leaves alone. See docs/lib/GROUPS.md, "The Roll".
+        rolled: new SchemaField({
+          total: new NumberField({ required: false, nullable: true, integer: true, initial: null, min: 0 }),
+          state: str(), // wandering | lair
+          context: str(), // dungeon | wilderness
+          noun: str(), // the noun this roll wrote, told from one a hand typed
         }),
         // Troops addendum (skirmish scale). `mounted` bodies count DOUBLE toward
         // the RR 169 command capacity (a platoon is 30 infantry OR 15 cavalry).
@@ -108,6 +116,13 @@ export default class GroupData extends foundry.abstract.TypeDataModel {
        * noun is data".
        */
       noun: str(),
+
+      /**
+       * What a seat reads off an encounter's token (REVEAL): the noun alone, or
+       * the name and the count. Blank is a group that is no encounter, whose
+       * token this module leaves alone. See docs/lib/GROUPS.md, "The reveal".
+       */
+      reveal: str(),
 
       /** Unit-level bookkeeping — the mercenary/specialist half. Shared across stacks. */
       unit: new SchemaField({
@@ -170,6 +185,19 @@ export default class GroupData extends foundry.abstract.TypeDataModel {
     migrateGroupSource(source);
     migrateLegacyCombatSource(source);
     return super.migrateData(source);
+  }
+
+  /**
+   * A group's token is linked from the start: stacks live on the world actor,
+   * and an unlinked token would write them to its delta alone. An explicit
+   * `actorLink` in the create data stands.
+   * @override
+   */
+  async _preCreate(data, options, user) {
+    const allowed = await super._preCreate(data, options, user);
+    if (allowed === false) return false;
+    if (data.prototypeToken?.actorLink === undefined) this.parent.updateSource({ "prototypeToken.actorLink": true });
+    return allowed;
   }
 
   /**

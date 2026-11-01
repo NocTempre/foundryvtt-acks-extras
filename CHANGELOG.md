@@ -22,8 +22,22 @@
 - **The Movement section tells a player how the party moves.** Who sets the pace
   and on what, how many ride, are carried and walk, the pace with each member's
   figure on hover, and a chip when a faster ride is there. Every seat reads it.
+- **Roll an encounter from a group.** Drop a monster on a group, or press Make an
+  encounter group on its sheet, then press Roll on that monster's row: dungeon or
+  wilderness, wandering, in lair or by lair chance. Its stack is sized at once from the
+  creature's encounter line, the count stays editable and says where it came from, and
+  a card only the Judges see shows the work. A Roll touches that monster alone. A count
+  in units stays unrolled and says so.
+- **What a player reads off an encounter's token is the Judge's.** The noun alone over
+  a masked portrait, or the name and the count with the art. The Judge's own nameplate
+  always reads the name and the count.
+- **A family dropped on a group** asks which variant, and the stack is of that.
 
 ### Changed
+
+- **A group's sheet** draws a stack's name, count and removal on one line, its counts
+  side by side, and leaves the purse, troop type and loyalty off a band of monsters.
+  New groups are linked to their actor.
 
 - **Five tiles replace the Moving by select**, and how the party moves is read
   off who is on what, so it can no longer disagree with the party's speed. A tile

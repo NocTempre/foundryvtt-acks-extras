@@ -59,8 +59,17 @@ acksExtras.lib = {
   // 25: coin stores, a holder's order, a payment's reach — `money` (below)
   drawQuietly,         // lib/roll-audience.mjs — a table draw with nothing posted (below); 28
   // 30: places.isMarkerActor — the bodies whose token marks a place (docs/lib/PLACES.md)
+  groupEncounter,      // lib/group-encounter.mjs — the Roll, Make Encounter, the reveal (docs/lib/GROUPS.md); 32
 }
 ```
+
+`groupEncounter` is `rollEncounter(group, stackKey, {context, state, roll})`, which
+sizes that one stack and resolves to `{ok, reason?, name?, why?, found?, total?, message?}`;
+`rollRefusal(group, stack)`; `makeEncounter(source)`; `defaultRollContext()`; and
+`ROLL_CONTEXT_HOOK`
+(`"acksExtrasGroupRollContext"`), called with `{scene, context}` for a feature to
+write `context` in place. `groups.sizeFromEcology` is unchanged for a caller who
+names no state; apiVersion 32 adds the state.
 
 The elided trailing group and the full file-by-file surface are indexed in
 **`scripts/lib/README.md`** — check there first. No gate compares that index

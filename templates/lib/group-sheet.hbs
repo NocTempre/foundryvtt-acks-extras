@@ -11,9 +11,9 @@
   {{!-- Group summary: totals across every stack, and the collective noun. --}}
   <section class="acks-lib-group-summary">
     <div class="size-figure">
-      <span class="size-current">{{totals.current}}</span>
+      <span class="size-current" data-tooltip-text="{{totalsTip}}">{{totals.current}}</span>
       <span class="size-noun">{{noun}}</span>
-      <span class="size-detail" title="{{localize 'ACKS-LIB.group.pristineHint'}}">
+      <span class="size-detail" data-tooltip="ACKS-LIB.group.pristineHint">
         ({{localize "ACKS-LIB.group.pristine"}}: {{totals.pristine}}{{#if totals.dead}}, {{localize "ACKS-LIB.group.fallen"}}: {{totals.dead}}{{/if}})
       </span>
     </div>
@@ -27,6 +27,21 @@
     {{/if}}
   </section>
 
+  {{!-- What a seat reads off an encounter's token, the Judge's to set. The select
+        is a schema field, so the form writes it. --}}
+  {{#if reveal}}
+    <section class="acks-lib-group-encounter">
+      <label>{{localize "ACKS-LIB.group.reveal.label"}}
+        <select name="system.reveal">
+          {{#each reveal.options}}
+            <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+          {{/each}}
+        </select>
+      </label>
+      <p class="hint acks-lib-group-encounter__face">{{reveal.reads}}</p>
+    </section>
+  {{/if}}
+
   {{!-- The stacks. Drop an actor anywhere below to add one; drop onto a stack to
         re-point it. --}}
   {{#each stacks}}
@@ -38,20 +53,30 @@
         </h3>
         {{!-- The same words the marching order uses for this stack: a count and
               the group's collective noun, so one concept reads one way. --}}
-        <span class="stack-count">{{this.size.current}} / {{this.size.initial}}
+        <span class="stack-count" data-tooltip-text="{{this.countTip}}">{{this.size.current}} / {{this.size.initial}}
           <span class="size-noun">{{@root.noun}}</span>
         </span>
+        {{#if this.rollLabel}}
+          <button type="button" data-action="rollEncounter">
+            <i class="fa-solid fa-dice" inert></i> {{this.rollLabel}}
+          </button>
+        {{/if}}
         {{#if @root.editable}}
-          <button type="button" class="icon" data-action="removeStack"
-                  title="{{localize 'ACKS-LIB.group.removeStack'}}">✕</button>
+          <button type="button" class="icon" data-action="removeStack" data-tooltip
+                  aria-label="{{localize 'ACKS-LIB.group.removeStack'}}">✕</button>
         {{/if}}
       </header>
 
       <div class="stack-detail">
-        <span title="{{localize 'ACKS-LIB.group.pristineHint'}}">
+        <span data-tooltip="ACKS-LIB.group.pristineHint">
           {{localize "ACKS-LIB.group.pristine"}}: {{this.size.pristine}}
         </span>
       </div>
+
+      {{!-- What a Roll cannot do with this stack, for the Judge who would press it. --}}
+      {{#each this.rollNotes}}
+        <p class="hint stack-roll-note">{{this}}</p>
+      {{/each}}
 
       {{#if @root.editable}}
         <div class="stack-size-fields">
@@ -81,8 +106,8 @@
               <span class="member-state state-{{this.state}}">{{this.state}}</span>
               {{#if this.hp}}<span class="member-hp">{{this.hp.value}}/{{this.hp.max}}</span>{{/if}}
               {{#if @root.editable}}
-                <button type="button" class="icon" data-action="detach"
-                        title="{{localize 'ACKS-LIB.group.detach'}}">➜</button>
+                <button type="button" class="icon" data-action="detach" data-tooltip
+                        aria-label="{{localize 'ACKS-LIB.group.detach'}}">➜</button>
               {{/if}}
             </li>
           {{/each}}
@@ -99,7 +124,8 @@
                 <span class="member-name">{{this.name}}</span>
                 <span class="member-note">{{this.note}}</span>
                 {{#if @root.editable}}
-                  <button type="button" class="icon" data-action="deleteRecord" title="✕">✕</button>
+                  <button type="button" class="icon" data-action="deleteRecord" data-tooltip
+                          aria-label="{{localize 'ACKS-LIB.group.deleteRecord'}}">✕</button>
                 {{/if}}
               </li>
             {{/each}}
@@ -115,10 +141,12 @@
               <li class="member" data-member-key="{{this.key}}">
                 <span class="member-name">{{this.name}}</span>
                 {{#if this.hasActor}}
-                  <button type="button" class="icon" data-action="openMember" title="{{localize 'ACKS-LIB.group.open'}}">↗</button>
+                  <button type="button" class="icon" data-action="openMember" data-tooltip
+                          aria-label="{{localize 'ACKS-LIB.group.open'}}">↗</button>
                 {{/if}}
                 {{#if @root.editable}}
-                  <button type="button" class="icon" data-action="deleteRecord" title="✕">✕</button>
+                  <button type="button" class="icon" data-action="deleteRecord" data-tooltip
+                          aria-label="{{localize 'ACKS-LIB.group.deleteRecord'}}">✕</button>
                 {{/if}}
               </li>
             {{/each}}
@@ -137,26 +165,30 @@
   {{!-- The purse: the coin the group holds, which is where a unit's pay lands.
         A row is a drag source like any goods row, and coin dropped on the
         sheet joins the row of its kind. The coin order under it is the lib's
-        one block, drawn where there is a choice to make or a row to fold. --}}
-  <section class="acks-lib-group-purse">
-    <header><h3>{{localize "ACKS-LIB.group.purse"}} <span class="muted">{{purse.gp}} gp</span></h3></header>
-    {{#if purse.rows.length}}
-      <ul class="member-list">
-        {{#each purse.rows}}
-          <li class="member draggable" data-item-id="{{this.id}}">
-            <img class="purse-img" src="{{this.img}}" alt="" />
-            <span class="member-name">{{this.name}} ×{{this.count}}</span>
-            <span class="member-hp">{{this.gp}} gp</span>
-          </li>
-        {{/each}}
-      </ul>
-    {{else}}
-      <p class="hint">{{localize "ACKS-LIB.group.purseEmpty"}}</p>
-    {{/if}}
-    {{#if purse.order}}{{> "modules/acks-extras/templates/lib/coin-order.hbs" purse.order}}{{/if}}
-  </section>
+        one block, drawn where there is a choice to make or a row to fold. A
+        band of monsters draws by none of it until it holds coin. --}}
+  {{#if purse.shown}}
+    <section class="acks-lib-group-purse">
+      <header><h3>{{localize "ACKS-LIB.group.purse"}} <span class="muted">{{purse.gp}} gp</span></h3></header>
+      {{#if purse.rows.length}}
+        <ul class="member-list">
+          {{#each purse.rows}}
+            <li class="member draggable" data-item-id="{{this.id}}">
+              <img class="purse-img" src="{{this.img}}" alt="" />
+              <span class="member-name">{{this.name}} ×{{this.count}}</span>
+              <span class="member-hp">{{this.gp}} gp</span>
+            </li>
+          {{/each}}
+        </ul>
+      {{else}}
+        <p class="hint">{{localize "ACKS-LIB.group.purseEmpty"}}</p>
+      {{/if}}
+      {{#if purse.order}}{{> "modules/acks-extras/templates/lib/coin-order.hbs" purse.order}}{{/if}}
+    </section>
+  {{/if}}
 
-  {{!-- Unit bookkeeping (mercenary/specialist side), shared across stacks. --}}
+  {{!-- Unit bookkeeping, shared across stacks. Category and morale apply to any
+        band; troop type and loyalty are the mercenary side's. --}}
   {{#if editable}}
     <section class="acks-lib-group-unit">
       <header><h3>{{localize "ACKS-LIB.group.unit"}}</h3></header>
@@ -168,15 +200,19 @@
             {{/each}}
           </select>
         </label>
-        <label>{{localize "ACKS-LIB.group.troopType"}}
-          <input type="text" name="system.unit.troopType" value="{{system.unit.troopType}}" />
-        </label>
+        {{#unless isMonsterBand}}
+          <label>{{localize "ACKS-LIB.group.troopType"}}
+            <input type="text" name="system.unit.troopType" value="{{system.unit.troopType}}" />
+          </label>
+        {{/unless}}
         <label>{{localize "ACKS-LIB.group.morale"}}
           <input type="number" name="system.unit.morale" value="{{system.unit.morale}}" min="-6" max="4" />
         </label>
-        <label>{{localize "ACKS-LIB.group.loyalty"}}
-          <input type="number" name="system.unit.loyalty" value="{{system.unit.loyalty}}" min="-4" max="4" />
-        </label>
+        {{#unless isMonsterBand}}
+          <label>{{localize "ACKS-LIB.group.loyalty"}}
+            <input type="number" name="system.unit.loyalty" value="{{system.unit.loyalty}}" min="-4" max="4" />
+          </label>
+        {{/unless}}
       </div>
     </section>
   {{/if}}

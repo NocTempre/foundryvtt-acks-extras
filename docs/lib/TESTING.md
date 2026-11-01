@@ -1030,8 +1030,8 @@ feature's; each of those recipes carries its own coin steps.
 - "Coin Merc", a `monster` the Player seat owns, holding a Gold row of 12. It
   opens on the follower card.
 - "Coin Faction", an `acks-extras.faction`; "Coin Cart", an
-  `acks-extras.vehicle`; "Coin Company", an `acks-extras.group`; and "Coin
-  Party", an `acks-extras.party` created with
+  `acks-extras.vehicle`; "Coin Company", an `acks-extras.group` of the
+  Mercenaries category; and "Coin Party", an `acks-extras.party` created with
   `flags.acks-extras.formationId` naming a formation that does not exist,
   which writes no formation record.
 - "Coin Bank", an `acks-extras.location` the Player seat can see and does not
@@ -2978,6 +2978,87 @@ Fixtures: a disposable group with two stacks (`groups.addStack(group, source,
    second stack's is unchanged.
 
 Teardown: delete the group and its sources by id.
+
+## The encounter group
+
+The walk is `tools/live/group-encounter.mjs`: every step below on a GM seat and a
+Player seat, under a recorder added before reload. The rules it exercises are
+`GROUPS.md`, "The Roll" and "The reveal". Every line in it is invented.
+
+Fixtures, found by marker: the monsters `lib/encounter-lined` (both lines, both
+sides, a lair chance), `lib/encounter-units` (a wilderness wandering side in units)
+and `lib/encounter-mute` (no count); the groups `lib/encounter-band`,
+`lib/encounter-second` and `lib/encounter-unlinked` (`prototypeToken.actorLink`
+false); the family `lib/encounter-family`, one axis of two options whose flags carry
+the lines; and the scene `lib/encounter-scene`, with the tokens placed on it. Each
+section writes the lines and empties the group it needs first, since a kept fixture
+holds what the last walk left. The walk tracks the cards, the group Make Encounter
+creates, its token and the monster a family generates, and sweeps them by id.
+
+Drive mechanics: the drop is a `DragEvent` carrying a `DataTransfer` on the sheet's
+root. A row's Roll is `[data-stack-key="<key>"] [data-action="rollEncounter"]`. The
+dialogs are found in `foundry.applications.instances` by `.acks-lib-group-roll`, their
+selects set and `[data-action='ok']` clicked. Two counts typed in one stack wait for
+the first to land: `patchStack` reads and writes
+the whole array, so a second patch read before the first lands writes over it. A
+token's art is read from `_source`, because a texture change tweens on the document
+and an immediate read holds the old path beside the new name.
+
+1. **A drop.** Open a bare group, then drop a monster.
+   *Observable:* no Roll and no reveal before the drop, a Roll on the new row after
+   it, and no purse, troop type or loyalty on a band of monsters until the category
+   is Mercenaries.
+2. **The Roll.** Press the row's Roll and answer the dialog.
+   *Observable:* the dialog is titled for that monster, with its line read out. The
+   count lands in the side's range in both counts, the roster stays empty, and the
+   noun, the reveal and the token defaults are written. One card reaches the Judges
+   with no rolls attached, showing the formula, the dice and the page, and a Player
+   seat shows nothing of it. The count's tooltip says where it came from.
+3. **A hand.** Raise a rolled count, then roll again.
+   *Observable:* the tooltip says a hand changed it, and a Roll replaces it. A noun
+   typed by hand stands, and a noun a roll wrote is replaced.
+4. **The lair chance.** Choose By lair chance.
+   *Observable:* the card shows the d100 first, and the formula rolled is the side
+   the card names.
+5. **The monster beside it.** Add a stack with no count and one with a side in units.
+   *Observable:* the rows read Roll again, nothing and Roll. A press on the side in
+   units warns, naming the monster, and writes nothing. A press on its other side
+   sizes that stack alone, on a card that names it alone, and leaves the group's noun.
+   A re-roll of the first monster leaves the second's count and roll standing.
+6. **No Roll to press.** Set a count by hand on an empty stack, then zero both, then
+   drop a creature whose every side is in units.
+   *Observable:* the hand's row has no Roll and says so, zeroing brings the Roll back,
+   and the units row has no Roll and names its sides.
+7. **A body out.** Press Individuate, and in a second pass Record casualties.
+   *Observable:* that row's Roll refuses before any dialog, naming the stack, and a
+   second monster's Roll still writes its own stack.
+8. **The token.** Place a token and view the scene on both seats.
+   *Observable:* a Player reads the noun over the mask. The Judge's nameplate reads
+   the name and the count, and follows a count that changes. At The name and the
+   count, both seats read that and the art, and turned back it masks again.
+9. **Make Encounter.** Press it on the monster sheet.
+   *Observable:* a group opens, holding the creature, filed under Encounters, masked,
+   linked and hostile, and a token placed before the Roll gives nothing away. A
+   player who owns a monster is not offered the tool.
+10. **The Player seat.** Grant Observer, then Owner, on a group.
+    *Observable:* an Observer has no field, and an Owner has the counts. Neither has
+    a Roll or the reveal.
+11. **Two windows.** Open two groups' sheets and both dialogs at once, then two rows'
+    dialogs on one sheet.
+    *Observable:* each drop reaches its own sheet, each dialog its own group or row,
+    both rolls stand, and two presses post two cards.
+12. **The type size.** Raise `--acks-fs-base` and reopen.
+    *Observable:* the Roll, the reveal, its line, a stack's note and the dialog all
+    grow, and neither a stack's head nor the reveal bleeds sideways.
+13. **A family.** Drop the family and pick a variant.
+    *Observable:* the stack is of that variant, and its line rolls.
+14. **The scene.** Declare the scene a delve, a journey, then a settlement.
+    *Observable:* the dialog opens on dungeon, wilderness and wilderness. A kept party
+    on an undeclared scene gives its mode's line.
+15. **An unlinked token.** Open the sheet of a token whose actor is its own copy.
+    *Observable:* the Roll refuses and says where to press it.
+
+Teardown: the swept ledger. Everything else stays for the next walk.
 
 ## Automated Animations
 

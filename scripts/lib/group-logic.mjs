@@ -9,7 +9,7 @@
  * and `structuredClone` is a standard built-in in both Node and the browser.
  */
 import { MODULE_ID } from "./constants.mjs";
-import { appearingFormula } from "./encounter-line.mjs";
+import { appearingFormula, sideFormula } from "./encounter-line.mjs";
 
 /** The registered actor sub-type a stack is stored as. */
 export const GROUP_ACTOR_TYPE = `${MODULE_ID}.group`;
@@ -158,17 +158,31 @@ export function cleanDelta(delta) {
 }
 
 /**
- * A monster's number-appearing → a size dice formula, or null if unstated. See
- * docs/lib/GROUPS.md, "Ecology runway — READ only, deliberately unimplemented".
- * @param {object} source - a prototype actor (may carry monster extras)
+ * A source's monster extras: a live actor's flag, or a stack snapshot's, which
+ * is a plain object.
+ * @param {object} [source] a prototype actor or its snapshot
+ * @returns {object|null}
+ */
+export function ecologyOf(source) {
+  return source?.getFlag?.(MODULE_ID, "extras") ?? source?.flags?.[MODULE_ID]?.extras ?? null;
+}
+
+/**
+ * A monster's number-appearing → a size dice formula, or null if unstated. With
+ * no `state` this is the first side that states a count. With a `state` it is
+ * that side alone, and a line that states a count anywhere never falls through
+ * to core's field, which holds the first count and so never a lair's.
+ * @param {object} source - a prototype actor or its snapshot
  * @param {"wilderness"|"dungeon"} [context]
+ * @param {"wandering"|"lair"|null} [state]
  * @returns {string|null} a dice formula, or null if unstated
  */
-export function sizeFromEcology(source, context = "wilderness") {
+export function sizeFromEcology(source, context = "wilderness", state = null) {
   if (!source) return null;
-  const extras = source.getFlag?.("acks-extras", "extras");
-  const rich = appearingFormula(extras?.encounter?.[context]);
+  const line = ecologyOf(source)?.encounter?.[context];
+  const rich = state ? sideFormula(line?.[state]) : appearingFormula(line);
   if (rich) return rich;
+  if (state && (line?.wandering?.number || line?.lair?.number || state === "lair")) return null;
   const core = source.system?.details?.appearing?.[context === "dungeon" ? "d" : "w"];
   return core ? String(core).trim() : null;
 }

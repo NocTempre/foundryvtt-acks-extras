@@ -66,10 +66,12 @@ and explicit `hp`/`aac`/`details`. Same reasoning as `acks-extras.animal`
 
 ### The collective noun is data
 
-`system.noun` is filled from the monster stat block's ecology (`encounter.*.noun` — a
-*pack* wandering, a *tribe* in its lair) or the unit category, and is always
-GM-overridable. The internal type name is deliberately neutral (`group`) so it
-never contradicts a displayed noun the way `unit` would on a kobold pack.
+`system.noun` is what a Roll read off the side it rolled (`encounter.*.noun` — a
+*pack* wandering, a *tribe* in its lair), else the unit category's word. The first
+monster rolled writes it, and only that monster's re-roll replaces it. A noun a hand
+typed stands through every Roll.
+The internal type name is deliberately neutral (`group`) so it never contradicts a
+displayed noun the way `unit` would on a kobold pack.
 
 ## The lifecycle (`scripts/group.mjs` + `scripts/group-logic.mjs`)
 
@@ -89,7 +91,7 @@ the formation feature all read it with no special-casing.
 
 `group-logic.mjs` is the **Foundry-free** half (the pure decisions —
 `nextOrdinal`, `memberName`, `isDerivedEffect`, `cleanDelta`, `sizeFromEcology`),
-split out so it imports under Node and is unit-tested in `tools/test-logic.mjs`,
+split out so it imports under Node and is unit-tested in `tools/test-lib.mjs`,
 the same split as `vocab.mjs` vs the Foundry-only `fields.mjs`.
 
 ### Derived effects do not survive recall
@@ -128,15 +130,76 @@ before the other's write, and one fold is lost. A body sent out and straight
 back is two deletions before the first write lands, and the second one's
 guard is the uuid the first one recorded.
 
-## Ecology runway — READ only, deliberately unimplemented
+## The Roll
 
-`sizeFromEcology(source, context)` is the ONE reader of monster stat-block data
-and the only ecology consumption today: a monster's number-appearing → a size
-formula, soft-read so a monster with no stat block still resolves through core
-`system.details.appearing`, and **not auto-rolled** (the Judge decides when a
-group is sized). The richer seams named in `group-data.mjs`
-— lair chance, supply cost, `battleRating.unit` for mass combat — are documented
-and left unread.
+Every monster's row has its own Roll, a Judge's on an editable sheet.
+`rollEncounter(group, stackKey, {context, state})` (`scripts/lib/group-encounter.mjs`,
+its decisions in `group-encounter-logic.mjs`) sizes that stack from its creature's
+ecology, in one write, and posts one card to the Judges with every step. A press
+rolls that monster alone, and a re-roll replaces only what that monster's roll made.
+Nothing rolls until a Judge presses it: a stack gets its formula when it is added,
+and its count from a Roll or a hand. `context` is the dungeon or the wilderness line.
+`state` is a side, or `chance`, which throws that monster's lair chance and lets it
+choose the side (JJ ch. 2).
+
+`sizeFromEcology(source, context, state)` is the ONE reader of a side. Named a
+state, it reads that side alone. Core's `details.appearing` stands for a wandering
+side only, and only where the line states no count anywhere, since it holds the
+first count and so never a lair's.
+
+| Stack | Its row |
+|---|---|
+| Empty, or sized by an earlier roll | A Roll, which throws the side's formula on Foundry's `Roll` and writes `size.current`, `size.initial`, `size.formula` and `rolled` |
+| A count with no `rolled` | No Roll: a hand set it, and it says to zero both counts to roll |
+| Some sides in units | A Roll, and a note naming those sides, since units are no bodies. A press on one writes nothing and says so |
+| Every side in units, or no count stated | No Roll, and a note says why |
+| No creature behind it | No Roll |
+
+A stack that holds a record, or a living count under its initial one, refuses its
+Roll before a die is thrown, because a new count would erase those bodies. The stack
+beside it still rolls, and a hand's count refuses nothing, since no Roll would write
+it. A token whose actor is its own copy refuses too: the write would reach that token
+alone. Every new group is linked (`GroupData._preCreate`), and a create that states
+`actorLink` keeps what it states.
+
+The Roll writes no body. A rolled stack stays pristine until `materializeMembers`
+rolls each body's own hit points as it becomes individual.
+
+The first press makes the group an encounter: it sets the reveal, takes the art of
+the monster pressed where the group has none, and writes the token defaults (linked,
+hostile, name on hover). Make Encounter on the monster sheet does all of that at
+creation, so a token placed before the Roll gives nothing away. A later press leaves
+the reveal and the token defaults as they stand.
+
+The dialog opens on the line the viewed scene reads. Lib cannot import a feature, so
+it calls `ROLL_CONTEXT_HOOK` and formation answers (`travel.sceneEncounterLine`):
+the scene's travel system, else the mode of a party on it. A settlement reads no
+line, so the dialog stays on wilderness.
+
+## The reveal
+
+`system.reveal` is what every seat reads off the token. Blank is no encounter, and
+this module leaves that token alone. `noun` is the noun alone, over core's default
+art, because a creature's art names it as surely as its name does. `full` is the name,
+the count and the art.
+
+The Judge's select on the sheet sets it, and hiding a token is core's own toggle.
+Nothing sets it from a scouting result yet: `docs/ROADMAP.md`, "Groups".
+
+The name is the token document's own, so the combat tracker and a chat speaker read
+what the map does. The primary GM's `updateActor` hook (`registerEncounterTokens`)
+keeps the prototype and every placed token on the face, the count included at `full`.
+A hand's token name or art is overwritten for as long as `reveal` is set. The Judge's
+own nameplate reads the name and the count whatever the reveal (`refreshToken`), so
+two masked tokens stay two.
+
+Deployed bodies are seen on the field and keep their own names. The reveal does not
+reach them.
+
+## Seams left unread
+
+Supply cost and `battleRating.unit` for mass combat, named in `group-data.mjs`, are
+documented and read by nothing.
 
 ## Boundaries / what is NOT here
 
@@ -153,13 +216,14 @@ and left unread.
 
 ## Verification
 
-- Offline: `tools/test-logic.mjs` covers the Foundry-free lifecycle logic
+- Offline: `tools/test-lib.mjs` covers the Foundry-free lifecycle logic
   (ordinals, naming, derived-effect stripping, delta cleaning, ecology read).
   `tools/test-group-lifecycle.mjs` drives the deletion hook over mocked
   documents: a moved body, a fallen moved body, a round trip, a plain
   deletion, a successor that is not the same body, and a twin on another
-  scene.
+  scene. `tools/test-group-encounter.mjs` drives the Roll, Make Encounter and
+  the token hooks, its dice asserted by the formula thrown.
 - Live: a body moved between scenes is docs/lib/TESTING.md, "A group body
-  moved between scenes".
+  moved between scenes"; the Roll and the reveal are "The encounter group".
 - Live: the model registration, sheet, and deploy/recall/detach round-trip need
   the test world (they write tokens and actors) and are a release gate.

@@ -1,0 +1,19 @@
+{{!-- One monster's Roll, whispered to the Judges: where and how it was found, the
+      lair throw when one was made, and its die or why it has none. --}}
+<div class="acks-lib-group-roll-card">
+  <header class="acks-lib-group-roll-card__head">
+    <i class="fa-solid fa-dice" inert></i>
+    <strong>{{title}}</strong>
+    <span class="hint">{{where}} · {{found}} · {{noun}}</span>
+  </header>
+  {{#if lair}}
+    <p>{{localize "ACKS-LIB.group.roll.lairThrow" name=lair.name chance=lair.chance}}
+      <span class="hint">d100</span> — <strong>{{lair.total}}</strong> →
+      {{#if lair.inLair}}{{localize "ACKS-LIB.group.roll.state.lair"}}{{else}}{{localize "ACKS-LIB.group.roll.state.wandering"}}{{/if}}</p>
+  {{/if}}
+  <p class="acks-lib-group-roll-card__stack" data-kind="{{stack.kind}}">
+    {{stack.label}}{{#if stack.formula}}: {{stack.formula}} — {{stack.dice}} = <strong>{{stack.total}}</strong>{{else}}: <span class="hint">{{stack.note}}</span>{{/if}}
+    {{#if stack.cite}}<span class="hint">({{stack.cite}})</span>{{/if}}
+  </p>
+  <p class="hint">{{localize "ACKS-LIB.group.roll.cardCite"}}</p>
+</div>

@@ -842,6 +842,18 @@ export function inferredTravelSystem(scene) {
 }
 
 /**
+ * The encounter line a scene reads: what it calls for, else the mode of a party
+ * standing on it. A settlement has neither line, so it answers nothing.
+ * @returns {"dungeon"|"wilderness"|null}
+ */
+export function sceneEncounterLine(scene) {
+  if (!scene) return null;
+  const party = Object.values(getFormations()).find((f) => f.sceneId === scene.id);
+  const mode = inferredTravelSystem(scene).system ?? (party ? travelOf(party).mode : null);
+  return { delve: "dungeon", journey: "wilderness" }[mode] ?? null;
+}
+
+/**
  * Whether a scene update's `changes` touch what `isExpeditionScale` reads — the
  * grid's distance or its units — so the scale the map shows may have changed.
  * A grid's size in pixels, colour or style says nothing about the scale.

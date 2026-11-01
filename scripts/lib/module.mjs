@@ -67,12 +67,14 @@ import AnimalData from "./data/animal-data.mjs";
 import GroupData from "./data/group-data.mjs";
 import TemplateData from "./data/template-data.mjs";
 import * as groups from "./group.mjs";
+import * as groupEncounter from "./group-encounter.mjs";
 import * as templateLogic from "./template-logic.mjs";
 import { GroupSheet } from "./apps/group-sheet.mjs";
 import { TemplateSheet } from "./apps/template-sheet.mjs";
 import { registerMountCleanup, registerMountDrop } from "./mount.mjs";
 import { registerStorageCleanup, registerStorageRelay, DELETE_POLICY_SETTING } from "./storage.mjs";
 import { registerGroupCleanup } from "./group.mjs";
+import { registerEncounterTokens } from "./group-encounter.mjs";
 import { FollowerCardSheet } from "./apps/follower-card-sheet.mjs";
 import { followerCardContext, renderFollowerCard, FOLLOWER_CARD_TEMPLATE, FOLLOWER_CARD_HOOK } from "./follower-card.mjs";
 import { FRAME_TEMPLATES } from "./frame.mjs";
@@ -158,7 +160,9 @@ const localImpl = Object.freeze({
   // and a subject's `gifts`.
   // 30: places — `isMarkerActor`, the bodies whose token marks a place.
   // 31: worldTime — whether a step of the clock crossed a dawn.
-  apiVersion: 31,
+  // 32: groupEncounter — the Roll, Make Encounter and the reveal;
+  // `sizeFromEcology` reads one named side where a state is given.
+  apiVersion: 32,
   vocab,
   fields,
   /**
@@ -257,6 +261,12 @@ const localImpl = Object.freeze({
   GroupData,
   GROUP_TYPE,
   groups,
+  /**
+   * An encounter: a group rolled up from its creature's ecology
+   * (group-encounter.mjs). `rollEncounter`, `makeEncounter`, `rollRefusal`, and
+   * `ROLL_CONTEXT_HOOK`, where a feature answers which line a scene reads.
+   */
+  groupEncounter,
   /** The `acks-lib.template` generator actor: model + pure roll/resolve. */
   TemplateData,
   TEMPLATE_TYPE,
@@ -437,6 +447,7 @@ Hooks.once("init", () => {
   registerStorageCleanup();
   void registerStorageRelay();
   registerGroupCleanup();
+  registerEncounterTokens();
 
   // Refuse hand-deletion of the effects this module maintains (managed-effects.mjs).
   registerManagedEffectGuard();

@@ -150,10 +150,38 @@ named.*
 
 ## Groups of monsters
 
-A monster's **number appearing** sizes a group: the group feature reads it into a
-dice formula, but nothing auto-rolls it — the Judge decides when a group is
-sized. A source with no ecology data returns nothing, and you type the size; so
-does a count in units, which is not a number of bodies.
+Drop a monster on a group's sheet, or press **Make an encounter group** on the
+monster's tools rail for a new group with the creature already in it, filed under
+Encounters.
+
+Each monster in the group has its own **Roll** on its row. Press it, choose the dungeon
+or the wilderness line, and choose wandering, in lair or by lair chance, which throws
+that monster's chance first and lets it pick the side. Its line reads out in the dialog
+before you press, and the dialog opens on the line the scene calls for.
+
+That monster's stack is sized at once, and a card only the Judges see shows each die.
+Every other stack stays as it is, so a mixed group is rolled a monster at a time. Every
+count stays editable, and hovering one says where it came from.
+
+**Roll again** replaces what that monster's last Roll sized, your change to it included.
+A row you typed a count on has no Roll: zero both counts to get it back. A side counted
+in units is not a number of bodies, so a Roll cannot size it. The row names those sides,
+and a monster counted in units on every side has no Roll, nor has a creature with no
+count imported. Once a body from a rolled stack is out, on record or fallen, that row's
+Roll refuses, because a new count would erase it.
+
+The first Roll takes the group's noun from the side it read, unless you typed one, and
+marks its token hostile and linked to the group. Hit points are not rolled here: each
+body rolls its own as it is deployed or individuated.
+
+**What players see.** Token shows, on the sheet, sets what every seat reads off the
+token: **The noun alone**, over a masked portrait, or **The name and the count**, with
+the art. Your own nameplate always reads the name and the count. While it is set the
+token's name and art follow it, so a name or art you set on the token by hand is
+replaced. Hide the token with Foundry's own toggle until they meet it.
+
+A family dropped on the sheet asks which variant the stack is, and generates that
+creature, as the template's own Generate does.
 
 ![](../releases/v3.0.0/group-sheet.png)
 

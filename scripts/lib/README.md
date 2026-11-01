@@ -92,6 +92,9 @@ sibling modules) — never the import path for this module's own features.
 | `encounter-line.mjs` | A stat block's encounter line: `parseEncounterLine` into `{noun, number, unit}` per side, `appearingFormula` (a side counted in units gives none), `countText`, and `appearingChanges` for core's `details.appearing`. The importers, the monster sheet and the group all read lines here. Foundry-free. |
 | `group-logic.mjs` | Pure stacked-actor lifecycle decisions, the flags a deployed body carries, and `deployedBodies` — the ONE read of which tokens are a stack's bodies. Foundry-free half of group. |
 | `group.mjs` | Group operations — per-stack lifecycle of a stacked actor. |
+| `group-encounter-logic.mjs` | Whether a row offers a Roll, what a press does to its stack, where a count came from, and what the token shows a seat. Foundry-free half of group-encounter. |
+| `group-encounter.mjs` | An encounter: one monster's `rollEncounter`, `makeEncounter`, `rollRefusal`, and the hooks that keep a token on its reveal (docs/lib/GROUPS.md). |
+| `template-generate.mjs` | `generateFromTemplate`, the Foundry half of the generator, shared by the template's sheet and a family dropped on a group. |
 | `template-logic.mjs` | Generator actors (dragon by age, elemental by tier): choice rolling + patch resolution. Foundry-free. |
 | `follower-card.mjs` | The printed ACKS II Follower Card: one layout, two surfaces. |
 | `roll-card.mjs` | ONE chat card for a roll several people made at once — use this before hand-building a `ChatMessage`. |

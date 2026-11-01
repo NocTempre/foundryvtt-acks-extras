@@ -27,6 +27,8 @@ import { loadStone, capacityStone, borneBy6 } from "../lib/capacity.mjs";
 import { riderOf } from "../lib/mount.mjs";
 import { hdFormula } from "../lib/actor-read.mjs";
 import { appearingChanges, countText } from "../lib/encounter-line.mjs";
+import { lairChanceOf } from "../lib/group-encounter-logic.mjs";
+import { makeEncounter } from "../lib/group-encounter.mjs";
 import { ANIMAL_TRAINING } from "../lib/data/animal-data.mjs";
 import { FRAME_CLASS, FRAME_LANG_PREFIX, FRAME_VIEW_ACTIONS, FrameMixin } from "../lib/frame.mjs";
 import { SAVE_KEYS, saveCells, hpCell, num, sheetFlag } from "../lib/frame-model.mjs";
@@ -83,13 +85,14 @@ const TAB_LIST = Object.freeze([
   { id: "effects", label: "ACKS.category.effects" },
 ]);
 
-/** The tools rail, top to bottom; `source` appears only on an imported creature. */
+/** The tools rail, top to bottom; `source` appears only on an imported creature, `makeEncounter` only to a Judge. */
 const TOOLS = Object.freeze([
   { key: "editDescription", icon: "fa-solid fa-pen-to-square" },
   { key: "changeArt", icon: "fa-solid fa-image" },
   { key: "editTags", icon: "fa-solid fa-tags" },
   { key: "ownership", icon: "fa-solid fa-user-lock" },
   { key: "source", icon: "fa-solid fa-book-open", imported: true },
+  { key: "makeEncounter", icon: "fa-solid fa-people-group", judge: true },
   { key: "showTweaksDialog", icon: "fa-solid fa-screwdriver-wrench", title: "tweaks" },
 ]);
 
@@ -204,6 +207,7 @@ export function createFullMonsterSheet(Base) {
         changeArt: FullMonsterSheet.#onChangeArt,
         editTags: FullMonsterSheet.#onEditTags,
         ownership: FullMonsterSheet.#onOwnership,
+        makeEncounter: FullMonsterSheet.#onMakeEncounter,
         source: FullMonsterSheet.#onSource,
       },
     };
@@ -414,7 +418,7 @@ export function createFullMonsterSheet(Base) {
         statblock: { columns: statblock.columns, intro: loc("statblock.intro") },
         service: buildServicePanel(actor, { isGM: game.user.isGM, pins: sheetFlag(actor).pins ?? [] }),
         pins: this.#pinBar(statblock.columns),
-        sheetTools: TOOLS.filter((t) => !t.imported || this.#oseRecord).map((t) => ({ key: t.key, icon: t.icon, title: loc(`frame.tools.${t.title ?? t.key}`) })),
+        sheetTools: TOOLS.filter((t) => (!t.imported || this.#oseRecord) && (!t.judge || game.user.isGM)).map((t) => ({ key: t.key, icon: t.icon, title: loc(`frame.tools.${t.title ?? t.key}`) })),
       });
     }
 
@@ -660,7 +664,7 @@ export function createFullMonsterSheet(Base) {
           return true;
         }
         case "lair": {
-          const chance = MonsterExtras.fromActor(actor).encounter?.lairChance;
+          const chance = lairChanceOf(actor);
           if (chance == null) return false;
           await plainRoll(actor, "1d100", {}, loc("statblock.row.lairFlavor", { n: num(chance) }));
           return true;
@@ -822,6 +826,12 @@ export function createFullMonsterSheet(Base) {
     static #onOwnership() {
       const Config = foundry.applications.apps.DocumentOwnershipConfig;
       if (Config) new Config({ document: this.actor }).render(true);
+    }
+
+    /** One press: a group holding this creature, with its sheet open for the Roll. */
+    static async #onMakeEncounter() {
+      const group = await makeEncounter(this.actor);
+      group?.sheet?.render(true);
     }
 
     /** Alignment and the XP award, the two tags the art row prints that have no other pen on the frame. */

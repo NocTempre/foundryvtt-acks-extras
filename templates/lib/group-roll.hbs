@@ -1,0 +1,23 @@
+{{!-- One monster's Roll: which line, which side, and what its line says for them,
+      read before the press. --}}
+<div class="acks-lib-group-roll">
+  <label>{{localize "ACKS-LIB.group.roll.contextLabel"}}
+    <select name="context">
+      {{#each contexts}}
+        <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+      {{/each}}
+    </select>
+  </label>
+  <label>{{localize "ACKS-LIB.group.roll.stateLabel"}}
+    <select name="state">
+      {{#each states}}
+        <option value="{{value}}" {{#if disabled}}disabled{{/if}}>{{label}}</option>
+      {{/each}}
+    </select>
+  </label>
+  <div data-roll-line data-tooltip-text="{{lineTip}}">
+    {{#each lines}}
+      <span class="acks-lib-group-roll__line">{{this}}</span>
+    {{/each}}
+  </div>
+</div>

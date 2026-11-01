@@ -242,7 +242,7 @@ lines". Each slice ships usable; the tier is what it reaches.
 
 | Slice | Delivers | Reaches |
 |---|---|---|
-| 1 | The Roll on the group sheet, Make Encounter, token defaults, noun, card | A, and B as a bare quantity |
+| 1 | Landed: `GROUPS.md`, "The Roll" and "The reveal" | A, and B as a bare quantity |
 | 2 | Recipe schema, engine, Ecology-tab editor, units of units, parts into stacks | B and C, Judge-authored |
 | 3 | The importer writes recipes: young, leaders, ratios, branches, role XP | B and C, imported |
 | 4 | Fight: deploy count, combat bridge, morale, non-fighters stay in | |
@@ -271,7 +271,8 @@ lines". Each slice ships usable; the tier is what it reaches.
    card shows the work.
 3. What a player sees of the token depends on scouting: the noun with no count, or the
    name and the count. The Judge's reveal, and whether scouting sets it, are Slice 1's
-   to design.
+   to design. Designed: `GROUPS.md`, "The reveal"; the link to scouting is
+   `docs/ROADMAP.md`, "Groups".
 4. Each body rolls its own hit points (§3g).
 5. (2026-11-01) The group sheet reads as an inventory, its entries draggable: a row
    dragged onto the map deploys, and a row dragged onto another group moves. That move

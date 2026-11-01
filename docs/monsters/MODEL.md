@@ -131,7 +131,8 @@ the other channels, since two editors on one field would submit the name
 twice) and the tags: alignment, size, lair chance, treasure type,
 intelligence, saves-as. The tools rail: edit the appearance, change the
 portrait, alignment and XP award (a prompt), ownership, the Source dialog
-(only on an imported creature) and the system's Actor Tweaks.
+(only on an imported creature), Make Encounter (a Judge's alone; it opens a new
+group holding this creature, `docs/lib/GROUPS.md`) and the system's Actor Tweaks.
 
 **Statblock** is the first tab and the dashboard: three columns of
 rule-headed groups. Saves, reactions (morale, loyalty in service, reaction,
