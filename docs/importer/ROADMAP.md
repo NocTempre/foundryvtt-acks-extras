@@ -1041,7 +1041,7 @@ printing is correct) — and AX2 is unchanged. The underground city stays out
 of scope.
 
 **AX1 whole is in progress** under the rulings of 2026-10-17 (DECISIONS),
-with the build plan in `wip/20261017-ax1-adventure-design.md`: one Adventure
+with what has landed in MODEL and TESTING: one Adventure
 per book, with AX3's per-map one retired; key spaces of neutral rows; four
 maps and the fort's floor plans joined as scenes, with walls traced at import
 on the plans a tracer mode reads; characters from the page;
