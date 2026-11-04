@@ -108,6 +108,11 @@ hand and the column straightens out behind the new facing. A combat deploy puts
 each member's token on the square their portrait stood on. Players see the
 column only where they can see the squares it stands on.
 
+![](../releases/v11.14.0/formation-column.png)
+
+*A Player's view down a lit corridor: the party token at the head, and the
+members' portraits on the tinted squares it walked.*
+
 Two controls on the **Order** tab, beside the frontage, set this per party:
 
 - **On the map**: *Marching order* (the column above), or *Fixed size*, where
@@ -1022,6 +1027,11 @@ reaches and how long it burns come from your book through the importer; until
 the books are imported a lit torch sheds no light, and the Kit tab says the
 figure is not imported. You can change any of them in the Ruledata Browser.
 
+![](../releases/v11.14.0/formation-lights.png)
+
+*The Kit tab's light sources, each with the turns its imported burn time
+leaves. Hover the turns to see where the figure came from.*
+
 If your world imported its books before the light figures existed, bring them
 in without a full import: open **ACKS Extras Macros**, run **Reimport One
 Shelf**, and choose **Rules tables**, with your books open on that seat. The
@@ -1055,6 +1065,11 @@ encounter still happens, and its card says no distance was rolled. Hover the
 die, the target or the distance on a card to see where it came from. To stop the automatic throw altogether, set **Wandering
 monster throw frequency** to 0 in the module settings; **Require rests in the
 delve** (above) is the separate switch for the rest.
+
+![](../releases/v11.14.0/formation-encounter-throw.png)
+
+*A wandering-monster throw's card: the die and what it needs, the party's
+signature, and the roll.*
 
 A monster met off its own floor can be adjusted (JJ p. 36). Give the zone its
 **Dungeon level**, and give the table the **Monster level** it is written for:
@@ -1288,6 +1303,11 @@ shows, and the card says which check; any other ability rolls its own throw.
 Hover a target to see where it came from and each part. Members who made no roll are named under
 the card with the reason, and if nobody holds the ability the card says nobody
 rolled. No round or turn passes.
+
+![](../releases/v11.14.0/formation-audit-roll.png)
+
+*A Party abilities row rolled for the whole party: each holder's total, target
+and verdict, and the member who made no roll named underneath.*
 
 ## Common problems
 
