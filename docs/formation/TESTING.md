@@ -3327,6 +3327,8 @@ The party stays.
 
 ## The rest switch (added with the Require rests setting)
 
+`tools/live/formation-column.mjs` walks it.
+
 **Fixtures.** One party actor, `formation/rest-party`, kept, with one character
 member seated through the party sheet's drop (*Core drive mechanics*) and no
 Endurance on it. At the section's start the party's record is brought to a new
@@ -3369,8 +3371,8 @@ Report the world's `restRequired` as found and put it back; the party stays
 ## A party in a combat (added with the party-token switch)
 
 The party token deploys the party into a combat and, added again, gathers it.
-Driven on the GM seat through the real token HUD; no walk in `tools/live` covers
-it yet.
+Driven on the GM seat through the real token HUD; `tools/live/formation-audit.mjs`
+walks it.
 
 **Fixtures** (kept; found by marker, built when none carries it):
 
@@ -3429,6 +3431,7 @@ the run tracked through `api.sweepTracked()`. The kept fixtures stay.
 
 The repair tool's `formation.partyTokens` and `formation.partyActors` checks.
 Fixtures are the three markers above; the run also tracks everything it builds.
+`tools/live/formation-audit.mjs` walks step 6.
 
 1. **A same-scene copy.** Build the copy as in *A party in a combat* step 5.
    `scanRepairs({only: "formation.partyTokens"})` through the repair window or
@@ -3486,7 +3489,7 @@ Teardown as above; the repair report whisper is the module's, tracked by id.
 
 The roll control on each row of the Skill audit's party roster. Driven on the GM
 seat through the real window; offline, `tools/test-skill-audit-roll.mjs` pins the
-card, the evaluator and the footnote.
+card, the evaluator and the footnote. `tools/live/formation-audit.mjs` walks it.
 
 **Fixtures** (kept; found by marker, built when none carries it):
 
@@ -3540,7 +3543,7 @@ fixtures stay.
 
 The party token is the head of a column drawn behind it, each lit bearer
 shines from their own cell, and a managed token's light is unpadded (MODEL
-§The column; lib MODEL, Senses). No walk in `tools/live/` names this section.
+§The column; lib MODEL, Senses). `tools/live/formation-column.mjs` walks it; its header names the steps it leaves.
 The books are mapped, but the light table arrives only with a Rules tables run
 made since it existed: run Rules tables in Reimport One Shelf with the books
 open if `acksExtras.lib.light?.lightFigures?.("torch")` reads nulls. Then read
@@ -3653,8 +3656,8 @@ gather removes; if it stands, reclaim it as step 14 says.
 
 The encounter throw's die, the turns between throws, the target and the
 encounter distance's dice arrive with the `delveEncounters` import (MODEL,
-"The delve's wandering throw"). No walk in
-`tools/live/` names this section. A world mapped before this release holds no
+"The delve's wandering throw"). `tools/live/formation-column.mjs`
+walks it. A world mapped before this release holds no
 such document until Rules tables is run again in Reimport One Shelf with the
 books open; read what arrived in the Ruledata Browser and use those figures
 below.
