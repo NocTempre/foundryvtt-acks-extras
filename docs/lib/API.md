@@ -1188,6 +1188,9 @@ merge) asks for it, and the generator then rolls `system.hp.hd` for the
 actor's value and max, logged as `{axis: "hitPoints", source: "rolled"}`. A
 cell whose figures leave hit points unprinted (a derived leader) uses it, and
 a later cell that writes fixed hit points turns it off.
+A cell may carry `dropItemTypes` (item types): when it matches, every item of
+those types leaves the payload, whichever axis or cell added it. A
+noncombatant dependant drops `weapon`, so it keeps no attack.
 `rollDice(expr)` rolls a die with a flat modifier (`"1d4+1"`); the generator
 uses it for a caster whose `extras.spellcasting.levelDie` stands in for a
 printed level, logs the roll as `{axis: "casterLevel"}`, and the magic

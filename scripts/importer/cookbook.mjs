@@ -3586,10 +3586,11 @@ const FAMILY_ONE_OFFS = {};
 /**
  * Carry the variants another book merged into a held family template onto a
  * fresh build of it: each variant option the build lacks (by cookbook id and
- * by key), its cells, and the role options those cells name. Mutates `axes`
- * and `cells`.
+ * by key), its cells, and the role options those cells name. A held option
+ * whose cookbook id is in `lore` is this family's own description, which the
+ * build reads as prose, and is never carried. Mutates `axes` and `cells`.
  */
-function carryMergedVariants(held, axes, cells) {
+function carryMergedVariants(held, axes, cells, lore = new Set()) {
   const heldAxes = sysObject(held).axes ?? [];
   const heldCells = sysObject(held).cells ?? [];
   const vIn = axes.find((a) => a.key === "variant");
@@ -3598,7 +3599,7 @@ function carryMergedVariants(held, axes, cells) {
   const idOf = (o) => o.flags?.[MODULE_ID]?.cookbook?.id ?? null;
   const ids = new Set(vIn.options.map(idOf).filter(Boolean));
   const keys = new Set(vIn.options.map((o) => o.key));
-  const kept = vHeld.options.filter((o) => !ids.has(idOf(o)) && !keys.has(o.key));
+  const kept = vHeld.options.filter((o) => !ids.has(idOf(o)) && !keys.has(o.key) && !lore.has(idOf(o)));
   if (!kept.length) return;
   vIn.options.push(...kept);
   const keptKeys = new Set(kept.map((o) => o.key));
@@ -3635,6 +3636,7 @@ async function importFamily(bookId, famId, folderId) {
   const cb = found.cb;
 
   const options = [];
+  const loreIds = new Set();
   const memberText = new Map();
   const memberXp = new Map();
   let lore = "";
@@ -3646,6 +3648,7 @@ async function importFamily(bookId, famId, folderId) {
     // An overview that reads another member's stat block is the family's
     // description, not a variant: its prose becomes the template's own.
     if (overviewIsLore(member, fam.members, fam.name, (id) => cb.entries[id])) {
+      loreIds.add(member.id);
       const node = await executeEntry(session.doc, cb, data.registers, member.id);
       if (node.ok) lore = entryText(node, member.id, entry.cite);
       continue;
@@ -3839,7 +3842,7 @@ async function importFamily(bookId, famId, folderId) {
   // (`createDoc` under `withRewrite`); the variants another book merged into
   // it, and their cells, are carried over as they stand.
   if (existing && isRewriting(famId)) {
-    carryMergedVariants(existing, axes, cells);
+    carryMergedVariants(existing, axes, cells, loreIds);
     if (axes.some((a) => a.key === "role")) out.nameFormat = "{variant} {role}";
   }
 

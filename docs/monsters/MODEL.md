@@ -319,7 +319,8 @@ document's slots at that level and draws the repertoire. With no such class in
 the world, the caster has no slots and the class word stays on the sheet.
 
 **Dependants.** A line printing their figures gives a noncombatant cell (speed,
-AC, hit points, morale, damage total 0, `extras.noncombatant`). "Drudges fight
+AC, hit points, morale, damage total 0, `extras.noncombatant`), which drops the
+member's weapons (`dropItemTypes`), so it generates with no attack. "Drudges fight
 as KIND" gives the named member's combat block whole (AC, hit points, rating,
 throw, saves, damage total, morale, XP).
 
@@ -347,7 +348,9 @@ and its tooltip names each part.
 
 **Repair.** A family is built only by its importer; a repair in place
 (`withRewrite`) runs that build and writes it over the held template whole,
-carrying over the variants another book merged into it.
+carrying over the variants another book merged into it. A held variant that is
+the family's own overview, which the build reads as its description, is never
+carried back.
 
 ## The Kit axis
 
@@ -390,7 +393,10 @@ cells carrying `extras.kit.compute`:
   class over its warrior's (the leader cell's figure less the member's), so a
   printed leader and a procedure-derived one alike keep their advantage.
 - **Unarmoured**: the kind's natural armour class, plus that same difference
-  for a leader. It changes the armour class alone.
+  for a leader. It changes the armour class alone. The natural figure is read
+  from the world's table at generation (the cell names the kind), so a Judge's
+  override counts without a rebuild, and a kind the table no longer holds
+  keeps the stat block's armour class.
 
 The figure written goes to `ac.value` and its parts to `extras.derived.kit`
 (the base figure and where it came from, the leader's and the warrior's armour

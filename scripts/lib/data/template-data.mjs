@@ -100,6 +100,9 @@ export default class TemplateData extends foundry.abstract.TypeDataModel {
           // Hit points rolled from the resolved rating at generation: a cell
           // whose page gives a rating and no hit points.
           rollHp: new foundry.data.fields.BooleanField({ required: true, initial: false }),
+          // Item types taken out of the generated creature when the cell
+          // applies, whatever added them: a noncombatant's weapons.
+          dropItemTypes: new ArrayField(str()),
         })
       ),
 

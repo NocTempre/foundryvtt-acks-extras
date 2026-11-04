@@ -93,7 +93,7 @@ export function kitPresets({ options, axes, cells, kits }) {
     if (natural) {
       // Unarmoured changes the armour class alone: the stat block's speed and
       // damage are the kind's own.
-      const kit = { troop: UNARMOURED, label: TROOP_LABELS[UNARMOURED], note: "", naturalAc: natural.naturalAc, cite: kits.byTypeCite ?? "", memberAc: Number.isFinite(memberAc) ? memberAc : null, compute: true };
+      const kit = { troop: UNARMOURED, kind, label: TROOP_LABELS[UNARMOURED], note: "", naturalAc: natural.naturalAc, cite: kits.byTypeCite ?? "", memberAc: Number.isFinite(memberAc) ? memberAc : null, compute: true };
       for (const role of [STANDARD_ROLE, ...roles]) push(role, UNARMOURED, {}, { ...kit, role });
     }
   }

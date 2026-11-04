@@ -142,6 +142,11 @@ and its slots and spells follow. A role the page prints for another kind but
 not for the one you picked shows greyed out, labelled as not printed for that
 choice.
 
+![](../releases/v11.14.0/monsters-roles.png)
+
+*A beastman family's template: the kind, the leader figures, the role and the
+kit are each an axis, above Generate.*
+
 A damage bonus shows on the Statblock after each attack's damage, and its
 tooltip names the two parts. The system adds it to every melee and missile
 damage roll.
@@ -164,11 +169,21 @@ leader rolls its hit points from its dice; the hit-point note on its Statblock
 names what its figures came from, and hovering its armour class on the rail
 names the member's armour and the rank's addition.
 
+![](../releases/v11.14.0/monsters-leader-figures.png)
+
+*The same template with Leader figures on the AXIOMS procedure and a chieftain
+picked.*
+
 A creature outside a family whose page names its leaders gets a template of
 its own beside it when you import it, named for it with "(leaders)". It works
 as a family's does, with the creature as its only kind. With the AXIOMS tables
 imported, a beastman whose page names no leaders gets one too, with the
 procedure's leaders.
+
+![](../releases/v11.14.0/monsters-standalone-leaders.png)
+
+*A creature's own leader template: Leader figures, Role and Kit, with no kind
+to pick.*
 
 ### Dressing a beastman in a troop kit
 
@@ -182,10 +197,16 @@ kit's own words, with the page, are added to its notes. A leader in a kit takes
 the row's movement and morale and keeps its own damage bonus; its armour class
 is worked out when you generate it, from the row's armour class and how much
 better armoured the leader is than its warrior. With the AXIOMS tables
-imported, *Unarmoured* gives the kind's natural armour class instead. Hover the
+imported, *Unarmoured* gives the kind's natural armour class instead, read from
+the table when you generate, so an edit to it counts without a repair. Hover the
 armour class on the rail, the morale row or a weapon's damage tag to see which
 row a figure came from; where the AXIOMS die conversion is imported, a weapon's
 damage tag also names the die its damage bonus converts it to.
+
+![](../releases/v11.14.0/monsters-kit.png)
+
+*A bugbear generated in a troop kit: hovering its armour class names the troop
+row and its page.*
 
 Import the tables before the family, or repair the family in place after
 importing them: a template built without them has no Kit axis. Mounted troops

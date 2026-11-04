@@ -303,8 +303,8 @@ Needs the MM PDF connected and the rulebook's tables imported (Manage Imports,
 Tables) before the family is, with spells and classes imported for the caster
 step. What a role cell writes is MODEL, "Family templates: the Role axis".
 
-Walked by `tools/live/monsters-leaders.mjs` (stages 1 and 2), with `rr` and
-`mm` on `ACKS_TEST_BOOKS`; the AXIOMS steps wait on a map that names `axc`.
+Walked by `tools/live/monsters-leaders.mjs` (stages 1 and 2; steps 11-14 in
+stages 4-6), with `rr`, `mm` and `axc` on `ACKS_TEST_BOOKS`.
 
 **Fixtures.**
 
@@ -313,7 +313,9 @@ Walked by `tools/live/monsters-leaders.mjs` (stages 1 and 2), with `rr` and
   it first (`api.retire("monsters/family-roles", "Actor")`), imports the
   family (the entry picker, Monsters, the family row), and marks what the
   import returned (`api.mark(uuid, "monsters/family-roles")`). A walk that
-  changed only the generator reuses it.
+  changed only the generator reuses it. Where the import lands in the library
+  compendium, `api.mark` refuses it: the walk finds the template by its
+  cookbook id instead, and writes to it only through Repair in place.
 - Each generated creature: `api.track` its uuid, read off `createActor` as in
   the section above.
 
@@ -327,7 +329,9 @@ Walked by `tools/live/monsters-leaders.mjs` (stages 1 and 2), with `rr` and
    another kind is disabled and its label says it is not printed for this
    choice. A native select's open list sends no pointer events to its
    options in most browsers, so the label is the copy to read; the
-   option's `data-tooltip` is checked by reading the attribute.
+   option's `data-tooltip` is checked by reading the attribute. In the MM's
+   beastman family every kind prints every role, so no option is disabled
+   there: this step needs a family where one kind lacks a role.
 3. With the kind pinned and Role left blank, generate five times.
    *Observable:* each actor is the Standard member, and the generation log
    shows `role` sourced `default`, never `rolled`.
@@ -437,7 +441,7 @@ leaders (MODEL, "Leaders outside a family"). Needs the MM connected and the
 rulebook's tables imported; the AXIOMS steps also need the compendium
 connected and its tables imported.
 
-Walked by `tools/live/monsters-leaders.mjs` (stages 1 and 3).
+Walked by `tools/live/monsters-leaders.mjs` (stages 1 and 3; step 5 in stage 7).
 
 **Fixtures.**
 
@@ -494,7 +498,8 @@ imported (`monsters` / `beastmanTroops`), and for the unarmoured and
 die-conversion steps the AXIOMS Compendium connected with its tables imported
 (`beastmenByType`, `damageDieConversion`).
 
-Walked by `tools/live/monsters-leaders.mjs` (stage 3).
+Walked by `tools/live/monsters-leaders.mjs` (stages 1 and 3; the Kit axis a
+repair adds is stage 1's, steps 6-8 stage 7's).
 
 **Fixtures.**
 

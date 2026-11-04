@@ -21,7 +21,7 @@ import { FOLLOWER_CARD_HOOK } from "../lib/follower-card.mjs";
 import { expectTables } from "../lib/tables.mjs";
 import { TEMPLATE_HOOKS } from "../lib/constants.mjs";
 import { makeLoc } from "../lib/util.mjs";
-import { applyGeneratedKit } from "./kits.mjs";
+import { applyGeneratedKit, importedKits } from "./kits.mjs";
 
 const loc = makeLoc("ACKS-MONSTERS");
 
@@ -105,7 +105,7 @@ Hooks.once("init", () => {
   Hooks.on(TEMPLATE_HOOKS.RESOLVED, ({ resolved }) => {
     try {
       const esc = (text) => foundry.utils.escapeHTML?.(String(text)) ?? String(text);
-      applyGeneratedKit(resolved, { noteLine: (kit) => `<p>${loc("kit.note", { label: esc(kit.label ?? ""), note: esc(kit.note || "—"), cite: esc(kit.cite || "—") })}</p>` });
+      applyGeneratedKit(resolved, { kits: importedKits(), noteLine: (kit) => `<p>${loc("kit.note", { label: esc(kit.label ?? ""), note: esc(kit.note || "—"), cite: esc(kit.cite || "—") })}</p>` });
     } catch (err) {
       console.warn(`${MODULE_ID} | kit not applied`, err);
     }

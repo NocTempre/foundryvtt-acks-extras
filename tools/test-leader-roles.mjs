@@ -330,6 +330,16 @@ ok("a cell's flags merge into the generated actor's flags", () => {
   assert.equal(r.name, "Wobbler Chieftain");
 });
 
+ok("a noncombatant dependant generates without the member's weapons, and keeps its other items", () => {
+  const { system, options } = build();
+  const gribble = options.find((o) => o.key === "gribble");
+  gribble.items = [{ type: "weapon", name: "Claw" }, { type: "ability", name: "Keen nose" }];
+  const drudge = resolveActor(system, { variant: "gribble", role: "drudge" }, { templateName: "T" });
+  assert.deepEqual(drudge.items.map((i) => i.type), ["ability"]);
+  const standard = resolveActor(system, { variant: "gribble", role: STANDARD_ROLE }, { templateName: "T" });
+  assert.deepEqual(standard.items.map((i) => i.type), ["weapon", "ability"], "the member itself keeps its weapon");
+});
+
 ok("an unpinned role generates the Standard rank and file, every time", () => {
   const { system } = build();
   for (let seed = 1; seed <= 200; seed++) {

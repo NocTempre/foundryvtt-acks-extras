@@ -117,12 +117,19 @@ export function kitArmourClass(kit, resolvedAc) {
  * `extras.derived.kit`; and the kit's own words are added to both prose
  * channels, the system biography and the Full Monster Sheet's notes, as the
  * line `noteLine(kit)` returns. A creature with no kit is left as it is.
+ * `kits` is the world's tables as `importedKits` reads them; given, an
+ * unarmoured kit naming its kind takes that kind's natural armour class from
+ * them at generation, so an override or a blanked row counts without a
+ * rebuild, and a kind the table no longer holds leaves the stat block's.
  * Returns the derivation written, or null.
  */
-export function applyGeneratedKit(resolved, { noteLine = () => "" } = {}) {
+export function applyGeneratedKit(resolved, { noteLine = () => "", kits = null } = {}) {
   const extras = resolved?.flags?.[MODULE_ID]?.[FLAG_EXTRAS];
-  const kit = extras?.kit;
+  let kit = extras?.kit;
   if (!kit) return null;
+  if (kits && kit.troop === UNARMOURED && kit.kind) {
+    kit = { ...kit, naturalAc: kits.byType?.[kit.kind]?.naturalAc ?? null, cite: kits.byTypeCite ?? kit.cite };
+  }
   let derived = null;
   if (kit.compute) {
     const system = (resolved.system ??= {});

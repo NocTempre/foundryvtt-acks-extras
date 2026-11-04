@@ -343,7 +343,9 @@ export function mergePatch(target, patch) {
  * rows it refines — the dragon's per-age-per-form damage over the age row's
  * baseline. `flags`/`token` are the actor-level channels preset options carry
  * (a family variant is a complete creature, sheet extras and token size
- * included).
+ * included). A matching cell's `dropItemTypes` takes every item of those
+ * types out of the payload, whichever axis or cell added it, so a cell can
+ * remove what its variant carries (a noncombatant's weapons).
  */
 export function resolveActor(system, choices, { baseName = "", templateName = "" } = {}) {
   // The template's FIXED foundation first (printed plain rows), then axes.
@@ -355,6 +357,7 @@ export function resolveActor(system, choices, { baseName = "", templateName = ""
   let art = "";
   let tint = "";
   let rollHp = false;
+  const drop = new Set();
   const chosen = [];
   for (const axis of system?.axes ?? []) {
     // A multi axis contributes EVERY selected option, in option-list order
@@ -386,8 +389,10 @@ export function resolveActor(system, choices, { baseName = "", templateName = ""
       // rolled from the rating at generation; a later cell writing hit points
       // of its own settles them instead.
       if (cell.rollHp || cell.merge?.hp) rollHp = !!cell.rollHp;
+      for (const type of cell.dropItemTypes ?? []) drop.add(type);
     }
   }
+  if (drop.size) items.splice(0, items.length, ...items.filter((item) => !drop.has(item?.type)));
   let name = system?.output?.nameFormat || "";
   if (name) {
     name = name.replace(/\{(\w+)\}/g, (_, key) => {

@@ -211,6 +211,21 @@ ok("unarmoured is the kind's natural armour class, a leader's own advantage adde
   assert.equal(champ.system.ac.value, 5, "the natural 2 plus the leader's 6 over its warrior's 3");
 });
 
+ok("unarmoured reads the kind's natural armour class from the world's tables at generation, not from the cell", () => {
+  const { system } = family();
+  const gen = (kits) => {
+    const r = resolveActor(system, { variant: "printer", role: STANDARD_ROLE, [KIT_AXIS]: UNARMOURED }, { templateName: "T" });
+    applyGeneratedKit(r, { kits });
+    return r;
+  };
+  const edited = gen({ byType: { printer: { naturalAc: 7 } }, byTypeCite: "WW p.9" });
+  assert.equal(edited.system.ac.value, 7, "a Judge's edit to the table counts without a rebuild");
+  assert.equal(edited.flags[MID].extras.derived.kit.cite, "WW p.9");
+  const blanked = gen({ byType: {}, byTypeCite: null });
+  assert.equal(blanked.system.ac.value, 3, "a kind the table no longer holds keeps the stat block's armour class");
+  assert.equal(blanked.flags[MID].extras.derived?.kit, undefined, "and names no kit part");
+});
+
 ok("a kit missing a part leaves the armour class the cells wrote", () => {
   assert.equal(kitArmourClass({ troop: "lightInfantry", role: "champion", ac: 5, memberAc: null }, 6), null);
   assert.equal(kitArmourClass({ troop: "lightInfantry", role: "champion", ac: 5, memberAc: 3 }, null), null);

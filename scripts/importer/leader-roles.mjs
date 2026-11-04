@@ -323,9 +323,10 @@ export function leaderCell(option, fig, { xp = null, ladder = null, ladderCite =
   return { merge, flags: Object.keys(extras).length ? { [MODULE_ID]: { extras } } : {} };
 }
 
-/** A dependant that does not fight: its printed speed, AC, hit points and morale. */
+/** A dependant that does not fight: its printed speed, AC, hit points and morale, and none of the member's weapons. */
 function dependantCell(fig) {
   return {
+    dropItemTypes: ["weapon"],
     merge: {
       movement: { base: fig.speed },
       ac: { value: fig.ac },
@@ -407,7 +408,7 @@ export function proseLeaderRoles({ options, memberText, memberXp = new Map(), ax
     }
     for (const [role, cell] of Object.entries(built)) {
       found.add(role);
-      cells.push({ by: ["variant", "role"], key: `${option.key}|${role}`, merge: cell.merge, items: [], flags: cell.flags });
+      cells.push({ by: ["variant", "role"], key: `${option.key}|${role}`, merge: cell.merge, items: [], flags: cell.flags, ...(cell.dropItemTypes ? { dropItemTypes: cell.dropItemTypes } : {}) });
     }
   }
   if (!found.size) return;
