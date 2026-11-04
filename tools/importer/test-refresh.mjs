@@ -9,6 +9,7 @@ import assert from "node:assert";
 import {
   refreshPlan,
   REPAIR,
+  policyFor,
   handWrittenProse,
   repairTally,
   repairCounts,
@@ -262,6 +263,36 @@ check("the tongues flag is the binder's", cls.update.flags[M].tongues.race === "
 const taken = refreshPlan(classSource([training("judgeTraining001", false)]), classBuilt, REPAIR.class);
 check("a training the Judge took over is not doubled", taken.replace.effects.add.length === 0);
 check("and is not removed", taken.replace.effects.remove.length === 0);
+
+/* --- a forced repair: the prose guard is lifted, the rest stays ------------- */
+const forcedMonster = refreshPlan(monsterSource, monsterBuilt, policyFor(REPAIR.monster, repairTally({ force: true })));
+check("force: a prose field the Judge wrote in is rewritten", /New lore/.test(forcedMonster.update.flags[M].extras.description.lore));
+check("force: nothing is reported kept", forcedMonster.keptProse.length === 0);
+check("force: only minted items are still removed", forcedMonster.replace.items.remove.join() === "mintedAttack0001");
+check("force: an unstamped item stays and stands in for the build's", forcedMonster.replace.items.add.length === 1 && !forcedMonster.replace.items.remove.includes("judgeAttack00001"));
+check("policyFor leaves an ordinary tally's policy alone", policyFor(REPAIR.monster, repairTally()) === REPAIR.monster);
+check("and a forced one's carries force, leaving REPAIR unfrozen of it", policyFor(REPAIR.monster, repairTally({ force: true })).force === true && !("force" in REPAIR.monster));
+const judgedTrap = { ...trapSource, system: { ...trapSource.system, description: `${stamped("Old passage.")}<p>Seen it fail.</p>` } };
+const heldTrap = refreshPlan(judgedTrap, trapBuilt, REPAIR.trap);
+const forcedTrap = refreshPlan(judgedTrap, trapBuilt, policyFor(REPAIR.trap, repairTally({ force: true })));
+check("an ordinary repair keeps a trap's hand-written description", heldTrap.keptProse.join() === "description" && !("description" in heldTrap.update.system));
+check("force writes it", /New passage/.test(forcedTrap.update.system.description) && forcedTrap.keptProse.length === 0);
+check("force still leaves the level in force", !("level" in forcedTrap.update.system));
+const forceSpellStored = { type: "acks-extras.spell", system: { description: stamped("Old.") }, flags: { [M]: { spell: { effects: [{ id: "judge" }] } } } };
+const forceSpellBuilt = { type: "acks-extras.spell", system: { description: stamped("New.") }, flags: { [M]: { spell: { effects: [] } } } };
+const forcedSpell = refreshPlan(forceSpellStored, forceSpellBuilt, policyFor(REPAIR.spell, repairTally({ force: true })));
+check("force still keeps effect rows a Judge authored where the build has none", forcedSpell.update.flags[M].spell.effects.length === 1);
+const forcedClass = refreshPlan(
+  { ...classSource([]), system: { description: stamped("Old."), levels: [{ level: 1, xp: 900, title: "Typed" }] } },
+  { ...classBuilt, system: { description: stamped("New."), levels: [{ level: 1, xp: null, title: "" }] } },
+  policyFor(REPAIR.class, repairTally({ force: true })),
+);
+check("force still keeps a level's experience and title the build could not read", forcedClass.update.system.levels[0].xp === 900 && forcedClass.update.system.levels[0].title === "Typed");
+const forcedType = refreshPlan({ ...trapSource, type: "weapon" }, trapBuilt, policyFor(REPAIR.trap, repairTally({ force: true })));
+check("force still refuses a document of another type", forcedType.refused === "type");
+const forcedCounts = repairTally({ force: true });
+forcedCounts.handMade = 2;
+check("a forced tally's counts carry handMade, an ordinary one's do not", repairCounts(forcedCounts).handMade === 2 && !("handMade" in repairCounts(repairTally())));
 
 /* --- the tally ------------------------------------------------------------ */
 const tally = repairTally();

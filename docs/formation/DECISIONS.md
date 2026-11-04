@@ -4735,6 +4735,54 @@ was deleted, so nothing ever gathered.
   press deploys again.
 - The live recipe is TESTING, "A party in a combat".
 
+## 2026-11-03 — The skill audit rolls an ability for the party, privately, on the ability's own throw
+
+**Asked.** "No rolling a skill against the whole party on skill audit (should reuse
+the grouped results style, and report no rolls)."
+
+**Ruled** (the build's choices; the owner has not seen them).
+- **A roster row rolls its ability's default throw**, the one a bare roll reaches,
+  through `evaluateThrow`, the half of `rollAbility` that computes. The roster lists
+  any ability, and most carry no party check; the ability's own throw is the one thing
+  every row has. *(Superseded for a row a party check takes: see the owner's ruling
+  below. An unbound row stands as written.)*
+- **The card goes to the Judges alone**, whispered through `postToJudges` with no roll
+  attached, as every party check card does. The audit window is the Judge's own, and
+  a card from it that reached the table would show every member's result. An ability's own blind setting
+  is not consulted: the card is already private.
+- **Nothing advances.** No round, no turn, no once-per-turn mark: a roll from the
+  audit is the Judge looking at the party, not the party acting.
+- **A member who made no roll is named, with the reason**, and a party in which nobody
+  rolls still posts a card saying so. The grouped card's empty state is opt-in
+  (`empty`), so no other card's "nothing to show returns nothing" changes.
+- **A member who is down is named, not rolled.** A party check skips them silently; an
+  audit has to account for every member.
+
+**Cost, as first built.** For a row bound to a party check (a Searching skill, say) the
+roll's target was the throw's own, which does not take the party check's methodical,
+Alertness or Trapfinding parts or the Throw bonus on the item's Skill tab, so the
+Resolution table and the card could show different targets for the same member.
+
+**Ruled by the owner (2026-11-04), the same day's follow-up.** Asked whether a bound row
+should roll the party check's resolved target instead, the owner answered: "Party
+check's target". A row a party check takes rolls the target the Resolution table
+shows for that member, parts and all; the card and the table never disagree. An
+unbound row keeps the ability's own throw.
+- The throw is made by `rollCheckFor` in `party-rolls.mjs`, the function
+  `rollPartyCheck` itself now calls per member, so the party card and the audit card
+  share one resolution (`resolveCheck`), one Strength rider and one die. The binding is
+  read by `boundChecks`, the same function the roster's route badges read.
+- A row several checks take (hasty and methodical search share one flag) rolls the
+  first in table order, and the card's note names it. Chosen so the audit never
+  silently rolls a bonus the Judge did not look at; the other check is a click away
+  on the party sheet.
+- The target's tooltip is the source and each part by name with the member's own
+  figures, as the party card's detail line prints them. A part rides the die, not the
+  target, exactly as it does on the party card.
+- A bound copy from which the check cannot be made (the item switched off, with no
+  Adventuring fallback) is named in the footnote, not rolled on its own throw: the
+  table shows nothing for that member either.
+
 ## 2026-11-03 — Only the token the record links acts for the party
 
 **Asked.** The owner, same report: old and duplicate party exploration tokens in a
@@ -4800,3 +4848,71 @@ party actor on a scene, which may be a copy.
   not, an actor in two parties is refused, and the repair checks scan, fix and
   rescan.
 - The live recipe is TESTING, "A party in a combat" and "Extra party tokens".
+
+## 2026-11-03 — A member held by two parties stays with the party on the map
+
+**New evidence.** The entry above left `formation.partyActors` report-only
+until the owner said which party keeps a member. The owner chose: "The party
+on the map".
+
+**Ruled.** The party whose record links a token standing on a scene keeps the
+member. Every other party that lists them drops them, with the lights, spells
+and roles they hold there. Where no party or more than one qualifies, the
+check goes on listing the member and mends nothing, and the Judge sorts them
+out by hand. Two alternatives were offered and not chosen: the party the
+member joined last, and listing only.
+
+**Ruled, on the stash.** Asked whether a token a dropping party had stashed for
+the member should be put back on a scene or discarded, the owner answered:
+"Discard the stash". The keeper holds the member's live presence, and a
+restored copy would be a second. The mend's drops discard it; a hand removal
+keeps restoring.
+
+**Mechanics.**
+
+- **On the map** is the `isLinkedPartyToken` test on the token the record's
+  `sceneId` and `tokenId` name; a record linking none, or a token that is gone,
+  does not qualify, and a hidden token does.
+- **The drop is `removeMember` with `restore: false`,** the Judge's own removal,
+  one party at a time, each read fresh. It takes the lights the member bears, the
+  spells they cast and their roles with it. The stash goes with the member's
+  entry and no token is created; the option also skips the recall of a token the
+  dropping party had deployed for them, which stays where it stands.
+- **The guard.** The fix reads the formations again and recomputes the keeper. It
+  is refused when the member is no longer held by two parties, when the set of
+  parties holding them differs from the scan's, or when the single party on the
+  map is not the one the scan named. A refusal drops nobody. A drop that fails
+  part-way leaves the earlier parties dropped; the rescan lists what remains.
+
+**Cost.** A token the dropping party had deployed for the member is not recalled,
+so it stays on its scene as a plain token of the actor; the Judge deletes it by
+hand if unwanted.
+
+## 2026-11-03 — A party's light shines from its bearer's place in the order
+
+**Ruled.** Asked whether a party's light is measured from the party token's
+centre or from its edge (Foundry pads every light by half the token's smaller
+side), the owner answered with neither: "Light owner's center based on
+marching order". A light is emitted from the centre of its bearer's cell in
+the marching order, not from the party token. The token's size and its edge
+padding then take no part in where the light falls or how far it reaches.
+This settles both rows of ROADMAP "Light": a long column lit at its own
+middle, and the padding. Where a bearer's cell stands on the map is what the
+party-size ruling below decides, so this is built after it.
+
+## 2026-11-03 — The party token's size is the Judge's switch, and a moving party snakes
+
+**New evidence.** The party token wears the formation's footprint, and scene
+sync resizes it on every move. The 0.25 floor is the footprint's `SPAN_MIN`,
+so a frontage-one order of twelve reads 0.25 × 12. The owner was given three
+options (docs only; a Judge lock; one square cell when both sides floor) and
+ruled: "Judge toggle for fixed size vs dynamic (matching marching order). It
+should snake when move instead of a big block."
+
+**Ruled.**
+- A Judge switch chooses between a fixed party-token size and a dynamic size
+  that matches the marching order.
+- A moving party snakes: the order follows its path as a column instead of
+  sliding as one block.
+
+The design, and what the token is while it moves, comes with the build.

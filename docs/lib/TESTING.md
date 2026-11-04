@@ -2946,6 +2946,56 @@ EmbeddedCollection"). A merged update with forced deletions of the old keys
 lands the new fields and none of the deletions; only `recursive: false` on
 `system` removes them.
 
+### A weapon's two-handed die, and the check that writes it
+
+Covers `lib.twoHandedRow` (MODEL.md, "A weapon's two-handed die follows its
+imported row"). One GM seat. Every name and die below is invented; the rows
+are the stamped modes the importer writes, built by hand, so no book is
+needed.
+
+**Fixtures,** found by marker with `api.fixture(marker, "Item", data)`. The
+check's fix rewrites them, so each step that needs a shape asserts it by
+writing it first (`item.update({"system.damage.alternate.formula": …})`):
+- `lib/two-handed-row`: a world weapon whose `flags.acks-extras.weapon.modes`
+  holds a melee mode (`damage` "1d7") and a mode with `grip: "two-handed"` and
+  `damage` "1d11", storing alternate "1d5".
+- `lib/two-handed-row-none`: a world weapon whose modes hold the melee mode
+  alone, storing alternate "1d5".
+- `lib/two-handed-row-free`: a world weapon with no `weapon.modes` flag,
+  storing alternate "1d5".
+- `lib/two-handed-row-bearer`: a character holding a copy of the first
+  weapon, created with the embedded item carrying the same flag and alternate
+  "1d5" (`actor.createEmbeddedDocuments("Item", [data])`; `api.track` the
+  embedded item's uuid from the result).
+
+1. **The scan.** `scanRepairs({only: "lib.twoHandedRow"})` from
+   `scripts/lib/repair.mjs`.
+   **Observable:** the fixtures' findings are the first, the second and the
+   bearer's copy, each fixable. The detail of the first reads stores 1d5, row
+   1d11, and the second's names none for the row. The free weapon is absent.
+   In a world holding other imported weapons the scan lists those that
+   disagree too: read only the fixtures' keys.
+2. **The window.** `acksExtras.lib.repair.open({only: "lib.twoHandedRow", scan: true})`,
+   tick the three fixtures' rows and press *Fix selected*.
+   **Observable:** each row names its stored die and its row's die, the
+   whispered report counts three fixed and none failed, and a rescan lists
+   none of the fixtures.
+3. **The write.** Read the three items back.
+   **Observable:** the first and the bearer's copy store "1d11", the second
+   stores "", the free weapon still stores "1d5", and no other field of any of
+   them changed (`system.damage.base.formula` still "1d7").
+4. **The sheet.** Open the first weapon's sheet.
+   **Observable:** its alternate damage field reads 1d11, and the second
+   weapon's reads empty with no second grip offered.
+5. **A stamped record.** Retire and rebuild the first weapon raw through a
+   create that stores `_schemaVersion` 5, string `damage` and no alternate
+   (the previous section's raw create), reload, and scan.
+   **Observable:** it is listed with the stamped-first reason and is not
+   offered; after `lib.stampedRecords` has written it, a rescan offers it.
+
+**Teardown.** None: the fixtures stay; the next walk writes their alternates
+back before step 1.
+
 ## A group body moved between scenes
 
 Covers the roster's `deleteToken` hook (GROUPS.md, "A deleted body, and a

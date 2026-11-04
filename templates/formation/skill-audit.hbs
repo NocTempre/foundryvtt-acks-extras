@@ -14,7 +14,8 @@
     <table class="audit-table">
       <tbody>
         {{#each abilities}}
-        <tr data-item-uuid="{{this.uuid}}" class="{{#unless this.active}}inactive{{/unless}}">
+        <tr data-item-uuid="{{this.uuid}}" data-ability-key="{{this.key}}" data-ability-name="{{this.name}}"
+            class="{{#unless this.active}}inactive{{/unless}}">
           <td class="member-cell">
             <img src="{{this.img}}" alt="" /> {{this.name}}
             {{#if this.overridden}}<i class="fa-solid fa-user-pen gm-set"
@@ -40,6 +41,13 @@
               {{else}}
                 {{#if this.active}}{{localize "ACKS-FORMATION.audit.autoOn"}}{{else}}{{localize "ACKS-FORMATION.audit.autoOff"}}{{/if}}
               {{/if}}
+            </button>
+          </td>
+          <td class="roll-cell">
+            <button type="button" data-action="rollAbilityForParty"
+                    aria-label="{{localize 'ACKS-FORMATION.audit.rollLabel' name=this.name}}"
+                    data-tooltip="{{localize 'ACKS-FORMATION.audit.rollHint'}}">
+              <i class="fa-solid fa-dice-d20" inert></i>
             </button>
           </td>
         </tr>

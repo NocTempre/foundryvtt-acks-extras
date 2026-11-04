@@ -619,32 +619,28 @@
   font-size: var(--acks-fs-label);
 }
 
-.acks-extras-importer-manager .acks-extras-importer-manager-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.acks-extras-importer-manager .acks-extras-importer-manager-table th,
-.acks-extras-importer-manager .acks-extras-importer-manager-table td {
-  text-align: left;
-  vertical-align: top;
-  padding: var(--acks-sp-1) var(--acks-sp-2);
-  border-bottom: var(--acks-border-soft);
-}
-
-.acks-extras-importer-manager .acks-extras-importer-manager-table th {
+/* The Books tab's panel is written by the importer and shares the dialog
+   rules above, which are scoped to a dialog's own class and so do not reach
+   it here. Its hints take the label size, its rows break at word boundaries,
+   its selects may shrink, and Forget is the exception coloured as one. */
+.acks-extras-importer-manager .acks-extras-importer-books :is(.notes, .hint) {
   font-size: var(--acks-fs-label);
-  text-transform: uppercase;
-  letter-spacing: var(--acks-tracking-caps);
-}
-
-.acks-extras-importer-manager .acks-extras-importer-manager-table tr.is-closed td {
+  line-height: var(--acks-lh-snug);
   color: var(--acks-ink-soft);
 }
 
-.acks-extras-importer-manager .acks-extras-importer-manager-tag {
-  font-size: var(--acks-fs-label);
-  color: var(--acks-ink-soft);
+.acks-extras-importer-manager
+  .acks-extras-importer-books
+  :is(.acks-extras-importer-reconnect-head, .acks-extras-importer-gs-action, .acks-extras-importer-band-actions) {
+  overflow-wrap: break-word;
+}
+
+.acks-extras-importer-manager .acks-extras-importer-books select {
+  min-width: 0;
+}
+
+.acks-extras-importer-manager .acks-extras-importer-books button.acks-extras-importer-danger {
+  color: var(--acks-ink-warn, inherit);
 }
 
 /* The chain, numbered in its order (the list keeps its markers; the row

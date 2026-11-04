@@ -9,7 +9,8 @@
  * documents. Whatever the build does not write stays as it is.
  * `refreshPlan` decides all of that and is Foundry-free, so the harness can
  * assert it; `refreshImported` performs it. `REPAIR` says, per kind, which of a
- * build's fields the document keeps anyway.
+ * build's fields the document keeps anyway. A forced repair (`repairTally({force:
+ * true})`, `policyFor`) lifts the hand-written prose guard and nothing else.
  */
 import { MODULE_ID } from "./constants.mjs";
 import { stripBookText } from "./prose.mjs";
@@ -179,7 +180,11 @@ const asMinted = (doc) => ({
  * @param {object} source the document's stored data (`toObject()`), embedded
  *   documents included; not changed
  * @param {object} built a fresh build of its entry — the binder's creation data
- * @param {object} [policy] one of `REPAIR`
+ * @param {object} [policy] one of `REPAIR`; with `force` set (`policyFor`) a
+ *   description or prose field a Judge wrote is rewritten like any other, and
+ *   `keptProse` stays empty. Everything else the policy keeps is unchanged:
+ *   fields the build does not produce, the play state in `keep`, and the
+ *   embedded documents a Judge made.
  * @returns {{refused?: "type", update: object, retract: string[],
  *   replace: Object<string, {remove: string[], add: object[]}>, keptProse: string[]}}
  *   `update` is a document update; `retract` the `system` paths to reset to
@@ -197,7 +202,7 @@ export function refreshPlan(source, built, policy = {}) {
   const stored = source?.system ?? {};
   const system = structuredClone(built?.system ?? {});
   for (const path of keep) dropPath(system, path.split("."));
-  for (const path of prose) {
+  for (const path of policy.force ? [] : prose) {
     if (getPath(system, path) === undefined || !handWrittenProse(getPath(stored, path))) continue;
     dropPath(system, path.split("."));
     keptProse.push(path);
@@ -238,7 +243,7 @@ export function refreshPlan(source, built, policy = {}) {
   const flagUpdate = {};
   if (Object.keys(stamp).length) flagUpdate.cookbook = stamp;
   for (const key of flags) if (mine[key] !== undefined) flagUpdate[key] = structuredClone(mine[key]);
-  for (const path of proseFlags) {
+  for (const path of policy.force ? [] : proseFlags) {
     if (getPath(flagUpdate, path) === undefined) continue;
     if (!handWrittenProse(getPath(source?.flags?.[MODULE_ID], path))) continue;
     dropPath(flagUpdate, path.split("."));
@@ -324,11 +329,25 @@ export async function refreshImported(doc, built, policy = {}) {
  * `refused` documents left untouched (their book is not open, or the page no
  * longer matched, or the build became another document type). `seen` holds
  * the documents already met (`unrepaired`).
+ *
+ * `force` makes the run a forced repair: every policy it writes under skips
+ * the hand-written prose guard (`policyFor`), and `handMade` counts the
+ * documents the import did not make that it left alone by name.
+ *
+ * @param {{force?: boolean}} [options]
  */
-export const repairTally = () => ({ replaced: 0, keptProse: 0, refused: 0, seen: new Set() });
+export const repairTally = ({ force = false } = {}) => ({ replaced: 0, keptProse: 0, refused: 0, handMade: 0, force, seen: new Set() });
 
-/** A tally's counts alone, for a report or a result. */
-export const repairCounts = (tally) => ({ replaced: tally.replaced, keptProse: tally.keptProse, refused: tally.refused });
+/** A tally's counts alone, for a report or a result; a forced run adds `handMade`. */
+export const repairCounts = (tally) => ({
+  replaced: tally.replaced,
+  keptProse: tally.keptProse,
+  refused: tally.refused,
+  ...(tally.force ? { handMade: tally.handMade } : {}),
+});
+
+/** The policy a run writes under: `policy`, forced when the tally is. */
+export const policyFor = (policy, tally) => (tally?.force ? { ...policy, force: true } : policy);
 
 /**
  * Is this the first time the tally meets `doc`? A document another entry was

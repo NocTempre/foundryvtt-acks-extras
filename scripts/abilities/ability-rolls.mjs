@@ -219,16 +219,37 @@ export function throwText(roll, actor, item) {
 export const targetOf = (roll, actor, item) => throwOutcome(roll, actor, item).target;
 
 /**
- * A resolved target with the character's standing bonuses folded in: other
- * abilities' modifiers, the throw's score term, and what the character's
- * conditions do to a proficiency throw. A bonus lowers an "above" target and
- * raises a "below" one; an exact-match throw takes neither. Applied here,
- * once, so every surface reads the same number.
+ * The standing bonuses a throw's target carries, one entry per source that
+ * contributes: other abilities' modifiers (`abilities`), the throw's score term
+ * (`score`, labelled with the score's name) and what the character's
+ * conditions do to a proficiency throw (`conditions`). The one place the three
+ * are read, so the number a surface shows and the parts it itemizes agree.
+ *
+ * @returns {Array<{kind: "abilities"|"score"|"conditions", label: string, value: number}>}
+ *   sources that come to nothing are left out; `[]` with no character
+ */
+export function targetModifiers(roll, actor, item) {
+  if (!actor) return [];
+  const term = scoreTerm(roll, actor);
+  return [
+    { kind: "abilities", label: "", value: throwModifiers(actor, item, roll).bonus },
+    { kind: "score", label: term?.label ?? "", value: term?.bonus ?? 0 },
+    { kind: "conditions", label: "", value: rollMath("throw", subjectOf(actor)).total },
+  ].filter((part) => part.value);
+}
+
+/** The sum of a throw's standing bonuses. */
+const modifierTotal = (parts) => parts.reduce((sum, part) => sum + part.value, 0);
+
+/**
+ * A resolved target with the character's standing bonuses folded in
+ * (`targetModifiers`). A bonus lowers an "above" target and raises a "below"
+ * one; an exact-match throw takes neither. Applied here, once, so every surface
+ * reads the same number.
  */
 function withModifiers(target, roll, actor, item) {
   if (typeof target !== "number" || !actor) return target;
-  const bonus =
-    throwModifiers(actor, item, roll).bonus + (scoreTerm(roll, actor)?.bonus ?? 0) + rollMath("throw", subjectOf(actor)).total;
+  const bonus = modifierTotal(targetModifiers(roll, actor, item));
   if (!bonus) return target;
   const type = roll?.rollType || "above";
   if (type === "result") return target;
@@ -476,6 +497,90 @@ async function cardData(item, actor, roll, { target, success, suffix, verdict, e
 }
 
 /**
+ * The throw a call reaches and what it comes to for the holder: the one named
+ * by `key`, else the ability's default, else the first. No key means the
+ * default throw: every route that cannot pass one arrives so.
+ *
+ * @returns {{roll: object, actor: Actor|null, verdict: object}|null} null when the ability has no throw
+ */
+function pickThrow(item, key) {
+  const rolls = rollsOf(item);
+  const wanted = key ?? defaultKeyOf(item);
+  const roll = rolls.find((r, i) => keyOf(r, i) === wanted) ?? rolls[0];
+  if (!roll) return null;
+  const actor = item.actor ?? null;
+  return { roll, actor, verdict: throwOutcome(roll, actor, item) };
+}
+
+/** Did this total meet this target? Null when no target is known; "above" meets or beats, "below" meets or stays under, "result" matches. */
+function successOf(type, total, target) {
+  if (target == null) return null;
+  return type === "below" ? total <= target : type === "result" ? total === target : total >= target;
+}
+
+/**
+ * Roll a throw's formula, with an optional situational term, and score it
+ * against its target. The one place a throw is evaluated.
+ */
+async function castThrow({ base, extra, type, target }) {
+  const evaluated = await new Roll(`${base}${situationalTerm(extra)}`).evaluate();
+  return { evaluated, total: evaluated.total, success: successOf(type, evaluated.total, target) };
+}
+
+/**
+ * Roll one of an ability's throws (its default when `key` is omitted) and
+ * return what it came to, posting nothing and asking nothing. For a caller that
+ * rolls several characters' throws and shows them on a card of its own.
+ *
+ * `outcome` is "throw" (rolled), "auto" (the rung needs no throw: `success` is
+ * true, nothing was rolled) or "none" (not available to this character yet:
+ * nothing was rolled). `target` is the number rolled against, with the
+ * character's standing bonuses folded in; `base` is the same before them, and
+ * `modifiers` itemizes the difference (`targetModifiers`), so a surface can
+ * show where the number came from. Both are null on a measure and where no
+ * target resolves.
+ *
+ * @param {Item} item
+ * @param {string} [key] the throw; the ability's default when omitted
+ * @param {object} [opts]
+ * @param {number} [opts.bonus] a situational modifier, joined to the formula as its own term
+ * @returns {Promise<{roll: object, actor: Actor|null, verdict: object, outcome: string, type: string, total: number|null, target: number|null, base: number|null, modifiers: Array<{kind: string, label: string, value: number}>, success: boolean|null, evaluated: Roll|null}|null>}
+ *   null when the ability has no throw
+ */
+export async function evaluateThrow(item, key, { bonus = 0 } = {}) {
+  const picked = pickThrow(item, key);
+  if (!picked) return null;
+  const { roll, actor, verdict } = picked;
+  const type = roll.rollType || "above";
+  const out = {
+    roll,
+    actor,
+    verdict,
+    outcome: verdict.outcome,
+    type,
+    total: null,
+    target: null,
+    base: null,
+    modifiers: [],
+    success: verdict.outcome === "auto" ? true : null,
+    evaluated: null,
+  };
+  if (verdict.outcome !== "throw") return out;
+
+  const target = verdict.target;
+  const { evaluated, total, success } = await castThrow({
+    base: measuredFormula(roll, item, actor),
+    extra: Math.trunc(Number(bonus)) || 0,
+    type,
+    target,
+  });
+  const modifiers = target == null ? [] : targetModifiers(roll, actor, item);
+  // An exact-match throw takes no bonus, so its base is its target.
+  const shift = type === "result" ? 0 : type === "below" ? -modifierTotal(modifiers) : modifierTotal(modifiers);
+  return { ...out, total, target, base: target == null ? null : target + shift, modifiers, success, evaluated };
+}
+
+/**
  * Roll one of an ability's throws (its default when `key` is omitted) and post
  * the result. The one place an ability's throw is posted, so blind applies
  * wherever the roll started. Success is scored only when a target is known; a
@@ -496,13 +601,9 @@ async function cardData(item, actor, roll, { target, success, suffix, verdict, e
  *   null when the ability has no throw or the dialog was closed
  */
 export async function rollAbility(item, key, { event, skipDialog, bonus = 0, messageMode } = {}) {
-  const rolls = rollsOf(item);
-  // No key means the default throw: every route that cannot pass one arrives so.
-  const wanted = key ?? defaultKeyOf(item);
-  const roll = rolls.find((r, i) => keyOf(r, i) === wanted) ?? rolls[0];
-  if (!roll) return null;
-  const actor = item.actor ?? null;
-  const verdict = throwOutcome(roll, actor, item);
+  const picked = pickThrow(item, key);
+  if (!picked) return null;
+  const { roll, actor, verdict } = picked;
 
   // An unavailable rung posts nothing; the clicker is told why.
   if (verdict.outcome === "none") {
@@ -542,9 +643,7 @@ export async function rollAbility(item, key, { event, skipDialog, bonus = 0, mes
     extra = asked.bonus;
     mode = asked.messageMode;
   }
-  const evaluated = await new Roll(`${base}${situationalTerm(extra)}`).evaluate();
-  const total = evaluated.total;
-  const success = target == null ? null : type === "below" ? total <= target : type === "result" ? total === target : total >= target;
+  const { evaluated, total, success } = await castThrow({ base, extra, type, target });
 
   const suffix = type === "above" ? "+" : type === "below" ? "-" : "";
 

@@ -179,6 +179,8 @@ globalThis.Folder = {
   },
 };
 let confirms = 0;
+let answer = true;
+const asked = [];
 globalThis.foundry = {
   utils: {
     fetchJsonWithTimeout: async (url) => fetched(url),
@@ -188,7 +190,7 @@ globalThis.foundry = {
     mergeObject: (a, b) => ({ ...structuredClone(a), ...structuredClone(b) }),
     setProperty: (obj, path, value) => applyUpdate(obj, { [path]: value }),
   },
-  applications: { api: { DialogV2: { confirm: async () => (confirms++, true) } } },
+  applications: { api: { DialogV2: { confirm: async (opts) => (confirms++, asked.push(opts), answer) } } },
 };
 
 /* --- the book --------------------------------------------------------------------------- */
@@ -313,7 +315,60 @@ const onShelf = (cbId) => shelf.docs.find((d) => d.getFlag(MODULE_ID, "cookbook"
   ok("it replaced both items and refused none", byBook.mode === "repair" && byBook.replaced === 2 && byBook.refused === 0, JSON.stringify(byBook));
   ok("and the price is the build's again", one.system.cost === 0 && two.system.cost === 0);
 
-  ok("the shelf still holds the two documents and no more", shelf.docs.size === 2 && (await importedItemFor(ID1)) === one, String(shelf.docs.size));
+  /* --- the forced repair: nothing the import writes is passed over -------------------- */
+  // The ordinary repair above kept the smith's note; a forced one replaces it.
+  // The same world, then: a hand-made item beside them, a Judge's note on the
+  // second, a price, a quantity and a slot on the first.
+  const handMade = await Item.create(
+    { name: "Item 1", type: "item", system: { description: "<p>Made at the table.</p>", cost: 5 }, flags: {} },
+    { pack: ITEM_PACK },
+  );
+  await one.update({ "system.cost": 99, "system.quantity.value": 3, [`flags.${MODULE_ID}.gear`]: { slots: ["belt"] } });
+  await two.update({ "system.description": `${two.system.description}<p>Kept by the smith.</p>`, "system.cost": 7 });
+  forgetImportedIndex();
+  const snapshot = () => JSON.stringify([one.toObject(), two.toObject(), handMade.toObject()]);
+
+  const repairedFirst = await cookbookReimportBook(BOOK, { mode: "repair" });
+  ok("the ordinary repair still keeps the note", repairedFirst.keptProse === 1 && /Kept by the smith/.test(two.system.description), JSON.stringify(repairedFirst));
+  await two.update({ "system.description": `${two.system.description}<p>Kept by the smith.</p>`, "system.cost": 7 });
+  await one.update({ "system.cost": 99 });
+
+  // Cancel: the confirm answers false, and not one document is written.
+  answer = false;
+  confirms = 0;
+  asked.length = 0;
+  const before = snapshot();
+  const cancelled = await cookbookReimportBook(BOOK, { mode: "force" });
+  ok("a cancelled force repair resolves null", cancelled === null, JSON.stringify(cancelled));
+  ok("it asked exactly once, under the force title", confirms === 1 && asked[0].window.title === "ACKS-IMPORTER.ui.forceTitle", JSON.stringify(asked[0]?.window));
+  ok("the dialog is closed-as-no by default", asked[0].rejectClose === false);
+  ok("and wrote nothing to any document", snapshot() === before);
+  answer = true;
+
+  confirms = 0;
+  asked.length = 0;
+  const forced = await cookbookReimportBook(BOOK, { mode: "force" });
+  ok("the confirm names the force text and counts the two documents it will rewrite", /forceConfirmBook\|.*"n":2/.test(asked[0].content), asked[0]?.content);
+  ok("and closes on what it still keeps", asked[0].content.includes("ACKS-IMPORTER.ui.forceKeeps"));
+  ok("the result says force and counts both written, none kept", forced.mode === "force" && forced.replaced === 2 && forced.keptProse === 0 && forced.refused === 0 && forced.handMade === 0, JSON.stringify(forced));
+  ok("the Judge's note is replaced by the build's description", !/Kept by the smith/.test(two.system.description) && two.system.description.includes(`data-acks-entry="${ID2}"`));
+  ok("and the price is the build's", one.system.cost === 0 && two.system.cost === 0);
+  ok("a kept skip: the quantity is still the Judge's", one.system.quantity.value === 3);
+  ok("a kept skip: a slot the page gave none stays", mine(one).gear?.slots?.join() === "belt");
+  ok("a kept skip: an item made by hand is not touched", handMade.name === "Item 1" && handMade.system.cost === 5 && /Made at the table/.test(handMade.system.description) && !mine(handMade).cookbook);
+  ok("the notice says force-repaired", /forceDone/.test(lastNotice()), lastNotice());
+
+  // The same run without a confirm answer of yes is the ordinary repair: the
+  // force flag lives on the tally, not on the process.
+  await two.update({ "system.description": `${two.system.description}<p>Kept by the smith.</p>` });
+  const tallyOnly = repairTally();
+  await cookbookImportAdventureItems({ books: [BOOK], repair: tallyOnly });
+  ok("a tally made without force keeps the note", /Kept by the smith/.test(two.system.description) && tallyOnly.keptProse === 1);
+  const forcedTally = repairTally({ force: true });
+  await cookbookImportAdventureItems({ books: [BOOK], repair: forcedTally });
+  ok("a tally made with force replaces it, counting nothing as kept", !/Kept by the smith/.test(two.system.description) && forcedTally.keptProse === 0 && forcedTally.replaced === 2, JSON.stringify(repairCounts(forcedTally)));
+
+  ok("the shelf holds the two documents and the one made by hand, and no more", shelf.docs.size === 3 && (await importedItemFor(ID1)) === one, String(shelf.docs.size));
 }
 
 delete globalThis.foundry;

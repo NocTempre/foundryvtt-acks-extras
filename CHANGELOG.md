@@ -3,6 +3,15 @@
 ## Unreleased
 ### Added
 
+- **The skill audit rolls an ability for the whole party.** Each row of Party abilities
+  has a roll button: every member who holds that ability rolls, and one card lists them
+  together, whispered to the Judges, with each total, its target and the verdict. An
+  ability a party check takes (Hasty Search, say) rolls that check's target, the same
+  one the Resolution table shows, and the card names the check; any other rolls its own
+  throw. The target's tooltip shows where it came from and each part. Members who made no
+  roll are named under the card with the reason (they lack the ability, it offers no
+  throw, or they are down), and if nobody holds it the card says that nobody rolled.
+  Nothing is spent: no round or turn passes.
 - **A group's token added to a combat sends out the whole group.** Every body its rows
   hold lands on the scene from the token's square, each with a combatant of its own, and
   the group's token hides. Ending the combat recalls them and shows the token again, and
@@ -15,6 +24,18 @@
   party sheet and the bar in its title bar are not drawn. The clock, the lights and the
   wandering-monster throw run as before, and a Rest turn still advances a turn. A party
   already winded when the setting goes off is released on its next turn.
+- **The Books window is the first tab of Manage Imports.** Connecting a book, putting it
+  on the server, the status of every book and the walkthrough are in the manager's Books
+  tab, so the importer is one window. Your ACKS Books, the join-time offer and the
+  character sheet's book link open it on that tab, and a player's copy of the manager
+  has that tab alone. The Import and Tools tabs carry the import, merchandise and manage
+  controls the walkthrough used to repeat.
+- **Force repair rewrites what Repair in place keeps.** A third mode beside Rebuild and
+  Repair in place, in Reimport One Shelf, the entry picker and the Rebuild tab, writes
+  the same documents and also replaces a description you wrote in. It asks first, with
+  the number of documents it will rewrite, and Cancel writes nothing. Items and
+  abilities you made yourself, effects and attacks you added, what play has set, and
+  anything whose book is not open or has no in-place write are still left as they are.
 
 ### Fixed
 
@@ -26,6 +47,13 @@
   character's attack throw and saves, and a weapon whose damage names no second die
   shows none. The repair window's new first check lists every record read this way, and
   fixing writes it under the current names so it no longer depends on the module.
+- **A weapon's second grip follows the weapon table it was imported from.** A weapon
+  created without a second die could store the system's default die there, so a sword
+  offered a two-handed grip at that die instead of the table's. Where the imported row
+  names a two-handed die, that die is the weapon's alternate damage, and where it names
+  none the alternate is blank; a weapon with no imported row keeps what it stores. The
+  repair window lists each weapon, in the world or on a world actor, whose alternate
+  differs from its row, and fixing writes the row's value.
 - **The Stats tab keeps the numbers a roll adds apart from the numbers it must meet.**
   The saving throw, initiative and surprise modifiers sit under their own Roll
   modifiers heading instead of among the throw targets, and initiative and both
@@ -64,8 +92,15 @@
   the party token on the party's scene, or one whose party is gone, is deleted; a copy on
   another scene is listed only; the party's one token is linked again when the party lost
   its link, and several competing for it are listed only; a party actor no party names is
-  given one; a member in two parties is listed, naming each party that holds them. The linked token,
-  the members, the marching order and the clock are left alone.
+  given one. The linked token, the marching order and the clock are left alone.
+- **Repair this world keeps a member held by two parties with the one on the map.** The
+  party whose token stands on a scene keeps the member, and every other party that lists
+  them takes them out, with the lights they bear, the spells they cast and their roles.
+  A token a dropping party had put away for them is discarded, not put back on a scene.
+  The finding names the party that keeps them and the ones
+  that lose them. Where no party is on a map, or several are, the member is listed with
+  the reason and nothing is changed, and a fix is refused if the parties or the one on the
+  map changed since the scan.
 
 ## 11.13.2
 ### Fixed

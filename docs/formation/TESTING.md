@@ -3480,11 +3480,85 @@ Fixtures are the three markers above; the run also tracks everything it builds.
 5. **A party actor with no record.** Create an `acks-extras.party` actor, then
    remove its record from the world setting. `scanRepairs({only:
    "formation.partyActors"})`. *Observable:* a fixable finding; fixing creates
-   the record naming the actor. A member listed in two parties shows as a finding
-   that is not fixable and names every party that holds them; build it by
-   patching the same `actorId` into a second record's `members`.
+   the record naming the actor.
+6. **A member held by two parties.** Fixtures: the kept party and its member from
+   the markers above, plus two more `acks-extras.party` actors marked
+   `formation/shared-rival-a` and `formation/shared-rival-b`, each with its record.
+   Build the double membership by patching the member's `actorId` into each
+   rival's `members` (the Order tab refuses it through `addMember`), and give a
+   rival a light the member bears, a spell they cast and a role on that entry.
+   Give one rival a stash for them (a `tokenData` snapshot on the entry) and count
+   the tokens on every scene before the fix. With only the kept party's token on a scene, `scanRepairs({only:
+   "formation.partyActors"})`. *Observable:* one fixable `shared:<actorId>`
+   finding whose detail names the kept party and the two it drops. Fix it.
+   *Observable:* the rescan is empty, the member, their light and their role stand
+   in the kept party only, and each rival keeps its other members and has lost
+   the light, the spell and the role, and the token count is unchanged on every
+   scene: the stash is discarded, not put back. Rebuild the double membership, then stand a
+   rival's own token on the scene (the `createToken` hook links it): *Observable:*
+   the finding is listed, not fixable, its detail counting two parties on a map,
+   and Fix selected changes nothing. Delete both tokens: the same, with the
+   detail saying no party is on a map. For the guard, scan with one party on the
+   map, then stand a rival's token on the scene before pressing fix:
+   *Observable:* the fix is refused (the report names the refusal) and both
+   parties still list the member. `api.track` the tokens and any rebuilt rival
+   records; the rival actors are kept.
 
 Teardown as above; the repair report whisper is the module's, tracked by id.
+
+## The audit roll (added with the skill audit's roll control)
+
+The roll control on each row of the Skill audit's party roster. Driven on the GM
+seat through the real window; offline, `tools/test-skill-audit-roll.mjs` pins the
+card, the evaluator and the footnote.
+
+**Fixtures** (kept; found by marker, built when none carries it):
+
+- `formation/audit-party`: an `acks-extras.party` actor with three character members
+  seated through the party sheet's drop (*Core drive mechanics*), each marked
+  `formation/audit-member-<n>`.
+- Members 1 and 2 each carry an ability item named `Audit Search`, with one throw
+  (a flat target of any invented figure). Member 3 carries none. Build the items
+  through the abilities API so the throw is stored where `rollsOf` reads it. The
+  ability's name is invented; do not use a printed proficiency's.
+
+1. **The control.** Open the Skill audit from the Order tab. *Observable:* the
+   `Audit Search` row has a dice button; it is a `<button>` with an `aria-label`
+   naming the ability and a tooltip on hover; Tab reaches it.
+2. **Several roll.** Press it. *Observable:* exactly one new chat message, whispered
+   to the Judges (a Player seat sees none); its title is the ability, its subtitle
+   the party; two rows, one per holder, each with a total, a target, and a
+   Success or Failure; member 3 is named in the footnote as not having it. Hover a
+   total (the dice) and a target (the throw, its base and each bonus). Read the
+   world's message list: no second card per member.
+3. **A bonus is itemized.** Give member 1 an ability whose stored effect is a
+   proficiency-throw bonus naming `Audit Search`. Press again. *Observable:* member
+   1's target is lower by that figure and its tooltip names the base and the
+   bonus; member 2's has no bonus line.
+3a. **A bound row rolls the table's target.** Bind `Audit Search` to a party check
+   (its Skill tab's *Used for*: Search), give member 1 a Throw bonus on that tab and
+   an Alertness-named ability, then open the audit. *Observable:* the card's note
+   names the check ("Rolled as the party check: Hasty Search"); member 1's target
+   equals the figure the Resolution table prints in that check's column for member
+   1, and its tooltip lists the source and `+2 Alertness`-style parts by name; the
+   total carries the die plus those parts. Unbind it: the card returns to the
+   ability's own throw and the note is gone. Switch the item off for member 2
+   (Skill unchecked): member 2 is named in the footnote as unable to attempt the
+   party check, and the table shows nothing for them in that column.
+4. **A member who is down.** Set member 2's hit points to 0 and press again.
+   *Observable:* member 2 has no row and is named in the footnote as down; restore
+   the hit points.
+5. **Nobody holds it.** Delete `Audit Search` from members 1 and 2 (`api.track`
+   nothing: the items are the fixture's, rebuild them after) and press the row's
+   button from a roster still showing the row, or open the window before deleting.
+   *Observable:* one card reading that nobody rolled, with all three members in
+   the footnote, and no dice shown. Rebuild the items.
+6. **Nothing advanced.** Read the party's clock before and after step 2.
+   *Observable:* identical.
+
+Teardown: the cards the run posted are the module's; read each id back right after
+the press and `api.track(id, "ChatMessage")` it, then `api.sweepTracked()`. The kept
+fixtures stay.
 
 ## Teardown
 

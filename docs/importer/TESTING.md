@@ -18,7 +18,13 @@ prints in full becomes a character" and `tools/live/importer-typography.mjs`
 drives "A community book, read through its declared typography"
 (`tools/live/README.md` is the contract); the rest is walked by hand.
 
-## The Books window
+## The Books tab
+
+The Books tab of the import manager (`openImportManager({tab: "books"})`) is
+the one place a book is connected, shelved or forgotten; `bookStatus()`,
+`connectBook()`, `reconnectBooks()`, `gettingStarted()` and the join-time offer
+all open the manager on it. Every seat may open it, and a seat that is not a
+GM has this tab alone.
 
 ### Fixtures
 
@@ -33,7 +39,8 @@ drives "A community book, read through its declared typography"
 ### Steps
 
 1. Open "Your ACKS Books (this seat)" with nothing connected.
-   *Observable:* ONE window, four bands. The walkthrough band is open (this
+   *Observable:* the import manager, on its Books tab, holding the panel
+   `.acks-extras-importer-books` in four bands. The walkthrough band is open (this
    seat has nothing), the server band says nothing is staged, and every book
    renders a row under "Not connected" with its would-unlock scope. There is no
    `<select>` anywhere in it — `root.querySelector("select")` is null. The
@@ -460,11 +467,20 @@ tab's primary action reaching the run it names.
    auto`); no `id=` on anything inside the body
    (`root.querySelectorAll("[id]")` is empty below the window root). Run
    the macro again: the same window is raised, not a second.
-2. Books tab: the open count equals the books `api.bookOpen(id)` answers
-   true for over `Object.keys(api.BOOKS)`; each row's "What it brings"
-   matches `cookbookCount(id)`. **Open the Books window** opens it; the
-   Books window walkthrough band's **Manage imports…** opens this window
-   back.
+2. Books tab: the groups' counts ("Open this session", "Waiting", "Not
+   connected") add up to `Object.keys(api.BOOKS).length`, and each open book
+   is one `api.bookOpen(id)` answers true for; each row's scope matches
+   `cookbookCount(id)`. Press a control in the panel (a row's connect, Add to
+   server, Scan) and then another tab and back: the panel is built again with
+   the report of what was done in the shelf band. Close the window and call
+   `api.bookStatus()`: the manager opens on this tab.
+   **The player seat.** Join as the Player-level user with a book the Judge
+   shared on the shelf, and run "Your ACKS Books (this seat)".
+   *Observable:* the manager opens with a tab strip of ONE tab, Books; the
+   panel shows the shelf rows and the seat's own controls, no Add to server,
+   no census line; `openImportManager({tab: "tools"})` still lands on Books;
+   the join-time offer on a seat with a remembered book that needs a gesture
+   opens the same window.
 3. Import tab: the steps are listed in `GM_STEPS` order, numbered. Press
    **Run** on *Importing roll tables…*.
    *Observable:* the window's status line names the step while it runs and
@@ -814,6 +830,32 @@ never a delete list.
    documents it leaves on rebuild-only shelves, where the book has any).
    Answer No: a book repair writes over every document of that book, through
    the runs steps 2–4 already walked.
+9. **A forced repair.** The Mode select now reads three options, the third
+   *Force repair*; the manager's Rebuild tab carries the same three. Note
+   which fixture still carries the Judge's note from steps 2–4 (re-append
+   `<p>Judge note.</p>` to the first trap's description and the stack's), and
+   make one hand-made proficiency: an `ability` item with no cookbook flag,
+   named as a cookbook proficiency and carrying a written description
+   (`api.create`, so the ledger holds it).
+   Choose Traps with Force repair, press the go control, answer **No**.
+   *Observable:* a confirm titled *Force repair in place* counts the documents
+   to rewrite and says edits to imported fields are replaced, a description
+   you wrote in included; it closes on what is still kept. No fixture's
+   `modifiedTime` moved and the observer holds nothing.
+   Run it again and answer **Yes**.
+   *Observable:* the notice reads *Force-repaired in place*, 0 kept a note
+   (the notice has no kept count); the first trap's description is the
+   stamped block of its entry with the note gone; its level is still the
+   Judge's, as step 2 showed, and a row field the binder does not write
+   (`attackThrow`) is still 7.
+   Tick the proficiency fixtures and the hand-made one in the entry picker,
+   Force repair.
+   *Observable:* no ability-collision dialog opens; the flagged proficiency's
+   description is the library's; the hand-made item is untouched, and the
+   notice counts it among those left alone.
+   Close the book (mask it as step 6 does) and Force repair the Traps shelf.
+   *Observable:* as step 6: the confirm counts 0 to write over, nothing is
+   written, the hint to open the book appears.
 
 ### Driving it
 
@@ -821,9 +863,8 @@ never a delete list.
   seconds on a full world. Poll for `.acks-extras-importer-mon-list`.
 - Typing in its filter unticks every row the filter hides; tick after clearing
   the filter.
-- `bookStatus()` opens the Books window and resolves only when it closes, so a
-  script that awaits it hangs. Count the books open on the seat with
-  `reimportableBooks()`.
+- `bookStatus()` opens the manager on its Books tab and resolves with the
+  window at once. Count the books open on the seat with `reimportableBooks()`.
 - The dialog's promise resolves with the run's result — `{replaced,
   keptProse, refused, refill}` — once the confirm is answered and the run
   ends; wrapping `ui.notifications.notify` records the notices word for word.

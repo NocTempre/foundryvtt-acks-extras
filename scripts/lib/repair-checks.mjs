@@ -2,7 +2,8 @@
 /**
  * The repair checks lib owns: records the system stamped as migrated while
  * keeping their old field names, bundles embedded where no sheet lists them,
- * carry and mount links to actors that are gone, and what packages no longer
+ * carry and mount links to actors that are gone, a weapon's two-handed die
+ * that disagrees with its imported row, and what packages no longer
  * installed left in the world. The stranded-coin check reports only: it lists
  * what it finds and writes nothing. The merge-residue check removes what it
  * lists.
@@ -245,6 +246,65 @@ async function writeStampedRecords(findings) {
   return results;
 }
 
+/**
+ * The two-handed die a weapon's imported row names, read off the modes the
+ * importer stamped on the item from the Judge's own page: the die of the mode
+ * held two-handed, `""` when the row names none, and null when the item
+ * carries no imported row at all.
+ */
+function rowTwoHandedDie(item) {
+  const modes = item?.flags?.[MODULE_ID]?.weapon?.modes;
+  if (!Array.isArray(modes) || !modes.length) return null;
+  return String(modes.find((m) => m?.grip === "two-handed" && m.damage)?.damage ?? "");
+}
+
+/** A die with its spacing and case folded away, so two spellings of one die agree. */
+const foldDie = (die) => String(die ?? "").replace(/\s+/g, "").toLowerCase();
+
+/**
+ * Every weapon the two-handed-die check reads, labelled as it prints them: the
+ * world's actors' items, then the world's items. An unlinked token's actor is
+ * left out, as `stampedDocs` leaves it, since its record is the base actor's
+ * plus a delta.
+ */
+function* weaponDocs() {
+  for (const actor of game.actors ?? []) {
+    for (const item of actor.items ?? []) {
+      if (item.type === ITEM_TYPE.weapon) yield { item, name: `${actor.name} → ${item.name}` };
+    }
+  }
+  for (const item of game.items ?? []) {
+    if (item.type === ITEM_TYPE.weapon) yield { item, name: item.name };
+  }
+}
+
+/**
+ * Every weapon whose stored alternate die differs from the one its imported
+ * row names. The finding carries the die to write (`want`, `""` for none). A
+ * weapon the stamped-record rescue is still holding is listed and not offered:
+ * its stored `damage` is not yet the object the loaded source shows, and a
+ * change set merged into it would replace the base die.
+ */
+function twoHandedFindings() {
+  const none = loc("repair.check.twoHandedRow.none");
+  const out = [];
+  for (const { item, name } of weaponDocs()) {
+    const row = rowTwoHandedDie(item);
+    if (row == null) continue;
+    const stored = String(item.system?.damage?.alternate?.formula ?? "").trim();
+    if (foldDie(stored) === foldDie(row)) continue;
+    out.push({
+      key: item.uuid,
+      uuid: item.uuid,
+      name,
+      want: row,
+      detail: loc("repair.check.twoHandedRow.detail", { stored: stored || none, row: row || none }),
+      ...(rescuedFields(item._source?.system) ? { fixable: false, reason: loc("repair.check.twoHandedRow.stampedFirst") } : {}),
+    });
+  }
+  return out;
+}
+
 /** Registers lib's checks. Called once, at `init`. */
 export function registerLibRepairChecks() {
   registerRepairCheck({
@@ -259,6 +319,20 @@ export function registerLibRepairChecks() {
       detail: loc("repair.check.stampedRecords.detail", { fields: fields.join(", ") }),
     })),
     fix: writeStampedRecords,
+  });
+
+  registerRepairCheck({
+    id: "lib.twoHandedRow",
+    label: key("twoHandedRow.label"),
+    hint: key("twoHandedRow.hint"),
+    order: 6,
+    scan: twoHandedFindings,
+    fix: (findings) =>
+      fixEach(findings, async (f) => {
+        const item = await fromUuid(f.uuid);
+        if (!item) throw new Error(loc("repair.subjectGone"));
+        await item.update({ "system.damage.alternate.formula": f.want });
+      }),
   });
 
   registerRepairCheck({

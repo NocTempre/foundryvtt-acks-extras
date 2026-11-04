@@ -23,6 +23,7 @@ import {
   refreshImported,
   REPAIR,
   REFILL_STAT_PATHS,
+  policyFor,
   repairTally,
   repairCounts,
   countRepair,
@@ -1657,9 +1658,10 @@ const sysObject = (doc) =>
  * this seat, bind it with `build(node)`, and write the build under `policy`
  * (`refreshImported`). Resolves to the written plan, or to why nothing was
  * written — `book-closed` when the entry's book is not open here, `no-match`
- * when its page no longer matches, `error` when the binding threw.
+ * when its page no longer matches, `error` when the binding threw. A forced
+ * `tally` (`policyFor`) writes a hand-written description too.
  */
-async function repairFromEntry(doc, id, build, policy) {
+async function repairFromEntry(doc, id, build, policy, tally = null) {
   const found = cookbookEntry(id);
   const session = found ? ctx.sessionDocs.get(bookOf(found)) : null;
   if (!session) return "book-closed";
@@ -1672,7 +1674,7 @@ async function repairFromEntry(doc, id, build, policy) {
     console.error(`${MODULE_ID} | repair ${id}: the binding failed`, err);
     return "error";
   }
-  return refreshImported(doc, built, policy);
+  return refreshImported(doc, built, policyFor(policy, tally));
 }
 
 /**
@@ -1815,11 +1817,15 @@ function modeSelect() {
       <select name="mode">
         <option value="drop" selected>${t("reimportModeDrop")}</option>
         <option value="repair">${t("reimportModeRepair")}</option>
+        <option value="force">${t("reimportModeForce")}</option>
       </select></div>
       <p class="notes">${t("reimportModeHint")}</p>`;
 }
 
-/** Ask before a repair: one paragraph per line, an empty line left out. */
+/**
+ * Ask before a repair: one paragraph per line, an empty line left out. Closing
+ * the dialog, like pressing No, answers false: nothing is written.
+ */
 function confirmRepair(lines, titleKey = "reimportTitle") {
   return foundry.applications.api.DialogV2.confirm({
     window: { title: game.i18n.localize(`${LANG_PREFIX}.ui.${titleKey}`) },
@@ -1828,12 +1834,18 @@ function confirmRepair(lines, titleKey = "reimportTitle") {
       .filter(Boolean)
       .map((line) => `<p>${line}</p>`)
       .join(""),
+    rejectClose: false,
   });
 }
 
-/** The lines every repair confirm closes on: what a repair keeps, and the kinds it writes differently. */
-function repairKeepsLines(runs, { monsters = false } = {}) {
+/**
+ * The lines every repair confirm closes on: what a repair keeps, and the kinds
+ * it writes differently. A forced repair closes on what it still keeps, which
+ * is shorter and does not promise a Judge's description.
+ */
+function repairKeepsLines(runs, { monsters = false, force = false } = {}) {
   const t = (key) => game.i18n.localize(`${LANG_PREFIX}.ui.${key}`);
+  if (force) return [t("forceKeeps")];
   return [
     monsters ? t("repairMonsters") : "",
     runs.has("cookbookImportAbilities") ? t("repairAbilities") : "",
@@ -1845,11 +1857,13 @@ function repairKeepsLines(runs, { monsters = false } = {}) {
 /** Report a repair run from its tally. */
 function reportRepair(tally) {
   ui.notifications.info(
-    game.i18n.format(`${LANG_PREFIX}.ui.repairDone`, {
-      replaced: tally.replaced,
-      kept: tally.keptProse,
-      refused: tally.refused,
-    }),
+    tally.force
+      ? game.i18n.format(`${LANG_PREFIX}.ui.forceDone`, { replaced: tally.replaced, refused: tally.refused, handMade: tally.handMade })
+      : game.i18n.format(`${LANG_PREFIX}.ui.repairDone`, {
+          replaced: tally.replaced,
+          kept: tally.keptProse,
+          refused: tally.refused,
+        }),
   );
   if (tally.refused) ui.notifications.info(game.i18n.localize(`${LANG_PREFIX}.ui.repairRefusedHint`));
 }
@@ -1858,9 +1872,11 @@ function reportRepair(tally) {
  * Repair ONE shelf in place: every entry filed on it is written over its
  * document where that stands, and imported where the world lacks it. A
  * document whose book is not open here is left and counted, as the rebuild
- * keeps it; one no run writes in place (a price-list row) is left too.
+ * keeps it; one no run writes in place (a price-list row) is left too. `force`
+ * is a forced repair (`repairTally`): asked for under its own confirm, and a
+ * description a Judge wrote is rewritten too.
  */
-async function repairShelf(shelf) {
+async function repairShelf(shelf, { force = false } = {}) {
   const run = SHELF_REFILL[shelf];
   if (!REPAIR_RUNS[run]) return ui.notifications.warn(game.i18n.format(`${LANG_PREFIX}.ui.repairShelfRebuildOnly`, { shelf }));
   const prefixes = shelfPrefixes(shelf);
@@ -1874,26 +1890,29 @@ async function repairShelf(shelf) {
   const over = held.filter((d) => readableHere(claimedId(d)));
   const kept = held.length - over.length;
   const skipped = shelved.length - held.length;
-  const ok = await confirmRepair([
-    game.i18n.format(`${LANG_PREFIX}.ui.repairConfirm`, { n: over.length, shelf }),
-    kept ? game.i18n.format(`${LANG_PREFIX}.ui.reimportKeepsClosed`, { n: kept }) : "",
-    skipped ? game.i18n.format(`${LANG_PREFIX}.ui.repairSkipsDocs`, { n: skipped }) : "",
-    ...repairKeepsLines(new Set([run])),
-  ]);
+  const ok = await confirmRepair(
+    [
+      game.i18n.format(`${LANG_PREFIX}.ui.${force ? "forceConfirm" : "repairConfirm"}`, { n: over.length, shelf }),
+      kept ? game.i18n.format(`${LANG_PREFIX}.ui.reimportKeepsClosed`, { n: kept }) : "",
+      skipped ? game.i18n.format(`${LANG_PREFIX}.ui.repairSkipsDocs`, { n: skipped }) : "",
+      ...repairKeepsLines(new Set([run]), { force }),
+    ],
+    force ? "forceTitle" : "reimportTitle",
+  );
   if (!ok) return null;
-  const tally = repairTally();
+  const tally = repairTally({ force });
   const refill = await REPAIR_RUNS[run](ids, tally);
   reportRepair(tally);
-  return { shelf, mode: "repair", ...repairCounts(tally), refill: refill ?? null };
+  return { shelf, mode: force ? "force" : "repair", ...repairCounts(tally), refill: refill ?? null };
 }
 
 /**
  * Repair everything imported from ONE book in place, over the shelves the
  * rebuild would empty. Each run takes only this book's entries, so repairing
  * one book never writes over another book's documents. A document no run
- * writes in place is left, and its shelf named.
+ * writes in place is left, and its shelf named. `force` is `repairShelf`'s.
  */
-async function repairBook(bookId, label) {
+async function repairBook(bookId, label, { force = false } = {}) {
   const runs = new Map();
   for (const src of ENTRY_SOURCES) {
     if (src.type !== "Item" || !REPAIR_RUNS[src.refill]) continue;
@@ -1916,18 +1935,25 @@ async function repairBook(bookId, label) {
   const over = docs.filter((d) => touched.has(claimedId(d)));
   const left = docs.filter((d) => !touched.has(claimedId(d)));
   const shelves = [...new Set(over.map(shelfOf))].sort();
-  const ok = await confirmRepair([
-    game.i18n.format(`${LANG_PREFIX}.ui.repairConfirmBook`, { n: over.length, book: label, shelves: shelves.join(", ") || "—" }),
-    left.length
-      ? game.i18n.format(`${LANG_PREFIX}.ui.repairSkipsShelves`, {
-          n: left.length,
-          shelves: [...new Set(left.map(shelfOf))].sort().join(", "),
-        })
-      : "",
-    ...repairKeepsLines(runs),
-  ]);
+  const ok = await confirmRepair(
+    [
+      game.i18n.format(`${LANG_PREFIX}.ui.${force ? "forceConfirmBook" : "repairConfirmBook"}`, {
+        n: over.length,
+        book: label,
+        shelves: shelves.join(", ") || "—",
+      }),
+      left.length
+        ? game.i18n.format(`${LANG_PREFIX}.ui.repairSkipsShelves`, {
+            n: left.length,
+            shelves: [...new Set(left.map(shelfOf))].sort().join(", "),
+          })
+        : "",
+      ...repairKeepsLines(runs, { force }),
+    ],
+    force ? "forceTitle" : "reimportTitle",
+  );
   if (!ok) return null;
-  const tally = repairTally();
+  const tally = repairTally({ force });
   const refill = {};
   // In SHELF_REFILL's order, which is Import Everything's; a run no shelf
   // names (a book's own items) follows them.
@@ -1935,7 +1961,7 @@ async function repairBook(bookId, label) {
     if (runs.has(run)) refill[run] = (await REPAIR_RUNS[run](runs.get(run), tally)) ?? null;
   }
   reportRepair(tally);
-  return { book: bookId, mode: "repair", ...repairCounts(tally), refill };
+  return { book: bookId, mode: force ? "force" : "repair", ...repairCounts(tally), refill };
 }
 
 /**
@@ -1947,8 +1973,9 @@ async function repairBook(bookId, label) {
  *
  * @param {{key: string, id: string}[]} picked ticked rows whose book is open here
  * @param {number} closed ticked rows refused for a closed book, counted into the report
+ * @param {{force?: boolean}} [opts] `force` is `repairShelf`'s
  */
-async function repairEntries(picked, closed) {
+async function repairEntries(picked, closed, { force = false } = {}) {
   const docs = { Actor: await importedDocs("Actor"), Item: await importedDocs("Item") };
   const byKey = new Map();
   for (const { key, id } of picked) {
@@ -1981,15 +2008,15 @@ async function repairEntries(picked, closed) {
 
   const ok = await confirmRepair(
     [
-      game.i18n.format(`${LANG_PREFIX}.ui.repairConfirmEntries`, { n: over, picked: picked.length }),
+      game.i18n.format(`${LANG_PREFIX}.ui.${force ? "forceConfirmEntries" : "repairConfirmEntries"}`, { n: over, picked: picked.length }),
       rebuildOnly ? game.i18n.format(`${LANG_PREFIX}.ui.repairSkipsEntries`, { n: rebuildOnly }) : "",
-      ...repairKeepsLines(runs, { monsters: monsters.length > 0 }),
+      ...repairKeepsLines(runs, { monsters: monsters.length > 0, force }),
     ],
-    "reimportEntriesTitle",
+    force ? "forceTitle" : "reimportEntriesTitle",
   );
   if (!ok) return null;
 
-  const tally = repairTally();
+  const tally = repairTally({ force });
   tally.refused += closed;
   const refill = {};
   // Monsters first, as the rebuild runs them.
@@ -1999,7 +2026,7 @@ async function repairEntries(picked, closed) {
     if (!held.length) missing.push(id);
     for (const actor of held) {
       if (!unrepaired(tally, actor)) continue;
-      const done = await refillMonster(actor, { whole: true }).catch((err) => {
+      const done = await refillMonster(actor, { whole: true, force }).catch((err) => {
         console.error(`${MODULE_ID} | repair ${actor.name}`, err);
         return null;
       });
@@ -2014,7 +2041,7 @@ async function repairEntries(picked, closed) {
     refill[run] = (await api()[run](tables)) ?? null;
   }
   reportRepair(tally);
-  return { picked: picked.length, mode: "repair", rebuildOnly, ...repairCounts(tally), refill };
+  return { picked: picked.length, mode: force ? "force" : "repair", rebuildOnly, ...repairCounts(tally), refill };
 }
 
 /* -------------------------------------------- */
@@ -2067,10 +2094,11 @@ export const reimportableShelves = () =>
  * not twenty-one".
  *
  * `mode: "repair"` writes over the shelf's documents in place instead
- * (`repairShelf`).
+ * (`repairShelf`); `mode: "force"` does the same and also rewrites a
+ * description a Judge wrote in.
  *
  * @param {string} [shelf] a name from `reimportableShelves()`; omitted, asks.
- * @param {{mode?: "drop"|"repair"}} [opts]
+ * @param {{mode?: "drop"|"repair"|"force"}} [opts]
  */
 export async function cookbookReimportShelf(shelf = null, { mode = "drop" } = {}) {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (deletes and re-creates documents).`);
@@ -2095,7 +2123,7 @@ export async function cookbookReimportShelf(shelf = null, { mode = "drop" } = {}
   }
   const shelves = reimportableShelves();
   if (!SHELF_REFILL[shelf]) return ui.notifications.warn(`${MODULE_ID} | "${shelf}" is not a shelf that can be rebuilt on its own.`);
-  if (mode === "repair") return repairShelf(shelf);
+  if (mode === "repair" || mode === "force") return repairShelf(shelf, { force: mode === "force" });
 
   const prefixes = shelfPrefixes(shelf);
   const mine = (d) =>
@@ -2157,8 +2185,9 @@ export function rebuildOptions() {
 
 /**
  * Run one `rebuildOptions` value under `mode`: a shelf or a book is rebuilt
- * or repaired, the rules tables are re-read in place (every table, or one
- * document). Resolves to the run's own result.
+ * ("drop"), repaired ("repair") or force-repaired ("force"); the rules tables
+ * are re-read in place (every table, or one document). Resolves to the run's
+ * own result.
  */
 export function runRebuildPick(value, mode = "drop") {
   const [kind, ...rest] = String(value ?? "").split(":");
@@ -2198,10 +2227,10 @@ export const reimportableBooks = () => {
  * document. See docs/importer/DECISIONS.md, "A book is a reimport unit too".
  *
  * `mode: "repair"` writes over the book's documents in place instead
- * (`repairBook`).
+ * (`repairBook`); `mode: "force"` also rewrites a description a Judge wrote in.
  *
  * @param {string} bookId a key of BOOKS, open on this seat.
- * @param {{mode?: "drop"|"repair"}} [opts]
+ * @param {{mode?: "drop"|"repair"|"force"}} [opts]
  */
 export async function cookbookReimportBook(bookId, { mode = "drop" } = {}) {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (deletes and re-creates documents).`);
@@ -2209,7 +2238,7 @@ export async function cookbookReimportBook(bookId, { mode = "drop" } = {}) {
   if (!ctx?.sessionDocs?.has(bookId)) {
     return ui.notifications.warn(game.i18n.format(`${LANG_PREFIX}.ui.reimportNotConnected`, { book: label }));
   }
-  if (mode === "repair") return repairBook(bookId, label);
+  if (mode === "repair" || mode === "force") return repairBook(bookId, label, { force: mode === "force" });
   const shelves = new Set();
   const mine = (d) => {
     if (d.flags?.[MODULE_ID]?.templatePart) return false;
@@ -2621,7 +2650,8 @@ export async function cookbookReimportEntries() {
  * this seat is refused before anything is deleted. See
  * docs/importer/DECISIONS.md, "The entry picker runs each importer over the
  * ticked entries only". `mode: "repair"` writes over them in place instead
- * (`repairEntries`).
+ * (`repairEntries`), and `mode: "force"` also rewrites a description a Judge
+ * wrote in.
  */
 async function runEntryReimport(all, { mode = "drop" } = {}) {
   // Rules tables carry no book to check and delete nothing.
@@ -2629,7 +2659,7 @@ async function runEntryReimport(all, { mode = "drop" } = {}) {
   const picked = all.filter((p) => !closed.includes(p));
   if (closed.length) ui.notifications.warn(game.i18n.format(`${LANG_PREFIX}.ui.reimportEntriesClosed`, { n: closed.length }));
   if (!picked.length) return null;
-  if (mode === "repair") return repairEntries(picked, closed.length);
+  if (mode === "repair" || mode === "force") return repairEntries(picked, closed.length, { force: mode === "force" });
   // Re-read: the dialog's list was drawn when it opened, and another window may
   // have imported or deleted since.
   const docs = { Actor: await importedDocs("Actor"), Item: await importedDocs("Item") };
@@ -3593,9 +3623,10 @@ async function importTemplate(bookId, id, folderId) {
  * By default only the stats are written and embedded items are left alone.
  * `whole` repairs the monster in place (`REPAIR.monster`): its minted
  * attacks are replaced and its prose is rewritten field by field, except a
- * field a Judge wrote in; `keptProse` names those.
+ * field a Judge wrote in; `keptProse` names those. With `force` that field is
+ * rewritten too.
  */
-export async function refillMonster(actor, { whole = false } = {}) {
+export async function refillMonster(actor, { whole = false, force = false } = {}) {
   const id = actor?.getFlag(MODULE_ID, "cookbook")?.id;
   if (!id) return null;
   const found = cookbookEntry(id);
@@ -3635,7 +3666,7 @@ export async function refillMonster(actor, { whole = false } = {}) {
           },
         },
       },
-      REPAIR.monster,
+      policyFor(REPAIR.monster, { force }),
     );
     if (plan.refused) return { ok: false, reason: plan.refused, book: bookId, name: found.entry.name };
     return { ok: true, book: bookId, name: found.entry.name, keptProse: plan.keptProse };
@@ -5239,7 +5270,7 @@ export async function cookbookImportAdventureItems({ books = null, only = null, 
       if (have) {
         counts.already++;
         if (unrepaired(repair, have)) {
-          countRepair(repair, await repairFromEntry(have, id, (node) => adventureItemData(bookId, id, entry, node), REPAIR.adventureItem));
+          countRepair(repair, await repairFromEntry(have, id, (node) => adventureItemData(bookId, id, entry, node), REPAIR.adventureItem, repair));
         }
         continue;
       }
@@ -9449,7 +9480,7 @@ export async function importVehicles({ only = null, repair = null } = {}) {
         const have = await importedActor(rowId, { copies: false });
         if (have) {
           skipped++;
-          if (repair) countRepair(repair, await refreshImported(have, bindVehicleRow(row, entry, id), REPAIR.vehicle));
+          if (repair) countRepair(repair, await refreshImported(have, bindVehicleRow(row, entry, id), policyFor(REPAIR.vehicle, repair)));
           continue;
         }
         const doc = await claimActorImport(rowId, async () => {
@@ -9537,7 +9568,7 @@ export async function importMerchandise({ only = null, repair = null } = {}) {
       if (have) {
         skipped++;
         held.set(planned.key, have);
-        if (repair) countRepair(repair, await refreshImported(have, built, REPAIR.merchandise));
+        if (repair) countRepair(repair, await refreshImported(have, built, policyFor(REPAIR.merchandise, repair)));
         continue;
       }
       const doc = await claimImport(rowId, async () => {
@@ -9726,7 +9757,7 @@ export async function importVariations({ only = null, repair = null } = {}) {
     const have = await importedItem(id);
     if (have) {
       skipped++;
-      if (repair) countRepair(repair, await repairFromEntry(have, id, (node) => bindVariation(entry, node, id), REPAIR.variation));
+      if (repair) countRepair(repair, await repairFromEntry(have, id, (node) => bindVariation(entry, node, id), REPAIR.variation, repair));
       continue;
     }
     const doc = await claimImport(id, async () => {
@@ -9855,7 +9886,7 @@ export async function importTraps({ only = null, repair = null } = {}) {
     const have = await importedItem(id);
     if (have) {
       skipped++;
-      if (repair) countRepair(repair, await repairFromEntry(have, id, (node) => bindTrap(entry, node, id), REPAIR.trap));
+      if (repair) countRepair(repair, await repairFromEntry(have, id, (node) => bindTrap(entry, node, id), REPAIR.trap, repair));
       continue;
     }
     const doc = await claimImport(id, async () => {
@@ -9935,7 +9966,7 @@ export async function importSpells({ only = null, repair = null } = {}) {
     const have = await importedItem(id);
     if (have) {
       skipped++;
-      if (repair) countRepair(repair, await repairFromEntry(have, id, (node) => bindSpell(entry, node, id), REPAIR.spell));
+      if (repair) countRepair(repair, await repairFromEntry(have, id, (node) => bindSpell(entry, node, id), REPAIR.spell, repair));
       continue;
     }
     const doc = await claimImport(id, async () => {
@@ -10035,7 +10066,7 @@ export async function cookbookUpdateClasses({ only = null, confirm = true, repai
       printedRepertoire: classRepertoireFor(repertoires, entry.name),
       builderTables: worldBuilderTables(),
     });
-    const plan = await refreshImported(item, doc, REPAIR.class);
+    const plan = await refreshImported(item, doc, policyFor(REPAIR.class, repair));
     countRepair(repair, plan);
     if (!plan.refused) written.push(item);
   }
@@ -10399,7 +10430,7 @@ export async function importEquipment(id, folderId, { repair = null, passed = nu
   // actor side of the same target.
   const existing = asActor ? await importedActor(id, { copies: false }) : await importedItem(id);
   if (existing) {
-    if (unrepaired(repair, existing)) countRepair(repair, await repairEquipment(existing, id, asActor));
+    if (unrepaired(repair, existing)) countRepair(repair, await repairEquipment(existing, id, asActor, repair));
     return existing;
   }
 
@@ -10429,12 +10460,12 @@ export async function importEquipment(id, folderId, { repair = null, passed = nu
  * (`cookbook.id`), so it is rebuilt from that one, never from the id it
  * absorbed. Resolves to `refreshImported`'s plan, or to why nothing was written.
  */
-async function repairEquipment(doc, id, asActor) {
+async function repairEquipment(doc, id, asActor, tally = null) {
   const own = doc.getFlag(MODULE_ID, "cookbook")?.id ?? id;
   const found = cookbookEntry(own);
   if (!found) return "no-match";
-  if (asActor) return repairFromEntry(doc, own, (node) => bindAnimal(found.entry, node, own), REPAIR.animal);
-  return repairFromEntry(doc, own, (node) => buildEquipmentItem(found, own, node), REPAIR.equipment);
+  if (asActor) return repairFromEntry(doc, own, (node) => bindAnimal(found.entry, node, own), REPAIR.animal, tally);
+  return repairFromEntry(doc, own, (node) => buildEquipmentItem(found, own, node), REPAIR.equipment, tally);
 }
 
 /** Build and create the ITEM half of an equipment import (the claimed body). */
@@ -11617,7 +11648,10 @@ export async function cookbookUpdateAbilities({ only = null, repair = null } = {
       // different questions: a Judge who annotated a description this
       // module created still wrote those words.
       const prose = doc.system?.description;
-      const annotated = handWrittenProse(prose);
+      // A forced repair writes the description of a document this module made
+      // whatever a Judge put in it; a document it did not make (`!flagged`) is
+      // still the Judge's own and still waits for an answer.
+      const annotated = handWrittenProse(prose) && !(flagged && repair?.force);
       if (flagged && annotated) {
         await writeGenerated(doc, built, { keepProse: true });
         updated++;
@@ -11649,8 +11683,11 @@ export async function cookbookUpdateAbilities({ only = null, repair = null } = {
   }
 
   if (collisions.length) {
-    const choices = await askAboutAdoptedProse(collisions);
+    // A forced repair is not an answer to "whose is this": the documents here
+    // are the Judge's own by name, and each is left as it is.
+    const choices = repair?.force ? new Map() : await askAboutAdoptedProse(collisions);
     kept = collisions.length - choices.size;
+    if (repair?.force) repair.handMade += kept;
     const bar2 = progressBar(game.i18n.localize(`${LANG_PREFIX}.ui.progressResolve`), choices.size);
     try {
       for (const [i, choice] of choices) {

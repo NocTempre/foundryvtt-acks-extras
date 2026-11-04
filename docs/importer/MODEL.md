@@ -27,18 +27,33 @@ actor whose own book is open (`bindMonster`, step 2). The ruling is DECISIONS
 
 ## The import manager
 
-One window (`apps/import-manager.mjs`, `openImportManager({tab})`) holds a
-Judge's import controls, reached from the *Manage Imports (GM)* macro, the
-settings menu (`importManager`, `ImportManagerMenu`) and the Books window's
-walkthrough band. It keeps no state: `installImportManager(host)` is given
-the importer api, the chain and the runs at ready, every tab reads them at
-render, and every press hands off to a run that already exists and asks its
-own questions. Five tabs:
+One window (`apps/import-manager.mjs`, `openImportManager({tab})`) holds the
+importer's controls, reached from the *Manage Imports (GM)* macro, the
+settings menu (`importManager`, `ImportManagerMenu`) and every entry point
+that used to open the Books window (below). It keeps no state:
+`installImportManager(host)` is given the importer api, the chain, the runs
+and the Books panel builder at ready, every tab reads them at render, and
+every press hands off to a run that already exists and asks its own
+questions. Five tabs:
 
-- **Books** — every book this build reads (`BOOKS`), whether it is open on
-  this seat and what it brings (`cookbookCount`, the recipes naming it), and
-  the button that opens the Books window. Connecting, staging and status stay
-  in that window; the tab is the status line and the way there.
+- **Books** — the whole of what the Books window was: the first-run
+  walkthrough, the server shelf, the controls that answer for several books,
+  one row per book, the refresh-bridge line and Forget. `booksPanel` in
+  `module.mjs`, where the seat's books, shelf and file handles live, builds
+  it as `{html, wire}`; the template prints `html` in the tab's section and
+  the manager calls `wire(element, {rerender})` after each render of the
+  body, scoped to `[data-books-panel]`. A listener that changes what the
+  bands show (staging, unstaging, a scan) calls `rerender(report)`: the
+  manager queues the report (`queueBooks`) and renders, so the next build
+  carries it in the shelf band. `openBooksDialog(opts)` is
+  `openImportManager({tab: "books", ...opts})`, and `bookStatus`,
+  `connectBook`, `reconnectBooks`, `gettingStarted` and the join-time offer
+  go through it; the first three keep their names for macros already
+  imported into worlds.
+  **Who sees it.** Any seat may open the manager. A seat that is not a GM has
+  the Books tab alone: `_prepareContext` drops the other four tabs, reads
+  neither `rebuildOptions` nor `adventureBooks`, and every action that writes
+  the world refuses. The settings-menu entry stays restricted.
 - **Import** — the chain (`GM_STEPS`, exported from `getting-started.mjs`) in
   its order, numbered, run whole (`runImportEverything`) or one step at a
   time (`runImportStep(key)`, `api.importStep`).
@@ -56,6 +71,55 @@ own questions. Five tabs:
 
 One run at a time: the window names what runs in a status line and disables
 its buttons until the run resolves, then re-renders.
+
+## A forced repair
+
+Repair in place (`refreshImported`, DECISIONS 2026-09-24) writes a fresh read
+over a held document and keeps what play or a Judge set. A **forced repair**
+(`mode: "force"` on `cookbookReimportShelf`, `cookbookReimportBook`,
+`runRebuildPick` and the entry picker; the third option of every Mode select
+and of the Rebuild tab) writes the same documents with one guard lifted: the
+**hand-written prose guard**. `repairTally({force: true})` carries the flag
+through the runs that already carry a tally; `policyFor(policy, tally)` adds
+`force: true` to the `REPAIR` policy a write goes under, and `refreshPlan`
+then skips its `prose` and `proseFlags` loops, so a description or a monster's
+prose field a Judge wrote in is rewritten like a stamped one and `keptProse`
+stays empty. `cookbookUpdateAbilities` reads `repair.force` for a flagged
+ability the same way (`annotated` is false), and does not ask its collision
+dialog: the name-adopted documents it would have asked about are counted in
+`tally.handMade`, left as they are. `refillMonster(actor, {whole, force})`
+takes the same flag for a stat-block monster.
+
+Each of the three repair entry points (`repairShelf`, `repairBook`,
+`repairEntries`) asks its own confirm when forced, under its own title
+(`ui.forceTitle`), with the count of documents it will write and a closing
+line of what is still kept (`ui.forceKeeps`); it is `DialogV2.confirm` with
+`rejectClose: false`, so No and closing the window both answer false and the
+tally, the runs and the notice are never reached. The result carries
+`mode: "force"` and `handMade`.
+
+**What a forced repair still does not write**, each kept because the import
+does not own it or has nothing to write from:
+
+- a document the import did not make: an unflagged item or actor, a
+  name-adopted ability, an embedded effect or attack without `minted`, a
+  `templatePart` or a copy dragged out of the library (`isWorldCopy`);
+- the `keep` fields of each policy (a trap's level, a vehicle's crew and
+  damage, a stack's quantity and equipped state, a spell's cast count): play
+  state, or settled by `annotateItem` after creation;
+- a field the build does not produce: an array row's unbuilt fields
+  (`keepUnrenderedFields`), spell effect rows a Judge authored where the page
+  gave none (`keepFlags`), a class level's experience or title the build could
+  not read (`fillUnread`);
+- a document with nothing to be written from: its book is not open on this
+  seat, its page no longer matches, a monster entry that claims no stats, a
+  build of another document type, a write Foundry rejects;
+- a kind with no in-place write: weapons, armour, the price list, languages,
+  races, monster templates and families, NPCs, OSE creatures. These stay on
+  Rebuild, marked, and a forced repair leaves them and says so.
+
+An adventure book's Repair is a different operation (it imports what the
+world lacks) and has no forced mode.
 
 ## An adventure book, rebuilt or repaired
 
@@ -154,7 +218,7 @@ hash rebuilds it; anything else is held. Once the book's Adventure stands, the
 retired per-map Adventures of the same book on the same shelf
 (`kind.settlementAdventure`, `legacyAdventuresOf`) are deleted and named in
 the step's summary. A run that fails writes nothing and retires nothing. The
-Books window reads each open Judge's book's census off the shelf's index
+Books tab reads each open Judge's book's census off the shelf's index
 (`bookCensus`).
 
 Core's `Adventure#import` is steered, not replaced. For an Adventure whose

@@ -62,6 +62,7 @@ All paths are under `scripts/formation/` unless noted.
 | `marching-templates.mjs` | Saved marching orders (world setting `acks-extras.marchingTemplates`): capturing an arrangement, reconciling it against the party as it now stands, and forming up. |
 | `obstacles.mjs`, `swimming.mjs`, `jumping.mjs` | The chapter 6 obstacle derivations, published on `api.formation`. Deep water and chasms sit *beside* the Spelunking table rather than in it; each file's header says what it does not share with the others. |
 | `announce.mjs` | One formation chat card (public, or whispered to the GMs). |
+| `audit-roll.mjs` | The skill audit's whole-party roll: one ability, every member who holds it, one grouped card (§The audit roll). |
 | `journey.mjs` | The journey's movement engine: the dispatcher on the movement seam, miles measured on any grid, the one record patch for trace and spend, the running world clock, `nextHex`, `spendSearchHour`, `hexContext`, and the two hooks `acksExtras.hexEntered` / `acksExtras.searchHourSpent`. |
 | `march.mjs` | The march as arithmetic, Foundry-free: the day's budget in hours, the cadence by grid or by miles, a spend carried across drags, and whether the day is spent. |
 | `hex-stock.mjs` | A hex's stock as arithmetic, Foundry-free: the stocking procedure, settled shares, substitution, per-formation finds, search credit, assessments and false counts. |
@@ -87,7 +88,7 @@ All paths are under `scripts/formation/` unless noted.
 - **A member's token placed from the roster keeps their hit points.** The system's own `TokenDocument#_preCreate` rolls a placed unlinked monster new hit points while its `autoRollMonsterHP` setting is on, which it is by default. So `deployMembers` and `restoreMemberTokens` create with lib's `KEEP_HIT_POINTS_OPTION`, and lib's `preCreateToken` hook, which Foundry runs after `_preCreate`, writes back the stash's own hit points. The same hook keeps a member's token that core moves to another scene (docs/lib/MODEL.md, "The hit-point tool"). A monster placed any other way still rolls. A token that matches its actor stashes its delta as `null`, and the roster's stash write builds the delta before writing into it.
 - The **party token** belongs to a dedicated actor of the module's own `party` type (`PARTY_TYPE`, one per formation) whose `system.movement.base` mirrors the party's exploration speed (min over members' `system.movementacks.exploration`, which the acks system derives from encumbrance). `updateActor`/`create|update|deleteItem` hooks keep it in sync.
 - The **party token** is the record's `sceneId` + `tokenId`. Placing a party actor's token adopts it (`createToken`, `module.mjs`); deleting it outside a disband unlinks it (`deleteToken`), unless the deletion names a **replacement**: core's move to another scene, by a `teleportToken` Region or a cut and paste, and the rules a record that follows one keeps (docs/lib/MODEL.md, "A token moved to another scene"). A replacement still flagged for the formation takes over `sceneId`, `tokenId` and `clock.lastPosition` (DECISIONS 2026-10-17).
-- **Only the linked token acts for the party.** `isLinkedPartyToken(record, token)` is the one test, id and scene both. The movement and rotation hooks, the deletion that unlinks, and the combat deploy all run it, so a flagged copy of the party token (a paste, a duplicated scene) bills no turn, turns nothing, seats nobody and deploys nobody. The flag alone is evidence of a copy's origin, not of its standing. A copy is never adopted over a live link. `preCreateToken` refuses an UNFLAGGED token of a party actor while the record links a live token (the Judge is warned); a flagged creation stands, since a teleport creates the replacement before the deletion hands the linkage over. `adoptPartyToken` is the one adoption, shared by the `createToken` hook and the repair tool, and `adoptPartyActor` is the one for a party actor no record names. `truePositionToken` reads the record's own token, on its own scene, never the first token of the party actor on a scene. `addMember` refuses an actor another formation holds, for the Judge's drop and HUD button as a player's request is refused (`membership.bringInRefusal`). The repair checks `formation.partyTokens` and `formation.partyActors` find what disagrees and mend what is safe (DECISIONS 2026-11-03).
+- **Only the linked token acts for the party.** `isLinkedPartyToken(record, token)` is the one test, id and scene both. The movement and rotation hooks, the deletion that unlinks, and the combat deploy all run it, so a flagged copy of the party token (a paste, a duplicated scene) bills no turn, turns nothing, seats nobody and deploys nobody. The flag alone is evidence of a copy's origin, not of its standing. A copy is never adopted over a live link. `preCreateToken` refuses an UNFLAGGED token of a party actor while the record links a live token (the Judge is warned); a flagged creation stands, since a teleport creates the replacement before the deletion hands the linkage over. `adoptPartyToken` is the one adoption, shared by the `createToken` hook and the repair tool, and `adoptPartyActor` is the one for a party actor no record names. `truePositionToken` reads the record's own token, on its own scene, never the first token of the party actor on a scene. `addMember` refuses an actor another formation holds, for the Judge's drop and HUD button as a player's request is refused (`membership.bringInRefusal`). The repair checks `formation.partyTokens` and `formation.partyActors` find what disagrees and mend what is safe (DECISIONS 2026-11-03). A member two parties list stays with the one whose record links a token that stands on a scene (`isLinkedPartyToken`), and `formation.partyActors` takes them out of every other through `removeMember` with `restore: false`, which drops the lights they bear, the spells they cast and their roles, discards a token that party had stashed for them (none is put on any scene) and leaves a token it had deployed for them standing; where no party or more than one is on a map the finding is listed and not fixable. The fix reads the formations again first and is refused unless the same parties still hold the member and the same single party is on the map.
 - The **party token's size** is the formation's real shape at the scene's scale: `faceWidthFeet` (frontage × the `marchFeetPerBody` world setting) across the line of march, `partyDepth × 5'` deep, converted through `scene.grid.distance` and quantized to quarter squares (`syncPartyTokenSize` in `scene-sync.mjs`). Token width/height are axis-aligned, so an east/west heading swaps the two; a rotation-watching `updateToken` hook resyncs on every turn. The swap goes through `TokenDocument#resize`, which pivots the block about its own **centre** and ignores walls and movement cost — width and height are Foundry movement fields, so a raw `update` would anchor the turn on the token's top-left corner, be constrained by walls, and be measured as travel. The resize waits out the token's `movementAnimationPromise` first (an unanimated write mid-move cancels the move), and carries `RESIZE_OPTION` so the movement hook does not bill a turn as a walk; it re-baselines `clock.lastPosition` itself, since holding the centre still moves the corner the clock measures from. Every face-width consumer reads `effectiveFrontage()`, the seam where the squeeze mechanic (ROADMAP) will narrow a squeezed column. Generic tokens are sized by the battlemap feature (`docs/battlemap/MODEL.md`), which exempts party tokens — one owner per token, each side skipping the other's.
 
 ## Movement → turns
@@ -314,6 +315,48 @@ The two mutations themselves belong to the equipment feature (`grantGear`,
 `clearHands` — see [its model](../equipment/MODEL.md)); this feature owns only
 the rule about *what* is needed. Missing the equipment feature degrades to
 supplying nothing, never to an error.
+
+## The audit roll
+
+Each row of the Skill audit's party roster has a roll control. It rolls that ability
+once for every member of the party who holds it and posts one grouped card
+(`renderRollCard`, the shape a party check posts), whispered to the Judges through
+`postToJudges` with no roll attached: the card states its own totals and the dice
+show through Dice So Nice to the Judges.
+
+- **Who holds it** is the roster's own identity, `abilityKey`: a member's copy answers
+  to the row if its key matches, so two members carrying the same ability are one row
+  and both roll.
+- **Which throw**, per holder, by whether a party check takes the holder's copy
+  (`boundChecks` in `party-rolls.mjs`, the reading the roster's route badges use):
+  - **A party check takes it**: the holder rolls that check's throw through
+    `rollCheckFor`, the function `rollPartyCheck` calls for each member. The target is
+    `resolveCheck`'s, so it is the figure the Resolution table shows for that member:
+    the item's scaled or sheet target less the Throw bonus, the Adventuring fallback,
+    and the Strength a bash adds. The methodical, Alertness and Trapfinding parts ride
+    the die. When several checks take the copy (hasty and methodical search share one
+    flag) the first in `PARTY_CHECKS` order is rolled and the card's note names it.
+    A copy the check cannot be made from (switched off with no Adventuring fallback)
+    makes no roll and is named in the footnote.
+  - **No party check takes it**: the holder's copy rolls its default throw, the one a
+    bare roll reaches (`defaultKeyOf`), through `evaluateThrow` in
+    `abilities/ability-rolls.mjs`. It is `rollAbility`'s own computation — the same
+    target, formula and scoring — without the dialog or the post, and returns the
+    total, the target, the base the target started from and the standing bonuses
+    between them (`targetModifiers`: other abilities, the throw's score, conditions).
+- **The card** has a row to each member who rolled: the total (tooltip: the dice), the
+  target (tooltip: for a party check, the source and each part with the member's own
+  figures; for an ability's own throw, the throw, its base and each bonus) and the
+  verdict. A rung that needs no throw is a row reading Success with no total; a rung
+  not yet open reads its table cell with no verdict; a target that did not resolve
+  says so on the row instead of failing.
+- **Members who made no roll** are named in the footnote with the reason: the ability
+  is not on their sheet, it offers no throw, the party check cannot be made from it,
+  they are down, or the throw could not be rolled. When nobody rolls the card is still posted and says so, with the same
+  footnote. A card with no rows is opt-in (`renderRollCard`'s `empty`), so every other
+  card keeps returning nothing when it has nothing.
+- **Nothing advances.** An audit roll spends no round and no turn and sets no
+  once-per-turn mark; it is the Judge looking, not the party acting.
 
 ## Roles that need a kit
 

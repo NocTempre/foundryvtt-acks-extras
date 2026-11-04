@@ -1502,6 +1502,26 @@ writes each record whole, with `system` replaced rather than merged, which is
 the only update that removes a key the schema does not declare. A record so
 written loads as stored, and the map forgets it.
 
+### A weapon's two-handed die follows its imported row
+
+A weapon's alternate damage (`system.damage.alternate.formula`) follows the
+row the importer made it from. The link is the item's own record: the importer
+stamps `flags.acks-extras.weapon.modes` from the Judge's weapon table, and the
+mode held two-handed carries the row's second die (`damageModes`,
+`importer/weapon-tables.mjs`). Where such a mode names a die, that die is the
+alternate; where the modes name none, the alternate is blank. `bindWeaponRow`
+writes exactly that at creation. A weapon with no stamped modes has no imported
+row, and keeps what it stores. Nothing compares the stored alternate with the
+one-handed die, and nothing overrides the field as the document loads.
+
+Weapons already in the world are brought to their row by the repair check
+`lib.twoHandedRow`, which lists the world's weapons and the weapons on world
+actors whose stored alternate, compared without spacing or case, differs from
+the row's, and writes the row's value when ticked. An unlinked token's actor
+is not walked. A weapon the stamped-record rescue still holds is listed and
+not offered until `lib.stampedRecords` has written its record, since its stored
+`damage` may still be a string that a merged change set cannot extend.
+
 ## The multi-roller chat card
 
 `scripts/lib/roll-card.mjs` is the one renderer for every card where several
@@ -2133,6 +2153,7 @@ it does not.
 
 | Check | Finds | Fix |
 |---|---|---|
+| `lib.twoHandedRow` | A weapon, in the world or on a world actor, whose stored alternate damage differs from the one its imported row names ("A weapon's two-handed die follows its imported row") | Writes the row's die, or a blank where it names none. A weapon with no imported row is never listed. |
 | `lib.embeddedBundles` | A bundle embedded on a world actor or an unlinked token's actor, named as a market purchase when it has that shape, and as partial when an unpack stopped part-way | `unpackEmbeddedBundle` ("Goods handed to an actor, and bundles"). A bundle with an unresolved row is unfixable, and the finding names the rows. |
 | `lib.attachments` | An actor attached to a carrier that is gone | Unsets the attachment |
 | `lib.mountPairs` | A legacy rider or mount flag naming an actor that is gone or does not name it back | Unsets that flag |

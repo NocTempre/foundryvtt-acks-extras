@@ -11,8 +11,11 @@
  * linkage (`isLinkedPartyToken`): a copy on the party's own scene, or one for a
  * party that no longer exists, is deleted; a copy on another scene is only
  * reported; a party token the record lost is linked again. A party actor no
- * record names is given one, and a member held by two parties is only reported.
- * No fix touches the linked token, the members, the marching order or the clock.
+ * record names is given one. A member held by two parties stays with the one
+ * whose record links a token on a scene and leaves every other (`mendShared`);
+ * where none or several qualify the member is only reported. Apart from that
+ * removal, no fix touches the linked token, the members, the marching order or
+ * the clock.
  */
 import { MODULE_ID } from "../lib/constants.mjs";
 import { fixEach, registerRepairCheck } from "../lib/repair.mjs";
@@ -20,11 +23,13 @@ import { FLAG_FORMATION_ID, PARTY_TYPE } from "./constants.mjs";
 import {
   adoptPartyActor,
   adoptPartyToken,
+  getFormation,
   getPartyActor,
   getPartyToken,
   isLinkedPartyToken,
   patchFormation,
   readFormations,
+  removeMember,
 } from "./formation-model.mjs";
 import { SHADOW_FLAG, shadowsOn } from "./shadow.mjs";
 import { lostOf } from "./lost.mjs";
@@ -150,6 +155,97 @@ function partyTokenFindings(formations) {
     else out.push(tokenFinding(token, formation, "elsewhere", "delete", { fixable: false, reason: "elsewhereReason" }));
   }
   return out;
+}
+
+/**
+ * The parties whose marching order lists each actor, keyed by actor id and
+ * kept only where two or more do. Blank squares hold nobody.
+ */
+function sharedHolders(formations) {
+  const holders = new Map();
+  for (const formation of Object.values(formations)) {
+    for (const m of formation.members ?? []) {
+      if (!m || m.blank || !m.actorId) continue;
+      holders.set(m.actorId, new Set([...(holders.get(m.actorId) ?? []), formation.id]));
+    }
+  }
+  return new Map([...holders].filter(([, ids]) => ids.size >= 2));
+}
+
+/**
+ * Does the record link a token that stands on a scene? The same test that gates
+ * every automation acting for the party on a token (`isLinkedPartyToken`), read
+ * from the scene the record names.
+ */
+function standsOnMap(formation) {
+  const token = getPartyToken(formation);
+  return !!token && isLinkedPartyToken(formation, token);
+}
+
+/**
+ * The ids among `ids` whose party stands on a map: those that keep a shared
+ * member. Exactly one makes the finding fixable.
+ */
+function mapKeepers(formations, ids) {
+  return [...ids].filter((id) => formations[id] && standsOnMap(formations[id]));
+}
+
+/**
+ * A member held by two or more parties as a finding. With exactly one party on a
+ * map the finding is fixable and carries `keeperId` and `dropIds`, the parties the
+ * member leaves; otherwise it only lists them, and `detail` says why.
+ */
+function sharedFinding(actorId, ids, formations) {
+  const actor = game.actors.get(actorId) ?? null;
+  const nameOf = (id) => formations[id]?.name ?? id;
+  const parties = [...ids].map(nameOf).join(", ");
+  const keepers = mapKeepers(formations, ids);
+  const base = { key: `shared:${actorId}`, uuid: actor?.uuid ?? null, actorId, name: actor?.name ?? actorId, formationIds: [...ids] };
+  if (keepers.length !== 1) {
+    return {
+      ...base,
+      detail: keepers.length ? loc("partyActors.sharedManyMaps", { parties, count: keepers.length }) : loc("partyActors.sharedNoMap", { parties }),
+      fixable: false,
+      reason: loc("partyActors.sharedReason"),
+    };
+  }
+  const [keeperId] = keepers;
+  const dropIds = [...ids].filter((id) => id !== keeperId);
+  return {
+    ...base,
+    keeperId,
+    dropIds,
+    detail: loc("partyActors.sharedKeeper", { keeper: nameOf(keeperId), dropped: dropIds.map(nameOf).join(", ") }),
+    fixable: true,
+  };
+}
+
+/**
+ * Mend one shared member: take them out of every party but the one on the map,
+ * through the model's own removal, so their lights, spells and roles go with
+ * them, and a token a dropped party stashed for them is discarded, not put back
+ * on a scene. The parties are read again and the keeper recomputed first; the fix is
+ * refused (thrown, which `fixEach` reports) unless the member is still held by
+ * the same parties and the same single one stands on a map. A party at a time,
+ * each read fresh; a later one that fails leaves the earlier ones dropped and
+ * the rescan finding what remains.
+ */
+async function mendShared(finding) {
+  const formations = readFormations();
+  const ids = sharedHolders(formations).get(finding.actorId);
+  if (!ids) throw new Error(loc("partyActors.sharedGone"));
+  const keepers = mapKeepers(formations, ids);
+  const same = ids.size === finding.formationIds.length && finding.formationIds.every((id) => ids.has(id));
+  if (!same || keepers.length !== 1 || keepers[0] !== finding.keeperId) throw new Error(loc("partyActors.sharedChanged"));
+  const dropped = [];
+  for (const id of ids) {
+    if (id === finding.keeperId) continue;
+    // restore: false discards the token a dropped party stashed for them; the
+    // keeper holds the member's presence, and a restored copy would be a second.
+    await removeMember(getFormation(id), finding.actorId, { restore: false });
+    dropped.push(formations[id].name);
+  }
+  return loc("partyActors.sharedMended", { keeper: formations[finding.keeperId].name, dropped: dropped.join(", ") });
 }
 
 /** Registers formation's checks. Called once, at `init`. */
@@ -311,30 +407,13 @@ export function registerFormationRepairChecks() {
         if (actor.type !== PARTY_TYPE || formations.some((f) => f.actorId === actor.id)) continue;
         out.push({ key: actor.uuid, uuid: actor.uuid, name: actor.name, detail: loc("partyActors.noRecord") });
       }
-      const holders = new Map();
-      for (const formation of formations) {
-        for (const m of formation.members ?? []) {
-          if (!m || m.blank || !m.actorId) continue;
-          holders.set(m.actorId, new Set([...(holders.get(m.actorId) ?? []), formation.id]));
-        }
-      }
-      for (const [actorId, ids] of holders) {
-        if (ids.size < 2) continue;
-        const actor = game.actors.get(actorId) ?? null;
-        out.push({
-          key: `shared:${actorId}`,
-          uuid: actor?.uuid ?? null,
-          name: actor?.name ?? actorId,
-          formationIds: [...ids],
-          detail: loc("partyActors.shared", { parties: [...ids].map((id) => readFormations()[id]?.name ?? id).join(", ") }),
-          fixable: false,
-          reason: loc("partyActors.sharedReason"),
-        });
-      }
+      const byId = readFormations();
+      for (const [actorId, ids] of sharedHolders(byId)) out.push(sharedFinding(actorId, ids, byId));
       return out;
     },
     fix: async (findings) => {
       const results = await fixEach(findings, async (f) => {
+        if (f.key?.startsWith("shared:")) return mendShared(f);
         const actor = await fromUuid(f.uuid);
         if (!actor || Object.values(readFormations()).some((r) => r.actorId === actor.id)) return null;
         await adoptPartyActor(actor);

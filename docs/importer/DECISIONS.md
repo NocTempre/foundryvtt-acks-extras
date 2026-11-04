@@ -8452,7 +8452,8 @@ at all.
   the shape that ruling found missing. `cookbookUpdateClasses` is still not
   offered: its modal and its ownership gap are what kept it out of the
   chain, and a list of steps is the chain.
-- **The Books dialog is not merged.** Connecting, staging, status and the
+- **The Books dialog is not merged.** *(Superseded 2026-11-04, "The Books
+  window is a tab of the import manager".)* Connecting, staging, status and the
   walkthrough are a window of their own with their own live record (TESTING,
   "The Books window"); the Books tab shows which books are open and opens
   that window. Folding it in would have moved a tested surface to retest it
@@ -8944,3 +8945,113 @@ the import reads them and the difference is reported to the owner.
 
 *Cost:* a held class takes the price on the next Repair of the book; a world
 without the JJ builder tables keeps unread experience and its notice.
+
+## 2026-11-04 — The Books window is a tab of the import manager
+
+**Reported.** T-0386, the owner: "On the import tool build the book tab
+straight into it; no need for multiple windows." Two windows asked the same
+question of a Judge, and the manager's Books tab was a status table with a
+button that opened the other.
+
+**New evidence for superseding 2026-10-28 ("The Books dialog is not
+merged").** That ruling kept the dialog apart to avoid retesting a tested
+surface. The owner has now ruled the reach matters more; the retest is the
+price and is on the live walks' list (below).
+
+**Ruled.**
+
+- **The panel is built where the books are, and printed in the tab.**
+  `booksPanel` stays in `module.mjs` (it closes over the seat's locations,
+  shelf and file handles) and returns `{html, wire}`; the manager prints
+  `html` and wires it after each render. The alternative, porting the
+  panel's ~700 lines of listeners to Handlebars actions in `apps/`, would
+  export thirty module-private helpers and change nothing a Judge sees.
+- **Every entry point opens the manager on the tab.** `openBooksDialog` is
+  `openImportManager({tab: "books", ...})`. `bookStatus`, `connectBook`,
+  `reconnectBooks` and `gettingStarted` keep their api names as thin openers:
+  macros already imported into worlds, the character sheet's book link and
+  the shipped *Your ACKS Books (this seat)* macro call them.
+- **A seat that is not a GM opens the manager and sees the Books tab alone.**
+  The Books window served every seat (a player connects their own copy; the
+  join-time offer reaches a player), so the gate on `openImportManager` could
+  not stay. The other four tabs write the world and are dropped from a
+  player's context, their actions refuse, and the settings-menu entry stays
+  restricted. *Owner to rule* if a player should not open the manager.
+- **Dropped with the dialog:** the join-time offer's `autoClose` (closing the
+  whole manager under a GM who has gone to another tab is wrong), the OK
+  button's "still not open" warning (the tab shows which books are waiting),
+  the `singleton` guard (the manager is already one window per seat), and the
+  walkthrough band's import, merchandise and manage buttons (the Import and
+  Tools tabs are those controls). The band's GM text points at the Import tab.
+  *Owner to rule* if the `autoClose` behaviour should return as "close once
+  nothing is waiting and the Books tab is showing".
+- The Books table (state and scope per book) is gone: each row of the panel
+  already says both.
+
+**Rejected:** keeping a thin Books window for the join-time offer only (two
+surfaces again); a settings-menu entry per tab.
+
+*Cost:* the live walks that drove the dialog's DOM go stale where they used
+the dialog's frame (`importer-adventure.mjs` reads `.acks-extras-importer-books
+[data-adventure]`, which still resolves); the panel's open details fold again
+on each render of the manager; the census is read once by the panel and once
+by the Adventures tab.
+
+## 2026-11-04 — A forced repair, and what it still keeps
+
+**Reported.** T-0387, the owner: "There needs to be a repair in place that
+forces no skips." Repair in place (2026-09-24) leaves documents and fields
+for stated reasons, and a Judge who wants every document the import writes
+rewritten had no control for it.
+
+**Diagnosed first.** The skips a repair makes are listed by cause in
+`MODEL.md`, "A forced repair". There is no unchanged-hash check and no
+"already imported" claim in the repair path: the runs find held documents by
+their cookbook stamp and write them. The skips are the policy's guards, the
+sources that cannot be read, and the kinds with no in-place writer.
+
+**Ruled.** A third mode, *Force repair*, in every control that offers Repair
+(the Mode selects of the shelf, book and entry dialogs, the manager's Rebuild
+tab; `mode: "force"` on the api).
+
+- **Lifted:** the hand-written prose guard: `REPAIR`'s `prose` and
+  `proseFlags`, and an ability's `annotated` description. These are the "hand
+  edits to imported fields" the owner's words aim at: the build writes the
+  field and a Judge's words stopped it.
+- **Kept, because the import does not own it:** a document the import did not
+  make (unflagged items, name-adopted abilities, embedded documents without
+  `minted`, template parts, library copies); a field the build does not
+  produce (`keepUnrenderedFields`, `keepFlags`, `fillUnread`: lifting these
+  would write an empty value over what a Judge typed where the page gave
+  nothing); a document with nothing to write from (closed book, page no
+  longer matching, no stats, another type, a rejected write); and the kinds
+  with no in-place write.
+- **Kept, an owner ruling pending: the `keep` fields** (a trap's level, a
+  vehicle's crew and damage, a stack's quantity and equipped state, a spell's
+  cast count, an equipment item's subtype, melee and missile). The binder
+  writes them at creation, so they are in the import's write set in the
+  strictest reading; but they are play state or settled afterwards by
+  `annotateItem`, and rewriting them would reset a world's live data and
+  undo the annotation layer. Default: kept, and the confirm says so.
+- **The guard is a confirm** that counts the documents to rewrite, says edits
+  to the fields an import writes (a written description included) are
+  replaced and that it cannot be undone, and lists what is still kept. No
+  and closing the dialog both answer false (`rejectClose: false`); nothing is
+  written.
+- **No collision dialog.** A forced ability repair does not ask which name-
+  adopted documents to overwrite; they are the Judge's by name and are
+  counted left alone.
+- **An adventure book's Repair has no forced mode.** It imports what the world
+  lacks and refreshes maps; it never held a hand-written-prose guard to lift.
+  *Owner to rule* whether a forced adventure repair means rewriting every
+  journal, roll table and place the book made; that is the Rebuild's work
+  without the delete, and has no in-place writer.
+
+**Rejected:** a rebuild fallback for the kinds with no in-place writer (it
+deletes ids, folders and owners, which is what a repair exists to keep); a
+global flag read by `refreshImported` (the tally already travels through every
+run, and a forced tally cannot leak into a later ordinary one).
+
+*Cost:* weapons, armour, the price list, languages, races, monster templates
+and families, NPCs and OSE creatures are still left by a forced repair; the
+confirm and the notice say so.

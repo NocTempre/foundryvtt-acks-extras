@@ -331,6 +331,69 @@ export function resolveCheck(actor, cfg) {
 }
 
 /**
+ * Which party checks take this ability item, and by which route, in the order
+ * `PARTY_CHECKS` lists them: `capability` (the check's token), `binding` (the
+ * item's `checkKey` flag) or `name` (the check's name pattern, for an item the
+ * register has not tagged that carries a target or a progression). The one
+ * reading of a binding, shared by the audit's roster and its roll. It reads the
+ * item alone; whether the item is switched off is `skillGateAllows`.
+ *
+ * @returns {Array<{checkKey: string, cfg: object, route: "capability"|"binding"|"name"}>}
+ */
+export function boundChecks(item) {
+  const out = [];
+  for (const [checkKey, cfg] of Object.entries(PARTY_CHECKS)) {
+    let route = null;
+    if (cfg.capability && itemHasCapability(item, cfg.capability)) route = "capability";
+    else if (item.getFlag(MODULE_ID, "checkKey") === cfg.flagKey) route = "binding";
+    else if (
+      !item.getFlag(MODULE_ID, "checkKey") &&
+      cfg.pattern.test(item.name) &&
+      (item.getFlag(MODULE_ID, "thiefSkill") || Number(item.system?.rollTarget) > 0)
+    ) {
+      route = "name";
+    }
+    if (route) out.push({ checkKey, cfg, route });
+  }
+  return out;
+}
+
+/**
+ * Roll one member's party check without posting: the throw `resolveCheck`
+ * resolves, the Strength a bash adds, the die, and the row a card prints for it.
+ * The one place a member's party-check throw is made, so the party card and the
+ * audit's roll cannot disagree about a target.
+ *
+ * @param {Actor} actor
+ * @param {object} cfg a `PARTY_CHECKS` entry
+ * @returns {Promise<{roll: Roll, check: object, row: {name: string, total: number, target: number, source: string, success: boolean}}|null>}
+ *   null when the member cannot attempt the check
+ */
+export async function rollCheckFor(actor, cfg) {
+  const check = resolveCheck(actor, cfg);
+  if (!check) return null;
+  let bonus = check.bonus;
+  if (cfg.strScaled) bonus += bashStrBonus(abilityMod(actor, "str"));
+  const formula = bonus > 0 ? `1d20 + ${bonus}` : bonus < 0 ? `1d20 - ${-bonus}` : "1d20";
+  const roll = await new Roll(formula).evaluate();
+  const breakdown = (check.parts ?? [])
+    .map((part) => `+${part.value} ${part.label}`)
+    .concat(cfg.strScaled ? [`${bonus - check.bonus >= 0 ? "+" : ""}${bonus - check.bonus} STR×${BASH_STR_FACTOR}`] : [])
+    .join(", ");
+  return {
+    roll,
+    check,
+    row: {
+      name: actor.name,
+      total: roll.total,
+      target: check.target,
+      source: breakdown ? `${check.source}; ${breakdown}` : check.source,
+      success: roll.total >= check.target,
+    },
+  };
+}
+
+/**
  * Roll a party check for every capable member and whisper one summary card to
  * the GMs. Returns the number of members who rolled.
  */
@@ -365,27 +428,13 @@ export async function rollPartyCheck(formation, checkKey) {
   for (const member of formation.members) {
     const actor = getMemberActor(member);
     if (!actor || isDown(actor, member)) continue;
-    const check = resolveCheck(actor, cfg);
-    if (!check) {
+    const rolled = await rollCheckFor(actor, cfg);
+    if (!rolled) {
       incapable.push(actor.name);
       continue;
     }
-    let bonus = check.bonus;
-    if (cfg.strScaled) bonus += bashStrBonus(abilityMod(actor, "str"));
-    const formula = bonus > 0 ? `1d20 + ${bonus}` : bonus < 0 ? `1d20 - ${-bonus}` : "1d20";
-    const roll = await new Roll(formula).evaluate();
-    rolls.push(roll);
-    const breakdown = (check.parts ?? [])
-      .map((part) => `+${part.value} ${part.label}`)
-      .concat(cfg.strScaled ? [`${bonus - check.bonus >= 0 ? "+" : ""}${bonus - check.bonus} STR×${BASH_STR_FACTOR}`] : [])
-      .join(", ");
-    rows.push({
-      name: actor.name,
-      total: roll.total,
-      target: check.target,
-      source: breakdown ? `${check.source}; ${breakdown}` : check.source,
-      success: roll.total >= check.target,
-    });
+    rolls.push(rolled.roll);
+    rows.push(rolled.row);
   }
 
   if (!rows.length) {

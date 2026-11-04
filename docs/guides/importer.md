@@ -63,7 +63,7 @@ A book the **server** holds asks for nothing.
 There are three ways in, and none of them asks you to connect the book on this
 computer first:
 
-- in the Books window's **On the server** band, **pick your PDFs** — as many as
+- in the Books tab's **On the server** band, **pick your PDFs** — as many as
   you like at once. Each one is read here, identified, and uploaded into
   `acks-extras-books/` under the Foundry data folder. Anything that names no
   book is listed back to you and left alone;
@@ -85,7 +85,7 @@ and named to you if it is not.
 Every book on the server is also a **journal**. Look in the Journal sidebar
 under *Your Books*: one entry per book, holding a PDF page. Open it and press
 *Load PDF* to read the book inside Foundry, from any GM seat; the **Open**
-button on the book's row in the Books window goes to the same place. The
+button on the book's row in the Books tab goes to the same place. The
 journal is yours alone until you share it — give a player Observer permission
 on it the way you would on any other journal, and they can read the book too.
 A player's seat reads at launch only the books you have shared with it, so a
@@ -98,7 +98,7 @@ created shared with your players, because their exports read it too. A copy
 without the form's fields is refused.
 
 That journal *is* the module's record of the book. Delete it and the book is
-no longer read from the server; the **Remove** button in the Books window does
+no longer read from the server; the **Remove** button in the Books tab does
 the same. Either way the file stays where it was put, and the window tells you
 where. A world that staged books before they became journals carries them
 across the first time a GM loads it, and says how many.
@@ -111,9 +111,11 @@ and connect them per seat.
 
 ### Status and reconnecting
 
-The Books window lists every book with its state — open, waiting, or not
-connected — and what connecting it would unlock. It opens on join when
-remembered books are waiting, and from the **Your ACKS Books** macro any time.
+The Books tab of the import manager lists every book with its state — open,
+waiting, or not connected — and what connecting it would unlock. The manager
+opens on it on join when remembered books are waiting, and from the **Your
+ACKS Books** macro any time. A player's copy of the manager has this tab and
+no other.
 
 **Reconnect all** does everything that needs no permission first — the server's
 books, served paths, and anything the browser will still open by itself — and
@@ -314,6 +316,14 @@ name, a description you wrote in, and what play has set on it: a trap's level,
 a vehicle's crew and damage, a stack's quantity. Entries your world does not
 hold yet are imported as usual.
 
+**Force repair** is a third mode, for when Repair kept something you want
+replaced. It writes the same documents the same way and also replaces a
+description you wrote in. It asks first, saying how many documents it will
+rewrite and that your edits to the fields an import writes are replaced, and
+Cancel writes nothing. It still keeps what is not the import's: items and
+abilities you made yourself, effects and attacks you added, what play has set,
+and anything whose book is not open on this seat or has no in-place write.
+
 ![](../releases/v8.8.0/importer-repair-mode.png)
 
 *Reimport One Shelf with the Traps shelf picked and Repair in place chosen.*
@@ -342,16 +352,16 @@ its members do not.*
 ### Managing imports
 
 **Manage Imports (GM)**, in the macro compendium's *Import from your books*
-folder, in *Module settings*, and as **Manage imports…** in the Books
-window's walkthrough band, opens one window with every import control:
+folder, and in *Module settings*, opens one window with every import control.
+The Books macros open it on the Books tab:
 
-- **Books** — which books this build reads and which are open on this seat,
-  and the way to the Books window.
+- **Books** — connecting, putting on the server and the status of every book,
+  as the sections above describe.
 - **Import** — the import chain, step by step in its order. **Import
   everything** runs the whole chain; **Run** beside a step runs that one,
   for when its documents were deleted or a book was connected after the
   chain ran. Every step passes over what the world already holds.
-- **Rebuild** — a shelf, a book or the rules tables, in either mode above.
+- **Rebuild** — a shelf, a book or the rules tables, in any of the three modes above.
   The same choices as **Reimport One Shelf**.
 - **Adventures** — each adventure book open on this seat, with what its
   Adventure carries: see *Rebuild or repair an adventure book* below.
@@ -509,7 +519,7 @@ Adventures from earlier versions are retired once its Adventure stands.
 
 *An adventure book's Adventure in the library, from beneath its title and map: what it carries, counted, and the Import button.*
 
-The Books window shows each open adventure book's count of what its Adventure
+The Books tab shows each open adventure book's count of what its Adventure
 holds, under the book's row in **Open this session**.
 
 ![](../releases/v11.6.0/importer-census.png)
@@ -937,7 +947,10 @@ carries three Judge macros for the world's data as a whole.
   its old field names. The module reads those values back each time the
   world loads, so an armour's Armor Class and a weapon's damage and bonus
   already show; fixing writes them to the record, so they no longer depend on
-  the module to be read.
+  the module to be read. A later check lists the weapons you imported whose
+  alternate damage is not the one their row in your weapon table names: ticking
+  one writes the row's die there, or leaves it blank where the row names none.
+  A weapon you built yourself has no row and is never listed.
 - **Clean Up After the Merge (GM)** opens the same window on what the old
   acks-* modules left behind — their flag scopes, effect keys, sheet choices
   and settings, and documents of their sub-types that cannot load — already

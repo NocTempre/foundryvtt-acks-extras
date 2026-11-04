@@ -5,7 +5,6 @@ import {
   abilityKey,
   importedLadderFor,
   importedSkillKeys,
-  itemHasCapability,
   ladderRows,
   overrideFor,
   refreshLadders,
@@ -13,8 +12,9 @@ import {
   setOverride,
 } from "./ability-bridge.mjs";
 import { getFormation, getMemberActor, realMembers } from "./formation-model.mjs";
-import { PARTY_CHECKS, resolveCheck, scaledSkillTarget, inferredThiefSkill, skillGateAllows } from "./party-rolls.mjs";
+import { PARTY_CHECKS, boundChecks, resolveCheck, scaledSkillTarget, inferredThiefSkill, skillGateAllows } from "./party-rolls.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
+import { rollAbilityForParty as rollForParty } from "./audit-roll.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -53,6 +53,15 @@ export default class SkillAuditApp extends HandlebarsApplicationMixin(Applicatio
         const next = current === null ? false : current === false ? true : null;
         await setOverride(item, next);
         this.render();
+      },
+
+      /** Roll the row's ability for every member who holds it: one card to the Judges. */
+      async rollAbilityForParty(event, target) {
+        if (!game.user.isGM) return;
+        const formation = this.formation;
+        const row = target.closest("[data-ability-key]");
+        if (!formation || !row) return;
+        await rollForParty(formation, { key: row.dataset.abilityKey, name: row.dataset.abilityName });
       },
 
       /** Drop every ruling — back to what automation decides on its own. */
@@ -201,26 +210,11 @@ function collectPartyAbilities(formation) {
       let row = rows.get(key);
       if (!row) {
         // Which checks would take this item, and how it qualified for each.
-        const bindings = [];
-        for (const [checkKey, cfg] of Object.entries(PARTY_CHECKS)) {
-          let route = null;
-          if (cfg.capability && itemHasCapability(item, cfg.capability)) route = "capability";
-          else if (item.getFlag(MODULE_ID, "checkKey") === cfg.flagKey) route = "binding";
-          else if (
-            !item.getFlag(MODULE_ID, "checkKey") &&
-            cfg.pattern.test(item.name) &&
-            (item.getFlag(MODULE_ID, "thiefSkill") || Number(item.system?.rollTarget) > 0)
-          ) {
-            route = "name";
-          }
-          if (route) {
-            bindings.push({
-              label: game.i18n.localize(cfg.label),
-              route,
-              routeLabel: game.i18n.localize(`ACKS-FORMATION.audit.route.${route}`),
-            });
-          }
-        }
+        const bindings = boundChecks(item).map(({ cfg, route }) => ({
+          label: game.i18n.localize(cfg.label),
+          route,
+          routeLabel: game.i18n.localize(`ACKS-FORMATION.audit.route.${route}`),
+        }));
         const ruling = overrideFor(item);
         row = {
           key,

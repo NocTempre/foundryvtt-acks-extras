@@ -576,4 +576,4 @@ a fight that is over").
 
 | Not built | What it is | What it needs first |
 |---|---|---|
-| The double membership, mended | The `formation.partyActors` repair check lists an actor in the marching order of two or more parties, naming each party, and mends nothing. A fix would keep the member in one party and remove them from the others, with their lights, spells and roles. | the owner saying which party keeps the member. |
+| ~~The double membership, mended~~ | BUILT. The `formation.partyActors` repair check keeps a member with the party whose token is on a map and takes them out of the others (MODEL, "Only the linked token acts for the party"; DECISIONS 2026-11-03). | ~~the owner saying which party keeps the member~~ |

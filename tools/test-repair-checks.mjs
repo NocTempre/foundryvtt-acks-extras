@@ -565,6 +565,164 @@ t("a legacy change key with no counterpart is listed unfixable, and `only` takes
   assert.deepEqual(repairChecks({ only: ["lib.legacyEffectKeys"] }).map((c) => c.id), ["lib.legacyEffectKeys"]);
 });
 
+/* -------------------------------------------------------------------- */
+/*  lib.twoHandedRow                                                    */
+/* -------------------------------------------------------------------- */
+
+const TWO_HANDED = getRepairCheck("lib.twoHandedRow");
+const ROW_DETAIL = "ACKS-LIB.repair.check.twoHandedRow.detail";
+const ROW_NONE = said("ACKS-LIB.repair.check.twoHandedRow.none");
+const ROW_STAMPED = said("ACKS-LIB.repair.check.twoHandedRow.stampedFirst");
+
+/** The modes an importer stamps on a weapon: a one-handed die, and a two-handed one where the row names it. */
+const rowModes = (twoHanded) => [
+  { key: "melee", label: "Melee", damage: "1d7", attack: "melee" },
+  ...(twoHanded ? [{ key: "melee-twohanded", label: "Two-handed melee", damage: twoHanded, attack: "melee", grip: "two-handed" }] : []),
+];
+
+/** A weapon document storing `alternate`; `modes` is the imported row it carries, or none. */
+function weaponDoc(id, name, { alternate, modes, type = "weapon" }) {
+  const doc = {
+    id,
+    uuid: `Item.${id}`,
+    name,
+    type,
+    system: { damage: { base: { formula: "1d7" }, alternate: { formula: alternate } } },
+    flags: modes ? { "acks-extras": { weapon: { modes } } } : {},
+    updates: [],
+  };
+  doc._source = { system: structuredClone(doc.system) };
+  doc.update = async (patch) => {
+    doc.updates.push(patch);
+    doc.system.damage.alternate.formula = patch["system.damage.alternate.formula"];
+  };
+  return doc;
+}
+
+/** A world holding these documents: each actor's items on it, and the loose ones as world items. */
+function weaponWorld({ actors = [], items = [] }) {
+  world();
+  const all = new Map();
+  const ownedBy = actors.map(([name, held]) => ({ name, uuid: `Actor.${name}`, items: held }));
+  for (const doc of [...actors.flatMap(([, held]) => held), ...items]) all.set(doc.uuid, doc);
+  game.actors = new Coll({}, ownedBy);
+  game.items = new Coll({}, items);
+  globalThis.fromUuid = async (uuid) => all.get(uuid) ?? null;
+}
+
+t("a weapon storing a die its row does not name, or a die where the row names none, is listed with the die to write", async () => {
+  weaponWorld({
+    actors: [["Bearer", [weaponDoc("w1", "Long Blade", { alternate: "1d5", modes: rowModes("1d11") })]]],
+    items: [weaponDoc("w2", "Net", { alternate: "1d5", modes: rowModes(null) })],
+  });
+  assert.deepEqual(await TWO_HANDED.scan(), [
+    {
+      key: "Item.w1",
+      uuid: "Item.w1",
+      name: "Bearer → Long Blade",
+      want: "1d11",
+      detail: said(ROW_DETAIL, { stored: "1d5", row: "1d11" }),
+    },
+    {
+      key: "Item.w2",
+      uuid: "Item.w2",
+      name: "Net",
+      want: "",
+      detail: said(ROW_DETAIL, { stored: "1d5", row: ROW_NONE }),
+    },
+  ]);
+});
+
+t("a blank alternate where the row names a die is listed, naming none as stored", async () => {
+  weaponWorld({ items: [weaponDoc("w1", "Long Blade", { alternate: "", modes: rowModes("1d11") }), weaponDoc("w2", "Pike", { modes: rowModes("2d3"), alternate: undefined })] });
+  assert.deepEqual(await keyed(TWO_HANDED, "detail"), [
+    ["Item.w1", said(ROW_DETAIL, { stored: ROW_NONE, row: "1d11" })],
+    ["Item.w2", said(ROW_DETAIL, { stored: ROW_NONE, row: "2d3" })],
+  ]);
+});
+
+t("a weapon with no imported row is never listed, whatever it stores", async () => {
+  weaponWorld({
+    items: [
+      weaponDoc("w1", "Home Forged", { alternate: "1d5" }),
+      weaponDoc("w2", "Empty Stamp", { alternate: "1d5", modes: [] }),
+      weaponDoc("w3", "Bare Stamp", { alternate: "", modes: undefined }),
+    ],
+  });
+  assert.deepEqual(await TWO_HANDED.scan(), []);
+});
+
+t("a weapon already agreeing with its row is not listed, a die compared without its spacing or case", async () => {
+  weaponWorld({
+    items: [
+      weaponDoc("w1", "Long Blade", { alternate: "1d11", modes: rowModes("1d11") }),
+      weaponDoc("w2", "Pike", { alternate: " 2D3 ", modes: rowModes("2d3") }),
+      weaponDoc("w3", "Net", { alternate: "", modes: rowModes(null) }),
+      weaponDoc("w4", "Sling", { alternate: "  ", modes: rowModes(null) }),
+    ],
+  });
+  assert.deepEqual(await TWO_HANDED.scan(), []);
+});
+
+t("only weapons are read", async () => {
+  weaponWorld({ items: [weaponDoc("w1", "Satchel", { alternate: "1d5", modes: rowModes("1d11"), type: "item" })] });
+  assert.deepEqual(await TWO_HANDED.scan(), []);
+});
+
+t("a row's two-handed mode that carries no die names none", async () => {
+  const modes = [{ key: "melee", damage: "1d7" }, { key: "melee-twohanded", grip: "two-handed", damage: null }];
+  weaponWorld({ items: [weaponDoc("w1", "Long Blade", { alternate: "1d5", modes })] });
+  assert.deepEqual(await keyed(TWO_HANDED, "detail"), [["Item.w1", said(ROW_DETAIL, { stored: "1d5", row: ROW_NONE })]]);
+});
+
+t("the fix writes the row's die, or a blank, into the alternate and nothing else, and the rescan finds none", async () => {
+  const sword = weaponDoc("w1", "Long Blade", { alternate: "1d5", modes: rowModes("1d11") });
+  const net = weaponDoc("w2", "Net", { alternate: "1d5", modes: rowModes(null) });
+  weaponWorld({ actors: [["Bearer", [sword]]], items: [net] });
+  const found = (await scanCheck(TWO_HANDED)).findings;
+  assert.deepEqual(found.map((f) => f.fixable), [true, true]);
+  const outcome = await fixCheck(TWO_HANDED, found);
+  assert.deepEqual(outcome.failed, []);
+  assert.deepEqual(outcome.fixed.map((f) => f.key), ["Item.w1", "Item.w2"]);
+  assert.deepEqual(outcome.rescan.findings, []);
+  assert.deepEqual(sword.updates, [{ "system.damage.alternate.formula": "1d11" }]);
+  assert.deepEqual(net.updates, [{ "system.damage.alternate.formula": "" }]);
+});
+
+t("a weapon gone before the fix is refused, and the rest are written", async () => {
+  const sword = weaponDoc("w1", "Long Blade", { alternate: "1d5", modes: rowModes("1d11") });
+  const net = weaponDoc("w2", "Net", { alternate: "1d5", modes: rowModes(null) });
+  weaponWorld({ items: [sword, net] });
+  const found = (await scanCheck(TWO_HANDED)).findings;
+  const real = globalThis.fromUuid;
+  globalThis.fromUuid = async (uuid) => (uuid === "Item.w1" ? null : real(uuid));
+  const outcome = await fixCheck(TWO_HANDED, found);
+  assert.deepEqual(outcome.failed.map((f) => [f.key, f.why, f.error]), [["Item.w1", "refused", said("ACKS-LIB.repair.subjectGone")]]);
+  assert.deepEqual(outcome.fixed.map((f) => f.key), ["Item.w2"]);
+  assert.deepEqual(sword.updates, []);
+});
+
+t("a weapon the stamped-record rescue still holds is listed and not offered, then offered once its record is written", async () => {
+  const { installLegacyCombatRescue, forgetRescue } = await import("../scripts/lib/patches/legacy-source.mjs");
+  const model = () => class {
+    static migrateData(source) {
+      return source;
+    }
+  };
+  CONFIG.Actor.dataModels = { character: model(), monster: model() };
+  CONFIG.Item.dataModels = { weapon: model(), armor: model(), item: model(), ability: model(), spell: model() };
+  installLegacyCombatRescue();
+  // A stamped record whose damage names no alternate loads with a blank one.
+  const source = CONFIG.Item.dataModels.weapon.migrateData({ _schemaVersion: 5, damage: { base: { formula: "1d7" } } }, { partial: false });
+  assert.equal(source.damage.alternate.formula, "");
+  const sword = weaponDoc("w1", "Long Blade", { alternate: "", modes: rowModes("1d11") });
+  sword._source = { system: source };
+  weaponWorld({ items: [sword] });
+  assert.deepEqual((await scanCheck(TWO_HANDED)).findings.map((f) => [f.key, f.fixable, f.reason]), [["Item.w1", false, ROW_STAMPED]]);
+  forgetRescue(source);
+  assert.deepEqual((await scanCheck(TWO_HANDED)).findings.map((f) => [f.key, f.fixable, f.reason]), [["Item.w1", true, null]]);
+});
+
 for (const [name, fn] of tests) {
   await fn();
   n++;

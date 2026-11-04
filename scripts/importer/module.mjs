@@ -24,9 +24,9 @@
  * its bytes reach the shelf.
  *
  * api (acksExtras.importer / game.modules.get("acks-extras").api.importer):
- *   bookStatus()     the Books window: every book's state, and its control
- *   connectBook()    the same window (kept: already-imported macros call it)
- *   reconnectBooks() retry the silent reopen, then the same window
+ *   bookStatus()     the import manager on its Books tab: every book's state, and its control
+ *   connectBook()    the same tab (kept: already-imported macros call it)
+ *   reconnectBooks() retry the silent reopen, then the same tab
  *   browseAndLoad()  GM: pick a page, choose headings, load actors/items
  *   applyStats()     fill monster actors from the connected book
  *   forgetBooks()    drop this computer's remembered locations (not the shelf)
@@ -1283,69 +1283,11 @@ export function dialogContent(html) {
   return div;
 }
 
-/* -------------------------------------------- */
-/*  One dialog of a kind at a time              */
-/* -------------------------------------------- */
-
-const openDialogs = new Map();
-
 /**
- * Reuse the dialog that is already open instead of stacking another.
- *
- * Every entry point here can be reached twice over: the Getting Started button
- * calls connectBook() on every click and nothing was stopping a second one,
- * the macro calls it too, and the reconnect pass runs both from the join hook
- * and from its own macro. Each of those opened ANOTHER identical window, so a
- * reader who clicked twice got two book pickers stacked on top of each other —
- * two dropdowns listing the same books, two chances to read the same PDF into
- * the same slot, and no way to tell which one was in front.
- *
- * The key is registered synchronously, before the dialog's content is built,
- * because the build is async (it reads remembered locations first) and two
- * fast clicks would otherwise both get past that await before either had
- * claimed the slot.
- *
- * Three states, not two, and conflating the last two throws. The entry is
- * dropped when its promise settles, but that is a microtask: something that
- * closes the window and asks for it again in the same turn finds an entry
- * whose app is closed, and `bringToFront` on a closed application reaches for
- * the style of an element that is no longer there. So:
- *
- *   • no entry            — build one;
- *   • entry, app not yet captured — the build is still in flight; wait on it
- *     rather than starting a second (this is the case the key exists for);
- *   • entry, app closed   — its promise is already settling; forget it now and
- *     open afresh, or the reader's click does nothing at all.
- */
-function singleton(key, open) {
-  const existing = openDialogs.get(key);
-  if (existing && (!existing.app || existing.app.rendered)) {
-    if (existing.app?.rendered) existing.app.bringToFront?.();
-    return existing.promise;
-  }
-  if (existing) openDialogs.delete(key);
-  const entry = { app: null };
-  entry.promise = Promise.resolve(open((app) => (entry.app = app))).finally(() => {
-    // Only clear the slot if it is still OURS: a re-entry that replaced a
-    // closed dialog must not have its own entry deleted by the old one.
-    if (openDialogs.get(key) === entry) openDialogs.delete(key);
-  });
-  openDialogs.set(key, entry);
-  return entry.promise;
-}
-
-/**
- * "Connect a book" and "your books" were two windows asking the same question.
- *
- * The connect dialog named books in a `<select multiple>` and then asked for
- * files; the Books dialog already drew a row per book with its own control, and
- * a row names a book far better than a six-line list of twenty does. So the
- * select is gone and the row IS the naming — which also retires the positional
- * fallback that existed only because a multi-select cannot say which file is
- * which (`pairPicks`). Evidence places a file or nothing does.
- *
  * The name survives as an alias because macros already imported into worlds
- * call it, and a compendium macro outlives the build that shipped it.
+ * call it, and a compendium macro outlives the build that shipped it. It opens
+ * the import manager on its Books tab, where a row names each book and carries
+ * its control.
  */
 const connectBook = () => openBooksDialog();
 
@@ -1554,24 +1496,21 @@ async function connectFolderPicks(picks, { remember = null } = {}) {
 }
 
 /**
- * "Your ACKS Books" — the one window the book lives in.
+ * "Your ACKS Books" — the Books tab of the import manager, the one place the
+ * book lives. Every entry point (the macros, the join-time offer, the sheet's
+ * book link) opens the manager on this tab; the panel is built here, where the
+ * seat's books, shelf and file handles are, and handed to the manager as
+ * `{html, wire}`.
  *
- * There used to be three, and they overlapped: a Getting Started walkthrough
- * with its own "Connect a book…" button, a Connect dialog whose `<select
- * multiple>` listed every book six rows at a time, and this one, which already
- * drew a row per book with its own control. A reader could not tell from the
- * macro list which of them would show them anything, and two of the three
- * asked "which book do you mean?" in different words.
- *
- * A ROW is the answer to that question. It names one book, carries one control,
- * acts the moment it is used and says what happened — so the select is gone,
- * and with it the positional pairing that only ever existed because a
- * multi-select cannot say which file is which.
+ * A ROW names one book, carries one control, acts the moment it is used and
+ * says what happened. There is no select that asks "which book?", so there is
+ * no positional pairing of files to books either: evidence places a file or
+ * nothing does.
  *
  * Four bands, in the order a seat needs them:
  *
  *   1. the first-run walkthrough, open on a seat with nothing connected and
- *      collapsed once there is (it carries the GM's one-click import chain);
+ *      collapsed once there is;
  *   2. the shelf — books the SERVER holds, which need no gesture from anyone;
  *   3. this computer — the controls that answer for SEVERAL books at once;
  *   4. the books themselves, grouped by what each one needs.
@@ -1584,10 +1523,15 @@ async function connectFolderPicks(picks, { remember = null } = {}) {
  * re-reads from it) and reports honestly about the rest when there is not. A
  * plain file picker grants no persistent permission and so consumes nothing,
  * which is why "Pick PDFs…" can answer for the whole shelf at once.
+ *
+ * @param {object} [options]
+ * @param {boolean} [options.firstRun] open the walkthrough whatever the seat holds
+ * @param {string} [options.notice] the report of what just happened, shown in the shelf band
+ * @returns {Promise<{html: string, wire: function(Element, {rerender: function(string=): void}): void}>}
+ *   the panel's markup, and the listeners that make it work once it is in the
+ *   page; `rerender(report)` asks the host to build the panel again
  */
-const openBooksDialog = (opts) => singleton("books", (capture) => booksDialog(capture, opts));
-
-async function booksDialog(capture, { firstRun = false, autoClose = false, notice = "" } = {}) {
+async function booksPanel({ firstRun = false, notice = "" } = {}) {
   const records = await locations();
   const staged = shelf();
   const dir = fsaAvailable() ? await dirGet() : null;
@@ -1619,22 +1563,9 @@ async function booksDialog(capture, { firstRun = false, autoClose = false, notic
   // reference material rather than instructions.
   const nothingYet = !sessionDocs.size && !records.size && !Object.keys(staged).length;
   const startOpen = (firstRun || nothingYet) && !gettingStartedDismissed();
-  const gmBand = isGM
-    ? `<h4>${G("gmHead")}</h4>
-       <p>${G("gmBody")}</p>
-       <div class="acks-extras-importer-gs-action">
-         <button type="button" data-gs-import><i class="fa-solid fa-download"></i> ${G("gmGo")}</button>
-         <span class="notes" data-gs-import-status></span>
-       </div>
-       <div class="acks-extras-importer-gs-action">
-         <button type="button" data-gs-merch><i class="fa-solid fa-boxes-stacked"></i> ${G("merchGo")}</button>
-         <span class="notes">${G("merchNote")}</span>
-       </div>
-       <div class="acks-extras-importer-gs-action">
-         <button type="button" data-gs-manage><i class="fa-solid fa-hanging-sign"></i> ${G("manageGo")}</button>
-         <span class="notes">${G("manageNote")}</span>
-       </div>`
-    : "";
+  // The import chain, the merchandise build and the other controls are tabs of
+  // the window this panel sits in; the walkthrough only points at them.
+  const gmBand = isGM ? `<h4>${G("gmHead")}</h4><p>${G("gmBody")}</p>` : "";
   const intro = `<details class="acks-extras-importer-gs"${startOpen ? " open" : ""}>
     <summary>${G("title")}</summary>
     <p>${G("intro")}</p>
@@ -1843,27 +1774,22 @@ async function booksDialog(capture, { firstRun = false, autoClose = false, notic
       .join("\n")}\n${bridge}`,
   );
 
-  return foundry.applications.api.DialogV2.prompt({
-    // One row per book, so the height is the reader's library, not a constant:
-    // scroll region from the dialog class, handle from `resizable`.
-    window: { title: L("booksTitle"), resizable: true },
-    classes: ["acks-ui", "acks-extras-importer-dialog", "acks-extras-importer-books"],
-    position: { width: 520 },
-    content: dialogContent(
-      `${intro}${shelfBand}${localBand}
-       <section class="acks-extras-importer-band">${bookBands}</section>
-       <p class="notes acks-extras-importer-bridge">${esc(bridge)} · ${L("statusNote")}</p>
-       <div class="acks-extras-importer-reconnect-head acks-extras-importer-band-actions">
-         <button type="button" data-forget class="acks-extras-importer-danger">${L("forgetGo")}</button>
-         <span class="notes" data-forget-status></span>
-       </div>`,
-    ),
-    // Dismissing this is a legitimate answer ("not tonight"), not an error to
-    // throw out of the ready hook.
-    rejectClose: false,
-    render: (event, dialog) => {
-      capture(dialog);
-      const root = dialog.element ?? dialog;
+  const html = `<div class="acks-extras-importer-books" data-books-panel>
+      ${intro}${shelfBand}${localBand}
+      <section class="acks-extras-importer-band">${bookBands}</section>
+      <p class="notes acks-extras-importer-bridge">${esc(bridge)} · ${L("statusNote")}</p>
+      <div class="acks-extras-importer-reconnect-head acks-extras-importer-band-actions">
+        <button type="button" data-forget class="acks-extras-importer-danger">${L("forgetGo")}</button>
+        <span class="notes" data-forget-status></span>
+      </div>
+    </div>`;
+
+  return {
+    html,
+    wire: (host, { rerender }) => {
+      // Scoped to the panel: the manager's other tabs carry buttons of their
+      // own, a `data-book` among them.
+      const root = host.querySelector("[data-books-panel]") ?? host;
       const left = new Set(pending);
       const settle = (bookId, ok, message) => {
         const status = root.querySelector(`[data-status="${bookId}"]`);
@@ -1871,41 +1797,26 @@ async function booksDialog(capture, { firstRun = false, autoClose = false, notic
         if (!ok) return;
         left.delete(bookId);
         root.querySelector(`[data-row="${bookId}"]`)?.classList.add("acks-extras-importer-reconnect-done");
-        // Only the join-time offer gets out of the way by itself. Opened by
-        // hand, this window is also the shelf and the import chain, and
-        // closing it under the reader mid-task is not tidiness.
-        if (autoClose && !left.size) dialog.close();
       };
       const say = (selector, text) => {
         const el = root.querySelector(selector);
         if (el) el.textContent = text;
       };
       /**
-       * Build the window again, carrying the report of what just happened.
+       * Build the panel again, carrying the report of what just happened.
        *
-       * Every band is a snapshot of the world as it was when the window
-       * opened, so a book staged since then is in the wrong place in all of
+       * Every band is a snapshot of the world as it was when the panel was
+       * built, so a book staged since then is in the wrong place in all of
        * them at once: absent from "On the server", still counted among the
        * books waiting for this seat, and describing itself as held on the
        * server from a row in another band. A GM who staged thirteen books saw
        * a server list of six and could only read that as failure. The report
-       * travels into the new window rather than dying with the old one.
+       * travels into the new build rather than dying with the old one.
        */
-      const rebuild = async (report = "") => {
-        // AWAIT the close. The window is a singleton keyed on being open, and
-        // an application asked for while the last one is still closing is
-        // answered with the one that is going away: the slot only frees when
-        // `close()` has actually finished, so a fire-and-forget close here
-        // leaves the reader with no window at all.
-        await dialog.close();
-        await openBooksDialog({ notice: report });
-      };
+      const rebuild = async (report = "") => rerender(report);
 
       /* -- band 1 ---------------------------------------------------- */
 
-      root.querySelector("[data-gs-import]")?.addEventListener("click", () => runImportEverything(root));
-      root.querySelector("[data-gs-merch]")?.addEventListener("click", () => acksExtras.markets?.buildMerchandiseFromTables?.());
-      root.querySelector("[data-gs-manage]")?.addEventListener("click", () => openImportManager());
       // Persists the moment it is toggled: a dialog closed via Escape or the
       // X never reads its form, and "don't show this again" must stick however
       // the reader leaves.
@@ -2265,19 +2176,15 @@ async function booksDialog(capture, { firstRun = false, autoClose = false, notic
         say("[data-forget-status]", L("forgetDone"));
       });
     },
-    ok: {
-      label: L("reconnectDone"),
-      callback: () => {
-        const still = pending.filter((id) => !sessionDocs.has(id));
-        if (still.length) {
-          ui.notifications.warn(
-            L("reconnectIncomplete", { books: still.map((id) => BOOKS[id]?.label ?? id).join(", ") }),
-          );
-        }
-      },
-    },
-  });
+  };
 }
+
+/**
+ * Open the import manager on its Books tab. `opts` is `booksPanel`'s: the
+ * first-run walkthrough, or a notice to carry into the panel. Every seat may
+ * open it; a seat that is not a GM sees this tab alone. Resolves to the window.
+ */
+const openBooksDialog = (opts = {}) => openImportManager({ tab: "books", ...opts });
 
 /**
  * Re-read every book a granted directory holds, settling each row as it lands.
@@ -2318,11 +2225,11 @@ async function reopenFromFolder(dir, records, settle) {
 /**
  * Reconnect on demand — retry the silent pass that runs on join (a plugged-in
  * drive, a restored network, or a book newly put on the shelf may answer it
- * now), then open the Books window whatever the outcome: a window showing
- * every book open IS the "all open" report, where the old toast left nothing
- * on screen to check it against.
+ * now), then open the Books tab whatever the outcome: a tab showing every
+ * book open IS the "all open" report, where a toast left nothing on screen to
+ * check it against.
  *
- * Three api names reach this one window, and they stay because macros already
+ * Three api names reach this one tab, and they stay because macros already
  * imported into worlds call them: connectBook, reconnectBooks, bookStatus.
  */
 async function reconnectBooks() {
@@ -2331,7 +2238,7 @@ async function reconnectBooks() {
   return openBooksDialog();
 }
 
-/** Which books this seat can read, and how much of each — the same window. */
+/** Which books this seat can read, and how much of each — the same tab. */
 async function bookStatus() {
   return openBooksDialog();
 }
@@ -2998,16 +2905,7 @@ Hooks.once("ready", async () => {
   acksExtras.importer = api;
   installImportManager({
     api,
-    openBooks: () => openBooksDialog(),
-    bookRows: () =>
-      Object.keys(BOOKS).map((id) => ({
-        id,
-        label: BOOKS[id]?.label ?? id,
-        judge: bookIsJudges(id),
-        open: sessionDocs.has(id),
-        entries: cookbookCount(id),
-        recipes: allRecipes().filter((r) => r.book === id).length,
-      })),
+    booksPanel,
     steps: GM_STEPS,
     runStep: runImportStep,
     runEverything: () => runImportEverything(),
@@ -3040,7 +2938,7 @@ Hooks.once("ready", async () => {
   // and is still not new.
   await restoreShelf();
   const pending = await restoreBooks();
-  if (pending.length) await openBooksDialog({ autoClose: true });
+  if (pending.length) await openBooksDialog();
   else if (!sessionDocs.size && !(await locations()).size && !Object.keys(shelf()).length && !gettingStartedDismissed()) {
     await openBooksDialog({ firstRun: true });
   }

@@ -67,13 +67,6 @@ verification, not as drive-by edits:
 - **Goods on an actor whose sheet lists none.** Freight dragged out of a hold
   onto an organisation before 10.1.0 was handed to it, as coin was before
   10.0.0. No check lists either.
-- **A weapon storing the schema's alternate die.** A weapon created on 14.1
-  without an alternate stores the schema's initial die there, and since that
-  is not blank the sheet and the roll take it as a second grip at that die.
-  Telling it from one a Judge typed needs a rule the owner has not given: the
-  item's imported weapon modes name a two-handed die, or the stored one
-  equals the one-handed die. `lib.stampedRecords` blanks only an alternate
-  the record never stored.
 - **More checks.** Class-training effects whose class uuid no longer resolves:
   they refuse hand-deletion, and `resetTraining` returns false for them.
 

@@ -29,6 +29,11 @@ const EMPHASIS = Object.freeze({ success: "is-success", failure: "is-failure", n
  * @property {number|string} total  What they rolled.
  * @property {number} [target]     The number they needed; the Target column
  *                                 appears only if some row in the section has one.
+ * @property {string} [targetSuffix] What follows the target: "+" by default, "-"
+ *                                 for a throw that wants a low total, "" for an exact match.
+ * @property {string} [targetTooltip] Hover text for the target (where it came
+ *                                 from), assembled at render, so it is written
+ *                                 as text and never read as a lang key.
  * @property {string} [detail]     The modifier stack / source, printed small
  *                                 under the name. Escaped here.
  * @property {string} [tooltip]    Hover text for the total (a dice formula).
@@ -63,7 +68,8 @@ function sectionHtml({ title, rows }, labels = {}) {
     html += `<td class="acks-nums"${tip}>${esc(row.total)}</td>`;
     if (showTarget) {
       const t = Number(row.target);
-      html += `<td class="acks-nums">${Number.isFinite(t) ? `${esc(t)}+` : ""}</td>`;
+      const tip = row.targetTooltip && Number.isFinite(t) ? ` data-tooltip-text="${esc(row.targetTooltip)}"` : "";
+      html += `<td class="acks-nums"${tip}>${Number.isFinite(t) ? `${esc(t)}${esc(row.targetSuffix ?? "+")}` : ""}</td>`;
     }
     // A success is the one thing read at a glance, so it takes the bold.
     if (showResult) {
@@ -85,19 +91,24 @@ function sectionHtml({ title, rows }, labels = {}) {
  * @param {string}  [card.note]       One line under the banner: a rule reminder.
  * @param {Array<{title?: string, rows: RollCardRow[]}>} card.sections
  * @param {string}  [card.footnote]   Small print at the foot (who could not roll).
+ * @param {string}  [card.empty]      What the card says when no section has a row,
+ *                                    already localized. A card with no rows
+ *                                    returns "" unless this is given, in which
+ *                                    case the banner, this line and the footnote
+ *                                    are the whole card.
  * @param {{name?: string, total?: string, target?: string, result?: string}} [card.labels]
  *                                    Column headings in place of the defaults, already localized.
  * @returns {string} HTML, or "" if there is nothing to show.
  */
-export function renderRollCard({ title, subtitle, note, sections = [], footnote, labels = {} } = {}) {
+export function renderRollCard({ title, subtitle, note, sections = [], footnote, empty, labels = {} } = {}) {
   const tables = sections.map((section) => sectionHtml(section, labels)).join("");
-  if (!tables) return "";
+  if (!tables && !empty) return "";
   let html = `<div class="acks-extras-roll-card acks-chat">`;
   html += `<header class="acks-chat-header"><h3 class="acks-chat-title">${esc(title)}</h3>`;
   if (subtitle) html += `<span class="acks-chat-subtitle">${esc(subtitle)}</span>`;
   html += `</header><div class="acks-chat-body">`;
   if (note) html += `<p class="acks-extras-roll-note">${esc(note)}</p>`;
-  html += tables;
+  html += tables || `<p class="acks-extras-roll-note">${esc(empty)}</p>`;
   if (footnote) html += `<p class="acks-extras-roll-footnote">${esc(footnote)}</p>`;
   return `${html}</div></div>`;
 }

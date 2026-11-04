@@ -1253,6 +1253,15 @@ It is also the editor for **custom skills**: flag any ability item to take part
 in a party roll, scale it on a thief progression, and set a level factor (0.5
 for "as a thief of half his class level").
 
+Each row of **Party abilities** has a dice button that rolls that ability for the
+whole party: every member who holds it rolls, and one card whispered to the
+Judges lists the totals, the targets and the verdicts. An ability a party check
+takes (Hasty Search, say) rolls that check's target, the one the Resolution table
+shows, and the card says which check; any other ability rolls its own throw.
+Hover a target to see where it came from and each part. Members who made no roll are named under
+the card with the reason, and if nobody holds the ability the card says nobody
+rolled. No round or turn passes.
+
 ## Common problems
 
 **A binding shows a skill that isn't there.** Its skill was never imported, or

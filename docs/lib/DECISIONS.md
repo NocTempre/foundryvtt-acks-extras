@@ -5229,7 +5229,8 @@ this machine.
 - *Reconciling a stored alternate with the item's imported weapon modes.* A
   weapon created on 14.1 without one stores the schema's die, and telling
   that from one a Judge typed is a judgement about the record, not a rename.
-  It is the owner's question, in ROADMAP.
+  It is the owner's question, in ROADMAP. **Superseded** by "A weapon's
+  two-handed die follows its imported row", below.
 
 **Cost.** An unlinked token's actor is not listed: its record is the base
 actor's plus a delta, and the base actor's fix is the one that matters. A
@@ -5238,3 +5239,37 @@ as they are imported. The replacement writes the whole `system`, so a peer's
 edit to the same document between the scan and the fix is overwritten. Six
 armours in the census hold `aac` beside an equal `ac`; those load correctly
 and are not listed.
+
+## 2026-11-03 — A weapon's two-handed die follows its imported row
+
+**New evidence.** The entry above rejected reconciling a stored alternate
+with the weapon's imported row, because it left the owner a question: how
+can the schema's die, stored by a create that named no alternate, be told
+from a die a Judge typed? The owner answered: "Imported table decides".
+
+**Ruled.** Where the weapon's imported table row names a two-handed die,
+that die is the weapon's alternate. Where the row names none, the stored
+alternate is blanked. A weapon with no imported row keeps what it stores, and
+nothing compares the stored alternate with the one-handed die. Two
+alternatives were offered and not chosen: treating an alternate equal to the
+one-handed die as none, and blanking only an alternate the record never
+stored.
+
+**Built.** "The imported row" is the modes the importer stamped on the item
+(`flags.acks-extras.weapon.modes`), which `bindWeaponRow` already derives its
+alternate from at creation; the equipment root's frozen weapon table is not a
+row, since it is shipped and a weapon a Judge merely named like one has none.
+The rule reaches worlds through the repair check `lib.twoHandedRow`, which
+writes what a Judge ticks, and not through the document as it loads: the
+2026-10-28 ruling against an unasked write at ready stands. The importer has
+no refresh path to change, since a rerun skips any weapon the world already
+holds. MODEL.md, "A weapon's two-handed die follows its imported row", states
+the mechanic.
+
+**Cost.** A Judge's own alternate on a weapon that carries an imported row is
+listed for blanking when the row names none, and is kept only by leaving it
+unticked. The stamped modes are a copy taken at import, so a row read
+differently by a later import does not reach a weapon already made. A weapon made
+from a price row, or granted by a class template, carries no modes and is never
+listed. A weapon the stamped-record rescue holds is listed and not offered
+until that check has run. An unlinked token's actor is not walked.

@@ -1,16 +1,19 @@
 /* global foundry, game, ui */
 /**
- * The import manager: one window for a Judge's import controls, in five tabs.
- * Books — which books this build reads and which are open on this seat, and
- * the way to the Books window that connects them. Import — the chain, in its
- * order, run whole or one step at a time. Rebuild — a shelf, a book or the
- * rules tables, rebuilt or repaired in place. Adventures — each adventure
- * book open on this seat, with what the library holds of its Adventure, to
- * rebuild, repair or write. Tools — the entry picker, the audit, the repair
- * window and Remove All Imports. The window holds nothing of its own: every
- * tab reads the importer's api at render, and every press hands off to a run
- * that already exists and asks its own questions. One window per seat,
- * however it was opened.
+ * The import manager: one window for the importer's controls, in five tabs.
+ * Books — every book this build reads, whether it is open on this seat, the
+ * server shelf, and the controls that connect them; the first-run walkthrough
+ * heads it. Import — the chain, in its order, run whole or one step at a time.
+ * Rebuild — a shelf, a book or the rules tables, rebuilt or repaired in place.
+ * Adventures — each adventure book open on this seat, with what the library
+ * holds of its Adventure, to rebuild, repair or write. Tools — the entry
+ * picker, the audit, the repair window and Remove All Imports. The window
+ * holds nothing of its own: every tab reads the importer's api at render, and
+ * every press hands off to a run that already exists and asks its own
+ * questions. One window per seat, however it was opened.
+ *
+ * Books is the only tab a seat that is not a GM sees: connecting a book is a
+ * per-seat act, and the other four write the world.
  */
 import { MODULE_ID, LANG_PREFIX } from "../constants.mjs";
 
@@ -23,12 +26,12 @@ let instance = null;
 const loc = (key, data) => (data ? game.i18n.format(`${LANG_PREFIX}.${key}`, data) : game.i18n.localize(`${LANG_PREFIX}.${key}`));
 
 /**
- * Give the window what it runs. `api` is the importer's api; `openBooks()`
- * opens the Books window; `bookRows()` lists every book this build reads
- * with whether it is open here; `steps` is the import chain as `[key, run]`
- * pairs and `runStep(key)` runs one; `runEverything()` runs the chain;
- * `merchandise()` builds the merchandise items; `lib()` returns the shared
- * lib api, for the repair window.
+ * Give the window what it runs. `api` is the importer's api;
+ * `booksPanel({firstRun, notice})` builds the Books tab as `{html, wire}`
+ * (the markup, and the listeners to attach once it is in the page); `steps` is
+ * the import chain as `[key, run]` pairs and `runStep(key)` runs one;
+ * `runEverything()` runs the chain; `merchandise()` builds the merchandise
+ * items; `lib()` returns the shared lib api, for the repair window.
  */
 export function installImportManager(h) {
   host = h;
@@ -42,7 +45,6 @@ export class ImportManagerApp extends HandlebarsApplicationMixin(ApplicationV2) 
     position: { width: 680, height: 600 },
     window: { title: `${LANG_PREFIX}.manager.title`, icon: "fa-solid fa-hanging-sign", resizable: true },
     actions: {
-      openBooks: ImportManagerApp.#onOpenBooks,
       importAll: ImportManagerApp.#onImportAll,
       runStep: ImportManagerApp.#onRunStep,
       rebuild: ImportManagerApp.#onRebuild,
@@ -81,26 +83,56 @@ export class ImportManagerApp extends HandlebarsApplicationMixin(ApplicationV2) 
   /** What is running, as the status line says it, or "". */
   #busy = "";
 
+  /** The Books tab as last built (`booksPanel`): its listeners are attached after each render. */
+  #panel = null;
+
+  /** What the next build of the Books tab carries: the walkthrough forced open, and a report to show. */
+  #booksOpts = { firstRun: false, notice: "" };
+
+  /**
+   * Ask for the Books tab's next build to carry `firstRun` and `notice`.
+   * @param {{firstRun?: boolean, notice?: string}} opts
+   */
+  queueBooks({ firstRun = false, notice = "" } = {}) {
+    this.#booksOpts = { firstRun: firstRun || this.#booksOpts.firstRun, notice: notice || this.#booksOpts.notice };
+  }
+
   /** @override */
   async _prepareContext() {
+    const isGM = !!game.user?.isGM;
     const api = host?.api ?? null;
     const ready = !!api;
-    const steps = (host?.steps ?? []).map(([key]) => ({ key, label: loc(`gs.${key}`) }));
-    const books = ready ? host.bookRows() : [];
-    const rebuild = ready ? api.rebuildOptions() : [];
-    const adventures = ready ? (await api.adventureBooks()).map((row) => ({ ...row, census: this.#censusText(row.census) })) : [];
+    const steps = isGM ? (host?.steps ?? []).map(([key]) => ({ key, label: loc(`gs.${key}`) })) : [];
+    const rebuild = ready && isGM ? api.rebuildOptions() : [];
+    const adventures = ready && isGM ? (await api.adventureBooks()).map((row) => ({ ...row, census: this.#censusText(row.census) })) : [];
+    // A seat that is not a GM sees the Books tab alone.
+    const tabs = Object.fromEntries(Object.entries(this._prepareTabs("primary")).filter(([id]) => isGM || id === "books"));
+    this.#panel = ready && host.booksPanel ? await host.booksPanel(this.#booksOpts) : null;
+    this.#booksOpts = { firstRun: false, notice: "" };
     return {
-      tabs: this._prepareTabs("primary"),
+      tabs,
       ready,
+      isGM,
       busy: !!this.#busy,
       busyText: this.#busy,
-      books,
-      openCount: books.filter((b) => b.open).length,
+      booksHtml: this.#panel?.html ?? "",
       steps,
       rebuild,
       adventures,
-      modes: ["drop", "repair"].map((value) => ({ value, label: loc(`ui.reimportMode${value === "drop" ? "Drop" : "Repair"}`) })),
+      modes: ["drop", "repair", "force"].map((value) => ({ value, label: loc(`ui.reimportMode${value[0].toUpperCase()}${value.slice(1)}`) })),
     };
+  }
+
+  /** @override */
+  async _onRender(context, options) {
+    await super._onRender(context, options);
+    if (options?.parts && !options.parts.includes("body")) return;
+    this.#panel?.wire(this.element, {
+      rerender: (notice = "") => {
+        this.queueBooks({ notice });
+        return this.render();
+      },
+    });
   }
 
   /** One line for what the shelf holds of a book's Adventure. */
@@ -124,6 +156,7 @@ export class ImportManagerApp extends HandlebarsApplicationMixin(ApplicationV2) 
   /** Run `fn` as the window's one job at a time, saying what runs, then redraw. */
   async #run(label, fn) {
     if (this.#busy) return;
+    if (!game.user?.isGM) return ui.notifications.warn(loc("manager.gmOnly"));
     if (!host?.api) return ui.notifications.warn(loc("manager.notReady"));
     this.#busy = loc("manager.running", { what: label });
     await this.render();
@@ -136,10 +169,6 @@ export class ImportManagerApp extends HandlebarsApplicationMixin(ApplicationV2) 
       this.#busy = "";
       this.render();
     }
-  }
-
-  static #onOpenBooks() {
-    host?.openBooks?.();
   }
 
   static async #onRefresh() {
@@ -176,6 +205,7 @@ export class ImportManagerApp extends HandlebarsApplicationMixin(ApplicationV2) 
     const api = host.api;
     const tool = target.dataset.action;
     const label = target.textContent.trim();
+    if (!game.user?.isGM) return ui.notifications.warn(loc("manager.gmOnly"));
     if (tool === "repair") {
       // The repair window's importer checks, every check where it has none.
       // The lib api is read now, not at install: the two ready hooks race.
@@ -203,20 +233,22 @@ export class ImportManagerMenu extends ImportManagerApp {
 }
 
 /**
- * Open the import manager, on `tab` when given. GM only; a second call raises
- * the open window instead of making another.
- * @returns {ImportManagerApp|null}
+ * Open the import manager, on `tab` when given. Any seat may open it, and a
+ * seat that is not a GM is always on the Books tab, the only one it has. A
+ * second call raises the open window instead of making another. `firstRun`
+ * and `notice` are the Books tab's (`booksPanel`).
+ * @param {{tab?: string|null, firstRun?: boolean, notice?: string}} [opts]
+ * @returns {ImportManagerApp}
  */
-export function openImportManager({ tab = null } = {}) {
-  if (!game.user?.isGM) {
-    ui.notifications.warn(loc("manager.gmOnly"));
-    return null;
-  }
-  if (!instance?.rendered) instance = new ImportManagerApp();
+export function openImportManager({ tab = null, firstRun = false, notice = "" } = {}) {
+  // `instance` clears on close, so a window still rendering is reused rather than doubled.
+  if (!instance) instance = new ImportManagerApp();
   const app = instance;
+  app.queueBooks({ firstRun, notice });
+  const on = game.user?.isGM ? tab : "books";
   Promise.resolve(app.render(true)).then(() => {
     app.bringToFront();
-    if (tab) app.changeTab(tab, "primary");
+    if (on) app.changeTab(on, "primary");
   });
   return app;
 }
