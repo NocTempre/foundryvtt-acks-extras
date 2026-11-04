@@ -40,11 +40,22 @@ it:
   read it in their own windows;
 - **not applied** — no field to write, or it sets or caps a figure.
 
+![](../releases/v11.14.0/abilities-typed-modifiers.png)
+
+*An imported fighting style's Mechanics tab: each modifier row marked
+"applied when met", with its Start button for a quick effect.*
+
 The same goes for the limits, mishaps and falls a row names (*a use limit*,
 *a mishap*) and the condition on a reroll, sense, capability or companion
 row. A row that belongs to one of the ability's throws carries a second chip
 naming it (*Lockpicking only*); it modifies that throw on the Rolls tab and no
 other.
+
+![](../releases/v11.14.0/abilities-conditions.png)
+
+*A proficiency's Mechanics tab: a modifier read elsewhere, labelled with the
+kind of condition and its page, and outcome rows each naming the throw they
+belong to.*
 
 A row marked **unverified** was read by the generic scan rather than by a
 recipe checked against the page. It still applies; check it against your

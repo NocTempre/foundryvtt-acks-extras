@@ -98,6 +98,9 @@ export class ImportManagerApp extends HandlebarsApplicationMixin(ApplicationV2) 
   /** What the next build of the Books tab carries: the walkthrough forced open, and a report to show. */
   #booksOpts = { firstRun: false, notice: "" };
 
+  /** The Rebuild tab's pick and mode as the user last set them: every render, the one a run makes before its confirm included, draws them selected. */
+  #rebuildChoice = { pick: "", mode: "drop" };
+
   /**
    * Ask for the Books tab's next build to carry `firstRun` and `notice`.
    * @param {{firstRun?: boolean, notice?: string}} opts
@@ -112,7 +115,11 @@ export class ImportManagerApp extends HandlebarsApplicationMixin(ApplicationV2) 
     const api = host?.api ?? null;
     const ready = !!api;
     const steps = isGM ? (host?.steps ?? []).map(([key]) => ({ key, label: loc(`gs.${key}`) })) : [];
-    const rebuild = ready && isGM ? api.rebuildOptions() : [];
+    const { pick, mode } = this.#rebuildChoice;
+    const rebuild = (ready && isGM ? api.rebuildOptions() : []).map((g) => ({
+      ...g,
+      options: (g.options ?? []).map((o) => ({ ...o, selected: o.value === pick })),
+    }));
     const adventures = ready && isGM ? (await api.adventureBooks()).map((row) => ({ ...row, census: this.#censusText(row.census) })) : [];
     // A seat that is not a GM sees the Books tab alone.
     const tabs = Object.fromEntries(Object.entries(this._prepareTabs("primary")).filter(([id]) => isGM || id === "books"));
@@ -133,7 +140,7 @@ export class ImportManagerApp extends HandlebarsApplicationMixin(ApplicationV2) 
       steps,
       rebuild,
       adventures,
-      modes: ["drop", "repair", "force"].map((value) => ({ value, label: loc(`ui.reimportMode${value[0].toUpperCase()}${value.slice(1)}`) })),
+      modes: ["drop", "repair", "force"].map((value) => ({ value, selected: value === mode, label: loc(`ui.reimportMode${value[0].toUpperCase()}${value.slice(1)}`) })),
     };
   }
 
@@ -146,6 +153,10 @@ export class ImportManagerApp extends HandlebarsApplicationMixin(ApplicationV2) 
         this.queueBooks({ notice });
         return this.render();
       },
+    });
+    this.element?.querySelector?.("[data-rebuild-form]")?.addEventListener("change", (event) => {
+      const name = event.target?.name;
+      if (name === "pick" || name === "mode") this.#rebuildChoice[name] = event.target.value;
     });
   }
 
@@ -203,6 +214,7 @@ export class ImportManagerApp extends HandlebarsApplicationMixin(ApplicationV2) 
     const pick = form?.querySelector("select[name=pick]")?.value ?? "";
     const mode = form?.querySelector("select[name=mode]")?.value ?? "drop";
     if (!pick) return;
+    this.#rebuildChoice = { pick, mode };
     await this.#run(loc("manager.tab.rebuild"), () => host.api.runRebuildPick(pick, mode));
   }
 

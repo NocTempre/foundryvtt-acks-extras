@@ -205,6 +205,12 @@ stored figure, and a note beside each of those labels gives the total Rolls
 adds, with a tooltip saying how it is made. To change an Avoid Surprise from an item or ability, give the character an
 Active Effect on `system.surprise.avoidsurprise`.
 
+![](../releases/v11.14.0/character-sheet-stats-parts.png)
+
+*Roll modifiers with an enclosing helmet worn: Avoid Surprise's tooltip gives
+the stored figure, what effects add, and the helmet's part from the imported
+table with its page.*
+
 **Morale** is one of those targets on a hireling and on a character no player
 owns — an NPC the Judge built as a character — and Rolls lists its roll. A
 player's own character has none (RR ch. 6, Morale).

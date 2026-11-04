@@ -168,6 +168,15 @@
 
 ### Fixed
 
+- **Manage Imports' Rebuild tab keeps what you picked while it asks.** The window
+  redrew before its confirm and showed the first book and Rebuild again, so the
+  choice you were confirming was not the one on screen; it now shows your pick
+  and mode throughout.
+- **An ability's Mechanics tab fits its window.** A row with a long level table
+  widened the whole tab, so the window cut off the end of every row and of the
+  hint above them. The table now takes a line of its own and scrolls there.
+- **An immunity row on the Mechanics tab says when it holds.** A row with a note
+  showed the note alone; it now shows the note and then its condition.
 - **Make Encounter on a monster whose token is a wildcard takes its portrait.** The
   group took the wildcard path as its own image; it now takes the portrait.
 

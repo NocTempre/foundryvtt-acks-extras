@@ -13,9 +13,11 @@ reach: your own disk, or a book the GM has staged on the server for the table.
 A book is read at the moment something is imported from it; what comes out is
 written into the world, so nobody needs the file again afterwards.
 
-![](../releases/importer/v4.2.1/book-loader.png)
+![](../releases/v11.14.0/importer-books-tab.png)
 
-*The book loader, with three books already open on this seat.*
+*The Books tab of Manage Imports: the books on the server, the picker and the
+folder scan that put more there, this seat's books folded by state, and Forget
+books on this computer.*
 
 ### Connect
 
@@ -329,6 +331,11 @@ Cancel writes nothing. It still keeps what is not the import's: items and
 abilities you made yourself, effects and attacks you added, what play has set,
 and anything whose book is not open on this seat.
 
+![](../releases/v11.14.0/importer-force-repair.png)
+
+*Force repair chosen on the Rebuild tab: before writing, it gives the count of
+documents and the shelves they came from, and lists what it still keeps.*
+
 ![](../releases/v8.8.0/importer-repair-mode.png)
 
 *Reimport One Shelf with the Traps shelf picked and Repair in place chosen.*
@@ -574,6 +581,11 @@ this seat with four actions:
 
 *The Adventures tab: each adventure book open on this seat with what its
 Adventure carries, and its Rebuild, Repair and Write Adventure buttons.*
+
+![](../releases/v11.14.0/importer-adventure-force.png)
+
+*Force repair on an adventure book asks first: what it will write over, by
+count, and what it keeps.*
 
 To rebuild a map as well, delete the scene first and then Rebuild or Repair.
 

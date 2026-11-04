@@ -277,7 +277,8 @@ character `abilities/typed-character`, a level-3 `character` actor):
     library's, so they need no marker of their own), run **Update
     Abilities** → each limitation row's text is a clause from the Judge's page,
     or a cited label such as *a retry limit (RR p.N)*, followed by its
-    condition; each outcome row reads *natural …: * then a clause or *a mishap
+    condition; each outcome row opens with its trigger phrase (*natural …*,
+    *on failure* or *result below …*), then a clause or *a mishap
     (RR p.N)*; Sneaking's two capability rows and Berserkergang's show a
     clause, with the condition after it. Lockpicking's, Trapbreaking's and
     Searching's scoped rows carry a chip naming the throw (*hastily only*,

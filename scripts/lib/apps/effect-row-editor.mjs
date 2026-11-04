@@ -188,7 +188,8 @@ export class EffectRowEditor extends HandlebarsApplicationMixin(ApplicationV2) {
         const have = new Set([...(value ?? [])]);
         field.options = Object.entries(spec.choices()).map(([key, label]) => ({ key, label, checked: have.has(key) }));
       } else if (spec.kind === "levelValue") {
-        const v = value ?? {};
+        // A bare number is a valid flat value; it is shown in the flat box.
+        const v = typeof value === "number" ? { kind: "flat", flat: value } : (value ?? {});
         const kind = v.kind || "flat";
         field.value = v;
         field.isFlat = kind === "flat";

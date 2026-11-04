@@ -268,7 +268,9 @@ export function describeEffect(e, V) {
     case "capability":
       return { kind: label(V.EFFECT_TYPES, e.type), text: withCondition(label(V.SPELL_LIKE_FREQ, e.frequency) || e.note || "see description") };
     default:
-      return { kind: label(V.EFFECT_TYPES, e.type), text: e.note || e.condition || "—" };
+      // An immunity, resistance or susceptibility row may hold both: the note
+      // names what it covers and the condition when it holds.
+      return { kind: label(V.EFFECT_TYPES, e.type), text: e.note ? withCondition(e.note) : e.condition || "—" };
   }
 }
 

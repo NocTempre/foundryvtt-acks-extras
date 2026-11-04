@@ -102,6 +102,33 @@ installImportManager({
   ok("every build is wired again", wired.length === 3);
 }
 
+/* --- the Rebuild tab keeps the pick and mode across the renders a run makes --------------- */
+{
+  api.rebuildOptions = () => [{ key: "shelves", label: "Shelves", options: [{ value: "shelf:Alpha", label: "Alpha" }, { value: "shelf:Beta", label: "Beta" }] }];
+  const app = new ImportManagerApp();
+  let onChange = null;
+  const form = {
+    addEventListener: (type, fn) => type === "change" && (onChange = fn),
+    querySelector: (sel) => ({ "select[name=pick]": { value: "shelf:Beta" }, "select[name=mode]": { value: "force" } })[sel] ?? null,
+  };
+  app.element = { id: "root", querySelector: (sel) => (sel === "[data-rebuild-form]" ? form : null) };
+  await app.render();
+  const pickedOf = (ctx) => ctx.rebuild[0].options.filter((o) => o.selected).map((o) => o.value).join();
+  const modeOf = (ctx) => ctx.modes.filter((m) => m.selected).map((m) => m.value).join();
+  ok("before any choice nothing is picked and the mode is Rebuild", pickedOf(app.context) === "" && modeOf(app.context) === "drop", `${pickedOf(app.context)}|${modeOf(app.context)}`);
+  onChange?.({ target: { name: "mode", value: "repair" } });
+  await app.render();
+  ok("a mode the user changes is drawn selected on the next render", modeOf(app.context) === "repair", modeOf(app.context));
+  // A rebuild press stores what the form reads, then the run renders before its confirm.
+  let renderedDuringRun = null;
+  api.runRebuildPick = async () => {
+    renderedDuringRun = { pick: pickedOf(app.context), mode: modeOf(app.context) };
+  };
+  await app.constructor.DEFAULT_OPTIONS.actions.rebuild.call(app, {}, { closest: () => form });
+  ok("the render a run makes before its confirm still shows the user's pick and mode", renderedDuringRun?.pick === "shelf:Beta" && renderedDuringRun?.mode === "force", JSON.stringify(renderedDuringRun));
+  api.rebuildOptions = () => (reads.rebuild++, [{ key: "shelves", label: "Shelves", options: [] }]);
+}
+
 /* --- a seat that is not a GM sees the Books tab alone ------------------------------------ */
 {
   game.user.isGM = false;

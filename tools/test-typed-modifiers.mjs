@@ -182,6 +182,15 @@ check("an ability whose own effect writes the field stands aside", () => {
   assert.equal(r.listed.find((l) => l.reason === "standAside").path, "system.ac.mod");
 });
 
+check("a situational row whose own effect is started is listed as stood aside, not as situational", () => {
+  const own = [{ disabled: false, changes: [{ key: "system.ac.mod", type: "add", value: 2 }] }];
+  const r = standingModifiers(character([ability("Quick", [mod({ value: 2, condition: "situational" })], { own })]));
+  const row = r.listed.find((l) => l.path === "system.ac.mod");
+  assert.equal(row?.reason, "standAside", JSON.stringify(row));
+  const off = standingModifiers(character([ability("Quick", [mod({ value: 2, condition: "situational" })], { own: [{ ...own[0], disabled: true }] })]));
+  assert.notEqual(off.listed.find((l) => l.path === "system.ac.mod")?.reason, "standAside", "an effect turned off stands nothing aside");
+});
+
 check("a scan-found spec applies, marked unverified", () => {
   const scanned = ability("Scanned", [mod({ value: 2 })], { extras: { effectsFrom: "scan", unaudited: true } });
   const p = parts(character([scanned]));

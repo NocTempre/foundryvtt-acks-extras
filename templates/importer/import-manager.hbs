@@ -38,7 +38,7 @@
         <select name="pick">
           {{#each rebuild as |g|}}
           <optgroup label="{{g.label}}">
-            {{#each g.options as |o|}}<option value="{{o.value}}">{{o.label}}</option>{{/each}}
+            {{#each g.options as |o|}}<option value="{{o.value}}" {{#if o.selected}}selected{{/if}}>{{o.label}}</option>{{/each}}
           </optgroup>
           {{/each}}
         </select>
@@ -46,7 +46,7 @@
       <label>
         <span>{{localize "ACKS-IMPORTER.ui.reimportMode"}}</span>
         <select name="mode">
-          {{#each modes as |m|}}<option value="{{m.value}}">{{m.label}}</option>{{/each}}
+          {{#each modes as |m|}}<option value="{{m.value}}" {{#if m.selected}}selected{{/if}}>{{m.label}}</option>{{/each}}
         </select>
       </label>
       <button type="button" data-action="rebuild" {{disabled busy}}><i class="fa-solid fa-rotate" aria-hidden="true"></i> {{localize "ACKS-IMPORTER.manager.rebuildGo"}}</button>

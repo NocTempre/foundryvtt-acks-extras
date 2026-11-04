@@ -2951,7 +2951,7 @@ lands the new fields and none of the deletions; only `recursive: false` on
 Covers `lib.twoHandedRow` (MODEL.md, "A weapon's two-handed die follows its
 imported row"). One GM seat. Every name and die below is invented; the rows
 are the stamped modes the importer writes, built by hand, so no book is
-needed.
+needed. `tools/live/lib-repair-checks.mjs` walks steps 1–4.
 
 **Fixtures,** found by marker with `api.fixture(marker, "Item", data)`. The
 check's fix rewrites them, so each step that needs a shape asserts it by
@@ -3429,7 +3429,8 @@ combat and disagreeing on the order of a tie, so this needs a GM seat and a
 Player seat open at once: the driver's two browsers, never two pane tabs. The
 engine's sort is stable for a small array, so a tie is only seen to differ
 across seats by changing the sequence the rows arrive in or the algorithm that
-sorts them; steps 2 and 3 do each.
+sorts them; steps 2 and 3 do each. `tools/live/lib-repair-checks.mjs` walks
+steps 1, 2, 3, 5 and 6.
 
 **Fixtures, kept and found by marker.**
 - The scene `lib/turn-order-scene`, never activated.
@@ -3459,9 +3460,11 @@ lower id first.
 2. **Any arrival sequence.** On the GM seat, build the second kept combat
    `lib/turn-order-combat-reversed` (`scene: null`) from the same four tokens, its
    rows created in the reverse order and set to the same shape. *Observable:* its
-   `combat.turns` holds the four tokens in the same order as step 1.
-   (`combatants.contents` is a fresh array on every read, so reversing it proves
-   nothing.)
+   `combat.turns` follows the same rule as step 1 over its own rows, hostile
+   before friendly and the lower combatant id first. The tie breaks on the
+   combatant's id, which a second combat mints afresh, so its tokens need not
+   stand in step 1's token order. (`combatants.contents` is a fresh array on
+   every read, so reversing it proves nothing.)
 3. **A seat on another sort algorithm.** On the Player page swap
    `Array.prototype.sort` for an insertion sort that calls the comparator the way
    a non-V8 engine would, run `combat.setupTurns()`, restore the original, and read

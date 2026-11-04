@@ -534,6 +534,8 @@ stray export.
 
 ## The roll modifiers on Stats
 
+Walked by `tools/live/typed-modifiers.mjs`, with the light rows beside them.
+
 **Fixtures.** `character-sheet/surprise-mod` (`flags.world.fixture`): a
 `character` with `system.surprise.avoidsurprise` stored at 0 and one Active
 Effect, mode `ADD`, value 2 on `system.surprise.avoidsurprise`

@@ -66,6 +66,12 @@ check("a limitation shows its restriction, then its condition; a bare condition 
   assert.equal(describeEffect({ type: "limitation", condition: "armor" }, V).text, "armor");
 });
 
+check("a kind with no face of its own shows its note, then its condition", () => {
+  assert.equal(describeEffect({ type: "immunity", note: "a lure", condition: "while raging" }, V).text, "a lure (while raging)");
+  assert.equal(describeEffect({ type: "immunity", condition: "while raging" }, V).text, "while raging", "a bare condition stands alone");
+  assert.equal(describeEffect({ type: "immunity" }, V).text, "—");
+});
+
 check("an outcome shows its consequence", () => {
   const row = describeEffect({ type: "outcome", trigger: "naturalBand", naturalMax: 2, consequence: "a mishap (QQ p.7)" }, V);
   assert.equal(row.text, "natural 1–2: a mishap (QQ p.7)");

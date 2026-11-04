@@ -7,10 +7,16 @@
 .acks-abilities-effects { list-style: none; margin: 0; padding: 0; }
 .acks-abilities-effects li {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
   align-items: baseline;
   padding: var(--acks-sp-1) 0;
   border-bottom: var(--acks-border-soft);
+}
+/* A fieldset is as wide as its widest content by default, so one long ladder
+   widened the whole tab past the window and the frame cut every row's end. */
+.acks-abilities-mechanics fieldset {
+  min-inline-size: 0;
 }
 
 /* The kind names the row rather than carrying it, so it sits in soft ink —
@@ -25,7 +31,7 @@
   color: var(--acks-ink-soft);
   min-width: 7.5rem;
 }
-.acks-abilities-effect-text { flex: 1 1 auto; }
+.acks-abilities-effect-text { flex: 1 1 12rem; min-width: 0; overflow-wrap: anywhere; }
 /* What the sheet does with a modifier row, and whether a recipe checked it. */
 .acks-abilities-effect-chip {
   flex: 0 0 auto;
@@ -74,7 +80,10 @@
 /* A per-level progression read off a printed table renders as a table. It
    scrolls sideways rather than wrapping — fourteen levels will not fit an item
    sheet, and a wrapped grid stops reading as a progression. */
+/* The ladder takes a line of its own under the row and scrolls within it. */
 .acks-abilities-ladder-wrap {
+  flex: 1 0 100%;
+  min-width: 0;
   overflow-x: auto;
   margin-top: var(--acks-sp-2);
 }

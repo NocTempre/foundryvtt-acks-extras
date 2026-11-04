@@ -448,6 +448,7 @@ page. Portable Battering Ram and Personal Automaton read as separate words.
 **Manage Imports (GM)** — `acksExtras.importer.openImportManager({tab})`.
 One AppV2 window, five tabs; it runs nothing of its own, so the walk is each
 tab's primary action reaching the run it names.
+`tools/live/importer-force-repair.mjs` walks steps 1 and 2, the Player seat included.
 
 ### Fixtures
 
@@ -692,6 +693,8 @@ book — and the report says so.
 find and what refused.
 
 ## Repair in place
+
+`tools/live/importer-force-repair.mjs` walks step 9 on its own items of one book and step 10's confirms answered No.
 
 Both rebuild dialogs carry a **Mode** select: *Rebuild (delete and import
 again)*, chosen when the dialog opens, and *Repair in place*. The API takes it
@@ -3380,6 +3383,7 @@ is deleted. The notice patch is restored.
 The Adventures tab's third action (MODEL, "An adventure book, rebuilt or
 repaired"). Offline: `tools/importer/test-adventure-item-repair.mjs` (the
 rewrite scope) and `tools/importer/test-import-manager.mjs`.
+Live: `tools/live/importer-force-repair.mjs` walks steps 1 (answered No) and 3.
 
 ### Fixtures
 
@@ -3426,6 +3430,7 @@ fixtures and are rewritten by step 2.
 
 MODEL, "Overhead token art from an installed compendium". Offline:
 `tools/importer/test-token-art.mjs`, with invented names and paths only.
+Live: `tools/live/importer-force-repair.mjs` walks steps 1, 8 and step 4's Make Encounter.
 
 ### Fixtures
 

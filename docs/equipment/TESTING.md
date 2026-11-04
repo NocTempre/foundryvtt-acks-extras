@@ -786,6 +786,8 @@ removed, what it could not find and what refused.
 The step an Armour Training ability raises the armour rungs by is its
 imported `modifies`/`armor` row's value times its rank; with no row the
 Stats tab says the step is not imported (MODEL, "Armour Training's step").
+Walked by `tools/live/typed-modifiers.mjs` (`STAGE=3`), which marks the two
+items `equipment/armour-step-hand` and `equipment/armour-step-row`.
 
 ### Fixtures
 
@@ -823,16 +825,19 @@ Stats tab says the step is not imported (MODEL, "Armour Training's step").
    step of 2 times rank 1 and the cite. The lit rungs end at Medium
    (very light plus 2).
 3. Set the hand-made item's `extras.qty` to 3. *Observable:* its line still
-   shows no figure; the lit rungs do not move.
+   shows no figure; the lit rungs do not move. (`qty` is a count the item
+   records, not a rank; rank is the number of same-named copies.)
 4. On the imported copy's sheet, Edit the row and type 3 into Flat (an
    invented figure, the Judge's). *Observable:* the Stats line reads `+3`,
    the rungs end at Heavy; `item.flags["acks-extras"].extras.effects[0].value`
    is `{kind: "flat", flat: 3}` and the row's `refs` and `domain` are as they
    were. Restore the flat box to 2.
-5. On the hand-made item's sheet, Add a row: kind Modifies, Domain Armor,
-   Value Flat 2. *Observable:* its Stats line now reads the rungs it adds
-   (step 2 × rank 3) and the rungs end at Heavy. Delete the row again.
-   *Observable:* "step not imported" is back.
+5. Give the character two more hand-made "Armour Training" copies (rank 3,
+   built and swept by the run). On the first one's sheet, Add a row: kind
+   Modifies, Domain Armor, Value Flat 2. *Observable:* its Stats line now
+   reads the rungs it adds (step 2 × rank 3), the other two copies still say
+   "step not imported", and the rungs end at Heavy. Delete the row again.
+   *Observable:* "step not imported" is back. Delete the two extra copies.
 6. **Player seat** owning the fixture: open both item sheets. *Observable:*
    the Imported mechanics rows show no Edit, Delete or Add controls; the
    Stats tab lines and their tooltips read as on the GM seat.

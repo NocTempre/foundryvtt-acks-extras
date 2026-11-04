@@ -407,8 +407,11 @@ export function standingModifiers(actor, { ctx = {}, resolve = defaultResolve } 
       }
       const base = { itemId: item.id, index, key: specKey(spec), label, target: spec.target, unverified };
       const value = resolveValue(spec.value, scales, resolve);
+      // A field an enabled effect of the ability's own writes is listed as stood
+      // aside whatever else would list it: that effect, not this row, is what
+      // the field carries, a started quick effect included.
       const listAll = (kind, reason) => {
-        for (const p of disposition.paths) result.listed.push({ ...base, path: p.path, kind, reason, value });
+        for (const p of disposition.paths) result.listed.push({ ...base, path: p.path, kind, reason: standAside.has(p.path) ? "standAside" : reason, value });
       };
       if (value === null || value === 0) return listAll(disposition.kind, "unresolved");
       if (disposition.kind === DISPOSITION.SITUATIONAL) return listAll(disposition.kind, disposition.reason);
