@@ -27,10 +27,20 @@
  *
  * Vision is shaped, never granted: a token with `sight.enabled` false is
  * scenery, and stays scenery.
+ *
+ * ## Units
+ *
+ * Every radius this module computes is in FEET; Foundry reads a token's
+ * `light.bright`, `light.dim`, `sight.range` and detection ranges in the
+ * SCENE's `grid.units`. Each radius is converted at the write
+ * (`inSceneUnits`) and rounded to the step its field stores, before it is
+ * compared with the stored value: a comparison against an unrounded figure
+ * never matches the cleaned one, and every sync would write again.
  */
 
 import { MODULE_ID } from "./constants.mjs";
 import { isActiveGMSeat, isPrimaryGM, unset } from "./util.mjs";
+import { feetPerUnit, feetToUnits } from "./distance-units.mjs";
 import { hasNightVision, senseProfile } from "./senses.mjs";
 import { DETECTION_MODES } from "./perception.mjs";
 import { bearerLights, brightestLightReaching, emittedLight } from "./light.mjs";
@@ -67,6 +77,42 @@ const enabled = () => {
   }
 };
 
+/** The step Foundry stores a radius at when a field declares none readable. */
+const DEFAULT_RADIUS_STEP = 0.01;
+
+/** The `step` of a schema field, or the default when the field cannot be read. */
+function stepOf(field) {
+  const step = field?.step;
+  return step > 0 ? step : DEFAULT_RADIUS_STEP;
+}
+
+/** The step the light radii are stored at. */
+function lightStep() {
+  return stepOf(globalThis.foundry?.data?.LightData?.schema?.fields?.bright);
+}
+
+/** The step the sight and detection ranges are stored at. */
+function sightStep() {
+  return stepOf(globalThis.CONFIG?.Token?.documentClass?.schema?.getField?.("sight.range"));
+}
+
+/** `value` rounded to the nearest multiple of `step`, as the field's own clean does. */
+function roundToStep(value, step) {
+  const decimals = (String(step).split(".")[1] ?? "").length;
+  return Number((Math.round(value / step) * step).toFixed(decimals));
+}
+
+/**
+ * A radius in feet as the token's scene stores it: converted by the scene's
+ * `grid.units` and rounded to `step`. A scene in feet, or in a unit nobody
+ * recognises, gets the figure unchanged.
+ */
+function inSceneUnits(tokenDoc, feet, step) {
+  const value = Number(feet) || 0;
+  if (!(value > 0)) return 0;
+  return roundToStep(feetToUnits(value, tokenDoc?.parent?.grid?.units), step);
+}
+
 /* -------------------------------------------- */
 /*  The two guarded writes                      */
 /* -------------------------------------------- */
@@ -84,11 +130,18 @@ const enabled = () => {
  * Declines when the token has no vision, or when a human has edited the sight
  * since our last write — in which case the delta drops the stamp and the token
  * is never managed again.
+ * The profile's ranges are feet; the delta, the stamp and the comparison all
+ * carry them in the scene's units, which is what the token stores.
  * @returns {{update: object, claim: boolean}|null} `claim` marks a delta that
  *   only stamps ownership: nothing about the token's vision actually changes.
  */
-function visionDelta(tokenDoc, { sightRange, visionMode, detection = {} }) {
+function visionDelta(tokenDoc, profile) {
   if (!tokenDoc?.sight?.enabled) return null;
+  const step = sightStep();
+  const { visionMode } = profile;
+  const sightRange = inSceneUnits(tokenDoc, profile.sightRange, step);
+  const detection = {};
+  for (const [id, feet] of Object.entries(profile.detection ?? {})) detection[id] = inSceneUnits(tokenDoc, feet, step);
   const stamp = tokenDoc.getFlag(MODULE_ID, FLAG_VISION);
   const current = { range: tokenDoc.sight.range, visionMode: tokenDoc.sight.visionMode };
 
@@ -154,24 +207,31 @@ function visionDelta(tokenDoc, { sightRange, visionMode, detection = {} }) {
 
 /**
  * The light update `{bright, dim}` feet wants, or null when there is nothing to
- * write. A computed 0/0 on a token we never lit is someone else's light: left
- * alone.
+ * write. The radii are written in the token's scene units, rounded to the
+ * stored step before the comparison so a second sync finds nothing to do. A
+ * computed 0/0 on a token we never lit is someone else's light: left alone. A
+ * source is lit when either radius survives the conversion — a coarse scene can
+ * round the bright radius to 0 and keep the dim one.
  */
-function lightDelta(tokenDoc, { bright, dim }) {
+function lightDelta(tokenDoc, feet) {
   if (!tokenDoc) return null;
+  const step = lightStep();
+  const bright = inSceneUnits(tokenDoc, feet?.bright, step);
+  const dim = inSceneUnits(tokenDoc, feet?.dim, step);
   if (tokenDoc.light.bright === bright && tokenDoc.light.dim === dim) return null;
+  const lit = bright > 0 || dim > 0;
   const managed = tokenDoc.getFlag(MODULE_ID, FLAG_LIGHT) ?? false;
-  if (bright === 0 && dim === 0 && !managed) return null;
+  if (!lit && !managed) return null;
 
   return {
     light: {
       bright,
       dim,
-      color: bright > 0 ? "#ff9b47" : null,
-      alpha: bright > 0 ? 0.3 : 0.5,
-      animation: bright > 0 ? { type: "torch", speed: 2, intensity: 3 } : { type: null },
+      color: lit ? "#ff9b47" : null,
+      alpha: lit ? 0.3 : 0.5,
+      animation: lit ? { type: "torch", speed: 2, intensity: 3 } : { type: null },
     },
-    [`flags.${MODULE_ID}.${FLAG_LIGHT}`]: bright > 0 || dim > 0,
+    [`flags.${MODULE_ID}.${FLAG_LIGHT}`]: lit,
   };
 }
 
@@ -216,7 +276,8 @@ function tokenSyncDelta(tokenDoc) {
   // Only Night Vision reads the light around the token, and finding it costs a
   // pass over every light and token on the scene. Asked for that one sense
   // rather than for all of them, so an ordinary sweep is unchanged.
-  const litBy = hasNightVision(actor) ? brightestLightReaching(tokenDoc) : 0;
+  // The light found is stored in the scene's units; the profile works in feet.
+  const litBy = hasNightVision(actor) ? brightestLightReaching(tokenDoc) * feetPerUnit(tokenDoc.parent?.grid?.units) : 0;
   const vision = visionDelta(tokenDoc, senseProfile(actor, { litBy }));
   const light = lightDelta(tokenDoc, emittedLight(bearerLights(actor)));
   if (!vision && !light) return null;

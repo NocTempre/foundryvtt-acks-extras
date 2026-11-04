@@ -30,6 +30,7 @@ import {
   receiveStack,
   sizeFromEcology,
 } from "./group-logic.mjs";
+import { registerGroupCombat } from "./group-combat.mjs";
 import { isPrimaryGM, replacementToken } from "./util.mjs";
 
 // Re-export the Foundry-free lifecycle logic so consumers reach it all through
@@ -264,9 +265,11 @@ let reconciling = Promise.resolve();
 /**
  * Keep every stack's roster true to the canvas. One client does the write, so
  * the primary GM alone reconciles; other clients see the result through the
- * actor update.
+ * actor update. Also installs the group token's combat hooks (group-combat.mjs),
+ * which deploy and recall through the operations below.
  */
 export function registerGroupCleanup() {
+  registerGroupCombat({ deploy, recall });
   Hooks.on("deleteToken", (tokenDoc, options) => {
     if (!isPrimaryGM() || !tokenDoc?.getFlag?.(MODULE_ID, GROUP_FLAG)) return;
     // Resolved now, not when the reconciliation's turn comes: a body sent

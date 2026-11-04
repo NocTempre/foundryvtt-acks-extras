@@ -44,6 +44,15 @@ export function feetPerUnit(units) {
 }
 
 /**
+ * A length in feet written in `units`, the unit a scene's own radii are stored
+ * in (a token's light and sight, an ambient light). Not rounded: the caller
+ * rounds to the field it writes. An unknown unit counts as feet.
+ */
+export function feetToUnits(feet, units) {
+  return Number(feet) / feetPerUnit(units);
+}
+
+/**
  * What one grid cell of this scene is worth in FEET — `grid.distance` read
  * through its units. The number every feet→squares conversion divides by.
  * @returns {number} 0 when the scene has no usable distance.

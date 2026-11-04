@@ -91,8 +91,9 @@ export function frameTabs({ mode, isGM }) {
  * gold once the day is spent; in the delve and the city the turns since the
  * last rest of the rest interval, red while the party is winded. A rest
  * interval that was never imported leaves the count with no ceiling and the
- * bar unfilled.
- * @returns {{label: string, title: string, pct: number, full: boolean, bad: boolean}}
+ * bar unfilled. A delve whose world does not require rests has no reading to
+ * give, and the band shows no bar.
+ * @returns {{label: string, title: string, pct: number, full: boolean, bad: boolean}|null}
  */
 export function bandBar(strip) {
   if (strip?.isJourney) {
@@ -106,6 +107,7 @@ export function bandBar(strip) {
       bad: false,
     };
   }
+  if (strip?.delve?.restOn === false) return null;
   const since = Number(strip?.delve?.sinceRest) || 0;
   const max = Number(strip?.delve?.restMax) || 0;
   return {

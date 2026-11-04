@@ -118,7 +118,8 @@ goes gold while the XP bar is full. The chevron before the strip folds the
 sheet.
 
 **Rolls** (`rolls.mjs`) lists every throw with its target in three columns:
-saves, initiative and the two surprise throws (plus morale and loyalty for a
+saves, initiative and the two surprise throws (the last three show the signed
+modifier the roll adds, not a target; plus morale and loyalty for a
 retainer, and morale for a character no player owns); the two attack boxes, every weapon's modes (from the item sheet's
 own roll rows, wielded first and ringed), the unarmed strike when nothing is
 held, and the healing rate; the adventuring throws and every other ability's
@@ -134,7 +135,8 @@ the path that owns it: the system's actor methods, the item sheet's
 `rollById`, the abilities feature's `rollAbility`, the system's item card,
 the combat tracker for initiative when the character is a combatant, and a
 plain die with the character's own modifier for initiative outside combat
-and for surprise. A row passes its click event on, so the system's skip key
+and for surprise; neither asks for a situational modifier, and the row's
+modifier is the field edited on Stats. A row passes its click event on, so the system's skip key
 skips the roll dialog from this tab as it does elsewhere.
 
 **Abilities** files proficiencies, powers and languages by the buckets the
@@ -245,10 +247,15 @@ auto-movement is off), vision light by light (daylight ∞, the dark at 0′ or
 the sense's reach, each light source's reach, the two dark senses), the
 vitals (HP current over full, the hit dice with a roll that writes a new full
 total after confirming, AC with and without the shield and unarmoured, the AC
-modifier, cleaves, mortal wounds), and the throw targets — attack throw,
-saves, the save modifier, adventuring throws, initiative modifier, surprise
-modifiers, healing rate, and morale where the character `carriesMorale` — which
-is the pen for what Rolls shows. A retainer gets its wage and loyalty fields. Every field the tab can write holds
+modifier, cleaves, mortal wounds), and the throw group (`buildThrows`): the
+targets — attack throw, saves, adventuring throws, healing rate, and morale
+where the character `carriesMorale` — and, under their own *Roll modifiers*
+subhead, the four modifiers a roll adds: the save modifier, the initiative
+modifier and the two surprise modifiers. This is the pen for what Rolls
+shows. Initiative and the two surprise rows carry a note beside the label, the
+signed figure Rolls adds (prepared data), each with a `data-tooltip-text`:
+surprise names the stored value and the effects' share, initiative (whose
+total folds in more than its stored modifier) names no parts. A retainer gets its wage and loyalty fields. Every field the tab can write holds
 the STORED value (`storedSystem` in view-model.mjs — `actor._source.system`),
 never the prepared one an Active Effect has already added to; the AC
 breakdown, the initiative display and every other read-only figure stay on

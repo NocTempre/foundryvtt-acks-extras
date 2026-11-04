@@ -931,6 +931,52 @@ export function getPartyToken(formation) {
   return scene && formation.tokenId ? (scene.tokens.get(formation.tokenId) ?? null) : null;
 }
 
+/**
+ * Is `tokenDoc` the token this record links as the party's? Both the id and
+ * the scene: a token keeps its id across scenes (a teleport, a duplicated
+ * scene), so the id alone also matches a copy on a scene the party is not on.
+ * Every automation that acts for the party on a token tests this first, so a
+ * pasted or duplicated twin carrying the formation flag is inert.
+ * @param {{tokenId?: string|null, sceneId?: string|null}|null} formation a
+ *   record, stored or copied
+ * @param {TokenDocument|null} tokenDoc
+ */
+export function isLinkedPartyToken(formation, tokenDoc) {
+  return !!formation?.tokenId && !!tokenDoc?.id && formation.tokenId === tokenDoc.id && formation.sceneId === tokenDoc.parent?.id;
+}
+
+/**
+ * Adopt `tokenDoc` as the party token of formation `formationId`: flag it,
+ * link it and measure the clock from it, then mirror the party's speed onto
+ * the actor. A PATCH, because a whole write keeps the ledger's linkage over a
+ * copy's. Declines, leaving the flag set and the linkage alone, when the
+ * record already links another token that stands on its scene.
+ * @returns {Promise<object|null>} the stored record, or null when it is gone
+ */
+export async function adoptPartyToken(formationId, tokenDoc) {
+  await tokenDoc.setFlag(MODULE_ID, FLAG_FORMATION_ID, formationId);
+  const stored = await patchFormation(formationId, (record) => {
+    const linked = getPartyToken(record);
+    if (linked && linked.id !== tokenDoc.id) return false;
+    record.sceneId = tokenDoc.parent.id;
+    record.tokenId = tokenDoc.id;
+    record.clock = { ...(record.clock ?? {}), lastPosition: { x: tokenDoc.x, y: tokenDoc.y } };
+  });
+  if (stored) await syncPartyActorSpeed(foundry.utils.deepClone(stored));
+  return stored;
+}
+
+/**
+ * Give a party actor that no record names a formation, and flag the actor with
+ * it. The one adoption a hand-made actor and the repair tool share.
+ * @returns {Promise<object>} the new record
+ */
+export async function adoptPartyActor(actor) {
+  const formation = await createFormation(actor.name, { actorId: actor.id });
+  await actor.setFlag(MODULE_ID, FLAG_FORMATION_ID, formation.id);
+  return formation;
+}
+
 /* -------------------------------------------- */
 /*  Party actor & token                         */
 /* -------------------------------------------- */
@@ -1047,6 +1093,13 @@ export async function addMember(formation, actor, tokenDoc = null, { scene: sear
   if (!actor) return formation;
   if (formation.members.some((m) => m.actorId === actor.id)) {
     ui.notifications.warn(game.i18n.format("ACKS-FORMATION.warn.alreadyMember", { name: actor.name }));
+    return formation;
+  }
+  // One party at a time, whoever adds them: the Judge's drop and HUD button
+  // meet the refusal a player's request does (`membership.bringInRefusal`).
+  const holding = Object.values(getFormations()).find((f) => f.id !== formation.id && f.members.some((m) => m?.actorId === actor.id));
+  if (holding) {
+    ui.notifications.warn(game.i18n.format("ACKS-FORMATION.membership.refused.inParty", { name: actor.name, party: holding.name }));
     return formation;
   }
 

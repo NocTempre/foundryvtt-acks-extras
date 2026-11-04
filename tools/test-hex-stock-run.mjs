@@ -199,9 +199,11 @@ function world({ hex = true, label = "", lost = null, tokens = null, members = [
   mapActor(surveyor);
   mapActor(bystander);
   const scene = makeScene("s1", { hex, tokens: tokens ?? [token(250, 150)] });
+  // A collection answers `get`; the party's linked token is the first of its actor's.
+  scene.tokens.get = (id) => scene.tokens.find((t) => t.id === id);
   scenes.set("s1", scene);
   const formation = {
-    id: "f1", name: "QQ Band", sceneId: "s1", actorId: "pa1", members,
+    id: "f1", name: "QQ Band", sceneId: "s1", tokenId: scene.tokens.find((t) => t.actorId === "pa1")?.id, actorId: "pa1", members,
     travel: { hex: { label }, encounterTerrain: "grassland", territory: "unsettled", ...(lost ? { lost } : {}) },
   };
   formations = { f1: formation };

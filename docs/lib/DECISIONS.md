@@ -4646,7 +4646,8 @@ The first session after the upgrade looks right; every later load reverts.
 the stamp the same way, and its runner writes embedded items through the same
 diffed update. An armor record keeping `aac`, or a weapon keeping a string
 `damage`, would load with defaults too. No world on this machine holds one, so
-this is unverified and not wrapped.
+this is unverified and not wrapped. *Superseded: "A stamped item is read at
+load and written by a repair check" (2026-11-03) wraps them.*
 
 ### The Surprise Matrix leaves out a combatant that cannot roll, and says when a roll fails (2026-10-28)
 
@@ -5066,3 +5067,174 @@ both. The mechanics are `GROUPS.md`, "A row moved between groups".
 it. Any body on a map holds back the whole row, so a Judge recalls one scout to move
 thirty. Nothing here splits a stack, so a Judge who wants part of one across has no
 gesture for it.
+
+## 2026-11-03 — Tied initiative sorts the same on every seat
+
+*Asked:* a player reported End Turn and the tracker's "whose turn" marker misbehaving
+when initiatives are equal, and suggested a secondary sort. Read against the system's
+`sortCombatantsACKS`, the report is right: on a tie within one side it returns the same
+sign in both directions, so the order is the engine's and the arrival sequence's, and the
+combat stores `turn` as an index into it. The mechanics are `MODEL.md`, "Tied initiative
+sorts the same on every seat".
+
+*Ruled here:* extras wraps the comparator and breaks a tie by outnumbering (after), then
+a hostile token (first), then combatant id (lower first). The first two are the system's
+own intended directions, kept; the id decides what the system left open.
+
+*Rejected:*
+
+- **A name tiebreak.** Names repeat between combatants, which is the case that matters
+  (a pack of the same creature), and `localeCompare` reads the seat's locale, so two
+  seats can disagree on it. The system's own unreachable name branch is not a precedent.
+- **An OVERRIDE of the comparator.** It would fork the system's logic to change one
+  branch and diverge silently the first time upstream edits it. A MIXED wrapper keeps
+  the system's answer for every pair it answers consistently.
+- **Wrapping `setupTurns`.** It owns more than the sort: the current-turn state and the
+  clamp on `turn`. The fault is in one comparator, and the narrower wrap changes nothing
+  else.
+- **A Dexterity tiebreak.** The book prints none and lets a side choose its own order
+  among tied members, so any stat order is a rule added to it.
+
+**Cost.** The order within a tied side is now the id's, which is arbitrary and fixed: a
+Judge cannot put a particular tied combatant first, where the book lets the side choose.
+A combat already running when the module loads may change who stands at its stored
+`turn` index, since the index is kept and the rows under it moved.
+
+## 2026-11-03 — A token's light and sight are written in the scene's units
+
+*Asked:* the owner reported that a lit lantern lights the token at the wrong size or
+shape on the map. The sync wrote the light's radii, which the module derives in feet,
+straight into `light.bright` and `light.dim`, which Foundry reads in the scene's
+`grid.units`; token size was converted and these were not. On a scene in yards or
+miles the circle was wrong, and the importer builds region maps in 6-mile hexes. The
+mechanics are `MODEL.md`, "Perception: senses, light, and the token", Units.
+
+*Ruled here:* every radius the sync writes is converted by the feet-per-unit of the
+token's scene and rounded to the step its field stores before it is compared, so the
+guard matches the stored value and a second sync writes nothing. The same conversion
+covers `sight.range` and the detection ranges, which are stored in the same unit;
+Night Vision's reading of the light around a creature, taken from stored data, is
+converted to feet before it is doubled. A light is lit when either radius survives the
+conversion.
+
+*Rejected:*
+
+- **Writing the feet figure and leaving the scene to scale it.** Foundry applies no
+  scale to a token's light; the unit is the scene's and the field is a plain number.
+- **Comparing the unrounded figure.** The stored value is the rounded one, so the guard
+  never matched, every sync wrote again, and each write fired the `updateToken` hook
+  the night-vision pass listens to.
+- **Gating the colour and animation on the bright radius.** A scene in miles rounds a
+  lantern's bright radius to 0 and keeps the dim one; the light then drew with no
+  colour and no animation.
+- **Leaving the sight ranges for later.** They have the same gap and the same fix, and
+  a mile-scale scene gave every dark-sighted creature a range 5280 times too long.
+
+**Cost.** A radius smaller than the step reads as no light, so a candle on a scene in
+kilometres sheds nothing, and on a mile scene a lantern lights a circle of 0.01 mile.
+A sight range already written in feet on a scene in another unit is corrected the next
+time the token syncs, since the stamp still matches what was stored.
+
+## 2026-11-03 — A group token in a combat deploys the whole group
+
+*Asked:* adding a group's token to a combat left one combatant and placed nobody, since
+no combat path existed for a group the way the party has one. Asked how much of it
+should go out, the owner ruled the whole group: every body its stacks hold, as a row
+dragged onto the map sends its stack, with the token hidden and the end of the combat
+recalling the bodies. This supersedes the plan in the in-flight encounter plan that the
+deploy ask how many, which was written before the drag took the whole stack. The new
+evidence is the owner's ruling. The mechanics are `GROUPS.md`, "In a fight".
+
+*Ruled here:*
+
+- **The call is the drag's.** `deploy` takes `Infinity` per stack, so its own caps
+  decide at the moment of the deploy and no count is asked or stored.
+- **The flag records the combat, and whether the token was hidden before.** The end
+  restores what the Judge had set, so a token a Judge hid is not revealed by a fight.
+- **A gather leaves the combatant just added.** Adding the token to the combat it
+  fights in is read as bringing the group back as one token, so the token returns and
+  fights as itself. Deleting that combatant too was rejected, because the Judge added it.
+- **A second combat refuses.** The party drops the extra combatant and says where it
+  fights, and so does a group. Taking the bodies from one combat into another was
+  rejected: their combatants and initiative belong to the first.
+- **A group a formation holds is left alone.** Lib cannot import the formation, so the
+  party token's flag and the formation setting are read by key; the bridge deploys that
+  group's bodies itself.
+- **A body already on the map fights and is recalled with the rest.** The party's bridge
+  takes its members over the same way.
+- **Registered from `registerGroupCleanup`,** which hands `deploy` and `recall` to the
+  combat hooks, so the lifecycle file and the combat file import neither each other
+  nor the module entry.
+
+**Cost.** A large group dragged into a fight makes a record and rolls hit points for
+every pristine body, as the drag does, and five abreast has no bound, so a long column
+can run past the scene's edge. A fight whose end no primary GM heard leaves the token
+hidden and the bodies out until a Judge recalls them, since the group has no reform
+pass of its own as the party has. A group token deleted mid-fight leaves its bodies on
+the map.
+
+## 2026-11-03 — A stamped item is read at load and written by a repair check
+
+Covers what "A stamped record's old combat fields are read at load"
+(2026-10-28) left unwrapped, and adds the write it rejected at ready as a
+check a Judge runs. That entry is six days old; the new evidence is a live
+world. Its owner reported a sword's two-handed die at the one-handed figure,
+an armour's Armor Class at nothing, and characters' saves and attack throws
+reverting. A read-only census of its raw records on 14.369 with acks 14.1.0
+found 51 of 53 characters still holding `thac0`, `aac` and `breath` under
+stamp 5, and the same on their items: 79 of 106 weapons with string damage
+(87 with a numeric bonus, 89 with a tag list) and 19 of 36 armours with `aac`
+and no `ac`. Each loads as the schema's defaults: every such weapon at one
+die both ways and no bonus, every such armour at Armor Class 0. The
+2026-10-28 entry's guess that "no world" holds one was a statement about
+this machine.
+
+**Ruled.**
+- `patches/legacy-source.mjs` also wraps the `migrateData` of the system's
+  `weapon`, `armor`, `item`, `ability` and `spell` models. A record whose
+  fields a rename would still change runs the system's own method with the
+  stamp held below current for that call and restored after, so the
+  system's own helpers rename and nothing is reimplemented. Which records
+  qualify is `legacyItemFields`, one test per rename copied from the guard
+  of the helper that performs it.
+- **A weapon whose damage object names no alternate loads with a blank
+  one.** The schema fills an absent alternate with its initial die, which
+  offers a second grip the record never stated: seven weapons in the same
+  world, a two-handed sword among them, showed a second grip at the
+  one-handed figure. The system's own string-to-object migration writes the
+  alternate blank, which is what this follows. A stored alternate is never
+  touched, blank or not.
+- **Only a stored record is rescued.** A change set (`options.partial`) and
+  creation data carry no stamp, and the system migrates them itself.
+- **What each document was rescued from is kept in memory, against its
+  loaded `system` source,** for the check below. An embedded item's source
+  is migrated twice, inside its actor's and as its own, so the lists join.
+- **`lib.stampedRecords`** lists every world actor, its items and the world's
+  items that loaded rescued, and its fix writes each record as it now loads.
+  The write is not diffed, because the documents already hold the values, and
+  it replaces `system` instead of merging into it: a deletion of a key the
+  schema does not declare (`thac0`, `aac`, `tags`, `weight`) is cleaned out of
+  a change set before it leaves the client, so the old names leave the
+  record only when `system` is replaced. Live, a merged update with forced
+  deletions wrote the new fields and left every old key; the replacement
+  removed them.
+
+**Rejected.**
+- *Writing at ready, unasked.* The 2026-10-28 ruling stands: it is a data
+  migration on every world that loads the module. The check writes only the
+  records a Judge ticks, after listing them.
+- *Writing only the renamed fields with forced deletions.* The deletions never
+  reach the server, and a weapon's tag list then stays behind and is found
+  again on every load.
+- *Reconciling a stored alternate with the item's imported weapon modes.* A
+  weapon created on 14.1 without one stores the schema's die, and telling
+  that from one a Judge typed is a judgement about the record, not a rename.
+  It is the owner's question, in ROADMAP.
+
+**Cost.** An unlinked token's actor is not listed: its record is the base
+actor's plus a delta, and the base actor's fix is the one that matters. A
+world compendium is not scanned; its documents are rescued as they load and
+as they are imported. The replacement writes the whole `system`, so a peer's
+edit to the same document between the scan and the fix is overwritten. Six
+armours in the census hold `aac` beside an equal `ac`; those load correctly
+and are not listed.

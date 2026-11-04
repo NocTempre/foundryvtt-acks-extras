@@ -196,10 +196,9 @@ sees what it left out.
 - **X** `deploy` with `place`, per stack, leaders first and non-fighters left in the
   token. `formation/deployment.mjs` is formation-bound, so the block layout is lifted
   to lib only if a second caller needs its exact shape.
-- **N** Adding the token to a combat deploys the bodies, and ending it recalls them:
-  the group's half of `combat-bridge.mjs`, without a formation record. **N** A deploy
-  asks how many, because the largest tiers run to hundreds of tokens and `deploy`
-  spends one `Roll` per pristine body.
+- **Built** Adding the token to a combat deploys the bodies, and ending it recalls
+  them: `GROUPS.md`, "In a fight". The owner ruled the whole group, so the plan to ask
+  how many is dropped (`DECISIONS.md`, 2026-11-03).
 - **X** `commandMorale` derives from a living part's `moraleWhileAlive`. Derived, so a
   casualty needs no second write.
 - **R** Core's Surprise Matrix, the influence feature's reaction roll and its existing

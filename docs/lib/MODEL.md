@@ -680,6 +680,18 @@ sense and keeps the dim-to-bright promotion, without `lightAmplification`'s gree
 A creature looks through its **longest** sense and detects with **all** of them,
 each at its own range.
 
+**Units.** Every radius the module derives is in feet, and a token stores its
+`light.bright`, `light.dim`, `sight.range` and detection ranges in the scene's
+`grid.units`. `token-sync.mjs` converts each one by `feetPerUnit` of the token's
+scene (`distance-units.mjs`) and rounds it to the step the field stores, before it
+compares with the stored value, so a second sync finds nothing to write. A scene in
+feet, or in a unit the table does not know, gets the feet figure unchanged. A light
+is lit when either radius survives the conversion: a coarse scene can round the
+bright radius to 0 and keep the dim one, and one that rounds both to 0 sheds no
+light. The stamp that marks a sight range as ours carries the converted figure.
+`brightestLightReaching` reads stored light, so its answer is in scene units too;
+the pass converts it to feet before Night Vision doubles it.
+
 ### Night Vision is the one sense read off the square
 
 Every other row above is a property of the sheet. Night Vision is not: MM §5
@@ -1470,6 +1482,26 @@ static `migrateData` at init, so the wrap is in place before
 each new field from the old one where the new one is absent, and the record
 itself is not written.
 
+The `weapon`, `armor`, `item`, `ability` and `spell` models skip their renames
+on the stamp the same way: a weapon's string damage, numeric bonus and tag
+list, an item's weight, an armour's `aac`, an old save key. The wrap on those
+asks `legacyItemFields` (`actor-compat.mjs`) which of the system's renames
+would still change the record, one test per rename copied from the guard of
+the system's helper that performs it. When any would, it runs the system's own
+method with the stamp held at 0 for that call and puts it back after, so the
+system's helpers do the renaming. A weapon whose damage object names no
+alternate at all also gets a blank one, as the system's string-to-object
+migration writes it, rather than the schema's initial die. Only a stored record
+qualifies: a change set (`options.partial`) and creation data carry no stamp,
+and the system migrates those itself.
+
+Each rescue is kept in a `WeakMap` against the document's loaded `system`
+source (`rescuedFields`), joined across the two passes an embedded item's
+source takes. The repair check `lib.stampedRecords` lists what it holds and
+writes each record whole, with `system` replaced rather than merged, which is
+the only update that removes a key the schema does not declare. A record so
+written loads as stored, and the map forgets it.
+
 ## The multi-roller chat card
 
 `scripts/lib/roll-card.mjs` is the one renderer for every card where several
@@ -1583,6 +1615,41 @@ Three details are load-bearing:
 `renderRollCard` prints the Result column only when a row carries an outcome, so
 this card is Name and Total — initiative has no verdict to render. The
 `initiativeCard` world setting gates the patch, read per roll.
+
+## Tied initiative sorts the same on every seat
+
+`scripts/lib/patches/turn-order.mjs` is the one wrapper on the system's
+`sortCombatantsACKS`, the comparator `setupTurns` sorts the combatants with.
+The combat stores `turn` as an index into that order, so two seats that sort a
+tie differently disagree on whose turn it is, and End Turn and the tracker's
+marker follow the seat's own order.
+
+The system's comparator is a total order for a pair that differs in
+outnumbering or in being hostile, and for nothing else on a tie. Two combatants
+of one side compare the same sign in both directions, and its name tiebreak is
+never reached, so the order of such a pair is whatever the engine's sort and the
+sequence the combatants arrive in give it. Browsers differ on both.
+
+The wrapper leaves a pair with different initiative to the system. On a tie it
+compares, in order:
+
+1. the combatant on the outnumbering side (the flag the system writes) sorts
+   after the one that is not;
+2. a combatant whose token is hostile sorts before one whose is not;
+3. the lower combatant id sorts first.
+
+The first two are the system's own answers wherever it gives a consistent one;
+the third decides what it left open. The id is the one key that is identical on
+every client. The name repeats between combatants, and `localeCompare` reads the
+seat's locale. The comparator reads nothing from `this`, since `setupTurns` hands
+it over unbound, and reads the outnumbering flag as a plain property of the
+combatant's `flags`, never through the flag accessors.
+
+A combat is set up before `ready`, ahead of the wrapper, so installing it sorts
+every loaded combat's turns again with `setupTurns` and redraws the tracker. That
+is in memory and writes nothing; a combat with its turns locked is left alone.
+The stored `turn` index is untouched, so a combat whose tied rows moved reads a
+different combatant at that index until the next turn is taken.
 
 ## The roll dialog
 

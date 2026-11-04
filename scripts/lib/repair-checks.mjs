@@ -1,6 +1,7 @@
-/* global game, fromUuid */
+/* global game, fromUuid, foundry, Item */
 /**
- * The repair checks lib owns: bundles embedded where no sheet lists them,
+ * The repair checks lib owns: records the system stamped as migrated while
+ * keeping their old field names, bundles embedded where no sheet lists them,
  * carry and mount links to actors that are gone, and what packages no longer
  * installed left in the world. The stranded-coin check reports only: it lists
  * what it finds and writes nothing. The merge-residue check removes what it
@@ -16,6 +17,7 @@ import { ATTACH_FLAG, ATTACH_ROLES, attachmentOf } from "./attachment.mjs";
 import { MOUNT_FLAG, RIDER_FLAG } from "./mount.mjs";
 import { resolveActorSync } from "./storage.mjs";
 import { isLegacyChangeKey, migrateChangeKey } from "./actor-compat.mjs";
+import { forgetRescue, rescuedFields } from "./patches/legacy-source.mjs";
 
 const loc = makeLoc(LANG_PREFIX);
 const key = (name) => `${LANG_PREFIX}.repair.check.${name}`;
@@ -169,8 +171,96 @@ async function rewriteLegacyChanges(fx) {
   await fx.update({ changes });
 }
 
+/**
+ * Every world document the stamped-record rescue read back at load, with the
+ * fields it read: the world's actors and their items, then the world's items.
+ * An unlinked token's actor is left out: its record is the base actor's, plus
+ * a delta the base actor's fix does not need.
+ */
+function* stampedDocs() {
+  for (const actor of game.actors ?? []) {
+    const filled = rescuedFields(actor._source?.system);
+    if (filled) yield { doc: actor, parent: null, fields: filled, name: actor.name };
+    for (const item of actor.items ?? []) {
+      const fields = rescuedFields(item._source?.system);
+      if (fields) yield { doc: item, parent: actor, fields, name: `${actor.name} → ${item.name}` };
+    }
+  }
+  for (const item of game.items ?? []) {
+    const fields = rescuedFields(item._source?.system);
+    if (fields) yield { doc: item, parent: null, fields, name: item.name };
+  }
+}
+
+/**
+ * Write each rescued record whole as it loads, an actor's items in one call
+ * per actor. The write is not diffed, since the documents already hold these
+ * values, and it replaces `system` rather than merging into it: a deletion of
+ * a key the schema does not declare is cleaned out of a change set before it
+ * is sent, so the old names leave the record only when `system` is replaced.
+ * Each rescue is forgotten once its write lands, since the record now stores
+ * what the document shows.
+ */
+async function writeStampedRecords(findings) {
+  const wanted = new Set(findings.map((f) => f.key));
+  const batches = new Map();
+  for (const entry of stampedDocs()) {
+    if (!wanted.has(entry.doc.uuid)) continue;
+    const owner = entry.doc.documentName === "Actor" ? entry.doc : entry.parent;
+    const slot = owner?.uuid ?? "world";
+    if (!batches.has(slot)) batches.set(slot, { owner, actor: null, items: [] });
+    if (entry.doc.documentName === "Actor") batches.get(slot).actor = entry;
+    else batches.get(slot).items.push(entry);
+  }
+  const results = [];
+  const settle = (entries, error) => {
+    for (const e of entries) {
+      if (!error) forgetRescue(e.doc._source.system);
+      results.push(error ? { key: e.doc.uuid, ok: false, error } : { key: e.doc.uuid, ok: true });
+    }
+  };
+  // A fresh object per call: core writes the parent into the operation it is
+  // handed, and a reused one sends the next batch to the last one's actor.
+  const whole = () => ({ diff: false, recursive: false });
+  const system = (doc) => foundry.utils.deepClone(doc._source.system);
+  for (const { owner, actor, items } of batches.values()) {
+    if (actor) {
+      try {
+        await actor.doc.update({ system: system(actor.doc) }, whole());
+        settle([actor], null);
+      } catch (err) {
+        settle([actor], String(err?.message ?? err));
+      }
+    }
+    if (!items.length) continue;
+    const rows = items.map((e) => ({ _id: e.doc.id, system: system(e.doc) }));
+    try {
+      if (owner) await owner.updateEmbeddedDocuments("Item", rows, whole());
+      else await Item.implementation.updateDocuments(rows, whole());
+      settle(items, null);
+    } catch (err) {
+      settle(items, String(err?.message ?? err));
+    }
+  }
+  return results;
+}
+
 /** Registers lib's checks. Called once, at `init`. */
 export function registerLibRepairChecks() {
+  registerRepairCheck({
+    id: "lib.stampedRecords",
+    label: key("stampedRecords.label"),
+    hint: key("stampedRecords.hint"),
+    order: 5,
+    scan: () => [...stampedDocs()].map(({ doc, name, fields }) => ({
+      key: doc.uuid,
+      uuid: doc.uuid,
+      name,
+      detail: loc("repair.check.stampedRecords.detail", { fields: fields.join(", ") }),
+    })),
+    fix: writeStampedRecords,
+  });
+
   registerRepairCheck({
     id: "lib.embeddedBundles",
     label: key("embeddedBundles.label"),

@@ -118,34 +118,102 @@ export function creatureAttackModifiers(system, attackType) {
  * `implements`. Idempotent: a source already on the new names is left as it
  * is, and a value already present under the new name is never overwritten.
  * Called from a module data model's `migrateData`.
+ *
+ * @param {object} source  an actor's `system` source, changed in place
+ * @param {string[]} [filled]  receives the new field each value was carried
+ *   onto: `attack`, `ac`, `saves.blast`, `saves.implements`
+ * @returns {object} the same source
  */
-export function migrateLegacyCombatSource(source) {
+export function migrateLegacyCombatSource(source, filled = null) {
   if (!source || typeof source !== "object") return source;
+  const note = (field) => {
+    if (filled && !filled.includes(field)) filled.push(field);
+  };
   const thac0 = source.thac0;
   if (thac0 && typeof thac0 === "object") {
     source.attack ??= {};
-    if (source.attack.throw == null && thac0.throw != null) source.attack.throw = thac0.throw;
+    if (source.attack.throw == null && thac0.throw != null) {
+      source.attack.throw = thac0.throw;
+      note("attack");
+    }
     if (thac0.mod && typeof thac0.mod === "object") {
       source.attack.mod ??= {};
       for (const side of ["melee", "missile"]) {
-        if (source.attack.mod[side] == null && thac0.mod[side] != null) source.attack.mod[side] = thac0.mod[side];
+        if (source.attack.mod[side] == null && thac0.mod[side] != null) {
+          source.attack.mod[side] = thac0.mod[side];
+          note("attack");
+        }
       }
     }
   }
   const aac = source.aac;
   if (aac && typeof aac === "object") {
     source.ac ??= {};
-    for (const key of ["value", "mod"]) if (source.ac[key] == null && aac[key] != null) source.ac[key] = aac[key];
+    for (const key of ["value", "mod"]) {
+      if (source.ac[key] == null && aac[key] != null) {
+        source.ac[key] = aac[key];
+        note("ac");
+      }
+    }
   }
   const saves = source.saves;
   if (saves && typeof saves === "object") {
     for (const [from, to] of Object.entries(LEGACY_SAVE_KEYS)) {
       if (saves[from] && typeof saves[from] === "object" && saves[to]?.value == null && saves[from].value != null) {
         saves[to] = { ...(saves[to] ?? {}), value: saves[from].value };
+        note(`saves.${to}`);
       }
     }
   }
   return source;
+}
+
+const isPlainObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
+
+/**
+ * Which of the system's item renames each item type's `migrateData` performs,
+ * keyed by type. A field listed here is one the system rewrites only while a
+ * record's `_schemaVersion` is below current.
+ */
+const LEGACY_ITEM_RENAMES = Object.freeze({
+  weapon: ["save", "weight", "damage", "bonus", "tags"],
+  armor: ["weight", "aac"],
+  item: ["weight"],
+  ability: ["save"],
+  spell: ["save"],
+});
+
+/**
+ * Each rename's test, as the system's own migration helper guards it, so a
+ * field this answers true for is one that helper would rewrite.
+ */
+const LEGACY_ITEM_TESTS = Object.freeze({
+  save: (s) => s.save === "breath" || s.save === "wand",
+  weight: (s) => s.weight !== undefined && (s.weight6 === undefined || s.weight6 < 0) && s.weight >= 0,
+  damage: (s) => typeof s.damage === "string",
+  bonus: (s) => Object.hasOwn(s, "bonus") && !isPlainObject(s.bonus),
+  tags: (s) => Array.isArray(s.tags),
+  aac: (s) => Object.hasOwn(s, "aac") && !Object.hasOwn(s, "ac"),
+});
+
+/**
+ * The fields of a stored item's `system` source still held under a name or
+ * shape the system's migrations have since replaced, for the item's type.
+ *
+ * One further entry is not a rename: `alternate`, a weapon whose damage is an
+ * object naming no alternate formula at all. The schema fills an absent one
+ * with its initial die, which offers a second grip the record never stated;
+ * the system's own string-to-object migration writes it blank.
+ *
+ * @param {string} type  the item's type
+ * @param {object} source  its `system` source, as stored
+ * @returns {string[]} the field names, empty for a record on the current shape
+ */
+export function legacyItemFields(type, source) {
+  if (!isPlainObject(source)) return [];
+  const out = (LEGACY_ITEM_RENAMES[type] ?? []).filter((field) => LEGACY_ITEM_TESTS[field](source));
+  if (type === "weapon" && isPlainObject(source.damage) && source.damage.alternate?.formula === undefined) out.push("alternate");
+  return out;
 }
 
 /* ------------------------------------------------------------------ */

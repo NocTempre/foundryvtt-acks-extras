@@ -67,6 +67,13 @@ verification, not as drive-by edits:
 - **Goods on an actor whose sheet lists none.** Freight dragged out of a hold
   onto an organisation before 10.1.0 was handed to it, as coin was before
   10.0.0. No check lists either.
+- **A weapon storing the schema's alternate die.** A weapon created on 14.1
+  without an alternate stores the schema's initial die there, and since that
+  is not blank the sheet and the roll take it as a second grip at that die.
+  Telling it from one a Judge typed needs a rule the owner has not given: the
+  item's imported weapon modes name a two-handed die, or the stored one
+  equals the one-handed die. `lib.stampedRecords` blanks only an alternate
+  the record never stored.
 - **More checks.** Class-training effects whose class uuid no longer resolves:
   they refuse hand-deletion, and `resetTraining` returns false for them.
 
@@ -128,6 +135,14 @@ What that needs: a split between the sweep (geometry only, every scene) and the
 active scene (which may test line of sight), plus a decision about which answer a
 token on an undrawn scene should carry in the meantime.
 
+## What a coarse scene does to a small light
+
+A radius is rounded to the step the token stores (0.01 of the scene's unit), so a
+lantern on a scene measured in miles lights a circle of 0.01 mile and a candle on
+a kilometre grid lights nothing. That is the stored resolution, not a rounding
+choice. A scene that wants a small light visible at that scale would need the
+light drawn at a floor or by another means, and nothing here decides which.
+
 ## Events no window handled during a hand-over
 
 A seat's lead that crashes, loses its network or sleeps leaves the seat with
@@ -138,6 +153,13 @@ between a claim's send and its relay once the old lead is gone. Hooks fire
 once per window and nothing replays them. A queue kept by one window (the
 formation's movement queue) does not move with the lead either. Not built: a
 new lead reconciling what a gap could have dropped, writer by writer.
+
+## What the turn order does not do yet
+
+- **A Judge control to choose the order within a tied side.** Tied combatants of one
+  side sort by combatant id, which is stable and arbitrary. The book lets a side pick
+  its own order, so the Judge wants a way to drag or nudge a tied combatant ahead of
+  its peers, stored on the combatant and read by the same comparator.
 
 ## What the conditions do not do yet
 

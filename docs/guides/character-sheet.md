@@ -17,9 +17,12 @@ Every throw is a row, and the whole row is the button. A proficiency or power
 that makes no throw is a row too, under **Post to chat**, ending in an eye:
 clicking it posts the ability's card, the one the Abilities tab's eye posts.
 The pin on any row keeps it on the folded card; for an ability, the pin is its
-own favourite star. A throw asks for a situational modifier first
+own favourite star. An ability's throw asks for a situational modifier first
 ([Proficiencies and powers](abilities.md#what-a-throw-looks-like-in-chat));
-hold Shift to roll at once.
+hold Shift to roll at once. The surprise rows, and initiative rolled outside a
+combat, roll at once with no window: they add the figure the row shows. That
+figure is edited on the Stats tab under **Roll modifiers**, or changed by an
+Active Effect, never on Rolls.
 
 ![](../releases/v8.2.0/character-sheet-post-row.png)
 
@@ -192,6 +195,15 @@ keeping coin under Kept elsewhere.*
 
 What is not a throw: the attributes, the training, movement by mode, vision
 light by light, the vitals, and the throw targets that Rolls reads.
+
+The throw group holds two kinds of field. The targets (attack throw, saves,
+adventuring throws, morale) are numbers a roll must meet. Under **Roll
+modifiers** sit the four that are added to a roll instead: the saving throw
+modifier, the initiative modifier, Surprise Others and Avoid Surprise. Rolls
+shows initiative and the two surprise rows signed, as +2; here you type the
+stored figure, and a note beside each of those labels gives the total Rolls
+adds, with a tooltip saying how it is made. To change an Avoid Surprise from an item or ability, give the character an
+Active Effect on `system.surprise.avoidsurprise`.
 
 **Morale** is one of those targets on a hireling and on a character no player
 owns — an NPC the Judge built as a character — and Rolls lists its roll. A

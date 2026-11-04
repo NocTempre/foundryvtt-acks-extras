@@ -852,3 +852,36 @@ characters had no sheet that showed their morale but the Follower Card.
 **What it cost.** Ownership decides, so a character a GM has not yet handed
 to its player shows Morale until it is; the system's own character sheet
 still shows morale for hirelings only.
+
+## 2026-11-03 — The Stats tab sets the roll modifiers apart from the targets
+
+**Asked.** A player read Stats as offering a target to type where Rolls
+showed "+2" for the same field, and could not find where to adjust Avoid
+Surprise. The Stats group captioned "Throw targets" held real targets (attack
+throw, saves, adventuring throws) beside four modifiers (save, initiative, and
+the two surprise fields), and the surprise inputs were bare numbers with no
+sign and no hint of what Rolls would add. Core adds the two surprise fields to
+a die, so they are modifiers, not targets.
+
+**Ruled.** The four modifiers sit under their own *Roll modifiers* subhead.
+Initiative and both surprise rows carry the initiative row's note, the signed
+figure Rolls adds, with a tooltip saying how it is made: the stored value plus
+the effects' share for surprise, the total alone for initiative, whose figure
+folds in more than its stored modifier. The inputs keep their names and stay
+STORED values (2026-09-16); no schema moved. The Rolls tab stays the gauge and
+gets no editor: its rows are rolls, and the modifier is edited on Stats or
+changed by an Active Effect. The throw group's note says what the group holds.
+
+**Rejected.** *Showing the in-force figure in the input.* It is written back
+as the base on the next submit and the effect compounds; 2026-09-16 settled
+that. *An editor on the Rolls row.* A second place to write one field, and a
+row that is a button cannot also be a field. *A new Active Effect picker for
+Avoid Surprise.* The system's own effect editor already reaches
+`system.surprise.avoidsurprise`; the guides now say so.
+
+**What it cost.** Save modifier and initiative modifier move down with the
+surprise pair, so the targets and the modifiers no longer read in the order
+the system's sheet lists them. The save modifier carries no in-force note:
+Rolls folds it into each save's target instead of listing it. A situational
+modifier on the surprise and out-of-combat initiative rolls is not built (see
+ROADMAP).

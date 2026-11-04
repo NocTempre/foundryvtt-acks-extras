@@ -92,6 +92,7 @@ import { installSurpriseCardPatch, SETTING_SURPRISE_CARD } from "./patches/surpr
 import { installAnimationBridge } from "./animations.mjs";
 import { installInitiativeCardPatch, SETTING_INITIATIVE_CARD } from "./patches/initiative-card.mjs";
 import { installCombatRoundPatch } from "./patches/combat-round.mjs";
+import { installTurnOrderPatch } from "./patches/turn-order.mjs";
 import { installMoraleRollPatch, SETTING_MORALE_PAGE } from "./patches/morale-roll.mjs";
 import { installAdventuringRollPatch } from "./patches/adventuring-roll.mjs";
 import { installStoredInputs } from "./patches/stored-inputs.mjs";
@@ -908,6 +909,10 @@ Hooks.once("ready", () => {
   // see docs/lib/DECISIONS.md, "2026-09-07 — extras guards the system's
   // round counter, and the guard is scoped to core's synchronous prefix".
   installCombatRoundPatch();
+
+  // Combatants tied on initiative sort the same on every seat; see
+  // docs/lib/DECISIONS.md, "Tied initiative sorts the same on every seat".
+  installTurnOrderPatch();
 
   // The morale roll's one owner; see docs/lib/DECISIONS.md, "One owner for
   // the morale roll, and the page is a provider's".

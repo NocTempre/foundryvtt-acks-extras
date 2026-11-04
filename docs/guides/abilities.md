@@ -18,7 +18,8 @@ Open any **ability** item. Beyond core's fields:
   only some of them. To make an ability change a number on the sheet — Armor
   Class, a save — give the character's copy an Active Effect: **+ New Effect**
   under *Effects*, then a change with key `system.ac.mod` (Armor Class), type
-  **Add**, and the value the ability grants.
+  **Add**, and the value the ability grants. Avoid Surprise is reached the same
+  way, with the key `system.surprise.avoidsurprise`.
 - **Rolls** — every throw the ability makes.
 - **Selections** — the picks a proficiency of this category can take.
 

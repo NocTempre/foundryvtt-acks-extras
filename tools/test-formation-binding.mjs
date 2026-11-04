@@ -26,7 +26,7 @@ import {
   parseWaterModifiers, signedFigures,
 } from "../scripts/importer/formation-binding.mjs";
 import { assembleTravelTables, parseNavigationBonus } from "../scripts/importer/travel-binding.mjs";
-import { FORMATION_DOC, carriedBody, restInterval } from "../scripts/formation/constants.mjs";
+import { FORMATION_DOC, carriedBody, restEnforced, restInterval } from "../scripts/formation/constants.mjs";
 import { WATER, drowning, rescueStone, swimSpeed, swimmingThrow } from "../scripts/formation/swimming.mjs";
 import { navigationCompetence } from "../scripts/formation/travel.mjs";
 import { TRAVEL_DOC } from "../scripts/vehicles/vehicle-speed.mjs";
@@ -295,6 +295,28 @@ check("and marks the member", windedMarks() === 1);
 await advanceTurns(getFormation(FID), 1, { resting: true });
 check("a rest turn clears both", !clockOf().winded && windedMarks() === 0 && clockOf().turnsSinceRest === 0);
 check("each advance posted its turn card", chat.length === 5);
+
+/* --- the rest switch: off, the clock runs and nothing is owed -------------- */
+const restLines = (since) => chat.slice(since).filter((m) => m.content.includes("chat.restStatus")).length;
+check("with the switch unset the cards carry the rest line", restLines(0) === 2 && restEnforced());
+await advanceTurns(getFormation(FID), 5);
+check("switch on, past the interval, the party is winded", clockOf().winded === true && windedMarks() === 1);
+settings.set("acks-extras.restRequired", false);
+const cardsBefore = chat.length;
+const turnsBefore = clockOf().turnsTotal;
+check("the setting reads off", !restEnforced());
+await advanceTurns(getFormation(FID), 1);
+check("switch off releases a winded party and its marker", !clockOf().winded && windedMarks() === 0);
+await advanceTurns(getFormation(FID), 9);
+check("switch off, ten turns, the clock still runs", clockOf().turnsTotal === turnsBefore + 10);
+check("switch off, no turn is counted toward a rest and none winds the party", clockOf().turnsSinceRest === 0 && !clockOf().winded && windedMarks() === 0);
+check("switch off, the cards carry no rest line and no winded line",
+  chat.length === cardsBefore + 2 && restLines(cardsBefore) === 0 && !chat.slice(cardsBefore).some((m) => m.content.includes("windedStatus")));
+check("switch off, no rest is announced as due or overdue",
+  !chat.slice(cardsBefore).some((m) => m.content.includes("becameWinded") || m.content.includes("restDue")));
+settings.set("acks-extras.restRequired", true);
+await advanceTurns(getFormation(FID), 5);
+check("switch back on, the count starts again and winds the party past the interval", clockOf().winded === true && clockOf().turnsSinceRest === 5);
 unregisterTable(FORMATION_DOC_ID);
 services.resetServices();
 

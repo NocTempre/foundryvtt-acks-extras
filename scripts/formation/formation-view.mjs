@@ -2,6 +2,7 @@
 import { isCasualty, isDead } from "./formation-model.mjs";
 import {
   LIGHT_SOURCES,
+  restEnforced,
   restInterval,
   ROLE_HINTS,
   ROLE_LABELS,
@@ -355,6 +356,7 @@ function buildMapsView(formation) {
  * journey's own night (the Judge's word on the hour, else the world clock) and
  * not the scene's darkness, and the turn tracker's rest and winded warnings are
  * left out because a march keeps neither, and by daylight it wants no lantern.
+ * The same two are left out wherever the world turned the rest requirement off.
  */
 export function buildWarnings(formation, speed) {
   const warnings = [];
@@ -398,9 +400,10 @@ export function buildWarnings(formation, speed) {
       warnings.push(game.i18n.localize("ACKS-FORMATION.warnings.noLight"));
     }
   }
-  if (!journeying && formation.clock.winded) {
+  const restOwed = !journeying && restEnforced();
+  if (restOwed && formation.clock.winded) {
     warnings.push(game.i18n.localize("ACKS-FORMATION.warnings.winded"));
-  } else if (!journeying && restInterval() != null && formation.clock.turnsSinceRest >= restInterval()) {
+  } else if (restOwed && restInterval() != null && formation.clock.turnsSinceRest >= restInterval()) {
     warnings.push(game.i18n.localize("ACKS-FORMATION.warnings.restDue"));
   }
   if (speed <= 0 && formation.members.length) {
@@ -691,6 +694,7 @@ export function buildStripView(formation, speed, travelView = null) {
       roundsPartial: clock.roundsPartial ?? 0,
       sinceRest: clock.turnsSinceRest,
       restMax: restInterval(),
+      restOn: restEnforced(),
       winded: !!clock.winded,
       carryFeet: clock.carryFeet,
     };

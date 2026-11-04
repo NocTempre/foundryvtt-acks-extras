@@ -101,6 +101,8 @@ const byKey = (cells, key) => cells.find((c) => c.key === key);
   assert.equal(unpriced.label, said("bar.restUnpriced", { since: 4 }), "an interval never imported leaves a bare count");
   assert.equal(unpriced.pct, 0);
   assert.equal(bandBar(undefined).label, said("bar.restUnpriced", { since: 0 }), "no strip at all is a bare zero");
+  assert.equal(bandBar({ delve: { sinceRest: 9, restMax: 5, winded: true, restOn: false } }), null, "a delve whose rests are not required has no bar");
+  assert.equal(bandBar({ delve: { sinceRest: 3, restMax: 5, restOn: true } }).pct, 60, "and one whose are, has");
 
   assert.equal(hurtCount([]), 0);
   assert.equal(hurtCount(undefined), 0);

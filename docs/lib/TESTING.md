@@ -2899,6 +2899,53 @@ and builds it again raw.
 **Teardown.** None: the stamped character stays as the fixture until the
 next walk retires it.
 
+### Stamped items, and the check that writes them
+
+Covers the item wrap and `lib.stampedRecords`. One GM seat; each step
+reloads.
+
+**Fixtures, a setup check:** the check's fix rewrites them, so a walk retires
+the ones their markers find and builds them again raw, each `_schemaVersion`
+5. Every name and die below is invented.
+- `lib/legacy-stamped-kit`: a `character` with the 14.0 combat fields
+  (`thac0.throw` 9, `thac0.mod.melee` 1, `aac.value` 4, `saves.breath` 14,
+  `saves.wand` 15) and four items: a weapon with `damage` "1d10", `bonus` 2,
+  `tags` `[{value: "Slow", label: "Slow"}]` and `weight` 100; a weapon with
+  `damage {base: {formula: "1d4"}}` and no alternate; an armour with
+  `aac.value` 4 and `weight` 250; and a control armour holding `aac` and an
+  equal `ac`. The raw create takes the items in the actor's `items`, each with
+  its own `_id`.
+- `lib/legacy-stamped-loose`: a world weapon with `damage` "1d8" and `bonus` 1.
+
+1. **The load.** Reload.
+   **Observable:** the character reads attack 9, Blast 14, Implements 15; the
+   first weapon 1d10 with a blank alternate and attack bonus 2; the second
+   1d4 with a blank alternate; the armour Armor Class 4; the control 3; the
+   world weapon 1d8, bonus 1. `rescuedFields(doc._source.system)`, imported
+   from `scripts/lib/patches/legacy-source.mjs`, names `attack, ac,
+   saves.blast, saves.implements` on the character, `weight, damage, bonus,
+   tags` on the first weapon (all four: the embedded item's second pass sees
+   only `tags`, and a list that loses the rest is the bug), `alternate`,
+   `weight, aac`, null on the control, and `damage, bonus`.
+2. **The check.** `scanRepairs({only: "lib.stampedRecords"})` from
+   `scripts/lib/repair.mjs`, then `fixRepairs("lib.stampedRecords", keys,
+   {report: false})`.
+   **Observable:** five findings, five fixed, none failed, a rescan of 0. The
+   raw records (`modifyDocument` `get`) hold no `thac0`, `aac`, `tags`,
+   `weight`, `saves.breath` or `saves.wand`; the new fields carry the step 1
+   figures; the control is unchanged. In a world holding other stamped
+   records the scan lists them too: tick only the fixtures.
+3. **The next load.** Reload.
+   **Observable:** the step 1 figures, the scan empty, and the character's
+   sheet and the first weapon's sheet render.
+
+**Drive mechanics.** Core writes the parent into the operation object it is
+handed, so a fix that reused one options object for an actor's items and then
+for a world item sent the world item to that actor ("does not exist in the
+EmbeddedCollection"). A merged update with forced deletions of the old keys
+lands the new fields and none of the deletions; only `recursive: false` on
+`system` removes them.
+
 ## A group body moved between scenes
 
 Covers the roster's `deleteToken` hook (GROUPS.md, "A deleted body, and a
@@ -3128,6 +3175,70 @@ as not found.
 
 Teardown: the swept ledger. Everything else stays for the next walk.
 
+## A group token in a fight
+
+Covers `scripts/lib/group-combat.mjs`, `GROUPS.md`, "In a fight". Not driven by a
+script yet; walked by hand on the GM seat, and a Player seat is checked at 7.
+
+Fixtures, kept and found again by marker (`flags.world.fixture`): the group
+`lib/encounter-band` (linked), the monsters `lib/encounter-front` and
+`lib/encounter-behind`, and the scene `lib/encounter-scene`, all from "The encounter
+group". The band's token on that scene is found by `actorId` and the marker
+`lib/encounter-band-token`, and built there with the band's actor if none carries it.
+The walk asserts the shape at its start: the band holds exactly two stacks, one over
+each monster, sized 3 and 2 by the sheet's count fields, with no record and no body on
+a scene, and its token is visible and carries no `groupCombat` flag. A combat each step
+needs is created by the step and tracked (`api.track`) for the sweep. Delete nothing
+else.
+
+Drive mechanics: a token joins a combat from the token HUD's combat toggle, which is
+`TokenDocument.toggleCombatant` on the placed token; scripted, call
+`token.toggleCombatant()` on the GM seat so the hook fires as it does for a click, and
+read the result only once it has stopped changing (the hook works through several
+writes). End the combat with `combat.endCombat()` or `combat.delete()`.
+
+1. **Adding the token.** With no combat in the world, press the combat toggle on the
+   band's token. Open the Combat Tracker.
+   *Observable:* one combatant per body, five in all, each named for its monster and
+   standing on a square of the scene, the first on the band's own square and the rest
+   five abreast from it, the second stack after the first. The band has no combatant of
+   its own. Its token is hidden and its `groupCombat` flag names the combat.
+2. **The end.** End the combat.
+   *Observable:* no body stands on the scene, the band's rosters read every body at
+   rest, its token is visible and the flag is gone.
+3. **A wound and a fall.** Add the token again, set one body's hit points to 0 and
+   another's to a wound on their tokens, and end the combat.
+   *Observable:* the band's headcount is one lower, the fallen body's record reads dead
+   with the note, the wounded body's record keeps its hit points, and the token is
+   visible.
+4. **Gathering early.** Add the token, then toggle the band's hidden token into the
+   same combat again (a GM still selects and toggles it).
+   *Observable:* the bodies and their combatants are gone, the band's token is visible
+   and the tracker holds the band's combatant alone. Toggle it twice more and the
+   bodies stand again.
+5. **A second combat.** With the band in the first combat, create a second and toggle
+   the band's token into it.
+   *Observable:* the second holds no combatant of the band, the GMs have a whisper
+   saying it fights elsewhere, and the first combat is as it was.
+6. **Nothing to place.** Set both counts to 0 and toggle the band's token into a combat.
+   *Observable:* the GMs have a whisper, the combat holds the band's combatant, the
+   token is visible, carries no flag, and no body stands.
+7. **A Player seat, and two GM windows.** Seat a Player and open the GM seat in a second
+   window, then toggle the band's token from the first window.
+   *Observable:* five bodies and five combatants, not ten: one GM window did the work.
+   The Player seat reads the five combatants and the bodies on the scene, and no band
+   token.
+8. **A hidden token.** Hide the band's token, toggle it into a combat, end the combat.
+   *Observable:* the token is hidden at the end, as it was.
+9. **The party is left alone.** Put the band in a party as a member and toggle the
+   band's own token into a combat; then toggle the party's token.
+   *Observable:* the first adds one combatant and places nothing; the party's own
+   deploy runs as before.
+
+Recall folds the bodies back as it does in "The encounter group", so a sweep reports
+the bodies a clean run placed as not found. Teardown: the swept ledger, the combats
+among it. The band's token and the rest stay for the next walk.
+
 ## Automated Animations
 
 Covers `animations.mjs` and `diceSettled`. `node tools/live/run.mjs animations`
@@ -3260,6 +3371,120 @@ pointer, shorten it, and bring every visible control into view.
 holds no error.
 
 Teardown: nothing. No window is submitted, and the fixtures stay.
+
+## Tied initiative sorts the same on every seat
+
+Covers `patches/turn-order.mjs`. The defect is two clients holding the same
+combat and disagreeing on the order of a tie, so this needs a GM seat and a
+Player seat open at once: the driver's two browsers, never two pane tabs. The
+engine's sort is stable for a small array, so a tie is only seen to differ
+across seats by changing the sequence the rows arrive in or the algorithm that
+sorts them; steps 2 and 3 do each.
+
+**Fixtures, kept and found by marker.**
+- The scene `lib/turn-order-scene`, never activated.
+- Four `monster` actors the GM owns, `lib/turn-order-a` to `lib/turn-order-d`,
+  each with a linked token on the scene (`lib/turn-order-a-token` and so on):
+  `a` and `b` hostile, `c` and `d` friendly.
+- The unlinked combat `lib/turn-order-combat` (`scene: null`), with a row per
+  token (`lib/turn-order-a-row` and so on), the Player seat an observer of it.
+- The unlinked combat `lib/turn-order-combat-reversed`, step 2's, built from the
+  same tokens.
+
+Each run brings them to shape at its start: `flags.acks.initDone` set,
+`lock-turns` cleared, every row's initiative 4, no row carrying
+`flags.acks.outnumbering`, `{round: 1, turn: 0}`. The rows' ids are read, not
+assumed: the expected order is hostile before friendly, and within each the
+lower id first.
+
+**Steps and what proves each.**
+
+1. **One order on both seats.** Read `combat.turns.map(t => t.id)` on the GM seat
+   and on the Player seat, and call `combat.setupTurns()` on each with libWrapper
+   active. *Observable:* equal arrays, both matching the expected order, the tracker
+   listing the rows in it on each seat, and `setupTurns()` returning the array with
+   nothing thrown. The comparator is handed to `sort` unbound, so a throw here would
+   be libWrapper's wrapper reading `this`; core would then fail on every combat
+   update. The path with libWrapper disabled is a separate run of this step.
+2. **Any arrival sequence.** On the GM seat, build the second kept combat
+   `lib/turn-order-combat-reversed` (`scene: null`) from the same four tokens, its
+   rows created in the reverse order and set to the same shape. *Observable:* its
+   `combat.turns` holds the four tokens in the same order as step 1.
+   (`combatants.contents` is a fresh array on every read, so reversing it proves
+   nothing.)
+3. **A seat on another sort algorithm.** On the Player page swap
+   `Array.prototype.sort` for an insertion sort that calls the comparator the way
+   a non-V8 engine would, run `combat.setupTurns()`, restore the original, and read
+   `combat.turns`. *Observable:* the same order as the GM seat. Restore before any
+   other call, since core sorts elsewhere. The control is the same swap on a
+   page where the wrapper is not installed (the previous tag): the two seats can
+   then disagree.
+4. **Outnumbering.** Set `flags.acks.outnumbering` on `a` (hostile) and `c`
+   (friendly). *Observable:* each sorts after the unflagged rows of its own
+   disposition and every flagged row after every unflagged one; both seats still
+   agree. Clear the flag.
+5. **Different initiative is the system's.** Set `c` to 6 and `a` to 2.
+   *Observable:* `c` first, `a` last, the rest in the tied order.
+6. **End Turn follows it.** With the tied rows as in step 1, press End Turn on the
+   GM seat. *Observable:* `combat.turn` goes from 0 to 1 and both seats read the
+   same `combat.combatant.id`, the second row in the shared order, with the tracker's
+   marker on it on each. Set `turn` back to 0 afterwards.
+7. **A world that loads with a tie.** Reload the Player seat with the combat in
+   place. *Observable:* after `ready` its `combat.turns` matches the GM seat
+   without a further edit, and the console records no error from `init`, `setup`
+   or `ready`.
+
+**Teardown.** Nothing: the fixtures stay. Step 4's flag, step 5's initiatives and
+step 6's turn are brought back by the next run's shape pass.
+
+## A lit light sheds its radius in the scene's units
+
+Covers `token-sync.mjs` (`lightDelta`, `visionDelta`). The defect is a radius in
+feet written to a field the scene reads in its own unit, so the proof is the
+stored figure beside the scene's `grid`, on a scene that is not in feet. The
+`manageVision` setting is on and the seat is the primary GM.
+
+**Fixtures, kept and found by marker.**
+- The scene `lib/light-scene-mi`: square grid, `grid.distance` 6, `grid.units`
+  "mi", never activated.
+- The scene `lib/light-scene-ft10`: square grid, `grid.distance` 10,
+  `grid.units` "ft".
+- The character `lib/light-bearer`, carrying a Lantern and a flask of common oil
+  and no formation, with a linked token on each scene
+  (`lib/light-bearer-token-mi`, `lib/light-bearer-token-ft10`).
+
+Each run brings the character to shape at its start: the lantern doused, both
+tokens' `light` at 0/0 with no `managedLight` flag.
+
+**Steps and what proves each.**
+
+1. **Light it from the sheet.** Open the character sheet's Equipment tab and light
+   the lantern from its light control, as a user does. *Observable:* the lantern
+   reads lit, and the oil is spent.
+2. **The foot scene.** Read `tokenDoc.light.bright` and `.dim` on
+   `lib/light-bearer-token-ft10` beside `scene.grid`. *Observable:* equal to the
+   lantern's figure in feet (the figure the character sheet shows for the lit
+   source), with the amber colour and the torch animation.
+3. **The mile scene.** Read the same fields on `lib/light-bearer-token-mi`.
+   *Observable:* each equals the lantern's figure divided by 5280 and rounded to
+   the field's step, so the bright radius reads 0 and the dim one 0.01; colour,
+   alpha and animation are the lit set, and `flags["acks-extras"].managedLight` is
+   true.
+4. **Settles.** Re-render the sheet, then call `acksExtras.lib.vision.migrateWorld()`
+   (or touch the actor) and count `updateToken` calls on the two tokens.
+   *Observable:* none after the first write.
+5. **Douse it.** *Observable:* both tokens read 0/0, colour null, no animation, and
+   `managedLight` false.
+6. **A yard scene.** Set the mile scene's `grid.units` to "yd" and `grid.distance`
+   to 5, light the lantern again. *Observable:* bright and dim equal the feet figure
+   divided by 3. Put the units back.
+7. **Sight.** Place a token of a monster actor carrying Lightless Vision, sight
+   enabled, on each scene (`lib/light-sight-token-mi`, `lib/light-sight-token-ft10`)
+   and run the sync.
+   *Observable:* `sight.range` equals the sense's feet range over 5280 to the
+   step on the mile scene and the feet figure on the foot scene.
+
+**Teardown.** Nothing: the fixtures stay. Step 6's units are put back in the step.
 
 ## Teardown
 

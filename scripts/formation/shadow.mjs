@@ -122,7 +122,11 @@ export async function clearOrphanShadows(liveIds) {
  */
 export function truePositionToken(scene, formation, { open = true } = {}) {
   const shadow = open ? shadowFor(scene, formation?.id) : null;
-  return shadow ?? (scene?.tokens ?? []).find((t) => t.actorId === formation?.actorId) ?? null;
+  if (shadow) return shadow;
+  // The record's own token, and only on its own scene: a copy of the party
+  // actor's token elsewhere is not where the party stands.
+  // `getPartyToken`'s read, inlined: formation-model imports this file.
+  return formation?.tokenId && formation.sceneId === scene?.id ? (scene.tokens.get(formation.tokenId) ?? null) : null;
 }
 
 /**

@@ -9,6 +9,7 @@ import {
   LIGHT_SOURCES,
   MODULE_ID,
   RATION_PATTERN,
+  restEnforced,
   restInterval,
   ROUNDS_PER_TURN,
   TURN_SECONDS,
@@ -367,7 +368,12 @@ export function burnTurns(formation, turns, notes) {
 /** Per-turn bookkeeping: rest, lights, spells, and the encounter throw. */
 async function onTurnCompleted(formation, notes, resting) {
   /* --- Rest & winded (RR p. 271) --- */
-  if (resting) {
+  if (!restEnforced()) {
+    // No rest is owed, so none is counted and a party already winded when the
+    // switch went off is released without a card line: nothing was recovered.
+    formation.clock.turnsSinceRest = 0;
+    formation.clock.winded = false;
+  } else if (resting) {
     formation.clock.turnsSinceRest = 0;
     if (formation.clock.winded) {
       formation.clock.winded = false;
@@ -537,7 +543,7 @@ async function postTurnCard(formation, n, { resting, reason, notes }) {
   html += `<li>${loc(city ? "chat.elapsedCity" : "chat.elapsed", { turns: formation.clock.turnsTotal, time: formatTurns(formation.clock.turnsTotal) })}</li>`;
   if (formation.clock.winded) {
     html += `<li class="bad">${loc("chat.windedStatus")}</li>`;
-  } else if (!resting) {
+  } else if (!resting && restEnforced()) {
     html += `<li>${loc("chat.restStatus", { n: rest, max: restInterval() ?? "?" })}</li>`;
   }
   if (isHurried(formation)) html += `<li class="warn">${loc("chat.hurriedStatus")}</li>`;

@@ -4629,3 +4629,174 @@ the requirement.
 
 - Pinned offline in `tools/test-formation-flows.mjs`, forged requests included.
 - Walked live on both seats (TESTING, "A player's own actors, in and out").
+
+## 2026-11-03 — A switch for the delve's rest
+
+A Judge asked, while a party is in formation, to turn off dungeon features such as
+the random encounter throw and the rest owed every so many turns. The throw already
+had a switch (`encounterEvery` at 0 stops the automatic throw); the rest had none.
+
+**Ruled.** The owner, 2026-11-03: add a rest switch. `restRequired`, a Boolean
+world setting, default on, which is today's behaviour. Off:
+
+- the turn engine counts no turn toward a rest, winds no one, and clears the
+  winded flag and marker on the next turn of a party that was winded when the
+  switch went off, without a recovery line, since nothing was recovered;
+- the turn card, the warnings strip, the strip's Rest stat and the title-bar bar
+  say nothing of rest;
+- the clock, the lights, the spells and the wandering throw run as before, and
+  the Rest turn button still advances a turn.
+
+The setting is read through `restEnforced()` at each of those places, so a surface
+added later takes the one reader and not its own copy of the test.
+
+**Rejected.**
+
+- *Making `restInterval()` return null when off.* Null already means "no figure
+  imported" and draws a bare count and a bar with no ceiling, so off would have
+  looked like a missing import. The two states stay apart.
+- *Keeping the count while off, and only muting the penalty.* The count means
+  turns since the last rest; switching back on would wind a party at once for
+  turns the Judge had waived.
+- *Hiding the Rest turn button.* It is an action, not a demand, and a Judge may
+  still want a turn spent resting for the wandering throw's sake.
+- *One switch for all dungeon features.* The encounter throw already has its own
+  and a zone can override it; a second umbrella setting would have two ways to
+  say the same thing.
+
+**Cost.**
+
+- A mid-delve flip reads on the next write: a sheet open when the setting changes
+  keeps its Rest stat until the next formation update or a render.
+- The journey's own fatigue (`lib/fatigue.mjs`) is a different rule and is not
+  gated by this setting.
+
+**Verified.**
+
+- Pinned offline in `tools/test-formation-binding.mjs`, `tools/test-strip.mjs` and
+  `tools/test-party-frame.mjs`.
+- The live recipe is TESTING, "The rest switch".
+
+## 2026-11-03 — The party token is the combat's switch, both ways
+
+**Asked.** The owner, on 11.13.2 with the world relaunched: adding the party token
+to a combat deploys nobody, and nothing gathers the party back. No regression since
+11.10.1, so the cause was older than the report.
+
+**Found.** A member whose recorded token was gone still read as on the field
+(`isMemberDeployed` tests the marker, not a body), so a deploy that placed nobody
+new went on to take the party over anyway: the takeover patch, an empty combatant
+create, the party's combatant deleted, the party token hidden, `formation.combat`
+set and "0 deployed" posted. The party vanished and nobody appeared. A pasted,
+flagged copy of the party token reached the same deploy and laid bodies at the
+record's token while reading the copy's scene: zero combatants. And a gather ran
+only on `deleteCombat`; pressing the token HUD's combat toggle a second time added
+the party again, `fightingIn` answered "already fighting" and the new combatant
+was deleted, so nothing ever gathered.
+
+**Ruled.**
+
+- **The deploy acts only for the linked token** (`isLinkedPartyToken`). A flagged
+  copy is whispered to the GMs and its combatant is left alone.
+- **A recorded body that stands on no scene is no body.** `recallMembers` clears
+  the marker (it keeps the stash) and the member deploys like anyone else.
+- **The combatant list is built before anything that takes the party over is
+  written.** An empty list whispers `combatNoCombatants` and returns before the
+  takeover patch, the create, the delete, the hide and the flag.
+- **Added again to its own fight, the party token gathers the party.** The same
+  reform `deleteCombat` runs, preceded by removing the new combatant and the
+  combatants of the bodies a combat took over, so the HUD toggle that deployed
+  the party also gathers it. Added to a different combat while the party fights
+  elsewhere, the old answer stands: the combatant is removed and the encounter
+  named.
+
+**Rejected.**
+
+- *Gathering on every re-add, whatever combat it is.* A party fighting in one
+  encounter and added to a second by mistake would be pulled out of the first;
+  the Judge asked for a switch, not for the party to follow the last click.
+- *Refusing a re-add with the old "already fighting" card.* It is the behaviour
+  that left the owner with no way back short of ending the whole encounter.
+- *Clearing stale markers in a separate repair only.* The owner meets the fault
+  in a combat; a Judge who must open the repair tool first has been told
+  nothing. The repair tool does not scan member markers.
+
+**Cost.**
+
+- A re-add of the party token to the same combat is no longer a no-op; a Judge
+  who pressed the toggle twice by habit now sees the party gather.
+- The gather removes combatants before the tokens go, so their initiative is
+  lost; a second press deploys afresh and rolls again.
+
+**Verified.**
+
+- Pinned offline in `tools/test-formation-flows.mjs`: a stale marker deploys, a
+  copy is refused, an empty list writes nothing, a re-add gathers and a third
+  press deploys again.
+- The live recipe is TESTING, "A party in a combat".
+
+## 2026-11-03 — Only the token the record links acts for the party
+
+**Asked.** The owner, same report: old and duplicate party exploration tokens in a
+live world, "these should be repairable".
+
+**Found.** Only the `deleteToken` hook checked that a flagged token was the one the
+record links. The movement and rotation hooks acted on any flagged token, so a
+pasted or duplicated-scene copy billed the clock and turned the party. A sidebar
+duplicate with no flag was warned and left. `addMember` enforced one party per
+actor on the player path only. `truePositionToken` took the first token of the
+party actor on a scene, which may be a copy.
+
+**Ruled.**
+
+- **One test, `isLinkedPartyToken` (id and scene), gates every hook that acts for
+  the party on a token:** movement, rotation, the unlink on delete, the combat
+  deploy.
+- **`preCreateToken` refuses an unflagged party-actor token while the record links
+  a live token.** A flagged creation stands: a teleport creates the replacement
+  before the deletion hands the linkage over, and refusing it would end the
+  party's trip.
+- **`addMember` refuses an actor another party holds,** for the Judge's drop and
+  HUD button as for a player's request. One check at the one write, instead of one
+  per entry point.
+- **`truePositionToken` reads `getPartyToken` on the asked scene,** and answers
+  null where the party's own token is on another.
+- **Two repair checks.** `formation.partyTokens` lists every party token that is
+  not the linked one: a copy on the party's scene or one whose party is gone is
+  deleted; a copy on another scene is reported only; a party token the record
+  lost is linked again through `adoptPartyToken`, the `createToken` hook's own
+  adoption. A record that links no live token (its link null, or naming a token
+  that is gone) adopts the one flagged token of its party, on any scene, and never
+  deletes it; with two or more candidates for one lost link, all are reported
+  and none is offered, since which is the party's is the Judge's call. A census of
+  a live world found exactly this shape: a flagged party token on a dungeon level
+  whose record held no `tokenId` or `sceneId`. `formation.partyActors` gives a party actor no record names one
+  through `adoptPartyActor`, and reports a member held by two parties. No fix
+  touches the linked token, the members, the marching order or the clock.
+- No `conflicts` entry and no pre-merge conversion for the retired acks-formation
+  module: it is fully deprecated, and extras is the only module of the two that
+  runs.
+
+**Rejected.**
+
+- *Refusing flagged creations too.* A teleport.
+- *Deleting a cross-scene copy.* It may be the party's own token mid-trip or a
+  deliberate marker; the finding names it and the Judge deletes it on its scene.
+- *Moving a member out of one party to resolve a double membership.* Which party
+  keeps them is the Judge's call; the finding names both.
+
+**Cost.**
+
+- A flagged copy placed by paste stays on the map until the Judge repairs or
+  deletes it; it is inert, not gone.
+- A hand-placed party token is refused only while the record links a live one.
+  With no live link the first placement is adopted, as before; a hidden party
+  token keeps its link, so a second one is refused beside it.
+
+**Verified.**
+
+- Pinned offline in `tools/test-formation-flows.mjs`: a copy's move and turn bill
+  and turn nothing, a hand-placed second token is refused and a flagged one is
+  not, an actor in two parties is refused, and the repair checks scan, fix and
+  rescan.
+- The live recipe is TESTING, "A party in a combat" and "Extra party tokens".

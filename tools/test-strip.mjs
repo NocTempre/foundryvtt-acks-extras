@@ -415,6 +415,16 @@ const stripOf = (id) => {
   assert.doesNotMatch(lit(turns), /darkBlinded|darkSighted/, "and the delve still reads a bright scene");
   assert.match(lit(turns), /warnings.noLight/, "where no lantern is lit, the delve says so by scene light");
   setClock(12);
+
+  // The rest switch off: a winded or overdue delve is warned of nothing, and
+  // the strip's tracker is told not to draw the Rest stat.
+  settings.restRequired = false;
+  assert.doesNotMatch(lit(turns), /warnings\.(winded|restDue)/, "with rests not required the delve warns of neither");
+  assert.equal(stripOf(turns).delve.restOn, false, "and the strip says the rest stat has nothing to read");
+  settings.restRequired = true;
+  assert.match(lit(turns), /warnings\.winded/, "switched back on, the delve warns again");
+  assert.equal(stripOf(turns).delve.restOn, true);
+  delete settings.restRequired;
 }
 
 /* -------------------------------------------- */

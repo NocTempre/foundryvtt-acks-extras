@@ -16,6 +16,7 @@ import {
   effectivePins, togglePin, buildFrameModel, loadBar, bridgeHands, storedSystem, carriesMorale,
 } from "../scripts/character-sheet/view-model.mjs";
 import { CONDITION_SAVES, RAIL_CONDITIONS, SAVE_KEYS, TAB_ORDER } from "../scripts/character-sheet/constants.mjs";
+import { buildThrows } from "../scripts/character-sheet/tabs/stats.mjs";
 
 let passed = 0;
 const test = (name, fn) => {
@@ -397,6 +398,33 @@ test("an editable field renders the stored value, so an effect's addition is nev
   assert.equal(storedSystem(actor).surprise.avoidsurprise, 0);
   assert.equal(storedSystem({ system: { ac: { mod: 2 } } }).ac.mod, 2);
   assert.deepEqual(storedSystem(null), {});
+});
+test("the Stats tab's surprise rows hold the stored figure and carry the signed figure in force with how it is made", () => {
+  globalThis.game = { i18n: { has: () => false, localize: (k) => k, format: (k, d = {}) => `${k}|${JSON.stringify(d)}` } };
+  try {
+    const actor = {
+      type: "character",
+      _source: { system: { surprise: { surpriseothers: 0, avoidsurprise: 0 }, initiative: { mod: 1 } } },
+      system: { surprise: { surpriseothers: 0, avoidsurprise: 2 }, initiative: { value: 3, mod: 1 }, scores: { dex: { mod: 1 } } },
+      hasPlayerOwner: true,
+    };
+    const t = buildThrows(actor);
+    assert.equal(t.avoidSurprise, 0, "the input holds the stored value");
+    assert.equal(t.avoidSurpriseNow.value, "+2", "the note is the figure Rolls shows");
+    assert.ok(t.avoidSurpriseNow.tip.includes('"stored":"+0","effects":"+2","value":"+2"'), "the tip names the stored value and the effects' share");
+    assert.equal(t.surpriseOthers, 0);
+    assert.equal(t.surpriseOthersNow.value, "+0");
+    assert.ok(t.surpriseOthersNow.tip.includes('"value":"+0"') && !t.surpriseOthersNow.tip.includes("effects"), "no effect: the tip names only the total");
+    assert.equal(t.initiative, "+3");
+    assert.ok(t.initiativeTip.includes('"stored":"+1","dex":"+1","effects":"+1","value":"+3"'), "initiative names the stored modifier, Dexterity and the effects' share");
+    const monster = buildThrows({ type: "monster", _source: { system: { initiative: { mod: 2 } } }, system: { initiative: { value: 2, mod: 2 }, scores: { dex: { mod: 3 } } } });
+    assert.ok(monster.initiativeTip.includes('"dex":"+0","effects":"+0"'), "only a character's initiative takes Dexterity");
+    const negative = buildThrows({ _source: { system: { surprise: { avoidsurprise: 1 } } }, system: { surprise: { avoidsurprise: -1 } } });
+    assert.equal(negative.avoidSurpriseNow.value, "−1");
+    assert.ok(negative.avoidSurpriseNow.tip.includes('"effects":"−2"'));
+  } finally {
+    delete globalThis.game;
+  }
 });
 test("morale is carried by a serving hireling and by a character no player owns, never by a player's", () => {
   assert.equal(carriesMorale({ system: { retainer: { enabled: true } }, hasPlayerOwner: true }), true);

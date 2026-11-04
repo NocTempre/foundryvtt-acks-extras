@@ -173,6 +173,13 @@ included. If the other group already has that monster, the two rows become one a
 bodies on record may take new numbers. You need to own both groups, and anyone on a map
 has to be recalled first.
 
+Add a group's token to a combat and the whole group goes out: everyone it holds lands
+on the scene from the token's square, each with a combatant of their own, and the
+group's token hides. Ending the combat recalls them and shows the token again. Add the
+token to the same combat again to bring them back early. A group with no one to send
+tells the Judges so and changes nothing, and a group that is part of a party is
+deployed by the party.
+
 Each monster in the group has its own **Roll** on its row. Press it, choose the dungeon
 or the wilderness line, and choose wandering, in lair or by lair chance, which throws
 that monster's chance first and lets it pick the side. Its line reads out in the dialog

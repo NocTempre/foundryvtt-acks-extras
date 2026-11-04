@@ -1,6 +1,71 @@
 # Changelog
 
 ## Unreleased
+### Added
+
+- **A group's token added to a combat sends out the whole group.** Every body its rows
+  hold lands on the scene from the token's square, each with a combatant of its own, and
+  the group's token hides. Ending the combat recalls them and shows the token again, and
+  adding the token to the same combat again brings them back early. A group with no one
+  to send tells the Judges so and changes nothing, and a group that is part of a party is
+  left to the party.
+- **A delve owes no rest while Require rests in the delve is off.** The setting is on by
+  default, which is how the delve has always run. Off, no turn counts toward a rest, no
+  warning or turn-card line mentions one, nobody is winded, and the Rest figure on the
+  party sheet and the bar in its title bar are not drawn. The clock, the lights and the
+  wandering-monster throw run as before, and a Rest turn still advances a turn. A party
+  already winded when the setting goes off is released on its next turn.
+
+### Fixed
+
+- **A weapon, armour or item the system marked as migrated without renaming its fields
+  loads with its own figures.** The system's world migration stamped records without
+  writing the renames, so on every later load a weapon kept as a single damage die
+  showed one die for both grips and lost its attack bonus, and an armour showed Armor
+  Class 0. The module now reads the old fields at load, as it already did for a
+  character's attack throw and saves, and a weapon whose damage names no second die
+  shows none. The repair window's new first check lists every record read this way, and
+  fixing writes it under the current names so it no longer depends on the module.
+- **The Stats tab keeps the numbers a roll adds apart from the numbers it must meet.**
+  The saving throw, initiative and surprise modifiers sit under their own Roll
+  modifiers heading instead of among the throw targets, and initiative and both
+  surprise rows show beside the label the signed figure Rolls adds, with a tooltip
+  naming the stored value and what the effects add to it. The guides say where a
+  row's modifier is edited, and that the surprise rows and initiative outside a combat
+  roll at once.
+- **Combatants tied on initiative stand in the same order on every screen.** The system
+  gave two creatures of one side no order between them, so each browser sorted a tie its
+  own way and End Turn and the turn marker could name different creatures for different
+  players. A tie now goes to the outnumbering side last, a hostile creature before a
+  friendly one, and then by combatant id; initiative that differs is ordered as before.
+  A combat already open is sorted again when the world loads.
+- **A lit light sheds its radius in the scene's own units.** A lantern lit on a scene
+  measured in yards or miles drew a circle the size of its figure in feet, so the token
+  lit the wrong area. The light and a creature's sight and senses are now converted by
+  the scene's distance unit and rounded to the step Foundry stores, so a second sync
+  changes nothing. A scene in feet is unchanged. On a coarse scene a radius smaller than
+  the step reads as no light, and a Night Vision creature's range follows the light it
+  doubles in the same units.
+- **The party token adds the party to a combat and takes it out again.** A member whose
+  token had been deleted still counted as out on the field, so adding the party token to
+  a combat hid the party, deployed nobody and posted "0 deployed". A member whose token
+  is gone is now put out like anyone else, and a deploy with nobody to field changes
+  nothing and says so. Adding the party token again to the combat the party is fighting
+  in gathers the party, as End Combat does, instead of removing the new combatant and
+  naming the fight.
+- **Only the party's own token acts for the party.** A copy of the party token left by a
+  paste or a duplicated scene billed travel and turned the party when it moved, and added
+  to a combat it deployed nobody. A copy is now inert: it bills nothing, deploys nobody
+  and the GMs are whispered that it is not the party's token. A party actor's token placed
+  by hand while the party already has one is refused, a Judge adding an actor another party
+  holds is refused as a player is, and the true position of a lost party is read from the
+  party's own token.
+- **Repair this world finds extra party tokens and party actors with no party.** A copy of
+  the party token on the party's scene, or one whose party is gone, is deleted; a copy on
+  another scene is listed only; the party's one token is linked again when the party lost
+  its link, and several competing for it are listed only; a party actor no party names is
+  given one; a member in two parties is listed, naming each party that holds them. The linked token,
+  the members, the marching order and the clock are left alone.
 
 ## 11.13.2
 ### Fixed

@@ -51,7 +51,7 @@ import {
   senseProfile,
 } from "../scripts/lib/senses.mjs";
 import { brightestLightReaching, emittedLight } from "../scripts/lib/light.mjs";
-import { sceneIsDrawing, syncTokenFromActor } from "../scripts/lib/token-sync.mjs";
+import { applyTokenLight, applyTokenVision, sceneIsDrawing, syncTokenFromActor } from "../scripts/lib/token-sync.mjs";
 import { hdFormula, monsterHd, monsterHitDice } from "../scripts/lib/actor-read.mjs";
 import { auditLine, auditOf, situationalTerm, skipDialogFor } from "../scripts/lib/roll-dialog.mjs";
 import { drawForJudges, drawQuietly, postToJudges } from "../scripts/lib/roll-audience.mjs";
@@ -1799,6 +1799,107 @@ t("emittedLight: the brightest lit, unshuttered source wins", () => {
   assert.deepEqual(emittedLight([{ type: "lantern", lit: true, shielded: true }]), { bright: 0, dim: 0 });
   assert.deepEqual(emittedLight([{ type: "torch", lit: false }]), { bright: 0, dim: 0 });
   assert.deepEqual(emittedLight([]), { bright: 0, dim: 0 });
+});
+
+/**
+ * A token on a scene measured in `units`, whose update applies what it is
+ * handed the way a document does: a nested object merges, a flag path lands in
+ * `flags`. `writes` collects every update sent.
+ */
+const sceneToken = (units, { sight = false } = {}) => {
+  const token = {
+    parent: { grid: { units } },
+    light: { bright: 0, dim: 0, color: null, alpha: 0.5, animation: { type: null } },
+    sight: { enabled: sight, range: 0, visionMode: "basic" },
+    flags: {},
+    writes: [],
+    getFlag: (scope, key) => token.flags[`${scope}.${key}`],
+    toObject: () => ({ detectionModes: {} }),
+    async update(delta) {
+      token.writes.push(delta);
+      for (const [path, value] of Object.entries(delta)) {
+        if (path === "light" || path === "sight") Object.assign(token[path], value);
+        else if (path.startsWith("flags.")) token.flags[path.slice("flags.".length)] = value;
+      }
+    },
+  };
+  return token;
+};
+
+t("token light: a radius is written in the scene's own units, and a second sync writes nothing", () => {
+  const lantern = emittedLight([{ type: "lantern", lit: true }]);
+  const lanternFeet = { bright: lantern.bright, dim: lantern.dim };
+  assert.ok(lanternFeet.bright > 0 && lanternFeet.dim > lanternFeet.bright, "the fixture is a real light");
+
+  for (const [units, perUnit] of [["ft", 1], ["yd", 3], ["yards", 3]]) {
+    const token = sceneToken(units);
+    applyTokenLight(token, lanternFeet);
+    assert.equal(token.light.bright, lanternFeet.bright / perUnit, `${units}: bright is feet over feet-per-unit`);
+    assert.equal(token.light.dim, lanternFeet.dim / perUnit, `${units}: dim is feet over feet-per-unit`);
+    applyTokenLight(token, lanternFeet);
+    assert.equal(token.writes.length, 1, `${units}: the second sync wrote nothing`);
+  }
+
+  // A foot-measured scene of 10 ft squares is the figure untouched.
+  const ft = sceneToken("ft");
+  ft.parent.grid.distance = 10;
+  applyTokenLight(ft, lanternFeet);
+  assert.deepEqual(ft.writes[0].light, {
+    bright: lanternFeet.bright,
+    dim: lanternFeet.dim,
+    color: "#ff9b47",
+    alpha: 0.3,
+    animation: { type: "torch", speed: 2, intensity: 3 },
+  });
+
+  // An unrecognised or empty unit reads as feet, as everywhere else.
+  for (const units of ["leagues", "", undefined]) {
+    const odd = sceneToken(units);
+    applyTokenLight(odd, lanternFeet);
+    assert.equal(odd.light.bright, lanternFeet.bright, `${JSON.stringify(units)} reads as feet`);
+  }
+
+  // A 6-mile hex: the bright radius rounds to nothing, the dim one to the step.
+  const mi = sceneToken("mi");
+  mi.parent.grid.distance = 6;
+  applyTokenLight(mi, lanternFeet);
+  assert.equal(mi.light.bright, 0);
+  assert.equal(mi.light.dim, 0.01, "dim is 30 ft of a mile, to the step");
+  assert.equal(mi.light.color, "#ff9b47", "a dim radius alone is still a lit source");
+  assert.deepEqual(mi.light.animation, { type: "torch", speed: 2, intensity: 3 });
+  assert.equal(mi.flags[`acks-extras.managedLight`], true);
+  applyTokenLight(mi, lanternFeet);
+  assert.equal(mi.writes.length, 1, "mi: the second sync wrote nothing");
+
+  // Dousing it clears the light it set, in the same units.
+  applyTokenLight(mi, { bright: 0, dim: 0 });
+  assert.equal(mi.light.dim, 0);
+  assert.equal(mi.light.color, null);
+  assert.equal(mi.flags[`acks-extras.managedLight`], false);
+
+  // A radius that rounds to nothing everywhere is no light, and not ours to clear.
+  const km = sceneToken("km");
+  applyTokenLight(km, { bright: 5, dim: 10 });
+  assert.equal(km.writes.length, 0, "a candle on a kilometre grid sheds nothing");
+});
+
+t("token sight: a range is written in the scene's units and settles", () => {
+  const profile = { sightRange: 60, visionMode: "lightless", detection: { lightlessVision: 60 } };
+  for (const [units, perUnit] of [["ft", 1], ["yd", 3]]) {
+    const token = sceneToken(units, { sight: true });
+    applyTokenVision(token, profile);
+    assert.equal(token.writes[0].sight.range, 60 / perUnit, `${units}: sight range`);
+    assert.equal(token.writes[0].detectionModes.lightlessVision.range, 60 / perUnit, `${units}: detection range`);
+    token.sight.range = token.writes[0].sight.range;
+    token.sight.visionMode = "lightless";
+    token.toObject = () => ({ detectionModes: { lightlessVision: { enabled: true, range: 60 / perUnit }, basicSight: { enabled: false, range: 0 } } });
+    applyTokenVision(token, profile);
+    assert.equal(token.writes.length, 1, `${units}: the second sync wrote nothing`);
+  }
+  const mi = sceneToken("mi", { sight: true });
+  applyTokenVision(mi, profile);
+  assert.equal(mi.writes[0].sight.range, 0.01, "60 ft of a mile, to the step");
+  assert.equal(mi.writes[0]["flags.acks-extras.managedVision"].range, 0.01, "the stamp carries the stored figure");
 });
 
 /* -------------------------------------------------------------------------- */

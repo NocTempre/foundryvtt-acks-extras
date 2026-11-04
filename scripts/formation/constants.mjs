@@ -44,6 +44,20 @@ export function formationValue(key) {
  */
 export const restInterval = () => formationValue("restInterval");
 
+/** World setting: whether the delve demands rests at all. */
+export const SETTING_REST_REQUIRED = "restRequired";
+
+/**
+ * Whether the delve counts turns since the last rest, warns that one is due
+ * and winds the party past the interval. Off, the clock still runs and a rest
+ * turn still advances it; nothing counts toward a rest, announces one or
+ * penalises its absence. An unregistered setting reads as on, which is the
+ * default.
+ */
+export function restEnforced() {
+  return globalThis.game?.settings?.get(MODULE_ID, SETTING_REST_REQUIRED) !== false;
+}
+
 /** World setting: feet of frontage each marching body occupies. */
 export const SETTING_MARCH_FEET = "marchFeetPerBody";
 

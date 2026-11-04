@@ -932,7 +932,12 @@ carries three Judge macros for the world's data as a whole.
 
 - **Repair This World (GM)** opens the repair window: scan for data this
   module left damaged, tick the findings and press *Fix selected*; every fix
-  is checked by scanning again.
+  is checked by scanning again. Its first check lists the characters,
+  monsters and items the system marked as migrated while they still hold
+  its old field names. The module reads those values back each time the
+  world loads, so an armour's Armor Class and a weapon's damage and bonus
+  already show; fixing writes them to the record, so they no longer depend on
+  the module to be read.
 - **Clean Up After the Merge (GM)** opens the same window on what the old
   acks-* modules left behind — their flag scopes, effect keys, sheet choices
   and settings, and documents of their sub-types that cannot load — already

@@ -6,8 +6,8 @@
  * its own pill under whichever organisation the viewer chose, every armour
  * rung and the shield — each pill saying where it came from and whether a hand
  * moved it off what the class prints; movement by mode, vision light by
- * light, the vitals, and the throw targets the Rolls tab reads (this is the
- * pen; Rolls is the gauge).
+ * light, the vitals, and the throw targets and roll modifiers the Rolls tab
+ * reads (this is the pen; Rolls is the gauge).
  */
 import { LANG, SAVE_KEYS, ADVENTURING_KEYS, MOVE_MODES, LIGHT_ICONS } from "../constants.mjs";
 import { makeLoc } from "../../lib/util.mjs";
@@ -85,6 +85,59 @@ function weaponGroups(actor, strips, { view, openBuckets, editing, prov, edited 
     };
     return { ...head, members };
   });
+}
+
+/**
+ * The figure Rolls uses for one modifier row, as a signed note and the tooltip
+ * that names where it comes from: the stored value the input holds, then the
+ * effects that move it. `stored` and `inForce` are numbers.
+ */
+function inForceFigure(stored, inForce) {
+  const value = signed(inForce);
+  const effects = inForce - stored;
+  const tip = effects
+    ? loc("stats.modifierTip", { stored: signed(stored), effects: signed(effects), value })
+    : loc("stats.modifierTipPlain", { value });
+  return { value, tip };
+}
+
+/**
+ * The Stats tab's throw group: the targets (attack throw, saves, adventuring)
+ * and the four modifiers. Every input renders the STORED value; each modifier
+ * that Rolls also shows carries the signed figure in force beside it and a
+ * tooltip saying how that figure is made. Initiative reads the prepared
+ * total, which the system makes from the modifier and, on a character, the
+ * Dexterity modifier; what is left over is the effects'.
+ */
+export function buildThrows(actor) {
+  const sys = actor.system ?? {};
+  const stored = storedSystem(actor);
+  const surpriseOthers = num(stored.surprise?.surpriseothers);
+  const avoidSurprise = num(stored.surprise?.avoidsurprise);
+  const initiativeTotal = num(sys.initiative?.value);
+  const initiative = signed(initiativeTotal);
+  const initiativeStored = num(stored.initiative?.mod);
+  const dex = actor.type === "character" ? num(sys.scores?.dex?.mod) : 0;
+  const initiativeTip = loc("stats.initiativeTip", {
+    stored: signed(initiativeStored),
+    dex: signed(dex),
+    effects: signed(initiativeTotal - initiativeStored - dex),
+    value: initiative,
+  });
+  return {
+    saves: SAVE_KEYS.map((k) => ({ key: k, label: saveLabel(k), value: num(stored.saves?.[saveSystemKey(k)]?.value), path: `system.saves.${saveSystemKey(k)}.value` })),
+    saveMod: num(stored.save?.mod),
+    adventuring: ADVENTURING_KEYS.map((k) => ({ key: k, label: game.i18n.localize(`ACKS.adventuring.${k}`), value: num(stored.adventuring?.[k]), path: `system.adventuring.${k}` })),
+    initiativeMod: num(stored.initiative?.mod),
+    initiative,
+    initiativeTip,
+    surpriseOthers,
+    surpriseOthersNow: inForceFigure(surpriseOthers, num(sys.surprise?.surpriseothers)),
+    avoidSurprise,
+    avoidSurpriseNow: inForceFigure(avoidSurprise, num(sys.surprise?.avoidsurprise)),
+    healingRate: String(stored.hp?.bhr ?? ""),
+    morale: carriesMorale(actor) ? { value: num(stored.details?.morale) } : null,
+  };
 }
 
 /** Build the tab's data. */
@@ -201,17 +254,7 @@ export function buildStatsTab(actor, { openBuckets = new Set(), editing = false,
     attackThrow: num(stored.attack?.throw, 10),
   };
 
-  const throws = {
-    saves: SAVE_KEYS.map((k) => ({ key: k, label: saveLabel(k), value: num(stored.saves?.[saveSystemKey(k)]?.value), path: `system.saves.${saveSystemKey(k)}.value` })),
-    saveMod: num(stored.save?.mod),
-    adventuring: ADVENTURING_KEYS.map((k) => ({ key: k, label: game.i18n.localize(`ACKS.adventuring.${k}`), value: num(stored.adventuring?.[k]), path: `system.adventuring.${k}` })),
-    initiativeMod: num(stored.initiative?.mod),
-    initiative: signed(num(sys.initiative?.value)),
-    surpriseOthers: num(stored.surprise?.surpriseothers),
-    avoidSurprise: num(stored.surprise?.avoidsurprise),
-    healingRate: String(stored.hp?.bhr ?? ""),
-    morale: carriesMorale(actor) ? { value: num(stored.details?.morale) } : null,
-  };
+  const throws = buildThrows(actor);
 
   const retainer = sys.retainer?.enabled
     ? {

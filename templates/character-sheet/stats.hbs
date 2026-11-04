@@ -160,28 +160,12 @@
           <input class="acks-input acks-extras-frame__fact-input acks-nums" type="number" name="{{path}}" value="{{value}}" {{disabled (not @root.editable)}}>
         </div>
         {{/each}}
-        <div class="acks-extras-frame__fact">
-          <span class="acks-extras-frame__fact-label">{{localize "ACKS-CHARACTER.stats.saveMod"}}</span>
-          <input class="acks-input acks-extras-frame__fact-input acks-nums" type="number" name="system.save.mod" value="{{st.throws.saveMod}}" {{disabled (not @root.editable)}}>
-        </div>
         {{#each st.throws.adventuring}}
         <div class="acks-extras-frame__fact">
           <span class="acks-extras-frame__fact-label">{{label}}</span>
           <input class="acks-input acks-extras-frame__fact-input acks-nums" type="number" name="{{path}}" value="{{value}}" {{disabled (not @root.editable)}}>
         </div>
         {{/each}}
-        <div class="acks-extras-frame__fact">
-          <span class="acks-extras-frame__fact-label">{{localize "ACKS.Initiative"}} <span class="acks-extras-frame__fact-note">· {{st.throws.initiative}}</span></span>
-          <input class="acks-input acks-extras-frame__fact-input acks-nums" type="number" name="system.initiative.mod" value="{{st.throws.initiativeMod}}" {{disabled (not @root.editable)}}>
-        </div>
-        <div class="acks-extras-frame__fact">
-          <span class="acks-extras-frame__fact-label">{{localize "ACKS.SurpriseOthers"}}</span>
-          <input class="acks-input acks-extras-frame__fact-input acks-nums" type="number" name="system.surprise.surpriseothers" value="{{st.throws.surpriseOthers}}" {{disabled (not @root.editable)}}>
-        </div>
-        <div class="acks-extras-frame__fact">
-          <span class="acks-extras-frame__fact-label">{{localize "ACKS.AvoidSurprise"}}</span>
-          <input class="acks-input acks-extras-frame__fact-input acks-nums" type="number" name="system.surprise.avoidsurprise" value="{{st.throws.avoidSurprise}}" {{disabled (not @root.editable)}}>
-        </div>
         <div class="acks-extras-frame__fact">
           <span class="acks-extras-frame__fact-label">{{localize "ACKS.HealingRate"}}</span>
           <input class="acks-input acks-extras-frame__fact-input is-wide" type="text" name="system.hp.bhr" value="{{st.throws.healingRate}}" {{disabled (not @root.editable)}}>
@@ -192,6 +176,26 @@
           <input class="acks-input acks-extras-frame__fact-input acks-nums" type="number" name="system.details.morale" value="{{st.throws.morale.value}}" {{disabled (not @root.editable)}}>
         </div>
         {{/if}}
+        <div class="acks-extras-frame__subhead">
+          <span>{{localize "ACKS-CHARACTER.stats.modifiers"}}</span>
+          <span class="acks-extras-frame__subhead-note">{{localize "ACKS-CHARACTER.stats.modifiersNote"}}</span>
+        </div>
+        <div class="acks-extras-frame__fact">
+          <span class="acks-extras-frame__fact-label">{{localize "ACKS-CHARACTER.stats.saveMod"}}</span>
+          <input class="acks-input acks-extras-frame__fact-input acks-nums" type="number" name="system.save.mod" value="{{st.throws.saveMod}}" {{disabled (not @root.editable)}}>
+        </div>
+        <div class="acks-extras-frame__fact">
+          <span class="acks-extras-frame__fact-label">{{localize "ACKS.Initiative"}} <span class="acks-extras-frame__fact-note acks-nums" data-tooltip-text="{{st.throws.initiativeTip}}">· {{st.throws.initiative}}</span></span>
+          <input class="acks-input acks-extras-frame__fact-input acks-nums" type="number" name="system.initiative.mod" value="{{st.throws.initiativeMod}}" {{disabled (not @root.editable)}}>
+        </div>
+        <div class="acks-extras-frame__fact">
+          <span class="acks-extras-frame__fact-label">{{localize "ACKS.SurpriseOthers"}} <span class="acks-extras-frame__fact-note acks-nums" data-tooltip-text="{{st.throws.surpriseOthersNow.tip}}">· {{st.throws.surpriseOthersNow.value}}</span></span>
+          <input class="acks-input acks-extras-frame__fact-input acks-nums" type="number" name="system.surprise.surpriseothers" value="{{st.throws.surpriseOthers}}" {{disabled (not @root.editable)}}>
+        </div>
+        <div class="acks-extras-frame__fact">
+          <span class="acks-extras-frame__fact-label">{{localize "ACKS.AvoidSurprise"}} <span class="acks-extras-frame__fact-note acks-nums" data-tooltip-text="{{st.throws.avoidSurpriseNow.tip}}">· {{st.throws.avoidSurpriseNow.value}}</span></span>
+          <input class="acks-input acks-extras-frame__fact-input acks-nums" type="number" name="system.surprise.avoidsurprise" value="{{st.throws.avoidSurprise}}" {{disabled (not @root.editable)}}>
+        </div>
       </div>
       {{#if st.retainer}}
       <div>

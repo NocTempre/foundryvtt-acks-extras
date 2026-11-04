@@ -109,6 +109,23 @@ Turn the column and the token's width and depth swap with it.
 
 *Three abreast on a 5' grid: the party token stands its real width.*
 
+### The party token and a fight
+
+**Add the party token to a combat** (the combat button on its HUD) and the party
+deploys: every member who can fight goes out as a token with a combatant of its
+own, and the party token is hidden. **Add it to the same combat again** and the
+party gathers: the members' combatants leave the tracker, their tokens go back
+inside the party token, and the party token shows again. **End Combat** gathers
+the party too. The encounter itself stays in the tracker when you gather from
+the token; delete it yourself.
+
+Only the party's own token does this. A copy of it (pasted, or left by a
+duplicated scene) keeps its combatant, deploys nobody and whispers you that it is
+not the party's token; the party's real token stays in charge, and a copy moved
+or turned bills no travel. A party actor's token placed by hand while the party
+already has one is refused with a warning. **Repair this world** lists extra party
+tokens and fixes the ones that are safe to remove.
+
 ## Saved marching orders
 
 The head of the party sheet's Order tab has **Save order**, which keeps the
@@ -991,13 +1008,26 @@ leave before it can move.*
 Light is real: a lit torch occupies a hand, lights the party token, and goes out
 when it burns through.
 
+### Resting
+
+A party that explores past its rest interval without resting is winded: the
+sheet warns when a rest is due, then marks the party winded, and a **Rest** turn
+clears it. To run a delve without that, turn off **Require rests in the delve**
+in the module settings. The clock keeps running, but no turn counts toward a
+rest, no warning or card line mentions one and nobody is winded; the Rest figure
+and the bar in the title bar disappear. A party already winded when you turn it
+off is released on its next turn. The wandering-monster throw has its own switch
+(below) and is not affected.
+
 ### Wandering monsters
 
 The clock also makes the wandering-monster throw and, on an encounter, draws
 from a table only you see. To set the table, how often the throw comes and what
 it needs for one part of a map, draw a Region there and give it an **Encounter
 Zone** behavior. Everywhere else, the formation's own table and the module
-settings apply.
+settings apply. To stop the automatic throw altogether, set **Wandering monster
+throw frequency** to 0 in the module settings; **Require rests in the delve**
+(above) is the separate switch for the rest.
 
 A monster met off its own floor can be adjusted (JJ p. 36). Give the zone its
 **Dungeon level**, and give the table the **Monster level** it is written for:
@@ -1206,6 +1236,11 @@ with the same total.
 
 Turn **Initiative results on one card** off for the system's original messages.
 It takes effect on the next roll — no reload.
+
+Creatures that roll the same number stand in one order in the tracker on every
+player's screen, so End Turn and the turn marker agree for everyone. Within a tie,
+a side that outnumbers the other goes last, a hostile creature goes before a friendly
+one, and creatures with neither difference go in a fixed order that you cannot choose yet.
 
 ## Skill audit
 

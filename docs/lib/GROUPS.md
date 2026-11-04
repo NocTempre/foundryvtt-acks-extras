@@ -191,6 +191,31 @@ caught between the writes stand twice rather than nowhere. A source that then re
 the write takes the target back to what it held. A write between those two would be
 lost to that rollback.
 
+## In a fight
+
+A group's own token, added to a combat, deploys the whole group
+(`scripts/lib/group-combat.mjs`, installed by `registerGroupCleanup`). The primary GM's
+window acts, one piece of work at a time.
+
+| When | What happens |
+|---|---|
+| The token joins a combat | Every stack sends out every body it holds, as a row dragged onto the map does: `deploy` with `count: Infinity`, from the token's square, five abreast, one stack after another. Each body on the scene gets a combatant, hidden where the group's was. The group's own combatant is deleted, and the token is hidden and flagged `groupCombat` with the combat's id and whether it was hidden before |
+| The combat is deleted | Every token whose flag names it recalls the group's bodies on its scene through `recall`, and the token goes back to the visibility it had, flag cleared. A body at zero hit points is a casualty, as in any recall |
+| The token is added again to the combat it fights in | The bodies gather early. Their combatants leave the combat, `recall` folds them back and the token returns, while the combatant just added stays, so the group fights as one token. Adding it once more sends them out again |
+| The token is added to a second combat | The combatant is deleted and the Judges are whispered that it fights elsewhere |
+| The group holds nothing to place | The Judges are whispered, and nothing is written: the combatant stays, the token stays visible and no flag is set |
+
+A body already on the map stays where it stands and fights with the rest, and the end
+recalls it with them. The flag is written before the combatants exist, so a deploy that
+fails part way still leaves the combat's end the bodies to gather. A flag naming a
+combat no longer in the world holds nothing back.
+
+Left alone: a body (its token carries the member flag and its actor is no group), a
+token that is no group, the party's own token (it carries the formation's flag), and a
+group a formation records as a member, which that formation deploys and gathers
+(`formation/combat-bridge.mjs`). Lib reads the flag and the formation setting by key, as
+it cannot import the formation.
+
 ## The Roll
 
 Every monster's row has its own Roll, a Judge's on an editable sheet.
@@ -285,9 +310,10 @@ documented and read by nothing.
   deletion, a successor that is not the same body, and a twin on another
   scene. `tools/test-group-encounter.mjs` drives the Roll, Make Encounter and
   the token hooks, its dice asserted by the formula thrown.
-  `tools/test-group-move.mjs` drives a row's move between groups.
+  `tools/test-group-move.mjs` drives a row's move between groups, and
+  `tools/test-group-combat.mjs` a group token's joining, gathering and ending a combat.
 - Live: a body moved between scenes is docs/lib/TESTING.md, "A group body
   moved between scenes"; the Roll, the reveal, a row's drag and its move are "The
-  encounter group".
+  encounter group", and a group token in a fight is "A group token in a fight".
 - Live: the model registration, sheet, and deploy/recall/detach round-trip need
   the test world (they write tokens and actors) and are a release gate.

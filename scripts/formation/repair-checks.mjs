@@ -7,13 +7,28 @@
  * lost panel is where an episode is re-anchored or ended. A scene's hex stock
  * is mended in place: points without an id are given one, and finds, search
  * credit and assessments naming a formation that no longer exists are dropped.
+ * Party tokens that are not the one a record links are found by the record's
+ * linkage (`isLinkedPartyToken`): a copy on the party's own scene, or one for a
+ * party that no longer exists, is deleted; a copy on another scene is only
+ * reported; a party token the record lost is linked again. A party actor no
+ * record names is given one, and a member held by two parties is only reported.
+ * No fix touches the linked token, the members, the marching order or the clock.
  */
 import { MODULE_ID } from "../lib/constants.mjs";
 import { fixEach, registerRepairCheck } from "../lib/repair.mjs";
-import { getPartyActor, patchFormation, readFormations } from "./formation-model.mjs";
+import { FLAG_FORMATION_ID, PARTY_TYPE } from "./constants.mjs";
+import {
+  adoptPartyActor,
+  adoptPartyToken,
+  getPartyActor,
+  getPartyToken,
+  isLinkedPartyToken,
+  patchFormation,
+  readFormations,
+} from "./formation-model.mjs";
 import { SHADOW_FLAG, shadowsOn } from "./shadow.mjs";
 import { lostOf } from "./lost.mjs";
-import { travelOf } from "./travel.mjs";
+import { adoptSceneSystem, travelOf } from "./travel.mjs";
 import { episodeScene } from "./lost-episode.mjs";
 import { PartySheet } from "./party-actor.mjs";
 import { STOCK_FLAG } from "./hex-stock-run.mjs";
@@ -60,6 +75,81 @@ function mendHexStock(stock, liveIds, mint) {
     if (JSON.stringify(next) !== JSON.stringify(record)) mended[key] = next;
   }
   return mended;
+}
+
+/**
+ * A party token as a finding. `action` is what the fix does with it, `delete`
+ * or `adopt`; a finding with `fixable: false` carries the other way to settle
+ * it in `reason`.
+ */
+function tokenFinding(token, formation, why, action, { fixable = true, reason = null } = {}) {
+  return {
+    key: token.uuid,
+    uuid: token.uuid,
+    name: formation?.name ?? token.name,
+    formationId: formation?.id ?? null,
+    action,
+    detail: loc(`partyTokens.${why}`, { scene: token.parent?.name ?? "?", party: formation?.name ?? "" }),
+    fixable,
+    reason: reason ? loc(`partyTokens.${reason}`) : null,
+  };
+}
+
+/**
+ * Every token of a party the walk judges, with its scene and the record it
+ * answers to: those carrying a formation flag (shadows are the other check's),
+ * and unflagged tokens of a party actor a record names.
+ */
+function partyTokensInWorld(formations) {
+  const byActor = new Map(Object.values(formations).map((f) => [f.actorId, f]));
+  const out = [];
+  for (const scene of game.scenes) {
+    for (const token of scene.tokens) {
+      if (token.getFlag(MODULE_ID, SHADOW_FLAG)) continue;
+      const id = token.getFlag(MODULE_ID, FLAG_FORMATION_ID);
+      if (id) out.push({ token, formation: formations[id] ?? null, flagged: true });
+      else if (game.actors.get(token.actorId)?.type === PARTY_TYPE) out.push({ token, formation: byActor.get(token.actorId) ?? null, flagged: false });
+    }
+  }
+  return out;
+}
+
+/**
+ * The findings of `formation.partyTokens`: every party token that is not the
+ * one its record links. Where the record links a live token, a copy on its
+ * scene is deleted and a copy elsewhere is reported. Where it links none (the
+ * link is null, or names a token that is gone), a candidate is a token carrying
+ * the party's flag on any scene, or an unflagged token of the party actor on
+ * the record's scene (any, once the record names none). One candidate is
+ * adopted and never deleted; two or more are reported, since which is the
+ * party's is the Judge's call.
+ */
+function partyTokenFindings(formations) {
+  const found = partyTokensInWorld(formations);
+  const out = [];
+  const unlinked = (formation) => !getPartyToken(formation);
+  const candidates = new Map();
+  for (const entry of found) {
+    const { token, formation, flagged } = entry;
+    if (!formation) {
+      if (flagged) out.push(tokenFinding(token, null, "orphan", "delete"));
+      continue;
+    }
+    if (!unlinked(formation)) continue;
+    if (!flagged && formation.sceneId && token.parent?.id !== formation.sceneId) continue;
+    candidates.set(formation.id, [...(candidates.get(formation.id) ?? []), token]);
+  }
+  for (const { token, formation } of found) {
+    if (!formation || isLinkedPartyToken(formation, token)) continue;
+    if (unlinked(formation)) {
+      const among = candidates.get(formation.id) ?? [];
+      if (among.length === 1 && among[0] === token) out.push(tokenFinding(token, formation, "adopt", "adopt"));
+      else if (among.includes(token)) out.push(tokenFinding(token, formation, "ambiguous", "adopt", { fixable: false, reason: "ambiguousReason" }));
+      else out.push(tokenFinding(token, formation, "elsewhere", "delete", { fixable: false, reason: "elsewhereReason" }));
+    } else if (token.parent?.id === formation.sceneId) out.push(tokenFinding(token, formation, "twin", "delete"));
+    else out.push(tokenFinding(token, formation, "elsewhere", "delete", { fixable: false, reason: "elsewhereReason" }));
+  }
+  return out;
 }
 
 /** Registers formation's checks. Called once, at `init`. */
@@ -180,5 +270,78 @@ export function registerFormationRepairChecks() {
           [`flags.${MODULE_ID}.${STOCK_FLAG}.${key}`, foundry.data.operators.ForcedReplacement.create(record)]));
         if (Object.keys(update).length) await scene.update(update);
       }),
+  });
+
+  registerRepairCheck({
+    id: "formation.partyTokens",
+    label: "ACKS-FORMATION.repair.check.partyTokens.label",
+    hint: "ACKS-FORMATION.repair.check.partyTokens.hint",
+    order: 40,
+    scan: () => partyTokenFindings(readFormations()),
+    fix: async (findings) => {
+      const results = await fixEach(findings, async (f) => {
+        const token = await fromUuid(f.uuid);
+        if (!token) return null;
+        const formation = readFormations()[f.formationId] ?? null;
+        if (f.action === "adopt") {
+          if (!formation) throw new Error(loc("partyTokens.noParty"));
+          await adoptPartyToken(formation.id, token);
+          await adoptSceneSystem(formation.id, token.parent);
+          return loc("partyTokens.adopted", { party: formation.name });
+        }
+        // Never the token the record links, however the finding was read.
+        if (formation && isLinkedPartyToken(formation, token)) throw new Error(loc("partyTokens.linked"));
+        await token.delete();
+        return loc("partyTokens.deleted");
+      });
+      PartySheet.refreshAll();
+      return results;
+    },
+  });
+
+  registerRepairCheck({
+    id: "formation.partyActors",
+    label: "ACKS-FORMATION.repair.check.partyActors.label",
+    hint: "ACKS-FORMATION.repair.check.partyActors.hint",
+    order: 50,
+    scan: () => {
+      const formations = Object.values(readFormations());
+      const out = [];
+      for (const actor of game.actors) {
+        if (actor.type !== PARTY_TYPE || formations.some((f) => f.actorId === actor.id)) continue;
+        out.push({ key: actor.uuid, uuid: actor.uuid, name: actor.name, detail: loc("partyActors.noRecord") });
+      }
+      const holders = new Map();
+      for (const formation of formations) {
+        for (const m of formation.members ?? []) {
+          if (!m || m.blank || !m.actorId) continue;
+          holders.set(m.actorId, new Set([...(holders.get(m.actorId) ?? []), formation.id]));
+        }
+      }
+      for (const [actorId, ids] of holders) {
+        if (ids.size < 2) continue;
+        const actor = game.actors.get(actorId) ?? null;
+        out.push({
+          key: `shared:${actorId}`,
+          uuid: actor?.uuid ?? null,
+          name: actor?.name ?? actorId,
+          formationIds: [...ids],
+          detail: loc("partyActors.shared", { parties: [...ids].map((id) => readFormations()[id]?.name ?? id).join(", ") }),
+          fixable: false,
+          reason: loc("partyActors.sharedReason"),
+        });
+      }
+      return out;
+    },
+    fix: async (findings) => {
+      const results = await fixEach(findings, async (f) => {
+        const actor = await fromUuid(f.uuid);
+        if (!actor || Object.values(readFormations()).some((r) => r.actorId === actor.id)) return null;
+        await adoptPartyActor(actor);
+        return loc("partyActors.adopted");
+      });
+      PartySheet.refreshAll();
+      return results;
+    },
   });
 }

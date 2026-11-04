@@ -85,8 +85,9 @@ All paths are under `scripts/formation/` unless noted.
 - **A member's deployment moves only by patch.** `updateFormation` keeps the ledger's `deployedTokenId`, `deployedSceneId`, `deployedStack`, `deployedCombatId`, `detached`, `detach` and `tokenData` for every member the ledger also holds, matched by actor, and brings the copy into line (`DEPLOYMENT_FIELDS`, `formation-model.mjs`). A deploy, a recall and a combat taking members over write them through `patchDeployments`; the re-anchor, a move between scenes and the roster's stash write patch them directly.
 - **An unlinked member's hit points and death are their own token's.** `memberOwnToken` finds that token: the live one while the member stands on the map, else the stash. `isDown` and `isDead` take the member and read through it (`memberHp`, over lib's `tokenHitPoints` and `tokenHasStatus`), and so do `isIncapacitated` and `isCasualty`. Casualties and the speed they cost, the carried load, who deploys or can detach, who probes or searches for a trap, who rolls a party check or save, and the party sheet's down and dead markers and sight summary all count an unlinked member by the wounds on their own token. A linked member's are the world actor's. `getMemberActor` still returns the world actor, and every other read of an unlinked member inside the party token (items, effects, rolls, lights, rations, experience) goes through it (ROADMAP §3).
 - **A member's token placed from the roster keeps their hit points.** The system's own `TokenDocument#_preCreate` rolls a placed unlinked monster new hit points while its `autoRollMonsterHP` setting is on, which it is by default. So `deployMembers` and `restoreMemberTokens` create with lib's `KEEP_HIT_POINTS_OPTION`, and lib's `preCreateToken` hook, which Foundry runs after `_preCreate`, writes back the stash's own hit points. The same hook keeps a member's token that core moves to another scene (docs/lib/MODEL.md, "The hit-point tool"). A monster placed any other way still rolls. A token that matches its actor stashes its delta as `null`, and the roster's stash write builds the delta before writing into it.
-- The **party token** belongs to a dedicated `monster`-type actor (one per formation) whose `system.movement.base` mirrors the party's exploration speed (min over members' `system.movementacks.exploration`, which the acks system derives from encumbrance). `updateActor`/`create|update|deleteItem` hooks keep it in sync.
+- The **party token** belongs to a dedicated actor of the module's own `party` type (`PARTY_TYPE`, one per formation) whose `system.movement.base` mirrors the party's exploration speed (min over members' `system.movementacks.exploration`, which the acks system derives from encumbrance). `updateActor`/`create|update|deleteItem` hooks keep it in sync.
 - The **party token** is the record's `sceneId` + `tokenId`. Placing a party actor's token adopts it (`createToken`, `module.mjs`); deleting it outside a disband unlinks it (`deleteToken`), unless the deletion names a **replacement**: core's move to another scene, by a `teleportToken` Region or a cut and paste, and the rules a record that follows one keeps (docs/lib/MODEL.md, "A token moved to another scene"). A replacement still flagged for the formation takes over `sceneId`, `tokenId` and `clock.lastPosition` (DECISIONS 2026-10-17).
+- **Only the linked token acts for the party.** `isLinkedPartyToken(record, token)` is the one test, id and scene both. The movement and rotation hooks, the deletion that unlinks, and the combat deploy all run it, so a flagged copy of the party token (a paste, a duplicated scene) bills no turn, turns nothing, seats nobody and deploys nobody. The flag alone is evidence of a copy's origin, not of its standing. A copy is never adopted over a live link. `preCreateToken` refuses an UNFLAGGED token of a party actor while the record links a live token (the Judge is warned); a flagged creation stands, since a teleport creates the replacement before the deletion hands the linkage over. `adoptPartyToken` is the one adoption, shared by the `createToken` hook and the repair tool, and `adoptPartyActor` is the one for a party actor no record names. `truePositionToken` reads the record's own token, on its own scene, never the first token of the party actor on a scene. `addMember` refuses an actor another formation holds, for the Judge's drop and HUD button as a player's request is refused (`membership.bringInRefusal`). The repair checks `formation.partyTokens` and `formation.partyActors` find what disagrees and mend what is safe (DECISIONS 2026-11-03).
 - The **party token's size** is the formation's real shape at the scene's scale: `faceWidthFeet` (frontage × the `marchFeetPerBody` world setting) across the line of march, `partyDepth × 5'` deep, converted through `scene.grid.distance` and quantized to quarter squares (`syncPartyTokenSize` in `scene-sync.mjs`). Token width/height are axis-aligned, so an east/west heading swaps the two; a rotation-watching `updateToken` hook resyncs on every turn. The swap goes through `TokenDocument#resize`, which pivots the block about its own **centre** and ignores walls and movement cost — width and height are Foundry movement fields, so a raw `update` would anchor the turn on the token's top-left corner, be constrained by walls, and be measured as travel. The resize waits out the token's `movementAnimationPromise` first (an unanimated write mid-move cancels the move), and carries `RESIZE_OPTION` so the movement hook does not bill a turn as a walk; it re-baselines `clock.lastPosition` itself, since holding the centre still moves the corner the clock measures from. Every face-width consumer reads `effectiveFrontage()`, the seam where the squeeze mechanic (ROADMAP) will narrow a squeezed column. Generic tokens are sized by the battlemap feature (`docs/battlemap/MODEL.md`), which exempts party tokens — one owner per token, each side skipping the other's.
 
 ## Movement → turns
@@ -100,7 +101,7 @@ Before the turn engine bills a delve it reads the scene's scale: a declared delv
 Per turn, in order (mirrors JJ sequence of play step 5):
 
 1. `game.time.advance(600)` (setting-gated) — snapshot member effects with `duration.remaining > 0` beforehand, report the ones that hit ≤ 0 after.
-2. Rest counter (or reset when `resting`); winded once the counter passes the imported `restInterval`, and never while none is imported; marker Active Effect applied/removed on members (Endurance-proficient members skipped, matched by item name).
+2. Rest counter (or reset when `resting`); winded once the counter passes the imported `restInterval`, and never while none is imported; marker Active Effect applied/removed on members (Endurance-proficient members skipped, matched by item name). The world setting `restRequired` (default on) gates the whole step: off, the counter is held at 0 and `clock.winded` is cleared on the next turn (the marker comes off with it, silently), so no rest is counted, announced or penalised. It gates only the rest. Turns, lights, spells and the wandering throw tick as before, a Rest turn still advances one, and the settlement tick is not touched. Every surface that shows the rest reads `restEnforced()` (`constants.mjs`): the turn card's rest line, the warnings strip's winded and rest-due lines, the strip's Rest stat (`strip.delve.restOn`) and the title-bar bar (`bandBar` returns null).
 3. Lit lights `remaining--`, guttering warning at 1, burnout at 0.
 4. Encounter counter; every N turns roll 1d6 vs target, whispered to GMs; on encounter, pre-roll 2d6×10 distance and 1d10 minute-of-turn, then draw privately from the resolved RollTable. Parameters resolve zone → formation → world settings: an `encounterZone` region behavior under the party token overrides frequency/target (0 = inherit) and supplies a table UUID; else the formation's `tableId`; else announce-only.
    After the draw, the zone's `dungeonLevel` (read from the behavior's `system`) is compared with the monster level of each table that produced a result (`shiftSources`). A result's `parent` is its producing table, which is the inner one when the drawn table's results are other tables; that table's `monsterLevel` counts, else the drawn table's. Each producing table whose level resolves and differs posts one Judge-only card (`announceShift`), named for that table. A draw from the formation's own table has no zone, so no dungeon level, and never shifts; the city tick draws on its own path and never shifts either.
@@ -137,7 +138,8 @@ bar is a reading with no action, so a press on it drags the window
 and reads the day being walked (`dayCount + 1`, the number its log row will
 carry), gold once the day is spent; in the delve and the city it fills with
 the turns since the last rest of the imported rest interval, red while the
-party is winded, and stays empty where no interval is imported.
+party is winded, and stays empty where no interval is imported. Where the world
+does not require rests the bar is not drawn.
 
 **The rails** are one set in every mode, the same cells in the same order
 pressing the same way: a mode changes what a figure reads, never which cells
@@ -613,10 +615,27 @@ every fighter toggled out of the tracker, or its combat deleted where no
 automation window heard it — reforms at its next move, deploy or Form Up
 (`reformIfOver`). On a move it reforms where the token stands and the move is
 billed as dragged; on a deploy it reforms as a combat's end would, then deploys
-afresh; on Form Up it reforms as an end would, then takes the saved order. Adding the party token to a combat while the party is fighting removes
-the new combatant and whispers the GMs the encounter's name. A deploy, a heard
+afresh; on Form Up it reforms as an end would, then takes the saved order. A deploy, a heard
 end and a heal of one formation run one at a time, each on a fresh read
 (`oneAtATime`).
+
+The party token is the combat's switch, both ways. Added to a combat, it
+deploys the party. Added again to the combat the party is already fighting in,
+it gathers the party: the new combatant and the combatant of every body a
+combat took over leave that combat, then the party reforms as that combat's end
+reforms it (`gatherFromToken`) — members recalled, the party token shown, the
+encounter itself left to the GM. Added to a different combat while the party
+fights, it is removed and the GMs are whispered the encounter's name.
+
+A deploy acts only for the token the record links (`isLinkedPartyToken`); a
+flagged copy added to a combat keeps its combatant and the GMs are whispered
+that nothing was deployed. It decides who fights from the bodies on the scene,
+not from the markers: a member whose recorded token no longer stands on any
+scene (`hasStaleDeployment`) has the marker cleared by `recallMembers`, which
+keeps the stash, and is deployed like anyone else. The combatant list is built
+before anything that takes the party over is written; with no combatant to
+create, the GMs are whispered `combatNoCombatants` and the record, the party
+token and its combatant are left as they were.
 
 Two members are out of the fight (`outOfTheFight`): one the party left behind,
 and a detached member standing on another scene (`standsElsewhere`,

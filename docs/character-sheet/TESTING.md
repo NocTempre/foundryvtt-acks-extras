@@ -532,6 +532,35 @@ imports posted (found by speaker, tracked by id). Remove
 the run's Data folder; check the browser profile's Downloads folder for a
 stray export.
 
+## The roll modifiers on Stats
+
+**Fixtures.** `character-sheet/surprise-mod` (`flags.world.fixture`): a
+`character` with `system.surprise.avoidsurprise` stored at 0 and one Active
+Effect, mode `ADD`, value 2 on `system.surprise.avoidsurprise`
+(`ActiveEffect.create` on the actor). Build it when no document carries the
+marker; assert both at the start of the step, since a kept copy may have had
+its stored value edited.
+
+**Steps.**
+1. Open the sheet on the Stats tab and read the throw group.
+2. Read the Avoid Surprise input's value, class and tooltip, and the note
+   beside its label.
+3. Hover the note and read its tooltip.
+4. Switch to Rolls and read the Avoid Surprise row.
+5. Read Surprise Others and Initiative on Stats: each has a note beside the
+   label.
+
+**Observable.** The throw group lists the targets, then a *Roll modifiers*
+subhead holding the save modifier, initiative, Surprise Others and Avoid
+Surprise. The Avoid Surprise input reads 0, wears `is-overridden` and its
+tooltip names 2. The note beside its label reads +2 and its tooltip gives the
+stored value, the effects' share and the total. Rolls shows +2 on the same
+row. Surprise Others reads +0 with the tooltip that names no effect;
+Initiative's note is the Rolls figure.
+
+**Teardown.** None for the kept fixture; a first-run copy is swept by the
+ledger.
+
 ## A field an effect changes
 
 **Fixtures.** A disposable `character` with `system.ac.mod` and

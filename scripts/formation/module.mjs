@@ -12,6 +12,7 @@ import {
   MODULE_ID,
   ROLES,
   SETTING_MARCH_FEET,
+  SETTING_REST_REQUIRED,
   TRAP_ITEM_TYPE,
 } from "./constants.mjs";
 import { onCombatEnd, onCombatRoundChange, onPartyCombatantCreated } from "./combat-bridge.mjs";
@@ -66,6 +67,8 @@ import TrapSheet from "./trap-sheet.mjs";
 import {
   SETTING_FORMATIONS,
   addMember,
+  adoptPartyActor,
+  adoptPartyToken,
   createFormation,
   dissolveFormation,
   formationForToken,
@@ -76,6 +79,7 @@ import {
   getPartyActor,
   handsOccupied,
   heldLightCount,
+  isLinkedPartyToken,
   kitInHand,
   lightsForBearer,
   getPartyToken,
@@ -107,7 +111,7 @@ import * as swimming from "./swimming.mjs";
 import * as jumping from "./jumping.mjs";
 import * as encounterScaling from "./encounter-scaling.mjs";
 import { registerRequestSocket, requestBringIn, requestPartyAction } from "./player-requests.mjs";
-import { canJoin, partyOnScene } from "./membership.mjs";
+import { canJoin, partyHolding, partyOnScene, refusalText } from "./membership.mjs";
 import { registerSkillFlagEditor } from "./skill-audit.mjs";
 import { RESIZE_OPTION, syncEnvironments, syncPartyTokenSize } from "./scene-sync.mjs";
 import { SHADOW_FLAG, TRUTH_MOVE_OPTION, clearOrphanShadows } from "./shadow.mjs";
@@ -292,6 +296,17 @@ Hooks.once("init", () => {
     type: Number,
     default: DEFAULT_ENCOUNTER_TARGET,
     range: { min: 2, max: 6, step: 1 },
+  });
+
+  // Off, the delve counts no turns toward a rest, warns of none and winds no
+  // one; the clock and the wandering throw are unaffected (`restEnforced`).
+  game.settings.register(MODULE_ID, SETTING_REST_REQUIRED, {
+    name: "ACKS-FORMATION.settings.restRequired.name",
+    hint: "ACKS-FORMATION.settings.restRequired.hint",
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: true,
   });
 
   // How long a city incident's marker outlives its turn. A lifetime in the
@@ -976,7 +991,8 @@ Hooks.on("updateToken", (tokenDoc, changes) => {
   const formationId = tokenDoc.getFlag(MODULE_ID, FLAG_FORMATION_ID);
   if (!formationId || !isPrimaryGM()) return;
   const formation = getFormation(formationId);
-  if (formation) syncPartyTokenSize(formation).catch((err) => console.error(`${MODULE_ID} | party size sync failed`, err));
+  // Only the token the record links: a flagged copy turning changes nothing.
+  if (formation && isLinkedPartyToken(formation, tokenDoc)) syncPartyTokenSize(formation).catch((err) => console.error(`${MODULE_ID} | party size sync failed`, err));
 });
 
 Hooks.on("updateToken", (tokenDoc, changes, options, userId) => {
@@ -1000,6 +1016,10 @@ Hooks.on("updateToken", (tokenDoc, changes, options, userId) => {
   if (!formationId) return;
   // Only the active GM client runs the automation, regardless of who moved the token.
   if (!isPrimaryGM()) return;
+  // Only the token the record links walks the party: a flagged copy on any
+  // scene bills nothing and seats nobody.
+  const record = getFormation(formationId);
+  if (!isLinkedPartyToken(record, tokenDoc)) return;
   // The party caught up: every scout ahead of it may range a fresh round.
   reanchorDetached(formationId).catch((err) => console.error(`${MODULE_ID} | re-anchor failed`, err));
 
@@ -1009,7 +1029,7 @@ Hooks.on("updateToken", (tokenDoc, changes, options, userId) => {
   // went TO is the stored position, read once here for the clock and the trap
   // check alike: on a client drawing the token, `tokenDoc.x`/`y` are the
   // move's animation, which starts at the corner the party is leaving.
-  const before = getFormation(formationId)?.clock?.lastPosition;
+  const before = record.clock?.lastPosition;
   const from = before ? { x: before.x, y: before.y } : null;
   const to = storedPosition(tokenDoc);
 
@@ -1082,7 +1102,7 @@ Hooks.on("deleteToken", (tokenDoc, options) => {
   // a token keeps its id across scenes (a teleport, a duplicated scene), so
   // the id alone also matches a token on a scene the party is not on.
   patchFormation(formationId, (record) => {
-    if (record.tokenId !== tokenDoc.id || record.sceneId !== tokenDoc.parent?.id) return false;
+    if (!isLinkedPartyToken(record, tokenDoc)) return false;
     record.tokenId = next?.id ?? null;
     record.sceneId = next?.parent?.id ?? null;
     // The clock measures the next step from where the party now stands, not
@@ -1219,8 +1239,16 @@ Hooks.on("chatMessage", (_chatLog, message) => {
  */
 async function addTokensToParty(seedToken) {
   const scene = seedToken.parent;
-  const tokens = (canvas?.tokens?.controlled ?? []).map((t) => t.document).filter(canJoin);
-  if (!tokens.some((t) => t.id === seedToken.id) && canJoin(seedToken)) tokens.unshift(seedToken);
+  const candidates = (canvas?.tokens?.controlled ?? []).map((t) => t.document).filter(canJoin);
+  if (!candidates.some((t) => t.id === seedToken.id) && canJoin(seedToken)) candidates.unshift(seedToken);
+  // An actor already in a party is refused as a player's request is, before a
+  // formation is made for nobody.
+  const tokens = [];
+  for (const tokenDoc of candidates) {
+    const holding = partyHolding(tokenDoc.actor.id);
+    if (holding) ui.notifications.warn(refusalText({ key: "inParty", party: holding.name }, tokenDoc.actor));
+    else tokens.push(tokenDoc);
+  }
   if (!tokens.length) return;
 
   const formations = Object.values(getFormations());
@@ -1309,10 +1337,7 @@ Hooks.on("createActor", (actor) => {
   if (!isPrimaryGM() || actor.type !== PARTY_TYPE) return;
   if (actor.getFlag(MODULE_ID, FLAG_FORMATION_ID)) return; // module-created
   if (Object.values(getFormations()).some((f) => f.actorId === actor.id)) return;
-  (async () => {
-    const formation = await createFormation(actor.name, { actorId: actor.id });
-    await actor.setFlag(MODULE_ID, FLAG_FORMATION_ID, formation.id);
-  })().catch((err) => console.error(`${MODULE_ID} | party actor adoption failed`, err));
+  adoptPartyActor(actor).catch((err) => console.error(`${MODULE_ID} | party actor adoption failed`, err));
 });
 
 /* The country under a journeying party is the map's (`travel.map`), and the
@@ -1341,6 +1366,20 @@ Hooks.on(PAINT_LAYER_CHANGED_HOOK, (layer) => {
   for (const sceneId of travel.partyScenesPaintedWith(layer)) requestCountryRefresh(sceneId);
 });
 
+/* A second party token placed by hand is refused outright while the record
+ * links a live one. Only an UNFLAGGED token is refused: a flagged one is the
+ * party's own, and a teleport creates it on the new scene before the delete
+ * hands the linkage over. Runs on whichever client places the token. */
+Hooks.on("preCreateToken", (tokenDoc) => {
+  if (tokenDoc.getFlag(MODULE_ID, FLAG_FORMATION_ID) || tokenDoc.getFlag(MODULE_ID, SHADOW_FLAG)) return;
+  const actor = game.actors.get(tokenDoc.actorId);
+  if (actor?.type !== PARTY_TYPE) return;
+  const formation = Object.values(getFormations()).find((f) => f.actorId === actor.id);
+  if (!formation || !getPartyToken(formation)) return;
+  ui.notifications.warn(game.i18n.localize("ACKS-FORMATION.warn.duplicatePartyToken"));
+  return false;
+});
+
 /* Placing a party actor's token adopts it as THE party token (also how a
  * formation moves between scenes after its old token was removed), and the
  * country under it is read once it stands there. */
@@ -1364,16 +1403,7 @@ Hooks.on("createToken", (tokenDoc) => {
     ui.notifications.warn(game.i18n.localize("ACKS-FORMATION.warn.duplicatePartyToken"));
     return;
   }
-  (async () => {
-    await tokenDoc.setFlag(MODULE_ID, FLAG_FORMATION_ID, formation.id);
-    // A patch: a whole write keeps the ledger's linkage, so only a patch moves it.
-    const stored = await patchFormation(formation.id, (record) => {
-      record.sceneId = tokenDoc.parent.id;
-      record.tokenId = tokenDoc.id;
-      record.clock = { ...(record.clock ?? {}), lastPosition: { x: tokenDoc.x, y: tokenDoc.y } };
-    });
-    if (stored) await syncPartyActorSpeed(foundry.utils.deepClone(stored));
-  })()
+  adoptPartyToken(formation.id, tokenDoc)
     .then(() => adoptSceneSystem(formation.id, tokenDoc.parent))
     .then(arrived)
     .catch((err) => console.error(`${MODULE_ID} | party token adoption failed`, err));

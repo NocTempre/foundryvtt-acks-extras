@@ -363,7 +363,12 @@ function centreOf(doc, gridSize) {
  * docs/lib/MODEL.md's senses section). Straight-line, ignoring walls: this
  * has to answer for scenes nobody is looking at.
  *
- * @returns {number} bright radius in scene units (feet), 0 when nothing reaches
+ * Read off stored data — an ambient light's `config.bright` and a token's
+ * `light.bright` — so it is in the SCENE's `grid.units`, the unit `sight.range`
+ * is stored in too, and is feet only on a scene measured in feet. A caller that
+ * works in feet converts it (`feetPerUnit`).
+ *
+ * @returns {number} bright radius in scene units, 0 when nothing reaches
  */
 export function brightestLightReaching(tokenDoc) {
   const scene = tokenDoc?.parent;

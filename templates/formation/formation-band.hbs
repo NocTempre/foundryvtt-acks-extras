@@ -24,11 +24,13 @@
     <span class="acks-extras-party-sheet__name">{{formation.name}}</span>
     {{/if}}
   </div>
+  {{#if frame.band.bar}}
   <div class="acks-extras-party-sheet__bar{{#if frame.band.bar.full}} is-full{{/if}}{{#if frame.band.bar.bad}} is-bad{{/if}}"
        data-tooltip="{{frame.band.bar.title}}" style="--acks-extras-fill: {{frame.band.bar.pct}}%">
     <i class="acks-extras-party-sheet__bar-fill"></i>
     <b class="acks-nums">{{frame.band.bar.label}}</b>
   </div>
+  {{/if}}
   {{else}}
   <div class="acks-extras-party-sheet__title">
     <span class="acks-extras-party-sheet__name">{{partyName}}</span>

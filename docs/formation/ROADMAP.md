@@ -558,3 +558,22 @@ a fight that is over").
 | Not built | What it is | What it needs first |
 |---|---|---|
 | The record read before the next move | Until that move, deploy or Form Up, the party still reads "in combat": the sheet's warning and its detach, a relayed leave-behind and the map session refuse. | a ruling: each reader asks whether the party is fighting, or reforms first. |
+
+## The party token's light
+
+| Not built | What it is | What it needs first |
+|---|---|---|
+| The light centred on the formation | The party token's light is emitted from the middle of the token, which sits at the middle of the formation's footprint, so a long column lights its own centre and not the bearer at its head or tail. | the owner's party-size ruling: what size the party token is, and so where its middle falls. |
+| The light measured from the token's edge | Foundry adds half the token's smaller side to every light radius, so light is measured from the token's edge. On a party token two squares or more across, the lit circle reaches a square or more past the lantern's figure. Subtracting that padding from the written radius would measure it from the token's centre. | the same ruling, and the owner saying whether a party's light is measured from its centre or its edge. |
+
+## A copy of the party token on another scene
+
+| Not built | What it is | What it needs first |
+|---|---|---|
+| The scene's travel system taken from the linked token only | The `createToken` hook adopts the scene's travel system for any flagged party token it creates, so a flagged copy pasted onto another scene can switch the party's travel mode from a scene the party is not on. The token the party is about to be linked to (a new party token, a teleport's replacement) is also created flagged before the record names it, which is why the hook is not gated on the linkage yet. | a test that tells a copy from a token about to be linked, such as a teleport's `replacements` option. |
+
+## A member held by two parties
+
+| Not built | What it is | What it needs first |
+|---|---|---|
+| The double membership, mended | The `formation.partyActors` repair check lists an actor in the marching order of two or more parties, naming each party, and mends nothing. A fix would keep the member in one party and remove them from the others, with their lights, spells and roles. | the owner saying which party keeps the member. |

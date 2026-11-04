@@ -3349,6 +3349,143 @@ between runs. `api.sweepTracked({only})`, naming the run's tokens and cards,
 deletes them and nothing else. A token a teleport replaced shows as missing.
 The party stays.
 
+## The rest switch (added with the Require rests setting)
+
+**Fixtures.** One party actor, `formation/rest-party`, kept, with one character
+member seated through the party sheet's drop (*Core drive mechanics*) and no
+Endurance on it. At the section's start the party's record is brought to a new
+delve's shape (mode delve, a fresh clock, a lit light so the card's light line
+does not drown the rest line) and the setting is read back to its default.
+`f = () => acksExtras.formation.getFormations()[formationId]`. The walk needs
+the `formation` table's `restInterval` imported (*The delve's figures,
+imported*, step 2); `n = t.getDoc("formation").tables.restInterval`, and every
+count below is that figure read back, never a number typed in. Read
+`advanceWorldTime` first (step 3 of that section) and ask before stepping a
+shared world.
+
+1. **On, today's behaviour.** `game.settings.set("acks-extras", "restRequired",
+   true)`, rest a turn (`advanceTurns(f(), 1, {resting: true})`), then
+   `advanceTurns(f(), n + 1)`. *Observable:* `f().clock.winded` is true, the
+   member carries the effect flagged `acks-extras.winded`, the sheet's Rest stat
+   and the title-bar bar show the count under the winded badge, the warnings
+   strip warns of the winded party, and the turn card carries the winded line.
+2. **Off, nothing is owed.** Set `restRequired` to false and re-render the
+   sheet. *Observable:* the Rest stat is gone from the strip's tracker and the
+   title bar carries no bar; the warnings strip no longer names winded. Then
+   `advanceTurns(f(), 1)`. *Observable:* the clock's `turnsTotal` rose by one,
+   `turnsSinceRest` is 0, `winded` is false, the winded effect is gone from the
+   member, and the turn card has no winded line, no rest line and no recovery
+   line.
+3. **Off, past the interval.** `advanceTurns(f(), n + 3)`. *Observable:*
+   `turnsTotal` rose by `n + 3`; `turnsSinceRest` stays 0; no member carries
+   the winded effect; no card carries a rest or winded line; the sheet shows no
+   rest-due warning at any point; the wandering-monster cadence still comes
+   round (`encounterCounter` cycles, with the world's `encounterEvery`
+   above 0). The Rest turn button still advances a turn and its card still says
+   the party rested.
+4. **Back on.** Set `restRequired` to true and re-render. *Observable:* the
+   Rest stat and the bar return reading 0 over `n`; `advanceTurns(f(), n + 1)`
+   winds the party as step 1 did.
+
+Report the world's `restRequired` as found and put it back; the party stays
+(the clock is reset at the next run's start).
+
+## A party in a combat (added with the party-token switch)
+
+The party token deploys the party into a combat and, added again, gathers it.
+Driven on the GM seat through the real token HUD; no walk in `tools/live` covers
+it yet.
+
+**Fixtures** (kept; found by marker, built when none carries it):
+
+- `formation/combat-scene`: a scene with `grid: {size: 100, distance: 5}` and
+  room around the party token.
+- `formation/combat-party`: a hand-created `acks-extras.party` actor, its
+  formation seeded by the createActor hook, with two or three character actors
+  seated through the party sheet's drop (*Core drive mechanics*). Each member
+  carries its own marker, `formation/combat-member-<n>`.
+- `formation/combat-party-token`: the party's token on `formation/combat-scene`,
+  `actorLink: true`, adopted (poll the record until `tokenId` names it).
+
+At the start: no combat in the world (`game.combats.size === 0`); if one exists
+that carries no marker, it is somebody's, so build the check around it and leave
+it. Assert the record is at rest: no member has `deployedTokenId`, `combat` is
+null, the party token is visible.
+
+1. **Deploy.** Select the party token, bind its HUD
+   (`canvas.hud.token.bind(canvas.tokens.get(id))`) and press the HUD's combat
+   toggle (the crossed-swords control; find its selector in the rendered HUD
+   rather than assuming one). *Observable:* one combatant per body, each
+   token a member's (`standsAs`), every member placed on the map, the party
+   token hidden, `f().combat.active`, and one whispered card, "The formation
+   breaks for battle". No combatant stands for the party token.
+2. **Gather from the token.** Select the hidden party token (a GM can) and press
+   the combat toggle on it again; do not reveal it first. *Observable:* the party token is
+   visible, no member token stands, `f().combat` is null, the combat holds no
+   combatant, the combat itself still exists, and the card "Combat over" posted.
+   No "Already fighting" card. Press once more: the party deploys afresh.
+3. **End Combat gathers too.** End the encounter from the tracker. *Observable:*
+   as step 2, and the combat is gone.
+4. **A second combat while fighting.** With the party deployed, create another
+   combat and add the party token to it. *Observable:* the second combat holds
+   no combatant for it, the first still holds the bodies, and the GM's card names
+   the first encounter ("Already fighting in ...").
+5. **A pasted copy.** With the party at rest, build the copy with
+   `scene.createEmbeddedDocuments("Token", [{...partyToken.toObject(), _id:
+   undefined, x: partyToken.x + 500}])` and `api.track` the copy at once.
+   Add the copy to a combat. *Observable:* a whispered card, "This is not the
+   party's own token"; no member token placed; the party token still visible;
+   the copy keeps its combatant; the record is as it was. Move the copy.
+   *Observable:* `clock` unchanged. Move the party token. *Observable:* the clock
+   advances.
+6. **A hand-placed second token.** Drag the party actor from the sidebar to the
+   scene. *Observable:* no token is created, a warning says the formation
+   already has a party token, and `tokenId` is unchanged.
+7. **A stale marker.** With the party at rest, patch one member's record to
+   `deployedTokenId: "gone"` and `deployedSceneId` the scene's id, then add the
+   party token to a combat. *Observable:* as step 1, and that member stands under
+   a token of its own, not "gone".
+
+Teardown: end every combat the section created; delete the copy and any token
+the run tracked through `api.sweepTracked()`. The kept fixtures stay.
+
+## Extra party tokens (added with the party-token switch)
+
+The repair tool's `formation.partyTokens` and `formation.partyActors` checks.
+Fixtures are the three markers above; the run also tracks everything it builds.
+
+1. **A same-scene copy.** Build the copy as in *A party in a combat* step 5.
+   `scanRepairs({only: "formation.partyTokens"})` through the repair window or
+   `acksExtras.repair`. *Observable:* one finding for the copy, fixable, and none
+   for the linked token. Fix it. *Observable:* the copy is gone, the linked token
+   stands, `tokenId` and `clock` and the members are as they were, and the
+   rescan is empty.
+2. **A copy on another scene.** Create a second scene and the same copy on it.
+   *Observable:* a finding that is not fixable, with the reason naming the
+   deletion on its own scene. Fix selected leaves it.
+3. **A token of a party that is gone.** Create a token of the party actor flagged
+   with `formationId: "no-such-party"`. *Observable:* a fixable finding; fixing
+   deletes it.
+4. **A lost link.** With the flagged party token standing, patch the record's
+   link away (`patchFormation(id, (r) => { r.tokenId = null })`); a token placed
+   by hand is adopted at once by the `createToken` hook, so the shape cannot be
+   built that way. The record's `sceneId` may be nulled with it, as a world
+   that lost both has them. *Observable:* a fixable finding for adoption, never
+   for deletion; fixing links it (`tokenId` and `sceneId` name it again, the flag
+   and the token stand) and the rescan is empty.
+   Then null the link again and add a second token carrying the same
+   `formationId` flag on another scene (`api.track` it). *Observable:* both are
+   listed, neither is fixable, each with a reason, and Fix selected deletes
+   nothing. Delete the second: the first is offered for adoption again.
+5. **A party actor with no record.** Create an `acks-extras.party` actor, then
+   remove its record from the world setting. `scanRepairs({only:
+   "formation.partyActors"})`. *Observable:* a fixable finding; fixing creates
+   the record naming the actor. A member listed in two parties shows as a finding
+   that is not fixable and names every party that holds them; build it by
+   patching the same `actorId` into a second record's `members`.
+
+Teardown as above; the repair report whisper is the module's, tracked by id.
+
 ## Teardown
 
 `api.sweepTracked()` over the ledger: the scene, the party actor (its

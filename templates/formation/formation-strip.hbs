@@ -58,11 +58,13 @@
       <span class="value">{{strip.delve.turns}}</span>
       <span class="sub">{{localize "ACKS-FORMATION.app.turns"}} ({{strip.delve.elapsed}}) · {{localize "ACKS-FORMATION.app.roundShort"}} {{strip.delve.roundsPartial}}/10</span>
     </div>
+    {{#if strip.delve.restOn}}
     <div class="stat {{#if strip.delve.winded}}bad{{/if}}">
       <span class="stat-label">{{localize "ACKS-FORMATION.app.rest"}}</span>
       <span class="value">{{strip.delve.sinceRest}}/{{strip.delve.restMax}}</span>
       <span class="sub">{{#if strip.delve.winded}}{{localize "ACKS-FORMATION.app.windedBadge"}}{{else}}{{localize "ACKS-FORMATION.app.sinceRest"}}{{/if}}</span>
     </div>
+    {{/if}}
     <div class="stat">
       <span class="stat-label">{{localize "ACKS-FORMATION.app.carry"}}</span>
       <span class="value">{{strip.delve.carryFeet}}'</span>

@@ -122,6 +122,18 @@ export function standsElsewhere(formation, member, scene) {
 }
 
 /**
+ * Does the record send this member out while nothing of theirs stands on any
+ * scene? An individual whose token is gone, a stack with no body left. Such a
+ * marker is a leftover: the member is inside the party token as far as the map
+ * is concerned, and `recallMembers` clears it without touching the stash.
+ */
+export function hasStaleDeployment(formation, member) {
+  if (!isMemberDeployed(member)) return false;
+  if (!member.deployedStack) return !ownToken(formation, member);
+  return deployedBodies(getMemberActor(member), game.scenes ?? []).length === 0;
+}
+
+/**
  * Create tokens for `members` around the party token, in marching-order
  * shape. Blanks leave gaps; the down are carried rather than deployed;
  * members already on the map are skipped. A stack goes out as the bodies

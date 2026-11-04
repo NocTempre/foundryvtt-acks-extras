@@ -7,6 +7,7 @@ import {
   getFormation,
   getFormations,
   getPartyToken,
+  isLinkedPartyToken,
   patchDeployments,
   readFormations,
   updateFormation,
@@ -14,6 +15,7 @@ import {
 import {
   deployMembers,
   deployedTokens,
+  hasStaleDeployment,
   isMemberDeployed,
   recallMembers,
   standsAs,
@@ -187,16 +189,46 @@ export async function onPartyCombatantCreated(combatant) {
   await oneAtATime(formationId, () => deployFor(combatant, tokenDoc, formationId));
 }
 
-/** The deploy itself, in the formation's turn and on a fresh read of its record. */
+/**
+ * The party token added again to the combat the party is fighting in gathers
+ * the party: the extra combatant and every combatant standing for a body a
+ * combat took over leave the combat first, while their tokens still stand,
+ * then the party reforms as that combat's end reforms it.
+ */
+async function gatherFromToken(formation, combatant, running) {
+  const taken = formation.members.filter((m) => takeoverOf(formation, m) !== null);
+  const ids = running.combatants
+    .filter((c) => c.id === combatant.id || (c.token && taken.some((m) => standsAs(formation, m, c.token))))
+    .map((c) => c.id);
+  await running.deleteEmbeddedDocuments("Combatant", ids);
+  await reform(formation, running);
+}
+
+/**
+ * The deploy itself, in the formation's turn and on a fresh read of its record.
+ * Acts only for the token the record links: a flagged twin is told so and its
+ * combatant is left alone. The combatant list is built before anything that
+ * takes the party over is written, so a deploy with nobody to field changes
+ * nothing.
+ */
 async function deployFor(combatant, tokenDoc, formationId) {
   let formation = getFormation(formationId);
   if (!formation) return;
   const combat = combatant.parent;
 
-  // Already fighting (e.g. the party token was re-added): drop the extra
-  // combatant rather than duplicate every member on the field, and say where
-  // the fight is.
+  if (!isLinkedPartyToken(formation, tokenDoc)) {
+    await announce(formation, loc("chat.combatTwinToken"), { whisper: true });
+    return;
+  }
+
+  // The party token added again to the combat the party fights in gathers the
+  // party; added to another combat, it is dropped rather than duplicating
+  // every member on the field, and the fight is named.
   const running = fightingIn(formation);
+  if (running?.id === combat.id) {
+    await gatherFromToken(formation, combatant, running);
+    return;
+  }
   if (running) {
     await combatant.delete();
     const encounter = encounterLabel(running, tokenDoc.parent);
@@ -217,30 +249,21 @@ async function deployFor(combatant, tokenDoc, formationId) {
   const fighters = formation.members.filter(
     (m) => m && !m.blank && m.actorId && !m.roles?.includes(ROLES.NONCOMBATANT) && !outOfTheFight(formation, m, scene),
   );
+  // A member whose recorded body is gone from every scene is not on the field:
+  // the marker goes, and they are deployed like anyone else.
+  const stale = fighters.filter((m) => hasStaleDeployment(formation, m));
+  if (stale.length) await recallMembers(formation, { members: stale });
   await deployMembers(formation, { members: fighters, combatId: combat.id });
-  const onField = fighters.filter(isMemberDeployed);
 
-  if (!onField.length) {
-    await announce(formation, loc("chat.combatNoCombatants"), { whisper: true });
-    return;
-  }
-
-  // A detached member is already deployed and already a token: the fight simply
-  // takes them over, so combat movement is not held to the one-round leash.
-  // Every member on the field is recorded as this combat's, which is what its
-  // end gathers.
-  for (const member of onField) {
-    delete member.detached;
-    delete member.detach;
-    member.deployedCombatId = combat.id;
-  }
-  await patchDeployments(formation, onField);
-
-  // Every body its own combatant, gathered per member and created in ONE call:
-  // a stack of forty rolls forty initiatives at the cost of one document write.
+  // Every body its own combatant, gathered per member: a member with a body on
+  // this scene is the fight's. Nothing but the bodies decides who fights.
+  const takenOver = [];
   const combatants = [];
-  for (const member of onField) {
-    for (const token of await deployedTokens(member, scene)) {
+  for (const member of fighters.filter(isMemberDeployed)) {
+    const bodies = await deployedTokens(member, scene);
+    if (!bodies.length) continue;
+    takenOver.push(member);
+    for (const token of bodies) {
       combatants.push({
         tokenId: token.id,
         actorId: token.actorId,
@@ -250,6 +273,24 @@ async function deployFor(combatant, tokenDoc, formationId) {
     }
   }
 
+  if (!combatants.length) {
+    await announce(formation, loc("chat.combatNoCombatants"), { whisper: true });
+    return;
+  }
+
+  // A detached member is already deployed and already a token: the fight simply
+  // takes them over, so combat movement is not held to the one-round leash.
+  // Every member on the field is recorded as this combat's, which is what its
+  // end gathers.
+  for (const member of takenOver) {
+    delete member.detached;
+    delete member.detach;
+    member.deployedCombatId = combat.id;
+  }
+  await patchDeployments(formation, takenOver);
+
+  // All of it in ONE call: a stack of forty rolls forty initiatives at the cost
+  // of one document write.
   await combat.createEmbeddedDocuments("Combatant", combatants);
   await combatant.delete();
 

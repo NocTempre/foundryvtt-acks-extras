@@ -37,7 +37,18 @@ globalThis.Hooks = {
     const list = hooks.get(name) ?? [];
     if (list.includes(fn)) list.splice(list.indexOf(fn), 1);
   },
+  /** Core's `Hooks.call`: the first listener to return `false` stops the rest and the call answers `false`. */
   call(name, ...args) {
+    for (const fn of [...(hooks.get(name) ?? [])]) {
+      try {
+        if (fn(...args) === false) return false;
+      } catch (err) {
+        console.error(`hook ${name} threw`, err);
+      }
+    }
+    return true;
+  },
+  callAll(name, ...args) {
     for (const fn of [...(hooks.get(name) ?? [])]) {
       try {
         fn(...args);
@@ -45,9 +56,7 @@ globalThis.Hooks = {
         console.error(`hook ${name} threw`, err);
       }
     }
-  },
-  callAll(name, ...args) {
-    return this.call(name, ...args);
+    return true;
   },
 };
 
@@ -380,8 +389,14 @@ class TokenMock {
     this.x ??= 0;
     this.y ??= 0;
   }
+  get uuid() {
+    return `Scene.${this.parent.id}.Token.${this.id}`;
+  }
   get actor() {
     return game.actors.get(this.actorId) ?? null;
+  }
+  async delete() {
+    return this.parent.deleteEmbeddedDocuments("Token", [this.id]);
   }
   /** Core's stored data. While a move is drawn, the prepared `x`/`y` lag it. */
   get _source() {
@@ -502,9 +517,12 @@ class SceneMock {
       if (this.rollMonsterHp && !token.actorLink && token.actor?.type === "monster") {
         pending.updateSource({ system: { hp: { value: 1, max: 1 } } });
       }
-      Hooks.call("preCreateToken", token, data, options, "GM1");
+      // A listener answering false refuses the creation, as core's does.
+      const refused = Hooks.call("preCreateToken", token, data, options, "GM1") === false;
       if (!written && original == null) token.delta = original;
+      if (refused) continue;
       this.tokens.set(token.id, token);
+      uuidMap.set(token.uuid, token);
       out.push(token);
       await sleep();
       Hooks.call("createToken", token);
@@ -517,6 +535,7 @@ class SceneMock {
       const token = this.tokens.get(id);
       if (!token) continue;
       this.tokens.delete(id);
+      uuidMap.delete(token.uuid);
       await sleep();
       Hooks.call("deleteToken", token, options, "GM1");
     }
@@ -560,6 +579,13 @@ class CombatMock {
       Hooks.call("createCombatant", combatant, {}, "GM1");
     }
     return out;
+  }
+  async deleteEmbeddedDocuments(type, ids) {
+    assert.equal(type, "Combatant");
+    for (const id of ids) {
+      this.combatants.delete(id);
+      await sleep();
+    }
   }
   async setRound(round) {
     this.round = round;
@@ -1142,7 +1168,7 @@ await scenario("a member stashed at full health takes a hit point change, and ke
 
   // The system rolls every placed unlinked monster new hit points; the
   // formation's own placement puts the member's back, through lib's hook.
-  assert.equal(formationPreCreateHooks, 0, "the formation keeps no preCreateToken hook of its own");
+  assert.equal(formationPreCreateHooks, 1, "the formation's one preCreateToken hook refuses a second party token and restores no hit points");
   scene.rollMonsterHp = true;
   try {
     assert.equal(await deployment.toggleDetachMember(onlyFormation(), porter.id), "detached");
@@ -3484,12 +3510,13 @@ await scenario("a fight whose combat was deleted unheard is over when the party 
   }
 });
 
-await scenario("a fight still holding a fighter is not over, and joining again says where it is", async () => {
+await scenario("a fight still holding a fighter is not over, and joining another combat says where it is", async () => {
   // See docs/formation/DECISIONS.md, "A fight no combat holds a body of is over".
   const party = await fightingParty("Stubborn Party", "Holdout", "Runner");
   const { actors, partyToken, step } = party;
   const [holdout, runner] = actors;
   const combat = new CombatMock();
+  const other = new CombatMock();
   try {
     await partyJoins(combat);
     await toggleOut(combat, [runner]);
@@ -3504,16 +3531,364 @@ await scenario("a fight still holding a fighter is not over, and joining again s
 
     combat.name = "Ambush";
     const cards = chat.length;
-    await partyJoins(combat);
+    await partyJoins(other);
     await until(() => chat.length > cards);
-    assert.ok(!combat.combatants.some((c) => c.tokenId === partyToken.id), "the party token is taken back out of the tracker");
+    assert.ok(!other.combatants.some((c) => c.tokenId === partyToken.id), "the party token is taken back out of the other tracker");
     assert.ok(combat.combatants.some((c) => c.actorId === holdout.id), "the fighter still fights");
+    assert.ok(onlyFormation().combat?.active, "the party is still fighting where it was");
     const posted = chat.slice(cards);
     assert.equal(posted.length, 1, "one card");
     assert.ok(posted[0].content.includes("chat.combatAlreadyFighting") && posted[0].content.includes("Ambush"), "naming the encounter");
     assert.ok(posted[0].whisper.length > 0, "whispered to the GMs");
   } finally {
+    await dismissFighting(party, combat, other);
+  }
+});
+
+await scenario("the party token added again to its own fight gathers the party", async () => {
+  const party = await fightingParty("Rallying Party", "Pikeman", "Slinger");
+  const { actors, partyToken, cell } = party;
+  const combat = new CombatMock();
+  try {
+    await partyJoins(combat);
+    assert.ok(onlyFormation().combat?.active, "the party deployed for combat");
+    assert.equal(peopleOn(actors).length, actors.length, "one body each on the map");
+    assert.ok(partyToken.hidden, "the party token is hidden while they fight");
+
+    const cards = chat.length;
+    await partyJoins(combat);
+    await until(() => onlyFormation().combat === null && peopleOn(actors).length === 0);
+    assert.equal(onlyFormation().combat, null, "the party re-formed");
+    for (const actor of actors) {
+      assert.ok(!cell(actor).deployedTokenId && !cell(actor).deployedCombatId, `${actor.name} is back inside the party token`);
+      assert.ok(cell(actor).tokenData, `${actor.name}'s token is stashed`);
+    }
+    assert.equal(combat.combatants.contents.length, 0, "no combatant is left: the bodies' and the party token's are gone");
+    assert.ok(!partyToken.hidden, "the party token shows again");
+    const posted = chat.slice(cards);
+    assert.ok(posted.some((m) => m.content.includes("chat.combatReformed")), "the re-forming is announced");
+    assert.ok(!posted.some((m) => m.content.includes("chat.combatAlreadyFighting")), "and is no refusal");
+    assert.ok(game.combats.has(combat.id), "the encounter itself is left to the GM");
+
+    await partyJoins(combat);
+    await until(() => onlyFormation().combat?.active && combat.combatants.contents.length === actors.length);
+    assert.equal(combat.combatants.contents.length, actors.length, "pressed once more, the party deploys again");
+  } finally {
     await dismissFighting(party, combat);
+  }
+});
+
+await scenario("a member whose body is gone is deployed afresh, and a party with nobody to field writes nothing", async () => {
+  const party = await fightingParty("Hollow Party", "Ghost", "Shade");
+  const { id, actors, partyToken, cell } = party;
+  const [ghost, shade] = actors;
+  const combat = new CombatMock();
+  const later = new CombatMock();
+  try {
+    // A leftover marker: the record sends Ghost out under a token the scene no longer holds.
+    await model.patchFormation(id, (rec) => {
+      const m = rec.members.find((x) => x.actorId === ghost.id);
+      m.deployedTokenId = "gone-token";
+      m.deployedSceneId = scene.id;
+    });
+    await drain();
+    await partyJoins(combat);
+    await until(() => onlyFormation().combat?.active);
+    assert.ok(onlyFormation().combat?.active, "the party deployed for combat");
+    assert.notEqual(cell(ghost).deployedTokenId, "gone-token", "the stale marker was cleared");
+    assert.ok(scene.tokens.get(cell(ghost).deployedTokenId), "and Ghost stands on the map under a token of their own");
+    assert.equal(combat.combatants.contents.length, actors.length, "one combatant per body");
+    assert.ok(partyToken.hidden, "the party token is hidden");
+    await combat.delete();
+    await drain();
+
+    // Nobody to field: every member a non-combatant, so no body stands.
+    await model.patchFormation(id, (rec) => {
+      for (const m of rec.members) m.roles = [...(m.roles ?? []), "noncombatant"];
+    });
+    await drain();
+    const before = JSON.stringify(onlyFormation());
+    const cards = chat.length;
+    await partyJoins(later);
+    await until(() => chat.length > cards);
+    assert.equal(JSON.stringify(onlyFormation()), before, "the record is untouched");
+    assert.ok(!partyToken.hidden, "the party token is not hidden");
+    assert.ok(later.combatants.some((c) => c.tokenId === partyToken.id), "its combatant is left in the tracker");
+    assert.ok(chat.slice(cards).some((m) => m.content.includes("chat.combatNoCombatants")), "and the Judge is told");
+    assert.equal(peopleOn([ghost, shade]).length, 0, "nobody was placed");
+  } finally {
+    await dismissFighting(party, combat, later);
+  }
+});
+
+/** A flagged copy of the party's token on the same scene, as a paste leaves one. */
+async function pastedTwin(on = scene, offset = 500) {
+  const source = on.tokens.get(onlyFormation().tokenId) ?? scene.tokens.get(onlyFormation().tokenId);
+  const data = source.toObject();
+  delete data._id;
+  delete data.id; // the mock's snapshot also carries the id as a plain field
+  data.x += offset;
+  const [twin] = await on.createEmbeddedDocuments("Token", [data]);
+  await drain();
+  return twin;
+}
+
+await scenario("a copy of the party token added to a combat deploys nobody and is told so", async () => {
+  const party = await fightingParty("Echo Party", "Original", "Likeness");
+  const { actors, partyToken } = party;
+  const combat = new CombatMock();
+  try {
+    const twin = await pastedTwin();
+    assert.equal(twin.getFlag(MODULE_ID, "formationId"), onlyFormation().id, "the copy carries the party's flag");
+    const before = JSON.stringify(onlyFormation());
+    const cards = chat.length;
+    game.combats.set(combat.id, combat);
+    await combat.createEmbeddedDocuments("Combatant", [{ tokenId: twin.id, sceneId: scene.id, actorId: twin.actorId, hidden: false }]);
+    await until(() => chat.length > cards);
+    assert.equal(JSON.stringify(onlyFormation()), before, "the record is untouched");
+    assert.equal(peopleOn(actors).length, 0, "nobody was placed");
+    assert.ok(!partyToken.hidden && !twin.hidden, "no token was hidden");
+    assert.ok(combat.combatants.some((c) => c.tokenId === twin.id), "the copy's combatant is left alone");
+    const posted = chat.slice(cards);
+    assert.equal(posted.length, 1, "one card");
+    assert.ok(posted[0].content.includes("chat.combatTwinToken") && posted[0].whisper.length > 0, "whispered to the GMs");
+    await twin.delete();
+  } finally {
+    await dismissFighting(party, combat);
+  }
+});
+
+await scenario("a copy of the party token moving bills nothing, and the linked token still does", async () => {
+  const party = await fightingParty("Mirror Party", "Self", "Image");
+  const { partyToken, step, turnRounds } = party;
+  const twin = await pastedTwin();
+  try {
+    const before = clockRounds(onlyFormation().clock);
+    const baseline = onlyFormation().clock.lastPosition;
+    await twin.update({ x: twin.x + step });
+    await twin.update({ rotation: 90 });
+    await drain();
+    assert.equal(clockRounds(onlyFormation().clock), before, "the copy's move is not billed");
+    assert.deepEqual(onlyFormation().clock.lastPosition, baseline, "nor measured");
+    assert.equal(partyToken.rotation ?? 0, 0, "and the party token did not turn");
+
+    await partyToken.update({ x: partyToken.x + step });
+    await until(() => clockRounds(onlyFormation().clock) > before);
+    assert.equal(clockRounds(onlyFormation().clock) - before, turnRounds, "the linked token's move is billed");
+  } finally {
+    await twin.delete();
+    await dismissFighting(party);
+  }
+});
+
+await scenario("a second party token placed by hand is refused, and a flagged one is not", async () => {
+  const party = await fightingParty("Crowded Party", "Squire", "Page");
+  const { id, partyToken } = party;
+  try {
+    const actorId = onlyFormation().actorId;
+    const warned = notices.length;
+    const made = await scene.createEmbeddedDocuments("Token", [{ name: "Hand-placed", actorId, x: 2000, y: 2000 }]);
+    await drain();
+    assert.equal(made.length, 0, "the unflagged party token is refused");
+    assert.equal(scene.tokens.filter((t) => t.actorId === actorId).length, 1, "only the linked token stands");
+    assert.equal(onlyFormation().tokenId, partyToken.id, "the linkage did not move");
+    assert.ok(notices.slice(warned).some(([kind, m]) => kind === "warn" && m.includes("duplicatePartyToken")), "the Judge is warned");
+
+    const flagged = await scene.createEmbeddedDocuments("Token", [
+      { name: "Teleported", actorId, x: 2000, y: 2000, flags: { [MODULE_ID]: { formationId: id } } },
+    ]);
+    await drain();
+    assert.equal(flagged.length, 1, "a flagged creation, which a teleport makes before it hands the linkage over, stands");
+    assert.equal(onlyFormation().tokenId, partyToken.id, "and takes no linkage");
+    await flagged[0].delete();
+
+    await partyToken.delete();
+    await drain();
+    assert.equal(onlyFormation().tokenId, null, "with the linked token gone the party links none");
+    const [fresh] = await scene.createEmbeddedDocuments("Token", [{ name: "Replacement", actorId, x: 2000, y: 2000 }]);
+    await until(() => onlyFormation().tokenId === fresh?.id);
+    assert.equal(onlyFormation().tokenId, fresh?.id, "a hand-placed token is accepted and adopted then");
+  } finally {
+    await dismissFighting(party);
+  }
+});
+
+/** The formations whose marching order holds `actor`. */
+const onlyFormationHolding = (actor) => Object.values(readFormations()).filter((f) => f.members.some((m) => m?.actorId === actor.id));
+
+await scenario("an actor in one party cannot be added to another", async () => {
+  const party = await fightingParty("Holding Party One", "Sworn");
+  const { actors } = party;
+  try {
+    const rival = await model.createFormation("Holding Party Two");
+    const warned = notices.length;
+    await model.addMember(model.getFormation(rival.id), actors[0], null);
+    await drain();
+    assert.equal(model.getFormation(rival.id).members.length, 0, "the rival party took nobody");
+    assert.ok(notices.slice(warned).some(([kind, m]) => kind === "warn" && m.includes("refused.inParty")), "the Judge is told why");
+    assert.equal(onlyFormationHolding(actors[0]).length, 1, "the actor is in exactly one party");
+    await model.deleteFormationRecord(rival.id);
+  } finally {
+    await dismissFighting(party);
+  }
+});
+
+await scenario("where a copy of the party token is read as the true position", async () => {
+  const party = await fightingParty("Lookalike Party", "Real");
+  const { id } = party;
+  const annex = new SceneMock("Annex");
+  game.scenes.set(annex.id, annex);
+  try {
+    const { truePositionToken } = await import("../scripts/formation/shadow.mjs");
+    const twin = await pastedTwin(annex);
+    const formation = model.getFormation(id);
+    assert.equal(truePositionToken(scene, formation, { open: false })?.id, formation.tokenId, "the linked token, on its own scene");
+    assert.equal(truePositionToken(annex, formation, { open: false }), null, "a copy on another scene is not where the party stands");
+    await twin.delete();
+  } finally {
+    game.scenes.delete(annex.id);
+    await dismissFighting(party);
+  }
+});
+
+await scenario("the repair tool finds extra party tokens, mends what is safe, and leaves the linked one alone", async () => {
+  const { getRepairCheck, scanCheck, fixCheck } = await import("../scripts/lib/repair-logic.mjs");
+  const check = getRepairCheck("formation.partyTokens");
+  assert.ok(check, "the check is registered");
+  const party = await fightingParty("Doubled Party", "Anchor", "Tether");
+  const { id, partyToken } = party;
+  const annex = new SceneMock("Annex");
+  game.scenes.set(annex.id, annex);
+  try {
+    const linked = partyToken.id;
+    const record = JSON.stringify(onlyFormation());
+    const twin = await pastedTwin();
+    const away = await pastedTwin(annex);
+    const [orphan] = await annex.createEmbeddedDocuments("Token", [
+      { name: "Orphan", actorId: onlyFormation().actorId, x: 50, y: 50, flags: { [MODULE_ID]: { formationId: "no-such-party" } } },
+    ]);
+    await drain();
+
+    const scan = await scanCheck(check);
+    const by = (token) => scan.findings.find((f) => f.key === token.uuid);
+    assert.equal(scan.findings.length, 3, "three tokens disagree with the record");
+    assert.ok(by(twin)?.fixable && by(twin).action === "delete", "a copy on the party's scene is deletable");
+    assert.ok(by(orphan)?.fixable && by(orphan).action === "delete", "a token of a party that is gone is deletable");
+    assert.ok(by(away) && !by(away).fixable && by(away).reason, "a copy on another scene is only reported, with the other way to settle it");
+    assert.ok(!scan.findings.some((f) => f.key === partyToken.uuid), "the linked token is not a finding");
+
+    const done = await fixCheck(check, scan.findings);
+    assert.equal(done.fixed.length, 2, "two are fixed");
+    assert.equal(done.failed.length, 0, "none fails");
+    assert.deepEqual(done.rescan.findings.map((f) => f.key), [away.uuid], "the rescan keeps only the report");
+    assert.equal(scene.tokens.get(linked), partyToken, "the linked token still stands");
+    assert.equal(JSON.stringify(onlyFormation()), record, "the record, its members and its clock are as they were");
+    await away.delete();
+
+    // A party token the record lost: no live link, one token of the party on its scene.
+    await partyToken.delete();
+    await drain();
+    assert.equal(onlyFormation().tokenId, null, "the party links no token");
+    const stray = new TokenMock(scene, { name: "Stray", actorId: onlyFormation().actorId, x: 700, y: 700 });
+    scene.tokens.set(stray.id, stray);
+    uuidMap.set(stray.uuid, stray);
+    const lost = await scanCheck(check);
+    assert.deepEqual(lost.findings.map((f) => [f.key, f.action, f.fixable]), [[stray.uuid, "adopt", true]], "the stray is offered for adoption");
+    const mended = await fixCheck(check, lost.findings);
+    assert.equal(mended.fixed.length, 1, "adopted");
+    assert.equal(mended.rescan.findings.length, 0, "and nothing is left to find");
+    assert.equal(onlyFormation().tokenId, stray.id, "the record links it");
+    assert.equal(stray.getFlag(MODULE_ID, "formationId"), id, "and it carries the party's flag");
+    void orphan;
+  } finally {
+    game.scenes.delete(annex.id);
+    await dismissFighting(party);
+  }
+});
+
+await scenario("the repair tool links a flagged party token the record lost, and only reports when several compete", async () => {
+  const { getRepairCheck, scanCheck, fixCheck } = await import("../scripts/lib/repair-logic.mjs");
+  const check = getRepairCheck("formation.partyTokens");
+  const party = await fightingParty("Unlinked Party", "Keeper");
+  const { id, partyToken } = party;
+  const annex = new SceneMock("Annex");
+  game.scenes.set(annex.id, annex);
+  try {
+    // The record forgets its token and scene while the flagged token stands.
+    await model.patchFormation(id, (rec) => {
+      rec.tokenId = null;
+      rec.sceneId = null;
+    });
+    await drain();
+    const lone = await scanCheck(check);
+    assert.deepEqual(lone.findings.map((f) => [f.key, f.action, f.fixable]), [[partyToken.uuid, "adopt", true]], "the one flagged token is offered for adoption, never for deletion");
+    const mended = await fixCheck(check, lone.findings);
+    assert.equal(mended.fixed.length, 1, "adopted");
+    assert.equal(mended.rescan.findings.length, 0, "nothing is left to find");
+    assert.equal(onlyFormation().tokenId, partyToken.id, "the record links it again");
+    assert.equal(onlyFormation().sceneId, scene.id, "on its scene");
+    assert.ok(scene.tokens.get(partyToken.id), "and it still stands");
+
+    // Two flagged candidates for one lost link: reported, nothing offered.
+    await model.patchFormation(id, (rec) => {
+      rec.tokenId = null;
+      rec.sceneId = null;
+    });
+    const [rival] = await annex.createEmbeddedDocuments("Token", [
+      { name: "Rival", actorId: onlyFormation().actorId, x: 10, y: 10, flags: { [MODULE_ID]: { formationId: id } } },
+    ]);
+    await drain();
+    const two = await scanCheck(check);
+    assert.equal(two.findings.length, 2, "both are listed");
+    assert.ok(two.findings.every((f) => !f.fixable && f.reason), "neither is fixable, each with the other way to settle it");
+    assert.deepEqual((await fixCheck(check, two.findings)).fixed, [], "nothing is fixed");
+    assert.ok(scene.tokens.get(partyToken.id) && annex.tokens.get(rival.id), "and neither was deleted");
+
+    // Delete one, and the other is the party's.
+    await rival.delete();
+    await drain();
+    const one = await scanCheck(check);
+    assert.deepEqual(one.findings.map((f) => [f.key, f.fixable]), [[partyToken.uuid, true]], "the one left is offered for adoption");
+  } finally {
+    game.scenes.delete(annex.id);
+    await dismissFighting(party);
+  }
+});
+
+await scenario("the repair tool gives a party actor a record, and reports a member held by two parties", async () => {
+  const { getRepairCheck, scanCheck, fixCheck } = await import("../scripts/lib/repair-logic.mjs");
+  const check = getRepairCheck("formation.partyActors");
+  assert.ok(check, "the check is registered");
+  const party = await fightingParty("Roster Party", "Twice");
+  const { id, actors } = party;
+  try {
+    const bare = await ActorMock.create({ name: "Bare Party", type: `${MODULE_ID}.party` });
+    await drain();
+    // Its record is lost: the world holds the actor and no party names it.
+    await game.settings.set(MODULE_ID, "formations", Object.fromEntries(Object.entries(readFormations()).filter(([, f]) => f.actorId !== bare.id)));
+    const second = await model.createFormation("Second Roster");
+    await model.patchFormation(second.id, (rec) => {
+      rec.members.push({ actorId: actors[0].id, roles: [] });
+    });
+    await drain();
+
+    const scan = await scanCheck(check);
+    const bareFinding = scan.findings.find((f) => f.uuid === bare.uuid);
+    const shared = scan.findings.find((f) => f.key === `shared:${actors[0].id}`);
+    assert.ok(bareFinding?.fixable, "a party actor with no record is fixable");
+    assert.ok(shared && !shared.fixable && shared.reason, "a member in two parties is only reported");
+    assert.ok(shared.detail.includes("Roster Party") && shared.detail.includes("Second Roster"), "naming both parties");
+    assert.deepEqual([...shared.formationIds].sort(), [id, second.id].sort(), "and carrying both ids");
+
+    const done = await fixCheck(check, scan.findings);
+    assert.equal(done.fixed.length, 1, "one is fixed");
+    assert.ok(Object.values(readFormations()).some((f) => f.actorId === bare.id), "the party actor has a record");
+    assert.deepEqual(done.rescan.findings.map((f) => f.key), [`shared:${actors[0].id}`], "the rescan keeps only the report");
+    assert.equal(model.getFormation(id).members.length, 1, "the party's own members are untouched");
+    await model.deleteFormationRecord(second.id);
+    await bare.delete();
+  } finally {
+    await dismissFighting(party);
   }
 });
 

@@ -85,3 +85,8 @@ the code, not missing from it; the rulings behind the built half are
   categories pair into one broad choice, "any five") are the class builder's
   option table and do not ship; a fourth organisation would read a table the
   importer registers (`lib/tables.mjs`) and appear only where one exists.
+- **A situational modifier on the surprise and out-of-combat initiative
+  rolls.** Both roll at once with the character's stored modifier and no
+  window, where an ability's throw asks first. Route them through
+  `scripts/lib/roll-dialog.mjs` as ability rolls do, so Shift skips the
+  window and the figure typed there lands as its own term on the card.
