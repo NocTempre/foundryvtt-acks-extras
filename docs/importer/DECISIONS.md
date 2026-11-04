@@ -9446,3 +9446,36 @@ the roll editor, and no recipe needed it); a per-field reader (the four fields
 share every rule a clause needs).
 
 *Cost:* a second label list to keep closed per field.
+
+## 2026-11-04 — The chieftain's hit-point factor and the armour-training step are read off the page
+
+Under the owner's ruling of 2026-11-04 (template
+`.claude/rules/ip-doctrine.md`, "A printed value found in source is fixed by
+the work that finds it"), two printed figures found in source move into the
+import. The leader entry above ("carry or double a bonus") stands for the
+procedure; the factor is no longer the module's.
+
+- **`leaderSteps` reads `bonusFactorChieftain`** (AXIOMS 2, Beastmen Leaders,
+  step 1): anchored on the carry clause, which names the two ranks that keep
+  the bonus and prints no factor for them, and taken with `times`, which now
+  also reads a verb form (`doubled`, `triples`). `deriveLeader` multiplies a
+  chieftain's carried bonus by it; a champion and a sub-chieftain carry the
+  bonus whole, which is the procedure. `procedureComplete` requires it, so in
+  a world whose steps were imported before this, a family imported or
+  repaired again gets no derived cells until the compendium's tables are
+  imported again; templates already built keep theirs. The leader record keeps the factor
+  (`bonusFactor`); a record generated before keeps `carried: "doubled"`, and
+  its tooltip names the factor its own two ratings imply instead of a shipped
+  one.
+- **The armour-training row locates its step** (RR ch. 3 and JJ ch. 12,
+  Armor Training): the word before the "weight category heavier" seam, read
+  by `materializeEffects`. The ruling and its surface are equipment
+  DECISIONS, same date.
+
+**Rejected:** a `bonusFactor` key for the champion and the sub-chieftain,
+which the page does not print; reading the factor `before: true` on the rank's
+name, whose before-window keeps the first match for `times`, and whose
+hyphenated spelling the text layer splits.
+
+*Cost:* a world that imported the compendium's tables before this has no
+derived leaders until it imports them again; the printed leaders stand.

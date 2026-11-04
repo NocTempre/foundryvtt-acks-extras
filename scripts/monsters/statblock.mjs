@@ -14,6 +14,7 @@
  */
 import { SAVE_KEYS, num, signed, clampPct } from "../lib/frame-model.mjs";
 import { convertedDie } from "./kits.mjs";
+import { parseRung } from "./leader-derive.mjs";
 
 /**
  * The glyph a body form puts on the band. A form with no glyph of its own
@@ -125,6 +126,24 @@ export function loadReading({ stone = 0, normal = null, max = null } = {}) {
 const modded = (damage, mod) => (damage && mod ? `${damage} ${signed(mod)}` : damage);
 
 /**
+ * The leader tooltip's clause for how the member's hit-point bonus came along:
+ * carried whole, or multiplied by the factor the leader record holds. A record
+ * written before the factor was recorded (`carried: "doubled"`) names the
+ * factor its own two ratings imply, and none where they imply none.
+ */
+function carriedTip(leader, loc) {
+  if (leader.carried === "carried") return loc("statblock.tip.leaderCarried");
+  if (leader.carried !== "multiplied" && leader.carried !== "doubled") return "";
+  let factor = Number(leader.bonusFactor);
+  if (!Number.isFinite(factor) || leader.bonusFactor == null) {
+    const was = parseRung(leader.baseHd)?.bonus;
+    const now = parseRung(leader.hd)?.bonus;
+    factor = was && now != null ? now / was : NaN;
+  }
+  return Number.isFinite(factor) ? loc("statblock.tip.leaderMultiplied", { factor }) : loc("statblock.tip.leaderMultipliedBare");
+}
+
+/**
  * The tooltips naming what an import worked a throw and a save row out from
  * (`snap.derived`, the extras `derived` block): each only while the actor still
  * carries the figure it wrote, so a figure a Judge has since typed is not
@@ -176,7 +195,7 @@ export function derivationTips(snap, loc) {
           hd: l.hd,
           rows: l.rows,
           baseHd: l.baseHd,
-          carried: l.carried === "doubled" ? loc("statblock.tip.leaderDoubled") : l.carried ? loc("statblock.tip.leaderCarried") : "",
+          carried: carriedTip(l, loc),
           ac: l.ac,
           baseAc: l.baseAc,
           acAdd: signed(num(l.acAdd)),

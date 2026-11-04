@@ -1909,3 +1909,37 @@ Abilities brings the recipe.
 **What it cost.** Every loadout carries more changes; a copy imported before
 this keeps the scan's rows, situational where they carried a condition, until
 Update Abilities.
+
+### Armour Training's step is imported, and its name grants nothing (2026-11-04)
+
+Supersedes the armour-training half of "the abilities bridge reads the typed
+effect model, not the name" (2026-08-11), which kept a name case for armour
+training. The new evidence is the owner's ruling of 2026-11-04 (template
+`.claude/rules/ip-doctrine.md`, "A printed value found in source is fixed by
+the work that finds it"): the step was a printed figure shipped in source, as
+a literal `value` on the `modifies`/`armor` row in two registers (RR ch. 3 and
+JJ ch. 12, Armor Training) and as the bridge's per-rank constant in its name
+case.
+
+**Ruled.**
+- Both registers locate the step: the word before the "weight category
+  heavier" seam, read by `materializeEffects` (`readNumber` takes the word).
+  A bookless import carries no row.
+- The bridge reads the row: its value, a number or a LevelValue, times the
+  rank, on the `armorTraining` domain, whatever the ability is called. The
+  name case is gone, so a hand-made copy, or one imported without its row,
+  raises nothing.
+- The Stats tab lists each armour-training ability under the armour rungs
+  with the rungs it adds and their parts, or "step not imported" and no
+  figure (`armourTrainingRows`, `armourStepRow`).
+- The Judge edits the step on the row: the ability sheet's Imported mechanics
+  rows open in the effect-row editor (GM seat only), which shows a `modifies`
+  row's domain as well as its value.
+
+**Rejected.** Keeping the name case as a fallback for copies imported before
+this: it is the printed step in source. Those copies carry the old row with a
+bare number for its value, which the bridge still reads, so nothing changes
+for them until a Repair in place reads the row again from the book.
+
+**What it cost.** A hand-made Armour Training that used to work now raises
+nothing until it is given a row.

@@ -27,7 +27,7 @@ const LADDER = { half: { throw: 31 }, oneLess: { throw: 29 }, hd1: { throw: 27 }
 const PROC = {
   rungs: ["1", "2", "3", "4", "5", "6"],
   steps: {
-    rowsChampion: 1, rowsSubChieftain: 2, rowsChieftain: 3, bonusMinHd: 2,
+    rowsChampion: 1, rowsSubChieftain: 2, rowsChieftain: 3, bonusMinHd: 2, bonusFactorChieftain: 3,
     acChampion: 1, acSubChieftain: 3, acChieftain: 5,
     damageChampion: 1, damageSubChieftain: 2, damageChieftain: 4,
   },

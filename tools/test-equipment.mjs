@@ -1517,12 +1517,43 @@ noMt.getFlag = (_m, k) => (k === "weaponProficiency" ? "swordDagger" : undefined
 check("bridge: without it the axe stays non-proficient",
   !isWeaponProficient(noMt, classifyWeapon(weapon("Battle Axe", { melee: true }))));
 
-// Armour Training: each rank raises the wearable category one step.
-const atChar = withItems([abil("Armor Training", "def.prof.armorTraining", { qty: 2 })]);
-atChar.getFlag = (_m, k) => (k === "armorMax" ? "light" : undefined);
-check("bridge: Armor Training rank 2 raises light → heavy", armorMax(atChar) === "heavy");
-check("bridge: US and UK spellings both resolve",
-  sumEffectModifiers(withItems([abil("Armour Training", null, { qty: 1 })]), "armorTraining") === 1);
+// Armour Training: each rank raises the wearable category by the step its
+// typed `modifies` row carries, read off the page at import. The steps are
+// invented and vary by case, so a hard-coded step cannot pass.
+const { armourTrainingRows } = await import(new URL("abilities-bridge.mjs", S));
+const armourRow = (value) => ({ type: "modifies", refs: ["kw:armorproficiency"], domain: "armor", value, mode: "add" });
+const atOf = (name, defId, value, qty) => {
+  const a = withItems([abil(name, defId, { qty, ...(value === undefined ? {} : { effects: [armourRow(value)] }) })]);
+  a.getFlag = (_m, k) => (k === "armorMax" ? "veryLight" : undefined);
+  return a;
+};
+const stepTwo = atOf("Armor Training", "def.prof.armorTraining", { kind: "flat", flat: 2 }, 1);
+check("bridge: an imported step of 2 at rank 1 raises very light → medium", armorMax(stepTwo) === "medium");
+check("bridge: the step is the typed row's value times the rank",
+  sumEffectModifiers(atOf("Armor Training", "def.prof.armorTraining", { kind: "flat", flat: 2 }, 3), "armorTraining") === 6);
+check("bridge: a step imported before the LevelValue shape (a bare number) still applies",
+  sumEffectModifiers(atOf("Armor Training", "def.prof.armorTraining", 4, 2), "armorTraining") === 8);
+check("bridge: US and UK spellings both resolve when the row is present",
+  sumEffectModifiers(atOf("Armour Training", null, { kind: "flat", flat: 2 }, 1), "armorTraining") === 2 &&
+  sumEffectModifiers(atOf("Armor Training", null, { kind: "flat", flat: 2 }, 1), "armorTraining") === 2);
+check("bridge: a power of another name carrying the row raises the category too",
+  sumEffectModifiers(atOf("Ironclad Drill", "def.power.ironcladDrill", { kind: "flat", flat: 2 }, 1), "armorTraining") === 2);
+const handTrained = atOf("Armour Training", null, undefined, 2);
+check("bridge: a hand-made Armour Training with no row contributes no step",
+  sumEffectModifiers(handTrained, "armorTraining") === 0 && armorMax(handTrained) === "veryLight");
+const handRows = armourTrainingRows(handTrained);
+check("bridge: the hand-made copy is reported as not imported",
+  handRows.length === 1 && handRows[0].step === null && handRows[0].steps === null && handRows[0].rank === 2);
+check("bridge: both spellings are reported when no step is imported",
+  armourTrainingRows(atOf("Armor Training", null, undefined, 1))[0]?.step === null);
+const blanked = atOf("Armor Training", "def.prof.armorTraining", { kind: "flat", flat: null }, 1);
+check("bridge: a row whose step a Judge blanked adds nothing and is reported",
+  sumEffectModifiers(blanked, "armorTraining") === 0 && armourTrainingRows(blanked)[0]?.step === null);
+const readRows = armourTrainingRows(atOf("Armor Training", "def.prof.armorTraining", { kind: "flat", flat: 2 }, 3));
+check("bridge: an imported row is reported with its step, rank and total",
+  readRows[0]?.step === 2 && readRows[0]?.rank === 3 && readRows[0]?.steps === 6);
+check("bridge: an ability neither named nor carrying the row is not reported",
+  armourTrainingRows(withItems([abil("Weapon Finesse", "def.prof.weaponFinesse")])).length === 0);
 
 // Name-suffix fallback: a hand-made item with no extras still carries its pick.
 const suffix = withItems([abil("Martial Training (Axes)", null, {})]);

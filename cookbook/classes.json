@@ -1149,7 +1149,7 @@
           "from": {
             "pattern": "Engineering \\((\\d+)"
           },
-          "note": "Four ranks of the proficiency; the spread says so."
+          "note": "The class power stands for ranks of the proficiency; the award's level is read from the spread and it grants one rank."
         },
         {
           "ref": "def.power.industrialism",
@@ -2622,7 +2622,7 @@
         {
           "ref": "def.prof.siegeEngineering",
           "starting": true,
-          "note": "Two ranks of the proficiency; the spread says so."
+          "note": "The class power stands for ranks of the proficiency; the award grants one rank at first level."
         },
         {
           "ref": "def.power.machinistRenown",
@@ -4151,7 +4151,7 @@
         {
           "ref": "def.prof.alchemy",
           "starting": true,
-          "note": "Three ranks, slightly modified; the spread says so."
+          "note": "The class power stands for ranks of the proficiency; the award grants one rank at first level."
         },
         {
           "ref": "def.power.fungalFriendship",

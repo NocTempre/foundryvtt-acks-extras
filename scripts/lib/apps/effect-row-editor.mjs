@@ -91,7 +91,7 @@ const TYPE_FIELDS = {
   outcome: ["trigger", "naturalMax", "belowFraction", "consequence"],
   requires: ["refs", "choose"],
   grants: ["refs", "choose"],
-  modifies: ["refs", "target", "mode", "value"],
+  modifies: ["refs", "domain", "target", "mode", "value"],
   reroll: ["forWhat", "target", "keep", "times"],
   companion: ["ref", "amount"],
   immunity: ["appliesTo", "damage", "effects", "conditions"],

@@ -253,12 +253,18 @@ block (`derivedLeaderRoles`, `scripts/monsters/leader-derive.mjs`). Two
 tables carry the procedure's content, both in registry document `monsters`:
 `leaderLadder`, the column of Hit Dice ratings the procedure climbs (AXIOMS
 44), and `leaderSteps`, how many rungs each role climbs, the Hit Dice the
-member needs before its hit-point bonus carries, and each role's armour and
-damage additions. The leader's rating is the member's rung moved up by its
-role's step (a member whose rating is on no rung, or a role that would climb
-past the last rung, gets no derived cell), the member's
-hit-point bonus carried where the member qualifies and doubled for a
-chieftain; AC and the damage total add the role's figures to the member's.
+member needs before its hit-point bonus carries, the factor a chieftain's
+carried bonus is multiplied by (`bonusFactorChieftain`, read as a word), and
+each role's armour and damage additions. The leader's rating is the member's
+rung moved up by its role's step (a member whose rating is on no rung, or a
+role that would climb past the last rung, gets no derived cell), the member's
+hit-point bonus carried where the member qualifies: whole for a champion and a
+sub-chieftain, for which the page prints no factor, and multiplied by the
+imported factor for a chieftain (`BONUS_FACTOR_ROLES`). The leader record
+keeps `carried` (`"carried"` or `"multiplied"`) and `bonusFactor`; a record
+generated before the factor was kept says `"doubled"` and no factor, and its
+tooltip names the factor its own two ratings imply. AC and the damage total add
+the role's figures to the member's.
 Throw and saves move by the attack-throw ladder and the save rule above, from
 the member's figures to the derived rating. A derived leader's hit points are
 not printed, so the cell carries `rollHp` and Generate rolls them from the
@@ -280,7 +286,8 @@ one option available is no choice, `axisOffersChoice` in
 The Statblock's hit-point note names the
 source: the printed page for a printed leader; for a derived one, the
 member's rating, armour and damage, the role's additions, the rungs climbed,
-whether the bonus carried or doubled, and the AXIOMS citation. It names the
+whether the bonus carried whole or multiplied and by what factor, and the
+AXIOMS citation. It names the
 parts only while the actor still holds the derived armour and damage; once a
 Judge has changed either, it says the figures were edited and keeps only the
 citation. The rail's armour class cell names the leader's armour class alone

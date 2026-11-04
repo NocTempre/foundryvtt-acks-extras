@@ -37,6 +37,12 @@ writer (`docs/equipment/MODEL.md`). What this feature owns:
   ability's throws (`appliesToRoll`) carries a chip naming that throw by its
   Rolls-tab label (`rollScopeChip`). A capability, sense, reroll, companion or
   limitation row shows its condition after its face, as a modifier row does.
+  On a GM seat each row carries Edit and Delete and the list an Add a row:
+  the lib effect-row editor (`lib/apps/effect-row-editor.mjs`) through
+  `abilityEffectStore`, which reads and writes the stored `extras.effects`
+  flag whole and uncoerced, so a row the window did not touch is written back
+  as it was. A player's seat shows the rows only. Repair in place reads every
+  row again from the book, over an edit.
 - **Quick effects** (`quick-effects.mjs`). On a character's own copy, a row
   that is standing, gated, situational or at the roll and names a field
   offers **Start**: an Active Effect on the copy (`transfer: true`) writing the

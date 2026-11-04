@@ -72,6 +72,20 @@ change, with **Refresh** to rewrite the figure (whether it is on is kept).
 
 Monsters' abilities are not applied.
 
+**Correcting a row.** On a GM seat each imported row has a **pencil**, which
+opens it in its own window, and a **trash**, which deletes it after asking;
+**Add a row** under the list puts a new one at the bottom and opens it. Edits
+save as you make them. A player's seat shows the rows without these controls.
+**Repair in place** reads every row from your book again, so a row you changed
+returns to what the page prints the next time the ability is repaired.
+
+**Armour Training** raises the armour rungs on the character's Stats tab by
+its row's step for each rank, read from your book. Under the rungs, each
+armour-training ability shows what it adds, and hovering it names the step and
+the rank. An Armour Training made by hand, or imported without its book, says
+*step not imported* and adds nothing; give it a Modifies row with Domain
+*Armor* and the step in Value to make it count.
+
 **Copies imported before this release** keep the rows they were imported
 with until you run **Update Abilities**; a row that carried a condition reads
 situational until then. **Manage Imports → Repair** records, on each old copy,

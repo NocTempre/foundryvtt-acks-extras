@@ -17,6 +17,7 @@ import { weaponProficiency, isWeaponProficient, armorMax, grantMatches } from ".
 import { focusGroup } from "../../equipment/profiles.mjs";
 import { collectStringFlags, findLoadoutEffect, loadoutPart, partSource } from "../../equipment/effects.mjs";
 import { getLoadout } from "../../equipment/loadout.mjs";
+import { armourTrainingRows } from "../../equipment/abilities-bridge.mjs";
 import { standingModifiers } from "../../lib/typed-modifiers.mjs";
 import { TRAINING_VIEWS, arrangeUnits } from "../../equipment/training-view.mjs";
 import { trainingSourceName, trainingProvenance, editedSlots, classTraining, hasTraining } from "../../classes/training.mjs";
@@ -245,6 +246,17 @@ export function lightRow(key) {
   return { icon, label, value: `${dim}′`, tip: cite ? loc("vision.lightTip", { cite }) : loc("vision.lightTipJudge") };
 }
 
+/**
+ * One armour-training ability's line under the armour rungs: the rungs it
+ * adds, its step times its rank, with the parts and the page the import read
+ * as the tooltip. With no step imported the line says so and shows no figure.
+ */
+export function armourStepRow({ name, step, rank, steps, cite }) {
+  if (step == null) return { label: name, value: "", note: loc("stats.armourStepNotImported"), tip: loc("stats.armourStepNotImportedTip") };
+  const parts = { step: num(step), rank: num(rank), steps: signed(num(steps)) };
+  return { label: name, value: signed(num(steps)), tip: cite ? loc("stats.armourStepTip", { ...parts, cite }) : loc("stats.armourStepTipRow", parts) };
+}
+
 /** Build the tab's data. */
 export function buildStatsTab(actor, { openBuckets = new Set(), editing = false, view = TRAINING_VIEWS[0].key } = {}) {
   const sys = actor.system ?? {};
@@ -312,6 +324,7 @@ export function buildStatsTab(actor, { openBuckets = new Set(), editing = false,
     groups: weaponGroups(actor, strips, { view: currentView.key, openBuckets, editing, prov, edited }),
     rungs,
     shield,
+    armourSteps: armourTrainingRows(actor).map(armourStepRow),
     armourMaxLabel: (() => {
       const max = armorMax(actor);
       return max ? game.i18n.localize(`ACKS-LIB.armour.${max}`) : "";

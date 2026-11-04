@@ -532,4 +532,22 @@ test("a light's vision row reads its reach from the imported table, cites the pa
   }
 });
 
+const { armourStepRow } = await import("../scripts/character-sheet/tabs/stats.mjs");
+test("an armour-training line shows the rungs it adds with their parts, and says when no step is imported", () => {
+  globalThis.game = { i18n: { has: () => false, localize: (k) => k, format: (k, d = {}) => `${k}|${JSON.stringify(d)}` } };
+  try {
+    const bare = armourStepRow({ name: "Plate Drill", step: null, rank: 2, steps: null, cite: "" });
+    assert.equal(bare.value, "", "no figure before the import");
+    assert.ok(bare.note.includes("stats.armourStepNotImported"));
+    assert.ok(bare.tip.includes("stats.armourStepNotImportedTip"));
+    const read = armourStepRow({ name: "Plate Drill", step: 2, rank: 3, steps: 6, cite: "ZZ p. 4" });
+    assert.equal(read.value, "+6", "step times rank");
+    assert.ok(read.tip.includes("stats.armourStepTip|") && read.tip.includes('"step":2') && read.tip.includes('"rank":3') && read.tip.includes("ZZ p. 4"), "the tooltip names its parts and the page");
+    assert.ok(!read.note, "an imported step carries no not-imported note");
+    assert.ok(armourStepRow({ name: "Plate Drill", step: 2, rank: 1, steps: 2, cite: "" }).tip.includes("stats.armourStepTipRow|"), "a step with no page names the row alone");
+  } finally {
+    delete globalThis.game;
+  }
+});
+
 console.log(`character sheet: ${passed} passed`);

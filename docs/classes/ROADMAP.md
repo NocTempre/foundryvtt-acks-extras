@@ -72,6 +72,16 @@ own decision, and not as a side effect of whatever comes next.
   which makes the consequence visible rather than absent. Reconciling the two —
   a merge that recognises what is already there without breaking the rank-N
   convention — is unbuilt.
+- **A class power the spread equates to several ranks of a proficiency** — a
+  fixed award grants one copy, and three BTA awards
+  (`def.class.dwarvenExcavator` → `def.prof.engineering`,
+  `def.class.dwarvenMachinist` → `def.prof.siegeEngineering`,
+  `def.class.dwarvenSporecaster` → `def.prof.alchemy`) stand for more than one
+  rank of their proficiency, so a character gets one rank where the page
+  prints more. The count is printed as a word in the power's closing
+  parenthesis; reading it needs an award locator for a copy count (beside
+  `from`, which reads the level) and the award writing that many rungs. Until
+  then the award's note says it grants one rank, and the Judge adds the rest.
 - **Where a general proficiency may be picked from** — `choosableGenerals()`
   reads `game.items` alone, so the picker offers only proficiencies already
   materialized into the world; system compendia are invisible until something

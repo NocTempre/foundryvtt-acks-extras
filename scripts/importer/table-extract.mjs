@@ -1009,8 +1009,8 @@ function takeProse(window, take, spec = {}) {
     }
     case "times": {
       // A multiplier written as a word or a count: "twice", "thrice", "ten
-      // times", "3 times", "double".
-      const m = window.match(/\b(twice|double|thrice|triple)\b|\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s+times\b/);
+      // times", "3 times", "double", and the verb forms "doubled", "triples".
+      const m = window.match(/\b(twice|double[ds]?|thrice|triple[ds]?)\b|\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s+times\b/);
       if (!m) return undefined;
       if (m[1]) return /twice|double/.test(m[1]) ? 2 : 3;
       return /^\d+$/.test(m[2]) ? Number(m[2]) : WORD_INTS[m[2]];

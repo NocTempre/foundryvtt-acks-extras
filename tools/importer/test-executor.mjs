@@ -123,6 +123,25 @@ t("a proportion written as a WORD is located, not shipped", () => {
   assert.deepEqual(e.value, { kind: "perLevel", base: 0.5, per: 0.5, round: "up" });
 });
 
+t("the armour-training step is read off the page as a word numeral, and a miss drops the row", () => {
+  // The shipped spec, from both registers that carry it: the step is located,
+  // never shipped. The sentences are invented.
+  const specOf = (file, id) => {
+    const reg = JSON.parse(fs.readFileSync(new URL(`../../register/${file}`, import.meta.url), "utf8"));
+    return reg.find((r) => r.id === id).effects.find((s) => s.type === "modifies" && s.domain === "armor");
+  };
+  for (const spec of [specOf("rr/p107-p123.json", "def.prof.armorTraining"), specOf("jj/p310-p330.json", "def.power.armorTraining")]) {
+    assert.equal(spec.value, undefined, "the register ships no step");
+    const [word] = materializeEffects([spec], paras("She may wear armour three weight categories heavier than her calling allows."));
+    assert.deepEqual(word.value, { kind: "flat", flat: 3 });
+    assert.equal(word.domain, "armor", "structure ships beside the read figure");
+    const [digit] = materializeEffects([spec], paras("Armour of 2 weight category heavier is allowed."));
+    assert.deepEqual(digit.value, { kind: "flat", flat: 2 });
+    assert.deepEqual(materializeEffects([spec], paras("She may wear heavier armour.")), [], "no step on the page, no row");
+    assert.deepEqual(materializeEffects([spec], []), [], "a bookless import carries no step");
+  }
+});
+
 t("`round` is shape, so it ships; it is absent unless stated", () => {
   const [e] = materializeEffects(
     [{ type: "modifier", target: "hp", from: { as: "perLevel", pattern: "heal\\s*(\\d+)\\s*damage\\s*per" } }],

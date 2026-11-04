@@ -156,6 +156,12 @@
                 {{/if}}
               {{/if}}
             {{/if}}
+            {{#if @root.effectsEditable}}
+              <button type="button" class="acks-abilities-mini" data-action="effectEdit" data-index="{{@index}}"
+                aria-label="{{localize "ACKS-ABILITIES.mech.editRow"}}" data-tooltip=""><i class="fa-solid fa-pen-to-square" inert></i></button>
+              <button type="button" class="acks-abilities-mini" data-action="effectDelete" data-index="{{@index}}"
+                aria-label="{{localize "ACKS-ABILITIES.mech.deleteRow"}}" data-tooltip=""><i class="fa-solid fa-trash" inert></i></button>
+            {{/if}}
             {{#if this.ladder}}
               <div class="acks-abilities-ladder-wrap">
                 <table class="acks-abilities-ladder">
@@ -169,6 +175,14 @@
       </ol>
     {{else}}
       <p class="hint">{{localize "ACKS-ABILITIES.mech.noEffects"}}</p>
+    {{/if}}
+    {{#if effectsEditable}}
+      <footer class="acks-abilities-roll-add">
+        <button type="button" data-action="effectAdd">
+          <i class="fa-solid fa-plus" inert></i> {{localize "ACKS-ABILITIES.mech.addRow"}}
+        </button>
+        <p class="hint">{{localize "ACKS-ABILITIES.mech.addRowHint"}}</p>
+      </footer>
     {{/if}}
   </fieldset>
 

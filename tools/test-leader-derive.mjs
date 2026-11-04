@@ -36,7 +36,7 @@ const ok = (name, fn) => {
 
 const RUNGS = ["½", "1-1", "1", "1+", "3", "5", "7", "9", "11"];
 const STEPS = {
-  rowsChampion: 2, rowsSubChieftain: 3, rowsChieftain: 5, bonusMinHd: 3,
+  rowsChampion: 2, rowsSubChieftain: 3, rowsChieftain: 5, bonusMinHd: 3, bonusFactorChieftain: 3,
   acChampion: 2, acSubChieftain: 4, acChieftain: 6,
   damageChampion: 2, damageSubChieftain: 3, damageChieftain: 4,
 };
@@ -66,7 +66,7 @@ ok("a warrior stands on the rung of its rating", () => {
 
 ok("each rank moves its own rungs and adds its own AC and damage, damage a total", () => {
   const base = { hd: hd(0.5), ac: 1, damage: -2 };
-  assert.deepEqual(deriveLeader(PROC, base, "champion"), { hd: hd(1), ac: 3, damage: 0, rows: 2, acAdd: 2, damageAdd: 2, carried: "" });
+  assert.deepEqual(deriveLeader(PROC, base, "champion"), { hd: hd(1), ac: 3, damage: 0, rows: 2, acAdd: 2, damageAdd: 2, carried: "", bonusFactor: null });
   assert.deepEqual(deriveLeader(PROC, base, "subChieftain").hd, { count: 1, bonus: 1 }, "the bare-bonus rung reads as the stat line's bare plus");
   assert.equal(deriveLeader(PROC, base, "subChieftain").ac, 5);
   assert.equal(deriveLeader(PROC, base, "subChieftain").damage, 1);
@@ -74,15 +74,19 @@ ok("each rank moves its own rungs and adds its own AC and damage, damage a total
   assert.equal(deriveLeader(PROC, base, "chieftain").damage, 2);
 });
 
-ok("a bonus at the carry rating is carried by the lower ranks and doubled by a chieftain", () => {
+ok("a bonus at the carry rating is carried whole by the lower ranks and multiplied by the imported factor on a chieftain", () => {
   const base = { hd: hd(3, 2), ac: 4, damage: 1 };
   const champ = deriveLeader(PROC, base, "champion");
   assert.deepEqual(champ.hd, hd(7, 2));
   assert.equal(champ.carried, "carried");
+  assert.equal(champ.bonusFactor, null, "a rank that carries the bonus whole records no factor");
   assert.deepEqual(deriveLeader(PROC, base, "subChieftain").hd, hd(9, 2));
   const chief = deriveLeader({ ...PROC, rungs: [...RUNGS, "13", "15"] }, base, "chieftain");
-  assert.deepEqual(chief.hd, hd(13, 4));
-  assert.equal(chief.carried, "doubled");
+  assert.deepEqual(chief.hd, hd(13, 6), "the factor is the imported one, not a constant");
+  assert.equal(chief.carried, "multiplied");
+  assert.equal(chief.bonusFactor, 3);
+  const otherFactor = deriveLeader({ rungs: [...RUNGS, "13", "15"], steps: { ...STEPS, bonusFactorChieftain: 5 } }, base, "chieftain");
+  assert.deepEqual(otherFactor.hd, hd(13, 10));
   const low = deriveLeader(PROC, { hd: hd(1, 1), ac: 0, damage: 0 }, "champion");
   assert.equal(low.carried, "", "below the carry rating the bonus does not come along");
   assert.deepEqual(low.hd, hd(5));
@@ -98,6 +102,9 @@ ok("nothing is derived off the ladder or from part of a procedure", () => {
   assert.equal(procedureComplete({ rungs: [], steps: STEPS }), false);
   const { bonusMinHd, ...noCarry } = STEPS;
   assert.equal(procedureComplete({ rungs: RUNGS, steps: noCarry }), false, "the carry rating is a figure the procedure needs");
+  const { bonusFactorChieftain, ...noFactor } = STEPS;
+  assert.equal(procedureComplete({ rungs: RUNGS, steps: noFactor }), false, "the chieftain's factor is a figure the procedure needs");
+  assert.equal(deriveLeader({ rungs: RUNGS, steps: noFactor }, { hd: hd(1), ac: 0, damage: 0 }, "champion"), null, "no rank is derived without it");
 });
 
 ok("a bonus exactly at the carry rating stands on its whole dice, not the bare-bonus rung", () => {
@@ -257,9 +264,14 @@ ok("no procedure imported: nothing is added", () => {
 
 ok("the sheet names the leader's source, and the procedure's parts while they hold", () => {
   const loc = (k, d = {}) => `${k}|${Object.entries(d).map(([a, b]) => `${a}=${b}`).join(",")}`;
-  const leader = { source: SOURCE.procedure, cite: "YY p.7", rows: 2, baseHd: "1", baseAc: 2, acAdd: 2, baseDamage: 1, damageAdd: 2, carried: "doubled", hd: "3+1", ac: 4, damage: 3 };
+  const leader = { source: SOURCE.procedure, cite: "YY p.7", rows: 2, baseHd: "4+1", baseAc: 2, acAdd: 2, baseDamage: 1, damageAdd: 2, carried: "multiplied", bonusFactor: 3, hd: "7+3", ac: 4, damage: 3 };
   const tip = derivationTips({ derived: { leader }, ac: 4, damageMod: 3 }, loc).leaderTip;
-  assert.match(tip, /^statblock\.tip\.leaderDerived\|cite=YY p\.7,hd=3\+1,rows=2,baseHd=1,carried=statblock\.tip\.leaderDoubled\|,ac=4,baseAc=2,acAdd=\+2,damage=\+3,baseDamage=\+1,damageAdd=\+2$/);
+  assert.match(tip, /^statblock\.tip\.leaderDerived\|cite=YY p\.7,hd=7\+3,rows=2,baseHd=4\+1,carried=statblock\.tip\.leaderMultiplied\|factor=3,ac=4,baseAc=2,acAdd=\+2,damage=\+3,baseDamage=\+1,damageAdd=\+2$/);
+  const carriedOf = (l) => derivationTips({ derived: { leader: { ...leader, ...l } }, ac: 4, damageMod: 3 }, loc).leaderTip.match(/carried=(.*?),ac=/)[1];
+  assert.equal(carriedOf({ carried: "carried", bonusFactor: null }), "statblock.tip.leaderCarried|");
+  assert.equal(carriedOf({ carried: "doubled", bonusFactor: undefined, baseHd: "4+1", hd: "9+5" }), "statblock.tip.leaderMultiplied|factor=5", "a record from before the factor was kept names the factor its ratings imply");
+  assert.equal(carriedOf({ carried: "doubled", bonusFactor: undefined, baseHd: "4", hd: "9+5" }), "statblock.tip.leaderMultipliedBare|", "and none where they imply none");
+  assert.equal(carriedOf({ carried: "" }), "");
   assert.equal(derivationTips({ derived: { leader }, ac: 7, damageMod: 3 }, loc).leaderTip, "statblock.tip.leaderDerivedEdited|cite=YY p.7");
   assert.equal(derivationTips({ derived: { leader: { source: "printed", cite: "ZZ p.3" } } }, loc).leaderTip, "statblock.tip.leaderPrinted|cite=ZZ p.3");
   assert.equal(derivationTips({}, loc).leaderTip, "");

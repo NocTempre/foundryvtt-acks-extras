@@ -3,17 +3,18 @@
  * from its warrior by moving down a ladder of Hit Dice ratings and adding to
  * its armour class and damage. Pure, and holds no figure of the page's: the
  * ladder's rungs, the rungs each rank moves, the rating whose hit-point bonus
- * carries over and what each rank adds are all read from the Judge's own copy
- * into the `monsters` registry document (`leaderLadder`, `leaderSteps`) and
- * passed in.
+ * carries over, the factor a chieftain's carried bonus is multiplied by and
+ * what each rank adds are all read from the Judge's own copy into the
+ * `monsters` registry document (`leaderLadder`, `leaderSteps`) and passed in.
  *
  * What ships is the procedure: a rank moves its warrior's rating down the
  * ladder by its own count of rungs; a warrior at or above the carry rating
- * with a hit-point bonus keeps that bonus on a champion and a sub-chieftain
- * and doubles it on a chieftain; armour class and damage are the warrior's
- * plus the rank's own addition, the damage a total that replaces the
- * warrior's. The page's discretionary adjustment is the Judge's to make on the
- * generated creature and is not applied.
+ * with a hit-point bonus keeps that bonus whole on a champion and a
+ * sub-chieftain and multiplies it by the imported factor on a chieftain;
+ * armour class and damage are the warrior's plus the rank's own addition, the
+ * damage a total that replaces the warrior's. The page's discretionary
+ * adjustment is the Judge's to make on the generated creature and is not
+ * applied.
  */
 import { getDoc, hasDoc, citeOf, isMissingRow } from "../lib/tables.mjs";
 
@@ -23,6 +24,12 @@ export const LEADER_TABLES = Object.freeze({ ladder: "leaderLadder", steps: "lea
 
 /** The ranks the procedure builds, by role key. */
 export const DERIVED_ROLES = Object.freeze(["champion", "subChieftain", "chieftain"]);
+
+/**
+ * The ranks whose carried hit-point bonus is multiplied by a factor of their
+ * own (`bonusFactor<Rank>` in `leaderSteps`); every other rank carries it whole.
+ */
+export const BONUS_FACTOR_ROLES = Object.freeze(["chieftain"]);
 
 /** A rank's key inside `leaderSteps`: `rowsChampion`, `acSubChieftain` … */
 const stepKey = (prefix, role) => `${prefix}${role.charAt(0).toUpperCase()}${role.slice(1)}`;
@@ -90,14 +97,16 @@ export function procedureComplete(proc) {
   if (!proc?.rungs?.length || !proc.steps) return false;
   const n = (v) => Number.isFinite(Number(v)) && v !== null && v !== "";
   if (!n(proc.steps.bonusMinHd)) return false;
+  if (!BONUS_FACTOR_ROLES.every((role) => n(proc.steps[stepKey("bonusFactor", role)]))) return false;
   return DERIVED_ROLES.every((role) => ["rows", "ac", "damage"].every((p) => n(proc.steps[stepKey(p, role)])));
 }
 
 /**
  * One rank's figures from its warrior's: `{hd: {count, bonus}, ac, damage,
- * rows, acAdd, damageAdd, carried}` where `carried` is how the warrior's
- * hit-point bonus came along: "carried", "doubled" or "". `base` is `{hd: {count, bonus}, ac,
- * damage}`, `damage` the warrior's modifier (0 for none). Null when the
+ * rows, acAdd, damageAdd, carried, bonusFactor}` where `carried` is how the
+ * warrior's hit-point bonus came along: "carried" (whole), "multiplied" (by
+ * `bonusFactor`, the imported factor) or "". `base` is `{hd: {count, bonus},
+ * ac, damage}`, `damage` the warrior's modifier (0 for none). Null when the
  * warrior's rating is on no rung, the rank moves past the ladder's last rung,
  * or the procedure is incomplete: a leader is never guessed.
  */
@@ -111,8 +120,10 @@ export function deriveLeader(proc, base, role) {
   const target = parseRung(proc.rungs[from + rows]);
   if (!target) return null;
   const carries = base.hd.count >= minHd && base.hd.bonus > 0;
+  const factored = BONUS_FACTOR_ROLES.includes(role);
+  const factor = factored ? Number(s[stepKey("bonusFactor", role)]) : 1;
   let bonus = target.bonus ?? null;
-  if (carries) bonus = role === "chieftain" ? base.hd.bonus * 2 : base.hd.bonus;
+  if (carries) bonus = base.hd.bonus * factor;
   // A rung printing a bare bonus beside its dice is read as the stat line's
   // bare plus is (`hdOf` in importer/leader-roles.mjs).
   else if (target.plus) bonus = 1;
@@ -125,6 +136,7 @@ export function deriveLeader(proc, base, role) {
     rows,
     acAdd,
     damageAdd,
-    carried: carries ? (role === "chieftain" ? "doubled" : "carried") : "",
+    carried: carries ? (factored ? "multiplied" : "carried") : "",
+    bonusFactor: carries && factored ? factor : null,
   };
 }

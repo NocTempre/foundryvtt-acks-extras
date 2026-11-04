@@ -490,6 +490,7 @@ export function derivedLeaderRoles({ options, axes, cells, out, proc, deriveLead
         baseDamage: damage,
         damageAdd: d.damageAdd,
         carried: d.carried,
+        bonusFactor: d.bonusFactor,
         hd: ratingText(d.hd),
         ac: d.ac,
         damage: d.damage,

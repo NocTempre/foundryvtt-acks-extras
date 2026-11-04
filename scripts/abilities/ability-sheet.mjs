@@ -19,6 +19,7 @@ import { elementOf } from "../lib/util.mjs";
 import { modifierDisposition, isUnverified } from "../lib/typed-modifiers.mjs";
 import { QUICK_EFFECT_ACTIONS, quickEffectStatus } from "./quick-effects.mjs";
 import { ROLL_ACTIONS } from "./roll-editor.mjs";
+import { effectRowActions } from "../lib/apps/effect-row-editor.mjs";
 import { LANGUAGE_ACTIONS, slotsOf, onDropLanguage } from "./language-slots.mjs";
 import { filledLanguages } from "../classes/languages.mjs";
 
@@ -272,6 +273,27 @@ export function describeEffect(e, V) {
 }
 
 /**
+ * The store the effect-row editor writes an ability's rows through: the
+ * stored `extras.effects` flag, read and written whole and uncoerced, so a row
+ * the window did not touch is written back exactly as it was stored.
+ * @param {Item} item
+ * @returns {{key: string, label: string, domain: string, read: Function, write: Function}}
+ */
+export function abilityEffectStore(item) {
+  const path = `flags.${MODULE_ID}.${FLAG_EXTRAS}.effects`;
+  return {
+    key: `${item.uuid}:${FLAG_EXTRAS}.effects`,
+    label: item.name,
+    domain: "ability",
+    read: () => foundry.utils.deepClone(item.getFlag(MODULE_ID, FLAG_EXTRAS)?.effects ?? []),
+    write: async (rows) => {
+      await item.update({ [path]: rows });
+      return rows;
+    },
+  };
+}
+
+/**
  * @param {typeof foundry.applications.api.ApplicationV2} Base the system's ability sheet class
  */
 export function createAbilitySheet(Base) {
@@ -297,10 +319,12 @@ export function createAbilitySheet(Base) {
   tabList.push({ id: "rolls", icon: "fa-solid fa-dice-d20", label: "ACKS-ABILITIES.tab.rolls" });
   tabList.push({ id: "mechanics", icon: "fa-solid fa-gears", label: "ACKS-ABILITIES.tab.mechanics" });
 
+  const EFFECT_ACTIONS = effectRowActions(abilityEffectStore);
+
   return class AcksAbilitySheet extends Base {
     static DEFAULT_OPTIONS = {
       classes: ["acks-ui", "acks", "acks2", "item-v2", "acks-extras", "acks-extras-scroll"],
-      actions: { ...ROLL_ACTIONS, ...LANGUAGE_ACTIONS, ...QUICK_EFFECT_ACTIONS },
+      actions: { ...ROLL_ACTIONS, ...LANGUAGE_ACTIONS, ...QUICK_EFFECT_ACTIONS, ...EFFECT_ACTIONS },
       dragDrop: [{ dropSelector: ".acks-abilities-languages" }],
     };
     static PARTS = parts;
@@ -353,6 +377,9 @@ export function createAbilitySheet(Base) {
       // On a character's own copy, a row with a field offers a quick effect:
       // Start until one exists, then its state, and Refresh once it is stale.
       const canQuick = !!this.item.actor && this.isEditable;
+      // The rows are the import's reading of the page; a Judge corrects or
+      // adds one in the effect-row editor, a player's seat reads them.
+      context.effectsEditable = this.isEditable && !!game.user?.isGM;
       const ownRolls = rollsOf(this.item);
       context.effectRows = (extras.effects ?? []).map((e, index) => {
         const row = describeEffect(e, V);

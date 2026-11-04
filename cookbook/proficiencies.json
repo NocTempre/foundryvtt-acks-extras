@@ -1783,7 +1783,9 @@
                 "kw:armorproficiency"
               ],
               "domain": "armor",
-              "value": 1,
+              "from": {
+                "pattern": "(\\w+)\\s*weight\\s*categor(?:y|ies)\\s*heavier"
+              },
               "mode": "add",
               "note": "Raises the class's armour allowance by the row's value."
             },

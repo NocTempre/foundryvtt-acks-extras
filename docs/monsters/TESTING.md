@@ -303,6 +303,9 @@ Needs the MM PDF connected and the rulebook's tables imported (Manage Imports,
 Tables) before the family is, with spells and classes imported for the caster
 step. What a role cell writes is MODEL, "Family templates: the Role axis".
 
+Walked by `tools/live/monsters-leaders.mjs` (stages 1 and 2), with `rr` and
+`mm` on `ACKS_TEST_BOOKS`; the AXIOMS steps wait on a map that names `axc`.
+
 **Fixtures.**
 
 - `monsters/family-roles`: the beastman family template, as an import makes
@@ -387,9 +390,16 @@ step. What a role cell writes is MODEL, "Family templates: the Role axis".
     member's plus the role's additions, the hit points are a roll of those
     dice (the log's `hitPoints` line, `source: "rolled"`), and the hit-point
     note's tooltip names the member's rating, armour and damage, the
-    additions, the rungs climbed, whether the bonus carried or doubled, and
-    the AXIOMS citation. Pin **As printed** instead: the printed leader's
-    figures, and the note's tooltip names the MM page.
+    additions, the rungs climbed, whether the bonus carried whole or was
+    multiplied by the imported factor (named in the tooltip; check it against
+    the page's step 1), and the AXIOMS citation. Pin **As printed** instead:
+    the printed leader's figures, and the note's tooltip names the MM page.
+12b. In the Ruledata Browser, `leaderSteps` lists `bonusFactorChieftain`
+    beside the other steps. Override it with an invented factor and re-import
+    the family, then generate a chieftain from a kind whose member carries a
+    hit-point bonus. *Observable:* the chieftain's bonus is the member's
+    times the override, and the tooltip names the override's factor.
+    Revert the override.
 12a. On the step 12 actors, hover the rail's armour class cell.
     *Observable:* the AXIOMS one names the member's armour class, the rank's
     addition and the AXIOMS citation; the As printed one names the MM page.
@@ -426,6 +436,8 @@ A creature that is no family's member gets a template of its own for its
 leaders (MODEL, "Leaders outside a family"). Needs the MM connected and the
 rulebook's tables imported; the AXIOMS steps also need the compendium
 connected and its tables imported.
+
+Walked by `tools/live/monsters-leaders.mjs` (stages 1 and 3).
 
 **Fixtures.**
 
@@ -481,6 +493,8 @@ axis"). Needs the MM and the rulebook connected with the rulebook's tables
 imported (`monsters` / `beastmanTroops`), and for the unarmoured and
 die-conversion steps the AXIOMS Compendium connected with its tables imported
 (`beastmenByType`, `damageDieConversion`).
+
+Walked by `tools/live/monsters-leaders.mjs` (stage 3).
 
 **Fixtures.**
 

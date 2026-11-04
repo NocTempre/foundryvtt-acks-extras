@@ -4112,10 +4112,12 @@ export const TABLE_RECIPES = {
         rows: Array.from({ length: 16 }, (_, i) => ({ key: `rung${i + 1}`, unlabelled: true, optional: true })),
       },
       // The leader steps beside it: the rungs each rank moves down, the
-      // smallest rating whose hit-point bonus carries over, and what each
-      // rank adds to AC and to damage. Each anchor is the clause naming the
-      // step, never its figure; the sub-chieftain's damage is the clause the
-      // champion's is printed in.
+      // smallest rating whose hit-point bonus carries over, the factor a
+      // chieftain's carried bonus is multiplied by, and what each rank adds to
+      // AC and to damage. Each anchor is the clause naming the step, never its
+      // figure; the sub-chieftain's damage is the clause the champion's is
+      // printed in. The factor is read after the carry clause, which names the
+      // two ranks that keep the bonus whole and prints no factor for them.
       leaderSteps: {
         shape: "proseValues",
         book: "axc",
@@ -4130,6 +4132,7 @@ export const TABLE_RECIPES = {
           { key: "rowsSubChieftain", find: "rows for a sub", before: true, take: "wordInt", span: 8 },
           { key: "rowsChieftain", find: "rows for a chief", before: true, take: "wordInt", span: 8 },
           { key: "bonusMinHd", find: "if the creature has at least", take: "int", span: 6 },
+          { key: "bonusFactorChieftain", find: "sub-chieftains, and be", take: "times", span: 12 },
           { key: "acChampion", find: "increase ac by", take: "int", span: 4 },
           { key: "acSubChieftain", find: "points for a sub", before: true, take: "int", span: 4 },
           { key: "acChieftain", find: "points for a chieftain", before: true, take: "int", span: 4 },

@@ -25,7 +25,8 @@
   Monstrous Manual prints a family's leaders, a Leader figures axis picks between the
   printed ones (the default) and the procedure's; where it prints none, the procedure's
   are the only ones. A procedure leader rolls its hit points, and its Statblock names
-  where its figures came from.
+  where its figures came from, the factor a chieftain's hit-point bonus is multiplied
+  by among them, which is read from the page like the rest.
 - **A creature outside a family gets its leaders too.** Importing a monster whose page
   names its leaders also makes a "(leaders)" template beside it that generates them,
   and with the AXIOMS tables imported a beastman whose page names none gets the
@@ -120,6 +121,15 @@
   helmet's figure was read from, or says the Judge set it. Until then none of them applies. Run Update
   Abilities for a specialization imported earlier, and re-import the rulebook's tables
   for the rest.
+- **Armour Training's step comes from your books, and a Judge can change it.** How many
+  armour categories Armour Training adds is read from its page with the proficiency, and
+  with the class power of the same name, and each rank adds that many. The Stats tab
+  lists every armour-training ability under the armour rungs with what it adds, and
+  hovering it names the step and the rank; one with no step imported, such as an Armour
+  Training made by hand, says so and adds nothing. On a GM seat the ability's Mechanics
+  tab now edits, adds and deletes its imported rows in the effect editor, so the step can
+  be set or corrected there; Repair in place reads the rows from the book again. Copies
+  imported earlier keep working as they were.
 - **A delve owes no rest while Require rests in the delve is off.** The setting is on by
   default, which is how the delve has always run. Off, no turn counts toward a rest, no
   warning or turn-card line mentions one, nobody is winded, and the Rest figure on the

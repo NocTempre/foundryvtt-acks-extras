@@ -207,7 +207,7 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 
 ## Typed modifiers apply
 
-Not yet walked live. The mechanics are `docs/lib/API.md`, "Typed modifiers".
+Walked by `tools/live/typed-modifiers.mjs`. The mechanics are `docs/lib/API.md`, "Typed modifiers".
 
 **Fixtures** (every figure invented; each an `ability` item on the one
 character `abilities/typed-character`, a level-3 `character` actor):
@@ -297,6 +297,18 @@ character `abilities/typed-character`, a level-3 `character` actor):
 This walk is also the Stats tab's first live pass.
 
 **Teardown:** keep the fixtures; a step that needs a shape asserts it first.
+
+## Editing an imported row
+
+The Mechanics tab's Edit, Delete and Add a row controls (GM seat only) are
+walked on the `equipment/armour-step` fixture, equipment TESTING "Armour
+Training's step", steps 1 and 4-6, which cover an edit that keeps the row's
+other fields, an add and a delete, and the Player seat's read-only rows. On
+any other ability, also check that editing one row leaves every other row of
+`flags.acks-extras.extras.effects` byte for byte as it was (compare
+`JSON.stringify` of the array before and after, minus the edited index), and
+that a row with a Start-ed quick effect still reports its state after a row
+above it is deleted.
 
 ## Teardown
 

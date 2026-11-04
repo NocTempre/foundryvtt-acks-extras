@@ -26,7 +26,7 @@
  * `flags.acks-extras.*` change stands aside, to avoid double-counting.
  */
 import { EFFECT_PREFIX, EFFECT_DOMAINS } from "./constants.mjs";
-import { slug, abilitySlug, ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
+import { slug, abilitySlug, resolveLevelValue, ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
 
 const ABILITIES_FLAG_SCOPE = "acks-extras";
 
@@ -193,9 +193,9 @@ const PRESENCE_DOMAINS = Object.freeze({
  * typed specs in `flags["acks-extras"].extras.effects` (the same shape
  * acks-lib's `effectField()` declares) are read first for that reason; the
  * name tables stay only for mechanics the typed model does not yet express
- * (fighting styles, weapon groups, armour training). See
- * docs/equipment/DECISIONS.md, "2026-08-11 — the abilities bridge reads the
- * typed effect model, not the name."
+ * (fighting styles, weapon groups). See docs/equipment/DECISIONS.md,
+ * "2026-08-11 — the abilities bridge reads the typed effect model, not the
+ * name."
  */
 const ATTRIBUTE_SUBSTITUTION_TARGETS = Object.freeze({
   attackThrow: EFFECT_DOMAINS.FINESSE,
@@ -206,6 +206,55 @@ const ATTRIBUTE_SUBSTITUTION_TARGETS = Object.freeze({
 function typedEffects(item) {
   const effects = item?.flags?.[ABILITIES_FLAG_SCOPE]?.extras?.effects;
   return Array.isArray(effects) ? effects : [];
+}
+
+/** Does this spec raise the wearable armour category? */
+const raisesArmour = (spec) => spec?.type === "modifies" && spec.domain === "armor";
+
+/**
+ * The step one armour-raising spec carries: its `value`, a bare number (an
+ * import made before the step was read off the page) or a LevelValue (read
+ * at import, or set by a Judge on the row). Null when it resolves to no number.
+ */
+function armourStep(spec) {
+  const v = resolveLevelValue(spec?.value);
+  return v == null || v === "" || !Number.isFinite(Number(v)) ? null : Number(v);
+}
+
+/**
+ * The names an armour-training ability goes by, both spellings: what marks a
+ * hand-made or bookless copy as one whose step was never imported.
+ */
+const ARMOUR_TRAINING_SLUGS = new Set(["armortraining", "armourtraining"]);
+
+/**
+ * The actor's armour-training abilities and what each adds, for the surface
+ * that shows the armour allowance: one row per ability that carries an
+ * armour-raising spec (whatever it is named) or is named Armour Training.
+ * `step` is the spec's figure and `steps` the step times the rank; both are
+ * null on an ability with no step, which adds nothing. `cite` is the page the
+ * import read it from, where the item records one.
+ * @returns {{name: string, step: number|null, rank: number, steps: number|null, cite: string}[]}
+ */
+export function armourTrainingRows(actor) {
+  const rows = [];
+  if (actor?.type !== ACTOR_TYPE.character) return rows;
+  for (const item of actor.items ?? []) {
+    if (item.type !== ITEM_TYPE.ability || speaksNative(item)) continue;
+    const specs = typedEffects(item).filter(raisesArmour);
+    if (!specs.length && !ARMOUR_TRAINING_SLUGS.has(abilitySlug(item))) continue;
+    const rank = rankOf(actor, item);
+    const steps = specs.map(armourStep).filter((s) => s != null);
+    const step = steps.length ? steps.reduce((a, b) => a + b, 0) : null;
+    rows.push({
+      name: String(item.name ?? ""),
+      step,
+      rank,
+      steps: step == null ? null : step * rank,
+      cite: String(item.flags?.[ABILITIES_FLAG_SCOPE]?.cookbook?.cite ?? ""),
+    });
+  }
+  return rows;
 }
 
 /**
@@ -233,6 +282,16 @@ function addTypedEffects(actor, item, { addNum, addStr, booleans }) {
         if (domain === EFFECT_DOMAINS.DAMAGE_ATTRIBUTE) addStr(domain, spec.attribute);
         else booleans.add(domain);
         claimed.add(domain);
+        break;
+      }
+      case "modifies": {
+        // Each rank raises the wearable category by the spec's own step; a
+        // spec whose step resolves to nothing raises it by nothing.
+        if (!raisesArmour(spec)) break;
+        const step = armourStep(spec);
+        if (step == null) break;
+        addNum(EFFECT_DOMAINS.ARMOR_TRAINING, item.name, step * rankOf(actor, item));
+        claimed.add(EFFECT_DOMAINS.ARMOR_TRAINING);
         break;
       }
       default:
@@ -329,13 +388,9 @@ export function bridgeContributions(actor) {
         for (const pick of picksOf(item)) addStr(EFFECT_DOMAINS.MANEUVER_TRICKERY, slug(pick));
         break;
       }
-      case "armourtraining": // both spellings appear in the wild
-      case "armortraining": {
-        // The one machine-usable grant on the abilities side today: each rank
-        // raises the wearable armour category by one step.
-        addNum(EFFECT_DOMAINS.ARMOR_TRAINING, item.name, rankOf(actor, item));
-        break;
-      }
+      // Armour Training has no name case: its step is the page's figure, so
+      // it applies only through the typed spec above, and a copy carrying
+      // none is reported by `armourTrainingRows` as not imported.
       default:
         break;
     }

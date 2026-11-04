@@ -71,6 +71,13 @@
           {{#each st.training.rungs}}{{> acksExtrasTrainingPill this group="armour"}}{{/each}}
           {{#if st.training.shield}}{{> acksExtrasTrainingPill st.training.shield group="armour"}}{{/if}}
         </div>
+        {{#each st.training.armourSteps}}
+        <div class="acks-extras-frame__fact">
+          <i class="fa-solid fa-arrow-up-wide-short acks-extras-frame__fact-icon" inert></i>
+          <span class="acks-extras-frame__fact-label">{{label}}</span>
+          <span class="acks-extras-frame__fact-value acks-nums" data-tooltip-text="{{tip}}">{{value}}{{#if note}} <span class="acks-extras-frame__fact-note">· {{note}}</span>{{/if}}</span>
+        </div>
+        {{/each}}
       </div>
       <div class="acks-extras-frame__note is-box">
         <i class="fa-solid fa-lock" inert></i>

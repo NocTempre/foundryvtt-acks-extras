@@ -151,6 +151,18 @@
   color: var(--acks-spot);
 }
 
+/* An effect row's controls are buttons, so they reach the keyboard; core's
+   button frame is taken off so they sit in the row like the rolls tab's. */
+.acks-abilities-effects li button.acks-abilities-mini {
+  width: auto;
+  height: auto;
+  min-height: 0;
+  line-height: inherit;
+  background: none;
+  border: none;
+  box-shadow: none;
+}
+
 .acks-abilities-roll-label {
   flex: 1;
 }

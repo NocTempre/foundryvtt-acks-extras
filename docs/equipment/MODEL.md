@@ -88,9 +88,29 @@ Numeric domains sum; CSV domains collect; boolean-ish domains test presence. Add
 | `weaponFocus` | CSV | Weapon Focus categories (roll-time nat-20 die) |
 | `slayer` | CSV `group:bonus` | Goblin-/Vermin-Slaying (roll-time, situational) |
 | `martialWeapons` | CSV | weapon categories added to proficiency |
-| `armorTraining` | numeric | armour categories added above class |
+| `armorTraining` | numeric | armour categories added above class; from an ability, its `modifies`/`armor` row's step times its rank (below) |
 | `running` | boolean | +30' speed marker — read by movement modules (formation), not written here |
 | `finesse` `preciseShooting` `sniping` `ambushing` `skirmishing` `unarmedFighting` `blindFighting` `mountedCombat` `riding` `berserkergang` `freeSwap` | boolean | proficiency presence tests |
+
+### Armour Training's step
+
+An imported ability raises the wearable armour category through its typed
+`modifies` row on the `armor` domain (`abilities-bridge.mjs`
+`addTypedEffects`): the row's `value`, a LevelValue read off the page at
+import (RR ch. 3 and JJ ch. 12, Armor Training) or a bare number on a copy
+imported before the step was located, times the ability's rank, whatever the
+ability is called. Nothing is keyed on the name, so a copy with no such row,
+hand-made or imported without its book, adds nothing. `armourTrainingRows`
+lists every ability that carries the row or is named Armour Training (either
+spelling) with `{step, rank, steps, cite}`, `step` null where no step was
+imported; the Stats tab draws one line per row under the armour rungs, the
+rungs it adds with their parts as the tooltip, or "step not imported" and no
+figure (`stats.mjs` `armourStepRow`).
+
+The Judge edits the step on the ability's own sheet, in the row's editor
+(abilities MODEL, "The Mechanics tab"); a `modifies` row shows its domain
+beside its value. Repair in place, with the book open, reads the step again
+from the page over that edit; without the book the copy is left as it is.
 
 ### The loadout effect writes, and says who wrote what
 

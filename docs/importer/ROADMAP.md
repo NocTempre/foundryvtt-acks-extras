@@ -982,7 +982,25 @@ outside a family"), and the Kit axis with its three tables (monsters MODEL,
 - **The kit on the Full Monster Sheet's speeds.** The kit's move reaches the
   system's movement figure, not the sheet's speed rows.
 - **The classes.** The AXIOMS custom beastman classes, through the class
-  importer.
+  importer, owner-scheduled (2026-11-04) for the release after 11.14.0. Their
+  progression tables read as the title-located grid the class compile already
+  has; no new extraction shape. In order:
+  - **A. The classes, simple mode**: three `kind.class` entries in a new
+    `register/axc/`, anchored on the prime-requisite label; the per-level
+    damage column as a progression ladder, a parenthesised cell read as no
+    bonus at that level; the attack throw from the imported monster column
+    (`monsters`/`attackThrowByHd`), which replaces the page's own progression
+    under the later-printing ruling. The owner prefers the reading that agrees
+    with the Monstrous Manual's (by Hit Dice); `throwStep` reads monster
+    notation and needs an adapter from a class cell's Hit Dice first.
+  - **B. Their character templates**, so a player can pick one at chargen: a
+    compile path for a lone template block and a 3–18 band for it.
+  - **C. Races and the builder**: the race grids, a race value that stacks
+    with the fighting value for attacks only, and a race whose experience
+    keeps doubling past the usual cap.
+  - **D. Mystic paths**: a second level counter with its own caster rows. No
+    ACKS II counterpart; until it is built the paths are awarded powers with
+    their imported text and casting is not automated.
 
 ## Repair in place: what it does not write yet
 
