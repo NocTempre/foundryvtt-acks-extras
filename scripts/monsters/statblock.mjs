@@ -13,6 +13,7 @@
  * so a throw added later can never take another's id.
  */
 import { SAVE_KEYS, num, signed, clampPct } from "../lib/frame-model.mjs";
+import { convertedDie } from "./kits.mjs";
 
 /**
  * The glyph a body form puts on the band. A form with no glyph of its own
@@ -120,6 +121,92 @@ export function loadReading({ stone = 0, normal = null, max = null } = {}) {
   return { pct, tick, tone, unset: false, carried, normal: n, max: m };
 }
 
+/** An attack's damage text with the creature's own modifier after it, where it has one. */
+const modded = (damage, mod) => (damage && mod ? `${damage} ${signed(mod)}` : damage);
+
+/**
+ * The tooltips naming what an import worked a throw and a save row out from
+ * (`snap.derived`, the extras `derived` block): each only while the actor still
+ * carries the figure it wrote, so a figure a Judge has since typed is not
+ * explained by parts it no longer comes from. A throw the ladder could not
+ * give says so. `leaderTip` names where a leader's own figures came from (its
+ * page, or the leader procedure's parts); `acTip` its armour class alone, for
+ * the rail, and a kit's (`snap.kit`) over a leader's where the actor holds the
+ * kit's; `moraleTip` and `damageTip` the kit's troop row, where the actor holds
+ * its figure. `{throwTip, savesTip, leaderTip, acTip, moraleTip, damageTip}`,
+ * "" where there is nothing to name.
+ */
+export function derivationTips(snap, loc) {
+  const d = snap.derived ?? {};
+  const t = d.throw ?? {};
+  let throwTip = "";
+  if (t.missing) throwTip = loc("statblock.tip.throwMissing");
+  else if (t.value != null && Number(t.value) === Number(snap.attackThrow)) {
+    const cite = t.cite || loc("statblock.tip.ladderOverride");
+    throwTip =
+      t.base != null && t.rows != null
+        ? loc("statblock.tip.throwMoved", { value: t.value, base: t.base, baseHd: t.baseHd, rows: t.rows, hd: t.hd, cite })
+        : loc("statblock.tip.throwLadder", { value: t.value, hd: t.hd, cite });
+  }
+  const s = d.saves ?? {};
+  const savesTip =
+    s.level != null && snap.savesAs && Number(s.level) === Number(snap.saveLevel)
+      ? loc("statblock.tip.savesMoved", { cls: snap.savesAs.cls, level: s.level, baseLevel: s.baseLevel ?? "—", baseHd: s.baseHd, hd: s.hd })
+      : "";
+  // Where a leader's own figures came from: its page, or the procedure with
+  // each part it added, named only while the actor carries what it built.
+  const l = d.leader ?? {};
+  let leaderTip = "";
+  let acTip = "";
+  if (l.source === "printed") {
+    leaderTip = loc("statblock.tip.leaderPrinted", { cite: l.cite || "—" });
+    if (l.ac != null && Number(l.ac) === Number(snap.ac)) acTip = loc("statblock.tip.acPrinted", { ac: l.ac, cite: l.cite || "—" });
+  } else if (l.source) {
+    if (Number(l.ac) === Number(snap.ac)) {
+      acTip = loc("statblock.tip.acDerived", { ac: l.ac, baseAc: l.baseAc, acAdd: signed(num(l.acAdd)), cite: l.cite || "—" });
+    }
+    // A kit worked out at generation replaced the leader's armour class on
+    // purpose; the leader is intact while the kit was worked out from it.
+    const kitHeld = d.kit?.value != null && Number(d.kit.value) === Number(snap.ac) && d.kit.leaderAc != null;
+    const leaderAc = kitHeld ? d.kit.leaderAc : snap.ac;
+    const intact = Number(l.ac) === Number(leaderAc) && Number(l.damage) === Number(snap.damageMod ?? 0);
+    leaderTip = intact
+      ? loc("statblock.tip.leaderDerived", {
+          cite: l.cite || "—",
+          hd: l.hd,
+          rows: l.rows,
+          baseHd: l.baseHd,
+          carried: l.carried === "doubled" ? loc("statblock.tip.leaderDoubled") : l.carried ? loc("statblock.tip.leaderCarried") : "",
+          ac: l.ac,
+          baseAc: l.baseAc,
+          acAdd: signed(num(l.acAdd)),
+          damage: signed(num(l.damage)),
+          baseDamage: signed(num(l.baseDamage)),
+          damageAdd: signed(num(l.damageAdd)),
+        })
+      : loc("statblock.tip.leaderDerivedEdited", { cite: l.cite || "—" });
+  }
+  // A kit outranks the leader's own armour class: what the actor holds is the
+  // kit's, printed on its troop row or worked out at generation.
+  const k = snap.kit?.troop ? snap.kit : null;
+  const dk = d.kit ?? null;
+  let moraleTip = "";
+  let damageTip = "";
+  if (k) {
+    const label = k.label || k.troop || "";
+    if (dk && dk.value != null && Number(dk.value) === Number(snap.ac)) {
+      const parts = { ac: dk.value, base: dk.base, label, cite: dk.cite || "—", step: signed(num(dk.step)), leaderAc: dk.leaderAc ?? "—", memberAc: dk.memberAc ?? "—" };
+      const key = dk.from === "natural" ? (dk.step || dk.leaderAc != null ? "acKitNaturalLeader" : "acKitNatural") : "acKitLeader";
+      acTip = loc(`statblock.tip.${key}`, parts);
+    } else if (!k.compute && k.ac != null && Number(k.ac) === Number(snap.ac)) {
+      acTip = loc("statblock.tip.acKit", { ac: k.ac, label, cite: k.cite || "—" });
+    }
+    if (k.morale != null && Number(k.morale) === Number(snap.morale)) moraleTip = loc("statblock.tip.kitFigure", { label, cite: k.cite || "—" });
+    if (!k.compute && k.damage != null && Number(k.damage) === Number(snap.damageMod ?? 0)) damageTip = loc("statblock.tip.kitFigure", { label, cite: k.cite || "—" });
+  }
+  return { throwTip, savesTip, leaderTip, acTip, moraleTip, damageTip };
+}
+
 /** One dashboard row. The pin state is read off the id. */
 const row = (pins, id, label, value, extra = {}) => ({
   id,
@@ -146,13 +233,26 @@ const row = (pins, id, label, value, extra = {}) => ({
 export function statblockColumns(snap, loc) {
   const pins = new Set(Array.isArray(snap.pins) ? snap.pins : []);
   const groups = [];
+  const { throwTip, savesTip, leaderTip, moraleTip, damageTip: kitDamageTip } = derivationTips(snap, loc);
+  // An attack's damage tooltip: its die and the creature's modifier, where
+  // the modifier came from a kit's row, and the die the imported conversion
+  // table makes of the pair.
+  const attackDamageTip = (formula) => {
+    if (!snap.damageMod || !formula) return "";
+    const parts = [loc("statblock.row.damageWithMod", { formula, mod: signed(snap.damageMod) })];
+    if (kitDamageTip) parts.push(kitDamageTip);
+    const die = convertedDie(snap.dice?.rows, formula, Number(snap.damageMod));
+    if (die) parts.push(loc("statblock.tip.dieConverted", { die, cite: snap.dice?.cite || "—" }));
+    return parts.join(" · ");
+  };
 
   const saves = {
     key: "saves",
     kind: "rolls",
     name: loc("statblock.group.saves"),
     note: snap.savesAs ? loc("statblock.note.savesAs", snap.savesAs) : "",
-    rows: SAVE_KEYS.map((k) => row(pins, `save:${k}`, snap.saveLabels?.[k] ?? k, `${num(snap.saves?.[k])}+`)),
+    noteTip: savesTip,
+    rows: SAVE_KEYS.map((k) => row(pins, `save:${k}`, snap.saveLabels?.[k] ?? k, `${num(snap.saves?.[k])}+`, { valueTip: savesTip })),
   };
 
   const reactions = {
@@ -160,7 +260,7 @@ export function statblockColumns(snap, loc) {
     kind: "rolls",
     name: loc("statblock.group.reactions"),
     rows: [
-      row(pins, "morale", loc("statblock.row.morale"), signed(num(snap.morale))),
+      row(pins, "morale", loc("statblock.row.morale"), signed(num(snap.morale)), { valueTip: moraleTip }),
       ...(snap.loyalty != null ? [row(pins, "loyalty", loc("statblock.row.loyalty"), signed(num(snap.loyalty)))] : []),
       row(pins, "reaction", loc("statblock.row.reaction"), "", { line: "2d6" }),
       row(pins, "init", loc("statblock.row.initiative"), signed(num(snap.initiative))),
@@ -209,11 +309,16 @@ export function statblockColumns(snap, loc) {
     kind: "attacks",
     name: loc("statblock.group.attacks"),
     note: loc("statblock.note.attacks", { n: num(snap.attackThrow, 10) }),
+    noteTip: throwTip,
     empty: loc("statblock.row.noAttacks"),
     rows: (snap.attacks ?? []).map((a) =>
       row(pins, `atk:${a.id}`, a.name, `${num(snap.attackThrow, 10)}+`, {
         line: [a.damageType, a.natural ? loc("statblock.row.natural") : "", a.extraordinary ? loc("statblock.row.extraordinary") : ""].filter(Boolean).join(" · "),
-        damage: a.damage || "—",
+        // The creature's own damage modifier rides every roll beside the
+        // attack's die, so the tag shows both and the tooltip names each.
+        damage: modded(a.damage, snap.damageMod) || "—",
+        damageTip: attackDamageTip(a.damage),
+        valueTip: throwTip,
         counter: a.counter ?? null,
         item: a.id,
       }),
@@ -225,6 +330,7 @@ export function statblockColumns(snap, loc) {
     kind: "rolls",
     name: loc("statblock.group.hitPoints"),
     note: snap.hp?.formula ?? "",
+    noteTip: leaderTip,
     rows: [
       row(pins, "hp", loc("statblock.row.rollHp"), `${num(snap.hp?.value)} / ${num(snap.hp?.max)}`, { line: loc("statblock.row.rollHpLine") }),
       row(pins, "hd", loc("statblock.row.hitDice"), "", { line: snap.hdText ?? "", post: true }),

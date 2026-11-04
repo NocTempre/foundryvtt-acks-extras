@@ -290,7 +290,7 @@ flag, because the flag and the document say the same thing.
 
 **The item states an ordinary AC, and that is what changed.** The earlier ruling
 recorded none, on the reasoning that a form does not state a magnitude — the book
-repeats "+1" because a standard shield is +1, and what a form states is where the
+repeats the standard shield's own figure, and what a form states is where the
 AC applies and when it does not. That reasoning holds for what the number MEANS
 and the conditions are still enums on the entry (`grantsAC`, `mounted`,
 `deniedWhen`, `noBack`, `noMount`, `requiresStyleSpecialization`). What it cannot
@@ -2721,9 +2721,10 @@ already reads 93% of what it does find.
 
 **Ruled: an unrecognised label ENDS the clause before it and is reported under
 the word the page printed.** Previously only a KNOWN label bounded a clause, so
-an unknown one fell inside its neighbour: the Dolmenwood line
+an unknown one fell inside its neighbour: a Dolmenwood line of the shape
+(figures invented)
 
-    Att 2 hooves (+1, 1d4) Speed 80 Morale 7 XP 35
+    Att 3 claws (+5, 1d3) Speed 70 Morale 4 XP 90
 
 read as an attack whose text happened to run on, with `extra` empty. Every
 measurement then called the block perfectly understood while its speed and its
@@ -3645,9 +3646,9 @@ authored OSE books stand on that path, and the failure is silent: the sheet
 still names the creature and still shows its biography and provenance.
 
 Live in world `test`, dmb connected, a Dolmenwood Giant Fire Beetle imported
-fresh, its sheet open, `applyStats()`: armour class 5 → 0, attacks
-`Bite (+0, 1d4)` → empty, morale −1 → 0, number appearing 2d6 → empty, speed
-40 → 120, every save and THAC0 to the ladder's initial row. All seventeen paths
+fresh, its sheet open, `applyStats()`: armour class, attacks, morale, number
+appearing and speed each went from the imported figure to the schema's initial
+value, and every save and THAC0 to the ladder's initial row. All seventeen paths
 this system's schema declares ended at their initial value — the eighteenth,
 `saves.blast.value`, has no field here and was skipped by the loop's own
 `if (field)` guard — and the notification read "refilled 1 monster from your
@@ -8946,6 +8947,175 @@ the import reads them and the difference is reported to the owner.
 *Cost:* a held class takes the price on the next Repair of the book; a world
 without the JJ builder tables keeps unread experience and its notice.
 
+## 2026-11-04 — The monster attack-throw ladder is imported, and a leader's figures name their parts
+
+Supersedes, in part, "A family's leaders follow their own figures (T-0392)"
+(same day). That entry kept a shipped ladder (`11 - step`, floored) for grid
+templates with no printed throw and moved a leader's throw one per row. New
+evidence: the owner's ruling of 2026-11-04 that a printed value caught in
+source is fixed in the work that catches it, behind an import, editable by the
+Judge, and shown as not imported when nothing is. The ladder is the Monster HD
+column of RR ch. 6, Attack Throws by Level and HD; core's
+`CONFIG.ACKS.monster_saves` mirrors the saves table, but core ships no monster
+attack-throw ladder, so there is nothing of the system's to reuse.
+
+- **The ladder is a registry table.** Document `monsters`, table
+  `attackThrowByHd`, read off the page with the rulebook's other tables and
+  editable in the Ruledata Browser, where the override wins. A leader's throw
+  is the member's printed throw moved by what the ladder adds between the two
+  rows, so the page still anchors it and the step between rows is the table's,
+  not the module's. Rejected: keeping a one-per-row step for the leader path,
+  which is the ladder's shape written into code.
+- **No ladder, no throw.** A leader cell writes none (the member's stands) and
+  a grid row keeps the actor's default; the sheet says the ladder is not
+  imported. Rejected: falling back to the old formula, which is the printed
+  ladder under another name.
+- **A derived figure names its parts.** The cell stores what the throw and the
+  save row were worked out from (`extras.derived`), and the Statblock's
+  tooltip names them while the actor still carries the figure, required by the
+  tooltip doctrine for a figure a change adds.
+- **A refill clears a damage modifier the re-read no longer finds.**
+  `damage.mod.melee` and `.missile` are binder-owned now, so they join
+  `REFILL_STAT_PATHS`, as the throw already is.
+- **Every binder lifts the "by weapon" modifier**, owner's "Move to damage.mod"
+  applying to every monster: the legacy stat line, the person block and grid
+  template rows and form cells now do what `bindMonster` does. The legacy and
+  person binders used to make no weapon at all for a "by weapon" damage,
+  because they kept only a die.
+
+*Cost:* a template imported before the rulebook's tables has no derived
+throws until it is repaired; generation does not re-read the ladder. A
+modifier a Judge set by hand on an imported monster is reset by a refill whose
+page prints none. A person block's "by weapon" bonus now rides every damage
+roll of that actor, naturals included, as a monster's does.
+
+## 2026-11-04 — AXIOMS leaders are a second source, chosen per template
+
+The owner ruled "Offer Axiom 2 and MM as options": the AXIOMS leader procedure
+is offered beside the MM's printed leaders, the MM the default, the source
+shown as provenance, and AXIOMS the only source where the MM prints no leader.
+
+- **The compendium is one book** (`axc`, AXIOMS Compendium, Issues 1-8),
+  fingerprinted by its page count alone, since the PDF carries no title, with
+  `titleRe` matching the stock download's file name for a multi-file pick.
+  Rejected: an issue per book, which would split one PDF's folios across eight
+  registrations and leave the later-printing order to decide between issues of
+  the same file.
+- **The procedure is two imported tables**, `leaderLadder` and `leaderSteps`
+  in registry document `monsters`, read off the compendium's own page. The
+  module ships what the procedure does (climb rungs, carry or double a bonus,
+  add armour and damage) and none of its figures.
+- **The source is an axis, `leaderSource`, before Role.** As printed is the
+  default; AXIOMS procedure the alternative. An axis is pinned on the template
+  and chosen per generation with nothing new, and the generation log says
+  which was taken. Rejected: a world setting, which could not differ between
+  two templates, and writing both into one cell set, which the template engine
+  would let the later cell silently win.
+- **A partial procedure derives nothing.** The registry merges an override per
+  table, so a Judge override of the steps that drops a figure yields no
+  derived cells rather than leaders built from half the rule.
+- **A rung printed as a bare plus is read as +1**, the reading `hdOf` gives a
+  stat line's bare plus. Inferred, not printed; the owner may rule otherwise.
+- **A derived leader rolls its hit points** (`rollHp`), since the procedure
+  prints none.
+
+*Cost:* casters, drudges and whelps have no derived cells. A family imported
+before the compendium was loaded has no derived cells until it is
+re-imported. On a variant with printed leaders the printed cell stays keyed
+`variant|role` and the derived one adds the source, so picking the procedure
+applies the printed cell first and the derived over it: a figure the procedure
+does not write stays the printed leader's.
+
+## 2026-11-04 — The leader readings settled, and leaders outside a family
+
+Supersedes two lines of "AXIOMS leaders are a second source, chosen per
+template" (same day). New evidence: the orchestrating session's rulings on the
+two questions that entry left open.
+
+- **A bare plus rung is N+1.** The Leader HD table (AXIOMS 2 p. 44) prints one
+  rung as a bare plus beside its dice and never sizes it. It is read as one
+  point, the reading `hdOf` gives a stat line's bare plus, so the module reads
+  one notation one way. A reading, not a printed figure; the earlier entry's
+  "the owner may rule otherwise" is answered.
+- **No Leader figures axis where only the procedure speaks.** On a variant
+  whose page prints no leader the procedure's cells are its only leaders, so
+  offering "As printed" there would name a source those figures do not come
+  from. The builder leaves out any axis with at most one option available
+  beside the other pins (`axisOffersChoice`, lib DECISIONS, same day), and the
+  leader's tooltips name the procedure. Rejected: keeping the axis with As
+  printed disabled, which still reads as a choice the Judge made.
+- **An entry outside a family gets a template of its own** for its leaders,
+  beside the creature rather than in place of it: the creature's direct import
+  is unchanged, and the template's Variant axis holds that creature alone.
+  Its id is the entry's with a `.leaders` suffix, so the presence check counts
+  it on the entry's shelf without the template claiming the creature's id,
+  which every slot and companion lookup reads; `leadersOf` names the
+  creature. A family's merge search skips it, and an entry some loaded family
+  declares as a member mints none, since that family's template holds its
+  leaders. Rejected: writing the roles onto the creature as variants
+  (`extras.variants`), which nothing generates from; and minting under the
+  creature's own id, which would give two actors one claim.
+- **The procedure builds for the beastman type alone** outside a family. A
+  family's members are all beastmen, so the family pass needs no test; a
+  standalone entry is any creature, and the procedure is the beastman
+  article's.
+
+*Cost:* an existing world gets a standalone entry's template only once the
+creature is imported again or repaired. Deleting the creature leaves its
+template standing; deleting the template and repairing the creature brings it
+back.
+
+## 2026-11-04 — A beastman's kit is a preset of stat cells, its unprinted armour worked out at generation
+
+The owner's rulings on the kit slice: "A kit preset writes stat cells only:
+AC, damage total, move and morale from the RR row, with the kit noted. No
+equipment items." and "A monster's AC from a kit is computed at generation, by
+a pure function that writes `ac.value` with its provenance (the parts and the
+pages in a tooltip). Never wrap core's `computeAC`."
+
+- **Three imported tables** in registry document `monsters`: the RR ch. 9
+  Beastman Troops rows, AXIOMS 2 Beastmen by Type (natural armour class only)
+  and its damage-die conversion. Under the later-printing ruling the RR's
+  printed troop figures win; AXIOMS supplies only what no ACKS II page prints
+  (a kind's unarmoured armour class, the die a modifier converts to). Its kit
+  paragraphs are not read: their armour classes assume the earlier edition's
+  armour.
+- **A troop row is held to its kind and its Hit Dice.** The rows are claimed
+  in the page's order under label-only kind headings, so a printing that drops
+  one row would hand the next kind's row up; a row dresses a variant only
+  where the variant's key is the row's kind and its rating the row's.
+  Rejected: trusting the claim order alone.
+- **Kit cells are keyed with the role** (`variant|role|kit`). The troop rows
+  print the rank and file, so a 2-axis cell would let a chieftain generate
+  with a trooper's armour class; with the role in the key, the rank-and-file
+  cell applies to Standard only, and a leader has cells of its own.
+- **A leader in a kit has no printed armour class.** Its kit cell writes the
+  row's move and morale and leaves the armour class to generation: the row's
+  figure plus the leader's armour class over its warrior's, so a printed and a
+  derived leader keep their advantage. Its own damage total stands (the
+  leader's printed bonus is a total). Rejected: the trooper's armour class
+  for every rank, and adding the leader's printed armour class to the row's,
+  which counts the warrior's armour twice.
+- **Unarmoured** is an option where the kind's natural armour class is
+  imported: that figure, plus the leader's difference. It changes nothing
+  else; the Monstrous Manual prints each kind's speed and damage.
+- **The computation is the monsters feature's**, a listener on the template
+  engine's resolved hook (the magic repertoire's precedent), so the lib engine
+  is unchanged and core's `computeAC` is not wrapped. Its parts are stored on
+  `extras.derived.kit` for the tooltip.
+- **Mounted troop rows are not read.** They print a rider's and its mount's
+  figures in pairs, and their move is the mount's. An owner question.
+- **The kit's words are read off the label's brackets** at import (a
+  `parenthetical` label pattern in the table extractor) and reach the
+  creature's notes at generation, from the Judge's own copy.
+
+*Cost:* a beastman template imported before the rulebook's or the AXIOMS
+tables has no Kit axis until it is repaired; generation does not re-read the
+tables. A leader in a kit keeps its own damage total even where the kit's row
+prints a larger one than the warrior's stat block. The Full Monster Sheet's
+speed rows are the stat block's; the kit's move is written to the system's
+movement figure only.
+
 ## 2026-11-04 — The Books window is a tab of the import manager
 
 **Reported.** T-0386, the owner: "On the import tool build the book tab
@@ -8996,6 +9166,54 @@ the dialog's frame (`importer-adventure.mjs` reads `.acks-extras-importer-books
 [data-adventure]`, which still resolves); the panel's open details fold again
 on each render of the manager; the census is read once by the panel and once
 by the Adventures tab.
+
+## 2026-11-04 — A family's leaders follow their own figures (T-0392)
+
+The report: "The beastmen templates do not seem to be following the rules on
+upgraded stats/abilities for non-base types." A leader carried its name over
+the warrior's throw, saves, rating and XP, and a role with no figures for the
+chosen variant was still offered and rolled. Model: docs/monsters/MODEL.md,
+"Family templates: the Role axis".
+
+- **The damage bonus is a total**, owner's answer "Move to damage.mod
+  (Recommended)". Every monster's "by weapon ±N" moves at bind time out of the
+  weapon item's formula into `system.damage.mod`, direct imports included,
+  and a leader cell sets the total there. A leader sentence with no damage
+  clause totals 0. Melee and missile alike: the page gives no delivery, so
+  that is the default taken, not a reading of the page. Rejected: an
+  item-replace channel on cells (a cell could not remove the member's item).
+  *Cost:* core adds `damage.mod.melee` to every melee roll, so a creature
+  whose stat line prints a weapon modifier and natural attacks gets it on the
+  naturals too; the other `weaponDamage` callers (adventure stat lines,
+  person blocks) still carry a modifier in the formula.
+- **Saves and throw are derived, not printed.** No leader prints a save; the
+  member's save class at its save level is moved by the levels between the two
+  ratings, and the throw by the ladder rows between them, from the member's own
+  printed throw (RR ch. 6, Attack Throws by Level and HD; MM ch. 4, Monster
+  Type). Anchoring on the member's throw means the leader path ships no throw
+  figure; grid templates with no printed throw still use the derived ladder.
+  *Superseded in part, same day:* "The monster attack-throw ladder is
+  imported, and a leader's figures name their parts".
+- **A missing cell is refused, not filled**, owner's answer "Standard by
+  default (Recommended)": an unpinned role generates Standard, and a role a
+  variant prints no figures for is never offered or rolled. Rejected: rolling
+  uniformly over every role, which named warriors as chieftains.
+- **XP is read whole at import, not compiled.** The XP cell's own instruction
+  is run once more at the `raw` pattern beside the int the stat block keeps.
+  Rejected: a second compiled field, which would recompile every monster entry
+  of every book for the forty that print one figure per role.
+- **An overview that is another member's block is lore.** The generic MM
+  Beastman reads a bugbear's stat boxes, and the generic Lycanthrope a
+  werebear's; neither is a variant now, and its prose is the template's
+  description. Decided at import (`overviewIsLore`), not at compile, so the
+  entry stays a family member and is not offered as a stand-alone monster.
+- **Casters roll their level at generation**, a new contract: the cell carries
+  `spellcasting {class, levelDie}`, the generator rolls it, the magic listener
+  derives the class's slots at that level. A cell cannot carry the slots,
+  which depend on the roll.
+
+*Cost:* families are rebuilt by their importer only, so an existing template
+shows none of this until a re-import or a repair of it in place.
 
 ## 2026-11-04 — A forced repair, and what it still keeps
 
@@ -9054,4 +9272,177 @@ run, and a forced tally cannot leak into a later ordinary one).
 
 *Cost:* weapons, armour, the price list, languages, races, monster templates
 and families, NPCs and OSE creatures are still left by a forced repair; the
-confirm and the notice say so.
+confirm and the notice say so. **Superseded the same day** by the entries below
+for the kinds and the adventure book; the rest of this entry stands.
+
+## 2026-11-04 — Every kind gets an in-place write
+
+**Ruled** (owner, "Yes, all of them (Recommended)"): weapons, armour and the
+price rows, languages and races, monster templates and families, NPCs, OSE
+creatures and the rest that were rebuild-only get an in-place write, for the
+ordinary repair and the forced one alike (they differ only by the prose
+guard). New evidence for superseding the entry above, written the same day: the
+owner's ruling, which that entry listed as open.
+
+- **One scope, not a writer per kind.** An actor kind's importer is its build
+  (templates, families, NPCs and OSE creatures carry nesting, tokens and
+  grants), so `withRewrite` diverts the importer's own `createDoc` for a held id
+  into a `refreshImported` write under `actorPolicy(build)`. The build is
+  called, never copied; a change to a template's build (the beastmen work) is
+  repaired with no second edit.
+- **Table rows are written where their table is.** Weapons, armour, priced rows,
+  languages and races each take `{repair}` in the importer that makes them, with
+  `REPAIR` entries for the figures, flags and what play owns (`equipped`,
+  `quantity`).
+- **Kept as ruled:** a hand-made document, a field outside the import's write
+  set, what play set, a book not open on this seat. Added: a pregenerated
+  character (the sheet import grants items onto the actor, so a rewrite would
+  grant them twice) and a row the page no longer yields (nothing to write from;
+  counted).
+
+**Rejected:** a rebuild fallback for any kind (it deletes ids, folders and
+owners); one `refreshImported` call per kind with the build copied beside it.
+
+*Cost:* a rewrite of an actor writes its embedded items from the build, so an
+item a Judge added to an imported creature that was not minted survives and one
+a Judge edited that was minted does not; the confirm says what is kept.
+
+## 2026-11-04 — An adventure book has a forced repair
+
+**Ruled** (owner, "Yes"): the Adventures tab's Repair gains a forced mode with
+the same confirm and counts; Cancel writes nothing. It writes in place the
+Adventure, the creatures and people, the book's own items and its roll tables.
+Journals and maps were already refreshed in place. **Places, organisations and
+market profiles are topped up, not written over:** they carry nesting,
+relations and rosters that a rewrite would flatten, and the confirm counts
+them as "more … topped up". *Owner to rule* whether they get an in-place
+writer too; the cost of a no is that an edited place survives a forced repair.
+**Superseded the same day** by "A forced repair writes the places, bodies and
+pregenerated characters too", below; the rest of this entry stands.
+
+## 2026-11-04 — Overhead token art comes from an installed compendium, one writer
+
+**Ruled** (owner): "If that compendium is in the world data offer importing its
+images as the token; keep the book images as the portrait"; and for the scale,
+"Fit token to kept scale?" taken as: keep this module's token size and scale and
+fit the third-party art inside them, never copy the compendium's scale.
+
+- **Surface:** the import manager's Tools tab, because it is GM-gated, already
+  runs jobs and re-renders. Rejected: a modal inside the import chain (the
+  chain narrates its own progress and must not stop on a question), the repair
+  window (it is for damage), a world setting (nothing would gate it but this
+  button).
+- **Discovery at runtime, no package named:** any active module's Actor pack
+  with monster rows whose token art lies under that module's path. Core serves
+  only active modules' packs, so "installed and active" and "its packs are in
+  `game.packs`" agree. More than one source gives one button each.
+- **One writer, one rule:** write only where the token still shows the import's
+  default or our last write. A Judge's token is counted and left. Rebuild
+  resets the token to the book's, and the Judge presses Apply again.
+- **Exact folded-name matching.** Ambiguous and unmatched rows are counted. The
+  variant-suffix tier is on the ROADMAP.
+- **The flag records what Restore puts back:** `{from, src, was}`. Restore needs
+  no compendium, so it still works after the package is uninstalled.
+- **Wildcards:** a wildcard token path marks `randomImg`; lib `artOf` falls back
+  to the portrait for it, since a group's image cannot be a wildcard.
+
+**Rejected:** copying the compendium's scale (its figures were tuned to its own
+footprints); remembering the answer so a new import applies it by itself (a
+second writer and a branch in `importArt`).
+
+*Cost:* a token pointing at a package breaks if the package is uninstalled until
+Restore; nothing flags it yet.
+
+## 2026-11-04 — A forced repair writes the places, bodies and pregenerated characters too
+
+**Ruled** (coordinator, from the owner's "There needs to be a repair in place
+that forces no skips" and "Yes, all of them"): an adventure book's Force repair
+writes its places, organisations and market profiles in place, replacing an
+edited place or roster, with the confirm saying so and counting them; and a
+pregenerated character is rewritten under a forced repair, with the items its
+sheet import grants stamped `minted` first. An unforced repair keeps its
+behaviour for both. New evidence for superseding the two entries above, written
+earlier the same day: the owner's own wording, which they listed as open.
+
+- **Places and bodies through the existing scope.** `withRewrite` gains
+  `retract` (fields the build lacks that are returned to empty first), and the
+  importers' held branches step aside for a held id. The importer's build is
+  the one rewrite; a roster, relations and strength are rebuilt by the passes
+  that fill them after the create.
+- **Left, because another step joins them:** a place two books print, and the
+  containers a place stands in. The confirm counts them as left.
+- **Market profiles keep the later printing.** A forced profile replaces a class
+  or family count a Judge set and any base but one a later printing wrote; the
+  later-printing rule is the owner's and a book repair does not reverse it.
+- **A pregenerated character is landed again, not rebuilt.** The sheet import
+  answers a line by what the character carries, so rerunning it grants nothing
+  twice, which makes the earlier "granted twice" reason for keeping pregens
+  wrong for this path. Deleting the stamped grants first, to replace an edited
+  grant, would also drop the class's powers, because the class bind skips a
+  character already at that class and level; that round trip is on the ROADMAP.
+  A character imported before the stamp has unstamped grants and takes the same
+  rewrite.
+
+**Rejected:** deleting and regranting a pregenerated character's items (above);
+rewriting the containers a place stands in (a quarter's overview notes would be
+blanked before their own pass restores them).
+
+*Cost:* an item a Judge edited on a pregenerated character stays edited; a place
+the book prints twice is not rewritten.
+
+### A condition is read off the page, and a label names its kind (2026-11-04)
+
+Owner ruling "Fix this release": the cookbook's author-written condition
+phrases are the book's expression and stop shipping
+(`docs/abilities/DECISIONS.md`, same date, holds the ruling and the order of
+preference).
+
+**Ruled, for the recipe engine:**
+
+- **`conditionFrom` reads the clause at import**, as a figure's `from` does,
+  on effects and roll specs. **A miss keeps the row.** A figure's miss drops
+  its row because a row without its number is wrong; a row without the page's
+  words for its condition is only less specific, and its label still says what
+  kind of condition stands.
+- **The label carries its page reference, written by the compiler.** The
+  register writes the bare label once; `citeLabel` appends the entry's own
+  page, so no register row restates a page reference the entry already holds.
+- **The lint refuses a condition of more than two words that is not a label**,
+  in the register and in the compiled cookbook. It is the one gate the prose
+  rule can have here, because the label list is closed.
+- **An effects frame** (`assists.effectsFrames`) lets a recipe read a bonus
+  table printed beneath the entry without making it part of the description.
+
+**Rejected:** a locator miss dropping the row (rows that apply today would stop
+existing on a seat whose print differs); shipping the clause as a fallback
+(that is the phrase this ruling removes); free-form labels (the lint could no
+longer tell a label from a paraphrase).
+
+*Cost:* a label shows wherever a book's wording has drifted from the locator,
+and a Judge reads the page it cites.
+
+### Every clause field takes a locator; a note is gated where a machine can decide (2026-11-04)
+
+The same ruling reaches a row's `restriction`, `consequence` and `note`
+(`docs/abilities/DECISIONS.md`, same date, holds the scope).
+
+**Ruled, for the recipe engine:**
+
+- **One clause reader, four fields.** `CLAUSE_FIELDS` (`condition`,
+  `restriction`, `consequence`, `note`) each take a `<field>From` locator on an
+  effect spec, read by `locateCondition` and stripped before the row reaches
+  the world. A miss keeps the row and the shipped value, as for a condition.
+- **Each labelled field has its own closed label list** (`LABELLED_FIELDS`),
+  cited by the compiler and refused by the lint beyond two words, so a
+  consequence label can never be read as a condition label.
+- **A note is not labelled.** It is the module's remark, and its prose half
+  stays a reviewer's call; `noteProblem` refuses a figure outside a page
+  reference and a TODO, in a recipe row and in a class award.
+- **`noteFrom` needs no label beside it**: a capability or companion row with
+  no note reads "see description", which is the module's own words.
+
+**Rejected:** reading the clause on roll specs too (a roll's note reaches only
+the roll editor, and no recipe needed it); a per-field reader (the four fields
+share every rule a clause needs).
+
+*Cost:* a second label list to keep closed per field.

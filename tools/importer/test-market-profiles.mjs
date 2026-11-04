@@ -13,7 +13,7 @@
 import assert from "node:assert/strict";
 import { MODULE_ID } from "../../scripts/importer/constants.mjs";
 import {
-  ACKS1_GOODS, baseIsImportable, erratumStamp, goodsResolver, heldErratumNotes, marketActorData, marketEntryId, marketOrdinal,
+  ACKS1_GOODS, baseIsForceable, baseIsImportable, erratumStamp, goodsResolver, heldErratumNotes, marketActorData, marketEntryId, marketOrdinal,
   marketProfileUpdate, marketProfiles, parseDm, parseFamilies, parseMarketClass, placeName, unprintedMarketUpdate, withErratumNote,
 } from "../../scripts/importer/market-profile-binding.mjs";
 import { MERCHANDISE_TYPES } from "../../scripts/markets/config.mjs";
@@ -204,6 +204,24 @@ ok("a later printing's base replaces an earlier one's; never the reverse, a tie,
   assert.equal(baseIsImportable(held("ax6"), from("ax5")), false);
   assert.equal(baseIsImportable(held("bk"), from("ax3")), false);
   assert.equal(baseIsImportable(held(null), from("ax3")), false);
+});
+
+ok("a forced repair writes the class, families and base over the Judge's, but never over a later printing's base", () => {
+  const [p] = marketProfiles({ grids: [GRID], records: { mkt1: { families: "90", marketClass: "V" } }, resolve: goodsResolver([]) });
+  const judged = { marketClassOverride: 2, urbanFamilies: 12, goods: { demand: [{ category: "salt", modifier: -1 }], dmProfile: { source: null } } };
+  const { update, wrote } = marketProfileUpdate(judged, p, SOURCE, { force: true });
+  assert.deepEqual(wrote, { marketClass: true, families: true, demand: true });
+  assert.equal(update["system.market.marketClassOverride"], 5);
+  assert.deepEqual(update["system.market.goods.demand"], p.demand);
+  const later = { ...judged, goods: { demand: [{ category: "salt", modifier: 1 }], dmProfile: { source: { book: "ax3", page: "ax3 p.1" } } } };
+  const earlier = marketProfileUpdate(later, p, { book: "ax1", page: "ax1 p.2" }, { force: true });
+  assert.equal(earlier.wrote.demand, false);
+  assert.equal(earlier.wrote.marketClass, true);
+  assert.equal(baseIsForceable(later.goods, { book: "ax1", page: "ax1 p.2" }), false);
+  assert.equal(baseIsForceable(later.goods, { book: "ax5", page: "ax5 p.2" }), true);
+  assert.equal(baseIsForceable({ demand: [] }, SOURCE), true);
+  const unforced = marketProfileUpdate(judged, p, SOURCE);
+  assert.deepEqual(unforced.update, {});
 });
 
 ok("a sideways grid's market carries no class, and lands without one", () => {

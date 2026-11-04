@@ -31,17 +31,12 @@ export const EFFECT_DOMAINS = Object.freeze({
   // Numeric, always-on → folded into the core `system.*.mod` fields.
   HAND_BUDGET: "handBudget", // raises the base 2-hand budget (Four Arms, monster anatomy)
   STYLE_AC: "styleAC", // Weapon & Shield spec, variant-shield AC, Swashbuckling/Blade-Dancing
-  STYLE_INIT: "styleInit", // Single-weapon spec, Combat Reflexes
-  // Initiative that applies only while lightly equipped (≤ light armour, ≤ 5
-  // stone) — the bladedancer's Graceful Fighting. Separate from STYLE_INIT
-  // because that domain is always-on and folding a gated bonus into it would
-  // grant it in plate. Shares its gate with SWASHBUCKLING, which RAW writes
-  // with the same clause.
-  LIGHT_INIT: "lightInit",
+  // A hand-made effect's initiative. An imported ability's typed initiative
+  // modifier reaches the loadout through lib/typed-modifiers.mjs instead.
+  STYLE_INIT: "styleInit",
   STYLE_ATTACK_MELEE: "styleAttackMelee", // Dual spec, slayer flats
   STYLE_ATTACK_MISSILE: "styleAttackMissile", // Missile spec
   STYLE_DAMAGE_MELEE: "styleDamageMelee", // Two-handed spec
-  MAX_CLEAVES: "maxCleaves", // Combat Ferocity
   // String / CSV domains.
   WEAPON_FOCUS: "weaponFocus", // CSV of Weapon Focus categories
   // Declared as the seam for a creature-kind-scoped modifier through the
@@ -79,7 +74,6 @@ export const EFFECT_DOMAINS = Object.freeze({
   // Declared as a seam; not yet read (see ROADMAP.md).
   NO_SHIELD_BENEFIT: "noShieldBenefit", // class lacks Weapon & Shield style
   STYLE_PROFICIENT: "styleProficient", // CSV of fighting styles the actor is trained in
-  SWASHBUCKLING: "swashbuckling", // conditional AC while lightly equipped (RR p. 117)
 });
 
 /** Per-item override / annotation flags (on weapon & armor items). */
@@ -202,6 +196,9 @@ export const HOOKS = Object.freeze({
 /** The label of the module-managed loadout Active Effect on actors. */
 export const LOADOUT_EFFECT_NAME = "Equipment Loadout";
 export const LOADOUT_EFFECT_FLAG = "loadout"; // flags.acks-extras.loadout = true marks our managed AE
+// flags.acks-extras.loadoutParts: the ledger naming what wrote each change of
+// the loadout effect, index for index (effects.mjs `buildLoadoutParts`).
+export const LOADOUT_PARTS_FLAG = "loadoutParts";
 
 /**
  * The `_id` every actor's loadout effect is created under. One id per actor

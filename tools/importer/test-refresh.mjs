@@ -8,6 +8,7 @@
 import assert from "node:assert";
 import {
   refreshPlan,
+  actorPolicy,
   REPAIR,
   policyFor,
   handWrittenProse,
@@ -304,5 +305,33 @@ check("the tally counts each outcome", tally.replaced === 2 && tally.keptProse =
 const doc = { uuid: "Item.a" };
 check("a document is met once per tally", unrepaired(tally, doc) && !unrepaired(tally, doc) && !unrepaired(null, doc));
 check("the counts leave the seen set out", JSON.stringify(repairCounts(tally)) === '{"replaced":2,"keptProse":1,"refused":2}');
+
+/* --- table rows and whole-actor kinds ------------------------------------- */
+const weaponStored = { type: "weapon", system: { description: stamped("Old."), equipped: true, damage: "1d4" }, flags: { [M]: { weapon: { mode: "a" } } } };
+const weaponBuilt = { type: "weapon", system: { description: stamped("New."), equipped: false, damage: "1d6" }, flags: { [M]: { weapon: { mode: "b" } } } };
+const weaponPlan = refreshPlan(weaponStored, weaponBuilt, REPAIR.weapon);
+check("a weapon row takes the build's figures and keeps what is equipped", weaponPlan.update.system.damage === "1d6" && !("equipped" in weaponPlan.update.system));
+check("a weapon row takes the build's structured mode", weaponPlan.update.flags[M].weapon.mode === "b");
+const pricedPlan = refreshPlan({ type: "equipment", system: { quantity: 4, cost: 1 } }, { type: "equipment", system: { quantity: 1, cost: 2 } }, REPAIR.priced);
+check("a priced row takes its cost and keeps its quantity", pricedPlan.update.system.cost === 2 && !("quantity" in pricedPlan.update.system));
+const languagePlan = refreshPlan({ type: "acks-extras.language", flags: { [M]: { language: { family: "a" } } } }, { type: "acks-extras.language", flags: { [M]: { language: { family: "b" } } } }, REPAIR.language);
+check("a language takes its taxonomy flag", languagePlan.update.flags[M].language.family === "b");
+
+const actorBuilt = {
+  type: "monster",
+  system: { details: { biography: stamped("Bio.") } },
+  flags: { [M]: { cookbook: { id: "x" }, extras: { a: 1 }, minted: true, kit: { b: 2 } } },
+  prototypeToken: { name: "T" },
+  items: [{ name: "Claw", type: "weapon" }],
+};
+const policy = actorPolicy(actorBuilt);
+check("an actor policy writes the flags the build stamps and not its cookbook or minted marks", policy.flags.join() === "extras,kit");
+check("an actor policy rewrites the biography, the token and the items", policy.prose[0] === "details.biography" && policy.top[0] === "prototypeToken" && policy.minted[0] === "items");
+check("an actor policy replaces rows and takes the monster prose flags only with extras", policy.rows === "replace" && policy.proseFlags.length > 0);
+const bare = actorPolicy({ type: "character", system: {}, flags: { [M]: { cookbook: { id: "y" } } } });
+check("a build with nothing to write carries no flags, token, items or prose", bare.flags.length === 0 && bare.top.length === 0 && bare.minted.length === 0 && bare.prose.length === 0 && bare.proseFlags.length === 0);
+const tableTally = repairTally({ force: true });
+tableTally.tables = new Set(["priced"]);
+check("a tally carries the table importers a run repairs, and counts skip it", tableTally.tables.has("priced") && !("tables" in repairCounts(tableTally)));
 
 console.log(`test-refresh: ${pass} passed`);

@@ -14,10 +14,10 @@ Legend: ✅ automated · 🟡 partial / assisted · 🔧 needs development · �
 | Speeds by encumbrance (§2) | ✅ | Party speed = slowest member, live from system encumbrance. |
 | Running fatigue, winded from running (§2) | 🔧 | Only the 5-turns-without-rest winded is automated. Per-round running fatigue (Paralysis save after 10±CON rounds, Endurance +4) is a combat-scale rule — needs a combat-round hook + save automation. Low priority; fights rarely last 10 rounds. |
 | Marching order & roles (§3) | ✅ | Ordered list, Scout/Mapper/Pole/Rear Guard/Non-combatant chips. |
-| Corridor-width formation (single file ≤5', two abreast ≥6') (§3) | 🟡 | The party token now WEARS its face: `faceWidthFeet` (frontage × the `marchFeetPerBody` setting) sizes it at the scene's scale, swapping axes with the heading (see MODEL "Data flow"). What remains is the **auto-squeeze**: probing corridor width by wall rays and narrowing `effectiveFrontage()` (the seam already exists) when the passage is tighter than the declared face, reforming when it opens — a per-formation toggle. Storage sketch: `autoSqueeze` boolean + `squeeze: {active, frontage}` on the record; triggers on party-token movement and wall create/update/delete. |
+| Corridor-width formation (single file ≤5', two abreast ≥6') (§3) | 🟡 | The party marches as a column of one cell per body along the ground it walked, at the declared frontage (MODEL "The column"). What remains is the **auto-squeeze**: probing corridor width by wall rays and narrowing `effectiveFrontage()` when the passage is tighter than the declared frontage, reforming when it opens — a per-formation toggle. Storage sketch: `autoSqueeze` boolean + `squeeze: {active, frontage}` on the record; triggers on party-token movement and wall create/update/delete. |
 | Mapper: bright light, both hands, **vulnerable** (§3.1) | 🟡 | Light requirement drives fog. **Hands are now real**: the role needs a quill and parchment (`ROLE_GEAR`) and each piece occupies a hand in the equipment loadout, so a mapper cannot also hold a drawn weapon. v0.5.0 warns when the mapper lacks the Mapping proficiency (vague measurements, no passive error detection). Only *vulnerable* is still a reminder — auto-applying the Active Effect needs 📖 the Conditions rules (RR p. 514). |
 | Mapping proficiency (secret error-detection throw) (§3.1) | 🔧 | **Unblocked 2026-08-16** — the proficiency text is now in the local extract (`acks-rules/acks-formation/PROFICIENCIES.md`), which states the throw: one turn and an 11+ to interpret a layout, map from memory, or notice an irregularity in one's own map. What is still missing is development, not text: a "map error" concept, which is only meaningful now the map-object system exists (an unproficient mapper's Map item could get GM-injected distortions). |
-| Light sources & burnout (§4) | ✅ | Burn clock, guttering, inventory consumption, token light emission. |
+| Light sources & burnout (§4) | ✅ | Burn clock, guttering, inventory consumption, light from each bearer's cell in the column; reach and burn time imported (lib's light table). |
 | Shadowy senses / lightless vision (§4) | ✅ | Both now reach the TOKEN: sight derived from the sheet by the lib subsystem `senses.mjs` (shadowy 30', lightless its recorded range, both as dim monochrome; ordinary eyes range 0, seeing only what is lit). Applies to any actor, in a party or not. Mapping still requires bright light, so the mapper gating is unchanged — RAW, senses cannot do bright-light tasks. |
 | Searching & listening throws (§5) | ✅ (v0.5.0) | Party-roll buttons (Listen / Hasty Search / Methodical Search / Bash Door) roll every member using **their sheet's numbers** — a matching ability item's rollTarget (thief skills) first, else the sheet's Adventuring target — GM-whispered as one card. RAW enforced: hasty search skill-only, methodical +4 for skill users and auto-consumes 1 turn, listening once per turn while moving, bashing ±4×STR. |
 | Earshot / noise (§5) | 📖 tables captured; automation impractical (Judge adjudication). |
@@ -426,14 +426,17 @@ their field and cite the page, and tracked tests use invented figures. The
 numbers below still ship in code (DECISIONS 2026-09-23, "Formation strings name
 the field and cite the page").
 
+**Done after 11.13.2** — the delve's wandering throw: its die, interval,
+target and distance dice all arrive with the `delveEncounters` import, and
+none is guessed when absent (DECISIONS 2026-11-04, "The delve's wandering
+cadence is imported" and "The encounter throw's dice are imported too").
+
 **Still to rule, roughly worst first:**
 
 | Where | What | Note |
 |---|---|---|
 | `party-rolls.mjs` resolver | the methodical-use bonuses, the proficiency bonus magnitudes, a substituted throw target | The worst by doctrine: each is a magnitude the book attaches to a NAMED proficiency a reader picked, so each already has an owner — the character's own imported ability. `ability-bridge.mjs` already resolves imported ability terms; what is missing is a granted-modifier read, not a subsystem. |
-| `turn-engine.mjs` | the encounter die and the encounter-distance formula | Decisive argument: two of the same throw's three parameters are ALREADY settings-backed (`module.mjs`), and only the dice are hardwired. That inconsistency, not the size of the numbers, is the case. |
 | `obstacles.mjs` | the registered obstacle magnitudes | Counter-example to §6's original claim; unexamined in detail. |
-| `lib/light.mjs` | the light-source durations and radii, re-exported into this feature by `constants.mjs` | Owned by `lib`, not formation — rule it there. |
 | `trap-rules.mjs` | the default trigger, the crude-trap modifiers, the botch bands, pit and spike damage | Found by the 2026-09-23 audit. The trap's trigger field falls back to an imported default once one exists. |
 | `formation-model.mjs`, `formation-view.mjs` | the exploration-speed grid, the capacity fallback, the blind speed share, the combat-speed ratio | Found by the 2026-09-23 audit: the grid §6a's first pass deleted survives here with two readers. |
 | `travel.mjs`, `march.mjs`, `searching.mjs`, `search-run.mjs`, `lib/movement-scales.mjs` | the ancillary-activity count, the hour a slot is worth (`SLOT_HOURS`), the march's hours by pace (`TRAVEL_PACE`), the forced march's factor, and the feet-per-turn-to-miles-per-day ratio | The hour is the structural unit; the count, the pace hours and the ratio are printed. Owned by the movement-scales pass; the march engine (2026-10-09) reads them through `marchBudget` and `expeditionFrom`, so registering them is a change to two readers. |
@@ -494,8 +497,8 @@ legitimately sit.
 - **The party's position is its centre, not its corner.** `clock.lastPosition`,
   the trap check's `from`/`to`, the halt's back-out and the scouts' leash all
   pass the party token's top-left corner around, so any change to the token's
-  face moves the coordinate everything measures from. Today `syncPartyTokenSize`
-  re-baselines the clock after a pivot (2026-09-07); a centre-based position
+  size moves the coordinate everything measures from. Today `syncPartyTokenSize`
+  re-baselines the clock after each resize (2026-09-07); a centre-based position
   would make that unnecessary and would stop a frontage edit from reading as a
   step. It is a change to the trap geometry, not to the clock — `trap-zone.mjs`
   converts corner to centre and back at three seams that would collapse. The
@@ -559,12 +562,12 @@ a fight that is over").
 |---|---|---|
 | The record read before the next move | Until that move, deploy or Form Up, the party still reads "in combat": the sheet's warning and its detach, a relayed leave-behind and the map session refuse. | a ruling: each reader asks whether the party is fighting, or reforms first. |
 
-## The party token's light
+## The marching column
 
 | Not built | What it is | What it needs first |
 |---|---|---|
-| The light centred on the formation | The party token's light is emitted from the middle of the token, which sits at the middle of the formation's footprint, so a long column lights its own centre and not the bearer at its head or tail. | the owner's party-size ruling: what size the party token is, and so where its middle falls. |
-| The light measured from the token's edge | Foundry adds half the token's smaller side to every light radius, so light is measured from the token's edge. On a party token two squares or more across, the lit circle reaches a square or more past the lantern's figure. Subtracting that padding from the written radius would measure it from the token's centre. | the same ruling, and the owner saying whether a party's light is measured from its centre or its edge. |
+| The trail with no GM online | The trail is written by the primary GM, so a party moved while no GM is seated keeps the trail of its last GM-seen step and reads straight behind the head after a reload. | a writer other than the primary GM that is still one writer, or a ruling that a straight column is enough there. |
+| The column across a scene edge | Each body is pinned inside the scene on its own, so a column walked along an edge stacks its tail where the edge cuts it. | a ruling on whether the tail folds back along the trail instead. |
 
 ## A copy of the party token on another scene
 

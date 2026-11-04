@@ -2,7 +2,7 @@
  * The GM's one-click import chain, and the per-seat first-run flag.
  *
  * This used to own a dialog of its own — a walkthrough that opened on join and
- * carried its own "Connect a book…" button beside the Books dialog's. The
+ * carried its own "Connect a book…" button beside the Books tab's. The
  * walkthrough is now the first band of the import manager's Books tab (module.mjs), so what
  * is left here is the part that was never about presentation: WHICH importers
  * run, in WHAT order, and how a failure in one is kept from silencing the rest.

@@ -202,3 +202,210 @@ submit that path against a schema with no such subtree.
 What the beast CARRIES is deliberately absent here — it is edited on
 Classification and drawn on Inventory. The data-side ruling behind that one
 store is `docs/vehicles/DECISIONS.md`.
+
+## Family templates: the Role axis
+
+A family template (`importFamily`) has a Variant axis of complete members and,
+where a member's prose prints them, a **Role** axis: champion, sub-chieftain,
+chieftain, shaman, witch doctor, drudge, whelp. `scripts/importer/leader-roles.mjs`
+reads the sentences (shipped locators; every figure is the page's) into one
+cell per variant×role, keyed `variant|role`; a role is on the axis only where
+some variant has its cell.
+
+**What a leader cell writes.** From its sentence: AC, the fixed hit points,
+the Hit Dice rating (as `hp.hd` and as the extras `hd` the band shows), and the
+damage bonus as a **total** on `system.damage.mod`, melee and missile alike (a
+sentence with no damage clause totals 0, so the member's own modifier does not
+leak onto a leader whose page drops it). From the member's own block, moved by
+the procedure that relates them: the attack throw, the member's printed throw
+moved by what the Judge's imported attack-throw ladder adds between the
+member's row and the leader's (a hit-point bonus rounds the dice up a row; 1-1
+and fractions are the rows below 1); the save class at the member's save
+level moved by the levels the two ratings differ by (whole dice, less one for
+a hit-point penalty, none below 1 HD), as the system's save rows and the
+extras `saveAs`. XP is the role's own figure from the member's XP cell, read
+whole at import ("N (role)" in either order); a role the cell does not list
+writes none and keeps the member's.
+
+**The attack-throw ladder** is the Monster HD column of RR ch. 6, Attack
+Throws by Level and HD, imported with the rulebook's tables into the registry
+document `monsters`, table `attackThrowByHd`, one row per ladder row
+(`half`, `oneLess`, `hd1` …; a rating past the last row takes it, as the page
+prints it open-ended). The Judge edits it in the Ruledata Browser like any
+imported table, and the override wins. With no ladder in the world a leader
+cell writes no throw, so the member's own stands, and a grid template row with
+no printed throw keeps the actor's default; nothing is guessed. The same
+ladder gives a grid row its throw where the row prints none.
+
+**Provenance.** Each derived throw and save row stores its parts on the
+generated actor (`extras.derived`: the figure written, the member's figure
+and rating it moved from, the rating it moved to, the ladder rows between, the
+ladder's citation, or `missing` where the ladder was not imported). The
+Statblock's attack and save figures carry a tooltip naming them
+(`derivationTips`), shown only while the actor still holds the figure written,
+so a throw a Judge has since typed is not explained by parts it no longer
+comes from.
+
+**Derived leaders (the AXIOMS procedure).** Where the Judge has imported the
+AXIOMS Compendium (book `axc`), the family pass also builds champion,
+sub-chieftain and chieftain cells for every variant from the member's own
+block (`derivedLeaderRoles`, `scripts/monsters/leader-derive.mjs`). Two
+tables carry the procedure's content, both in registry document `monsters`:
+`leaderLadder`, the column of Hit Dice ratings the procedure climbs (AXIOMS
+44), and `leaderSteps`, how many rungs each role climbs, the Hit Dice the
+member needs before its hit-point bonus carries, and each role's armour and
+damage additions. The leader's rating is the member's rung moved up by its
+role's step (a member whose rating is on no rung, or a role that would climb
+past the last rung, gets no derived cell), the member's
+hit-point bonus carried where the member qualifies and doubled for a
+chieftain; AC and the damage total add the role's figures to the member's.
+Throw and saves move by the attack-throw ladder and the save rule above, from
+the member's figures to the derived rating. A derived leader's hit points are
+not printed, so the cell carries `rollHp` and Generate rolls them from the
+derived dice. A procedure missing any of its figures builds no derived cell:
+half a procedure would write numbers no page prints. The rung printed as a
+bare `N+` is read as `N+1`, as `hdOf` reads it (importer DECISIONS,
+2026-11-04). The procedure does not reach
+casters, drudges or whelps; those roles stay printed-only.
+
+**Leader figures axis.** Where a variant has a printed leader and the
+procedure also applies, the two are options of an axis `leaderSource`
+("Leader figures"), placed before Role: **As printed** is the default and
+**AXIOMS procedure** is the alternative, and the cells are keyed
+`variant|role|source`. A variant whose page prints no leaders has only the
+derived cells, keyed `variant|role`, so the procedure is the only source there:
+with that variant pinned the builder leaves the axis off (an axis with at most
+one option available is no choice, `axisOffersChoice` in
+[../lib/API.md](../lib/API.md)), and the leader's tooltips name the procedure.
+The Statblock's hit-point note names the
+source: the printed page for a printed leader; for a derived one, the
+member's rating, armour and damage, the role's additions, the rungs climbed,
+whether the bonus carried or doubled, and the AXIOMS citation. It names the
+parts only while the actor still holds the derived armour and damage; once a
+Judge has changed either, it says the figures were edited and keeps only the
+citation. The rail's armour class cell names the leader's armour class alone
+(`derivationTips` `acTip`): as printed with its page, or the member's figure
+and the rank's addition with the AXIOMS citation, again only while the actor
+holds it; a printed leader's cell records the armour class its sentence
+prints (`extras.derived.leader.ac`) so the check has something to compare.
+
+**Leaders outside a family.** A stat-block entry that is no family's member
+gets a template of its own beside the creature when its prose prints a
+leader, caster or dependant, or when the procedure is imported and the
+creature's type is beastman (`entryLeaderTemplate`, minted by
+`mintLeaderTemplate` in the importer). Its Variant axis holds the creature
+alone, as its default, so the builder leaves that axis off; its Role axis and
+cells, and the Leader figures axis where both sources apply, are built exactly
+as a family member's. It is named for the creature with a "(leaders)" suffix
+from the importer's lang, and answers for the cookbook id
+`<entry id>.leaders` (`leaderTemplateId`), which no entry carries, with the
+creature's id under `leadersOf`: the creature keeps its own id to itself, and
+a family import never adopts the template as a family's. An entry whose page
+names no leader, and a type the procedure does not build for, mint nothing.
+The import, a Rebuild and a repair of the creature each write the template
+held under that id over in place, or mint it where none is held.
+
+**Casters** copy the cell of the rank they are "equivalent to" and add
+`extras.spellcasting {class, levelDie}`. Generate rolls the level die
+(`rollDice`, logged as `casterLevel`), and the magic listener takes that class
+document's slots at that level and draws the repertoire. With no such class in
+the world, the caster has no slots and the class word stays on the sheet.
+
+**Dependants.** A line printing their figures gives a noncombatant cell (speed,
+AC, hit points, morale, damage total 0, `extras.noncombatant`). "Drudges fight
+as KIND" gives the named member's combat block whole (AC, hit points, rating,
+throw, saves, damage total, morale, XP).
+
+**Choosing.** The axis's `default` is Standard: an unpinned role generates the
+rank and file and a leader appears only when picked. A role with no cell for
+the chosen variant is unavailable — listed disabled on the builder, never
+rolled, and a stale pin of it falls back to Standard (`optionAvailable`,
+[../lib/API.md](../lib/API.md)).
+
+**Members.** An overview member (named as the family is) whose every stat
+field reads another member's page and box is the family's description, not a
+variant: its prose becomes the template's own description
+(`overviewIsLore`). In the MM this drops the generic Beastman (a bugbear's
+block) and the generic Lycanthrope (a werebear's).
+
+**The "by weapon" modifier** of every monster stat line moves at bind time out
+of the weapon item's formula into `system.damage.mod`, where core adds it to
+every melee and missile damage roll; the item keeps "By weapon". Every binder
+that writes a monster does it: `bindMonster`, the legacy stat line
+(`bindLegacyMonster`), the person block (`bindNpc`), and a grid template's row
+and form cells (`templateOption`, `weaponsFromRoutine`). A die with its own
+modifier ("1d6+1") is a natural attack's and keeps it. A refill clears a
+modifier the re-read no longer finds (`REFILL_STAT_PATHS`). The Statblock's attack tag shows the die and the modifier together
+and its tooltip names each part.
+
+**Repair.** A family is built only by its importer; a repair in place
+(`withRewrite`) runs that build and writes it over the held template whole,
+carrying over the variants another book merged into it.
+
+## The Kit axis
+
+A beastman template (a family, or an entry's leader template) gains a **Kit**
+axis where the Judge's tables hold its kinds' troop rows
+(`kitPresets`, `scripts/importer/kit-presets.mjs`). It is built after the Role
+axis and chosen last; its default, **Stat block**, is the member as printed,
+so nothing changes until a kit is picked.
+
+**The tables**, all in registry document `monsters`
+(`scripts/monsters/kits.mjs` `importedKits`): `beastmanTroops`, RR ch. 9
+Beastman Troops, one row per troop type per kind with its armour class, move,
+Hit Dice, damage cell and morale, and the kit's own words read off the label's
+brackets; `beastmenByType`, AXIOMS 2 Beastmen by Type, each kind's natural
+armour class; `damageDieConversion`, the same issue's conversion of a weapon's
+die and a damage modifier to another die, its header row read as a row so
+each column's modifier is the page's. Mounted troop rows (a rider's and its
+mount's figures in pairs) are not read. The AXIOMS move, encumbrance and
+damage columns are not read either: the Monstrous Manual prints each kind's.
+
+**What a troop row writes.** A row stands for a variant only where the variant
+is the row's kind (its option key) and its Hit Dice rating is the row's, so a
+row read under the wrong heading dresses nobody. For the rank and file
+(`variant|standard|kit`, or `variant|kit` on a template with no Role axis) the
+cell writes stat cells only, never an item: the row's armour class, its damage
+as the total on `system.damage.mod`, its move as `system.movement.base`, and
+its morale. The kit rides on `extras.kit`: the troop type, the kit's words,
+the row's figures and its citation. The Full Monster Sheet's speed rows are
+the stat block's and are not rewritten.
+
+**A kit no page prints a figure for** is worked out at generation, by the
+monsters feature's listener on the template engine's resolved hook
+(`applyGeneratedKit`, which calls the pure `kitArmourClass`); core's
+`computeAC`, which returns early for a monster, is not wrapped. Two cases, both
+cells carrying `extras.kit.compute`:
+
+- **A leader in a troop's kit** (champion, sub-chieftain, chieftain, and the
+  casters equivalent to them): its own damage total stands, it takes the row's
+  move and morale, and its armour class is the row's plus the leader's armour
+  class over its warrior's (the leader cell's figure less the member's), so a
+  printed leader and a procedure-derived one alike keep their advantage.
+- **Unarmoured**: the kind's natural armour class, plus that same difference
+  for a leader. It changes the armour class alone.
+
+The figure written goes to `ac.value` and its parts to `extras.derived.kit`
+(the base figure and where it came from, the leader's and the warrior's armour
+class, the citation). A part missing (the member's armour class, a natural
+armour class not imported) leaves the armour class the cells wrote. On
+generation the kit's words are added to both prose channels, the biography
+and the Full Monster Sheet's notes, with the row's citation.
+
+**Availability.** Kit options carry no patch of their own, so a kit is offered
+only where a cell matches the chosen variant and role (`optionAvailable`): a
+kind that fields no bowmen is not offered them, and a dependant takes no kit.
+
+**Tooltips.** The rail's armour class names the troop row for a printed kit,
+or the parts and the row's or the natural table's citation for one worked out
+(`derivationTips`, where a kit's armour class outranks the leader's own); the
+morale row names the troop row; an attack's damage tag adds the troop row
+where the modifier is the row's, and the die the conversion table makes of the
+attack's die and the creature's modifier where the table is imported and
+prints a cell for the pair. Each is shown only while the actor still holds
+the figure.
+
+**Merging.** A variant another book adds to a held template brings its kit
+cells, and the held template gains the Kit axis where it had none
+(`unionKitAxis`); a repair in place carries a kept variant's kit cells and the
+axis with them, kept last.

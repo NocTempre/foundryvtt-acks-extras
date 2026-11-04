@@ -1237,8 +1237,8 @@ interaction.
    system's labels alone, and `acksExtras.lib.attack.inFlight(actor)` is null
    afterwards.
 2. **The non-proficient package is one row.** Attack with the battle axe,
-   first with no equipment tables imported, then after the Books window's
-   *Reimport One Shelf* has materialized the rulebook's `equipment` document
+   first with no equipment tables imported, then after Manage Imports'
+   Rebuild tab (one shelf, mode Rebuild) has materialized the rulebook's `equipment` document
    (`acksExtras.lib.tables.getDoc("equipment").tables` lists
    `zeroLevelAttackThrow` and `nonProficientUse`).
    **Observable:** the card lists **Non-proficient** once each time — the
@@ -3504,7 +3504,7 @@ stored figure beside the scene's `grid`, on a scene that is not in feet. The
   (`lib/light-bearer-token-mi`, `lib/light-bearer-token-ft10`).
 
 Each run brings the character to shape at its start: the lantern doused, both
-tokens' `light` at 0/0 with no `managedLight` flag.
+tokens' `light` at 0/0 with no `managedLight` or `managedLightStamp` flag.
 
 **Steps and what proves each.**
 
@@ -3518,8 +3518,10 @@ tokens' `light` at 0/0 with no `managedLight` flag.
 3. **The mile scene.** Read the same fields on `lib/light-bearer-token-mi`.
    *Observable:* each equals the lantern's figure divided by 5280 and rounded to
    the field's step, so the bright radius reads 0 and the dim one 0.01; colour,
-   alpha and animation are the lit set, and `flags["acks-extras"].managedLight` is
-   true.
+   alpha and animation are the lit set, `flags["acks-extras"].managedLight` is
+   true, and `flags["acks-extras"].managedLightStamp` holds the stored bright and
+   dim. A hand edit's release is walked in formation TESTING, "The column and its
+   lights", step 14.
 4. **Settles.** Re-render the sheet, then call `acksExtras.lib.vision.migrateWorld()`
    (or touch the actor) and count `updateToken` calls on the two tokens.
    *Observable:* none after the first write.

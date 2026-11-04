@@ -14,7 +14,7 @@
 import { MODULE_ID, ACTOR_FLAGS, EFFECT_DOMAINS, SETTINGS } from "./constants.mjs";
 import { ARMOR_LADDER, ARMOR_GATED_SKILLS, ARMOR_GATE_MAX, WEAPONS, WEAPON_ALIASES } from "./config.mjs";
 import { slug } from "../lib/vocab.mjs";
-import { collectStringFlags, sumEffectModifiers, hasEffectFlag } from "./effects.mjs";
+import { collectStringFlags, sumEffectModifiers } from "./effects.mjs";
 
 /**
  * Is proficiency ENFORCEMENT live?
@@ -240,35 +240,20 @@ export function isArmorGatedSkill(name) {
 }
 
 /**
- * Whether the character fights lightly equipped: armour no heavier than light
- * and a load inside the gate. Swashbuckling (RR p. 117) and a class power
- * written against the same condition are the two bonuses that reach the sheet,
- * so they ask one question here rather than each testing armour and weight its
- * own way.
+ * Whether the character fights lightly equipped, by a `lightlyEquipped`
+ * gate's arguments: armour no heavier than `armourMax` and a load of no more
+ * than `loadMax` stone. Both arguments are read off the ability's own page
+ * by its import (Swashbuckling, RR ch. 3; the bladedancer's powers, RR ch. 2
+ * and JJ ch. 6), so a gate missing either cannot be decided and answers null.
+ * @param {Actor} actor
+ * @param {{armor?: Item|null}} loadout
+ * @param {{armourMax?: string, loadMax?: number|null}} [gate]
+ * @returns {boolean|null}
  */
-export function lightlyEquipped(actor, loadout) {
+export function lightlyEquipped(actor, loadout, { armourMax = "", loadMax = null } = {}) {
+  const cap = Number(loadMax);
+  if (!armourMax || armorRank(armourMax) < 0 || loadMax === null || loadMax === "" || !Number.isFinite(cap)) return null;
   const armorCat = loadout?.armor?.system?.type ?? "unarmored";
   const enc = Number(actor.system?.encumbrance?.value ?? 0);
-  return armorRank(armorCat) <= armorRank("light") && enc <= 5;
-}
-
-/**
- * Swashbuckling AC bonus (RR p. 117): +1 (→+2 at L7, +3 at L13) while lightly
- * equipped. 0 unless the actor has the proficiency.
- */
-export function swashbucklingAC(actor, loadout) {
-  if (!hasEffectFlag(actor, EFFECT_DOMAINS.SWASHBUCKLING)) return 0;
-  if (!lightlyEquipped(actor, loadout)) return 0;
-  const level = Number(actor.system?.details?.level ?? 1);
-  return level >= 13 ? 3 : level >= 7 ? 2 : 1;
-}
-
-/**
- * Initiative that applies only while lightly equipped — the bladedancer's
- * Graceful Fighting. The bonus itself is whatever the ability declared; this
- * decides only whether she is dressed for it.
- */
-export function lightInit(actor, loadout) {
-  const bonus = sumEffectModifiers(actor, EFFECT_DOMAINS.LIGHT_INIT);
-  return bonus && lightlyEquipped(actor, loadout) ? bonus : 0;
+  return armorRank(armorCat) <= armorRank(armourMax) && enc <= cap;
 }

@@ -16,7 +16,9 @@
  * light guard is the older of the two: a formation carrying no lit source used
  * to force the token to 0/0 on every sync, which silently undid a GM's manually
  * configured token light and left the party in the dark with no explanation. So
- * a light is only ever cleared if WE set it (`managedLight`).
+ * a light is only ever cleared if WE set it (`managedLight`), and a light we
+ * set is stamped (`managedLightStamp`) and handed back, as sight is below, the
+ * moment a human edits it.
  *
  * Vision cannot be that shy — the whole point of the pass is to overwrite a
  * wrong default, and the system's monster packs ship every creature at
@@ -56,6 +58,11 @@ const OWNED_DETECTION_MODES = Object.freeze(Object.values(DETECTION_MODES));
 
 /** Boolean: this token's light is ours to clear. Predates the vision stamp. */
 const FLAG_LIGHT = "managedLight";
+/**
+ * `{bright, dim}` — the last lit radii WE wrote, in scene units, for override
+ * detection; `{released: true}` once a hand edit has taken the light back.
+ */
+const FLAG_LIGHT_STAMP = "managedLightStamp";
 /** `{range, visionMode}` — the last sight WE wrote, for override detection. */
 const FLAG_VISION = "managedVision";
 
@@ -212,27 +219,71 @@ function visionDelta(tokenDoc, profile) {
  * computed 0/0 on a token we never lit is someone else's light: left alone. A
  * source is lit when either radius survives the conversion — a coarse scene can
  * round the bright radius to 0 and keep the dim one.
+ *
+ * A lit write stamps its radii. A managed token whose stored radii no longer
+ * match the stamp was edited by a human: the delta releases it, flag and
+ * stamp, and the light is never written again, so the Judge's light keeps
+ * core's padding (`isManagedLight`). A managed token lit before the stamp
+ * existed is stamped on the first sync that finds its light already right.
  */
 function lightDelta(tokenDoc, feet) {
   if (!tokenDoc) return null;
+  const stamp = tokenDoc.getFlag(MODULE_ID, FLAG_LIGHT_STAMP);
+  if (stamp?.released) return null;
   const step = lightStep();
   const bright = inSceneUnits(tokenDoc, feet?.bright, step);
   const dim = inSceneUnits(tokenDoc, feet?.dim, step);
-  if (tokenDoc.light.bright === bright && tokenDoc.light.dim === dim) return null;
   const lit = bright > 0 || dim > 0;
-  const managed = tokenDoc.getFlag(MODULE_ID, FLAG_LIGHT) ?? false;
+  const managed = tokenDoc.getFlag(MODULE_ID, FLAG_LIGHT) === true;
+  const stampKey = `flags.${MODULE_ID}.${FLAG_LIGHT_STAMP}`;
+  if (managed && stamp && !matchesStamp(tokenDoc, stamp)) {
+    return { [`flags.${MODULE_ID}.${FLAG_LIGHT}`]: false, [stampKey]: { released: true } };
+  }
+  if (tokenDoc.light.bright === bright && tokenDoc.light.dim === dim) {
+    return managed && lit && !stamp ? { [stampKey]: { bright, dim } } : null;
+  }
   if (!lit && !managed) return null;
 
   return {
     light: {
       bright,
       dim,
-      color: lit ? "#ff9b47" : null,
-      alpha: lit ? 0.3 : 0.5,
-      animation: lit ? { type: "torch", speed: 2, intensity: 3 } : { type: null },
+      color: lit ? CARRIED_LIGHT_LOOK.color : null,
+      alpha: lit ? CARRIED_LIGHT_LOOK.alpha : 0.5,
+      animation: lit ? { ...CARRIED_LIGHT_LOOK.animation } : { type: null },
     },
     [`flags.${MODULE_ID}.${FLAG_LIGHT}`]: lit,
+    ...(lit ? { [stampKey]: { bright, dim } } : stamp ? { [stampKey]: unset() } : {}),
   };
+}
+
+/** Whether a token's stored light radii are still the ones `stamp` records. */
+function matchesStamp(tokenDoc, stamp) {
+  return tokenDoc?.light?.bright === stamp?.bright && tokenDoc?.light?.dim === stamp?.dim;
+}
+
+/**
+ * How a carried flame looks, whoever draws it: the token light this file
+ * writes, and the marching column's lights (formation `column-light.mjs`), so a
+ * torch reads the same in a member's hand and in the column.
+ */
+export const CARRIED_LIGHT_LOOK = Object.freeze({
+  color: "#ff9b47",
+  alpha: 0.3,
+  animation: Object.freeze({ type: "torch", speed: 2, intensity: 3 }),
+});
+
+/**
+ * Whether this token's light is the module's own: `applyTokenLight` wrote it,
+ * and its stored radii are still the ones it stamped. A light edited by hand
+ * since reads as the Judge's at once, before any sync releases it. A managed
+ * light written before the stamp existed carries none and reads as managed.
+ */
+export function isManagedLight(tokenDoc) {
+  if (tokenDoc?.getFlag?.(MODULE_ID, FLAG_LIGHT) !== true) return false;
+  const stamp = tokenDoc.getFlag(MODULE_ID, FLAG_LIGHT_STAMP);
+  if (stamp?.released) return false;
+  return !stamp || matchesStamp(tokenDoc, stamp);
 }
 
 /**
@@ -379,7 +430,7 @@ export async function syncNightVisionTokens(scene) {
  * months still carrying the system's stock 60' sight on every creature. This is
  * how a Judge asks for all of them at once.
  *
- * `reclaim` drops the release marker first. A token a human edited is stamped
+ * `reclaim` drops the release markers first, sight's and light's. A token a human edited is stamped
  * released and is never managed again, which is the override working as
  * intended; taking it back is a deliberate act, so it is a separate answer and
  * never the default. Reported rather than silent: a sweep that says nothing is
@@ -396,7 +447,9 @@ export async function migrateWorldVision({ reclaim = false } = {}) {
   if (!isActiveGMSeat() || !enabled()) return report;
   report.ran = true;
 
-  const isReleased = (t) => !!t.getFlag(MODULE_ID, FLAG_VISION)?.released;
+  // A token counts once, whether its sight, its light or both were released.
+  const releasedFlags = (t) => [FLAG_VISION, FLAG_LIGHT_STAMP].filter((flag) => !!t.getFlag(MODULE_ID, flag)?.released);
+  const isReleased = (t) => releasedFlags(t).length > 0;
 
   for (const scene of game.scenes ?? []) {
     const tokens = [...scene.tokens];
@@ -405,7 +458,10 @@ export async function migrateWorldVision({ reclaim = false } = {}) {
     report.tokens += tokens.length;
 
     if (reclaim) {
-      const drops = tokens.filter(isReleased).map((t) => ({ _id: t.id, [`flags.${MODULE_ID}.${FLAG_VISION}`]: unset() }));
+      const drops = tokens.filter(isReleased).map((t) => ({
+        _id: t.id,
+        ...Object.fromEntries(releasedFlags(t).map((flag) => [`flags.${MODULE_ID}.${flag}`, unset()])),
+      }));
       if (drops.length) {
         await scene.updateEmbeddedDocuments("Token", drops);
         report.reclaimed += drops.length;

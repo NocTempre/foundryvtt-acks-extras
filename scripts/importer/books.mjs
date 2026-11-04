@@ -287,6 +287,21 @@ export const BOOKS = {
     printedOffset: 0,
     form: true,
   },
+  // The AXIOMS compendium of issues 1-8, registered as one book: one PDF, one
+  // fingerprint, one folio offset across the issues read so far. The printing
+  // carries no metadata title, so the count alone names it; the regex matches
+  // the stock filename. What it unlocks: the beastman leader procedure's
+  // tables (`monsters` registry document), which fill the leaders the
+  // Monstrous Manual does not print. One copyright year cannot order its
+  // issues against each other.
+  axc: {
+    label: "AXIOMS Compendium, Issues 1-8",
+    short: "AXIOMS",
+    published: 2018,
+    pages: 266,
+    titleRe: /Axioms\s*Compendium/i,
+    printedOffset: 2,
+  },
 };
 
 

@@ -856,6 +856,19 @@ never a delete list.
    Close the book (mask it as step 6 does) and Force repair the Traps shelf.
    *Observable:* as step 6: the confirm counts 0 to write over, nothing is
    written, the hint to open the book appears.
+10. **Every kind has an in-place write.** With the books of the shelves open,
+    pick the Weapons, Armor, Languages and Races shelves and a book's monster
+    templates and families, NPCs and OSE creatures one at a time, Repair, answer
+    **No**, then **Yes**. Before the Yes, edit one weapon's damage die and mark
+    it equipped, change one language's taxonomy flag, and rename nothing.
+    *Observable:* no shelf is marked rebuild only; each Yes reports a replaced
+    count; the weapon's die is the table's again and it is still equipped; the
+    language's flag is back; every document keeps its id, folder and owners (the
+    run's own `modifiedTime` and `_id` record). A pregenerated character picked in
+    the entry picker is counted as left. Close the book of one shelf and repeat:
+    its rows are counted as left, none written. The rewrite scope is not
+    observable apart from these; confirm that no second copy of any document
+    appears on the shelf (counts before and after are equal).
 
 ### Driving it
 
@@ -2610,7 +2623,7 @@ it by that collection id, and only if its index is empty by then.
    offline.
 9. Join as the Player seat.
    *Observable:* no Adventure shelf in the Compendium tab.
-10. Open the Books window on the GM seat.
+10. Open Manage Imports on its Books tab on the GM seat.
     *Observable:* the AX3 row reads "In the library as one Adventure:", with
     the stamp's counts and no per-map line.
 
@@ -3129,7 +3142,7 @@ holding the text a reader expects.
    directory holds opens without a picker and leaves nothing behind:
    `acksExtras.importer.connectBookUrl(<id>, <path>, { remember: false })`
    (`TEST_ENVIRONMENT.md` names this machine's staged copies). A book the
-   server does not hold is read one-off through the Books window.
+   server does not hold is read one-off through the Books tab.
 2. The world's tables and monsters of those books, noted before the run:
    `game.tables.filter((t) => t.getFlag("acks-extras", "cookbook")?.book === <id>)`
    and the line's RollTable and Actor shelves (the packs whose label opens
@@ -3362,6 +3375,105 @@ the run's own.
 The sweep removes the ledger's items; a shelf the run opened and left empty
 is deleted. The notice patch is restored.
 
+## An adventure book's Force repair
+
+The Adventures tab's third action (MODEL, "An adventure book, rebuilt or
+repaired"). Offline: `tools/importer/test-adventure-item-repair.mjs` (the
+rewrite scope) and `tools/importer/test-import-manager.mjs`.
+
+### Fixtures
+
+A book that holds creatures, an item and a roll table, imported once and kept
+under the marker `importer/adventure-force@<tag>` on its first creature
+(`api.mark`). The walk edits its own copies only: it writes a note into one
+creature's biography and one roll table's description and changes one item's
+price, all on documents the marker names.
+
+### Steps
+
+1. GM seat, Adventures tab, the book's **Force repair**; answer **No**.
+   *Observable:* a confirm counts the creatures and people, places,
+   organisations, items and roll tables it will rewrite, says the market
+   profiles are written onto the places, names the count it leaves, and closes
+   on what is kept; nothing's `modifiedTime` moved.
+   Before this step, edit one of the book's places (its notes and one roster
+   row), one organisation (add a relation and a member), set a market class on
+   a place the book's grid prints, and note a pregenerated character's
+   biography; the book must have a place row, an organisation row, a market grid
+   and a pregenerated character, or the step for the missing one is not walked.
+2. Again, answer **Yes**.
+   *Observable:* the result is `mode: "force"` with replaced counts; the edited
+   price, the biography note and the table's description are the build's again;
+   the place's notes and roster, the organisation's relations and roster, and
+   the market class are the book's again (a base a later book wrote is not);
+   the pregenerated character's biography is rewritten and it holds each item
+   once (count its items before and after: no twin, the item a Judge gave it
+   still there); ids, folders and owners are unchanged; no document of the book
+   is added or removed; the maps, a library copy dragged out and a player's
+   character are untouched. A place two books print is counted as left.
+   Ordinary **Repair** on the same edits keeps the notes, the place and the
+   character as they were.
+3. Player seat: open Manage Imports.
+   *Observable:* the Books tab alone; the Adventures tab and its buttons are
+   absent.
+
+### Teardown
+
+The sweep removes the ledger's documents; the edited copies are the kept
+fixtures and are rewritten by step 2.
+
+## Overhead token art from an installed compendium
+
+MODEL, "Overhead token art from an installed compendium". Offline:
+`tools/importer/test-token-art.mjs`, with invented names and paths only.
+
+### Fixtures
+
+- A third-party monster compendium module, active in the world. The tester
+  checks `game.modules.get(id)?.active` first; turning a module on relaunches
+  the world and drops every seat, so ask the seated owners before it. Without
+  one, the walk stops at step 1's absence check and says so.
+- Two imported monsters from the monster shelf whose names the source answers,
+  marked `importer/token-art-a` and `importer/token-art-b`; a third whose token
+  the walk sets to a world path (`importer/token-art-own`); a world copy of the
+  first with one unlinked token placed on a scene, marked
+  `importer/token-art-placed`.
+
+### Steps
+
+1. Open Manage Imports, Tools tab, on the GM seat with the module inactive.
+   *Observable:* no Apply button and no Restore button.
+2. Activate the source (or use it already active), reload, reopen the tab.
+   *Observable:* one Apply button reading the module's own title; no other
+   package's packs and none of this module's are offered.
+3. Press Apply, then Cancel.
+   *Observable:* the confirm shows the counts and the placed-tokens tick;
+   nothing's prototype token changed.
+4. Apply again, tick the placed tokens, confirm.
+   *Observable:* monsters a and b show the source's token image and keep their
+   book portrait (`img`), their token width, height and scale; the fit is
+   contain; the flag records the source, the new path and the token that stood;
+   the own-token monster is untouched and counted as kept; the placed unlinked
+   token shows the new image; a linked token follows its actor. A wildcard art
+   monster has `randomImg` set. Make Encounter from it: the group's portrait is
+   the monster's portrait, not the wildcard path.
+5. Press Apply a second time.
+   *Observable:* the counts read "already show it" and nothing is written.
+6. Rebuild one marked monster, then Apply.
+   *Observable:* the fresh actor shows the book token before and the source's
+   after.
+7. Press Restore.
+   *Observable:* a and b show the token they showed before, the flag is gone, the
+   Restore button disappears; the own-token monster is untouched. Deactivate the
+   source and Restore a freshly applied monster: it still restores.
+8. Player seat: open Manage Imports.
+   *Observable:* the Books tab alone; no token-art control exists.
+
+### Teardown
+
+`api.sweepTracked()` for the ledger; the markers' monsters are kept and are
+restored by step 7.
+
 ## A community book's classes, read from their sentences
 
 A class whose spread states its levels in sentences imports with rows, its
@@ -3455,7 +3567,7 @@ untagged seat would read every line as a heading and import nothing.
 ### Steps
 
 1. Connect the book. *Observable:* the open is announced by the book's label
-   and a count of what imports from it; the Books window lists it as open
+   and a count of what imports from it; the Books tab lists it as open
    this session; `init`, `setup` and `ready` threw nothing beforehand.
 2. Import the book: the abilities step for its powers, the classes step for
    its classes, the id import for its monster and — after the classes, since
@@ -3526,7 +3638,7 @@ untagged seat would read every line as a heading and import nothing.
    `acksExtras.importer.cookbookImportAdventures({ books: ["cat"] })`.
    *Observable:* one Adventure written, for this book alone, on the line's
    Judge Adventure shelf, carrying the two maps, the monster, the keeper and
-   the ten items and none of the classes or powers; the GM's Books window row
+   the ten items and none of the classes or powers; the GM's Books tab row
    for the book now reads its contents. The class item stands on the series'
    open Item shelf, the monster and the keeper on the Judge Actor shelf and
    an item on the Judge Item shelf — `lineOfPack(doc.pack)` on each.

@@ -16,9 +16,28 @@ import { keyOf, rollsOf, scalesFor, measures, throwText, throwOutcome, labelOf }
 import { ladderRungs, classByKey, effectiveLevel } from "../classes/registry.mjs";
 import { PROGRESSION_CLASSES, levelFactorLabel } from "../lib/vocab.mjs";
 import { elementOf } from "../lib/util.mjs";
+import { modifierDisposition, isUnverified } from "../lib/typed-modifiers.mjs";
+import { QUICK_EFFECT_ACTIONS, quickEffectStatus } from "./quick-effects.mjs";
 import { ROLL_ACTIONS } from "./roll-editor.mjs";
 import { LANGUAGE_ACTIONS, slotsOf, onDropLanguage } from "./language-slots.mjs";
 import { filledLanguages } from "../classes/languages.mjs";
+
+/** Each typed-modifier disposition's chip label and tooltip, as lang keys. */
+const DISPOSITION_KEYS = {
+  standing: ["ACKS-ABILITIES.mech.disposition.standing", "ACKS-ABILITIES.mech.disposition.standingTip"],
+  gated: ["ACKS-ABILITIES.mech.disposition.gated", "ACKS-ABILITIES.mech.disposition.gatedTip"],
+  atRoll: ["ACKS-ABILITIES.mech.disposition.atRoll", "ACKS-ABILITIES.mech.disposition.atRollTip"],
+  situational: ["ACKS-ABILITIES.mech.disposition.situational", "ACKS-ABILITIES.mech.disposition.situationalTip"],
+  consumed: ["ACKS-ABILITIES.mech.disposition.consumed", "ACKS-ABILITIES.mech.disposition.consumedTip"],
+  unsupported: ["ACKS-ABILITIES.mech.disposition.unsupported", "ACKS-ABILITIES.mech.disposition.unsupportedTip"],
+};
+
+/** A quick effect's state chip, as lang keys: its label and its tooltip. */
+const QUICK_STATE_KEYS = {
+  on: ["ACKS-ABILITIES.quick.on", "ACKS-ABILITIES.quick.onTip"],
+  off: ["ACKS-ABILITIES.quick.off", "ACKS-ABILITIES.quick.offTip"],
+  stale: ["ACKS-ABILITIES.quick.stale", "ACKS-ABILITIES.quick.staleTip"],
+};
 
 const T = `modules/${MODULE_ID}/templates/abilities`;
 
@@ -84,8 +103,27 @@ function className(key) {
   }
 }
 
-/** Human-readable one-liner for an effect row. */
-function describeEffect(e, V) {
+/**
+ * The chip naming the one throw an effect row is scoped to (`appliesToRoll`),
+ * by the label the ability's Rolls tab shows for it, or by its key where the
+ * ability holds no such throw; null for an unscoped row.
+ *
+ * @param {object} e the effect row
+ * @param {object[]} rolls the ability's own throws, in Rolls-tab order
+ * @returns {{label: string, tip: string}|null}
+ */
+export function rollScopeChip(e, rolls) {
+  if (!e?.appliesToRoll) return null;
+  const i = (rolls ?? []).findIndex((r, ri) => keyOf(r, ri) === e.appliesToRoll);
+  const roll = i >= 0 ? labelOf(rolls[i]) : e.appliesToRoll;
+  return {
+    label: game.i18n.format("ACKS-ABILITIES.mech.appliesToRoll", { roll }),
+    tip: game.i18n.format("ACKS-ABILITIES.mech.appliesToRollTip", { roll }),
+  };
+}
+
+/** Human-readable one-liner for an effect row: `{kind, text}`. */
+export function describeEffect(e, V) {
   const label = (enumObj, key) => enumObj?.[key]?.label ?? key ?? "";
   const lv = (v) => {
     if (!v) return null;
@@ -116,13 +154,15 @@ function describeEffect(e, V) {
   const n = lv(e.value);
   const signed = (x) => (x == null ? "" : `${x >= 0 ? "+" : ""}${x}`);
   const refs = (a) => (a ?? []).map(refName).join(", ");
+  // A row's condition, after its face, for the kinds whose face is not built around it.
+  const withCondition = (text) => (e.condition ? `${text} (${e.condition})` : text);
 
   switch (e.type) {
     case "modifier": {
       // A situational modifier states its condition rather than a bare number.
       // The subject leads the line when the roll is not the character's own.
       const subject = e.appliesTo && e.appliesTo !== "self" ? `${label(V.EFFECT_SUBJECTS, e.appliesTo)}: ` : "";
-      const qual = [e.forWhat, e.condition === "situational" ? "situational" : e.condition, e.mode === "replace" ? "replaces the default" : "", e.mode === "set" ? "does not apply" : ""]
+      const qual = [e.forWhat, e.condition, e.mode === "replace" ? "replaces the default" : "", e.mode === "set" ? "does not apply" : ""]
         .filter(Boolean).join("; ");
       const amount = e.mode === "set" ? "" : ` ${signed(n)}`;
       return { kind: label(V.EFFECT_TYPES, e.type), text: `${subject}${label(V.MODIFIER_TARGETS, e.target)}${amount}${qual ? ` (${qual})` : ""}` };
@@ -162,7 +202,7 @@ function describeEffect(e, V) {
     case "proficiencyGrant":
       return { kind: label(V.EFFECT_TYPES, e.type), text: `${label(V.PROFICIENCY_DOMAINS, e.domain)} — ${label(V.PROFICIENCY_BREADTH, e.breadth)}${e.group ? ` (${e.group})` : ""}` };
     case "limitation":
-      return { kind: label(V.EFFECT_TYPES, e.type), text: e.restriction || e.condition || "—" };
+      return { kind: label(V.EFFECT_TYPES, e.type), text: e.restriction ? withCondition(e.restriction) : e.condition || "—" };
     case "outcome": {
       // The trigger phrase leads with its number; one not yet materialized
       // (bookless seat) reads as undecidable, not absent.
@@ -195,7 +235,7 @@ function describeEffect(e, V) {
     case "spellLike":
       return { kind: label(V.EFFECT_TYPES, e.type), text: [e.spell, label(V.SPELL_LIKE_FREQ, e.frequency)].filter(Boolean).join(" — ") };
     case "sense":
-      return { kind: label(V.EFFECT_TYPES, e.type), text: `${label(V.SENSE_TYPES, e.sense) || e.vision}${e.range ? ` ${e.range}'` : ""}` };
+      return { kind: label(V.EFFECT_TYPES, e.type), text: withCondition(`${label(V.SENSE_TYPES, e.sense) || e.vision}${e.range ? ` ${e.range}'` : ""}`) };
     case "movement":
       return { kind: label(V.EFFECT_TYPES, e.type), text: `${label(V.MOVEMENT_TYPES, e.movementMode)}${n != null ? ` ${n}'` : ""}` };
     case "spellcastingMod":
@@ -214,7 +254,7 @@ function describeEffect(e, V) {
     case "reroll": {
       const total = V.rerollTotal?.(e) ?? 2;
       const what = e.forWhat || label(V.MODIFIER_TARGETS, e.target) || "the roll";
-      return { kind: label(V.EFFECT_TYPES, e.type), text: `${what} ${total}× — ${label(V.REROLL_KEEP, e.keep) || "Keep the Better"}` };
+      return { kind: label(V.EFFECT_TYPES, e.type), text: withCondition(`${what} ${total}× — ${label(V.REROLL_KEEP, e.keep) || "Keep the Better"}`) };
     }
     case "companion": {
       // The slot exists whether or not a creature fills it: a filled slot names
@@ -222,10 +262,10 @@ function describeEffect(e, V) {
       const bound = companionName(e.actorUuid);
       const who = bound || e.note || refName(e.ref) || "creature";
       const state = e.actorUuid ? "" : ` ${game.i18n.localize(e.ref ? "ACKS-ABILITIES.companion.notLoaded" : "ACKS-ABILITIES.companion.notChosen")}`;
-      return { kind: label(V.EFFECT_TYPES, e.type), text: `${e.amount > 1 ? `${e.amount}× ` : ""}${who}${state}` };
+      return { kind: label(V.EFFECT_TYPES, e.type), text: withCondition(`${e.amount > 1 ? `${e.amount}× ` : ""}${who}${state}`) };
     }
     case "capability":
-      return { kind: label(V.EFFECT_TYPES, e.type), text: label(V.SPELL_LIKE_FREQ, e.frequency) || e.note || "see description" };
+      return { kind: label(V.EFFECT_TYPES, e.type), text: withCondition(label(V.SPELL_LIKE_FREQ, e.frequency) || e.note || "see description") };
     default:
       return { kind: label(V.EFFECT_TYPES, e.type), text: e.note || e.condition || "—" };
   }
@@ -260,7 +300,7 @@ export function createAbilitySheet(Base) {
   return class AcksAbilitySheet extends Base {
     static DEFAULT_OPTIONS = {
       classes: ["acks-ui", "acks", "acks2", "item-v2", "acks-extras", "acks-extras-scroll"],
-      actions: { ...ROLL_ACTIONS, ...LANGUAGE_ACTIONS },
+      actions: { ...ROLL_ACTIONS, ...LANGUAGE_ACTIONS, ...QUICK_EFFECT_ACTIONS },
       dragDrop: [{ dropSelector: ".acks-abilities-languages" }],
     };
     static PARTS = parts;
@@ -304,8 +344,37 @@ export function createAbilitySheet(Base) {
       context.choices = {
         category: V.choicesOf?.(V.ABILITY_CATEGORIES ?? {}) ?? {},
       };
-      context.effectRows = (extras.effects ?? []).map((e) => {
+      // A modifier row says what the sheet does with it (applied, applied
+      // behind a gate, left to the roll, situational, read by another
+      // feature, not applied) and, when the vocabulary scan wrote it, that no
+      // recipe has checked it against the page.
+      const unverified = isUnverified(this.item);
+      const actorType = this.item.actor?.type ?? "character";
+      // On a character's own copy, a row with a field offers a quick effect:
+      // Start until one exists, then its state, and Refresh once it is stale.
+      const canQuick = !!this.item.actor && this.isEditable;
+      const ownRolls = rollsOf(this.item);
+      context.effectRows = (extras.effects ?? []).map((e, index) => {
         const row = describeEffect(e, V);
+        const scope = rollScopeChip(e, ownRolls);
+        if (scope) row.appliesToRoll = scope;
+        const disposition = e?.type === "modifier" ? modifierDisposition(e, { actorType }) : null;
+        const keys = disposition ? DISPOSITION_KEYS[disposition.kind] : null;
+        if (keys) {
+          row.disposition = { label: game.i18n.localize(keys[0]), tip: game.i18n.localize(keys[1]) };
+          row.unverified = unverified;
+        }
+        const quick = canQuick && disposition ? quickEffectStatus(this.item, index) : null;
+        if (quick) {
+          const state = QUICK_STATE_KEYS[quick.state];
+          row.quick = {
+            index,
+            start: quick.state === "none",
+            refresh: quick.state === "stale",
+            startsOff: quick.plan.startsOff,
+            ...(state ? { label: game.i18n.localize(state[0]), tip: game.i18n.localize(state[1]) } : {}),
+          };
+        }
         // Carry the whole ladder so the row can show every level, not a summary
         // that looks like the value only changes at a few of them.
         const bp = e.value?.breakpoints;

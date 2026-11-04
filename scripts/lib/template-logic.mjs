@@ -15,9 +15,12 @@
  *   resolved = resolveActor(system, choices.choices, { baseName })
  *
  * Per-axis precedence: PINNED (the Judge picked it) > DERIVED (read off a
- * dropped base actor, e.g. a thrall keeps its victim's HD) > ROLLED (the
- * book's own die over the printed bands, else uniform). Quick use pins
- * nothing and gets a rules-legal random creature.
+ * dropped base actor, e.g. a thrall keeps its victim's HD) > DEFAULT (the
+ * axis names the option an unpinned generation takes, a family's standard
+ * rank and file) > ROLLED (the book's own die over the printed bands, else
+ * uniform). Only options available beside the choices already made are
+ * chosen (`optionAvailable`). Quick use pins nothing and gets a rules-legal
+ * creature.
  */
 
 import { bracketRow } from "./tables.mjs";
@@ -44,6 +47,19 @@ export function rollDie(die, rng = Math.random) {
   let sum = 0;
   for (let i = 0; i < count; i++) sum += 1 + Math.floor(rng() * faces);
   return sum;
+}
+
+/**
+ * Roll a die with an optional flat modifier ("1d4+1", "2d4", "3"). A bare
+ * whole number is itself. Unparseable → null.
+ */
+export function rollDice(expr, rng = Math.random) {
+  const s = String(expr ?? "").replace(/\s+/g, "");
+  if (/^\d+$/.test(s)) return parseInt(s, 10);
+  const m = /^(\d*d\d+)([+-]\d+)?$/i.exec(s);
+  if (!m) return null;
+  const v = rollDie(m[1], rng);
+  return v == null ? null : v + (m[2] ? parseInt(m[2], 10) : 0);
 }
 
 /** The faces of a "NdM" string ("1d100" → 100); null when unparseable. */
@@ -102,17 +118,60 @@ export function deriveOption(axis, baseValues) {
   return best;
 }
 
+/** Does an option carry a patch of its own (merge, items or flags)? */
+const hasOwnPatch = (o) =>
+  Object.keys(o?.merge ?? {}).length > 0 || (o?.items ?? []).length > 0 || Object.keys(o?.flags ?? {}).length > 0;
+
 /**
- * Choose every axis: pinned > derived > rolled. Returns
+ * Can this option be chosen beside the choices already made? An option that
+ * carries no patch of its own, on an axis some cell refines, is only the key
+ * of its cells, so it stands only where a cell matches it: a role a variant
+ * prints no figures for is never offered for that variant. An axis left
+ * unchosen in `choices` matches any of its options. The axis's `default` is
+ * always available, and so is every option of an axis no cell names.
+ */
+export function optionAvailable(system, axis, option, choices = {}) {
+  if (!option) return false;
+  if (axis?.default && option.key === axis.default) return true;
+  if (hasOwnPatch(option)) return true;
+  const cells = (system?.cells ?? []).filter((c) => (c.by ?? []).includes(axis.key));
+  if (!cells.length) return true;
+  return cells.some((cell) => {
+    const parts = String(cell.key ?? "").split("|");
+    return (cell.by ?? []).every((axisKey, i) => {
+      if (axisKey === axis.key) return parts[i] === option.key;
+      const chosen = choices?.[axisKey];
+      return chosen == null || chosen === "" || parts[i] === chosen;
+    });
+  });
+}
+
+/**
+ * Does an axis offer a choice beside the choices already made? Not when at
+ * most one of its options is available there (`optionAvailable`): generation
+ * can only take that one, so the sheet leaves the axis out rather than naming
+ * a choice that is none. A multi axis and an axis that derives from a base
+ * always offer one.
+ */
+export function axisOffersChoice(system, axis, choices = {}) {
+  if (!axis || axis.multi || axis.derive?.from) return true;
+  return (axis.options ?? []).filter((o) => optionAvailable(system, axis, o, choices)).length > 1;
+}
+
+/**
+ * Choose every axis: pinned > derived > default > rolled, among the options
+ * available beside the choices already made (`optionAvailable`). Returns
  * `{choices: {axisKey: optionKey}, log: [{axis, option, source, roll?}]}`.
  * Unknown pinned keys fall through to derive/roll rather than erroring — a
- * stale pin must never brick generation.
+ * stale pin must never brick generation; a pin of an unavailable option is
+ * logged as `source: "unavailable"` and falls through the same way. An axis's
+ * `default` stands in for a roll, so an axis that names one never rolls.
  */
 export function chooseAxes(system, { pinned = {}, baseValues = {}, rng = Math.random } = {}) {
   const choices = {};
   const log = [];
   for (const axis of system?.axes ?? []) {
-    const options = axis.options ?? [];
+    const options = (axis.options ?? []).filter((o) => axis.multi || optionAvailable(system, axis, o, choices));
     if (!options.length) continue;
     // Multi-select axes are OPT-IN add-ons: apply exactly what was pinned
     // (validated), never roll a default.
@@ -131,13 +190,20 @@ export function chooseAxes(system, { pinned = {}, baseValues = {}, rng = Math.ra
     if (pinned[axis.key] != null) {
       option = options.find((o) => o.key === pinned[axis.key]) ?? null;
       if (option) source = "pinned";
+      else if ((axis.options ?? []).some((o) => o.key === pinned[axis.key])) {
+        log.push({ axis: axis.key, option: pinned[axis.key], source: "unavailable" });
+      }
     }
     if (!option) {
-      option = deriveOption(axis, baseValues);
+      option = deriveOption({ ...axis, options }, baseValues);
       if (option) source = "derived";
     }
+    if (!option && axis.default) {
+      option = options.find((o) => o.key === axis.default) ?? null;
+      if (option) source = "default";
+    }
     if (!option) {
-      const r = rollOption(axis, rng);
+      const r = rollOption({ ...axis, options }, rng);
       option = r?.option ?? null;
       roll = r?.roll ?? null;
       if (option) source = roll != null ? "rolled" : "uniform";
@@ -269,7 +335,9 @@ export function mergePatch(target, patch) {
 
 /**
  * Resolve chosen options into one engine-ready actor payload:
- * `{name, system, items, htmlParts, art, flags, token}`. Axis merges apply in
+ * `{name, system, items, htmlParts, art, flags, token, rollHp}`, `rollHp`
+ * true where the last matching cell to write hit points asks for them rolled
+ * from the resolved `hp.hd` (a cell's `rollHp`). Axis merges apply in
  * axis order, then the N-dimensional `cells` (keyed by their axes' chosen
  * option keys joined with "|"), so a 2-axis cell always outranks the 1-axis
  * rows it refines — the dragon's per-age-per-form damage over the age row's
@@ -286,6 +354,7 @@ export function resolveActor(system, choices, { baseName = "", templateName = ""
   const token = {};
   let art = "";
   let tint = "";
+  let rollHp = false;
   const chosen = [];
   for (const axis of system?.axes ?? []) {
     // A multi axis contributes EVERY selected option, in option-list order
@@ -310,6 +379,13 @@ export function resolveActor(system, choices, { baseName = "", templateName = ""
     if (key && key === cell.key) {
       mergePatch(merged, cell.merge);
       for (const item of cell.items ?? []) items.push(structuredClone(item));
+      // A cell's actor-level channel: what the sheet reads beside `system`
+      // (a leader's Hit Dice rating and save class) moves with its stats.
+      mergePatch(flags, cell.flags);
+      // A cell whose page gives a rating and no hit points asks for them
+      // rolled from the rating at generation; a later cell writing hit points
+      // of its own settles them instead.
+      if (cell.rollHp || cell.merge?.hp) rollHp = !!cell.rollHp;
     }
   }
   let name = system?.output?.nameFormat || "";
@@ -328,5 +404,5 @@ export function resolveActor(system, choices, { baseName = "", templateName = ""
     const bits = chosen.map((c) => c.option.nameLabel ?? (c.option.label || c.option.key)).filter(Boolean);
     name = bits.length ? `${templateName} (${bits.join(", ")})` : templateName;
   }
-  return { name, system: merged, items, htmlParts, art, tint, flags, token };
+  return { name, system: merged, items, htmlParts, art, tint, flags, token, rollHp };
 }

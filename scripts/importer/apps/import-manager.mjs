@@ -7,7 +7,8 @@
  * Rebuild — a shelf, a book or the rules tables, rebuilt or repaired in place.
  * Adventures — each adventure book open on this seat, with what the library
  * holds of its Adventure, to rebuild, repair or write. Tools — the entry
- * picker, the audit, the repair window and Remove All Imports. The window
+ * picker, the audit, the repair window, overhead token art from an installed
+ * compendium (Apply per source, Restore) and Remove All Imports. The window
  * holds nothing of its own: every tab reads the importer's api at render, and
  * every press hands off to a run that already exists and asks its own
  * questions. One window per seat, however it was opened.
@@ -31,7 +32,9 @@ const loc = (key, data) => (data ? game.i18n.format(`${LANG_PREFIX}.${key}`, dat
  * (the markup, and the listeners to attach once it is in the page); `steps` is
  * the import chain as `[key, run]` pairs and `runStep(key)` runs one;
  * `runEverything()` runs the chain; `merchandise()` builds the merchandise
- * items; `lib()` returns the shared lib api, for the repair window.
+ * items; `lib()` returns the shared lib api, for the repair window;
+ * `tokenArt` is `{sources(), apply(source), restore(), hasFlag()}`, the overhead
+ * token art controls of the Tools tab (`token-art.mjs`).
  */
 export function installImportManager(h) {
   host = h;
@@ -50,6 +53,7 @@ export class ImportManagerApp extends HandlebarsApplicationMixin(ApplicationV2) 
       rebuild: ImportManagerApp.#onRebuild,
       adventureDrop: ImportManagerApp.#onAdventure,
       adventureRepair: ImportManagerApp.#onAdventure,
+      adventureForce: ImportManagerApp.#onAdventure,
       adventureWrite: ImportManagerApp.#onAdventure,
       entries: ImportManagerApp.#onTool,
       audit: ImportManagerApp.#onTool,
@@ -57,6 +61,8 @@ export class ImportManagerApp extends HandlebarsApplicationMixin(ApplicationV2) 
       removeAll: ImportManagerApp.#onTool,
       merchandise: ImportManagerApp.#onTool,
       refresh: ImportManagerApp.#onRefresh,
+      tokenArtApply: ImportManagerApp.#onTokenArt,
+      tokenArtRestore: ImportManagerApp.#onTokenArt,
     },
   };
 
@@ -86,6 +92,9 @@ export class ImportManagerApp extends HandlebarsApplicationMixin(ApplicationV2) 
   /** The Books tab as last built (`booksPanel`): its listeners are attached after each render. */
   #panel = null;
 
+  /** The token-art sources found at the last render, by package id: what Apply is handed. */
+  #tokenSources = new Map();
+
   /** What the next build of the Books tab carries: the walkthrough forced open, and a report to show. */
   #booksOpts = { firstRun: false, notice: "" };
 
@@ -109,7 +118,12 @@ export class ImportManagerApp extends HandlebarsApplicationMixin(ApplicationV2) 
     const tabs = Object.fromEntries(Object.entries(this._prepareTabs("primary")).filter(([id]) => isGM || id === "books"));
     this.#panel = ready && host.booksPanel ? await host.booksPanel(this.#booksOpts) : null;
     this.#booksOpts = { firstRun: false, notice: "" };
+    // Overhead token art: one Apply per installed package offering it, Restore while any monster carries the mark.
+    const found = ready && isGM && host.tokenArt ? await host.tokenArt.sources().catch(() => []) : [];
+    this.#tokenSources = new Map(found.map((s) => [s.id, s]));
     return {
+      tokenArt: found.map((s) => ({ id: s.id, label: loc("manager.tokenArt.applyButton",{ title: s.title }) })),
+      tokenArtRestore: ready && isGM && !!host.tokenArt?.hasFlag(),
       tabs,
       ready,
       isGM,
@@ -198,7 +212,15 @@ export class ImportManagerApp extends HandlebarsApplicationMixin(ApplicationV2) 
     const api = host.api;
     const label = `${target.textContent.trim()} · ${book}`;
     if (action === "adventureWrite") return this.#run(label, () => api.cookbookImportAdventures({ books: [book] }));
-    return this.#run(label, () => api.cookbookReimportAdventure(book, { mode: action === "adventureRepair" ? "repair" : "drop" }));
+    const mode = action === "adventureForce" ? "force" : action === "adventureRepair" ? "repair" : "drop";
+    return this.#run(label, () => api.cookbookReimportAdventure(book, { mode }));
+  }
+
+  static async #onTokenArt(_event, target) {
+    if (!game.user?.isGM) return ui.notifications.warn(loc("manager.gmOnly"));
+    if (target.dataset.action === "tokenArtRestore") return this.#run(target.textContent.trim(), () => host.tokenArt.restore());
+    const source = this.#tokenSources.get(target.dataset.source);
+    if (source) await this.#run(target.textContent.trim(), () => host.tokenArt.apply(source));
   }
 
   static async #onTool(_event, target) {

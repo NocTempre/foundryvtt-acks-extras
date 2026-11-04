@@ -57,8 +57,12 @@ function faceOf(group) {
   return encounterFace({ reveal: sys.reveal, noun: groupNoun(group), stacks: sys.stacks, img: group.img, mask: mask() }, tokenWords);
 }
 
-/** A creature's art, its token's first. */
-const artOf = (source) => source?.prototypeToken?.texture?.src || source?.img || "";
+/** A creature's art, its token's first; a wildcard token names no single image, so its portrait stands in. */
+const artOf = (source) => {
+  const token = source?.prototypeToken;
+  const src = token?.texture?.src;
+  return (token?.randomImg || String(src ?? "").includes("*") ? "" : src) || source?.img || "";
+};
 
 /** The token defaults an encounter takes, the party token's shape on the other side. */
 const tokenDefaults = () => ({

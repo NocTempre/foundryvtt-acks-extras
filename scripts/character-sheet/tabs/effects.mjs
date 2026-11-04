@@ -8,7 +8,7 @@
 import { MODULE_ID, LANG, CONDITION_SAVES, RAIL_CONDITIONS } from "../constants.mjs";
 import { makeLoc } from "../../lib/util.mjs";
 import { isManagedEffect } from "../../lib/managed-effects.mjs";
-import { bearerLights, LIGHT_SOURCES } from "../../lib/light.mjs";
+import { bearerLights, LIGHT_SOURCES, lightFigures } from "../../lib/light.mjs";
 import { poolState } from "../../classes/casting.mjs";
 import { trainingEffects } from "../../classes/training.mjs";
 import { effectClock, isTimer, saveRiders, sheetFlag, saveLabel } from "../snapshot.mjs";
@@ -90,15 +90,19 @@ export function buildEffectsTab(actor) {
   for (const light of lights) {
     if (!light?.lit) continue;
     const cfg = LIGHT_SOURCES[light.type];
-    const turns = num(cfg?.turns);
+    // The burn time is imported (RR p. 265); without it the light never burns down.
+    const turns = num(lightFigures(light.type).turns);
     const remaining = Number.isFinite(light.remaining) ? light.remaining : null;
+    const line = !(turns > 0)
+      ? loc("effects.burningUnimported")
+      : remaining == null ? loc("effects.burning") : loc("effects.burningLeft", { left: remaining, of: turns });
     timers.push({
       id: `light:${light.id}`,
       kind: "light",
       lightId: light.id,
       name: game.i18n.localize(cfg?.label ?? light.type),
       icon: light.type === "lantern" ? "fa-solid fa-lightbulb" : "fa-solid fa-fire-flame-curved",
-      line: remaining == null ? loc("effects.burning") : loc("effects.burningLeft", { left: remaining, of: turns }),
+      line,
       pct: turns > 0 && remaining != null ? Math.round((remaining / turns) * 100) : 100,
       tone: "tm",
       shielded: !!light.shielded,

@@ -21,6 +21,10 @@ import { REPAIR, refreshPlan, repairTally, repairCounts } from "../../scripts/im
 import {
   initCookbook,
   loadCookbook,
+  withRewrite,
+  isRewriting,
+  wasRewritten,
+  createDoc,
   adventureItemData,
   cookbookImportAdventureItems,
   cookbookReimportBook,
@@ -369,6 +373,35 @@ const onShelf = (cbId) => shelf.docs.find((d) => d.getFlag(MODULE_ID, "cookbook"
   ok("a tally made with force replaces it, counting nothing as kept", !/Kept by the smith/.test(two.system.description) && forcedTally.keptProse === 0 && forcedTally.replaced === 2, JSON.stringify(repairCounts(forcedTally)));
 
   ok("the shelf holds the two documents and the one made by hand, and no more", shelf.docs.size === 3 && (await importedItemFor(ID1)) === one, String(shelf.docs.size));
+}
+
+/* --- the rewrite scope: a create for a held id becomes a write over the held document ----- */
+{
+  const one = await importedItemFor(ID1);
+  const two = await importedItemFor(ID2);
+  const before = shelf.docs.size;
+  await one.update({ "system.cost": 77 });
+  const rebuilt = adventureItemData(
+    BOOK,
+    ID1,
+    itemEntry(1),
+    { ok: true, book: BOOK, page: 7, fields: { description: [{ text: "A cord. Cost: 3 gp." }] } },
+  );
+  const scoped = repairTally({ force: true });
+  const made = await withRewrite({ held: new Map([[ID1, one], [ID2, two]]), tally: scoped }, async () => {
+    ok("an id the scope holds reports as rewriting, one it does not hold does not", isRewriting(ID1) && !isRewriting("zz.other"));
+    const doc = await createDoc(Item, rebuilt);
+    ok("a document the scope has written is reported as rewritten, one it has not is not", wasRewritten(one) && !wasRewritten(two));
+    return doc;
+  });
+  ok("and nothing is rewritten once the scope ends", !wasRewritten(one));
+  ok("a create for a held id returns the held document and makes no new one", made === one && shelf.docs.size === before, String(shelf.docs.size));
+  ok("the held document carries the build's figures", one.system.cost === 3, String(one.system.cost));
+  ok("the write is counted once, and the held document nobody wrote is counted as left", scoped.replaced === 1 && scoped.refused === 1, JSON.stringify(repairCounts(scoped)));
+  ok("the scope clears when the run ends", !isRewriting(ID1));
+  const fresh = await createDoc(Item, { ...rebuilt, flags: { [MODULE_ID]: { cookbook: { id: "zz.fresh", book: BOOK, kind: "kind.adventureItem", cite: "ZZ 9" } } } });
+  ok("outside a scope a create makes a document", fresh && shelf.docs.size === before + 1);
+  await Item.deleteDocuments([fresh.id], { pack: ITEM_PACK });
 }
 
 delete globalThis.foundry;

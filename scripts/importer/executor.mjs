@@ -438,12 +438,12 @@ function readNumber(raw, allowFraction) {
  * Build a breakpoint ladder out of one match's capture groups.
  *
  * Two shapes, because the books write ladders two ways. Plain: every group is a
- * VALUE and the rungs are 1..N (or `steps`) — Animal Husbandry's 11+/7+/3+ by
- * rank. Paired (`pairs`): the groups alternate rung and value, so the rungs
- * come off the page too — Graceful Fighting's "+1 … at 7th level +2 … at 13th
- * level +3" would otherwise need [1,7,13] shipped, and 7 and 13 are the book's
- * numbers as much as the bonuses are. A leading odd group is the first rung's
- * value, whose rung is implicit.
+ * VALUE and the rungs are 1..N (or `steps`) — a throw that improves by rank.
+ * Paired (`pairs`): the groups alternate rung and value, so the rungs come off
+ * the page too — a bonus "+A … at Nth level +B … at Mth level +C" would
+ * otherwise need its rungs shipped, and the rungs are the book's numbers as
+ * much as the bonuses are. A leading odd group is the first rung's value, whose
+ * rung is implicit.
  */
 function ladderFrom(match, { pairs = false, steps = null } = {}) {
   const groups = match.slice(1).filter((g) => g != null);
@@ -487,7 +487,79 @@ const LOCATABLE_FIELDS = {
   // numbers; the recipe ships only where to read them.
   naturalMax: "integer",
   belowFraction: "number",
+  // A gate's figures (acks-lib `gate`, lib/typed-modifiers.mjs): the load a
+  // lightly-equipped gate allows is the page's number, so the recipe ships the
+  // gate's kind and where to read its load, never the load itself.
+  "gate.loadMax": "number",
 };
+
+/**
+ * Write a located value at `into`, which may name one level of nesting
+ * ("gate.loadMax"): the spec's own object at the head is copied, so a shared
+ * recipe object is never written through.
+ */
+function setLocated(effect, into, value) {
+  const [head, tail] = into.split(".");
+  if (!tail) {
+    effect[head] = value;
+    return;
+  }
+  effect[head] = { ...(effect[head] ?? {}), [tail]: value };
+}
+
+/** The longest condition a locator may read; a longer capture ran past its clause. */
+const CONDITION_MAX = 200;
+
+/**
+ * The effect fields a recipe may read off the page as a clause, each through
+ * the locator named `<field>From`: the row's condition, a limitation's
+ * restriction, an outcome's consequence, and the remark a capability or
+ * companion row shows as its face.
+ */
+export const CLAUSE_FIELDS = Object.freeze(["condition", "restriction", "consequence", "note"]);
+
+/** A captured clause, whitespace collapsed and freed of the list glyph or punctuation it sits between. */
+function cleanClause(s) {
+  const t = String(s ?? "")
+    .replace(/\s+/g, " ")
+    .replace(/^[^\p{L}\p{N}]+/u, "")
+    .replace(/[\s,;:]+$/u, "")
+    .trim();
+  // A clause lifted from a sentence's start keeps no capital: it reads after
+  // the row's own figure. An acronym ("STR …") keeps its case.
+  return /^\p{Lu}(?:\p{Ll}|\s)/u.test(t) ? t[0].toLowerCase() + t.slice(1) : t;
+}
+
+/**
+ * A row's clause read off the seat's own page (`conditionFrom` on an effect
+ * or roll spec, or another of `CLAUSE_FIELDS`' locators on an effect): the
+ * capture `group` (default 1), or the captures `groups` names joined by ", ",
+ * cleaned. Null when the locator misses, is malformed, or reads nothing or
+ * more than a clause; the spec's shipped field, a neutral label or the
+ * module's remark, then stands. Unlike a figure's locator, a miss never drops the
+ * row: the condition qualifies the row, and the row's mechanics are complete
+ * without the page's words for it.
+ *
+ * @param {{pattern: string, flags?: string, group?: number, groups?: number[]}} loc
+ * @param {string} text the seat's extracted prose, joined
+ * @returns {string|null}
+ */
+export function locateCondition(loc, text) {
+  if (!loc?.pattern || !text) return null;
+  let m = null;
+  try {
+    m = new RegExp(loc.pattern, loc.flags ?? "i").exec(text);
+  } catch {
+    return null; // a malformed locator never throws at the table
+  }
+  if (!m) return null;
+  const groups = Array.isArray(loc.groups) && loc.groups.length ? loc.groups : [loc.group ?? 1];
+  const out = groups
+    .map((g) => cleanClause(m[g]))
+    .filter(Boolean)
+    .join(", ");
+  return out && out.length <= CONDITION_MAX ? out : null;
+}
 
 /**
  * Materialize an ability's structured EFFECTS from chef-authored specs.
@@ -514,16 +586,28 @@ const LOCATABLE_FIELDS = {
  *   { "as": "perLevel", "pattern": "restore (\\d+) hit points per .*level" }
  *        -> base and rate both the located number: "2 hp per level" is 2·level.
  *          `per` overrides the rate; `round` ("up"|"down") states the page's
- *          own rounding, which is shape, not a value.
+ *          own rounding, which is shape, not a value. `perGroup` reads the
+ *          rate from that capture group instead, signed by `perSign` (-1
+ *          where the page's verb lowers the figure).
+ *   { "into": "gate.loadMax", "pattern": "carrying (\\d+) stone" }
+ *        -> one level of nesting: a gate's figure, beside the gate's kind the
+ *          recipe ships.
  *   { "on": "level", "pairs": true, "pattern": "…(\\d+)…(\\d+)…(\\d+)…(\\d+)…" }
  *        -> a breakpoint ladder. `on:"level"` gives a plain `breakpoints`
  *          LevelValue; any other VALUE_SCALES scale gives a `conditional` one.
+ *
+ * `conditionFrom`, `restrictionFrom`, `consequenceFrom` and `noteFrom` read
+ * that field off the page in place of the shipped neutral label or remark
+ * (`locateCondition`, `CLAUSE_FIELDS`); none of them decides completeness.
  */
 export function materializeEffects(specs, paras) {
   const text = (paras ?? []).map((p) => (typeof p === "string" ? p : p.text)).join(" ");
   const out = [];
   for (const spec of specs ?? []) {
     const { from, ...effect } = spec ?? {};
+    // The clause locators never ride into the world: they are read here or not at all.
+    const clauses = CLAUSE_FIELDS.map((field) => [field, effect[`${field}From`]]);
+    for (const field of CLAUSE_FIELDS) delete effect[`${field}From`];
     const locators = (Array.isArray(from) ? from : from ? [from] : []).filter((l) => l?.pattern);
     // All or nothing. An effect whose locators half-matched would ship a
     // mechanic with one number read from the page and another silently absent,
@@ -569,17 +653,37 @@ export function materializeEffects(specs, paras) {
         complete = false;
         break;
       }
-      effect[into] =
+      // A rate printed apart from the base ("a throw of N+ … reduces by M per
+      // level") is read from its own group; `perSign` is the direction the
+      // page's verb states (-1 for "reduces"), which is shape, not a value.
+      let per = loc.per ?? n;
+      if (loc.as === "perLevel" && loc.perGroup) {
+        const rate = readNumber(String(m[loc.perGroup] ?? ""), true);
+        if (!Number.isFinite(rate)) {
+          complete = false;
+          break;
+        }
+        per = (loc.perSign === -1 ? -1 : 1) * Math.abs(rate);
+      }
+      setLocated(
+        effect,
+        into,
         kind === "levelValue"
           ? loc.as === "perLevel"
             ? // "N per level" is N·level, so the located number is BOTH the
               // first-level value and the rate. An explicit `per` overrides it
               // for the rarer "base, then N more each level" shape.
-              { kind: "perLevel", base: n, per: loc.per ?? n, ...(loc.round ? { round: loc.round } : {}) }
+              { kind: "perLevel", base: n, per, ...(loc.round ? { round: loc.round } : {}) }
             : { kind: "flat", flat: n }
-          : n;
+          : n,
+      );
     }
-    if (complete) out.push(effect);
+    if (!complete) continue;
+    for (const [field, loc] of clauses) {
+      const read = locateCondition(loc, text);
+      if (read) effect[field] = read;
+    }
+    out.push(effect);
   }
   return out;
 }
@@ -596,7 +700,10 @@ export function materializeEffects(specs, paras) {
  * a fabricated target is not.
  *
  *   { key, label:{pattern,group?}, target:{pattern} | {pattern,on,steps},
- *     rollType?, formula?|{pattern,group?}, condition?, note? }
+ *     rollType?, formula?|{pattern,group?}, condition?, conditionFrom?, note? }
+ *
+ * `conditionFrom` reads the throw's condition off the page in place of the
+ * shipped neutral `condition` (`locateCondition`), and never drops the roll.
  *
  * `formula` may be a locator instead of a string, for a roll whose DICE are
  * part of the printed rule. A `measure` needs no target and is complete
@@ -621,11 +728,13 @@ export function materializeRolls(specs, paras, ctx = {}) {
     }
   };
   for (const spec of specs ?? []) {
-    const { label, target, formula, fromLadders, ...rest } = spec ?? {};
+    const { label, target, formula, fromLadders, conditionFrom, ...rest } = spec ?? {};
     // A spec that expands from a class's published ladders is not located in
     // prose at all — the binder does it, where the other entry is reachable.
     if (fromLadders) continue;
     const roll = { formula: "1d20", rollType: "above", ...rest };
+    const read = locateCondition(conditionFrom, text);
+    if (read) roll.condition = read;
 
     // The DICE may be printed rather than fixed. A spec that names them
     // outright still may (a d20 throw is a d20 throw), but a roll whose dice
@@ -795,6 +904,39 @@ export function effectScan(paras, registers) {
     for (const [surface, key] of targets) if (p.includes(` ${surface} `)) return key;
     return null;
   };
+  // The bare nouns a later conjunct may not be read by: "… initiative and
+  // rolls twice" names no second roll, but "rolls" is a surface on its own.
+  const GENERIC_SURFACES = new Set(["throws", "throw", "rolls", "roll"]);
+  /**
+   * Every target a phrase names, one per conjunct: "surprise rolls and
+   * initiative rolls" is two targets, where the longest surface alone kept one.
+   * Each comes back with the conjunct that named it. A phrase no conjunct
+   * names is read whole, so a surface spanning the "and" still classifies.
+   * Several conjuncts naming one target are one target ("Hiding and Sneaking
+   * proficiency throws").
+   */
+  const classifyAll = (phrase) => {
+    const found = [];
+    String(phrase)
+      .split(/\s*,\s*|\s+and\s+/i)
+      .forEach((part, i) => {
+        const p = ` ${part.toLowerCase().replace(/\s+/g, " ").trim()} `;
+        for (const [surface, key] of targets) {
+          if (i > 0 && GENERIC_SURFACES.has(surface)) continue;
+          if (!p.includes(` ${surface} `)) continue;
+          if (!found.some((f) => f.key === key)) found.push({ key, part });
+          break;
+        }
+      });
+    if (found.length) return found;
+    const key = classify(phrase);
+    return key ? [{ key, part: phrase }] : [];
+  };
+  /** The activity each target's phrase names: the whole phrase's for one target, each conjunct's own for several. */
+  const targetsOf = (phrase) => {
+    const found = classifyAll(phrase);
+    return found.map(({ key, part }) => ({ key, forWhat: namedActivity(found.length > 1 ? part : phrase) }));
+  };
 
   /**
    * WHICH activity a target phrase names, if it names one.
@@ -907,23 +1049,21 @@ export function effectScan(paras, registers) {
   const TARGET = `${OWNER}[A-Za-z' -]{2,50}`;
   // "gains a +1 bonus to avoid surprise" / "suffers a -2 penalty on reaction rolls"
   for (const m of text.matchAll(new RegExp(`([+-]?\\d+)\\s+(bonus|penalty)\\s+(?:to|on)\\s+(${TARGET})`, "gi"))) {
-    const key = classify(m[3]);
-    if (!key) continue;
     let n = parseInt(m[1], 10);
     if (Number.isNaN(n)) continue;
     if (/penalty/i.test(m[2])) n = -Math.abs(n);
-    const forWhat = namedActivity(m[3]);
-    pushModifier({ type: "modifier", target: key, value: flat(n), ...(forWhat ? { forWhat } : {}) }, m.index);
+    for (const { key, forWhat } of targetsOf(m[3])) {
+      pushModifier({ type: "modifier", target: key, value: flat(n), ...(forWhat ? { forWhat } : {}) }, m.index);
+    }
   }
   // "gains a +2 to saving throws" (no bonus/penalty word — require an explicit sign)
   for (const m of text.matchAll(new RegExp(`([+-]\\d+)\\s+(?:to|on)\\s+(${TARGET})`, "gi"))) {
-    const key = classify(m[2]);
-    if (!key) continue;
-    const forWhat = namedActivity(m[2]);
-    pushModifier(
-      { type: "modifier", target: key, value: flat(parseInt(m[1], 10)), ...(forWhat ? { forWhat } : {}) },
-      m.index,
-    );
+    for (const { key, forWhat } of targetsOf(m[2])) {
+      pushModifier(
+        { type: "modifier", target: key, value: flat(parseInt(m[1], 10)), ...(forWhat ? { forWhat } : {}) },
+        m.index,
+      );
+    }
   }
   // Reversed order: "+1 initiative bonus" / "-2 saving throw penalty".
   for (const m of text.matchAll(/([+-]\d+)\s+([a-z][a-z' -]{2,30}?)\s+(bonus|penalty)\b/gi)) {
@@ -1915,6 +2055,11 @@ export async function executeEntry(doc, bookCookbook, registers, entryId, opts =
   // type rule authored once on the type node, e.g. "all undead are immune
   // to..."). Both are applied by the type/prose the SEAT extracted — nothing
   // about which defenses a specific creature has is baked on the entry.
+  // `effectsText` is page text the effects recipe's locators read beside the
+  // description (a bonus table set under the block); it is not the entry's
+  // prose, so it leaves the result here, read or not.
+  const effectsText = Array.isArray(fields.effectsText) ? fields.effectsText : [];
+  delete fields.effectsText;
   if (fields.description?.length) {
     const scanned = defenseScan(fields.description, registers);
     if (scanned) fields.defenses = scanned;
@@ -1930,7 +2075,7 @@ export async function executeEntry(doc, bookCookbook, registers, entryId, opts =
     // anything the scan additionally believes is by definition not part of them.
     const authoredEffects = entry.fields?.effects?.specs;
     const effects = authoredEffects?.length
-      ? materializeEffects(authoredEffects, fields.description)
+      ? materializeEffects(authoredEffects, [...fields.description, ...effectsText])
       : effectScan(fields.description, registers);
     if (effects.length) fields.effects = effects;
     // A VARIATION's numbers: the same materializer, deliberately its own field.

@@ -32,7 +32,8 @@ import { makeEncounter } from "../lib/group-encounter.mjs";
 import { ANIMAL_TRAINING } from "../lib/data/animal-data.mjs";
 import { FRAME_CLASS, FRAME_LANG_PREFIX, FRAME_VIEW_ACTIONS, FrameMixin } from "../lib/frame.mjs";
 import { SAVE_KEYS, saveCells, hpCell, num, sheetFlag } from "../lib/frame-model.mjs";
-import { statblockColumns, rollRows, hdRating, bodyFormIcon, moveReading, sensesReading, feet } from "./statblock.mjs";
+import { statblockColumns, rollRows, hdRating, bodyFormIcon, moveReading, sensesReading, feet, derivationTips } from "./statblock.mjs";
+import { importedKits } from "./kits.mjs";
 import { openHpTool } from "../lib/apps/hp-app.mjs";
 import { makeLoc } from "../lib/util.mjs";
 import { FLAG_RECORD } from "../henchmen/constants.mjs";
@@ -488,7 +489,15 @@ export function createFullMonsterSheet(Base) {
         encounter: { dungeon: side("dungeon", sys.details?.appearing?.d), wilderness: side("wilderness", sys.details?.appearing?.w) },
         lairChance: extras.encounter?.lairChance,
         treasure: { type: sys.details?.treasure?.type ?? "", linked: !!sys.details?.treasure?.table },
+        saveLevel: saveAs.level,
+        derived: extras.derived ?? {},
+        kit: extras.kit ?? null,
+        dice: (() => {
+          const k = importedKits();
+          return { rows: k.dice, cite: k.diceCite };
+        })(),
         attackThrow: sys.attack?.throw,
+        damageMod: Number(sys.damage?.mod?.melee) || 0,
         attacks: (context.owned?.weapons ?? []).map((w) => ({
           id: w.id,
           name: w.name,
@@ -563,7 +572,7 @@ export function createFullMonsterSheet(Base) {
           title: hp.zero ? loc("frame.rail.hpZero") : loc(gm ? "frame.rail.hp" : "frame.rail.hpTab", { value: num(snap.hp.value), max: num(snap.hp.max) }),
           inside: { icon: "fa-solid fa-heart", n: hp.n },
         },
-        { key: "ac", cls: "", title: loc("frame.rail.ac", { n: num(snap.ac) }), inside: { icon: "fa-solid fa-shield-halved", n: num(snap.ac) } },
+        { key: "ac", cls: "", title: derivationTips(snap, loc).acTip || loc("frame.rail.ac", { n: num(snap.ac) }), inside: { icon: "fa-solid fa-shield-halved", n: num(snap.ac) } },
         {
           key: "move",
           action: "moveMenu",

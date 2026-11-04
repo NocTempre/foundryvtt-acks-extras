@@ -23,7 +23,10 @@
         "target": {
           "pattern": "Dungeonbashing proficiency throw of (\\d+)\\+"
         },
-        "condition": "combat action; stuck doors"
+        "condition": "by method",
+        "conditionFrom": {
+          "pattern": "([^.;:]*?)\\s*by\\s*succeeding\\s*on\\s*a\\s*dungeonbashing"
+        }
       },
       {
         "key": "climbing",
@@ -33,7 +36,10 @@
         "target": {
           "pattern": "Climbing proficiency throw of (\\d+)\\+"
         },
-        "condition": "easy-to-scale obstacles only"
+        "condition": "by method",
+        "conditionFrom": {
+          "pattern": "([^.;:]*?)\\s*by\\s*succeeding\\s*on\\s*a\\s*climbing"
+        }
       },
       {
         "key": "searching",
@@ -43,7 +49,10 @@
         "target": {
           "pattern": "Searching proficiency throw of (\\d+)\\+"
         },
-        "condition": "one turn spent searching methodically"
+        "condition": "by method",
+        "conditionFrom": {
+          "pattern": "([^.;:]*?)\\s*and\\s*succeeding\\s*on\\s*a\\s*searching"
+        }
       },
       {
         "key": "trapbreaking",
@@ -53,7 +62,10 @@
         "target": {
           "pattern": "Trapbreaking proficiency throw of (\\d+)\\+"
         },
-        "condition": "one turn spent disarming methodically"
+        "condition": "by method",
+        "conditionFrom": {
+          "pattern": "([^.;:]*?)\\s*and\\s*succeeding\\s*on\\s*a\\s*trapbreaking"
+        }
       },
       {
         "key": "listening",
@@ -63,7 +75,10 @@
         "target": {
           "pattern": "Listening proficiency throw of (\\d+)\\+"
         },
-        "condition": "one round spent pausing to listen"
+        "condition": "by method",
+        "conditionFrom": {
+          "pattern": "([^.;:]*?)\\s*and\\s*succeeding\\s*on\\s*a\\s*listening"
+        }
       }
     ],
     "icon": "systems/acks/assets/icons/adventuring.webp",
@@ -84,6 +99,35 @@
       "category": "proficiency",
       "general": false
     },
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "save",
+        "mode": "add",
+        "condition": "situational",
+        "from": {
+          "pattern": "\\+\\s*(\\d+)\\s*to\\s*saving\\s*throws\\s*where\\s*agility"
+        }
+      },
+      {
+        "type": "throw",
+        "roll": "1d20",
+        "rollType": "above",
+        "from": {
+          "as": "perLevel",
+          "perGroup": 2,
+          "perSign": -1,
+          "pattern": "throw\\s*of\\s*(\\d+)\\+\\s*to\\s*succeed\\.\\s*The\\s*proficiency\\s*throw\\s*required\\s*reduces\\s*by\\s*(\\d+)\\s*per\\s*level"
+        }
+      },
+      {
+        "type": "limitation",
+        "condition": "encumbrance",
+        "from": {
+          "pattern": "encumbrance\\s*of\\s*more\\s*than\\s*(\\d+)\\s*stone"
+        }
+      }
+    ],
     "icon": "systems/acks/assets/icons/acrobatics.webp",
     "iconNiche": "modules/game-icons-net/blacktransparent/acrobatic.svg"
   },
@@ -113,7 +157,10 @@
           "on": "rank",
           "pattern": "identify \\w+ alchemical substances[\\s\\S]{0,80}?of (\\d+)\\+[\\s\\S]{0,1200}?identify substances[^.;]{0,30}?(\\d+)\\+[\\s\\S]{0,600}?identify substances[^.;]{0,30}?(\\d+)\\+"
         },
-        "condition": "one turn; by aroma and color"
+        "condition": "by method",
+        "conditionFrom": {
+          "pattern": "alchemical\\s*substances\\s*([^.]*?)\\s*with\\s*a\\s*proficiency\\s*throw"
+        }
       },
       {
         "key": "identifyComponents",
@@ -123,8 +170,7 @@
         "target": {
           "on": "rank",
           "pattern": "identify which parts[\\s\\S]{0,90}?throw of (\\d+)\\+[\\s\\S]{0,1200}?special components on (\\d+)\\+[\\s\\S]{0,600}?special components on (\\d+)\\+"
-        },
-        "note": "Identifies which parts of a monster are special components."
+        }
       },
       {
         "key": "extractToxinFresh",
@@ -135,8 +181,11 @@
           "on": "rank",
           "pattern": "of (\\d+)\\+ for fresh[\\s\\S]{0,900}?toxins on (\\d+)\\+\\s*/[\\s\\S]{0,600}?toxins on (\\d+)\\+\\s*/"
         },
-        "condition": "one day of dedicated activity",
-        "note": "Extracting toxin from poisonous plants; one dose on a success, spoiled plants on a failure. On an unmodified 1 the character is exposed and must make a Death saving throw."
+        "condition": "by method",
+        "conditionFrom": {
+          "pattern": "(each\\s*attempt\\s*requires\\s*[^.]*?)\\s*and\\s*a\\s*proficiency\\s*throw"
+        },
+        "note": "What a success, a failure and an unmodified roll yield is the Judge's to apply; the module rolls the throw only."
       },
       {
         "key": "extractToxinDried",
@@ -147,8 +196,11 @@
           "on": "rank",
           "pattern": "and (\\d+)\\+ for dried[\\s\\S]{0,900}?toxins on \\d+\\+\\s*/\\s*(\\d+)\\+[\\s\\S]{0,600}?toxins on \\d+\\+\\s*/\\s*(\\d+)\\+"
         },
-        "condition": "one day of dedicated activity",
-        "note": "Extracting toxin from poisonous plants; one dose on a success, spoiled plants on a failure. On an unmodified 1 the character is exposed and must make a Death saving throw."
+        "condition": "by method",
+        "conditionFrom": {
+          "pattern": "(each\\s*attempt\\s*requires\\s*[^.]*?)\\s*and\\s*a\\s*proficiency\\s*throw"
+        },
+        "note": "What a success, a failure and an unmodified roll yield is the Judge's to apply; the module rolls the throw only."
       }
     ],
     "icon": "systems/acks/assets/icons/alchemy.webp",
@@ -169,6 +221,34 @@
       "category": "proficiency",
       "general": false
     },
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "surprise",
+        "mode": "add",
+        "from": {
+          "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*to\\s*avoid\\s*surprise"
+        }
+      },
+      {
+        "type": "modifier",
+        "target": "proficiencyThrow",
+        "forWhat": "Searching and Listening",
+        "mode": "add",
+        "condition": "situational",
+        "from": {
+          "pattern": "proficient\\s*in\\s*Searching\\s*or\\s*Listening,\\s*he\\s*gains\\s*a\\s*\\+\\s*(\\d+)"
+        }
+      },
+      {
+        "type": "throw",
+        "roll": "1d20",
+        "rollType": "above",
+        "from": {
+          "pattern": "succeeds\\s*on\\s*a\\s*proficiency\\s*throw\\s*of\\s*(\\d+)\\+"
+        }
+      }
+    ],
     "rolls": [
       {
         "key": "searchListen",
@@ -178,7 +258,10 @@
         "target": {
           "pattern": "search or listen[\\s\\S]{0,60}?proficiency throw of (\\d+)\\+"
         },
-        "condition": "using Adventuring to search or listen",
+        "condition": "by method",
+        "conditionFrom": {
+          "pattern": "(when\\s*using[^,]*)"
+        },
         "note": "Used in place of the usual Adventuring search/listen target, not added to it."
       }
     ],
@@ -228,7 +311,7 @@
           "on": "rank",
           "pattern": "proficiency throw of (\\d+)\\+[\\s\\S]{0,900}?diagnose illness on (\\d+)\\+[\\s\\S]{0,900}?diagnose illness on (\\d+)\\+"
         },
-        "note": "Identifies whether the affliction is magical or mundane; no retry until further symptoms."
+        "note": "The module does not track when the throw may be retried."
       },
       {
         "key": "cure",
@@ -238,7 +321,11 @@
         "target": {
           "pattern": "cure light injury[\\s\\S]{0,320}?proficiency throw of (\\d+)\\+"
         },
-        "condition": "two ranks; the affliction must already be diagnosed"
+        "condition": "by rank",
+        "conditionFrom": {
+          "pattern": "(if\\s*the\\s*character\\s*selects[^,.]*)[\\s\\S]*?(he\\s*must\\s*have[^.]*)",
+          "groups": [1, 2]
+        }
       },
       {
         "key": "cureSerious",
@@ -248,7 +335,10 @@
         "target": {
           "pattern": "cure serious injury[^.]{0,90}?proficiency throw of (\\d+)\\+"
         },
-        "condition": "three ranks"
+        "condition": "by rank",
+        "conditionFrom": {
+          "pattern": "(if\\s*the\\s*character\\s*selects[^,.]*)\\s*,\\s*he\\s*is\\s*a\\s*veterinary"
+        }
       },
       {
         "key": "extractVenom",
@@ -259,7 +349,7 @@
           "on": "rank",
           "pattern": "extract venom[\\s\\S]{0,220}?throw of (\\d+)\\+\\s*/\\s*(\\d+)\\+\\s*/\\s*(\\d+)\\+"
         },
-        "note": "On an unmodified 1 the character is exposed and must make a Death saving throw."
+        "note": "What an unmodified roll yields is the Judge's to apply; the module rolls the throw only."
       }
     ],
     "icon": "systems/acks/assets/icons/animal-husbandry.webp",
@@ -308,8 +398,11 @@
         "target": {
           "pattern": "command word[\\s\\S]{0,60}?proficiency throw of (\\d+)\\+"
         },
-        "condition": "arcane-only wands, staffs and items",
-        "note": "No command word needed. On a failure the attempt backfires in some desultory way, at the Judge's discretion."
+        "condition": "for some items",
+        "conditionFrom": {
+          "pattern": "items\\s*(only\\s*[^.]*)"
+        },
+        "note": "What a failure yields is the Judge's to apply; the module rolls the throw only."
       }
     ],
     "icon": "systems/acks/assets/icons/arcane-dabbling.webp",
@@ -339,12 +432,18 @@
         "domain": "armor",
         "value": 1,
         "mode": "add",
-        "note": "One weight category heavier than the class permits."
+        "note": "Raises the class's armour allowance by the row's value."
       },
       {
         "type": "capability",
-        "condition": "in armor this proficiency makes available",
-        "note": "A spellcaster may cast spells in it."
+        "condition": "in some armour",
+        "conditionFrom": {
+          "pattern": "cast\\s*spells\\s*(in\\s*the\\s*armor[^.]*)"
+        },
+        "noteFrom": {
+          "pattern": "(able\\s*to\\s*cast\\s*spells)"
+        },
+        "note": "spellcasting"
       }
     ],
     "icon": "systems/acks/assets/icons/plate-armor.webp",
@@ -380,7 +479,7 @@
           "on": "rank",
           "pattern": "identify[\\s\\S]{0,95}?of (\\d+)\\+[\\s\\S]{0,750}?identify[\\s\\S]{0,45}?of (\\d+)\\+[\\s\\S]{0,750}?identify[\\s\\S]{0,45}?of (\\d+)\\+[\\s\\S]{0,750}?identify[\\s\\S]{0,45}?of (\\d+)\\+"
         },
-        "condition": "one rank per selection of the same art or craft",
+        "condition": "by rank",
         "note": "One throw, improving at every rank; what it identifies is named on the page."
       }
     ],
@@ -410,7 +509,10 @@
         "type": "modifier",
         "target": "reaction",
         "mode": "add",
-        "condition": "negotiating with another bargainer",
+        "condition": "by the subject",
+        "conditionFrom": {
+          "pattern": "reaction\\s*roll\\s*(when\\s*[^.]*)"
+        },
         "from": {
           "pattern": "([+-]?\\d+)\\s+bonus\\s+on\\s+his\\s+reaction\\s+roll\\s+when\\s+negotiating"
         },
@@ -470,8 +572,11 @@
         "target": {
           "pattern": "plants and fauna with a throw of (\\d+)\\+"
         },
-        "condition": "has the Friend of Birds and Beasts class power",
-        "note": "Replaces the base target; the reaction bonus does not improve with it."
+        "condition": "with a prerequisite",
+        "conditionFrom": {
+          "pattern": "(if\\s*the\\s*character\\s*has\\s*the[^,]*)"
+        },
+        "note": "Its own target, offered beside the base roll; the reaction modifier is left as it stands."
       }
     ],
     "icon": "systems/acks/assets/icons/beast-friendship.webp",
@@ -487,7 +592,7 @@
         "from": {
           "pattern": "([+-]?\\d+)\\s+to\\s+all\\s+reaction\\s+rolls\\s+when\\s+encountering\\s+normal\\s+animals"
         },
-        "note": "Normal animals only. Friend of Bird and Beasts does not increase this bonus."
+        "note": "vsKinds holds the scope."
       }
     ],
     "audited": "2026-07-19"
@@ -521,7 +626,10 @@
       {
         "type": "capability",
         "condition": "while enraged",
-        "note": "Makes no morale check."
+        "noteFrom": {
+          "pattern": "(never\\s*checks\\s*morale)"
+        },
+        "note": "morale"
       }
     ],
     "icon": "systems/acks/assets/icons/berserkergang.webp",
@@ -566,11 +674,14 @@
         "type": "modifier",
         "target": "attackThrow",
         "mode": "replace",
-        "condition": "blinded or unseen foe",
+        "condition": "situational",
+        "conditionFrom": {
+          "pattern": "attack\\s*throws\\s*(when\\s*[^.]*?)\\s*instead"
+        },
         "from": {
           "pattern": "only a (-?\\d+) penalty on attack throws"
         },
-        "note": "Replaces the base non-visibility penalty; a smaller penalty, so a net gain."
+        "note": "mode replace: the located figure stands in place of the base one."
       },
       {
         "type": "modifier",
@@ -618,31 +729,40 @@
         "type": "modifier",
         "target": "reaction",
         "mode": "add",
-        "condition": "bribe worth a day's pay",
+        "condition": "by the offer",
+        "conditionFrom": {
+          "pattern": "reaction\\s*rolls\\s*(if\\s*he\\s*offers[^;]*)"
+        },
         "from": {
           "pattern": "([+-]?\\d+)\\s+bonus\\s+to\\s+reaction\\s+rolls\\s+if\\s+he\\s+offers\\s+one\\s+day"
         },
-        "note": "One tier applies, by the size of the bribe offered."
+        "note": "One of the three rows applies at a time, as its condition says."
       },
       {
         "type": "modifier",
         "target": "reaction",
         "mode": "add",
-        "condition": "bribe worth a week's pay",
+        "condition": "by the offer",
+        "conditionFrom": {
+          "pattern": "bonus\\s*(for\\s*a\\s*week[^;]*)"
+        },
         "from": {
           "pattern": "a\\s+([+-]?\\d+)\\s+bonus\\s+for\\s+a\\s+week"
         },
-        "note": "One tier applies, by the size of the bribe offered."
+        "note": "One of the three rows applies at a time, as its condition says."
       },
       {
         "type": "modifier",
         "target": "reaction",
         "mode": "add",
-        "condition": "bribe worth a month's pay",
+        "condition": "by the offer",
+        "conditionFrom": {
+          "pattern": "bonus\\s*(for\\s*a\\s*month[^.;]*)"
+        },
         "from": {
           "pattern": "a\\s+([+-]?\\d+)\\s+bonus\\s+for\\s+a\\s+month"
         },
-        "note": "One tier applies, by the size of the bribe offered."
+        "note": "One of the three rows applies at a time, as its condition says."
       }
     ],
     "icon": "systems/acks/assets/icons/bribery.webp",
@@ -682,6 +802,17 @@
       "category": "proficiency",
       "general": false
     },
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "save",
+        "mode": "add",
+        "condition": "situational",
+        "from": {
+          "pattern": "\\+\\s*(\\d+)\\s*to\\s*saving\\s*throws\\s*where\\s*perfect\\s*balance"
+        }
+      }
+    ],
     "icon": "systems/acks/assets/icons/cat-burglary.webp",
     "iconNiche": "modules/game-icons-net/blacktransparent/lock-picking.svg"
   },
@@ -757,6 +888,16 @@
       "category": "proficiency",
       "general": false
     },
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "cleaves",
+        "mode": "add",
+        "from": {
+          "pattern": "number\\s*of\\s*cleaves\\s*is\\s*increased\\s*by\\s*(\\d+)"
+        }
+      }
+    ],
     "audited": "2026-07-18",
     "auditor": "first-pass",
     "icon": "systems/acks/assets/icons/crossed-slashes.webp",
@@ -777,6 +918,24 @@
       "category": "proficiency",
       "general": false
     },
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "surprise",
+        "mode": "add",
+        "from": {
+          "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*to\\s*surprise\\s*rolls\\s*and\\s*initiative"
+        }
+      },
+      {
+        "type": "modifier",
+        "target": "initiative",
+        "mode": "add",
+        "from": {
+          "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*to\\s*surprise\\s*rolls\\s*and\\s*initiative"
+        }
+      }
+    ],
     "icon": "systems/acks/assets/icons/combat-reflexes.webp",
     "iconNiche": "modules/game-icons-net/blacktransparent/dodge.svg"
   },
@@ -823,7 +982,7 @@
         "from": {
           "pattern": "receive\\s*a\\s*([+-]?\\d+)\\s*bonus\\s*to\\s*morale"
         },
-        "note": "The morale of the character's henchmen, mercenaries and troops. Read by henchmen's obedience roll."
+        "note": "Read by henchmen's obedience roll."
       }
     ]
   },
@@ -860,6 +1019,29 @@
       "category": "proficiency",
       "general": false
     },
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "save",
+        "forWhat": "Paralysis",
+        "mode": "add",
+        "condition": "situational",
+        "from": {
+          "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*to\\s*Paralysis\\s*saving\\s*throws\\s*to\\s*escape"
+        }
+      },
+      {
+        "type": "throw",
+        "roll": "1d20",
+        "rollType": "above",
+        "from": {
+          "as": "perLevel",
+          "perGroup": 2,
+          "perSign": -1,
+          "pattern": "throw\\s*of\\s*(\\d+)\\+\\s*to\\s*succeed\\.\\s*The\\s*proficiency\\s*throw\\s*required\\s*reduces\\s*by\\s*(\\d+)\\s*per\\s*level"
+        }
+      }
+    ],
     "icon": "systems/acks/assets/icons/contortionism.webp",
     "iconNiche": "modules/game-icons-net/blacktransparent/contortionist.svg"
   },
@@ -914,7 +1096,7 @@
         "from": {
           "pattern": "([+-]?\\d+)\\s+bonus\\s+on\\s+all\\s+reaction\\s+rolls\\s+when\\s+he\\s+attempts"
         },
-        "note": "Parleying only. Stacks with Mystic Aura, but not with the other two tone proficiencies."
+        "note": "tones holds the scope and notStacksWith the stacking."
       }
     ]
   },
@@ -952,6 +1134,16 @@
       "category": "proficiency",
       "general": false
     },
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "save",
+        "mode": "add",
+        "from": {
+          "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*to\\s*all\\s*saving\\s*throws"
+        }
+      }
+    ],
     "audited": "2026-07-18",
     "auditor": "first-pass",
     "icon": "systems/acks/assets/icons/divine-blessing.webp",
@@ -1105,6 +1297,18 @@
       "category": "proficiency",
       "general": true
     },
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "save",
+        "forWhat": "Paralysis",
+        "mode": "add",
+        "condition": "situational",
+        "from": {
+          "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*to\\s*Paralysis\\s*saving\\s*throws\\s*to\\s*avoid"
+        }
+      }
+    ],
     "icon": "systems/acks/assets/icons/endurance.webp",
     "iconNiche": "modules/game-icons-net/blacktransparent/muscle-up.svg"
   },
@@ -1225,13 +1429,84 @@
         "domain": "fightingStyle",
         "mode": "add",
         "choose": 1,
-        "note": "Specializes one style the character is already proficient in."
+        "note": "One pick (choose), among the styles the requires row names."
+      },
+      {
+        "type": "modifier",
+        "target": "attackThrow",
+        "forWhat": "missile",
+        "mode": "add",
+        "gate": {
+          "kind": "specializedStyle",
+          "style": "missile"
+        },
+        "from": {
+          "pattern": "missile\\s*weapons?\\s*([+-]?\\d+)\\s*to\\s*attack"
+        }
+      },
+      {
+        "type": "modifier",
+        "target": "initiative",
+        "mode": "add",
+        "gate": {
+          "kind": "specializedStyle",
+          "style": "single"
+        },
+        "from": {
+          "pattern": "single\\s*weapons?\\s*([+-]?\\d+)\\s*to\\s*initiative"
+        }
+      },
+      {
+        "type": "modifier",
+        "target": "attackThrow",
+        "forWhat": "melee",
+        "mode": "add",
+        "gate": {
+          "kind": "specializedStyle",
+          "style": "dual"
+        },
+        "from": {
+          "pattern": "d\\s*ual\\s*weapons?\\s*([+-]?\\d+)\\s*to\\s*attack"
+        }
+      },
+      {
+        "type": "modifier",
+        "target": "damage",
+        "forWhat": "melee",
+        "mode": "add",
+        "gate": {
+          "kind": "specializedStyle",
+          "style": "twoHanded"
+        },
+        "from": {
+          "pattern": "t\\s*wo-?\\s*handed\\s*weapons?\\s*([+-]?\\d+)\\s*to\\s*damage"
+        }
+      },
+      {
+        "type": "modifier",
+        "target": "ac",
+        "mode": "add",
+        "gate": {
+          "kind": "specializedStyle",
+          "style": "weaponShield"
+        },
+        "from": {
+          "pattern": "weapon\\s*and\\s*shield\\s*([+-]?\\d+)\\s*to\\s*armou?r\\s*class"
+        }
       }
     ],
     "icon": "systems/acks/assets/icons/dual-wield.webp",
     "iconNiche": "modules/game-icons-net/blacktransparent/duel.svg",
     "assists": {
-      "descStopY": 640.9
+      "descStopY": 640.9,
+      "effectsFrames": [
+        {
+          "x0": 70,
+          "x1": 300,
+          "y0": 655,
+          "y1": 725
+        }
+      ]
     }
   },
   {
@@ -1257,7 +1532,10 @@
         "type": "modifier",
         "target": "reaction",
         "mode": "add",
-        "condition": "0th-level characters, in a settlement the character knows",
+        "condition": "by the subject",
+        "conditionFrom": {
+          "pattern": "reaction\\s*rolls\\s*(with\\s*[^.]*)"
+        },
         "from": {
           "pattern": "([+-]?\\d+)\\s+bonus\\s+to\\s+reaction\\s+rolls\\s+with\\s+0th\\s+level"
         },
@@ -1369,11 +1647,11 @@
           "def.prof.diplomacy",
           "def.prof.seduction"
         ],
-        "condition": "targets under 5 HD, or outnumbered/outranked",
+        "condition": "situational",
         "from": {
           "pattern": "([+-]?\\d+)\\s+bonus\\s+on\\s+all\\s+reaction\\s+rolls\\s+when\\s+implicitly"
         },
-        "note": "Target-strength requirement is a Judge's call, not automated."
+        "note": "When the condition holds is the Judge's call, not automated."
       }
     ]
   },
@@ -1521,7 +1799,7 @@
       {
         "type": "capability",
         "frequency": "perDay",
-        "note": "Each further rank grants one more use per day."
+        "note": "Uses per day do not scale with rank in the module; the page states how they do."
       }
     ],
     "audited": "2026-07-28"
@@ -1551,7 +1829,7 @@
         "from": {
           "pattern": "hire\\s*(\\w+)\\s*more\\s*henchm[ae]n"
         },
-        "note": "Henchmen allowed beyond the Charisma limit. Read by henchmen's limit check. The domain morale half has no reader yet."
+        "note": "Read by henchmen's limit check; the domain morale half has no reader."
       }
     ]
   },
@@ -1860,7 +2138,7 @@
             "into": "kickerAt"
           }
         ],
-        "note": "Stacks with any one of the three tone proficiencies."
+        "note": "Its stacking with the tone proficiencies is held on their rows."
       }
     ],
     "audited": "2026-07-19"
@@ -2098,6 +2376,17 @@
       "category": "proficiency",
       "general": true
     },
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "save",
+        "mode": "add",
+        "condition": "situational",
+        "from": {
+          "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*to\\s*saving\\s*throws\\s*related"
+        }
+      }
+    ],
     "icon": "systems/acks/assets/icons/cornucopia.webp",
     "iconNiche": "modules/game-icons-net/blacktransparent/drinking.svg"
   },
@@ -2206,7 +2495,10 @@
           "def.prof.diplomacy",
           "def.prof.intimidation"
         ],
-        "condition": "the subject is potentially attracted to the character",
+        "condition": "by the subject",
+        "conditionFrom": {
+          "pattern": "reaction\\s*rolls\\s*(when\\s*interacting[^.]*)"
+        },
         "from": {
           "pattern": "([+-]?\\d+)\\s+bonus\\s+on\\s+reaction\\s+rolls\\s+when\\s+interacting"
         }
@@ -2402,8 +2694,8 @@
         "target": {
           "pattern": "identify those of other[\\s\\S]{0,45}?throw of (\\d+)\\+"
         },
-        "condition": "settlements other than his home settlement",
-        "note": "No throw is needed in the character's own home settlement."
+        "condition": "in some places",
+        "note": "Where the throw is needed at all is the Judge's call; the module rolls the located target."
       }
     ],
     "icon": "systems/acks/assets/icons/suspicious.webp",
@@ -2442,6 +2734,28 @@
       "category": "proficiency",
       "general": false
     },
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "ac",
+        "mode": "add",
+        "gate": {
+          "kind": "lightlyEquipped",
+          "armourMax": "light"
+        },
+        "from": [
+          {
+            "on": "level",
+            "pairs": true,
+            "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*to\\s*Armor\\s*Class\\.\\s*At\\s*level\\s*(\\d+)[\\s\\S]{0,40}?to\\s*\\+\\s*(\\d+)[\\s\\S]{0,60}?at\\s*level\\s*(\\d+)[\\s\\S]{0,60}?to\\s*\\+\\s*(\\d+)"
+          },
+          {
+            "into": "gate.loadMax",
+            "pattern": "carrying\\s*(\\d+)\\s*stones?\\s*or\\s*less"
+          }
+        ]
+      }
+    ],
     "icon": "systems/acks/assets/icons/swashbuckling.webp",
     "iconNiche": "modules/game-icons-net/blacktransparent/sword-brandish.svg"
   },
@@ -2492,7 +2806,10 @@
     "effects": [
       {
         "type": "capability",
-        "note": "Replaces part of the divine repertoire with divine spells outside the character's god's list."
+        "noteFrom": {
+          "pattern": "(can\\s*replace\\s*\\d+\\s*divine\\s*spells[^.]*)"
+        },
+        "note": "repertoire"
       }
     ],
     "icon": "systems/acks/assets/icons/theology1.webp",
@@ -2544,7 +2861,7 @@
         "target": {
           "pattern": "Tracking proficiency throw of (\\d+)\\+"
         },
-        "note": "On a failure the same area cannot be searched again for a time. Each rank past the first improves this throw; neither that improvement nor the printed circumstance modifiers are modelled here."
+        "note": "The retry limit, the improvement by rank and the circumstance modifiers the page prints are not modelled here."
       }
     ],
     "icon": "systems/acks/assets/icons/tracking.webp",
@@ -2595,7 +2912,7 @@
         "from": {
           "pattern": "(\\+\\d+) bonus on Searching and Trapbreaking"
         },
-        "note": "Applies to these two throws only, not to proficiency throws generally."
+        "note": "refs names the two throws it modifies, and no other."
       }
     ],
     "icon": "systems/acks/assets/icons/find-trap.webp",
@@ -2625,7 +2942,7 @@
         "target": {
           "pattern": "catch game[\\s\\S]{0,160}?target value of (\\d+)\\+"
         },
-        "note": "Thrown once per day per trap by the Judge; a failure on an unmodified 1 destroys a crude trap. The yield is stated in the description."
+        "note": "When it is thrown, and what a success, a failure or an unmodified roll yields, is the Judge's to apply; the module rolls the throw only."
       },
       {
         "key": "trapStumble",
@@ -2637,7 +2954,7 @@
         "target": {
           "pattern": "trap on a throw of \\d+-(\\d+) on 1d6"
         },
-        "note": "Thrown when a wandering monster turns up near managed traps; on a failure it lurks nearby instead."
+        "note": "When it is thrown, and what a failure yields, is the Judge's to apply; the module rolls the throw only."
       }
     ],
     "effects": [
@@ -2649,11 +2966,14 @@
           "kw:searching",
           "kw:trapfinding"
         ],
-        "condition": "finding and removing wilderness traps",
+        "condition": "against some traps",
+        "conditionFrom": {
+          "pattern": "additional\\s*\\+?\\s*\\d+\\s*bonus\\s*(against\\s*[^.)]*)"
+        },
         "from": {
           "pattern": "additional (\\+\\d+) bonus against wilderness traps"
         },
-        "note": "Applies only if the character is separately proficient in Searching or Trapfinding, and only against wilderness traps."
+        "note": "ifHas holds the prerequisite, and the condition the traps it covers."
       }
     ],
     "icon": "systems/acks/assets/icons/wolf-trap.webp",
@@ -2756,7 +3076,10 @@
         "attribute": "dex",
         "insteadOf": "str",
         "target": "attackThrow",
-        "condition": "tiny, small, or medium melee weapons"
+        "condition": "with some weapons",
+        "conditionFrom": {
+          "pattern": "(when\\s*attacking\\s*with\\s*[\\s\\S]{0,60}?weapons)"
+        }
       }
     ],
     "audited": "2026-07-28"

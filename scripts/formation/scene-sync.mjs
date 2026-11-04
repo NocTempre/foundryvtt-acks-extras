@@ -1,14 +1,10 @@
 /* global game, ChatMessage, CONST */
-import { MODULE_ID, ROLES } from "./constants.mjs";
+import { FLAG_PARTY_SIZE, MODULE_ID, ROLES } from "./constants.mjs";
 import { deployedTokens, isMemberDeployed } from "./deployment.mjs";
-import { faceWidthFeet, formationHeading, getFormations, getPartyActor, getPartyToken, mapperIsProficient, partyDepth, patchFormation } from "./formation-model.mjs";
-import { FEET_PER_RANK } from "./trap-rules.mjs";
-import { tokenSpan } from "../battlemap/footprint.mjs";
-import { isExpeditionScale, sceneFeetPerCell } from "../lib/distance-units.mjs";
+import { getFormations, getPartyActor, getPartyToken, mapperIsProficient, partyTokenShape, patchFormation } from "./formation-model.mjs";
 import { FLAG_FOOTPRINT_LOCK } from "../battlemap/constants.mjs";
 import { ensureMapSession } from "./map-items.mjs";
 import { MEASURE_FLAG, MEASURE_MODES } from "./measure-fuzz.mjs";
-import { emittedLight } from "../lib/light.mjs";
 import { VISION_MODES, senseProfile } from "../lib/senses.mjs";
 import { SETTING_MANAGE_VISION, applyTokenLight, applyTokenVision, syncTokenFromActor } from "../lib/token-sync.mjs";
 
@@ -25,9 +21,10 @@ import { SETTING_MANAGE_VISION, applyTokenLight, applyTokenVision, syncTokenFrom
  *   memory accumulates while no one is drawing it. The scene's original mode
  *   is remembered in a flag and restored when no formation remains.
  *
- * - **Party token light ← lit light sources.** The party token emits the
- *   brightest lit source's light (torch/lantern 15'/30', candle 5'/10') so
- *   players can always see where they are.
+ * - **Party token light: none of its own.** A member's light shines from
+ *   that member's place in the column (`column-light.mjs`), so the party
+ *   token carries no light the module wrote; a light the Judge set on it by
+ *   hand stays.
  *
  * - **Party actor ownership ← member ownership.** Every player who owns a
  *   member of the formation gets owner rights on the party actor, so they see
@@ -187,17 +184,17 @@ async function syncPartyActorOwnership(formation) {
 }
 
 /**
- * The party token burns with the brightest source ANY member has lit — the
- * whole party shares one light radius while it shares one token. A member who
- * has deployed or detached takes their own light with them: their token is
- * synced from `bearerLights`, which is why this reads the formation's whole list
- * and the individual path reads only what that bearer carries.
+ * The party token sheds no light of the module's: each bearer's light shines
+ * from that bearer's cell in the column, drawn on every client
+ * (`column-light.mjs`). Writing 0/0 through `applyTokenLight` clears a light
+ * the module wrote here before and leaves one the Judge set by hand, which
+ * the `managedLight` flag tells apart. A member who has deployed or detached
+ * burns their light on their own token (`syncDeployedMemberTokens`).
  */
 async function syncPartyTokenLight(formation) {
   const token = getPartyToken(formation);
   if (!token) return;
-  const carried = formation.lights.filter((l) => !isDeployed(formation, l.bearerId));
-  await applyTokenLight(token, emittedLight(carried));
+  await applyTokenLight(token, { bright: 0, dim: 0 });
 }
 
 /**
@@ -275,7 +272,7 @@ const STEP_WAIT_MS = 4000;
  *
  * A rejected animation is a settled one: it must not take the sweep down.
  */
-function stepFinished(token) {
+export function stepFinished(token) {
   const animation = token?.object?.movementAnimationPromise;
   if (!animation) return Promise.resolve();
   return Promise.race([
@@ -284,21 +281,41 @@ function stepFinished(token) {
   ]);
 }
 
+/** Whether two token sizes are the same size. */
+function sameSize(a, b) {
+  return Math.abs(Number(a?.width) - Number(b?.width)) < 1e-6 && Math.abs(Number(a?.height) - Number(b?.height)) < 1e-6;
+}
+
 /**
- * The party token wears the formation's face: as wide across the line of
- * march as its frontage in feet at this scene's scale, and as deep as its
- * ranks. Token width/height are axis-aligned and never rotate, so an
- * east/west heading swaps the two. Generic tokens are sized by
- * battlemap/token-scale.mjs; the party token is its one exemption and is
- * sized here only.
+ * The size this party token should be written to, or null to leave it alone.
  *
- * The turn is made ON THE SPOT: the block pivots about its own centre and
- * passes through walls to do it, because a formation that turns has not gone
- * anywhere.
+ * - The footprint lock means never resize, in every shape.
+ * - `order`: the token is the one-cell head of the drawn column, and the
+ *   module owns its size, so a hand resize goes back.
+ * - `fixed`: the size is the Judge's. A token still at the size the module
+ *   last stamped goes to one cell once; one whose size changed since the stamp
+ *   is never written. A token with no stamp counts as the module's, since
+ *   every size it carries from before the switch is one the module wrote.
  *
- * On a map whose cell is a mile or more across the frontage would be a
- * fraction of a cell, so the token is one cell square instead, unless the
- * token carries the footprint lock.
+ * Exported for the offline suite. Pure over its arguments.
+ * @param {{width: number, height: number}} size the token's stored size
+ * @param {{width: number, height: number}|null|undefined} stamp `FLAG_PARTY_SIZE`
+ * @param {object} opts
+ * @param {string} opts.shape a `PARTY_TOKEN_SHAPES` entry
+ * @param {boolean} [opts.locked] the token carries the footprint lock
+ * @returns {{width: number, height: number}|null}
+ */
+export function partySizeTarget(size, stamp, { shape, locked = false }) {
+  if (locked) return null;
+  const head = { width: 1, height: 1 };
+  if (shape === "fixed" && stamp && !sameSize(size, stamp)) return null;
+  return sameSize(size, head) ? null : head;
+}
+
+/**
+ * Size the party token for its shape (`partySizeTarget`). Generic tokens are
+ * sized by battlemap/token-scale.mjs; the party token is its one exemption and
+ * is sized here only.
  */
 export async function syncPartyTokenSize(formation) {
   if (!getPartyToken(formation)) return;
@@ -306,41 +323,37 @@ export async function syncPartyTokenSize(formation) {
   // Wait out the step the party is taking before resizing the token that took
   // it. `animate: false` calls `stopAnimation`, so a size write issued while a
   // move is still animating cancels that move and snaps the token to its
-  // destination. Auto-rotation makes that the ordinary case and not a corner:
-  // core turns the token as part of the drag, this runs off that rotation, and
-  // so every move ends by teleporting its own last leg.
+  // destination.
   await stepFinished(getPartyToken(formation));
 
   const token = getPartyToken(formation);
   if (!token) return;
-  // The scene's squares in FEET — a frontage is in feet and a wilderness
-  // scene's squares are not, so the units convert before the span does.
-  const distance = sceneFeetPerCell(token.parent);
-  if (!(distance > 0)) return;
-  let width = 1;
-  let height = 1;
-  if (!isExpeditionScale(token.parent) || token.getFlag(MODULE_ID, FLAG_FOOTPRINT_LOCK)) {
-    const across = tokenSpan(faceWidthFeet(formation), distance);
-    const deep = tokenSpan(partyDepth(formation) * FEET_PER_RANK, distance);
-    const heading = formationHeading(formation);
-    const sideways = heading === "east" || heading === "west";
-    width = sideways ? deep : across;
-    height = sideways ? across : deep;
+  const stored = token._source ?? token;
+  const stamp = token.getFlag(MODULE_ID, FLAG_PARTY_SIZE);
+  const target = partySizeTarget(stored, stamp, {
+    shape: partyTokenShape(formation),
+    locked: !!token.getFlag(MODULE_ID, FLAG_FOOTPRINT_LOCK),
+  });
+  if (!target) {
+    // A token already one cell carries no stamp yet: claim it, so a Judge's
+    // later resize in `fixed` reads as theirs.
+    if (!stamp && sameSize(stored, { width: 1, height: 1 })) {
+      await token.update({ [`flags.${MODULE_ID}.${FLAG_PARTY_SIZE}`]: { width: 1, height: 1 } });
+    }
+    return;
   }
-  if (Math.abs(token.width - width) < 1e-6 && Math.abs(token.height - height) < 1e-6) return;
+  const { width, height } = target;
 
   const before = { x: token.x, y: token.y };
   // `resize`, never `update({width, height})`. Width and height are MOVEMENT
   // fields, so a size write IS a movement write: written raw it anchors the
-  // token by its top-left corner — a block turning from 6×2 to 2×6 pivots
-  // about that corner and lurches two squares sideways — and it is measured
-  // and wall-constrained like a walk, so the new footprint gets shoved out of
-  // a corridor the party was standing in perfectly well. `resize` holds the
-  // centre still and carries `ignoreWalls`/`ignoreCost`.
+  // token by its top-left corner and is measured and wall-constrained like a
+  // walk. `resize` holds the centre still and carries `ignoreWalls`/`ignoreCost`.
   //
   // Never animate a size write: a tweened width/height reads as the token
   // shrinking and swelling.
   await token.resize({ width, height }, { animate: false, [RESIZE_OPTION]: true });
+  await token.update({ [`flags.${MODULE_ID}.${FLAG_PARTY_SIZE}`]: { width, height } });
 
   // Holding the centre still moves the top-left corner, and the clock measures
   // from the corner. Re-baseline it, or the next real step bills the party for
@@ -415,10 +428,10 @@ async function runEnvironmentSync() {
     }
   };
 
-  if (game.settings.get(MODULE_ID, "syncTokenLight")) {
-    for (const formation of formations) {
-      await step("token light", () => syncPartyTokenLight(formation), () => !!getPartyToken(formation));
-    }
+  // Unconditional: it only ever clears a light the module wrote, which no
+  // setting should keep burning.
+  for (const formation of formations) {
+    await step("token light", () => syncPartyTokenLight(formation), () => !!getPartyToken(formation));
   }
 
   for (const formation of formations) {

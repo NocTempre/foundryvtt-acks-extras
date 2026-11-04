@@ -30,13 +30,13 @@ actor whose own book is open (`bindMonster`, step 2). The ruling is DECISIONS
 One window (`apps/import-manager.mjs`, `openImportManager({tab})`) holds the
 importer's controls, reached from the *Manage Imports (GM)* macro, the
 settings menu (`importManager`, `ImportManagerMenu`) and every entry point
-that used to open the Books window (below). It keeps no state:
+that reaches the Books tab (below). It keeps no state:
 `installImportManager(host)` is given the importer api, the chain, the runs
 and the Books panel builder at ready, every tab reads them at render, and
 every press hands off to a run that already exists and asks its own
 questions. Five tabs:
 
-- **Books** — the whole of what the Books window was: the first-run
+- **Books** — every book this build reads: the first-run
   walkthrough, the server shelf, the controls that answer for several books,
   one row per book, the refresh-bridge line and Forget. `booksPanel` in
   `module.mjs`, where the seat's books, shelf and file handles live, builds
@@ -62,12 +62,12 @@ questions. Five tabs:
   Reimport One Shelf dialog draws from the same two functions, so the two
   surfaces can never offer different things.
 - **Adventures** — each adventure book open on this seat (`adventureBooks()`,
-  each with its `bookCensus`): Rebuild and Repair run
-  `cookbookReimportAdventure` in its two modes (below), Write Adventure runs
+  each with its `bookCensus`): Rebuild, Repair and Force repair run
+  `cookbookReimportAdventure` in its three modes (below), Write Adventure runs
   the adventures step for that book alone.
 - **Tools** — the entry picker, the audit, the repair window on the
   importer's checks (every check where it registers none), the merchandise
-  build, Remove All Imports.
+  build, overhead token art (below) and Remove All Imports.
 
 One run at a time: the window names what runs in a status line and disables
 its buttons until the run resolves, then re-renders.
@@ -114,12 +114,51 @@ does not own it or has nothing to write from:
 - a document with nothing to be written from: its book is not open on this
   seat, its page no longer matches, a monster entry that claims no stats, a
   build of another document type, a write Foundry rejects;
-- a kind with no in-place write: weapons, armour, the price list, languages,
-  races, monster templates and families, NPCs, OSE creatures. These stay on
-  Rebuild, marked, and a forced repair leaves them and says so.
+- an item a Judge gave a pregenerated character: a forced repair of the
+  character (below) lands what its sheet import grants that it lacks and keeps
+  what it holds, and an unforced repair leaves the character as it stands;
+- a document whose row the page no longer yields (a vehicle or merchandise
+  row, a creature the page dropped): there is nothing to write from, so it is
+  counted as refused or left.
 
-An adventure book's Repair is a different operation (it imports what the
-world lacks) and has no forced mode.
+**Every other kind has an in-place write**, under the same guards, in the two
+shapes below. A forced repair differs from a repair only in the prose guard.
+
+**The rewrite scope.** A monster template or family, an NPC, a legacy block and
+an OSE creature are built by importers whose build is also what they create.
+`withRewrite({held, tally}, run)` (cookbook.mjs) sets a scope that maps the
+cookbook id of each held document to it; while it stands, `createDoc` for a held
+id writes the build over the held document (`refreshImported` under
+`actorPolicy(build)`), `claimed()` and the importers' "already imported" reads
+skip a held id so the build runs, and an art import is skipped for it. One
+importer body therefore serves both the first import and the repair, and no
+importer has a second copy of its build. `actorPolicy` (refresh.mjs) derives the
+policy from the build: the flags the build stamps, its token, its embedded
+items as `minted`, and a biography. A held document nothing wrote is counted
+as left when the scope ends. `repairActors` is the one entry that classifies
+monster-shelf entries (`monsterRepair`: stat-block monsters refill, the rest
+rewrite, a pregenerated character rewrites only under a forced tally) and runs
+the scope.
+
+**A pregenerated character** is built by the sheet import, not returned as a
+build. `importCharacter` stamps every item the import granted `minted` (an item
+present beforehand, or given later, is not stamped), and under the scope its
+`createDoc` returns the held character, so the sheet import runs onto it again
+and the biography, morale and printed-differences flag are written. The sheet
+import answers a line by what the character already carries (an ability by
+copies held, gear and spells by name, the class by key and level), so nothing is
+granted twice and an item a Judge gave stays. An item the import granted that
+the character lost is landed again; one a Judge edited is not replaced.
+
+**Table rows.** Weapons, armour, the priced-gear rows, languages and races are
+built from a connected table, not from an entry. `importWeapons`,
+`importArmor`, `importPricedGear`, `applyLanguageImport` and
+`applyBuilderImport` take `{repair}`: a row this world already holds is written
+over under `REPAIR.weapon`, `armor`, `ammunition`, `priced` or `language` and
+counted, where an import passes it over. `TABLE_REPAIRS` and `TABLE_BOOKS` tie
+a shelf and a book to the importers that rebuild its rows, and `isTableRow`
+tells a shelf's repair which documents are rows. A row of a table whose book is
+not open on this seat is left.
 
 ## An adventure book, rebuilt or repaired
 
@@ -144,6 +183,32 @@ organisation's seats resolve again.
 passing over what the world holds, and the adventures step runs with
 `force`, which `bookAdventureState` reads as stale whatever the stamp says,
 so the Adventure is written anew, a Judge's edit to it included.
+
+**Force repair** (`mode: "force"`) is Repair that also writes, in place, what
+the world already holds of the book's own: its creatures and people
+(`repairActors`, through the rewrite scope above), the items it introduces and
+its roll tables (`rewriteTable`: formula, description, results), under a
+forced tally, so a description a Judge wrote in is replaced. Journals and the
+Adventure are already refreshed by Repair, and maps by their step. **Places and
+organisations** are written over through the same scope: `bodyRowIds` lists the
+book's keyed places, points of interest, region sites that stand as their own
+place, and organisations; the places and organisations step each run inside a
+`withRewrite` holding those the world has, so their "already held" branches
+step aside (`isRewriting`) and the importer's build runs. The scope's `retract`
+returns a place's roster, and an organisation's relations and strength, to empty
+first, since the import fills them after the create (`keyedOccupantRows`, the
+relations pass, the strength grid; `wasRewritten` lets the grid pass write over
+a body it just rewrote). An edited place, parent link or roster is replaced.
+Left out, because their own step joins them: a place two books print (either
+side of a pair), and the containers a place stands in (the book's own place, a
+quarter, a region). **Market profiles** run with the forced tally:
+`marketProfileUpdate`'s `force` writes the class and the family count over what
+a place holds and the base demand over any base but one a later printing wrote
+(`baseIsForceable`). Its confirm counts the documents by kind
+(`adventureForceCensus`, places and organisations apart), says the market
+profiles are written onto the places, names what is left, and closes on what is
+kept; Cancel writes nothing. The result carries `mode: "force"` and the repair
+counts.
 
 The steps (`runAdventureBookSteps`) are the chain's that read an adventure
 book, narrowed to it in the chain's order: its monsters and people the world
@@ -679,6 +744,50 @@ bonus, a daily power — stays in the description. The rulings are DECISIONS
 2026-10-19, "An item a book introduces is a core item read whole", and
 2026-10-28, "An item a book introduces is worn where its page says".
 
+## An ability's modifiers: recipe or scan
+
+An entry's register `effects` recipe replaces the vocabulary scan for that
+entry whole, so it carries every row the entry should have (modifiers, throws,
+limitations), each with locators for its figures. A recipe ships the row's
+structure — target, `forWhat`, `condition: "situational"`, a `gate`'s kind and
+armour rung word — and locators read everything printed: the value, a ladder's
+rungs, a per-level rate (`perGroup`, signed by `perSign`), and a gate's load
+(`{into: "gate.loadMax"}`, one level of nesting). A locator that misses drops
+its whole row. `bindAbility` stamps `extras.effectsFrom` — `"recipe"` or
+`"scan"` (`effects-origin.mjs` `effectsOriginOf`) — which the sheet reads to
+mark a scan's applied rows unverified (`docs/abilities/MODEL.md`). The scan
+splits a phrase naming two fields at its conjunctions ("surprise and
+initiative" is two rows), one target per conjunct.
+
+**Conditions.** A recipe row's `condition` is one of the neutral labels in
+`condition-labels.mjs` (what kind of condition: "while leading", "by method"),
+or a scope's own word or two; the compiler appends the entry's page reference
+to a label (`citeLabel`), and `lint-register.mjs` refuses any longer string.
+Beside it, a `conditionFrom` locator (`{pattern, group | groups, flags}`) reads
+the clause off the seat's page at import (`executor.mjs` `locateCondition`):
+the captures, joined by ", ", trimmed to a clause, at most 200 characters. It
+replaces the label; a miss leaves the label and keeps the row, unlike a
+figure's locator, because the row's mechanics are complete without the words.
+Effects specs and roll specs both take one.
+
+The same holds for a limitation's `restriction` and an outcome's
+`consequence`: each ships one of its own field's labels ("a retry limit",
+"a mishap"), cited by the compiler, or a word or two, and a `restrictionFrom`
+or `consequenceFrom` locator reads the page's clause over it
+(`executor.mjs` `CLAUSE_FIELDS`). A `noteFrom` locator reads the clause a
+capability or companion row shows as its face over the shipped `note`; with
+no note shipped, a miss leaves the row reading "see description". A row's
+`note` is otherwise the module's own remark on the row (which field holds
+what, what the module does not track); the lint refuses a figure in it
+outside a page reference, and a TODO (`noteProblem`). Whether a remark
+paraphrases the rule is left to review: no pattern tells the two apart.
+
+**An effects frame.** `assists.effectsFrames` names boxes on the anchor's page
+whose text the effects locators read beside the description: a bonus table
+printed under the entry, outside its prose. The compiler emits them as an
+`effectsText` text field; `executeEntry` reads them with the description and
+drops the field from the result, so the frame never becomes description.
+
 ## A class stated in sentences
 
 A `kind.class` row whose spread prints no text table for its levels carries,
@@ -1113,3 +1222,47 @@ returns the printed title, and `printedNameOf` names the table with it.
 A value instruction's `throw` pattern reads a throw target, the first
 `<n>+`, where `int` would read a die expression's count first; it is null
 when the text prints no target.
+
+## Overhead token art from an installed compendium
+
+The Tools tab offers a monster's token from a third-party Actor compendium the
+world has active (`token-art.mjs`; the plan is `token-art-logic.mjs`, Foundry-free).
+
+**The source is found at runtime** (`tokenArtSources`): an active module other
+than this one whose Actor packs hold monster rows with token art under
+`modules/<id>/` (`indexSource` drops a row whose token is a core icon or
+another package's placeholder, and remembers its name as "no art"). Nothing
+names a package or a pack; the title is `game.modules.get(id).title`. When more
+than one package qualifies the Tools tab shows one Apply button each, so the
+Judge picks. A package that is not active serves no packs and is not offered.
+
+**The match** is exact: `foldName` (diacritics stripped, then lib `slug`) of the
+imported monster's name against the source's. A name the source answers with
+more than one distinct image is ambiguous, one with no art row is "no art",
+one with no row is "no match"; all are counted and none guessed.
+
+**The write rule.** Apply writes a monster only where its prototype token
+still shows its own portrait (the import's default), is empty, or shows the
+image this feature last wrote (`flags["acks-extras"].tokenArt.src`, so a rerun
+is idempotent and a Rebuild's fresh actor can be written again). A token a
+Judge set is counted as kept and left. Subjects are `libraryActors()` monsters
+with a cookbook id: the shelf's and the world copies made from them.
+
+**What is written:** `prototypeToken.texture.src`, `prototypeToken.randomImg`
+when the path is a wildcard, and `prototypeToken.texture.fit` set to contain.
+The token's size and scale stay the module's and the compendium's scale is never
+copied; `img` is never written, so the book's image stays the portrait. The
+flag records `{from, src, was}`, `was` being the token that stood before the
+first write. **Restore** reads only the flag, needs no compendium, and puts
+`was` back where the token still shows `src`, then unsets the flag; a token a
+Judge changed since is counted and left.
+
+**Placed tokens**, when the confirm's tick is set: for a world actor, each
+unlinked token on a scene whose image is the old prototype path moves to the
+new one (`planPlaced`). A wildcard path is not moved to, and a linked token
+follows its actor. **Wildcards** reach the encounter group through lib
+`artOf`, which falls back to the portrait when the token is a wildcard.
+
+The GM alone sees the controls; a write a locked library pack refuses is counted
+as refused. The art is referenced by path from the other package, never copied
+into this repository or shipped in this module.

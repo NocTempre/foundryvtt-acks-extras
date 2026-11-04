@@ -97,6 +97,7 @@ import { installMoraleRollPatch, SETTING_MORALE_PAGE } from "./patches/morale-ro
 import { installAdventuringRollPatch } from "./patches/adventuring-roll.mjs";
 import { installStoredInputs } from "./patches/stored-inputs.mjs";
 import { installLegacyCombatRescue } from "./patches/legacy-source.mjs";
+import { installTokenLightPaddingPatch } from "./patches/token-light-padding.mjs";
 import * as senses from "./senses.mjs";
 import * as light from "./light.mjs";
 import * as perception from "./perception.mjs";
@@ -333,7 +334,7 @@ const localImpl = Object.freeze({
    * rules, senseProfile for the Foundry sight a token should carry.
    */
   senses,
-  /** The ACKS light table and who is bearing one (light.mjs). */
+  /** The kinds of light, their imported figures, and who is bearing one (light.mjs). */
   light,
   /** The ACKS senses as Foundry vision/detection modes (perception.mjs). */
   perception,
@@ -443,6 +444,9 @@ Hooks.once("init", () => {
   // At init for the same reason: the system's own models build each world
   // actor from its stored record in `initializeDocuments`.
   installLegacyCombatRescue();
+  light.declareLightTables();
+  // Before any canvas builds a token's light source.
+  installTokenLightPaddingPatch();
 
   registerMountCleanup();
   registerMountDrop();
@@ -1071,9 +1075,20 @@ Hooks.on("canvasReady", (canvas) => {
 // Night Vision's reach depends on a light nobody's sheet tracks, so these
 // hooks watch the light instead (docs/lib/MODEL.md's senses section covers
 // why this is debounced and narrowed to the night-vision cast).
-const relightNightVision = foundry.utils.debounce((scene) => {
-  syncNightVisionTokens(scene).catch((err) => console.error(`${MODULE_ID} | night vision sync failed`, err));
+// Every scene asked for inside one debounce window is swept, not only the last.
+const pendingNightVision = new Set();
+const flushNightVision = foundry.utils.debounce(() => {
+  const scenes = [...pendingNightVision];
+  pendingNightVision.clear();
+  for (const scene of scenes) {
+    syncNightVisionTokens(scene).catch((err) => console.error(`${MODULE_ID} | night vision sync failed`, err));
+  }
 }, 250);
+const relightNightVision = (scene) => {
+  if (!scene) return;
+  pendingNightVision.add(scene);
+  flushNightVision();
+};
 
 for (const hook of ["createAmbientLight", "updateAmbientLight", "deleteAmbientLight", "deleteToken"]) {
   Hooks.on(hook, (doc) => {
@@ -1088,8 +1103,26 @@ Hooks.on("updateToken", (tokenDoc, changes) => {
   // light. The sync's own light writes land here too and should — but they
   // settle rather than loop, since the next pass finds every delta already
   // satisfied.
-  if (!("x" in changes || "y" in changes || "light" in changes || "hidden" in changes)) return;
+  // A party token's trail moves the column's lights behind it.
+  const trail = foundry.utils.hasProperty(changes, `flags.${MODULE_ID}.trail`);
+  if (!("x" in changes || "y" in changes || "light" in changes || "hidden" in changes || trail)) return;
   relightNightVision(tokenDoc?.parent);
+});
+
+// A party record's write can light, douse, shutter or hand over a light in its
+// marching column, which stands on no token: relight each scene a party token
+// stands on (formation's `getPartyToken`, through the namespace).
+Hooks.on("updateSetting", (setting) => {
+  if (game.system?.id !== "acks" || setting?.key !== `${MODULE_ID}.formations`) return;
+  const partyToken = acksExtras.formation?.getPartyToken;
+  if (typeof partyToken !== "function") return;
+  let records = {};
+  try {
+    records = game.settings.get(MODULE_ID, "formations") ?? {};
+  } catch {
+    return;
+  }
+  for (const record of Object.values(records)) relightNightVision(partyToken(record)?.parent);
 });
 
 /**

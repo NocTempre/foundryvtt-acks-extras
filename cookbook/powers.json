@@ -4061,6 +4061,37 @@
               }
             }
           ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "type": "modifier",
+              "target": "surprise",
+              "mode": "add",
+              "from": {
+                "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*to\\s*avoid\\s*surprise"
+              }
+            },
+            {
+              "type": "modifier",
+              "target": "proficiencyThrow",
+              "forWhat": "Searching and Listening",
+              "mode": "add",
+              "condition": "situational (RR p.26)",
+              "from": {
+                "pattern": "proficient\\s*in\\s*Searching\\s*or\\s*Listening,\\s*he\\s*gains\\s*a\\s*\\+\\s*(\\d+)"
+              }
+            },
+            {
+              "type": "throw",
+              "roll": "1d20",
+              "rollType": "above",
+              "from": {
+                "pattern": "succeeds\\s*on\\s*a\\s*proficiency\\s*throw\\s*of\\s*(\\d+)\\+"
+              }
+            }
+          ]
         }
       },
       "aliasOf": "def.power.alertness"
@@ -4586,7 +4617,10 @@
               "type": "modifier",
               "target": "henchmanMorale",
               "mode": "add",
-              "condition": "when he personally leads them",
+              "condition": "while leading (RR p.24)",
+              "conditionFrom": {
+                "pattern": "morale\\s*score\\s*((?:whenever|when|while)\\b[^.]*)"
+              },
               "from": {
                 "pattern": "gain\\s*a\\s*([+-]?\\d+)\\s*bonus\\s*to\\s*their\\s*morale\\s*score"
               }
@@ -4660,7 +4694,7 @@
               "domain": "armor",
               "value": 1,
               "mode": "add",
-              "note": "One weight category heavier than the class permits."
+              "note": "Raises the class's armour allowance by the row's value."
             }
           ]
         }
@@ -4912,17 +4946,23 @@
               "from": {
                 "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*to\\s*AC"
               },
-              "condition": "vs attacks and effects by evil (or good) creatures"
+              "condition": "against a creature kind (JJ p.309)",
+              "conditionFrom": {
+                "pattern": "saving\\s*throws\\s*(against\\s*[^.]*)"
+              }
             },
             {
               "type": "modifier",
               "target": "save",
               "mode": "add",
-              "condition": "vs attacks and effects by evil (or good) creatures",
+              "condition": "against a creature kind (JJ p.309)",
+              "conditionFrom": {
+                "pattern": "saving\\s*throws\\s*(against\\s*[^.]*)"
+              },
               "from": {
                 "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*(?:to|on)\\s*saving\\s*throws"
               },
-              "note": "The JJ printing lets the polarity be reversed for an anti-paladin, so the scope may be good creatures instead of evil ones."
+              "note": "vsAlignment is left unset: this printing lets the scope vary, so the condition names its kind."
             }
           ]
         }
@@ -5630,15 +5670,24 @@
               "type": "modifier",
               "target": "ac",
               "mode": "add",
-              "condition": "light, very light, or no armor; 5 stones or less",
+              "gate": {
+                "kind": "lightlyEquipped",
+                "armourMax": "light"
+              },
               "stacksWith": [
                 "def.prof.swashbuckling"
               ],
-              "from": {
-                "on": "level",
-                "pairs": true,
-                "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*to\\s*Armor\\s*Class[\\s\\S]{0,140}?At\\s*level\\s*(\\d+)[\\s\\S]{0,40}?to\\s*\\+\\s*(\\d+)[\\s\\S]{0,60}?at\\s*level\\s*(\\d+)[\\s\\S]{0,60}?to\\s*\\+\\s*(\\d+)"
-              }
+              "from": [
+                {
+                  "on": "level",
+                  "pairs": true,
+                  "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*to\\s*Armor\\s*Class[\\s\\S]{0,140}?At\\s*level\\s*(\\d+)[\\s\\S]{0,40}?to\\s*\\+\\s*(\\d+)[\\s\\S]{0,60}?at\\s*level\\s*(\\d+)[\\s\\S]{0,60}?to\\s*\\+\\s*(\\d+)"
+                },
+                {
+                  "into": "gate.loadMax",
+                  "pattern": "carrying\\s*(\\d+)\\s*stones?\\s*or\\s*less"
+                }
+              ]
             }
           ]
         }
@@ -5987,7 +6036,15 @@
               "rollType": "above",
               "resource": "fatePoint",
               "action": "spend",
-              "condition": "ally within range; never a natural 1"
+              "appliesTo": "ally",
+              "condition": "for an ally (JJ p.311)",
+              "conditionFrom": {
+                "pattern": "(whenever\\s*an\\s*ally\\s*within\\s*\\S+)[\\s\\S]*?(the\\s*ally\\s*can\\s*never[^.]*)",
+                "groups": [
+                  1,
+                  2
+                ]
+              }
             },
             {
               "type": "reroll",
@@ -5997,7 +6054,15 @@
               "rollType": "above",
               "resource": "fatePoint",
               "action": "spend",
-              "condition": "ally within range; never a natural 1"
+              "appliesTo": "ally",
+              "condition": "for an ally (JJ p.311)",
+              "conditionFrom": {
+                "pattern": "(whenever\\s*an\\s*ally\\s*within\\s*\\S+)[\\s\\S]*?(the\\s*ally\\s*can\\s*never[^.]*)",
+                "groups": [
+                  1,
+                  2
+                ]
+              }
             },
             {
               "type": "reroll",
@@ -6007,7 +6072,15 @@
               "rollType": "above",
               "resource": "fatePoint",
               "action": "spend",
-              "condition": "ally within range; never a natural 1"
+              "appliesTo": "ally",
+              "condition": "for an ally (JJ p.311)",
+              "conditionFrom": {
+                "pattern": "(whenever\\s*an\\s*ally\\s*within\\s*\\S+)[\\s\\S]*?(the\\s*ally\\s*can\\s*never[^.]*)",
+                "groups": [
+                  1,
+                  2
+                ]
+              }
             }
           ]
         }
@@ -7140,7 +7213,7 @@
                   "into": "kickerAt"
                 }
               ],
-              "note": "Mystic Aura's shape, as the page says it is. The immunity of a strong-willed subject is a Judge's call, not automated."
+              "note": "Mystic Aura's shape, as the page says it is. An exception the page prints is the Judge's call, not automated."
             }
           ]
         }
@@ -9564,7 +9637,10 @@
               "refs": [
                 "kw:eldritchtalent"
               ],
-              "condition": "or already an eldritch caster"
+              "condition": "with a prerequisite (JJ p.315)",
+              "conditionFrom": {
+                "pattern": "talent\\s*custom\\s*power\\s*(or\\s*be\\s*[^.]*?)\\s*before"
+              }
             }
           ]
         }
@@ -10139,7 +10215,10 @@
               "type": "modifier",
               "target": "retainBonus",
               "mode": "add",
-              "condition": "a henchman related by blood or marriage",
+              "condition": "for some followers (JJ p.315)",
+              "conditionFrom": {
+                "pattern": "(provided\\s*the\\s*henchm[ae]n[^.]*)"
+              },
               "from": {
                 "pattern": "hire\\s*(\\w+)\\s*more\\s*henchm[ae]n"
               }
@@ -10148,7 +10227,10 @@
               "type": "modifier",
               "target": "baseLoyalty",
               "mode": "add",
-              "condition": "a henchman related by blood or marriage",
+              "condition": "for some followers (JJ p.315)",
+              "conditionFrom": {
+                "pattern": "(provided\\s*the\\s*henchm[ae]n[^.]*)"
+              },
               "from": {
                 "pattern": "base\\s*loyalty\\s*score\\s*of\\s*any\\s*henchm[ae]n\\s*is\\s*increased\\s*by\\s*(\\w+)"
               }
@@ -10157,7 +10239,14 @@
               "type": "modifier",
               "target": "henchmanMorale",
               "mode": "add",
-              "condition": "kin by blood or marriage, while he is present",
+              "condition": "for some followers (JJ p.315)",
+              "conditionFrom": {
+                "pattern": "(any\\s*[^.]*?)\\s*gain\\s*a\\s*[+-]?\\s*\\d+\\s*bonus\\s*to\\s*their\\s*morale\\s*score\\s*((?:whenever|when|while)\\b[^.]*)",
+                "groups": [
+                  1,
+                  2
+                ]
+              },
               "from": {
                 "pattern": "gain\\s*a\\s*([+-]?\\d+)\\s*bonus\\s*to\\s*their\\s*morale\\s*score"
               }
@@ -10473,7 +10562,10 @@
               "type": "modifier",
               "target": "henchmanMorale",
               "mode": "add",
-              "condition": "when he personally leads them",
+              "condition": "while leading (RR p.24)",
+              "conditionFrom": {
+                "pattern": "morale\\s*score\\s*((?:whenever|when|while)\\b[^.]*)"
+              },
               "from": {
                 "pattern": "gain\\s*a\\s*([+-]?\\d+)\\s*bonus\\s*to\\s*their\\s*morale\\s*score"
               }
@@ -10610,7 +10702,7 @@
             {
               "type": "capability",
               "frequency": "perDay",
-              "note": "Each further rank grants one more use per day."
+              "note": "Uses per day do not scale with rank in the module; the page states how they do."
             }
           ]
         }
@@ -11864,15 +11956,24 @@
               "type": "modifier",
               "target": "ac",
               "mode": "add",
-              "condition": "light, very light, or no armor; 5 stones or less",
+              "gate": {
+                "kind": "lightlyEquipped",
+                "armourMax": "light"
+              },
               "stacksWith": [
                 "def.prof.swashbuckling"
               ],
-              "from": {
-                "on": "level",
-                "pairs": true,
-                "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*to\\s*Armor\\s*Class[\\s\\S]{0,140}?At\\s*level\\s*(\\d+)[\\s\\S]{0,40}?to\\s*\\+\\s*(\\d+)[\\s\\S]{0,60}?at\\s*level\\s*(\\d+)[\\s\\S]{0,60}?to\\s*\\+\\s*(\\d+)"
-              }
+              "from": [
+                {
+                  "on": "level",
+                  "pairs": true,
+                  "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*to\\s*Armor\\s*Class[\\s\\S]{0,140}?At\\s*level\\s*(\\d+)[\\s\\S]{0,40}?to\\s*\\+\\s*(\\d+)[\\s\\S]{0,60}?at\\s*level\\s*(\\d+)[\\s\\S]{0,60}?to\\s*\\+\\s*(\\d+)"
+                },
+                {
+                  "into": "gate.loadMax",
+                  "pattern": "carrying\\s*(\\d+)\\s*stones?\\s*or\\s*less"
+                }
+              ]
             }
           ]
         }
@@ -12020,7 +12121,10 @@
               "type": "modifier",
               "target": "henchmanMorale",
               "mode": "add",
-              "condition": "when he personally leads them",
+              "condition": "while leading (RR p.24)",
+              "conditionFrom": {
+                "pattern": "morale\\s*score\\s*((?:whenever|when|while)\\b[^.]*)"
+              },
               "from": {
                 "pattern": "gain\\s*a\\s*([+-]?\\d+)\\s*bonus\\s*to\\s*their\\s*morale\\s*score"
               }
@@ -13853,6 +13957,37 @@
               }
             }
           ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "type": "modifier",
+              "target": "surprise",
+              "mode": "add",
+              "from": {
+                "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*to\\s*avoid\\s*surprise"
+              }
+            },
+            {
+              "type": "modifier",
+              "target": "proficiencyThrow",
+              "forWhat": "Searching and Listening",
+              "mode": "add",
+              "condition": "situational (RR p.26)",
+              "from": {
+                "pattern": "proficient\\s*in\\s*Searching\\s*or\\s*Listening,\\s*he\\s*gains\\s*a\\s*\\+\\s*(\\d+)"
+              }
+            },
+            {
+              "type": "throw",
+              "roll": "1d20",
+              "rollType": "above",
+              "from": {
+                "pattern": "succeeds\\s*on\\s*a\\s*proficiency\\s*throw\\s*of\\s*(\\d+)\\+"
+              }
+            }
+          ]
         }
       },
       "aliasOf": "def.power.alertness"
@@ -14185,7 +14320,7 @@
             {
               "type": "capability",
               "frequency": "perDay",
-              "note": "Selecting the Laying on Hands proficiency adds uses per day."
+              "note": "Not linked to the Laying on Hands proficiency's uses; the page states how the two combine."
             }
           ]
         }
@@ -14264,15 +14399,24 @@
               "type": "modifier",
               "target": "ac",
               "mode": "add",
-              "condition": "light, very light, or no armor; 5 stones or less",
+              "gate": {
+                "kind": "lightlyEquipped",
+                "armourMax": "light"
+              },
               "stacksWith": [
                 "def.prof.swashbuckling"
               ],
-              "from": {
-                "on": "level",
-                "pairs": true,
-                "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*to\\s*Armor\\s*Class[\\s\\S]{0,140}?At\\s*level\\s*(\\d+)[\\s\\S]{0,40}?to\\s*\\+\\s*(\\d+)[\\s\\S]{0,60}?at\\s*level\\s*(\\d+)[\\s\\S]{0,60}?to\\s*\\+\\s*(\\d+)"
-              }
+              "from": [
+                {
+                  "on": "level",
+                  "pairs": true,
+                  "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*to\\s*Armor\\s*Class[\\s\\S]{0,140}?At\\s*level\\s*(\\d+)[\\s\\S]{0,40}?to\\s*\\+\\s*(\\d+)[\\s\\S]{0,60}?at\\s*level\\s*(\\d+)[\\s\\S]{0,60}?to\\s*\\+\\s*(\\d+)"
+                },
+                {
+                  "into": "gate.loadMax",
+                  "pattern": "carrying\\s*(\\d+)\\s*stones?\\s*or\\s*less"
+                }
+              ]
             }
           ]
         }
@@ -14797,8 +14941,7 @@
               "target": "attackThrow",
               "rollType": "above",
               "resource": "fatePoint",
-              "action": "spend",
-              "condition": "when a Fate Point buys the re-roll"
+              "action": "spend"
             },
             {
               "type": "reroll",
@@ -14807,8 +14950,7 @@
               "target": "proficiencyThrow",
               "rollType": "above",
               "resource": "fatePoint",
-              "action": "spend",
-              "condition": "when a Fate Point buys the re-roll"
+              "action": "spend"
             },
             {
               "type": "reroll",
@@ -14817,8 +14959,7 @@
               "target": "save",
               "rollType": "above",
               "resource": "fatePoint",
-              "action": "spend",
-              "condition": "when a Fate Point buys the re-roll"
+              "action": "spend"
             }
           ]
         }
@@ -15083,7 +15224,7 @@
                   "into": "kickerAt"
                 }
               ],
-              "note": "Mystic Aura's shape, as the page says it is. The immunity of a strong-willed subject is a Judge's call, not automated."
+              "note": "Mystic Aura's shape, as the page says it is. An exception the page prints is the Judge's call, not automated."
             }
           ]
         }
@@ -15740,6 +15881,37 @@
                 "drop": [
                   0
                 ]
+              }
+            }
+          ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "type": "modifier",
+              "target": "surprise",
+              "mode": "add",
+              "from": {
+                "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*to\\s*avoid\\s*surprise"
+              }
+            },
+            {
+              "type": "modifier",
+              "target": "proficiencyThrow",
+              "forWhat": "Searching and Listening",
+              "mode": "add",
+              "condition": "situational (RR p.26)",
+              "from": {
+                "pattern": "proficient\\s*in\\s*Searching\\s*or\\s*Listening,\\s*he\\s*gains\\s*a\\s*\\+\\s*(\\d+)"
+              }
+            },
+            {
+              "type": "throw",
+              "roll": "1d20",
+              "rollType": "above",
+              "from": {
+                "pattern": "succeeds\\s*on\\s*a\\s*proficiency\\s*throw\\s*of\\s*(\\d+)\\+"
               }
             }
           ]
@@ -17963,7 +18135,7 @@
               "from": {
                 "pattern": "hire\\s*(\\w+)\\s*more\\s*henchm[ae]n"
               },
-              "note": "Henchmen allowed beyond the Charisma limit. Its aliases (Scion of Kings, Soul of the Dragon) read this passage and inherit these specs."
+              "note": "Read by henchmen's limit check. Its aliases (Scion of Kings, Soul of the Dragon) read this passage and inherit these specs."
             },
             {
               "type": "modifier",
@@ -18565,7 +18737,7 @@
               "from": {
                 "pattern": "hire\\s*(\\w+)\\s*more\\s*henchm[ae]n"
               },
-              "note": "Henchmen allowed beyond the Charisma limit. Its aliases (Scion of Kings, Soul of the Dragon) read this passage and inherit these specs."
+              "note": "Read by henchmen's limit check. Its aliases (Scion of Kings, Soul of the Dragon) read this passage and inherit these specs."
             },
             {
               "type": "modifier",
@@ -20554,11 +20726,11 @@
               "type": "modifier",
               "target": "henchmanMorale",
               "mode": "add",
-              "condition": "hirelings of his religion, while he is present",
+              "condition": "for some followers (JJ p.328)",
               "from": {
                 "pattern": "gain\\s*a\\s*([+-]?\\d+)\\s*bonus\\s*to\\s*their\\s*morale\\s*score"
               },
-              "note": "An alias of Holy Fervor: the number is read from that passage. Its own spec carries the custom-class power's condition (presence), which differs from the class version's."
+              "note": "An alias of Holy Fervor: the number is read from that passage. Its own spec carries the custom-class power's condition, which differs from the class version's."
             }
           ]
         }
@@ -21097,7 +21269,10 @@
               "type": "modifier",
               "target": "henchmanMorale",
               "mode": "add",
-              "condition": "when he personally leads them",
+              "condition": "while leading (RR p.24)",
+              "conditionFrom": {
+                "pattern": "morale\\s*score\\s*((?:whenever|when|while)\\b[^.]*)"
+              },
               "from": {
                 "pattern": "gain\\s*a\\s*([+-]?\\d+)\\s*bonus\\s*to\\s*their\\s*morale\\s*score"
               }
@@ -21949,7 +22124,10 @@
               "type": "modifier",
               "target": "henchmanMorale",
               "mode": "add",
-              "condition": "when he personally leads them",
+              "condition": "while leading (RR p.24)",
+              "conditionFrom": {
+                "pattern": "morale\\s*score\\s*((?:whenever|when|while)\\b[^.]*)"
+              },
               "from": {
                 "pattern": "gain\\s*a\\s*([+-]?\\d+)\\s*bonus\\s*to\\s*their\\s*morale\\s*score"
               }
@@ -22077,6 +22255,37 @@
                 "drop": [
                   0
                 ]
+              }
+            }
+          ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "type": "modifier",
+              "target": "surprise",
+              "mode": "add",
+              "from": {
+                "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*to\\s*avoid\\s*surprise"
+              }
+            },
+            {
+              "type": "modifier",
+              "target": "proficiencyThrow",
+              "forWhat": "Searching and Listening",
+              "mode": "add",
+              "condition": "situational (RR p.26)",
+              "from": {
+                "pattern": "proficient\\s*in\\s*Searching\\s*or\\s*Listening,\\s*he\\s*gains\\s*a\\s*\\+\\s*(\\d+)"
+              }
+            },
+            {
+              "type": "throw",
+              "roll": "1d20",
+              "rollType": "above",
+              "from": {
+                "pattern": "succeeds\\s*on\\s*a\\s*proficiency\\s*throw\\s*of\\s*(\\d+)\\+"
               }
             }
           ]
@@ -22429,7 +22638,10 @@
               "type": "modifier",
               "target": "henchmanMorale",
               "mode": "add",
-              "condition": "on a wilderness adventure he leads",
+              "condition": "for some followers (RR p.28)",
+              "conditionFrom": {
+                "pattern": "(hirelings\\s*on\\s*[^.]*?)\\s*gain\\s*a"
+              },
               "from": {
                 "pattern": "gain\\s*a\\s*([+-]?\\d+)\\s*bonus\\s*to\\s*their\\s*morale\\s*score"
               }
@@ -23755,17 +23967,23 @@
               "type": "modifier",
               "target": "marketClass",
               "mode": "add",
-              "condition": "in a known market",
+              "condition": "in some places (RR p.41)",
+              "conditionFrom": {
+                "pattern": "(in\\s*a\\s*market\\s*[^,]*)"
+              },
               "from": {
                 "pattern": "as\\s*if\\s*it\\s*were\\s*(\\w+)\\s*market\\s*class(?:es)?\\s*larger"
               },
-              "note": "The class option: the market is treated as that many classes larger. Read by henchmen's effectiveMarketClass and the venture's network options."
+              "note": "The class option: read by henchmen's effectiveMarketClass and the venture's network options."
             },
             {
               "type": "modifier",
               "target": "marketImpact",
               "mode": "add",
-              "condition": "in a known market",
+              "condition": "in some places (RR p.41)",
+              "conditionFrom": {
+                "pattern": "(in\\s*a\\s*market\\s*[^,]*)"
+              },
               "from": {
                 "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*to\\s*market\\s*impact"
               },
@@ -24429,7 +24647,10 @@
               "type": "modifier",
               "target": "henchmanMorale",
               "mode": "add",
-              "condition": "when he personally leads them",
+              "condition": "while leading (RR p.49)",
+              "conditionFrom": {
+                "pattern": "morale\\s*score\\s*((?:whenever|when|while)\\b[^.]*)"
+              },
               "from": {
                 "pattern": "gain\\s*a\\s*([+-]?\\d+)\\s*bonus\\s*to\\s*their\\s*morale\\s*score"
               }
@@ -24825,7 +25046,10 @@
               "type": "modifier",
               "target": "henchmanMorale",
               "mode": "add",
-              "condition": "while he witnesses and records their deeds",
+              "condition": "while present (RR p.53)",
+              "conditionFrom": {
+                "pattern": "morale\\s*score\\s*((?:whenever|when|while)\\b[^.]*)"
+              },
               "from": {
                 "pattern": "gain\\s*a\\s*([+-]?\\d+)\\s*bonus\\s*to\\s*their\\s*morale\\s*score"
               }
@@ -25111,35 +25335,56 @@
               "type": "modifier",
               "target": "initiative",
               "mode": "add",
-              "condition": "light, very light, or no armor; 5 stones or less",
-              "from": {
-                "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*to\\s*initiative"
-              }
+              "gate": {
+                "kind": "lightlyEquipped",
+                "armourMax": "light"
+              },
+              "from": [
+                {
+                  "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*to\\s*initiative"
+                },
+                {
+                  "into": "gate.loadMax",
+                  "pattern": "carrying\\s*(\\d+)\\s*stones?\\s*or\\s*less"
+                }
+              ]
             },
             {
               "type": "modifier",
               "target": "ac",
               "mode": "add",
-              "condition": "light, very light, or no armor; 5 stones or less",
+              "gate": {
+                "kind": "lightlyEquipped",
+                "armourMax": "light"
+              },
               "stacksWith": [
                 "def.prof.swashbuckling"
               ],
-              "from": {
-                "on": "level",
-                "pairs": true,
-                "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*to\\s*Armor\\s*Class[\\s\\S]{0,40}?At\\s*(\\d+)\\w*\\s*level[\\s\\S]{0,40}?to\\s*\\+\\s*(\\d+)[\\s\\S]{0,60}?at\\s*(\\d+)\\w*\\s*level[\\s\\S]{0,60}?to\\s*\\+\\s*(\\d+)"
-              }
+              "from": [
+                {
+                  "on": "level",
+                  "pairs": true,
+                  "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*to\\s*Armor\\s*Class[\\s\\S]{0,40}?At\\s*(\\d+)\\w*\\s*level[\\s\\S]{0,40}?to\\s*\\+\\s*(\\d+)[\\s\\S]{0,60}?at\\s*(\\d+)\\w*\\s*level[\\s\\S]{0,60}?to\\s*\\+\\s*(\\d+)"
+                },
+                {
+                  "into": "gate.loadMax",
+                  "pattern": "carrying\\s*(\\d+)\\s*stones?\\s*or\\s*less"
+                }
+              ]
             },
             {
               "type": "modifies",
               "ref": "def.prof.swashbuckling",
               "target": "ac",
               "mode": "set",
-              "condition": "while wearing any armor",
+              "condition": "in some armour (RR p.56)",
+              "conditionFrom": {
+                "pattern": "capped\\s*at\\s*\\+\\s*\\d+\\s*(unless[^.]*)"
+              },
               "from": {
                 "pattern": "capped\\s*at\\s*\\+\\s*(\\d+)"
               },
-              "note": "The two stack, but the page caps what Swashbuckling contributes unless the bladedancer is unarmored."
+              "note": "mode set: fixes Swashbuckling's part while the condition holds."
             }
           ]
         }
@@ -25274,8 +25519,7 @@
               "type": "attributeSubstitution",
               "attribute": "wis",
               "insteadOf": "str",
-              "target": "damage",
-              "condition": "damage rolls STR would modify"
+              "target": "damage"
             }
           ]
         }
@@ -25348,11 +25592,14 @@
               "attribute": "dex",
               "insteadOf": "str",
               "target": "attackThrow",
-              "condition": "melee, with weapons she is proficient in",
+              "condition": "with some weapons (RR p.57)",
+              "conditionFrom": {
+                "pattern": "(when\\s*using\\s*weapons[^.]*)"
+              },
               "notStacksWith": [
                 "def.prof.weaponFinesse"
               ],
-              "note": "Narrower than the proficiency of the same name, which covers every tiny, small or medium melee weapon; this covers the weapons the bladedancer is proficient with. The page states the two do not stack."
+              "note": "Not the proficiency of the same name: the condition holds its weapon scope, and notStacksWith keeps the two apart."
             }
           ]
         }
@@ -25423,13 +25670,19 @@
               "from": {
                 "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*to\\s*AC"
               },
-              "condition": "vs attacks and effects by evil creatures"
+              "condition": "against a creature kind (RR p.60)",
+              "conditionFrom": {
+                "pattern": "saving\\s*throws\\s*(against\\s*[^.]*)"
+              }
             },
             {
               "type": "modifier",
               "target": "save",
               "mode": "add",
-              "condition": "vs attacks and effects by evil creatures",
+              "condition": "against a creature kind (RR p.60)",
+              "conditionFrom": {
+                "pattern": "saving\\s*throws\\s*(against\\s*[^.]*)"
+              },
               "from": {
                 "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*(?:to|on)\\s*saving\\s*throws"
               }
@@ -25532,7 +25785,7 @@
             {
               "type": "capability",
               "frequency": "perDay",
-              "note": "Counts as one rank of the Laying on Hands proficiency; taking that proficiency adds uses per day."
+              "note": "Counts as one rank of the Laying on Hands proficiency; the module does not combine their uses per day."
             }
           ]
         }
@@ -25660,7 +25913,14 @@
               "type": "modifier",
               "target": "henchmanMorale",
               "mode": "add",
-              "condition": "hirelings of his religion, when he leads them",
+              "condition": "for some followers (RR p.61)",
+              "conditionFrom": {
+                "pattern": "(any\\s*[^.]*?)\\s*gain\\s*a\\s*[+-]?\\s*\\d+\\s*bonus\\s*to\\s*their\\s*morale\\s*score\\s*((?:whenever|when|while)\\b[^.]*)",
+                "groups": [
+                  1,
+                  2
+                ]
+              },
               "from": {
                 "pattern": "gain\\s*a\\s*([+-]?\\d+)\\s*bonus\\s*to\\s*their\\s*morale\\s*score"
               }
@@ -26091,7 +26351,7 @@
             {
               "type": "capability",
               "frequency": "perDay",
-              "note": "Counts as one rank of the Laying on Hands proficiency; taking that proficiency adds uses per day."
+              "note": "Counts as one rank of the Laying on Hands proficiency; the module does not combine their uses per day."
             }
           ]
         }
@@ -28201,7 +28461,10 @@
               "type": "modifier",
               "target": "surprise",
               "mode": "add",
-              "condition": "in the wilderness",
+              "condition": "in some places (RR p.90)",
+              "conditionFrom": {
+                "pattern": "surprise\\s*rolls\\s*(when\\s*[^.]*)"
+              },
               "from": {
                 "pattern": "\\+(\\d+) bonus to surprise rolls when in the wilderness"
               }
@@ -28219,7 +28482,7 @@
               "from": {
                 "pattern": "proficient in Searching,? they gain a \\+(\\d+) bonus"
               },
-              "note": "Replaces the 14+ Adventuring throw for a character separately proficient in Searching."
+              "note": "mode replace: stands in place of the Adventuring throw's target where ifHas holds."
             },
             {
               "type": "modifies",
@@ -28234,7 +28497,7 @@
               "from": {
                 "pattern": "proficient in Listening,? they gain a \\+(\\d+) bonus"
               },
-              "note": "Replaces the 14+ Adventuring throw for a character separately proficient in Listening. Distinct from the Searching value above - this is why the entry cannot be an alias of Alertness."
+              "note": "mode replace: stands in place of the Adventuring throw's target where ifHas holds. Its figure is read apart from the Searching row's, which is why the entry is not an alias of Alertness."
             }
           ]
         },
@@ -28249,7 +28512,10 @@
               "target": {
                 "pattern": "search or listen[\\s\\S]{0,80}?proficiency throw of (\\d+)\\+"
               },
-              "condition": "using Adventuring to search or listen",
+              "condition": "by method (RR p.90)",
+              "conditionFrom": {
+                "pattern": "(when\\s*using[^,]*)"
+              },
               "note": "Used in place of the usual Adventuring search/listen target, not added to it."
             }
           ]
@@ -28444,7 +28710,7 @@
               "from": {
                 "pattern": "hire\\s*(\\w+)\\s*more\\s*henchm[ae]n"
               },
-              "note": "Henchmen allowed beyond the Charisma limit. Its aliases (Scion of Kings, Soul of the Dragon) read this passage and inherit these specs."
+              "note": "Read by henchmen's limit check. Its aliases (Scion of Kings, Soul of the Dragon) read this passage and inherit these specs."
             },
             {
               "type": "modifier",
@@ -28692,7 +28958,7 @@
             {
               "type": "capability",
               "frequency": "perDay",
-              "note": "Counts as one rank of the Laying on Hands proficiency; taking that proficiency adds uses per day."
+              "note": "Counts as one rank of the Laying on Hands proficiency; the module does not combine their uses per day."
             }
           ]
         }
@@ -29050,7 +29316,14 @@
               "type": "modifier",
               "target": "henchmanMorale",
               "mode": "add",
-              "condition": "chaotic servants, when he personally leads them",
+              "condition": "for some followers (RR p.97)",
+              "conditionFrom": {
+                "pattern": "(any\\s*[^.]*?)\\s*gain\\s*a\\s*[+-]?\\s*\\d+\\s*bonus\\s*to\\s*their\\s*morale\\s*score\\s*((?:whenever|when|while)\\b[^.]*)",
+                "groups": [
+                  1,
+                  2
+                ]
+              },
               "from": {
                 "pattern": "gain\\s*a\\s*([+-]?\\d+)\\s*bonus\\s*to\\s*their\\s*morale\\s*score"
               }

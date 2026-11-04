@@ -33,6 +33,7 @@
 
 import { ensureItemFolder, importedDocs, itemIds, packOptsFor } from "./cookbook.mjs";
 import { MODULE_ID } from "./constants.mjs";
+import { countRepair, policyFor, refreshImported, REPAIR, unrepaired } from "./refresh.mjs";
 
 /** The system's own item type for a language. Never `ability`. */
 const LANGUAGE_TYPE = "language";
@@ -164,9 +165,15 @@ async function systemLanguages() {
  * successor exists. A run that dies halfway leaves a duplicate, which the next
  * run adopts — never a world that has lost a language.
  *
+ * `repair`, a tally (`repairTally`), writes each language this world already
+ * holds over its document in place: its place in the taxonomy is re-read, and
+ * its description, art and name stay as the library or a Judge left them.
+ *
+ * @param {{rows: object[]}} table the extracted taxonomy
+ * @param {{repair?: object|null}} [opts]
  * @returns {Promise<{created: number, present: number, adopted: number, retyped: number}>}
  */
-export async function applyLanguageImport(table) {
+export async function applyLanguageImport(table, { repair = null } = {}) {
   const wanted = languageItems(table);
   if (!wanted.length) return { created: 0, present: 0, adopted: 0, retyped: 0 };
 
@@ -186,6 +193,7 @@ export async function applyLanguageImport(table) {
 
     if (existing?.type === LANGUAGE_TYPE) {
       present++;
+      if (repair && unrepaired(repair, existing)) countRepair(repair, await refreshImported(existing, data, policyFor(REPAIR.language, repair)));
       continue;
     }
 

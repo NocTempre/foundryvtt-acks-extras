@@ -406,7 +406,7 @@ folder, so track what it made through the run's claim ids, never by name.
    removes it, which a delete written as a dotted path does not
    (docs/lib/DECISIONS.md, "A key that is data is written nested"). No edit,
    add or delete logs a compatibility warning.
-3. Run the Books dialog's merchandise re-import (or Getting Started's step).
+3. Run Manage Imports' merchandise re-import (Tools tab) (or Getting Started's step).
    *Observable:* one item per printed good in the compendium's Merchandise
    shelf, each with prices, six stones, a random band and (after the demand
    append) environment values; the age-band headers appear in
@@ -418,7 +418,7 @@ folder, so track what it made through the run's claim ids, never by name.
    item returns the compendium's values on the next read (the cache is
    invalidated by the delete).
 5. With the legacy `mercantile.merchandiseTypes` table imported, press
-   Build merchandise items from imported tables in the Books dialog, twice.
+   Build merchandise items from imported tables on Manage Imports' Tools tab, twice.
    *Observable:* the first run creates world items only for keys no item
    answers; the second creates none. From a player seat the call answers the
    GM-only refusal (a GM seat cannot prove it).
@@ -427,7 +427,7 @@ folder, so track what it made through the run's claim ids, never by name.
 
 ## Setting-book market profiles walk (AX3)
 
-Fixtures: the AX3 PDF open in the Books dialog, merchandise imported first
+Fixtures: the AX3 PDF open on Manage Imports' Books tab, merchandise imported first
 (step 1 above). Track every actor the step creates: its result lists no ids, so
 read them back afterwards with `game.actors.filter((a) =>
 /^ax3\.mkt\d+$/.test(a.getFlag("acks-extras", "cookbook")?.id ?? ""))` and

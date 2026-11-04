@@ -252,7 +252,8 @@ The Roll writes no body. A rolled stack stays pristine until `materializeMembers
 rolls each body's own hit points as it becomes individual.
 
 The first press makes the group an encounter: it sets the reveal, takes the art of
-the monster pressed where the group has none, and writes the token defaults (linked,
+the monster pressed where the group has none (its token's image, else its portrait;
+a wildcard token names no single image, so the portrait stands in), and writes the token defaults (linked,
 hostile, name on hover). Make Encounter on the monster sheet does all of that at
 creation, so a token placed before the Roll gives nothing away. A later press leaves
 the reveal and the token defaults as they stand.

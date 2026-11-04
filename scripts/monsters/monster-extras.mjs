@@ -93,7 +93,80 @@ export default class MonsterExtras extends foundry.abstract.DataModel {
       spellcasting: new SchemaField({
         class: str(),
         level: num({ integer: true }),
+        // The die a generated caster's level was rolled on ("1d6", "1d4+1").
+        levelDie: str(),
         note: str(),
+      }),
+
+      // --- What an import worked a throw and a save row out from, so the
+      //     sheet can name the parts (importer/leader-roles.mjs). A part
+      //     holds the figure it wrote; the sheet names it only while the
+      //     actor still carries that figure. ---
+      derived: new SchemaField({
+        throw: new SchemaField({
+          value: num({ integer: true }),
+          base: num({ integer: true }),
+          baseHd: str(),
+          hd: str(),
+          rows: num({ integer: true }),
+          cite: str(),
+          missing: bool(false),
+        }),
+        saves: new SchemaField({
+          level: num({ integer: true }),
+          baseLevel: num({ integer: true }),
+          baseHd: str(),
+          hd: str(),
+        }),
+        // Where a leader's own figures came from: "printed" (its page) or
+        // "axioms" (the leader procedure, with the parts it added).
+        leader: new SchemaField({
+          source: str(),
+          cite: str(),
+          rows: num({ integer: true }),
+          baseHd: str(),
+          baseAc: num({ integer: true }),
+          acAdd: num({ integer: true }),
+          baseDamage: num({ integer: true }),
+          damageAdd: num({ integer: true }),
+          carried: str(),
+          hd: str(),
+          ac: num({ integer: true }),
+          damage: num({ integer: true }),
+        }),
+        // An armour class a kit no page prints was worked out from at
+        // generation (monsters/kits.mjs `kitArmourClass`): the troop row's or
+        // the natural figure, and a leader's armour over its warrior's.
+        kit: new SchemaField({
+          value: num({ integer: true }),
+          base: num({ integer: true }),
+          step: num({ integer: true }),
+          from: str(),
+          leaderAc: num({ integer: true }),
+          memberAc: num({ integer: true }),
+          troop: str(),
+          label: str(),
+          cite: str(),
+        }),
+      }),
+
+      // --- The troop kit a template generated the creature in
+      //     (importer/kit-presets.mjs): the troop type, its own words, the
+      //     figures its row printed and the row's citation. `compute` marks a
+      //     kit whose armour class was worked out at generation. ---
+      kit: new SchemaField({
+        troop: str(),
+        label: str(),
+        note: str(),
+        role: str(),
+        ac: num({ integer: true }),
+        naturalAc: num({ integer: true }),
+        memberAc: num({ integer: true }),
+        damage: num({ integer: true }),
+        move: num({ integer: true }),
+        morale: num({ integer: true }),
+        cite: str(),
+        compute: bool(false),
       }),
 
       // --- Monster attributes (MM Rules p.349; default 9 if left blank) ---

@@ -56,8 +56,12 @@ All paths are under `scripts/formation/` unless noted.
 | `trap-markers.mjs` | Canvas markers showing each trap's state, staged: a Judge sees every trap, a player only what the party has found. |
 | `trapbreak-app.mjs` | The Trapbreaking dialog — who, which trap, which column — open to Judges and to players whose character can make the throw. |
 | `data/trap-data.mjs`, `trap-sheet.mjs` | The `acks-extras.trap` Item subtype holding a trap's definition, and its sheet. |
-| `scene-sync.mjs` | Mapper-gated fog (`scene.fog.exploration`, original value stashed in a scene flag) and party-token light emission mirroring lit sources. Reconciled by the primary GM after every formation change (idempotent, compare-before-write). |
+| `scene-sync.mjs` | Mapper-gated fog (`scene.fog.exploration`, original value stashed in a scene flag), the party token's size, and clearing a light the module once wrote on it. Reconciled by the primary GM after every formation change (idempotent, compare-before-write). |
 | `deployment.mjs` | Putting members on the map and gathering them back: the combat deploy, the deliberate detach, and the movement leash on a detached member. |
+| `column.mjs` | Pure: the marching column (§The column) — where each body stands along the party token's trail, how a move changes the trail, and which scenes lay a column. |
+| `column-trail.mjs` | The primary GM's write of the party token's trail (`flags.acks-extras.trail`), from the token's own update. |
+| `column-light-logic.mjs`, `column-light.mjs` | The column's lights: which bearers shed light and from which cell (pure), and the client light sources that shine there, with `carriedLightPoints` for the Night Vision sweep. |
+| `column-view.mjs` | The column drawn behind the party token on every client: a tinted square and a portrait per body, and the column's lights kept where the column is. |
 | `party-roster.mjs` | Provides lib's `party-roster` contract (docs/lib/API.md): the parties, each member with the document an update reaches them through, and the write of a stashed unlinked member's hit points into their stash. |
 | `marching-templates.mjs` | Saved marching orders (world setting `acks-extras.marchingTemplates`): capturing an arrangement, reconciling it against the party as it now stands, and forming up. |
 | `obstacles.mjs`, `swimming.mjs`, `jumping.mjs` | The chapter 6 obstacle derivations, published on `api.formation`. Deep water and chasms sit *beside* the Spelunking table rather than in it; each file's header says what it does not share with the others. |
@@ -89,7 +93,8 @@ All paths are under `scripts/formation/` unless noted.
 - The **party token** belongs to a dedicated actor of the module's own `party` type (`PARTY_TYPE`, one per formation) whose `system.movement.base` mirrors the party's exploration speed (min over members' `system.movementacks.exploration`, which the acks system derives from encumbrance). `updateActor`/`create|update|deleteItem` hooks keep it in sync.
 - The **party token** is the record's `sceneId` + `tokenId`. Placing a party actor's token adopts it (`createToken`, `module.mjs`); deleting it outside a disband unlinks it (`deleteToken`), unless the deletion names a **replacement**: core's move to another scene, by a `teleportToken` Region or a cut and paste, and the rules a record that follows one keeps (docs/lib/MODEL.md, "A token moved to another scene"). A replacement still flagged for the formation takes over `sceneId`, `tokenId` and `clock.lastPosition` (DECISIONS 2026-10-17).
 - **Only the linked token acts for the party.** `isLinkedPartyToken(record, token)` is the one test, id and scene both. The movement and rotation hooks, the deletion that unlinks, and the combat deploy all run it, so a flagged copy of the party token (a paste, a duplicated scene) bills no turn, turns nothing, seats nobody and deploys nobody. The flag alone is evidence of a copy's origin, not of its standing. A copy is never adopted over a live link. `preCreateToken` refuses an UNFLAGGED token of a party actor while the record links a live token (the Judge is warned); a flagged creation stands, since a teleport creates the replacement before the deletion hands the linkage over. `adoptPartyToken` is the one adoption, shared by the `createToken` hook and the repair tool, and `adoptPartyActor` is the one for a party actor no record names. `truePositionToken` reads the record's own token, on its own scene, never the first token of the party actor on a scene. `addMember` refuses an actor another formation holds, for the Judge's drop and HUD button as a player's request is refused (`membership.bringInRefusal`). The repair checks `formation.partyTokens` and `formation.partyActors` find what disagrees and mend what is safe (DECISIONS 2026-11-03). A member two parties list stays with the one whose record links a token that stands on a scene (`isLinkedPartyToken`), and `formation.partyActors` takes them out of every other through `removeMember` with `restore: false`, which drops the lights they bear, the spells they cast and their roles, discards a token that party had stashed for them (none is put on any scene) and leaves a token it had deployed for them standing; where no party or more than one is on a map the finding is listed and not fixable. The fix reads the formations again first and is refused unless the same parties still hold the member and the same single party is on the map.
-- The **party token's size** is the formation's real shape at the scene's scale: `faceWidthFeet` (frontage × the `marchFeetPerBody` world setting) across the line of march, `partyDepth × 5'` deep, converted through `scene.grid.distance` and quantized to quarter squares (`syncPartyTokenSize` in `scene-sync.mjs`). Token width/height are axis-aligned, so an east/west heading swaps the two; a rotation-watching `updateToken` hook resyncs on every turn. The swap goes through `TokenDocument#resize`, which pivots the block about its own **centre** and ignores walls and movement cost — width and height are Foundry movement fields, so a raw `update` would anchor the turn on the token's top-left corner, be constrained by walls, and be measured as travel. The resize waits out the token's `movementAnimationPromise` first (an unanimated write mid-move cancels the move), and carries `RESIZE_OPTION` so the movement hook does not bill a turn as a walk; it re-baselines `clock.lastPosition` itself, since holding the centre still moves the corner the clock measures from. Every face-width consumer reads `effectiveFrontage()`, the seam where the squeeze mechanic (ROADMAP) will narrow a squeezed column. Generic tokens are sized by the battlemap feature (`docs/battlemap/MODEL.md`), which exempts party tokens — one owner per token, each side skipping the other's.
+- The **party token's size** follows the party's shape (`tokenShape` on the record, set by the Order tab's On the map control; unset, the `partyTokenShape` world setting, read by `partyTokenShape`). In `order` the token is the one-cell head of its column (§The column) at every frontage and scale, and a hand resize goes back. In `fixed` the size is the Judge's: a token still at the size the module last stamped (`flags.acks-extras.partySize`) goes to one cell once, and one resized since is never written. The footprint lock (`flags.acks-extras.footprintLock`) means never resize, in both shapes. `partySizeTarget` in `scene-sync.mjs` decides, pure; `syncPartyTokenSize` writes through `TokenDocument#resize`, which holds the token's **centre** still and ignores walls and movement cost — width and height are Foundry movement fields, so a raw `update` would anchor on the top-left corner, be constrained by walls, and be measured as travel. The resize waits out the token's `movementAnimationPromise` first (an unanimated write mid-move cancels the move), reads the stored size (`_source`), carries `RESIZE_OPTION` so neither the movement hook nor the trail treats it as a walk, and re-baselines `clock.lastPosition`, since holding the centre still moves the corner the clock measures from. A width/height hook resyncs on a hand resize; a turn writes no size. Generic tokens are sized by the battlemap feature (`docs/battlemap/MODEL.md`), which exempts party tokens — one owner per token, each side skipping the other's.
+- **The party token itself sheds no light.** Every carried light shines from its bearer's cell in the column (§The column, Lights), so `syncPartyTokenLight` only ever clears a light the module once wrote on the token, unconditionally.
 
 ## Movement → turns
 
@@ -103,7 +108,7 @@ Per turn, in order (mirrors JJ sequence of play step 5):
 
 1. `game.time.advance(600)` (setting-gated) — snapshot member effects with `duration.remaining > 0` beforehand, report the ones that hit ≤ 0 after.
 2. Rest counter (or reset when `resting`); winded once the counter passes the imported `restInterval`, and never while none is imported; marker Active Effect applied/removed on members (Endurance-proficient members skipped, matched by item name). The world setting `restRequired` (default on) gates the whole step: off, the counter is held at 0 and `clock.winded` is cleared on the next turn (the marker comes off with it, silently), so no rest is counted, announced or penalised. It gates only the rest. Turns, lights, spells and the wandering throw tick as before, a Rest turn still advances one, and the settlement tick is not touched. Every surface that shows the rest reads `restEnforced()` (`constants.mjs`): the turn card's rest line, the warnings strip's winded and rest-due lines, the strip's Rest stat (`strip.delve.restOn`) and the title-bar bar (`bandBar` returns null).
-3. Lit lights `remaining--`, guttering warning at 1, burnout at 0.
+3. Lit lights `remaining--`, guttering warning at 1, burnout at 0. A light lit while its kind's burn time was not imported (lib's light table) carries no count: it burns on uncounted, the turn card says so, and the Kit tab shows it as not imported.
 4. Encounter counter; every N turns roll 1d6 vs target, whispered to GMs; on encounter, pre-roll 2d6×10 distance and 1d10 minute-of-turn, then draw privately from the resolved RollTable. Parameters resolve zone → formation → world settings: an `encounterZone` region behavior under the party token overrides frequency/target (0 = inherit) and supplies a table UUID; else the formation's `tableId`; else announce-only.
    After the draw, the zone's `dungeonLevel` (read from the behavior's `system`) is compared with the monster level of each table that produced a result (`shiftSources`). A result's `parent` is its producing table, which is the inner one when the drawn table's results are other tables; that table's `monsterLevel` counts, else the drawn table's. Each producing table whose level resolves and differs posts one Judge-only card (`announceShift`), named for that table. A draw from the formation's own table has no zone, so no dungeon level, and never shifts; the city tick draws on its own path and never shifts either.
 5. Day boundary (144 turns) → ration reminder.
@@ -406,6 +411,79 @@ off the *top* and *left* edges. Origin and cells are computed against one headin
 read, passed down from the caller — re-reading it per cell would let a token that
 turned mid-deploy place a body outside the room the clamp had made for it.
 
+A party whose trail holds a step lays out along that trail instead
+(§The column); the block is the column of a party that has walked nowhere.
+
+## The column
+
+The party token is the head of a marching column: rank 0, file 0, one cell
+(§Data flow, the party token's size). Rank *r* stands on the cell the head stood
+on *r* cells ago; files spread along the right hand of the way the column walks
+at that rank. Past the end of the trail the column runs on straight, away from
+the trail's oldest step, or behind the heading when the trail holds no step, so
+a column that has walked nowhere is exactly `formationOffset`'s block. Each body
+is pinned inside the scene on its own. A stack takes one body per head, and the
+member after it starts after its last (`memberCells`). All of it is
+`column.mjs`, pure: `columnCells` lays the bodies, `columnFor(record, token)`
+reads them off a party token.
+
+**Where a column is laid.** A square grid at a scale where a cell is a body's
+ground (`sceneHasColumn`): a hex map, a gridless one and a mile-scale map lay
+none, and every body there stands at the head.
+
+**The trail** is `flags.acks-extras.trail` on the linked party token,
+`{sceneId, points}`, cell corners newest first, at most `partyDepth + 1` long
+(`trailBound`: one per rank behind the head and the cell before the oldest, so
+the last rank knows which way it walked). The primary GM writes it from the
+party token's own update (`column-trail.mjs`), after the step's animation, as a
+flag-only write that neither moves the token nor bills the clock. The path is
+the move's own waypoints (`options._movement[id].passed`); a scripted move with
+no path walks from where the trail last left the head, one step at a time. Each
+early return of the movement hook has its own answer (`trailDecision`):
+
+| The update | The trail |
+|---|---|
+| A walk, a trap's halt included | extended along the walked cells |
+| A priced walk to a point of interest, a step onto a lost party's true position, a teleporting waypoint | reset to the head |
+| A turn on the spot | reset to the head: the Judge is aiming the column |
+| The module's own resize | kept |
+
+Stepping onto a cell already on the trail cuts it there: the head turned back
+over its own column. A trail written on another scene, or one that does not
+start under the head, is ignored (`usableTrail`). With no GM online nothing is
+written, and the column reads straight behind the head.
+
+**Drawn on every client** (`column-view.mjs`), in the `order` shape only. The
+column is laid again each time the party token refreshes, from the stored
+trail, the move this client was told about (`moveToken`) and the token's live
+position (`liveTrail`), so the bodies follow the head around a corner while it
+walks. Every body's cell gets a translucent square in the party's tint, the
+head's under the token, and every body but the head its member's portrait; the
+head's portrait is the token itself. The tint is the record's `columnColor`
+(the Order tab's Column tint), else the token's disposition colour. The drawing sits in `canvas.controls`, which fog does not mask, so a
+player's seat shows each body only where `canvas.visibility.testVisibility`
+passes for its cell, and nothing while the party token is hidden from that seat;
+a GM sees the whole column. In `fixed` nothing is drawn.
+
+**Lights.** Every bearer still inside the party token who holds a lit,
+unshuttered source sheds it from the centre of their own first cell, in both
+shapes (`columnLights`, over lib's `emittedLight`: each bearer's brightest). A
+deployed bearer is excluded; their own token carries the light. Each point is a
+client `PointLightSource` (`column-light.mjs`), created, moved and destroyed with
+the column, never a document: lighting, dousing or shuttering is a record write,
+and every client rebuilds. Its radius is the figure in feet converted to the
+scene's units, with no token padding (lib MODEL, Senses). The `syncTokenLight`
+world setting turns all of it off, and a hidden party token sheds nothing.
+`carriedLightPoints(scene)`, published on the formation namespace, is the same
+set at rest, read from the stored record, position and trail, for the Night
+Vision sweep (lib's `brightestLightReaching`), which runs on scenes no canvas is
+drawing.
+
+**Deploy and restore read the column.** A combat deploy and a grid restore lay
+everyone on the column's cells (`columnPlacement`) once the trail holds a step;
+otherwise they lay the straight block, which shifts whole onto the scene where
+the column pins body by body.
+
 ## Saved marching orders
 
 `marching-templates.mjs` remembers an arrangement — who stands where, what each
@@ -588,8 +666,9 @@ A detached member never leaves the formation. Marching order, roles, lights,
 rest and the turn clock all keep counting them. What changes is which token
 carries their vision and their torch: their own token is synced from the actor
 like any standalone creature (`lib/token-sync.mjs`), and `bearerLights`
-finds their light in the formation's record. The party token meanwhile drops
-that bearer's light and stops borrowing their eyes — `syncPartyTokenVision`
+finds their light in the formation's record. The column meanwhile drops
+that bearer's light (§The column, Lights), and the party token stops borrowing
+their eyes — `syncPartyTokenVision`
 gives the party token its best *remaining* member's sight.
 
 Leaving a member behind (`toggleMemberLeft`, which drops their token where the
@@ -2173,6 +2252,29 @@ The message keeps what the card printed in `flags["acks-extras"].encounter`
 (formation, hex, activity, night, terrain, outcome, creature, distance, start,
 both sight results, light, evasion target and the period lines' keys), so
 anything reading the log later does not parse the HTML.
+
+**The delve's wandering throw.** Every completed dungeon turn counts toward
+an encounter throw (`onTurnCompleted` in
+[turn-engine.mjs](../../scripts/formation/turn-engine.mjs)). The throw takes
+four figures: its die, the turns between throws, the target that meets a
+monster, and the dice of the encounter distance. `getEncounterParams` takes
+the interval and the target from the first layer that states each: the
+Encounter Zone under the party token (0 inherits), the world settings
+`encounterEvery` / `encounterTarget` (blank inherits; an interval of 0 turns
+the automatic throw off), then the imported `delveEncounters` document
+(`importedEncounterCadence` in
+[constants.mjs](../../scripts/formation/constants.mjs), JJ p. 36). The die
+and the distance dice have only that document, whose four scalar tables a
+Judge's override layer replaces one at a time; a dice table is read back only
+as `NdM` or `NdM*K`, rebuilt from its integers. Without a die, an interval or
+a target the turn counts nothing toward a throw and schedules none, and the
+party sheet's Encounter throw tool refuses with a notice saying a figure is
+not imported. Without distance dice an encounter still stands and its minute
+is still rolled, on the turn's own length (`ROUNDS_PER_TURN`); no distance is
+rolled, and the card says it is not imported. The GM's ready notice names the
+document while it is missing, beside the light table. The throw card's die,
+target and rolled distance each carry a tooltip naming the layer they came
+from, and the page for an imported one (`cadenceProvenance`).
 
 **Zones on a journey.** An Encounter Zone region changes a journey's throws
 where the party really is: `journeyZones` reads every zone under

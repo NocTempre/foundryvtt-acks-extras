@@ -18,6 +18,12 @@ import { registerItemAnnotations } from "./item-annotations.mjs";
 import * as config from "./config.mjs";
 import { elementOf, primaryGMSettled } from "../lib/util.mjs";
 import { FOLLOWER_CARD_HOOK } from "../lib/follower-card.mjs";
+import { expectTables } from "../lib/tables.mjs";
+import { TEMPLATE_HOOKS } from "../lib/constants.mjs";
+import { makeLoc } from "../lib/util.mjs";
+import { applyGeneratedKit } from "./kits.mjs";
+
+const loc = makeLoc("ACKS-MONSTERS");
 
 /** The dynamically-created sheet class (base is resolved at init). */
 let FullMonsterSheet = null;
@@ -80,6 +86,30 @@ Hooks.once("init", () => {
     getExtras: (actor) => MonsterExtras.fromActor(actor),
   };
   acksExtras.monsters = api;
+
+  // The figures a leader and a ladder row are worked out from are imported;
+  // the import names these tables as missing until the Judge's books supply
+  // them. The ids are `importer/leader-roles.mjs` THROW_LADDER_TABLE,
+  // `leader-derive.mjs` LEADER_TABLES and `kits.mjs` KIT_TABLES, written as
+  // literals because the producers gate reads this call from source. Guarded:
+  // a throw in `init` leaves the rest of the hook dead.
+  try {
+    expectTables("monsters", ["attackThrowByHd", "leaderLadder", "leaderSteps", "beastmanTroops", "beastmenByType", "damageDieConversion"]);
+  } catch (err) {
+    console.warn(`${MODULE_ID} | monster tables not declared`, err);
+  }
+
+  // A generated creature in a kit takes the armour class worked out for a
+  // kit no page prints, and the kit's own words in its notes, before it is
+  // written.
+  Hooks.on(TEMPLATE_HOOKS.RESOLVED, ({ resolved }) => {
+    try {
+      const esc = (text) => foundry.utils.escapeHTML?.(String(text)) ?? String(text);
+      applyGeneratedKit(resolved, { noteLine: (kit) => `<p>${loc("kit.note", { label: esc(kit.label ?? ""), note: esc(kit.note || "—"), cite: esc(kit.cite || "—") })}</p>` });
+    } catch (err) {
+      console.warn(`${MODULE_ID} | kit not applied`, err);
+    }
+  });
 
   // Best-effort preload of every partial the body includes: the sheet's own
   // tabs and the system's Spells and Effects, which the body includes as

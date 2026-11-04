@@ -19,6 +19,7 @@ import {
   updateFormation,
 } from "./formation-model.mjs";
 import { postEncounterThrow } from "./encounter-card.mjs";
+import { PARTY_TOKEN_SHAPES } from "./constants.mjs";
 import { nextHex, spendActivityHours } from "./journey.mjs";
 import { closeDay } from "./day-close.mjs";
 import { pickAndTravel } from "./poi.mjs";
@@ -1090,6 +1091,22 @@ export async function onChangeForm(event, form, formData) {
     if (frontage === null || frontage !== Number(data.frontage)) redraw = true;
     if (frontage !== null && frontage !== getFrontage(formation)) {
       formation.frontage = frontage;
+      changed = true;
+    }
+  }
+  // The party's own shape, or blank to follow the world's default.
+  if (typeof data.tokenShape === "string") {
+    const shape = PARTY_TOKEN_SHAPES.includes(data.tokenShape) ? data.tokenShape : null;
+    if (shape !== (formation.tokenShape ?? null)) {
+      formation.tokenShape = shape;
+      changed = true;
+    }
+  }
+  // The column's tint, or blank to take the token's disposition colour.
+  if (typeof data.columnColor === "string") {
+    const color = /^#[0-9a-f]{6}$/i.test(data.columnColor) ? data.columnColor.toLowerCase() : null;
+    if (color !== (formation.columnColor ?? null)) {
+      formation.columnColor = color;
       changed = true;
     }
   }

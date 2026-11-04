@@ -67,6 +67,7 @@
         <div class="acks-extras-importer-manager-actions">
           <button type="button" data-action="adventureDrop" data-book="{{a.id}}" {{disabled @root.busy}}>{{localize "ACKS-IMPORTER.manager.adventureRebuild"}}</button>
           <button type="button" data-action="adventureRepair" data-book="{{a.id}}" {{disabled @root.busy}}>{{localize "ACKS-IMPORTER.manager.adventureRepair"}}</button>
+          <button type="button" data-action="adventureForce" data-book="{{a.id}}" {{disabled @root.busy}} data-tooltip="ACKS-IMPORTER.manager.adventureForceTip">{{localize "ACKS-IMPORTER.manager.adventureForce"}}</button>
           <button type="button" data-action="adventureWrite" data-book="{{a.id}}" {{disabled @root.busy}}>{{localize "ACKS-IMPORTER.manager.adventureWrite"}}</button>
         </div>
       </li>
@@ -86,6 +87,21 @@
       <button type="button" data-action="merchandise" {{disabled busy}}>{{localize "ACKS-IMPORTER.gs.merchGo"}}</button>
       <button type="button" class="acks-extras-importer-manager-danger" data-action="removeAll" {{disabled busy}}>{{localize "ACKS-IMPORTER.manager.toolRemove"}}</button>
     </div>
+    {{#if tokenArt.length}}
+    <p class="notes">{{localize "ACKS-IMPORTER.manager.tokenArt.intro"}}</p>
+    <div class="acks-extras-importer-manager-tools">
+      {{#each tokenArt as |s|}}
+      <button type="button" data-action="tokenArtApply" data-source="{{s.id}}" {{disabled @root.busy}} data-tooltip="ACKS-IMPORTER.manager.tokenArt.applyTip">{{s.label}}</button>
+      {{/each}}
+      {{#if tokenArtRestore}}
+      <button type="button" data-action="tokenArtRestore" {{disabled busy}} data-tooltip="ACKS-IMPORTER.manager.tokenArt.restoreTip">{{localize "ACKS-IMPORTER.manager.tokenArt.restore"}}</button>
+      {{/if}}
+    </div>
+    {{else if tokenArtRestore}}
+    <div class="acks-extras-importer-manager-tools">
+      <button type="button" data-action="tokenArtRestore" {{disabled busy}} data-tooltip="ACKS-IMPORTER.manager.tokenArt.restoreTip">{{localize "ACKS-IMPORTER.manager.tokenArt.restore"}}</button>
+    </div>
+    {{/if}}
     <div class="acks-extras-importer-manager-bar">
       <button type="button" data-action="refresh" {{disabled busy}}><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i> {{localize "ACKS-IMPORTER.manager.refresh"}}</button>
     </div>

@@ -24,6 +24,7 @@ import {
   createDoc,
   claimActorImport,
   importedActorFor,
+  isRewriting,
   cookbookBookFile,
   cookbookEntry,
   cookbookRegisters,
@@ -128,12 +129,13 @@ export async function importOseBook(bookId, { folderId = null, art = true, only 
     // three hundred creatures to decide it wanted none of them.
     const group = entry.meta?.templateGroup;
     if (group) {
-      if (!groupHeld.has(group)) groupHeld.set(group, !!(await importedActorFor(groupId(group), { copies: false })));
+      // A generator held for rewriting is built again, not passed over.
+      if (!groupHeld.has(group)) groupHeld.set(group, !isRewriting(groupId(group)) && !!(await importedActorFor(groupId(group), { copies: false })));
       if (groupHeld.get(group)) {
         already++;
         continue;
       }
-    } else if (await importedActorFor(id, { copies: false })) {
+    } else if (!isRewriting(id) && (await importedActorFor(id, { copies: false }))) {
       already++;
       continue;
     }
@@ -188,7 +190,7 @@ export async function importOseBook(bookId, { folderId = null, art = true, only 
       const generator = await claimActorImport(id, () => createDoc(Actor, tpl));
       if (generator) {
         templates++;
-        if (importArt && entry.fields?.art) {
+        if (importArt && entry.fields?.art && !isRewriting(id)) {
           await importArt(generator, doc, {
             id,
             page: entry.fields.art.page ?? entry.pages?.[0],
@@ -225,7 +227,7 @@ export async function importOseBook(bookId, { folderId = null, art = true, only 
     const actor = await claimActorImport(id, () => createDoc(Actor, data));
     if (!actor) continue;
     made++;
-    if (importArt && entry.fields?.art) {
+    if (importArt && entry.fields?.art && !isRewriting(id)) {
       await importArt(actor, doc, {
         id,
         page: entry.fields.art.page ?? entry.pages?.[0],

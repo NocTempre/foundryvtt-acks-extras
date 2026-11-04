@@ -880,6 +880,50 @@ export const TABLE_RECIPES = {
       },
     },
   },
+  // RR ch. 6 Light and Darkness, one page: each light source's bright and dim
+  // reach and how long it burns. Prose, so windows open on the words around
+  // each figure; light-binding.mjs parses them into the `lightSources` table
+  // lib/light.mjs reads. The burn sentence names the sources it prices before
+  // its anchor, so that window looks back as well as forward.
+  light: {
+    source: { book: "ACKS II Revised Rulebook", pages: "RR 265" },
+    tables: {
+      lightProse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 265,
+        locate: "Light and Darkness",
+        values: [
+          { key: "candleReach", find: "candles emit", take: "window", span: 110 },
+          { key: "torchReach", find: "lanterns and torches emit", take: "window", span: 120 },
+          { key: "shedSubject", find: "shed light for", take: "window", before: true, span: 40 },
+          { key: "shedBurn", find: "shed light for", take: "window", span: 20 },
+          { key: "lanternBurn", find: "keep a lantern burning for", take: "window", span: 20 },
+        ],
+      },
+    },
+  },
+  // JJ ch. 2 encounters in the dungeon, one page: the delve's encounter throw
+  // (its die, the turns between throws and the throw that meets a wandering
+  // monster) and the dice of the encounter distance. Prose, so one window
+  // opens on the words before the throw's three figures and one on the
+  // distance step; delve-encounter-binding.mjs parses them into the scalar
+  // tables formation/constants.mjs `importedEncounterCadence` reads.
+  delveEncounters: {
+    source: { book: "ACKS II Judges Journal", pages: "JJ 36" },
+    tables: {
+      cadenceProse: {
+        shape: "proseValues",
+        book: "jj",
+        printedPage: 36,
+        locate: "Encounters in the Dungeon",
+        values: [
+          { key: "cadence", find: "make an encounter throw of", take: "window", span: 110 },
+          { key: "distance", find: "start by rolling", take: "window", span: 40 },
+        ],
+      },
+    },
+  },
   // RR ch. 6 wilderness ground: the grouped Terrain Speed Multiplier table
   // (whose road row carries the Driving rate in its own cell) and the
   // Going without: hunger, thirst, the cold and the heat. RAW prints all of
@@ -1967,7 +2011,7 @@ export const TABLE_RECIPES = {
     },
   },
   equipment: {
-    source: { book: "ACKS II Revised Rulebook + Judges Journal", pages: "RR 15, 160; JJ 252" },
+    source: { book: "ACKS II Revised Rulebook + Judges Journal", pages: "RR 15, 140, 160, 296; JJ 252" },
     tables: {
       // Non-proficient use (RR 15, the sidebar): the further penalty a
       // character of no level takes while equipped with what their class
@@ -1991,6 +2035,31 @@ export const TABLE_RECIPES = {
         printedPage: 252,
         locate: "calculated by HD",
         values: [{ key: "attackThrow", find: "HD 1/2, attack throw", take: "int" }],
+      },
+      // The dual weapon style's own attack modifier (RR ch. 10, Attack Throw
+      // modifiers, "Fighting Style"): anyone fighting in the style takes it,
+      // specialized or not. `equipment/effects.mjs` writes it to the loadout.
+      dualWeaponStyle: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 296,
+        locate: "dual weapon style gain a",
+        values: [{ key: "attack", find: "dual weapon style gain a", take: "signed" }],
+      },
+      // The heavy helmet's three modifiers (RR ch. 4, Armor, "Helmet, Heavy"):
+      // surprise rolls, Listening throws, and the Mortal Wounds roll. Each is
+      // read after the words that open its clause. `equipment/overlays/
+      // enclosing-helm.mjs` `helmFigures` serves them.
+      heavyHelm: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 140,
+        locate: "Wearing a heavy helm imposes",
+        values: [
+          { key: "surprise", find: "heavy helm imposes a", take: "signed", span: 12 },
+          { key: "listening", find: "penalty to surprise rolls and", take: "signed", span: 12 },
+          { key: "mortalWounds", find: "but offers a", take: "signed", span: 12 },
+        ],
       },
       scavengedPiercingSlashing: scavengedGrid({
         locate: "Piercing/Slashing Weapons",
@@ -3998,6 +4067,162 @@ export const TABLE_RECIPES = {
           { key: "tithe", labelRe: "^tithe" },
           { key: "upkeep", labelRe: "^upkeep" },
           { key: "tribute", labelRe: "^tribute" },
+        ],
+      },
+    },
+  },
+
+  // Monster figures a binder works out rather than reads off the creature's
+  // own block. `importer/leader-roles.mjs` keys the ladder rows.
+  monsters: {
+    source: { book: "ACKS II Revised Rulebook + AXIOMS Compendium", pages: "RR 296, 441; AXIOMS 43-44" },
+    tables: {
+      // Attack Throws by Level and HD (RR ch. 6): the Monster HD column and
+      // the throw value at its far right. The class-level columns between are
+      // the classes', windowed out by the cell's own column. The footnote and
+      // the margin tab sit outside the window.
+      attackThrowByHd: {
+        shape: "gridRows",
+        book: "rr",
+        printedPage: 296,
+        locate: "Attack Throws by Level and HD",
+        column: { xMin: 40, xMax: 560, yMax: 350 },
+        labelMaxX: 140,
+        startAfter: "Monster H",
+        cellPattern: "int",
+        cellColumns: [{ key: "throw", x: 484, row: true }],
+        rows: [
+          { key: "half", labelRe: "^1\\s*/\\s*2" },
+          { key: "oneLess", labelRe: "^1\\s*[–-]\\s*1$" },
+          ...Array.from({ length: 20 }, (_, i) => ({ key: `hd${i + 1}`, labelRe: `^${i + 1}\\+?$` })),
+        ],
+      },
+      // The Leader HD table (AXIOMS 2, Beastmen Leaders): one narrow column
+      // of ratings beside the steps, read top to bottom as rungs. Its cells
+      // carry no label, so every rung is an unlabelled row and the ratings
+      // themselves are the page's; `monsters/leader-derive.mjs` reads them.
+      leaderLadder: {
+        shape: "gridRows",
+        book: "axc",
+        printedPage: 44,
+        locate: "BEASTMEN LEADERS",
+        column: { xMin: 515, xMax: 545, yMin: 90, yMax: 270 },
+        labelMaxX: 516,
+        cellColumns: [{ key: "hd", x: 524, row: true, pattern: "raw" }],
+        rows: Array.from({ length: 16 }, (_, i) => ({ key: `rung${i + 1}`, unlabelled: true, optional: true })),
+      },
+      // The leader steps beside it: the rungs each rank moves down, the
+      // smallest rating whose hit-point bonus carries over, and what each
+      // rank adds to AC and to damage. Each anchor is the clause naming the
+      // step, never its figure; the sub-chieftain's damage is the clause the
+      // champion's is printed in.
+      leaderSteps: {
+        shape: "proseValues",
+        book: "axc",
+        printedPage: 44,
+        locate: "BEASTMEN LEADERS",
+        column: { xMin: 300, xMax: 515 },
+        colSplit: 300,
+        yMin: 90,
+        yMax: 420,
+        values: [
+          { key: "rowsChampion", find: "row for a champion", before: true, take: "wordInt", span: 8 },
+          { key: "rowsSubChieftain", find: "rows for a sub", before: true, take: "wordInt", span: 8 },
+          { key: "rowsChieftain", find: "rows for a chief", before: true, take: "wordInt", span: 8 },
+          { key: "bonusMinHd", find: "if the creature has at least", take: "int", span: 6 },
+          { key: "acChampion", find: "increase ac by", take: "int", span: 4 },
+          { key: "acSubChieftain", find: "points for a sub", before: true, take: "int", span: 4 },
+          { key: "acChieftain", find: "points for a chieftain", before: true, take: "int", span: 4 },
+          { key: "damageChampion", find: "damage for a champion", before: true, take: "signed", span: 4 },
+          { key: "damageSubChieftain", find: "damage for a champion", before: true, take: "signed", span: 4 },
+          { key: "damageChieftain", find: "damage for a chieftain", before: true, take: "signed", span: 4 },
+        ],
+      },
+      // Beastman Troops (RR ch. 9): one stat line per troop type per kind,
+      // under a label-only heading per kind, the kit in brackets after the
+      // troop type. Rows are claimed downward in the page's order, so each
+      // kind's rows follow its heading; `monsters/kits.mjs` keys them back to
+      // `{kind, troop}` and holds each to its kind's Hit Dice. Mounted rows
+      // print the rider's and the mount's figures in pairs and are not read.
+      beastmanTroops: {
+        shape: "gridRows",
+        book: "rr",
+        printedPage: 441,
+        locate: "Beastman Troops",
+        column: { xMin: 40, xMax: 570, yMin: 95 },
+        // A damage cell set a few points above its row's baseline (a weapon
+        // figure over a natural one) is still that row's.
+        rowTol: 5,
+        labelMaxX: 285,
+        cellColumns: [
+          { key: "ac", x: 294, row: true, pattern: "intDash" },
+          { key: "move", x: 318, row: true, pattern: "int" },
+          { key: "hd", x: 340, w: 32, row: true, pattern: "raw" },
+          { key: "damage", x: 430, w: 35, row: true, pattern: "raw" },
+          { key: "morale", x: 497, row: true, pattern: "intDash" },
+        ],
+        rows: [
+          ["kobold", ["lightInfantry", "bowmen"]],
+          ["goblin", ["lightInfantry", "slingers", "bowmen"]],
+          ["orc", ["lightInfantry", "heavyInfantry", "bowmen", "crossbowmen"]],
+          ["hobgoblin", ["lightInfantry", "heavyInfantry", "compositeBowmen"]],
+          ["gnoll", ["lightInfantry", "heavyInfantry", "longbowmen"]],
+          ["lizardman", ["lightInfantry", "heavyInfantry"]],
+          ["bugbear", ["lightInfantry", "heavyInfantry", "bowmen"]],
+          ["ogre", ["lightInfantry", "heavyInfantry"]],
+        ].flatMap(([kind, troops]) => troops.map((troop) => ({
+          key: `${kind}${troop.charAt(0).toUpperCase()}${troop.slice(1)}`,
+          labelRe: {
+            lightInfantry: "^light\\s*infantry",
+            heavyInfantry: "^heavy\\s*infantry",
+            bowmen: "^bowmen",
+            slingers: "^slingers",
+            crossbowmen: "^c\\s*rossbowmen",
+            compositeBowmen: "^c\\s*omposite\\s*bowmen",
+            longbowmen: "^longbowmen",
+          }[troop],
+          labelPattern: "parenthetical",
+          set: { kind, troop },
+        }))),
+      },
+      // Beastmen by Type (AXIOMS 2, Weapons and Warriors): each kind's
+      // unarmoured armour class, keyed by the kind word that opens its row.
+      // The move, the encumbrance bands and the damage column beside it are
+      // not read: the Monstrous Manual prints each kind's speed and damage.
+      beastmenByType: {
+        shape: "gridRows",
+        book: "axc",
+        printedPage: 43,
+        locate: "BEASTMEN BY TYPE",
+        column: { xMin: 320, xMax: 570, yMin: 350, yMax: 545 },
+        labelMaxX: 380,
+        cellColumns: [{ key: "naturalAc", x: 385, row: true, pattern: "intDash" }],
+        rows: ["kobold", "goblin", "orc", "hobgoblin", "gnoll", "lizardman", "bugbear", "ogre"].map((kind) => ({ key: kind, labelRe: `^${kind}$`, set: { kind } })),
+      },
+      // Converting Damage Modifiers to Damage Dice (AXIOMS 2): a weapon's die
+      // down the side, a modifier across the top, the die it becomes in each
+      // cell. The header row is read as a row, so which modifier each column
+      // stands for is the page's. Cells are set centred, so each is windowed
+      // by its centre; a cell printing two dice is read whole and split by
+      // its consumer (`monsters/kits.mjs`).
+      damageDieConversion: {
+        shape: "gridRows",
+        book: "axc",
+        printedPage: 43,
+        locate: "BEASTMEN BY TYPE",
+        column: { xMin: 55, xMax: 310, yMin: 570, yMax: 640 },
+        labelMaxX: 88,
+        anchor: "center",
+        cellColumns: [
+          { key: "col1", x: 90, w: 23, row: true, pattern: "raw" },
+          { key: "col2", x: 115, w: 30, row: true, pattern: "raw" },
+          { key: "col3", x: 147, w: 48, row: true, pattern: "raw" },
+          { key: "col4", x: 197, w: 53, row: true, pattern: "raw" },
+          { key: "col5", x: 252, w: 55, row: true, pattern: "raw" },
+        ],
+        rows: [
+          { key: "header", labelRe: "^b\\s*a\\s*s\\s*e$" },
+          ...["4", "6", "8", "10"].map((die) => ({ key: `d${die}`, labelRe: `^1d${die}$`, set: { die: `1d${die}` } })),
         ],
       },
     },

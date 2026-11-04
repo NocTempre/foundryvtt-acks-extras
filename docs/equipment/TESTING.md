@@ -135,16 +135,40 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    as it did without the shield. Add `weaponShield` to the styles flag:
    the advisory and the change go, and the value climbs by the shield's AC.
    Add a Specialization marker (`styleProficient` = `weaponShield:spec`):
-   one more. The same character with the sword alone stays one-handed
+   nothing more, because the marker carries no figure (3c carries it). The
+   same character with the sword alone stays one-handed
    (`wieldTwoHanded` false, `activeStyle` single); add `twoHanded` to the
    flag and the auto grip widens.
 3c. A pick made after the kit is drawn: draw the sword and the shield first,
-   then give the character a Fighting Style Specialization ability and tick
-   *Weapon & Shield* on its Mechanics tab — the ability sheet's own checkbox,
-   a real click, not a flag write. *Observable:* with no equip toggle and no
-   reload, the managed loadout effect gains the specialization's change and
-   `system.ac.value` climbs; untick it and the value falls back. Read the
-   actor from `fromUuid` after each, not the open sheet's document.
+   then give the character the IMPORTED Fighting Style Specialization (from
+   the importer's library, imported with the rulebook after this release, so
+   its copy carries five `specializedStyle` rows; a hand-made one carries
+   none) and tick *Weapon & Shield* on its Mechanics tab — the ability sheet's
+   own checkbox, a real click, not a flag write. *Observable:* with no equip
+   toggle and no reload, the managed loadout effect gains one `system.ac.mod`
+   part named for the proficiency, at the figure the page's bonus table prints,
+   and `system.ac.value` climbs; the AC tooltip names the proficiency. Sheathe
+   the shield (single style): the part leaves, and no initiative part arrives,
+   because the pick is Weapon & Shield. Untick the pick and the value falls
+   back. Read the actor from `fromUuid` after each, not the open sheet's
+   document.
+3e. Imported style and helmet figures, on the kept fixture
+   `equipment/style-figures` (a `character` trained in the dual style, two
+   daggers and a "Heavy Helmet" armour item; build it by marker when absent),
+   with the rulebook's tables imported and `overlayEnclosingHelm` on. Assert
+   at the start that both daggers are drawn and the helmet worn.
+   *Observable:* the loadout effect carries a `system.attack.mod.melee` part
+   labelled two-weapon fighting at
+   `acksExtras.lib.tables.getDoc("equipment").tables.dualWeaponStyle.attack`,
+   and a `system.surprise.avoidsurprise` part labelled an enclosing helmet at
+   `heavyHelm.surprise`; `api.equipment.HELM_MODIFIERS` returns the three
+   `heavyHelm` figures. In the Ruledata Browser (GM seat), override
+   `dualWeaponStyle` with a different invented number: after the next loadout
+   sync the part carries it. Clear the override: it returns. On a world with
+   no rulebook tables imported, neither part exists and every
+   `HELM_MODIFIERS` figure is null. From a Player seat that owns the fixture,
+   open the sheet: the same two parts show, and the Ruledata Browser offers no
+   override. Teardown: clear any override left; the fixture stays.
 3d. The penalty is named: with proficiency enforcement `on`, attack from the
    character sheet with a weapon the character is not proficient in.
    *Observable:* the system's attack dialog and its card carry a row labelled

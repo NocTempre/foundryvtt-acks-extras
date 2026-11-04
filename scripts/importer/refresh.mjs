@@ -91,6 +91,8 @@ export const REFILL_STAT_PATHS = Object.freeze([
   "movement.base",
   "attack.throw",
   "attacks",
+  "damage.mod.melee",
+  "damage.mod.missile",
 ]);
 
 /** Where the Full Monster Sheet keeps a monster's prose, one stamped block per field. */
@@ -166,7 +168,41 @@ export const REPAIR = Object.freeze({
     flags: ["spell"],
     keepFlags: ["spell.effects"],
   },
+  // The rows a printed table builds: its figures, its page reference and the
+  // structured modes the module reads are rewritten; what is worn, carried or
+  // spent is play's.
+  weapon: { keep: ["equipped"], prose: ["description"], flags: ["weapon"] },
+  armor: { keep: ["equipped"], prose: ["description"], flags: ["armor"] },
+  // The equipment annotation layer settles an ammunition stack's subtype.
+  ammunition: { keep: ["quantity", "subtype"], prose: ["description"], flags: ["ammunition"] },
+  priced: { keep: ["quantity"] },
+  // A language's place in the taxonomy; its description is the library's or the
+  // Judge's, since the import writes none.
+  language: { flags: ["language"] },
 });
+
+/**
+ * The policy for an actor kind that is written whole from its build (a
+ * template, a family, a person, a legacy block, an OSE creature), derived from
+ * what the build carries: the flags it stamps, its token, its embedded items,
+ * and the biography it writes. Everything the build leaves out stays as the
+ * document holds it.
+ *
+ * @param {object} built the kind's creation data
+ * @returns {object} a policy `refreshPlan` takes
+ */
+export function actorPolicy(built) {
+  const mine = built?.flags?.[MODULE_ID] ?? {};
+  const flags = Object.keys(mine).filter((key) => key !== "cookbook" && key !== "minted");
+  return {
+    rows: "replace",
+    prose: getPath(built?.system, "details.biography") !== undefined ? ["details.biography"] : [],
+    proseFlags: flags.includes("extras") ? MONSTER_PROSE : [],
+    flags,
+    top: built?.prototypeToken ? ["prototypeToken"] : [],
+    minted: Array.isArray(built?.items) && built.items.length ? ["items"] : [],
+  };
+}
 
 /** A build's embedded document, stamped as the module's so the next repair replaces it. */
 const asMinted = (doc) => ({
@@ -333,6 +369,10 @@ export async function refreshImported(doc, built, policy = {}) {
  * `force` makes the run a forced repair: every policy it writes under skips
  * the hand-written prose guard (`policyFor`), and `handMade` counts the
  * documents the import did not make that it left alone by name.
+ *
+ * A run that repairs the printed-table rows also carries `tables`, a Set of the
+ * table importers (`weapons`, `armor`, `priced`) the equipment import runs in
+ * repair mode; the run adds it, the tally starts without it.
  *
  * @param {{force?: boolean}} [options]
  */

@@ -6,6 +6,8 @@ import { renderRollCard } from "../lib/roll-card.mjs";
 import { drawForJudges, postToJudges } from "../lib/roll-audience.mjs";
 import { findEncounterZone } from "./encounter-zone.mjs";
 import {
+  DELVE_ENCOUNTER_DOC,
+  importedEncounterCadence,
   LIGHT_SOURCES,
   MODULE_ID,
   RATION_PATTERN,
@@ -22,7 +24,8 @@ import { cityTurnCompleted, creditHoledUpDays } from "./settlement-turn.mjs";
 import { sceneBlockFeet } from "../battlemap/scene-setup.mjs";
 import { roadDistance } from "../battlemap/roads.mjs";
 import { feetPerUnit, isExpeditionScale, sceneFeetPerCell, sceneMilesPerCell } from "../lib/distance-units.mjs";
-import { prepareToLight } from "../lib/light.mjs";
+import { lightFigures, prepareToLight } from "../lib/light.mjs";
+import { citeOf } from "../lib/tables.mjs";
 import { equipForLight } from "./judge-override.mjs";
 import { ACTOR_TYPE } from "../lib/vocab.mjs";
 
@@ -133,19 +136,58 @@ async function setWindedMarkers(formation, winded) {
 /* -------------------------------------------- */
 
 /**
- * The effective wandering-monster parameters for a formation: an Encounter
- * Zone region under the party token wins, then the formation's default table,
- * then the world settings. Zone overrides of 0 mean "inherit".
+ * The effective wandering-monster cadence for a formation. Each figure comes
+ * from the first layer that states it: an Encounter Zone region under the
+ * party token (0 inherits), the world setting (blank inherits; an interval of
+ * 0 turns the automatic throw off), then the imported cadence. The throw's
+ * die and the distance dice have only the imported layer, which a Judge's
+ * override replaces. A figure no layer states is null: with no die, interval
+ * or target the delve schedules no throw, and with no distance dice an
+ * encounter rolls no distance.
+ *
+ * @returns {{zone: object|null, die: string|null, every: number|null, target: number|null,
+ *   distance: string|null, from: Record<"die"|"every"|"target"|"distance", "zone"|"setting"|"import"|null>}}
  */
 export function getEncounterParams(formation) {
   const zone = findEncounterZone(formation);
-  const zoneEvery = zone?.behavior?.system?.encounterEvery ?? 0;
-  const zoneTarget = zone?.behavior?.system?.encounterTarget ?? 0;
-  return {
-    zone,
-    every: zoneEvery > 0 ? zoneEvery : game.settings.get(MODULE_ID, "encounterEvery"),
-    target: zoneTarget > 0 ? zoneTarget : game.settings.get(MODULE_ID, "encounterTarget"),
+  const imported = importedEncounterCadence();
+  const stated = (value) => (Number.isInteger(value) ? value : null);
+  const pick = (zoneValue, settingValue, importedValue, settingFloor) => {
+    if (zoneValue > 0) return [zoneValue, "zone"];
+    if (settingValue != null && settingValue >= settingFloor) return [settingValue, "setting"];
+    if (importedValue != null) return [importedValue, "import"];
+    return [null, null];
   };
+  const [every, everyFrom] = pick(
+    zone?.behavior?.system?.encounterEvery ?? 0, stated(game.settings.get(MODULE_ID, "encounterEvery")), imported.every, 0,
+  );
+  const [target, targetFrom] = pick(
+    zone?.behavior?.system?.encounterTarget ?? 0, stated(game.settings.get(MODULE_ID, "encounterTarget")), imported.target, 1,
+  );
+  const { die, distance } = imported;
+  return {
+    zone, die, every, target, distance,
+    from: { die: die ? "import" : null, every: everyFrom, target: targetFrom, distance: distance ? "import" : null },
+  };
+}
+
+/** Whether the cadence states every figure a scheduled throw needs. */
+export const cadenceStated = (params) => params?.die != null && params?.every != null && params?.target != null;
+
+/**
+ * Where one cadence figure came from, for its tooltip: the zone that set it,
+ * the world setting, the page it was imported from, or a Judge's override
+ * layer, which holds no page.
+ */
+export function cadenceProvenance(params, key) {
+  const from = params?.from?.[key];
+  if (from === "zone") return loc("chat.cadenceFrom.zone", { name: params.zone?.region?.name ?? "" });
+  if (from === "setting") return loc("chat.cadenceFrom.setting");
+  if (from === "import") {
+    const cite = citeOf(DELVE_ENCOUNTER_DOC, key);
+    return cite ? loc("chat.cadenceFrom.import", { cite }) : loc("chat.cadenceFrom.override");
+  }
+  return loc("chat.cadenceFrom.none");
 }
 
 /** The RollTable to draw wandering monsters from, if one is configured. */
@@ -162,10 +204,17 @@ async function resolveEncounterTable(formation, zone) {
  * Make the wandering-monster encounter throw (JJ p. 36): an encounter on
  * `target`+. Result is whispered to GMs; on an encounter the distance and
  * minute-of-turn are pre-rolled and the zone/formation encounter table (if
- * any) is drawn from privately.
+ * any) is drawn from privately. With no die or no target stated by any
+ * layer it throws nothing, says so, and returns false; with no distance dice
+ * an encounter rolls no distance and its card says the dice are not imported.
  */
 export async function encounterCheck(formation, { manual = false, params = null } = {}) {
-  const { zone, target } = params ?? getEncounterParams(formation);
+  const resolved = params ?? getEncounterParams(formation);
+  const { zone, target, die } = resolved;
+  if (target == null || die == null) {
+    globalThis.ui?.notifications?.warn(loc("warn.encounterNotImported"));
+    return false;
+  }
 
   // The party's signature: what the dungeon can see and hear of them. RAW
   // (extracts) ties this to surprise and earshot; an OPTIONAL setting lets
@@ -178,12 +227,13 @@ export async function encounterCheck(formation, { manual = false, params = null 
     if (!lit && !hurried && isPartyInDark(formation)) signalMod -= 1;
   }
 
-  const roll = await new Roll(signalMod ? `1d6 + ${signalMod}` : "1d6").evaluate();
+  const roll = await new Roll(signalMod ? `${die} + ${signalMod}` : die).evaluate();
   const encounter = roll.total >= target;
 
+  const tipped = (key, text) => `<span data-tooltip-text="${foundry.utils.escapeHTML(cadenceProvenance(resolved, key))}">${text}</span>`;
   let content = `<div class="acks-formation-card"><strong>${foundry.utils.escapeHTML(formation.name)}</strong> — ${loc(
     "chat.encounterCheck",
-    { target },
+    { target: tipped("target", target), die: tipped("die", die) },
   )}`;
   if (zone) content += ` <em>${loc("chat.inZone", { name: foundry.utils.escapeHTML(zone.region.name) })}</em>`;
   if (manual) content += ` <em>(${loc("chat.manual")})</em>`;
@@ -202,14 +252,15 @@ export async function encounterCheck(formation, { manual = false, params = null 
   ];
 
   if (encounter) {
-    const distance = await new Roll("2d6*10").evaluate();
-    const minute = await new Roll("1d10").evaluate();
+    // The minute falls somewhere in the turn, whose length is the clock's own.
+    const distance = resolved.distance ? await new Roll(resolved.distance).evaluate() : null;
+    const minute = await new Roll(`1d${ROUNDS_PER_TURN}`).evaluate();
+    const detail = distance
+      ? loc("chat.encounterDetail", { distance: tipped("distance", distance.total), minute: minute.total })
+      : loc("chat.encounterDetailNoDistance", { minute: minute.total });
     messages.push({
-      rolls: [distance, minute],
-      flavor: `<div class="acks-formation-card encounter"><strong>${loc("chat.encounterTriggered")}</strong><br>${loc(
-        "chat.encounterDetail",
-        { distance: distance.total, minute: minute.total },
-      )}</div>`,
+      rolls: distance ? [distance, minute] : [minute],
+      flavor: `<div class="acks-formation-card encounter"><strong>${loc("chat.encounterTriggered")}</strong><br>${detail}</div>`,
       speaker: { alias: formation.name },
     });
     // Turn-boundary throws fire when the clock reaches the rolled minute of
@@ -336,7 +387,8 @@ export function burnTurns(formation, turns, notes) {
   for (let n = 0; n < turns; n++) {
     /* --- Light sources burn down --- */
     for (const light of formation.lights) {
-      if (!light.lit) continue;
+      // A light with no burn time (none imported) never counts down.
+      if (!light.lit || !Number.isFinite(light.remaining)) continue;
       light.remaining -= 1;
       const bearer = game.actors.get(light.bearerId);
       const bearerName = bearer?.name ?? "?";
@@ -407,9 +459,16 @@ async function onTurnCompleted(formation, notes, resting) {
     return;
   }
 
-  formation.clock.encounterCounter += 1;
+  // A cadence no layer states, or an interval of 0, schedules nothing, and the
+  // counter stays at zero, so a cadence stated later starts its count fresh
+  // rather than throwing at once for the turns that passed without one.
   const params = getEncounterParams(formation);
-  if (params.every > 0 && formation.clock.encounterCounter >= params.every) {
+  if (!cadenceStated(params) || params.every === 0) {
+    formation.clock.encounterCounter = 0;
+    return;
+  }
+  formation.clock.encounterCounter += 1;
+  if (formation.clock.encounterCounter >= params.every) {
     formation.clock.encounterCounter = 0;
     await encounterCheck(formation, { params });
   }
@@ -474,8 +533,8 @@ export async function advanceRounds(formation, rounds, { resting = false, reason
     }
   }
 
-  // Remove spent lights.
-  formation.lights = formation.lights.filter((l) => l.lit || l.remaining > 0);
+  // Remove spent lights. One with no burn time is never spent.
+  formation.lights = formation.lights.filter((l) => l.lit || !Number.isFinite(l.remaining) || l.remaining > 0);
 
   /* --- Expired spell/effect durations --- */
   expiredEffectNotes(formation, snapshot, notes);
@@ -550,7 +609,9 @@ async function postTurnCard(formation, n, { resting, reason, notes }) {
   for (const light of litLights) {
     const label = game.i18n.localize(LIGHT_SOURCES[light.type]?.label ?? light.type);
     const bearer = game.actors.get(light.bearerId)?.name ?? "?";
-    html += `<li>${loc("chat.lightStatus", { light: label, bearer, turns: light.remaining })}</li>`;
+    html += Number.isFinite(light.remaining)
+      ? `<li>${loc("chat.lightStatus", { light: label, bearer, turns: light.remaining })}</li>`
+      : `<li>${loc("chat.lightStatusUncounted", { light: label, bearer })}</li>`;
   }
   if (!litLights.length) html += `<li class="warn">${loc("chat.noLight")}</li>`;
   for (const spell of formation.spells ?? []) {
@@ -769,11 +830,12 @@ export async function addLight(formation, type, bearerId, { override = false } =
   // acks-equipment's own draw/sheathe controls.
   if (!(await prepareToLight(bearer, type, { override }))) return;
 
+  // The burn time is imported (RR p. 265); with none the light never burns down.
   const light = {
     id: foundry.utils.randomID(),
     type,
     bearerId,
-    remaining: config.turns,
+    remaining: lightFigures(type).turns,
     lit: true,
   };
   formation.lights.push(light);
@@ -793,7 +855,7 @@ export async function removeLight(formation, lightId) {
 export async function toggleLight(formation, lightId) {
   const light = formation.lights.find((l) => l.id === lightId);
   if (!light) return;
-  if (!light.lit && light.remaining <= 0) return;
+  if (!light.lit && Number.isFinite(light.remaining) && light.remaining <= 0) return;
   light.lit = !light.lit;
   await updateFormation(formation);
   lightChanged(light.bearerId, light, light.lit ? "lit" : "doused");

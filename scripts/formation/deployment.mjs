@@ -16,6 +16,7 @@ import {
   readFormations,
   updateFormation,
 } from "./formation-model.mjs";
+import { columnPlacement } from "./column.mjs";
 
 /**
  * Putting members on the map and gathering them back in: the combat deploy,
@@ -138,9 +139,10 @@ export function hasStaleDeployment(formation, member) {
  * shape. Blanks leave gaps; the down are carried rather than deployed;
  * members already on the map are skipped. A stack goes out as the bodies
  * it holds, laid into the squares its cell occupies; those bodies belong
- * to the group actor, and the cell only records that it is out. The block
- * is oriented to the party token's heading and fitted (shifted, never
- * squashed) onto the scene before anyone is placed.
+ * to the group actor, and the cell only records that it is out. A column
+ * that walked a bend lays everyone on its own cells (`columnPlacement`);
+ * otherwise the block is oriented to the party token's heading and fitted
+ * (shifted, never squashed) onto the scene before anyone is placed.
  *
  * @param {object} formation
  * @param {object[]} members  which members to send out (default: all of them)
@@ -162,6 +164,8 @@ export async function deployMembers(formation, { members = formation.members, de
   // move's tween, which starts at the corner the token is leaving.
   const at = partyToken._source ?? partyToken;
   const origin = blockOrigin(formation, scene, { x: at.x, y: at.y }, { heading });
+  // A column that walked a bend deploys onto its own cells.
+  const column = columnPlacement(formation, partyToken);
 
   const toCreate = [];
   const stacked = [];
@@ -183,7 +187,7 @@ export async function deployMembers(formation, { members = formation.members, de
     if (!data && actor) data = (await actor.getTokenDocument()).toObject();
     if (!data) continue;
     delete data._id;
-    const { x, y } = cellPosition(formation, scene, origin, cell, heading);
+    const { x, y } = column?.[cell]?.[0] ?? cellPosition(formation, scene, origin, cell, heading);
     data.x = x;
     data.y = y;
     data.hidden = false;
@@ -215,7 +219,7 @@ export async function deployMembers(formation, { members = formation.members, de
 
   const groups = stacked.length ? await groupOps() : null;
   for (const { member, actor, cell } of stacked) {
-    const spots = cellPositions(formation, scene, origin, cell, heading);
+    const spots = column?.[cell]?.length ? column[cell] : cellPositions(formation, scene, origin, cell, heading);
     const before = created.length;
     let body = 0;
     for (const stack of actor.system.stacks ?? []) {

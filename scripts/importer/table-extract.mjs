@@ -241,6 +241,14 @@ export function applyCellPattern(text, pattern = "raw") {
       const parts = t.replace(/[−–—]/g, "-").split("/").map((s) => s.trim());
       return parts.every((s) => /^[-+]?\d+$/.test(s)) ? parts.map(Number) : null;
     }
+    case "parenthetical": {
+      // A label that carries its own note in brackets, read as a
+      // `labelPattern`: "Troop (what it carries)" -> {note: "what it
+      // carries"}. A bracket the line cut off before its close still reads.
+      const m = t.match(/\(([^)]*)\)?/);
+      const note = m ? m[1].replace(/\s+/g, " ").trim() : "";
+      return note ? { note } : null;
+    }
     default:
       return t;
   }

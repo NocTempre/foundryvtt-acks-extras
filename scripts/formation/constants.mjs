@@ -58,18 +58,70 @@ export function restEnforced() {
   return globalThis.game?.settings?.get(MODULE_ID, SETTING_REST_REQUIRED) !== false;
 }
 
-/** World setting: feet of frontage each marching body occupies. */
-export const SETTING_MARCH_FEET = "marchFeetPerBody";
+/**
+ * What a party token is on the map. `order`: a one-cell head with the marching
+ * column drawn behind it along the ground it walked. `fixed`: whatever size the
+ * Judge gives it, with nothing drawn. Lights shine from the bearers' places in
+ * the column in both.
+ */
+export const PARTY_TOKEN_SHAPES = Object.freeze(["order", "fixed"]);
+
+/** World setting: the shape a party takes until its own sheet chooses one. */
+export const SETTING_PARTY_TOKEN_SHAPE = "partyTokenShape";
 
 /**
- * Default for `marchFeetPerBody` — marching files pack tighter than the 5-ft
- * combat rank. Derivation and reviewer flag: docs/formation/DECISIONS.md.
+ * Token flag stamping the size the module last wrote, `{width, height}`. A
+ * token whose size still matches it is the module's to resize; one a hand has
+ * changed since is the Judge's.
  */
-export const MARCH_FEET_PER_BODY_DEFAULT = 3;
+export const FLAG_PARTY_SIZE = "partySize";
 
-/** Default wandering-monster cadence (JJ p. 36). */
-export const DEFAULT_ENCOUNTER_EVERY = 2;
-export const DEFAULT_ENCOUNTER_TARGET = 6;
+/**
+ * Token flag holding the ground the party token walked, `{sceneId, points}`:
+ * cell top-left corners from the head backward, bounded to the column's depth.
+ */
+export const FLAG_TRAIL = "trail";
+
+/**
+ * The registered document the delve's wandering-monster throw arrives in
+ * (JJ p. 36). Four scalar tables, so an override of one leaves the rest
+ * imported: `die`, the encounter throw's dice; `every`, the turns between
+ * throws; `target`, the throw that meets a wandering monster; `distance`, the
+ * dice of the encounter distance in feet.
+ */
+export const DELVE_ENCOUNTER_DOC = "delveEncounters";
+
+/** A stored figure as a positive whole number, or null. */
+const positiveWhole = (value) => {
+  const n = Number(value);
+  return value != null && value !== "" && Number.isInteger(n) && n > 0 ? n : null;
+};
+
+/**
+ * A stored dice formula (`NdM`, or `NdM*K`), rebuilt from its integers, or
+ * null: a Judge's override is free text, and nothing but dice reaches a roll.
+ */
+const diceFormula = (value) => {
+  const m = /^\s*(\d+)\s*d\s*(\d+)\s*(?:[*×x]\s*(\d+))?\s*$/i.exec(String(value ?? ""));
+  if (!m || !(Number(m[1]) > 0) || !(Number(m[2]) > 0)) return null;
+  return m[3] && Number(m[3]) > 0 ? `${Number(m[1])}d${Number(m[2])}*${Number(m[3])}` : `${Number(m[1])}d${Number(m[2])}`;
+};
+
+/**
+ * The imported delve throw, `{die, every, target, distance}`, each null where
+ * nothing imported it. A Judge's override layer wins over the import per table.
+ */
+export function importedEncounterCadence() {
+  const none = { die: null, every: null, target: null, distance: null };
+  if (!hasTableDoc(DELVE_ENCOUNTER_DOC)) return none;
+  const tables = getTableDoc(DELVE_ENCOUNTER_DOC)?.tables ?? {};
+  return {
+    die: diceFormula(tables.die),
+    every: positiveWhole(tables.every),
+    target: positiveWhole(tables.target),
+    distance: diceFormula(tables.distance),
+  };
+}
 
 /** Special formation roles (marching order itself is the member list order). */
 export const ROLES = Object.freeze({

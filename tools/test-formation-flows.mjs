@@ -398,9 +398,12 @@ class TokenMock {
   async delete() {
     return this.parent.deleteEmbeddedDocuments("Token", [this.id]);
   }
-  /** Core's stored data. While a move is drawn, the prepared `x`/`y` lag it. */
+  /**
+   * Core's stored data: the whole record. While a move is drawn, the prepared
+   * `x`/`y` lag it, and every other field is the same.
+   */
   get _source() {
-    return this.#tween ?? this;
+    return this.#tween ? { ...this, ...this.#tween } : this;
   }
   getFlag(ns, key) {
     return this.flags?.[ns]?.[key];
@@ -699,6 +702,14 @@ const membership = await import("../scripts/formation/membership.mjs");
 const { getSocket } = await import("../scripts/lib/sockets.mjs");
 const sceneSync = await import("../scripts/formation/scene-sync.mjs");
 const deployment = await import("../scripts/formation/deployment.mjs");
+// Light figures, invented and registered the way an import registers them: a
+// source's reach and burn time are the book's, read from the Judge's copy.
+const INVENTED_LIGHTS = { candle: { bright: 2, dim: 6, turns: 7 }, torch: { bright: 11, dim: 23, turns: 4 }, lantern: { bright: 13, dim: 29, turns: 9 } };
+{
+  const { registerTable, PRIORITY } = await import("../scripts/lib/tables.mjs");
+  const { LIGHT_DOC, LIGHT_TABLE } = await import("../scripts/lib/light.mjs");
+  registerTable({ id: LIGHT_DOC, tables: { [LIGHT_TABLE]: INVENTED_LIGHTS } }, { priority: PRIORITY.WORLD });
+}
 // The world-clock gate belongs to lib, which this harness does not load (it
 // would drag in the sheets, data models and core patches). Register it here,
 // with lib's own default, so a dungeon turn takes the same path it takes at a
@@ -1606,9 +1617,11 @@ await scenario("a player lights their own lamp from the character sheet", async 
     async grantGear(actor, specs) {
       const missing = specs.filter((s) => !actor.items.some((i) => s.pattern.test(i.name)));
       if (!missing.length) return [];
+      // A spec with no name is found by its pattern; with nothing to find, the
+      // stand-in is named by its label, as grant.mjs names it.
       return actor.createEmbeddedDocuments(
         "Item",
-        missing.map((s) => ({ name: s.name, type: "item", system: { quantity: { value: 1 } } })),
+        missing.map((s) => ({ name: s.name ?? game.i18n.localize(s.label), type: "item", system: { quantity: { value: 1 } } })),
       );
     },
     async clearHands() {
@@ -1713,7 +1726,11 @@ await scenario("a character in no formation lights their own lamp", async () => 
       1,
       "striking it burns a flask of oil, the same as it would in a party",
     );
-    assert.deepEqual(lightLib.emittedLight(lights), { bright: 15, dim: 30 }, "the token sheds a lantern's light");
+    assert.deepEqual(
+      lightLib.emittedLight(lights),
+      { bright: INVENTED_LIGHTS.lantern.bright, dim: INVENTED_LIGHTS.lantern.dim },
+      "the token sheds a lantern's light",
+    );
 
     // The other two buttons on that same row, with nobody's permission needed.
     const lightId = lights[0].id;
@@ -2014,7 +2031,7 @@ await scenario("the Judge's override supplies gear and empties a hand", async ()
       if (!missing.length) return [];
       return actor.createEmbeddedDocuments(
         "Item",
-        missing.map((s) => ({ name: s.name, type: "item", system: { quantity: { value: 1 } } })),
+        missing.map((s) => ({ name: s.name ?? game.i18n.localize(s.label), type: "item", system: { quantity: { value: 1 } } })),
       );
     },
     async clearHands(actor, needed) {
@@ -2406,9 +2423,10 @@ await scenario("a hop to the place the party already stands on re-anchors where 
   }
 });
 
-await scenario("turning the party pivots it on the spot and costs no movement", async () => {
-  // See docs/formation/DECISIONS.md, "A formation that turns has not gone
-  // anywhere". A turn moves the party nowhere and costs it nothing.
+await scenario("a hand turn writes no size and bills nothing", async () => {
+  // See docs/formation/DECISIONS.md, "The party token is the head of its
+  // column". In the `order` shape the token is one cell whatever its frontage,
+  // so a turn has nothing to resize: it aims the column and costs nothing.
   const walker = await member("Wheeler");
   await drain();
   const [wToken] = await scene.createEmbeddedDocuments("Token", [
@@ -2420,51 +2438,48 @@ await scenario("turning the party pivots it on the spot and costs no movement", 
   await drain();
   const id = onlyFormation().id;
   const partyToken = scene.tokens.get(onlyFormation().tokenId);
-  assert.ok(partyToken, "party token placed");
+  try {
+    assert.ok(partyToken, "party token placed");
+    // Six abreast: under the old block this was a six-cell-wide token.
+    await model.updateFormation({ ...model.getFormation(id), frontage: 6 });
+    await partyToken.update({ rotation: 0 });
+    await drain();
+    assert.deepEqual({ w: partyToken.width, h: partyToken.height }, { w: 1, h: 1 }, "the head is one cell at any frontage");
+    const corner = { x: partyToken.x, y: partyToken.y };
+    const clockBefore = onlyFormation().clock;
+    const roundsBefore = clockRounds(clockBefore);
 
-  // Six abreast: wide across the line of march and one rank deep, so the two
-  // axes differ and a swap is visible.
-  await model.updateFormation({ ...model.getFormation(id), frontage: 6 });
-  await partyToken.update({ rotation: 0 }); // south: the default facing
-  await drain();
+    const writes = [];
+    const spy = (doc, changes) => doc.id === partyToken.id && writes.push(changes);
+    Hooks.on("updateToken", spy);
+    try {
+      await partyToken.update({ rotation: 90 });
+      await drain();
+    } finally {
+      Hooks.off("updateToken", spy);
+    }
+    assert.ok(!writes.some((c) => "width" in c || "height" in c || "x" in c || "y" in c), "nothing that moves or sizes the token was written");
+    assert.deepEqual({ x: partyToken.x, y: partyToken.y }, corner, "the corner stayed where it was");
+    const clockAfter = onlyFormation().clock;
+    assert.equal(clockRounds(clockAfter), roundsBefore, "turning in place spent no time");
+    assert.equal(clockAfter.carryFeet ?? 0, clockBefore.carryFeet ?? 0, "and banked no distance toward the next round");
+  } finally {
+    const live = model.getFormation(id);
+    if (live) await model.disband(live);
+    await drain();
+  }
+});
 
-  const centre = (t) => ({ x: t.x + (t.width * scene.grid.size) / 2, y: t.y + (t.height * scene.grid.size) / 2 });
-  const wide = { width: partyToken.width, height: partyToken.height };
-  const before = centre(partyToken);
-  console.log(`      [probe] facing south: ${wide.width}x${wide.height} at centre (${before.x}, ${before.y})`);
-  assert.ok(wide.width > wide.height, "a six-wide block is wider than it is deep");
-
-  const clockBefore = onlyFormation().clock;
-  const roundsBefore = (clockBefore.turnsTotal * 10) + (clockBefore.roundsPartial ?? 0);
-
-  // Quarter turn to the west. Nothing but rotation is written: the resize is
-  // the module's own answer to it.
-  await partyToken.update({ rotation: 90 });
-  await drain();
-
-  const after = centre(partyToken);
-  console.log(`      [probe] facing west:  ${partyToken.width}x${partyToken.height} at centre (${after.x}, ${after.y})`);
-  assert.equal(partyToken.width, wide.height, "the turn swapped width for depth");
-  assert.equal(partyToken.height, wide.width, "the turn swapped depth for width");
-  assert.deepEqual(after, before, "the block pivoted about its own centre");
-  assert.ok(partyToken.x !== 1000 || partyToken.y !== 1000, "which means the corner did move");
-
-  const clockAfter = onlyFormation().clock;
-  const roundsAfter = (clockAfter.turnsTotal * 10) + (clockAfter.roundsPartial ?? 0);
-  console.log(`      [probe] rounds ${roundsBefore} -> ${roundsAfter}`);
-  assert.equal(roundsAfter, roundsBefore, "turning in place spent no time");
-  assert.equal(clockAfter.carryFeet ?? 0, clockBefore.carryFeet ?? 0, "and banked no distance toward the next round");
-
-  // The clock's baseline is the corner, which the pivot moved. Left stale, the
-  // party's next step would be billed for the width of the turn as well.
-  assert.deepEqual(
-    clockAfter.lastPosition,
-    { x: partyToken.x, y: partyToken.y },
-    "the clock re-baselined to where the corner now is",
-  );
-
-  await model.disband(model.getFormation(id));
-  await drain();
+await scenario("the party token's size: the head in `order`, the Judge's in `fixed`, never under the lock", async () => {
+  const { partySizeTarget } = sceneSync;
+  const head = { width: 1, height: 1 };
+  const big = { width: 3, height: 2 };
+  assert.deepEqual(partySizeTarget(big, null, { shape: "order" }), head, "order: a hand resize goes back to one cell");
+  assert.equal(partySizeTarget(head, head, { shape: "order" }), null, "order: one cell already, nothing to write");
+  assert.equal(partySizeTarget(big, null, { shape: "order", locked: true }), null, "the footprint lock never resizes");
+  assert.equal(partySizeTarget(big, head, { shape: "fixed" }), null, "fixed: a size changed since the stamp is the Judge's");
+  assert.deepEqual(partySizeTarget(big, big, { shape: "fixed" }), head, "fixed: a size the module stamped goes to one cell once");
+  assert.deepEqual(partySizeTarget(big, null, { shape: "fixed" }), head, "fixed: an unstamped size from before the switch counts as the module's");
 });
 
 await scenario("a party token teleported to another scene stays the party token", async () => {
@@ -2582,12 +2597,21 @@ await scenario("a lit torch survives every hook chain and reaches the token", as
     assert.equal(lights.length, 1, "the torch is still on the record after every hook settled");
     assert.ok(lights[0].lit, "and it is still lit");
 
-    // syncEnvironments must have reached syncPartyTokenLight.
+    // The torch shines from its bearer's cell in the column, never from the
+    // party token: the sweep keeps the token itself dark.
     await sceneSync.syncEnvironments();
     await drain();
     const partyToken = scene.tokens.get(onlyFormation().tokenId);
     console.log(`      [probe] party token light = ${partyToken.light.bright}/${partyToken.light.dim}`);
-    assert.ok(partyToken.light.bright > 0, "the party token actually emits light");
+    assert.deepEqual({ bright: partyToken.light.bright, dim: partyToken.light.dim }, { bright: 0, dim: 0 }, "the party token sheds nothing itself");
+    const { carriedLightPoints } = await import("../scripts/formation/column-light.mjs");
+    const gs = scene.grid.size;
+    // The bearer is the head: their cell is the one the token stands on.
+    assert.deepEqual(
+      carriedLightPoints(scene),
+      [{ x: partyToken.x + gs / 2, y: partyToken.y + gs / 2, bright: INVENTED_LIGHTS.torch.bright }],
+      "one point, at the bearer's cell centre, with the imported reach",
+    );
   } finally {
     const arr = hooks.get("acksExtras.lightChanged") ?? [];
     const i = arr.indexOf(equipmentListener);
@@ -4220,9 +4244,10 @@ await scenario("overlapping environment sweeps coalesce instead of racing", asyn
 
   let sweeps = 0;
   const realGet = game.settings.get.bind(game.settings);
-  // The first setting a sweep reads, and it reads it exactly once per run.
+  // With no formations, the fog gate is the one setting a sweep reads, once
+  // per run.
   game.settings.get = (ns, key) => {
-    if (ns === MODULE_ID && key === "syncTokenLight") sweeps++;
+    if (ns === MODULE_ID && key === "manageFog") sweeps++;
     return realGet(ns, key);
   };
   try {
@@ -4311,6 +4336,11 @@ await scenario("a drawn move's turn is thrown for in the encounter zone the move
   const start = { x: partyToken.x, y: partyToken.y };
   // The zone covers the far half of the move, so the corner the move began at
   // stands outside it. Its cadence throws every turn; the world's does not.
+  // The zone states no target, so the throw takes the imported one, and its
+  // die: invented here, as a Judge's book would supply them.
+  const { registerTable, unregisterTable, PRIORITY } = await import("../scripts/lib/tables.mjs");
+  const { DELVE_ENCOUNTER_DOC } = await import("../scripts/formation/constants.mjs");
+  registerTable({ id: DELVE_ENCOUNTER_DOC, tables: { die: "1d8", every: 9, target: 4 } }, { priority: PRIORITY.WORLD });
   const edge = start.x + (partyToken.width * gs) / 2 + step / 2;
   const lair = {
     id: uid("reg"),
@@ -4335,6 +4365,7 @@ await scenario("a drawn move's turn is thrown for in the encounter zone the move
     assert.equal(thrown.length, 1, "the turn was thrown for in the zone");
     assert.match(thrown[0].flavor, /Drawn Lair/, "and the card names it");
   } finally {
+    unregisterTable(DELVE_ENCOUNTER_DOC, { priority: PRIORITY.WORLD });
     scene.regions.delete(lair.id);
     await dismissDrawn(party);
   }
@@ -5022,6 +5053,10 @@ await scenario("a wandering monster off its floor is compared at the level of th
   };
   scene.regions.set(zone.id, zone);
   const shiftCards = (from) => chat.slice(from).filter((m) => m.flavor === "ACKS-FORMATION.scaling.flavor");
+  // The throw's die is imported or nothing; an invented one stands in here.
+  const { registerTable: addTable, unregisterTable: dropTable, PRIORITY: LAYER } = await import("../scripts/lib/tables.mjs");
+  const { DELVE_ENCOUNTER_DOC: DELVE_DOC } = await import("../scripts/formation/constants.mjs");
+  addTable({ id: DELVE_DOC, tables: { die: "1d8" } }, { priority: LAYER.WORLD });
   try {
     let from = chat.length;
     assert.equal(await engine.encounterCheck(model.getFormation(onlyFormation().id), { manual: true }), true, "the throw hits");
@@ -5038,9 +5073,104 @@ await scenario("a wandering monster off its floor is compared at the level of th
     await engine.encounterCheck(model.getFormation(onlyFormation().id), { manual: true });
     assert.equal(shiftCards(from).length, 0, "a zone with no dungeon level compares nothing");
   } finally {
+    dropTable(DELVE_DOC, { priority: LAYER.WORLD });
     scene.regions.delete(zone.id);
     uuidMap.delete(outer.uuid);
     await model.disband(model.getFormation(onlyFormation().id));
+    await drain();
+  }
+});
+
+await scenario("the delve's wandering throw takes its cadence from the setting over the import, and with neither schedules nothing", async () => {
+  // See docs/formation/DECISIONS.md, "The delve's wandering cadence is imported".
+  // Every figure here is invented, as a Judge's book would supply its own.
+  const { registerTable, unregisterTable, PRIORITY } = await import("../scripts/lib/tables.mjs");
+  const { DELVE_ENCOUNTER_DOC } = await import("../scripts/formation/constants.mjs");
+  const runner = await member("Cadence");
+  await drain();
+  const [cToken] = await scene.createEmbeddedDocuments("Token", [{ name: "Cadence", actorId: runner.id, x: 1400, y: 1400 }]);
+  await game.settings.set(MODULE_ID, "formations", {});
+  let formation = await model.createFormation("Cadence Party");
+  formation = await model.addMember(formation, runner, cToken);
+  await drain();
+  const id = onlyFormation().id;
+  const throwCards = (from) => chat.slice(from).filter((m) => String(m.flavor ?? "").includes("chat.encounterCheck"));
+  const cadence = () => {
+    const p = engine.getEncounterParams(model.getFormation(id));
+    return [p.every, p.target, p.from.every, p.from.target];
+  };
+  try {
+    assert.deepEqual(cadence(), [null, null, null, null], "nothing set or imported: no figure");
+    let from = chat.length;
+    await engine.advanceTurns(model.getFormation(id), 5, { reason: "manual" });
+    await drain();
+    assert.equal(throwCards(from).length, 0, "and no throw is scheduled");
+    assert.equal(onlyFormation().clock.encounterCounter, 0, "nor any turn counted toward one");
+    const warned = notices.length;
+    assert.equal(await engine.encounterCheck(model.getFormation(id), { manual: true }), false, "a manual throw with no target refuses");
+    assert.ok(notices.slice(warned).some(([kind, text]) => kind === "warn" && text.includes("warn.encounterNotImported")), "and says why");
+    assert.equal(throwCards(from).length, 0, "throwing nothing");
+
+    // An interval and a target with no die to throw them on is still no throw.
+    registerTable({ id: DELVE_ENCOUNTER_DOC, tables: { every: 3, target: 5 } }, { priority: PRIORITY.WORLD });
+    from = chat.length;
+    await engine.advanceTurns(model.getFormation(id), 4, { reason: "manual" });
+    await drain();
+    assert.equal(throwCards(from).length, 0, "no imported die, no throw scheduled");
+    const warnedAgain = notices.length;
+    assert.equal(await engine.encounterCheck(model.getFormation(id), { manual: true }), false, "and a manual throw refuses");
+    assert.ok(notices.slice(warnedAgain).some(([kind, text]) => kind === "warn" && text.includes("warn.encounterNotImported")), "saying why");
+
+    const cites = { die: "JJ p. 1", every: "JJ p. 1", target: "JJ p. 1", distance: "JJ p. 1" };
+    registerTable(
+      { id: DELVE_ENCOUNTER_DOC, cites, tables: { die: "1d8", every: 3, target: 5, distance: "3d4*20" } },
+      { priority: PRIORITY.WORLD },
+    );
+    assert.deepEqual(cadence(), [3, 5, "import", "import"], "the import supplies the interval and the target");
+    from = chat.length;
+    await engine.advanceTurns(model.getFormation(id), 6, { reason: "manual" });
+    await drain();
+    const imported = throwCards(from);
+    assert.equal(imported.length, 2, "the imported interval throws every third turn");
+    assert.match(imported[0].flavor, /data-tooltip-text=\\?"ACKS-FORMATION\.chat\.cadenceFrom\.import.*JJ p\. 1/, "the target names the page it was read from");
+    assert.match(imported[0].flavor, /1d8/, "the card names the imported die");
+    const hits = (start) => chat.slice(start).filter((m) => String(m.flavor ?? "").includes("chat.encounterTriggered"));
+    assert.ok(hits(from).length > 0, "a throw that meets its target is an encounter");
+    assert.match(hits(from)[0].flavor, /chat\.encounterDetail\b.*cadenceFrom\.import/, "whose rolled distance names where its dice came from");
+
+    // With no distance dice the encounter stands, and no distance is invented.
+    registerTable(
+      { id: DELVE_ENCOUNTER_DOC, cites, tables: { die: "1d8", every: 3, target: 5 } },
+      { priority: PRIORITY.WORLD },
+    );
+    from = chat.length;
+    assert.equal(await engine.encounterCheck(model.getFormation(id), { manual: true }), true, "the throw still hits");
+    assert.match(hits(from)[0]?.flavor ?? "", /chat\.encounterDetailNoDistance/, "and the card says the distance is not imported");
+    registerTable(
+      { id: DELVE_ENCOUNTER_DOC, cites, tables: { die: "1d8", every: 3, target: 5, distance: "3d4*20" } },
+      { priority: PRIORITY.WORLD },
+    );
+
+    await game.settings.set(MODULE_ID, "encounterEvery", 2);
+    assert.deepEqual(cadence(), [2, 5, "setting", "import"], "a stated interval wins over the import; the target stays imported");
+    await game.settings.set(MODULE_ID, "encounterEvery", 0);
+    from = chat.length;
+    await engine.advanceTurns(model.getFormation(id), 4, { reason: "manual" });
+    await drain();
+    assert.equal(throwCards(from).length, 0, "an interval of 0 turns the automatic throw off");
+    await game.settings.set(MODULE_ID, "encounterEvery", null);
+    assert.deepEqual(cadence(), [3, 5, "import", "import"], "a blank setting defers to the import again");
+
+    registerTable({ id: DELVE_ENCOUNTER_DOC, tables: { target: 2 } }, { priority: PRIORITY.OVERRIDE });
+    const params = engine.getEncounterParams(model.getFormation(id));
+    assert.deepEqual([params.every, params.target], [3, 2], "an override of one table leaves the other imported");
+    assert.match(engine.cadenceProvenance(params, "target"), /cadenceFrom\.override/, "the overridden figure names no page");
+    assert.match(engine.cadenceProvenance(params, "every"), /cadenceFrom\.import/, "the imported one still does");
+  } finally {
+    unregisterTable(DELVE_ENCOUNTER_DOC, { priority: PRIORITY.OVERRIDE });
+    unregisterTable(DELVE_ENCOUNTER_DOC, { priority: PRIORITY.WORLD });
+    await game.settings.set(MODULE_ID, "encounterEvery", null);
+    await model.disband(model.getFormation(id));
     await drain();
   }
 });

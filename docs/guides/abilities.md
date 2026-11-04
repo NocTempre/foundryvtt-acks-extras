@@ -14,14 +14,68 @@ Open any **ability** item. Beyond core's fields:
 
 - **Mechanics** — *Imported mechanics*, what the ability does as read from your
   book, and below it the system's own Active Effects, folded in rather than kept
-  in a separate tab. The imported rows describe the ability; the module applies
-  only some of them. To make an ability change a number on the sheet — Armor
-  Class, a save — give the character's copy an Active Effect: **+ New Effect**
-  under *Effects*, then a change with key `system.ac.mod` (Armor Class), type
-  **Add**, and the value the ability grants. Avoid Surprise is reached the same
-  way, with the key `system.surprise.avoidsurprise`.
+  in a separate tab. See *What the imported modifiers do* below.
 - **Rolls** — every throw the ability makes.
 - **Selections** — the picks a proficiency of this category can take.
+
+## What the imported modifiers do
+
+On a character, an imported ability's modifiers change the sheet by
+themselves: Armor Class, the saving throw modifier or one save's target,
+initiative, avoid surprise, cleaves, and the attack and damage modifiers.
+Each modifier row on the Mechanics tab carries a chip saying what happens to
+it:
+
+- **applied** — on the sheet while the character holds the ability;
+- **applied when met** — on the sheet only while its condition holds, such as
+  wearing no heavier than a given armour and carrying no more than a given
+  load. Equip heavier armour and the bonus leaves; take it off and it returns;
+- **at the roll** — narrower than any sheet field (one kind of foe, one
+  activity), so nothing is written;
+- **situational** — the sheet cannot tell when it applies; add it by hand
+  when it does. The row shows when, in your book's own words where the import
+  read them, or as a short label naming the kind of condition (*by method*,
+  *while leading*) with the page to read;
+- **read elsewhere** — reactions, proficiency throws, hirelings and markets
+  read it in their own windows;
+- **not applied** — no field to write, or it sets or caps a figure.
+
+The same goes for the limits, mishaps and falls a row names (*a use limit*,
+*a mishap*) and the condition on a reroll, sense, capability or companion
+row. A row that belongs to one of the ability's throws carries a second chip
+naming it (*Lockpicking only*); it modifies that throw on the Rolls tab and no
+other.
+
+A row marked **unverified** was read by the generic scan rather than by a
+recipe checked against the page. It still applies; check it against your
+book. On the character's Stats tab, hover a modifier's figure to see every
+ability that went into it, which ones are unverified, and which were left out
+and why.
+
+Two copies of one ability count once. Two abilities that grant the same
+capability, or that say they do not stack, give only the larger bonus;
+everything else adds.
+
+**Your own Active Effect wins.** If you give the ability an Active Effect
+that writes the same field (**+ New Effect** under *Effects*, for example key
+`system.ac.mod`, type **Add**), the imported row stands aside, so the bonus is
+never counted twice. Disable your effect and the imported row applies again.
+
+**Quick effects** make that effect for you. On the character's own copy of
+the ability, a modifier row that writes a sheet field has a **Start** button:
+it adds an Active Effect carrying the row's figure for the character's level.
+A situational, conditional or roll-scoped row's effect is created turned off,
+so nothing changes until you turn it on under *Effects* while the
+circumstance holds; an applied row's is created on and takes the row's place.
+The row then shows *effect on*, *effect off*, or *effect stale* after a level
+change, with **Refresh** to rewrite the figure (whether it is on is kept).
+
+Monsters' abilities are not applied.
+
+**Copies imported before this release** keep the rows they were imported
+with until you run **Update Abilities**; a row that carried a condition reads
+situational until then. **Manage Imports → Repair** records, on each old copy,
+whether its rows came from a recipe, so the unverified marks are right.
 
 On the character sheet the ability list files itself, so a long proficiency list
 is not one scroll.
@@ -125,8 +179,8 @@ Effect (see **Mechanics** above).
 A proficiency throw posts on the same card the system uses for every other roll:
 the ability's name in the banner, its image beside it, and the verdict with the
 target it was read against — `Success (14+)`. If the book puts a condition on the
-throw ("only on a domesticated animal"), it sits under the result, so the table
-can see what the roll assumed. A throw on a shared compendium item says so
+throw, it sits under the result, in the book's words or as a label with its page,
+so the table can see what the roll assumed. A throw on a shared compendium item says so
 instead of scoring itself, because there is no character to read its ladder
 against.
 

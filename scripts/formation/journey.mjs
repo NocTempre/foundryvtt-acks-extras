@@ -468,7 +468,7 @@ export async function advanceJourneyClock(formationId, seconds) {
     if (turns > 0) {
       record.lights ??= [];
       burnTurns(record, turns, notes);
-      record.lights = (record.lights ?? []).filter((l) => l.lit || l.remaining > 0);
+      record.lights = (record.lights ?? []).filter((l) => l.lit || !Number.isFinite(l.remaining) || l.remaining > 0);
     }
   });
   const fresh = getFormation(formationId);

@@ -20,18 +20,6 @@ export const STYLE = Object.freeze({
   MISSILE: "missile", // a missile weapon
 });
 
-/** Fighting Style Specialization bonuses. RR p. 108 (Proficiencies). */
-export const STYLE_SPEC_BONUS = Object.freeze({
-  [STYLE.MISSILE]: { attackMissile: 1 },
-  [STYLE.SINGLE]: { init: 1 },
-  [STYLE.DUAL]: { attackMelee: 1 },
-  [STYLE.TWO_HANDED]: { damageMelee: 1 },
-  [STYLE.WEAPON_SHIELD]: { ac: 1 },
-});
-
-/** Base (unspecialized) dual-weapon bonus. RR p. 296. */
-export const DUAL_WIELD_ATTACK_BONUS = 1;
-
 /**
  * Weapon proficiency categories (JJ p. 290 narrow/broad groupings) — used for
  * proficiency enforcement, Weapon Focus, and Martial Training.

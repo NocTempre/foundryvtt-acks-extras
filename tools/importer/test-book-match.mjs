@@ -14,7 +14,7 @@ const named = ({ matched }) => Object.fromEntries([...matched].map(([id, f]) => 
  * picked in one go. The OS picker returns files in its own order, so anything
  * pairing on POSITION gave each book somebody else's PDF — each one warning it
  * was a "different printing" of the book it was not. Position is not evidence,
- * and since the Books window puts a control on every book's own row, nothing
+ * and since the Books tab puts a control on every book's own row, nothing
  * asks this matcher to guess any more: it places a file or it names it. */
 const stock = [
   file("ACKS II Judges Journal.pdf"),

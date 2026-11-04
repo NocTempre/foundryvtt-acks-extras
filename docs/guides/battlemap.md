@@ -258,7 +258,7 @@ line draws its encounters from the river's table.
 
 ## Formations
 
-A party token is as wide as its marching frontage in feet (each body's width
-is the **March width per body** world setting) and as deep as its ranks, at
-whatever scale the scene uses — turn the column east and the token turns with
-it. Set the frontage on the party sheet as always.
+A party token is one square at the head of its marching column, at whatever
+scale the scene uses, and Rescale tokens leaves it alone. The column, the
+frontage and a fixed size of your own are set on the party sheet; the formation
+guide covers them.

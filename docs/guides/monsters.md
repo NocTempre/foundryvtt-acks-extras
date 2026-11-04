@@ -128,6 +128,73 @@ slots and a drawn repertoire at generation.
 *A creature that casts as a class: its slots by level and the repertoire
 drawn to them.*
 
+## A family's leaders
+
+An imported monster family is a template: drop it on a group, or press its
+**Generate**, and pick from its axes. Where the family's page names the
+leaders, casters and dependants that come with a band, the template carries a
+**Role** axis beside the kind. Left blank it generates the ordinary member;
+pick a role and the creature is built from that role's own figures on the
+page: its hit dice, armour, hit points and damage bonus, with its attack
+throw and saves worked out from its hit dice and its experience read from the
+page where one is printed. A caster's level is rolled when it is generated,
+and its slots and spells follow. A role the page prints for another kind but
+not for the one you picked shows greyed out, labelled as not printed for that
+choice.
+
+A damage bonus shows on the Statblock after each attack's damage, and its
+tooltip names the two parts. The system adds it to every melee and missile
+damage roll.
+
+A leader's attack throw comes from the rulebook's attack-throw ladder (RR
+ch. 6), which imports with the rulebook's tables: import those before the
+family. Hover a leader's throw or saves on its Statblock to see what they were
+worked out from. Without the ladder, a leader keeps the member's throw and the
+tooltip says the ladder is not imported. To change the ladder, edit its rows in
+the Ruledata Browser, then repair the template.
+
+With the AXIOMS Compendium connected and its tables imported, a family also
+gets champions, sub-chieftains and chieftains worked out by the AXIOMS
+leader procedure from each member's own figures; import the family after
+those tables. Where the page prints its own leaders, a **Leader figures** axis
+before Role chooses between them: *As printed* (the default) or *AXIOMS
+procedure*. Where the page prints none, the procedure's leaders are the only
+ones and the Leader figures axis is not shown for that kind. A procedure
+leader rolls its hit points from its dice; the hit-point note on its Statblock
+names what its figures came from, and hovering its armour class on the rail
+names the member's armour and the rank's addition.
+
+A creature outside a family whose page names its leaders gets a template of
+its own beside it when you import it, named for it with "(leaders)". It works
+as a family's does, with the creature as its only kind. With the AXIOMS tables
+imported, a beastman whose page names no leaders gets one too, with the
+procedure's leaders.
+
+### Dressing a beastman in a troop kit
+
+With the rulebook's tables imported, a beastman family (and a beastman's own
+leader template) gets a **Kit** axis after Role, one option for each infantry
+and missile troop type the rulebook's Beastman Troops table prints for that
+kind (RR ch. 9). It reads *Stat block* by default, which is the creature as its
+own page prints it. Pick a troop type and the rank and file takes that row's
+armour class, damage bonus, movement and morale; it gains no items, and the
+kit's own words, with the page, are added to its notes. A leader in a kit takes
+the row's movement and morale and keeps its own damage bonus; its armour class
+is worked out when you generate it, from the row's armour class and how much
+better armoured the leader is than its warrior. With the AXIOMS tables
+imported, *Unarmoured* gives the kind's natural armour class instead. Hover the
+armour class on the rail, the morale row or a weapon's damage tag to see which
+row a figure came from; where the AXIOMS die conversion is imported, a weapon's
+damage tag also names the die its damage bonus converts it to.
+
+Import the tables before the family, or repair the family in place after
+importing them: a template built without them has no Kit axis. Mounted troops
+(the rider rows) are not offered.
+
+A family imported before this module version has no Role axis. Repair it in
+place (**Manage Imports**, *Repair in place*), or import it again. A creature
+imported earlier gains its leader template the same way.
+
 ## What an attack card shows
 
 An attack posts the system's own card. What this module knows about the

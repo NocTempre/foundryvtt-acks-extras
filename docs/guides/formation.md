@@ -100,14 +100,25 @@ always trailed south of the token regardless of facing — if your table had
 gotten used to that, turn the party token to face north and the old layout is
 back.)
 
-The party token itself **wears the formation's face** (since v4.14.0): as wide
-as its frontage in feet — each body's width is the *March width per body*
-world setting — and as deep as its ranks, at whatever scale the scene uses.
-Turn the column and the token's width and depth swap with it.
+The party token is **the head of a marching column**. It is one square, and the
+rest of the party is drawn behind it on the squares it walked: each member's
+portrait on a square tinted in the party's colour, files abreast at the
+frontage, ranks following the head around every corner. Turn the party token by
+hand and the column straightens out behind the new facing. A combat deploy puts
+each member's token on the square their portrait stood on. Players see the
+column only where they can see the squares it stands on.
 
-![](../releases/v4.14.0/formation.png)
+Two controls on the **Order** tab, beside the frontage, set this per party:
 
-*Three abreast on a 5' grid: the party token stands its real width.*
+- **On the map**: *Marching order* (the column above), or *Fixed size*, where
+  the party token keeps whatever size you give it and no column is drawn. Left
+  on the world's default, a party follows the *Party token on the map* module
+  setting.
+- **Column tint**: the colour of the column's squares. Left empty, the party
+  token's disposition colour.
+
+On a hex map, a gridless map or a map measured in miles there is no column:
+everyone stands at the party token.
 
 ### The party token and a fight
 
@@ -1005,8 +1016,17 @@ down, spell durations tick, and the rest cycle tracks when the party is due one.
 *The exploration warnings, including a fallen member the party must carry or
 leave before it can move.*
 
-Light is real: a lit torch occupies a hand, lights the party token, and goes out
-when it burns through.
+Light is real: a lit torch occupies a hand, shines from its bearer's square in
+the column, and goes out when it burns through. How far each kind of light
+reaches and how long it burns come from your book through the importer; until
+the books are imported a lit torch sheds no light, and the Kit tab says the
+figure is not imported. You can change any of them in the Ruledata Browser.
+
+If your world imported its books before the light figures existed, bring them
+in without a full import: open **ACKS Extras Macros**, run **Reimport One
+Shelf**, and choose **Rules tables**, with your books open on that seat. The
+same run brings in the wandering-monster cadence (below). Until both are in, a
+GM is warned when the world loads.
 
 ### Resting
 
@@ -1025,9 +1045,16 @@ The clock also makes the wandering-monster throw and, on an encounter, draws
 from a table only you see. To set the table, how often the throw comes and what
 it needs for one part of a map, draw a Region there and give it an **Encounter
 Zone** behavior. Everywhere else, the formation's own table and the module
-settings apply. To stop the automatic throw altogether, set **Wandering monster
-throw frequency** to 0 in the module settings; **Require rests in the delve**
-(above) is the separate switch for the rest.
+settings apply. The throw's die, how often it comes, what it needs and the
+dice of the encounter distance are read from your Judges Journal by the
+importer, and you can change any of them in the Ruledata Browser. The two
+module settings start blank, which uses the imported frequency and target, and
+a number you type there wins over them. Without the die or the target no throw
+is made, and the Encounter throw tool says why; without the distance dice an
+encounter still happens, and its card says no distance was rolled. Hover the
+die, the target or the distance on a card to see where it came from. To stop the automatic throw altogether, set **Wandering
+monster throw frequency** to 0 in the module settings; **Require rests in the
+delve** (above) is the separate switch for the rest.
 
 A monster met off its own floor can be adjusted (JJ p. 36). Give the zone its
 **Dungeon level**, and give the table the **Monster level** it is written for:

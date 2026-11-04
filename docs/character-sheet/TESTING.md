@@ -488,7 +488,7 @@ back.
    stored save holds the sheet's value.
 8. With no sheet open anywhere, read the Export section. *Observable:*
    Export is disabled and the note says the sheet is not open on this seat.
-   *Your Books* opens the Books window, whose sheet row says connecting lets
+   *Your Books* opens the Books tab of Manage Imports, whose sheet row says connecting lets
    the official-sheet window export into it.
 9. Give the shelf band's input the printed copy. *Observable:* the row says
    the file is not the fillable sheet (0% of its fields); no journal and no

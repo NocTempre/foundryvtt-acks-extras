@@ -213,6 +213,18 @@ export function baseIsImportable(goods, source) {
 const sameSource = (held, source) => !!held && held.book === source.book && held.page === source.page;
 
 /**
+ * Whether a forced repair may write a place's base demand: every base except
+ * one a later printing wrote, which a book's repair never replaces with an
+ * earlier book's figures. A base the Judge typed or generated (no source) and
+ * a tie are written.
+ */
+export function baseIsForceable(goods, source) {
+  const held = goods?.dmProfile?.source;
+  if (!held?.book || sameSource(held, source)) return true;
+  return laterBook(held.book, source.book) !== held.book;
+}
+
+/**
  * The update that lands a profile on a place. Class and families are written
  * only where the place holds none; the base demand only where
  * `baseIsImportable`. A place with no market yet gains the whole subtree. A
@@ -222,14 +234,16 @@ const sameSource = (held, source) => !!held && held.book === source.book && held
  * @param {object|null} market the place's current `system.market`
  * @param {object} profile one `marketProfiles` row
  * @param {{book: string, page: string}} source
- * @param {{corrected?: boolean}} [options]
+ * @param {{corrected?: boolean, force?: boolean}} [options] `force` (a forced
+ *   repair) writes the class and families over what the place holds, and the
+ *   base unless a later printing wrote it (`baseIsForceable`)
  * @returns {{update: object, wrote: {marketClass: boolean, families: boolean, demand: boolean}}}
  */
-export function marketProfileUpdate(market, profile, source, { corrected = false } = {}) {
+export function marketProfileUpdate(market, profile, source, { corrected = false, force = false } = {}) {
   const restocked = corrected && sameSource(market?.goods?.dmProfile?.source, source);
-  const writeClass = profile.marketClass !== null && (!market?.marketClassOverride || restocked);
-  const writeFamilies = profile.families !== null && (market?.urbanFamilies ?? null) === null;
-  const writeDemand = profile.demand.length > 0 && baseIsImportable(market?.goods, source);
+  const writeClass = profile.marketClass !== null && (force || !market?.marketClassOverride || restocked);
+  const writeFamilies = profile.families !== null && (force || (market?.urbanFamilies ?? null) === null);
+  const writeDemand = profile.demand.length > 0 && (force ? baseIsForceable(market?.goods, source) : baseIsImportable(market?.goods, source));
   const wrote = { marketClass: writeClass, families: writeFamilies, demand: writeDemand };
   if (!market) {
     return {

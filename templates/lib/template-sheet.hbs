@@ -44,7 +44,7 @@
             <select class="acks-lib-template-pin" data-axis="{{key}}">
               <option value="">{{#if derived}}{{localize "ACKS-LIB.template.derived"}}{{else}}{{rollLabel}}{{/if}}</option>
               {{#each options}}
-                <option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+                <option value="{{key}}" {{#if selected}}selected{{/if}} {{#if unavailable}}disabled data-tooltip="ACKS-LIB.template.unavailableTip"{{/if}}>{{label}}</option>
               {{/each}}
             </select>
           </label>

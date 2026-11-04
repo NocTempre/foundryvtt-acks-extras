@@ -737,6 +737,21 @@ await ok("Make Encounter files a masked, linked, hostile group with the creature
   assert.equal(game.folders.filter((f) => f.name === "Encounters").length, 1, "a second encounter adopts the folder");
 });
 
+await ok("a creature whose token is a wildcard lends its portrait, not the wildcard path", async () => {
+  const wild = creature({ encounter: LINES, img: "art/wild.webp" });
+  wild.prototypeToken = { randomImg: true, texture: { src: "art/tokens/wild-*.png" } };
+  await makeEncounter(wild);
+  assert.equal(created.at(-1).img, "art/wild.webp");
+  const starred = creature({ encounter: LINES, img: "art/star.webp" });
+  starred.prototypeToken = { texture: { src: "art/tokens/star*.png" } };
+  await makeEncounter(starred);
+  assert.equal(created.at(-1).img, "art/star.webp", "a starred path is a wildcard whether or not the flag is set");
+  const plain = creature({ encounter: LINES, img: "art/plain.webp" });
+  plain.prototypeToken = { texture: { src: "art/tokens/plain.png" } };
+  await makeEncounter(plain);
+  assert.equal(created.at(-1).img, "art/tokens/plain.png", "a single token image still wins over the portrait");
+});
+
 await ok("an unlinked token's creature makes the encounter from its world actor", async () => {
   const world = creature({ name: "World" });
   const synthetic = { ...creature({ name: "Delta" }), isToken: true, token: { baseActor: world } };

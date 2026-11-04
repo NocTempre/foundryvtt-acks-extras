@@ -16,9 +16,11 @@
 import { MODULE_ID, LANG_PREFIX, ITEM_TYPE, DEFAULT_IMG } from "./constants.mjs";
 import { trainingChanges } from "../classes/training-logic.mjs";
 import { BUILDER_DOC_ID, baseXpCost, xpSchedule } from "../classes/builder-logic.mjs";
+import { LANGUAGES_DOC_ID } from "./language-binding.mjs";
 import { bookText, entryText, entryTable, escapeText, keepParagraphs, nodeParagraphs } from "./prose.mjs";
 import { answersFor, bindPatch, claimIds, placePairs, takeoverPatch } from "./place-pair.mjs";
 import {
+  actorPolicy,
   handWrittenProse,
   refreshImported,
   REPAIR,
@@ -57,6 +59,7 @@ import { BOOKS, bookIsJudges, bookLine, keptBook, laterBook } from "./books.mjs"
 import { OSE_PREFIX, oseSourceLabel, oseSourceLine } from "./ose-source.mjs";
 import { oseGroupBookOf } from "./ose-template.mjs";
 import { executeEntry, materializeEffects, attackModel, convertName } from "./executor.mjs";
+import { effectsOriginOf } from "./effects-origin.mjs";
 import { slugLabel } from "./table-extract.mjs";
 import { TABLE_RECIPES } from "./table-recipes.mjs";
 import { getDoc, getLayer, hasDoc, PRIORITY } from "../lib/tables.mjs";
@@ -65,6 +68,10 @@ import { WEAPON_TABLE, extractWeaponsFromDoc, bindWeaponRow, bindAmmoRow } from 
 import { ARMOR_TABLE, extractArmorFromDoc, bindArmorRow } from "./armor-tables.mjs";
 import { extractPriceMapFromDoc, extractPriceRowsFromDoc, priceFor, priceKey, PRICE_TABLES } from "./gear-prices.mjs";
 import { savesForLevel, parseHitDice } from "./stats.mjs";
+import { damageTotal, derivedLeaderRoles, entryLeaderTemplate, importedThrowLadder, leaderTemplateId, monsterThrowForHd, overviewIsLore, procedureBuildsFor, proseLeaderRoles, ratingText, readRoleSentences, SOURCE_AXIS, splitWeaponModifier } from "./leader-roles.mjs";
+import { deriveLeader, importedLeaderProcedure } from "../monsters/leader-derive.mjs";
+import { kitPresets, unionKitAxis } from "./kit-presets.mjs";
+import { importedKits } from "../monsters/kits.mjs";
 import { hdFormula } from "../lib/actor-read.mjs";
 import { parseEncounterLine, appearingFormula } from "../lib/encounter-line.mjs";
 
@@ -625,12 +632,20 @@ export function bindMonster(node) {
   // Each attack MODE is an OR-alternative (weapon OR claws+bite). Build a
   // weapon item per segment; only mode 0 is equipped by default, later modes
   // are tagged so the GM can swap. Duplicate names within a mode get a #suffix.
+  // A "by weapon ±N" segment's modifier is the creature's, not the item's: it
+  // moves to `system.damage.mod`, where it rides every weapon the creature
+  // swings, and the item keeps "By weapon". The first such modifier is the
+  // creature's; a segment printing another one keeps it in its own text.
   const items = [];
+  let weaponMod = null;
   for (const [mi, mode] of (atk?.modes ?? []).entries()) {
     const seen = {};
     for (const seg of mode.segments) {
       const base = seg.name ?? "Attack";
       seen[base] = (seen[base] ?? 0) + 1;
+      const lift = splitWeaponModifier(seg.damage);
+      if (lift && weaponMod == null) weaponMod = lift.mod;
+      const formula = lift && lift.mod === weaponMod ? lift.formula : seg.damage;
       items.push({
         name: seen[base] > 1 ? `${base} ${seen[base]}` : base,
         type: "weapon",
@@ -645,13 +660,15 @@ export function bindMonster(node) {
         },
         system: {
           description: "",
-          damage: weaponDamage(seg.damage, seg.damageType?.key, seg.quality === "extraordinary"),
+          damage: weaponDamage(formula, seg.damageType?.key, seg.quality === "extraordinary"),
           bonus: { attack: 0, damage: 0 }, melee: true, missile: false, equipped: mi === 0,
           pattern: "transparent", counter: { value: 1, max: 1 }, cost: 0, weight: 0, weight6: 0,
         },
       });
     }
   }
+  // Melee and missile alike: the page gives the modifier no delivery.
+  if (weaponMod) system.damage = { mod: { melee: weaponMod, missile: weaponMod } };
   // Stat-block proficiency tokens resolve in three tiers — reuse what the world
   // already has, else build it from the cookbook, else mint a namesake. Both
   // indexes are built once per monster and only when there is a token to spend
@@ -895,6 +912,61 @@ const packOpts = async (type, line = null) => {
 };
 
 /**
+ * The rewrite in progress, or null: `held` maps the cookbook id of each
+ * document a forced or ordinary repair writes in place to that document, and
+ * `tally` counts what is written. While it stands, the create an importer
+ * would make for a held id is a write over the held document instead
+ * (`createDoc`, `claimActorImport`), so one importer body serves both its
+ * first import and its repair, and no importer grows a second copy of its build.
+ */
+let rewriteScope = null;
+
+/**
+ * Run `run` with the given documents written in place by the importers it
+ * calls. The held documents not written when it ends (their page no longer
+ * matched, or the build failed) are counted as left. Scopes do not nest.
+ *
+ * @param {{held: Map<string, foundry.abstract.Document>, tally: object, retract?: string[]}} scope
+ *   `retract` names `system` fields the build does not carry that a write
+ *   returns to their initial value (a place's roster, a body's relations), so a
+ *   field the import fills after the create is rebuilt rather than topped up
+ * @param {() => Promise<unknown>} run
+ */
+export async function withRewrite(scope, run) {
+  rewriteScope = scope;
+  try {
+    return await run();
+  } finally {
+    rewriteScope = null;
+    for (const doc of scope.held.values()) if (!scope.tally.seen.has(doc.uuid ?? doc.id)) scope.tally.refused++;
+  }
+}
+
+/** Whether a rewrite holds the document for this cookbook id: the importers skip their "already imported" read and their art for it. */
+export const isRewriting = (id) => !!rewriteScope?.held.has(id);
+
+/** The held document a create of `data` writes over, or null. */
+function rewriteTarget(cls, data) {
+  const held = rewriteScope?.held.get(data?.flags?.[MODULE_ID]?.cookbook?.id);
+  return held && held.documentName === cls.documentName ? held : null;
+}
+
+/**
+ * Write `data`, the build an importer was about to create, over the document
+ * that already holds its id, and count it. A document met twice is written
+ * once; one whose write is refused stays as it was.
+ */
+async function rewriteHeld(held, data) {
+  const tally = rewriteScope.tally;
+  const policy = { ...actorPolicy(data), retract: rewriteScope.retract ?? [] };
+  if (unrepaired(tally, held)) countRepair(tally, await refreshImported(held, data, policyFor(policy, tally)));
+  return held;
+}
+
+/** Whether the rewrite in progress has already written this document over (its build was accepted). */
+export const wasRewritten = (doc) => !!rewriteScope && !!doc && rewriteScope.tally.seen.has(doc.uuid ?? doc.id);
+
+/**
  * Create a document in this type's compendium, on its own line's shelf. The
  * line is read off the document's OWN cookbook flag rather than passed in;
  * `opts.line` answers only for a document with no flag to read. Every import
@@ -904,6 +976,8 @@ const packOpts = async (type, line = null) => {
  * document's own cookbook flag, not passed in."
  */
 export const createDoc = async (cls, data, { line = null, ...opts } = {}) => {
+  const held = rewriteTarget(cls, data);
+  if (held) return rewriteHeld(held, data);
   const packOptions = await packOpts(cls.documentName, lineOfData(data) ?? line);
   warnStrayFolder(cls.documentName, data, packOptions.pack ?? null);
   const [row] = itemIds([data], { type: cls.documentName, pack: packOptions.pack ?? null, keepId: !!opts.keepId });
@@ -1149,6 +1223,8 @@ export async function claimActorImport(id, build) {
 }
 
 async function claimed(id, present, remember, build) {
+  // A document held for rewriting is built again, and the create under `build` writes over it.
+  if (isRewriting(id)) return remember(id, await build());
   const existing = await present(id);
   if (existing) return existing;
   const inflight = inflightImports.get(id);
@@ -1784,6 +1860,40 @@ const REPAIR_RUNS = {
   cookbookImportAdventureItems: (only, tally) => cookbookImportAdventureItems({ only, repair: tally }),
 };
 
+/**
+ * What repairs a shelf of table rows in place. No entry names a weapon, an
+ * armour row, a language or a race, so a shelf repair holds every document the
+ * shelf carries and the run reads the table again; the Equipment shelf also
+ * carries the price list's rows, which its own run writes (`repair.tables`).
+ */
+const TABLE_REPAIRS = {
+  Weapons: (tally) => importWeapons(undefined, { repair: tally }),
+  Armor: (tally) => importArmor(undefined, { repair: tally }),
+  Languages: (tally) => api().cookbookImportTables([LANGUAGES_DOC_ID], { repair: tally }),
+  Races: (tally) => api().cookbookImportTables([BUILDER_DOC_ID], { repair: tally }),
+};
+
+/** The book a ruledata document's first table is read from. */
+const tableDocBook = (docId) => Object.values(TABLE_RECIPES[docId]?.tables ?? {}).find((t) => t.book)?.book ?? null;
+
+/**
+ * The book that prints each table shelf (`priced` is the Equipment shelf's price
+ * list): a table's rows carry no book on their ids, so a book repair finds them here.
+ */
+const TABLE_BOOKS = {
+  Weapons: () => WEAPON_TABLE.book,
+  Armor: () => ARMOR_TABLE.book,
+  priced: () => WEAPON_TABLE.book,
+  Languages: () => tableDocBook(LANGUAGES_DOC_ID),
+  Races: () => tableDocBook(BUILDER_DOC_ID),
+};
+
+/** The book that prints a table shelf's rows, or null. */
+const tableBookOf = (shelf) => TABLE_BOOKS[shelf]?.() ?? null;
+
+/** Whether the document claiming `id` on `shelf` is a row of a printed table that a repair rewrites. */
+const isTableRow = (shelf, id) => !!TABLE_REPAIRS[shelf] || (shelf === "Equipment" && String(id).startsWith("def.priced."));
+
 /** The items every open or closed book introduces, as `[id, entry]` rows: a source of the entry picker. */
 function adventureItemEntries() {
   const rows = [];
@@ -1801,13 +1911,20 @@ const repairableEntryIds = () =>
   ENTRY_SOURCES.filter((src) => REPAIR_RUNS[src.refill]).flatMap((src) => src.entries().map(([id]) => id));
 
 /**
- * Can a monster-picker entry be repaired in place? Only a stat-block monster:
- * a template, a family, an NPC or a legacy block is built another way and can
- * only rebuild.
+ * How a monster-picker entry is repaired in place: `refill` for a stat-block
+ * monster (`refillMonster`), `rewrite` for a template, a family, a person or a
+ * legacy block, which its importer builds again under a rewrite (`withRewrite`),
+ * and null for what no run writes. A pregenerated character is `rewrite` only
+ * under a forced repair (`force`): the sheet import onto the held character
+ * lands what it lacks and answers what it holds, and its biography and morale
+ * are written again; an unforced repair leaves the character as it stands.
  */
-const repairableMonster = (id) => {
-  const kind = cookbookEntry(id)?.entry?.kind;
-  return !kind || kind === "kind.monster";
+const monsterRepair = (id, force = false) => {
+  const entry = cookbookEntry(id)?.entry;
+  if (!entry) return null;
+  if (!entry.kind || entry.kind === "kind.monster") return "refill";
+  if (!ACTOR_KINDS.has(entry.kind)) return null;
+  return characterEntry(entry) && !force ? null : "rewrite";
 };
 
 /** The mode control both rebuild dialogs carry, Rebuild chosen. */
@@ -1878,7 +1995,8 @@ function reportRepair(tally) {
  */
 async function repairShelf(shelf, { force = false } = {}) {
   const run = SHELF_REFILL[shelf];
-  if (!REPAIR_RUNS[run]) return ui.notifications.warn(game.i18n.format(`${LANG_PREFIX}.ui.repairShelfRebuildOnly`, { shelf }));
+  const tableRun = TABLE_REPAIRS[shelf];
+  if (!tableRun && !REPAIR_RUNS[run]) return ui.notifications.warn(game.i18n.format(`${LANG_PREFIX}.ui.repairShelfRebuildOnly`, { shelf }));
   const prefixes = shelfPrefixes(shelf);
   const onShelf = (id) => prefixes.some((p) => String(id).startsWith(`${p}.`));
   const ids = new Set(repairableEntryIds().filter(onShelf));
@@ -1886,7 +2004,7 @@ async function repairShelf(shelf, { force = false } = {}) {
   const shelved = [...(await importedDocs("Item")), ...(await importedDocs("Actor"))].filter(
     (d) => !d.flags?.[MODULE_ID]?.templatePart && onShelf(claimedId(d)),
   );
-  const held = shelved.filter((d) => ids.has(claimedId(d)));
+  const held = shelved.filter((d) => ids.has(claimedId(d)) || isTableRow(shelf, claimedId(d)));
   const over = held.filter((d) => readableHere(claimedId(d)));
   const kept = held.length - over.length;
   const skipped = shelved.length - held.length;
@@ -1901,7 +2019,8 @@ async function repairShelf(shelf, { force = false } = {}) {
   );
   if (!ok) return null;
   const tally = repairTally({ force });
-  const refill = await REPAIR_RUNS[run](ids, tally);
+  if (shelf === "Equipment") tally.tables = new Set(["priced"]);
+  const refill = tableRun ? await tableRun(tally) : await REPAIR_RUNS[run](ids, tally);
   reportRepair(tally);
   return { shelf, mode: force ? "force" : "repair", ...repairCounts(tally), refill: refill ?? null };
 }
@@ -1932,8 +2051,18 @@ async function repairBook(bookId, label, { force = false } = {}) {
   const docs = [...(await importedDocs("Item")), ...(await importedDocs("Actor"))].filter(ofBook);
   // A book's own item names its folder for a shelf, the group `targetFolder` files it under.
   const shelfOf = (d) => refillShelfOf(claimedId(d)) ?? "Items";
-  const over = docs.filter((d) => touched.has(claimedId(d)));
-  const left = docs.filter((d) => !touched.has(claimedId(d)));
+  // The book's table rows: a table's rows carry no book on their ids, so the
+  // book that prints the table owns them (`tableBookOf`), and each is read again
+  // whenever the book is open.
+  const rowShelves = new Set(Object.keys(TABLE_BOOKS).filter((shelf) => tableBookOf(shelf) === bookId));
+  const rowDocs = (await importedDocs("Item")).filter((d) => {
+    if (d.flags?.[MODULE_ID]?.templatePart) return false;
+    const shelf = refillShelfOf(claimedId(d));
+    return shelf && isTableRow(shelf, claimedId(d)) && rowShelves.has(TABLE_REPAIRS[shelf] ? shelf : "priced");
+  });
+  const over = [...docs.filter((d) => touched.has(claimedId(d))), ...rowDocs];
+  const overIds = new Set(over.map((d) => d.uuid));
+  const left = docs.filter((d) => !overIds.has(d.uuid));
   const shelves = [...new Set(over.map(shelfOf))].sort();
   const ok = await confirmRepair(
     [
@@ -1954,14 +2083,74 @@ async function repairBook(bookId, label, { force = false } = {}) {
   );
   if (!ok) return null;
   const tally = repairTally({ force });
+  // The price list rides on the equipment run, even where the book names no equipment entry.
+  if (rowShelves.has("priced")) {
+    tally.tables = new Set(["priced"]);
+    if (!runs.has("importAllEquipment")) runs.set("importAllEquipment", new Set());
+  }
   const refill = {};
   // In SHELF_REFILL's order, which is Import Everything's; a run no shelf
   // names (a book's own items) follows them.
   for (const run of new Set([...Object.values(SHELF_REFILL), ...Object.keys(REPAIR_RUNS)])) {
     if (runs.has(run)) refill[run] = (await REPAIR_RUNS[run](runs.get(run), tally)) ?? null;
   }
+  for (const shelf of rowShelves) if (TABLE_REPAIRS[shelf]) refill[shelf] = (await TABLE_REPAIRS[shelf](tally)) ?? null;
   reportRepair(tally);
   return { book: bookId, mode: force ? "force" : "repair", ...repairCounts(tally), refill };
+}
+
+/**
+ * Write actor-kind entries over the documents that hold them, in place, and
+ * import the ones the world lacks. A stat-block monster (`monsters`) is refilled
+ * whole (`refillMonster`); a template, a family, a person or a legacy block
+ * (`rewrites`) is built by its importer again, and the create it would make is a
+ * write over the held document (`withRewrite`); an OSE creature (`oseIds`) is
+ * read by the OSE importer the same way. `tally.force` lifts the prose guards.
+ *
+ * @param {{monsters?: string[], rewrites?: string[], oseIds?: string[]}} ids cookbook ids by how each is written
+ * @param {foundry.documents.Actor[]} actors the imported actors, the library's and the world's
+ * @param {object} tally a `repairTally` to count into
+ * @returns {Promise<{missing: string[], imported: number|null, ose: unknown}>} the ids no actor held (imported
+ *   after the writes) and the OSE importer's result
+ */
+async function repairActors({ monsters = [], rewrites = [], oseIds = [] }, actors, tally) {
+  const claimedBy = (id) => (doc) => !doc.flags?.[MODULE_ID]?.templatePart && claimsEntry(doc, id);
+  const missing = [];
+  // Monsters first, as the rebuild runs them.
+  for (const id of monsters) {
+    const held = actors.filter(claimedBy(id));
+    if (!held.length) missing.push(id);
+    for (const actor of held) {
+      if (!unrepaired(tally, actor)) continue;
+      const done = await refillMonster(actor, { whole: true, force: tally.force }).catch((err) => {
+        console.error(`${MODULE_ID} | repair ${actor.name}`, err);
+        return null;
+      });
+      countRepair(tally, done?.ok ? done : (done?.reason ?? "error"));
+    }
+  }
+  const held = new Map();
+  for (const id of rewrites) {
+    const [doc] = actors.filter(claimedBy(id));
+    if (doc) held.set(id, doc);
+    else missing.push(id);
+  }
+  await withRewrite({ held, tally }, async () => {
+    for (const id of held.keys()) {
+      await importOne(bookOf(cookbookEntry(id)), id, null).catch((err) => console.error(`${MODULE_ID} | repair ${id}`, err));
+    }
+  });
+  const imported = missing.length ? await importMany(missing, game.i18n.localize(`${LANG_PREFIX}.ui.cookbookWorking`)) : null;
+  let ose = null;
+  if (oseIds.length) {
+    const oseHeld = new Map();
+    for (const id of oseIds) {
+      const [doc] = actors.filter(claimedBy(id));
+      if (doc) oseHeld.set(id, doc);
+    }
+    ose = await withRewrite({ held: oseHeld, tally }, () => api().oseImportEntries(oseIds));
+  }
+  return { missing, imported, ose };
 }
 
 /**
@@ -1984,12 +2173,16 @@ async function repairEntries(picked, closed, { force = false } = {}) {
   }
   const runs = new Map();
   const monsters = [];
+  const rewrites = [];
+  const oseIds = byKey.get("OseCreatures") ?? [];
   let rebuildOnly = 0;
   for (const [key, ids] of byKey) {
-    if (key === "Tables") continue;
+    if (key === "Tables" || key === "OseCreatures") continue;
     if (key === "Monsters") {
       for (const id of ids) {
-        if (repairableMonster(id)) monsters.push(id);
+        const how = monsterRepair(id, force);
+        if (how === "refill") monsters.push(id);
+        else if (how === "rewrite") rewrites.push(id);
         else rebuildOnly++;
       }
       continue;
@@ -2002,7 +2195,7 @@ async function repairEntries(picked, closed, { force = false } = {}) {
     if (!runs.has(run)) runs.set(run, new Set());
     for (const id of ids) runs.get(run).add(id);
   }
-  const touched = [...monsters, ...[...runs.values()].flatMap((ids) => [...ids])];
+  const touched = [...monsters, ...rewrites, ...oseIds, ...[...runs.values()].flatMap((ids) => [...ids])];
   const claimed = (id) => (doc) => !doc.flags?.[MODULE_ID]?.templatePart && claimsEntry(doc, id);
   const over = [...docs.Actor, ...docs.Item].filter((doc) => touched.some((id) => claimed(id)(doc))).length;
 
@@ -2019,21 +2212,9 @@ async function repairEntries(picked, closed, { force = false } = {}) {
   const tally = repairTally({ force });
   tally.refused += closed;
   const refill = {};
-  // Monsters first, as the rebuild runs them.
-  const missing = [];
-  for (const id of monsters) {
-    const held = docs.Actor.filter(claimed(id));
-    if (!held.length) missing.push(id);
-    for (const actor of held) {
-      if (!unrepaired(tally, actor)) continue;
-      const done = await refillMonster(actor, { whole: true, force }).catch((err) => {
-        console.error(`${MODULE_ID} | repair ${actor.name}`, err);
-        return null;
-      });
-      countRepair(tally, done?.ok ? done : (done?.reason ?? "error"));
-    }
-  }
-  if (missing.length) refill.Monsters = await importMany(missing, game.i18n.localize(`${LANG_PREFIX}.ui.cookbookWorking`));
+  const actors = await repairActors({ monsters, rewrites, oseIds }, docs.Actor, tally);
+  if (actors.missing.length) refill.Monsters = actors.imported;
+  if (oseIds.length) refill.OseCreatures = actors.ose;
   for (const [run, only] of runs) refill[run] = (await REPAIR_RUNS[run](only, tally)) ?? null;
   const tables = byKey.get("Tables");
   if (tables?.length) {
@@ -2168,7 +2349,7 @@ const api = () => acksExtras.importer ?? {};
 export function rebuildOptions() {
   const t = (key, data) => (data ? game.i18n.format(`${LANG_PREFIX}.ui.${key}`, data) : game.i18n.localize(`${LANG_PREFIX}.ui.${key}`));
   const rebuildOnly = ` (${t("reimportRebuildOnly")})`;
-  const shelves = reimportableShelves().map((n) => ({ value: `shelf:${n}`, label: `${n}${REPAIR_RUNS[SHELF_REFILL[n]] ? "" : rebuildOnly}` }));
+  const shelves = reimportableShelves().map((n) => ({ value: `shelf:${n}`, label: `${n}${REPAIR_RUNS[SHELF_REFILL[n]] || TABLE_REPAIRS[n] ? "" : rebuildOnly}` }));
   const books = reimportableBooks().map((b) => ({ value: `book:${b.id}`, label: b.label }));
   const tables = [
     { value: "tables:", label: t("reimportTablesAll") },
@@ -2291,15 +2472,61 @@ function hasPlaceRows(bookId) {
 }
 
 /**
+ * The cookbook ids of the places and bodies a book's rows make, for a forced
+ * repair to write over: a keyed place, a point of interest and a region site
+ * that stands as its own place, and an organisation. A place two books print
+ * (a pair's either side) is joined by its own step and left out, as are the
+ * containers a place stands in (the book's own place, a quarter's, a region's).
+ * @returns {{places: string[], factions: string[]}}
+ */
+function bodyRowIds(bookId) {
+  const entries = data.books.get(bookId)?.entries ?? {};
+  const spaces = keySpacesOf(entries);
+  const pairs = placePairs(data.books);
+  const places = [];
+  const factions = [];
+  for (const [id, e] of Object.entries(entries)) {
+    if (isOrganisationRow(e)) factions.push(id);
+    else if (pairs.has(id)) continue;
+    else if (isPoiEntry(e)) {
+      if (poiGroupOf(e.meta?.group).kind !== "overview") places.push(id);
+    } else if (isRegionSite(e)) {
+      if (regionSiteClaim(bookId, e, id, entries).onto === "site") places.push(id);
+    } else if (isKeyedPlace(e, id, spaces)) places.push(id);
+  }
+  return { places, factions };
+}
+
+/** The library's documents for a list of cookbook ids, by id; an id the world does not hold is left out. */
+async function heldById(ids) {
+  const held = new Map();
+  for (const id of ids) {
+    const doc = await importedActor(id, { copies: false });
+    if (doc) held.set(id, doc);
+  }
+  return held;
+}
+
+/**
  * The import chain's steps that read ONE adventure book, narrowed to it, in
  * the chain's order: its monsters and people the world lacks first, since
  * every later step stands on them, and its Adventure last, since that is a
  * copy of what the rest made. A step with nothing of the book to read is
  * skipped rather than left to warn about an empty run. One failed step does
  * not stop the rest; each is reported.
+ *
+ * `force` writes the book's Adventure anew whatever its state. `tally`, a
+ * `repairTally`, also writes in place what the world already holds of the
+ * book: its creatures and people (`repairActors`), its own items and its roll
+ * tables, and, when the tally is forced, its places, organisations and market
+ * profiles (`bodyRowIds`, `withRewrite`, `marketProfileUpdate`'s `force`). A
+ * page of a journal is always refreshed in place and a map is refreshed by its
+ * own step.
+ * @param {string} bookId
+ * @param {{force?: boolean, tally?: object|null}} [opts]
  * @returns {Promise<{steps: {key: string, result: unknown}[], errors: {key: string, message: string}[]}>}
  */
-async function runAdventureBookSteps(bookId, { force = false } = {}) {
+async function runAdventureBookSteps(bookId, { force = false, tally = null } = {}) {
   const a = api();
   const steps = [];
   const errors = [];
@@ -2314,24 +2541,89 @@ async function runAdventureBookSteps(bookId, { force = false } = {}) {
   const only = { books: [bookId] };
   await run("stepMonsters", async () => {
     const members = familyMemberIds();
+    const rows = actorEntriesAcrossBooks().rows.filter((r) => r.bookId === bookId && !members.has(r.id));
+    let written = 0;
+    const handled = new Set();
+    if (tally) {
+      const how = { monsters: [], rewrites: [] };
+      for (const { id } of rows) {
+        const kind = monsterRepair(id, !!tally.force);
+        if (kind === "refill") how.monsters.push(id);
+        else if (kind === "rewrite") how.rewrites.push(id);
+        else continue;
+        handled.add(id);
+      }
+      written = (await repairActors(how, await importedDocs("Actor"), tally)).imported ?? 0;
+    }
+    // Whatever is still absent (an unforced repair leaves a pregenerated character as it stands).
     const present = await importedIdSet();
-    const ids = actorEntriesAcrossBooks()
-      .rows.filter((r) => r.bookId === bookId && !members.has(r.id) && !present.has(r.id))
-      .map((r) => r.id);
-    return ids.length ? importMany(ids, game.i18n.localize(`${LANG_PREFIX}.gs.stepMonsters`)) : 0;
+    const ids = rows.filter((r) => !handled.has(r.id) && !present.has(r.id)).map((r) => r.id);
+    return written + (ids.length ? await importMany(ids, game.i18n.localize(`${LANG_PREFIX}.gs.stepMonsters`)) : 0);
   });
+  // A forced repair builds the book's held places and bodies again and writes
+  // them over; a place's roster and a body's relations and strength are
+  // returned to empty first, since the import fills them after the create.
+  const rewriting = !!tally?.force;
+  const ids = rewriting ? bodyRowIds(bookId) : { places: [], factions: [] };
+  const scoped = async (list, retract, fn) => (rewriting ? withRewrite({ held: await heldById(list), tally, retract }, fn) : fn());
   await run("stepJournals", () => a.cookbookImportJournals(only));
-  if (hasPlaceRows(bookId)) await run("stepPoi", () => a.cookbookImportPoiPlaces(only));
-  await run("stepFactions", () => a.cookbookImportFactions(only));
-  await run("stepMarkets", () => a.cookbookImportMarketProfiles(only));
-  await run("stepRollTables", () => a.cookbookImportRollTables(only));
-  await run("stepAdventureItems", () => a.cookbookImportAdventureItems(only));
+  if (hasPlaceRows(bookId)) await run("stepPoi", () => scoped(ids.places, ["roster"], () => a.cookbookImportPoiPlaces(only)));
+  await run("stepFactions", () => scoped(ids.factions, ["relations", "strength"], () => a.cookbookImportFactions(only)));
+  await run("stepMarkets", () => a.cookbookImportMarketProfiles({ ...only, repair: tally }));
+  await run("stepRollTables", () => a.cookbookImportRollTables({ ...only, repair: tally }));
+  await run("stepAdventureItems", () => a.cookbookImportAdventureItems({ ...only, repair: tally }));
   if (Object.keys(data.books.get(bookId)?.scenes ?? {}).length) {
     await run("stepScenes", () => a.cookbookImportScenes(only));
     await run("stepLinks", () => a.cookbookImportLinks({ quiet: true }));
   }
   await run("stepAdventures", () => a.cookbookImportAdventures({ ...only, force }));
   return { steps, errors };
+}
+
+/** A document type's name in the user's language, plural when `n` is not one. */
+const typeCount = (type, n) => {
+  const key = foundry.utils.getDocumentClass(type)?.metadata?.[n === 1 ? "label" : "labelPlural"];
+  return `${n} ${key ? game.i18n.localize(key) : type}`;
+};
+
+/**
+ * What a force repair of an adventure book writes over: the documents the book
+ * owns, counted by kind as `written` (its places and organisations apart from
+ * its creatures and people), `markets` when the book prints a market grid whose
+ * profiles are written onto its places, and the `left` it does not write (a
+ * place two books print, and the abilities and classes another step owns).
+ * @returns {Promise<{written: string, left: number, markets: boolean}>}
+ */
+async function adventureForceCensus(bookId) {
+  const ownerOf = (doc) => {
+    const flag = doc.getFlag?.(MODULE_ID, "cookbook") ?? doc.flags?.[MODULE_ID]?.cookbook ?? null;
+    return flag?.id ? bookOfCookbookId(flag.id, flag.book) : null;
+  };
+  const owned = adventureDropRows(await bookDocuments(bookId), bookId, { ownerOf, isWorldCopy, isPlayers: playersCharacter });
+  const bodies = bodyRowIds(bookId);
+  const places = new Set(bodies.places);
+  const factions = new Set(bodies.factions);
+  const byType = new Map();
+  let nPlaces = 0;
+  let nFactions = 0;
+  let left = 0;
+  for (const { type, doc } of owned) {
+    const id = claimedId(doc);
+    if (type === "Actor" && places.has(id)) nPlaces++;
+    else if (type === "Actor" && factions.has(id)) nFactions++;
+    else {
+      const written =
+        type === "Actor" ? !!monsterRepair(id, true) : type === "Item" ? bookOwnEntry(id) : type === "RollTable" || type === "JournalEntry";
+      if (written) byType.set(type, (byType.get(type) ?? 0) + 1);
+      else left++;
+    }
+  }
+  const t = (key, n) => game.i18n.format(`${LANG_PREFIX}.ui.${key}`, { n });
+  const parts = [...byType].map(([type, n]) => typeCount(type, n));
+  if (nPlaces) parts.push(t("forceCensusPlaces", nPlaces));
+  if (nFactions) parts.push(t("forceCensusOrganisations", nFactions));
+  const grids = Object.values(data.books.get(bookId)?.entries ?? {}).some((e) => e.kind === "kind.marketGrid");
+  return { written: parts.join(", "), left, markets: grids };
 }
 
 /**
@@ -2353,7 +2645,14 @@ async function runAdventureBookSteps(bookId, { force = false } = {}) {
  * state — a Judge's edit to the Adventure on the shelf included (`force`).
  *
  * @param {string} bookId a Judge's book of BOOKS, open on this seat.
- * @param {{mode?: "drop"|"repair"}} [opts]
+ * `mode: "force"` is a repair that also writes over, in place, the creatures
+ * and people, the book's own items and the roll tables the world holds of the
+ * book (`adventureForceCensus` counts them for the confirm), a description a
+ * Judge wrote in included. That is also its places and organisations (an
+ * edited place or roster is replaced) and the market profiles on its places;
+ * a place two books print is joined by its own step and left.
+ *
+ * @param {{mode?: "drop"|"repair"|"force"}} [opts]
  * @returns {Promise<{book: string, mode: string, removed: number, steps: object[], errors: object[]}|null|undefined>}
  */
 export async function cookbookReimportAdventure(bookId, { mode = "drop" } = {}) {
@@ -2362,7 +2661,10 @@ export async function cookbookReimportAdventure(bookId, { mode = "drop" } = {}) 
   const t = (key, data) => game.i18n.format(`${LANG_PREFIX}.ui.${key}`, data ?? {});
   if (!bookIsJudges(bookId) || !data.books.has(bookId)) return ui.notifications.warn(t("reimportAdventureNotJudges", { book: label }));
   if (!ctx?.sessionDocs?.has(bookId)) return ui.notifications.warn(t("reimportNotConnected", { book: label }));
-  const force = mode === "repair";
+  // Repair and force repair delete nothing; both write the Adventure anew.
+  const force = mode === "repair" || mode === "force";
+  // A force repair also writes over, in place, what the world holds of the book.
+  const tally = mode === "force" ? repairTally({ force: true }) : null;
   let removed = 0;
   if (!force) {
     const ownerOf = (doc) => {
@@ -2391,16 +2693,29 @@ export async function cookbookReimportAdventure(bookId, { mode = "drop" } = {}) 
         .catch((err) => console.warn(`${MODULE_ID} | delete the Adventure of ${bookId}`, err));
     }
     forgetImportedIndex();
+  } else if (tally) {
+    const { written, left, markets } = await adventureForceCensus(bookId);
+    const ok = await confirmRepair(
+      [
+        t("reimportAdventureConfirmForce", { book: label, counts: written || t("reimportAdventureNothing") }),
+        markets ? t("reimportAdventureForceMarkets") : "",
+        left ? t("reimportAdventureForceLeft", { n: left }) : "",
+        t("reimportAdventureForceKeeps"),
+      ],
+      "forceTitle",
+    );
+    if (!ok) return null;
   } else {
     const ok = await confirmRepair([t("reimportAdventureConfirmRepair", { book: label })], "reimportAdventureTitle");
     if (!ok) return null;
   }
-  const { steps, errors } = await runAdventureBookSteps(bookId, { force });
+  const { steps, errors } = await runAdventureBookSteps(bookId, { force, tally });
   const tail = errors.length ? t("reimportAdventureErrors", { n: errors.length }) : "";
   ui.notifications[errors.length ? "warn" : "info"](
     force ? t("reimportAdventureRepaired", { book: label, steps: steps.length, errors: tail }) : t("reimportAdventureDone", { book: label, removed, steps: steps.length, errors: tail }),
   );
-  return { book: bookId, mode: force ? "repair" : "drop", removed, steps, errors };
+  if (tally) reportRepair(tally);
+  return { book: bookId, mode: tally ? "force" : force ? "repair" : "drop", removed, steps, errors, ...(tally ? repairCounts(tally) : {}) };
 }
 
 /* -------------------------------------------- */
@@ -2584,7 +2899,7 @@ export async function cookbookReimportEntries() {
     const held = (id) => (src.present ? src.present(id) : have.has(id));
     // A row no run writes in place is marked: Repair leaves it as it is.
     const rebuildOnly = (id) =>
-      src.key === "Monsters" ? !repairableMonster(id) : src.key !== "Tables" && !REPAIR_RUNS[src.refill];
+      src.key === "Monsters" ? !monsterRepair(id, true) : src.key !== "Tables" && src.key !== "OseCreatures" && !REPAIR_RUNS[src.refill];
     const rows = entries
       .map(([id, e]) => {
         const name = e?.name ?? id;
@@ -2898,7 +3213,7 @@ async function importOne(bookId, id, folderId) {
   // docs/importer/DECISIONS.md, "The art op is skipped when the picture is
   // already on disk".
   const artInstr = found.entry.fields?.art ?? null;
-  if ((artInstr || node.fields.art) && ctx.importArtForPage) {
+  if ((artInstr || node.fields.art) && ctx.importArtForPage && !isRewriting(id)) {
     await ctx.importArtForPage(actor, session.doc, {
       id,
       page: artInstr?.page ?? found.entry.pages[0],
@@ -2906,6 +3221,7 @@ async function importOne(bookId, id, folderId) {
       box: artInstr?.box ?? null,
     });
   }
+  await mintLeaderTemplate({ id, found, node, bound: { system, items, flags, prototypeToken }, extras, folder, bindDoc: session.doc, img: actor.img ?? "" });
   return actor;
 }
 
@@ -2913,13 +3229,6 @@ async function importOne(bookId, id, folderId) {
 /*  Template binding (kind.monsterTemplate)     */
 /*  grids -> acks-extras.template generator actor  */
 /* -------------------------------------------- */
-
-/**
- * ACKS ladders derived by formula rather than read from a page, the
- * savesForLevel precedent: the monster attack throw improves 1 per HD from
- * 10+ at 1 HD (the thrall's own printed ladder confirms 11 − HD row by row).
- */
-const monsterThrowForHd = (hd) => Math.max(11 - Math.max(1, hd), -10);
 
 /** "Adult (51-75 years)" -> "Adult"; smallcap case healed ("Green dragon" ->
  *  "Green Dragon") — the short piece generated names use. */
@@ -2994,12 +3303,17 @@ const weaponPayload = (name, damage, { naturalWeapon = null, damageType = null, 
  * attackModel (no parallel parser). The form tables separate attack names with
  * "/" where stat lines use "," — normalize inside the parenthetical only.
  * `types` is the form's glyph-mapped damage-type list, in segment order.
+ * A "by weapon ±N" segment's modifier is the creature's, as `bindMonster`
+ * takes it: the first such modifier is returned as `mod` and the item keeps
+ * "By weapon"; a segment printing another one keeps it in its own text.
+ * `{items, mod}`, `mod` null where no segment prints one.
  */
 function weaponsFromRoutine(routine, damageText, types) {
-  if (!routine || !damageText) return [];
+  if (!routine || !damageText) return { items: [], mod: null };
   const normalized = String(routine).replace(/\(([^)]*)\)/g, (_, inner) => `(${inner.replace(/\s*\/\s*/g, ", ")})`);
   const { modes } = attackModel(normalized, String(damageText));
   const items = [];
+  let mod = null;
   let gi = 0;
   for (const [mi, mode] of modes.entries()) {
     const seen = {};
@@ -3007,8 +3321,11 @@ function weaponsFromRoutine(routine, damageText, types) {
       const ne = mode.names?.[j] ?? mode.names?.[mode.names.length - 1] ?? null;
       const base = capitalize(ne?.name ?? "Attack");
       seen[base] = (seen[base] ?? 0) + 1;
+      const lift = splitWeaponModifier(seg);
+      if (lift && mod == null) mod = lift.mod;
+      const formula = lift && lift.mod === mod ? lift.formula : diceOf(seg) || seg;
       items.push(
-        weaponPayload(seen[base] > 1 ? `${base} ${seen[base]}` : base, diceOf(seg) || seg, {
+        weaponPayload(seen[base] > 1 ? `${base} ${seen[base]}` : base, formula, {
           naturalWeapon: ne?.nw ?? null,
           damageType: types?.[gi]?.key ?? null,
           attackMode: mi,
@@ -3017,7 +3334,7 @@ function weaponsFromRoutine(routine, damageText, types) {
       gi++;
     }
   }
-  return items;
+  return { items, mod };
 }
 
 /**
@@ -3053,7 +3370,7 @@ const fmtCell = (v) =>
   Array.isArray(v) ? v.map((x) => x?.key ?? x?.text ?? String(x)).join(", ") : String(v);
 
 /** Build one axis option (engine-ready patches) from a merged grid row. */
-export function templateOption(ax, row, cells, { id, cite, sectionText, spellSource = "" }) {
+export function templateOption(ax, row, cells, { id, cite, sectionText, spellSource = "", ladder = null }) {
   const hitDice = cells.hitDice ?? (ax.keyIsHd && /^\d+$/.test(row.key) ? row.key : undefined);
   const { system } = bindStatsScalars({
     armorClass: cells.armorClass,
@@ -3067,20 +3384,29 @@ export function templateOption(ax, row, cells, { id, cite, sectionText, spellSou
     xp: intFrom(cells.xpSpeechless) ?? intFrom(cells.xpSpeaking) ?? intFrom(cells.xp) ?? undefined,
   });
 
-  // Attack throw: printed on the row (thrall "weapon 10+") outranks the
-  // HD-derived ladder; with neither, the generated actor keeps defaults.
+  // Attack throw: printed on the row (thrall "weapon 10+") outranks the row of
+  // the Judge's imported ladder its rating stands on (a hit-point bonus rounds
+  // the dice up a row); with neither, the generated actor keeps defaults and
+  // its sheet says the ladder is not imported.
   const printedThrow = /(-?\d+)\s*\+/.exec(String(cells.attacks ?? ""))?.[1];
-  const hdCount = parseInt(String(hitDice ?? ""), 10);
+  const ladderThrow = printedThrow == null ? monsterThrowForHd(hitDice, ladder?.rows) : null;
+  let derived = null;
   if (printedThrow != null) system.attack = { throw: parseInt(printedThrow, 10) };
-  else if (Number.isInteger(hdCount)) system.attack = { throw: monsterThrowForHd(hdCount) };
+  else if (ladderThrow != null) {
+    system.attack = { throw: ladderThrow };
+    derived = { throw: { value: ladderThrow, base: null, baseHd: "", hd: ratingText(hitDice), rows: null, cite: ladder?.cite ?? "" } };
+  } else if (hitDice != null) derived = { throw: { missing: true } };
 
   if (cells.attacks) system.attacks = [cells.attacks, cells.damage].filter(Boolean).join(" — ");
 
   // A single-axis damage die with no routine (the elemental tiers): one
   // generic natural attack; forms with routines get their weapons in `cells`.
+  // A "by weapon ±N" cell's modifier is the creature's (`damage.mod`).
   const items = [];
   if (cells.damage && !cells.attackRoutine && !cells.attacks) {
-    items.push(weaponPayload("Strike", diceOf(cells.damage) || String(cells.damage), { naturalWeapon: "strike" }));
+    const lift = splitWeaponModifier(cells.damage);
+    if (lift?.mod) system.damage = damageTotal(lift.mod);
+    items.push(weaponPayload("Strike", lift?.formula ?? (diceOf(cells.damage) || String(cells.damage)), { naturalWeapon: "strike" }));
   }
 
   // A row's slot column is the slot block the generated creature casts from.
@@ -3089,10 +3415,11 @@ export function templateOption(ax, row, cells, { id, cite, sectionText, spellSou
   const slots = slotsFromCells(cells.spells);
   if (slots) Object.assign(system, coreSlotsPatch(slots));
   const casterLevel = intFrom(cells.casterLevel);
-  const flags =
-    spellSource && (slots || casterLevel != null)
-      ? { [MODULE_ID]: { extras: { spellcasting: { class: capitalize(spellSource), level: casterLevel ?? null } } } }
-      : {};
+  const extras = {
+    ...(spellSource && (slots || casterLevel != null) ? { spellcasting: { class: capitalize(spellSource), level: casterLevel ?? null } } : {}),
+    ...(derived ? { derived } : {}),
+  };
+  const flags = Object.keys(extras).length ? { [MODULE_ID]: { extras } } : {};
 
   const label = capitalize(String(row.label ?? row.key));
   const secKey = sectionText.has(row.key) ? row.key : sectionText.has(`${row.key}s`) ? `${row.key}s` : null;
@@ -3127,92 +3454,126 @@ export function templateOption(ax, row, cells, { id, cite, sectionText, spellSou
 }
 
 /**
- * PROSE LEADER ROLES — the general pass, run for EVERY family: the ROLE
- * variants a member's own prose describes (champions, sub-chieftains,
- * chieftains, drudges/whelps, shamans, witch doctors) become a second axis.
- * The regexes are shipped LOCATORS; every number is read at import from THIS
- * seat's own extracted prose, per member. Prose that matches nothing adds
- * nothing — a family without leader sentences simply has no Role axis.
+ * A member's whole XP cell, read again as text beside the first figure the
+ * stat block keeps: a cell that prints one figure per role ("N (role)") is
+ * what the Role axis's cells take their XP from (`proseLeaderRoles`). The
+ * same instruction the entry ships, at the `raw` pattern; "" where the entry
+ * has none or the page did not answer.
  */
-const proseLeaderRoles = ({ options, memberText, axes, cells, out }) => {
-    // Tolerant of the two printed shapes: the damage clause may follow any of
-    // the three fields, and "and" may sit before hp or before the bonus.
-    const RX = {
-      champion: /led by a champion with (\d+) AC,? (\d+(?:[+-]\d+)?) HD,? (?:and )?(\d+) hp(?:,? and a ([+-]\d+) damage bonus)?/i,
-      subChieftain: /led by a sub-?chieftain with (\d+) AC,? (\d+(?:[+-]\d+)?) HD,? (?:and )?(\d+) hp(?:,? and a ([+-]\d+) damage bonus)?/i,
-      chieftain: /(?:lair|village) will be led by a chieftain with (\d+) AC,? (\d+(?:[+-]\d+)?) HD,? (?:and )?(\d+) hp(?:,? and a ([+-]\d+) damage bonus)?/i,
-      drudgeWhelp: /drudges and whelps have Spd (\d+)['’]?,? AC (\d+),? (\d+) hp,? ML (-?\d+)/i,
-      shaman: /shaman is equivalent to a (champion|sub-?chieftain|chieftain) statistically,? but has (\w+) abilities at level (\d+d\d+|\d+)/i,
-      witchDoctor: /witch doctor is equivalent to a (champion|sub-?chieftain|chieftain) statistically,? but has (\w+) abilities at level (\d+d\d+|\d+)/i,
-    };
-    const statPatch = (option, [ac, hd, hp, dmg], note) => {
-      const hdInt = parseInt(hd, 10);
-      const bonus = /([+-]\d+)/.exec(hd)?.[1] ?? "";
-      const bio = option.merge?.details?.biography ?? "";
-      const notes = [note, dmg ? `${dmg} damage bonus` : ""].filter(Boolean);
-      return {
-        ac: { value: parseInt(ac, 10) },
-        hp: { hd: `${hdInt}d8${bonus}`, value: parseInt(hp, 10), max: parseInt(hp, 10) },
-        attack: { throw: monsterThrowForHd(hdInt) },
-        ...(notes.length ? { details: { biography: `${bio}<p><em>${notes.join("; ")}</em></p>` } } : {}),
-      };
-    };
-    const roleKeys = [];
-    for (const option of options) {
-      const text = memberText.get(option.key) ?? "";
-      const matched = {};
-      for (const role of ["champion", "subChieftain", "chieftain", "drudgeWhelp"]) {
-        const m = RX[role].exec(text);
-        if (!m) continue;
-        matched[role] =
-          role === "drudgeWhelp"
-            ? {
-                movement: { base: parseInt(m[1], 10) },
-                ac: { value: parseInt(m[2], 10) },
-                hp: { hd: "1d8", value: parseInt(m[3], 10), max: parseInt(m[3], 10) },
-                details: {
-                  morale: parseInt(m[4], 10),
-                  biography: `${option.merge?.details?.biography ?? ""}<p><em>does not fight</em></p>`,
-                },
-                attacks: "none (does not fight)",
-              }
-            : statPatch(option, m.slice(1), "");
-      }
-      // Casters wear another role's stat block plus a class-ability note.
-      for (const role of ["shaman", "witchDoctor"]) {
-        const m = RX[role].exec(text);
-        if (!m) continue;
-        const asKey = /sub/i.test(m[1]) ? "subChieftain" : m[1].toLowerCase();
-        const base = matched[asKey];
-        if (!base) continue;
-        const bio = base.details?.biography ?? option.merge?.details?.biography ?? "";
-        matched[role] = {
-          ...structuredClone(base),
-          details: { ...(base.details ?? {}), biography: `${bio}<p><em>${m[2]} abilities at level ${m[3]}</em></p>` },
-        };
-      }
-      for (const [role, merge] of Object.entries(matched)) {
-        if (!roleKeys.includes(role)) roleKeys.push(role);
-        cells.push({ by: ["variant", "role"], key: `${option.key}|${role}`, merge, items: [] });
-      }
-    }
-    if (!roleKeys.length) return;
-    const LABELS = {
-      champion: "Champion", subChieftain: "Sub-Chieftain", chieftain: "Chieftain",
-      drudgeWhelp: "Drudge / Whelp", shaman: "Shaman", witchDoctor: "Witch Doctor",
-    };
-    axes.push({
-      key: "role",
-      label: "Role",
-      roll: "",
-      derive: { from: "", max: null },
-      options: [
-        { key: "standard", label: "Standard", nameLabel: "" },
-        ...roleKeys.map((k) => ({ key: k, label: LABELS[k], nameLabel: LABELS[k] })),
-      ],
+async function wholeXpCell(doc, cb, id, entry) {
+  const instr = entry?.fields?.["stats.xp"];
+  if (!instr) return "";
+  const once = { ...cb, entries: { [id]: { ...entry, fields: { "stats._raw.xp": { ...instr, pattern: "raw" } } } } };
+  const node = await executeEntry(doc, once, data.registers, id).catch(() => null);
+  return String(node?.fields?.stats?.["_raw.xp"] ?? "");
+}
+
+/**
+ * A bound creature as a template's variant option: a complete preset, the
+ * same system, minted items, extras and token size a direct import writes,
+ * named exactly as a direct import (`name`), and stamped with the cookbook id
+ * it was read from.
+ */
+function creatureOption({ key, label, name, art = "", system, items, flags, extras, prototypeToken, id, cite }) {
+  return {
+    key,
+    label,
+    nameLabel: name,
+    art,
+    merge: system,
+    items: items.map((i) => ({
+      ...i,
+      flags: { ...(i.flags ?? {}), [MODULE_ID]: { ...(i.flags?.[MODULE_ID] ?? {}), minted: true } },
+    })),
+    html: "",
+    flags: {
+      ...(flags ?? {}),
+      [MODULE_ID]: {
+        ...((flags ?? {})[MODULE_ID] ?? {}),
+        cookbook: { id, cite },
+        ...(extras ? { extras } : {}),
+      },
+    },
+    token: prototypeToken ?? {},
+  };
+}
+
+/** Is this entry a member of a family some loaded cookbook declares? Its leaders are that family template's. */
+const familyMember = (id) =>
+  [...data.books.values()].some((cb) => Object.values(cb.families ?? {}).some((fam) => (fam.members ?? []).some((m) => m.id === id)));
+
+/**
+ * Leaders for an entry outside a family: a template beside the creature, its
+ * variant axis the creature alone and its Role axis the leaders, casters and
+ * dependants its own prose prints, plus the leader procedure's where the
+ * Judge's copy is imported and the creature is of a type it builds for
+ * (`entryLeaderTemplate`). Nothing is minted for an entry whose page names no
+ * leader, or one a family template already holds. A template held under the
+ * same id is written over in place, so an import, a Rebuild and a repair of
+ * the creature all leave one. Never throws: a failed build costs the
+ * template, not the creature.
+ *
+ * @param {{id: string, found: object, node: object, bound: object, extras: object, folder: string|null, bindDoc: object, img?: string}} args
+ *   `bound` is `bindMonster`'s output for the entry, `bindDoc` the open book it was read from
+ */
+async function mintLeaderTemplate({ id, found, node, bound, extras, folder, bindDoc, img = "" }) {
+  try {
+    if (familyMember(id)) return null;
+    const text = (node.fields.description ?? []).map((p) => p.text).join(" ");
+    const types = node.fields?.stats?.type?.keys ?? (node.fields?.stats?.type?.key ? [node.fields.stats.type.key] : []);
+    const proc = procedureBuildsFor(types) ? importedLeaderProcedure() : null;
+    // Most creatures name no leader: they cost no second read of the XP cell.
+    if (!proc && !Object.keys(readRoleSentences(text)).length) return null;
+    const name = printedNameOf(node, found.entry.name);
+    const option = creatureOption({
+      key: slugLabel(found.entry.name),
+      label: name,
+      name,
+      art: img,
+      system: foundry.utils.deepClone(bound.system),
+      items: bound.items,
+      flags: bound.flags,
+      extras,
+      prototypeToken: bound.prototypeToken,
+      id,
+      cite: found.entry.cite,
     });
-    out.nameFormat = "{variant} {role}";
-};
+    const ladder = importedThrowLadder();
+    const built = entryLeaderTemplate({
+      option,
+      text,
+      xp: await wholeXpCell(bindDoc, found.cb, found.id, found.entry),
+      proc,
+      deriveLeader,
+      procedure: !!proc,
+      ladder: ladder.rows,
+      ladderCite: ladder.cite,
+    });
+    if (!built) return null;
+    // The troop kits its kind fields, where the Judge's tables hold them; a
+    // kit alone mints no template.
+    kitPresets({ options: [option], axes: built.axes, cells: built.cells, kits: importedKits() });
+    const templateId = leaderTemplateId(id);
+    const label = game.i18n.format(`${LANG_PREFIX}.leaderTemplate.name`, { name });
+    const system = { output: { actorType: "monster", nameFormat: built.out.nameFormat }, axes: built.axes, cells: built.cells };
+    const held = (await importedActorsOfType(TEMPLATE_TYPE)).find((a) => a.getFlag(MODULE_ID, "cookbook")?.id === templateId);
+    if (held) {
+      await held.update({ name: label, "system.axes": system.axes, "system.cells": system.cells, "system.output": system.output });
+      return held;
+    }
+    return await createDoc(Actor, {
+      name: label,
+      type: TEMPLATE_TYPE,
+      folder,
+      ...(img ? { img } : {}),
+      system,
+      flags: { [MODULE_ID]: { cookbook: { id: templateId, cite: found.entry.cite, leadersOf: id } } },
+    });
+  } catch (err) {
+    console.warn(`${MODULE_ID} | ${id}: leader template not built.`, err);
+    return null;
+  }
+}
 
 /**
  * ONE-OFF family enrichments, layered AFTER the general prose-leader pass —
@@ -3221,6 +3582,41 @@ const proseLeaderRoles = ({ options, memberText, axes, cells, out }) => {
  * failing enrichment costs its extras, never the family.
  */
 const FAMILY_ONE_OFFS = {};
+
+/**
+ * Carry the variants another book merged into a held family template onto a
+ * fresh build of it: each variant option the build lacks (by cookbook id and
+ * by key), its cells, and the role options those cells name. Mutates `axes`
+ * and `cells`.
+ */
+function carryMergedVariants(held, axes, cells) {
+  const heldAxes = sysObject(held).axes ?? [];
+  const heldCells = sysObject(held).cells ?? [];
+  const vIn = axes.find((a) => a.key === "variant");
+  const vHeld = heldAxes.find((a) => a.key === "variant");
+  if (!vIn || !vHeld) return;
+  const idOf = (o) => o.flags?.[MODULE_ID]?.cookbook?.id ?? null;
+  const ids = new Set(vIn.options.map(idOf).filter(Boolean));
+  const keys = new Set(vIn.options.map((o) => o.key));
+  const kept = vHeld.options.filter((o) => !ids.has(idOf(o)) && !keys.has(o.key));
+  if (!kept.length) return;
+  vIn.options.push(...kept);
+  const keptKeys = new Set(kept.map((o) => o.key));
+  const keptCells = heldCells.filter((c) => keptKeys.has(String(c.key).split("|")[0]));
+  cells.push(...keptCells);
+  const roleHeld = heldAxes.find((a) => a.key === "role");
+  if (roleHeld) {
+    let roleIn = axes.find((a) => a.key === "role");
+    if (!roleIn) axes.push((roleIn = { ...structuredClone(roleHeld), options: [] }));
+    const have = new Set(roleIn.options.map((o) => o.key));
+    const named = new Set(keptCells.map((c) => String(c.key).split("|")[1]));
+    roleIn.options.push(...roleHeld.options.filter((o) => !have.has(o.key) && (named.has(o.key) || o.key === roleHeld.default)));
+  }
+  // A kept variant's kit cells keep the kit axis, which stays the last one.
+  if (keptCells.some((c) => (c.by ?? []).includes("kit"))) unionKitAxis(axes, heldAxes);
+  const kitAt = axes.findIndex((a) => a.key === "kit");
+  if (kitAt >= 0 && kitAt < axes.length - 1) axes.push(...axes.splice(kitAt, 1));
+}
 
 /**
  * kind.monsterFamily -> ONE `acks-extras.template` generator whose variant axis
@@ -3240,11 +3636,20 @@ async function importFamily(bookId, famId, folderId) {
 
   const options = [];
   const memberText = new Map();
+  const memberXp = new Map();
+  let lore = "";
   let img = "";
   for (const member of fam.members) {
     try {
     let entry = cb.entries[member.id];
     if (!entry) continue;
+    // An overview that reads another member's stat block is the family's
+    // description, not a variant: its prose becomes the template's own.
+    if (overviewIsLore(member, fam.members, fam.name, (id) => cb.entries[id])) {
+      const node = await executeEntry(session.doc, cb, data.registers, member.id);
+      if (node.ok) lore = entryText(node, member.id, entry.cite);
+      continue;
+    }
     // CROSS-BOOK: a member reprinted in another open book binds the NEWER
     // printing (the per-entry defer rule, per variant) — the option keeps this
     // family's variant label but takes its stats, text and cookbook id from
@@ -3275,6 +3680,7 @@ async function importFamily(bookId, famId, folderId) {
     await warmSpellPacksOnce();
     const { system, items, flags, prototypeToken } = legacy ? bindLegacyMonster(node) : bindMonster(node);
     memberText.set(slugLabel(member.variant), (node.fields.description ?? []).map((p) => p.text).join(" "));
+    if (!legacy) memberXp.set(slugLabel(member.variant), await wholeXpCell(bindDoc, bindCb, bindId, entry));
     let extras;
     if (legacy) {
       system.details = { ...(system.details ?? {}), biography: entryText(node, bindId, entry.cite) };
@@ -3308,27 +3714,9 @@ async function importFamily(bookId, famId, folderId) {
       if (!up) console.warn(`${MODULE_ID} | ${entry.name}: variant art skipped (timeout or extraction failure).`);
     }
 
-    options.push({
-      key: slugLabel(member.variant),
-      label: member.variant,
-      nameLabel: entry.name, // the generated actor is named exactly as a direct import
-      art,
-      merge: system,
-      items: items.map((i) => ({
-        ...i,
-        flags: { ...(i.flags ?? {}), [MODULE_ID]: { ...(i.flags?.[MODULE_ID] ?? {}), minted: true } },
-      })),
-      html: "",
-      flags: {
-        ...(flags ?? {}),
-        [MODULE_ID]: {
-          ...((flags ?? {})[MODULE_ID] ?? {}),
-          cookbook: { id: bindId, cite: entry.cite },
-          ...(extras ? { extras } : {}),
-        },
-      },
-      token: prototypeToken ?? {},
-    });
+    options.push(
+      creatureOption({ key: slugLabel(member.variant), label: member.variant, name: entry.name, art, system, items, flags, extras, prototypeToken, id: bindId, cite: entry.cite }),
+    );
     } catch (err) {
       // One unreadable member costs one variant, never the family.
       console.warn(`${MODULE_ID} | ${famId}: member ${member.id} failed — variant skipped.`, err);
@@ -3345,9 +3733,24 @@ async function importFamily(bookId, famId, folderId) {
   // General prose-leader pass first, then any bespoke one-off; either failing
   // costs its enrichment, never the family import.
   try {
-    proseLeaderRoles({ fam, options, memberText, axes, cells, out });
+    const ladder = importedThrowLadder();
+    proseLeaderRoles({ options, memberText, memberXp, axes, cells, out, ladder: ladder.rows, ladderCite: ladder.cite });
+    // The AXIOMS leader procedure, where the Judge's copy is imported: a second
+    // source beside the printed leaders, and the only one where none is printed.
+    derivedLeaderRoles({
+      options, axes, cells, out, memberXp,
+      proc: importedLeaderProcedure(), deriveLeader,
+      ladder: ladder.rows, ladderCite: ladder.cite,
+    });
   } catch (err) {
     console.warn(`${MODULE_ID} | ${famId}: prose-role pass failed — importing without roles.`, err);
+  }
+  // The troop kits each kind fields, after the roles so a leader's kit cells
+  // know which ranks the variant has.
+  try {
+    kitPresets({ options, axes, cells, kits: importedKits() });
+  } catch (err) {
+    console.warn(`${MODULE_ID} | ${famId}: kit pass failed — importing without kits.`, err);
   }
   try {
     FAMILY_ONE_OFFS[famId]?.({ fam, options, memberText, axes, cells, out });
@@ -3369,6 +3772,8 @@ async function importFamily(bookId, famId, folderId) {
     return (conv?.status === "renamed" && conv.to ? conv.to : String(n ?? "")).toLowerCase();
   };
   const existing = (await importedActorsOfType(TEMPLATE_TYPE)).find((a) => {
+    // One entry's leader template is that entry's, never a family's to adopt.
+    if (a.getFlag(MODULE_ID, "cookbook")?.leadersOf) return false;
     const aFam = a.getFlag(MODULE_ID, "cookbook")?.id ?? "";
     if (aFam === famId || (aFam.split(".")[1] ?? aFam) === famSuffix) return true;
     if (aFam && canonicalName(a.name) === canonicalName(fam.name)) return true;
@@ -3376,7 +3781,7 @@ async function importFamily(bookId, famId, folderId) {
       (ax) => ax.key === "variant" && (ax.options ?? []).some((o) => incomingIds.has(optionIdOf(o)))
     );
   });
-  if (existing) {
+  if (existing && !isRewriting(famId)) {
     const exAxes = sysObject(existing).axes;
     const vAxis = exAxes.find((a) => a.key === "variant");
     if (vAxis) {
@@ -3391,9 +3796,18 @@ async function importFamily(bookId, famId, folderId) {
       if (inRole && exRole) {
         const roleKeys = new Set(exRole.options.map((o) => o.key));
         exRole.options.push(...inRole.options.filter((o) => !roleKeys.has(o.key)));
+        exRole.default ||= inRole.default ?? "";
       } else if (inRole && added.length) {
         exAxes.push(inRole);
       }
+      // The leader-source axis is chosen before the role, wherever it lands.
+      const inSource = axes.find((a) => a.key === SOURCE_AXIS);
+      if (inSource && added.length && !exAxes.some((a) => a.key === SOURCE_AXIS)) {
+        const at = exAxes.findIndex((a) => a.key === "role");
+        exAxes.splice(at < 0 ? exAxes.length : at, 0, inSource);
+      }
+      // The kit axis is chosen last, after the role its cells are keyed by.
+      if (addedCells.some((c) => (c.by ?? []).includes("kit"))) unionKitAxis(exAxes, axes);
       // The ACKS II core printing owns the NAME: an adventure-created template
       // a core family merges into takes the core family's name and id.
       const CORE_BOOKS = new Set(["mm", "rr", "jj"]);
@@ -3421,6 +3835,13 @@ async function importFamily(bookId, famId, folderId) {
       return existing;
     }
   }
+  // A repair in place writes this build over the held template whole
+  // (`createDoc` under `withRewrite`); the variants another book merged into
+  // it, and their cells, are carried over as they stand.
+  if (existing && isRewriting(famId)) {
+    carryMergedVariants(existing, axes, cells);
+    if (axes.some((a) => a.key === "role")) out.nameFormat = "{variant} {role}";
+  }
 
   const actor = await createDoc(Actor, {
     name: fam.name,
@@ -3431,6 +3852,7 @@ async function importFamily(bookId, famId, folderId) {
       output: { actorType: "monster", nameFormat: out.nameFormat },
       axes,
       cells,
+      ...(lore ? { details: { biography: lore } } : {}),
     },
     flags: { [MODULE_ID]: { cookbook: { id: famId, cite: fam.cite } } },
   });
@@ -3495,6 +3917,8 @@ async function importTemplate(bookId, id, folderId) {
   // What the family casts as — a tradition or a class word — is said once in
   // the prose and holds for every row that prints a slot column.
   const spellSource = castSourceOf(paras.map((p) => p.text).join(" "));
+  // A row with no printed throw takes its rating's row of the Judge's ladder.
+  const ladder = importedThrowLadder();
 
   const axes = [];
   for (const ax of spec.axes ?? []) {
@@ -3504,7 +3928,7 @@ async function importTemplate(bookId, id, folderId) {
     const options = rows.map((row) => {
       const cells = { ...row.cells };
       for (const m of restByKey) Object.assign(cells, m.get(row.key) ?? {});
-      return templateOption(ax, row, cells, { id, cite, sectionText, spellSource });
+      return templateOption(ax, row, cells, { id, cite, sectionText, spellSource, ladder });
     });
     if (!options.length) console.warn(`${MODULE_ID} | ${id}: axis "${ax.key}" materialized no options.`);
     // AUTHORED per-option art (the body-form portraits on the dragon's own
@@ -3546,11 +3970,15 @@ async function importTemplate(bookId, id, folderId) {
     for (const row of gridRows(c.grid)) {
       for (const [formKey, dmg] of Object.entries(row.cells)) {
         const info = formInfo.get(formKey) ?? {};
+        const weapons = weaponsFromRoutine(info.routine, dmg, info.types);
         cells.push({
           by: [aKey, bKey],
           key: `${row.key}|${formKey}`,
-          merge: { attacks: [info.routine, String(dmg)].filter(Boolean).join(" — ") },
-          items: weaponsFromRoutine(info.routine, dmg, info.types),
+          merge: {
+            attacks: [info.routine, String(dmg)].filter(Boolean).join(" — "),
+            ...(weapons.mod ? { damage: damageTotal(weapons.mod) } : {}),
+          },
+          items: weapons.items,
         });
       }
     }
@@ -3600,7 +4028,7 @@ async function importTemplate(bookId, id, folderId) {
     ui.notifications.warn(`${MODULE_ID} | ${found.entry.name}: the system rejected the template — skipped (see console).`);
     return null;
   }
-  if (node.fields.art && ctx.importArtForPage) {
+  if (node.fields.art && ctx.importArtForPage && !isRewriting(id)) {
     const artInstr = found.entry.fields?.art ?? {};
     await ctx.importArtForPage(actor, session.doc, {
       id,
@@ -3669,6 +4097,12 @@ export async function refillMonster(actor, { whole = false, force = false } = {}
       policyFor(REPAIR.monster, { force }),
     );
     if (plan.refused) return { ok: false, reason: plan.refused, book: bookId, name: found.entry.name };
+    // The creature's leaders are rebuilt from the same read, and minted where
+    // a world imported it before its leaders were.
+    await mintLeaderTemplate({
+      id, found, node, bound: { system, items, flags, prototypeToken }, extras,
+      folder: actor.folder?.id ?? null, bindDoc: session.doc, img: actor.img ?? "",
+    });
     return { ok: true, book: bookId, name: found.entry.name, keptProse: plan.keptProse };
   }
   for (const path of REFILL_STAT_PATHS) {
@@ -3716,7 +4150,7 @@ function deferTarget(id) {
 }
 
 /** Legacy (ACKS I label-column) stats, translated onto the bindMonster surface. */
-function bindLegacyMonster(node) {
+export function bindLegacyMonster(node) {
   const s = node.fields.stats ?? {};
   const morale =
     typeof s.morale === "string" && /^[+-]?\d+$/.test(s.morale.trim()) ? parseInt(s.morale, 10) : s.morale;
@@ -3726,9 +4160,13 @@ function bindLegacyMonster(node) {
   });
   const atkText = [s.attacks, s.damage].filter(Boolean).join(" — ");
   if (atkText) bound.system.attacks = atkText;
-  // One weapon item when the era's "N (name)" attack + dice damage parse.
+  // One weapon item when the era's "N (name)" attack + dice damage parse. A
+  // "by weapon ±N" damage is the creature's modifier (`damage.mod`, as
+  // `bindMonster` takes it) and the item keeps "By weapon".
   const m = /^\s*\d*\s*\(?\s*([A-Za-z][A-Za-z' -]*)\)?/.exec(String(s.attacks ?? ""));
-  const dmg = diceOf(s.damage);
+  const lift = splitWeaponModifier(s.damage);
+  if (lift?.mod) bound.system.damage = damageTotal(lift.mod);
+  const dmg = lift?.formula ?? diceOf(s.damage);
   if (m && dmg) {
     bound.items = [
       ...(bound.items ?? []),
@@ -3752,7 +4190,7 @@ function bindLegacyMonster(node) {
  * ability scores and gear notes go to flags — the monster schema has no score
  * fields — and the entry's own text is written into the biography.
  */
-function bindNpc(node) {
+export function bindNpc(node) {
   const sl = node.fields.statline ?? {};
   const system = {};
   if (Number.isInteger(sl.ac)) system.ac = { value: sl.ac };
@@ -3774,6 +4212,9 @@ function bindNpc(node) {
   if (mv) system.movement = { base: parseInt(mv[1], 10) };
   if (sl.atk?.throw != null) system.attack = { throw: sl.atk.throw };
   if (sl.atk) system.attacks = [sl.atk.count, sl.atk.text ? `(${sl.atk.text})` : "", sl.dmg ? `— ${sl.dmg}` : ""].filter(Boolean).join(" ");
+  // A "by weapon ±N" damage is the creature's modifier, as `bindMonster` takes it.
+  const lift = splitWeaponModifier(sl.dmg);
+  if (lift?.mod) system.damage = damageTotal(lift.mod);
   const items = [];
   if (sl.atk?.text) {
     items.push({
@@ -3781,7 +4222,7 @@ function bindNpc(node) {
       type: "weapon",
       img: DEFAULT_IMG.ATTACK,
       system: {
-        description: "", damage: weaponDamage(diceOf(sl.dmg) || ""), bonus: { attack: 0, damage: 0 }, melee: true, missile: false, equipped: true,
+        description: "", damage: weaponDamage(lift?.formula ?? (diceOf(sl.dmg) || "")), bonus: { attack: 0, damage: 0 }, melee: true, missile: false, equipped: true,
         pattern: "transparent", counter: { value: 1, max: 1 }, cost: 0, weight: 0, weight6: 0,
       },
     });
@@ -3840,7 +4281,11 @@ async function importAdventureActor(bookId, id, folderId) {
     type: "monster",
     folder: folderId,
     system: bound.system,
-    items: bound.items ?? [],
+    // Stamped as the import's own so a repair replaces them and keeps any a Judge added.
+    items: (bound.items ?? []).map((i) => ({
+      ...i,
+      flags: { ...(i.flags ?? {}), [MODULE_ID]: { ...(i.flags?.[MODULE_ID] ?? {}), minted: true } },
+    })),
     flags: {
       [MODULE_ID]: {
         cookbook: { id, book: bookId, kind },
@@ -3872,7 +4317,7 @@ async function importAdventureActor(bookId, id, folderId) {
  */
 async function adventureActorArt(actor, session, id, found, node) {
   const artInstr = found.entry.fields?.art ?? null;
-  if (actor && artInstr && (artInstr.box || node.fields.art) && ctx.importArtForPage) {
+  if (actor && artInstr && (artInstr.box || node.fields.art) && ctx.importArtForPage && !isRewriting(id)) {
     await ctx.importArtForPage(actor, session.doc, {
       id,
       page: artInstr.page ?? found.entry.pages[0],
@@ -3935,13 +4380,16 @@ async function importCharacter(bookId, id, folderId, node, found) {
   };
   // A document already standing under the stable id is this entry's from an
   // earlier run; making another under it is a duplicate-id throw.
+  // A forced repair holds the character: the create below returns it, and the
+  // sheet import and the biography write that follow land on it where it stands.
   const { pack } = await packOptsFor("Actor", lineOfData(shell));
-  if ((pack ? game.packs.get(pack)?.index.has(_id) : game.actors.has(_id))) {
+  if (!isRewriting(id) && (pack ? game.packs.get(pack)?.index.has(_id) : game.actors.has(_id))) {
     console.warn(`${MODULE_ID} | ${id}: a character already stands under its id — skipped.`);
     return null;
   }
   const actor = await createDoc(Actor, shell, { keepId: true });
   if (!actor) return null;
+  const standing = new Set(actor.items.map((i) => i.id));
   // Loaded on use: the sheet import's tree registers hooks as it loads, and
   // this module is also loaded where no Foundry runs.
   const [{ importSheet }, matchers] = await Promise.all([import("../character-sheet/pdf/apply.mjs"), import("../character-sheet/pdf/match.mjs")]);
@@ -3952,6 +4400,10 @@ async function importCharacter(bookId, id, folderId, node, found) {
   // resolves by; what nothing supplies is reported below as unmatched.
   await resolveAbilities([...(sl.proficiencies ?? []), ...(sl.classProficiencies ?? [])]);
   const report = await importSheet({ actor, values, writeDomain: false, record: false });
+  // What the sheet import granted is the import's own, stamped so a repair can
+  // tell it from an item a Judge gave the character.
+  const granted = actor.items.filter((i) => !standing.has(i.id) && !i.flags?.[MODULE_ID]?.minted);
+  if (granted.length) await actor.updateEmbeddedDocuments("Item", granted.map((i) => ({ _id: i.id, [`flags.${MODULE_ID}.minted`]: true })));
   const moraleField = actor.system.schema?.getField?.("details.morale");
   const missing = [...report.unmatched, ...unplaced];
   const words = {
@@ -4183,7 +4635,7 @@ export async function cookbookImportPoiPlaces({ books = null, ids = null } = {})
         continue;
       }
       const overview = group.kind === "overview";
-      const held = overview ? null : await importedActor(id, { copies: false });
+      const held = overview || isRewriting(id) ? null : await importedActor(id, { copies: false });
       if (held) {
         // A role is structural (which kind of place), not a page value, so a
         // place imported before the cookbook named it is stamped without a page
@@ -4231,7 +4683,7 @@ export async function cookbookImportPoiPlaces({ books = null, ids = null } = {})
           name: printedNameOf(node, e.name), entryId: id, notes: entryText(node, id, e.cite), book: bookId, bookLabel: label,
           district: group.district, parentUuid: district?.uuid ?? "", folderId: folder, role: e.meta?.role ?? "",
         })));
-      if (place) made++;
+      if (place && !isRewriting(id)) made++;
     }
   } finally {
     bar.finish();
@@ -4326,7 +4778,8 @@ async function importKeyedPlace(bookId, id, run) {
   const parent = isKeyedPlace(cb.entries[parentId], parentId, run.spacesOf(bookId))
     ? await run.placeFor(bookId, parentId)
     : await run.bookPlaceFor(bookId);
-  const held = await importedActor(id, { copies: false });
+  // A place a forced repair holds is built again and written over (`withRewrite`).
+  const held = isRewriting(id) ? null : await importedActor(id, { copies: false });
   if (held) {
     const patch = siteBindPatch(held, { parentUuid: parent?.uuid ?? "" });
     // A parent made again is a new document: the uuid the place names is then
@@ -4358,7 +4811,7 @@ async function importKeyedPlace(bookId, id, run) {
     createDoc(Actor, poiLocationData({
       name, entryId: id, notes, book: bookId, bookLabel: label, parentUuid: parent?.uuid ?? "", folderId: folder, roster,
     })));
-  if (place) {
+  if (place && !isRewriting(id)) {
     tally.made++;
     run.created.places.push(place.uuid);
   }
@@ -4590,7 +5043,7 @@ async function importRegionRow({ bookId, id, e, region }, tally, run) {
 
   const claim = regionSiteClaim(bookId, e, id, cb.entries);
   const held = await importedActor(claim.claimId, { copies: false });
-  if (claim.onto === "site" && held) {
+  if (claim.onto === "site" && held && !isRewriting(claim.claimId)) {
     if (isPlaceRole(role) && !held.system?.role) {
       await held.update({ "system.role": role });
       tally.stamped++;
@@ -4599,7 +5052,7 @@ async function importRegionRow({ bookId, id, e, region }, tally, run) {
   }
   // A bound place whose notes are written needs no page: only its parent and
   // role can still be owed. An erratum note alone is not its text.
-  if (held && heldErratumNotes(held.system?.notes, claimIds(held.getFlag?.(MODULE_ID, "cookbook"))).rest.trim()) {
+  if (held && !isRewriting(claim.claimId) && heldErratumNotes(held.system?.notes, claimIds(held.getFlag?.(MODULE_ID, "cookbook"))).rest.trim()) {
     const patch = siteBindPatch(held, { parentUuid, role });
     if (Object.keys(patch).length) await held.update(patch);
     return void tally.already++;
@@ -4616,7 +5069,7 @@ async function importRegionRow({ bookId, id, e, region }, tally, run) {
     }
     const made = await claimActorImport(id, () =>
       createDoc(Actor, poiLocationData({ name, entryId: id, notes, book: bookId, bookLabel: label, parentUuid, folderId: folder, role })));
-    if (made) {
+    if (made && !isRewriting(id)) {
       tally.made++;
       run.created.places.push(made.uuid);
     }
@@ -4662,8 +5115,13 @@ async function importRegionRow({ bookId, id, e, region }, tally, run) {
  * "A setting book's market profile lands as the base", "A later printing's
  * demand replaces an earlier one's" and "AX3's demand grid is corrected as
  * printing errata".
+ *
+ * `repair`, a forced tally (`repairTally({force: true})`), writes the class and
+ * the families over what a place holds and the base demand over any base but
+ * one a later printing wrote (`marketProfileUpdate`'s `force`); an ordinary run
+ * and an unforced tally keep the write rule above.
  */
-export async function cookbookImportMarketProfiles({ books: only = null } = {}) {
+export async function cookbookImportMarketProfiles({ books: only = null, repair = null } = {}) {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates actors).`);
   const books = [...data.books.keys()]
     .filter((b) => ctx.sessionDocs.has(b) && (!only || only.includes(b)))
@@ -4762,8 +5220,12 @@ export async function cookbookImportMarketProfiles({ books: only = null } = {}) 
             continue;
           }
           const corrected = errata[profile.market] ?? null;
-          const { update, wrote } = marketProfileUpdate(place.system?.market ?? null, profile, source, { corrected: !!corrected });
-          if (Object.keys(update).length) await place.update(update);
+          const { update, wrote } = marketProfileUpdate(place.system?.market ?? null, profile, source, { corrected: !!corrected, force: !!repair?.force });
+          if (Object.keys(update).length) {
+            await place.update(update);
+            // A forced repair counts each place it wrote a profile onto, once.
+            if (repair?.force && unrepaired(repair, place)) repair.replaced++;
+          }
           if (corrected) await noteErratum(place, entryId, "erratumMoved", corrected);
           else if (record?.gridClassErratum) await noteErratum(place, entryId, "erratumClass", record.gridClassErratum);
           if (fresh) counts.made++;
@@ -4834,7 +5296,7 @@ export async function cookbookImportFactions({ books = null } = {}) {
       else if (isStrengthGridRow(e)) grids.push({ bookId, id, e, plan: strengthPlan(e) });
     }
   }
-  const counts = { made: 0, already: 0, rostered: 0, missing: 0, refused: 0, related: 0, counted: 0, figuresKept: 0 };
+  const counts = { made: 0, already: 0, rostered: 0, missing: 0, refused: 0, related: 0, counted: 0, figuresKept: 0, rewritten: 0 };
   // Narrowed to books that print no organisation, the step has nothing to say.
   if (!authored.length) return books ? counts : ui.notifications.warn(`${MODULE_ID} | no organisations in any open book — connect AX3 first.`);
 
@@ -4886,7 +5348,8 @@ export async function cookbookImportFactions({ books = null } = {}) {
         const place = await importedActor(placeId);
         if (place && !holdings.some((h) => h.uuid === place.uuid)) holdings.push({ uuid: place.uuid, name: place.name });
       }
-      let faction = await importedActor(id);
+      // A body a forced repair holds is built again and written over (`withRewrite`).
+      let faction = isRewriting(id) ? null : await importedActor(id);
       if (faction) {
         counts.already++;
         const patch = {};
@@ -4912,7 +5375,8 @@ export async function cookbookImportFactions({ books = null } = {}) {
             holdings, controls: plan.controls, folderId: folder,
           })));
         if (!faction) continue;
-        counts.made++;
+        if (isRewriting(id)) counts.rewritten++;
+        else counts.made++;
       }
       await rosterOnto(faction, plan.members);
       built.push({ faction, plan, cite: e.cite });
@@ -4949,7 +5413,7 @@ export async function cookbookImportFactions({ books = null } = {}) {
         const found = await importedActor(orgId);
         const faction = found?.system ? found : found?.uuid ? await fromUuid(found.uuid) : null;
         if (!faction) continue;
-        if (faction.system.strength?.rows?.length) {
+        if (faction.system.strength?.rows?.length && !wasRewritten(faction)) {
           counts.figuresKept++;
           continue;
         }
@@ -4968,6 +5432,7 @@ export async function cookbookImportFactions({ books = null } = {}) {
   }
   const parts = [
     `${counts.made} faction(s) created`,
+    counts.rewritten ? `${counts.rewritten} written over` : "",
     counts.already ? `${counts.already} already held` : "",
     counts.rostered ? `${counts.rostered} member(s) rostered` : "",
     counts.related ? `${counts.related} relation(s) written` : "",
@@ -4985,9 +5450,11 @@ export async function cookbookImportFactions({ books = null } = {}) {
  * row TEXT materializes from the seat's book at import and persists in the
  * world — the GM's hand-typed-table equivalence, like imported stat values.
  * The formula comes from the page (dice locator) or, when the rows start at
- * 1, mechanically from the shipped range structure.
+ * 1, mechanically from the shipped range structure. `repair`, a tally
+ * (`repairTally`), writes each table this world already holds over in place
+ * (`rewriteTable`) instead of passing it over.
  */
-export async function cookbookImportRollTables({ books = null } = {}) {
+export async function cookbookImportRollTables({ books = null, repair = null } = {}) {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates roll tables).`);
   const wanted = books ? new Set(books) : null;
   const openBooks = [...data.books.keys()].filter((b) => ctx.sessionDocs.has(b) && (!wanted || wanted.has(b)));
@@ -5009,7 +5476,9 @@ export async function cookbookImportRollTables({ books = null } = {}) {
         // the table or explains why it could not, and all of them consumed a unit
         // of the work the bar is measuring.
         bar.step(e.name);
-        if (present.has(id)) {
+        // A held table is passed over, or under a repair read again and written over.
+        const held = present.has(id);
+        if (held && !repair) {
           skipped++;
           continue;
         }
@@ -5018,7 +5487,7 @@ export async function cookbookImportRollTables({ books = null } = {}) {
           ui.notifications.warn(`${MODULE_ID} | ${e.name}: page did not match the cookbook — skipped.`);
           continue;
         }
-        const folder = await targetFolder("RollTable", bookId, e.meta?.group);
+        const folder = held ? null : await targetFolder("RollTable", bookId, e.meta?.group);
         // Rows arrive as section-labelled paragraphs; a row that wrapped columns
         // has several paras under one section, joined here in order. A detail
         // paragraph (the row's explanation printed elsewhere on the page) stands
@@ -5051,6 +5520,11 @@ export async function cookbookImportRollTables({ books = null } = {}) {
         const formula =
           (typeof node.fields.roll === "string" && node.fields.roll) ||
           (Math.min(...lows) === 1 ? `1d${Math.max(...his)}` : "");
+        if (held) {
+          skipped++;
+          await rewriteTable(await importedTable(id), { formula, description: entryText(node, id, e.cite), results }, repair);
+          continue;
+        }
         await createDoc(RollTable, {
           // A table anchored by a hash of its heading ships a neutral name and
           // takes the printed one from the page it was read off.
@@ -5084,6 +5558,28 @@ export async function cookbookImportRollTables({ books = null } = {}) {
 /** What an imported list adds after dark, read from its own rows and die (`afterDarkShift`). */
 function listAfterDark(list) {
   return afterDarkShift([...(list.results ?? [])].map((r) => r.range), list.formula);
+}
+
+/**
+ * Write a fresh read of a roll table over the one this world holds: its formula,
+ * its description (unless a Judge wrote one and the tally is not forced), and its
+ * rows, which are replaced whole. The table's id, folder, owners and name stay.
+ * Counted into `repair`; a failed write counts as refused and leaves the rows as
+ * they were where the delete had not yet run.
+ */
+async function rewriteTable(table, built, repair) {
+  if (!table || !unrepaired(repair, table)) return;
+  const keepProse = !repair.force && handWrittenProse(table.description);
+  try {
+    await table.update({ formula: built.formula, ...(keepProse ? {} : { description: built.description }) });
+    const old = [...table.results].map((r) => r.id);
+    if (old.length) await table.deleteEmbeddedDocuments("TableResult", old);
+    await table.createEmbeddedDocuments("TableResult", built.results);
+    countRepair(repair, { keptProse: keepProse ? ["description"] : [] });
+  } catch (err) {
+    console.error(`${MODULE_ID} | repair of ${table.name} failed`, err);
+    countRepair(repair, "error");
+  }
 }
 
 /** The imported roll table for a cookbook id — the world's own first, then the shelves — or null. */
@@ -6662,6 +7158,11 @@ export function bindAbility(entry, node, id, opts = {}) {
     // way, never omitted: update() merges flags, so an omitted `false` would
     // leave a stale `true` once an entry is signed off.
     unaudited: !entry.audited,
+    // Which reader produced `effects`: a register recipe ("recipe") or the
+    // vocabulary scan ("scan"). Applied modifiers mark a scan's as unverified
+    // (lib/typed-modifiers.mjs isUnverified). Written explicitly either way,
+    // for the same merge reason as `unaudited`.
+    effectsFrom: effectsOriginOf(entry),
     // Set when this reference arrived under an older/foreign name: the reader's
     // source calls it `conversionFrom`, ACKS II calls it `entry.name`.
     ...(opts.conversionStatus ? { conversionStatus: opts.conversionStatus } : {}),
@@ -10652,7 +11153,9 @@ async function repairPricedSubtypes(rows) {
 /**
  * Bulk import: every equipment entry, shared folder, dedup via importEquipment.
  * `repair`, a tally, writes each entry this world already holds over its
- * document in place instead of passing over it (`importEquipment`).
+ * document in place instead of passing over it (`importEquipment`), and
+ * `repair.tables`, a set of `weapons`, `armor` and `priced`, names the printed
+ * tables it writes over as well.
  */
 export async function importAllEquipment({ only = null, repair = null } = {}) {
   // Same reason as importClasses: the macro says "(GM)" but every seat can run
@@ -10700,17 +11203,14 @@ export async function importAllEquipment({ only = null, repair = null } = {}) {
   if (passed.lines.length) ui.notifications?.info(`${MODULE_ID} | equipment: ${passed.lines.join("; ")}.`);
   const over = { closed: passed.closed, unmatched: passed.unmatched };
   // The weapon, armour and price TABLES are no entry's, so a pass narrowed to
-  // entries never reaches them; their shelves rebuild on their own, and a
-  // repair in place leaves them to that rebuild.
-  if (only || repair) {
-    reportOverlaps();
-    return { total: ids.length, created, animals, passed: over, repaired, repairedAnimals, repairedShields, weapons: null, armor: null, priced: null };
-  }
-  const weapons = await importWeapons();
-  const armor = await importArmor();
+  // entries reaches only the tables its repair tally names (`tally.tables`, set
+  // by the shelf or book repair that owns them); a whole import reaches all three.
+  const tables = repair ? (repair.tables ?? new Set()) : only ? new Set() : new Set(["weapons", "armor", "priced"]);
+  const weapons = tables.has("weapons") ? await importWeapons(undefined, { repair }) : null;
+  const armor = tables.has("armor") ? await importArmor(undefined, { repair }) : null;
   // Last: it asks which price rows the entries above already claim, so it has
   // to run after they have had their chance at them.
-  const priced = await importPricedGear();
+  const priced = tables.has("priced") ? await importPricedGear(undefined, { repair }) : null;
   reportOverlaps();
   return { total: ids.length, created, animals, passed: over, repaired, repairedAnimals, repairedShields, weapons, armor, priced };
 }
@@ -10754,9 +11254,13 @@ async function repairAmmoWeapons(ids) {
  * nothing here. Deduped by cookbook id; each item carries its full set of
  * attack/damage modes (weapon-tables `damageModes`), which the core
  * compendium could not express and split into separate items instead.
+ * `repair`, a tally (`repairTally`), writes each row this world already holds
+ * over its document in place (`rewriteRow`) instead of passing over it.
+ * @param {string} [folderId]
+ * @param {{repair?: object|null}} [opts]
  * @returns {Promise<{table:number, created:number}>}
  */
-export async function importWeapons(folderId) {
+export async function importWeapons(folderId, { repair = null } = {}) {
   const session = ctx.sessionDocs.get(WEAPON_TABLE.book);
   if (!session?.doc) return { table: 0, created: 0, reason: "book not connected" };
   let rows;
@@ -10782,15 +11286,21 @@ export async function importWeapons(folderId) {
     if (!row.ammunition && !weaponIdentity({ type: ITEM_TYPE.WEAPON, name: row.name, flags: { [MODULE_ID]: { cookbook: { id } } } }).key) {
       unidentified.push(row.name);
     }
-    if (await importedItem(id)) continue;
     const cite = `${BOOKS[WEAPON_TABLE.book]?.short ?? "RR"} p. ${WEAPON_TABLE.page}`;
     // Whether an ammunition row names a carrying device is the equipment root's
     // question — it owns the gear profiles that answer it — so it is asked, not
     // restated here. Absent the module every ammunition row is a bare stack,
     // which is the shape that needs nothing of it.
-    const doc = row.ammunition
-      ? bindAmmoRow(row, id, cite, { device: !!gearProfileFor(row.name) })
-      : bindWeaponRow(row, id, cite);
+    const build = () =>
+      row.ammunition
+        ? bindAmmoRow(row, id, cite, { device: !!gearProfileFor(row.name) })
+        : bindWeaponRow(row, id, cite);
+    const held = await importedItem(id);
+    if (held) {
+      await rewriteRow(held, build, row.ammunition ? REPAIR.ammunition : REPAIR.weapon, repair);
+      continue;
+    }
+    const doc = build();
     const item = rememberImported(id, await createDoc(Item, { ...doc, folder }));
     // The RAW annotation layer belongs to acks-equipment, exactly as the gear
     // cookbook defers to it: a case rides on the belt and is free to draw from.
@@ -10844,6 +11354,41 @@ function subtypeForSection(section) {
 }
 
 /**
+ * Write a table row's fresh build over the document this world holds for it,
+ * under `policy`, and count it into `repair`. Nothing without a tally: an
+ * import passes a held row over. `build` is called only when it writes.
+ */
+async function rewriteRow(held, build, policy, repair) {
+  if (!repair || !unrepaired(repair, held)) return;
+  countRepair(repair, await refreshImported(held, build(), policyFor(policy, repair)));
+}
+
+/**
+ * The item a printed price row makes: the type the equipment root maps its
+ * name to (plain inventory without it), the subtype its section heading names,
+ * and its price and weight from the page.
+ */
+function pricedDoc(row, id, cite) {
+  // The equipment root owns the rule mapping a NAME to the item type it should
+  // be, exactly as bindEquipment defers to it; absent the module a priced row
+  // is plain inventory.
+  const klass = equipmentClass(row.name) ?? null;
+  const type = klass?.type ?? "item";
+  const subtype = subtypeForSection(row.section);
+  return {
+    name: row.name,
+    type,
+    img: "icons/containers/bags/pouch-simple-brown.webp",
+    system: {
+      ...(type === "item" ? { subtype, quantity: { value: 1, max: 0 } } : {}),
+      ...(row.cost != null ? { cost: row.cost } : {}),
+      ...(row.weight6 != null ? { weight6: row.weight6 } : {}),
+    },
+    flags: { [MODULE_ID]: { cookbook: { id, cite }, minted: true } },
+  };
+}
+
+/**
  * Materialize the printed price rows that no cookbook entry of its own
  * claims. The gear cookbook is a list of things the book DESCRIBES; the
  * price grid is a list of things it SELLS, itemizing what a description
@@ -10852,8 +11397,13 @@ function subtypeForSection(section) {
  * A row an entry already resolves is left alone — that item exists and
  * carries the book's own description, which a grid row does not have.
  * Everything else becomes an item priced from the reader's own page.
+ *
+ * `repair`, a tally (`repairTally`), first writes each row this world already
+ * made an item of over that item in place (`rewriteRow`).
+ * @param {string} [folderId]
+ * @param {{repair?: object|null}} [opts]
  */
-export async function importPricedGear(folderId) {
+export async function importPricedGear(folderId, { repair = null } = {}) {
   const session = ctx.sessionDocs.get(WEAPON_TABLE.book);
   if (!session?.doc) return { rows: 0, created: 0, reason: "book not connected" };
   let rows;
@@ -10871,6 +11421,17 @@ export async function importPricedGear(folderId) {
   // downstream of the claim can ever reach one, and a repair written there
   // reports zero forever while the wrong documents stand.
   const repaired = await repairPricedSubtypes(rows);
+
+  // A repair writes the rows this world already made items of; the loop below
+  // then passes those over as claimed.
+  if (repair) {
+    const cite0 = `${BOOKS[WEAPON_TABLE.book]?.short ?? "RR"} p. ${PRICE_TABLES.gear.page}`;
+    for (const row of rows) {
+      const id = pricedId(row.name);
+      const held = await importedItem(id);
+      if (held) await rewriteRow(held, () => pricedDoc(row, id, cite0), REPAIR.priced, repair);
+    }
+  }
 
   // Exactly what priceFor resolves, asked once for the whole grid: a row is
   // claimed by an entry with its key, or by an entry whose key it alone
@@ -10928,21 +11489,7 @@ export async function importPricedGear(folderId) {
     // The equipment root owns the rule mapping a NAME to the item type it
     // should be, exactly as bindEquipment defers to it; absent the module a
     // priced row is plain inventory.
-    const klass = equipmentClass(row.name) ?? null;
-    const type = klass?.type ?? "item";
-    const subtype = subtypeForSection(row.section);
-    const doc = {
-      name: row.name,
-      type,
-      img: "icons/containers/bags/pouch-simple-brown.webp",
-      system: {
-        ...(type === "item" ? { subtype, quantity: { value: 1, max: 0 } } : {}),
-        ...(row.cost != null ? { cost: row.cost } : {}),
-        ...(row.weight6 != null ? { weight6: row.weight6 } : {}),
-      },
-      flags: { [MODULE_ID]: { cookbook: { id, cite }, minted: true } },
-    };
-    rememberImported(id, await createDoc(Item, { ...doc, folder }));
+    rememberImported(id, await createDoc(Item, { ...pricedDoc(row, id, cite), folder }));
     created++;
   }
   return { rows: rows.length, created, repaired };
@@ -10968,10 +11515,13 @@ async function gearPriceMap() {
  * `armor` items from the reader's own book — the sibling of importWeapons.
  * AC, encumbrance and cost come from the seat's page; a bookless seat gets
  * nothing (a grid has no prose of its own). Deduped by cookbook id, into ACKS
- * Cookbook / Armor.
+ * Cookbook / Armor. `repair`, a tally (`repairTally`), writes each row this
+ * world already holds over its document in place (`rewriteRow`).
+ * @param {string} [folderId]
+ * @param {{repair?: object|null}} [opts]
  * @returns {Promise<{table:number, created:number}>}
  */
-export async function importArmor(folderId) {
+export async function importArmor(folderId, { repair = null } = {}) {
   const session = ctx.sessionDocs.get(ARMOR_TABLE.book);
   if (!session?.doc) return { table: 0, created: 0, reason: "book not connected" };
   let rows;
@@ -10986,8 +11536,12 @@ export async function importArmor(folderId) {
   let created = 0;
   for (const row of rows) {
     const id = armorId(row.name);
-    if (await importedItem(id)) continue;
     const cite = `${BOOKS[ARMOR_TABLE.book]?.short ?? "RR"} p. ${ARMOR_TABLE.page}`;
+    const held = await importedItem(id);
+    if (held) {
+      await rewriteRow(held, () => bindArmorRow(row, id, cite), REPAIR.armor, repair);
+      continue;
+    }
     rememberImported(id, await createDoc(Item, { ...bindArmorRow(row, id, cite), folder }));
     created++;
   }

@@ -13,6 +13,7 @@
  */
 import { createDoc, ensureItemFolder, importedItemFor, importedItemsByName, refForPrintedName } from "./cookbook.mjs";
 import { MODULE_ID } from "./constants.mjs";
+import { countRepair, unrepaired } from "./refresh.mjs";
 import * as services from "../lib/services.mjs";
 import { getLayer, PRIORITY } from "../lib/tables.mjs";
 import { assembledDoc } from "./produces.mjs";
@@ -380,10 +381,13 @@ function abilityRefByName(name, byName) {
 /**
  * Assemble the imported raw tables and merge the engine-shaped tables into
  * the same ruledata doc; then materialize races and stamp builds.
- * Runs after `importTables` whenever the classBuilder doc gained tables.
+ * Runs after `importTables` whenever the classBuilder doc gained tables. A race
+ * this world holds is written over in place whenever it runs (its name and
+ * system fields); `repair`, a tally (`repairTally`), counts each one.
+ * @param {{repair?: object|null}} [opts]
  * @returns {Promise<{assembled: string[], races: string[], builds: string[]}>}
  */
-export async function applyBuilderImport() {
+export async function applyBuilderImport({ repair = null } = {}) {
   const svc = services.get("ruledata-import");
   const report = { assembled: [], races: [], builds: [] };
   const doc = getLayer(BUILDER_DOC_ID, PRIORITY.WORLD);
@@ -425,8 +429,10 @@ export async function applyBuilderImport() {
     // is an import like any other, and a bare Item.create here put two of them
     // in the sidebar while the rest of the library sat in the pack.
     const existing = await importedItemFor(cookbookId);
-    if (existing) await existing.update({ name: race.name, system });
-    else
+    if (existing) {
+      await existing.update({ name: race.name, system });
+      if (repair && unrepaired(repair, existing)) countRepair(repair, {});
+    } else
       await createDoc(Item, {
         name: race.name,
         type: RACE_ITEM_TYPE,

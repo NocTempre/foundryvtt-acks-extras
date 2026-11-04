@@ -212,27 +212,44 @@ export function sumModifiers(mods) {
  * offers a draft entry's value rather than applying it. Items in
  * `skipItemIds` are left out, so an item whose own Active Effect carries the
  * key stands aside for it. A value that does not resolve to a non-zero number
- * is no modifier.
+ * is no modifier. Only modifiers on the subject `appliesTo` names are read
+ * (a spec that names none is the character's own), so a penalty an ability
+ * imposes on its victims never reads as one its holder suffers. A ladder
+ * keyed on rank reads the holder's rank: the count of same-named copies, or
+ * the abilities feature's own count when it is live.
  * @param {Actor|null} actor
  * @param {string} target - a `MODIFIER_TARGETS` key
- * @param {{skipItemIds?: Set<string>, scope?: object}} [options] - `scope` is `scopeApplies`' `ctx`
+ * @param {{skipItemIds?: Set<string>, scope?: object, appliesTo?: string}} [options] - `scope` is `scopeApplies`' `ctx`
  * @returns {{itemId: string, index: number, label: string, value: number, situational: boolean, condition: string|null, tones: string[], vsKinds: string[], unaudited: boolean}[]}
  */
-export function abilityModifiers(actor, target, { skipItemIds = new Set(), scope = {} } = {}) {
+export function abilityModifiers(actor, target, { skipItemIds = new Set(), scope = {}, appliesTo = "self" } = {}) {
   if (!actor?.items) return [];
   const raw = Number(actor.system?.details?.level);
   const level = Number.isFinite(raw) && raw > 0 ? raw : 1;
+  const items = [...actor.items];
+  const rankOf = (item) => {
+    const api = globalThis.acksExtras?.abilities;
+    try {
+      const r = Number(api?.rankOf?.(actor, item));
+      if (Number.isFinite(r) && r >= 1) return r;
+    } catch {
+      /* the count below */
+    }
+    const name = String(item.name ?? "");
+    return Math.max(1, items.filter((i) => i.type === item.type && String(i.name ?? "") === name).length);
+  };
   const out = [];
-  for (const item of actor.items) {
+  for (const item of items) {
     if (skipItemIds.has(item.id)) continue;
     const extras = item.getFlag?.("acks-extras", "extras") ?? item.flags?.["acks-extras"]?.extras;
     const effects = extras?.effects;
     if (!Array.isArray(effects)) continue;
     effects.forEach((effect, index) => {
       if (effect?.type !== "modifier" || effect.target !== target) return;
+      if ((effect.appliesTo || "self") !== appliesTo) return;
       const verdict = scopeApplies(effect, scope);
       if (!verdict.applies && !verdict.undetermined) return;
-      const value = verdict.sign * resolveLevelValue(effect.value, level, { level, rank: 1 });
+      const value = verdict.sign * resolveLevelValue(effect.value, level, { level, rank: rankOf(item) });
       if (!Number.isFinite(value) || value === 0) return;
       out.push({
         itemId: item.id,

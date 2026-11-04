@@ -63,9 +63,10 @@ this design forbids. The doctrine that contains them:
    *means* — sign, direction, replace-vs-add, whose penalty it is, how many
    rolls an entry offers — is a judgment, and judgments are chef work, baked
    per-entry into the register (`effects` specs with `from.pattern` locators,
-   roll recipes, `assists`). Blind Fighting is the canonical case: the page
-   prints a −2 that is a net *bonus*, because it replaces a −4. No scan knows
-   that; the recipe does.
+   roll recipes, `assists`). Blind Fighting is the canonical case (RR ch. 3,
+   "Blind Fighting"): the page prints a penalty *X* that is a net *bonus*,
+   because it replaces a larger penalty *Y*. No scan knows that; the recipe
+   does.
 2. **Never invent a rule.** If the book does not state it as mechanics, it
    ships as explainer text or not at all: no inferred stacking relations, no
    paraphrased labels, no guessed conditions presented as fact. (Structural

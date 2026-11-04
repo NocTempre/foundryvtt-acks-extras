@@ -28,6 +28,14 @@ enums; local-only, never in the repo).
   `zeroLevelAttackThrow` and `nonProficientUse` tables (`NON_PROFICIENT_TABLES`,
   declared through `expectTables`); until the Judge's import supplies a figure
   the row it sizes is left off and only the cancelled attribute bonus applies.
+- **The dual weapon style's and the heavy helmet's figures are imported.** The
+  loadout effect writes the dual style's melee attack modifier from the
+  `dualWeaponStyle` table (`effects.mjs` `dualStyleFigure`), and an enclosing
+  helmet's surprise modifier from `heavyHelm` (`overlays/enclosing-helm.mjs`
+  `helmFigures`, which also holds its Listening and Mortal Wounds figures).
+  A Judge's override of either table wins; a figure not imported writes
+  nothing. `api.HELM_MODIFIERS` keeps its `{surprise, listening,
+  mortalWounds}` shape, read at each access, each figure null until imported.
 - **Single responder.** Loadout writes (auto-unequip, effect sync) run for one
   user — the active GM if online, else the actor owner
   (`enforce.primaryResponder`) — and each client serialises its own
@@ -75,16 +83,30 @@ Numeric domains sum; CSV domains collect; boolean-ish domains test presence. Add
 |---|---|---|
 | `handBudget` | numeric | raises the base 2-hand budget (Four Arms, monster anatomy) |
 | `styleProficient` | CSV `style` or `style:spec` | trained styles / Fighting Style Specialization |
-| `styleInit` | numeric | flat initiative (Combat Reflexes) |
-| `styleAC` `styleAttackMelee` `styleAttackMissile` `styleDamageMelee` | numeric | flat combat mods |
-| `maxCleaves` | numeric | Combat Ferocity (roll-time) |
+| `styleInit` | numeric | flat initiative, for a hand-made effect |
+| `styleAC` `styleAttackMelee` `styleAttackMissile` `styleDamageMelee` | numeric | flat combat mods, for a hand-made effect |
 | `weaponFocus` | CSV | Weapon Focus categories (roll-time nat-20 die) |
 | `slayer` | CSV `group:bonus` | Goblin-/Vermin-Slaying (roll-time, situational) |
 | `martialWeapons` | CSV | weapon categories added to proficiency |
 | `armorTraining` | numeric | armour categories added above class |
-| `swashbuckling` | boolean | conditional AC (≤ light armour, ≤5 st, by level) → loadout AE |
 | `running` | boolean | +30' speed marker — read by movement modules (formation), not written here |
 | `finesse` `preciseShooting` `sniping` `ambushing` `skirmishing` `unarmedFighting` `blindFighting` `mountedCombat` `riding` `berserkergang` `freeSwap` | boolean | proficiency presence tests |
+
+### The loadout effect writes, and says who wrote what
+
+The managed loadout effect (`acksExtLoadout00`, `effects.mjs`
+`buildLoadoutParts` / `syncLoadoutEffect`) is the one writer of the core
+fields this feature moves. Each contribution is its own change, priority 20,
+in document order, and `flags.acks-extras.loadoutParts[i]` names what wrote
+`changes[i]`: `{label}` for an ability or a hand-made domain effect,
+`{labelKey}` for one of this feature's rules, plus `itemId`, `target`,
+`unverified` and `gated` for an ability's typed modifier (`loadoutPart(effect,
+change)` reads it). Typed modifiers come from lib's `standingModifiers`, with
+the loadout as the gates' context, so equipping armour drops a gated part.
+The effect rebuilds on any equip change, any `acks-extras` flag write, and a
+level change. Gates registered here: `lightlyEquipped` (`proficiency.mjs`
+`lightlyEquipped`: the armour rung at most `armourMax` and the load at most
+`loadMax` stone, null when either was not imported) and `activeStyle`.
 
 Per-actor proficiency profile (not effects): `flags.acks-extras.styles` (trained
 fighting styles), `.weaponProficiency` (a CSV of grant tokens), `.armorMax`
@@ -209,6 +231,17 @@ effect takes the deeper of the two cuts, once: two rules cancelling the same
 addition never cancel it twice. The style's own benefit is the shield's AC;
 Specialization in it adds its bonus above that.
 
+**Specialization's bonuses are the proficiency's own rows.** Fighting Style
+Specialization's recipe carries one modifier per style, its figure read off the
+page's bonus table at import and its gate `specializedStyle` with the style.
+The gate (registered in `effects.mjs`) is met while that style is the active
+one and the character is specialized in it, a `<style>:spec` token of
+`styleProficient` from any copy, and for Weapon and Shield only where the
+shield variant lets the shield take it (`specApplies`). The row then arrives
+with the abilities' typed modifiers, named for the proficiency. A hand-made
+`styleProficient` token still trains the style and still decides the shield
+correction; it carries no figure of its own.
+
 `formationHands(actor)` gathers the hands held full by something other than a
 drawn weapon or a shield in hand: the actor's burning lights (lib's
 `bearerLights`, which reads the party sheet's record for a member and the
@@ -247,8 +280,9 @@ never the problem; a lit torch listed in hand and a quill listed in the main
 hand explain their hands themselves.
 
 A torch is carried as a stack (an `item`, `equipmentClass` `prepareAs: weapon`)
-and held as a weapon: `prepareTorch(actor, stack, {draw})` readies one — a 1d4
-light-weapon under the torch's own name, one off the bundle — and with `draw`
+and held as a weapon: `prepareTorch(actor, stack, {draw})` readies one — a
+light weapon at the torch row's damage, under the torch's own name, one off
+the bundle — and with `draw`
 puts it in hand at once. The stack itself declares no place and is never worn,
 so "equip a torch" is that gesture: a stack dropped on a hand place, or its
 sheet's Equip control, readies one torch into the hand, where the hand count
@@ -270,9 +304,14 @@ call it, so the two never disagree about where a thing ends up.
 
 ### Giving gear, and making room for it — `grant.mjs`
 
-`grantGear(actor, specs)` puts named gear in a character's pack, preferring a
-world item or compendium entry of that name over a synthesized stand-in — a
-granted torch should be the system's torch. `clearHands(actor, n)` sheathes held
+`grantGear(actor, specs)` puts gear in a character's pack, preferring a world
+item or compendium entry over a synthesized stand-in — a granted torch should
+be the system's torch. A spec with a `name` takes the entry of that name. A
+spec without one is gear known by what it is: `findGearByPattern` takes, among
+the items its `pattern` matches, the stack holding the most by
+`system.quantity.value`, the world's items before any compendium's, so a light's
+fuel arrives as a bundle without any count written into a name; its stand-in
+is named by the spec's `label`. `clearHands(actor, n)` sheathes held
 gear (shields first, then weapons newest-first) until there is room, and reports
 what it put away; it can fall short and says so, because hands full of lit
 torches are not freed by sheathing anything.

@@ -58,6 +58,12 @@ export default class AbilityExtras extends foundry.abstract.DataModel {
       // generic scan, not yet read against the page. The sheet flags them and
       // the printed text governs until the cookbook entry is audited.
       unaudited: bool(),
+      // Which reader produced `effects`: "recipe" (a register recipe, read
+      // against the page) or "scan" (the vocabulary scan). Blank on an item
+      // imported before the stamp existed; the `abilities.effectsOrigin` repair
+      // check fills it from the cookbook. Applied modifiers from a scan are
+      // marked unverified on every surface that shows them.
+      effectsFrom: str(),
       // --- A pick-one branch (Combat Trickery maneuver, Elementalism element…) ---
       choice: new SchemaField({
         prompt: str(),

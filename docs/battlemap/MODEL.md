@@ -273,8 +273,9 @@ such region is never written.
   measurement and its meaning sit on the same row.
 - **Units are chosen, not assumed.** The picker writes `grid.units` with the
   scale, and `lib/distance-units.mjs` converts it to feet for every consumer
-  that owns a length — token footprints and the formation's party token both
-  size through `sceneFeetPerCell`, so a six-mile hex sizes a man as a man.
+  that owns a length — token footprints size through `sceneFeetPerCell`, so a
+  six-mile hex sizes a man as a man. The formation's party token is one cell
+  at every scale, or the Judge's size (`docs/formation/MODEL.md`, "Data flow").
 - **Each of those has one slot and one input**, with its chips banded directly
   beneath it. A chip writes the same slot the input does, so the displayed
   number and the number the arithmetic uses cannot diverge. An entered value
@@ -348,14 +349,15 @@ such region is never written.
 
 `token-scale.mjs` is the only writer of `width`/`height` for generic tokens.
 The formation **party token is its one exemption** — identified by the
-`formationId` flag and sized by `formation/scene-sync.mjs` to the formation's
-face (`docs/formation/MODEL.md`, "Data flow"). Each side skips the other's
-tokens, so no token ever has two size owners.
+`formationId` flag and sized by `formation/scene-sync.mjs` by the party's
+token shape (`docs/formation/MODEL.md`, "Data flow"). Each side skips the
+other's tokens, so no token ever has two size owners.
 
 Footprint precedence, resolved by `footprint.mjs`: token flag `footprint
 {w,h}` (feet) → actor flag → the monster size category's `footprint` (squares
 at the 5-ft combat square, `scripts/monsters/config.mjs` SIZES) → man-sized
-one square. `footprintLock` on a token opts it out of every automatic resize.
+one square. `footprintLock` on a token opts it out of every automatic resize,
+the party token's included. No surface sets it; it is written by script.
 Spans quantize to quarter squares with a quarter-square floor (DECISIONS).
 
 Auto-sizing triggers: the assistant's "Rescale tokens" button (whole scene),

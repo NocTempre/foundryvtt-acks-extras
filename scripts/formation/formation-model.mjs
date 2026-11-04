@@ -10,13 +10,13 @@ import {
   carriedBody,
   DEFAULT_PARTY_IMAGE,
   FLAG_FORMATION_ID,
-  MARCH_FEET_PER_BODY_DEFAULT,
   MODULE_ID,
+  PARTY_TOKEN_SHAPES,
   ROLES,
   ROLE_GEAR,
   ROLE_HAND_COST,
   ROLE_LABELS,
-  SETTING_MARCH_FEET,
+  SETTING_PARTY_TOKEN_SHAPE,
 } from "./constants.mjs";
 import { hasCapability } from "./ability-bridge.mjs";
 import { KEEP_HIT_POINTS_OPTION } from "../lib/constants.mjs";
@@ -1227,13 +1227,19 @@ async function restoreMemberTokens(formation, members, { grid = false } = {}) {
   const heading = snapHeading(partyToken?.rotation);
   const origin = anchor && grid ? blockOrigin(formation, scene, anchor, { heading }) : null;
   const nextFree = anchor && !grid ? freeCellPlacer(scene, anchor) : null;
+  // A column that walked a bend restores onto its own cells. Imported here,
+  // not at the top: column.mjs imports this file.
+  const column = anchor && grid && partyToken.parent?.id === scene.id
+    ? (await import("./column.mjs")).columnPlacement(formation, partyToken)
+    : null;
 
   const toCreate = stashed.map((member) => {
     const data = foundry.utils.deepClone(member.tokenData);
     delete data._id;
     if (anchor) {
+      const cell = formation.members.indexOf(member);
       const { x, y } = grid
-        ? cellPosition(formation, scene, origin, formation.members.indexOf(member), heading)
+        ? (column?.[cell]?.[0] ?? cellPosition(formation, scene, origin, cell, heading))
         : nextFree();
       data.x = x;
       data.y = y;
@@ -1419,19 +1425,26 @@ export function effectiveFrontage(formation) {
   return getFrontage(formation);
 }
 
-/** Feet of frontage one marching body occupies (world setting). */
-function marchFeetPerBody() {
+/**
+ * The world's default party shape (`SETTING_PARTY_TOKEN_SHAPE`), `order` before
+ * `init` or on a stored value that is no shape.
+ */
+export function defaultPartyShape() {
   try {
-    const v = Number(game.settings.get(MODULE_ID, SETTING_MARCH_FEET));
-    return Number.isFinite(v) && v > 0 ? v : MARCH_FEET_PER_BODY_DEFAULT;
+    const stored = game.settings.get(MODULE_ID, SETTING_PARTY_TOKEN_SHAPE);
+    return PARTY_TOKEN_SHAPES.includes(stored) ? stored : PARTY_TOKEN_SHAPES[0];
   } catch {
-    return MARCH_FEET_PER_BODY_DEFAULT;
+    return PARTY_TOKEN_SHAPES[0];
   }
 }
 
-/** The formation's face across the line of march, in feet. */
-export function faceWidthFeet(formation) {
-  return effectiveFrontage(formation) * marchFeetPerBody();
+/**
+ * What this party's token is on the map (`PARTY_TOKEN_SHAPES`): the shape its
+ * sheet chose, else the world's default.
+ */
+export function partyTokenShape(formation) {
+  const own = formation?.tokenShape;
+  return PARTY_TOKEN_SHAPES.includes(own) ? own : defaultPartyShape();
 }
 
 /* -------------------------------------------- */
@@ -1564,7 +1577,7 @@ export function maxFrontage(scene) {
 }
 
 /** Pixel range a 1×1 token may occupy on this scene, or null with no scene. */
-function sceneBounds(scene) {
+export function sceneBounds(scene) {
   const gs = scene?.grid?.size;
   const rect = scene?.dimensions?.sceneRect ?? scene?.dimensions?.rect ?? null;
   if (!gs || !rect?.width || !rect?.height) return null;

@@ -197,34 +197,8 @@ it covers; a section no walk names is walked by hand.
    `[data-action="attempt"]` and answer the disarm/discharge dialog.
    *Observable:* the target list holds only traps within 5' with `known: true`;
    the whispered card itemises the throw; the placement takes the chosen state.
-9. Party face width: with a 3-member formation on a 5'-per-square scene, set
-   frontage 3 in the formation view.
-   *Observable:* the party token's width becomes `3 × marchFeetPerBody / 5`
-   squares (1.75 at the default 3'), height one rank (1). Rotate the token to
-   face east (`token.update({rotation: 270, animate: false})`, then re-read):
-   width and height swap. Set frontage 1: the token narrows and deepens to
-   3 ranks. On a scene with `grid.distance` 50, the same token floors at
-   0.25 squares.
-   **The swap must also be a PIVOT** — width and height are Foundry movement
-   fields, so this is the check that the turn stays put rather than lurching.
-   Use a frontage wide enough that the axes differ visibly (6 gives 3.5 × 1),
-   and compare the token's CENTRE (`x + width * grid.size / 2`, same for y),
-   never its `x`/`y` — the corner is *supposed* to move. Across the rotation:
-   the centre is unchanged (±1px, core rounds), `clock.turnsTotal`,
-   `roundsPartial` and `carryFeet` are all unchanged, and `clock.lastPosition`
-   has re-baselined to the token's new corner. Rotate a block sitting against a
-   wall too: the pivot carries `ignoreWalls`, so a footprint that swings into
-   the wall must still land on the centre rather than being shoved off it.
-   Then walk an ordinary step and confirm the distance billed is the distance
-   walked — a stale baseline shows up here and nowhere else.
-   *Drive note:* the animated half needs a real animated move, not
-   `animate: false`. Issue `token.move({x: <far>})` from a north/south facing so
-   core's `tokenAutoRotate` fires, and sample the RENDERED position
-   (`token.object.position.x`, which tweens) against `token.document.x` (the
-   final value) every ~150ms. Partway through, the rendered position must lie
-   between origin and destination; a resize that cancels the walk shows up as
-   the two being equal almost immediately, and is invisible to any check that
-   only reads the document.
+9. The party token's size is walked in "The column and its lights" (steps 1
+   and 8), which replaces the face-width check this step held.
 10. Environment sweep under a burst delete: build a party actor, 3 members and
     a scene carrying `fogOriginal` and `measure` (give a member the Mapper role
     and a lit unshielded torch, then run one sweep so the flags land). Delete
@@ -408,9 +382,9 @@ billed.
    hook's `tokenDoc.x` already equals the destination.
 4. View A and drag the token with a real gesture (Core drive mechanics).
    *Observable:* as step 1, and the hook's `_movement` method is `dragging`.
-   Turned east by the drag, the party is resized a moment later: a second,
-   unanimated write moves the corner and bills nothing, and `lastPosition`
-   follows it to the token's new `_source`.
+   A moment later the trail is written: a second, flag-only write
+   (`flags.acks-extras.trail`) that moves nothing and bills nothing, and the
+   token's size stays one cell.
 5. Pause from the party sheet's pause tool (`data-action="togglePause"`),
    move the token 500 px east, and press the same tool again while the move
    is still drawn. At core's default `CONFIG.Token.movement.defaultSpeed` (6
@@ -457,8 +431,10 @@ still drawn and whether the zone holds its prepared centre and its stored
 one. At core's default speed every read below landed inside the move's
 ~0.8 s draw.
 
-7. Add an encounter zone (`acks-extras.encounterZone`, `encounterEvery: 1`)
-   east of the token, view C, and move the token 500 px east.
+7. Add an encounter zone (`acks-extras.encounterZone`, `encounterEvery: 1`,
+   `encounterTarget: 2`, so the throw stands whether or not the world has
+   imported its cadence) east of the token, view C, and move the token 500 px
+   east.
    *Observable:* the turn's throw card says `in zone "<the region's name>"`,
    and when it was created the token was still drawn, with its prepared
    centre outside the zone and its stored centre inside. The prepared centre
@@ -3559,6 +3535,165 @@ card, the evaluator and the footnote.
 Teardown: the cards the run posted are the module's; read each id back right after
 the press and `api.track(id, "ChatMessage")` it, then `api.sweepTracked()`. The kept
 fixtures stay.
+
+## The column and its lights (added with the marching column)
+
+The party token is the head of a column drawn behind it, each lit bearer
+shines from their own cell, and a managed token's light is unpadded (MODEL
+§The column; lib MODEL, Senses). No walk in `tools/live/` names this section.
+The books are mapped, but the light table arrives only with a Rules tables run
+made since it existed: run Rules tables in Reimport One Shelf with the books
+open if `acksExtras.lib.light?.lightFigures?.("torch")` reads nulls. Then read
+it there or in the Ruledata Browser, and use those figures below, never a
+number from memory.
+
+Fixtures, each found by its marker or built carrying it:
+
+- `formation/column-scene`: a scene with a square 100 px grid of 5 ft,
+  `padding: 0`, global illumination off, and walls forming an L-shaped
+  corridor two cells wide: east six cells, then south six.
+- `formation/column-party`: a party actor whose party token stands at the L's
+  west end facing east, shape unset (the world's default).
+- `formation/column-lead`, `formation/column-torch`,
+  `formation/column-lantern`: three characters joined to it in that order at
+  frontage 1. The torch bearer holds a torch and the lantern bearer a lantern
+  (Kit tab), both lit.
+- `formation/column-mile`: a hex scene measured in miles, with nothing on it.
+- A character with Night Vision on `formation/column-scene`, off the
+  corridor's line but within the torch's reach of its corner
+  (`formation/column-watcher`).
+
+At the start, assert: the party's frontage is 1, both lights are lit and
+unshuttered, nobody is deployed, the `partyTokenShape` world setting and the
+record's `tokenShape` are `order` and unset, and the record's `columnColor` is
+unset. A kept fixture carries what the last walk left.
+
+1. Run one sweep (`acksExtras.formation.syncEnvironments()` on the GM seat).
+   *Observable:* the party token is 1×1 and its `flags.acks-extras.partySize`
+   reads 1×1. Resize it by hand to 2×2; a moment later it is 1×1 again.
+2. On a Player seat that owns a member, drag the party token through the L to
+   its south end with a real gesture. Mid-move (every ~150 ms), sample the
+   column container's cell positions and
+   `canvas.effects.lightSources.get("acks-extras.column.<formationId>.<bearerId>").data`.
+   *Observable:* rank 1 and rank 2 stand on cells the head walked (around the
+   corner, never through the wall), and each light's `x`/`y` is the centre of
+   its bearer's drawn cell. After the step, the token carries
+   `flags.acks-extras.trail` with three cells, newest first, written once,
+   and the move animated to its end (the trail write did not stop it).
+3. Reload the Player seat.
+   *Observable:* the drawn cells and the light positions are the same as
+   before the reload (the trail is stored).
+4. Shutter the lantern, then douse the torch (Kit tab).
+   *Observable:* each bearer's light source is gone from
+   `canvas.effects.lightSources` after its write, on the GM and the Player seat
+   alike, and both come back when relit.
+5. Read the torch source's `data.bright`.
+   *Observable:* the imported bright figure, converted to the scene's units, ×
+   `canvas.dimensions.distancePixels`, with no padding. Toggle a perception
+   refresh (`canvas.perception.update({initializeLighting: true})`); the
+   sources survive it.
+6. Turn the party token by hand (rotation only).
+   *Observable:* the trail is reset to the head, the column straightens behind
+   the new heading, no size or position is written, and the clock is
+   unchanged.
+7. Start a combat with the party token; the party deploys.
+   *Observable:* each member's token stands on the cell their glyph stood on
+   (the bend included), each bearer's own token carries their light, and the
+   column's sources for those bearers are gone. End the fight and gather.
+8. On the Order tab, set the party's On the map control to Fixed size.
+   *Observable:* nothing is drawn and the token stays 1×1; resize it to 2×2 by
+   hand and walk a step: it stays 2×2, and both lights still shine from the
+   bearers' cells (computed as the column, though undrawn). Set the control
+   back to Marching order: it returns to 1×1.
+9. Move the party token onto `formation/column-mile`, then paste a copy of it
+   on `formation/column-scene`.
+   *Observable:* nothing is drawn on the mile scene, both lights shine at the
+   head there, and the pasted copy draws no column and carries no light.
+10. With the party back on the corridor, read the watcher's token sight.
+    *Observable:* the Night Vision watcher reads as lit by the column's torch
+    (lib's Night Vision sync raises its sight), and dousing the torch takes it
+    back.
+11. **The fill.** On the GM seat, every drawn body's cell carries a
+    translucent square in the token's disposition colour. Pick a Column tint
+    on the Order tab: the squares change to it, and clearing the field returns
+    the disposition colour. On the Player seat, walk the column around the
+    corner out of the Player's line of sight.
+    *Observable:* a cell the Player cannot see shows neither square nor
+    portrait, and hiding the party token hides the whole column from the Player
+    (the GM still sees it).
+12. **The per-party switch.** With a second party on the scene, set one party's
+    On the map control to Fixed size and leave the other's unset; change the
+    world setting `partyTokenShape`.
+    *Observable:* the party with a choice keeps it; the unset one follows the
+    setting.
+13. **The unpad check.** Deploy the lantern bearer (step 7). Read their token's
+    `light.dim` and `object.light.data.dim`.
+    *Observable:* `data.dim` equals `light.dim × distancePixels` exactly (no
+    `externalRadius` added), and `flags.acks-extras.managedLight` is true. Set
+    a light on an unmanaged token by hand (a fresh token, light dim 2): its
+    `data.dim` is `2 × distancePixels + externalRadius`, core's padding.
+14. **A hand edit releases the light.** On the deployed lantern bearer, read
+    `flags.acks-extras.managedLightStamp`: it holds the stored `light.bright`
+    and `light.dim`. Edit the token's dim light by hand in its Token Config.
+    *Observable:* at once, `object.light.data.dim` is the new dim ×
+    `distancePixels` + `externalRadius` (padded); after the next sync (shutter
+    and unshutter the lantern) the stamp reads `{released: true}`,
+    `managedLight` is false and the hand-set radius stands.
+    `acksExtras.lib.vision.migrateWorld({reclaim: true})` takes it back: the
+    lantern's radius returns, stamped.
+
+Teardown: the kept fixtures stay. Gather anyone deployed, set the shape and
+colour back to unset, and relight both sources, so the next walk's assertions
+hold. A token pasted in step 9 and the hand-lit token in step 13 are this
+run's: `api.track` each id as it is made and `api.sweepTracked()` them. The
+lantern bearer's token edited in step 14 is the deployed token, which the
+gather removes; if it stands, reclaim it as step 14 says.
+
+## The delve's wandering cadence (added with the imported cadence)
+
+The encounter throw's die, the turns between throws, the target and the
+encounter distance's dice arrive with the `delveEncounters` import (MODEL,
+"The delve's wandering throw"). No walk in
+`tools/live/` names this section. A world mapped before this release holds no
+such document until Rules tables is run again in Reimport One Shelf with the
+books open; read what arrived in the Ruledata Browser and use those figures
+below.
+
+Fixtures: `formation/cadence-party`, a party of one member on any dungeon
+scene, standing in no Encounter Zone. At the start, assert both world settings
+`encounterEvery` and `encounterTarget` read null, and the party's
+`clock.encounterCounter` is any value.
+
+1. On a GM seat, reload.
+   *Observable:* with the document absent, a warning names `delveEncounters`
+   (and `light` if it is absent too); with both present, no such warning.
+2. Advance the party one turn at a time (the Turn tool) for as many turns as
+   the imported interval.
+   *Observable:* exactly one wandering-monster card, on the last of them,
+   naming the imported die; hover its die and its target: each tooltip says
+   Imported with the page. Its roll's formula is that die.
+3. Set `encounterTarget` to 1 in the module settings and press the Encounter
+   throw tool.
+   *Observable:* an encounter card whose distance roll's formula is the
+   imported distance dice, and the rolled distance's tooltip says Imported with
+   the page. Set the target back to blank.
+4. Set `encounterEvery` to 1 in the module settings and advance one turn.
+   *Observable:* a card on that turn; set it back to blank and the interval is
+   the import's again. Set it to 0 and advance past the interval: no card.
+5. In the Ruledata Browser, give `delveEncounters` an override that blanks
+   `distance` (or sets it to text that is not dice), set `encounterTarget` to 1,
+   and press the Encounter throw tool.
+   *Observable:* an encounter card saying the distance is not imported, and
+   only the minute rolled. Clear the override and the setting.
+6. The die-less path needs a world without the document, which the mapped test
+   world is not once step 1 passes; it is pinned offline
+   (`tools/test-formation-flows.mjs`, "the delve's wandering throw takes its
+   cadence…"): no card is scheduled, the counter stays at 0, and the Encounter
+   throw tool warns that the die or the target is neither set nor imported.
+
+Teardown: set both settings back to blank and clear any override step 5 left.
+The party is a kept fixture; the cards the turns posted are this run's:
+`api.track` each card's id as the turn resolves and `api.sweepTracked()` them.
 
 ## Teardown
 

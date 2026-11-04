@@ -15,14 +15,16 @@ import { profileStrips, SLOT_VOCAB } from "../../lib/proficiency-strip.mjs";
 import { EFFECT_DOMAINS } from "../../equipment/constants.mjs";
 import { weaponProficiency, isWeaponProficient, armorMax, grantMatches } from "../../equipment/proficiency.mjs";
 import { focusGroup } from "../../equipment/profiles.mjs";
-import { collectStringFlags } from "../../equipment/effects.mjs";
+import { collectStringFlags, findLoadoutEffect, loadoutPart, partSource } from "../../equipment/effects.mjs";
+import { getLoadout } from "../../equipment/loadout.mjs";
+import { standingModifiers } from "../../lib/typed-modifiers.mjs";
 import { TRAINING_VIEWS, arrangeUnits } from "../../equipment/training-view.mjs";
 import { trainingSourceName, trainingProvenance, editedSlots, classTraining, hasTraining } from "../../classes/training.mjs";
-import { LIGHT_SOURCES } from "../../lib/light.mjs";
+import { LIGHT_SOURCES, lightFigures, lightCite } from "../../lib/light.mjs";
 import { senseProfile, VISION_MODES } from "../../lib/senses.mjs";
 import { ATTRIBUTES } from "../../lib/vocab.mjs";
 import { carriesMorale, signed, storedSystem } from "../view-model.mjs";
-import { saveSystemKey, saveLabel } from "../snapshot.mjs";
+import { saveSystemKey, saveLabel, saveModifiers } from "../snapshot.mjs";
 
 const loc = makeLoc(LANG);
 const num = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
@@ -101,43 +103,146 @@ function inForceFigure(stored, inForce) {
   return { value, tip };
 }
 
+/** Why a typed modifier is listed and not applied, as `loc` keys. */
+const NOT_APPLIED_REASONS = {
+  unresolved: "stats.reason.unresolved",
+  gateOff: "stats.reason.gateOff",
+  gate: "stats.reason.gate",
+  condition: "stats.reason.condition",
+  scope: "stats.reason.scope",
+  narrowed: "stats.reason.narrowed",
+  standAside: "stats.reason.standAside",
+  notStacking: "stats.reason.notStacking",
+};
+
+/**
+ * The typed modifiers resolved for this actor, or none: characters only, and
+ * an actor with no items (a mock, a bare record) has none.
+ */
+function typedFor(actor) {
+  if (actor?.type !== "character" || !actor.items) return { parts: [], listed: [] };
+  let loadout = null;
+  try {
+    loadout = getLoadout(actor);
+  } catch {
+    loadout = null; // a gate with no loadout answers undecided, which lists it
+  }
+  return standingModifiers(actor, { ctx: { loadout } });
+}
+
+/**
+ * The lines a modifier's tooltip adds under its total: each part the loadout
+ * effect wrote to one of `paths`, named, with "unverified" on a scan's; then
+ * the typed modifiers an ability carries for `target` that are not applied,
+ * each with why. A change that lowers a save target is stated as the help it
+ * gives, the way the row reads.
+ */
+function typedLines(actor, paths, target, typed) {
+  const lines = [];
+  const effect = findLoadoutEffect(actor);
+  for (const change of effect?.changes ?? []) {
+    if (!paths.includes(change.key)) continue;
+    const part = loadoutPart(effect, change);
+    if (!part) continue;
+    const raw = Number(change.value);
+    const n = change.type === "subtract" && !change.key.startsWith("system.saves.") ? -raw : raw;
+    if (!Number.isFinite(n) || !n) continue;
+    const label = part.label || (part.labelKey ? game.i18n.localize(part.labelKey) : loc("stats.partLoadout"));
+    // A rule whose figure is an imported table names where it was read, at render.
+    const source = partSource(part);
+    const key = part.unverified ? "stats.partUnverified" : source?.cite ? "stats.partCited" : source?.judge ? "stats.partJudge" : "stats.part";
+    lines.push(loc(key, { label, value: signed(n), ...(source?.cite ? { cite: source.cite } : {}) }));
+  }
+  const seen = new Set();
+  const left = [];
+  for (const l of typed.listed) {
+    if (l.target !== target || seen.has(`${l.itemId}:${l.index}`)) continue;
+    seen.add(`${l.itemId}:${l.index}`);
+    const reason = loc(NOT_APPLIED_REASONS[l.reason] ?? NOT_APPLIED_REASONS.condition);
+    left.push(loc("stats.notAppliedPart", { label: l.label, reason }));
+  }
+  if (left.length) lines.push(loc("stats.notApplied", { names: left.join(", ") }));
+  return lines;
+}
+
+/** A tooltip's total followed by its typed lines, one string. */
+const withLines = (tip, lines) => [tip, ...lines].join(" · ");
+
 /**
  * The Stats tab's throw group: the targets (attack throw, saves, adventuring)
  * and the four modifiers. Every input renders the STORED value; each modifier
  * that Rolls also shows carries the signed figure in force beside it and a
  * tooltip saying how that figure is made. Initiative reads the prepared
  * total, which the system makes from the modifier and, on a character, the
- * Dexterity modifier; what is left over is the effects'.
+ * Dexterity modifier; what is left over is the effects'. Each tooltip then
+ * names the typed modifiers the loadout applied to that field and those an
+ * ability carries for it and does not apply. The save row's figure is the
+ * shared modifier in force; a save that a narrower modifier or a condition
+ * moves further is named beside it.
  */
 export function buildThrows(actor) {
   const sys = actor.system ?? {};
   const stored = storedSystem(actor);
+  const typed = typedFor(actor);
   const surpriseOthers = num(stored.surprise?.surpriseothers);
   const avoidSurprise = num(stored.surprise?.avoidsurprise);
   const initiativeTotal = num(sys.initiative?.value);
   const initiative = signed(initiativeTotal);
   const initiativeStored = num(stored.initiative?.mod);
   const dex = actor.type === "character" ? num(sys.scores?.dex?.mod) : 0;
-  const initiativeTip = loc("stats.initiativeTip", {
-    stored: signed(initiativeStored),
-    dex: signed(dex),
-    effects: signed(initiativeTotal - initiativeStored - dex),
-    value: initiative,
-  });
+  const initiativeTip = withLines(
+    loc("stats.initiativeTip", {
+      stored: signed(initiativeStored),
+      dex: signed(dex),
+      effects: signed(initiativeTotal - initiativeStored - dex),
+      value: initiative,
+    }),
+    typedLines(actor, ["system.initiative.mod"], "initiative", typed),
+  );
+  const saveModStored = num(stored.save?.mod);
+  const saveModInForce = num(sys.save?.mod, saveModStored);
+  const saveFigure = inForceFigure(saveModStored, saveModInForce);
+  let perSave = {};
+  try {
+    perSave = actor.items ? saveModifiers(actor) : {};
+  } catch {
+    perSave = {}; // a record with no effects to read has no per-save figure
+  }
+  const further = SAVE_KEYS.filter((k) => Number.isFinite(perSave[k]) && perSave[k] !== saveModInForce).map((k) =>
+    loc("stats.saveFor", { save: saveLabel(k), value: signed(perSave[k]) }),
+  );
+  const savePaths = ["system.save.mod", ...SAVE_KEYS.map((k) => `system.saves.${saveSystemKey(k)}.value`)];
+  const surpriseOthersNow = inForceFigure(surpriseOthers, num(sys.surprise?.surpriseothers));
+  const avoidSurpriseNow = inForceFigure(avoidSurprise, num(sys.surprise?.avoidsurprise));
   return {
     saves: SAVE_KEYS.map((k) => ({ key: k, label: saveLabel(k), value: num(stored.saves?.[saveSystemKey(k)]?.value), path: `system.saves.${saveSystemKey(k)}.value` })),
-    saveMod: num(stored.save?.mod),
+    saveMod: saveModStored,
+    saveModNow: { value: saveFigure.value, tip: withLines(saveFigure.tip, [...further, ...typedLines(actor, savePaths, "save", typed)]) },
     adventuring: ADVENTURING_KEYS.map((k) => ({ key: k, label: game.i18n.localize(`ACKS.adventuring.${k}`), value: num(stored.adventuring?.[k]), path: `system.adventuring.${k}` })),
     initiativeMod: num(stored.initiative?.mod),
     initiative,
     initiativeTip,
     surpriseOthers,
-    surpriseOthersNow: inForceFigure(surpriseOthers, num(sys.surprise?.surpriseothers)),
+    surpriseOthersNow,
     avoidSurprise,
-    avoidSurpriseNow: inForceFigure(avoidSurprise, num(sys.surprise?.avoidsurprise)),
+    avoidSurpriseNow: { ...avoidSurpriseNow, tip: withLines(avoidSurpriseNow.tip, typedLines(actor, ["system.surprise.avoidsurprise"], "surprise", typed)) },
     healingRate: String(stored.hp?.bhr ?? ""),
     morale: carriesMorale(actor) ? { value: num(stored.details?.morale) } : null,
   };
+}
+
+/**
+ * One light's vision row: how far it reaches, from the imported light table,
+ * with the page it was read from as the tooltip. Until the table is imported
+ * the row says so and shows no figure.
+ */
+export function lightRow(key) {
+  const icon = LIGHT_ICONS[key] ?? LIGHT_ICONS.torch;
+  const label = loc(`vision.${key}`);
+  const dim = lightFigures(key).dim;
+  if (dim == null) return { icon, label, value: "", note: loc("vision.notImported"), tip: loc("vision.notImportedTip") };
+  const cite = lightCite();
+  return { icon, label, value: `${dim}′`, tip: cite ? loc("vision.lightTip", { cite }) : loc("vision.lightTipJudge") };
 }
 
 /** Build the tab's data. */
@@ -235,7 +340,7 @@ export function buildStatsTab(actor, { openBuckets = new Set(), editing = false,
   const vision = [
     { icon: LIGHT_ICONS.day, label: loc("vision.daylight"), value: "∞" },
     { icon: LIGHT_ICONS.dark, label: loc("vision.dark"), value: profile.seesInDark ? `${num(profile.sightRange)}′` : "0′", note: profile.seesInDark ? "" : loc("vision.darkNote") },
-    ...Object.entries(LIGHT_SOURCES).map(([key, cfg]) => ({ icon: LIGHT_ICONS[key] ?? LIGHT_ICONS.torch, label: loc(`vision.${key}`), value: `${cfg.dim}′` })),
+    ...Object.keys(LIGHT_SOURCES).map((key) => lightRow(key)),
     { icon: LIGHT_ICONS.shadowy, label: loc("vision.shadowy"), value: senseKind === "shadowy" ? `${num(profile.sightRange)}′` : "0′" },
     { icon: LIGHT_ICONS.lightless, label: loc("vision.lightless"), value: senseKind === "lightless" ? `${num(profile.sightRange)}′` : "0′", note: senseKind === "lightless" ? "" : loc("vision.lightlessNote") },
   ];

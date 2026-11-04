@@ -296,14 +296,21 @@ export class GroupSheet extends PicksMixin(HandlebarsApplicationMixin(foundry.ap
       ui.notifications.warn(game.i18n.localize("ACKS-LIB.template.warn.stub"));
       return null;
     }
-    const axes = (sys.axes ?? []).filter((axis) => !axis.multi).map((axis) => ({
-      key: axis.key,
-      label: axis.label || axis.key,
-      rollLabel: axis.roll
-        ? game.i18n.format("ACKS-LIB.template.rollDie", { die: axis.roll })
-        : game.i18n.localize("ACKS-LIB.template.rollUniform"),
-      options: (axis.options ?? []).map((o) => ({ key: o.key, label: o.label || o.key })),
-    }));
+    // An axis that names a default takes it when left alone, so its blank
+    // choice says which; an unavailable pick falls back to it (`chooseAxes`).
+    const axes = (sys.axes ?? []).filter((axis) => !axis.multi).map((axis) => {
+      const fallback = axis.default ? (axis.options ?? []).find((o) => o.key === axis.default) : null;
+      return {
+        key: axis.key,
+        label: axis.label || axis.key,
+        rollLabel: fallback
+          ? game.i18n.format("ACKS-LIB.template.defaultTo", { option: fallback.label || fallback.key })
+          : axis.roll
+            ? game.i18n.format("ACKS-LIB.template.rollDie", { die: axis.roll })
+            : game.i18n.localize("ACKS-LIB.template.rollUniform"),
+        options: (axis.options ?? []).map((o) => ({ key: o.key, label: o.label || o.key })),
+      };
+    });
     const pins = await DialogV2.prompt({
       classes: DIALOG_CLASSES,
       window: { title: loc("variant.title", { name: template.name }) },

@@ -135,6 +135,27 @@
           <li>
             <span class="acks-abilities-effect-kind">{{this.kind}}</span>
             <span class="acks-abilities-effect-text">{{this.text}}</span>
+            {{#if this.appliesToRoll}}
+              <span class="acks-abilities-effect-chip" data-tooltip-text="{{this.appliesToRoll.tip}}">{{this.appliesToRoll.label}}</span>
+            {{/if}}
+            {{#if this.disposition}}
+              <span class="acks-abilities-effect-chip" data-tooltip-text="{{this.disposition.tip}}">{{this.disposition.label}}</span>
+            {{/if}}
+            {{#if this.unverified}}
+              <span class="acks-abilities-effect-chip is-unverified" data-tooltip-text="{{localize "ACKS-ABILITIES.mech.unverifiedTip"}}">{{localize "ACKS-ABILITIES.mech.unverified"}}</span>
+            {{/if}}
+            {{#if this.quick}}
+              {{#if this.quick.start}}
+                <button type="button" class="acks-abilities-effect-quick" data-action="quickEffectStart" data-effect-index="{{this.quick.index}}"
+                  aria-label="{{#if this.quick.startsOff}}{{localize "ACKS-ABILITIES.quick.startOffTip"}}{{else}}{{localize "ACKS-ABILITIES.quick.startTip"}}{{/if}}" data-tooltip="">{{localize "ACKS-ABILITIES.quick.start"}}</button>
+              {{else}}
+                <span class="acks-abilities-effect-chip" data-tooltip-text="{{this.quick.tip}}">{{this.quick.label}}</span>
+                {{#if this.quick.refresh}}
+                  <button type="button" class="acks-abilities-effect-quick" data-action="quickEffectRefresh" data-effect-index="{{this.quick.index}}"
+                    aria-label="{{localize "ACKS-ABILITIES.quick.refreshTip"}}" data-tooltip="">{{localize "ACKS-ABILITIES.quick.refresh"}}</button>
+                {{/if}}
+              {{/if}}
+            {{/if}}
             {{#if this.ladder}}
               <div class="acks-abilities-ladder-wrap">
                 <table class="acks-abilities-ladder">

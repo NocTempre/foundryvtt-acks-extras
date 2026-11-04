@@ -5,6 +5,40 @@ Work that is designed but absent, deliberately. How the feature behaves now is
 
 ---
 
+## Typed modifiers: what is left
+
+Built: standing and gated rows apply (MODEL, "Imported modifiers apply").
+Not built:
+
+- **The scan backlog.** 34 entries still carry a scan-read modifier on a field
+  the sheet writes (43 rows: 13 save, 9 surprise, 8 initiative, 8 AC, 4 attack
+  throw, 1 damage), down from 47 entries. Each wants a register recipe that
+  says whether the row is standing, gated or situational; until then it
+  applies and reads "unverified". Deferred by the orchestrator's ruling of
+  2026-11-04, since those rows apply and are marked. Recount with the shipping
+  executor over `cookbook/{proficiencies,powers,skills}.json`.
+- **Roll-time scope (S6).** A row narrowed to a kind of opponent, an
+  alignment, a tone or one activity is listed "at the roll" and applied by no
+  roll yet; a quick effect is the Judge's route meanwhile.
+- **An orphaned quick effect.** When Update Abilities changes a row, its quick
+  effect no longer matches any row (it is found by the row's content key), so
+  the row offers Start again and the old effect stays until deleted by hand.
+- **Caps and sets.** A `modifies` row with `mode: "set"` (a cap on another
+  ability's contribution while armoured) is listed "not applied".
+- **Exclusions the page states in prose**, such as a bonus that does not hold
+  while casting, are not modelled; the row is standing.
+- **Opponent surprise.** A row that raises the opponent's surprise
+  (`appliesTo: "opponent"`) is listed, never written to `surpriseothers`.
+- **Encumbrance-only changes.** Picking up a non-wearable item changes the
+  load a `lightlyEquipped` gate reads but does not rebuild the loadout; the
+  next equip, level change or flag write does.
+- **Retry limits.** A thief skill's retry limit (Searching, Trapbreaking) and
+  a proficiency throw's (Tracking, Animal Husbandry) are shown and not
+  enforced: no primitive counts tries.
+- **Outcomes the Judge applies.** What some proficiency throws yield (Alchemy,
+  Arcane Dabbling, Trapping) is left to the Judge; the roll card does not
+  name it.
+
 ## Turning undead: the importer half
 
 The module now performs the whole of RAW — a per-undead-type ladder whose top

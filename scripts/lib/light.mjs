@@ -1,8 +1,9 @@
 /* global globalThis, game, ui, foundry */
 
 /**
- * Light sources, and who is carrying one — the ACKS light table plus the single
- * answer to "how brightly does this actor's token burn?".
+ * Light sources, and who is carrying one — the kinds of light, the reader of
+ * their imported figures, and the single answer to "how brightly does this
+ * actor's token burn?".
  *
  * This lives in lib because two callers need it and neither owns it: a
  * formation lights the party token from the sources its members declared, and a
@@ -17,6 +18,7 @@
 
 import { MODULE_ID } from "./constants.mjs";
 import { findCarried } from "./item-model.mjs";
+import { citeOf, expectTables, getDoc, hasDoc } from "./tables.mjs";
 
 /**
  * World setting deciding how hard the equipment requirement bites:
@@ -61,19 +63,26 @@ function randomId() {
   return `light${Date.now().toString(36)}${Math.floor(Math.random() * 1e6).toString(36)}`;
 }
 
+/** The registered document a light source's printed figures arrive in. */
+export const LIGHT_DOC = "light";
+/** Its one table: `{[kind]: {bright, dim, turns}}`, feet and turns. */
+export const LIGHT_TABLE = "lightSources";
+
 /**
- * Light sources (RR p. 265): bright/dim radii in feet and burn duration in
- * turns.
+ * The kinds of light this module knows how to carry: what each needs in the
+ * pack and how it is put out. How far each one reaches and how long it burns
+ * is printed (RR p. 265) and read through `lightFigures`, never from here.
  *   `consumes` — the FUEL item decremented when lit (and required, when
  *                enforcement is on). For a torch/candle the item IS the fuel;
  *                for a lantern it is a flask of (common) oil, NOT the lantern.
  *   `holder`   — an optional durable DEVICE that must be carried but is NOT
  *                consumed (the lantern itself). Absent → the fuel is the device.
  *   `fuelLabel`— i18n label for the fuel, when it differs from the device.
- *   `fuelItem` /
- *   `holderItem` — the RAW item to hand over when a Judge supplies the gear
- *                (see `lightGear`). Names match the system's own equipment
- *                compendium so the granted item is core's, not a copy.
+ *   `holderItem` — the device to hand over when a Judge supplies the gear
+ *                (see `lightGear`), by the name the system's own equipment
+ *                compendium gives it, so the granted item is core's, not a
+ *                copy. The fuel carries no name: what is handed over is the
+ *                largest stack `consumes` matches (equipment `grant.mjs`).
  *
  * A lantern burns COMMON oil; military oil is a thrown weapon (RR p297) and
  * must never read as lamp fuel — see docs/lib/DECISIONS.md, "The lantern
@@ -82,34 +91,60 @@ function randomId() {
 export const LIGHT_SOURCES = Object.freeze({
   torch: {
     label: "ACKS-LIB.light.torch",
-    turns: 6,
-    bright: 15,
-    dim: 30,
     consumes: /torch/i,
-    fuelItem: "Torches (6)",
   },
   lantern: {
     label: "ACKS-LIB.light.lantern",
-    turns: 24,
-    bright: 15,
-    dim: 30,
     holder: /lantern/i,
     holderItem: "Lantern",
     consumes: /^(?!.*\bmilitary\b).*\boil\b/i,
     fuelLabel: "ACKS-LIB.light.oil",
-    fuelItem: "Oil, Common (1 pint)",
     // A closed lantern hides its light and burns on (RR equipment).
     shieldable: true,
   },
   candle: {
     label: "ACKS-LIB.light.candle",
-    turns: 6,
-    bright: 5,
-    dim: 10,
     consumes: /candle/i,
-    fuelItem: "Candle (tallow, 1 lb)",
   },
 });
+
+/** The light kinds, in table order. */
+export const LIGHT_KINDS = Object.freeze(Object.keys(LIGHT_SOURCES));
+
+/** Declare the light table, so an import names it as missing until it lands. */
+export function declareLightTables() {
+  expectTables(LIGHT_DOC, [LIGHT_TABLE]);
+}
+
+/** A stored figure as a positive number, or null for anything else. */
+function figure(value) {
+  const n = Number(value);
+  return value != null && value !== "" && Number.isFinite(n) && n > 0 ? n : null;
+}
+
+/**
+ * How far one kind of light reaches and how long it burns, as the world's
+ * table gives it (the Judge's override over the import): `{bright, dim}` in
+ * feet and `turns`, each null when nothing registered says. Nothing is
+ * defaulted: a world that has imported no light table carries lights that
+ * shed nothing and never burn down.
+ * @returns {{bright: number|null, dim: number|null, turns: number|null}}
+ */
+export function lightFigures(type) {
+  const none = { bright: null, dim: null, turns: null };
+  if (!LIGHT_SOURCES[type] || !hasDoc(LIGHT_DOC)) return none;
+  const row = getDoc(LIGHT_DOC)?.tables?.[LIGHT_TABLE]?.[type];
+  if (!row || typeof row !== "object") return none;
+  return { bright: figure(row.bright), dim: figure(row.dim), turns: figure(row.turns) };
+}
+
+/**
+ * The page the light table was read from, or null when it is the Judge's own
+ * or nothing is registered (`citeOf`).
+ */
+export function lightCite() {
+  return citeOf(LIGHT_DOC, LIGHT_TABLE);
+}
 
 /**
  * Which light source an item is, by its name — the device where the source has
@@ -134,8 +169,9 @@ export function lightTypeOf(item) {
  * so they yield a single entry; a lantern yields the lamp and its oil.
  *
  * `fuel` marks the piece the flame eats — the one that must have stock left, and
- * the one decremented when the light is struck.
- * @returns {{pattern: RegExp, name: string, label: string, fuel: boolean}[]}
+ * the one decremented when the light is struck. The fuel has no `name`: a
+ * grant finds it by `pattern`, as the stack holding the most.
+ * @returns {{pattern: RegExp, name?: string, label: string, fuel: boolean}[]}
  */
 export function lightGear(type) {
   const cfg = LIGHT_SOURCES[type];
@@ -144,7 +180,7 @@ export function lightGear(type) {
   if (cfg.holder) {
     gear.push({ pattern: cfg.holder, name: cfg.holderItem, label: cfg.label, fuel: false });
   }
-  gear.push({ pattern: cfg.consumes, name: cfg.fuelItem, label: cfg.fuelLabel ?? cfg.label, fuel: true });
+  gear.push({ pattern: cfg.consumes, label: cfg.fuelLabel ?? cfg.label, fuel: true });
   return gear;
 }
 
@@ -293,7 +329,8 @@ async function writeActorLights(actor, lights) {
  */
 export async function addActorLight(actor, type) {
   if (!(await prepareToLight(actor, type))) return null;
-  const light = { id: randomId(), type, bearerId: actor.id, remaining: LIGHT_SOURCES[type].turns, lit: true };
+  // With no burn time imported the light carries none and never burns down.
+  const light = { id: randomId(), type, bearerId: actor.id, remaining: lightFigures(type).turns, lit: true };
   await writeActorLights(actor, [...actorFlagLights(actor), light]);
   return light;
 }
@@ -318,19 +355,19 @@ export async function removeActorLight(actor, lightId) {
 }
 
 /**
- * The light a set of sources actually sheds: the brightest lit, unshuttered one.
- * A closed lantern sheds nothing though it keeps burning, and a doused source is
- * stowed — both read as dark here.
+ * The light a set of sources actually sheds, in feet: the brightest lit,
+ * unshuttered one. A closed lantern sheds nothing though it keeps burning, and
+ * a doused source is stowed — both read as dark here, and so does a kind whose
+ * reach is not imported.
  */
 export function emittedLight(lights) {
   let bright = 0;
   let dim = 0;
   for (const light of lights ?? []) {
     if (!light?.lit || light.shielded) continue;
-    const cfg = LIGHT_SOURCES[light.type];
-    if (!cfg) continue;
-    bright = Math.max(bright, cfg.bright);
-    dim = Math.max(dim, cfg.dim);
+    const figures = lightFigures(light.type);
+    bright = Math.max(bright, figures.bright ?? 0);
+    dim = Math.max(dim, figures.dim ?? 0);
   }
   return { bright, dim };
 }
@@ -393,6 +430,13 @@ export function brightestLightReaching(tokenDoc) {
   for (const other of scene.tokens ?? []) {
     if (other.hidden) continue;
     consider(other, other.light?.bright);
+  }
+  // The lights a marching column sheds from its bearers' cells, which no
+  // document stores. Asked through the shared namespace, as `bearerLights`
+  // asks: each point is a pixel centre with a bright radius in scene units.
+  const columnPoints = globalThis.acksExtras?.formation?.carriedLightPoints;
+  if (typeof columnPoints === "function") {
+    for (const point of columnPoints(scene) ?? []) consider({ x: point.x, y: point.y, width: 0, height: 0 }, point.bright);
   }
   return best;
 }

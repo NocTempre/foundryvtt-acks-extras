@@ -47,9 +47,8 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   the same damage in either grip. A field on the item for its two-handed damage
   would let one be declared.
 - **Equipment numbers through the importer.** The strings and comments name the
-  field and cite the page. The numbers behind them still ship in code:
-  `STYLE_SPEC_BONUS`, `DUAL_WIELD_ATTACK_BONUS`, the manoeuvre table,
-  `HELM_MODIFIERS`, the spell book constants, the unarmed and torch dice, the
+  field and cite the page. The numbers behind them still ship in code: the
+  manoeuvre table, the spell book constants, the unarmed and torch dice, the
   non-proficient penalties, the bowquiver counts and the scavenged fallback.
   Each arrives as an imported `equipment` table or from the item's own text, and
   a feature whose table is absent refuses by naming it. `test-equipment` asserts

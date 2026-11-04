@@ -933,6 +933,10 @@ scope entirely (root `docs/DECISIONS.md`, Battles VTT ruling).
 
 ## 2026-08-19 — The party token wears the formation's face
 
+**Superseded 2026-11-04** ("The party token is the head of its column"): both
+rulings below. The token is one cell in `order` and the Judge's in `fixed`, and
+`marchFeetPerBody` and `faceWidthFeet` are retired.
+
 **Ruled:** `syncPartyTokenSize` sizes the party token to the formation's real
 shape — `faceWidthFeet` across the line of march, ranks × 5' deep, through
 `scene.grid.distance`, axes swapped on an east/west heading. This supersedes
@@ -1452,6 +1456,12 @@ no template or sheet consumes it — so the change is confined to the API surfac
 and to the local rules test, which now registers the figures itself.
 
 ## 2026-09-07 — A formation that turns has not gone anywhere
+
+**Partly superseded 2026-11-04** ("The party token is the head of its
+column"): a turn no longer resizes the party token, so there is no pivot. The
+rulings on how a resize is written (`TokenDocument#resize`, after the step's
+animation, carrying `RESIZE_OPTION`, with the clock re-baselined) stand for
+every resize the module still makes.
 
 **The symptom.** The party token jumped around as it moved, and the jump grew
 with the party's frontage.
@@ -4916,3 +4926,146 @@ should snake when move instead of a big block."
   sliding as one block.
 
 The design, and what the token is while it moves, comes with the build.
+
+## 2026-11-04 — The party token is the head of its column
+
+**New evidence.** The owner's answers to the design's three questions: Q1
+"Recommended plus a color fill", Q3 "Per party". And the design's finding F1,
+read in source: the token's footprint ran +x/+y from its corner while a deploy
+laid bodies from the same corner along `formationOffset` (behind the heading),
+so the two agreed only facing north, and the footprint measured a body at the
+`marchFeetPerBody` width while the deploy gave each body a cell. "The bearer's
+cell", which the 2026-11-03 light ruling needs, had two answers. This
+supersedes both 2026-08-19 rulings ("The party token wears the formation's
+face").
+
+**Ruled.**
+- A party's shape is `order` or `fixed`, chosen on its sheet (the Order tab's
+  On the map control, `tokenShape` on the record) and defaulting from the
+  `partyTokenShape` world setting, itself `order`.
+- `order`: the party token is a one-cell head (rank 0, file 0), and the column
+  is drawn behind it along the ground it walked (MODEL §The column). `fixed`:
+  the size is the Judge's, and nothing is drawn. The module moves a token
+  still at its own last-stamped size to one cell once; a size changed since
+  is never written.
+- Lights shine from each bearer's cell in the column in both shapes; the party
+  token sheds none.
+- The footprint lock means never resize, in both shapes (the design's F4: the
+  lock had been read as opting INTO the face arithmetic on mile-scale maps).
+- `marchFeetPerBody` and `faceWidthFeet` are retired with the face they
+  measured. The setting's stored value is left in the world, read by nothing.
+
+**The tint.** Each drawn body carries a translucent square. Its colour is a
+per-party `columnColor`, set beside the shape on the Order tab, and with none
+chosen the party token's disposition colour, so a friendly party reads in the
+colour its token's border already shows and a party the Judge marks hostile
+changes with it. Rejected: one world colour (two parties on one map would read
+alike), and the user's own colour (a party is several players').
+
+**The trail.** The column reads a trail the primary GM writes on the party
+token after each step, `partyDepth + 1` cells long. Rejected: core's
+`movementHistory`, which is recorded only in a started combat; and moving
+real member tokens behind the leader, which upends the stash, deploy, lost
+and teleport logic and costs one movement write per body per drag. A walk
+extends the trail; a priced walk, a true-position step, a teleport and a hand
+turn reset it to the head, the turn because that is how a Judge aims the
+column; the module's own resize keeps it.
+
+**Deploy.** A deploy and a grid restore lay the column's cells once the trail
+holds a step, and the straight block otherwise. Rejected: always the column
+— the block shifts whole off a scene edge where the column pins each body,
+and a party that walked nowhere would deploy squashed against the edge of
+the scene it was standing beside.
+
+**Cost.** One flag write per step on the primary GM, a canvas container and
+light sources on every client, and a world setting removed (a minor release).
+No data migration: the first sweep resizes each party token once and clears a
+light the module had written on it.
+
+## 2026-11-04 — Every token whose light the module manages is unpadded
+
+**Ruled.** The owner's answer to design Q2: "Unpad every token". Core pads a
+token's light by its `externalRadius`, so a lantern on a member's own token
+reached half a cell further than the same lantern in the column, whose lights
+stand on no token. The lib patch `patches/token-light-padding.mjs` takes the
+padding off every token whose light the module manages; "managed" is lib
+MODEL's (Senses). A light set by hand keeps core's padding. This resolves
+ledger row T-0379.
+
+**The seam.** The patch wraps `Token#_getLightSourceData`, not the
+`getLightRadius` the design named: `getLightRadius` also converts sight range,
+detection modes and the `brightRadius`/`dimRadius` getters, which would have
+unpadded a managed token's vision with its light. Rejected: padding the column
+to match (it contradicts the 2026-11-03 light ruling).
+
+## 2026-11-04 — Light figures are imported
+
+**Ruled.** Ledger row T-0175, the owner's ruling "Fix backed values to imports
+and also expose somewhere as editable". A light's reach and burn time are read
+from the Judge's book by the importer into lib's light table (lib MODEL,
+Senses); the Judge edits them in the Ruledata Browser. With nothing imported a
+light sheds nothing, burns uncounted, and every surface that shows a figure
+says it is not imported. What stays in code is structure: which kinds of light
+exist, that each has a bright and a dim reach and a burn time, that a lantern
+shutters.
+
+**Bringing them in on an existing world.** The owner's answer to design Q-A.
+The light document is a single-document binding, so the Rules tables rebuild
+(Reimport One Shelf, or the Rebuild tab's rules tables, all or `light`)
+materialises it with no full re-import; no change was needed there. The light
+table's lib-init declaration fed no notice, because formation had no
+missing-tables notice of its own: the formation ready hook now names the light
+document and the delve's encounter document to a GM seat while either is
+missing (`ACKS-FORMATION.tablesMissing`).
+
+**A carried light names no count.** Caught under the owner's rule that a
+printed value is fixed in the work that catches it: the light table named its
+fuel items by the system compendium's names, two of which carry a pack
+quantity. The fuel is now found by what it is, the largest stack its pattern
+matches (equipment `grant.mjs` `findGearByPattern`); only the lantern itself is
+still found by name. Rejected: keeping the names because they are core's data
+and not the book's, which the owner's ruling does not distinguish.
+
+## 2026-11-04 — A hand edit releases a managed light
+
+**Ruled.** The owner's answer to design Q-B, option B. This supersedes, in
+part, "Every token whose light the module manages is unpadded" above, written
+the same day; the new evidence is the question that entry left open: a Judge
+who edits a light the module wrote kept the `managedLight` flag, so the
+padding patch went on unpadding the Judge's light. `applyTokenLight` now
+stamps the radii it writes (`managedLightStamp`), as the vision pass stamps
+sight, and `isManagedLight` holds only while the stored light still matches
+the stamp. A sync that finds a mismatch releases the token for good, flag and
+stamp, so the Judge's light keeps core's padding and is never written over;
+`migrateWorldVision({reclaim})` takes released lights back with released
+sight. A managed light written before the stamp existed is stamped by the
+first sync that finds it right. Rejected: releasing the flag alone, which the
+next sync of a lit bearer would have written straight back over the edit.
+
+## 2026-11-04 — The delve's wandering cadence is imported
+
+**Ruled.** Caught under the owner's rule that a printed value is fixed in the
+work that catches it, and ruled by the owner: the delve shipped its wandering
+cadence, the turns between throws and the target, as constants (JJ p. 36).
+Both now arrive with the `delveEncounters` document from the Judge's book; the
+world settings override them, blank deferring and an interval of 0 switching
+the automatic throw off; an Encounter Zone overrides both. With neither set
+nor imported the throw is not scheduled, rather than guessed: the turn counts
+nothing toward one, and the manual throw refuses with a notice. Rejected:
+keeping a default for the settings to fall back to, which is the printed value
+by another route. A Judge's settings saved before this keep their stored value;
+a world that never moved them reads blank and takes the import.
+
+## 2026-11-04 — The encounter throw's dice are imported too
+
+**Ruled.** The owner's order, on the report of the entry above: the encounter
+throw's die and the encounter distance's dice, printed in the same passage and
+still in source, move into the same `delveEncounters` document, with the
+Judge's override layer as the way to change them. They take no world setting:
+the settings are the cadence a Judge tunes per campaign, and the dice are the
+procedure's own, so the Ruledata Browser is where they are edited. With no
+die nothing is thrown; with no distance dice an encounter still stands, rolls
+no distance and says so, rather than inventing one. The minute of the turn is
+rolled on the clock's own turn length, which is the module's unit, not this
+page's figure. A dice table is rebuilt from its integers before it reaches a
+roll, because an override is free text.

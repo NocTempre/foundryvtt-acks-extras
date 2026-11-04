@@ -4,14 +4,13 @@ import { elementOf, isPrimaryGM, replacementToken } from "../lib/util.mjs";
 import { acksExtras, assertAcksSystem } from "../namespace.mjs";
 import {
   DEFAULT_PARTY_IMAGE,
-  DEFAULT_ENCOUNTER_EVERY,
-  DEFAULT_ENCOUNTER_TARGET,
+  DELVE_ENCOUNTER_DOC,
   FLAG_FORMATION_ID,
   FORMATION_DOC,
-  MARCH_FEET_PER_BODY_DEFAULT,
   MODULE_ID,
+  PARTY_TOKEN_SHAPES,
   ROLES,
-  SETTING_MARCH_FEET,
+  SETTING_PARTY_TOKEN_SHAPE,
   SETTING_REST_REQUIRED,
   TRAP_ITEM_TYPE,
 } from "./constants.mjs";
@@ -113,7 +112,10 @@ import * as encounterScaling from "./encounter-scaling.mjs";
 import { registerRequestSocket, requestBringIn, requestPartyAction } from "./player-requests.mjs";
 import { canJoin, partyHolding, partyOnScene, refusalText } from "./membership.mjs";
 import { registerSkillFlagEditor } from "./skill-audit.mjs";
-import { RESIZE_OPTION, syncEnvironments, syncPartyTokenSize } from "./scene-sync.mjs";
+import { RESIZE_OPTION, stepFinished, syncEnvironments, syncPartyTokenSize } from "./scene-sync.mjs";
+import { recordTrail } from "./column-trail.mjs";
+import { installColumnView } from "./column-view.mjs";
+import { carriedLightPoints } from "./column-light.mjs";
 import { SHADOW_FLAG, TRUTH_MOVE_OPTION, clearOrphanShadows } from "./shadow.mjs";
 import { addLight, advanceRounds, advanceTurns, removeLight, storedPosition, toggleLight, toggleShield } from "./turn-engine.mjs";
 import { onPartyTokenMoved } from "./journey.mjs";
@@ -153,6 +155,8 @@ import * as flight from "./flight.mjs";
 import { FLIGHT_DOC } from "./flight.mjs";
 import { SURVIVAL_DOC } from "../lib/survival.mjs";
 import { expectTables } from "../lib/tables.mjs";
+import { missingTablesList } from "../lib/ruledata.mjs";
+import { LIGHT_DOC } from "../lib/light.mjs";
 import { TRAVEL_DOC, WEATHER_DOC } from "../vehicles/vehicle-speed.mjs";
 import { registerFormationRepairChecks } from "./repair-checks.mjs";
 import { registerPartyRoster } from "./party-roster.mjs";
@@ -198,6 +202,7 @@ Hooks.once("init", () => {
   installNavigationCardActions();
   installTrapDrop();
   installTrapMarkers();
+  installColumnView();
   // Core's party overview deals XP by its own reckoning; with this module's
   // formation as the roster of record the two would disagree, so core's
   // button is hidden rather than left to argue. Off restores core untouched.
@@ -239,15 +244,21 @@ Hooks.once("init", () => {
     default: false,
   });
 
-  // Feeds faceWidthFeet(), which sizes the party token to the formation's
-  // real face at the scene's scale.
-  game.settings.register(MODULE_ID, SETTING_MARCH_FEET, {
-    name: "ACKS-FORMATION.settings.marchFeetPerBody.name",
-    hint: "ACKS-FORMATION.settings.marchFeetPerBody.hint",
+  // The shape a party takes until its sheet picks one (formation-model
+  // `partyTokenShape`). A change re-sizes every party token that follows it.
+  game.settings.register(MODULE_ID, SETTING_PARTY_TOKEN_SHAPE, {
+    name: "ACKS-FORMATION.settings.partyTokenShape.name",
+    hint: "ACKS-FORMATION.settings.partyTokenShape.hint",
     scope: "world",
     config: true,
-    type: Number,
-    default: MARCH_FEET_PER_BODY_DEFAULT,
+    type: String,
+    choices: Object.fromEntries(PARTY_TOKEN_SHAPES.map((s) => [s, `ACKS-FORMATION.settings.partyTokenShape.${s}`])),
+    default: PARTY_TOKEN_SHAPES[0],
+    onChange: () => {
+      if (!isPrimaryGM()) return;
+      syncEnvironments().catch((err) => console.error(`${MODULE_ID} | environment sync failed`, err));
+      PartySheet.refreshAll();
+    },
   });
 
   game.settings.register(MODULE_ID, "publicTurnCards", {
@@ -278,14 +289,16 @@ Hooks.once("init", () => {
     default: "require",
   });
 
+  // The Judge's delve cadence over the imported one (`getEncounterParams`).
+  // Nullable, with no slider: blank defers to the import, and 0 turns the
+  // automatic throw off, so the two must stay apart.
   game.settings.register(MODULE_ID, "encounterEvery", {
     name: "ACKS-FORMATION.settings.encounterEvery.name",
     hint: "ACKS-FORMATION.settings.encounterEvery.hint",
     scope: "world",
     config: true,
-    type: Number,
-    default: DEFAULT_ENCOUNTER_EVERY,
-    range: { min: 0, max: 12, step: 1 },
+    type: new foundry.data.fields.NumberField({ required: false, nullable: true, integer: true, min: 0, initial: null }),
+    default: null,
   });
 
   game.settings.register(MODULE_ID, "encounterTarget", {
@@ -293,9 +306,8 @@ Hooks.once("init", () => {
     hint: "ACKS-FORMATION.settings.encounterTarget.hint",
     scope: "world",
     config: true,
-    type: Number,
-    default: DEFAULT_ENCOUNTER_TARGET,
-    range: { min: 2, max: 6, step: 1 },
+    type: new foundry.data.fields.NumberField({ required: false, nullable: true, integer: true, min: 1, initial: null }),
+    default: null,
   });
 
   // Off, the delve counts no turns toward a rest, warns of none and winds no
@@ -374,6 +386,12 @@ Hooks.once("init", () => {
     "restInterval", "carriedBodyStone", "carriedGearShare",
     "swimWaterModifiers", "swimmingBonus", "swimSpeedShare", "sinkFeetPerStone", "breathRounds",
   ]);
+  // The delve's wandering throw: its die, the turns between throws, the throw
+  // that meets a monster, and the encounter distance's dice
+  // (`getEncounterParams`). A figure neither set nor imported is not guessed:
+  // no throw is made without a die and a target, and no distance is rolled
+  // without its dice.
+  expectTables(DELVE_ENCOUNTER_DOC, ["die", "every", "target", "distance"]);
   // The journey's registry reads still ahead of it — the getting-lost targets
   // and the encounter frequencies — declared now so the import UX names them.
   expectTables(TRAVEL_DOC, ["gettingLost", "encounterFrequency", "navigationBonus"]);
@@ -851,6 +869,9 @@ Hooks.once("init", () => {
     // It is consumed through the namespace, so removing it here silently sends
     // every member's token back to reading its own (empty) actor flag.
     lightsForBearer,
+    // lib/light.mjs's brightestLightReaching reads the column's lights through
+    // this: they stand on no token, so a token sweep alone never sees them.
+    carriedLightPoints,
     addLight,
     toggleLight,
     removeLight,
@@ -901,6 +922,13 @@ Hooks.once("ready", () => {
   registerRequestSocket();
   // Index the skill ladders the importer imported.
   initLadders();
+  // The delve's lights and its wandering throw read imported figures and have
+  // none of their own, so a world that lacks them is told once, on a GM seat,
+  // by the declared tables that are readable.
+  if (game.user.isGM) {
+    const missing = missingTablesList([LIGHT_DOC, DELVE_ENCOUNTER_DOC]);
+    if (missing.length) ui.notifications.warn(game.i18n.format("ACKS-FORMATION.tablesMissing", { list: missing.join(", ") }));
+  }
   // A party holed up in a city has no movement to read, so its stay is
   // credited off the calendar instead. Idempotent: the board carries the world
   // time each stay is counted from, so a clock the Judge drags forward pays
@@ -981,18 +1009,39 @@ Hooks.on("deleteActor", (actor) => {
 /*  Party token movement → dungeon turns        */
 /* -------------------------------------------- */
 
-// The party token's size depends on its heading (width and height swap when
-// it turns), so a turn must resync the size even when the clock has no
-// interest in the move. Gated on ROTATION alone: size is a function of
-// heading, frontage, ranks and the scene scale, and never of position — a
-// position-triggered resync writes on every step of a drag for no change.
-Hooks.on("updateToken", (tokenDoc, changes) => {
-  if (!("rotation" in changes)) return;
+// A hand resize of the party token: in the `order` shape the module owns the
+// size and puts it back; in `fixed` the sync reads the new size as the
+// Judge's and leaves it. Gated on a size change the module did not make, so a
+// walk writes nothing here.
+Hooks.on("updateToken", (tokenDoc, changes, options) => {
+  if (!("width" in changes) && !("height" in changes)) return;
+  if (options?.[RESIZE_OPTION]) return;
   const formationId = tokenDoc.getFlag(MODULE_ID, FLAG_FORMATION_ID);
   if (!formationId || !isPrimaryGM()) return;
   const formation = getFormation(formationId);
-  // Only the token the record links: a flagged copy turning changes nothing.
+  // Only the token the record links: a flagged copy resized changes nothing.
   if (formation && isLinkedPartyToken(formation, tokenDoc)) syncPartyTokenSize(formation).catch((err) => console.error(`${MODULE_ID} | party size sync failed`, err));
+});
+
+// The ground the party token walks, which the drawn column, its lights and a
+// deploy read (column-trail.mjs). Every early return of the movement hook
+// below has its own answer here (column.mjs `trailDecision`), so this runs
+// apart from it, after the step's animation, as a flag-only write.
+Hooks.on("updateToken", (tokenDoc, changes, options) => {
+  if (!("x" in changes) && !("y" in changes) && !("rotation" in changes)) return;
+  const formationId = tokenDoc.getFlag(MODULE_ID, FLAG_FORMATION_ID);
+  if (!formationId || !isPrimaryGM()) return;
+  const formation = getFormation(formationId);
+  if (!formation || !isLinkedPartyToken(formation, tokenDoc)) return;
+  const flags = {
+    halt: !!options?.[HALT_OPTION],
+    travel: !!options?.[TRAVEL_OPTION],
+    truth: !!options?.[TRUTH_MOVE_OPTION],
+    resize: !!options?.[RESIZE_OPTION],
+  };
+  stepFinished(tokenDoc)
+    .then(() => recordTrail(tokenDoc, changes, options, flags, getFormation(formationId) ?? formation))
+    .catch((err) => console.error(`${MODULE_ID} | the party's trail could not be recorded`, err));
 });
 
 Hooks.on("updateToken", (tokenDoc, changes, options, userId) => {
@@ -1005,10 +1054,9 @@ Hooks.on("updateToken", (tokenDoc, changes, options, userId) => {
   // district figure before the token moved, and the clock's baseline was
   // moved with it.
   if (options?.[TRAVEL_OPTION]) return;
-  // Nor is a turn. Resizing the party token to its new face holds the token's
-  // centre still, which moves the top-left corner every consumer below reads —
-  // a block that pivots 6×2 to 2×6 reports two squares of travel it did not
-  // walk. `syncPartyTokenSize` re-baselines the clock itself.
+  // Nor is the module's own resize. It holds the token's centre still, which
+  // moves the top-left corner every consumer below reads, and reports travel
+  // nobody walked. `syncPartyTokenSize` re-baselines the clock itself.
   if (options?.[RESIZE_OPTION]) return;
   // Nor is stepping onto the lost party's true position: it was always there.
   if (options?.[TRUTH_MOVE_OPTION]) return;

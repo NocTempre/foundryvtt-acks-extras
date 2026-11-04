@@ -77,18 +77,29 @@ export default class TemplateData extends foundry.abstract.TypeDataModel {
           // Read this choice off a dropped base actor: `from` names a base
           // value ("hd"), `max` caps it (a thrall caps at 8 HD).
           derive: new SchemaField({ from: str(), max: numN() }),
+          // The option an unpinned generation takes instead of a roll ("" →
+          // roll); always available, whatever the other axes chose.
+          default: str(),
           options: new ArrayField(optionField()),
         })
       ),
 
       /** N-dimensional refinements: `by` names the axes, `key` the chosen
-       *  option keys joined "|" — the dragon's per-age-per-form damage. */
+       *  option keys joined "|" — the dragon's per-age-per-form damage. An
+       *  option with no patch of its own on an axis a cell names stands only
+       *  where a cell matches it (template-logic.mjs `optionAvailable`). */
       cells: new ArrayField(
         new SchemaField({
           by: new ArrayField(str()),
           key: str(),
           merge: new ObjectField(),
           items: new ArrayField(new ObjectField()),
+          // Actor-level flags merged when the cell applies (a leader's Hit
+          // Dice rating and save class on the Full Monster Sheet's extras).
+          flags: new ObjectField(),
+          // Hit points rolled from the resolved rating at generation: a cell
+          // whose page gives a rating and no hit points.
+          rollHp: new foundry.data.fields.BooleanField({ required: true, initial: false }),
         })
       ),
 

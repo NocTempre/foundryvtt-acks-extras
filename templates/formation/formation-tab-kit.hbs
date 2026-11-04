@@ -6,7 +6,7 @@
     <div class="light {{#unless this.lit}}unlit{{/unless}}" data-light-id="{{this.id}}">
       <i class="{{#if this.lit}}fa-solid fa-fire-flame-curved lit{{else}}fa-regular fa-fire-flame-curved{{/if}}"></i>
       <span class="label">{{this.label}} — {{this.bearer}}</span>
-      <span class="remaining">{{this.remaining}} {{localize "ACKS-FORMATION.app.turnsLeft"}}{{#if this.shielded}} · {{localize "ACKS-FORMATION.app.shieldedBadge"}}{{/if}}</span>
+      <span class="remaining" data-tooltip-text="{{this.burnTip}}">{{this.remainingText}}{{#if this.shielded}} · {{localize "ACKS-FORMATION.app.shieldedBadge"}}{{/if}}</span>
       {{#if this.canControl}}
       {{#if this.shieldable}}
       <button type="button" data-action="toggleShield" class="{{#if this.shielded}}paused{{/if}}" data-tooltip="{{localize 'ACKS-FORMATION.app.shieldHint'}}">
@@ -26,7 +26,7 @@
     <div class="add-light">
       <select data-pick="lightType">
         {{#each lightTypes}}
-        <option value="{{this.key}}">{{this.label}} ({{this.turns}} {{localize "ACKS-FORMATION.app.turns"}})</option>
+        <option value="{{this.key}}">{{this.label}} ({{this.turnsText}})</option>
         {{/each}}
       </select>
       <select data-pick="lightBearer">

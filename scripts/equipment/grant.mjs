@@ -20,10 +20,12 @@ import { sheatheItem } from "./actions.mjs";
  * A piece of gear a caller wants present on an actor.
  * @typedef {object} GearSpec
  * @property {RegExp} pattern what counts as already carrying it
- * @property {string} name the item to create when it is missing
+ * @property {string} [name] the item to create when it is missing; without
+ *   one, the item created is the stack `pattern` matches that holds the most
+ *   (`findGearByPattern`), and a stand-in is named by `label`
  * @property {string} [label] i18n key naming it to the user
  * @property {object} [fallback] item data merged over the synthesized stand-in,
- *   used only when no world item or compendium entry carries `name`
+ *   used only when no world item or compendium entry answers the spec
  */
 
 /**
@@ -35,7 +37,7 @@ import { sheatheItem } from "./actions.mjs";
  * has customised their own "Lantern" gets theirs, then every Item compendium.
  *
  * Matching is on the exact name, case-insensitively. A loose match would be
- * worse than no match: "Oil, Common (1 pint)" must never resolve to the military
+ * worse than no match: the common oil flask must never resolve to the military
  * flask sitting beside it in the same pack.
  *
  * @returns {Promise<object|null>} creatable item data, or null if nothing matches
@@ -76,6 +78,43 @@ export async function findGearEntry(name, { world: searchWorld = true, pack: pac
   return null;
 }
 
+/** The count a stack holds, as its quantity field stores it; 1 where it stores none. */
+const stackSize = (entry) => {
+  const n = Number(entry?.system?.quantity?.value);
+  return Number.isFinite(n) && n > 0 ? n : 1;
+};
+
+/**
+ * The source data for gear known by what it IS rather than by a name: among
+ * the items `pattern` matches, the stack holding the most, so a grant hands
+ * over a bundle where the store sells one. The world's items answer first, as
+ * in `findGearSource`; then every Item compendium, read with its quantities.
+ * Ties go to the first found.
+ * @returns {Promise<object|null>} creatable item data, or null if nothing matches
+ */
+export async function findGearByPattern(pattern) {
+  if (!(pattern instanceof RegExp)) return null;
+  const largest = (entries) => entries.reduce((best, e) => (!best || stackSize(e) > stackSize(best) ? e : best), null);
+
+  const world = largest([...(game.items ?? [])].filter((i) => pattern.test(i.name ?? "")));
+  if (world) return world.toObject();
+
+  let best = null;
+  for (const pack of game.packs ?? []) {
+    if (pack.documentName !== "Item") continue;
+    const index = (await pack.getIndex?.({ fields: ["system.quantity.value"] })) ?? pack.index ?? [];
+    const found = largest([...index].filter((e) => pattern.test(e.name ?? "")));
+    if (found && (!best || stackSize(found) > stackSize(best.entry))) best = { pack, entry: found };
+  }
+  if (!best) return null;
+  try {
+    return (await best.pack.getDocument(best.entry._id))?.toObject() ?? null;
+  } catch (err) {
+    console.warn(`acks-extras | could not read ${best.entry.name} from ${best.pack.collection}`, err);
+    return null;
+  }
+}
+
 /**
  * The stand-in for gear no compendium in this world carries.
  *
@@ -86,7 +125,7 @@ export async function findGearEntry(name, { world: searchWorld = true, pack: pac
  */
 function synthesize(spec) {
   return {
-    name: spec.name,
+    name: spec.name ?? (spec.label ? game.i18n?.localize?.(spec.label) ?? spec.label : ""),
     type: "item",
     system: { quantity: { value: 1, max: 0 }, cost: 0, weight6: 0 },
     ...(spec.fallback ?? {}),
@@ -102,11 +141,14 @@ function synthesize(spec) {
  */
 export async function grantGear(actor, specs = []) {
   if (!actor?.createEmbeddedDocuments) return [];
-  const missing = specs.filter((s) => s?.name && s?.pattern && !carriesItem(actor, s.pattern));
+  const missing = specs.filter((s) => (s?.name || s?.label) && s?.pattern && !carriesItem(actor, s.pattern));
   if (!missing.length) return [];
 
   const data = [];
-  for (const spec of missing) data.push((await findGearSource(spec.name)) ?? synthesize(spec));
+  for (const spec of missing) {
+    const source = spec.name ? await findGearSource(spec.name) : await findGearByPattern(spec.pattern);
+    data.push(source ?? synthesize(spec));
+  }
   return (await actor.createEmbeddedDocuments("Item", data)) ?? [];
 }
 

@@ -424,7 +424,8 @@ a choice between the square and hex behaviour modes. Staged in ROADMAP.
 
 The party token's face-width sizing and the `marchFeetPerBody` setting (with
 its ip-doctrine reviewer flag) are formation rulings —
-`docs/formation/DECISIONS.md` 2026-08-19. The SIZES footprint structuring
+`docs/formation/DECISIONS.md` 2026-08-19, superseded there 2026-11-04 ("The
+party token is the head of its column"). The SIZES footprint structuring
 (and its reviewer flag) is a monsters ruling — `docs/monsters/DECISIONS.md`
 2026-08-19.
 

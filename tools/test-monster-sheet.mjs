@@ -115,6 +115,16 @@ const snap = () => ({
   spells: { enabled: false },
 });
 
+test("an attack's damage tag carries the creature's own modifier, and its tooltip names both parts", () => {
+  const plain = statblockColumns(snap(), loc).columns[1][0].rows;
+  assert.equal(plain[0].damage, "1d4");
+  assert.equal(plain[0].damageTip, "");
+  const modded = statblockColumns({ ...snap(), damageMod: 2 }, loc).columns[1][0].rows;
+  assert.equal(modded[0].damage, "1d4 +2");
+  assert.equal(modded[0].damageTip, 'statblock.row.damageWithMod:{"formula":"1d4","mod":"+2"}');
+  assert.equal(modded[1].damage, "—", "no die, nothing to add to");
+  assert.equal(statblockColumns({ ...snap(), damageMod: -1 }, loc).columns[1][0].rows[0].damage, "1d4 −1");
+});
 test("three columns: throws, attacks and abilities, then the readings", () => {
   const { columns } = statblockColumns(snap(), loc);
   assert.deepEqual(columns.map((c) => c.map((g) => g.key)), [

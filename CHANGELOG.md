@@ -3,6 +3,45 @@
 ## Unreleased
 ### Added
 
+- **A monster family generates its leaders from their own figures.** A family whose
+  page names the leaders, casters and dependants of a band gains a Role axis beside the
+  kind. Left blank it generates the ordinary member; a leader takes its own hit dice,
+  armour, hit points and damage bonus, with its attack throw and saves worked out from
+  its hit dice and its experience read from the page where one is printed. A caster's
+  level is rolled at generation and its slots follow; a dependant that does not fight
+  has no attacks. A role the page does not print for the kind you picked is greyed out
+  and never rolled. An imported creature that fights by weapon with a bonus keeps the
+  bonus in the system's damage modifier, so it reaches every weapon it swings, and the
+  Statblock's damage tag names the two parts; adventure stat lines, people and grid
+  templates do the same. A leader's attack throw follows the rulebook's attack-throw
+  ladder, which now imports with the rulebook's tables and can be edited in the
+  Ruledata Browser, and hovering a leader's throw or saves names what they were worked
+  out from. Import the rulebook's tables first: without the ladder a leader keeps the
+  member's throw and the sheet says the ladder is not imported. Families and creatures
+  imported earlier gain all of this on Repair in place or a re-import.
+- **The AXIOMS Compendium is a book the importer knows.** Connect it and import its
+  tables, and every monster family gains champions, sub-chieftains and chieftains
+  worked out by its leader procedure from each member's own figures. Where the
+  Monstrous Manual prints a family's leaders, a Leader figures axis picks between the
+  printed ones (the default) and the procedure's; where it prints none, the procedure's
+  are the only ones. A procedure leader rolls its hit points, and its Statblock names
+  where its figures came from.
+- **A creature outside a family gets its leaders too.** Importing a monster whose page
+  names its leaders also makes a "(leaders)" template beside it that generates them,
+  and with the AXIOMS tables imported a beastman whose page names none gets the
+  procedure's. A creature imported earlier gains it on Repair in place. On a family
+  kind whose page prints no leaders, the Leader figures axis is no longer offered, and
+  hovering a leader's armour class on the rail names where it came from.
+- **Beastmen can be generated in a troop kit.** With the rulebook's tables imported, a
+  beastman family gains a Kit axis listing the infantry and missile troop types the
+  rulebook's Beastman Troops table prints for each kind. A trooper takes the row's armour
+  class, damage bonus, movement and morale, with no items added and the kit noted in its
+  description; a leader in a kit keeps its own damage bonus, and its armour class is
+  worked out when it is generated from the row's and its own advantage over its warrior.
+  With the AXIOMS tables imported, Unarmoured gives the kind's natural armour class, and
+  a weapon's damage tag names the die its damage bonus converts it to. Hovering the
+  armour class, morale or damage names the row they came from. A family imported
+  earlier gains the axis on Repair in place.
 - **The skill audit rolls an ability for the whole party.** Each row of Party abilities
   has a roll button: every member who holds that ability rolls, and one card lists them
   together, whispered to the Judges, with each total, its target and the verdict. An
@@ -12,12 +51,75 @@
   roll are named under the card with the reason (they lack the ability, it offers no
   throw, or they are down), and if nobody holds it the card says that nobody rolled.
   Nothing is spent: no round or turn passes.
+- **The party marches as a column behind its token.** The party token is one square at
+  the head, and the rest of the party is drawn behind it on the squares it walked, each
+  member's portrait on a square tinted in the party's colour, following the head around
+  corners. Each lit torch, lantern or candle shines from its bearer's square. A combat
+  deploy puts each member on their square. The party sheet's Order tab chooses, per
+  party, between the marching order and a fixed size you set yourself (nothing drawn),
+  and picks the column's tint, which is the token's disposition colour unless you
+  choose one; a new module setting, Party token on the map, is the default for a party
+  that has not chosen. Players see the column only where they can see its squares. On
+  a hex, gridless or mile-scale map everyone stands at the party token. The March width
+  per body setting is gone with the wide party token it sized.
+- **Light figures come from your books.** How far a torch, lantern or candle reaches and
+  how long it burns are read from the rulebook on import, and can be changed in the
+  Ruledata Browser. Until the books are imported a lit light sheds nothing and burns
+  uncounted, and the character sheet and the party sheet say the figure is not
+  imported. On a world whose books were imported before this release, open ACKS Extras
+  Macros, Reimport One Shelf, and run Rules tables with your books open on that seat;
+  a GM is warned at load while the light figures are missing.
+- **The dungeon's wandering monster throw comes from your books.** The throw's die, how
+  many turns lie between throws, what the throw needs, and the dice of the encounter
+  distance are read from the Judges Journal on import, the same Rules tables run as the
+  light figures, and can be changed in the Ruledata Browser. The two module settings
+  now start blank and use the imported figures; a number you type there still wins,
+  and an interval of 0 still turns the automatic throw off. Without the die or the
+  target, no throw is made, and the Encounter throw tool says why; without the distance
+  dice an encounter rolls no distance and the card says so. The card's die, target and
+  distance show where each came from on hover.
+- **A torch, lantern or candle you edit on a token stays as you set it.** Once you
+  change a light the module put on a token, the module leaves that token's light alone
+  from then on, and it is drawn the way Foundry draws any light you set by hand.
+- **Supplying a light hands over the largest stack of its fuel** in your world or
+  compendiums, rather than one item picked by name.
 - **A group's token added to a combat sends out the whole group.** Every body its rows
   hold lands on the scene from the token's square, each with a combatant of its own, and
   the group's token hides. Ending the combat recalls them and shows the token again, and
   adding the token to the same combat again brings them back early. A group with no one
   to send tells the Judges so and changes nothing, and a group that is part of a party is
   left to the party.
+- **An ability's imported modifiers apply to the character.** Armor Class, saves,
+  initiative, avoid surprise, cleaves and the attack and damage modifiers now take the
+  bonuses a character's abilities carry, with no Active Effect to write. A bonus that
+  holds only in light armour and under a load applies while that is true, reading both
+  limits from your book, and leaves when heavier armour goes on. Two copies of one
+  ability count once; abilities that grant the same capability, or say they do not
+  stack, give only the larger. An Active Effect of your own on the same field takes the
+  bonus's place, so nothing is counted twice. Each modifier on the ability's Mechanics
+  tab says what the sheet does with it, a bonus read by the generic scan rather than a
+  checked recipe is marked unverified, and on the Stats tab every modifier's tooltip
+  names each ability in it and those left out, with why. The saving throw modifier row
+  shows its figure in force. Monsters are unchanged. Abilities imported earlier keep
+  their old rows until Update Abilities; Repair records how each old copy was read.
+  A row that is not applied by itself has a Start button on the character's copy, which
+  adds it as an Active Effect, created turned off for a situational row, and a Refresh
+  button once a level change has made its figure stale.
+- **An ability's conditions now come from your book or name their kind.** Where a
+  modifier or throw holds only sometimes, its Mechanics row shows the book's own words,
+  read from your copy on import, or a short label such as "by method" with the page to
+  read. A limit, a mishap or a fall a row names, and the condition on a reroll, sense,
+  capability or companion row, take the same route, and a row that belongs to one throw
+  says which ("Lockpicking only"). Which rows apply is unchanged. Abilities imported
+  earlier keep their old wording until Update Abilities.
+- **Fighting style and heavy helmet figures come from your books.** Fighting Style
+  Specialization's bonus is read from its page with the proficiency and applies while
+  you fight in the style you specialized in; the dual weapon style's attack bonus and a
+  heavy helmet's surprise penalty are read from the rulebook with its tables and can be
+  changed in the Ruledata Browser. The Avoid Surprise tooltip names the page the
+  helmet's figure was read from, or says the Judge set it. Until then none of them applies. Run Update
+  Abilities for a specialization imported earlier, and re-import the rulebook's tables
+  for the rest.
 - **A delve owes no rest while Require rests in the delve is off.** The setting is on by
   default, which is how the delve has always run. Off, no turn counts toward a rest, no
   warning or turn-card line mentions one, nobody is winded, and the Rest figure on the
@@ -36,8 +138,28 @@
   the number of documents it will rewrite, and Cancel writes nothing. Items and
   abilities you made yourself, effects and attacks you added, what play has set, and
   anything whose book is not open or has no in-place write are still left as they are.
+- **Repair and Force repair write every kind in place.** Weapons, armour, the price
+  list, languages, races, monster templates and families, NPCs, adventure stat blocks
+  and OSE creatures are now written over where they stand, from the open book, instead
+  of being left to Rebuild. A pregenerated character is left by Repair; Force repair
+  writes its biography again and lands what its sheet import grants that it lacks,
+  keeping the items it holds. The confirm's count and the entry picker's marks follow.
+- **The Adventures tab gains Force repair.** Beside Rebuild and Repair, it writes in
+  place over the book's creatures and people, places and organisations, the market
+  profiles on them, items and roll tables, a description you wrote in, an edited place
+  and a roster included, and writes its Adventure anew. It asks first with the count of
+  each and of what it leaves; Cancel writes nothing. A place two books print is left.
+- **Overhead tokens from an installed compendium.** When another active module ships
+  monster art, the Tools tab offers Apply: each imported monster whose name matches
+  exactly takes that image as its token, the book's image stays its portrait, and the
+  token's size and scale stay yours. The confirm counts what changes and what it
+  leaves, a token you set among them; a tick also moves tokens already placed. Restore
+  book tokens puts back what each showed before.
 
 ### Fixed
+
+- **Make Encounter on a monster whose token is a wildcard takes its portrait.** The
+  group took the wildcard path as its own image; it now takes the portrait.
 
 - **A weapon, armour or item the system marked as migrated without renaming its fields
   loads with its own figures.** The system's world migration stamped records without
@@ -74,6 +196,11 @@
   changes nothing. A scene in feet is unchanged. On a coarse scene a radius smaller than
   the step reads as no light, and a Night Vision creature's range follows the light it
   doubles in the same units.
+- **A light the module sets on a token reaches its own figure.** Foundry measures a
+  token's light from the token's edge, so a lantern on a member's token lit half a
+  square further than its figure. A light the module manages is now measured from the
+  token's centre, as the column's lights are; a light you set on a token by hand is
+  measured as Foundry measures it.
 - **The party token adds the party to a combat and takes it out again.** A member whose
   token had been deleted still counted as out on the field, so adding the party token to
   a combat hid the party, deployed nobody and posted "0 deployed". A member whose token

@@ -351,7 +351,7 @@
   overflow-wrap: anywhere;
 }
 
-/* The Books window is four bands (walkthrough, server, this computer, the
+/* The Books tab is four bands (walkthrough, server, this computer, the
    books). A band is a titled group with a rule above it; the heading sits
    tight to its content so the rule reads as a divider between bands rather
    than a box around each. */

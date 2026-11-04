@@ -789,14 +789,18 @@ const approx = (a, b, eps = 1e-6) => Math.abs(a - b) < eps;
 }
 
 /* -------------------------------------------- */
-/*  The party token on a mile-scale map         */
+/*  The party token's size, at any scale        */
 /* -------------------------------------------- */
 
 {
   const { syncPartyTokenSize } = await import("../scripts/formation/scene-sync.mjs");
   const sizeFor = async (scene, locked) => {
     const token = makeToken(scene, `t.size.${scene.id}`);
-    token.getFlag = (_ns, key) => (locked && key === "footprintLock" ? true : undefined);
+    const flags = {};
+    token.getFlag = (_ns, key) => (locked && key === "footprintLock" ? true : flags[key]);
+    token.update = async (changes) => {
+      for (const [path, value] of Object.entries(changes)) flags[path.split(".").at(-1)] = value;
+    };
     token.width = 3;
     token.height = 2;
     let resized = null;
@@ -809,14 +813,12 @@ const approx = (a, b, eps = 1e-6) => Math.abs(a - b) < eps;
     await syncPartyTokenSize(getFormation(id));
     return resized;
   };
-  const mile = makeScene("S.size.mile", { kind: "hex", miles: 7 });
-  assert.deepEqual(await sizeFor(mile, false), { width: 1, height: 1 }, "on a map of miles the party is one cell");
-  const lockedSize = await sizeFor(makeScene("S.size.locked", { kind: "hex", miles: 7 }), true);
-  assert.notDeepEqual(lockedSize, { width: 1, height: 1 }, "the footprint lock opts out and keeps the frontage arithmetic");
+  const head = { width: 1, height: 1 };
+  assert.deepEqual(await sizeFor(makeScene("S.size.mile", { kind: "hex", miles: 7 }), false), head, "on a map of miles the party token is one cell");
   const small = makeScene("S.size.small", { kind: "square", miles: 5 });
   small.grid.units = "ft";
-  const smallSize = await sizeFor(small, false);
-  assert.ok(smallSize, "a map of feet keeps the frontage arithmetic");
+  assert.deepEqual(await sizeFor(small, false), head, "on a map of feet it is the one-cell head of its column");
+  assert.equal(await sizeFor(makeScene("S.size.locked", { kind: "hex", miles: 7 }), true), null, "the footprint lock means never resize");
 }
 
 /* -------------------------------------------- */

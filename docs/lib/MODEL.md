@@ -642,8 +642,9 @@ scout. They live here rather than in a feature because more than one asks.
 |---|---|
 | `scripts/lib/senses.mjs` | Reading ACKS senses off the sheet, and what each grants. |
 | `scripts/lib/perception.mjs` | What those senses ARE to Foundry: vision modes, detection modes, and the two status effects the rules need. |
-| `scripts/lib/light.mjs` | The RR light table, and which record holds a given actor's lights. |
+| `scripts/lib/light.mjs` | The kinds of light, their imported figures (the light table), and which record holds a given actor's lights. |
 | `scripts/lib/token-sync.mjs` | The guarded writes that put any of it on a token. |
+| `scripts/lib/patches/token-light-padding.mjs` | A managed light's radius on the canvas, with core's token padding taken off. |
 
 **Sense resolution** runs in one precedence order, so the movement rules and the
 canvas can never disagree: the Full Monster Sheet stat block
@@ -692,6 +693,41 @@ light. The stamp that marks a sight range as ours carries the converted figure.
 `brightestLightReaching` reads stored light, so its answer is in scene units too;
 the pass converts it to feet before Night Vision doubles it.
 
+**The light table.** `LIGHT_SOURCES` is structure only: which kinds of light
+exist, their label and the gear each consumes, and whether one shutters. A
+kind's bright and dim reach in feet and its burn time in turns are content,
+read from the Judge's book by the importer's `light` document (RR 265) into
+table `lightSources` of document `light`, keyed by kind, at the WORLD layer of
+`tables.mjs`; `declareLightTables` names it among the expected tables at
+`init`. `lightFigures(kind)` reads `{bright, dim, turns}`, each `null` where
+nothing is imported, and `lightCite()` the page the import read, `null` for an
+override. The Judge edits the figures in the Ruledata Browser (export, edit,
+drop back), which writes the OVERRIDE layer and wins over the import. With
+nothing imported a lit light sheds nothing (`emittedLight` reads 0), burns
+uncounted (`remaining` left unset), and every surface that shows a figure says
+it is not imported.
+
+**A managed light.** A token's light is the module's when the module wrote it:
+`applyTokenLight` sets `flags.acks-extras.managedLight` true with every lit
+write and false when it clears the light, and stamps the radii it wrote in
+`flags.acks-extras.managedLightStamp`. `isManagedLight(token)` holds while the
+flag is true and the stored radii still match the stamp (a light written
+before the stamp existed carries none and holds on the flag alone, until the
+first sync that finds it right stamps it). A light the Judge set on a token the
+module never lit carries no flag. One the Judge edited after the module wrote
+it stops matching its stamp: it reads as the Judge's at once, and the next
+sync releases it for good (`managedLightStamp: {released: true}`, flag false)
+and never writes it again, as a hand-edited sight is released; the world
+sweep's `reclaim` takes both back. Core pads every token light by the token's `externalRadius`
+(half its smaller side) in `Token#getLightRadius`; for a managed light the
+padding patch (`patches/token-light-padding.mjs`) rebuilds the light source's
+`dim` and `bright` in `_getLightSourceData` from the stored radius alone, so a
+lantern reaches its figure on a member's own token exactly as it does from a
+marching column's cell (`docs/formation/MODEL.md`, The column), which stands on
+no token. A hand-set light keeps core's padding. The patch wraps the light's own
+path, not `getLightRadius`, which also converts sight range and detection
+ranges.
+
 ### Night Vision is the one sense read off the square
 
 Every other row above is a property of the sheet. Night Vision is not: MM §5
@@ -699,8 +735,9 @@ gives it as *moonlight → daylight; indoors 2× light range; not total dark*, s
 its reach is a multiplier on a light somebody else lit and somebody else carries.
 
 `brightestLightReaching` (`scripts/lib/light.mjs`) answers what that light is — the
-largest bright radius, among the scene's ambient lights and every light-emitting
-token, whose source actually covers the creature's square. `senseProfile` takes
+largest bright radius, among the scene's ambient lights, every light-emitting
+token and every marching column's lights (formation's `carriedLightPoints`,
+read through the namespace), whose source actually covers the creature's square. `senseProfile` takes
 it as `litBy` and doubles it. Nothing else reads it, and the pass only computes
 it for creatures that have the sense, because finding it costs a sweep of the
 scene.
@@ -713,7 +750,10 @@ asks whether a creature can march with no light at all.
 Because the answer depends on the light rather than the sheet, the sheet-driven
 hooks cannot see it change. `syncNightVisionTokens` is re-run — debounced, and
 narrowed to the creatures that have the sense — whenever an ambient light or a
-token's position, light or visibility changes.
+token's position, light, visibility or column trail changes, and on each scene a
+party token stands on when the formations setting is written (a light lit,
+doused, shuttered or handed over in a column). Every scene asked for inside one
+debounce window is swept.
 
 Straight-line distance, ignoring **walls**: a torch beyond a closed door still
 reads as reaching. Resolving occlusion needs the live canvas, and this has to
@@ -784,7 +824,8 @@ through `globalThis.acksExtras.formation.lightsForBearer`, which returns `null`
 nothing" and "not a member".
 
 **Overrides are respected, differently for each write.** A light is only ever
-cleared if we set it (`managedLight`). Vision cannot be that shy — the whole
+cleared if we set it (`managedLight`), and one we set and a human then edited
+is released by its stamp (A managed light, above). Vision cannot be that shy — the whole
 point is to overwrite the system's stock `sight.range: 60` on every monster — so
 it stamps what it wrote (`managedVision`) and compares before writing again; a
 token whose sight no longer matches the stamp was edited by a human and is
@@ -1449,6 +1490,13 @@ each feature claims its own at init — and three things follow from a marker:
 Emptying means different things by owner, and neither is hidden: training is a
 copy, so an emptied one stays emptied until the class is applied again; the
 loadout is derived, so an emptied one refills at the next recompute.
+
+The loadout is also where a character's imported ability modifiers land: lib
+decides which rows apply and how they stack (`typed-modifiers.mjs`, stated in
+`API.md`, "Typed modifiers"), and equipment writes each as its own change,
+with a parts ledger beside the changes that names what wrote each one
+(`docs/equipment/MODEL.md`). A sheet reads the ledger to name every part in a
+figure's tooltip.
 
 Deleting the ACTOR still works — Foundry's cascade does not route through the
 per-effect refusal.

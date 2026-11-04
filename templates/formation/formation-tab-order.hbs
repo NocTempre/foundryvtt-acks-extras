@@ -34,6 +34,21 @@
         <input type="number" class="acks-extras-party-sheet__head-field is-narrow" name="frontage" value="{{frontage}}" min="1" step="1"
                {{#if frontageMax}}max="{{frontageMax}}"{{/if}}>
       </label>
+      <label class="acks-extras-party-sheet__head-field-label" data-tooltip="{{localize 'ACKS-FORMATION.app.shape.hint'}}">
+        {{localize "ACKS-FORMATION.app.shape.label"}}
+        <select class="acks-extras-party-sheet__head-field" name="tokenShape">
+          {{#each shapeOptions}}
+          <option value="{{this.value}}" {{#if this.selected}}selected{{/if}}>{{this.label}}</option>
+          {{/each}}
+        </select>
+      </label>
+      {{#if columnColorShown}}
+      <label class="acks-extras-party-sheet__head-field-label" data-tooltip="{{localize 'ACKS-FORMATION.app.columnColor.hint'}}">
+        {{localize "ACKS-FORMATION.app.columnColor.label"}}
+        <color-picker class="acks-extras-party-sheet__head-field" name="columnColor" value="{{columnColor}}"
+                      placeholder="{{localize 'ACKS-FORMATION.app.columnColor.placeholder'}}"></color-picker>
+      </label>
+      {{/if}}
       <button type="button" class="acks-extras-party-sheet__head-pill" data-action="saveMarchingOrder"
               data-tooltip="{{localize 'ACKS-FORMATION.marching.saveHint'}}">
         <i class="fa-solid fa-floppy-disk" inert></i> {{localize "ACKS-FORMATION.marching.save"}}

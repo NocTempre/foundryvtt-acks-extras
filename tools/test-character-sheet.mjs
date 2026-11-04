@@ -434,4 +434,102 @@ test("morale is carried by a serving hireling and by a character no player owns,
   assert.equal(carriesMorale(null), false);
 });
 
+/** A character with one loadout part per change and abilities carrying typed modifiers. Figures invented. */
+function typedActor({ changes = [], parts = [], abilities = [], save = { stored: 0, inForce: 0 } } = {}) {
+  const flag = { "acks-extras": { loadout: true, loadoutParts: parts } };
+  return {
+    type: "character",
+    _source: { system: { save: { mod: save.stored }, initiative: { mod: 0 }, surprise: { avoidsurprise: 0, surpriseothers: 0 } } },
+    system: { save: { mod: save.inForce }, initiative: { value: changes.filter((c) => c.key === "system.initiative.mod").reduce((s, c) => s + Number(c.value), 0), mod: 0 }, scores: { dex: { mod: 0 } }, surprise: {}, details: { level: 1 } },
+    items: abilities.map((a, i) => ({ id: `a${i}`, type: "ability", name: a.name, flags: { "acks-extras": { extras: { effects: a.effects, effectsFrom: a.from ?? "recipe" } } } })),
+    effects: [{ id: "acksExtLoadout00", flags: flag, getFlag: (m, k) => flag[m]?.[k], changes }],
+    appliedEffects: [],
+  };
+}
+test("the Stats tab names each typed part the loadout wrote, marks a scan's unverified, and lists what it left out", () => {
+  globalThis.game = { i18n: { has: () => false, localize: (k) => k, format: (k, d = {}) => `${k}|${JSON.stringify(d)}` } };
+  try {
+    const actor = typedActor({
+      changes: [{ key: "system.initiative.mod", type: "add", value: "2" }],
+      parts: [{ label: "Swift", itemId: "a0", unverified: true }],
+      abilities: [
+        { name: "Swift", effects: [{ type: "modifier", target: "initiative", value: { kind: "flat", flat: 2 } }], from: "scan" },
+        { name: "Wary", effects: [{ type: "modifier", target: "initiative", value: { kind: "flat", flat: 3 }, condition: "situational" }] },
+      ],
+    });
+    const t = buildThrows(actor);
+    assert.ok(t.initiativeTip.includes('stats.partUnverified|{"label":"Swift","value":"+2"}'), "the scan's part is named with its figure and marked");
+    const left = t.initiativeTip.split(" · ").find((l) => l.includes("stats.notApplied|")) ?? "";
+    assert.ok(left.includes("Wary") && left.includes("stats.reason.condition"), "the situational modifier is listed as not applied, with why");
+    assert.ok(!t.initiativeTip.includes('stats.part|{"label":"Wary"'), "a part not applied carries no figure as if applied");
+  } finally {
+    delete globalThis.game;
+  }
+});
+test("the save row carries the shared modifier in force and a tooltip naming the loadout's save parts", () => {
+  globalThis.game = { i18n: { has: () => false, localize: (k) => k, format: (k, d = {}) => `${k}|${JSON.stringify(d)}` } };
+  try {
+    const actor = typedActor({
+      save: { stored: 1, inForce: 3 },
+      changes: [{ key: "system.save.mod", type: "add", value: "2" }],
+      parts: [{ label: "Steady", itemId: "a0", unverified: false }],
+      abilities: [{ name: "Steady", effects: [{ type: "modifier", target: "save", value: { kind: "flat", flat: 2 } }] }],
+    });
+    const t = buildThrows(actor);
+    assert.equal(t.saveMod, 1, "the input holds the stored value");
+    assert.equal(t.saveModNow.value, "+3", "the note is the figure in force");
+    assert.ok(t.saveModNow.tip.includes('"stored":"+1","effects":"+2","value":"+3"'), "the tip names the stored value and the effects' share");
+    assert.ok(t.saveModNow.tip.includes('stats.part|{"label":"Steady","value":"+2"}'), "the recipe's part is named, unmarked");
+    const plain = buildThrows({ _source: { system: { save: { mod: 0 } } }, system: { save: { mod: 0 } } });
+    assert.equal(plain.saveModNow.value, "+0", "a record with nothing on it reads +0");
+  } finally {
+    delete globalThis.game;
+  }
+});
+
+const { RULEDATA_DOC } = await import("../scripts/equipment/overlays/scavenged.mjs");
+test("a rule's part whose figure is an imported table cites the page, or says the Judge set it", () => {
+  globalThis.game = { i18n: { has: () => false, localize: (k) => k, format: (k, d = {}) => `${k}|${JSON.stringify(d)}` } };
+  const tipFor = () =>
+    buildThrows(
+      typedActor({
+        changes: [{ key: "system.surprise.avoidsurprise", type: "add", value: "1" }],
+        parts: [{ labelKey: "ACKS-EQUIPMENT.part.helm", table: "heavyHelm" }],
+        abilities: [],
+      }),
+    ).avoidSurpriseNow.tip;
+  try {
+    conditionTables.unregisterTable(RULEDATA_DOC);
+    conditionTables.registerTable({ id: RULEDATA_DOC, cites: { heavyHelm: "ZZ p. 9" }, tables: { heavyHelm: { surprise: 1 } } }, { priority: conditionTables.PRIORITY.WORLD });
+    assert.ok(tipFor().includes('stats.partCited|{"label":"ACKS-EQUIPMENT.part.helm","value":"+1","cite":"ZZ p. 9"}'), "the imported page is named");
+    conditionTables.registerTable({ id: RULEDATA_DOC, tables: { heavyHelm: { surprise: 1 } } }, { priority: conditionTables.PRIORITY.OVERRIDE });
+    assert.ok(tipFor().includes('stats.partJudge|{"label":"ACKS-EQUIPMENT.part.helm","value":"+1"}'), "the Judge's own figure says so, with no page");
+    assert.ok(!tipFor().includes("ZZ p. 9"), "the Judge's figure is not credited to the page");
+  } finally {
+    conditionTables.unregisterTable(RULEDATA_DOC);
+    delete globalThis.game;
+  }
+});
+
+const { lightRow } = await import("../scripts/character-sheet/tabs/stats.mjs");
+const { LIGHT_DOC, LIGHT_TABLE } = await import("../scripts/lib/light.mjs");
+test("a light's vision row reads its reach from the imported table, cites the page, and says when nothing is imported", () => {
+  globalThis.game = { i18n: { has: () => false, localize: (k) => k, format: (k, d = {}) => `${k}|${JSON.stringify(d)}` } };
+  try {
+    conditionTables.unregisterTable(LIGHT_DOC);
+    const bare = lightRow("torch");
+    assert.equal(bare.value, "", "no figure before the import");
+    assert.ok(!String(bare.value).includes("undefined"));
+    assert.ok(bare.note.includes("vision.notImported"));
+    conditionTables.registerTable({ id: LIGHT_DOC, source: { pages: "ZZ p. 4" }, tables: { [LIGHT_TABLE]: { torch: { bright: 7, dim: 13, turns: 5 } } } }, { priority: conditionTables.PRIORITY.WORLD });
+    const lit = lightRow("torch");
+    assert.equal(lit.value, "13′", "the imported reach");
+    assert.ok(lit.tip.includes("vision.lightTip") && lit.tip.includes("ZZ p. 4"), "the tooltip names the page");
+    assert.ok(!lit.note, "an imported figure carries no not-imported note");
+  } finally {
+    conditionTables.unregisterTable(LIGHT_DOC);
+    delete globalThis.game;
+  }
+});
+
 console.log(`character sheet: ${passed} passed`);

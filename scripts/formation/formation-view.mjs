@@ -1,7 +1,9 @@
 /* global game, canvas, fromUuidSync */
-import { isCasualty, isDead } from "./formation-model.mjs";
+import { defaultPartyShape, isCasualty, isDead, partyTokenShape } from "./formation-model.mjs";
+import { lightCite, lightFigures } from "../lib/light.mjs";
 import {
   LIGHT_SOURCES,
+  PARTY_TOKEN_SHAPES,
   restEnforced,
   restInterval,
   ROLE_HINTS,
@@ -132,6 +134,20 @@ export function buildFormationView(formation) {
   view.frontage = frontage;
   view.frontageMax = maxFrontage(getPartyScene(formation) ?? canvas?.scene ?? game.scenes?.viewed);
 
+  // The party's shape on the map, blank to follow the world's default, and the
+  // tint its drawn column wears, blank for the token's disposition colour.
+  const worldShape = game.i18n.localize(`ACKS-FORMATION.app.shape.${defaultPartyShape()}`);
+  view.shapeOptions = [
+    { value: "", label: game.i18n.format("ACKS-FORMATION.app.shape.default", { shape: worldShape }), selected: !formation.tokenShape },
+    ...PARTY_TOKEN_SHAPES.map((value) => ({
+      value,
+      label: game.i18n.localize(`ACKS-FORMATION.app.shape.${value}`),
+      selected: formation.tokenShape === value,
+    })),
+  ];
+  view.columnColor = formation.columnColor ?? "";
+  view.columnColorShown = partyTokenShape(formation) === "order";
+
   const dark = isPartyInDark(formation);
   view.dark = dark;
   view.partyImg = getPartyActor(formation)?.img ?? null;
@@ -248,11 +264,21 @@ export function buildFormationView(formation) {
   // sits beside so the camp forecast and the city board are derived once.
   view.strip = buildStripView(formation, speed, view.travel);
 
+  const burnCite = lightCite() ?? game.i18n.localize("ACKS-FORMATION.app.lightJudgeTable");
   view.lights = formation.lights.map((light) => {
     const bearerActor = game.actors.get(light.bearerId);
     const owned = bearerActor?.testUserPermission?.(game.user, "OWNER") ?? false;
+    // The burn time is imported (RR p. 265): a light with none never burns down.
+    const { turns } = lightFigures(light.type);
+    const counted = turns != null && Number.isFinite(light.remaining);
     return {
       ...light,
+      remainingText: counted
+        ? `${light.remaining} ${game.i18n.localize("ACKS-FORMATION.app.turnsLeft")}`
+        : game.i18n.localize("ACKS-FORMATION.app.lightNotImported"),
+      burnTip: counted
+        ? game.i18n.format("ACKS-FORMATION.app.lightBurnTip", { remaining: light.remaining, turns, cite: burnCite })
+        : game.i18n.localize("ACKS-FORMATION.app.lightNotImported"),
       label: game.i18n.localize(LIGHT_SOURCES[light.type]?.label ?? light.type),
       bearer: bearerActor?.name ?? "?",
       shieldable: !!LIGHT_SOURCES[light.type]?.shieldable,
@@ -1766,11 +1792,16 @@ function wheelRefusals(formation, t) {
 export function buildGMExtras(formation) {
   const extras = {};
 
-  extras.lightTypes = Object.entries(LIGHT_SOURCES).map(([key, cfg]) => ({
-    key,
-    label: game.i18n.localize(cfg.label),
-    turns: cfg.turns,
-  }));
+  extras.lightTypes = Object.entries(LIGHT_SOURCES).map(([key, cfg]) => {
+    const { turns } = lightFigures(key);
+    return {
+      key,
+      label: game.i18n.localize(cfg.label),
+      turnsText: turns != null
+        ? `${turns} ${game.i18n.localize("ACKS-FORMATION.app.turns")}`
+        : game.i18n.localize("ACKS-FORMATION.app.lightNotImported"),
+    };
+  });
   extras.bearerOptions = formation.members
     .map((m) => getMemberActor(m))
     .filter(Boolean)

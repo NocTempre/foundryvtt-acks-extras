@@ -31,6 +31,9 @@ export const LIB_OSE = "C:\\Proj\\ose-reference";
 /** Community titles written for ACKS, on the ACKS shelf beside the core books. */
 export const LIB_COMMUNITY = "C:\\Proj\\acks-reference\\Community";
 
+/** The AXIOMS zine issues and compendia, on the ACKS shelf. */
+export const LIB_AXIOMS = "C:\\Proj\\acks-reference\\AXIOMS";
+
 /** Book id -> the exact printing the register's page numbers were read from. */
 export const FILES = {
   rr: `${LIB}\\ACKSII_Revised_Rulebook_DIGITAL_FINAL_r10_2nd_Printing.pdf`,
@@ -45,6 +48,7 @@ export const FILES = {
   ax5: `${LIB_AX}\\Autarch_EyrireDreadEye_ACKS_March2019_digital.pdf`,
   ax6: `${LIB_AX}\\AX6_Sepulcher_of_the_Sorceress-Queen.pdf`,
   scg: `${LIB}\\ACKSII_System_Compatibility_Guide_FINAL_r4_2nd_Printing.pdf`,
+  axc: `${LIB_AXIOMS}\\AXIOMS_1-8_ACKS_AxiomsCompendium_Bookmarked.pdf`,
 };
 
 /**

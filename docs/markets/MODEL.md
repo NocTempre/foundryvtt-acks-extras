@@ -455,8 +455,8 @@ those fields ships as a value; the importer writes them.
   at `ready` (`primeMerchandiseCatalog`). A world merchandise item created,
   edited or deleted drops the cached snapshot; a compendium one re-reads the
   packs, once per burst of writes.
-- **Migration:** `buildMerchandiseFromTables()` (GM only; a button in the
-  Books dialog's GM band) creates a world item for every key the imported
+- **Migration:** `buildMerchandiseFromTables()` (GM only; a button on
+  Manage Imports' Tools tab) creates a world item for every key the imported
   legacy tables answer and no item does yet. It is idempotent.
 
 Pricing's demand-step fraction (`stepFractionFor`), the ventures (assessment,

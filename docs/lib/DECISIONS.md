@@ -5273,3 +5273,23 @@ differently by a later import does not reach a weapon already made. A weapon mad
 from a price row, or granted by a class template, carries no modes and is never
 listed. A weapon the stamped-record rescue holds is listed and not offered
 until that check has run. An unlinked token's actor is not walked.
+
+## 2026-11-04 — An axis with one option left is no choice on the builder
+
+**Ruled.** The template builder leaves out an axis that has at most one option
+available beside the other pins (`axisOffersChoice`), outside edit mode, and
+drops a pin left on it. Generation takes that option anyway (`chooseAxes`), so
+a select that can hold one value only names a choice that is none. It came
+from the leader-source axis on a variant whose page prints no leader, where
+"As printed" stood beside a disabled procedure option over figures the page
+does not print (importer DECISIONS, same day); the rule is the engine's, so a
+role axis on a variant with no roles, and a one-creature template's variant
+axis, are left off the same way.
+
+Rejected: a hide flag on the leader-source axis alone, a second rule for one
+axis; and keeping such an axis with its single option, which reads as a
+choice the Judge made.
+
+**Cost.** The group sheet's variant dialog still lists every axis, since it
+has no per-pin availability. An axis appears and disappears as other pins
+change, and a pin dropped while hidden is not restored when the axis returns.

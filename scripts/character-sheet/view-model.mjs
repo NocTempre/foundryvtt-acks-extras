@@ -93,7 +93,10 @@ export function lightCell({ lit = null, ambient = null, sense = null, blinded = 
   if (lit) {
     const turns = num(lit.turns);
     const pct = turns > 0 && lit.remaining != null ? clampPct((num(lit.remaining) / turns) * 100) : null;
-    return { key: lit.type, icon: LIGHT_ICONS[lit.type] ?? LIGHT_ICONS.torch, sub: `${num(lit.reach)}′`, tone: "tm", pct };
+    // A reach not imported shows no figure in its place.
+    const imported = lit.reach != null;
+    const sub = imported ? `${num(lit.reach)}′` : "—";
+    return { key: lit.type, icon: LIGHT_ICONS[lit.type] ?? LIGHT_ICONS.torch, sub, tone: "tm", pct, imported, cite: lit.cite ?? null };
   }
   if (ambient === "day") return { key: "day", icon: LIGHT_ICONS.day, sub: "∞", tone: null, pct: null };
   if (sense) {

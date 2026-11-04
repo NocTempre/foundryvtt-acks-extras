@@ -102,7 +102,7 @@
         <div class="acks-extras-frame__fact">
           <i class="{{icon}} acks-extras-frame__fact-icon" inert></i>
           <span class="acks-extras-frame__fact-label">{{label}}</span>
-          <span class="acks-extras-frame__fact-value acks-nums">{{value}}{{#if note}} <span class="acks-extras-frame__fact-note">· {{note}}</span>{{/if}}</span>
+          <span class="acks-extras-frame__fact-value acks-nums"{{#if tip}} data-tooltip-text="{{tip}}"{{/if}}>{{value}}{{#if note}} <span class="acks-extras-frame__fact-note">· {{note}}</span>{{/if}}</span>
         </div>
         {{/each}}
       </div>
@@ -181,7 +181,7 @@
           <span class="acks-extras-frame__subhead-note">{{localize "ACKS-CHARACTER.stats.modifiersNote"}}</span>
         </div>
         <div class="acks-extras-frame__fact">
-          <span class="acks-extras-frame__fact-label">{{localize "ACKS-CHARACTER.stats.saveMod"}}</span>
+          <span class="acks-extras-frame__fact-label">{{localize "ACKS-CHARACTER.stats.saveMod"}} <span class="acks-extras-frame__fact-note acks-nums" data-tooltip-text="{{st.throws.saveModNow.tip}}">· {{st.throws.saveModNow.value}}</span></span>
           <input class="acks-input acks-extras-frame__fact-input acks-nums" type="number" name="system.save.mod" value="{{st.throws.saveMod}}" {{disabled (not @root.editable)}}>
         </div>
         <div class="acks-extras-frame__fact">

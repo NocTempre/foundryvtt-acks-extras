@@ -11,7 +11,7 @@
  *   SEAT_GM, SEAT_PLAYER  the user name of each seat
  *   ACKS_CAPTURE_DRIVER   the capture driver, when it is not the template's
  *                         bin/foundry-capture.mjs beside this repository
- *   ACKS_TEST_BOOKS     a JSON map of book id to the path the Books window
+ *   ACKS_TEST_BOOKS     a JSON map of book id to the path the Books tab
  *                       reads for the GM's own staged copy; absent, no book
  *   ACKS_LIVE_LOGS      where a run's logs go; default aia-tmp/live (ignored)
  *   FIXTURE_OWN         a tag of lowercase letters, digits and dashes: the run

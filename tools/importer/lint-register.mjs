@@ -17,6 +17,7 @@ import {
 import { regionGroupOf } from "../../scripts/importer/poi-binding.mjs";
 import { wallsProblems, wallsWarnings } from "../../scripts/importer/wall-trace.mjs";
 import { ABILITY_CATEGORIES, TRAVEL_MODES } from "../../scripts/lib/vocab.mjs";
+import { LABELLED_FIELDS, fieldProblem, noteProblem } from "../../scripts/importer/condition-labels.mjs";
 import { FACTION_KINDS, RELATION_STANCES } from "../../scripts/factions/constants.mjs";
 import {
   KEY_NUMBER, ORDINAL_KINDS, bareKey, erratumProblems, errataIdsOf, marketColumnProblems, ordinalProblems, pairProblems, regionMapProblems, rowMetaProblems,
@@ -109,6 +110,42 @@ function checkColQualifiers(cols, label, where) {
       }
     }
   }
+}
+
+/** A clause locator's own shape problems: a pattern, and a capture group or list of them. */
+function clauseLocatorProblems(name, loc) {
+  if (!loc || typeof loc.pattern !== "string" || !looksLikeRegex(loc.pattern)) return [`${name} needs a regex pattern`];
+  if (loc.groups !== undefined && !(Array.isArray(loc.groups) && loc.groups.length && loc.groups.every((g) => Number.isInteger(g) && g > 0))) return [`${name}.groups lists capture group numbers`];
+  if (loc.group !== undefined && !(Number.isInteger(loc.group) && loc.group > 0)) return [`${name}.group is a capture group number`];
+  return [];
+}
+
+/**
+ * A recipe row's shipped `condition`, `restriction` and `consequence` are each
+ * a scope's own name (two words at most) or one of the field's neutral labels;
+ * the page's words arrive through the field's `<field>From` locator, which
+ * stands beside a label to show where it misses. A row's `note` carries no
+ * figure and no TODO (`noteProblem`); whether it remarks on the module or
+ * paraphrases the rule is a reviewer's call, and `noteFrom` may stand alone,
+ * since a row with no remark reads as "see description".
+ */
+function specConditionProblems(specs) {
+  const out = [];
+  for (const s of specs) {
+    for (const field of Object.keys(LABELLED_FIELDS)) {
+      const problem = fieldProblem(field, s?.[field]);
+      if (problem) out.push(problem);
+      const name = `${field}From`;
+      const loc = s?.[name];
+      if (loc === undefined) continue;
+      out.push(...clauseLocatorProblems(name, loc));
+      if (loc && !s[field]) out.push(`${name} stands beside a neutral ${field} label, shown where it misses`);
+    }
+    const note = noteProblem(s?.note);
+    if (note) out.push(note);
+    if (s?.noteFrom !== undefined) out.push(...clauseLocatorProblems("noteFrom", s.noteFrom));
+  }
+  return out;
 }
 
 /** Cap every string leaf; "note" and validated "pattern" keys get longer caps. */
@@ -557,6 +594,7 @@ for (const dirent of fs.existsSync(REGISTER) ? fs.readdirSync(REGISTER, { withFi
       }
       for (const [name, t] of Object.entries(e.class?.tables ?? {})) checkColQualifiers(t.cols, id, `table "${name}"`);
       if (e.kind === "kind.rolltable") checkRollTable(e, id);
+      for (const problem of specConditionProblems([...(e.effects ?? []), ...(e.rolls ?? [])])) err(`${id}: ${problem}`);
       capStrings(e, id);
     }
   }
@@ -695,6 +733,7 @@ if (fs.existsSync(COOKBOOK)) {
       for (const problem of recipeProblems(r, known)) err(`${label}: scenes.${id} ${problem}`);
     }
     for (const [id, e] of Object.entries(cb.entries ?? {})) {
+      for (const problem of specConditionProblems([...(e.fields?.effects?.specs ?? []), ...(e.fields?.rolls?.specs ?? [])])) err(`${label}: ${id} ${problem}`);
       for (const [field, instr] of Object.entries(e.fields ?? {})) {
         if (!OPS.has(instr.op)) err(`${label}: ${id}.${field} unknown op "${instr.op}"`);
         if (instr.pattern && !PATTERNS.has(instr.pattern)) err(`${label}: ${id}.${field} unknown pattern "${instr.pattern}"`);
@@ -745,6 +784,9 @@ if (fs.existsSync(COOKBOOK)) {
   for (const [id, e] of Object.entries(classes?.entries ?? {})) {
     for (const a of e.awards ?? []) {
       if (a.ref && a.ref.startsWith("def.") && !defIds.has(a.ref)) err(`${id}: award ref "${a.ref}" resolves to no cookbook entry`);
+      // An award's note shows on the class sheet's award row.
+      const note = noteProblem(a.note);
+      if (note) err(`${id}: award ${note}`);
       // A choice award names its options as refs — each must resolve too.
       for (const ref of a.choice?.refs ?? []) {
         if (ref.startsWith("def.") && !defIds.has(ref)) err(`${id}: choice option ref "${ref}" resolves to no cookbook entry`);

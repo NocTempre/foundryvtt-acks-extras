@@ -58,6 +58,8 @@ import { applyCityTravelImport, CITY_TRAVEL_DOC_ID } from "./city-travel-binding
 import { applyFlightImport, FLIGHT_DOC_ID } from "./flight-binding.mjs";
 import { applyFormationImport, FORMATION_DOC_ID } from "./formation-binding.mjs";
 import { applyExperienceImport, EXPERIENCE_DOC_ID } from "./experience-binding.mjs";
+import { applyLightImport, LIGHT_DOC_ID } from "./light-binding.mjs";
+import { applyDelveEncounterImport, DELVE_ENCOUNTER_DOC_ID } from "./delve-encounter-binding.mjs";
 import { progressBar } from "./progress.mjs";
 
 /**
@@ -78,6 +80,8 @@ const SIMPLE_BINDINGS = Object.freeze([
   { id: FLIGHT_DOC_ID, apply: applyFlightImport },
   { id: FORMATION_DOC_ID, apply: applyFormationImport },
   { id: EXPERIENCE_DOC_ID, apply: applyExperienceImport },
+  { id: LIGHT_DOC_ID, apply: applyLightImport },
+  { id: DELVE_ENCOUNTER_DOC_ID, apply: applyDelveEncounterImport },
 ]);
 import {
   initCookbook, loadCookbook, cookbookImport, cookbookImportIds, cookbookImportMonsters, cookbookRemoveImports, cookbookImportAbilities, cookbookImportAbilitiesDialog, cookbookUpdateAbilities,
@@ -92,8 +96,11 @@ import {
 } from "./cookbook.mjs";
 import { registerGettingStartedSettings, runImportEverything, runImportStep, GM_STEPS, gettingStartedDismissed, SETTING_DISMISSED } from "./getting-started.mjs";
 import { ImportManagerMenu, installImportManager, openImportManager } from "./apps/import-manager.mjs";
+import { tokenArtSources, applyTokenArt, restoreTokenArt, hasTokenArtFlag } from "./token-art.mjs";
 import { registerOseSourceSetting } from "./ose-source.mjs";
 import { registerLegacyTextCheck, resolveLegacyText } from "./legacy-text.mjs";
+import { registerEffectsOriginCheck } from "./effects-origin.mjs";
+import { cookbookEntry } from "./cookbook.mjs";
 import { registerOseSourceDialog, oseBrowseDialog, oseCalibrateDialog, oseConvertAll } from "./ose-app.mjs";
 import { oseManualDialog } from "./ose-manual.mjs";
 import { importOseBook, importOseAreas, importAuthoredOse, authoredOseBooks, oseEntryRows, importOseEntries } from "./ose-book.mjs";
@@ -1090,8 +1097,10 @@ async function ingestBook(bookId, buffer, { silent = false, cache = null } = {})
  * @param {string[]} [only] ruledata document ids to read; omitted, every one.
  *        A full run locates pages for all 138 recipes, so re-reading ONE
  *        document is the difference between seconds and minutes.
+ * @param {{repair?: object|null}} [opts] `repair`, a tally (`repairTally`), counts the
+ *        language and race items this run writes over in place.
  */
-async function cookbookImportTables(only = null) {
+async function cookbookImportTables(only = null, { repair = null } = {}) {
   if (!game.user.isGM) {
     ui.notifications.warn(game.i18n.localize(`${LANG_PREFIX}.tables.gmOnly`));
     return null;
@@ -1154,7 +1163,7 @@ async function cookbookImportTables(only = null) {
   // engine-shaped doc, race Items, and builder state on the imported classes.
   if (report.imported.some((d) => d.docId === "acks.classBuilder")) {
     try {
-      const built = await applyBuilderImport();
+      const built = await applyBuilderImport({ repair });
       if (built.races.length || built.builds.length) {
         ui.notifications.info(
           game.i18n.format(`${LANG_PREFIX}.tables.builderApplied`, {
@@ -1233,7 +1242,7 @@ async function cookbookImportTables(only = null) {
   if (report.imported.some((d) => d.docId === LANGUAGES_DOC_ID)) {
     try {
       const table = getDoc(LANGUAGES_DOC_ID)?.tables?.tree;
-      const made = table ? await applyLanguageImport(table) : { created: 0, present: 0, adopted: 0, retyped: 0 };
+      const made = table ? await applyLanguageImport(table, { repair }) :{ created: 0, present: 0, adopted: 0, retyped: 0 };
       // Adoptions and retypes are work the seat should hear about too: a run
       // that creates nothing — because every tongue was already there under a
       // Judge's own name, or was minted as an ability by an older version —
@@ -2808,6 +2817,7 @@ Hooks.once("init", () => {
   game.settings.register(MODULE_ID, SETTING_SHELF, { scope: "world", config: false, type: Object, default: {} });
   registerGettingStartedSettings();
   registerLegacyTextCheck();
+  registerEffectsOriginCheck(cookbookEntry);
   // The GM's way in from settings to every import control.
   game.settings.registerMenu(MODULE_ID, "importManager", {
     name: `${LANG_PREFIX}.manager.menuName`,
@@ -2911,6 +2921,7 @@ Hooks.once("ready", async () => {
     runEverything: () => runImportEverything(),
     merchandise: () => acksExtras.markets?.buildMerchandiseFromTables?.(),
     lib: () => acksExtras.lib,
+    tokenArt: { sources: tokenArtSources, apply: applyTokenArt, restore: restoreTokenArt, hasFlag: hasTokenArtFlag },
   });
   document.addEventListener("click", onCiteClick, { capture: true });
 

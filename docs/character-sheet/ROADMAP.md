@@ -37,6 +37,12 @@ the code, not missing from it; the rulings behind the built half are
   at all (the cell answers "dark · 0′" today, which is right but offers no
   action).
 
+- **A melee attack modifier row on the Stats tab.** Two-weapon fighting
+  writes `system.attack.mod.melee` with its part cited to the imported table,
+  and no surface shows that field, so the part's provenance rides the loadout
+  effect's flag alone. A row with the typed ledger's tooltip, beside the save
+  and Avoid Surprise rows, gives it a figure to sit on.
+
 - **A summons model.** The party cell reads a summon off one flag on the
   summoned actor, bound by hand from the party menu. A spell that summons
   could write that flag when its creature is placed, and a duration could

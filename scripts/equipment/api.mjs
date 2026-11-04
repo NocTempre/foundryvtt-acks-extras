@@ -33,7 +33,7 @@ import { BASE_TYPE, BASE_TYPE_FLAG, CLOTHING_SUBTYPE, baseTypesFor, clothingDecl
 import { baseTypeFields, hasBaseTypeFields } from "./variation-defs.mjs";
 import { prepareTorch, rollUnarmed, unarmedStrikeData, setMasterwork, masterworkTiersFor, drawItem, sheatheItem, scavengeItem, clearScavenged, setShieldVariant, SHIELD_VARIANT_KEYS, disguiseItem, revealItem, isDisguised, setWeaponProfile, setWeaponSize, setWeaponGrips, setWeaponCategory, setGearSlotList } from "./actions.mjs";
 import { cycleStrap, strapOf, canStrap } from "./overlays/shield-variants.mjs";
-import { helmetType, isEnclosingHelm, enclosingHelmActive, HELM_MODIFIERS } from "./overlays/enclosing-helm.mjs";
+import { helmetType, isEnclosingHelm, enclosingHelmActive, helmFigures } from "./overlays/enclosing-helm.mjs";
 import { isSpellbook, spellbookValue, pagesUsed, pagesCapacity, spellbookSpells, setSpellbookSpells } from "./spellbook.mjs";
 import {
   containerReport,
@@ -304,7 +304,11 @@ export function buildApi() {
     helmetType,
     isEnclosingHelm,
     enclosingHelmActive,
-    HELM_MODIFIERS,
+    // Read at every access: the figures are the import's and the Judge's,
+    // each null until imported.
+    get HELM_MODIFIERS() {
+      return helmFigures();
+    },
     setMaterial,
     MATERIALS,
     // Silver (RR ch.4) — the one material that changes what a weapon counts as

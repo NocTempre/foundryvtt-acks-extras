@@ -302,7 +302,12 @@ A class imported before these rows were read shows *no progression rows yet*;
 
 The same conceptual family imported from a second book gains that book's new
 variants rather than becoming a twin. Two signals identify it: a shared member id
-and a shared family suffix.
+and a shared family suffix. Repairing the family in place from one book keeps the
+variants the other books merged in.
+
+A family whose page names its leaders, casters and dependants gains a **Role**
+axis from the import; the monsters guide, "A family's leaders", says what it
+generates. A family imported before this version gains it on *Repair in place*.
 
 ### Rebuild or repair
 
@@ -322,7 +327,7 @@ description you wrote in. It asks first, saying how many documents it will
 rewrite and that your edits to the fields an import writes are replaced, and
 Cancel writes nothing. It still keeps what is not the import's: items and
 abilities you made yourself, effects and attacks you added, what play has set,
-and anything whose book is not open on this seat or has no in-place write.
+and anything whose book is not open on this seat.
 
 ![](../releases/v8.8.0/importer-repair-mode.png)
 
@@ -337,12 +342,15 @@ and anything whose book is not open on this seat or has no in-place write.
   added stay, and so does a prose field you wrote in.
 - **An ability** is refreshed wherever it is carried, characters included.
 
-Some things only rebuild: the Weapons, Armor, Languages and Races shelves, the
-price list, monster templates and families, NPCs, adventure stat blocks and OSE
-creatures. The shelf list says *rebuild only* beside such a shelf, and the
-entry picker marks such a row with a hammer. Repair leaves them as they are and
-tells you how many it left. A document whose book is not open on this seat is
-left too; open the book and repair again.
+The Weapons, Armor, Languages and Races shelves, the price list, monster
+templates and families, NPCs, adventure stat blocks and OSE creatures are
+written over in place too, from the same open book. A pregenerated character
+is left by Repair as it stands; Force repair writes its biography again and
+lands what its sheet import grants that it lacks, and keeps the items it holds.
+A document whose book is not open on this seat is left as well; open the book and
+repair again. The shelf list says *rebuild only* beside a shelf that has no
+in-place write, and the entry picker marks such a row with a hammer. Repair
+tells you how many it left.
 
 ![](../releases/v8.8.0/importer-repair-picker.png)
 
@@ -366,7 +374,18 @@ The Books macros open it on the Books tab:
 - **Adventures** — each adventure book open on this seat, with what its
   Adventure carries: see *Rebuild or repair an adventure book* below.
 - **Tools** — the entry picker, the recipe audit, the repair window, the
-  merchandise build and **Remove ALL imports**.
+  merchandise build, overhead tokens (below) and **Remove ALL imports**.
+
+**Overhead tokens.** When another module you have installed and active ships
+monster compendium art, the Tools tab offers **Overhead tokens from** that
+module's title; with several, one button each. Apply sets the token image of
+each imported monster whose name matches the compendium's exactly. The book's
+image stays as the portrait, and the token's size and scale stay as they are.
+The confirm counts what will change and what is left: a token you set yourself,
+a name with more than one image or none, a monster the compendium has no art
+for. A tick also moves tokens already placed on scenes that still show the
+book's image. **Restore book tokens** puts back what each monster showed before.
+A Rebuild gives a monster its book token again; press Apply once more.
 
 The window runs one thing at a time and says what is running; each control
 asks before it deletes.
@@ -527,7 +546,7 @@ holds, under the book's row in **Open this session**.
 ### Rebuild or repair an adventure book
 
 The **Adventures** tab of *Manage Imports* lists each adventure book open on
-this seat with three actions:
+this seat with four actions:
 
 - **Rebuild** deletes everything imported from the book — its people and
   monsters, journals, places, organisations, roll tables and items, and its
@@ -540,6 +559,14 @@ this seat with three actions:
 - **Repair** deletes nothing. It imports what your world lacks of the book,
   refreshes its maps, and writes its Adventure anew — including one you
   edited on the shelf, which the confirm says.
+- **Force repair** is Repair that also writes, in place, over what your world
+  holds of the book's creatures and people, its places and organisations, the
+  market profiles on them, its items and its roll tables, a description you
+  wrote in, an edited place and a roster included. It asks first, with the count
+  of each and of what it leaves, and Cancel writes nothing. A market class,
+  family count or base demand you set is replaced, except a base a later book
+  wrote. Your maps, a copy dragged out of the library, a character a player
+  owns, and a place two books print are kept.
 - **Write Adventure** writes the Adventure alone, as the last step of
   *Import Everything* does.
 

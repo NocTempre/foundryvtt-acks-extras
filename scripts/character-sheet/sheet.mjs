@@ -443,7 +443,11 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
     r.grip.title = r.grip.held
       ? loc("rail.grip", { weapons: snap.grip.weapons.map((w) => w.name).join(", "), cleaves: snap.grip.cleaves })
       : loc("rail.gripEmpty");
-    r.light.title = loc(`rail.light.${r.light.key}`, { reach: r.light.sub });
+    // A carried source's reach names the page it was read from, or says it is
+    // not imported.
+    r.light.title = r.light.imported === false
+      ? loc("rail.light.notImported", { light: game.i18n.localize(`ACKS-LIB.light.${r.light.key}`) })
+      : loc(`rail.light.${r.light.key}`, { reach: r.light.sub }) + (r.light.cite ? ` (${r.light.cite})` : "");
     r.formationTitle = r.formation ? loc("rail.formation", { name: r.formation.name }) : loc("rail.noFormation");
     const party = r.party;
     const facts = snap.party ?? {};

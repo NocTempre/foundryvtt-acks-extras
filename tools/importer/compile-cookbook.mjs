@@ -29,6 +29,7 @@ import { BOOKS, citeFor, fingerprintWarning } from "../../scripts/importer/books
 import { SCENE_LINK_KIND, SCENE_ZONE_KIND, ZONE_FIGURES, placementHolding, recipeContext, recipeProblems, zoneProblems } from "../../scripts/importer/scene-binding.mjs";
 import { wallsWarnings } from "../../scripts/importer/wall-trace.mjs";
 import { caseCarriesNothing, opensWithNumber, printKey } from "../../scripts/importer/printed-name.mjs";
+import { LABELLED_FIELDS, citeLabel } from "../../scripts/importer/condition-labels.mjs";
 import { FILES, OSE_FILES } from "./reference-lib.mjs";
 import { useTypography } from "../../scripts/importer/extract.mjs";
 
@@ -5949,7 +5950,26 @@ async function compileDefinition(doc, entry, kindRow, siblings = []) {
   // These ship STRUCTURE only — type, refs, mode, stacking. Any NUMBER they
   // carry is a `from.pattern` locator resolved against the seat's own prose, so
   // the recipe can be as convoluted as it likes without holding a value.
-  if (entry.effects?.length) fields.effects = { op: "effects", specs: entry.effects };
+  // A neutral label (a condition, a restriction, a consequence) carries the
+  // entry's page reference, so the reader of the Mechanics tab can open the
+  // page it stands for; the page's own words arrive through the field's
+  // `<field>From` locator at import.
+  const cite = citeFor(entry.book, page);
+  const cited = (specs) =>
+    specs.map((s) => {
+      if (!s || typeof s !== "object") return s;
+      const out = { ...s };
+      for (const field of Object.keys(LABELLED_FIELDS)) if (out[field]) out[field] = citeLabel(out[field], cite, field);
+      return out;
+    });
+  if (entry.effects?.length) fields.effects = { op: "effects", specs: cited(entry.effects) };
+  // `assists.effectsFrames`: boxes on the anchor's page whose text the effects
+  // recipe's locators read beside the description — a bonus table set under
+  // the block, which is not the entry's prose and stays out of it. The
+  // executor reads them with the `text` op and drops them from the result.
+  if (entry.effects?.length && assists.effectsFrames?.length) {
+    fields.effectsText = { op: "text", page, paras: assists.effectsFrames.map((b) => withFixes({ box: { x0: b.x0, x1: b.x1, y0: b.y0, y1: b.y1 } }, pd, tabs)) };
+  }
 
   // A VARIATION's numbers, by the same route and the same frozen op: what a
   // masterwork blade costs and what it moves are page values, so the recipe
@@ -5970,7 +5990,7 @@ async function compileDefinition(doc, entry, kindRow, siblings = []) {
   // and where each one's parts live; the label, the target and every ladder
   // step materialize from the reader's own book. Present means the chef read
   // this entry, so the recipe replaces the generic scan entirely.
-  if (entry.rolls?.length) fields.rolls = { op: "rolls", specs: entry.rolls };
+  if (entry.rolls?.length) fields.rolls = { op: "rolls", specs: cited(entry.rolls) };
 
   metaCandidates(entry.id, entry, bodyText);
 

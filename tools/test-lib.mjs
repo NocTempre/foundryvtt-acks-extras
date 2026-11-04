@@ -50,8 +50,9 @@ import {
   canSeeInDark,
   senseProfile,
 } from "../scripts/lib/senses.mjs";
-import { brightestLightReaching, emittedLight } from "../scripts/lib/light.mjs";
-import { applyTokenLight, applyTokenVision, sceneIsDrawing, syncTokenFromActor } from "../scripts/lib/token-sync.mjs";
+import { LIGHT_DOC, LIGHT_TABLE, brightestLightReaching, emittedLight, lightCite, lightFigures } from "../scripts/lib/light.mjs";
+import { applyTokenLight, applyTokenVision, isManagedLight, sceneIsDrawing, syncTokenFromActor } from "../scripts/lib/token-sync.mjs";
+import { installTokenLightPaddingPatch, unpaddedRadius } from "../scripts/lib/patches/token-light-padding.mjs";
 import { hdFormula, monsterHd, monsterHitDice } from "../scripts/lib/actor-read.mjs";
 import { auditLine, auditOf, situationalTerm, skipDialogFor } from "../scripts/lib/roll-dialog.mjs";
 import { drawForJudges, drawQuietly, postToJudges } from "../scripts/lib/roll-audience.mjs";
@@ -830,6 +831,17 @@ t("effect-scan: an ability's typed modifiers read the page's value for one targe
     "a settled scope applies the modifier or drops it"
   );
   assert.deepEqual(abilityModifiers(actor, "marketImpact")[0].tones, []);
+  const subjects = {
+    items: [
+      ability("o", [{ type: "modifier", target: "reaction", value: -2, appliesTo: "opponent" }]),
+      ability("s", [{ type: "modifier", target: "reaction", value: 1, appliesTo: "self" }]),
+    ],
+  };
+  assert.deepEqual(abilityModifiers(subjects, "reaction").map((m) => m.itemId), ["s"], "a penalty imposed on opponents is not the holder's");
+  assert.deepEqual(abilityModifiers(subjects, "reaction", { appliesTo: "opponent" }).map((m) => m.value), [-2], "and is read when asked for");
+  const byRank = { kind: "conditional", on: "rank", breakpoints: [{ atLevel: 1, value: 1 }, { atLevel: 2, value: 5 }] };
+  const ranked = { type: "character", items: [ability("r", [{ type: "modifier", target: "reaction", value: byRank }]), { ...ability("r2", []), name: "Power r" }] };
+  assert.deepEqual(abilityModifiers(ranked, "reaction").map((m) => m.value), [5], "a rank ladder reads the copies held");
 });
 
 t("sizeFromEcology: reads the rich block, falls back to core, else null", () => {
@@ -1618,9 +1630,9 @@ t("brightestLightReaching: the strongest source whose bright radius covers the s
   // Nothing burning: the unlit corridor, which is what keeps night vision dark.
   assert.equal(brightestLightReaching(me), 0);
 
-  // A 30' lamp two squares (20') away reaches; the same lamp hidden does not.
-  scene.lights = [{ x: 200, y: 0, width: 0, height: 0, config: { bright: 30 } }];
-  assert.equal(brightestLightReaching(me), 30);
+  // A 32' lamp two squares (20') away reaches; the same lamp hidden does not.
+  scene.lights = [{ x: 200, y: 0, width: 0, height: 0, config: { bright: 32 } }];
+  assert.equal(brightestLightReaching(me), 32);
   scene.lights[0].hidden = true;
   assert.equal(brightestLightReaching(me), 0);
 
@@ -1628,15 +1640,26 @@ t("brightestLightReaching: the strongest source whose bright radius covers the s
   // is being lit by it, not its being the biggest light on the map.
   scene.lights = [
     { x: 5000, y: 0, width: 0, height: 0, config: { bright: 60 } },
-    { x: 100, y: 0, width: 0, height: 0, config: { bright: 15 } },
+    { x: 100, y: 0, width: 0, height: 0, config: { bright: 14 } },
   ];
-  assert.equal(brightestLightReaching(me), 15);
+  assert.equal(brightestLightReaching(me), 14);
 
   // A torch-bearing token counts like any other light, the creature's own
   // included — a monster holding a lantern lights its own square.
   scene.lights = [];
-  scene.tokens = [at(0, 0, { light: { bright: 15 } })];
-  assert.equal(brightestLightReaching(me), 15);
+  scene.tokens = [at(0, 0, { light: { bright: 14 } })];
+  assert.equal(brightestLightReaching(me), 14);
+
+  // A light the marching column sheds counts too: the formation feature hands
+  // its points over through the namespace, in pixels and scene units.
+  scene.tokens = [];
+  const formation = { carriedLightPoints: () => [{ x: 150, y: 50, bright: 12 }, { x: 9000, y: 0, bright: 90 }] };
+  globalThis.acksExtras = { ...(globalThis.acksExtras ?? {}), formation };
+  try {
+    assert.equal(brightestLightReaching(me), 12, "the near column light reaches; the far one does not");
+  } finally {
+    delete globalThis.acksExtras.formation;
+  }
 });
 
 t("senseProfile: a blind creature navigates by its senses, not by nothing", () => {
@@ -1793,12 +1816,83 @@ t("canSeeInDark agrees with senseProfile on every path", () => {
   }
 });
 
+/** Invented light figures, registered as an import registers them. */
+const INVENTED_LIGHTS = { candle: { bright: 3, dim: 8, turns: 2 }, torch: { bright: 13, dim: 27, turns: 5 }, lantern: { bright: 12, dim: 27, turns: 9 } };
+const importLights = () => T.registerTable({ id: LIGHT_DOC, source: { pages: "ZZ p. 9" }, tables: { [LIGHT_TABLE]: INVENTED_LIGHTS } }, { priority: T.PRIORITY.WORLD });
+
+t("light figures: nothing imported gives no reach and no burn time", () => {
+  T.unregisterTable(LIGHT_DOC);
+  assert.deepEqual(lightFigures("torch"), { bright: null, dim: null, turns: null });
+  assert.equal(lightCite(), null);
+  assert.deepEqual(emittedLight([{ type: "torch", lit: true }]), { bright: 0, dim: 0 }, "a lit torch with no reach sheds nothing");
+});
+
+t("light figures: an imported figure is read, and the Judge's override wins", () => {
+  importLights();
+  try {
+    assert.deepEqual(lightFigures("lantern"), { bright: 12, dim: 27, turns: 9 });
+    assert.equal(lightCite(), "ZZ p. 9");
+    T.registerTable({ id: LIGHT_DOC, tables: { [LIGHT_TABLE]: { ...INVENTED_LIGHTS, lantern: { bright: 4, dim: 6, turns: 1 } } } }, { priority: T.PRIORITY.OVERRIDE });
+    assert.deepEqual(lightFigures("lantern"), { bright: 4, dim: 6, turns: 1 });
+    assert.equal(lightCite(), null, "an override has no page to point at");
+    assert.deepEqual(lightFigures("dragonfire"), { bright: null, dim: null, turns: null }, "an unknown kind reads nothing");
+  } finally {
+    T.unregisterTable(LIGHT_DOC);
+  }
+});
+
 t("emittedLight: the brightest lit, unshuttered source wins", () => {
-  assert.deepEqual(emittedLight([{ type: "candle", lit: true }, { type: "torch", lit: true }]), { bright: 15, dim: 30 });
+  importLights();
+  assert.deepEqual(emittedLight([{ type: "candle", lit: true }, { type: "torch", lit: true }]), { bright: 13, dim: 27 });
   // A closed lantern keeps burning but sheds nothing; a doused source is stowed.
   assert.deepEqual(emittedLight([{ type: "lantern", lit: true, shielded: true }]), { bright: 0, dim: 0 });
   assert.deepEqual(emittedLight([{ type: "torch", lit: false }]), { bright: 0, dim: 0 });
   assert.deepEqual(emittedLight([]), { bright: 0, dim: 0 });
+});
+
+t("light padding: a managed token's light reaches its figure, a hand-set one keeps core's padding", () => {
+  // Core's padding, as `Token#getLightRadius` adds it: half the token's side.
+  class FakeToken {
+    constructor(document) {
+      this.document = document;
+      this.externalRadius = 25;
+    }
+    getLightRadius(units) {
+      return units === 0 ? 0 : (Math.abs(units) * 10 + this.externalRadius) * Math.sign(units);
+    }
+    _getLightSourceData() {
+      const { light } = this.document;
+      return { x: 1, y: 2, dim: this.getLightRadius(light.dim), bright: this.getLightRadius(light.bright), externalRadius: this.externalRadius };
+    }
+  }
+  const doc = (managed) => ({ light: { bright: 4, dim: 9 }, getFlag: (scope, key) => (scope === "acks-extras" && key === "managedLight" ? managed : undefined) });
+  const priorFoundry = globalThis.foundry;
+  const priorCanvas = globalThis.canvas;
+  const priorWrapper = globalThis.libWrapper;
+  globalThis.foundry = { ...priorFoundry, canvas: { ...priorFoundry?.canvas, placeables: { ...priorFoundry?.canvas?.placeables, Token: FakeToken } } };
+  globalThis.canvas = { ...priorCanvas, dimensions: { distancePixels: 10 } };
+  delete globalThis.libWrapper;
+  try {
+    installTokenLightPaddingPatch();
+    const managed = new FakeToken(doc(true))._getLightSourceData();
+    assert.equal(managed.dim, 90, "a managed dim radius is the figure in pixels, unpadded");
+    assert.equal(managed.bright, 40);
+    assert.equal(managed.x, 1, "the rest of core's data stands");
+    const byHand = new FakeToken(doc(undefined))._getLightSourceData();
+    assert.equal(byHand.dim, 115, "a light set by hand keeps core's padding");
+    assert.equal(byHand.bright, 65);
+    assert.equal(new FakeToken({ ...doc(true), light: { bright: 0, dim: 0 } })._getLightSourceData().dim, 0, "no light stays none");
+    const edited = {
+      light: { bright: 4, dim: 9 },
+      getFlag: (scope, key) => (key === "managedLight" ? true : key === "managedLightStamp" ? { bright: 5, dim: 9 } : undefined),
+    };
+    assert.equal(new FakeToken(edited)._getLightSourceData().bright, 65, "a managed light edited by hand since its stamp keeps core's padding");
+  } finally {
+    globalThis.foundry = priorFoundry;
+    globalThis.canvas = priorCanvas;
+    if (priorWrapper !== undefined) globalThis.libWrapper = priorWrapper;
+  }
+  assert.equal(unpaddedRadius(-3, 10), -30, "a negative radius keeps its sign, as core's does");
 });
 
 /**
@@ -1827,6 +1921,7 @@ const sceneToken = (units, { sight = false } = {}) => {
 };
 
 t("token light: a radius is written in the scene's own units, and a second sync writes nothing", () => {
+  importLights();
   const lantern = emittedLight([{ type: "lantern", lit: true }]);
   const lanternFeet = { bright: lantern.bright, dim: lantern.dim };
   assert.ok(lanternFeet.bright > 0 && lanternFeet.dim > lanternFeet.bright, "the fixture is a real light");
@@ -1864,23 +1959,58 @@ t("token light: a radius is written in the scene's own units, and a second sync 
   mi.parent.grid.distance = 6;
   applyTokenLight(mi, lanternFeet);
   assert.equal(mi.light.bright, 0);
-  assert.equal(mi.light.dim, 0.01, "dim is 30 ft of a mile, to the step");
+  assert.equal(mi.light.dim, 0.01, "dim is a few dozen feet of a mile, to the step");
   assert.equal(mi.light.color, "#ff9b47", "a dim radius alone is still a lit source");
   assert.deepEqual(mi.light.animation, { type: "torch", speed: 2, intensity: 3 });
   assert.equal(mi.flags[`acks-extras.managedLight`], true);
   applyTokenLight(mi, lanternFeet);
   assert.equal(mi.writes.length, 1, "mi: the second sync wrote nothing");
 
-  // Dousing it clears the light it set, in the same units.
-  applyTokenLight(mi, { bright: 0, dim: 0 });
+  // Dousing it clears the light it set, in the same units, and drops its stamp
+  // with core's deletion operator, supplied here for the one write that uses it.
+  const priorFoundry = globalThis.foundry;
+  class ForcedDeletion {}
+  globalThis.foundry = { ...priorFoundry, data: { ...priorFoundry?.data, operators: { ForcedDeletion } } };
+  try {
+    applyTokenLight(mi, { bright: 0, dim: 0 });
+  } finally {
+    globalThis.foundry = priorFoundry;
+  }
   assert.equal(mi.light.dim, 0);
   assert.equal(mi.light.color, null);
   assert.equal(mi.flags[`acks-extras.managedLight`], false);
+  assert.ok(mi.flags[`acks-extras.managedLightStamp`] instanceof ForcedDeletion, "the stamp goes with the light");
 
   // A radius that rounds to nothing everywhere is no light, and not ours to clear.
   const km = sceneToken("km");
   applyTokenLight(km, { bright: 5, dim: 10 });
   assert.equal(km.writes.length, 0, "a candle on a kilometre grid sheds nothing");
+});
+
+t("token light: a hand edit releases the module's light for good, and a light from before the stamp is stamped", () => {
+  // Invented radii: what any lit source writes, not a figure of the book's.
+  const feet = { bright: 20, dim: 40 };
+  const token = sceneToken("ft");
+  applyTokenLight(token, feet);
+  assert.deepEqual(token.flags["acks-extras.managedLightStamp"], { bright: 20, dim: 40 }, "a lit write stamps its radii");
+  assert.equal(isManagedLight(token), true, "and the light is the module's");
+  token.light.bright = 7;
+  assert.equal(isManagedLight(token), false, "a hand edit reads as the Judge's at once");
+  applyTokenLight(token, feet);
+  assert.equal(token.light.bright, 7, "the sync leaves the Judge's light");
+  assert.equal(token.flags["acks-extras.managedLight"], false, "and releases the flag");
+  assert.deepEqual(token.flags["acks-extras.managedLightStamp"], { released: true }, "with a marker that outlasts the sync");
+  const writes = token.writes.length;
+  applyTokenLight(token, feet);
+  applyTokenLight(token, { bright: 0, dim: 0 });
+  assert.equal(token.writes.length, writes, "released for good: neither a lit nor a cleared light is written again");
+
+  const old = sceneToken("ft");
+  Object.assign(old.light, { bright: 20, dim: 40 });
+  old.flags["acks-extras.managedLight"] = true;
+  assert.equal(isManagedLight(old), true, "a managed light from before the stamp reads as managed");
+  applyTokenLight(old, feet);
+  assert.deepEqual(old.writes, [{ "flags.acks-extras.managedLightStamp": { bright: 20, dim: 40 } }], "and the first sync that finds it right stamps it, writing nothing else");
 });
 
 t("token sight: a range is written in the scene's units and settles", () => {

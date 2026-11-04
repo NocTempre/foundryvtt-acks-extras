@@ -66,14 +66,14 @@ Object.defineProperty(globalThis.CONST, "ACTIVE_EFFECT_MODES", {
 const S = new URL("../scripts/equipment/", import.meta.url);
 const { classifyWeapon, handCost, equipmentClass } = await import(new URL("profiles.mjs", S));
 const { getLoadout, VIOLATION } = await import(new URL("loadout.mjs", S));
-const { buildLoadoutChanges } = await import(new URL("effects.mjs", S));
-const { weaponProficiency, isWeaponProficient, armorMax, isArmorProficient, thiefSkillsGated, swashbucklingAC, classifyGrantToken } = await import(new URL("proficiency.mjs", S));
+const { buildLoadoutChanges, dualStyleFigure } = await import(new URL("effects.mjs", S));
+const { weaponProficiency, isWeaponProficient, armorMax, isArmorProficient, thiefSkillsGated, lightlyEquipped, classifyGrantToken } = await import(new URL("proficiency.mjs", S));
 const { buildMacros } = await import(new URL("../tools/pack-data/equipment.mjs", import.meta.url));
 const { MASTERWORK } = await import(new URL("config.mjs", S));
 const { readiedWeaponData, prepareTorch, unarmedStrikeData, masterworkTiersFor, addToDamage, setMasterwork, scavengeItem, clearScavenged, rollScavengedD20s, setShieldVariant } = await import(new URL("actions.mjs", S));
 const { cycleStrap, strapOf } = await import(new URL("overlays/shield-variants.mjs", S));
 const { disguiseItem, revealItem, isDisguised } = await import(new URL("actions.mjs", S));
-const { helmetType, isEnclosingHelm } = await import(new URL("overlays/enclosing-helm.mjs", S));
+const { helmetType, isEnclosingHelm, helmFigures } = await import(new URL("overlays/enclosing-helm.mjs", S));
 const { isSpellbook, pagesUsed, spellbookValue, parseSpellList, setSpellbookSpells, overCapacity: bookOver } = await import(new URL("spellbook.mjs", S));
 const { setMaterial, MATERIALS } = await import(new URL("overlays/item-loss.mjs", S));
 
@@ -172,13 +172,42 @@ lo = getLoadout(actor([armor("Plate", "heavy", { id: "p" }), armor("Heavy Helmet
 check("helmet excluded from suit count", !lo.violations.some((v) => v.type === VIOLATION.MULTIPLE_ARMOR) && lo.hasHelmet);
 
 // loadout Active Effect (v14 string mode; no deprecated CONST; case-insensitive spec)
+// Fighting Style Specialization's bonuses are the proficiency's own typed
+// modifiers, one per style, gated `specializedStyle`; the figures here are
+// invented, as an import would have read them off the page.
+const styleSpecs = () => [
+  { type: "modifier", target: "attackThrow", forWhat: "missile", mode: "add", gate: { kind: "specializedStyle", style: "missile" }, value: { kind: "flat", flat: 4 } },
+  { type: "modifier", target: "initiative", mode: "add", gate: { kind: "specializedStyle", style: "single" }, value: { kind: "flat", flat: 5 } },
+  { type: "modifier", target: "attackThrow", forWhat: "melee", mode: "add", gate: { kind: "specializedStyle", style: "dual" }, value: { kind: "flat", flat: 6 } },
+  { type: "modifier", target: "damage", forWhat: "melee", mode: "add", gate: { kind: "specializedStyle", style: "twoHanded" }, value: { kind: "flat", flat: 7 } },
+  { type: "modifier", target: "ac", mode: "add", gate: { kind: "specializedStyle", style: "weaponShield" }, value: { kind: "flat", flat: 3 } },
+];
+const styleTraining = (id = "fss") => {
+  const flags = { "acks-extras": { extras: { effects: styleSpecs() } } };
+  return { id, name: "Style Training", type: "ability", system: {}, flags, getFlag: (m, k) => flags[m]?.[k], effects: [] };
+};
 const specEffect = { id: "fx1", name: "FSS (W&S)", disabled: false, changes: [{ key: "flags.acks-extras.styleProficient", value: "weaponShield:spec" }], flags: { "acks-extras": {} } };
-const specActor = actor([weapon("Sword", { melee: true, id: "sw" }), armor("Shield", "shield", { ac: 1, id: "sh" })], { effects: [specEffect], flags: { styles: "weaponShield" } });
+const specActor = actor([weapon("Sword", { melee: true, id: "sw" }), armor("Shield", "shield", { ac: 1, id: "sh" }), styleTraining()], { effects: [specEffect], flags: { styles: "weaponShield" } });
 const specLo = getLoadout(specActor);
 check("spec actor → weaponShield active", specLo.activeStyle === "weaponShield" && specLo.styleProficient);
 const changes = buildLoadoutChanges(specActor, specLo);
 const ac = changes.find((c) => c.key === "system.ac.mod");
-check("W&S spec → +1 aac.mod with string type 'add'", ac && Number(ac.value) === 1 && ac.type === "add");
+check("W&S spec → the recipe's figure on ac.mod with string type 'add'", ac && Number(ac.value) === 3 && ac.type === "add");
+check("W&S spec → only the active style's bonus applies", changes.every((c) => c.key === "system.ac.mod" || ![4, 5, 6, 7].includes(Number(c.value))));
+{
+  // The style's bonus stands only while that style is the active one, and only
+  // for a character specialized in it.
+  const missileSpec = { ...specEffect, changes: [{ key: "flags.acks-extras.styleProficient", value: "missile:spec" }] };
+  const notInStyle = actor([weapon("Sword", { melee: true, id: "sw" }), armor("Shield", "shield", { ac: 1, id: "sh" }), styleTraining()], { effects: [missileSpec], flags: { styles: "weaponShield" } });
+  const off = buildLoadoutChanges(notInStyle, getLoadout(notInStyle));
+  check("specialized in another style → no bonus in this one", !off.some((c) => [3, 4, 5, 6, 7].includes(Number(c.value))));
+  const bow = actor([weapon("Short Bow", { missile: true, melee: false, id: "bw" }), styleTraining()], { effects: [missileSpec] });
+  const bowLo = getLoadout(bow);
+  const on = buildLoadoutChanges(bow, bowLo);
+  check("specialized in the active missile style → its bonus on missile attack", bowLo.activeStyle === "missile" && on.some((c) => c.key === "system.attack.mod.missile" && Number(c.value) === 4));
+  const untrained = actor([weapon("Short Bow", { missile: true, melee: false, id: "bw" })], { effects: [missileSpec] });
+  check("a spec token with no proficiency carrying the bonus → nothing", !buildLoadoutChanges(untrained, getLoadout(untrained)).some((c) => c.key === "system.attack.mod.missile"));
+}
 
 // --- Phase 2: proficiency resolution -----------------------------------------
 const swordP = classifyWeapon(weapon("Sword", { melee: true }));
@@ -199,12 +228,17 @@ check("thief gate: heavy armour blocks", thiefSkillsGated({ armor: armor("Plate"
 check("thief gate: leather + no shield ok", !thiefSkillsGated({ armor: armor("Leather", "light"), shield: null }));
 check("thief gate: leather + shield blocks", thiefSkillsGated({ armor: armor("Leather", "light"), shield: armor("Shield", "shield") }));
 
-const swash = actor([], { flags: {}, system: { details: { level: 1 }, encumbrance: { value: 3 } }, effects: [marker("swashbuckling", "1")] });
-check("Swashbuckling L1 unarmoured → +1 AC", swashbucklingAC(swash, { armor: null }) === 1);
-const swash7 = actor([], { system: { details: { level: 7 }, encumbrance: { value: 3 } }, effects: [marker("swashbuckling", "1")] });
-check("Swashbuckling L7 → +2 AC", swashbucklingAC(swash7, { armor: null }) === 2);
-check("Swashbuckling in heavy armour → 0", swashbucklingAC(swash, { armor: armor("Plate", "heavy") }) === 0);
-check("Swashbuckling without proficiency → 0", swashbucklingAC(actor([]), { armor: null }) === 0);
+// The lightly-equipped gate decides by the arguments its import read, and an
+// argument it did not read leaves it undecided. Figures are invented.
+const carrying = (stone) => actor([], { system: { details: { level: 1 }, encumbrance: { value: stone } } });
+const lightGate = { armourMax: "light", loadMax: 4 };
+check("lightly equipped: unarmoured under the load cap", lightlyEquipped(carrying(3), { armor: null }, lightGate) === true);
+check("lightly equipped: at the load cap still counts", lightlyEquipped(carrying(4), { armor: null }, lightGate) === true);
+check("lightly equipped: over the load cap does not", lightlyEquipped(carrying(5), { armor: null }, lightGate) === false);
+check("lightly equipped: heavier armour than the gate does not", lightlyEquipped(carrying(1), { armor: armor("Plate", "heavy") }, lightGate) === false);
+check("lightly equipped: the gate's own armour rung counts", lightlyEquipped(carrying(1), { armor: armor("Leather", "light") }, lightGate) === true);
+check("lightly equipped: no load figure imported → undecided", lightlyEquipped(carrying(1), { armor: null }, { armourMax: "light", loadMax: null }) === null);
+check("lightly equipped: no armour rung → undecided", lightlyEquipped(carrying(1), { armor: null }, { loadMax: 4 }) === null);
 
 // non-proficient weapon surfaces an advisory (never blocks)
 const npLoadout = getLoadout(actor([weapon("Battle Axe", { melee: true, id: "ax" })], { flags: { weaponProficiency: "swordDagger" } }));
@@ -370,10 +404,32 @@ const greatItem = weapon("Two-Handed Sword", { melee: true, id: "gs" });
 a = rollActor([greatItem], { flags: { styles: "single,twoHanded" }, system: { scores: { str: { mod: 1 }, dex: { mod: 1 } } } });
 check("large weapon → no alternate damage mode", damageModesFor(a, greatItem, "melee", ["base"]).join() === "base");
 
-// Dual-wield base +1 is loadout-level (belongs in the effect, not the wrap).
-const dualLo = getLoadout(actor([weapon("Sword", { melee: true, id: "x" }), weapon("Dagger", { melee: true, id: "y" })], { flags: { styles: "dual" } }));
-const dualChanges = buildLoadoutChanges(actor([], { flags: { styles: "dual" } }), dualLo);
-check("dual style → +1 melee attack in the loadout effect", dualChanges.some((c) => c.key === "system.attack.mod.melee" && Number(c.value) === 1));
+// The dual weapon style's own attack modifier is loadout-level (belongs in the
+// effect, not the wrap), at the figure the import holds and never before; a
+// Judge's override of the table wins. Figures invented.
+{
+  const dualLo = getLoadout(actor([weapon("Sword", { melee: true, id: "x" }), weapon("Dagger", { melee: true, id: "y" })], { flags: { styles: "dual" } }));
+  const meleeOf = () => buildLoadoutChanges(actor([], { flags: { styles: "dual" } }), dualLo).filter((c) => c.key === "system.attack.mod.melee").map((c) => Number(c.value));
+  check("dual style, nothing imported → no melee attack figure", dualLo.activeStyle === "dual" && meleeOf().length === 0);
+  check("dual style, nothing imported → the reader says null", dualStyleFigure() === null);
+  registerTable({ id: "equipment", tables: { dualWeaponStyle: { attack: 2 } } }, { priority: PRIORITY.WORLD });
+  check("dual style → the imported figure on melee attack", meleeOf().join() === "2" && dualStyleFigure() === 2);
+  registerTable({ id: "equipment", tables: { dualWeaponStyle: { attack: 5 } } }, { priority: PRIORITY.OVERRIDE });
+  check("dual style → the Judge's override wins over the import", meleeOf().join() === "5");
+  unregisterTable("equipment", { priority: PRIORITY.OVERRIDE });
+  unregisterTable("equipment", { priority: PRIORITY.WORLD });
+}
+// The heavy helmet's figures: read from the table, overridden by the Judge,
+// null when not imported. Figures invented.
+{
+  check("helm figures, nothing imported → every one null", Object.values(helmFigures()).every((v) => v === null));
+  registerTable({ id: "equipment", tables: { heavyHelm: { surprise: -3, listening: -6, mortalWounds: 4 } } }, { priority: PRIORITY.WORLD });
+  check("helm figures → read from the imported table", JSON.stringify(helmFigures()) === JSON.stringify({ surprise: -3, listening: -6, mortalWounds: 4 }));
+  registerTable({ id: "equipment", tables: { heavyHelm: { surprise: -2, listening: -6, mortalWounds: 4 } } }, { priority: PRIORITY.OVERRIDE });
+  check("helm figures → the Judge's override wins", helmFigures().surprise === -2);
+  unregisterTable("equipment", { priority: PRIORITY.OVERRIDE });
+  unregisterTable("equipment", { priority: PRIORITY.WORLD });
+}
 
 // The overlays and the effect model are the mechanics under test below,
 // exercised against constructed items rather than a shipped content pack.
@@ -383,8 +439,11 @@ const shieldItem = (name, variant, strap = "hand") =>
   armor(name, "shield", { ac: 1, id: name.replace(/\W/g, ""), flags: { shieldVariant: variant, strap } });
 // Trained two-handed as well, so a sword left alone by a back-strapped shield
 // keeps its two-handed grip.
+// A specialized actor carries the proficiency whose Weapon & Shield spec adds
+// WS_SPEC (styleSpecs above) while the style is active.
+const WS_SPEC = 3;
 const wsActor = (items, spec = true) =>
-  actor(items, {
+  actor(spec ? [...items, styleTraining("fss-ws")] : items, {
     flags: { styles: "weaponShield,twoHanded" },
     effects: spec ? [marker("styleProficient", "weaponShield:spec")] : [],
   });
@@ -404,10 +463,10 @@ lo2 = getLoadout(noSpec);
 ch2 = buildLoadoutChanges(noSpec, lo2);
 const acDelta = ch2.filter((c) => c.key === "system.ac.mod").reduce((n, c) => n + Number(c.value), 0);
 check("buckler without spec → −1 cancels core's shield AC", acDelta === -1);
-// Buckler WITH Specialization: core's +1 stands, plus the spec's own +1.
+// Buckler WITH Specialization: core's shield AC stands, plus the spec's own figure.
 const withSpec = wsActor([weapon("Sword", { melee: true, id: "s3" }), shieldItem("Buckler", "buckler")], true);
 const acDelta2 = buildLoadoutChanges(withSpec, getLoadout(withSpec)).filter((c) => c.key === "system.ac.mod").reduce((n, c) => n + Number(c.value), 0);
-check("buckler with spec → +1 (spec), core's shield AC kept", acDelta2 === 1);
+check("buckler with spec → the spec's figure, core's shield AC kept", acDelta2 === WS_SPEC);
 
 // A shield strapped on the BACK costs no hand, forms no Weapon & Shield style,
 // and must not raise ordinary AC.
@@ -419,12 +478,12 @@ check("back-strapped shield → style is not weaponShield", backLo.activeStyle !
 const backAC = buildLoadoutChanges(backAct, backLo).filter((c) => c.key === "system.ac.mod").reduce((n, c) => n + Number(c.value), 0);
 check("back-strapped shield → ordinary AC cancelled (rear-only is situational)", backAC === -1);
 
-// A phalanx shield in hand behaves normally (+1 core, +1 spec).
+// A phalanx shield in hand behaves normally (core's shield AC, plus the spec).
 const phal = wsActor([weapon("Sword", { melee: true, id: "s5" }), shieldItem("Phalanx Shield", "phalanx")], true);
 const phalLo = getLoadout(phal);
 check("phalanx in hand → weaponShield style, costs a hand", phalLo.activeStyle === "weaponShield" && phalLo.handsUsed === 2);
 const phalAC = buildLoadoutChanges(phal, phalLo).filter((c) => c.key === "system.ac.mod").reduce((n, c) => n + Number(c.value), 0);
-check("phalanx on foot → core's shield AC stands", phalAC === 1);
+check("phalanx on foot → core's shield AC stands", phalAC === WS_SPEC);
 
 // MOUNTED: a phalanx shield cannot be used from horseback (config `noMount`),
 // which the mount binding in acks-lib finally makes answerable. Stub the lib
@@ -432,17 +491,17 @@ check("phalanx on foot → core's shield AC stands", phalAC === 1);
 const priorLib = globalThis.acksExtras.lib;
 globalThis.acksExtras.lib = { mount: { isMounted: (a) => a?.id === phal.id } };
 const phalMountedAC = buildLoadoutChanges(phal, phalLo).filter((c) => c.key === "system.ac.mod").reduce((n, c) => n + Number(c.value), 0);
-check("phalanx MOUNTED → ordinary AC cancelled (RAW: unusable from horseback)", phalMountedAC === 0);
+check("phalanx MOUNTED → ordinary AC cancelled (RAW: unusable from horseback)", phalMountedAC === WS_SPEC - 1);
 
 // The rule must be specific to the phalanx: a kite shield is FOR horseback.
 const kite = wsActor([weapon("Sword", { melee: true, id: "s6" }), shieldItem("Kite Shield", "kite")], true);
 const kiteMountedAC = buildLoadoutChanges(kite, getLoadout(kite)).filter((c) => c.key === "system.ac.mod").reduce((n, c) => n + Number(c.value), 0);
-check("kite MOUNTED → unaffected, still grants AC", kiteMountedAC === 1);
+check("kite MOUNTED → unaffected, still grants AC", kiteMountedAC === WS_SPEC);
 
 // Without acks-lib nothing mounted fires, so behaviour is exactly as before.
 globalThis.acksExtras.lib = undefined;
 const phalNoLibAC = buildLoadoutChanges(phal, phalLo).filter((c) => c.key === "system.ac.mod").reduce((n, c) => n + Number(c.value), 0);
-check("no acks-lib → mounted rules dormant, phalanx AC stands", phalNoLibAC === 1);
+check("no acks-lib → mounted rules dormant, phalanx AC stands", phalNoLibAC === WS_SPEC);
 globalThis.acksExtras.lib = priorLib;
 
 // --- no style, no shield (RR ch.3) -------------------------------------------
@@ -1480,9 +1539,10 @@ const reflexChar = withItems([nativeReflexes]);
 reflexChar.appliedEffects = [marker("styleInit", 1)];
 check("bridge: native-effect items are not double-counted",
   sumEffectModifiers(reflexChar, "styleInit") === 1);
-// The same ability WITHOUT native effects bridges to the same value.
-check("bridge: pure abilities item contributes the same +1",
-  sumEffectModifiers(withItems([abil("Combat Reflexes", null, {})]), "styleInit") === 1);
+// The bridge keys no number on a name: an ability with no typed spec adds
+// nothing to initiative, whatever it is called.
+check("bridge: a named ability with no typed spec contributes nothing",
+  sumEffectModifiers(withItems([abil("Combat Reflexes", null, {})]), "styleInit") === 0);
 
 /* --- The typed effect model: a CLASS POWER granting a proficiency's rule --- */
 //
@@ -1524,71 +1584,77 @@ const notStr = power("Odd Power", "def.power.oddPower", [
 check("typed model: a substitution for something other than STR is left alone",
   collectStringFlags(withItems([notStr]), "damageAttribute").size === 0);
 
-const bdGraceful = power("Graceful Fighting", "def.power.bladedancerGracefulFighting", [
-  { type: "modifier", target: "initiative", mode: "add", value: 1, condition: "light, very light, or no armor; 5 stones or less" },
-]);
-check("typed model: a gated initiative bonus lands in the gated domain",
-  sumEffectModifiers(withItems([bdGraceful]), "lightInit") === 1 &&
-  sumEffectModifiers(withItems([bdGraceful]), "styleInit") === 0);
+// Typed modifiers reach the loadout effect through lib/typed-modifiers.mjs,
+// one change per ability, each named in the ledger. Figures are invented.
+const sumOf = (ch, key) =>
+  buildLoadoutChanges(ch, getLoadout(ch))
+    .filter((c) => c.key === key)
+    .reduce((s, c) => s + (c.type === "subtract" ? -1 : 1) * Number(c.value), 0);
+const initOf = (ch) => sumOf(ch, "system.initiative.mod");
+const sworded = (items, over = {}) => {
+  const ch = withItems([...items, weapon("Sword", { melee: true, id: "gsw" })], over);
+  ch.getFlag = (_m, k) => (k === "styles" ? "single,twoHanded" : k === "armorMax" ? "heavy" : undefined);
+  return ch;
+};
 check("typed model: an ungated initiative bonus is always on",
-  sumEffectModifiers(withItems([power("Quick", "def.power.quick", [{ type: "modifier", target: "initiative", mode: "add", value: 2 }])]), "styleInit") === 2);
+  initOf(sworded([power("Quick", "def.power.quick", [{ type: "modifier", target: "initiative", mode: "add", value: 2 }])])) === 2);
+check("typed model: a bonus to own surprise rolls lands on avoid surprise",
+  sumOf(sworded([power("Wary", "def.power.wary", [{ type: "modifier", target: "surprise", value: 3 }])]), "system.surprise.avoidsurprise") === 3);
+check("typed model: a value that does not resolve contributes nothing",
+  initOf(sworded([power("Ladder", "def.power.ladder",
+    [{ type: "modifier", target: "initiative", mode: "add", value: { kind: "progression", as: "thief" } }])])) === 0);
+check("typed model: a flat-shaped value resolves",
+  initOf(sworded([power("Flat", "def.power.flat", [{ type: "modifier", target: "initiative", value: { kind: "flat", flat: 3 } }])])) === 3);
 
-// A ladder nobody can resolve contributes NOTHING, not its first rung: a bonus
-// reported at the wrong level is worse than one the sheet says is missing.
-check("typed model: an unresolvable level ladder contributes nothing",
-  sumEffectModifiers(withItems([power("Ladder", "def.power.ladder",
-    [{ type: "modifier", target: "initiative", mode: "add", value: { kind: "level", pairs: [[1, 1], [7, 2]] } }])]), "styleInit") === 0);
-check("typed model: a flat-shaped value still resolves",
-  sumEffectModifiers(withItems([power("Flat", "def.power.flat",
-    [{ type: "modifier", target: "initiative", mode: "add", value: { kind: "flat", flat: 3 } }])]), "styleInit") === 3);
-
-// A resolvable ladder resolves at the character's level: lib's resolver, the
-// level read off the actor while no abilities model is live.
-const initLadder = { kind: "breakpoints", breakpoints: [{ atLevel: 1, value: 1 }, { atLevel: 7, value: 2 }] };
-const leveled = (level) => withItems([power("Ladder", "def.power.ladder",
+// A ladder resolves at the character's level: lib's resolver while nothing
+// else is live, the classes resolver once it is. F1: the level moves it.
+const initLadder = { kind: "breakpoints", breakpoints: [{ atLevel: 1, value: 1 }, { atLevel: 6, value: 4 }] };
+const leveled = (level) => sworded([power("Ladder", "def.power.ladder",
   [{ type: "modifier", target: "initiative", mode: "add", value: initLadder }])], { system: { details: { level } } });
 const priorAbilitiesApi = globalThis.acksExtras.abilities;
 const priorClassesApi = globalThis.acksExtras.classes;
 globalThis.acksExtras.abilities = undefined;
 globalThis.acksExtras.classes = undefined;
 check("typed model: a level ladder resolves at the character's level",
-  sumEffectModifiers(leveled(3), "styleInit") === 1 && sumEffectModifiers(leveled(7), "styleInit") === 2);
-globalThis.acksExtras.abilities = { scalesFor: () => ({ level: 9, rank: 1 }) };
-check("typed model: the abilities model's scales set the level when live",
-  sumEffectModifiers(leveled(1), "styleInit") === 2);
+  initOf(leveled(3)) === 1 && initOf(leveled(6)) === 4);
 globalThis.acksExtras.classes = { resolveLevelValue: () => 5 };
-check("typed model: the classes resolver answers when live",
-  sumEffectModifiers(leveled(1), "styleInit") === 5);
+check("typed model: the classes resolver answers when live", initOf(leveled(1)) === 5);
 globalThis.acksExtras.abilities = priorAbilitiesApi;
 globalThis.acksExtras.classes = priorClassesApi;
 
-// The gate is applied where the loadout is known, and it is the SAME clause
-// Swashbuckling is written with: light armour or less, 5 stone or less.
-const gracefulLight = withItems([bdGraceful, weapon("Sword", { melee: true, id: "gsw" })]);
-gracefulLight.getFlag = (_m, k) => (k === "styles" ? "single,twoHanded" : undefined);
-const initOf = (ch) =>
-  buildLoadoutChanges(ch, getLoadout(ch))
-    .filter((c) => c.key === "system.initiative.mod")
-    .reduce((s, c) => s + Number(c.value), 0);
-check("Graceful Fighting grants its initiative unarmoured", initOf(gracefulLight) === 1);
-
-const gracefulPlate = withItems([bdGraceful, weapon("Sword", { melee: true, id: "gsw" }), armor("Plate", "heavy", { id: "gpl" })]);
-gracefulPlate.getFlag = (_m, k) => (k === "styles" ? "single,twoHanded" : k === "armorMax" ? "heavy" : undefined);
-check("Graceful Fighting grants nothing in plate", initOf(gracefulPlate) === 0);
-
-const gracefulLaden = withItems([bdGraceful, weapon("Sword", { melee: true, id: "gsw" })]);
-gracefulLaden.getFlag = (_m, k) => (k === "styles" ? "single,twoHanded" : undefined);
-gracefulLaden.system = { encumbrance: { value: 7 } };
-check("Graceful Fighting grants nothing over 5 stone", initOf(gracefulLaden) === 0);
-
-// Combat Reflexes classified from a connected book declares the very bonus its
-// table entry hardcodes. Paying both would give the seats that own the book a
-// silently different number.
-const reflexesBothWays = withItems([
-  power("Combat Reflexes", "def.prof.combatReflexes", [{ type: "modifier", target: "initiative", mode: "add", value: 1 }]),
+// A gated modifier stands while the loadout answers its gate, by the arguments
+// its import read (invented here: light armour or less, 4 stone or less).
+const gate = { kind: "lightlyEquipped", armourMax: "light", loadMax: 4 };
+const bdGraceful = power("Graceful Fighting", "def.power.bladedancerGracefulFighting", [
+  { type: "modifier", target: "initiative", mode: "add", value: 2, gate },
 ]);
-check("typed model: the slug table stands down on a domain the model claimed",
-  sumEffectModifiers(reflexesBothWays, "styleInit") === 1);
+check("a gated initiative bonus stands unarmoured", initOf(sworded([bdGraceful])) === 2);
+check("a gated initiative bonus drops in heavier armour",
+  initOf(sworded([bdGraceful, armor("Plate", "heavy", { id: "gpl" })])) === 0);
+check("a gated initiative bonus drops over the load cap",
+  initOf(sworded([bdGraceful], { system: { encumbrance: { value: 6 } } })) === 0);
+const unread = power("Unread", "def.power.unread", [{ type: "modifier", target: "initiative", value: 2, gate: { kind: "lightlyEquipped", armourMax: "light", loadMax: null } }]);
+check("a gate whose figure was not imported applies nothing", initOf(sworded([unread])) === 0);
+const prose = power("Prose", "def.power.prose", [{ type: "modifier", target: "initiative", value: 2, condition: "situational" }]);
+check("a free-text condition applies nothing", initOf(sworded([prose])) === 0);
+
+// Each change is named in the ledger, index for index.
+const { buildLoadoutParts } = await import(new URL("effects.mjs", S));
+const ledgerChar = sworded([power("Quick", "def.power.quick", [{ type: "modifier", target: "initiative", value: 2 }])]);
+const built = buildLoadoutParts(ledgerChar, getLoadout(ledgerChar));
+const at = built.changes.findIndex((c) => c.key === "system.initiative.mod");
+check("the ledger names the ability beside its change", at >= 0 && built.parts[at].label === "Quick" && built.parts.length === built.changes.length);
+
+// An item whose own Active Effect writes the field stands aside for it.
+const handMade = power("Hand", "def.power.hand", [{ type: "modifier", target: "ac", value: 2 }]);
+handMade.effects = [{ disabled: false, changes: [{ key: "system.ac.mod", type: "add", value: "2" }] }];
+check("a hand-made effect on the ability is not doubled", sumOf(sworded([handMade]), "system.ac.mod") === 0);
+handMade.effects = [{ disabled: true, changes: [{ key: "system.ac.mod", type: "add", value: "2" }] }];
+check("a disabled hand-made effect does not stand in", sumOf(sworded([handMade]), "system.ac.mod") === 2);
+
+// The bridge no longer reads a typed initiative modifier into a domain.
+check("the bridge leaves typed initiative to the loadout",
+  sumEffectModifiers(withItems([power("Quick", "def.power.quick", [{ type: "modifier", target: "initiative", value: 2 }])]), "styleInit") === 0);
 
 // Pick resolvers.
 check("resolveStylePick handles 'Weapon and Shield'", resolveStylePick("Weapon and Shield") === "weaponshield");
@@ -2243,6 +2309,40 @@ check("only the missing half is supplied", halfKitted.items.length === 2 && half
   globalThis.game.packs = saved.packs;
 }
 
+// Gear known by what it is, not by a name: the grant hands over the stack the
+// pattern matches that holds the most. Names and counts invented.
+{
+  const saved = { items: globalThis.game.items, packs: globalThis.game.packs };
+  const doc = (name, qty) => ({ name, toObject: () => ({ name, type: "item", system: { quantity: { value: qty }, cost: 2 } }) });
+  const packOf = (collection, rows) => ({
+    collection,
+    documentName: "Item",
+    getIndex: async () => rows.map(([id, name, qty]) => ({ _id: id, name, system: qty == null ? {} : { quantity: { value: qty } } })),
+    getDocument: async (id) => { const [, name, qty] = rows.find(([rid]) => rid === id); return doc(name, qty ?? 1); },
+  });
+  const { findGearByPattern } = await import(new URL("grant.mjs", S));
+  const STICK = { pattern: /glowstick/i, label: "kit.glowstick" };
+  globalThis.game.items = [];
+  globalThis.game.packs = [
+    packOf("mod.alpha", [["a1", "Glowstick", 1], ["a2", "Rope"]]),
+    packOf("mod.beta", [["b1", "Glowsticks, bundle", 9], ["b2", "Glowstick spare", null]]),
+  ];
+  check("the largest matching stack across the packs answers", (await findGearByPattern(STICK.pattern))?.name === "Glowsticks, bundle");
+  const lit = grantee();
+  await grantGear(lit, [STICK]);
+  check("a nameless spec grants that stack", lit.items.length === 1 && lit.items[0].system.quantity.value === 9);
+  globalThis.game.items = [doc("Glowstick, the Judge's", 2)];
+  check("the world's items answer first, a Judge's own over any pack", (await findGearByPattern(STICK.pattern))?.name === "Glowstick, the Judge's");
+  globalThis.game.items = [];
+  globalThis.game.packs = [];
+  check("nothing matching, nothing found", (await findGearByPattern(STICK.pattern)) === null);
+  const bare = grantee();
+  await grantGear(bare, [STICK]);
+  check("with no source, the stand-in is named by its label", bare.items.length === 1 && bare.items[0].name === "kit.glowstick");
+  globalThis.game.items = saved.items;
+  globalThis.game.packs = saved.packs;
+}
+
 // clearHands: shields go first, then weapons newest-first, and it stops as soon
 // as there is room rather than stripping the character bare. The fixtures need a
 // real `update`, since sheathing is a write.
@@ -2433,8 +2533,10 @@ const effectActor = (items) => {
 
 const managedCount = (a) => a.effects.filter((e) => e.getFlag?.("acks-extras", "loadout") === true).length;
 
-// Four hooks firing at once is the ordinary case, not a stress test.
-const racer = effectActor([abil("Combat Reflexes", null, {}), weapon("Sword", { melee: true, id: "rsw" })]);
+// Four hooks firing at once is the ordinary case, not a stress test. The
+// ability's one typed initiative modifier is the bonus a duplicate would multiply.
+const quick = () => abil("Quick", "def.power.quick", { effects: [{ type: "modifier", target: "initiative", value: 1 }] });
+const racer = effectActor([quick(), weapon("Sword", { melee: true, id: "rsw" })]);
 racer.getFlag = (_m, k) => (k === "styles" ? "single,twoHanded" : undefined);
 await Promise.all([refreshLO(racer), refreshLO(racer), refreshLO(racer), refreshLO(racer)]);
 check("four concurrent syncs leave exactly one loadout effect", managedCount(racer) === 1);
@@ -2443,7 +2545,7 @@ check("and it carries the bonus once, not four times",
 
 // A world that already has duplicates is repaired on the next ordinary sync,
 // so nobody has to be told to go looking for them.
-const dupes = effectActor([abil("Combat Reflexes", null, {}), weapon("Sword", { melee: true, id: "dsw" })]);
+const dupes = effectActor([quick(), weapon("Sword", { melee: true, id: "dsw" })]);
 dupes.getFlag = (_m, k) => (k === "styles" ? "single,twoHanded" : undefined);
 await dupes.createEmbeddedDocuments("ActiveEffect", [
   { changes: [{ key: "system.initiative.mod", type: "add", value: "1" }], flags: { "acks-extras": { loadout: true } } },
@@ -2487,7 +2589,7 @@ const sharedWorld = (items) => {
   };
   return { stored, client };
 };
-const world = sharedWorld([abil("Combat Reflexes", null, {}), weapon("Sword", { melee: true, id: "ssw" })]);
+const world = sharedWorld([quick(), weapon("Sword", { melee: true, id: "ssw" })]);
 const [tabA, tabB] = [world.client(), world.client()];
 let raced = null;
 try {

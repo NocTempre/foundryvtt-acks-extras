@@ -17,7 +17,7 @@ import { rollMath, subjectOf } from "../lib/conditions.mjs";
 import { FLAG_RECORD } from "../henchmen/constants.mjs";
 import { realMembers } from "../formation/formation-model.mjs";
 import { getLoadout } from "../equipment/loadout.mjs";
-import { bearerLights, LIGHT_SOURCES } from "../lib/light.mjs";
+import { bearerLights, LIGHT_SOURCES, lightCite, lightFigures } from "../lib/light.mjs";
 import { senseProfile, VISION_MODES } from "../lib/senses.mjs";
 import { classForActor } from "../classes/registry.mjs";
 import { pendingChoices } from "../classes/pending-choices.mjs";
@@ -201,17 +201,23 @@ function ambientLight(actor) {
   return darkness < 0.5 ? "day" : "dark";
 }
 
-/** The brightest light this character is carrying lit and unshuttered, with its burn-down. */
+/**
+ * The brightest light this character is carrying lit and unshuttered, with its
+ * burn-down. `reach` and `turns` are the imported figures (RR p. 265), null
+ * when not imported; a lit source with no reach still answers, so the cell can
+ * say the light burns and that its reach is not imported. `cite` is the page
+ * the figures were read from.
+ */
 function litSource(actor) {
   let best = null;
   for (const light of bearerLights(actor)) {
-    if (!light?.lit || light.shielded) continue;
-    const cfg = LIGHT_SOURCES[light.type];
-    if (!cfg) continue;
-    if (!best || cfg.dim > best.reach) {
-      best = { id: light.id, type: light.type, reach: cfg.dim, turns: cfg.turns, remaining: Number.isFinite(light.remaining) ? light.remaining : null };
+    if (!light?.lit || light.shielded || !LIGHT_SOURCES[light.type]) continue;
+    const { dim, turns } = lightFigures(light.type);
+    if (!best || (dim ?? -1) > (best.reach ?? -1)) {
+      best = { id: light.id, type: light.type, reach: dim, turns, remaining: Number.isFinite(light.remaining) ? light.remaining : null };
     }
   }
+  if (best) best.cite = lightCite();
   return best;
 }
 

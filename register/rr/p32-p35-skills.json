@@ -19,15 +19,24 @@
         "type": "modifier",
         "target": "attackThrow",
         "mode": "add",
-        "condition": "backstabbing a vulnerable opponent",
+        "condition": "situational",
+        "conditionFrom": {
+          "pattern": "(a\\s*thief\\s*can\\s*backstab[^.]*)"
+        },
         "from": {
           "pattern": "backstabbing[^.]{0,40}?\\+\\s*(\\d+)\\s*bonus\\s*to\\s*hit"
         }
       },
       {
         "type": "capability",
-        "condition": "backstabbing a vulnerable opponent",
-        "note": "Extra damage dice are added as the thief gains levels; the description states the levels, and the class table the die count."
+        "condition": "situational",
+        "conditionFrom": {
+          "pattern": "(a\\s*thief\\s*can\\s*backstab[^.]*)"
+        },
+        "noteFrom": {
+          "pattern": "(deals\\s*an\\s*additional\\s*die[^.]*)"
+        },
+        "note": "The added damage dice are not modelled; the description and the class table hold them."
       }
     ]
   },
@@ -59,7 +68,10 @@
         "target": "proficiencyThrow",
         "forWhat": "Climbing",
         "mode": "add",
-        "condition": "climbing at one-half combat speed",
+        "condition": "by speed",
+        "conditionFrom": {
+          "pattern": "(if\\s*he\\s*moves\\s*at[^,]*)"
+        },
         "from": {
           "pattern": "one-half\\s*combat\\s*speed[^.]{0,40}?(-\\s*\\d+)\\s*penalty"
         }
@@ -69,7 +81,10 @@
         "target": "proficiencyThrow",
         "forWhat": "Climbing",
         "mode": "add",
-        "condition": "climbing at full combat speed",
+        "condition": "by speed",
+        "conditionFrom": {
+          "pattern": "and\\s*(if\\s*he\\s*moves\\s*at[^,]*)"
+        },
         "from": {
           "pattern": "full\\s*combat\\s*speed[^.]{0,40}?(-\\s*\\d+)\\s*penalty"
         }
@@ -77,8 +92,11 @@
       {
         "type": "outcome",
         "trigger": "failure",
-        "consequence": "the climber falls",
-        "note": "Fall distance and damage as the entry states them - the formula involves dice and a midpoint, which no numeric field can honestly carry."
+        "consequence": "a fall",
+        "consequenceFrom": {
+          "pattern": "(the\\s*thief\\s*falls[^.]*)"
+        },
+        "note": "The fall's distance and damage are read with the consequence; no numeric field carries them."
       }
     ],
     "icon": "systems/acks/assets/icons/climb-walls.webp",
@@ -114,8 +132,10 @@
         "target": "surprise",
         "appliesTo": "opponent",
         "mode": "add",
-        "condition": "stationary in cover, dim light, or darkness",
-        "note": "Applies whether or not the Hiding throw succeeded.",
+        "condition": "situational",
+        "conditionFrom": {
+          "pattern": "(as\\s*long\\s*as\\s*he\\s*remains[^.]*)"
+        },
         "from": {
           "pattern": "suffer\\s*a\\s*(-\\s*\\d+)\\s*penalty\\s*to\\s*surprise"
         }
@@ -125,8 +145,10 @@
         "target": "attackThrow",
         "appliesTo": "opponent",
         "mode": "add",
-        "condition": "while hidden; opponent knows his general location",
-        "note": "An opponent that does not know the location cannot attack him at all.",
+        "condition": "situational",
+        "conditionFrom": {
+          "pattern": "(if\\s*an\\s*opponent\\s*knows[^,]*)"
+        },
         "from": {
           "pattern": "attack\\s*him\\s*in\\s*melee\\s*at\\s*a\\s*(-\\s*\\d+)\\s*penalty"
         }
@@ -159,7 +181,10 @@
     "effects": [
       {
         "type": "limitation",
-        "restriction": "One use per turn while the party is moving"
+        "restriction": "a use limit",
+        "restrictionFrom": {
+          "pattern": "(once\\s*per\\s*turn[^,.]*)"
+        }
       }
     ],
     "audited": "2026-08-01",
@@ -193,17 +218,21 @@
         "forWhat": "Lockpicking",
         "mode": "add",
         "appliesToRoll": "methodical",
-        "condition": "methodical attempt (one turn); not a hasty attempt",
+        "condition": "by method",
         "from": {
           "pattern": "methodically\\s*pick\\s*a\\s*lock[\\s\\S]{0,140}?with\\s*a\\s*\\+(\\d+)\\s*bonus"
         },
-        "note": "Applies only to the methodical method; a hasty attempt uses the unmodified throw."
+        "note": "appliesToRoll names the one method this modifies; the other method's throw is left as it stands."
       },
       {
         "type": "outcome",
         "trigger": "naturalBand",
-        "consequence": "the pick breaks in the lock, jamming it",
-        "condition": "hasty attempt (one round)",
+        "consequence": "a mishap",
+        "consequenceFrom": {
+          "pattern": "of\\s*1\\s*[-–—]\\s*\\d+\\s*,\\s*(the\\s*thief\\s*breaks[^.]*)"
+        },
+        "appliesToRoll": "hasty",
+        "condition": "by method",
         "from": {
           "into": "naturalMax",
           "pattern": "fails\\s*on\\s*a\\s*natural\\s*roll\\s*of\\s*1\\s*[-–—]\\s*(\\d+)\\s*,\\s*the\\s*thief\\s*breaks"
@@ -212,8 +241,12 @@
       {
         "type": "outcome",
         "trigger": "naturalBand",
-        "consequence": "the pick breaks in the lock, jamming it",
-        "condition": "methodical attempt (one turn)",
+        "consequence": "a mishap",
+        "consequenceFrom": {
+          "pattern": "of\\s*1\\s*,\\s*(the\\s*thief\\s*breaks[^.]*)"
+        },
+        "appliesToRoll": "methodical",
+        "condition": "by method",
         "from": {
           "into": "naturalMax",
           "pattern": "fails\\s*on\\s*a\\s*natural\\s*roll\\s*of\\s*(1)\\s*,\\s*the\\s*thief\\s*breaks"
@@ -230,7 +263,10 @@
         "target": {
           "fromProgression": true
         },
-        "condition": "one round; botch band applies on a low natural roll"
+        "condition": "by method",
+        "conditionFrom": {
+          "pattern": "hastily\\s*\\w+\\s*(?:a\\s*\\w+\\s*)?(requires\\s*[^.]*?)\\s*and\\s*a"
+        }
       },
       {
         "key": "methodical",
@@ -240,7 +276,10 @@
         "target": {
           "fromProgression": true
         },
-        "condition": "one turn; add the methodical bonus; repeatable"
+        "condition": "by method",
+        "conditionFrom": {
+          "pattern": "methodically\\s*\\w+\\s*(?:a\\s*\\w+\\s*)?(requires\\s*[^.]*?)\\s*and\\s*a"
+        }
       }
     ],
     "audited": "2026-08-01",
@@ -274,7 +313,10 @@
         "target": "proficiencyThrow",
         "forWhat": "Pickpocketing",
         "mode": "add",
-        "condition": "target is unaware of the thief",
+        "condition": "by the subject",
+        "conditionFrom": {
+          "pattern": "(if\\s*the\\s*target\\s*is\\s*unaware[^,]*)"
+        },
         "from": {
           "pattern": "unaware\\s*of\\s*the\\s*thief[\\s\\S]{0,60}?\\+(\\d+)\\s*bonus"
         }
@@ -283,17 +325,26 @@
         "type": "modifier",
         "target": "reaction",
         "mode": "add",
-        "condition": "the victim notices the theft attempt",
+        "condition": "on a failed throw",
+        "conditionFrom": {
+          "pattern": "(the\\s*intended\\s*target\\s*notices[^.]*)"
+        },
         "from": {
           "pattern": "reaction\\s*roll\\s*with\\s*a\\s*(-\\d+)\\s*penalt"
         },
-        "note": "Thrown by the Judge for the victim after a badly failed attempt. A penalty on the thief's own reaction roll, not one he imposes on a roll of someone else's, so it stays appliesTo self."
+        "note": "A penalty on the reaction roll made about the thief, not one he imposes on another's roll, so it stays appliesTo self."
       },
       {
         "type": "outcome",
         "trigger": "naturalBand",
-        "consequence": "the intended victim notices the attempt",
+        "consequence": "a mishap",
+        "consequenceFrom": {
+          "pattern": "(the\\s*intended\\s*target\\s*notices[^.]*)"
+        },
         "condition": "on a failed throw",
+        "conditionFrom": {
+          "pattern": "(if\\s*the\\s*throw\\s*fails,\\s*and[^,]*)"
+        },
         "from": {
           "into": "naturalMax",
           "pattern": "a\\s*natural\\s*roll\\s*of\\s*(1)\\s*or"
@@ -302,8 +353,14 @@
       {
         "type": "outcome",
         "trigger": "belowFraction",
-        "consequence": "the intended victim notices the attempt",
+        "consequence": "a mishap",
+        "consequenceFrom": {
+          "pattern": "(the\\s*intended\\s*target\\s*notices[^.]*)"
+        },
         "condition": "on a failed throw",
+        "conditionFrom": {
+          "pattern": "(if\\s*the\\s*throw\\s*fails,\\s*and[^,]*)"
+        },
         "from": {
           "into": "belowFraction",
           "pattern": "less\\s*than\\s*(half)\\s*the\\s*target\\s*value"
@@ -341,17 +398,21 @@
         "mode": "add",
         "forWhat": "Searching",
         "appliesToRoll": "methodical",
-        "condition": "methodical search (one turn), not a hasty one",
+        "condition": "by method",
         "from": {
           "pattern": "methodically\\s*search\\s*requires[\\s\\S]{0,110}?with\\s*a\\s*\\+(\\d+)\\s*bonus"
         },
-        "note": "Adds to the level-indexed Searching throw. The hasty variant, which takes one round instead of one turn, gets no bonus."
+        "note": "appliesToRoll names the one method this modifies; the other method's throw is left as it stands."
       },
       {
         "type": "limitation",
-        "condition": "hasty search (one round)",
-        "restriction": "One hasty try per area until the thief gains a level",
-        "note": "A methodical search of the same area is still allowed, and may be repeated. A failed throw made while hastily searching on the move spends that area's one hasty attempt."
+        "appliesToRoll": "hasty",
+        "condition": "by method",
+        "restriction": "a retry limit",
+        "restrictionFrom": {
+          "pattern": "(cannot\\s*make\\s*another[^,.]*)"
+        },
+        "note": "appliesToRoll names the method this limits; the module does not track the retries."
       }
     ],
     "icon": "systems/acks/assets/icons/spot.webp",
@@ -364,7 +425,10 @@
         "target": {
           "fromProgression": true
         },
-        "condition": "one round; one try per area until the thief gains a level"
+        "condition": "by method",
+        "conditionFrom": {
+          "pattern": "hastily\\s*\\w+\\s*(?:a\\s*\\w+\\s*)?(requires\\s*[^.]*?)\\s*and\\s*a"
+        }
       },
       {
         "key": "methodical",
@@ -374,7 +438,10 @@
         "target": {
           "fromProgression": true
         },
-        "condition": "one turn; add the methodical bonus; repeatable"
+        "condition": "by method",
+        "conditionFrom": {
+          "pattern": "methodically\\s*\\w+\\s*(?:a\\s*\\w+\\s*)?(requires\\s*[^.]*?)\\s*and\\s*a"
+        }
       }
     ]
   },
@@ -401,28 +468,43 @@
       {
         "type": "sense",
         "vision": "lightless",
-        "condition": "moving at combat or exploration speed",
+        "condition": "by speed",
+        "conditionFrom": {
+          "pattern": "(when\\s*moving\\s*at[^,]*)"
+        },
         "from": {
           "into": "range",
           "pattern": "sheds\\s*dim\\s*light\\s*in\\s*a\\s*(\\d+)"
         },
-        "note": "Sight with no light source, equal to dim light out to the located radius. Usable to fight and to probe for traps."
+        "note": "The vision type is the module's; the range is read off the page."
       },
       {
         "type": "limitation",
-        "restriction": "Fails when deafened or in magical silence"
+        "restriction": "a sense limit",
+        "restrictionFrom": {
+          "pattern": "(does\\s*not\\s*function\\s*if[^.]*?if\\s*deafened)"
+        }
       },
       {
         "type": "limitation",
-        "restriction": "Fails in bright light or in magical darkness"
+        "restriction": "a sense limit",
+        "restrictionFrom": {
+          "pattern": "(if\\s*in\\s*an\\s*area\\s*of[^.]*)"
+        }
       },
       {
         "type": "limitation",
-        "restriction": "No colour or fine detail; cannot read by it"
+        "restriction": "a sense limit",
+        "restrictionFrom": {
+          "pattern": "(cannot\\s*be\\s*used\\s*to\\s*discern[^.]*)"
+        }
       },
       {
         "type": "limitation",
-        "restriction": "Counts as dim light, so a foe can still hide"
+        "restriction": "a sense limit",
+        "restrictionFrom": {
+          "pattern": "(because\\s*it\\s*counts\\s*as\\s*dim\\s*light[^.]*)"
+        }
       }
     ],
     "audited": "2026-08-01",
@@ -455,11 +537,13 @@
         "target": "proficiencyThrow",
         "mode": "add",
         "forWhat": "Sneaking",
-        "condition": "moving faster than one-half combat speed",
+        "condition": "by speed",
+        "conditionFrom": {
+          "pattern": "(if\\s*he\\s*moves\\s*greater[^,]*)"
+        },
         "from": {
           "pattern": "greater\\s*than\\s*one-half\\s*combat\\s*speed,?\\s*he\\s*takes\\s*a\\s*(-\\d+)"
-        },
-        "note": "Exploration speed and one-half combat speed carry no penalty."
+        }
       },
       {
         "type": "modifier",
@@ -470,28 +554,37 @@
         "from": {
           "pattern": "If\\s*he\\s*runs,?\\s*he\\s*takes\\s*a\\s*(-\\d+)\\s*penalty"
         },
-        "note": "Alternative to the faster-than-half-combat-speed penalty, not cumulative with it."
+        "note": "An alternative to the speed row above, never added to it."
       },
       {
         "type": "modifier",
         "target": "surprise",
         "mode": "add",
         "appliesTo": "opponent",
-        "condition": "thief outside their line of sight",
+        "condition": "situational",
+        "conditionFrom": {
+          "pattern": "surprise\\s*rolls\\s*(if\\s*the\\s*thief[^.]*)"
+        },
         "from": {
           "pattern": "suffer\\s*a\\s*(-\\d+)\\s*penalty\\s*to\\s*surprise"
+        }
+      },
+      {
+        "type": "capability",
+        "condition": "while sneaking",
+        "noteFrom": {
+          "pattern": "(makes\\s*no\\s*noise[^.]*)"
+        }
+      },
+      {
+        "type": "capability",
+        "condition": "situational",
+        "conditionFrom": {
+          "pattern": "(when\\s*a\\s*sneaking\\s*thief\\s*engages[^,]*)"
         },
-        "note": "Imposed on opponents encountering the thief, whether or not the Sneaking throw succeeded."
-      },
-      {
-        "type": "capability",
-        "condition": "while sneaking (throw succeeded)",
-        "note": "The thief moves in total silence: even an alert creature that makes its Listening throw hears nothing."
-      },
-      {
-        "type": "capability",
-        "condition": "engaging an unengaged foe from the rear",
-        "note": "Engaging an unengaged opponent from the rear while sneaking denies that opponent its free facing change."
+        "noteFrom": {
+          "pattern": "(the\\s*opponent\\s*cannot[^.]*)"
+        }
       }
     ],
     "icon": "systems/acks/assets/icons/move-silently.webp"
@@ -521,8 +614,8 @@
         },
         "rollType": "above",
         "formula": "1d20",
-        "condition": "urban settlements other than his home settlement",
-        "note": "Automatic in his own home settlement, with no throw. The Judge may set a harder target for secretive or distant organizations."
+        "condition": "in some places",
+        "note": "Where the throw is needed at all, and any change to its target, is the Judge's call; the module rolls the located target."
       }
     ],
     "icon": "systems/acks/assets/icons/suspicious.webp",
@@ -530,8 +623,11 @@
     "effects": [
       {
         "type": "capability",
-        "condition": "has the needed proficiencies or thief skills",
-        "note": "Lets the character undertake hijinks."
+        "condition": "with a prerequisite",
+        "conditionFrom": {
+          "pattern": "hijinks\\s*(if\\s*he\\s*has[^.]*)"
+        },
+        "note": "hijinks"
       },
       {
         "type": "capability",
@@ -570,17 +666,21 @@
         "forWhat": "Trapbreaking",
         "mode": "add",
         "appliesToRoll": "methodical",
-        "condition": "methodical attempt (one turn)",
+        "condition": "by method",
         "from": {
           "pattern": "methodically\\s*disarm[\\s\\S]{0,120}?with\\s*a\\s*\\+(\\d+)\\s*bonus"
         },
-        "note": "Applies only to the slow method; a hasty attempt uses the unmodified throw."
+        "note": "appliesToRoll names the one method this modifies; the other method's throw is left as it stands."
       },
       {
         "type": "outcome",
         "trigger": "naturalBand",
-        "consequence": "the trap is accidentally triggered",
-        "condition": "hasty attempt (one round)",
+        "consequence": "a mishap",
+        "consequenceFrom": {
+          "pattern": "of\\s*1\\s*[-–—]\\s*\\d+\\s*,\\s*(the\\s*thief\\s*accidentally[^.]*)"
+        },
+        "appliesToRoll": "hasty",
+        "condition": "by method",
         "from": {
           "into": "naturalMax",
           "pattern": "fails\\s*on\\s*a\\s*natural\\s*roll\\s*of\\s*1\\s*[-–—]\\s*(\\d+)\\s*,\\s*the\\s*thief\\s*accidentally"
@@ -589,8 +689,12 @@
       {
         "type": "outcome",
         "trigger": "naturalBand",
-        "consequence": "the trap is accidentally triggered",
-        "condition": "methodical attempt (one turn)",
+        "consequence": "a mishap",
+        "consequenceFrom": {
+          "pattern": "of\\s*1\\s*,\\s*(the\\s*thief\\s*accidentally[^.]*)"
+        },
+        "appliesToRoll": "methodical",
+        "condition": "by method",
         "from": {
           "into": "naturalMax",
           "pattern": "fails\\s*on\\s*a\\s*natural\\s*roll\\s*of\\s*(1)\\s*,\\s*the\\s*thief\\s*accidentally"
@@ -599,9 +703,13 @@
       {
         "type": "limitation",
         "forWhat": "Trapbreaking",
-        "condition": "hasty attempt (one round)",
-        "restriction": "Hasty: one try per trap until he gains a level",
-        "note": "Any other failure only denies the quick fix; a methodical attempt on the same trap is still open. TODO: retry rules await their own primitive per the owner's 2026-08-01 note."
+        "appliesToRoll": "hasty",
+        "condition": "by method",
+        "restriction": "a retry limit",
+        "restrictionFrom": {
+          "pattern": "(cannot\\s*make\\s*another[^,.]*)"
+        },
+        "note": "appliesToRoll names the method this limits; the module does not track the retries."
       }
     ],
     "icon": "systems/acks/assets/icons/remove-trap.webp",
@@ -614,7 +722,10 @@
         "target": {
           "fromProgression": true
         },
-        "condition": "one round; botch band applies on a low natural roll"
+        "condition": "by method",
+        "conditionFrom": {
+          "pattern": "hastily\\s*\\w+\\s*(?:a\\s*\\w+\\s*)?(requires\\s*[^.]*?)\\s*and\\s*a"
+        }
       },
       {
         "key": "methodical",
@@ -624,7 +735,10 @@
         "target": {
           "fromProgression": true
         },
-        "condition": "one turn; add the methodical bonus; repeatable"
+        "condition": "by method",
+        "conditionFrom": {
+          "pattern": "methodically\\s*\\w+\\s*(?:a\\s*\\w+\\s*)?(requires\\s*[^.]*?)\\s*and\\s*a"
+        }
       }
     ],
     "audited": "2026-08-01",
@@ -677,12 +791,15 @@
     "effects": [
       {
         "type": "companion",
-        "condition": "owns a hideout worth at least the printed sum",
-        "note": "Novice thief followers. Both how many arrive and how long they take are rolled on the page's own dice. At least one is a plant spying for a local rival; any the thief hires draw the standard ruffian wage."
+        "condition": "with a prerequisite",
+        "conditionFrom": {
+          "pattern": "(by\\s*acquiring\\s*a\\s*hideout[\\s\\S]*?gp)"
+        },
+        "note": "followers"
       },
       {
         "type": "capability",
-        "note": "The followers can be built into a criminal syndicate; those rules are printed in the Campaigns chapter."
+        "note": "Not modelled; the Campaigns chapter holds it."
       }
     ]
   }

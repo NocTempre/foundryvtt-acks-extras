@@ -8,6 +8,7 @@
  */
 import { MODULE_ID, TEMPLATE_TYPE } from "../constants.mjs";
 import { generateFromTemplate } from "../template-generate.mjs";
+import { axisOffersChoice, optionAvailable } from "../template-logic.mjs";
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -53,24 +54,52 @@ export class TemplateSheet extends HandlebarsApplicationMixin(foundry.applicatio
     context.base = this.#baseUuid ? { uuid: this.#baseUuid, name: this.#baseName } : null;
 
     context.editing = this.#editing && this.isEditable;
-    context.axes = (sys.axes ?? []).map((axis) => ({
-      key: axis.key,
-      label: axis.label || axis.key,
-      multi: !!axis.multi,
-      rollLabel: axis.roll
-        ? game.i18n.format("ACKS-LIB.template.rollDie", { die: axis.roll })
-        : game.i18n.localize("ACKS-LIB.template.rollUniform"),
-      derived: !!axis.derive?.from && !!this.#baseUuid,
-      pinned: this.#pins[axis.key] ?? "",
-      options: (axis.options ?? []).map((o) => ({
-        key: o.key,
-        label: o.label || o.key,
-        selected: axis.multi
-          ? (this.#pins[axis.key] ?? []).includes?.(o.key)
-          : (this.#pins[axis.key] ?? "") === o.key,
-        empty: !Object.keys(o.merge ?? {}).length && !(o.items ?? []).length,
-      })),
-    }));
+    // An option no cell stands behind beside the other pins is listed as
+    // unavailable and cannot be picked; Generate never chooses it either.
+    const stringPins = () => Object.fromEntries(Object.entries(this.#pins).filter(([, v]) => typeof v === "string"));
+    // Edit mode lists every axis, since it edits structure, not a generation.
+    const shown = (sys.axes ?? []).filter((axis) => {
+      if (context.editing) return true;
+      const others = stringPins();
+      delete others[axis.key];
+      if (axisOffersChoice(sys, axis, others)) return true;
+      // An axis with nothing to choose beside these pins takes its default;
+      // a pin left on it would only be logged as unavailable at Generate.
+      delete this.#pins[axis.key];
+      return false;
+    });
+    const pinsOnly = stringPins();
+    context.axes = shown.map((axis) => {
+      const fallback = axis.default ? (axis.options ?? []).find((o) => o.key === axis.default) : null;
+      const others = { ...pinsOnly };
+      delete others[axis.key];
+      return {
+        key: axis.key,
+        label: axis.label || axis.key,
+        multi: !!axis.multi,
+        rollLabel: fallback
+          ? game.i18n.format("ACKS-LIB.template.defaultTo", { option: fallback.label || fallback.key })
+          : axis.roll
+            ? game.i18n.format("ACKS-LIB.template.rollDie", { die: axis.roll })
+            : game.i18n.localize("ACKS-LIB.template.rollUniform"),
+        derived: !!axis.derive?.from && !!this.#baseUuid,
+        pinned: this.#pins[axis.key] ?? "",
+        options: (axis.options ?? []).map((o) => {
+          const unavailable = !axis.multi && !optionAvailable(sys, axis, o, others);
+          return {
+            key: o.key,
+            label: unavailable
+              ? game.i18n.format("ACKS-LIB.template.unavailable", { option: o.label || o.key })
+              : o.label || o.key,
+            unavailable,
+            selected: axis.multi
+              ? (this.#pins[axis.key] ?? []).includes?.(o.key)
+              : (this.#pins[axis.key] ?? "") === o.key,
+            empty: !Object.keys(o.merge ?? {}).length && !(o.items ?? []).length,
+          };
+        }),
+      };
+    });
 
     const budgetAxis = sys.menu?.budgetAxis;
     context.hasMenu = !!(sys.menu?.rows ?? []).length;
@@ -94,6 +123,8 @@ export class TemplateSheet extends HandlebarsApplicationMixin(foundry.applicatio
         const value = ev.currentTarget.value;
         if (value) this.#pins[key] = value;
         else delete this.#pins[key];
+        // Another axis's options may stand or fall with this pin.
+        if ((this.actor.system.cells ?? []).some((c) => (c.by ?? []).includes(key))) this.render();
       });
     }
     // Multi-select axes pin an ARRAY of checked options (stacked add-ons).

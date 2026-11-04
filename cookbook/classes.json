@@ -10624,7 +10624,7 @@
             ]
           },
           "starting": true,
-          "note": "The origin bounds which combat proficiencies are traditional; the row is the record."
+          "note": "The pick selects the class's training row; the table is the record."
         }
       ],
       "cleaves": {

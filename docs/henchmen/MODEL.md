@@ -234,6 +234,8 @@ target scope is situational; so, on a roll (`hiring`, `henchmanMorale`), is one
 from an entry the importer marks unaudited. The limit, base loyalty and class
 shift are sums with no row to offer, and take the located value audited or
 not. A "See X." power takes X's located value through the importer's alias.
+Only a self modifier is read; one the page aims at an opponent is not the
+holder's figure (`abilityModifiers`' `appliesTo`, default `"self"`).
 
 **Presence without a value.** `config.mjs > NAME_PRESENCE` recognizes these
 powers by name only to say they are held: no name ever supplies a value. A

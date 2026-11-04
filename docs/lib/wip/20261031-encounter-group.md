@@ -151,11 +151,8 @@ before it flattens into stacks.
   locators ship, every number is read at import from the seat's own text. It reads
   the paragraphs `monsterProseChannels` already routes to `ecology`, and it adds
   nothing for a sentence it cannot read.
-- **X** `proseLeaderRoles` runs for families only and knows six roles. Leaders on
-  entries outside a family need the same pass.
-- **X** Per-role XP: `statPatch` writes no `details.xp`, and the page's XP cell lists
-  one figure per role.
-- **R** `importFamily` role cells as leader sources; `statLineCreature` and `bindNpc`
+- **R** `importFamily` role cells, and the `.leaders` template an entry outside a
+  family gets (monsters MODEL, "Leaders outside a family"), as leader sources; `statLineCreature` and `bindNpc`
   to mint a body from a stat line; `extras.variants[]`, which the Ecology tab edits
   and nothing else writes or reads, as the link from a creature to its young and
   leaders.

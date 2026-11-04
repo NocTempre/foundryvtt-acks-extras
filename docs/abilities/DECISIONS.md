@@ -25,7 +25,7 @@ they can.
 
 **The outcome is DECLARED, never inferred from the cell.** Class ladders already
 carry non-numeric cells that are values printed in words (a backstab column's
-"+2d"), and reading "not a number" as "automatic" would turn one into the other.
+dice cell), and reading "not a number" as "automatic" would turn one into the other.
 
 **Two structural states, not three.** `R` and `D` are both `auto`: both mean no
 throw. The difference between turning undead and destroying them is the
@@ -295,9 +295,9 @@ card and Favorites cannot disagree about what a throw comes to. Two guards:
 
 **A modifier scoped to one way of attempting a thing names that THROW**
 (`appliesToRoll`), because the variants are already separate keyed throws.
-*Rejected: matching the modifier's `condition` prose* — Lockpicking's names both
-of its throws in a single string ("methodical attempt (one turn); not a hasty
-attempt"), so any reading of it lands the +4 on the hasty attempt too.
+*Rejected: matching the modifier's `condition` prose* — Lockpicking's named both
+of its throws in a single string, so any reading of it landed the methodical
+bonus on the hasty attempt too.
 
 A conditioned modifier naming no throw is returned unapplied rather than guessed
 at: that is a gap in what was captured, and the importer closes it.
@@ -606,7 +606,8 @@ module applies only some of its rows and that a number on the sheet changes
 through an Active Effect in the fieldset below; the guide gives the recipe
 (`system.aac.mod`, type Add).
 
-**Rejected: applying the imported Armor Class rows.** Which imported modifiers
+**Rejected: applying the imported Armor Class rows.** *(Superseded
+2026-11-04, "Imported modifiers apply".)* Which imported modifiers
 apply, under which conditions, and how they meet a Judge's own Active Effect
 is a design of its own and a new behaviour of every imported power — a minor,
 recorded in the ledger, not cut from a field report.
@@ -657,3 +658,113 @@ comments now state the guard; the story is here.
   throw at all.
 - **`refName` searches the library, not the sidebar.** Imports live in the
   importer's pack, so a sidebar-only lookup rendered every relation as a raw id.
+
+### Imported modifiers apply (2026-11-04)
+
+Supersedes "Rejected: applying the imported Armor Class rows" (2026-09-22).
+**New evidence:** the owner ruled on 2026-09-30 that imported modifiers apply
+automatically, with no setting, and on 2026-11-04 answered the design's open
+questions; the 2026-09-22 entry rejected the change only because that design
+did not exist. Field reports T-0375, T-0162 and T-0169 asked for it.
+
+**Ruled.**
+
+- A character's standing modifier rows apply through the equipment loadout
+  effect; gated rows apply while their gate is met (`lightlyEquipped`,
+  `activeStyle`, `status`). Monsters are not touched (owner: "Characters
+  only").
+- Rows the vocabulary scan wrote, with no recipe behind them, apply too and
+  are marked "unverified" on every surface (owner: "Apply, mark unverified,
+  and start closing that backlog").
+- Copies of one definition count once, at rank; abilities that share a
+  capability, and `notStacksWith` pairs, give only the larger; everything else
+  adds (owner: "Add unless paired").
+- An ability's own enabled Active Effect on the same field stands the row
+  aside, so a Judge's hand-made effect never doubles it.
+
+**Rejected:** a setting to turn application off (the 2026-09-30 ruling);
+applying to monsters; keeping the two hard-coded readings (`swashbuckling`
+presence and the initiative router) beside the general path, which applied
+the same bonus twice once the recipes landed.
+
+*Cost:* every character's loadout effect gains changes and a parts ledger;
+existing copies keep the scan's rows until Update Abilities, and their
+conditions read as situational until then.
+
+### A row's condition comes from the book or names its kind (2026-11-04)
+
+The owner ruled "Fix this release" on the register's author-written condition
+phrases: 105 strings of more than a word in the shipped cookbook (powers 42,
+proficiencies 30, skills 33) stated or paraphrased when a row applies, which
+`.claude/rules/ip-doctrine.md` makes the book's expression.
+
+**Ruled**, in order of preference, for each phrase:
+
+1. **Structure** where a field already says it: `appliesToRoll` on the thief
+   skills' hasty and methodical rows, `appliesTo: "ally"` on Boon Companion's
+   re-rolls, the Fate Point resource that already gates Lucky, the damage
+   target of Strength of Faith's substitution.
+2. **The page's words at import**, read by a `conditionFrom` locator beside the
+   row's figures (`docs/importer/MODEL.md`, "Conditions").
+3. **A neutral label** naming the kind of condition, with the entry's page
+   reference after it, where the locator misses or no clause can be read
+   (`scripts/importer/condition-labels.mjs`).
+
+A word or two that names a scope ("while enraged", "wounded creature",
+"blinded", "running") is the module's own label and stays. No row changes
+disposition: a row that was situational is situational under its label or its
+page words, and a gated or consumed row keeps its gate or consumer.
+
+**Rejected:** a gate per phrase (most name a circumstance the module cannot see,
+such as who leads, who is kin, what was offered, so an evaluator would answer
+null and the row would read situational anyway); deleting the conditions
+(a row with no condition reads as standing and would start applying).
+
+*Cost:* a copy imported before this keeps the old phrase until Update
+Abilities; a seat whose book prints the clause differently sees the label.
+
+### A row's other prose takes the same routes (2026-11-04)
+
+The owner's "Fix this release" covers the class beside the conditions: the
+register's `note`, `restriction` and `consequence` strings, which ship in the
+cookbook and reach a world's items. A `restriction` is the face of a
+limitation row and a `consequence` the face of an outcome row on the
+Mechanics tab; a `note` is the face of a capability or companion row with no
+frequency, and elsewhere is visible in the row and roll editors; a class
+award's note shows on the class sheet. The `registers.json` notes reach no
+surface and ship all the same. The doctrine binds all of them.
+
+**Ruled**, for each string, in the order the entry above sets:
+
+1. **Structure** where a field says it: `appliesToRoll` names the method a
+   thief skill's row modifies, `vsKinds`, `tones`, `ifHas`, `refs` and
+   `notStacksWith` hold a scope or a stacking the note used to spell out, a
+   type node's `defenses` hold the immunities its note restated.
+2. **The page's words at import**: `restrictionFrom`, `consequenceFrom` and,
+   for a capability's face, `noteFrom` (`docs/importer/MODEL.md`,
+   "Conditions"). All twenty locators read on the RR printing.
+3. **A neutral label** naming the kind, cited by the compiler: "a use limit",
+   "a retry limit", "a sense limit" for restrictions, "a mishap", "a fall" for
+   consequences; a word for a face ("followers", "spellcasting", "morale").
+
+A note that remarks on the module (which field holds what, what the module
+does not track, that the Judge applies an outcome) stays, rewritten where it
+also said what the rule says. One that only paraphrased the page is deleted.
+No row changes disposition and no row is added or removed, so a copy's recipe
+shape is unchanged.
+
+**The sheet shows what the rows hold**: the condition on capability, sense,
+reroll, companion and limitation rows, and a chip on a row scoped to one
+throw, naming it. A condition counts by its presence, not its text, in a
+held copy's recipe shape (`effects-origin.mjs`), so Repair does not stamp a
+copy "scan" for holding older words.
+
+**Rejected:** a note label list closed like the condition labels (a remark on
+the module is the module's own sentence, and a closed list would leave no way
+to say what a row's fields mean); a word list telling a remark from a
+paraphrase (no pattern decides it, and a gate that passes paraphrase reads as
+a verdict). The lint gates what a machine can decide: a figure in a note, and
+a TODO.
+
+*Cost:* a reviewer reads every note; a copy imported before this keeps the old
+strings until Update Abilities.

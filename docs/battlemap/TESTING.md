@@ -225,10 +225,9 @@ by hand.
     `settlement`, its clock pauses, and a notification names the switch. Change
     the select to Wilderness with the party still there: it follows. Set it
     back to "Leave to the party": a formation already in a mode keeps it.
-17. Formation face width on the calibrated scene: see
-    `docs/formation/TESTING.md` step 9 (frontage, heading swap, coarse-scale
-    floor). On a scene whose units are miles the party token sizes through the
-    conversion too — the face is feet and the square is not.
+17. The party token on the calibrated scene: see `docs/formation/TESTING.md`,
+    "The column and its lights" (steps 1, 8 and 9). It is one cell at every
+    scale in the `order` shape, and "Rescale tokens" leaves it alone.
 18. A marker's token — a place's, an organisation's, a domain's — keeps the
     size it was drawn: walked in `docs/domains/TESTING.md`, step 18.
 

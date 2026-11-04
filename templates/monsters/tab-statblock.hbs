@@ -3,7 +3,7 @@
       readings — movement, senses, the load bar, the defence pills and the
       spell slots — which carry no pin and make no roll. Context:
       statblock {intro, columns: [[group]]}; a group is {key, kind, name,
-      note, empty, rows | bar | pills, tab, tabLabel}. --}}
+      note, noteTip, empty, rows | bar | pills, tab, tabLabel}. --}}
 <div class="acks-extras-frame__stack">
   <div class="acks-extras-frame__intro">{{statblock.intro}}</div>
   <div class="acks-extras-frame__cols is-3">
@@ -13,7 +13,7 @@
       <div class="acks-extras-frame__group acks-extras-monster__group is-{{group.kind}}">
         <div class="acks-extras-frame__rule">
           <span class="acks-extras-frame__rule-title">{{group.name}}</span>
-          {{#if group.note}}<span class="acks-extras-frame__rule-note">{{group.note}}</span>{{/if}}
+          {{#if group.note}}<span class="acks-extras-frame__rule-note"{{#if group.noteTip}} data-tooltip-text="{{group.noteTip}}"{{/if}}>{{group.note}}</span>{{/if}}
           {{#if group.tab}}<button type="button" class="acks-extras-frame__chip" data-action="goTab" data-tab="{{group.tab}}">{{group.tabLabel}}</button>{{/if}}
         </div>
 
@@ -64,9 +64,9 @@
               <span class="acks-extras-frame__row-label">{{row.label}}</span>
               {{#if row.line}}<span class="acks-extras-frame__row-line"{{#if row.lineTip}} data-tooltip-text="{{row.lineTip}}"{{/if}}>{{row.line}}</span>{{/if}}
             </span>
-            {{#if row.damage}}<span class="acksm-dmg-tag">{{row.damage}}</span>{{/if}}
+            {{#if row.damage}}<span class="acksm-dmg-tag"{{#if row.damageTip}} data-tooltip-text="{{row.damageTip}}"{{/if}}>{{row.damage}}</span>{{/if}}
             {{#if row.counter}}<span class="acks-extras-frame__row-line acks-nums">{{row.counter.value}}/{{row.counter.max}}</span>{{/if}}
-            <span class="acks-extras-frame__row-value acks-nums">{{row.value}}</span>
+            <span class="acks-extras-frame__row-value acks-nums"{{#if row.valueTip}} data-tooltip-text="{{row.valueTip}}"{{/if}}>{{row.value}}</span>
             {{#if row.post}}
             <span class="acks-extras-frame__mini is-post" data-tooltip="{{localize 'ACKS-LIB.frame.post'}}"><i class="fa-solid fa-eye" inert></i><span class="acks-sr-only">{{localize "ACKS-LIB.frame.post"}}</span></span>
             {{else if row.rollable}}

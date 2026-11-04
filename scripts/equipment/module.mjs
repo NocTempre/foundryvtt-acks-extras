@@ -42,11 +42,13 @@ Hooks.once("init", () => {
   // A garment declared on either half is declared on both, in the same write.
   registerClothingDeclaration();
   registerEquipmentRepairChecks();
-  // The non-proficient package's figures are imported; the import names
-  // these tables as missing until the Judge's books supply them. The ids are
-  // `attack-mods.mjs` NON_PROFICIENT_TABLES, written as literals because the
+  // The non-proficient package's, the dual weapon style's and the heavy
+  // helmet's figures are imported; the import names these tables as missing
+  // until the Judge's books supply them. The ids are `attack-mods.mjs`
+  // NON_PROFICIENT_TABLES, `effects.mjs` DUAL_STYLE_TABLE and
+  // `enclosing-helm.mjs` HELM_TABLE, written as literals because the
   // producers gate reads this call from source.
-  expectTables(RULEDATA_DOC, ["zeroLevelAttackThrow", "nonProficientUse"]);
+  expectTables(RULEDATA_DOC, ["zeroLevelAttackThrow", "nonProficientUse", "dualWeaponStyle", "heavyHelm"]);
 
   // The variation Item sub-type. Wrapped because a throw in `init` leaves the
   // rest of the hook dead, and everything above this line has to survive a
@@ -208,10 +210,12 @@ Hooks.on("deleteItem", onLoadoutItemChange);
  * rather than the actor's absolute level. */
 Hooks.on("updateActor", (actor, changes) => {
   if (!primaryResponder(actor)) return;
-  if (foundry.utils.hasProperty(changes, `flags.${MODULE_ID}`)) {
-    refreshLoadout(actor).catch((err) => console.error(`${MODULE_ID} | actor-flag loadout sync failed`, err));
+  // A level change moves every level-scaled typed modifier the loadout writes.
+  const levelled = foundry.utils.hasProperty(changes, "system.details.level");
+  if (levelled || foundry.utils.hasProperty(changes, `flags.${MODULE_ID}`)) {
+    refreshLoadout(actor).catch((err) => console.error(`${MODULE_ID} | actor loadout sync failed`, err));
   }
-  if (foundry.utils.hasProperty(changes, "system.details.level")) {
+  if (levelled) {
     advanceNamedOnLevelUp(actor).catch((err) => console.error(`${MODULE_ID} | named-item advancement failed`, err));
   }
 });

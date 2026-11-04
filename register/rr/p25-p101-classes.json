@@ -141,7 +141,10 @@
         "type": "modifier",
         "target": "henchmanMorale",
         "mode": "add",
-        "condition": "when he personally leads them",
+        "condition": "while leading",
+        "conditionFrom": {
+          "pattern": "morale\\s*score\\s*((?:whenever|when|while)\\b[^.]*)"
+        },
         "from": {
           "pattern": "gain\\s*a\\s*([+-]?\\d+)\\s*bonus\\s*to\\s*their\\s*morale\\s*score"
         }
@@ -181,6 +184,34 @@
     "meta": {
       "category": "classPower"
     },
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "surprise",
+        "mode": "add",
+        "from": {
+          "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*to\\s*avoid\\s*surprise"
+        }
+      },
+      {
+        "type": "modifier",
+        "target": "proficiencyThrow",
+        "forWhat": "Searching and Listening",
+        "mode": "add",
+        "condition": "situational",
+        "from": {
+          "pattern": "proficient\\s*in\\s*Searching\\s*or\\s*Listening,\\s*he\\s*gains\\s*a\\s*\\+\\s*(\\d+)"
+        }
+      },
+      {
+        "type": "throw",
+        "roll": "1d20",
+        "rollType": "above",
+        "from": {
+          "pattern": "succeeds\\s*on\\s*a\\s*proficiency\\s*throw\\s*of\\s*(\\d+)\\+"
+        }
+      }
+    ],
     "icon": "systems/acks/assets/icons/alertness.webp"
   },
   {
@@ -270,7 +301,10 @@
         "type": "modifier",
         "target": "henchmanMorale",
         "mode": "add",
-        "condition": "on a wilderness adventure he leads",
+        "condition": "for some followers",
+        "conditionFrom": {
+          "pattern": "(hirelings\\s*on\\s*[^.]*?)\\s*gain\\s*a"
+        },
         "from": {
           "pattern": "gain\\s*a\\s*([+-]?\\d+)\\s*bonus\\s*to\\s*their\\s*morale\\s*score"
         }
@@ -454,7 +488,10 @@
         "type": "modifier",
         "target": "henchmanMorale",
         "mode": "add",
-        "condition": "when he personally leads them",
+        "condition": "while leading",
+        "conditionFrom": {
+          "pattern": "morale\\s*score\\s*((?:whenever|when|while)\\b[^.]*)"
+        },
         "from": {
           "pattern": "gain\\s*a\\s*([+-]?\\d+)\\s*bonus\\s*to\\s*their\\s*morale\\s*score"
         }
@@ -529,7 +566,10 @@
         "type": "modifier",
         "target": "henchmanMorale",
         "mode": "add",
-        "condition": "while he witnesses and records their deeds",
+        "condition": "while present",
+        "conditionFrom": {
+          "pattern": "morale\\s*score\\s*((?:whenever|when|while)\\b[^.]*)"
+        },
         "from": {
           "pattern": "gain\\s*a\\s*([+-]?\\d+)\\s*bonus\\s*to\\s*their\\s*morale\\s*score"
         }
@@ -594,7 +634,11 @@
         "type": "modifier",
         "target": "henchmanMorale",
         "mode": "add",
-        "condition": "hirelings of his religion, when he leads them",
+        "condition": "for some followers",
+        "conditionFrom": {
+          "pattern": "(any\\s*[^.]*?)\\s*gain\\s*a\\s*[+-]?\\s*\\d+\\s*bonus\\s*to\\s*their\\s*morale\\s*score\\s*((?:whenever|when|while)\\b[^.]*)",
+          "groups": [1, 2]
+        },
         "from": {
           "pattern": "gain\\s*a\\s*([+-]?\\d+)\\s*bonus\\s*to\\s*their\\s*morale\\s*score"
         }
@@ -694,17 +738,23 @@
         "type": "modifier",
         "target": "marketClass",
         "mode": "add",
-        "condition": "in a known market",
+        "condition": "in some places",
+        "conditionFrom": {
+          "pattern": "(in\\s*a\\s*market\\s*[^,]*)"
+        },
         "from": {
           "pattern": "as\\s*if\\s*it\\s*were\\s*(\\w+)\\s*market\\s*class(?:es)?\\s*larger"
         },
-        "note": "The class option: the market is treated as that many classes larger. Read by henchmen's effectiveMarketClass and the venture's network options."
+        "note": "The class option: read by henchmen's effectiveMarketClass and the venture's network options."
       },
       {
         "type": "modifier",
         "target": "marketImpact",
         "mode": "add",
-        "condition": "in a known market",
+        "condition": "in some places",
+        "conditionFrom": {
+          "pattern": "(in\\s*a\\s*market\\s*[^,]*)"
+        },
         "from": {
           "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*to\\s*market\\s*impact"
         },
@@ -1678,7 +1728,7 @@
             ]
           },
           "starting": true,
-          "note": "The origin bounds which combat proficiencies are traditional; the row is the record."
+          "note": "The pick selects the class's training row; the table is the record."
         }
       ],
       "training": {
@@ -3850,7 +3900,10 @@
         "target": {
           "pattern": "search or listen[\\s\\S]{0,80}?proficiency throw of (\\d+)\\+"
         },
-        "condition": "using Adventuring to search or listen",
+        "condition": "by method",
+        "conditionFrom": {
+          "pattern": "(when\\s*using[^,]*)"
+        },
         "note": "Used in place of the usual Adventuring search/listen target, not added to it."
       }
     ],
@@ -3859,7 +3912,10 @@
         "type": "modifier",
         "target": "surprise",
         "mode": "add",
-        "condition": "in the wilderness",
+        "condition": "in some places",
+        "conditionFrom": {
+          "pattern": "surprise\\s*rolls\\s*(when\\s*[^.]*)"
+        },
         "from": {
           "pattern": "\\+(\\d+) bonus to surprise rolls when in the wilderness"
         }
@@ -3877,7 +3933,7 @@
         "from": {
           "pattern": "proficient in Searching,? they gain a \\+(\\d+) bonus"
         },
-        "note": "Replaces the 14+ Adventuring throw for a character separately proficient in Searching."
+        "note": "mode replace: stands in place of the Adventuring throw's target where ifHas holds."
       },
       {
         "type": "modifies",
@@ -3892,7 +3948,7 @@
         "from": {
           "pattern": "proficient in Listening,? they gain a \\+(\\d+) bonus"
         },
-        "note": "Replaces the 14+ Adventuring throw for a character separately proficient in Listening. Distinct from the Searching value above - this is why the entry cannot be an alias of Alertness."
+        "note": "mode replace: stands in place of the Adventuring throw's target where ifHas holds. Its figure is read apart from the Searching row's, which is why the entry is not an alias of Alertness."
       }
     ],
     "assists": {
@@ -3945,7 +4001,7 @@
         "from": {
           "pattern": "hire\\s*(\\w+)\\s*more\\s*henchm[ae]n"
         },
-        "note": "Henchmen allowed beyond the Charisma limit. Its aliases (Scion of Kings, Soul of the Dragon) read this passage and inherit these specs."
+        "note": "Read by henchmen's limit check. Its aliases (Scion of Kings, Soul of the Dragon) read this passage and inherit these specs."
       },
       {
         "type": "modifier",
@@ -5665,7 +5721,11 @@
         "type": "modifier",
         "target": "henchmanMorale",
         "mode": "add",
-        "condition": "chaotic servants, when he personally leads them",
+        "condition": "for some followers",
+        "conditionFrom": {
+          "pattern": "(any\\s*[^.]*?)\\s*gain\\s*a\\s*[+-]?\\s*\\d+\\s*bonus\\s*to\\s*their\\s*morale\\s*score\\s*((?:whenever|when|while)\\b[^.]*)",
+          "groups": [1, 2]
+        },
         "from": {
           "pattern": "gain\\s*a\\s*([+-]?\\d+)\\s*bonus\\s*to\\s*their\\s*morale\\s*score"
         }

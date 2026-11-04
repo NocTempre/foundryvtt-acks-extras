@@ -26,7 +26,7 @@
  * `flags.acks-extras.*` change stands aside, to avoid double-counting.
  */
 import { EFFECT_PREFIX, EFFECT_DOMAINS } from "./constants.mjs";
-import { slug, abilitySlug, ITEM_TYPE, ACTOR_TYPE, resolveLevelValue } from "../lib/vocab.mjs";
+import { slug, abilitySlug, ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
 
 const ABILITIES_FLAG_SCOPE = "acks-extras";
 
@@ -176,14 +176,12 @@ const PRESENCE_DOMAINS = Object.freeze({
   riding: EFFECT_DOMAINS.RIDING,
   running: EFFECT_DOMAINS.RUNNING,
   berserkergang: EFFECT_DOMAINS.BERSERKERGANG,
-  swashbuckling: EFFECT_DOMAINS.SWASHBUCKLING,
 });
 
-/** Presence contributes a flat number to these numeric domains. */
-const NUMERIC_DOMAINS = Object.freeze({
-  combatreflexes: { domain: EFFECT_DOMAINS.STYLE_INIT, value: 1 },
-  combatferocity: { domain: EFFECT_DOMAINS.MAX_CLEAVES, value: 1 },
-});
+// A numeric bonus an ability carries (initiative, Armor Class, surprise,
+// cleaves) is never keyed on its name here: it is a typed `modifier` spec the
+// import located on the page, applied by the loadout through
+// lib/typed-modifiers.mjs.
 
 /* ---------------------------------------------------------------------- */
 /*  The typed effect model                                                 */
@@ -211,32 +209,6 @@ function typedEffects(item) {
 }
 
 /**
- * A level-scaled value as a flat number for `actor` holding `item`: resolved
- * by the classes feature's `resolveLevelValue` when live (lib's, completed with
- * class progressions), else lib's, at the scales the abilities model keys on
- * (`scalesFor`). An unresolvable ladder contributes NOTHING rather than its
- * first rung: a bonus reported at the wrong level is worse than a bonus the
- * sheet says is missing.
- */
-function flatValue(actor, item, value) {
-  if (value == null) return 0;
-  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
-  const api = globalThis.acksExtras ?? {};
-  const resolve = api.classes?.resolveLevelValue ?? resolveLevelValue;
-  const scales = api.abilities?.scalesFor?.(actor, item) ?? {
-    level: Number(actor?.system?.details?.level ?? actor?.system?.level ?? 1) || 1,
-    rank: 1,
-  };
-  let n = null;
-  try {
-    n = resolve(value, scales.level, scales);
-  } catch {
-    return 0;
-  }
-  return typeof n === "number" && Number.isFinite(n) ? n : 0;
-}
-
-/**
  * Translate one ability's typed specs into domains.
  *
  * Deliberately narrow: only the specs this feature can act on are read, and an
@@ -261,21 +233,6 @@ function addTypedEffects(actor, item, { addNum, addStr, booleans }) {
         if (domain === EFFECT_DOMAINS.DAMAGE_ATTRIBUTE) addStr(domain, spec.attribute);
         else booleans.add(domain);
         claimed.add(domain);
-        break;
-      }
-      case "modifier": {
-        if (spec.target !== "initiative" || (spec.mode && spec.mode !== "add")) break;
-        const value = flatValue(actor, item, spec.value);
-        if (!value) break;
-        // A modifier the book gates on how heavily the character is equipped
-        // goes to the gated domain; one it states flatly is always on. The
-        // distinction is the presence of a condition, not what it says — the
-        // gate itself is applied where the loadout is known.
-        const domain = spec.condition ? EFFECT_DOMAINS.LIGHT_INIT : EFFECT_DOMAINS.STYLE_INIT;
-        addNum(domain, item.name, value);
-        // A gated bonus also stands down the flat table entry: the ability is
-        // the same one, stated more precisely.
-        claimed.add(domain).add(EFFECT_DOMAINS.STYLE_INIT);
         break;
       }
       default:
@@ -346,9 +303,6 @@ export function bridgeContributions(actor) {
 
     const presence = PRESENCE_DOMAINS[abilityKey];
     if (presence && !claimed.has(presence)) out.booleans.add(presence);
-
-    const numeric = NUMERIC_DOMAINS[abilityKey];
-    if (numeric && !claimed.has(numeric.domain)) addNum(numeric.domain, item.name, numeric.value);
 
     switch (abilityKey) {
       case "fightingstylespecialization": {

@@ -296,3 +296,246 @@ import's own result, and the generated creature.
   only: new Set(ids), confirm: false })` — an array throws.
 
 **Teardown.** `api.sweepTracked()`; quote it.
+
+## A family's roles
+
+Needs the MM PDF connected and the rulebook's tables imported (Manage Imports,
+Tables) before the family is, with spells and classes imported for the caster
+step. What a role cell writes is MODEL, "Family templates: the Role axis".
+
+**Fixtures.**
+
+- `monsters/family-roles`: the beastman family template, as an import makes
+  it. The import is the subject, so a walk that changed the importer retires
+  it first (`api.retire("monsters/family-roles", "Actor")`), imports the
+  family (the entry picker, Monsters, the family row), and marks what the
+  import returned (`api.mark(uuid, "monsters/family-roles")`). A walk that
+  changed only the generator reuses it.
+- Each generated creature: `api.track` its uuid, read off `createActor` as in
+  the section above.
+
+**Steps.**
+
+1. Open the template's sheet and read the Role axis. *Observable:* its
+   options are Standard and the roles the family's prose prints, in the
+   order MODEL gives; its roll line reads the default, Standard, not a die.
+2. Pin a kind, then open the Role select. *Observable:* a role the prose
+   prints for no other kind but this one is enabled; one printed only for
+   another kind is disabled and its label says it is not printed for this
+   choice. A native select's open list sends no pointer events to its
+   options in most browsers, so the label is the copy to read; the
+   option's `data-tooltip` is checked by reading the attribute.
+3. With the kind pinned and Role left blank, generate five times.
+   *Observable:* each actor is the Standard member, and the generation log
+   shows `role` sourced `default`, never `rolled`.
+4. Pin a leader role that prints its own HD and generate. *Observable:*
+   `system.hp.hd` and `flags.acks-extras.extras.hd` hold the leader's HD, the
+   AC and hit points are the leader's, `attack.throw` is the member's moved by
+   what the world's ladder (`game.modules.get("acks-extras").api` registry,
+   `monsters` / `attackThrowByHd`) adds between the two rows, and the Saves
+   rail reads the save level MODEL derives.
+4a. Hover an attack row's throw and a save row's figure on that actor.
+   *Observable:* the throw's tooltip names the member's throw and HD, the
+   rows moved, the leader's HD and the ladder's citation; the save's names
+   the member's save level and HD and the leader's. Type another throw on
+   Classification and hover again: the throw's tooltip is gone.
+4b. The ladder not imported (a world without the rulebook's tables, or
+   unregister the `monsters` world layer in the page and repair the
+   template). Generate the same leader. *Observable:* `attack.throw` is the
+   member's, and the throw's tooltip says the ladder is not imported. Restore
+   the layer (re-import the rulebook tables) before the next step.
+4c. In the Ruledata Browser, override one row of `attackThrowByHd`, repair
+   the template, and generate. *Observable:* the leader's throw follows the
+   overridden row, and its tooltip names the Judge's own ladder in place of a
+   page. Revert the override.
+5. On the same actor, read the Statblock's attack rows. *Observable:* a role
+   printing a damage bonus shows it after each attack's formula, and the tag's
+   tooltip names the formula and the modifier apart. Roll one weapon attack's
+   damage from the sheet; the card's formula carries the same modifier once.
+   A role printing none shows the bare formula.
+6. Read the leader's XP. *Observable:* where the family prints an XP figure
+   per role, `system.details.xp` is that role's; where it prints none, the
+   member's.
+7. Pin a caster role and generate twice. *Observable:* `extras.spellcasting`
+   holds the class word and an integer level, the log carries a
+   `casterLevel` line with its roll, the slot maxes are that class's row at
+   that level, and the two levels can differ.
+8. Pin a non-fighting dependant and generate. *Observable:* no attacks, the
+   damage total zero, `extras.noncombatant` true.
+9. Join as the Player seat, granted Observer on the template, and open it.
+   *Observable:* the Role select and its disabled options render, *Generate*
+   is absent, and pinning the kind re-marks the Role options with nothing
+   written: pins live on the open sheet, never on the actor, and the select
+   carries no `name` for the form to submit.
+10. Repair the template in place (Manage Imports, Repair in place on the
+    family row). *Observable:* the same id, the Role axis and its cells as an
+    import writes them, and any other book's merged variants still present.
+10a. In a world without the rulebook's or the compendium's tables, with a
+    boot recorder attached before load (the capture driver misses load-time
+    errors), reload. *Observable:* no console error at `init`, `setup` or
+    `ready`, and the import's missing-tables list names `monsters` with
+    `attackThrowByHd`, `leaderLadder` and `leaderSteps`.
+11. **Derived leaders.** Connect the AXIOMS Compendium PDF (Books tab; its PDF has
+    no title, so the page count alone fingerprints it), import its tables (`monsters` /
+    `leaderLadder` and `leaderSteps` appear in the Ruledata Browser with an
+    AXIOMS citation), then re-import the family. *Observable:* the sheet
+    shows a **Leader figures** axis before Role, its roll line reading the
+    default, As printed.
+12. Pin a kind whose page prints leaders, pin **AXIOMS procedure** and a
+    chieftain, and generate. *Observable:* `system.hp.hd` and
+    `extras.hd` hold the derived rating, AC and `system.damage.mod` the
+    member's plus the role's additions, the hit points are a roll of those
+    dice (the log's `hitPoints` line, `source: "rolled"`), and the hit-point
+    note's tooltip names the member's rating, armour and damage, the
+    additions, the rungs climbed, whether the bonus carried or doubled, and
+    the AXIOMS citation. Pin **As printed** instead: the printed leader's
+    figures, and the note's tooltip names the MM page.
+12a. On the step 12 actors, hover the rail's armour class cell.
+    *Observable:* the AXIOMS one names the member's armour class, the rank's
+    addition and the AXIOMS citation; the As printed one names the MM page.
+    Type another armour class on Classification and hover again: the cell
+    reads its plain label.
+13. Pin a kind whose page prints no leaders. *Observable:* the Leader
+    figures axis is gone from the sheet; champion, sub-chieftain and
+    chieftain are enabled on Role (derived only), and shaman, drudge and
+    whelp are disabled unless the page prints them. Generate a chieftain:
+    its hit-point note and armour class tooltips name the AXIOMS procedure,
+    never the printed page. Clear the kind pin (Roll): the Leader figures
+    axis is back, reading As printed.
+14. In the Ruledata Browser, override `leaderSteps` with one figure blanked
+    and re-import the family. *Observable:* no derived cell and no AXIOMS
+    option; the printed leaders stand. Revert the override.
+15. Join as the Player seat, granted Observer on the template. *Observable:*
+    the Leader figures select renders and pins without writing, as in step 9.
+
+**Drive mechanics.**
+
+- **A pin is the select's `change`, and it re-renders the sheet.** The
+  availability marks are recomputed against the other axes' pins on that
+  render, so read the Role select again after pinning the kind.
+- **A family imported before this release has no Role axis to repair from.**
+  A repair or a re-import writes it; reading the old template's cells as a
+  regression is reading pre-upgrade data.
+
+**Teardown.** `api.sweepTracked()` for the generated creatures; quote it. The
+template stays.
+
+## Leaders outside a family
+
+A creature that is no family's member gets a template of its own for its
+leaders (MODEL, "Leaders outside a family"). Needs the MM connected and the
+rulebook's tables imported; the AXIOMS steps also need the compendium
+connected and its tables imported.
+
+**Fixtures.**
+
+- `monsters/standalone-leaders`: the leader template of an MM creature
+  outside the beastman family whose prose prints a leader sentence (the
+  shelf's beastman extract, §3.9, lists them). The import is the subject, so a
+  walk that changed the importer retires it and the creature
+  (`api.retire("monsters/standalone-leaders", "Actor")`,
+  `api.retire("monsters/standalone-creature", "Actor")`), imports the
+  creature from the entry picker, then finds the template by its cookbook id,
+  the creature's with `.leaders` after it, and marks both
+  (`api.mark(uuid, …)`).
+- `monsters/standalone-derived`: the same for a beastman-type creature whose
+  page prints no leader (§3.9 names two), imported with the AXIOMS tables in.
+- Each generated creature: `api.track` its uuid.
+
+**Steps.**
+
+1. After the import, read the Monsters folder. *Observable:* the creature and,
+   beside it, a template named for it with "(leaders)"; the creature's own
+   `flags.acks-extras.cookbook.id` is the entry's, the template's is that id
+   with `.leaders`, and its `leadersOf` is the entry's id. Import a creature
+   whose page names no leader: no template appears.
+2. Open the template. *Observable:* no Variant select (the creature is the
+   only one), a Role select whose blank choice reads Standard, and the roles
+   the prose prints.
+3. Generate with nothing pinned. *Observable:* the creature itself, named as
+   the direct import, the log's `role` sourced `default`.
+4. Pin the printed leader and generate. *Observable:* the leader's printed
+   armour class and hit points, its rating on `hp.hd` and `extras.hd`, the
+   throw and saves moved as in "A family's roles" step 4, and the rail's
+   armour class tooltip naming the MM page.
+5. On `monsters/standalone-derived`: *Observable:* champion, sub-chieftain and
+   chieftain on Role, no Leader figures axis; a generated chieftain's
+   tooltips name the AXIOMS procedure and its hit points are rolled.
+6. Repair the creature in place (Manage Imports, Repair in place). *Observable:*
+   the template keeps its id and its cells match a fresh import's. Delete
+   the template and repair again: it comes back.
+7. Import the beastman family, then read the standalone template.
+   *Observable:* the family is a template of its own; the standalone one
+   gained no variant and kept its name.
+8. Join as the Player seat, granted Observer on the template. *Observable:*
+   the Role select renders and pins without writing, and *Generate* is
+   absent.
+
+**Teardown.** `api.sweepTracked()` for the generated creatures; quote it. The
+templates and creatures stay.
+
+## A beastman's kit
+
+The Kit axis and the armour class worked out at generation (MODEL, "The Kit
+axis"). Needs the MM and the rulebook connected with the rulebook's tables
+imported (`monsters` / `beastmanTroops`), and for the unarmoured and
+die-conversion steps the AXIOMS Compendium connected with its tables imported
+(`beastmenByType`, `damageDieConversion`).
+
+**Fixtures.**
+
+- `monsters/family-roles` (above), repaired in place after the tables are
+  imported, since a template built before them has no Kit axis. A walk that
+  changed the kit builder repairs it first; the repair is not the subject, so
+  the fixture is kept.
+- `monsters/standalone-derived` (above), repaired the same way, for a kind
+  outside the family that the troop rows print.
+- Each generated creature: `api.track` its uuid.
+
+**Steps.**
+
+1. Open the Ruledata Browser on `monsters`. *Observable:* `beastmanTroops`
+   with one row per infantry and missile troop type, each holding an armour
+   class, move, Hit Dice, damage cell, morale and the kit's words, citing the
+   rulebook's page; no mounted rows. `beastmenByType` holds a natural armour
+   class per kind, and `damageDieConversion` a header row and one row per
+   die, both citing the AXIOMS page. Check three troop rows against the
+   printed page.
+2. Open the family template. *Observable:* a **Kit** axis after Role, its roll
+   line reading the default, Stat block.
+3. Pin a kind and Standard, open the Kit select. *Observable:* the troop
+   types the page prints for that kind and Unarmoured are enabled; a troop
+   type printed only for another kind is disabled. Pin a dependant role: the
+   Kit select offers Stat block alone.
+4. Pin a troop type and generate. *Observable:* armour class, the damage
+   modifier (`system.damage.mod`, melee and missile), `system.movement.base`
+   and morale are the row's; the creature carries no item the stat block
+   did not; its notes (Full Monster Sheet, Description) and its biography end
+   with the kit's words and the rulebook's citation. Hover the rail's armour
+   class, the morale row and a weapon's damage tag: each names the troop row
+   and its page.
+5. Pin a printed leader with the same troop type and generate. *Observable:*
+   the armour class is the row's plus the leader's printed armour class over
+   the member's (read both off the template's cells), and the rail's tooltip
+   names the four figures and the row's page; the damage modifier is the
+   leader's own; move and morale are the row's. Repeat with Leader figures on
+   AXIOMS procedure: the leader's derived armour class is the one moved.
+6. Pin Unarmoured on Standard and generate. *Observable:* the armour class is
+   the kind's natural figure from `beastmenByType`, the tooltip names the
+   AXIOMS page; the damage modifier and move are the stat block's.
+7. On a generated creature with a nonzero damage modifier, give it a weapon
+   whose die the conversion table prints (drag one from the items
+   compendium) and hover its damage tag. *Observable:* the tooltip ends with
+   the die the table prints for that die and modifier and the AXIOMS page.
+8. In the Ruledata Browser, override `beastmenByType` with the kind's figure
+   blanked and generate the step 6 creature again. *Observable:* the stat
+   block's armour class, and a tooltip that names no kit part. Revert the
+   override.
+9. Type another armour class on a step 4 creature and hover again.
+   *Observable:* the rail's cell reads its plain label.
+10. Join as the Player seat, granted Observer on a step 4 creature.
+    *Observable:* the armour class, morale and damage tooltips render as on
+    the GM seat, and the notes show the kit line.
+
+**Teardown.** `api.sweepTracked()` for the generated creatures; quote it. The
+templates stay.

@@ -10,7 +10,7 @@ import { STYLE } from "./config.mjs";
 import { classifyWeapon, handCost, inferStyle, isHelmet, isShield } from "./profiles.mjs";
 import { collectStringFlags, sumEffectModifiers, hasEffectFlag } from "./effects.mjs";
 import { EFFECT_DOMAINS } from "./constants.mjs";
-import { weaponProficiency, isWeaponProficient, armorMax, isArmorProficient, thiefSkillsGated, swashbucklingAC, lightInit, enforcementActive } from "./proficiency.mjs";
+import { weaponProficiency, isWeaponProficient, armorMax, isArmorProficient, thiefSkillsGated, enforcementActive } from "./proficiency.mjs";
 import { occupiesHand } from "./overlays/shield-variants.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
 import { bearerLights, lightTypeOf } from "../lib/light.mjs";
@@ -430,8 +430,6 @@ export function getLoadout(actor, opts = {}) {
     shieldStyled,
     nonProficientUse,
     thiefSkillsGated: thiefGated,
-    condAC: swashbucklingAC(actor, { armor }),
-    condInit: lightInit(actor, { armor }),
     violations,
     legal: violations.every((v) => v.advisory),
   };
@@ -464,8 +462,6 @@ function canUseShieldStyle(actor, trained = trainedStyles(actor)) {
  * @property {Set<string>} specStyles
  * @property {boolean} styleProficient
  * @property {boolean} shieldStyled the in-hand shield is backed by the style, so its AC counts
- * @property {number} condAC AC that applies only while lightly equipped
- * @property {number} condInit initiative that applies only while lightly equipped
  * @property {{type,items,advisory?,detail?}[]} violations
  * @property {boolean} legal
  */

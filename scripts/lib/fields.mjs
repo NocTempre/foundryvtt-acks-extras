@@ -333,6 +333,20 @@ export function effectField() {
     // companion: a creature the ability confers. See docs/lib/API.md,
     // "Companions".
     actorUuid: str(),
+    // Gate: the structured form of WHEN a modifier stands, decided against the
+    // character's state by the evaluator `lib/typed-modifiers.mjs`
+    // `registerGate` holds for `kind` (equipment's `lightlyEquipped`,
+    // `activeStyle` and `specializedStyle`, lib's `status`). The arguments are read off the
+    // ability's own page by the import; one it did not read leaves the gate
+    // undecided, and the modifier is listed rather than applied. See
+    // docs/lib/API.md, "Typed modifiers".
+    gate: new SchemaField({
+      kind: str(),
+      armourMax: str(), // an armour rung: unarmored, veryLight, light, medium, heavy
+      loadMax: num(), // in stone
+      style: str(), // a fighting-style key
+      status: str(), // a status id
+    }),
     // shared
     condition: str(), // free-text situational qualifier (when no structured form fits)
     note: str(),

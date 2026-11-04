@@ -5,7 +5,7 @@
  * template-logic.mjs holds the pure choosing and merging.
  */
 import { MODULE_ID, LANG_PREFIX, TEMPLATE_HOOKS } from "./constants.mjs";
-import { chooseAxes, mergePatch, resolveActor, rollMenu } from "./template-logic.mjs";
+import { chooseAxes, mergePatch, resolveActor, rollDice, rollMenu } from "./template-logic.mjs";
 import { hitDiceOrLevel } from "./actor-read.mjs";
 import { actorFolder } from "./util.mjs";
 
@@ -91,6 +91,28 @@ export async function generateFromTemplate(template, { pins = {}, base = null } 
       : {}),
     ...(resolved.token ?? {}),
   };
+  // A caster whose level the page prints as a die (a family's shaman) is
+  // rolled here, before the repertoire listener reads the level; the roll is
+  // logged beside the axis choices it was made with.
+  const casting = resolved.flags?.[MODULE_ID]?.extras?.spellcasting;
+  if (casting?.levelDie && !Number.isInteger(casting.level)) {
+    const level = rollDice(casting.levelDie);
+    if (level != null) {
+      casting.level = level;
+      log.push({ axis: "casterLevel", option: String(level), source: "rolled", roll: level, die: casting.levelDie });
+    }
+  }
+
+  // A cell that gives a rating and no hit points (a leader the procedure
+  // built) has them rolled from the rating, logged like the caster's level.
+  if (resolved.rollHp && system.hp?.hd) {
+    const hp = rollDice(system.hp.hd);
+    if (hp != null) {
+      system.hp = { ...system.hp, value: hp, max: hp };
+      log.push({ axis: "hitPoints", option: String(hp), source: "rolled", roll: hp, die: system.hp.hd });
+    }
+  }
+
   // What a generated creature carries beyond its patches is a listener's
   // to add before the write — a repertoire drawn onto its slot block.
   Hooks.callAll(TEMPLATE_HOOKS.RESOLVED, { resolved, template, type, choices });

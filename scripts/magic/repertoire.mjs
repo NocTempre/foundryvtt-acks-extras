@@ -188,18 +188,25 @@ export function spellsByName() {
  * Fill a generated creature's repertoire before it is written: when the
  * resolved payload enables the system's slot block, carries no spell yet,
  * and its spellcasting fields name what it casts as, the slots are drawn
- * from the imported spells and the copies pushed onto its items. Returns
- * how many were drawn.
+ * from the imported spells and the copies pushed onto its items. A payload
+ * with no slot block whose fields name a class document and a level takes
+ * that class's slots at that level first (a family's shaman, whose level is
+ * rolled at generation). Returns how many were drawn.
  */
 export function fillGeneratedRepertoire(resolved) {
+  const casting = resolved?.flags?.[MODULE_ID]?.extras?.spellcasting ?? {};
+  const level = Number.isInteger(casting.level) ? casting.level : null;
+  if (!resolved?.system?.spells?.enabled && casting.class && level != null) {
+    const classSlots = slotsOfClass(classNamed(casting.class), level);
+    // In place: the generator writes the system object it already holds.
+    if (classSlots) Object.assign((resolved.system ??= {}), coreSlotsPatch(classSlots));
+  }
   const spells = resolved?.system?.spells;
   const slots = spells?.enabled ? slotsOfSystem(spells) : null;
   if (!slots) return 0;
   resolved.items ??= [];
   if (resolved.items.some((i) => i?.type === ITEM_TYPE.spell)) return 0;
-  const casting = resolved.flags?.[MODULE_ID]?.extras?.spellcasting ?? {};
   if (!casting.class) return 0;
-  const level = Number.isInteger(casting.level) ? casting.level : null;
   const drawn = repertoireFor(casting.class, slots, { level });
   for (const doc of drawn) resolved.items.push(spellPayload(doc));
   return drawn.length;

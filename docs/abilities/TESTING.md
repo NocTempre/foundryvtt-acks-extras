@@ -205,6 +205,99 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    automatic rung is a stored roll:
    `flags.acks-extras.extras.rolls = [{key: "primary", formula: "1d20", rollType: "above", scale: "level", target: {kind: "breakpoints", breakpoints: [{atLevel: 1, value: null, outcome: "auto", text: "Auto"}]}}]`.
 
+## Typed modifiers apply
+
+Not yet walked live. The mechanics are `docs/lib/API.md`, "Typed modifiers".
+
+**Fixtures** (every figure invented; each an `ability` item on the one
+character `abilities/typed-character`, a level-3 `character` actor):
+
+- `abilities/typed-standing` — `extras.effects`: a flat `ac` modifier and a
+  flat `surprise` modifier, `effectsFrom: "recipe"`.
+- `abilities/typed-gated` — a flat `initiative` modifier with
+  `gate: {kind: "lightlyEquipped", armourMax: "light", loadMax: 6}`; give the
+  character a heavy armour item, unequipped.
+- `abilities/typed-ladder` — an `ac` modifier whose value is
+  `{kind: "breakpoints", breakpoints: [{atLevel: 1, value: 1}, {atLevel: 4, value: 2}]}`.
+- `abilities/typed-pair` — two abilities, each a flat `initiative` modifier
+  (1 and 2), the first naming the second in `notStacksWith`.
+- `abilities/typed-handAE` — a flat `ac` modifier, plus an Active Effect on
+  the item writing `system.ac.mod` Add.
+- `abilities/typed-situational` — a flat `save` modifier with `condition:
+  "situational"`, and a second ability, `abilities/typed-scan`, a flat `save`
+  modifier with `effectsFrom: "scan"`.
+
+**Steps → observable:**
+
+1. Open the character's Stats tab and hover Initiative, Avoid Surprise and the
+   Saving throw modifier → each tooltip names every applied ability with its
+   figure; the scan's save part reads "(unverified)"; the situational one is
+   under "not applied" with its reason. The save row shows the figure in
+   force beside its input.
+2. Roll surprise from core's Surprise Matrix → the card's avoid-surprise
+   figure carries the standing part.
+3. Equip the heavy armour → the gated part leaves the Initiative tooltip and
+   is listed "its gate is not met"; unequip → it returns.
+4. Set the level to 4 → the ladder's AC part moves to the second rung (the
+   loadout rebuilds on a level change).
+5. The pair → only the larger initiative part is applied; the smaller is
+   listed "a larger one of its kind applies".
+6. The hand-made effect → AC rises by the Active Effect alone; the typed part
+   is listed as standing aside. Disable that effect → the typed part applies.
+7. Delete `abilities/typed-standing` → its parts leave the tooltips and AC
+   (the DELETE path); rebuild the fixture by its marker afterwards.
+8. Open each fixture's Mechanics tab → every modifier row carries its
+   disposition chip; `abilities/typed-scan` also carries "unverified".
+   On `abilities/typed-situational`, press **Start** → an Active Effect
+   appears on the copy, disabled, named as situational, and the row reads
+   "effect off"; enable it → the save tooltip names it and the row is listed
+   as standing aside. On `abilities/typed-ladder`, Start, then change the
+   level → the row reads "effect stale"; **Refresh** → the effect's value is
+   the new rung and its enabled state is unchanged. A Player seat that does
+   not own the character sees no Start.
+9. Join as a Player seat that owns the character → the same figures and
+   tooltips. Edit an unrelated field on core's sheet → the stored Avoid
+   Surprise does not change.
+10. Repair (Manage Imports → Repair): on a world holding an imported ability
+    with no `effectsFrom`, `abilities.effectsOrigin` lists it with its origin
+    and the fix writes the stamp.
+11. Conditions read off the page: with the rulebook imported, give the
+    character the library's Lockpicking skill and a power whose row carries a
+    page condition (any row whose cookbook spec has `conditionFrom`), then run
+    **Update Abilities** → on each Mechanics tab, the conditioned rows show
+    either words from the Judge's own page or a short label with its page
+    (*by method (RR p.N)*), never an empty condition; Lockpicking's hasty and
+    methodical rows read "at the roll", not situational. The Stats tab's
+    figures are the same before and after the update. A Player seat that owns
+    the character sees the same rows.
+12. A row's other prose read off the page: on the same character, with the
+    library's Lockpicking, Trapbreaking, Searching, Shadowy Senses, Sneaking
+    and Climbing skills and the Berserkergang proficiency (fixture
+    `abilities/clause-character`, a level-3 `character`; its abilities are the
+    library's, so they need no marker of their own), run **Update
+    Abilities** → each limitation row's text is a clause from the Judge's page,
+    or a cited label such as *a retry limit (RR p.N)*, followed by its
+    condition; each outcome row reads *natural …: * then a clause or *a mishap
+    (RR p.N)*; Sneaking's two capability rows and Berserkergang's show a
+    clause, with the condition after it. Lockpicking's, Trapbreaking's and
+    Searching's scoped rows carry a chip naming the throw (*hastily only*,
+    *methodically only*, as the Rolls tab labels them) whose tooltip says the
+    row belongs to that throw alone. No row reads empty, and no row holds a
+    sentence of the module's in place of the page's.
+13. Stats tab provenance: with the equipment tables imported, wear an
+    enclosing helmet → the Avoid Surprise tooltip names *an enclosing helmet*
+    with the page the import read (*from the imported table (RR p.N)*). Set
+    the helmet's surprise figure in the Ruledata Browser → the part reads *as
+    the Judge set it*. Clear the override and remove the equipment import →
+    the part is not written and the tooltip does not name it. The dual
+    style's part carries its table the same way, but it writes the melee
+    attack modifier, which no Stats row shows; check it on the loadout
+    effect's `loadoutParts` flag (`table: "dualWeaponStyle"`).
+
+This walk is also the Stats tab's first live pass.
+
+**Teardown:** keep the fixtures; a step that needs a shape asserts it first.
+
 ## Teardown
 
 Delete the ability item and the character. Confirm no `ability` items named

@@ -349,8 +349,8 @@ check("no pages, no repertoire", classRepertoireFor(null, "Shaman").length === 0
   check("the cast-as word and the caster level ride on the option's flags",
     cast.flags["acks-extras"]?.extras?.spellcasting?.class === "Mage" && cast.flags["acks-extras"].extras.spellcasting.level === 4);
   const mute = templateOption(ax, { key: "young", label: "Young" }, { hitDice: "4", spells: "- - - - -" }, { ...opts, spellSource: "mage" });
-  check("a row printing no slots neither enables the block nor flags a caster", !mute.merge.spells?.enabled && Object.keys(mute.flags).length === 0);
+  check("a row printing no slots neither enables the block nor flags a caster", !mute.merge.spells?.enabled && !mute.flags["acks-extras"]?.extras?.spellcasting);
   const noWord = templateOption(ax, { key: "adult", label: "Adult" }, { hitDice: "8", spells: "1 - - - -" }, opts);
-  check("slots without a cast-as word keep the block and flag nothing", noWord.merge.spells?.enabled === true && Object.keys(noWord.flags).length === 0);
+  check("slots without a cast-as word keep the block and flag nothing", noWord.merge.spells?.enabled === true && !noWord.flags["acks-extras"]?.extras?.spellcasting);
 }
 console.log(`test-starting-equipment: all ${pass} checks passed`);

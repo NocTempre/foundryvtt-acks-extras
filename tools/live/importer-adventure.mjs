@@ -321,10 +321,10 @@ const P = {
     return { name: game.items.get(id)?.name ?? null };
   },
   booksWindow: async ({ book }) => {
-    acksExtras.importer.gettingStarted();
+    acksExtras.importer.openImportManager({ tab: "books" });
     let row = null;
     for (let n = 0; n < 80; n++) {
-      row = document.querySelector(`.acks-extras-importer-books [data-adventure="${book}"]`);
+      row = document.querySelector(`.acks-extras-importer-manager .acks-extras-importer-books [data-adventure="${book}"]`);
       if (row) break;
       await new Promise((r) => setTimeout(r, 250));
     }
@@ -566,7 +566,7 @@ try {
   section("8. a cold library");
   console.log("NOTE  8: walked by importer-ax1 (3b, 3c), whose presses meet an emptied library; the refusal of a shelf that never loads is pinned offline (test-book-adventure)");
 
-  section("10. the Books window");
+  section("10. the Books tab of Manage Imports");
   const bw = await run(gm, P.booksWindow, { book: BOOK });
   check("10: the book's row reads its census, with no per-map line", bw.row && bw.census && !bw.legacyLine, bw);
   note("closed (gm)", await run(gm, P.closeAll));

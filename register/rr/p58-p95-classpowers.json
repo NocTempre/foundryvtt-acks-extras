@@ -25,35 +25,56 @@
         "type": "modifier",
         "target": "initiative",
         "mode": "add",
-        "condition": "light, very light, or no armor; 5 stones or less",
-        "from": {
-          "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*to\\s*initiative"
-        }
+        "gate": {
+          "kind": "lightlyEquipped",
+          "armourMax": "light"
+        },
+        "from": [
+          {
+            "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*to\\s*initiative"
+          },
+          {
+            "into": "gate.loadMax",
+            "pattern": "carrying\\s*(\\d+)\\s*stones?\\s*or\\s*less"
+          }
+        ]
       },
       {
         "type": "modifier",
         "target": "ac",
         "mode": "add",
-        "condition": "light, very light, or no armor; 5 stones or less",
+        "gate": {
+          "kind": "lightlyEquipped",
+          "armourMax": "light"
+        },
         "stacksWith": [
           "def.prof.swashbuckling"
         ],
-        "from": {
-          "on": "level",
-          "pairs": true,
-          "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*to\\s*Armor\\s*Class[\\s\\S]{0,40}?At\\s*(\\d+)\\w*\\s*level[\\s\\S]{0,40}?to\\s*\\+\\s*(\\d+)[\\s\\S]{0,60}?at\\s*(\\d+)\\w*\\s*level[\\s\\S]{0,60}?to\\s*\\+\\s*(\\d+)"
-        }
+        "from": [
+          {
+            "on": "level",
+            "pairs": true,
+            "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*to\\s*Armor\\s*Class[\\s\\S]{0,40}?At\\s*(\\d+)\\w*\\s*level[\\s\\S]{0,40}?to\\s*\\+\\s*(\\d+)[\\s\\S]{0,60}?at\\s*(\\d+)\\w*\\s*level[\\s\\S]{0,60}?to\\s*\\+\\s*(\\d+)"
+          },
+          {
+            "into": "gate.loadMax",
+            "pattern": "carrying\\s*(\\d+)\\s*stones?\\s*or\\s*less"
+          }
+        ]
       },
       {
         "type": "modifies",
         "ref": "def.prof.swashbuckling",
         "target": "ac",
         "mode": "set",
-        "condition": "while wearing any armor",
+        "condition": "in some armour",
+        "conditionFrom": {
+          "pattern": "capped\\s*at\\s*\\+\\s*\\d+\\s*(unless[^.]*)"
+        },
         "from": {
           "pattern": "capped\\s*at\\s*\\+\\s*(\\d+)"
         },
-        "note": "The two stack, but the page caps what Swashbuckling contributes unless the bladedancer is unarmored."
+        "note": "mode set: fixes Swashbuckling's part while the condition holds."
       }
     ],
     "audited": "2026-07-28"
@@ -84,8 +105,7 @@
         "type": "attributeSubstitution",
         "attribute": "wis",
         "insteadOf": "str",
-        "target": "damage",
-        "condition": "damage rolls STR would modify"
+        "target": "damage"
       }
     ],
     "audited": "2026-07-28"
@@ -121,11 +141,14 @@
         "attribute": "dex",
         "insteadOf": "str",
         "target": "attackThrow",
-        "condition": "melee, with weapons she is proficient in",
+        "condition": "with some weapons",
+        "conditionFrom": {
+          "pattern": "(when\\s*using\\s*weapons[^.]*)"
+        },
         "notStacksWith": [
           "def.prof.weaponFinesse"
         ],
-        "note": "Narrower than the proficiency of the same name, which covers every tiny, small or medium melee weapon; this covers the weapons the bladedancer is proficient with. The page states the two do not stack."
+        "note": "Not the proficiency of the same name: the condition holds its weapon scope, and notStacksWith keeps the two apart."
       }
     ],
     "audited": "2026-07-28"
@@ -159,13 +182,19 @@
         "from": {
           "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*to\\s*AC"
         },
-        "condition": "vs attacks and effects by evil creatures"
+        "condition": "against a creature kind",
+        "conditionFrom": {
+          "pattern": "saving\\s*throws\\s*(against\\s*[^.]*)"
+        }
       },
       {
         "type": "modifier",
         "target": "save",
         "mode": "add",
-        "condition": "vs attacks and effects by evil creatures",
+        "condition": "against a creature kind",
+        "conditionFrom": {
+          "pattern": "saving\\s*throws\\s*(against\\s*[^.]*)"
+        },
         "from": {
           "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*(?:to|on)\\s*saving\\s*throws"
         }
@@ -229,7 +258,7 @@
       {
         "type": "capability",
         "frequency": "perDay",
-        "note": "Counts as one rank of the Laying on Hands proficiency; taking that proficiency adds uses per day."
+        "note": "Counts as one rank of the Laying on Hands proficiency; the module does not combine their uses per day."
       }
     ],
     "audited": "2026-07-28"
@@ -290,7 +319,7 @@
       {
         "type": "capability",
         "frequency": "perDay",
-        "note": "Counts as one rank of the Laying on Hands proficiency; taking that proficiency adds uses per day."
+        "note": "Counts as one rank of the Laying on Hands proficiency; the module does not combine their uses per day."
       }
     ],
     "audited": "2026-07-28"
@@ -331,7 +360,7 @@
       {
         "type": "capability",
         "frequency": "perDay",
-        "note": "Counts as one rank of the Laying on Hands proficiency; taking that proficiency adds uses per day."
+        "note": "Counts as one rank of the Laying on Hands proficiency; the module does not combine their uses per day."
       }
     ],
     "audited": "2026-07-28"

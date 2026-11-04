@@ -26,6 +26,30 @@
   min-width: 7.5rem;
 }
 .acks-abilities-effect-text { flex: 1 1 auto; }
+/* What the sheet does with a modifier row, and whether a recipe checked it. */
+.acks-abilities-effect-chip {
+  flex: 0 0 auto;
+  font-family: var(--acks-font-ui);
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
+  border: var(--acks-rule-hair) solid var(--acks-rule-color-soft);
+  border-radius: var(--acks-radius);
+  padding: 0 var(--acks-sp-1);
+}
+.acks-abilities-effect-chip.is-unverified {
+  color: var(--acks-warning-ink);
+  border-color: var(--acks-warning);
+  background: var(--acks-warning-tint);
+}
+/* Start / Refresh a row's quick effect: a control sized to the chips beside it. */
+.acks-abilities-effect-quick {
+  flex: 0 0 auto;
+  width: auto;
+  line-height: normal;
+  font-family: var(--acks-font-ui);
+  font-size: var(--acks-fs-label);
+  padding: 0 var(--acks-sp-2);
+}
 
 /* Capability tokens: compact chips, not a bulleted list. */
 .acks-abilities-caps {

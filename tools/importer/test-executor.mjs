@@ -16,7 +16,12 @@
  * Usage: node tools/test-executor.mjs
  */
 import assert from "node:assert/strict";
-import { executeEntry, materializeEffects, materializeRolls } from "../../scripts/importer/executor.mjs";
+import fs from "node:fs";
+import { fileURLToPath } from "node:url";
+import { CLAUSE_FIELDS, effectScan, executeEntry, locateCondition, materializeEffects, materializeRolls } from "../../scripts/importer/executor.mjs";
+import {
+  CONDITION_LABELS, CONSEQUENCE_LABELS, RESTRICTION_LABELS, bareLabel, citeLabel, conditionProblem, fieldProblem, isConditionLabel, isLabel, noteProblem,
+} from "../../scripts/importer/condition-labels.mjs";
 import { axAsideBoxes, gridBandParas, rollTableDetails } from "./compile-cookbook.mjs";
 import { printKey } from "../../scripts/importer/printed-name.mjs";
 
@@ -693,6 +698,210 @@ await ta("a sideways grid keys its cells by the authored band key, and reads its
   assert.deepEqual(grid.rows.map((r) => [r.key, r.cells]), [["mkt1", { qqKey: "+1", qx: "0" }], ["mkt2", { qqKey: "-2", qx: "3" }]],
     "a band's key names its property where it has one, the slugged label where it has none");
   assert.deepEqual(grid.header, { mkt1: "Qa", mkt2: "Qb" });
+});
+
+/* ------------------------------------------------------------------ */
+/*  typed modifiers: gate arguments, rates, conjunctions, no numbers   */
+/* ------------------------------------------------------------------ */
+
+t("a gate's load is read off the page into the gate, beside the kind the recipe ships", () => {
+  const [e] = materializeEffects(
+    [
+      {
+        type: "modifier",
+        target: "initiative",
+        mode: "add",
+        gate: { kind: "lightlyEquipped", armourMax: "light" },
+        from: [{ pattern: "\\+(\\d+)\\s*bonus\\s*to\\s*initiative" }, { into: "gate.loadMax", pattern: "carrying\\s*(\\d+)\\s*stones?\\s*or\\s*less" }],
+      },
+    ],
+    paras("While lightly armoured and carrying 7 stones or less, the character gains a +3 bonus to initiative."),
+  );
+  assert.deepEqual(e.gate, { kind: "lightlyEquipped", armourMax: "light", loadMax: 7 });
+  assert.deepEqual(e.value, { kind: "flat", flat: 3 });
+});
+t("a gate locator that misses drops the whole effect, never a gate without its load", () => {
+  const out = materializeEffects(
+    [{ type: "modifier", target: "ac", gate: { kind: "lightlyEquipped" }, from: [{ pattern: "\\+(\\d+)\\s*bonus" }, { into: "gate.loadMax", pattern: "carrying\\s*(\\d+)\\s*stones" }] }],
+    paras("A +2 bonus in any armour."),
+  );
+  assert.deepEqual(out, []);
+});
+t("a shared recipe object is never written through by a nested locator", () => {
+  const gate = { kind: "lightlyEquipped" };
+  const spec = { type: "modifier", target: "ac", gate, from: [{ pattern: "\\+(\\d+)" }, { into: "gate.loadMax", pattern: "(\\d+)\\s*stones" }] };
+  materializeEffects([spec], paras("+1 up to 4 stones"));
+  assert.deepEqual(gate, { kind: "lightlyEquipped" });
+});
+t("a per-level rate printed apart from its base is read from its own group, signed by the verb", () => {
+  const [e] = materializeEffects(
+    [{ type: "throw", roll: "1d20", rollType: "above", from: { as: "perLevel", perGroup: 2, perSign: -1, pattern: "throw\\s*of\\s*(\\d+)\\+[\\s\\S]*?reduces\\s*by\\s*(\\d+)\\s*per\\s*level" } }],
+    paras("A throw of 17+ succeeds. The throw required reduces by 2 per level of experience."),
+  );
+  assert.deepEqual(e.value, { kind: "perLevel", base: 17, per: -2 });
+});
+t("no register recipe ships a number outside its locators", () => {
+  const root = fileURLToPath(new URL("../../register/", import.meta.url));
+  const offenders = [];
+  const walk = (dir) => {
+    for (const f of fs.readdirSync(dir, { withFileTypes: true })) {
+      const p = `${dir}${dir.endsWith("/") || dir.endsWith("\\") ? "" : "/"}${f.name}`;
+      if (f.isDirectory()) walk(p);
+      else if (f.name.endsWith(".json")) {
+        let rows;
+        try {
+          rows = JSON.parse(fs.readFileSync(p, "utf8"));
+        } catch {
+          continue;
+        }
+        for (const row of Array.isArray(rows) ? rows : []) {
+          for (const spec of row?.effects ?? []) {
+            const { from: _f, note: _n, condition: _c, ...shape } = spec ?? {};
+            // A zero a `set` writes cancels a figure; it reads nothing off the page.
+            if (shape.mode === "set" && shape.value?.kind === "flat" && shape.value.flat === 0) delete shape.value;
+            if (spec?.type === "modifier" && /\d/.test(JSON.stringify(shape))) offenders.push(`${row.id}: ${JSON.stringify(shape)}`);
+          }
+        }
+      }
+    }
+  };
+  walk(root);
+  assert.deepEqual(offenders.filter((o) => /"(gate|value)"/.test(o)), [], "a modifier's gate and value come from the page");
+});
+t("one phrase naming two fields is two modifiers, one per conjunct", () => {
+  const registers = JSON.parse(fs.readFileSync(new URL("../../cookbook/registers.json", import.meta.url), "utf8"));
+  const out = effectScan(paras("The character gains a +1 bonus to surprise rolls and initiative rolls."), registers);
+  const targets = out.filter((e) => e.type === "modifier").map((e) => e.target).sort();
+  assert.deepEqual(targets, ["initiative", "surprise"]);
+});
+
+/* ------------------------------------------------------------------ */
+/*  conditions: read off the page, or a neutral label                  */
+/* ------------------------------------------------------------------ */
+
+// Invented prose; the label and its reference are the module's own words.
+const LABEL = citeLabel("by speed", "QQ p.7");
+t("a page-read condition arrives from the page and replaces the label", () => {
+  const [e] = materializeEffects(
+    [{ type: "modifier", target: "ac", mode: "add", condition: LABEL, conditionFrom: { pattern: "(while\\s*riding\\s*[^.]*)" }, from: { pattern: "\\+(\\d+)\\s*bonus" } }],
+    paras("Riders gain a +2 bonus to armor class while riding a giant newt."),
+  );
+  assert.equal(e.condition, "while riding a giant newt");
+  assert.equal(e.conditionFrom, undefined, "the locator does not ride into the world");
+  assert.equal(e.value.flat, 2);
+});
+t("a condition locator that misses leaves the label and keeps the row", () => {
+  const [e] = materializeEffects(
+    [{ type: "modifier", target: "ac", mode: "add", condition: LABEL, conditionFrom: { pattern: "(while\\s*swimming[^.]*)" }, from: { pattern: "\\+(\\d+)\\s*bonus" } }],
+    paras("Riders gain a +2 bonus to armor class while riding a giant newt."),
+  );
+  assert.equal(e.condition, LABEL);
+  assert.equal(e.value.flat, 2);
+});
+t("a condition's groups join in order, and a clause keeps no leading capital", () => {
+  assert.equal(
+    locateCondition({ pattern: "(Any\\s*kin\\s*[^,]*),[\\s\\S]*?(while\\s*he\\s*[^.]*)", groups: [1, 2] }, "Any kin of the hero, all told, gain a bonus while he stands with them."),
+    "any kin of the hero, while he stands with them",
+  );
+  assert.equal(locateCondition({ pattern: "(STR\\s*checks\\s*[^.]*)" }, "It aids STR checks made at dusk."), "STR checks made at dusk", "an acronym keeps its case");
+});
+t("a malformed, empty or overlong condition locator reads nothing and never throws", () => {
+  assert.equal(locateCondition({ pattern: "([" }, "anything"), null);
+  assert.equal(locateCondition({ pattern: "(nothing)?x" }, "x"), null);
+  assert.equal(locateCondition({ pattern: "(a[\\s\\S]*)" }, `a${" word".repeat(80)}`), null);
+  const [e] = materializeEffects([{ type: "capability", condition: LABEL, conditionFrom: { pattern: "([" } }], paras("anything"));
+  assert.equal(e.condition, LABEL);
+});
+t("a roll's condition reads off the page beside its target", () => {
+  const [r] = materializeRolls(
+    [{ key: "dig", label: { pattern: "(dig a tunnel)" }, target: { pattern: "throw\\s*of\\s*(\\d+)\\+" }, condition: citeLabel("by method", "QQ p.7"), conditionFrom: { pattern: "(each\\s*attempt\\s*takes[^.]*?)\\s*and" } }],
+    paras("To dig a tunnel, each attempt takes a full day and a throw of 9+."),
+  );
+  assert.deepEqual(r.target, { kind: "flat", flat: 9 });
+  assert.equal(r.condition, "each attempt takes a full day");
+});
+await ta("an effects frame is read by the recipe's locators and is not the entry's prose", async () => {
+  const pd = page(run("The stance grants the listed bonus.", 40, 50), run("Stance of the Heron +3 to initiative", 40, 120));
+  const cookbook = {
+    schema: "acks-cookbook/3",
+    entries: {
+      "qq.stance": {
+        kind: "kind.proficiency",
+        fields: {
+          description: { op: "text", page: 1, paras: [{ box: { x0: 30, x1: 400, y0: 40, y1: 60 } }] },
+          effectsText: { op: "text", page: 1, paras: [{ box: { x0: 30, x1: 400, y0: 110, y1: 130 } }] },
+          effects: { op: "effects", specs: [{ type: "modifier", target: "initiative", mode: "add", gate: { kind: "specializedStyle", style: "single" }, from: { pattern: "heron\\s*([+-]?\\d+)\\s*to\\s*initiative" } }] },
+        },
+      },
+    },
+  };
+  const node = await executeEntry(null, cookbook, {}, "qq.stance", { pageCache: new Map([[1, pd]]) });
+  assert.equal(node.fields.effects?.[0]?.value?.flat, 3);
+  assert.equal(node.fields.effectsText, undefined, "the frame leaves the result");
+  assert.ok(!node.fields.description.some((p) => /heron/i.test(p.text)), "the frame is not description");
+});
+t("every shipped condition is a scope's own word or two, or a neutral label with its page", () => {
+  const offenders = [];
+  for (const file of ["powers", "proficiencies", "skills"]) {
+    const cb = JSON.parse(fs.readFileSync(new URL(`../../cookbook/${file}.json`, import.meta.url), "utf8"));
+    for (const [id, entry] of Object.entries(cb.entries ?? {})) {
+      for (const spec of [...(entry.fields?.effects?.specs ?? []), ...(entry.fields?.rolls?.specs ?? [])]) {
+        if (conditionProblem(spec.condition)) offenders.push(`${id}: ${spec.condition}`);
+        if (spec.conditionFrom && !spec.condition) offenders.push(`${id}: a locator with no label to fall back on`);
+        if (isConditionLabel(spec.condition) && bareLabel(spec.condition) === spec.condition) offenders.push(`${id}: label "${spec.condition}" ships without its page`);
+      }
+    }
+  }
+  assert.deepEqual(offenders, []);
+  assert.ok(CONDITION_LABELS.every((l) => l.split(" ").length <= 4), "a label names a kind and states nothing");
+});
+t("a restriction, a consequence and a face note read off the page; a miss keeps the label and the row", () => {
+  const prose = paras("A wader may try once per tide while the moon is up. On a natural 1, the waders lose their boots. The wader hums softly as he goes.");
+  const specs = [
+    { type: "limitation", restriction: citeLabel("a use limit", "QQ p.7", "restriction"), restrictionFrom: { pattern: "(once\\s*per\\s*tide[^.]*)" } },
+    { type: "outcome", trigger: "naturalBand", consequence: citeLabel("a mishap", "QQ p.7", "consequence"), consequenceFrom: { pattern: "1\\s*,\\s*(the\\s*waders[^.]*)" }, from: { into: "naturalMax", pattern: "natural\\s*(\\d+)" } },
+    { type: "capability", noteFrom: { pattern: "(hums\\s*softly[^.]*)" } },
+    { type: "limitation", restriction: citeLabel("a retry limit", "QQ p.7", "restriction"), restrictionFrom: { pattern: "(twice\\s*per\\s*tide)" } },
+  ];
+  const [use, mishap, face, missed] = materializeEffects(specs, prose);
+  assert.equal(use.restriction, "once per tide while the moon is up");
+  assert.equal(mishap.consequence, "the waders lose their boots");
+  assert.equal(mishap.naturalMax, 1);
+  assert.equal(face.note, "hums softly as he goes");
+  assert.equal(missed.restriction, "a retry limit (QQ p.7)", "a miss keeps the cited label");
+  for (const e of [use, mishap, face, missed]) for (const f of CLAUSE_FIELDS) assert.equal(e[`${f}From`], undefined, `${f}From does not ride into the world`);
+});
+t("only a field's own labels are cited, and the lint refuses a long phrase in a labelled field", () => {
+  assert.equal(citeLabel("a mishap", "QQ p.7", "consequence"), "a mishap (QQ p.7)");
+  assert.equal(citeLabel("a mishap", "QQ p.7"), "a mishap", "a consequence label is not a condition label");
+  assert.equal(fieldProblem("restriction", "a sense limit (QQ p.7)"), null);
+  assert.equal(fieldProblem("consequence", "a fall"), null, "two words ship as is");
+  assert.ok(fieldProblem("consequence", "the waders lose their boots"));
+  assert.ok(fieldProblem("restriction", "once per tide while the moon is up"));
+});
+t("a note carries no figure outside a page reference, and no TODO", () => {
+  assert.equal(noteProblem("Read by the limit check (QQ p.7); the Campaigns chapter holds the rest."), null);
+  assert.equal(noteProblem("A second printing reprints it (its p.57)."), null);
+  assert.ok(noteProblem("Replaces the 9+ throw."));
+  assert.ok(noteProblem("TODO: a primitive for this."));
+  assert.equal(noteProblem("II, the path deepens"), null, "a tier numeral is not a figure");
+});
+t("every shipped restriction and consequence is a word or two or a cited label, and no note carries a figure or a TODO", () => {
+  const offenders = [];
+  for (const file of ["powers", "proficiencies", "skills"]) {
+    const cb = JSON.parse(fs.readFileSync(new URL(`../../cookbook/${file}.json`, import.meta.url), "utf8"));
+    for (const [id, entry] of Object.entries(cb.entries ?? {})) {
+      for (const spec of [...(entry.fields?.effects?.specs ?? []), ...(entry.fields?.rolls?.specs ?? [])]) {
+        for (const field of ["restriction", "consequence"]) {
+          if (fieldProblem(field, spec[field])) offenders.push(`${id}: ${spec[field]}`);
+          if (isLabel(spec[field], field) && bareLabel(spec[field]) === spec[field]) offenders.push(`${id}: label "${spec[field]}" ships without its page`);
+        }
+        if (noteProblem(spec.note)) offenders.push(`${id}: ${spec.note}`);
+      }
+    }
+  }
+  assert.deepEqual(offenders, []);
+  assert.ok([...RESTRICTION_LABELS, ...CONSEQUENCE_LABELS].every((l) => l.split(" ").length <= 4), "a label names a kind and states nothing");
 });
 
 console.log(`\n${n} tests passed`);

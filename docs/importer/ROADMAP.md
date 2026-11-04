@@ -937,10 +937,57 @@ flow already does — then the seventeen spans widened in the register and each
 entry's paragraph count read against the page. A refill in place then
 completes every affected actor.
 
+## A family's leaders: what the Role axis does not reach
+
+The family import reads its leaders, casters and dependants into role cells
+(monsters MODEL, "Family templates: the Role axis"). Left:
+
+- **A standalone leader template outlives its creature.** Deleting the
+  creature leaves its `.leaders` template standing; nothing removes or flags
+  it. A delete hook keyed on `leadersOf`, or a repair check listing a template
+  whose creature is gone, would close it.
+- **A sentence the locators cannot read.** A leader phrased outside the
+  shapes `leader-roles.mjs` matches adds no cell, silently. A debug listing
+  of each family's prose sentences that name a role and wrote none would show
+  which.
+- **A throw the ladder arrived after.** Leader cells and grid rows read the
+  attack-throw ladder at import, so a template imported before the rulebook's
+  tables has no derived throws until it is repaired; generation does not read
+  the ladder again.
+
+### The AXIOMS beastmen (T-0393)
+
+The owner ruled the whole set in (2026-11-04): AXIOMS offered beside the MM as
+a source the Judge picks per template or per generation, the MM the default and
+the pick shown as provenance, and AXIOMS the only source where the MM prints no
+leader. Built: the compendium as one book (`axc`), its leader ladder and steps
+as imported tables, and the derived champion, sub-chieftain and chieftain
+cells for every family variant and for a beastman-type entry outside a family,
+with the Leader figures axis (monsters MODEL, "Derived leaders" and "Leaders
+outside a family"), and the Kit axis with its three tables (monsters MODEL,
+"The Kit axis"). Left:
+
+- **The compendium's other content.** No anchors, register or cookbook entries
+  exist for anything past the beastman tables; the AXIOMS move, encumbrance
+  and damage columns of Beastmen by Type are not read.
+- **Casters and dependants under the procedure.** Shamans, witch doctors,
+  drudges and whelps stay printed-only; the procedure derives the three
+  warrior ranks.
+- **Mounted troops.** The rider rows of RR ch. 9 Beastman Troops print a
+  rider's and its mount's figures in pairs; a kit for them needs a rule for
+  which half a rider's cell takes and how the mount is named.
+- **A leader's damage in a kit.** A leader keeps its own damage total in any
+  kit, so a kit whose row prints more than the warrior's stat block does not
+  raise it.
+- **The kit on the Full Monster Sheet's speeds.** The kit's move reaches the
+  system's movement figure, not the sheet's speed rows.
+- **The classes.** The AXIOMS custom beastman classes, through the class
+  importer.
+
 ## Repair in place: what it does not write yet
 
 Repair (DECISIONS, 2026-09-24) writes what a fresh read yields over a held
-document. Four things it leaves to Rebuild:
+document. Three things it leaves to Rebuild:
 
 - **A field the page stopped printing.** Outside a monster's stat paths, a
   repair cannot tell a field the page states as none from one this seat could
@@ -951,17 +998,35 @@ document. Four things it leaves to Rebuild:
   container capacity or ammunition bundle corrected there reaches only new
   documents. It needs a merge that leaves a Judge's slots before a repair can
   call it.
-- **The rebuild-only kinds.** Monster templates and families, NPCs, adventure
-  appendix blocks and OSE creatures have no in-place write, and the weapon,
-  armour, price-list, language and race documents are built from whole
-  printed tables. NPC embedded weapons carry no `minted` stamp, which a repair
-  would need first.
 - **Edits to `system` a Judge made.** A repair keeps only the fields each kind
   lists as the Judge's. A read snapshot stamped at import, under a new flag,
   would let it tell an edited field from a stale one.
 
 Rules tables merge in both modes. A Rebuild that removed the world layer before
 re-reading would undo "a re-read that finds nothing keeps what it had".
+
+## Forced repair: what it still leaves
+
+- **A place two books print.** Either side of a pair is joined by its own step
+  and a forced repair does not rewrite it. Wanted: a rewrite that rebuilds the
+  joined place from both rows.
+- **A pregenerated character's grants.** Its sheet import runs again and its
+  biography is written, but an item the import granted that a Judge edited is
+  not replaced. Replacing it means deleting the stamped grants and binding the
+  class again, which the class bind skips for a character already at that class
+  and level; it needs the bind's round trip walked live before it is safe.
+
+## Overhead token art: what is not built
+
+- **The variant-suffix tier.** Exact folded-name matching leaves the monsters a
+  source prints as a variant of the same creature unmatched, counted as no
+  match. A tier that strips a variant suffix needs the owner's rule on which
+  variant wins when several share a head.
+- **Remembering the answer.** Nothing makes a later import or a Rebuild pick the
+  overhead token by itself; the Judge presses Apply again. A remembered choice
+  is a second writer and a branch in `importArt`.
+- **A repair check for a token that names an inactive package.** Uninstalling
+  the source leaves a broken path until Restore.
 
 ## A map made before its book's organisations
 
@@ -1167,7 +1232,9 @@ seven classes:
   `laterBook` cannot order them, and a place two of them print cannot be
   paired until the register records which came first. The user ruled the
   order (2026-10-28): ACKS II over AX6 over AX5 and down the series, and a
-  later AXIOMS issue over an earlier one; no AXIOMS book is registered yet.
+  later AXIOMS issue over an earlier one. The AXIOMS Compendium is registered
+  as one book (`axc`, 2018), so its issues never compete with each other, but
+  it ties with AX2–AX6 on year.
   Until `laterBook` carries it, a base demand from one of those books never
   replaces another's (`baseIsImportable`).
 - **A sideways grid's reports.** An unmapped or duplicate good on a

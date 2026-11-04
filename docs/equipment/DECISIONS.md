@@ -1879,3 +1879,33 @@ the hands spare, as a light does (formation DECISIONS, same date).
 before, which is the rule the party sheet already applied. The one call the
 formation feature's comment named is now two: `handsOccupied` for the count
 and `kitInHand` for the rows, with the lights read through lib.
+
+### The loadout writes every imported modifier, and the hard-coded readings go (2026-11-04)
+
+The owner ruled that a character's imported modifiers apply (abilities
+DECISIONS, "Imported modifiers apply", same date). The loadout effect was
+already the one writer, so it is where they land.
+
+**Ruled.**
+- The loadout writes one change per typed modifier lib resolves
+  (`standingModifiers`), beside a parts ledger naming each change's source
+  (`flags.acks-extras.loadoutParts`), so a tooltip names every part.
+- The two readings that read imported abilities by name or presence leave:
+  the `swashbuckling` presence flag with its level ladder, and the bridge's
+  initiative router (`condition` → `lightInit`, else `styleInit`) with its
+  `NUMERIC_DOMAINS` table and the `maxCleaves` domain. Each carried a figure
+  read off a page into source — the ladder's rungs and bonuses, the load cap
+  in stone — and each would have added a second copy of the bonus a recipe
+  now writes.
+- The light-armour test is the `lightlyEquipped` gate, whose rung and load
+  come from the ability's own imported row; with either missing it answers
+  undecided and the row is listed, never applied by a default.
+- The loadout rebuilds on a level change, so a ladder moves with the level.
+
+**Rejected.** Keeping `swashbucklingAC` as a fallback for copies imported
+before the recipe: it is the same printed ladder in source, and Update
+Abilities brings the recipe.
+
+**What it cost.** Every loadout carries more changes; a copy imported before
+this keeps the scan's rows, situational where they carried a condition, until
+Update Abilities.

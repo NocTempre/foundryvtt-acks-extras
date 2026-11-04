@@ -3272,7 +3272,7 @@
           "rr": 86,
           "disposition": "profEquivalent",
           "bta": 57,
-          "note": "BTA reprints the spread (its p.57). Two mid-table XP thresholds (5th, 6th) differ between the books - RR is primary. Same template set; one template name is spelled differently."
+          "note": "BTA reprints the spread (its p.57). Two mid-table XP thresholds differ between the books - RR is primary. Same template set; one template name is spelled differently."
         },
         {
           "name": "Battlefield Prowess",
@@ -6437,7 +6437,7 @@
           }
         }
       },
-      "note": "ACKS type rule: constructs are immune to enchantment effects, necrotic damage, and poisonous damage.",
+      "note": "The type's defences, merged into every creature of the type at import.",
       "defenses": {
         "immunities": {
           "damage": [
@@ -6539,7 +6539,7 @@
           }
         }
       },
-      "note": "ACKS type rule: oozes vary, but all are immune to enchantment effects.",
+      "note": "The type's defences, merged into every creature of the type at import.",
       "defenses": {
         "immunities": {
           "effects": [
@@ -6562,7 +6562,7 @@
           }
         }
       },
-      "note": "ACKS type rule: all plants are immune to necrotic damage and poisonous damage.",
+      "note": "The type's defences, merged into every creature of the type at import.",
       "defenses": {
         "immunities": {
           "damage": [
@@ -6586,7 +6586,7 @@
           }
         }
       },
-      "note": "ACKS type rule: all undead are immune to enchantment effects, necrotic damage, and poisonous damage.",
+      "note": "The type's defences, merged into every creature of the type at import.",
       "defenses": {
         "immunities": {
           "damage": [

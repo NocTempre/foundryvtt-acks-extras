@@ -24,9 +24,31 @@ import { MODULE_ID, SETTINGS, ITEM_FLAGS } from "../constants.mjs";
 // for the whole feature — this overlay only decides which KIND of helmet.
 import { isHelmet } from "../profiles.mjs";
 import { isWorn } from "../../lib/item-model.mjs";
+import { hasDoc, getDoc } from "../../lib/tables.mjs";
+import { RULEDATA_DOC } from "./scavenged.mjs";
 
-/** RAW modifiers a heavy helm imposes (RR p140). */
-export const HELM_MODIFIERS = Object.freeze({ surprise: -1, listening: -4, mortalWounds: 2 });
+/**
+ * The equipment table the heavy helmet's modifiers are imported into (RR
+ * ch. 4, Armor, "Helmet, Heavy"); the Judge's override of it wins.
+ */
+export const HELM_TABLE = "heavyHelm";
+
+/**
+ * The heavy helmet's modifiers as the Judge's import holds them: to surprise
+ * rolls, to Listening throws, and to the Mortal Wounds roll. A figure not yet
+ * imported is null, and nothing applies in its place.
+ * @returns {{surprise: number|null, listening: number|null, mortalWounds: number|null}}
+ */
+export function helmFigures() {
+  const row = hasDoc(RULEDATA_DOC) ? (getDoc(RULEDATA_DOC)?.tables?.[HELM_TABLE] ?? {}) : {};
+  const read = (key) => {
+    const raw = row[key];
+    if (raw == null || raw === "") return null;
+    const v = Number(raw);
+    return Number.isFinite(v) ? v : null;
+  };
+  return { surprise: read("surprise"), listening: read("listening"), mortalWounds: read("mortalWounds") };
+}
 
 /** Name patterns that read as an enclosing (face-covering) helmet. */
 const ENCLOSING_NAME = /\b(heavy|great\s?helm|close\s?helm|armet|barbute|hounskull|corinthian|visor(ed)?)\b/i;

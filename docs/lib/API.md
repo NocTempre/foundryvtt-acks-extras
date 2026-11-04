@@ -489,6 +489,54 @@ How the book's recurring shapes map:
 - **Grants a choice** — Expert Traveler *begins play with Driving or Seafaring*:
   `{type:"grants", refs:[driving, seafaring], choose:1}`.
 
+### Typed modifiers — which rows change the sheet
+
+`lib/typed-modifiers.mjs`, Foundry-free. A `modifier` row on a character's
+ability is resolved in this order (`modifierDisposition`):
+
+1. a target another feature reads (`reaction`, `morale`, `loyalty` →
+   influence; `proficiencyThrow` or an `appliesToRoll` → abilities;
+   `marketClass`, `retainBonus`, `baseLoyalty`, `henchmanMorale` → henchmen;
+   `marketImpact` → markets) is **consumed** there;
+2. a `mode` other than `add`, or a subject other than self or opponent, is
+   **unsupported**;
+3. a `vsKinds`, `vsAlignment` or `tones` scope, or a `forWhat` narrower than
+   any field, waits **at the roll**;
+4. a target with no field (`MODIFIER_PATHS.character`: `ac`, `save`,
+   `initiative`, `surprise`, `cleaves`, `attackThrow`, `damage`) is
+   **unsupported**; a save `forWhat` naming one save writes that save's target
+   (subtract), and `melee`/`missile` narrow attack and damage;
+5. a `gate` whose kind has an evaluator is **gated**; one with none, or any
+   `condition`, is **situational**;
+6. the rest is **standing**.
+
+`gate` (`effectField`) is `{kind, armourMax, loadMax, style, status}`; the
+importer reads its figures off the page (`loadMax` through a `gate.loadMax`
+locator) and the recipe ships only the kind and the rung word. Evaluators
+answer true, false, or null when they cannot decide, which lists the row as
+situational: lib registers `status`, equipment `lightlyEquipped` (armour rung
+and load in stone, against the loadout), `activeStyle`, and `specializedStyle`
+(the active style, specialized in; `docs/equipment/MODEL.md`).
+
+`standingModifiers(actor, {ctx, resolve})` values the standing and gated rows
+(the classes resolver where loaded; rank from `abilities.rankOf`, else the
+copies) and then:
+
+- **copies** of one definition (one cookbook id, else one name) count once;
+- **stacking**, per field: the largest first, and a part is dropped when it
+  shares a capability (`kw:` + its id's tail, or a `provides` token) with one
+  kept, or either names the other in `notStacksWith`; a `stacksWith` pair
+  always adds; everything else adds;
+- **stand-aside**: an ability whose own enabled Active Effect writes a field
+  contributes nothing to it.
+
+It returns `parts` to write and `listed` rows left out with a `reason`
+(`unresolved`, `gateOff`, `gate`, `condition`, `scope`, `narrowed`,
+`standAside`, `notStacking`). Monsters and other actor types get nothing.
+`isUnverified(item)` is true for a scan's rows (`extras.effectsFrom`, else
+`unaudited`). The equipment loadout effect is the one writer
+(`docs/equipment/MODEL.md`).
+
 ## Not yet consumed (built ahead of the magic work)
 
 These exist so the shape is agreed before anything depends on it. Nothing reads
@@ -1114,3 +1162,36 @@ v0.20: `system.base` {merge, flags} is the FIXED foundation applied before
 any axis (the stat rows a template page prints as plain values); options
 gain `tint` (token texture tint — a dragon wears its hide color), applied
 by the builder alongside art and token-size fragments.
+
+Cells carry `flags` beside `merge` and `items`: `resolveActor` merges a
+matching cell's flags into the generated actor's, so what the Full Monster
+Sheet reads outside `system` (a leader's Hit Dice rating, its save class)
+moves with the cell's stats. An axis may name a `default` option: an
+unpinned, underived axis takes it instead of rolling (precedence **pinned >
+derived > default > rolled**), logged as `source: "default"`. The
+**availability rule** (`optionAvailable(system, axis, option, choices)`): an
+option with no patch of its own (empty `merge`, `items` and `flags`) on an
+axis some cell names is only the key of its cells, so it stands only where a
+cell matches it beside the choices already made; the axis's `default`, any
+option with a patch, and every option of an axis no cell names always stand.
+`chooseAxes` chooses only among available options; a pin of an unavailable
+one is logged as `source: "unavailable"` and falls through to default or
+roll. The builder sheet and the group sheet's variant dialog name the default
+in the blank choice, and the builder lists an unavailable option disabled.
+`axisOffersChoice(system, axis, choices)` is false for an axis with at most
+one option available beside the choices: the builder leaves such an axis off
+(outside edit mode) and drops a pin left on it, since generation can take only
+that one. A multi axis and one that derives from a base always show.
+A cell may carry `rollHp: true`: `resolveActor` returns `rollHp` true when the
+last matching cell that touches hit points (one with `rollHp` or an `hp`
+merge) asks for it, and the generator then rolls `system.hp.hd` for the
+actor's value and max, logged as `{axis: "hitPoints", source: "rolled"}`. A
+cell whose figures leave hit points unprinted (a derived leader) uses it, and
+a later cell that writes fixed hit points turns it off.
+`rollDice(expr)` rolls a die with a flat modifier (`"1d4+1"`); the generator
+uses it for a caster whose `extras.spellcasting.levelDie` stands in for a
+printed level, logs the roll as `{axis: "casterLevel"}`, and the magic
+listener then takes that class's slots at that level before drawing the
+repertoire. The family Role axis built on all of this is
+[docs/monsters/MODEL.md](../monsters/MODEL.md), "Family templates: the Role
+axis".

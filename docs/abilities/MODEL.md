@@ -17,6 +17,47 @@ object (rollable, effect-bearing) even before its full prose is streamed.
   (Foundry's own Active Effects folded into the last of these).
 - **Invent**: nothing the system provides is duplicated.
 
+## Imported modifiers apply
+
+A character's abilities' `modifier` rows change its sheet. The resolution
+(which rows apply, gates, stacking, stand-aside) is lib's and is stated in
+`docs/lib/API.md`, "Typed modifiers"; the equipment loadout effect is the one
+writer (`docs/equipment/MODEL.md`). What this feature owns:
+
+- **The origin stamp.** `extras.effectsFrom` is `"recipe"` when the import read
+  the row through a register recipe and `"scan"` when the vocabulary scan
+  produced it. A scan's rows still apply; every surface that shows them marks
+  them unverified. A copy with no stamp (imported before it existed) reads
+  its `unaudited` flag instead, and the `abilities.effectsOrigin` repair check
+  stamps it from what the copy HOLDS: a copy whose rows lack its entry's
+  recipe shape is stamped `"scan"` until Update Abilities reads the recipe.
+- **The Mechanics tab** labels each modifier row with its disposition
+  (applied, applied when met, at the roll, situational, read elsewhere, not
+  applied) and adds "unverified" on a scan's. A row scoped to one of the
+  ability's throws (`appliesToRoll`) carries a chip naming that throw by its
+  Rolls-tab label (`rollScopeChip`). A capability, sense, reroll, companion or
+  limitation row shows its condition after its face, as a modifier row does.
+- **Quick effects** (`quick-effects.mjs`). On a character's own copy, a row
+  that is standing, gated, situational or at the roll and names a field
+  offers **Start**: an Active Effect on the copy (`transfer: true`) writing the
+  row's figure at the holder's level and rank (`lib` `modifierValue`), flagged
+  `flags.acks-extras.quickEffect = {key, target, value, level, rank}` with
+  `key` the row's `specKey`. A standing row's effect starts on; every other
+  starts disabled, named as situational. While on, it is the ability's own
+  effect on that field, so the row stands aside and the figure counts once.
+  The row then shows the effect's state (on, off, stale); **stale** means the
+  value, level or rank differs from the flag, and **Refresh** rewrites the
+  changes and the flag in one update, keeping whether it is on. Deleting the
+  ability deletes the effect.
+- **A row's condition** is the seat's own page words where the import read
+  them (`conditionFrom`, `docs/importer/MODEL.md`), else a neutral label with
+  the entry's page reference ("by method (RR p.31)"), else a scope's own word
+  or two. Every one of them leaves the row situational; what decides a row is
+  its structure (`appliesToRoll`, `appliesTo`, a `gate`), never the words.
+- **Rank** for a rank-scaled value is `rankOf`, which lib reads through the
+  public API; copies of one definition count once, at that rank.
+- Monsters' abilities are not applied.
+
 ## Rolls are an inventory
 
 The Rolls tab lists every throw the ability offers and is edited like one: add a
