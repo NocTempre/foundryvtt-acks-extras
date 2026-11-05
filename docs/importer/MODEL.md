@@ -56,7 +56,17 @@ questions. Five tabs:
   the world refuses. The settings-menu entry stays restricted.
 - **Import** — the chain (`GM_STEPS`, exported from `getting-started.mjs`) in
   its order, numbered, run whole (`runImportEverything`) or one step at a
-  time (`runImportStep(key)`, `api.importStep`).
+  time (`runImportStep(key)`, `api.importStep`). Import everything takes a
+  mode: *Import what is missing* is the chain; Rebuild, Repair in place and
+  Force repair run that mode over every open book and every open adventure
+  book (`cookbookReimportEverything`, `api.reimportEverything(mode)`), asked
+  once. `everything.mjs` runs each part first with an `ask` that records the
+  confirm it would show and answers No, which writes nothing because every
+  part asks before its first write (`confirmRepair`'s `ask`); the lines go
+  into one confirm under each part's label, and a Yes runs each part that
+  asked with its confirm answered. A repair closes on the rules tables
+  re-read in place; a rebuild closes on the whole chain, which lands in its
+  order what the rebuilds emptied.
 - **Rebuild** — the shelf, book and rules-table options of
   `rebuildOptions()` under a mode, run by `runRebuildPick(value, mode)`. The
   Reimport One Shelf dialog draws from the same two functions, so the two

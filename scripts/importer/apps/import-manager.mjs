@@ -101,6 +101,9 @@ export class ImportManagerApp extends HandlebarsApplicationMixin(ApplicationV2) 
   /** The Rebuild tab's pick and mode as the user last set them: every render, the one a run makes before its confirm included, draws them selected. */
   #rebuildChoice = { pick: "", mode: "drop" };
 
+  /** The Import tab's mode for Import everything as the user last set it: "import" runs the chain, any other mode runs over every open book. */
+  #importMode = "import";
+
   /**
    * Ask for the Books tab's next build to carry `firstRun` and `notice`.
    * @param {{firstRun?: boolean, notice?: string}} opts
@@ -141,6 +144,11 @@ export class ImportManagerApp extends HandlebarsApplicationMixin(ApplicationV2) 
       rebuild,
       adventures,
       modes: ["drop", "repair", "force"].map((value) => ({ value, selected: value === mode, label: loc(`ui.reimportMode${value[0].toUpperCase()}${value.slice(1)}`) })),
+      importModes: ["import", "drop", "repair", "force"].map((value) => ({
+        value,
+        selected: value === this.#importMode,
+        label: value === "import" ? loc("manager.importModeImport") : loc(`ui.reimportMode${value[0].toUpperCase()}${value.slice(1)}`),
+      })),
     };
   }
 
@@ -157,6 +165,9 @@ export class ImportManagerApp extends HandlebarsApplicationMixin(ApplicationV2) 
     this.element?.querySelector?.("[data-rebuild-form]")?.addEventListener("change", (event) => {
       const name = event.target?.name;
       if (name === "pick" || name === "mode") this.#rebuildChoice[name] = event.target.value;
+    });
+    this.element?.querySelector?.("[data-import-form]")?.addEventListener("change", (event) => {
+      if (event.target?.name === "importMode") this.#importMode = event.target.value;
     });
   }
 
@@ -200,8 +211,10 @@ export class ImportManagerApp extends HandlebarsApplicationMixin(ApplicationV2) 
     await this.render();
   }
 
-  static async #onImportAll() {
-    await this.#run(loc("manager.importAll"), () => host.runEverything());
+  static async #onImportAll(_event, target) {
+    const mode = target?.closest?.("[data-import-form]")?.querySelector?.("select[name=importMode]")?.value ?? this.#importMode;
+    this.#importMode = mode;
+    await this.#run(loc("manager.importAll"), () => host.runEverything(mode));
   }
 
   static async #onRunStep(_event, target) {

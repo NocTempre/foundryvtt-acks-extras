@@ -40,6 +40,7 @@ import {
   isStrengthGridRow, strengthPlan, strengthFromGrid,
 } from "./faction-binding.mjs";
 import { printedNameOf, withoutKeyNumber } from "./printed-name.mjs";
+import { reimportEverything } from "./everything.mjs";
 import {
   GRID_SCENE_PADDING, zoneMovedBy,
   isSceneRecipe, sceneFrame, sceneData, districtRegionData, placeTokenAt, worldCopySource, isWorldCopy, placementMatches, afterDarkShift, bandOfSection,
@@ -1943,7 +1944,9 @@ function modeSelect() {
  * Ask before a repair: one paragraph per line, an empty line left out. Closing
  * the dialog, like pressing No, answers false: nothing is written.
  */
-function confirmRepair(lines, titleKey = "reimportTitle") {
+function confirmRepair(lines, titleKey = "reimportTitle", ask = null) {
+  // A caller asking for several runs at once answers in their place (`everything.mjs`).
+  if (ask) return ask({ lines: lines.filter(Boolean), title: titleKey });
   return foundry.applications.api.DialogV2.confirm({
     window: { title: game.i18n.localize(`${LANG_PREFIX}.ui.${titleKey}`) },
     classes: ["acks-ui", "acks-extras-importer-dialog"],
@@ -2029,9 +2032,10 @@ async function repairShelf(shelf, { force = false } = {}) {
  * Repair everything imported from ONE book in place, over the shelves the
  * rebuild would empty. Each run takes only this book's entries, so repairing
  * one book never writes over another book's documents. A document no run
- * writes in place is left, and its shelf named. `force` is `repairShelf`'s.
+ * writes in place is left, and its shelf named. `force` is `repairShelf`'s;
+ * `ask` answers the confirm in its place (`confirmRepair`).
  */
-async function repairBook(bookId, label, { force = false } = {}) {
+async function repairBook(bookId, label, { force = false, ask = null } = {}) {
   const runs = new Map();
   for (const src of ENTRY_SOURCES) {
     if (src.type !== "Item" || !REPAIR_RUNS[src.refill]) continue;
@@ -2080,6 +2084,7 @@ async function repairBook(bookId, label, { force = false } = {}) {
       ...repairKeepsLines(runs, { force }),
     ],
     force ? "forceTitle" : "reimportTitle",
+    ask,
   );
   if (!ok) return null;
   const tally = repairTally({ force });
@@ -2378,6 +2383,40 @@ export function runRebuildPick(value, mode = "drop") {
   return kind === "book" ? cookbookReimportBook(picked, { mode: how }) : cookbookReimportShelf(picked, { mode: how });
 }
 
+/**
+ * GM: one mode over everything imported from the books open on this seat, asked
+ * once (`everything.mjs`): every book's Rebuild, Repair in place or Force repair
+ * (`cookbookReimportBook`), then every adventure book's (`cookbookReimportAdventure`).
+ * A repair closes on the rules tables re-read in place; a rebuild closes on
+ * `chain`, the whole import chain, which re-reads them as its own step and lands
+ * in its order whatever the rebuilds emptied. Nothing of a book closed here is
+ * touched, as in each part alone.
+ * @param {"drop"|"repair"|"force"} mode
+ * @param {{chain?: () => Promise<unknown>}} [opts]
+ */
+export async function cookbookReimportEverything(mode = "drop", { chain = null } = {}) {
+  if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (deletes and re-creates documents).`);
+  const t = (key, data) => game.i18n.format(`${LANG_PREFIX}.ui.${key}`, data ?? {});
+  const esc = foundry.utils.escapeHTML ?? ((x) => x);
+  const parts = [
+    ...reimportableBooks().map((b) => ({ label: b.label, run: (ask) => cookbookReimportBook(b.id, { mode, ask }) })),
+    ...(await adventureBooks()).map((b) => ({ label: t("everythingAdventure", { book: b.label }), run: (ask) => cookbookReimportAdventure(b.id, { mode, ask }) })),
+  ];
+  const key = { drop: "Drop", repair: "Repair", force: "Force" }[mode] ?? "Drop";
+  const result = await reimportEverything({
+    mode,
+    parts,
+    confirm: (asked) =>
+      confirmRepair(
+        [t(`everythingConfirm${key}`, { n: asked.length }), ...asked.flatMap(({ label, lines }) => [`<strong>${esc(label)}</strong>`, ...lines]), t("everythingClosed")],
+        mode === "force" ? "forceTitle" : "reimportTitle",
+      ),
+    after: mode === "drop" ? chain : () => api().cookbookImportTables?.(null),
+  });
+  if (result?.asked === 0) ui.notifications.info(t("everythingNone"));
+  return result;
+}
+
 /** The rebuildable shelf a cookbook id files onto, or null when its shelf has no refill run. */
 const refillShelfOf = (id) => {
   const shelf = ITEM_SHELF[shelfKeyOf(id)] ?? null;
@@ -2411,15 +2450,16 @@ export const reimportableBooks = () => {
  * (`repairBook`); `mode: "force"` also rewrites a description a Judge wrote in.
  *
  * @param {string} bookId a key of BOOKS, open on this seat.
- * @param {{mode?: "drop"|"repair"|"force"}} [opts]
+ * @param {{mode?: "drop"|"repair"|"force", ask?: Function|null}} [opts] `ask`
+ *   answers the confirm in its place (`confirmRepair`)
  */
-export async function cookbookReimportBook(bookId, { mode = "drop" } = {}) {
+export async function cookbookReimportBook(bookId, { mode = "drop", ask = null } = {}) {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (deletes and re-creates documents).`);
   const label = BOOKS[bookId]?.label ?? bookId;
   if (!ctx?.sessionDocs?.has(bookId)) {
     return ui.notifications.warn(game.i18n.format(`${LANG_PREFIX}.ui.reimportNotConnected`, { book: label }));
   }
-  if (mode === "repair" || mode === "force") return repairBook(bookId, label, { force: mode === "force" });
+  if (mode === "repair" || mode === "force") return repairBook(bookId, label, { force: mode === "force", ask });
   const shelves = new Set();
   const mine = (d) => {
     if (d.flags?.[MODULE_ID]?.templatePart) return false;
@@ -2432,11 +2472,7 @@ export async function cookbookReimportBook(bookId, { mode = "drop" } = {}) {
   const doomed = (await importedDocs("Item")).filter(mine);
   const shelfList = [...shelves].sort().join(", ") || "—";
 
-  const ok = await foundry.applications.api.DialogV2.confirm({
-    window: { title: game.i18n.localize(`${LANG_PREFIX}.ui.reimportTitle`) },
-    classes: ["acks-ui", "acks-extras-importer-dialog"],
-    content: `<p>${game.i18n.format(`${LANG_PREFIX}.ui.reimportConfirmBook`, { n: doomed.length, book: label, shelves: shelfList })}</p>`,
-  });
+  const ok = await confirmRepair([game.i18n.format(`${LANG_PREFIX}.ui.reimportConfirmBook`, { n: doomed.length, book: label, shelves: shelfList })], "reimportTitle", ask);
   if (!ok) return null;
 
   await deleteImported("Item", doomed);
@@ -2652,10 +2688,11 @@ async function adventureForceCensus(bookId) {
  * edited place or roster is replaced) and the market profiles on its places;
  * a place two books print is joined by its own step and left.
  *
- * @param {{mode?: "drop"|"repair"|"force"}} [opts]
+ * @param {{mode?: "drop"|"repair"|"force", ask?: Function|null}} [opts] `ask`
+ *   answers the confirm in its place (`confirmRepair`)
  * @returns {Promise<{book: string, mode: string, removed: number, steps: object[], errors: object[]}|null|undefined>}
  */
-export async function cookbookReimportAdventure(bookId, { mode = "drop" } = {}) {
+export async function cookbookReimportAdventure(bookId, { mode = "drop", ask = null } = {}) {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (deletes and re-creates documents).`);
   const label = bookLabel(bookId);
   const t = (key, data) => game.i18n.format(`${LANG_PREFIX}.ui.${key}`, data ?? {});
@@ -2679,7 +2716,7 @@ export async function cookbookReimportAdventure(bookId, { mode = "drop" } = {}) 
       return key ? game.i18n.localize(key) : type;
     };
     const counts = [...byType].map(([type, docs]) => `${docs.length} ${plural(type, docs.length)}`).join(", ") || t("reimportAdventureNothing");
-    const ok = await confirmRepair([t("reimportAdventureConfirmDrop", { book: label, counts }), t("reimportAdventureKeeps")], "reimportAdventureTitle");
+    const ok = await confirmRepair([t("reimportAdventureConfirmDrop", { book: label, counts }), t("reimportAdventureKeeps")], "reimportAdventureTitle", ask);
     if (!ok) return null;
     for (const [type, docs] of byType) removed += await deleteImported(type, docs);
     // The Adventure is the copy of what was just deleted; the last step
@@ -2703,10 +2740,11 @@ export async function cookbookReimportAdventure(bookId, { mode = "drop" } = {}) 
         t("reimportAdventureForceKeeps"),
       ],
       "forceTitle",
+      ask,
     );
     if (!ok) return null;
   } else {
-    const ok = await confirmRepair([t("reimportAdventureConfirmRepair", { book: label })], "reimportAdventureTitle");
+    const ok = await confirmRepair([t("reimportAdventureConfirmRepair", { book: label })], "reimportAdventureTitle", ask);
     if (!ok) return null;
   }
   const { steps, errors } = await runAdventureBookSteps(bookId, { force, tally });

@@ -375,7 +375,13 @@ The Books macros open it on the Books tab:
 - **Import** — the import chain, step by step in its order. **Import
   everything** runs the whole chain; **Run** beside a step runs that one,
   for when its documents were deleted or a book was connected after the
-  chain ran. Every step passes over what the world already holds.
+  chain ran. Every step passes over what the world already holds. The mode
+  beside **Import everything** can instead be Rebuild, Repair in place or
+  Force repair: that mode then runs over every book open on this seat and
+  every open adventure book, as each would on the Rebuild and Adventures
+  tabs, after one confirm that lists each book with what its own confirm
+  would say. A Rebuild ends by running the whole chain again; a repair ends
+  by reading the rules tables again.
 - **Rebuild** — a shelf, a book or the rules tables, in any of the three modes above.
   The same choices as **Reimport One Shelf**.
 - **Adventures** — each adventure book open on this seat, with what its

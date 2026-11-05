@@ -92,7 +92,7 @@ import {
   importClasses, cookbookUpdateClasses, importTemplatePackages, importTraps, importSpells, importVariations, importVehicles, importMerchandise,
   cookbookImportJournals, cookbookImportPoiPlaces, cookbookImportMarketProfiles, cookbookImportFactions, cookbookImportRollTables, cookbookImportScenes, cookbookAudit, lastAudit, cookbookReimportShelf, reimportableShelves, cookbookReimportBook, reimportableBooks, cookbookReimportEntries,
   cookbookImportAdventures, bookCensus, cookbookReimportAdventure, adventureBooks, rebuildOptions, runRebuildPick,
-  cookbookImportAdventureItems, cookbookImportLinks,
+  cookbookImportAdventureItems, cookbookImportLinks, cookbookReimportEverything,
 } from "./cookbook.mjs";
 import { registerGettingStartedSettings, runImportEverything, runImportStep, GM_STEPS, gettingStartedDismissed, SETTING_DISMISSED } from "./getting-started.mjs";
 import { ImportManagerMenu, installImportManager, openImportManager } from "./apps/import-manager.mjs";
@@ -2884,6 +2884,8 @@ Hooks.once("ready", async () => {
     cookbookImportAdventureItems, cookbookImportLinks,
     /** The whole import chain, in dependency order — the "Import Everything" control. */
     importEverything: () => runImportEverything(),
+    /** Every open book and adventure book rebuilt (`"drop"`), repaired or force-repaired, asked once. */
+    reimportEverything: (mode) => cookbookReimportEverything(mode, { chain: () => runImportEverything() }),
     /** One step of the chain by its `GM_STEPS` key. */
     importStep: runImportStep,
     /** The import manager window, on `tab` when given. */
@@ -2918,7 +2920,8 @@ Hooks.once("ready", async () => {
     booksPanel,
     steps: GM_STEPS,
     runStep: runImportStep,
-    runEverything: () => runImportEverything(),
+    // "import" is the chain; any other mode is that mode over every open book.
+    runEverything: (mode = "import") => (mode === "import" ? runImportEverything() : api.reimportEverything(mode)),
     merchandise: () => acksExtras.markets?.buildMerchandiseFromTables?.(),
     lib: () => acksExtras.lib,
     tokenArt: { sources: tokenArtSources, apply: applyTokenArt, restore: restoreTokenArt, hasFlag: hasTokenArtFlag },

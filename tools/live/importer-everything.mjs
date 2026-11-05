@@ -1,0 +1,297 @@
+/**
+ * Live walk, importer-everything: the import manager's Import tab, Import
+ * everything in each of its modes. Walks docs/importer/TESTING.md, "The import
+ * manager", step 3's mode select: Rebuild, Repair in place and Force repair
+ * pressed in turn, each confirm read and answered No by its own button, with a
+ * create/update/delete observer armed and the world's compendium list read
+ * before and after. A Yes rewrites the shared world's whole library and is
+ * never pressed here. Machine values arrive through ./_env.mjs; the books the
+ * shelf opens on join are the books the confirm lists.
+ *
+ * Fixtures: none. The walk reads the world and writes nothing; every check
+ * that something was not written is the observer's. Every figure printed is a
+ * count or a boolean; no book word leaves the page.
+ */
+import path from "node:path";
+import { connect, sleep } from "./_driver.mjs";
+import { seats as machineSeats, PORTS, logDir, shotDir } from "./_env.mjs";
+
+const MACHINE = machineSeats();
+const { browser, origin } = MACHINE;
+
+const note = (label, value) => console.log(`${label}: ${typeof value === "string" ? value : JSON.stringify(value)}`);
+const section = (title) => console.log(`\n== ${title} ==`);
+const checks = [];
+const check = (label, ok, detail) => {
+  checks.push([label, !!ok]);
+  console.log(`${ok ? "PASS" : "FAIL"}  ${label}${detail === undefined ? "" : "  " + (typeof detail === "string" ? detail : JSON.stringify(detail))}`);
+};
+const plate = (name) => path.join(process.env.SHOTS === "1" ? shotDir() : logDir(), name).replaceAll("\\", "/");
+const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+
+/** Records a page's throws from before its first script: the only way to see init, setup and ready. */
+const RECORDER = `(() => {
+  const R = (globalThis.__ieBoot = { phase: "load", phases: [], errors: [] });
+  const push = (kind, text) => R.errors.push({ phase: R.phase, kind, text: String(text).slice(0, 300) });
+  const error = console.error.bind(console);
+  console.error = (...args) => { push("console", args.map((a) => a?.message ?? a).join(" ")); error(...args); };
+  addEventListener("error", (e) => push("error", e.message));
+  addEventListener("unhandledrejection", (e) => push("rejection", e.reason?.message ?? e.reason));
+  const arm = setInterval(() => {
+    if (!globalThis.Hooks?.once) return;
+    clearInterval(arm);
+    for (const phase of ["init", "setup", "ready"]) Hooks.once(phase, () => { R.phase = phase; R.phases.push(phase); });
+  }, 2);
+})()`;
+
+/* ------------------------------------------------------------------ */
+/*  Page side: each function is stringified and run in the seat's page. */
+/* ------------------------------------------------------------------ */
+const P = {
+  install: async () => {
+    const H = (globalThis.__ie = globalThis.__ie ?? {});
+    H.CB = await import("/modules/acks-extras/scripts/importer/cookbook.mjs");
+    H.sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    H.poll = async (fn, { tries = 80, every = 250 } = {}) => {
+      for (let n = 0; n < tries; n++) {
+        const v = await fn();
+        if (v) return v;
+        await H.sleep(every);
+      }
+      return null;
+    };
+    H.root = (app) => {
+      const el = app?.element;
+      return el?.nodeType === 1 ? el : (el?.[0] ?? null);
+    };
+    H.dialogs = () => [...foundry.applications.instances.values()].filter((a) => a instanceof foundry.applications.api.DialogV2 && a.rendered);
+    if (!H.notesPatched) {
+      H.notes = [];
+      H.orig = {};
+      for (const k of ["info", "warn", "error"]) {
+        H.orig[k] = ui.notifications[k];
+        ui.notifications[k] = function (msg, ...rest) {
+          H.notes.push({ kind: k, text: String(msg) });
+          return H.orig[k].call(this, msg, ...rest);
+        };
+      }
+      H.notesPatched = true;
+    }
+    if (!H.observer) {
+      H.writes = [];
+      H.observer = {};
+      for (const doc of ["Actor", "Item", "RollTable", "JournalEntry", "Scene", "Adventure", "Macro", "Folder"]) {
+        for (const verb of ["create", "update", "delete"]) {
+          const hook = `${verb}${doc}`;
+          H.observer[hook] = Hooks.on(hook, (d) => { if (H.observing) H.writes.push({ hook, uuid: d?.uuid ?? null }); });
+        }
+      }
+    }
+    const api = acksExtras.importer;
+    return {
+      isGM: game.user.isGM,
+      activeGMIsSelf: !!game.users.activeGM?.isSelf,
+      module: game.modules.get("acks-extras")?.version ?? null,
+      books: H.CB.reimportableBooks().length,
+      adventures: (await H.CB.adventureBooks?.())?.length ?? null,
+      open: Object.keys(api.BOOKS).filter((id) => api.bookOpen(id)).length,
+      boot: globalThis.__ieBoot ?? null,
+    };
+  },
+  observe: async ({ on }) => {
+    const H = globalThis.__ie;
+    if (on) H.writes = [];
+    H.observing = !!on;
+    return H.writes;
+  },
+  packs: async () => game.packs.map((p) => p.collection).sort(),
+  /** The manager on its Import tab, and what its Import everything bar holds. */
+  importTab: async () => {
+    const H = globalThis.__ie;
+    const app = acksExtras.importer.openImportManager({ tab: "import" });
+    await H.poll(() => app.rendered && app.tabGroups?.primary === "import" && H.root(app)?.querySelector("[data-import-form]"));
+    await H.sleep(300);
+    const form = H.root(app)?.querySelector("[data-import-form]");
+    const select = form?.querySelector("select[name='importMode']");
+    const label = select?.closest("label");
+    return {
+      form: !!form,
+      modes: [...(select?.options ?? [])].map((o) => o.value),
+      labels: [...(select?.options ?? [])].map((o) => o.textContent.trim().length > 0),
+      selected: select?.value ?? null,
+      named: !!label && (label.querySelector("span")?.textContent.trim().length ?? 0) > 0,
+      button: !!form?.querySelector("button[data-action='importAll']"),
+      ids: H.root(app).querySelectorAll(".acks-extras-importer-manager-body [id]").length,
+    };
+  },
+  /** The mode chosen as a user chooses it, then Import everything pressed; the confirm is left open. */
+  press: async ({ mode }) => {
+    const H = globalThis.__ie;
+    H.notes.splice(0);
+    const app = foundry.applications.instances.get("acks-extras-import-manager");
+    const root = H.root(app);
+    const select = root.querySelector("[data-import-form] select[name='importMode']");
+    select.value = mode;
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+    const before = H.dialogs().map((a) => a.id);
+    root.querySelector("[data-import-form] button[data-action='importAll']").click();
+    const dlg = await H.poll(() => H.dialogs().find((a) => !before.includes(a.id) && H.root(a)?.querySelector("button[data-action='yes']")), { tries: 480 });
+    if (!dlg) return { dialog: null, notes: H.notes.map((n) => n.kind) };
+    await H.poll(() => H.root(app)?.querySelector(".acks-extras-importer-manager-busy"), { tries: 20 });
+    await H.sleep(300);
+    const text = (H.root(dlg).querySelector(".dialog-content, .window-content")?.textContent ?? "").replace(/\s+/g, " ").trim();
+    const parts = H.root(dlg).querySelectorAll(".dialog-content strong, .window-content strong").length;
+    const key = { drop: "Drop", repair: "Repair", force: "Force" }[mode];
+    const opening = game.i18n.format(`ACKS-IMPORTER.ui.everythingConfirm${key}`, { n: parts }).replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+    const closing = game.i18n.localize("ACKS-IMPORTER.ui.everythingClosed").replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+    const title = dlg.options?.window?.title ?? "";
+    // The confirm stands inside the manager's frame, below the bar, for the plate.
+    const r = H.root(app).getBoundingClientRect();
+    dlg.setPosition({ left: Math.round(r.left + 40), top: Math.round(r.top + 150), width: Math.min(560, Math.round(r.width - 80)) });
+    await H.sleep(400);
+    const form = H.root(app).querySelector("[data-import-form] select[name='importMode']");
+    return {
+      dialog: dlg.id,
+      parts,
+      opens: text.startsWith(opening.slice(0, 30)),
+      closes: text.includes(closing.slice(0, 30)),
+      title: title === game.i18n.localize(`ACKS-IMPORTER.ui.${mode === "force" ? "forceTitle" : "reimportTitle"}`),
+      kept: form?.value ?? null,
+      dialogs: H.dialogs().filter((a) => !before.includes(a.id)).length,
+    };
+  },
+  /** The open confirm answered No by its own button; what landed after. */
+  no: async ({ dialog }) => {
+    const H = globalThis.__ie;
+    const dlg = foundry.applications.instances.get(dialog);
+    H.root(dlg).querySelector("button[data-action='no']").click();
+    await H.poll(() => !dlg.rendered);
+    const app = foundry.applications.instances.get("acks-extras-import-manager");
+    await H.poll(() => !H.root(app)?.querySelector(".acks-extras-importer-manager-busy"), { tries: 40 });
+    await H.sleep(1500);
+    return {
+      closed: !dlg.rendered,
+      idle: !H.root(app)?.querySelector(".acks-extras-importer-manager-busy"),
+      notes: H.notes.filter((n) => n.kind !== "info").map((n) => n.kind),
+      kept: H.root(app)?.querySelector("[data-import-form] select[name='importMode']")?.value ?? null,
+    };
+  },
+  closeManager: async () => {
+    const app = foundry.applications.instances.get("acks-extras-import-manager");
+    if (app) await app.close({ animate: false });
+    return !foundry.applications.instances.get("acks-extras-import-manager")?.rendered;
+  },
+  restore: async () => {
+    const H = globalThis.__ie;
+    if (!H) return { notes: "never installed" };
+    if (H.notesPatched) { for (const k of Object.keys(H.orig)) ui.notifications[k] = H.orig[k]; H.notesPatched = false; }
+    if (H.observer) { for (const [hook, id] of Object.entries(H.observer)) Hooks.off(hook, id); H.observer = null; }
+    for (const app of H.dialogs()) await app.close({ animate: false }).catch(() => null);
+    return { notes: "restored" };
+  },
+};
+
+/* ------------------------------------------------------------------ */
+/*  Driver side                                                         */
+/* ------------------------------------------------------------------ */
+async function run(api, fn, ...args) {
+  const text = await api.eval(`(${fn.toString()})(...${JSON.stringify(args)}).then((v) => JSON.stringify(v === undefined ? null : v))`);
+  return JSON.parse(text);
+}
+async function ready(api, seconds = 240) {
+  const t0 = Date.now();
+  for (;;) {
+    let ok = false;
+    try { ok = await api.eval(`typeof game !== "undefined" && game.ready === true && !!globalThis.acksExtras?.importer?.openImportManager`); } catch { ok = false; }
+    if (ok) return Math.round((Date.now() - t0) / 1000);
+    if (Date.now() - t0 > seconds * 1000) throw new Error(`gm: not ready after ${seconds}s`);
+    await sleep(1000);
+  }
+}
+/** The recorder has to be in the page before it loads, so it goes in over the seat's own CDP target. */
+async function record(port, api) {
+  const targets = await fetch(`http://127.0.0.1:${port}/json`).then((r) => r.json());
+  const page = targets.find((t) => t.type === "page" && t.url.startsWith(origin));
+  const ws = new WebSocket(page.webSocketDebuggerUrl);
+  await new Promise((resolve) => { ws.onopen = resolve; });
+  let next = 0;
+  const send = (method, params = {}) => new Promise((resolve) => {
+    const id = ++next + 500000;
+    const on = (event) => {
+      const reply = JSON.parse(event.data);
+      if (reply.id === id) { ws.removeEventListener("message", on); resolve(reply.result); }
+    };
+    ws.addEventListener("message", on);
+    ws.send(JSON.stringify({ id, method, params }));
+  });
+  await send("Page.enable");
+  await send("Page.addScriptToEvaluateOnNewDocument", { source: RECORDER });
+  await send("Page.reload");
+  await sleep(1500);
+  const seconds = await ready(api);
+  ws.close();
+  return seconds;
+}
+
+let gm = null;
+const WALL_MS = Number(process.env.WALK_WALL_MS ?? 570_000);
+setTimeout(() => {
+  console.error(`WALK ERROR: wall clock of ${WALL_MS} ms reached; closing the seat`);
+  try { gm?.close(); } catch {}
+  process.exit(1);
+}, WALL_MS).unref();
+try {
+  section("seat");
+  gm = await connect({ browser, origin, user: MACHINE.gm, port: PORTS.gm, own: MACHINE.own });
+  note("gm ready after (s)", await record(PORTS.gm, gm));
+  // The shelf's books open after ready; the walk waits for the first to be read as open.
+  let installed = await run(gm, P.install);
+  for (let n = 0; n < 30 && !installed.books; n++) { await sleep(3000); installed = await run(gm, P.install); }
+  note("installed", { module: installed.module, books: installed.books, adventures: installed.adventures, open: installed.open });
+  check("the seat is the active GM with at least one book open", installed.isGM && installed.activeGMIsSelf && installed.books > 0, { books: installed.books });
+  if (!installed.activeGMIsSelf) throw new Error("another client is the active GM; the automation would run there");
+  check("no error from load through ready", installed.boot?.phases.length === 3 && !installed.boot.errors.length, installed.boot);
+
+  section("The Import tab's bar (step 3)");
+  await gm.compose();
+  const tab = await run(gm, P.importTab);
+  note("import tab", tab);
+  check("3: a Mode select beside Import everything, importing what is missing first, then Rebuild, Repair in place, Force repair", tab.form && tab.button && same(tab.modes, ["import", "drop", "repair", "force"]) && tab.selected === "import", tab.modes);
+  check("3: every option carries a label and the select is named by its own caption", tab.labels.every(Boolean) && tab.named, { labels: tab.labels, named: tab.named });
+  check("3: no id inside the body", tab.ids === 0, tab.ids);
+
+  const packsBefore = await run(gm, P.packs);
+  for (const mode of ["drop", "repair", "force"]) {
+    section(`Import everything, ${mode}, answered No (step 3)`);
+    await run(gm, P.observe, { on: true });
+    const asked = await run(gm, P.press, { mode });
+    note(`${mode}: confirm`, { found: !!asked.dialog, parts: asked.parts, title: asked.title, opens: asked.opens, closes: asked.closes, dialogs: asked.dialogs });
+    check(`3, ${mode}: ONE confirm, titled for its mode, opening on its count of parts and closing on what is not touched`, !!asked.dialog && asked.dialogs === 1 && asked.title && asked.opens && asked.closes && asked.parts > 0, asked);
+    check(`3, ${mode}: one part per open book or adventure book at most`, asked.parts <= installed.books + (installed.adventures ?? 0), { parts: asked.parts, books: installed.books, adventures: installed.adventures });
+    check(`3, ${mode}: while the confirm is up, the redrawn bar still reads the mode chosen`, asked.kept === mode, asked.kept);
+    if (process.env.SHOTS === "1" && asked.dialog && mode === "drop") {
+      note("plate", await gm.shot(plate("importer-import-everything-modes.png"), "#acks-extras-import-manager"));
+    }
+    if (!asked.dialog) { await run(gm, P.observe, { on: false }); continue; }
+    const after = await run(gm, P.no, { dialog: asked.dialog });
+    const writes = await run(gm, P.observe, { on: false });
+    note(`${mode}: No`, { closed: after.closed, idle: after.idle, warnings: after.notes.length, writes: writes.length });
+    check(`3, ${mode}: answered No, the observer holds nothing and nothing warned`, after.closed && writes.length === 0 && after.notes.length === 0, { writes: writes.slice(0, 5), notes: after.notes });
+    check(`3, ${mode}: the window is idle again and keeps the mode`, after.idle && after.kept === mode, { idle: after.idle, kept: after.kept });
+  }
+  const packsAfter = await run(gm, P.packs);
+  check("3: no compendium was made or removed by the three passes", same(packsBefore, packsAfter), { before: packsBefore.length, after: packsAfter.length });
+  await run(gm, P.closeManager);
+} catch (err) {
+  console.error("WALK ERROR:", err?.stack ?? err);
+  checks.push(["walk ran to the end", false]);
+} finally {
+  section("teardown");
+  try { if (gm) note("restored", await run(gm, P.restore)); } catch (err) { console.error("restore:", err?.message ?? err); }
+  try { if (gm) await gm.close(); } catch {}
+  section("summary");
+  for (const [label, ok] of checks) console.log(`${ok ? "PASS" : "FAIL"}  ${label}`);
+  const passed = checks.filter(([, ok]) => ok).length;
+  console.log(`${passed}/${checks.length} checks passed`);
+  process.exitCode = passed === checks.length ? 0 : 1;
+}

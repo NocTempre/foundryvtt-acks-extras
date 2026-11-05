@@ -9479,3 +9479,28 @@ hyphenated spelling the text layer splits.
 
 *Cost:* a world that imported the compendium's tables before this has no
 derived leaders until it imports them again; the printed leaders stand.
+
+## 2026-11-04 — Import everything takes the three modes, over every open book, asked once
+
+**Ruled (owner).** Import everything gains Rebuild, Repair in place and Force
+repair beside importing what is missing. Each runs that mode over every book
+open on this seat (`cookbookReimportBook`) and then every open adventure book
+(`cookbookReimportAdventure`): the parts are the per-book runs, so "everything"
+deletes, keeps and refuses exactly what each would alone, and nothing of a
+closed book is touched. One confirm asks for all of them: each part is run
+first with an `ask` that records its own confirm and answers No (every part
+asks before its first write, so that pass writes nothing), and the confirm
+lists each part's lines under its name. A rebuild closes on the whole chain,
+since a book's refill (`SHELF_REFILL`) does not reach the steps that stand on
+it (template packages, companion slots); a repair closes on the rules tables
+re-read in place.
+
+**Rejected:** one confirm per part, which is a dialog per open book; a new
+"Everything" option in `rebuildOptions`, which would put the same control on
+the Rebuild tab and Reimport One Shelf as well as the Import tab the owner
+asked for; and Remove All Imports followed by the chain, which deletes what a
+closed book holds and cannot bring it back.
+
+*Cost:* the confirm's counts are each part's own, so a document two parts
+reach (a book's own item an adventure's repair also writes) is counted in
+both. The dry pass reads the library once more than the run does.

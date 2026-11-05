@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Added
+
+- **Import everything can rebuild, repair or force-repair the whole library.** A mode
+  beside the button on Manage Imports' Import tab picks between importing what is
+  missing (as before), Rebuild, Repair in place and Force repair. The last three run
+  over every book open on your seat and every open adventure book, each as its own
+  Rebuild or Repair would, after one confirm that lists every book with what it will
+  delete or write. A Rebuild then runs the whole import chain again; a repair reads the
+  rules tables again. Nothing imported from a book you have not opened is touched.
+
 ## 11.14.1
 ### Fixed
 

@@ -448,7 +448,8 @@ page. Portable Battering Ram and Personal Automaton read as separate words.
 **Manage Imports (GM)** — `acksExtras.importer.openImportManager({tab})`.
 One AppV2 window, five tabs; it runs nothing of its own, so the walk is each
 tab's primary action reaching the run it names.
-`tools/live/importer-force-repair.mjs` walks steps 1 and 2, the Player seat included.
+`tools/live/importer-force-repair.mjs` walks steps 1 and 2, the Player seat included;
+`tools/live/importer-everything.mjs` walks step 3's modes, each answered No.
 
 ### Fixtures
 
@@ -487,6 +488,15 @@ tab's primary action reaching the run it names.
    *Observable:* the window's status line names the step while it runs and
    its buttons are disabled; the step's own notification lands; the buttons
    return.
+   Then set the mode beside **Import everything** to each of Rebuild, Repair
+   in place and Force repair in turn and press it, answering the confirm
+   **No** each time, with a create/update/delete observer armed.
+   *Observable:* one confirm per press, titled for its mode, listing every
+   open book and every open adventure book that has something to touch
+   under its own name, each with the lines its own Rebuild or Repair shows;
+   the observer holds nothing after each No. A Yes rewrites the shared
+   world's whole library and is walked only in a world kept for it; each
+   part's Yes is walked in its own recipe.
 4. Rebuild tab: the picker's groups equal `rebuildOptions()` — the same
    options as *Reimport One Shelf*'s picker, in the same order. Pick
    *Rules tables → one document*, mode Repair, **Go**.

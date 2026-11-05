@@ -129,6 +129,43 @@ installImportManager({
   api.rebuildOptions = () => (reads.rebuild++, [{ key: "shelves", label: "Shelves", options: [] }]);
 }
 
+/* --- Import everything runs in the mode its select holds ---------------------------------- */
+{
+  const app = new ImportManagerApp();
+  let onChange = null;
+  const select = { value: "repair" };
+  const form = {
+    addEventListener: (type, fn) => type === "change" && (onChange = fn),
+    querySelector: (sel) => (sel === "select[name=importMode]" ? select : null),
+  };
+  app.element = { id: "root", querySelector: (sel) => (sel === "[data-import-form]" ? form : null) };
+  await app.render();
+  const modeOf = (ctx) => ctx.importModes.filter((m) => m.selected).map((m) => m.value).join();
+  ok(
+    "the mode select offers importing what is missing, then rebuild, repair and force repair, each from its own string",
+    app.context.importModes.map((m) => `${m.value}:${m.label}`).join() ===
+      "import:ACKS-IMPORTER.manager.importModeImport,drop:ACKS-IMPORTER.ui.reimportModeDrop,repair:ACKS-IMPORTER.ui.reimportModeRepair,force:ACKS-IMPORTER.ui.reimportModeForce",
+    JSON.stringify(app.context.importModes),
+  );
+  ok("before any choice the mode imports what is missing", modeOf(app.context) === "import", modeOf(app.context));
+  onChange?.({ target: { name: "importMode", value: "force" } });
+  await app.render();
+  ok("a mode the user changes is drawn selected on the next render", modeOf(app.context) === "force", modeOf(app.context));
+  const ran = [];
+  installImportManager({ api, steps: [["stepOne", () => {}]], booksPanel: async () => ({ html: "", wire: () => {} }), runEverything: async (mode) => ran.push(mode) });
+  await app.constructor.DEFAULT_OPTIONS.actions.importAll.call(app, {}, { closest: (sel) => (sel === "[data-import-form]" ? form : null) });
+  ok("a press hands the select's mode to the run", ran.join() === "repair", ran.join());
+  ok("and the press keeps that mode for the renders after it", modeOf(app.context) === "repair", modeOf(app.context));
+  installImportManager({
+    api,
+    steps: [["stepOne", () => {}]],
+    booksPanel: async (opts) => {
+      built.push(opts);
+      return { html: `<div data-books-panel>built ${built.length}</div>`, wire: (element, hooks) => wired.push({ element, hooks }) };
+    },
+  });
+}
+
 /* --- a seat that is not a GM sees the Books tab alone ------------------------------------ */
 {
   game.user.isGM = false;
