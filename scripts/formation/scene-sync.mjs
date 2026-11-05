@@ -1,12 +1,12 @@
 /* global game, ChatMessage, CONST */
-import { FLAG_PARTY_SIZE, MODULE_ID, ROLES } from "./constants.mjs";
+import { FLAG_PARTY_SIGHT, FLAG_PARTY_SIZE, MODULE_ID, ROLES } from "./constants.mjs";
 import { deployedTokens, isMemberDeployed } from "./deployment.mjs";
 import { getFormations, getPartyActor, getPartyToken, mapperIsProficient, partyTokenShape, patchFormation } from "./formation-model.mjs";
 import { FLAG_FOOTPRINT_LOCK } from "../battlemap/constants.mjs";
 import { ensureMapSession } from "./map-items.mjs";
 import { MEASURE_FLAG, MEASURE_MODES } from "./measure-fuzz.mjs";
 import { VISION_MODES, senseProfile } from "../lib/senses.mjs";
-import { SETTING_MANAGE_VISION, applyTokenLight, applyTokenVision, syncTokenFromActor } from "../lib/token-sync.mjs";
+import { SETTING_MANAGE_VISION, applyTokenLight, applyTokenVision, syncTokenFromActor, visionClaimed } from "../lib/token-sync.mjs";
 
 /**
  * Keeps the world in step with formation state (runs on the primary GM client
@@ -203,12 +203,22 @@ async function syncPartyTokenLight(formation) {
  * Members who have left the token do not lend it their eyes.
  */
 async function syncPartyTokenVision(formation) {
+  const token = getPartyToken(formation);
+  if (!token) return;
+  // A party token sees, whatever the vision setting. The first sync to read one
+  // that neither it nor the vision pass has claimed switches its sight on (it
+  // took sight off from a prototype that never set it) and stamps it; sight a
+  // hand turns off after that stays off.
+  if (!token.getFlag(MODULE_ID, FLAG_PARTY_SIGHT) && !visionClaimed(token)) {
+    await token.update({
+      ...(token.sight?.enabled ? {} : { "sight.enabled": true }),
+      [`flags.${MODULE_ID}.${FLAG_PARTY_SIGHT}`]: true,
+    });
+  }
   // The party token is written directly rather than through syncTokenFromActor
   // (the party actor has no senses of its own), so the world switch that turns
   // the vision pass off has to be honoured here too.
   if (!game.settings.get(MODULE_ID, SETTING_MANAGE_VISION)) return;
-  const token = getPartyToken(formation);
-  if (!token) return;
   let best = { seesInDark: false, sightRange: 0, visionMode: VISION_MODES.BASIC };
   for (const member of formation.members) {
     if (!member?.actorId || member.blank || isDeployed(formation, member.actorId)) continue;

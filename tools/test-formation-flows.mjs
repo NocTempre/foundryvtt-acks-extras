@@ -2665,6 +2665,49 @@ await scenario("a lit torch survives every hook chain and reaches the token", as
   await drain();
 });
 
+await scenario("the sync gives a party token sight unless the vision pass has claimed it", async () => {
+  const walker = await member("Sightless");
+  await drain();
+  const [wToken] = await scene.createEmbeddedDocuments("Token", [
+    { name: "Sightless", actorId: walker.id, x: 1700, y: 1700 },
+  ]);
+  await game.settings.set(MODULE_ID, "formations", {}); // isolate
+  let formation = await model.createFormation("Blind Party");
+  formation = await model.addMember(formation, walker, wToken);
+  await drain();
+  const id = onlyFormation().id;
+  const token = () => scene.tokens.get(onlyFormation().tokenId);
+
+  // A token from a prototype that never set sight, which no sync has read.
+  const unread = async () => {
+    await token().update({ "sight.enabled": false });
+    delete token().flags[MODULE_ID]?.managedVision;
+    delete token().flags[MODULE_ID]?.partySight;
+  };
+  await unread();
+  await sceneSync.syncEnvironments();
+  await drain();
+  assert.equal(token().sight?.enabled, true, "an unread party token with sight off is switched on");
+  assert.equal(token().getFlag(MODULE_ID, "partySight"), true, "the switch stamps the token");
+
+  // Sight a hand turns off after the first sync stays off, with the vision
+  // pass off (this suite registers no vision setting), so nothing else claims it.
+  await token().update({ "sight.enabled": false });
+  await sceneSync.syncEnvironments();
+  await drain();
+  assert.equal(token().sight?.enabled, false, "a stamped party token keeps the sight a hand set");
+
+  // A token the vision pass claimed before the stamp existed keeps a hand's sight too.
+  await unread();
+  await token().setFlag(MODULE_ID, "managedVision", { range: 0, visionMode: "basic" });
+  await sceneSync.syncEnvironments();
+  await drain();
+  assert.equal(token().sight?.enabled, false, "a claimed party token keeps the sight a hand set");
+
+  await model.disband(model.getFormation(id));
+  await drain();
+});
+
 await scenario("a queued write never resurrects a record deleted while it waited", async () => {
   // See docs/formation/DECISIONS.md, "The ledger is read inside the lock,
   // never before it".

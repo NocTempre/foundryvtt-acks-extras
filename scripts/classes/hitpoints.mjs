@@ -41,8 +41,10 @@ export function parseHd(formula) {
 /**
  * Roll one hit-dice cell into a point total, Constitution applied per die.
  * Reads the individual faces off the evaluated roll so `dieMinimum` can raise
- * each one before Constitution applies; a term reporting no faces (Foundry
- * evaluated the formula some other way) falls back to a bulk adjustment.
+ * the cell's FIRST die before Constitution applies; every other die is read as
+ * it fell, so a cell of several dice floors one of them. A term reporting no
+ * faces (Foundry evaluated the formula some other way) falls back to a bulk
+ * adjustment that holds the same floor on the total.
  * @returns {Promise<{roll: Roll, total: number, perDie: boolean}>}
  */
 export async function rollHitDice(hd, conMod, { dieMinimum = 1 } = {}) {
@@ -50,8 +52,8 @@ export async function rollHitDice(hd, conMod, { dieMinimum = 1 } = {}) {
   const faces = (roll.dice?.[0]?.results ?? []).filter((r) => r.active !== false).map((r) => r.result);
   const perDie = faces.length === hd.dice;
   const rolled = perDie
-    ? faces.reduce((sum, face) => sum + Math.max(1, Math.max(face, dieMinimum) + conMod), 0)
-    : Math.max(roll.total, hd.dice * dieMinimum) + hd.dice * conMod;
+    ? faces.reduce((sum, face, i) => sum + Math.max(1, (i === 0 ? Math.max(face, dieMinimum) : face) + conMod), 0)
+    : Math.max(roll.total, dieMinimum + Math.max(0, hd.dice - 1)) + hd.dice * conMod;
   return { roll, total: rolled + (hd.flat ?? 0), perDie };
 }
 

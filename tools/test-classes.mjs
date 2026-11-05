@@ -673,6 +673,14 @@ await atest("the floor raises the DIE, and Constitution lands after it", async (
     // The floor reaches the FIRST die only: at 2nd level both faces would be
     // floored to 3 (total 6) if it leaked past level one.
     assert.equal(await atLevel(0, [1, 1], 2), 4);
+    // A 1st level that prints several dice floors the first of them: 3 + 1,
+    // where flooring every die would give 6.
+    globalThis.Roll = scriptDie([1, 1]);
+    const twoAtFirst = { system: { maximumLevel: 14, hitDie: "1d8", levelRow: () => ({ hd: "2d8" }) } };
+    assert.equal((await rebuildHitPoints({ system: { scores: { con: { mod: 0 } } } }, twoAtFirst, 1)).max, 4);
+    // Constitution still lands on every die, after the floor: (3 + 1) + (1 + 1).
+    globalThis.Roll = scriptDie([1, 1]);
+    assert.equal((await rebuildHitPoints({ system: { scores: { con: { mod: 1 } } } }, twoAtFirst, 1)).max, 6);
   } finally {
     unregisterTable(HITPOINTS_DOC, { priority: PRIORITY.WORLD });
   }

@@ -77,6 +77,13 @@ export const SETTING_PARTY_TOKEN_SHAPE = "partyTokenShape";
 export const FLAG_PARTY_SIZE = "partySize";
 
 /**
+ * Token flag set the first time the environment sync reads a party token's
+ * sight, after giving it sight where it had none. Sight a hand changes after
+ * that is the Judge's.
+ */
+export const FLAG_PARTY_SIGHT = "partySight";
+
+/**
  * Token flag holding the ground the party token walked, `{sceneId, points}`:
  * cell top-left corners from the head backward, bounded to the column's depth.
  */

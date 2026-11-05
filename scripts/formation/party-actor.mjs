@@ -56,6 +56,18 @@ export class PartyData extends foundry.abstract.TypeDataModel {
       description: new HTMLField({ required: true, blank: true }),
     };
   }
+
+  /**
+   * A party actor made anywhere, the sidebar or a compendium included, gives
+   * its token sight as the module's own party actor does, unless the creation
+   * data says otherwise. The token's range and mode are the party sync's.
+   */
+  async _preCreate(data, options, user) {
+    if ((await super._preCreate(data, options, user)) === false) return false;
+    if (foundry.utils.getProperty(data, "prototypeToken.sight.enabled") === undefined) {
+      this.parent.updateSource({ "prototypeToken.sight.enabled": true });
+    }
+  }
 }
 
 /** The formation record backed by a given party actor. */

@@ -5084,3 +5084,25 @@ crossed on its next deploy or restore. No migration. Rejected: matching by
 `actorId`, which a crossed stash answers wrongly, and a flag key as lib's
 group deploy uses, which adds a write to every token for what an id already
 says. The walk's step 7 now checks each token's actor as well as its square.
+
+## 2026-11-04 — A party actor made from the sidebar sees
+
+**Ruled.** The party data model's `_preCreate` writes
+`prototypeToken.sight.enabled: true` into any creation that does not set it.
+Only `createFormation` used to give the party actor sight, so one made through
+core's Create Actor had a sightless prototype, and its token, once placed and
+adopted, showed its owners nothing. The vision pass could not mend it:
+`visionDelta` reads sight off as a Judge's choice and writes nothing, and with
+the vision setting off the pass never runs. So the first environment sync to
+read a party token that the pass has never claimed (`visionClaimed`, lib)
+switches its sight on where it is off and stamps it (`partySight`), whatever
+the setting; a party token is a view onto the map and has no reason to be
+blind. After the stamp, or the pass's claim, sight a hand turns off stays off.
+The stamp is the formation's own because the pass claims a token only while
+the vision setting is on: keyed on the claim alone, a Judge's sight-off would
+be undone at every sync in a world that has it off. **What it cost.** An
+unclaimed party token a Judge blinded on purpose before this release is
+switched back on once. No migration: tokens already placed are mended at the
+primary GM's next sync. Rejected: a migration over every party actor's
+prototype, which mends no token already placed; and writing sight through the
+vision pass, which reads sight off as a choice to respect.

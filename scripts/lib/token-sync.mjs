@@ -286,6 +286,11 @@ export function isManagedLight(tokenDoc) {
   return !stamp || matchesStamp(tokenDoc, stamp);
 }
 
+/** True once the vision pass has written or claimed this token's sight, or a hand edit released it. */
+export function visionClaimed(tokenDoc) {
+  return !!tokenDoc?.getFlag(MODULE_ID, FLAG_VISION);
+}
+
 /**
  * Point a token's sight at `{sightRange, visionMode}`. Returns true if the
  * token's vision changed (a bare ownership stamp reads as false: nothing about

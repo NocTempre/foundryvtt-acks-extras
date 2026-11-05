@@ -1734,3 +1734,25 @@ into an update.
 **What it cost.** The training effect keeps its id across a class change and
 is renamed under it. Another module's flags on the copy now survive a
 re-apply; the delete used to drop them.
+
+## 2026-11-04 — the 1st-level floor raises one die of a multi-die cell
+
+Amends "2026-08-29 — the 1st-level hit-die floor is imported, and defaults to
+no floor", whose `rollHitDice` raised EACH face of the 1st-level cell.
+
+**Evidence.** RR Ch. 1 §I.5 floors the one die a character rolls at 1st
+level, and MODEL already said the floor "reaches the first die only". A class
+whose 1st-level row prints more than one die (none shipped has one; a
+hand-made or later-imported class can) had every die raised, so its starting
+total came out higher than one floored die gives.
+
+**Ruled.** `rollHitDice` raises the cell's first face to `dieMinimum` and
+reads every other face as it fell; Constitution still lands per die, after the
+floor. A roll that reports no faces floors its total at
+`dieMinimum + (dice − 1)`, the least a cell with one floored die sums to.
+
+**Rejected.** Raising the lowest face instead: it makes the floor worth more
+on a two-die cell than on a one-die cell, which the page does not say.
+
+**What it cost.** Nothing migrates. A total already rolled stands; the next
+generation, picker bind or level set rolls under the new arithmetic.

@@ -516,7 +516,21 @@ with Constitution added AFTER it. A d4 class can no longer roll below the floor
 at all. The floor must NOT reach 2nd level: bind a 2nd-level character through
 the picker and confirm the total is a full reroll of two dice, unfloored.
 
-**Teardown.** Delete both characters.
+5. **A 1st level of two dice floors one of them** (`tools/live/classes-hit-points.mjs`
+   walks it). Fixtures, kept: a class
+   item `classes/two-die-first-level` (a world copy of an imported class with
+   its level-1 HD cell typed as `2d8` on the class sheet's Levels table) and a
+   character `classes/hp-floor-character` with known Constitution. Rig every
+   die to fall 1 (`CONFIG.Dice.randomUniform = () => 0.975` on core 14; probe
+   one roll first), then bind the class at 1st level through
+   `acksExtras.classes.applyClass(actor, cls, {level: 1, confirm: false,
+   rebuildVitals: true})`, the call the picker and chargen make. Restore
+   `randomUniform` after.
+   *Observable:* `system.hp.max` is the floor plus Constitution for the first
+   die and one plus Constitution for the second, each at least one. Flooring
+   both dice would read the floor plus Constitution twice.
+
+**Teardown.** Delete both characters. The step 5 fixtures stay.
 
 ## A skipped template die, and a package that answers the picks
 

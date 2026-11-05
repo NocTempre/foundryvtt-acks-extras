@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+## 11.14.1
+### Fixed
+
+- **A class whose first level rolls more than one hit die raises only one of them to
+  the first-level minimum** (RR ch. 1). Every die used to be raised, so such a class
+  started with more hit points than one floored die gives. No class the importer
+  writes has a first level like this; one you type into a class's Levels table does.
+  Hit points already rolled stay as they are.
+- **A party made from the Actors sidebar sees.** Its token had no vision, so in an
+  unlit corridor its players saw nothing of the party or its column. A new party's
+  token now sees however the party was made, and a party token already on a map is
+  given sight once, at the GM's next load or party change; vision you turn off on it
+  after that stays off.
+
 ## 11.14.0
 ### Added
 

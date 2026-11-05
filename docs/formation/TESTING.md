@@ -3700,6 +3700,35 @@ Teardown: set both settings back to blank and clear any override step 5 left.
 The party is a kept fixture; the cards the turns posted are this run's:
 `api.track` each card's id as the turn resolves and `api.sweepTracked()` them.
 
+## A party actor made from the sidebar (added with the party's sight)
+
+The party token sees, however its actor was made (MODEL §Data flow, "The party
+token sees"). Setup is the subject of step 1, so its party is built fresh and
+tracked. `tools/live/formation-party-sight.mjs` walks it. Every step waits on
+a hook only the primary GM's window runs, and a window still joining its
+seat's election answers false: act once lib's `primaryGMSettled()` resolves
+true, or the creation is never adopted and nothing errors.
+
+Fixtures: `formation/column-scene` (above).
+
+1. **The sidebar's creation.** Core's Create Actor sends only a name, a type
+   and a folder: `Actor.create({name, type: "acks-extras.party"})` is the same
+   write. `api.track` the actor; the formation its `createActor` hook adopts
+   is dissolved by the deletion's own hook at teardown.
+   *Observable:* `actor.prototypeToken.sight.enabled` is true, and a formation
+   names the actor.
+2. **Its token.** Place the actor's token on the scene (`api.track` it) and let
+   the adoption settle. *Observable:* the token's `sight.enabled` is true and
+   it carries `flags.acks-extras.partySight`.
+3. **A token placed before the fix.** Turn that token's sight off and unset
+   both `partySight` and `managedVision` in one update, then make any
+   formation change (rename the party) so the primary GM syncs.
+   *Observable:* sight is back on and the stamp is back.
+4. **A Judge's choice.** Turn its sight off by hand in Token Config and make
+   another formation change. *Observable:* sight stays off.
+
+Teardown: `api.sweepTracked()`; quote what it removed.
+
 ## Teardown
 
 `api.sweepTracked()` over the ledger: the scene, the party actor (its
