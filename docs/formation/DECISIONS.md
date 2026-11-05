@@ -5106,3 +5106,37 @@ switched back on once. No migration: tokens already placed are mended at the
 primary GM's next sync. Rejected: a migration over every party actor's
 prototype, which mends no token already placed; and writing sight through the
 vision pass, which reads sight off as a choice to respect.
+
+## 2026-11-04 — The column stands inside its walls
+
+**New evidence.** The owner's report: a party drawn four abreast, sixteen
+strong, with three of its files standing past the wall on the head's right
+hand, in rock the party never walked. `columnCells` spread every file along the
+right hand and ran the column on past its trail with no wall test; only the
+scene's edge pinned a body. This amends the deploy rule of "The party token is
+the head of its column" (2026-11-04), which laid the straight block whenever
+the trail held no step: that block went through the same wall.
+
+**Ruled.**
+- No body stands across a wall from the body it steps out of (MODEL §The
+  column, Walls). A file the right hand cannot reach takes the left; one
+  neither reaches goes to the next rank, so a passage narrower than the
+  frontage makes the column deeper. Past the trail the column turns a quarter
+  where its way back is shut; boxed in, it stops where it is.
+- The scene's edge is shut like a wall, in place of pinning each body onto
+  it, which stacked bodies on one cell.
+- A deploy or a restore with no step walked lays the column where a wall cuts
+  the column laid without one, and the straight block elsewhere, which still
+  shifts whole onto the scene.
+- The trail keeps one cell per body, not per rank: a squeezed column is deeper
+  than the frontage says.
+
+**The test** reads the scene's wall documents, not the canvas: the Night
+Vision sweep and a deploy run on scenes no canvas draws. It mirrors core's
+movement collision (an open door passes, a one-way wall stops only a step from
+its shut side, a wall's line through the start does not stop it, a wall
+naming no level stands on every one), and the column walk holds it to
+`Token#checkCollision` step by step. Rejected: `canvas.edges` and the
+polygon backend, which answer only for the scene being viewed; and squeezing
+in the rules (`effectiveFrontage`), which nothing reads yet and which is the
+roadmap's, not this report's.

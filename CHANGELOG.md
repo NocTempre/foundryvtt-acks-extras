@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Fixed
+
+- **A party's column stands inside its walls.** Files that spread across a wall from
+  the head, and a column that ran on through rock past the ground it walked, now
+  stand on the party's side: a file the right hand cannot reach takes the left, and
+  one neither reaches marches in the next rank, so a corridor narrower than the
+  frontage makes the column deeper. Its lights shine from those cells, and a party
+  that fights where it stands deploys onto them. The scene's edge is treated like a
+  wall, so bodies no longer pile onto one cell against it. In the open nothing moves.
+
 ### Added
 
 - **Import everything can rebuild, repair or force-repair the whole library.** A mode

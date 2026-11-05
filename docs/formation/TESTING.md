@@ -3596,9 +3596,10 @@ unset. A kept fixture carries what the last walk left.
    refresh (`canvas.perception.update({initializeLighting: true})`); the
    sources survive it.
 6. Turn the party token by hand (rotation only).
-   *Observable:* the trail is reset to the head, the column straightens behind
-   the new heading, no size or position is written, and the clock is
-   unchanged.
+   *Observable:* the trail is reset to the head, the column is laid again
+   behind the new heading (turning where the corridor's end wall stands in its
+   way, as `columnFor` lays it), no size or position is written, and the clock
+   is unchanged.
 7. Start a combat with the party token; the party deploys.
    *Observable:* each member's token stands on the cell their glyph stood on
    (the bend included) and carries that member's own actor in its `actorId`
@@ -3646,10 +3647,32 @@ unset. A kept fixture carries what the last walk left.
     `managedLight` is false and the hand-set radius stands.
     `acksExtras.lib.vision.migrateWorld({reclaim: true})` takes it back: the
     lantern's radius returns, stamped.
+15. **A column squeezed by its walls.** Put the head back at the L's west end
+    facing east (turn it, so the trail resets) and set the frontage to 3. Read
+    `columnFor` and `columnPlacement` on the GM seat
+    (`/modules/acks-extras/scripts/formation/column.mjs`), and the drawn cells.
+    *Observable:* the head, the cell south of it (east's right hand) and the
+    cell west of the head, all three inside the corridor: a third file meets a
+    wall on either hand and goes to the next rank. The drawing and a deploy
+    from that spot, with no step walked, take the same three cells, not the
+    straight block. Set the frontage back to 1.
+16. **The wall test agrees with core.** For every step between neighbouring
+    cells on the scene around the corridor, hold the column's `wallTest` over
+    the scene's walls against the party token's
+    `object.checkCollision(destCentre, {origin: originCentre, type: "move"})`.
+    *Observable:* they agree on every step. A step off the scene is left out:
+    core's scene edge is the column's bounds, not a wall.
+
+A plate shot from the Player seat composes that seat, and compose closes its
+sidebar. Core's token pan reads the sidebar's width, so the next move of a
+token that seat controls throws, and the walk's error check fails at the end
+with nothing to say which step did it. After each such plate, render the
+hotbar and then the sidebar again; the chat log's render reaches into the
+hotbar, so the other order throws too.
 
 Teardown: the kept fixtures stay. Gather anyone deployed, set the shape and
-colour back to unset, and relight both sources, so the next walk's assertions
-hold. A token pasted in step 9 and the hand-lit token in step 13 are this
+colour back to unset, the frontage to 1, and relight both sources, so the next
+walk's assertions hold. A token pasted in step 9 and the hand-lit token in step 13 are this
 run's: `api.track` each id as it is made and `api.sweepTracked()` them. The
 lantern bearer's token edited in step 14 is the deployed token, which the
 gather removes; if it stands, reclaim it as step 14 says.

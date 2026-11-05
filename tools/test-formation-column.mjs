@@ -95,11 +95,96 @@ test("past the trail's end the column runs on away from the oldest step", () => 
   assert.deepEqual(cells, [at(6, 5), at(5, 5), at(4, 5), at(3, 5)]);
 });
 
-test("a column is pinned inside the scene body by body", () => {
+test("a cell off the scene is shut like a wall: the column turns along the edge", () => {
   const f = party(3, 1);
   const bounds = { minX: 0, minY: 0, maxX: 900, maxY: 900 };
   const cells = columnCells(f, { anchor: at(0, 1), heading: "south", gs: GS, bounds });
-  assert.deepEqual(cells, [at(0, 1), at(0, 0), at(0, 0)]);
+  assert.deepEqual(cells, [at(0, 1), at(0, 0), at(1, 0)]);
+});
+
+/* -------------------------------------------- */
+/*  Walls                                       */
+/* -------------------------------------------- */
+
+/** A wall along the grid line x = `cx` cells, the whole height of the test map. */
+const wallX = (cx, extra = {}) => ({ c: [cx * GS, 0, cx * GS, 30 * GS], move: 20, ...extra });
+/** A wall along the grid line y = `cy` cells, the whole width of the test map. */
+const wallY = (cy, extra = {}) => ({ c: [0, cy * GS, 30 * GS, cy * GS], move: 20, ...extra });
+/** The column's wall test over `walls`, read around cell `cx`,`cy`. */
+const walled = (walls, cx = 5, cy = 5, level = null) => column.wallTest(walls, { level, gs: GS, near: column.cellCentre(at(cx, cy), GS), reach: 20 * GS });
+
+test("a wall on the right hand sends the files to the left", () => {
+  const f = party(4, 2);
+  // Facing north, the right hand is east; the wall stands on the line east of column 5.
+  const cells = columnCells(f, { anchor: at(5, 5), heading: "north", gs: GS, blocked: walled([wallX(6)]) });
+  assert.deepEqual(cells, [at(5, 5), at(4, 5), at(5, 6), at(4, 6)]);
+});
+
+test("a passage one cell wide runs the party single file, deeper by the files it lost", () => {
+  const f = party(4, 4);
+  const cells = columnCells(f, { anchor: at(5, 5), heading: "north", gs: GS, blocked: walled([wallX(5), wallX(6)]) });
+  assert.deepEqual(cells, [at(5, 5), at(5, 6), at(5, 7), at(5, 8)]);
+});
+
+test("sixteen four abreast, the head against a wall on its right hand, all stand on its side", () => {
+  const f = party(16, 4);
+  const blocked = walled([wallX(6)]);
+  const cells = columnCells(f, { anchor: at(5, 5), heading: "north", gs: GS, blocked });
+  assert.equal(cells.length, 16);
+  assert.ok(cells.every((c) => c.x < 6 * GS), "no body east of the wall");
+});
+
+test("an open door lets the files through, and a shut one does not", () => {
+  const f = party(2, 2);
+  const open = columnCells(f, { anchor: at(5, 5), heading: "north", gs: GS, blocked: walled([wallX(6, { door: 1, ds: 1 })]) });
+  assert.deepEqual(open, [at(5, 5), at(6, 5)]);
+  for (const ds of [0, 2]) {
+    const shut = columnCells(f, { anchor: at(5, 5), heading: "north", gs: GS, blocked: walled([wallX(6, { door: 1, ds })]) });
+    assert.deepEqual(shut, [at(5, 5), at(4, 5)], `door state ${ds}`);
+  }
+});
+
+test("a one-way wall stops only a step from its shut side", () => {
+  const f = party(2, 2);
+  // Seen from the head's centre west of it, the line x=6 drawn top to bottom
+  // has the head on its left (core's orientation).
+  const fromLeftPasses = columnCells(f, { anchor: at(5, 5), heading: "north", gs: GS, blocked: walled([wallX(6, { dir: 1 })]) });
+  assert.deepEqual(fromLeftPasses, [at(5, 5), at(6, 5)]);
+  const fromLeftShut = columnCells(f, { anchor: at(5, 5), heading: "north", gs: GS, blocked: walled([wallX(6, { dir: 2 })]) });
+  assert.deepEqual(fromLeftShut, [at(5, 5), at(4, 5)]);
+});
+
+test("a wall standing on another level does not stop the column; one on every level does", () => {
+  const f = party(2, 2);
+  const other = columnCells(f, { anchor: at(5, 5), heading: "north", gs: GS, blocked: walled([wallX(6, { levels: ["upper"] })], 5, 5, "ground") });
+  assert.deepEqual(other, [at(5, 5), at(6, 5)]);
+  const every = columnCells(f, { anchor: at(5, 5), heading: "north", gs: GS, blocked: walled([wallX(6, { levels: [] })], 5, 5, "ground") });
+  assert.deepEqual(every, [at(5, 5), at(4, 5)]);
+});
+
+test("a wall that stops nothing, or one out of reach, gives no wall test", () => {
+  assert.equal(walled([wallX(6, { move: 0 })]), null, "movement passes it");
+  assert.equal(column.wallTest([{ c: [9000, 9000, 9100, 9000], move: 20 }], { gs: GS, near: { x: 550, y: 550 }, reach: 500 }), null);
+});
+
+test("with its way back shut, the column turns a quarter, right hand first", () => {
+  const f = party(3, 1);
+  // Facing north, the column runs south behind the head; the wall under row 5 shuts it.
+  const cells = columnCells(f, { anchor: at(5, 5), heading: "north", gs: GS, blocked: walled([wallY(6)]) });
+  assert.deepEqual(cells, [at(5, 5), at(4, 5), at(3, 5)]);
+});
+
+test("boxed in, the ranks left stand on the last cell reached", () => {
+  const f = party(3, 1);
+  const box = [wallX(5), wallX(6), wallY(5), wallY(6)];
+  const cells = columnCells(f, { anchor: at(5, 5), heading: "north", gs: GS, blocked: walled(box) });
+  assert.deepEqual(cells, [at(5, 5), at(5, 5), at(5, 5)]);
+});
+
+test("a step whose start lies on a wall's line is not stopped by it", () => {
+  const walls = column.movementWalls([wallX(5)]);
+  assert.equal(column.stepCrosses(walls, { x: 500, y: 550 }, { x: 450, y: 550 }), false);
+  assert.equal(column.stepCrosses(walls, { x: 550, y: 550 }, { x: 450, y: 550 }), true);
 });
 
 /* -------------------------------------------- */
@@ -124,14 +209,14 @@ test("a stack fills a body per head, and the member after it starts after its la
 /*  The trail                                   */
 /* -------------------------------------------- */
 
-test("a trail keeps one cell per rank and one more", () => {
+test("a trail keeps one cell per body, as deep as a column squeezed to single file, and one more", () => {
   const f = party(6, 2);
-  assert.equal(trailBound(f), 4);
+  assert.equal(trailBound(f), 7);
   const walked = pathCells([at(0, 0), at(0, 9)], GS);
   const trail = extendTrail([at(0, 0)], walked, trailBound(f));
-  assert.equal(trail.length, 4);
+  assert.equal(trail.length, 7);
   assert.deepEqual(trail[0], at(0, 9));
-  assert.deepEqual(trail[3], at(0, 6));
+  assert.deepEqual(trail[6], at(0, 3));
 });
 
 test("stepping back over the column turns it: the cell just left is behind the head", () => {
@@ -225,6 +310,23 @@ test("a deploy takes the column's cells only once the trail has a step", () => {
   assert.equal(column.columnPlacement(f, partyToken(scene("h", { type: 2 }), 4, 4, { sceneId: "h", points: [at(4, 4), at(3, 4)] })), null, "no column on a hex map");
   const bent = column.columnPlacement(f, partyToken(sq, 4, 4, { sceneId: "s", points: [at(4, 4), at(4, 3), at(3, 3)] }));
   assert.deepEqual(bent, [[at(4, 4)], [at(4, 3)], [at(3, 3)]], "one cell list per member, along the bend");
+});
+
+test("a deploy that walked nowhere lays the column where a wall cuts the block, and the block where none does", () => {
+  const f = party(2, 2);
+  // Rotation 180 faces north: the files spread east.
+  const cut = { ...scene("w"), walls: [wallX(5)] };
+  assert.deepEqual(column.columnPlacement(f, partyToken(cut, 4, 4, null, 180)), [[at(4, 4)], [at(3, 4)]], "the second file steps west of the wall");
+  const far = { ...scene("f"), walls: [wallX(20)] };
+  assert.equal(column.columnPlacement(f, partyToken(far, 4, 4, null, 180)), null, "a wall the block never meets");
+});
+
+test("columnFor reads the scene's walls on the party token's level", () => {
+  const f = party(2, 2);
+  const sc = { ...scene("l"), walls: [wallX(5, { levels: ["upper"] })] };
+  const tok = (level) => ({ ...partyToken(sc, 4, 4, null, 180), level });
+  assert.deepEqual(column.columnFor(f, tok("upper")).cells, [at(4, 4), at(3, 4)]);
+  assert.deepEqual(column.columnFor(f, tok("ground")).cells, [at(4, 4), at(5, 4)]);
 });
 
 /* -------------------------------------------- */

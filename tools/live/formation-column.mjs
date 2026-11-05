@@ -8,7 +8,9 @@
  * Covers:
  *   "The column and its lights" 1-8, 9 (the pasted copy), 11 (the fill, the
  *       tint, the hidden token), 12 (one party, explicit shape against the
- *       world default), 13 and 14 up to the release. Not walked: 9's mile
+ *       world default), 13 and 14 up to the release, 15 (a column squeezed by
+ *       its corridor, drawn and deployed) and 16 (the column's wall test
+ *       against core's movement collision). Not walked: 9's mile
  *       scene, 10's Night Vision watcher, 11's line of sight around the
  *       corner, and 14's reclaim, which is a world-wide write over every
  *       released token, a peer's included.
@@ -391,6 +393,45 @@ const P = {
       ours: [...canvas.effects.lightSources.values()].filter((s) => String(s.sourceId).startsWith("acks-extras.column.")).map((s) => ({ active: !!s.active, level: s.data.level ?? null, shape: !!s.shape, at: canvas.visibility.testVisibility({ x: s.data.x, y: s.data.y }, { tolerance: 1 }) })),
       lights: canvas.effects.lightSources.size,
     };
+  },
+
+  /**
+   * The column at `frontage` from the head as it stands: the cells `columnFor`
+   * lays, the cells a deploy would take, and the column's wall test held
+   * against core's movement collision for every step between neighbouring
+   * cells of `box` (cells) that stays on the scene, counted: core's scene
+   * edges are the column's bounds, not its walls.
+   */
+  walled: async ({ fid, tokenId, frontage, box }) => {
+    const H = globalThis.__col;
+    const C = await import("/modules/acks-extras/scripts/formation/column.mjs");
+    await H.model.patchFormation(fid, (r) => { r.frontage = frontage; });
+    await H.sleep(900);
+    const f = H.model.getFormation(fid);
+    const token = canvas.tokens.get(tokenId);
+    const doc = token.document;
+    const gs = canvas.scene.grid.size;
+    const laid = C.columnFor(f, doc)?.cells ?? [];
+    const placed = (C.columnPlacement(f, doc) ?? []).flat();
+    const blocked = C.wallTest(canvas.scene.walls, { level: doc.level, gs, near: { x: (box.x0 + box.x1) * gs / 2, y: (box.y0 + box.y1) * gs / 2 }, reach: (box.x1 - box.x0 + box.y1 - box.y0 + 4) * gs });
+    const rect = canvas.dimensions.sceneRect;
+    const onScene = (c) => c.x >= rect.x && c.y >= rect.y && c.x + gs <= rect.x + rect.width && c.y + gs <= rect.y + rect.height;
+    let agree = 0;
+    const differ = [];
+    for (let cx = box.x0; cx <= box.x1; cx++) {
+      for (let cy = box.y0; cy <= box.y1; cy++) {
+        const from = { x: cx * gs, y: cy * gs };
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const to = { x: from.x + dx * gs, y: from.y + dy * gs };
+          if (!onScene(from) || !onScene(to)) continue;
+          const ours = !!blocked?.(from, to);
+          const core = !!token.checkCollision({ x: to.x + gs / 2, y: to.y + gs / 2 }, { origin: { x: from.x + gs / 2, y: from.y + gs / 2 }, type: "move", mode: "any" });
+          if (ours === core) agree += 1;
+          else differ.push({ cx, cy, dx, dy, ours });
+        }
+      }
+    }
+    return { frontage: f.frontage, laid, placed, agree, differs: differ.length, differ: differ.slice(0, 8), walls: !!blocked };
   },
 
   /** `drawn`, read again until each named light's presence is as wanted or the time runs out; `waited` is the ms it took. */
@@ -888,6 +929,23 @@ const P = {
     return true;
   },
   unclip: async () => { document.getElementById("qa-column-clip")?.remove(); return true; },
+
+  /** Pan to the corridor for a plate without controlling anything: a controlled token pans on its next move. */
+  frame: async () => {
+    await canvas.animatePan({ x: 400, y: 400, scale: 0.8, duration: 0 });
+    await globalThis.__col.sleep(400);
+    canvas.app.render();
+    return true;
+  },
+
+  /** The sidebar `compose` closed, rendered again: core's token pan reads its width. The hotbar goes first, since the chat log's render reaches into it. */
+  sidebarBack: async () => {
+    try { await ui.hotbar.render({ force: true }); } catch (_e) { /* left closed */ }
+    try { await ui.sidebar.render({ force: true }); } catch (_e) { /* left closed */ }
+    return !!document.getElementById("sidebar");
+  },
+  /** How many errors this seat's boot recorder holds, with the sidebar's presence and what the seat controls. */
+  errs: async () => ({ errors: globalThis.__colBoot?.errors?.length ?? null, sidebar: !!document.getElementById("sidebar"), controlled: canvas.tokens.controlled.map((t) => t.id) }),
 };
 
 const run = (api, fn, arg) => api.eval(`(${fn.toString()})(${JSON.stringify(arg ?? null)})`);
@@ -983,6 +1041,8 @@ const character = (name, items = [], ownership = undefined) => ({
 const gear = (name, qty) => ({ name, type: "item", system: { quantity: { value: qty, max: 0 } } });
 const centre = (c) => ({ x: c.x + GS / 2, y: c.y + GS / 2 });
 const key = (c) => `${c.x},${c.y}`;
+/** Two cell lists, cell for cell. */
+const same = (a, b) => a.length === b.length && a.every((c, i) => c.x === b[i].x && c.y === b[i].y);
 
 try {
   section("seats");
@@ -1211,8 +1271,11 @@ try {
   const post6 = await run(gm, P.tokenState, { tokenId, sceneId: scene.id });
   const g6 = await run(gm, P.drawn, { fid, bearers });
   fs = await run(gm, P.formationState, { fid });
-  const straight = g6.cells.length === 3 && (g6.cells.every((c) => c.x === post6.x) || g6.cells.every((c) => c.y === post6.y)) && new Set(g6.cells.map(key)).size === 3;
-  check("6: a hand turn resets the trail to the head and straightens the column behind it", post6.trail?.points?.length === 1 && post6.trail.points[0].x === post6.x && post6.trail.points[0].y === post6.y && straight, { trail: post6.trail?.points, cells: g6.cells.map(key) });
+  // At the corridor's end the way straight back may run into a wall: the column
+  // turns there, so the drawing is held to the column laid with no trail.
+  const laid6 = await run(gm, P.walled, { fid, tokenId, frontage: 1, box: { x0: 0, y0: 0, x1: -1, y1: -1 } });
+  const behind = g6.cells.length === 3 && same(g6.cells, laid6.laid) && g6.cells[0].x === post6.x && g6.cells[0].y === post6.y && g6.cells.every((c) => CORRIDOR.has(key(c))) && new Set(g6.cells.map(key)).size === 3;
+  check("6: a hand turn resets the trail to the head and lays the column behind the new facing, inside the corridor", post6.trail?.points?.length === 1 && post6.trail.points[0].x === post6.x && post6.trail.points[0].y === post6.y && behind, { trail: post6.trail?.points, cells: g6.cells.map(key), laid: laid6.laid.map(key) });
   check("6: the turn writes no size or position and leaves the clock alone", pre6.x === post6.x && pre6.y === post6.y && post6.w === 1 && post6.h === 1 && JSON.stringify(fs.clock) === clock6, { moved: pre6.x !== post6.x || pre6.y !== post6.y, clock: JSON.stringify(fs.clock) === clock6 });
   await run(gm, P.rotate, { tokenId, sceneId: scene.id, rotation: 180 });
   // Walk back north to the corner along the vertical arm, so the deploy has a walked trail.
@@ -1320,7 +1383,11 @@ try {
       const shot = await player.shot(path.join(shotDir(), "formation-column.png"), "#qa-column-clip");
       note("plate formation-column", { bytes: shot.bytes, head: { x: t.x, y: t.y } });
     } catch (err) { console.log(`plate formation-column not taken: ${err?.message ?? err}`); }
-    finally { await run(player, P.unclip); }
+    finally {
+      await run(player, P.unclip);
+      note("the Player seat after the column plate", await run(player, P.errs));
+      note("the Player seat's sidebar is back after the column plate", await run(player, P.sidebarBack));
+    }
   }
   const p11 = await run(player, P.drawn, { fid, bearers });
   check("11: the Player seat sees the column and its fill", p11.shown === true && p11.cells.length === 3 && p11.cells.some((c) => c.v), { shown: p11.shown, visible: p11.cells.map((c) => c.v) });
@@ -1351,6 +1418,43 @@ try {
       note("plate formation-lights", { bytes: shot.bytes });
     } catch (err) { console.log(`plate formation-lights not taken: ${err?.message ?? err}`); }
   }
+
+  /* ---------------- the column against its walls ---------------- */
+  section("the column against its walls");
+  note("the Player seat before step 15", await run(player, P.errs));
+  const w0 = await run(gm, P.columnStart, { fid, torchId: torch.id, lanternId: lantern.id, at: START });
+  note("the Player seat after step 15's start", await run(player, P.errs));
+  check("15: start shape: frontage 1, the head at the west end facing east, its trail reset by the turn", w0.frontage === 1 && w0.at.x === START.x && w0.at.y === START.y && w0.at.rotation === 270 && w0.trail <= 1, w0.at);
+  await run(gm, P.orderField, { partyId: party.id, name: "tokenShape", value: "order" });
+  // Facing east the right hand is south; the corridor is two rows tall, so a third file meets a wall on either hand.
+  const w15 = await run(gm, P.walled, { fid, tokenId, frontage: 3, box: { x0: 0, y0: 0, x1: 7, y1: 7 } });
+  const want15 = [START, { x: START.x, y: START.y + GS }, { x: START.x - GS, y: START.y }];
+  check("15: three abreast in a corridor two wide stand two abreast and one behind, all inside its walls", same(w15.laid, want15) && w15.laid.every((c) => CORRIDOR.has(key(c))), w15.laid);
+  await sleep(600);
+  const g15 = await run(gm, P.drawn, { fid, bearers });
+  check("15: the drawn column stands where the column is laid", same(g15.cells, want15), g15.cells.map(({ x, y }) => ({ x, y })));
+  check("15: a deploy from where the party stands, with no step walked, takes the same cells and not the straight block", same(w15.placed, want15), w15.placed);
+  check("16: the column's wall test agrees with core's movement collision on every step between neighbouring cells around the corridor", w15.walls && w15.differs === 0 && w15.agree >= 200, { agree: w15.agree, differs: w15.differs, sample: w15.differ });
+  if (SHOTS) {
+    try {
+      await player.compose();
+      await run(player, P.frame);
+      await sleep(800);
+      await run(player, P.clipBox, { x: 50, y: 50, w: 700, h: 700 });
+      await sleep(600);
+      const shot = await player.shot(path.join(shotDir(), "formation-column-walls.png"), "#qa-column-clip");
+      note("plate formation-column-walls", { bytes: shot.bytes });
+    } catch (err) { console.log(`plate formation-column-walls not taken: ${err?.message ?? err}`); }
+    finally {
+      await run(player, P.unclip);
+      note("the Player seat after the walls plate", await run(player, P.errs));
+      note("the Player seat's sidebar is back after the walls plate", await run(player, P.sidebarBack));
+    }
+  }
+  note("the Player seat after step 16", await run(player, P.errs));
+  const w15r = await run(gm, P.walled, { fid, tokenId, frontage: 1, box: { x0: 0, y0: 0, x1: 0, y1: 0 } });
+  await run(gm, P.orderField, { partyId: party.id, name: "tokenShape", value: "" });
+  check("15: the frontage is put back to 1", w15r.frontage === 1, w15r.frontage);
 
   /* ---------------- the delve's wandering cadence ---------------- */
   section("the delve's wandering cadence");

@@ -104,9 +104,11 @@ The party token is **the head of a marching column**. It is one square, and the
 rest of the party is drawn behind it on the squares it walked: each member's
 portrait on a square tinted in the party's colour, files abreast at the
 frontage, ranks following the head around every corner. Turn the party token by
-hand and the column straightens out behind the new facing. A combat deploy puts
-each member's token on the square their portrait stood on. Players see the
-column only where they can see the squares it stands on.
+hand and the column straightens out behind the new facing. Walls hold it in: a
+file with a wall on the right steps to the left instead, and where the corridor
+is narrower than the frontage the members who do not fit march in the next rank.
+A combat deploy puts each member's token on the square their portrait stood on.
+Players see the column only where they can see the squares it stands on.
 
 ![](../releases/v11.14.0/formation-column.png)
 

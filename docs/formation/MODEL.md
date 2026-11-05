@@ -422,20 +422,33 @@ The party token is the head of a marching column: rank 0, file 0, one cell
 on *r* cells ago; files spread along the right hand of the way the column walks
 at that rank. Past the end of the trail the column runs on straight, away from
 the trail's oldest step, or behind the heading when the trail holds no step, so
-a column that has walked nowhere is exactly `formationOffset`'s block. Each body
-is pinned inside the scene on its own. A stack takes one body per head, and the
-member after it starts after its last (`memberCells`). All of it is
-`column.mjs`, pure: `columnCells` lays the bodies, `columnFor(record, token)`
-reads them off a party token.
+a column that has walked nowhere in the open is exactly `formationOffset`'s
+block. A stack takes one body per head, and the member after it starts after its
+last (`memberCells`). All of it is `column.mjs`, pure: `columnCells` lays the
+bodies, `columnFor(record, token)` reads them off a party token.
+
+**Walls.** No body stands across a wall from the body it steps out of. A file
+spreads along the right hand while each step from the file before it is open,
+then along the left hand the same way, and a body neither hand reaches stands
+in the next rank, so a column in a passage narrower than its frontage runs
+deeper. Past the trail's end the column turns a quarter, right hand first,
+where its way back is shut or already the column's; boxed in, the ranks left
+stand on the last cell it reached. A cell off the scene is shut like a wall.
+The test is `wallTest` over the scene's walls on the party token's level:
+a centre-to-centre step crosses a wall that restricts movement, decided as
+core's movement collision decides it (an open door passes, a one-way wall stops
+only a step from its shut side, a wall naming no level stands on every one).
+It reads the walls themselves, not the canvas, so the Night Vision sweep and a
+deploy on a scene nobody is viewing see the same column.
 
 **Where a column is laid.** A square grid at a scale where a cell is a body's
 ground (`sceneHasColumn`): a hex map, a gridless one and a mile-scale map lay
 none, and every body there stands at the head.
 
 **The trail** is `flags.acks-extras.trail` on the linked party token,
-`{sceneId, points}`, cell corners newest first, at most `partyDepth + 1` long
-(`trailBound`: one per rank behind the head and the cell before the oldest, so
-the last rank knows which way it walked). The primary GM writes it from the
+`{sceneId, points}`, cell corners newest first, at most one longer than the
+party has bodies (`trailBound`: a column squeezed to single file is that deep,
+and the cell before the oldest tells the last rank which way it walked). The primary GM writes it from the
 party token's own update (`column-trail.mjs`), after the step's animation, as a
 flag-only write that neither moves the token nor bills the clock. The path is
 the move's own waypoints (`options._movement[id].passed`); a scripted move with
@@ -481,9 +494,10 @@ Vision sweep (lib's `brightestLightReaching`), which runs on scenes no canvas is
 drawing.
 
 **Deploy and restore read the column.** A combat deploy and a grid restore lay
-everyone on the column's cells (`columnPlacement`) once the trail holds a step;
-otherwise they lay the straight block, which shifts whole onto the scene where
-the column pins body by body.
+everyone on the column's cells (`columnPlacement`) once the trail holds a step,
+or where a wall cuts the column laid without one; otherwise they lay the
+straight block, which shifts whole onto the scene where the column turns at
+its edge.
 
 ## Saved marching orders
 
