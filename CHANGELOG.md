@@ -29,8 +29,9 @@
   missing (as before), Rebuild, Repair in place and Force repair. The last three run
   over every book open on your seat and every open adventure book, each as its own
   Rebuild or Repair would, after one confirm that lists every book with what it will
-  delete or write. A Rebuild then runs the whole import chain again; a repair reads the
-  rules tables again. Nothing imported from a book you have not opened is touched.
+  delete or write. A Rebuild then runs the whole import chain again, so a book with
+  nothing imported yet is left to the chain and not listed; a repair reads the rules
+  tables again. Nothing imported from a book you have not opened is touched.
 - **A market can name classes it never offers.** A place's GM Settings gains
   *Classes never offered here*, one row per class, picked from the classes your
   imported tables can offer. A hireling whose class roll lands on one rolls again, and

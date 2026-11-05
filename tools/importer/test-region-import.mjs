@@ -27,7 +27,7 @@ import {
 } from "../../scripts/importer/scene-binding.mjs";
 import {
   initCookbook, loadCookbook, cookbookImportPoiPlaces, cookbookImportScenes, cookbookImportJournals, cookbookImportMarketProfiles, gridScenePlan,
-  mapCreateData, regionSiteClaim, siteBindPatch, forgetImportedIndex, repairHeldMap,
+  mapCreateData, regionSiteClaim, siteBindPatch, forgetImportedIndex, repairHeldMap, holdingLibrary, importedDocs,
 } from "../../scripts/importer/cookbook.mjs";
 import { withErratumNote } from "../../scripts/importer/market-profile-binding.mjs";
 
@@ -1374,6 +1374,31 @@ const map = game.scenes.find((s) => s.getFlag(MODULE_ID, "cookbook")?.id === "zz
   const lang = JSON.parse(read("lang/en.json"));
   for (const key of ["sceneZone", "scenesGridRefused", "scenesZonesMade", "scenesZonesHeld", "scenesZonesWaiting", "scenesZonesRefused", "poiRegionsDescribed", "poiSitesBound"]) {
     ok(`lang has ACKS-IMPORTER.ui.${key}`, typeof lang[`ACKS-IMPORTER.ui.${key}`] === "string");
+  }
+}
+
+// --- one reading of the library while a pass that writes nothing runs ----------------
+{
+  const pack = game.packs.get(ACTOR_PACK);
+  const real = pack.getDocuments;
+  let reads = 0;
+  pack.getDocuments = function (o) {
+    reads++;
+    return real.call(this, o);
+  };
+  try {
+    let first = 0;
+    await holdingLibrary(async () => {
+      const a = await importedDocs("Actor");
+      first = reads;
+      a.length = 0;
+      const b = await importedDocs("Actor");
+      ok("inside a hold the packs are read once per type, and each answer is its own copy", first >= 1 && reads === first && b.length > 0, { first, reads, b: b.length });
+    });
+    await importedDocs("Actor");
+    ok("once the hold ends the library is read afresh", reads === 2 * first, { first, reads });
+  } finally {
+    pack.getDocuments = real;
   }
 }
 

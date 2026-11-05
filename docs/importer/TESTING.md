@@ -496,7 +496,15 @@ tab's primary action reaching the run it names.
    under its own name, each with the lines its own Rebuild or Repair shows;
    the observer holds nothing after each No. A Yes rewrites the shared
    world's whole library and is walked only in a world kept for it; each
-   part's Yes is walked in its own recipe.
+   part's Yes is walked in its own recipe. The asking pass of a repair reads
+   the whole library, so the confirm can take longer than one scripted
+   evaluation: press, then wait for it in rounds, and log the seconds.
+   Then call the journals, keyed-places and maps steps narrowed to a book id
+   no seat holds (`{books: ["qa-no-such-book"]}`), as a book's rebuild
+   narrows them.
+   *Observable:* each resolves null and no notification is raised. Run
+   unnarrowed from this tab, the same step still warns when no open book has
+   anything for it.
 4. Rebuild tab: the picker's groups equal `rebuildOptions()` — the same
    options as *Reimport One Shelf*'s picker, in the same order. Pick
    *Rules tables → one document*, mode Repair, **Go**.

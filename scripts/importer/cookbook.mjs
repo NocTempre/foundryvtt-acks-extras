@@ -1269,8 +1269,35 @@ export const importedActorFor = (id, opts) => importedActor(id, opts);
  * sidebar this module stamped".
  */
 export async function importedDocs(type) {
+  if (!heldLibrary) return readLibrary(type);
+  if (!heldLibrary.has(type)) heldLibrary.set(type, readLibrary(type));
+  return [...(await heldLibrary.get(type))];
+}
+
+/** The library's documents of a type, read now from every pack and the sidebar. */
+async function readLibrary(type) {
   const packed = (await Promise.all(ourPacksOfType(type).map((c) => c.getDocuments().catch(() => [])))).flat();
   return [...packed, ...sidebarImports(type)];
+}
+
+/** One reading of the library per type while `holdingLibrary` runs, else null. */
+let heldLibrary = null;
+
+/**
+ * Run `pass` with one reading of the library per type: every `importedDocs`
+ * inside it answers from the first read of its type, copied, so a book's
+ * repair asking after another's reads the packs once instead of again. Only
+ * for a pass that writes nothing; Import everything's asking pass is one,
+ * since every part stops at its confirm. A hold already standing is used.
+ */
+export async function holdingLibrary(pass) {
+  if (heldLibrary) return pass();
+  heldLibrary = new Map();
+  try {
+    return await pass();
+  } finally {
+    heldLibrary = null;
+  }
 }
 
 /** Delete imported documents of a type from wherever the library lives. */
@@ -2406,6 +2433,7 @@ export async function cookbookReimportEverything(mode = "drop", { chain = null }
   const result = await reimportEverything({
     mode,
     parts,
+    asking: holdingLibrary,
     confirm: (asked) =>
       confirmRepair(
         [t(`everythingConfirm${key}`, { n: asked.length }), ...asked.flatMap(({ label, lines }) => [`<strong>${esc(label)}</strong>`, ...lines]), t("everythingClosed")],
@@ -2470,6 +2498,9 @@ export async function cookbookReimportBook(bookId, { mode = "drop", ask = null }
     return !!shelf;
   };
   const doomed = (await importedDocs("Item")).filter(mine);
+  // Asked on another's behalf, a book with nothing to delete does not ask:
+  // Import everything's chain imports what is missing.
+  if (ask && !doomed.length) return null;
   const shelfList = [...shelves].sort().join(", ") || "—";
 
   const ok = await confirmRepair([game.i18n.format(`${LANG_PREFIX}.ui.reimportConfirmBook`, { n: doomed.length, book: label, shelves: shelfList })], "reimportTitle", ask);
@@ -2709,6 +2740,9 @@ export async function cookbookReimportAdventure(bookId, { mode = "drop", ask = n
       return flag?.id ? bookOfCookbookId(flag.id, flag.book) : null;
     };
     const doomed = adventureDropRows(await bookDocuments(bookId), bookId, { ownerOf, isWorldCopy, isPlayers: playersCharacter });
+    // Asked on another's behalf, an adventure with nothing to delete does not ask:
+    // Import everything's chain imports what is missing.
+    if (ask && !doomed.length) return null;
     const byType = new Map();
     for (const { type, doc } of doomed) byType.set(type, [...(byType.get(type) ?? []), doc]);
     const plural = (type, n) => {

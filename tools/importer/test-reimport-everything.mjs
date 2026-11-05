@@ -61,6 +61,27 @@ ok("three modes, as the Rebuild tab names them", EVERYTHING_MODES.join() === "dr
 }
 
 {
+  // The caller's hold on the library spans the asking pass exactly: every part's
+  // No inside it, the confirm and every Yes outside.
+  const log = [];
+  const parts = ["A", "B"].map((label) => ({
+    label,
+    run: async (ask) => {
+      const yes = await ask({ lines: [label], title: "reimportTitle" });
+      log.push(`${label}:${yes ? "yes" : "no"}`);
+      return yes;
+    },
+  }));
+  const asking = async (pass) => {
+    log.push("hold");
+    await pass();
+    log.push("release");
+  };
+  await reimportEverything({ mode: "repair", parts, asking, confirm: async () => (log.push("confirm"), true) });
+  ok("the asking pass runs inside the caller's hold, once, and the Yes runs after it", log.join() === "hold,A:no,B:no,release,confirm,A:yes,B:yes", log.join());
+}
+
+{
   let threw = false;
   try {
     await reimportEverything({ mode: "import", parts: [], confirm: async () => true });

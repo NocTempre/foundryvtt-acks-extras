@@ -380,7 +380,8 @@ The Books macros open it on the Books tab:
   Force repair: that mode then runs over every book open on this seat and
   every open adventure book, as each would on the Rebuild and Adventures
   tabs, after one confirm that lists each book with what its own confirm
-  would say. A Rebuild ends by running the whole chain again; a repair ends
+  would say. A Rebuild ends by running the whole chain again, so a book with
+  nothing imported yet is left to the chain and not listed; a repair ends
   by reading the rules tables again.
 - **Rebuild** — a shelf, a book or the rules tables, in any of the three modes above.
   The same choices as **Reimport One Shelf**.

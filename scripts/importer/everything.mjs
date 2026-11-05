@@ -20,20 +20,25 @@ export const EVERYTHING_MODES = Object.freeze(["drop", "repair", "force"]);
  *   the one confirm, shown only when a part asked
  * @param {() => Promise<unknown>} [o.after] run once every part has: the rules
  *   tables re-read, or the whole import chain after a rebuild
+ * @param {(pass: () => Promise<void>) => Promise<void>} [o.asking] runs the
+ *   asking pass, every part answered No; nothing writes during it, so a caller
+ *   may hold one reading of the library for its length
  * @returns {Promise<{mode: string, asked: number, parts: {label: string, result: unknown}[], after: unknown}|null>}
  *   `asked: 0` and nothing run when no part asked; null when the confirm was answered No
  */
-export async function reimportEverything({ mode, parts, confirm, after = null }) {
+export async function reimportEverything({ mode, parts, confirm, after = null, asking = (pass) => pass() }) {
   if (!EVERYTHING_MODES.includes(mode)) throw new Error(`reimportEverything: no mode "${mode}"`);
   const asked = [];
-  for (const part of parts) {
-    let question = null;
-    await part.run(async (q) => {
-      question = q;
-      return false;
-    });
-    if (question) asked.push({ part, label: part.label, lines: (question.lines ?? []).filter(Boolean), title: question.title ?? "" });
-  }
+  await asking(async () => {
+    for (const part of parts) {
+      let question = null;
+      await part.run(async (q) => {
+        question = q;
+        return false;
+      });
+      if (question) asked.push({ part, label: part.label, lines: (question.lines ?? []).filter(Boolean), title: question.title ?? "" });
+    }
+  });
   if (!asked.length) return { mode, asked: 0, parts: [], after: null };
   if (!(await confirm(asked.map(({ label, lines, title }) => ({ label, lines, title }))))) return null;
   const done = [];

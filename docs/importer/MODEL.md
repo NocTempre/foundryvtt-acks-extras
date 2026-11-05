@@ -66,7 +66,12 @@ questions. Five tabs:
   book (`cookbookReimportEverything`, `api.reimportEverything(mode)`), asked
   once. `everything.mjs` runs each part first with an `ask` that records the
   confirm it would show and answers No, which writes nothing because every
-  part asks before its first write (`confirmRepair`'s `ask`); the lines go
+  part asks before its first write (`confirmRepair`'s `ask`). That pass runs
+  inside `holdingLibrary`, so the library is read once per document type for
+  every part rather than once per part. Under Rebuild, a book or adventure
+  book with nothing of its own to delete does not ask, since the chain that
+  closes the run imports what is missing; under a repair every open book
+  asks, because its repair imports the entries the world lacks. The lines go
   into one confirm under each part's label, and a Yes runs each part that
   asked with its confirm answered. A repair closes on the rules tables
   re-read in place; a rebuild closes on the whole chain, which lands in its

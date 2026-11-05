@@ -124,7 +124,10 @@ const P = {
       ids: H.root(app).querySelectorAll(".acks-extras-importer-manager-body [id]").length,
     };
   },
-  /** The mode chosen as a user chooses it, then Import everything pressed; the confirm is left open. */
+  /**
+   * The mode chosen as a user chooses it, then Import everything pressed. Returns at once: the
+   * asking pass can outlast one evaluation, so `confirmOf` waits for its confirm in rounds.
+   */
   press: async ({ mode }) => {
     const H = globalThis.__ie;
     H.notes.splice(0);
@@ -133,26 +136,62 @@ const P = {
     const select = root.querySelector("[data-import-form] select[name='importMode']");
     select.value = mode;
     select.dispatchEvent(new Event("change", { bubbles: true }));
-    const before = H.dialogs().map((a) => a.id);
+    H.pressed = {
+      before: H.dialogs().map((a) => a.id),
+      at: performance.now(),
+      parts: H.CB.reimportableBooks().length + ((await H.CB.adventureBooks?.())?.length ?? 0),
+    };
     root.querySelector("[data-import-form] button[data-action='importAll']").click();
-    const dlg = await H.poll(() => H.dialogs().find((a) => !before.includes(a.id) && H.root(a)?.querySelector("button[data-action='yes']")), { tries: 480 });
-    if (!dlg) return { dialog: null, notes: H.notes.map((n) => n.kind) };
+    return true;
+  },
+  /**
+   * The journals, keyed-places and maps steps narrowed to a book no seat holds open, as a book's
+   * rebuild narrows them: each has nothing to write, and the notices raised meanwhile are counted.
+   */
+  quietSteps: async () => {
+    const H = globalThis.__ie;
+    const api = acksExtras.importer;
+    const said = H.notes.length;
+    const only = { books: ["qa-no-such-book"] };
+    const results = [await api.cookbookImportJournals(only), await api.cookbookImportPoiPlaces(only), await api.cookbookImportScenes(only)];
+    return { results, notes: H.notes.slice(said) };
+  },
+  /** One round of waiting for the pressed mode's confirm; `{waiting: true}` until it stands, then what it shows. */
+  confirmOf: async ({ mode }) => {
+    const H = globalThis.__ie;
+    const app = foundry.applications.instances.get("acks-extras-import-manager");
+    const { before, at, parts: offered } = H.pressed;
+    const dlg = await H.poll(() => H.dialogs().find((a) => !before.includes(a.id) && H.root(a)?.querySelector("button[data-action='yes']")), { tries: 240 });
+    if (!dlg) return H.root(app)?.querySelector(".acks-extras-importer-manager-busy") ? { waiting: true, seconds: Math.round((performance.now() - at) / 1000) } : { dialog: null, notes: H.notes.map((n) => n.kind) };
+    const seconds = Math.round((performance.now() - at) / 1000);
     await H.poll(() => H.root(app)?.querySelector(".acks-extras-importer-manager-busy"), { tries: 20 });
     await H.sleep(300);
     const text = (H.root(dlg).querySelector(".dialog-content, .window-content")?.textContent ?? "").replace(/\s+/g, " ").trim();
-    const parts = H.root(dlg).querySelectorAll(".dialog-content strong, .window-content strong").length;
+    // The count is read off the opening line, which states it; a part's own lines may carry bold too.
     const key = { drop: "Drop", repair: "Repair", force: "Force" }[mode];
+    const [head, tail] = game.i18n.format(`ACKS-IMPORTER.ui.everythingConfirm${key}`, { n: "\u0000" }).replace(/\s+/g, " ").trim().split("\u0000");
+    const quote = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const parts = Number(text.match(new RegExp(`^${quote(head)}(\\d+)${quote(tail.slice(0, 12))}`))?.[1] ?? 0);
     const opening = game.i18n.format(`ACKS-IMPORTER.ui.everythingConfirm${key}`, { n: parts }).replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
     const closing = game.i18n.localize("ACKS-IMPORTER.ui.everythingClosed").replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
     const title = dlg.options?.window?.title ?? "";
-    // The confirm stands inside the manager's frame, below the bar, for the plate.
+    // A book's own line with a count of nothing, cut at the book's name: a part that should not have asked.
+    const bookKey = { drop: "reimportConfirmBook", repair: "repairConfirmBook", force: "forceConfirmBook" }[mode];
+    const zeroLine = game.i18n.format(`ACKS-IMPORTER.ui.${bookKey}`, { n: 0, book: "\u0001", shelves: "" }).replace(/<[^>]+>/g, "").replace(/\s+/g, " ").split("\u0001")[0].trim();
+    // The confirm stands inside the manager's frame, below the bar and its mode, for the plate.
     const r = H.root(app).getBoundingClientRect();
-    dlg.setPosition({ left: Math.round(r.left + 40), top: Math.round(r.top + 150), width: Math.min(560, Math.round(r.width - 80)) });
+    const bar = H.root(app).querySelector("[data-import-form]")?.getBoundingClientRect();
+    // Held to the frame's floor too: a confirm taller than the space left is pushed up over the bar.
+    const top = Math.round((bar?.bottom ?? r.top + 150) + 12);
+    dlg.setPosition({ left: Math.round(r.left + 40), top, width: Math.min(560, Math.round(r.width - 80)), height: Math.max(240, Math.round(r.bottom - top - 16)) });
     await H.sleep(400);
     const form = H.root(app).querySelector("[data-import-form] select[name='importMode']");
     return {
       dialog: dlg.id,
       parts,
+      offered,
+      seconds,
+      zeroParts: zeroLine.length > 8 && text.includes(zeroLine),
       opens: text.startsWith(opening.slice(0, 30)),
       closes: text.includes(closing.slice(0, 30)),
       title: title === game.i18n.localize(`ACKS-IMPORTER.ui.${mode === "force" ? "forceTitle" : "reimportTitle"}`),
@@ -260,14 +299,22 @@ try {
   check("3: every option carries a label and the select is named by its own caption", tab.labels.every(Boolean) && tab.named, { labels: tab.labels, named: tab.named });
   check("3: no id inside the body", tab.ids === 0, tab.ids);
 
+  section("A step with nothing to write (step 3)");
+  const quiet = await run(gm, P.quietSteps);
+  check("3: narrowed to a book with nothing of theirs, the journals, keyed-places and maps steps resolve null and raise no notice", quiet.results.every((r) => r === null) && quiet.notes.length === 0, quiet);
+
   const packsBefore = await run(gm, P.packs);
   for (const mode of ["drop", "repair", "force"]) {
     section(`Import everything, ${mode}, answered No (step 3)`);
     await run(gm, P.observe, { on: true });
-    const asked = await run(gm, P.press, { mode });
-    note(`${mode}: confirm`, { found: !!asked.dialog, parts: asked.parts, title: asked.title, opens: asked.opens, closes: asked.closes, dialogs: asked.dialogs });
+    await run(gm, P.press, { mode });
+    let asked = { waiting: true };
+    for (let round = 0; asked.waiting && round < 10; round++) asked = await run(gm, P.confirmOf, { mode });
+    note(`${mode}: confirm`, { found: !!asked.dialog, seconds: asked.seconds, parts: asked.parts, offered: asked.offered, title: asked.title, opens: asked.opens, closes: asked.closes, dialogs: asked.dialogs });
     check(`3, ${mode}: ONE confirm, titled for its mode, opening on its count of parts and closing on what is not touched`, !!asked.dialog && asked.dialogs === 1 && asked.title && asked.opens && asked.closes && asked.parts > 0, asked);
-    check(`3, ${mode}: one part per open book or adventure book at most`, asked.parts <= installed.books + (installed.adventures ?? 0), { parts: asked.parts, books: installed.books, adventures: installed.adventures });
+    check(`3, ${mode}: no more parts than the open books and adventure books offer`, asked.parts > 0 && asked.parts <= asked.offered, { parts: asked.parts, offered: asked.offered });
+    // A repair of a book with nothing imported still imports what the world lacks, so it asks.
+    if (mode === "drop") check("3, drop: no book in the confirm has nothing to delete", asked.zeroParts === false, asked.zeroParts);
     check(`3, ${mode}: while the confirm is up, the redrawn bar still reads the mode chosen`, asked.kept === mode, asked.kept);
     if (process.env.SHOTS === "1" && asked.dialog && mode === "drop") {
       note("plate", await gm.shot(plate("importer-import-everything-modes.png"), "#acks-extras-import-manager"));
