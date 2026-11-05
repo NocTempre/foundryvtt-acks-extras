@@ -11,9 +11,18 @@
             {{#if p.isVault}}<i class="fas fa-vault"></i> {{/if}}{{p.name}}
           </span>
           <span class="acks-location-manager-place-count">{{p.count}}</span>
+          <button type="button" class="acks-location-manager-pin{{#if p.pinned}} is-pinned{{/if}}" data-action="togglePin"
+                  aria-pressed="{{#if p.pinned}}true{{else}}false{{/if}}" data-tooltip=""
+                  aria-label="{{#if p.pinned}}{{localize 'ACKS-LOCATION.manager.unpin'}}{{else}}{{localize 'ACKS-LOCATION.manager.pin'}}{{/if}}">
+            <i class="fas fa-thumbtack" aria-hidden="true"></i>
+          </button>
         </li>
       {{/each}}
     </ul>
+    <button type="button" class="acks-location-btn acks-location-btn--sm" data-action="pinPlace"
+            data-tooltip="{{localize 'ACKS-LOCATION.manager.pinPlaceHint'}}">
+      <i class="fas fa-thumbtack"></i> {{localize "ACKS-LOCATION.manager.pinPlace"}}
+    </button>
     <button type="button" class="acks-location-btn acks-location-btn--sm" data-action="enableStorage">
       <i class="fas fa-plus"></i> {{localize "ACKS-LOCATION.manager.enable"}}
     </button>

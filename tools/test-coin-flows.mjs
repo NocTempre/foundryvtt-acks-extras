@@ -1541,4 +1541,25 @@ await test("an arrival that is nobody's never joins a row kept for an owner", as
     "what arrives stamped as theirs still does");
 });
 
+await test("the storage manager lists a place holding goods, a pinned one and the open one, and no other", async () => {
+  const stocked = makePlace({ id: "stocked", items: [gold(5, { flags: { "acks-extras": { storage: { ownerUuid: "Actor.hero", ownerName: "Hero" } } } })] });
+  const bare = makePlace({ id: "bare" });
+  const kept = makePlace({ id: "kept" });
+  const wagon = makeActor({ id: "wagon", type: "npc" });
+  worldActors.set(wagon.id, wagon);
+  const ids = (list) => list.map((p) => p.id);
+  assert.deepEqual(ids(storage.listedProviders()), ["stocked"], "a place holding nothing is left off");
+  assert.equal(await storage.setPinned(kept, true), true);
+  assert.equal(storage.isPinned(kept), true);
+  assert.deepEqual(ids(storage.listedProviders()), ["stocked", "kept"], "a pin lists it, in world order");
+  assert.deepEqual(ids(storage.listedProviders({ open: bare.uuid })), ["stocked", "bare", "kept"], "the open place is listed while it is open");
+  assert.deepEqual(ids(storage.listedProviders({ always: (p) => p.id === "bare" })), ["stocked", "bare", "kept"], "and one the caller always lists");
+  assert.equal(await storage.setPinned(kept, true), false, "pinning a pinned place writes nothing");
+  assert.equal(await storage.setPinned(wagon, true), false, "an actor that holds no goods is never pinned");
+  assert.equal(storage.isPinned(wagon), false);
+  assert.equal(await storage.setPinned(kept, false), true);
+  assert.deepEqual(ids(storage.listedProviders()), ["stocked"], "unpinned and empty, it leaves the list");
+  assert.equal(storage.isProvider(kept), true, "and it still holds goods when asked to");
+});
+
 console.log(`test-coin-flows: ${passed} checks passed`);

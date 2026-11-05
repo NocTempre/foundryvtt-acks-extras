@@ -38,6 +38,15 @@
   a search asking for one is refused, the class shown greyed out in the search's list.
   A class you name yourself when placing a candidate as GM is still placed. Which
   cultures a place's people come from is still its Demographics.
+- **The Storage Manager lists a location that holds nothing only once you pin it.**
+  Every location can hold goods, so a world with an imported adventure filled the
+  manager's Places column and its Move to list with empty rooms. A location now
+  appears while something is kept there or while it is the one open; **Pin a
+  place** adds an empty one, and the pin on each row keeps a place listed after it
+  empties. A cart, a stronghold or any other actor you let hold goods stays listed
+  as before, and what **Let an actor hold goods** and **Give a character a vault**
+  make is pinned as it is made. A pinned location is kept by the cleanup of empty
+  locations at world start; nothing else is stored or deleted differently.
 
 ## 11.14.1
 ### Fixed

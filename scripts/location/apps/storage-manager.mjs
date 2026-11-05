@@ -41,6 +41,8 @@ export class StorageManager extends PicksMixin(HandlebarsApplicationMixin(Applic
       move: StorageManager.#onMove,
       reassign: StorageManager.#onReassign,
       returnToOwners: StorageManager.#onReturnToOwners,
+      togglePin: StorageManager.#onTogglePin,
+      pinPlace: StorageManager.#onPinPlace,
       enableStorage: StorageManager.#onEnableStorage,
       disableStorage: StorageManager.#onDisableStorage,
       createVault: StorageManager.#onCreateVault,
@@ -67,10 +69,19 @@ export class StorageManager extends PicksMixin(HandlebarsApplicationMixin(Applic
     return storage().resolveActorSync(this.#placeUuid);
   }
 
+  /**
+   * The places listed and offered as a move's target. A location holds goods
+   * by construction, so one holding nothing is listed only once pinned (or
+   * while open); any other provider was made one on purpose and is listed.
+   */
+  #listed() {
+    return storage().listedProviders({ open: this.#placeUuid, always: (p) => p.type !== LOCATION_TYPE });
+  }
+
   /** @override */
   async _prepareContext() {
     const api = storage();
-    const all = api.providers();
+    const all = this.#listed();
     if (!this.place && all.length) this.#placeUuid = all[0].uuid;
     const place = this.place;
 
@@ -113,6 +124,7 @@ export class StorageManager extends PicksMixin(HandlebarsApplicationMixin(Applic
         img: p.img,
         isVault: !!api.vaultOwnerUuid(p),
         active: p.uuid === this.#placeUuid,
+        pinned: api.isPinned(p),
         count: api.storedItems(p).length,
       })),
       place: place ? { uuid: place.uuid, name: place.name, isVault: !!api.vaultOwnerUuid(place) } : null,
@@ -288,7 +300,41 @@ export class StorageManager extends PicksMixin(HandlebarsApplicationMixin(Applic
     this.render();
   }
 
-  /** Turn any actor into a place that holds goods — a wagon, a stronghold, a market. */
+  /** Pin a listed place, or unpin it; unpinned, an empty location leaves the list once another place is open. */
+  static async #onTogglePin(_event, target) {
+    const api = storage();
+    const place = api.resolveActorSync(target.closest("[data-place-uuid]")?.dataset.placeUuid);
+    if (!place) return;
+    await api.setPinned(place, !api.isPinned(place));
+    this.render();
+  }
+
+  /** Pin a place the list leaves out — a location holding nothing — and open it. */
+  static async #onPinPlace() {
+    const api = storage();
+    const listed = new Set(this.#listed().map((p) => p.uuid));
+    const candidates = api.providers().filter((p) => !listed.has(p.uuid)).sort((a, b) => a.name.localeCompare(b.name));
+    if (!candidates.length) {
+      ui.notifications.warn(loc("manager.nothingToPin"));
+      return;
+    }
+    const options = candidates.map((a) => `<option value="${a.uuid}">${foundry.utils.escapeHTML(a.name)}</option>`).join("");
+    const uuid = await DialogV2.prompt({
+      window: { title: loc("manager.pinPlace") },
+      classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
+      content: `<p>${loc("manager.pinPrompt")}</p><select name="actor" style="width:100%">${options}</select>`,
+      ok: { label: loc("manager.pinPlace"), callback: (_e, button) => button.form.elements.actor.value },
+    }).catch(() => null);
+    if (!uuid) return;
+    const place = api.resolveActorSync(uuid);
+    if (!place) return;
+    await api.setPinned(place, true);
+    this.#placeUuid = place.uuid;
+    this.#selection.clear();
+    this.render();
+  }
+
+  /** Turn any actor into a place that holds goods — a wagon, a stronghold, a market — pinned to the list. */
   static async #onEnableStorage() {
     const api = storage();
     const candidates = game.actors.filter((a) => !api.isProvider(a) && a.type !== ACTOR_TYPE.character);
@@ -309,6 +355,7 @@ export class StorageManager extends PicksMixin(HandlebarsApplicationMixin(Applic
     const actor = api.resolveActorSync(uuid);
     if (!actor) return;
     await api.setProvider(actor, true);
+    await api.setPinned(actor, true);
     ui.notifications.info(loc("manager.enabledOn", { name: actor.name }));
     this.#placeUuid = actor.uuid;
     this.render();
@@ -383,6 +430,7 @@ export class StorageManager extends PicksMixin(HandlebarsApplicationMixin(Applic
       ui.notifications.error(loc("manager.vaultFailed", { name: character.name }));
       return;
     }
+    await api.setPinned(vault, true);
     ui.notifications.info(loc("manager.vaultCreated", { name: character.name, place: vault.name }));
     this.#placeUuid = vault.uuid;
     this.render();

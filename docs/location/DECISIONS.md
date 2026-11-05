@@ -894,3 +894,33 @@ town would still go.
 
 *Cost:* one more clause in the survival test, and a pass over the world's
 places for each round of the fixed point.
+
+## 2026-11-05 — The storage manager lists an empty location only once pinned
+
+**The evidence.** A location holds goods by construction (the
+`preCreateActor` hook sets the provider flag), and an imported adventure
+brings in a location for every keyed area. The manager listed every provider,
+so its Places column and its Move to list filled with empty rooms and the few
+places holding anything were lost among them.
+
+**Ruled.** The manager lists a provider while it holds goods, while it is
+pinned, or while it is open. A location holding nothing is added by pinning
+it (**Pin a place**, or a row's pin). A provider that is no location is
+listed whatever it holds: it was made one on purpose, and the guide's remedy
+for a character made a warehouse by mistake is to pick it in this list. The
+pin is a flag on the place's storage flag, so every GM's manager reads one
+list, and turning storage off removes it with the rest.
+
+A pinned location also survives the empty-location prune at world start. The
+2026-08-14 ruling spares a place that is something; a place a GM named as
+somewhere to keep goods is that, and without the exemption every pin on an
+empty place was undone by the next reload.
+
+**Rejected:** a per-GM client setting for the pins. The manager is a world
+tool and two GMs would see two lists of the same world. **Rejected:** hiding
+every empty provider, the cart and the stronghold included; a cart enabled
+before pins existed would drop out of sight with no way back but the picker.
+
+*Cost:* an empty location is one pick away instead of in the list, and a
+place emptied by a Move leaves the list once another place is open unless
+it is pinned.
