@@ -11,6 +11,12 @@
   Rebuild or Repair would, after one confirm that lists every book with what it will
   delete or write. A Rebuild then runs the whole import chain again; a repair reads the
   rules tables again. Nothing imported from a book you have not opened is touched.
+- **A market can name classes it never offers.** A place's GM Settings gains
+  *Classes never offered here*, one row per class, picked from the classes your
+  imported tables can offer. A hireling whose class roll lands on one rolls again, and
+  a search asking for one is refused, the class shown greyed out in the search's list.
+  A class you name yourself when placing a candidate as GM is still placed. Which
+  cultures a place's people come from is still its Demographics.
 
 ## 11.14.1
 ### Fixed

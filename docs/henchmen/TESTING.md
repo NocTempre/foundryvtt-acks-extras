@@ -33,7 +33,8 @@ a step it does not name is walked by hand.
   by a player who is not the Player seat; and the Player seat's
   `henchmen/paymaster` and `henchmen/second`. The GM's posting dialog offers
   player characters only, and step 13's Player seat must own neither
-  employer.
+  employer. Step 17: `henchmen/blocked-classes-place` and
+  `henchmen/blocked-classes-employer`, built as that step says.
 - **Bring each kept actor to its creation shape at the stage's start,
   before any step reads a roster:** delete its embedded items and effects,
   write its `flags.acks-extras` scope as the data's, its system as the
@@ -601,6 +602,39 @@ a step it does not name is walked by hand.
       entry for the first rung: the rung it crossed while unread is not made
       up.
       Walked by `tools/live/henchmen.mjs` stage 1, section 16.
+17. A market's classes never offered, on `henchmen/blocked-classes-place`
+    (a location built carrying `system.market: emptyMarket()`, the Player seat
+    an observer) and `henchmen/blocked-classes-employer` (a character the
+    Player seat owns). At the step's start the place's `blockedClasses`,
+    candidates and postings are emptied and its variant is `default`. The
+    world must hold the imported class tables; the class a die of 1 draws is
+    read from them in page context (`bracketRow` over the distribution's first
+    bucket), never written down.
+    - Open the place's sheet on GM Settings, press **Add a class never offered
+      here**, and pick that class in the new row's select.
+      *Observable:* before the press the block says every class can be
+      offered; the press makes one row whose options are exactly
+      `offerableClasses()`; the pick is stored in
+      `system.market.blockedClasses` and shown in the select.
+    - `rollClassFromDistribution` from the served
+      `scripts/henchmen/rules/candidates.mjs`, with a die that answers the
+      blocked class's numbers and then another row's.
+      *Observable:* without the list it takes the blocked class; with it, it
+      draws again, both dice, and the second class stands.
+    - `createPosting(place, {kind: "henchmanByClass", classKey: "", level: 1},
+      null)` from the GM seat, under the dice rig that throws every die a 1,
+      first with the list empty and then with the class on it.
+      *Observable:* the first candidate placed carries the die's class (the
+      rig lands); the second carries `special`, since every draw lands on the
+      blocked class.
+    - A player's directed search for the class, as the relay hands it to the
+      GM: `createPosting(place, {kind: "henchmanByClass", classKey}, employer,
+      {requestUserId: <the Player seat's id>})`. Then `openPostingDialog(place)`
+      on the GM and the Player seats.
+      *Observable:* `{error: "class-blocked"}` and no posting written; in both
+      seats' dialogs the class is listed disabled, its label saying it is never
+      offered here.
+    Walked by `tools/live/henchmen-blocked-classes.mjs`.
 
 The reference repair's check in the repair tool (`henchmen.references`) is
 walked in docs/lib/TESTING.md, "The repair tool".

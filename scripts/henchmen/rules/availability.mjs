@@ -83,6 +83,31 @@ export function overrideRarity(overrides, classKey) {
 }
 
 /**
+ * Whether ONE market never offers a class: the location's
+ * `market.blockedClasses` names it, compared as `overrideRarity` compares
+ * (case and edge spaces aside). An empty key is never blocked.
+ */
+export function classBlocked(blocked, classKey) {
+  const wanted = String(classKey ?? "").toLowerCase().trim();
+  return !!wanted && (blocked ?? []).some((c) => String(c ?? "").toLowerCase().trim() === wanted);
+}
+
+/**
+ * Every class a market can offer under a rarity variant: the variant's tier
+ * lists and the imported distribution's rows, once each, sorted, without the
+ * "special" row (the Judge's pick, not a class). Empty until imported.
+ */
+export function offerableClasses(variant = "default") {
+  const variants = optTable("rarity", "classRarityTables")?.variants;
+  const tiers = (variants?.[variant] ?? variants?.default)?.tiers ?? {};
+  const listed = Object.values(tiers).flat();
+  const distribution = optTable("rarity", "classDistribution");
+  const buckets = variants?.[variant]?.buckets ?? distribution?.buckets ?? [];
+  const drawn = buckets.flatMap((b) => (b?.rows ?? []).map((r) => r?.class));
+  return [...new Set([...listed, ...drawn].filter((c) => typeof c === "string" && c.trim() && c !== "special"))].sort((a, b) => a.localeCompare(b));
+}
+
+/**
  * Shift a rarity tier N steps toward Legendary (JJ: +1 per level above 1st,
  * +1 per proficiency rank, −1 for commissioning). Returns null when shifted
  * past Legendary (not findable by this method).
@@ -111,10 +136,15 @@ export function rarityExpr(tier, marketClass) {
  * @param {string} [rarityVariant="default"]
  * @param {Array<{classKey: string, rarity: string}>} [rarityOverrides] the
  *   market's own word on a class's rarity, consulted before the table
+ * @param {string[]} [blockedClasses] classes this market never offers; a
+ *   search directed at one is refused `class-blocked` before any roll
  * @returns {Promise<{quantity:number, detail:string, capExpr?:string, rarity?:string}|{error:string}>}
  */
-export async function rollMonthlyPool(spec, marketClass, rollDice, rand = Math.random, rarityVariant = "default", rarityOverrides = []) {
+export async function rollMonthlyPool(spec, marketClass, rollDice, rand = Math.random, rarityVariant = "default", rarityOverrides = [], blockedClasses = []) {
   const mc = clampMarketClass(marketClass);
+  if ((spec.kind === "henchmanByClass" || spec.kind === "henchmanByClassProficiency") && classBlocked(blockedClasses, spec.classKey)) {
+    return { error: "class-blocked" };
+  }
   const rarityOf = (classKey) => overrideRarity(rarityOverrides, classKey) ?? classRarity(classKey, rarityVariant);
   switch (spec.kind) {
     case "henchman": {

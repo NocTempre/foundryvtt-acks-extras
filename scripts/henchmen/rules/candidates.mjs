@@ -6,6 +6,14 @@
  * "Candidate class and level are fixed at the market roll, not at hire".
  */
 import { bracketRow, getTable, optTable } from "./tables.mjs";
+import { classBlocked } from "./availability.mjs";
+
+/**
+ * How many draws a class roll makes before a market's blocked classes give
+ * way to the "special" row. Rejection keeps the imported ranges as printed:
+ * each allowed class keeps its share of what is left.
+ */
+export const BLOCKED_CLASS_DRAWS = 50;
 
 /**
  * Fallback class roll from the core-six class percentages (people doc) when
@@ -37,12 +45,27 @@ async function rollCoreClass(rollDice, level = 1) {
  * buckets (JJ 118: rarity varies by settlement). "special" = Judge picks
  * from the expansion books. Falls back to the core-six percentages when the
  * distribution grid is not imported.
+ *
+ * A class the market never offers (`blocked`) is drawn again, both dice; after
+ * `BLOCKED_CLASS_DRAWS` draws that all land on one, the class is "special" and
+ * `blocked` is true on the result.
  * @param {(f: string) => Promise<number>} rollDice
  * @param {string} [variant="default"] - classRarityTables variant id
  * @param {number} [level=1] - used only by the core-class fallback
- * @returns {Promise<{classKey: string, bucket: string, rolls: [number, number]}>}
+ * @param {{blocked?: string[]}} [opts] the market's `blockedClasses`
+ * @returns {Promise<{classKey: string, bucket: string, rolls: [number, number], blocked?: true}>}
  */
-export async function rollClassFromDistribution(rollDice, variant = "default", level = 1) {
+export async function rollClassFromDistribution(rollDice, variant = "default", level = 1, { blocked = [] } = {}) {
+  let drawn = null;
+  for (let n = 0; n < BLOCKED_CLASS_DRAWS; n++) {
+    drawn = await drawClass(rollDice, variant, level);
+    if (!classBlocked(blocked, drawn.classKey)) return drawn;
+  }
+  return { ...drawn, classKey: "special", blocked: true };
+}
+
+/** One double-d100 draw, or the core-six fallback when the grid is not imported. */
+async function drawClass(rollDice, variant, level) {
   const distribution = optTable("rarity", "classDistribution");
   if (!distribution) return rollCoreClass(rollDice, level);
   const variants = getTable("rarity", "classRarityTables").variants;

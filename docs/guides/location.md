@@ -216,6 +216,17 @@ Settings**, the rarity overrides take a class and a tier, one row each: a
 directed search for that class then rolls on the tier you picked, whatever the
 rarity table says. A university town where mages are easy to find is one row.
 
+A market can also leave classes out. **Classes never offered here** lists
+them, one row each, picked from the classes your imported tables can offer: a
+candidate whose class roll lands on one rolls again, and a search asking for
+one is refused, the class shown greyed out in the search's list. A class you
+name yourself when placing a candidate as GM is still placed.
+
+The cultures the people here come from are the place's **Demographics**. A
+candidate's culture is drawn from the listed cultures of their class's race,
+weighted as you set them; a race with none of its cultures listed draws from
+all of them.
+
 Who holds the town can matter too: see
 [what standing does](factions.md#what-standing-does).
 

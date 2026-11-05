@@ -406,6 +406,85 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
   assert.strictEqual(networkSupplement(undefined, 4), 0, "no roll adds nobody");
 }
 
+// ---- a market's classes never offered: every class draw rolls again on one, and a search for one is refused ----
+// The class keys, ranges and tiers are invented; what is pinned is the procedure.
+{
+  const { classBlocked, offerableClasses, rollMonthlyPool } = await import(new URL("../scripts/henchmen/rules/availability.mjs", import.meta.url));
+  const { rollClassFromDistribution, BLOCKED_CLASS_DRAWS } = await import(new URL("../scripts/henchmen/rules/candidates.mjs", import.meta.url));
+  const RARITY = {
+    classDistribution: {
+      buckets: [
+        { id: "low", min: 1, max: 50, rows: [{ min: 1, max: 60, class: "Alpha" }, { min: 61, max: 100, class: "Beta" }] },
+        { id: "high", min: 51, max: 100, rows: [{ min: 1, max: 90, class: "Gamma" }, { min: 91, max: 100, class: "special" }] },
+      ],
+    },
+    classRarityTables: { variants: { default: { tiers: { common: ["Alpha", "Delta"], rare: ["Beta"] } } } },
+  };
+  const withRarity = async (tables, fn) => {
+    const saved = globalThis.acksExtras;
+    try {
+      globalThis.acksExtras = {
+        lib: {
+          tables: {
+            hasDoc: (doc) => doc === "rarity" && !!tables,
+            getTable: (doc, id) => tables?.[id] ?? null,
+            bracketRow: (rows, value) => rows.find((r) => value >= r.min && value <= r.max) ?? null,
+          },
+        },
+      };
+      await fn();
+    } finally {
+      globalThis.acksExtras = saved;
+    }
+  };
+  /** A die that answers from a list, the last answer standing once the list runs out. */
+  const dice = (answers) => {
+    const calls = [];
+    const roll = async (formula) => {
+      calls.push(formula);
+      return answers[Math.min(calls.length - 1, answers.length - 1)];
+    };
+    return { roll, calls };
+  };
+
+  assert.strictEqual(classBlocked([" alpha "], "Alpha"), true, "a blocked class matches as overrideRarity does, case and edge spaces aside");
+  assert.strictEqual(classBlocked(["Alpha"], "Beta"), false, "another class is offered");
+  assert.strictEqual(classBlocked(["Alpha"], ""), false, "an empty key is never blocked");
+  assert.strictEqual(classBlocked(undefined, "Alpha"), false, "a market with no list blocks nothing");
+
+  await withRarity(RARITY, async () => {
+    assert.deepStrictEqual(offerableClasses(), ["Alpha", "Beta", "Delta", "Gamma"], "the tiers' classes and the distribution's rows, once each, sorted, without the special row");
+
+    let d = dice([10, 10]);
+    let drawn = await rollClassFromDistribution(d.roll, "default", 1);
+    assert.deepStrictEqual([drawn.classKey, d.calls.length, drawn.blocked], ["Alpha", 2, undefined], "nothing blocked: one draw, both dice, as before");
+
+    d = dice([10, 10, 10, 70]);
+    drawn = await rollClassFromDistribution(d.roll, "default", 1, { blocked: ["Alpha"] });
+    assert.deepStrictEqual([drawn.classKey, drawn.rolls, d.calls.length], ["Beta", [10, 70], 4], "a blocked class is drawn again, both dice, and the second draw stands");
+
+    d = dice([10]);
+    drawn = await rollClassFromDistribution(d.roll, "default", 1, { blocked: ["Alpha"] });
+    assert.deepStrictEqual([drawn.classKey, drawn.blocked, d.calls.length], ["special", true, 2 * BLOCKED_CLASS_DRAWS], "draws that all land on a blocked class end on the special row, marked");
+
+    d = dice([80, 95]);
+    drawn = await rollClassFromDistribution(d.roll, "default", 1, { blocked: ["Alpha", "Gamma"] });
+    assert.strictEqual(drawn.classKey, "special", "the special row drawn is the Judge's pick, never blocked as a class");
+
+    for (const kind of ["henchmanByClass", "henchmanByClassProficiency"]) {
+      d = dice([50]);
+      const refused = await rollMonthlyPool({ kind, classKey: "beta" }, 3, d.roll, Math.random, "default", [], ["Beta"]);
+      assert.deepStrictEqual([refused, d.calls.length], [{ error: "class-blocked" }, 0], `${kind}: a search for a blocked class is refused before any roll`);
+      const asked = await rollMonthlyPool({ kind, classKey: "Delta" }, 3, d.roll, Math.random, "default", [], ["Beta"]);
+      assert.notStrictEqual(asked.error, "class-blocked", `${kind}: a search for another class is not refused for it`);
+    }
+  });
+
+  await withRarity(null, async () => {
+    assert.deepStrictEqual(offerableClasses(), [], "nothing imported offers no class to choose");
+  });
+}
+
 // ---- the hiring offer: one imported table for the hosted page, the throw and every further head ----
 // The edges and figures are invented; what is pinned is the reading.
 {
@@ -568,4 +647,4 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
   }
 }
 
-console.log(`test-henchmen: OK (${macros.length} macros, bulk offers, network step, power values, henchman limit, network posting, hiring offer, hosted pages, spend receipt)`);
+console.log(`test-henchmen: OK (${macros.length} macros, bulk offers, network step, power values, henchman limit, network posting, classes never offered, hiring offer, hosted pages, spend receipt)`);

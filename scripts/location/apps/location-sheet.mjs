@@ -29,6 +29,7 @@ import { HOOKS, SECONDS_PER_DAY, SECONDS_PER_WEEK } from "../../henchmen/constan
 import { RARITY_TIERS } from "../../henchmen/config.mjs";
 import { openStashDialog } from "./stash-dialog.mjs";
 import { getTable, optTable } from "../../henchmen/rules/tables.mjs";
+import { offerableClasses } from "../../henchmen/rules/availability.mjs";
 import { processLocation, closePosting, reloadMarket } from "../../henchmen/engine/recruitment.mjs";
 import { executeAsGM } from "../../lib/sockets.mjs";
 import { addSpecialHire, updateSpecialHire } from "../../henchmen/engine/hire.mjs";
@@ -106,6 +107,8 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
       removeDemographic: LocationSheet.#onRemoveDemographic,
       addRarityOverride: LocationSheet.#onAddRarityOverride,
       removeRarityOverride: LocationSheet.#onRemoveRarityOverride,
+      addBlockedClass: LocationSheet.#onAddBlockedClass,
+      removeBlockedClass: LocationSheet.#onRemoveBlockedClass,
       exportDemographics: LocationSheet.#onExportDemographics,
       // --- storage tab ---
       retrieveRow: LocationSheet.#onRetrieveRow,
@@ -475,6 +478,15 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
         label: game.i18n.localize(`ACKS-HENCHMEN.rarity.${id}`),
         selected: id === r.rarity,
       })),
+    }));
+    // The classes this market never offers: one row per class, picked from
+    // what the imported tables can offer here. A stored class those tables no
+    // longer list stays on its row as its own option rather than vanishing.
+    const offerable = offerableClasses(sys.market?.classRarityTableId || "default");
+    context.offerableClasses = offerable.length > 0;
+    context.blockedClasses = [...(sys.market?.blockedClasses ?? [])].map((value, index) => ({
+      index,
+      options: [...new Set([...(value && !offerable.includes(value) ? [value] : []), ...offerable])].map((id) => ({ id, label: id, selected: id === value })),
     }));
     context.cultureOptions = Object.entries(optTable("people", "cultures")?.list ?? {}).map(([id, c]) => ({
       id,
@@ -1019,6 +1031,20 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
       .map((r) => r.toObject?.() ?? r)
       .filter((_, i) => i !== index);
     await this.actor.update({ "system.market.rarityOverrides": rows });
+  }
+
+  /** A new blocked-class row, on the first offerable class no row names yet. */
+  static async #onAddBlockedClass() {
+    const rows = [...(this.actor.system.market?.blockedClasses ?? [])];
+    const free = offerableClasses(this.actor.system.market?.classRarityTableId || "default").find((c) => !rows.includes(c));
+    if (!free) return;
+    await this.actor.update({ "system.market.blockedClasses": [...rows, free] });
+  }
+
+  static async #onRemoveBlockedClass(_event, target) {
+    const index = Number(target.closest("[data-blocked-index]")?.dataset.blockedIndex);
+    const rows = [...(this.actor.system.market?.blockedClasses ?? [])].filter((_, i) => i !== index);
+    await this.actor.update({ "system.market.blockedClasses": rows });
   }
 
   /** Drop a RollTable on the demographics block → set the culture mix. */

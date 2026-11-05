@@ -215,6 +215,9 @@ function marketSchema() {
         rarity: str(),
       })
     ),
+    // Classes THIS market never offers: every class draw here rolls again on
+    // one, and a search directed at one is refused (henchmen `classBlocked`).
+    blockedClasses: new fields.ArrayField(str()),
     // Settlement alignment: directed searches for opposed-alignment classes
     // shift one rarity step (alignmentRecruitment table); the default
     // ladders encode a lawful town, other alignments override via variant.

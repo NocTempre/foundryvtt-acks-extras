@@ -117,6 +117,11 @@ function rarityOverridesOf(location) {
   return (location?.system?.market?.rarityOverrides ?? []).map((r) => r.toObject?.() ?? r);
 }
 
+/** The classes the market never offers, for every class draw and `rollMonthlyPool`. */
+function blockedClassesOf(location) {
+  return [...(location?.system?.market?.blockedClasses ?? [])].filter(Boolean);
+}
+
 /**
  * Troop-scale (aggregated) segments: mercenaries always; specialist types
  * whose Class I availability uses a ×multiplier (laborers, rowers, sailors,
@@ -229,7 +234,7 @@ async function buildGmCandidate(location, spec, { marketClass = 4 } = {}) {
   let classKey = spec.classKey ?? "";
   let doubleD100;
   if (!classKey && level > 0) {
-    const rolled = await rollClassFromDistribution(rollDice, variant, level);
+    const rolled = await rollClassFromDistribution(rollDice, variant, level, { blocked: blockedClassesOf(location) });
     classKey = rolled.classKey;
     doubleD100 = rolled.rolls;
   }
@@ -338,11 +343,12 @@ async function buildCandidates({ location, spec, total, marketClass, segment, pr
     // CLASS ROLLS FIRST (bucket distribution, location rarity variant);
     // culture/sex resolve downstream from the class registry.
     const variant = location.system.market?.classRarityTableId || "default";
+    const blocked = blockedClassesOf(location);
     for (let i = 0; i < count; i++) {
       const candidate = { ...base, id: foundry.utils.randomID(), quantity: 1 };
       if (spec.kind === "henchman") {
         if ((spec.level ?? 0) > 0) {
-          const rolled = await rollClassFromDistribution(rollDice, variant, spec.level);
+          const rolled = await rollClassFromDistribution(rollDice, variant, spec.level, { blocked });
           candidate.classKey = rolled.classKey;
           candidate.doubleD100 = rolled.rolls;
         }
@@ -366,7 +372,7 @@ async function buildCandidates({ location, spec, total, marketClass, segment, pr
           candidate.level = lvl.level;
         }
         if (candidate.level > 0) {
-          const cls = await rollClassFromDistribution(rollDice, variant, candidate.level);
+          const cls = await rollClassFromDistribution(rollDice, variant, candidate.level, { blocked });
           candidate.classKey = cls.classKey;
           candidate.doubleD100 = cls.rolls;
         }
@@ -688,7 +694,7 @@ export async function createPosting(
     // roll (final rarity vs. Henchman Availability by Market Class and
     // Rarity) does not mint new people.
     const mc = effectiveMarketClass(location, employer, { network: posting.network });
-    const result = await rollMonthlyPool(spec, mc, rollDice, Math.random, location.system.market?.classRarityTableId || "default", rarityOverridesOf(location));
+    const result = await rollMonthlyPool(spec, mc, rollDice, Math.random, location.system.market?.classRarityTableId || "default", rarityOverridesOf(location), blockedClassesOf(location));
     if (result.error) return { error: result.error };
     posting.totalAvailable = result.quantity;
     posting.rollDetail = result.detail;
@@ -972,7 +978,7 @@ export async function processLocation(location, currentTime = now()) {
       // rarity shifts one step toward common — the JJ mechanic).
       const spec = { ...(posting.spec.toObject?.() ?? posting.spec) };
       if (posting.advertVeteran) spec.commissioned = true;
-      const result = await rollMonthlyPool(spec, mc, rollDice, Math.random, sys.market?.classRarityTableId || "default", rarityOverridesOf(location));
+      const result = await rollMonthlyPool(spec, mc, rollDice, Math.random, sys.market?.classRarityTableId || "default", rarityOverridesOf(location), blockedClassesOf(location));
       if (!result.error) {
         posting.totalAvailable = result.quantity;
         posting.rollDetail = result.detail;

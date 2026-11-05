@@ -9,7 +9,7 @@ import { MODULE_ID } from "../constants.mjs";
 import { getTable, optTable } from "../rules/tables.mjs";
 import { createPosting, PRIVATE_KINDS } from "../engine/recruitment.mjs";
 import { maxHenchmanLevel } from "../rules/wages.mjs";
-import { henchmanLevels } from "../rules/availability.mjs";
+import { henchmanLevels, classBlocked } from "../rules/availability.mjs";
 import * as adapter from "../acks-adapter.mjs";
 import { executeAsGM } from "../../lib/sockets.mjs";
 import { ACTOR_TYPE } from "../../lib/vocab.mjs";
@@ -66,8 +66,16 @@ export class PostingDialog extends HandlebarsApplicationMixin(ApplicationV2) {
     const variant = this.location.system.market?.classRarityTableId || "default";
     const variants = optTable("rarity", "classRarityTables")?.variants ?? {};
     const tiers = (variants[variant] ?? variants.default)?.tiers ?? {};
+    // A class this market never offers is listed, disabled, saying so: the
+    // reason a search cannot ask for it stands where the choice is made.
+    const blocked = [...(this.location.system.market?.blockedClasses ?? [])];
     context.classes = Object.entries(tiers).flatMap(([tier, list]) =>
-      list.map((c) => ({ id: c, label: `${c} (${game.i18n.localize(`ACKS-HENCHMEN.rarity.${tier}`)})` }))
+      list.map((c) => {
+        const label = `${c} (${game.i18n.localize(`ACKS-HENCHMEN.rarity.${tier}`)})`;
+        return classBlocked(blocked, c)
+          ? { id: c, blocked: true, label: game.i18n.format("ACKS-HENCHMEN.posting.classBlocked", { class: label }) }
+          : { id: c, label };
+      })
     );
     return context;
   }

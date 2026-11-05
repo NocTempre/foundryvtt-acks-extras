@@ -42,7 +42,7 @@
     <label>{{localize "ACKS-HENCHMEN.posting.classKey"}}</label>
     <select name="classKey">
       {{#each classes}}
-      <option value="{{id}}">{{label}}</option>
+      <option value="{{id}}" {{#if blocked}}disabled{{/if}}>{{label}}</option>
       {{/each}}
     </select>
   </div>

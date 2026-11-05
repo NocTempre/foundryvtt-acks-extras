@@ -1041,3 +1041,39 @@ author and time window, so each run's next run deleted them.
 time. Each posting that henchmen stage 2 leaves open still rolls its fee and
 moves coin every week, until the next stage 2 run reshapes its halls. Proving
 the cadence live (TESTING 5g) moves the shared clock by two seconds.
+
+### A market's classes never offered are a list on the market, and a draw rolls again on one (2026-11-04)
+
+**Asked (owner, T-0403).** A place's hireling generator should be able to
+leave classes out. The other half of the request, a different list of
+cultures, is the place's Demographics: it already restricts the culture
+drawn, within the drawn class's race (`pickCulture`).
+
+**Ruled.**
+
+- `market.blockedClasses` is a list of class keys on the location, beside
+  `rarityOverrides`. Every class draw at the place passes it to
+  `rollClassFromDistribution`, which draws again, both dice, on a blocked
+  class. After `BLOCKED_CLASS_DRAWS` draws that all land on one, the class is
+  the distribution's `special` row, the Judge's pick, marked `blocked`.
+- A search directed at a blocked class is refused `class-blocked` by
+  `rollMonthlyPool` before any die, and the posting dialog lists the class
+  disabled with that reason. A standing directed posting for a class blocked
+  later finds nobody new at the month roll.
+- A GM who names a class when placing a candidate places it. The list governs
+  what the market rolls, not what a Judge writes in by hand.
+
+**Rejected.**
+
+- *Renormalising the imported ranges around the blocked classes.* That edits
+  the book's table. Drawing again gives each allowed class its printed share
+  of what is left, which is the same distribution without touching the rows.
+- *A "never" tier among the rarity overrides.* Overrides are read by directed
+  searches only, and `overrideRarity` takes only a tier on the ladder.
+- *Dropping the candidate when the draws run out.* A market's head count comes
+  from the availability table, not from the class; `special` keeps the count
+  and hands the class to the Judge.
+
+**What it cost.** A list that blocks nearly every class spends up to
+`BLOCKED_CLASS_DRAWS` double-d100 draws on each candidate before it lands on
+`special`.

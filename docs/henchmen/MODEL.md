@@ -36,6 +36,7 @@ One actor per settlement (see `scripts/data/location-data.mjs`):
 | `marketClassOverride` / `urbanFamilies` / `domainUuid` | Market-class derivation inputs: override → urban-families bracket (RR 352, local table) → acks-domains courtesy read → default IV. Derived getter: `system.marketClass`. |
 | `classRarityTableId` | Which JJ class-rarity variant applies (`default`, `jutland`, or setting-specific additions). |
 | `rarityOverrides[]` | `{classKey, rarity}` — the Judge's word on a class's rarity in THIS market, consulted before the variant on every directed search (`overrideRarity`). |
+| `blockedClasses[]` | Class keys THIS market never offers (`classBlocked`). Every class draw here passes them to `rollClassFromDistribution`, which draws again on one and ends on `special` after `BLOCKED_CLASS_DRAWS` draws; `rollMonthlyPool` refuses a search directed at one `class-blocked`. A GM-placed candidate's named class is placed. |
 | `desertRealm`, `compositeVariant` | Camel-troop gate; composite-vs-longbow either/or (RR 164). |
 | `postings[]` | One per paid search spec: monthly pool (`totalAvailable`), 3-week `arrivalPlan`, `feesPaid[]`, `monthStartTime`, `status`, `network` (searched with the employer's mercantile network). |
 | `candidates[]` | Plain records (NOT actors): identity, rolled attributes/class/level (feature 4 — recorded, not generated), wage, `availableFromTime`, `status`, `refusals[]`, `networkFor` (only that employer's network reaches them). |

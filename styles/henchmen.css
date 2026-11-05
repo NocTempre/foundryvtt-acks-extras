@@ -346,6 +346,14 @@
   flex: 0 0 4em;
 }
 
+/* The caption and its add button share one line, as the rarity overrides'
+   caption and its add link do. */
+.acks-extras.acks-extras-location-sheet .acks-extras-blocked-classes .block-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .acks-extras.acks-extras-location-sheet .demographics-block .block-label {
   display: flex;
   align-items: center;

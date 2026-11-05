@@ -711,6 +711,28 @@
         </div>
         {{/each}}
       </div>
+      {{!-- The classes this market never offers: a class draw here rolls again
+            on one, and a search directed at one is refused. --}}
+      <div class="form-group acks-extras-blocked-classes" data-tooltip="{{localize 'ACKS-HENCHMEN.location.blockedClassesHint'}}">
+        <div class="block-label acks-label">
+          <span>{{localize "ACKS-HENCHMEN.location.blockedClasses"}}</span>
+          {{#if offerableClasses}}
+          <button type="button" class="inline-add" data-action="addBlockedClass" aria-label="{{localize 'ACKS-HENCHMEN.location.blockedClassAdd'}}" data-tooltip=""><i class="fas fa-plus" aria-hidden="true"></i></button>
+          {{/if}}
+        </div>
+        {{#each blockedClasses}}
+        <div class="demographic-row" data-blocked-index="{{index}}">
+          <select name="system.market.blockedClasses.{{index}}" aria-label="{{localize 'ACKS-HENCHMEN.location.blockedClassPick'}}">
+            {{#each options}}
+            <option value="{{id}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+            {{/each}}
+          </select>
+          <button type="button" class="inline-add" data-action="removeBlockedClass" aria-label="{{localize 'ACKS-HENCHMEN.location.blockedClassRemove'}}" data-tooltip=""><i class="fas fa-xmark" aria-hidden="true"></i></button>
+        </div>
+        {{else}}
+        <p class="hint">{{#if @root.offerableClasses}}{{localize "ACKS-HENCHMEN.location.blockedClassesEmpty"}}{{else}}{{localize "ACKS-HENCHMEN.location.blockedClassesNone"}}{{/if}}</p>
+        {{/each}}
+      </div>
       <div class="form-group">
         <label data-tooltip="{{localize 'ACKS-HENCHMEN.location.desertHint'}}">{{localize "ACKS-HENCHMEN.location.desert"}}</label>
         <input type="checkbox" name="system.market.desertRealm" {{#if system.market.desertRealm}}checked{{/if}} />
