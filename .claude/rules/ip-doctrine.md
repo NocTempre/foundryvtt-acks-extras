@@ -50,6 +50,17 @@ and it is finer than it looks:
   tell a structural constant from a printed one by following the pointer.
   Cite in `lang/`, in a template, in a pack source, in a comment, in `docs/`.
 
+## A printed value found in source is fixed by the work that finds it
+
+A radius, a rate, a modifier size or a ladder rung already shipping in source
+is not left on a ledger row for a later program. The work that finds it moves
+it, in three parts: the importer reads the value from the Judge's own copy;
+the world exposes it where a Judge can edit it (the registry's override
+layer, or the feature's own form); and with nothing imported, the surface
+says "not imported" and shows no figure in its place. Where the file is
+another session's in-flight work, the finding goes to that session instead
+of into its lines.
+
 ## What a citation does not do
 
 **It does not launder the sentence beside it.** Strip the prose and the
