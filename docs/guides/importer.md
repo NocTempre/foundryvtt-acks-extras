@@ -390,6 +390,11 @@ The Books macros open it on the Books tab:
 - **Tools** — the entry picker, the recipe audit, the repair window, the
   merchandise build, overhead tokens (below) and **Remove ALL imports**.
 
+![](../releases/v11.14.2/importer-import-everything-modes.png)
+
+*Import everything set to Rebuild: one confirm lists every open book with what
+its own Rebuild would delete and import again.*
+
 **Overhead tokens.** When another module you have installed and active ships
 monster compendium art, the Tools tab offers **Overhead tokens from** that
 module's title; with several, one button each. Apply sets the token image of

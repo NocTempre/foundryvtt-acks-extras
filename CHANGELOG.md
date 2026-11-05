@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 11.14.2
+
 ### Fixed
 
 - **A party's column stands inside its walls.** Files that spread across a wall from

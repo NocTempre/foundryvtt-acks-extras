@@ -83,7 +83,7 @@ their own back.
 a rope kept at a place the Judge runs, with the controls to leave more and to
 take it back.*
 
-![](../releases/v4.0.0/location-storage-manager.png)
+![](../releases/v11.14.2/location-storage-manager.png)
 
 *Moving goods in and out of a place that holds them, and giving a character a
 vault.*
@@ -96,6 +96,11 @@ any other actor that is not a character. The manager lists every place that
 holds goods, empty or not, and only those are offered under **Move to**. A
 place that holds goods is kept when **Clean up empty locations** clears empty
 places at world start; **Disable Storage Here** turns it off again.
+
+![](../releases/v11.14.2/location-storage-off.png)
+
+*A place that holds no goods yet: its Storage tab says so, and **Hold goods
+here** turns it on.*
 
 One of those piles is **the house** — what the place itself owns rather than
 what somebody left there. The Judge can lock a row so it cannot be taken, and a
@@ -230,6 +235,10 @@ them, one row each, picked from the classes your imported tables can offer: a
 candidate whose class roll lands on one rolls again, and a search asking for
 one is refused, the class shown greyed out in the search's list. A class you
 name yourself when placing a candidate as GM is still placed.
+
+![](../releases/v11.14.2/location-blocked-classes.png)
+
+*A market's GM Settings with one class it never offers.*
 
 The cultures the people here come from are the place's **Demographics**. A
 candidate's culture is drawn from the listed cultures of their class's race,

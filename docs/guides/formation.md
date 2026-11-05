@@ -110,10 +110,15 @@ is narrower than the frontage the members who do not fit march in the next rank.
 A combat deploy puts each member's token on the square their portrait stood on.
 Players see the column only where they can see the squares it stands on.
 
-![](../releases/v11.14.0/formation-column.png)
+![](../releases/v11.14.2/formation-column.png)
 
 *A Player's view down a lit corridor: the party token at the head, and the
 members' portraits on the tinted squares it walked.*
+
+![](../releases/v11.14.2/formation-column-walls.png)
+
+*A corridor narrower than the frontage: the file the wall shuts out marches in
+the next rank, on the party's side of the wall.*
 
 Two controls on the **Order** tab, beside the frontage, set this per party:
 
