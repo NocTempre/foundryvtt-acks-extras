@@ -56,7 +56,11 @@ questions. Five tabs:
   the world refuses. The settings-menu entry stays restricted.
 - **Import** — the chain (`GM_STEPS`, exported from `getting-started.mjs`) in
   its order, numbered, run whole (`runImportEverything`) or one step at a
-  time (`runImportStep(key)`, `api.importStep`). Import everything takes a
+  time (`runImportStep(key)`, `api.importStep`). Run whole, each step is
+  handed `{quiet: true}`: the journals, keyed-places and maps steps, finding
+  nothing in the open books to write, resolve null without a notice, as they
+  do when a book's rebuild scopes them to that book; run alone, they say what
+  is missing. Import everything takes a
   mode: *Import what is missing* is the chain; Rebuild, Repair in place and
   Force repair run that mode over every open book and every open adventure
   book (`cookbookReimportEverything`, `api.reimportEverything(mode)`), asked

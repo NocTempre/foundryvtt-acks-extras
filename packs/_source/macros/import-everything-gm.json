@@ -5,7 +5,7 @@
   "type": "script",
   "img": "icons/svg/upgrade.svg",
   "scope": "global",
-  "command": "const api = globalThis.acksExtras?.importer;\nif (!api) return ui.notifications.warn(\"ACKS Extras | the importer is not ready (is the module enabled?).\");\nif (typeof api.importEverything !== \"function\") return ui.notifications.warn(\"ACKS Extras | Import Everything needs a newer build of this module.\");\nawait api.importEverything();",
+  "command": "const api = globalThis.acksExtras?.importer;\nif (!api) return ui.notifications.warn(\"ACKS Extras | the importer is still loading on this seat, or failed to load (see the console). Try again in a moment.\");\nif (typeof api.importEverything !== \"function\") return ui.notifications.warn(\"ACKS Extras | Import Everything needs a newer build of this module.\");\nawait api.importEverything();",
   "folder": "ackscFldImport00",
   "sort": 200,
   "ownership": {

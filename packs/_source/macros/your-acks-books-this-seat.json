@@ -5,7 +5,7 @@
   "type": "script",
   "img": "icons/svg/book.svg",
   "scope": "global",
-  "command": "const api = globalThis.acksExtras?.importer;\nif (!api) return ui.notifications.warn(\"ACKS Extras | the importer is not ready (is the module enabled?).\");\nif (typeof api.bookStatus !== \"function\") return ui.notifications.warn(\"ACKS Extras | Your ACKS Books (this seat) needs a newer build of this module.\");\napi.bookStatus();",
+  "command": "const api = globalThis.acksExtras?.importer;\nif (!api) return ui.notifications.warn(\"ACKS Extras | the importer is still loading on this seat, or failed to load (see the console). Try again in a moment.\");\nif (typeof api.bookStatus !== \"function\") return ui.notifications.warn(\"ACKS Extras | Your ACKS Books (this seat) needs a newer build of this module.\");\napi.bookStatus();",
   "folder": "ackscFldSetup000",
   "sort": 100,
   "ownership": {

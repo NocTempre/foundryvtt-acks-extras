@@ -5,7 +5,7 @@
   "type": "script",
   "img": "icons/svg/regen.svg",
   "scope": "global",
-  "command": "const api = globalThis.acksExtras?.importer;\nif (!api) return ui.notifications.warn(\"ACKS Extras | the importer is not ready (is the module enabled?).\");\nif (typeof api.cookbookReimportShelf !== \"function\") return ui.notifications.warn(\"ACKS Extras | Reimport One Shelf (GM) needs a newer build of this module.\");\napi.cookbookReimportShelf();",
+  "command": "const api = globalThis.acksExtras?.importer;\nif (!api) return ui.notifications.warn(\"ACKS Extras | the importer is still loading on this seat, or failed to load (see the console). Try again in a moment.\");\nif (typeof api.cookbookReimportShelf !== \"function\") return ui.notifications.warn(\"ACKS Extras | Reimport One Shelf (GM) needs a newer build of this module.\");\napi.cookbookReimportShelf();",
   "folder": "ackscFldImport00",
   "sort": 210,
   "ownership": {

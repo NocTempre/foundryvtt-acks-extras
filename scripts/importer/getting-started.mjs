@@ -116,10 +116,12 @@ export const GM_STEPS = [
   // vehicles, because choosing between them is not a decision a Judge has to
   // make to import their own books.
   ["stepOseBooks", (api) => api.oseImportAuthored()],
-  ["stepJournals", (api) => api.cookbookImportJournals()],
+  // The second argument is the chain's `{quiet: true}`: a step with nothing to
+  // write says nothing inside the chain, and warns when it is run on its own.
+  ["stepJournals", (api, o) => api.cookbookImportJournals(o)],
   // A settlement's keyed places are actors, not pages: after the journals,
   // because a page path that also held them would have skipped them already.
-  ["stepPoi", (api) => api.cookbookImportPoiPlaces()],
+  ["stepPoi", (api, o) => api.cookbookImportPoiPlaces(o)],
   ["stepFactions", (api) => api.cookbookImportFactions()],
   // Market profiles land on the places above, and translate goods through
   // the merchandise catalogue the goods step built.
@@ -129,7 +131,7 @@ export const GM_STEPS = [
   ["stepAdventureItems", (api) => api.cookbookImportAdventureItems()],
   // A map stands on the places, names the organisations seated in its quarters
   // and wires in the lists, so it follows all three.
-  ["stepScenes", (api) => api.cookbookImportScenes()],
+  ["stepScenes", (api, o) => api.cookbookImportScenes(o)],
   ["stepTables", (api) => api.cookbookImportTables()],
   // Import steps over a document it already holds, the repair passes walk the
   // library, and only the abilities pass walks a character. A placeholder on
@@ -193,7 +195,7 @@ export async function runImportEverything(root = null) {
       // One failed step must not silence the rest — each importer covers a
       // different document type and they share no state beyond the world.
       try {
-        await run(api);
+        await run(api, { quiet: true });
       } catch (err) {
         console.error(`${MODULE_ID} | getting started: ${key}`, err);
         ui.notifications.error(`${MODULE_ID} | ${t(key)}: ${err.message}`);

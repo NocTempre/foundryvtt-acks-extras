@@ -4500,9 +4500,10 @@ const journalEntriesOf = (entries) => {
  * Pages update in place on re-import, so coverage grows without duplicating.
  * `books` scopes the run to those book ids; a seat that holds every shelved
  * book open otherwise writes them all. `created.journals` lists the uuids of
- * the journals this run made.
+ * the journals this run made. A run with nothing to write resolves null with
+ * no notice when it is scoped or `quiet` (one step of a batch).
  */
-export async function cookbookImportJournals({ books = null } = {}) {
+export async function cookbookImportJournals({ books = null, quiet = false } = {}) {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates journals).`);
   const openBooks = [...data.books.keys()].filter((b) => ctx.sessionDocs.has(b) && (!books || books.includes(b)));
   const created = { journals: [] };
@@ -4512,10 +4513,9 @@ export async function cookbookImportJournals({ books = null } = {}) {
   // Every page is a fresh extraction from the seat's PDF, so a book's worth of
   // districts is minutes of work — counted up front so the bar can say how far
   // through them it is rather than only that it is busy.
-  const bar = progressBar(
-    game.i18n.localize(`${LANG_PREFIX}.ui.progressJournals`),
-    openBooks.reduce((n, b) => n + journalEntriesOf(data.books.get(b).entries).length, 0),
-  );
+  const total = openBooks.reduce((n, b) => n + journalEntriesOf(data.books.get(b).entries).length, 0);
+  if (!total && (quiet || books)) return null;
+  const bar = progressBar(game.i18n.localize(`${LANG_PREFIX}.ui.progressJournals`), total);
   try {
     for (const bookId of openBooks) {
       const cb = data.books.get(bookId);
@@ -4612,7 +4612,10 @@ export async function cookbookImportJournals({ books = null } = {}) {
   // reader already made.
   if (!made && !updated && refused)
     return ui.notifications.warn(`${MODULE_ID} | journals: ${refused} page(s) did not match the cookbook (different printing?) — none written.`);
-  if (!made && !updated) return ui.notifications.warn(`${MODULE_ID} | no journal pages in any open book — connect a book with keyed rooms, setting tables or passages.`);
+  if (!made && !updated) {
+    if (quiet || books) return null;
+    return ui.notifications.warn(`${MODULE_ID} | no journal pages in any open book — connect a book with keyed rooms, setting tables or passages.`);
+  }
   ui.notifications.info(
     `${MODULE_ID} | journals: ${made} page(s) created, ${updated} refreshed${refused ? `, ${refused} skipped (page did not match the cookbook)` : ""}, on each book's JournalEntry shelf.`,
   );
@@ -4638,9 +4641,10 @@ export async function cookbookImportJournals({ books = null } = {}) {
  * (`joinPaired`) instead of making a second. `books` scopes the run to those
  * book ids and `ids` to those rows; `created` lists the uuids of the keyed
  * and region places (the book's own place and the region's among them) and
- * stat-line creatures it made.
+ * stat-line creatures it made. With no place to write, a run scoped to books
+ * or `quiet` (one step of a batch) resolves null with no notice.
  */
-export async function cookbookImportPoiPlaces({ books = null, ids = null } = {}) {
+export async function cookbookImportPoiPlaces({ books = null, ids = null, quiet = false } = {}) {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates actors).`);
   const openBooks = [...data.books.keys()].filter((b) => ctx.sessionDocs.has(b) && (!books || books.includes(b)));
   const jobs = [];
@@ -4654,7 +4658,10 @@ export async function cookbookImportPoiPlaces({ books = null, ids = null } = {})
       else if (isKeyedPlace(e, id, spaces)) jobs.push({ bookId, id, e, keyed: true });
     }
   }
-  if (!jobs.length) return ui.notifications.warn(`${MODULE_ID} | no keyed places in any open book — connect a settlement or an adventure first.`);
+  if (!jobs.length) {
+    if (quiet || books) return null;
+    return ui.notifications.warn(`${MODULE_ID} | no keyed places in any open book — connect a settlement or an adventure first.`);
+  }
   let made = 0;
   let described = 0;
   let already = 0;
@@ -5887,9 +5894,10 @@ const SCENE_STEPS = 4;
  * Zones follow the maps (`ensureZone`): each open book's zone rows are laid
  * over whichever map they name, made this run or held from an earlier one.
  * `books` narrows the run to the open books it names; without it every open
- * book's maps are built.
+ * book's maps are built. With no map to build, a run so narrowed or `quiet`
+ * (one step of a batch) resolves null with no notice.
  */
-export async function cookbookImportScenes({ books = null } = {}) {
+export async function cookbookImportScenes({ books = null, quiet = false } = {}) {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates scenes).`);
   const wanted = books ? new Set(books) : null;
   const openBooks = [...data.books.keys()].filter((b) => ctx.sessionDocs.has(b) && (!wanted || wanted.has(b)));
@@ -5902,6 +5910,7 @@ export async function cookbookImportScenes({ books = null } = {}) {
     }
   }
   if (!jobs.length && !zoneJobs.length) {
+    if (quiet || books) return null;
     const carriers = [...data.books.keys()]
       .filter((b) => Object.keys(data.books.get(b).scenes ?? {}).length)
       .map((b) => BOOKS[b]?.label ?? b.toUpperCase());

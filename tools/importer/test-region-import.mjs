@@ -810,6 +810,10 @@ await MockActor.create({ name: "zz", type: LOCATION_TYPE, system: { notes: "", p
   let threw = null;
   await cookbookImportJournals().catch((err) => (threw = err));
   ok("region rows are no journal pages", !threw && notices.at(-1)?.[1]?.includes("no journal pages"), String(threw ?? notices.at(-1)?.[1]));
+  const said = notices.length;
+  const quiet = await cookbookImportJournals({ quiet: true });
+  const scoped = await cookbookImportJournals({ books: ["zz"] });
+  ok("inside a batch or scoped to its book, a step with no page to write resolves null and says nothing", quiet === null && scoped === null && notices.length === said, JSON.stringify(notices.slice(said)));
 
   const before = pack.docs.size;
   const out = await cookbookImportPoiPlaces();

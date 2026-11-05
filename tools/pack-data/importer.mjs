@@ -65,6 +65,16 @@ function macro(id, name, img, command, sort = 0, folderId = null) {
 }
 
 /**
+ * The two lines every importer macro opens with: the importer's slice of the
+ * module api, and the guard for a seat where it is not there yet. The api is
+ * published at the end of the importer's `ready` work, which takes a while on
+ * a large world, so a click before then is the common case; a guard that never
+ * stops answering is a load that threw.
+ */
+const IMPORTER_PRELUDE = `const api = globalThis.acksExtras?.importer;
+if (!api) return ui.notifications.warn("ACKS Extras | the importer is still loading on this seat, or failed to load (see the console). Try again in a moment.");`;
+
+/**
  * Every macro command runs one api function behind the same two guards: the
  * importer's slice of the module api must be ready, and the function must
  * exist on this build. Macros arrive by compendium import and outlive the
@@ -74,8 +84,7 @@ function macro(id, name, img, command, sort = 0, folderId = null) {
  * `.importer` before calling.
  */
 function apiCommand(fn, name, args = "") {
-  return `const api = globalThis.acksExtras?.importer;
-if (!api) return ui.notifications.warn("ACKS Extras | the importer is not ready (is the module enabled?).");
+  return `${IMPORTER_PRELUDE}
 if (typeof api.${fn} !== "function") return ui.notifications.warn("ACKS Extras | ${name} needs a newer build of this module.");
 api.${fn}(${args});`;
 }
@@ -101,8 +110,7 @@ function buildMacros() {
       "ackscMacImportAl",
       "Import Everything (GM)",
       "icons/svg/upgrade.svg",
-      `const api = globalThis.acksExtras?.importer;
-if (!api) return ui.notifications.warn("ACKS Extras | the importer is not ready (is the module enabled?).");
+      `${IMPORTER_PRELUDE}
 if (typeof api.importEverything !== "function") return ui.notifications.warn("ACKS Extras | Import Everything needs a newer build of this module.");
 await api.importEverything();`,
       200,

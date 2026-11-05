@@ -193,7 +193,7 @@ async function migrateMacros() {
     const rewritten = command
       .replaceAll("globalThis.acksImporter", "globalThis.acksExtras?.importer")
       .replaceAll("acksImporter.", "acksExtras.importer.")
-      .replaceAll(`"${LEGACY_ID} | module not ready (is it enabled?)."`, '"ACKS Extras | the importer is not ready (is the module enabled?)."')
+      .replaceAll(`"${LEGACY_ID} | module not ready (is it enabled?)."`, '"ACKS Extras | the importer is still loading on this seat, or failed to load (see the console). Try again in a moment."')
       .replaceAll(`"${LEGACY_ID} | `, '"ACKS Extras | ');
     if (rewritten !== command) updates.push({ _id: macro.id, command: rewritten });
   }

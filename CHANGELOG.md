@@ -11,6 +11,16 @@
   frontage makes the column deeper. Its lights shine from those cells, and a party
   that fights where it stands deploys onto them. The scene's edge is treated like a
   wall, so bodies no longer pile onto one cell against it. In the open nothing moves.
+- **Import everything says nothing about a step that has nothing to write.** A run
+  whose open books hold no journal pages, keyed places or maps no longer ends with a
+  warning asking you to connect such a book, and neither does a book's Rebuild or
+  Repair for a book that has none. Run that step alone from Manage Imports and it
+  still tells you what is missing.
+- **An importer macro clicked before the importer has loaded says so.** The importer
+  finishes loading a little after the world does, and a macro clicked in that window
+  used to ask whether the module was enabled. It now says the importer is still
+  loading, or failed to load and left its error in the console. Macros already copied
+  into your world keep the old wording until you take them from the compendium again.
 
 ### Added
 
