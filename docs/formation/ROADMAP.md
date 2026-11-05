@@ -567,6 +567,8 @@ a fight that is over").
 | Not built | What it is | What it needs first |
 |---|---|---|
 | The trail with no GM online | The trail is written by the primary GM, so a party moved while no GM is seated keeps the trail of its last GM-seen step and reads straight behind the head after a reload. | a writer other than the primary GM that is still one writer, or a ruling that a straight column is enough there. |
+| The column spaced as the book spaces it | Members stand one grid cell apart, where RR ch. 6 (Combatant Frontage and Interval; Marching and Mapping) spaces files by frontage and ranks by interval, so a column spreads over more cells than its marching order fills. Designed: the frontage and rank interval imported into the `formation` document; bodies laid as points along the trail with a clearance test against walls; one cell per body kept while nothing is imported; deploy from the points; `effectiveFrontage` retired; trap ranks read from the laid column. Slices: the import (small), then geometry, deploy and traps (large). | the owner's choice of deploy (one per cell; the book's points by weapon; or the points where a token fits and one per cell elsewhere, recommended), and the release it ships in. |
+| The square scale and the reaches it sets | `FEET_PER_RANK` (`trap-rules.mjs`) is a printed figure, and the search, pole and trap-breaking reaches, the battlemap footprint and its assistant, and the trap-zone fallback all derive from it; the book places ranks at the imported interval, which the constant contradicts. Moves with the row above: a rank's depth from the laid column, and each reach from its own imported figure. | the column spacing above. |
 
 ## A copy of the party token on another scene
 

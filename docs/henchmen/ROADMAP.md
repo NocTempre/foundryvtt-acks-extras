@@ -38,6 +38,16 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   freeze the sample automation into the world layer, so the same change makes
   the import merge over the written layer only, makes picker presence read the
   world layer, and lists only world and override tables in the journal.
+- **The weekly arrival split arrives through the importer.** `arrivalSplit`
+  in `rules/dice.mjs` writes in source the share of a month's candidates that
+  arrives in each of the weeks the hiring rules name (RR ch. 4, hiring), a
+  printed value caught on 2026-11-05 and put on this roadmap by the owner
+  that day. The fix: a capture of the shares, a value the Judge can edit
+  in the world, and a degradation for a world with nothing imported, which
+  is a ruling to make and record, not a default to pick. The docstring says
+  the second week holds at least one candidate and the code lets it hold
+  none; the page decides which, read in the rules-lookup order before the
+  capture is written.
 - **Utter Domination's morale base has no located value.** `moraleBase` is
   read only from an Active Effect; the importer register carries no locator
   for it, and the page's figure is a floor rather than a bonus, so the shape a

@@ -34,6 +34,7 @@ import {
   toLibAlignment,
 } from "./actor-data.mjs";
 import { getAbilityReactionMods, itemsWithReactionEffects } from "./ability-effects.mjs";
+import { henchmanWageCite, signingBonusCite, signingBonusCost } from "../henchmen/rules/wages.mjs";
 import { hatredNotes, kindOf, optionalRuleEnabled, parseKindList, relationFor } from "./racial.mjs";
 import { modeRows, printedBands } from "./printed.mjs";
 import { scopeApplies } from "../lib/vocab.mjs";
@@ -466,38 +467,78 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
   }
 
   /**
-   * The gp cost of each bribe tier for the current actor/target pair, priced
-   * from the target's hit dice — or from `ctx.bribeBasisHd` when the opener
-   * names the pay the target answers to (a market has no hit dice; its
-   * merchants have a wage).
+   * The gp cost of each bribe tier for the current actor/target pair: the
+   * imported pay period for the tier (Bribery's or the plain ladder) of the
+   * imported monthly wage, priced through the henchmen feature's
+   * `signingBonusCost`. The wage is the target's hit dice's — or
+   * `ctx.bribeBasisHd`'s when the opener names the pay the target answers to
+   * (a market has no hit dice; its merchants have a wage).
+   *
+   * @returns {{gp: Record<number, number>, period: Record<number, string>, level: number, monthly: number}|null}
+   *   null where the wage or any tier's period is not imported
    */
   #bribeTiers() {
     const basis = Number(this.#ctx.bribeBasisHd);
-    const monthly = monthlyWageForHD(Number.isFinite(basis) ? basis : getActorHD(this.#targetActor));
-    const day = Math.round(monthly / 30);
-    const week = Math.round(monthly / 4);
-    const year = monthly * 12;
-    const hasBribery = getProficiencies(this.#actor).bribery;
-    return hasBribery ? { 1: day, 2: week, 3: monthly } : { 1: week, 2: monthly, 3: year };
+    const level = Math.floor(Number(Number.isFinite(basis) ? basis : getActorHD(this.#targetActor)) || 0);
+    const monthly = monthlyWageForHD(level);
+    if (monthly == null) return null;
+    const hasBribery = Boolean(getProficiencies(this.#actor).bribery);
+    const gp = {};
+    const period = {};
+    for (const tier of [1, 2, 3]) {
+      const cost = signingBonusCost(tier, monthly, hasBribery);
+      if (!cost) return null;
+      gp[tier] = cost.gp;
+      period[tier] = cost.wages;
+    }
+    return { gp, period, level, monthly };
   }
 
   /**
    * Auto-computed bribe fee (gp) from the target's HD and the chosen bribe
-   * tier, priced by `#bribeTiers`.
+   * tier, priced by `#bribeTiers`; 0 where nothing prices it.
    */
   #computeBribeFee() {
     const diplo = this.#modifiers[INFLUENCE_TONE.DIPLOMACY];
     const level = Number(diplo.bribe) || 0;
     if (level <= 0) return 0;
-    return this.#bribeTiers()[level] ?? 0;
+    return this.#bribeTiers()?.gp[level] ?? 0;
   }
 
-  /** The bribe bonus (+0..+3) a blind gp offer buys against the real wage tiers. */
+  /**
+   * The bribe bonus (+0..+3) a blind gp offer buys against the real wage
+   * tiers. Unpriced tiers buy nothing: an offer measured against no price
+   * would buy every tier.
+   */
   #bonusForOffer(offer) {
     const tiers = this.#bribeTiers();
+    if (!tiers) return 0;
     let bonus = 0;
-    for (const level of [1, 2, 3]) if (offer >= tiers[level]) bonus = level;
+    for (const level of [1, 2, 3]) if (offer >= tiers.gp[level]) bonus = level;
     return bonus;
+  }
+
+  /**
+   * The bribe fee's provenance tooltip: the tier's period of the wage it was
+   * priced from, with both pages; that it was named by hand; or that nothing
+   * prices it. Null before a bribe is chosen.
+   */
+  #bribeFeeTip() {
+    const L = (key, data) => (data ? game.i18n.format(key, data) : game.i18n.localize(key));
+    const level = Number(this.#modifiers[INFLUENCE_TONE.DIPLOMACY]?.bribe) || 0;
+    if (this.#system.bribeFeeOverridden) return L("ACKS-INFLUENCE.bribe.feeTipHand");
+    if (level <= 0) return null;
+    const tiers = this.#bribeTiers();
+    if (!tiers) return L("ACKS-INFLUENCE.bribe.feeTipMissing");
+    const noPage = L("ACKS-HENCHMEN.service.tip.noPage");
+    return L("ACKS-INFLUENCE.bribe.feeTip", {
+      gp: tiers.gp[level],
+      period: L(`ACKS-HENCHMEN.wages.${tiers.period[level]}`),
+      level: tiers.level,
+      wage: tiers.monthly,
+      wageCite: henchmanWageCite() ?? noPage,
+      periodCite: signingBonusCite() ?? noPage,
+    });
   }
 
   /** Refresh the auto bribe fee unless the GM has overridden it. */
@@ -664,6 +705,8 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
     const offer = Number(bribeOffer) || 0;
     if (t === INFLUENCE_TONE.DIPLOMACY && offer > 0) {
       const diplo = this.#modifiers[INFLUENCE_TONE.DIPLOMACY];
+      // An offer nothing prices buys no bonus and moves no coin; the GM is told why.
+      if (!this.#bribeTiers()) ui.notifications?.warn(game.i18n.localize("ACKS-INFLUENCE.bribe.unpriced"));
       diplo.bribe = this.#bonusForOffer(offer);
       diplo.bribeFee = offer; // the full offer is what changes hands
       this.#system.bribeFeeOverridden = true;
@@ -773,6 +816,7 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
           isSelect: mod.type === "select",
           isNumber: mod.type === "signed" || mod.type === "factor",
           isGold,
+          feeTip: mod.key === "bribeFee" && !isBribeGuess && !hidden ? this.#bribeFeeTip() : null,
           isEffect: Boolean(mod.fromEffect) || isProfModified || isActsAs,
           // A machine-classified mechanic, badged so the sheet never presents a
           // scan's guess as the book's ruling.

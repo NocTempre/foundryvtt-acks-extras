@@ -622,4 +622,29 @@ t("a creature with no conditions adds no row", () => {
   assert.deepEqual(conditionEntries("morale", { statuses: [] }), []);
 });
 
+// The ladder is invented; what is pinned is that the bribe reads the henchmen
+// wage ladder, says null where none is imported, and holds a level to the
+// ladder's own rungs.
+{
+  const libTables = await import("../scripts/lib/tables.mjs");
+  const { henchmanMonthlyWage } = await import("../scripts/influence/constants.mjs");
+  const saved = globalThis.acksExtras.lib.tables;
+  globalThis.acksExtras.lib.tables = libTables;
+  try {
+    t("a bribe's wage is the imported henchman wage ladder, or none", () => {
+      resetTables();
+      assert.equal(henchmanMonthlyWage(2), null, "no ladder imported: nothing prices the bribe");
+      registerTable({ id: "wages", tables: { henchmanWageByLevel: { byLevel: { 0: 3, 1: 5, 2: 0, 3: 11 } } } }, { priority: PRIORITY.WORLD });
+      assert.equal(henchmanMonthlyWage(1), 5);
+      assert.equal(henchmanMonthlyWage(2), 0, "an imported 0 is a wage, not an absence");
+      assert.equal(henchmanMonthlyWage(1.9), 5, "hit dice count whole");
+      assert.equal(henchmanMonthlyWage(9), 11, "past the ladder's top rung, the top rung");
+      assert.equal(henchmanMonthlyWage(-2), 3, "below its lowest, the lowest");
+      resetTables();
+    });
+  } finally {
+    globalThis.acksExtras.lib.tables = saved;
+  }
+}
+
 console.log(`\n${n} tests passed (influence modifier sources)`);

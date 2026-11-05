@@ -3,15 +3,27 @@
  */
 import { getTable, optTable, optCite } from "./tables.mjs";
 
+/** A level rounded and held between a ladder's own lowest and highest rung. */
+function onLadder(rungs, level) {
+  const levels = rungs.map(Number).filter(Number.isInteger);
+  const at = Math.round(Number(level) || 0);
+  return levels.length ? Math.max(Math.min(...levels), Math.min(Math.max(...levels), at)) : at;
+}
+
 /** Monthly wage in gp for a henchman of a level (HD for monsters, MM 351). */
 export function henchmanWage(level) {
-  const capped = Math.max(0, Math.min(14, Math.round(level)));
   const byLevel = optTable("wages", "henchmanWageByLevel")?.byLevel;
-  if (byLevel) return byLevel[String(capped)] ?? 0;
+  if (byLevel) return byLevel[String(onLadder(Object.keys(byLevel), level))] ?? 0;
   // Before the wage ladder is imported: the henchman availability table (RR)
   // carries the same per-level monthly wage, so market hiring still works.
-  const row = optTable("availability", "henchmanAvailability")?.rows?.find((r) => r.level === capped);
-  return row?.wage ?? 0;
+  const rows = optTable("availability", "henchmanAvailability")?.rows ?? [];
+  const at = onLadder(rows.map((r) => r.level), level);
+  return rows.find((r) => r.level === at)?.wage ?? 0;
+}
+
+/** True where a table `henchmanWage` reads is imported, so its 0 is a wage and not an absence. */
+export function henchmanWageImported() {
+  return !!(optTable("wages", "henchmanWageByLevel")?.byLevel || optTable("availability", "henchmanAvailability")?.rows);
 }
 
 /** The page of the table `henchmanWage` reads, in the same order it reads them; null where neither is imported or the layer read records none. */
@@ -120,10 +132,15 @@ export function signingBonusCost(tier, monthlyWage, briberyProficient) {
   if (!period) return null;
   const row = { wages: period };
   // Pay-period conversion (RAW names the periods, not the math): a week's
-  // pay = monthly / 4, a day's = monthly / 30. See docs/henchmen/DECISIONS.md,
-  // "Wage pay-period conversions match the influence feature's bribe tiers".
+  // pay = monthly / 4, a day's = monthly / 30. The influence feature prices
+  // bribes through this same function (docs/influence/DECISIONS.md).
   const gp = { day: monthlyWage / 30, week: monthlyWage / 4, month: monthlyWage, year: monthlyWage * 12 }[row.wages];
   return { gp: Math.ceil(gp), wages: row.wages };
+}
+
+/** The page the signing bonus ladder was read from, or null where none is recorded. */
+export function signingBonusCite() {
+  return optCite("wages", "signingBonus");
 }
 
 /** Expected monthly living expenses of an adventurer = same-level henchman wage. */

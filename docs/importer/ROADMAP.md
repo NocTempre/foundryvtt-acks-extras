@@ -982,7 +982,8 @@ outside a family"), and the Kit axis with its three tables (monsters MODEL,
 - **The kit on the Full Monster Sheet's speeds.** The kit's move reaches the
   system's movement figure, not the sheet's speed rows.
 - **The classes.** The AXIOMS custom beastman classes, through the class
-  importer, owner-scheduled (2026-11-04) for the release after 11.14.0. Their
+  importer, owner-scheduled (2026-11-04) for the release after 11.14.0, then
+  held by the owner (2026-11-05) until directed to resume. Their
   progression tables read as the title-located grid the class compile already
   has; no new extraction shape. In order:
   - **A. The classes, simple mode**: three `kind.class` entries in a new

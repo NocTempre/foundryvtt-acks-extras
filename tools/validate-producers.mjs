@@ -37,8 +37,7 @@ const rel = (f) => path.relative(ROOT, f).split(path.sep).join("/");
  */
 const WAIVERS = {
   "cityTravel.encounters100": { roadmap: "docs/formation/ROADMAP.md", find: "The street encounter list has no recipe" },
-  "influence.attemptTime": { roadmap: "docs/influence/ROADMAP.md", find: "Two influence tables have no producer" },
-  "influence.henchmanWage": { roadmap: "docs/influence/ROADMAP.md", find: "Two influence tables have no producer" },
+  "influence.attemptTime": { roadmap: "docs/influence/ROADMAP.md", find: "The attempt-time ladder has no producer" },
   followers: { roadmap: "docs/henchmen/ROADMAP.md", find: "Followers ruledata has no producer" },
   "wages.mercenaryOfficers": { roadmap: "docs/henchmen/ROADMAP.md", find: "`wages.mercenaryOfficers`" },
   "people.classRegistry": { roadmap: "docs/henchmen/ROADMAP.md", find: "`people.classRegistry`" },

@@ -10,6 +10,7 @@
 
 import { MODULE_ID } from "../lib/constants.mjs";
 import { getDoc as getTableDoc, hasDoc as hasTableDoc } from "../lib/tables.mjs";
+import { henchmanWage, henchmanWageImported } from "../henchmen/rules/wages.mjs";
 export { MODULE_ID };
 
 /** Lang root for this feature's own keys. */
@@ -214,22 +215,17 @@ export function influenceTimeLadder(attempt = 0) {
 }
 
 /**
- * The monthly wage a henchman of a given level is owed, used to suggest a
- * bribe fee from the target's HD. Imported, never shipped
- * (`lib/tables.mjs`, doc `influence`, table `henchmanWage`) — see
- * docs/influence/DECISIONS.md, "both were IP leaks and are gone from the
- * shipped artifact".
+ * The monthly wage a henchman of a given level is owed, used to price a bribe
+ * from the target's HD. It is the henchmen feature's imported wage ladder
+ * (`henchmen/rules/wages.mjs` `henchmanWage`), read whole rather than kept a
+ * second time here — see docs/influence/DECISIONS.md, "A bribe is priced off
+ * the imported wage and pay-period ladders".
  *
- * @returns {number|null} null when nothing is registered — the field is then
- *   simply not pre-filled, and the Judge names the sum
+ * @returns {number|null} null when no wage is imported — the fee is then left
+ *   for the Judge to name
  */
 export function henchmanMonthlyWage(hd) {
-  const rows = hasTableDoc(INFLUENCE_DOC) ? getTableDoc(INFLUENCE_DOC)?.tables?.henchmanWage : null;
-  if (!Array.isArray(rows) || !rows.length) return null;
-  const level = Math.max(0, Math.min(rows.length - 1, Math.floor(Number(hd) || 0)));
-  const row = rows[level];
-  const wage = Number(row?.wage ?? row);
-  return Number.isFinite(wage) ? wage : null;
+  return henchmanWageImported() ? henchmanWage(Math.floor(Number(hd) || 0)) : null;
 }
 
 /**

@@ -129,7 +129,8 @@
                 </select>
               {{else}}
                 <input type="number" name="mod.{{this.key}}" id="{{@root.partId}}-mod-{{this.key}}"
-                       value="{{this.value}}" data-dtype="Number" class="{{#if this.isGold}}influence-gold{{/if}}"/>
+                       value="{{this.value}}" data-dtype="Number" class="{{#if this.isGold}}influence-gold{{/if}}"
+                       {{#if this.feeTip}}data-tooltip-text="{{this.feeTip}}"{{/if}}/>
               {{/if}}
               {{#if this.isGold}}{{#unless this.masked}}<span class="influence-gp-suffix">gp</span>{{/unless}}{{/if}}
             </div>

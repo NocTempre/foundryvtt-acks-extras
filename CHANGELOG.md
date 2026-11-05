@@ -39,6 +39,13 @@
   posting dialog said it was submitted whatever became of it. A search refused because
   it repeats one made this month, names a class the place never offers or needs a table
   the world has not imported now shows the reason instead.
+- **A bribe costs what your imported wage tables say.** The bribe fee read a wage
+  table nothing ever imported, so it priced every bribe at nothing, and a player's
+  blind offer of a single coin bought the largest bribe bonus. A bribe is now priced
+  from the henchman wage ladder and the signing bonus pay periods that Rules tables
+  reads, and the fee's tooltip says how it was priced. With those tables missing the
+  fee is left for you to name, and a blind offer buys nothing and costs nothing,
+  with a notice on the GM's screen.
 - **A henchman's random level rolls the die its imported table reaches.** The Random
   Henchman Level roll used a die written into the module. It now rolls the die that the
   imported table's own bands reach, so a table you edit in the world rolls the die your

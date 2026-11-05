@@ -56,14 +56,19 @@ shipped surface. Either the classifications get audited and the badge retires,
 or the badge becomes the documented steady state and says so deliberately.
 It is currently neither.
 
-## 3. Two influence tables have no producer
+## 3. The attempt-time ladder has no producer
 
-The `influence` document's `attemptTime` (the attempt-time ladder) and
-`henchmanWage` (the wage ladder the bribe fee prices on) are read in
-`influence/constants.mjs`, and no recipe writes either, so both are absent in
-every world. `tools/validate-producers.mjs` waives each against this section.
-§1's fix is this work seen from the other side: a label can drop its
-magnitude once the magnitude has a document to arrive in.
+The `influence` document's `attemptTime` (the attempt-time ladder) is read in
+`influence/constants.mjs`, and no recipe writes it, so it is absent in every
+world. `tools/validate-producers.mjs` waives it against this section. §1's
+fix is this work seen from the other side: a label can drop its magnitude
+once the magnitude has a document to arrive in.
+
+The bribe's own Cost of Bribes table (RR ch. 6, "Offering Bribes") has no
+capture either. A bribe prices off the signing bonus ladders the hiring and
+Bribery pages print, which hold the same pay periods (`DECISIONS.md`, "A bribe
+is priced off the imported wage and pay-period ladders"); a capture of the
+table itself would let its cite name the bribe's own page.
 
 The `morale` document and the `influence` document's `hiringOffer` are the
 pattern: each has a recipe, and the `morale`, `obedience` and `hiring` pages

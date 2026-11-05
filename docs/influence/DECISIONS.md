@@ -26,7 +26,9 @@ is the rule being performed.
 
 **What arrives registered** (`lib/tables.mjs`, doc `influence`):
 `tables.attemptTime`, which carries how many rungs there are and what each
-costs, and `tables.henchmanWage`.
+costs, and `tables.henchmanWage`. *The `henchmanWage` half is superseded by
+"A bribe is priced off the imported wage and pay-period ladders"
+(2026-11-05).*
 
 **Degradation is honest, never invented.** With nothing registered the ladder
 still runs: a rung is labelled by its own ORDINAL, a fact about this tracker
@@ -546,3 +548,41 @@ proficiency boxes at a shipped figure ([ROADMAP.md](ROADMAP.md) §3).
 **What it cost.** Until the Judge imports the Revised Rulebook's tables, a
 henchman's loyalty roll types the apparent-level penalty by hand. A world that
 imported before this change is named in the missing-tables notice.
+
+### A bribe is priced off the imported wage and pay-period ladders (2026-11-05)
+
+Supersedes the `henchmanWage` half of the 2026-09-02 entry. That table was
+read here and no recipe ever wrote it, so the bribe fee priced at nothing in
+every world, and a blind offer of any coin met every tier's price of nothing
+and bought the top bonus. The pay period each tier costs (a day, a week, a
+month or a year, by Bribery) was also a printed ladder written into
+`#bribeTiers`.
+
+- *The wage is the henchmen feature's.* `henchmanMonthlyWage` reads
+  `henchmen/rules/wages.mjs` `henchmanWage`, whose ladder Rules tables
+  imports, rather than a second copy in this document. The ladder's principal
+  reader is the henchmen feature, the converse of the loyalty figure's case
+  above. A level is held to the ladder's own rungs, where it was held to a
+  rung written in source.
+- *The periods are the signing bonus ladders.* The book prints one pay-period
+  ladder three times: in the hiring rules (RR ch. 4, the signing bonus), in
+  Bribery's entry (RR ch. 3) and as the Cost of Bribes table (RR ch. 6,
+  "Offering Bribes"). The importer reads the first two as `wages.signingBonus`,
+  so a tier's cost is `signingBonusCost`, the same function the recruit
+  dialog prices a signing bonus with. Its rounding is up where the bribe's
+  was to the nearest; no world ever priced a bribe the old way, so nothing
+  it showed moves.
+- *Unpriced, nothing is bought.* With the wage or a period not imported,
+  `#bribeTiers` is null: the fee is 0 for the Judge to name, a blind offer
+  buys no bonus (so no coin moves, as for any bribe of no bonus), and the GM
+  seat is told why.
+- *The fee says where it came from.* Its tooltip names the tier's period, the
+  level and the wage it was priced from, with both pages, or that it was named
+  by hand, or that nothing prices it.
+
+**Rejected:** a capture of the Cost of Bribes table itself. It holds the
+figures the two captures already read; it would let the cite name the bribe's
+own page, and that is `ROADMAP.md` §3.
+
+**What it cost.** A bribe's cite names the hiring and Bribery pages, not the
+bribe's.

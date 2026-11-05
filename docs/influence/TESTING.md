@@ -103,6 +103,29 @@ hand.
    one that marks the risk and cites its page; the other two cards carry no
    such note. Against a target the seat cannot observe, the note is on the
    Judge's whispered card and the public card lists no notes.
+8d. What a bribe costs, on `influence/bribe-influencer` (a character the
+   Player seat owns, topped up to a thousand gp at the step's start) and
+   `influence/bribe-target` (a character the Player seat cannot observe). The
+   staged Revised Rulebook must be named in `ACKS_TEST_BOOKS`.
+   - Connect the staged book on the GM seat and run
+     `cookbookImportTables(["wages"])`, the import a Judge runs.
+     *Observable:* no missing book; `henchmanWageImported()` holds and
+     `signingBonusCost(1, …)` answers.
+   - Open the page on the GM seat against the target and set
+     `[name="mod.bribe"]` to the first tier (a `change`).
+     *Observable:* `[name="mod.bribeFee"]` holds `signingBonusCost(1,
+     henchmanWage(level))`'s gp for the target's level, above 0, and its
+     `data-tooltip-text` names that figure, with no raw key.
+   - Under a registry layer of the walk's own on the GM seat, at a priority
+     no import or override uses, whose `wages.signingBonus` holds no periods:
+     the same page, then a blind offer typed in the Player seat's page and
+     rolled.
+     *Observable:* the GM's fee is 0 and its tooltip is
+     `ACKS-INFLUENCE.bribe.feeTipMissing`; the Player's page masks the tier;
+     the card the GM seat posts carries no `.influence-chat-bribe`, the
+     influencer's purse is unchanged, and the GM seat shows
+     `ACKS-INFLUENCE.bribe.unpriced`. `api.track` the card. Walked by
+     `tools/live/influence-bribe-price.mjs`.
 
 ## The morale pages
 
