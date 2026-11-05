@@ -2174,18 +2174,21 @@ export const TABLE_RECIPES = {
         locate: "Random Henchman Level",
         // Right print column of the same spread. The rarity variant table above
         // it reaches into this window, but none of its rows can match a roll
-        // band, so the label patterns are the only bound needed.
+        // band, so the label patterns are the only bound needed. The first band
+        // is the open low one; each later row takes the next band below it, so
+        // no pattern names an edge. The die is the one the bands reach (lib
+        // `bandDie`), read at roll time, never written here.
         column: { xMin: 440, xMax: 620 },
         labelMaxX: 510,
         cellPattern: "int",
         valueKey: "level",
         rows: [
           { key: 0, labelRe: "lower", labelPattern: "rollBand" },
-          { key: 1, labelRe: "^11", labelPattern: "rollBand" },
-          { key: 2, labelRe: "^17", labelPattern: "rollBand" },
-          { key: 3, labelRe: "^19", labelPattern: "rollBand" },
+          { key: 1, labelRe: "^\\d+\\s*[-–—]", labelPattern: "rollBand" },
+          { key: 2, labelRe: "^\\d+\\s*[-–—]", labelPattern: "rollBand" },
+          { key: 3, labelRe: "^\\d+\\s*[-–—]", labelPattern: "rollBand" },
         ],
-        emit: { container: "rows", merge: { formula: "1d20" } },
+        emit: { container: "rows" },
       },
       // The screen called this "Leveled Henchman Class"; the JJ prints the same
       // double-d100 grid as "NPC Class" in its people chapter (~259).

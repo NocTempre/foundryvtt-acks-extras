@@ -1126,3 +1126,29 @@ is told so.
 
 **What it cost.** A world whose Rules tables predate the commissioned capture
 refuses commissioned searches until its rules tables are read again.
+
+### The Random Henchman Level die is read off the table's own bands (2026-11-05)
+
+The level roll threw a die written into `rules/candidates.mjs`, the recipe
+merged the same die into every imported table, and the roll table a Judge
+edits in the world wrote it again (`location/table-docs.mjs`). The die is a
+printed figure, and it is caught under the owner ruling of 2026-11-04 (a
+printed value found in source is fixed by the work that finds it).
+
+- **The die is the one the bands reach.** `tables.bandDie` (lib) takes the
+  highest edge of the imported bands as the die's size, so a table edited in
+  the world rolls the die its edit implies, and the recipe stores no die.
+- **The recipe names no band edge.** Its rows were found by the printed
+  edges; each band after the open low one is now the next banded row, which
+  the pairs extractor's cursor already gives in reading order.
+- **No bands, no roll.** A table whose bands reach no die throws as
+  `getTable` does for a missing table, so the two fail the same way at every
+  caller.
+
+**Rejected:** keeping the die as a sample until the table is imported. The
+roll needs the table's bands anyway, so there is no unimported world the die
+alone could serve.
+
+**What it cost.** Nothing a world sees: an imported table reaches the same
+die. A stored `formula` from an earlier import is left in place and read by
+nothing.

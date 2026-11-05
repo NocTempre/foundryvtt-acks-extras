@@ -5,7 +5,7 @@
  * rolled once, at hire time, and recorded. See docs/henchmen/DECISIONS.md,
  * "Candidate class and level are fixed at the market roll, not at hire".
  */
-import { bracketRow, getTable, optTable } from "./tables.mjs";
+import { bandDie, bracketRow, getTable, optTable } from "./tables.mjs";
 import { classBlocked } from "./availability.mjs";
 
 /**
@@ -107,16 +107,20 @@ export async function rollTrajectoryFromDistribution(rollDice, variant = "defaul
 }
 
 /**
- * Random Henchman Level (JJ 118): 1d20, −2 in a Class VI market.
+ * Random Henchman Level (JJ ch. 3, "Random Henchman Level"): one die on the
+ * imported table's own bands, with the imported Class VI penalty in a Class VI
+ * market. Throws, as `getTable` does, where the bands reach no die.
  * @returns {Promise<{level: number, die: number, penalty: number}>}
  */
 export async function rollRandomLevel(rollDice, marketClass) {
   const table = getTable("rarity", "randomHenchmanLevel");
-  // Class VI penalty comes from the imported JJ 119 prose values (sqm doc);
+  const formula = bandDie(table.rows);
+  if (!formula) throw new Error(`rollRandomLevel: table "randomHenchmanLevel" in ruledata "rarity" has no band to roll`);
+  // Class VI penalty comes from the imported search modifiers (sqm doc);
   // absent that import there is no penalty — never a hardcoded stand-in.
   const imported = optTable("rarity", "specificQualificationMods")?.gpClassVIPenalty;
   const penalty = marketClass === 6 ? (table.classVIPenalty ?? imported ?? 0) : 0;
-  const die = await rollDice("1d20");
+  const die = await rollDice(formula);
   const total = die + penalty;
   const row = bracketRow(table.rows, total) ?? table.rows[0];
   return { level: row.level, die, penalty };

@@ -651,6 +651,12 @@ a step it does not name is walked by hand.
       *Observable:* no missing book; `searchSteps()` holds an integer for
       each of the three steps on the GM seat, and the commission step
       reaches the Player seat.
+    - Read `rarity.randomHenchmanLevel` from the same import and call
+      `rollRandomLevel` with a recording roller.
+      *Observable:* the rows are contiguous bands, the first open below, with
+      no `formula` stored beside them; the roller is asked once, for
+      `tables.bandDie(rows)`, which is `1d` the highest edge, and the level
+      returned is one of the rows'.
     - `openPostingDialog(place)` on both seats.
       *Observable:* the level hint under **Level** and the tooltip on
       **Commissioned search** (`data-tooltip-text`) are the lang strings
@@ -674,7 +680,9 @@ a step it does not name is walked by hand.
       one (both read from the served `rollMonthlyPool` with a die of 1, and
       the walk first checks they differ).
     The general-proficiency level with no imported die or band is checked
-    offline only (`tools/test-henchmen.mjs`). Walked by
+    offline only (`tools/test-henchmen.mjs`), and so is the die of the level
+    table's world roll table (`tools/test-table-docs.mjs`), since exporting
+    it writes a document every seat shares. Walked by
     `tools/live/henchmen-search-steps.mjs`.
 
 The reference repair's check in the repair tool (`henchmen.references`) is

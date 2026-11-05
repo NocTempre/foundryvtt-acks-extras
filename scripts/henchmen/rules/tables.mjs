@@ -32,6 +32,11 @@ export function bracketRow(rows, value, minKey = "min", maxKey = "max") {
   return reg().bracketRow(rows, value, minKey, maxKey);
 }
 
+/** The one die a band table's own edges reach (lib `bandDie`), or null where they reach none. */
+export function bandDie(rows, minKey = "min", maxKey = "max") {
+  return reg().bandDie(rows, minKey, maxKey);
+}
+
 /** True when a ruledata document is present in the registry. */
 export function hasDoc(docId) {
   return !!globalThis.acksExtras?.lib?.tables?.hasDoc(docId);

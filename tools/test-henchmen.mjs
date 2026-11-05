@@ -490,8 +490,9 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
 // availability is an invented fixed count, so the count names the tier rolled.
 {
   const { rollMonthlyPool } = await import(new URL("../scripts/henchmen/rules/availability.mjs", import.meta.url));
-  const { rollProficiencyLevel } = await import(new URL("../scripts/henchmen/rules/candidates.mjs", import.meta.url));
-  const TIERS = ["ubiquitous", "common", "uncommon", "rare", "veryRare", "extremelyRare", "legendary"];
+  const { rollProficiencyLevel, rollRandomLevel } = await import(new URL("../scripts/henchmen/rules/candidates.mjs", import.meta.url));
+  const { bandDie } = await import(new URL("../scripts/lib/tables.mjs", import.meta.url));
+  const TIERS =["ubiquitous", "common", "uncommon", "rare", "veryRare", "extremelyRare", "legendary"];
   const STEPS = { levelPerAbove1: 2, cpPerRank: 2, commissionedShift: 2, gpRank1: "uncommon", gpRank2: "rare", gpRank3: "veryRare", gpLevelDie: "1d6", gpZeroBand: [1, 2] };
   const tablesWith = (sqm) => ({
     classRarityTables: { variants: { default: { tiers: { common: ["Delta"], rare: ["Beta"] } } } },
@@ -508,6 +509,7 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
             hasDoc: (doc) => doc === "rarity",
             getTable: (doc, id) => tables[id] ?? null,
             bracketRow: (rows, value) => rows.find((r) => value >= (r.min ?? -Infinity) && value <= (r.max ?? Infinity)) ?? null,
+            bandDie,
           },
         },
       };
@@ -547,7 +549,10 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
     assert.deepStrictEqual([await rollProficiencyLevel(d.roll, 3), d.calls], [{ level: 0, die: 2, penalty: 0 }, ["1d6"]], "the imported level die, in its zero band, is 0th level");
     d = dice([3, 7]);
     const above = await rollProficiencyLevel(d.roll, 3);
-    assert.deepStrictEqual([above.level, d.calls.length, d.calls[0]], [2, 2, "1d6"], "past the band it rolls the level table");
+    assert.deepStrictEqual([above.level, d.calls], [2, ["1d6", "1d9"]], "past the band it rolls the level table, on the die its own bands reach");
+  });
+  await withTables({ ...tablesWith(STEPS), randomHenchmanLevel: { rows: [{ level: 1 }] } }, async () => {
+    await assert.rejects(rollRandomLevel(dice([1]).roll, 3), /no band to roll/, "a level table whose bands reach no die refuses to roll");
   });
 
   for (const [key, spec] of [

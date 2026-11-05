@@ -135,7 +135,7 @@ Serialized DataModel at `actor.flags["acks-extras"].record`
   with no hire behind it, as an imported official sheet does: origin `manual`,
   no location, the loyalty start set so the henchman reads the score given
 - `rolled.*` — recorded roll results (attributes 3d6×6, double-d100 class,
-  1d20 level, template) for the future class-autogeneration module
+  level die, template) for the future class-autogeneration module
 - `terms.*` — wage + basis, shares (½/½), signing bonus, `lastPaidTime`,
   `arrearsGp`, `vassalDomain`
 - `loyalty {start, permanents[]}` / `morale {base, permanents[]}` — the

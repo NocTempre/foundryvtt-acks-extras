@@ -275,7 +275,7 @@ export function entryData({ docId, tableId, subId }) {
  *  - occupationTypes: one d100 occupant table per building column
  *  - classPercentages: weighted class table per level
  *  - dwarvenCastes: caste → percentage weights (remainder caste = null)
- *  - randomHenchmanLevel: d20 bands {min,max,level}
+ *  - randomHenchmanLevel: one die's bands {min,max,level}
  *  - a COLUMN_GRIDS column, or a UNIFORM_LISTS list
  */
 export function isRollable(docId, tableId, subId) {
@@ -381,10 +381,14 @@ function rollTableSpec(entry, data) {
     };
   }
   if (docId === "rarity" && tableId === "randomHenchmanLevel") {
+    // The die is the table's own, read off its bands: a band open below starts
+    // at the die's first face.
+    const formula = lib().tables.bandDie(data.rows);
+    if (!formula) return null;
     return {
-      formula: "1d20",
+      formula,
       results: (data.rows ?? []).map((r) => ({
-        range: [r.min ?? 1, r.max ?? 20],
+        range: [r.min ?? 1, r.max ?? r.min],
         description: `Level ${r.level}`,
       })),
     };
@@ -514,7 +518,7 @@ function parseRollTable(entry, table) {
   }
   if (entry.docId === "rarity" && entry.tableId === "randomHenchmanLevel") {
     const rows = results.map((r) => {
-      const [min, max] = r.range ?? [1, 20];
+      const [min, max] = r.range ?? [];
       const level = Number(textOf(r).match(/\d+/)?.[0] ?? 0);
       return { min, max, level };
     });

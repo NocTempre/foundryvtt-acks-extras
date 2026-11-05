@@ -121,6 +121,27 @@ const P = {
     const s = globalThis.__ss.AV.searchSteps();
     return { perLevel: Number.isInteger(s.perLevel), perRank: Number.isInteger(s.perRank), eased: Number.isInteger(s.eased), easedPositive: s.eased > 0 };
   },
+  /** The level table the import wrote and the die a roll on it throws: booleans only. */
+  levelDie: async () => {
+    const H = globalThis.__ss;
+    H.CD = H.CD ?? (await import("/modules/acks-extras/scripts/henchmen/rules/candidates.mjs"));
+    const T = acksExtras.lib.tables;
+    const table = T.getTable("rarity", "randomHenchmanLevel");
+    const rows = table?.rows ?? [];
+    const die = T.bandDie(rows);
+    const tops = rows.map((r) => r.max).filter(Number.isInteger);
+    const calls = [];
+    const rolled = await H.CD.rollRandomLevel(async (f) => (calls.push(f), 1), 3);
+    return {
+      banded: rows.length > 1,
+      openLow: rows[0]?.min == null && Number.isInteger(rows[0]?.max),
+      contiguous: rows.slice(1).every((r, i) => r.min === rows[i].max + 1),
+      dieIsTop: !!die && die === `1d${Math.max(...tops)}`,
+      noStoredDie: table?.formula == null,
+      rollsThatDie: calls.length === 1 && calls[0] === die,
+      levelFromTable: rows.some((r) => r.level === rolled.level),
+    };
+  },
   waitSteps: async () => {
     const H = globalThis.__ss;
     const ok = await H.poll(() => Number.isInteger(H.AV.searchSteps().eased), { tries: 60, every: 500 });
@@ -382,6 +403,9 @@ try {
   const gmSteps = await run(gm, P.steps);
   check("18: the GM seat now holds all three steps, the commission step a positive figure", gmSteps.perLevel && gmSteps.perRank && gmSteps.eased && gmSteps.easedPositive, gmSteps);
   check("18: the Player seat sees the commission step arrive", await run(player, P.waitSteps), null);
+  const levelDie = await run(gm, P.levelDie);
+  check("18: the level table arrives as contiguous bands open below, with no die stored beside them", levelDie.banded && levelDie.openLow && levelDie.contiguous && levelDie.noStoredDie, levelDie);
+  check("18: a random level rolls the die its bands reach and lands on one of them", levelDie.dieIsTop && levelDie.rollsThatDie && levelDie.levelFromTable, levelDie);
 
   section("18: the dialog names the steps in force");
   const gmHints = await run(gm, P.hints, { placeId: place.id });

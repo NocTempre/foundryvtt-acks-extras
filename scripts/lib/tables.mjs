@@ -211,6 +211,18 @@ export function bracketRow(rows, value, minKey = "min", maxKey = "max") {
   return findRow(rows, (r) => value >= (r[minKey] ?? -Infinity) && (r[maxKey] == null || value <= r[maxKey]));
 }
 
+/**
+ * The one die a bracket table rolled on a single die is thrown with, read from
+ * its own rows: as many faces as its highest band edge reaches. It holds for a
+ * table whose bands run up from 1, or from a lowest band open below, which is
+ * what a modifier applied to the throw needs. Null when no row carries an edge.
+ */
+export function bandDie(rows, minKey = "min", maxKey = "max") {
+  const edges = (rows ?? []).filter((r) => r && !isMissingRow(r)).flatMap((r) => [r[maxKey], r[minKey]]).map(Number).filter(Number.isInteger);
+  const top = edges.length ? Math.max(...edges) : 0;
+  return top > 0 ? `1d${top}` : null;
+}
+
 /** Deepest nesting `missingRowKeys` follows inside one table. */
 const INCOMPLETE_DEPTH = 6;
 

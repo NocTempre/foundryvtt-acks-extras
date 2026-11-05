@@ -39,6 +39,10 @@
   posting dialog said it was submitted whatever became of it. A search refused because
   it repeats one made this month, names a class the place never offers or needs a table
   the world has not imported now shows the reason instead.
+- **A henchman's random level rolls the die its imported table reaches.** The Random
+  Henchman Level roll used a die written into the module. It now rolls the die that the
+  imported table's own bands reach, so a table you edit in the world rolls the die your
+  edit implies. A table read from the book rolls as before.
 
 ### Added
 

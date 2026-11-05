@@ -15,6 +15,7 @@
  * nothing else.
  */
 import assert from "node:assert/strict";
+import { bandDie } from "../scripts/lib/tables.mjs";
 
 let passed = 0;
 const test = async (name, fn) => {
@@ -297,6 +298,7 @@ function world({ registry = {}, expected = [] } = {}) {
         getDoc: (id) => ({ id, tables: registry[id] }),
         getTable: (docId, tableId) => registry[docId]?.[tableId],
         expectedTables: () => expected,
+        bandDie,
       },
     },
   };
@@ -730,6 +732,18 @@ await test("an encounter grid lists one rollable entry per column, and a list se
   assert.equal(entryAt("encounters.terrainEncounters.unique"), undefined, "an empty list is no table");
   const pages = entries.filter((e) => !e.rollable).map((e) => e.key).sort();
   assert.deepEqual(pages, ["encounters.distance", "encounters.evasion"], "only the named tables project");
+});
+
+await test("the henchman level table rolls the die its own bands reach", async () => {
+  // Invented bands: the lowest open below, as a modifier to the throw needs.
+  const rows = [{ max: 4, level: 1 }, { min: 5, max: 7, level: 2 }, { min: 8, max: 9, level: 3 }];
+  world({ registry: { rarity: { randomHenchmanLevel: { rows } } } });
+  const entry = entryAt("rarity.randomHenchmanLevel");
+  assert.ok(entry?.rollable, "the level table is rollable");
+  await materializeAll();
+  const made = tableNamed(entry.label);
+  assert.equal(made?.formula, "1d9", "the die reaches the highest band");
+  assert.deepEqual([...made.results].map((r) => r.range), [[1, 4], [5, 7], [8, 9]], "the open band starts at the die's first face");
 });
 
 await test("a table listed by its columns is not also listed as expected-but-absent", () => {

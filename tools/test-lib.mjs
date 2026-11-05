@@ -380,6 +380,15 @@ t("tables: initTables alias + getThrowDef + bracketRow open bound", () => {
   T.resetTables();
 });
 
+t("tables: bandDie reads a one-die table's die off its own bands", () => {
+  assert.equal(T.bandDie([{ max: 3, v: 1 }, { min: 4, max: 7, v: 2 }, { min: 8, max: 9, v: 3 }]), "1d9", "the highest edge is the die's faces, a band open below included");
+  assert.equal(T.bandDie([{ min: 1, max: 5 }, { __missing: true }, { min: 6, max: 11 }]), "1d11", "a placeholder row is passed over");
+  assert.equal(T.bandDie([{ lo: 1, hi: 6 }], "lo", "hi"), "1d6", "the keys can be named");
+  assert.equal(T.bandDie([{ min: 2, max: null }]), "1d2", "an open top leaves the last edge read");
+  assert.equal(T.bandDie([]), null, "no rows, no die");
+  assert.equal(T.bandDie([{ level: 1 }]), null, "rows with no edge, no die");
+});
+
 t("tables: coverage is per TABLE — an id a module claims for itself is not an import", () => {
   T.resetTables();
   T.expectTables("rarity", ["classRarityTables", "randomHenchmanLevel"]);

@@ -1,4 +1,4 @@
-# lib API (apiVersion 34)
+# lib API (apiVersion 35)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -31,7 +31,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 34,
+  apiVersion: 35,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -62,6 +62,7 @@ acksExtras.lib = {
   groupEncounter,      // lib/group-encounter.mjs — the Roll, Make Encounter, the reveal (docs/lib/GROUPS.md); 32
   // 33: groups.canDeploy, groups.STACK_DRAG_TYPE — a stack's row dragged to the map (docs/lib/GROUPS.md, "The sheet")
   // 34: groups.moveStack, groups.moveRefusal — a stack's row between groups (docs/lib/GROUPS.md, "A row moved between groups")
+  // 35: tables.bandDie — a one-die table's die, read off its own bands
 }
 ```
 
@@ -100,7 +101,9 @@ next-highest; no priority = remove all layers) · `getDoc` / `getTable` /
 `hasDoc`) · `getLayer(docId, priority)` → that one layer as registered, or
 null, never merged · `hasDoc` · `docInfo()` → `[{id, priority, source}]` for
 diagnostics · `bracketRow(rows, value)` (null max = open-ended) ·
-`resetTables()`.
+`bandDie(rows)` → `"1d<top>"`, the die of a table rolled on one die, its faces
+the highest band edge (bands run up from 1 or from a band open below), or
+null with no edge · `resetTables()`.
 
 **Rows an import could not read** (apiVersion 21). An importer stores
 `{__missing: true}` where the page held no such row, and a later import

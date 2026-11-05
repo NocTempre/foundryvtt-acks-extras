@@ -166,7 +166,8 @@ const localImpl = Object.freeze({
   // `sizeFromEcology` reads one named side where a state is given.
   // 33: groups `canDeploy` and `STACK_DRAG_TYPE`, what a stack's row carries.
   // 34: groups `moveStack` and `moveRefusal`, a stack's row between groups.
-  apiVersion: 34,
+  // 35: tables `bandDie`, a one-die table's die read off its own bands.
+  apiVersion: 35,
   vocab,
   fields,
   /**
