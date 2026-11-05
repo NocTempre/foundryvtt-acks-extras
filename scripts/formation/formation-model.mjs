@@ -1199,6 +1199,18 @@ async function recallDeployed(formation, members) {
 }
 
 /**
+ * A member's stashed token as data to create again: a copy, or null when the
+ * member has none or the stash names another actor. A stash is placed only
+ * for the actor it names, so a member whose stash is another's is placed
+ * from their own actor's token instead.
+ */
+export function memberStash(member) {
+  const data = member?.tokenData;
+  if (!data || (data.actorId && data.actorId !== member.actorId)) return null;
+  return foundry.utils.deepClone(data);
+}
+
+/**
  * Put stashed member tokens back on the map in one creation call. `grid`
  * restores the marching-order shape; otherwise each token takes the next
  * free square spiralling out from the party. Either way the block is
@@ -1233,8 +1245,9 @@ async function restoreMemberTokens(formation, members, { grid = false } = {}) {
     ? (await import("./column.mjs")).columnPlacement(formation, partyToken)
     : null;
 
-  const toCreate = stashed.map((member) => {
-    const data = foundry.utils.deepClone(member.tokenData);
+  const toCreate = [];
+  for (const member of stashed) {
+    const data = memberStash(member) ?? (await game.actors.get(member.actorId).getTokenDocument()).toObject();
     delete data._id;
     if (anchor) {
       const cell = formation.members.indexOf(member);
@@ -1244,8 +1257,8 @@ async function restoreMemberTokens(formation, members, { grid = false } = {}) {
       data.x = x;
       data.y = y;
     }
-    return data;
-  });
+    toCreate.push(data);
+  }
 
   await scene.createEmbeddedDocuments("Token", toCreate, { [KEEP_HIT_POINTS_OPTION]: true });
   for (const member of stashed) member.tokenData = null;

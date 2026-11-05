@@ -177,6 +177,11 @@
   hint above them. The table now takes a line of its own and scrolls there.
 - **An immunity row on the Mechanics tab says when it holds.** A row with a note
   showed the note alone; it now shows the note and then its condition.
+- **A party deployed into a fight puts each member out as themselves.** Two members
+  could be swapped: a gather could put each one's token away under the other, and
+  the next deploy then stood each character on the other's square. Each token is now
+  told back to its own member, and a party already swapped is put right on its next
+  deploy.
 - **Make Encounter on a monster whose token is a wildcard takes its portrait.** The
   group took the wildcard path as its own image; it now takes the portrait.
 

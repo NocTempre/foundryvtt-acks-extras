@@ -330,6 +330,25 @@ const P = {
     return { ids: made };
   },
 
+  /** A generated caster's slots against its class's row at its rolled level, and how many spells it drew: booleans and counts only. */
+  casterSlots: async ({ actorId }) => {
+    const R = await import("/modules/acks-extras/scripts/magic/repertoire.mjs");
+    const a = await globalThis.__ml.get(actorId);
+    const sc = a?.flags?.["acks-extras"]?.extras?.spellcasting ?? {};
+    const cls = R.classNamed(sc.class);
+    if (!cls) return { classHeld: false };
+    const want = R.slotsOfClass(cls, sc.level);
+    const got = R.slotsOfSystem(a.system?.spells);
+    return {
+      classHeld: true,
+      rowAtLevel: !!want,
+      enabled: !!a.system?.spells?.enabled,
+      match: JSON.stringify(want) === JSON.stringify(got),
+      spells: a.items.filter((i) => i.type === "spell").length,
+      slotTotal: Object.values(want ?? {}).reduce((s, n) => s + n, 0),
+    };
+  },
+
   /** A generated creature's figures, beside its template's cells, compared in the page. */
   read: async ({ actorId }) => {
     const a = (await globalThis.__ml.get(actorId));
@@ -1291,7 +1310,13 @@ async function stageRoles(gm) {
     const ok = (r) => !!r && typeof r.ex.spellcasting?.class === "string" && !!r.ex.spellcasting.class && Number.isInteger(r.ex.spellcasting.level) && r.log.some((l) => l.axis === "casterLevel" && l.source === "rolled");
     check("a caster carries its class word and an integer level, the log its roll", ok(a.read) && ok(b.read), { a: ok(a.read), b: ok(b.read) });
     note("caster levels differ this run", a.read?.ex.spellcasting?.level !== b.read?.ex.spellcasting?.level);
-    note("not checked", "the slot maxes against the class row: the world's class documents are not this walk's fixture");
+    const s = a.ids[0] ? await run(gm, P.casterSlots, { actorId: a.ids[0] }) : null;
+    if (!s?.classHeld) note("not checked", "the slot maxes: no imported class document answers the caster's class word in this world");
+    else if (!s.rowAtLevel) note("not checked", "the slot maxes: the class prints no slot row at the rolled level");
+    else {
+      check("a caster's slots are its class's row at its rolled level, with the slot block on", s.enabled && s.match, { enabled: s.enabled, match: s.match });
+      check("its spells are drawn from the imported ones within its slots", s.spells > 0 && s.spells <= s.slotTotal, { spells: s.spells, slots: s.slotTotal });
+    }
   } else {
     note("not walked this run", "no kind's page prints a caster");
   }

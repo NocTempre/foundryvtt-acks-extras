@@ -271,7 +271,8 @@ const P = {
       bubbles: true, cancelable: true, dataTransfer, clientX: client.x, clientY: client.y, shiftKey: shift, altKey: alt,
     }));
     await H.sleep(500);
-    return { carried: carried ? JSON.parse(carried) : null, point };
+    // A drop event carries whole client pixels, so the point comes back within one client pixel in scene pixels.
+    return { carried: carried ? JSON.parse(carried) : null, point, slack: Math.ceil(1 / canvas.stage.scale.x) };
   },
 
   /**
@@ -1083,7 +1084,7 @@ try {
   await gm.shot(path.join(logDir(), "group-encounter-nested.png"), await sheetOf(second.id)).catch((err) => console.log(`plate not taken: ${err?.message ?? err}`));
   const loose = await drag(6, { at: { x: 437, y: 533 }, shift: true });
   check("the fallen stay behind", loose.fresh.length === 6, loose.fresh.length);
-  check("Shift places the first where the cursor is, off the grid", loose.fresh[0]?.x === loose.point.x - 50 && loose.fresh[0]?.y === loose.point.y - 50, { body: loose.fresh[0], point: loose.point });
+  check("Shift places the first where the cursor is, off the grid", Math.abs(loose.fresh[0]?.x - (loose.point.x - 50)) <= loose.slack && Math.abs(loose.fresh[0]?.y - (loose.point.y - 50)) <= loose.slack && (loose.fresh[0]?.x % 100 !== 0 || loose.fresh[0]?.y % 100 !== 0), { body: loose.fresh[0], point: loose.point, slack: loose.slack });
   await recallAll();
   await sendOut(2);
   const unseen = await drag(4, { at: { x: 830, y: 530 }, alt: true });

@@ -415,8 +415,9 @@ class TokenMock {
     return this;
   }
   toObject() {
-    const { parent, ...rest } = this;
-    return foundry.utils.deepClone({ ...rest, _id: this.id });
+    // Core's source carries `_id` and never `id`.
+    const { parent, id, ...rest } = this;
+    return foundry.utils.deepClone({ ...rest, _id: id });
   }
   /**
    * Core's update, and on a client drawing the token (`rendered`) its draw of
@@ -499,7 +500,9 @@ class SceneMock {
     this.lastCreateOptions = options;
     const out = [];
     for (const data of arr) {
-      const token = new TokenMock(this, data);
+      // Core keeps a given id only under `keepId`.
+      // Core keeps a given id only under `keepId`.
+      const token = new TokenMock(this, options.keepId ? data : { ...data, _id: undefined });
       // Foundry's order: the document's own `_preCreate` first (here the
       // system's roll for a placed unlinked monster, when a scenario arms
       // `rollMonsterHp`), then the `preCreateToken` hook with the creation
@@ -530,7 +533,9 @@ class SceneMock {
       await sleep();
       Hooks.call("createToken", token);
     }
-    return out;
+    // The server answers a batch in whatever order its id lookups settle; a
+    // scenario arms `reverseCreates` to return it reversed.
+    return this.reverseCreates ? out.reverse() : out;
   }
   async deleteEmbeddedDocuments(type, ids, options = {}) {
     assert.equal(type, "Token");
@@ -923,6 +928,43 @@ await scenario("a second combat deploys again (regroup round-trip)", async () =>
   await combat.delete();
   await drain();
   assert.equal(onlyFormation().combat, null, "second reform succeeded");
+});
+
+/** Deploy the party into a fresh combat and gather it, asserting each member goes out and comes back as their own actor. */
+async function deployAndGatherAsThemselves(label) {
+  const combat = new CombatMock();
+  game.combats.set(combat.id, combat);
+  const stored = onlyFormation();
+  await combat.createEmbeddedDocuments("Combatant", [
+    { tokenId: stored.tokenId, sceneId: scene.id, actorId: stored.actorId, hidden: false },
+  ]);
+  await drain();
+  const out = onlyFormation().members;
+  assert.equal(out.filter((m) => m.deployedTokenId).length, 2, `${label}: both deployed`);
+  for (const m of out) assert.equal(scene.tokens.get(m.deployedTokenId)?.actorId, m.actorId, `${label}: a deployed token is its member's own`);
+  await combat.delete();
+  await drain();
+  for (const m of onlyFormation().members) assert.equal(m.tokenData?.actorId, m.actorId, `${label}: a stash names its member's actor`);
+}
+
+await scenario("a batch answered out of order deploys and gathers each member as themselves", async () => {
+  scene.reverseCreates = true;
+  try {
+    await deployAndGatherAsThemselves("first round");
+    await deployAndGatherAsThemselves("second round");
+  } finally {
+    scene.reverseCreates = false;
+  }
+});
+
+await scenario("a stash that names another actor is never placed for its member", async () => {
+  const stored = onlyFormation();
+  await model.patchFormation(stored.id, (rec) => {
+    const [a, b] = rec.members;
+    [a.tokenData, b.tokenData] = [b.tokenData, a.tokenData];
+  });
+  assert.notEqual(onlyFormation().members[0].tokenData?.actorId, onlyFormation().members[0].actorId, "the stashes are crossed");
+  await deployAndGatherAsThemselves("crossed stashes");
 });
 
 await scenario("reform still fires if the combat flag was lost (evidence path)", async () => {

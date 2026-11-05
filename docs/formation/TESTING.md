@@ -3601,8 +3601,10 @@ unset. A kept fixture carries what the last walk left.
    unchanged.
 7. Start a combat with the party token; the party deploys.
    *Observable:* each member's token stands on the cell their glyph stood on
-   (the bend included), each bearer's own token carries their light, and the
-   column's sources for those bearers are gone. End the fight and gather.
+   (the bend included) and carries that member's own actor in its `actorId`
+   (a position check alone passes a swapped pair); each bearer's own token
+   carries their light, and the column's sources for those bearers are gone.
+   End the fight and gather.
 8. On the Order tab, set the party's On the map control to Fixed size.
    *Observable:* nothing is drawn and the token stays 1×1; resize it to 2×2 by
    hand and walk a step: it stays 2×2, and both lights still shine from the

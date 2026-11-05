@@ -597,7 +597,7 @@ const P = {
       partyHidden: !!H.model.getPartyToken(f)?.hidden,
       members: f.members.map((m) => {
         const t = m.deployedTokenId ? scene.tokens.get(m.deployedTokenId) : null;
-        return { id: m.actorId, token: t ? { id: t.id, x: t.x, y: t.y, bright: t.light.bright, dim: t.light.dim, managed: t.getFlag("acks-extras", "managedLight") ?? null, stamp: t.getFlag("acks-extras", "managedLightStamp") ?? null } : null };
+        return { id: m.actorId, token: t ? { id: t.id, actor: t.actorId, x: t.x, y: t.y, bright: t.light.bright, dim: t.light.dim, managed: t.getFlag("acks-extras", "managedLight") ?? null, stamp: t.getFlag("acks-extras", "managedLightStamp") ?? null } : null };
       }),
       combatants: combat ? combat.combatants.map((c) => c.tokenId) : null,
     };
@@ -1233,6 +1233,8 @@ try {
     return !!m?.token && m.token.x === before7.cells[i]?.x && m.token.y === before7.cells[i]?.y;
   });
   check("7: the party deploys, each member's token on the cell their glyph stood on", d7.active && d7.partyHidden && stands.every(Boolean), { active: d7.active, hidden: d7.partyHidden, stands, glyphs: before7.cells.map(key), tokens: order.map((id) => { const t = d7.members.find((x) => x.id === id)?.token; return t ? key(t) : null; }) });
+  const own = order.map((id) => d7.members.find((x) => x.id === id)?.token?.actor === id);
+  check("7: each member's deployed token is their own actor's", own.every(Boolean), { own });
   const torchTok = d7.members.find((m) => m.id === torch.id)?.token;
   const lanternTok = d7.members.find((m) => m.id === lantern.id)?.token;
   const g7 = await run(gm, P.drawn, { fid, bearers });

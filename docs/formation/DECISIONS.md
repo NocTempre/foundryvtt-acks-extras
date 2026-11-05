@@ -5069,3 +5069,18 @@ no distance and says so, rather than inventing one. The minute of the turn is
 rolled on the clock's own turn length, which is the module's unit, not this
 page's figure. A dice table is rebuilt from its integers before it reaches a
 roll, because an override is free text.
+
+## 2026-11-04 — A deployed token is told back to its member by id
+
+**Ruled.** `deployMembers` mints each token's id, creates the batch under
+`keepId`, and matches what comes back by id. It had matched by position, and
+the server builds a batch's result in the order its id lookups settle, so two
+members' records could be crossed: the tokens stood on the right squares, but
+each record named the other's token, so the gather stashed each one's token
+on the other, and the next deploy put each actor on the other's square. The column walk saw it in 3 of 11 runs,
+and the kept fixture held two crossed stashes. A stash that names another
+actor is now never placed (`memberStash`), which also mends a party already
+crossed on its next deploy or restore. No migration. Rejected: matching by
+`actorId`, which a crossed stash answers wrongly, and a flag key as lib's
+group deploy uses, which adds a write to every token for what an id already
+says. The walk's step 7 now checks each token's actor as well as its square.

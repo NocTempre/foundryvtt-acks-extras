@@ -11,6 +11,7 @@ import {
   getPartyToken,
   isDown,
   isStackMember,
+  memberStash,
   patchDeployments,
   patchFormation,
   readFormations,
@@ -183,10 +184,11 @@ export async function deployMembers(formation, { members = formation.members, de
       stacked.push({ member, actor, cell });
       continue;
     }
-    let data = member.tokenData ? foundry.utils.deepClone(member.tokenData) : null;
+    let data = memberStash(member);
     if (!data && actor) data = (await actor.getTokenDocument()).toObject();
     if (!data) continue;
-    delete data._id;
+    // A fresh id kept through the create tells each token back to its member.
+    data._id = foundry.utils.randomID();
     const { x, y } = column?.[cell]?.[0] ?? cellPosition(formation, scene, origin, cell, heading);
     data.x = x;
     data.y = y;
@@ -201,10 +203,14 @@ export async function deployMembers(formation, { members = formation.members, de
     const tokens = await scene.createEmbeddedDocuments(
       "Token",
       toCreate.map((c) => c.data),
-      { [KEEP_HIT_POINTS_OPTION]: true },
+      { [KEEP_HIT_POINTS_OPTION]: true, keepId: true },
     );
-    tokens.forEach((token, i) => {
-      const member = toCreate[i].member;
+    // Core promises no order for the documents a batch returns, and drops one
+    // a hook refuses, so a token is matched by its id and never by position.
+    const memberOf = new Map(toCreate.map((c) => [c.data._id, c.member]));
+    for (const token of tokens) {
+      const member = memberOf.get(token.id);
+      if (!member) continue;
       placed.push(member);
       member.deployedTokenId = token.id;
       member.deployedSceneId = scene.id;
@@ -213,7 +219,7 @@ export async function deployMembers(formation, { members = formation.members, de
         // The leash measures from where they stood when they stepped out.
         member.detach = { anchor: { x: token.x, y: token.y } };
       }
-    });
+    }
     created.push(...tokens);
   }
 

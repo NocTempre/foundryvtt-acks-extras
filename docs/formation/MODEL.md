@@ -677,7 +677,12 @@ party stands or recalls it) is likewise an owner's declaration, relayed as `left
 A member's own token can stand on another scene than the party's: core moves
 it there through a `teleportToken` Region (docs/lib/MODEL.md, "A token moved
 to another scene"). The record names the token by `deployedTokenId` and its
-scene by `deployedSceneId`, which a deploy writes. The primary GM's
+scene by `deployedSceneId`, which a deploy writes. The deploy creates its
+members' tokens in one batch under ids it mints and keeps (`keepId`), and
+reads each returned token back to its member by that id, never by its place
+in the batch. A stash (`tokenData`) is placed only for the actor it names
+(`memberStash`, `formation-model.mjs`); a member holding another's is placed
+from their own actor's token, by a deploy and by a restore. The primary GM's
 `deleteToken` hook hands both to a successor of the same actor
 (`followMemberToken`, `deployment.mjs`), and moves a detached member's anchor
 to the arrival, since the leash measures walking and a teleport is none.
