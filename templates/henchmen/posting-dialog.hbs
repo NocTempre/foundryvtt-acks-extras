@@ -36,7 +36,7 @@
       {{/each}}
     </select>
   </div>
-  <p class="hint" data-kind-field="henchmanByClass">{{localize "ACKS-HENCHMEN.posting.classLevelHint"}}</p>
+  <p class="hint" data-kind-field="henchmanByClass">{{levelHint}}</p>
 
   <div class="form-group" data-kind-field="henchmanByClass henchmanByClassProficiency">
     <label>{{localize "ACKS-HENCHMEN.posting.classKey"}}</label>
@@ -76,7 +76,7 @@
   </div>
 
   <div class="form-group" data-kind-field="henchmanByClass henchmanByClassProficiency henchmanByProficiency">
-    <label data-tooltip="{{localize 'ACKS-HENCHMEN.posting.commissionedHint'}}">{{localize "ACKS-HENCHMEN.posting.commissionedLabel"}}</label>
+    <label data-tooltip-text="{{commissionHint}}">{{localize "ACKS-HENCHMEN.posting.commissionedLabel"}}</label>
     <input type="checkbox" name="commissioned" />
   </div>
 

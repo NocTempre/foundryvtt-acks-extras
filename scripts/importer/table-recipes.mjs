@@ -2144,8 +2144,10 @@ export const TABLE_RECIPES = {
         emit: { container: "rows", keyField: "rarity" },
       },
       // Directed-search rarity modifiers (JJ ~119, all prose): the general-
-      // proficiency ranks ladder, its 1d4 level die, the class-proficiency
-      // per-rank rule, and the per-level shift. Anchors carry no values.
+      // proficiency ranks ladder, its level die, the class-proficiency
+      // per-rank rule, the per-level shift, and the commissioned search's
+      // step (JJ ch. 3, "Commissioning the Hire of a Henchman"). Anchors
+      // carry no values.
       specificQualificationMods: {
         shape: "proseValues",
         book: "jj",
@@ -2162,6 +2164,7 @@ export const TABLE_RECIPES = {
           { key: "gpClassVIPenalty", find: "class vi market, apply a", take: "signedInt" },
           { key: "cpPerRank", find: "is equal to the base class, plus", take: "wordInt" },
           { key: "levelPerAbove1", find: "shift the rarity by", take: "wordInt" },
+          { key: "commissionedShift", find: "as if the desired class was", take: "wordInt" },
         ],
       },
       randomHenchmanLevel: {

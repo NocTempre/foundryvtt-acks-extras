@@ -9,7 +9,7 @@ import { MODULE_ID } from "../constants.mjs";
 import { getTable, optTable } from "../rules/tables.mjs";
 import { createPosting, PRIVATE_KINDS } from "../engine/recruitment.mjs";
 import { maxHenchmanLevel } from "../rules/wages.mjs";
-import { henchmanLevels, classBlocked } from "../rules/availability.mjs";
+import { henchmanLevels, classBlocked, searchSteps } from "../rules/availability.mjs";
 import * as adapter from "../acks-adapter.mjs";
 import { executeAsGM } from "../../lib/sockets.mjs";
 import { ACTOR_TYPE } from "../../lib/vocab.mjs";
@@ -55,6 +55,12 @@ export class PostingDialog extends HandlebarsApplicationMixin(ApplicationV2) {
         .map(row);
     }
     context.levels = henchmanLevels().map((l) => ({ level: l }));
+    // The steps a directed search applies are the imported ones, named where
+    // the choice is made; a step the import lacks is said to be missing.
+    const steps = searchSteps();
+    const hint = (step, key, missing) => (step == null ? game.i18n.localize(missing) : game.i18n.format(key, { steps: step }));
+    context.levelHint = hint(steps.perLevel, "ACKS-HENCHMEN.posting.classLevelHint", "ACKS-HENCHMEN.posting.classLevelHintMissing");
+    context.commissionHint = hint(steps.eased, "ACKS-HENCHMEN.posting.commissionedHint", "ACKS-HENCHMEN.posting.commissionedHintMissing");
     context.mercTypes = (optTable("availability", "mercenaryAvailability")?.rows ?? []).map((r) => ({
       id: r.type,
       label: game.i18n.localize(`ACKS-HENCHMEN.troop.${r.type}`),
@@ -141,10 +147,7 @@ export class PostingDialog extends HandlebarsApplicationMixin(ApplicationV2) {
       spec.classKey = data.classKey ?? "";
       // level blank = "by class" (any level); set = "by class and level"
       const level = data.level === "" || data.level == null ? null : Number(data.level);
-      if (level != null && level >= 1) {
-        spec.level = level;
-        spec.levelShift = Math.max(0, level - 1);
-      }
+      if (level != null && level >= 1) spec.level = level;
       spec.commissioned = !!data.commissioned;
     }
     if (kind === "henchmanByClassProficiency") {
@@ -205,7 +208,7 @@ export class PostingDialog extends HandlebarsApplicationMixin(ApplicationV2) {
     // client is required. Seats without write fall back to the GM socket relay.
     const canLocal = game.user.isGM || this.location.testUserPermission(game.user, "OWNER");
     if (!canLocal) {
-      await executeAsGM("createPosting", {
+      const relayed = await executeAsGM("createPosting", {
         locationUuid: this.location.uuid,
         spec,
         employerUuid: employer?.uuid ?? "",
@@ -213,6 +216,12 @@ export class PostingDialog extends HandlebarsApplicationMixin(ApplicationV2) {
         requestUserId: game.user.id,
         network: data.network === true,
       });
+      // The GM's refusal comes back on the socketlib path; the native fallback
+      // resolves without a result, and the post then reads as submitted.
+      if (relayed?.error) {
+        ui.notifications.error(game.i18n.localize(`ACKS-HENCHMEN.posting.error.${relayed.error}`));
+        return;
+      }
       ui.notifications.info(game.i18n.localize("ACKS-HENCHMEN.posting.submitted"));
       return;
     }

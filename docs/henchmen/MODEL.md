@@ -110,6 +110,21 @@ market month, the roll kept in `networkRolls` so a notice taken down and
 posted again finds it. The weekly fee is charged at the class the search
 reads (`feeMarketClass`); without the network it is the town's.
 
+**A directed search's steps.** A search by class and level, by class
+proficiency, and a commissioned search each move the class's rarity by a step
+the importer read from the search modifiers (`searchSteps`: `levelPerAbove1`,
+`cpPerRank`, `commissionedShift`), and the posting dialog names the step in
+force. A step the world lacks refuses the search `tables-missing` before any
+die. A directed posting renews each month from its stored spec, where a
+blank rarity override names no tier; a commissioned posting, and one that ran
+a whole market month (`advertVeteran`), renews as a commission. A general-proficiency
+search reads its level from the imported level die and zero band
+(`rollProficiencyLevel`); without either, every such henchman rolls the Random
+Henchman Level table. A seat that cannot write the place sends its posting to
+the GM over the relay (the `createPosting` handler), which answers `{error}`;
+the posting dialog shows a refusal by its `posting.error.*` key and says
+submitted otherwise.
+
 ## 3. `HenchmanRecord` (hireling flag)
 
 Serialized DataModel at `actor.flags["acks-extras"].record`

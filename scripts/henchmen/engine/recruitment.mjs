@@ -950,9 +950,9 @@ export async function processLocation(location, currentTime = now()) {
     posting.lastProcessedTime = currentTime;
   }
 
-  // 3a. Directed searches re-roll monthly while active ("paying the fee and
-  // rolling again each month") and apply as POOL REPLACEMENT against the
-  // fresh month. Contending searches resolve MORE SPECIFIC FIRST (class+
+  // 3a. Directed searches re-roll monthly while active (JJ ch. 3,
+  // "Commissioning the Hire of a Henchman") and apply as POOL REPLACEMENT
+  // against the fresh month. Contending searches resolve MORE SPECIFIC FIRST (class+
   // level > class > class proficiency > general proficiency), random order
   // on ties; each consumes replacement targets before the next.
   const duePrivates = postings.filter((p) => {
@@ -974,10 +974,10 @@ export async function processLocation(location, currentTime = now()) {
       if (posting.employerUuid) candidates = candidates.filter((c) => c.privateToUuid !== posting.employerUuid);
       else candidates = candidates.filter((c) => !(c.monthLong && !c.privateToUuid && c.highlightFor === ""));
       const mc = effectiveMarketClass(location, employer, { network: !!posting.network });
-      // Detached copy; a month-old advert re-rolls AS A COMMISSION (its own
-      // rarity shifts one step toward common — the JJ mechanic).
+      // Detached copy. The stored spec carries no commission, so a
+      // commissioned post, and a month-old advert, re-roll as one here.
       const spec = { ...(posting.spec.toObject?.() ?? posting.spec) };
-      if (posting.advertVeteran) spec.commissioned = true;
+      if (posting.commissioned || posting.advertVeteran) spec.commissioned = true;
       const result = await rollMonthlyPool(spec, mc, rollDice, Math.random, sys.market?.classRarityTableId || "default", rarityOverridesOf(location), blockedClassesOf(location));
       if (!result.error) {
         posting.totalAvailable = result.quantity;
@@ -1076,13 +1076,15 @@ registerHandler("closePosting", async ({ locationUuid, postingId, requestUserId 
 
 /** Player posting creation relays through the GM (players cannot write the
  *  location actor); employer ownership + criteria are enforced in
- *  createPosting against requestUserId. */
+ *  createPosting against requestUserId. The refusal goes back to the seat that
+ *  asked, as `{error}`, so its dialog can say why. */
 registerHandler("createPosting", async ({ locationUuid, spec, employerUuid, playersSeeDetails, requestUserId, network }) => {
   const locationDoc = await fromUuid(locationUuid);
   const location = locationDoc?.actor ?? locationDoc;
   const employerDoc = employerUuid ? await fromUuid(employerUuid).catch(() => null) : null;
-  if (!location) return;
-  await createPosting(location, spec, employerDoc?.actor ?? employerDoc, { playersSeeDetails, requestUserId, network: !!network });
+  if (!location) return { error: "no-market" };
+  const result = await createPosting(location, spec, employerDoc?.actor ?? employerDoc, { playersSeeDetails, requestUserId, network: !!network });
+  return { error: result?.error ?? null };
 });
 
 /** Process every location actor in the world (GM-side time hook target).

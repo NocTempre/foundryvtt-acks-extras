@@ -24,6 +24,21 @@
 - **The Storage Manager names the house.** What a place owns itself was listed as
   *Unattributed*, with the warning given for goods whose owner is gone. It is now
   listed as the house, without the warning.
+- **A directed henchman search moves rarity by the steps your imported tables give.**
+  A search by class and level, by class proficiency, and a commissioned search used
+  steps written into the module where your tables held none. Each step is now read
+  from the imported search modifiers (JJ ch. 3), and the posting dialog names the step
+  in force. A search needing a step your world has not imported is refused with a
+  message saying so, where it used to roll or show a raw text key. A search by class
+  renews each month: its renewal used to fail without a word, so a search ran for one
+  month only. A commissioned search renews as a commission. A general-proficiency search with no
+  imported level die rolls the Random Henchman Level table for every henchman. A world
+  whose Rules tables were read before this version refuses commissioned searches, and
+  stops renewing standing ones, until Rules tables is run again with the books open.
+- **A player's search that the GM refuses says why.** A post sent from a player's
+  posting dialog said it was submitted whatever became of it. A search refused because
+  it repeats one made this month, names a class the place never offers or needs a table
+  the world has not imported now shows the reason instead.
 
 ### Added
 

@@ -1077,3 +1077,52 @@ drawn, within the drawn class's race (`pickCulture`).
 **What it cost.** A list that blocks nearly every class spends up to
 `BLOCKED_CLASS_DRAWS` double-d100 draws on each candidate before it lands on
 `special`.
+
+### A directed search applies imported steps or none (2026-11-05)
+
+**Found** while building the classes-never-offered list (T-0403's work): four
+figures a directed search applies were written into source where the import
+held none. The per-level step of a leveled class search came from the posting
+dialog although the importer already read it; the class-proficiency per-rank
+step fell back to a constant; the commissioned search's step was a constant
+the importer never read; and an unleveled proficiency search rolled a level
+die and zero band from source when the modifiers were not imported. The
+2026-11-04 ruling (`.claude/rules/ip-doctrine.md`, "A printed value found in
+source is fixed by the work that finds it") made fixing them this work's.
+
+**Ruled.**
+
+- Each step is read from the imported search modifiers (`searchSteps`), the
+  commissioned one through a new capture beside the others. A search that
+  needs a step the world lacks is refused `tables-missing` before any die,
+  and the posting dialog says which step is missing where the choice is made.
+- An unleveled proficiency search with no imported level die or zero band
+  rolls the Random Henchman Level table for every henchman. That table is the
+  search's own fallback for every face outside the band, so no figure stands
+  in.
+- A commissioned posting renews as a commission. The stored spec never kept
+  the flag (it lives on the posting), so a renewal would have rolled as an
+  ordinary search; the renewal now reads the posting's own flag, as it
+  already did for a month-old advert.
+- A search by class renews at all. The stored spec carries the rarity
+  override's blank, and the roll took the blank as the tier and refused the
+  class as unknown, so the renewal was skipped without a word and every such
+  search ran one month. Found by the live walk of the commissioned renewal;
+  the offline suite had only ever rolled specs built in the test, never one
+  read back from the schema.
+- The relay answers the seat that asked. A player's post went to the GM and
+  the GM's refusal was dropped, so the player read "submitted" for a search
+  that was never written, which left the new refusal no route to the one
+  person it is for. The handler now returns `{error}` and the dialog shows
+  it; `no-market` gained its message on the way.
+- The dialog's level and commission hints interpolate the imported step, per
+  the influence ruling of 2026-09-03 ("Stripping a printed magnitude from a
+  label without migrating its constant is a regression"): the figure leaves
+  the label in the same change that makes it arrive registered.
+
+**Rejected:** keeping the constants as a fallback for an unimported world.
+That is the sample the importer exists to replace; a world without the import
+is told so.
+
+**What it cost.** A world whose Rules tables predate the commissioned capture
+refuses commissioned searches until its rules tables are read again.

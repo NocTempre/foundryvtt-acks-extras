@@ -367,13 +367,15 @@ standingStep = 0;
   const roll = async () => 1;
   // No rarity tables are registered here, so the table cannot answer either
   // way: without the override the class is unknown; with it the override
-  // has already answered and the search reaches the availability table.
+  // has already answered and the search goes on to what it reads next — the
+  // availability table, or for a class proficiency the imported per-rank
+  // step, which is not imported here either.
   const bare = await rollMonthlyPool({ kind: "henchmanByClass", classKey: "mage" }, 3, roll);
   assert.equal(bare.error, "unknown-class");
   const overridden = await rollMonthlyPool({ kind: "henchmanByClass", classKey: "mage" }, 3, roll, Math.random, "default", overrides);
   assert.equal(overridden.error, "unknown-rarity", "the override answers before the rarity table");
   const byProf = await rollMonthlyPool({ kind: "henchmanByClassProficiency", classKey: "mage" }, 3, roll, Math.random, "default", overrides);
-  assert.equal(byProf.error, "unknown-rarity", "a class-proficiency search reads the same override");
+  assert.equal(byProf.error, "tables-missing", "a class-proficiency search reads the same override, then the per-rank step");
 }
 
 // --- what a reader who is not the Judge is told -------------------------------------

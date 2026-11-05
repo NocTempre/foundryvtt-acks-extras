@@ -34,7 +34,9 @@ a step it does not name is walked by hand.
   `henchmen/paymaster` and `henchmen/second`. The GM's posting dialog offers
   player characters only, and step 13's Player seat must own neither
   employer. Step 17: `henchmen/blocked-classes-place` and
-  `henchmen/blocked-classes-employer`, built as that step says.
+  `henchmen/blocked-classes-employer`, built as that step says. Step 18:
+  `henchmen/search-steps-place` and `henchmen/search-steps-employer`, built
+  the same way.
 - **Bring each kept actor to its creation shape at the stage's start,
   before any step reads a roster:** delete its embedded items and effects,
   write its `flags.acks-extras` scope as the data's, its system as the
@@ -42,9 +44,11 @@ a step it does not name is walked by hand.
   (`new Actor.implementation(data).toObject()`), and its name and ownership
   as the data's (`{diff: false, recursive: false}` for the ownership). A
   hall also takes what a place's create hook gives a new one, which the data
-  alone does not hold: the storage flag, and the table as OWNER where the
-  data names no default; without it the player seat cannot open the hall's
-  sheet. A kept hireling still names the
+  alone does not hold: the table as OWNER where the data names no default;
+  without it the player seat cannot open the hall's sheet. A hall holds
+  goods because the walk's data says so: the create hook gives a place no
+  storage flag, so the walk writes it into every place it keeps. A kept
+  hireling still names the
   employer it was linked to, and both core's `addHenchman` and the roster
   read go by that. The write clears `retainer.managerid` in the same update
   that resets the level, so the level-gain watcher, which acts only on a
@@ -635,6 +639,43 @@ a step it does not name is walked by hand.
       seats' dialogs the class is listed disabled, its label saying it is never
       offered here.
     Walked by `tools/live/henchmen-blocked-classes.mjs`.
+18. A directed search's steps, on `henchmen/search-steps-place` (a location
+    built carrying `system.market: emptyMarket()`, the Player seat an
+    observer) and `henchmen/search-steps-employer` (a character the Player
+    seat owns). At the step's start the place's candidates, postings and
+    classes never offered are emptied. The staged Judges Journal must be
+    named in `ACKS_TEST_BOOKS`.
+    - Connect the staged book on the GM seat and run
+      `cookbookImportTables(["rarity"])`: the import a Judge runs, and the
+      only way the commission step reaches a world.
+      *Observable:* no missing book; `searchSteps()` holds an integer for
+      each of the three steps on the GM seat, and the commission step
+      reaches the Player seat.
+    - `openPostingDialog(place)` on both seats.
+      *Observable:* the level hint under **Level** and the tooltip on
+      **Commissioned search** (`data-tooltip-text`) are the lang strings
+      formatted with the imported steps, with no raw key.
+    - Under a registry layer of the walk's own, at a priority no import or
+      override uses and on the GM seat only, holding the search modifiers
+      less the commission step: the GM's dialog, then a commissioned search
+      for a class the step can move, filled and submitted in the Player
+      seat's dialog.
+      *Observable:* the GM's tooltip says the step is not imported while the
+      level hint still names its step; the Player seat's notice is the
+      `tables-missing` refusal (not "submitted", no raw key) and no posting
+      is written. The relay is the route the refusal takes: the GM's
+      `createPosting` answers the Player seat with `{error}`.
+    - Remove the layer and submit the same search from the Player seat.
+      *Observable:* "submitted", and the posting is written active and
+      commissioned. Then set the posting's `monthStartTime` to 0 and call
+      `processLocation(place, game.time.worldTime)` on the GM seat.
+      *Observable:* the posting renews, and its `rollDetail` opens with the
+      expression of the commissioned tier for the stored spec, not the plain
+      one (both read from the served `rollMonthlyPool` with a die of 1, and
+      the walk first checks they differ).
+    The general-proficiency level with no imported die or band is checked
+    offline only (`tools/test-henchmen.mjs`). Walked by
+    `tools/live/henchmen-search-steps.mjs`.
 
 The reference repair's check in the repair tool (`henchmen.references`) is
 walked in docs/lib/TESTING.md, "The repair tool".

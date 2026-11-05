@@ -108,9 +108,9 @@ export function offerableClasses(variant = "default") {
 }
 
 /**
- * Shift a rarity tier N steps toward Legendary (JJ: +1 per level above 1st,
- * +1 per proficiency rank, −1 for commissioning). Returns null when shifted
- * past Legendary (not findable by this method).
+ * Shift a rarity tier N steps toward Legendary, or toward Ubiquitous for a
+ * negative N, stopping at Ubiquitous. Returns null when shifted past
+ * Legendary (not findable by this method).
  */
 export function shiftRarity(tier, shift) {
   const idx = RARITY_TIERS.indexOf(tier);
@@ -118,6 +118,20 @@ export function shiftRarity(tier, shift) {
   const next = idx + shift;
   if (next >= RARITY_TIERS.length) return null;
   return RARITY_TIERS[Math.max(0, next)];
+}
+
+/**
+ * The rarity steps a directed search takes, read from the imported search
+ * modifiers (JJ ch. 3, "Henchmen Rarity by General Proficiency", "Henchmen
+ * Rarity by Class Proficiency" and "Commissioning the Hire of a Henchman"):
+ * `perLevel` for each level above 1st, `perRank` for each class-proficiency
+ * rank, `eased` the commissioned search's step toward Ubiquitous. A step
+ * the import does not hold is null.
+ */
+export function searchSteps() {
+  const sqm = optTable("rarity", "specificQualificationMods");
+  const step = (key) => (Number.isInteger(sqm?.[key]) ? sqm[key] : null);
+  return { perLevel: step("levelPerAbove1"), perRank: step("cpPerRank"), eased: step("commissionedShift") };
 }
 
 /** Availability expression for a rarity tier in a market class (JJ 118). */
@@ -165,13 +179,18 @@ export async function rollMonthlyPool(spec, marketClass, rollDice, rand = Math.r
       return { ...rolled, wage: found.wage, wageUnit: found.wageUnit };
     }
     case "henchmanByClass": {
-      let tier = spec.rarityOverride ?? rarityOf(spec.classKey);
+      // A stored spec carries the string field's blank, which names no tier.
+      let tier = spec.rarityOverride || rarityOf(spec.classKey);
       if (!tier) return { error: "unknown-class" };
-      if (spec.levelShift) tier = shiftRarity(tier, spec.levelShift);
+      const steps = searchSteps();
+      // A named level above 1st is rarer by the imported step for each level.
+      const above = Math.max(0, (spec.level ?? 0) - 1);
+      if ((above && steps.perLevel == null) || (spec.commissioned && steps.eased == null)) return { error: "tables-missing" };
+      if (above) tier = shiftRarity(tier, above * steps.perLevel);
       // Alignment openness: recruiting an opposed-alignment class openly is
       // harder (chaotic warlocks in a lawful town) — shift per the table.
       if (spec.alignmentShift) tier = tier ? shiftRarity(tier, spec.alignmentShift) : tier;
-      if (spec.commissioned) tier = shiftRarity(tier, -1) ?? tier;
+      if (spec.commissioned && tier) tier = shiftRarity(tier, -steps.eased) ?? tier;
       if (!tier) return { error: "past-legendary" };
       const expr = rarityExpr(tier, mc);
       if (!expr) return { error: "unknown-rarity" };
@@ -187,7 +206,11 @@ export async function rollMonthlyPool(spec, marketClass, rollDice, rand = Math.r
       if (!map) return { error: "tables-missing" };
       let tier = map[ranks];
       if (!tier) return { error: "past-legendary" };
-      if (spec.commissioned) tier = shiftRarity(tier, -1) ?? tier;
+      if (spec.commissioned) {
+        const { eased } = searchSteps();
+        if (eased == null) return { error: "tables-missing" };
+        tier = shiftRarity(tier, -eased) ?? tier;
+      }
       const expr = rarityExpr(tier, mc);
       if (!expr) return { error: "unknown-rarity" };
       const rolled = await rollAvailability(expr, rollDice, rand);
@@ -198,13 +221,13 @@ export async function rollMonthlyPool(spec, marketClass, rollDice, rand = Math.r
       // recruiter names, shifted per additional rank (JJ 119).
       let tier = rarityOf(spec.classKey);
       if (!tier) return { error: "unknown-class" };
-      // JJ 119: "equal to the base class, plus one for EACH rank" — rank 1
-      // already shifts (a Common class's rank-1 class prof is Uncommon).
+      const steps = searchSteps();
+      if (steps.perRank == null || (spec.commissioned && steps.eased == null)) return { error: "tables-missing" };
+      // Every rank shifts by the imported step, the first included.
       const ranks = Math.min(3, Math.max(1, spec.proficiencyRanks ?? 1));
-      const perRank = optTable("rarity", "specificQualificationMods")?.cpPerRank ?? 1;
-      tier = shiftRarity(tier, ranks * perRank);
+      tier = shiftRarity(tier, ranks * steps.perRank);
       if (spec.alignmentShift) tier = tier ? shiftRarity(tier, spec.alignmentShift) : tier;
-      if (spec.commissioned && tier) tier = shiftRarity(tier, -1) ?? tier;
+      if (spec.commissioned && tier) tier = shiftRarity(tier, -steps.eased) ?? tier;
       if (!tier) return { error: "past-legendary" };
       const expr = rarityExpr(tier, mc);
       if (!expr) return { error: "unknown-rarity" };

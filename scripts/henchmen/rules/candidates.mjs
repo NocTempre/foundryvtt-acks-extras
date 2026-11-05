@@ -123,15 +123,18 @@ export async function rollRandomLevel(rollDice, marketClass) {
 }
 
 /**
- * General-proficiency searches (JJ 119): the imported level die (1d4) — in
- * the printed zero band the henchman is 0th level, above it roll the Random
- * Henchman Level table. Die/band come from the sqm import.
+ * A general-proficiency search's henchman level (JJ ch. 3, "Henchmen Rarity
+ * by General Proficiency"): the imported level die, whose imported zero band
+ * makes a 0th-level henchman and whose other faces roll the Random Henchman
+ * Level table. With the die or the band not imported, every such henchman
+ * rolls that table.
  */
 export async function rollProficiencyLevel(rollDice, marketClass) {
   const sqm = optTable("rarity", "specificQualificationMods");
-  const die = await rollDice(sqm?.gpLevelDie ?? "1d4");
-  const [zMin, zMax] = sqm?.gpZeroBand ?? [1, 3];
-  if (die >= zMin && die <= zMax) return { level: 0, die, penalty: 0 };
+  const band = sqm?.gpZeroBand;
+  if (!sqm?.gpLevelDie || !Array.isArray(band) || band.length !== 2) return rollRandomLevel(rollDice, marketClass);
+  const die = await rollDice(sqm.gpLevelDie);
+  if (die >= band[0] && die <= band[1]) return { level: 0, die, penalty: 0 };
   return rollRandomLevel(rollDice, marketClass);
 }
 

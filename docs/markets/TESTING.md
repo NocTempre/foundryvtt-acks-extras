@@ -29,8 +29,10 @@ walked by hand.
   as the data's (`{diff: false, recursive: false}` for the ownership); then
   add each market again over its town. A town also takes what a place's
   create hook gives a new one, which the data alone does not hold: the
-  storage flag, and the table as OWNER where the data names no default;
-  without it the player seat's Trade tab never renders. Merchandise keys and party ids are
+  table as OWNER where the data names no default; without it the player
+  seat's Trade tab never renders. A town holds goods because the walk's data
+  says so: the create hook gives a place no storage flag, so the walk writes
+  it into every place it keeps. Merchandise keys and party ids are
   fixed strings, not a run's nonce. A run's chat cards are a create path,
   marked `markets/card-<n>` at teardown, and the next run retires the series
   before it builds anything.

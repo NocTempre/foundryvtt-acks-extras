@@ -485,6 +485,100 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
   });
 }
 
+// ---- a directed search's rarity steps come from the import, and a step not imported refuses the search ----
+// Every step is an invented 2, so a step of 1 left in source fails; each tier's
+// availability is an invented fixed count, so the count names the tier rolled.
+{
+  const { rollMonthlyPool } = await import(new URL("../scripts/henchmen/rules/availability.mjs", import.meta.url));
+  const { rollProficiencyLevel } = await import(new URL("../scripts/henchmen/rules/candidates.mjs", import.meta.url));
+  const TIERS = ["ubiquitous", "common", "uncommon", "rare", "veryRare", "extremelyRare", "legendary"];
+  const STEPS = { levelPerAbove1: 2, cpPerRank: 2, commissionedShift: 2, gpRank1: "uncommon", gpRank2: "rare", gpRank3: "veryRare", gpLevelDie: "1d6", gpZeroBand: [1, 2] };
+  const tablesWith = (sqm) => ({
+    classRarityTables: { variants: { default: { tiers: { common: ["Delta"], rare: ["Beta"] } } } },
+    rarityAvailability: { rows: TIERS.map((rarity, i) => ({ rarity, byMarketClass: Array(6).fill(String(10 * (i + 1))) })) },
+    randomHenchmanLevel: { rows: [{ max: 5, level: 1 }, { min: 6, max: 9, level: 2 }] },
+    ...(sqm ? { specificQualificationMods: sqm } : {}),
+  });
+  const withTables = async (tables, fn) => {
+    const saved = globalThis.acksExtras;
+    try {
+      globalThis.acksExtras = {
+        lib: {
+          tables: {
+            hasDoc: (doc) => doc === "rarity",
+            getTable: (doc, id) => tables[id] ?? null,
+            bracketRow: (rows, value) => rows.find((r) => value >= (r.min ?? -Infinity) && value <= (r.max ?? Infinity)) ?? null,
+          },
+        },
+      };
+      await fn();
+    } finally {
+      globalThis.acksExtras = saved;
+    }
+  };
+  const dice = (answers) => {
+    const calls = [];
+    const roll = async (formula) => {
+      calls.push(formula);
+      return answers[Math.min(calls.length - 1, answers.length - 1)];
+    };
+    return { roll, calls };
+  };
+  const pool = (spec) => rollMonthlyPool(spec, 3, dice([1]).roll, () => 0);
+  const without = (key) => Object.fromEntries(Object.entries(STEPS).filter(([k]) => k !== key));
+
+  await withTables(tablesWith(STEPS), async () => {
+    assert.strictEqual((await pool({ kind: "henchmanByClass", classKey: "Delta" })).rarity, "common", "a class search with no level takes the class's own tier");
+    assert.strictEqual((await pool({ kind: "henchmanByClass", classKey: "Delta", level: 1 })).rarity, "common", "a 1st-level search shifts nothing");
+    assert.strictEqual((await pool({ kind: "henchmanByClass", classKey: "Delta", level: 2 })).rarity, "rare", "one level above 1st shifts by the imported step");
+    assert.strictEqual((await pool({ kind: "henchmanByClass", classKey: "Delta", level: 3 })).rarity, "extremelyRare", "two levels shift twice the step");
+    assert.strictEqual((await pool({ kind: "henchmanByClass", classKey: "Delta", level: 3, levelShift: 1 })).rarity, "extremelyRare", "a stored level shift is not read");
+    const eased = await pool({ kind: "henchmanByClass", classKey: "Beta", commissioned: true });
+    assert.deepStrictEqual([eased.rarity, eased.quantity], ["common", 20], "a commissioned search eases by the imported step, and rolls that tier's count");
+    const stored = { kind: "henchmanByClass", classKey: "Beta", rarityOverride: "", level: null, alignmentShift: 0, proficiencyName: "", proficiencyRanks: null };
+    assert.strictEqual((await pool(stored)).rarity, "rare", "a stored spec's blank rarity override names no tier: the class's own is rolled");
+    assert.strictEqual((await pool({ ...stored, commissioned: true })).rarity, "common", "and a stored spec renewed as a commission eases it");
+    assert.strictEqual((await pool({ kind: "henchmanByClassProficiency", classKey: "Delta", proficiencyRanks: 1 })).rarity, "rare", "a class proficiency's first rank shifts by the imported step");
+    assert.strictEqual((await pool({ kind: "henchmanByClassProficiency", classKey: "Delta", proficiencyRanks: 2 })).rarity, "extremelyRare", "and each rank by it again");
+    assert.strictEqual((await pool({ kind: "henchmanByClassProficiency", classKey: "Delta", proficiencyRanks: 1, commissioned: true })).rarity, "common", "commissioned, it eases back");
+    assert.strictEqual((await pool({ kind: "henchmanByProficiency", proficiencyRanks: 1, commissioned: true })).rarity, "ubiquitous", "a commissioned general-proficiency search eases its ladder tier");
+
+    let d = dice([2]);
+    assert.deepStrictEqual([await rollProficiencyLevel(d.roll, 3), d.calls], [{ level: 0, die: 2, penalty: 0 }, ["1d6"]], "the imported level die, in its zero band, is 0th level");
+    d = dice([3, 7]);
+    const above = await rollProficiencyLevel(d.roll, 3);
+    assert.deepStrictEqual([above.level, d.calls.length, d.calls[0]], [2, 2, "1d6"], "past the band it rolls the level table");
+  });
+
+  for (const [key, spec] of [
+    ["levelPerAbove1", { kind: "henchmanByClass", classKey: "Delta", level: 2 }],
+    ["commissionedShift", { kind: "henchmanByClass", classKey: "Delta", commissioned: true }],
+    ["cpPerRank", { kind: "henchmanByClassProficiency", classKey: "Delta", proficiencyRanks: 1 }],
+    ["commissionedShift", { kind: "henchmanByClassProficiency", classKey: "Beta", proficiencyRanks: 1, commissioned: true }],
+    ["commissionedShift", { kind: "henchmanByProficiency", proficiencyRanks: 1, commissioned: true }],
+  ]) {
+    await withTables(tablesWith(without(key)), async () => {
+      const d = dice([1]);
+      const refused = await rollMonthlyPool(spec, 3, d.roll, () => 0);
+      assert.deepStrictEqual([refused, d.calls.length], [{ error: "tables-missing" }, 0], `${spec.kind} without ${key} imported is refused before any roll`);
+    });
+  }
+  await withTables(tablesWith(without("levelPerAbove1")), async () => {
+    assert.strictEqual((await pool({ kind: "henchmanByClass", classKey: "Delta", level: 1 })).rarity, "common", "a 1st-level search needs no per-level step");
+  });
+  for (const key of ["gpLevelDie", "gpZeroBand"]) {
+    await withTables(tablesWith(without(key)), async () => {
+      const d = dice([7]);
+      const lvl = await rollProficiencyLevel(d.roll, 3);
+      assert.deepStrictEqual([lvl.level, d.calls.length], [2, 1], `without ${key} imported, a general-proficiency henchman rolls the level table alone`);
+    });
+  }
+  await withTables(tablesWith(null), async () => {
+    const d = dice([7]);
+    assert.deepStrictEqual([(await rollProficiencyLevel(d.roll, 3)).level, d.calls.length], [2, 1], "with no search modifiers at all, likewise");
+  });
+}
+
 // ---- the hiring offer: one imported table for the hosted page, the throw and every further head ----
 // The edges and figures are invented; what is pinned is the reading.
 {

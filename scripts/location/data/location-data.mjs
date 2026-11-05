@@ -70,7 +70,6 @@ function postingField() {
       level: num({ integer: true, min: 0, max: 14 }),
       classKey: str(),
       rarityOverride: str(),
-      levelShift: int(0),
       alignmentShift: int(0),
       proficiencyName: str(),
       proficiencyRanks: num({ integer: true, min: 1, max: 3 }),
@@ -80,11 +79,11 @@ function postingField() {
     commissioned: new fields.BooleanField({ initial: false }),
     renew: new fields.BooleanField({ initial: false }), // roll a fresh pool at month end
     // Ran a whole market month unchanged: designated on the sheet (post
-    // color) and eases its search one rarity for the whole location.
+    // color) and renews as a commissioned search for the whole location.
     advertVeteran: new fields.BooleanField({ initial: false }),
     // The level the employer PRESENTS as (RR 168: candidates judge by
-    // appearance and spending — lying is possible; discovery = loyalty
-    // roll at −1 per level of difference). null = honest.
+    // appearance and spending — lying is possible; discovery is a loyalty
+    // roll adjusted per level of difference). null = honest.
     presentedLevel: num({ integer: true, min: 0, max: 14 }),
     totalAvailable: int(0),
     rollDetail: str(),
