@@ -20,6 +20,7 @@ import { acksExtras } from "../namespace.mjs";
 import { MODULE_ID, LANG_PREFIX, LOCATION_TYPE } from "./constants.mjs";
 import { primaryGMSettled } from "../lib/util.mjs";
 import { allPlaces, emptyOfPlaces } from "../lib/place.mjs";
+import { hasWrittenNotes } from "./notes.mjs";
 
 /** World setting: empty, unremarkable locations self-clean at ready. */
 const PRUNE_SETTING = "pruneEmptyLocations";
@@ -229,8 +230,9 @@ Hooks.once("ready", () => {
  * is scaffolding, and scaffolding comes down on its own. A location survives
  * empty when it IS something: a market (any market class or a market subtree),
  * someone's vault, a place a GM made hold goods, a scene-linked mapped place, a quarter's own place, a
- * place standing on a map as a token, a place a domain holds, or a place that
- * a place staying behind sits in (`emptyOfPlaces`). Setting-gated for worlds
+ * place standing on a map as a token, a place a domain holds, a place with
+ * notes written on it (`hasWrittenNotes`), or a place that a place staying
+ * behind sits in (`emptyOfPlaces`). Setting-gated for worlds
  * that want their empty rooms kept. `dryRun` deletes nothing, setting or not,
  * and answers with the uuids a sweep would remove.
  * @returns {Promise<{pruned: number, doomed?: string[]}>}
@@ -249,6 +251,7 @@ export async function pruneEmptyLocations({ dryRun = false } = {}) {
     if (a.items.size > 0) return false;
     if ((a.system?.roster ?? []).length > 0) return false;
     if (a.system?.market != null || a.system?.marketClass != null) return false;
+    if (hasWrittenNotes(a.system)) return false;
     const kept = a.getFlag(MODULE_ID, "storage");
     if (kept?.vaultOf || kept?.provider) return false;
     if (sceneOfLocation(a) || regionOfLocation(a)) return false;

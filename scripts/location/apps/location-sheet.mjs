@@ -153,6 +153,7 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
     primary: {
       tabs: [
         { id: "contents", icon: "fas fa-sitemap" },
+        { id: "notes", icon: "fas fa-note-sticky" },
         { id: "recruitment", icon: "fas fa-scroll" },
         { id: "henchmen", icon: "fas fa-user-group" },
         { id: "mercenaries", icon: "fas fa-shield-halved" },

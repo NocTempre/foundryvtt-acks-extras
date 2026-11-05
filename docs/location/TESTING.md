@@ -447,6 +447,27 @@ by hand.
     new empty location. *Observable:* both seats' recorders saw init, setup
     and ready and no error. `SHOTS=1` takes `location-storage-off.png` (the
     Storage tab with storage off) and `location-storage-manager.png`.
+24. **A place's notes have a tab of their own.**
+    `tools/live/location-notes-tab.mjs` walks it
+    (`node tools/live/run.mjs location-notes-tab`) on a GM seat and the
+    Player seat, both reloaded under a load recorder, on one kept fixture:
+    `location/notes-place`, a location the Player seat observes, holding
+    nothing, its shared and Judge's notes set to the walk's text at the
+    step's start. The GM seat's reload is the world-start prune's real
+    trigger. *Observable:* the place is still standing after it; run dry
+    (`pruneEmptyLocations({dryRun: true})`), the prune spares it and names it
+    once both notes are saved empty (an empty paragraph), then the notes are
+    put back. Open its sheet on the GM seat and click the **Notes** tab's nav
+    link. *Observable:* the nav reads Contents then Notes, under its label
+    and not a raw key; the tab is active and holds both editors and both
+    texts; Contents holds no `system.notes` field and GM Settings no
+    `system.gmNotes`. Set the shared editor's value and dispatch its
+    `change`, as its save does. *Observable:* `system.notes` holds the new
+    text and the Judge's notes are untouched. On the Player seat open the
+    same sheet. *Observable:* Notes is second and active on a click, the
+    shared text shows with no editor, and the render holds no
+    `system.gmNotes` field and none of the Judge's text. *Observable:* both
+    seats' recorders saw init, setup and ready and no error.
 
 The repair tool's location checks (stale links, banked coin, storage whose
 owner is gone) are walked in docs/lib/TESTING.md, "The repair tool". Coin

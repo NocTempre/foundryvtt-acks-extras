@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+## 11.14.3
+
+### Fixed
+
+- **A place with notes written on it is kept at world start.** Clean up empty
+  locations deleted a place that held nothing but its notes, so a Judge's record of
+  an empty room went with the room the next time the world started. A place with
+  either its shared notes or the Judge's notes written on it now stays. Notes saved
+  empty do not count, so an emptied place still goes.
+
+### Changed
+
+- **A place's notes have a tab of their own.** The shared notes moved from the foot
+  of the Contents tab, and the Judge's private notes from GM Settings, to a Notes
+  tab beside Contents. Players see the shared notes there; the Judge's stay on a
+  GM's sheet only.
+
 ## 11.14.2
 
 ### Fixed

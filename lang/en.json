@@ -6033,6 +6033,7 @@
     }
   },
   "ACKS-HENCHMEN.location.tab.contents": "Contents",
+  "ACKS-HENCHMEN.location.tab.notes": "Notes",
   "ACKS-LIB.place.notOwner": "You do not have permission to change that place.",
   "ACKS-LIB.place.cycle": "A place cannot be put inside itself, or inside one of its own contents.",
   "ACKS-LIB.place.containerMove": "Move the container itself to change where it is — a container's place is wherever it physically sits.",

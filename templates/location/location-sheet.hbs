@@ -211,9 +211,11 @@
       </table>
     </details>
     {{/if}}
+  </section>
 
-    {{!-- ---- Notes ---- --}}
-    <details class="section">
+  {{!-- ------------------------- Notes ------------------------- --}}
+  <section class="tab location-tab {{tabs.notes.cssClass}}" data-group="primary" data-tab="notes">
+    <details class="section" open>
       <summary>{{localize "ACKS-LOCATION.place.notes"}}</summary>
       {{#if editable}}
       {{!-- The sheet's ONLY editable render of system.notes: a second control of
@@ -234,6 +236,24 @@
       <div class="acks-extras-place-notes">{{{notesHTML}}}</div>
       {{/if}}
     </details>
+
+    {{!-- ---- The Judge's own record. A second field beside the shared notes,
+           never a gate on them: what a place ACTUALLY is belongs somewhere the
+           table cannot read, and the two records stay visibly different. The
+           `isGM` block is the whole of its protection: a player's render holds
+           neither the field nor its value, and `gmNotesHTML` is enriched on a
+           GM seat only. ---- --}}
+    {{#if isGM}}
+    <details class="section" open>
+      <summary>{{localize "ACKS-LOCATION.place.gmNotes"}}</summary>
+      {{#if editable}}
+      <prose-mirror class="acks-extras-place-notes content-sized" name="system.gmNotes" value="{{system.gmNotes}}" toggled
+                    data-document-uuid="{{actor.uuid}}" style="--min-height: 6rem;">{{{gmNotesHTML}}}</prose-mirror>
+      {{else}}
+      <div class="acks-extras-place-notes">{{{gmNotesHTML}}}</div>
+      {{/if}}
+    </details>
+    {{/if}}
   </section>
 
   {{!-- ------------------------- Recruitment ------------------------- --}}
@@ -603,20 +623,6 @@
     {{/each}}
   </section>
   <section class="tab location-tab {{tabs.gmSettings.cssClass}}" data-group="primary" data-tab="gmSettings">
-
-    {{!-- ---- The Judge's own record. A second field beside the shared notes,
-           never a gate on them: what a place ACTUALLY is belongs somewhere the
-           table cannot read, and the two records stay visibly different. Lives
-           in the GM region, which is the whole of its protection. ---- --}}
-    <details class="section" open>
-      <summary>{{localize "ACKS-LOCATION.place.gmNotes"}}</summary>
-      {{#if editable}}
-      <prose-mirror class="acks-extras-place-notes content-sized" name="system.gmNotes" value="{{system.gmNotes}}" toggled
-                    data-document-uuid="{{actor.uuid}}" style="--min-height: 6rem;">{{{gmNotesHTML}}}</prose-mirror>
-      {{else}}
-      <div class="acks-extras-place-notes">{{{gmNotesHTML}}}</div>
-      {{/if}}
-    </details>
 
     {{!-- ---- The place itself: true of a chest and of a duchy alike ---- --}}
     <div class="grid-2">

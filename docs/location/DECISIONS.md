@@ -971,3 +971,25 @@ says they cannot be there).
 be told from a default one, and is cleared with them; turning it on again is
 one press. A location dragged by hand from an old library compendium still
 carries the library's flag.
+
+## 2026-11-05 — A place's notes have a tab of their own, and notes keep a place
+
+**The evidence.** The owner asked for a place's notes on a tab of their own.
+The walk built for it found that the world-start prune deleted a location
+holding nothing but its notes: written notes did not count against "a place
+holding nothing, remembering nobody" (2026-08-14), so a Judge's record of a
+room went with the room at the next `ready`.
+
+**Ruled.** The shared notes and the Judge's sit together on a Notes tab,
+second after Contents, as the domain and faction sheets keep theirs. The
+Judge's block renders on a GM seat only, which is the protection the GM
+Settings tab gave it. A place with either note written is not empty, and the
+prune keeps it (`hasWrittenNotes`): text counts, markup does not, so an editor
+opened and saved empty is no note.
+
+**Rejected:** leaving the Judge's notes on GM Settings (two places to look for
+one kind of record). **Rejected:** counting any non-empty notes string (an
+editor saved empty leaves an empty paragraph, which would keep every place
+anyone opened).
+
+*Cost:* a place whose notes nobody wants is kept until they are cleared.

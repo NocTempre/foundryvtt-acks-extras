@@ -32,8 +32,11 @@ domain holds is kept on the domain's own sheet
 
 *A town a domain holds, naming the domain on its Contents tab.*
 
-A place also keeps a private record beside its shared one, which only the Judge
-can read.
+A place's notes have a tab of their own, **Notes**, beside Contents. Everyone
+who can see the place reads its shared notes there, and its owners can write
+them. Beneath them a place also keeps a private record, which only the Judge
+can read. A place with either written on it is kept when **Clean up empty
+locations** clears empty places at world start.
 
 ![](../releases/v4.1.0/location-judge-notes.png)
 

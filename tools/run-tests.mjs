@@ -145,6 +145,7 @@ const COMMITTED = [
   "test-searching.mjs",
   "test-hex-topology.mjs",
   "test-location-reach.mjs",
+  "test-location-notes.mjs",
   "importer/test-prose.mjs",
   "importer/test-book-match.mjs",
   "importer/test-shelf-restore.mjs",
