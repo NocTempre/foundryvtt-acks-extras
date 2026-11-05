@@ -30,8 +30,17 @@ by hand.
 - `openRuledataBrowser()` takes no arguments and `openStorageManager(place)`
   opens on `place`, or on the first provider without one — both are
   world-wide GM tools, reachable from the settings menus as well.
-- A location is a storage **provider** (`lib.storage.isProvider`) as soon as it
-  exists; nothing has to be enabled for goods to be stashable in it.
+- **A location holds no goods until a GM turns storage on** (the Storage tab's
+  **Hold goods here**, the manager's **Add a place**, a GM's drop on the
+  sheet, or `lib.storage.setProvider(place, true)`). Until then `stash` into
+  it refuses with `notProvider`, and a fixture built bare is pruned at the next
+  primary-GM ready unless it holds an item or is a provider.
+- **A GM's switch reaches a player seat a second or so after it lands.** A
+  player-seat read made at once still sees the old state; wait for the
+  player's own `isProvider` to change before acting there.
+- **The once-per-world clearing runs seconds after ready**, once the primary
+  GM is elected, not at ready itself. A census read at ready finds the
+  `storageByIntent` marker still false; poll it.
 - Coin stored in a location belongs to `HOUSE_OWNER` unless stamped with an
   `ownerUuid`, and that sentinel is deliberately unresolvable — no character
   can claim house coin.
@@ -87,17 +96,17 @@ by hand.
    carrying the catalogue's row count (every source Shop sources leaves in)
    and Ventures the count of queued venture days the viewer's party (the
    GM: every party) has pending.
-3. Storage: stash an item and coin from the character (see
-   [../lib/TESTING.md](../lib/TESTING.md) for the argument order), then
-   retrieve them.
+3. Storage: press **Hold goods here** on the Storage tab, stash an item and
+   coin from the character (see [../lib/TESTING.md](../lib/TESTING.md) for the
+   argument order), then retrieve them.
    *Observable:* Contents and Storage counts move; `storedItems(location)`
    tracks the item; house coin and the character's own stored coin are
    attributed separately.
 4. `openStorageManager()`.
-   *Observable:* `StorageManager` lists this location as a place while it
-   holds the goods step 3 left or is the one open (step 23 walks the rest of
-   the list), offers "let an actor hold goods" and "give a character a vault",
-   and each control changes what `providers()` returns.
+   *Observable:* `StorageManager` lists this location among the places that
+   hold goods (step 23 walks the rest of the list), offers **Add a place** and
+   **Give a character a vault**, and each control changes what `providers()`
+   returns.
 5. `openRuledataBrowser()`.
    *Observable:* `RuledataBrowser` lists the tables imported from the GM's own
    books — and says so; with nothing imported it is empty rather than showing
@@ -388,38 +397,56 @@ by hand.
 22. **The storage manager's move target holds.** Make two disposable
     locations providers (`lib.storage.setProvider`), stock goods at the first
     (`stockProvider`), and `openStorageManager(first)`. Pick the second under
-    Move to, then make a third location a provider and pin it
-    (`lib.storage.setPinned`), which redraws the manager: an empty location
-    is offered only once pinned. *Observable:* the pick renders nothing, the
-    redraw keeps it, and the third is offered. Pick the new-place option and type a name, then
+    Move to, then make a third location a provider, which redraws the
+    manager. *Observable:* the pick renders nothing, the redraw keeps it, and
+    the third is offered. Pick the new-place option and type a name, then
     turn the third provider off. *Observable:* the redraw keeps the option
     and the name, with the name box shown. Tick the goods and press Move.
-    *Observable:* one place is made under the typed name and holds the goods,
-    and the name box comes back empty. Move reports no id: read the made
-    place's from a `createActor` hook filtered to this seat's own `userId`,
-    armed across the click alone, and match it to the typed name.
-23. **An empty location is listed only once pinned.** `tools/live/location-storage-pins.mjs`
-    walks it (`node tools/live/run.mjs location-storage-pins`) on fixtures it
-    keeps: `location/pin-empty` (a location holding nothing),
-    `location/pin-stocked` (one holding a row kept for the house) and
-    `location/pin-cart` (a creature made a provider, holding nothing), each
-    brought to that shape at the step's start. The world-start prune of empty
-    locations runs on the walking seat's own `ready` and takes a location
-    built empty beside it, so the empty one is built pinned and left pinned,
-    and the stocked one is built holding its row. `openStorageManager(stocked)`.
-    *Observable:* the stocked place is listed and open; the empty location is
-    neither listed nor a Move to target; the cart is both, a provider that is
-    no location being listed whatever it holds; no other empty, unpinned
-    location of the world is listed; every row carries a pin; the prune, run
-    dry (`pruneEmptyLocations({dryRun: true})`, deletes nothing), would take
-    the empty location. Press **Pin a
-    place**, pick the empty location in its picker and press OK.
-    *Observable:* it is pinned, listed, open and its pin pressed. Click the
-    stocked row. *Observable:* the pinned place stays listed and is a target,
-    and the dry prune spares it.
-    Click the empty location's pin. *Observable:* it leaves the list and the
-    targets and is still a provider. `SHOTS=1` re-takes
-    `location-storage-manager.png` with the pinned place listed.
+    *Observable:* one place is made under the typed name, a provider holding
+    the goods, and the name box comes back empty. Move reports no id: read
+    the made place's from a `createActor` hook filtered to this seat's own
+    `userId`, armed across the click alone, and match it to the typed name.
+23. **A place holds goods only once a GM turns that on.**
+    `tools/live/location-storage-intent.mjs` walks it
+    (`node tools/live/run.mjs location-storage-intent`) on a GM seat and the
+    Player seat, both reloaded under a load recorder, on fixtures it keeps:
+    `location/intent-place` (switched off and on), `location/intent-legacy`
+    (an empty location holding goods, the shape an upgrading world carries),
+    `location/intent-stocked` (one holding a row kept for the house),
+    `location/intent-hero` (a character the Player seat owns, carrying a rope)
+    and `location/intent-rope` (a world item). Each location also carries a
+    plain item kept for no one, which keeps it standing through the
+    world-start prune while its storage is off. Each fixture is brought to
+    shape at the step's start. `location/intent-new` is retired and built
+    again each run: the create hook is its subject.
+    With `REPLAY_CLEARING=1` the walk unsets the `storageByIntent` marker
+    before the GM seat's reload, which is a world-wide write: find out who is
+    seated first. *Observable:* the reload's ready turns the legacy place's
+    storage off and sets the marker, and the stocked place keeps its storage.
+    *Observable:* the new location carries no storage flag.
+    `openStorageManager(stocked)`. *Observable:* the list is exactly the
+    world's providers, with no pin; the place with storage off is neither
+    listed nor a Move to target; the house row is grouped as the house, with
+    no gone-owner warning. On the Player seat, stash the hero's rope into the
+    place. *Observable:* the place is not among the seat's providers nor its
+    reachable places, and the stash refuses `notProvider` with the rope still
+    carried. Open the place's Storage tab. *Observable:* the off line and
+    **Hold goods here** show, the deposit does not. Press it. *Observable:*
+    storage is on, the tab reads empty and offers the deposit, and the open
+    manager redraws with the place listed; the Player seat's stash now lands,
+    kept for the hero. Turn storage off, press the manager's **Add a place**
+    and pick the place. *Observable:* the picker is sorted by name, labels
+    each type, offers no character and no provider, and the picked place is
+    listed and open. Turn it off again and hand the sheet's `_onDropItem` the
+    world item. *Observable:* storage is on and the item is kept for the
+    house. Run the clearing and the prune dry
+    (`clearDefaultStorage({dryRun: true})` from
+    `scripts/location/storage-intent.mjs`, `pruneEmptyLocations({dryRun:
+    true})`; neither writes). *Observable:* the clearing names the legacy
+    place alone of the three; the prune spares every provider and takes the
+    new empty location. *Observable:* both seats' recorders saw init, setup
+    and ready and no error. `SHOTS=1` takes `location-storage-off.png` (the
+    Storage tab with storage off) and `location-storage-manager.png`.
 
 The repair tool's location checks (stale links, banked coin, storage whose
 owner is gone) are walked in docs/lib/TESTING.md, "The repair tool". Coin

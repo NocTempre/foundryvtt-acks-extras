@@ -24,13 +24,17 @@ sibling modules (henchmen today; domains later) read through acks-lib.
     goods, transfers, the deletion fallback); this module owns the experience
     — the location sheet, the character sheet's Storage tab, the retirement of
     the system's banked-coin column, the vault sweep, and the GM manager.
-    The manager lists a location while it holds goods, while it is pinned
-    (`lib.storage.setPinned`, `flags.acks-extras.storage.pinned`) and while
-    it is the one open; any other provider is listed whatever it holds. Its
-    Move to targets are the same list. **Pin a place** pins a location the
-    list leaves out, and the actor that **Let an actor hold goods** enables and
-    the vault **Give a character a vault** makes are pinned as they are made.
-    `pruneEmptyLocations` spares a pinned location.
+    A location holds goods only once a GM turns storage on: the create hook
+    sets no storage flag, and an importer's world copy of a library place
+    leaves the library's behind unless goods are stored on it. A GM turns it
+    on with the Storage tab's **Hold goods here**, the manager's **Add a
+    place**, or a drop on the location's sheet; the manager's new-place
+    target and a vault are made holding goods. The manager lists every
+    provider, and its Move to targets are the same list. `pruneEmptyLocations`
+    spares a provider. Once per world, at the primary GM's ready,
+    `storage-intent.mjs` turns storage off on every location holding no
+    stored goods that is not a vault, the trade house or a place a coin order
+    names, and records it in the hidden `storageByIntent` setting.
   - **Table schemas**: typed shapes for the people/economy documents
     (cultures & names, occupations, age tables, class registry +
     distribution grids, wages, availability, followers, slavery, monstrous

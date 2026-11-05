@@ -146,44 +146,6 @@ export async function setProvider(actor, enabled = true, { vaultOf = null } = {}
   return true;
 }
 
-/**
- * Is this provider pinned to the storage manager's list? Every location holds
- * goods by construction, so the list names a place that holds nothing only
- * where a GM has pinned it.
- */
-export const isPinned = (actor) => !!actor?.getFlag?.(MODULE_ID, STORAGE_KEY)?.pinned;
-
-/**
- * Pin a provider to the storage manager's list, or unpin it. A provider only:
- * the pin rides on its storage flag, which turning storage off removes whole.
- * Announced as a provider change, so an open manager redraws.
- * @returns {Promise<boolean>} whether anything was written
- */
-export async function setPinned(actor, pinned = true) {
-  if (!isProvider(actor) || isPinned(actor) === !!pinned) return false;
-  if (!actor.isOwner) {
-    warn("notOwner");
-    return false;
-  }
-  const current = actor.getFlag(MODULE_ID, STORAGE_KEY) ?? {};
-  await actor.setFlag(MODULE_ID, STORAGE_KEY, { ...current, pinned: !!pinned });
-  Hooks.callAll(STORAGE_HOOKS.PROVIDER_CHANGED, actor, true);
-  return true;
-}
-
-/**
- * The providers the storage manager lists, in world order: each one holding
- * goods, each one pinned, each one `always` answers for, and `open`, the one
- * the manager has open, so a place emptied in front of the GM stays where they
- * are looking.
- * @param {{open?: string|null, always?: ((actor: Actor) => boolean)|null}} [opts]
- *   `open` a provider's uuid; `always` the caller's test for a provider listed
- *   whatever it holds
- */
-export function listedProviders({ open = null, always = null } = {}) {
-  return providers().filter((p) => p.uuid === open || isPinned(p) || !!always?.(p) || storedItems(p).length > 0);
-}
-
 /* -------------------------------------------- */
 /*  Reading what is stored                       */
 /* -------------------------------------------- */

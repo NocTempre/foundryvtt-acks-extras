@@ -1086,6 +1086,9 @@ export function worldCopySource(source, worldIds, { folderId = null, sourceUuid 
   copy.folder = folderId;
   copy.ownership = { default: OWNERSHIP_NONE };
   copy.flags = { ...(copy.flags ?? {}), [MODULE_ID]: { ...(copy.flags?.[MODULE_ID] ?? {}), worldCopy: true } };
+  // A copy holds goods only once a GM says so: a library place's storage flag
+  // stays behind unless something stored on it comes along.
+  if (!(copy.items ?? []).some((item) => item?.flags?.[MODULE_ID]?.storage)) delete copy.flags[MODULE_ID].storage;
   if (sourceUuid) copy._stats = { ...(copy._stats ?? {}), compendiumSource: sourceUuid };
   const sys = copy.system ?? {};
   for (const key of ["parentUuid", "seatUuid"]) {

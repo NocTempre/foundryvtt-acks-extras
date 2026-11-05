@@ -897,6 +897,9 @@ places for each round of the fixed point.
 
 ## 2026-11-05 — The storage manager lists an empty location only once pinned
 
+*Superseded the same day by "2026-11-05 — Storage is switched on by intent",
+below. Never released.*
+
 **The evidence.** A location holds goods by construction (the
 `preCreateActor` hook sets the provider flag), and an imported adventure
 brings in a location for every keyed area. The manager listed every provider,
@@ -924,3 +927,47 @@ before pins existed would drop out of sight with no way back but the picker.
 *Cost:* an empty location is one pick away instead of in the list, and a
 place emptied by a Move leaves the list once another place is open unless
 it is pinned.
+
+## 2026-11-05 — Storage is switched on by intent
+
+**The evidence.** It supersedes the pin ruling above on the same day. That
+ruling took the default storage flag as given and hid its result; the owner
+then named the default itself as the defect: no imported or new location
+holds goods until someone means it to. Two findings the pin ruling did not
+weigh: the default reached players too (a character standing in an imported
+area was offered it on their sheet as somewhere to leave goods,
+`listsWhenEmpty`), and the importer's world copies carried the flag across
+from the library's documents, so a fix to the create hook alone would have
+been undone by the next map.
+
+**Ruled.** The create hook sets no storage flag. A place holds goods once a GM
+turns that on: **Hold goods here** on its Storage tab, **Add a place** in the
+storage manager (any actor that is not a character), a GM's drop of an item on
+its sheet, Move to a new place, or a vault. A world copy the importer makes
+leaves the library's flag behind unless something stored on the place comes
+with it. The manager lists every place that holds goods, so the pin goes: the
+act that put a place in the list is the act that lets it hold goods, and one
+switch is easier to read than two. The prune spares a place that holds goods,
+for the reason the pin ruling gave for a pinned one.
+
+A world that upgrades is cleared once, at the primary GM's first `ready`
+(`clearDefaultStorageOnce`, behind the hidden world setting
+`storageByIntent`): every location that holds nothing and is not a vault, the
+trade house, or a place an actor's coin order names has the flag removed.
+A location holding goods keeps it.
+
+This is a one-time sweep and not `migrateData`, because the shape it removes
+is the shape the new rule makes on purpose: an empty location a GM switched on
+looks exactly like one the hook switched on. A migration on every read would
+switch off every deliberate empty place; it also cannot see what it would need
+to spare, the trade house and other actors' coin orders.
+
+**Rejected:** keeping the pin beside the flag (two switches for one intent,
+and the players' lists stayed full). **Rejected:** clearing every location
+including those holding goods (it would strand the goods behind a flag that
+says they cannot be there).
+
+*Cost:* an empty location a GM switched on by hand before this change cannot
+be told from a default one, and is cleared with them; turning it on again is
+one press. A location dragged by hand from an old library compendium still
+carries the library's flag.

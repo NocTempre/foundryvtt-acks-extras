@@ -135,6 +135,12 @@ function makeActor({ id, name = id, type = "character", items = [] }) {
     actor.flags = { ...actor.flags, [scope]: { ...(actor.flags?.[scope] ?? {}), [key]: value } };
     return actor;
   };
+  actor.unsetFlag = async (scope, key) => {
+    const kept = { ...(actor.flags?.[scope] ?? {}) };
+    delete kept[key];
+    actor.flags = { ...actor.flags, [scope]: kept };
+    return actor;
+  };
   for (const data of items) add(data);
   return actor;
 }
@@ -1541,25 +1547,42 @@ await test("an arrival that is nobody's never joins a row kept for an owner", as
     "what arrives stamped as theirs still does");
 });
 
-await test("the storage manager lists a place holding goods, a pinned one and the open one, and no other", async () => {
+await test("storage left on an empty location is turned off, and on nothing else", async () => {
+  const { defaultStorageOf, clearDefaultStorage, coinOrderPlaces } = await import("../scripts/location/storage-intent.mjs");
+  const scaffold = makePlace({ id: "scaffold" });
   const stocked = makePlace({ id: "stocked", items: [gold(5, { flags: { "acks-extras": { storage: { ownerUuid: "Actor.hero", ownerName: "Hero" } } } })] });
-  const bare = makePlace({ id: "bare" });
-  const kept = makePlace({ id: "kept" });
+  const vault = makePlace({ id: "heroVault", vaultOf: "Actor.hero" });
+  const house = makePlace({ id: "house" });
   const wagon = makeActor({ id: "wagon", type: "npc" });
+  wagon.flags = { "acks-extras": { storage: { provider: true } } };
   worldActors.set(wagon.id, wagon);
+  const plain = makePlace({ id: "plain" });
+  plain.flags = {};
+  const till = makePlace({ id: "till" });
+  const banker = makeActor({ id: "banker" });
+  banker.flags = { "acks-extras": { coinOrder: { payFrom: "loose", receiveInto: `place:${till.uuid}` } } };
+  worldActors.set(banker.id, banker);
+  const mine = [scaffold, stocked, vault, house, wagon, plain, till];
   const ids = (list) => list.map((p) => p.id);
-  assert.deepEqual(ids(storage.listedProviders()), ["stocked"], "a place holding nothing is left off");
-  assert.equal(await storage.setPinned(kept, true), true);
-  assert.equal(storage.isPinned(kept), true);
-  assert.deepEqual(ids(storage.listedProviders()), ["stocked", "kept"], "a pin lists it, in world order");
-  assert.deepEqual(ids(storage.listedProviders({ open: bare.uuid })), ["stocked", "bare", "kept"], "the open place is listed while it is open");
-  assert.deepEqual(ids(storage.listedProviders({ always: (p) => p.id === "bare" })), ["stocked", "bare", "kept"], "and one the caller always lists");
-  assert.equal(await storage.setPinned(kept, true), false, "pinning a pinned place writes nothing");
-  assert.equal(await storage.setPinned(wagon, true), false, "an actor that holds no goods is never pinned");
-  assert.equal(storage.isPinned(wagon), false);
-  assert.equal(await storage.setPinned(kept, false), true);
-  assert.deepEqual(ids(storage.listedProviders()), ["stocked"], "unpinned and empty, it leaves the list");
-  assert.equal(storage.isProvider(kept), true, "and it still holds goods when asked to");
+  assert.deepEqual(ids(defaultStorageOf(mine)), ["scaffold", "house", "till"], "an empty location, and only a location");
+  assert.deepEqual(ids(defaultStorageOf(mine, { keep: [house.uuid] })), ["scaffold", "till"], "a place named to keep is kept");
+  assert.deepEqual(coinOrderPlaces([banker, scaffold]), [till.uuid], "a coin order names the place its coin lands in");
+
+  acksExtras.markets = { tradeObjects: { tradeHouseSync: () => house } };
+  const seat = game.user;
+  try {
+    const mineIds = new Set(mine.map((a) => a.uuid));
+    const dry = await clearDefaultStorage({ dryRun: true });
+    assert.deepEqual(dry.uuids.filter((u) => mineIds.has(u)), [scaffold.uuid], "the trade house and a coin order's place are kept");
+    assert.equal(storage.isProvider(scaffold), true, "a dry run writes nothing");
+    game.user = { ...(game.user ?? {}), isGM: true };
+    await clearDefaultStorage();
+    assert.deepEqual(mine.map((a) => storage.isProvider(a)), [false, true, true, true, true, false, true], "storage is off on the scaffold alone");
+    assert.equal(scaffold.flags["acks-extras"].storage, undefined, "and its storage flag is gone whole");
+  } finally {
+    delete acksExtras.markets;
+    game.user = seat;
+  }
 });
 
 console.log(`test-coin-flows: ${passed} checks passed`);

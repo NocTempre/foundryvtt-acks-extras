@@ -316,25 +316,6 @@
 .acks-location-manager-place-count {
   opacity: 0.7;
 }
-/* A row's pin keeps an empty location listed. Faded until pinned; the place
-   class is the extra one the design system's button rules are outranked by. */
-.acks-location-manager-place .acks-location-manager-pin {
-  flex: 0 0 auto;
-  width: auto;
-  height: auto;
-  padding: 0.1em 0.25em;
-  margin: 0;
-  color: inherit;
-  line-height: 1;
-  background: none;
-  border: none;
-  opacity: 0.3;
-}
-.acks-location-manager-place .acks-location-manager-pin.is-pinned,
-.acks-location-manager-place .acks-location-manager-pin:hover,
-.acks-location-manager-place .acks-location-manager-pin:focus-visible {
-  opacity: 1;
-}
 .acks-location-manager-main {
   display: flex;
   flex: 1;

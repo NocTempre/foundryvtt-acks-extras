@@ -634,8 +634,8 @@ const P = {
    * acks-extras flags the data's, its system the data's over the type's
    * defaults, its name, and its ownership the data's with this seat's own
    * kept. A place also takes what its create hook (location/module.mjs) gives
-   * a new one: the storage flag, and the table as OWNER where the data names
-   * no default. Returns what it then holds.
+   * a new one: the table as OWNER where the data names no default. Returns
+   * what it then holds.
    */
   reshape: async ({ kind, id, data }) => {
     const doc = kind === "Item" ? game.items.get(id) : game.actors.get(id);
@@ -645,7 +645,6 @@ const P = {
     const fresh = new cls({ name: data.name, type: data.type, system: foundry.utils.deepClone(data.system ?? {}) }).toObject();
     const place = data.type === "acks-extras.location";
     const flags = foundry.utils.deepClone(data.flags?.["acks-extras"] ?? {});
-    if (place && !flags.storage) flags.storage = { provider: true };
     const L = CONST.DOCUMENT_OWNERSHIP_LEVELS;
     const ownership = { default: place ? L.OWNER : L.NONE, ...(data.ownership ?? {}), [game.user.id]: L.OWNER };
     await doc.update({ name: data.name, system: fresh.system, "flags.acks-extras": new foundry.data.operators.ForcedDeletion() });
@@ -1143,7 +1142,13 @@ async function seat(key) {
 }
 
 /** The kept document marked `marker`, brought back to the shape `data` creates, or one built from it now. */
+/** A place the walk keeps holds goods on the walk's own say: its create hook gives it no storage. */
+const holdingGoods = (data) =>
+  data?.type !== "acks-extras.location" || data.flags?.["acks-extras"]?.storage
+    ? data
+    : { ...data, flags: { ...(data.flags ?? {}), "acks-extras": { ...(data.flags?.["acks-extras"] ?? {}), storage: { provider: true } } } };
 async function keep(marker, kind, data) {
+  data = holdingGoods(data);
   const doc = await gm.fixture(marker, kind, data);
   if (!doc.built) note(`shape: ${marker}`, await run(gm, P.reshape, { kind, id: doc.id, data }));
   // Every seat that collects cards claims the ones this actor speaks.

@@ -142,8 +142,7 @@ const P = {
    * A kept actor or world item put back in the shape `data` creates: its
    * embedded items and effects deleted, its acks-extras flags the data's, its
    * system the data's over the type's defaults, its name, and its ownership
-   * the data's with this seat's own kept. A place also takes the storage flag
-   * its create hook gives a new one.
+   * the data's with this seat's own kept.
    */
   reshape: async ({ kind, id, data }) => {
     const doc = kind === "Item" ? game.items.get(id) : game.actors.get(id);
@@ -151,9 +150,7 @@ const P = {
     if (doc.effects?.size) await doc.deleteEmbeddedDocuments("ActiveEffect", doc.effects.map((e) => e.id));
     const cls = kind === "Item" ? Item.implementation : Actor.implementation;
     const fresh = new cls({ name: data.name, type: data.type, system: foundry.utils.deepClone(data.system ?? {}) }).toObject();
-    const place = data.type === "acks-extras.location";
     const flags = foundry.utils.deepClone(data.flags?.["acks-extras"] ?? {});
-    if (place && !flags.storage) flags.storage = { provider: true };
     const L = CONST.DOCUMENT_OWNERSHIP_LEVELS;
     const ownership = { default: L.NONE, ...(data.ownership ?? {}), [game.user.id]: L.OWNER };
     await doc.update({ name: data.name, system: fresh.system, "flags.acks-extras": new foundry.data.operators.ForcedDeletion() });
@@ -432,7 +429,13 @@ async function markCards() {
   return { marked: n - lost.length, lost: lost.length };
 }
 /** The kept document marked `marker`, brought back to the shape `data` creates, or one built from it now. */
+/** A place the walk keeps holds goods on the walk's own say: its create hook gives it no storage. */
+const holdingGoods = (data) =>
+  data?.type !== "acks-extras.location" || data.flags?.["acks-extras"]?.storage
+    ? data
+    : { ...data, flags: { ...(data.flags ?? {}), "acks-extras": { ...(data.flags?.["acks-extras"] ?? {}), storage: { provider: true } } } };
 async function keep(marker, kind, data) {
+  data = holdingGoods(data);
   const doc = await gm.fixture(marker, kind, data);
   if (!doc.built) note(`shape: ${marker}`, await run(gm, P.reshape, { kind, id: doc.id, data }));
   return doc;

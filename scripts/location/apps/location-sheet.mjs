@@ -117,6 +117,7 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
       houseAttemptSpoil: LocationSheet.#onHouseAttemptSpoil,
       depositHere: LocationSheet.#onDepositHere,
       openManager: LocationSheet.#onOpenManager,
+      holdGoods: LocationSheet.#onHoldGoods,
       openOwner: LocationSheet.#onOpenOwner,
       // --- contents tab: nesting, occupancy, stacking, the map ---
       openPlace: LocationSheet.#onOpenPlace,
@@ -1309,9 +1310,12 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
       ? await foundry.applications.ux.TextEditor.implementation.enrichHTML(actor.system.gmNotes ?? "", { relativeTo: actor })
       : "";
     context.vaultOwner = api.resolveActorSync(api.vaultOwnerUuid(actor))?.name ?? null;
+    // A place holds goods only once storage is on; until then the tab offers
+    // the switch and no deposit, which `stash` would refuse.
+    context.holdsGoods = api.isProvider(actor);
     // The characters this user could stash FROM — the deposit button is
     // pointless (and its dialog empty) without one.
-    context.canDeposit = game.actors.some((a) => a.type === ACTOR_TYPE.character && a.isOwner);
+    context.canDeposit = context.holdsGoods && game.actors.some((a) => a.type === ACTOR_TYPE.character && a.isOwner);
 
     const HOUSE = acksExtras.lib?.money?.HOUSE_OWNER;
     const groups = [];
@@ -1468,6 +1472,13 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
     openStorageManager(this.actor);
   }
 
+  /** GM: let this place hold goods. */
+  static async #onHoldGoods() {
+    if (!game.user.isGM) return;
+    await storage().setProvider(this.actor, true);
+    this.render();
+  }
+
   static async #onOpenOwner(_event, target) {
     const uuid = target.closest("[data-owner-uuid]")?.dataset.ownerUuid;
     storage().resolveActorSync(uuid)?.sheet?.render(true);
@@ -1477,10 +1488,15 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
    * Dropping an item from another actor STORES it here — a real move, not the
    * system's copy. Core's drop handler creates on the target and never deletes
    * from the source, which for a location would quietly duplicate the party's
-   * gear, so this path never falls through to it.
+   * gear, so this path never falls through to it. A GM's drop is the GM saying
+   * the place holds goods, so it turns storage on first; a player's drop on a
+   * place that holds none is refused by `stash`.
    */
   async _onDropItem(event, item) {
     const source = item?.parent;
+    if (game.user.isGM && !storage().isProvider(this.actor) && source?.uuid !== this.actor.uuid) {
+      await storage().setProvider(this.actor, true);
+    }
     if (!source || source.documentName !== "Actor") {
       // A compendium or sidebar item belongs to nobody — which the house pile
       // is exactly the owner for: a Judge stocking a lair ahead of the session

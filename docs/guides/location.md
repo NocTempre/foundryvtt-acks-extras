@@ -88,14 +88,14 @@ take it back.*
 *Moving goods in and out of a place that holds them, and giving a character a
 vault.*
 
-The manager lists a location while something is kept there. One that holds
-nothing, such as an adventure's keyed rooms, is left out until you pin it:
-**Pin a place** picks one, and the pin on a row keeps it listed once it is
-empty. Only a listed place is offered under **Move to**. A cart, a stronghold
-or anything else you let hold goods stays listed either way, and so does
-whatever **Let an actor hold goods** or **Give a character a vault** has just
-made. A pinned location is also kept when **Clean up empty locations** clears
-empty places at world start.
+A place holds goods only once you say so. A new location, and every place an
+import brings in, holds none until you press **Hold goods here** on its
+Storage tab, pick it under **Add a place** in the storage manager, or drop an
+item on its sheet yourself. **Add a place** also takes a cart, a stronghold or
+any other actor that is not a character. The manager lists every place that
+holds goods, empty or not, and only those are offered under **Move to**. A
+place that holds goods is kept when **Clean up empty locations** clears empty
+places at world start; **Disable Storage Here** turns it off again.
 
 One of those piles is **the house** — what the place itself owns rather than
 what somebody left there. The Judge can lock a row so it cannot be taken, and a
@@ -244,8 +244,7 @@ Who holds the town can matter too: see
 The *ACKS Extras* macro compendium carries four storage macros.
 
 - **Open Storage Manager** opens the storage manager (GM only): every place
-  holding goods or pinned to it, whose the goods are, and the controls to move
-  them.
+  that holds goods, whose the goods are, and the controls to move them.
 - **Enable Storage Here** and **Disable Storage Here** turn storage on or off
   for the selected place, cart or stronghold (GM only). Disabling refuses while
   the place still holds anyone's goods.

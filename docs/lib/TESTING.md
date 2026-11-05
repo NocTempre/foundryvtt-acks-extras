@@ -19,7 +19,9 @@ report the same symptom.
 
 - Disposable `acks-extras.animal`, `acks-extras.group` and
   `acks-extras.template` actors.
-- A disposable `acks-extras.location` actor (a storage provider).
+- A disposable `acks-extras.location` actor, made a storage provider
+  (`lib.storage.setProvider`): a location holds no goods until a GM turns
+  that on.
 - A disposable `character` and a `monster` to put inside them.
 - Step 9's, kept and found again by marker (`flags.world.fixture`), and
   built carrying it where none stands: `lib/follower-employer` (a

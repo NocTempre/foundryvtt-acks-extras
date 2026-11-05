@@ -24,6 +24,7 @@ import { allPlaces, emptyOfPlaces } from "../lib/place.mjs";
 /** World setting: empty, unremarkable locations self-clean at ready. */
 const PRUNE_SETTING = "pruneEmptyLocations";
 import { registerStoreSetting, registerPersisted, ruledataImport } from "./table-store.mjs";
+import { registerStorageIntentSetting, clearDefaultStorageOnce } from "./storage-intent.mjs";
 import { RuledataBrowser, openRuledataBrowser } from "./ruledata-browser.mjs";
 import { LocationData } from "./data/location-data.mjs";
 import { LocationSheet, registerLocationSheet } from "./apps/location-sheet.mjs";
@@ -60,6 +61,7 @@ const TEMPLATES = [
 
 Hooks.once("init", () => {
   registerStoreSetting();
+  registerStorageIntentSetting();
   registerLocationRepairChecks();
 
   // NEVER gate this on an apiVersion check. lib is a sibling feature, not a
@@ -149,11 +151,7 @@ Hooks.once("init", () => {
     if (data?.ownership?.default == null) {
       changes.ownership = { ...doc.ownership, default: CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER };
     }
-    // Locations hold goods by construction; anything else needs the flag set
-    // deliberately (the manager's "enable storage" does it).
-    if (!doc.flags?.["acks-extras"]?.storage) {
-      changes.flags = foundry.utils.mergeObject(doc.flags ?? {}, { "acks-extras": { storage: { provider: true } } }, { inplace: false });
-    }
+    // No storage flag: a place holds goods only once a GM turns that on.
     // A place's token is a marker on the map, not a creature: its name shows
     // to whoever hovers it, it takes no side, tracks no bars and sees nothing.
     // Field by field, and only where the creation data said nothing.
@@ -216,9 +214,11 @@ Hooks.once("ready", () => {
   if (game.system?.id !== "acks") return;
   // One window sweeps: it creates actors and moves coin. It waits to learn
   // whether it is the elected one, like every ready-time writer.
-  primaryGMSettled().then((primary) => {
+  primaryGMSettled().then(async (primary) => {
     if (!primary) return;
     runVaultSweep().catch((err) => console.error(`${MODULE_ID} | vault sweep failed`, err));
+    // The prune reads the storage flag this clearing writes, so it waits for it.
+    await clearDefaultStorageOnce().catch((err) => console.error(`${MODULE_ID} | storage clearing failed`, err));
     pruneEmptyLocations().catch((err) => console.error(`${MODULE_ID} | empty-location prune failed`, err));
   });
 });
@@ -228,7 +228,7 @@ Hooks.once("ready", () => {
  * place holding nothing, remembering nobody, and being nothing in particular
  * is scaffolding, and scaffolding comes down on its own. A location survives
  * empty when it IS something: a market (any market class or a market subtree),
- * someone's vault, a place pinned to the storage manager, a scene-linked mapped place, a quarter's own place, a
+ * someone's vault, a place a GM made hold goods, a scene-linked mapped place, a quarter's own place, a
  * place standing on a map as a token, a place a domain holds, or a place that
  * a place staying behind sits in (`emptyOfPlaces`). Setting-gated for worlds
  * that want their empty rooms kept. `dryRun` deletes nothing, setting or not,
@@ -250,7 +250,7 @@ export async function pruneEmptyLocations({ dryRun = false } = {}) {
     if ((a.system?.roster ?? []).length > 0) return false;
     if (a.system?.market != null || a.system?.marketClass != null) return false;
     const kept = a.getFlag(MODULE_ID, "storage");
-    if (kept?.vaultOf || kept?.pinned) return false;
+    if (kept?.vaultOf || kept?.provider) return false;
     if (sceneOfLocation(a) || regionOfLocation(a)) return false;
     if (placed.has(a.id)) return false;
     // The domains api is on the namespace from `init`; a world without the

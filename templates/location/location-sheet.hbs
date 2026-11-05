@@ -531,8 +531,16 @@
       </div>
     </div>
 
-    {{#if storageEmpty}}
-      <p class="acks-location-empty">{{localize "ACKS-LOCATION.storage.emptyHere"}}</p>
+    {{#if holdsGoods}}
+      {{#if storageEmpty}}
+        <p class="acks-location-empty">{{localize "ACKS-LOCATION.storage.emptyHere"}}</p>
+      {{/if}}
+    {{else}}
+      <p class="acks-location-empty">{{localize "ACKS-LOCATION.storage.storageOff"}}</p>
+      <button type="button" class="acks-location-btn" data-action="holdGoods"
+              data-tooltip="{{localize 'ACKS-LOCATION.storage.holdGoodsHint'}}">
+        <i class="fas fa-box-open"></i> {{localize "ACKS-LOCATION.storage.holdGoods"}}
+      </button>
     {{/if}}
 
     {{#each groups as |group|}}

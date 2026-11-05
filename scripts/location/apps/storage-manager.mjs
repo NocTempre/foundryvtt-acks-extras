@@ -1,4 +1,4 @@
-/* global game, ui, foundry, Actor, Hooks */
+/* global game, ui, foundry, Actor, Hooks, CONFIG */
 /**
  * The GM's storage manager — the tool that makes vaults optional.
  *
@@ -41,8 +41,6 @@ export class StorageManager extends PicksMixin(HandlebarsApplicationMixin(Applic
       move: StorageManager.#onMove,
       reassign: StorageManager.#onReassign,
       returnToOwners: StorageManager.#onReturnToOwners,
-      togglePin: StorageManager.#onTogglePin,
-      pinPlace: StorageManager.#onPinPlace,
       enableStorage: StorageManager.#onEnableStorage,
       disableStorage: StorageManager.#onDisableStorage,
       createVault: StorageManager.#onCreateVault,
@@ -69,19 +67,10 @@ export class StorageManager extends PicksMixin(HandlebarsApplicationMixin(Applic
     return storage().resolveActorSync(this.#placeUuid);
   }
 
-  /**
-   * The places listed and offered as a move's target. A location holds goods
-   * by construction, so one holding nothing is listed only once pinned (or
-   * while open); any other provider was made one on purpose and is listed.
-   */
-  #listed() {
-    return storage().listedProviders({ open: this.#placeUuid, always: (p) => p.type !== LOCATION_TYPE });
-  }
-
   /** @override */
   async _prepareContext() {
     const api = storage();
-    const all = this.#listed();
+    const all = api.providers();
     if (!this.place && all.length) this.#placeUuid = all[0].uuid;
     const place = this.place;
 
@@ -92,13 +81,17 @@ export class StorageManager extends PicksMixin(HandlebarsApplicationMixin(Applic
     }
 
     const groups = [];
+    // The house's goods are the place's own, kept for no character: named as
+    // the house, never flagged as an owner who has gone.
+    const HOUSE = globalThis.acksExtras?.lib?.money?.HOUSE_OWNER;
     if (place) {
       for (const bucket of api.storesByOwner(place).values()) {
-        const owner = api.resolveActorSync(bucket.ownerUuid);
+        const isHouse = !!HOUSE && bucket.ownerUuid === HOUSE;
+        const owner = isHouse ? null : api.resolveActorSync(bucket.ownerUuid);
         groups.push({
           ownerUuid: bucket.ownerUuid,
-          name: owner?.name || bucket.ownerName || loc("storage.unattributed"),
-          dangling: !owner,
+          name: isHouse ? loc("storage.house") : owner?.name || bucket.ownerName || loc("storage.unattributed"),
+          dangling: !isHouse && !owner,
           coinGC: api.coinTotalGC(bucket.items),
           rows: bucket.items.map((item) => {
             const qty = api.quantityOf(item)?.value ?? null;
@@ -124,7 +117,6 @@ export class StorageManager extends PicksMixin(HandlebarsApplicationMixin(Applic
         img: p.img,
         isVault: !!api.vaultOwnerUuid(p),
         active: p.uuid === this.#placeUuid,
-        pinned: api.isPinned(p),
         count: api.storedItems(p).length,
       })),
       place: place ? { uuid: place.uuid, name: place.name, isVault: !!api.vaultOwnerUuid(place) } : null,
@@ -224,7 +216,12 @@ export class StorageManager extends PicksMixin(HandlebarsApplicationMixin(Applic
       // The name is spent before the create redraws the window, so the box
       // carries nothing into the next render for a second Move to reuse.
       nameBox.value = "";
-      target = await Actor.create({ name, type: LOCATION_TYPE, img: "icons/svg/village.svg" });
+      target = await Actor.create({
+        name,
+        type: LOCATION_TYPE,
+        img: "icons/svg/village.svg",
+        flags: { [MODULE_ID]: { storage: { provider: true } } },
+      });
     } else {
       target = storage().resolveActorSync(choice);
     }
@@ -300,50 +297,19 @@ export class StorageManager extends PicksMixin(HandlebarsApplicationMixin(Applic
     this.render();
   }
 
-  /** Pin a listed place, or unpin it; unpinned, an empty location leaves the list once another place is open. */
-  static async #onTogglePin(_event, target) {
-    const api = storage();
-    const place = api.resolveActorSync(target.closest("[data-place-uuid]")?.dataset.placeUuid);
-    if (!place) return;
-    await api.setPinned(place, !api.isPinned(place));
-    this.render();
-  }
-
-  /** Pin a place the list leaves out — a location holding nothing — and open it. */
-  static async #onPinPlace() {
-    const api = storage();
-    const listed = new Set(this.#listed().map((p) => p.uuid));
-    const candidates = api.providers().filter((p) => !listed.has(p.uuid)).sort((a, b) => a.name.localeCompare(b.name));
-    if (!candidates.length) {
-      ui.notifications.warn(loc("manager.nothingToPin"));
-      return;
-    }
-    const options = candidates.map((a) => `<option value="${a.uuid}">${foundry.utils.escapeHTML(a.name)}</option>`).join("");
-    const uuid = await DialogV2.prompt({
-      window: { title: loc("manager.pinPlace") },
-      classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
-      content: `<p>${loc("manager.pinPrompt")}</p><select name="actor" style="width:100%">${options}</select>`,
-      ok: { label: loc("manager.pinPlace"), callback: (_e, button) => button.form.elements.actor.value },
-    }).catch(() => null);
-    if (!uuid) return;
-    const place = api.resolveActorSync(uuid);
-    if (!place) return;
-    await api.setPinned(place, true);
-    this.#placeUuid = place.uuid;
-    this.#selection.clear();
-    this.render();
-  }
-
-  /** Turn any actor into a place that holds goods — a wagon, a stronghold, a market — pinned to the list. */
+  /** Add a place: turn storage on for any actor that is not a character — a location, a wagon, a stronghold — and open it. */
   static async #onEnableStorage() {
     const api = storage();
-    const candidates = game.actors.filter((a) => !api.isProvider(a) && a.type !== ACTOR_TYPE.character);
+    const candidates = game.actors
+      .filter((a) => !api.isProvider(a) && a.type !== ACTOR_TYPE.character)
+      .sort((a, b) => a.name.localeCompare(b.name));
     if (!candidates.length) {
       ui.notifications.warn(loc("manager.nothingToEnable"));
       return;
     }
+    const typeLabel = (a) => game.i18n.localize(CONFIG.Actor.typeLabels?.[a.type] ?? a.type);
     const options = candidates
-      .map((a) => `<option value="${a.uuid}">${foundry.utils.escapeHTML(a.name)} (${a.type})</option>`)
+      .map((a) => `<option value="${a.uuid}">${foundry.utils.escapeHTML(a.name)} (${foundry.utils.escapeHTML(typeLabel(a))})</option>`)
       .join("");
     const uuid = await DialogV2.prompt({
       window: { title: loc("manager.enable") },
@@ -355,9 +321,9 @@ export class StorageManager extends PicksMixin(HandlebarsApplicationMixin(Applic
     const actor = api.resolveActorSync(uuid);
     if (!actor) return;
     await api.setProvider(actor, true);
-    await api.setPinned(actor, true);
     ui.notifications.info(loc("manager.enabledOn", { name: actor.name }));
     this.#placeUuid = actor.uuid;
+    this.#selection.clear();
     this.render();
   }
 
@@ -430,7 +396,6 @@ export class StorageManager extends PicksMixin(HandlebarsApplicationMixin(Applic
       ui.notifications.error(loc("manager.vaultFailed", { name: character.name }));
       return;
     }
-    await api.setPinned(vault, true);
     ui.notifications.info(loc("manager.vaultCreated", { name: character.name, place: vault.name }));
     this.#placeUuid = vault.uuid;
     this.render();

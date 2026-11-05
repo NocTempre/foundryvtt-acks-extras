@@ -267,6 +267,10 @@ check("a copy is owned by nobody, whatever the library's document said", copy.ow
 const bareCopy = worldCopySource({ system: {} }, worldIds);
 check("a document with nothing to rewrite is only filed, owned by nobody and marked", bareCopy, { system: {}, folder: null, ownership: { default: 0 }, flags: { [MODULE_ID]: { worldCopy: true } } });
 check("a world reference is never touched", worldCopySource({ system: { parentUuid: `Actor.${C}` } }, worldIds).system.parentUuid, `Actor.${C}`);
+const flaggedPlace = { system: {}, flags: { [MODULE_ID]: { storage: { provider: true } } }, items: [] };
+check("a library place's storage flag stays behind", worldCopySource(flaggedPlace, worldIds).flags[MODULE_ID], { worldCopy: true });
+const stockedPlace = { ...flaggedPlace, items: [{ name: "rope", flags: { [MODULE_ID]: { storage: { ownerUuid: "house" } } } }] };
+check("a place with goods stored on it keeps its flag", worldCopySource(stockedPlace, worldIds).flags[MODULE_ID].storage, { provider: true });
 
 /* ---------------- a copy of an import is not an import ---------------- */
 

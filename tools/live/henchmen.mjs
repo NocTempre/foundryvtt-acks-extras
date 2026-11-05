@@ -856,9 +856,8 @@ const P = {
    * effects deleted, its acks-extras flags the data's, its system the data's
    * over the type's defaults (arrays and lists included), its name, and its
    * ownership the data's with this seat's own kept. A place also takes what
-   * its create hook (location/module.mjs) gives a new one: the storage flag,
-   * and the table as OWNER where the data names no default. Returns what it
-   * then holds.
+   * its create hook (location/module.mjs) gives a new one: the table as OWNER
+   * where the data names no default. Returns what it then holds.
    */
   reshape: async ({ id, data }) => {
     const a = game.actors.get(id);
@@ -868,7 +867,6 @@ const P = {
     const fresh = new Actor.implementation({ name: data.name, type: data.type, system: foundry.utils.deepClone(data.system ?? {}) }).toObject();
     const place = data.type === "acks-extras.location";
     const flags = foundry.utils.deepClone(data.flags?.["acks-extras"] ?? {});
-    if (place && !flags.storage) flags.storage = { provider: true };
     const L = CONST.DOCUMENT_OWNERSHIP_LEVELS;
     const ownership = { default: place ? L.OWNER : L.NONE, ...(data.ownership ?? {}), [game.user.id]: L.OWNER };
     await a.update({ name: data.name, system: fresh.system, "flags.acks-extras": new foundry.data.operators.ForcedDeletion() });
@@ -1367,7 +1365,13 @@ async function seat(key) {
 }
 
 /** The kept actor marked `marker`, brought back to the shape `data` creates, or one built from it now. */
+/** A place the walk keeps holds goods on the walk's own say: its create hook gives it no storage. */
+const holdingGoods = (data) =>
+  data?.type !== "acks-extras.location" || data.flags?.["acks-extras"]?.storage
+    ? data
+    : { ...data, flags: { ...(data.flags ?? {}), "acks-extras": { ...(data.flags?.["acks-extras"] ?? {}), storage: { provider: true } } } };
 async function keep(marker, data) {
+  data = holdingGoods(data);
   const doc = await gm.fixture(marker, "Actor", data);
   if (!doc.built) note(`shape: ${marker}`, await run(gm, P.reshape, { id: doc.id, data }));
   return doc;

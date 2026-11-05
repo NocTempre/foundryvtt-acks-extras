@@ -21,6 +21,9 @@
   used to ask whether the module was enabled. It now says the importer is still
   loading, or failed to load and left its error in the console. Macros already copied
   into your world keep the old wording until you take them from the compendium again.
+- **The Storage Manager names the house.** What a place owns itself was listed as
+  *Unattributed*, with the warning given for goods whose owner is gone. It is now
+  listed as the house, without the warning.
 
 ### Added
 
@@ -38,15 +41,25 @@
   a search asking for one is refused, the class shown greyed out in the search's list.
   A class you name yourself when placing a candidate as GM is still placed. Which
   cultures a place's people come from is still its Demographics.
-- **The Storage Manager lists a location that holds nothing only once you pin it.**
-  Every location can hold goods, so a world with an imported adventure filled the
-  manager's Places column and its Move to list with empty rooms. A location now
-  appears while something is kept there or while it is the one open; **Pin a
-  place** adds an empty one, and the pin on each row keeps a place listed after it
-  empties. A cart, a stronghold or any other actor you let hold goods stays listed
-  as before, and what **Let an actor hold goods** and **Give a character a vault**
-  make is pinned as it is made. A pinned location is kept by the cleanup of empty
-  locations at world start; nothing else is stored or deleted differently.
+
+### Changed
+
+- **A place holds goods only once a GM says so.** A new location, and every place an
+  import brings in, used to hold goods from the moment it existed, so an imported
+  adventure filled the Storage Manager and its Move to list with empty rooms, and a
+  character standing in one was offered it as somewhere to leave things. A place now
+  holds goods once you press **Hold goods here** on its Storage tab, pick it under
+  **Add a place** in the Storage Manager (the button that was *Let an actor hold
+  goods*), drop an item on its sheet as GM, move goods to a new place, or give a
+  character a vault there. A player's drop on a place that holds none is refused.
+  The manager lists every place that holds goods, and the cleanup of empty locations
+  at world start keeps them.
+
+  A world that upgrades is tidied once, at the GM's first load: every location that
+  holds nothing stops holding goods, unless it is a vault, the trade house, or a place
+  a character's coin is set to be paid from or into. Every location holding anything
+  keeps storage, and nothing stored is moved or deleted. An empty place you meant to
+  keep goods at is one press of **Hold goods here** away.
 
 ## 11.14.1
 ### Fixed
