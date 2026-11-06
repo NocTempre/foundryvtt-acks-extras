@@ -296,11 +296,12 @@
   each and of what it leaves; Cancel writes nothing. A place two books print is left.
 - **Overhead tokens from an installed compendium.** When another active module ships
   monster art, Manage Imports' Tools tab (Settings tab → Game Settings → ACKS II —
-  Extras → Manage imports) offers Apply: each imported monster whose name matches
-  exactly takes that image as its token, the book's image stays its portrait, and the
-  token's size and scale stay yours. The confirm counts what changes and what it
-  leaves, a token you set among them; a tick also moves tokens already placed. Restore
-  book tokens puts back what each showed before.
+  Extras → Manage imports) offers **Overhead tokens from** that module. Its confirm
+  counts what changes and what it leaves, a token you set among them, and a tick there
+  also moves tokens already placed. On Apply, each imported monster whose name
+  matches exactly takes that image as its token, the book's image stays its portrait,
+  and the token's size and scale stay yours. **Restore book tokens** puts back what
+  each showed before.
 
 ### Fixed
 
