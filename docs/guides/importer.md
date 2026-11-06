@@ -368,8 +368,8 @@ its members do not.*
 
 **Manage Imports** is one window with every import control. A GM opens it from
 **Settings tab → Game Settings → ACKS II — Extras → Manage imports**, or with
-the **Manage Imports (GM)** macro in **Compendium Packs → ACKS Extras Macros →
-Import from your books**. The Books macros open it on the Books tab:
+the **Manage Imports (GM)** macro in **Compendium Packs → ACKS II — Extras →
+Macros → ACKS Extras Macros → Import from your books**. The Books macros open it on the Books tab:
 
 - **Books** — connecting, putting on the server and the status of every book,
   as the sections above describe.
