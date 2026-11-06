@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## 11.14.4
+
+### Changed
+
+- **The guides say where every control is.** Each window is named with its way in
+  from what Foundry shows: Manage Imports opens from Settings tab → Game Settings →
+  ACKS II — Extras → Manage imports, or from its macro in Compendium Packs → ACKS
+  II — Extras → Macros → ACKS Extras Macros. Settings paths use Foundry 14's labels
+  (Game Settings, the module's title, Core → User Interface → Theme and Color
+  Scheme) in place of Configure Settings and Module Settings, and a tab is named
+  with the sheet or window that holds it.
+- **Release pages carry their notes.** Each GitHub release page shows that
+  version's changelog section, with links to the screenshots, the guides and the
+  full changelog; the 11.x pages were filled in from their entries.
+
 ## 11.14.3
 
 ### Fixed
