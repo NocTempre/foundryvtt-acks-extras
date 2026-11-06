@@ -489,8 +489,6 @@ Adventurer Conqueror King System are trademarks of **Autarch LLC**.
 **Unofficial** — this is an unofficial fan module, not published or endorsed by
 Autarch LLC.
 
-**Registration #:** _[pending registration]_
-
 **Requires:** legitimate copies of the ACKS II publications this module draws
 on — the **ACKS II Revised Rulebook** and **ACKS II Judges Journal**; optional
 content additionally draws on the **ACKS II Monstrous Manual** (monstrous
