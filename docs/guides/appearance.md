@@ -18,7 +18,7 @@ look, and they only apply while you are using it.
 
 ## Turn the ACKS look off
 
-**Configure Settings → Module Settings → Extras → ACKS look.** Per player; it
+**Settings tab → Game Settings → ACKS II — Extras → ACKS look.** Per player; it
 changes nothing for anyone else at the table.
 
 | Setting | What it does |
@@ -37,13 +37,14 @@ Foundry**: the system itself paints every window header and hardcodes some of it
 own dialog colours, and turning this module down cannot turn that off. And
 **light versus dark becomes Foundry's business** — the ACKS colour scheme setting
 below stops applying, because there is no ACKS palette left for it to pin. Set
-your seat in **Configure Settings → Core → Colour Scheme** instead.
+your seat in **Game Settings → Core → User Interface → Theme and Color Scheme**
+instead.
 
 Text size is not part of the look and keeps working either way; see below.
 
 ## Pick a colour scheme
 
-**Configure Settings → Module Settings → Extras → ACKS colour scheme.** Per
+**Game Settings → ACKS II — Extras → ACKS colour scheme.** Per
 player; it changes nothing for anyone else at the table.
 
 | Setting | What it does |
@@ -57,8 +58,8 @@ player; it changes nothing for anyone else at the table.
 *The per-player setting that holds the ACKS look steady.*
 
 Follow Foundry genuinely follows. Foundry lets you theme application windows
-separately from the rest of the interface (**Configure Settings → Core → Colour
-Scheme**), and the ACKS palette tracks whichever of those applies to the window
+separately from the rest of the interface (**Game Settings → Core → User
+Interface → Theme and Color Scheme**), and the ACKS palette tracks whichever of those applies to the window
 you are looking at.
 
 One combination is imperfect: with the interface set **dark** and application
@@ -101,8 +102,7 @@ colours from a different scheme than the window around it.
 
 ## Choose what the world opens on
 
-**Configure Settings → Module Settings → Extras → Default look and sheets
-(world).** One setting for the whole table, asked once at the world's first
+**Game Settings → ACKS II — Extras → Default look and sheets (world).** One setting for the whole table, asked once at the world's first
 launch and changeable any time after.
 
 | Choice | What it does |

@@ -145,8 +145,8 @@ stores in the order your sheet states
 ([where coin is paid from](character-sheet.md#where-coin-is-paid-from-and-where-it-lands)),
 and coin that arrives can be sent to a place keeping coin for you.
 
-How far that reaches is the Judge's, in **Configure Settings → Paying with
-coin kept elsewhere**. It answers for every payment that does not itself say
+How far that reaches is the Judge's, in **Game Settings → ACKS II — Extras → Paying
+with coin kept elsewhere**. It answers for every payment that does not itself say
 where it happens — a wage, a bribe, a fee:
 
 - **All of it, wherever it is kept** — the default. A vault three days' ride

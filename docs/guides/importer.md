@@ -366,9 +366,10 @@ its members do not.*
 
 ### Managing imports
 
-**Manage Imports (GM)**, in the macro compendium's *Import from your books*
-folder, and in *Module settings*, opens one window with every import control.
-The Books macros open it on the Books tab:
+**Manage Imports** is one window with every import control. A GM opens it from
+**Settings tab → Game Settings → ACKS II — Extras → Manage imports**, or with
+the **Manage Imports (GM)** macro in **Compendium Packs → ACKS Extras Macros →
+Import from your books**. The Books macros open it on the Books tab:
 
 - **Books** — connecting, putting on the server and the status of every book,
   as the sections above describe.
@@ -396,7 +397,7 @@ The Books macros open it on the Books tab:
 its own Rebuild would delete and import again.*
 
 **Overhead tokens.** When another module you have installed and active ships
-monster compendium art, the Tools tab offers **Overhead tokens from** that
+monster compendium art, Manage Imports' Tools tab offers **Overhead tokens from** that
 module's title; with several, one button each. Apply sets the token image of
 each imported monster whose name matches the compendium's exactly. The book's
 image stays as the portrait, and the token's size and scale stay as they are.
@@ -718,7 +719,7 @@ placeholder names and run **Import Everything**: its last step finds every
 placeholder in the world and its compendia — gear on a character, a class
 template's copy of an item, a journal page — and writes the entry's text in its
 place. Anything you wrote beside a placeholder stays where it is. To see each one
-first, open the repair tool (Configure Settings → *ACKS II — Extras* → *Repair
+first, open the repair tool (Game Settings → *ACKS II — Extras* → *Repair
 this world*) and scan *Book text never brought over*: it lists every placeholder,
 says which book to connect for any it cannot fix on your seat, and fixes the ones
 you tick.

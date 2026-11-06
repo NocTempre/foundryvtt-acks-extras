@@ -6,7 +6,7 @@ server roll, speak and read their characters without opening Foundry. It is
 the first step toward play-by-post: the world keeps every roll and every
 word, and Discord is where they are made.
 
-You set it up **in Foundry**: one window under Module Settings holds the
+You set it up **in Foundry**: one window in Game Settings holds the
 token, the server and the channel, and the bot on your host reads them from
 the world. The host is asked only how to reach that world.
 
@@ -121,7 +121,7 @@ token yet and is waiting for one. That is the expected state at this point.
 
 ![The Discord Bot window, with its servers and channels offered as dropdowns and the bot's seat below them](../releases/v11.0.0/bridge.png)
 
-In Foundry, **Settings → Module Settings → ACKS II Extras → Discord Bot**.
+In Foundry, **Settings tab → Game Settings → ACKS II — Extras → Discord Bot**.
 The window opens on the bot's own report: it says the bot is waiting, and
 lists what is still missing.
 
@@ -174,7 +174,7 @@ Anyone can `/roll 2d6` from the first minute, linked or not.
 Three ways to connect a member of your server to a user in your world; all
 three end in the same place.
 
-- **In Foundry: Settings → Module Settings → ACKS II Extras → Discord
+- **In Foundry: Settings tab → Game Settings → ACKS II — Extras → Discord
   Members.** Every link the world holds is listed, with who each member
   speaks as. To make one, pick the member and the user and press **Link**.
   The member list is everyone who has used any command in your server — ask

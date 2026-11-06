@@ -280,7 +280,8 @@
   and a roster included, and writes its Adventure anew. It asks first with the count of
   each and of what it leaves; Cancel writes nothing. A place two books print is left.
 - **Overhead tokens from an installed compendium.** When another active module ships
-  monster art, the Tools tab offers Apply: each imported monster whose name matches
+  monster art, Manage Imports' Tools tab (Settings tab → Game Settings → ACKS II —
+  Extras → Manage imports) offers Apply: each imported monster whose name matches
   exactly takes that image as its token, the book's image stays its portrait, and the
   token's size and scale stay yours. The confirm counts what changes and what it
   leaves, a token you set among them; a tick also moves tokens already placed. Restore
