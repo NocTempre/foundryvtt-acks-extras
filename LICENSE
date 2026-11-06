@@ -3,12 +3,12 @@ ACKS II App — License & Disclaimer Notice
 
 This software is an ACKS II App distributed under the ACKS II App License. It is
 NOT open source and NOT Open Game Content. The governing agreement is the ACKS II
-App License as accepted at registration with Autarch LLC; this file summarizes
-its effect on this repository and does not replace or enlarge it.
+App License published by Autarch LLC; this file summarizes its effect on this
+repository and does not replace or enlarge it.
 
 
-1. Ownership of the code (registered code — not free to take)
--------------------------------------------------------------
+1. Ownership of the code (proprietary — not free to take)
+---------------------------------------------------------
 The original source code, interface, documentation, and original artwork in this
 repository are Copyright (c) NocTempre and are proprietary. All rights are
 reserved, except for the limited rights granted to Autarch LLC under the ACKS II
@@ -18,8 +18,8 @@ No license is granted to any third party to copy, modify, redistribute,
 sublicense, sell, relicense, or create derivative works from this code. Making
 this app available for use does NOT place its code in the public domain, under an
 open-source license, or under any Open Game, community-use, or compatibility
-license, and grants no one permission to take this registered code and ship it as
-their own. The right to run the app is not a right to its source.
+license, and grants no one permission to take this code and ship it as their
+own. The right to run the app is not a right to its source.
 
 
 2. Autarch's material and rights (ACKS II App License)
@@ -61,8 +61,8 @@ app only if the app is abandoned or the developer grants written permission.
   is not used to reconstruct the books.
 
 
-4. Registration and required publications
-------------------------------------------
-This app is registered under the ACKS II App License. Its registration number and
-the specific ACKS II publications it requires are stated in its README. The
-registration number MUST appear in the app's public disclaimer before release.
+4. Required publications
+------------------------
+Autarch LLC issues no registration number under the ACKS II App License; an app
+that follows its terms needs none. The specific ACKS II publications this app
+requires are stated in its README.
