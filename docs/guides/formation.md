@@ -26,7 +26,7 @@ Players choose who comes along. Once the party's token is on the map, a player
 right-clicks a token of their own and presses **Bring into the party**. From the
 sheet's Order tab, **Yours to bring in** lists their people who are in no party,
 henchmen with no token on the map among them, and a press or a drag from the
-Actors tab brings one in. The control at the end of a member's row takes them out,
+Actors sidebar brings one in. The control at the end of a member's row takes them out,
 and their token comes back beside the party token if they had one. A player moves
 only what they own, the table sees each move in chat, and nobody moves during a
 combat. The Judge can still add or remove anyone.
@@ -124,8 +124,8 @@ Two controls on the **Order** tab, beside the frontage, set this per party:
 
 - **On the map**: *Marching order* (the column above), or *Fixed size*, where
   the party token keeps whatever size you give it and no column is drawn. Left
-  on the world's default, a party follows the *Party token on the map* module
-  setting.
+  on the world's default, a party follows **Settings tab → Game Settings → ACKS
+  II — Extras → Party token on the map**.
 - **Column tint**: the colour of the column's squares. Left empty, the party
   token's disposition colour.
 
@@ -326,7 +326,7 @@ an hour to the day's march. The Day section also takes two declarations of your
 own: how many **traps** the order managed today, and **No sleep tonight**.
 
 The sky's season is read from the world calendar where it can be: the
-**Calendar seasons** setting, in the module settings, lists the generator's
+**Calendar seasons** setting, in Game Settings, lists the generator's
 seasons in your calendar's own order, for a calendar whose season names the
 module does not know; left blank, the names are matched. While the calendar
 answers, the Sky section's season select shows its season and is locked.
@@ -376,7 +376,8 @@ The **Camp** section, after Day on the Wilderness tab, is what the party is
 living on: how many days of food and
 water the packs hold across everyone in the order, and who is going short.
 Food and water are **pooled** — one member's rations feed the whole order —
-and dealt by a policy you choose in the module settings: evenly, so everyone
+and dealt by a policy you choose in Game Settings (**How a short day is
+shared**): evenly, so everyone
 goes equally short, or by triage, so as many as possible eat properly. The
 strip shows the days of food and water to the players too.
 
@@ -689,7 +690,7 @@ gone, while the pace, the place, the route and the hour you set are kept.
 day pair or its night pair and whether the city's list adds its after-dark
 figure, and the panel reads that off the calendar: the line under the pickers
 says what the clock reads and whether that counts as day or night. Where dark
-begins and ends are two module settings, **The hour it gets light** and **The
+begins and ends are two Game Settings, **The hour it gets light** and **The
 hour it gets dark**; left blank they stand at a quarter and three quarters of
 the calendar's day. **The hour** picker is your override — *By day* or *After
 dark* for a table that does not keep the clock, or a scene you are narrating
@@ -774,7 +775,7 @@ and the readout names which replaced which.
 
 ### Making one
 
-A trap is an **item**. Make one on the Items tab (type *Trap*) and fill in what
+A trap is an **item**. Make one from the Items sidebar (type *Trap*) and fill in what
 it is: its level, what springs it, whether it is crudely built, how it resolves
 — a saving throw, an attack throw, damage with no throw at all, or nothing the
 module rolls — what it deals, and whether it takes only whoever set it off or
@@ -958,8 +959,8 @@ cost in turns.*
 
 **Deal XP** divides an adventure's total between the party and shows the
 division before it is given. It is the star among the party sheet's quick
-tools, and only a GM sees it. While the setting *Deal
-experience from the formation* is on, the system party sheet's own Deal XP
+tools, and only a GM sees it. While *Deal experience from
+the formation* is on in Game Settings, the system party sheet's own Deal XP
 button is hidden, so this is the one to use; turn the setting off to go back
 to the system's division.
 
@@ -1050,7 +1051,7 @@ GM is warned when the world loads.
 A party that explores past its rest interval without resting is winded: the
 sheet warns when a rest is due, then marks the party winded, and a **Rest** turn
 clears it. To run a delve without that, turn off **Require rests in the delve**
-in the module settings. The clock keeps running, but no turn counts toward a
+in Game Settings. The clock keeps running, but no turn counts toward a
 rest, no warning or card line mentions one and nobody is winded; the Rest figure
 and the bar in the title bar disappear. A party already winded when you turn it
 off is released on its next turn. The wandering-monster throw has its own switch
@@ -1061,16 +1062,17 @@ off is released on its next turn. The wandering-monster throw has its own switch
 The clock also makes the wandering-monster throw and, on an encounter, draws
 from a table only you see. To set the table, how often the throw comes and what
 it needs for one part of a map, draw a Region there and give it an **Encounter
-Zone** behavior. Everywhere else, the formation's own table and the module
-settings apply. The throw's die, how often it comes, what it needs and the
-dice of the encounter distance are read from your Judges Journal by the
-importer, and you can change any of them in the Ruledata Browser. The two
-module settings start blank, which uses the imported frequency and target, and
+Zone** behavior. Everywhere else, the formation's own table applies, with
+**Wandering monster throw frequency (turns)** and **Wandering monster target
+value** in Game Settings. The throw's die, how often it comes, what it needs
+and the dice of the encounter distance are read from your Judges Journal by
+the importer, and you can change any of them in the Ruledata Browser. Those
+two settings start blank, which uses the imported frequency and target, and
 a number you type there wins over them. Without the die or the target no throw
 is made, and the Encounter throw tool says why; without the distance dice an
 encounter still happens, and its card says no distance was rolled. Hover the
 die, the target or the distance on a card to see where it came from. To stop the automatic throw altogether, set **Wandering
-monster throw frequency** to 0 in the module settings; **Require rests in the
+monster throw frequency (turns)** to 0 in Game Settings; **Require rests in the
 delve** (above) is the separate switch for the rest.
 
 ![](../releases/v11.14.0/formation-encounter-throw.png)
@@ -1163,8 +1165,8 @@ token HUD: **Hiding** and **Running**. Neither is guessed — toggle them when t
 character declares it.
 
 If you want a token to see differently, **edit its vision by hand** — from then
-on that token is yours and the module leaves it alone. The world setting
-*Token vision from ACKS senses* turns the whole thing off.
+on that token is yours and the module leaves it alone. *Token vision
+from ACKS senses*, in Game Settings, turns the whole thing off.
 
 ### Bringing old scenes up to date
 

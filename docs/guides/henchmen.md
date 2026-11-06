@@ -250,7 +250,7 @@ the selected token's actor, or on your own character when nothing is selected.
 
 ## Common problems
 
-**"No market at this place."** Add one from the location's GM Settings.
+**"No market at this place."** Add one from the location sheet's GM Settings tab.
 
 **Nobody arrived.** Time has not passed, or the month's pool was rolled and came
 up empty. Check the posting's roll detail.

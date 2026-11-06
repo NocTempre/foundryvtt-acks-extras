@@ -23,7 +23,7 @@ Open any **ability** item. Beyond core's fields:
 On a character, an imported ability's modifiers change the sheet by
 themselves: Armor Class, the saving throw modifier or one save's target,
 initiative, avoid surprise, cleaves, and the attack and damage modifiers.
-Each modifier row on the Mechanics tab carries a chip saying what happens to
+Each modifier row on the ability sheet's Mechanics tab carries a chip saying what happens to
 it:
 
 - **applied** — on the sheet while the character holds the ability;

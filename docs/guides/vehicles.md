@@ -1,7 +1,7 @@
 # Vehicles
 
 Carts, wagons, chariots, palanquins, galleys and ships are actors, like
-characters. Make one from the Actors tab: **Create Actor → Vehicle**.
+characters. Make one from the Actors sidebar: **Create Actor → Vehicle**.
 
 ## The sheet
 

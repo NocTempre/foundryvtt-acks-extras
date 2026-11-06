@@ -135,8 +135,8 @@ lists the rolling character as a member, the roller says **Legal authority
 here** and names it. The note adds nothing. Whether authority applies to this
 conversation is still the tick on the dialog.
 
-**It can move a market, if you want it to.** *Settings → Standing per market
-step* is 0 by default, which leaves hiring untouched. Set it to a number and
+**It can move a market, if you want it to.** **Settings tab → Game Settings → ACKS
+II — Extras → Standing per market step** is 0 by default, which leaves hiring untouched. Set it to a number and
 that much standing, held by the organisations seated at or holding a market's
 place (or a place it is inside) or controlling its quarter, moves that market one class
 for that recruiter: larger for goodwill, smaller for ill will. The town's own

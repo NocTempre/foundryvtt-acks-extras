@@ -125,8 +125,9 @@ them.
 > genuinely stay private belongs on a GM-owned actor.
 
 **Deleting a place returns its goods by default** — each owner gets a container
-named after the place. The GM setting `storageDeletePolicy` can change that to
-"lose", for the campaign where a sacked city takes your warehouse with it.
+named after the place. **Settings tab → Game Settings → ACKS II — Extras → When
+a place holding goods is deleted** can change that to *They are lost with the
+place*, for the campaign where a sacked city takes your warehouse with it.
 
 Coin stows like anything else you carry: drag a coin row onto a place or into a
 pouch, or pick it in **Deposit here**. To leave part of a purse, divide the
@@ -215,16 +216,16 @@ of the retired bank column, or an estate is settled on you.
 
 That sweep only visits a character who still has a balance to move, so a vault
 that is **deleted does not come back on its own** — by then there is nothing left
-to sweep. **Settings → Storage Manager → Give a character a vault** makes one on
-demand.
+to sweep. **Give a character a vault**, in the Storage Manager (Game Settings →
+ACKS II — Extras → Storage manager), makes one on demand.
 
 This is not the same as **Let an actor hold goods**, which makes a *shared*
 place — a wagon, a stronghold, an inn — that anyone with access can reach.
 
 ## Add a market
 
-Most places have no market. **GM Settings → Add market** creates one, and four
-extra tabs appear.
+Most places have no market. **Add market**, on the place sheet's **GM Settings**
+tab, creates one, and four extra tabs appear.
 
 Removing a market removes the data with it, not just the tabs.
 
@@ -265,8 +266,8 @@ The *ACKS Extras* macro compendium carries four storage macros.
 
 ## Common problems
 
-**The market tabs aren't there.** The place has no market. Add one from GM
-Settings — they are opt-in per place.
+**The market tabs aren't there.** The place has no market. Add one from the
+place sheet's GM Settings tab — they are opt-in per place.
 
 **A roster row is struck through.** Its actor was deleted. The row stays so you
 can act on it; remove it when you have.
@@ -275,8 +276,8 @@ can act on it; remove it when you have.
 one in an unloaded compendium. The chain renders as far as it resolves.
 
 **Retrieve isn't offered.** The goods are attributed to a character you do not
-own. A GM can reassign attribution in the **Storage Manager** (Settings →
-Storage Manager).
+own. A GM can reassign attribution in the **Storage Manager** (Game Settings →
+ACKS II — Extras → Storage manager).
 
 **"Nothing was moved."** The stack you picked is empty. A balance still in the
 retired bank column is not coin anyone carries — it is moved out at the next

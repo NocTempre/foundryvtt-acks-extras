@@ -96,9 +96,10 @@ anything, and it is safe to run twice.
 
 ### Upgrading from the separate Importer module
 
-1. Update this module, then **disable ACKS II — Importer** in *Manage Modules*
-   and reload. While it is still active the built-in importer stays off and a
-   notice says so on every load, so two importers never write one library.
+1. Update this module, then **disable ACKS II — Importer** in **Settings tab →
+   Module Management** and reload. While it is still active the built-in
+   importer stays off and a notice says so on every load, so two importers
+   never write one library.
 2. The next load as GM carries your imported library over — every document on
    every *ACKS Cookbook* shelf and in the sidebar, the server-held book shelf,
    any registered OSE sources, this seat's importer settings, and any imported
@@ -113,7 +114,7 @@ anything, and it is safe to run twice.
 
 1. Enable the module. Nothing is mandatory — every feature is opt-in through its
    own settings, and the defaults are RAW.
-2. Open **Settings → Configure Settings → ACKS II — Extras**. World-scoped
+2. Open **Settings tab → Game Settings → ACKS II — Extras**. World-scoped
    toggles are grouped by feature; the optional-rule *overlays* are all off
    unless the rule is already core.
 3. Open a character. It opens on the module's own sheet, and the system's is
@@ -211,7 +212,7 @@ produce the same document in the same sheet.
 - **Advanced mode** — the *Judges Journal*'s class builder, automated. Enter
   build values (Hit Die, Fighting with its 1a/1b split, Thievery with chosen
   skills, magic values, a racial value) plus trade-offs and custom powers; the
-  Builder tab shows the accounting and derives the whole spread on demand — XP
+  class sheet's Builder tab shows the accounting and derives the whole spread on demand — XP
   schedule with its smoothing and post-8th climbs, attack throws, saves
   chassis, cleaves, damage-bonus and thief-skill ladders, and a casting
   tradition per magic value including the delayed-acquisition grids. It is a

@@ -18,7 +18,7 @@ caster-level ladder.*
 The constructor is built to be read at a glance: each reference row leads with
 the name of the document it points at — click it to open that document — and
 a reference nothing answers is marked so a broken row looks broken. Every list
-is a drop zone: drag an ability from the Items tab or a compendium onto the
+is a drop zone: drag an ability from the Items sidebar or a compendium onto the
 awards, a template, the inventory or a race's rungs and traits, and drag a
 weapon, armour, an item or a spell onto a starting template to add it to the
 list it belongs in. A drop a list does not take tells you what it does take.
@@ -220,8 +220,9 @@ Two things are worth knowing about it:
 
 - **It shows what the CLASS grants, not the character's total.** Training also
   arrives from proficiencies, items and flags, and a slot lit by one of those
-  could not honestly be switched off here. The Inventory tab's Training row is
-  the effective total; this is the class's share of it.
+  could not honestly be switched off here. The Training row on the system
+  character sheet's Inventory tab is the effective total; this is the class's
+  share of it.
 - **Armour is a ladder.** A click sets the heaviest armour allowed and lights
   every rung below it; clicking the top rung clears the grant entirely.
 - **A class trained by size or by missile lights the slots that covers.** A
@@ -246,7 +247,7 @@ Deleting the character works exactly as before.
 
 ## Legacy — the reserve fund, funerals and a will
 
-The **Legacy** chip on the Class tab opens the player's legacy (RR ch. 6,
+The **Legacy** chip on the character sheet's Class tab opens the player's legacy (RR ch. 6,
 Experience). The fund belongs to the player, so every character that player
 owns shows the same ledger; the chip shows the fund once it holds anything.
 
@@ -311,11 +312,11 @@ granted power resolved to the definition its rung names.*
 
 **Adding an ability of your own** — a racial trait for a homebrew race, a
 power no book prints. Abilities are items of the type the system calls
-**Proficiency** (their sheet is *ACKS Ability*): create one in the Items tab,
+**Proficiency** (their sheet is *ACKS Ability*): create one from the Items sidebar,
 fill in its sheet, and it is an ability like any imported one. Any ability
 row on a class — an award on the Awards tab, a template's Abilities list on
 the Templates tab, the Inventory lists — is filled by **dragging the item from
-the Items tab or a compendium onto the row**; the ref writes itself and the
+the Items sidebar or a compendium onto the row**; the ref writes itself and the
 name appears beside it. The folders the importer files abilities under (Class
 Powers, Class Training, and the rest) are just folders: an ability dragged from
 anywhere, including one you made, works the same way.
@@ -407,7 +408,7 @@ brings a settled pick back.
 **Create Item → Race** opens the race constructor: attribute minimums, the
 racial value ladder — each rung an XP cost, a level cap and the powers it
 grants — and the always-on traits. Rungs and traits take an ability dropped
-from the Items tab or a compendium, once each.
+from the Items sidebar or a compendium, once each.
 
 ![](../releases/v11.0.0/classes-race.png)
 

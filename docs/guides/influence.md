@@ -129,8 +129,8 @@ added; and one under which the creature makes no morale roll says so.
 chosen from the imported lists, each condition a row of its own beneath them,
 and the final modifier beside the roll.*
 
-For the system's plain roll, hold the skip-dialog key, or turn off the world
-setting **Morale rolls open the modifier page**.
+For the system's plain roll, hold the skip-dialog key, or turn off **Settings tab →
+Game Settings → ACKS II — Extras → Morale rolls open the modifier page**.
 
 ## Badged rows
 

@@ -260,12 +260,14 @@ proficient, so an unconfigured character is not punished. It is the *style* that
 is required.
 
 Configure a character with its Class Training items and the gate is correct. The
-`proficiencyEnforcement` setting has `auto` and `off` if you would rather not.
+**Proficiency penalties** setting, in **Settings tab → Game Settings → ACKS II —
+Extras**, offers **Automatic** and **Never enforce** if you would rather not.
 
 ### What a character is trained in, at a glance
 
-The Inventory tab opens with a **Training** row: the fighting styles, the weapon
-classes and the armour ladder, with every slot always showing. A slot the
+The system character sheet's Inventory tab opens with a **Training** row: the
+fighting styles, the weapon classes and the armour ladder, with every slot
+always showing. A slot the
 character is trained in lights up, and one they are specialized or focused in
 goes gold. A character with no class applied reads grey throughout — which says
 "nothing configured" rather than "not proficient", and those are different
@@ -302,8 +304,8 @@ a tongue nobody present reads is seen and not understood.
 
 ### Writing your own
 
-You do not need to have imported anything. Make a **Variation** item on the
-Items tab and fill it in: what it is, what it changes, what it costs, and who
+You do not need to have imported anything. Make a **Variation** item from the
+Items sidebar and fill it in: what it is, what it changes, what it costs, and who
 may know about it.
 
 ![A variation itself](../releases/v4.11.0/equipment-variation-sheet.png)
@@ -442,8 +444,8 @@ selected.
   then opens the sheet's equipment tab, where containers are worked.
 - **Item Loss from Damage** resolves the optional rule for equipment destroyed
   by an area attack (JJ p. 398): it asks for the hit points after the attack
-  and the damage type, and posts what is lost to chat. The *Item loss from
-  damage* overlay must be on in the module settings.
+  and the damage type, and posts what is lost to chat. The **Overlay: item
+  loss from damage (JJ)** setting must be on in Game Settings.
 - **Recover Thrown Weapons** clears the thrown state of the actor's weapons,
   so they are back in hand and weigh again.
 - **Configure Proficiencies** sets the actor's fighting styles, weapon

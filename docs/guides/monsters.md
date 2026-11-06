@@ -347,7 +347,7 @@ under the old keys (`breath`/`wand` rather than `blast`/`implements`). The sheet
 warns instead of throwing — re-save the actor to bring it current.
 
 **The stat block is empty.** The actor is a `monster` but was never given extras.
-Fill in the Classification tab; everything else keys off it.
+Fill in the monster sheet's Classification tab; everything else keys off it.
 
 **Damage types show a neutral icon.** The weapon has no type and none could be
 resolved from the equipment classifier. That is honest — it shows a neutral icon

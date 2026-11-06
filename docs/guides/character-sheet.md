@@ -388,8 +388,9 @@ Readied or Casting.*
 
 ### Arranging the palette
 
-The Judge decides what the palette offers and in what order. In this module's
-settings, **Token status palette → Arrange the palette** opens a window with
+The Judge decides what the palette offers and in what order. **Settings tab →
+Game Settings → ACKS II — Extras → Token status palette → Arrange the
+palette** opens a window with
 the statuses on the palette above the ones off it. Drag a tile to move it, or
 onto or off the palette; with a tile focused, the arrow keys, Home, End,
 Delete and Enter do the same. Foundry's own statuses and the combat tracker's
