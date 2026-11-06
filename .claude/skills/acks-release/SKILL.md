@@ -85,12 +85,18 @@ the full pipeline (build + validate, no publish) is available anytime:
 2. Read `git tag --sort=-v:refname | head -3` first: an open CHANGELOG
    heading reserves nothing, and a peer may have shipped the number it names.
    Bump `version` in `module.json` (plain semver X.Y.Z). Update `CHANGELOG.md`
-   if the repo has one. **Then run `node tools/release-preflight.mjs` — a red
-   result stops the release.** It reads the bumped version, refuses a tag
-   that already exists (never retag; bump a new patch instead), and lists the
-   `docs/<feature>/TESTING.md` recipes for every surface changed since the
-   last tag — step 5 walks exactly those recipes, and a changed surface with
-   no recipe means writing the recipe IS part of this release.
+   if the repo has one. On a major or minor, every Added and Changed bullet
+   names its shot as it is written: `<!-- shot: <feature-slug> -->` for
+   `docs/releases/v<X.Y.Z>/<feature-slug>.png`, or `<!-- no-shot: <reason> -->`
+   where the entry has no user-visible surface (TOOLCHAIN §4b). **Then run
+   `node tools/release-preflight.mjs --kind <kind> --shots-pending` — a red
+   result stops the release.** It refuses a run with no kind, reads the bumped
+   version, refuses a tag that already exists (never retag; bump a new patch
+   instead), lists the `docs/<feature>/TESTING.md` recipes for every surface
+   changed since the last tag — step 5 walks exactly those recipes, and a
+   changed surface with no recipe means writing the recipe IS part of this
+   release — and refuses a bullet with no marker, then lists the shots step
+   5a takes.
 3. `npm run build:packs`. Compiled packs are gitignored build output — commit
    `packs/_source` if it changed; there is no timestamp churn to discard
    (pack `_stats` stamps are fixed, so a diff means content really changed).
@@ -130,14 +136,19 @@ the full pipeline (build + validate, no publish) is available anytime:
      **cannot** screenshot here — it composites frames only while displayed,
      so it times out in any backgrounded session. Machine-specific values live
      in `TEST_ENVIRONMENT.md`. If a shot is unreachable, name it in the report
-     rather than skipping it silently.
+     rather than skipping it silently, and never as a `no-shot`: that marker
+     says the entry has no surface.
+   - Then run the preflight again without `--shots-pending`: a shot the
+     changelog names and this session did not take stops the release here,
+     before the commit. Where §4a was skipped for want of a test server, keep
+     the flag; what it lists as still to take is the report's list of gaps.
 6. Commit through **`acks-commit`**, `land --no-push` (snapshots and
    `docs/GALLERY.md` included); the push is this step's own, below. Its gate
    runs steps 3–4 again on the release's own tree in a
    clone, which is the tree CI will build; step 4's run in the working tree
    read every session's in-flight hunks. A release takes no carried base: a
    commit that lands under the gate means the gate runs again.
-   Then run `node tools/release-preflight.mjs` once more, immediately before
+   Then run step 5a's preflight command once more, immediately before
    the tag: a peer may have published the number since step 2, and the answer
    is the next patch. Tag the release commit's own sha, exactly
    `v<module.json version>`, and push that sha with its tag in one motion:

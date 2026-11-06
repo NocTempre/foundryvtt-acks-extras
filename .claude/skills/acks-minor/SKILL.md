@@ -146,7 +146,13 @@ Canon words that as "Added/Changed" because it assumes a feature-driven minor.
 question is whether a user can see the difference, not which heading it sits
 under. `acks-extras` v2.1.0 shot its refusal messages for exactly this reason.
 An entry with no visible surface (an API change, an internal refactor) gets no
-shot; record that in the report rather than staging a frame for it.
+shot; it says so with a marker rather than staging a frame for it.
+
+The markers are TOOLCHAIN §4b's, and the release preflight reads them: an
+Added or Changed bullet must carry `<!-- shot: <feature-slug> -->` or
+`<!-- no-shot: <reason> -->`. A Fixed bullet owes none to the gate, so a
+fix-driven minor's visible fix carries its `shot:` marker by this section's
+test, and the preflight then holds that shot to the same file check.
 
 When a feature is re-shot, **two referrers move**: its `docs/GALLERY.md` row and
 the inline embeds in its guide. Rows you did not re-shoot keep pointing at older
