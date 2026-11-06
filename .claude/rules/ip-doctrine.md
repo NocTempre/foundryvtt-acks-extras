@@ -59,7 +59,7 @@ the world exposes it where a Judge can edit it (the registry's override
 layer, or the feature's own form); and with nothing imported, the surface
 says "not imported" and shows no figure in its place. Where the file is
 another session's in-flight work, the finding goes to that session instead
-of into its lines.
+of into its lines. The procedure is the `acks-printed-value` skill.
 
 ## What a citation does not do
 

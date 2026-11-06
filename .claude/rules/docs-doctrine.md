@@ -28,7 +28,13 @@ it; a pointer is not duplication.
   surface at the next tag. A repo with a flat `scripts/` keeps one
   `docs/TESTING.md`.
 - `docs/guides/<feature>.md` — user-facing how-to, where release screenshots
-  land. `docs/GALLERY.md` indexes them.
+  land. `docs/GALLERY.md` indexes them. **A guide step or a `CHANGELOG.md`
+  bullet that names a control says where it is**, as a path from what Foundry
+  itself shows: a sidebar tab, a scene control, a sheet, or
+  `Settings tab → Game Settings → <module title> → <menu name>` (core 14's
+  labels). A tab inside a window names the window. A guide states a window's
+  path once and later mentions name the window; a changelog bullet carries
+  the path itself, since it is read alone.
 - `docs/<feature>/wip/` — in-flight audits/plans/proposals only. When the
   work lands, its substance moves into the three above and **the artifact is
   deleted in the same session** — a wip file that outlives its work reads as
