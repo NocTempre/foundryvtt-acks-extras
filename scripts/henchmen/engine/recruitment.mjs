@@ -1,4 +1,4 @@
-/* global game, foundry, Roll, Hooks, ChatMessage, CONST */
+/* global game, foundry, Roll, Hooks, ChatMessage, CONST, ui */
 /**
  * Recruitment engine — RAW model (RR 162, JJ 118):
  *
@@ -544,36 +544,43 @@ function feeMarketClass(location, employer, posting) {
  * type, rolled), at `marketClass` (the town's own unless the caller says;
  * `feeMarketClass`). Rolled once as a VISIBLE dice roll; the same total is
  * shown, deducted, and logged.
+ *
+ * A fee the employer's purse refuses (short, away from this market, a relay
+ * refused) is no charge: no card, `gp` 0, `refused` true, and the caller books
+ * nothing. With no employer to charge (a Judge's search) the fee is shown and
+ * never refused.
  * @param {Actor} location
  * @param {Actor|null} employer
  * @param {number} week - the week number being charged (for the card)
  * @param {object} [opts]
  * @param {boolean} [opts.judge=false] - the Judge declares the post this fee opens (`spendGold`'s `judge`)
  * @param {number} [opts.marketClass] - the class the fee is read at
+ * @returns {Promise<{gp: number, paid: boolean, refused: boolean}>}
  */
 async function chargeWeeklyFee(location, employer, week = 1, { judge = false, marketClass = location.system.marketClass } = {}) {
   const mc = marketClass;
   const formula = searchFeeFormula(mc);
   const roll = await new Roll(formula).evaluate();
   const gp = roll.total;
-  // Show the fee as an actual roll so it never reads as a flat charge.
-  await postToJudges({
-    flavor: game.i18n.format("ACKS-HENCHMEN.fee.card", { name: location.name, week, formula }),
-    rolls: [roll],
-    speaker: ChatMessage.getSpeaker({ actor: employer ?? location }),
-  });
   let paid = false;
   if (employer) {
     paid = await adapter.spendGold(employer, gp, game.i18n.format("ACKS-HENCHMEN.fee.reason", { name: location.name }), {
-      chat: false, // the roll card above IS the receipt
+      chat: false, // the roll card below IS the receipt
       to: location,
       at: location,
       // Paid at this market: with coin on hand, or coin the market keeps.
       within: location,
       judge,
     });
+    if (!paid) return { gp: 0, paid: false, refused: true };
   }
-  return { gp, paid };
+  // Show the fee as an actual roll so it never reads as a flat charge.
+  await postToJudges({
+    flavor: game.i18n.format("ACKS-HENCHMEN.fee.card", { name: location.name, week, formula }),
+    rolls: [roll],
+    speaker: ChatMessage.getSpeaker({ actor: employer ?? location }),
+  });
+  return { gp, paid, refused: false };
 }
 
 /**
@@ -738,6 +745,9 @@ export async function createPosting(
       judge: judgeDeclares(requestUserId),
       marketClass: feeMarketClass(location, employer, posting),
     });
+    // Nothing is persisted on a refusal: the month's rolls above are silent,
+    // so dropping them shows nobody a market the employer did not pay to see.
+    if (fee.refused) return { error: "fee-refused" };
     posting.feesPaid.push({ time: currentTime, gp: fee.gp });
   }
 
@@ -929,8 +939,10 @@ export async function processLocation(location, currentTime = now()) {
 
   // 2. Weekly fees per active posting (fee per week per type searched —
   // each posting pays its own ROLLED fee every week it runs). Per-posting
-  // try/catch: one unpayable employer (deleted actor, permission on a
-  // player-run pass) must never stall the whole board.
+  // try/catch: one unpayable employer (a permission on a player-run pass)
+  // must never stall the whole board. A week the employer does not pay —
+  // refused, or an employer that no longer exists — ends the search there:
+  // the posting closes and stops granting its candidates.
   for (const posting of postings) {
     if (posting.status !== "active") continue;
     try {
@@ -939,7 +951,18 @@ export async function processLocation(location, currentTime = now()) {
       const weeksElapsed = Math.floor((currentTime - posting.createdTime) / SECONDS_PER_WEEK) + 1;
       const feesPaid = posting.feesPaid.length;
       for (let w = feesPaid; w < weeksElapsed; w++) {
-        const fee = await chargeWeeklyFee(location, employer, w + 1, { marketClass: feeMarketClass(location, employer, posting) });
+        const fee =
+          employer || !posting.employerUuid
+            ? await chargeWeeklyFee(location, employer, w + 1, { marketClass: feeMarketClass(location, employer, posting) })
+            : { gp: 0, paid: false, refused: true };
+        if (fee.refused) {
+          posting.status = "closed";
+          const name = employer?.name ?? "?";
+          marketLog = marketLogAppend(marketLog, currentTime, "feeRefused", `${posting.segment || posting.rollDetail || posting.spec?.kind || ""} for ${name}`, { actorUuid: posting.employerUuid });
+          ui.notifications?.warn(game.i18n.format("ACKS-HENCHMEN.posting.feeRefused", { name, location: location.name }));
+          changed = true;
+          break;
+        }
         posting.feesPaid.push({ time: currentTime, gp: fee.gp });
         ledger.push({ time: currentTime, gp: fee.gp, postingId: posting.id, paidByUuid: posting.employerUuid });
         changed = true;

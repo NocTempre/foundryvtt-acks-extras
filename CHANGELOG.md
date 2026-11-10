@@ -36,6 +36,13 @@
   Trade and Ventures tabs, the import and commission notices, and the formation
   tracker's light, spell and delve-time counts read "day(s)" and "turn(s)", as
   the rest of the module does.
+- **A search fee nobody paid no longer buys the search.** A hiring search posted
+  from a location sheet's Recruitment tab (New Posting) kept running, and the
+  Fees column counted the fee, when the hiring character could not pay it. Now
+  the first week's refusal posts nothing and says why, and a later week's
+  closes the search, with "Search ended: fee unpaid" in the location sheet's
+  market log; the character can post again. A fee card appears only for coin
+  that moved.
 
 ## 11.14.4
 

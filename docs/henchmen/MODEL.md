@@ -110,6 +110,16 @@ market month, the roll kept in `networkRolls` so a notice taken down and
 posted again finds it. The weekly fee is charged at the class the search
 reads (`feeMarketClass`); without the network it is the town's.
 
+**A fee the purse refuses buys nothing.** `chargeWeeklyFee` spends first and
+posts its roll card only once the coin has moved. A refused first week
+(`fee-refused`) writes no posting, no ledger row and none of the month's
+silent rolls; the asking seat is told so. A refused later week, or one whose
+named employer no longer exists, closes the posting where it stands — it
+stops granting its candidates and its directed re-roll — and the market log
+says so (`feeRefused`). A Judge's search with no employer is never refused.
+The refusals are `spendGold`'s: a short purse, a place on a map the employer
+is not on, a relay nobody answered.
+
 **A directed search's steps.** A search by class and level, by class
 proficiency, and a commissioned search each move the class's rarity by a step
 the importer read from the search modifiers (`searchSteps`: `levelPerAbove1`,

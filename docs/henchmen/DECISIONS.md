@@ -1152,3 +1152,34 @@ alone could serve.
 **What it cost.** Nothing a world sees: an imported table reaches the same
 die. A stored `formula` from an earlier import is left in place and read by
 nothing.
+
+### A search fee the purse refuses buys no search (2026-11-10)
+
+`chargeWeeklyFee` returned whether the coin moved and neither caller read it:
+the first week and every later one booked the rolled fee and kept the posting
+active, so an employer who could not pay kept the search and its candidates
+while the Fees column summed coin nobody paid (bug intake T-0362). The book
+charges the fee for each week in the market (RR ch. 4, Hirelings, Henchmen,
+Mercenaries, and Specialists) and says nothing of a week not paid.
+
+- **A refused first week posts nothing.** `createPosting` returns
+  `fee-refused` before any write, so the month's rolls, which are silent,
+  are dropped with it: nobody sees a market the employer did not pay to see.
+- **A refused later week closes the posting** (`status: "closed"`, a
+  `feeRefused` market-log row), as does a posting whose named employer no
+  longer exists. The employer may post again.
+- **No card for a fee not taken.** The roll card is the receipt, so it is
+  posted after the spend.
+
+**Rejected.** Retry: leave the posting active and charge again at the next
+advance, as a refused wage does (2026-10-01). A wage is owed for service
+already given; a search fee buys the week ahead, and a retried week would
+grant the candidates now and post a card and a warning on every clock tick
+until the party pays every missed week at once.
+
+**What it cost.** The refusals are `spendGold`'s, reach included, and the
+weekly charge carries no Judge's waiver: a search posted in a place linked to
+a map ends at the first week the employer stands on another map, even with
+coin on hand. A place on no map is reached through its owners, so a party
+that walks away from one keeps paying. Postings booked as paid before this
+change keep their rows.

@@ -684,6 +684,31 @@ a step it does not name is walked by hand.
     table's world roll table (`tools/test-table-docs.mjs`), since exporting
     it writes a document every seat shares. Walked by
     `tools/live/henchmen-search-steps.mjs`.
+19. A search fee the purse refuses, on `henchmen/fee-place` (a location with
+    `emptyMarket()`, the Player seat an observer) and `henchmen/fee-employer`
+    (a character the Player seat owns). At the step's start write the place's
+    market as `emptyMarket()` and delete the employer's `money` items. Count
+    the fee cards as the GM seat's messages whose flavor names the place.
+    - `createPosting(place, {kind: "henchman", general: true}, employer)` on
+      the GM seat. *Observable:* `{error: "fee-refused"}`; no posting, no
+      `searchLedger` row, no new card.
+    - The same from the Player seat through `executeAsGM("createPosting", …)`,
+      the posting dialog's relay. *Observable:* `fee-refused` comes back and
+      `ACKS-HENCHMEN.posting.error.fee-refused` localizes; nothing written.
+    - `mintCoin(employer, 500)` and post again. *Observable:* active, one fee,
+      one ledger row, one card, and the purse down by the card's total.
+    - Move the posting's `createdTime` back eight days and
+      `processLocation(place, game.time.worldTime)`. *Observable:* still
+      active, a second fee, row and card. Delete the coin, move it back seven
+      more days and process again. *Observable:* `closed`, no third fee, row
+      or card, one `feeRefused` log row; the location sheet's market log reads
+      "Search ended: fee unpaid". Mint coin and post again: accepted.
+    - A clone of the active posting naming `Actor.QAnoSuchActor00`, and a
+      Judge's search with no employer, both moved back eight days and
+      processed. *Observable:* the clone `closed`; the Judge's still active
+      with a fee for each week.
+    Not walked: the map-reach refusal (a place linked to a map, the employer
+    off it), which needs a scene pairing no fixture holds yet.
 
 The reference repair's check in the repair tool (`henchmen.references`) is
 walked in docs/lib/TESTING.md, "The repair tool".
