@@ -94,6 +94,25 @@ export async function rebuildHitPoints(actor, classItem, level, { dieMinimum = f
 }
 
 /**
+ * A character's full hit points rolled afresh, for the sheet's roll that
+ * replaces the total. A character holding a class at 1st level or above is
+ * rebuilt level by level (`rebuildHitPoints`); any other rolls its own hit
+ * dice formula once, Constitution on each die and, from 1st level, the
+ * 1st-level floor on the first. Null where the formula is not one cell of
+ * dice, for the caller to fall back on the system's own roll.
+ * @returns {Promise<{max: number, steps: Array<{level: number, formula: string, total: number}>}|null>}
+ */
+export async function rollFullHitPoints(actor, classItem, { dieMinimum = firstLevelDieMinimum() } = {}) {
+  const level = Number(actor.system?.details?.level) || 0;
+  if (classItem && level >= 1) return rebuildHitPoints(actor, classItem, level, { dieMinimum });
+  const hd = parseHd(normalizeHd(actor.system?.hp?.hd));
+  if (!hd) return null;
+  const conMod = Number(actor.system?.scores?.con?.mod) || 0;
+  const { roll, total } = await rollHitDice(hd, conMod, level >= 1 ? { dieMinimum } : {});
+  return { max: Math.max(1, total), steps: [{ level, formula: roll.formula, total }] };
+}
+
+/**
  * Where a character's experience should sit once their level is set by hand,
  * or null where it already agrees with the level and stays.
  *

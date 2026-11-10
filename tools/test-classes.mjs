@@ -30,7 +30,7 @@ import { classForActor, findByRef, publish } from "../scripts/classes/registry.m
 import { CLASS_TYPE, PROGRESSIONS_DOC_ID } from "../scripts/classes/constants.mjs";
 import { awardsAt, awardsThrough, choosableGenerals, spellLanes, admitsSpell, choosableSpells } from "../scripts/classes/grants.mjs";
 import { ANSWERED, closesRung, grantableRefs, grantsFrom } from "../scripts/classes/picks.mjs";
-import { rebuildHitPoints, firstLevelDieMinimum, HITPOINTS_DOC } from "../scripts/classes/hitpoints.mjs";
+import { rebuildHitPoints, rollFullHitPoints, firstLevelDieMinimum, HITPOINTS_DOC } from "../scripts/classes/hitpoints.mjs";
 import { registerTable, unregisterTable, PRIORITY, getLayer, citeOf } from "../scripts/lib/tables.mjs";
 import { isOffer, offerKey } from "../scripts/classes/pending-choices.mjs";
 import { TRAINING_KEYS, normalizeTraining, trainingChanges, trainingOf, withTraining, classTrainingEffect, trainingIsBlank, planTrainingSync } from "../scripts/classes/training-logic.mjs";
@@ -686,6 +686,33 @@ await atest("the floor raises the DIE, and Constitution lands after it", async (
   }
 });
 
+await atest("the sheet's full reroll: a class rebuilds level by level, any other formula takes Constitution and the floor once", async () => {
+  registerTable({ id: HITPOINTS_DOC, tables: { firstLevel: { dieMinimum: 3 } } }, { priority: PRIORITY.WORLD });
+  try {
+    const cls = { system: { maximumLevel: 14, hitDie: "1d8", levelRow: (n) => ({ hd: `${Math.min(n, 9)}d8` }) } };
+    const actor = (level, con, hd) => ({ system: { details: { level }, scores: { con: { mod: con } }, hp: { hd } } });
+    // 1st level: 1 floored to 3, +1 = 4. 2nd: two 1s +1 each = 4, kept at one over: 5.
+    globalThis.Roll = scriptDie([1]);
+    let built = await rollFullHitPoints(actor(2, 1, "2d8"), cls);
+    assert.deepEqual([built.max, built.steps.length], [5, 2], "the class's level chain, one step per level");
+    // No class: the formula once, the first die floored, Constitution on both.
+    globalThis.Roll = scriptDie([1]);
+    built = await rollFullHitPoints(actor(2, 1, "2d8"), null);
+    assert.deepEqual([built.max, built.steps.length, built.steps[0].formula], [6, 1, "2d8"]);
+    // 0th level is not 1st: no floor, with a class or without.
+    globalThis.Roll = scriptDie([1]);
+    assert.equal((await rollFullHitPoints(actor(0, 0, "1d6"), cls)).max, 1);
+    globalThis.Roll = scriptDie([1]);
+    assert.equal((await rollFullHitPoints(actor(0, -2, "1d6"), null)).max, 1, "never below one");
+    // A printed flat bonus past the dice takes no Constitution.
+    globalThis.Roll = scriptDie([5]);
+    assert.equal((await rollFullHitPoints(actor(1, 2, "1d8+2"), null)).max, 9);
+    assert.equal(await rollFullHitPoints(actor(1, 0, "1d8+1d4"), null), null, "not one cell of dice: the caller falls back");
+  } finally {
+    unregisterTable(HITPOINTS_DOC, { priority: PRIORITY.WORLD });
+  }
+});
+
 await atest("the level-up wizard never passes a first-level floor", () => {
   // levelup.mjs adds ONE level to a total that already exists; the floor is a
   // 1st-level rule and a third argument there would apply it to every reroll.
@@ -703,6 +730,19 @@ await atest("chargen asks for the rebuild, so a generated character's hit points
   const call = /applyClass\(actor, cls, \{([^}]*)\}\)/.exec(src);
   assert.ok(call, "applyChargen still calls applyClass");
   assert.match(call[1], /rebuildVitals:\s*true/);
+});
+
+await atest("chargen settles what the class apply refuses on before it clears the sheet, and stops on a refusal", () => {
+  // A dismissed damage-bonus election used to leave a wiped character with a
+  // template and no class.
+  const src = readFileSync(new URL("../scripts/classes/chargen.mjs", import.meta.url), "utf8");
+  const body = src.slice(src.indexOf("export async function applyChargen("));
+  const ready = body.indexOf("readyToApply(actor, cls)");
+  assert.ok(ready > 0, "applyChargen asks readyToApply");
+  assert.ok(ready < body.indexOf("deleteEmbeddedDocuments"), "before the wipe");
+  assert.match(body, /if \(!ready\.ok\) return null;/);
+  assert.match(body, /election: ready\.election/, "the answer is passed on, not asked twice");
+  assert.match(body, /if \(!applied\?\.applied\) return null;/, "a refused apply stops the template");
 });
 
 /* ------------------ answering a rung of the ladder ------------------ */

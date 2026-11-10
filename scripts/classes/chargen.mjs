@@ -18,7 +18,7 @@
  */
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import { findByRef } from "./registry.mjs";
-import { applyClass, syncClassTraining } from "./apply.mjs";
+import { applyClass, readyToApply, syncClassTraining } from "./apply.mjs";
 import { templateSelection, setActorPath, actorPaths } from "./paths.mjs";
 import { awardKey, grantAbility, grantAdventuring, rankedCopies, refOf } from "./grants.mjs";
 import { isOffer, mintPendingChoices } from "./pending-choices.mjs";
@@ -337,6 +337,9 @@ export const legalTemplates = (templates, roll) =>
  *   class rerolled is a character rebuilt rather than a character carrying two
  *   starting packages. A Judge who means to add a second one says so on the
  *   page.
+ * @returns {Promise<object|null>} the template report, or null where the class
+ *   apply refused (a stub class, a dismissed damage-bonus election), in which
+ *   case nothing was cleared or written
  */
 export async function applyChargen(
   actor,
@@ -346,6 +349,11 @@ export async function applyChargen(
 ) {
   if (!actor || !cls) return null;
   const intScore = Number(actor.system?.scores?.int?.value) || 0;
+
+  // Whatever the class apply would refuse on is settled before the sheet is
+  // cleared, so a refusal leaves the character as it was.
+  const ready = await readyToApply(actor, cls);
+  if (!ready.ok) return null;
 
   if (wipe) {
     const ids = actor.items.map((i) => i.id);
@@ -366,7 +374,8 @@ export async function applyChargen(
     .map((award, index) => ({ award, key: awardKey(award, index) }))
     .filter(({ award }) => (award.atLevel ?? 1) === 1 && award.kind === "choice")
     .map(({ key }) => key);
-  await applyClass(actor, cls, { level: 1, confirm: false, rebuildVitals: true, answered });
+  const applied = await applyClass(actor, cls, { level: 1, confirm: false, rebuildVitals: true, answered, election: ready.election });
+  if (!applied?.applied) return null;
 
   // No template is a build made the Judges Journal's way (JJ Ch. 16,
   // Generating Characters without Templates): no package, so no equipment and

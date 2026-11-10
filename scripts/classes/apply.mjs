@@ -249,6 +249,36 @@ function replacingOwnFlags({ _id, data: { flags = {}, ...rest } }) {
 }
 
 /**
+ * Everything an apply refuses on, settled before it writes anything: a class
+ * that is no class, a stub, or an elected damage-bonus column left
+ * unanswered. The election is asked here where one is owed and none is held
+ * for this class (it stands once given; changing class asks again), so a
+ * caller that clears the sheet first can ask before it does, and passes the
+ * answer on as `applyClass`'s `election`.
+ * @param {object} [options]
+ * @param {string|null} [options.election] an answer the caller already holds
+ * @returns {Promise<{ok: boolean, election?: string|null, classKey?: string}>}
+ *   `ok` false on a refusal or a dismissed election
+ */
+export async function readyToApply(actor, classItem, { election: answer = null } = {}) {
+  if (!actor || classItem?.type !== `${MODULE_ID}.class`) return { ok: false };
+  if (classItem.system.isStub) {
+    ui.notifications?.warn(game.i18n.format(`${LANG_PREFIX}.apply.stub`, { name: classItem.name }));
+    return { ok: false };
+  }
+  // Asked here rather than in applyClass's confirm dialog, which every apply
+  // surface suppresses.
+  const classKey = classItem.system.key || classItem.name.toLowerCase();
+  const dmgLadder = damageBonusLadder(classItem);
+  const remembered = actor.getFlag(MODULE_ID, FLAG_CLASSES)?.damageBonus ?? null;
+  const held = remembered?.class === classKey ? remembered.applies : null;
+  if (!dmgLadder || dmgLadder.scope) return { ok: true, election: null, classKey };
+  const election = held ?? answer ?? (await askDamageBonusElection(actor, classItem));
+  // Cancelling a permanent choice cancels the apply rather than picking one.
+  return election ? { ok: true, election, classKey } : { ok: false };
+}
+
+/**
  * Apply `classItem` to `actor` at `level` (default: the actor's current
  * level, floored to 1). Shows a confirm dialog listing every change and
  * flagging hand-edited fields; `{confirm: false}` skips it. Records the
@@ -282,25 +312,10 @@ export async function applyClass(
     election: electionAnswer = null,
   } = {},
 ) {
-  if (!actor || classItem?.type !== `${MODULE_ID}.class`) return { applied: false };
-  if (classItem.system.isStub) {
-    ui.notifications?.warn(game.i18n.format(`${LANG_PREFIX}.apply.stub`, { name: classItem.name }));
-    return { applied: false };
-  }
+  const ready = await readyToApply(actor, classItem, { election: electionAnswer });
+  if (!ready.ok) return { applied: false };
+  const { election, classKey } = ready;
   const targetLevel = level ?? Math.max(1, Number(actor.system?.details?.level) || 1);
-  // An elected damage-bonus column is asked here, not in the confirm dialog
-  // below (every apply surface suppresses that dialog). The election stands
-  // once given for this class; changing class asks again.
-  const classKey = classItem.system.key || classItem.name.toLowerCase();
-  const dmgLadder = damageBonusLadder(classItem);
-  const remembered = actor.getFlag(MODULE_ID, FLAG_CLASSES)?.damageBonus ?? null;
-  const heldElection = remembered?.class === classKey ? remembered.applies : null;
-  let election = null;
-  if (dmgLadder && !dmgLadder.scope) {
-    election = heldElection ?? electionAnswer ?? (await askDamageBonusElection(actor, classItem));
-    // Cancelling a permanent choice cancels the apply rather than picking one.
-    if (!election) return { applied: false };
-  }
   const { update, level: clamped, missing } = classUpdateData(actor, classItem, targetLevel, { election });
 
   // A 0th-level character stands at 0, which the class rows read as 1st.

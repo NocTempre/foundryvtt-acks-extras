@@ -1756,3 +1756,35 @@ on a two-die cell than on a one-die cell, which the page does not say.
 
 **What it cost.** Nothing migrates. A total already rolled stands; the next
 generation, picker bind or level set rolls under the new arithmetic.
+
+## 2026-11-10 — the sheet's hit dice roll is this feature's, and chargen asks before it clears
+
+**Evidence.** The hit point audit (owner reports of a 1st-level roll under the
+floor and of Constitution not visibly applied). The character sheet's Stats-tab
+roll called the system's `rollHP`, which rolls `system.hp.hd` bare: no
+Constitution, no floor, no level chain, so the one roll a user presses by hand
+skipped every rule this feature owns. Separately, `applyChargen` cleared the
+character's items before `applyClass`, and ignored `applyClass`'s
+`{applied: false}`: a dismissed damage-bonus election left a cleared character
+with no class.
+
+**Ruled.**
+- The sheet's roll is `rerollHitPoints`: the class's level chain
+  (`rebuildHitPoints`) where the character holds a class at 1st level or above,
+  else its own formula rolled once through `rollHitDice` with Constitution and,
+  from 1st level, the floor. It replaces the climbs' record with the new
+  figure, as a rebuilt maximum does in `guardLevelWrite`. The card lists each
+  level's roll, as the apply dialog does.
+- `readyToApply` holds every refusal `applyClass` makes before it writes, the
+  election asked there; chargen calls it before the wipe and stops on a
+  refusal, and stops too if `applyClass` still refuses.
+
+**Rejected.** For a character with no class, building a level chain from its
+formula: without the class's rows there is no cell per level to reroll, and a
+chain invented from the die count is a procedure the page does not print.
+Keeping the system's roll as the default and this feature's only for a class
+character: it is the case the audit found.
+
+**What it cost.** A character with no class rolls its whole formula at once,
+so its total is not held at one over a lower level. A total already on a sheet
+stands until the roll is pressed again.

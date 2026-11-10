@@ -474,6 +474,15 @@ flat instead, which takes no Constitution. An imported class carries that flat
 in its printed cell; a class built through the builder has it computed from the
 imported per-level rate (see *Advanced mode*).
 
+**The character sheet's hit dice roll rebuilds the total** (`levelup.mjs`
+`rerollHitPoints`, the arithmetic `rollFullHitPoints`). A character holding a
+class at 1st level or above is rebuilt level by level, as the picker rebuilds
+it, and the climbs' record (`hpAt`) is replaced by the new figure. Any other
+character rolls its own `system.hp.hd` once, Constitution on each die and, from
+1st level, the floor on the first. Only a formula that is not one cell of dice
+falls to the system's own `rollHP`, which applies neither. Maximum and current
+are written together, and the chat card lists each level's roll.
+
 ## Experience adjustment
 
 A class's `keyAttributes` decide the percentage a character's experience is
@@ -609,6 +618,11 @@ nothing loses focus. Picks are read at submit and applied at close: close is
 the first moment core's own write of the scores is known to have landed, which
 the Intellect count depends on, and the submitted page is re-read at that point
 rather than trusted from an earlier pass.
+
+**Nothing is cleared until the class can be applied.** `applyChargen` asks
+`readyToApply` first (a stub class, an elected damage-bonus column with no
+answer, asked then) and returns null on a refusal before its wipe; the answer
+is passed to `applyClass` as `election`, so the question is asked once.
 
 **The page is laid out in three columns**, in the order a character is built:
 the attributes and the rule they are rolled under; the class and the template

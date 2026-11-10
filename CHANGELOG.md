@@ -49,6 +49,19 @@
   closes the search, with "Search ended: fee unpaid" in the location sheet's
   market log; the character can post again. A fee card appears only for coin
   that moved.
+- **The hit dice roll on the character sheet follows the hit point rules.** The
+  dice beside Hit Dice on the character sheet's Stats tab rolled the bare
+  formula, with no Constitution and no 1st-level floor. A character with a class
+  is now rebuilt level by level, as choosing the class rebuilds it, and one
+  without a class rolls its own formula with Constitution on each die and, at
+  1st level and above, the floor on the first die (where the rules tables are
+  imported). The chat card lists each level's roll.
+- **Cancelling a class's damage bonus choice no longer empties the character.**
+  On the Scores Generator (Generate scores, on the character sheet's Stats tab),
+  closing the question of which attacks the class damage bonus applies to
+  removed every item the character held and then stopped. The question is now
+  asked before anything is cleared, and closing it leaves the character as it
+  was.
 
 ## 11.14.4
 

@@ -32,7 +32,7 @@
 import { MODULE_ID, LANG_PREFIX, FLAG_CLASSES } from "./constants.mjs";
 import { classForActor, classForActorAsync, findByRef } from "./registry.mjs";
 import { applyClass, classUpdateData, XP_PATH } from "./apply.mjs";
-import { normalizeHd, parseHd, rollHitDice, xpForLevel } from "./hitpoints.mjs";
+import { normalizeHd, parseHd, rollFullHitPoints, rollHitDice, xpForLevel } from "./hitpoints.mjs";
 import { awardKeyLevel, awardsAt, grantAbility } from "./grants.mjs";
 import { closesRung, grantableRefs, readRungs, rungLabel, rungOptions, rungSelectHtml } from "./picks.mjs";
 import { isZeroLevel, readyForFirst, zeroLevelXp } from "./zero-level.mjs";
@@ -247,6 +247,29 @@ async function runLevelUp(actor) {
       hp: `${oldMax} → ${newMax}`,
     })}</p>${grantNames.length ? `<p>${grantNames.map((n) => foundry.utils.escapeHTML(n)).join(", ")}</p>` : ""}`,
   });
+}
+
+/**
+ * Roll a character's hit points afresh and write them as the full total,
+ * current points with it: the sheet's hit-dice roll. The class is found the
+ * way the wizard finds it, and `rollFullHitPoints` holds the arithmetic. A
+ * character with a class has the climbs' record (`hpAt`) replaced by the new
+ * figure, as a rebuilt maximum replaces it in `guardLevelWrite`, so lowering
+ * the level later never restores a maximum from before the roll.
+ * @returns {Promise<{max: number, steps: Array<{level: number, formula: string, total: number}>}|null>}
+ *   null where the hit dice are not one cell of dice and nothing was written
+ */
+export async function rerollHitPoints(actor) {
+  const classItem = await classForActorAsync(actor);
+  const built = await rollFullHitPoints(actor, classItem);
+  if (!built) return null;
+  const level = Number(actor.system?.details?.level) || 0;
+  await actor.update({
+    "system.hp.max": built.max,
+    "system.hp.value": built.max,
+    ...(classItem && level >= 1 ? { [`flags.${MODULE_ID}.${FLAG_CLASSES}.hpAt`]: [{ level, max: built.max }] } : {}),
+  });
+  return built;
 }
 
 /**

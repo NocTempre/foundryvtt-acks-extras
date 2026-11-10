@@ -51,7 +51,7 @@ import { promptDivide } from "../lib/stack-prompt.mjs";
 import { unpackBundle, landCoin } from "../lib/bundles.mjs";
 import { skipDialogFor } from "../lib/roll-dialog.mjs";
 import { openClassPicker } from "../classes/assign-app.mjs";
-import { openLevelUp } from "../classes/levelup.mjs";
+import { openLevelUp, rerollHitPoints } from "../classes/levelup.mjs";
 import { reopenChargen } from "../classes/reopen-chargen.mjs";
 import { openLegacy } from "../classes/legacy.mjs";
 import { setActorPath } from "../classes/paths.mjs";
@@ -948,7 +948,12 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
     openCoreWindow("generateScores", this.actor);
   }
 
-  /** Roll the hit dice and write the result as the full total — after asking. */
+  /**
+   * Roll the hit dice and write the result as the full total — after asking.
+   * The module's hit point rules roll it (`rerollHitPoints`); the system's own
+   * roll, which applies neither Constitution nor the 1st-level floor, answers
+   * only a formula those rules cannot read.
+   */
   static async #onRollHitDice() {
     const ok = await foundry.applications.api.DialogV2.confirm({
       classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
@@ -957,8 +962,13 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
       rejectClose: false,
     });
     if (!ok) return;
-    const roll = await this.actor.rollHP(true);
-    await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: this.actor }), content: loc("vitals.rerolled", { name: this.actor.name, total: roll.total }) });
+    const built = await rerollHitPoints(this.actor);
+    const total = built ? built.max : (await this.actor.rollHP(true)).total;
+    // The dice are shown, not just their conclusion, as the class apply shows them.
+    const steps = built?.steps?.length
+      ? `<p class="hint">${game.i18n.localize("ACKS-CLASSES.apply.hpRolls")} ${built.steps.map((s) => `${s.level}: ${s.formula} → ${s.total}`).join(", ")}</p>`
+      : "";
+    await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: this.actor }), content: `<p>${loc("vitals.rerolled", { name: this.actor.name, total })}</p>${steps}` });
   }
 
   /* -------------------------------------------- */

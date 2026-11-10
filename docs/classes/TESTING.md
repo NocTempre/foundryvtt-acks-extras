@@ -532,6 +532,38 @@ the picker and confirm the total is a full reroll of two dice, unfloored.
 
 **Teardown.** Delete both characters. The step 5 fixtures stay.
 
+## The sheet's hit dice roll, and a refused chargen
+
+**Fixtures.** Kept: the class item `classes/two-die-first-level` and the
+character `classes/hp-floor-character` (above). Built and swept: a character
+with no class, and for step 4 a class item whose ladders hold
+`electedDamageBonus` with a character carrying one plain item.
+
+**Steps.**
+1. Shape the class's levels to `1d8` at 1st and `2d8` at 2nd, give the kept
+   character Constitution 13 and bind the class at 2nd through
+   `acksExtras.classes.applyClass(actor, cls, {level: 2, confirm: false,
+   rebuildVitals: true})`. Rig every die to fall 1 (as in step 5 above).
+2. Character sheet, Stats tab, the dice beside Hit Dice ("Roll the hit dice and
+   write the result as the full total"), answer Yes. *Observable:* maximum and
+   current are both the larger of 4 and the floor plus 2 (1st level's die at
+   the floor plus Constitution, then 2nd's two dice at 1 plus Constitution each,
+   held one over), never the 2 the bare formula throws; `flags.acks-extras.classes.hpAt`
+   is that figure alone at level 2; the chat card reads "rolls new hit points"
+   with the total and lists `1: 1d8 → …, 2: 2d8 → 4`. The card is the run's:
+   delete it by its id.
+3. The same on the classless character at 1st level with `system.hp.hd`
+   `1d8` and Constitution 13. *Observable:* the floor plus 1, and no `hpAt`.
+   Restore `randomUniform`.
+4. **A refused chargen.** Call `acksExtras.classes.applyChargen(actor, cls,
+   null, {wipe: true})` on the step 4 character and close the damage-bonus
+   question it opens. *Observable:* it returns null and the character holds
+   every item it held. Run it again and answer Missile: it runs through, the
+   question asked once, the class bound and `damageBonus.applies` "missile".
+
+**Teardown.** Sweep the classless character, the step 4 class and character,
+and the cards. The kept fixtures stay.
+
 ## A skipped template die, and a package that answers the picks
 
 **Fixtures.** A character actor you create, and one imported class that prints
