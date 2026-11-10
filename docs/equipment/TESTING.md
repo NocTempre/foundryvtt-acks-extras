@@ -882,7 +882,10 @@ grant for it (MODEL, "What every class throws is not a grant").
    chat card's formula is `1d20`. The card is the run's: delete it by its id.
 4. The same with the dart, then Cancel. *Observable:* the dialog reads
    `1d20 - 1` with a Non-proficient line carrying the imported figure.
-5. The Stats tab's Training pills. *Observable:* no pill lit that the
+5. Draw the torch and press its melee row. *Observable:* `1d20 - 1` with the
+   Non-proficient line. Pick Thrown under Attack type in the same dialog.
+   *Observable:* `1d20`, no line. Cancel.
+6. The Stats tab's Training pills. *Observable:* no pill lit that the
    `swordDagger` grant does not light.
 
 ### Teardown
@@ -899,8 +902,9 @@ gear flag's storage row).
 - **Kept, `equipment/unannotated-belt`**: a `character` carrying an `item`
   "Leather belt" with no `flags.acks-extras.gear`, as a price-list row from
   before this change carries it (a copy of the cookbook item compendium's
-  "Leather belt", or an `item` built with the bare name). Each step starts it
-  unworn with no gear flag: `item.unsetFlag("acks-extras", "gear")`.
+  "Leather belt", or an `item` built with the bare name), owned (level 3) by
+  the Player seat. Each step starts it unworn with no gear flag:
+  `item.unsetFlag("acks-extras", "gear")`.
 
 ### Steps
 
@@ -920,12 +924,32 @@ gear flag's storage row).
    "EQP Belt". Sweep the pouch.
 5. Set the flag to `{slots: []}` (a declaration of nowhere). *Observable:* no
    Wear control on the row, `wearableSlots` is `[]`. Unset it again.
-6. Settings tab → Game Settings → ACKS II — Extras → Manage imports, the
-   Equipment step, in a world whose price rows are not yet imported.
-   *Observable:* each new garment row carries a `gear` flag; the same step in
-   Repair in place mode gives one to a held row that has none.
+6. **Player seat** (the capture driver's `connect({user: "Player"})`): steps
+   1–3 on the owned fixture. *Observable:* the same control and the same two
+   writes. The driver has no pointer input; a page-context `click()` on the
+   control runs the sheet's action as that seat.
+7. **The system's own sheet.** Render the actor with core's `Ct` sheet class
+   (not its default), Inventory tab. *Observable:* the injected control on the
+   belt's row reads "Wear it — Belt" and makes step 2's write.
+8. **A stack.** A copy of the belt with `system.quantity.value` 2, tracked.
+   Press "Split one off the stack". *Observable:* a new one-belt item with
+   `{slots: ["belt"], wornAt: "belt"}`, the stack at 1. Track the new item.
+9. **Annotate.** On core's sheet, the annotate control in the inventory's
+   wear section. *Observable:* "Annotated N item(s)"; each belt gains
+   `slots: ["belt"]`, and a worn one keeps its `wornAt`. Sweep the step 8
+   items and unset the fixture's flag.
+10. **The importer.** With the rules book open on the seat, snapshot every
+   world item whose `flags.acks-extras.cookbook.id` starts `def.priced.`, then
+   run the price rows alone in Repair in place: the importer module's
+   `importPricedGear(undefined, {repair})` with `repair` a `repairTally()`
+   whose `tables` is `{"priced"}`. The Manage imports Equipment step in that
+   mode also rewrites every equipment entry. *Observable:* every held row
+   that declared no place and has an inferred one gains a `gear` flag, and
+   no other field of any row changes; a second run changes nothing. The
+   create path (a row this world does not hold yet) is not walked here: it
+   needs a world without the price rows.
 
 ### Teardown
 
-The fixture stays. A step 6 import is the import's, not the run's: it is
-neither tracked nor swept.
+The fixture stays, with its Player ownership. The importer step's writes are
+the import's, not the run's: they are neither tracked nor swept.
