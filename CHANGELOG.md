@@ -18,9 +18,12 @@
 - **A belt can be worn.** Garments from the imported price list (a leather belt,
   boots, a cloak) and the class-kit copies made from them had no Wear control, so
   they could not be put on. The character sheet's Equipment tab now shows the
-  control on the item's row (Wear it — Belt) at the place the name gives, and the
-  item sheet's EQP cell wears it there where the sheet shows one; the first wear
-  records the place on the item. Newly imported price rows carry their place, and Settings tab → Game
+  control on the item's row (Wear it — Belt) at the place the name gives, the
+  item sheet's right rail shows its EQP cell (a garment with nothing else to show
+  no longer opens as a bare sheet with no rail), and a hireling's Follower Card
+  offers its shield toggle in the Equipment list; the first wear records the
+  place on the item. Newly
+  imported price rows carry their place, and Settings tab → Game
   Settings → ACKS II — Extras → Manage imports, the Equipment step in Repair in
   place mode, gives one to a held row that has none.
 - **More garment names find their place.** Plurals ("Belts", "Silk sashes"), a
@@ -29,6 +32,10 @@
   Gear annotated before this keeps the place it was given until it is annotated
   again: run Annotate Equipment (RAW profiles), in Compendium Packs → ACKS II —
   Extras → Macros → ACKS Extras Macros.
+- **A count of one no longer reads "1 days".** The queues on a location sheet's
+  Trade and Ventures tabs, the import and commission notices, and the formation
+  tracker's light, spell and delve-time counts read "day(s)" and "turn(s)", as
+  the rest of the module does.
 
 ## 11.14.4
 

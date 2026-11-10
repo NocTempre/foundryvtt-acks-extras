@@ -1171,6 +1171,12 @@ both give `slotsOf` an empty list, and every name-heuristic fallback in the
 family gates on the former so a deliberate ruling is not undone by an item's
 name.
 
+Lib reads no names, so the equipment feature registers its reading at `init`
+(`registerWearInference`: the places an undeclared item's name puts it, and
+how to wear it there). `wearableSlotsOf`, `canWear` and `wearAt` are the
+readers a lib surface such as the follower card calls; `isWearable` stays the
+declaration's answer, and with nothing registered the three fall back to it.
+
 ### Goods handed to an actor, and bundles
 
 `bundles.mjs` `deliverItems(actor, goods)` is the one way goods arrive on an

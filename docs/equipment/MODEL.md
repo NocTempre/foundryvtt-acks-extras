@@ -444,9 +444,11 @@ damaged or container item, Contents a declared capacity or a spell book,
 Appearance a Judge and a magical or disguisable item. An item that earns
 nothing beyond the always-on three — coin, gems, a trinket — is **simple**: no
 tab strip, no state rail, and a quiet Details button that unfolds the one
-panel. A torch stack is not simple: it earns the state rail's equip cell,
-which readies one torch into the hand (`snap.readiable`), since the stack
-itself is never worn.
+panel. Anything with somewhere to be worn is not simple — a belt whose slot
+is only inferred from its name included (`snap.wearable`) — and neither is a
+torch stack: each earns the state rail's equip cell, the torch stack's
+readying one torch into the hand (`snap.readiable`), since the stack itself
+is never worn.
 
 **The band is the window header.** The title band renders as its own part and
 `_onRender` moves it into Foundry's `.window-header`, where it keeps the drag

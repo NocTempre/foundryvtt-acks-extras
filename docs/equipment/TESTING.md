@@ -915,13 +915,18 @@ gear flag's storage row).
    belt moves to the Belt bucket on the left.
 3. Press the control again (now "Take it off (Belt)"). *Observable:* `wornAt`
    clears and `slots` stays `["belt"]`.
-4. **The item sheet's EQP cell.** A plain belt's item sheet opens in simple
-   mode, which shows no state rail and so no EQP. Copy a cookbook "Belt pouch"
-   onto the character with its `gear` flag deleted, give it a disabled
-   Active Effect (a magic belt's shape; the sheet is no longer simple), and
-   `api.track` it. Press EQP. *Observable:* the flag becomes
-   `{slots: ["belt"], wornAt: "belt", access: "free", …}` and the cell reads
-   "EQP Belt". Sweep the pouch.
+4. **The item sheet's EQP cell.** Open the plain belt's item sheet with its
+   `gear` flag deleted. *Observable:* not simple mode — the tab strip and the
+   right rail show, and the rail's first cell is EQP. Press EQP.
+   *Observable:* the flag becomes `{slots: ["belt"], wornAt: "belt", …}` and
+   the cell reads "EQP Belt". Press it again to take it off.
+4b. **The Follower Card's toggle.** Give a hireling `character` actor (marker
+   `equipment/follower-belt`) a plain belt with no `gear` flag, open it on the
+   Follower Card sheet, and find the belt in the Equipment list.
+   *Observable:* a shield toggle (`data-action="fcToggleEquip"`), not the
+   faint circle. Press it. *Observable:* the flag becomes
+   `{slots: ["belt"], wornAt: "belt", …}` and the shield turns solid. Press it
+   again: `wornAt` clears.
 5. Set the flag to `{slots: []}` (a declaration of nowhere). *Observable:* no
    Wear control on the row, `wearableSlots` is `[]`. Unset it again.
 6. **Player seat** (the capture driver's `connect({user: "Player"})`): steps

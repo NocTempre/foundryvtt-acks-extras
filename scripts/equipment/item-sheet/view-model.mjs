@@ -179,9 +179,10 @@ export function buildItemSheetModel(snap, viewer = {}) {
   const available = tabDefs.map((t) => t.key);
   const activeTab = resolveTab(viewer.activeTab, available);
 
-  // A torch stack earns the state rail's equip cell (it readies one torch into
-  // the hand), so it is not simple even with nothing else to show.
-  const simple = !flat.length && !effectCount && !holds && !named && !dur && !chart && !snap.readiable;
+  // The state rail's equip cell is earned by anything with somewhere to be
+  // worn, inferred slots included, and by a torch stack (it readies one torch
+  // into the hand), so neither is simple even with nothing else to show.
+  const simple = !flat.length && !effectCount && !holds && !named && !dur && !chart && !snap.readiable && !snap.wearable;
 
   /* ---- title band ----------------------------------------------------- */
   const qty = snap.stackable && Number.isFinite(snap.qty) ? snap.qty : null;

@@ -81,6 +81,10 @@ import {
   reliefOf,
   slotsOf,
   wornSlotOf,
+  wearableSlotsOf,
+  canWear,
+  wearAt,
+  registerWearInference,
 } from "../scripts/lib/item-model.mjs";
 
 const { resolveLevelValue: R, choicesOf } = vocab;
@@ -2151,6 +2155,31 @@ t("isWearable: core's equipped field OR a declared slot, never a type list", () 
   // saying so.
   assert.equal(isWearable(mkItem("item", physical(), { slots: [] })), false);
 });
+
+await (async () => {
+  // A feature reads an unannotated belt's place off its name; lib cannot.
+  const belt = { ...mkItem("item", physical()), name: "Leather belt" };
+  assert.deepEqual(wearableSlotsOf(belt), [], "nothing registered: lib reads no name");
+  assert.equal(canWear(belt), false);
+  const worn = [];
+  registerWearInference({ slots: (i) => (/belt/i.test(i.name ?? "") ? ["belt", "elbow"] : []), wear: async (i, s) => (worn.push([i.name, s]), true) });
+  try {
+    assert.deepEqual(wearableSlotsOf(belt), ["belt"], "the inference answers, and an unknown slot drops");
+    assert.equal(canWear(belt), true);
+    assert.equal(isWearable(belt), false, "isWearable stays the declaration's answer");
+    const nowhere = { ...mkItem("item", physical(), { slots: [] }), name: "Belt of nothing" };
+    assert.deepEqual(wearableSlotsOf(nowhere), [], "a declaration of nowhere is not overruled by the name");
+    assert.equal(await wearAt(belt, "belt"), true);
+    assert.deepEqual(worn, [["Leather belt", "belt"]], "an undeclared plain item wears through the inference");
+    const declared = { ...mkItem("item", physical(), { slots: ["belt"] }), name: "Sash", update: async () => {} };
+    await wearAt(declared, "belt");
+    assert.equal(worn.length, 1, "a declared item wears through setWorn, not the inference");
+  } finally {
+    registerWearInference(null);
+  }
+  n++;
+  console.log("ok - wearableSlotsOf/canWear/wearAt read a registered inference only where nothing is declared");
+})();
 
 t("slotsOf: an unknown slot degrades to fewer slots, never an undrawable one", () => {
   assert.deepEqual(slotsOf(mkItem("item", physical(), { slots: ["belt", "elbow"] })), ["belt"]);

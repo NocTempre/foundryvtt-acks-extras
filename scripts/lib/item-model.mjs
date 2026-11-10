@@ -388,6 +388,44 @@ export const declaresSlots = (item) => Array.isArray(gearOf(item).slots);
  */
 export const isWearable = (item) => isEquippable(item) || slotsOf(item).length > 0;
 
+/** The feature's reading of an undeclared item's places, and how it puts one there. */
+let wearInference = null;
+
+/**
+ * Lets a feature answer for gear nobody annotated: `slots` reads the places
+ * an item that declares none may be worn, `wear` puts it in one and records
+ * the declaration it was worn under. Lib cannot read an item's name for its
+ * slot, so a surface drawn here offers nothing for such an item until a
+ * feature registers.
+ * @param {{slots: (item: Item) => string[], wear: (item: Item, slot: string) => Promise<boolean>}|null} ops
+ */
+export function registerWearInference(ops) {
+  wearInference = ops ?? null;
+}
+
+/**
+ * The places an item may be worn: its declaration where it has one, else the
+ * registered inference's reading. A declaration of nowhere stays nowhere.
+ */
+export function wearableSlotsOf(item) {
+  if (declaresSlots(item)) return slotsOf(item);
+  return (wearInference?.slots(item) ?? []).filter((s) => s in WEAR_SLOTS);
+}
+
+/** Can it be worn, counting places the registered inference reads? */
+export const canWear = (item) => isEquippable(item) || wearableSlotsOf(item).length > 0;
+
+/**
+ * Put an item in a slot as `setWorn` does, except that an undeclared plain
+ * item goes through the registered inference, which records the slot it was
+ * worn under.
+ * @returns {Promise<boolean>} whether anything was written
+ */
+export async function wearAt(item, slot) {
+  if (wearInference && item && slot && !isEquippable(item) && !declaresSlots(item)) return wearInference.wear(item, slot);
+  return setWorn(item, slot);
+}
+
 /**
  * Is it worn or wielded right now? READ THROUGH HERE, never off one store —
  * see docs/lib/MODEL.md, "Two stores, and why nothing outside this file

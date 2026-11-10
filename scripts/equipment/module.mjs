@@ -23,7 +23,9 @@ import { registerSheet } from "./sheet.mjs";
 import { registerItemSheet, ITEM_SHEET_TEMPLATES } from "./item-sheet/sheet.mjs";
 import { advanceWieldedOnLevelUp } from "./overlays/named.mjs";
 import { registerMountedOverlay } from "./overlays/mounted.mjs";
-import { isWearable } from "../lib/item-model.mjs";
+import { isWearable, registerWearInference } from "../lib/item-model.mjs";
+import { inferGear } from "./profiles.mjs";
+import { wearItem } from "./actions.mjs";
 import { ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
 import { registerManagedEffect, managedDelete } from "../lib/managed-effects.mjs";
 import { expectTables } from "../lib/tables.mjs";
@@ -41,6 +43,9 @@ Hooks.once("init", () => {
   registerMountedOverlay();
   // A garment declared on either half is declared on both, in the same write.
   registerClothingDeclaration();
+  // Lib's surfaces (the follower card) read an unannotated garment's place
+  // from its name through this, and wear it as the equipment tab does.
+  registerWearInference({ slots: (item) => inferGear(item).slots, wear: wearItem });
   registerEquipmentRepairChecks();
   // The non-proficient package's, the dual weapon style's and the heavy
   // helmet's figures are imported; the import names these tables as missing
