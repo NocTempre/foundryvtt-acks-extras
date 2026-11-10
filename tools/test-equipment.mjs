@@ -347,6 +347,15 @@ const npAcSum = buildLoadoutChanges(npUse, npUseLo).filter((c) => c.key === "sys
 check("no attribute bonus to AC while non-proficient (DEX +2 cancelled)", npAcSum === -2);
 const npDexPen = actor([weapon("Battle Axe", { melee: true, id: "ax" })], { flags: { weaponProficiency: "swordDagger", styles: "single,twoHanded" }, system: { scores: { dex: { mod: -2 } }, details: { level: 3 } } });
 check("DEX penalty to AC is kept (penalties are not bonuses)", buildLoadoutChanges(npDexPen, getLoadout(npDexPen)).filter((c) => c.key === "system.ac.mod").reduce((s, c) => s + Number(c.value), 0) === 0);
+// Core's AC base is the last equipped non-shield armour; a helmet after the suit
+// must not stand in for it, and a helmet's own stated AC adds.
+const acModOf = (items) => { const a = actor(items, { flags: { armorMax: "heavy" }, system: { scores: { dex: { mod: 0 } }, details: { level: 3 } } }); return buildLoadoutChanges(a, getLoadout(a)).filter((c) => c.key === "system.ac.mod").reduce((s, c) => s + Number(c.value), 0); };
+const suitAC = armor("Chain Mail", "medium", { id: "cm", ac: 4 });
+check("helmet worn after the suit → the suit's AC is put back over core's helmet base", acModOf([suitAC, armor("Heavy Helmet", "medium", { id: "hh" })]) === 4);
+check("helmet worn before the suit → core already reads the suit, nothing written", acModOf([armor("Heavy Helmet", "medium", { id: "hh" }), suitAC]) === 0);
+check("a helmet stating AC after the suit → suit plus helmet", acModOf([suitAC, armor("Heavy Helmet", "medium", { id: "hh", ac: 1 })]) === 4);
+check("a helmet stating AC before the suit → its AC added to core's suit base", acModOf([armor("Heavy Helmet", "medium", { id: "hh", ac: 1 }), suitAC]) === 1);
+check("a helmet alone → core's own base stands", acModOf([armor("Heavy Helmet", "medium", { id: "hh" })]) === 0);
 const profLo = getLoadout(actor([weapon("Sword", { melee: true, id: "sw" })], { flags: { styles: "single,twoHanded" }, system: { scores: { dex: { mod: 2 } }, details: { level: 3 } } }));
 check("fully proficient loadout → no nonProficientUse state", profLo.nonProficientUse === false && !profLo.violations.some((v) => v.type === VIOLATION.NON_PROFICIENT_USE));
 

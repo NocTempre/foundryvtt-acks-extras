@@ -75,6 +75,14 @@
 - **The Level-up hit points setting says what it does.** Its description, in
   Settings tab → Game Settings → ACKS II — Extras, restated the rule; it now
   names the two ways the level-up wizard can roll and points at the page.
+- **A helmet no longer takes the armour's AC away.** A helmet equipped after the
+  suit was read as the character's armour, so Armour Class dropped by the suit's
+  whole figure: the system reads the last armour put on. The suit's AC now
+  stands whatever the order, and a helmet that states an AC adds it, so
+  characters already wearing a helmet over a suit read higher after the update.
+  The Armour class figures on the character sheet's Stats tab now carry a
+  tooltip naming the armour the system read, Dexterity, the shield, the stored
+  bonus and each correction made to it.
 
 ## 11.14.4
 

@@ -170,6 +170,38 @@ function typedLines(actor, paths, target, typed) {
 const withLines = (tip, lines) => [tip, ...lines].join(" · ");
 
 /**
+ * The AC rows' tooltips: core's sum in its parts with the actor's numbers —
+ * the armour core reads as its base, by name, Dexterity, the shield, the stored
+ * bonus and what effects add — then each part the loadout effect wrote to
+ * `system.ac.mod`. A record with no items reads its parts without the name.
+ * @returns {{shield: string, armour: string, naked: string}}
+ */
+function acTips(actor, sys, stored, typed) {
+  let base = null;
+  try {
+    base = actor?.type === "character" && actor.items ? getLoadout(actor).coreArmorBase : null;
+  } catch {
+    base = null; // no loadout to read: the base is stated without its name
+  }
+  const dex = actor?.type === "character" ? num(sys.scores?.dex?.mod) : 0;
+  const shield = num(sys.ac?.shield);
+  const storedMod = num(stored.ac?.mod);
+  const total = num(sys.ac?.value);
+  const parts = {
+    armour: base ? loc("stats.acBaseNamed", { value: num(base.system?.ac?.value), name: base.name }) : loc("stats.acBaseNone"),
+    dex: signed(dex),
+    stored: signed(storedMod),
+    effects: signed(num(sys.ac?.mod) - storedMod),
+  };
+  const lines = typedLines(actor, ["system.ac.mod"], "ac", typed);
+  return {
+    shield: withLines(loc("stats.acTip", { ...parts, shield: signed(shield), value: total }), lines),
+    armour: withLines(loc("stats.acTipNoShield", { ...parts, value: total - shield }), lines),
+    naked: loc("stats.acNakedTip", { dex: signed(dex), value: num(sys.ac?.naked) }),
+  };
+}
+
+/**
  * The Stats tab's throw group: the targets (attack throw, saves, adventuring)
  * and the four modifiers. Every input renders the STORED value; each modifier
  * that Rolls also shows carries the signed figure in force beside it and a
@@ -358,13 +390,14 @@ export function buildStatsTab(actor, { openBuckets = new Set(), editing = false,
     { icon: LIGHT_ICONS.lightless, label: loc("vision.lightless"), value: senseKind === "lightless" ? `${num(profile.sightRange)}′` : "0′", note: senseKind === "lightless" ? "" : loc("vision.lightlessNote") },
   ];
 
+  const acTip = acTips(actor, sys, stored, typedFor(actor));
   const vitals = {
     hp: { value: num(stored.hp?.value), max: num(stored.hp?.max) },
     hd: String(stored.hp?.hd ?? ""),
     ac: [
-      { icon: "fa-solid fa-shield-halved", label: loc("vitals.acShield"), value: num(sys.ac?.value), shown: num(sys.ac?.shield) > 0 },
-      { icon: "fa-solid fa-shirt", label: loc("vitals.acArmour"), value: num(sys.ac?.value) - num(sys.ac?.shield), shown: true },
-      { icon: "fa-regular fa-square", label: loc("vitals.acNaked"), value: num(sys.ac?.naked), shown: true },
+      { icon: "fa-solid fa-shield-halved", label: loc("vitals.acShield"), value: num(sys.ac?.value), tip: acTip.shield, shown: num(sys.ac?.shield) > 0 },
+      { icon: "fa-solid fa-shirt", label: loc("vitals.acArmour"), value: num(sys.ac?.value) - num(sys.ac?.shield), tip: acTip.armour, shown: true },
+      { icon: "fa-regular fa-square", label: loc("vitals.acNaked"), value: num(sys.ac?.naked), tip: acTip.naked, shown: true },
     ].filter((r) => r.shown),
     acMod: num(stored.ac?.mod),
     cleaves: num(stored.fight?.cleaves),

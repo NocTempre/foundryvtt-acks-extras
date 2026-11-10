@@ -1998,7 +1998,10 @@ this feature, and the card is left reading declarations.
 
 **What it cost.** Items annotated wrongly before the patterns were fixed ("Belts"
 on the body, a hooded cassock on the head) keep their stamped answer until
-annotated again or corrected on the item's Construction tab.
+annotated again or corrected on the item's Construction tab. (Superseded in
+part the same day by "Annotate fills what an item leaves blank", below:
+Annotate no longer replaces a stamped place, so the item's Construction tab,
+Auto beside Worn at, is the one way to read the name again.)
 
 *Superseded in part by "Annotate fills what an item leaves blank, and lib takes
 the slot inference by registration (2026-11-10)", below: the rejected lib seam
@@ -2038,3 +2041,25 @@ again; it is reset on the item (Construction, Auto beside Worn at). A Judge's
 device is filled again by the next pass, since null also means never stated.
 `damageType`, `handy`, `thrown` and the weapon's melee and missile booleans
 are still stamped from the weapon table on every pass.
+
+### A helmet never replaces the suit (2026-11-10)
+
+Owner report T-0459, a character's AC still wrong after the fixes before it.
+Reproduced live on the imported price list's own items: chain mail at AC 4,
+then a heavy helmet equipped, read AC 0; with a shield, 5 then 1. Core's
+`computeAC` takes its base from the last equipped armour not typed "shield",
+and the imported helmets are armour with no AC.
+
+**Ruled.** The loadout effect puts the suit's AC back: the Loadout names core's
+pick (`coreArmorBase`) and the same pick without helmets (`armorBase`), and one
+`system.ac.mod` change writes the suit's AC plus each helmet's stated AC, less
+core's base. A helmet's stated AC adds in either order.
+
+**Rejected.** Wrapping core's `computeAC`: the system is a reference this
+module extends through effects, and the loadout effect already owns the AC
+corrections (the shield's). Reordering the actor's items so the suit comes
+last: an order nobody sees, undone by the next item created.
+
+**What it cost.** A helmet item that states an AC now adds it to the suit's;
+before, it counted only when it was equipped last, and then in place of the
+suit. The charge for a suit worn without a helmet stays unbuilt (ROADMAP).

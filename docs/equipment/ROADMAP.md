@@ -29,6 +29,11 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   and `WEAPON_ALIASES`/`WEAPONS` are the bulk of the name-inference this
   replaces, but which unique-item cases actually retire, and in what order, is
   still unscoped.
+- **A suit worn without a helmet.** The page prices a light helmet into every
+  suit and charges a suit worn bare (RR ch. 4, "Helmet, Light"); nothing reads
+  that yet. The figures are printed, so they arrive through the importer's
+  equipment rule table and are applied by the loadout effect beside the
+  helmet's base correction (MODEL, "A helmet never replaces the suit").
 - **The item sheet's mocked groups.** The design's Upkeep, Study, Reading The
   Chart and Ability Rolls Boosted roll groups, the spell book's legibility
   rows and the named-item note prose have no data source in this module; the

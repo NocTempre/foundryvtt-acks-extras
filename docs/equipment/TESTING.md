@@ -21,6 +21,11 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 
 ## Core drive mechanics (non-obvious, learned live)
 
+- **The loadout effect is written by the primary GM window alone**
+  (`enforce.mjs` `primaryResponder`), and a window still joining its seat's
+  election answers false. A run that equips in its first seconds writes no
+  effect and logs nothing: await lib's `primaryGMSettled()`
+  (`scripts/lib/util.mjs`) before the first equip.
 - **`annotateItem(item)` writes flags at the item's own root**, not under an
   `equipment` sub-object: read `item.flags["acks-extras"]` and expect
   `size`, `damageType`, `handy`, `thrown`, and a `gear` block with `slots`.
@@ -1025,3 +1030,35 @@ effects are all `override` at priority 50
 
 The fixture stays, with nothing equipped. A card step 3 posted despite the
 Cancel is the run's: delete it by its id.
+
+## A helmet over the suit
+
+Core's AC reads the last equipped non-shield armour as its base; the loadout
+effect puts the suit's back (MODEL, "A helmet never replaces the suit").
+
+### Fixtures
+
+- **Kept, `equipment/helm-after-suit`**: a `character` with dexterity
+  modifier 0. Its armour is copied each run from the imported price list
+  (`world.acks-cookbook--item`): the first `medium` armour with an AC above 0
+  (`suit`), and the first armour whose name reads helm (`helm`), each found by
+  `flags.world.acPart`. A run deletes the copies the last one left, by that
+  flag, before copying.
+- `equipment/override-grants` (above) takes the same suit and helm, plus the
+  first `shield` with an AC above 0 (`shield`).
+
+### Steps
+
+1. Equip the suit, then the helm, waiting for each `updateItem`.
+   *Observable:* `system.ac.value` equals the suit's AC both times, and
+   `system.ac.mod` after the helm equals it too (core's base is the helm's 0).
+2. On `equipment/override-grants`: suit, shield, helm. *Observable:* AC is
+   the suit's plus the shield's after the shield and after the helm, and
+   `getLoadout(actor).nonProficientUse` is false (the medium grant).
+3. With suit and helm on, character sheet, Stats tab. *Observable:* the
+   armour AC figure's tooltip names the helm as core's armour, then the suit's
+   AC under a helmet with its figure.
+
+### Teardown
+
+The fixtures stay with their armour unequipped.

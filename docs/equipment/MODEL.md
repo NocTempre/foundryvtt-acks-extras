@@ -274,6 +274,16 @@ effect takes the deeper of the two cuts, once: two rules cancelling the same
 addition never cancel it twice. The style's own benefit is the shield's AC;
 Specialization in it adds its bonus above that.
 
+**A helmet never replaces the suit.** Core's `computeAC` reads its base off
+the last equipped armour not typed "shield", and a helmet is armour, so one
+put on after the suit stands in for the suit's AC. The Loadout names both
+picks: `coreArmorBase`, the item core reads, and `armorBase`, the same pick
+with the helmets (`isHelmet`) left out. The loadout effect's
+`ACKS-EQUIPMENT.part.armorBase` change writes the difference to
+`system.ac.mod`: the suit's AC plus the AC each helmet states, less core's
+base. A helmet worn before the suit, or alone, writes nothing; a helmet
+stating no AC adds nothing.
+
 **Specialization's bonuses are the proficiency's own rows.** Fighting Style
 Specialization's recipe carries one modifier per style, its figure read off the
 page's bonus table at import and its gate `specializedStyle` with the style.
