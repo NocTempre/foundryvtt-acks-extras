@@ -42,6 +42,8 @@ first) stages the content it publishes:
 | What this is / Install / Getting started | the matching `##` sections of the root `README.md` |
 | Settings reference | the `game.settings.register()` calls in `scripts/`, joined with `lang/en.json` |
 | Compendia | `tools/pack-data.mjs` + `module.json`; what an import leaves, from the shelf code in `scripts/lib/library.mjs` and `scripts/importer/` |
+| Module map | the `import` statements of every file under `scripts/` |
+| API (one page per `acksExtras` key) | the `acksExtras.<feature> = …` assignments in `scripts/`, each key followed to its declaration and that declaration's docstring |
 | Theme | `vendor/acks-design/` tokens and fonts |
 
 Every staged path is gitignored and carries a generated header, and each page's
@@ -73,11 +75,23 @@ and checks nothing. It also exits non-zero when a compendium type the importer
 keeps has no brief in `tools/extract-library.mjs`, which is where the site
 says in its own words what each of those compendiums is (§21).
 
+The module map and the API pages add one more: the sync exits non-zero when an
+import names no file, or a key of the namespace cannot be followed to a
+declaration (§26). `tools/test-reference.mjs` holds the same render to the
+source in `npm test`.
+
 ## Not shipped
 
 None of `docs/` is in `module.zip` — the release artifact carries the Foundry
 runtime plus the root README and LICENSE, and Foundry never reads a markdown
 file out of a module directory. These are read on GitHub.
+
+The one document set that does ship is not under `docs/`: `reference/` at the
+module root, the module map and API pages as plain markdown with links into
+the `scripts/` beside them. It is build output, gitignored like the compiled
+packs: `npm run build:reference` (`tools/build-reference.mjs`) writes it, the
+release workflow runs that before zipping, and `npm run rebuild` does the same
+for a clone ([DECISIONS.md](DECISIONS.md) §26).
 
 That exclusion is a `docs/*` pattern in the release workflow, which is why the
 site lives under `docs/` rather than at the repo root: it needs no change to the

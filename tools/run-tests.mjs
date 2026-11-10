@@ -51,6 +51,7 @@ const COMMITTED = [
   "test-group-deploy.mjs",
   "test-hp.mjs",
   "test-animations.mjs",
+  "test-reference.mjs",
   "test-group-lifecycle.mjs",
   "test-group-encounter.mjs",
   "test-group-move.mjs",

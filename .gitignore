@@ -16,6 +16,11 @@ npm-debug.log*
 packs/*
 !packs/_source/
 
+# The developer reference (module map, API pages) is BUILD OUTPUT on the same
+# footing: `npm run build:reference` writes it from scripts/, the release
+# workflow runs that before zipping, and it ships in module.zip untracked.
+reference/
+
 # ACKS rules extracts are LOCAL-ONLY (licensed book text; purged from all
 # repo histories 2026-07-16). They live in C:\Proj\acks-rules\<module-id>\ —
 # these armor patterns guard against accidental re-adds.

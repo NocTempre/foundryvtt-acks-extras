@@ -1,13 +1,15 @@
 /**
- * Stages every piece of repo content the site publishes, then renders the two
+ * Stages every piece of repo content the site publishes, then renders the
  * generated reference pages. Run by `npm run dev` and `npm run build`, so a
  * build can never ship a stale copy.
  *
  * The guides, screenshots and gallery index are copied from `docs/`; the
  * settings and compendium references are derived from the code that registers,
- * builds and files them. The few words a derived page needs of its own are held
- * beside its extractor (`FEATURE_LABEL`, `BRIEFS`). Both generated pages carry
- * a header saying so, and both are gitignored.
+ * builds and files them, and the module map and API pages from the imports and
+ * the namespace assignments in `scripts/` (`render-reference.mjs`). The few
+ * words a derived page needs of its own are held beside its extractor
+ * (`FEATURE_LABEL`, `BRIEFS`). Every generated page carries a header saying
+ * so, and all are gitignored.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -19,6 +21,7 @@ import { extractLibrary } from "./extract-library.mjs";
 import { retiredPackNames } from "./pack-names.mjs";
 import { retiredMacroNames } from "./macro-names.mjs";
 import { stageContent, GENERATED, write } from "./stage-content.mjs";
+import { renderReference } from "./render-reference.mjs";
 
 const SITE = path.resolve(import.meta.dirname, "..");
 const DOCS = path.join(SITE, "src", "content", "docs");
@@ -213,6 +216,39 @@ const library = await extractLibrary();
 write(path.join(DOCS, "reference", "settings.md"), renderSettings(settings));
 write(path.join(DOCS, "reference", "compendia.md"), renderCompendia(packs, library));
 
+// The developer reference: the same render `tools/build-reference.mjs` writes
+// into the module directory, with links spelled as site routes and GitHub
+// source URLs. A route is lower-case whatever the key's case, so the file is
+// named to match. The api folder is emptied first: a page for a key that is
+// gone would otherwise stay published.
+const SOURCE_URL = "https://github.com/NocTempre/foundryvtt-acks-extras/blob/main";
+const reference = renderReference({
+  source: (file, line) => `${SOURCE_URL}/${file}${line ? `#L${line}` : ""}`,
+  map: (dir) => `../../architecture/#${dir}`,
+  api: (feature) => `../api/${feature.toLowerCase()}/`,
+  fromIndex: (feature) => `${feature.toLowerCase()}/`,
+});
+fs.rmSync(path.join(DOCS, "reference", "api"), { recursive: true, force: true });
+for (const page of reference.pages) {
+  write(
+    path.join(DOCS, "reference", `${page.path.toLowerCase()}.md`),
+    [
+      "---",
+      `title: ${JSON.stringify(page.title)}`,
+      `description: ${JSON.stringify(page.description)}`,
+      // Derived from every file under scripts/: no one page to edit.
+      "editUrl: false",
+      ...(page.path === "api/index" ? ["sidebar:", "  label: Overview", "  order: 0"] : []),
+      "---",
+      "",
+      GENERATED("scripts/"),
+      "",
+      page.body.trimEnd(),
+      "",
+    ].join("\n"),
+  );
+}
+
 // Counts the hand-authored pages quote. Prose that states "44 settings" is the
 // second place a fact is stated, and it drifts the moment a feature registers
 // one more — index.mdx reads these instead of carrying its own number.
@@ -250,6 +286,13 @@ if (unlinked.length || dangling.length) {
 const deadLinks = guides.flatMap((g) => g.links.filter((to) => !stagedGuides.includes(to)).map((to) => `${g.slug}.md -> ${to}.md`));
 if (deadLinks.length) {
   console.error(`sync: ${deadLinks.length} guide link(s) name a guide that docs/guides/ does not have: ${deadLinks.join(", ")}`);
+  process.exitCode = 1;
+}
+
+// An import that names no file, or a key of the namespace that leads to no
+// declaration, would publish a map or an API page with a silent hole in it.
+if (reference.problems.length) {
+  console.error(`sync: the developer reference has ${count(reference.problems.length, "problem")}: ${reference.problems.join("; ")}`);
   process.exitCode = 1;
 }
 
@@ -315,5 +358,6 @@ if (retiredMacros.note) console.log(`sync: note: ${retiredMacros.note}`);
 
 console.log(
   `sync: ${guides.length} guides, ${gallery.length} gallery rows, ${settings.length} settings, ` +
-    `${packs.length} packs (${packs.reduce((n, p) => n + p.count, 0)} documents)`,
+    `${packs.length} packs (${packs.reduce((n, p) => n + p.count, 0)} documents), ` +
+    `${reference.pages.length} reference pages (${reference.counts.imports} imports, ${reference.counts.keys} API keys)`,
 );

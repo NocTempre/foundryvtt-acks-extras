@@ -1,6 +1,7 @@
 // @ts-check
 import { defineConfig } from "astro/config";
 import starlight from "@astrojs/starlight";
+import mermaid from "astro-mermaid";
 
 const REPO = "https://github.com/NocTempre/foundryvtt-acks-extras";
 const PATREON = "https://www.patreon.com/cw/NocTempre";
@@ -14,6 +15,10 @@ export default defineConfig({
   base: "/foundryvtt-acks-extras",
   trailingSlash: "always",
   integrations: [
+    // Draws the ```mermaid fences of the generated module map in the reader's
+    // browser. Listed ahead of Starlight so the fence is claimed before the
+    // code-block renderer turns it into highlighted text.
+    mermaid({ autoTheme: true }),
     starlight({
       title: "ACKS II — Extras",
       description:
@@ -105,6 +110,10 @@ export default defineConfig({
           items: [
             { label: "Settings", slug: "reference/settings" },
             { label: "Compendia", slug: "reference/compendia" },
+            { label: "Module map", slug: "reference/architecture" },
+            // One page per `acksExtras` key, staged by the sync; the list is
+            // read from the folder so a new feature needs no entry here.
+            { label: "API", collapsed: true, items: [{ autogenerate: { directory: "reference/api" } }] },
           ],
         },
       ],

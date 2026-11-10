@@ -995,3 +995,40 @@ with the module off, threw. Two carried the book's figures in their strings.
 **Cost.** A world that leaned on the dungeon-turn macro from the hotbar now
 opens the party sheet for its clock. The guards add three lines to every
 body.
+
+## 26. The module map and the API reference are generated, published and shipped (2026-11-10)
+
+**Owner ruling.** A map of which file imports which, and a reference of the
+public namespace, on the docs site and in the release zip, rebuilt by a
+release of any size.
+
+**Ruled.**
+
+- **One render, two places.** `docs/site/tools/render-reference.mjs` reads
+  `scripts/` and returns the pages. The site sync stages them under
+  `reference/` on every push to `main`; `tools/build-reference.mjs` writes
+  them as markdown into a gitignored `reference/` at the module root, which
+  the release workflow builds before the zip (template `DECISIONS.md`,
+  2026-11-10).
+- **Read, never imported**, by the scanners the settings reference already
+  uses, so neither build needs a dependency or a mocked Foundry.
+- **A hole fails the build.** An import that names no file, or a namespace key
+  that leads to no declaration, exits non-zero in the sync, in
+  `build-reference`, and in `tools/test-reference.mjs` under `npm test`.
+- **The pages carry no prose of their own** beyond fixed captions: every
+  sentence on an API page is a docstring from `scripts/`.
+- **A feature's files are charted only up to forty imports between them.**
+  Past that the chart is unreadable at the page's width and the table of
+  files carries it alone.
+
+**Rejected — a Journal compendium.** In-app text is a second surface to keep,
+needs a pack declaration and a live walk, and a reader of the code wants
+links into files. **Rejected — hand-drawn UML.** It restates what the
+`MODEL.md` files say and goes stale at the next structural change.
+
+**Cost.** The site takes `astro-mermaid` and `mermaid` to draw the charts,
+in the reader's browser. The zip grows by about 1.2 MB of markdown before
+compression. In the zip a chart is its Mermaid source: nothing in Foundry or
+a plain text editor draws it. Four keys built by a factory call
+(`createRegistry`, `overlayGate`) read as a plain value, since no declaration
+names them a function.
