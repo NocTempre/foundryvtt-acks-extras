@@ -62,6 +62,16 @@
   removed every item the character held and then stopped. The question is now
   asked before anything is cleared, and closing it leaves the character as it
   was.
+- **A character keeps every proficiency its items grant.** A character holding
+  two or more items whose effects grant weapon proficiencies, fighting styles or
+  armour (the ACKS Class Training compendium shipped before 6.0.1 made such
+  items) kept one item's grant and lost the rest, its class's own training
+  included. The attack dialog from the character sheet's Rolls tab then took the
+  Non-proficient penalty for a weapon the Stats tab's Training pills showed as
+  trained. Every grant now counts, so characters already in a world gain what
+  they were denied and their attack throws and Armour Class can change after the
+  update. An effect meant to take a grant away now subtracts it. The character
+  sheet's Effects tab shows such a grant as its value, without an "=".
 
 ## 11.14.4
 

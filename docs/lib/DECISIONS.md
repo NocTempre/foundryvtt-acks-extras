@@ -5293,3 +5293,41 @@ choice the Judge made.
 **Cost.** The group sheet's variant dialog still lists every axis, since it
 has no per-pin availability. An axis appears and disappears as other pins
 change, and a pin dropped while hidden is not restored when the axis returns.
+
+## 2026-11-10 — A CSV grant is a union
+
+**Ruled.** A CSV flag of this module's (`weaponProf`, `styleProficient`,
+`armourProficiency`, `martialWeapons`, `maneuverTrickery`, `recruitKinds`, …)
+is a set of grants. In Foundry's priority order `add`, `override` and
+`custom` each put their tokens in and `subtract` takes them out, so a
+subtract reaches the grants priced at or below it (`csvFlagSet`). A flag that
+holds one value (`damageAttribute`) takes the first token of the
+highest-priced change that grants, and a subtract naming that token clears it
+(`csvFlagValue`). This supersedes in part the CSV clause of the character
+sheet's 2026-09-05 entry ("Changes are replayed by type"), which read an
+override as replacing the set and a custom change as nothing.
+
+What that entry did not know: the retired equipment-training pack, dropped
+from the manifest in 741cdff (its sources at
+`git show 741cdff^:packs/_source/equipment-training/`), grants by Active
+Effect, and all 32 of its changes, on 34 items, are `override` at priority
+50. Its items stay in every world that imported one. Under the replace
+reading, a character holding two of them kept only the tokens of the one
+applied last, and the class training's `add` beneath went with the rest: the
+attack dialog showed the non-proficient row for a weapon the sheet listed as
+trained (T-0115, reproduced live). Foundry has no set arithmetic to defer to
+(an override of a string flag writes the string), so the reading is this
+module's either way, and the one that keeps every grant is the one the pack
+meant.
+
+Rejected: letting overrides of equal priority join while a higher one
+replaces. It keeps the stranded pairs working only because the pack priced
+them alike, and leaves an override above the class training able to remove
+it without saying so.
+
+**Cost.** An override can no longer restrict a CSV grant; a restriction is a
+`subtract`, priced above the grants it removes. The Effects tab prints an
+override of one of this module's word flags with its bare value, as it prints
+an add, since it now does what an add does. A numeric override still sets
+its field (`netNumericChange`), so two overrides on one number still leave
+only the higher-priced one.

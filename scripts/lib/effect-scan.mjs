@@ -12,7 +12,11 @@
  * field's base: `add` and `subtract` shift it, `multiply` scales it,
  * `override` sets it, `upgrade` and `downgrade` bound it, and any other type
  * (`custom`, or one a package registered) is that package's to apply and
- * contributes nothing here. The numeric `mode` the retired enum named
+ * contributes nothing to a number. A CSV flag of this module's is a set of
+ * grants, which Foundry has no arithmetic for: `add`, `override` and `custom`
+ * each put their tokens in and `subtract` takes them out (`csvFlagSet`), and
+ * a flag holding one value takes the last token put in (`csvFlagValue`).
+ * The numeric `mode` the retired enum named
  * survives on a change only as a shim that logs a deprecation on every read,
  * so nothing here touches it.
  *
@@ -167,29 +171,40 @@ export const csvTokens = (value) =>
     .map((s) => s.trim().toLowerCase())
     .filter(Boolean);
 
+/** The change types that put a grant's tokens into a CSV flag. */
+const GRANTING = new Set([CHANGE.ADD, CHANGE.OVERRIDE, CHANGE.CUSTOM]);
+
 /**
- * The CSV tokens (lowercased) in force on `key`, read the way Foundry applies
- * changes to a set: in priority order, `add` puts tokens in, `subtract`
- * takes them out and `override` replaces the lot; any other type leaves the
- * set alone.
+ * The CSV tokens (lowercased) in force on `key`, in priority order: `add`,
+ * `override` and `custom` put their tokens in and `subtract` takes them out,
+ * so a subtract reaches only the grants priced at or below it. Any other type
+ * leaves the set alone. An override joins the set rather than replacing it:
+ * every grant written as one still grants (docs/lib/DECISIONS.md, "A CSV grant
+ * is a union").
  */
 export function csvFlagSet(actor, key) {
-  let out = new Set();
+  const out = new Set();
   for (const { change } of orderedChanges(actor, key)) {
+    const type = changeType(change);
+    if (GRANTING.has(type)) for (const token of csvTokens(change.value)) out.add(token);
+    else if (type === CHANGE.SUBTRACT) for (const token of csvTokens(change.value)) out.delete(token);
+  }
+  return out;
+}
+
+/**
+ * The one token in force on a flag that holds a single value, lowercased, or
+ * null. In priority order each change that grants (`add`, `override`,
+ * `custom`) makes its first token the value, so the highest-priced one stands,
+ * and a `subtract` naming the value clears it.
+ */
+export function csvFlagValue(actor, key) {
+  let out = null;
+  for (const { change } of orderedChanges(actor, key)) {
+    const type = changeType(change);
     const tokens = csvTokens(change.value);
-    switch (changeType(change)) {
-      case CHANGE.ADD:
-        for (const token of tokens) out.add(token);
-        break;
-      case CHANGE.SUBTRACT:
-        for (const token of tokens) out.delete(token);
-        break;
-      case CHANGE.OVERRIDE:
-        out = new Set(tokens);
-        break;
-      default:
-        break;
-    }
+    if (GRANTING.has(type) && tokens.length) out = tokens[0];
+    else if (type === CHANGE.SUBTRACT && out && tokens.includes(out)) out = null;
   }
   return out;
 }

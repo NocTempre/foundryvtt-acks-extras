@@ -9,7 +9,7 @@ import vm from "node:vm";
 import * as vocab from "../scripts/lib/vocab.mjs";
 import { cleanDelta, isDerivedEffect, memberName, migrateGroupSource, nextOrdinal, platoonCapacity, sizeFromEcology } from "../scripts/lib/group-logic.mjs";
 import { chooseAxes, mergePatch, resolveActor, rollDie, rollMenu, rollOption, seededRng } from "../scripts/lib/template-logic.mjs";
-import { CHANGE, changePriority, orderedChanges, applyNumericChange, activeNumericChanges, netNumericChange, csvFlagSet, abilityModifiers } from "../scripts/lib/effect-scan.mjs";
+import { CHANGE, changePriority, orderedChanges, applyNumericChange, activeNumericChanges, netNumericChange, csvFlagSet, csvFlagValue, abilityModifiers } from "../scripts/lib/effect-scan.mjs";
 import { UI_PRESET, chooseDefault, declaredDefaults, presetLook, retainerCardsToRelease, rungOrder, withoutLadderPins } from "../scripts/lib/ui-preset-logic.mjs";
 import {
   buildTransferPayload,
@@ -774,7 +774,7 @@ t("effect-scan: upgrade and downgrade bound the field, a stated priority outrank
   delete globalThis.CONST;
 });
 
-t("effect-scan: CSV grants read the same way — add puts tokens in, subtract takes them out, override replaces the lot", () => {
+t("effect-scan: a CSV grant is a union — add, override and custom put tokens in, subtract takes them out", () => {
   globalThis.CONST = { ACTIVE_EFFECT_CHANGE_TYPES: CORE_CHANGE_TYPES };
   const actor = {
     appliedEffects: [
@@ -786,10 +786,27 @@ t("effect-scan: CSV grants read the same way — add puts tokens in, subtract ta
     ],
   };
   assert.deepEqual([...csvFlagSet(actor, "g")].sort(), ["bow", "sword"]);
-  const replaced = { appliedEffects: [...actor.appliedEffects, effect([change("g", "override", "Axe")])] };
-  assert.deepEqual([...csvFlagSet(replaced, "g")], ["axe"], "the override applies last by priority and replaces everything before it");
-  const afterwards = { appliedEffects: [...replaced.appliedEffects, effect([change("g", "add", "mace", { priority: 60 })])] };
-  assert.deepEqual([...csvFlagSet(afterwards, "g")].sort(), ["axe", "mace"], "a grant priced above the override lands after it");
+  // Two grants written as overrides at the same priority both grant, and
+  // neither wipes a class grant written as an add below them.
+  const twoOverrides = { appliedEffects: [effect([change("g", "add", "all")]), effect([change("g", "override", "Axe")]), effect([change("g", "override", "swordDagger, spearPolearm")])] };
+  assert.deepEqual([...csvFlagSet(twoOverrides, "g")].sort(), ["all", "axe", "sworddagger", "spearpolearm"].sort());
+  assert.deepEqual([...csvFlagSet({ appliedEffects: [effect([change("g", "custom", "animal")])] }, "g")], ["animal"], "a custom change grants");
+  // A subtract reaches only what is granted at or below its price.
+  const over = effect([change("g", "override", "axe")]);
+  assert.deepEqual([...csvFlagSet({ appliedEffects: [over, effect([change("g", "subtract", "axe")])] }, "g")], ["axe"], "a subtract at 20 cannot strip an override at 50");
+  assert.deepEqual([...csvFlagSet({ appliedEffects: [over, effect([change("g", "subtract", "axe", { priority: 60 })])] }, "g")], [], "a subtract priced above it can");
+  delete globalThis.CONST;
+});
+
+t("effect-scan: a single-valued flag takes the highest-priced grant, and a subtract naming it clears it", () => {
+  globalThis.CONST = { ACTIVE_EFFECT_CHANGE_TYPES: CORE_CHANGE_TYPES };
+  const read = (...effects) => csvFlagValue({ appliedEffects: effects }, "v");
+  assert.equal(read(), null);
+  assert.equal(read(effect([change("v", "override", "Wis")]), effect([change("v", "add", "dex")])), "wis", "the override at 50 lands after the add at 20");
+  assert.equal(read(effect([change("v", "add", "int, cha")])), "int", "a list gives its first token");
+  assert.equal(read(effect([change("v", "add", "wis")]), effect([change("v", "subtract", "wis", { priority: 30 })])), null);
+  assert.equal(read(effect([change("v", "add", "wis")]), effect([change("v", "subtract", "dex", { priority: 30 })])), "wis", "a subtract naming another leaves it");
+  assert.equal(read(effect([change("v", "multiply", "2")])), null, "a type that grants nothing");
   delete globalThis.CONST;
 });
 

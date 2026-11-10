@@ -34,7 +34,7 @@ import { SIZE } from "./config.mjs";
 import { getLoadout } from "./loadout.mjs";
 import { classifyWeapon, canOneHand } from "./profiles.mjs";
 import { isWeaponProficient } from "./proficiency.mjs";
-import { hasEffectFlag, collectStringFlags } from "./effects.mjs";
+import { hasEffectFlag, stringFlagValue } from "./effects.mjs";
 import { maneuverMods, MANEUVERS, overlayEnabled as maneuverOverlayEnabled } from "./overlays/maneuvers.mjs";
 import { RULEDATA_DOC } from "./overlays/scavenged.mjs";
 import { ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
@@ -86,7 +86,7 @@ const label = (key, data, fallback) => {
  * @returns {{delta:number, attribute:string}|null} null when nothing applies.
  */
 export function damageAttributeDelta(actor) {
-  const [attribute] = collectStringFlags(actor, EFFECT_DOMAINS.DAMAGE_ATTRIBUTE);
+  const attribute = stringFlagValue(actor, EFFECT_DOMAINS.DAMAGE_ATTRIBUTE);
   if (!attribute) return null;
   const scores = actor.system?.scores ?? {};
   if (scores[attribute]?.mod == null) return null;

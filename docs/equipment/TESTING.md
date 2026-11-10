@@ -55,12 +55,12 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 - **A shut lock blocks storing for everyone, the GM included** —
   `canStore` answers `{ok: false, reason: "locked"}`. That is deliberate: a
   lock that silently let the GM through would be decorative.
-- **A fixture's string flag must be an `add` change.** An effect carrying
-  `{key: "flags.acks-extras.damageAttribute", type: "custom", value: "wis"}`
-  is ignored by `collectStringFlags`, so Strength of Faith never fires and the
-  damage roll looks unfixed; `type: "add"` reaches it. A boolean domain
+- **A fixture's string flag is an `add`, an `override` or a `custom`
+  change.** All three grant (MODEL §3); a `multiply`, `upgrade` or
+  `downgrade` on `flags.acks-extras.damageAttribute` is ignored, so Strength
+  of Faith never fires and the damage roll looks unfixed. A boolean domain
   (`finesse`) fires on the key alone, whatever the type — which is why one
-  half of a fixture works and the other does not. Roll with
+  half of a fixture can work while the other does not. Roll with
   `actor.makeAttackThrow({item: weapon, attackType: "melee", skipDialog: true})`
   and read the rows from the `acksLibPostAttackRoll` hook's outcome
   (`outcome.attackRoll`, `outcome.damageRoll`); the damage box renders only on
@@ -971,3 +971,57 @@ gear flag's storage row).
 
 The fixture stays, with its Player ownership. The importer step's writes are
 the import's, not the run's: they are neither tracked nor swept.
+
+## Grants a pack wrote as overrides
+
+Every CSV grant an item's effect states counts, whatever its change type,
+beside the class training's own (MODEL §3). The shape under test is a world
+that still holds items from the retired equipment-training pack, whose
+effects are all `override` at priority 50
+(`git show 741cdff^:packs/_source/equipment-training/`).
+
+### Fixtures
+
+- **Kept, `equipment/override-grants`**: a `character` with no
+  `weaponProficiency`, `styles` or `armorMax` flag, carrying, each found by
+  `flags.world.fixturePart`:
+  - six `ability` items, each with one transfer effect whose one change is
+    `type: "override"`, `priority: 50`: `weaponProf` `axe` (`grant-a`) and
+    `bow` (`grant-b`), `styleProficient` `weaponShield` (`style-a`) and
+    `twoHanded` (`style-b`), `armourProficiency` `light` (`armour-a`) and
+    `medium` (`armour-b`). Names are neutral (`QA pre-upgrade <part>`); the
+    pack's own are in git;
+  - four bare `weapon` items: Sword, Hand Axe, Short Bow, Spear (`w-sword`,
+    `w-axe`, `w-bow`, `w-spear`);
+  - an actor effect (`hand-override`) overriding `weaponProf` with `crossbow`;
+  - a class training effect granting `sworddagger`, written the way the Stats
+    tab's Training pills write it:
+    `toggleTraining(actor, "weapons", "sworddagger", {create: true, on: true})`
+    (`scripts/classes/training.mjs`), an `add` at priority 20.
+- Needs `proficiencyEnforcement` on and the non-proficient table imported
+  (`nonProficientFigures().attackThrow` not null); without it the Spear's
+  control proves nothing.
+- Each step starts with nothing equipped and the three profile flags unset.
+
+### Steps
+
+1. Read the sets. *Observable:* `collectStringFlags(actor, "weaponProf")`
+   holds `axe`, `bow`, `crossbow` and `sworddagger`; `trainedStyles(actor)`
+   holds `weaponshield` and `twohanded`; `armorMax(actor)` is `medium`.
+   *Control:* the replaced reading (an override resets the set), replayed over
+   `orderedChanges(actor, "flags.acks-extras.weaponProf")`, keeps one token.
+2. Equip each weapon alone; equipping round-trips through the server, so wait
+   for its `updateItem` hook before reading. *Observable:* `getLoadout(actor)`
+   reports `nonProficientUse: false`, and `attackThrowRows` carries no
+   Non-proficient row, for the Sword, the Hand Axe and the Short Bow; the
+   Spear, granted by nothing, reports `true` and carries the row.
+3. Equip the Hand Axe and open its attack throw
+   (`actor.makeAttackThrow({item, attackType: "melee"})`). *Observable:* the
+   dialog has no Non-proficient line. Cancel; no chat card is posted.
+4. Character sheet, Effects tab. *Observable:* the hand-made override's row
+   reads `weaponProf crossbow`, with no `=` before the value.
+
+### Teardown
+
+The fixture stays, with nothing equipped. A card step 3 posted despite the
+Cancel is the run's: delete it by its id.

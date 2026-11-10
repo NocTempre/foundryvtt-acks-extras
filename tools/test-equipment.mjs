@@ -1567,7 +1567,7 @@ globalThis.acksExtras.abilities = priorAbilities;
 /*  Abilities bridge — proficiency facts FROM the acks-abilities model      */
 /* ---------------------------------------------------------------------- */
 
-const { hasEffectFlag, sumEffectModifiers, collectStringFlags } = await import(new URL("effects.mjs", S));
+const { hasEffectFlag, sumEffectModifiers, collectStringFlags, stringFlagValue } = await import(new URL("effects.mjs", S));
 const { trainedStyles, specializedStyles } = await import(new URL("loadout.mjs", S));
 const { resolveStylePick, resolveWeaponGroupPick, resolveFocusPick } =
   await import(new URL("abilities-bridge.mjs", S));
@@ -1707,6 +1707,22 @@ const notStr = power("Odd Power", "def.power.oddPower", [
 ]);
 check("typed model: a substitution for something other than STR is left alone",
   collectStringFlags(withItems([notStr]), "damageAttribute").size === 0);
+
+// damageAttribute holds ONE attribute: the highest-priced Active Effect, else
+// the bridge's. A set read by position would take the lowest-priced one.
+const attrFx = (type, value) => ({ id: `fx${type}${value}`, name: value, disabled: false, changes: [{ key: "flags.acks-extras.damageAttribute", type, value }], flags: { "acks-extras": {} } });
+check("damageAttribute: an override beats an add, whatever their order",
+  stringFlagValue(withItems([], { effects: [attrFx("override", "con"), attrFx("add", "dex")] }), "damageAttribute") === "con");
+check("damageAttribute: an Active Effect beats the bridge; the bridge answers alone",
+  stringFlagValue(withItems([bdFaith], { effects: [attrFx("add", "dex")] }), "damageAttribute") === "dex"
+  && stringFlagValue(withItems([bdFaith]), "damageAttribute") === "wis"
+  && stringFlagValue(withItems([]), "damageAttribute") === null);
+// Grants written as overrides (a retired pack's shape) each still grant, and
+// leave a class grant written as an add standing.
+const grantFx = (value) => ({ id: `g${value}`, name: value, disabled: false, changes: [{ key: "flags.acks-extras.weaponProf", type: "override", value, priority: 50 }], flags: { "acks-extras": {} } });
+const classFx = { id: "gclass", name: "class", disabled: false, changes: [{ key: "flags.acks-extras.weaponProf", type: "add", value: "bow" }], flags: { "acks-extras": {} } };
+const granted = collectStringFlags(withItems([], { effects: [classFx, grantFx("axe"), grantFx("swordDagger")] }), "weaponProf");
+check("weaponProf: two override grants and the class add all count", ["bow", "axe", "sworddagger"].every((t) => granted.has(t)));
 
 // Typed modifiers reach the loadout effect through lib/typed-modifiers.mjs,
 // one change per ability, each named in the ledger. Figures are invented.

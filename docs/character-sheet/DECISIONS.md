@@ -377,7 +377,9 @@ every bridge client sees.
 
 Cost: a `custom` change reads as nothing, since only the package that wrote
 it knows its meaning; an `override` on a CSV grant replaces the set where it
-used to add to it; a thirty-second effect reads `30s` where it used to round
+used to add to it (superseded 2026-11-10: a CSV grant is a union, and a
+custom change on one grants too — docs/lib/DECISIONS.md, "A CSV grant is a
+union"); a thirty-second effect reads `30s` where it used to round
 up to `1m`; Foundry counts a month's remainder up on both ends, so a fresh
 two-month effect stands at its total where Foundry's own label says three;
 and a rounds effect that outlives its combat restates from its full value,

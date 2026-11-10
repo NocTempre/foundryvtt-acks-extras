@@ -33,7 +33,9 @@ const num = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallb
 
 /**
  * A change's value marked with what its type does: `+1`, `−1`, `×2`, `=10`,
- * `≥10`, `≤10`; a custom change shows its bare value.
+ * `≥10`, `≤10`; a custom change shows its bare value, and so does a word
+ * overriding one of this module's flags, which joins that flag's set as an add
+ * does (`csvFlagSet`).
  */
 function changeGlyph(change) {
   const raw = String(change.value ?? "").trim();
@@ -47,7 +49,7 @@ function changeGlyph(change) {
     case CHANGE.MULTIPLY:
       return `×${raw}`;
     case CHANGE.OVERRIDE:
-      return `=${raw}`;
+      return !Number.isFinite(n) && String(change.key ?? "").startsWith(`flags.${MODULE_ID}.`) ? raw : `=${raw}`;
     case CHANGE.UPGRADE:
       return `≥${raw}`;
     case CHANGE.DOWNGRADE:

@@ -21,7 +21,7 @@ import * as named from "../overlays/named.mjs";
 import { materialOf } from "../overlays/item-loss.mjs";
 import { classifyWeapon, inferGear, isShield, isHelmet } from "../profiles.mjs";
 import { wearLabel } from "../wear.mjs";
-import { collectEffectModifiers, hasEffectFlag, collectStringFlags } from "../effects.mjs";
+import { collectEffectModifiers, hasEffectFlag, stringFlagValue } from "../effects.mjs";
 import { getLoadout } from "../loadout.mjs";
 import { isWeaponProficient } from "../proficiency.mjs";
 import { isSilvered } from "../silver.mjs";
@@ -180,7 +180,7 @@ function inheritedGrants(item, actor) {
     // actually carries it and the weapon takes a damage bonus at all.
     let damageAttr = "str";
     if (!profile.special?.includes("noDamageBonus")) {
-      const [subAttr] = collectStringFlags(actor, EFFECT_DOMAINS.DAMAGE_ATTRIBUTE);
+      const subAttr = stringFlagValue(actor, EFFECT_DOMAINS.DAMAGE_ATTRIBUTE);
       if (subAttr && scores[subAttr]?.mod != null) damageAttr = subAttr;
     }
     const damageMod = Number(scores[damageAttr]?.mod ?? 0);

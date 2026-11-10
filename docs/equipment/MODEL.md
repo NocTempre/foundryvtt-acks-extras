@@ -75,7 +75,13 @@ enums; local-only, never in the repo).
 
 ## 3. Effect contract — `flags.acks-extras.<domain>`
 
-Numeric domains sum; CSV domains collect; boolean-ish domains test presence. Add
+Numeric domains sum; CSV domains collect; boolean-ish domains test presence.
+A CSV domain is a set of grants (`collectStringFlags`): an `add`, an
+`override` and a `custom` change each join it and a `subtract` takes its
+tokens out, so two items that both override `weaponProf` grant both, and the
+class training's `add` beneath them still stands (lib DECISIONS, "A CSV grant
+is a union"). A single-valued domain reads its one value through
+`stringFlagValue`: the highest-priced grant's first token. Add
 `flags.acks-extras.condition` (i18n key/text) to an effect to mark its bonus
 **situational** → surfaced as a toggle in the pre-roll dialog.
 
@@ -88,6 +94,10 @@ Numeric domains sum; CSV domains collect; boolean-ish domains test presence. Add
 | `weaponFocus` | CSV | Weapon Focus categories (roll-time nat-20 die) |
 | `slayer` | CSV `group:bonus` | Goblin-/Vermin-Slaying (roll-time, situational) |
 | `martialWeapons` | CSV | weapon categories added to proficiency |
+| `weaponProf` | CSV grant tokens (below) | weapon proficiency from class training |
+| `armourProficiency` | CSV | armour categories granted by class training; the heaviest one counts |
+| `maneuverTrickery` | CSV | Combat Trickery manoeuvres |
+| `damageAttribute` | single value | the score that replaces STR on a damage roll STR modifies (Strength of Faith) |
 | `armorTraining` | numeric | armour categories added above class; from an ability, its `modifies`/`armor` row's step times its rank (below) |
 | `running` | boolean | +30' speed marker — read by movement modules (formation), not written here |
 | `finesse` `preciseShooting` `sniping` `ambushing` `skirmishing` `unarmedFighting` `blindFighting` `mountedCombat` `riding` `berserkergang` `freeSwap` | boolean | proficiency presence tests |

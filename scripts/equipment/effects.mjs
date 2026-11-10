@@ -19,7 +19,7 @@ import { HELM_TABLE, enclosingHelmActive, helmFigures } from "./overlays/enclosi
 import { RULEDATA_DOC } from "./overlays/scavenged.mjs";
 import { PRIORITY, citeOf, getDoc, getLayer, hasDoc } from "../lib/tables.mjs";
 import { bridgeContributions } from "./abilities-bridge.mjs";
-import { appliedEffects, makeEffectMeta, activeNumericChanges, csvFlagSet, sumModifiers } from "../lib/effect-scan.mjs";
+import { appliedEffects, makeEffectMeta, activeNumericChanges, csvFlagSet, csvFlagValue, sumModifiers } from "../lib/effect-scan.mjs";
 import { standingModifiers, registerGate } from "../lib/typed-modifiers.mjs";
 import { lightlyEquipped } from "./proficiency.mjs";
 import { managedDelete } from "../lib/managed-effects.mjs";
@@ -81,6 +81,18 @@ export function collectStringFlags(actor, domain) {
   const out = csvFlagSet(actor, `${EFFECT_PREFIX}${domain}`);
   for (const token of bridgeContributions(actor).strings.get(domain) ?? []) out.add(token);
   return out;
+}
+
+/**
+ * The one value a single-valued string domain holds (`damageAttribute`),
+ * lowercased, or null: the Active Effects' (`csvFlagValue`), else the first
+ * token the abilities bridge contributes.
+ */
+export function stringFlagValue(actor, domain) {
+  const own = csvFlagValue(actor, `${EFFECT_PREFIX}${domain}`);
+  if (own) return own;
+  const [bridged] = bridgeContributions(actor).strings.get(domain) ?? [];
+  return bridged ? String(bridged).toLowerCase() : null;
 }
 
 // The gates the loadout can decide: how heavily the character is dressed and
