@@ -1196,20 +1196,49 @@ check("api.named namespace is present", typeof api.named?.resolveGuess === "func
   const GEAR_KEY = "flags.acks-extras.gear";
   const bundled = (qty, gearFlag) => {
     const flags = gearFlag ? { gear: { ...gearFlag } } : {};
-    const it = { id: "qv" + qty, name: "Quiver, 20 Arrows", type: "item", system: { cost: 0, weight6: 1, quantity: { value: qty }, subtype: "item" }, getFlag: (_m, k) => flags[k], effects: [], writes: [] };
+    const it = { id: "qv" + qty, name: "Quiver, 20 Arrows", type: "item", system: { cost: 0, weight6: 1, quantity: { value: qty }, subtype: "item" }, flags: { "acks-extras": flags }, getFlag: (_m, k) => flags[k], effects: [], writes: [] };
     it.update = async (u) => { it.writes.push(u); };
     return it;
   };
   const wrote = (it, path) => it.writes.some((u) => path in u);
   const fresh = bundled(1);
   const freshKey = await api.annotateItem(fresh);
-  check("a fresh bundle annotates to its bundle size", freshKey === "gear" && fresh.writes[0]?.[GEAR_KEY]?.per === 20);
+  check("a fresh bundle annotates to its bundle size", freshKey === "gear" && fresh.writes[0]?.[`${GEAR_KEY}.per`] === 20);
   check("annotate leaves a fresh bundle's count to core", !wrote(fresh, "system.quantity.value"));
   const spent = bundled(7, { slots: ["belt"], access: "free", capacity: null, per: 20 });
   await api.annotateItem(spent);
   check("a half-spent bundle keeps its count", !wrote(spent, "system.quantity.value"));
   check("a declared bundle size survives re-annotation",
     !wrote(spent, `${GEAR_KEY}.per`) && spent.writes.every((u) => u[GEAR_KEY]?.per === undefined));
+
+  // Annotate fills only what an item leaves blank: a Judge's slots, capacity,
+  // access and a weapon's size stand, since a later pass cannot tell its own
+  // earlier answer from theirs.
+  const doc = (name, type, gearFlag, system = {}) => {
+    const flags = gearFlag ? { gear: { ...gearFlag } } : {};
+    const it = { id: name.replace(/\W/g, ""), name, type, system: { cost: 0, weight6: 1, quantity: { value: 1 }, subtype: "item", ...system }, flags: { "acks-extras": flags }, getFlag: (_m, k) => flags[k], effects: [], writes: [] };
+    it.update = async (u) => { it.writes.push(u); };
+    return it;
+  };
+  const write = (it) => Object.assign({}, ...it.writes);
+  const pack = doc("Backpack", "item", { slots: ["back"], capacity: 3 });
+  await api.annotateItem(pack);
+  check("annotate keeps a Judge's capacity and slots on a backpack", !(`${GEAR_KEY}.capacity` in write(pack)) && !(`${GEAR_KEY}.slots` in write(pack)) && !(GEAR_KEY in write(pack)));
+  const cloak = doc("Cloak", "item", { slots: ["back"], capacity: 0.5, wornAt: "back" }, { subtype: "clothing" });
+  await api.annotateItem(cloak);
+  check("annotate keeps a garment's pockets and the place it is worn", !(`${GEAR_KEY}.capacity` in write(cloak)) && !(`${GEAR_KEY}.slots` in write(cloak)));
+  const belt = doc("Leather belt", "item", null, { subtype: "clothing" });
+  await api.annotateItem(belt);
+  check("annotate still gives an unannotated belt its place", JSON.stringify(write(belt)[`${GEAR_KEY}.slots`]) === '["belt"]');
+  const loaded = doc("Quiver, 20 Arrows", "item", { slots: ["belt"], capacity: 1 });
+  await api.annotateItem(loaded);
+  check("a loaded quiver has its capacity cleared and keeps its slots", write(loaded)[`${GEAR_KEY}.capacity`] === null && !(`${GEAR_KEY}.slots` in write(loaded)));
+  const sizedAxe = doc("Battle Axe", "weapon", null, { size: "large", melee: true });
+  await api.annotateItem(sizedAxe);
+  check("annotate keeps a weapon's own declared size", !("flags.acks-extras.size" in write(sizedAxe)));
+  const bareAxe = doc("Battle Axe", "weapon", null, { size: "na", melee: true });
+  await api.annotateItem(bareAxe);
+  check("annotate sizes a weapon that states none", typeof write(bareAxe)["flags.acks-extras.size"] === "string");
 }
 
 // v14 AE changes must carry a string `type`, never the deprecated numeric `mode`

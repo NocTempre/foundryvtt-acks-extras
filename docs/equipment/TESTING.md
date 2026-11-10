@@ -943,6 +943,19 @@ gear flag's storage row).
    wear section. *Observable:* "Annotated N item(s)"; each belt gains
    `slots: ["belt"]`, and a worn one keeps its `wornAt`. Sweep the step 8
    items and unset the fixture's flag.
+9b. **Annotate keeps what is set.** On the fixture, a tracked "Backpack" with
+   `gear: {slots: ["back"], capacity: 3}`, a tracked "Cloak" (subtype
+   clothing) with `gear: {slots: ["back"], capacity: 0.5, wornAt: "back"}`,
+   and a tracked "Battle Axe" weapon with `system.size` "large". Press
+   Annotate gear on the character sheet's Equipment tab. *Observable:*
+   "Annotated N item(s)." (wait for it: the pass writes one item at a time);
+   the backpack's and the cloak's `slots` and `capacity` are as set, the cloak
+   still worn at the back, the axe has its `profileKey` and no
+   `flags.acks-extras.size`, and an unannotated belt beside them still gains
+   `slots: ["belt"]`. A second pass through the macro's own step,
+   `acksExtras.equipment.annotateItem(axe)`, leaves the size unset too (the
+   macro itself, with no token selected and no assigned character, sweeps
+   every item in the world). Sweep the three.
 10. **The importer.** With the rules book open on the seat, snapshot every
    world item whose `flags.acks-extras.cookbook.id` starts `def.priced.`, then
    run the price rows alone in Repair in place: the importer module's

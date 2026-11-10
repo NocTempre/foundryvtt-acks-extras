@@ -29,9 +29,15 @@
 - **More garment names find their place.** Plurals ("Belts", "Silk sashes"), a
   cap, a turban and a head dress are read, and a name is read up to "with", so a
   cassock with a hood is worn on the body and a belt with a buckle at the belt.
-  Gear annotated before this keeps the place it was given until it is annotated
-  again: run Annotate Equipment (RAW profiles), in Compendium Packs → ACKS II —
-  Extras → Macros → ACKS Extras Macros.
+  Gear annotated before this keeps the place it was given: to read the name
+  again, open the item, press the pencil and press Auto beside Worn at, under
+  Construction on its Details tab.
+- **Annotate keeps what you set.** Annotate gear on the character sheet's
+  Equipment tab and Annotate Equipment (RAW profiles), in Compendium Packs →
+  ACKS II — Extras → Macros → ACKS Extras Macros, replaced a container's
+  capacity, a garment's pockets, the places set under Worn at and a weapon's
+  Size with the module's guess. Both now fill only what an item leaves blank. A
+  quiver sold with its arrows still has its capacity cleared.
 - **A count of one no longer reads "1 days".** The queues on a location sheet's
   Trade and Ventures tabs, the import and commission notices, and the formation
   tracker's light, spell and delve-time counts read "day(s)" and "turn(s)", as

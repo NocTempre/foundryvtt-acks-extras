@@ -1012,11 +1012,12 @@ document. Three things it leaves to Rebuild:
   repair cannot tell a field the page states as none from one this seat could
   not read, so the old value stays. Each binder would have to declare which
   fields its entry claims to fill, as `REFILL_STAT_PATHS` does for a monster.
-- **The equipment annotation layer.** `annotateItem` rewrites the whole gear
-  flag, which holds a Judge's slot choice, so a repair does not run it, and a
-  container capacity or ammunition bundle corrected there reaches only new
-  documents. It needs a merge that leaves a Judge's slots before a repair can
-  call it.
+- **The equipment annotation layer.** A repair annotates only a held row that
+  declares no slots, so a container capacity or ammunition bundle corrected
+  there reaches only new documents. `annotateItem` now fills only the gear keys
+  an item leaves blank (equipment DECISIONS 2026-11-10), so the merge this
+  waited on exists; whether a repair annotates every held row is still
+  undecided.
 - **Edits to `system` a Judge made.** A repair keeps only the fields each kind
   lists as the Judge's. A read snapshot stamped at import, under a new flag,
   would let it tell an edited field from a stale one.

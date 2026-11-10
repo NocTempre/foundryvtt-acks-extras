@@ -1999,3 +1999,42 @@ this feature, and the card is left reading declarations.
 **What it cost.** Items annotated wrongly before the patterns were fixed ("Belts"
 on the body, a hooded cassock on the head) keep their stamped answer until
 annotated again or corrected on the item's Construction tab.
+
+*Superseded in part by "Annotate fills what an item leaves blank, and lib takes
+the slot inference by registration (2026-11-10)", below: the rejected lib seam
+and the "annotated again" remedy.*
+
+### Annotate fills what an item leaves blank, and lib takes the slot inference by registration (2026-11-10)
+
+Supersedes in part the entry above, from the same day, on new evidence: owner
+reports T-0440, the Follower Card offering no wear control for the same belt,
+and T-0179, Annotate replacing a Judge's container capacity, a garment's
+pockets and the places set under Worn at. The entry above rejected a lib seam
+because lib cannot import this feature, and named a second Annotate as the
+remedy for a wrong stamp; a registration answers the first, and the second is
+the overwrite T-0179 reports, since a pass cannot tell its own earlier answer
+from a Judge's.
+
+**Ruled.**
+- `annotateItem` writes each gear key on its own, and only where the item
+  declares nothing: `slots` where `declaresSlots` is false, `access` where it
+  is blank, `capacity` where `capacityOf` is null, `relief` where `reliefOf` is.
+  A weapon's `size` is stamped only where neither the flag nor the system's
+  own field states one. A loaded device's capacity is still cleared, the one
+  key a pass takes back ("A device sold with its load", above).
+- Lib's `registerWearInference` takes this feature's reading of an undeclared
+  item's places and its `wearItem`; the Follower Card reads `canWear` and
+  wears through `wearAt`.
+- The item sheet is not simple for anything `snap.wearable`, so an
+  unannotated garment shows its EQP cell.
+
+**Rejected.** A provenance stamp recording what Annotate wrote, so a second
+pass could replace only its own answers: a new key on lib's gear model, and
+every item annotated before it carries none.
+
+**What it cost.** A wrong stamp is no longer corrected by running Annotate
+again; it is reset on the item (Construction, Auto beside Worn at). A Judge's
+"holds nothing" (`capacity` null) on an item whose name matches a carrying
+device is filled again by the next pass, since null also means never stated.
+`damageType`, `handy`, `thrown` and the weapon's melee and missile booleans
+are still stamped from the weapon table on every pass.

@@ -17,9 +17,9 @@ import {
   riderWaivers,
   hasMilitarySaddle,
 } from "./overlays/mounted.mjs";
-import { classifyWeapon, handCost, focusGroup, weaponKey, weaponIdentity, isUnidentifiedWeapon, inferredGrips, equipmentClass, inferGear, inferredGearFlag, wearableSlots, isHelmet, isShield, perStoneStated } from "./profiles.mjs";
+import { classifyWeapon, handCost, focusGroup, weaponKey, weaponIdentity, isUnidentifiedWeapon, inferredGrips, equipmentClass, inferGear, inferredGearFlag, wearableSlots, isHelmet, isShield, perStoneStated, CORE_SIZES } from "./profiles.mjs";
 import { FLAG_GEAR } from "../lib/constants.mjs";
-import { capacityOf, bundleSizeOf, gearOf, isCurrency } from "../lib/item-model.mjs";
+import { capacityOf, bundleSizeOf, gearOf, isCurrency, declaresSlots, reliefOf } from "../lib/item-model.mjs";
 import { weaponProficiency, isWeaponProficient, armorMax, isArmorProficient, thiefSkillsGated, isArmorGatedSkill, grantMatches, normalizeGrantToken, classifyGrantToken } from "./proficiency.mjs";
 import { refreshLoadout } from "./enforce.mjs";
 import { planItemLoss, stonesAtRisk, isVulnerable, materialOf, setMaterial, MATERIALS } from "./overlays/item-loss.mjs";
@@ -87,11 +87,14 @@ export async function annotateItem(item) {
     key = weaponKey(item);
     if (key) {
       const base = CONFIG_DATA.WEAPONS[key];
+      // A size the item declares — on its sheet, or the system's own field an
+      // import wrote — stands; only a weapon that states none is given one.
+      const sized = item.flags?.[MODULE_ID]?.[ITEM_FLAGS.SIZE] != null || CORE_SIZES[item.system?.size] != null;
+      if (!sized) updates[`flags.${MODULE_ID}.${ITEM_FLAGS.SIZE}`] = base.size;
       Object.assign(updates, {
         // The identity itself, written down (DECISIONS.md, "What a weapon
         // IS is declared, not read off its name (2026-09-07)").
         [`flags.${MODULE_ID}.${ITEM_FLAGS.PROFILE_KEY}`]: key,
-        [`flags.${MODULE_ID}.${ITEM_FLAGS.SIZE}`]: base.size,
         [`flags.${MODULE_ID}.${ITEM_FLAGS.DAMAGE_TYPE}`]: base.type || "",
         [`flags.${MODULE_ID}.${ITEM_FLAGS.HANDY}`]: !!base.handy,
         [`flags.${MODULE_ID}.${ITEM_FLAGS.THROWN}`]: !!base.thrown,
@@ -113,34 +116,40 @@ export async function annotateItem(item) {
   }
 
   // Where it sits, what it costs to reach into, and how much it holds — only
-  // stamped when there is something to say. Capacity is written into the
-  // gear flag rather than the container record, which keeps only the lock's
-  // state.
+  // stamped when there is something to say, and key by key only where the
+  // item declares nothing: a Judge's slots, capacity, access or relief stand,
+  // since a later pass cannot tell its own earlier answer from theirs.
+  // Capacity is written into the gear flag rather than the container record,
+  // which keeps only the lock's state.
+  const G = `flags.${MODULE_ID}.${FLAG_GEAR}`;
   const gear = inferGear(item);
-  const declared = inferredGearFlag(item);
-  if (declared) {
-    updates[`flags.${MODULE_ID}.${FLAG_GEAR}`] = declared;
+  const inferred = inferredGearFlag(item);
+  if (inferred) {
+    const held = gearOf(item);
+    if (!declaresSlots(item)) updates[`${G}.slots`] = inferred.slots;
+    if (!held.access) updates[`${G}.access`] = inferred.access;
+    if (capacityOf(item) == null) updates[`${G}.capacity`] = inferred.capacity;
+    if ("relief" in inferred && reliefOf(item) == null) updates[`${G}.relief`] = inferred.relief;
     key ??= gear.capacity != null ? "container" : "gear";
   }
 
   // A device sold with its load — "Quiver, 20 Arrows" — is the ammunition;
-  // re-running annotate clears a capacity an earlier pass mistakenly stamped.
+  // re-running annotate clears a capacity an earlier pass mistakenly stamped,
+  // the one key this pass takes back.
   //
   // The count is never written here (DECISIONS.md, "Annotate declares the
   // bundle and never the count (2026-09-05)").
   const rounds = CONFIG_DATA.bundledAmmoCount(item.name ?? "");
   if (rounds != null) {
     if (capacityOf(item) != null) {
-      updates[`flags.${MODULE_ID}.${FLAG_GEAR}`] = { slots: gear.slots, access: gear.access, capacity: null };
+      updates[`${G}.capacity`] = null;
       key = "ammunition";
     }
     // The name states a bundle, so the printed weight beside it is the
     // bundle's (DECISIONS.md, "A stated weight may cover a bundle
     // (2026-08-31)"). Never overwrite a bundle size a Judge has already set.
     if (bundleSizeOf(item) <= 1) {
-      const gearNow = updates[`flags.${MODULE_ID}.${FLAG_GEAR}`];
-      if (gearNow) gearNow.per = rounds;
-      else updates[`flags.${MODULE_ID}.${FLAG_GEAR}.per`] = rounds;
+      updates[`${G}.per`] = rounds;
       key ??= "ammunition";
     }
   }
@@ -151,9 +160,7 @@ export async function annotateItem(item) {
   if (isCurrency(item) && gearOf(item).perStone == null) {
     const perStone = perStoneStated(item);
     if (perStone != null) {
-      const gearNow = updates[`flags.${MODULE_ID}.${FLAG_GEAR}`];
-      if (gearNow) gearNow.perStone = perStone;
-      else updates[`flags.${MODULE_ID}.${FLAG_GEAR}.perStone`] = perStone;
+      updates[`${G}.perStone`] = perStone;
       key ??= "coin";
     }
   }

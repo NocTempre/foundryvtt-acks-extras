@@ -206,7 +206,7 @@ function tagTokens(item) {
 }
 
 /** The system's weapon sizes that name a size of the table's; `na` names none. */
-const CORE_SIZES = Object.freeze({ tiny: SIZE.TINY, small: SIZE.SMALL, medium: SIZE.MEDIUM, large: SIZE.LARGE });
+export const CORE_SIZES = Object.freeze({ tiny: SIZE.TINY, small: SIZE.SMALL, medium: SIZE.MEDIUM, large: SIZE.LARGE });
 
 /** A module flag read off a live document or a plain data object alike. */
 function mflag(item, key) {
