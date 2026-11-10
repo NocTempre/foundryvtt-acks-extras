@@ -298,7 +298,7 @@
   "ACKS-CLASSES.zero.erodes": "Eroding",
   "ACKS-CLASSES.zero.erodesHint": "Marked when this character left 0th level, as over the general limit. The Judge removes these as game time passes (RR ch. 6).",
   "ACKS-CLASSES.settings.levelUpHpMode.name": "Level-up hit points",
-  "ACKS-CLASSES.settings.levelUpHpMode.hint": "RAW rerolls the full Hit Dice for the new level (Constitution per die, never on the flat bonus past 9th) and keeps at least one point over the old maximum. Additive rolls one new die instead.",
+  "ACKS-CLASSES.settings.levelUpHpMode.hint": "How the level-up wizard rolls hit points: by the rules' own procedure (RR ch. 1, Hit Points), or by adding one die to the old maximum.",
   "ACKS-CLASSES.settings.levelUpHpMode.raw": "Reroll full Hit Dice (RAW)",
   "ACKS-CLASSES.settings.levelUpHpMode.additive": "Add one die (house rule)",
   "ACKS-CLASSES.chargen.title": "Starting Template — {name}",

@@ -72,6 +72,9 @@
   they were denied and their attack throws and Armour Class can change after the
   update. An effect meant to take a grant away now subtracts it. The character
   sheet's Effects tab shows such a grant as its value, without an "=".
+- **The Level-up hit points setting says what it does.** Its description, in
+  Settings tab → Game Settings → ACKS II — Extras, restated the rule; it now
+  names the two ways the level-up wizard can roll and points at the page.
 
 ## 11.14.4
 
