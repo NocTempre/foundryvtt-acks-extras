@@ -1055,9 +1055,15 @@ effect puts the suit's back (MODEL, "A helmet never replaces the suit").
 2. On `equipment/override-grants`: suit, shield, helm. *Observable:* AC is
    the suit's plus the shield's after the shield and after the helm, and
    `getLoadout(actor).nonProficientUse` is false (the medium grant).
-3. With suit and helm on, character sheet, Stats tab. *Observable:* the
-   armour AC figure's tooltip names the helm as core's armour, then the suit's
-   AC under a helmet with its figure.
+3. With suit and helm on and the loadout effect written, open the character
+   sheet on its Stats tab; then again with the sheet open before the suit and
+   the helm go on. *Observable:* both times the armour AC figure reads
+   `system.ac.value` less the shield, and its tooltip names the helm as core's
+   armour, then the suit's AC under a helmet with its figure.
+4. The pre-update shape: suit and helm on, the loadout effect deleted (what
+   the code before this fix left for the pair). Close the window and connect a
+   fresh one, toggling nothing. *Observable:* within the ready pass, the effect
+   is written and AC equals the suit's.
 
 ### Teardown
 

@@ -36,14 +36,17 @@ enums; local-only, never in the repo).
   A Judge's override of either table wins; a figure not imported writes
   nothing. `api.HELM_MODIFIERS` keeps its `{surprise, listening,
   mortalWounds}` shape, read at each access, each figure null until imported.
-- **Single responder.** Loadout writes (auto-unequip, effect sync) run for one
-  user — the active GM if online, else the actor owner
-  (`enforce.primaryResponder`) — and each client serialises its own
-  (`queueSync`). Every window that user has open writes, so the effect itself
-  is made one document: it is created under `LOADOUT_EFFECT_ID`, a second
-  window's create is refused, and that window reconciles the effect the first
-  made. A write another window overtook is swallowed only where the effect is
-  already created or gone under it (`writeUnlessRaced`).
+- **Single responder.** Loadout writes (auto-unequip, effect sync) run in one
+  window — the active GM's elected window if one is online, else an owner's
+  elected window (`enforce.primaryResponder`, lib's seat election) — and each
+  window serialises its own (`queueSync`). Several owners can each pass the
+  second, so the effect itself is made one document: it is created under
+  `LOADOUT_EFFECT_ID`, a second window's create is refused, and that window
+  reconciles the effect the first made. A write another window overtook is
+  swallowed only where the effect is already created or gone under it
+  (`writeUnlessRaced`). On load the elected window rebuilds the effect of every
+  character it owns, once its seat's election has settled; a window still
+  joining is elected by nobody.
 - **Data-driven, not name-driven.** Proficiency mechanics live as Active-Effect
   changes keyed `flags.acks-extras.<domain>` on `ability` items, read through the
   shared effect-scan core in `scripts/lib/effect-scan.mjs` with this feature's

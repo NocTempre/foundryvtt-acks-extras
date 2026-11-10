@@ -9,6 +9,7 @@
  *         loadout sync, equip-enforcement hooks.
  */
 import { isPrimaryGM } from "../lib/util.mjs";
+import { automationSettled } from "../lib/automation-client.mjs";
 import { assertAcksSystem } from "../namespace.mjs";
 import { MODULE_ID, SETTINGS, LOADOUT_EFFECT_FLAG, VARIATION_ITEM_TYPE } from "./constants.mjs";
 import { registerSettings } from "./settings.mjs";
@@ -140,7 +141,11 @@ Hooks.once("ready", async () => {
   }
 
   // Rebuild loadout effects for owned characters on load (repairs after config
-  // changes, migrations, or a session where enforcement was off).
+  // changes, migrations, an update that changed what the effect writes, or a
+  // session where enforcement was off). This pass and the next write only from
+  // the window `primaryResponder` names, which a window still joining its
+  // seat's election is not, so both wait for the election to settle.
+  await automationSettled();
   const owned = game.actors.filter((a) => a.type === ACTOR_TYPE.character && a.isOwner);
   for (const actor of owned) {
     refreshLoadout(actor).catch((err) => console.error(`${MODULE_ID} | initial loadout sync failed for ${actor.name}`, err));

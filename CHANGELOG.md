@@ -79,10 +79,17 @@
   suit was read as the character's armour, so Armour Class dropped by the suit's
   whole figure: the system reads the last armour put on. The suit's AC now
   stands whatever the order, and a helmet that states an AC adds it, so
-  characters already wearing a helmet over a suit read higher after the update.
+  characters already wearing a helmet over a suit read higher once the world is
+  loaded after the update.
   The Armour class figures on the character sheet's Stats tab now carry a
   tooltip naming the armour the system read, Dexterity, the shield, the stored
   bonus and each correction made to it.
+- **Equipment corrections are rebuilt when the world loads.** The armour,
+  shield, style and helmet corrections the module keeps on each character (the
+  Equipment Loadout effect on the character sheet's Effects tab) were meant to
+  be rebuilt every time the world loads, and were rebuilt only when an item was
+  equipped or taken off. The Judge's first load now brings every character up
+  to date.
 
 ## 11.14.4
 

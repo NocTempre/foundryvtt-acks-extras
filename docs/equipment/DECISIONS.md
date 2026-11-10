@@ -2063,3 +2063,26 @@ last: an order nobody sees, undone by the next item created.
 **What it cost.** A helmet item that states an AC now adds it to the suit's;
 before, it counted only when it was equipped last, and then in place of the
 suit. The charge for a suit worn without a helmet stays unbuilt (ROADMAP).
+
+### The load-time loadout rebuild waits for the seat election (2026-11-10)
+
+Found checking the entry above on a character that already wore a helmet over
+its suit: with the pair equipped and no loadout effect (what the code before it
+left), a freshly loaded window wrote nothing and AC stayed at the helmet's base
+for twenty seconds. The `ready` pass that rebuilds every owned character's
+effect, and the one that removes a stray effect from a non-character, both ask
+`primaryResponder`, which reads lib's seat election, and at `ready` the window
+is still joining it, so every window answered false and neither pass ever ran.
+
+**Ruled.** Both passes await `automationSettled()` (lib's
+`automation-client.mjs`) and then ask. The rebuild fixes the pre-update
+characters on the elected window's first load; the effect's hash keeps an
+unchanged one from being written again.
+
+**Rejected.** Asking the active GM's seat alone (`isActiveGMSeat`): every window
+of that seat would rebuild at once, the duplicate-effect race the single
+responder exists to close.
+
+**What it cost.** The first load after an update now writes the loadout effect
+of each owned character whose changes differ from what is stored, one write
+each, where before nothing was written until an equip toggle.
