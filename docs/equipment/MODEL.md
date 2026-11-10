@@ -63,7 +63,7 @@ enums; local-only, never in the repo).
 | Item flag (armor) | `flags.acks-extras.{shieldVariant,strap,masterwork,helmet}` | Overlay metadata. |
 | Item flag (weapon/ammo) | `flags.acks-extras.silvered` | RR ch.4 Silver quality. `true` plated, `false` explicitly not, absent = the guess in `silver.mjs` (weapon table, then name). Only `true` applies the 10× price layer — the RAW list already charges Silver Dagger and Silver Arrow their silvered price. |
 | Item flag (weapon/shield) | `flags.acks-extras.hand` | `main` \| `off` — which hand the item was drawn into; resolves dual-wield off-hand identity. |
-| Item flag (any physical item) | `flags.acks-extras.gear` | `{slots, wornAt, access, capacity, relief}` — where this gear MAY sit, where it sits now, the RAW cost of drawing from it, how much it holds and, on a harness, how much it secures (the item's own figure, read from its text by Annotate or typed on its Construction tab). The model and its read path are the lib subsystem's (`docs/lib/MODEL.md`); this feature infers the values (`profiles.mjs` `inferGear`) and stamps them (Annotate Equipment). |
+| Item flag (any physical item) | `flags.acks-extras.gear` | `{slots, wornAt, access, capacity, relief}` — where this gear MAY sit, where it sits now, the RAW cost of drawing from it, how much it holds and, on a harness, how much it secures (the item's own figure, read from its text by Annotate or typed on its Construction tab). The model and its read path are the lib subsystem's (`docs/lib/MODEL.md`); this feature infers the values (`profiles.mjs` `inferGear`) and stamps them (Annotate Equipment, and the importer on every gear and price row it makes). An item that declares no `slots` is read through `wearableSlots` — its inferred places — by every Wear control this feature draws, and `actions.mjs` `wearItem` declares them in the write that puts it on. |
 | Item flag (container) | `flags.acks-extras.container.{quality,lockMod,keys,accepts,refusal}` | The lock's quality text and pick modifier, the keys that open it (`[{uuid,name}]`), the kinds it will accept (`item-sheet/accept-kinds.mjs`) and the refusal it gives a wrong drop. Beside the `locked/opened/concealed/fragile` fields `containers.mjs` already holds. |
 | Item flag | `flags.acks-extras.pins` | Roll ids the item pins to its art, oldest first, at most two. |
 | Item flag | `flags.acks-extras.valueMode` | `priced` \| `unknown` \| `na` — what the value badge reads (`item-sheet/view-model.mjs` `valueBadge`). |
@@ -148,6 +148,19 @@ A token outside the grammar matches nothing — `api.classifyGrantToken` reports
 which kind a token is, or `"unknown"`. A profile that parses to **no** tokens is
 treated as *no profile* (permissive), never as a restriction granting nothing:
 the alternative made one typo silently non-proficient with everything.
+
+**What every class throws is not a grant.** A flask, a bottle, a rock, a stick
+or a torch is thrown proficiently whatever the grants say (RR ch. 1, Weapon
+Proficiency). The classifier marks it `profile.anyoneThrows`: a table row
+tagged `ANYONE_THROWS` (military oil, holy water, rock, torch), anything that
+bursts (`splash`, or a `splash`/`grenade` custom tag), or a thrown weapon the
+table cannot place whose name calls it a flask, bottle, vial, grenade, jar,
+pot, rock, stick or torch. `isWeaponProficient` answers yes for it, so
+carrying one equipped is never the non-proficient use package; only a melee
+swing (`{attack: "melee"}`, a torch) asks the grants, and `attack-mods.mjs`
+asks that for the swing alone, as the item roll groups' Non-proficient tag
+(`item-sheet/rolls.mjs`) does per mode. The Stats tab's Training pills pass
+`grantsOnly`, since they edit grants and the rule is not one.
 
 The same tokens are the keys of the ability sheet's weapon-proficiency boxes
 (`lib/vocab.mjs` `SELECTION_VOCAB.weaponProficiency`), and

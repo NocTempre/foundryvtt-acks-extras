@@ -83,6 +83,9 @@ it fills this in for everything a character (or the whole world) owns:
 - rations, tools, rope, loot and coin declare nothing, because they are carried
   rather than worn — that is what keeps them plain goods.
 
+Gear nobody has annotated gets the control anyway, at the place its name puts it,
+and declares that place the first time you wear it.
+
 The belt and the back take any number of *different* things — a belt, a pouch,
 a scabbard, a quiver and a harness are five forms hung from one place, and a
 pack rides beside a bowcase. The only wear rule ACKS II has refuses a second of

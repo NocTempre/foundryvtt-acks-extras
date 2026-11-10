@@ -27,7 +27,8 @@ import { lightTypeOf } from "../../equipment/sheet.mjs";
 import { bearerLights } from "../../lib/light.mjs";
 import { canSplit } from "../../equipment/item-sheet/stack.mjs";
 import { stoneLabel, gpLabel } from "../../equipment/item-sheet/format.mjs";
-import { isEquippable, isWorn, slotsOf, weight6Of, isGoods, isClothing, isCurrency, stackCountOf, slotUse, STONE } from "../../lib/item-model.mjs";
+import { isEquippable, isWorn, weight6Of, isGoods, isClothing, isCurrency, stackCountOf, slotUse, STONE } from "../../lib/item-model.mjs";
+import { wearableSlots } from "../../equipment/profiles.mjs";
 import { coinTotalGC } from "../../lib/money-logic.mjs";
 import { coinOrderView } from "../../lib/coin-order.mjs";
 import { WEAR_SLOT_ORDER, WEAR_SLOTS, ITEM_TYPE } from "../../lib/vocab.mjs";
@@ -91,9 +92,9 @@ function rowControls(actor, item, loadout, lights) {
       const strap = strapOf(item);
       state.push(ctl("cycleStrap", strap === "hand" ? "fa-solid fa-hand" : "fa-solid fa-shield-halved", game.i18n.localize("ACKS-EQUIPMENT.strap.cycle"), {}, `is-${strap}`));
     }
-  } else if (!isEquippable(item) && slotsOf(item).length) {
+  } else if (!isEquippable(item) && wearableSlots(item).length) {
     const worn = isWorn(item);
-    const slot = slotsOf(item)[0];
+    const slot = wearableSlots(item)[0];
     state.push(ctl("toggleWear", worn ? "fa-solid fa-circle-minus" : "fa-solid fa-circle-plus", game.i18n.format(`ACKS-EQUIPMENT.action.${worn ? "remove" : "wear"}`, { slot: wearLabel(slot) }), { slot }));
   }
 

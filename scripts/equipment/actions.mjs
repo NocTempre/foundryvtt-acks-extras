@@ -6,11 +6,11 @@
  */
 import { MODULE_ID, ITEM_FLAGS } from "./constants.mjs";
 import { FLAG_GEAR } from "../lib/constants.mjs";
-import { setWorn } from "../lib/item-model.mjs";
+import { setWorn, declaresSlots, isEquippable, gearOf } from "../lib/item-model.mjs";
 import { LIGHT_SOURCES } from "../lib/light.mjs";
 import { ITEM_TYPE, isWearSlot } from "../lib/vocab.mjs";
 import { SHIELD_VARIANTS } from "./config.mjs";
-import { equipmentClass, classifyWeapon, GRIPS, WEAPON_CATEGORY_VALUES } from "./profiles.mjs";
+import { equipmentClass, classifyWeapon, GRIPS, WEAPON_CATEGORY_VALUES, inferredGearFlag } from "./profiles.mjs";
 import { consumeItem, roundsOf } from "./ammo.mjs";
 import {
   tableFor, accumulate, needsReroll, SCAVENGED_TABLES,
@@ -299,8 +299,20 @@ export async function setGearRelief(item, value) {
  * Routed through acks-lib's `setWorn`, which writes whichever store the item's
  * type uses, so this never has to know that core owns `system.equipped` for
  * weapon and armour and nothing else.
+ *
+ * `setWorn` refuses a place the item does not declare, and gear nobody
+ * annotated declares none. Such an item is declared first, with what the
+ * Annotate pass would write, and in the same write put on — so long as the
+ * place asked for is one of those it infers. What the item already carries
+ * under the flag (a capacity a Judge typed) is kept over the inference.
  */
 export async function wearItem(item, slot) {
+  if (item && slot && !isEquippable(item) && !declaresSlots(item)) {
+    const gear = inferredGearFlag(item);
+    if (!gear?.slots.includes(slot)) return false;
+    await item.update({ [`flags.${MODULE_ID}.${FLAG_GEAR}`]: { ...gear, ...gearOf(item), slots: gear.slots, wornAt: slot } });
+    return true;
+  }
   return setWorn(item, slot);
 }
 /** Take a worn item off. */

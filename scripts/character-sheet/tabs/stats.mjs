@@ -65,7 +65,7 @@ function weaponGroups(actor, strips, { view, openBuckets, editing, prov, edited 
   const prof = weaponProficiency(actor);
   const focus = new Set([...collectStringFlags(actor, EFFECT_DOMAINS.WEAPON_FOCUS)].map(norm));
   const configured = strips.weapons.some((w) => !w.unset);
-  const unitOn = (u) => (configured && !prof.all ? isWeaponProficient(actor, u.profile, prof) : configured && prof.all);
+  const unitOn = (u) => (configured && !prof.all ? isWeaponProficient(actor, u.profile, prof, { grantsOnly: true }) : configured && prof.all);
   return arrangeUnits(view).map((g) => {
     const members = g.members.map((u) => {
       const group = focusGroup(u.profile);

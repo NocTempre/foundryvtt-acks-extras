@@ -350,6 +350,42 @@ check("DEX penalty to AC is kept (penalties are not bonuses)", buildLoadoutChang
 const profLo = getLoadout(actor([weapon("Sword", { melee: true, id: "sw" })], { flags: { styles: "single,twoHanded" }, system: { scores: { dex: { mod: 2 } }, details: { level: 3 } } }));
 check("fully proficient loadout → no nonProficientUse state", profLo.nonProficientUse === false && !profLo.violations.some((v) => v.type === VIOLATION.NON_PROFICIENT_USE));
 
+// Every class throws a flask, a bottle, a rock or a torch proficiently (RR ch.
+// 1, Weapon Proficiency). A dart is the control: thrown, missile-only,
+// category `other` and granted by name to some classes, so a rule keyed on
+// "thrown missile" would wrongly light it too.
+const swordsOnly = actor([], { flags: { weaponProficiency: "swordDagger" } });
+const oilP = classifyWeapon(weapon("Military Oil", { missile: true, melee: false }));
+const holyP = classifyWeapon(weapon("Flask of holy water", { missile: true, melee: false }));
+const rockP = classifyWeapon(weapon("Rock", { missile: true, melee: false }));
+const dartP = classifyWeapon(weapon("Dart", { missile: true, melee: false }));
+check("military oil, holy water and a rock are everyone's to throw", [oilP, holyP, rockP].every((p) => isWeaponProficient(swordsOnly, p)));
+check("a dart still needs its grant", !isWeaponProficient(swordsOnly, dartP));
+const torchP = classifyWeapon(weapon("Torch", { melee: true, missile: true }));
+check("a torch is everyone's thrown, and carried", isWeaponProficient(swordsOnly, torchP, undefined, { attack: "thrown" }) && isWeaponProficient(swordsOnly, torchP));
+check("a torch swung in melee needs its grant", !isWeaponProficient(swordsOnly, torchP, undefined, { attack: "melee" }));
+// Beyond the table: anything that bursts, and a thrown thing the table
+// cannot place that its name calls a flask, a bottle or a grenade.
+const acidP = classifyWeapon(weapon("Flask of acid", { missile: true, melee: false }));
+const brickP = classifyWeapon(weapon("Brick", { missile: true, melee: false }));
+const taggedP = classifyWeapon(weapon("Smoke charge", { missile: true, melee: false, tags: ["Grenade"] }));
+check("an unplaced thrown flask is everyone's", isWeaponProficient(swordsOnly, acidP));
+check("a grenade-tagged weapon is everyone's", isWeaponProficient(swordsOnly, taggedP));
+check("an unplaced throwable its name does not place is not", !isWeaponProficient(swordsOnly, brickP));
+check("a table-placed weapon is never read by name", classifyWeapon(weapon("Stick-handled mace", { melee: true, missile: true })).anyoneThrows === false);
+check("the Training pills read grants alone", !isWeaponProficient(swordsOnly, oilP, undefined, { grantsOnly: true }));
+const oilOnly = getLoadout(actor([weapon("Military Oil", { missile: true, melee: false, id: "oil" })], { flags: { weaponProficiency: "swordDagger" } }));
+check("military oil drawn by a sword-trained character is no non-proficient use", oilOnly.nonProficientUse === false);
+const torchHeld = weapon("Torch", { melee: true, missile: true, id: "tch" });
+a = rollActor([torchHeld], { flags: { weaponProficiency: "swordDagger" }, system: { details: { level: 1 }, attack: { throw: 10 }, scores: { str: { mod: 2 }, dex: { mod: 1 } } } });
+check("a torch thrown takes no package; swung, it does", attackThrowRows(a, torchHeld, "thrown").length === 0 && sumRows(attackThrowRows(a, torchHeld, "melee")) === -2);
+{
+  const { rollGroups } = await import("../scripts/equipment/item-sheet/rolls.mjs");
+  const modes = rollGroups(torchHeld, a).find((g) => g.key === "attackModes")?.rows ?? [];
+  const tagged = (id) => (modes.find((r) => r.id === id)?.mods ?? []).some((m) => /nonProficient$/.test(m));
+  check("the Rolls tag agrees: a torch's swing is marked, its throw is not", tagged("atk:melee") && !tagged("atk:missile"));
+}
+
 // Weapon Finesse swaps STR (+1) for DEX (+3) → net +2.
 a = rollActor([swordItem], { flags: { styles: "single,twoHanded" }, effects: [marker("finesse", "1")], system: { scores: { str: { mod: 1 }, dex: { mod: 3 } } } });
 rows = attackThrowRows(a, swordItem, "melee");
@@ -878,6 +914,34 @@ check("gear in a pocket still weighs on the carrier", encumbering6(hiddenBlade) 
 check("a plain garment is still not a container", isContainer(gear("Chiton", 1, { id: "ch", subtype: "clothing" })) === false);
 check("garments land on the body part they name", inferGear(clothing("Cloak, Silk, Hooded")).slots.join() === "shoulders" && inferGear(clothing("Boots, Leather, High")).slots.join() === "feet" && inferGear(clothing("Gloves, Leather or Wool, Long")).slots.join() === "hands" && inferGear(clothing("Belt/Sash, Leather")).slots.join() === "belt" && inferGear(clothing("Skullcap")).slots.join() === "head");
 check("unpatterned clothing is simply worn", inferGear(clothing("Chiton, Linen or Wool")).slots.join() === "worn" && inferGear(clothing("Loincloth")).slots.join() === "worn");
+check("a plural names its place too", inferGear(clothing("Belts")).slots.join() === "belt" && inferGear(clothing("Silk sashes")).slots.join() === "belt");
+check("a cap, a turban and a head dress go on the head",
+  ["Cap", "Turban", "Gossamer head dress"].every((n) => inferGear(clothing(n)).slots.join() === "head"));
+check("a garment named with what it carries is that garment",
+  inferGear(clothing("Grey cassock with hood")).slots.join() === "worn" && inferGear(clothing("Cloak with hood")).slots.join() === "shoulders"
+  && inferGear(clothing("Belt embossed with tooth marks")).slots.join() === "belt");
+
+// Gear nobody annotated declares nothing, and the Wear control and the wear
+// action read the inferred place for it; a declaration, even of nowhere, wins.
+const { wearableSlots } = await import(new URL("profiles.mjs", S));
+const { wearItem } = await import(new URL("actions.mjs", S));
+const wearable = (name, gearFlag) => {
+  const writes = [];
+  const flags = gearFlag ? { "acks-extras": { gear: gearFlag } } : {};
+  return { name, type: "item", system: { cost: 0, weight6: 0, subtype: "clothing" }, flags, getFlag: (_m, k) => flags["acks-extras"]?.[k], update: async (d) => void writes.push(d), writes };
+};
+check("an unannotated leather belt is wearable at the belt", wearableSlots(wearable("Leather belt")).join() === "belt");
+check("a declaration of nowhere stays nowhere", wearableSlots(wearable("Leather belt", { slots: [] })).length === 0);
+check("a declared place outranks the name", wearableSlots(wearable("Leather belt", { slots: ["worn"] })).join() === "worn");
+const bareBelt = wearable("Leather belt");
+check("wearing an unannotated belt declares it and puts it on in one write",
+  (await wearItem(bareBelt, "belt")) === true && bareBelt.writes.length === 1
+  && JSON.stringify(bareBelt.writes[0]["flags.acks-extras.gear"]) === JSON.stringify({ slots: ["belt"], access: "", capacity: null, wornAt: "belt" }));
+const misplaced = wearable("Leather belt");
+check("a place the name does not give is refused, and nothing is written", (await wearItem(misplaced, "head")) === false && misplaced.writes.length === 0);
+const typedCapacity = wearable("Leather belt", { capacity: 0.5 });
+await wearItem(typedCapacity, "belt");
+check("a capacity already on the flag survives the declaration", typedCapacity.writes[0]?.["flags.acks-extras.gear"]?.capacity === 0.5);
 check("cloth sold by the pound is goods, not a garment", inferGear(clothing("Linen, Cheap (1 lb)")).slots.length === 0 && inferGear(clothing("Silk (1 lb)")).slots.length === 0);
 check("rations, tools and rope are worn nowhere", inferGear(goods("Rations, Standard (one week)")).slots.length === 0 && inferGear(goods("Thieves' Tools")).slots.length === 0 && inferGear(goods("Rope, 50'")).slots.length === 0);
 const gearHelm = { name: "Great Helm", type: "armor", system: { cost: 0, weight6: 1, type: "medium" }, getFlag: () => undefined };

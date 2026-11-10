@@ -2,6 +2,34 @@
 
 ## Unreleased
 
+### Fixed
+
+- **Every character throws a flask.** A character drawing military oil, holy
+  water, a rock, a torch or any other flask, bottle or grenade was counted as
+  using a weapon it was not trained in, so every attack and the armour bonus took
+  the non-proficient penalty (RR ch. 1, Weapon Proficiency). Those weapons are now
+  proficient for every class to carry and to throw: the table's own rows, any
+  weapon that bursts, a weapon tagged Grenade, and a thrown weapon named like a
+  flask or a bottle that the weapon table does not place. A torch swung in melee
+  still needs a grant, and the character sheet's Rolls tab tags its melee rows
+  Non-proficient and its thrown row not. A weapon's two-handed row there now
+  carries the Non-proficient tag its one-handed row does. The character sheet's
+  Stats tab Training pills are unchanged.
+- **A belt can be worn.** Garments from the imported price list (a leather belt,
+  boots, a cloak) and the class-kit copies made from them had no Wear control, so
+  they could not be put on. The character sheet's Equipment tab now shows the
+  control on the item's row (Wear it — Belt) at the place the name gives, and the
+  item sheet's EQP cell wears it there where the sheet shows one; the first wear
+  records the place on the item. Newly imported price rows carry their place, and Settings tab → Game
+  Settings → ACKS II — Extras → Manage imports, the Equipment step in Repair in
+  place mode, gives one to a held row that has none.
+- **More garment names find their place.** Plurals ("Belts", "Silk sashes"), a
+  cap, a turban and a head dress are read, and a name is read up to "with", so a
+  cassock with a hood is worn on the body and a belt with a buckle at the belt.
+  Gear annotated before this keeps the place it was given until it is annotated
+  again: run Annotate Equipment (RAW profiles), in Compendium Packs → ACKS II —
+  Extras → Macros → ACKS Extras Macros.
+
 ## 11.14.4
 
 ### Changed

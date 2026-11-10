@@ -10,8 +10,8 @@
  * lost either way, and the stack's own quantity is the only count that moves.
  */
 import { MODULE_ID } from "../constants.mjs";
-import { setWorn, slotsOf, siblingsOf } from "../../lib/item-model.mjs";
-import { inferGear } from "../profiles.mjs";
+import { setWorn, siblingsOf } from "../../lib/item-model.mjs";
+import { wearableSlots } from "../profiles.mjs";
 
 /** The flag naming the stack a split item came from. */
 export const SPLIT_FROM = "splitFrom";
@@ -19,9 +19,9 @@ export const SPLIT_FROM = "splitFrom";
 /** The stack id a split item came from, or null. */
 export const splitFromOf = (item) => item?.getFlag?.(MODULE_ID, SPLIT_FROM) ?? null;
 
-/** The slot a split item is worn in: the declared slot first, else the guess. */
+/** The slot a split item is worn in: the declared slot, else the guess. */
 function wearSlotFor(item) {
-  return slotsOf(item)[0] ?? inferGear(item).slots[0] ?? null;
+  return wearableSlots(item)[0] ?? null;
 }
 
 /** Can this stack split one out? A stack with somewhere to wear it, two or more deep. */

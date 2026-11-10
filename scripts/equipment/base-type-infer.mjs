@@ -1,4 +1,4 @@
-import { CLOTHING_SLOT_PATTERNS, gearProfileFor } from "./config.mjs";
+import { clothingSlotsFor, gearProfileFor } from "./config.mjs";
 import { BASE_TYPE, CLOTHING_SUBTYPE } from "./base-types.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
 
@@ -39,8 +39,5 @@ export function inferBaseType(item) {
   // A garment, if a pattern claims it AND places it somewhere on the body. The
   // slot check matters: the table's first row exists to say that cloth sold by
   // weight is goods rather than something you put on.
-  for (const { re, slots } of CLOTHING_SLOT_PATTERNS) {
-    if (re.test(name)) return slots?.length ? BASE_TYPE.clothing : null;
-  }
-  return null;
+  return clothingSlotsFor(name)?.length ? BASE_TYPE.clothing : null;
 }

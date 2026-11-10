@@ -45,9 +45,17 @@ export const WEAPON_FOCUS_GROUPS = Object.freeze({
 });
 
 /**
+ * The `special` tag a row carries when every character throws it proficiently,
+ * whatever their class: bottles, flasks, rocks, sticks and torches (RR ch. 1,
+ * Weapon Proficiency). `proficiency.mjs` `isWeaponProficient` reads it.
+ */
+export const ANYONE_THROWS = "anyoneThrows";
+
+/**
  * Built-in weapon profiles. size drives hand cost; melee/missile/thrown/handy
  * drive wield rules; damage/damage2h from RR p. 126; special = RAW quality tags
- * (RR p. 127). twoHandedForced marks weapons that always need two hands.
+ * (RR p. 127), plus `ANYONE_THROWS`. twoHandedForced marks weapons that always
+ * need two hands.
  */
 export const WEAPONS = Object.freeze({
   // Bows / crossbows (missile; 2H unless Handy)
@@ -83,15 +91,15 @@ export const WEAPONS = Object.freeze({
   bola: { size: SIZE.SMALL, missile: true, thrown: true, damage: "1d2", type: "bludgeoning", cat: WEAPON_CATEGORY.OTHER, handy: true, special: ["entangling", "thrown"] },
   // Military (burning) oil: direct plus splash damage over rounds (RR p.297);
   // no STR/class/Backstabbing damage bonus (RR p.298) → noDamageBonus.
-  militaryoil: { size: SIZE.SMALL, missile: true, thrown: true, damage: "1d8", type: "fire", cat: WEAPON_CATEGORY.OTHER, handy: true, special: ["thrown", "splash", "noDamageBonus"] },
+  militaryoil: { size: SIZE.SMALL, missile: true, thrown: true, damage: "1d8", type: "fire", cat: WEAPON_CATEGORY.OTHER, handy: true, special: ["thrown", "splash", "noDamageBonus", ANYONE_THROWS] },
   // Holy water: a thrown one-shot flask that SHATTERS on use (same damage
   // rules as burning oil; RR p.268/p.297), harmless to non-chaotic-enchanted
   // creatures; no STR/class damage bonus (RR p.298). type "holy" (only vs
   // chaotic enchanted).
-  holywater: { size: SIZE.SMALL, missile: true, thrown: true, damage: "1d8", type: "holy", cat: WEAPON_CATEGORY.OTHER, handy: true, special: ["thrown", "splash", "consumable", "noDamageBonus"] },
+  holywater: { size: SIZE.SMALL, missile: true, thrown: true, damage: "1d8", type: "holy", cat: WEAPON_CATEGORY.OTHER, handy: true, special: ["thrown", "splash", "consumable", "noDamageBonus", ANYONE_THROWS] },
   cestus: { size: SIZE.SMALL, melee: true, damage: "1d3", type: "bludgeoning", cat: WEAPON_CATEGORY.OTHER, special: ["worn"] },
   net: { size: SIZE.MEDIUM, melee: true, thrown: true, damage: "", type: "", cat: WEAPON_CATEGORY.OTHER, twoHandedForced: true, special: ["entangling", "thrown"] },
-  rock: { size: SIZE.MEDIUM, missile: true, thrown: true, damage: "1d3", type: "bludgeoning", cat: WEAPON_CATEGORY.OTHER, handy: true, special: ["thrown"] },
+  rock: { size: SIZE.MEDIUM, missile: true, thrown: true, damage: "1d3", type: "bludgeoning", cat: WEAPON_CATEGORY.OTHER, handy: true, special: ["thrown", ANYONE_THROWS] },
   sap: { size: SIZE.TINY, melee: true, damage: "1d4", type: "bludgeoning", cat: WEAPON_CATEGORY.OTHER, special: ["incapacitating"] },
   sling: { size: SIZE.SMALL, missile: true, damage: "1d4", type: "bludgeoning", cat: WEAPON_CATEGORY.OTHER, handy: true },
   staffsling: { size: SIZE.MEDIUM, missile: true, melee: true, damage: "1d4", damage2h: "1d6", type: "bludgeoning", cat: WEAPON_CATEGORY.OTHER, twoHandedForced: true },
@@ -102,7 +110,7 @@ export const WEAPONS = Object.freeze({
   // docs/equipment/DECISIONS.md, "A torch's no-damage-bonus rule covers melee
   // too (2026-09-22)"). `thrown` so it can be hurled; `light` marks it a light
   // source for the sheet controls.
-  torch: { size: SIZE.SMALL, melee: true, thrown: true, damage: "1d4", type: "fire", cat: WEAPON_CATEGORY.OTHER, special: ["thrown", "noDamageBonus", "light"] },
+  torch: { size: SIZE.SMALL, melee: true, thrown: true, damage: "1d4", type: "fire", cat: WEAPON_CATEGORY.OTHER, special: ["thrown", "noDamageBonus", "light", ANYONE_THROWS] },
 });
 
 /** Name aliases → canonical weapon key (tolerant of core pack naming). */
@@ -295,13 +303,13 @@ export function gearProfileFor(name) {
  */
 export const CLOTHING_SLOT_PATTERNS = Object.freeze([
   { re: /\(\s*\d+\s*lb\s*\)/i, slots: [] }, // cloth/metal sold by weight: not a garment
-  { re: /\b(belt|sash|girdle|corset)\b/i, slots: [SLOT.belt] },
+  { re: /\b(belts?|sash(?:es)?|girdles?|corsets?)\b/i, slots: [SLOT.belt] },
   { re: /\b(boots?|sandals?|shoes?|slippers?)\b/i, slots: [SLOT.feet] },
   { re: /\b(gloves?|gauntlets?|bracers?|mittens?)\b/i, slots: [SLOT.hands] },
-  { re: /\b(cloak|cape|mantle|shawl)\b/i, slots: [SLOT.shoulders] },
-  { re: /\b(hat|skullcap|veil|crown|circlet|tiara|coif|hood|headdress)\b/i, slots: [SLOT.head] },
-  { re: /\b(necklace|amulet|torc|pendant|collar)\b/i, slots: [SLOT.neck] },
-  { re: /\b(ring)\b/i, slots: [SLOT.ring] },
+  { re: /\b(cloaks?|capes?|mantles?|shawls?)\b/i, slots: [SLOT.shoulders] },
+  { re: /\b(hats?|caps?|skullcaps?|turbans?|veils?|crowns?|circlets?|tiaras?|coifs?|hoods?|head\s*dress(?:es)?)\b/i, slots: [SLOT.head] },
+  { re: /\b(necklaces?|amulets?|torcs?|pendants?|collars?)\b/i, slots: [SLOT.neck] },
+  { re: /\b(rings?)\b/i, slots: [SLOT.ring] },
   // Garments worn ON THE BODY: lands in `worn` (uncapped), not `body` (the one
   // suit of armour). LAST, so every named slot above wins its own word first —
   // a leather BELT is belt-worn though it is also clothing. See
@@ -312,6 +320,23 @@ export const CLOTHING_SLOT_PATTERNS = Object.freeze([
     slots: [SLOT.worn],
   },
 ]);
+
+/**
+ * The slots the clothing patterns give a name, or null when no pattern claims
+ * it. An empty list is a real answer: cloth sold by weight is goods.
+ *
+ * Only the name's head is read — what comes before "with". A garment that
+ * names what it carries is still that garment: "Grey cassock with hood" is a
+ * cassock, worn on the body, where reading the whole name let the hood claim
+ * the head ahead of the garment row.
+ */
+export function clothingSlotsFor(name) {
+  const head = String(name ?? "").split(/\s+with\s+/i)[0];
+  for (const { re, slots } of CLOTHING_SLOT_PATTERNS) {
+    if (re.test(head)) return slots;
+  }
+  return null;
+}
 
 /**
  * WEAR LOCATIONS — the single canonical taxonomy of "where is this gear?".

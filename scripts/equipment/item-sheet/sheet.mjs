@@ -23,13 +23,13 @@ import { buildConstructionPanel } from "./construction.mjs";
 import { buildMagicPanel } from "../../markets/apps/magic-panel.mjs";
 import { ITEM_FLAG as MARKETS_FLAG } from "../../markets/constants.mjs";
 import { applyVariation, isVariationItem, removeVariation, revealVariation, concealVariation } from "../variation-items.mjs";
-import { disguiseItem, revealItem, setGearCapacity, prepareTorch, readiedWeaponData } from "../actions.mjs";
+import { disguiseItem, revealItem, setGearCapacity, prepareTorch, readiedWeaponData, wearItem, removeItem } from "../actions.mjs";
 import { PRISTINE, recomputeItemFields, layerDeltas, baseForTyped } from "../properties.mjs";
 import { containerOf, setLocked, storeIn, takeOut, setContainerRecord } from "../containers.mjs";
 import { isSpellbook, spellbookSpells, setSpellbookSpells, parseSpellList, formatSpellList } from "../spellbook.mjs";
 import * as named from "../overlays/named.mjs";
-import { containedIn, setWorn, slotsOf, siblingsOf, isEquippable, isWorn } from "../../lib/item-model.mjs";
-import { inferGear } from "../profiles.mjs";
+import { containedIn, siblingsOf, isEquippable, isWorn } from "../../lib/item-model.mjs";
+import { wearableSlots } from "../profiles.mjs";
 import { ITEM_TYPE } from "../../lib/vocab.mjs";
 import { quantityOf } from "../../lib/storage-logic.mjs";
 import { snapshotItem, SHEET_FLAGS, PER_STONE_PATH } from "./snapshot.mjs";
@@ -509,7 +509,7 @@ export default class AcksItemSheet extends PicksMixin(HandlebarsApplicationMixin
   static async #onEquip() {
     const item = this.item;
     if (splitFromOf(item)) return restack(item);
-    const slot = slotsOf(item)[0] ?? inferGear(item).slots[0] ?? null;
+    const slot = wearableSlots(item)[0] ?? null;
     if (isEquippable(item)) {
       await item.update({ "system.equipped": !isWorn(item) });
       return;
@@ -520,8 +520,7 @@ export default class AcksItemSheet extends PicksMixin(HandlebarsApplicationMixin
       if (readiedWeaponData(item) && item.parent?.documentName === "Actor") return void (await prepareTorch(item.parent, item, { draw: true }));
       return void ui.notifications.warn(loc("itemSheet.equip.noSlot"));
     }
-    if (!slotsOf(item).length) await item.update({ [`flags.${MODULE_ID}.gear.slots`]: [slot] });
-    await setWorn(item, item.getFlag(MODULE_ID, "gear")?.wornAt ? null : slot);
+    await (isWorn(item) ? removeItem(item) : wearItem(item, slot));
   }
 
   static async #onSplit() {

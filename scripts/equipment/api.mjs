@@ -17,7 +17,7 @@ import {
   riderWaivers,
   hasMilitarySaddle,
 } from "./overlays/mounted.mjs";
-import { classifyWeapon, handCost, focusGroup, weaponKey, weaponIdentity, isUnidentifiedWeapon, inferredGrips, equipmentClass, inferGear, isHelmet, isShield, perStoneStated } from "./profiles.mjs";
+import { classifyWeapon, handCost, focusGroup, weaponKey, weaponIdentity, isUnidentifiedWeapon, inferredGrips, equipmentClass, inferGear, inferredGearFlag, wearableSlots, isHelmet, isShield, perStoneStated } from "./profiles.mjs";
 import { FLAG_GEAR } from "../lib/constants.mjs";
 import { capacityOf, bundleSizeOf, gearOf, isCurrency } from "../lib/item-model.mjs";
 import { weaponProficiency, isWeaponProficient, armorMax, isArmorProficient, thiefSkillsGated, isArmorGatedSkill, grantMatches, normalizeGrantToken, classifyGrantToken } from "./proficiency.mjs";
@@ -117,15 +117,9 @@ export async function annotateItem(item) {
   // gear flag rather than the container record, which keeps only the lock's
   // state.
   const gear = inferGear(item);
-  if (gear.slots.length || gear.access || gear.capacity != null || gear.relief != null) {
-    updates[`flags.${MODULE_ID}.${FLAG_GEAR}`] = {
-      slots: gear.slots,
-      access: gear.access,
-      capacity: gear.capacity,
-      // Only when the item's own text states it: a silent harness keeps
-      // whatever the Judge typed on its sheet.
-      ...(gear.relief != null ? { relief: gear.relief } : {}),
-    };
+  const declared = inferredGearFlag(item);
+  if (declared) {
+    updates[`flags.${MODULE_ID}.${FLAG_GEAR}`] = declared;
     key ??= gear.capacity != null ? "container" : "gear";
   }
 
@@ -241,6 +235,7 @@ export function buildApi() {
     isHelmet, // armour classification: the one owner for the whole feature
     isShield,
     inferGear, // name/type → where it sits + what it costs to reach into
+    wearableSlots, // declared places, else the inferred ones
     annotateItem,
     refreshLoadout,
     // Proficiency

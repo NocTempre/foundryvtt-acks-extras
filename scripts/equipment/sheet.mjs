@@ -23,7 +23,8 @@ import { MODULE_ID, ITEM_FLAGS } from "./constants.mjs";
 import { WEAR, WEAR_ICONS } from "./config.mjs";
 import { getLoadout, cycleGrip, heldHandsClause } from "./loadout.mjs";
 import { prepareTorch, rollUnarmed, drawItem, sheatheItem, wearItem, removeItem } from "./actions.mjs";
-import { STONE, slotsOf, isWorn, isEquippable, isCurrency } from "../lib/item-model.mjs";
+import { STONE, isWorn, isEquippable, isCurrency } from "../lib/item-model.mjs";
+import { wearableSlots } from "./profiles.mjs";
 import { ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
 import { lightTypeOf } from "../lib/light.mjs";
 import { profileStripElement } from "../lib/proficiency-strip.mjs";
@@ -404,8 +405,9 @@ function injectDrawSheathe(tab, actor) {
  * (harness encumbrance, gloves blocking lockpicks) could never fire. This is
  * that control.
  *
- * Only rows that DECLARE a slot get one; plain goods keep core's layout
- * untouched. A multi-slot item puts it in the first slot it declares, which is
+ * Only rows with somewhere to be worn get one — declared, or inferred where
+ * nothing is declared (`wearableSlots`); plain goods keep core's layout
+ * untouched. A multi-slot item puts it in the first of those slots, which is
  * the one the sheet groups it under.
  */
 function injectWearControls(tab, actor) {
@@ -414,9 +416,9 @@ function injectWearControls(tab, actor) {
     const item = actor.items.get(li.dataset.itemId);
     if (!item || li.querySelector(".acks-equipment-wear-toggle")) continue;
     // Core already draws a toggle wherever it owns the field.
-    if (isEquippable(item) || !slotsOf(item).length) continue;
+    if (isEquippable(item) || !wearableSlots(item).length) continue;
     const worn = isWorn(item);
-    const slot = slotsOf(item)[0];
+    const slot = wearableSlots(item)[0];
     const a = el("a", `item-control acks-equipment-wear-toggle acks-equipment-wear-toggle--${worn ? "remove" : "wear"}`);
     a.innerHTML = `<i class="fas ${worn ? "fa-circle-minus" : "fa-circle-plus"}"></i>`;
     a.dataset.tooltip = game.i18n.format(`ACKS-EQUIPMENT.action.${worn ? "remove" : "wear"}`, { slot: wearLabel(slot) });

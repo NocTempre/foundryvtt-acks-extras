@@ -23,6 +23,7 @@ import { isSpellbook, spellbookSpells } from "../spellbook.mjs";
 import { containerOf, isLocked } from "../containers.mjs";
 import { pickLock, bashOpen, canPick, canBash, wearingGloves } from "../locks.mjs";
 import { isWeaponProficient } from "../proficiency.mjs";
+import { ATTACK_TYPE } from "../attack-mods.mjs";
 import { damageGlyphOf, damageTypeLabel, damageTypeOf } from "../../lib/damage-type.mjs";
 import { ITEM_TYPE, ACTOR_TYPE } from "../../lib/vocab.mjs";
 import { signed, DASH } from "./format.mjs";
@@ -60,8 +61,11 @@ export function rollGroups(item, actor = rollerFor(item)) {
     const damage = damageFormulaOf(item) || profile.damage || "1d6";
     const bonus = attackBonusOf(item);
     const rows = [];
-    const mods = [];
-    if (actor?.type === ACTOR_TYPE.character && !isWeaponProficient(actor, profile)) mods.push(loc("itemSheet.rolls.mod.nonProficient"));
+    // Asked per mode: a weapon every class may throw can still be one a class
+    // may not swing, and the tag has to agree with the roll's own rows.
+    const nonProficient = (attack) => (actor?.type === ACTOR_TYPE.character && !isWeaponProficient(actor, profile, undefined, { attack }) ? [loc("itemSheet.rolls.mod.nonProficient")] : []);
+    const meleeMods = nonProficient(ATTACK_TYPE.melee);
+    const missileMods = nonProficient(ATTACK_TYPE.missile);
     if (item.system?.melee ?? profile.melee) {
       const hands = isTwoHandedOnly(profile) ? "2H" : canOneHand(profile) ? "1H" : "2H";
       rows.push({
@@ -71,7 +75,7 @@ export function rollGroups(item, actor = rollerFor(item)) {
         v: damage,
         label: loc("itemSheet.rolls.row.melee"),
         line: [`${signed(bonus)} ${loc("itemSheet.rolls.throw")}`, `${damage} ${typeLabel}`.trim()].join(" · "),
-        mods: [...mods],
+        mods: [...meleeMods],
         rollable: !!actor,
       });
       if (profile.damage2h && canOneHand(profile)) {
@@ -82,7 +86,7 @@ export function rollGroups(item, actor = rollerFor(item)) {
           v: profile.damage2h,
           label: loc("itemSheet.rolls.row.twoHanded"),
           line: [`${signed(bonus)} ${loc("itemSheet.rolls.throw")}`, `${profile.damage2h} ${typeLabel}`.trim()].join(" · "),
-          mods: [loc("itemSheet.rolls.mod.noShield")],
+          mods: [...meleeMods, loc("itemSheet.rolls.mod.noShield")],
           rollable: !!actor,
         });
       }
@@ -97,7 +101,7 @@ export function rollGroups(item, actor = rollerFor(item)) {
         v: damage,
         label: loc(profile.thrown ? "itemSheet.rolls.row.hurled" : "itemSheet.rolls.row.shoot"),
         line: [`${signed(bonus)} ${loc("itemSheet.rolls.throw")}`, `${damage} ${typeLabel}`.trim(), range ? loc("itemSheet.rolls.range", { range }) : null].filter(Boolean).join(" · "),
-        mods: [...mods],
+        mods: [...missileMods],
         rollable: !!actor,
       });
     }

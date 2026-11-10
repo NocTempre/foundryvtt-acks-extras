@@ -116,6 +116,7 @@ import { warmSpellPacks } from "../classes/grants.mjs";
 import { equipmentClass, weaponIdentity } from "../equipment/profiles.mjs";
 import { gearProfileFor } from "../equipment/config.mjs";
 import { annotateItem } from "../equipment/api.mjs";
+import { declaresSlots } from "../lib/item-model.mjs";
 import { ANIMAL_TYPE, TEMPLATE_TYPE } from "../lib/constants.mjs";
 import { acksExtras } from "../namespace.mjs";
 import { elementOf, unset } from "../lib/util.mjs";
@@ -11513,7 +11514,11 @@ export async function importPricedGear(folderId, { repair = null } = {}) {
     for (const row of rows) {
       const id = pricedId(row.name);
       const held = await importedItem(id);
-      if (held) await rewriteRow(held, () => pricedDoc(row, id, cite0), REPAIR.priced, repair);
+      if (!held) continue;
+      await rewriteRow(held, () => pricedDoc(row, id, cite0), REPAIR.priced, repair);
+      // A row made before price rows were annotated declares no place to be
+      // worn; one that declares any — a Judge's, or Annotate's — keeps it.
+      if (!declaresSlots(held)) await annotatePriced(held);
     }
   }
 
@@ -11573,10 +11578,24 @@ export async function importPricedGear(folderId, { repair = null } = {}) {
     // The equipment root owns the rule mapping a NAME to the item type it
     // should be, exactly as bindEquipment defers to it; absent the module a
     // priced row is plain inventory.
-    rememberImported(id, await createDoc(Item, { ...pricedDoc(row, id, cite), folder }));
+    const item = rememberImported(id, await createDoc(Item, { ...pricedDoc(row, id, cite), folder }));
+    await annotatePriced(item);
     created++;
   }
   return { rows: rows.length, created, repaired };
+}
+
+/**
+ * The equipment annotation layer over one price row, as the gear cookbook
+ * runs it: where a garment is worn, what a pouch costs to reach into. A
+ * template copy cut from the row carries the declaration with it.
+ */
+async function annotatePriced(item) {
+  try {
+    await annotateItem(item);
+  } catch (err) {
+    console.warn(`${MODULE_ID} | equipment annotation skipped for ${item?.name}`, err);
+  }
 }
 
 /** The RR gear/clothing price map, built once per session from the reader's book. */

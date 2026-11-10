@@ -19,7 +19,7 @@ import { MODULE_ID } from "../../lib/constants.mjs";
 import { makeLoc } from "../../lib/util.mjs";
 import { ACTOR_TYPE, ALIGNMENTS, ITEM_TYPE, SLOT, slug } from "../../lib/vocab.mjs";
 import { savesUpdateData } from "../../lib/actor-compat.mjs";
-import { slotsOf } from "../../lib/item-model.mjs";
+import { wearableSlots } from "../../equipment/profiles.mjs";
 import { whenReady } from "../../lib/library.mjs";
 import { goodsForRow } from "../../lib/bundles-logic.mjs";
 import { deliverItems } from "../../lib/bundles.mjs";
@@ -192,7 +192,7 @@ async function landGear(actor, gear, report) {
   // Everything is put on the body before anything is packed, so a backpack
   // on the back is there to take the backpack's list.
   for (const { line, item } of placed) {
-    const slot = line.place === "worn" ? (slotsOf(item)[0] ?? PLACE_SLOT.worn) : PLACE_SLOT[line.place];
+    const slot = line.place === "worn" ? (wearableSlots(item)[0] ?? PLACE_SLOT.worn) : PLACE_SLOT[line.place];
     if (!slot) continue;
     // A weapon is drawn only into a hand. One listed at the belt or on the back
     // stays carried, sheathed; drawing it would take a hand, and with it the

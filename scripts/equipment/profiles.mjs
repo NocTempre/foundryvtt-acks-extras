@@ -20,7 +20,7 @@
 import { MODULE_ID, ITEM_FLAGS } from "./constants.mjs";
 import {
   SIZE, STYLE, WEAPONS, WEAPON_ALIASES, WEAPON_CATEGORY, WEAPON_FOCUS_GROUPS,
-  gearProfileFor, CLOTHING_SLOT_PATTERNS,
+  gearProfileFor, clothingSlotsFor, ANYONE_THROWS,
 } from "./config.mjs";
 import { slotsOf, declaresSlots, isClothing } from "../lib/item-model.mjs";
 import { SLOT, slug, nameKeys, ITEM_TYPE } from "../lib/vocab.mjs";
@@ -104,9 +104,8 @@ export function inferGear(item) {
 
   if (item.type === ITEM_TYPE.weapon) return { ...none, slots: [SLOT.mainHand, SLOT.offHand, SLOT.bothHands] };
 
-  for (const { re, slots } of CLOTHING_SLOT_PATTERNS) {
-    if (re.test(item.name ?? "")) return { ...none, slots: [...slots] };
-  }
+  const garment = clothingSlotsFor(item.name);
+  if (garment) return { ...none, slots: [...garment] };
 
   // Clothing the patterns did not name is still worn — a chiton, a cassock, a
   // loincloth. `worn` is uncapped, so guessing it costs nothing.
@@ -117,6 +116,35 @@ export function inferGear(item) {
   if (isClothing(item)) return { ...none, slots: [SLOT.worn] };
 
   return none;
+}
+
+/**
+ * The `gear` flag the Annotate pass writes for an item — where it sits, what
+ * reaching into it costs, how much it holds — or null when inference has
+ * nothing to say (rations, loot, coin), which keeps the item plain goods.
+ */
+export function inferredGearFlag(item) {
+  const gear = inferGear(item);
+  if (!gear.slots.length && !gear.access && gear.capacity == null && gear.relief == null) return null;
+  return {
+    slots: gear.slots,
+    access: gear.access,
+    capacity: gear.capacity,
+    // Only when the item's own text states it: a silent harness keeps
+    // whatever the Judge typed on its sheet.
+    ...(gear.relief != null ? { relief: gear.relief } : {}),
+  };
+}
+
+/**
+ * The places an item may be worn: its declaration where it has one, else the
+ * inferred guess. Gear that was never annotated — every price-list row an
+ * import before the fix made, and every template copy cut from one — declares
+ * nothing, and reading the declaration alone left a leather belt with no Wear
+ * control at all. A declaration of nowhere (`[]`) stays nowhere.
+ */
+export function wearableSlots(item) {
+  return declaresSlots(item) ? slotsOf(item) : inferGear(item).slots;
 }
 
 /** "1", "1/2" or "0.5" as a number of stone; null for anything else. */
@@ -441,12 +469,37 @@ export function classifyWeapon(item) {
     // class no grant can name.
     cat: WEAPON_CATEGORY_VALUES.has(flag(ITEM_FLAGS.CATEGORY)) ? flag(ITEM_FLAGS.CATEGORY) : base?.cat ?? WEAPON_CATEGORY.OTHER,
     special: base?.special ?? [],
+    anyoneThrows: false,
     reqStr: base?.reqStr ?? 0,
     grips: GRIPS.has(flag(ITEM_FLAGS.GRIPS)) ? flag(ITEM_FLAGS.GRIPS) : null,
     handsOverride: flag(ITEM_FLAGS.HANDS) ?? null,
     styleHint: flag(ITEM_FLAGS.STYLE) ?? null,
   };
+  profile.anyoneThrows = throwsAsAnyone(item, profile, tags);
   return profile;
+}
+
+/** A thrown thing the book lets every class throw, by what it is called. */
+const IMPROVISED_THROWN = /\b(flasks?|bottles?|vials?|grenades?|jars?|pots?|rocks?|sticks?|torch(?:es)?)\b/i;
+
+/**
+ * Does every character throw this proficiently, whatever their class (RR ch.
+ * 1, Weapon Proficiency: bottles, flasks, rocks, sticks and torches)?
+ *
+ * A weapon-table row says so with `ANYONE_THROWS`. Beyond the table, two
+ * readings make it every grenade and not only the four rows the table prints:
+ * anything that bursts where it lands (`splash`, the row's or a custom tag the
+ * item carries, or a `grenade` tag) is a flask or a bottle whatever it holds,
+ * and a thrown weapon the table cannot place is read by its name, so a Judge's
+ * "Flask of acid" counts where nothing else could say so. A table-placed
+ * weapon is never read by name — a "Stick-handled mace" is the mace.
+ */
+function throwsAsAnyone(item, profile, tags) {
+  const special = profile.special ?? [];
+  if (special.includes(ANYONE_THROWS) || special.includes("splash")) return true;
+  if (tags.has("splash") || tags.has("grenade")) return true;
+  if (profile.key) return false;
+  return !!(profile.thrown || profile.missile) && IMPROVISED_THROWN.test(item?.name ?? "");
 }
 
 /**

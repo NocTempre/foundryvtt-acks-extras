@@ -1943,3 +1943,59 @@ for them until a Repair in place reads the row again from the book.
 
 **What it cost.** A hand-made Armour Training that used to work now raises
 nothing until it is given a row.
+
+### Everyone throws a flask: a profile mark, not a grant token (2026-11-10)
+
+Owner report T-0435: characters were not proficient with military oil. RR ch.
+1 (Weapon Proficiency) makes a thrown bottle, flask, rock, stick or torch
+proficient for every class, and `isWeaponProficient` knew only grants, so a
+sword-trained character who drew a flask of oil was put in the whole
+non-proficient use package: every attack and the AC bonus, not only the throw.
+The owner widened it to "grenades generally".
+
+**Ruled.**
+- The classifier marks the profile `anyoneThrows`, from a table tag on the four
+  rows the table prints, from `splash` (whatever bursts is a flask or a
+  bottle), from a `splash` or `grenade` custom tag, and from the name of a
+  thrown weapon the table cannot place. A placed weapon is never read by name.
+- The mark makes the weapon proficient to carry and to throw. A melee swing
+  asks the grants, since the page gives every class the throw alone; of the
+  marked rows only the torch can be swung.
+- The Training pills keep reading grants alone.
+
+**Rejected.** A grant token every profile carries implicitly: it would show as
+a lit pill nobody granted and write itself back into the grant on the next
+edit. Keying on "thrown missile": a dart is one, and is granted by name.
+
+**What it cost.** The name test is a guess about unplaced gear; a Judge's thrown
+"pot of stew" is everyone's to throw.
+
+### Gear nobody annotated is worn by its inferred place (2026-11-10)
+
+Owner report T-0436: a leather belt was not recognised as a belt. The guess was
+right (`inferGear` said belt) and nothing read it: the importer's price rows were
+made without the annotation pass, so every garment off the price grid, and
+every class-template copy cut from one, declared no place, and the Wear
+controls and `setWorn` read the declaration alone. A belt, boots or a cloak
+from those rows could not be put on at all.
+
+**Ruled.**
+- `wearableSlots` reads the declaration, or the inferred places where there is
+  none, gated on `declaresSlots` (a declaration of nowhere stays nowhere). The
+  character sheet, the system sheet's injected control, the item sheet's Equip,
+  a stack split and the PDF sheet import read it.
+- `wearItem` declares the inferred places in the write that puts the item on,
+  keeping what the flag already holds; a place they do not include is refused.
+- New price rows are annotated when made, and a Repair in place annotates a
+  held row that declares nothing.
+- The clothing patterns take plurals, a cap, a turban and a head dress, and read
+  a name up to "with", so a cassock with a hood is a cassock.
+
+**Rejected.** A migration stamping every world's unannotated gear: it is a
+minor's tripwire, and the reader fallback reaches the same items with no
+write. A slot-inference seam in lib for the follower card: lib cannot import
+this feature, and the card is left reading declarations.
+
+**What it cost.** Items annotated wrongly before the patterns were fixed ("Belts"
+on the body, a hooded cassock on the head) keep their stamped answer until
+annotated again or corrected on the item's Construction tab.

@@ -100,13 +100,22 @@ export function damageAttributeDelta(actor) {
  * because of this weapon or of anything else equipped. Null for a body that
  * is not a character or an item that is not a weapon: a monster's natural
  * attacks are not proficiency-gated.
+ *
+ * The loadout's entry answers for carrying the weapon; a melee swing of
+ * something only its throw makes everyone's (a torch) asks again for that
+ * attack.
  */
-function weaponContext(actor, item) {
+function weaponContext(actor, item, attackType = null) {
   if (actor?.type !== ACTOR_TYPE.character || item?.type !== ITEM_TYPE.weapon) return null;
   const profile = classifyWeapon(item);
   const loadout = getLoadout(actor);
   const entry = item.id ? (loadout.weapons.find((w) => w.item.id === item.id) ?? null) : null;
-  const proficient = entry ? entry.proficient : isWeaponProficient(actor, profile);
+  const proficient =
+    attackType === ATTACK_TYPE.melee && profile.anyoneThrows
+      ? isWeaponProficient(actor, profile, undefined, { attack: ATTACK_TYPE.melee })
+      : entry
+        ? entry.proficient
+        : isWeaponProficient(actor, profile);
   return { profile, loadout, entry, nonProficient: !!loadout.nonProficientUse || !proficient };
 }
 
@@ -127,7 +136,7 @@ function weaponContext(actor, item) {
  * @returns {Array<{label: string, value: number}>}
  */
 export function attackThrowRows(actor, item, attackType, { maneuver = null } = {}) {
-  const c = weaponContext(actor, item);
+  const c = weaponContext(actor, item, attackType);
   if (!c) return [];
   const rows = [];
   if (c.nonProficient) {

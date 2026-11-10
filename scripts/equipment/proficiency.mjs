@@ -179,9 +179,22 @@ export function weaponProficiency(actor) {
   return { all: tokens.has("all"), tokens };
 }
 
-/** Is a weapon (resolved profile) one the actor is proficient with? */
-export function isWeaponProficient(actor, profile, prof = weaponProficiency(actor)) {
+/**
+ * Is a weapon (resolved profile) one the actor is proficient with?
+ *
+ * Something every character may throw (`profile.anyoneThrows`: a flask, a
+ * bottle, a rock, a torch — RR ch. 1, Weapon Proficiency) is proficient
+ * whatever the grants say, except swung in melee: only the throw is everyone's.
+ * With no `attack` the question is whether carrying it equipped is the
+ * non-proficient use package, and it is not, since every class can throw it.
+ *
+ * @param {{attack?: "melee"|"missile"|"thrown"|null, grantsOnly?: boolean}} [options]
+ *   `grantsOnly` answers what the grants cover and nothing else — the Training
+ *   pills, which edit grants and must not light for a rule that is not one.
+ */
+export function isWeaponProficient(actor, profile, prof = weaponProficiency(actor), { attack = null, grantsOnly = false } = {}) {
   if (!enforcementActive()) return true; // kill switch: never penalise
+  if (!grantsOnly && profile?.anyoneThrows && !(attack === "melee" && profile.melee)) return true;
   if (prof.all) return true;
   for (const token of prof.tokens) {
     if (grantMatches(token, profile)) return true;

@@ -849,3 +849,83 @@ items `equipment/armour-step-hand` and `equipment/armour-step-row`.
 ### Teardown
 
 The fixture stays. Nothing else is built.
+
+## What every class throws
+
+A flask, a bottle, a rock or a torch is proficient for a character who holds no
+grant for it (MODEL, "What every class throws is not a grant").
+
+### Fixtures
+
+- **Kept, `equipment/anyone-throws`**: a `character` with
+  `flags.acks-extras.weaponProficiency` `"swordDagger"`, carrying copies of
+  the world's imported "Flask of military oil", "Flask of unholy water",
+  "Dart" and "Sword" (from the cookbook item compendium), and a hand-made
+  `weapon` "Torch" with `system.melee` and `system.missile` true. Each step
+  sets `system.equipped` on what it names and off on the rest first.
+- Needs `proficiencyEnforcement` on and the non-proficient table imported;
+  with no table the penalty rows are empty and steps 3–4 prove nothing.
+
+### Steps
+
+1. Draw each weapon in turn. *Observable:* `api.getLoadout(actor)` reports
+   `nonProficientUse: false` for the oil, the unholy water (a name the table
+   does not print, identified as holy water), the torch and the sword, and
+   `true` with a `weaponNotProficient` violation for the dart, which is granted
+   by name, not by the rule; `classifyWeapon(item).anyoneThrows` is true for
+   the first three only.
+2. Character sheet, Rolls tab. *Observable:* the dart's row carries a
+   Non-proficient tag; the oil's and the unholy water's do not; the torch's
+   melee and two-handed rows carry it and its thrown row does not.
+3. Draw the oil and press its row. *Observable:* the attack-throw dialog
+   reads `1d20`, "Hits on 10+", with no Non-proficient line. Roll it; the
+   chat card's formula is `1d20`. The card is the run's: delete it by its id.
+4. The same with the dart, then Cancel. *Observable:* the dialog reads
+   `1d20 - 1` with a Non-proficient line carrying the imported figure.
+5. The Stats tab's Training pills. *Observable:* no pill lit that the
+   `swordDagger` grant does not light.
+
+### Teardown
+
+The fixture stays; the step 3 card is swept by id.
+
+## Gear nobody annotated
+
+A garment that declares no place is worn where its name puts it (MODEL, the
+gear flag's storage row).
+
+### Fixtures
+
+- **Kept, `equipment/unannotated-belt`**: a `character` carrying an `item`
+  "Leather belt" with no `flags.acks-extras.gear`, as a price-list row from
+  before this change carries it (a copy of the cookbook item compendium's
+  "Leather belt", or an `item` built with the bare name). Each step starts it
+  unworn with no gear flag: `item.unsetFlag("acks-extras", "gear")`.
+
+### Steps
+
+1. Character sheet, Equipment tab, the belt's row. *Observable:* a Wear control
+   whose tooltip reads "Wear it — Belt".
+2. Press it. *Observable:* one write sets
+   `flags.acks-extras.gear` to `{slots: ["belt"], wornAt: "belt", …}`, and the
+   belt moves to the Belt bucket on the left.
+3. Press the control again (now "Take it off (Belt)"). *Observable:* `wornAt`
+   clears and `slots` stays `["belt"]`.
+4. **The item sheet's EQP cell.** A plain belt's item sheet opens in simple
+   mode, which shows no state rail and so no EQP. Copy a cookbook "Belt pouch"
+   onto the character with its `gear` flag deleted, give it a disabled
+   Active Effect (a magic belt's shape; the sheet is no longer simple), and
+   `api.track` it. Press EQP. *Observable:* the flag becomes
+   `{slots: ["belt"], wornAt: "belt", access: "free", …}` and the cell reads
+   "EQP Belt". Sweep the pouch.
+5. Set the flag to `{slots: []}` (a declaration of nowhere). *Observable:* no
+   Wear control on the row, `wearableSlots` is `[]`. Unset it again.
+6. Settings tab → Game Settings → ACKS II — Extras → Manage imports, the
+   Equipment step, in a world whose price rows are not yet imported.
+   *Observable:* each new garment row carries a `gear` flag; the same step in
+   Repair in place mode gives one to a held row that has none.
+
+### Teardown
+
+The fixture stays. A step 6 import is the import's, not the run's: it is
+neither tracked nor swept.
