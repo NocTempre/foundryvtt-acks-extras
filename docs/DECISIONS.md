@@ -998,6 +998,10 @@ body.
 
 ## 26. The module map and the API reference are generated, published and shipped (2026-11-10)
 
+**Superseded in part by §27**: the pages are on the site only. Every line
+below about the zip, `tools/build-reference.mjs` or a `reference/` at the
+module root describes what §27 removed.
+
 **Owner ruling.** A map of which file imports which, and a reference of the
 public namespace, on the docs site and in the release zip, rebuilt by a
 release of any size.
@@ -1032,3 +1036,17 @@ compression. In the zip a chart is its Mermaid source: nothing in Foundry or
 a plain text editor draws it. Four keys built by a factory call
 (`createRegistry`, `overlayGate`) read as a plain value, since no declaration
 names them a function.
+
+## 27. The developer reference is on the site only (2026-11-10)
+
+**Supersedes §26 in part, the same day.** New evidence: the owner read the
+first answer as saying the pages would not reach the site, and asked for the
+zip to be sure of having them somewhere. With the site carrying them, the
+zip copy has no reader the site does not serve better: its charts were
+Mermaid source nothing in Foundry draws.
+
+**Ruled.** `tools/build-reference.mjs`, the `build:reference` script, its
+call in `tools/rebuild.mjs` and the `reference/` ignore entry are removed,
+and the template drops its release step. `render-reference.mjs` has one
+caller, the site sync. "None of `docs/` ships, and no markdown beside it"
+holds again without an exception.

@@ -9,7 +9,6 @@
   },
   "scripts": {
     "build:packs": "node tools/build-packs.mjs",
-    "build:reference": "node tools/build-reference.mjs",
     "validate": "node tools/validate.mjs",
     "prepare": "git config core.hooksPath .githooks",
     "test": "node tools/run-tests.mjs",

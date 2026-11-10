@@ -216,8 +216,7 @@ const library = await extractLibrary();
 write(path.join(DOCS, "reference", "settings.md"), renderSettings(settings));
 write(path.join(DOCS, "reference", "compendia.md"), renderCompendia(packs, library));
 
-// The developer reference: the same render `tools/build-reference.mjs` writes
-// into the module directory, with links spelled as site routes and GitHub
+// The developer reference, with links spelled as site routes and GitHub
 // source URLs. A route is lower-case whatever the key's case, so the file is
 // named to match. The api folder is emptied first: a page for a key that is
 // gone would otherwise stay published.

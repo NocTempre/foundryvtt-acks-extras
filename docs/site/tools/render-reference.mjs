@@ -2,11 +2,9 @@
  * The developer reference as pages: the module map drawn from
  * `extract-imports.mjs` and one API page per feature from `extract-api.mjs`.
  *
- * Two callers render the same pages for two places: `sync.mjs` stages them
- * into the site, and `tools/build-reference.mjs` writes them into the module
- * directory a release zips. The pages differ only in how a link is spelled, so
- * each caller passes its own `page` and `source` link builders and wraps the
- * returned body in the header its target needs.
+ * `sync.mjs` stages them into the site. How a link is spelled belongs to the
+ * caller, which passes its own link builders and wraps each returned body in
+ * the header its target needs.
  *
  * Every word on a page that is not a path, a key or a count is a docstring
  * read from `scripts/`, or one of the few fixed captions below.

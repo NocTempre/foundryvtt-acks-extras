@@ -86,13 +86,6 @@ None of `docs/` is in `module.zip` — the release artifact carries the Foundry
 runtime plus the root README and LICENSE, and Foundry never reads a markdown
 file out of a module directory. These are read on GitHub.
 
-The one document set that does ship is not under `docs/`: `reference/` at the
-module root, the module map and API pages as plain markdown with links into
-the `scripts/` beside them. It is build output, gitignored like the compiled
-packs: `npm run build:reference` (`tools/build-reference.mjs`) writes it, the
-release workflow runs that before zipping, and `npm run rebuild` does the same
-for a clone ([DECISIONS.md](DECISIONS.md) §26).
-
 That exclusion is a `docs/*` pattern in the release workflow, which is why the
 site lives under `docs/` rather than at the repo root: it needs no change to the
 synced template to stay out of the zip. Verified against a published artifact —

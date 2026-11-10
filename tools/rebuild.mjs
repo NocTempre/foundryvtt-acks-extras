@@ -12,8 +12,7 @@
  *
  * Usage, from inside the clone:
  *
- *   node tools/rebuild.mjs            install dependencies, build packs and the
- *                                     developer reference, verify
+ *   node tools/rebuild.mjs            install dependencies, build packs, verify
  *   node tools/rebuild.mjs --prune    then delete node_modules — the runtime
  *                                     needs none of it
  *   node tools/rebuild.mjs --check    verify only; build nothing, install nothing
@@ -97,8 +96,6 @@ if (!CHECK_ONLY && !problems.length) {
     say("  dependencies already present — skipping install");
   }
   run("npm", ["run", "build:packs"]);
-  // The developer reference a release zip carries; it needs no dependency.
-  run("npm", ["run", "build:reference"]);
 }
 
 /* -------------------------------------------- */
