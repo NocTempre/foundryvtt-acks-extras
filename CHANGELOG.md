@@ -36,6 +36,15 @@
   Blank makes an empty one to fill in on its own sheet. A character with no
   class gets the blank class proficiency straight away. Picking one you already
   hold adds another copy.
+- **Repair finds images whose file is gone.** Settings tab → Game Settings →
+  ACKS II — Extras → Repair this world gains Images whose file is gone. It
+  lists actors, prototype tokens, items, effects, macros, roll tables and scene
+  tokens whose image file no longer exists on the server (the cause of repeated
+  not-found errors in the browser console), and Fix puts the default image in
+  its place; token art takes its actor's image when that file is present. A
+  scene's thumbnail and level images, a journal page's file and a roll-table
+  result's image are listed too but left for you to change, since none has a
+  default image.
 
 ### Changed
 

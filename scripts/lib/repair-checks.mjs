@@ -1,12 +1,12 @@
-/* global game, fromUuid, foundry, Item */
+/* global game, fromUuid, foundry, Item, CONFIG, fetch, AbortController */
 /**
  * The repair checks lib owns: records the system stamped as migrated while
  * keeping their old field names, bundles embedded where no sheet lists them,
  * carry and mount links to actors that are gone, a weapon's two-handed die
- * that disagrees with its imported row, and what packages no longer
- * installed left in the world. The stranded-coin check reports only: it lists
- * what it finds and writes nothing. The merge-residue check removes what it
- * lists.
+ * that disagrees with its imported row, images whose file the server no longer
+ * has, and what packages no longer installed left in the world. The
+ * stranded-coin check reports only: it lists what it finds and writes nothing.
+ * The merge-residue check removes what it lists.
  */
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import { makeLoc, unset } from "./util.mjs";
@@ -19,6 +19,7 @@ import { MOUNT_FLAG, RIDER_FLAG } from "./mount.mjs";
 import { resolveActorSync } from "./storage.mjs";
 import { isLegacyChangeKey, migrateChangeKey } from "./actor-compat.mjs";
 import { forgetRescue, rescuedFields } from "./patches/legacy-source.mjs";
+import { distinctPaths, missingPaths, planRepair } from "./missing-images.mjs";
 
 const loc = makeLoc(LANG_PREFIX);
 const key = (name) => `${LANG_PREFIX}.repair.check.${name}`;
@@ -305,6 +306,109 @@ function twoHandedFindings() {
   return out;
 }
 
+/**
+ * Every world document the missing-image check reads, as `{kind, doc, name,
+ * source, ownerImg?}`: the world's actors with their items and effects, the
+ * world's items with their effects, macros, roll tables with their results,
+ * journal pages, and every scene with its levels and tokens. An unlinked token's synthetic actor is left out, as in
+ * `stampedDocs`: its art is the token's own field. A scene token carries its
+ * base actor's image, the default its own art falls back to.
+ */
+function* imageDocs() {
+  const effectsOf = (owner, label) => [...(owner.effects ?? [])].map((fx) => ({ kind: "ActiveEffect", doc: fx, name: `${label} → ${fx.name}`, source: fx._source }));
+  for (const actor of game.actors ?? []) {
+    yield { kind: "Actor", doc: actor, name: actor.name, source: actor._source };
+    yield* effectsOf(actor, actor.name);
+    for (const item of actor.items ?? []) {
+      const label = `${actor.name} → ${item.name}`;
+      yield { kind: "Item", doc: item, name: label, source: item._source };
+      yield* effectsOf(item, label);
+    }
+  }
+  for (const item of game.items ?? []) {
+    yield { kind: "Item", doc: item, name: item.name, source: item._source };
+    yield* effectsOf(item, item.name);
+  }
+  for (const macro of game.macros ?? []) yield { kind: "Macro", doc: macro, name: macro.name, source: macro._source };
+  for (const table of game.tables ?? []) {
+    yield { kind: "RollTable", doc: table, name: table.name, source: table._source };
+    for (const result of table.results ?? []) {
+      yield { kind: "TableResult", doc: result, name: `${table.name} → ${result.name || result.id}`, source: result._source };
+    }
+  }
+  for (const entry of game.journal ?? []) {
+    for (const page of entry.pages ?? []) {
+      yield { kind: "JournalEntryPage", doc: page, name: `${entry.name} → ${page.name}`, source: page._source };
+    }
+  }
+  for (const scene of game.scenes ?? []) {
+    yield { kind: "Scene", doc: scene, name: scene.name, source: scene._source };
+    for (const level of scene.levels ?? []) {
+      yield { kind: "Level", doc: level, name: `${scene.name} → ${level.name}`, source: level._source };
+    }
+    for (const token of scene.tokens ?? []) {
+      yield { kind: "Token", doc: token, name: `${scene.name} → ${token.name}`, source: token._source, ownerImg: token.baseActor?._source?.img };
+    }
+  }
+}
+
+/** The default image of a document kind: its class's `DEFAULT_ICON`, or null (a scene, level, journal page or table result has none). */
+const defaultImage = (kind) => CONFIG[kind]?.documentClass?.DEFAULT_ICON ?? null;
+
+/** Longest a probe waits for the server before the path counts as unknown. */
+const PROBE_TIMEOUT_MS = 10000;
+
+/**
+ * Ask the server whether a local file is there. One HEAD request per distinct
+ * path is the whole cost: it moves no image bytes, works for the world, module
+ * and system trees alike, and needs no file-browsing permission, which a
+ * directory listing through the file picker would (and it would list one
+ * source at a time). Only a 404 or 410 answers false; any other failure,
+ * a timeout included, answers null, so an unreachable server never reports
+ * every image missing.
+ * @returns {Promise<boolean|null>}
+ */
+async function probeImage(path) {
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), PROBE_TIMEOUT_MS);
+  try {
+    const res = await fetch(foundry.utils.getRoute(path), { method: "HEAD", signal: ctl.signal });
+    if (res.status === 404 || res.status === 410) return false;
+    return res.ok ? true : null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * Every world document whose image names a local file the server answers
+ * not-found for. The finding carries the change set to write (`update`); a
+ * document of a kind with no default image (a scene's thumbnail and level
+ * images, a journal page's file, a roll-table result's image) is listed and
+ * not offered.
+ */
+async function missingImageFindings() {
+  const docs = [...imageDocs()];
+  const missing = await missingPaths(distinctPaths(docs), probeImage);
+  if (!missing.size) return [];
+  const out = [];
+  for (const entry of docs) {
+    const plan = planRepair(entry, missing, defaultImage);
+    if (!plan) continue;
+    out.push({
+      key: entry.doc.uuid,
+      uuid: entry.doc.uuid,
+      name: entry.name,
+      update: plan.update,
+      detail: loc("repair.check.missingImages.detail", { paths: plan.paths.join(", ") }),
+      ...(plan.update ? {} : { fixable: false, reason: loc("repair.check.missingImages.noDefault") }),
+    });
+  }
+  return out;
+}
+
 /** Registers lib's checks. Called once, at `init`. */
 export function registerLibRepairChecks() {
   registerRepairCheck({
@@ -332,6 +436,21 @@ export function registerLibRepairChecks() {
         const item = await fromUuid(f.uuid);
         if (!item) throw new Error(loc("repair.subjectGone"));
         await item.update({ "system.damage.alternate.formula": f.want });
+      }),
+  });
+
+  registerRepairCheck({
+    id: "lib.missingImages",
+    label: key("missingImages.label"),
+    hint: key("missingImages.hint"),
+    order: 7,
+    scan: missingImageFindings,
+    fix: (findings) =>
+      fixEach(findings, async (f) => {
+        const doc = await fromUuid(f.uuid);
+        if (!doc) throw new Error(loc("repair.subjectGone"));
+        await doc.update(f.update);
+        return loc("repair.check.missingImages.done");
       }),
   });
 

@@ -2998,6 +2998,95 @@ writing it first (`item.update({"system.damage.alternate.formula": …})`):
 **Teardown.** None: the fixtures stay; the next walk writes their alternates
 back before step 1.
 
+### An image whose file is gone, and the check that replaces it
+
+Covers `lib.missingImages` (`missing-images.mjs`, `repair-checks.mjs`).
+`tools/test-repair-checks.mjs` holds the scan, the update and the fix against a
+stand-in server; only a real server answers a real `HEAD`.
+`tools/live/lib-missing-images.mjs` walks the whole subsection on the GM seat.
+
+**Fixtures,** found by marker with `api.fixture(marker, kind, data)`. A dead
+path is built under the world's own folder (`worlds/<world id>/qq-…png`) and
+names nothing: never upload or delete a file, the path need only answer 404.
+Each step that needs a shape writes it first. Two core icons stand for present
+files, neither the default of any kind (`icons/svg/skull.svg`,
+`icons/svg/sword.svg`).
+- `lib/missing-image-item`: a world `item` whose `img` is dead; its effect
+  `lib/missing-image-item-effect`, whose `img` is dead.
+- `lib/missing-image-actor`: a `character` whose `img` is dead and whose
+  prototype token's `texture.src` is a present file; its item
+  `lib/missing-image-bearer-item` (`img` dead) and that item's effect
+  `lib/missing-image-bearer-effect` (`img` dead).
+- `lib/missing-image-fine`: a world `item` whose `img` is a present file.
+- `lib/missing-image-scene` with its token `lib/missing-image-token` (an
+  unlinked token of the actor, `texture.src` dead) and its first level, which
+  the scene makes and the walk marks `lib/missing-image-level`
+  (`api.mark(levelUuid, …)`): `thumb` dead, `background.src` dead,
+  `foreground.src` dead.
+- `lib/missing-image-journal` and its `image` page `lib/missing-image-page`
+  (`src` dead); `lib/missing-image-table` and its result
+  `lib/missing-image-result` (a `text` result whose `img` is dead).
+
+1. **The scan.** `scanRepairs({only: "lib.missingImages"})` from
+   `scripts/lib/repair.mjs`, with `fetch` wrapped to count `HEAD` requests by
+   route.
+   **Observable:** the item, its effect, the actor, the carried item and its
+   effect, and the token are listed, each fixable with an `update`; the fine
+   item is not. The scene, its level, the page and the result are listed with
+   `fixable: false`, the no-default reason and no `update`. The actor's detail
+   names the dead path, the level's names both of its paths. The path ten
+   fixtures name was requested once, as a `HEAD`, and no path twice. In a world
+   holding other documents with dead images the scan lists those too: read only
+   the fixtures' keys.
+2. **The window.** `acksExtras.lib.repair.open({only: "lib.missingImages", scan: true})`,
+   tick the six repairable rows (the four listed ones have no tick box) and
+   press *Fix selected*, answering Yes.
+   **Observable:** a whispered report, none of the six listed afterwards, and
+   each fixed document written by one update (an `updateActor`, `updateItem`,
+   `updateActiveEffect` or `updateToken` hook count of 1 per uuid).
+3. **The write.** Read them back.
+   **Observable:** each `img` is its class's `DEFAULT_ICON` (`Item`, `Actor`,
+   `ActiveEffect`, read off `CONFIG.<Document>.documentClass`); the actor's
+   prototype token `texture.src` is still the present file; the scene token's
+   `texture.src` is `CONFIG.Token.documentClass.DEFAULT_ICON`, its actor's image
+   having been dead too; the fine item still carries its file; the four listed
+   fixtures still carry their dead paths, and a fresh scan lists exactly those
+   four. The effect inside the carried item proves `update` on an effect
+   embedded in an actor's item lands.
+4. **Token art follows the actor.** Write the actor's `img` to a present file
+   that is not the default, and its prototype token's and the scene token's
+   `texture.src` to the dead path; scan and fix through
+   `fixRepairs("lib.missingImages", keys, {report: false})`.
+   **Observable:** both findings fixable, one update each, the prototype token
+   and the scene token now equal the actor's present image, and the actor's own
+   `img` is unchanged: the fix writes only the missing field.
+5. **A key that is gone.** Write the item's `img` dead again and fix its key
+   beside a key the scan does not report.
+   **Observable:** the unreported key comes back in `gone` and the item is
+   fixed.
+6. **The sheets.** Open the item's sheet and the actor's.
+   **Observable:** an `<img>` in each ends with the image the document now
+   holds.
+
+**Platform facts** the walk asserts first: a `HEAD` for a dead path under the
+world's folder answers a plain 404 with no redirect, and 200 for a present core
+icon; `DEFAULT_ICON` is a non-empty string on the live `Actor`, `Item`,
+`ActiveEffect`, `Macro`, `RollTable` and `Token` classes and absent on
+`TableResult`, `Scene`, `JournalEntryPage` and `Level`.
+
+**Drive mechanics.** A page function stringified into the seat loses its
+module scope: a constant it reads is declared inside it. A `fetch` wrapped in a
+page keeps its `this` only through `.call(globalThis, …)`. A scene's thumbnail
+is written with an ordinary `update({thumb})` and reads back as written. A
+scene's first level is made with the scene and has the fixed id
+`defaultLevel0000`, so it is marked, not created.
+
+**Teardown.** The repair report's whisper is tracked and swept. The fixtures
+stay; the walk writes the four report-only ones back to a present file or none
+at its end, since no check could mend them and a dead path in the world logs a
+not-found line each time the GM opens it. The next walk writes every dead path
+back before step 1.
+
 ## A group body moved between scenes
 
 Covers the roster's `deleteToken` hook (GROUPS.md, "A deleted body, and a

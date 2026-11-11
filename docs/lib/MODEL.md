@@ -2301,6 +2301,7 @@ it does not.
 | Check | Finds | Fix |
 |---|---|---|
 | `lib.twoHandedRow` | A weapon, in the world or on a world actor, whose stored alternate damage differs from the one its imported row names ("A weapon's two-handed die follows its imported row") | Writes the row's die, or a blank where it names none. A weapon with no imported row is never listed. |
+| `lib.missingImages` | A world document whose image is a local file the server answers 404 or 410 for: an actor's `img` and its prototype token's art, an actor's or world item's `img`, an embedded item's, an effect's on either, a macro's, a roll table's, and the texture of each token on a scene. Also listed: a scene's thumbnail, a level's background, foreground and fog image, a journal page's `src` and a roll-table result's `img`. See the paragraph below the table. | Writes the kind's `DEFAULT_ICON` (`CONFIG.<Document>.documentClass`) into each missing field, one update per document. Token art takes its actor's image instead when that file is present (an actor's own new default counts). A scene, level, journal page or table result has no default image, so its finding is report-only. |
 | `lib.embeddedBundles` | A bundle embedded on a world actor or an unlinked token's actor, named as a market purchase when it has that shape, and as partial when an unpack stopped part-way | `unpackEmbeddedBundle` ("Goods handed to an actor, and bundles"). A bundle with an unresolved row is unfixable, and the finding names the rows. |
 | `lib.attachments` | An actor attached to a carrier that is gone | Unsets the attachment |
 | `lib.mountPairs` | A legacy rider or mount flag naming an actor that is gone or does not name it back | Unsets that flag |
@@ -2315,6 +2316,22 @@ it does not.
 | `equipment.railClothing` | An item whose base type and clothing subtype disagree, and an `armor` document declared clothing | Writes the missing half, with the base type winning, or unsets the declaration on the `armor` document |
 | `importer.legacyText` | A legacy `@PdfText` placeholder in any document the world or a world compendium holds, embedded documents included. Unfixable when the entry's book is not open on the seat, the cookbook lacks the entry, or the compendium is locked, and the finding says which | Writes a fresh read of each named entry in place of its tag, leaving the rest of the field (importer `legacy-text.mjs`). Import Everything's last step runs the same fix |
 
+**A missing image is found by asking the server, once per file.** The
+`lib.missingImages` scan collects the distinct local paths over the documents
+above (`missing-images.mjs`), sends each one `HEAD` request (eight at a time,
+ten seconds each), and reports a document only for a 404 or 410. Any other
+answer, a timeout or a network failure leaves the path unknown and unreported.
+A directory listing through the file picker would be one request per folder,
+but it needs file-browsing permission and lists one source at a time, where
+`HEAD` reaches the world, module and system trees alike. Empty paths, `data:`
+and `blob:` images, remote addresses (no CORS grant to ask with) and wildcard
+token art, and a `#` virtual texture name, are skipped. Unlinked tokens'
+synthetic actors are not walked. A scene's images are its levels', not the
+scene's own legacy `background` and `foreground`, which core derives from the
+first level. A kind with no `DEFAULT_ICON` on its live document class is
+listed and never written; its finding says to choose another file by hand.
+Every scan and every fix's rescan probes again,
+since a file uploaded between two scans must be seen.
 
 ## The hit-point tool
 

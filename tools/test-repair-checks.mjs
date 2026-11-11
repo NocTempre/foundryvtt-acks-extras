@@ -723,6 +723,250 @@ t("a weapon the stamped-record rescue still holds is listed and not offered, the
   assert.deepEqual((await scanCheck(TWO_HANDED)).findings.map((f) => [f.key, f.fixable, f.reason]), [["Item.w1", true, null]]);
 });
 
+/* -------------------------------------------------------------------- */
+/*  lib.missingImages                                                   */
+/* -------------------------------------------------------------------- */
+
+const { IMAGE_FIELDS, checkablePath, distinctPaths, imagesOf, missingPaths, planRepair } = await import("../scripts/lib/missing-images.mjs");
+const IMAGES = getRepairCheck("lib.missingImages");
+const IMG_DETAIL = "ACKS-LIB.repair.check.missingImages.detail";
+const IMG_DONE = said("ACKS-LIB.repair.check.missingImages.done");
+const IMG_NO_DEFAULT = said("ACKS-LIB.repair.check.missingImages.noDefault");
+
+/** The default image each kind answers with in the stand-in world; invented paths. */
+const DEFAULTS = { Actor: "qq/default-actor.svg", Item: "qq/default-item.svg", ActiveEffect: "qq/default-effect.svg", Macro: "qq/default-macro.svg", RollTable: "qq/default-table.svg", Token: "qq/default-token.svg" };
+const GONE = "worlds/qq/gone.png";
+const GONE_TOO = "worlds/qq/gone-too.png";
+const HERE = "worlds/qq/here.png";
+
+/** Set `value` at a dotted path of `obj`. */
+function setAt(obj, path, value) {
+  const parts = path.split(".");
+  const last = parts.pop();
+  let at = obj;
+  for (const part of parts) at = at[part] ??= {};
+  at[last] = value;
+}
+
+/** A document with a source, collections of embedded ones, and an update that applies and records. */
+function imgDoc(uuid, name, source, { effects = [], items = [], ...rest } = {}) {
+  const doc = { uuid, name, _source: source, effects, items, updates: [], ...rest };
+  doc.update = async (patch) => {
+    doc.updates.push(patch);
+    for (const [field, value] of Object.entries(patch)) setAt(doc._source, field, value);
+  };
+  return doc;
+}
+
+/** An actor source with art for itself and its prototype token. */
+const actorSource = (img, token) => ({ img, prototypeToken: { texture: { src: token } } });
+
+/**
+ * A world holding the given documents and a server that answers `HEAD` per
+ * path: a path in `gone` is 404, in `broken` is 500, in `down` throws, and
+ * anything else is there. Returns the requests made.
+ */
+function imageWorld({ actors = [], items = [], macros = [], tables = [], scenes = [], journal = [], gone = [GONE, GONE_TOO], broken = [], down = [], defaults = DEFAULTS } = {}) {
+  world();
+  Object.assign(game, { actors: new Coll({}, actors), items: new Coll({}, items), macros: new Coll({}, macros), tables: new Coll({}, tables), scenes: new Coll({}, scenes), journal: new Coll({}, journal) });
+  const all = new Map();
+  const index = (doc) => {
+    if (doc.uuid) all.set(doc.uuid, doc);
+    for (const child of [...(doc.effects ?? []), ...(doc.items ?? []), ...(doc.tokens ? [...doc.tokens] : [])]) index(child);
+  };
+  for (const doc of [...actors, ...items, ...macros, ...tables, ...scenes]) index(doc);
+  globalThis.fromUuid = async (uuid) => all.get(uuid) ?? null;
+  for (const kind of Object.keys(DEFAULTS)) CONFIG[kind] = { ...CONFIG[kind], documentClass: { DEFAULT_ICON: defaults[kind] } };
+  foundry.utils.getRoute = (path) => `/${path}`;
+  const requests = [];
+  globalThis.fetch = async (url, init) => {
+    requests.push([url, init.method]);
+    const path = url.slice(1);
+    if (down.includes(path)) throw new TypeError("network");
+    const status = gone.includes(path) ? 404 : broken.includes(path) ? 500 : 200;
+    return { status, ok: status < 400 };
+  };
+  return requests;
+}
+
+t("a path is checkable only when it is a local, single file", () => {
+  assert.equal(checkablePath(" worlds/qq/a.png "), "worlds/qq/a.png");
+  assert.equal(checkablePath("/worlds/qq/a.png"), "/worlds/qq/a.png");
+  for (const skipped of ["", "   ", null, undefined, 7, "data:image/png;base64,AAAA", "https://qq.example/a.png", "HTTP://qq.example/a.png", "//qq.example/a.png", "blob:qq", "worlds/qq/*.png"]) {
+    assert.equal(checkablePath(skipped), null, String(skipped));
+  }
+});
+
+t("each kind reads its own image fields, and only the checkable ones", () => {
+  assert.deepEqual(imagesOf("Actor", actorSource(GONE, "https://qq.example/t.png")), [{ field: "img", path: GONE }]);
+  assert.deepEqual(imagesOf("Actor", actorSource(GONE, HERE)).map((i) => i.field), ["img", "prototypeToken.texture.src"]);
+  assert.deepEqual(imagesOf("Token", { texture: { src: GONE } }), [{ field: "texture.src", path: GONE }]);
+  assert.deepEqual(imagesOf("Item", { img: HERE, texture: { src: GONE } }), [{ field: "img", path: HERE }]);
+  assert.deepEqual(imagesOf("Nothing", { img: GONE }), []);
+  assert.deepEqual(Object.keys(IMAGE_FIELDS).sort(), ["ActiveEffect", "Actor", "Item", "JournalEntryPage", "Level", "Macro", "RollTable", "Scene", "TableResult", "Token"]);
+  assert.deepEqual(imagesOf("Level", { background: { src: GONE }, foreground: { src: null }, fog: { src: GONE_TOO } }).map((i) => i.field), ["background.src", "fog.src"]);
+  assert.deepEqual(imagesOf("Scene", { thumb: GONE }), [{ field: "thumb", path: GONE }]);
+  assert.deepEqual(imagesOf("JournalEntryPage", { src: GONE }), [{ field: "src", path: GONE }]);
+  assert.deepEqual(imagesOf("TableResult", { img: GONE }), [{ field: "img", path: GONE }]);
+});
+
+t("a virtual texture path is not a file to ask for", () => {
+  assert.equal(checkablePath("#qq-name"), null);
+  assert.deepEqual(imagesOf("Level", { background: { src: "#qq-name" } }), []);
+});
+
+t("a path several documents name is listed once", () => {
+  const entries = [
+    { kind: "Item", source: { img: GONE } },
+    { kind: "Actor", source: actorSource(GONE, HERE) },
+    { kind: "Macro", source: { img: " worlds/qq/gone.png" } },
+    { kind: "Item", source: { img: "" } },
+  ];
+  assert.deepEqual(distinctPaths(entries), [GONE, HERE]);
+});
+
+t("the probe runs within its width, reports only a definite not-found, and never reports an unknown", async () => {
+  let live = 0;
+  let widest = 0;
+  const probe = async (path) => {
+    live++;
+    widest = Math.max(widest, live);
+    await new Promise((resolve) => setImmediate(resolve));
+    live--;
+    if (path === "p-unknown") return null;
+    if (path === "p-throws") throw new Error("boom");
+    return !path.startsWith("gone-");
+  };
+  const paths = ["gone-1", "ok-1", "gone-2", "p-unknown", "p-throws", "ok-2", "gone-3", "ok-3"];
+  assert.deepEqual([...(await missingPaths(paths, probe, { concurrency: 3 }))].sort(), ["gone-1", "gone-2", "gone-3"]);
+  assert.ok(widest <= 3 && widest > 1, `widest ${widest}`);
+  assert.deepEqual([...(await missingPaths([], probe))], []);
+});
+
+t("a missing image takes the kind's default, and token art takes the actor's image when that is usable", () => {
+  const dflt = (kind) => DEFAULTS[kind];
+  const gone = new Set([GONE, GONE_TOO]);
+  assert.equal(planRepair({ kind: "Item", source: { img: HERE } }, gone, dflt), null);
+  assert.deepEqual(planRepair({ kind: "Item", source: { img: GONE } }, gone, dflt), { paths: [GONE], update: { img: DEFAULTS.Item } });
+  assert.deepEqual(planRepair({ kind: "Actor", source: actorSource(HERE, GONE) }, gone, dflt).update, { "prototypeToken.texture.src": HERE });
+  assert.deepEqual(planRepair({ kind: "Actor", source: actorSource(GONE, GONE_TOO) }, gone, dflt).update, { img: DEFAULTS.Actor, "prototypeToken.texture.src": DEFAULTS.Actor });
+  assert.deepEqual(planRepair({ kind: "Actor", source: actorSource(GONE, HERE) }, gone, dflt).update, { img: DEFAULTS.Actor });
+  assert.deepEqual(planRepair({ kind: "Token", source: { texture: { src: GONE } }, ownerImg: HERE }, gone, dflt).update, { "texture.src": HERE });
+  for (const ownerImg of [GONE_TOO, "", undefined]) {
+    assert.deepEqual(planRepair({ kind: "Token", source: { texture: { src: GONE } }, ownerImg }, gone, dflt).update, { "texture.src": DEFAULTS.Token });
+  }
+  assert.deepEqual(planRepair({ kind: "Token", source: { texture: { src: GONE } }, ownerImg: "https://qq.example/a.png" }, gone, dflt).update, { "texture.src": "https://qq.example/a.png" });
+  assert.deepEqual(planRepair({ kind: "Item", source: { img: GONE } }, gone, () => null), { paths: [GONE], update: null });
+});
+
+t("a world whose images are all there lists nothing, and asks the server once per distinct local file with HEAD", async () => {
+  const requests = imageWorld({
+    actors: [
+      imgDoc("Actor.a1", "Hero", actorSource(HERE, HERE), { items: [imgDoc("Actor.a1.Item.i1", "Blade", { img: HERE })] }),
+      imgDoc("Actor.a2", "Twin", actorSource(HERE, "https://qq.example/t.png")),
+    ],
+    items: [imgDoc("Item.i2", "Coil", { img: "data:image/png;base64,AAAA" }), imgDoc("Item.i3", "Bare", { img: "" })],
+  });
+  assert.deepEqual(await IMAGES.scan(), []);
+  assert.deepEqual(requests, [[`/${HERE}`, "HEAD"]]);
+});
+
+t("every kind of document is read, and each finding names its document as the other checks print it", async () => {
+  const fx = (n, img) => imgDoc(`E.${n}`, `Glow ${n}`, { img });
+  const slot = imgDoc("Actor.a1.Item.i1", "Blade", { img: GONE }, { effects: [fx("i", GONE)] });
+  const tok = imgDoc("Scene.s1.Token.t1", "Scout", { texture: { src: GONE } }, { baseActor: { _source: { img: HERE } } });
+  imageWorld({
+    actors: [imgDoc("Actor.a1", "Hero", actorSource(GONE, HERE), { items: [slot], effects: [fx("a", GONE)] })],
+    items: [imgDoc("Item.i2", "Coil", { img: GONE }, { effects: [fx("w", GONE)] })],
+    macros: [imgDoc("Macro.m1", "Roll It", { img: GONE })],
+    tables: [imgDoc("RollTable.r1", "Omens", { img: GONE })],
+    scenes: [{ name: "Yard", tokens: new Coll({}, [tok]) }],
+  });
+  const found = await IMAGES.scan();
+  assert.deepEqual(found.map((f) => [f.key, f.name, f.detail, f.update]), [
+    ["Actor.a1", "Hero", said(IMG_DETAIL, { paths: GONE }), { img: DEFAULTS.Actor }],
+    ["E.a", "Hero → Glow a", said(IMG_DETAIL, { paths: GONE }), { img: DEFAULTS.ActiveEffect }],
+    ["Actor.a1.Item.i1", "Hero → Blade", said(IMG_DETAIL, { paths: GONE }), { img: DEFAULTS.Item }],
+    ["E.i", "Hero → Blade → Glow i", said(IMG_DETAIL, { paths: GONE }), { img: DEFAULTS.ActiveEffect }],
+    ["Item.i2", "Coil", said(IMG_DETAIL, { paths: GONE }), { img: DEFAULTS.Item }],
+    ["E.w", "Coil → Glow w", said(IMG_DETAIL, { paths: GONE }), { img: DEFAULTS.ActiveEffect }],
+    ["Macro.m1", "Roll It", said(IMG_DETAIL, { paths: GONE }), { img: DEFAULTS.Macro }],
+    ["RollTable.r1", "Omens", said(IMG_DETAIL, { paths: GONE }), { img: DEFAULTS.RollTable }],
+    ["Scene.s1.Token.t1", "Yard → Scout", said(IMG_DETAIL, { paths: GONE }), { "texture.src": HERE }],
+  ]);
+});
+
+t("a document with two missing images names both in one finding", async () => {
+  imageWorld({ actors: [imgDoc("Actor.a1", "Hero", actorSource(GONE, GONE_TOO))] });
+  const found = await IMAGES.scan();
+  assert.equal(found.length, 1);
+  assert.equal(found[0].detail, said(IMG_DETAIL, { paths: `${GONE}, ${GONE_TOO}` }));
+  assert.deepEqual(found[0].update, { img: DEFAULTS.Actor, "prototypeToken.texture.src": DEFAULTS.Actor });
+});
+
+t("a server error or an unreachable server never reports an image missing", async () => {
+  imageWorld({
+    items: [imgDoc("Item.i1", "Flaky", { img: "qq/five-hundred.png" }), imgDoc("Item.i2", "Cut Off", { img: "qq/cut-off.png" }), imgDoc("Item.i3", "Gone", { img: GONE })],
+    broken: ["qq/five-hundred.png"],
+    down: ["qq/cut-off.png"],
+  });
+  assert.deepEqual(await keys(IMAGES), ["Item.i3"]);
+});
+
+t("the fix writes the update once per document, and the rescan finds none", async () => {
+  const hero = imgDoc("Actor.a1", "Hero", actorSource(GONE, GONE_TOO));
+  const coil = imgDoc("Item.i2", "Coil", { img: GONE });
+  imageWorld({ actors: [hero], items: [coil] });
+  const found = (await scanCheck(IMAGES)).findings;
+  assert.deepEqual(found.map((f) => f.fixable), [true, true]);
+  const outcome = await fixCheck(IMAGES, found);
+  assert.deepEqual(outcome.failed, []);
+  assert.deepEqual(outcome.fixed.map((f) => [f.key, f.summary]), [["Actor.a1", IMG_DONE], ["Item.i2", IMG_DONE]]);
+  assert.deepEqual(outcome.rescan.findings, []);
+  assert.deepEqual(hero.updates, [{ img: DEFAULTS.Actor, "prototypeToken.texture.src": DEFAULTS.Actor }]);
+  assert.deepEqual(coil.updates, [{ img: DEFAULTS.Item }]);
+});
+
+t("a document gone before the fix is refused, and the rest are written", async () => {
+  const a = imgDoc("Item.i1", "Gone Soon", { img: GONE });
+  const b = imgDoc("Item.i2", "Stays", { img: GONE });
+  imageWorld({ items: [a, b] });
+  const found = (await scanCheck(IMAGES)).findings;
+  const real = globalThis.fromUuid;
+  globalThis.fromUuid = async (uuid) => (uuid === "Item.i1" ? null : real(uuid));
+  const outcome = await fixCheck(IMAGES, found);
+  assert.deepEqual(outcome.failed.map((f) => [f.key, f.why, f.error]), [["Item.i1", "refused", said("ACKS-LIB.repair.subjectGone")]]);
+  assert.deepEqual(outcome.fixed.map((f) => f.key), ["Item.i2"]);
+  assert.deepEqual(a.updates, []);
+});
+
+t("a scene's images, a journal page's file and a table result's image are listed and never offered", async () => {
+  const level = imgDoc("Scene.s1.Level.l1", "Ground", { background: { src: GONE }, foreground: { src: HERE }, fog: { src: GONE_TOO } });
+  const scene = imgDoc("Scene.s1", "Yard", { thumb: GONE }, { levels: new Coll({}, [level]), tokens: new Coll() });
+  const page = imgDoc("JournalEntry.j1.JournalEntryPage.p1", "Map Page", { src: GONE });
+  const entry = imgDoc("JournalEntry.j1", "Notes", {}, { pages: new Coll({}, [page]) });
+  const result = imgDoc("RollTable.r1.TableResult.t1", "", { img: GONE });
+  const table = imgDoc("RollTable.r1", "Omens", { img: HERE }, { results: new Coll({}, [result]) });
+  result.id = "t1";
+  imageWorld({ scenes: [scene], journal: [entry], tables: [table] });
+  const { findings } = await scanCheck(IMAGES);
+  assert.deepEqual(findings.map((f) => [f.key, f.name, f.fixable, f.reason, f.update]), [
+    ["RollTable.r1.TableResult.t1", "Omens → t1", false, IMG_NO_DEFAULT, null],
+    ["JournalEntry.j1.JournalEntryPage.p1", "Notes → Map Page", false, IMG_NO_DEFAULT, null],
+    ["Scene.s1", "Yard", false, IMG_NO_DEFAULT, null],
+    ["Scene.s1.Level.l1", "Yard → Ground", false, IMG_NO_DEFAULT, null],
+  ]);
+  assert.equal(findings[3].detail, said(IMG_DETAIL, { paths: `${GONE}, ${GONE_TOO}` }));
+  const outcome = await fixCheck(IMAGES, findings);
+  assert.deepEqual([outcome.fixed, outcome.failed], [[], []], "none is fixable, so nothing is handed to the fix");
+});
+
+t("a kind with no default image is listed and not offered", async () => {
+  imageWorld({ items: [imgDoc("Item.i1", "Coil", { img: GONE })], defaults: { ...DEFAULTS, Item: undefined } });
+  const { findings } = await scanCheck(IMAGES);
+  assert.deepEqual(findings.map((f) => [f.key, f.fixable, f.reason]), [["Item.i1", false, IMG_NO_DEFAULT]]);
+});
+
 for (const [name, fn] of tests) {
   await fn();
   n++;
