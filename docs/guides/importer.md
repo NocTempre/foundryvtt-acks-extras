@@ -175,11 +175,10 @@ and run the step again to import them.
 An import never rewrites a document the world already holds; a **repair**
 does. An item a book introduces that was imported before the importer read
 its paragraph (no slot to wear it at, no price, no magic mark) takes its
-shape through **Manage → the book → Repair**, or by ticking it under *A
-book's items* in the entry picker and repairing; a description you edited
-stays yours. Choose **Repair**, not the window's default Rebuild: a rebuild
-empties and refills the cookbook shelves, and a book's own items stand on
-none of them, so it leaves them as they are.
+shape through a repair of its book (*Manage Imports* → **Rebuild** tab → the
+book → **Go**), or by ticking it under *A book's items* in the entry picker
+and repairing. A description you edited is put to you before it is written
+over (*Your edits and the book*, below).
 
 The descriptor text is read from your PDF as the document is created and saved
 into it, with the book and page as its closing line. Everyone at the table can
@@ -311,58 +310,82 @@ A family whose page names its leaders, casters and dependants gains a **Role**
 axis from the import; the monsters guide, "A family's leaders", says what it
 generates. A family imported before this version gains it on *Repair in place*.
 
-### Rebuild or repair
+### Repair in place
 
-**Reimport One Shelf** and **(Re)import Individual Entries** each have a
-**Mode**. **Rebuild**, the default, deletes what you picked and imports it
-again: fresh documents in their home folders, with nothing of yours on them.
-**Repair in place** reads the entries again and writes the fresh reading over
-the documents you already have. Each keeps its id, so every character carrying
-it and every link to it still finds it. It also keeps its folder, owners and
-name, a description you wrote in, and what play has set on it: a trap's level,
-a vehicle's crew and damage, a stack's quantity. Entries your world does not
-hold yet are imported as usual.
+Every control that brings imported documents back from your books repairs
+them in place:
 
-**Force repair** is a third mode, for when Repair kept something you want
-replaced. It writes the same documents the same way and also replaces a
-description you wrote in. It asks first, saying how many documents it will
-rewrite and that your edits to the fields an import writes are replaced, and
-Cancel writes nothing. It still keeps what is not the import's: items and
-abilities you made yourself, effects and attacks you added, what play has set,
-and anything whose book is not open on this seat.
+- the **Reimport One Shelf (GM)** macro in **Compendium Packs → ACKS II —
+  Extras → Macros → ACKS Extras Macros → Import from your books**, for a
+  shelf, a book or the rules tables;
+- *Manage Imports* (below): its **Rebuild** tab, **Repair everything** on its
+  **Import** tab, its **Adventures** tab, and **(Re)import individual
+  entries** on its **Tools** tab, for entries ticked one at a time.
 
-![](../releases/v11.14.0/importer-force-repair.png)
+A repair reads the entries again and writes the fresh reading over the
+documents you already have. Each keeps its id, so every character carrying it
+and every link to it still finds it. It also keeps its folder and owners, and
+what play has set on it: a trap's level, a vehicle's crew and damage, a
+stack's quantity. Entries your world does not hold yet are imported. A ticked
+entry that has no in-place write is deleted and imported again under the same
+id; the confirm counts these, and the entry picker marks each with a hammer.
 
-*Force repair chosen on the Rebuild tab: before writing, it gives the count of
-documents and the shelves they came from, and lists what it still keeps.*
+It asks first, with the count of what it will write over, and **No** writes
+nothing. A document whose book is not open on this seat is left as it is, and
+so is one from a book this module no longer offers; the repair counts both.
+Open the book and repair again.
 
-![](../releases/v8.8.0/importer-repair-mode.png)
+<!-- plate: importer-repair-in-place.png — the Rebuild tab's confirm, titled Repair in place (tools/live/importer-force-repair.mjs, SHOTS=1) -->
 
-*Reimport One Shelf with the Traps shelf picked and Repair in place chosen.*
-
-- **A class** is written whole: its name and any edit to it are replaced,
-  except a description you wrote, training you edited on its sheet, and a
-  level's experience or title you typed where neither the book nor the
-  class's build could supply one.
+- **A class** is written whole, except a description you wrote, training you
+  edited on its sheet, and a level's experience or title you typed where
+  neither the book nor the class's build could supply one.
 - **A monster** is read again whole: its stats, its token size, and the
   attacks and abilities its page yields replace the imported ones. Attacks you
-  added stay, and so does a prose field you wrote in.
+  added stay.
 - **An ability** is refreshed wherever it is carried, characters included.
 
 The Weapons, Armor, Languages and Races shelves, the price list, monster
 templates and families, NPCs, adventure stat blocks and OSE creatures are
-written over in place too, from the same open book. A pregenerated character
-is left by Repair as it stands; Force repair writes its biography again and
-lands what its sheet import grants that it lacks, and keeps the items it holds.
-A document whose book is not open on this seat is left as well; open the book and
-repair again. The shelf list says *rebuild only* beside a shelf that has no
-in-place write, and the entry picker marks such a row with a hammer. Repair
-tells you how many it left.
+written over in place too, from the same open book.
 
-![](../releases/v8.8.0/importer-repair-picker.png)
+#### Your edits and the book
 
-*The entry picker in Repair mode: a monster family's row carries the hammer,
-its members do not.*
+Where the repair meets something you changed in what the import wrote (a
+description, a note on a place, a roster, an organisation's figures), it
+leaves your version standing and, once it has run, opens a window titled
+**Your edits and the book**. It lists each edited document in a frame of its
+own, one row per edit: **Yours** above **The book's**. Hover either value to
+see where it came from; a row marked **Unstamped** was imported before the
+import recorded what it wrote, so the difference may be the book's own change
+rather than yours.
+
+- Tick **Take the book's** on the rows you want replaced, then press **Apply
+  these choices**.
+- **Take the book's for every edit** replaces them all.
+- **Keep every edit of mine** replaces none, whatever is ticked. Closing the
+  window does the same.
+
+An edit you keep stays listed, and the next repair asks about it again.
+
+<!-- plate: importer-repair-choice.png — the window with one edited document (tools/live/importer-force-repair.mjs, SHOTS=1) -->
+
+**Pregenerated characters** are never written over without asking. Each one
+the repair meets is listed in the same window, under **Pregenerated
+characters**, with a note and three answers:
+
+- **Keep it under a new id, and restore the book's under its own** — your
+  character stays, renamed *(kept)* and no longer the book's, and the book's
+  is imported again in its place.
+- **Leave it as it stands.**
+- **Write the book over it, keeping the edits kept above** — the sheet import
+  runs again onto the character, its items kept.
+
+The note says which answer is chosen to start with. A character marked
+**Changed since it was imported**, or **Imported before changes were
+recorded**, starts at the first answer; one marked **Matches what was
+imported** starts at **Leave it as it stands**. A character a player owns is
+not listed.
 
 ### Managing imports
 
@@ -376,25 +399,16 @@ Macros → ACKS Extras Macros → Import from your books**. The Books macros ope
 - **Import** — the import chain, step by step in its order. **Import
   everything** runs the whole chain; **Run** beside a step runs that one,
   for when its documents were deleted or a book was connected after the
-  chain ran. Every step passes over what the world already holds. The mode
-  beside **Import everything** can instead be Rebuild, Repair in place or
-  Force repair: that mode then runs over every book open on this seat and
-  every open adventure book, as each would on the Rebuild and Adventures
-  tabs, after one confirm that lists each book with what its own confirm
-  would say. A Rebuild ends by running the whole chain again, so a book with
-  nothing imported yet is left to the chain and not listed; a repair ends
+  chain ran. Every step passes over what the world already holds. **Repair
+  everything**, beside it, repairs in place every book open on this seat and
+  every open adventure book, after one confirm that lists the parts; it ends
   by reading the rules tables again.
-- **Rebuild** — a shelf, a book or the rules tables, in any of the three modes above.
-  The same choices as **Reimport One Shelf**.
+- **Rebuild** — a shelf, a book or the rules tables, repaired in place: pick
+  one and press **Go**. The same choices as **Reimport One Shelf**.
 - **Adventures** — each adventure book open on this seat, with what its
-  Adventure carries: see *Rebuild or repair an adventure book* below.
+  Adventure carries: see *Repair an adventure book* below.
 - **Tools** — the entry picker, the recipe audit, the repair window, the
   merchandise build, overhead tokens (below) and **Remove ALL imports**.
-
-![](../releases/v11.14.2/importer-import-everything-modes.png)
-
-*Import everything set to Rebuild: one confirm lists every open book with what
-its own Rebuild would delete and import again.*
 
 **Overhead tokens.** When another module you have installed and active ships
 monster compendium art, Manage Imports' Tools tab offers **Overhead tokens from** that
@@ -563,44 +577,31 @@ holds, under the book's row in **Open this session**.
 
 ![](../releases/v11.6.0/importer-census.png)
 
-### Rebuild or repair an adventure book
+### Repair an adventure book
 
 The **Adventures** tab of *Manage Imports* lists each adventure book open on
-this seat with four actions:
+this seat. **Repair** beside a book repairs it in place: it writes over what your world holds of the book's
+creatures and people, its places and organisations, the market profiles on
+them, its items and its roll tables; imports what your world lacks of the
+book; refreshes its maps; and writes its Adventure on the shelf anew. Every
+document keeps its id, so pins on its maps and seats in its organisations
+still point at the right thing.
 
-- **Rebuild** deletes everything imported from the book — its people and
-  monsters, journals, places, organisations, roll tables and items, and its
-  Adventure on the shelf — and imports the book again. Everything comes
-  back under the same ids, so pins on its maps and seats in its
-  organisations still point at the right thing. Its **maps are kept**, with
-  your regions, fog and tokens, and refreshed in place. A copy you dragged
-  out of the library, a character a player owns, and a document another
-  book took over are kept too. The confirm names the count per type.
-- **Repair** deletes nothing. It imports what your world lacks of the book,
-  refreshes its maps, and writes its Adventure anew — including one you
-  edited on the shelf, which the confirm says.
-- **Force repair** is Repair that also writes, in place, over what your world
-  holds of the book's creatures and people, its places and organisations, the
-  market profiles on them, its items and its roll tables, a description you
-  wrote in, an edited place and a roster included. It asks first, with the count
-  of each and of what it leaves, and Cancel writes nothing. A market class,
-  family count or base demand you set is replaced, except a base a later book
-  wrote. Your maps, a copy dragged out of the library, a character a player
-  owns, and a place two books print are kept.
-- **Write Adventure** writes the Adventure alone, as the last step of
-  *Import Everything* does.
+It asks first, with the count of each and of what it writes later, and **No**
+writes nothing. An edit you made to what the import wrote (text on a place or
+a person, a roster, an organisation's figures or relations, a market's
+figures) is put to you in **Your edits and the book**, as in *Repair in
+place* above, and so is each pregenerated character. Your **maps are kept**,
+with your regions, fog and tokens, and refreshed in place. A copy you dragged
+out of the library, a character a player owns, and a document another book
+took over are kept too.
 
-![](../releases/v11.12.0/importer-adventures.png)
+**Write Adventure** writes the Adventure alone, as the last step of *Import
+Everything* does.
 
-*The Adventures tab: each adventure book open on this seat with what its
-Adventure carries, and its Rebuild, Repair and Write Adventure buttons.*
+<!-- plate: importer-adventure-repair.png — an adventure book's confirm, titled Repair in place (tools/live/importer-force-repair.mjs, SHOTS=1) -->
 
-![](../releases/v11.14.0/importer-adventure-force.png)
-
-*Force repair on an adventure book asks first: what it will write over, by
-count, and what it keeps.*
-
-To rebuild a map as well, delete the scene first and then Rebuild or Repair.
+To build a map again, delete the scene first and then repair.
 
 ### People an adventure prints in full
 
@@ -700,15 +701,15 @@ whole and resolve against the character who owns the item.
 present; a duplicate usually means the first copy was renamed or moved out of the
 folder it was created in.
 
-**Will a rebuild delete my own copy?** No. A document you dragged out of the
+**Will a repair touch my own copy?** No. A document you dragged out of the
 library into the sidebar, or duplicated there, is yours. **Reimport One Shelf**
-and **(Re)import Individual Entries** leave it as it is and put the library's
-own document back beside it. Only *Delete Everything Imported* removes it.
+and **(Re)import individual entries** leave it as it is and repair the
+library's own document. Only *Delete Everything Imported* removes it.
 
-**Reimporting lost my edits.** Rebuild deletes the library's documents and
-imports them again, so a name, folder or note you gave one goes with it. Choose
-**Repair in place** instead (see *Rebuild or repair*): the document keeps its
-id, its name and your description, and takes the fresh reading.
+**Reimporting lost my edits.** A repair keeps each document's id, folder and
+owners, and puts every edit you made to what the import wrote to you in **Your
+edits and the book** (see *Repair in place*). An edit is replaced only where
+you took the book's value there.
 
 **A description shows `@PdfText[...]` instead of the text.** The document was
 written by a version that stored a placeholder and resolved it while you looked

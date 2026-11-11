@@ -1992,7 +1992,7 @@ export async function freshEntryText(fullId, { cited = true } = {}) {
  * may touch and a tally (`repairTally`) to count into, it writes every held
  * document over where it stands and imports the ids the world lacks. A run
  * missing here has no in-place write — the weapons, armour, language and race
- * shelves are built from whole printed tables — and can only rebuild.
+ * shelves are built from whole printed tables, and `TABLE_REPAIRS` writes them.
  */
 export const REPAIR_RUNS = {
   cookbookImportAbilities: async (only, tally) => {

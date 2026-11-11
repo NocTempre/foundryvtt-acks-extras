@@ -15,14 +15,9 @@
   {{#if isGM}}
   <section class="tab {{tabs.import.cssClass}}" data-group="primary" data-tab="import">
     <p class="notes">{{localize "ACKS-IMPORTER.manager.importIntro"}}</p>
-    <div class="acks-extras-importer-manager-bar acks-extras-importer-manager-form" data-import-form>
-      <label>
-        <span>{{localize "ACKS-IMPORTER.ui.reimportMode"}}</span>
-        <select name="importMode">
-          {{#each importModes as |m|}}<option value="{{m.value}}" {{#if m.selected}}selected{{/if}}>{{m.label}}</option>{{/each}}
-        </select>
-      </label>
+    <div class="acks-extras-importer-manager-bar acks-extras-importer-manager-form">
       <button type="button" data-action="importAll" {{disabled busy}}><i class="fa-solid fa-download" aria-hidden="true"></i> {{localize "ACKS-IMPORTER.manager.importAll"}}</button>
+      <button type="button" data-action="repairAll" {{disabled busy}}><i class="fa-solid fa-screwdriver-wrench" aria-hidden="true"></i> {{localize "ACKS-IMPORTER.manager.repairAll"}}</button>
     </div>
     <ol class="acks-extras-importer-manager-steps">
       {{#each steps as |s|}}
@@ -49,12 +44,6 @@
           {{/each}}
         </select>
       </label>
-      <label>
-        <span>{{localize "ACKS-IMPORTER.ui.reimportMode"}}</span>
-        <select name="mode">
-          {{#each modes as |m|}}<option value="{{m.value}}" {{#if m.selected}}selected{{/if}}>{{m.label}}</option>{{/each}}
-        </select>
-      </label>
       <button type="button" data-action="rebuild" {{disabled busy}}><i class="fa-solid fa-rotate" aria-hidden="true"></i> {{localize "ACKS-IMPORTER.manager.rebuildGo"}}</button>
     </div>
     <p class="notes">{{localize "ACKS-IMPORTER.ui.reimportModeHint"}}</p>
@@ -71,9 +60,7 @@
           <span class="notes">{{a.census}}</span>
         </div>
         <div class="acks-extras-importer-manager-actions">
-          <button type="button" data-action="adventureDrop" data-book="{{a.id}}" {{disabled @root.busy}}>{{localize "ACKS-IMPORTER.manager.adventureRebuild"}}</button>
           <button type="button" data-action="adventureRepair" data-book="{{a.id}}" {{disabled @root.busy}}>{{localize "ACKS-IMPORTER.manager.adventureRepair"}}</button>
-          <button type="button" data-action="adventureForce" data-book="{{a.id}}" {{disabled @root.busy}} data-tooltip="ACKS-IMPORTER.manager.adventureForceTip">{{localize "ACKS-IMPORTER.manager.adventureForce"}}</button>
           <button type="button" data-action="adventureWrite" data-book="{{a.id}}" {{disabled @root.busy}}>{{localize "ACKS-IMPORTER.manager.adventureWrite"}}</button>
         </div>
       </li>

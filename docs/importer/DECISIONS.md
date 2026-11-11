@@ -9748,3 +9748,24 @@ beside the merged repair: R2 replaces it.
 second question after its confirm. A character imported before the play stamp
 is offered restore once. An API caller that relied on `mode: "drop"` deleting
 first now gets an in-place repair.
+
+## 2026-11-11 — The manager draws only the one repair, and Repair everything replaces the Mode select
+
+**Asked.** The entry above left the import manager's Mode selects and the
+Adventures tab's extra repair buttons drawn, all running the one repair.
+Removing them would also remove the only control that repairs every open book
+at once.
+
+**Ruled.** The Import tab carries Import everything and Repair everything
+(`host.runEverything("repair")`) side by side. The Rebuild tab keeps its
+picker and Go, with no Mode. Each adventure book offers Repair and Write
+Adventure. Every action the template draws has a handler, and every handler a
+button (`tools/importer/test-import-manager.mjs`). The lang keys the single
+repair left unused are deleted.
+
+**Rejected.** No Repair everything button, leaving the whole-world repair to
+`api.reimportEverything()`. A Judge would lose a control the Mode select gave
+them.
+
+*Cost:* the guide's import manager plate predates the button and stays stale
+until it is shot again.

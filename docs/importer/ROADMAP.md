@@ -1027,13 +1027,6 @@ re-reading would undo "a re-read that finds nothing keeps what it had".
 
 ## Edits taken: what a repair still leaves
 
-- **The import manager's leftover choices.** The Import and Rebuild tabs
-  still carry a Mode select, and the Adventures tab three repair buttons, all
-  running the one repair; `reimportModeHint` still describes three modes, and
-  `repairShelfRebuildOnly` still tells the Judge to choose Rebuild. Wanted:
-  the selects, the extra buttons and their lang keys removed, the hint
-  rewritten.
-
 - **A place two books print.** Either side of a pair is joined by its own step
   and a repair does not rebuild the join, edits taken or not. Wanted: a
   rewrite that rebuilds the joined place from both rows.

@@ -9,7 +9,8 @@
  *     run's own items of the book `cat` (its confirm answered No, then Yes with
  *     the choice answered Keep all, then Yes with the one edit ticked and
  *     applied, then Yes with nothing held), and every kind's confirm answered No;
- *   - "Rebuild or repair an adventure book", every repair button answered No;
+ *   - "Rebuild or repair an adventure book", its Repair answered No, and the
+ *     manager holding no mode select;
  *   - "Overhead token art from an installed compendium", steps 1, 4 (Make
  *     Encounter from a wildcard monster) and 8.
  * Machine values arrive through ./_env.mjs; `cat` must be open on the GM seat
@@ -306,8 +307,9 @@ const P = {
       ids: root ? root.querySelectorAll(".acks-extras-importer-manager-body [id]").length : null,
       tokenApply: root?.querySelectorAll("[data-action='tokenArtApply']").length ?? 0,
       tokenRestore: root?.querySelectorAll("[data-action='tokenArtRestore']").length ?? 0,
-      modes: [...(root?.querySelectorAll("section[data-tab='rebuild'] select[name='mode'] option") ?? [])].map((o) => o.value),
-      adventureRows: [...(root?.querySelectorAll("[data-action='adventureForce']") ?? [])].map((b) => b.dataset.book),
+      modes: root?.querySelectorAll("select[name='mode'], select[name='importMode']").length ?? 0,
+      adventureRows: [...(root?.querySelectorAll("[data-action='adventureRepair']") ?? [])].map((b) => b.dataset.book),
+      adventureActions: [...new Set([...(root?.querySelectorAll("section[data-tab='adventures'] [data-action]") ?? [])].map((b) => b.dataset.action))],
       instances: [...foundry.applications.instances.values()].filter((a) => a.id === "acks-extras-import-manager").length,
     };
   },
@@ -322,8 +324,8 @@ const P = {
     const app = await H.poll(() => { const a = foundry.applications.instances.get("acks-extras-import-manager"); return a?.rendered && a.tabGroups?.primary ? a : null; });
     return { opened: !!app, tab: app?.tabGroups?.primary ?? null };
   },
-  /** The Rebuild tab driven as a Judge does: pick, mode, Go; the confirm is left open for the plate. */
-  rebuildTab: async ({ pick, mode }) => {
+  /** The Rebuild tab driven as a Judge does: pick, then Go; the confirm is left open for the plate. */
+  rebuildTab: async ({ pick }) => {
     const H = globalThis.__fr;
     const app = foundry.applications.instances.get("acks-extras-import-manager");
     app.changeTab("rebuild", "primary");
@@ -333,14 +335,11 @@ const P = {
     const pickEl = form.querySelector("select[name='pick']");
     const has = [...pickEl.options].some((o) => o.value === pick);
     if (!has) return { has };
-    // A user's choice reaches the form as a change event on each select.
+    // A user's choice reaches the form as a change event on the select.
     pickEl.value = pick;
     pickEl.dispatchEvent(new Event("change", { bubbles: true }));
-    const modeEl = form.querySelector("select[name='mode']");
-    modeEl.value = mode;
-    modeEl.dispatchEvent(new Event("change", { bubbles: true }));
     await H.sleep(300);
-    return { has, mode: form.querySelector("select[name='mode']").selectedOptions[0]?.value ?? null };
+    return { has, selects: form.querySelectorAll("select").length };
   },
   /** The Rebuild tab's Go pressed, as chosen; the confirm is left open, and what the redrawn form then reads. */
   rebuildGo: async () => {
@@ -360,10 +359,10 @@ const P = {
     await H.sleep(400);
     return {
       dialog: dlg.id, before, title: dlg.options?.window?.title === game.i18n.localize("ACKS-IMPORTER.ui.repairMergedTitle"),
-      redrawn: { pick: form?.querySelector("select[name='pick']")?.value ?? null, mode: form?.querySelector("select[name='mode']")?.value ?? null },
+      redrawn: { pick: form?.querySelector("select[name='pick']")?.value ?? null },
     };
   },
-  /** One of the Adventures tab's repair buttons (`action`) pressed on `book`; the confirm is left open. */
+  /** An Adventures tab button (`action`) pressed on `book`; the confirm is left open. */
   adventureButton: async ({ book, action }) => {
     const H = globalThis.__fr;
     H.notes.splice(0);
@@ -628,33 +627,33 @@ try {
     check(`${shelf} opens the repair's confirm with a count, not a rebuild-only warning, and No writes nothing`, asked.found && asked.merged && Number.isInteger(asked.count) && done.result === null && writes.length === 0 && done.notes.length === 0, { count: asked.count, writes: writes.length, notes: done.notes.length });
   }
 
-  section("An adventure book's repair buttons: one confirm, answered No");
+  section("An adventure book's Repair: one confirm, answered No");
   const am = await run(gm, P.manager, { tab: "adventures" });
   note("adventure rows", am.adventureRows);
-  check("the Adventures tab offers its repair buttons beside each book's row", am.adventureRows.length > 0, am.adventureRows.length);
+  check("the Adventures tab offers Repair beside each book's row", am.adventureRows.length > 0, am.adventureRows.length);
+  check("and each row offers Repair and Write Adventure, and no other button", same(am.adventureActions, ["adventureRepair", "adventureWrite"]), am.adventureActions);
+  check("no mode select is left in the manager", am.modes === 0, am.modes);
   if (am.adventureRows.length) {
     const book = am.adventureRows.includes(BOOK) ? BOOK : am.adventureRows[0];
-    for (const action of ["adventureDrop", "adventureRepair", "adventureForce"]) {
-      await run(gm, P.observe, { on: true });
-      const pressed = await run(gm, P.adventureButton, { book, action });
-      if (process.env.SHOTS === "1" && pressed.dialog && action === "adventureRepair") {
-        note("plate", await gm.shot(plate("importer-adventure-repair.png"), `#${pressed.dialog}`));
-      }
-      const asked = await run(gm, P.answer, { before: pressed.before, yes: false });
-      await sleep(1000);
-      writes = await run(gm, P.observe, { on: false });
-      note(`${action}, No`, { book, found: asked.found, title: asked.merged, writes: writes.length });
-      check(`1: ${action} opens the one repair's confirm, titled Repair in place, and its No writes nothing`, pressed.button && asked.found && asked.merged && writes.length === 0, { title: asked.merged, writes: writes.length });
+    await run(gm, P.observe, { on: true });
+    const pressed = await run(gm, P.adventureButton, { book, action: "adventureRepair" });
+    if (process.env.SHOTS === "1" && pressed.dialog) {
+      note("plate", await gm.shot(plate("importer-adventure-repair.png"), `#${pressed.dialog}`));
     }
+    const asked = await run(gm, P.answer, { before: pressed.before, yes: false });
+    await sleep(1000);
+    writes = await run(gm, P.observe, { on: false });
+    note("adventureRepair, No", { book, found: asked.found, title: asked.merged, writes: writes.length });
+    check("1: Repair opens the one repair's confirm, titled Repair in place, and its No writes nothing", pressed.button && asked.found && asked.merged && writes.length === 0, { title: asked.merged, writes: writes.length });
   }
   await run(gm, P.closeManager);
   check("3: the Player seat's manager has no Adventures tab and none of its buttons", !pm.sections.includes("adventures") && pm.adventureRows.length === 0);
 
-  section("The Rebuild tab: Go runs the one repair whatever its Mode reads (plate)");
+  section("The Rebuild tab: a pick and Go run the one repair (plate)");
   await gm.compose();
   await run(gm, P.manager, { tab: "rebuild" });
-  const chosen = await run(gm, P.rebuildTab, { pick: `book:${BOOK}`, mode: "force" });
-  check("the Rebuild tab offers the open book", chosen.has, chosen);
+  const chosen = await run(gm, P.rebuildTab, { pick: `book:${BOOK}` });
+  check("the Rebuild tab offers the open book, under its one select", chosen.has && chosen.selects === 1, chosen);
   const rb = await run(gm, P.rebuildGo);
   note("rebuild tab", { dialog: !!rb.dialog, title: rb.title, redrawn: rb.redrawn });
   check("Go asks under Repair in place", !!rb.dialog && rb.title, { title: rb.title });

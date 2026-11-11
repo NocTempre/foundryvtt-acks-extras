@@ -89,7 +89,7 @@ installImportManager({
   ok("the panel is built with no walkthrough forced and no notice", JSON.stringify(built[0]) === JSON.stringify({ firstRun: false, notice: "" }), JSON.stringify(built[0]));
   ok("a GM's rebuild options and adventure books are read", reads.rebuild === 1 && reads.adventures === 1);
   ok("the chain's steps are listed", ctx.steps.length === 1 && ctx.steps[0].key === "stepOne");
-  ok("the mode select offers rebuild, repair and force repair, each from its own string", ctx.modes.map((m) => `${m.value}:${m.label}`).join() === "drop:ACKS-IMPORTER.ui.reimportModeDrop,repair:ACKS-IMPORTER.ui.reimportModeRepair,force:ACKS-IMPORTER.ui.reimportModeForce", JSON.stringify(ctx.modes));
+  ok("no mode is offered: the context carries no mode list", !("modes" in ctx) && !("importModes" in ctx), Object.keys(ctx).join());
   ok("the listeners are attached once the window is in the page", wired.length === 1 && wired[0].element === app.element);
 
   // The listener asks for a rebuild with a report: the manager renders again and
@@ -102,60 +102,45 @@ installImportManager({
   ok("every build is wired again", wired.length === 3);
 }
 
-/* --- the Rebuild tab keeps the pick and mode across the renders a run makes --------------- */
+/* --- the Rebuild tab keeps the pick across the renders a run makes ------------------------ */
 {
   api.rebuildOptions = () => [{ key: "shelves", label: "Shelves", options: [{ value: "shelf:Alpha", label: "Alpha" }, { value: "shelf:Beta", label: "Beta" }] }];
   const app = new ImportManagerApp();
   let onChange = null;
   const form = {
     addEventListener: (type, fn) => type === "change" && (onChange = fn),
-    querySelector: (sel) => ({ "select[name=pick]": { value: "shelf:Beta" }, "select[name=mode]": { value: "force" } })[sel] ?? null,
+    querySelector: (sel) => ({ "select[name=pick]": { value: "shelf:Beta" } })[sel] ?? null,
   };
   app.element = { id: "root", querySelector: (sel) => (sel === "[data-rebuild-form]" ? form : null) };
   await app.render();
   const pickedOf = (ctx) => ctx.rebuild[0].options.filter((o) => o.selected).map((o) => o.value).join();
-  const modeOf = (ctx) => ctx.modes.filter((m) => m.selected).map((m) => m.value).join();
-  ok("before any choice nothing is picked and the mode is Rebuild", pickedOf(app.context) === "" && modeOf(app.context) === "drop", `${pickedOf(app.context)}|${modeOf(app.context)}`);
-  onChange?.({ target: { name: "mode", value: "repair" } });
+  ok("before any choice nothing is picked", pickedOf(app.context) === "", pickedOf(app.context));
+  onChange?.({ target: { name: "pick", value: "shelf:Alpha" } });
   await app.render();
-  ok("a mode the user changes is drawn selected on the next render", modeOf(app.context) === "repair", modeOf(app.context));
+  ok("a pick the user changes is drawn selected on the next render", pickedOf(app.context) === "shelf:Alpha", pickedOf(app.context));
   // A rebuild press stores what the form reads, then the run renders before its confirm.
   let renderedDuringRun = null;
-  api.runRebuildPick = async () => {
-    renderedDuringRun = { pick: pickedOf(app.context), mode: modeOf(app.context) };
+  const handed = [];
+  api.runRebuildPick = async (...args) => {
+    handed.push(args);
+    renderedDuringRun = pickedOf(app.context);
   };
   await app.constructor.DEFAULT_OPTIONS.actions.rebuild.call(app, {}, { closest: () => form });
-  ok("the render a run makes before its confirm still shows the user's pick and mode", renderedDuringRun?.pick === "shelf:Beta" && renderedDuringRun?.mode === "force", JSON.stringify(renderedDuringRun));
+  ok("the render a run makes before its confirm still shows the user's pick", renderedDuringRun === "shelf:Beta", String(renderedDuringRun));
+  ok("and the run is handed the pick alone, with no mode", handed.length === 1 && handed[0].length === 1 && handed[0][0] === "shelf:Beta", JSON.stringify(handed));
   api.rebuildOptions = () => (reads.rebuild++, [{ key: "shelves", label: "Shelves", options: [] }]);
 }
 
-/* --- Import everything runs in the mode its select holds ---------------------------------- */
+/* --- Import everything runs the chain; Repair everything runs the repair ------------------ */
 {
   const app = new ImportManagerApp();
-  let onChange = null;
-  const select = { value: "repair" };
-  const form = {
-    addEventListener: (type, fn) => type === "change" && (onChange = fn),
-    querySelector: (sel) => (sel === "select[name=importMode]" ? select : null),
-  };
-  app.element = { id: "root", querySelector: (sel) => (sel === "[data-import-form]" ? form : null) };
   await app.render();
-  const modeOf = (ctx) => ctx.importModes.filter((m) => m.selected).map((m) => m.value).join();
-  ok(
-    "the mode select offers importing what is missing, then rebuild, repair and force repair, each from its own string",
-    app.context.importModes.map((m) => `${m.value}:${m.label}`).join() ===
-      "import:ACKS-IMPORTER.manager.importModeImport,drop:ACKS-IMPORTER.ui.reimportModeDrop,repair:ACKS-IMPORTER.ui.reimportModeRepair,force:ACKS-IMPORTER.ui.reimportModeForce",
-    JSON.stringify(app.context.importModes),
-  );
-  ok("before any choice the mode imports what is missing", modeOf(app.context) === "import", modeOf(app.context));
-  onChange?.({ target: { name: "importMode", value: "force" } });
-  await app.render();
-  ok("a mode the user changes is drawn selected on the next render", modeOf(app.context) === "force", modeOf(app.context));
   const ran = [];
-  installImportManager({ api, steps: [["stepOne", () => {}]], booksPanel: async () => ({ html: "", wire: () => {} }), runEverything: async (mode) => ran.push(mode) });
-  await app.constructor.DEFAULT_OPTIONS.actions.importAll.call(app, {}, { closest: (sel) => (sel === "[data-import-form]" ? form : null) });
-  ok("a press hands the select's mode to the run", ran.join() === "repair", ran.join());
-  ok("and the press keeps that mode for the renders after it", modeOf(app.context) === "repair", modeOf(app.context));
+  installImportManager({ api, steps: [["stepOne", () => {}]], booksPanel: async () => ({ html: "", wire: () => {} }), runEverything: async (...args) => ran.push(args) });
+  await app.constructor.DEFAULT_OPTIONS.actions.importAll.call(app, {}, {});
+  ok("Import everything runs the chain, naming no mode", ran.length === 1 && ran[0].length === 0, JSON.stringify(ran));
+  await app.constructor.DEFAULT_OPTIONS.actions.repairAll.call(app, {}, {});
+  ok("Repair everything runs the repair over every open book", ran.length === 2 && JSON.stringify(ran[1]) === '["repair"]', JSON.stringify(ran));
   installImportManager({
     api,
     steps: [["stepOne", () => {}]],
@@ -223,6 +208,13 @@ installImportManager({
   ok("the other four sections sit under the GM check", /\{\{#if isGM\}\}[\s\S]*data-tab="import"[\s\S]*data-tab="tools"[\s\S]*\{\{\/if\}\}/.test(hbs));
   ok("no literal id", !/\sid=/.test(hbs));
   ok("no Books table or button that opened another window is left", !/openBooks|manager-table/.test(hbs));
+  ok("no mode select is left on any tab", !/name="(mode|importMode)"/.test(hbs));
+  const adventureActions = [...hbs.matchAll(/data-action="(adventure\w+)"/g)].map((m) => m[1]);
+  ok("each adventure book offers Repair and Write Adventure, and nothing else", adventureActions.join() === "adventureRepair,adventureWrite", adventureActions.join());
+  const actions = ImportManagerApp.DEFAULT_OPTIONS.actions;
+  const pressed = [...new Set([...hbs.matchAll(/data-action="(\w+)"/g)].map((m) => m[1]))];
+  ok("every button the template draws has a handler", pressed.every((a) => typeof actions[a] === "function"), pressed.filter((a) => typeof actions[a] !== "function").join());
+  ok("and every handler has a button", Object.keys(actions).every((a) => pressed.includes(a)), Object.keys(actions).filter((a) => !pressed.includes(a)).join());
 }
 
 delete globalThis.foundry;

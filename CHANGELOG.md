@@ -174,10 +174,12 @@
   so.
 - **One repair, and you choose what it writes over.** Every rebuild control
   now repairs in place: Settings tab → Game Settings → ACKS II — Extras →
-  Manage imports → Import tab (Import everything), Rebuild tab, the Adventures
-  tab's buttons and Tools tab → (Re)import individual entries; and Compendium
-  tab → ACKS Extras Macros → Reimport One Shelf (GM). The last two no longer
-  have a Mode. Each document keeps its id, folder and owners. Where
+  Manage imports → Import tab (Repair everything, a new button beside Import
+  everything), Rebuild tab (pick, then Go), Adventures tab (Repair) and Tools
+  tab → (Re)import individual entries; and Compendium tab → ACKS Extras
+  Macros → Reimport One Shelf (GM). None of them has a Mode any more, and the
+  Adventures tab's Rebuild and Force repair buttons are gone. Each document
+  keeps its id, folder and owners. Where
   the repair meets an edit you made to what the import wrote, a window titled
   *Your edits and the book* opens after it, listing each edit beside the
   book's value (hover either for where it came from): tick the ones to take
@@ -186,10 +188,13 @@
   window offers to keep it under a new id and restore the book's, to leave it,
   or to write the book over it. A character changed since it was imported (or
   imported before this version) is offered the restore first; one that still
-  matches what was imported is offered leave. Every choice in the import
-  manager's Mode selects runs this same repair; what Force repair did is now
+  matches what was imported is offered leave. What Force repair did is now
   taking the book's value for every edit. Documents from a book this module no
   longer offers are left as they are and counted.
+  <!-- shot: importer-repair-in-place -->
+  <!-- shot: importer-repair-choice -->
+  <!-- shot: importer-adventure-repair -->
+  <!-- shot: importer-repair-everything -->
 - **Silver plating and masterwork apply what your book says.** A weapon plated
   in silver, or an item given a masterwork tier (the item sheet's Details tab),
   took its price, bonus and weight change from figures built into the module.

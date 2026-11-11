@@ -3,10 +3,11 @@
  * The import manager: one window for the importer's controls, in five tabs.
  * Books — every book this build reads, whether it is open on this seat, the
  * server shelf, and the controls that connect them; the first-run walkthrough
- * heads it. Import — the chain, in its order, run whole or one step at a time.
- * Rebuild — a shelf, a book or the rules tables, rebuilt or repaired in place.
- * Adventures — each adventure book open on this seat, with what the library
- * holds of its Adventure, to rebuild, repair or write. Tools — the entry
+ * heads it. Import — the chain, in its order, run whole or one step at a time,
+ * and every open book repaired in place at once. Rebuild — a shelf, a book or
+ * the rules tables, repaired in place. Adventures — each adventure book open
+ * on this seat, with what the library holds of its Adventure, to repair or
+ * write. Tools — the entry
  * picker, the audit, the repair window, overhead token art from an installed
  * compendium (Apply per source, Restore) and Remove All Imports. The window
  * holds nothing of its own: every tab reads the importer's api at render, and
@@ -31,7 +32,8 @@ const loc = (key, data) => (data ? game.i18n.format(`${LANG_PREFIX}.${key}`, dat
  * `booksPanel({firstRun, notice})` builds the Books tab as `{html, wire}`
  * (the markup, and the listeners to attach once it is in the page); `steps` is
  * the import chain as `[key, run]` pairs and `runStep(key)` runs one;
- * `runEverything()` runs the chain; `merchandise()` builds the merchandise
+ * `runEverything()` runs the chain, and `runEverything("repair")` repairs every
+ * open book in place instead; `merchandise()` builds the merchandise
  * items; `lib()` returns the shared lib api, for the repair window;
  * `tokenArt` is `{sources(), apply(source), restore(), hasFlag()}`, the overhead
  * token art controls of the Tools tab (`token-art.mjs`).
@@ -49,11 +51,10 @@ export class ImportManagerApp extends HandlebarsApplicationMixin(ApplicationV2) 
     window: { title: `${LANG_PREFIX}.manager.title`, icon: "fa-solid fa-hanging-sign", resizable: true },
     actions: {
       importAll: ImportManagerApp.#onImportAll,
+      repairAll: ImportManagerApp.#onRepairAll,
       runStep: ImportManagerApp.#onRunStep,
       rebuild: ImportManagerApp.#onRebuild,
-      adventureDrop: ImportManagerApp.#onAdventure,
       adventureRepair: ImportManagerApp.#onAdventure,
-      adventureForce: ImportManagerApp.#onAdventure,
       adventureWrite: ImportManagerApp.#onAdventure,
       entries: ImportManagerApp.#onTool,
       audit: ImportManagerApp.#onTool,
@@ -98,11 +99,8 @@ export class ImportManagerApp extends HandlebarsApplicationMixin(ApplicationV2) 
   /** What the next build of the Books tab carries: the walkthrough forced open, and a report to show. */
   #booksOpts = { firstRun: false, notice: "" };
 
-  /** The Rebuild tab's pick and mode as the user last set them: every render, the one a run makes before its confirm included, draws them selected. */
-  #rebuildChoice = { pick: "", mode: "drop" };
-
-  /** The Import tab's mode for Import everything as the user last set it: "import" runs the chain, any other mode runs over every open book. */
-  #importMode = "import";
+  /** The Rebuild tab's pick as the user last set it: every render, the one a run makes before its confirm included, draws it selected. */
+  #rebuildPick = "";
 
   /**
    * Ask for the Books tab's next build to carry `firstRun` and `notice`.
@@ -118,7 +116,7 @@ export class ImportManagerApp extends HandlebarsApplicationMixin(ApplicationV2) 
     const api = host?.api ?? null;
     const ready = !!api;
     const steps = isGM ? (host?.steps ?? []).map(([key]) => ({ key, label: loc(`gs.${key}`) })) : [];
-    const { pick, mode } = this.#rebuildChoice;
+    const pick = this.#rebuildPick;
     const rebuild = (ready && isGM ? api.rebuildOptions() : []).map((g) => ({
       ...g,
       options: (g.options ?? []).map((o) => ({ ...o, selected: o.value === pick })),
@@ -143,12 +141,6 @@ export class ImportManagerApp extends HandlebarsApplicationMixin(ApplicationV2) 
       steps,
       rebuild,
       adventures,
-      modes: ["drop", "repair", "force"].map((value) => ({ value, selected: value === mode, label: loc(`ui.reimportMode${value[0].toUpperCase()}${value.slice(1)}`) })),
-      importModes: ["import", "drop", "repair", "force"].map((value) => ({
-        value,
-        selected: value === this.#importMode,
-        label: value === "import" ? loc("manager.importModeImport") : loc(`ui.reimportMode${value[0].toUpperCase()}${value.slice(1)}`),
-      })),
     };
   }
 
@@ -163,11 +155,7 @@ export class ImportManagerApp extends HandlebarsApplicationMixin(ApplicationV2) 
       },
     });
     this.element?.querySelector?.("[data-rebuild-form]")?.addEventListener("change", (event) => {
-      const name = event.target?.name;
-      if (name === "pick" || name === "mode") this.#rebuildChoice[name] = event.target.value;
-    });
-    this.element?.querySelector?.("[data-import-form]")?.addEventListener("change", (event) => {
-      if (event.target?.name === "importMode") this.#importMode = event.target.value;
+      if (event.target?.name === "pick") this.#rebuildPick = event.target.value;
     });
   }
 
@@ -211,10 +199,12 @@ export class ImportManagerApp extends HandlebarsApplicationMixin(ApplicationV2) 
     await this.render();
   }
 
-  static async #onImportAll(_event, target) {
-    const mode = target?.closest?.("[data-import-form]")?.querySelector?.("select[name=importMode]")?.value ?? this.#importMode;
-    this.#importMode = mode;
-    await this.#run(loc("manager.importAll"), () => host.runEverything(mode));
+  static async #onImportAll() {
+    await this.#run(loc("manager.importAll"), () => host.runEverything());
+  }
+
+  static async #onRepairAll() {
+    await this.#run(loc("manager.repairAll"), () => host.runEverything("repair"));
   }
 
   static async #onRunStep(_event, target) {
@@ -225,9 +215,8 @@ export class ImportManagerApp extends HandlebarsApplicationMixin(ApplicationV2) 
   static async #onRebuild(_event, target) {
     const form = target.closest("[data-rebuild-form]");
     const pick = form?.querySelector("select[name=pick]")?.value ?? "";
-    const mode = form?.querySelector("select[name=mode]")?.value ?? "drop";
     if (!pick) return;
-    this.#rebuildChoice = { pick, mode };
+    this.#rebuildPick = pick;
     await this.#run(loc("manager.tab.rebuild"), () => host.api.runRebuildPick(pick));
   }
 
@@ -237,7 +226,6 @@ export class ImportManagerApp extends HandlebarsApplicationMixin(ApplicationV2) 
     const api = host.api;
     const label = `${target.textContent.trim()} · ${book}`;
     if (action === "adventureWrite") return this.#run(label, () => api.cookbookImportAdventures({ books: [book] }));
-    // Every adventure button but Write runs the one repair.
     return this.#run(label, () => api.cookbookReimportAdventure(book));
   }
 

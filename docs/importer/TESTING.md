@@ -449,7 +449,7 @@ page. Portable Battering Ram and Personal Automaton read as separate words.
 One AppV2 window, five tabs; it runs nothing of its own, so the walk is each
 tab's primary action reaching the run it names.
 `tools/live/importer-force-repair.mjs` walks steps 1 and 2, the Player seat included;
-`tools/live/importer-everything.mjs` walks step 3's repair options, each answered No.
+`tools/live/importer-everything.mjs` walks step 3's bar and its Repair everything, answered No.
 
 ### Fixtures
 
@@ -488,13 +488,12 @@ tab's primary action reaching the run it names.
    *Observable:* the window's status line names the step while it runs and
    its buttons are disabled; the step's own notification lands; the buttons
    return.
-   Then set the mode beside **Import everything** to each of its three
-   repair options in turn and press it, answering the confirm **No** each
-   time, with a create/update/delete observer armed.
-   *Observable:* one confirm per press, the same one whichever option was
-   chosen, titled Repair in place, listing every open book and every open
-   adventure book under its own name, each with the lines its own repair
-   shows; the observer holds nothing after each No. A Yes repairs the whole
+   The bar above the steps holds **Import everything** and **Repair
+   everything**, and no select. Press **Repair everything** and answer the
+   confirm **No**, with a create/update/delete observer armed.
+   *Observable:* one confirm, titled Repair in place, listing every open book
+   and every open adventure book under its own name, each with the lines its
+   own repair shows; the observer holds nothing after the No. A Yes repairs the whole
    library and puts every held edit of every part to one choice; each part's
    Yes is walked in its own recipe. The asking pass of a repair reads
    the whole library, so the confirm can take longer than one scripted
@@ -507,12 +506,12 @@ tab's primary action reaching the run it names.
    anything for it.
 4. Rebuild tab: the picker's groups equal `rebuildOptions()` — the same
    options as *Reimport One Shelf*'s picker, in the same order. Pick
-   *Rules tables → one document*, **Go** (the Mode select beside it is
-   ignored).
+   *Rules tables → one document*, **Go**; the picker is the tab's only
+   select.
    *Observable:* the table's re-read notification, nothing deleted.
 5. Adventures tab: one row per open Judge's book, each with the census line
-   (`bookCensus`). Its three repair buttons all run the one repair, walked in
-   the recipe below.
+   (`bookCensus`) and two buttons, **Repair** and **Write Adventure**.
+   Repair is walked in the recipe below.
 6. Tools tab: **Repair checks** opens the repair window already scanning;
    **(Re)import individual entries** opens the picker; **Audit the recipes**
    runs the audit. **Remove ALL imports** asks first — Cancel.
@@ -528,9 +527,9 @@ re-read wrote in place.
 
 ## Rebuild or repair an adventure book
 
-`acksExtras.importer.cookbookReimportAdventure(bookId)`, from any of the
-Adventures tab's three repair buttons; all three run the one repair.
-`tools/live/importer-force-repair.mjs` walks step 3's buttons, answered No.
+`acksExtras.importer.cookbookReimportAdventure(bookId)`, from the Adventures
+tab's **Repair** button.
+`tools/live/importer-force-repair.mjs` walks step 3, answered No.
 
 ### Fixtures
 
@@ -562,10 +561,10 @@ Adventures tab's three repair buttons; all three run the one repair.
 2. The same action on a row for a book that is not open (close it, reload):
    the Adventures tab lists no such row, and the api call warns "not open on
    this seat" and writes nothing.
-3. Each of the three repair buttons on the AX1 row, the confirm answered
-   **No**, with a create/update/delete observer armed.
-   *Observable:* each opens the same confirm, titled Repair in place; the
-   observer holds nothing.
+3. **Repair** on the AX1 row, the confirm answered **No**, with a
+   create/update/delete observer armed.
+   *Observable:* the confirm is titled Repair in place; the observer holds
+   nothing. The row offers Repair and Write Adventure and no other button.
 
 ### Teardown
 
@@ -906,7 +905,7 @@ never a delete list.
 ### Steps
 
 1. **The control.** Open Reimport One Shelf.
-   *Observable:* no Mode select; no option ends in *(rebuild only)*.
+   *Observable:* no Mode select; no option ends in *(no in-place write)*.
 2. **A shelf.** Choose Traps.
    *Observable:* the confirm counts 13 to write over and says what a repair
    keeps. Confirm; the choice lists the edited trap's description; Keep every
@@ -1005,7 +1004,7 @@ never a delete list.
     it equipped, change one language's taxonomy flag, and rename nothing; if
     the choice opens, press Take the book's for every edit (a field the kind
     does not hold as the Judge's is written over without asking).
-    *Observable:* no shelf is marked rebuild only; each Yes reports a replaced
+    *Observable:* no shelf is marked as having no in-place write; each Yes reports a replaced
     count; the weapon's die is the table's again and it is still equipped; the
     language's flag is back; every document keeps its id, folder and owners (the
     run's own `modifiedTime` and `_id` record). A pregenerated character picked in
