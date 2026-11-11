@@ -218,9 +218,13 @@ Employer-side flags: `monsterHenchmenList[]` (monster roster — core
 A monster hireling's employer is held in three places that agree: the
 employer's `monsterHenchmenList`, the monster's `retainer.managerid` and the
 record's `employerUuid`. `engine/monster-employer.mjs` `assignMonsterEmployer`
-is the one writer, called by `hireMonster` and by the roster's Transfer (which
-leaves core's `addHenchman` / `delHenchman` alone for a monster); it removes
-the monster from every other actor's list. The repair check
+is the one writer, called by `hireMonster`, by the roster's Transfer (which
+leaves core's `addHenchman` / `delHenchman` alone for a monster) and by the
+monster sheet's **Serve as henchman of…** (`monsters/monster-actions.mjs`
+`serveAsHenchman`, which never writes core's `henchmenList`); it removes the
+monster from every other actor's list. Each caller announces
+`HOOKS.ROSTER_CHANGED` for the new employer and for every actor `previous`
+hands back. The repair check
 `henchmen.monsterEmployers` prunes a list still holding a monster whose record
 names a different employer, and leaves one whose record is missing or names an
 actor that is gone.

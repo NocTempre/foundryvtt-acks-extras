@@ -1,4 +1,4 @@
-/* global foundry, game, ui */
+/* global foundry, game, ui, Hooks */
 /**
  * Actions added by the Full Monster sheet on top of the system's monster sheet.
  * Item CRUD, active effects, Generate Saves, and reaction/HP/encounter rolls are
@@ -10,6 +10,8 @@
 import { MODULE_ID, FLAG_EXTRAS } from "./constants.mjs";
 import MonsterExtras from "./monster-extras.mjs";
 import { ACTOR_TYPE } from "../lib/vocab.mjs";
+import { HOOKS } from "../henchmen/constants.mjs";
+import { assignMonsterEmployer } from "../henchmen/engine/monster-employer.mjs";
 
 /** Default blank row for each array-valued extras path. */
 function defaultRow(path) {
@@ -76,9 +78,11 @@ async function removeRow(event, target) {
 }
 
 /**
- * Attach this monster as a henchman of a chosen character. The core system's
- * built-in addHenchman rejects non-character actors, so we set the reused
- * retainer fields and append to the manager's henchmenList directly.
+ * Attach this monster as a henchman of a chosen character. Core's roster
+ * rejects non-character actors, so the employer is written by the henchmen
+ * feature's one owner of a monster hireling's employer, which also takes the
+ * monster off a previous employer's list; the roster change is announced for
+ * the new employer and each former one.
  */
 async function serveAsHenchman() {
   const managers = game.actors.filter((a) => a.type === ACTOR_TYPE.character);
@@ -109,12 +113,9 @@ async function serveAsHenchman() {
   const manager = game.actors.get(managerId);
   if (!manager) return;
 
-  await this.actor.update({ "system.retainer.enabled": true, "system.retainer.managerid": managerId });
-  const list = foundry.utils.deepClone(manager.system?.henchmenList ?? []);
-  if (!list.includes(this.actor.id)) {
-    list.push(this.actor.id);
-    await manager.update({ "system.henchmenList": list });
-  }
+  if (!this.actor.system?.retainer?.enabled) await this.actor.update({ "system.retainer.enabled": true });
+  const { previous } = await assignMonsterEmployer(this.actor, manager);
+  for (const employer of [manager, ...previous]) Hooks.callAll(HOOKS.ROSTER_CHANGED, { employer });
   ui.notifications.info(game.i18n.format("ACKS-MONSTERS.notify.henchmanSet", { name: manager.name }));
 }
 

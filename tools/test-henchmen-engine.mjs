@@ -45,6 +45,9 @@ class World extends Map {
   get contents() {
     return [...this.values()];
   }
+  filter(fn) {
+    return this.contents.filter(fn);
+  }
 }
 const actors = new World();
 globalThis.game = {
@@ -227,6 +230,42 @@ await test("a monster with no record yet gets lists and manager, and no record i
   await assignMonsterEmployer(beast, second);
   assert.equal(beast.getFlag(MODULE, "record"), undefined);
   assert.equal(beast.system.retainer.managerid, "second");
+});
+
+console.log("henchmen: the monster sheet's Serve as henchman goes through the same owner");
+const { ACTIONS: monsterActions } = await import("../scripts/monsters/monster-actions.mjs");
+const { HOOKS } = await import("../scripts/henchmen/constants.mjs");
+/** Press Serve as henchman on `monster`, the dialog answering `pick`; the roster announcements it made. */
+async function serveFromSheet(monster, pick) {
+  foundry.utils.escapeHTML = (s) => s;
+  foundry.applications.api.DialogV2 = { prompt: async () => pick };
+  announced.length = 0;
+  await monsterActions.serveAsHenchman.call({ actor: monster });
+  return announced.filter(([name]) => name === HOOKS.ROSTER_CHANGED).map(([, id]) => id);
+}
+await test("a monster served under a second employer leaves the first's list and lands on the second's, record included", async () => {
+  const { first, second, beast } = twoEmployers();
+  const told = await serveFromSheet(beast, "second");
+  assert.deepEqual(first.getFlag(MODULE, "monsterHenchmenList"), [], "off the first employer's list");
+  assert.deepEqual(second.getFlag(MODULE, "monsterHenchmenList"), ["beast"], "on the second's");
+  assert.equal(beast.system.retainer.managerid, "second");
+  assert.equal(beast.getFlag(MODULE, "record").employerUuid, "Actor.second");
+  assert.deepEqual(told.sort(), ["first", "second"], "both rosters are announced");
+});
+await test("served from the sheet, core's own henchmenList is left alone", async () => {
+  const { second, beast } = twoEmployers();
+  await serveFromSheet(beast, "second");
+  assert.equal(second.system.henchmenList, undefined);
+});
+await test("a monster in nobody's service is switched on and listed under its first employer", async () => {
+  actors.clear();
+  const first = makeActor({ id: "first" });
+  const beast = makeActor({ id: "beast", type: "monster", system: { retainer: { enabled: false, managerid: "" } } });
+  const told = await serveFromSheet(beast, "first");
+  assert.equal(beast.system.retainer.enabled, true);
+  assert.deepEqual(first.getFlag(MODULE, "monsterHenchmenList"), ["beast"]);
+  assert.equal(beast.system.retainer.managerid, "first");
+  assert.deepEqual(told, ["first"]);
 });
 
 console.log("henchmen: repair prunes a stale monster list");

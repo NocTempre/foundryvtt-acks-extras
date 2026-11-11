@@ -124,14 +124,18 @@ a step it does not name is walked by hand.
   `ui.notifications.info` and `.warn` for the length of the step. A seat that
   has just joined also raises the book loader's own toasts ("Reading …",
   "ACKS Extras | … open") for a minute or more; leave them out of the count.
-- **A payroll entry out of the employer's reach is made by hiring a monster
-  away.** `hireMonster(monster, first)` and then `hireMonster(monster,
-  second)`: the first employer's `monsterHenchmenList` keeps the monster, its
-  `retainer.managerid` names the second, and with no scene holding the first
-  employer and the monster `lib.money.coinReach(first, monster)` answers
-  `notTogether`. Hire while both employers are the GM's and give the Player
-  the employer afterwards: a hire raises the monster's ownership to the
-  employer's owners, and a seat that owns the hireling runs the payday itself.
+- **A payroll entry out of the employer's reach is written by hand.** No hire
+  makes one: `assignMonsterEmployer` takes a monster hired away off the first
+  employer's `monsterHenchmenList`, and `coinReach` counts a hireling whose
+  `retainer.managerid` names the payer as within reach. Hire the monster for a
+  second employer (`hireMonster(monster, second)`), then add its id back to
+  the first employer's `flags.acks-extras.monsterHenchmenList` with an update
+  of that flag alone: its `managerid` names the second, and with no scene
+  holding the first employer and the monster
+  `lib.money.coinReach(first, monster)` answers `notTogether`. Hire while both
+  employers are the GM's and give the Player the employer afterwards: a hire
+  raises the monster's ownership to the employer's owners, and a seat that
+  owns the hireling runs the payday itself.
 - **A hire posts chat cards it does not return.** Wrap `ChatMessage.create`
   on the seat for the length of the call and `api.track` the ids it made.
 - **What a handed-over payday answered is read on both seats.** The module's
@@ -175,6 +179,17 @@ a step it does not name is walked by hand.
    the manager picker and the same panel under them; a mercenary's Standing
    holds no loyalty row, a hint saying why, and the morale throw alone, and
    its roster row reads a dash for loyalty.
+1a-i. A monster served under a second employer, from its own sheet. Hire the
+   `henchmen/beast` monster for `henchmen/employer-a` (`hireMonster`). Open
+   the monster's sheet on the **Service** tab and press **Serve as
+   henchman of…** beside the manager's name, pick `henchmen/employer-b` and
+   press **Serve as Henchman**. *Observable:* employer-a's
+   `monsterHenchmenList` no longer holds the monster, employer-b's does, the
+   monster's `system.retainer.managerid` and the record's `employerUuid` name
+   employer-b, and employer-a's and employer-b's rosters (open both) show the
+   monster off the first and on the second. Neither employer's core
+   `system.henchmenList` holds the monster's id. Press it again for
+   employer-b: nothing is written.
 1b. The panel's figure tooltips (`tools/live/henchmen.mjs`, stage 1). A fresh
    employer and hireling of this step's own: the employer holds a power that
    carries an Active Effect on `flags.acks-extras.moraleBase` (an invented
@@ -370,8 +385,8 @@ a step it does not name is walked by hand.
    and coin behind a lock on their person, is as it was. The posting is in
    `system.market.postings`. A signing bonus states the same reach
    (`within: location` in `engine/hire.mjs`) and is not walked here.
-5e. A payday refused whole. As GM hire a monster for the employer and then
-   for a second employer (above), set a wage on its record and make a month
+5e. A payday refused whole. As GM write a monster onto the employer's payroll
+   out of its reach (above), set a wage on its record and make a month
    due; the Player seat owns the employer and not the monster. From the
    Player seat press **Pay wages** on the Followers tab, then the system
    sheet's Pay Wages button. As GM press the Followers control. Give the seat

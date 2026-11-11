@@ -283,6 +283,12 @@
 
 ### Fixed
 
+- **A monster served from its own sheet leaves its old employer's roster.**
+  A monster served from its own sheet (Service tab → **Serve as henchman
+  of…**, beside the manager's name) now moves off its previous employer's
+  roster and onto the new employer's, with its record naming the new
+  employer, as a transfer does. Before, it stayed on the first employer's
+  list and joined no monster roster.
 - **AX3's market 20 no longer imports a misprinted family count.** The urban
   family count AX3 prints on that market's domain record (p. 32) disagrees
   with the class the record and the demand grid both print. *Import
