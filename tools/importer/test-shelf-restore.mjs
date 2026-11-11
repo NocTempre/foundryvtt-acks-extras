@@ -59,6 +59,16 @@ check("an empty shelf opens nothing", opens("gm", {}), []);
   ok("restoreShelf is found", restore.length > 0);
   ok("restoreShelf picks its books through shelfBooksToOpen", /shelfBooksToOpen\(/.test(restore));
   ok("restoreShelf asks no book its kind", !/bookIsForm/.test(restore));
+  // A join opens a book per shelved PDF: no bar and no notice per book, one console line for the batch.
+  ok("restoreShelf opens each book silently", /connectBookUrl\(bookId, record\.path, \{[^}]*silent: true[^}]*\}\)/.test(restore));
+  ok("restoreShelf reports the batch once, on the console", (restore.match(/console\.log\(/g) ?? []).length === 1);
+  const connect = boot.match(/async function connectBookUrl\([\s\S]*?\n\}/)?.[0] ?? "";
+  ok("connectBookUrl hands silent to the open", /silent = false/.test(connect) && /ingestBook\(bookId, await blob\.arrayBuffer\(\), \{ silent,/.test(connect));
+  const ingest = boot.match(/async function ingestBook\([\s\S]*?\n\}/)?.[0] ?? "";
+  ok("a silent open raises no progress bar", /const bar = silent\s*\?\s*\{ note\(\) \{\}, step\(\) \{\}, finish\(\) \{\} \}\s*: progressBar\(/.test(ingest));
+  ok("a silent open raises no notice", /if \(silent\) console\.debug\(message\);\s*else ui\.notifications\.info\(message\);/.test(ingest));
+  // A book opened by hand keeps both.
+  ok("a book opened by hand keeps its bar and notice", /ingestBook\(bookId, await file\.arrayBuffer\(\), \{ cache: file \}\)/.test(boot));
   // A player seat that opens nothing because the shelf is withheld from it is
   // not a seat with nothing anywhere: a world with a shelf never hands it the
   // first-run walkthrough.

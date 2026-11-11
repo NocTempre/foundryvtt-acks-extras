@@ -35,6 +35,8 @@ import { wearLocation } from "../../equipment/wear.mjs";
 import { isContainer, storeIn } from "../../equipment/containers.mjs";
 import { rollsOf, targetOf } from "../../abilities/ability-rolls.mjs";
 import { enrollHenchman } from "../../henchmen/engine/hire.mjs";
+import { moraleBounds } from "../../henchmen/acks-adapter.mjs";
+import { clampScore } from "../../henchmen/rules/loyalty.mjs";
 import { LANG, PDF_RECORD_FLAG as RECORD_FLAG } from "../constants.mjs";
 import { saveLabel } from "../snapshot.mjs";
 import { filledValues } from "./form.mjs";
@@ -45,7 +47,7 @@ import { DOMAIN_TYPE } from "../../domains/constants.mjs";
 import { normalizeDomain } from "../../domains/domain-logic.mjs";
 import { familiesOf, ledgerFor, placeFamilies, vassalsOf } from "../../domains/domains.mjs";
 import { ADVENTURING_KEYS, COIN_KEYS, MOVE_KEYS, SAVE_BOOK_KEYS, SCORE_KEYS, buildPlan } from "./plan.mjs";
-import { COIN_METALS, coinsHeld, isCoinOf, matchAbility, matchClass, matchHenchman, matchLanguage, matchSpell, ownedCopies, ownedNamed } from "./match.mjs";
+import { COIN_METALS, classUnbound, coinsHeld, isCoinOf, matchAbility, matchClass, matchHenchman, matchLanguage, matchSpell, ownedCopies, ownedNamed } from "./match.mjs";
 import { notesBlock, replaceNotesBlock } from "./notes.mjs";
 
 const loc = makeLoc(LANG);
@@ -452,7 +454,7 @@ function henchmanUpdate(h) {
     update["system.hp.max"] = hp.at(-1);
   }
   for (const s of SCORE_KEYS) if (finite(h.scores[s])) update[`system.scores.${s}.value`] = h.scores[s];
-  if (finite(h.morale)) update["system.details.morale"] = Math.max(-4, Math.min(4, Math.round(h.morale)));
+  if (finite(h.morale)) update["system.details.morale"] = clampScore(h.morale, moraleBounds(ACTOR_TYPE.character));
   return update;
 }
 
@@ -649,7 +651,10 @@ export async function importSheet({ actor = null, values, createHenchmen = false
     const result = await bindClass(target, cls, plan.level);
     bound = result.bound;
     if (result.applied) report.written.push({ label: fieldLabel("class"), value: `${cls.name} ${target.system?.details?.level ?? ""}`.trim() });
-  } else if (plan.className) report.unmatched.push({ kind: "className", name: plan.className });
+  }
+  // A class the world names but cannot bind (a stub, or a bind that did not take)
+  // leaves the class as written text, and the report says so as it does for a name no class answers.
+  if (plan.className && classUnbound(cls, bound)) report.unmatched.push({ kind: "className", name: plan.className });
 
   await grantAbilities(target, plan.abilities, report);
   await grantLanguages(target, plan.languages, report);

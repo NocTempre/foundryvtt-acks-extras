@@ -1575,7 +1575,9 @@ the observable is what the seat fetched and holds, not only what it shows.
 3. Join as the **Player**. *Observable:* of the world's shelf, only
    `importer/shelf-shared`'s book is open (`acksExtras.importer.bookOpen`);
    the seat fetched one PDF and holds one pdf.js worker; the console reads
-   `opened 1 book(s) from the shelf`; no Getting Started window opened.
+   `opened 1 book(s) from the shelf`; no Getting Started window opened; no
+   progress bar and no "entries available" notice appeared for the book (a
+   book connected by hand afterwards raises both).
    *Your Books*: each withheld row says the book is not shared with this
    seat, and the shared row says it is read from the server on every launch.
 4. Press a citation to a withheld book (step 7 above). *Observable:* the
@@ -1627,12 +1629,27 @@ the wrong slot to provoke.
    still there**: a bad re-run never destroys a good import.
 7. The connect itself warns too (`page count 80 (expected 186)`). That warning
    is the reader's first signal; the refusal is what makes ignoring it safe.
+8. **A Judge's edit to a page is kept.** On an AX3 page from step 5, add a
+   paragraph of your own after the imported block (open the page, edit, save).
+   Run `cookbookImportJournals()` again. *Observable:* the result carries
+   `preserved: 1` beside `updated: 16`, the notice says one page is kept
+   (edited), and the page still holds your paragraph and the imported block as
+   it was. Remove your paragraph and run again: `preserved: 0`, `updated: 17`,
+   the page rewritten from the book. A page that only has the import's own
+   block and a creature line is never held, whichever way the book's text moved.
+9. **The same edit under a repair is listed, and taken only on a yes.** With
+   your paragraph back on the page, run
+   `acksExtras.importer.cookbookReimportAdventure("ax3")`, answer the confirm
+   Yes. *Observable:* the held-edits dialog lists the page (field
+   `text.content`, the AX3 reference). Keep it: the page still holds your
+   paragraph. Run the repair again and tick the page: the page is the book's
+   again and your paragraph is gone.
 
 ### Teardown
 
-8. Delete the journals AND the folders from the pack (`Folder.deleteDocuments`
-   with `{pack}` — deleting the entries leaves the folders behind), remove the
-   staged PDFs, and reload so the refresh bridge restores the seat's real books.
+10. Delete the journals AND the folders from the pack (`Folder.deleteDocuments`
+    with `{pack}` — deleting the entries leaves the folders behind), remove the
+    staged PDFs, and reload so the refresh bridge restores the seat's real books.
 
 ## A setting table is a journal page
 

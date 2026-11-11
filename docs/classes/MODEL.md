@@ -298,6 +298,12 @@ ladders. `resolveLevelValue` completes lib's resolver: the `progression` kind
 ("as a fighter of half his level") reads the published chassis attack table —
 the seam named in [abilities/ROADMAP](../abilities/ROADMAP.md).
 
+The first publication waits for the library to warm, seconds after `ready`;
+`whenPublished()` resolves once it has run or failed, and at once where none is
+pending. `materializeAll` (`location/table-docs.mjs`) awaits it before it reads
+an entry: its stale-page sweep retires every page no entry names, and before
+the first publication the `acks.class.*` docs are absent, not gone.
+
 The same file is the one door to an actor's class: `classForActor` (sync)
 answers the bound class document or `null`, and `findByRef` resolves a
 reference by uuid, id or name. Neither ever answers an index row — the object

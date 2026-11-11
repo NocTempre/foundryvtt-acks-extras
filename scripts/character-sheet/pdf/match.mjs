@@ -25,6 +25,16 @@ export function matchClass(name) {
   return classItems().find((c) => slug(c.name) === s && !c.system?.isStub) ?? classByKey(s);
 }
 
+/**
+ * Whether a class a sheet names stays unbound: no class matched, the match is
+ * a stub (a class with no progression rows yet, which applies nothing), or the
+ * bind did not take.
+ * @param {Item|null} cls what `matchClass` answered
+ * @param {boolean} bound whether binding it left the class on the character
+ * @returns {boolean}
+ */
+export const classUnbound = (cls, bound) => !cls || !!cls.system?.isStub || !bound;
+
 /** The library's own definitions of a type — never a class's copy of one. */
 const definitions = (type) => libraryItems().filter((i) => i.type === type && !templatePartOf(i));
 

@@ -176,7 +176,7 @@ export function resolveParties(actor, targetActor) {
  * The morale a creature rolls on. A group actor has no single score: it rolls
  * on its command morale (leader and officer), with its troop type's base
  * added when the group is one stack and so has one base to add. Anything else
- * reads the sheet (character -4..+4, monster -6..+4).
+ * reads the sheet's own score, which core's schema holds to its type's range.
  */
 export function moraleRatingOf(actor) {
   const system = actor?.system;

@@ -26,6 +26,7 @@
 import { MODULE_ID } from "./constants.mjs";
 import { findLibraryPack, whenReady } from "../lib/library.mjs";
 import { ensureLibraryPack } from "../lib/library-target.mjs";
+import { whenPublished as classesPublished } from "../classes/registry.mjs";
 
 const FOLDER_NAME = "ACKS Imported Tables";
 const JOURNAL_NAME = "ACKS Ruledata (Imported)";
@@ -869,7 +870,11 @@ export async function exportEntry(entry) {
  *
  * Ordering is load-bearing: folders exist before the tables that name them,
  * and the stale-page sweep runs after the page writes have landed, or it
- * measures the world as it was before this pass.
+ * measures the world as it was before this pass. The pass waits for the
+ * classes registry's first publication before it reads any entry, because the
+ * sweep retires every page no entry names, and a registry that has not
+ * published yet has no entries to name: waiting at the start keeps the entry
+ * list, the writes and the sweep on one reading of the registry.
  *
  * A shelf is opened only when the pass has something for it, or when the
  * sidebar holds what an earlier release wrote there and the shelf is where
@@ -878,6 +883,7 @@ export async function exportEntry(entry) {
  * @returns {{exported: number, placeholders: number}}
  */
 export async function materializeAll() {
+  await classesPublished();
   const entries = listEntries();
   const keys = entries.map((e) => e.key);
   const t = lib()?.tables;

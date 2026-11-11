@@ -15,17 +15,6 @@ place once is the ordinary route, and the API
 a picker that offers the world's places to pin without standing in them; it
 wants a search, because the world this rule exists for holds ninety of them.
 
-### A materialize before every registry has published
-
-`materializeAll` retires any journal page whose key no current entry names, and
-cannot tell a doc that is gone from one that has not registered yet. The
-classes registry publishes its `acks.class.*` docs only after the library has
-warmed (`registerRegistryHooks`), seconds after `ready`, so a pass in that
-window deletes their pages and the next pass recreates them under new ids. An
-import started by hand normally begins well after that window; a script that
-materializes at `ready` meets it. The unbuilt guard is a pass that waits for
-the registries it sweeps.
-
 ### Reach that does not count the Judge who made both
 
 `ownersShare` answers yes for any character and place one Judge created,

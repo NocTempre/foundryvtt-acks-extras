@@ -317,9 +317,17 @@ const bookOf = (found) => found?.cb?.book?.id ?? found?.entry?.book ?? null;
 /**
  * How many shipped entries this book unlocks. Counts both shapes: per-book
  * cookbooks (monsters) keyed by the book, and content-type cookbooks that
- * span books and name it per entry.
+ * span books and name it per entry. A book id the registry (`BOOKS`) does not
+ * know is named on the console and answers null, so a mistyped id reads
+ * differently from a known book nothing reads yet, which answers 0.
+ * @param {string} bookId
+ * @returns {number|null}
  */
 export const cookbookCount = (bookId) => {
+  if (!BOOKS[bookId]) {
+    console.warn(`${MODULE_ID} | cookbookCount: unknown book id "${bookId}".`);
+    return null;
+  }
   let n = Object.keys(data.books.get(bookId)?.entries ?? {}).length;
   for (const cb of data.content.values()) {
     for (const e of Object.values(cb.entries)) if (e.book === bookId) n++;
@@ -1099,6 +1107,52 @@ export function keepsJudgeProse(doc, path, current, page, cite = "") {
   if (decides(rewriteScope.decision, edit.key) === "take") return false;
   (rewriteScope.tally.edits ??= []).push(edit);
   return true;
+}
+
+/** The creature line a location page carries beside its stamped block: the import's own text, never a Judge's. */
+const CREATURE_LINE = /<p><strong>Creatures:<\/strong>[^<]*<\/p>/g;
+
+/**
+ * Whether a journal page's stored text holds what a Judge wrote. The stamped
+ * block and the creature line are the import's own, so a page of nothing else
+ * is never an edit.
+ */
+const judgedPage = (stored) => handWrittenProse(String(stored ?? "").replace(CREATURE_LINE, " "));
+
+/**
+ * Whether a journal page write keeps the stored text (`current`) instead of the
+ * build's (`built`): true where the page holds hand-written prose
+ * (`judgedPage`) that differs from the build and nothing takes it. Outside a
+ * rewrite it is kept. Under a rewrite that carries a `decision` it is kept
+ * unless the decision takes it, and a kept page is listed in the tally's
+ * `edits`; a rewrite without one follows the tally's force.
+ */
+function keepsJudgePage(page, current, built, cite) {
+  if (current === built || !judgedPage(current)) return false;
+  if (!rewriteScope) return true;
+  if (!("decision" in rewriteScope)) return !rewriteScope.tally?.force;
+  const edit = heldEdit({ uuid: page.uuid ?? "", name: page.name ?? "", path: "text.content", current, page: built, cite });
+  if (decides(rewriteScope.decision, edit.key) === "take") return false;
+  (rewriteScope.tally.edits ??= []).push(edit);
+  return true;
+}
+
+/**
+ * Write a journal page the import already made: `sort` always, its text
+ * (`content`) unless the stored text holds a Judge's prose that differs from
+ * it (`keepsJudgePage`).
+ * @param {JournalEntryPage} page
+ * @param {string} content the page text the build gives
+ * @param {number} sort
+ * @param {string} [cite] the page reference a held edit names
+ * @returns {Promise<"written"|"kept">}
+ */
+export async function writeJournalPage(page, content, sort, cite = "") {
+  const kept = keepsJudgePage(page, page.text?.content ?? "", content, cite);
+  const patch = kept ? {} : { "text.content": content };
+  if (!kept || page.sort !== sort) patch.sort = sort;
+  if (Object.keys(patch).length) await page.update(patch);
+  return kept ? "kept" : "written";
 }
 
 /** Whether the rewrite in progress has already written this document over (its build was accepted). */
@@ -2948,8 +3002,9 @@ async function heldById(ids) {
  * body's strength and relations, that no longer hold the page's are edits
  * (`heldRoster`, `keepsJudgeFigure`); nothing a body holds is retracted; and
  * a pregenerated character the library holds is put to the Judge (`repairPregens`).
- * A page of a journal is always refreshed in place and a map is refreshed by
- * its own step; on a merged repair's second pass (`secondPass`) only the steps
+ * A page of a journal is refreshed in place unless it holds a Judge's prose,
+ * which under a decision is an edit (`writeJournalPage`), and a map is refreshed
+ * by its own step; on a merged repair's second pass (`secondPass`) only the steps
  * whose first pass held an edit run (`mergedStep`). `adventure: false` leaves
  * the Adventure step to the caller.
  * @param {string} bookId
@@ -3010,7 +3065,8 @@ async function runAdventureBookSteps(bookId, { force = false, tally = null, adve
     (rewriting ? withRewrite({ held: await heldById(list), tally, retract: decided ? [] : retract, ...decisionOf(tally) }, fn) : fn());
   const placesScoped = async (fn) =>
     (rewriting ? withRewrite({ ...(await forcedPlaceHold(bookId, ids.places)), tally, retract: ["roster"], ...decisionOf(tally) }, fn) : fn());
-  if (!second) await run("stepJournals", () => a.cookbookImportJournals(only));
+  const journalsScoped = (fn) => (rewriting ? withRewrite({ held: new Map(), tally, ...decisionOf(tally) }, fn) : fn());
+  await run("stepJournals", () => journalsScoped(() => a.cookbookImportJournals(only)));
   if (hasPlaceRows(bookId)) await run("stepPoi", () => placesScoped(() => a.cookbookImportPoiPlaces(only)));
   await run("stepFactions", () => scoped(ids.factions, ["relations", "strength"], () => a.cookbookImportFactions(only)));
   await run("stepMarkets", () => a.cookbookImportMarketProfiles({ ...only, repair: tally }));
@@ -5269,6 +5325,10 @@ const journalEntriesOf = (entries) => {
  * register maps one); a setting table's is the printed rows laid out as a
  * table under the register's header words; a passage's is its paragraphs.
  * Pages update in place on re-import, so coverage grows without duplicating.
+ * A page whose stored text holds a Judge's prose that differs from the build
+ * keeps it (`writeJournalPage`) and is counted in `preserved`: outside a
+ * repair always, and inside a merged repair unless its decision takes it, where
+ * a page kept is listed as a held edit.
  * `books` scopes the run to those book ids; a seat that holds every shelved
  * book open otherwise writes them all. `created.journals` lists the uuids of
  * the journals this run made. A run with nothing to write resolves null with
@@ -5280,6 +5340,7 @@ export async function cookbookImportJournals({ books = null, quiet = false } = {
   const created = { journals: [] };
   let made = 0;
   let updated = 0;
+  let preserved = 0;
   let refused = 0;
   // Every page is a fresh extraction from the seat's PDF, so a book's worth of
   // districts is minutes of work — counted up front so the bar can say how far
@@ -5350,6 +5411,7 @@ export async function cookbookImportJournals({ books = null, quiet = false } = {
           const creatureHtml = creatures.length
             ? `<p><strong>Creatures:</strong> ${creatures.map((c) => escapeText(c.text)).join(" · ")}</p>`
             : "";
+          // `creatureHtml` stays what `CREATURE_LINE` matches, so an untouched page is never read as an edit.
           // A setting table is its rows under the register's header words; the
           // executor paired each row's label and text by section, and the page
           // holds the pairs as a table rather than as prose.
@@ -5357,8 +5419,8 @@ export async function cookbookImportJournals({ books = null, quiet = false } = {
             e.kind === "kind.settingTable" ? entryTable(node, id, e.cite, e.columns ?? []) : entryText(node, id, e.cite) + creatureHtml;
           const existing = journal.pages.find((p) => p.getFlag(MODULE_ID, "cookbook")?.id === id);
           if (existing) {
-            await existing.update({ "text.content": content, sort });
-            updated++;
+            if ((await writeJournalPage(existing, content, sort, e.cite ?? "")) === "kept") preserved++;
+            else updated++;
           } else {
             await journal.createEmbeddedDocuments("JournalEntryPage", [
               {
@@ -5381,16 +5443,16 @@ export async function cookbookImportJournals({ books = null, quiet = false } = {
   // A run that refused everything is a wrong file or a printing this build does
   // not read, not an empty book — say so instead of asking for a connection the
   // reader already made.
-  if (!made && !updated && refused)
+  if (!made && !updated && !preserved && refused)
     return ui.notifications.warn(`${MODULE_ID} | journals: ${refused} page(s) did not match the cookbook (different printing?) — none written.`);
-  if (!made && !updated) {
+  if (!made && !updated && !preserved) {
     if (quiet || books) return null;
     return ui.notifications.warn(`${MODULE_ID} | no journal pages in any open book — connect a book with keyed rooms, setting tables or passages.`);
   }
   ui.notifications.info(
-    `${MODULE_ID} | journals: ${made} page(s) created, ${updated} refreshed${refused ? `, ${refused} skipped (page did not match the cookbook)` : ""}, on each book's JournalEntry shelf.`,
+    `${MODULE_ID} | journals: ${made} page(s) created, ${updated} refreshed${preserved ? `, ${preserved} kept (edited)` : ""}${refused ? `, ${refused} skipped (page did not match the cookbook)` : ""}, on each book's JournalEntry shelf.`,
   );
-  return { made, updated, refused, created };
+  return { made, updated, preserved, refused, created };
 }
 
 /**

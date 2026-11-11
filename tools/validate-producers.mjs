@@ -40,7 +40,6 @@ const WAIVERS = {
   "influence.attemptTime": { roadmap: "docs/influence/ROADMAP.md", find: "The attempt-time ladder has no producer" },
   followers: { roadmap: "docs/henchmen/ROADMAP.md", find: "Followers ruledata has no producer" },
   "wages.mercenaryOfficers": { roadmap: "docs/henchmen/ROADMAP.md", find: "`wages.mercenaryOfficers`" },
-  "people.classRegistry": { roadmap: "docs/henchmen/ROADMAP.md", find: "`people.classRegistry`" },
   variations: { roadmap: "docs/equipment/ROADMAP.md", find: "Variation ruledata has no producer" },
   economy: { roadmap: "docs/markets/ROADMAP.md", find: "Economy ruledata has no producer" },
   "acks.selectionVocab": { roadmap: "docs/abilities/ROADMAP.md", find: "through exists (`acks.selectionVocab`)" },

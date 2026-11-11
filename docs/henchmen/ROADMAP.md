@@ -59,7 +59,7 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   `retainBonus` flag only adds to a limit that exists
   ([DECISIONS.md](DECISIONS.md), 2026-10-23). A Judge-set Charisma modifier
   or limit, from a flag or an Active Effect, would close the gap.
-- **Three reads have nothing to feed them.** `tools/validate-producers.mjs`
+- **Two reads have nothing to feed them.** `tools/validate-producers.mjs`
   waives each against this entry until a recipe writes it or the read goes:
   - **Followers ruledata has no producer.** The followers dialog reads a
     `followers` document (troop types, followers by class, companion levels,
@@ -68,9 +68,6 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   - `wages.mercenaryOfficers`: an officer's morale modifier and command level
     (`engine/hire-group.mjs`) read rows no `wages` recipe writes, so both take
     their fallbacks.
-  - `people.classRegistry`: `classInfo` (`rules/identity.mjs`) prefers an
-    imported registry that no recipe writes, so the derived entry is what
-    every world gets. Retire the read or add the recipe.
 - **Hire as Group makes no hiring roll.** The unit dialog takes troops and an
   officer straight onto the employer's books, where an offer through the Hire
   button rolls each head's reaction (RR 162; [MODEL.md](MODEL.md) §2, "Bulk

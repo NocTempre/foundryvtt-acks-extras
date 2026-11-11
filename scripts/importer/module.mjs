@@ -744,7 +744,7 @@ async function restoreShelf() {
   for (const bookId of shelfBooksToOpen(staged, shelfReadable, (id) => sessionDocs.has(id))) {
     const record = staged[bookId];
     try {
-      await connectBookUrl(bookId, record.path, { remember: false, bridge: false });
+      await connectBookUrl(bookId, record.path, { remember: false, bridge: false, silent: true });
       opened.push(bookId);
     } catch (err) {
       console.warn(`${MODULE_ID} | shelved ${REGISTRY[bookId]?.label ?? bookId} could not be read at ${record.path}`, err);
@@ -987,8 +987,11 @@ const allRecipes = () => [...RECIPES, ...Object.values(dynamicRecipes())];
  * so bridging one buys nothing and costs the whole shelf — seventeen books is
  * better than half a gigabyte written into this seat's storage at every join,
  * for reads that were never going to ask the reader for anything.
+ *
+ * `silent` opens the book without a progress bar or an "entries available"
+ * notice (see `ingestBook`); a failure still warns.
  */
-async function connectBookUrl(bookId, url, { remember = true, bridge = true } = {}) {
+async function connectBookUrl(bookId, url, { remember = true, bridge = true, silent = false } = {}) {
   // Throws rather than warning-and-returning: the shelf decides whether to
   // record a path from whether this resolved, and a soft return told it the
   // read had succeeded. Callers that only want the message still get it — the
@@ -1007,7 +1010,7 @@ async function connectBookUrl(bookId, url, { remember = true, bridge = true } = 
   // Blob first, buffer from it: pdf.js detaches the array it is handed, and a
   // re-download of a whole book is exactly what the refresh bridge saves.
   const blob = await resp.blob();
-  const hits = await ingestBook(bookId, await blob.arrayBuffer(), { cache: bridge ? blob : null });
+  const hits = await ingestBook(bookId, await blob.arrayBuffer(), { silent, cache: bridge ? blob : null });
   // A path IS a location, and the one kind that needs no gesture to reopen, so
   // a seat pointed at a staged copy reconnects itself on every future join.
   if (remember) {
@@ -1031,7 +1034,11 @@ async function connectBookUrl(bookId, url, { remember = true, bridge = true } = 
  */
 async function ingestBook(bookId, buffer, { silent = false, cache = null } = {}) {
   const entries = cookbookCount(bookId);
-  const bar = progressBar(game.i18n.format(`${LANG_PREFIX}.ui.progressReading`, { book: BOOKS[bookId]?.label ?? bookId }), 1);
+  // A silent open raises no bar and no notice: the seat restoring its shelf at
+  // join opens a book per shelved PDF, and the caller reports the batch once.
+  const bar = silent
+    ? { note() {}, step() {}, finish() {} }
+    : progressBar(game.i18n.format(`${LANG_PREFIX}.ui.progressReading`, { book: BOOKS[bookId]?.label ?? bookId }), 1);
   try {
     bar.note(game.i18n.localize(`${LANG_PREFIX}.ui.progressOpening`));
     const { doc, numPages, title } = await openBook(buffer);
@@ -1083,8 +1090,8 @@ async function ingestBook(bookId, buffer, { silent = false, cache = null } = {})
       ? game.i18n.format(`${LANG_PREFIX}.ui.bookOpenForm`, { book })
       : !read
         ? game.i18n.format(`${LANG_PREFIX}.ui.bookOpenNothing`, { book })
-        : game.i18n.format(`${LANG_PREFIX}.ui.${entries === 1 ? "bookOpenOne" : "bookOpenMany"}`, { book, n: entries });
-    if (silent) console.log(message);
+        : game.i18n.format(`${LANG_PREFIX}.ui.${entries === 1 ? "bookOpenOne" : "bookOpenMany"}`, { book, n: entries ?? 0 });
+    if (silent) console.debug(message);
     else ui.notifications.info(message);
     return true;
   } finally {

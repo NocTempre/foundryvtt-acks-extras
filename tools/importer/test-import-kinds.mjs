@@ -28,12 +28,13 @@ import {
   IMPORT_KINDS, ENTRY_SOURCES, SHELF_REFILL, REPAIR_RUNS, TABLE_BOOKS, cookbookRunSet, cookbookReimportShelf, cookbookReimportBook,
   cookbookReimportAdventure, cookbookReimportEntries, reimportableShelves, initCookbook, loadCookbook, isRewriting, placeBlockRows,
   withRewrite, createDoc, keepsJudgeProse, keepsJudgeFigure, marketTakes, recreateUnderId, rewriteTable, repairPregens, writeRowBlock,
+  writeJournalPage, cookbookCount,
 } from "../../scripts/importer/cookbook.mjs";
 import { mergedTally } from "../../scripts/importer/refresh.mjs";
 import { blockSum, playStamp, pregenDefault } from "../../scripts/importer/held-edits.mjs";
 import { bookText } from "../../scripts/importer/prose.mjs";
 import { TABLE_RECIPES } from "../../scripts/importer/table-recipes.mjs";
-import { bookIsJudges } from "../../scripts/importer/books.mjs";
+import { BOOKS, bookIsJudges } from "../../scripts/importer/books.mjs";
 import { GM_STEPS } from "../../scripts/importer/getting-started.mjs";
 import { libraryPackLabel } from "../../scripts/lib/library.mjs";
 
@@ -747,6 +748,76 @@ same("a stat-line creature is read from its place's book", IMPORT_KINDS.find((k)
   const character = source.slice(source.indexOf("async function importCharacter"), source.indexOf("/** The kinds that bind to a journal page"));
   check("a character's biography write asks keepsJudgeProse under its rewrite",
     /isRewriting\(id\) && keepsJudgeProse\(actor, "system\.details\.biography",/.test(character) && /keepBiography \? \{\} :/.test(character));
+}
+
+/* --- a book id the registry does not know --- */
+
+{
+  const [known] = Object.keys(BOOKS);
+  const warned = [];
+  const warn = console.warn;
+  console.warn = (...args) => warned.push(args.join(" "));
+  try {
+    check("a known book answers a number, with nothing said", Number.isInteger(cookbookCount(known)) && warned.length === 0);
+    check("an id the registry does not know answers null, never 0", cookbookCount("zz-unknown") === null);
+    check("and names the id on the console", warned.length === 1 && warned[0].includes('"zz-unknown"'));
+  } finally {
+    console.warn = warn;
+  }
+}
+
+/* --- a journal page a Judge edited: kept outside a repair, held and decided inside one --- */
+
+{
+  const stamped = (text) => bookText([text], "ZZ 1", { id: "zz.room1", book: "zz", page: 3 });
+  const creatureLine = "<p><strong>Creatures:</strong> Gloam Hound · Tin Rat</p>";
+  const made = (content, sort = 100) => ({
+    uuid: "JournalEntry.jrn0000000001.JournalEntryPage.pag0000000001",
+    name: "Room",
+    sort,
+    text: { content },
+    writes: [],
+    async update(patch) {
+      this.writes.push(patch);
+      return this;
+    },
+  });
+  const built = stamped("New text.") + creatureLine;
+  const judged = `${stamped("Old text.")}${creatureLine}<p>The Judge's own note.</p>`;
+  const KEY = "JournalEntry.jrn0000000001.JournalEntryPage.pag0000000001#text.content";
+  const outcome = async (content, scope = null, { sort = 200, pageSort = 100 } = {}) => {
+    const page = made(content, pageSort);
+    const tally = { ...mergedTally(scope?.decision ?? "keep"), ...(scope?.tally ?? {}) };
+    const run = () => writeJournalPage(page, built, sort, "ZZ 1");
+    const how = scope ? await withRewrite({ held: new Map(), tally, ...(scope.decision === undefined ? {} : { decision: scope.decision }) }, run) : await run();
+    return { how, writes: page.writes, edits: tally.edits.map((e) => [e.key, e.path, e.current, e.page, e.cite]) };
+  };
+
+  same("an edited page outside a repair is kept: only its sort is written, nothing is listed",
+    await outcome(judged), { how: "kept", writes: [{ sort: 200 }], edits: [] });
+  same("an edited page already at its sort is left untouched", (await outcome(judged, null, { pageSort: 200 })).writes, []);
+  same("a page of only the import's own text is written whole, however the build moved",
+    (await outcome(stamped("Old text.") + creatureLine)).writes, [{ "text.content": built, sort: 200 }]);
+  same("a page with no creature line is written whole", (await outcome(stamped("Old text."))).writes, [{ "text.content": built, sort: 200 }]);
+  same("a page already holding the build is written as it was", (await outcome(built)).how, "written");
+
+  const kept = await outcome(judged, { decision: "keep" });
+  same("under keep the edited page is held and listed with its text, the build's and the page reference",
+    [kept.how, kept.writes, kept.edits], ["kept", [{ sort: 200 }], [[KEY, "text.content", judged, built, "ZZ 1"]]]);
+  const taken = await outcome(judged, { decision: { take: new Set([KEY]) } });
+  same("under a decision taking it the build is written and nothing is listed", [taken.how, taken.writes, taken.edits], ["written", [{ "text.content": built, sort: 200 }], []]);
+  same("a decision that names another page keeps this one", (await outcome(judged, { decision: { take: new Set(["Other#text.content"]) } })).how, "kept");
+  same("a rewrite without a decision writes where the tally is forced", (await outcome(judged, { tally: { force: true } })).how, "written");
+  same("and keeps the page where it is not", (await outcome(judged, { tally: { force: false } })).how, "kept");
+
+  // The call sites: the step carries the pass's decision on both passes, and the importer writes through the same function.
+  const source = fs.readFileSync(new URL("../../scripts/importer/cookbook.mjs", import.meta.url), "utf8");
+  const steps = source.slice(source.indexOf("async function runAdventureBookSteps"), source.indexOf("/** A document type's name in the user's language"));
+  check("the journals step runs under the pass's decision, on pass two as well as pass one",
+    /withRewrite\(\{ held: new Map\(\), tally, \.\.\.decisionOf\(tally\) \}, fn\)/.test(steps) && /await run\("stepJournals", \(\) => journalsScoped\(\(\) => a\.cookbookImportJournals\(only\)\)\);/.test(steps));
+  const journals = source.slice(source.indexOf("export async function cookbookImportJournals"), source.indexOf("/**\n * Points of interest:"));
+  check("the journal importer writes an existing page through writeJournalPage and counts the page kept",
+    /writeJournalPage\(existing, content, sort, e\.cite \?\? ""\)\) === "kept"\) preserved\+\+/.test(journals) && /!made && !updated && !preserved/.test(journals));
 }
 
 /* --- figures only a forced repair wrote: under a decision each is an edit --- */

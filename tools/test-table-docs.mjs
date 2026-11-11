@@ -641,6 +641,50 @@ await test("a page whose table became rollable is retired after the writes", asy
   );
 });
 
+await test("a pass begun before the classes registry publishes waits for it, and retires no page the registry is about to name", async () => {
+  const { registerRegistryHooks } = await import("../scripts/classes/registry.mjs");
+  const full = manyPages(3);
+  world({ registry: full });
+  await materializeAll();
+  const journal = [...shelf("JournalEntry").contents][0];
+  assert.equal(journal.pages.length, 3);
+
+  // A later pass at `ready`: the registry has not published, so its docs are absent, not gone.
+  const registry = {};
+  world({ registry });
+  installShelf("JournalEntry", { contents: [journal] });
+  let ready = null;
+  globalThis.Hooks = { once: (_event, fn) => (ready = fn), on() {} };
+  registerRegistryHooks();
+  let settled = false;
+  const pass = materializeAll().then((report) => {
+    settled = true;
+    return report;
+  });
+  for (let i = 0; i < 20; i++) await Promise.resolve();
+  assert.equal(settled, false, "the pass is waiting");
+  assert.equal(journal.pages.length, 3, "and has retired nothing");
+
+  // The registry publishes; the pass reads it whole.
+  Object.assign(registry, full);
+  await ready();
+  const report = await pass;
+  assert.equal(report.exported, 3, "every page is written from the published registry");
+  assert.equal(journal.pages.length, 3, "none is swept");
+  assert.ok(!calls.some((c) => c.startsWith("page.delete")), `no delete call: ${calls.join(", ")}`);
+
+  // A publication that fails still releases the pass.
+  const emptied = {};
+  world({ registry: emptied });
+  installShelf("JournalEntry", { contents: [journal] });
+  registerRegistryHooks();
+  game.packs = { filter() { throw new Error("shelf unreadable"); }, find() { return undefined; } };
+  const waiting = materializeAll().catch((err) => err);
+  await ready().catch(() => null);
+  const released = await Promise.race([waiting, new Promise((resolve) => setTimeout(() => resolve("hung"), 500))]);
+  assert.notEqual(released, "hung", "a failed publication does not hold the pass forever");
+});
+
 await test("a world with no JSON tables gets no empty journal, and no empty shelf for it", async () => {
   world({ registry: manyRollables(2) });
   await materializeAll();

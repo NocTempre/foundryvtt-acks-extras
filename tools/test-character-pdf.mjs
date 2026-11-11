@@ -446,6 +446,36 @@ test("the blank is a fresh copy of the open sheet, and nothing when it is not op
   assert.equal(await blankSheet(null), null, "no importer on this seat");
 });
 
+section("official sheet: a class the world cannot bind");
+globalThis.Hooks ??= { on() {}, once() {}, callAll() {} };
+const { classUnbound, matchClass } = await import("../scripts/character-sheet/pdf/match.mjs");
+const { CLASS_TYPE } = await import("../scripts/classes/constants.mjs");
+const classDoc = (name, levels) => ({ name, type: CLASS_TYPE, system: { key: name.toLowerCase(), isStub: !levels } });
+test("a name only a stub answers matches the stub, which binds nothing and is reported", () => {
+  const held = globalThis.game.items;
+  globalThis.game.items = [classDoc("Lampwright", 0), classDoc("Kiln Warden", 3)];
+  try {
+    const stub = matchClass("Lampwright");
+    assert.equal(stub?.name, "Lampwright", "the key fallback returns the stub");
+    assert.equal(classUnbound(stub, true), true, "a stub is unbound however the bind went");
+    assert.equal(matchClass("Ashen Tinker"), null);
+    assert.equal(classUnbound(null, false), true, "no class at all is unbound");
+  } finally {
+    globalThis.game.items = held;
+  }
+});
+test("a class with rows is unbound only when its bind did not take", () => {
+  const real = classDoc("Kiln Warden", 3);
+  assert.equal(classUnbound(real, true), false);
+  assert.equal(classUnbound(real, false), true);
+});
+test("the import reports an unbound class through that test, for the stub and the failed bind alike", async () => {
+  const { readFileSync } = await import("node:fs");
+  const apply = readFileSync(new URL("../scripts/character-sheet/pdf/apply.mjs", import.meta.url), "utf8");
+  assert.match(apply, /if \(plan\.className && classUnbound\(cls, bound\)\) report\.unmatched\.push\(\{ kind: "className", name: plan\.className \}\);/);
+  assert.match(apply, /import \{[^}]*\bclassUnbound\b[^}]*\} from "\.\/match\.mjs"/);
+});
+
 for (const [name, fn] of tests) {
   if (name === null) {
     console.log(fn);

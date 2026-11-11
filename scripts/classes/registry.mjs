@@ -475,16 +475,44 @@ export function resolveLevelOutcome(lv, level = 1, scales = {}) {
   return libResolveLevelOutcome(lv, level, scales);
 }
 
+/** Settles `firstPublication` when the ready hook's publication ends; null while none is pending. */
+let settleFirstPublication = null;
+/** The first publication the ready hook makes; already resolved while none is pending. */
+let firstPublication = Promise.resolve();
+
+/**
+ * Resolves once the registry's first publication (`registerRegistryHooks`'s
+ * ready hook, after the library has warmed) has run, or failed. A pass that
+ * retires documents for the docs no longer registered (`materializeAll`) awaits
+ * it, because before it the `acks.class.*` docs are absent rather than gone.
+ * Already resolved where nothing is pending: the hooks were never registered
+ * (a test, a seat without the classes feature), they were registered after
+ * `ready`, or the publication has run.
+ * @returns {Promise<void>}
+ */
+export const whenPublished = () => firstPublication;
+
 /** Wire publication to the world lifecycle: ready + class-item CRUD. */
 export function registerRegistryHooks() {
+  // A ready hook registered after `ready` never fires, so nothing is pending then.
+  if (!settleFirstPublication && !globalThis.game?.ready) {
+    firstPublication = new Promise((resolve) => {
+      settleFirstPublication = resolve;
+    });
+  }
   // The library warms in the background and lib's own ready hook does not await
   // it, so publishing here reads whatever happened to be loaded — and this
   // publication is not repeated, so a cold read is what the registry answers
   // with for the rest of the session. Await the shelves before reading them.
   Hooks.once("ready", async () => {
-    await whenReady();
-    const count = publish();
-    if (count) console.log(`${MODULE_ID} | classes registry published ${count} ruledata doc(s).`);
+    try {
+      await whenReady();
+      const count = publish();
+      if (count) console.log(`${MODULE_ID} | classes registry published ${count} ruledata doc(s).`);
+    } finally {
+      settleFirstPublication?.();
+      settleFirstPublication = null;
+    }
   });
   for (const hook of ["createItem", "updateItem", "deleteItem"]) {
     Hooks.on(hook, (item) => {

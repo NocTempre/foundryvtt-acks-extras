@@ -273,7 +273,14 @@ monsters by `refillMonster`), the items it introduces and its roll tables
 (`rewriteTable`: formula, description, results), each under the pass's
 decision, so a description a Judge wrote in is held. Its pregenerated
 characters are put to the Judge (`repairPregens`). Journals are refreshed by
-their step and maps by theirs (`repairHeldMap`, which keeps the Judge's
+their step, run inside a `withRewrite` that holds no document and carries the
+pass's decision: a page whose stored text holds a Judge's prose beyond the
+import's own block and creature line is an edit (`writeJournalPage`, path
+`text.content`), listed in the choice dialog and written only where the
+decision takes it, on the second pass as the first; every other page is written
+whole. Outside a repair (Import Everything, the entry picker's import) such a
+page is kept, its sort alone written, and the run counts it `preserved`. Maps
+are refreshed by their own step (`repairHeldMap`, which keeps the Judge's
 regions, fog and tokens). The adventures step runs once, after the last pass,
 with `force`, which `bookAdventureState` reads as stale whatever the stamp
 says, so the Adventure is written anew, a Judge's edit to it included. Not

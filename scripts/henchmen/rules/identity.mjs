@@ -26,14 +26,11 @@ function pickWeighted(rand, entries, weightOf) {
  * alignment?}). DERIVED, not a shipped table: bucket comes from the
  * imported class distribution, rarity from the imported rarity ladder,
  * race from the class key's own adjective, and the RESTRICTIONS from the
- * imported `people.classRestrictions` blocks (RR class descriptions). A
- * world-imported `people.classRegistry` still wins if one exists.
+ * imported `people.classRestrictions` blocks (RR class descriptions).
  */
 export function classInfo(classKey) {
   const key = String(classKey ?? "").toLowerCase().trim();
   if (!key) return null;
-  const imported = optTable("people", "classRegistry")?.classes?.[key];
-  if (imported) return imported;
 
   const entry = {};
   const buckets = optTable("rarity", "classDistribution")?.buckets ?? [];
@@ -92,8 +89,8 @@ export function raceOfCulture(cultureId) {
  * Resolve a culture id from the location's demographics weights,
  * CONSTRAINED to a race so culture and class always align (no Zaharan
  * humans, no elven vaultguards). Falls back to the race's own culture(s)
- * when the demographics don't include one; Nobiran and other human-passing
- * bloodlines use `classRegistry.raceCultures`.
+ * when the demographics don't include one; a race other than human matches
+ * the cultures that declare it.
  */
 export function pickCulture(rand, demographics, race = null, cultureWhitelist = null) {
   const cultures = getTable("people", "cultures").list;
@@ -104,8 +101,6 @@ export function pickCulture(rand, demographics, race = null, cultureWhitelist = 
     if (cultureWhitelist && !cultureWhitelist.includes(id)) return false;
     if (!race) return true;
     if (race === "human") return raceOfCulture(id) === "human";
-    const raceCultures = optTable("people", "classRegistry")?.raceCultures?.[race];
-    if (raceCultures) return raceCultures.includes(id);
     return raceOfCulture(id) === race;
   };
   const weighted = (demographics ?? []).filter((d) => d.culture in cultures && d.weight > 0 && matchesRace(d.culture));

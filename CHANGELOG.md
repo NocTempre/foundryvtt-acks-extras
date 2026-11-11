@@ -311,6 +311,18 @@
 - **The Legacy chip updates at once.** The Legacy chip on the character sheet's
   Class tab now shows a change to the player's legacy fund as soon as it is
   made, instead of when the sheet is next opened.
+- **Joining a world opens the shelf quietly.** A seat joining a world whose
+  books are on its shelf opens them without a progress bar or an "entries
+  available" notice for each; one line on the browser console says how many
+  were opened. A book connected by hand still shows both.
+- **The class pages on the rules journal are kept at load.** The pages the
+  rules tables write for each class (Journal sidebar tab → ACKS Imported Rules
+  Tables) are no longer deleted and made again when the world loads, so their
+  ids, and any link to one, stay the same.
+- **A character sheet import names a class it could not bind.** Importing a
+  filled official character sheet (*Import sheet* in the Actors sidebar tab)
+  whose class matches only a class with no progression now lists Class as
+  unmatched in the import's report and notes, and leaves the class as text.
 - **An open Party sheet shows the party it was opened on.** A Party sheet
   (Actors sidebar tab → a party actor) whose first drawing overlapped a change
   to the party (a member joining or leaving, the marching order, the plan)
