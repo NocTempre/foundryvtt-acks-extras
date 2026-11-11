@@ -64,6 +64,8 @@ import { effectsOriginOf } from "./effects-origin.mjs";
 import { slugLabel } from "./table-extract.mjs";
 import { TABLE_RECIPES } from "./table-recipes.mjs";
 import { ownerOfClaim, rebuildVerdict } from "./rebuild-guard.mjs";
+import { ancestorsOf, runSetFor as deriveRunSet } from "./import-kinds.mjs";
+import { GM_STEPS } from "./getting-started.mjs";
 import { getDoc, getLayer, hasDoc, PRIORITY } from "../lib/tables.mjs";
 import { pageItems, pageArtPlacements } from "./extract.mjs";
 import { WEAPON_TABLE, extractWeaponsFromDoc, bindWeaponRow, bindAmmoRow } from "./weapon-tables.mjs";
@@ -1877,7 +1879,7 @@ export async function freshEntryText(fullId, { cited = true } = {}) {
  * missing here has no in-place write — the weapons, armour, language and race
  * shelves are built from whole printed tables — and can only rebuild.
  */
-const REPAIR_RUNS = {
+export const REPAIR_RUNS = {
   cookbookImportAbilities: async (only, tally) => {
     await cookbookUpdateAbilities({ only, repair: tally });
     return cookbookImportAbilities({ only });
@@ -1915,7 +1917,7 @@ const tableDocBook = (docId) => Object.values(TABLE_RECIPES[docId]?.tables ?? {}
  * The book that prints each table shelf (`priced` is the Equipment shelf's price
  * list): a table's rows carry no book on their ids, so a book repair finds them here.
  */
-const TABLE_BOOKS = {
+export const TABLE_BOOKS = {
   Weapons: () => WEAPON_TABLE.book,
   Armor: () => ARMOR_TABLE.book,
   priced: () => WEAPON_TABLE.book,
@@ -2128,8 +2130,9 @@ async function repairBook(bookId, label, { force = false, ask = null } = {}) {
     if (!runs.has("importAllEquipment")) runs.set("importAllEquipment", new Set());
   }
   const refill = {};
-  // In SHELF_REFILL's order, which is Import Everything's; a run no shelf
-  // names (a book's own items) follows them.
+  // In SHELF_REFILL's order (the import chain runs traps before merchandise,
+  // this runs them the other way round); a run no shelf names (a book's own
+  // items) follows them.
   for (const run of new Set([...Object.values(SHELF_REFILL), ...Object.keys(REPAIR_RUNS)])) {
     if (runs.has(run)) refill[run] = (await REPAIR_RUNS[run](runs.get(run), tally)) ?? null;
   }
@@ -2276,9 +2279,9 @@ async function repairEntries(picked, closed, { force = false } = {}) {
  * the world never held. See docs/importer/DECISIONS.md, "Three controls, not
  * twenty-one".
  */
-const SHELF_REFILL = {
-  // Declared in the order Import Everything runs these steps; a book run,
-  // which may need several, runs them in this order.
+export const SHELF_REFILL = {
+  // A book run, which may need several, runs them in this order. It is the
+  // import chain's order except that merchandise precedes traps here.
   Proficiencies: "cookbookImportAbilities",
   "Class Powers": "cookbookImportAbilities",
   Drawbacks: "cookbookImportAbilities",
@@ -2532,7 +2535,7 @@ export async function cookbookReimportBook(bookId, { mode = "drop", ask = null }
 
   await deleteImported("Item", doomed);
   forgetImportedIndex();
-  // In SHELF_REFILL's order, which is Import Everything's.
+  // In SHELF_REFILL's order.
   const runs = [...new Set(Object.entries(SHELF_REFILL).filter(([shelf]) => shelves.has(shelf)).map(([, run]) => run))];
   const refill = {};
   for (const run of runs) refill[run] = (await api()[run]()) ?? null;
@@ -2822,6 +2825,42 @@ export async function cookbookReimportAdventure(bookId, { mode = "drop", ask = n
 /* -------------------------------------------- */
 
 /**
+ * The loaded entry a claim names, under the claim itself or a dot-ancestor of
+ * it (a row filed beneath its entry), or null.
+ */
+const entryUnder = (claim) => {
+  for (const id of ancestorsOf(claim)) {
+    const found = cookbookEntry(id);
+    if (found) return found;
+  }
+  return null;
+};
+
+/** Whether a found entry is a row of a book's own cookbook, as opposed to a content row. */
+const isOwnRow = (found) => !!found && [...data.books.values()].includes(found.cb);
+
+/** The book the entry a claim names is read from, or undefined where it names none. */
+const entryBookOf = (claim) => bookOf(entryUnder(claim)) ?? undefined;
+
+/**
+ * `owns` for a kind that is a family of entries: the claim is no row of a
+ * printed table, the entry it names is a row of a book's own cookbook (`own`)
+ * or of a content cookbook, and `is(entry, found)` accepts it.
+ */
+const ownsEntry = (own, is) => (claim) => {
+  if (tableShelfOfClaim(claim)) return false;
+  const found = entryUnder(claim);
+  return !!found && isOwnRow(found) === own && is(found.entry, found);
+};
+
+/** The `is` of `ownsEntry` for entries of the given kinds. */
+const ofKinds = (...kinds) => (entry) => kinds.includes(entry.kind);
+
+/** The `[claim, entry]` rows of the books' own cookbooks that `is(entry, claim, entries)` accepts. */
+const bookRows = (is) =>
+  [...data.books.values()].flatMap((cb) => Object.entries(cb.entries ?? {}).filter(([id, e]) => is(e, id, cb.entries ?? {})));
+
+/**
  * Every importable entry, grouped by the run that rebuilds one. `refill`
  * names the api function; every importer named here takes `only`, the ids to
  * consider. Monsters name no refill — `importMany` already takes an explicit
@@ -2832,11 +2871,49 @@ export async function cookbookReimportAdventure(bookId, { mode = "drop", ask = n
  * there is nothing to delete before re-reading one. See
  * docs/importer/DECISIONS.md, "Rules tables join the entry picker as
  * documents, not as tables".
+ *
+ * Each source is also a kind in the declaration `IMPORT_KINDS` (`import-kinds.mjs`
+ * lists the fields): `owns`, `book` and `make` say which claims it owns, which
+ * book each is read from and which run re-creates it, and `make.run` is
+ * `refill`, else `idsRefill`, else `importMany`.
  */
-const ENTRY_SOURCES = [
-  { key: "Monsters", type: "Actor", refill: null, entries: () => actorEntriesAcrossBooks().rows.map((r) => [r.id, r.entry]) },
-  { key: "Abilities", type: "Item", refill: "cookbookImportAbilities", entries: () => [...abilityEntries()] },
-  { key: "Classes", type: "Item", refill: "importClasses", entries: () => [...classEntries()] },
+export const ENTRY_SOURCES = [
+  {
+    key: "Monsters",
+    type: "Actor",
+    refill: null,
+    entries: () => actorEntriesAcrossBooks().rows.map((r) => [r.id, r.entry]),
+    owns: ownsEntry(true, (e) => actorKindOf(e)),
+    book: entryBookOf,
+    make: { run: "importMany", takes: ["ids"], whole: "cookbookImportMonsters" },
+    own: true,
+    chain: "stepMonsters",
+    bookSteps: ["stepMonsters"],
+  },
+  {
+    key: "Abilities",
+    type: "Item",
+    refill: "cookbookImportAbilities",
+    entries: () => [...abilityEntries()],
+    owns: ownsEntry(false, (e) => isAbilityEntry(e)),
+    book: entryBookOf,
+    make: { run: "cookbookImportAbilities", takes: ["only"] },
+    shelves: ["Proficiencies", "Class Powers", "Drawbacks", "Skills"],
+    chain: "stepAbilities",
+    viaBook: true,
+  },
+  {
+    key: "Classes",
+    type: "Item",
+    refill: "importClasses",
+    entries: () => [...classEntries()],
+    owns: ownsEntry(false, ofKinds("kind.class")),
+    book: entryBookOf,
+    make: { run: "importClasses", takes: ["only"] },
+    shelves: ["Classes"],
+    chain: "stepClasses",
+    viaBook: true,
+  },
   {
     key: "Equipment",
     type: "Item",
@@ -2844,24 +2921,114 @@ const ENTRY_SOURCES = [
     asCreature: true,
     refill: "importAllEquipment",
     entries: () => cookbookEquipmentIds().map((id) => [id, cookbookEntry(id)?.entry ?? {}]),
+    owns: ownsEntry(false, ofKinds("kind.equipment")),
+    book: entryBookOf,
+    make: { run: "importAllEquipment", takes: ["only"] },
+    shelves: ["Equipment"],
+    chain: "stepEquipment",
+    viaBook: true,
   },
-  { key: "Traps", type: "Item", refill: "importTraps", entries: () => [...trapEntries()] },
+  {
+    key: "Traps",
+    type: "Item",
+    refill: "importTraps",
+    entries: () => [...trapEntries()],
+    owns: ownsEntry(false, ofKinds("kind.trap")),
+    book: entryBookOf,
+    make: { run: "importTraps", takes: ["only"] },
+    shelves: ["Traps"],
+    chain: "stepTraps",
+    viaBook: true,
+  },
   // A book's own items stand in its folder, on no cookbook shelf: `bookOwn`
   // lets a book repair take them where `refillShelfOf` answers nothing.
-  { key: "BookItems", type: "Item", refill: "cookbookImportAdventureItems", bookOwn: true, entries: () => adventureItemEntries() },
-  { key: "Spells", type: "Item", refill: "importSpells", entries: () => [...spellEntries()] },
-  { key: "Variations", type: "Item", refill: "importVariations", entries: () => [...variationEntries()] },
-  { key: "Vehicles", type: "Actor", refill: "importVehicles", entries: () => [...vehicleEntries()] },
+  {
+    key: "BookItems",
+    type: "Item",
+    refill: "cookbookImportAdventureItems",
+    bookOwn: true,
+    entries: () => adventureItemEntries(),
+    owns: ownsEntry(true, ofKinds("kind.adventureItem")),
+    book: entryBookOf,
+    make: { run: "cookbookImportAdventureItems", takes: ["only", "books"] },
+    own: true,
+    chain: "stepAdventureItems",
+    bookSteps: ["stepAdventureItems"],
+  },
+  {
+    key: "Spells",
+    type: "Item",
+    refill: "importSpells",
+    entries: () => [...spellEntries()],
+    owns: ownsEntry(false, ofKinds("kind.spell")),
+    book: entryBookOf,
+    make: { run: "importSpells", takes: ["only"] },
+    shelves: ["Spells"],
+    chain: "stepSpells",
+    viaBook: true,
+  },
+  {
+    key: "Variations",
+    type: "Item",
+    refill: "importVariations",
+    entries: () => [...variationEntries()],
+    owns: ownsEntry(false, ofKinds("kind.variation")),
+    book: entryBookOf,
+    make: { run: "importVariations", takes: ["only"] },
+    shelves: ["Variations"],
+    chain: "stepVariations",
+    viaBook: true,
+  },
+  {
+    key: "Vehicles",
+    type: "Actor",
+    refill: "importVehicles",
+    entries: () => [...vehicleEntries()],
+    owns: ownsEntry(false, ofKinds("kind.vehicle")),
+    book: entryBookOf,
+    make: { run: "importVehicles", takes: ["only"] },
+    chain: "stepVehicles",
+  },
   // The demand entry is no row of its own: it appends onto the goods, and the
-  // goods' run reads it, so only the merchandise table is offered.
-  { key: "Merchandise", type: "Item", refill: "importMerchandise", entries: () => [...merchandiseEntries("kind.merchandise")] },
+  // goods' run reads it, so only the merchandise table is offered; the kind
+  // owns the demand entry's claim all the same.
+  {
+    key: "Merchandise",
+    type: "Item",
+    refill: "importMerchandise",
+    entries: () => [...merchandiseEntries("kind.merchandise")],
+    owns: ownsEntry(false, ofKinds("kind.merchandise", "kind.merchandiseDemand")),
+    book: entryBookOf,
+    make: { run: "importMerchandise", takes: ["only"] },
+    shelves: ["Merchandise"],
+    chain: "stepMerchandise",
+    viaBook: true,
+  },
   // A creature an OSE book prints a block per step for is one row, under its
   // generator's id; `oseImportEntries` rebuilds its steps together.
-  { key: "OseCreatures", type: "Actor", idsRefill: "oseImportEntries", entries: () => api().oseEntryRows?.() ?? [] },
+  {
+    key: "OseCreatures",
+    type: "Actor",
+    idsRefill: "oseImportEntries",
+    entries: () => api().oseEntryRows?.() ?? [],
+    owns: (claim) => {
+      const group = oseGroupBookOf(claim);
+      if (group) return data.books.has(group);
+      const rows = new Set((api().oseEntryRows?.() ?? []).map(([id]) => id));
+      return ancestorsOf(claim).some((id) => rows.has(id));
+    },
+    book: (claim) => oseGroupBookOf(claim) ?? entryBookOf(claim),
+    make: { run: "oseImportEntries", takes: ["ids"], whole: "oseImportAuthored" },
+    chain: "stepOseBooks",
+  },
   {
     key: "Tables",
     type: null,
     idsRefill: "cookbookImportTables",
+    owns: (claim) => Object.hasOwn(TABLE_RECIPES, claim),
+    book: (claim) => tableDocBook(claim),
+    make: { run: "cookbookImportTables", takes: ["ids"] },
+    chain: "stepTables",
     // A ruledata document's row names the document and cites the pages its
     // recipes read; the tables under it are not offered separately because the
     // store's unit is the document, which is what a merge writes. Present means
@@ -2875,6 +3042,225 @@ const ENTRY_SOURCES = [
     present: (docId) => !!getLayer(docId, PRIORITY.WORLD),
   },
 ];
+
+/**
+ * A table shelf as a kind: the rows of a printed table (a weapon, an armour
+ * row, a price-list row, a language, a race). Its rows carry no entry and no
+ * book on their ids, so it owns them by namespace (`tableShelfOfClaim`) and
+ * reads the book from the table's recipe (`TABLE_BOOKS`). A book scope does not
+ * name them today.
+ */
+const tableShelfKind = (key, shelf, { shelves, make, chain }) => ({
+  key,
+  type: "Item",
+  entries: () => [],
+  owns: (claim) => tableShelfOfClaim(claim) === shelf,
+  book: () => tableBookOf(shelf) ?? undefined,
+  books: () => [tableBookOf(shelf)].filter(Boolean),
+  make,
+  shelves,
+  chain,
+});
+
+/** Whether an entry is a place the places step writes as an Actor: a keyed place, a point of interest, a region row. */
+const isPlaceEntry = (e, id, entries) => isPoiEntry(e) || isRegionSite(e) || isRegionOverview(e) || isKeyedPlace(e, id, keySpacesOf(entries));
+
+/** Whether an entry is a page of a book journal (`journalBound`). */
+const isPageEntry = (e, id, entries) => journalBound(e, id, keySpacesOf(entries));
+
+const placeEntryOwned = ownsEntry(true, (e, found) => isPlaceEntry(e, found.id, found.cb.entries ?? {}));
+const pageEntryOwned = ownsEntry(true, (e, found) => isPageEntry(e, found.id, found.cb.entries ?? {}));
+
+/** A creature made from a room's own stat line is claimed `<place id>-o<i>` and stands under its place. */
+const placeStemOf = (claim) => String(claim).replace(/-o\d+$/, "");
+
+/**
+ * Whether a claim is a place the places step writes: a place entry, a
+ * quarter's place, a region's place, the place a book's keyed areas nest under
+ * (these three of a loaded book only), or the creature made from a place's own
+ * stat line. The nesting place of a
+ * book read from another game is written by that book's own import, and is
+ * owned by no kind.
+ */
+const isPlaceClaim = (claim) => {
+  const stem = placeStemOf(claim);
+  const book = bookOfCookbookId(stem);
+  if (data.books.has(book)) {
+    if (stem.startsWith(`${book}.district.`) || stem === regionPlaceId(book)) return true;
+    if (stem === oseAdventureId(book)) return !oseSourceLabel(book);
+  }
+  return placeEntryOwned(stem);
+};
+
+/**
+ * Whether a claim is a journal of a loaded book (`journalCookbookId`): a
+ * journal holds a group's pages and no row names it.
+ */
+const isJournalClaim = (claim) => {
+  const book = bookOfCookbookId(claim);
+  return data.books.has(book) && String(claim).startsWith(`${book}.journal-`);
+};
+
+/** Whether a cookbook scene row is one the scenes step reads: a map's recipe, a zone laid over one, or a link between maps. */
+const isSceneRow = (row) => isSceneRecipe(row) || isZoneRow(row) || isLinkRow(row);
+
+/** The `[claim, row]` pairs of every book's scene rows. */
+const sceneRows = () => [...data.books.values()].flatMap((cb) => Object.entries(cb.scenes ?? {}).filter(([, row]) => isSceneRow(row)));
+
+/** The book an Adventure's own run reads: a Judge's book with a cookbook. */
+const judgesBookIds = () => [...data.books.keys()].filter((id) => bookIsJudges(id));
+
+/**
+ * The kinds the table shelves are: each is the rows of one printed table.
+ * `importAllEquipment` writes the weapon, armour and price-list tables itself,
+ * so the chain runs them as the equipment step.
+ */
+const TABLE_SHELF_KINDS = [
+  tableShelfKind("Weapons", "Weapons", {
+    shelves: ["Weapons"],
+    make: { run: "importWeapons", takes: [], whole: "importAllEquipment" },
+    chain: "stepEquipment",
+  }),
+  tableShelfKind("Armor", "Armor", {
+    shelves: ["Armor"],
+    make: { run: "importArmor", takes: [], whole: "importAllEquipment" },
+    chain: "stepEquipment",
+  }),
+  tableShelfKind("PriceList", "priced", {
+    shelves: ["Equipment"],
+    make: { run: "importAllEquipment", takes: [] },
+    chain: "stepEquipment",
+  }),
+  tableShelfKind("Languages", "Languages", {
+    shelves: ["Languages"],
+    make: { run: "cookbookImportTables", takes: ["ids"] },
+    chain: "stepTables",
+  }),
+  tableShelfKind("Races", "Races", {
+    shelves: ["Races"],
+    make: { run: "cookbookImportTables", takes: ["ids"] },
+    chain: "stepTables",
+  }),
+];
+
+/**
+ * The kinds an adventure book's run reads beyond its creatures and items (the
+ * `Monsters` and `BookItems` sources above): its pages, its places, its
+ * organisations, its market grids, its roll tables, its maps and its Adventure.
+ * Each is a book's own rows (`own`), and `bookSteps` names the steps
+ * `runAdventureBookSteps` reports it under.
+ */
+const BOOK_STEP_KINDS = [
+  {
+    key: "Journals",
+    type: "JournalEntry",
+    entries: () => bookRows(isPageEntry),
+    owns: (claim) => isJournalClaim(claim) || pageEntryOwned(claim),
+    book: (claim) => (isJournalClaim(claim) ? bookOfCookbookId(claim) : entryBookOf(claim)),
+    make: { run: "cookbookImportJournals", takes: ["books"] },
+    own: true,
+    chain: "stepJournals",
+    bookSteps: ["stepJournals"],
+  },
+  {
+    key: "Places",
+    type: "Actor",
+    entries: () => bookRows(isPlaceEntry),
+    owns: isPlaceClaim,
+    book: (claim) => entryBookOf(placeStemOf(claim)) ?? bookOfCookbookId(placeStemOf(claim)),
+    make: { run: "cookbookImportPoiPlaces", takes: ["books", "ids"] },
+    own: true,
+    chain: "stepPoi",
+    bookSteps: ["stepPoi"],
+  },
+  {
+    key: "Organisations",
+    type: "Actor",
+    entries: () => bookRows((e) => isOrganisationRow(e) || isStrengthGridRow(e)),
+    owns: ownsEntry(true, (e) => isOrganisationRow(e) || isStrengthGridRow(e)),
+    book: entryBookOf,
+    make: { run: "cookbookImportFactions", takes: ["books"] },
+    own: true,
+    chain: "stepFactions",
+    bookSteps: ["stepFactions"],
+  },
+  // A market grid and its records write onto the places; they own no document.
+  {
+    key: "Markets",
+    type: null,
+    entries: () => bookRows(ofKinds("kind.marketGrid", "kind.marketRecord")),
+    owns: ownsEntry(true, ofKinds("kind.marketGrid", "kind.marketRecord")),
+    book: entryBookOf,
+    make: { run: "cookbookImportMarketProfiles", takes: ["books"] },
+    own: true,
+    chain: "stepMarkets",
+    bookSteps: ["stepMarkets"],
+  },
+  {
+    key: "RollTables",
+    type: "RollTable",
+    entries: () => bookRows(ofKinds("kind.rolltable")),
+    owns: ownsEntry(true, ofKinds("kind.rolltable")),
+    book: entryBookOf,
+    make: { run: "cookbookImportRollTables", takes: ["books"] },
+    own: true,
+    chain: "stepRollTables",
+    bookSteps: ["stepRollTables"],
+  },
+  // A map's rows sit in the book's `scenes`, not its entries; the links step follows the maps.
+  {
+    key: "Scenes",
+    type: "Scene",
+    entries: () => sceneRows(),
+    owns: (claim) => isSceneRow(data.books.get(bookOfCookbookId(claim))?.scenes?.[claim]),
+    book: (claim) => bookOfCookbookId(claim),
+    make: { run: "cookbookImportScenes", takes: ["books"] },
+    own: true,
+    chain: "stepScenes",
+    bookSteps: ["stepScenes", "stepLinks"],
+  },
+  // A book's Adventure is one document per Judge's book, and no register row names it.
+  {
+    key: "Adventures",
+    type: ADVENTURE_TYPE,
+    entries: () => judgesBookIds().map((id) => [bookAdventureCookbookId(id), { name: bookLabel(id) }]),
+    owns: (claim) => {
+      const book = bookOfCookbookId(claim);
+      return bookIsJudges(book) && data.books.has(book) && claim === bookAdventureCookbookId(book);
+    },
+    book: (claim) => bookOfCookbookId(claim),
+    books: () => judgesBookIds(),
+    make: { run: "cookbookImportAdventures", takes: ["books"] },
+    own: true,
+    chain: "stepAdventures",
+    bookSteps: ["stepAdventures"],
+  },
+];
+
+/**
+ * Every kind of document the importer makes, one declaration (`import-kinds.mjs`
+ * lists the fields): the entry sources, the table shelves and the adventure
+ * book's steps. A cookbook claim is owned by at most one kind, and each kind
+ * names the run that re-creates it. A claim owned by no kind is one nothing
+ * here can re-create: a constant, a class's metadata, an OSE book's keyed
+ * areas, the retired per-map Adventures.
+ */
+export const IMPORT_KINDS = Object.freeze([...ENTRY_SOURCES, ...TABLE_SHELF_KINDS, ...BOOK_STEP_KINDS]);
+
+/**
+ * The importer runs a scope of work needs, derived from `IMPORT_KINDS`
+ * (`runSetFor`): `{shelf}`, `{book}`, `{entries: [claim, ...]}` or `{all: true}`.
+ * A book scope names what a book rebuild names today, in `SHELF_REFILL`'s order,
+ * and an adventure book's own rows as one `runAdventureBookSteps`; `all` is in
+ * the import chain's order. Nothing calls it yet.
+ * @returns {{runs: {run: string, kinds: string[], ids?: string[], book?: string}[], unowned: string[]}}
+ */
+export const cookbookRunSet = (scope) =>
+  deriveRunSet(scope, {
+    kinds: IMPORT_KINDS,
+    isAdventureBook: (book) => bookIsJudges(book) && data.books.has(book),
+    order: { book: Object.values(SHELF_REFILL), all: GM_STEPS.map(([key]) => key) },
+  });
 
 /** The cookbook id an imported document claims, or "" when it claims none. */
 const claimedId = (doc) => String(doc.getFlag(MODULE_ID, "cookbook")?.id ?? "");

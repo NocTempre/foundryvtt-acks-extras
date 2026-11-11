@@ -187,6 +187,7 @@ const COMMITTED = [
   "importer/test-item-shelves.mjs",
   "importer/test-imported-index.mjs",
   "importer/test-item-ids.mjs",
+  "importer/test-import-kinds.mjs",
   "importer/test-cookbook-coherence.mjs",
   "importer/test-printed-name.mjs",
   "importer/test-poi-binding.mjs",

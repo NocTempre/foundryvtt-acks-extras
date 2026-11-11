@@ -187,6 +187,21 @@ table a row is read from, `TABLE_BOOKS`), that claim's book is open on this
 seat, and the book is in `BOOKS`. A document refused is left standing and
 counted (`kept` on a shelf, `left` on a book, `refused` on the picker).
 
+**The kind declaration.** `IMPORT_KINDS` (`cookbook.mjs`) declares every family
+of document the importer makes: the entry picker's sources (`ENTRY_SOURCES`),
+the table shelves (`TABLE_BOOKS`) and the steps of an adventure book's run
+(`runAdventureBookSteps`). A kind states which cookbook claims it owns (`owns`,
+counted per claim: at most one kind owns a claim), the book a claim is read from
+(`book`) and the run that re-creates it (`make`), with the shelves it files on,
+its step of the import chain and the steps an adventure book's run reports it
+under. A claim no kind owns is one nothing here can re-create. `runSetFor`
+(`import-kinds.mjs`, `cookbookRunSet` over the live table) derives the runs a
+scope needs: a shelf, a book, a list of entries or everything. A book scope
+names the kinds a book rebuild names (`viaBook`), in `SHELF_REFILL`'s order, and
+an adventure book's own rows as one `runAdventureBookSteps`, so no document is
+counted by two runs. No command calls it yet; `test-import-kinds.mjs` holds each
+scope's answer to what the shelf, book, adventure and entry rebuilds call.
+
 ## An adventure book, rebuilt or repaired
 
 `cookbookReimportAdventure(bookId, {mode})` treats one Judge's book as a
