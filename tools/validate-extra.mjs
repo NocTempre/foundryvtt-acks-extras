@@ -174,7 +174,7 @@ if (errors.length) {
 }
 console.log(`  ok: every registry read is declared (${declared.size} document(s)); no i18n path conflicts`);
 
-/* §5–§9 are processes of their own. Each reads the repository and none reads
+/* §5–§10 are processes of their own. Each reads the repository and none reads
    what another writes, so they are listed here and run side by side below,
    every one to its end. */
 const apart = [];
@@ -217,6 +217,13 @@ apart.push([path.join(ROOT, "tools", "validate-producers.mjs")]);
    git has no history of the pack source to read, as in a shallow checkout, it
    prints a note and passes. */
 apart.push(["--expose-internals", path.join(ROOT, "tools", "validate-macro-names.mjs")]);
+
+/* --- 10. Book-specific code stays in its silo -----------------------------
+   A silo owns book ids and the files written for them. `check-silos.mjs` holds
+   every other file to four rules (imports, literals, closure, agreement)
+   against `tools/importer/silo-baseline.json`, which only shrinks. It parses
+   with the same bundled acorn as §7, so it re-execs behind `--expose-internals`. */
+apart.push(["--expose-internals", path.join(ROOT, "tools", "importer", "check-silos.mjs")]);
 
 {
   const { sideBySide } = await import("./side-by-side.mjs");

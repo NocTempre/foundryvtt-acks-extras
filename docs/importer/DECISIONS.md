@@ -9606,3 +9606,41 @@ deletes it, and no rebuild may delete what a book it cannot read made. The OSE
 code reaches shared importer files at a dozen points (the import module's
 settings, API and dialogs; the cookbook's source labels and refill run; the
 place binding), so it cannot leave the zip until those are untangled.
+
+## 2026-11-10 — Book-specific code lives in a silo, and a gate keeps it there
+
+**Ruled by the owner.** "Let this be a lesson learned to keep specific book
+content silo'd in the code base for proper hygiene." The OSE-statted books are
+switched off and their code kept ("The books statted for OSE are switched off,
+and their code kept"); that code had reached a dozen shared importer files,
+which is why it cannot leave the release zip.
+
+**Ruled.** A *silo* owns book ids. One exists, `ose`: the registry entries
+declaring `stats: "ose"`, the prefix `ose.`, the kinds `kind.oseMonster` and
+`kind.oseLocation`, and the files written only for them. The ACKS books are the
+engine's own library and own no silo.
+
+`tools/importer/check-silos.mjs` holds every other file to four rules:
+
+- no import of a member, and no non-literal `import()` under `scripts/`;
+- no literal under `scripts/` naming a silo book id, the silo id, a silo kind
+  or a member file, except with a reasoned `// silo-ok:` (the member file is
+  the gate's addition, because a template is reached by a path string and not
+  by an import);
+- no member reachable from `module.json` except through the silo's manifest
+  edge;
+- the manifest's import of the silo and `module.json`'s declaration of its
+  stylesheet agree.
+
+Today's violations are `tools/importer/silo-baseline.json`, which the gate lets
+only shrink: a new violation fails, and so does a baseline entry that no longer
+occurs. The gate reads a parse, not a regex.
+
+**Rejected:** a folder per book now. No ACKS book owns code; a book-keyed row
+(a By This Axe row inside a recipe's list) is data in a shared recipe, and a
+per-book silo is the same mechanism the day one is needed. Parsing by regex,
+which misses `export … from` and a multi-line import and reads comments.
+
+*Cost:* until the move slices land, the baseline carries every existing edge
+from the shared importer into the OSE files, and every member the entry points
+reach.

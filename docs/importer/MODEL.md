@@ -1293,3 +1293,42 @@ follows its actor. **Wildcards** reach the encounter group through lib
 The GM alone sees the controls; a write a locked library pack refuses is counted
 as refused. The art is referenced by path from the other package, never copied
 into this repository or shipped in this module.
+
+## Silos
+
+A **silo** is the code written for one set of books, kept where nothing else
+reaches it. It owns book ids: the `REGISTRY` entries that declare its `stats`,
+their id prefix, their entry kinds and the member files that exist only for
+them. One silo exists, `ose` (`stats: "ose"`; prefix `ose.`; kinds
+`kind.oseMonster` and `kind.oseLocation`; members `OSE_SILO.members` in
+`tools/importer/check-silos.mjs`). The ACKS books are the engine's own library
+and own no silo: a row keyed to one of them is data in a shared recipe.
+
+`tools/importer/check-silos.mjs` holds every file outside a silo to four rules,
+each a pure function over facts parsed from source (Node's bundled acorn, so it
+runs behind `--expose-internals`, re-exec'd from `tools/validate-extra.mjs`):
+
+- **imports** (`scripts/` and `tools/`): no static import, `export from` or
+  literal `import()` of a member. Under `scripts/` no file, a member included,
+  calls `import()` with an argument that is not a literal. The silo's manifest
+  importing its entry, and `tools/importer/silos.mjs`, are exempt.
+- **literals** (`scripts/`): no string or template text equal to a silo book id,
+  the silo id, a silo kind or a member path (a quasi ending in a member
+  template's name counts), nor starting with `<id>.`. A `// silo-ok: <reason>`
+  comment excuses the literals on its own line, or, standing alone, on the line
+  below; one with no reason is itself a violation and excuses nothing.
+  `books.mjs` and the seam file are exempt. The book ids are read from
+  `REGISTRY`.
+- **closure**: no member is reachable from `module.json`'s `esmodules` and
+  `styles` except through the manifest edge.
+- **agreement**: the manifest imports the silo's entry exactly when
+  `module.json` declares its stylesheet. It applies once the manifest exists;
+  until then the gate prints it as not yet applicable.
+
+`tools/importer/silo-baseline.json` is every violation that exists today
+(`{rule, file, target}`, no line numbers) and the member list. The gate fails on
+a violation the baseline lacks and on a baseline entry that no longer occurs, so
+the file only shrinks; `--write-baseline` rewrites it. A baseline entry is
+identified by rule, file and target, so a second use of the same literal in a
+file that already has it is not seen. The suite is
+`tools/importer/test-check-silos.mjs`.

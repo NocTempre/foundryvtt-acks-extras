@@ -207,6 +207,7 @@ const COMMITTED = [
   "importer/test-adventure-item-repair.mjs",
   "importer/test-class-prose-levels.mjs",
   "importer/test-ax1-cookbook.mjs",
+  "importer/test-check-silos.mjs",
   "../discord/test/config.test.mjs",
   "../discord/test/format.test.mjs",
   "../discord/test/seat.test.mjs",
