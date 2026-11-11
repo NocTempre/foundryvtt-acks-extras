@@ -24,6 +24,7 @@ import {
   cookbookUpdateClasses,
 } from "../../scripts/importer/cookbook.mjs";
 import { mergedTally } from "../../scripts/importer/refresh.mjs";
+import { blockDigest, bookText, sumKey } from "../../scripts/importer/prose.mjs";
 import { CLASS_TYPE } from "../../scripts/classes/constants.mjs";
 import { ownerOfClaim, rebuildVerdict } from "../../scripts/importer/rebuild-guard.mjs";
 import { stableDocId } from "../../scripts/importer/adventure-binding.mjs";
@@ -233,6 +234,21 @@ globalThis.foundry = {
   check("a single write is made with keepId, under the derived id", writes.at(-1).keepId && one.id === stableDocId("def.class.epsilon"));
   const twin = await createDoc(ItemMock, row("def.class.epsilon"));
   check("a second document under a held id is written under core's own, not refused", !!twin && twin.id.startsWith("minted"));
+}
+{
+  // A document created with stamped text records the digest of each block in its stamp,
+  // so the first repair reads an edit inside a block against what was written.
+  const id = "def.class.sums";
+  const text = bookText(["An invented passage."], "ZZ 1", { id, book: "zz", page: 1 });
+  const key = sumKey("system.description", id);
+  const given = row(id, { system: { description: text } });
+  const one = await createDoc(ItemMock, given);
+  check("createDoc records the digest of the description block it writes", one.flags[MODULE_ID].cookbook.sums?.[key] === blockDigest(text));
+  check("and leaves the caller's data as it was", !("sums" in given.flags[MODULE_ID].cookbook));
+  const [batched] = await createDocs(ItemMock, [row("def.class.sums2", { system: { description: bookText(["Another."], "ZZ 1", { id: "def.class.sums2", book: "zz", page: 1 }) } })]);
+  check("so does a batched write", !!batched.flags[MODULE_ID].cookbook.sums?.[sumKey("system.description", "def.class.sums2")]);
+  const plain = await createDoc(ItemMock, row("def.class.plain", { system: { description: "<p>No block.</p>" } }));
+  check("a document with no block gains no digest", plain.flags[MODULE_ID].cookbook.sums === undefined);
 }
 {
   // A place, a person, a list or a journal is written as an Item is: under

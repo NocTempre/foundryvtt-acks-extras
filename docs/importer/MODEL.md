@@ -280,17 +280,32 @@ import's own block and creature line, or an edit inside the block, is an edit
 written only where the decision takes it, on the second pass as the first;
 every other page is written whole. Outside a repair (Import Everything, the
 entry picker's import) such a page is kept, its sort alone written, and the run
-counts it `preserved`. An edit inside the block is found by a digest the page
-records in its stamp (`flags.acks-extras.cookbook.sum`) each time the import
-writes it: `blockDigest` of the stamped block, a checksum over the block's
-readable text (`readableText`: tags dropped, entities decoded, whitespace
-collapsed, an image kept by its source). A stored block that no longer digests
-to the stamp was edited by hand, and the page is held as above. The digest is
+counts it `preserved`. An edit inside the block is found by a digest the
+document records in its stamp each time the import writes the block:
+`blockDigest` of the stamped block, a checksum over the block's readable text
+(`readableText`: tags dropped, entities decoded, whitespace collapsed, an image
+kept by its source). A stored block that no longer digests to the stamp was
+edited by hand, and the page is held as above. A journal page records one,
+`flags.acks-extras.cookbook.sum`. Every other writer of a stamped block records
+one per block in `flags.acks-extras.cookbook.sums`, keyed by the field's path
+and the block's entry id (`sumKey`, which writes every dot out so an update
+path never nests it): `system.description`, `system.details.biography` (the
+page's text and its "as printed" block are two blocks of one id, each read), a
+monster's prose flags, a roll table's `description`, a place's
+`system.notes` (one key per row's block). What the write carries is what is
+recorded: `createDoc`/`createDocs` stamp a new document (`withBlockSums`), a
+repair stamps from its payload (`refreshPlan`), so a field a decision took is
+stamped and a field a guard kept keeps the sum of what the import last wrote;
+the abilities pass, `rewriteTable`, a character's biography and `rowBlockPatch`
+record theirs the same way. An edit found is kept as hand-written prose is:
+`refreshPlan` and the abilities pass count it `keptProse` / `preserved`,
+`keepsJudgeProse` and `rewriteTable` list it under a decision, `rowBlockPatch`
+holds it, and the held-edits dialog offers it as above. The digest is
 taken over text so that what the editor re-serializes without changing a word
 (attribute order, a table cell's text wrapped in a paragraph, a reflowed line,
 `&nbsp;`) never reads as an edit; a change that leaves the readable text as it
-was (bold on a word, a moved paragraph break) is not seen and the page is
-refreshed. A page with no digest, written before it was recorded, is read as
+was (bold on a word, a moved paragraph break) is not seen and the field is
+refreshed. A field with no digest, written before it was recorded, is read as
 unedited. The stamp, not the markup, holds the digest, so nothing the editor
 does to the block can strip it. Maps
 are refreshed by their own step (`repairHeldMap`, which keeps the Judge's
@@ -329,11 +344,11 @@ name while the name is still the printed one. The containers themselves (the
 book's own place, a quarter, a region) carry no page text but their
 overviews, and are not rebuilt. **A Judge's edit** in this scope and in the
 creatures step is held, not written: `rowBlockPatch` compares a block with
-the checksum its last write recorded (`cookbook.blocks`, `blockSum`) and a
-name with `printed`. A block with no checksum yet that differs from the page
-is held too, marked `unstamped` (the Judge's edit and the page's change look
-alike there); one equal to the page is stamped. A missing block is held where a
-checksum was recorded, or where the notes hold anything but the place's
+the digest its last write recorded (`cookbook.sums`, above) and a
+name with `printed`; a block that digests as the page's reads as unedited
+whatever markup the editor gave it. A block with no digest yet reads as
+unedited, is written and stamped. A missing block is held where a stamp was
+recorded, or where the notes hold anything but the place's
 erratum notes (the Judge's text, another row's block), which keeps a repair
 to the one row an import writes onto such a place. A whole-build write
 (`decidedPolicy`) treats prose the unforced plan would keep as hand-written as

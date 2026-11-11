@@ -31,8 +31,8 @@ import {
   writeJournalPage, cookbookCount,
 } from "../../scripts/importer/cookbook.mjs";
 import { mergedTally } from "../../scripts/importer/refresh.mjs";
-import { blockSum, playStamp, pregenDefault } from "../../scripts/importer/held-edits.mjs";
-import { blockDigest, bookTable, bookText, readableText } from "../../scripts/importer/prose.mjs";
+import { playStamp, pregenDefault } from "../../scripts/importer/held-edits.mjs";
+import { blockDigest, bookTable, bookText, readableText, sumKey, sumsUpdate } from "../../scripts/importer/prose.mjs";
 import { TABLE_RECIPES } from "../../scripts/importer/table-recipes.mjs";
 import { BOOKS, bookIsJudges } from "../../scripts/importer/books.mjs";
 import { GM_STEPS } from "../../scripts/importer/getting-started.mjs";
@@ -750,6 +750,91 @@ same("a stat-line creature is read from its place's book", IMPORT_KINDS.find((k)
     /isRewriting\(id\) && keepsJudgeProse\(actor, "system\.details\.biography",/.test(character) && /keepBiography \? \{\} :/.test(character));
 }
 
+/* --- an edit inside a stamped block: a character's biography, a roll table's description, a created document, an ability --- */
+
+{
+  const ID = "ax1.npc2";
+  const para = (text) => bookText([text], "AX 1", { id: ID, book: "ax1", page: 1 });
+  const bioKey = sumKey("system.details.biography", ID);
+  const doc = (biography, sums) => ({
+    uuid: "Actor.bio0000000001",
+    name: "Npc",
+    documentName: "Actor",
+    flags: { [MODULE_ID]: { cookbook: { id: ID, ...(sums ? { sums } : {}) } } },
+    system: { details: { biography } },
+  });
+  const sums = { [bioKey]: blockDigest(para("Old.")) };
+  const page = para("New.");
+  const keeps = async (stored, scope = { decision: null }) => {
+    const tally = { replaced: 0, keptProse: 0, refused: 0, handMade: 0, seen: new Set(), edits: [] };
+    let kept = null;
+    await withRewrite({ held: new Map(), tally, ...scope }, async () => {
+      kept = keepsJudgeProse(stored, "system.details.biography", stored.system.details.biography, page, "AX 1");
+    });
+    return [kept, tally.edits.length];
+  };
+  const wrapped = para("Old.").replace('<div class="acks-extras-importer-book-text" data-acks-entry="ax1.npc2">', '<div data-acks-entry="ax1.npc2" class="acks-extras-importer-book-text">\n').replace(/<\/p>/g, "</p>\n").replace(' href="#"', "");
+  same("a biography whose block reads as it was written is rewritten", await keeps(doc(para("Old."), sums)), [false, 0]);
+  same("one the editor re-serialized, its words as written, is rewritten", await keeps(doc(wrapped, sums)), [false, 0]);
+  same("an edit inside its block is kept and listed under a decision", await keeps(doc(para("Old, and a word the Judge added."), sums)), [true, 1]);
+  same("with no stamp the same block reads as unedited", await keeps(doc(para("Old, and a word the Judge added."), null)), [false, 0]);
+  same("a decision taking it writes it", await keeps(doc(para("Old, and a word the Judge added."), sums), { decision: "take" }), [false, 0]);
+  const upd = sumsUpdate(page, "system.details.biography");
+  same("the write records the digest of the biography it wrote, as one flat key under the stamp",
+    upd, { [`flags.${MODULE_ID}.cookbook.sums.${bioKey}`]: blockDigest(page) });
+  check("and its key nests nothing in an update path", Object.keys(upd).every((k) => k.slice(`flags.${MODULE_ID}.cookbook.sums.`.length).indexOf(".") === -1));
+
+  const source = fs.readFileSync(new URL("../../scripts/importer/cookbook.mjs", import.meta.url), "utf8");
+  const character = source.slice(source.indexOf("async function importCharacter"), source.indexOf("/** The kinds that bind to a journal page"));
+  check("a character's biography write records its digest when it writes the biography",
+    /"system\.details\.biography": biography, \.\.\.sumsUpdate\(biography, "system\.details\.biography"\)/.test(character));
+
+  // A roll table's description: its own slot, `description`.
+  const tableKey = sumKey("description", "ax1.tab1");
+  const tablePara = (text) => bookText([text], "AX 1", { id: "ax1.tab1", book: "ax1", page: 2 });
+  const table = (description, tableSums) => ({
+    uuid: "RollTable.tab0000000002",
+    name: "Table",
+    description,
+    flags: { [MODULE_ID]: { cookbook: { id: "ax1.tab1", ...(tableSums ? { sums: tableSums } : {}) } } },
+    results: [],
+    writes: [],
+    async update(patch) {
+      this.writes.push(patch);
+    },
+    async deleteEmbeddedDocuments() {},
+    async createEmbeddedDocuments() {},
+  });
+  const builtTable = { formula: "1d6", description: tablePara("Rows, reread."), results: [{ text: "a" }], flags: { [MODULE_ID]: { cookbook: { cite: "AX 1" } } } };
+  const tableSums = { [tableKey]: blockDigest(tablePara("Rows.")) };
+  const repaired = async (t, decision = "keep") => {
+    const repair = mergedTally(decision);
+    await rewriteTable(t, builtTable, repair);
+    return { update: t.writes[0], edits: repair.edits.length };
+  };
+  const untouched = await repaired(table(tablePara("Rows."), tableSums));
+  same("an untouched description is rewritten and its digest recorded",
+    [untouched.update.description, untouched.update[`flags.${MODULE_ID}.cookbook.sums.${tableKey}`], untouched.edits], [builtTable.description, blockDigest(builtTable.description), 0]);
+  const handEdited = await repaired(table(tablePara("Rows, a word the Judge changed."), tableSums));
+  same("an edit inside the description's block is kept, listed, and the digest left as it was", [handEdited.update, handEdited.edits], [{ formula: "1d6" }, 1]);
+  same("with no stamp it reads as unedited and is rewritten",
+    (await repaired(table(tablePara("Rows, a word the Judge changed."), null))).update.description, builtTable.description);
+  same("a re-serialized description is rewritten",
+    (await repaired(table(tablePara("Rows.").replace(' href="#"', "").replace(/<\/p>/g, "</p>\n"), tableSums))).update.description, builtTable.description);
+  same("a decision taking the edit writes the page and records its digest",
+    (await repaired(table(tablePara("Rows, a word the Judge changed."), tableSums), { take: new Set(["RollTable.tab0000000002#description"]) })).update[`flags.${MODULE_ID}.cookbook.sums.${tableKey}`],
+    blockDigest(builtTable.description));
+
+
+  // The abilities pass: an edit inside the block the import wrote is the Judge's, kept with the description it wrote.
+  const abilities = source.slice(source.indexOf("const writeGenerated"), source.indexOf("// Counted first: this walks every ability"));
+  check("the abilities write records the digest of the description it writes, and none when it keeps the Judge's",
+    /keepProse\s*\? built\.flags\[MODULE_ID\]\.cookbook\s*: \{ \.\.\.built\.flags\[MODULE_ID\]\.cookbook, sums: blockSums\(built\.system\.description, "system\.description"\) \}/.test(abilities));
+  const refresh = source.slice(source.indexOf("// Authorship of the ITEM"), source.indexOf("if (flagged && annotated && repair"));
+  check("and reads an edit inside the block of a document it made as an annotated description",
+    /editedInBlocks\(doc\.flags\?\.\[MODULE_ID\]\?\.cookbook\?\.sums, "system\.description", prose\)/.test(refresh) && /handWrittenProse\(prose\) \|\| edited/.test(refresh));
+}
+
 /* --- a book id the registry does not know --- */
 
 {
@@ -1304,7 +1389,7 @@ same("a stat-line creature is read from its place's book", IMPORT_KINDS.find((k)
     name: "Market",
     documentName: "Actor",
     system: { notes },
-    flags: { [MODULE_ID]: { cookbook: { id: rowId, blocks: [{ id: rowId, sum: blockSum(onPage) }], ...cookbook } } },
+    flags: { [MODULE_ID]: { cookbook: { id: rowId, sums: { [sumKey("system.notes", rowId)]: blockDigest(onPage) }, ...cookbook } } },
     writes: [],
     toObject() {
       return structuredClone({ name: this.name, system: this.system, flags: this.flags });

@@ -32,7 +32,7 @@
  *   forgetBooks()    drop this computer's remembered locations (not the shelf)
  */
 import { MODULE_ID, LANG_PREFIX, ACTOR_TYPE, DEFAULT_IMG } from "./constants.mjs";
-import { bookText, CITE_CLASS, CITE_LINK_CLASS } from "./prose.mjs";
+import { bookText, CITE_CLASS, CITE_LINK_CLASS, sumsUpdate } from "./prose.mjs";
 import { BOOKS, REGISTRY, bookIsForm, bookIsJudges, fingerprintWarning, identifyBook, parseCite, shelfBooksToOpen } from "./books.mjs";
 import { matchFilesToBooks } from "./book-match.mjs";
 import { readForm } from "../character-sheet/pdf/form.mjs";
@@ -2636,6 +2636,8 @@ async function applyStatsToActor(actor, doc, pageData, recipe) {
     appearance: bookText(prose ? [prose] : [], recipe.cite, { id: recipe.id, book: recipe.book, page: recipe.page }),
   };
   update[`flags.${MODULE_ID}.extras`] = extras;
+  // The appearance written is the one whose digest the stamp records (a repair reads an edit against it).
+  Object.assign(update, sumsUpdate(extras.description.appearance, "flags.extras.description.appearance"));
   update.system = system;
   await actor.update(update);
   // Truthful diagnostics: verify the description actually landed.

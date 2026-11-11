@@ -19,8 +19,9 @@ import {
   unrepaired,
   asMinted,
   unstampedTwins,
+  withBlockSums,
 } from "../../scripts/importer/refresh.mjs";
-import { bookText } from "../../scripts/importer/prose.mjs";
+import { blockDigest, bookText, sumKey } from "../../scripts/importer/prose.mjs";
 
 let pass = 0;
 const check = (label, cond) => {
@@ -374,6 +375,103 @@ check("a stamped block alone is no edit", decidedPolicy({ ...judgedSource, syste
   const judge = { _id: "mine0000000001", name: "Lantern", type: "item", system: {} };
   const both = refreshPlan({ ...unstamped, items: [stored({ flags: { [M]: { minted: true } } }), judge] }, { type: "monster", system: {}, items: build }, actorPolicy({ items: build }));
   check("and a Judge's own item stays", !both.replace.items.remove.includes("mine0000000001"));
+}
+
+/* --- an edit inside the block the import wrote: read against the digest the stamp records --- */
+{
+  const ID = "def.trap.test";
+  const KEY = sumKey("system.description", ID);
+  const page = (text) => stamped(text);
+  const built = (text) => ({ type: "acks-extras.trap", system: { level: 1, description: page(text) }, flags: { [M]: { cookbook: { id: ID } } } });
+  const stored = (description, sums) => ({
+    type: "acks-extras.trap",
+    name: "Wire (XX)",
+    system: { level: 3, description },
+    flags: { [M]: { cookbook: { id: ID, ...(sums ? { sums } : {}) } } },
+  });
+  const sumsOfPlan = (plan) => plan.update.flags?.[M]?.cookbook?.sums;
+  const written = (plan) => "description" in (plan.update.system ?? {});
+  // What the editor does to a block without changing a word.
+  const reserialized = (block) =>
+    block.replace(/<div class="([^"]*)" data-acks-entry="([^"]*)">/, '<div data-acks-entry="$2" class="$1">\n').replace(/<\/p>/g, "</p>\n").replace("Old passage.", "Old&nbsp;passage.");
+
+  const old = page("Old passage.");
+  const sums = { [KEY]: blockDigest(old) };
+
+  const plain = refreshPlan(stored(old, sums), built("New passage."), REPAIR.trap);
+  check("an untouched block is rewritten, and the stamp records the digest of the block written",
+    written(plain) && plain.keptProse.length === 0 && sumsOfPlan(plain)[KEY] === blockDigest(page("New passage.")));
+
+  const edited = refreshPlan(stored(page("Old passage, reworded by hand."), sums), built("New passage."), REPAIR.trap);
+  check("an edit inside the block is kept and reported, the stamp left as the import wrote it",
+    !written(edited) && edited.keptProse.join() === "description" && !sumsOfPlan(edited));
+
+  check("a block the editor re-serialized, its words as written, is rewritten",
+    written(refreshPlan(stored(reserialized(old), sums), built("New passage."), REPAIR.trap)) && reserialized(old) !== old);
+
+  const unstamped = refreshPlan(stored(page("Old passage, reworded by hand."), null), built("New passage."), REPAIR.trap);
+  check("a document with no stamp reads as unedited and is rewritten", written(unstamped) && unstamped.keptProse.length === 0);
+  check("as does one whose stamp holds a digest of some other field", written(refreshPlan(stored(page("Anything."), { [sumKey("system.details.biography", ID)]: "00000000" }), built("New passage."), REPAIR.trap)));
+
+  const forced = refreshPlan(stored(page("Old passage, reworded by hand."), sums), built("New passage."), { ...REPAIR.trap, force: true });
+  check("a forced repair writes over the edit and stamps what it wrote", written(forced) && sumsOfPlan(forced)[KEY] === blockDigest(page("New passage.")));
+
+  check("a block the Judge took out is no edit of this kind", written(refreshPlan(stored("", sums), built("New passage."), REPAIR.trap)));
+  check("a page that equals the stored text is not held", written(refreshPlan(stored(old, { [KEY]: "00000000" }), built("Old passage."), REPAIR.trap)));
+
+  // Held, taken, then the page changes again: the stamp advanced with the take, so the block it wrote is not an edit.
+  const heldRun = decidedPolicy(stored(page("Old passage, reworded by hand."), sums), built("New passage."), REPAIR.trap, { uuid: "Item.t1", cite: "XX p.9" });
+  check("under a decision an edit inside the block is listed as an edit of the field",
+    heldRun.edits.length === 1 && heldRun.edits[0].path === "system.description" && heldRun.edits[0].current === page("Old passage, reworded by hand."));
+  const takeKey = "Item.t1#system.description";
+  const takenRun = decidedPolicy(stored(page("Old passage, reworded by hand."), sums), built("New passage."), REPAIR.trap, { uuid: "Item.t1", decision: { take: new Set([takeKey]) } });
+  const takenPlan = refreshPlan(stored(page("Old passage, reworded by hand."), sums), built("New passage."), takenRun.policy);
+  check("taken, the page's block is written and the stamp records it, though the guard was lifted",
+    takenRun.edits.length === 0 && written(takenPlan) && sumsOfPlan(takenPlan)[KEY] === blockDigest(page("New passage.")));
+  const afterTake = stored(page("New passage."), sumsOfPlan(takenPlan));
+  const nextRun = refreshPlan(afterTake, built("New passage, reread."), REPAIR.trap);
+  check("and a later read of a changed page rewrites the block it wrote, holding nothing", written(nextRun) && nextRun.keptProse.length === 0);
+
+  // A monster's prose is one stamped block per flag field, each its own slot.
+  const lore = (text) => bookText([text], "XX p.9", { id: "def.monster.test", book: "xx", page: 11 });
+  const FKEY = sumKey("flags.extras.description.lore", "def.monster.test");
+  const monsterBuilt = (a, b) => ({ type: "monster", system: {}, flags: { [M]: { cookbook: { id: "def.monster.test" }, extras: { description: { lore: lore(a), combat: lore(b) } } } } });
+  const monsterStored = (text, sums) => ({ type: "monster", name: "Beast", system: {}, flags: { [M]: { cookbook: { id: "def.monster.test", ...(sums ? { sums } : {}) }, extras: { description: { lore: text, combat: lore("Old combat.") } } } } });
+  const fresh = refreshPlan(monsterStored(lore("Old lore."), { [FKEY]: blockDigest(lore("Old lore.")) }), monsterBuilt("New lore.", "New combat."), REPAIR.monster);
+  check("a monster's prose fields are each stamped as written",
+    fresh.update.flags[M].cookbook.sums[FKEY] === blockDigest(lore("New lore.")) && fresh.update.flags[M].extras.description.combat === lore("New combat."));
+  const hand = refreshPlan(monsterStored(lore("Old lore, as the Judge has it."), { [FKEY]: blockDigest(lore("Old lore.")) }), monsterBuilt("New lore.", "New combat."), REPAIR.monster);
+  check("an edit inside one field's block keeps that field alone, and only the other is stamped",
+    hand.keptProse.join() === "flags.extras.description.lore" && !("lore" in hand.update.flags[M].extras.description)
+    && hand.update.flags[M].extras.description.combat === lore("New combat.") && !(FKEY in hand.update.flags[M].cookbook.sums));
+
+  // A biography is two blocks under one id; both are read.
+  const bio = (text) => stamped(text) + `<div class="acks-extras-importer-book-text" data-acks-entry="def.trap.test"><p>As printed.</p></div>`;
+  const BKEY = sumKey("system.details.biography", ID);
+  const bioStored = (text, sums) => ({ type: "monster", name: "Beast", system: { details: { biography: text } }, flags: { [M]: { cookbook: { id: ID, ...(sums ? { sums } : {}) } } } });
+  const bioBuilt = { type: "monster", system: { details: { biography: bio("New bio.") } }, flags: { [M]: { cookbook: { id: ID } } } };
+  const bioPolicy = actorPolicy(bioBuilt);
+  const bioSums = { [BKEY]: blockDigest(bio("Old bio.")) };
+  check("a biography whose two blocks read as written is rewritten and stamped",
+    refreshPlan(bioStored(bio("Old bio."), bioSums), bioBuilt, bioPolicy).update.flags[M].cookbook.sums[BKEY] === blockDigest(bio("New bio.")));
+  check("an edit inside its second block is kept",
+    refreshPlan(bioStored(bio("Old bio.").replace("As printed.", "As printed, amended."), bioSums), bioBuilt, bioPolicy).keptProse.includes("details.biography"));
+}
+
+/* --- a new document records the digests of the blocks it is created with --- */
+{
+  const ID = "def.trap.test";
+  const data = { type: "acks-extras.trap", name: "Wire", system: { description: stamped("A passage."), notes: "" }, flags: { [M]: { cookbook: { id: ID, book: "xx" } } } };
+  const out = withBlockSums(data);
+  check("creation data carries the digest of its description block under its stamp, beside what it had",
+    out.flags[M].cookbook.sums[sumKey("system.description", ID)] === blockDigest(stamped("A passage.")) && out.flags[M].cookbook.id === ID && out.flags[M].cookbook.book === "xx");
+  check("the data it was given is not changed", !("sums" in data.flags[M].cookbook));
+  const monster = withBlockSums({ type: "monster", flags: { [M]: { cookbook: { id: ID }, extras: { description: { lore: stamped("Lore."), combat: "" } } } } });
+  check("a monster's prose flags are stamped by their path", Object.keys(monster.flags[M].cookbook.sums).join() === sumKey("flags.extras.description.lore", ID));
+  const table = withBlockSums({ name: "Table", description: stamped("Rows."), flags: { [M]: { cookbook: { id: ID } } } });
+  check("a roll table's description is stamped as `description`", Object.keys(table.flags[M].cookbook.sums).join() === sumKey("description", ID));
+  const bare = { name: "x", system: { description: stamped("A passage.") } };
+  check("data with no cookbook stamp, or no block, is returned as it came", withBlockSums(bare) === bare && withBlockSums({ ...data, system: { description: "<p>Plain.</p>" } }).flags[M].cookbook.sums === undefined);
 }
 
 console.log(`test-refresh: ${pass} passed`);

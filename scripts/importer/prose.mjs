@@ -15,6 +15,7 @@
  *    pass tell text this module wrote from text a Judge wrote over it, so a
  *    re-import replaces its own work and never someone else's.
  */
+import { MODULE_ID } from "./constants.mjs";
 import { blockSum } from "./held-edits.mjs";
 
 /** The wrapper an import stamps around materialized book text. */
@@ -188,13 +189,82 @@ export function readableText(html) {
 }
 
 /**
- * The checksum a journal page records for the block it was written with
+ * The checksum a document's stamp records for a block it was written with
  * (`readableText` of the block, through `blockSum`): a stored block whose
  * digest differs has been edited since, a change the stamp alone cannot show.
  * A change that leaves the readable text as it was (bold on a word, a moved
  * line break) is not seen.
  */
 export const blockDigest = (block) => blockSum(readableText(block));
+
+const BLOCK_ID = /\bdata-acks-entry=(["'])(.*?)\1/i;
+
+const unescapeAttr = (value) =>
+  value.replace(/&quot;/g, '"').replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+
+/**
+ * The stamped blocks a stored string holds, by entry id: every block of one id
+ * joined in order, since one field can carry two (a character's biography has
+ * the page's text and its "as printed" block under the same id).
+ * @returns {Map<string, string>}
+ */
+export function stampedBlocks(html) {
+  const out = new Map();
+  for (const block of String(html ?? "").match(BOOK_TEXT_BLOCK) ?? []) {
+    const id = unescapeAttr(BLOCK_ID.exec(block)?.[2] ?? "");
+    out.set(id, out.has(id) ? `${out.get(id)}${block}` : block);
+  }
+  return out;
+}
+
+/**
+ * The key a block's digest is recorded under in a document's stamp
+ * (`flags.acks-extras.cookbook.sums`): the field's path and the block's entry
+ * id. Every dot is written out, so the key is one name inside an update path
+ * and never nests.
+ * @param {string} path the field, as a held edit names it (`system.description`, `description`)
+ * @param {string} id the block's entry id
+ */
+export const sumKey = (path, id) => `${path}#${id}`.replace(/%/g, "%25").replace(/\./g, "%2E");
+
+/**
+ * The digests (`blockDigest`) a field's text earns: one per stamped block it
+ * holds, by `sumKey`. What a writer records after it writes the field, so a
+ * later write can read an edit inside the block against it. Empty where the
+ * text holds no block.
+ * @param {string} html the field's text as written
+ * @param {string} path the field's path, as `sumKey` takes it
+ * @returns {Object<string, string>}
+ */
+export function blockSums(html, path) {
+  return Object.fromEntries([...stampedBlocks(html)].map(([id, block]) => [sumKey(path, id), blockDigest(block)]));
+}
+
+/**
+ * The flat update entries that record a field's digests in the document's
+ * stamp (`blockSums` under `flags.<module>.cookbook.sums`), for a write that
+ * sets the field itself.
+ * @returns {Object<string, string>}
+ */
+export const sumsUpdate = (html, path) =>
+  Object.fromEntries(Object.entries(blockSums(html, path)).map(([key, sum]) => [`flags.${MODULE_ID}.cookbook.sums.${key}`, sum]));
+
+/**
+ * Whether a Judge edited inside a field's blocks since the import wrote them:
+ * a block the stored text still holds digests differently from the sum the
+ * stamp recorded for it. A block with no sum (written before sums were
+ * recorded) and a sum whose block is gone are not edits of this kind.
+ * @param {Object<string, string>|undefined} sums the document's `cookbook.sums`
+ * @param {string} path the field's path, as `sumKey` takes it
+ * @param {string} html the field's stored text
+ */
+export function editedInBlocks(sums, path, html) {
+  for (const [id, block] of stampedBlocks(html)) {
+    const sum = sums?.[sumKey(path, id)];
+    if (sum && sum !== blockDigest(block)) return true;
+  }
+  return false;
+}
 
 /** Entry `id`'s stamped block in a stored string, or "" when it holds none. */
 export function bookTextBlock(html, id) {

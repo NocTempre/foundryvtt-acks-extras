@@ -9878,3 +9878,55 @@ monster's prose field, a roll table's description) still see an edit inside
 their block as nothing. They hold the block by `handWrittenProse` alone and
 carry no stamp to put a digest in; a place's notes already record a checksum per
 block (`rowBlockPatch`). Each is a separate change.
+
+## 2026-11-11 — Every stamped block is read against a digest in a per-field slot (T-0505)
+
+**Asked.** The journal entry above left the other writers of a stamped block
+(a description repair, a roll table's description, a character's biography, a
+monster's prose, a place's notes) seeing an edit inside their block as nothing,
+and `rowBlockPatch`'s raw checksum read a block the editor had re-serialized as
+edited, the opposite failure.
+
+**Ruled (ledger row T-0505, under the owner's 2026-11-11 rule that no compat
+or repair code is written for alpha or previous-version data).** Each writer records the digest
+(`blockDigest`) of what it wrote and reads an edit against it, as the journal
+page does, with one slot per field. A document carries several stamped fields,
+so the slot is `flags.acks-extras.cookbook.sums`, keyed by the field's path and
+the block's entry id; the key writes every dot out, so an update path never
+nests it. The journal page's own `sum` stays, since existing pages carry it. A
+field with no digest reads as unedited, as a page does.
+
+- **Stamped from the payload written.** `createDoc`/`createDocs` stamp a new
+  document, `refreshPlan` stamps from the update it builds, and the abilities
+  write, `rewriteTable`, a character's biography and `rowBlockPatch` stamp what
+  they write. A stamp driven by the guard list would go stale on exactly the
+  field a decision just took.
+- **One id, several blocks.** A biography is the page's text and an "as
+  printed" block under one id, so a block's digest covers every block of its id.
+- **Place notes.** The digest replaces the raw checksum, and a block that
+  digests as the page's reads as unedited whatever markup the editor gave it. A
+  block with no digest reads as unedited, like every other field. This
+  **supersedes the place hold of b549559f**, which held a differing no-stamp
+  block as `unstamped` and compared a raw checksum (`cookbook.blocks`). New
+  evidence: no release carries `cookbook.blocks` (the commit is in no tag, the
+  latest being v11.14.4), so no field world holds the old stamp and nothing
+  needs reading for it, and the per-field slot makes a place read as the other
+  four writer kinds do. `cookbook.blocks` is no longer read or written; it
+  stays on any document that has it.
+- **Takeover and bind** stamp the blocks they write, so the earlier id's old
+  digest does not read the kept paragraphs as an edit.
+
+**Rejected.** One digest per document: a document with a description and a
+biography, or a place with several rows' blocks, has no single block. A scan
+or backfill of existing worlds, which the journal ruling also declined.
+
+*Cost:* a formatting-only edit (bold on a word) is not seen, as for a page. A
+description, biography, monster prose field, roll table description or place
+block written before digests existed has none and is rewritten over an edit
+inside its block once, on the first repair after the upgrade, which stamps it.
+Apply Stats (`applyStatsToActor`) writes a
+monster's appearance with no guard at all and records its digest, so a later
+repair does not read it as an edit; guarding it is not part of this change.
+`takeoverPatch` still replaces the earlier book's block without asking whether
+it was edited: the later book's text supersedes it by ruling, and no held-edit
+path reaches that write.

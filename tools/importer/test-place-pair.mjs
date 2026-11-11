@@ -13,7 +13,8 @@
  */
 import assert from "node:assert/strict";
 import { MODULE_ID } from "../../scripts/importer/constants.mjs";
-import { bookText, bookTextBlock, insertBookTextAfter, keepParagraphs, swapBookText } from "../../scripts/importer/prose.mjs";
+import { blockDigest, bookText, bookTextBlock, insertBookTextAfter, keepParagraphs, sumKey, swapBookText } from "../../scripts/importer/prose.mjs";
+import { withBlockSums } from "../../scripts/importer/refresh.mjs";
 import { poiLocationData } from "../../scripts/importer/poi-binding.mjs";
 import { answersFor, bindPatch, claimIds, placePairs, rowBlockPatch, siteNamePatch, takeoverPatch } from "../../scripts/importer/place-pair.mjs";
 import { blockSum, decides } from "../../scripts/importer/held-edits.mjs";
@@ -116,6 +117,17 @@ eq("a place whose earlier block is gone gets the later block first",
   applied(blockGone, takeoverPatch(blockGone, later, earlier)).system.notes, `${lBlock}${judge}`);
 ok("a place is never made its own parent", !("system.parentUuid" in takeoverPatch(eHeld, { ...later, parentUuid: "Actor.place" }, earlier)));
 
+// A place stamped as its create wrote it: the takeover swaps the earlier block
+// for a shorter one, and records the digests of what it wrote so the old sum of
+// the earlier block does not read the kept paragraphs as a Judge's edit.
+const eStamped = { ...withBlockSums(eHeld), uuid: "Actor.stamped" };
+const takenStamped = applied(eStamped, takeoverPatch(eStamped, later, earlier));
+eq("a takeover records the digest of each block it wrote",
+  takenStamped.flags[MODULE_ID].cookbook.sums,
+  { [sumKey("system.notes", L.id)]: blockDigest(lBlock), [sumKey("system.notes", E.id)]: blockDigest(keepParagraphs(eBlock, [2])) });
+eq("so the earlier row's later repair finds its kept block unedited",
+  rowBlockPatch(takenStamped, { id: E.id, notes: keepParagraphs(bookText(["Earlier opening.", "Earlier detail, reread.", "Earlier closing."], "EA 3", { id: E.id, book: "ea", page: 5 }), [2]), after: L.id }).edits, []);
+
 /* --- the earlier book arrives second: it binds onto the later place --- */
 
 const lHeld = { ...built(L, `${lBlock}${judge}`, { role: "gate" }), uuid: "Actor.place" };
@@ -138,9 +150,9 @@ const shape = (doc) => {
   return rest;
 };
 for (const unique of [[2], [], [1, 3]]) {
-  const eFirst = { ...built(E, `${eBlock}${judge}`, { roster }), uuid: "Actor.a" };
+  const eFirst = { ...withBlockSums(built(E, `${eBlock}${judge}`, { roster })), uuid: "Actor.a" };
   const lSecond = applied(eFirst, takeoverPatch(eFirst, later, { ...earlier, unique }));
-  const lFirst = { ...built(L, `${lBlock}${judge}`, { role: "gate" }), uuid: "Actor.b" };
+  const lFirst = { ...withBlockSums(built(L, `${lBlock}${judge}`, { role: "gate" })), uuid: "Actor.b" };
   const eSecond = applied(lFirst, bindPatch(lFirst, { id: E.id, notes: keepParagraphs(eBlock, unique), parentUuid: E.parentUuid, roster }));
   eq(`unique ${JSON.stringify(unique)}: both orders reach the same place`, shape(lSecond), shape(eSecond));
 }
@@ -150,10 +162,18 @@ for (const unique of [[2], [], [1, 3]]) {
 // The joined place as both orders leave it, with another row's block (a site
 // bound onto it) and the Judge's line beside the pair's two blocks.
 const other = bookText(["A bound site's text."], "LB 8", { id: "lb.site3", book: "lb", page: 10 });
-const unstampedPlace = { ...taken, system: { ...taken.system, notes: `${lBlock}${keepParagraphs(eBlock, [2])}${other}${judge}` } };
+const { sums: _takeoverSums, ...unstampedFlag } = taken.flags[MODULE_ID].cookbook;
+const unstampedPlace = {
+  ...taken,
+  flags: { ...taken.flags, [MODULE_ID]: { ...taken.flags[MODULE_ID], cookbook: unstampedFlag } },
+  system: { ...taken.system, notes: `${lBlock}${keepParagraphs(eBlock, [2])}${other}${judge}` },
+};
 // The same place once a forced repair has stamped each block it holds.
-const stamps = [[L.id, lBlock], [E.id, keepParagraphs(eBlock, [2])], ["lb.site3", other]].map(([id, text]) => ({ id, sum: blockSum(text) }));
-const shared = applied(unstampedPlace, { [`flags.${MODULE_ID}.cookbook.blocks`]: stamps });
+const SUMS = `flags.${MODULE_ID}.cookbook.sums`;
+const sumOf = (id, text) => [`${SUMS}.${sumKey("system.notes", id)}`, blockDigest(text)];
+const stamps = [[L.id, lBlock], [E.id, keepParagraphs(eBlock, [2])], ["lb.site3", other]].map(([id, text]) => sumOf(id, text));
+const shared = applied(unstampedPlace, Object.fromEntries(stamps));
+const sumsOf = (doc) => doc.flags[MODULE_ID].cookbook.sums;
 const lFresh = bookText(["Later opening, reread.", "Later detail."], "LB 7", { id: L.id, book: "lb", page: 9 });
 const eFresh = bookText(["Earlier opening.", "Earlier detail, reread.", "Earlier closing."], "EA 3", { id: E.id, book: "ea", page: 5 });
 const count = (html, id) => String(html).split(`data-acks-entry="${id}"`).length - 1;
@@ -170,19 +190,35 @@ eq("repairing the later book alone swaps its block, and every other byte of the 
 eq("the earlier book's block is byte-identical", bookTextBlock(lRepaired.system.notes, E.id), bookTextBlock(shared.system.notes, E.id));
 eq("as is the bound site's", bookTextBlock(lRepaired.system.notes, "lb.site3"), other);
 eq("the write is the notes and the block's read stamp: no id, merged, parent, roster or region",
-  Object.keys(lRun.update), ["system.notes", `flags.${MODULE_ID}.cookbook.blocks`]);
-eq("the stamp records the block written beside the others' stamps", lRepaired.flags[MODULE_ID].cookbook.blocks, [stamps[1], stamps[2], { id: L.id, sum: blockSum(lFresh) }]);
+  Object.keys(lRun.update), ["system.notes", sumOf(L.id, lFresh)[0]]);
+eq("the stamp records the block written beside the others' stamps", sumsOf(lRepaired),
+  { ...Object.fromEntries(stamps.map(([k, v]) => [k.slice(SUMS.length + 1), v])), [sumKey("system.notes", L.id)]: blockDigest(lFresh) });
 eq("the place still answers for both rows", claimIds(lRepaired.flags[MODULE_ID].cookbook), [L.id, E.id]);
 eq("a block that still matches its stamp is written, and nothing is held", lRun.edits, []);
 
 const unstampedRun = write(unstampedPlace, { id: L.id, notes: lFresh, cite: "LB 7" });
-eq("a block written before stamps existed, differing from the page, is not written", unstampedRun.update, {});
-eq("it is held, marked unstamped", unstampedRun.edits.map((e) => [e.path, e.current, e.page, e.unstamped]), [[`system.notes#${L.id}`, lBlock, lFresh, true]]);
+eq("a block with no stamp, differing from the page, reads as unedited: it is written, and stamped",
+  [unstampedRun.edits, bookTextBlock(unstampedRun.doc.system.notes, L.id), sumsOf(unstampedRun.doc)], [[], lFresh, { [sumKey("system.notes", L.id)]: blockDigest(lFresh) }]);
 const sameRun = write(unstampedPlace, { id: L.id, notes: lBlock });
-eq("one equal to the page is stamped, holding nothing", [sameRun.edits, sameRun.update], [[], { [`flags.${MODULE_ID}.cookbook.blocks`]: [{ id: L.id, sum: blockSum(lBlock) }] }]);
-const unstampedTaken = write(unstampedPlace, { id: L.id, notes: lFresh }, { decision: "take" });
-eq("taken, the unstamped block is written and stamped",
-  [bookTextBlock(unstampedTaken.doc.system.notes, L.id), unstampedTaken.doc.flags[MODULE_ID].cookbook.blocks], [lFresh, [{ id: L.id, sum: blockSum(lFresh) }]]);
+eq("one equal to the page is stamped, holding nothing", [sameRun.edits, sameRun.update], [[], Object.fromEntries([sumOf(L.id, lBlock)])]);
+
+// What the editor does to a block without changing a word: attribute order, an
+// anchor's href dropped, a reflowed line, a non-breaking space.
+const reserialized = (block) =>
+  block.replace(/<div class="([^"]*)" data-acks-entry="([^"]*)">/, '<div data-acks-entry="$2" class="$1">\n').replace(/ href="#"/g, "").replace(/<\/p>/g, "</p>\n").replace("Later opening.", "Later&nbsp;opening.");
+const reflowed = reserialized(lBlock);
+ok("the fixture's markup differs from the block but reads the same", reflowed !== lBlock && blockDigest(reflowed) === blockDigest(lBlock));
+const reflowedPlace = applied(shared, { "system.notes": swapBookText(shared.system.notes, L.id, reflowed) });
+const reflowedRun = write(reflowedPlace, { id: L.id, notes: lFresh });
+eq("a stamped block the editor re-serialized, its words as written, is untouched and is rewritten",
+  [reflowedRun.edits, bookTextBlock(reflowedRun.doc.system.notes, L.id)], [[], lFresh]);
+const reflowedUnstamped = write(applied(unstampedPlace, { "system.notes": swapBookText(unstampedPlace.system.notes, L.id, reflowed) }), { id: L.id, notes: lBlock });
+eq("one with no stamp that reads as the page's is rewritten, held for nothing", [reflowedUnstamped.edits, bookTextBlock(reflowedUnstamped.doc.system.notes, L.id)], [[], lBlock]);
+
+// A raw checksum an older build left in `cookbook.blocks` is not read: with no digest stamp the block reads as unedited.
+const legacyFlag = applied(unstampedPlace, { [`flags.${MODULE_ID}.cookbook.blocks`]: [{ id: L.id, sum: blockSum("never the stored bytes") }] });
+const legacyRun = write(legacyFlag, { id: L.id, notes: lFresh });
+eq("a place carrying only a raw checksum is written as one with no stamp", [legacyRun.edits, bookTextBlock(legacyRun.doc.system.notes, L.id)], [[], lFresh]);
 ok("a stamped edit carries no unstamped mark", !("unstamped" in (write(applied(shared, { "system.notes": swapBookText(shared.system.notes, L.id, lFresh) }), { id: L.id, notes: lBlock }).edits[0] ?? { unstamped: 1 })));
 
 const eRun = write(shared, { id: E.id, name: E.name, notes: keepParagraphs(eFresh, [2]), after: L.id });
@@ -194,7 +230,7 @@ ok("a row that is not the place's own writes no name", !("name" in eRun.update) 
 eq("a second write of the same build owes nothing", write(lRepaired, { id: L.id, name: L.name, notes: lFresh }).update, {});
 const both = write(lRepaired, { id: E.id, notes: keepParagraphs(eFresh, [2]), after: L.id }).doc;
 ok("each row's block stands once after both books are repaired", count(both.system.notes, L.id) === 1 && count(both.system.notes, E.id) === 1);
-eq("and each carries its own stamp", both.flags[MODULE_ID].cookbook.blocks.map((b) => b.id).sort(), [L.id, E.id, "lb.site3"].sort());
+eq("and each carries its own stamp", Object.keys(sumsOf(both)).sort(), [L.id, E.id, "lb.site3"].map((id) => sumKey("system.notes", id)).sort());
 
 /* --- a Judge's edit is held, and written only where the caller takes it --- */
 

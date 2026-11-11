@@ -17,7 +17,7 @@ import { MODULE_ID, LANG_PREFIX, ITEM_TYPE, DEFAULT_IMG } from "./constants.mjs"
 import { trainingChanges } from "../classes/training-logic.mjs";
 import { BUILDER_DOC_ID, baseXpCost, xpSchedule } from "../classes/builder-logic.mjs";
 import { LANGUAGES_DOC_ID } from "./language-binding.mjs";
-import { blockDigest, bookText, bookTextBlock, entryText, entryTable, escapeText, keepParagraphs, nodeParagraphs } from "./prose.mjs";
+import { blockDigest, blockSums, bookText, bookTextBlock, editedInBlocks, entryText, entryTable, escapeText, keepParagraphs, nodeParagraphs, sumsUpdate } from "./prose.mjs";
 import { answersFor, bindPatch, claimIds, placePairs, rowBlockPatch, siteNamePatch, takeoverPatch } from "./place-pair.mjs";
 import {
   actorPolicy,
@@ -34,6 +34,7 @@ import {
   unrepaired,
   asMinted,
   unstampedTwins,
+  withBlockSums,
 } from "./refresh.mjs";
 import { coversFigure, decides, heldEdit, playStamp, pregenAnswer } from "./held-edits.mjs";
 import { mergedRepair, mergedStep, secondPass } from "./merged-repair.mjs";
@@ -1093,12 +1094,16 @@ export function keepsJudgeFigure(doc, path, current, page, cite = "") {
  * Whether a write an importer makes after its create keeps `current`, what
  * the held `doc` stores at `path`, instead of `page`: true under a rewrite
  * that carries a `decision`, where the stored text holds hand-written prose
- * (`handWrittenProse`), differs from the page and the decision does not take
- * it; the edit is then listed in the tally's `edits`. False anywhere else.
+ * (`handWrittenProse`) or an edit inside a block the import stamped
+ * (`editedInBlocks` over the document's `cookbook.sums`), differs from the page
+ * and the decision does not take it; the edit is then listed in the tally's
+ * `edits`. False anywhere else. A caller that writes `page` records its digests
+ * with `sumsUpdate`.
  */
 export function keepsJudgeProse(doc, path, current, page, cite = "") {
   if (!rewriteScope || !("decision" in rewriteScope) || !doc) return false;
-  if (current === page || !handWrittenProse(current)) return false;
+  const edited = editedInBlocks(doc.flags?.[MODULE_ID]?.cookbook?.sums, path, current);
+  if (current === page || !(handWrittenProse(current) || edited)) return false;
   const edit = heldEdit({ uuid: doc.uuid ?? "", name: doc.name ?? "", path, current, page, cite });
   if (decides(rewriteScope.decision, edit.key) === "take") return false;
   (rewriteScope.tally.edits ??= []).push(edit);
@@ -1194,7 +1199,8 @@ export const createDoc = async (cls, data, { line = null, ...opts } = {}) => {
   if (held) return rewriteHeld(held, data);
   const packOptions = await packOpts(cls.documentName, lineOfData(data) ?? line);
   warnStrayFolder(cls.documentName, data, packOptions.pack ?? null);
-  const [row] = itemIds([data], { type: cls.documentName, pack: packOptions.pack ?? null, keepId: !!opts.keepId });
+  // A new document records the digest of each block it is written with (`withBlockSums`).
+  const [row] = itemIds([withBlockSums(data)], { type: cls.documentName, pack: packOptions.pack ?? null, keepId: !!opts.keepId });
   return remembered(await cls.create(row, { ...opts, keepId: true, ...packOptions }));
 };
 
@@ -1314,7 +1320,7 @@ export async function createDocs(cls, dataList, opts = {}) {
     const packOptions = await packOpts(cls.documentName, line);
     // Ids are settled over the whole line at once, so no two chunks of it hand
     // out the same one.
-    const rows = itemIds(given.map((e) => e.data), { type: cls.documentName, pack: packOptions.pack ?? null, keepId: !!callerOpts.keepId });
+    const rows = itemIds(given.map((e) => withBlockSums(e.data)), { type: cls.documentName, pack: packOptions.pack ?? null, keepId: !!callerOpts.keepId });
     const entries = given.map((e, n) => ({ ...e, data: rows[n] }));
     for (let i = 0; i < entries.length; i += WRITE_CHUNK) {
       const chunk = entries.slice(i, i + WRITE_CHUNK);
@@ -5304,7 +5310,7 @@ async function importCharacter(bookId, id, folderId, node, found) {
   const biography = entryText(node, id, found.entry.cite) + asPrintedBlock({ id, statline: sl.text, differences: report.checks, rows }, words);
   const keepBiography = isRewriting(id) && keepsJudgeProse(actor, "system.details.biography", actor.system?.details?.biography, biography, found.entry.cite ?? "");
   await actor.update({
-    ...(keepBiography ? {} : { "system.details.biography": biography }),
+    ...(keepBiography ? {} : { "system.details.biography": biography, ...sumsUpdate(biography, "system.details.biography") }),
     ...(Number.isInteger(morale) && moraleField ? { "system.details.morale": Math.clamp(morale, moraleField.min, moraleField.max) } : {}),
     [`flags.${MODULE_ID}.printed`]: { differences: report.checks.length, missing: missing.length },
   });
@@ -6611,7 +6617,8 @@ function listAfterDark(list) {
  */
 export async function rewriteTable(table, built, repair) {
   if (!table || !unrepaired(repair, table)) return;
-  const judged = handWrittenProse(table.description) && table.description !== built.description;
+  const edited = editedInBlocks(table.flags?.[MODULE_ID]?.cookbook?.sums, "description", table.description);
+  const judged = (handWrittenProse(table.description) || edited) && table.description !== built.description;
   let keepProse = !repair.force && judged;
   if (judged && "decision" in repair) {
     const edit = heldEdit({ uuid: table.uuid, name: table.name, path: "description", current: table.description, page: built.description, cite: built.flags?.[MODULE_ID]?.cookbook?.cite ?? "" });
@@ -6619,7 +6626,7 @@ export async function rewriteTable(table, built, repair) {
     if (keepProse) (repair.edits ??= []).push(edit);
   }
   try {
-    await table.update({ formula: built.formula, ...(keepProse ? {} : { description: built.description }) });
+    await table.update({ formula: built.formula, ...(keepProse ? {} : { description: built.description, ...sumsUpdate(built.description, "description") }) });
     const old = [...table.results].map((r) => r.id);
     if (old.length) await table.deleteEmbeddedDocuments("TableResult", old);
     await table.createEmbeddedDocuments("TableResult", built.results);
@@ -13231,7 +13238,10 @@ export async function cookbookUpdateAbilities({ only = null, repair = null } = {
     }
     return doc.update({
       ...(keepProse ? {} : { "system.description": built.system.description }),
-      [`flags.${MODULE_ID}.cookbook`]: built.flags[MODULE_ID].cookbook,
+      // The description written is the one whose digest the stamp records.
+      [`flags.${MODULE_ID}.cookbook`]: keepProse
+        ? built.flags[MODULE_ID].cookbook
+        : { ...built.flags[MODULE_ID].cookbook, sums: blockSums(built.system.description, "system.description") },
       [`flags.${MODULE_ID}.extras`]: extras,
     });
   };
@@ -13292,7 +13302,9 @@ export async function cookbookUpdateAbilities({ only = null, repair = null } = {
       // A forced repair writes the description of a document this module made
       // whatever a Judge put in it; a document it did not make (`!flagged`) is
       // still the Judge's own and still waits for an answer.
-      let annotated = handWrittenProse(prose) && !(flagged && repair?.force);
+      // An edit inside the block the import wrote is the Judge's too (`editedInBlocks`).
+      const edited = !!flagged && editedInBlocks(doc.flags?.[MODULE_ID]?.cookbook?.sums, "system.description", prose);
+      let annotated = (handWrittenProse(prose) || edited) && !(flagged && repair?.force);
       // Under a decision a description this module made is the Judge's edit:
       // written where the decision takes it, else kept and listed.
       if (flagged && annotated && repair && "decision" in repair && prose !== built.system?.description) {

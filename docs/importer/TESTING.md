@@ -637,10 +637,9 @@ flag before step 1.
    the bound place and the quarter keep every block but the one this book's
    row writes; the creature's `_stats.modifiedTime` moved and its roster row
    on the keyed place still resolves; `r.edits` is an array. On the first run
-   no block carries a checksum yet: a row's block equal to the page gains one
-   in `flags.acks-extras.cookbook.blocks` and is otherwise untouched, and one
-   that differs is left as it stands and listed in `r.edits` with
-   `unstamped: true`. A row with no block is written only onto notes empty but
+   a block no digest covers yet (a place made before digests were recorded)
+   reads as unedited: it is written from the page and gains its digest in
+   `flags.acks-extras.cookbook.sums`. A row with no block is written only onto notes empty but
    for the place's erratum notes; beside the Judge's text or another row's
    block it is listed in `r.edits` with `current` empty.
 2. **A Judge's edits.** Change one word inside this book's block on the
@@ -668,8 +667,7 @@ flag before step 1.
    among them (an edit to a character is written only by a rewrite).
    *Observable:* every fixture reads as the page gives it, each block of this
    book's rows now carrying a checksum; uuids are still those recorded but the
-   character's. Steps 2 and 3 assume this stamped state: on a world where step
-   1 listed unstamped blocks, take those first.
+   character's. Steps 2 and 3 assume this stamped state, which step 1 leaves.
 5. **The control.** Adventures tab, the book row's Repair; Yes.
    *Observable:* the choice opens (titled *Your edits and the book*) with a
    fixture edited as in step 2 listed, its two values each carrying a
@@ -1673,6 +1671,79 @@ the wrong slot to provoke.
 10. Delete the journals AND the folders from the pack (`Folder.deleteDocuments`
     with `{pack}` — deleting the entries leaves the folders behind), remove the
     staged PDFs, and reload so the refresh bridge restores the seat's real books.
+
+## An edit inside any imported block is kept
+
+Every writer of a stamped block other than a journal page (that one is steps 8
+and 9 above) reads an edit inside the block against the digest its stamp
+records in `flags.acks-extras.cookbook.sums`, one per field and block. The
+walks below need no book: each builds a disposable document from invented
+paragraphs and drives the writer directly. A paragraph of the walk's own,
+never the book's, is the text. The editor's re-serialization is part of each
+step, since the page is what proves an untouched block is not read as edited.
+
+### Fixtures
+
+1. In the page context: `const P = await import("/modules/acks-extras/scripts/importer/prose.mjs")`,
+   `const R = await import("/modules/acks-extras/scripts/importer/refresh.mjs")`,
+   `const C = await import("/modules/acks-extras/scripts/importer/cookbook.mjs")`.
+   A block is `P.bookText(["An invented passage."], "ZZ 1", {id: "zz.block1", book: "zz", page: 1})`;
+   its slot is `P.sumKey(<field path>, "zz.block1")` under
+   `flags["acks-extras"].cookbook.sums`, holding `P.blockDigest(block)`.
+2. One disposable document per kind, marked
+   `flags.world.fixture = "importer/block-edit/<kind>"` and tracked for the
+   sweep: a world Item (kind `description`), a RollTable (`table`), a monster
+   Actor (`monster`), a location Actor (`place`). Each carries
+   `flags["acks-extras"].cookbook = {id: "zz.block1", sums: {...}}` with the
+   slot for its field set to the digest of the block it holds: `system.description`;
+   `description`; `flags.extras.description.lore`; `system.notes`.
+
+### Steps
+
+3. **A description repair (`description`).** Open the Item, change one word
+   inside the passage in the editor, save. Run
+   `await R.refreshImported(item, {type: item.type, system: {description: <a block of another invented passage>}, flags: {"acks-extras": {cookbook: {id: "zz.block1"}}}}, {prose: ["description"]})`.
+   *Observable:* the returned plan's `keptProse` is `["description"]`, the Item
+   still holds the word, and its `sums` slot is unchanged. Put the word back
+   and run it again: the description is the new passage and the slot holds
+   the digest of the new block. Open the Item and press save without typing
+   (the editor reorders attributes, drops the anchor's `href`, reflows lines),
+   then run once more: the description is the new passage, `keptProse` is empty.
+   With `sums` deleted from the stamp and a word changed, the run rewrites the
+   description: no digest reads as unedited.
+4. **A roll table (`table`).** Edit a word inside the table's description,
+   then `const t = R.mergedTally("keep"); await C.rewriteTable(table, {formula: "1d6", description: <a new block>, results: [{text: "a"}], flags: {"acks-extras": {cookbook: {cite: "ZZ 1"}}}}, t)`.
+   *Observable:* `t.edits` holds one edit with `path: "description"` and the
+   description is the Judge's, `t.keptProse` is 1. Run it with
+   `R.mergedTally({take: new Set([table.uuid + "#description"])})`: the
+   description is the new block and the slot is the new digest. A save without
+   typing, then the keep run: `t.edits` is empty and the new block is written.
+5. **A monster's prose (`monster`).** Edit a word inside the Lore field of the
+   actor's Full Monster Sheet, then run `refreshImported` as in step 3 with
+   `R.REPAIR.monster` and a build whose `flags["acks-extras"].extras.description.lore`
+   is a new block. *Observable:* `keptProse` is `["flags.extras.description.lore"]`
+   and only that field keeps the edit; another prose field of the actor, if
+   built, is written and its slot advances.
+6. **A place's notes (`place`).** Edit a word inside the block, then run
+   `const {update, edits} = (await import("/modules/acks-extras/scripts/importer/place-pair.mjs")).rowBlockPatch({...place.toObject(), uuid: place.uuid}, {id: "zz.block1", notes: <a new block of id zz.block1>, cite: "ZZ 1"})`.
+   *Observable:* `update` is empty and `edits[0].path` is `system.notes#zz.block1`
+   with no `unstamped` mark. After a save without typing, `edits` is empty and
+   `update["system.notes"]` is the new block. Delete `cookbook.sums` and edit a
+   word: the run writes the new block (no stamp reads as unedited) and records
+   its digest.
+7. **A character's biography and the abilities pass.** These run only from a
+   book. A pregenerated character: edit a word inside the biography's page
+   block, then step 2 of "An adventure book's repair writes places in place,
+   and holds a Judge's edits" above; *Observable:* the
+   edit is listed with path `system.details.biography`. An ability the abilities
+   import made: edit a word inside its description's block, run the Update
+   step; *Observable:* the result counts it `preserved` and the word stands.
+
+### Teardown
+
+8. `api.sweepTracked()` for the documents built here; the book-bound checks in
+   step 7 use the world's own imported documents, which the walk puts back by
+   rewriting them from the page.
 
 ## A setting table is a journal page
 

@@ -13,9 +13,9 @@
  */
 import { MODULE_ID } from "./constants.mjs";
 import { isPlaceRole } from "../location/constants.mjs";
-import { bookTextBlock, insertBookTextAfter, keepParagraphs, swapBookText } from "./prose.mjs";
+import { blockDigest, blockSums, bookTextBlock, insertBookTextAfter, keepParagraphs, sumKey, swapBookText } from "./prose.mjs";
 import { heldErratumNotes, marketEntryId } from "./market-profile-binding.mjs";
-import { blockSum, decides, heldEdit } from "./held-edits.mjs";
+import { decides, heldEdit } from "./held-edits.mjs";
 import { handWrittenProse } from "./refresh.mjs";
 
 /** A stamped block's opening tag: notes that carry one hold some row's text. */
@@ -87,6 +87,9 @@ export function takeoverPatch(source, later, earlier) {
   }
   const kept = keepParagraphs(bookTextBlock(sys.notes, earlier.id), earlier.unique ?? []);
   patch["system.notes"] = swapBookText(sys.notes, earlier.id, `${later.notes ?? ""}${kept}`);
+  // The two blocks it wrote are stamped as written, so the earlier id's old sum
+  // does not read the kept block as an edit.
+  for (const [key, sum] of Object.entries(blockSums(`${later.notes ?? ""}${kept}`, "system.notes"))) patch[`flags.${MODULE_ID}.cookbook.sums.${key}`] = sum;
   const stillEarlier = (stored, built) => !stored || stored === (built ?? "");
   if (later.parentUuid && stillEarlier(sys.parentUuid, earlier.parentUuid) && later.parentUuid !== source?.uuid) {
     patch["system.parentUuid"] = later.parentUuid;
@@ -114,6 +117,7 @@ export function bindPatch(target, earlier) {
   if (!answersFor(flag, earlier.id)) patch[`flags.${MODULE_ID}.cookbook.merged`] = [...(flag.merged ?? []), earlier.id];
   if (earlier.notes && !bookTextBlock(sys.notes, earlier.id)) {
     patch["system.notes"] = insertBookTextAfter(sys.notes, flag.id, earlier.notes);
+    for (const [key, sum] of Object.entries(blockSums(earlier.notes, "system.notes"))) patch[`flags.${MODULE_ID}.cookbook.sums.${key}`] = sum;
   }
   if (earlier.parentUuid && !sys.parentUuid && earlier.parentUuid !== target?.uuid) patch["system.parentUuid"] = earlier.parentUuid;
   if (isPlaceRole(earlier.role) && !sys.role) patch["system.role"] = earlier.role;
@@ -133,15 +137,14 @@ export function bindPatch(target, earlier) {
  * one. The id, `merged`, parent, role, roster and every play field are never
  * written.
  *
- * Each block written records its checksum (`blockSum`) in the stamp's
- * `blocks`, the read stamp a later write compares the stored block with. A
- * block that no longer matches its checksum, and a name that is no longer the
+ * Each block written records its digest (`blockDigest`) in the stamp's
+ * `sums`, the read stamp a later write compares the stored block with. A
+ * block that no longer digests to its stamp, and a name that is no longer the
  * printed one, are a Judge's edits: each is reported in `edits` and written
- * only where `decision` takes it (`decides`; none keeps). A block written
- * before its checksum was recorded and differing from the page is held too,
- * marked `unstamped`: nothing tells the Judge's edit from the page's change;
- * one equal to the page is stamped. A missing block is an edit where its
- * checksum is recorded (the Judge took it out), or where the notes hold
+ * only where `decision` takes it (`decides`; none keeps). A block that digests
+ * as the page's reads as unedited whatever markup the editor gave it, and so
+ * does a block with no digest recorded: it is written and stamped.
+ * A missing block is an edit where a stamp is recorded (the Judge took it out), or where the notes hold
  * anything but erratum notes: the Judge's own text, or another row's block,
  * beside which the import writes nothing. Notes empty but for erratum notes
  * take it.
@@ -159,28 +162,28 @@ export function rowBlockPatch(target, row, { decision = null } = {}) {
   const uuid = String(target?.uuid ?? "");
   const update = {};
   const edits = [];
-  const held = (path, current, page, unstamped = false) => {
-    const edit = heldEdit({ uuid, name: target?.name ?? "", path, current, page, cite: row.cite ?? "", unstamped });
+  const held = (path, current, page) => {
+    const edit = heldEdit({ uuid, name: target?.name ?? "", path, current, page, cite: row.cite ?? "" });
     if (decides(decision, edit.key) === "take") return false;
     edits.push(edit);
     return true;
   };
   if (row.notes) {
     const block = bookTextBlock(stored, row.id);
-    const sums = Array.isArray(flag.blocks) ? flag.blocks : [];
-    const sum = sums.find((b) => b?.id === row.id)?.sum;
+    const key = sumKey("system.notes", row.id);
+    const sum = flag.sums?.[key];
+    const page = blockDigest(row.notes);
     // Without a block, what the notes hold besides their erratum notes decides:
     // the Judge's text, or another row's block, which the import never writes beside.
     const beside = block ? "" : heldErratumNotes(stored, claimIds(flag)).rest;
-    const unstamped = !!block && !sum && block !== row.notes;
-    const edited = block
-      ? unstamped || (!!sum && blockSum(block) !== sum && block !== row.notes)
-      : !!sum || handWrittenProse(beside) || BLOCK_MARK.test(beside);
-    if (!(edited && held(`system.notes#${row.id}`, block ?? "", row.notes, unstamped))) {
+    const here = block ? blockDigest(block) : "";
+    // A block with no digest recorded reads as unedited.
+    const unedited = !sum || here === sum || here === page;
+    const edited = block ? !unedited : !!sum || handWrittenProse(beside) || BLOCK_MARK.test(beside);
+    if (!(edited && held(`system.notes#${row.id}`, block ?? "", row.notes))) {
       const notes = block ? swapBookText(stored, row.id, row.notes) : insertBookTextAfter(stored, row.after ?? flag.id, row.notes);
       if (notes !== stored) update["system.notes"] = notes;
-      const next = [...sums.filter((b) => b?.id !== row.id), { id: row.id, sum: blockSum(row.notes) }];
-      if (sum !== blockSum(row.notes)) update[`flags.${MODULE_ID}.cookbook.blocks`] = next;
+      if (sum !== page) update[`flags.${MODULE_ID}.cookbook.sums.${key}`] = page;
     }
   }
   if (row.name && row.id === flag.id && flag.printed !== row.name) {

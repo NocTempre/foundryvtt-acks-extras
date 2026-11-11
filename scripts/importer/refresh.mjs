@@ -13,7 +13,7 @@
  * true})`, `policyFor`) lifts the hand-written prose guard and nothing else.
  */
 import { MODULE_ID } from "./constants.mjs";
-import { stripBookText } from "./prose.mjs";
+import { blockSums, editedInBlocks, stripBookText } from "./prose.mjs";
 import { keepUnrenderedFields } from "../lib/sheet-rows.mjs";
 import { coversFigure, decides, heldEdit } from "./held-edits.mjs";
 
@@ -100,6 +100,41 @@ export const REFILL_STAT_PATHS = Object.freeze([
 const MONSTER_PROSE = ["appearance", "combat", "ecology", "encounterText", "lore", "notes"].map(
   (field) => `extras.description.${field}`,
 );
+
+/** The `system` fields that hold a stamped block of imported text, by their path under `system`. */
+const STAMPED_SYSTEM = ["description", "details.biography", "notes"];
+
+/** The digests of the stamped blocks in the fields of `node` at `paths`, keyed as `blockSums` keys them under `prefix`. */
+function fieldSums(node, paths, prefix) {
+  const out = {};
+  for (const path of paths) {
+    const text = getPath(node, path);
+    if (typeof text === "string") Object.assign(out, blockSums(text, `${prefix}.${path}`));
+  }
+  return out;
+}
+
+/**
+ * Creation data with the digests of the stamped blocks it holds recorded in
+ * its cookbook stamp (`cookbook.sums`), so the first repair or re-import can
+ * tell an edit inside a block from the block as written. The fields are
+ * `system.description`, `system.details.biography`, `system.notes`, a
+ * monster's prose flags and a roll table's `description`. Data with no
+ * cookbook stamp is returned as it came.
+ * @param {object} data a document's creation data
+ * @returns {object} `data`, or a copy carrying the sums
+ */
+export function withBlockSums(data) {
+  const mine = data?.flags?.[MODULE_ID];
+  if (!mine?.cookbook) return data;
+  const sums = {
+    ...fieldSums(data.system, STAMPED_SYSTEM, "system"),
+    ...fieldSums(mine, MONSTER_PROSE, "flags"),
+    ...(typeof data.description === "string" ? blockSums(data.description, "description") : {}),
+  };
+  if (!Object.keys(sums).length) return data;
+  return { ...data, flags: { ...data.flags, [MODULE_ID]: { ...mine, cookbook: { ...mine.cookbook, sums: { ...mine.cookbook.sums, ...sums } } } } };
+}
 
 /**
  * What a repair keeps of each kind's build, and what it replaces beyond
@@ -257,8 +292,12 @@ export function refreshPlan(source, built, policy = {}) {
   const stored = source?.system ?? {};
   const system = structuredClone(built?.system ?? {});
   for (const path of keep) dropPath(system, path.split("."));
+  const sums = source?.flags?.[MODULE_ID]?.cookbook?.sums;
+  // Prose a Judge wrote beside the block, or inside it since the import wrote it.
+  const judged = (have, page, path) => handWrittenProse(have) || (have !== page && editedInBlocks(sums, path, have));
   for (const path of policy.force ? [] : prose) {
-    if (getPath(system, path) === undefined || !handWrittenProse(getPath(stored, path))) continue;
+    const page = getPath(system, path);
+    if (page === undefined || !judged(getPath(stored, path), page, `system.${path}`)) continue;
     dropPath(system, path.split("."));
     keptProse.push(path);
   }
@@ -299,8 +338,8 @@ export function refreshPlan(source, built, policy = {}) {
   if (Object.keys(stamp).length) flagUpdate.cookbook = stamp;
   for (const key of flags) if (mine[key] !== undefined) flagUpdate[key] = structuredClone(mine[key]);
   for (const path of policy.force ? [] : proseFlags) {
-    if (getPath(flagUpdate, path) === undefined) continue;
-    if (!handWrittenProse(getPath(source?.flags?.[MODULE_ID], path))) continue;
+    const page = getPath(flagUpdate, path);
+    if (page === undefined || !judged(getPath(source?.flags?.[MODULE_ID], path), page, `flags.${path}`)) continue;
     dropPath(flagUpdate, path.split("."));
     keptProse.push(`flags.${path}`);
   }
@@ -312,6 +351,10 @@ export function refreshPlan(source, built, policy = {}) {
     if (stored === undefined) continue;
     setPath(flagUpdate, path.split("."), structuredClone(stored));
   }
+  // What the write carries is what the stamp records: a field kept above was
+  // dropped from the payload and keeps the sum of what the import last wrote.
+  const sumsWritten = { ...fieldSums(system, STAMPED_SYSTEM, "system"), ...fieldSums(flagUpdate, MONSTER_PROSE, "flags") };
+  if (Object.keys(sumsWritten).length) flagUpdate.cookbook = { ...(flagUpdate.cookbook ?? {}), sums: sumsWritten };
   if (Object.keys(flagUpdate).length) update.flags = { [MODULE_ID]: flagUpdate };
 
   const kept = new Set(keep);
