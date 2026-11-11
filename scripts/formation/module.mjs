@@ -1391,12 +1391,20 @@ Hooks.on("renderTokenHUD", (hud, html) => {
   (root.querySelector(".col.right") ?? root).appendChild(button);
 });
 
-/* A hand-created Party Formation actor becomes a real formation record. */
+/* A hand-created Party Formation actor becomes a real formation record. The
+ * lead is asked only once the seat election settles: a GM who creates the
+ * actor while their window is still joining is not the lead yet, and no other
+ * window would adopt it. */
 Hooks.on("createActor", (actor) => {
-  if (!isPrimaryGM() || actor.type !== PARTY_TYPE) return;
-  if (actor.getFlag(MODULE_ID, FLAG_FORMATION_ID)) return; // module-created
-  if (Object.values(getFormations()).some((f) => f.actorId === actor.id)) return;
-  adoptPartyActor(actor).catch((err) => console.error(`${MODULE_ID} | party actor adoption failed`, err));
+  if (!game.user?.isGM || actor.type !== PARTY_TYPE) return;
+  primaryGMSettled()
+    .then((lead) => {
+      if (!lead || !game.actors.get(actor.id)) return;
+      if (actor.getFlag(MODULE_ID, FLAG_FORMATION_ID)) return; // module-created
+      if (Object.values(getFormations()).some((f) => f.actorId === actor.id)) return;
+      return adoptPartyActor(actor);
+    })
+    .catch((err) => console.error(`${MODULE_ID} | party actor adoption failed`, err));
 });
 
 /* The country under a journeying party is the map's (`travel.map`), and the

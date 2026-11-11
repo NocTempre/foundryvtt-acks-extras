@@ -5703,6 +5703,35 @@ await scenario("a torch already in hand is lit where it is: no hand emptied, not
   await model.disband(model.getFormation(id));
   await drain();
 }); // held torch
+
+// Last on purpose: the seat election is module-global, and joining it ends the
+// harness's headless lead for every scenario after this one.
+await scenario("a party actor made while the GM window is still joining its seat is adopted once the election settles", async () => {
+  const { joinSeatElection, automationSettled, isLeadClient } = await import("../scripts/lib/automation-client.mjs");
+  const listeners = {};
+  // The server echoes a seat message to every socket of the user, this one's included.
+  game.socket = {
+    connected: true,
+    on: (event, fn) => (listeners[event] ??= []).push(fn),
+    emit: (channel, message) => setTimeout(() => (listeners[channel] ?? []).forEach((fn) => fn(message, game.user.id))),
+  };
+  game.view = "game";
+  globalThis.window ??= { addEventListener() {} };
+  joinSeatElection({ channel: `module.${MODULE_ID}` });
+  assert.equal(isLeadClient(), false, "a window still joining does not lead yet");
+  const partyActor = await ActorMock.create({ name: "Joining Party", type: `${MODULE_ID}.party` });
+  await drain();
+  const adopted = () => Object.values(readFormations()).find((f) => f.actorId === partyActor.id);
+  assert.equal(adopted(), undefined, "nothing adopts it while the seat is joining");
+  await automationSettled();
+  await drain();
+  assert.equal(isLeadClient(), true, "the lone window leads once settled");
+  const record = adopted();
+  assert.ok(record, "the create hook adopts it once the election settles");
+  await model.deleteFormationRecord(record.id);
+  await partyActor.delete();
+  await drain();
+});
 if (failures) {
   console.error(`test-flows: ${failures} scenario(s) FAILED`);
   process.exit(1);
