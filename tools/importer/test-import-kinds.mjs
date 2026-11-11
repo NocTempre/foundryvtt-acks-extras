@@ -87,6 +87,13 @@ const same = (label, a, b) => {
   check("no owner is null", kindOf(kinds, "ghost.1") === null);
   check("a scope of no known shape throws", (() => { try { runSetFor({ x: 1 }, world); return false; } catch { return true; } })());
   check("booksOfKind reads a kind's own books first, else its claims'", booksOfKind({ books: () => ["q"] }).join() === "q" && booksOfKind(kinds[3]).join() === "y");
+  // A kind that is both a book's own rows and named by a book scope: on an
+  // adventure book its claims ride the book's own run alone, never twice.
+  const both = [kind("F", "runF", { own: true, bookSteps: ["stepF"], viaBook: true, chain: "stepF" })];
+  const onAdventure = runSetFor({ book: "x" }, { kinds: both, isAdventureBook: () => true });
+  same("an adventure book's own kind runs under the book's own run only", onAdventure.runs.map((r) => `${r.run}:${r.kinds}`), [`${ADVENTURE_BOOK_RUN}:F`]);
+  const onPlain = runSetFor({ book: "x" }, { kinds: both, isAdventureBook: () => false });
+  same("on a plain book the same kind runs as its own run", onPlain.runs.map((r) => `${r.run}:${r.ids}`), ["runF:F.1"]);
   void books;
 }
 
