@@ -260,3 +260,21 @@ would stop being a formula.
 number-appearing roll until the recipe engine lands. A monster already imported
 keeps the old figures until it is repaired in place; there is nothing to migrate
 from, because the old sides are blank where the page printed a count.
+
+## 2026-11-11 — SIZES keeps a label and a footprint; the unread printed columns go
+
+**Ruled:** `SIZES` entries carry `label` and `footprint` only. The weight
+ceiling, AC modifier, hit-die cap and prose frontage columns are deleted: a
+sweep of `scripts/`, `templates/` and `tools/` found no reader of any of them.
+Every consumer of the table reads `label` (the sheet's choice list and the
+stored-size field) or `footprint` (token sizing), or only the key order (the
+mount overlay's size ladder, the status-effect size comparison).
+
+**Supersedes in part** the 2026-08-19 entry: its premise that the numeric
+footprint restates a column "already shipping" no longer holds for the other
+columns, which no longer ship. The footprint stays because the battlemap reads
+it; it is the one printed figure left in the table, and moving it onto the
+importer is the `acks-printed-value` procedure's case.
+
+**Rejected.** Keeping the columns for a later reader: an unread figure in
+source is the value rule broken with no function performing the rule.

@@ -1,10 +1,21 @@
-/** LOCAL-ONLY: class-builder recipes vs the real JJ PDF. Skips without the ref lib. */
+/**
+ * LOCAL-ONLY: class-builder recipes read from the real JJ PDF. Skips without
+ * the ref lib.
+ *
+ * Asserts the SHAPE of what the recipes read and that independent reads of the
+ * same book agree with each other: ladders are whole and ordered, grids are
+ * the same length, the assembler carries each raw read through unchanged, and
+ * a build paragraph's stated cost equals the sum of its parts priced off the
+ * ladders. No printed figure is asserted here; value-exact checks live in
+ * `tools/rules-tests/` (gitignored, run by `run-tests.mjs` on machines that
+ * hold the book).
+ */
 import assert from "node:assert";
 import fs from "node:fs";
 import { openBook, pageItems } from "../../scripts/importer/extract.mjs";
 import { extractTable, findPage } from "../../scripts/importer/table-extract.mjs";
 import { TABLE_RECIPES } from "../../scripts/importer/table-recipes.mjs";
-import { assembleBuilderTables, parseBuild } from "../../scripts/importer/builder-binding.mjs";
+import { assembleBuilderTables, parseBuild, parseSavesMap, parseSavesPrecedence } from "../../scripts/importer/builder-binding.mjs";
 import { FILES, referenceComplete } from "./reference-lib.mjs";
 
 if (!referenceComplete()) {
@@ -43,80 +54,105 @@ const check = (label, cond) => {
   pass++;
 };
 
-check("basePoints reads 4", raw.basePoints?.basePoints === 4);
+const isInt = (v) => Number.isInteger(v);
+const isPosInt = (v) => Number.isInteger(v) && v > 0;
+const keys = (o) => Object.keys(o ?? {});
+const nondecreasing = (xs) => xs.every((x, i) => i === 0 || x >= xs[i - 1]);
+const increasing = (xs) => xs.every((x, i) => i === 0 || x > xs[i - 1]);
+/** The rung values run 0, 1, 2 … with no gap. */
+const contiguousFromZero = (vals) => vals.every((v, i) => v === i);
 
-check("hd ladder: five rows", Object.keys(raw.hdRaw ?? {}).length === 5);
-check("hd value 2 is a d8 at 1000 XP with +4 MW", raw.hdRaw?.["2"]?.die?.includes("d8") && raw.hdRaw["2"].cost === 1000 && raw.hdRaw["2"].mortalWounds === 4);
-check("hd value 0 is a d4 at 0 XP", raw.hdRaw?.["0"]?.die?.includes("d4") && raw.hdRaw["0"].cost === 0);
+check("every recipe table was found on a page", Object.keys(recipes).every((id) => raw[id] != null));
 
-check("fighting: six rows incl. the 1a/1b split", Object.keys(raw.fightingRaw ?? {}).length === 6);
-check("fighting 2 (Fighter): 1000 XP, full cleaves, damage bonus", raw.fightingRaw?.["2"]?.cost === 1000 && /per level/i.test(raw.fightingRaw["2"].cleaves ?? "") && /per 3/i.test(raw.fightingRaw["2"].damage ?? ""));
-check("fighting 1a: narrow weapons, heavy armour, 500 XP", /narrow/i.test(raw.fightingRaw?.["1a"]?.weapons ?? "") && /heavy/i.test(raw.fightingRaw?.["1a"]?.armor ?? "") && raw.fightingRaw?.["1a"]?.cost === 500);
-check("fighting 0: restricted weapons, no cleaves, 0 XP", /restricted/i.test(raw.fightingRaw?.["0"]?.weapons ?? "") && /none/i.test(raw.fightingRaw?.["0"]?.cleaves ?? "") && raw.fightingRaw?.["0"]?.cost === 0);
-check("fighting attack columns parse as progressions", /\+2 per 3/i.test(raw.fightingRaw?.["2"]?.attack ?? "") && /\+3 per 2/i.test(raw.fightingRaw?.["4"]?.attack ?? ""));
-
-check("thievery 4 = 16 skills at 1000 XP", /16/.test(raw.thieveryRaw?.["4"]?.skills ?? "") && raw.thieveryRaw?.["4"]?.cost === 1000);
-check("thievery 1 = 4 skills at 250 XP", /4/.test(raw.thieveryRaw?.["1"]?.skills ?? "") && raw.thieveryRaw?.["1"]?.cost === 250);
-
-check("divine 2 = 100% at 500 XP", /100/.test(raw.divineRaw?.["2"]?.power ?? "") && raw.divineRaw?.["2"]?.cost === 500);
-check("divine 4 = 150% at 2000 XP", /150/.test(raw.divineRaw?.["4"]?.power ?? "") && raw.divineRaw?.["4"]?.cost === 2000);
-check("arcane 4 = 100% at 2500 XP", /100/.test(raw.arcaneRaw?.["4"]?.power ?? "") && raw.arcaneRaw?.["4"]?.cost === 2500);
-check("arcane 1 = 33% at 625 XP", /33/.test(raw.arcaneRaw?.["1"]?.power ?? "") && raw.arcaneRaw?.["1"]?.cost === 625);
-
-const gridRows = (t) => Object.values(t ?? {}).filter((r) => r && !r.__missing);
-check("divine grids: 14 rows each", [raw.divineSlots1, raw.divineSlots2, raw.divineSlots3, raw.divineSlots4].every((t) => gridRows(t).length === 14));
-check("arcane grids: 14 rows each", [raw.arcaneSlots1, raw.arcaneSlots2, raw.arcaneSlots3, raw.arcaneSlots4].every((t) => gridRows(t).length === 14));
-check("delayed grids: 14 rows each", [raw.arcaneDelayed1, raw.arcaneDelayed2, raw.arcaneDelayed3].every((t) => gridRows(t).length === 14));
-check("arcane 4 grid L1 grants a 1st-level slot", raw.arcaneSlots4?.["1"]?.s1 >= 1);
-check("divine 1 grid L1 grants nothing and lags caster level", raw.divineSlots1?.["1"]?.s1 == null && raw.divineSlots1?.["1"]?.casterLevel === 0);
-check("delayed arcane 1 starts later than plain arcane 1", (raw.arcaneDelayed1?.["2"]?.s1 ?? 0) <= (raw.arcaneSlots1?.["2"]?.s1 ?? 0));
-
-check("saves precedence names the four categories in order", /arcane.*divine.*fighting.*thievery/i.test(raw.savesRule?.precedence ?? ""));
-check("saves mapping ties categories to the four chassis", /fighter.*thief.*crusader.*mage/i.test(raw.savesRule?.mapping ?? ""));
-
-check("post-8 increments: 100k / 120k / 150k", raw.xpRules?.crusaderThief === 100000 && raw.xpRules?.fighter === 120000 && raw.xpRules?.mage === 150000);
-check("smoothing: 7th level to the nearest 5000", raw.smoothing?.level === 7 && raw.smoothing?.nearest === 5000);
-check("post-9 hit points per level read as their own table", Number.isInteger(raw.hpAfterNine?.crusaderMage) && Number.isInteger(raw.hpAfterNine?.fighterThief) && raw.hpAfterNine.fighterThief > raw.hpAfterNine.crusaderMage);
-
-check("the level the post-9 rates begin after reads as an integer, from the same table", Number.isInteger(raw.hpAfterNine?.afterLevel) && raw.hpAfterNine.afterLevel > 1);
-
-check("racial caps: 4→13 … 7→10", raw.racialCaps?.["4"]?.maxLevel === 13 && raw.racialCaps?.["7"]?.maxLevel === 10 && raw.racialCaps?.["6"]?.maxLevel === 11 && raw.racialCaps?.["5"]?.maxLevel === 12);
-
-// The proficiency count is the page's only statement of a class's maximum
-// level: two integers, read apart, whose difference is the cap.
-check("the class list's proficiency count reads as two integers, the total over the typical", Number.isInteger(raw.proficiencyCount?.total) && Number.isInteger(raw.proficiencyCount?.typical) && raw.proficiencyCount.total > raw.proficiencyCount.typical);
-
-check("tradeoffs: ten rows with benefits", Object.values(raw.tradeoffsRaw ?? {}).filter((r) => r.benefit).length === 10);
-check("weapon broad→narrow yields two powers", /2/.test(raw.tradeoffsRaw?.["weapons.broadNarrow"]?.benefit ?? ""));
-check("trade-off XP penalty is a number", Number.isFinite(raw.tradeoffPenalty?.perPower));
-
-check("dwarf ladder: five rungs, 0 at 200 XP, 3 at 900 XP", raw.dwarfRaw?.["0"]?.cost === 200 && raw.dwarfRaw?.["3"]?.cost === 900);
-check("dwarf rules: CON 9, +1 hp after 9th, post-8 10k/30k", raw.dwarfRules?.con === 9 && raw.dwarfRules?.hpAfter9 === 1 && raw.dwarfRules?.post8Fighter === 10000 && raw.dwarfRules?.post8CrusaderThief === 30000);
-check("dwarf 0 powers present on the page", !!raw.dwarfRules?.sensitivityToRockAndStone && !!raw.dwarfRules?.dwarfTongues && !!raw.dwarfRules?.hardy);
-
-check("elf ladder: 0 at 125 XP, 3 at 2000 XP, 4 at 2500 XP", raw.elfRaw?.["0"]?.cost === 125 && raw.elfRaw?.["3"]?.cost === 2000 && raw.elfRaw?.["4"]?.cost === 2500);
-check("elf rules: stacking, 125 XP discount, post-8 50k", !!raw.elfRules?.stacksWithArcane && raw.elfRules?.arcaneDiscount === 125 && raw.elfRules?.post8 === 50000);
-check("elf 0 powers present on the page", !!raw.elfRules?.animalFriendship && !!raw.elfRules?.attunementToNature && !!raw.elfRules?.elfTongues);
-check("race requirements: dwarf CON 9, elf INT 9", raw.raceRequirements?.dwarfCon === 9 && raw.raceRequirements?.elfInt === 9);
-
-check("builds: all twelve classes captured", Object.keys(raw.builds ?? {}).length === 12);
-check("fighter build names HD and Fighting", /hd\s*2.*fighting\s*2|fighting\s*2/i.test(raw.builds?.fighter?.build ?? ""));
-check("spellsword build names Elf 3 and 4,000 XP", /elf 3/i.test(raw.builds?.elvenSpellsword?.build ?? "") && /4,000/.test(raw.builds?.elvenSpellsword?.build ?? ""));
-// Superscript "th" runs interleave ("capped th at 10 level"), so the cap
-// parse never assumes adjacency — the binding uses this same tolerance.
-check("craftpriest build is capped at 10th", /capped[^.]*?\b10\b[^.]*?level/i.test(raw.builds?.dwarvenCraftpriest?.build ?? ""));
-
-/* --------------- assembly (the engine-shaped doc) --------------- */
+/* --------------- raw reads: shape and agreement --------------- */
 
 const asm = assembleBuilderTables(raw);
 
-check("budget assembles points, precedence, smoothing, post-8, caps, trade-in", asm.budget.basePoints === 4 && asm.budget.savesPrecedence[0] === "arcane" && asm.budget.smoothing.level === 7 && asm.budget.postEight.mage === 150000 && asm.budget.racialCaps.some((r) => r.points === 7 && r.maxLevel === 10) && asm.budget.tradeInXp === 250);
-check("budget assembles the post-9 hit-point rates, keyed as the book pairs them", Number.isInteger(asm.budget.hpAfterNine?.crusaderMage) && Number.isInteger(asm.budget.hpAfterNine?.fighterThief));
+check("basePoints reads one positive integer, and the budget carries it", isPosInt(raw.basePoints?.basePoints) && asm.budget.basePoints === raw.basePoints.basePoints);
+
+// A ladder: its rungs run without a gap, the XP column rises with the rung,
+// and assembly neither drops nor invents a rung.
+check("hd ladder assembles every raw rung, whole and ordered", asm.hd.length === keys(raw.hdRaw).length && contiguousFromZero(asm.hd.map((r) => r.value)) && increasing(asm.hd.map((r) => r.cost)));
+check("hd dice read as one die each, growing with the rung, with mortal wounds that never shrink", asm.hd.every((r) => /^d\d+$/.test(r.die)) && increasing(asm.hd.map((r) => Number(r.die.slice(1)))) && nondecreasing(asm.hd.map((r) => r.mortalWounds)) && asm.hd.every((r) => isInt(r.mortalWounds)));
+
+check("fighting assembles every raw row", asm.fighting.length === keys(raw.fightingRaw).length);
+const fightingValues = [...new Set(asm.fighting.map((r) => r.value))];
+check("fighting rungs run without a gap and the XP column never falls", contiguousFromZero(fightingValues) && nondecreasing(asm.fighting.map((r) => r.cost)));
+check("only one fighting rung is split into lettered sub-rows, and both halves share a cost", (() => {
+  const split = fightingValues.filter((v) => asm.fighting.filter((r) => r.value === v).length > 1);
+  if (split.length !== 1) return false;
+  const halves = asm.fighting.filter((r) => r.value === split[0]);
+  return halves.every((r) => r.sub !== "") && new Set(halves.map((r) => r.cost)).size === 1;
+})());
+check("every fighting row reads a cleave class and well-formed progressions", asm.fighting.every((r) => ["none", "half", "full"].includes(r.cleaves) && (r.attack === null || (isPosInt(r.attack.step) && isPosInt(r.attack.every))) && (r.damage === null || (isPosInt(r.damage.step) && isPosInt(r.damage.every)))));
+check("a fighting row names a chassis only from the four the saves rule maps to", asm.fighting.every((r) => r.attackAs === "" || ["fighter", "thief", "crusader", "mage"].includes(r.attackAs)));
+check("a row with no chassis still carries attack parameters", asm.fighting.filter((r) => r.attackAs === "").every((r) => r.attack !== null));
+
+check("thievery assembles every raw rung, whole, with skills that never shrink", asm.thievery.length === keys(raw.thieveryRaw).length && contiguousFromZero(asm.thievery.map((r) => r.value)) && increasing(asm.thievery.map((r) => r.cost)) && nondecreasing(asm.thievery.map((r) => r.skills)));
+
+const magic = asm.magicTypes;
+check("both caster types assemble every raw rung, whole, with a rising cost and a power fraction that never falls", [["divine", raw.divineRaw], ["arcane", raw.arcaneRaw]].every(([t, rawRungs]) => {
+  const vals = magic[t]?.values ?? [];
+  return vals.length === keys(rawRungs).length && contiguousFromZero(vals.map((v) => v.value)) && increasing(vals.map((v) => v.cost)) && nondecreasing(vals.filter((v) => v.fraction !== null).map((v) => v.fraction));
+}));
+
+// Every grid is read from its own page block, so the grids are held to each
+// other: one length, a level column that counts up from one, and columns that
+// only ever grow down the levels.
+const gridsOf = (type) => magic[type].values.flatMap((v) => [v.slots, v.delayedSlots].filter(Boolean));
+const allGrids = [...gridsOf("divine"), ...gridsOf("arcane")];
+const SLOT_COLS = ["s1", "s2", "s3", "s4", "s5", "s6"];
+check("every caster rung past the first carries a grid, and the first carries none", ["divine", "arcane"].every((t) => magic[t].values.every((v, i) => (i === 0) === !v.slots)));
+check("every grid is read at one length, each row count agreeing with the raw block", allGrids.length > 0 && new Set(allGrids.map((g) => g.length)).size === 1 && allGrids[0].length === keys(raw.arcaneSlots4).length);
+check("every grid's level column counts up from one", allGrids.every((g) => g.every((r, i) => r.atLevel === i + 1)));
+check("every grid's slot columns and caster level never fall down the levels", allGrids.every((g) => [...SLOT_COLS, "casterLevel"].every((c) => nondecreasing(g.map((r) => r[c] ?? 0)))));
+check("a caster level never passes the character level", allGrids.every((g) => g.every((r) => r.casterLevel === null || r.casterLevel <= r.atLevel)));
+check("a delayed grid starts granting slots no earlier than its plain grid", magic.arcane.values.filter((v) => v.delayedSlots).every((v) => {
+  const first = (g) => g.findIndex((r) => SLOT_COLS.some((c) => r[c] > 0));
+  return first(v.delayedSlots) === -1 || first(v.slots) === -1 || first(v.delayedSlots) >= first(v.slots);
+}));
+check("each raw delayed grid reaches the assembly on a rung of its own", magic.arcane.values.filter((v) => v.delayedSlots).length === [raw.arcaneDelayed1, raw.arcaneDelayed2, raw.arcaneDelayed3].filter((g) => keys(g).length).length);
+
+// The saves rule is printed twice over, as a precedence and as a mapping.
+const precedence = parseSavesPrecedence(raw.savesRule?.precedence);
+const savesMap = parseSavesMap(raw.savesRule?.mapping);
+check("the saves precedence names each category once, and the mapping names the same categories", precedence.length === new Set(precedence).size && [...precedence].sort().join() === keys(savesMap).sort().join());
+check("the mapping gives every category a different chassis", new Set(Object.values(savesMap)).size === keys(savesMap).length);
+check("the budget carries the precedence as read, and each caster type its mapped chassis", asm.budget.savesPrecedence.join() === precedence.join() && magic.divine.savesAs === savesMap.divine && magic.arcane.savesAs === savesMap.arcane);
+
+check("post-8 increments read as three positive integers, carried unchanged", [raw.xpRules?.crusaderThief, raw.xpRules?.fighter, raw.xpRules?.mage].every(isPosInt) && asm.budget.postEight.mage === raw.xpRules.mage && asm.budget.postEight.fighter === raw.xpRules.fighter && asm.budget.postEight.crusaderThief === raw.xpRules.crusaderThief);
+check("smoothing reads a level and a rounding step, both positive integers", isPosInt(raw.smoothing?.level) && isPosInt(raw.smoothing?.nearest) && asm.budget.smoothing.level === raw.smoothing.level && asm.budget.smoothing.nearest === raw.smoothing.nearest);
+check("post-9 hit points per level read as their own table", isInt(raw.hpAfterNine?.crusaderMage) && isInt(raw.hpAfterNine?.fighterThief) && raw.hpAfterNine.fighterThief > raw.hpAfterNine.crusaderMage);
+check("the level the post-9 rates begin after reads as an integer, from the same table", isInt(raw.hpAfterNine?.afterLevel) && raw.hpAfterNine.afterLevel > 1);
+check("the post-9 level falls inside the grids' level range", raw.hpAfterNine.afterLevel < allGrids[0].length);
+
+// The proficiency count is the page's only statement of a class's maximum
+// level: two integers, read apart, whose difference is the cap.
+check("the class list's proficiency count reads as two integers, the total over the typical", isInt(raw.proficiencyCount?.total) && isInt(raw.proficiencyCount?.typical) && raw.proficiencyCount.total > raw.proficiencyCount.typical);
+
+const caps = asm.budget.racialCaps;
+check("racial caps assemble every raw row, on consecutive point totals, with a maximum level that never rises with the points", caps.length === keys(raw.racialCaps).length && caps.every((c, i) => i === 0 || c.points === caps[i - 1].points + 1) && caps.every((c, i) => i === 0 || c.maxLevel <= caps[i - 1].maxLevel));
+check("the human maximum level is at least every racial one", asm.budget.humanMaxLevel >= Math.max(...caps.map((c) => c.maxLevel)));
+
+check("tradeoffs assemble every raw row, each with a benefit", asm.tradeoffs.length === keys(raw.tradeoffsRaw).length && asm.tradeoffs.every((t) => isPosInt(t.powersGained)));
+check("trade-off XP penalty reads as a positive integer", isPosInt(raw.tradeoffPenalty?.perPower) && asm.budget.tradeInXp === raw.tradeoffPenalty.perPower);
+check("only weapon narrowing is priced, at the penalty per power gained", asm.tradeoffs.every((t) => (t.key.startsWith("weapons.") ? t.xpDelta === asm.budget.tradeInXp * t.powersGained && t.xpDeltaMinFighting >= 1 : t.xpDelta === 0 && t.xpDeltaMinFighting === 0)) && asm.tradeoffs.some((t) => t.xpDelta > 0));
+
+/* --------------- races --------------- */
+
+const races = Object.values(asm.races);
+check("both race ladders assemble every raw rung, whole, with a rising cost", races.length === 2 && [[asm.races.dwarf, raw.dwarfRaw], [asm.races.elf, raw.elfRaw]].every(([r, rawRungs]) => r.values.length === keys(rawRungs).length && contiguousFromZero(r.values.map((v) => v.value)) && increasing(r.values.map((v) => v.xpCost))));
+check("only the first rung of a race grants base powers, each gated on the page printing it", races.every((r) => r.values[0].powerNames.length > 0 && r.values.slice(1).every((v) => v.powerNames.length === 0)));
+check("each race's attribute floor is read twice and the two reads agree", raw.raceRequirements?.dwarfCon === raw.dwarfRules?.con && asm.races.dwarf.minimumAttributes[0]?.min === raw.dwarfRules.con && asm.races.elf.minimumAttributes[0]?.min === raw.raceRequirements?.elfInt && isPosInt(raw.raceRequirements.elfInt) && asm.races.dwarf.minimumAttributes[0].attr !== asm.races.elf.minimumAttributes[0].attr);
+check("every race's post-8 increment is a positive integer", races.every((r) => r.postEight.length > 0 && r.postEight.every((p) => isPosInt(p.delta))));
+check("the stacking discount is carried only for the race that stacks", !!raw.elfRules?.stacksWithArcane && asm.races.elf.stacksWith === "arcane" && isPosInt(asm.races.elf.stackXpDiscount) && asm.races.dwarf.stacksWith === "");
+
+check("budget assembles the post-9 hit-point rates, keyed as the book pairs them", isInt(asm.budget.hpAfterNine?.crusaderMage) && isInt(asm.budget.hpAfterNine?.fighterThief));
 check("budget assembles the last die level beside the rates", asm.budget.hpAfterNine?.afterLevel === raw.hpAfterNine.afterLevel);
 check("a missing last die level costs only itself", (() => {
   const lost = assembleBuilderTables({ ...raw, hpAfterNine: { ...raw.hpAfterNine, afterLevel: null } }).budget.hpAfterNine;
   const rates = assembleBuilderTables({ ...raw, hpAfterNine: { afterLevel: raw.hpAfterNine.afterLevel } }).budget.hpAfterNine;
-  return lost.afterLevel === undefined && Number.isInteger(lost.crusaderMage) && Number.isInteger(lost.fighterThief)
+  return lost.afterLevel === undefined && isInt(lost.crusaderMage) && isInt(lost.fighterThief)
     && rates.afterLevel === raw.hpAfterNine.afterLevel && rates.crusaderMage === undefined;
 })());
 check("budget assembles the human maximum level as the total less the typical count", asm.budget.humanMaxLevel === raw.proficiencyCount.total - raw.proficiencyCount.typical && asm.budget.humanMaxLevel >= 1);
@@ -127,30 +163,43 @@ check("a half-read count assembles no human maximum level, and nothing else chan
   const inverted = assembleBuilderTables({ ...raw, proficiencyCount: { total: 3, typical: 9 } }).budget;
   return [total, typical, none, inverted].every((b) => b.humanMaxLevel === undefined && b.racialCaps?.length > 0 && b.basePoints === asm.budget.basePoints);
 })());
-check("races: the dwarf's post-9 hit points survive assembly", Number.isInteger(asm.races.dwarf.hpAfter9) && asm.races.dwarf.hpAfter9 === raw.dwarfRules.hpAfter9);
+check("races: the dwarf's post-9 hit points survive assembly", isInt(asm.races.dwarf.hpAfter9) && asm.races.dwarf.hpAfter9 === raw.dwarfRules.hpAfter9);
 check("races: the elf prints no post-9 hit points, and assembly says so", asm.races.elf.hpAfter9 === null);
-check("hd rows assemble with clean dice", asm.hd.find((r) => r.value === 4)?.die === "d12" && asm.hd.find((r) => r.value === 1)?.mortalWounds === 2);
-const f2 = asm.fighting.find((r) => r.value === 2);
-const f1a = asm.fighting.find((r) => r.value === 1 && r.sub === "a");
-check("fighting rows carry chassis, progressions, cleaves", f2?.attackAs === "fighter" && f2?.attack?.every === 3 && f2?.damage?.step === 1 && f2?.cleaves === "full" && f1a?.attackAs === "crusader" && f1a?.cleaves === "half");
-const hero = asm.fighting.find((r) => r.value === 4);
-check("hero row has params but no chassis", hero?.attackAs === "" && hero?.attack?.step === 3 && hero?.attack?.every === 2);
-check("magicTypes: divine saves as crusader with per-value grids", asm.magicTypes.divine.savesAs === "crusader" && asm.magicTypes.divine.values.find((v) => v.value === 2)?.slots?.length === 14 && asm.magicTypes.divine.values.find((v) => v.value === 2)?.fraction === 1);
-const a1 = asm.magicTypes.arcane.values.find((v) => v.value === 1);
-check("magicTypes: arcane 1 carries plain and delayed grids", a1?.slots?.length === 14 && a1?.delayedSlots?.length === 14 && a1?.fraction === 0.33);
-check("tradeoffs: weapon narrowing prices 250/power at fighting 2+", asm.tradeoffs.find((t) => t.key === "weapons.broadNarrow")?.xpDelta === 500 && asm.tradeoffs.find((t) => t.key === "weapons.broadNarrow")?.xpDeltaMinFighting === 2 && asm.tradeoffs.find((t) => t.key === "armor.heavyMedium")?.xpDelta === 0);
-check("races: dwarf ladder with base powers and post-8 tiers", asm.races.dwarf.values.find((r) => r.value === 0)?.powerNames.length === 3 && asm.races.dwarf.postEight.some((p) => p.chassis === "fighter" && p.delta === 10000) && asm.races.dwarf.minimumAttributes[0].min === 9);
-check("races: elf stacks with arcane at a 125 XP discount", asm.races.elf.stacksWith === "arcane" && asm.races.elf.stackXpDiscount === 125 && asm.races.elf.postEight[0].delta === 50000);
 
-/* --------------- Ready-for-Play build parsing --------------- */
+/* --------------- Printed class builds: parse, then price against the ladders --------------- */
 
-const spellsword = parseBuild(raw.builds.elvenSpellsword.build);
-check("spellsword parses HD1 F2 Arcane1 Elf3 at 4000 XP, mage saves? no — fighter", spellsword.hdValue === 1 && spellsword.fighting.value === 2 && spellsword.magic.some((m) => m.type === "arcane" && m.value === 1) && spellsword.race?.key === "elf" && spellsword.race?.value === 3 && spellsword.xp === 4000 && spellsword.cap === 10);
-const craftpriest = parseBuild(raw.builds.dwarvenCraftpriest.build);
-check("craftpriest parses HD1 F1a Divine2 Dwarf3, crusader saves, cap 10", craftpriest.fighting.sub === "a" && craftpriest.magic.some((m) => m.type === "divine" && m.value === 2) && craftpriest.race?.key === "dwarf" && craftpriest.savesAs === "crusader" && craftpriest.cap === 10);
-const nightblade = parseBuild(raw.builds.elvenNightblade.build);
-check("nightblade reads 'Thief 2' as thievery and stops at the next runin", nightblade.thievery === 2 && nightblade.race?.key === "elf" && !/spellsword:/.test(nightblade.notes));
-const bard = parseBuild(raw.builds.bard.build);
-check("bard has no HD token and records the traded final XP", bard.hdValue === undefined && bard.thievery === 2 && bard.finalXp === 1750);
+check("one build paragraph is read per class the recipe declares", keys(raw.builds).length === recipes.builds.valueBlocks.length && keys(raw.builds).every((k) => typeof raw.builds[k].build === "string" && raw.builds[k].build.length > 0));
+
+const parsed = Object.fromEntries(keys(raw.builds).map((k) => [k, parseBuild(raw.builds[k].build)]));
+const builds = Object.values(parsed);
+check("every build parses at least one category", builds.every((b) => b.hdValue !== undefined || b.fighting || b.thievery !== undefined || b.magic.length > 0));
+
+const rung = (rows, value) => rows.find((r) => r.value === value);
+/** What a parsed build costs, its parts priced off the assembled ladders. */
+const priceOf = (b) => {
+  let total = 0;
+  if (b.hdValue !== undefined) total += rung(asm.hd, b.hdValue).cost;
+  if (b.fighting) total += asm.fighting.find((r) => r.value === b.fighting.value && r.sub === b.fighting.sub).cost;
+  if (b.thievery !== undefined) total += rung(asm.thievery, b.thievery).cost;
+  for (const m of b.magic) total += rung(magic[m.type].values, m.value).cost;
+  if (b.race) {
+    const race = asm.races[b.race.key];
+    total += rung(race.values, b.race.value).xpCost;
+    if (race.stacksWith && b.magic.some((m) => m.type === race.stacksWith)) total -= race.stackXpDiscount;
+  }
+  return total;
+};
+const priced = builds.filter((b) => b.xp !== undefined);
+check("most builds state a cost", priced.length >= Math.ceil(builds.length / 2));
+check("every stated build cost equals its parts priced off the ladders", priced.every((b) => priceOf(b) === b.xp));
+
+/** The racial-cap row a build lands on is read from its rung values summed. */
+const pointsOf = (b) => (b.hdValue ?? 0) + (b.fighting?.value ?? 0) + (b.thievery ?? 0) + b.magic.reduce((n, m) => n + m.value, 0) + (b.race?.value ?? 0);
+const capped = builds.filter((b) => b.cap !== undefined);
+check("a capped build is always a racial one", capped.length > 0 && capped.every((b) => b.race));
+check("every build's printed cap equals the racial cap row its rung values total to", capped.every((b) => caps.find((c) => c.points === pointsOf(b))?.maxLevel === b.cap));
+
+check("a build's traded final cost, where printed, is an integer apart from the base cost", builds.filter((b) => b.finalXp !== undefined).every((b) => isInt(b.finalXp)) && builds.some((b) => b.finalXp !== undefined && b.xp !== undefined && b.finalXp !== b.xp));
+check("a build is cut at the next class's runin, so its notes state one cost at most", builds.every((b) => (b.notes.match(/yields an? [\d,]+\s*xp cost/g) ?? []).length <= 1));
 
 console.log(`test-class-builder-tables: ${pass} checks passed.`);
