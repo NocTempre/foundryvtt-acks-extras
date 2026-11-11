@@ -479,10 +479,31 @@ a world that has read no book gets 1, which is the arithmetic of no floor. It
 reaches the first die only.
 
 **Every level after rerolls the whole Hit Dice** and keeps at least one point
-more than the level before. Past 9th the table stops adding dice and prints a
-flat instead, which takes no Constitution. An imported class carries that flat
-in its printed cell; a class built through the builder has it computed from the
-imported per-level rate (see *Advanced mode*).
+more than the level before. The cell for a level is `hdAt`, read from the
+class's own level rows. Where the class's rows stop adding dice, the cell
+prints a flat instead, which takes no Constitution; that level is derived, not
+held: `lastDieLevel` is the last level whose row prints more dice than the rows
+before it. An imported class carries the flat in its printed cell; a class
+built through the builder has it computed from the imported per-level rate (see
+*Advanced mode*). A level whose row prints no cell takes one die per level up
+to `lastDieLevel`, in the size that row prints. A class printing no cell at all
+answers null: the wizard says the hit dice are not set and adds the one-point
+minimum, the picker leaves hit points as they stand, and the sheet's roll falls
+to the system's own.
+
+**The old maximum is the stored one.** The prepared `system.hp.max` carries
+whatever effects and modifiers add, and a climb or an apply that read it and
+wrote the result back would compound them at every write. `storedMaxHp` reads
+the document's source.
+
+**The wizard rolls once per character and level.** The roll is kept on the
+character (`flags["acks-extras"].classes.levelUpRoll`: level, mode, hit dice,
+Constitution modifier, formula and totals) and answers every later open for the
+same target level, so cancelling and reopening is not a second draw. A record
+that differs in level, mode, hit dice or Constitution is replaced by a fresh
+roll. It is cleared when the wizard applies the level and by
+`guardLevelWrite` whenever the held level moves. The class picker's rebuild
+rolls afresh and keeps no record.
 
 **The character sheet's hit dice roll rebuilds the total** (`levelup.mjs`
 `rerollHitPoints`, the arithmetic `rollFullHitPoints`). A character holding a
@@ -543,8 +564,8 @@ when it holds any.
 [scripts/classes/levelup.mjs](../../scripts/classes/levelup.mjs) watches XP
 cross the class document's next-level threshold and notifies — never applies.
 The wizard rolls HP per the world setting (RAW default: reroll the full Hit
-Dice, Constitution per die and never on the printed flat bonus past 9th,
-minimum one over the old maximum), lists the new level's fixed awards, opens
+Dice, Constitution per die and never on the printed flat bonus, minimum one
+over the old maximum; see *Hit points*), lists the new level's fixed awards, opens
 a rung control per choice award ([picks.mjs](../../scripts/classes/picks.mjs)),
 then applies the class row for the new level, and only once that lands grants
 the abilities, writes HP with the maximum on each side of the climb
@@ -626,6 +647,9 @@ the rest of it: a reset beside everything rollable, a class chosen once the
 scores are known and before the template is rolled, the template die read
 against that class under the printed at-or-below rule, whatever level-1 choice
 the template does not itself answer, and the Intellect bonus general picks.
+The count of those picks is the system's own Intellect modifier, never below
+zero (`chargen.mjs` `intBonusPicks`): a character's prepared modifier where an
+actor is in hand, else the system's modifier for the score being generated.
 All of it rebuilds on every change, because all of it is downstream of the
 scores — but only when the markup actually differs, so nothing flickers and
 nothing loses focus. Picks are read at submit and applied at close: close is

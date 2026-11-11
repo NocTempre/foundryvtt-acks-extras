@@ -30,6 +30,23 @@
 
 ### Fixed
 
+- **The level-up wizard keeps its hit-point roll.** Closing the level-up wizard
+  (the character sheet's class field → rising arrow) and opening it again rolled
+  the hit points again. It now shows the same roll until the level is applied or
+  changes, even after a reload. Its old maximum is the one stored on the
+  character, so an effect that raises maximum hit points is no longer written
+  into it, and the class picker (the class field → graduation cap) does the same
+  when a character leaves 0th level.
+- **A class with no hit dice rolls none.** Where a class's level table had no
+  hit-dice cell for a level, the level-up wizard and the class picker (the
+  character sheet's class field → rising arrow / graduation cap) rolled a guessed
+  die. A level missing from a filled table now takes the dice the class's own
+  rows print, and a class with no hit dice at all rolls nothing: the wizard says
+  so, and the picker warns and leaves the hit points as they are.
+- **Intellect bonus proficiencies follow the system's modifier.** The bonus
+  general proficiencies the class picker counts (the character sheet's class
+  field → graduation cap) are the character's Intellect modifier as the system
+  computes it, so the two can no longer disagree.
 - **A token light the sync could not see.** A token whose displayed light differed
   from its stored light by preparation alone was taken for already written, or for
   a light you had edited by hand, and so was skipped or released. The sync now

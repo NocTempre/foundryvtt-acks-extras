@@ -19,7 +19,7 @@ import { managedDelete } from "../lib/managed-effects.mjs";
 import { pathGroups, pathTrainingChanges, unansweredGroups, actorPaths } from "./paths.mjs";
 import { planTrainingSync } from "./training-logic.mjs";
 import { saveBandAt, attackBandAt, resolveLevelValue, findByRef } from "./registry.mjs";
-import { normalizeHd, rebuildHitPoints, xpForLevel } from "./hitpoints.mjs";
+import { normalizeHd, rebuildHitPoints, storedMaxHp, xpForLevel } from "./hitpoints.mjs";
 import { grantLanguages } from "./languages.mjs";
 import { adventuringDoc, awardsThrough, grantAbility, grantAdventuring, ownsRef, refOf, rungProficiencyType } from "./grants.mjs";
 import { closesRung, grantsFrom, readRungs, rungLabel, rungOptions, rungSelectHtml } from "./picks.mjs";
@@ -334,13 +334,19 @@ export async function applyClass(
   // hit dice of its own. The level-up wizard never does — it has already
   // rolled the one die it means to add.
   let hpSteps = null;
-  if (rebuildVitals) {
-    const built = await rebuildHitPoints(actor, classItem, clamped);
+  const built = rebuildVitals ? await rebuildHitPoints(actor, classItem, clamped) : null;
+  if (rebuildVitals && !built) {
+    // A class printing no hit dice has nothing to roll: the hit points stand.
+    ui.notifications?.warn(game.i18n.format(`${LANG_PREFIX}.apply.noHd`, { name: classItem.name }));
+  }
+  if (built) {
     hpSteps = built.steps;
     if (fromZero) {
       // Leaving 0th level keeps the higher of the new total and one over the
-      // old maximum (RR ch. 6; JJ ch. 9), and wounds carried stay carried.
-      const oldMax = Number(actor.system?.hp?.max) || 0;
+      // old maximum (RR ch. 6; JJ ch. 9), and wounds carried stay carried. The
+      // old maximum is the stored one: the prepared figure carries effects and
+      // modifiers that must not be written back as the base.
+      const oldMax = storedMaxHp(actor);
       const max = Math.max(built.max, oldMax + 1);
       update["system.hp.max"] = max;
       update["system.hp.value"] = Math.min(max, (Number(actor.system?.hp?.value) || 0) + max - oldMax);

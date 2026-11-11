@@ -5,9 +5,10 @@
  *
  * HP follows the user-confirmed RAW: reroll the FULL Hit Dice for the new
  * level (Constitution applying per die, never to the printed flat bonus past
- * 9th) and keep at least one point over the old maximum. The additive house
- * rule (one new die, or the flat delta past 9th) is a world setting, never
- * the default.
+ * the class's last die level) and keep at least one point over the old
+ * maximum. The additive house rule (one new die, or the flat delta past that
+ * level) is a world setting, never the default. The roll is made once per
+ * level climbed (`levelUpHitPoints`).
  *
  * Awards for the new level come off the class document's ladder: fixed
  * grants materialize as owned ability items (deduped by cookbook ref);
@@ -32,12 +33,12 @@
 import { MODULE_ID, LANG_PREFIX, FLAG_CLASSES } from "./constants.mjs";
 import { classForActor, classForActorAsync, findByRef } from "./registry.mjs";
 import { applyClass, classUpdateData, XP_PATH } from "./apply.mjs";
-import { normalizeHd, parseHd, rollFullHitPoints, rollHitDice, xpForLevel } from "./hitpoints.mjs";
+import { hdAt, lastDieLevel, parseHd, rollFullHitPoints, rollHitDice, storedMaxHp, xpForLevel } from "./hitpoints.mjs";
 import { awardKeyLevel, awardsAt, grantAbility, rungProficiencyType } from "./grants.mjs";
 import { closesRung, grantsFrom, readRungs, rungLabel, rungOptions, rungSelectHtml } from "./picks.mjs";
 import { isZeroLevel, readyForFirst, zeroLevelXp } from "./zero-level.mjs";
 import { ACTOR_TYPE } from "../lib/vocab.mjs";
-import { elementOf } from "../lib/util.mjs";
+import { elementOf, unset } from "../lib/util.mjs";
 import { earnsExperience } from "../lib/actor-read.mjs";
 
 export const HP_MODE_SETTING = "levelUpHpMode";
@@ -84,6 +85,60 @@ const levelOf = (actor) => Math.max(1, Number(actor.system?.details?.level) || 1
 /** Characters whose wizard is open on this client — one at a time each. */
 const climbing = new Set();
 
+/** The key, under the classes flag, of the hit-point roll kept for the climb in progress. */
+const ROLL_KEY = "levelUpRoll";
+
+/**
+ * The hit points a climb to `next` offers, and the dice behind them.
+ *
+ * The dice are rolled once per (character, target level): the roll is kept on
+ * the character and answers every later open of the wizard, so cancelling and
+ * reopening cannot fish for a better one. A kept roll counts only for the
+ * level, the mode, the hit dice and the Constitution modifier it was rolled
+ * under; a record that differs in any of them is replaced by a fresh roll. The
+ * record is cleared when the level is applied or moves
+ * (`runLevelUp`, `guardLevelWrite`). The old maximum is the stored one, never
+ * the prepared figure (`storedMaxHp`).
+ *
+ * @returns {Promise<{oldMax: number, newMax: number, conMod: number,
+ *   roll: {formula: string, total: number}|null, missingHd: boolean}>}
+ *   `roll` is null where nothing was rolled; `missingHd` is set where the class
+ *   prints no hit dice, so none were
+ */
+export async function levelUpHitPoints(actor, classItem, next, mode) {
+  const hd = hdAt(classItem, next);
+  const conMod = Number(actor.system?.scores?.con?.mod) || 0;
+  const oldMax = storedMaxHp(actor);
+  if (!hd) return { oldMax, newMax: oldMax + 1, conMod, roll: null, missingHd: true };
+
+  const additive = mode === "additive";
+  // Past the class's last die level the additive rule adds the printed flat's
+  // rise and rolls nothing.
+  if (additive && next > (lastDieLevel(classItem) ?? next)) {
+    const prev = hdAt(classItem, next - 1);
+    return { oldMax, newMax: oldMax + Math.max(1, hd.flat - (prev?.flat ?? 0)), conMod, roll: null, missingHd: false };
+  }
+
+  const stamp = { level: next, mode: additive ? "additive" : "full", hd: `${hd.dice}d${hd.sides}`, con: conMod };
+  const held = actor.getFlag(MODULE_ID, FLAG_CLASSES)?.[ROLL_KEY];
+  let kept = held && Object.entries(stamp).every(([key, value]) => held[key] === value) ? held : null;
+  if (!kept) {
+    if (additive) {
+      const roll = await new Roll(`1d${hd.sides}`).evaluate();
+      kept = { ...stamp, formula: roll.formula, dice: roll.total, total: roll.total };
+    } else {
+      // Constitution applies to each die and cannot take any of them below one
+      // (hitpoints.mjs) — the same arithmetic the picker's rebuild uses, so a
+      // character built at 5th and one levelled to 5th are rolled alike.
+      const rolled = await rollHitDice(hd, conMod);
+      kept = { ...stamp, formula: rolled.roll.formula, dice: rolled.roll.total, total: rolled.total };
+    }
+    await actor.update({ [`flags.${MODULE_ID}.${FLAG_CLASSES}.${ROLL_KEY}`]: kept });
+  }
+  const newMax = additive ? oldMax + Math.max(1, kept.total + conMod) : Math.max(kept.total, oldMax + 1);
+  return { oldMax, newMax, conMod, roll: { formula: kept.formula, total: kept.dice }, missingHd: false };
+}
+
 /**
  * Run the level-up wizard for one character. Rolls HP up front so the dialog
  * SHOWS the roll it will apply; nothing writes until the wizard confirms. A
@@ -125,32 +180,8 @@ async function runLevelUp(actor) {
     ui.notifications?.info(game.i18n.format(`${LANG_PREFIX}.levelup.atCap`, { name: actor.name, max: sys.maximumLevel }));
     return;
   }
-  const nextRow = sys.levelRow(next);
-  const hd = parseHd(normalizeHd(nextRow?.hd)) ?? parseHd(`${Math.min(next, 9)}d${(sys.hitDie.match(/d(\d+)/) ?? [])[1] ?? 8}`);
-  const conMod = Number(actor.system?.scores?.con?.mod) || 0;
-  const oldMax = Number(actor.system?.hp?.max) || 0;
   const mode = game.settings.get(MODULE_ID, HP_MODE_SETTING);
-
-  let hpRoll = null;
-  let newMax;
-  if (mode === "additive" && hd) {
-    const prevHd = parseHd(normalizeHd(sys.levelRow(level)?.hd));
-    if (next <= 9) {
-      hpRoll = await new Roll(`1d${hd.sides}`).evaluate();
-      newMax = oldMax + Math.max(1, hpRoll.total + conMod);
-    } else {
-      newMax = oldMax + Math.max(1, hd.flat - (prevHd?.flat ?? 0));
-    }
-  } else if (hd) {
-    // Constitution applies to each die and cannot take any of them below one
-    // (hitpoints.mjs) — the same arithmetic the picker's rebuild uses, so a
-    // character built at 5th and one levelled to 5th are rolled alike.
-    const rolled = await rollHitDice(hd, conMod);
-    hpRoll = rolled.roll;
-    newMax = Math.max(rolled.total, oldMax + 1);
-  } else {
-    newMax = oldMax + 1;
-  }
+  const { oldMax, newMax, conMod, roll: hpRoll, missingHd } = await levelUpHitPoints(actor, classItem, next, mode);
 
   // The rung this level climbs, carrying the keys the picker remembers rungs
   // by — so a question answered here is one the picker does not ask again.
@@ -179,6 +210,7 @@ async function runLevelUp(actor) {
     <p><strong>${game.i18n.localize(`${LANG_PREFIX}.levelup.hp`)}:</strong> ${oldMax} → ${newMax}${
       hpRoll ? ` <span class="acks-extras-classes-refname">(${hpRoll.formula}: ${hpRoll.total}${conMod ? `, CON ${conMod > 0 ? "+" : ""}${conMod}/die` : ""})</span>` : ""
     }</p>
+    ${missingHd ? `<p class="hint">${game.i18n.localize(`${LANG_PREFIX}.levelup.noHd`)}</p>` : ""}
     ${fixedList ? `<p><strong>${game.i18n.localize(`${LANG_PREFIX}.levelup.granted`)}:</strong></p><ul>${fixedList}</ul>` : ""}
     ${choiceBlocks}
     ${choiceBlocks ? `<p class="hint">${game.i18n.localize(`${LANG_PREFIX}.levelup.openHint`)}</p>` : ""}
@@ -253,6 +285,7 @@ async function runLevelUp(actor) {
       "system.hp.max": newMax,
       "system.hp.value": oldValue + Math.max(0, newMax - oldMax),
       [`flags.${MODULE_ID}.${FLAG_CLASSES}.hpAt`]: [...hpAt, { level, max: oldMax }, { level: next, max: newMax }],
+      [`flags.${MODULE_ID}.${FLAG_CLASSES}.${ROLL_KEY}`]: unset(),
       ...(closed.length ? { [`flags.${MODULE_ID}.${FLAG_CLASSES}.awardsTaken`]: [...new Set([...taken, ...closed])] } : {}),
     });
 
@@ -355,6 +388,8 @@ export function guardLevelWrite(actor, changes, options) {
   }
 
   if (level === held) return;
+  // A roll kept for the climb from the held level is that level's, not the new one's.
+  if (flag[ROLL_KEY] != null) setProperty(changes, `${flagPath}.${ROLL_KEY}`, unset());
   if (getProperty(changes, `${flagPath}.appliedLevel`) === undefined) followLevel(actor, classItem, changes, level);
   // Likewise a maximum equal to the one held was submitted, not rebuilt.
   const writtenMax = getProperty(changes, "system.hp.max");

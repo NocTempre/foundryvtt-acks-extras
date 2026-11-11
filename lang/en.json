@@ -283,6 +283,8 @@
   "ACKS-CLASSES.levelup.failed.grants": "{name}'s level-up stopped while granting abilities ({error}). The new level stands without its hit points: roll them with the dice beside Hit dice on the character sheet's Stats tab, and answer what is missing from the class picker, the graduation-cap button beside the class name.",
   "ACKS-CLASSES.levelup.failed.hitPoints": "{name}'s level-up stopped while writing hit points ({error}). The new level and its abilities stand: roll the hit points with the dice beside Hit dice on the character sheet's Stats tab, and answer any choice still open from the class picker, the graduation-cap button beside the class name.",
   "ACKS-CLASSES.levelup.failed.chat": "{name}'s level-up was applied, but its chat summary could not be posted ({error}).",
+  "ACKS-CLASSES.levelup.noHd": "This class has no hit dice set for this level, so none were rolled. Import the class's level table, or fill in its hit dice on the class sheet.",
+  "ACKS-CLASSES.apply.noHd": "{name} has no hit dice set, so no hit points were rolled and the character's hit points stand.",
   "ACKS-CLASSES.zero.ready": "{name} has the experience for 1st level. The Judge chooses the class: the level-up control on the sheet opens the class picker.",
   "ACKS-CLASSES.zero.judgeChooses": "{name} leaves 0th level when the Judge chooses a class.",
   "ACKS-CLASSES.zero.tooltip": "Advance to 1st level: choose the class",

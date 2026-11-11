@@ -1826,3 +1826,37 @@ rung again.
 **What it cost.** Nothing migrates. A copy already on a sheet keeps the type
 it was granted with; the owner changes it on the ability sheet's Details tab.
 A pick of a proficiency the character already holds is not retyped.
+
+## 2026-11-10 — the level-up roll is kept per level, and the last die level is derived
+
+**Evidence.** A hit-point audit. Cancelling the level-up wizard and opening it
+again rolled the dice again, so a player could draw until a roll pleased them;
+the wizard and the class apply read the prepared maximum and wrote the result
+into source, so effects and modifiers compounded; and the wizard carried a
+copy of `hdAt`'s fallback, which held the level where the dice stop rising and
+a die size as literals.
+
+**Ruled.**
+- The wizard rolls once per (character, target level). The roll sits on
+  `flags["acks-extras"].classes.levelUpRoll` and answers every later open. It
+  is replaced when its level, mode, hit dice or Constitution modifier differs,
+  and cleared when the level is applied or moves. The picker's reroll on
+  re-binding a class (2026-08-06) is another path and is unchanged.
+- The old maximum is the stored one (`storedMaxHp`), in the wizard and the
+  apply.
+- `hdAt` is the only reader of a level's hit dice. The level after which the
+  dice stop rising is the last level whose row prints more dice
+  (`lastDieLevel`), the die size is the one those rows print, and a class
+  printing no cell answers null. The surfaces name the gap rather than fall
+  back (`levelup.noHd`, `apply.noHd`).
+
+**Rejected.**
+- Keeping the roll in the dialog's closure: a reload or a second client opens
+  a fresh one.
+- Clearing the record on cancel: the cancel is the fishing.
+- Keeping the class document's `hitDie` as the die-size fallback: it is a
+  second statement of what the rows already print.
+
+**What it cost.** A kept roll for an abandoned climb stays on the character
+until the level moves or a setting it was rolled under changes. A class with
+rows but no hit-dice cell no longer rolls anything at the picker.

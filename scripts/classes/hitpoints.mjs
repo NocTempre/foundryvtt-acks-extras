@@ -25,14 +25,14 @@ export function firstLevelDieMinimum() {
   return Number.isInteger(v) && v > 0 ? v : 1;
 }
 
-/** "9d8 + 2*" → "9d8+2": the printed cell as a rollable formula. */
+/** "5d7 + 2*" → "5d7+2": the printed cell as a rollable formula. */
 export function normalizeHd(cell) {
   return String(cell ?? "")
     .replace(/\*/g, "")
     .replace(/\s+/g, "");
 }
 
-/** "9d8+4" → {dice: 9, sides: 8, flat: 4}; null when unparseable. */
+/** "5d7+3" → {dice: 5, sides: 7, flat: 3}; null when unparseable. */
 export function parseHd(formula) {
   const m = /^(\d+)d(\d+)(?:\+(\d+))?$/.exec(String(formula ?? "").replace(/\s+/g, ""));
   return m ? { dice: parseInt(m[1], 10), sides: parseInt(m[2], 10), flat: m[3] ? parseInt(m[3], 10) : 0 } : null;
@@ -58,15 +58,50 @@ export async function rollHitDice(hd, conMod, { dieMinimum = 1 } = {}) {
 }
 
 /**
- * The hit-dice cell for a level, falling back to the class's own die when the
- * printed table has no row (a hand-made class part-way through being typed).
+ * A character's hit point maximum as the document stores it. The prepared
+ * `system.hp.max` carries whatever effects and modifiers add on top, so a value
+ * read from it and written back as the stored one compounds them at every
+ * write. A plain object with no `_source` reads its own figure.
+ */
+export function storedMaxHp(actor) {
+  const stored = actor?._source ? actor._source.system?.hp?.max : actor?.system?.hp?.max;
+  return Number(stored) || 0;
+}
+
+/**
+ * The level after which a class's hit dice stop rising, read off its own level
+ * rows: the last level whose cell prints more dice than any row before it.
+ * Null where no row prints a hit-dice cell.
+ */
+export function lastDieLevel(classItem) {
+  const rows = (classItem.system?.levels ?? [])
+    .map((row) => ({ level: Number(row.level), hd: parseHd(normalizeHd(row.hd)) }))
+    .filter((row) => row.hd && Number.isFinite(row.level))
+    .sort((a, b) => a.level - b.level);
+  let last = null;
+  let most = 0;
+  for (const { level, hd } of rows) {
+    if (hd.dice > most) last = level;
+    most = Math.max(most, hd.dice);
+  }
+  return last;
+}
+
+/**
+ * The hit-dice cell for a level. A level whose row prints no cell (a hand-made
+ * class part-way through being typed) takes one die per level up to the class's
+ * own last die level (`lastDieLevel`), in the die size that level prints.
+ * Null where the class prints no hit-dice cell at all: nothing is guessed, and
+ * the caller says the hit dice are not set.
  */
 export function hdAt(classItem, level) {
   const sys = classItem.system;
   const printed = parseHd(normalizeHd(sys.levelRow(level)?.hd));
   if (printed) return printed;
-  const sides = (sys.hitDie?.match(/d(\d+)/) ?? [])[1] ?? 8;
-  return { dice: Math.min(level, 9), sides: parseInt(sides, 10), flat: 0 };
+  const last = lastDieLevel(classItem);
+  if (last == null) return null;
+  const { sides } = parseHd(normalizeHd(sys.levelRow(last)?.hd));
+  return { dice: Math.max(1, Math.min(level, last)), sides, flat: 0 };
 }
 
 /**
@@ -78,15 +113,18 @@ export function hdAt(classItem, level) {
  * @param {object} [options]
  * @param {number} [options.dieMinimum] the printed 1st-level floor; defaults to
  *   whatever the world has imported, and to 1 (no floor) where it has none
- * @returns {Promise<{max: number, steps: Array<{level: number, formula: string, total: number}>}>}
+ * @returns {Promise<{max: number, steps: Array<{level: number, formula: string, total: number}>}|null>}
+ *   null, with nothing rolled, where the class prints no hit-dice cell
  */
 export async function rebuildHitPoints(actor, classItem, level, { dieMinimum = firstLevelDieMinimum() } = {}) {
   const conMod = Number(actor.system?.scores?.con?.mod) || 0;
   const target = Math.max(1, Math.min(Number(level) || 1, classItem.system.maximumLevel || 14));
+  const cells = Array.from({ length: target }, (_, i) => hdAt(classItem, i + 1));
+  if (cells.some((hd) => !hd)) return null;
   const steps = [];
   let max = 0;
   for (let n = 1; n <= target; n++) {
-    const { roll, total } = await rollHitDice(hdAt(classItem, n), conMod, n === 1 ? { dieMinimum } : {});
+    const { roll, total } = await rollHitDice(cells[n - 1], conMod, n === 1 ? { dieMinimum } : {});
     max = n === 1 ? Math.max(1, total) : Math.max(total, max + 1);
     steps.push({ level: n, formula: roll.formula, total });
   }
@@ -99,7 +137,8 @@ export async function rebuildHitPoints(actor, classItem, level, { dieMinimum = f
  * rebuilt level by level (`rebuildHitPoints`); any other rolls its own hit
  * dice formula once, Constitution on each die and, from 1st level, the
  * 1st-level floor on the first. Null where the formula is not one cell of
- * dice, for the caller to fall back on the system's own roll.
+ * dice, or the class prints no hit dice, for the caller to fall back on the
+ * system's own roll.
  * @returns {Promise<{max: number, steps: Array<{level: number, formula: string, total: number}>}|null>}
  */
 export async function rollFullHitPoints(actor, classItem, { dieMinimum = firstLevelDieMinimum() } = {}) {

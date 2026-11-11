@@ -1,4 +1,4 @@
-/* global game, foundry, Hooks, ChatMessage, fromUuid */
+/* global game, foundry, Hooks, ChatMessage, fromUuid, CONFIG */
 /**
  * Chargen: applying a starting template — the printed selection rule, the
  * Intellect accounting, and the named-item skinning layer.
@@ -23,7 +23,7 @@ import { templateSelection, setActorPath, actorPaths } from "./paths.mjs";
 import { awardKey, grantAbility, grantAdventuring, offeredProficiencyType, rankedCopies, refOf } from "./grants.mjs";
 import { isOffer, mintPendingChoices } from "./pending-choices.mjs";
 import { grantLanguages } from "./languages.mjs";
-import { ITEM_TYPE } from "../lib/vocab.mjs";
+import { ACTOR_TYPE, ITEM_TYPE } from "../lib/vocab.mjs";
 import { coinTemplate, creditCoin, ownCoin } from "../lib/money.mjs";
 import { resolveBase, templateItemName, buildGearData, expandTemplate, applyShortfall } from "./template-packages.mjs";
 import { isUnidentifiedWeapon } from "../equipment/profiles.mjs";
@@ -80,37 +80,50 @@ export async function grantCoin(actor, coin = {}) {
   await creditCoin(actor, credits);
 }
 
-/** INT-based bonus general picks per the RR sidebar (13–15/16–17/18). */
-export function intBonusPicks(intScore) {
-  if (intScore >= 18) return 3;
-  if (intScore >= 16) return 2;
-  if (intScore >= 13) return 1;
-  return 0;
+/**
+ * The bonus general picks an Intellect score earns (RR Ch. 2 sidebar): the
+ * system's own Intellect modifier, never below zero, so the system and this
+ * count cannot disagree.
+ *
+ * With an `actor` the figure is its prepared Intellect modifier; without one
+ * (a score still being generated) it is the system's modifier for `intScore`,
+ * `CONFIG.Actor.dataModels.character.getAttributeModifier`.
+ *
+ * @param {number} intScore the Intellect score
+ * @param {object|null} [actor] a character whose own score the figure is for
+ */
+export function intBonusPicks(intScore, actor = null) {
+  const held = actor?.system?.scores?.int?.mod;
+  const mod = typeof held === "number"
+    ? held
+    : CONFIG.Actor?.dataModels?.[ACTOR_TYPE.character]?.getAttributeModifier?.(Number(intScore) || 0);
+  return Math.max(0, Number(mod) || 0);
 }
 
 /**
  * The general picks the PLAYER still gets to make, after what the template has
  * already spent.
  *
- * Most templates assume no Intellect bonus (RR Ch. 2 §II.1: "we assumed that
- * the character had an Intellect score of 12 or less"), so the whole bonus is
- * theirs. A studious spellcaster's templates assume one, so a character in the
- * 13–15 band has already been given it and chooses nothing further.
+ * Most templates assume no Intellect bonus (RR Ch. 2 §II.1), so the whole bonus
+ * is theirs. A studious spellcaster's templates assume one, so a character
+ * whose bonus is no larger has already been given it and chooses nothing
+ * further.
  */
-export const netBonusPicks = (intScore, assumed = 0) =>
-  Math.max(0, intBonusPicks(intScore) - (Number(assumed) || 0));
+export const netBonusPicks = (intScore, assumed = 0, actor = null) =>
+  Math.max(0, intBonusPicks(intScore, actor) - (Number(assumed) || 0));
 
 /**
- * What a template hands out that its character cannot hold.
+ * What a template hands out that its character cannot hold (RR Ch. 2 §II.1).
  *
- * A studious spellcaster below the band its templates assume "has more
- * proficiencies and spells than the character is eligible to possess", and the
- * book says which to remove: the bonus proficiency is the one listed LAST and
- * the bonus spell is the one listed SECOND. Returns how many of each to drop —
- * zero for every class whose templates assume nothing, which is most of them.
+ * A studious spellcaster whose Intellect bonus is below the one its templates
+ * assume is handed more proficiencies and spells than they may hold, and the
+ * procedure says which to remove: the bonus proficiency is the one listed LAST
+ * and the bonus spell is the one listed SECOND. Returns how many of each to
+ * drop — zero for every class whose templates assume nothing, which is most of
+ * them.
  */
-export function templateShortfall(intScore, assumed = 0) {
-  const short = Math.max(0, (Number(assumed) || 0) - intBonusPicks(intScore));
+export function templateShortfall(intScore, assumed = 0, actor = null) {
+  const short = Math.max(0, (Number(assumed) || 0) - intBonusPicks(intScore, actor));
   return { profs: short, spells: short };
 }
 
@@ -268,7 +281,7 @@ export async function applyTemplate(actor, classItem, template, { generalRefs = 
   // rather than leaving it to taste, so the drop is positional, taken before
   // anything is granted.
   const assumed = classItem?.system?.templatesAssumeIntBonus ?? 0;
-  const short = intScore == null ? { profs: 0, spells: 0 } : templateShortfall(intScore, assumed);
+  const short = intScore == null ? { profs: 0, spells: 0 } : templateShortfall(intScore, assumed, actor);
 
   const expanded = template?.bundle ? await expandTemplate(template) : { bundle: null, rows: [], missing: [] };
   if (expanded.bundle && (expanded.rows.length || expanded.missing.length)) {

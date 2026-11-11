@@ -30,7 +30,7 @@ import { classForActor, findByRef, publish } from "../scripts/classes/registry.m
 import { CLASS_TYPE, PROGRESSIONS_DOC_ID } from "../scripts/classes/constants.mjs";
 import { awardsAt, awardsThrough, choosableGenerals, spellLanes, admitsSpell, choosableSpells } from "../scripts/classes/grants.mjs";
 import { ANSWERED, closesRung, grantableRefs, grantsFrom } from "../scripts/classes/picks.mjs";
-import { rebuildHitPoints, rollFullHitPoints, firstLevelDieMinimum, HITPOINTS_DOC } from "../scripts/classes/hitpoints.mjs";
+import { rebuildHitPoints, rollFullHitPoints, firstLevelDieMinimum, hdAt, lastDieLevel, storedMaxHp, HITPOINTS_DOC } from "../scripts/classes/hitpoints.mjs";
 import { registerTable, unregisterTable, PRIORITY, getLayer, citeOf } from "../scripts/lib/tables.mjs";
 import { isOffer, offerKey } from "../scripts/classes/pending-choices.mjs";
 import { TRAINING_KEYS, normalizeTraining, trainingChanges, trainingOf, withTraining, classTrainingEffect, trainingIsBlank, planTrainingSync } from "../scripts/classes/training-logic.mjs";
@@ -55,7 +55,7 @@ const TABLES = {
     savesPrecedence: ["arcane", "divine", "fighting", "thievery"],
     smoothing: { level: 7, nearest: 5000 },
     postEight: { crusaderThief: 100000, fighter: 120000, mage: 150000 },
-    hpAfterNine: { crusaderMage: 1, fighterThief: 2 },
+    hpAfterNine: { crusaderMage: 3, fighterThief: 5 },
     racialCaps: [
       { points: 8, maxLevel: 9 },
       { points: 7, maxLevel: 10 },
@@ -142,7 +142,7 @@ const DWARF = {
     { chassis: "fighter", delta: 10000 },
     { chassis: "crusaderThief", delta: 30000 },
   ],
-  hpAfter9: 1,
+  hpAfter9: 2,
   minimumAttributes: [{ attr: "con", min: 9 }],
   values: [{ value: 0, label: "Dwarf", xpCost: 200, powers: ["def.power.hardy", "def.power.dwarfTongues"] }],
 };
@@ -363,10 +363,10 @@ test("derivePlan assembles a racial build end-to-end (the spellsword shape)", ()
   assert.ok(u.ladders.some((l) => l.key === "mortalWounds"));
   assert.deepEqual(u.requirements, [{ attr: "int", min: 9 }]);
   assert.ok(u.racialTraits.some((t) => t.ref === "def.power.elfTongues"));
-  // Past 9th the die count stops and the printed flat starts: fighter chassis
-  // rate 2, and the elf prints no racial rate to add to it.
+  // Where the die count stops the flat starts: the fighter chassis's fixture
+  // rate, and the elf prints no racial rate to add to it.
   assert.equal(u.levels[8].hd, "9d6");
-  assert.equal(u.levels[9].hd, "9d6+2");
+  assert.equal(u.levels[9].hd, "9d6+5");
 });
 
 test("a race's post-9th hit points add to the chassis rate, and the flat is cumulative", () => {
@@ -382,10 +382,10 @@ test("a race's post-9th hit points add to the chassis rate, and the flat is cumu
   const u = plan.update;
   assert.equal(u.saveChassis, "crusader"); // fairie saves as crusader
   assert.ok(!plan.issues.some((i) => i.key === "missingHpAfterNine"));
-  // crusader -> crusaderMage rate 1, plus the dwarf's own 1 = 2 per level.
+  // crusader -> crusaderMage fixture rate, plus the dwarf's own = 5 per level.
   assert.equal(u.levels[8].hd, "9d6");
-  assert.equal(u.levels[9].hd, "9d6+2");
-  assert.equal(u.levels[10].hd, "9d6+4"); // cumulative, not per-level
+  assert.equal(u.levels[9].hd, "9d6+5");
+  assert.equal(u.levels[10].hd, "9d6+10"); // cumulative, not per-level
 });
 
 test("the trade-off ticks decide who a built class's damage bonus applies to", () => {
@@ -607,9 +607,28 @@ const scriptDie = (faces) => {
   };
 };
 
+/**
+ * An invented class whose hit dice rise through level `cap` in dice of `sides`
+ * (a die no page prints), then print a flat bonus. Six rows; none is a figure
+ * any book carries.
+ */
+const diceClass = (cap = 4, sides = 7) => {
+  const levels = Array.from({ length: 6 }, (_, i) => ({ level: i + 1, hd: `${Math.min(i + 1, cap)}d${sides}${i + 1 > cap ? "+1" : ""}` }));
+  return {
+    system: {
+      maximumLevel: 6,
+      hitDie: `1d${sides}`,
+      levels,
+      levelRow(n) {
+        return this.levels.find((r) => r.level === n) ?? null;
+      },
+    },
+  };
+};
+
 const atLevel = async (conMod, faces, level = 1) => {
   globalThis.Roll = scriptDie(faces);
-  const cls = { system: { maximumLevel: 14, hitDie: "1d8", levelRow: (n) => ({ hd: `${Math.min(n, 9)}d8` }) } };
+  const cls = diceClass();
   return (await rebuildHitPoints({ system: { scores: { con: { mod: conMod } } } }, cls, level)).max;
 };
 const atLevelOne = (conMod, faces) => atLevel(conMod, faces, 1);
@@ -637,9 +656,10 @@ await atest("with no book imported, a Constitution penalty cannot take the first
   assert.equal(await atLevelOne(-3, [8]), 5);
 });
 
-// The floor is a fixture, deliberately NOT the printed 4: what the book says
-// is the book's business, and a test asserting it would put the number back in
-// the repo. 3 proves the arithmetic; the importer's own suite proves the read.
+// The floor is an invented fixture, deliberately NOT the printed one: what the
+// book says is the book's business, and a test asserting it would put the
+// number back in the repo. 3 proves the arithmetic; the importer's own suite
+// proves the read.
 await atest("the first-level die floor is read from the world, and absent means no floor", async () => {
   assert.equal(firstLevelDieMinimum(), 1, "unregistered");
   const register = (dieMinimum) =>
@@ -676,7 +696,7 @@ await atest("the floor raises the DIE, and Constitution lands after it", async (
     // A 1st level that prints several dice floors the first of them: 3 + 1,
     // where flooring every die would give 6.
     globalThis.Roll = scriptDie([1, 1]);
-    const twoAtFirst = { system: { maximumLevel: 14, hitDie: "1d8", levelRow: () => ({ hd: "2d8" }) } };
+    const twoAtFirst = { system: { maximumLevel: 6, hitDie: "1d7", levelRow: () => ({ hd: "2d7" }) } };
     assert.equal((await rebuildHitPoints({ system: { scores: { con: { mod: 0 } } } }, twoAtFirst, 1)).max, 4);
     // Constitution still lands on every die, after the floor: (3 + 1) + (1 + 1).
     globalThis.Roll = scriptDie([1, 1]);
@@ -689,25 +709,29 @@ await atest("the floor raises the DIE, and Constitution lands after it", async (
 await atest("the sheet's full reroll: a class rebuilds level by level, any other formula takes Constitution and the floor once", async () => {
   registerTable({ id: HITPOINTS_DOC, tables: { firstLevel: { dieMinimum: 3 } } }, { priority: PRIORITY.WORLD });
   try {
-    const cls = { system: { maximumLevel: 14, hitDie: "1d8", levelRow: (n) => ({ hd: `${Math.min(n, 9)}d8` }) } };
+    const cls = diceClass();
     const actor = (level, con, hd) => ({ system: { details: { level }, scores: { con: { mod: con } }, hp: { hd } } });
     // 1st level: 1 floored to 3, +1 = 4. 2nd: two 1s +1 each = 4, kept at one over: 5.
     globalThis.Roll = scriptDie([1]);
-    let built = await rollFullHitPoints(actor(2, 1, "2d8"), cls);
+    let built = await rollFullHitPoints(actor(2, 1, "2d7"), cls);
     assert.deepEqual([built.max, built.steps.length], [5, 2], "the class's level chain, one step per level");
-    // No class: the formula once, the first die floored, Constitution on both.
+    // No class: the formula rolls once, the first die floored, Constitution on both.
     globalThis.Roll = scriptDie([1]);
-    built = await rollFullHitPoints(actor(2, 1, "2d8"), null);
-    assert.deepEqual([built.max, built.steps.length, built.steps[0].formula], [6, 1, "2d8"]);
-    // 0th level is not 1st: no floor, with a class or without.
+    built = await rollFullHitPoints(actor(2, 1, "2d7"), null);
+    assert.deepEqual([built.max, built.steps.length, built.steps[0].formula], [6, 1, "2d7"]);
+    // 0th level is not 1st, so no floor applies, with a class or without.
     globalThis.Roll = scriptDie([1]);
-    assert.equal((await rollFullHitPoints(actor(0, 0, "1d6"), cls)).max, 1);
+    assert.equal((await rollFullHitPoints(actor(0, 0, "1d5"), cls)).max, 1);
     globalThis.Roll = scriptDie([1]);
-    assert.equal((await rollFullHitPoints(actor(0, -2, "1d6"), null)).max, 1, "never below one");
-    // A printed flat bonus past the dice takes no Constitution.
+    assert.equal((await rollFullHitPoints(actor(0, -2, "1d5"), null)).max, 1, "never below one");
+    // A flat bonus printed past the dice takes no Constitution.
     globalThis.Roll = scriptDie([5]);
-    assert.equal((await rollFullHitPoints(actor(1, 2, "1d8+2"), null)).max, 9);
-    assert.equal(await rollFullHitPoints(actor(1, 0, "1d8+1d4"), null), null, "not one cell of dice: the caller falls back");
+    assert.equal((await rollFullHitPoints(actor(1, 2, "1d7+2"), null)).max, 9);
+    assert.equal(await rollFullHitPoints(actor(1, 0, "1d7+1d5"), null), null, "not one cell of dice, so the caller falls back");
+    // A class printing no hit-dice cell has no chain to roll, so the caller falls back there too.
+    const bare = { system: { maximumLevel: 6, levels: [], levelRow: () => null } };
+    assert.equal(await rollFullHitPoints(actor(2, 1, "2d7"), bare), null, "no printed hit dice: nothing is guessed");
+    assert.equal(await rebuildHitPoints(actor(2, 1, "2d7"), bare, 2), null);
   } finally {
     unregisterTable(HITPOINTS_DOC, { priority: PRIORITY.WORLD });
   }
@@ -1690,6 +1714,7 @@ test("training sync pairs by name before position and writes only what an update
 globalThis.foundry ??= {};
 foundry.abstract ??= { TypeDataModel: class {} };
 foundry.data ??= { fields: {} };
+foundry.data.operators ??= { ForcedDeletion: class ForcedDeletion {} };
 foundry.utils = {
   ...(foundry.utils ?? {}),
   deepClone: (o) => structuredClone(o),
@@ -1710,7 +1735,7 @@ test("a path option's CSV training normalizes on submit and flows into the path 
 
 /* ------------- level-up safety: the one-level cap, level down ------------- */
 
-const { xpCeiling, capXpGain, guardLevelWrite, uncappedXp } = await import("../scripts/classes/levelup.mjs");
+const { xpCeiling, capXpGain, guardLevelWrite, uncappedXp, levelUpHitPoints } = await import("../scripts/classes/levelup.mjs");
 const { awardKeyLevel, heldCount } = await import("../scripts/classes/grants.mjs");
 
 /** An invented experience schedule: `nextXp(n)` is what reaching n + 1 takes. */
@@ -2020,6 +2045,177 @@ test("the wizard writes its level before anything else, and the successor's star
   assert.match(src, /Hooks\.on\("preUpdateActor", guardLevelWrite\)/);
   const legacy = readFileSync(new URL("../scripts/classes/legacy.mjs", import.meta.url), "utf8");
   assert.match(legacy, /"system\.details\.xp\.value": result\.xp \}, uncappedXp\(\)\)/);
+});
+
+/* ------------------- hit points: derived dice, stored maximum, one roll ------------------- */
+
+await atest("the last die level is read off the class's own rows, and a missing row follows it", () => {
+  assert.equal(lastDieLevel(diceClass(4, 7)), 4);
+  assert.equal(lastDieLevel(diceClass(2, 5)), 2);
+  // A row the class never typed takes one die per level up to that level, in the size its rows print.
+  const gap = diceClass(4, 7);
+  gap.system.levels = gap.system.levels.filter((r) => r.level !== 3 && r.level !== 6);
+  assert.deepEqual(hdAt(gap, 3), { dice: 3, sides: 7, flat: 0 });
+  assert.deepEqual(hdAt(gap, 6), { dice: 4, sides: 7, flat: 0 }, "past the last die level the count stops");
+  assert.deepEqual(hdAt(gap, 2), { dice: 2, sides: 7, flat: 0 }, "a printed cell is read as printed");
+  assert.deepEqual(hdAt(diceClass(2, 5), 5), { dice: 2, sides: 5, flat: 1 });
+  // The die size is the rows', not a remembered one: the class document's own field is not consulted.
+  gap.system.hitDie = "1d3";
+  assert.equal(hdAt(gap, 6).sides, 7);
+});
+
+await atest("a class printing no hit-dice cell answers null, and nothing is guessed", () => {
+  const empty = { system: { maximumLevel: 6, hitDie: "1d7", levels: [], levelRow: () => null } };
+  assert.equal(lastDieLevel(empty), null);
+  assert.equal(hdAt(empty, 1), null);
+  const unreadable = { system: { levels: [{ level: 1, hd: "—" }, { level: 2, hd: "" }], levelRow: (n) => ({ hd: n === 1 ? "—" : "" }) } };
+  assert.equal(lastDieLevel(unreadable), null);
+  assert.equal(hdAt(unreadable, 2), null);
+});
+
+await atest("the Intellect bonus picks are the system's modifier for the score, never below zero", async () => {
+  // An invented modifier, so no printed band figure sits in the suite.
+  const priorConfig = globalThis.CONFIG;
+  const priorHooks = globalThis.Hooks;
+  globalThis.Hooks = { once() {}, on() {} };
+  const { intBonusPicks, netBonusPicks, templateShortfall } = await import("../scripts/classes/chargen.mjs");
+  globalThis.CONFIG = { Actor: { dataModels: { character: { getAttributeModifier: (score) => Math.trunc((score - 10) / 4) } } } };
+  try {
+    assert.equal(intBonusPicks(10), 0);
+    assert.equal(intBonusPicks(14), 1);
+    assert.equal(intBonusPicks(30), 5, "the modifier keeps rising where a table would have stopped");
+    assert.equal(intBonusPicks(2), 0, "a penalty is no picks, never fewer");
+    // A character's own modifier, where there is one, is the figure.
+    const held = (mod) => ({ system: { scores: { int: { mod } } } });
+    assert.equal(intBonusPicks(3, held(2)), 2);
+    assert.equal(intBonusPicks(30, held(-1)), 0);
+    assert.equal(intBonusPicks(14, held(undefined)), 1, "no modifier on the actor reads the score");
+    assert.equal(netBonusPicks(18, 1), 1);
+    assert.equal(netBonusPicks(14, 3), 0);
+    assert.deepEqual(templateShortfall(10, 2), { profs: 2, spells: 2 });
+    assert.deepEqual(templateShortfall(18, 2), { profs: 0, spells: 0 });
+    // A system with no modifier function yields no picks rather than a guess.
+    globalThis.CONFIG = { Actor: { dataModels: {} } };
+    assert.equal(intBonusPicks(30), 0);
+  } finally {
+    globalThis.CONFIG = priorConfig;
+    globalThis.Hooks = priorHooks;
+  }
+});
+
+/**
+ * A character at `level` whose PREPARED maximum differs from the STORED one, as
+ * effects and modifiers make it, with the flag and update plumbing the level-up
+ * roll uses. `updates` records every write.
+ */
+const climber = ({ level = 3, stored = 10, prepared = 13, con = 1, flag = {} } = {}) => {
+  const updates = [];
+  const actor = {
+    name: "Probe",
+    system: { details: { level }, scores: { con: { mod: con } }, hp: { max: prepared, value: 5 } },
+    _source: { system: { hp: { max: stored } } },
+    flag,
+    updates,
+    getFlag: (scope, key) => (scope === "acks-extras" && key === "classes" ? actor.flag : undefined),
+    update: async (data) => {
+      updates.push(data);
+      for (const [path, value] of Object.entries(data)) {
+        const key = path.replace("flags.acks-extras.classes.", "");
+        if (key !== path) actor.flag = { ...actor.flag, [key]: value };
+      }
+    },
+  };
+  return actor;
+};
+
+await atest("the stored maximum, not the prepared one, is what a hit-point change starts from", async () => {
+  const actor = climber();
+  assert.equal(actor.system.hp.max, 13);
+  assert.equal(storedMaxHp(actor), 10);
+  assert.equal(storedMaxHp({ system: { hp: { max: 8 } } }), 8, "a plain object has only its own figure");
+  assert.equal(storedMaxHp({}), 0);
+  // 4 dice of 2 with Constitution 1 each = 12: over the stored 10, and not over the prepared 13.
+  globalThis.Roll = scriptDie([2]);
+  const climb = await levelUpHitPoints(actor, diceClass(), 4, "full");
+  assert.deepEqual([climb.oldMax, climb.newMax], [10, 12]);
+  // The class apply reads the same figure, never `system.hp.max`.
+  const apply = readFileSync(new URL("../scripts/classes/apply.mjs", import.meta.url), "utf8");
+  assert.ok(!/actor\.system\?\.hp\?\.max/.test(apply), "apply.mjs never reads the prepared maximum");
+  assert.match(apply, /const oldMax = storedMaxHp\(actor\)/);
+});
+
+await atest("the level-up roll is made once per character and level, and reopening reuses it", async () => {
+  const cls = diceClass();
+  const actor = climber();
+  globalThis.Roll = scriptDie([2]);
+  const first = await levelUpHitPoints(actor, cls, 4, "full");
+  assert.equal(actor.updates.length, 1);
+  assert.equal(first.roll.total, 8);
+  assert.equal(first.newMax, 12);
+  // The wizard is cancelled and opened again: better dice are on offer and are not used.
+  globalThis.Roll = scriptDie([7]);
+  const again = await levelUpHitPoints(actor, cls, 4, "full");
+  assert.deepEqual([again.newMax, again.roll.total, again.roll.formula], [first.newMax, first.roll.total, first.roll.formula]);
+  assert.equal(actor.updates.length, 1, "nothing is rolled or written the second time");
+  // Another level is another roll.
+  globalThis.Roll = scriptDie([7]);
+  const other = await levelUpHitPoints(actor, cls, 5, "full");
+  assert.equal(actor.updates.length, 2);
+  assert.notEqual(other.roll.total, first.roll.total);
+  assert.equal(actor.flag.levelUpRoll.level, 5, "one record, for the level being climbed");
+  // A changed Constitution, hit dice or mode rolls afresh: the kept dice answered another question.
+  globalThis.Roll = scriptDie([2]);
+  actor.system.scores.con.mod = 2;
+  await levelUpHitPoints(actor, cls, 5, "full");
+  assert.equal(actor.updates.length, 3);
+  globalThis.Roll = scriptDie([2]);
+  await levelUpHitPoints(actor, diceClass(4, 5), 5, "full");
+  assert.equal(actor.updates.length, 4);
+  const moded = climber();
+  globalThis.Roll = scriptDie([2]);
+  await levelUpHitPoints(moded, cls, 4, "full");
+  globalThis.Roll = scriptDie([2]);
+  await levelUpHitPoints(moded, cls, 4, "additive");
+  assert.equal(moded.updates.length, 2, "the setting changed, so the dice are rolled under the new rule");
+});
+
+await atest("the additive house rule keeps its one die per level, and past the last die level rolls nothing", async () => {
+  const cls = diceClass();
+  const actor = climber();
+  globalThis.Roll = scriptDie([6]);
+  const added = await levelUpHitPoints(actor, cls, 4, "additive");
+  assert.deepEqual([added.roll.formula, added.newMax], ["1d7", 10 + 6 + 1]);
+  globalThis.Roll = scriptDie([1]);
+  const same = await levelUpHitPoints(actor, cls, 4, "additive");
+  assert.equal(same.newMax, added.newMax, "the one die is kept too");
+  const flat = await levelUpHitPoints(climber(), cls, 5, "additive");
+  assert.deepEqual([flat.roll, flat.newMax], [null, 11], "the printed flat's rise, at least one");
+});
+
+await atest("a class with no hit dice rolls nothing and says so", async () => {
+  const bare = { system: { maximumLevel: 6, levels: [], levelRow: () => null } };
+  const actor = climber();
+  const climb = await levelUpHitPoints(actor, bare, 4, "full");
+  assert.deepEqual([climb.missingHd, climb.roll, climb.newMax], [true, null, 11]);
+  assert.equal(actor.updates.length, 0);
+});
+
+test("the kept roll is cleared when the level moves, and by nothing else", () => {
+  guarded(() => {
+    const flag = { levelUpRoll: { level: 2, mode: "full", hd: "2d7", con: 0, formula: "2d7", dice: 5, total: 5 } };
+    const typed = { system: { details: { level: 3 } } };
+    guardLevelWrite(boundAt(1, 0, flag), typed, {});
+    assert.ok(flagOf(typed).levelUpRoll instanceof foundry.data.operators.ForcedDeletion, "a level moved by any surface drops the record");
+    const experience = { system: { details: { xp: { value: 10 } } } };
+    guardLevelWrite(boundAt(1, 0, flag), experience, {});
+    assert.equal(flagOf(experience).levelUpRoll, undefined);
+    const none = { system: { details: { level: 3 } } };
+    guardLevelWrite(boundAt(1, 0, {}), none, {});
+    assert.equal(flagOf(none).levelUpRoll, undefined, "no record, nothing to clear");
+  });
+  const src = readFileSync(new URL("../scripts/classes/levelup.mjs", import.meta.url), "utf8");
+  const body = src.slice(src.indexOf("async function runLevelUp"));
+  assert.match(body, /\.\$\{ROLL_KEY\}`\]: unset\(\)/, "the wizard's own write clears it as the level is applied");
 });
 
 console.log(`test-classes: ${passed} assertion groups passed.`);
