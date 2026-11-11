@@ -49,6 +49,9 @@ check("the citation is recorded", full.system.source.cite === "RR p.999");
 check("the page's text is written into the description", /keener than a plain one/.test(full.system.description));
 check("closing on the page reference", /acks-extras-importer-cite">RR p\.999<\/p><\/div>$/.test(full.system.description));
 check("stamped with the entry it came from", full.system.description.includes('data-acks-entry="def.variation.fineBladeToHit"'));
+const readStamp = full.flags["acks-extras"].cookbook.read;
+check("the import stamp records the figures the page gave", readStamp.cost.add === full.system.cost.add && readStamp.deltas.bonus === full.system.deltas.bonus);
+check("the recorded figures are a copy, not the document's own objects", readStamp.cost !== full.system.cost && readStamp.deltas !== full.system.deltas);
 
 /* A stone is six sixths, and lighter is negative. */
 const lighter = bindVariation(entry, node([{ field: "deltas.stoneLighter", amount: 1 }]), "x");

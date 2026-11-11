@@ -1720,6 +1720,7 @@
       "fromPage": "Read from {name} ({cite}).",
       "fromDocument": "Read from {name}.",
       "byHand": "Set by hand on {name}.",
+      "editedByHand": "Edited by hand on {name}; the import read it from {cite}.",
       "layerNotImported": "{layer} not imported"
     },
     "strap": {
@@ -1773,8 +1774,8 @@
       "silverAuto": "Auto ({guess})",
       "silverYes": "Silvered",
       "silverNo": "Not silvered",
-      "silverNote": "Counts as extraordinary damage against a monster whose defence has the silver flaw, and against the spells that turn aside mundane damage. No standing modifier.",
-      "silverNoneNote": "An ordinary blade. Silvering multiplies the weapon's listed price and changes nothing else about it.",
+      "silverNote": "Silvered: the price takes the silver plating, and attacks with this weapon count as extraordinary damage (RR p. 159).",
+      "silverNoneNote": "Not silvered: no silver plating on the price, and attacks count as extraordinary only if the item says so elsewhere (RR p. 159).",
       "variant": "Shield variant",
       "helm": "Helmet",
       "spellbook": "Spell book",

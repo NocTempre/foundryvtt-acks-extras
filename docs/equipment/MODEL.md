@@ -771,9 +771,13 @@ Net row all read one answer.
   Construction tab names it.
 - **Each figure carries where it came from.** The ledger line and the Net row
   take a tooltip: the page the document's import stamp cites, "set by hand" on a
-  document with no import stamp (a Judge's own), or "not imported" naming the
-  variation key to import or make. A Judge's edit to the document is the
-  override; the registry's override layer holds tables and these are items.
+  document with no import stamp (a Judge's own), "edited by hand" with the page
+  on a minted document whose figures differ from the ones its stamp records as
+  read (`cookbook.read`), or "not imported" naming the variation key to import
+  or make. A document minted before the stamp carried its figures has nothing
+  to compare and cites its page. A Judge's edit to the document is the
+  override; the registry's override layer holds tables and these are items. A
+  repair rewrites the figures and the stamp together.
 - **The weapon-table tag stays structural.** `SILVER.quality` is the tag the
   weapon list marks a silvered row with, read by `silver.mjs`.
 

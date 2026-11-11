@@ -10752,8 +10752,9 @@ export function bindVariation(entry, node, id) {
     type: VARIATION_ITEM_TYPE,
     ...(entry.icon ? { img: entry.icon } : {}),
     // The stamp Remove ALL Imports finds documents by; without it a world could
-    // import these and never get them back out.
-    flags: { [MODULE_ID]: { cookbook: { id, cite, ...bookStamp(entry.book) } } },
+    // import these and never get them back out. `read` is the figures the page
+    // gave, so a reader can tell a Judge's later edit from the import's own.
+    flags: { [MODULE_ID]: { cookbook: { id, cite, ...bookStamp(entry.book), read: { deltas: { ...deltas }, cost: { ...cost } } } } },
     system: {
       key: meta.key ?? "",
       kind: meta.variationKind ?? "",

@@ -2441,6 +2441,17 @@ const tipOf = (figure) => printedLayers.provenanceTip(figure.source);
 check("a minted document's tooltip names its page", tipOf(printedLayers.silverFigure()).startsWith("ACKS-EQUIPMENT.printed.fromPage") && tipOf(printedLayers.silverFigure()).includes("Invented p. 1"));
 useLibrary([variationItem("material.silver", { cost: { baseMul: FIG.silver }, minted: false })]);
 check("a hand-made document's tooltip says it was set by hand", tipOf(printedLayers.silverFigure()).startsWith("ACKS-EQUIPMENT.printed.byHand"));
+const stampedRead = (key, read, now) => {
+  const doc = variationItem(key, now);
+  doc.flags["acks-extras"].cookbook.read = read;
+  return doc;
+};
+useLibrary([stampedRead("material.silver", { deltas: {}, cost: { baseMul: FIG.silver } }, { cost: { baseMul: FIG.silver } })]);
+check("a minted document still holding the figures its import read cites its page", tipOf(printedLayers.silverFigure()).startsWith("ACKS-EQUIPMENT.printed.fromPage"));
+useLibrary([stampedRead("material.silver", { deltas: {}, cost: { baseMul: FIG.silver } }, { cost: { baseMul: FIG.silver + 1 } })]);
+check("a minted document a Judge edited says so, and names the page the import read", tipOf(printedLayers.silverFigure()).startsWith("ACKS-EQUIPMENT.printed.editedByHand") && tipOf(printedLayers.silverFigure()).includes("Invented p. 1"));
+useLibrary([stampedRead("masterwork.weaponToHit", { deltas: { bonus: FIG.hit.bonus }, cost: { add: FIG.hit.add } }, { deltas: { bonus: FIG.hit.bonus }, cost: { add: FIG.hit.add + 1 } })]);
+check("an edit to one slot of a tier is an edit", tipOf(printedLayers.masterworkFigure("weaponToHit")).startsWith("ACKS-EQUIPMENT.printed.editedByHand"));
 useLibrary([variationItem("material.silver", { cost: { baseMul: FIG.silver }, cite: "" })]);
 check("a minted document with no page still names the document", tipOf(printedLayers.silverFigure()).startsWith("ACKS-EQUIPMENT.printed.fromDocument"));
 check("the not-imported tooltip names the key", printedLayers.notImportedTip(SILVER.variation).includes(SILVER.variation));

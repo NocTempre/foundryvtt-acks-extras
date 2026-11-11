@@ -13,12 +13,11 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   mounted overlay — `heightAdvantage` is already published and waiting — and
   every other conditional combat proficiency with it.
 
-- **`acks-importer` publishes the variations compendium.** One document per
-  published variation, plus the `baseTypeFields` table, plus loot-table and
-  template support for granting variations directly — a table entry names an
-  item *and* the variations it comes with, so a masterwork blade needs no
-  pre-combined document. The receiving end already ships; this is the sending
-  end.
+- **Loot tables and templates grant variations directly.** A table entry or a
+  template names an item *and* the variations it comes with, so a masterwork
+  blade needs no pre-combined document. The importer already mints one
+  document per published variation (the Variations shelf); the base-type
+  fields table is *Variation ruledata has no producer*, below.
 - **`acks-extras` migrates the legacy flags onto documents.** The
   `masterwork`/`silvered`/shield-variant flags convert to variation documents
   and the legacy-family refusal that stands in for the migration comes out

@@ -38,11 +38,16 @@
   book (Settings tab → Game Settings → ACKS II — Extras → Manage imports). Until
   those are imported, the plating or tier is recorded but changes nothing, and
   the Details tab's price says "not imported". Hover a figure to see the page it
-  was read from, or that it was set by hand. An item changed before keeps its
+  was read from, that it was set by hand, or that you edited the imported
+  figures by hand. An item changed before keeps its
   old figures until it is next recomputed.
 
 ### Fixed
 
+- **A party made just after you join is set up.** A Party Formation actor
+  created in the Actors sidebar tab in the first seconds after a GM joined the
+  game never became a party: it had no formation behind it until the repair
+  tool adopted it. It is now set up as soon as your window has finished joining.
 - **The level-up wizard keeps its hit-point roll.** Closing the level-up wizard
   (the character sheet's class field → rising arrow) and opening it again rolled
   the hit points again. It now shows the same roll until the level is applied or

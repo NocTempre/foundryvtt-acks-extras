@@ -13,7 +13,8 @@
  * whose figures did not read has only the schema's neutral defaults.
  *
  * A figure's provenance is the document it was read from: the page its import
- * stamp names, or "by hand" where the document was typed in.
+ * stamp names, "by hand" where the document was typed in, or "edited by hand"
+ * where a Judge changed the figures the import stamped as read.
  */
 import { libraryItems, cookbookId } from "../lib/library.mjs";
 import { containedIn } from "../lib/item-model.mjs";
@@ -35,19 +36,37 @@ export function libraryVariation(key) {
 const citeOfVariation = (doc) =>
   String(doc?.system?.source?.cite ?? doc?.flags?.[MODULE_ID]?.cookbook?.cite ?? doc?.getFlag?.(MODULE_ID, "cookbook")?.cite ?? "");
 
-/**
- * Where a figure was read from: the document's name, the page it cites, and
- * whether it was made by hand (carries no import stamp).
- *
- * @returns {{name: string, cite: string, byHand: boolean}}
- */
-export function sourceOf(doc) {
-  return { name: String(doc?.name ?? ""), cite: citeOfVariation(doc), byHand: !cookbookId(doc) };
-}
+/** A variation's `deltas` and `cost` summed into the slots `sumDeltas` fills, neutral where unstated. */
+const slotsOf = ({ deltas = null, cost = null } = {}) => sumDeltas([{ key: "slots" }], () => ({ deltas, cost }));
 
 /** Does a summed variation say anything, in any slot? */
 const says = (t) =>
   t.bonus !== 0 || t.damage !== 0 || t.ac !== 0 || t.weight6 !== 0 || t.costAdd !== 0 || t.costMul !== 1 || t.costBaseMul !== 1;
+
+/**
+ * Does a minted document hold figures other than the ones its import stamped
+ * as read? A document minted before the stamp carried them has nothing to
+ * compare and reads as unedited.
+ */
+function editedSinceRead(doc) {
+  const read = doc?.flags?.[MODULE_ID]?.cookbook?.read;
+  if (!read) return false;
+  const was = slotsOf(read);
+  const now = slotsOf(doc.system ?? {});
+  return Object.keys(was).some((slot) => was[slot] !== now[slot]);
+}
+
+/**
+ * Where a figure was read from: the document's name, the page it cites,
+ * whether it was made by hand (carries no import stamp), and whether a Judge
+ * edited the figures its import read.
+ *
+ * @returns {{name: string, cite: string, byHand: boolean, edited: boolean}}
+ */
+export function sourceOf(doc) {
+  const byHand = !cookbookId(doc);
+  return { name: String(doc?.name ?? ""), cite: citeOfVariation(doc), byHand, edited: !byHand && editedSinceRead(doc) };
+}
 
 /**
  * What a library variation document applies, summed into the delta slots
@@ -75,10 +94,11 @@ export const silverFigure = () => figureOf(SILVER.variation);
  */
 export const masterworkFigure = (tier) => figureOf(MASTERWORK[tier]);
 
-/** The tooltip for a figure: the page it was read from, or that it was typed by hand. */
+/** The tooltip for a figure: the page it was read from, that it was typed by hand, or that a Judge edited it. */
 export function provenanceTip(source) {
   const name = source?.name ?? "";
   if (source?.byHand) return game.i18n.format("ACKS-EQUIPMENT.printed.byHand", { name });
+  if (source?.edited) return game.i18n.format("ACKS-EQUIPMENT.printed.editedByHand", { name, cite: source.cite || name });
   if (source?.cite) return game.i18n.format("ACKS-EQUIPMENT.printed.fromPage", { name, cite: source.cite });
   return game.i18n.format("ACKS-EQUIPMENT.printed.fromDocument", { name });
 }

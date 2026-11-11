@@ -348,8 +348,8 @@ export function buildConstructionPanel(item, { editing = false } = {}) {
       flag === null ? "auto" : String(flag),
       (v) => setSilvered(item, v === "auto" ? "auto" : v === "true"),
     ));
-    // Silver moves no number — it decides what the blade COUNTS AS. Saying so
-    // stops it reading as a picker that silently does nothing.
+    // The note says which state is in force, so a picker whose price layer
+    // reads "not imported" never reads as one that does nothing.
     note(loc(isSilvered(item) ? "props.silverNote" : "props.silverNoneNote"));
   }
 

@@ -197,10 +197,11 @@ test("only an item document carries the declaration", () => {
 /* -------------------------------------------- */
 
 const DEFS = {
-  "masterwork.weaponToHit": { key: "masterwork.weaponToHit", appliesTo: ["weapon"], deltas: { bonus: 1 }, cost: { add: 80 } },
-  "masterwork.armorAC": { key: "masterwork.armorAC", appliesTo: ["armour"], deltas: { ac: 1 }, cost: { add: 650 } },
-  "condition.dented": { key: "condition.dented", deltas: { bonus: -1 }, cost: { mul: 0.5 } },
-  "material.silver": { key: "material.silver", cost: { baseMul: 10 } },
+  // Invented figures: what a tier or a plating is worth is the book's, and arrives by import.
+  "masterwork.weaponToHit": { key: "masterwork.weaponToHit", appliesTo: ["weapon"], deltas: { bonus: 2 }, cost: { add: 13 } },
+  "masterwork.armorAC": { key: "masterwork.armorAC", appliesTo: ["armour"], deltas: { ac: 2 }, cost: { add: 170 } },
+  "condition.dented": { key: "condition.dented", deltas: { bonus: -2 }, cost: { mul: 0.25 } },
+  "material.silver": { key: "material.silver", cost: { baseMul: 3 } },
   "form.buckler": { key: "form.buckler", appliesTo: ["shield"], deltas: { ac: 1 } },
   "gem.cut": { key: "gem.cut", appliesTo: ["gem"], deltas: {} },
   // The one printed cross-family rule: enchanting a weapon makes it masterwork.
@@ -264,8 +265,8 @@ test("a document splits into what it is and what is true of this one", () => {
     key: "masterwork.weaponToHit",
     appliesTo: ["weapon"],
     supersedes: [],
-    deltas: { bonus: 1, damage: 0, ac: 0, weight6: 0 },
-    cost: { baseMul: 1, add: 80, mul: 1 },
+    deltas: { bonus: 2, damage: 0, ac: 0, weight6: 0 },
+    cost: { baseMul: 1, add: 13, mul: 1 },
     hidden: true,
     read: false,
     data: { maker: "Thane" },
@@ -280,7 +281,7 @@ test("a document splits into what it is and what is true of this one", () => {
   const def = definitionFrom(v);
   assert.equal(def.key, "masterwork.weaponToHit");
   assert.deepEqual(def.appliesTo, ["weapon"]);
-  assert.equal(def.cost.add, 80);
+  assert.equal(def.cost.add, 13);
 });
 
 test("a document with no key is not a definition at all", () => {
@@ -290,13 +291,13 @@ test("a document with no key is not a definition at all", () => {
 
 test("the rules read documents exactly as they read entries", () => {
   const applied = [
-    doc("a", { key: "masterwork.weaponToHit", deltas: { bonus: 1 }, cost: { baseMul: 1, add: 80, mul: 1 } }),
-    doc("b", { key: "material.silver", deltas: {}, cost: { baseMul: 10, add: 0, mul: 1 } }),
+    doc("a", { key: "masterwork.weaponToHit", deltas: { bonus: 2 }, cost: { baseMul: 1, add: 13, mul: 1 } }),
+    doc("b", { key: "material.silver", deltas: {}, cost: { baseMul: 3, add: 0, mul: 1 } }),
   ];
   const byKey = new Map(applied.map((v) => [v.system.key, definitionFrom(v)]));
   const d = sumDeltas(applied.map(entryOf), (k) => byKey.get(k) ?? null);
-  assert.equal(d.bonus, 1);
-  assert.equal(totalPrice(10, d), 180); // (10 x 10) + 80
+  assert.equal(d.bonus, 2);
+  assert.equal(totalPrice(10, d), 43); // (10 x 3) + 13
 
   // And a second masterwork is refused against what the documents already say.
   const refusal = addRefusal(applied.map(entryOf), definitionFrom(doc("c", { key: "masterwork.both" })), {
@@ -312,7 +313,7 @@ test("the rules read documents exactly as they read entries", () => {
 
 test("deltas from several families sum", () => {
   const d = sumDeltas([entry("masterwork.weaponToHit"), entry("condition.dented")], define);
-  assert.equal(d.bonus, 0); // +1 masterwork, -1 dent
+  assert.equal(d.bonus, 0); // the tier's bonus, cancelled by the dent's
 });
 
 test("the cost order is the rules': base scaled, surcharge added, whole scaled", () => {
@@ -323,7 +324,7 @@ test("the cost order is the rules': base scaled, surcharge added, whole scaled",
     [entry("material.silver"), entry("masterwork.weaponToHit"), entry("condition.dented")],
     define,
   );
-  assert.equal(totalPrice(10, d), (10 * 10 + 80) * 0.5);
+  assert.equal(totalPrice(10, d), (10 * 3 + 13) * 0.25);
 });
 
 test("a variation may compute its contribution instead of declaring one", () => {
@@ -344,8 +345,8 @@ test("a variation may compute its contribution instead of declaring one", () => 
 test("a hidden variation is priced into the truth and out of the appearance", () => {
   const entries = [entry("material.silver", { hidden: true }), entry("masterwork.weaponToHit")];
   const v = values(10, entries, define);
-  assert.equal(v.true, 10 * 10 + 80);
-  assert.equal(v.apparent, 10 + 80); // silver unseen, so unpriced
+  assert.equal(v.true, 10 * 3 + 13);
+  assert.equal(v.apparent, 10 + 13); // silver unseen, so unpriced
 });
 
 test("hidden governs presentation, never mechanics", () => {
@@ -356,10 +357,10 @@ test("hidden governs presentation, never mechanics", () => {
 });
 
 test("a conditional claim is gathered, never applied", () => {
-  const crest = { key: "appearance.crest", value: { conditional: [{ audience: "House Aurelian", mul: 4 }] } };
+  const crest = { key: "appearance.crest", value: { conditional: [{ audience: "Invented House", mul: 4 }] } };
   const claims = conditionalClaims([entry("appearance.crest")], (k) => (k === "appearance.crest" ? crest : null));
   assert.equal(claims.length, 1);
-  assert.equal(claims[0].audience, "House Aurelian");
+  assert.equal(claims[0].audience, "Invented House");
   // It contributed nothing to either price.
   const v = values(100, [entry("appearance.crest")], (k) => (k === "appearance.crest" ? crest : null));
   assert.equal(v.true, 100);
@@ -376,14 +377,14 @@ test("a hidden claim is not offered at all — it is not known to exist", () => 
 /* -------------------------------------------- */
 
 test("an inscription in a language you have is read", () => {
-  const insc = { key: "appearance.inscription", language: "Zaharan" };
-  assert.equal(isLegible(entry("appearance.inscription"), insc, { languages: ["Common", "Zaharan"] }), true);
+  const insc = { key: "appearance.inscription", language: "Invented Tongue" };
+  assert.equal(isLegible(entry("appearance.inscription"), insc, { languages: ["Common", "Invented Tongue"] }), true);
 });
 
 test("an inscription in a language you lack is seen but not read", () => {
   // The entry is NOT hidden — the writing is plainly there. Only its meaning
   // is out of reach, which is the whole texture of the thing.
-  const insc = { key: "appearance.inscription", language: "Zaharan" };
+  const insc = { key: "appearance.inscription", language: "Invented Tongue" };
   const e = entry("appearance.inscription");
   assert.equal(e.hidden, false);
   assert.equal(isLegible(e, insc, { languages: ["Common"] }), false);

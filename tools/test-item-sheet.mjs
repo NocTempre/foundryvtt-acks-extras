@@ -387,11 +387,12 @@ test("nothing ticked takes anything; a list refuses what it does not name", () =
 
 console.log("item sheet: price ledger");
 test("the ledger applies plating, surcharge and resale in the rules' order", () => {
-  const { lines, final } = priceLedger({ base: 7, silverMul: 10, masterwork: { label: "+1 to hit", add: 80 }, condition: { label: "Dented", mul: 0.67 } });
+  // Invented figures: the plating's scale, the tier's surcharge and the resale rate are the book's.
+  const { lines, final } = priceLedger({ base: 7, silverMul: 3, masterwork: { label: "Invented tier", add: 11 }, condition: { label: "Dented", mul: 0.5 } });
   assert.deepEqual(lines.map((l) => l.key), ["listed", "silver", "masterwork", "condition"]);
-  assert.equal(lines[1].running, 70);
-  assert.equal(lines[2].running, 150);
-  assert.equal(final, 100.5);
+  assert.equal(lines[1].running, 21);
+  assert.equal(lines[2].running, 32);
+  assert.equal(final, 16);
 });
 test("variations contribute in the same three phases", () => {
   const { final } = priceLedger({ base: 10, variations: [{ name: "Gilded", add: 2 }, { name: "Masterwork", baseMul: 1.5 }] });
