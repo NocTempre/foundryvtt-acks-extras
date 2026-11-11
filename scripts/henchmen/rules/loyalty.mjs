@@ -20,20 +20,10 @@ export function apparentLevelPenalty() {
   return Number.isInteger(perLevel) ? perLevel : null;
 }
 
-/**
- * Round a loyalty or morale score and hold it to `bounds`, the range the
- * actor's own schema field allows (`acks-adapter.mjs` `loyaltyBounds` /
- * `moraleBounds`). A side the bounds do not name stays open.
- * @param {number} v
- * @param {{min?: number|null, max?: number|null}} [bounds]
- */
-export function clampScore(v, bounds) {
-  const { min, max } = bounds ?? {};
-  let score = Math.round(v);
-  if (Number.isFinite(min)) score = Math.max(min, score);
-  if (Number.isFinite(max)) score = Math.min(max, score);
-  return score;
-}
+import { clampScore } from "../../lib/score-bounds.mjs";
+
+/** The score clamp is `lib/score-bounds.mjs`'s; the rules here re-export it for their callers. */
+export { clampScore };
 
 /**
  * Whether a ledger entry still counts. RR 166 penalties apply "while

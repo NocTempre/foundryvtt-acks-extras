@@ -11,7 +11,7 @@
 import { MODULE_ID, FLAG_RETAIN_BONUS } from "./constants.mjs";
 import { sumEffectModifiers } from "./effects.mjs";
 import { henchmanLimitBase } from "./rules/wages.mjs";
-import { clampScore } from "./rules/loyalty.mjs";
+import { clampScore, loyaltyBounds, moraleBounds } from "../lib/score-bounds.mjs";
 // Generic actor reads (ability mod, class level, HD parse) live once in the
 // lib subsystem — the influence feature reads the same schema. `monsterHd`'s
 // union also covers the "1/2"-HD form. Henchman-specific reads (retainer,
@@ -80,23 +80,8 @@ export function getMorale(actor) {
   return Number(actor?.system?.details?.morale ?? 0);
 }
 
-/**
- * The `{min, max}` the system's data model for an actor `type` holds the field
- * at `path` to. Read off the model, not an actor, so it answers before a
- * hireling exists; a side the field does not bound (or a system that does not
- * carry the field) is null and the score stays open on that side.
- */
-function fieldBounds(type, path) {
-  const field = globalThis.CONFIG?.Actor?.dataModels?.[type]?.schema?.getField?.(path);
-  const bound = (n) => (Number.isFinite(n) ? n : null);
-  return { min: bound(field?.min), max: bound(field?.max) };
-}
-
-/** The range the system holds a hireling's loyalty score to, for an actor `type`. */
-export const loyaltyBounds = (type) => fieldBounds(type, "retainer.loyalty");
-
-/** The range the system holds a hireling's morale score to, for an actor `type`; a monster's differs from a character's. */
-export const moraleBounds = (type) => fieldBounds(type, "details.morale");
+/** The score ranges are `lib/score-bounds.mjs`'s; the adapter re-exports them for its callers. */
+export { loyaltyBounds, moraleBounds };
 
 export function getAlignment(actor) {
   return actor?.system?.details?.alignment ?? "";

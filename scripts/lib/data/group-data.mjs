@@ -13,6 +13,8 @@
 import { acksCompatStubs, creatureAttackModifiers, migrateLegacyCombatSource, savingThrowFields } from "../actor-compat.mjs";
 import { attackThrowModifiersFor, damageModifiersFor } from "../patches/attack-throw.mjs";
 import { migrateGroupSource, platoonCapacity } from "../group-logic.mjs";
+import { clampScore, moraleBounds } from "../score-bounds.mjs";
+import { ACTOR_TYPE } from "../vocab.mjs";
 
 /** A roster member's lifecycle. Records only ever exist for non-pristine bodies. */
 export const GROUP_STATE = Object.freeze({
@@ -279,18 +281,19 @@ export default class GroupData extends foundry.abstract.TypeDataModel {
   }
 
   /** Unit morale including the commanding officer's RR 171 modifier (skirmish
-   *  scale). Clamped to the same signed band unit morale uses. `unit.morale`
-   *  carries the employer's leader modifiers (CHA, Command, led-by-5th …) that
-   *  the consumer computes; a stack's own troop-type base is added per stack. */
+   *  scale), held to the morale range the system gives a character
+   *  (`moraleBounds`), the hireling's own score. `unit.morale` carries the
+   *  employer's leader modifiers (CHA, Command, led-by-5th …) that the consumer
+   *  computes; a stack's own troop-type base is added per stack. */
   get commandMorale() {
     const m = (this.unit?.morale ?? 0) + (this.unit?.officerMoraleBonus ?? 0);
-    return Math.max(-4, Math.min(4, m));
+    return clampScore(m, moraleBounds(ACTOR_TYPE.character));
   }
 
   /** One stack's effective morale: its troop-type base + the shared leader
-   *  modifiers (employer + officer). Clamped to the RR 166 −4..+4 band. */
+   *  modifiers (employer + officer), held to the same range (RR 166). */
   unitMoraleOf(stack) {
-    return Math.max(-4, Math.min(4, (stack?.baseMorale ?? 0) + this.commandMorale));
+    return clampScore((stack?.baseMorale ?? 0) + this.commandMorale, moraleBounds(ACTOR_TYPE.character));
   }
 
   /* --- RR 169 command capacity (skirmish "personally led") --- */

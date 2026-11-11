@@ -23,6 +23,7 @@ import {
   splitSpec,
 } from "../scripts/lib/storage-logic.mjs";
 import { arrivalOf, bundleRows, goodsForDrop, goodsForRow } from "../scripts/lib/bundles-logic.mjs";
+import { clampScore, loyaltyBounds, moraleBounds, schemaBounds } from "../scripts/lib/score-bounds.mjs";
 import {
   ancestorUuids,
   childrenOf,
@@ -3786,5 +3787,40 @@ await (async () => {
   n++;
   console.log("ok - the cast seam: a claimant takes a cast over, spends once, and never costs the table its cast");
 })();
+
+// Score bounds come off the system's schema field per actor type, never from
+// a literal. Invented ranges: a character's morale -3..7, a monster's -9..2,
+// loyalty bounded below only.
+{
+  const saved = globalThis.CONFIG;
+  const field = (min, max) => ({ min, max });
+  const fields = {
+    character: { "details.morale": field(-3, 7), "retainer.loyalty": field(-5, undefined) },
+    monster: { "details.morale": field(-9, 2) },
+  };
+  globalThis.CONFIG = {
+    Actor: { dataModels: Object.fromEntries(Object.entries(fields).map(([type, f]) => [type, { schema: { getField: (p) => f[p] } }])) },
+  };
+  try {
+    assert.deepEqual(moraleBounds("character"), { min: -3, max: 7 }, "a character's morale range is its schema field's");
+    assert.deepEqual(moraleBounds("monster"), { min: -9, max: 2 }, "a monster's is its own");
+    assert.deepEqual(loyaltyBounds("character"), { min: -5, max: null }, "an unbounded side is null");
+    assert.deepEqual(loyaltyBounds("monster"), { min: null, max: null }, "a type without the field bounds nothing");
+    assert.deepEqual(schemaBounds("nope", "details.morale"), { min: null, max: null }, "an unknown type bounds nothing");
+    assert.equal(clampScore(9.4, moraleBounds("character")), 7, "a score above the range is held to its top");
+    assert.equal(clampScore(-12, moraleBounds("monster")), -9, "a monster keeps its own floor");
+    assert.equal(clampScore(40, loyaltyBounds("character")), 40, "an open side leaves the score alone");
+    assert.equal(clampScore(2.6), 3, "no bounds only rounds");
+    globalThis.CONFIG = undefined;
+    assert.deepEqual(moraleBounds("character"), { min: null, max: null }, "no CONFIG bounds nothing");
+  } finally {
+    globalThis.CONFIG = saved;
+  }
+  const groupSource = readFileSync(new URL("../scripts/lib/data/group-data.mjs", import.meta.url), "utf8");
+  assert.ok(!/Math\.max\(\s*-?\d+\s*,\s*Math\.min\(\s*-?\d+/.test(groupSource), "a group's morale holds no literal range");
+  assert.equal((groupSource.match(/clampScore\(.*moraleBounds\(ACTOR_TYPE\.character\)\)/g) ?? []).length, 2, "both group morale reads clamp to the system's range");
+  n++;
+  console.log("ok - score bounds: the system's schema range per type, an open side stays open, a group reads it too");
+}
 
 console.log(`\n${n} tests passed (including the location migration)`);

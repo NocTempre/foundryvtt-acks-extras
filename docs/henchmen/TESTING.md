@@ -198,6 +198,17 @@ a step it does not name is walked by hand.
    is what lib `citeOf("wages", "henchmanWageByLevel")` answers, or *no page
    recorded*), and with no table imported says so; the share tooltip says
    the default is the module's.
+1c. The score range is the system's. In the console, on any seat,
+   `const b = await import("/modules/acks-extras/scripts/lib/score-bounds.mjs")`,
+   then `b.moraleBounds("character")`, `b.moraleBounds("monster")` and
+   `b.loyaltyBounds("character")`. *Observable:* each answers finite `min`
+   and `max` (a null side means core's field is not where the read looks, and
+   every clamp is then open), and the monster's morale `min` differs from the
+   character's. Then give the 1a monster hireling a morale power that pushes
+   it below the character floor: its Service tab morale stops at the
+   monster's own floor, not the character's. On a group actor's sheet, a unit
+   whose leader modifiers overshoot reads its command morale at the
+   character's range.
 2. `openThrowDialog("hirelingLoyalty", {actor: employer})`, then press its own
    **Roll** button.
    *Observable:* the dialog itemises base throw, loyalty score, level

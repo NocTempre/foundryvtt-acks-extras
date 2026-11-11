@@ -195,8 +195,9 @@ not undo it.
   ledgers; **effective scores are computed at read time** (base + permanents +
   employer CHA + employer effect bonuses) so transfers recalculate (RR 163),
   and held to the range the system's data model gives the field for the
-  hireling's actor type (`acks-adapter.mjs` `loyaltyBounds` / `moraleBounds`,
-  read off `CONFIG.Actor.dataModels[type].schema`: a monster's morale field is
+  hireling's actor type (`lib/score-bounds.mjs` `loyaltyBounds` /
+  `moraleBounds`, which the adapter re-exports, read off
+  `CONFIG.Actor.dataModels[type].schema`: a monster's morale field is
   bounded apart from a character's). The `rules/` helpers take those bounds as
   an argument and hold no range of their own; with none handed in a score is
   rounded and left open.
