@@ -3211,7 +3211,7 @@ t("keepUnrenderedFields: a submitted row keeps every stored field its form did n
   const source = {
     name: "Class",
     system: {
-      maximumLevel: 14,
+      maximumLevel: 20,
       templates: [
         {
           name: "T1", gp: 7, sp: 23,
@@ -3227,7 +3227,7 @@ t("keepUnrenderedFields: a submitted row keeps every stored field its form did n
   const sent = {
     name: "Class",
     system: {
-      maximumLevel: 13,
+      maximumLevel: 21,
       templates: {
         0: { name: "T1 renamed", gp: 8, abilities: { 0: { ref: "a2", choice: { count: 3 } }, 1: { ref: "b", role: "" } }, items: { 0: { name: "i" } } },
         1: { name: "T2" },
@@ -3247,7 +3247,7 @@ t("keepUnrenderedFields: a submitted row keeps every stored field its form did n
   assert.deepEqual(out.system.paths[0].options, [{ key: "o", training: { weapons: ["all"] } }], "a nested list the form never rendered comes back whole");
   assert.deepEqual(out.system.languages.granted, { 0: "One", 1: "Three" }, "a list of strings is the form's, as sent");
   assert.equal("count" in out.system.languages, false, "outside an array nothing is filled: the update keeps it");
-  assert.equal(out.system.maximumLevel, 13);
+  assert.equal(out.system.maximumLevel, 21);
   out.system.paths[0].options[0].training.weapons.push("melee:all");
   assert.deepEqual(source.system.paths[0].options[0].training.weapons, ["all"], "a filled value is a copy, never the stored one");
 });

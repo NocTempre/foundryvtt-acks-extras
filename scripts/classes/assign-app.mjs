@@ -9,6 +9,7 @@
 import { MODULE_ID, LANG_PREFIX, FLAG_CLASSES } from "./constants.mjs";
 import { classItems, classForActor, byBookOrder } from "./registry.mjs";
 import { applyClass, rebindsHeldClass } from "./apply.mjs";
+import { clampLevel, levelCap } from "./level-cap.mjs";
 import { applyTemplate, netBonusPicks, templateShortfall } from "./chargen.mjs";
 import { awardsThrough, choosableGenerals, grantAbility, refOf } from "./grants.mjs";
 import { classPanelHtml, picksPanelHtml, templatePanelHtml } from "./panels.mjs";
@@ -145,7 +146,7 @@ export class ClassAssignApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const context = await super._prepareContext(options);
     const actor = this.actor;
     const cls = this.#classItem;
-    const level = Math.max(1, Math.min(this.binding.level, cls?.system?.maximumLevel || 14));
+    const level = clampLevel(cls?.system, this.binding.level);
     this.binding.level = level;
 
     const templates = cls?.system?.templates ?? [];
@@ -228,11 +229,11 @@ export class ClassAssignApp extends HandlebarsApplicationMixin(ApplicationV2) {
    * number this window actually decides and everything that follows from it.
    */
   #levelColumnHtml(cls, level, ladder) {
-    const max = cls?.system?.maximumLevel || 14;
+    const max = levelCap(cls?.system);
     return `<div class="form-group">
         <label>${esc(loc("pick.level"))}</label>
         <div class="form-fields">
-          <input type="number" name="acks-level" value="${level}" min="1" max="${max}" step="1" />
+          <input type="number" name="acks-level" value="${level}" min="1"${max == null ? "" : ` max="${max}"`} step="1" />
         </div>
         <p class="hint">${esc(loc("assign.levelHint"))}</p>
       </div>

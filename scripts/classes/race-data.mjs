@@ -82,7 +82,7 @@ export default class RaceData extends foundry.abstract.TypeDataModel {
       /** Printed XP discount on the stacked category's cost (the elf's
        *  Arcane reduction). Null when the race prints none. */
       stackXpDiscount: num({ integer: true }),
-      /** Extra hit points per level past 9th the race prints. */
+      /** Extra hit points per level past the last die level the race prints. */
       hpAfter9: num({ integer: true }),
       /** Post-8th-level XP increases: `chassis` is a saves-chassis key,
        *  "crusaderThief" for the shared tier, or "" for every chassis. */

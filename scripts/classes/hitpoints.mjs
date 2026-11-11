@@ -7,6 +7,7 @@
  */
 import { getDoc, hasDoc, expectTables } from "../lib/tables.mjs";
 import { MODULE_ID, LANG_PREFIX, FLAG_CLASSES } from "./constants.mjs";
+import { clampLevel } from "./level-cap.mjs";
 
 /** The registered ruledata document these derivations read. */
 export const HITPOINTS_DOC = "hitPoints";
@@ -156,7 +157,7 @@ export function hdAt(classItem, level) {
  */
 export async function rebuildHitPoints(actor, classItem, level, { dieMinimum = importedDieMinimum() } = {}) {
   const conMod = Number(actor.system?.scores?.con?.mod) || 0;
-  const target = Math.max(1, Math.min(Number(level) || 1, classItem.system.maximumLevel || 14));
+  const target = clampLevel(classItem.system, level);
   const cells = Array.from({ length: target }, (_, i) => hdAt(classItem, i + 1));
   if (cells.some((hd) => !hd)) return null;
   const steps = [];

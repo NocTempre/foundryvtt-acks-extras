@@ -24,6 +24,7 @@ import { setClassTraining } from "./training.mjs";
 import { classTrainingEffect, trainingOf } from "./training-logic.mjs";
 import { armourOptionsFor, bindDropHighlight, confirmRowDelete, openRef, rejectDrop } from "./sheet-helpers.mjs";
 import { refOf } from "./grants.mjs";
+import { levelCap } from "./level-cap.mjs";
 import { builderTables, raceItems, raceForClass, planFor, applyBuilder, issueLabel } from "./builder.mjs";
 import { materializeTemplates, detachTemplatePackages } from "./template-packages.mjs";
 import { CHOICE_SOURCES, CHOICE_FILTERS } from "../lib/choice-spec.mjs";
@@ -98,6 +99,11 @@ export default class ClassSheet extends HandlebarsApplicationMixin(ItemSheetV2) 
     context.xpUnread = !sys.isStub && (sys.levels ?? []).some((r) => r.level > 1 && r.xp == null);
     context.titlesUnread = !sys.isStub && (sys.levels ?? []).length > 0 && sys.levels.every((r) => !r.title);
     context.cite = sys.source?.cite ?? "";
+    // The cap field says where its figure came from, or that none is set.
+    context.capTip = game.i18n.format(
+      `${LANG_PREFIX}.sheet.${levelCap(sys) == null ? "capNoneTip" : context.cite ? "capCiteTip" : "capHandTip"}`,
+      { cite: context.cite },
+    );
     // An experience column the import priced from the class's build names the
     // build it came from, while it still holds the priced figure at 2nd level.
     const build = this.document.getFlag(MODULE_ID, "xpBuild");

@@ -142,15 +142,21 @@ export function assembleBuilderTables(raw) {
   if (raw.xpRules && [raw.xpRules.crusaderThief, raw.xpRules.fighter, raw.xpRules.mage].every(isNum)) {
     budget.postEight = { crusaderThief: raw.xpRules.crusaderThief, fighter: raw.xpRules.fighter, mage: raw.xpRules.mage };
   }
-  // The post-9th HIT-POINT rates pair the chassis differently from the
+  // The HIT-POINT rates past the last die level pair the chassis differently from the
   // post-8th XP increments above — crusader+mage and fighter+thief, not
   // crusader+thief / fighter / mage — so the two cannot share keys. The
   // printed pairing is kept here and expanded by the consumer, as postEight
   // is. All-or-nothing: both rates come from one sentence on one page, so a
-  // half-read is a broken read and must not present as a complete one.
-  if (raw.hpAfterNine && [raw.hpAfterNine.crusaderMage, raw.hpAfterNine.fighterThief].every(isNum)) {
-    budget.hpAfterNine = { crusaderMage: raw.hpAfterNine.crusaderMage, fighterThief: raw.hpAfterNine.fighterThief };
+  // half-read is a broken read and must not present as a complete one. The
+  // level they begin after is a read of its own: missing it costs the dice
+  // cells, never the rates, and missing a rate never costs it.
+  const hp = {};
+  if ([raw.hpAfterNine?.crusaderMage, raw.hpAfterNine?.fighterThief].every(isNum)) {
+    hp.crusaderMage = raw.hpAfterNine.crusaderMage;
+    hp.fighterThief = raw.hpAfterNine.fighterThief;
   }
+  if (isNum(raw.hpAfterNine?.afterLevel)) hp.afterLevel = raw.hpAfterNine.afterLevel;
+  if (Object.keys(hp).length) budget.hpAfterNine = hp;
   if (raw.racialCaps) {
     budget.racialCaps = Object.entries(raw.racialCaps)
       .filter(([, r]) => r && !r.__missing && isNum(r.maxLevel))

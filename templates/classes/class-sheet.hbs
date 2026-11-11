@@ -36,7 +36,7 @@
   <section class="acks-extras-classes-tabpane" {{#unless show.overview}}hidden{{/unless}}>
     <div class="form-group">
       <label>{{localize "ACKS-CLASSES.sheet.maximumLevel"}}</label>
-      <input name="system.maximumLevel" type="number" value="{{system.maximumLevel}}" min="1" step="1" />
+      <input name="system.maximumLevel" type="number" value="{{system.maximumLevel}}" min="1" step="1" placeholder="{{localize "ACKS-CLASSES.sheet.capNone"}}" data-tooltip-text="{{capTip}}" />
       <label>{{localize "ACKS-CLASSES.sheet.hitDie"}}</label>
       <input name="system.hitDie" type="text" value="{{system.hitDie}}" placeholder="1d8" />
     </div>

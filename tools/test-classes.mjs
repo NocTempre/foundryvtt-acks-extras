@@ -26,6 +26,7 @@ import {
   xpSchedule,
 } from "../scripts/classes/builder-logic.mjs";
 import { classUpdateData, damageBonusLadder, rebindsHeldClass, syncClassTraining } from "../scripts/classes/apply.mjs";
+import { clampLevel, atLevelCap, levelCap } from "../scripts/classes/level-cap.mjs";
 import { classForActor, findByRef, publish } from "../scripts/classes/registry.mjs";
 import { CLASS_TYPE, LANG_PREFIX, PROGRESSIONS_DOC_ID } from "../scripts/classes/constants.mjs";
 import { awardsAt, awardsThrough, choosableGenerals, spellLanes, admitsSpell, choosableSpells } from "../scripts/classes/grants.mjs";
@@ -70,7 +71,7 @@ const TABLES = {
     savesPrecedence: ["arcane", "divine", "fighting", "thievery"],
     smoothing: { level: 7, nearest: 5000 },
     postEight: { crusaderThief: 100000, fighter: 120000, mage: 150000 },
-    hpAfterNine: { crusaderMage: 3, fighterThief: 5 },
+    hpAfterNine: { crusaderMage: 3, fighterThief: 5, afterLevel: 6 },
     racialCaps: [
       { points: 8, maxLevel: 9 },
       { points: 7, maxLevel: 10 },
@@ -378,10 +379,12 @@ test("derivePlan assembles a racial build end-to-end (the spellsword shape)", ()
   assert.ok(u.ladders.some((l) => l.key === "mortalWounds"));
   assert.deepEqual(u.requirements, [{ attr: "int", min: 9 }]);
   assert.ok(u.racialTraits.some((t) => t.ref === "def.power.elfTongues"));
-  // Where the die count stops the flat starts: the fighter chassis's fixture
-  // rate, and the elf prints no racial rate to add to it.
-  assert.equal(u.levels[8].hd, "9d6");
-  assert.equal(u.levels[9].hd, "9d6+5");
+  // Where the die count stops the flat starts: the fixture's last die level,
+  // the fighter chassis's fixture rate, and the elf prints no racial rate to
+  // add to it.
+  assert.equal(u.levels[5].hd, "6d6");
+  assert.equal(u.levels[6].hd, "6d6+5");
+  assert.equal(u.levels[9].hd, "6d6+20");
 });
 
 test("a race's post-9th hit points add to the chassis rate, and the flat is cumulative", () => {
@@ -398,9 +401,41 @@ test("a race's post-9th hit points add to the chassis rate, and the flat is cumu
   assert.equal(u.saveChassis, "crusader"); // fairie saves as crusader
   assert.ok(!plan.issues.some((i) => i.key === "missingHpAfterNine"));
   // crusader -> crusaderMage fixture rate, plus the dwarf's own = 5 per level.
-  assert.equal(u.levels[8].hd, "9d6");
-  assert.equal(u.levels[9].hd, "9d6+5");
-  assert.equal(u.levels[10].hd, "9d6+10"); // cumulative, not per-level
+  assert.equal(u.levels[5].hd, "6d6");
+  assert.equal(u.levels[6].hd, "6d6+5");
+  assert.equal(u.levels[7].hd, "6d6+10"); // cumulative, not per-level
+});
+
+test("the level hit dice stop rising at is read from the budget, and a missing read costs only itself", () => {
+  const plan = (hpAfterNine) =>
+    derivePlan({
+      builder: { hdValue: 1, fighting: { value: 2, sub: "" }, magic: [], race: { value: 0 }, tradeoffs: [], powers: [] },
+      tables: { ...TABLES, budget: { ...TABLES.budget, hpAfterNine } },
+      race: null,
+      chassisAttack: CHASSIS_ATTACK,
+    });
+  const has = (p, key) => p.issues.some((i) => i.key === key);
+  // Another last die level moves where the dice stop and the flat starts.
+  const moved = plan({ crusaderMage: 3, fighterThief: 5, afterLevel: 4 });
+  assert.deepEqual([moved.update.levels[3].hd, moved.update.levels[4].hd], ["4d6", "4d6+5"]);
+  assert.ok(!has(moved, "missingLastDieLevel") && !has(moved, "missingHpAfterNine"));
+  // No last die level: no level's dice count is known, so no cell is written.
+  const noLevel = plan({ crusaderMage: 3, fighterThief: 5 });
+  assert.ok(noLevel.update.levels.every((r) => r.hd === ""), "no hit-dice cell without the level");
+  assert.ok(has(noLevel, "missingLastDieLevel"));
+  assert.ok(!has(noLevel, "missingHpAfterNine"), "a rate that was read is not reported missing");
+  // Neither read: both gaps are named, since the rate cannot be ruled out as needed.
+  const neither = plan({});
+  assert.ok(has(neither, "missingLastDieLevel") && has(neither, "missingHpAfterNine"));
+  assert.equal(noLevel.update.hitDie, "1d6", "the hit die itself is unaffected");
+  // No rates: the dice rise to the last die level and carry no flat, and the gap is named.
+  const noRate = plan({ afterLevel: 6 });
+  assert.deepEqual([noRate.update.levels[5].hd, noRate.update.levels[9].hd], ["6d6", "6d6"]);
+  assert.ok(has(noRate, "missingHpAfterNine") && !has(noRate, "missingLastDieLevel"));
+  // A class that never passes the last die level needs no rate.
+  const short = plan({ afterLevel: 20 });
+  assert.ok(!has(short, "missingHpAfterNine"), "a cap under the last die level has no flat to price");
+  assert.equal(short.update.levels.at(-1).hd, `${short.update.levels.length}d6`);
 });
 
 test("the trade-off ticks decide who a built class's damage bonus applies to", () => {
@@ -465,7 +500,8 @@ test("derivePlan skips what a partial table set cannot answer", () => {
   // A rate the world never imported is named, and the cell simply carries no
   // flat — never an invented one.
   assert.ok(plan.issues.some((i) => i.key === "missingHpAfterNine"));
-  assert.equal(plan.update.levels[9].hd, "9d4");
+  assert.ok(plan.issues.some((i) => i.key === "missingLastDieLevel"));
+  assert.ok(plan.update.levels.every((r) => r.hd === ""), "no last die level, no hit-dice cell");
 });
 
 /* ------------------- awards owed for a level held ------------------- */
@@ -1294,7 +1330,7 @@ const dmgClass = (key) => ({
   name: "Fixture",
   system: {
     key: "fixture",
-    maximumLevel: 14,
+    maximumLevel: 20,
     ladders: [{ key, values: [{ atLevel: 1, value: 1 }, { atLevel: 3, value: 2 }] }],
     levelRow: () => null,
     nextXp: () => null,
@@ -1818,6 +1854,37 @@ test("an award stops one point short of the level after next", () => {
   // Lowering is never capped.
   assert.deepEqual(capXpGain(300, 250, 199), { value: 250, lost: 0 });
   assert.deepEqual(capXpGain(0, 1000, null), { value: 1000, lost: 0 });
+});
+
+test("a class with no level cap has none: nothing clamps a level and no figure stands in", async () => {
+  // The cap is an integer from 1 up, and anything else is no cap.
+  for (const bad of [null, undefined, 0, -1, 2.5, "7", NaN]) assert.equal(levelCap({ maximumLevel: bad }), null, `${bad} is no cap`);
+  assert.equal(levelCap(undefined), null);
+  assert.equal(levelCap({ maximumLevel: 20 }), 20);
+  assert.equal(clampLevel({ maximumLevel: null }, 99), 99, "unbounded above without a cap");
+  assert.equal(clampLevel({ maximumLevel: 20 }, 99), 20);
+  assert.deepEqual([0, undefined, -4].map((n) => clampLevel({ maximumLevel: null }, n)), [1, 1, 1], "never below first");
+  assert.deepEqual([atLevelCap({ maximumLevel: null }, 99), atLevelCap({ maximumLevel: 20 }, 19), atLevelCap({ maximumLevel: 20 }, 20)], [false, false, true]);
+  // The class apply holds a level to the cap where there is one, and writes the level asked where there is none.
+  const capped = dmgClass("damageBonus");
+  const open = { ...capped, system: { ...capped.system, maximumLevel: null } };
+  assert.equal(classUpdateData({}, capped, 99).update["system.details.level"], 20);
+  assert.equal(classUpdateData({}, open, 99).update["system.details.level"], 99);
+  // The next threshold stops at a cap, and without one it reads the next row or says none.
+  const rows = [{ level: 1, xp: 0 }, { level: 2, xp: 100 }, { level: 3, xp: 300 }];
+  const withCap = (maximumLevel) => ({ maximumLevel, levelRow: (n) => rows.find((r) => r.level === n) ?? null });
+  assert.deepEqual([1, 2, 3].map((n) => ClassData.prototype.nextXp.call(withCap(2), n)), [100, null, null]);
+  assert.deepEqual([1, 2, 3].map((n) => ClassData.prototype.nextXp.call(withCap(null), n)), [100, 300, null], "no cap answers from the rows, never 0");
+  // The schema holds no figure of its own for the field.
+  const src = readFileSync(new URL("../scripts/classes/class-data.mjs", import.meta.url), "utf8");
+  assert.match(src, /maximumLevel: num\(\{ integer: true, min: 1 \}\)/);
+});
+
+test("no source stands a level cap in for a class that sets none", () => {
+  for (const file of ["classes/apply.mjs", "classes/levelup.mjs", "classes/hitpoints.mjs", "classes/assign-app.mjs", "character-sheet/tabs/class.mjs"]) {
+    const src = readFileSync(new URL(`../scripts/${file}`, import.meta.url), "utf8").replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "");
+    assert.doesNotMatch(src, /maximumLevel\s*(\|\||\?\?)\s*\d/, `${file} falls back to a cap`);
+  }
 });
 
 test("an award key names the level it was minted for", () => {
@@ -2346,6 +2413,13 @@ await atest("a rebuild records every level it rolls: dice, faces, Constitution, 
     built = await rebuildHitPoints(actor, diceClass(), 5);
     assert.deepEqual([built.steps.length, built.steps[4].flat, built.steps[4].total], [5, 1, 9]);
     assert.deepEqual([built.steps[4].kind, built.steps[4].faces.length], ["roll", 4], "past the last die level the whole pool is rolled");
+    // A class that sets a maximum is rolled to it and no further; one that sets none goes on.
+    built = await rebuildHitPoints(actor, diceClass(), 9);
+    assert.equal(built.steps.length, 6, "a level asked past the class's maximum rolls to the maximum");
+    const uncapped = diceClass();
+    uncapped.system.maximumLevel = null;
+    built = await rebuildHitPoints(actor, uncapped, 9);
+    assert.equal(built.steps.length, 9, "with no maximum nothing stops the climb at a stand-in level");
     // A level whose roll falls under one over the last keeps that, and names it:
     // 1st a 6; 2nd two 1s = 2, under 6 + 1.
     globalThis.Roll = scriptDie([6, 1, 1]);

@@ -30,6 +30,7 @@
  */
 import { MODULE_ID, LANG_PREFIX, FLAG_CLASSES } from "./constants.mjs";
 import { classForActor, classForActorAsync, findByRef } from "./registry.mjs";
+import { atLevelCap } from "./level-cap.mjs";
 import { applyClass, classUpdateData, XP_PATH } from "./apply.mjs";
 import {
   HP_ROLLS_KEY,
@@ -197,7 +198,7 @@ async function runLevelUp(actor) {
   const sys = classItem.system;
   const level = levelOf(actor);
   const next = level + 1;
-  if (next > (sys.maximumLevel || 14)) {
+  if (atLevelCap(sys, level)) {
     ui.notifications?.info(game.i18n.format(`${LANG_PREFIX}.levelup.atCap`, { name: actor.name, max: sys.maximumLevel }));
     return;
   }

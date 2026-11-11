@@ -100,7 +100,7 @@ Three small controls appear beside the class field:
   real, repairable documents.*
 - **Rising arrow** (when XP qualifies) — the level-up wizard: HP rerolled per
   RAW (full Hit Dice, Constitution per die, never on the flat bonus past
-  9th, minimum one over the old maximum), the new level's powers granted,
+  the last die level, minimum one over the old maximum), the new level's powers granted,
   class/general proficiency picks
   offered, slots bumped.
 
@@ -415,17 +415,20 @@ from the Items sidebar or a compendium, once each.
 *A race's minimum attributes and its value rungs, the powers the first rung
 grants named on it.*
 
-## What a race adds after 9th level
+## What a race adds past the last hit die
 
-Past 9th level a class stops gaining Hit Dice and gains a flat number of hit
-points instead. The rate comes from the class's saving-throw progression, and
-some races add to it. Both numbers are read from your own books; the race's
-share is on the race document, where you can also type it for a race the
-importer has no recipe for.
+Past a class's last Hit Die level it stops gaining Hit Dice and gains a flat
+number of hit points instead. The rate comes from the class's saving-throw
+progression, and some races add to it. The rate, the level the dice stop at and
+the race's share are all read from your own books; the race's share is on the
+race document (Items sidebar → the race → its sheet), where you can also type it
+for a race the importer has no recipe for.
 
 ![](../releases/v5.4.0/race-post-ninth.png)
 
 A build that spends this race's value picks the bonus up on the next Derive; the
-class's level table then shows the printed flat on every row past 9th. Where the
-world has not imported the class-side rate, the derive reports that gap by name
-and writes no flat at all rather than guessing one.
+class's level table then shows the printed flat on every row past the last die
+level. Where the world has not imported the class-side rate, the derive reports
+that gap by name and writes no flat at all rather than guessing one; where it
+has not imported the level the dice stop at, the derive names that too and
+writes no hit-dice cell, since no row's dice count is known without it.

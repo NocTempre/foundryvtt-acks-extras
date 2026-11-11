@@ -207,6 +207,13 @@ turns that state into a PLAN:
   carries.
 - **Maximum level** — the budget's racial cap table by TOTAL build points
   when a racial value is spent; 14 otherwise.
+- **Hit-dice cells** — one die per level up to the last die level, then the
+  printed flat accumulating at the chassis's per-level rate. Both the level and
+  the rates are read from the JJ custom-class chapter into
+  `budget.hpAfterNine` (`afterLevel`, `crusaderMage`, `fighterThief`), each read
+  on its own: without the rates the cells carry no flat and
+  `missingHpAfterNine` is named; without the last die level no level's dice
+  count is known, so no cell is written and `missingLastDieLevel` is named.
 - **Attack** — an imported attack-throw grid if one exists, else the chassis
   class the fighting row names (its printed table is already in the world),
   else the row's progression parameters based off the fighter chassis's
@@ -462,6 +469,33 @@ defaults to none, and is applied through `applyTemplate`, the merging half of
 chargen. `applyChargen`'s wipe belongs to generating a character, which is the
 opposite act.
 
+## Level cap
+
+A class's cap is its own `system.maximumLevel`: an integer from 1, or null where
+the class sets none. The importer reads it from the class's own page (RR ch. 2,
+its "Maximum Level" line) and writes it only where
+the page prints one; the class sheet's Maximum level field (Overview tab) types
+or clears it. The schema holds no initial figure, so a class made by hand and
+never given one has none. Every reader goes through
+[level-cap.mjs](../../scripts/classes/level-cap.mjs): `levelCap` answers the
+integer or null, `clampLevel` holds a level to it where there is one, and
+`atLevelCap` is false where there is none. Nothing else in the module names a
+cap, and nothing stands one in: the class apply, the sheet's hit dice roll, the
+picker and the class tab clamp or refuse only at a cap the class carries, and
+`nextXp` answers from the next printed row, or null where none prints.
+
+A class with no cap is held to its rows by nothing but its rows: a level past
+the last one prints is applied as asked, and the surfaces that need a row
+(experience, titles, the throws) name what is missing as they do for any
+level. The class sheet's field shows "not set" with a tooltip saying the class
+sets no maximum, and the tooltip of a set field names the class's citation
+(`source.cite`), or says it was set on the sheet.
+
+A class document made before the field lost its initial figure keeps what it
+stored; no migration rewrites it, so a hand-made class that never typed a cap
+and was saved under the old schema still carries the old stored figure until
+its owner clears the field.
+
 ## Hit points
 
 Three rules, all the book's, and each owned once in `hitpoints.mjs` because both
@@ -484,9 +518,9 @@ class's own level rows. Where the class's rows stop adding dice, the cell
 prints a flat instead, which takes no Constitution; that level is derived, not
 held: `lastDieLevel` is the last level whose row prints more dice than the rows
 before it. An imported class carries the flat in its printed cell; a class
-built through the builder has it computed from the imported per-level rate (see
-*Advanced mode*). A level whose row prints no cell takes one die per level up
-to `lastDieLevel`, in the size that row prints. A class printing no cell at all
+built through the builder has it computed from the imported per-level rate and
+the imported last die level (see *Advanced mode*). A level whose row prints no
+cell takes one die per level up to `lastDieLevel`, in the size that row prints. A class printing no cell at all
 answers null: the wizard says the hit dice are not set and adds the one-point
 minimum, the picker leaves hit points as they stand, and the sheet's roll falls
 to the system's own.

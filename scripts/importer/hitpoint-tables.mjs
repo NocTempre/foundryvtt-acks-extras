@@ -1,11 +1,12 @@
 /**
- * The two printed hit-point numbers the engines take as arguments.
+ * The printed hit-point numbers the engines take as arguments.
  *
- * Both are VALUES read off the reader's own page, never shipped: how many
- * points a hit die is read at when it comes up short, and how many points a
- * level past 9th is worth. What those numbers MEAN — that the first floors the
- * die rather than the total, that Constitution lands after it, that the second
- * accumulates into the printed flat on each row past 9th — is structure, and
+ * These are VALUES read off the reader's own page, never shipped: how many
+ * points a hit die is read at when it comes up short, the level a custom class's
+ * hit dice stop rising at, and how many points each level past it is worth. What
+ * those numbers MEAN — that the first floors the die rather than the total, that
+ * Constitution lands after it, that the rate accumulates into the printed flat
+ * on each row past the last die level — is structure, and
  * lives in acks-extras `classes/hitpoints.mjs` and `classes/builder-logic.mjs`.
  *
  * Owned here rather than inside table-recipes.mjs for the same reason
@@ -40,8 +41,8 @@ export const HIT_POINTS_DOC = Object.freeze({
 });
 
 /**
- * Hit points per level past 9th, by saving-throw chassis (JJ custom-class
- * chapter).
+ * Hit points per level past the last die level, by saving-throw chassis (JJ
+ * custom-class chapter).
  *
  * Printed in the saving-throw-progression section because the rate keys on the
  * chassis, and read as its own table rather than as two more values on the
@@ -54,6 +55,11 @@ export const HIT_POINTS_DOC = Object.freeze({
  * superscript ordinal interleaves after the digit and disturbs neither. The
  * short span is defensive — an int take reads the first match, and each anchor
  * occurs once on the page.
+ *
+ * `afterLevel` is the level those rates begin after, which is also the last
+ * level a custom class's hit dice rise at: the sentence that introduces the
+ * rates prints it as an ordinal. It is a value of its own, so a read that
+ * misses it costs the dice cells and not the rates.
  */
 export const HP_AFTER_NINE_TABLE = Object.freeze({
   shape: "proseValues",
@@ -61,6 +67,7 @@ export const HP_AFTER_NINE_TABLE = Object.freeze({
   printedPage: 297,
   locate: "SAVING THROW",
   values: [
+    { key: "afterLevel", find: "per level after", take: "int", span: 12 },
     { key: "crusaderMage", find: "crusader or mage:", take: "int", span: 30 },
     { key: "fighterThief", find: "fighter or thief:", take: "int", span: 30 },
   ],

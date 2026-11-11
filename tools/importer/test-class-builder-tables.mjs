@@ -78,6 +78,8 @@ check("post-8 increments: 100k / 120k / 150k", raw.xpRules?.crusaderThief === 10
 check("smoothing: 7th level to the nearest 5000", raw.smoothing?.level === 7 && raw.smoothing?.nearest === 5000);
 check("post-9 hit points per level read as their own table", Number.isInteger(raw.hpAfterNine?.crusaderMage) && Number.isInteger(raw.hpAfterNine?.fighterThief) && raw.hpAfterNine.fighterThief > raw.hpAfterNine.crusaderMage);
 
+check("the level the post-9 rates begin after reads as an integer, from the same table", Number.isInteger(raw.hpAfterNine?.afterLevel) && raw.hpAfterNine.afterLevel > 1);
+
 check("racial caps: 4→13 … 7→10", raw.racialCaps?.["4"]?.maxLevel === 13 && raw.racialCaps?.["7"]?.maxLevel === 10 && raw.racialCaps?.["6"]?.maxLevel === 11 && raw.racialCaps?.["5"]?.maxLevel === 12);
 
 check("tradeoffs: ten rows with benefits", Object.values(raw.tradeoffsRaw ?? {}).filter((r) => r.benefit).length === 10);
@@ -106,6 +108,13 @@ const asm = assembleBuilderTables(raw);
 
 check("budget assembles points, precedence, smoothing, post-8, caps, trade-in", asm.budget.basePoints === 4 && asm.budget.savesPrecedence[0] === "arcane" && asm.budget.smoothing.level === 7 && asm.budget.postEight.mage === 150000 && asm.budget.racialCaps.some((r) => r.points === 7 && r.maxLevel === 10) && asm.budget.tradeInXp === 250);
 check("budget assembles the post-9 hit-point rates, keyed as the book pairs them", Number.isInteger(asm.budget.hpAfterNine?.crusaderMage) && Number.isInteger(asm.budget.hpAfterNine?.fighterThief));
+check("budget assembles the last die level beside the rates", asm.budget.hpAfterNine?.afterLevel === raw.hpAfterNine.afterLevel);
+check("a missing last die level costs only itself", (() => {
+  const lost = assembleBuilderTables({ ...raw, hpAfterNine: { ...raw.hpAfterNine, afterLevel: null } }).budget.hpAfterNine;
+  const rates = assembleBuilderTables({ ...raw, hpAfterNine: { afterLevel: raw.hpAfterNine.afterLevel } }).budget.hpAfterNine;
+  return lost.afterLevel === undefined && Number.isInteger(lost.crusaderMage) && Number.isInteger(lost.fighterThief)
+    && rates.afterLevel === raw.hpAfterNine.afterLevel && rates.crusaderMage === undefined;
+})());
 check("races: the dwarf's post-9 hit points survive assembly", Number.isInteger(asm.races.dwarf.hpAfter9) && asm.races.dwarf.hpAfter9 === raw.dwarfRules.hpAfter9);
 check("races: the elf prints no post-9 hit points, and assembly says so", asm.races.elf.hpAfter9 === null);
 check("hd rows assemble with clean dice", asm.hd.find((r) => r.value === 4)?.die === "d12" && asm.hd.find((r) => r.value === 1)?.mortalWounds === 2);

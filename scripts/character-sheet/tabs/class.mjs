@@ -11,6 +11,7 @@ import { LANG, MODULE_ID } from "../constants.mjs";
 import { makeLoc } from "../../lib/util.mjs";
 import { classForActor, findByRef } from "../../classes/registry.mjs";
 import { classUpdateData } from "../../classes/apply.mjs";
+import { atLevelCap, levelCap } from "../../classes/level-cap.mjs";
 import { awardsAt } from "../../classes/grants.mjs";
 import { pathGroups, chosenOption, actorPaths, groupLabel } from "../../classes/paths.mjs";
 import { FLAG_CLASSES } from "../../classes/constants.mjs";
@@ -106,12 +107,12 @@ export function buildClassTab(actor) {
     level,
     levelField: num(stored.details?.level, 1),
     title: String(sys.details?.title ?? ""),
-    maxLevel: classItem?.system?.maximumLevel ?? null,
+    maxLevel: levelCap(classItem?.system),
     xp: { ...xp, bonus: bonusNote(actor), share: num(sys.details?.xp?.share, 100), valueField: num(stored.details?.xp?.value), nextField: num(stored.details?.xp?.next) },
     full: tracked && (zero ? readyForFirst(actor) : xp.full && !!classItem),
     canLevelUp: levelUpReady(actor),
     zero,
-    atCap: !!classItem && level >= (classItem.system?.maximumLevel || 14),
+    atCap: !!classItem && atLevelCap(classItem.system, level),
     nextLevel: level + 1,
     preview: null,
     paths: [],

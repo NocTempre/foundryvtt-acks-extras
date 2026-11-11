@@ -20,6 +20,7 @@ import { normalizeTraining } from "./training-logic.mjs";
 import { choiceSpecField } from "../lib/choice-spec.mjs";
 import { ATTRIBUTES, RUNG_OUTCOMES } from "../lib/vocab.mjs";
 import { CASTING_KINDS, REPERTOIRE_KINDS } from "./constants.mjs";
+import { atLevelCap } from "./level-cap.mjs";
 
 /** Award kinds: an automatic grant at a level, or an offered pick. */
 export const AWARD_KINDS = {
@@ -55,7 +56,7 @@ export default class ClassData extends foundry.abstract.TypeDataModel {
         level: int(1, { min: 0 }),
         xp: num({ integer: true }),
         title: str(),
-        hd: str(), // "5d8", "9d8 + 2" — the flat post-9 bonus keeps the book's no-CON footnote semantics
+        hd: str(), // "5d8", "Nd8 + F" — the flat bonus past the last die level keeps the book's no-CON footnote semantics
       });
 
     /** One rung of a named numeric ladder (an extra progression column). */
@@ -253,7 +254,9 @@ export default class ClassData extends foundry.abstract.TypeDataModel {
 
       requirements: new ArrayField(new SchemaField({ attr: choice(ATTRIBUTES), min: num({ integer: true }) })),
       keyAttributes: choiceSet(ATTRIBUTES),
-      maximumLevel: int(14, { min: 1 }),
+      // The class's level cap as its page prints it; null = none set (read
+      // through level-cap.mjs, which never supplies one).
+      maximumLevel: num({ integer: true, min: 1 }),
       hitDie: str(), // "1d8"
       // How much Intellect bonus this class's printed TEMPLATES already spend.
       //
@@ -456,9 +459,9 @@ export default class ClassData extends foundry.abstract.TypeDataModel {
     return (this.levels ?? []).find((r) => r.level === level) ?? null;
   }
 
-  /** XP threshold of the NEXT level, null at (or past) maximum level. */
+  /** XP threshold of the NEXT level, null at (or past) the cap and where no row prints one. */
   nextXp(level) {
-    if (level >= this.maximumLevel) return null;
+    if (atLevelCap(this, level)) return null;
     return this.levelRow(level + 1)?.xp ?? null;
   }
 }

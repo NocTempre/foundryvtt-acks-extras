@@ -3,6 +3,15 @@
 How it behaves now is [MODEL.md](MODEL.md); rulings are
 [DECISIONS.md](DECISIONS.md).
 
+## Printed values the builder still carries
+
+`builder-logic.mjs` writes a built human class's maximum level as a literal, and
+`attackBands` / `deriveTradition` repeat it as their own fallback. No page the
+searches reached prints that figure for a custom class as a number (the
+custom-class chapter implies it through the proficiency-list count, and the
+class pages print it per class), so whether it is structural or printed is the
+owner's call. Until then a build with no racial value derives at that literal.
+
 ## Starting templates, folded into the path group rather than pointed at
 
 Templates became one of a class's PATH groups by REFERENCE (2026-08-22,

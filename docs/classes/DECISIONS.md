@@ -2013,3 +2013,40 @@ reports the missing class on its own, so a warning there would double.
 
 **What it cost.** A character whose formula has two dice terms gets a refusal
 instead of a total until its formula is one cell.
+
+## 2026-11-11 — the level cap and the builder's last die level are read, not supplied
+
+**Evidence.** Ledger T-0453 (a hit point audit; part landed in 2026-11-10 "the
+level-up roll is kept per level, and the last die level is derived"). What was
+left shipped two printed values: a class's maximum level fell back to a figure
+at seven call sites and as the schema's initial value, and the builder wrote its
+hit-dice cells with the level the dice stop rising at as a literal in two
+places. Both are printed: every class page carries a "Maximum Level" line the
+importer already read, and the custom-class chapter prints the level the
+per-level rates begin after.
+
+**Ruled (owner, standing).** A printed value is fixed by the work that finds it
+(`ip-doctrine.md`); no house rule ships (2026-11-11, above).
+
+**Chosen here (implementation, not the owner's).**
+- The cap field is nullable with no initial figure, and every reader goes
+  through `level-cap.mjs`. A class with no cap has no ceiling: levels are not
+  clamped, `nextXp` answers from the next printed row, and the surfaces that
+  need a row name what is missing. Bounding a capless class by its last printed
+  row was rejected: it is a second inference from printed data where the
+  doctrine says null.
+- The last die level is a value of its own in `budget.hpAfterNine`, gated apart
+  from the rates, so a read that misses either costs only itself. Without it the
+  builder writes no hit-dice cell and names `missingLastDieLevel`, because no
+  row's dice count is known; writing dice with no flat was rejected, as it would
+  present a guess as a derivation.
+- The identifiers `hpAfterNine` and `hpAfter9` keep their names. They are
+  stored on ruledata and race documents, and renaming them is a migration; the
+  owner's call.
+
+**What it cost.** A class document saved under the old schema keeps the figure
+it stored, so a hand-made class never given a cap by hand still reads as capped
+until its Maximum level field is cleared. A world whose builder tables were
+imported before this change holds no last die level until Rules tables → Races
+is re-run (or the whole tables import); until then Derive writes no hit-dice
+cell and says why.

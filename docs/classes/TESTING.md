@@ -631,27 +631,81 @@ template die through core's own `button[data-action="rollTemplate"]` and allow
 **Teardown.** Delete the characters you created, and the empty class from step
 6; the imported class is content and is left alone.
 
-## Post-9th hit points on a built class
+## Hit points past the last hit die on a built class
+
+Driven by `tools/live/classes-level-cap.mjs` (below, "A class with no maximum
+level"), which covers the builder half; the racial half is by hand.
 
 **Fixtures.** A class document in advanced (builder) mode, and the Dwarf race
 document.
 
 **Steps.**
 1. With the class-builder tables imported, set a Fighting value that yields a
-   fighter chassis and a maximum level above 9. Press Derive.
-2. Read the level 10 and level 11 rows' Hit Dice cells.
+   fighter chassis and a maximum level past the last hit die. Press Derive.
+2. Read the Hit Dice cells of the last die row and the row after it.
 3. Set the class to a racial build spending the dwarf's value and Derive again.
-4. Clear `Extra hit points per level after 9th` on the Dwarf race sheet and
-   Derive once more.
+4. Clear `Extra hit points per level past the last hit die` on the Dwarf race
+   sheet and Derive once more.
 
-**Observable.** Past 9th the die count stops and a flat appears, growing by the
-per-level rate on each row (cumulative, not per-level). The racial build's flat
-is larger by the race's own rate; clearing that field shrinks it back. With the
-builder tables NOT imported, the cells carry no flat at all and the derive
-report names `missingHpAfterNine` — never an invented number.
+**Observable.** The die count rises to the imported last die level and stops;
+the next row carries a flat that grows by the per-level rate on each row
+(cumulative, not per-level). The racial build's flat is larger by the race's own
+rate; clearing that field shrinks it back. With the builder tables NOT imported,
+the cells carry no flat at all and the derive report names
+`missingHpAfterNine`; with the rates read but not the last die level, no
+hit-dice cell is written and the report names `missingLastDieLevel` — never an
+invented number.
 
 **Teardown.** Delete the class document; restore the race field if you changed
 a race the importer materialized (a re-import will also restore it).
+
+## A class with no maximum level
+
+`tools/live/classes-level-cap.mjs`, run through the runner with the staged RR
+and JJ books connected. Two seats (GM, Player).
+
+**Fixtures** (markers, built by `api.fixture`): `classes/level-cap-open-class`
+(a class with a levels table and no `maximumLevel`),
+`classes/level-cap-capped-class` (the same with a cap and a citation),
+`classes/level-cap-builder-class` (an empty class the builder derives onto),
+`classes/level-cap-character` (a character the Player owns). Kept between runs.
+
+**Steps and observables.**
+1. Import the `Rules tables` pair for the 1st-level floor and the class builder
+   (`cookbookImportTables(only)`). *Observable:* the GM and Player registries
+   both hold the builder's last die level, its rates and the floor.
+2. Open the class sheet on the open class. *Observable:* the Maximum level field
+   is empty and reads "not set" with the not-imported tooltip; typing a figure
+   stores it and the tooltip says it was set on the sheet; clearing it stores
+   `null`, never a stand-in; the capped class's tooltip names its citation.
+3. Level the character through the Player's wizard on the open class, past the
+   rows' last row. *Observable:* no refusal, no "at its maximum" claim; the
+   per-level hit points record one roll each level; the picker's level field
+   carries no `max` for the open class and a `max` for the capped one, and a
+   level typed past it settles at it. The wizard reached directly on the capped
+   class refuses at the cap and names it.
+4. Run chargen from the picker on each class. *Observable:* a 1st-level
+   character with one recorded roll and the floor recorded as imported.
+5. Hide the floor table with an override layer carrying the run's tag (the
+   layer is removed at the end by that tag alone) and repeat the climb. *Observable:* the step records the floor as not imported and the
+   tooltip says so.
+6. Derive the builder class with the tables, then with the last die level
+   hidden the same way, then with it and the rates hidden. *Observable:* the dice rise to the
+   imported level and the flat begins after it; absent level, the Builder tab
+   and the Derive dialog name it and no hit-dice cell is written; both absent,
+   both gaps are named.
+7. Read `acksExtras.classes.intBonusPicks` at every score. *Observable:* equals
+   the system's modifier clamped at zero.
+
+**Drive mechanics.** `cookbookImportTables` runs in a background job: poll
+`globalThis.__lcImport`. A class whose `maximumLevel` is `null` must reach
+`nextXp` as "no next rung", not `level >= null` (which coerces to 0 and reads
+as capped). The walk compares imported classes against the imported last die
+level only where the world holds imported classes; this test world holds none,
+so that line is a note, not a check.
+
+**Teardown.** Remove the run's override layers by their tag, then
+`sweepTracked()` for what the run built; the four fixtures stay.
 
 ## A pick the character owes
 

@@ -138,6 +138,21 @@
   was read from, that it was set by hand, or that you edited the imported
   figures by hand. An item changed before keeps its
   old figures until it is next recomputed.
+- **A class with no maximum level has none.** Open a class's item sheet →
+  Overview tab → Maximum level. A class that states no maximum used to be
+  held to a level built into the module; the field now reads "not set" (hover
+  it for where its figure came from), and the class takes any level, through
+  Level up, the class picker's level field and character creation. Type a
+  figure to cap a class, clear the field to remove the cap. A class the importer
+  gave a maximum keeps it, and its tooltip names the page.
+- **The class builder reads where hit dice stop from your book.** Open a class's
+  item sheet → Builder tab → Derive. The level past which a class gains
+  hit points instead of dice is read with the builder tables from your own
+  Judges Journal (Settings tab → Game Settings → ACKS II — Extras → Manage
+  imports → Rules tables). Until it is imported the builder names it as missing
+  and writes no hit-dice cell, where it wrote dice to a level built into the
+  module. A race's field for the extra hit points per level past that level
+  (race item sheet) is relabelled to say so.
 
 ### Removed
 

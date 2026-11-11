@@ -20,6 +20,7 @@ import { pathGroups, pathTrainingChanges, unansweredGroups, actorPaths } from ".
 import { planTrainingSync } from "./training-logic.mjs";
 import { saveBandAt, attackBandAt, resolveLevelValue, findByRef } from "./registry.mjs";
 import { HP_ROLLS_KEY, closeHpRolls, normalizeHd, rebuildHitPoints, storedMaxHp, xpForLevel } from "./hitpoints.mjs";
+import { clampLevel } from "./level-cap.mjs";
 import { grantLanguages } from "./languages.mjs";
 import { adventuringDoc, awardsThrough, grantAbility, grantAdventuring, ownsRef, refOf, rungProficiencyType } from "./grants.mjs";
 import { closesRung, grantsFrom, readRungs, rungLabel, rungOptions, rungSelectHtml } from "./picks.mjs";
@@ -85,7 +86,7 @@ function damageBonusUpdate(value, applies) {
 export function classUpdateData(actor, classItem, level, { election = null } = {}) {
   const sys = classItem.system;
   const missing = [];
-  const clamped = Math.max(1, Math.min(Number(level) || 1, sys.maximumLevel || 14));
+  const clamped = clampLevel(sys, level);
   const update = {
     "system.details.class": classItem.name,
     "system.details.level": clamped,
