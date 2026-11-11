@@ -20,7 +20,7 @@ import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import { findByRef } from "./registry.mjs";
 import { applyClass, readyToApply, syncClassTraining } from "./apply.mjs";
 import { templateSelection, setActorPath, actorPaths } from "./paths.mjs";
-import { awardKey, grantAbility, grantAdventuring, rankedCopies, refOf } from "./grants.mjs";
+import { awardKey, grantAbility, grantAdventuring, offeredProficiencyType, rankedCopies, refOf } from "./grants.mjs";
 import { isOffer, mintPendingChoices } from "./pending-choices.mjs";
 import { grantLanguages } from "./languages.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
@@ -402,8 +402,10 @@ export async function applyChargen(
     const copies = firstFixed.slice(0, index + 1).filter((x) => x.ref === a.ref).length;
     await grantAbility(actor, a.ref, startingGrants, { upTo: copies });
   }
+  // The picks arrive without their rungs, so each takes the proficiency type
+  // the 1st-level rungs offering it agree on.
   for (const ref of awardPicks ?? []) {
-    await grantAbility(actor, ref, startingGrants);
+    await grantAbility(actor, ref, startingGrants, { proficiencyType: offeredProficiencyType(cls, 1, ref) });
   }
   // Tongues are owed at 1st level like everything else here, and a generated
   // character was getting none: the granting rides `applyClass`'s grantAwards

@@ -332,6 +332,16 @@ single rung a level-up climbs, `grantAbility` writes one item, deduped by ref)
 the rung it climbed, so neither passes the flag and neither has the whole
 ladder handed over underneath it.
 
+**A pick is the proficiency its rung asked for.** A definition on both the
+class list and the general list is imported general, and the character sheet
+files an ability by its `proficiencytype`. So a rung's pick is granted as the
+type of the list the rung draws from (`rungProficiencyType`: the class's own
+list grants class, the general list general, any other source the
+definition's own). The wizard and an apply know each answer's rung; chargen's
+picks arrive without theirs, and take the type every 1st-level rung offering
+the ref agrees on (`offeredProficiencyType`), or the definition's where they
+disagree. A copy the character already holds is not retyped.
+
 **Experience follows the level.** An apply that changes the level moves the
 experience into the new level's band (`xpForLevel`, `hitpoints.mjs`): up to the
 new level's threshold where it stood below it, down to one short of the next
@@ -536,12 +546,16 @@ The wizard rolls HP per the world setting (RAW default: reroll the full Hit
 Dice, Constitution per die and never on the printed flat bonus past 9th,
 minimum one over the old maximum), lists the new level's fixed awards, opens
 a rung control per choice award ([picks.mjs](../../scripts/classes/picks.mjs)),
-then applies the class row for the new level **carrying the keys of the rungs
-it closed**, and only once that lands grants the abilities, writes HP with the
-maximum on each side of the climb (`classes.hpAt`), and posts a chat summary.
-A fixed award is owed per rung: the Nth rung printing a ref owes the Nth copy.
-One wizard per character is open at a time, and one whose character's level
-moved while it was open applies nothing.
+then applies the class row for the new level, and only once that lands grants
+the abilities, writes HP with the maximum on each side of the climb
+(`classes.hpAt`) and the keys of the rungs it closed in the same write, and
+posts a chat summary. A rung closes once its answer is on the sheet: a pick the
+world cannot resolve, or a climb stopped before the HP write, leaves it open
+for the picker to ask again. Each step is named, and a climb that throws stops
+there with a notification saying which step and what stands
+(`levelup.failed.<step>`). A fixed award is owed per rung: the Nth rung
+printing a ref owes the Nth copy. One wizard per character is open at a time,
+and one whose character's level moved while it was open applies nothing.
 
 `guardLevelWrite` runs before every write to a bound character's experience or
 level (DECISIONS 2026-10-15). A gain stops one short of the threshold two

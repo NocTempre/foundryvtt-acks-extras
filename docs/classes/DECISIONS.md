@@ -1788,3 +1788,41 @@ character: it is the case the audit found.
 **What it cost.** A character with no class rolls its whole formula at once,
 so its total is not held at one over a lower level. A total already on a sheet
 stands until the roll is pressed again.
+
+## 2026-11-10 — a pick takes its rung's list type, and a climb closes only the rungs it granted
+
+**Evidence.** An owner report: a class proficiency picked in the level-up
+wizard landed among the character's general proficiencies, and a climb that
+errored left the new level standing with no hit points and the pick missing.
+Reproduced live on the first half: the Fighter's 3rd-level rung draws from the
+class's own list and offered four definitions the importer types general
+(both-lists definitions, `cookbook.mjs`), and the pick was granted with that
+type, so `abilityBucket` filed it under General. The error was not reproduced
+on nine classes from the Player seat; an injected grant failure showed its
+shape: the level stood, the rejection reached only the console, and the rung's
+key had already been recorded by the apply, so the picker would never ask the
+rung again.
+
+**Ruled.**
+- `grantAbility` takes a `proficiencyType`, written on a NEW copy only. A
+  rung's pick takes the type of the list the rung draws from
+  (`rungProficiencyType`: the class inventory grants class, the general list
+  general, any other source the definition's own). The wizard and an apply know
+  each answer's rung; chargen's picks arrive without one and take the type
+  every 1st-level rung offering the ref agrees on (`offeredProficiencyType`).
+- The wizard records a rung closed in its hit-point write, after the grants,
+  and only where the pick resolved; the apply no longer carries the keys.
+- Each write is a named step, and a throw notifies `levelup.failed.<step>`
+  with what stands and where to finish.
+
+**Rejected.**
+- Retyping the definition to class when it is on a class list: the same
+  definition is general to every class that does not list it. The type says
+  how this character came to hold the proficiency, so it belongs on the copy.
+- Rolling the level back on a failed grant: a rollback is a second write with
+  the first one's failure modes, and an exception between the two strands it.
+  The notice says what stands, and the picker re-asks the rung left open.
+
+**What it cost.** Nothing migrates. A copy already on a sheet keeps the type
+it was granted with; the owner changes it on the ability sheet's Details tab.
+A pick of a proficiency the character already holds is not retyped.

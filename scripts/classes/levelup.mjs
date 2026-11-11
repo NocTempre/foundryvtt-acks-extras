@@ -33,8 +33,8 @@ import { MODULE_ID, LANG_PREFIX, FLAG_CLASSES } from "./constants.mjs";
 import { classForActor, classForActorAsync, findByRef } from "./registry.mjs";
 import { applyClass, classUpdateData, XP_PATH } from "./apply.mjs";
 import { normalizeHd, parseHd, rollFullHitPoints, rollHitDice, xpForLevel } from "./hitpoints.mjs";
-import { awardKeyLevel, awardsAt, grantAbility } from "./grants.mjs";
-import { closesRung, grantableRefs, readRungs, rungLabel, rungOptions, rungSelectHtml } from "./picks.mjs";
+import { awardKeyLevel, awardsAt, grantAbility, rungProficiencyType } from "./grants.mjs";
+import { closesRung, grantsFrom, readRungs, rungLabel, rungOptions, rungSelectHtml } from "./picks.mjs";
 import { isZeroLevel, readyForFirst, zeroLevelXp } from "./zero-level.mjs";
 import { ACTOR_TYPE } from "../lib/vocab.mjs";
 import { elementOf } from "../lib/util.mjs";
@@ -210,43 +210,67 @@ async function runLevelUp(actor) {
     return;
   }
 
-  // The level lands first and everything else only once it has: an apply that
-  // is refused (a stub class, a dismissed election) leaves no grant and no hit
-  // points behind for a level that never arrived. The rungs this wizard closed
-  // are recorded with it, so the picker — which asks for the WHOLE ladder up
-  // to a level — does not put every question a played character has already
-  // answered to them a second time.
-  const applied = await applyClass(actor, classItem, {
-    level: next,
-    confirm: false,
-    answered: choices.filter((_, index) => closesRung(picked[index])).map((c) => c.key),
-  });
-  if (!applied?.applied) return;
+  // Each write names its step, so a climb cut short says where it stopped and
+  // what stands (`levelup.failed.<step>`) instead of leaving a rejection on the
+  // console.
+  let step = "level";
+  try {
+    // The level lands first and everything else only once it has: an apply that
+    // is refused (a stub class, a dismissed election) leaves no grant and no hit
+    // points behind for a level that never arrived.
+    const applied = await applyClass(actor, classItem, { level: next, confirm: false });
+    if (!applied?.applied) return;
 
-  const grants = [];
-  for (const a of fixed) await grantAbility(actor, a.ref, grants, { upTo: a.copies });
-  for (const ref of grantableRefs(picked)) await grantAbility(actor, ref, grants);
+    // A rung closes once what answers it is on the sheet: its pick granted (as
+    // the proficiency type of the list the rung draws from) or already held, or
+    // "already on the sheet". A pick the world cannot resolve leaves it open.
+    step = "grants";
+    const grants = [];
+    for (const a of fixed) await grantAbility(actor, a.ref, grants, { upTo: a.copies });
+    const closed = [];
+    for (const [index, choice] of choices.entries()) {
+      const answer = picked[index];
+      if (!closesRung(answer)) continue;
+      if (grantsFrom(answer)) {
+        const before = grants.length;
+        await grantAbility(actor, answer, grants, { proficiencyType: rungProficiencyType(choice.choice) });
+        if (grants.slice(before).some((g) => g.missing)) continue;
+      }
+      closed.push(choice.key);
+    }
 
-  // The maximum held on each side of the climb is recorded, so lowering the
-  // level again (`guardLevelWrite`) can put back the one this climb replaced.
-  const oldValue = Number(actor.system?.hp?.value) || 0;
-  const hpAt = (actor.getFlag(MODULE_ID, FLAG_CLASSES)?.hpAt ?? []).filter((r) => r.level < level);
-  await actor.update({
-    "system.hp.max": newMax,
-    "system.hp.value": oldValue + Math.max(0, newMax - oldMax),
-    [`flags.${MODULE_ID}.${FLAG_CLASSES}.hpAt`]: [...hpAt, { level, max: oldMax }, { level: next, max: newMax }],
-  });
+    // The maximum held on each side of the climb is recorded, so lowering the
+    // level again (`guardLevelWrite`) can put back the one this climb replaced.
+    // The closed rungs ride the same write, so the picker — which asks the
+    // WHOLE ladder up to a level — asks again any rung a climb cut short left
+    // unrecorded, and none a played character has already answered.
+    step = "hitPoints";
+    const flag = actor.getFlag(MODULE_ID, FLAG_CLASSES) ?? {};
+    const oldValue = Number(actor.system?.hp?.value) || 0;
+    const hpAt = (Array.isArray(flag.hpAt) ? flag.hpAt : []).filter((r) => r.level < level);
+    const taken = Array.isArray(flag.awardsTaken) ? flag.awardsTaken : [];
+    await actor.update({
+      "system.hp.max": newMax,
+      "system.hp.value": oldValue + Math.max(0, newMax - oldMax),
+      [`flags.${MODULE_ID}.${FLAG_CLASSES}.hpAt`]: [...hpAt, { level, max: oldMax }, { level: next, max: newMax }],
+      ...(closed.length ? { [`flags.${MODULE_ID}.${FLAG_CLASSES}.awardsTaken`]: [...new Set([...taken, ...closed])] } : {}),
+    });
 
-  const grantNames = grants.map((g) => (g.missing ? `${g.name} (?)` : g.name));
-  await ChatMessage.create({
-    speaker: ChatMessage.getSpeaker({ actor }),
-    content: `<p>${game.i18n.format(`${LANG_PREFIX}.levelup.chat`, {
-      name: actor.name,
-      class: classItem.name,
-      level: next,
-      hp: `${oldMax} → ${newMax}`,
-    })}</p>${grantNames.length ? `<p>${grantNames.map((n) => foundry.utils.escapeHTML(n)).join(", ")}</p>` : ""}`,
-  });
+    step = "chat";
+    const grantNames = grants.map((g) => (g.missing ? `${g.name} (?)` : g.name));
+    await ChatMessage.create({
+      speaker: ChatMessage.getSpeaker({ actor }),
+      content: `<p>${game.i18n.format(`${LANG_PREFIX}.levelup.chat`, {
+        name: actor.name,
+        class: classItem.name,
+        level: next,
+        hp: `${oldMax} → ${newMax}`,
+      })}</p>${grantNames.length ? `<p>${grantNames.map((n) => foundry.utils.escapeHTML(n)).join(", ")}</p>` : ""}`,
+    });
+  } catch (err) {
+    console.error(`${MODULE_ID} | level-up of ${actor.name} stopped at ${step}`, err);
+    ui.notifications?.error(game.i18n.format(`${LANG_PREFIX}.levelup.failed.${step}`, { name: actor.name, error: err?.message ?? String(err) }));
+  }
 }
 
 /**

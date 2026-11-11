@@ -885,6 +885,39 @@ needs a player with a fund; it is pinned offline in `tools/test-classes.mjs`.
 spoken by the fixture: `api.track` every `game.messages` entry whose
 `speaker.actor` is one of the run's own actor ids before the sweep.
 
+## A rung's pick takes its list's type; a failed climb stops by name
+
+**Fixture `classes/levelup-player`.** A `character` owned by the Player seat
+(ownership 3, default 0). Each run brings it to a known shape from the
+Assistant GM seat first, after `primaryGMSettled()`: delete its embedded items,
+unset `flags["acks-extras"].classes`, set level 1 and experience 0, then
+`applyClass(actor, cls, {level: START, confirm: false, rebuildVitals: true,
+grantAwards: true})` with the cookbook Fighter and experience set to
+`cls.system.nextXp(START)`. Its own items and flag are the only state rebuilt.
+
+**Drive mechanics.** The click is the Player seat's, on a second capture port:
+open `AcksCharacterSheet` with `tabGroups.primary = "class"`, click
+`[data-action="levelUp"]`, find the new dialog holding
+`.acks-extras-classes-levelup-body`. An option's type is its definition's
+`system.proficiencytype` (`fromUuid` on a `uuid:` ref, else `findByRef`).
+Attach the error recorder and wrap `ui.notifications` before the click. To
+make a grant fail, wrap the actor's `createEmbeddedDocuments` in the Player
+page to throw once on an `ability` create, after the selects are set.
+
+**Steps → observable.**
+1. START 2, pick the first general-typed option of the 3rd-level rung (a
+   class-list rung). *The added item is that proficiency with
+   `proficiencytype` "class"; `awardsTaken` gains the rung key; hit points
+   rise; no console error.*
+2. START 4, pick any option of the 5th-level rung (a general-list rung).
+   *The pick lands "general"; the fixed award lands "class".*
+3. START 2 with the grant failure. *An error notification names the grants
+   step; level reads 3; `hp.max` unchanged; `awardsTaken` empty; no item
+   added. The console carries `level-up of … stopped at grants`.*
+
+**Teardown.** The fixture is kept. Track the chat cards spoken by it, by id,
+and `api.sweepTracked({only: [those uuids]})`.
+
 ## Experience follows a set level; tracking; leaving 0th level
 
 **Before.** Import the `experience` tables with RR and JJ connected

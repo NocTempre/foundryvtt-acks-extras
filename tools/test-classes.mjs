@@ -807,8 +807,13 @@ await atest("the level-up wizard records the rung it closed", () => {
   // See docs/classes/DECISIONS.md, "A level set is a level owed: applying a
   // class grants its ladder" — a choice rung answered is remembered so
   // re-applying does not ask it again.
+  // A rung closes in the hit points' write, once what answers it is on the
+  // sheet, so a climb cut short leaves it open for the picker.
   const src = readFileSync(new URL("../scripts/classes/levelup.mjs", import.meta.url), "utf8");
-  assert.match(src, /answered:\s*choices\s*\n?\s*\.filter/s, "the wizard hands its answered keys to applyClass");
+  const body = src.slice(src.indexOf("async function runLevelUp"));
+  assert.match(body, /awardsTaken`\]: \[\.\.\.new Set\(\[\.\.\.taken, \.\.\.closed\]\)\]/, "the wizard records the rungs it closed");
+  assert.ok(body.indexOf("closed.push(") > body.indexOf("rungProficiencyType("), "a rung is recorded after its pick is granted");
+  assert.ok(!/answered:\s*choices/.test(body), "the level's write closes no rung");
 });
 
 await atest("the class picker never wipes what a character already owns", () => {
@@ -1975,6 +1980,36 @@ test("chargen grants a ref printed at two first-level rungs twice", () => {
   const src = readFileSync(new URL("../scripts/classes/chargen.mjs", import.meta.url), "utf8");
   assert.match(src, /firstFixed\.slice\(0, index \+ 1\)\.filter\(\(x\) => x\.ref === a\.ref\)\.length/);
   assert.match(src, /grantAbility\(actor, a\.ref, startingGrants, \{ upTo: copies \}\)/);
+});
+
+await atest("a rung's pick is granted as the type of the list it was picked from", async () => {
+  const { rungProficiencyType, grantAbility } = await import("../scripts/classes/grants.mjs");
+  assert.equal(rungProficiencyType({ from: "classInventory" }), "class");
+  assert.equal(rungProficiencyType({ from: "generalList" }), "general");
+  assert.equal(rungProficiencyType({ from: "spellList" }), null);
+  assert.equal(rungProficiencyType(undefined), null);
+  // A definition the importer typed general because it is on both lists.
+  const source = {
+    documentName: "Item",
+    uuid: "Item.bothLists",
+    name: "Both Lists",
+    type: "ability",
+    toObject: () => ({ _id: "src", name: "Both Lists", type: "ability", system: { proficiencytype: "general" }, flags: {} }),
+  };
+  const prior = globalThis.fromUuidSync;
+  globalThis.fromUuidSync = (uuid) => (uuid === "Item.bothLists" ? source : null);
+  try {
+    const grantTo = async (options) => {
+      const made = [];
+      const actor = { items: [], createEmbeddedDocuments: async (_type, data) => made.push(...data) };
+      await grantAbility(actor, "uuid:Item.bothLists", [], options);
+      return made[0];
+    };
+    assert.equal((await grantTo({ proficiencyType: "class" })).system.proficiencytype, "class");
+    assert.equal((await grantTo({})).system.proficiencytype, "general", "no rung type keeps the definition's");
+  } finally {
+    globalThis.fromUuidSync = prior;
+  }
 });
 
 test("the wizard writes its level before anything else, and the successor's start is uncapped", () => {

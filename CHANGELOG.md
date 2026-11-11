@@ -90,6 +90,20 @@
   be rebuilt every time the world loads, and were rebuilt only when an item was
   equipped or taken off. The Judge's first load now brings every character up
   to date.
+- **A class proficiency picked at a new level is filed as one.** A proficiency
+  on both the class's list and the general list, picked in the level-up wizard
+  (Level up, on the character sheet's Class tab), in the class picker (the
+  graduation-cap button beside the class name there) or on the Scores Generator,
+  was given as a general proficiency, so the character sheet's Abilities tab
+  filed it under General. A pick now takes the type of the list it was picked
+  from. A proficiency already on a sheet keeps its type: open it and change
+  Proficiency Type on its Details tab.
+- **A level-up that fails says where it stopped.** An error part way through the
+  level-up wizard reached only the browser console, and could leave the new
+  level standing with no hit points and the choice it asked recorded as made. It
+  now names the step it stopped at and what stands, a choice counts as made only
+  once what it chose is on the sheet, and the class picker asks again any it
+  left open.
 
 ## 11.14.4
 

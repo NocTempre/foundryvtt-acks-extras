@@ -21,8 +21,8 @@ import { planTrainingSync } from "./training-logic.mjs";
 import { saveBandAt, attackBandAt, resolveLevelValue, findByRef } from "./registry.mjs";
 import { normalizeHd, rebuildHitPoints, xpForLevel } from "./hitpoints.mjs";
 import { grantLanguages } from "./languages.mjs";
-import { adventuringDoc, awardsThrough, grantAbility, grantAdventuring, ownsRef, refOf } from "./grants.mjs";
-import { closesRung, grantableRefs, readRungs, rungLabel, rungOptions, rungSelectHtml } from "./picks.mjs";
+import { adventuringDoc, awardsThrough, grantAbility, grantAdventuring, ownsRef, refOf, rungProficiencyType } from "./grants.mjs";
+import { closesRung, grantsFrom, readRungs, rungLabel, rungOptions, rungSelectHtml } from "./picks.mjs";
 
 export { normalizeHd };
 
@@ -564,7 +564,11 @@ export async function applyClass(
     // "Already on the sheet" closes its rung without materializing anything,
     // and a ref the character already holds materializes nothing either —
     // `grantAbility` declines it — so a rung answered truthfully costs no item.
-    for (const ref of grantableRefs(Object.values(given))) await grantAbility(actor, ref, grants);
+    // A pick is granted as the proficiency type of the list its rung draws from.
+    const rungOf = new Map(awardsThrough(actor, classItem, clamped).choices.map((c) => [c.key, c.choice]));
+    for (const [key, ref] of Object.entries(given)) {
+      if (grantsFrom(ref)) await grantAbility(actor, ref, grants, { proficiencyType: rungProficiencyType(rungOf.get(key)) });
+    }
     // Tongues ride the same path: the class's list and the bound race's ADD,
     // Intellect buys the open slots, and re-applying refreshes the carriers
     // rather than making a second pair (a character whose Intellect rose owes

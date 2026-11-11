@@ -52,12 +52,41 @@ export function heldCount(actor, ref) {
   ).length;
 }
 
+/** The proficiency type each list a rung draws from grants its pick as. */
+const RUNG_PROFICIENCY_TYPE = { classInventory: "class", generalList: "general" };
+
+/**
+ * The proficiency type a rung's pick is granted as: a pick from the class's
+ * own list is a class proficiency and one from the general list a general
+ * one, whichever list the definition also sits on. Null for any other source,
+ * which leaves the definition's own type.
+ */
+export const rungProficiencyType = (choice) => RUNG_PROFICIENCY_TYPE[choice?.from] ?? null;
+
+/**
+ * The proficiency type of a pick whose rung was not kept beside it: the type
+ * every `level` rung of the ladder that offers `ref` grants as, or null where
+ * no rung offers it or two offer it as different types.
+ */
+export function offeredProficiencyType(classItem, level, ref) {
+  const types = new Set(
+    (classItem?.system?.awards ?? [])
+      .filter((a) => (a.atLevel ?? 1) === level && a.kind === "choice" && a.choice)
+      .filter((a) => optionsForChoice(a.choice, classItem, { level }).some((o) => o.ref === ref))
+      .map((a) => rungProficiencyType(a.choice)),
+  );
+  return types.size === 1 ? [...types][0] : null;
+}
+
 /**
  * Create one granted ability on the actor from a world item ref, unless the
  * actor already holds `upTo` copies of it — a ref the ladder prints at several
- * rungs owes one more copy at each.
+ * rungs owes one more copy at each. `proficiencyType`, where given, is the
+ * type the copy is granted as (`rungProficiencyType`); the definition keeps
+ * its own.
+ * @param {{upTo?: number, proficiencyType?: string|null}} [options]
  */
-export async function grantAbility(actor, ref, grants, { upTo = 1 } = {}) {
+export async function grantAbility(actor, ref, grants, { upTo = 1, proficiencyType = null } = {}) {
   if (!ref || heldCount(actor, ref) >= upTo) return;
   const source = findByRef(ref);
   if (!source) {
@@ -69,6 +98,7 @@ export async function grantAbility(actor, ref, grants, { upTo = 1 } = {}) {
   // Stamped with where it came from, so the next apply recognises it without
   // falling back to its name.
   data.flags = { ...(data.flags ?? {}), [MODULE_ID]: { ...(data.flags?.[MODULE_ID] ?? {}), grantedFrom: ref } };
+  if (proficiencyType && data.type === ITEM_TYPE.ability) data.system = { ...(data.system ?? {}), proficiencytype: proficiencyType };
   await actor.createEmbeddedDocuments("Item", [data]);
   grants.push({ ref, name: source.name });
 }
