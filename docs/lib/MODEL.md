@@ -1848,6 +1848,23 @@ outside every sheet's click handler, so the hit would post no card. The
 wrapper answers such a formula as none, so the throw rolls no damage, and warns
 the Judge once per weapon and text.
 
+## The cast seam
+
+`patches/spell-use.mjs` is the one wrapper of the system's `Item#_useSpell`,
+the method a spell's cast count and chat card come from. The cast buttons on
+the system's sheet, this module's Magic tab and the monster sheet, and the
+system's hotbar macro, all reach it through `item.use()`, so a feature that
+changes what a cast does registers a claimant (`lib.spellUse.addClaimant`) and
+sees every cast, whichever door the player used. The wrapper offers a cast to the
+claimants in registration order; the first whose `claims` answers true runs
+`cast(item, options, spend)`, and `spend` is the system's own method behind a
+once-only door, so a cast that is refused or cancelled spends nothing. With no
+claimant the system's method runs untouched, which keeps every spell a feature
+does not name, a monster's attack item included, the system's own. A claimant
+that throws is logged and never costs the table a cast. What a caller can await,
+and until when `spend` is valid, are in the file's header. Ruling: DECISIONS,
+"One owner of the cast seam: lib".
+
 ## Automated Animations
 
 Automated Animations has no handler for this system, so its generic chat reader

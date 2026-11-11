@@ -56,6 +56,7 @@ import {
 } from "../scripts/lib/light.mjs";
 import { MAGIC_LIGHT_LOOK, applyTokenLight, applyTokenVision, isManagedLight, sceneIsDrawing, syncTokenFromActor } from "../scripts/lib/token-sync.mjs";
 import { installTokenLightPaddingPatch, unpaddedRadius } from "../scripts/lib/patches/token-light-padding.mjs";
+import { addSpellUseClaimant, installSpellUsePatch, removeSpellUseClaimant } from "../scripts/lib/patches/spell-use.mjs";
 import { hdFormula, monsterHd, monsterHitDice } from "../scripts/lib/actor-read.mjs";
 import { auditLine, auditOf, situationalTerm, skipDialogFor } from "../scripts/lib/roll-dialog.mjs";
 import { drawForJudges, drawQuietly, postToJudges } from "../scripts/lib/roll-audience.mjs";
@@ -3402,5 +3403,212 @@ t("picks: the mixin carries picks across a part sync and keeps a pick's change f
   assert.equal(app._onChangeForm({ submitOnChange: true }, { target: field }), "submitted", "any other change reaches the form");
   assert.equal(calls.filter((c) => c[0] === "change").length, 1);
 });
+
+await (async () => {
+  const wrapCalls = [];
+  // libWrapper's MIXED shape: the wrapper gets the wrapped method first, then the call's arguments.
+  const libWrapper = {
+    register(id, target, fn, type) {
+      wrapCalls.push([id, target, type]);
+      const path = target.split(".");
+      const prop = path.pop();
+      const owner = path.reduce((o, k) => o[k], globalThis);
+      const original = owner[prop];
+      owner[prop] = function (...args) {
+        return fn.call(this, (...a) => original.apply(this, a), ...args);
+      };
+    },
+  };
+  /** A stand-in for the system's Item: core's cast count and card, as one method. */
+  const makeItemClass = () => class FakeItem {
+    cast = 0;
+    options = [];
+    async _useSpell(options) {
+      this.options.push(options);
+      this.cast += 1;
+    }
+  };
+  const logged = [];
+  const priorError = console.error;
+  const claimed = [];
+  /** Stand the globals in, install on a fresh class, run `fn(item)`, and put everything back. */
+  const run = async (fn, { wrapper = libWrapper } = {}) => {
+    const FakeItem = makeItemClass();
+    const restore = swapGlobals({ CONFIG: { Item: { documentClass: FakeItem } }, libWrapper: wrapper });
+    if (!wrapper) delete globalThis.libWrapper;
+    console.error = (...args) => logged.push(args.map(String).join(" "));
+    try {
+      installSpellUsePatch();
+      await fn(new FakeItem(), FakeItem);
+    } finally {
+      console.error = priorError;
+      for (const key of claimed.splice(0)) removeSpellUseClaimant(key);
+      restore();
+    }
+  };
+  const claimant = (key, spec) => {
+    claimed.push(key);
+    addSpellUseClaimant({ key, claims: () => true, cast: async () => {}, ...spec });
+  };
+
+  await run(async (item) => {
+    await item._useSpell({ a: 1 });
+    assert.equal(item.cast, 1, "no claimant: the system's cast runs once");
+    assert.deepEqual(item.options, [{ a: 1 }], "and receives the options it was given");
+    await item._useSpell();
+    assert.deepEqual(item.options[1], {}, "an absent options bag reaches the system as an empty one");
+  });
+  assert.deepEqual(wrapCalls[0], ["acks-extras", "CONFIG.Item.documentClass.prototype._useSpell", "MIXED"], "one MIXED wrapper, under the module id");
+  assert.equal(wrapCalls.length, 1);
+
+  await run(async (item) => {
+    const seen = [];
+    claimant("a", { cast: async (it, options, spend) => { seen.push([it, options, typeof spend]); } });
+    await item._useSpell({ b: 2 });
+    assert.equal(item.cast, 0, "a claimant that never spends costs the spell nothing");
+    assert.deepEqual(seen, [[item, { b: 2 }, "function"]], "the claimant is handed the item, the options and spend");
+  });
+
+  await run(async (item) => {
+    let reached;
+    claimant("a", { cast: async (it, options, spend) => {
+      assert.equal(item.cast, 0, "nothing has run before spend is called");
+      reached = [await spend(), await spend()];
+      assert.equal(item.cast, 1, "two calls to spend run the system's cast once");
+    } });
+    await item._useSpell({ c: 3 });
+    assert.equal(item.cast, 1);
+    assert.deepEqual(item.options, [{ c: 3 }], "spend runs the system's method with the call's options");
+    assert.deepEqual(reached, [true, true], "both calls settle true on the one cast");
+  });
+
+  await run(async (item) => {
+    logged.length = 0;
+    let late;
+    claimant("a", { cast: async (it, o, spend) => { late = spend; } });
+    await item._useSpell();
+    assert.equal(item.cast, 0, "a claimant that returns without spending spends nothing");
+    const answer = await late();
+    assert.equal(answer, false, "a spend after cast returned resolves false");
+    assert.equal(item.cast, 0, "and the system's cast never runs");
+    assert.equal(logged.length, 1, "and one error is logged");
+    assert.match(logged[0], /claimant "a" called spend after its cast returned; the cast was not counted/);
+    assert.equal(await late(), false, "a second late spend answers the same");
+    assert.equal(item.cast, 0);
+
+    logged.length = 0;
+    let early;
+    claimant("a", { cast: async (it, o, spend) => { early = spend; assert.equal(await spend(), true, "spend before cast returns resolves true"); } });
+    await item._useSpell();
+    assert.equal(item.cast, 1);
+    assert.equal(await early(), false, "a spend after a cast that spent is still late, and does not run the system's cast again");
+    assert.equal(item.cast, 1, "the cast is counted once");
+    assert.equal(logged.length, 1);
+  });
+
+  await run(async (item) => {
+    let asked = 0;
+    let cast = 0;
+    claimant("a", { claims: () => false, cast: async () => { cast += 1; } });
+    claimant("b", { claims: () => { asked += 1; return false; } });
+    await item._useSpell();
+    assert.equal(cast, 0, "a claimant whose claims is false is skipped");
+    assert.equal(asked, 1, "every claimant is asked");
+    assert.equal(item.cast, 1, "and the system's cast runs");
+  });
+
+  await run(async (item) => {
+    logged.length = 0;
+    const order = [];
+    claimant("a", { claims: () => { order.push("a"); throw new Error("claims broke"); }, cast: async () => order.push("a-cast") });
+    claimant("b", { claims: () => { order.push("b"); return true; }, cast: async (it, o, spend) => { order.push("b-cast"); await spend(); } });
+    claimant("c", { claims: () => { order.push("c"); return true; }, cast: async () => order.push("c-cast") });
+    await item._useSpell();
+    assert.deepEqual(order, ["a", "b", "b-cast"], "a throwing claims is passed over, the first true wins and the rest are not asked");
+    assert.equal(item.cast, 1);
+    assert.match(logged[0], /claimant "a" threw in claims/, "and the throw is logged");
+    removeSpellUseClaimant("b");
+    removeSpellUseClaimant("c");
+    await item._useSpell();
+    assert.equal(item.cast, 2, "with no claimant left that claims, the system's cast runs");
+  });
+
+  await run(async (item) => {
+    let cast = 0;
+    claimant("a", { claims: async () => true, cast: async () => { cast += 1; } });
+    claimant("b", { claims: () => "yes", cast: async () => { cast += 1; } });
+    await item._useSpell();
+    assert.equal(cast, 0, "only an answer of exactly true claims: a promise or a string declines");
+    assert.equal(item.cast, 1, "and the system's cast runs");
+  });
+
+  await run(async (item) => {
+    logged.length = 0;
+    claimant("only", { claims: () => { throw new Error("claims broke"); } });
+    await item._useSpell();
+    assert.equal(item.cast, 1, "a throwing claims with no other claimant falls through to the system");
+  });
+
+  await run(async (item) => {
+    logged.length = 0;
+    claimant("a", { cast: async () => { throw new Error("cast broke"); } });
+    await item._useSpell();
+    assert.equal(item.cast, 0, "a throwing cast spends nothing");
+    assert.match(logged[0], /claimant "a" threw in cast; nothing was spent/);
+    claimant("a", { cast: async (it, o, spend) => { await spend(); throw new Error("after spend"); } });
+    await item._useSpell();
+    assert.equal(item.cast, 1, "a cast that throws after spend keeps the spend, once");
+    assert.match(logged[1], /already spent/);
+    claimant("a", { cast: async (it, o, spend) => { void spend(); } });
+    await item._useSpell();
+    assert.equal(item.cast, 2, "a spend the claimant did not await has settled when the wrapper's promise does");
+  });
+
+  await run(async (item) => {
+    let done = false;
+    claimant("a", { cast: async (it, o, spend) => { await new Promise((r) => setTimeout(r, 15)); await spend(); done = true; } });
+    const settled = item._useSpell();
+    assert.equal(done, false, "the cast has not finished when the call returns");
+    await settled;
+    assert.equal(done, true, "the promise settles when the claimant's cast does");
+    assert.equal(item.cast, 1);
+  });
+
+  await run(async (item) => {
+    const order = [];
+    claimant("a", { cast: async () => order.push("first") });
+    claimant("b", { cast: async () => order.push("b") });
+    claimant("a", { cast: async () => order.push("replacement") });
+    await item._useSpell();
+    assert.deepEqual(order, ["replacement"], "a duplicate key replaces the earlier claimant, keeping its place");
+    assert.equal(removeSpellUseClaimant("a"), true);
+    assert.equal(removeSpellUseClaimant("a"), false, "a key already removed reports it");
+  });
+
+  await run(async (item) => {
+    const registered = wrapCalls.length;
+    installSpellUsePatch();
+    let cast = 0;
+    claimant("a", { cast: async (it, o, spend) => { cast += 1; await spend(); } });
+    await item._useSpell();
+    assert.equal(cast, 1, "installing again adds no second layer");
+    assert.equal(item.cast, 1);
+    assert.equal(wrapCalls.length, registered, "the second install on the same class registers nothing");
+  });
+
+  await run(async (item) => {
+    claimant("a", { cast: async (it, o, spend) => { await spend(); } });
+    await item._useSpell();
+    assert.equal(item.cast, 1, "without libWrapper the method is wrapped directly and a claimant still takes the cast");
+    removeSpellUseClaimant("a");
+    await item._useSpell();
+    assert.equal(item.cast, 2, "and with none the system's method runs");
+  }, { wrapper: null });
+
+  assert.throws(() => addSpellUseClaimant({ key: "", claims: () => true, cast: async () => {} }), TypeError, "a claimant needs a key");
+  assert.throws(() => addSpellUseClaimant({ key: "x", claims: () => true }), TypeError, "a claimant needs both functions");
+  n++;
+  console.log("ok - the cast seam: a claimant takes a cast over, spends once, and never costs the table its cast");
+})();
 
 console.log(`\n${n} tests passed (including the location migration)`);

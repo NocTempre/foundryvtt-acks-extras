@@ -99,6 +99,7 @@ import { installAdventuringRollPatch } from "./patches/adventuring-roll.mjs";
 import { installStoredInputs } from "./patches/stored-inputs.mjs";
 import { installLegacyCombatRescue } from "./patches/legacy-source.mjs";
 import { installTokenLightPaddingPatch } from "./patches/token-light-padding.mjs";
+import { addSpellUseClaimant, installSpellUsePatch, removeSpellUseClaimant } from "./patches/spell-use.mjs";
 import * as senses from "./senses.mjs";
 import * as light from "./light.mjs";
 import * as perception from "./perception.mjs";
@@ -168,7 +169,8 @@ const localImpl = Object.freeze({
   // 33: groups `canDeploy` and `STACK_DRAG_TYPE`, what a stack's row carries.
   // 34: groups `moveStack` and `moveRefusal`, a stack's row between groups.
   // 35: tables `bandDie`, a one-die table's die read off its own bands.
-  // 36: summons — a character's summoned creatures, placed and dismissed.
+  // 36: summons — a character's summoned creatures, placed and dismissed;
+  // spellUse — the cast seam, claimants for a spell's cast.
   apiVersion: 36,
   vocab,
   fields,
@@ -407,6 +409,14 @@ const localImpl = Object.freeze({
    */
   attack: { PRE_ATTACK_HOOK, POST_ATTACK_HOOK, addContributor: addAttackContributor, inFlight: attackInFlight },
   /**
+   * The cast seam (patches/spell-use.mjs) over the system's `Item#_useSpell`.
+   * `addClaimant({key, claims, cast})` registers a feature that takes a cast
+   * over: the first claimant whose `claims(item, options)` is true runs
+   * `cast(item, options, spend)`, and `spend()` is the system's own cast count
+   * and card, once. `removeClaimant(key)` drops one.
+   */
+  spellUse: { addClaimant: addSpellUseClaimant, removeClaimant: removeSpellUseClaimant },
+  /**
    * Conditions (conditions.mjs): the catalogue the token palette is built
    * from, and what a creature's conditions do to an attack (`attackMath`, both
    * sides), to its own rolls (`rollMath`), its AC and its speed. Read from an
@@ -459,6 +469,7 @@ Hooks.once("init", () => {
   light.declareLightTables();
   // Before any canvas builds a token's light source.
   installTokenLightPaddingPatch();
+  installSpellUsePatch();
 
   registerMountCleanup();
   registerMountDrop();

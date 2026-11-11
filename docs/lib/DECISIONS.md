@@ -5352,3 +5352,29 @@ not to a kind the party carries and burns down.
 
 **Cost.** A Judge types the reach once per item. A magic light has no burn
 time, no toggle and no fuel: it sheds while its effect is applied.
+
+## 2026-11-11 — One owner of the cast seam: lib
+
+**Ruled.** The system's `Item#_useSpell` has one wrapper, in lib
+(`patches/spell-use.mjs`), and a feature that changes what a cast does
+registers a claimant on it (`lib.spellUse.addClaimant`) rather than wrapping the
+method. The claimant decides whether the cast happens and calls `spend()`, the
+system's own cast count and card, only when it does. With no claimant the
+system's method runs untouched. CLAUDE.md sends overrides of core logic to lib
+with one owner per wrapped method; a later cast engine is a claimant, never a
+second wrapper.
+
+**Rejected.** No wrap at all, with each feature offering its own cast button.
+The system's sheet and a hotbar macro both end in `_useSpell`, so a cast from
+either would never reach a feature that took casts over, and the feature would
+own half the doors.
+
+**Supersedes** the magic scoping's `spendSpell` wrap
+(docs/magic/wip/20260924-scoping.md),
+which was a plan and never a ruling: `spendSpell` exists only in a stale core
+build, and the installed system's cast path is `use()` → `_useSpell()`.
+
+**Cost.** No caller of `use()` can wait for a claimant's cast (the file header
+says what to call instead). The wrapper is installed at `init` on the class the system has set by then, and
+libWrapper taking that method on the live system is walked in TESTING, "The cast
+seam claims a cast".

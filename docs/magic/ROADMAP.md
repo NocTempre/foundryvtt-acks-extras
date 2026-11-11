@@ -11,8 +11,9 @@ ships the Judge tools for what it adds. The order is the owner's ruling of
 2026-09-25 (DECISIONS, "The order, and the scoping's eleven questions, ruled"): 2 and 4a
 before 1b.
 
-- **2 — Casting and tracking.** The `spendSpell` wrap (falling through for
-  spell items without the flag, which core's packs use as monster attacks),
+- **2 — Casting and tracking.** A claimant on lib's cast seam, the one wrap
+  of core's `use()` → `_useSpell()` (falling through for spell items without
+  the flag, which core's packs use as monster attacks),
   the cast dialog, targets and templates, per-target saves inside the card,
   spell effects as flag-marked Active Effects aged by Foundry's own expiry
   with the rounds-to-seconds rewrite when a combat ends (the flag weighed

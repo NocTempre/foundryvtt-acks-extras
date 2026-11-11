@@ -3632,6 +3632,95 @@ tokens' `light` at 0/0 with no `managedLight` or `managedLightStamp` flag.
 
 **Teardown.** Nothing: the fixtures stay. Step 6's units are put back in the step.
 
+## The cast seam claims a cast
+
+Covers `patches/spell-use.mjs`, the wrapper on `Item#_useSpell`. Offline mocks
+cannot show libWrapper taking the method on the installed system, so this is the
+walk that does. The seats are a GM and, for step 9, a Player.
+`tools/live/lib-cast-seam.mjs` walks every step below: it presses the Magic
+tab's cast button where this recipe calls `_useSpell()` from the console, and
+it registers its one claimant under a key of its own and removes it in a
+`finally` on both seats.
+
+**Fixtures, kept and found by marker.**
+- `lib/cast-seam-caster`, a character with `system.spells.enabled` true (the
+  Magic tab shows for a caster only) holding one spell, `lib/cast-seam-spell`
+  (type `spell`, `system.lvl` 1). `lib/cast-seam-caster-player` and
+  `lib/cast-seam-spell-player` are the same with the Player seat as owner.
+  `lib/cast-seam-world-spell` is a world item of type `spell`, for step 1's
+  reach check. Each step resets `system.cast` to 0 before it reads a count.
+
+**Drive mechanics.**
+- Step 1's "no warning" proof needs a recorder that exists before `init`. The
+  capture driver exposes no CDP session, so the walk opens a second DevTools
+  connection to the GM seat's page (`Cdp`, from the driver's exports, over the
+  browser's websocket from `/json/version`), attaches to the `/game` target,
+  registers `Page.addScriptToEvaluateOnNewDocument` and calls `Page.reload`.
+  The recorder wraps `console.warn` and `console.error` before Foundry's
+  scripts run and records whether `Hooks` existed yet, which proves it was
+  first. A page flag set before the reload tells the post-reload `game.ready`
+  from the old page's.
+- A cast's two effects arrive at different times: the count when the server
+  answers, the card when the card's template has loaded (the first cast of a
+  session is the slow one). A press that expects a spend waits on the count and
+  then the card, and a beat more for a second one; a press that expects none
+  waits a fixed 2.5 s. A fixed one-and-a-half-second sleep read 0 and left the
+  count to land in the next step.
+- A card is the walk's when it speaks as one of the two casters
+  (`message.speaker.actor`) and was made inside the run's own time window; the
+  walk tracks each by id and removes them with `sweepTracked({only})`.
+
+**Steps and what proves each.**
+
+1. **No claimant.** `await spell._useSpell()` from the console, with no claimant
+   registered. *Observable:* `spell.system.cast` rises by one and a chat card
+   posts; `acksExtras.lib.spellUse` exists; no error from `init`, `setup` or
+   `ready` names `spell-use`, and the console holds no `no Item#_useSpell to
+   wrap` warning (that warning would mean the system's Item class was not final
+   at `init`). A claimant that claims only one document takes the cast of an
+   embedded spell, of the world item and of `game.items.contents[0]`, each an
+   instance of `CONFIG.Item.documentClass`.
+2. **A claimant that declines.** Register
+   `acksExtras.lib.spellUse.addClaimant({key: "probe", claims: () => false, cast: async () => { throw new Error("must not run"); }})`
+   and repeat step 1. *Observable:* the count rises by one, as in step 1.
+3. **A claimant that takes the cast and never spends.** Replace it with
+   `claims: (item) => item.id === spell.id` and
+   `cast: async () => { window.__cast = true; }`. Click the cast button on the
+   spell's row in the character sheet's Magic tab, as a user does. *Observable:* `window.__cast` is
+   true, the count is unchanged and no card posts.
+4. **The same claimant spends, twice.** Replace `cast` with
+   `async (item, options, spend) => { await spend(); await spend(); }` and repeat
+   step 3's click. *Observable:* the count rises by exactly one and one card
+   posts.
+5. **`use()` does not wait.** Replace `cast` with
+   `async (item, options, spend) => { await new Promise((r) => setTimeout(r, 2000)); await spend(); }`.
+   Time `await spell.use()`, then time `await spell._useSpell()`, reading the
+   count after each. *Observable:* `use()` resolves at once with the count
+   unchanged, and the count rises by one about two seconds later;
+   `_useSpell()` resolves only after about two seconds, with the count up by
+   one more.
+6. **A throwing cast spends nothing.** Replace `cast` with
+   `async () => { throw new Error("probe"); }`. *Observable:* the count is
+   unchanged and the console logs one `spell-use claimant "probe" threw in cast;
+   nothing was spent`.
+7. **Remove it.** `acksExtras.lib.spellUse.removeClaimant("probe")` returns
+   true, and `await spell._useSpell()` is core's again: the count rises by one.
+8. **A spend after `cast` returned.** Register a claimant whose `cast` is
+   `async (item, options, spend) => { setTimeout(() => { window.__late = spend(); }, 300); }`
+   and press the cast button. *Observable:* after a second, the count is
+   unchanged and no card posted, `await window.__late` is false, the console
+   holds one `called spend after its cast returned; the cast was not counted`
+   from `spell-use`, no uncaught error reached the window, and Foundry raised no
+   "Error detected in module" notice. Without the guard libWrapper throws
+   `LibWrapperInvalidWrapperChainError` into the timer's callback.
+9. **A Player seat.** As the Player, with no claimant, press the cast button on
+   `lib/cast-seam-spell-player` after the GM resets its count. *Observable:*
+   the count rises by exactly one and one card posts, with no console error on
+   the Player's seat.
+
+**Teardown.** Remove the claimant (step 7) and delete `window.__cast` and
+`window.__late`. The fixtures stay; the cards the walk made are swept by id.
+
 ## Teardown
 
 Delete every fixture actor and the items the storage and money steps created.

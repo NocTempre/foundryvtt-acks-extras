@@ -64,6 +64,7 @@ acksExtras.lib = {
   // 34: groups.moveStack, groups.moveRefusal — a stack's row between groups (docs/lib/GROUPS.md, "A row moved between groups")
   // 35: tables.bandDie — a one-die table's die, read off its own bands
   summons,             // lib/summons.mjs — a character's summoned creatures (below); 36
+  spellUse,            // lib/patches/spell-use.mjs — the cast seam (below); 36
 }
 ```
 
@@ -798,6 +799,32 @@ asks and places nothing; pass the answer to `placeSummons`. The Foundry-free
 checks (`checkPlaceRequest`, `checkDismissRequest`, `groupByCast`,
 `groupBySpell`, `bareSummonAllowed`, `summonOwnership`) are in
 `scripts/lib/summons-logic.mjs`, imported directly.
+
+## `spellUse` — the cast seam (apiVersion 36)
+
+The model is docs/lib/MODEL.md, "The cast seam"; the ruling is DECISIONS, "One
+owner of the cast seam: lib".
+
+```
+acksExtras.lib.spellUse = {
+  addClaimant({key, claims, cast}),   // register, or replace the claimant under `key` in place
+  removeClaimant(key),                // → whether one was registered
+}
+```
+
+`claims(item, options)` is synchronous and answers whether this claimant takes
+this cast; claimants are asked in registration order and the first to answer
+exactly `true` wins (a promise declines).
+`cast(item, options, spend)` is awaited. `spend()` runs the system's own
+`_useSpell(options)`, the cast count and the chat card, and a second call
+returns the first's promise; it resolves true when the system's method ran. It
+is libWrapper's chained call underneath, so call it before `cast` returns: a
+later call is a logged no-op that resolves false and throws nothing. A
+claimant that never calls `spend` spends nothing. A throw from `claims` skips that claimant; a throw from `cast` is
+logged and spends nothing unless `spend` already ran. The system's `use()` does
+not await `_useSpell`; a feature that must wait for a cast calls
+`item._useSpell(options)`. The registry and the wrapper are
+`scripts/lib/patches/spell-use.mjs`.
 
 ## Versioning
 
