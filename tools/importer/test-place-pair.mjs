@@ -222,10 +222,15 @@ eq("the place's own row writes its new read name while the name is still the pri
   [reread.name, reread.flags[MODULE_ID].cookbook.printed], ["The Reread Keep", "The Reread Keep"]);
 const judgeNamed = { ...shared, name: "Judge's Keep" };
 const kept = write(judgeNamed, { id: L.id, name: "The Reread Keep", notes: lFresh });
-ok("a name the Judge gave stands, and only the printed record moves",
-  !("name" in kept.update) && kept.update[`flags.${MODULE_ID}.cookbook.printed`] === "The Reread Keep");
+ok("a name the Judge gave stands, and the printed record stays as it was",
+  !("name" in kept.update) && !(`flags.${MODULE_ID}.cookbook.printed` in kept.update));
 eq("and the rename is returned as an edit", kept.edits.map((e) => [e.path, e.current, e.page]), [["name", "Judge's Keep", "The Reread Keep"]]);
 eq("taken, the read name replaces it", write(judgeNamed, { id: L.id, name: "The Reread Keep" }, { decision: "take" }).doc.name, "The Reread Keep");
+// Two passes, as the merged command runs them: keep everything, then take what the Judge chose.
+const keptPass = write(judgeNamed, { id: L.id, name: "The Reread Keep" }).doc;
+const takenPass = write(keptPass, { id: L.id, name: "The Reread Keep" }, { decision: { take: new Set([`${judgeNamed.uuid}#name`]) } });
+eq("a rename held on the first pass is listed again and written when the second pass takes it",
+  [takenPass.doc.name, takenPass.doc.flags[MODULE_ID].cookbook.printed], ["The Reread Keep", "The Reread Keep"]);
 
 const overview = bookText(["A quarter's overview."], "LB 2", { id: "lb.over", book: "lb", page: 3 });
 const bare = { ...shared, system: { notes: judge } };

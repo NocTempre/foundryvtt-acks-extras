@@ -228,7 +228,7 @@ export class ImportManagerApp extends HandlebarsApplicationMixin(ApplicationV2) 
     const mode = form?.querySelector("select[name=mode]")?.value ?? "drop";
     if (!pick) return;
     this.#rebuildChoice = { pick, mode };
-    await this.#run(loc("manager.tab.rebuild"), () => host.api.runRebuildPick(pick, mode));
+    await this.#run(loc("manager.tab.rebuild"), () => host.api.runRebuildPick(pick));
   }
 
   static async #onAdventure(event, target) {
@@ -237,8 +237,8 @@ export class ImportManagerApp extends HandlebarsApplicationMixin(ApplicationV2) 
     const api = host.api;
     const label = `${target.textContent.trim()} · ${book}`;
     if (action === "adventureWrite") return this.#run(label, () => api.cookbookImportAdventures({ books: [book] }));
-    const mode = action === "adventureForce" ? "force" : action === "adventureRepair" ? "repair" : "drop";
-    return this.#run(label, () => api.cookbookReimportAdventure(book, { mode }));
+    // Every adventure button but Write runs the one repair.
+    return this.#run(label, () => api.cookbookReimportAdventure(book));
   }
 
   static async #onTokenArt(_event, target) {

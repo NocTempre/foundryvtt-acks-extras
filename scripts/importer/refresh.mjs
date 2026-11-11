@@ -379,12 +379,21 @@ export async function refreshImported(doc, built, policy = {}) {
  */
 export const repairTally = ({ force = false } = {}) => ({ replaced: 0, keptProse: 0, refused: 0, handMade: 0, force, seen: new Set() });
 
-/** A tally's counts alone, for a report or a result; a forced run adds `handMade`. */
+/**
+ * The tally of the merged repair: no force, and a `decision` every writer
+ * asks of a Judge's edit (`decides`; "keep" writes none over), the edits it
+ * kept listed in `edits`, and `recreated` counting documents made again
+ * under their id as another type.
+ */
+export const mergedTally = (decision = "keep") => ({ ...repairTally(), decision, edits: [], recreated: 0 });
+
+/** A tally's counts alone, for a report or a result; a forced run adds `handMade`, a merged one `held` and `recreated`. */
 export const repairCounts = (tally) => ({
   replaced: tally.replaced,
   keptProse: tally.keptProse,
   refused: tally.refused,
   ...(tally.force ? { handMade: tally.handMade } : {}),
+  ...("decision" in tally ? { held: tally.edits?.length ?? 0, recreated: tally.recreated ?? 0 } : {}),
 });
 
 /** The policy a run writes under: `policy`, forced when the tally is. */
@@ -429,6 +438,36 @@ export function decidedPolicy(source, built, policy, { decision = null, uuid = "
     },
     edits,
   };
+}
+
+/**
+ * Write a fresh build over a held document under a repair's tally. A tally
+ * that carries a `decision` writes through `decidedPolicy` and lists the
+ * edits it keeps in `tally.edits`; one without writes under `policyFor`. A
+ * build of another document type is handed to `tally.recreate` where the
+ * tally carries one (the document made again under its id), and is a refusal
+ * otherwise.
+ *
+ * @param {object} doc the held document
+ * @param {object} built a fresh build of its entry
+ * @param {object} policy the kind's policy (`REPAIR`, `actorPolicy`)
+ * @param {object|null} tally a `repairTally`, or null for an unforced write
+ * @returns {Promise<object>} the written plan, as `refreshImported` returns it
+ */
+export async function repairWrite(doc, built, policy, tally) {
+  let plan;
+  if (!tally || !("decision" in tally)) plan = await refreshImported(doc, built, policyFor(policy, tally));
+  else {
+    const decided = decidedPolicy(doc.toObject(), built, policy, {
+      decision: tally.decision,
+      uuid: doc.uuid ?? "",
+      cite: built?.flags?.[MODULE_ID]?.cookbook?.cite ?? doc.flags?.[MODULE_ID]?.cookbook?.cite ?? "",
+    });
+    if (decided.edits.length) (tally.edits ??= []).push(...decided.edits);
+    plan = await refreshImported(doc, built, decided.policy);
+  }
+  if (plan?.refused === "type" && typeof tally?.recreate === "function") return tally.recreate(doc, built);
+  return plan;
 }
 
 /**

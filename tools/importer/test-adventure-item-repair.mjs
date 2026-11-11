@@ -5,8 +5,9 @@
  * already present and, given a repair tally, writes the fresh build over it
  * under `REPAIR.adventureItem`: the slot, the magic mark and the cost return,
  * the quantity a Judge set and a description a Judge wrote stay. The book
- * repair (`cookbookReimportBook`, mode repair) reaches the same run for the
- * book's own items.
+ * repair (`cookbookReimportBook`) reaches the same run for the book's own
+ * items, holds the Judge's description as an edit, and writes it over only on
+ * a second pass that takes it.
  *
  * The book here is invented, two items with nothing to execute, so an open
  * book executes without a page being read; the builder is exercised apart on
@@ -31,6 +32,7 @@ import {
   importedItemFor,
   forgetImportedIndex,
 } from "../../scripts/importer/cookbook.mjs";
+import { BOOKS } from "../../scripts/importer/books.mjs";
 
 let pass = 0;
 const ok = (label, cond, detail = "") => {
@@ -312,15 +314,17 @@ const onShelf = (cbId) => shelf.docs.find((d) => d.getFlag(MODULE_ID, "cookbook"
   ok("which is repaired while the other is left", one.system.cost === 0 && two.system.cost === 99);
 
   /* --- the book repair reaches the book's own items ------------------------------------- */
+  // The smith's note from above still stands on the second: the repair holds it as an edit.
   await one.update({ "system.cost": 99 });
+  // A repair passes over a book the module does not offer; the invented book is offered for these checks.
+  BOOKS[BOOK] = { label: "Invented" };
   confirms = 0;
-  const byBook = await cookbookReimportBook(BOOK, { mode: "repair" });
+  const byBook = await cookbookReimportBook(BOOK);
   ok("the book repair asks once and runs the items step", confirms === 1 && !!byBook?.refill?.cookbookImportAdventureItems, JSON.stringify(byBook));
-  ok("it replaced both items and refused none", byBook.mode === "repair" && byBook.replaced === 2 && byBook.refused === 0, JSON.stringify(byBook));
+  ok("it replaced both items, refused none and held the one edit", byBook.mode === "repair" && byBook.replaced === 2 && byBook.refused === 0 && byBook.held === 1, JSON.stringify(byBook));
   ok("and the price is the build's again", one.system.cost === 0 && two.system.cost === 0);
 
-  /* --- the forced repair: nothing the import writes is passed over -------------------- */
-  // The ordinary repair above kept the smith's note; a forced one replaces it.
+  /* --- the merged repair: an edit is held, and written only where it is taken ---------- */
   // The same world, then: a hand-made item beside them, a Judge's note on the
   // second, a price, a quantity and a slot on the first.
   const handMade = await Item.create(
@@ -328,39 +332,54 @@ const onShelf = (cbId) => shelf.docs.find((d) => d.getFlag(MODULE_ID, "cookbook"
     { pack: ITEM_PACK },
   );
   await one.update({ "system.cost": 99, "system.quantity.value": 3, [`flags.${MODULE_ID}.gear`]: { slots: ["belt"] } });
-  await two.update({ "system.description": `${two.system.description}<p>Kept by the smith.</p>`, "system.cost": 7 });
+  await two.update({ "system.cost": 7 });
   forgetImportedIndex();
   const snapshot = () => JSON.stringify([one.toObject(), two.toObject(), handMade.toObject()]);
-
-  const repairedFirst = await cookbookReimportBook(BOOK, { mode: "repair" });
-  ok("the ordinary repair still keeps the note", repairedFirst.keptProse === 1 && /Kept by the smith/.test(two.system.description), JSON.stringify(repairedFirst));
-  await two.update({ "system.description": `${two.system.description}<p>Kept by the smith.</p>`, "system.cost": 7 });
-  await one.update({ "system.cost": 99 });
 
   // Cancel: the confirm answers false, and not one document is written.
   answer = false;
   confirms = 0;
   asked.length = 0;
   const before = snapshot();
-  const cancelled = await cookbookReimportBook(BOOK, { mode: "force" });
-  ok("a cancelled force repair resolves null", cancelled === null, JSON.stringify(cancelled));
-  ok("it asked exactly once, under the force title", confirms === 1 && asked[0].window.title === "ACKS-IMPORTER.ui.forceTitle", JSON.stringify(asked[0]?.window));
+  let chosen = 0;
+  const cancelled = await cookbookReimportBook(BOOK, { choose: async () => (chosen++, "take") });
+  ok("a cancelled repair resolves null and asks nothing about edits", cancelled === null && chosen === 0, JSON.stringify(cancelled));
+  ok("it asked exactly once, under the repair title", confirms === 1 && asked[0].window.title === "ACKS-IMPORTER.ui.repairMergedTitle", JSON.stringify(asked[0]?.window));
   ok("the dialog is closed-as-no by default", asked[0].rejectClose === false);
   ok("and wrote nothing to any document", snapshot() === before);
   answer = true;
 
+  // Keep every edit: one pass, the note held and listed.
   confirms = 0;
   asked.length = 0;
-  const forced = await cookbookReimportBook(BOOK, { mode: "force" });
-  ok("the confirm names the force text and counts the two documents it will rewrite", /forceConfirmBook\|.*"n":2/.test(asked[0].content), asked[0]?.content);
-  ok("and closes on what it still keeps", asked[0].content.includes("ACKS-IMPORTER.ui.forceKeeps"));
-  ok("the result says force and counts both written, none kept", forced.mode === "force" && forced.replaced === 2 && forced.keptProse === 0 && forced.refused === 0 && forced.handMade === 0, JSON.stringify(forced));
-  ok("the Judge's note is replaced by the build's description", !/Kept by the smith/.test(two.system.description) && two.system.description.includes(`data-acks-entry="${ID2}"`));
+  let offered = null;
+  const kept = await cookbookReimportBook(BOOK, { choose: async (edits) => ((offered = edits), "keep") });
+  ok("the confirm names the repair text and counts the two documents it will write", /repairMergedConfirmBook\|.*"n":2/.test(asked[0].content), asked[0]?.content);
+  ok("and closes on what it keeps", asked[0].content.includes("ACKS-IMPORTER.ui.repairMergedKeeps"));
+  ok("the Judge is offered the one edit, the second's description, with its page", offered?.length === 1 && offered[0].uuid === two.uuid && offered[0].path === "system.description"
+    && /Kept by the smith/.test(offered[0].current) && !/Kept by the smith/.test(offered[0].page), JSON.stringify(offered));
+  ok("keeping it runs no second pass", confirms === 1 && !("second" in kept) && kept.taken === 0 && kept.held === 1, JSON.stringify(kept));
+  ok("the note stands", /Kept by the smith/.test(two.system.description));
   ok("and the price is the build's", one.system.cost === 0 && two.system.cost === 0);
   ok("a kept skip: the quantity is still the Judge's", one.system.quantity.value === 3);
   ok("a kept skip: a slot the page gave none stays", mine(one).gear?.slots?.join() === "belt");
   ok("a kept skip: an item made by hand is not touched", handMade.name === "Item 1" && handMade.system.cost === 5 && /Made at the table/.test(handMade.system.description) && !mine(handMade).cookbook);
-  ok("the notice says force-repaired", /forceDone/.test(lastNotice()), lastNotice());
+  ok("the notice is the merged one", /repairMergedDone/.test(lastNotice()), lastNotice());
+
+  // Take it: a second pass under the decision writes the page's text, with no second confirm.
+  await one.update({ "system.cost": 99 });
+  confirms = 0;
+  const taken = await cookbookReimportBook(BOOK, { choose: async (edits) => ({ take: new Set([edits[0].key]) }) });
+  ok("taking it runs a second pass and asks no second confirm", confirms === 1 && "second" in taken, JSON.stringify(taken));
+  ok("which writes the page's description over the note", !/Kept by the smith/.test(two.system.description) && two.system.description.includes(`data-acks-entry="${ID2}"`));
+  ok("the merged counts: both written once, one edit taken, none held", taken.replaced === 2 && taken.taken === 1 && taken.held === 0 && taken.edits.length === 0, JSON.stringify(taken));
+  ok("the price is the build's from the first pass", one.system.cost === 0);
+
+  // A decision given by the caller answers before anything is asked: one pass.
+  await two.update({ "system.description": `${two.system.description}<p>Kept by the smith.</p>` });
+  chosen = 0;
+  const told = await cookbookReimportBook(BOOK, { decision: "take", choose: async () => (chosen++, "keep") });
+  ok("a caller's decision is not asked again and writes in one pass", chosen === 0 && !("second" in told) && told.held === 0 && !/Kept by the smith/.test(two.system.description), JSON.stringify(told));
 
   // The same run without a confirm answer of yes is the ordinary repair: the
   // force flag lives on the tally, not on the process.
@@ -409,4 +428,5 @@ delete globalThis.Folder;
 delete globalThis.Item;
 delete globalThis.ui;
 delete globalThis.game;
+delete BOOKS[BOOK];
 console.log(`test-adventure-item-repair: ${pass} checks passed.`);

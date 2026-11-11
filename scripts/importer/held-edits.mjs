@@ -43,6 +43,25 @@ export const heldEdit = ({ uuid, name = "", path, current, page, cite = "", unst
   ({ key: editKey(uuid, path), uuid, name, path, current, page, cite, ...(unstamped ? { unstamped: true } : {}) });
 
 /**
+ * Whether a stored figure still holds what the page gives, for a figure no
+ * read stamp covers (a roster, a strength table, a market's demand): a list
+ * holds as many rows as the page's, each holding the page's row; an object
+ * holds every key the page's sets, as the page sets it; anything else is
+ * equal. Keys the stored value carries beyond the page's (a field's defaults,
+ * a Judge's extra column) do not count against it.
+ * @param {unknown} stored
+ * @param {unknown} page
+ * @returns {boolean}
+ */
+export function coversFigure(stored, page) {
+  if (Array.isArray(page)) return Array.isArray(stored) && stored.length === page.length && page.every((row, i) => coversFigure(stored[i], row));
+  if (page && typeof page === "object") {
+    return !!stored && typeof stored === "object" && Object.keys(page).every((k) => coversFigure(stored[k], page[k]));
+  }
+  return page === undefined || stored === page;
+}
+
+/**
  * A short checksum of a written text block (FNV-1a, 32 bits, hex): the read
  * stamp a block write records, so a later write can tell a Judge's edit inside
  * the block from the block as the import wrote it.

@@ -234,16 +234,18 @@ export function baseIsForceable(goods, source) {
  * @param {object|null} market the place's current `system.market`
  * @param {object} profile one `marketProfiles` row
  * @param {{book: string, page: string}} source
- * @param {{corrected?: boolean, force?: boolean}} [options] `force` (a forced
- *   repair) writes the class and families over what the place holds, and the
- *   base unless a later printing wrote it (`baseIsForceable`)
+ * @param {{corrected?: boolean, force?: boolean|{marketClass?: boolean, families?: boolean, demand?: boolean}}} [options]
+ *   `force` writes the class and families over what the place holds, and the
+ *   base unless a later printing wrote it (`baseIsForceable`): `true` for all
+ *   three, or per field
  * @returns {{update: object, wrote: {marketClass: boolean, families: boolean, demand: boolean}}}
  */
 export function marketProfileUpdate(market, profile, source, { corrected = false, force = false } = {}) {
+  const forces = (field) => force === true || !!force?.[field];
   const restocked = corrected && sameSource(market?.goods?.dmProfile?.source, source);
-  const writeClass = profile.marketClass !== null && (force || !market?.marketClassOverride || restocked);
-  const writeFamilies = profile.families !== null && (force || (market?.urbanFamilies ?? null) === null);
-  const writeDemand = profile.demand.length > 0 && (force ? baseIsForceable(market?.goods, source) : baseIsImportable(market?.goods, source));
+  const writeClass = profile.marketClass !== null && (forces("marketClass") || !market?.marketClassOverride || restocked);
+  const writeFamilies = profile.families !== null && (forces("families") || (market?.urbanFamilies ?? null) === null);
+  const writeDemand = profile.demand.length > 0 && (forces("demand") ? baseIsForceable(market?.goods, source) : baseIsImportable(market?.goods, source));
   const wrote = { marketClass: writeClass, families: writeFamilies, demand: writeDemand };
   if (!market) {
     return {

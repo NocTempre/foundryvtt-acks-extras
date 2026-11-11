@@ -4,28 +4,28 @@
  * A character's bound class, a journal link and a template part all point at
  * an Item by uuid, so a rebuild that mints a new id leaves every one of them
  * dangling. `itemIds` settles the id each imported Item is written under; the
- * first half pins its choice row by row. The second half drives the shelf
- * rebuild over a mocked shelf, where `deleteImported` records what each
- * document stood under and the refill writes back through `createDoc` and
- * `createDocs` — the record, the funnel and the write option together, which
- * no check on `itemIds` alone reaches.
+ * first half pins its choice row by row, and the writes through `createDoc`
+ * and `createDocs` that carry it. The shelf mock rejects a whole write that
+ * repeats an id it holds, as the server does, so a guard that let one through
+ * fails here the way it would fail live.
  *
- * The shelf mock rejects a whole write that repeats an id it holds, as the
- * server does, so a guard that let one through fails here the way it would
- * fail live.
- *
- * The third part is the guard a rebuild applies before it deletes: a document
- * goes only when a loaded owner can put it back, its book is open on the seat
- * and the book is one the module offers. It is checked as a pure function
- * (`rebuildVerdict`, `ownerOfClaim`) and again through the shelf and the book
- * rebuilds, which leave what the guard refuses standing and count it.
+ * The second half drives the shelf and book repairs over a mocked shelf, with
+ * their runs recorded in place of the importers: a repair writes in place, so
+ * every document stays under the uuid it had, each run is handed the entries
+ * its scope names, and a document of a book the module no longer offers is
+ * handed to none and counted. The guard an entry rebuild applies before it
+ * deletes (a loaded owner can put the document back, its book is open on the
+ * seat and the book is one the module offers) is checked as a pure function
+ * (`rebuildVerdict`, `ownerOfClaim`).
  */
 import assert from "node:assert";
 import {
-  itemIds, createDoc, createDocs, cookbookReimportShelf, cookbookReimportBook, initCookbook, loadCookbook, importedActorFor,
+  itemIds, createDoc, createDocs, cookbookReimportShelf, cookbookReimportBook, initCookbook, loadCookbook, importedActorFor, REPAIR_RUNS,
+  cookbookUpdateClasses,
 } from "../../scripts/importer/cookbook.mjs";
+import { mergedTally } from "../../scripts/importer/refresh.mjs";
+import { CLASS_TYPE } from "../../scripts/classes/constants.mjs";
 import { ownerOfClaim, rebuildVerdict } from "../../scripts/importer/rebuild-guard.mjs";
-import { WEAPON_TABLE } from "../../scripts/importer/weapon-tables.mjs";
 import { stableDocId } from "../../scripts/importer/adventure-binding.mjs";
 import { libraryPackLabel } from "../../scripts/lib/library.mjs";
 
@@ -275,22 +275,24 @@ for (const [id, _id] of [["def.class.alpha", "legacyAlpha0001"], ["def.class.bet
   shelf.docs.set(_id, doc);
   shelf.index.set(_id, { _id });
 }
-// The refill writes one class alone and one in a batch: both routes must take
-// the record. The module's namespace object is the one its api is read from.
+// A shelf or book repair writes in place: its runs are recorded here in place
+// of the importers, and the documents they would write over stay where they stand.
 const namespace = globalThis.acksExtras;
 const importerWas = namespace.importer;
-namespace.importer = {
-  importClasses: async () => [await createDoc(ItemMock, row("def.class.alpha")), ...(await createDocs(ItemMock, [row("def.class.beta")]))],
-};
+const repairRunsWere = { ...REPAIR_RUNS };
+const ran = [];
+for (const run of Object.keys(REPAIR_RUNS)) {
+  REPAIR_RUNS[run] = async (only, tally) => (ran.push({ run, only: [...only].sort(), decision: tally?.decision }), []);
+}
+// A printed table's repair runs through the api, which answers here with nothing written.
+namespace.importer = new Proxy({}, { get: () => async () => [] });
 const uuidOf = (id) => [...shelf.docs.values()].find((d) => d.getFlag(MODULE_ID, "cookbook")?.id === id)?.uuid ?? null;
 const before = { alpha: uuidOf("def.class.alpha"), beta: uuidOf("def.class.beta") };
-const rebuilt = await cookbookReimportShelf("Classes");
-check("the shelf rebuild deleted both classes", rebuilt?.removed === 2);
-check("a class written alone comes back under the uuid it had", uuidOf("def.class.alpha") === before.alpha);
-check("a class written in a batch comes back under the uuid it had", uuidOf("def.class.beta") === before.beta);
-check("each was written again, not left standing", rebuilt.refill.every((d) => d && shelf.docs.get(d.id) === d));
-const again = await cookbookReimportShelf("Classes");
-check("a second rebuild keeps them too", again?.removed === 2 && uuidOf("def.class.alpha") === before.alpha && uuidOf("def.class.beta") === before.beta);
+const repaired = await cookbookReimportShelf("Classes");
+check("the shelf repair deletes nothing", shelf.docs.size === 2 && !("removed" in (repaired ?? {})));
+check("each class stays under the uuid it had", uuidOf("def.class.alpha") === before.alpha && uuidOf("def.class.beta") === before.beta);
+check("the class run is handed the shelf's loaded entries of offered books, under a keep decision",
+  ran.length === 1 && ran[0].run === "importClasses" && ran[0].only.join() === "def.class.alpha,def.class.beta" && ran[0].decision === "keep");
 
 /* --- the guard a rebuild applies before it deletes --- */
 
@@ -321,8 +323,6 @@ check("a second rebuild keeps them too", again?.removed === 2 && uuidOf("def.cla
 
 const sessions = new Map([[OPEN_BOOK, { doc: {} }], [OFF_BOOK, { doc: {} }]]);
 initCookbook({ sessionDocs: sessions });
-const noRefill = async () => [];
-namespace.importer = { importClasses: noRefill, importWeapons: noRefill, importAllEquipment: noRefill };
 const stock = (...claims) => {
   shelf.docs.clear();
   shelf.index.clear();
@@ -338,34 +338,39 @@ const standing = () => [...shelf.docs.values()].map((d) => d.getFlag(MODULE_ID, 
 const stampedWith = (id, book) => ({ flags: { [MODULE_ID]: { cookbook: { id, book } } } });
 
 {
-  stock("def.weapon.blade", "def.weapon.bolt");
-  const done = await cookbookReimportShelf("Weapons");
-  check("a table row whose book is open is deleted and rebuilt", done.removed === 2 && done.kept === 0 && standing().length === 0);
-
-  stock("def.weapon.blade", "def.weapon.bolt");
-  sessions.delete(WEAPON_TABLE.book);
-  const closed = await cookbookReimportShelf("Weapons");
-  sessions.set(WEAPON_TABLE.book, { doc: {} });
-  check("a table row whose book is closed is left standing and counted", closed.removed === 0 && closed.kept === 2 && standing().length === 2);
-
-  stock("def.equip.ghost", "def.priced.rope");
-  const equipment = await cookbookReimportShelf("Equipment");
-  check("a claim with no loaded entry is left; a price-list row of an open book goes", equipment.removed === 1 && equipment.kept === 1 && standing().join() === "def.equip.ghost");
-
   stock("def.class.alpha", "def.class.offered", "def.class.alpha.row.two", "def.class.ghost");
-  const classes = await cookbookReimportShelf("Classes");
-  check("an entry's row goes with its entry; an unloaded entry's and an unoffered book's stay", classes.removed === 2 && classes.kept === 2 && standing().join() === "def.class.ghost,def.class.offered");
+  ran.length = 0;
+  const out = await cookbookReimportShelf("Classes");
+  check("a shelf repair leaves an entry's row, an unloaded entry's and an unoffered book's standing",
+    standing().join() === "def.class.alpha,def.class.alpha.row.two,def.class.ghost,def.class.offered");
+  check("and hands its run loaded entries only, never a claim no entry names", !ran[0].only.includes("def.class.ghost"));
+  check("a class of a book the module no longer offers is handed to no run, and counted",
+    !ran[0].only.includes("def.class.offered") && out?.notOffered === 1);
+
+  // The class run's own guard, unstubbed: a class of a book not open on this seat is left and counted.
+  stock(["def.class.alpha", { type: CLASS_TYPE }]);
+  sessions.delete(OPEN_BOOK);
+  const repair = mergedTally("keep");
+  const wrote = await cookbookUpdateClasses({ only: new Set(["def.class.alpha"]), confirm: false, repair });
+  sessions.set(OPEN_BOOK, { doc: {} });
+  check("the class run leaves a closed book's class standing and counts it refused",
+    wrote === 0 && repair.refused === 1 && standing().join() === "def.class.alpha");
 }
 
 {
   stock("def.class.alpha", ["def.class.stray", stampedWith("def.class.stray", OPEN_BOOK)], ["def.class.offered", stampedWith("def.class.offered", OFF_BOOK)]);
-  const book = await cookbookReimportBook(OPEN_BOOK);
-  check("a book rebuild deletes what the book's entries own", book.removed === 1 && !standing().includes("def.class.alpha"));
-  check("and leaves a claim its cookbook does not hold, counting it", book.left === 1 && standing().includes("def.class.stray"));
+  ran.length = 0;
+  await cookbookReimportBook(OPEN_BOOK);
+  check("a book repair deletes nothing", standing().join() === "def.class.alpha,def.class.offered,def.class.stray");
+  const classRun = ran.find((r) => r.run === "importClasses");
+  check("and hands the class run that book's entries alone", classRun?.only.join() === "def.class.alpha,def.class.beta");
 
+  ran.length = 0;
   const off = await cookbookReimportBook(OFF_BOOK);
-  check("a book the module does not offer is not rebuilt, though open", off.removed === 0 && off.left === 1 && standing().includes("def.class.offered"));
+  check("a book the module no longer offers is repaired not at all, though open: no run, nothing written, its documents counted",
+    ran.length === 0 && off?.notOffered === 1 && off?.replaced === 0 && standing().join() === "def.class.alpha,def.class.offered,def.class.stray");
 }
+Object.assign(REPAIR_RUNS, repairRunsWere);
 
 /* --- a copy dragged out of the library answers a link, never a presence or write read --- */
 

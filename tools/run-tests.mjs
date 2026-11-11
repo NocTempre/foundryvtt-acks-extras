@@ -209,6 +209,7 @@ const COMMITTED = [
   "importer/test-book-adventure.mjs",
   "importer/test-region-import.mjs",
   "importer/test-refresh.mjs",
+  "importer/test-merged-repair.mjs",
   "importer/test-token-art.mjs",
   "importer/test-register-rules.mjs",
   "importer/test-ax-statline.mjs",

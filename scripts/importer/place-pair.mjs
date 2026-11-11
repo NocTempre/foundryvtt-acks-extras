@@ -184,9 +184,13 @@ export function rowBlockPatch(target, row, { decision = null } = {}) {
     }
   }
   if (row.name && row.id === flag.id && flag.printed !== row.name) {
-    update[`flags.${MODULE_ID}.cookbook.printed`] = row.name;
+    // A held rename leaves `printed` as it was, so the next run still meets
+    // the read name as new and can write it once a decision takes it.
     const renamed = flag.printed !== undefined && target?.name !== flag.printed;
-    if (flag.printed !== undefined && (!renamed || !held("name", target?.name ?? "", row.name))) update.name = row.name;
+    if (!renamed || !held("name", target?.name ?? "", row.name)) {
+      update[`flags.${MODULE_ID}.cookbook.printed`] = row.name;
+      if (flag.printed !== undefined) update.name = row.name;
+    }
   }
   return { update, edits };
 }

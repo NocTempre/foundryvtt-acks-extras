@@ -299,10 +299,10 @@ ok("an import built from the system's own compendium is not", !isWorldCopy({ ...
   ok("the links an organisation carries still find a copy", /importedActor\(placeId\)/.test(orgs) && /importedActor\(r\.to\)/.test(orgs));
   ok("a roll table's forced repair writes onto the library's table", /rewriteTable\(await importedTable\(id, \{ copies: false \}\)/.test(body("cookbookImportRollTables")));
   ok("the table lookup leaves a copy out when asked", /\(copies \|\| !isWorldCopy\(t\)\)/.test(body("importedTable")));
-  const picker = body("runEntryReimport");
-  ok("the picker's rebuild delete leaves a copy out", /isWorldCopy\(doc\)/.test(picker));
-  ok("and reaches the creature an equipment entry is filed as", /src\.asCreature \? \["Item", "Actor"\]/.test(picker));
-  ok("an adventure book's rebuild checks the book is offered before it deletes", /!force && !BOOKS\[bookId\]/.test(body("cookbookReimportAdventure")));
+  const picker = body("repairEntries");
+  ok("the picker's rebuild of a kind with no in-place write leaves a copy out", /!isWorldCopy\(doc\)/.test(picker));
+  ok("and a character a player owns", /!playersCharacter\(doc\)/.test(picker));
+  ok("an adventure book's repair deletes nothing", !/delete(Imported|Documents)\(/.test(body("cookbookReimportAdventure")));
   ok("a companion slot links the library's creature, not a copy", /importedActor\(effect\.ref, \{ copies: false \}\)/.test(body("resolveCompanion")));
   const oseBook = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "..", "scripts", "importer", "ose-book.mjs"), "utf8");
   ok("the OSE areas presence read leaves a copy out", /if \(await importedActorFor\(id, \{ copies: false \}\)\)/.test(oseBook));

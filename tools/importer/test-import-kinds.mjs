@@ -27,8 +27,9 @@ import { placePairs } from "../../scripts/importer/place-pair.mjs";
 import {
   IMPORT_KINDS, ENTRY_SOURCES, SHELF_REFILL, REPAIR_RUNS, TABLE_BOOKS, cookbookRunSet, cookbookReimportShelf, cookbookReimportBook,
   cookbookReimportAdventure, cookbookReimportEntries, reimportableShelves, initCookbook, loadCookbook, isRewriting, placeBlockRows,
-  withRewrite, createDoc, keepsJudgeProse,
+  withRewrite, createDoc, keepsJudgeProse, keepsJudgeFigure, marketTakes, recreateUnderId, rewriteTable,
 } from "../../scripts/importer/cookbook.mjs";
+import { mergedTally } from "../../scripts/importer/refresh.mjs";
 import { bookText } from "../../scripts/importer/prose.mjs";
 import { TABLE_RECIPES } from "../../scripts/importer/table-recipes.mjs";
 import { bookIsJudges } from "../../scripts/importer/books.mjs";
@@ -316,6 +317,14 @@ const recorder = () => {
   return api;
 };
 namespace.importer = recorder();
+// A repair writes through REPAIR_RUNS, whose bodies call the importers directly; each records as the api run it names.
+const repairRunsWere = { ...REPAIR_RUNS };
+for (const run of Object.keys(REPAIR_RUNS)) {
+  REPAIR_RUNS[run] = async (only) => {
+    calls.push({ run, arg: { only } });
+    return [];
+  };
+}
 const drive = async (fn) => {
   calls.length = 0;
   // The creatures step imports through the module's own function, which a mock library cannot open a compendium for;
@@ -473,9 +482,11 @@ same("a stat-line creature is read from its place's book", IMPORT_KINDS.find((k)
   check("the creatures step imports the ids it lacks through importMany", /importMany\(ids,/.test(body) && stepKinds.some((k) => k.key === "Monsters"));
   check("a step kind is a book's own rows", stepKinds.every((k) => k.own));
 
-  // The picker imports the ticked creatures through the same function.
-  const picker = source.slice(source.indexOf("async function runEntryReimport"));
-  check("the entry picker imports creatures through importMany", /refill\.Monsters = await importMany\(monsters,/.test(picker));
+  // The picker imports the ticked creatures the world lacks, and those it rebuilds, through the same function.
+  const actorsRun = source.slice(source.indexOf("async function repairActors"), source.indexOf("async function repairEntries"));
+  const picker = source.slice(source.indexOf("async function repairEntries"), source.indexOf("/*  Reimport one shelf"));
+  check("the entry picker imports creatures through importMany",
+    /await importMany\(missing,/.test(actorsRun) && /refill\.rebuilt = await importMany\(rebuilds,/.test(picker));
 }
 
 /* --- the chain's order and what it calls --- */
@@ -516,6 +527,28 @@ same("a stat-line creature is read from its place's book", IMPORT_KINDS.find((k)
   }
 }
 
+/* --- a merged shelf repair asks once, though it runs twice --- */
+
+{
+  check("the class shelf is refilled by the class run", SHELF_REFILL.Classes === "importClasses");
+  const stub = REPAIR_RUNS.importClasses;
+  const passes = [];
+  REPAIR_RUNS.importClasses = async (_only, tally) => {
+    passes.push(!!tally.answered);
+    if (!tally.steps) tally.edits.push({ key: "Item.cls0000000001#system.notes", uuid: "Item.cls0000000001", path: "system.notes", current: "a", page: "b" });
+    return [];
+  };
+  let asks = 0;
+  let out = null;
+  await drive(async () => {
+    out = await cookbookReimportShelf("Classes", { ask: async () => (asks++, true), choose: async () => "take" });
+  });
+  REPAIR_RUNS.importClasses = stub;
+  same("taking an edit runs the class run twice and asks once", [passes.length, asks], [2, 1]);
+  same("pass two alone is marked answered, so a prose question is not asked again", passes, [false, true]);
+  same("and the edit is counted taken", [out?.taken, out?.held], [1, 0]);
+}
+
 /* --- a book: the rebuild and the derivation agree --- */
 
 {
@@ -529,14 +562,16 @@ same("a stat-line creature is read from its place's book", IMPORT_KINDS.find((k)
   for (const id of claims) stockItem(id);
   const made = await drive(() => cookbookReimportBook("rr"));
   const set = cookbookRunSet({ book: "rr" });
+  // A book repair also reads again every printed table the book prints, which no entry names.
+  const printed = Object.keys(TABLE_BOOKS).filter((shelf) => shelf !== "priced" && TABLE_BOOKS[shelf]() === "rr").map((shelf) => SHELF_REFILL[shelf]);
   same(
-    "a plain book rebuild calls the runs the derivation names, in its order",
+    "a plain book repair calls the runs the derivation names, in its order, then the printed tables the book prints",
     names(made),
-    set.runs.map((r) => r.run),
+    [...set.runs.map((r) => r.run), ...printed],
   );
   same(
     "which are the shelves its entries file on, in the refill table's order",
-    names(made),
+    names(made).slice(0, set.runs.length),
     ["cookbookImportAbilities", "importAllEquipment", "importVariations", "importMerchandise", "importTraps", "importSpells", "importClasses"],
   );
   check("a printed table's row and a vehicle are not named by a book scope", !set.runs.some((r) => r.kinds.some((k) => ["Weapons", "PriceList", "Vehicles", "Monsters"].includes(k))));
@@ -547,7 +582,8 @@ same("a stat-line creature is read from its place's book", IMPORT_KINDS.find((k)
   stockItem("def.class.adv");
   const content = await drive(() => cookbookReimportBook("ax1"));
   const adventure = cookbookRunSet({ book: "ax1" });
-  same("an adventure book's content shelves are rebuilt as a plain book's are", names(content), adventure.runs.filter((r) => r.run !== ADVENTURE_BOOK_RUN).map((r) => r.run));
+  same("an adventure book's content shelves are repaired as a plain book's are, then its own items, which have an in-place run",
+    names(content), [...adventure.runs.filter((r) => r.run !== ADVENTURE_BOOK_RUN).map((r) => r.run), "cookbookImportAdventureItems"]);
   const last = adventure.runs.at(-1);
   check("and its own rows are the one adventure book run, last", last.run === ADVENTURE_BOOK_RUN && last.book === "ax1");
   check("which a book scope names exactly once", adventure.runs.filter((r) => r.run === ADVENTURE_BOOK_RUN).length === 1);
@@ -565,8 +601,9 @@ same("a stat-line creature is read from its place's book", IMPORT_KINDS.find((k)
   const walked = await drive(async () => {
     result = await cookbookReimportAdventure("ax1");
   });
-  const reported = [...result.steps.map((s) => s.key), ...result.errors.map((e) => e.key)].sort();
-  same("the adventure book rebuild reports every step the kinds declare", reported, IMPORT_KINDS.flatMap((k) => k.bookSteps ?? []).sort());
+  // The Adventure is written once, after the last pass (`finish`), so its step is not among the pass's.
+  const reported = [...result.steps.map((s) => s.key), ...result.errors.map((e) => e.key), ...("after" in result ? ["stepAdventures"] : [])].sort();
+  same("the adventure book repair reports every step the kinds declare, the Adventure after the last pass", reported, IMPORT_KINDS.flatMap((k) => k.bookSteps ?? []).sort());
   same("and only the creatures step fails, for the mock library cannot open a compendium", result.errors.map((e) => e.key), ["stepMonsters"]);
   const stepRuns = new Set(IMPORT_KINDS.filter((k) => k.bookSteps?.length).map((k) => k.make.run));
   stepRuns.add("cookbookImportLinks");
@@ -582,7 +619,7 @@ same("a stat-line creature is read from its place's book", IMPORT_KINDS.find((k)
   );
 }
 
-/* --- a forced adventure repair holds its places in place --- */
+/* --- an adventure repair holds its places in place --- */
 
 {
   /** An imported Actor as the library holds it, claiming `id` (and `merged`). */
@@ -632,9 +669,9 @@ same("a stat-line creature is read from its place's book", IMPORT_KINDS.find((k)
   let result = null;
   try {
     const walked = await drive(async () => {
-      result = await cookbookReimportAdventure("ax1", { mode: "force", ask: async () => true });
+      result = await cookbookReimportAdventure("ax1", { ask: async () => true });
     });
-    check("the forced repair walks the places step", names(walked).includes("cookbookImportPoiPlaces"));
+    check("the repair walks the places step", names(walked).includes("cookbookImportPoiPlaces"));
   } finally {
     api.cookbookImportPoiPlaces = poi;
   }
@@ -643,7 +680,7 @@ same("a stat-line creature is read from its place's book", IMPORT_KINDS.find((k)
     seen,
     { "ax1.room1": true, "ax1.room1-o2": true, "ax1.area": false, "zz.keep": false },
   );
-  check("a forced repair returns the edits it kept", Array.isArray(result?.edits));
+  check("the repair returns the edits it kept", Array.isArray(result?.edits));
   check("outside the step nothing is held", !isRewriting("ax1.room1"));
 }
 
@@ -709,6 +746,229 @@ same("a stat-line creature is read from its place's book", IMPORT_KINDS.find((k)
   const character = source.slice(source.indexOf("async function importCharacter"), source.indexOf("/** The kinds that bind to a journal page"));
   check("a character's biography write asks keepsJudgeProse under its rewrite",
     /isRewriting\(id\) && keepsJudgeProse\(actor, "system\.details\.biography",/.test(character) && /keepBiography \? \{\} :/.test(character));
+}
+
+/* --- figures only a forced repair wrote: under a decision each is an edit --- */
+
+{
+  // A place whose roster the Judge changed: the build gives one row, the place holds another.
+  const pageRow = { uuid: "Actor.mob0000000001", quantity: 2, notes: "2d4" };
+  const place = (roster) => ({
+    id: "place000000001",
+    uuid: "Actor.place000000001",
+    name: "Room",
+    type: "location",
+    documentName: "Actor",
+    system: { notes: "", roster },
+    flags: { [MODULE_ID]: { cookbook: { id: "ax1.room1" } } },
+    writes: [],
+    toObject() {
+      return structuredClone({ name: this.name, type: this.type, system: this.system, flags: this.flags });
+    },
+    async update(patch) {
+      this.writes.push(patch);
+      return this;
+    },
+  });
+  const build = { name: "Room", type: "location", system: { notes: "", roster: [pageRow] }, flags: { [MODULE_ID]: { cookbook: { id: "ax1.room1", cite: "AX 3" } } } };
+  const write = async (doc, decision) => {
+    const tally = { replaced: 0, keptProse: 0, refused: 0, handMade: 0, seen: new Set(), edits: [], decision };
+    await withRewrite({ held: new Map([["ax1.room1", doc]]), tally, retract: ["roster"], decision }, () => createDoc({ documentName: "Actor" }, structuredClone(build)));
+    const rosterWritten = doc.writes.some((w) => w.system?.roster !== undefined || "system.roster" in w);
+    return { tally, rosterWritten };
+  };
+  const judged = [{ ...pageRow, quantity: 5 }];
+  const kept = await write(place(judged), "keep");
+  check("pass one under keep leaves a roster the Judge changed as it stands", !kept.rosterWritten);
+  same("and lists it as an unstamped edit, with the page's rows beside it",
+    kept.tally.edits.map((e) => [e.key, e.unstamped, e.current[0].quantity, e.page[0].quantity]), [["Actor.place000000001#system.roster", true, 5, 2]]);
+  const taken = await write(place(judged), { take: new Set(["Actor.place000000001#system.roster"]) });
+  check("a decision taking it writes the page's roster and lists nothing", taken.rosterWritten && taken.tally.edits.length === 0);
+  const same1 = await write(place([{ ...pageRow, hidden: true }]), "keep");
+  check("a roster that still holds the page's rows is no edit", same1.tally.edits.length === 0);
+  const empty = await write(place([]), "keep");
+  check("an empty roster takes the build's and is no edit", empty.rosterWritten && empty.tally.edits.length === 0);
+
+  // An organisation's strength figures: a write after the create asks keepsJudgeFigure.
+  const body = place([]);
+  const pageStrength = { rows: [{ key: "a", n: 10 }] };
+  const figure = async (scope, current) => {
+    const tally = { replaced: 0, keptProse: 0, refused: 0, handMade: 0, seen: new Set(), edits: [] };
+    let keeps = null;
+    await withRewrite({ held: new Map(), tally, ...scope }, async () => {
+      keeps = keepsJudgeFigure(body, "system.strength", current, pageStrength, "AX 3");
+    });
+    return { keeps, edits: tally.edits.map((e) => [e.path, e.unstamped]) };
+  };
+  same("under keep, figures the Judge changed are kept and listed unstamped",
+    await figure({ decision: "keep" }, { rows: [{ key: "a", n: 14 }] }), { keeps: true, edits: [["system.strength", true]] });
+  same("figures still holding the grid's are written", await figure({ decision: "keep" }, { rows: [{ key: "a", n: 10, extra: 1 }] }), { keeps: false, edits: [] });
+  same("a decision taking them writes them", await figure({ decision: "take" }, { rows: [{ key: "a", n: 14 }] }), { keeps: false, edits: [] });
+  same("a scope with no decision writes them", await figure({}, { rows: [{ key: "a", n: 14 }] }), { keeps: false, edits: [] });
+  check("outside a rewrite nothing is kept", keepsJudgeFigure(body, "system.strength", { rows: [] }, pageStrength) === false);
+
+  // A body's relations: one the Judge deleted is what the page gives and the body lacks.
+  const kin = { uuid: "Actor.kin0000000001", name: "Kin", stance: "ally", note: "", hidden: false };
+  const foe = { uuid: "Actor.foe0000000001", name: "Foe", stance: "enemy", note: "AX 3", hidden: false };
+  const related = async (scope) => {
+    const tally = { replaced: 0, keptProse: 0, refused: 0, handMade: 0, seen: new Set(), edits: [] };
+    let keeps = null;
+    await withRewrite({ held: new Map(), tally, ...scope }, async () => {
+      keeps = keepsJudgeFigure(body, "system.relations", [kin], [kin, foe], "AX 3");
+    });
+    return { keeps, edits: tally.edits.map((e) => [e.path, e.unstamped, e.current.length, e.page.length]) };
+  };
+  same("under keep, a relation the Judge deleted is kept deleted and listed unstamped",
+    await related({ decision: "keep" }), { keeps: true, edits: [["system.relations", true, 1, 2]] });
+  same("a decision taking it puts the page's relation back", await related({ decision: { take: new Set(["Actor.place000000001#system.relations"]) } }), { keeps: false, edits: [] });
+
+  // A place's market figures: what only a forced write changed is an edit.
+  const source = { book: "ax3", page: "AX 3 p.1" };
+  const marketPlace = (market) => ({ uuid: "Actor.mkt0000000001", name: "Market", toObject: () => ({ system: { market: structuredClone(market) } }), system: { market } });
+  const profile = { market: "m1", marketClass: 2, families: 300, demand: [{ key: "salt", dm: -1 }] };
+  const judgedMarket = { marketClassOverride: 4, urbanFamilies: 300, goods: { demand: [{ key: "salt", dm: 1 }], dmProfile: { source: null } } };
+  const keepRepair = { decision: "keep", edits: [] };
+  same("under keep no market figure is forced", marketTakes(marketPlace(judgedMarket), profile, source, { repair: keepRepair, cite: "AX 3" }), {});
+  same("the class and the base the Judge set are listed unstamped; a family count equal to the page's is not",
+    keepRepair.edits.map((e) => [e.path, e.unstamped]), [["system.market.marketClassOverride", true], ["system.market.goods.demand", true]]);
+  const takeRepair = { decision: { take: new Set(["Actor.mkt0000000001#system.market.marketClassOverride"]) }, edits: [] };
+  same("a decision taking the class forces that field alone", marketTakes(marketPlace(judgedMarket), profile, source, { repair: takeRepair }), { marketClass: true });
+  same("and lists the base it did not take", takeRepair.edits.map((e) => e.path), ["system.market.goods.demand"]);
+  const fillRepair = { decision: "keep", edits: [] };
+  same("an empty market is filled unforced and lists nothing", [marketTakes(marketPlace(null), profile, source, { repair: fillRepair }), fillRepair.edits.length], [{}, 0]);
+
+  // The wiring that keeps a decided pass from writing what only force wrote.
+  const source2 = fs.readFileSync(new URL("../../scripts/importer/cookbook.mjs", import.meta.url), "utf8");
+  const steps = source2.slice(source2.indexOf("async function runAdventureBookSteps"), source2.indexOf("/** A document type's name in the user's language"));
+  check("under a decision an organisation's relations and strength are never retracted", /retract: decided \? \[\] : retract/.test(steps));
+  check("and the organisations' scope carries the decision", /withRewrite\(\{ held: await heldById\(list\), tally, retract: decided \? \[\] : retract, \.\.\.decisionOf\(tally\) \}/.test(steps));
+  check("a pregenerated character is rewritten only under force", /monsterRepair\(id, !!tally\.force\)/.test(steps));
+  const entries = source2.slice(source2.indexOf("async function repairEntries"), source2.indexOf("/*  Reimport one shelf"));
+  check("and is never rebuilt by the entry picker's merged repair", /if \(!characterEntry\(cookbookEntry\(id\)\?\.entry\)\) rebuilds\.push\(id\)/.test(entries));
+  check("the picker's rebuilds and its rules tables run on pass one only",
+    /if \(rebuilds\.length && !second\) \{/.test(entries) && /if \(tables\?\.length && !second\) \{/.test(entries));
+  check("a held organisation's missing relations ask keepsJudgeFigure before they are put back",
+    /if \(isRewriting\(id\) && keepsJudgeFigure\(faction, "system\.relations", held, \[\.\.\.held, \.\.\.owed\], cite \?\? ""\)\) \{/.test(source2));
+  check("an organisation's strength asks keepsJudgeFigure before it is written",
+    /if \(stored\?\.rows\?\.length && keepsJudgeFigure\(faction, "system\.strength", stored, built\.strength/.test(source2));
+  check("a market profile under a merged repair forces only the fields marketTakes names",
+    /const force = merged \? marketTakes\(place, profile, source, \{/.test(source2));
+  const everything = source2.slice(source2.indexOf("export async function cookbookReimportEverything"), source2.indexOf("/** The rebuildable shelf a cookbook id files onto"));
+  check("Everything's second pass runs the parts that asked with an ask that answers Yes, so it confirms once",
+    /if \(!first\) \{\n\s*for \(const part of partsUnder\(tally\)\.filter\(\(p\) => asked\.includes\(p\.label\)\)\) await part\.run\(async \(\) => true\);/.test(everything));
+  check("an ability's description this module made is an edit under a decision",
+    /if \(flagged && annotated && repair && "decision" in repair && prose !== built\.system\?\.description\) \{/.test(source2));
+
+  // Every writer converted to the merged repair hands its scope's tally to repairWrite as it came.
+  const language = fs.readFileSync(new URL("../../scripts/importer/language-binding.mjs", import.meta.url), "utf8");
+  const lastArgs = (text) => {
+    const out = [];
+    for (let at = text.indexOf("repairWrite("); at >= 0; at = text.indexOf("repairWrite(", at + 1)) {
+      if (/function\s+$/.test(text.slice(Math.max(0, at - 16), at))) continue;
+      let depth = 0;
+      const args = [];
+      let last = at + "repairWrite(".length;
+      for (let i = last; i < text.length; i++) {
+        const c = text[i];
+        if ("([{".includes(c)) depth++;
+        else if (")]}".includes(c) && depth > 0) depth--;
+        else if ((c === "," || c === ")") && depth === 0) {
+          args.push(text.slice(last, i).trim());
+          last = i + 1;
+          if (c === ")") break;
+        }
+      }
+      out.push(args.filter(Boolean).pop());
+    }
+    return out;
+  };
+  const handed = [...lastArgs(source2), ...lastArgs(language)];
+  same("seven writers call repairWrite", handed.length, 7);
+  same("each hands on the tally it was given (a creature's refill names force only where no decision is carried)",
+    handed.filter((a) => !["repair", "tally", 'repair && "decision" in repair ? repair : { force }'].includes(a)), []);
+}
+
+/* --- a type refusal makes the document again under its own id --- */
+
+{
+  const calls = [];
+  let refuse = 0;
+  const cls = {
+    async deleteDocuments(ids, opts) {
+      calls.push(["delete", ids, opts]);
+      return ids;
+    },
+    async createDocuments(data, opts) {
+      calls.push(["create", data, opts]);
+      if (refuse-- > 0) throw new Error("refused");
+      return data.map((d) => ({ ...d, id: d._id }));
+    },
+  };
+  const was = foundry.utils.getDocumentClass;
+  foundry.utils.getDocumentClass = () => cls;
+  const err = console.error;
+  console.error = () => {};
+  const pack = items.shelf.collection;
+  const doc = {
+    id: "keep0000000001",
+    name: "Thing",
+    documentName: "Item",
+    pack,
+    toObject: () => ({ _id: "keep0000000001", name: "Thing", type: "item", folder: "fold000000001", sort: 7, ownership: { default: 2 } }),
+  };
+  const built = { name: "Thing", type: "weapon", folder: "fold000000009", system: { n: 1 } };
+  const tally = mergedTally("keep");
+  const out = await recreateUnderId(tally, doc, built);
+  const shape = ([op, arg, opts]) => [op, op === "delete" ? arg : (({ _id, type, folder, sort, ownership }) => ({ _id, type, folder, sort, ownership }))(arg[0]), opts];
+  same("the document is removed first, then the build made under its id where it stood, with its folder, sort and owners",
+    calls.map(shape), [
+      ["delete", ["keep0000000001"], { pack }],
+      ["create", { _id: "keep0000000001", type: "weapon", folder: "fold000000001", sort: 7, ownership: { default: 2 } }, { pack, keepId: true }],
+    ]);
+  check("counted once, and handed back as a plan", tally.recreated === 1 && out.recreated?.type === "weapon" && out.keptProse.length === 0);
+  calls.length = 0;
+  refuse = 1;
+  const failed = await recreateUnderId(tally, doc, built);
+  same("a create the server refuses puts the document back as it stood, uncounted",
+    [failed, calls.map((c) => c[0]), calls[2]?.[1][0].type, tally.recreated], [{ refused: "error" }, ["delete", "create", "create"], "item", 1]);
+  console.error = err;
+  foundry.utils.getDocumentClass = was;
+}
+
+/* --- a rules table's description under a decision --- */
+
+{
+  const table = (description) => ({
+    uuid: "RollTable.tab0000000001",
+    name: "Table",
+    description,
+    results: [{ id: "row0000000001" }],
+    writes: [],
+    async update(patch) {
+      this.writes.push(["update", patch]);
+    },
+    async deleteEmbeddedDocuments(_type, ids) {
+      this.writes.push(["delete", ids]);
+    },
+    async createEmbeddedDocuments(_type, rows) {
+      this.writes.push(["create", rows.length]);
+    },
+  });
+  const built = { formula: "1d6", description: "<p>Page text.</p>", results: [{ text: "a" }, { text: "b" }], flags: { [MODULE_ID]: { cookbook: { cite: "BK 1" } } } };
+  const run = async (decision, description = "<p>A note of the Judge's.</p>") => {
+    const t = table(description);
+    const repair = mergedTally(decision);
+    await rewriteTable(t, built, repair);
+    return { update: t.writes[0][1], rows: t.writes.slice(1), repair };
+  };
+  const kept = await run("keep");
+  same("under keep the Judge's description stands and is listed, and the rows are replaced",
+    [kept.update, kept.rows, kept.repair.edits.map((e) => [e.key, e.page]), kept.repair.keptProse],
+    [{ formula: "1d6" }, [["delete", ["row0000000001"]], ["create", 2]], [["RollTable.tab0000000001#description", "<p>Page text.</p>"]], 1]);
+  const taken = await run({ take: new Set(["RollTable.tab0000000001#description"]) });
+  same("a decision taking it writes the page's description and lists nothing", [taken.update.description, taken.repair.edits.length], ["<p>Page text.</p>", 0]);
+  const empty = await run("keep", "");
+  same("an empty description is written and is no edit", [empty.update.description, empty.repair.edits.length], ["<p>Page text.</p>", 0]);
 }
 
 /* --- every claimer, and the rows that write onto a place they share --- */
@@ -901,6 +1161,7 @@ same("a stat-line creature is read from its place's book", IMPORT_KINDS.find((k)
 }
 
 namespace.importer = importerWas;
+Object.assign(REPAIR_RUNS, repairRunsWere);
 delete globalThis.foundry;
 delete globalThis.ui;
 delete globalThis.game;

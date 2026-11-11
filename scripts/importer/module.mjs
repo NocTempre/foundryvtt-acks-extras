@@ -2883,13 +2883,13 @@ Hooks.once("ready", async () => {
     /** What the rebuild control offers (shelves, books, tables), and the run of one of its values. */
     rebuildOptions, runRebuildPick,
     cookbookImportAdventures, bookCensus,
-    /** An adventure book rebuilt (`mode: "drop"`) or repaired (`mode: "repair"`) as one unit, and the books it offers. */
+    /** An adventure book repaired in place as one unit, and the books it offers. */
     cookbookReimportAdventure, adventureBooks,
     cookbookImportAdventureItems, cookbookImportLinks,
     /** The whole import chain, in dependency order — the "Import Everything" control. */
     importEverything: () => runImportEverything(),
-    /** Every open book and adventure book rebuilt (`"drop"`), repaired or force-repaired, asked once. */
-    reimportEverything: (mode) => cookbookReimportEverything(mode, { chain: () => runImportEverything() }),
+    /** Every open book and adventure book repaired in place, asked once; `mode` is ignored. */
+    reimportEverything: (mode, opts) => cookbookReimportEverything(mode, opts),
     /** One step of the chain by its `GM_STEPS` key. */
     importStep: runImportStep,
     /** The import manager window, on `tab` when given. */
@@ -2924,8 +2924,8 @@ Hooks.once("ready", async () => {
     booksPanel,
     steps: GM_STEPS,
     runStep: runImportStep,
-    // "import" is the chain; any other mode is that mode over every open book.
-    runEverything: (mode = "import") => (mode === "import" ? runImportEverything() : api.reimportEverything(mode)),
+    // "import" is the chain; any other mode is the repair over every open book.
+    runEverything: (mode = "import") => (mode === "import" ? runImportEverything() : api.reimportEverything()),
     merchandise: () => acksExtras.markets?.buildMerchandiseFromTables?.(),
     lib: () => acksExtras.lib,
     tokenArt: { sources: tokenArtSources, apply: applyTokenArt, restore: restoreTokenArt, hasFlag: hasTokenArtFlag },

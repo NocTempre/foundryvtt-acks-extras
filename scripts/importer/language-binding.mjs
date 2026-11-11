@@ -33,7 +33,7 @@
 
 import { ensureItemFolder, importedDocs, itemIds, packOptsFor } from "./cookbook.mjs";
 import { MODULE_ID } from "./constants.mjs";
-import { countRepair, policyFor, refreshImported, REPAIR, unrepaired } from "./refresh.mjs";
+import { countRepair, repairWrite, REPAIR, unrepaired } from "./refresh.mjs";
 
 /** The system's own item type for a language. Never `ability`. */
 const LANGUAGE_TYPE = "language";
@@ -193,7 +193,7 @@ export async function applyLanguageImport(table, { repair = null } = {}) {
 
     if (existing?.type === LANGUAGE_TYPE) {
       present++;
-      if (repair && unrepaired(repair, existing)) countRepair(repair, await refreshImported(existing, data, policyFor(REPAIR.language, repair)));
+      if (repair && unrepaired(repair, existing)) countRepair(repair, await repairWrite(existing, data, REPAIR.language, repair));
       continue;
     }
 
