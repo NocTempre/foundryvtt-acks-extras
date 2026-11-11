@@ -65,7 +65,8 @@ export function choiceSpecField() {
  * Pure option resolution: the refs this spec offers, given the consumer's
  * already-gathered context lists. Foundry-free — the consumer supplies
  * `{ inventory: {classProfs, powers}, generalRefs, spellRefs }` and gets back
- * a de-duplicated ref list; an unknown source resolves to [].
+ * a de-duplicated ref list; an unknown source resolves to []. A blank or null
+ * ref (a list row left empty on a sheet) is never an offer.
  *
  * @param {object} spec - a ChoiceSpec's plain data
  * @param {object} [ctx]
@@ -95,5 +96,5 @@ export function choiceOptions(spec, ctx = {}) {
       refs = spec.refs ?? [];
       break;
   }
-  return [...new Set(refs)];
+  return [...new Set(refs.filter(Boolean))];
 }

@@ -81,7 +81,7 @@ export async function settleAdvance(actor, classItem, before) {
   const sys = classItem.system;
   const awards = (sys.awards ?? []).filter((a) => (a.atLevel ?? 1) <= 1);
   const powers = [ADVENTURING_REF, ...awards.filter((a) => a.kind === "fixed").map((a) => a.ref)].filter(Boolean).map(named);
-  const classList = (sys.inventory?.classProfs ?? []).map(named);
+  const classList = (sys.inventory?.classProfs ?? []).filter(Boolean).map(named);
   const levelPicks = awards
     .filter((a) => a.kind === "choice" && a.choice?.from === "generalList")
     .reduce((n, a) => n + (Number(a.choice?.count) || 1), 0);

@@ -238,6 +238,8 @@ registerLevelUp();
 registerReopenChargen();
 registerChargen();
 registerChargenPage();
+// A ledger written to a player's User redraws the open sheets of their characters.
+Hooks.on("updateUser", legacy.rerenderLegacySheets);
 registerSheetTabs();
 registry.registerRegistryHooks();
 installLanguageMigration();

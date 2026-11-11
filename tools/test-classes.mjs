@@ -50,7 +50,8 @@ import {
   HITPOINTS_DOC,
 } from "../scripts/classes/hitpoints.mjs";
 import { registerTable, unregisterTable, PRIORITY, getLayer, citeOf } from "../scripts/lib/tables.mjs";
-import { isOffer, offerKey } from "../scripts/classes/pending-choices.mjs";
+import { choiceOptions } from "../scripts/lib/choice-spec.mjs";
+import { libraryPackLabel } from "../scripts/lib/library.mjs";import { isOffer, offerKey } from "../scripts/classes/pending-choices.mjs";
 import { TRAINING_KEYS, normalizeTraining, trainingChanges, trainingOf, withTraining, classTrainingEffect, trainingIsBlank, planTrainingSync } from "../scripts/classes/training-logic.mjs";
 import { readFileSync } from "node:fs";
 
@@ -493,6 +494,52 @@ test("derivePlan copies progenitor thief-skill ladders for chosen skills", () =>
   assert.ok(plan.update.ladders.some((l) => l.key === "climbing"));
   assert.deepEqual(plan.summary.points, { spent: 3, base: 4 });
   assert.ok(plan.issues.some((i) => i.key === "pointsOff"));
+});
+
+test("a blank thief-skill row is neither counted nor bound", () => {
+  const skills = ["def.skill.climbing", "", "def.skill.hiding", null, "def.skill.sneaking", "def.skill.lockpicking", ""];
+  const plan = derivePlan({
+    builder: { hdValue: 1, fighting: { value: 1, sub: "b" }, thievery: { value: 1, skills }, magic: [], race: NO_RACE },
+    tables: TABLES,
+    race: null,
+    chassisAttack: CHASSIS_ATTACK,
+  });
+  // The four named skills meet the fixture's allowance of four; the blanks do not push it over.
+  assert.ok(!plan.issues.some((i) => i.key === "skillCountOff"));
+  assert.deepEqual(
+    plan.update["inventory.skills"].map((row) => row.ref),
+    ["def.skill.climbing", "def.skill.hiding", "def.skill.sneaking", "def.skill.lockpicking"],
+  );
+  // Only blanks: nothing is counted, so the shortfall is reported against the allowance and nothing is granted.
+  const blank = derivePlan({
+    builder: { hdValue: 1, fighting: { value: 1, sub: "b" }, thievery: { value: 1, skills: ["", ""] }, magic: [], race: NO_RACE },
+    tables: TABLES,
+    race: null,
+    chassisAttack: CHASSIS_ATTACK,
+  });
+  assert.deepEqual(blank.issues.find((i) => i.key === "skillCountOff"), { key: "skillCountOff", chosen: 0, expected: 4 });
+  assert.equal(blank.update["inventory.skills"], undefined);
+});
+
+test("a blank power row on a race rung is not granted as a racial trait", () => {
+  const race = { ...ELF, values: [{ value: 1, label: "Rung", xpCost: 750, powers: ["", "def.power.elfTongues", null] }] };
+  const plan = derivePlan({
+    builder: { hdValue: 1, fighting: { value: 2, sub: "" }, thievery: { value: 0, skills: [] }, magic: [{ type: "arcane", value: 1 }], race: { value: 1 } },
+    tables: TABLES,
+    race,
+    chassisAttack: CHASSIS_ATTACK,
+  });
+  assert.deepEqual(plan.update.racialTraits?.map((t) => t.ref), ["def.power.elfTongues"]);
+});
+
+test("a blank inventory row is never offered as a choice", () => {
+  const inventory = { classProfs: ["def.prof.a", "", "def.prof.b"], powers: [null, "def.power.c", ""] };
+  assert.deepEqual(choiceOptions({ from: "classInventory", filter: "any" }, { inventory }), ["def.prof.a", "def.prof.b", "def.power.c"]);
+  assert.deepEqual(choiceOptions({ from: "classInventory", filter: "proficiencies" }, { inventory }), ["def.prof.a", "def.prof.b"]);
+  assert.deepEqual(choiceOptions({ from: "classInventory", filter: "powers" }, { inventory }), ["def.power.c"]);
+  assert.deepEqual(choiceOptions({ from: "custom", refs: ["", "def.prof.a", ""] }), ["def.prof.a"]);
+  assert.deepEqual(choiceOptions({ from: "generalList" }, { generalRefs: ["", "def.prof.d"] }), ["def.prof.d"]);
+  assert.deepEqual(choiceOptions({ from: "classInventory", filter: "any" }, { inventory: { classProfs: [""], powers: [""] } }), []);
 });
 
 test("derivePlan skips what a partial table set cannot answer", () => {
@@ -2795,6 +2842,119 @@ await atest("the sweep corrects the world's and the characters' class items once
     assert.equal(world[1]._source.system._schemaVersion, 0);
   } finally {
     globalThis.game = saved;
+  }
+});
+
+await atest("a score rolled before the library arrives is counted against the dice allowance", async () => {
+  const savedGame = globalThis.game;
+  const savedHooks = globalThis.Hooks;
+  const savedError = console.error;
+  const errors = [];
+  console.error = (...args) => errors.push(args);
+  const handlers = {};
+  let release;
+  const gate = new Promise((resolve) => {
+    release = resolve;
+  });
+  globalThis.Hooks = { on: (name, fn) => (handlers[name] = fn), once() {} };
+  // The page module registers hooks at load, so it is imported once a Hooks stand-in exists.
+  const { METHODS, chargenStateOf, registerChargenPage } = await import("../scripts/classes/stat-page.mjs");
+  // A cold shelf: its index holds more rows than are loaded, so the library wait stays pending until released.
+  globalThis.game = {
+    system: { id: "acks" },
+    user: { isGM: false, getFlag: () => false },
+    settings: { get: () => "standard" },
+    items: [],
+    packs: [
+      { metadata: { packageType: "world", label: libraryPackLabel("Item") }, documentName: "Item", index: { size: 2 }, size: 1, contents: [], getDocuments: () => gate },
+    ],
+  };
+  try {
+    registerChargenPage();
+    const [formula, floor] = Object.entries(METHODS.standard.minimum)[0];
+    const input = { name: "scores.str", value: "", valueAsNumber: NaN };
+    const root = {
+      nodeType: 1,
+      isConnected: true,
+      dataset: {},
+      classList: { add() {} },
+      querySelector: (sel) => (sel.includes('name="scores.str"') ? input : /rollTemplate|scores\.template/.test(sel) ? {} : null),
+      querySelectorAll: () => [],
+    };
+    let thrown = 0;
+    const app = {
+      actor: { isOwner: true, system: {} },
+      options: {
+        actions: {
+          rollScore: async () => {
+            thrown++;
+            input.value = "8";
+            input.valueAsNumber = 8;
+          },
+          rollGold: async () => {},
+          rollTemplate: async () => {},
+        },
+      },
+    };
+    const render = handlers.renderApplicationV2(app, root);
+    // The library is still loading: no injected control exists yet, and the roll is thrown now.
+    await app.options.actions.rollScore.call(app, {}, { dataset: { score: "str", formula } });
+    assert.equal(thrown, 1, "core's own roll still runs");
+    assert.deepEqual(chargenStateOf(app).rolledWith, { str: formula }, "the early roll is recorded");
+    assert.equal(input.value, floor, "and the printed floor is applied to it");
+    release();
+    await render;
+    assert.deepEqual(chargenStateOf(app).rolledWith, { str: formula }, "the late injection keeps the record");
+    assert.deepEqual(errors, []);
+  } finally {
+    console.error = savedError;
+    globalThis.game = savedGame;
+    globalThis.Hooks = savedHooks;
+  }
+});
+
+await atest("a legacy ledger write re-renders the open sheets of that player's characters, and only those", async () => {
+  const saved = { game: globalThis.game, foundry: globalThis.foundry, CONST: globalThis.CONST, Hooks: globalThis.Hooks };
+  globalThis.Hooks = { on() {}, once() {} };
+  globalThis.foundry = {
+    applications: { api: { HandlebarsApplicationMixin: (Base) => class extends Base {}, ApplicationV2: class {} }, instances: new Map() },
+  };
+  globalThis.CONST = { DOCUMENT_OWNERSHIP_LEVELS: { OWNER: 3 } };
+  try {
+    const { rerenderLegacySheets } = await import("../scripts/classes/legacy.mjs");
+    const alice = { id: "u1", isGM: false };
+    const bob = { id: "u2", isGM: false };
+    globalThis.game = { users: { get: () => null, find: (fn) => [alice, bob].find(fn) } };
+    const owned = (by, type = "character") => ({ documentName: "Actor", type, getFlag: () => undefined, testUserPermission: (u) => u === by });
+    const renders = [];
+    const sheet = (name, actor, rendered = true) => ({ rendered, actor, render: () => renders.push(name) });
+    globalThis.foundry.applications.instances = new Map([
+      ["a", sheet("alice's", owned(alice))],
+      ["b", sheet("bob's", owned(bob))],
+      ["c", sheet("alice's closed", owned(alice), false)],
+      ["d", sheet("alice's monster", owned(alice, "monster"))],
+      ["e", { rendered: true, render: () => renders.push("no actor") }],
+    ]);
+    const changed = { flags: { "acks-extras": { legacy: { entries: [], starts: [] } } } };
+    rerenderLegacySheets(alice, changed);
+    assert.deepEqual(renders, ["alice's"], "only an open character sheet of that player is redrawn");
+    renders.length = 0;
+    rerenderLegacySheets(alice, { flags: { "acks-extras": { "-=legacy": null } } });
+    assert.deepEqual(renders, ["alice's"], "removing the ledger redraws too");
+    renders.length = 0;
+    rerenderLegacySheets(alice, { flags: { "acks-extras": { chargenJudgeUnlock: true } } });
+    rerenderLegacySheets(alice, { color: "#fff" });
+    rerenderLegacySheets(alice, undefined);
+    assert.deepEqual(renders, [], "a change to anything else redraws nothing");
+    const wired = readFileSync(new URL("../scripts/classes/module.mjs", import.meta.url), "utf8");
+    assert.match(wired, /Hooks\.on\("updateUser", legacy\.rerenderLegacySheets\)/, "the hook is registered");
+  } finally {
+    globalThis.game = saved.game;
+    globalThis.Hooks = saved.Hooks;
+    if (saved.foundry === undefined) delete globalThis.foundry;
+    else globalThis.foundry = saved.foundry;
+    if (saved.CONST === undefined) delete globalThis.CONST;
+    else globalThis.CONST = saved.CONST;
   }
 });
 

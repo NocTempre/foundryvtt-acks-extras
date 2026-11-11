@@ -87,6 +87,7 @@ export function skillLadderMap(builder) {
   const bindings = thief.system.inventory?.skills ?? [];
   const ladders = thief.system.ladders ?? [];
   for (const ref of builder?.thievery?.skills ?? []) {
+    if (!ref) continue;
     const bound = bindings.find((row) => row.ref === ref);
     const ladder = bound?.ladderKey ? ladders.find((l) => l.key === bound.ladderKey) : null;
     if (ladder) out.set(ref, { key: ladder.key, label: ladder.label, values: ladder.values ?? [] });

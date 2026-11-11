@@ -49,6 +49,25 @@ export function playerOf(actor) {
 /** A user's ledger, never null. */
 export const ledgerOf = (user) => foundry.utils.deepClone(user?.getFlag(MODULE_ID, FLAG_LEGACY) ?? { entries: [], starts: [] });
 
+/**
+ * The `updateUser` answer: when a user's legacy ledger changed, re-render every
+ * open character sheet whose player that user is, so the Class tab's Legacy
+ * chip shows the fund the write left. The write lands on the User after the
+ * coin that paid for it has already re-rendered the sheet, so the sheet reads
+ * the new ledger only through this.
+ * @param {User} user the updated user
+ * @param {object} changes the update's diff
+ */
+export function rerenderLegacySheets(user, changes) {
+  const flags = changes?.flags?.[MODULE_ID];
+  if (!flags || !(FLAG_LEGACY in flags || `-=${FLAG_LEGACY}` in flags)) return;
+  for (const app of foundry.applications.instances.values()) {
+    const actor = app.rendered ? app.actor ?? app.document : null;
+    if (actor?.documentName !== "Actor" || actor.type !== "character") continue;
+    if (playerOf(actor)?.id === user?.id) app.render();
+  }
+}
+
 const now = () => game.time?.worldTime ?? 0;
 
 /** The tail of each key's queue of writes. */

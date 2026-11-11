@@ -1329,8 +1329,7 @@ fixture, so this one write is restored rather than swept.
 2. Record gp **Into the reserve** with "pay from the purse" on. *Observable:*
    Fallen's carried coin falls by exactly that gp; the ledger row shows gp and
    `floor(gp × reserveRate / 100)` XP; a card is whispered to the Judges and
-   the Player; the chip on the sheet shows the fund once the sheet next
-   renders (re-render it before reading the chip).
+   the Player; the chip on the open sheet shows the fund at once.
 3. Record a **Heroic funeral**. *Observable:* "Unclaimed funerals" rises by its
    XP.
 4. Open Successor's Legacy window, choose Fallen under **Following**, press

@@ -544,6 +544,47 @@ function recomputeStats(root) {
   put("std", std.toFixed(2));
 }
 
+/**
+ * Wrap the instance's roll actions so each roll is recorded and the injected
+ * boxes rebuilt once it lands.
+ *
+ * Core writes a rolled value straight onto a readonly input, which fires no
+ * event to listen for, and it does so only after awaiting the roll — so a
+ * fixed delay is a race with however long the dice take to settle. The
+ * instance's own action handlers are wrapped instead: one rebuild, after the
+ * write has landed, whatever the animation cost. The handlers live on the
+ * instance's options, which are frozen only at the top level.
+ *
+ * Runs on the first render, ahead of the library wait, because the page's own
+ * roll buttons work from that first frame while the injected controls arrive
+ * later: a roll thrown in between is still counted against the dice allowance.
+ * Until `inject` has built the boxes, `refresh` finds none and does nothing.
+ * Idempotent per state.
+ */
+function wrapRolls(app, root, state) {
+  if (state.wrapped) return;
+  state.wrapped = true;
+  try {
+    for (const action of ["rollScore", "rollGold", "rollTemplate"]) {
+      const original = app.options?.actions?.[action];
+      if (typeof original !== "function") continue;
+      app.options.actions[action] = async function wrapped(event, target) {
+        await original.call(this, event, target);
+        if (action === "rollScore") {
+          const { score, formula } = target.dataset;
+          state.rolledWith[score] = formula;
+          const floor = METHODS[currentMethod()].minimum?.[formula];
+          const judge = game.user.isGM && state.judge;
+          if (floor && !judge && raiseToMinimum(root, state.actor, score, floor)) recomputeStats(root);
+        }
+        refresh(root, state);
+      };
+    }
+  } catch (err) {
+    console.warn(`${MODULE_ID} | rolls will not refresh the chargen block`, err);
+  }
+}
+
 function inject(app, root, state) {
   // Our own marker on the page root. The page's own classes are `acks2` and
   // `stat-gen-app`, neither of which this module may write rules against
@@ -578,34 +619,7 @@ function inject(app, root, state) {
     });
   }
 
-  // Core writes a rolled value straight onto a readonly input, which fires no
-  // event to listen for, and it does so only after awaiting the roll — so a
-  // fixed delay is a race with however long the dice take to settle. The
-  // instance's own action handlers are wrapped instead: one rebuild, after the
-  // write has landed, whatever the animation cost. The handlers live on the
-  // instance's options, which are frozen only at the top level.
-  if (!state.wrapped) {
-    state.wrapped = true;
-    try {
-      for (const action of ["rollScore", "rollGold", "rollTemplate"]) {
-        const original = app.options?.actions?.[action];
-        if (typeof original !== "function") continue;
-        app.options.actions[action] = async function wrapped(event, target) {
-          await original.call(this, event, target);
-          if (action === "rollScore") {
-            const { score, formula } = target.dataset;
-            state.rolledWith[score] = formula;
-            const floor = METHODS[currentMethod()].minimum?.[formula];
-            const judge = game.user.isGM && state.judge;
-            if (floor && !judge && raiseToMinimum(root, state.actor, score, floor)) recomputeStats(root);
-          }
-          refresh(root, state);
-        };
-      }
-    } catch (err) {
-      console.warn(`${MODULE_ID} | rolls will not refresh the chargen block`, err);
-    }
-  }
+  wrapRolls(app, root, state);
 
   if (!root.dataset.acksChargenBound) {
     root.dataset.acksChargenBound = "1";
@@ -691,6 +705,9 @@ function inject(app, root, state) {
 /** Per-application state, so two open generators do not share a selection. */
 const states = new WeakMap();
 
+/** The chargen state of an open Scores Generator, or undefined when none is tracked for `app`. */
+export const chargenStateOf = (app) => states.get(app);
+
 /** Register the Scores Generator injection (once, from classes/module.mjs). */
 export function registerChargenPage() {
   // Core builds this page fixed at 680 wide and NOT resizable, and its resize
@@ -736,17 +753,8 @@ export function registerChargenPage() {
       if (!root || !isStatPage(root)) return;
       const actor = app.options?.actor ?? app.actor ?? null;
       if (!actor?.isOwner) return;
-      // Warm unconditionally. A cold shelf answers with what is in hand, and
-      // core's page never re-renders itself, so a partial reading is not a
-      // moment's wrong list — it is the wrong list for the LIFE of the window.
-      // Never gate this warm on the library reading empty: `libraryDocs`
-      // answers from the world sidebar before any pack, so one homebrew class
-      // makes an evicted shelf read as a stocked one, and the page builds its
-      // class box out of the sidebar alone. Emptiness is not coldness. Cheap
-      // when nothing is cold — `warmLibrary` resolves already-settled.
-      await whenReady();
-      if (!root.isConnected || !classItems().length) return;
-
+      // The state and the roll wrap come before the wait: the page's own roll
+      // buttons work from the first frame, and `inject` is what arrives late.
       let state = states.get(app);
       if (!state) {
         state = {
@@ -769,6 +777,17 @@ export function registerChargenPage() {
         };
         states.set(app, state);
       }
+      wrapRolls(app, root, state);
+      // Warm unconditionally. A cold shelf answers with what is in hand, and
+      // core's page never re-renders itself, so a partial reading is not a
+      // moment's wrong list — it is the wrong list for the LIFE of the window.
+      // Never gate this warm on the library reading empty: `libraryDocs`
+      // answers from the world sidebar before any pack, so one homebrew class
+      // makes an evicted shelf read as a stocked one, and the page builds its
+      // class box out of the sidebar alone. Emptiness is not coldness. Cheap
+      // when nothing is cold — `warmLibrary` resolves already-settled.
+      await whenReady();
+      if (!root.isConnected || !classItems().length) return;
       inject(app, root, state);
     } catch (err) {
       console.error("acks-extras | chargen page injection failed", err);

@@ -596,7 +596,8 @@ export function derivePlan({
 
   // --- thievery skills into the inventory, with the progenitor's ladders ---
   const thiefRow = valueRow(tables.thievery, builder?.thievery?.value ?? 0);
-  const skillRefs = builder?.thievery?.skills ?? [];
+  // A blank row on the sheet is a placeholder, not a skill: it is neither counted nor bound.
+  const skillRefs = (builder?.thievery?.skills ?? []).filter(Boolean);
   if (isNum(thiefRow?.skills) && skillRefs.length !== thiefRow.skills)
     issues.push({ key: "skillCountOff", chosen: skillRefs.length, expected: thiefRow.skills });
   if (skillRefs.length) {
@@ -617,7 +618,7 @@ export function derivePlan({
     const powers = [];
     for (const row of race.values) {
       if ((row.value ?? 0) > racialValue) continue;
-      for (const ref of row.powers ?? []) if (!powers.includes(ref)) powers.push(ref);
+      for (const ref of row.powers ?? []) if (ref && !powers.includes(ref)) powers.push(ref);
     }
     if (powers.length) update.racialTraits = powers.map((ref) => ({ name: "", ref, html: "" }));
   }
