@@ -169,11 +169,14 @@ function scoreWritten(term) {
  * roll's own `scale` and resolved through the classes registry (which completes
  * the `progression` kind lib cannot see).
  *
+ * @param {object} [opts]
+ * @param {boolean} [opts.conditions=true] fold the character's conditions into
+ *   the target; false leaves them out, for a caller whose own roll applies them
  * @returns {{outcome: string, target: number|null, text: string}}
  *   `outcome` is "throw" (roll against `target`), "auto" (no roll — it happens)
  *   or "none" (not available to this character yet); `text` is the printed cell.
  */
-export function throwOutcome(roll, actor, item) {
+export function throwOutcome(roll, actor, item, { conditions = true } = {}) {
   const none = (target = null, text = "") => ({ outcome: "throw", target, text });
   // A measure has no target, whatever the target fields still hold.
   if (measures(roll)) return none();
@@ -192,7 +195,7 @@ export function throwOutcome(roll, actor, item) {
     return none(target?.flat ?? null);
   }
   if (verdict.outcome !== "throw") return verdict;
-  return { ...verdict, target: withModifiers(verdict.target, roll, actor, item) };
+  return { ...verdict, target: withModifiers(verdict.target, roll, actor, item, { conditions }) };
 }
 
 /**
@@ -225,16 +228,18 @@ export const targetOf = (roll, actor, item) => throwOutcome(roll, actor, item).t
  * conditions do to a proficiency throw (`conditions`). The one place the three
  * are read, so the number a surface shows and the parts it itemizes agree.
  *
+ * @param {object} [opts]
+ * @param {boolean} [opts.conditions=true] false leaves the conditions source out
  * @returns {Array<{kind: "abilities"|"score"|"conditions", label: string, value: number}>}
  *   sources that come to nothing are left out; `[]` with no character
  */
-export function targetModifiers(roll, actor, item) {
+export function targetModifiers(roll, actor, item, { conditions = true } = {}) {
   if (!actor) return [];
   const term = scoreTerm(roll, actor);
   return [
     { kind: "abilities", label: "", value: throwModifiers(actor, item, roll).bonus },
     { kind: "score", label: term?.label ?? "", value: term?.bonus ?? 0 },
-    { kind: "conditions", label: "", value: rollMath("throw", subjectOf(actor)).total },
+    { kind: "conditions", label: "", value: conditions ? rollMath("throw", subjectOf(actor)).total : 0 },
   ].filter((part) => part.value);
 }
 
@@ -247,9 +252,9 @@ const modifierTotal = (parts) => parts.reduce((sum, part) => sum + part.value, 0
  * one; an exact-match throw takes neither. Applied here, once, so every surface
  * reads the same number.
  */
-function withModifiers(target, roll, actor, item) {
+function withModifiers(target, roll, actor, item, opts) {
   if (typeof target !== "number" || !actor) return target;
-  const bonus = modifierTotal(targetModifiers(roll, actor, item));
+  const bonus = modifierTotal(targetModifiers(roll, actor, item, opts));
   if (!bonus) return target;
   const type = roll?.rollType || "above";
   if (type === "result") return target;

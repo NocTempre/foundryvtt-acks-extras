@@ -497,6 +497,10 @@ edges since it shipped; `flex: 0 0 auto` is what makes the declaration real.
 
 ### The adventuring throws are listed from the system's fields, once (2026-09-16)
 
+*Superseded in part, 2026-11-11 ("An Adventuring row is the better of the
+stored figure and the held skill's throw"): the row's figure and roll are no
+longer the stored field alone. Listing once, and the five `adv:*` ids, stand.*
+
 The Rolls tab listed the five adventuring throws twice once a character held
 the Adventuring proficiency, which chargen and the level-up wizard both grant:
 once under Adventuring from `system.adventuring`, and again under
@@ -970,3 +974,56 @@ hold.
 **What it cost.** A player whose character holds no summoning spell has nothing
 to summon. A policy that throws is logged and counts as an allow, so a broken
 feature rule never blocks a placement and never enforces one either.
+
+### An Adventuring row is the better of the stored figure and the held skill's throw (2026-11-11)
+
+**Asked.** T-0478: a Thief's Rolls tab showed the Adventuring group at the
+system's defaults at level 3, while the Searching skill's own sheet resolved a
+better figure for the same activity.
+
+**New evidence.** Nothing class- or level-driven ever writes
+`system.adventuring`: it is the system's schema defaults until a Judge edits it
+(Stats), a follower-card override or a PDF import writes it. The 2026-09-16
+entry took the field as the character's figure; for a character holding a
+skill it is not. A live read at level 3 showed the stored figure, the
+Adventuring proficiency's own throws (flat) and the Searching skill's
+level-resolved methodical throw as three different numbers, and the row's roll
+posted against the stored one.
+
+**Ruled.**
+- *Better of the two.* A character uses whichever of its proficiency throws is
+  better. The row's figure is the lower of the stored field and the held
+  skill's throw; the skill only when strictly lower. One function,
+  `adventuringThrow` (`abilities/adventuring-throw.mjs`), holds the join, and
+  the figure is read from the abilities roller's own `throwOutcome`, so the
+  Rolls row and the skill's sheet cannot disagree.
+- *The mapping is the methodical throw.* The Adventuring proficiency's search
+  and trapbreaking are the one-turn methodical throws (RR ch. 3, Adventuring;
+  ch. 6, Searching); the
+  skill's hasty throw is its own row and stays in Proficiencies & powers.
+  Listening maps to the skill's one throw. Climbing and Dungeonbashing have no
+  skill throw and stay the stored figure.
+- *Before conditions.* The figure leaves the creature's conditions out. The
+  roll stays `actor.rollAdventuring(key)` with the derived figure as
+  `options.target`, which the throw's one wrapper (lib `patches/adventuring-roll.mjs`)
+  holds on the stored field with the conditions applied, so core's roll and the
+  secret roll read it there and the conditions count once. Secrecy for
+  listening and searching is untouched.
+- *No doubling.* A skill throw an Adventuring row stands for is left out of the
+  Proficiencies group, keeping the 2026-09-16 entry's one listing.
+- *Said on the row.* The figure's tooltip names the source that won, the other
+  figure, and the page the skill's import cites; a skill's name shows under the
+  label when it won.
+
+**Rejected.** *Writing `system.adventuring` on level-up or class apply.* It
+stores a derived copy that drifts when a skill or a condition changes, it
+overwrites a Judge's Stats edit, and it needs the level-up and apply paths.
+*Routing the row through the abilities roller.* A secret throw's blind posting
+lives in the adventuring wrapper, and nothing ticks an ability's own Blind roll
+box.
+
+**What it cost.** A Judge's Stats edit stops showing on a row where a skill's
+throw is better (the tooltip says why). A skill throw an Adventuring row stands
+for has no row of its own, so its star on the folded card is gone with it. The
+follower card, the PDF export and the Stats tab still read the stored field;
+formation's party check resolves its own skill target (T-0481).

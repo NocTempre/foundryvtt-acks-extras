@@ -135,7 +135,18 @@ retainer, and morale for a character no player owns); the two attack boxes, ever
 own roll rows, wielded first and ringed), the unarmed strike when nothing is
 held, and the healing rate; the adventuring throws and every other ability's
 throws (the abilities feature's roller, one row per throw). The Adventuring
-proficiency itself lists no rows: its throws are the adventuring group's. Every
+proficiency itself lists no rows: its throws are the adventuring group's. Each
+Adventuring row is the better of the stored `system.adventuring` figure and the
+held skill's throw for the same activity at the character's level
+(`adventuringThrow`, `abilities/adventuring-throw.mjs`): Searching and
+Trapbreaking by their methodical throw, Listening by its one throw; Climbing and
+Dungeonbashing stay stored. The row's tooltip names the winner, the other
+figure and the skill's cited page, and the skill's name shows under the label
+when it won. The skill throw a row stands for is left out of *Proficiencies &
+powers*, so it lists once; the hasty throw stays. The roll is
+`actor.rollAdventuring(key, {target})` with the derived figure before
+conditions; the lib wrapper applies the conditions once and keeps secret throws
+blind (DECISIONS 2026-11-11). Every
 other ability that makes no throw is a row under *Post to chat*, ending in an
 eye where a throw ends in a d20; clicking it posts the system's item card
 (`item.show()`). The whole row is the button; the pin beside it stars the roll

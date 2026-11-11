@@ -1819,7 +1819,13 @@ the Roll returned carries its target at `data.roll.target`, as the system's
 does. Every other adventuring key runs the system's roll.
 `rollSecretAdventuring(actor, key, {event, target})` is the same post against
 a target the actor does not store, which the Follower Card's card-only
-override uses. An ability item's throws are not reached: their visibility is
+override uses. A caller that has a figure of its own for a key passes it as
+`rollAdventuring(key, {target})`, the figure BEFORE conditions: the wrapper
+holds it on the stored field with the creature's conditions applied, so the
+system's roll and the secret post both read it there and the conditions count
+once (the character sheet's Adventuring rows,
+[character-sheet DECISIONS](../character-sheet/DECISIONS.md) 2026-11-11). An
+ability item's throws are not reached: their visibility is
 the ability's own `system.blindroll`
 ([abilities MODEL](../abilities/MODEL.md)).
 

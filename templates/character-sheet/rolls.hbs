@@ -22,7 +22,7 @@
             {{#if row.line}}<span class="acks-extras-frame__row-line">{{row.line}}</span>{{/if}}
           </span>
           {{#if row.mods.length}}<span class="acks-tag-group">{{#each row.mods}}<span class="acks-tag acks-tag--ghost">{{this}}</span>{{/each}}</span>{{/if}}
-          <span class="acks-extras-frame__row-value acks-nums">{{row.value}}</span>
+          <span class="acks-extras-frame__row-value acks-nums"{{#if row.tip}} data-tooltip-text="{{row.tip}}"{{/if}}>{{row.value}}</span>
           {{#if row.big}}
           <span class="acks-extras-frame__roll"><i class="fa-solid fa-dice-d20" inert></i>{{localize "ACKS-LIB.frame.roll"}}</span>
           {{else if row.post}}

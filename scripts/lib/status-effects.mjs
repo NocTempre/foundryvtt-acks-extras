@@ -462,18 +462,33 @@ function onRollSave(wrapped, save, ...rest) {
  * reads it. Called by the adventuring throw's one wrapper
  * (`patches/adventuring-roll.mjs`), which owns that method.
  *
+ * A stated `target` is the figure the throw is made against in place of the
+ * stored one, BEFORE conditions: the conditions are applied to it here, once,
+ * and the stored field is put back after.
+ *
  * @param {Actor} actor   the creature rolling
  * @param {string} advKey the `system.adventuring` key thrown against
  * @param {() => *} run   the roll; it reads the target before it awaits anything
+ * @param {object} [opts]
+ * @param {number} [opts.target] the pre-condition figure to throw against
  */
-export function withAdventuringConditions(actor, advKey, run) {
+export function withAdventuringConditions(actor, advKey, run, { target } = {}) {
   let math = null;
   try {
     math = ownRoll(actor, "throw");
   } catch (err) {
     console.error(`${MODULE_ID} | conditions could not read an adventuring throw; it rolls without them`, err);
   }
-  return withShift(actor?.system?.adventuring, advKey, -(math?.total ?? 0), run);
+  const cell = actor?.system?.adventuring;
+  const shift = -(math?.total ?? 0);
+  if (numOrNull(target) == null || !cell) return withShift(cell, advKey, shift, run);
+  const was = cell[advKey];
+  cell[advKey] = Number(target) + shift;
+  try {
+    return run();
+  } finally {
+    cell[advKey] = was;
+  }
 }
 
 /**

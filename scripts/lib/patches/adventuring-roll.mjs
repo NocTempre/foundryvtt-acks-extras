@@ -103,13 +103,16 @@ export async function rollSecretAdventuring(actor, advKey, { event, target: stat
 /**
  * MIXED form: a secret throw is posted here and core's roll is not called;
  * every other throw is core's. Either runs with the creature's conditions
- * held on the target.
+ * held on the target. `options.target` is a figure to throw against in place
+ * of the stored one, before conditions: it is held on the stored field with the
+ * conditions applied, so core's roll and the secret roll both read it there and
+ * the conditions count once.
  */
 function onRollAdventuring(wrapped, advKey, ...rest) {
   const roll = SECRET_ADVENTURING.includes(advKey)
     ? () => rollSecretAdventuring(this, advKey, { event: rest[0]?.event })
     : () => wrapped(advKey, ...rest);
-  return withAdventuringConditions(this, advKey, roll);
+  return withAdventuringConditions(this, advKey, roll, { target: rest[0]?.target });
 }
 
 /**

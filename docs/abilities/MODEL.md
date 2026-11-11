@@ -83,6 +83,14 @@ shows its DICE wherever the others show a number, its card carries no success
 row, and its editor has no target section at all. Every surface asks `measures()`
 for this, so none of them can read a measure as a throw whose target failed.
 
+A skill's throw can also stand for an Adventuring throw: `adventuringThrow`
+(`adventuring-throw.mjs`) names which held skill's which throw answers each
+`system.adventuring` key and returns the better of that and the stored figure,
+before conditions, read by `throwOutcome` like every other surface
+([character-sheet DECISIONS](../character-sheet/DECISIONS.md) 2026-11-11).
+`throwOutcome` and `targetModifiers` take `{conditions: false}` for a caller
+whose own roll applies them.
+
 `rollsOf()` reads the set and `writeRolls()` changes it — no other path does
 either. Between them they keep two invariants: every throw has a unique key,
 which is assigned once and never rewritten, and an emptied list stays empty

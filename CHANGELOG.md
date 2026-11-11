@@ -80,6 +80,12 @@
 
 ### Fixed
 
+- **Adventuring throws follow the character's level.** The character sheet's
+  Rolls tab → Adventuring now shows Searching, Listening and Trapbreaking at
+  the better of the figure stored on the sheet and the character's own skill
+  throw at their current level, and rolls against that figure. Hover the figure
+  to see which won and the other one. The skill's throw is no longer listed a
+  second time under Proficiencies & powers.
 - **A signing bonus the employer cannot cover no longer reads as paid.** The
   hire goes ahead, the bonus is recorded as owed (the hireling's sheet →
   Service tab → Terms → Signing bonus), and the refusal counts as a calamity,

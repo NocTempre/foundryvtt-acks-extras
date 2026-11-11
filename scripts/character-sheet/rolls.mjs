@@ -28,6 +28,7 @@ import { rollUnarmed } from "../equipment/actions.mjs";
 import { bestAttackBonus, getLoadout } from "../equipment/loadout.mjs";
 import { containedIn } from "../equipment/containers.mjs";
 import { rollsOf, keyOf, rollAbility, throwText, scoreTerm, scoreText, labelOf } from "../abilities/ability-rolls.mjs";
+import { adventuringThrow } from "../abilities/adventuring-throw.mjs";
 import { damageTypeOf, damageTypeLabel } from "../lib/damage-type.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
 import { saveSystemKey, saveLabel } from "./snapshot.mjs";
@@ -37,6 +38,18 @@ import { skipDialogFor } from "../lib/roll-dialog.mjs";
 const loc = makeLoc(LANG);
 const frameLoc = makeLoc(FRAME_LANG_PREFIX);
 const num = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
+
+/**
+ * Where an Adventuring row's figure came from: the source that won, with the
+ * other figure when there is one, and the page the skill's import names. Text
+ * for `data-tooltip-text`; no figure is written here, only the actor's own.
+ */
+function adventuringTip(found) {
+  const cite = found.cite ? ` (${found.cite})` : "";
+  const parts = { target: num(found.target), other: num(found.other), skill: found.skillName ?? "", cite };
+  if (found.source === "skill") return loc(found.other == null ? "rolls.adv.fromSkillOnly" : "rolls.adv.fromSkill", parts);
+  return loc(found.skillName ? "rolls.adv.fromStoredBetter" : "rolls.adv.fromStored", parts);
+}
 
 /** Where a weapon is, as the line under its row. */
 function weaponState(actor, item, loadout) {
@@ -116,20 +129,32 @@ export function rollInventory(actor) {
     rows: [row("bhr", game.i18n.localize("ACKS.HealingRate"), String(sys.hp?.bhr ?? sys.fight?.healingrate ?? ""))],
   });
 
+  // Each row is the better of the stored figure and the held skill's throw
+  // (`adventuringThrow`). The skill throw a row stands for is left out of the
+  // proficiencies below, so it is listed once.
+  const backed = new Set();
   groups.push({
     key: "adventuring",
     name: loc("rolls.group.adventuring"),
-    rows: ADVENTURING_KEYS.map((k) => row(`adv:${k}`, game.i18n.localize(`ACKS.adventuring.${k}`), `${num(sys.adventuring?.[k])}+`)),
+    rows: ADVENTURING_KEYS.map((k) => {
+      const found = adventuringThrow(actor, k);
+      if (found.backs) backed.add(`${found.backs.itemId}:${found.backs.rollKey}`);
+      return row(`adv:${k}`, game.i18n.localize(`ACKS.adventuring.${k}`), `${num(found.target)}+`, {
+        line: found.source === "skill" ? found.skillName : "",
+        tip: adventuringTip(found),
+      });
+    }),
   });
 
-  // The Adventuring proficiency's throws are the five the group above already
-  // lists from the system's fields, which Stats edits; listing the item's copy
-  // too doubles every one of them.
+  // The Adventuring proficiency's own throws are the five the group above
+  // already lists from the system's fields, which Stats edits; listing the
+  // item's copy too doubles every one of them.
   const profRows = [];
   for (const item of actor.items.filter((i) => i.type === ITEM_TYPE.ability && !isAdventuring(i))) {
     const rolls = rollsOf(item);
     rolls.forEach((r, i) => {
       const key = keyOf(r, i);
+      if (backed.has(`${item.id}:${key}`)) return;
       const term = scoreTerm(r, actor);
       const label = rolls.length > 1 && (r.label || labelOf(r)) ? `${item.name} · ${r.label || labelOf(r)}` : item.name;
       profRows.push(
@@ -187,9 +212,13 @@ export async function rollById(actor, id, { event } = {}) {
     case "save":
       await actor.rollSave(saveSystemKey(a), { event });
       return true;
-    case "adv":
-      await actor.rollAdventuring(a, { event });
+    case "adv": {
+      // The skill's figure is thrown against in place of the stored one only
+      // where it won; the throw's wrapper applies the conditions to it.
+      const found = adventuringThrow(actor, a);
+      await actor.rollAdventuring(a, { event, ...(found.source === "skill" ? { target: found.target } : {}) });
       return true;
+    }
     case "bhr":
       await actor.rollBHR({ event });
       return true;

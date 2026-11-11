@@ -200,4 +200,66 @@ await ok("with no dice box the message carries core's dice sound", async () => {
   assert.equal(seen.created[0].sound, "dice.wav");
 });
 
+/* A stated target is the figure BEFORE conditions: the wrapper applies them once. */
+const { registerTable, unregisterTable, PRIORITY } = await import("../scripts/lib/tables.mjs");
+const { CONDITIONS_DOC, CONDITIONS_TABLE } = await import("../scripts/lib/conditions.mjs");
+/** An actor whose conditions are `statuses`, with the invented sizes below. */
+const afflicted = (...statuses) => {
+  const actor = new CoreActor();
+  actor.statuses = new Set(statuses);
+  actor.appliedEffects = statuses.map((s) => ({ statuses: [s], flags: {} }));
+  return actor;
+};
+const INVENTED = { id: CONDITIONS_DOC, source: "invented", tables: { [CONDITIONS_TABLE]: { queasy: { all: -4 }, hungry: { all: -3 } } } };
+
+await ok("a stated target is thrown against with the conditions applied once, the stored field put back", async () => {
+  registerTable(INVENTED, { priority: PRIORITY.WORLD, source: "test" });
+  try {
+    reset(PLAYER);
+    const actor = afflicted("queasy");
+    assert.equal(actor.rollAdventuring("climb", { target: 12 }), "core-roll");
+    assert.equal(seen.core[0].target, 16, "12 plus the 4 the condition costs, not 12 plus 8");
+    assert.equal(actor.system.adventuring.climb, 8, "the stored figure is back after the throw");
+    actor.rollAdventuring("climb", {});
+    assert.equal(seen.core[1].target, 12, "with no stated target the stored 8 carries the condition, as before");
+  } finally {
+    unregisterTable(CONDITIONS_DOC, "test");
+  }
+});
+
+await ok("each condition's own size moves a stated target; no condition leaves it as stated", async () => {
+  registerTable(INVENTED, { priority: PRIORITY.WORLD, source: "test" });
+  try {
+    reset(PLAYER);
+    afflicted("hungry").rollAdventuring("climb", { target: 12 });
+    assert.equal(seen.core[0].target, 15);
+    new CoreActor().rollAdventuring("climb", { target: 12 });
+    assert.equal(seen.core[1].target, 12);
+  } finally {
+    unregisterTable(CONDITIONS_DOC, "test");
+  }
+});
+
+await ok("a secret key takes the stated target through the same hold, so the card carries it once-conditioned", async () => {
+  registerTable(INVENTED, { priority: PRIORITY.WORLD, source: "test" });
+  try {
+    reset(PLAYER);
+    next.total = 15;
+    const actor = afflicted("queasy");
+    await actor.rollAdventuring("listening", { ...SKIP, target: 12 });
+    assert.equal(seen.rendered[0].data.result.target, 16);
+    assert.equal(seen.core.length, 0, "core's roll is not called");
+    assert.equal(actor.system.adventuring.listening, 18, "the stored figure is back");
+  } finally {
+    unregisterTable(CONDITIONS_DOC, "test");
+  }
+});
+
+await ok("a stated target that is not a number is ignored", async () => {
+  reset(PLAYER);
+  new CoreActor().rollAdventuring("climb", { target: "soon" });
+  new CoreActor().rollAdventuring("climb", { target: null });
+  assert.deepEqual(seen.core.map((c) => c.target), [8, 8]);
+});
+
 console.log(`\n${passed} passed`);

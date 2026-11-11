@@ -125,7 +125,8 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    roll (a chat card).
 4. Rolls tab. *Observable:* every group lists; the five adventuring throws
    appear once, as `adv:*` rows under Adventuring, and no `abl:` row names
-   the Adventuring item; the sword shows melee and
+   the Adventuring item (an Adventuring row that a held skill's throw beats,
+   and its roll, are `tools/live/character-sheet-adventuring.mjs`, below); the sword shows melee and
    two-handed rows and the dagger a thrown row; clicking a row makes the roll
    through core's pipeline (a chat card, the module's attack card format);
    the pin on a save row writes the actor flag, the pin on a weapon row flips
@@ -707,6 +708,48 @@ step 6's hover are by hand. It finds the new window as the `DialogV2`
 instance that was not open before the click, and reads a step's copy count
 by the name the previous pick made, since a kept fixture already holds
 earlier runs' copies.
+
+## An Adventuring row is the better of two figures
+
+Built for the Rolls tab's *Adventuring* group (MODEL, "Rolls"; DECISIONS
+2026-11-11). What a mock cannot prove: that the row, the skill's own sheet and
+the posted card agree, that the figure's tooltip is on the live row, and that a
+Player's secret throw is still posted blind when it rolls against a figure the
+actor does not store.
+
+**Fixtures** (kept; found by marker, built when none carries it):
+- `character-sheet/adventuring-climb` — a `character` owned by the Player seat,
+  bound to the imported Thief class at level 3 (`applyClass`, `level: 3`),
+  holding the Adventuring proficiency (`grantAdventuring`) and the library's
+  Searching, Listening and Trapbreaking skills (`grantAbility` with
+  `def.skill.<name>`), its `system.adventuring` set high (every key above any
+  skill's throw at level 3). The walk asserts that shape first: a step that
+  needs a skill throw better than the stored figure cannot fail without it.
+
+**Steps, from the GM seat and then the Player seat** (the sheet on Rolls):
+1. *Adventuring*. *Observable:* Searching, Listening and Trapbreaking each read
+   the figure the skill's own sheet reads (the methodical throw; Listening's one
+   throw), not the stored one; Climbing and Dungeonbashing read the stored
+   figure. Each figure's tooltip names the figure, the skill and the stored
+   figure; the row names the skill under its label; no `title` attribute.
+2. *Proficiencies & powers*. *Observable:* the Searching skill's hasty throw is
+   one row; its methodical throw, and the Listening skill, are not listed.
+3. Press Trapbreaking, then Climbing (the skip-dialog key held). *Observable:*
+   one public card each; Trapbreaking's printed target is the skill's figure,
+   Climbing's the stored one.
+4. Press Searching, then Listening. *Observable:* from the GM seat one card
+   whispered to that Judge; from the Player seat one card blind to the Judges,
+   no roll attached, and the GM seat's own client hears it with the skill's
+   figure on it.
+
+**Teardown.** Delete the cards the run posted by their uuids (the walk tracks
+each as it reads it back); the fixture stays.
+
+**Walk:** `tools/live/character-sheet-adventuring.mjs` drives steps 1-4 on both
+seats. A Player's blind card is checked on the Player seat for its audience and
+for carrying no roll, and its figure is read where a Judge hears it. Every
+tab's panel is in the sheet's DOM, and the Abilities tab lists each ability's
+throws, so a row count is taken inside `section[data-tab="rolls"]`.
 
 ## A field an effect changes
 
