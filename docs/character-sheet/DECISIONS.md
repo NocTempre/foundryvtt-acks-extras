@@ -1064,3 +1064,46 @@ check resolves its own skill target" no longer holds: formation's check reads
 `adventuringThrow` and `skillThrow`
 ([formation DECISIONS](../formation/DECISIONS.md) 2026-11-11; abilities
 DECISIONS, same date).
+
+### The book's printed groups are shortcuts to the one training setting (2026-11-11)
+
+**Asked.** The owner, on weapon training: it follows the book RAW, which means
+the Fighting value's selection levels (JJ ch. 12) and the Martial Training and
+Weapon Focus options (RR ch. 3). The task is "not reversing rulings, proving
+that they are found in the book". Training is selectable by every book
+category, each individual miscellaneous weapon and each size, with quick
+selection of the printed groups. Overlap is allowed when every control is an
+entry to the same setting.
+
+**Ruled.**
+- *One setting.* The class training grant, in the grammar it already has, is
+  the only thing stored: no token kind is added and nothing is migrated. The
+  2026-09-04 entry's units (each weapon once per organisation), its three
+  organisations and `canonicalGrant` stand, and so does the 2026-09-03
+  vocabulary.
+- *Shortcuts may overlap.* Each printed group the importer reads and can
+  resolve to weapons (a narrow, broad, Martial Training or Weapon Focus
+  option) is a quick-select button. A button adds or removes the units it
+  resolves to and writes through `canonicalGrant`, the same path a pill takes.
+  It holds no state, so two buttons may cover the same weapon. The
+  once-per-organisation rule governs the units, and both buttons write the one
+  grant. The restricted level's single picks are the units themselves. A
+  combination option ("any N") names no set and has no button.
+- *The proof is on the surface.* A category group's tooltip names the printed
+  options that hold its weapons, with their pages (`ui-tooltips.md`). A
+  category that no printed option holds whole, or a weapon that no option
+  holds, is a finding to report, never a gap to word around.
+- *Bow and crossbow stay apart.* Every training option names them together,
+  but Manual of Arms (RR ch. 3) trains their troops apart, so the grammar keeps
+  two categories. The `ROADMAP.md` entry for the book's six categories is
+  closed by this.
+
+**Amends** the 2026-09-04 rejection of a *book picks* organisation. What is
+built is a row of shortcuts over the imported option table, not a fourth
+organisation, and none of the page ships: the lists arrive by import, as that
+entry required. The new evidence is the owner's two rulings above.
+
+**What it cost.** A button is only as right as its expansion: a weapon the
+imported lists place wrongly makes its shortcut tick the wrong set. The error
+is visible on the pills and can be fixed by hand. How far the placement reaches
+is importer MODEL's to say.

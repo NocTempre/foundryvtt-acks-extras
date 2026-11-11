@@ -18,16 +18,12 @@ the code, not missing from it; the rulings behind the built half are
 - **Option B (medallion header) and option C (vitals strip)** stay lo-fi
   boards on page 2 of the canvas. Neither was chosen.
 - **Pick slots on the training list.** The canvas drew dashed drop targets for
-  a class's "any five" broad pick, "any three" narrow pick and the four
-  restricted weapons of a caster's list. A pick that is a set of weapons is
-  now expressible — the Stats editor writes single weapons into the grant —
-  but nothing records HOW MANY a class may pick or which tier the picks
-  belong to; the slots need that count, which is the book-picks table below.
-- **The book's six weapon categories.** The lib's `SLOT_VOCAB` (eight classes,
-  bows and crossbows split, an unarmed chip) is what the Stats tab renders;
-  the canvas's "raw" note asks for the six narrow categories of the book.
-  Cross-feature: the follower card, the inventory strip and the
-  class-modifiers editor share the vocabulary.
+  a class's broad pick, its narrow pick and the restricted weapons of a
+  caster's list. A pick that is a set of weapons can already be expressed,
+  because the Stats editor writes single weapons into the grant. Nothing
+  records HOW MANY a class may pick or which tier the picks belong to. The
+  slots need that count, which the imported option lists carry (the printed
+  groups entry, below).
 - **Undrawn boards**: the Magic tab and a caster's Effects tab were never drawn
   on the canvas. Both are built here from the tab vocabulary; a design pass
   on them is owed.
@@ -85,12 +81,11 @@ the code, not missing from it; the rulings behind the built half are
 - **Split beyond one unit.** The Split control on a stack peels one unit off
   (`item-sheet/stack.mjs` `splitOne`); moving "part of a stack somewhere else"
   in one gesture wants a quantity prompt.
-- **A *book picks* organisation of the training list.** The Stats editor
-  regroups weapons by category, by size and ungrouped — the kinds of token
-  the grammar has. The page's numbered pick-combinations (which sizes or
-  categories pair into one broad choice, "any five") are the class builder's
-  option table and do not ship; a fourth organisation would read a table the
-  importer registers (`lib/tables.mjs`) and appear only where one exists.
+- **The book's printed groups as shortcuts on the training list.** Ruled in
+  DECISIONS (2026-11-11). It needs three pieces: the importer's option lists
+  (`weaponLists.options`), weapon placement that resolves each option the same
+  way in every list, and the buttons with their provenance tooltips. The
+  buttons appear only where the lists are imported.
 - **A situational modifier on the surprise and out-of-combat initiative
   rolls.** Both roll at once with the character's stored modifier and no
   window, where an ability's throw asks first. Route them through
