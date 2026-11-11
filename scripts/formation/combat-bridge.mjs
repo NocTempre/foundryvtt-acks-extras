@@ -302,6 +302,10 @@ async function deployFor(combatant, tokenDoc, formationId) {
   formation.combat = { combatId: combat.id, active: true, roundsCounted: combat.round ?? 0 };
   await updateFormation(formation);
   await announce(formation, loc("chat.combatDeployed", { n: combatants.length }));
+  // The fight interrupts the turn plan. Loaded late: the plan's activities
+  // import the turn engine this file already holds.
+  const { cancelPlanForCombat } = await import("./turn-plan.mjs");
+  await cancelPlanForCombat(formation);
 }
 
 /* -------------------------------------------- */

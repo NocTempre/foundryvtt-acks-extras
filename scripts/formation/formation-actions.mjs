@@ -39,6 +39,7 @@ import {
   saveTemplate,
 } from "./marching-templates.mjs";
 import { PARTY_CHECKS, rollPartyCheck } from "./party-rolls.mjs";
+import { lockPlan, parsePick, planRefusal, reasonText, resolvePlanTurn, unlockPlan } from "./turn-plan.mjs";
 import { deploymentOf, deployVehicle, strikeVehicle } from "../vehicles/deploy.mjs";
 import { requestBringIn, requestPartyAction, requestTakeOut } from "./player-requests.mjs";
 import { arrangeFastest, chooseConveyance, setGroupMovement, undoArrangement } from "./conveyance.mjs";
@@ -74,7 +75,6 @@ import {
   addSpell,
   adjustSpell,
   advanceRounds,
-  advanceTurns,
   consumeRations,
   encounterCheck,
   parseSpellTurns,
@@ -881,10 +881,11 @@ export const SHARED_ACTIONS = {
     await onChangeForm.call(this, null, null, { object: { tableId: picked.tableId } });
   },
 
+  /** A stationary turn: the clock spends it once and the turn plan resolves. */
   async advanceTurn() {
     const formation = gmFormation(this);
     if (!formation) return;
-    await advanceTurns(formation, 1, { reason: "manual" });
+    await resolvePlanTurn(formation);
     this.render();
   },
 
@@ -896,11 +897,50 @@ export const SHARED_ACTIONS = {
     this.render();
   },
 
+  /** The Judge's rest: the turn rests whatever the plan says, and the plan resolves. */
   async restTurn() {
     const formation = gmFormation(this);
     if (!formation) return;
-    await advanceTurns(formation, 1, { resting: true });
+    await resolvePlanTurn(formation, { resting: true });
     this.render();
+  },
+
+  /**
+   * Lock the choice in a member's Turn plan row. The Judge writes it; a player
+   * is refused here with the reason, since the relay answers nothing, and
+   * otherwise relays the request for the Judge's client to decide again.
+   */
+  async planLock(_event, target) {
+    const formation = this.formation;
+    const row = target.closest("[data-plan-actor]");
+    const actorId = row?.dataset.planActor;
+    const pick = parsePick(row?.querySelector("[data-pick]")?.value);
+    if (!formation || !actorId || !pick) return;
+    const request = { actorId, key: pick.key, option: pick.option };
+    if (!game.user.isGM && !ownsActor(actorId)) return;
+    const refused = planRefusal(formation, request);
+    if (refused) {
+      ui.notifications.warn(reasonText(refused.reason, game.actors.get(actorId)));
+      return;
+    }
+    if (game.user.isGM) {
+      await lockPlan(formation, { ...request, by: game.user.id });
+      return;
+    }
+    await requestPartyAction(formation.id, "plan", request);
+  },
+
+  /** Clear a member's Turn plan row: they keep watch again. */
+  async planUnlock(_event, target) {
+    const formation = this.formation;
+    const actorId = target.closest("[data-plan-actor]")?.dataset.planActor;
+    if (!formation || !actorId) return;
+    if (game.user.isGM) {
+      await unlockPlan(formation, actorId);
+      return;
+    }
+    if (!ownsActor(actorId)) return;
+    await requestPartyAction(formation.id, "plan", { actorId, unlock: true });
   },
 
   async encounterNow() {

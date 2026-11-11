@@ -97,6 +97,18 @@
   creation, the class picker, the level-up wizard's Apply and Roll hit dice
   record their rolls. A maximum typed by hand is never recorded as a roll: the
   line shows the sheet's figure beside the one the rolls give.
+- **Plan each member's turn.** Party sheet → Dungeon tab → Turn plan lists each
+  member with what they do while the party stands still: a hasty or methodical
+  search, listening, dungeonbashing, a hasty or methodical trapbreak at a known
+  trap, or rest. A member with no choice keeps watch. Pick one and press Lock;
+  Keep watch clears it. A player locks only the members they own, and the Judge
+  locks any. A row that cannot lock says why: the party moved this turn, is in
+  a fight, or the member is left behind, detached or down. The Dungeon tab's
+  Turn and Rest a turn spend one turn and then resolve the plan: everyone
+  searching rolls on one card to the Judges, everyone listening on another, and
+  the party rests when every member who needs rest chose Rest. Moving the party
+  clears the plan and says so in chat; a fight starting clears it on one chat
+  card.
 
 ### Changed
 

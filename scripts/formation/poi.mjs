@@ -226,11 +226,16 @@ export const regionsTouch = (a, b, scene) => ringsTouch(regionOutlines(a), regio
  * same reason: the next real drag must measure from where the party now
  * stands, not from where it was before the hop.
  *
+ * @param {string} formationId
+ * @param {string} tokenId
+ * @param {object} [opts]
+ * @param {boolean} [opts.spend] spend the hop's turns on the clock; false
+ *   moves the party for turns its caller has already spent
  * @returns {Promise<{moved: boolean, reason?: string, relation?: string,
  *   turns?: number, place?: string}>} `reason` names what refused: no such
  *   target, an unpriced relation, or a missing figure.
  */
-export async function travelToPlace(formationId, tokenId) {
+export async function travelToPlace(formationId, tokenId, { spend = true } = {}) {
   const formation = getFormation(formationId);
   const at = formation ? partyPoint(formation) : null;
   const target = at?.scene.tokens.get(tokenId) ?? null;
@@ -254,7 +259,7 @@ export async function travelToPlace(formationId, tokenId) {
   // Loaded late: the turn engine imports the city tick, which will import the
   // marker drop above, and a static edge here would close that loop.
   const { advanceTurns, storedPosition } = await import("./turn-engine.mjs");
-  if (cost.turns > 0) await advanceTurns(formation, cost.turns, { reason: "action" });
+  if (spend && cost.turns > 0) await advanceTurns(formation, cost.turns, { reason: "action" });
   // Re-read after the tick: it wrote the record, and may have resized the token.
   const after = getFormation(formationId);
   const party = after ? partyPoint(after)?.token : null;

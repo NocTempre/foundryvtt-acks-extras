@@ -9,7 +9,9 @@ import { bringInRefusal, refusalText, takeOutRefusal } from "./membership.mjs";
 import { executeAsGM, registerHandler } from "../lib/sockets.mjs";
 import { rollPartyCheck, PARTY_CHECKS } from "./party-rolls.mjs";
 import { attemptDisarm, attemptRearm } from "./trap-zone.mjs";
-import { addLight, addSpell, advanceTurns, toggleLight, toggleShield } from "./turn-engine.mjs";
+import { addLight, addSpell, toggleLight, toggleShield } from "./turn-engine.mjs";
+import { activityLabel, lockPlan, reasonText, resolvePlanTurn, unlockPlan } from "./turn-plan.mjs";
+import { turnActivity } from "../lib/turn-activities.mjs";
 
 /**
  * Player-declared party actions. All formation state lives in a world setting
@@ -19,6 +21,7 @@ import { addLight, addSpell, advanceTurns, toggleLight, toggleShield } from "./t
  * - light a torch/lantern/candle borne by a member they own;
  * - track a spell they cast (from an owned member's spellbook);
  * - declare a rest turn, or a listen/search/bash/track check;
+ * - lock or clear their own character's choice in the turn plan (plan);
  * - move their own character in the marching order (reorder);
  * - take up or set down a role for their own character (role);
  * - step their own character out of the party token to scout, or back in
@@ -95,7 +98,38 @@ async function executeRequest(formation, user, type, payload) {
     case "rest": {
       if (!userOwnsMember(formation, user)) return;
       await announceDeclaration(formation, user, loc("request.rest"));
-      await advanceTurns(formation, 1, { resting: true });
+      await resolvePlanTurn(formation, { resting: true });
+      break;
+    }
+
+    /* --- The turn plan: a player chooses for their own character --- */
+    case "plan": {
+      if (!userOwnsMember(formation, user, payload.actorId)) return;
+      const name = foundry.utils.escapeHTML(game.actors.get(payload.actorId)?.name ?? "?");
+      if (payload.unlock) {
+        if (await unlockPlan(formation, payload.actorId)) {
+          await announceDeclaration(formation, user, loc("plan.request.unlock", { name }));
+        }
+        return;
+      }
+      // Only a registered activity passes: its key names a lang entry and a roll route.
+      if (typeof payload.key !== "string" || !turnActivity(payload.key)) return;
+      const option = typeof payload.option === "string" && payload.option ? payload.option : null;
+      const result = await lockPlan(formation, { actorId: payload.actorId, key: payload.key, option, by: user.id });
+      if (!result.ok) {
+        // The declaring seat checked before it sent; a refusal here means the
+        // party changed in between, and silence would leave them waiting.
+        await ChatMessage.create({
+          content: foundry.utils.escapeHTML(reasonText(result.reason, game.actors.get(payload.actorId))),
+          whisper: [user.id],
+          speaker: { alias: formation.name ?? "" },
+        });
+        return;
+      }
+      await announceDeclaration(formation, user, loc("plan.request.lock", {
+        name,
+        activity: foundry.utils.escapeHTML(activityLabel(payload.key)),
+      }));
       break;
     }
     case "check": {

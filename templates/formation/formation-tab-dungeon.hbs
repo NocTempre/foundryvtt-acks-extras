@@ -1,5 +1,5 @@
 {{!-- The mode tab in the delve (Dungeon): the turn clock's own actions at its
-      head, the strip's tiles, and a member-owner's requests. The lights and
+      head, the strip's tiles, the Turn plan, and a member-owner's requests. The lights and
       spells stay on the Kit tab. --}}
 <div class="tab acks-extras-party-sheet__panel{{#if tabs.mode.active}} active{{/if}}" data-group="primary" data-tab="mode">
   {{#if formation}}
@@ -39,6 +39,55 @@
   </header>
 
   {{> "modules/acks-extras/templates/formation/formation-strip.hbs"}}
+
+  {{!-- The Turn plan: what each member spends the stationary turn on. A row
+        with no entry keeps watch; the seats that may choose for a member get
+        the select and Lock, and a reason that stops every choice is shown. --}}
+  {{#if plan.rows.length}}
+  <section class="acks-extras-turn-plan">
+    <h3>{{localize "ACKS-FORMATION.plan.title"}}</h3>
+    {{#if plan.rest}}
+    <p class="acks-extras-turn-plan-rest{{#if plan.rest.rests}} is-rest{{/if}}">
+      {{#if plan.rest.rests}}{{localize "ACKS-FORMATION.plan.restsThisTurn"}}{{else}}{{localize "ACKS-FORMATION.plan.restNeeds" names=plan.rest.missing}}{{/if}}
+    </p>
+    {{/if}}
+    <ul class="acks-extras-turn-plan-rows">
+      {{#each plan.rows}}
+      <li class="acks-extras-turn-plan-row" data-plan-actor="{{this.actorId}}">
+        <span class="acks-extras-turn-plan-name">{{this.name}}</span>
+        <span class="acks-extras-turn-plan-entry">
+          {{#if this.entry}}
+          {{this.entry.label}}{{#if this.entry.done}} · {{localize "ACKS-FORMATION.plan.done"}}{{else}}{{#if this.entry.multi}} · <span class="acks-nums" data-tooltip-text="{{this.entry.tip}}">{{localize "ACKS-FORMATION.plan.turnsLeft" remaining=this.entry.remaining turns=this.entry.turns}}</span>{{/if}}{{/if}}
+          {{else}}
+          {{localize "ACKS-FORMATION.plan.keepsWatch"}}
+          {{/if}}
+        </span>
+        {{#if this.block}}<span class="acks-extras-turn-plan-block">{{this.block}}</span>{{/if}}
+        {{#if this.canControl}}
+        <span class="acks-extras-turn-plan-controls">
+          {{#if this.options.length}}
+          <select data-pick="plan-{{this.actorId}}" aria-label="{{localize 'ACKS-FORMATION.plan.choose' name=this.name}}">
+            {{#each this.options}}
+            <option value="{{this.value}}"{{#if this.selected}} selected{{/if}}{{#if this.disabled}} disabled{{/if}}>{{this.label}}</option>
+            {{/each}}
+          </select>
+          <button type="button" data-action="planLock" aria-label="{{localize 'ACKS-FORMATION.plan.lockHint'}}" data-tooltip="">
+            <i class="fa-solid fa-lock" inert></i> {{localize "ACKS-FORMATION.plan.lock"}}
+          </button>
+          {{/if}}
+          {{#if this.entry}}
+          <button type="button" data-action="planUnlock" aria-label="{{localize 'ACKS-FORMATION.plan.unlockHint'}}" data-tooltip="">
+            <i class="fa-solid fa-eye" inert></i> {{localize "ACKS-FORMATION.plan.keepWatch"}}
+          </button>
+          {{/if}}
+        </span>
+        {{/if}}
+      </li>
+      {{/each}}
+    </ul>
+    <p class="hint">{{localize "ACKS-FORMATION.plan.hint"}}</p>
+  </section>
+  {{/if}}
 
   {{> "modules/acks-extras/templates/formation/formation-player-actions.hbs"}}
   {{/if}}

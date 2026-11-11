@@ -95,6 +95,7 @@ import { expeditionFrom } from "../lib/movement-scales.mjs";
 import { fractionLabel } from "../lib/util.mjs";
 import { collectMapItems } from "./map-items.mjs";
 import { PARTY_CHECKS, resolveCheck } from "./party-rolls.mjs";
+import { planView } from "./turn-plan.mjs";
 import { formatTurns, parseSpellTurns, turnDistance } from "./turn-engine.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
 import { provisionForecast, daysCarried } from "./provisions.mjs";
@@ -367,6 +368,10 @@ export function buildFormationView(formation) {
     }));
 
   Object.assign(view, buildMapsView(formation));
+
+  // The delve's Turn plan: what each member spends the stationary turn on.
+  const mode = travelOf(formation).mode;
+  view.plan = mode === "journey" || mode === "settlement" ? null : planView(formation);
 
   view.warnings = buildWarnings(formation, speed);
   return view;

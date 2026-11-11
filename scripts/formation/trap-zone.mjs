@@ -845,9 +845,11 @@ export function disarmRefusal(placement, actor, mode) {
  * @param {object} [opts]
  * @param {"hasty"|"methodical"} [opts.mode]
  * @param {number} [opts.extra] the Judge's own modifier
+ * @param {boolean} [opts.spend] spend the attempt's time on the clock; the turn
+ *   plan passes false, having spent its turn before anything resolves
  * @returns {Promise<{ok: boolean, reason?: string, outcome?: string}>}
  */
-export async function attemptDisarm(formation, actor, { mode = "methodical", extra = 0, targetUuid = "" } = {}) {
+export async function attemptDisarm(formation, actor, { mode = "methodical", extra = 0, targetUuid = "", spend = true } = {}) {
   // Which trap is being worked on is ASKED, not guessed. A party halted in a
   // corridor may be standing at more than one, and the thief who found the
   // tripwire has no business having their hands moved onto the pressure plate
@@ -935,6 +937,7 @@ export async function attemptDisarm(formation, actor, { mode = "methodical", ext
   }
 
   // Time cost: a round hastily, a full turn methodically.
+  if (!spend) return { ok: true, outcome };
   if (mode === "hasty") await advanceRounds(formation, 1, { reason: "action" });
   else await advanceTurns(formation, 1, { reason: "trapbreaking" });
 

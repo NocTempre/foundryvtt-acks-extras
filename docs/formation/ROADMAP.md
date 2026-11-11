@@ -581,3 +581,15 @@ a fight that is over").
 | Not built | What it is | What it needs first |
 |---|---|---|
 | ~~The double membership, mended~~ | BUILT. The `formation.partyActors` repair check keeps a member with the party whose token is on a map and takes them out of the others (MODEL, "Only the linked token acts for the party"; DECISIONS 2026-11-03). | ~~the owner saying which party keeps the member~~ |
+
+## The turn plan
+
+The column, storage, relay and resolution are built (MODEL, "The turn plan";
+DECISIONS 2026-11-11). Magic's cast, location's harvest and identification, and
+the abilities' generic throw register later slices.
+
+| Not built | What it is | What it needs first |
+|---|---|---|
+| Key and lockpicking at a door | RR ch. 6 names using a key and picking a lock, hasty and methodical, among the turn's activities. The formation has no door-lock procedure: the door helper bashes, batters and spikes, and a container's pick belongs to the equipment feature. | a door-lock resolution (which door, the lockpicking throw through the abilities, what a key is) and the owner's word that the formation owns it. |
+| Battering as a plan choice | Registered with no length: the turns an axe needs are the door's printed figure (`DOOR_KINDS`), so the choice reads not imported and cannot lock. Its resolve also has no door to open. | §6's door import, then a door option per door within reach. |
+| A door within reach | Bashing in the plan is the party's Dungeonbashing check, as the party check rolls it; no door is named, so the Judge opens the door by hand. | a reader of the doors within reach of the party, like `knownPlacementsNear` for traps, that never lists a secret door to a player. |

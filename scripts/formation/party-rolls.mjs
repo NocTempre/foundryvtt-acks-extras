@@ -327,8 +327,16 @@ export async function rollCheckFor(actor, cfg) {
 /**
  * Roll a party check for every capable member and whisper one summary card to
  * the GMs. Returns the number of members who rolled.
+ * @param {object} formation
+ * @param {string} checkKey A `PARTY_CHECKS` key.
+ * @param {object} [opts]
+ * @param {string[]|null} [opts.only] Roll for these members alone (the turn
+ *   plan's searchers or listeners); null rolls for the whole party.
+ * @param {boolean} [opts.spend] Spend the check's time on the clock. The turn
+ *   plan passes false: its turn is spent once, before anything resolves.
+ * @returns {Promise<number>}
  */
-export async function rollPartyCheck(formation, checkKey) {
+export async function rollPartyCheck(formation, checkKey, { only = null, spend = true } = {}) {
   const cfg = PARTY_CHECKS[checkKey];
   if (!cfg) return 0;
   // A solo check belongs to one character. Rolling it for the whole party is
@@ -357,6 +365,7 @@ export async function rollPartyCheck(formation, checkKey) {
   const rolls = [];
   const incapable = [];
   for (const member of formation.members) {
+    if (only && !only.includes(member?.actorId)) continue;
     const actor = getMemberActor(member);
     if (!actor || isDown(actor, member)) continue;
     const rolled = await rollCheckFor(actor, cfg);
@@ -399,6 +408,7 @@ export async function rollPartyCheck(formation, checkKey) {
   await postToJudges({ content: html, rolls, speaker: { alias: formation.name } });
 
   // Time cost: methodical actions occupy a full turn, hasty ones a round.
+  if (!spend) return rows.length;
   if (cfg.consumesTurn) await advanceTurns(formation, 1, { reason: "search" });
   else if (cfg.consumesRound) await advanceRounds(formation, 1, { reason: "action" });
   return rows.length;

@@ -5328,3 +5328,49 @@ a party is mapping. A burst of edits that move a light (a token drag, an ambient
 light, a shutter) is one extra environment sweep, debounced. A light outside a
 wall still lights a mapper, as every straight-line light read in the module
 does.
+
+## 2026-11-11 — The turn plan is the party's, and only Turn and Rest resolve it
+
+**Asked.** Every party member locks a choice for a stationary turn (owner
+request 2026-11-11, ledger T-0487). Lib holds the registry (lib DECISIONS
+2026-11-11); where does the plan live, who writes it, what spends the clock,
+and what stops a choice?
+
+**Ruled (the owner, 2026-11-11).** A member with no choice keeps watch; Rest is
+a choice in the column, and a member owes rest unless rested (Q4 A). A fight
+mid-turn cancels the open entries and keeps a multi-turn entry's progress, on
+one group note card (Q5 A). The mapper's condition is untouched (2026-11-11,
+"The mapper is vulnerable until their first free turn", stands).
+
+**Built here, not ruled.**
+- **The plan is the party actor's flag**, written whole by a GM client, so a
+  player's choice is a declaration like every other (the `plan` request) and the
+  sheet redraws on the actor's own update.
+- **Only the Dungeon tab's Turn and Rest a turn, and a player's rest request,
+  resolve the plan.** A turn that movement completes is not stationary, and
+  combat rounds are a fight; neither is the turn the plan was locked for.
+- **The clock is spent once, first.** Every roll the plan makes passes `spend:
+  false`, so a planned search does not also spend the search's own turn.
+- **The Judge's Rest rests the turn and still resolves the plan.** Nothing the
+  members chose is lost to the press; a party rest by choice is every member
+  who owes rest choosing Rest.
+- **A move cancels every open entry, a multi-turn one's progress with it.** The
+  owner's Q5 covers a fight, which interrupts work the party comes back to; a
+  move is the party leaving it. Told on one public line.
+- **The interruption card is public.** It tracks the table's choices, which
+  every seat made in the open; the checks themselves stay with the Judges.
+- **Group checks roll once.** The searches, listening and dungeonbashing queue
+  their members and roll one `rollPartyCheck` each, restricted to them.
+
+**Not built.** Key and lockpicking (RR ch. 6) are not registered: the formation
+has no door-lock procedure to resolve them through, and a container's pick is
+another feature's. Battering registers with no length, since the turns an axe
+needs are the door's printed figure and no import reads it (ROADMAP §6), so it
+is listed as not imported and cannot lock. Both are ROADMAP rows.
+
+**Rejected.** A Rest default for a member who chose nothing (the owner's Q4).
+Limiting listening to once a turn for a stationary party: the party check
+limits it only while moving, and a stricter plan would be a house rule.
+
+**Cost.** A Judge who advances by Round ten times passes a turn the plan never
+resolves. A world's party sheet carries a Turn plan section on every delve.

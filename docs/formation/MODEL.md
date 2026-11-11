@@ -67,6 +67,7 @@ All paths are under `scripts/formation/` unless noted.
 | `obstacles.mjs`, `swimming.mjs`, `jumping.mjs` | The chapter 6 obstacle derivations, published on `api.formation`. Deep water and chasms sit *beside* the Spelunking table rather than in it; each file's header says what it does not share with the others. |
 | `announce.mjs` | One formation chat card (public, or whispered to the GMs). |
 | `audit-roll.mjs` | The skill audit's whole-party roll: one ability, every member who holds it, one grouped card (§The audit roll). |
+| `turn-plan.mjs`, `turn-plan-logic.mjs` | The turn plan (§The turn plan): the party actor's plan flag, the formation's registered activities, the lock and its relay, the column's view, the planned turn's resolution, and the move and fight that cancel it; the party's stops and the turn's order, Foundry-free. |
 | `journey.mjs` | The journey's movement engine: the dispatcher on the movement seam, miles measured on any grid, the one record patch for trace and spend, the running world clock, `nextHex`, `spendSearchHour`, `hexContext`, and the two hooks `acksExtras.hexEntered` / `acksExtras.searchHourSpent`. |
 | `march.mjs` | The march as arithmetic, Foundry-free: the day's budget in hours, the cadence by grid or by miles, a spend carried across drags, and whether the day is spent. |
 | `hex-stock.mjs` | A hex's stock as arithmetic, Foundry-free: the stocking procedure, settled shares, substitution, per-formation finds, search credit, assessments and false counts. |
@@ -199,7 +200,7 @@ the art row, on every tab.
 
 | Tab | Head (the Judge's) | Body |
 |---|---|---|
-| Dungeon | Turn, Round, Rest a turn, Undo, Hurried | the strip; a member-owner's requests |
+| Dungeon | Turn, Round, Rest a turn, Undo, Hurried | the strip; the Turn plan (§The turn plan); a member-owner's requests |
 | Wilderness | the hex field, Next hex, Work the country, End day | the strip; Country (the cards and the encounters line for every seat; their sources, chips and brush the Judge's; §The country); Points of interest (the search's two selects at its foot) and Movement (GM); Sky (a player's seat while it has a reading; the climate card and the controls the Judge's); Day (GM); Camp (the forecast and the suffering for every seat; exposure, declarations and throw lines the Judge's); a member-owner's requests |
 | City | Hop (while a point of interest is in reach), Hunted here, Turn, Round, Rest a turn, Undo | the strip with the city block; The city; a member-owner's requests |
 | Order, Train or Company | Auto-arrange, Frontage, Save order, Load order, Add a blank, Trapbreaking, Skill audit, Disband | the ranks and the train |
@@ -249,6 +250,7 @@ Nothing in the payload names who asked. Players act on what is THEIRS:
 | Spells | See all tracked spells; add their own via the declaration panel | `spell` |
 | Maps | See the party's maps and session status; consult (anchor) a map their character holds | `anchorMap` |
 | Checks & rest | Declare listen/search/bash/track and rest turns | `check` / `rest` |
+| Turn plan | Lock or clear their own character's choice for the stationary turn (§The turn plan) | `plan` |
 | Scouting | Step their own character out of the party token, or back in | `detach` |
 | Casualties | Leave their own character behind where they fell, or go back for them (refused in combat) | `leftBehind` |
 | Traps | Work on a trap the party has found, or re-arm one they disarmed, with their own character | `trapbreak` / `trapRearm` |
@@ -396,6 +398,71 @@ show through Dice So Nice to the Judges.
   card keeps returning nothing when it has nothing.
 - **Nothing advances.** An audit roll spends no round and no turn and sets no
   once-per-turn mark; it is the Judge looking, not the party acting.
+
+## The turn plan
+
+What each member spends a stationary dungeon turn on (JJ ch. 2, Sequence of
+Play, the Delve stage's first step). The registry and its arithmetic are lib's
+([lib MODEL](../lib/MODEL.md), "The turn-activity registry"); the storage, the
+column, the relay and the resolution are this feature's
+([turn-plan.mjs](../../scripts/formation/turn-plan.mjs), with the order and the
+party's own stops in the Foundry-free
+[turn-plan-logic.mjs](../../scripts/formation/turn-plan-logic.mjs)).
+
+- **Storage** is the party actor's `flags["acks-extras"].turnPlan`, lib's plan
+  shape keyed by member actor id. A member with no entry keeps watch. Only a GM
+  client writes it, and it is written whole: the flag is a forced replacement,
+  and an empty plan removes it, since a merging update would keep an entry the
+  new plan dropped. The party sheet redraws on the actor's own update.
+- **The activities** register at init on every client
+  (`registerFormationActivities`), because a player's column and refusal are
+  computed on their own client from the same declarations. The two searches,
+  listening and dungeonbashing are group checks under their `PARTY_CHECKS` keys:
+  each resolve queues its member (`queueGroup`) and the turn rolls each queue
+  once. The two Trapbreaking columns offer one option per trap the party has
+  found within reach (`knownPlacementsNear`) and refuse as the disarm dialog
+  does (`disarmRefusal`, as `trap:<reason>`); each resolves through
+  `attemptDisarm`. Battering a door registers with no length: the turns an axe
+  needs are the door's printed figure, which no import reads yet (ROADMAP §6),
+  so it is offered as not imported and cannot lock. Rest is registered under
+  lib's `REST_KEY`. Every other length is one turn: a pace is structural, and a
+  hasty activity takes a round inside the turn.
+- **What stops a member** before any activity is asked (`memberBlock`, in this
+  order): not in the party, the party moved this turn (`clock.movedThisTurn`),
+  the party is held in a fight, the member was left behind, is out on a
+  detach, or is down. Then lib's `lockActivity` order: unknown activity or
+  option, the activity's own block (a hurried party's hasty search, a member
+  with no throw for a check, a trap's refusal), already used this turn, not
+  imported. Listening's once-a-turn is the party check's own mark, which only a
+  moving party sets, so a plan never limits it further.
+- **The column** is the Turn plan section on the Dungeon tab: a row per member
+  with what they locked (or Keeps watch), the reason that stops every choice
+  when there is one, and, on a seat that may choose for them, a staging select
+  of what `offeredActivities` lists (a refused or not-imported choice is listed
+  disabled with its reason) with Lock and Keep watch. The Judge chooses for
+  anyone; a player for a member they own, refused on their own client with the
+  reason, then relayed as the `plan` request, which the GM client decides again
+  against the attested sender and announces. When someone chose Rest, a line
+  says whether the turn rests or who still owes it.
+- **Resolution** runs on the Dungeon tab's Turn and Rest a turn presses and a
+  player's rest request (`resolvePlanTurn`), never on a turn that movement or
+  combat rounds complete. The order is `runPlanTurn`'s: whether the turn rests
+  is read first (the Judge's Rest, or every member taking part who owes rest
+  chose Rest; a member with Endurance owes none); the clock spends one turn;
+  lib's `advanceTurn` counts the plan down at the clock's new turn and the
+  stamped plan is written; the due entries resolve; each group check is rolled
+  once with `rollPartyCheck(formation, key, {only, spend: false})`, one card to
+  the Judges with a row for each member who chose it. Every roll the plan makes
+  passes `spend: false` (`rollPartyCheck`, `attemptDisarm`; `batterDoor` and
+  `travelToPlace` take it too), so a planned turn spends the clock exactly once.
+  An entry whose activity, option or member is gone is dropped, and a dropped or
+  failed entry is a line on a Judges' note card.
+- **A move** cancels every open entry, a multi-turn entry's progress with it,
+  and says whose on one public line (`cancelPlanForMove`, from the movement
+  hook where `movedThisTurn` is set).
+- **A fight** (the party token's combat deploy) cancels the open single-turn
+  entries and keeps a multi-turn entry with its progress, and posts one public
+  card naming each (`cancelPlanForCombat`); an empty plan posts nothing.
 
 ## Roles that need a kit
 

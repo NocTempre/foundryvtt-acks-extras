@@ -164,6 +164,7 @@ import { LIGHT_DOC } from "../lib/light.mjs";
 import { TRAVEL_DOC, WEATHER_DOC } from "../vehicles/vehicle-speed.mjs";
 import { registerFormationRepairChecks } from "./repair-checks.mjs";
 import { registerPartyRoster } from "./party-roster.mjs";
+import { registerFormationActivities } from "./turn-plan.mjs";
 import {
   clearStock, hexStockView, installHexStockCardActions, placeFromPoint, readStock, stockFromInputs, surveyHex, trueHexOf, writeStock,
 } from "./hex-stock-run.mjs";
@@ -184,6 +185,8 @@ function openPartySheet() {
 Hooks.once("init", () => {
   registerFormationRepairChecks();
   registerPartyRoster();
+  // On every client: a player's Turn plan column refuses from the same registrations the Judge's client locks by.
+  registerFormationActivities();
   // The mapper's Vulnerable is the formation's to keep and refuses a hand-delete.
   registerManagedEffect(HELD_CONDITION_FLAG, "ACKS-FORMATION.mapperVulnerable.owner");
   game.settings.register(MODULE_ID, "ownXpDealing", {

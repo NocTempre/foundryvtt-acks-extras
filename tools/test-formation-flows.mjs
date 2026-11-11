@@ -138,6 +138,8 @@ globalThis.foundry = {
   data: {
     fields: new Proxy({}, { get: () => FieldStub }),
     regionBehaviors: { RegionBehaviorType: class {} },
+    // The mocks' writes replace an object at its path, which is what a forced replacement asks of core.
+    operators: { ForcedReplacement: { create: (value) => value }, ForcedDeletion: class ForcedDeletion {} },
   },
   applications: {
     api: {
@@ -311,7 +313,12 @@ class ActorMock {
     return this;
   }
   async update(changes) {
-    for (const [k, v] of Object.entries(changes)) setProp(this, k, v);
+    for (const [k, v] of Object.entries(changes)) {
+      // Core's forced deletion: `{"a.b.c": ForcedDeletion}` removes `c` from `a.b`.
+      const at = k.lastIndexOf(".");
+      if (v instanceof foundry.data.operators.ForcedDeletion) delete foundry.utils.getProperty(this, k.slice(0, at))?.[k.slice(at + 1)];
+      else setProp(this, k, v);
+    }
     await sleep(2);
     Hooks.call("updateActor", this, changes);
     return this;
@@ -5847,6 +5854,98 @@ await scenario("a party actor made while the GM window is still joining its seat
   assert.ok(record, "the create hook adopts it once the election settles");
   await model.deleteFormationRecord(record.id);
   await partyActor.delete();
+  await drain();
+});
+
+await scenario("turn plan: one spend a turn, one card for the searchers, a player locks only their own, a fight cancels on one card", async () => {
+  const plan = await import("../scripts/formation/turn-plan.mjs");
+  const searcher = await member("Plan Searcher");
+  const owned = await member("Plan Owned");
+  const watcher = await member("Plan Watcher");
+  owned.ownership = { default: 0, PL1: 3 };
+  await drain();
+  await game.settings.set(MODULE_ID, "formations", {}); // isolate
+  let formation = await model.createFormation("Plan Party");
+  for (const [n, actor] of [searcher, owned, watcher].entries()) {
+    const [token] = await scene.createEmbeddedDocuments("Token", [{ name: actor.name, actorId: actor.id, x: 900 + n * 100, y: 900 }]);
+    formation = await model.addMember(model.getFormation(formation.id), actor, token);
+  }
+  await drain();
+  const id = onlyFormation().id;
+  const party = game.actors.get(onlyFormation().actorId);
+  assert.ok(party, "the party has its actor, which holds the plan");
+  const stored = () => party.getFlag(MODULE_ID, "turnPlan") ?? {};
+
+  // The Judge locks for any member; a player for their own, and only that.
+  assert.equal((await plan.lockPlan(model.getFormation(id), { actorId: searcher.id, key: "searchMethodical", by: "GM1" })).ok, true);
+  const gmUser = game.user;
+  game.user = game.users.get("PL1");
+  try {
+    await requests.requestPartyAction(id, "plan", { actorId: owned.id, key: "searchMethodical" });
+    await requests.requestPartyAction(id, "plan", { actorId: watcher.id, key: "searchMethodical" });
+  } finally {
+    game.user = gmUser;
+  }
+  await drain();
+  assert.deepEqual(Object.keys(stored()).sort(), [searcher.id, owned.id].sort(), "the player's own member locked; the one they do not own did not");
+  assert.equal(stored()[owned.id].by, "PL1", "the entry names the attested sender");
+
+  // A moved party locks nothing.
+  {
+    const f = model.getFormation(id);
+    f.clock.movedThisTurn = true;
+    await model.updateFormation(f);
+    assert.equal(plan.planRefusal(model.getFormation(id), { actorId: watcher.id, key: "listen" })?.reason, "moved");
+    const g = model.getFormation(id);
+    g.clock.movedThisTurn = false;
+    await model.updateFormation(g);
+  }
+
+  // The turn: the clock spends once, the two searchers roll on one card, and the plan is stamped.
+  const turns0 = onlyFormation().clock.turnsTotal;
+  const chat0 = chat.length;
+  await plan.resolvePlanTurn(model.getFormation(id));
+  await drain();
+  assert.equal(onlyFormation().clock.turnsTotal, turns0 + 1, "one turn spent, not two");
+  const posted = chat.slice(chat0).map((m) => String(m.content ?? ""));
+  const searchCards = posted.filter((c) => c.includes("ACKS-FORMATION.rolls.searchMethodical"));
+  assert.equal(searchCards.length, 1, "one card for the searchers");
+  assert.ok(searchCards[0].includes("Plan Searcher") && searchCards[0].includes("Plan Owned"), "both searchers roll on it");
+  assert.ok(!searchCards[0].includes("Plan Watcher"), "the member keeping watch does not");
+  assert.equal(posted.filter((c) => c.includes("chat.turnAdvanced")).length, 1, "one turn card");
+  assert.ok(Object.values(stored()).every((e) => e.resolvedTurn === turns0 + 1), "every resolved entry is stamped with the turn");
+
+  // The next turn re-rolls nothing and drops what was done.
+  const chat1 = chat.length;
+  await plan.resolvePlanTurn(model.getFormation(id));
+  await drain();
+  assert.equal(chat.slice(chat1).filter((m) => String(m.content ?? "").includes("ACKS-FORMATION.rolls.searchMethodical")).length, 0, "no search re-rolled");
+  assert.deepEqual(stored(), {}, "the done entries leave the plan, and the flag goes with them");
+
+  // A fight: the single-turn entry is cancelled, the multi-turn one keeps its progress, on one card.
+  await plan.lockPlan(model.getFormation(id), { actorId: watcher.id, key: "listen", by: "GM1" });
+  await party.update({ [`flags.${MODULE_ID}.turnPlan`]: { ...stored(), [searcher.id]: { key: "searchMethodical", option: null, remaining: 2, turns: 3, by: "GM1" } } });
+  const chat2 = chat.length;
+  const cut = await plan.cancelPlanForCombat(model.getFormation(id));
+  assert.deepEqual(cut.cancelled.map((c) => c.actorId), [watcher.id]);
+  assert.deepEqual(cut.kept.map((c) => c.actorId), [searcher.id]);
+  assert.equal(chat.length - chat2, 1, "one card for the interruption");
+  assert.ok(String(chat.at(-1).content).includes("plan.combat.title") && !chat.at(-1).whisper?.length, "a public group note");
+  assert.deepEqual(Object.keys(stored()), [searcher.id], "the kept entry stays");
+  assert.equal(stored()[searcher.id].remaining, 2, "with its progress");
+
+  // A move ends it; clearing a row empties the flag.
+  const chat3 = chat.length;
+  await plan.cancelPlanForMove(model.getFormation(id));
+  assert.deepEqual(stored(), {}, "a move cancels the multi-turn entry too");
+  assert.equal(chat.length - chat3, 1, "and says so once");
+  await plan.cancelPlanForCombat(model.getFormation(id));
+  assert.equal(chat.length - chat3, 1, "a fight over an empty plan posts nothing");
+  await plan.lockPlan(model.getFormation(id), { actorId: watcher.id, key: "listen", by: "GM1" });
+  await plan.unlockPlan(model.getFormation(id), watcher.id);
+  assert.equal(party.getFlag(MODULE_ID, "turnPlan"), undefined, "an emptied plan removes the flag");
+
+  await model.disband(model.getFormation(id));
   await drain();
 });
 if (failures) {

@@ -107,7 +107,8 @@ export function expiredEffectNotes(formation, snapshot, notes) {
 /*  Winded marker                               */
 /* -------------------------------------------- */
 
-function hasEndurance(actor) {
+/** Whether this member owes no rest: the winded marker skips them, and so does the turn plan's rest. */
+export function hasEndurance(actor) {
   return actor?.items?.some((i) => /endurance/i.test(i.name)) ?? false;
 }
 
@@ -781,6 +782,15 @@ export async function onPartyTokenMoved(tokenDoc, formationId, to = storedPositi
 
   if (rounds > 0) {
     formation.clock.movedThisTurn = true;
+    // A party that moves is no longer stationary: the turn plan's open entries
+    // end here. Loaded late: the plan's activities import this file. A plan
+    // that cannot be cancelled never stops the move being billed.
+    try {
+      const { cancelPlanForMove } = await import("./turn-plan.mjs");
+      await cancelPlanForMove(formation);
+    } catch (err) {
+      console.error(`${MODULE_ID} | turn plan: cancelling for the move failed`, err);
+    }
     await advanceRounds(formation, rounds, { reason: "movement" });
     if (rounds >= 3 * ROUNDS_PER_TURN) {
       await ChatMessage.create({

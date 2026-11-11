@@ -218,13 +218,17 @@ export function batterPlan(wall) {
  *
  * @param {WallDocument} wall
  * @param {Actor|null} actor  the one swinging the axe
+ * @param {object} [opts]
+ * @param {boolean} [opts.spend] spend the turns on the clock; the turn plan
+ *   passes false, having spent its turns as they passed
  * @returns {Promise<{ok: boolean, reason?: string, turns?: number, spent?: number, formation?: string|null}>}
  */
-export async function batterDoor(wall, actor = null) {
+export async function batterDoor(wall, actor = null, { spend = true } = {}) {
   if (!isDoor(wall)) return { ok: false, reason: "notADoor" };
   const plan = batterPlan(wall);
   if (!plan.ok) return { ok: false, reason: plan.reason };
   await wall.update({ ds: 1 });
+  if (!spend) return { ok: true, turns: plan.turns, spent: 0, formation: null };
   // Loaded here, not at the top: the turn engine pulls in the Foundry-bound
   // half of the module, and this file's pure arithmetic is imported without it.
   const { getFormationForActor } = await import("./formation-model.mjs");

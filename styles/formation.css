@@ -1999,6 +1999,63 @@
   white-space: nowrap;
 }
 
+/* --- Turn plan --- */
+.acks-extras.party-sheet .acks-extras-turn-plan-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.acks-extras.party-sheet .acks-extras-turn-plan-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px var(--acks-sp-2);
+  padding: 2px 0;
+  border-bottom: 1px solid var(--acks-rule, currentColor);
+}
+
+.acks-extras.party-sheet .acks-extras-turn-plan-name {
+  flex: 0 1 10em;
+  min-width: 0;
+  font-weight: bold;
+}
+
+.acks-extras.party-sheet .acks-extras-turn-plan-entry {
+  flex: 1 1 8em;
+  min-width: 0;
+}
+
+.acks-extras.party-sheet .acks-extras-turn-plan-block,
+.acks-extras.party-sheet .acks-extras-turn-plan-rest {
+  font-size: var(--acks-fs-label);
+  color: var(--acks-warning-ink);
+}
+
+.acks-extras.party-sheet .acks-extras-turn-plan-rest.is-rest {
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras.party-sheet .acks-extras-turn-plan-controls {
+  display: flex;
+  flex: 1 1 16em;
+  min-width: 0;
+  gap: 4px;
+}
+
+.acks-extras.party-sheet .acks-extras-turn-plan-controls select {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.acks-extras.party-sheet .acks-extras-turn-plan-controls button {
+  flex: 0 0 auto;
+  width: auto;
+  padding: 0 8px;
+  line-height: 1.7;
+  white-space: nowrap;
+}
+
 /* Secondary prose recedes in ink, not opacity. See docs/lib/DECISIONS.md,
    "Secondary and muted state reads in ink, never opacity". */
 .acks-extras:is(.party-sheet, .skill-audit) .hint {

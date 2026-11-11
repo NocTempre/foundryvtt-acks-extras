@@ -3599,6 +3599,68 @@ library ids: a library copy older than the recipes holds the old rows.
 Teardown: the card is tracked by id the moment it posts and swept; the status
 the condition step turned on is turned off by the run; the fixtures stay.
 
+## The turn plan (added with T-0487)
+
+What each member does with a turn the party stands still, locked on the Party
+sheet's Dungeon tab and resolved when the Judge presses Turn. Walked by
+`tools/live/formation-turn-plan.mjs` on two seats, the GM and the Player;
+offline, `tools/test-turn-plan.mjs` pins the plan's order of work and
+`tools/test-formation-flows.mjs` ("turn plan: …") the relay, the card and the
+cancellations.
+
+**Fixtures** (kept; found by marker): the scene `formation/plan-scene`; the
+party `formation/plan-party` holding `formation/plan-thief` (owned by the
+Player seat; a hand-made ability bound to Search with an invented flat throw,
+rebuilt at the walk's start), `formation/plan-fighter` and
+`formation/plan-cleric`. The walk brings them to its start shape itself: the
+three in the party, each with a token on the walk's scene, the party token
+there, no plan, no fight, not paused, nobody moved this turn, every member at
+full hit points.
+
+1. **The player locks for a member they own.** Wait until the Player seat's
+   copy of the formation holds all three: a party sheet whose first render
+   overlaps a member write keeps the roster it started with, since
+   `PartySheet.refreshAll` passes over a window that is still rendering. Then,
+   on the Player seat, open the party sheet's Dungeon tab. *Observable:* the
+   Turn plan section has a row per member; only the thief's row has a choice
+   list and Lock; its list offers the methodical search open and battering
+   refused. Pick the methodical search and press Lock. *Observable:* the party
+   actor's `flags.acks-extras.turnPlan`
+   holds the thief's entry with `by` the Player's user id, and one public line
+   tells the table.
+2. **Refused for a member the player does not own.** Send the `plan` relay
+   straight from the Player seat for the fighter (the column offers no control
+   for it). *Observable:* the flag gains no fighter entry.
+3. **The Judge locks for another.** On the GM seat every row has a choice
+   list. Lock the cleric's listen. *Observable:* the flag holds it. Press Keep
+   watch on the cleric's row. *Observable:* the cleric's entry is gone and the
+   thief's stands. Lock the cleric's listen again.
+4. **A move cancels.** Move the party token five cells (`animate: false`).
+   *Observable:* `clock.movedThisTurn` is set, the flag is gone, one public
+   line names both members, and the Player's thief row shows the reason in
+   place of the choice list.
+5. **Turn spends one turn and rolls once.** Press Turn to clear the move, lock
+   the thief's search again from the Player seat, then press the Dungeon tab's
+   Turn on the GM seat. *Observable:* `clock.turnsTotal` rose by exactly one
+   and the partial rounds did not move; one card whispered to the Judges has
+   one row, the thief, whose target is the thief's Rolls-tab figure for the
+   throw (`rollInventory`: the `abl:<item>:primary` row, or `adv:searching`
+   where that row stands behind it); the entry carries `resolvedTurn` equal to
+   the new turn.
+6. **Rest a turn resolves the plan too.** Lock Rest for the thief from the
+   Player seat and press the Dungeon tab's Rest a turn on the GM seat.
+   *Observable:* `clock.turnsTotal` rose by exactly one and the thief's rest
+   entry carries `resolvedTurn` equal to it.
+7. **A fight cancels on one card.** Lock the thief's search and the cleric's
+   listen, then create a combat on the scene with the party token's combatant.
+   *Observable:* the formation's combat is active, the flag is gone, and one
+   public card has two rows, both members, each marked cancelled. Delete the
+   combat; the formation's combat ends.
+
+Teardown: every card the GM seat posts carries the run's nonce, is tracked by
+id the moment the walk reads it, and is swept with the combat; the fixtures
+stay.
+
 ## The column and its lights (added with the marching column)
 
 The party token is the head of a column drawn behind it, each lit bearer
