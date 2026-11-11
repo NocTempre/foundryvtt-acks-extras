@@ -387,6 +387,49 @@ quill, then the parchment — which the equipment feature lists at the hands.
 Taking up or setting down a role fires `acksExtras.roleChanged` so the loadout
 recomputes, exactly as `acksExtras.lightChanged` does for a struck light.
 
+### The mapper is vulnerable
+
+A member holding the Mapper role carries the system's Vulnerable condition
+(RR ch. 6, "Marching and Mapping"). The module applies it itself and a Judge
+does nothing. It shows on the member's sheet (Effects tab) and as a status on
+their token.
+
+- **Outside a fight:** held for as long as the role is.
+- **In a fight:** held through every round the mapper is surprised (the
+  system's own `surprised` status, which the system lifts). It lifts on the
+  mapper's own initiative turn in the first round they are not surprised: that
+  action is spent stashing the kit. `updateCombat` on the active GM's window
+  reads the active combatant; when it is the mapper's body and the mapper is
+  not surprised at that moment, it writes the stash mark on the Combat,
+  `flags["acks-extras"].kitStashed[<member actor id>]`, then syncs. From the
+  mark to the combat's end the hands are free. Drawing a weapon afterwards is
+  the ordinary readying rule, not this feature. From round 2 on, the delete of
+  a surprised effect on the active combatant is a second cue, since the system
+  does not await its own lift.
+- **A mapper with no combatant** in the tracker never gets a turn, so the
+  condition holds for that combat.
+- **After the combat** (`deleteCombat`) the mark goes with the Combat and the
+  role's condition returns.
+- **Never held:** a dead member (the `dead` status, or the record's `dead`), one
+  the party left behind, and a stack. An unlinked member carries it on its
+  deployed token's actor only.
+
+`scripts/formation/mapper-kit-logic.mjs` holds the verdicts (`kitHeld`,
+`stashesNow`) with no Foundry globals; `mapper-kit.mjs` reads the formation,
+the tracker and the actors (`syncMapperKits`, `stashOnTurn`); the reconcile is
+the `mapper kit` step of `runEnvironmentSync` in `scene-sync.mjs`, above the
+fog switch, so it runs with fog management off, on the active GM alone. A
+death, a hit-point change on a mapper-role member and a combat's end re-run
+the sync (`module.mjs`).
+
+The effect is `lib/held-condition.mjs`'s: one effect under a fixed `_id`,
+marked `flags["acks-extras"].heldCondition = "mapperKit"`, registered as a
+managed effect so a hand-delete is refused. Hold and release touch only what
+carries the marker: a Vulnerable a hand set is never removed, duplicates
+collapse to one, and a marked effect a hand disabled stays disabled. Whoever
+no longer qualifies (role set down, member removed, an actor no formation
+holds) has the marked effect deleted by the same sweep.
+
 ## Which way the block points
 
 A deploy lays the marching order out as a block: files spread across the line of

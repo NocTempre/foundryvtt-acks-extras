@@ -4,9 +4,11 @@ import { deployedTokens, isMemberDeployed } from "./deployment.mjs";
 import { getFormations, getPartyActor, getPartyToken, mapperIsProficient, partyTokenShape, patchFormation } from "./formation-model.mjs";
 import { FLAG_FOOTPRINT_LOCK } from "../battlemap/constants.mjs";
 import { ensureMapSession } from "./map-items.mjs";
+import { syncMapperKits } from "./mapper-kit.mjs";
 import { MEASURE_FLAG, MEASURE_MODES } from "./measure-fuzz.mjs";
 import { VISION_MODES, senseProfile } from "../lib/senses.mjs";
 import { SETTING_MANAGE_VISION, applyTokenLight, applyTokenVision, syncTokenFromActor, visionClaimed } from "../lib/token-sync.mjs";
+import { isPrimaryGM } from "../lib/util.mjs";
 
 /**
  * Keeps the world in step with formation state (runs on the primary GM client
@@ -25,6 +27,10 @@ import { SETTING_MANAGE_VISION, applyTokenLight, applyTokenVision, syncTokenFrom
  *   that member's place in the column (`column-light.mjs`), so the party
  *   token carries no light the module wrote; a light the Judge set on it by
  *   hand stays.
+ *
+ * - **The mapper's hands.** A member holding the Mapper role carries the
+ *   system's Vulnerable condition until the kit is stashed on a free turn of a
+ *   fight (`mapper-kit.mjs`); it runs with fog management off.
  *
  * - **Party actor ownership ← member ownership.** Every player who owns a
  *   member of the formation gets owner rights on the party actor, so they see
@@ -450,6 +456,11 @@ async function runEnvironmentSync() {
     await step("party vision", () => syncPartyTokenVision(formation), () => !!getPartyToken(formation));
     await step("member tokens", () => syncDeployedMemberTokens(formation), () => !!getPartyActor(formation));
   }
+
+  // The mapper's hands (RR ch. 6): above the fog switch, since the condition
+  // answers to the role and the fight and not to fog management. The active GM
+  // alone writes it, so two seats never race the same effect.
+  await step("mapper kit", () => (isPrimaryGM() ? syncMapperKits(formations) : null));
 
   if (!game.settings.get(MODULE_ID, "manageFog")) return;
   const byScene = new Map();

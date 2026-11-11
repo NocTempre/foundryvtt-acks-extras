@@ -78,6 +78,7 @@ const COMMITTED = [
   "test-formation-heading.mjs",
   "test-formation-column.mjs",
   "test-formation-binding.mjs",
+  "test-mapper-vulnerable.mjs",
   "test-light-binding.mjs",
   "test-delve-encounter-binding.mjs",
   "test-skill-audit-roll.mjs",

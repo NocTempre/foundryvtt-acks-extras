@@ -335,6 +335,10 @@ class ActorMock {
     };
     return { toObject: () => foundry.utils.deepClone(src) };
   }
+  async deleteEmbeddedDocuments(type, ids) {
+    assert.equal(type, "ActiveEffect");
+    for (const id of ids) await this.effects.find((e) => e.id === id)?.delete();
+  }
   async createEmbeddedDocuments(type, arr) {
     if (type === "ActiveEffect") {
       const made = arr.map((d) => {
@@ -342,7 +346,11 @@ class ActorMock {
         const eff = {
           ...foundry.utils.deepClone(d),
           id: uid("eff"),
+          statuses: new Set(d.statuses ?? []),
           getFlag: (ns, key) => eff.flags?.[ns]?.[key],
+          async update(patch) {
+            Object.assign(eff, patch.statuses ? { ...patch, statuses: new Set(patch.statuses) } : patch);
+          },
           async delete() {
             parent.effects.splice(parent.effects.indexOf(eff), 1);
             await sleep();
@@ -569,6 +577,7 @@ class CombatMock {
   constructor() {
     this.id = uid("cmb");
     this.round = 0;
+    this.flags = {};
     this.combatants = new Coll();
     this.creations = 0;
     /** `{call, until}`: the `call`-th creation waits for the `until` promise. */
@@ -594,6 +603,9 @@ class CombatMock {
       this.combatants.delete(id);
       await sleep();
     }
+  }
+  getFlag(ns, key) {
+    return this.flags?.[ns]?.[key];
   }
   async setRound(round) {
     this.round = round;

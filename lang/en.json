@@ -2690,6 +2690,10 @@
       "carrier": "Carrier",
       "carrierHint": "Carries the downed: each carried body's weight is split evenly among the Carriers (RR p. 271), and the load slows their pace and so the party's"
     },
+    "mapperVulnerable": {
+      "owner": "the party's mapper",
+      "effectDescription": "Held by the module while this character holds the party's Mapper role (RR ch. 6)."
+    },
     "winded": {
       "effectName": "Winded",
       "effectDescription": "Cannot charge or run until rested (RR p. 271)."

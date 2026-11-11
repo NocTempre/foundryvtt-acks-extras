@@ -55,6 +55,12 @@
   has hit points rolled level by level from the class's hit dice. Without an
   imported class or dice they stay unset, and the hireling's sheet → Service
   tab → Recorded rolls → Hit points says "not imported".
+- **The mapper is vulnerable.** A member given the Mapper role (Party sheet →
+  Order tab → role chips) carries the Vulnerable condition while they hold it,
+  shown on their character sheet's effects and as a status on their token. In a
+  fight it lifts on the mapper's own initiative turn in the first round they are
+  not surprised, and returns when the combat ends. A dead, left-behind or
+  stacked member never carries it, and a Vulnerable you set by hand is left alone.
 
 ### Changed
 

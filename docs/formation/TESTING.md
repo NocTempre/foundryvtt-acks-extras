@@ -3845,3 +3845,67 @@ creates them — so read each card's id back right after your own probe (the
 newest `game.messages` entry, or the message the probe returns) and
 `api.track(id, "ChatMessage")` it at once; the sweep then takes the cards with
 the rest. Never find them by content or name.
+
+## The mapper is vulnerable
+
+Walked by `tools/live/formation-mapper-vulnerable.mjs`. Covers
+`scripts/formation/mapper-kit.mjs`, `mapper-kit-logic.mjs`,
+`lib/held-condition.mjs`, the `mapper kit` step of `runEnvironmentSync`, and
+the hooks in `module.mjs`. The Gamemaster seat is the active GM and its window
+must run the automation (read `primaryGMSettled()` first).
+
+**Fixtures**, kept and found by marker (`api.fixture`): a scene
+`formation/mapper-scene`; two characters, `formation/mapper` and
+`formation/mapper-foe`, each with a linked token on it
+(`formation/mapper-token`, `formation/mapper-foe-token`); the party actor
+`formation/mapper-party`, whose formation holds `formation/mapper` as its only
+member. The step 0 shape: the member in the record with no role, no status
+effect of the walk's on the mapper (a leftover is tracked by uuid and swept),
+no combat holding them.
+
+**Drive mechanics.**
+- The member is added with the model's `addMember(formation, actor, null,
+  {scene: null})`, so no token is deleted. The role is the model's
+  `patchFormation` write beneath the party sheet's control, because the
+  sheet's `toggleRole` equips a kit onto the actor.
+- A combat is made with `api.create("Combat", {scene, active: false})` and two
+  `Combatant`s, initiatives written, and the tracker is moved with
+  `combat.update({round, turn})` where `turn` is the index of a combatant in
+  `combat.turns`, which is what core's own turn update writes. `startCombat`
+  opens dialogs and is not used. Each combat is tracked.
+- The system lifts surprise as a round turns over; the walk lifts it
+  with `toggleStatusEffect("surprised", {active: false})` while the foe is up.
+- A status by hand is `toggleStatusEffect(id, {active})`; the effect it leaves
+  is tracked by uuid.
+
+1. **The role held outside a fight.** Set the role.
+   **Observable:** one effect on the mapper under the fixed id
+   `heldMapperKit001`, marker `heldCondition = "mapperKit"`, carrying the
+   `vulnerable` status; the actor and its token both show it. A later sync
+   writes nothing new.
+2. **Surprised, then the first free turn.** Combat with the foe first and the
+   mapper surprised. Round 1 on the foe, then on the mapper (still surprised),
+   then lift the surprise with the foe up, round 2 on the foe, round 2 on the
+   mapper, then round 3 on both.
+   **Observable:** held on every step up to round 2 on the foe, with no stash
+   mark on the Combat; on round 2 with the mapper up the effect is gone from the
+   actor and the token and `flags["acks-extras"].kitStashed[<mapper id>]` is
+   set; round 3 leaves it gone.
+3. **The combat ends.** Delete the combat. **Observable:** the effect returns,
+   one, under the fixed id.
+4. **No combatant.** A combat holding only the foe, rounds 1 and 2.
+   **Observable:** held throughout, and after that combat's end.
+5. **A death.** Toggle `dead` on the mapper. **Observable:** the effect is gone;
+   lifting `dead` brings it back.
+6. **The role set down.** **Observable:** the effect is gone from the actor and
+   the token.
+7. **A hand's Vulnerable.** With the role down, toggle `vulnerable` by hand.
+   **Observable:** an effect with no marker stands; a sync leaves it; taking the
+   role adds the marked one beside it; setting the role down removes only the
+   marked one and the status stays on.
+- Boot recorder: attach one before a reload, as `lib-cast-seam` does, and read
+  that `init`, `setup` and `ready` recorded no error naming the feature.
+
+**Teardown.** `api.sweepTracked({only})` over the combats and the status
+effects the run tracked. The fixtures stay. The party's name and the member's
+role are put back.

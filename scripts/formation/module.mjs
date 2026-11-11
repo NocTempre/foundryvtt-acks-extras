@@ -15,6 +15,10 @@ import {
   TRAP_ITEM_TYPE,
 } from "./constants.mjs";
 import { onCombatEnd, onCombatRoundChange, onPartyCombatantCreated } from "./combat-bridge.mjs";
+import { HELD_CONDITION_FLAG } from "../lib/held-condition.mjs";
+import { registerManagedEffect } from "../lib/managed-effects.mjs";
+import { kitStatusChange, stashOnTurn } from "./mapper-kit.mjs";
+import { STATUS_SURPRISED } from "./mapper-kit-logic.mjs";
 import { SETTING_ABILITY_OVERRIDES, initLadders } from "./ability-bridge.mjs";
 import { journeyZones, registerEncounterZone } from "./encounter-zone.mjs";
 import { installMonsterLevelRow } from "./monster-level-row.mjs";
@@ -180,6 +184,8 @@ function openPartySheet() {
 Hooks.once("init", () => {
   registerFormationRepairChecks();
   registerPartyRoster();
+  // The mapper's Vulnerable is the formation's to keep and refuses a hand-delete.
+  registerManagedEffect(HELD_CONDITION_FLAG, "ACKS-FORMATION.mapperVulnerable.owner");
   game.settings.register(MODULE_ID, "ownXpDealing", {
     name: "ACKS-FORMATION.xp.settingName",
     hint: "ACKS-FORMATION.xp.settingHint",
@@ -1263,6 +1269,45 @@ Hooks.on("deleteCombat", (combat) => {
 Hooks.on("updateCombat", (combat, changes) => {
   if (!isPrimaryGM() || changes.round === undefined) return;
   onCombatRoundChange(combat).catch((err) => console.error(`${MODULE_ID} | combat round tick failed`, err));
+});
+
+/* The mapper's kit (mapper-kit.mjs): a turn or round change may land on a mapper
+ * who is not surprised, which stashes the kit and lifts the condition. A
+ * combat's end hands the kit back, so the role's condition returns. */
+const syncKit = () => syncEnvironments().catch((err) => console.error(`${MODULE_ID} | mapper kit sync failed`, err));
+const stashFor = (combat) =>
+  stashOnTurn(combat).then((marked) => marked && syncKit()).catch((err) => console.error(`${MODULE_ID} | mapper kit stash failed`, err));
+
+Hooks.on("updateCombat", (combat, changes) => {
+  if (!isPrimaryGM() || (changes.turn === undefined && changes.round === undefined)) return;
+  stashFor(combat);
+});
+
+Hooks.on("deleteCombat", () => {
+  if (isPrimaryGM()) syncKit();
+});
+
+/* The system lifts a surprise on its own schedule, and a death takes the kit
+ * out of a mapper's hands: either, on a mapper-role member, is a fresh look. */
+const holdsMapperRole = (actor) =>
+  !!actor?.id && Object.values(getFormations()).some((f) => f.members.some((m) => m.actorId === actor.id && m.roles?.includes(ROLES.MAPPER)));
+for (const hook of ["createActiveEffect", "deleteActiveEffect"]) {
+  Hooks.on(hook, (effect) => {
+    if (!isPrimaryGM() || !kitStatusChange(effect)) return;
+    const actor = effect.parent;
+    if (!holdsMapperRole(actor)) return;
+    syncKit();
+    // A surprise the system lifts as a round turns over can land after the new
+    // round's first turn is already the mapper's: from round 2 on, the lift is
+    // the cue to look again. In round 1 a lifted surprise is the round ending.
+    if (effect.statuses.has(STATUS_SURPRISED)) {
+      for (const combat of game.combats ?? []) if ((combat.round ?? 0) >= 2 && combat.combatant?.actor === actor) stashFor(combat);
+    }
+  });
+}
+Hooks.on("updateActor", (actor, changes) => {
+  if (!isPrimaryGM() || !foundry.utils.hasProperty(changes, "system.hp") || !holdsMapperRole(actor)) return;
+  syncKit();
 });
 
 /* -------------------------------------------- */

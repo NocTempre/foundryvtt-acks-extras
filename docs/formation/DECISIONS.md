@@ -5173,3 +5173,42 @@ loads, is never read and never throws. The
 throw behaves as it did with the setting off; no migration runs.
 
 *Cost:* a Judge who wanted the modifier applies it by hand.
+
+## 2026-11-11 — The mapper is vulnerable until their first free turn
+
+**Asked.** Nothing applied the system's Vulnerable condition to a mapper, who
+works with both hands on the kit (RR ch. 6, "Marching and Mapping"), and the
+role's hint only reminded the Judge. When does the condition end in a fight?
+
+**Ruled (the owner, 2026-11-11).** The rule is RAW and applies automatically.
+Outside a fight the mapper is vulnerable while holding the role. In a fight it
+holds through every round the mapper is surprised, and lifts on the mapper's own
+initiative turn in the first round they are not surprised: that action is
+spent stashing the kit, and the hands are free for the rest of that combat.
+Drawing weapons afterwards follows the ordinary readying rules and is not this
+feature. A mapper with no combatant never gets a turn, so the condition holds
+for the combat. When the combat ends the role resumes and the condition
+returns. A dead, left-behind or stacked member is never vulnerable. Built as
+`mapper-kit-logic.mjs`, `mapper-kit.mjs` and `lib/held-condition.mjs`; the
+mechanics are MODEL, "The mapper is vulnerable".
+
+**Rejected.**
+- **Held for the role alone.** The plan's first default: it kept a mapper
+  vulnerable through the whole fight, which the stashing action ends.
+- **Lifting at the start of the round.** The owner's words were "the condition
+  lifts at the start of that round, on that character's initiative turn": the
+  lift is keyed to the turn, so the earlier turns of that round still hold it.
+  Keyed to the round, a mapper last in the order would be safe before acting.
+
+**Cost.** One more step in the environment sweep and hooks on the active GM's
+window (`updateCombat`, `deleteCombat`, effect create and delete, and an actor
+update touching a mapper's hit points). The mark lives on the Combat and is keyed by actor id, so
+two bodies sharing one actor share a mark. A Judge who disables the effect by
+hand keeps it off; a delete is refused.
+
+**Also recorded here, with slices A and B still to build them out.**
+- **`mapperNeedsLight` is a GM automation override and not a house rule.** It
+  stays, and what it gates is stated by its hint.
+- **Light and proficiency are two checks.** Without a light there is no
+  mapping; without the proficiency the measurements are vague.
+- **No mapper means "?".** Measurements read as unknown, as they do now.
