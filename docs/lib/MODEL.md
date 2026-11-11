@@ -2541,3 +2541,79 @@ points `materializeMembers` rolled for it, or with those its recall folded
 back into the record (GROUPS.md, "The representative individual"). The
 formation passes it for a member's token placed from its roster, which
 arrives with its stash's hit points (docs/formation/MODEL.md, "Data flow").
+
+## The turn-activity registry
+
+`scripts/lib/turn-activities.mjs` is where features declare what a party member
+can spend a stationary turn on (JJ ch. 2, Sequence of Play). It is Foundry-free
+and has no document, setting or hook; it is a registry and arithmetic over a
+plain object, built on the claimant pattern of `patches/spell-use.mjs`. The
+plan's storage, the party sheet column and the live resolution belong to the
+formation, not to this file.
+
+**A registration** is `{key, pace, options, turns, blocked, resolve,
+oncePerTurn}`. `pace` is `"hasty"` or `"methodical"` (JJ ch. 2) and is
+carried, never interpreted. `options(actor, ctx)` answers the member's choices as plain
+objects with an `id` (omitted for an activity's single choice) and whatever else
+the registrant wants; the registry passes an option through untouched, so a
+flag such as `confirm: "judge"` reaches the card that asks the Judge. `blocked`
+answers null, a reason id, or `{reason, missing}` with `missing` naming what the
+member lacks. `ctx` is the registrant's own bag; the registry passes it on and
+reads nothing in it. A key registered again replaces in place, and the function
+`registerTurnActivity` returns unregisters only its own declaration.
+
+**The plan** is `{[actorId]: {key, option, remaining, turns, by, advancedTurn?,
+resolvedTurn?}}`, one entry per member. A member with no entry keeps watch;
+that is the default and it is no entry. Every helper returns a new plan, and
+the owner writes it in one update.
+
+**A length past one turn is a value.** `turns` answers the imported figure, or
+null for "not imported", and the registry supplies none. Only a positive whole
+number is a length; anything else reads as null, and rounding a printed length
+to whole turns is the registrant's, who has read the page. An option whose
+length is null is listed with `turns: null` and cannot be locked: the refusal is
+`notImported` with `missing: ["turns"]`.
+
+**`lockActivity`** refuses, in order: `unknownActivity`, `unknownOption`,
+a block (the registrant's reason and `missing` verbatim), `alreadyUsed`,
+`notImported`. It replaces whatever the member had chosen, a multi-turn entry's
+progress included. A registrant that throws is contained and refuses as
+`faulted`, so a broken gate never opens. `TURN_REASONS` names the ids this
+module produces; a registrant's reasons are its own.
+
+**Once per turn is the owner's ledger.** A member's plan holds one entry, so the
+plan alone cannot exceed one use of an activity per turn; what can is a use
+outside the plan (a roll made from a sheet) or a resolution already stamped in
+the turn. Which turn a use belongs to depends on when the owner reads its clock
+against the advance, so `lockActivity` takes a `usedThisTurn(actorId, key)`
+predicate, asks it only of an `oncePerTurn` activity, and refuses
+`alreadyUsed` when it answers true.
+
+**`turn`** in `advanceTurn` is any finite number the owner reads once per turn:
+different from one turn to the next, the same on a repeat call for one turn.
+The helper stamps it and compares it for equality; a non-finite value throws,
+since an omitted one would match every fresh entry and freeze the plan.
+
+**`advanceTurn(plan, turn)` stamps before anything resolves.** Each entry
+loses a turn; one that reaches zero is due and comes back already stamped
+`resolvedTurn = turn` in the returned plan. The owner writes that plan, then
+calls `resolveDue(due, …)`, so a resolution that fails part-way is never rolled
+twice: a stamped entry is done, and an owner that stops mid-list leaves the
+entries it had not reached stamped and never run. Calling again with the same
+`turn` changes nothing (a counted entry carries `advancedTurn`), and an entry
+stamped in any other turn is finished and leaves the plan. `resolveDue` runs the
+due entries one at a time, looking the option up again as it goes: an entry
+whose activity, option or member is gone is `dropped` with a reason, a `resolve`
+that throws is `failed` and the rest still run.
+
+**`cancelForCombat(plan)`** cancels every unresolved entry locked for one turn
+and keeps a multi-turn entry with its progress, judged by the length the entry
+was locked at, so a three-turn entry on its last turn is kept. It returns the
+plan, what it `cancelled` and what it `kept`, for the one group note card.
+
+**`partyRest(plan, actorIds, {endures, restKey})`** decides whether the turn is
+a rest (RR ch. 6, Rest and Recuperation). A member owes rest unless the passed
+`endures(actorId)` says they have the endurance capability; the registry looks
+nothing up. The turn is a party rest when every member who owes rest chose Rest
+and at least one member chose it, so a party that owes none is not rested by
+nobody choosing. Rest is an ordinary registered activity under `REST_KEY`.

@@ -848,6 +848,37 @@ not await `_useSpell`; a feature that must wait for a cast calls
 `item._useSpell(options)`. The registry and the wrapper are
 `scripts/lib/patches/spell-use.mjs`.
 
+## Turn activities (`scripts/lib/turn-activities.mjs`)
+
+Imported from the file; `lib.*` does not carry it. The model is
+docs/lib/MODEL.md, "The turn-activity registry". Plans are plain objects,
+`{[actorId]: {key, option, remaining, turns, by, advancedTurn?, resolvedTurn?}}`,
+and every helper returns a new one.
+
+```
+registerTurnActivity({key, pace, options, turns, blocked?, resolve, oncePerTurn?}) → unregister()
+turnActivity(key) → declaration | null
+listTurnActivities() → declarations, in registration order
+offeredActivities(actor, ctx) → [{key, pace, oncePerTurn, option, turns, blocked}]
+lockActivity(plan, {actorId, actor, key, option?, by?, usedThisTurn?, ctx?})
+  → {ok: true, plan, entry} | {ok: false, reason, missing}
+unlockActivity(plan, actorId) → plan
+advanceTurn(plan, turn) → {plan, due, progressed}        // turn: a finite number once per turn; due entries come back stamped
+resolveDue(due, {actorOf, ctx?}) → Promise<[{actorId, key, option, status, reason?, result?, error?}]>
+cancelForCombat(plan) → {plan, cancelled, kept}
+partyRest(plan, actorIds, {endures?, restKey?}) → {rests, owing, chose, missing}
+REST_KEY, TURN_PACES, TURN_REASONS
+```
+
+`options(actor, ctx)` answers plain option objects (`id`, anything else) and the
+registry passes each through untouched. `turns` answers a positive whole number
+or null for not imported. `usedThisTurn(actorId, key)` is asked only of an
+`oncePerTurn` activity. `blocked` answers null, a reason id, or `{reason,
+missing}`. `resolve(actor, option, ctx)` runs when the entry's last turn ends.
+`status` is `"resolved"`, `"dropped"` (the activity, option or member is gone)
+or `"failed"` (`resolve` threw). Write the plan `advanceTurn` returns before
+calling `resolveDue`.
+
 ## Versioning
 
 `apiVersion` is bumped when this surface changes shape, and it is informational:

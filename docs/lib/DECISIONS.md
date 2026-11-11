@@ -5417,3 +5417,41 @@ build, and the installed system's cast path is `use()` → `_useSpell()`.
 says what to call instead). The wrapper is installed at `init` on the class the system has set by then, and
 libWrapper taking that method on the live system is walked in TESTING, "The cast
 seam claims a cast".
+
+## 2026-11-11 — The turn plan's registry is lib's, and its entries carry their length
+
+**Ruled.** What a member can spend a stationary turn on is declared through one
+Foundry-free registry in lib (`turn-activities.mjs`), with the counting, lock,
+cancel and rest arithmetic beside it, so the formation, magic, location and
+abilities register an activity without any of them owning another's plan.
+Details the design left open:
+
+- An entry stores the length it was locked at (`turns`) beside the turns left,
+  because combat keeps a multi-turn entry's progress and a three-turn entry on
+  its last turn is otherwise indistinguishable from a single-turn one.
+- A counted entry carries `advancedTurn`, so advancing the same turn twice
+  decrements once; the stamp alone only protects the due entries. All due
+  entries are stamped in one pass, so a crash mid-resolution loses the
+  unreached ones rather than rolling any twice.
+- A turn is a party rest only when someone chose Rest. A party in which every
+  member owes none would otherwise rest every turn on nobody's choice. An
+  enduring member who chose Rest counts as choosing it.
+- A length is a positive whole number or "not imported", never zero and never
+  rounded here: rounding a printed length is the registrant's.
+- A lock replaces the member's entry, a multi-turn entry's progress included.
+- A refusal is `{ok: false, reason, missing}` and a registrant that throws
+  refuses as `faulted`, so a broken gate fails closed. `notImported` is checked
+  last, so a registrant's own reason, which can say more, is shown first.
+- `resolveDue` looks the option up again at resolution and drops an entry whose
+  activity, option or member is gone, so a deleted target is a note rather than
+  a thrown card.
+
+**Rejected.** Making Rest the default for a member with no choice: the default is
+keeping watch, and rest is a choice the table makes in the column. Also
+`oncePerTurn` read from the plan's own stamps: with one entry per member the plan
+cannot exceed a use per turn, and which turn a stamp belongs to depends on when
+the owner reads its clock against the advance, so the owner passes
+`usedThisTurn` instead.
+
+**Cost.** Each registrant of a once-per-turn limit, and the formation that
+passes the predicate, carries the ledger of uses outside the plan.

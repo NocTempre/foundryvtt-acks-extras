@@ -148,6 +148,7 @@ const COMMITTED = [
   "test-surprise-pools.mjs",
   "test-attack-damage-formula.mjs",
   "test-combat-round.mjs",
+  "test-turn-activities.mjs",
   "test-turn-order.mjs",
   "test-provisions.mjs",
   "test-foraging.mjs",
