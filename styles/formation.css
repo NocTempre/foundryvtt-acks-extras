@@ -157,12 +157,16 @@
 
 /* --- The frame: the band ----------------------------------------------------- */
 
+/* The band wraps: where the crest, the mode, the title's floor and the bar do
+   not fit beside the window's controls (a narrow window, a large type size),
+   the bar takes a second line at the band's end instead of lying over the name. */
 .acks-extras-party-sheet__band {
   flex: 1;
   min-width: 0;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: calc(10px * var(--acks-extras-k));
+  gap: var(--acks-sp-2) calc(10px * var(--acks-extras-k));
 }
 
 /* Core appends each render's fresh band to the content box, where it stays
@@ -228,9 +232,12 @@
   border-color: var(--acks-spot);
 }
 
+/* The title grows into what the line leaves, from a floor that holds a short
+   name: the floor, not the field's own width, is what sends the bar to the
+   next line. */
 .acks-extras-party-sheet__title {
-  flex: 1 1 auto;
-  min-width: 0;
+  flex: 1 1 0;
+  min-width: calc(150px * var(--acks-extras-k));
   display: flex;
   align-items: center;
   gap: var(--acks-sp-4);
@@ -242,7 +249,7 @@
    own; the vendored field rule it overrides is (0,3,1). */
 .acks-extras.acks-extras-party-sheet .acks-extras-party-sheet__title .acks-extras-party-sheet__name {
   flex: 1;
-  min-width: 6ch;
+  min-width: 0;
   height: auto;
   min-height: 0;
   margin: 0;
@@ -266,6 +273,7 @@
 .acks-extras-party-sheet__bar {
   position: relative;
   flex: none;
+  margin-inline-start: auto;
   width: calc(176px * var(--acks-extras-k));
   height: calc(26px * var(--acks-extras-k));
   border: var(--acks-rule-hair) solid var(--acks-spot);

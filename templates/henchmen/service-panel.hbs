@@ -215,6 +215,9 @@
           {{#if s.rolled.template}}<span class="acks-extras-frame__row-line">{{s.rolled.template}}</span>{{/if}}
         </span>
         <span class="acks-extras-frame__row-value acks-nums" data-tooltip-text="{{s.rolled.rolledTip}}">{{s.rolled.classLevel}}</span>
+        {{#if s.rolled.pickClass}}
+        <button type="button" class="acks-extras-frame__ctl" data-pick-class aria-label="{{localize 'ACKS-HENCHMEN.service.pickClass'}}" data-tooltip="{{localize 'ACKS-HENCHMEN.service.pickClassHint'}}"><i class="fa-solid fa-graduation-cap" inert></i></button>
+        {{/if}}
       </div>
       {{/if}}
       {{#if s.rolled.hp}}

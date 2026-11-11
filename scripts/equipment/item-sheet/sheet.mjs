@@ -23,7 +23,7 @@ import { buildConstructionPanel } from "./construction.mjs";
 import { buildMagicPanel } from "../../markets/apps/magic-panel.mjs";
 import { ITEM_FLAG as MARKETS_FLAG } from "../../markets/constants.mjs";
 import { applyVariation, isVariationItem, removeVariation, revealVariation, concealVariation } from "../variation-items.mjs";
-import { disguiseItem, revealItem, setGearHolds, prepareTorch, readiedWeaponData, wearItem, removeItem } from "../actions.mjs";
+import { containerFieldsOnlyWhenFired, disguiseItem, revealItem, setGearHolds, prepareTorch, readiedWeaponData, wearItem, removeItem } from "../actions.mjs";
 import { PRISTINE, recomputeItemFields, layerDeltas, baseForTyped } from "../properties.mjs";
 import { containerOf, setLocked, storeIn, takeOut, setContainerRecord } from "../containers.mjs";
 import { isSpellbook, spellbookSpells, setSpellbookSpells, parseSpellList, formatSpellList } from "../spellbook.mjs";
@@ -230,6 +230,7 @@ export default class AcksItemSheet extends PicksMixin(HandlebarsApplicationMixin
    */
   _processFormData(event, form, formData) {
     const data = super._processFormData(event, form, formData);
+    containerFieldsOnlyWhenFired(data, event?.target?.name);
     // See docs/equipment/DECISIONS.md, "A derived control writes back only
     // when it is the control that fired (2026-08-31)".
     if ("acksBandQty" in data) {
@@ -780,7 +781,7 @@ export default class AcksItemSheet extends PicksMixin(HandlebarsApplicationMixin
 
   /** "Holds other items": declared with no stated size until a capacity is typed; off clears both. */
   static async #onToggleHolds() {
-    await setGearHolds(this.item, !this.#model?.details?.holds);
+    await setGearHolds(this.item, !this.#model?.details?.holdsDeclared);
   }
 
   static async #onToggleDisguisable() {

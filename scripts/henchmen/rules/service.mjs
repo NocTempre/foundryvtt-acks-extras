@@ -7,6 +7,7 @@
  */
 import { sumPermanents, isActivePermanent, clampScore } from "./loyalty.mjs";
 import { clampPct, num, signed } from "../../lib/frame-model.mjs";
+import { JUDGE_PICK_CLASS } from "./candidates.mjs";
 
 /** The roster's filter keys, in strip order; each but `all` is a bucket of `bucketOf`. */
 export const ROSTER_FILTERS = Object.freeze(["all", "henchmen", "mercenaries", "specialists"]);
@@ -172,7 +173,9 @@ export const ROLLED_SCORES = Object.freeze(["str", "int", "wil", "dex", "con", "
 /**
  * The recorded rolls as the panel prints them: the six scores in order, or
  * null where none was recorded; the hit points rolled at hire with each
- * level's roll (`hpSteps`), or why none were (`hpUnrolled`).
+ * level's roll (`hpSteps`), or why none were (`hpUnrolled`). `judgePick` is a
+ * class roll that left the class to the Judge; a hire recorded before such a
+ * hire was told apart from a missing class reads "judgePick" for "noClass".
  */
 export function rolledOf(record) {
   const r = record?.rolled ?? {};
@@ -180,9 +183,12 @@ export function rolledOf(record) {
   const keys = ROLLED_SCORES;
   const scores = keys.every((k) => a[k] == null) ? null : keys.map((k) => (a[k] == null ? "—" : String(a[k])));
   const hpRoll = r.hpRoll ?? null;
-  const hpUnrolled = hpRoll == null ? r.hpUnrolled || "" : "";
+  const judgePick = r.classKey === JUDGE_PICK_CLASS;
+  const reason = hpRoll == null ? r.hpUnrolled || "" : "";
+  const hpUnrolled = judgePick && reason === "noClass" ? "judgePick" : reason;
   return {
     scores,
+    judgePick,
     classKey: r.classKey ?? "",
     level: r.level ?? null,
     template: r.template ?? "",
@@ -202,6 +208,7 @@ export function rolledOf(record) {
  * @param {boolean} classFound
  * @param {{max: number, steps: Array<{level: number, formula: string, total: number}>}|null} built
  * @returns {{hpRoll: number|null, hpSteps: Array<{level: number, formula: string, total: number}>, hpUnrolled: ""|"noClass"|"noDice"}}
+ *   (a third reason, "judgePick", is `judgePickHitPoints`'s)
  */
 export function hireHitPoints(classFound, built) {
   if (!classFound) return { hpRoll: null, hpSteps: [], hpUnrolled: "noClass" };
@@ -211,6 +218,19 @@ export function hireHitPoints(classFound, built) {
     hpSteps: (built.steps ?? []).map((s) => ({ level: s.level, formula: s.formula, total: s.total })),
     hpUnrolled: "",
   };
+}
+
+/** The `rolled` hit-point slice for a hire whose class is the Judge's pick: nothing rolled, and why. */
+export const judgePickHitPoints = () => ({ hpRoll: null, hpSteps: [], hpUnrolled: "judgePick" });
+
+/**
+ * Whether the Service panel offers Pick class: a Judge's seat, a class roll
+ * that left the class to the Judge, and no class bound on the actor yet (an
+ * older hire wrote the roll's key there, which binds nothing).
+ */
+export function offersClassPick(rolled, boundClass, { isGM = false } = {}) {
+  const bound = String(boundClass ?? "").trim();
+  return !!isGM && !!rolled?.judgePick && (!bound || bound === JUDGE_PICK_CLASS);
 }
 
 /**

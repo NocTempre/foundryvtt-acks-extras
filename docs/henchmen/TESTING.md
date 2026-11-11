@@ -631,6 +631,19 @@ a step it does not name is walked by hand.
       *Observable:* the first candidate placed carries the die's class (the
       rig lands); the second carries `special`, since every draw lands on the
       blocked class.
+    - Hire that second candidate for the employer (`acksExtras.henchmen.hire`,
+      GM seat; the employer's `henchmenList` emptied at the step's start).
+      `api.track` the hireling's uuid from the call's result and every card
+      the GM seat posts during it (a `createChatMessage` hook keyed on this
+      user, armed only around the call).
+      *Observable:* no error; `system.details.class` is empty; the record's
+      `rolled.classKey` is `special`, `hpUnrolled` is `judgePick` and no hit
+      points are rolled. On the GM seat the hireling's Service tab reads
+      "Judge's pick" in Class · level with a named Pick class button, and Hit
+      points reads "not rolled" with the Judge's-pick tooltip; pressing the
+      button opens the class picker (`acks-classes-assign-<actor id>`),
+      closed again unapplied. The Player seat, which owns the hireling, reads
+      the same rows with no button.
     - A player's directed search for the class, as the relay hands it to the
       GM: `createPosting(place, {kind: "henchmanByClass", classKey}, employer,
       {requestUserId: <the Player seat's id>})`. Then `openPostingDialog(place)`

@@ -29,7 +29,7 @@ import { isSilvered } from "../silver.mjs";
 import { ITEM_FLAG as MARKETS_FLAG } from "../../markets/constants.mjs";
 import {
   isWearable, isWorn, wornSlotOf, capacityOf, contentsIn, weight6Of, sumWeight6, bundleSizeOf, isClothing, isAmmoItem, STONE,
-  isCurrency, perStoneOf, systemCoinsPerStone, stackCountOf, gearOf,
+  isCurrency, perStoneOf, systemCoinsPerStone, stackCountOf, gearOf, holdsGear,
 } from "../../lib/item-model.mjs";
 import { coinTotalGC } from "../../lib/money-logic.mjs";
 import { lightControl, writesMagicLight } from "../../lib/light.mjs";
@@ -380,6 +380,9 @@ function containerSnapshot(item) {
   const load6 = sumWeight6(contents);
   return {
     holds,
+    // The gear flag's own declaration, which is all the Holds toggle writes;
+    // a container record (a lock, a key) can make `holds` true without it.
+    declared: holdsGear(item),
     capacityStone: cap,
     capacityStated: cap != null,
     capacityTip: capacityTip(item),

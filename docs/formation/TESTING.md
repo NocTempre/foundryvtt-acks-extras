@@ -2564,7 +2564,12 @@ types the name the kept party does not carry. Read each seat's
    height; close the Key legend first, or its rows crowd the part to a few
    pixels and the content's backstop scroll takes over. Narrow the window toward
    its 640px floor: every control still reachable, nothing cut off without a
-   scrollbar.
+   scrollbar. At 18 and the floor, the header band wraps: the bar takes a
+   second line at the band's end and no rect of the bar or of a header
+   control meets the name field's, and the title keeps at least its computed
+   `min-width`; a long name may still end in an ellipsis at the floor. At 14
+   nothing wraps. The magic-light walk
+   (below) measures this on both seats at the sheet's width and at the floor.
 7. **Keyboard and names.** From the crest, press Tab through the window.
    *Observable:* focus reaches every control of the band, the rails, the tab
    row, the active tab's head and its sections, in reading order; the Hunted
@@ -3617,11 +3622,22 @@ three in the party, each with a token on the walk's scene, the party token
 there, no plan, no fight, not paused, nobody moved this turn, every member at
 full hit points.
 
-1. **The player locks for a member they own.** Wait until the Player seat's
-   copy of the formation holds all three: a party sheet whose first render
-   overlaps a member write keeps the roster it started with, since
-   `PartySheet.refreshAll` passes over a window that is still rendering. Then,
-   on the Player seat, open the party sheet's Dungeon tab. *Observable:* the
+0. **A first render that a member write overlaps settles on the write.** On
+   the GM seat take the cleric out of the party (`removeMembers`,
+   `restore: false`) and wait until the Player seat's copy holds two. On the
+   Player seat open the party sheet with its first render held: replace the
+   instance's `_preRender` with one that waits on a promise when
+   `options.isFirstRender`, call `render(true)` without awaiting it, and wait
+   until the wrapper is entered (the context is read, the HTML not yet drawn;
+   the sheet is in no registry and its `state` is 0). Bring the cleric back
+   from the GM seat, wait until the Player seat's copy holds three, then
+   resolve the promise and delete the instance's `_preRender`. *Observable:*
+   the render that finishes drew two Turn plan rows (`[data-plan-actor]`),
+   and within three seconds the sheet shows three with no other call: the
+   sheet's own catch-up render (`PartySheet._onRender`). Before the fix it
+   stayed at two through an 8 s poll.
+1. **The player locks for a member they own.** On the Player seat, read the
+   party sheet's Dungeon tab. *Observable:* the
    Turn plan section has a row per member; only the thief's row has a choice
    list and Lock; its list offers the methodical search open and battering
    refused. Pick the methodical search and press Lock. *Observable:* the party
@@ -3656,10 +3672,17 @@ full hit points.
    *Observable:* the formation's combat is active, the flag is gone, and one
    public card has two rows, both members, each marked cancelled. Delete the
    combat; the formation's combat ends.
+8. **Endurance is a capability.** Last, since it changes who owes rest: give
+   the fighter a gear item named "QA Rope of Endurance", then a copy of the
+   library ability whose definition id folds to `kw:endurance`
+   (`capabilityForId`). *Observable:* `hasEndurance` (turn-engine) reads false
+   before either, false with the rope alone, true with the ability. A
+   hand-made ability counts only where its `provides` lists `kw:endurance`;
+   the ability sheet shows `provides` and does not edit it.
 
 Teardown: every card the GM seat posts carries the run's nonce, is tracked by
-id the moment the walk reads it, and is swept with the combat; the fixtures
-stay.
+id the moment the walk reads it, and is swept with the combat and step 8's
+two items; the fixtures stay.
 
 ## The column and its lights (added with the marching column)
 
@@ -3883,7 +3906,8 @@ Teardown: `api.sweepTracked()`; quote what it removed.
 ## A magic light (added with the Add effect control's Magic Light choice)
 
 Steps 8 to 11 are walked by `tools/live/formation-magic-light.mjs`, with the
-item sheet's tag and toggle and the Kit row's fit at 14 and 18 px; it adds the
+item sheet's tag and toggle, and the Kit row's and the header band's fit at 14
+and 18 px (the frame's step 6); it adds the
 fixtures `formation/magic-light-member-worn` (a member the Player owns),
 `formation/magic-light-worn` (an armor on it, for `canWear`/`isWorn`) and
 `formation/magic-light-world` (a world item, which shows no state tag). The

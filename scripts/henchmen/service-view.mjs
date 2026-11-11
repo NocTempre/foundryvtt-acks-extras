@@ -12,6 +12,7 @@ import { reasonKey } from "./rules/loyalty.mjs";
 import { henchmanWage, henchmanWageCite } from "./rules/wages.mjs";
 import {
   wageClock, loyaltyParts, moraleParts, ledgerEntries, termsOf, rolledOf, slotOf, keepsLoyalty, serviceBadge, ROLLED_SCORES, signingControls,
+  offersClassPick,
 } from "./rules/service.mjs";
 import * as adapter from "./acks-adapter.mjs";
 import { now, secondsPerMonth, dateLabel } from "./time.mjs";
@@ -228,8 +229,9 @@ export function buildServicePanel(actor, { isGM = false, pins = [] } = {}) {
       ? {
           scores: rolled.scores ? rolled.scores.join(" · ") : "",
           scoresTip: rolled.scores ? scoresTip(rolled.scores) : "",
-          rolledTip: loc("tip.rolled"),
-          classLevel: [rolled.classKey, rolled.level != null ? rolled.level : ""].filter((x) => x !== "").join(" · "),
+          rolledTip: rolled.judgePick ? loc("tip.judgePick") : loc("tip.rolled"),
+          classLevel: [rolled.judgePick ? loc("judgePick") : rolled.classKey, rolled.level != null ? rolled.level : ""].filter((x) => x !== "").join(" · "),
+          pickClass: offersClassPick(rolled, actor.system?.details?.class, { isGM }),
           template: rolled.template,
           hp: hitPointsView(rolled),
         }
@@ -239,7 +241,8 @@ export function buildServicePanel(actor, { isGM = false, pins = [] } = {}) {
 
 /**
  * The Recorded rolls' hit-point row: the maximum rolled at hire with each
- * level's roll in its tooltip, or "not imported" with what was missing.
+ * level's roll in its tooltip, "not imported" with what was missing, or that
+ * the class was the Judge's to pick.
  * Null where the record holds neither.
  */
 function hitPointsView(rolled) {
@@ -248,6 +251,7 @@ function hitPointsView(rolled) {
     return { value: String(rolled.hpRoll), unset: false, tip: loc("tip.hpRolled", { steps }) };
   }
   if (!rolled.hpUnrolled) return null;
+  if (rolled.hpUnrolled === "judgePick") return { value: loc("hpJudgePick"), unset: true, tip: loc("tip.hpJudgePick") };
   return {
     value: loc("hpUnimported"),
     unset: true,

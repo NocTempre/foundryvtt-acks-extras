@@ -317,10 +317,11 @@ Hooks.on(FOLLOWER_CARD_HOOK, (actor, ctx) => {
   ctx.pending = { title: game.i18n.localize("ACKS-HENCHMEN.roster.pending") };
 });
 
-/* The Service panel's owed-bonus controls. The panel is hosted by the
- * character and monster sheets, and these act on the henchmen record alone,
- * so they are wired here once rather than as an action of each host; a
- * button already wired by an earlier render of the same part is skipped. */
+/* The Service panel's own controls: the owed bonus and Pick class. The panel
+ * is hosted by the character and monster sheets, and these belong to the
+ * henchmen feature rather than to either host, so they are wired here once
+ * rather than as an action of each host; a button already wired by an earlier
+ * render of the same part is skipped. */
 Hooks.on("renderActorSheetV2", (app, element) => {
   const actor = app.actor ?? app.document;
   const root = elementOf(element);
@@ -333,6 +334,20 @@ Hooks.on("renderActorSheetV2", (app, element) => {
       event.stopPropagation();
       if (button.dataset.signing === "pay") payOwedSigningBonus(actor);
       else if (button.dataset.signing === "forgive") forgiveSigningBonus(actor);
+    });
+  }
+  // Pick class: a class roll that left the class to the Judge opens the
+  // classes feature's picker on the hireling, which binds it and rolls its
+  // hit points. The panel offers it on a Judge's seat only.
+  for (const button of root.querySelectorAll(".acks-extras-service [data-pick-class]")) {
+    if (button.dataset.wired) continue;
+    button.dataset.wired = "1";
+    button.addEventListener("click", async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!game.user.isGM) return;
+      const { openClassPicker } = await import("../classes/assign-app.mjs");
+      await openClassPicker(actor);
     });
   }
 });

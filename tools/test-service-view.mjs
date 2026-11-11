@@ -12,7 +12,9 @@ import assert from "node:assert";
 import {
   ROSTER_FILTERS, bucketOf, keepsLoyalty, wageClock, loyaltyParts, moraleParts, ledgerEntries, shareKind, termsOf,
   rolledOf, slotOf, serviceBadge, filterRows, filterCounts, ROLLED_SCORES, hireHitPoints, signingControls,
+  judgePickHitPoints, offersClassPick,
 } from "../scripts/henchmen/rules/service.mjs";
+import { JUDGE_PICK_CLASS, hiredClassName } from "../scripts/henchmen/rules/candidates.mjs";
 import { effectiveMorale, effectiveLoyalty, clampScore } from "../scripts/henchmen/rules/loyalty.mjs";
 import { henchmanWage, henchmanWageCite } from "../scripts/henchmen/rules/wages.mjs";
 import * as tables from "../scripts/lib/tables.mjs";
@@ -221,6 +223,25 @@ test("recorded rolls carry the hit points, or why there are none", () => {
   assert.equal(unrolled.any, true, "a reason alone shows the block, so the panel can say not imported");
   assert.equal(rolledOf({ rolled: { hpRoll: 5, hpUnrolled: "noClass" } }).hpUnrolled, "", "a roll outranks a stale reason");
   assert.equal(rolledOf({ rolled: { hpRoll: null, hpSteps: [{ level: 1, formula: "1d5", total: 3 }] } }).hpSteps.length, 0, "no steps without a total");
+});
+test("a class roll that left the class to the Judge: no class written, nothing rolled, and Pick class offered until one is bound", () => {
+  assert.equal(JUDGE_PICK_CLASS, "special", "the key the class draws give");
+  assert.equal(hiredClassName({ classKey: JUDGE_PICK_CLASS, occupation: "" }), "", "the hire binds no class");
+  assert.equal(hiredClassName({ classKey: JUDGE_PICK_CLASS, occupation: "Invented trade" }), "", "nor an occupation in its place");
+  assert.equal(hiredClassName({ classKey: "invented-class" }), "invented-class", "a rolled class is written");
+  assert.equal(hiredClassName({ classKey: "", occupation: "Invented trade" }), "Invented trade", "a 0th-level hire keeps its occupation");
+  assert.deepEqual(judgePickHitPoints(), { hpRoll: null, hpSteps: [], hpUnrolled: "judgePick" });
+  const fresh = rolledOf({ rolled: { classKey: JUDGE_PICK_CLASS, level: 2, ...judgePickHitPoints() } });
+  assert.equal(fresh.judgePick, true);
+  assert.equal(fresh.hpUnrolled, "judgePick");
+  const older = rolledOf({ rolled: { classKey: JUDGE_PICK_CLASS, level: 2, hpRoll: null, hpUnrolled: "noClass" } });
+  assert.equal(older.hpUnrolled, "judgePick", "a hire recorded before reads the Judge's pick, not a missing import");
+  assert.equal(rolledOf({ rolled: { classKey: "invented-class", hpRoll: null, hpUnrolled: "noClass" } }).hpUnrolled, "noClass", "a real missing class still says so");
+  assert.equal(offersClassPick(fresh, "", { isGM: true }), true, "unbound, on a Judge's seat: offered");
+  assert.equal(offersClassPick(older, JUDGE_PICK_CLASS, { isGM: true }), true, "an older hire's written key binds nothing: offered");
+  assert.equal(offersClassPick(fresh, "", { isGM: false }), false, "never on a player's seat");
+  assert.equal(offersClassPick(fresh, "Invented class", { isGM: true }), false, "a class bound: not offered");
+  assert.equal(offersClassPick(rolledOf({ rolled: { classKey: "invented-class" } }), "", { isGM: true }), false, "a rolled class: not offered");
 });
 test("a henchman takes a slot unless the record exempts them; the other kinds never do", () => {
   assert.equal(slotOf({}, "henchman"), "counted");

@@ -221,11 +221,34 @@ export class PartySheet extends HandlebarsApplicationMixin(foundry.applications.
   /** The debounced re-render the watch calls, made at first render. */
   #renderSoon = null;
 
-  /** Re-render all open party sheets (called on any formation change). */
+  /** Bumped by every `refreshAll`: the formation changes the sheets have been told of. */
+  static #generation = 0;
+
+  /** The generation this sheet's render read the formation at, stamped before its first read. */
+  #readAt = -1;
+
+  /** The last generation `refreshAll` queued a render of this sheet for. */
+  #askedAt = -1;
+
+  /**
+   * Re-render all open party sheets (called on any formation change). A sheet
+   * mid-render is not in the registry yet on its first render, or not
+   * `rendered` on a later one, so it is passed over here and catches up itself
+   * once that render finishes (`_onRender`).
+   */
   static refreshAll() {
+    const generation = ++PartySheet.#generation;
     for (const app of foundry.applications.instances.values()) {
-      if (app instanceof PartySheet && app.rendered) app.render();
+      if (!(app instanceof PartySheet) || !app.rendered) continue;
+      app.#askedAt = generation;
+      app.render();
     }
+  }
+
+  /** Stamp the generation before `_configureRenderParts`, the render's first read of the formation. */
+  _configureRenderOptions(options) {
+    this.#readAt = PartySheet.#generation;
+    super._configureRenderOptions(options);
   }
 
   get formation() {
@@ -441,6 +464,14 @@ export class PartySheet extends HandlebarsApplicationMixin(foundry.applications.
       } catch (err) {
         console.error(`${MODULE_ID} | party sheet: ${what} failed`, err);
       }
+    }
+    // A formation change that landed after this render read the formation, and
+    // that `refreshAll` queued no render for, is drawn by one more. Never
+    // awaited: the render queues behind the one still running.
+    const generation = PartySheet.#generation;
+    if (this.#readAt < generation && this.#askedAt < generation) {
+      this.#askedAt = generation;
+      this.render();
     }
   }
 

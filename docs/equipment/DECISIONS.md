@@ -2195,3 +2195,37 @@ so the shipped figure had no source to be checked against.
 and `inferGear` answers none, folded into lib apiVersion 37. An item annotated
 before keeps its stamped figure until a rebuild repairs it, and a rebuild writes
 the page's capacity over one a Judge typed on an imported item.
+
+## 2026-11-11 — The Holds toggle shows the gear declaration, not containerhood
+
+**Ruled.** The item sheet's Holds other items toggle shows what it writes: the
+gear flag's declaration (`holdsGear`), not `isContainer`. A container record
+can make an item a container on its own (a lock, its keys, the fold), and the
+toggle cannot clear that without destroying the lock, so it does not show it.
+An item with a lock and no declaration is a container whose toggle is
+unticked; its Contents tab, capacity field and accept chips stay, since they
+follow `isContainer`. Unticking clears the declaration, the capacity and the
+record keys that say what goes in (`HOLDING_KEYS`: the accepted kinds, the
+refusal, a capacity stated on the record before capacity moved to the gear
+flag), and removes the record only when nothing else is in it. Ledger T-0490.
+
+The sheet's submit writes the container record only when one of the record's
+own fields fired it (`containerFieldsOnlyWhenFired` in `actions.mjs`, the
+control-that-fired rule of 2026-08-31 applied to the record). Every submit
+carries the lock's fields as drawn, and the toggle's own change event submits
+the form: the live walk saw that submit write
+`{fragile, lockMod, quality, refusal}` back after the untick had removed the
+record, so the item stayed a container with its capacity field, and on a
+locked chest it added `fragile: false` to a record the toggle never meant to
+touch.
+
+**Rejected.** Showing `isContainer` and unticking by clearing the record: it
+destroys a lock and its keys to make a checkbox agree. Showing `isContainer`
+and leaving the record: the reported bug, a toggle that stays ticked after an
+untick. Leaving the accept chips on the record at an untick: a record holding
+only kinds keeps the item a container after "Holds other items" is unticked,
+which is the same bug without a lock.
+
+**What it cost.** A locked chest nobody declared reads unticked beside its own
+Contents tab. Unticking forgets the accepted kinds and the refusal, as it
+already forgot the capacity.

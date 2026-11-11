@@ -19,6 +19,7 @@ import {
   WINDED_EFFECT_NAME,
 } from "./constants.mjs";
 import { effectiveSpeed, formationHasLight, getMemberActor, getFormation, isDown, isHurried, realMembers, updateFormation } from "./formation-model.mjs";
+import { hasCapability } from "./ability-bridge.mjs";
 import { feetPerTurn, settlementOf } from "./settlement.mjs";
 import { cityTurnCompleted, creditHoledUpDays } from "./settlement-turn.mjs";
 import { sceneBlockFeet } from "../battlemap/scene-setup.mjs";
@@ -107,9 +108,14 @@ export function expiredEffectNotes(formation, snapshot, notes) {
 /*  Winded marker                               */
 /* -------------------------------------------- */
 
-/** Whether this member owes no rest: the winded marker skips them, and so does the turn plan's rest. */
+/**
+ * Whether this member owes no rest: the winded marker skips them, and so does
+ * the turn plan's rest. Read as the `kw:endurance` capability, which an
+ * imported Endurance carries by its definition id and any other ability by
+ * `provides`; an item's name decides nothing.
+ */
 export function hasEndurance(actor) {
-  return actor?.items?.some((i) => /endurance/i.test(i.name)) ?? false;
+  return hasCapability(actor, "kw:endurance");
 }
 
 async function setWindedMarkers(formation, winded) {

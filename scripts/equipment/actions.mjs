@@ -270,16 +270,53 @@ export async function setGearAccess(item, value) {
 }
 
 /**
- * Declare that this takes gear, or that it does not. On leaves any stated
- * capacity alone and states none: a container with no limit, whose surface
- * says its capacity is not imported. Off also clears the capacity, so it holds
- * nothing and a later Annotate does not declare it again.
+ * The container record's keys that describe what goes in — the kinds taken,
+ * the refusal, and a capacity stated there before capacity moved to the gear
+ * flag. The lock, its keys and the row's fold are the record's other half and
+ * are never these.
+ */
+export const HOLDING_KEYS = Object.freeze(["accepts", "refusal", "capacity"]);
+
+/**
+ * Declare that this takes gear, or that it does not — the field the item
+ * sheet's Holds toggle shows (`holdsGear`). On leaves any stated capacity
+ * alone and states none: a container with no limit, whose surface says its
+ * capacity is not imported. Off clears the declaration, the capacity, and the
+ * container record's `HOLDING_KEYS`, so it holds nothing and a later Annotate
+ * does not declare it again; the record goes with them only when nothing else
+ * is left in it, so a lock or a key keeps the item a container.
  */
 export async function setGearHolds(item, on) {
   if (!item) return false;
   const G = `flags.${MODULE_ID}.${FLAG_GEAR}`;
-  await item.update(on ? { [`${G}.holds`]: true } : { [`${G}.holds`]: false, [`${G}.capacity`]: null });
+  if (on) {
+    await item.update({ [`${G}.holds`]: true });
+    return true;
+  }
+  const changes = { [`${G}.holds`]: false, [`${G}.capacity`]: null };
+  const R = `flags.${MODULE_ID}.${ITEM_FLAGS.CONTAINER}`;
+  const record = item.getFlag?.(MODULE_ID, ITEM_FLAGS.CONTAINER);
+  if (record && typeof record === "object") {
+    if (Object.keys(record).every((k) => HOLDING_KEYS.includes(k))) changes[R] = unset();
+    else for (const k of HOLDING_KEYS.filter((key) => key in record)) changes[`${R}.${k}`] = unset();
+  }
+  await item.update(changes);
   return true;
+}
+
+/**
+ * Drop the container record from an item-sheet submit that none of its own
+ * fields fired. Every submit carries the record's fields as last drawn, so one
+ * fired by another control, the Holds toggle among them, would write back a
+ * record that control had just taken away. Mutates and returns `data`, the
+ * expanded form object; `firedName` is the `name` of the control that fired.
+ */
+export function containerFieldsOnlyWhenFired(data, firedName) {
+  const flags = data?.flags?.[MODULE_ID];
+  if (!flags || !(ITEM_FLAGS.CONTAINER in flags)) return data;
+  if (String(firedName ?? "").startsWith(`flags.${MODULE_ID}.${ITEM_FLAGS.CONTAINER}.`)) return data;
+  delete flags[ITEM_FLAGS.CONTAINER];
+  return data;
 }
 
 /**

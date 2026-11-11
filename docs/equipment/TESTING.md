@@ -1381,6 +1381,17 @@ prints booleans and counts, never a page figure or a row's name.
    *Observable:* `gear.holds` is true and no capacity is stated; the capacity
    field appears empty; a figure typed there reads `byHand`; unticking the box
    writes `holds` false and clears the capacity.
+   Then wipe the sack's gear flag and give it a lock record (`locked`, a
+   `lockMod`, a `quality`, one `keys` entry naming another of the actor's
+   items). *Observable:* the sack is a container (`isContainer`) with its
+   capacity field, and the box reads unticked; ticking reads ticked; unticking
+   reads unticked again and the record, read key-sorted, is what it was (no
+   `fragile: false` added by the change event's submit). Type into the lock's
+   quality field and fire its change. *Observable:* the record's `quality` is
+   the typed text: a record field that fires still writes.
+   Then wipe the sack again, tick the box, press one accept chip (the record
+   gains `accepts`) and untick. *Observable:* the record is gone, the sack is
+   no container, the box reads unticked and the capacity field is gone.
 5. Weapon Finesse. Override the table to hold no sizes, then one size, then a
    value that is not a list. *Observable:* with none the gate refuses nothing
    and `finesseSizesImported` is false; with one size exactly that size is

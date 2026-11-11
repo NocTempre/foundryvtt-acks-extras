@@ -265,6 +265,35 @@
 
 ### Fixed
 
+- **An open Party sheet shows the party it was opened on.** A Party sheet
+  (Actors sidebar tab → a party actor) whose first drawing overlapped a change
+  to the party (a member joining or leaving, the marching order, the plan)
+  used to keep the roster it started with until something else redrew it. It
+  now redraws once with the change.
+- **Endurance is read from the ability, not its name.** The Party sheet's
+  Dungeon tab → Rest a turn and the turn plan's rest, and the winded marker a
+  party gains on its members, now skip a member only for an Endurance ability
+  imported from the book (or one that provides it), never for any item whose
+  name contains "endurance".
+- **The Party sheet's bar no longer covers its name at a large type size.** At a
+  large type size (Settings tab → Game Settings → ACKS II — Extras → ACKS font
+  size) the progress bar in a Party sheet's header (Actors sidebar tab → a
+  party actor) no longer lies over the party name: where the line is too short
+  it moves to a second line at the header's end.
+- **Holds other items unticks.** An item sheet's Details tab → Options → Holds
+  other items now shows only whether the item declares it holds gear, so
+  unticking it reads unticked even on an item a lock or a key also makes a
+  container; the lock and its keys are left as they were. Unticking also clears
+  the kinds it accepts and its refusal, and no longer writes the lock's empty
+  fields back onto the item, which had kept it a container with its Contents
+  tab after the untick.
+- **A hireling whose class is the Judge's pick is hired with no class.** A
+  market candidate whose class is the Judge's pick (shown as "special") was
+  hired with "special" written as its class and its hit points reported as not
+  imported. It is now hired with no class, and the hireling's Character sheet →
+  Service tab → Recorded rolls reads "Judge's pick" with a Pick class button on
+  the Judge's seat that opens the class picker. Hirelings hired before read the
+  same.
 - **Existing built classes are corrected on load.** A class built on the item
   sheet's Builder tab with no race (a racial value of 0 and no race named) now
   stores a racial value of -1, once, when the world loads with a GM connected,

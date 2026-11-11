@@ -904,8 +904,15 @@ reader's own book gave them. Nothing falls back to a shipped number.
   container with no stated capacity is still a container with no limit; its
   figure tooltip says "not imported" and shows no number (`capacityTip`, on the
   equipment tab's container header and the item sheet's Details and Contents).
-  An item sheet's "Holds other items" toggle writes `holds` alone
-  (`setGearHolds`); the capacity is the field beside it. A rebuild of the
+  An item sheet's "Holds other items" toggle shows and writes the gear flag's
+  declaration (`holdsGear`, `setGearHolds`), not `isContainer`: a container
+  record (a lock, its keys) makes an item a container with the toggle
+  unticked. Unticking clears `holds`, the capacity and the record's
+  `HOLDING_KEYS` (`accepts`, `refusal`, a legacy `capacity`), and drops the
+  record only when nothing else is in it. The sheet's submit writes the
+  record's fields (the lock's quality, its modifier, fragile, the refusal) only
+  when one of them fired it (`containerFieldsOnlyWhenFired`), so the toggle's
+  own change event writes nothing back to the record. The capacity is the field beside it. A rebuild of the
   importer repairs `gear` on an imported item and prices row (`REPAIR`), so
   a stale stamped figure is replaced by the page's.
 - **A bowquiver's loaded count** (`gear.loaded6`). Annotate reads it from the

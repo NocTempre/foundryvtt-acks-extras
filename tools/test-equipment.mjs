@@ -1350,6 +1350,49 @@ check("api.named namespace is present", typeof api.named?.resolveGuess === "func
   const untoggled = doc("Sack", "item", { holds: true, capacity: 4 });
   await setGearHolds(untoggled, false);
   check("unticking Holds writes holds false and clears the capacity", write(untoggled)[`${GEAR_KEY}.holds`] === false && write(untoggled)[`${GEAR_KEY}.capacity`] === null);
+  // Untick against every shape a container record takes: the keys that say what
+  // goes in leave with the declaration, the lock and its keys never do.
+  const REC = "flags.acks-extras.container";
+  const LOCK = { locked: true, opened: false, lockMod: -2, quality: "Invented", keys: [{ uuid: "Item.k", name: "Key" }], fragile: true, concealed: true };
+  const withRecord = (gearFlag, record) => {
+    const it = doc("Chest", "item", gearFlag);
+    if (record) it.flags["acks-extras"].container = structuredClone(record);
+    return it;
+  };
+  const untick = async (gearFlag, record) => {
+    const it = withRecord(gearFlag, record);
+    await setGearHolds(it, false);
+    const w = write(it);
+    const recWrites = Object.keys(w).filter((k) => k === REC || k.startsWith(`${REC}.`));
+    return { w, recWrites, unset: (k) => w[k] instanceof foundry.data.operators.ForcedDeletion };
+  };
+  const touchesLock = (recWrites) => recWrites.some((k) => k === REC || Object.keys(LOCK).some((key) => k === `${REC}.${key}`));
+  for (const [label, gearFlag] of [["a plain sack", null], ["gear.holds alone", { holds: true }], ["gear.capacity alone", { capacity: 2 }]]) {
+    const r = await untick(gearFlag, null);
+    check(`untick on ${label}: the declaration and the capacity go, no record is written`, r.w[`${GEAR_KEY}.holds`] === false && r.w[`${GEAR_KEY}.capacity`] === null && r.recWrites.length === 0, r.recWrites);
+  }
+  const legacy = await untick(null, { capacity: 3 });
+  check("untick on a capacity stated only on the old record: the record, holding nothing else, goes", legacy.unset(REC) && legacy.recWrites.length === 1, legacy.recWrites);
+  const acceptsOnly = await untick({ holds: true }, { accepts: ["weapon"], refusal: "Invented refusal" });
+  check("untick after the accept chips were set: the record, holding only what goes in, goes", acceptsOnly.unset(REC) && acceptsOnly.recWrites.length === 1, acceptsOnly.recWrites);
+  const lockedDeclared = await untick({ holds: true }, { ...LOCK, accepts: ["tool"], refusal: "Invented", capacity: 1 });
+  check("untick on a declared container with a lock: what goes in is cleared key by key, the lock and its keys are untouched",
+    ["accepts", "refusal", "capacity"].every((k) => lockedDeclared.unset(`${REC}.${k}`)) && !touchesLock(lockedDeclared.recWrites), lockedDeclared.recWrites);
+  const lockOnly = await untick(null, LOCK);
+  check("untick on a lock record alone writes nothing to the record", lockOnly.recWrites.length === 0 && lockOnly.w[`${GEAR_KEY}.holds`] === false, lockOnly.recWrites);
+  const ticked = withRecord(null, LOCK);
+  await setGearHolds(ticked, true);
+  check("tick on a lock record alone declares the gear and leaves the record alone", write(ticked)[`${GEAR_KEY}.holds`] === true && !Object.keys(write(ticked)).some((k) => k.startsWith(REC)));
+  // A sheet submit carries the record's fields as drawn; only one of them firing writes them.
+  const { containerFieldsOnlyWhenFired } = await import(new URL("actions.mjs", S));
+  const drawn = () => ({ name: "Chest", flags: { "acks-extras": { container: { fragile: false, lockMod: 0, quality: "", refusal: "" }, gear: { capacity: null } } } });
+  const byToggle = containerFieldsOnlyWhenFired(drawn(), undefined);
+  check("a submit no record field fired drops the record and keeps the rest of the form", !("container" in byToggle.flags["acks-extras"]) && byToggle.name === "Chest" && "gear" in byToggle.flags["acks-extras"]);
+  const byName = containerFieldsOnlyWhenFired(drawn(), "name");
+  check("a submit another named field fired drops the record too", !("container" in byName.flags["acks-extras"]));
+  const byQuality = containerFieldsOnlyWhenFired(drawn(), `${REC}.quality`);
+  check("a submit a record field fired writes the record as drawn", JSON.stringify(byQuality.flags["acks-extras"].container) === JSON.stringify(drawn().flags["acks-extras"].container));
+  check("a submit with no flags at all passes through", JSON.stringify(containerFieldsOnlyWhenFired({ name: "x" }, "name")) === '{"name":"x"}');
   const sizedAxe = doc("Battle Axe", "weapon", null, { size: "large", melee: true });
   await api.annotateItem(sizedAxe);
   check("annotate stamps no size on a weapon that declares one", !("flags.acks-extras.size" in write(sizedAxe)));

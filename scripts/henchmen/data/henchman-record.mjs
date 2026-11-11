@@ -70,9 +70,10 @@ export default class HenchmanRecord extends foundry.abstract.DataModel {
         level: num({ integer: true }),
         // The hit point maximum rolled at hire and each level's roll behind
         // it (classes `rebuildHitPoints`); `hpUnrolled` names why none was
-        // rolled — "noClass" (no imported class matches) or "noDice" (the
-        // class carries no hit dice) — and is blank where a roll was made or
-        // none was attempted.
+        // rolled — "noClass" (no imported class matches), "noDice" (the
+        // class carries no hit dice) or "judgePick" (the class roll left the
+        // class to the Judge) — and is blank where a roll was made or none
+        // was attempted.
         hpRoll: num({ integer: true }),
         hpSteps: new fields.ArrayField(
           new fields.SchemaField({ level: int(), formula: str(), total: int() })

@@ -28,7 +28,7 @@ const SPECIALIST_PACKAGE_KEYS = Object.freeze({
   lawyer: ["lawyer"],
 });
 import { startingLoyalty, effectiveLoyalty } from "../rules/loyalty.mjs";
-import { rollAttributes } from "../rules/candidates.mjs";
+import { hiredClassName, isJudgePick, rollAttributes } from "../rules/candidates.mjs";
 import { sumEffectModifiers, hasEffectFlag, unvaluedPowers } from "../effects.mjs";
 import * as adapter from "../acks-adapter.mjs";
 import HenchmanRecord from "../data/henchman-record.mjs";
@@ -36,7 +36,7 @@ import { now } from "../time.mjs";
 import { ACTOR_TYPE } from "../../lib/vocab.mjs";
 import { appendMarketLog } from "../../location/data/market-log.mjs";
 import { gpText } from "../../lib/money-logic.mjs";
-import { hireHitPoints } from "../rules/service.mjs";
+import { hireHitPoints, judgePickHitPoints } from "../rules/service.mjs";
 import { whenReady } from "../../lib/library.mjs";
 import { recordCalamity } from "./events.mjs";
 
@@ -467,7 +467,7 @@ export async function hire(location, candidateId, employer, opts = {}) {
       details: {
         level: candidate.level ?? 0,
         age: candidate.age ?? undefined,
-        class: candidate.classKey || candidate.occupation || "",
+        class: hiredClassName(candidate),
       },
     },
   };
@@ -528,8 +528,11 @@ export async function hire(location, candidateId, employer, opts = {}) {
   // Hit points (enrichment — non-fatal): a henchman of an imported class at
   // 1st level or above gets them rolled; the record keeps what was rolled or
   // what was missing.
+  // A class left to the Judge has nothing to roll by until one is bound
+  // (the Service panel's Pick class), and the record says so.
   let hp = null;
-  if (category === "henchman") {
+  if (category === "henchman" && isJudgePick(candidate)) hp = judgePickHitPoints();
+  else if (category === "henchman") {
     try {
       hp = await rollHireHitPoints(actor);
     } catch (err) {

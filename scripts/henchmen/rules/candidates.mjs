@@ -16,6 +16,23 @@ import { classBlocked } from "./availability.mjs";
 export const BLOCKED_CLASS_DRAWS = 50;
 
 /**
+ * The class key a draw gives where the class is the Judge's to pick: the
+ * distribution's "special" row, a row with no class, or a market whose every
+ * draw is blocked. It names no class, so a hire never writes it as one.
+ */
+export const JUDGE_PICK_CLASS = "special";
+
+/** Is this candidate's class the Judge's to pick? */
+export const isJudgePick = (candidate) => candidate?.classKey === JUDGE_PICK_CLASS;
+
+/**
+ * The class a hire writes on the new actor: the candidate's class, else its
+ * occupation, and nothing where the class is the Judge's pick — the hireling
+ * is left unbound for the Judge to bind.
+ */
+export const hiredClassName = (candidate) => (isJudgePick(candidate) ? "" : candidate?.classKey || candidate?.occupation || "");
+
+/**
  * Fallback class roll from the core-six class percentages (people doc) when
  * the full JJ double-d100 distribution has not been imported. This is the
  * "core classes, specials deferred" mode: only fighter/crusader/thief/mage/

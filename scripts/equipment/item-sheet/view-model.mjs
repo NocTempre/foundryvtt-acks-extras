@@ -402,6 +402,7 @@ export function buildItemSheetModel(snap, viewer = {}) {
       valueModes: coin ? [] : VALUE_MODES.map((k) => ({ key: k, on: (snap.valueMode ?? "priced") === k })),
       variations: snap.variations ?? [],
       holds: !!container?.holds,
+      holdsDeclared: !!container?.declared,
       capacityStone: container?.capacityStone ?? null,
       capacityTip: container?.capacityTip ?? "",
       accepts: container?.accepts ?? [],

@@ -122,6 +122,16 @@ test("tabs appear in the one fixed order and only when they have data", () => {
   assert.deepEqual(keys, TAB_ORDER.filter((k) => keys.includes(k)));
   assert.equal(m.simple, false);
 });
+test("the Holds toggle shows the gear declaration, and a container the record alone declares keeps its Contents", () => {
+  const box = (declared) => ({ holds: true, declared, capacityStone: null, cap6: 0, load6: 0, locked: true, lockMod: 0, keys: [], accepts: [], refusal: "", contents: [], canSee: true });
+  const locked = buildItemSheetModel(base({ container: box(false) }), { isGM: true, editable: true });
+  assert.equal(locked.details.holdsDeclared, false, "a lock record alone leaves the toggle unticked");
+  assert.equal(locked.details.holds, true, "and the item is still a container");
+  assert.ok(locked.tabs.some((t) => t.key === "contents"), "with its Contents tab");
+  const declared = buildItemSheetModel(base({ container: box(true) }), { isGM: true, editable: true });
+  assert.equal(declared.details.holdsDeclared, true, "a declared container ticks it");
+  assert.equal(buildItemSheetModel(base(), { isGM: true }).details.holdsDeclared, false, "nothing declared, nothing ticked");
+});
 test("the Appearance tab is Judge-only", () => {
   const snap = base({ magic: { is: true, aura: "arcane", identified: "full" } });
   assert.ok(buildItemSheetModel(snap, { isGM: true }).tabs.some((t) => t.key === "appearance"));

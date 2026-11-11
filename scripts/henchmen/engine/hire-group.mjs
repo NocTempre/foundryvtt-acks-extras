@@ -18,6 +18,7 @@ import { hire, employerOwnership } from "./hire.mjs";
 import { mercenaryMorale } from "../rules/wages.mjs";
 import { optTable } from "../rules/tables.mjs";
 import { takeFromRow } from "../rules/bulk-offer.mjs";
+import { hiredClassName } from "../rules/candidates.mjs";
 import { now } from "../time.mjs";
 
 /** Mark `count` heads of a market row hired; the rest of the row stays on the market (`takeFromRow`). */
@@ -105,7 +106,7 @@ async function createTroopPrototype(candidate, employer) {
     ownership: employerOwnership(employer),
     prototypeToken: { actorLink: false },
     system: {
-      details: { level: candidate.level ?? 0, class: candidate.classKey || candidate.occupation || "" },
+      details: { level: candidate.level ?? 0, class: hiredClassName(candidate) },
       hp: { hd: troopHd(candidate) },
     },
   };

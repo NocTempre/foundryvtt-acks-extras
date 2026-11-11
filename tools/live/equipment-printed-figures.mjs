@@ -9,7 +9,9 @@
  * that none is imported) on its Details and Contents tabs; a container with no
  * stated capacity stays a container and shows no figure; the Holds other items
  * toggle writes the container declaration alone and clears the capacity on its
- * way off; the equipment document's Weapon Finesse list and unarmed strike die
+ * way off, reads the declaration and not a lock record that makes the item a
+ * container too, leaves that lock and its key as they were, and on its way off
+ * takes a record that held only what goes in; the equipment document's Weapon Finesse list and unarmed strike die
  * are imported, the finesse gate refuses only a size the list does not name,
  * and with either table absent (a Judge's override layer, written through the
  * Ruledata Browser's own `setOverride`) the gate refuses nothing, the unarmed
@@ -323,6 +325,18 @@ P.type = async ({ actorId, itemId, value }) => {
   await H.sleep(500);
   return { found: true, stored: item.getFlag("acks-extras", "gear")?.capacity ?? null };
 };
+/** Type into one of the container record's own fields, as a hand does, and read the record back. */
+P.typeRecord = async ({ actorId, itemId, field, value }) => {
+  const H = globalThis.__pf;
+  const item = game.actors.get(actorId).items.get(itemId);
+  const input = H.root(item.sheet)?.querySelector(`input[name="flags.acks-extras.container.${field}"]`);
+  if (!input) return { found: false };
+  input.value = String(value);
+  input.dispatchEvent(new Event("change", { bubbles: true }));
+  await H.poll(() => item.getFlag("acks-extras", "container")?.[field] === value, { tries: 40 });
+  await H.sleep(300);
+  return { found: true, stored: item.getFlag("acks-extras", "container")?.[field] ?? null };
+};
 P.toggle = async ({ actorId, itemId, want }) => {
   const H = globalThis.__pf;
   const item = game.actors.get(actorId).items.get(itemId);
@@ -333,6 +347,34 @@ P.toggle = async ({ actorId, itemId, want }) => {
   await H.sleep(500);
   const gear = item.getFlag("acks-extras", "gear") ?? {};
   return { found: true, holds: gear.holds === true, capacityCleared: !Number.isFinite(gear.capacity) };
+};
+
+/**
+ * The item's container record, key-sorted so two readings compare as text,
+ * and whether the gear flag declares it and the item is a container. `set`
+ * replaces the record first.
+ */
+P.record = async ({ actorId, itemId, set = null }) => {
+  const H = globalThis.__pf;
+  const item = game.actors.get(actorId).items.get(itemId);
+  if (set) {
+    await item.update({ "flags.acks-extras.container": new foundry.data.operators.ForcedDeletion() });
+    await item.setFlag("acks-extras", "container", set);
+  }
+  const sorted = (v) => (Array.isArray(v) ? v.map(sorted) : v && typeof v === "object" ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, sorted(v[k])])) : v);
+  const record = item.getFlag("acks-extras", "container") ?? null;
+  return { record: record ? JSON.stringify(sorted(record)) : null, holds: H.IM.holdsGear(item), isContainer: H.IM.isContainer(item) };
+};
+/** Press the first accept chip on the open sheet's Details tab, as a hand does, and wait for the record. */
+P.chip = async ({ actorId, itemId }) => {
+  const H = globalThis.__pf;
+  const item = game.actors.get(actorId).items.get(itemId);
+  const chip = H.root(item.sheet)?.querySelector('[data-action="toggleAccept"]:not([disabled])');
+  if (!chip) return { found: false };
+  chip.click();
+  await H.poll(() => (item.getFlag("acks-extras", "container")?.accepts?.length ?? 0) > 0, { tries: 40 });
+  await H.sleep(300);
+  return { found: true, accepts: item.getFlag("acks-extras", "container")?.accepts?.length ?? 0 };
 };
 
 /** The unarmed strike as the module builds it and as the throw reports it. */
@@ -548,6 +590,39 @@ try {
   check("a capacity typed on a container nothing imported reads as set by hand (byHand)", hand.stored === HAND_CAPACITY && m.stated && m.kind === "byHand", { stored: hand.stored, kind: m.kind });
   const off = await run(gm, P.toggle, { actorId, itemId: ids.plain, want: false });
   check("unticking it declares no container and takes the capacity with it", off.found && !off.holds && off.capacityCleared, off);
+  await run(gm, P.closeAll);
+
+  section("4b. the Holds toggle on a sack a lock record makes a container");
+  // The step starts from a sack whose gear flag declares nothing and which carries a lock and a key: a record the toggle does not write.
+  await run(gm, P.gearShape, { actorId, itemId: ids.plain, wipe: true });
+  const keyUuid = `Actor.${actorId}.Item.${ids.priced}`;
+  const lockAt = await run(gm, P.record, { actorId, itemId: ids.plain, set: { locked: true, opened: false, lockMod: -1, quality: "QA lock", keys: [{ uuid: keyUuid, name: "QA Key" }] } });
+  s = await run(gm, P.sheet, { actorId, itemId: ids.plain, tab: "details", edit: true });
+  check("the lock record alone makes it a container, with its capacity field, and the toggle reads unticked", lockAt.isContainer && !lockAt.holds && s.toggle && !s.toggleChecked && s.input, { lockAt, toggleChecked: s.toggleChecked, input: s.input });
+  const lockOn = await run(gm, P.toggle, { actorId, itemId: ids.plain, want: true });
+  s = await run(gm, P.sheet, { actorId, itemId: ids.plain, tab: "details", edit: true });
+  check("ticking it declares the gear and the toggle reads ticked", lockOn.found && lockOn.holds && s.toggleChecked, { holds: lockOn.holds, toggleChecked: s.toggleChecked });
+  const lockOff = await run(gm, P.toggle, { actorId, itemId: ids.plain, want: false });
+  const lockAfter = await run(gm, P.record, { actorId, itemId: ids.plain });
+  s = await run(gm, P.sheet, { actorId, itemId: ids.plain, tab: "details", edit: true });
+  check("unticking it reads unticked again, and the lock and its key are exactly as they were", lockOff.found && !lockOff.holds && !s.toggleChecked && lockAfter.record === lockAt.record && lockAfter.isContainer,
+    { holds: lockOff.holds, toggleChecked: s.toggleChecked, recordSame: lockAfter.record === lockAt.record, isContainer: lockAfter.isContainer, before: lockAt.record, after: lockAfter.record });
+  const typedQuality = await run(gm, P.typeRecord, { actorId, itemId: ids.plain, field: "quality", value: "QA lock retyped" });
+  check("the lock's own quality field still writes the record when it is the field that fired", typedQuality.found && typedQuality.stored === "QA lock retyped", typedQuality);
+  await run(gm, P.closeAll);
+
+  section("4c. the Holds toggle after an accept chip");
+  await run(gm, P.gearShape, { actorId, itemId: ids.plain, wipe: true });
+  await run(gm, P.sheet, { actorId, itemId: ids.plain, tab: "details", edit: true });
+  const chipOn = await run(gm, P.toggle, { actorId, itemId: ids.plain, want: true });
+  await run(gm, P.sheet, { actorId, itemId: ids.plain, tab: "details", edit: true });
+  const chip = await run(gm, P.chip, { actorId, itemId: ids.plain });
+  check("ticked, an accept chip writes the container record", chipOn.holds && chip.found && chip.accepts >= 1, { holds: chipOn.holds, chip });
+  const chipOff = await run(gm, P.toggle, { actorId, itemId: ids.plain, want: false });
+  const chipAfter = await run(gm, P.record, { actorId, itemId: ids.plain });
+  s = await run(gm, P.sheet, { actorId, itemId: ids.plain, tab: "details", edit: true });
+  check("unticking it takes the record that held only what goes in: no container, the toggle unticked, no capacity field", chipOff.found && !chipOff.holds && chipAfter.record === null && !chipAfter.isContainer && !s.toggleChecked && !s.input,
+    { holds: chipOff.holds, record: chipAfter.record, isContainer: chipAfter.isContainer, toggleChecked: s.toggleChecked, input: s.input });
   await run(gm, P.closeAll);
 
   section("5. Weapon Finesse: the imported sizes decide, a size they do not name refuses");

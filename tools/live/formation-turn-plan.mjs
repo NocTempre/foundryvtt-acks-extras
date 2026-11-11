@@ -1,6 +1,7 @@
 /**
  * Live walk: docs/formation/TESTING.md "The turn plan". Two seats. The Player
- * seat locks a search for the member it owns from the party sheet's Turn plan
+ * seat's sheet opens while the Judge's write of the roster lands inside its
+ * first render, and settles on the written roster. The Player seat locks a search for the member it owns from the party sheet's Turn plan
  * column and is refused one it does not own; the Judge locks for another; a move
  * cancels; Turn spends one turn and rolls the searcher on one card whose target
  * is the member's Rolls-tab figure; a fight cancels on one card.
@@ -12,8 +13,9 @@
  * `formation/plan-fighter` and `formation/plan-cleric`. The walk brings them to
  * its start shape itself: the three in the party, its token on the scene, no
  * plan, no fight, not paused, nobody moved this turn.
- * Tracked by id and swept: every chat card the GM seat posts during the run and
- * the combat the fight step makes.
+ * Tracked by id and swept: every chat card the GM seat posts during the run,
+ * the combat the fight step makes, and the two items the Endurance step gives
+ * the fighter (a copy of the library's Endurance and a gear item named for it).
  */
 import { connect, sleep } from "./_driver.mjs";
 import { seats as machineSeats, PORTS } from "./_env.mjs";
@@ -183,6 +185,77 @@ const P = {
     const start = Date.now();
     const ok = await H.poll(() => H.model.realMembers(Object.values(H.model.getFormations()).find((f) => f.actorId === partyId)).length === count || null, { tries: 100, every: 100 });
     return ok ? Date.now() - start : null;
+  },
+
+  /**
+   * Endurance, told by capability: the library's ability whose definition id
+   * folds to `kw:endurance`, copied onto the member, and a gear item named for
+   * it, which must count for nothing. Returns the ids the run made.
+   */
+  endurance: async ({ actorId }) => {
+    const H = globalThis.__tpl;
+    const engine = await import("/modules/acks-extras/scripts/formation/turn-engine.mjs");
+    const lib = await import("/modules/acks-extras/scripts/lib/library.mjs");
+    const vocab = await import("/modules/acks-extras/scripts/lib/vocab.mjs");
+    await lib.whenReady();
+    const actor = game.actors.get(actorId);
+    const source = lib.libraryItems().find((i) => i.type === "ability" && vocab.capabilityForId(lib.cookbookId(i)) === "kw:endurance");
+    const before = engine.hasEndurance(actor);
+    const [named] = await actor.createEmbeddedDocuments("Item", [{ name: "QA Rope of Endurance", type: "item" }]);
+    const namedOnly = engine.hasEndurance(actor);
+    const made = [named.uuid];
+    let imported = null;
+    if (source) {
+      const [copy] = await actor.createEmbeddedDocuments("Item", [source.toObject()]);
+      made.push(copy.uuid);
+      imported = engine.hasEndurance(actor);
+    }
+    await H.sleep(200);
+    return { found: !!source, before, namedOnly, imported, made };
+  },
+
+  /** The Judge takes one member out of the party, leaving the token where it was dropped. */
+  dropMember: async ({ fid, actorId }) => {
+    const H = globalThis.__tpl;
+    await H.model.removeMembers(H.model.getFormation(fid), [actorId], { restore: false });
+    return H.model.realMembers(H.model.getFormation(fid)).length;
+  },
+
+  /**
+   * Open the party sheet with its first render held after its context is read
+   * and before its HTML is drawn: the gap a formation write can land in. The
+   * hold is the instance's own `_preRender`, removed again by `release`.
+   */
+  openHeld: async ({ partyId }) => {
+    const H = globalThis.__tpl;
+    const sheet = game.actors.get(partyId).sheet;
+    if (sheet.rendered) await sheet.close({ animate: false });
+    const proto = Object.getPrototypeOf(sheet)._preRender;
+    let entered = false;
+    H.gate = new Promise((resolve) => { H.openGate = resolve; });
+    sheet._preRender = async function (context, options) {
+      if (options.isFirstRender) {
+        entered = true;
+        await H.gate;
+      }
+      return proto.call(this, context, options);
+    };
+    H.held = sheet.render(true);
+    const reached = await H.poll(() => entered || null, { tries: 50, every: 100 });
+    return { entered: !!reached, state: sheet.state };
+  },
+
+  /** Let the held first render finish, then read the rows it drew and the rows the sheet settles on. */
+  release: async ({ partyId, count }) => {
+    const H = globalThis.__tpl;
+    const sheet = game.actors.get(partyId).sheet;
+    const shown = () => H.root(sheet)?.querySelectorAll("[data-plan-actor]").length ?? 0;
+    H.openGate();
+    await H.held;
+    delete sheet._preRender;
+    const drawn = shown();
+    const settled = await H.poll(() => shown() === count || null, { tries: 30, every: 100 });
+    return { drawn, settled: !!settled, rows: shown(), rendered: !!sheet.rendered };
   },
 
   /** Open the party sheet on its Dungeon tab and read the Turn plan rows as this seat sees them. */
@@ -416,10 +489,23 @@ try {
   check("the walk starts with the three in the party on its scene, the party token there, no plan, no fight, nobody moved",
     shape.members.length === 3 && shape.sceneId === scene.id && shape.partyToken && !shape.plan && !shape.paused && !shape.moved && !shape.combat, shape);
 
+  section("a first render that a member write overlaps");
+  // The player opens the sheet while the cleric is out of the party; its first render is held
+  // between reading the roster and drawing it, and the Judge brings the cleric back in that gap.
+  note("the Judge takes the cleric out; members left", await run(gm, P.dropMember, { fid, actorId: cleric.id }));
+  note("player seat's record held the two after (ms)", await run(player, P.heldOn, { partyId: party.id, count: 2 }));
+  const held = await run(player, P.openHeld, { partyId: party.id });
+  check("the player's first render is held after it read the roster", held.entered, held);
+  const back = await run(gm, P.startShape, { fid, partyId: party.id, sceneId: scene.id, members: [thief.id, fighter.id, cleric.id] });
+  const heldThree = await run(player, P.heldOn, { partyId: party.id, count: 3 });
+  note("player seat's record held the three again after (ms), while the render was held", heldThree);
+  const released = await run(player, P.release, { partyId: party.id, count: 3 });
+  note("released", released);
+  check("the write landed during the held render: the Judge's party is three again and the player's record followed",
+    back.members.length === 3 && heldThree !== null, { members: back.members.length, heldThree });
+  check("the held render drew the roster it read, and the sheet then redraws to the three", released.drawn === 2 && released.settled && released.rows === 3, released);
+
   section("the player locks a search for the member they own");
-  // A sheet whose first render overlaps the member write keeps the roster it started with
-  // (PartySheet.refreshAll passes over a window still rendering), so the seat's copy is awaited first.
-  note("player seat's record held the three after (ms)", await run(player, P.heldOn, { partyId: party.id, count: 3 }));
   const playerCol = await run(player, P.column, { partyId: party.id });
   const rowOf = (col, id) => col.rows.find((r) => r.actorId === id) ?? null;
   note("player column, first sample", playerCol.first);
@@ -520,6 +606,14 @@ try {
   check("one public group card names both", interrupted.length === 1, cards.map((c) => ({ title: c.title, rows: c.rows.length, isPublic: c.isPublic })));
   check("the fight is over when the combat goes", await run(gm, P.endFight, { fid, combatId: fight.id }));
   for (const c of await run(gm, P.cardsSince, { since })) tracked.push(gm.track(c.uuid, "ChatMessage"));
+
+  section("Endurance is a capability, not a name");
+  // Last, so the items it gives the fighter change no rest the steps above measure; swept at teardown.
+  const endured = await run(gm, P.endurance, { actorId: fighter.id });
+  for (const uuid of endured.made) tracked.push(gm.track(uuid, "Item"));
+  note("endurance", { found: endured.found, before: endured.before, namedOnly: endured.namedOnly, imported: endured.imported });
+  check("a gear item named for Endurance does not make its holder owe no rest", endured.before === false && endured.namedOnly === false, endured);
+  check("the library's Endurance, carried, does: its definition id is the kw:endurance capability", endured.found && endured.imported === true, endured);
 
   section("errors after ready");
   await run(gm, P.closeSheet, { partyId: party.id });

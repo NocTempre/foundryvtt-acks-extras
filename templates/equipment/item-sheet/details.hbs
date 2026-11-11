@@ -60,7 +60,7 @@
   </div>
   <div class="acks-row acks-row--wrap">
     <label class="acks-check" data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.options.holdsHint'}}">
-      <input type="checkbox" data-action="toggleHolds" {{checked details.holds}} {{disabled (not editing)}}>
+      <input type="checkbox" data-action="toggleHolds" {{checked details.holdsDeclared}} {{disabled (not editing)}}>
       <span>{{localize 'ACKS-EQUIPMENT.itemSheet.options.holds'}}</span>
     </label>
     {{#if details.holds}}

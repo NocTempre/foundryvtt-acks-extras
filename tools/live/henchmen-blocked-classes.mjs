@@ -3,7 +3,9 @@
  * Walks docs/henchmen/TESTING.md step 17 on the GM and Player seats: the
  * place sheet's GM Settings block (add a row, pick the class, read it back),
  * a class draw that rolls again on a blocked class, a GM placement whose rolled
- * class lands on the special row once every draw is blocked, a player's
+ * class lands on the special row once every draw is blocked, that candidate
+ * hired with no class bound and its Service tab offering the Judge Pick class
+ * (the class picker opening on it) and the Player seat none, a player's
  * directed search refused, and the posting dialog listing the class disabled
  * with its reason. Machine values arrive through ./_env.mjs.
  *
@@ -11,8 +13,10 @@
  * location with a market the Player seat observes, and
  * `henchmen/blocked-classes-employer`, a character the Player seat owns. Each
  * step that needs a shape writes it at its start: the place's blocked list,
- * candidates and postings emptied. Nothing is swept; the candidates and the
- * placement posting the walk writes live on the place's own market. The world
+ * candidates and postings emptied, the employer's henchmen list emptied. The
+ * hireling the hire makes and the cards it posts are tracked by uuid and
+ * swept; the candidates and the placement posting the walk writes live on
+ * the place's own market. The world
  * must hold the imported class tables: the walk reads which class a die of 1
  * draws and prints only whether it found one. Every figure printed is a count
  * or a boolean; no class name leaves the page.
@@ -107,7 +111,7 @@ const P = {
       "system.market.classRarityTableId": "default",
       [`ownership.${playerId}`]: OWN.OBSERVER,
     });
-    await employer.update({ [`ownership.${playerId}`]: OWN.OWNER });
+    await employer.update({ [`ownership.${playerId}`]: OWN.OWNER, "system.henchmenList": [] });
     return {
       market: !!place.system.hasMarket,
       blocked: place.system.market.blockedClasses.length,
@@ -194,6 +198,76 @@ const P = {
     }
     const last = (place.system.candidates ?? []).at(-1);
     return { placed: !!r?.gmPlaced, error: r?.error ?? null, isX0: last?.classKey === H.x0, special: last?.classKey === "special" };
+  },
+  /**
+   * Hire the candidate the capped placement left on the special row, through
+   * the module's hire, and read what it wrote. The ids of the actor and of
+   * every card this seat posted meanwhile come back for the ledger.
+   */
+  hireSpecial: async ({ placeId, employerId }) => {
+    const H = globalThis.__bc;
+    const place = game.actors.get(placeId);
+    const employer = game.actors.get(employerId);
+    const candidate = (place.system.candidates ?? []).findLast((c) => c.classKey === H.CD.JUDGE_PICK_CLASS && c.status === "available");
+    if (!candidate) return { found: false };
+    const cards = [];
+    const hook = Hooks.on("createChatMessage", (m, _o, userId) => { if (userId === game.user.id) cards.push(m.uuid); });
+    let res;
+    try {
+      res = await acksExtras.henchmen.hire(place, candidate.id, employer, {});
+      await H.sleep(800);
+    } finally {
+      Hooks.off("createChatMessage", hook);
+    }
+    const a = res?.actor ?? null;
+    const rolled = a?.getFlag("acks-extras", "record")?.rolled ?? {};
+    return {
+      found: true,
+      error: res?.error ?? null,
+      uuid: a?.uuid ?? null,
+      id: a?.id ?? null,
+      cards,
+      detailsClass: a?.system?.details?.class ?? null,
+      rolledJudgePick: rolled.classKey === H.CD.JUDGE_PICK_CLASS,
+      hpUnrolled: rolled.hpUnrolled ?? "",
+      hpRolled: rolled.hpRoll != null,
+    };
+  },
+  /** The hireling's Service tab as this seat sees it: the class row, its Pick class button, the hit point row; `press` clicks the button. */
+  service: async ({ actorId, press = false }) => {
+    const H = globalThis.__bc;
+    const a = game.actors.get(actorId);
+    const L = (k) => game.i18n.localize(`ACKS-HENCHMEN.service.${k}`);
+    await a.sheet.render(true);
+    await H.poll(() => H.root(a.sheet)?.isConnected);
+    try { a.sheet.changeTab("service", "primary"); } catch { /* a sheet with no Service tab */ }
+    await H.sleep(600);
+    const service = H.root(a.sheet)?.querySelector(".acks-extras-service");
+    const text = (el) => (el?.textContent ?? "").replace(/\s+/g, " ").trim();
+    const rowNamed = (label) => [...(service?.querySelectorAll(".acks-extras-frame__row") ?? [])].find((r) => text(r.querySelector(".acks-extras-frame__row-label")) === L(label));
+    const classRow = rowNamed("classLevel");
+    const hpRow = rowNamed("hitPoints");
+    const button = classRow?.querySelector("[data-pick-class]") ?? null;
+    const hpValue = hpRow?.querySelector(".acks-extras-frame__row-value");
+    const out = {
+      rendered: !!service,
+      classSaysPick: text(classRow?.querySelector(".acks-extras-frame__row-value")).startsWith(L("judgePick")),
+      classRaw: text(classRow).includes(H.CD.JUDGE_PICK_CLASS),
+      button: !!button,
+      buttonNamed: !!button?.getAttribute("aria-label"),
+      hpSaysNotRolled: text(hpValue) === L("hpJudgePick"),
+      hpTipIsPick: hpValue?.dataset.tooltipText === L("tip.hpJudgePick"),
+      rawKey: /ACKS-HENCHMEN\./.test(text(service)),
+      picker: false,
+    };
+    if (press && button) {
+      button.click();
+      const picker = await H.poll(() => foundry.applications.instances.get(`acks-classes-assign-${a.id}`)?.rendered || null, { tries: 40, every: 250 });
+      out.picker = !!picker;
+      await foundry.applications.instances.get(`acks-classes-assign-${a.id}`)?.close();
+    }
+    await a.sheet.close();
+    return out;
   },
   block: async ({ placeId, on }) => {
     const H = globalThis.__bc;
@@ -283,6 +357,8 @@ async function record(port, label, api) {
 
 let gm = null;
 let player = null;
+/** The uuids this run made and tracked: the hireling and the cards its hire posted. */
+const own = [];
 const WALL_MS = Number(process.env.WALK_WALL_MS ?? 570_000);
 setTimeout(() => {
   console.error(`WALK ERROR: wall clock of ${WALL_MS} ms reached; closing the seats`);
@@ -341,6 +417,23 @@ try {
   const capped = await run(gm, P.place, { placeId: place.id });
   check("17: with that class blocked, every draw lands on it, and the candidate's class is the special row", capped.placed && capped.special, capped);
 
+  section("17: hiring the candidate whose class is the Judge's pick");
+  const hired = await run(gm, P.hireSpecial, { placeId: place.id, employerId: employer.id });
+  if (hired.uuid) { await gm.track(hired.uuid, "Actor"); own.push(hired.uuid); }
+  for (const uuid of hired.cards ?? []) { await gm.track(uuid, "ChatMessage"); own.push(uuid); }
+  check("17: the hire lands, binds no class, rolls no hit points, and records the class as the Judge's pick", hired.found && !hired.error && hired.detailsClass === "" && hired.rolledJudgePick && hired.hpUnrolled === "judgePick" && !hired.hpRolled,
+    { found: hired.found, error: hired.error, classEmpty: hired.detailsClass === "", rolledJudgePick: hired.rolledJudgePick, hpUnrolled: hired.hpUnrolled, hpRolled: hired.hpRolled });
+  if (hired.id) {
+    const gmService = await run(gm, P.service, { actorId: hired.id, press: true });
+    note("service (gm)", gmService);
+    check("17: the Judge's Service tab says the class is the Judge's pick and offers a named Pick class; the hit points say not rolled and why",
+      gmService.rendered && gmService.classSaysPick && !gmService.classRaw && gmService.button && gmService.buttonNamed && gmService.hpSaysNotRolled && gmService.hpTipIsPick && !gmService.rawKey, gmService);
+    check("17: Pick class opens the class picker on the hireling", gmService.picker, { picker: gmService.picker });
+    const playerService = await run(player, P.service, { actorId: hired.id });
+    note("service (player)", playerService);
+    check("17: the Player seat that owns the hireling reads the same row with no Pick class", playerService.rendered && playerService.classSaysPick && !playerService.button && playerService.hpSaysNotRolled, playerService);
+  }
+
   section("17: a player's directed search for the blocked class");
   const refused = await run(gm, P.refuse, { placeId: place.id, employerId: employer.id, playerId });
   check("17: refused class-blocked, and no posting written", refused.error === "class-blocked" && refused.postings, refused);
@@ -360,6 +453,7 @@ try {
     try { if (seat) note(`restored (${label})`, await run(seat, P.restore)); } catch (err) { console.error(`restore ${label}:`, err?.message ?? err); }
   }
   console.log("fixtures kept: henchmen/blocked-classes-place, henchmen/blocked-classes-employer");
+  try { if (gm && own.length) note("sweep", await gm.sweepTracked({ only: own })); } catch (err) { console.error("sweep:", err?.message ?? err); }
   try { if (player) await player.close(); } catch {}
   try { if (gm) await gm.close(); } catch {}
   section("summary");

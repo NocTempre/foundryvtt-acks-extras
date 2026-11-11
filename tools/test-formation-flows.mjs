@@ -162,7 +162,9 @@ globalThis.foundry = {
         get actor() {
           return this.options.document ?? null;
         }
+        _configureRenderOptions() {}
         async _onFirstRender() {}
+        async _onRender() {}
         render() {
           return this;
         }
@@ -2077,6 +2079,74 @@ await scenario("template renders live controls for a member-owner", async () => 
     for (const [name, list] of hooks) list.length = before.get(name) ?? 0;
   }
 
+  // A formation change reaches every party sheet once: one at rest is redrawn
+  // by `refreshAll`; one whose render was under way when the change landed
+  // (a first render, not yet in the registry, or a later one, not `rendered`
+  // while it draws) redraws itself once that render finishes; a sheet
+  // `refreshAll` already queued a render for draws no extra one.
+  {
+    const { PartySheet } = partyActorModule;
+    const registry = foundry.applications.instances;
+    const element = { classList: { toggle() {} }, querySelectorAll: () => [], querySelector: () => null };
+    const sheetFor = (id) => {
+      const s = new PartySheet({ document: partyActor });
+      s.element = element;
+      s.renders = 0;
+      s.render = () => {
+        s.renders += 1;
+        return s;
+      };
+      s.cycle = async () => {
+        s._configureRenderOptions({});
+        await s._onRender({ panelHidden: false }, {});
+      };
+      s.key = id;
+      return s;
+    };
+    const atRest = sheetFor("party-at-rest");
+    atRest.rendered = true;
+    registry.set(atRest.key, atRest);
+    try {
+      PartySheet.refreshAll();
+      assert.equal(atRest.renders, 1, "a sheet at rest is redrawn by refreshAll");
+      await atRest.cycle();
+      assert.equal(atRest.renders, 1, "and the redraw it was asked for adds none of its own");
+
+      const first = sheetFor("party-first-render");
+      first.rendered = false;
+      first._configureRenderOptions({});
+      PartySheet.refreshAll();
+      assert.equal(first.renders, 0, "a sheet still drawing its first render is not in the registry for refreshAll");
+      await first._onRender({ panelHidden: false }, {});
+      assert.equal(first.renders, 1, "so it redraws once its first render finishes");
+      await first.cycle();
+      assert.equal(first.renders, 1, "and that redraw, reading the change, asks for no other");
+
+      atRest.renders = 0;
+      atRest._configureRenderOptions({});
+      atRest.rendered = false;
+      PartySheet.refreshAll();
+      atRest.rendered = true;
+      await atRest._onRender({ panelHidden: false }, {});
+      assert.equal(atRest.renders, 1, "a later render the change lands in redraws once when it finishes");
+
+      atRest.renders = 0;
+      PartySheet.refreshAll();
+      atRest._configureRenderOptions({});
+      PartySheet.refreshAll();
+      await atRest._onRender({ panelHidden: false }, {});
+      assert.equal(atRest.renders, 2, "two changes in a burst queue two renders and the first adds none");
+      await atRest.cycle();
+      assert.equal(atRest.renders, 2, "and the second, having read both, adds none either");
+
+      const quiet = sheetFor("party-quiet");
+      await quiet.cycle();
+      assert.equal(quiet.renders, 0, "a render with no change behind it draws no second");
+    } finally {
+      registry.delete(atRest.key);
+    }
+  }
+
   await model.disband(model.getFormation(formation.id));
   await drain();
 });
@@ -2305,6 +2375,25 @@ await scenario("winded markers apply and clear across the rest cycle", async () 
   unregisterTable("formation", { priority: PRIORITY.WORLD });
   await model.disband(model.getFormation(id));
   await drain();
+});
+
+await scenario("an Endurance holder is told by the kw:endurance capability, never by a name", async () => {
+  const byId = await member("Imported Endurance");
+  await byId.createEmbeddedDocuments("Item", [{ name: "Stamina", type: "ability", flags: { [MODULE_ID]: { cookbook: { id: "def.prof.endurance" } } } }]);
+  const byProvides = await member("Provided Endurance");
+  await byProvides.createEmbeddedDocuments("Item", [{ name: "Hardy", type: "ability", flags: { [MODULE_ID]: { extras: { provides: ["kw:endurance"] } } } }]);
+  const byName = await member("Named Only");
+  await byName.createEmbeddedDocuments("Item", [
+    { name: "Endurance", type: "ability" },
+    { name: "Rope of Endurance", type: "item" },
+  ]);
+  const otherAbility = await member("Other Ability");
+  await otherAbility.createEmbeddedDocuments("Item", [{ name: "Labor", type: "ability", flags: { [MODULE_ID]: { cookbook: { id: "def.prof.labor" } } } }]);
+  assert.equal(engine.hasEndurance(byId), true, "an ability whose definition id is Endurance's holds it");
+  assert.equal(engine.hasEndurance(byProvides), true, "an ability that provides kw:endurance holds it");
+  assert.equal(engine.hasEndurance(byName), false, "an ability or an item that is only called Endurance does not");
+  assert.equal(engine.hasEndurance(otherAbility), false, "another capability is not Endurance");
+  assert.equal(engine.hasEndurance(null), false, "no actor holds nothing");
 });
 
 await scenario("moving the party token advances the clock", async () => {

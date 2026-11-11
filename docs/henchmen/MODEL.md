@@ -162,8 +162,15 @@ the maximum and each level's roll. With no class matching, or a class whose
 rows carry no hit dice, nothing is rolled or written — `rerollHitPoints` is
 never reached without a class, since it would otherwise fall to the system's
 default hit-dice formula — and `hpUnrolled` names which was missing
-(`rules/service.mjs` `hireHitPoints`). A 0th-level hire attempts nothing. The
-level-up wizard's kept roll (`levelUpRoll`) belongs to a climb in progress
+(`rules/service.mjs` `hireHitPoints`). A 0th-level hire attempts nothing.
+A candidate whose class key is `special` (`JUDGE_PICK_CLASS`, the Judge's
+pick) is hired with `details.class` empty (`hiredClassName`), so no class is
+bound and nothing is rolled; `hpUnrolled` is `judgePick`. The Service panel
+reads "Judge's pick" there, and on a Judge's seat offers Pick class
+(`offersClassPick`), which opens the classes feature's picker on the
+hireling; binding a class there rolls its hit points. A hire recorded before
+this wrote `special` into `details.class` and `noClass` into the record; the
+panel reads both as the Judge's pick. The level-up wizard's kept roll (`levelUpRoll`) belongs to a climb in progress
 and is not written at hire.
 
 **A signing bonus the employer cannot pay.** Both hire paths pay the bonus

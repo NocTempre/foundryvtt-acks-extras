@@ -13,8 +13,9 @@
  * the light sources the GM seat's canvas draws) and a deployed member's token
  * light following a shutter flip and a stow; a wearable item's light reading
  * through `canWear` / `isWorn`; the tooltip text on the badge and the button;
- * and the Kit row and the item tag at 14 and 18 px type, on windows opened
- * after the change, at the sheet's width and a narrow one. Prints booleans
+ * and the Kit row, the header's name field beside its bar, and the item tag
+ * at 14 and 18 px type, on windows opened after the change, at the sheet's
+ * width and a narrow one. Prints booleans
  * and counts. Machine values arrive through ./_env.mjs.
  *
  * The walk has two seats, so an Observer is the Player user taken down to
@@ -426,7 +427,36 @@ const P = {
         btnH: btn ? Math.round(btn.getBoundingClientRect().height) : null,
       };
     });
-    return { winW: Math.round(root.getBoundingClientRect().width), rows, contentOverX: content.scrollWidth > content.clientWidth + 1, panelOverX: panel ? panel.scrollWidth > panel.clientWidth + 1 : null, winId: app.id };
+    // The header band: the name field against the bar and the window's controls.
+    const header = root.querySelector(":scope > .window-header");
+    const rect = (el) => el?.getBoundingClientRect() ?? null;
+    const meet = (a, b) => !!a && !!b && a.width > 0 && b.width > 0 && a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1;
+    const nameEl = header?.querySelector(".acks-extras-party-sheet__name");
+    const nameR = rect(nameEl);
+    const titleEl = header?.querySelector(".acks-extras-party-sheet__title");
+    const titleR = rect(titleEl);
+    const titleFloor = titleEl ? parseFloat(getComputedStyle(titleEl).minWidth) || 0 : null;
+    const barR = rect(header?.querySelector(".acks-extras-party-sheet__bar"));
+    const headR = rect(header);
+    const controls = [...(header?.querySelectorAll(".header-control") ?? [])].map(rect).filter((r) => r.width > 0);
+    const band = {
+      name: !!nameEl,
+      bar: !!barR,
+      nameW: nameR ? Math.round(nameR.width) : null,
+      namePx: px(nameEl),
+      barOverName: meet(nameR, barR),
+      controlOverName: controls.some((c) => meet(nameR, c)),
+      controlOverBar: controls.some((c) => meet(barR, c)),
+      inside: !!nameR && !!headR && nameR.left >= headR.left - 1 && nameR.right <= headR.right + 1 && (!barR || (barR.left >= headR.left - 1 && barR.right <= headR.right + 1)),
+      titleW: titleR ? Math.round(titleR.width) : null,
+      titleFloor: titleFloor === null ? null : Math.round(titleFloor),
+      // The title keeps its floor: the bar wraps before the name is squeezed below it.
+      roomy: !!titleR && titleFloor !== null && titleR.width >= titleFloor - 1,
+      // A long name may still end in an ellipsis in a narrow header; reported, not required.
+      nameWhole: nameEl ? nameEl.scrollWidth <= nameEl.clientWidth + 1 : null,
+      barWrapped: !!nameR && !!barR && barR.top >= nameR.bottom - 1,
+    };
+    return { winW: Math.round(root.getBoundingClientRect().width), rows, band, contentOverX: content.scrollWidth > content.clientWidth + 1, panelOverX: panel ? panel.scrollWidth > panel.clientWidth + 1 : null, winId: app.id };
   },
   layoutItem: async ({ actorId, itemId }) => {
     const H = globalThis.__ml;
@@ -842,6 +872,11 @@ try {
       check(`${label} seat at ${px}: no Kit row spills past its own box, no button is clipped, and the window has no horizontal overflow, at the sheet's width`, m.wide.rows.every((r) => !r.overX && !r.spill && r.btnClipped === false && r.btnInside) && !m.wide.contentOverX && !m.wide.panelOverX, { rows: m.wide.rows.map((r) => ({ overX: r.overX, spill: r.spill, clip: r.btnClipped, inside: r.btnInside, h: r.h })), content: m.wide.contentOverX, panel: m.wide.panelOverX });
       check(`${label} seat at ${px}: the same holds at a narrow window (reached ${m.narrow.winW} px)`, m.narrow.rows.every((r) => !r.overX && !r.spill && r.btnClipped === false && r.btnInside) && !m.narrow.contentOverX, { winW: m.narrow.winW, rows: m.narrow.rows.map((r) => ({ overX: r.overX, spill: r.spill, clip: r.btnClipped, inside: r.btnInside, h: r.h })), content: m.narrow.contentOverX, panel: m.narrow.panelOverX });
       check(`${label} seat at ${px}: the item sheet's tag row fits`, m.item.row && !m.item.overX && !m.item.spill && m.item.btnClipped === false && !m.item.contentOverX, m.item);
+      for (const [at, reading] of [["the sheet's width", m.wide], [`a narrow window (${m.narrow.winW} px)`, m.narrow]]) {
+        const b = reading.band;
+        check(`${label} seat at ${px}, ${at}: the header's title keeps its floor width, and neither the bar nor a window control lies over the name`,
+          b.name && b.bar && !b.barOverName && !b.controlOverName && !b.controlOverBar && b.inside && b.roomy, b);
+      }
     }
   }
   note("screenshots taken for review (the walk's own scratch directory, not the repo)", shotsDir);
