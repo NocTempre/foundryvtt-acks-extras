@@ -104,6 +104,14 @@
   now names the step it stopped at and what stands, a choice counts as made only
   once what it chose is on the sheet, and the class picker asks again any it
   left open.
+- **Rebuilding a monster family brings its template back.** Where a copy of a
+  family's template had been dragged into the Actors sidebar, rebuilding the
+  family (Settings tab → Game Settings → ACKS II — Extras → Manage imports →
+  Tools → (Re)import individual entries) deleted the library's template and
+  then took the copy for it, so nothing was imported again and the copy kept
+  the shape it was made with. The library's template is now imported again
+  and the copy is left as it is: delete the copy and drag the rebuilt template
+  out of the library to use it.
 
 ## 11.14.4
 

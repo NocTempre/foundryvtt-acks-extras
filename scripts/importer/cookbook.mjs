@@ -1528,9 +1528,14 @@ async function importedIdsOfType(type, worldCollection) {
  */
 const importedIdSet = () => importedIdsOfType("Actor", game.actors);
 
-/** Actors of one type, wherever imports live (sidebar + configured pack). */
+/**
+ * Actors of one type, wherever imports live (sidebar + configured pack). Never
+ * a copy dragged out of the library (`isWorldCopy`): it is the Judge's, and a
+ * family or leader template found there would take the import's write, or
+ * stand in for the library's document a rebuild puts back.
+ */
 async function importedActorsOfType(type) {
-  const world = game.actors.filter((a) => a.type === type);
+  const world = game.actors.filter((a) => a.type === type && !isWorldCopy(a));
   const collections = ourPacksOfType("Actor");
   if (!collections.length) return world;
   const docs = (await Promise.all(collections.map((c) => c.getDocuments({ type }).catch(() => [])))).flat();

@@ -281,6 +281,17 @@ ok("a sidebar duplicate is a copy", isWorldCopy({ ...stamped, _stats: { duplicat
 ok("an import made in the sidebar is not", !isWorldCopy({ ...stamped, _stats: { compendiumSource: null, duplicateSource: null } }));
 ok("an import built from the system's own compendium is not", !isWorldCopy({ ...stamped, _stats: { compendiumSource: `Compendium.acks.acks-all-equipment.Item.${C}` } }));
 
+// The library's two readings of the sidebar both leave a copy out: the id set
+// that says an entry is held, and the actors a family or leader template is
+// looked up in. A copy found by the second takes the family's rebuild in place
+// of the library's document, which the first then never puts back.
+{
+  const src = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "..", "scripts", "importer", "cookbook.mjs"), "utf8");
+  const body = (name) => src.slice(src.indexOf(`async function ${name}(`), src.indexOf("\n}\n", src.indexOf(`async function ${name}(`)));
+  ok("the held-id set leaves a library copy out", /!isWorldCopy\(d\)/.test(body("importedIdsOfType")));
+  ok("the template lookup leaves a library copy out", /game\.actors\.filter\(\(a\) => a\.type === type && !isWorldCopy\(a\)\)/.test(body("importedActorsOfType")));
+}
+
 /* ---------------- the picture and the geometry turn by one rule ---------------- */
 
 // The renderer draws the cut picture through `turnMatrix`; everything else is

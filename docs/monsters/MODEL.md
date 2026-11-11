@@ -350,7 +350,10 @@ and its tooltip names each part.
 (`withRewrite`) runs that build and writes it over the held template whole,
 carrying over the variants another book merged into it. A held variant that is
 the family's own overview, which the build reads as its description, is never
-carried back.
+carried back. The template a family merges into, rewrites or puts back is the
+library's: a copy dragged out of the library (`isWorldCopy`) is never found by
+the lookup (`importedActorsOfType`) and never written, so it keeps the shape it
+was copied with.
 
 ## The Kit axis
 

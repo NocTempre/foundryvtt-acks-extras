@@ -9504,3 +9504,33 @@ closed book holds and cannot bring it back.
 *Cost:* the confirm's counts are each part's own, so a document two parts
 reach (a book's own item an adventure's repair also writes) is counted in
 both. The dry pass reads the library once more than the run does.
+
+## 2026-11-10 — A copy dragged out of the library never stands in for a family's template
+
+**Reported.** The owner, on 11.14.4: the Beastman template offered no
+Standard role and lacked roles the page prints, and "Rebuild is still
+skipping existing". The template had been imported before 11.14.0, so it
+carried the old Role axis; rebuilding it should have replaced it.
+
+**Diagnosed** (read from source; the one live run of the old code was cut off
+after its delete, so it proves the delete and not the skip).
+`importedIdsOfType` has left a copy out of the held-id set since "The library
+is the packs AND the sidebar this module stamped", so that a rebuild puts the
+library's document back. `importedActorsOfType`, the lookup `importFamily`
+and the leader template run to find the template they merge into or write
+over, did not, and it listed the sidebar first. With a copy of the family's
+template in the sidebar, a rebuild deleted the library's template and the
+family import then found the copy, merged no new variant into it and created
+nothing: the copy kept its shape and the library lost its template.
+
+**Ruled.** `importedActorsOfType` leaves out what `isWorldCopy` names, as the
+held-id set does. A copy is the Judge's and no import mode writes it; a
+rebuild puts the library's template back beside it.
+
+**Rejected:** rewriting the copy as well. It is the Judge's by the same rule
+that keeps it out of every repair, and it may carry their own edits.
+
+*Cost:* a Judge who works from a copy keeps the old shape after a rebuild
+until they delete it and drag out the rebuilt template; the changelog says so.
+A rebuild's template keeps its id only while the page that deleted it stays
+open (`deleteImported` records ids in memory).

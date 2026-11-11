@@ -3727,3 +3727,40 @@ the token and the one card, none missing, none refused. Step 4 is held
 offline by `tools/importer/test-region-import.mjs` ("and is not written
 twice"), beside the cases the repair must refuse: a mark that is not the
 minted one, and a recipe declaring no travel.
+
+## A family's rebuild with a copy in the sidebar
+
+### Fixtures
+
+- `monsters/beastman-pre-11-14` — a template actor in the Actors sidebar
+  carrying the family stamp (`flags["acks-extras"].cookbook.id`
+  `mm.familyBeastman`) and `_stats.compendiumSource` naming a library
+  template, so `isWorldCopy` answers true: what a Judge's drag out of the
+  library leaves. Built from the library template's `toObject()` with the
+  Role axis in the pre-11.14.0 shape (no default, a combined drudge-and-whelp
+  role, two-part cells only), so a write to it shows. `_stats.compendiumSource`
+  is accepted in the create data.
+
+### Steps
+
+The Monstrous Manual open on the seat (`acksExtras.importer.bookOpen("mm")`;
+a fresh seat opens its books one by one after `ready`, and the entry picker
+lists only an open book's rows, so wait for it first). Drive the picker
+(Manage Imports → Tools → (Re)import individual entries) in short page calls:
+open it, tick `Monsters|mm.familyBeastman`, set the mode, press Reimport, press
+Yes, and leave the run's promise on the page; poll for it to settle. A single
+evaluate held over the import outlives the driver's timeout, and closing the
+page then kills the run after its delete.
+
+1. Mode Rebuild. *The confirm counts no document of the copy; one library
+   template stamped `mm.familyBeastman` stands after, with the current Role
+   axis (its default Standard); no "already covers" notice; the copy's
+   `system` is byte-identical before and after.*
+2. Mode Repair in place. *The library template is written in place under its
+   id; the copy is unchanged.*
+
+### Teardown
+
+The fixture is kept. A rebuild's template replaces the library's under a
+recorded id only while the page that deleted it stays open; check nothing
+names the old id before letting a new one stand.
