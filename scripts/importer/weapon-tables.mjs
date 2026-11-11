@@ -157,15 +157,22 @@ export function bindRowCells(runs, columns) {
 
 /**
  * Read every DATA row from the page: its label band (for matching), whether it
- * is melee/missile (from the centered type band), and its value cells. Category
- * sub-headers, the section title and the column-header row all fail the
- * "carries a die/cost/type" test and are dropped.
- * @returns {{label:string, melee:boolean, missile:boolean, ammunition:boolean, cells:object}[]}
+ * is melee/missile (from the centered type band), its value cells, and the
+ * sub-header (`block`) it sits under. Category sub-headers, the section title
+ * and the column-header row all fail the "carries a die/cost/type" test and
+ * are dropped as rows; a labelled one below the title (the first sub-header
+ * shares its line with the column headers) becomes the block of every row
+ * after it, and a row before any sub-header carries none. Whatever sits above
+ * the title row is page furniture and names no block.
+ * @returns {{label:string, melee:boolean, missile:boolean, ammunition:boolean, size:string|null, cells:object, block:string|null}[]}
  */
 export function extractValueRows(items, recipe = WEAPON_TABLE) {
   const clean = stripNoise(items);
   const rows = rowsByY(clean, recipe.rowTol ?? 3);
   const out = [];
+  const title = String(recipe.anchors?.[0] ?? "").toLowerCase();
+  let seenTitle = !title;
+  let block = null;
   for (const r of rows) {
     const label = joinRuns(r.items.filter((it) => it.x < recipe.labelMaxX)).replace(/\s+/g, " ").trim();
     if (!label) continue;
@@ -186,8 +193,12 @@ export function extractValueRows(items, recipe = WEAPON_TABLE) {
     // price (a digit or "gp"), not merely be present.
     const hasDie = /\dd\d/i.test(cells.damage ?? "");
     const hasPrice = /\d|gp/i.test(cells.cost ?? "");
-    if (!hasDie && !hasPrice && !(melee || missile || ammunition)) continue;
-    out.push({ label, melee, missile, ammunition, size, cells });
+    if (!hasDie && !hasPrice && !(melee || missile || ammunition)) {
+      if (label.toLowerCase() === title) seenTitle = true;
+      else if (seenTitle) block = label;
+      continue;
+    }
+    out.push({ label, melee, missile, ammunition, size, cells, block });
   }
   return out;
 }
@@ -217,7 +228,7 @@ export function sizeOf(typeSignal) {
  * The seat's own `label` rides along beside the canonical name: it is the only
  * place the reader's spelling of the row survives, and `ammoLoad` reads the
  * printed count out of it.
- * @returns {{name:string, label:string, melee:boolean, missile:boolean, ammunition:boolean, cells:object}[]}
+ * @returns {{name:string, label:string, melee:boolean, missile:boolean, ammunition:boolean, size:string|null, cells:object, block:string|null}[]}
  */
 export function extractWeapons(items, recipe = WEAPON_TABLE, names = WEAPON_NAMES) {
   const valueRows = extractValueRows(items, recipe);
@@ -228,7 +239,7 @@ export function extractWeapons(items, recipe = WEAPON_TABLE, names = WEAPON_NAME
     if (i < 0) continue; // this weapon's row was not found on the seat's page
     used.add(i);
     const r = valueRows[i];
-    out.push({ name: spec.name, label: r.label, melee: r.melee, missile: r.missile, ammunition: r.ammunition, size: r.size ?? null, cells: r.cells });
+    out.push({ name: spec.name, label: r.label, melee: r.melee, missile: r.missile, ammunition: r.ammunition, size: r.size ?? null, cells: r.cells, block: r.block ?? null });
   }
   return out;
 }
@@ -420,13 +431,28 @@ export function bindWeaponRow(row, id, cite) {
   if (range.short || range.medium || range.long) {
     system.range = { short: range.short ?? 0, medium: range.medium ?? 0, long: range.long ?? 0 };
   }
+  // The figures the page gave, as written: a reader tells a Judge's later edit
+  // of the document from the import's own figures by comparing against them.
+  const read = {
+    size: system.size ?? null,
+    melee,
+    missile,
+    damage: system.damage.base.formula,
+    alternate: system.damage.alternate.formula,
+    special: Object.keys(special).sort(),
+    cleaveLimit: cleaveLimit ? { numeric: cleaveLimit.numeric ?? null, addStrMod: cleaveLimit.addStrMod === true } : null,
+    weight6: weight6 ?? null,
+    cost: cost ?? null,
+    range: range.short || range.medium || range.long ? { ...range } : null,
+  };
   return {
     name: row.name,
     type: "weapon",
     img: DEFAULT_IMG.WEAPON,
     system,
-    // The capture the compendium lacked: all attack/damage modes on ONE item.
-    flags: { [MODULE_ID]: { cookbook: { id, cite }, minted: true, weapon: { modes } } },
+    // The capture the compendium lacked: all attack/damage modes on ONE item,
+    // and the sub-header the grid files the row under.
+    flags: { [MODULE_ID]: { cookbook: { id, cite, read }, minted: true, weapon: { modes, block: row.block ?? null } } },
   };
 }
 

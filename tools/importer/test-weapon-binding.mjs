@@ -6,7 +6,7 @@
  * the real page is `test-weapon-tables.mjs`. Every value here is invented.
  */
 import assert from "node:assert";
-import { bindWeaponRow, bindAmmoRow, sizeOf, settleQualities } from "../../scripts/importer/weapon-tables.mjs";
+import { bindWeaponRow, bindAmmoRow, extractValueRows, sizeOf, settleQualities } from "../../scripts/importer/weapon-tables.mjs";
 
 let pass = 0;
 const check = (label, cond) => { assert.ok(cond, label); pass++; };
@@ -53,6 +53,39 @@ const net = bindWeaponRow(row("Net", { melee: true, missile: true, size: "medium
 check("a row that prints no die writes a blank formula, not the system's default die", net.system.damage.base.formula === "" && net.system.damage.alternate.formula === "");
 check("and still lights its qualities", net.system.special.entangling === true && net.system.special.thrown === true);
 check("and keeps its modes without a die", net.flags["acks-extras"].weapon.modes.every((m) => m.damage === null));
+
+// --- the sub-header a row sits under, and what the import stamps it read
+{
+  // Runs in the extractor's own shape: a page of invented rows with the title, a
+  // page-furniture line above it, a first sub-header sharing its line with the
+  // column headers, a second sub-header alone, and rows under each.
+  const run = (str, x, y) => ({ str, x, y, w: 10, h: 9 });
+  const dataRow = (name, y) => [run(name, 49, y), run("Missile", 182, y), run("1d3", 225, y), run("1gp", 424, y), run("-", 534, y)];
+  const page = [
+    run("FURNITURE LINE", 45, 93),
+    run("Weapons", 45, 120),
+    run("Alpha/beta", 50, 144), run("type", 184, 144), run("cost", 427, 144),
+    ...dataRow("Zork", 162),
+    ...dataRow("Blorp", 174),
+    run("Gamma", 49, 190),
+    ...dataRow("Quux", 210),
+  ];
+  const got = extractValueRows(page);
+  check("every invented row is read", got.map((r) => r.label).join() === "Zork,Blorp,Quux");
+  check("a row takes the sub-header above it, even one sharing the column-header line", got[0].block === "Alpha/beta" && got[1].block === "Alpha/beta");
+  check("a later sub-header takes over", got[2].block === "Gamma");
+  check("neither the title nor the line above it is a block", got.every((r) => r.block !== "Weapons" && r.block !== "FURNITURE LINE"));
+  const lone = extractValueRows([run("Weapons", 45, 120), ...dataRow("Zork", 162)]);
+  check("a row under no sub-header carries none", lone.length === 1 && lone[0].block === null);
+
+  const filed = bindWeaponRow({ ...row("Zork", { missile: true, damage: "1d3" }), block: "Alpha/beta" }, "x", "y");
+  check("the bound document records the block", filed.flags["acks-extras"].weapon.block === "Alpha/beta");
+  check("and a row with none writes null, so a repair clears a stale one", bindWeaponRow(row("Zork", { missile: true, damage: "1d3" }), "x", "y").flags["acks-extras"].weapon.block === null);
+  const read = bindWeaponRow(row("Quux", { melee: true, size: "large", damage: "1d9/1d11", special: "Handy, Cleave 4 + STR mod", enc: "1", cost: "7gp" }), "x", "y").flags["acks-extras"].cookbook.read;
+  check("the stamp holds the figures read", read.size === "large" && read.melee === true && read.missile === false && read.damage === "1d9" && read.alternate === "1d11" && read.weight6 === 6 && read.cost === 7);
+  check("and the qualities and the cleave limit", read.special.join() === "cleave,handy" && read.cleaveLimit.numeric === 4 && read.cleaveLimit.addStrMod === true && read.range === null);
+  check("and a printed range", bindWeaponRow(row("Zork", { missile: true, damage: "1d3", short: "10'", med: "20'", long: "30'" }), "x", "y").flags["acks-extras"].cookbook.read.range.long === 30);
+}
 
 // --- ammunition: a stack whose quantity is the printed count
 const ammo = (name, enc) => ({ name, label: name, melee: false, missile: false, ammunition: true, size: null, cells: { damage: "—", enc, cost: "1gp" } });

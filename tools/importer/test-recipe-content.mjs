@@ -25,6 +25,7 @@ import { parseCell } from "../../scripts/markets/rules/availability.mjs";
 import { parseStones, parseTollCpPerSt, parseTariffPct, parseStayFee, diceRange } from "../../scripts/markets/rules/arbitrage.mjs";
 import { parseMoneyCp } from "../../scripts/markets/rules/commissions.mjs";
 import { parseMiles } from "../../scripts/markets/rules/routes.mjs";
+import { parseOptions, parseFocus, parseThrowable, parseDealtBy } from "../../scripts/importer/weapon-binding.mjs";
 import { FILES } from "./reference-lib.mjs";
 
 /** The tables under test, by recipe document. Each is one entry of `TABLE_RECIPES`. */
@@ -51,6 +52,8 @@ const TABLES = {
   // The level-gain morale bonuses: two levels and the bonus each earns.
   wages: ["henchmanLimit", "employerLevelCap", "levelMorale"],
   // The domain month: every table its procedure runs on.
+  // The weapon lists' prose: the kinds each folio names, read into windows.
+  weaponProse: ["martialProse", "focusProse", "narrowProse", "twoHandsFirst", "twoHandsSecond", "throwableProse", "damageTypeProse"],
   domain: [
     "strongholdMinimum", "growth", "prestigeImmigration", "revenue", "expenses", "peace",
     "magistrateShare", "titles", "tribute", "tributeInefficiency", "baseMoraleModifiers",
@@ -308,6 +311,47 @@ for (const id of [
   "availability.marketRulesProse", "availability.bargainingProse", "magicItems.priceProse",
   "mercantile.impactProse", "mercantile.priceShiftProse",
 ]) VERIFY[id] = (out, recipe, fail) => proseKeys(out, recipe, fail);
+
+/* ------------------------- the weapon prose windows ------------------------ */
+
+// Each window must hold the shape its list parser reads: the numbered options
+// yield nouns, the focus sentence yields a group, a damage type's sentence
+// yields the weapons it is dealt by, a flask or torch yields a die and an icon's
+// type, and the description folios yield text that cuts into entries.
+const nonEmptyWindow = (out, recipe, fail) => {
+  proseKeys(out, recipe, fail);
+  for (const v of recipe.values) if (out?.[v.key] !== undefined && !isText(out[v.key])) fail(`${v.key}: empty or non-text window`);
+};
+for (const id of ["weaponProse.martialProse", "weaponProse.narrowProse"]) {
+  VERIFY[id] = (out, recipe, fail) => {
+    nonEmptyWindow(out, recipe, fail);
+    const options = parseOptions(out?.options);
+    if (options.length < 2) fail("options: fewer than two numbered options read");
+    if (!options.some((nouns) => nouns.length)) fail("options: no option yields a noun");
+  };
+}
+VERIFY["weaponProse.focusProse"] = (out, recipe, fail) => {
+  nonEmptyWindow(out, recipe, fail);
+  if (!Object.keys(parseFocus(out?.list)).length) fail("list: no weapon focus group read");
+};
+for (const id of ["weaponProse.twoHandsFirst", "weaponProse.twoHandsSecond"]) {
+  VERIFY[id] = (out, recipe, fail) => {
+    nonEmptyWindow(out, recipe, fail);
+    if (!/(?:^|\.\s)[a-z][a-z-]*(?:,\s[a-z-]+)?:\s/.test(String(out?.entries ?? ""))) fail("entries: no entry head in the window");
+  };
+}
+VERIFY["weaponProse.throwableProse"] = (out, recipe, fail) => {
+  nonEmptyWindow(out, recipe, fail);
+  for (const v of recipe.values) {
+    const read = parseThrowable(out?.[v.key]);
+    if (v.key === "oil" && !read.damage) fail(`${v.key}: no die read`);
+    if (!read.types?.length) fail(`${v.key}: no damage-type icon read`);
+  }
+};
+VERIFY["weaponProse.damageTypeProse"] = (out, recipe, fail) => {
+  nonEmptyWindow(out, recipe, fail);
+  for (const v of recipe.values) if (!parseDealtBy(out?.[v.key]).length) fail(`${v.key}: no weapon list read`);
+};
 
 /* ------------------------------- the domain ------------------------------- */
 

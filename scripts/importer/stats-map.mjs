@@ -47,7 +47,13 @@ const DAMAGE_GLYPHS = Object.fromEntries(
     e910: "varies",
   }).map(([hex, type]) => [String.fromCodePoint(parseInt(hex, 16)), type]),
 );
-const damageTypeOf = (segment) => {
+/**
+ * The damage type the first damage-type icon in a run of page text stands
+ * for, as the module's `DAMAGE_TYPES` key; null when the text holds none.
+ * Every book prints the same icon font, so the decode holds beyond the
+ * Monstrous Manual's legend it was read from.
+ */
+export const damageTypeOf = (segment) => {
   for (const ch of segment ?? "") if (DAMAGE_GLYPHS[ch]) return DAMAGE_GLYPHS[ch];
   return null;
 };

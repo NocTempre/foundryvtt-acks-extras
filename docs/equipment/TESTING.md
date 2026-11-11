@@ -1129,8 +1129,14 @@ the imported documents").
 ### Steps
 
 1. After `ready`, read `acksExtras.lib.tables.getTable("weapons", "grid")`.
-   *Observable:* one row per imported weapon, keyed by weapon key, each with
-   a `cite`; `citeOf("weapons", "grid")` names a page. Edit one library
+   *Observable:* one row per imported weapon, keyed by the tail of its mint id
+   (`def.weapon.<tail>`, folded), each with a `name`, a `block` (the grid
+   sub-header, null on an item minted before it was recorded until a repair),
+   its damage `types` and a `cite`; `citeOf("weapons", "grid")` names a page.
+   `rowsReady()` (module-internal: import `weapon-rows.mjs`) resolves once
+   these are in the registry, and
+   `acksExtras.weaponRowsChanged` fires once after an edit's republication
+   (listen with `Hooks.on`). Edit one library
    weapon's damage and read again: the row follows. Delete that weapon: its
    row is gone. A weapon on an actor moves nothing. A weapon imported before
    the system's own weapon fields were written gives no row.

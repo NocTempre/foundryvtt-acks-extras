@@ -807,27 +807,40 @@ Net row all read one answer.
 
 The importer mints a core `weapon` item per printed row of the seat's weapons
 grid (`def.weapon.*`), writing size, melee and missile, the special qualities,
-the cleave limit and the base and alternate damage into the system's own
-fields. `weapon-rows.mjs` reads them back and registers the `weapons` ruledata
-document at WORLD priority, table `grid`, one row per weapon key (the
-vocabulary of `weaponIdentity`): `size` (null where the system's size is
-`na`), `melee`, `missile`, `thrown`, `handy`, `special`, `cleaveLimit` (only on
-a weapon that cleaves), `damage`, `damage2h` and `cite`.
+the cleave limit, the base and alternate damage and its damage types into the
+system's own fields, and the grid sub-header the row sits under into
+`flags["acks-extras"].weapon.block`. `weapon-rows.mjs` reads them back and
+registers the `weapons` ruledata document at WORLD priority, table `grid`, one
+row per weapon: `name`, `block` (null where the row sat under none), `size`
+(null where the system's size is `na`), `melee`, `missile`, `thrown`, `handy`,
+`special`, `cleaveLimit` (only on a weapon that cleaves), `damage`, `damage2h`,
+`types` (the item's own base damage types, sorted) and `cite`. The row states
+itself: which category, focus or damage type it belongs to is the resolver's
+question (`lib/weapons.mjs`, `docs/importer/MODEL.md` "The weapon lists"), asked
+of the row's name and block.
 
+- **The key is the tail of the item's mint id** (`def.weapon.<tail>`), folded
+  to lowercase letters and digits. It is what the grid printed and nothing the
+  module knows about weapons, so no table of names has to exist for a row to be
+  found, and renaming an item does not move its row. Where two items carry one
+  mint id, library order decides.
 - A row is exactly what the item carries. An import from before the importer
   wrote the structured fields yields no row: such an item holds the system's
   defaults, which a live document always has, so the mark is shape (a melee
   weapon with no size, or a quality word kept as a custom tag while its special
-  property is unlit). An item the importer did not mint, and one no weapon key
-  names, yield no row either.
-- Where two items name one key, the better-attested identity wins (a minted id
-  over a name match), then library order.
+  property is unlit). An item the importer did not mint yields no row either.
 - Each row's `cite` is the item's stored citation, so a tooltip can name the
   page; the table's own `cites` entry is set when every row shares one.
 - It publishes once the library has loaded, and again on create, update or
   delete of a library weapon (a weapon on an actor moves nothing). A delete
   leaves the deleted document out explicitly, since its hook can fire while
   the collection still lists it. With no row left the document is withdrawn.
+- **A reader waits with `rowsReady()`**, which resolves when the first
+  publication has landed (also where it failed, which is logged), and at once
+  where the publisher was never registered. **A reader that redraws listens
+  for `acksExtras.weaponRowsChanged`**, fired once, 50 ms after the last
+  publication or withdrawal of a burst. Neither is exposed on the module api
+  yet; no consumer reads the document.
 - No consumer reads the document yet: `WEAPONS` in `config.mjs` is still the
   classifier's source.
 

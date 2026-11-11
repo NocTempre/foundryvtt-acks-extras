@@ -1000,6 +1000,43 @@ first, because each spec claims the first matching row below the one before
 it. It registers at the world layer with every rules table, and markets reads
 it (`docs/markets/MODEL.md`, "Range of Trade").
 
+## The weapon lists
+
+The weapons grid prints each row's figures and the sub-header it sits under,
+and states nothing of which proficiency category, Weapon Focus or damage type
+a weapon belongs to, or which weapons need both hands. The book states those
+as lists of kinds in prose, so the importer reads them as **noun lists** and a
+resolver places each grid row against them (`lib/weapons.mjs`); nothing is
+resolved at import time and no noun, die or type ships.
+
+- **Two documents.** The `weaponProse` raw document holds one `proseValues`
+  recipe per folio, each a `take: "window"` read: the Martial Training options
+  (RR ch. 3), the narrow-selection options (JJ ch. 12), the Weapon Focus
+  sentence (RR ch. 3), each physical damage type's entry and the thrown flask
+  and torch entries (RR ch. 6), and the weapon descriptions (RR ch. 4, two
+  folios: the first opens on the section heading, the second runs from the
+  top of its page so every entry keeps its head). `weapon-binding.mjs`, a
+  `SIMPLE_BINDINGS` entry gated on the raw document, assembles the
+  `weaponLists` document from them (`PRODUCES` names each list's raw tables)
+  and registers it beside the raw one, each list citing the folios it was read
+  from.
+- **What a list holds.** `category`, `focus` and `damageType` are
+  `{ key: nouns }`; `throwables` is `{ oil | holyWater | torch: { damage,
+  types } }`; `twoHands` is a noun list. A noun is placed on a module
+  category token only by the words of that token's own name; an option naming
+  no token is the catch-all category. A damage-type icon is a private-use
+  glyph in the text layer, decoded by `damageTypeOf`. The "extraordinary" mark
+  on a flask is an icon colour the text layer does not carry, so the flag is
+  absent unless the printing spells the word.
+- **A window that did not read costs its list only.** The list is absent, the
+  resolver places nothing from it, and nothing is defaulted.
+- **A grid row's sub-header.** `extractValueRows` records the labelled row that
+  opens each block of the grid, `bindWeaponRow` writes it to
+  `flags["acks-extras"].weapon.block` (null when the row sits under none, so a
+  repair clears a stale one) and stamps the figures it read into
+  `cookbook.read`. A repair rewrites both with the figures. Items minted before
+  the block was recorded carry none until a repair runs.
+
 ## A point of interest
 
 The points-of-interest step (`cookbookImportPoiPlaces`) brings location actors

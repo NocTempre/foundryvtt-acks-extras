@@ -60,6 +60,7 @@ import { applyFormationImport, FORMATION_DOC_ID } from "./formation-binding.mjs"
 import { applyExperienceImport, EXPERIENCE_DOC_ID } from "./experience-binding.mjs";
 import { applyLightImport, LIGHT_DOC_ID } from "./light-binding.mjs";
 import { applyDelveEncounterImport, DELVE_ENCOUNTER_DOC_ID } from "./delve-encounter-binding.mjs";
+import { applyWeaponListsImport, WEAPON_PROSE_DOC_ID } from "./weapon-binding.mjs";
 import { progressBar } from "./progress.mjs";
 
 /**
@@ -82,6 +83,9 @@ const SIMPLE_BINDINGS = Object.freeze([
   { id: EXPERIENCE_DOC_ID, apply: applyExperienceImport },
   { id: LIGHT_DOC_ID, apply: applyLightImport },
   { id: DELVE_ENCOUNTER_DOC_ID, apply: applyDelveEncounterImport },
+  // Answers for the raw prose document; the lists it assembles are the
+  // `weaponLists` document.
+  { id: WEAPON_PROSE_DOC_ID, apply: applyWeaponListsImport },
 ]);
 import {
   initCookbook, loadCookbook, cookbookImport, cookbookImportIds, cookbookImportMonsters, cookbookRemoveImports, cookbookImportAbilities, cookbookImportAbilitiesDialog, cookbookUpdateAbilities,

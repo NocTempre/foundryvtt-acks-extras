@@ -120,6 +120,18 @@ check("a single-die melee weapon has one mode", modesOf("club").length === 1);
 // A missile mode never carries the two-handed melee die.
 check("missile modes are never two-handed", handModes.every((m) => !(m.attack === "missile" && m.grip === "two-handed")));
 
+// The sub-headers the grid files its rows under: every row, ammunition included,
+// sits under one, and the bound document records it beside the figures it read.
+{
+  const blocks = new Set(rows.map((r) => r.block));
+  check(`every extracted row carries the sub-header it sits under (${rows.filter((r) => r.block).length}/${rows.length})`, rows.every((r) => !!r.block));
+  check(`the rows fall under ${blocks.size} sub-headers, none of them the section title`, blocks.size === 6 && ![...blocks].some((b) => /^weapons$/i.test(b)));
+  const sword = bindWeaponRow(byName["sword"], "x", "y");
+  check("a bound row carries its block", sword.flags["acks-extras"].weapon.block === byName["sword"].block);
+  const read = sword.flags["acks-extras"].cookbook.read;
+  check("and stamps the figures it read, matching the document's own", read.melee === sword.system.melee && read.damage === sword.system.damage.base.formula && read.alternate === sword.system.damage.alternate.formula && read.size === sword.system.size);
+}
+
 console.log(`\nExtracted weapons (${weaponRows.length}):`);
 for (const r of weaponRows) {
   const it = bindWeaponRow(r, "x", "y");

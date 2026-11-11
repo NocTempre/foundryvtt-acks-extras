@@ -903,6 +903,94 @@ export const TABLE_RECIPES = {
       },
     },
   },
+  // The weapon facts the weapons grid does not state: which kinds of weapon a
+  // proficiency names, what a hand weapon deals, what a thrown flask deals and
+  // which weapons need both hands. Each is prose on its own folio, so each
+  // table is one page and its windows open on the words before the list or
+  // the figures; weapon-binding.mjs reads them into the `weaponLists` tables
+  // lib/weapons.mjs resolves the grid's rows against. The lists name kinds of
+  // weapon in the printing's own words; no word of them is written here.
+  weaponProse: {
+    source: { book: "ACKS II Revised Rulebook + Judges Journal", pages: "RR 114, 121, 138-139, 298, 300; JJ 290" },
+    tables: {
+      // RR ch. 3 Martial Training: the numbered kinds a character may add.
+      martialProse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 114,
+        locate: "Martial Training",
+        locateBare: true,
+        column: { xMin: 20, xMax: 600 },
+        values: [{ key: "options", find: "select one of the following types of weapons", take: "window", span: 480 }],
+      },
+      // RR ch. 3 Weapon Focus: the kinds a focus may name.
+      focusProse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 121,
+        locate: "Weapon Focus",
+        locateBare: true,
+        values: [{ key: "list", find: "available weapon focuses are", take: "window", span: 160 }],
+      },
+      // JJ ch. 12 narrow weapon selection: the kinds a custom class may pick.
+      narrowProse: {
+        shape: "proseValues",
+        book: "jj",
+        printedPage: 290,
+        locate: "narrow weapon categories",
+        locateBare: true,
+        values: [{ key: "options", find: "narrow weapon categories", take: "window", span: 330 }],
+      },
+      // RR ch. 4 weapon descriptions, two folios. The first window opens on
+      // the section heading and the second runs from the top of its page (an
+      // empty anchor), so every entry keeps its head; the binding cuts the
+      // entries at their heads and reads the sentences that say a weapon
+      // needs both hands. The column bound drops the page-margin tab.
+      twoHandsFirst: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 138,
+        locate: "Weapon Descriptions",
+        locateBare: true,
+        column: { xMin: 40, xMax: 590 },
+        values: [{ key: "entries", find: "weapon descriptions", take: "window", span: 12000 }],
+      },
+      twoHandsSecond: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 139,
+        locate: "Mace: A mace is a bludgeoning weapon",
+        locateBare: true,
+        column: { xMin: 40, xMax: 590 },
+        values: [{ key: "entries", find: "", take: "window", span: 12000 }],
+      },
+      // RR ch. 6 thrown flasks and torches: each damage die with the icon of
+      // its type beside it. The icon rides in the window as one private-use
+      // glyph, which the binding decodes.
+      throwableProse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 298,
+        locate: "Missile Attacks with Burning Oil, Holy Water, and Torches",
+        locateBare: true,
+        values: [
+          { key: "oil", find: "then the oil deals", take: "window", span: 80 },
+          { key: "holyWater", find: "holy water deals", take: "window", span: 120 },
+          { key: "torch", find: "a thrown torch deals", take: "window", span: 70 },
+        ],
+      },
+      // RR ch. 6 Damage Type: the weapons each of the three physical types is
+      // dealt by.
+      damageTypeProse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 300,
+        locate: "Damage Type",
+        locateBare: true,
+        values: ["bludgeoning", "piercing", "slashing"].map((type) => ({ key: type, find: `${type}: damage dealt by`, take: "window", span: 130 })),
+      },
+    },
+  },
   // JJ ch. 2 encounters in the dungeon, one page: the delve's encounter throw
   // (its die, the turns between throws and the throw that meets a wandering
   // monster) and the dice of the encounter distance. Prose, so one window
