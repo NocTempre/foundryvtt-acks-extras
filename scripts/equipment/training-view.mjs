@@ -29,16 +29,12 @@ import { grantMatches, classifyGrantToken, normalizeGrantToken } from "./profici
 import { DAMAGE_TYPE_ICONS, UNTYPED_ICON } from "../lib/damage-type.mjs";
 import { slug } from "../lib/vocab.mjs";
 
-/** A weapon key as a name: the table's keys are run-together words. */
-const WEAPON_NAMES = Object.freeze({
-  battleaxe: "Battle axe", greataxe: "Great axe", handaxe: "Hand axe", compositebow: "Composite bow", longbow: "Long bow",
-  shortbow: "Short bow", morningstar: "Morning star", warhammer: "War hammer", shortsword: "Short sword",
-  twohandedsword: "Two-handed sword", silverdagger: "Silver dagger", staffsling: "Staff sling", militaryoil: "Military oil",
-  holywater: "Holy water",
-});
-
-/** The display name of a weapon key. */
-export const weaponName = (key) => WEAPON_NAMES[key] ?? String(key).charAt(0).toUpperCase() + String(key).slice(1);
+/**
+ * The display name of a weapon key: the row's own printed name, else the key
+ * set as a word (a row with no name of its own, such as a thrown flask the book
+ * lists apart from its grid, has only its key to be called by).
+ */
+export const weaponName = (key) => weaponRow(key)?.name || String(key).charAt(0).toUpperCase() + String(key).slice(1);
 
 /**
  * The token that names ONE unit and nothing wider: the bare key where the
@@ -87,22 +83,6 @@ function readUnits() {
  * @returns {readonly object[]}
  */
 export const weaponUnits = () => readUnits().list;
-
-/**
- * `weaponUnits()` as a constant: a read-only array view that follows the
- * table, so a holder of the export sees the rows now rather than the rows at
- * load.
- */
-export const WEAPON_UNITS = new Proxy([], {
-  get: (_target, prop) => {
-    const live = weaponUnits();
-    const value = Reflect.get(live, prop);
-    return typeof value === "function" ? value.bind(live) : value;
-  },
-  has: (_target, prop) => Reflect.has(weaponUnits(), prop),
-  set: () => false,
-  deleteProperty: () => false,
-});
 
 /** Does one grant token cover one unit? Unknown tokens cover nothing. */
 const covers = (token, unit) => grantMatches(token, unit.profile);

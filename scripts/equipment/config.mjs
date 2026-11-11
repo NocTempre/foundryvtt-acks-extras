@@ -1,13 +1,11 @@
 /**
- * Built-in equipment profiles (ACKS II Revised Rulebook, Equipment pp. 126–127;
- * Combat pp. 296–299).
- *
- * This is the built-in weapon profile lookup used as the LAST resort by
- * profiles.mjs (after core tags and per-item flags). Keys are normalised weapon
- * names (lowercase, non-alphanumerics stripped).
+ * Built-in equipment vocabulary (ACKS II Revised Rulebook, Equipment pp.
+ * 126–127; Combat pp. 296–299): the structural enums (weapon sizes, fighting
+ * styles, proficiency categories), the gear profiles and the wear slots. No
+ * weapon is listed here: the weapon rows are imported from the Judge's own
+ * book (`weapon-rows.mjs`, `weapon-source.mjs`).
  */
 import { SLOT, WEAR_SLOTS, WEAR_SLOT_ORDER, slug } from "../lib/vocab.mjs";
-import { registerWeaponSource } from "../lib/weapons.mjs";
 
 /** Weapon size classes → base one-handed hand cost. RR p. 127. */
 export const SIZE = Object.freeze({ TINY: "tiny", SMALL: "small", MEDIUM: "medium", LARGE: "large" });
@@ -32,121 +30,16 @@ export const WEAPON_CATEGORY = Object.freeze({
   FLAIL_HAMMER_MACE: "flailHammerMace",
   SWORD_DAGGER: "swordDagger",
   SPEAR_POLEARM: "spearPolearm",
-  OTHER: "other", // bolas, cestus, nets, saps, slings, staffs, staff-slings, whips
-});
-
-/** Weapon Focus categories (RR p. 121). Maps to a set of weapon keys. */
-export const WEAPON_FOCUS_GROUPS = Object.freeze({
-  axes: ["battleaxe", "greataxe", "handaxe"],
-  macesflailshammers: ["flail", "mace", "morningstar", "warhammer"],
-  swordsdaggers: ["knife", "dagger", "silverdagger", "shortsword", "sword", "twohandedsword"],
-  bowscrossbows: ["compositebow", "longbow", "shortbow", "crossbow", "arbalest"],
-  slingsthrown: ["sling", "staffsling", "bola", "dart", "rock", "militaryoil", "holywater"],
-  spearspolearms: ["javelin", "lance", "polearm", "spear"],
+  OTHER: "other", // the catch-all: a weapon no other category names
 });
 
 /**
- * The `special` tag a row carries when every character throws it proficiently,
- * whatever their class: bottles, flasks, rocks, sticks and torches (RR ch. 1,
- * Weapon Proficiency). `proficiency.mjs` `isWeaponProficient` reads it.
+ * What a thrown thing is called when the book's name for it says every class
+ * throws it: a flask, a bottle, a vial, a grenade, a jar, a pot, a rock, a
+ * stick or a torch (RR ch. 1, Weapon Proficiency). Read against the printed
+ * name of a weapon row and the name of a thrown item no row places.
  */
-export const ANYONE_THROWS = "anyoneThrows";
-
-/**
- * Built-in weapon profiles. size drives hand cost; melee/missile/thrown/handy
- * drive wield rules; damage/damage2h from RR p. 126; special = RAW quality tags
- * (RR p. 127), plus `ANYONE_THROWS`. twoHandedForced marks weapons that always
- * need two hands.
- */
-export const WEAPONS = Object.freeze({
-  // Bows / crossbows (missile; 2H unless Handy)
-  arbalest: { size: SIZE.MEDIUM, missile: true, damage: "1d8", type: "piercing", cat: WEAPON_CATEGORY.CROSSBOW, handy: true, special: ["cleave2", "handy", "slow"] },
-  crossbow: { size: SIZE.SMALL, missile: true, damage: "1d6", type: "piercing", cat: WEAPON_CATEGORY.CROSSBOW, handy: true, special: ["cleave2", "handy", "slow"] },
-  compositebow: { size: SIZE.MEDIUM, missile: true, damage: "1d6", type: "piercing", cat: WEAPON_CATEGORY.BOW, special: ["cleave3str"] },
-  longbow: { size: SIZE.LARGE, missile: true, damage: "1d6", type: "piercing", cat: WEAPON_CATEGORY.BOW, special: ["cleave3str"], reqStr: 9 },
-  shortbow: { size: SIZE.SMALL, missile: true, damage: "1d6", type: "piercing", cat: WEAPON_CATEGORY.BOW },
-  // Axes
-  battleaxe: { size: SIZE.MEDIUM, melee: true, damage: "1d6", damage2h: "1d8", type: "slashing", cat: WEAPON_CATEGORY.AXE },
-  greataxe: { size: SIZE.LARGE, melee: true, damage: "1d10", type: "slashing", cat: WEAPON_CATEGORY.AXE },
-  handaxe: { size: SIZE.SMALL, melee: true, thrown: true, damage: "1d6", type: "slashing", cat: WEAPON_CATEGORY.AXE, special: ["thrown"] },
-  // Bludgeons
-  club: { size: SIZE.TINY, melee: true, damage: "1d4", type: "bludgeoning", cat: WEAPON_CATEGORY.OTHER },
-  flail: { size: SIZE.MEDIUM, melee: true, damage: "1d6", damage2h: "1d8", type: "bludgeoning", cat: WEAPON_CATEGORY.FLAIL_HAMMER_MACE },
-  mace: { size: SIZE.MEDIUM, melee: true, damage: "1d6", damage2h: "1d8", type: "bludgeoning", cat: WEAPON_CATEGORY.FLAIL_HAMMER_MACE },
-  morningstar: { size: SIZE.LARGE, melee: true, damage: "1d10", type: "bludgeoning", cat: WEAPON_CATEGORY.FLAIL_HAMMER_MACE },
-  warhammer: { size: SIZE.SMALL, melee: true, thrown: true, damage: "1d6", type: "bludgeoning", cat: WEAPON_CATEGORY.FLAIL_HAMMER_MACE, special: ["thrown"] },
-  // Swords / daggers
-  knife: { size: SIZE.TINY, melee: true, thrown: true, damage: "1d3", type: "piercing", cat: WEAPON_CATEGORY.SWORD_DAGGER, special: ["thrown"] },
-  dagger: { size: SIZE.TINY, melee: true, thrown: true, damage: "1d4", type: "piercing", cat: WEAPON_CATEGORY.SWORD_DAGGER, special: ["thrown"] },
-  silverdagger: { size: SIZE.TINY, melee: true, thrown: true, damage: "1d4", type: "piercing", cat: WEAPON_CATEGORY.SWORD_DAGGER, special: ["thrown", "silver"] },
-  shortsword: { size: SIZE.SMALL, melee: true, damage: "1d6", type: "slashing", cat: WEAPON_CATEGORY.SWORD_DAGGER },
-  sword: { size: SIZE.MEDIUM, melee: true, damage: "1d6", damage2h: "1d8", type: "slashing", cat: WEAPON_CATEGORY.SWORD_DAGGER },
-  twohandedsword: { size: SIZE.LARGE, melee: true, damage: "1d10", type: "slashing", cat: WEAPON_CATEGORY.SWORD_DAGGER },
-  // Spears / polearms
-  dart: { size: SIZE.TINY, missile: true, thrown: true, damage: "1d4", type: "piercing", cat: WEAPON_CATEGORY.SPEAR_POLEARM, handy: true, special: ["thrown"] },
-  javelin: { size: SIZE.SMALL, melee: true, thrown: true, damage: "1d6", type: "piercing", cat: WEAPON_CATEGORY.SPEAR_POLEARM, special: ["thrown"] },
-  lance: { size: SIZE.LARGE, melee: true, damage: "1d10", type: "piercing", cat: WEAPON_CATEGORY.SPEAR_POLEARM, special: ["impact", "long", "mounted"] },
-  polearm: { size: SIZE.LARGE, melee: true, damage: "1d10", type: "slashing", cat: WEAPON_CATEGORY.SPEAR_POLEARM, special: ["impact", "long"] },
-  spear: { size: SIZE.MEDIUM, melee: true, thrown: true, damage: "1d6", damage2h: "1d8", type: "piercing", cat: WEAPON_CATEGORY.SPEAR_POLEARM, special: ["impact", "long", "thrown"] },
-  // Other weapons
-  bola: { size: SIZE.SMALL, missile: true, thrown: true, damage: "1d2", type: "bludgeoning", cat: WEAPON_CATEGORY.OTHER, handy: true, special: ["entangling", "thrown"] },
-  // Military (burning) oil: direct plus splash damage over rounds (RR p.297);
-  // no STR/class/Backstabbing damage bonus (RR p.298) → noDamageBonus.
-  militaryoil: { size: SIZE.SMALL, missile: true, thrown: true, damage: "1d8", type: "fire", cat: WEAPON_CATEGORY.OTHER, handy: true, special: ["thrown", "splash", "noDamageBonus", ANYONE_THROWS] },
-  // Holy water: a thrown one-shot flask that SHATTERS on use (same damage
-  // rules as burning oil; RR p.268/p.297), harmless to non-chaotic-enchanted
-  // creatures; no STR/class damage bonus (RR p.298). type "holy" (only vs
-  // chaotic enchanted).
-  holywater: { size: SIZE.SMALL, missile: true, thrown: true, damage: "1d8", type: "holy", cat: WEAPON_CATEGORY.OTHER, handy: true, special: ["thrown", "splash", "consumable", "noDamageBonus", ANYONE_THROWS] },
-  cestus: { size: SIZE.SMALL, melee: true, damage: "1d3", type: "bludgeoning", cat: WEAPON_CATEGORY.OTHER, special: ["worn"] },
-  net: { size: SIZE.MEDIUM, melee: true, thrown: true, damage: "", type: "", cat: WEAPON_CATEGORY.OTHER, twoHandedForced: true, special: ["entangling", "thrown"] },
-  rock: { size: SIZE.MEDIUM, missile: true, thrown: true, damage: "1d3", type: "bludgeoning", cat: WEAPON_CATEGORY.OTHER, handy: true, special: ["thrown", ANYONE_THROWS] },
-  sap: { size: SIZE.TINY, melee: true, damage: "1d4", type: "bludgeoning", cat: WEAPON_CATEGORY.OTHER, special: ["incapacitating"] },
-  sling: { size: SIZE.SMALL, missile: true, damage: "1d4", type: "bludgeoning", cat: WEAPON_CATEGORY.OTHER, handy: true },
-  staffsling: { size: SIZE.MEDIUM, missile: true, melee: true, damage: "1d4", damage2h: "1d6", type: "bludgeoning", cat: WEAPON_CATEGORY.OTHER, twoHandedForced: true },
-  staff: { size: SIZE.MEDIUM, melee: true, damage: "1d4", damage2h: "1d6", type: "bludgeoning", cat: WEAPON_CATEGORY.OTHER },
-  whip: { size: SIZE.SMALL, melee: true, damage: "1d2", type: "slashing", cat: WEAPON_CATEGORY.OTHER, special: ["flexible"] },
-  // A lit torch used as a weapon (RR p.148) — thrown or wielded — gains no
-  // damage bonus from STR, class, Backstabbing or the like (RR p.300; see
-  // docs/equipment/DECISIONS.md, "A torch's no-damage-bonus rule covers melee
-  // too (2026-09-22)"). `thrown` so it can be hurled; `light` marks it a light
-  // source for the sheet controls.
-  torch: { size: SIZE.SMALL, melee: true, thrown: true, damage: "1d4", type: "fire", cat: WEAPON_CATEGORY.OTHER, special: ["thrown", "noDamageBonus", "light", ANYONE_THROWS] },
-});
-
-/** Name aliases → canonical weapon key (tolerant of core pack naming). */
-export const WEAPON_ALIASES = Object.freeze({
-  battleax: "battleaxe",
-  greatax: "greataxe",
-  handax: "handaxe",
-  // A class's printed weapon list names the hammer without its prefix, and
-  // the narrow category it belongs to lists hammers beside flails and maces
-  // — so a grant read off a class spread says "hammer" and would otherwise
-  // match nothing at all.
-  hammer: "warhammer",
-  twohandsword: "twohandedsword",
-  greatsword: "twohandedsword",
-  bastardsword: "sword",
-  polearm: "polearm",
-  staffsling2: "staffsling",
-  slingstaff: "staffsling",
-  quarterstaff: "staff",
-  morningstar2: "morningstar",
-  compbow: "compositebow",
-  holywaterflask: "holywater",
-  vialofholywater: "holywater",
-});
-
-// The table above is the source every weapon reader reaches through
-// `lib/weapons.mjs`. It registers when this file loads, ahead of `init`, so a
-// reader that evaluates at load (the training units) and a headless suite that
-// imports a profile module alike find it.
-registerWeaponSource({
-  rows: WEAPONS,
-  aliases: WEAPON_ALIASES,
-  focusGroups: WEAPON_FOCUS_GROUPS,
-  throwsAsAnyone: (_key, row) => (row.special ?? []).includes(ANYONE_THROWS),
-});
+export const IMPROVISED_THROWN = /\b(flasks?|bottles?|vials?|grenades?|jars?|pots?|rocks?|sticks?|torch(?:es)?)\b/i;
 
 /** Armour weight categories (core `system.type`) ordered light→heavy. */
 export const ARMOR_LADDER = Object.freeze(["unarmored", "veryLight", "light", "medium", "heavy"]);

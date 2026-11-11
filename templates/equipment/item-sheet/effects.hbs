@@ -51,7 +51,7 @@
     <div class="acks-extras-item-sheet__row is-inherited">
       <span class="acks-extras-item-sheet__row-text">
         <span class="acks-extras-item-sheet__row-label">{{label}}</span>
-        <span class="acks-extras-item-sheet__row-line">{{detail}}</span>
+        <span class="acks-extras-item-sheet__row-line"{{#if tip}} data-tooltip-text="{{tip}}"{{/if}}>{{detail}}</span>
       </span>
       <span class="acks-tag acks-tag--ghost">{{src}}</span>
     </div>

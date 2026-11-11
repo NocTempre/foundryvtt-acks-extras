@@ -6,8 +6,9 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 ## Fixtures
 
 - A disposable `character` actor.
-- On it: a `weapon` whose name matches a RAW weapon (e.g. "… Sword"), an
-  `armor`, and a plain `item` to serve as a container.
+- On it: a `weapon` whose name is that of a weapon row the world imported
+  (the importer's weapons grid; the module ships none), an `armor`, and a
+  plain `item` to serve as a container.
 - A disposable `acks-extras.variation` Item for the variation path.
 - **Kept, found by marker** (`tools/live/equipment.mjs` walks steps 2b–2e on
   it): `equipment/hands-probe`, a `character` carrying a "Long Bow"
@@ -28,12 +29,15 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
   (`scripts/lib/util.mjs`) before the first equip.
 - **`annotateItem(item)` writes flags at the item's own root**, not under an
   `equipment` sub-object: read `item.flags["acks-extras"]` and expect
-  `size`, `damageType`, `handy`, `thrown`, and a `gear` block with `slots`.
+  the `profileKey` of a weapon a row names (no size, damage type, `handy` or
+  `thrown` since 2026-11-11: those are read from the row), and a `gear` block
+  with `slots`.
   Reading `getFlag(MODULE_ID, "equipment")` finds nothing and reads as a
   no-op.
 - **Annotation is keyed on the item's NAME.** `weaponKey(item)` matches the
-  name against the RAW weapon list; an item called "Test Weapon" annotates to
-  nothing. Name the fixture after a real weapon.
+  name against the imported weapon rows; an item called "Test Weapon" annotates
+  to nothing. Name the fixture after a row the world imported; with no weapons
+  imported nothing annotates.
 - **`drawItem(item)` / `sheatheItem(item)` take the ITEM alone.** Passing
   `(actor, item)` sets `system.equipped` on the actor object and silently
   changes nothing.
@@ -1178,9 +1182,11 @@ The kept sword stays; re-import the variations if step 3 removed them.
 ## Weapon rows not imported
 
 Every weapon reader answers when the weapon table holds no rows (MODEL,
-"Weapon rows not imported — what every reader does"). The world's table is
-the shipped one today, so the empty case is reached by registering an empty
-source through the seam for the length of the check.
+"Weapon rows not imported — what every reader does"). The world's rows are the
+imported ones, so the empty case is reached by registering an empty
+source through the seam for the length of the check. (Nothing ships a weapon
+any more: the rows are the world's imported ones. "Weapon rows read from the
+book", below, walks the rows themselves and the layers of the registry.)
 
 ### Fixtures
 
@@ -1202,7 +1208,7 @@ source through the seam for the length of the check.
    (`Page.addScriptToEvaluateOnNewDocument`; `connect()` itself hooks after
    `ready`). *Observable:* `init`, `setup` and `ready` all ran, and no error
    recorded names equipment, the weapon seam or `rowsReady`.
-2. With the shipped table registered, open the weapon's item sheet fresh (close
+2. With the world's own source registered, open the weapon's item sheet fresh (close
    it, render it again) and the character's sheet on its Equipment tab, on
    both seats. *Observable:* the construction panel is in the Details part,
    and the Rolls rows render. The class, size and grips rows each carry the
@@ -1232,3 +1238,98 @@ source through the seam for the length of the check.
 
 The kept actor stays. The walk writes nothing else; its sweep is empty and is
 printed.
+
+## Weapon rows read from the book
+
+Nothing in the module ships a weapon: the rows are the `weapons` document the
+importer published from the Judge's own copy, placed on classes and Weapon
+Focus groups by the `weaponLists` document (MODEL, "Weapon rows read from the
+book"). This recipe walks the rows a world holds, and the two ways a world can
+lack them. It needs the book connected and its weapons and lists imported;
+`tools/live/equipment-weapon-rows.mjs` walks steps 1 to 9. It prints booleans
+and counts, never a weapon's name, die or size.
+
+A world with the grid but no `weaponLists` document (the registry shows the
+`weapons` doc and no `weaponLists`) has every class, focus and kind row
+unplaced, and the walk's step 2 reports it. The lists are imported with the
+two books open for the session only (`connectBookUrl(id, path, { remember:
+false, bridge: false })` for the Revised Rulebook and the Judges Journal), then
+`acksExtras.importer.cookbookImportTables(["weaponProse"])`: seconds, not the
+full table run, and the binding assembles `weaponLists` at world priority.
+The import is a kept fixture; read the registry on the page a few seconds
+after `ready`, since the grid publishes only once the library has loaded
+(`rowsReady()`), and a snapshot taken at `ready` sees no rows.
+
+### Fixtures
+
+All kept, found by marker; each run brings the shape back first. Weapons are
+named for rows the walk picks from the world's own (the first placed row, and
+the first placed row of another class), so no name is written in the walk.
+
+- **`equipment/rows-core-axe`**: a character with one weapon named for a placed
+  row, no stamps.
+- **`equipment/rows-legacy`**: the same weapon, which the walk dresses in the
+  stamps an old Annotate wrote (size, damage type, thrown, handy, profile key)
+  and takes them off again. A transient item under the core-axe actor is
+  annotated and swept by its uuid.
+- **`equipment/rows-trained`**: a character the Player seat owns, holding the
+  placed weapon, the second-class weapon and one no row names, with a
+  weapon-proficiency list of the first weapon's class alone
+  (`flags["acks-extras"].weaponProficiency`).
+- **`equipment/rows-holy`**: a character holding items named "Holy Water" and
+  "Torch", the names the throwables kinds are keyed by.
+
+### Steps
+
+1. Reload each seat under the boot recorder. *Observable:* `init`, `setup` and
+   `ready` ran, and no error names equipment, the weapon seam or the lists.
+2. Read the census on the GM seat. *Observable:* the registry holds a `weapons`
+   grid, the seam has a named row for every grid row, `weaponLists()` is not
+   null, rows are placed on a class and on a Weapon Focus, and two named
+   placed rows of different classes exist for the walk to use. A world with no
+   lists reports the step not reached.
+3. Open the core-axe weapon's item sheet fresh. *Observable:* the classifier's
+   key, class and size are the row's; the class row on the Details tab shows
+   the class, and its tooltip is the *read from the row* one on the row, never
+   on the select.
+4. Dress the legacy weapon in stamps; classify; take them off; classify.
+   Annotate the transient item. *Observable:* the stamps outrank the row; once
+   removed the item reads the row again; Annotate writes the profile key and
+   no size, damage type, thrown or handy.
+5. On the trained character: classify the three weapons and ask the grants.
+   *Observable:* the listed weapon is proficient and decided; the other class
+   is decided and refused (where enforcement is on); the unplaced weapon has no
+   key and no class and is proficient and undecided; a Martial Training pick
+   worded as the imported category's own noun resolves to that class, and a
+   Weapon Focus pick worded as an imported focus's noun resolves to it.
+6. On the holy character: classify the two items, read `equipmentClass`.
+   *Observable:* both are kind rows that throw as anyone, the torch is a light,
+   and the readied die and type are the imported ones. A world with no
+   throwables imported reports the step not reached.
+7. **The absent cases, on this client only.** Unregister every layer of the
+   `weaponLists` document (`getLayer` per `PRIORITY`, then `unregisterTable`),
+   and in a `finally` register the same documents back: `registerTable(doc,
+   {priority})` with no `source`, so the document keeps its identity. Then the
+   same for `weapons`. *Observable:* with no lists every grid row still answers (the
+   throwables kind rows, which exist only by the lists, go with them), the
+   class is null, no pick is placed (`listedKind` and `resolveFocusPick` answer
+   null) and the item sheet's class row reads *not imported* with the
+   missing-figure tooltip; with no grid there are no rows, no key, no class and
+   no training unit. After each, the registry gives the same keys and the same
+   first row and the class is the row's again. The registry is per client:
+   nothing reaches the world or another seat.
+8. Read the same rows on the Player seat. *Observable:* the same number of
+   rows and the lists; the seat classifies the trained actor's two placed
+   weapons exactly as the GM seat does.
+9. *Observable:* no console error on either seat over the whole walk.
+
+What it cannot reach: a first import in a world that holds the old table's
+stamps (the stale-stamp repair check is its own recipe), and a Judge's edit
+that blanks one field of a row (the unit suites cover it).
+
+### Teardown
+
+The four kept actors stay. The annotate item is swept by uuid; the walk's sweep
+of everything else is empty and is printed. `registerTable` after `unregisterTable`
+is the only restore the absent step needs; `restoreLayers` runs it again in the
+walk's `finally` if the step died half way.

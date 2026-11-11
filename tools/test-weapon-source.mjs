@@ -2,12 +2,15 @@
  * The weapon seam: `lib/weapons.mjs` answers every reader of the weapon table
  * from one registered source.
  *
- * Two halves. The first holds the source equipment registers to the table it
- * is built on: every accessor answers for every key exactly what the table
- * itself answers, so reading through the seam changes no answer. The second
- * registers invented sources (made-up weapons, no printed figure) and shows a
- * registered source replaces the default, that its fields may be live, and
- * that a reader inside equipment follows it.
+ * Two halves. The first holds the source equipment registers
+ * (`equipment/weapon-source.mjs`): the imported `weapons` grid placed against
+ * the imported `weaponLists`, in the shape the readers ask for, read from the
+ * registry at every call. The second registers invented sources and shows a
+ * registered source replaces the default, that its fields may be live, and that
+ * a reader inside equipment follows it.
+ *
+ * Every weapon, noun and figure here is invented; the grid and the lists are
+ * what an import would have written.
  */
 import assert from "node:assert";
 
@@ -20,33 +23,67 @@ const check = (label, cond) => {
   pass++;
 };
 
-const cfg = await import(new URL("../scripts/equipment/config.mjs", import.meta.url));
 const seam = await import(new URL("../scripts/lib/weapons.mjs", import.meta.url));
 const profiles = await import(new URL("../scripts/equipment/profiles.mjs", import.meta.url));
-const { WEAPONS, WEAPON_ALIASES, WEAPON_FOCUS_GROUPS, ANYONE_THROWS } = cfg;
-const { weaponRow, weaponKeys, keyForName, hasWeaponRows, registerWeaponSource, weaponFocusGroup, weaponThrowsAsAnyone } = seam;
+const { librarySource, WEAPONS_DOC, WEAPONS_TABLE } = await import(new URL("../scripts/equipment/weapon-source.mjs", import.meta.url));
+const { registerTable, unregisterTable, PRIORITY } = await import(new URL("../scripts/lib/tables.mjs", import.meta.url));
+const { weaponRow, weaponKeys, keyForName, hasWeaponRows, registerWeaponSource, weaponFocusGroup, weaponThrowsAsAnyone, listedKind } = seam;
 
-// --- the source equipment registers answers what the table answers ----------------
-const tableKeys = Object.keys(WEAPONS);
-check("loading equipment's config registers a source with rows", hasWeaponRows());
-check("weaponKeys lists the table's keys in the table's order", weaponKeys().join() === tableKeys.join());
+// --- no import, no rows -----------------------------------------------------------
+const before = registerWeaponSource(librarySource);
+check("a source over an empty registry has no rows", !hasWeaponRows() && weaponKeys().length === 0 && weaponRow("zorgle") === null);
+check("and no spelling resolves", keyForName("battleax") === null && keyForName("zorgle") === null);
+
+// --- the source reads what an import wrote -----------------------------------------
+const GRID = {
+  zorgle: { name: "Zorgle Axe", block: "Quibs", size: "large", melee: true, damage: "7d2", special: ["zork"] },
+  quib: { name: "Quib Flask", block: "Quibs", size: "small", missile: true, thrown: true, damage: "9d3" },
+  zorkoil: { name: "Zork Oil", block: "Quibs", size: "small", missile: true, thrown: true, damage: "4d3" },
+  twohandedsword: { name: "Two-Handed Sword", block: null, size: "large", melee: true, damage: "5d2" },
+};
+const LISTS = {
+  id: "weaponLists",
+  tables: {
+    category: { axe: ["zorgle"], bow: ["quib"] },
+    focus: { zorgs: ["zorgle"] },
+    damageType: { slashing: ["zorgle"], fire: ["zork"] },
+    twoHands: ["Zorgle Axe"],
+    throwables: { oil: { damage: "4d3", types: ["fire"] }, torch: { damage: "3d4", types: ["fire"] } },
+  },
+};
+const layer = { priority: PRIORITY.WORLD, source: "test" };
+registerTable({ id: WEAPONS_DOC, tables: { [WEAPONS_TABLE]: GRID } }, layer);
+registerTable(LISTS, layer);
+
+check("the keys are the grid's, then the kinds the throwables add", weaponKeys().join() === "zorgle,quib,zorkoil,twohandedsword,torch");
 check("weaponKeys is a fresh array each call", weaponKeys() !== weaponKeys());
-check("weaponRow answers the table's own row for every key", tableKeys.every((k) => weaponRow(k) === WEAPONS[k]));
-check("keyForName answers each key for the key", tableKeys.every((k) => keyForName(k) === k));
-check("keyForName folds a written name to the key", tableKeys.every((k) => keyForName(` ${k.toUpperCase()}-! `) === k));
-check(
-  "keyForName answers each alias's target where the target is a row, else null",
-  Object.entries(WEAPON_ALIASES).every(([alias, target]) => keyForName(alias) === (WEAPONS[target] ? target : null)),
-);
-check(
-  "weaponFocusGroup answers the group the table files each key under, else null",
-  tableKeys.every((k) => weaponFocusGroup(k) === (Object.keys(WEAPON_FOCUS_GROUPS).find((g) => WEAPON_FOCUS_GROUPS[g].includes(k)) ?? null)),
-);
-check(
-  "weaponThrowsAsAnyone answers the tag the table carries, for every key",
-  tableKeys.every((k) => weaponThrowsAsAnyone(k) === (WEAPONS[k].special ?? []).includes(ANYONE_THROWS)),
-);
-check("some key throws as anyone and some does not, so the check above is not vacuous", tableKeys.some(weaponThrowsAsAnyone) && !tableKeys.every(weaponThrowsAsAnyone));
+check("a row keeps its identity from one call to the next", weaponRow("zorgle") === weaponRow("zorgle"));
+const zorgle = weaponRow("zorgle");
+check("a row carries the grid's figures", zorgle.size === "large" && zorgle.damage === "7d2" && zorgle.special.join() === "zork" && zorgle.melee === true);
+check("the category, damage type and two hands are the lists' placement under the readers' names", zorgle.cat === "axe" && zorgle.type === "slashing" && zorgle.twoHandedForced === true);
+check("a row the lists do not place has no class, no type and no forced grip", weaponRow("twohandedsword").cat === null && weaponRow("twohandedsword").type === null && weaponRow("twohandedsword").twoHandedForced === false);
+check("keyForName folds a written name to the key", keyForName(" ZORGLE-! ") === "zorgle");
+check("a spelling resolves only where its target is a row", keyForName("twohandsword") === "twohandedsword" && keyForName("battleax") === null);
+check("a focus group is the one the lists place a row under", weaponFocusGroup("zorgle") === "zorgs" && weaponFocusGroup("quib") === null);
+
+const oil = weaponRow("zorkoil");
+check("a throwables kind row is thrown and carries the procedure's shape, with the importer's die", oil.thrown && oil.special.includes("splash") && oil.special.includes("noDamageBonus") && oil.type === "fire");
+const torch = weaponRow("torch");
+check("a kind with no grid row is a row of its own: thrown, melee too, a light, the book's die", torch.thrown && torch.melee && torch.special.includes("light") && torch.damage === "3d4" && torch.type === "fire");
+check("a throwables kind throws as anyone", weaponThrowsAsAnyone("zorkoil") && weaponThrowsAsAnyone("torch"));
+check("a thrown weapon throws as anyone by its printed name, a melee one does not", weaponThrowsAsAnyone("quib") === true && weaponThrowsAsAnyone("zorgle") === false);
+
+check("listedKind finds the one entry a phrase names", listedKind("focus", "Zorgles and others") === "zorgs" && listedKind("category", "the quibs") === "bow");
+check("listedKind answers null for a phrase naming none, and for a list not imported", listedKind("category", "pointy stick") === null && listedKind("damageType", "") === null);
+
+// the registry is read at every call
+unregisterTable(WEAPONS_DOC, { priority: PRIORITY.WORLD });
+check("unregistering the grid takes the rows with it, at once", !hasWeaponRows() && weaponRow("zorgle") === null);
+registerTable({ id: WEAPONS_DOC, tables: { [WEAPONS_TABLE]: GRID } }, layer);
+check("registering it again brings them back", hasWeaponRows() && weaponRow("zorgle")?.cat === "axe");
+unregisterTable(LISTS.id, { priority: PRIORITY.WORLD });
+check("without the lists the rows stay and nothing is placed", weaponRow("zorgle").cat === null && weaponRow("zorgle").type === null && weaponFocusGroup("zorgle") === null);
+registerTable(LISTS, layer);
 
 // --- what the table does not name -------------------------------------------------
 check("an unknown key has no row", weaponRow("zorglub") === null);
@@ -58,21 +95,20 @@ check("an unknown key has no focus group and throws as no one", weaponFocusGroup
 
 // --- a registered source replaces the default -------------------------------------
 const quib = { name: "Quib", size: "small", melee: true, damage: "9d3", special: ["zork"], cat: "other" };
-const zorgle = { name: "Zorgle", size: "large", melee: true, damage: "7d2", special: [], cat: "other" };
+const zorgleRow = { name: "Zorgle", size: "large", melee: true, damage: "7d2", special: [], cat: "other" };
 const invented = {
-  rows: { zorgle, quib },
+  rows: { zorgle: zorgleRow, quib },
   aliases: { zorg: "zorgle", ghost: "nothing" },
   focusGroups: { zorgs: ["zorgle"], empty: "not a list" },
   throwsAsAnyone: (key) => key === "quib",
 };
 const defaults = registerWeaponSource(invented);
-check("registerWeaponSource returns the source it replaced", defaults !== null && defaults.rows === WEAPONS);
-check("the invented source's keys replace the table's", weaponKeys().join() === "zorgle,quib");
-check("none of the table's keys is a row any more", tableKeys.every((k) => weaponRow(k) === null));
-check("weaponRow answers the invented row", weaponRow("zorgle") === zorgle && weaponRow("quib") === quib);
+check("registerWeaponSource returns the source it replaced", defaults === librarySource);
+check("the invented source's keys replace the library's", weaponKeys().join() === "zorgle,quib");
+check("weaponRow answers the invented row", weaponRow("zorgle") === zorgleRow && weaponRow("quib") === quib);
 check("keyForName reads the invented key and alias", keyForName("Zorgle") === "zorgle" && keyForName("zorg") === "zorgle");
 check("an alias whose target is no row answers null", keyForName("ghost") === null);
-check("the table's aliases no longer answer", Object.keys(WEAPON_ALIASES).every((a) => keyForName(a) === null || a in invented.aliases));
+check("the library's spellings no longer answer", keyForName("twohandsword") === null);
 check("weaponFocusGroup reads the invented groups and skips a malformed one", weaponFocusGroup("zorgle") === "zorgs" && weaponFocusGroup("quib") === null);
 check("weaponThrowsAsAnyone reads the invented predicate", weaponThrowsAsAnyone("quib") === true && weaponThrowsAsAnyone("zorgle") === false);
 
@@ -80,7 +116,7 @@ check("weaponThrowsAsAnyone reads the invented predicate", weaponThrowsAsAnyone(
 const named = (name) => ({ name, type: "weapon", system: {}, flags: {} });
 check("a profile reader finds the invented weapon by name", profiles.weaponKey(named("Zorgle")) === "zorgle");
 check("a profile reader finds the invented weapon by alias", profiles.weaponKey(named("zorg")) === "zorgle");
-check("a profile reader no longer finds a weapon of the table", profiles.weaponKey(named(tableKeys[0])) === null);
+check("a profile reader no longer finds a weapon of the grid", profiles.weaponKey(named("Zork Oil")) === null);
 check("classifyWeapon builds the profile from the invented row", (() => {
   const p = profiles.classifyWeapon(named("Quib"));
   return p.key === "quib" && p.size === "small" && p.damage === "9d3" && p.anyoneThrows === true;
@@ -88,10 +124,10 @@ check("classifyWeapon builds the profile from the invented row", (() => {
 check("focusGroup reads the invented groups", profiles.focusGroup({ key: "zorgle" }) === "zorgs" && profiles.focusGroup({ key: null }) === null);
 
 // a field may be a function, read at every call
-let live = { zorgle };
+let live = { zorgle: zorgleRow };
 registerWeaponSource({ rows: () => live, aliases: () => ({}), focusGroups: () => ({}) });
 check("a function-valued field is read at every call", weaponKeys().join() === "zorgle");
-live = { zorgle, quib };
+live = { zorgle: zorgleRow, quib };
 check("a change to what the function returns shows at once", weaponKeys().join() === "zorgle,quib" && weaponRow("quib") === quib);
 check("a source with no predicate throws as no one", weaponThrowsAsAnyone("quib") === false);
 
@@ -104,8 +140,12 @@ check("a malformed source answers as an empty one", !hasWeaponRows() && keyForNa
 registerWeaponSource(42);
 check("a source that is no object registers as none", !hasWeaponRows());
 
-// the default comes back by registering the source that was replaced
+// the library's source comes back by registering it again
 registerWeaponSource(defaults);
-check("registering the replaced source restores every table answer", hasWeaponRows() && weaponKeys().join() === tableKeys.join() && tableKeys.every((k) => weaponRow(k) === WEAPONS[k]));
+check("registering the replaced source restores every answer", hasWeaponRows() && weaponKeys().join() === "zorgle,quib,zorkoil,twohandedsword,torch");
+
+unregisterTable(WEAPONS_DOC, { priority: PRIORITY.WORLD });
+unregisterTable(LISTS.id, { priority: PRIORITY.WORLD });
+registerWeaponSource(before);
 
 console.log(`test-weapon-source: ${pass} checks passed`);

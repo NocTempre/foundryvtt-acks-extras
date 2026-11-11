@@ -3,7 +3,7 @@
  * weapon table holds no rows. Walks docs/equipment/TESTING.md "Weapon rows not
  * imported" on the GM seat, and on the Player seat where it is cheap: the boot
  * recorder sees no error naming equipment, the weapon seam or `rowsReady`; with
- * the shipped table registered a weapon's item sheet reads each figure from its
+ * the imported rows registered a weapon's item sheet reads each figure from its
  * row (the tooltip rides the row, not the disabled select) and says "not
  * imported" nowhere, and a container that states a capacity says so on the
  * character sheet's gear row; then, for the walk's duration only, an empty
@@ -15,7 +15,7 @@
  *
  * Fixture, kept and found by marker: `equipment/weapon-nulls-actor`, a
  * character the Player seat owns, carrying an invented melee weapon (its type
- * declared by the walk's shape step, to a row of the shipped table that states
+ * declared by the walk's shape step, to a row of the imported rows, one that states
  * a class and a size), a container that states a capacity, a container that
  * only declares it holds gear, and a one-token weapon-proficiency list. Each
  * run brings that shape back before its first check. The walk writes no other
@@ -65,6 +65,7 @@ const P = {
     H.ACT = await import("/modules/acks-extras/scripts/equipment/actions.mjs");
     H.CONST = await import("/modules/acks-extras/scripts/equipment/constants.mjs");
     H.PR = await import("/modules/acks-extras/scripts/equipment/profiles.mjs");
+    await (await import("/modules/acks-extras/scripts/equipment/weapon-rows.mjs")).rowsReady();
     H.sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     H.poll = async (fn, { tries = 40, every = 150 } = {}) => {
       for (let n = 0; n < tries; n++) {
@@ -199,7 +200,7 @@ const P = {
   userId: async ({ name }) => game.users.find((u) => u.name === name)?.id ?? null,
   /**
    * Bring the kept fixture to the shape the walk reads: the weapon's type
-   * declared to a row of the shipped table that states a class and a size, no
+   * declared to a row of the imported rows, one that states a class and a size, no
    * declared class, size or grips, one weapon-proficiency token, the player's
    * ownership, and the two containers' gear records.
    */
@@ -369,7 +370,7 @@ try {
   const installed = await run(gm, P.install);
   const seated = await run(player, P.install);
   check("the GM seat is the active GM and the player seat is a player", installed.isGM && installed.activeGMIsSelf && !seated.isGM && seated.role <= 2, { gm: installed.role, player: seated.role });
-  check("the shipped weapon table is registered with rows on both seats", installed.base.keys > 0 && seated.base.keys > 0, { gm: installed.base.keys, player: seated.base.keys });
+  check("the imported weapon rows are registered with rows on both seats", installed.base.keys > 0 && seated.base.keys > 0, { gm: installed.base.keys, player: seated.base.keys });
   for (const [key, c] of Object.entries({ gm: installed, player: seated })) {
     const phases = c.boot?.phases ?? [];
     const errors = c.boot?.errors ?? [];
@@ -396,12 +397,12 @@ try {
   await sleep(500);
   check("the player seat sees the fixture's three items", await player.eval(`game.actors.get(${JSON.stringify(actorId)})?.items.size === 3`));
 
-  section("1. the shipped table registered: the GM seat");
+  section("1. the imported rows registered: the GM seat");
   registeredItem("gm", await run(gm, P.item, { actorId, itemId: ids.weapon }));
   registeredChar("gm", await run(gm, P.char, { actorId, ids }));
   await run(gm, P.closeAll);
 
-  section("1b. the shipped table registered: the Player seat");
+  section("1b. the imported rows registered: the Player seat");
   registeredItem("player", await run(player, P.item, { actorId, itemId: ids.weapon }));
   registeredChar("player", await run(player, P.char, { actorId, ids }));
   await run(player, P.closeAll);

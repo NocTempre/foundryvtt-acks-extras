@@ -16,7 +16,7 @@
       </button>
       <span class="acks-extras-item-sheet__row-text">
         <span class="acks-extras-item-sheet__row-label">{{label}}</span>
-        <span class="acks-extras-item-sheet__row-line acks-nums">{{line}}</span>
+        <span class="acks-extras-item-sheet__row-line acks-nums"{{#if tip}} data-tooltip-text="{{tip}}"{{/if}}>{{line}}</span>
       </span>
       {{#if mods.length}}
       <span class="acks-tag-group acks-extras-item-sheet__row-mods">

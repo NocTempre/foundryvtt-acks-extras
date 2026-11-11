@@ -23,6 +23,7 @@ import { isSpellbook, spellbookSpells } from "../spellbook.mjs";
 import { containerOf, isLocked } from "../containers.mjs";
 import { pickLock, bashOpen, canPick, canBash, wearingGloves } from "../locks.mjs";
 import { isWeaponProficient, weaponProficiencyDecided } from "../proficiency.mjs";
+import { figureState, figureTip } from "../weapon-figures.mjs";
 import { ATTACK_TYPE } from "../attack-mods.mjs";
 import { damageGlyphOf, damageTypeLabel, damageTypeOf } from "../../lib/damage-type.mjs";
 import { ITEM_TYPE, ACTOR_TYPE } from "../../lib/vocab.mjs";
@@ -62,6 +63,9 @@ export function rollGroups(item, actor = rollerFor(item)) {
     // No die stated by the item or a row reads "not imported", never a die.
     const dieShown = damage || game.i18n.localize("ACKS-EQUIPMENT.printed.notImported");
     const bonus = attackBonusOf(item);
+    // Where the die came from: the item's own, the weapon row's with its page,
+    // or nothing imported. It rides the row's line, which names the die.
+    const dieTip = figureTip(figureState({ key: profile.key, field: "damage", declared: damageFormulaOf(item) }), loc("itemSheet.rolls.dieLabel"));
     const rows = [];
     // Asked per mode: a weapon every class may throw can still be one a class
     // may not swing, and the tag has to agree with the roll's own rows.
@@ -83,6 +87,7 @@ export function rollGroups(item, actor = rollerFor(item)) {
         v: damage || null,
         label: loc("itemSheet.rolls.row.melee"),
         line: [`${signed(bonus)} ${loc("itemSheet.rolls.throw")}`, `${dieShown} ${typeLabel}`.trim()].join(" · "),
+        tip: dieTip,
         mods: [...meleeMods],
         rollable: !!actor,
       });
@@ -109,6 +114,7 @@ export function rollGroups(item, actor = rollerFor(item)) {
         v: damage || null,
         label: loc(profile.thrown ? "itemSheet.rolls.row.hurled" : "itemSheet.rolls.row.shoot"),
         line: [`${signed(bonus)} ${loc("itemSheet.rolls.throw")}`, `${dieShown} ${typeLabel}`.trim(), range ? loc("itemSheet.rolls.range", { range }) : null].filter(Boolean).join(" · "),
+        tip: dieTip,
         mods: [...missileMods],
         rollable: !!actor,
       });

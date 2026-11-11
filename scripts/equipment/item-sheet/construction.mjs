@@ -29,9 +29,9 @@ import {
 } from "../actions.mjs";
 import { masterworkTierOf, scavengedOf, layerSummary, layerProvenance, silveredFlagOf } from "../properties.mjs";
 import { canBeSilvered, isSilvered, setSilvered } from "../silver.mjs";
-import { classifyWeapon, isHelmet, inferGear, weaponIdentity, inferredGrips, tableFigures, WEAPON_CATEGORY_VALUES } from "../profiles.mjs";
+import { classifyWeapon, isHelmet, inferGear, weaponIdentity, inferredGrips, WEAPON_CATEGORY_VALUES } from "../profiles.mjs";
 import { weaponName, CATEGORY_TOKENS } from "../training-view.mjs";
-import { weaponKeys, hasWeaponRows } from "../../lib/weapons.mjs";
+import { weaponKeys, weaponRow, hasWeaponRows } from "../../lib/weapons.mjs";
 import { figureState, figureTip } from "../weapon-figures.mjs";
 import { setBaseType } from "../variation-items.mjs";
 import { baseTypesFor, baseTypeIsDeclared, baseTypeOf, BASE_TYPE_FLAG } from "../base-types.mjs";
@@ -197,7 +197,7 @@ export function buildConstructionPanel(item, { editing = false } = {}) {
     const classLabel = (cat) => (cat ? game.i18n.localize(`ACKS-LIB.weaponCat.${cat}`) : notImported);
     // What the weapon table's row says, beside what the item declares: the
     // "Auto" answer of the class and size controls, and each figure's tooltip.
-    const figures = tableFigures(identity.key);
+    const figures = weaponRow(identity.key) ?? {};
     /**
      * A row with the provenance of the figure it shows as its tooltip. The
      * tooltip rides the row, not the control: a control disabled until the sheet
@@ -214,10 +214,9 @@ export function buildConstructionPanel(item, { editing = false } = {}) {
       identity.source === "flag" ? identity.key : SLOT_AUTO,
       (v) => setWeaponProfile(item, v),
     )), null, identity.source === "flag" ? identity.key : null, "ACKS-EQUIPMENT.props.weaponType");
-    // An unidentified weapon falls back to a medium, class-`other` weapon
-    // where a table is imported, and to no class and no size where none is;
-    // naming the consequence here connects this control to the badge that
-    // sent the reader.
+    // An unidentified weapon has no class and no size beyond what the item
+    // declares; naming the consequence here connects this control to the badge
+    // that sent the reader.
     note(identity.key
       ? loc("props.weaponTypeNote", {
         weapon: weaponName(identity.key),

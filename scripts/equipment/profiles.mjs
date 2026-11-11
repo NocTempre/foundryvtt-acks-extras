@@ -8,7 +8,7 @@
  *   2. per-item overrides `flags.acks-extras.{size,hands,style,handy,thrown,damageType}`
  *   3. the RAW table row the item is identified as (`weaponIdentity`)
  *   4. default: melee, one-handed; a size, class or damage die nothing above
- *      states is null (the die ""), never invented (see `unplaced`)
+ *      states is null (the die ""), never invented
  *
  * The annotate macro stamps (2) onto existing core `acks-all-equipment` items so
  * classification is exact; without it, (1)+(3) still classify the RAW weapons.
@@ -19,10 +19,10 @@
  * the answer's provenance is reported.
  */
 import { MODULE_ID, ITEM_FLAGS } from "./constants.mjs";
-import { SIZE, STYLE, WEAPON_CATEGORY, gearProfileFor, clothingSlotsFor } from "./config.mjs";
+import { SIZE, STYLE, WEAPON_CATEGORY, IMPROVISED_THROWN, gearProfileFor, clothingSlotsFor } from "./config.mjs";
 import { slotsOf, declaresSlots, isClothing } from "../lib/item-model.mjs";
 import { SLOT, slug, nameKeys, ITEM_TYPE } from "../lib/vocab.mjs";
-import { weaponRow, weaponKeys, keyForName, hasWeaponRows, weaponFocusGroup, weaponThrowsAsAnyone } from "../lib/weapons.mjs";
+import { weaponRow, weaponKeys, keyForName, weaponFocusGroup, weaponThrowsAsAnyone } from "../lib/weapons.mjs";
 import { splitDamage, joinDamage, damageFormulaOf } from "./properties.mjs";
 
 /* -------------------------------------------- */
@@ -314,14 +314,13 @@ export function weaponKey(item) {
 }
 
 /**
- * A weapon document the module cannot place in the RAW weapon table.
+ * A weapon document the module cannot place among the imported weapon rows.
  *
- * Nothing throws and nothing is missing on the sheet — which is what makes it
- * worth naming. Size, hand cost, damage type, the Weapon Focus group and the
- * proficiency CATEGORY all fall back to their defaults, so the item reads as a
- * medium, category-`other` weapon and a character trained in axes is told it is
- * not proficient with the axe in its hand. The Repair window fixes one; the
- * import report says how many there are.
+ * Nothing throws, which is what makes it worth naming. Its size, damage type,
+ * Weapon Focus group and proficiency CATEGORY are whatever the item itself
+ * declares and otherwise unstated ("not imported"), so no grant can decide the
+ * weapon and it is never refused; a Judge names its Weapon type on the sheet's
+ * Construction panel.
  */
 export function isUnidentifiedWeapon(item) {
   return item?.type === ITEM_TYPE.weapon && !weaponIdentity(item).key;
@@ -419,31 +418,11 @@ export function twoHandedDamage(damage, row) {
 }
 
 /**
- * The long-standing default of a figure nothing states, for a weapon no row
- * places while the weapon table holds rows. A row that is there and leaves the
- * figure out, and a table with no rows at all, answer null: undecided, with no
- * figure standing in for the page's.
- */
-function unplaced(base, standIn) {
-  return !base && hasWeaponRows() ? standIn : null;
-}
-
-/**
- * The size and class the weapon table's row states for a weapon key, or null
- * where no row states one: what a surface shows beside "Auto".
- * @returns {{size: string|null, cat: string|null}}
- */
-export function tableFigures(key) {
-  const base = key ? weaponRow(key) : null;
-  return { size: base?.size ?? unplaced(base, SIZE.MEDIUM), cat: base?.cat ?? unplaced(base, WEAPON_CATEGORY.OTHER) };
-}
-
-/**
  * Build the resolved profile for a weapon item. `size`, `cat` and `damage` are
  * null, null and "" where nothing imported states them (the item itself, or a
  * row that carries the field): such a weapon is undecided to proficiency
  * (`isWeaponProficient`) and costs one hand.
- * @returns {{key,size,melee,missile,thrown,handy,twoHandedForced,damage,damage2h,type,cat,special,reqStr,grips}}
+ * @returns {{key,size,melee,missile,thrown,handy,twoHandedForced,damage,damage2h,type,cat,special,grips}}
  */
 export function classifyWeapon(item) {
   // `mflag`, not `getFlag`: the classifier is asked about payload OBJECTS as
@@ -467,11 +446,9 @@ export function classifyWeapon(item) {
   // declaration — the row still answers it.
   const sizeOverride = flag(ITEM_FLAGS.SIZE);
   const coreSize = CORE_SIZES[item.system?.size] ?? null;
-  const size = sizeOverride ?? coreSize ?? base?.size ?? (twoHandedTag ? SIZE.LARGE : unplaced(base, SIZE.MEDIUM));
-  // A row that prints no die ("") keeps the long-standing 1d6; one that omits
-  // the field states nothing, and so does a table with no rows.
-  const damageStandIn = base ? (base.damage == null ? null : "1d6") : unplaced(base, "1d6");
-  const damage = damageFormulaOf(item) || base?.damage || damageStandIn || "";
+  const size = sizeOverride ?? coreSize ?? base?.size ?? null;
+  // The item's own die, else the row's: a weapon neither states has none.
+  const damage = damageFormulaOf(item) || base?.damage || "";
   const alternate = item.system?.damage?.alternate?.formula?.trim?.() || null;
 
   const profile = {
@@ -481,17 +458,18 @@ export function classifyWeapon(item) {
     missile,
     thrown: flag(ITEM_FLAGS.THROWN) ?? (item.system?.special?.thrown || undefined) ?? base?.thrown ?? thrownTag ?? false,
     handy: flag(ITEM_FLAGS.HANDY) ?? (item.system?.special?.handy || undefined) ?? base?.handy ?? handyTag ?? false,
-    twoHandedForced: base?.twoHandedForced ?? (twoHandedTag && !base) ?? false,
+    // The row's statement that the weapon needs both hands, or the core tag
+    // the item carries: either forces them, whatever the size.
+    twoHandedForced: base?.twoHandedForced === true || twoHandedTag,
     damage,
     damage2h: alternate ?? twoHandedDamage(damage, base),
     type: flag(ITEM_FLAGS.DAMAGE_TYPE) ?? base?.type ?? "",
     // The declared class outranks the row's, and an unknown value is no
     // declaration at all — a hand-edited flag degrades to the row, never to a
     // class no grant can name.
-    cat: WEAPON_CATEGORY_VALUES.has(flag(ITEM_FLAGS.CATEGORY)) ? flag(ITEM_FLAGS.CATEGORY) : base?.cat ?? unplaced(base, WEAPON_CATEGORY.OTHER),
+    cat: WEAPON_CATEGORY_VALUES.has(flag(ITEM_FLAGS.CATEGORY)) ? flag(ITEM_FLAGS.CATEGORY) : base?.cat ?? null,
     special: base?.special ?? [],
     anyoneThrows: false,
-    reqStr: base?.reqStr ?? 0,
     grips: GRIPS.has(flag(ITEM_FLAGS.GRIPS)) ? flag(ITEM_FLAGS.GRIPS) : null,
     handsOverride: flag(ITEM_FLAGS.HANDS) ?? null,
     styleHint: flag(ITEM_FLAGS.STYLE) ?? null,
@@ -500,15 +478,13 @@ export function classifyWeapon(item) {
   return profile;
 }
 
-/** A thrown thing the book lets every class throw, by what it is called. */
-const IMPROVISED_THROWN = /\b(flasks?|bottles?|vials?|grenades?|jars?|pots?|rocks?|sticks?|torch(?:es)?)\b/i;
-
 /**
  * Does every character throw this proficiently, whatever their class (RR ch.
  * 1, Weapon Proficiency: bottles, flasks, rocks, sticks and torches)?
  *
- * A weapon-table row says so (`weaponThrowsAsAnyone`). Beyond the table, two
- * readings make it every grenade and not only the four rows the table prints:
+ * A weapon row says so (`weaponThrowsAsAnyone`): a throwables kind, or a
+ * thrown row whose printed name is one of the improvised throwables. Beyond the
+ * rows, two readings make it every grenade and not only the rows marked:
  * anything that bursts where it lands (`splash`, the row's or a custom tag the
  * item carries, or a `grenade` tag) is a flask or a bottle whatever it holds,
  * and a thrown weapon the table cannot place is read by its name, so a Judge's

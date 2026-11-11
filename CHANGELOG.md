@@ -141,6 +141,17 @@
 
 ### Removed
 
+- **The shipped weapon table is gone.** A weapon's class, size, Weapon Focus
+  group and thrown kind now come only from the weapon rows and lists imported
+  from your own books, wherever a weapon is read: an item sheet's Details tab →
+  Construction, Effects tab and Rolls tab, and the character sheet's Stats tab →
+  Training. With none imported a weapon shows "not imported" and is never
+  refused. A world that imported weapons before this release runs the rules
+  tables import once to get them: Settings tab → Game Settings → ACKS II —
+  Extras → Manage imports → Rebuild tab, with the rules tables picked. For
+  module authors, equipment's `config` no longer exports `WEAPONS`,
+  `WEAPON_FOCUS_GROUPS`, `ANYONE_THROWS` or `WEAPON_ALIASES`, nor the training
+  view `WEAPON_UNITS` (lib `apiVersion` 37).
 - **A spoil's Attempt to claim throw is gone.** The button on a spoil in a
   location's house pile (location sheet → Storage tab) rolled against a figure
   no rule prints, and it never showed to anyone, since only the Judge has the
@@ -161,6 +172,10 @@
 
 ### Fixed
 
+- **A two-handed weapon takes both hands.** A weapon the system tags
+  Two-handed now takes both hands even where its weapon row is a medium melee
+  weapon, so no shield is allowed beside it (an item sheet's Details tab →
+  Construction → Grips).
 - **Adventuring throws follow the character's level.** The character sheet's
   Rolls tab → Adventuring now shows Searching, Listening and Trapbreaking at
   the better of the figure stored on the sheet and the character's own skill

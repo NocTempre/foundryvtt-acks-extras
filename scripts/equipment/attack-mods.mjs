@@ -40,7 +40,7 @@ import { RULEDATA_DOC } from "./overlays/scavenged.mjs";
 import { ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
 import { hasDoc, getDoc } from "../lib/tables.mjs";
 
-/** Sizes eligible for Weapon Finesse (RR 121). */
+/** Sizes eligible for Weapon Finesse (RR 121); a weapon of no known size is not refused it. */
 const FINESSE_SIZES = [SIZE.TINY, SIZE.SMALL, SIZE.MEDIUM];
 
 /**
@@ -159,7 +159,7 @@ export function attackThrowRows(actor, item, attackType, { maneuver = null } = {
     if (penalty) rows.push({ label: label("nonProficient", {}, "Non-proficient"), value: penalty });
   } else if (
     attackType === ATTACK_TYPE.melee &&
-    FINESSE_SIZES.includes(c.profile.size) &&
+    (c.profile.size == null || FINESSE_SIZES.includes(c.profile.size)) &&
     hasEffectFlag(actor, EFFECT_DOMAINS.FINESSE)
   ) {
     const str = abilityMod(actor, "str");

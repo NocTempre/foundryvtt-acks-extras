@@ -171,7 +171,11 @@ const localImpl = Object.freeze({
   // 35: tables `bandDie`, a one-die table's die read off its own bands.
   // 36: summons — a character's summoned creatures, placed and dismissed;
   // spellUse — the cast seam, claimants for a spell's cast.
-  apiVersion: 36,
+  // 37: the shipped weapon table is gone from the equipment API's `config`
+  // (`WEAPONS`, `WEAPON_FOCUS_GROUPS`, `ANYONE_THROWS`, `WEAPON_ALIASES`) and
+  // from the training view (`WEAPON_UNITS`); the rows are the imported ones,
+  // read through the weapon seam.
+  apiVersion: 37,
   vocab,
   fields,
   /**

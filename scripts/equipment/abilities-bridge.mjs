@@ -26,7 +26,9 @@
  * `flags.acks-extras.*` change stands aside, to avoid double-counting.
  */
 import { EFFECT_PREFIX, EFFECT_DOMAINS } from "./constants.mjs";
+import { WEAPON_CATEGORY } from "./config.mjs";
 import { slug, abilitySlug, resolveLevelValue, ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
+import { forms, listedKind } from "../lib/weapons.mjs";
 
 const ABILITIES_FLAG_SCOPE = "acks-extras";
 
@@ -129,34 +131,40 @@ export function resolveStylePick(pick) {
   return null;
 }
 
+/** The category tokens that are named by their own words, each with those words. */
+const NAMED_CATEGORIES = Object.values(WEAPON_CATEGORY)
+  .filter((token) => token !== WEAPON_CATEGORY.OTHER)
+  .map((token) => ({ token, words: token.replace(/([A-Z])/g, " $1").toLowerCase().split(" ").filter(Boolean) }));
+
+/** The category token whose own name holds a word of the pick, singular or plural; null unless exactly one does. */
+function categoryNamedBy(pick) {
+  const picked = new Set(String(pick ?? "").toLowerCase().split(/[^a-z]+/).filter(Boolean).flatMap(forms));
+  const hits = NAMED_CATEGORIES.filter(({ words }) => words.some((w) => forms(w).some((f) => picked.has(f))));
+  return hits.length === 1 ? hits[0].token : null;
+}
+
 /**
- * Martial-Training pick → a grant token proficiency.mjs understands: a JJ
- * weapon category where recognisable, else the normalized pick itself (which
- * grantMatches treats as a named-weapon key — "Martial Training (Sword)").
+ * Martial-Training pick → a grant token proficiency.mjs understands: the
+ * category the imported lists place the pick under, else the one whose own name
+ * the pick holds, else the normalized pick itself (which grantMatches treats as
+ * a named-weapon key — "Martial Training (Sword)").
  */
 export function resolveWeaponGroupPick(pick) {
   const n = slug(pick);
   if (!n) return null;
-  if (n.includes("axe")) return "axe";
-  if (n.includes("crossbow")) return "crossbow"; // before "bow"
-  if (n.includes("bow")) return "bow";
-  if (n.includes("flail") || n.includes("hammer") || n.includes("mace")) return "flailhammermace";
-  if (n.includes("sword") || n.includes("dagger")) return "sworddagger";
-  if (n.includes("spear") || n.includes("polearm")) return "spearpolearm";
-  return n; // a named weapon, or "other"
+  const category = listedKind("category", pick) ?? categoryNamedBy(pick);
+  return category ? slug(category) : n; // a named weapon, or "other"
 }
 
-/** Weapon-Focus pick → a WEAPON_FOCUS_GROUPS key; null when unrecognisable. */
+/**
+ * Weapon-Focus pick → the key of the imported focus the pick names (its own
+ * key, or one of its nouns); null when the pick names none or none is
+ * imported.
+ */
 export function resolveFocusPick(pick) {
   const n = slug(pick);
   if (!n) return null;
-  if (n.includes("axe")) return "axes";
-  if (n.includes("flail") || n.includes("hammer") || n.includes("mace")) return "macesflailshammers";
-  if (n.includes("sword") || n.includes("dagger")) return "swordsdaggers";
-  if (n.includes("bow")) return "bowscrossbows"; // bows AND crossbows
-  if (n.includes("sling") || n.includes("thrown") || n.includes("dart") || n.includes("bola")) return "slingsthrown";
-  if (n.includes("spear") || n.includes("polearm") || n.includes("lance") || n.includes("javelin")) return "spearspolearms";
-  return null;
+  return listedKind("focus", pick) ?? (listedKind("focus", n) === n ? n : null);
 }
 
 /* ---------------------------------------------------------------------- */

@@ -1,4 +1,4 @@
-# lib API (apiVersion 36)
+# lib API (apiVersion 37)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -31,7 +31,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 36,
+  apiVersion: 37,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -566,10 +566,12 @@ them today; treat a change here as cheap until magic lands.
 
 `scripts/lib/weapons.mjs` exports `weaponRow(key)`, `weaponKeys()`,
 `keyForName(name)`, `hasWeaponRows()`, `weaponFocusGroup(key)`,
-`weaponThrowsAsAnyone(key)` and `registerWeaponSource(source)`. Features import
-them from the file; `lib.*` does not carry them, so a feature outside this
-module reads the equipment API's `config` as before. The contract is
-docs/lib/MODEL.md, "The weapon seam".
+`weaponThrowsAsAnyone(key)`, `listedKind(table, text)` and
+`registerWeaponSource(source)`. Features import them from the file; `lib.*`
+does not carry them. A feature outside this module reads a weapon through the equipment
+API's `classifyWeapon`; its `config` no longer holds a weapon table
+(apiVersion 37 removed `WEAPONS`, `WEAPON_FOCUS_GROUPS`, `ANYONE_THROWS` and
+`WEAPON_ALIASES`). The contract is docs/lib/MODEL.md, "The weapon seam".
 
 ## `repair` — the standing repair tool (apiVersion 18)
 

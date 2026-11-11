@@ -33,6 +33,8 @@ import { expectTables } from "../lib/tables.mjs";
 import { registerEquipmentRepairChecks } from "./repair-checks.mjs";
 import { RULEDATA_DOC } from "./overlays/scavenged.mjs";
 import { registerWeaponRows, rowsReady } from "./weapon-rows.mjs";
+import { librarySource } from "./weapon-source.mjs";
+import { registerWeaponSource } from "../lib/weapons.mjs";
 
 
 Hooks.once("init", () => {
@@ -56,6 +58,10 @@ Hooks.once("init", () => {
   // `enclosing-helm.mjs` HELM_TABLE, written as literals because the
   // producers gate reads this call from source.
   expectTables(RULEDATA_DOC, ["zeroLevelAttackThrow", "nonProficientUse", "dualWeaponStyle", "heavyHelm"]);
+
+  // Every weapon reader asks the weapon seam; this is the source behind it, the
+  // imported rows placed against the imported lists.
+  registerWeaponSource(librarySource);
 
   // The library's minted weapon rows, published as the `weapons` ruledata
   // document once the shelves load and on every change to a library weapon.

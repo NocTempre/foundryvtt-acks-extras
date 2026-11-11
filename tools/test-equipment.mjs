@@ -76,6 +76,9 @@ const { disguiseItem, revealItem, isDisguised } = await import(new URL("actions.
 const { helmetType, isEnclosingHelm, helmFigures } = await import(new URL("overlays/enclosing-helm.mjs", S));
 const { isSpellbook, pagesUsed, spellbookValue, parseSpellList, setSpellbookSpells, overCapacity: bookOver } = await import(new URL("spellbook.mjs", S));
 const { setMaterial, MATERIALS } = await import(new URL("overlays/item-loss.mjs", S));
+// The weapon rows are invented (tools/weapon-fixture.mjs); the module ships none.
+const { useWeaponFixture, FIXTURE_ROWS } = await import(new URL("weapon-fixture.mjs", import.meta.url));
+useWeaponFixture();
 
 const weapon = (name, over = {}) => ({
   id: over.id ?? name.replace(/\W/g, ""),
@@ -85,7 +88,7 @@ const weapon = (name, over = {}) => ({
   // weapon/armor/item carries them, which is what itemModel.isPhysical tests.
   system: {
     equipped: over.equipped ?? true, cost: over.cost ?? 0, weight6: over.w6 ?? 0,
-    damage: { base: { formula: over.damage ?? "1d6" }, alternate: { formula: over.alternate ?? "" } },
+    damage: { base: { formula: over.damage ?? FIXTURE_ROWS.sword.damage }, alternate: { formula: over.alternate ?? "" } },
     bonus: { attack: 0, damage: 0 }, melee: over.melee, missile: over.missile,
     customTags: over.tags ?? [], special: over.special ?? {},
   },
@@ -119,10 +122,14 @@ const check = (label, cond) => { assert.ok(cond, label); pass++; };
 const sword = classifyWeapon(weapon("Sword", { melee: true }));
 check("sword medium melee", sword.size === "medium" && sword.melee);
 check("sword 1H=1 / 2H=2", handCost(sword, { twoHanded: false }) === 1 && handCost(sword, { twoHanded: true }) === 2);
-check("sword 2H damage 1d8", sword.damage2h === "1d8");
-check("a flat modifier on the row's die carries onto the two-handed die", classifyWeapon(weapon("Sword", { melee: true, damage: "1d6 + 1" })).damage2h === "1d8 + 1");
-check("a penalty carries too, and the die is read without case or spaces", classifyWeapon(weapon("Sword", { melee: true, damage: "1D6-1" })).damage2h === "1d8 - 1");
+check("the sword's two-handed die is the row's", sword.damage2h === FIXTURE_ROWS.sword.damage2h);
+check("a flat modifier on the row's die carries onto the two-handed die", classifyWeapon(weapon("Sword", { melee: true, damage: `${FIXTURE_ROWS.sword.damage} + 1` })).damage2h === `${FIXTURE_ROWS.sword.damage2h} + 1`);
+check("a penalty carries too, and the die is read without case or spaces", classifyWeapon(weapon("Sword", { melee: true, damage: `${FIXTURE_ROWS.sword.damage.toUpperCase()}-1` })).damage2h === `${FIXTURE_ROWS.sword.damage2h} - 1`);
 check("a die the row does not print has no two-handed figure", classifyWeapon(weapon("Sword", { melee: true, damage: "1d10" })).damage2h === null);
+// A medium melee weapon the system tags two-handed needs both hands whatever its size says.
+const tagged2h = classifyWeapon(weapon("Sword", { melee: true, tags: ["Two-handed"] }));
+check("the core two-handed tag forces both hands on a medium melee row", tagged2h.twoHandedForced === true && handCost(tagged2h, { twoHanded: false }) === 2);
+check("a row that states two hands forces them without the tag", classifyWeapon(weapon("Net", { melee: true })).twoHandedForced === true && sword.twoHandedForced === false);
 check("longbow 2 hands", handCost(classifyWeapon(weapon("Long Bow", { missile: true, melee: false }))) === 2);
 check("sling handy 1 hand", handCost(classifyWeapon(weapon("Sling", { missile: true, melee: false }))) === 1);
 check("dagger tiny thrown", (() => { const d = classifyWeapon(weapon("Dagger", { melee: true })); return d.size === "tiny" && d.thrown; })());
@@ -131,12 +138,12 @@ check("override size/hands flag wins", handCost(classifyWeapon(weapon("Stick", {
 
 // equipmentClass: the family's equipment "root" (name → core type + stats).
 const torchClass = equipmentClass("Torch");
-check("equipmentClass: torch is a carried light STACK (item, prepareAs weapon)", torchClass?.type === "item" && torchClass.prepareAs === "weapon" && torchClass.damage === "1d4" && torchClass.light && torchClass.melee && torchClass.thrown);
+check("equipmentClass: torch is a carried light STACK (item, prepareAs weapon)", torchClass?.type === "item" && torchClass.prepareAs === "weapon" && torchClass.damage === FIXTURE_ROWS.torch.damage && torchClass.light && torchClass.melee && torchClass.thrown);
 check("equipmentClass: a thrown melee weapon is missile-capable (enables the range selector)", torchClass.missile === true && equipmentClass("Hand Axe")?.missile === true && equipmentClass("Hand Axe").melee === true);
 const oilClass = equipmentClass("Military Oil");
 check("equipmentClass: military oil is a thrown splash weapon", oilClass?.type === "weapon" && oilClass.splash && oilClass.missile && oilClass.thrown);
 const hwClass = equipmentClass("Holy Water");
-check("equipmentClass: holy water is a thrown splash consumable (1d8)", hwClass?.type === "weapon" && hwClass.damage === "1d8" && hwClass.splash && hwClass.consumable);
+check("equipmentClass: holy water is a thrown splash consumable", hwClass?.type === "weapon" && hwClass.damage === FIXTURE_ROWS.holywater.damage && hwClass.splash && hwClass.consumable);
 check("equipmentClass: a lantern stays a light-bearing item", equipmentClass("Lantern")?.type === "item" && equipmentClass("Lantern").light === true);
 check("equipmentClass: a candle stays a light-bearing item", equipmentClass("Candle")?.type === "item" && equipmentClass("Candle").light === true);
 check("equipmentClass: plain oil (lantern fuel) is NOT a weapon", equipmentClass("Oil") === null);
@@ -380,7 +387,8 @@ const brickP = classifyWeapon(weapon("Brick", { missile: true, melee: false }));
 const taggedP = classifyWeapon(weapon("Smoke charge", { missile: true, melee: false, tags: ["Grenade"] }));
 check("an unplaced thrown flask is everyone's", isWeaponProficient(swordsOnly, acidP));
 check("a grenade-tagged weapon is everyone's", isWeaponProficient(swordsOnly, taggedP));
-check("an unplaced throwable its name does not place is not", !isWeaponProficient(swordsOnly, brickP));
+check("an unplaced throwable its name does not place is not everyone's", brickP.anyoneThrows === false);
+check("and with no class imported for it, its proficiency is undecided, not refused", isWeaponProficient(swordsOnly, brickP));
 check("a table-placed weapon is never read by name", classifyWeapon(weapon("Stick-handled mace", { melee: true, missile: true })).anyoneThrows === false);
 check("the Training pills read grants alone", !isWeaponProficient(swordsOnly, oilP, undefined, { grantsOnly: true }));
 const oilOnly = getLoadout(actor([weapon("Military Oil", { missile: true, melee: false, id: "oil" })], { flags: { weaponProficiency: "swordDagger" } }));
@@ -404,9 +412,9 @@ check("Weapon Finesse does not apply to missile attacks", attackThrowRows(a, swo
 
 // Lone medium sword is wielded two-handed → the two-handed die is the system's
 // ALTERNATE damage mode, offered first; the alternate the item leaves blank
-// reads the table's 1d8.
+// reads the table's two-handed die.
 check("two-handed grip offers the alternate mode first", damageModesFor(a, swordItem, "melee", ["base"]).join() === "alternate,base");
-check("the alternate the item leaves blank is the table's two-handed die", damageFormulaFor(swordItem, "alternate", "") === "1d8" && damageFormulaFor(swordItem, "base", "1d6") === "1d6");
+check("the alternate the item leaves blank is the table's two-handed die", damageFormulaFor(swordItem, "alternate", "") === FIXTURE_ROWS.sword.damage2h && damageFormulaFor(swordItem, "base", "1d6") === "1d6");
 check("an alternate the item states is left alone", damageFormulaFor(swordItem, "alternate", "1d10") === "1d10");
 check("a one-handed grip still offers the alternate, after the base",
   damageModesFor(rollActor([swordItem, armor("Shield", "shield", { id: "sh" })], { flags: { styles: "weaponShield" } }), swordItem, "melee", ["base"]).join() === "base,alternate");
@@ -1066,13 +1074,12 @@ check("every weapon-proficiency box is a grant token this grammar resolves",
 
 // The strips read the same picks at class granularity, through one resolver.
 const { profileStrips, weaponTokenClasses } = await import(new URL("../scripts/lib/proficiency-strip.mjs", import.meta.url));
-const { WEAPONS: WEAPON_TABLE } = await import(new URL("config.mjs", S));
 check("weaponTokenClasses: missile:all lights the missile classes only",
   (() => { const c = weaponTokenClasses("missile:all"); return c.includes("bow") && c.includes("crossbow") && c.includes("other") && !c.includes("axe"); })());
 check("weaponTokenClasses: a size clause lights every melee class",
   (() => { const c = weaponTokenClasses("melee:small"); return c.includes("axe") && c.includes("sworddagger") && c.includes("other") && !c.includes("bow"); })());
 check("weaponTokenClasses: a named weapon lights the class it is filed under",
-  weaponTokenClasses("dagger")[0] === "sworddagger" && weaponTokenClasses("dart", { config: { WEAPONS: WEAPON_TABLE } })[0] === "spearpolearm");
+  weaponTokenClasses("dagger")[0] === "sworddagger" && weaponTokenClasses("dart")[0] === "spearpolearm");
 check("weaponTokenClasses: a token nothing recognises covers no class", weaponTokenClasses("pointy stick").length === 0);
 
 const savedAbilities = globalThis.acksExtras.abilities;
@@ -1081,7 +1088,6 @@ globalThis.acksExtras.abilities = {
   getExtras: (item) => item.flags?.["acks-extras"]?.extras ?? {},
   selectionsOf: (item) => item.flags?.["acks-extras"]?.extras?.selections ?? [],
 };
-globalThis.acksExtras.equipment = { config: { WEAPONS: WEAPON_TABLE } };
 try {
   const weaponsAbility = (selections) => ({
     id: "wp", name: "Weapons", type: "ability", system: {}, effects: [], getFlag: () => undefined,
@@ -1112,7 +1118,7 @@ try {
   const withSwords = actor([proficiencyItem("weaponProficiency", ["swords"])], { effects: [axeChunk] });
   check("gate: a class pick the pill lights passes beside a declared list", isWeaponProficient(withSwords, swordP2) && isWeaponProficient(withSwords, daggerP2) && isWeaponProficient(withSwords, axeP2));
   check("gate: every weapon filed under a lit pill passes",
-    lit(["swords"]).has("sworddagger") && Object.entries(WEAPON_TABLE).filter(([, w]) => w.cat === "swordDagger").every(([k]) => isWeaponProficient(withSwords, classifyWeapon(weapon(k, { melee: true })))));
+    lit(["swords"]).has("sworddagger") && Object.entries(FIXTURE_ROWS).filter(([, w]) => w.cat === "swordDagger").every(([k]) => isWeaponProficient(withSwords, classifyWeapon(weapon(k, { melee: true })))));
   const withDagger = actor([proficiencyItem("weaponProficiency", ["dagger"])], { effects: [axeChunk] });
   check("gate: a named weapon pick passes that weapon, not its whole class", isWeaponProficient(withDagger, daggerP2) && !isWeaponProficient(withDagger, swordP2));
   check("gate: without the imported pick the declared list alone refuses the sword", !isWeaponProficient(actor([], { effects: [axeChunk] }), swordP2));
@@ -1277,10 +1283,10 @@ check("api.named namespace is present", typeof api.named?.resolveGuess === "func
   check("a loaded quiver has its capacity cleared and keeps its slots", write(loaded)[`${GEAR_KEY}.capacity`] === null && !(`${GEAR_KEY}.slots` in write(loaded)));
   const sizedAxe = doc("Battle Axe", "weapon", null, { size: "large", melee: true });
   await api.annotateItem(sizedAxe);
-  check("annotate keeps a weapon's own declared size", !("flags.acks-extras.size" in write(sizedAxe)));
+  check("annotate stamps no size on a weapon that declares one", !("flags.acks-extras.size" in write(sizedAxe)));
   const bareAxe = doc("Battle Axe", "weapon", null, { size: "na", melee: true });
   await api.annotateItem(bareAxe);
-  check("annotate sizes a weapon that states none", typeof write(bareAxe)["flags.acks-extras.size"] === "string");
+  check("annotate stamps no size on one that states none: the row is read at use", !("flags.acks-extras.size" in write(bareAxe)) && write(bareAxe)["flags.acks-extras.profileKey"] === "battleaxe");
 }
 
 // v14 AE changes must carry a string `type`, never the deprecated numeric `mode`
@@ -1843,6 +1849,9 @@ check("resolveStylePick handles 'Weapon and Shield'", resolveStylePick("Weapon a
 check("resolveWeaponGroupPick: crossbows before bows", resolveWeaponGroupPick("Crossbows") === "crossbow");
 check("resolveWeaponGroupPick: a named weapon passes through", resolveWeaponGroupPick("Sword") === "sworddagger" || resolveWeaponGroupPick("Whip") === "whip");
 check("resolveFocusPick maps bows and crossbows together", resolveFocusPick("Bows & Crossbows") === "bowscrossbows");
+check("resolveFocusPick answers null for a pick no imported focus names", resolveFocusPick("Zorgle") === null && resolveFocusPick("") === null);
+check("resolveFocusPick takes an imported focus key as written", resolveFocusPick("axes") === "axes");
+check("resolveWeaponGroupPick reads a category by its own name when the lists do not place the pick", resolveWeaponGroupPick("Thrown Spears and Polearms") === "spearpolearm" && resolveWeaponGroupPick("Zorgle") === "zorgle" && resolveWeaponGroupPick("") === null);
 
 /* ---------------------------------------------------------------------- */
 /*  Paper Doll placement planner (sheet → doll mirror)                      */
@@ -1870,6 +1879,7 @@ const { consumeForAttack, launcherAmmoPattern, roundsOf, isThrownAway, recoverTh
 check("bow → arrows", launcherAmmoPattern(weapon("Long Bow", { missile: true, melee: false }), classifyWeapon(weapon("Long Bow", { missile: true, melee: false }))).test("Quiver, 20 Arrows"));
 check("crossbow → bolts", launcherAmmoPattern(weapon("Crossbow", { missile: true }), classifyWeapon(weapon("Crossbow", { missile: true }))).test("Case, 20 Bolts"));
 check("sling → stones", launcherAmmoPattern(weapon("Sling", { missile: true }), classifyWeapon(weapon("Sling", { missile: true }))).test("30 Sling Stones"));
+check("a launcher is told by its imported class, never by its name", launcherAmmoPattern(weapon("Long Bow", { missile: true }), classifyWeapon(weapon("Zorgle Bow", { missile: true }))) === null);
 check("a melee sword has no ammo pattern", launcherAmmoPattern(weapon("Sword", { melee: true }), classifyWeapon(weapon("Sword", { melee: true }))) === null);
 
 // A mutable mock item that records updates/flags (ammo consumption writes them).
@@ -2091,19 +2101,19 @@ check("thrown splash oil gains no STR to damage (RAW exclusion)", damageRows(oil
 /* ---------------------------------------------------------------------- */
 
 const readied = readiedWeaponData({ name: "Torch", img: "t.png", system: { cost: 1, weight6: 1 } });
-check("readied torch is a 1d4 weapon, melee AND thrown, light", readied.type === "weapon" && readied.system.damage.base.formula === "1d4" && readied.system.melee && readied.system.missile && readied.flags["acks-extras"].light);
+check("readied torch is a weapon of the row's die, melee AND thrown, light", readied.type === "weapon" && readied.system.damage.base.formula === FIXTURE_ROWS.torch.damage && readied.system.melee && readied.system.missile && readied.flags["acks-extras"].light);
 check("readied torch carries no quantity (a single wielded torch)", readied.system.quantity === undefined);
 check("readiedWeaponData ignores non-preparable gear", readiedWeaponData({ name: "Sword" }) === null && readiedWeaponData({ name: "Lantern" }) === null);
 // Core's own compendium stack is named "Torches (6)": it readies as the
 // table's torch, under the torch's name so the readied weapon classifies as one.
 const coreStack = readiedWeaponData({ name: "Torches (6)", img: "t.png", system: { cost: 1, weight6: 1, quantity: { value: 6 } } });
-check("core's torch stack readies under the torch's own name", coreStack?.type === "weapon" && coreStack.system.damage.base.formula === "1d4" && coreStack.name === "Torch" && coreStack.flags["acks-extras"].light);
+check("core's torch stack readies under the torch's own name", coreStack?.type === "weapon" && coreStack.system.damage.base.formula === FIXTURE_ROWS.torch.damage && coreStack.name === "Torch" && coreStack.flags["acks-extras"].light);
 
 const created = [];
 const torchActor = { createEmbeddedDocuments: async (_t, arr) => { created.push(...arr); return arr.map((d, i) => ({ ...d, id: "new" + i })); } };
 const stack = { name: "Torch", img: "t.png", system: { quantity: { value: 3 }, cost: 1, weight6: 1 }, deleted: false, getFlag: () => undefined, async update(u) { if (u["system.quantity.value"] != null) this.system.quantity.value = u["system.quantity.value"]; }, async delete() { this.deleted = true; } };
 const madeTorch = await prepareTorch(torchActor, stack);
-check("prepareTorch creates a weapon-torch", madeTorch && madeTorch.type === "weapon" && madeTorch.system.damage.base.formula === "1d4");
+check("prepareTorch creates a weapon-torch", madeTorch && madeTorch.type === "weapon" && madeTorch.system.damage.base.formula === FIXTURE_ROWS.torch.damage);
 check("prepareTorch decrements the stack (3 → 2), keeps it", stack.system.quantity.value === 2 && stack.deleted === false);
 const lastTorch = { name: "Torch", img: "t.png", system: { quantity: { value: 1 } }, deleted: false, getFlag: () => undefined, async update(u) { this.system.quantity.value = u["system.quantity.value"]; }, async delete() { this.deleted = true; } };
 await prepareTorch(torchActor, lastTorch);
@@ -2767,11 +2777,10 @@ check("ignoreDeclared reports what the ladder would say without it",
   weaponIdentity(weap("Francisca", { profileKey: "greataxe", skin: { base: "def.weapon.handAxe" } }), { ignoreDeclared: true }).key === "handaxe");
 check("a cookbook id outside the weapon table names nothing",
   weaponIdentity(weap("Case", { cookbook: { id: "def.weapon.case20Bolts" } })).key === null);
-// The consequence the report exists for: an unidentified weapon is silently
-// category-`other`, which no class grant matches.
+// An unidentified weapon has no class: nothing imported places it.
 check("an identified Francisca carries the axe category",
   classify(weap("Francisca", { skin: { base: "def.weapon.handAxe" } })).cat === "axe");
-check("an unidentified one falls to `other`", classify(weap("Francisca")).cat === "other");
+check("an unidentified one has no class", classify(weap("Francisca")).cat === null);
 
 // GRIPS: the declaration answers ahead of the size derivation, both ways.
 const gripped = (grips) => classify(weap("Hand Axe", grips ? { grips } : {}));

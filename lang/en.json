@@ -1197,7 +1197,7 @@
   "ACKS-LIB.weaponCat.flailHammerMace": "Flails, Hammers & Maces",
   "ACKS-LIB.weaponCat.swordDagger": "Swords & Daggers",
   "ACKS-LIB.weaponCat.spearPolearm": "Spears & Polearms",
-  "ACKS-LIB.weaponCat.other": "Other (slings, staffs, nets, whips…)",
+  "ACKS-LIB.weaponCat.other": "Other weapons",
   "ACKS-LIB.enum.spellType.blast": "Blast",
   "ACKS-LIB.enum.spellType.death": "Death",
   "ACKS-LIB.enum.spellType.detection": "Detection",
@@ -2111,6 +2111,7 @@
         "noneHint": "Nothing on this item throws dice.",
         "noRoller": "Nobody to roll: open the item from a character, control a token, or assign your character.",
         "throw": "throw",
+        "dieLabel": "Damage die",
         "range": "range {range}",
         "mod": {
           "nonProficient": "Non-proficient",
@@ -2316,7 +2317,9 @@
         "attribute": "{attr} {n}",
         "style": "Fighting style: {style}",
         "styleTrained": "Trained",
-        "styleUntrained": "Untrained"
+        "styleUntrained": "Untrained",
+        "finesseSizeUnknown": "This weapon's size is not imported or declared, so it is not refused Weapon Finesse.",
+        "proficiencyUndecided": "Whether this character is trained with it is not imported, so it is not refused."
       },
       "src": {
         "ability": "Ability",
@@ -7751,7 +7754,6 @@
   "ACKS-ABILITIES.roll.previewMeasure": "Rolls {formula}. The result stands on its own — nothing is scored against it.",
   "ACKS-IMPORTER.Title": "Importer",
   "ACKS-IMPORTER.leaderTemplate.name": "{name} (leaders)",
-  "ACKS-IMPORTER.weapons.unidentified": "Imported, but nothing names which weapon these are, so a character trained on one still reads as non-proficient: {items}. Open each and set its Weapon type under Construction.",
   "ACKS-IMPORTER.tables.gmOnly": "Only a GM can import rules tables into the world.",
   "ACKS-IMPORTER.tables.noProvider": "No rules-table host is active. Reload, and report it if it persists.",
   "ACKS-IMPORTER.tables.imported": "ACKS Extras | imported {tables} rules table(s) from your books into this world ({docs}). Market and hiring automation now uses your book values.",

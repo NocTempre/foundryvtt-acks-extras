@@ -2113,3 +2113,51 @@ the failure the permissive default exists to prevent.
 
 **What it cost.** Every loadout build reads the character's ability items.
 Where no list is declared, an unlit pill beside a permissive gate remains.
+
+### The weapon table is gone: rows come from the import, and only the procedure stays (2026-11-11)
+
+`config.mjs` held a frozen table of weapons, a focus-group map, a table of
+spellings and a tag for who throws as anyone: a printed value in source. It is
+deleted, with `WEAPON_UNITS` (the training view's frozen copy of it).
+
+**Ruled (owner).** Nothing imported means nothing shown: a weapon, a size, a
+class or a die no import states is "not imported" with no figure in its place,
+and what is undecided never penalises (a character is not refused a weapon
+whose class or size the grants cannot be asked about). The importer reads each
+row's figures, its category and Weapon Focus from the book's own lists, and a
+Judge's edit of the registry is the override.
+
+**Ruled here.**
+- Equipment registers one source with the weapon seam (`weapon-source.mjs`)
+  over the imported rows. Every reader keeps the field names it had.
+- The spelling table stays as a table of other spellings of a key, answering
+  only where its target is an imported row; three entries that named their own
+  key are dropped.
+- Everyone throws a flask (2026-11-10) is superseded in how a row is marked:
+  not a tag on four table rows, but a throwables kind or a thrown row whose
+  printed name is a flask, bottle, vial, grenade, jar, pot, rock, stick or
+  torch. The evidence the first ruling did not have: the book's throwables
+  section names oil, holy water and the torch as entries of their own, and the
+  rock and the flask are rows the grid prints, so the mark follows what the
+  book prints rather than four names a table carried.
+- `annotateItem` writes the weapon's identity and its two attack booleans, no
+  size, type, `handy` or `thrown`: those are read from the row at every use, so
+  a later import is what the item follows. Items stamped by an earlier annotate
+  keep their stamps (a stamp outranks a row) until a repair check clears them.
+- A weapon needs both hands where its row says so or the item carries core's
+  Two-handed tag, whatever its size.
+- A launcher is told by its imported class, never by a bow's name; a Martial
+  Training or Weapon Focus pick is placed by the imported lists' nouns.
+- The suites run on invented rows (`tools/weapon-fixture.mjs`).
+
+**Rejected.** Keeping a sample table for a world with no import: it is the
+printed value shipping under another name, and a surface that shows a figure
+before any import is the failure this ruling removes.
+
+**What it cost.** A world with no weapons imported shows no class, size or die
+on any weapon and cannot classify one by name until the import runs.
+`equipment.config` no longer exposes `WEAPONS`, `WEAPON_FOCUS_GROUPS`,
+`ANYONE_THROWS` or `WEAPON_ALIASES`, and the training view no longer exposes
+`WEAPON_UNITS` (lib apiVersion 37). Printed values left in source and not moved
+here: `FINESSE_SIZES` (the sizes Weapon Finesse takes) and the unarmed strike's
+die in `actions.mjs`.

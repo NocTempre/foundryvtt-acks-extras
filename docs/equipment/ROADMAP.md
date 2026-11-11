@@ -27,16 +27,10 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   What remains of the legacy tables is `config.SHIELD_VARIANTS`: whether the
   fields the imported shield documents do not carry are read from the book now
   or waived is the owner's call.
-- **The `weapons` ruledata document has no reader.** `weapon-rows.mjs`
-  publishes the library's minted weapon rows (MODEL, "Weapon rows"), and the
-  classifier still reads the `WEAPONS` table in `config.mjs`. The consumers
-  move onto the document one surface at a time, and the table's printed figures
-  go with each.
 - **An inventory of bespoke per-category items to retire onto base type +
-  item, and the order to do it in.** `CLOTHING_SLOT_PATTERNS`, `GEAR_PROFILES`
-  and `WEAPON_ALIASES`/`WEAPONS` are the bulk of the name-inference this
-  replaces, but which unique-item cases actually retire, and in what order, is
-  still unscoped.
+  item, and the order to do it in.** `CLOTHING_SLOT_PATTERNS` and
+  `GEAR_PROFILES` are the bulk of the name-inference this replaces, but which
+  unique-item cases actually retire, and in what order, is still unscoped.
 - **A suit worn without a helmet.** The page prices a light helmet into every
   suit and charges a suit worn bare (RR ch. 4, "Helmet, Light"); nothing reads
   that yet. The figures are printed, so they arrive through the importer's
@@ -59,6 +53,12 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   two-handed figure (`twoHandedDamage`), so a Judge-made versatile weapon deals
   the same damage in either grip. A field on the item for its two-handed damage
   would let one be declared.
+- **A list of the weapons the lists cannot place.** The weapon import no
+  longer names the rows it could not identify, because the rows are published
+  from the documents it makes and nothing can be asked of them until it ends.
+  A repair check run after the rows publish would list every weapon the
+  imported lists leave without a class, so a Judge sees them in one place
+  instead of on each sheet.
 - **Equipment numbers through the importer.** The strings and comments name the
   field and cite the page. The numbers behind them still ship in code: the
   manoeuvre table, the spell book constants, the unarmed and torch dice, the

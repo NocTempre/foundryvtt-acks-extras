@@ -23,21 +23,18 @@
  * tooltip can name the page.
  *
  * Readers that must wait for the first publication await `rowsReady()`; one
- * that redraws on a change listens for `ROWS_CHANGED_HOOK`.
- *
- * No consumer in the module reads the document yet.
+ * that redraws on a change listens for `ROWS_CHANGED_HOOK`. Every reader of a
+ * weapon asks the weapon seam, whose registered source (`weapon-source.mjs`)
+ * reads this document.
  */
 import { registerTable, unregisterTable, PRIORITY } from "../lib/tables.mjs";
 import { libraryItems, cookbookId, whenReady } from "../lib/library.mjs";
 import { ITEM_TYPE, slug } from "../lib/vocab.mjs";
 import { announceChange } from "../lib/util.mjs";
 import { MODULE_ID } from "./constants.mjs";
+import { WEAPONS_DOC, WEAPONS_TABLE } from "./weapon-source.mjs";
 
-/** The ruledata document the rows are published in. */
-export const WEAPONS_DOC = "weapons";
-
-/** The table inside it: one row per weapon key. */
-export const WEAPONS_TABLE = "grid";
+export { WEAPONS_DOC, WEAPONS_TABLE };
 
 /** The hook fired, debounced, after the published rows changed. */
 export const ROWS_CHANGED_HOOK = "acksExtras.weaponRowsChanged";

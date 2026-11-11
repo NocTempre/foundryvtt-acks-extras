@@ -3,13 +3,17 @@
  *
  * The equipment feature owns that root (`equipmentClass(name)`, imported
  * statically by the importer); this test checks that bindEquipment consumes
- * it — a torch imports as a carried light STACK (a bundle; it becomes a 1d4
+ * it — a torch imports as a carried light STACK (a bundle; it becomes a
  * weapon only when readied), a flask of holy water as a thrown splash weapon,
  * a lantern as a light-bearing item. The root is the real classifier, so no
  * RAW value is baked here; the root supplies them.
  */
 import assert from "node:assert";
 import { bindEquipment } from "../../scripts/importer/cookbook.mjs";
+import { useWeaponFixture, FIXTURE_ROWS } from "../weapon-fixture.mjs";
+
+// The equipment root reads the weapon rows through the seam; these are invented.
+useWeaponFixture();
 
 let pass = 0;
 const check = (label, cond) => { assert.ok(cond, label); pass++; };
@@ -28,7 +32,7 @@ check("torch is a light source (flagged)", torch.flags["acks-extras"].light === 
 check("torch stack carries no damage die", torch.system.damage === undefined);
 
 const hw = bindEquipment(mk("Holy Water"), { fields: {} }, "def.equip.holywater");
-check("holy water upgrades to a weapon (1d8)", hw.type === "weapon" && hw.system.damage.base.formula === "1d8");
+check("holy water upgrades to a weapon of the row's die", hw.type === "weapon" && hw.system.damage.base.formula === FIXTURE_ROWS.holywater.damage);
 
 const lantern = bindEquipment(mk("Lantern"), { fields: {} }, "def.equip.lantern");
 check("a lantern stays an item", lantern.type === "item");

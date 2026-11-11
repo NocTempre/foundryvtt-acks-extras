@@ -120,7 +120,7 @@ import { spellNameKey, splitSpellNames, titleIndex, scanMonsterSpells, castsAsCl
 import { slotsFromCells, slotsOfClass, coreSlotsPatch, repertoireFor, spellPayload, spellsByName, classNamed } from "../magic/repertoire.mjs";
 import { frequencyOf } from "./executor.mjs";
 import { warmSpellPacks } from "../classes/grants.mjs";
-import { equipmentClass, weaponIdentity } from "../equipment/profiles.mjs";
+import { equipmentClass } from "../equipment/profiles.mjs";
 import { gearProfileFor } from "../equipment/config.mjs";
 import { annotateItem } from "../equipment/api.mjs";
 import { declaresSlots } from "../lib/item-model.mjs";
@@ -12069,15 +12069,12 @@ export async function importWeapons(folderId, { repair = null } = {}) {
   // while the wrong documents stand (the lesson importPricedGear records).
   const repaired = await repairAmmoWeapons(rows.filter((r) => r.ammunition).map((r) => weaponId(r.name)));
   let created = 0;
-  // A row the equipment root has no profile for imports fine and rolls fine,
-  // but silently as size-medium and proficiency-category `other`. Caught
-  // here, since this is the only place the whole grid is in view at once.
-  const unidentified = [];
+  // Which kind each row is cannot be asked here: the weapon rows are published
+  // from the documents this loop makes, so before it ends every row would read
+  // as unplaced. A row the lists cannot place says "not imported" on its own
+  // sheet.
   for (const row of rows) {
     const id = weaponId(row.name);
-    if (!row.ammunition && !weaponIdentity({ type: ITEM_TYPE.WEAPON, name: row.name, flags: { [MODULE_ID]: { cookbook: { id } } } }).key) {
-      unidentified.push(row.name);
-    }
     const cite = citeFor(WEAPON_TABLE.book, WEAPON_TABLE.page);
     // Whether an ammunition row names a carrying device is the equipment root's
     // question — it owns the gear profiles that answer it — so it is asked, not
@@ -12105,11 +12102,7 @@ export async function importWeapons(folderId, { repair = null } = {}) {
     }
     created++;
   }
-  if (unidentified.length) {
-    console.warn(`${MODULE_ID} | weapon grid: no RAW profile for ${unidentified.join(", ")}`);
-    ui.notifications?.warn(game.i18n.format(`${LANG_PREFIX}.weapons.unidentified`, { items: unidentified.join(", ") }));
-  }
-  return { table: rows.length, created, repaired, unidentified };
+  return { table: rows.length, created, repaired };
 }
 
 /** camelCase cookbook id for a table-materialized armour item. */

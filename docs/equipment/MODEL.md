@@ -59,10 +59,10 @@ enums; local-only, never in the repo).
 | Actor flag | `flags.acks-extras.styles` | CSV/array of fighting styles the actor is trained in (adds to the mandatory `single,missile`). |
 | Actor flag | `flags.acks-extras.activeStyle` | Player's chosen style when two apply this round (overrides inference). |
 | Actor AE | name `Equipment Loadout`, `flags.acks-extras.loadout = true` | Module-managed effect; `changes[]` target core `system.*.mod`; rebuilt on every loadout change; deleted when empty. |
-| Item flag (weapon) | `flags.acks-extras.profileKey` | WHICH RAW weapon-table row this is. The top of the identity ladder below; written by Annotate and by the item sheet's Weapon type control. |
+| Item flag (weapon) | `flags.acks-extras.profileKey` | WHICH imported weapon row this is. The top of the identity ladder below; written by Annotate and by the item sheet's Weapon type control. |
 | Item flag (weapon) | `flags.acks-extras.grips` | `1h` \| `versatile` \| `2h` — which grips the weapon OFFERS. Answers ahead of the size derivation in `handCost`/`isTwoHandedOnly`/`canOneHand`. Distinct from `grip`, which is the grip a player picked this round out of these. |
 | Item flag (weapon) | `flags.acks-extras.category` | Which proficiency CLASS the weapon belongs to (a `WEAPON_CATEGORY` value), read by `classifyWeapon` ahead of the table row's own. Written by the item sheet's Class control; absent = the row's. |
-| Item flag (weapon) | `flags.acks-extras.{size,hands,style,handy,thrown,damageType}` | Per-item classifier overrides (stamped by Annotate; `size` only where neither it nor the system's `system.size` states one). `hands` is superseded by `grips` and is written by nothing. |
+| Item flag (weapon) | `flags.acks-extras.{size,hands,style,handy,thrown,damageType}` | Per-item classifier overrides, a Judge's or the sheet's (Annotate no longer stamps them; an item an earlier Annotate stamped keeps its stamps, which outrank the row). `hands` is superseded by `grips` and is written by nothing. |
 | Item flag (armor) | `flags.acks-extras.{shieldVariant,strap,masterwork,helmet}` | Overlay metadata. |
 | Item flag (weapon/ammo) | `flags.acks-extras.silvered` | RR ch.4 Silver quality. `true` plated, `false` explicitly not, absent = the guess in `silver.mjs` (weapon table, then name). Only `true` applies the price layer — the RAW list already charges Silver Dagger and Silver Arrow their silvered price. |
 | Item flag (weapon/shield) | `flags.acks-extras.hand` | `main` \| `off` — which hand the item was drawn into; resolves dual-wield off-hand identity. |
@@ -167,7 +167,7 @@ and the `weaponProf` / `martialWeapons` effect domains:
 | `missile:all` | every missile weapon (broad choice v) |
 | `melee:<size>` | melee weapons of that size — `tiny`/`small`/`medium`/`large`. Broad choices i–ii are size-based, not category-based, so a **bare size is read as this**: `tiny,small,medium` is broad choice i |
 | `<category>` | `axe`, `bow`, `crossbow`, `flailHammerMace`, `swordDagger`, `spearPolearm`, `other` |
-| `<weapon>` | one named weapon, by any name config.mjs knows (aliases resolve: "Great Sword" → `twohandedsword`) |
+| `<weapon>` | one named weapon, by any name or spelling the imported rows know (aliases resolve: "Great Sword" → `twohandedsword`) |
 | `weapon:<key>` | the same, written so it cannot be read as a category where the key is also one (`crossbow`); what a per-weapon control writes |
 
 A token outside the grammar matches nothing — `api.classifyGrantToken` reports
@@ -177,11 +177,12 @@ the alternative made one typo silently non-proficient with everything.
 
 **What every class throws is not a grant.** A flask, a bottle, a rock, a stick
 or a torch is thrown proficiently whatever the grants say (RR ch. 1, Weapon
-Proficiency). The classifier marks it `profile.anyoneThrows`: a table row
-tagged `ANYONE_THROWS` (military oil, holy water, rock, torch), anything that
-bursts (`splash`, or a `splash`/`grenade` custom tag), or a thrown weapon the
-table cannot place whose name calls it a flask, bottle, vial, grenade, jar,
-pot, rock, stick or torch. `isWeaponProficient` answers yes for it, so
+Proficiency). The classifier marks it `profile.anyoneThrows`: a row of a
+throwables kind (`weapon-source.mjs`, from the book's oil, holy water and torch
+entries), a thrown row whose printed name calls it a flask, bottle, vial,
+grenade, jar, pot, rock, stick or torch, anything that bursts (`splash`, or a
+`splash`/`grenade` custom tag), or a thrown weapon no row places whose own name
+says so. A placed weapon is never read by the item's name. `isWeaponProficient` answers yes for it, so
 carrying one equipped is never the non-proficient use package; only a melee
 swing (`{attack: "melee"}`, a torch) asks the grants, and `attack-mods.mjs`
 asks that for the swing alone, as the item roll groups' Non-proficient tag
@@ -841,9 +842,11 @@ of the row's name and block.
   for `acksExtras.weaponRowsChanged`**, fired once, 50 ms after the last
   publication or withdrawal of a burst. Neither is exposed on the module api
   yet; no consumer reads the document.
-- No consumer reads the document yet: the classifier and the other readers of
-  the weapon table ask `lib/weapons.mjs` (docs/lib/MODEL.md, "The weapon seam"),
-  and the source registered there is still the `WEAPONS` table in `config.mjs`.
+- Every reader of the weapon table asks `lib/weapons.mjs` (docs/lib/MODEL.md,
+  "The weapon seam"); the source equipment registers there at `init`
+  (`weapon-source.mjs`) reads this document, with the `weaponLists` document
+  that places each row, and nothing else. See "Weapon rows read from the
+  book" below.
 
 **Field specs** (`lib/field-spec.mjs`) are how both a base type's metadata and a
 variation's own storage get rendered without being shipped: a definition
@@ -858,9 +861,8 @@ weapon, a size or a class nothing imported states. Undecided never penalises.
 
 - `classifyWeapon` states `size` and `cat` as null and the die as "" where
   nothing states them: not the item (a flag, the system's own field, its die)
-  and not a row. Only a weapon no row places, while the table holds rows,
-  keeps the module's long-standing medium, class `other` and `1d6` (`unplaced`).
-  A row that leaves a figure out leaves it unstated.
+  and not a row. No stand-in figure exists for a weapon no row places, with or
+  without rows imported; a row that leaves a figure out leaves it unstated.
 - `grantVerdict(token, profile)` is true, false, or null where the figure the
   token asks of the profile is not imported (a size grant against no size, a
   class grant against no class, a weapon name when the table holds no rows).
@@ -875,9 +877,9 @@ weapon, a size or a class nothing imported states. Undecided never penalises.
   never `all`, and a grant covers nothing.
 - `readiedWeaponData` readies a torch only from a torch row and states that
   row's die and type; a row that states neither readies one with neither.
-- `annotateItem` writes a weapon's identity and then only what its row states:
-  a size the row has, a damage type it has, and the two uses with `handy` and
-  `thrown` only from a row that states a use.
+- `annotateItem` writes a weapon's identity (`profileKey`) and the item's two
+  attack booleans from a row that states a use; no size, damage type, `handy`
+  or `thrown` is stamped, since the row is read at every use.
 - `ready` awaits `rowsReady()` before the first loadout sync.
 - A container that declares `gear.holds` and no capacity is a container with no
   limit: `holdsGear` is true, `capacityStated` false, `containerReport` says
@@ -886,10 +888,48 @@ weapon, a size or a class nothing imported states. Undecided never penalises.
   of three states (`weapon-figures.mjs`): declared on the item, read from the
   weapon row with its page, or not imported with no number.
 
+## Weapon rows read from the book — `weapon-source.mjs`
+
+Equipment ships no weapon. `weapon-source.mjs` exports `librarySource`, the
+source `init` registers with the weapon seam (before `registerWeaponRows`);
+its fields read the registry at every call.
+
+- **The rows** are the `weapons` document's `grid` table, placed against the
+  `weaponLists` document by `lib/weapons.mjs` `resolveRows`, and renamed to the
+  fields the readers use: `category` is `cat`, `damageType` (or the item's first
+  type) is `type`, and `twoHands === true` is `twoHandedForced`. A row the lists do
+  not place has `cat` and `type` null. Adapted rows are memoized on the
+  resolver's own answer, so a row keeps its identity until the registry changes.
+- **A throwables kind** (oil, holy water, a torch) gets the shape the module
+  runs for it: thrown and missile, a torch melee too, `splash`, `consumable`,
+  `noDamageBonus` and `light` as the kind says. The die and types are the
+  importer's; a kind with no row of its own has a row only from the lists
+  (`name` ""), and `weaponName` falls back to its key.
+- **Spellings** (`battleax`, `greatsword`, `quarterstaff`) resolve to a key only
+  where the key is a row of the imported grid.
+- **Focus groups** are the `focus` each row was placed under.
+- **`throwsAsAnyone`** is a throwables kind, or a thrown or missile row whose
+  printed name matches `config.IMPROVISED_THROWN`.
+- **Nothing imported** is no rows: every answer is "not imported" (above), and
+  the suites bring invented rows (`tools/weapon-fixture.mjs`).
+
+What reads the rows by name or class: a launcher is told by its imported class
+(`ammo.mjs`), never by a bow's name; `abilities-bridge.mjs` places a
+Martial Training or Weapon Focus pick through `listedKind`, the imported lists'
+own nouns, else by a category's own name (`resolveWeaponGroupPick`), and a
+focus pick no imported focus names is null; `lib/proficiency-strip.mjs` keeps
+only the plain spellings of a category's own name, and places a single weapon
+through its row. A weapon needs both hands where its row says so or the item
+carries core's Two-handed tag, whatever its size. Weapon Finesse reads a size
+nothing states as eligible, and the ledger row's tooltip says the size is not
+imported.
+
+`annotateItem` is the only writer of a weapon flag that depended on the old
+table, and writes the identity alone (above).
+
 ## Training units and organisations — `training-view.mjs`
 
 The grant grammar above is read one more way: as ATOMIC UNITS. `weaponUnits()`
-(and `WEAPON_UNITS`, a read-only array view of it that follows the table)
 is every weapon the weapon seam holds as `{key, token, name, cat, size, melee,
 missile, icon, profile}` — `token` is what a control for that weapon alone
 writes (the bare key, or `weapon:<key>` where the bare key is also a category:

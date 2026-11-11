@@ -17,7 +17,7 @@ import {
   riderWaivers,
   hasMilitarySaddle,
 } from "./overlays/mounted.mjs";
-import { classifyWeapon, handCost, focusGroup, weaponKey, weaponIdentity, isUnidentifiedWeapon, inferredGrips, equipmentClass, inferGear, inferredGearFlag, wearableSlots, isHelmet, isShield, perStoneStated, CORE_SIZES } from "./profiles.mjs";
+import { classifyWeapon, handCost, focusGroup, weaponKey, weaponIdentity, isUnidentifiedWeapon, inferredGrips, equipmentClass, inferGear, inferredGearFlag, wearableSlots, isHelmet, isShield, perStoneStated } from "./profiles.mjs";
 import { FLAG_GEAR } from "../lib/constants.mjs";
 import { capacityOf, bundleSizeOf, gearOf, isCurrency, declaresSlots, reliefOf } from "../lib/item-model.mjs";
 import { weaponProficiency, isWeaponProficient, armorMax, isArmorProficient, thiefSkillsGated, isArmorGatedSkill, grantMatches, normalizeGrantToken, classifyGrantToken } from "./proficiency.mjs";
@@ -62,7 +62,8 @@ import { weaponRow } from "../lib/weapons.mjs";
  * Stamp module profile flags onto a core item from its RAW profile.
  *
  * Four layers, applied in ONE write:
- *  - weapons: size and qualities from the RAW weapon table;
+ *  - weapons: the profile key, and the two attack booleans of a thrown melee
+ *    row;
  *  - carrying devices: capacity, harness, bowquiver;
  *  - EVERY physical item: where it sits (`gear.slots`) and what it costs to
  *    reach into (`gear.access`), inferred by `inferGear`;
@@ -91,24 +92,15 @@ export async function annotateItem(item) {
       // The identity itself, written down (DECISIONS.md, "What a weapon
       // IS is declared, not read off its name (2026-09-07)").
       updates[`flags.${MODULE_ID}.${ITEM_FLAGS.PROFILE_KEY}`] = key;
-      // A size the item declares — on its sheet, or the system's own field an
-      // import wrote — stands; only a weapon that states none is given one,
-      // and only a size the row states.
-      const sized = item.flags?.[MODULE_ID]?.[ITEM_FLAGS.SIZE] != null || CORE_SIZES[item.system?.size] != null;
-      if (!sized && Object.values(CORE_SIZES).includes(base.size)) updates[`flags.${MODULE_ID}.${ITEM_FLAGS.SIZE}`] = base.size;
-      // A figure the row leaves out is left off the item: nothing is written
-      // for it, so no default stands in for a page's.
-      if (typeof base.type === "string") updates[`flags.${MODULE_ID}.${ITEM_FLAGS.DAMAGE_TYPE}`] = base.type;
-      // A row that states no use at all (neither melee, missile nor thrown) is
-      // an empty shell, and the figures below are not read off it.
+      // The row stays the row: a size, a damage type or a quality it states
+      // is read from it at every use, so a later import is what the item
+      // follows. Only the item's own two attack booleans are reconciled, and
+      // only for a row that states a use at all (neither melee, missile nor
+      // thrown is an empty shell). A thrown melee weapon is a MISSILE too (RR
+      // p296), and core only offers its melee-vs-thrown range selector when
+      // BOTH booleans are set.
       if (base.melee || base.missile || base.thrown) {
         Object.assign(updates, {
-          [`flags.${MODULE_ID}.${ITEM_FLAGS.HANDY}`]: !!base.handy,
-          [`flags.${MODULE_ID}.${ITEM_FLAGS.THROWN}`]: !!base.thrown,
-          // A thrown melee weapon is a MISSILE too (RR p296), and core only offers
-          // its melee-vs-thrown range selector when BOTH booleans are set — so
-          // reconcile the core item to the RAW profile. melee/missile are left as-is
-          // for a purely melee or purely missile weapon (base.thrown false).
           "system.melee": base.melee ?? item.system?.melee ?? false,
           "system.missile": !!(base.missile || base.thrown),
         });

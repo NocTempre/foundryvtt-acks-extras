@@ -196,6 +196,21 @@ export function resolveRows(grid, lists) {
   return out;
 }
 
+/**
+ * The key of the imported list that a written phrase names: the one entry of
+ * `weaponLists()[tableName]` whose nouns match a word or a run of words of the
+ * phrase, by the rule a grid row is placed by. Null when the phrase names no
+ * entry or more than one, and when that list is not imported.
+ *
+ * @param {"category"|"focus"|"damageType"} tableName
+ * @param {string} text
+ * @returns {string|null}
+ */
+export function listedKind(tableName, text) {
+  const hits = hitKeys(table(weaponLists(), tableName), runForms(wordsOf(text)));
+  return hits.length === 1 ? hits[0] : null;
+}
+
 /** The layers of the lists document, lowest first: what the memo below is keyed on. */
 const LAYERS = Object.freeze(Object.values(PRIORITY));
 

@@ -342,7 +342,7 @@ export const SELECTION_VOCAB = {
     spearpolearm: { label: "Spears & Polearms", aliases: ["spears", "polearms", "spears and polearms"] },
     bow: { label: "Bows" },
     crossbow: { label: "Crossbows" },
-    other: { label: "Other (slings, staffs, nets, whips)", aliases: ["other weapons", "slings", "staffs", "staves", "nets", "whips"] },
+    other: { label: "Other weapons", aliases: ["other weapons"] },
   },
   fightingStyle: {
     single: { label: "Single Weapon" },
@@ -409,7 +409,7 @@ export const SELECTION_VOCAB_BY_ABILITY = {
     spearpolearm: { label: "Spears & Polearms", aliases: ["spears", "polearms"] },
     bow: { label: "Bows" },
     crossbow: { label: "Crossbows" },
-    other: { label: "Other (slings, staffs, nets, whips)", aliases: ["slings", "staffs", "nets", "whips"] },
+    other: { label: "Other weapons", aliases: ["other weapons"] },
   },
   // RR p. 108 / JJ p. 291 — the five styles the loadout rules resolve.
   fightingstylespecialization: {

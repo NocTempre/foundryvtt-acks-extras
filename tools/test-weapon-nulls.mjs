@@ -9,8 +9,7 @@
  * say "not imported".
  *
  * Every weapon, size and die here is invented. Each section registers its
- * own source and puts the default back, so the suite's other files meet the
- * table they were written against.
+ * own source and puts back what was registered before.
  */
 import assert from "node:assert";
 import { readFileSync } from "node:fs";
@@ -61,7 +60,6 @@ const check = (label, cond) => {
 
 const S = new URL("../scripts/equipment/", import.meta.url);
 const seam = await import(new URL("../scripts/lib/weapons.mjs", import.meta.url));
-const cfg = await import(new URL("config.mjs", S));
 const profiles = await import(new URL("profiles.mjs", S));
 const prof = await import(new URL("proficiency.mjs", S));
 const training = await import(new URL("training-view.mjs", S));
@@ -71,11 +69,11 @@ const figures = await import(new URL("weapon-figures.mjs", S));
 const { annotateItem } = await import(new URL("api.mjs", S));
 const model = await import(new URL("../scripts/lib/item-model.mjs", import.meta.url));
 const { registerWeaponSource, hasWeaponRows } = seam;
-const { classifyWeapon, handCost, canOneHand, inferredGrips, isTwoHandedOnly, equipmentClass, tableFigures } = profiles;
+const { classifyWeapon, handCost, canOneHand, inferredGrips, isTwoHandedOnly, equipmentClass } = profiles;
 const { isWeaponProficient, weaponProficiencyDecided, grantMatches, grantVerdict, weaponProficiency } = prof;
 
 const defaults = registerWeaponSource(null);
-check("the default source holds rows, so the restore below has something to restore", defaults !== null);
+check("nothing is registered until equipment registers its source", defaults === null);
 
 /** A weapon document the way a payload carries it; `formula` is its own die. */
 const weap = (name, { formula = "", flags = {}, system = {} } = {}) => ({
@@ -107,7 +105,6 @@ check("its own die stands", classifyWeapon(weap("Zorgle", { formula: "7d2" })).d
 check("a size the item declares stands", classifyWeapon(weap("Zorgle", { flags: { size: "large" } })).size === "large");
 check("a core size on the item stands", classifyWeapon(weap("Zorgle", { system: { size: "tiny" } })).size === "tiny");
 check("a class the item declares stands", classifyWeapon(weap("Zorgle", { flags: { category: "axe" } })).cat === "axe");
-check("tableFigures states neither for no key", tableFigures(null).size === null && tableFigures(null).cat === null);
 
 // --- hands unknown is one hand -------------------------------------------------------
 check("an unknown size costs one hand, with either grip", handCost(bare, { twoHanded: false }) === 1 && handCost(bare, { twoHanded: true }) === 1);
@@ -167,25 +164,23 @@ check("with rows imported the source reports them", hasWeaponRows());
 const withRows = classifyWeapon(weap("Zorgle"));
 check("a row places the weapon: its own size and class", withRows.key === "zorgle" && withRows.size === "small" && withRows.cat === "other" && withRows.damage === "9d3");
 check("a token the grammar does not know is still a refusal, never undecided", grantVerdict("pointy stick", withRows) === false && isWeaponProficient(actorWith("pointy stick"), withRows) === false);
-check("a weapon the rows do not place keeps the long-standing defaults", (() => {
+check("a weapon the rows do not place states no size, no class and no die, whatever rows are imported", (() => {
   const p = classifyWeapon(weap("Brick"));
-  return p.key === null && p.size === "medium" && p.cat === "other" && p.damage === "1d6";
+  return p.key === null && p.size === null && p.cat === null && p.damage === "";
 })());
 const partial = classifyWeapon(weap("Quib", { system: { melee: false, missile: true } }));
 check("a row that leaves a figure out leaves it unstated: no size, no class, no die", partial.key === "quib" && partial.size === null && partial.cat === null && partial.damage === "");
-check("a row that prints a blank die keeps the long-standing 1d6", classifyWeapon(weap("Blank")).damage === "1d6");
+check("a row that prints a blank die states no die", classifyWeapon(weap("Blank")).damage === "");
 check("so the actor's grants cannot decide it and it is proficient", weaponProficiencyDecided(actorWith("axe"), partial) === false && isWeaponProficient(actorWith("axe"), partial) === true);
-check("tableFigures reads the row, or states nothing where it is silent", tableFigures("zorgle").size === "small" && tableFigures("quib").size === null && tableFigures("quib").cat === null);
-check("an unplaced weapon of an imported table keeps its defaults in tableFigures", tableFigures(null).size === "medium" && tableFigures(null).cat === "other");
 
 // --- the training units follow the table -----------------------------------------------
-check("units are the rows now: four here", training.WEAPON_UNITS.length === 4 && training.weaponUnits().length === 4);
-check("the unit view is an array a holder can map and spread", Array.isArray(training.WEAPON_UNITS) && training.WEAPON_UNITS.map((u) => u.key).sort().join() === "blank,quib,shell,zorgle" && [...training.WEAPON_UNITS].length === 4);
+check("units are the rows now: four here", training.weaponUnits().length === 4);
+check("the unit list is an array a holder can map and spread", Array.isArray(training.weaponUnits()) && training.weaponUnits().map((u) => u.key).sort().join() === "blank,quib,shell,zorgle" && [...training.weaponUnits()].length === 4);
 registerWeaponSource({ rows: { zorgle }, aliases: {}, focusGroups: {} });
-check("a change of rows changes the units without a reload", training.WEAPON_UNITS.length === 1 && training.WEAPON_UNITS[0].key === "zorgle");
+check("a change of rows changes the units without a reload", training.weaponUnits().length === 1 && training.weaponUnits()[0].key === "zorgle");
 check("a set of every unit is all", training.canonicalGrant(["zorgle"]) === "all");
 registerWeaponSource(null);
-check("with no rows the units are empty", training.WEAPON_UNITS.length === 0);
+check("with no rows the units are empty", training.weaponUnits().length === 0);
 check("an empty set is no grant, not all", training.canonicalGrant([]) === "");
 check("unknown tokens ride alone", training.canonicalGrant([], ["pointy stick"]) === "pointy stick");
 check("a grant of all covers no unit", training.coveredUnits(["all"]).units.size === 0);
@@ -215,9 +210,9 @@ const P = "flags.acks-extras.";
 registerWeaponSource({ rows: { zorgle, shell, quib: noSize }, aliases: {}, focusGroups: {} });
 const full = doc("Zorgle");
 check("annotate returns the key it stamped", (await annotateItem(full)) === "zorgle");
-check("a row that states them has its identity, size, type and uses stamped", (() => {
+check("a row that states a use has its identity and the two attack booleans stamped, and no figure of its own", (() => {
   const w = written(full);
-  return w[`${P}profileKey`] === "zorgle" && w[`${P}size`] === "small" && w[`${P}damageType`] === "zap" && w["system.melee"] === true && w["system.missile"] === false && w[`${P}handy`] === false && w[`${P}thrown`] === false;
+  return w[`${P}profileKey`] === "zorgle" && w["system.melee"] === true && w["system.missile"] === false && !(`${P}size` in w) && !(`${P}damageType` in w) && !(`${P}handy` in w) && !(`${P}thrown` in w);
 })());
 const empty = doc("Shell");
 await annotateItem(empty);
@@ -227,7 +222,7 @@ check("an empty-shell row writes its identity and nothing it does not state", ((
 })());
 const unsized = doc("Quib", { melee: false, missile: true });
 await annotateItem(unsized);
-check("a row with no size writes no size", !(`${P}size` in written(unsized)) && written(unsized)["system.missile"] === true);
+check("a row with no size writes no size, and still reconciles its use", !(`${P}size` in written(unsized)) && written(unsized)["system.missile"] === true);
 registerWeaponSource(null);
 const nothing = doc("Zorgle");
 await annotateItem(nothing);
@@ -268,6 +263,34 @@ check("a weapon no row holds is not imported either, and a blank declaration is 
 check("the row itself is a figure: present, or missing", figures.figureState({ key: "zorgle", field: null }).state === figures.FIGURE_STATE.ROW && figures.figureState({ key: "nothing", field: null }).state === figures.FIGURE_STATE.MISSING);
 check("the tooltip of a missing figure carries no number", !/\d/.test(figures.figureTip(miss, "Size")));
 
+// --- Weapon Finesse with a size that is not imported is undecided, never no ----------------
+{
+  const { attackThrowRows } = await import(new URL("attack-mods.mjs", S));
+  const marker = { id: "fxfinesse", name: "finesse", disabled: false, changes: [{ key: "flags.acks-extras.finesse", value: "1" }], flags: { "acks-extras": {} } };
+  const swinger = (item) => {
+    const items = [item];
+    items.get = (id) => items.find((i) => i.id === id);
+    return { ...actorWith(undefined), items, effects: [marker], appliedEffects: [marker], system: { scores: { str: { mod: 1 }, dex: { mod: 3 } } } };
+  };
+  const brand = (flags) => weap("Brand", { flags, system: { equipped: true } });
+  registerWeaponSource({ rows: { brand: { name: "Brand", melee: true, special: [] } }, aliases: {}, focusGroups: {} });
+  const unsized = brand({});
+  check("a weapon of no known size is not refused Weapon Finesse", attackThrowRows(swinger(unsized), unsized, "melee").some((r) => r.label === "Weapon Finesse" && r.value === 2));
+  const big = brand({ size: "large" });
+  check("a weapon of a stated size too large for it still is", !attackThrowRows(swinger(big), big, "melee").some((r) => r.label === "Weapon Finesse"));
+  const small = brand({ size: "small" });
+  check("and one of an eligible stated size gets it", attackThrowRows(swinger(small), small, "melee").some((r) => r.label === "Weapon Finesse"));
+}
+
+// --- a launcher with no imported class is no launcher -------------------------------------------
+{
+  const { launcherAmmoPattern } = await import(new URL("ammo.mjs", S));
+  const longbow = weap("Long Bow", { system: { missile: true, melee: false } });
+  check("with no class imported a bow is told by nothing, not by its name", launcherAmmoPattern(longbow, classifyWeapon(longbow)) === null);
+  const declaredBow = weap("Long Bow", { flags: { category: "bow" } });
+  check("a class the item declares tells it", launcherAmmoPattern(declaredBow, classifyWeapon(declaredBow))?.test("Arrow") === true);
+}
+
 // --- the first sync waits for the rows ---------------------------------------------------------
 const moduleSource = readFileSync(new URL("../scripts/equipment/module.mjs", import.meta.url), "utf8");
 const readyBody = moduleSource.slice(moduleSource.indexOf('Hooks.once("ready"'));
@@ -277,10 +300,8 @@ check("the ready handler awaits rowsReady before it refreshes any loadout", (() 
   return wait > 0 && first > wait;
 })());
 
-// --- the default comes back -----------------------------------------------------------------------
+// --- what was registered before comes back ---------------------------------------------------------
 registerWeaponSource(defaults);
-check("registering the replaced source restores the table", hasWeaponRows() && training.WEAPON_UNITS.length === Object.keys(cfg.WEAPONS).length);
-const firstKey = Object.keys(cfg.WEAPONS)[0];
-check("and the classifier answers from it again", classifyWeapon(weap(firstKey)).key === firstKey);
+check("registering the replaced source (none) leaves no rows", !hasWeaponRows() && training.weaponUnits().length === 0);
 
 console.log(`test-weapon-nulls: ${pass} checks passed`);

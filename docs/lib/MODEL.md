@@ -1914,10 +1914,15 @@ The rows come from the one source `registerWeaponSource(source)` installed,
 replacing the one before and returning it. A source's `rows`, `aliases` and
 `focusGroups` are objects or functions returning them, read at every call;
 with no source every accessor answers empty and nothing stands in for one.
-Equipment registers the source its own weapon table backs when its `config.mjs`
-loads, ahead of `init`, because the training units read the table at load and
-the headless suites never run `init`. A reader that evaluates at load can rely on
-that order and nothing else.
+Equipment registers the source over the imported rows at `init`
+(`equipment/weapon-source.mjs`, docs/equipment/MODEL.md, "Weapon rows read from
+the book"); nothing ships a weapon, so before that registration, and in a world
+that imported none, every accessor answers empty. A reader never evaluates the
+table at load: the training units read it at each call, and a headless suite
+registers its own source. `listedKind(table, text)` is the one place a written
+pick (a Martial Training or Weapon Focus choice) is placed: it answers the
+single key of the imported `weaponLists` table whose nouns the phrase names,
+or null.
 
 ## Automated Animations
 

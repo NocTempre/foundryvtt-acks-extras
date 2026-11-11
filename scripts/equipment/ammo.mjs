@@ -12,11 +12,15 @@ import { isSilvered } from "./silver.mjs";
 import { slug } from "../lib/vocab.mjs";
 import { unset } from "../lib/util.mjs";
 
-/** Ammo-name pattern a launcher consumes, or null if it is not a launcher. */
+/**
+ * Ammo-name pattern a launcher consumes, or null if it is not a launcher. A bow
+ * and a crossbow are told by the category the imported lists place them in; a
+ * weapon with no category is no launcher here, and a sling is told by its name.
+ */
 export function launcherAmmoPattern(item, profile) {
   const n = slug(item?.name ?? "");
-  if (profile?.cat === WEAPON_CATEGORY.BOW || (/bow/.test(n) && !/crossbow/.test(n))) return /arrow/i;
-  if (profile?.cat === WEAPON_CATEGORY.CROSSBOW || /crossbow|arbalest/.test(n)) return /bolt|quarrel/i;
+  if (profile?.cat === WEAPON_CATEGORY.BOW) return /arrow/i;
+  if (profile?.cat === WEAPON_CATEGORY.CROSSBOW) return /bolt|quarrel/i;
   if (/sling/.test(n)) return /stone|bullet|shot/i;
   return null;
 }

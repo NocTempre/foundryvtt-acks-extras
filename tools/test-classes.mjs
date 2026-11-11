@@ -1349,15 +1349,14 @@ test("the election is asked on every path, not only in the confirm dialog", () =
 /* ---- the training editor: units, organisations, the canonical grant ---- */
 const { grantedKeys, toggleTraining, editedSlots, trainingProvenance, classTraining, setClassTraining } = await import("../scripts/classes/training.mjs");
 const { FLAG_FROM_CLASS } = await import("../scripts/classes/constants.mjs");
-const { WEAPONS: WEAPON_TABLE } = await import("../scripts/equipment/config.mjs");
-const { WEAPON_UNITS, TRAINING_VIEWS, arrangeUnits, coveredUnits, canonicalGrant, toggledGrant, nextTrainingView } = await import(
+const { useWeaponFixture, FIXTURE_ROWS } = await import("./weapon-fixture.mjs");
+const { weaponUnits, TRAINING_VIEWS, arrangeUnits, coveredUnits, canonicalGrant, toggledGrant, nextTrainingView } = await import(
   "../scripts/equipment/training-view.mjs"
 );
 
-// A named weapon is placed through equipment's own table when that feature is
-// live, which in a running module it always is.
-const savedNamespace = globalThis.acksExtras;
-globalThis.acksExtras = { ...(globalThis.acksExtras ?? {}), equipment: { config: { WEAPONS: WEAPON_TABLE } } };
+// A named weapon is placed through the weapon seam, over rows the suite
+// invents (tools/weapon-fixture.mjs).
+const restoreWeapons = useWeaponFixture();
 
 const trainingActor = (weapons, { from = "Item.class1", extra = [] } = {}) => {
   const effect = {
@@ -1377,13 +1376,13 @@ const weaponGrant = (a) => a.effect.changes.find((c) => c.key === "flags.acks-ex
 
 try {
   test("every weapon is one unit, placed exactly once by every organisation", () => {
-    assert.equal(WEAPON_UNITS.length, Object.keys(WEAPON_TABLE).length);
+    assert.equal(weaponUnits().length, Object.keys(FIXTURE_ROWS).length);
     for (const view of TRAINING_VIEWS) {
       const groups = arrangeUnits(view.key);
       const placed = groups.flatMap((g) => g.members.map((m) => m.key));
-      assert.equal(placed.length, WEAPON_UNITS.length, `${view.key} places every unit`);
+      assert.equal(placed.length, weaponUnits().length, `${view.key} places every unit`);
       assert.equal(new Set(placed).size, placed.length, `${view.key} places each unit once`);
-      assert.ok(!groups.some((g) => g.key === "leftovers"), `${view.key} leaves nothing over for the shipped table`);
+      assert.ok(!groups.some((g) => g.key === "leftovers"), `${view.key} leaves nothing over for the invented rows`);
     }
     // The staff sling is melee AND missile: its melee size claims it first.
     const bySize = arrangeUnits("size");
@@ -1396,7 +1395,7 @@ try {
   });
 
   test("the canonical grant is the shortest clause list for the set, in a fixed order", () => {
-    const every = WEAPON_UNITS.map((u) => u.key);
+    const every = weaponUnits().map((u) => u.key);
     assert.equal(canonicalGrant(every), "all");
     const thief = coveredUnits(["missile:all", "melee:tiny", "melee:small", "melee:medium"]);
     assert.equal(canonicalGrant(thief.units), "missile:all,melee:tiny,melee:small,melee:medium");
@@ -1438,8 +1437,8 @@ try {
     assert.equal(canonicalGrant(["crossbow"]), "weapon:crossbow");
     assert.deepEqual([...coveredUnits(["weapon:crossbow"]).units], ["crossbow"]);
     assert.deepEqual([...coveredUnits(["crossbow"]).units].sort(), ["arbalest", "crossbow"]);
-    assert.equal(WEAPON_UNITS.find((u) => u.key === "crossbow").token, "weapon:crossbow");
-    assert.equal(WEAPON_UNITS.find((u) => u.key === "arbalest").token, "arbalest");
+    assert.equal(weaponUnits().find((u) => u.key === "crossbow").token, "weapon:crossbow");
+    assert.equal(weaponUnits().find((u) => u.key === "arbalest").token, "arbalest");
     // OFF a size group from a size grant drops exactly that size.
     const thief = trainingActor("missile:all,melee:tiny,melee:small,melee:medium");
     await toggleTraining(thief, "weapons", "melee:small");
@@ -1568,7 +1567,7 @@ try {
     }
   });
 } finally {
-  globalThis.acksExtras = savedNamespace;
+  restoreWeapons();
 }
 
 test("normalizeTraining splits CSV text, keeps arrays, and never keeps an empty token", () => {

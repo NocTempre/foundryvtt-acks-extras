@@ -2701,7 +2701,9 @@ t("weapon proficiency: a single named weapon is never widened to its group", () 
   assert.equal(vocab.matchSelectionKey(weapons, "long bow"), null);
   assert.equal(vocab.matchSelectionKey(weapons, "sling"), null);
   assert.equal(vocab.matchSelectionKey(weapons, "swords"), "sworddagger");
-  assert.equal(vocab.matchSelectionKey(weapons, "slings"), "other");
+  // No weapon's name is a member of a class here: the imported rows place a named weapon.
+  assert.equal(vocab.matchSelectionKey(weapons, "slings"), null);
+  assert.equal(vocab.matchSelectionKey(weapons, "other weapons"), "other");
   // Nor does a compound reach `all` by substring, whatever the entry order.
   assert.equal(vocab.matchSelectionKey(weapons, "tiny and small melee weapons"), null);
   assert.equal(

@@ -24,7 +24,7 @@ import { classifyWeapon, inferGear, isShield, isHelmet } from "../profiles.mjs";
 import { wearLabel } from "../wear.mjs";
 import { collectEffectModifiers, hasEffectFlag, stringFlagValue } from "../effects.mjs";
 import { getLoadout } from "../loadout.mjs";
-import { isWeaponProficient } from "../proficiency.mjs";
+import { isWeaponProficient, weaponProficiencyDecided } from "../proficiency.mjs";
 import { isSilvered } from "../silver.mjs";
 import { ITEM_FLAG as MARKETS_FLAG } from "../../markets/constants.mjs";
 import {
@@ -173,8 +173,14 @@ function inheritedGrants(item, actor) {
     // describing a throw the roll does not make.
     const finesse = !!loadout && game.settings.get(MODULE_ID, SETTINGS.ROLL_AUTOMATION) &&
       !loadout.nonProficientUse && !usingNonProfWeapon && dex > str &&
-      FINESSE_SIZES.includes(profile.size) && hasEffectFlag(actor, EFFECT_DOMAINS.FINESSE);
-    if (finesse && dex) out.push({ label: loc("itemSheet.grant.dexterity", { n: scores.dex?.value ?? "" }), detail: `${signed(dex)} ${loc("itemSheet.grant.attackMelee")}`, src: loc("itemSheet.src.attribute") });
+      (profile.size == null || FINESSE_SIZES.includes(profile.size)) && hasEffectFlag(actor, EFFECT_DOMAINS.FINESSE);
+    // A figure the gate could not decide is taken as no refusal, and the row
+    // says which figure it is: the size, the proficiency, or both.
+    const undecided = [
+      profile.size == null ? loc("itemSheet.grant.finesseSizeUnknown") : "",
+      !!loadout && !weaponProficiencyDecided(actor, profile) ? loc("itemSheet.grant.proficiencyUndecided") : "",
+    ].filter(Boolean).join(" ");
+    if (finesse && dex) out.push({ label: loc("itemSheet.grant.dexterity", { n: scores.dex?.value ?? "" }), detail: `${signed(dex)} ${loc("itemSheet.grant.attackMelee")}`, src: loc("itemSheet.src.attribute"), tip: undecided });
     else if (str) out.push({ label: loc("itemSheet.grant.strength", { n: scores.str?.value ?? "" }), detail: `${signed(str)} ${loc("itemSheet.grant.attackMelee")}`, src: loc("itemSheet.src.attribute") });
 
     // Mirrors roll-wrap.mjs's damage-attribute substitution: a domain-named
@@ -378,6 +384,7 @@ function containerSnapshot(item) {
   return {
     holds,
     capacityStone: cap,
+    capacityStated: cap != null,
     cap6: cap ? cap * STONE : 0,
     load6,
     locked: isLocked(item),

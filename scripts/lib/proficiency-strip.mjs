@@ -43,7 +43,7 @@ const WEAPON_CLASSES = [
   { key: "spearpolearm", chip: "SP", melee: true, label: "ACKS-LIB.weaponCat.spearPolearm", fallback: "Spears & Polearms" },
   { key: "bow", chip: "BW", missile: true, label: "ACKS-LIB.weaponCat.bow", fallback: "Bows" },
   { key: "crossbow", chip: "XB", missile: true, label: "ACKS-LIB.weaponCat.crossbow", fallback: "Crossbows" },
-  { key: "other", chip: "OT", melee: true, missile: true, label: "ACKS-LIB.weaponCat.other", fallback: "Other (slings, staffs, nets, whips…)" },
+  { key: "other", chip: "OT", melee: true, missile: true, label: "ACKS-LIB.weaponCat.other", fallback: "Other weapons" },
 ];
 
 /** Armour SELECTION ladder (JJ p. 290), lightest first — five rungs, not four. */
@@ -82,17 +82,18 @@ export const isProfileAbility = (item) =>
  * feature stores `selections` as free vocabulary and expects consumers to
  * normalise and match against their own — this is the lib subsystem's side
  * of that contract. For weapons it is the fallback behind the sheet's own
- * vocabulary (`weaponTokenClasses`): a single weapon's name or an unlisted
- * phrasing lands here and lights the class it belongs to.
+ * vocabulary (`weaponTokenClasses`): the plain spellings of a class's own name
+ * land here; a single weapon's name is placed by the imported weapon rows
+ * instead, and lights the class they put it in.
  */
 const WEAPON_SYNONYMS = {
   sworddagger: ["sword", "swords", "dagger", "daggers", "swordsdaggers", "sworddagger", "swordsanddaggers"],
   axe: ["axe", "axes"],
-  bow: ["bow", "bows", "longbow", "shortbow", "compositebow", "bowscrossbows"],
-  crossbow: ["crossbow", "crossbows", "arbalest"],
+  bow: ["bow", "bows", "bowscrossbows"],
+  crossbow: ["crossbow", "crossbows"],
   flailhammermace: ["mace", "maces", "flail", "flails", "hammer", "hammers", "macesflailshammers", "flailhammermace", "flailshammersmaces"],
   spearpolearm: ["spear", "spears", "polearm", "polearms", "spearspolearms", "spearsandpolearms"],
-  other: ["other", "sling", "slings", "thrown", "slingsthrown", "staff", "staffs", "staves", "net", "nets", "whip", "whips", "bola", "bolas"],
+  other: ["other"],
   unarmed: ["unarmed", "unarmedfighting", "brawling", "fist", "fists"],
 };
 const STYLE_SYNONYMS = {
