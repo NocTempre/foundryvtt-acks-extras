@@ -29,6 +29,7 @@ import {
   itemsWithProficiencyRows,
   monthlyWageForHD,
   offeredEffectRows,
+  openingTarget,
   resolveHeldRows,
   resolveParties,
   toLibAlignment,
@@ -39,7 +40,7 @@ import { hatredNotes, kindOf, optionalRuleEnabled, parseKindList, relationFor } 
 import { modeRows, printedBands } from "./printed.mjs";
 import { scopeApplies } from "../lib/vocab.mjs";
 import { abilityMod } from "../lib/actor-read.mjs";
-import { sinkCoin, transferCoin } from "../lib/money.mjs";
+import { sinkCoin, spendableGp, transferCoin } from "../lib/money.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -114,13 +115,11 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
     super(options);
 
     this.#actor = options.actor ?? null;
-    this.#targetActor = options.targetActor ?? getTargetActor();
+    // The two sides stay distinct: a self-targeted token never fills the target.
+    this.#targetActor = openingTarget(this.#actor, options.targetActor);
     // Other features (e.g. the henchmen feature: per-settlement slander
     // penalties) can inject flat modifiers; they apply to every tone and show on the card.
     this.#externalModifiers = externalRows(options.modifiers);
-    // Don't auto-fill the target with the influencer themselves (e.g. a
-    // self-targeted token) — keep the two sides distinct until set explicitly.
-    if (this.#targetActor && this.#targetActor === this.#actor) this.#targetActor = null;
 
     // External mode: a consumer-module page (hiring / loyalty) replaces the
     // three core tones; tone selector and attitude tracker hide.
@@ -152,6 +151,8 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
       // situation. Off by default: the ordinary reaction roll is the rule.
       opposed: false,
       bribeFeeOverridden: false, // true once the GM edits the bribe fee by hand
+      // The influencer's name when this roll left an uncovered bribe off, else null.
+      bribeUnpaid: null,
       // Detected target race/kind tokens (comma list); editable like other autos.
       targetKind: this.#autoTargetKind(),
       targetKindOverridden: false,
@@ -723,6 +724,12 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
       ui.notifications?.warn(game.i18n.localize("ACKS-INFLUENCE.hidden.noGm"));
       return;
     }
+    // The offered fee is checked here too, so the seat that offered hears it
+    // was left off; the Judge's seat checks the same coin when it resolves.
+    const offer = Number(this.#modifiers[INFLUENCE_TONE.DIPLOMACY]?.bribeFee) || 0;
+    if (this.#system.tone === INFLUENCE_TONE.DIPLOMACY && offer > 0 && !this.#canCoverBribe(offer)) {
+      ui.notifications?.warn(game.i18n.format("ACKS-INFLUENCE.bribe.unarmed", { name: this.#actor?.name ?? "" }));
+    }
     const payload = {
       actorUuid: this.#actor?.uuid,
       targetUuid: this.#targetActor?.uuid,
@@ -1170,6 +1177,39 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
   /*  Bribe gold movement                         */
   /* -------------------------------------------- */
 
+  /**
+   * Whether this seat can pay a bribe's fee out of the influencer's coin: the
+   * influencer is one it may write and what they can pay with, in every store
+   * their order reaches, covers the fee. A bribe with no influencer has no
+   * purse to check and is not held to one.
+   */
+  #canCoverBribe(fee) {
+    const payer = this.#actor;
+    if (!payer) return true;
+    return !!payer.isOwner && spendableGp(payer) >= fee;
+  }
+
+  /**
+   * Before the roll counts a bribe, leave it off when its payer cannot cover
+   * the fee: the tier goes back to none, so its modifier is not in the total
+   * or on the card, the seat that resolves the roll is warned, and the card
+   * says why (`#rawNotes`). A paid bribe, a bribe of no fee and a roll on
+   * another tone are left as they are.
+   * @returns {boolean} true when a bribe was left off, so the caller recalculates
+   */
+  #unarmUnpaidBribe() {
+    this.#system.bribeUnpaid = null;
+    if (this.#system.tone !== INFLUENCE_TONE.DIPLOMACY) return false;
+    const diplo = this.#modifiers[INFLUENCE_TONE.DIPLOMACY];
+    const level = Number(diplo.bribe) || 0;
+    const fee = Number(diplo.bribeFee) || 0;
+    if (level <= 0 || fee <= 0 || this.#canCoverBribe(fee)) return false;
+    diplo.bribe = 0;
+    this.#system.bribeUnpaid = this.#actor.name;
+    ui.notifications?.warn(game.i18n.format("ACKS-INFLUENCE.bribe.unarmed", { name: this.#actor.name }));
+    return true;
+  }
+
   async #maybePayBribe() {
     if (this.#system.tone !== INFLUENCE_TONE.DIPLOMACY) return null;
     const diplo = this.#modifiers[INFLUENCE_TONE.DIPLOMACY];
@@ -1221,6 +1261,9 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
       notes.push(game.i18n.localize("ACKS-INFLUENCE.note.intimTemporary"));
       if (newIndex === 3) notes.push(game.i18n.localize("ACKS-INFLUENCE.note.intimidated"));
       else if (newIndex === 4) notes.push(game.i18n.localize("ACKS-INFLUENCE.note.overawed"));
+    }
+    if (this.#system.bribeUnpaid) {
+      notes.push(game.i18n.format("ACKS-INFLUENCE.note.bribeUnpaid", { name: this.#system.bribeUnpaid }));
     }
     if (tone === INFLUENCE_TONE.DIPLOMACY && (Number(this.#modifiers[INFLUENCE_TONE.DIPLOMACY].bribe) || 0) > 0) {
       const hasBribery = getProficiencies(this.#actor).bribery;
@@ -1353,6 +1396,7 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
     }
 
     this.#recalculate();
+    if (this.#unarmUnpaidBribe()) this.#recalculate();
 
     // Capture the active modifiers before the roll (state is unchanged by rolling).
     const activeModifiers = this.#activeModifiers();

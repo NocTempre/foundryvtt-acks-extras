@@ -15,7 +15,9 @@ A target who is an actor receives those coins, whoever runs them: where the
 roller's seat cannot write to the target, the Judge's seat hands the coin
 over. With no target actor, or with no Judge connected to hand it over, the
 bribe is paid off-stage and the coin is gone. A payer who cannot cover the
-fee is told so and pays nothing.
+fee is told so, pays nothing, and the bribe is left off the roll: its
+modifier is not in the total, and the card carries a note that it was not
+paid.
 
 The result card says what was paid — the fee, who paid it, and who received
 it where somebody did. A card with no bribe line is a roll on which no coin
@@ -96,9 +98,11 @@ it is dealing with, and they sit read-only under their own heading.
 - A quarter's reception comes from the district the party is standing in
   ([streets and quarters](formation.md#streets-and-quarters)).
 - **Standing with …** comes from a faction's ledger: whoever controls the
-  quarter, on every reaction roll made there, and — when the roller is opened
-  with its target named — the faction being spoken to and any faction the other
-  party belongs to ([factions](factions.md#what-standing-does)).
+  quarter, on every reaction roll made there, and — when the roller opens with
+  a target, named or targeted — the faction being spoken to and any faction the
+  other party belongs to, except one that holds them on a membership row the
+  Judge hid, which a player is never shown
+  ([factions](factions.md#what-standing-does)).
 - **Legal authority here** is a note with no number beside it. It says the
   speaker belongs to the watch or the noble house that holds this quarter; the
   authority tick is still yours to set.

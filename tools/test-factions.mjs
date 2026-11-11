@@ -302,6 +302,59 @@ assert.deepEqual(factionRecord(null).relations, []);
   assert.deepEqual(itself.modifiers.filter((r) => r.label.includes("Watch>Watch")), []);
 }
 
+// --- a concealed membership never reaches a player's dialog -----------------------
+{
+  const { isConcealedMember } = await import("../scripts/factions/standing-logic.mjs");
+  assert.equal(isConcealedMember([{ uuid: "Actor.t", hidden: true }], "Actor.t"), true);
+  assert.equal(isConcealedMember([{ uuid: "Actor.t", hidden: false }], "Actor.t"), false);
+  assert.equal(isConcealedMember([{ uuid: "Actor.other", hidden: true }], "Actor.t"), false, "another member's concealment is not this actor's");
+  assert.equal(isConcealedMember([{ toObject: () => ({ uuid: "Actor.t", hidden: true }) }], "Actor.t"), true, "a model-backed row reads the same");
+  assert.equal(isConcealedMember(undefined, "Actor.t"), false);
+  assert.equal(isConcealedMember([{ uuid: "Actor.t", hidden: true }], ""), false);
+
+  // Two organisations roster the target and the speaker: the first openly, the
+  // second on a concealed row. An invented pair; neither name is anybody's.
+  const openDoc = { uuid: "Actor.open", name: "Open Lodge", system: { members: [{ uuid: "Actor.t", hidden: false }, { uuid: "Actor.s", hidden: false }] } };
+  const secretDoc = { uuid: "Actor.secret", name: "Secret Lodge", system: { members: [{ uuid: "Actor.t", hidden: true }, { uuid: "Actor.s", hidden: true }] } };
+  const target = { uuid: "Actor.t" };
+  const speaker = { uuid: "Actor.s" };
+  const standings = new Map([["Actor.open", 1], ["Actor.secret", 4]]);
+  const stances = new Map([["Actor.open>Actor.secret", { stance: "rival", hidden: false }], ["Actor.secret>Actor.open", { stance: "hostile", hidden: false }]]);
+  const finders = (isGM) => ({
+    subjectsOfActor: () => subjects,
+    isFaction: () => false,
+    factionsOfMember: () => [openDoc, secretDoc],
+    factionsControlling: () => [],
+    authoritiesRostering: () => [openDoc, secretDoc],
+    standingFor: (faction) => standings.get(faction.uuid) ?? 0,
+    districtUnder: () => ({ uuid: "Region.r1" }),
+    relationBetween: (a, b) => stances.get(`${a.uuid}>${b.uuid}`) ?? null,
+    isGM: () => isGM,
+  });
+  const labelsFor = (isGM) => {
+    const context = { actor: speaker, targetActor: target, mode: null, modifiers: [] };
+    pushFactionModifiers(context, finders(isGM));
+    return context.modifiers.map((r) => r.label);
+  };
+
+  const judge = labelsFor(true).join("\n");
+  assert.match(judge, /Secret Lodge/, "the Judge's dialog names the concealed organisation");
+  const player = labelsFor(false);
+  assert.equal(player.some((label) => label.includes("Secret Lodge")), false, "a player's dialog never names it, in a standing row, a relation note or an authority note");
+  assert.equal(player.some((label) => label.includes("Open Lodge")), true, "an open membership still speaks");
+  assert.deepEqual(
+    player.filter((label) => label.includes("standing")),
+    ["ACKS-FACTIONS.influence.standing|Open Lodge"],
+    "the standing row of a concealed membership is withheld with its label",
+  );
+
+  // No finder is supplied for the concealment test, so the listener reads the
+  // roster rows the documents carry; a document with no roster conceals nothing.
+  const plain = { actor: speaker, targetActor: target, mode: null, modifiers: [] };
+  pushFactionModifiers(plain, { ...finders(false), factionsOfMember: () => [{ uuid: "Actor.bare", name: "Bare Lodge" }], authoritiesRostering: () => [], standingFor: () => 2 });
+  assert.deepEqual(plain.modifiers.map((r) => r.label), ["ACKS-FACTIONS.influence.standing|Bare Lodge"]);
+}
+
 // --- the standing shift at the knob ---------------------------------------------
 standingStep = 0;
 assert.equal(marketClassShift({ system: {} }, { uuid: "Actor.a" }), 0, "the default knob prices nothing");

@@ -173,6 +173,16 @@ standing rivalry is a `faction` ledger row, which arrives on the numeric side
 because the subject set carries the organisations each side answers for. A
 hidden relation reaches a Judge's dialog only.
 
+A concealed membership does as well. Where an actor's roster row on an
+organisation is hidden, a player's dialog carries nothing that names that
+organisation through the actor: not its standing row, not a relation note on
+either side, not a legal-authority note (`isConcealedMember`, over the roster
+rows the document carries). An organisation named by its control of the
+quarter is public and is listed as ever. The rows are read at the open, from
+the target the roller opens with: the one the caller names, else the targeted
+token's actor (`docs/influence/MODEL.md`, "The modifier hook"), so the sheet's
+Influence button and the api carry the same rows.
+
 **The hunt.** A faction that holds a `wanted` row for the party or a member,
 and controls the district under the party, marks the settlement board hunted
 there. The board is asked once per quarter, on entering the city and on

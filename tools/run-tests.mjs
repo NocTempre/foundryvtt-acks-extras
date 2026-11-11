@@ -92,6 +92,7 @@ const COMMITTED = [
   "test-water.mjs",
   "test-variations.mjs",
   "test-influence.mjs",
+  "test-influence-bribe.mjs",
   "test-classes.mjs",
   "test-companions.mjs",
   "test-summons.mjs",

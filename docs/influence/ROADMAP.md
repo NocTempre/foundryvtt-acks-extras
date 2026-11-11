@@ -102,12 +102,15 @@ the shape that retires it.
 - **Conditions are read when the page opens.** The modifier hook fires once
   per open, so a condition gained while the page is up is not on it.
 
-## 5. An unpaid bribe still counts
+## 5. A dialog keeps the target it was opened for
 
-An armed bribe whose fee the roller cannot cover is warned about and moves no
-coin, and its modifier stays on the roll that was made. Nothing unarms the row
-or asks before rolling. A roll against a hidden target resolves at the
-Judge's seat, so the warning shows there, and the player who offered sees a
-card with no bribe line and no reason why. Wanted: the fee checked against
-what the payer can pay with before the roll is made, on the seat that
-offered.
+The dialog takes its target when it opens, from the caller or from the first
+targeted token (`openingTarget` in `scripts/influence/actor-data.mjs`), and the
+modifier hook's rows are that target's. Reset defaults reads the current target
+again (`#onResetDefaults` in `scripts/influence/influence-app.mjs`) without
+firing the hook again, so a dialog opened against one token switches to
+whichever token is targeted when Reset is pressed while keeping the first
+target's standing rows. The code comment calls the re-read deliberate. Not
+built: a dialog that keeps the target it was opened for, or a Reset that
+re-fires the hook for the new one. That needs a ruling first, since the re-read
+is how a newly selected token is picked up.

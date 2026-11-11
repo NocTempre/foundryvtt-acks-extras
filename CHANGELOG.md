@@ -283,6 +283,17 @@
 
 ### Fixed
 
+- **A reaction roll opened from the sheet lists the target's standing.** With a
+  token targeted, the character sheet header's Influence button now opens the
+  reaction roll with the target's standing rows and relation notes, as a roll
+  opened through the module's API already did. On a player's seat, an
+  organisation that lists a character as a hidden member is left out of the
+  dialog: no standing row, relation note or authority note names it.
+- **A bribe the influencer cannot pay is left off the roll.** In the Influence
+  dialog (character sheet header → Influence), a Diplomacy bribe the
+  influencer has too little coin for no longer adds its modifier: the roll goes
+  ahead without it, a warning says so, and the result card in the Chat sidebar
+  tab notes that the bribe was not paid.
 - **The buttons on a hireling's chat cards work.** A hireling event card in
   the Chat sidebar tab (the Judge's wages-due card among them) now acts when
   its button is pressed; before, the press did nothing.

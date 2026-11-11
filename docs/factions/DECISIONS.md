@@ -212,3 +212,32 @@ with no options submits an empty string on every submit-on-change, so any
 edit anywhere on the sheet silently cleared `system.parentUuid`. The loop
 guard still applies to what the picker OFFERS; it no longer applies to what
 it must DISPLAY.
+
+### A concealed membership is withheld from a player's reaction dialog (2026-11-11)
+
+**Ruled** (owner, 2026-11-11, ledger T-0236, option a). The reaction roller
+withholds every row that would name an organisation through a hidden roster
+row on non-Judge seats, exactly as a hidden relation note is withheld: the
+standing row, either side of a relation note, and the legal-authority note.
+The roller's opener then resolves the target the page will use (the caller's,
+else the targeted token's actor) before the modifier hook fires, so a roll
+opened from the character sheet carries the target's rows like one opened
+through the api.
+
+**Why.** The first half had been held back because a membership can be hidden
+and a row named after the organisation would publish what the roster hides.
+Reusing the relation notes' rule (`hidden` and not a Judge, leave it out)
+closes that, so the second half no longer exposes anything the sheet does not.
+
+**Rejected:** naming the row without the organisation (a figure with no
+source is the thing the roller exists not to show); leaving the sheet route
+without the target's rows (the Influence button is how a table rolls, and the
+two routes disagreeing is the defect).
+
+**Cost:** a hidden member's organisation contributes nothing on a player's
+dialog even where its standing is large, so the Judge reads that figure on
+their own seat. A roll a player opens against a target they cannot observe
+forwards the player's rows to the Judge's seat verbatim
+(`docs/influence/DECISIONS.md`, "A hidden resolve trusts the player's
+externally-injected modifiers"), so the Judge's card lacks the withheld row
+too; the Judge adds it through the adjustment row.

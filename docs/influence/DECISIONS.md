@@ -477,6 +477,8 @@ Stating a reach for a bribe: the two are in conversation wherever they are.
 modifier on the roll that was made; the warning is the only sign
 ([ROADMAP.md](ROADMAP.md)). A hidden target's roll is resolved at the Judge's
 seat, so that warning shows there and not to the player who offered.
+*Superseded 2026-11-11: see "A bribe the payer cannot cover is left off the
+roll".*
 
 ### The hiring page reads the Judge's table, and a proficiency box is worth its holder's own item (2026-10-16)
 
@@ -586,3 +588,32 @@ own page, and that is `ROADMAP.md` §3.
 
 **What it cost.** A bribe's cite names the hiring and Bribery pages, not the
 bribe's.
+
+### A bribe the payer cannot cover is left off the roll (2026-11-11)
+
+Amends "A bribe reaches a target the seat does not own, and the card states
+what was paid (2026-10-01)", whose cost it removes and whose rejection of an
+unpaid note on the card it narrows. The new evidence is the live walk of
+`TESTING.md` 8b (ledger T-0267): a payer who could not cover the fee was
+warned and paid nothing, the card carried no bribe line, and the roll was
+still made with the bribe's modifier counted.
+
+**Ruled** (owner, 2026-11-11, option a). The bribe is checked before the roll.
+With a payer who cannot cover the fee — no coin to pay with in the reach the
+payer's order names, or a seat that may not write the payer — the tier goes
+back to none: its modifier is not in the total or on the card's list, the
+seat resolving the roll is warned, and the card carries a note that the
+bribe was not paid. A player's roll against a target they cannot observe is
+checked on the player's seat as well, so the player hears it before the
+Judge's seat resolves it; the Judge's seat checks the same coin again.
+
+**Rejected:** naming the fee on the card as unpaid (the 2026-10-01 rejection
+stands: a fee on the card reads as paid, so the note names the payer and no
+figure); refusing to roll (the owner's ruling keeps the roll); checking only
+at payment time (the roll has already counted the modifier by then).
+
+**What it cost.** The check reads the coin's value in every store the payer's
+order reaches, not the change a payment could actually make; a fee that is
+covered in value yet cannot be made in coin still warns at payment and still
+counts its modifier. A roll with no influencer has no purse and is not held
+to one.

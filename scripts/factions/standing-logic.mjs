@@ -168,6 +168,22 @@ export function readableRows(rows, isGM) {
 }
 
 /**
+ * Does a roster hold this actor on a row concealed from players? The reader's
+ * test for a membership: a faction whose row for the actor is hidden is not
+ * named, in a label or a figure, to anyone who cannot read the row.
+ * @param {object[]} members stored roster rows, model-backed or plain
+ * @param {string} uuid the actor's uuid
+ * @returns {boolean} false for an actor the roster does not hold at all
+ */
+export function isConcealedMember(members, uuid) {
+  if (!uuid) return false;
+  return (members ?? []).some((m) => {
+    const row = m?.toObject?.() ?? m;
+    return row?.uuid === uuid && !!row.hidden;
+  });
+}
+
+/**
  * The head a reader is allowed to be told. A secret head is a concealed member
  * row like any other, so a reader who cannot see the row is not told the office
  * either — naming the leader beside a roster the leader is missing from

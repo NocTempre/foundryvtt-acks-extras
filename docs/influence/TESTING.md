@@ -78,7 +78,8 @@ hand.
    *Observable:* the influencer's purse is down by the fee and the target's
    is up by it (`lib.money.purseGp` on both), in coin the influencer held.
    Empty the influencer's purse, arm the tier and roll again: a warning names
-   the influencer, and neither purse changed.
+   the influencer, and neither purse changed. The card's modifier list leaves
+   the tier's figure out, and its notes say the bribe was not paid.
 8b. A bribe from the Player seat. The seat owns the influencer and not the
    target; the influencer keeps coin in a container their order pays from
    first, loose, and at a vault. Open the page with
@@ -93,7 +94,11 @@ hand.
    payer and the payee. The fee left the container first and landed on the
    target. With no target the line names the payer alone and the coin is
    gone from the world. Above what can be paid there is no bribe line on the
-   card, no row changed, and the warning shows on the Judge's seat.
+   card, no row changed, the bribe's figure is absent from the card's list of
+   modifiers and the total (the same roll with the fee covered totals that
+   much higher), the card's notes (`.influence-chat-notes li`) say the bribe
+   was not paid, and the warning shows on the Player seat too, before the roll
+   is handed over, as well as on the Judge's seat when it resolves it.
    `api.track` every card the three rolls posted, read on the Judge's seat:
    a whispered card is not in the Player seat's log.
 8c. The bribe note. Roll Diplomacy with a tier armed for an influencer with

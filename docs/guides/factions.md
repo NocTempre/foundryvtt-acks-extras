@@ -117,10 +117,14 @@ It is there so you can see the room before you decide; it adds nothing.
 
 The quarter's organisations are listed on every reaction roll made there. The
 two rows about the target, and the note about what its organisation thinks of
-yours, arrive when the roller is opened with its target already named, which a
-macro does with `acksExtras.influence.open(actor, {targetActor})`. The
-Influence button opens the page first and reads the target from the token you
-have targeted, and a roll opened that way does not carry them.
+yours, arrive whenever the roller opens with a target: the one a macro names
+with `acksExtras.influence.open(actor, {targetActor})`, or the token you have
+targeted when you press the **Influence** button in a character sheet's header.
+
+An organisation that holds the target on a membership row you have marked
+hidden is left out of all of it for a player: no standing row, no note about
+what it thinks, and no legal-authority note naming it. A Judge's dialog lists
+them as ever.
 
 **It sets the hunt.** A **Wanted** row marks its subject hunted in every
 quarter the organisation controls. When the party enters the city inside one,

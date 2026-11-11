@@ -64,11 +64,20 @@ the two are talking) wherever that seat may write it or a GM is connected to
 write it for them; the lib relays the payment whole (docs/lib/MODEL.md,
 "Currency"). With no target actor, or nobody to write one, the fee is paid
 off-stage and the coin leaves the world (`sinkCoin`). The fee is drawn by the
-payer's coin order, inside the world's standing reach. A payer who cannot
-cover it is warned about and nothing is written.
+payer's coin order, inside the world's standing reach.
+
+The bribe is checked before the roll counts it. A payer who cannot cover the
+fee — the coin their order reaches is worth less than it, or the seat may not
+write the payer — has the tier put back to none: its modifier is not in the
+total or on the card's list, the seat resolving the roll is warned, nothing is
+written, and the card carries a note that the bribe was not paid. A player
+rolling against a target they cannot observe is checked on their own seat as
+well, before the roll is handed to the Judge's, which checks the same coin. A
+tier with no fee, and a roll with no influencer, have nothing to check.
 
 The result card states a bribe only when coin moved: the fee, who paid it,
-and who received it where somebody did.
+and who received it where somebody did. An unpaid bribe is a note in the
+card's notes and states no fee.
 
 **An ability counts once per page.** One proficiency can reach the roller by
 every route at once: its name fills a static `prof:` row, an Active Effect on it
@@ -186,7 +195,12 @@ A consumer that holds the roll passes flat rows in `options.modifiers`
 call to hold. `openInfluenceApp` therefore fires `acksExtras.influenceModifiers`
 (`HOOKS.INFLUENCE_MODIFIERS` in `constants.mjs`) once, before the app is
 constructed, with `{actor, targetActor, mode, modifiers}`, and every listener
-pushes its own rows onto that same array. The two routes add; neither replaces
+pushes its own rows onto that same array. `targetActor` is the one the roller
+opens with (`openingTarget`, `actor-data.mjs`): the caller's own, else the
+actor of the first token the user has targeted, and never the influencer. The
+opener hands the same one to the app, so the sheet's Influence button, which
+names none, carries the rows about a targeted target exactly as the api call
+that names it does. The two routes add; neither replaces
 the other. A row arriving this way is treated as the dialog already treats an
 external row: named, read-only, in the subtotal and on the posted card.
 

@@ -27,11 +27,17 @@
  * which arrives on the numeric side above because the subject set carries the
  * organisations each side answers for. A hidden relation is a Judge's own and
  * is drawn only on a Judge's dialog.
+ *
+ * A concealed membership is the Judge's own as well: where an actor's roster
+ * row is hidden, the organisation that holds it speaks through none of the
+ * rows above on a player's dialog — no standing row, no relation note, no
+ * authority note — since its name in a label would publish the tie.
  */
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import {
   authoritiesRostering, factionsControlling, factionsOfMember, isFaction, relationBetween, standingFor, subjectsOfActor,
 } from "./standing.mjs";
+import { isConcealedMember } from "./standing-logic.mjs";
 import { getFormationForActor } from "../formation/formation-model.mjs";
 import { travelOf } from "../formation/travel.mjs";
 import { findDistrict } from "../formation/district-zone.mjs";
@@ -72,8 +78,14 @@ export function pushFactionModifiers(context, finders = {}) {
   const f = {
     subjectsOfActor, isFaction, factionsOfMember, factionsControlling, authoritiesRostering, standingFor, districtUnder,
     relationBetween, isGM: () => !!game.user?.isGM,
+    isConcealedMember: (faction, uuid) => isConcealedMember(faction?.system?.members, uuid),
     ...finders,
   };
+  // The organisations of a list the viewing seat may be told this actor
+  // belongs to: every one for a Judge, and for anyone else those whose roster
+  // row for the actor is not hidden.
+  const gm = f.isGM();
+  const readable = (factions, uuid) => (gm ? factions : (factions ?? []).filter((fac) => !f.isConcealedMember(fac, uuid)));
 
   const subjects = f.subjectsOfActor(actor);
   const seen = new Set();
@@ -87,14 +99,17 @@ export function pushFactionModifiers(context, finders = {}) {
 
   // The other side of the table: the target itself when it is an organisation,
   // and every organisation it belongs to.
-  const across = unique([...(f.isFaction(targetActor) ? [targetActor] : []), ...f.factionsOfMember(targetActor?.uuid)]);
+  const across = unique([
+    ...(f.isFaction(targetActor) ? [targetActor] : []),
+    ...readable(f.factionsOfMember(targetActor?.uuid), targetActor?.uuid),
+  ]);
   for (const faction of across) push(faction);
-  pushRelationNotes(f, across, unique(f.factionsOfMember(actor?.uuid)), modifiers);
+  pushRelationNotes(f, across, unique(readable(f.factionsOfMember(actor?.uuid), actor?.uuid)), modifiers);
 
   const region = f.districtUnder(actor);
   if (!region) return;
   for (const faction of f.factionsControlling(region.uuid)) push(faction);
-  for (const faction of f.authoritiesRostering(region.uuid, actor?.uuid)) {
+  for (const faction of readable(f.authoritiesRostering(region.uuid, actor?.uuid), actor?.uuid)) {
     modifiers.push({ label: game.i18n.format(`${LANG_PREFIX}.influence.authority`, { name: faction.name }), value: 0, note: true });
   }
 }

@@ -23,7 +23,7 @@ import {
 import { conditionEntries, conditionRows } from "./condition-rows.mjs";
 import { subjectOf } from "../lib/conditions.mjs";
 import { conditionNameKey } from "../lib/status-effects.mjs";
-import { getActorHD, monthlyWageForHD, getProficiencies, getEffectReactionMods } from "./actor-data.mjs";
+import { getActorHD, monthlyWageForHD, getProficiencies, getEffectReactionMods, openingTarget } from "./actor-data.mjs";
 import { kindOf, matchesKind, registerRaceRelations, relationFor } from "./racial.mjs";
 import { ACTOR_TYPE } from "../lib/vocab.mjs";
 import * as services from "../lib/services.mjs";
@@ -44,6 +44,11 @@ const ATTITUDE_TYPE = `${MODULE_ID}.attitude`;
  * same array (a consumer that only knows the party's current surroundings,
  * e.g. a district's reaction figure). Neither route replaces the other.
  *
+ * The hook is handed the target the page will use: the one the caller names,
+ * else the actor of the user's first targeted token, and never the actor
+ * itself. The same resolved target goes on to the constructor, so a listener
+ * and the page cannot disagree about who is across the table.
+ *
  * Deliberately synchronous. See docs/influence/DECISIONS.md, "Opening the
  * roller stays synchronous so a constructor throw reaches the caller".
  * @param {Actor|null} actor
@@ -53,10 +58,11 @@ const ATTITUDE_TYPE = `${MODULE_ID}.attitude`;
  */
 function openInfluenceApp(actor = null, options = {}) {
   const modifiers = [...(options.modifiers ?? [])];
+  const targetActor = openingTarget(actor, options.targetActor);
   try {
     Hooks.callAll(HOOKS.INFLUENCE_MODIFIERS, {
       actor,
-      targetActor: options.targetActor ?? null,
+      targetActor,
       mode: options.mode ?? null,
       modifiers,
     });
@@ -64,7 +70,7 @@ function openInfluenceApp(actor = null, options = {}) {
     // A listener's own throw must not stop the roller from opening.
     console.error(`${MODULE_ID} | ${HOOKS.INFLUENCE_MODIFIERS} listener failed`, err);
   }
-  return new InfluenceApp({ actor, ...options, modifiers }).render(true);
+  return new InfluenceApp({ actor, ...options, targetActor, modifiers }).render(true);
 }
 
 const signedFigure = (n) => `${n >= 0 ? "+" : "−"}${Math.abs(n)}`;

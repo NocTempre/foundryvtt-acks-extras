@@ -158,6 +158,21 @@ export function getTargetActor() {
 }
 
 /**
+ * The target a roller opens with: the one the caller names, else the actor of
+ * the first targeted token, and never the influencer themselves (a
+ * self-targeted token leaves the two sides distinct). The opener hands this
+ * to the modifier hook and the app alike, so a listener and the page agree
+ * on who is across the table.
+ * @param {Actor|null} actor the influencer
+ * @param {Actor|null} [named] the caller's own target
+ * @returns {Actor|null}
+ */
+export function openingTarget(actor, named = null) {
+  const target = named ?? getTargetActor();
+  return target && target !== actor ? target : null;
+}
+
+/**
  * Portraits/names for the influencer and target sides.
  * @param {Actor|null} actor    the influencing actor
  * @param {Actor|null} targetActor  the targeted actor
