@@ -1090,6 +1090,13 @@ the imported documents").
   `material.silver` and `masterwork.*` are the import's own. A world that
   imported the rules book has them; for the absent case, remove the import
   with the driver's `api.retire` and reimport, tracking what the import made.
+- **Kept, `equipment/provenance-variation`**: a world variation the importer's
+  own binder builds from the first masterwork entry whose page states a delta
+  and a cost, under the walk-only key and entry id `walk.provenance`, so no
+  reader of the library's variations finds it. Needs the rules book open on the
+  GM seat (`connectBookUrl` with `remember: false`); each run repairs it to the
+  page's shape (`refreshImported` with `REPAIR.variation`) before its first
+  check. The library's own variations are never edited: they carry no marker.
 
 ### Steps
 
@@ -1110,6 +1117,13 @@ the imported documents").
    on an owned item. *Observable:* the figures read as the GM seat read them;
    a seat that cannot open the shelf reads *not imported*, which is the case
    this step is looking for.
+5. On `equipment/provenance-variation`, read `printed-layers.mjs`
+   `sourceOf` and `provenanceTip`. *Observable:* the import stamp's
+   `cookbook.read` is present after the data model has had the document; the
+   tooltip is the *read from* one, not edited. Raise `system.cost.add` by one:
+   *edited by hand*, naming the page the import read. Repair it again: the
+   figure is the binder's and the tooltip reads from its page.
+   `tools/live/equipment-printed-layers.mjs` walks this step.
 
 ### Teardown
 
