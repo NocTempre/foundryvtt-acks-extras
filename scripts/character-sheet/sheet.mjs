@@ -453,8 +453,12 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
       : loc("rail.gripEmpty");
     // A carried source's reach names the page it was read from, or says it is
     // not imported.
+    // A dark sense's radius that is not imported says so the same way.
+    const darkSense = r.light.key === "shadowy" || r.light.key === "lightless";
     r.light.title = r.light.imported === false
-      ? loc("rail.light.notImported", { light: game.i18n.localize(`ACKS-LIB.light.${r.light.key}`) })
+      ? darkSense
+        ? loc("rail.light.senseNotImported", { sense: game.i18n.localize(`ACKS-LIB.vision.${r.light.key}`) })
+        : loc("rail.light.notImported", { light: game.i18n.localize(`ACKS-LIB.light.${r.light.key}`) })
       : loc(`rail.light.${r.light.key}`, { reach: r.light.sub }) + (r.light.cite ? ` (${r.light.cite})` : "");
     r.formationTitle = r.formation ? loc("rail.formation", { name: r.formation.name }) : loc("rail.noFormation");
     const party = r.party;

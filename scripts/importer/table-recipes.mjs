@@ -903,6 +903,44 @@ export const TABLE_RECIPES = {
       },
     },
   },
+  // The two figures lib/senses.mjs turns a sense into reach with: the radius
+  // the shadowy senses see out to (RR 265, where the adventuring rules describe
+  // the sense) and the multiple Night Vision applies to the light that reaches
+  // it (MM 13, the Vision entries), and the reach a lightless vision with no
+  // recorded range has (MM 392). Each anchor is the clause naming the
+  // figure, never the figure; the sense itself and what it does not do are
+  // lib/senses.mjs's procedure.
+  senses: {
+    source: { book: "ACKS II Revised Rulebook + ACKS II Monstrous Manual", pages: "RR 265; MM 13, 392" },
+    tables: {
+      shadowySensesProse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 265,
+        locate: "adventurer with shadowy senses",
+        locateBare: true,
+        values: [{ key: "shadowyReach", find: "sheds dim light in a", take: "int", span: 12 }],
+      },
+      nightVisionProse: {
+        shape: "proseValues",
+        book: "mm",
+        printedPage: 13,
+        locate: "the monster can see by full moonlight",
+        locateBare: true,
+        values: [{ key: "indoorFactor", find: "when indoors, the monster can see", take: "times", span: 20 }],
+      },
+      // The reach a creature's lightless vision has when its own stat line
+      // records none (MM 392, the default senses of a monster by type).
+      lightlessDefaultProse: {
+        shape: "proseValues",
+        book: "mm",
+        printedPage: 392,
+        locate: "have Lightless Vision",
+        locateBare: true,
+        values: [{ key: "defaultReach", find: "other than Animals have Lightless Vision", take: "int", span: 12 }],
+      },
+    },
+  },
   // The weapon facts the weapons grid does not state: which kinds of weapon a
   // proficiency names, what a hand weapon deals, what a thrown flask deals and
   // which weapons need both hands. Each is prose on its own folio, so each
@@ -2961,6 +2999,23 @@ export const TABLE_RECIPES = {
           { key: "6", labelRe: "^VI$" },
         ],
         emit: { wrap: "byMarketClass" },
+      },
+      // The shares of a month's hirelings that arrive in the first and second
+      // weeks, and the second week's floor (RR 162, prose under the
+      // availability grids' introduction). The weeks, their rounding and the
+      // remainder's week are henchmen's procedure (`rules/dice.mjs`
+      // `arrivalSplit`); the figures are read here.
+      arrivalProse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 162,
+        locate: "become available within the first week",
+        locateBare: true,
+        values: [
+          { key: "firstShare", find: "present at all.", take: "fractionWord", span: 20 },
+          { key: "secondShare", find: "enter the market.", take: "fractionWord", span: 20 },
+          { key: "secondMin", find: "rounded down, minimum", take: "int", span: 6 },
+        ],
       },
       specialistAvailability: {
         shape: "gridRows",

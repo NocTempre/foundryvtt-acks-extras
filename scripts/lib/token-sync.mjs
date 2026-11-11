@@ -112,7 +112,8 @@ function roundToStep(value, step) {
 /**
  * A radius in feet as the token's scene stores it: converted by the scene's
  * `grid.units` and rounded to `step`. A scene in feet, or in a unit nobody
- * recognises, gets the figure unchanged.
+ * recognises, gets the figure unchanged. A radius the world has not imported
+ * (null) is 0: the token then sees by no radius of that sense.
  */
 function inSceneUnits(tokenDoc, feet, step) {
   const value = Number(feet) || 0;

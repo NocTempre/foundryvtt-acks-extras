@@ -20,6 +20,17 @@ features extend it. Companion to the local rules extract
   sorts by it. A hire keeps it and writes the record's `terms.wageBasis` to
   match. Only a henchman's missing wage falls back to the ladder (§4c), and
   only a henchman takes a share of experience (`formation/xp-shares.mjs`).
+- **A monster or animal henchman's experience is a flag.** The system keeps no
+  experience for a `monster` (its `details.xp` is what the creature is worth
+  defeated), so Deal XP credits the share through `lib/experience.mjs`
+  `creditExperience`, which adds it to `flags["acks-extras"].experience`, a
+  tally per source (`{bySource: {deal: n}}`); a character is credited through
+  the system's own `getExperience`. The Service panel
+  (`service-view.mjs` `experienceView`) shows the total in the Terms group of a
+  non-character hireling, its tooltip naming each source, and nothing else: no
+  imported table gives a monster's advancement thresholds, so no readiness is
+  read or shown, and nothing here advances the creature. The flag is the
+  creature's own and survives a re-hire, which rewrites the record only.
 - Module-owned data lives in **module flags** (hirelings) or a **module actor
   sub-type** (locations). Rules math is pure (`scripts/henchmen/rules/`), fed by
   table documents read through `acksExtras.lib.tables`. **No table ships**: a
@@ -68,6 +79,21 @@ the month roll's henchman segments (`allSegmentSpecs`), the segments a
 general henchman posting reaches (`postingSegments`) and the posting
 dialog's **Level** options all read it. Until the table is imported the list
 is empty, as the mercenary and specialist lists beside it are.
+
+**The weekly arrival split.** The shares of a month's pool that arrive in
+its first and second weeks, and the second week's floor, are the imported
+`availability.arrivalProse` table (RR 162, the prose beneath the
+availability grids' introduction: `firstShare`, `secondShare`, `secondMin`),
+read by `rules/availability.mjs > arrivalShares`. `rules/dice.mjs >
+arrivalSplit` is the procedure: the first share rounds up, the second rounds
+down but never below its floor or past what week 1 left, and the remainder
+arrives in week 3. A table that is not imported, or reads a share of nothing,
+shares past the whole or a fractional floor, gives no shares, and then nothing
+is scheduled: a generic posting is refused `arrivals-missing` before any fee
+or roll (a directed search replaces pool members and arrives nowhere, so it
+is not), a due month roll is deferred with the market kept as it stands
+(Process time says so), and a network supplement is not rolled. The error
+and the notice name the arrival schedule and where to import it.
 
 **Bulk rows.** Mercenaries, and specialists whose largest market counts them
 by a multiple, arrive as one candidate row per week with a `quantity`

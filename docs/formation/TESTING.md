@@ -2336,7 +2336,11 @@ which runs every step.
    advances or re-render it. *Observable:* Porter's carrier line gives
    Porter's own encumbrance left of the arrow and that plus
    `w.carriedBodyStone`, to a tenth, on the right. Fallen carries nothing, so
-   the body is the whole of the share.
+   the body is the whole of the share. Then open the sheet on the Player seat
+   with Porter not owned by it: the line's capacity and pace read a dash, and
+   it never reads "CANNOT MOVE", since core derived no maximum on that seat
+   and the module states none of its own. On Porter's owner's seat and on the
+   Judge's, the capacity is core's figure.
 6. **The navigation bonus is priced.** Journey the formation on `forest`, road
    `none` (*End day, the whole tick*, step 1). *Observable:*
    `navigationCompetence(f())` answers `navigation: true, bonus: nav.either,

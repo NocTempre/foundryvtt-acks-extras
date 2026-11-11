@@ -855,6 +855,49 @@ a step it does not name is walked by hand.
 The reference repair's check in the repair tool (`henchmen.references`) is
 walked in docs/lib/TESTING.md, "The repair tool".
 
+21. The weekly arrival split, on step 19's `henchmen/fee-place` and
+    `henchmen/fee-employer` (the market `emptyMarket()`, the employer
+    holding coin from `mintCoin`). The staged Revised Rulebook must be named
+    in `ACKS_TEST_BOOKS`, and the walk reads the figures it should see from
+    the imported `availability.arrivalProse` table, never from source.
+    - Under a registry layer of the walk's own, at a priority no import or
+      override uses, that holds an `availability` document with `arrivalProse`
+      left empty (or the table absent in a world that never imported it):
+      `createPosting(place, {kind: "henchman", general: true}, employer)` on
+      the GM seat, then from the Player seat through
+      `executeAsGM("createPosting", …)`, and the posting dialog's submit.
+      *Observable:* `{error: "arrivals-missing"}`; the dialog's notice is
+      `ACKS-HENCHMEN.posting.error.arrivals-missing` localized, naming the
+      arrival schedule; no posting, no `searchLedger` row, no fee card, the
+      purse unchanged, and `monthAnchorTime` still 0. A directed search
+      (`kind: "henchmanByClass"` for a class the walk can price) is not
+      refused for this.
+    - Set `monthAnchorTime` to a month ago on a market that holds candidates
+      and press **Process time** (`processNow`) on the location sheet.
+      *Observable:* the candidates and `marketRolls` are unchanged, the
+      warning `ACKS-HENCHMEN.location.arrivalsMissing` shows, and
+      `processLocation` returns `deferred: "arrivals-missing"`.
+    - Remove the layer, connect the staged Revised Rulebook on the GM seat
+      and run `cookbookImportTables(["availability"])`. *Observable:*
+      `arrivalShares()` holds the three figures on the GM seat; the Ruledata
+      Browser lists `availability.arrivalProse` with the page it was read
+      from.
+    - Post the general henchman search again. *Observable:* accepted; every
+      segment's `marketRolls` total equals the sum of its candidate rows'
+      `quantity`; per segment the rows arriving first and second weeks, read
+      from `availableFromTime` less `monthStartTime` in weeks, hold the
+      shares the table gives, rounded as `arrivalSplit` rounds them; none
+      arrives in a fourth week. Spot-check three segments against a hand
+      split of their totals.
+    - In the Ruledata Browser override `firstShare` and `secondShare` to
+      other shares, roll the next month (`monthAnchorTime` a month back,
+      `processLocation`). *Observable:* the new month's split follows the
+      override; reverting the override restores the imported split on the
+      next roll.
+    The refusal's gate and the split's arithmetic are checked offline
+    (`tools/test-henchmen.mjs`); the recipe's shape against the real book is
+    `tools/importer/test-recipe-content.mjs`.
+
 ## Teardown
 
 Nothing is swept: the fixtures stay, and the next run brings them to shape

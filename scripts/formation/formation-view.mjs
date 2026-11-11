@@ -224,6 +224,7 @@ export function buildFormationView(formation) {
     const actor = getMemberActor(member);
     const memberSpeed = (actor && memberPace(formation, member, actor, load)) ?? explorationSpeedOf(actor);
     const owned = actor?.testUserPermission?.(game.user, "OWNER") ?? false;
+    const sight = senseProfile(actor);
     return {
       ...grid,
       actorId: member.actorId,
@@ -270,8 +271,11 @@ export function buildFormationView(formation) {
         !!formation.tokenId && !formation.combat?.active
         && (isMemberDeployed(member) ? !!member.detached : !isDown(actor, member)),
       // How far this character sees with no light at all, for the chip that
-      // explains why the scout can go where the rest of the party cannot.
-      darkSight: senseProfile(actor).sightRange,
+      // explains why the scout can go where the rest of the party cannot. A
+      // dark sense whose radius is not imported has no figure to show, and the
+      // chip says so instead.
+      darkSight: sight.sightRange > 0 ? sight.sightRange : null,
+      darkSightUnread: sight.seesInDark && sight.sightRange == null,
       down: isDown(actor, member),
       blind: dark && !canSeeInDark(actor),
       first: index === 0,
@@ -560,7 +564,7 @@ export function buildWarnings(formation, speed) {
         .map((c) =>
           game.i18n.format(
             c.over ? "ACKS-FORMATION.warnings.carrierOver" : "ACKS-FORMATION.warnings.carrierLine",
-            { name: c.name, base: c.baseEnc, eff: c.effEnc, cap: c.capacity, speed: c.speed ?? "—" },
+            { name: c.name, base: c.baseEnc, eff: c.effEnc, cap: c.capacity ?? "—", speed: c.speed ?? "—" },
           ),
         )
         .join(" · ");

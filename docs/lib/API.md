@@ -1,4 +1,4 @@
-# lib API (apiVersion 37)
+# lib API (apiVersion 38)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -31,7 +31,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 37,
+  apiVersion: 38,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -576,6 +576,25 @@ does not carry them. A feature outside this module reads a weapon through the eq
 API's `classifyWeapon`; its `config` no longer holds a weapon table
 (apiVersion 37 removed `WEAPONS`, `WEAPON_FOCUS_GROUPS`, `ANYONE_THROWS` and
 `WEAPON_ALIASES`). The contract is docs/lib/MODEL.md, "The weapon seam".
+
+## `senses` — what a creature perceives (apiVersion 38 for the printed figures)
+
+`senseProfile(actor, {litBy})` answers `{seesInDark, sightRange, visionMode,
+detection, suppressed}` and `canSeeInDark(actor)` the movement rule's reading of
+the same answer. `sightRange` is **null** where the figure it stands on is not
+imported: the shadowy senses' radius, or Night Vision's multiple with light
+reaching the creature, or the default reach a dark sense takes when the stat
+line records none. A sense with no radius is still the sense (`seesInDark`
+holds) and adds no `detection` range. Callers test `sightRange > 0` for a figure
+to show, and `== null` for the "not imported" state.
+
+`shadowySenseRange()`, `lightlessDefaultRange()` and `nightLightFactor()` read
+the `senses` ruledata document (`SENSES_DOC`, tables `shadowySensesProse`,
+`lightlessDefaultProse` and `nightVisionProse`) and answer a positive number or
+null; `senseCite("shadowy" | "lightless" | "night")` is the page the table was
+read from, null where it is the Judge's own. apiVersion 38 removed
+`SHADOWY_SENSE_RANGE` and `DEFAULT_LIGHTLESS_RANGE`. The importer reads both ([docs/lib/MODEL.md](MODEL.md),
+"Perception: senses, light, and the token").
 
 ## `repair` — the standing repair tool (apiVersion 18)
 

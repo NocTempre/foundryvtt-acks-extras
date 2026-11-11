@@ -3632,6 +3632,61 @@ tokens' `light` at 0/0 with no `managedLight` or `managedLightStamp` flag.
 
 **Teardown.** Nothing: the fixtures stay. Step 6's units are put back in the step.
 
+## The senses' printed figures are imported, and absent they show no figure
+
+Covers `senses.mjs` (`shadowySenseRange`, `nightLightFactor`, `senseCite`), the
+`senses` recipe, the character sheet's vision rows and rail light cell, and the
+Formation tab's dark-sight chip. The offline proof is `tools/test-senses.mjs`
+(run directly); this walks the surfaces a mock cannot reach. RR and MM both
+connected to the importer.
+
+**Fixtures, kept and found by marker.**
+- The character `lib/senses-shadowy`: Shadowy Senses on its sheet and no
+  recorded range, with a linked token on a scene.
+- The character `lib/senses-night`: Night Vision on its sheet, a linked token
+  on a scene with a lit torch in range (`lib/senses-night-light`, an ambient
+  light on that scene).
+- The monster `lib/senses-lightless`: Lightless Vision on its stat block with
+  no Lightless Range, and a linked token on a scene.
+- A formation holding `lib/senses-shadowy` (`lib/senses-party`).
+
+Each run brings the world to the shape a step needs: the step that wants the
+`senses` document absent removes it from the registry's WORLD layer through the
+Ruledata Browser (Settings tab → Game Settings → Extras → Ruledata Browser) and
+the step that wants it present imports it.
+
+**Steps and what proves each.**
+
+1. **Nothing imported.** With the `senses` document absent, open
+   `lib/senses-shadowy`'s sheet, Stats tab. *Observable:* the Shadowy vision row
+   shows no figure and reads "not imported", its tooltip says so; the rail's
+   light cell shows a dash and the same note on hover. On the Formation tab the
+   member's dark-sight chip shows a dash with the not-imported tooltip. Its
+   token's `sight.range` is 0.
+2. **A night-eyed creature, nothing imported.** Open `lib/senses-night`'s sheet.
+   *Observable:* no multiplied reach shows, and its token's `sight.range` is 0
+   with the torch lit. A monster carrying Lightless Vision with no recorded
+   range (`lib/senses-lightless`) reads the same on its Stats tab: the Lightless
+   vision row says "not imported" with no figure, and its token's `sight.range`
+   is 0.
+3. **Import.** Run `acksExtras.importer.cookbookImportTables(["senses"])` (or the
+   Rules tables dialog, ticking the Senses document) with RR and MM connected.
+   *Observable:* the Stats vision row now shows the radius with a tooltip naming
+   the RR page; the rail cell, the Formation chip and the token's `sight.range`
+   carry the same figure; `lib/senses-lightless` now reads the default reach in
+   the Lightless vision row and on its token; `lib/senses-night`'s token reads the multiple of the
+   torch's bright radius, and its tooltip names the MM page.
+4. **A Judge's figure wins.** In the Ruledata Browser export the `senses`
+   document, change `shadowyReach` and drop it back. *Observable:* the row and
+   the token read the Judge's figure, and the tooltip says it is the Judge's
+   rather than naming a page. Remove the override: the imported figure returns.
+5. **Deafen it.** Apply the Deafened condition to `lib/senses-shadowy` with the
+   figure imported. *Observable:* the radius reads 0 and the row says the sense
+   is off, as before.
+
+**Teardown.** The override of step 4 is removed in the step; the import of step 3
+stays as the world's `senses` document.
+
 ## The cast seam claims a cast
 
 Covers `patches/spell-use.mjs`, the wrapper on `Item#_useSpell`. Offline mocks

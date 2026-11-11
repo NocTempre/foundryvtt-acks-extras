@@ -4,8 +4,14 @@
  */
 import { getTable, optTable, bracketRow } from "./tables.mjs";
 import { isMissingRow } from "../../lib/tables.mjs";
+import { numOrNull } from "../../lib/util.mjs";
 import { rollAvailability, arrivalSplit } from "./dice.mjs";
 import { RARITY_TIERS } from "../config.mjs";
+
+/** The imported document the arrival shares arrive in. */
+export const ARRIVALS_DOC = "availability";
+/** The prose table of `ARRIVALS_DOC` holding them (RR 162). */
+export const ARRIVALS_TABLE = "arrivalProse";
 
 /** Clamp a market class to the legal 1..6 range (1 is the largest market). */
 export function clampMarketClass(mc) {
@@ -257,6 +263,25 @@ export function henchmanLevels() {
 export function postingSegments(segment) {
   if (segment === "henchman:*") return henchmanLevels().map((level) => `henchman:${level}`);
   return segment ? [segment] : [];
+}
+
+/**
+ * The shares of a month's pool that arrive in its first and second weeks, and
+ * the second week's floor, read from the imported `arrivalProse` table
+ * (`arrivalSplit` takes them). Null unless every figure is read and sane: a
+ * share above zero, both together within the whole, a whole-number floor.
+ * Nothing is scheduled to arrive without them.
+ * @returns {{first: number, second: number, secondMin: number}|null}
+ */
+export function arrivalShares() {
+  const table = optTable(ARRIVALS_DOC, ARRIVALS_TABLE);
+  const first = numOrNull(table?.firstShare);
+  const second = numOrNull(table?.secondShare);
+  const secondMin = numOrNull(table?.secondMin);
+  if (first === null || second === null || secondMin === null) return null;
+  if (!(first > 0 && second > 0 && first + second <= 1 + 1e-9)) return null;
+  if (!Number.isInteger(secondMin) || secondMin < 0) return null;
+  return { first, second, secondMin };
 }
 
 /**

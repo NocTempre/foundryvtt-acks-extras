@@ -584,6 +584,54 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
   });
 }
 
+// ---- the weekly arrival split: the shares are the import's, and none imported schedules nothing ----
+// Every share and floor is invented (a tenth-scale split no book prints), so a
+// split left in source fails; what is pinned is the reading and the rounding.
+{
+  const { arrivalSplit } = await import(new URL("../scripts/henchmen/rules/dice.mjs", import.meta.url));
+  const { arrivalShares, ARRIVALS_DOC, ARRIVALS_TABLE } = await import(new URL("../scripts/henchmen/rules/availability.mjs", import.meta.url));
+  const SHARES = { first: 0.6, second: 0.3, secondMin: 2 };
+  assert.strictEqual(arrivalSplit(10, null), null, "no shares, nothing scheduled");
+  assert.strictEqual(arrivalSplit(10, undefined), null, "shares never read are no shares");
+  assert.deepStrictEqual(arrivalSplit(10, SHARES), [6, 3, 1], "the first share is taken, the second share, then the remainder");
+  assert.deepStrictEqual(arrivalSplit(11, SHARES), [7, 3, 1], "the first share rounds up");
+  assert.deepStrictEqual(arrivalSplit(8, SHARES), [5, 2, 1], "the second share rounds down");
+  assert.deepStrictEqual(arrivalSplit(4, SHARES), [3, 1, 0], "the second week gives way to what the first left");
+  assert.deepStrictEqual(arrivalSplit(5, SHARES), [3, 2, 0], "a second share rounded below its floor takes the floor");
+  assert.deepStrictEqual(arrivalSplit(1, SHARES), [1, 0, 0], "a lone candidate arrives in the first week");
+  assert.deepStrictEqual(arrivalSplit(0, SHARES), [0, 0, 0], "an empty pool arrives as nothing");
+  assert.deepStrictEqual(arrivalSplit(7, { first: 0.5, second: 0.25, secondMin: 0 }), [4, 1, 2], "a floor of none lets the second week hold none");
+  assert.deepStrictEqual(arrivalSplit(3, { first: 1 / 3, second: 1 / 3, secondMin: 0 }), [1, 1, 1], "a third of a count of three is one, not a float's near miss");
+  for (const total of [1, 2, 3, 7, 12, 40, 101]) {
+    const split = arrivalSplit(total, SHARES);
+    assert.strictEqual(split.reduce((s, n) => s + n, 0), total, `${total}: every candidate arrives in some week`);
+    assert.ok(split.every((n) => n >= 0), `${total}: no week is negative`);
+  }
+
+  const withTable = (table, fn) => {
+    const saved = globalThis.acksExtras;
+    try {
+      globalThis.acksExtras = { lib: { tables: { hasDoc: (doc) => doc === ARRIVALS_DOC && table !== undefined, getTable: (doc, id) => (doc === ARRIVALS_DOC && id === ARRIVALS_TABLE ? table : null) } } };
+      return fn();
+    } finally {
+      globalThis.acksExtras = saved;
+    }
+  };
+  assert.deepStrictEqual(withTable({ firstShare: 0.6, secondShare: 0.3, secondMin: 2 }, arrivalShares), SHARES, "the import's three figures are read as printed");
+  assert.strictEqual(withTable(undefined, arrivalShares), null, "no availability document, no shares");
+  assert.strictEqual(withTable({}, arrivalShares), null, "an empty placeholder table reads nothing");
+  for (const gap of ["firstShare", "secondShare", "secondMin"]) {
+    const table = { firstShare: 0.6, secondShare: 0.3, secondMin: 2 };
+    delete table[gap];
+    assert.strictEqual(withTable(table, arrivalShares), null, `without ${gap} imported, no figure stands in`);
+  }
+  assert.strictEqual(withTable({ firstShare: 0.6, secondShare: 0.3, secondMin: "" }, arrivalShares), null, "a blank figure is unread, never zero");
+  assert.strictEqual(withTable({ firstShare: 0.8, secondShare: 0.4, secondMin: 1 }, arrivalShares), null, "two shares past the whole are not a split");
+  assert.strictEqual(withTable({ firstShare: 0, secondShare: 0.3, secondMin: 1 }, arrivalShares), null, "a share of nothing is not a share");
+  assert.strictEqual(withTable({ firstShare: 0.6, secondShare: 0.3, secondMin: 1.5 }, arrivalShares), null, "a fractional floor is not a count");
+  assert.deepStrictEqual(withTable({ firstShare: 0.5, secondShare: 0.5, secondMin: 0 }, arrivalShares), { first: 0.5, second: 0.5, secondMin: 0 }, "shares that fill the whole are a split");
+}
+
 // ---- the hiring offer: one imported table for the hosted page, the throw and every further head ----
 // The edges and figures are invented; what is pinned is the reading.
 {
@@ -870,4 +918,4 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
   }
 }
 
-console.log(`test-henchmen: OK (${macros.length} macros, bulk offers, network step, power values, henchman limit, network posting, classes never offered, hiring offer, hosted pages, spend receipt, refused signing bonus)`);
+console.log(`test-henchmen: OK (${macros.length} macros, bulk offers, network step, power values, henchman limit, network posting, classes never offered, arrival split, hiring offer, hosted pages, spend receipt, refused signing bonus)`);

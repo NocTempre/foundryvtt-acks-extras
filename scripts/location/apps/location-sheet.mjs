@@ -802,7 +802,8 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
   }
 
   static async #onProcessNow() {
-    const { arrived } = await processLocation(this.actor);
+    const { arrived, deferred } = await processLocation(this.actor);
+    if (deferred === "arrivals-missing") ui.notifications.warn(game.i18n.localize("ACKS-HENCHMEN.location.arrivalsMissing"));
     ui.notifications.info(game.i18n.format("ACKS-HENCHMEN.location.processed", { arrived }));
   }
 

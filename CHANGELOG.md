@@ -124,6 +124,27 @@
 
 ### Changed
 
+- **Henchman arrivals wait for the arrival schedule to be imported.** How many
+  of a month's candidates arrive each week is read from your Rulebook (Settings
+  tab → Game Settings → ACKS II — Extras → Manage imports → Rules tables) and
+  no longer built into the module. Until it is imported, a general henchman
+  posting is refused with a notice naming the missing table, and a location
+  sheet's **Process time** warns and leaves the month unrolled. A Judge can set
+  the shares in the Ruledata Browser (Settings tab → Game Settings → ACKS II —
+  Extras → Open Ruledata Browser).
+- **Dark senses read their reach from your books.** The shadowy senses'
+  radius, Night Vision's multiple of the light reaching it, and the reach a
+  dark sense takes when its stat line records none are read at import from
+  the Rulebook and the Monstrous Manual (both must be connected for Rules
+  tables) and no longer built into the module. Until then the character
+  sheet's Stats tab vision rows and its rail light cell read "not imported",
+  the Party sheet's Formation tab shows a dash for dark sight, and the token
+  gets no sight radius from that sense; the sense itself still works. A Judge
+  can set each figure in the Ruledata Browser.
+- **A carrier core gives no maximum load shows a dash.** On the Party sheet's
+  Formation tab, a carrier whose maximum load core does not derive on this
+  seat shows a dash for its capacity and speed instead of a maximum made up
+  from Strength, and is never shown as unable to move.
 - **A weapon's melee row follows its grip.** A weapon that can be held in one
   hand or two has one melee row, on its item sheet's Rolls tab, the character
   sheet's Rolls and Equipment tabs and the Follower Card: held in both hands it

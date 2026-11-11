@@ -5397,3 +5397,19 @@ would then know the name of another feature's storage.
 
 **Cost.** A listener runs on every registration, including the many at load;
 the column's refresh is a no-op until a canvas is ready.
+
+
+## 2026-11-11 — No maximum encumbrance where core derived none
+
+**Ruled.** A carrier core derived no maximum encumbrance for has no capacity,
+no pace and no overload in the column's carry figures; the carrier line prints
+a dash for the capacity and the speed. The strength-derived maximum the
+formation computed for that case is deleted: it restated core's own derivation
+in source, and a figure core gave nowhere is not ours to give. Not an importer
+read.
+
+**Rejected.** Deriving the maximum from the strength score on the seat that
+lacks it, which is the deleted fallback under another name.
+
+**Cost.** A seat that owns nothing of a carrier sees a dash where it saw a
+capacity and a pace.

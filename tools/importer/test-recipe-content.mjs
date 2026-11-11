@@ -30,7 +30,7 @@ import { FILES } from "./reference-lib.mjs";
 
 /** The tables under test, by recipe document. Each is one entry of `TABLE_RECIPES`. */
 const TABLES = {
-  availability: ["equipmentAvailability", "marketRulesProse", "bargainingProse"],
+  availability: ["equipmentAvailability", "marketRulesProse", "bargainingProse", "arrivalProse"],
   magicItems: ["transactionsByMarketClass", "priceProse", "identifyProse"],
   mercantile: [
     "marketCharacteristics", "merchandiseTypes", "impactProse",
@@ -41,6 +41,8 @@ const TABLES = {
   // The trade routes' reach: a road and a water distance per market class.
   demand: ["rangeOfTrade"],
   settlement: ["marketClassByFamilies"],
+  // The three figures lib/senses.mjs reads: the shadowy radius, Night Vision's multiple and a dark sense's default reach.
+  senses: ["shadowySensesProse", "nightVisionProse", "lightlessDefaultProse"],
   // The influence roller's two morale pages: a result column and a modifier
   // list each, every modifier with the wording of its own row.
   morale: ["monsterMorale", "hirelingObedience"],
@@ -309,6 +311,24 @@ VERIFY["wages.employerLevelCap"] = (out, recipe, fail) => {
   const top = rungs.at(-1);
   if (!(Number.isInteger(top?.perLevel) && top.perLevel > 0)) fail("open rung: perLevel not a positive whole number");
 };
+// The arrival shares henchmen's `arrivalShares` reads: two shares within the
+// whole and a whole-number floor. Shape only; no value is named.
+VERIFY["availability.arrivalProse"] = (out, recipe, fail) => {
+  proseKeys(out, recipe, fail);
+  const { firstShare: a, secondShare: b, secondMin: m } = out ?? {};
+  if (!(isNum(a) && a > 0 && a <= 1)) fail("firstShare: not a share above zero and within the whole");
+  if (!(isNum(b) && b > 0 && b <= 1)) fail("secondShare: not a share above zero and within the whole");
+  if (isNum(a) && isNum(b) && a + b > 1 + 1e-9) fail("firstShare and secondShare: together past the whole");
+  if (!(Number.isInteger(m) && m >= 0)) fail("secondMin: not a whole number");
+};
+// The senses figures lib/senses.mjs reads: each a number above zero, which
+// is all its reader accepts. Shape only; no value is named.
+for (const id of ["senses.shadowySensesProse", "senses.nightVisionProse", "senses.lightlessDefaultProse"]) {
+  VERIFY[id] = (out, recipe, fail) => {
+    proseKeys(out, recipe, fail);
+    for (const v of recipe.values) if (isNum(out?.[v.key]) && !(out[v.key] > 0)) fail(`${v.key}: not above zero`);
+  };
+}
 // Prose tables with nothing beyond declared keys and finite numbers.
 for (const id of [
   "availability.marketRulesProse", "availability.bargainingProse", "magicItems.priceProse",

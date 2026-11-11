@@ -59,18 +59,25 @@ export async function rollAvailability(expr, rollDice, rand = Math.random) {
   return { quantity, detail: `${expr} → ${quantity}` };
 }
 
+/** Slack that keeps a share of a whole count from rounding the wrong way on a float's last bit. */
+const SHARE_SLACK = 1e-9;
+
 /**
- * The three-week arrival split (RR 162): ½ round up in week 1, ¼ round down
- * (min 1) in week 2, remainder in week 3.
- * @param {number} total
- * @returns {[number, number, number]} candidates arriving in weeks 1–3
+ * The three-week arrival split (RR 162): the first share of a month's pool
+ * rounds up into week 1, the second share rounds down into week 2 but never
+ * below its minimum (and never past what week 1 left), and the remainder
+ * arrives in week 3. The shares and the minimum are the Judge's imported
+ * figures (`arrivalShares`); the rounding directions are the procedure.
+ *
+ * With no shares nothing is scheduled: the answer is null, never a default.
+ * @param {number} total - the month's pool for one segment
+ * @param {{first: number, second: number, secondMin: number}|null} shares
+ * @returns {[number, number, number]|null} candidates arriving in weeks 1-3
  */
-export function arrivalSplit(total) {
-  if (total <= 0) return [0, 0, 0];
-  // RR 162: ½ (round up) arrive week 1, ¼ (round DOWN — may be zero) week 2,
-  // the rest week 3, none week 4.
-  const week1 = Math.ceil(total / 2);
-  const week2 = Math.min(Math.floor(total / 4), total - week1);
-  const week3 = total - week1 - week2;
-  return [week1, Math.max(0, week2), Math.max(0, week3)];
+export function arrivalSplit(total, shares) {
+  if (!shares) return null;
+  if (!(total > 0)) return [0, 0, 0];
+  const week1 = Math.min(total, Math.ceil(total * shares.first - SHARE_SLACK));
+  const week2 = Math.min(Math.max(Math.floor(total * shares.second + SHARE_SLACK), shares.secondMin), total - week1);
+  return [week1, week2, total - week1 - week2];
 }

@@ -113,7 +113,7 @@ Hooks.once("setup", async () => {
     // Declare the tables this module reads, so the materialize flow can
     // generate EMPTY placeholders for expected-but-missing ones.
     try {
-      globalThis.acksExtras?.lib.tables.expectTables?.("availability", ["henchmanAvailability", "mercenaryAvailability", "specialistAvailability", "searchFees"]);
+      globalThis.acksExtras?.lib.tables.expectTables?.("availability", ["henchmanAvailability", "mercenaryAvailability", "specialistAvailability", "searchFees", "arrivalProse"]);
       globalThis.acksExtras?.lib.tables.expectTables?.("rarity", ["classRarityTables", "rarityAvailability", "randomHenchmanLevel", "classDistribution", "specificQualificationMods"]);
       globalThis.acksExtras?.lib.tables.expectTables?.("wages", ["henchmanWageByLevel", "signingBonus", "mercenaryWages", "henchmanLimit", "employerLevelCap", "levelMorale"]);
       globalThis.acksExtras?.lib.tables.expectTables?.("people", ["cultures", "classPercentages", "occupationTypes", "occupationSubTables", "occupationPackages", "classRestrictions", "cultureAppearance", "ageByClass", "proficienciesByAge", "hd0", "dwarvenCastes"]);

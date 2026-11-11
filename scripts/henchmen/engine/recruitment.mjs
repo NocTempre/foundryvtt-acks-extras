@@ -5,8 +5,9 @@
  *  - AVAILABILITY IS A PROPERTY OF THE MARKET. Each generic segment
  *    (henchmen of a level, a mercenary troop type, a specialist type) is
  *    rolled ONCE PER GAME MONTH PER LOCATION, using the location's market
- *    class — shared by every recruiter in town. ½ (round up) of the pool
- *    arrives in week 1, ¼ (round down, min 1) in week 2, the rest in week 3.
+ *    class — shared by every recruiter in town. The pool arrives in shares
+ *    across the month's first three weeks (`arrivalSplit`); with the shares
+ *    not imported no month rolls and no generic posting opens.
  *  - A POSTING is a recruiter's PAID SEARCH: the weekly fee (per hireling
  *    type, RR 162) buys access to that segment's arrived candidates.
  *  - SPECIFIC searches (by class or proficiency, JJ 118) are paid and rolled
@@ -28,6 +29,7 @@ import { MODULE_ID, HOOKS, SECONDS_PER_DAY, SECONDS_PER_WEEK } from "../constant
 import {
   rollMonthlyPool,
   arrivalSplit,
+  arrivalShares,
   shiftMarketClass,
   searchFeeFormula,
   clampMarketClass,
@@ -275,11 +277,14 @@ async function buildGmCandidate(location, spec, { marketClass = 4 } = {}) {
 }
 
 /**
- * Build candidate records for one rolled pool.
+ * Build candidate records for one rolled pool. A pool with no imported arrival
+ * shares has no week to arrive in, so it builds nothing.
  * @returns {Promise<object[]>}
  */
 async function buildCandidates({ location, spec, total, marketClass, segment, privateToUuid, monthStart, rarity, notBefore = 0 }) {
-  const [w1, w2, w3] = arrivalSplit(total);
+  const split = arrivalSplit(total, arrivalShares());
+  if (!split) return [];
+  const [w1, w2, w3] = split;
   const weeks = [
     { week: 1, count: w1 },
     { week: 2, count: w2 },
@@ -443,10 +448,13 @@ export function allSegmentSpecs(location) {
  * party that starts searching in week 2 finds week-1 arrivals already come
  * and gone). Purges every public row of the previous month (hired
  * candidates live on as actors) and rebuilds all segments anchored at
- * `anchorTime`.
- * @returns {Promise<{candidates: object[], marketRolls: object[]}>}
+ * `anchorTime`. Without the imported arrival shares nothing could be
+ * scheduled, so the month is not rolled: the answer is `{error}` and the
+ * caller keeps the market it has.
+ * @returns {Promise<{candidates: object[], marketRolls: object[]}|{error: string}>}
  */
 export async function rollMonth(location, anchorTime, rollTime = anchorTime) {
+  if (!arrivalShares()) return { error: "arrivals-missing" };
   const marketClass = location.system.marketClass; // the town's own stock
   const candidates = [];
   const marketRolls = [];
@@ -483,6 +491,8 @@ export async function rollMonth(location, anchorTime, rollTime = anchorTime) {
  */
 async function rollNetworkSupplement({ location, posting, employer, anchor, marketRolls, networkRolls, rollTime }) {
   if (!posting.network || !posting.segment || !employer || !anchor) return [];
+  // A roll recorded without a week to arrive in would never be rolled again this month.
+  if (!arrivalShares()) return [];
   const town = location.system.marketClass;
   const mc = effectiveMarketClass(location, employer);
   if (town == null || mc == null || mc >= clampMarketClass(town)) return [];
@@ -611,6 +621,10 @@ export async function createPosting(
   // as many as they like.
   const gmAdd = isPrivate && !requestUserId;
   const segment = isPrivate ? "" : segmentKeyFor(spec);
+  // A generic posting buys access to the shared pool's arrivals; with no
+  // arrival shares imported none can be scheduled, so nothing is posted or
+  // charged. A directed search replaces pool members and arrives nowhere.
+  if (!isPrivate && !arrivalShares()) return { error: "arrivals-missing" };
 
   // Player posts name WHAT they want: at least one criterion beyond a warm
   // body, and (for leveled searches) the level — it sets the price. Plain
@@ -720,6 +734,7 @@ export async function createPosting(
     let rolls = (location.system.marketRolls ?? []).map((r) => r.toObject?.() ?? r);
     if (!location.system.monthAnchorTime || !rolls.length) {
       const month = await rollMonth(location, currentTime);
+      if (month.error) return { error: month.error };
       newCandidates = month.candidates;
       nextRolls = month.marketRolls;
       rolls = month.marketRolls;
@@ -796,14 +811,16 @@ export async function createPosting(
  * Idempotent due-processing for one location: arrivals, weekly fees per
  * active posting, monthly pool refresh (shared segments with an active
  * search; private searches re-roll monthly while active — JJ: "paying the
- * fee and rolling again each month").
+ * fee and rolling again each month"). `deferred` names why a due month roll
+ * did not run on a world whose tables are loaded (`"arrivals-missing"`), else
+ * null.
  */
 export async function processLocation(location, currentTime = now()) {
   const sys = location.system;
   // Not merely an optimisation: `system.market` is genuinely null on a place
   // without one, and every write below addresses `system.market.*` — there is
   // no subtree to write into.
-  if (!sys.hasMarket) return { changed: false, arrived: 0 };
+  if (!sys.hasMarket) return { changed: false, arrived: 0, deferred: null };
   const postings = (sys.postings ?? []).map((p) => p.toObject?.() ?? foundry.utils.deepClone(p));
   let candidates = (sys.candidates ?? []).map((c) => c.toObject?.() ?? foundry.utils.deepClone(c));
   let marketRolls = (sys.marketRolls ?? []).map((r) => r.toObject?.() ?? foundry.utils.deepClone(r));
@@ -831,11 +848,20 @@ export async function processLocation(location, currentTime = now()) {
   // over a full one. Keep the existing market intact and retry on the next
   // process (the Reload button forces it). See docs/henchmen/DECISIONS.md,
   // "A month roll never fires against an unloaded table registry".
+  // The same holds with the tables loaded but the arrival shares not
+  // imported: a rolled month with no week to arrive in would persist an
+  // empty market just the same.
   const marketDue = !monthAnchorTime || rolledOver;
-  if (marketDue && !hasDoc("availability")) {
+  const tablesLoaded = hasDoc("availability");
+  const sharesImported = !!arrivalShares();
+  let deferred = null;
+  if (marketDue && !tablesLoaded) {
     console.warn(`${MODULE_ID} | market roll deferred for "${location.name}": availability tables not loaded (book not re-imported?)`);
+  } else if (marketDue && !sharesImported) {
+    deferred = "arrivals-missing";
+    console.warn(`${MODULE_ID} | market roll deferred for "${location.name}": arrival shares not imported (Rules tables)`);
   }
-  if (marketDue && hasDoc("availability")) {
+  if (marketDue && tablesLoaded && sharesImported) {
     // A posting that advertised the same thing for a whole month upgrades to
     // a COMMISSION (the JJ mechanic): `advertVeteran` marks postings that
     // already existed when the ending month began, so their next directed
@@ -1045,7 +1071,7 @@ export async function processLocation(location, currentTime = now()) {
       Hooks.callAll(HOOKS.CANDIDATES_ARRIVED, { location, segment, count });
     }
   }
-  return { changed, arrived: [...arrivals.values()].reduce((s, n) => s + n, 0) };
+  return { changed, arrived: [...arrivals.values()].reduce((s, n) => s + n, 0), deferred };
 }
 
 /**

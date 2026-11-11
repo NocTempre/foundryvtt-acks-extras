@@ -177,7 +177,12 @@ const localImpl = Object.freeze({
   // read through the weapon seam. The equipment API's `config.GEAR_PROFILES`
   // entries carry no `capacity` and `inferGear` answers none: a container's
   // capacity is the figure its price row states, written at import.
-  apiVersion: 37,
+  // 38: senses — `SHADOWY_SENSE_RANGE` and `DEFAULT_LIGHTLESS_RANGE` are gone,
+  // and `senseProfile`'s `sightRange` is null where the shadowy radius, a dark
+  // sense's default reach or Night Vision's multiple is not imported;
+  // `shadowySenseRange`, `lightlessDefaultRange`, `nightLightFactor` and
+  // `senseCite` read the `senses` document.
+  apiVersion: 38,
   vocab,
   fields,
   /**
@@ -474,6 +479,7 @@ Hooks.once("init", () => {
   // actor from its stored record in `initializeDocuments`.
   installLegacyCombatRescue();
   light.declareLightTables();
+  senses.declareSenseTables();
   // Before any canvas builds a token's light source.
   installTokenLightPaddingPatch();
   installSpellUsePatch();

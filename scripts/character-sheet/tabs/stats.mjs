@@ -23,8 +23,8 @@ import { TRAINING_VIEWS, arrangeUnits } from "../../equipment/training-view.mjs"
 import { trainingSourceName, trainingProvenance, editedSlots, classTraining, hasTraining } from "../../classes/training.mjs";
 import { hitPointAuditText } from "../../classes/hitpoints.mjs";
 import { LIGHT_SOURCES, lightFigures, lightCite } from "../../lib/light.mjs";
-import { senseProfile, VISION_MODES } from "../../lib/senses.mjs";
-import { ATTRIBUTES } from "../../lib/vocab.mjs";
+import { senseCite, senseProfile, VISION_MODES } from "../../lib/senses.mjs";
+import { ATTRIBUTES, slug } from "../../lib/vocab.mjs";
 import { carriesMorale, signed, storedSystem } from "../view-model.mjs";
 import { saveSystemKey, saveLabel, saveModifiers } from "../snapshot.mjs";
 
@@ -280,6 +280,19 @@ export function lightRow(key) {
 }
 
 /**
+ * The reach cell of the dark sense a character sees by: its radius with the
+ * page the shadowy senses' radius was read from as the tooltip, or, with no
+ * radius imported, a "not imported" note and no figure in its place.
+ */
+function senseReach(profile, kind) {
+  if (profile.sightRange == null) return { value: "", note: loc("vision.notImported"), tip: loc("vision.senseNotImportedTip") };
+  const value = `${num(profile.sightRange)}′`;
+  if (kind !== "shadowy") return { value, note: "" };
+  const cite = senseCite("shadowy");
+  return { value, note: "", tip: cite ? loc("vision.senseTip", { cite }) : loc("vision.senseTipJudge") };
+}
+
+/**
  * One armour-training ability's line under the armour rungs: the rungs it
  * adds, its step times its rank, with the parts and the page the import read
  * as the tooltip. With no step imported the line says so and shows no figure.
@@ -383,12 +396,13 @@ export function buildStatsTab(actor, { openBuckets = new Set(), editing = false,
 
   const profile = senseProfile(actor);
   const senseKind = profile.seesInDark ? (profile.visionMode === VISION_MODES.SHADOWY ? "shadowy" : "lightless") : null;
+  const reach = senseReach(profile, senseKind);
   const vision = [
     { icon: LIGHT_ICONS.day, label: loc("vision.daylight"), value: "∞" },
-    { icon: LIGHT_ICONS.dark, label: loc("vision.dark"), value: profile.seesInDark ? `${num(profile.sightRange)}′` : "0′", note: profile.seesInDark ? "" : loc("vision.darkNote") },
+    { icon: LIGHT_ICONS.dark, label: loc("vision.dark"), ...(profile.seesInDark ? reach : { value: "0′", note: loc("vision.darkNote") }) },
     ...Object.keys(LIGHT_SOURCES).map((key) => lightRow(key)),
-    { icon: LIGHT_ICONS.shadowy, label: loc("vision.shadowy"), value: senseKind === "shadowy" ? `${num(profile.sightRange)}′` : "0′" },
-    { icon: LIGHT_ICONS.lightless, label: loc("vision.lightless"), value: senseKind === "lightless" ? `${num(profile.sightRange)}′` : "0′", note: senseKind === "lightless" ? "" : loc("vision.lightlessNote") },
+    { icon: LIGHT_ICONS.shadowy, label: loc("vision.shadowy"), ...(senseKind === "shadowy" ? reach : { value: "0′" }) },
+    { icon: LIGHT_ICONS.lightless, label: loc("vision.lightless"), ...(senseKind === "lightless" ? reach : { value: "0′", note: loc("vision.lightlessNote") }) },
   ];
 
   const acTip = acTips(actor, sys, stored, typedFor(actor));

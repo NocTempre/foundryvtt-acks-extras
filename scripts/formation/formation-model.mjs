@@ -554,19 +554,22 @@ const encumbranceOf = (actor) => (seatLacksDerived(actor)
   : Number(actor?.system?.encumbrance?.value ?? 0));
 
 /**
- * A character's maximum encumbrance in stone. The primitive answers with core's
- * own maximum, which resolves a GM's forced max against 20 + STR; a seat core
- * derived none for falls back to the strength-derived one.
+ * A character's maximum encumbrance in stone, as core derived it (the primitive
+ * answers with core's own maximum, a GM's forced max included); null where core
+ * derived none, as on a seat that owns nothing of the character. Nothing here
+ * states a maximum of its own.
  */
-const maxStoneOf = (actor) => capacityStone(actor) ?? 20 + (actor?.system?.scores?.str?.mod ?? 0);
+const maxStoneOf = (actor) => capacityStone(actor);
 
 /**
  * The speed in feet per turn of a character bearing `stone`, as the system's
  * own movement calculation gives it (`explorationSpeedBearing`); null where the
- * system answers none.
+ * system answers none, and where there is no maximum to bear against.
  */
-const paceBearing = (actor, stone) =>
-  explorationSpeedBearing({ stone, max: maxStoneOf(actor), mod: actor?.system?.movement?.mod });
+const paceBearing = (actor, stone) => {
+  const max = maxStoneOf(actor);
+  return max == null ? null : explorationSpeedBearing({ stone, max, mod: actor?.system?.movement?.mod });
+};
 
 /** Exploration speed in feet/turn. Monsters with a Full Monster Sheet report
  *  their own Speed table (running/exploration rate); otherwise the acks system
@@ -759,7 +762,7 @@ export function carriedLoad(formation) {
         effEnc,
         capacity,
         speed: paceBearing(e.actor, effEnc),
-        over: effEnc > capacity,
+        over: capacity != null && effEnc > capacity,
       };
     }),
     totalStone: Math.round(totalStone * 10) / 10,

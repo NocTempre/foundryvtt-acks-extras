@@ -9,9 +9,71 @@
 import { hasCapability } from "./capabilities.mjs";
 import { DETECTION_MODES, STATUS_RUNNING, VISION_MODES } from "./perception.mjs";
 import { conditionSet } from "./conditions.mjs";
+import { citeOf, expectTables, getDoc, hasDoc } from "./tables.mjs";
 
 /** Re-exported so callers name a mode from the file that produced the profile. */
 export { VISION_MODES, DETECTION_MODES };
+
+/** The registered document the senses' printed figures arrive in. */
+export const SENSES_DOC = "senses";
+/** Its table holding Night Vision's indoor multiplier (MM p. 13): `{indoorFactor}`. */
+export const NIGHT_VISION_TABLE = "nightVisionProse";
+/** Its table holding the shadowy senses' radius (RR p. 265): `{shadowyReach}`, feet. */
+export const SHADOWY_SENSES_TABLE = "shadowySensesProse";
+
+/** Its table holding the reach a lightless vision has when the stat line records none (MM p. 392): `{defaultReach}`, feet. */
+export const LIGHTLESS_DEFAULT_TABLE = "lightlessDefaultProse";
+
+/** Declare the senses tables, so an import names them as missing until they land. */
+export function declareSenseTables() {
+  expectTables(SENSES_DOC, [NIGHT_VISION_TABLE, SHADOWY_SENSES_TABLE, LIGHTLESS_DEFAULT_TABLE]);
+}
+
+/** One figure of a senses table as a positive number, or null for anything not read. */
+function senseFigure(tableId, key) {
+  if (!hasDoc(SENSES_DOC)) return null;
+  const value = getDoc(SENSES_DOC)?.tables?.[tableId]?.[key];
+  const n = Number(value);
+  return value != null && value !== "" && Number.isFinite(n) && n > 0 ? n : null;
+}
+
+/**
+ * The multiple Night Vision applies to the light that reaches its holder,
+ * from the world's `senses` table (the Judge's override over the import), or
+ * null when no figure is imported. Nothing is defaulted: with none, Night
+ * Vision has no multiplied reach to give.
+ */
+export function nightLightFactor() {
+  return senseFigure(NIGHT_VISION_TABLE, "indoorFactor");
+}
+
+/**
+ * The radius in feet the shadowy senses see out to, from the world's `senses`
+ * table (the Judge's override over the import), or null when none is
+ * imported: the sense is then present with no radius.
+ */
+export function shadowySenseRange() {
+  return senseFigure(SHADOWY_SENSES_TABLE, "shadowyReach");
+}
+
+/**
+ * The reach in feet a dark sense has when the creature's own stat line records
+ * none, from the world's `senses` table (the Judge's override over the import),
+ * or null when none is imported: the sense is then present with no reach.
+ */
+export function lightlessDefaultRange() {
+  return senseFigure(LIGHTLESS_DEFAULT_TABLE, "defaultReach");
+}
+
+/**
+ * The page a senses table was read from, or null when it is the Judge's own
+ * or nothing is registered (`citeOf`).
+ * @param {"night"|"shadowy"|"lightless"} sense
+ */
+export function senseCite(sense) {
+  const table = sense === "night" ? NIGHT_VISION_TABLE : sense === "lightless" ? LIGHTLESS_DEFAULT_TABLE : SHADOWY_SENSES_TABLE;
+  return citeOf(SENSES_DOC, table);
+}
 
 /** The monsters feature's flag scope, holding the `MonsterExtras` stat block. */
 const MONSTERS_ID = "acks-extras";
@@ -31,13 +93,6 @@ const CAP_LIGHTLESS = "kw:lightlessvision";
 const DARK_VISION = new Set(["lightless", "blind"]);
 
 /**
- * How far Night Vision carries indoors: a multiplier on someone else's
- * light, never a radius of its own (MM §5). See docs/lib/MODEL.md, "Night
- * Vision is the one sense read off the square".
- */
-const NIGHT_LIGHT_FACTOR = 2;
-
-/**
  * Non-visual senses that substitute for sight in darkness (their "sight" counts
  * as dim light, MM p. 13): echolocation and the mechanoreception family. Acute
  * hearing/olfaction only aid surprise, so they do NOT count.
@@ -54,19 +109,6 @@ const LIGHTLESS_PATTERN = /lightless\s*vision|infravision|darkvision|dark\s*sigh
 
 /** Either dark sense, by name — what both callers of this pattern need. */
 export const DARK_SENSE_PATTERN = new RegExp(`${SHADOWY_PATTERN.source}|${LIGHTLESS_PATTERN.source}`, "i");
-
-/** Shadowy senses "see" as a dim-light source in a 30' radius (RULES §4). */
-export const SHADOWY_SENSE_RANGE = 30;
-
-/** The MM's own default for a creature whose stat block records no range. */
-export const DEFAULT_LIGHTLESS_RANGE = 60;
-
-/**
- * What an inherently blind creature perceives when its stat block records no
- * ranged sense: the shadowy radius rather than nothing, since it still
- * navigates.
- */
-const DEFAULT_BLIND_RANGE = SHADOWY_SENSE_RANGE;
 
 /* -------------------------------------------- */
 /*  Reading the sheet                           */
@@ -159,40 +201,55 @@ const SENSE_MODES = Object.freeze({
   mechWebbed: { detect: DETECTION_MODES.MECHANORECEPTION, vision: VISION_MODES.ECHOLOCATION },
 });
 
-/** Every sense this actor has, as `[{ key, range }]`, longest first. */
+/** Longest range first; a sense with no range (not imported) after every one that has one. */
+const byRange = (a, b) => (b.range ?? -1) - (a.range ?? -1);
+
+/**
+ * Every sense this actor has, as `[{ key, range }]`, longest first. A range is
+ * null where it stands on a figure the world has not imported (the shadowy
+ * radius, or the reach a dark sense takes when the stat line records none): the
+ * creature still has the sense, with no radius to give it.
+ */
 function sensesOf(actor) {
   const found = [];
   const extras = getMonsterExtras(actor);
   if (extras && hasSenseData(extras)) {
     for (const mode of Array.from(extras.vision ?? [])) {
-      if (mode === "lightless") found.push({ key: "lightless", range: Number(extras.lightlessRange) || DEFAULT_LIGHTLESS_RANGE });
+      if (mode === "lightless") found.push({ key: "lightless", range: Number(extras.lightlessRange) || lightlessDefaultRange() });
     }
     for (const sense of extras.otherSenses ?? []) {
-      if (DARK_SENSES.has(sense?.type)) found.push({ key: sense.type, range: Number(sense.range) || DEFAULT_LIGHTLESS_RANGE });
+      if (DARK_SENSES.has(sense?.type)) found.push({ key: sense.type, range: Number(sense.range) || lightlessDefaultRange() });
     }
     // Blind with nothing else recorded still navigates — it simply has no
     // number on its sheet, which is not the same as being helpless.
     if (!found.length && Array.from(extras.vision ?? []).includes("blind")) {
-      found.push({ key: "shadowy", range: DEFAULT_BLIND_RANGE });
+      found.push({ key: "shadowy", range: shadowySenseRange() });
     }
-    return found.sort((a, b) => b.range - a.range);
+    return found.sort(byRange);
   }
 
   // No stat block: the capability register, then names. Shadowy senses are
   // checked first — the capability claims what the sense counts as, not how
   // far it reaches, so it never outranks a named shadowy-sense match alone.
   const shadowy = matchesByName(actor, SHADOWY_PATTERN);
-  if (shadowy) found.push({ key: "shadowy", range: SHADOWY_SENSE_RANGE });
+  if (shadowy) found.push({ key: "shadowy", range: shadowySenseRange() });
   if (matchesByName(actor, LIGHTLESS_PATTERN) || (!shadowy && hasCapability(actor, CAP_LIGHTLESS))) {
-    found.push({ key: "lightless", range: DEFAULT_LIGHTLESS_RANGE });
+    found.push({ key: "lightless", range: lightlessDefaultRange() });
   }
-  return found.sort((a, b) => b.range - a.range);
+  return found.sort(byRange);
 }
 
 /** Is this sense switched off by a condition the creature is currently under? */
 function suppressed(key, statuses) {
   if (key !== "shadowy") return false;
   return statuses.has(STATUS_RUNNING) || conditionSet(statuses).has(SHADOWY_SUPPRESSOR);
+}
+
+/** What Night Vision sees by `litBy` feet of light: nothing where none reaches, null where the multiple is not imported. */
+function nightReach(litBy) {
+  if (!(litBy > 0)) return 0;
+  const factor = nightLightFactor();
+  return factor == null ? null : factor * litBy;
 }
 
 /** Does this creature's stat block record Night Vision? */
@@ -208,10 +265,14 @@ export function hasNightVision(actor) {
  * all of them at their own ranges. See docs/lib/MODEL.md, "Perception:
  * senses, light, and the token".
  *
+ * `sightRange` is null where the figure it stands on is not imported: the
+ * shadowy senses' radius, the default reach of a dark sense whose stat line
+ * records none, or Night Vision's multiple with light reaching the creature. A sense with no radius adds no detection range.
+ *
  * @param {object} [context]
  * @param {number} [context.litBy] the bright radius, in scene units, of the
- *   strongest light reaching this creature — the number Night Vision doubles.
- *   Omitted (0) yields the total-dark reading.
+ *   strongest light reaching this creature — the number Night Vision
+ *   multiplies. Omitted (0) yields the total-dark reading.
  */
 export function senseProfile(actor, { litBy = 0 } = {}) {
   const statuses = statusesOf(actor);
@@ -221,16 +282,17 @@ export function senseProfile(actor, { litBy = 0 } = {}) {
   const detection = {};
   for (const { key, range } of live) {
     const mode = SENSE_MODES[key]?.detect;
-    if (mode) detection[mode] = Math.max(detection[mode] ?? 0, range);
+    if (mode && range != null) detection[mode] = Math.max(detection[mode] ?? 0, range);
   }
 
   if (!live.length) {
-    // Night Vision doubles nearby light and grants nothing of its own; unlit
-    // means 0, and seesInDark stays false — that flag means "without light at all".
+    // Night Vision multiplies nearby light and grants nothing of its own;
+    // unlit means 0, and seesInDark stays false — that flag means "without
+    // light at all". Light with no imported multiple has no multiplied reach.
     const night = hasNightVision(actor);
     return {
       seesInDark: false,
-      sightRange: night ? NIGHT_LIGHT_FACTOR * litBy : 0,
+      sightRange: night ? nightReach(litBy) : 0,
       visionMode: night ? VISION_MODES.NIGHT : VISION_MODES.BASIC,
       detection,
       suppressed: senses.length > 0,

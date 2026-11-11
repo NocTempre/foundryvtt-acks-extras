@@ -19,7 +19,7 @@ import { FLAG_RECORD } from "../henchmen/constants.mjs";
 import { realMembers } from "../formation/formation-model.mjs";
 import { getLoadout } from "../equipment/loadout.mjs";
 import { bearerLights, LIGHT_SOURCES, lightCite, lightFigures } from "../lib/light.mjs";
-import { senseProfile, VISION_MODES } from "../lib/senses.mjs";
+import { senseCite, senseProfile, VISION_MODES } from "../lib/senses.mjs";
 import { classForActor } from "../classes/registry.mjs";
 import { pendingChoices } from "../classes/pending-choices.mjs";
 import { unansweredGroups, actorPaths } from "../classes/paths.mjs";
@@ -222,12 +222,17 @@ function litSource(actor) {
   return best;
 }
 
-/** The dark-sense this character sees by, if any: its kind and its reach. */
+/**
+ * The dark-sense this character sees by, if any: its kind and its reach. A
+ * sense whose radius is not imported answers a null `range`, so the cell says
+ * so and shows no figure.
+ */
 function darkSense(actor) {
   const profile = senseProfile(actor);
-  if (!profile.seesInDark || !(profile.sightRange > 0)) return null;
+  if (!profile.seesInDark) return null;
+  if (profile.sightRange != null && !(profile.sightRange > 0)) return null;
   const kind = profile.visionMode === VISION_MODES.SHADOWY ? "shadowy" : "lightless";
-  return { kind, range: profile.sightRange };
+  return { kind, range: profile.sightRange, cite: kind === "shadowy" ? senseCite("shadowy") : null };
 }
 
 /**

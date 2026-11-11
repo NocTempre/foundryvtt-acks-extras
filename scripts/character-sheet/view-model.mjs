@@ -22,7 +22,8 @@
  *   move      {modes: {key: number}, pct, breakpoints: {low, mid, high}, slowed}
  *   grip      {weapons: [{name, twoHanded, canTwoHand}], shieldInHand, cleaves}
  *   light     {lit: {type, remaining, turns, reach} | null, ambient: "day"|"dark"|null,
- *              sense: {kind, range} | null, blinded}
+ *              sense: {kind, range, cite} | null, blinded}   (`range` is null where
+ *              the sense's radius is not imported)
  *   saves     {key: number}                    riders [{save, statuses[], name, remaining, total, clock}]
  *   saveMods  {key: number}                    (signed change in force on that save, all-save mod folded in)
  *   formation {name} | null
@@ -102,7 +103,10 @@ export function lightCell({ lit = null, ambient = null, sense = null, blinded = 
   if (ambient === "day") return { key: "day", icon: LIGHT_ICONS.day, sub: "∞", tone: null, pct: null };
   if (sense) {
     const icon = sense.kind === "shadowy" ? LIGHT_ICONS.shadowy : LIGHT_ICONS.lightless;
-    return { key: sense.kind, icon, sub: `${num(sense.range)}′`, tone: sense.kind === "shadowy" ? null : "hi", pct: null };
+    const tone = sense.kind === "shadowy" ? null : "hi";
+    // A radius not imported shows no figure in its place.
+    if (sense.range == null) return { key: sense.kind, icon, sub: "—", tone, pct: null, imported: false };
+    return { key: sense.kind, icon, sub: `${num(sense.range)}′`, tone, pct: null, cite: sense.cite ?? null };
   }
   return { key: "dark", icon: LIGHT_ICONS.dark, sub: "0′", tone: "bad", pct: null };
 }

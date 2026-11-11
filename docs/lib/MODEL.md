@@ -670,16 +670,35 @@ sense and keeps the dim-to-bright promotion, without `lightAmplification`'s gree
 | ACKS | `sight.range` | `visionMode` | detection mode |
 |---|---|---|---|
 | Ordinary eyes | 0 | `basic` | core's own |
-| Lightless Vision | its recorded range (MM default 60') | `…Lightless` | `…LightlessVision` (SIGHT) |
-| Shadowy senses | 30' | `…Shadowy` | `…ShadowySenses` (SOUND) |
+| Lightless Vision | its recorded range, else the imported default reach (MM 392) | `…Lightless` | `…LightlessVision` (SIGHT) |
+| Shadowy senses | the imported shadowy radius, else none | `…Shadowy` | `…ShadowySenses` (SOUND) |
 | Echolocation | its recorded range | `…Echolocation` | `…Echolocation` (SOUND) |
 | Mechanoreception, terrestrial | its recorded range | `…Echolocation` | core `feelTremor` (MOVE) |
 | Mechanoreception, other | its recorded range | `…Echolocation` | `…Mechanoreception` (MOVE) |
-| Blind | its best sense range, else 30' | that sense's | that sense's |
-| Night Vision | **twice** the bright radius reaching it, else 0 | `…Night` | core's own |
+| Blind | its best sense range, else the shadowy radius | that sense's | that sense's |
+| Night Vision | the imported multiple of the bright radius reaching it, else 0 (none with no multiple imported) | `…Night` | core's own |
 
 A creature looks through its **longest** sense and detects with **all** of them,
-each at its own range.
+each at its own range. A sense with no range is ranked last and adds no detection
+range.
+
+**The senses' printed figures.** The shadowy senses' radius (RR 265), Night
+Vision's multiple (MM 13) and the reach a dark sense takes when its stat line
+records none (MM 392) are read by the importer's `senses` document into tables
+`shadowySensesProse`, `nightVisionProse` and `lightlessDefaultProse` (keys
+`shadowyReach`, `indoorFactor`, `defaultReach`) at the WORLD layer of
+`tables.mjs`, and `declareSenseTables` names all three among the expected tables
+at `init`. `shadowySenseRange()`, `nightLightFactor()` and
+`lightlessDefaultRange()` answer a positive number or `null`; `senseCite(kind)` is the page the import read, `null`
+for the Judge's own figure from the Ruledata Browser, which wins over the import.
+With nothing imported a shadowy or blind creature, or a dark-sighted one with no
+recorded range, still sees without light (`seesInDark` is the procedure's) but its
+`sightRange` is `null` and its detection gains no range, and a night-eyed creature reached by light has no figure; the
+character sheet's vision rows and rail light cell, and the Formation tab's dark-sight
+chip, read "not imported" with no number in its place, and the token receives a
+radius of 0 (`token-sync.mjs`) until the figure is imported. A recorded range on the
+sheet (`lightlessRange`, an `otherSenses` entry) is the creature's own and never
+waits on the import.
 
 **Units.** Every radius the module derives is in feet, and a token stores its
 `light.bright`, `light.dim`, `sight.range` and detection ranges in the scene's
@@ -691,7 +710,7 @@ is lit when either radius survives the conversion: a coarse scene can round the
 bright radius to 0 and keep the dim one, and one that rounds both to 0 sheds no
 light. The stamp that marks a sight range as ours carries the converted figure.
 `brightestLightReaching` reads stored light, so its answer is in scene units too;
-the pass converts it to feet before Night Vision doubles it.
+the pass converts it to feet before Night Vision multiplies it.
 
 **The light table.** `LIGHT_SOURCES` is structure only: which kinds of light
 exist, their label and the gear each consumes, and whether one shutters. A
@@ -784,19 +803,20 @@ ranges.
 ### Night Vision is the one sense read off the square
 
 Every other row above is a property of the sheet. Night Vision is not: MM §5
-gives it as *moonlight → daylight; indoors 2× light range; not total dark*, so
-its reach is a multiplier on a light somebody else lit and somebody else carries.
+gives it as a rule with a moonlight reading, an indoor multiple and a total-dark
+exclusion, so its reach is a multiplier on a light somebody else lit and somebody
+else carries.
 
 `brightestLightReaching` (`scripts/lib/light.mjs`) answers what that light is — the
 largest bright radius, among the scene's ambient lights, every light-emitting
 token and every marching column's lights (formation's `carriedLightPoints`,
 read through the namespace), whose source actually covers the creature's square. `senseProfile` takes
-it as `litBy` and doubles it. Nothing else reads it, and the pass only computes
+it as `litBy` and multiplies it by `nightLightFactor()`. Nothing else reads it, and the pass only computes
 it for creatures that have the sense, because finding it costs a sweep of the
 scene.
 
 The last clause of the rule then holds by construction rather than by a check: an
-unlit corridor has nothing to double, so the range is 0 and a night-eyed creature
+unlit corridor has nothing to multiply, so the range is 0 and a night-eyed creature
 is as blind as anyone else. `seesInDark` stays **false** either way — that flag
 asks whether a creature can march with no light at all.
 
@@ -1191,7 +1211,9 @@ class has no such method. The stub carries no `statuses`, which the condition
 wrapper on that method reads as nothing to apply, so a hypothetical bearing is
 never slowed by the real actor's conditions. A seat core derived no
 encumbrance for, and a carrier's load with a casualty's share added, are the
-two bearings the document does not hold.
+two bearings the document does not hold. A maximum core derived none for is
+not made up: `capacityStone` answers null, and the formation reads a null
+maximum as no capacity, no pace and no overload for that carrier.
 
 ### Two stores, and why nothing outside this file knows
 

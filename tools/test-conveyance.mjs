@@ -112,6 +112,7 @@ globalThis.game = {
 /*  The modules under test                      */
 /* -------------------------------------------- */
 
+const T = await import("../scripts/lib/tables.mjs");
 const { VEHICLE_TYPE } = await import("../scripts/vehicles/constants.mjs");
 const { attach, attachmentOf, registerAttachmentIndex } = await import("../scripts/lib/attachment.mjs");
 const { calendarDay, dawnWithin, secondsToNextDawn } = await import("../scripts/lib/world-time.mjs");
@@ -682,6 +683,53 @@ await t("a seat core gave no figure reads a member off their weight, and the pac
   }
   theirs.system.config.movementAuto = true;
   assert.equal(explorationSpeedOf(theirs), 55, "a GM's seat reads core's own figure");
+});
+
+await t("a carrier core derived no maximum for has no capacity, no pace and no overload of ours", () => {
+  const gmSeat = game.user;
+  const down = person("down", 0);
+  down.system.hp.value = 0;
+  const bare = person("bare", 40, ["p2"]);
+  delete bare.system.encumbrance.max;
+  Object.assign(bare.system, { config: { movementAuto: true }, movement: { mod: 0 }, scores: { str: { mod: 7 } } });
+  // A kit that no maximum of any size could carry, so a maximum made up in
+  // source would flag this carrier over.
+  bare.items = [{ system: { weight6: 6000, cost: 0 } }];
+  const owned = person("owned", 40);
+  owned.system.encumbrance.value = 39;
+  const id = party([down, { actorId: "bare", roles: ["carrier"] }, { actorId: "owned", roles: ["carrier"] }]);
+  bare.isOwner = false;
+  game.user = { id: "p1", isGM: false };
+  let calls = 0;
+  const hadClass = CONFIG.Actor.documentClass;
+  CONFIG.Actor.documentClass = class {
+    _calculateMovement() {
+      calls++;
+      this.system.movementacks.exploration = 50;
+    }
+  };
+  T.registerTable({ id: "formation", tables: { carriedBodyStone: 9, carriedGearShare: 0.5 } });
+  try {
+    const f = getFormation(id);
+    const load = carriedLoad(f);
+    const [noMax, withMax] = load.carriers;
+    assert.equal(noMax.name, "bare");
+    assert.equal(noMax.capacity, null, "no maximum where core derived none");
+    assert.equal(noMax.over, false, "so nothing to be over");
+    assert.equal(noMax.speed, null, "and no pace to read off it");
+    assert.equal(calls > 0, true, "the calculation ran for the carrier that has a maximum");
+    assert.equal(withMax.capacity, 40);
+    assert.equal(withMax.over, true, "a carrier with a maximum is still judged against it");
+    assert.equal(withMax.speed, 50);
+    calls = 0;
+    assert.equal(memberPace(f, { actorId: "bare", roles: ["carrier"] }, bare, load), null, "a hauling carrier with no maximum has no pace");
+    assert.equal(explorationSpeedOf(bare), 40, "an unhauling seat reads the document's own figure");
+    assert.equal(calls, 0, "the calculation is never asked against a maximum nothing gave");
+  } finally {
+    T.unregisterTable("formation");
+    game.user = gmSeat;
+    CONFIG.Actor.documentClass = hadClass;
+  }
 });
 
 await t("a wagon that cannot roll is no pick, while a vessel on another clock stays one", () => {

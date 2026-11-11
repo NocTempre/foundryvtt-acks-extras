@@ -1133,7 +1133,7 @@ by** (MM, Night Vision): a creature standing in a torch's bright radius sees
 well past its edge. It does not
 need to be *its* torch — the party's lamp will do, which is exactly the creature
 watching you from beyond the edge of your own light. In a corridor with nothing
-burning at all there is nothing to double, and a night-eyed creature is as blind
+burning at all there is nothing to multiply, and a night-eyed creature is as blind
 as you are.
 
 > So if you want a monster to see indoors and it has no lightless vision, you do
