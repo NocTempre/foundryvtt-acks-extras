@@ -773,6 +773,7 @@ acksExtras.lib.summons = {
   pickSummon(summoner, {spell?, options?, resolveRef?}),
                                            // → Promise<{sourceUuid, count, spellId}|null>
   registerSummonPolicy(fn),                // → unregister(): boolean
+  registerSummonNaming(fn),                // → unregister(): boolean
 }
 ```
 
@@ -794,17 +795,29 @@ A request naming no spell is refused `spellRequired` unless
 GM seat; that function is the one place the choice is made.
 
 `registerSummonPolicy(fn)` adds a refusal a feature owns, so lib imports no
-feature. `fn({user, summoner, source, count, spellId, spell})` returns null to
-allow or a reason id to refuse. Policies run after every built-in check, on the
-requesting seat and on the GM's client, and each must answer from documents
-both can read. A policy that throws is logged to the console and counts as an
-allow. The call returns a function that unregisters it.
+feature. `fn({user, summoner, source, sourceRef, count, spellId, spell})`
+returns null to allow or a reason id to refuse, synchronously (a promise
+allows). `source` is null, and `sourceRef` the ref the request carries, on a
+seat that could not resolve the creature a spell names. Policies run after every
+built-in check, on the requesting seat and on the GM's client, and each must
+answer from documents both can read. A policy that throws is logged to the
+console and counts as an allow. The call returns a function that unregisters it.
+
+`registerSummonNaming(fn)` says which creatures a spell names: `fn` takes the
+same request and answers exactly `true` when the spell's own rows name the
+creature. A creature so named is exempt from the shelf-readable check
+(`unreadable`) and from nothing else; the GM's client resolves it with its own
+access. A throw is logged and means not named.
 
 `pickSummon` is the creature and count prompt for a cast from `spell`: each
 `options` row (`summonOptionsOf`) whose `ref` the caller's `resolveRef(ref)`
 turns into `{uuid, name}` is offered, the first preselected with the row's
-`amount` as the count; with none it offers the shelves the seat can open. It
-asks and places nothing; pass the answer to `placeSummons`. The Foundry-free
+`amount` as the count. A row it cannot resolve is still offered when its ref
+reads as an id: the ref goes on untouched as the answer's `sourceUuid`, labelled
+by the row's `name` or "Creature N". With no offerable row it offers the shelves
+the seat can open. It asks and places nothing; pass the answer to
+`placeSummons`, whose `sourceUuid` may then be a uuid or a cookbook id for a
+request that names a spell. The Foundry-free
 checks (`checkPlaceRequest`, `checkDismissRequest`, `groupByCast`,
 `groupBySpell`, `bareSummonAllowed`, `summonOwnership`) are in
 `scripts/lib/summons-logic.mjs`, imported directly.

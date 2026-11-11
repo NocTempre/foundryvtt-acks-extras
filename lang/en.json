@@ -707,6 +707,7 @@
   "ACKS-LIB.summons.noMonsters": "This seat can open no monster compendium, so there is no creature to choose. Ask the GM to open the monster library to players.",
   "ACKS-LIB.summons.close": "Close",
   "ACKS-LIB.summons.creature": "Creature",
+  "ACKS-LIB.summons.creatureN": "Creature {n}",
   "ACKS-LIB.summons.count": "How many",
   "ACKS-LIB.summons.spell": "Cast from",
   "ACKS-LIB.summons.place": "Place on the map",

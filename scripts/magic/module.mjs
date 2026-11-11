@@ -26,6 +26,7 @@ import {
   spellsByName,
   fillGeneratedRepertoire,
 } from "./repertoire.mjs";
+import { registerCastSummon, castSummon } from "./cast-summon.mjs";
 import { coreItemSheetFor } from "../lib/util.mjs";
 import { TEMPLATE_HOOKS } from "../lib/constants.mjs";
 
@@ -73,6 +74,8 @@ Hooks.once("init", () => {
     spellsByName,
     fillGeneratedRepertoire,
     stripModuleData,
+    /** Cast a summoning spell and wait for its placement (cast-summon.mjs). */
+    castSummon,
     get AcksSpellSheet() {
       return AcksSpellSheet;
     },
@@ -98,6 +101,13 @@ Hooks.once("init", () => {
     ]);
   } catch (err) {
     console.warn(`${MODULE_ID} | magic template preload skipped`, err);
+  }
+  // A summoning spell's cast places its creatures: a claimant on lib's cast
+  // seam, with the rules over what the spell may call riding lib's summons.
+  try {
+    registerCastSummon();
+  } catch (err) {
+    console.error(`${MODULE_ID} | the summoning cast could not register`, err);
   }
   console.log(`${MODULE_ID} | initialised (spell primitive ready)`);
 });

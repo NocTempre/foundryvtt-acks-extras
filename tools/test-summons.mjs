@@ -479,6 +479,156 @@ await t("a policy that answers null allows; a throwing policy is logged and trea
   }
 });
 
+/* -------------------------------------------- */
+/*  A spell-named creature, resolved by the GM   */
+/* -------------------------------------------- */
+
+const COOKBOOK = "def.invented.glimmerkin";
+
+/** A library creature on a shelf nobody but the GM can open, found by its cookbook id in the world. */
+function makeShelfSource(id = "shelf1", cookbook = COOKBOOK) {
+  const data = { flags: { [M]: { cookbook: { id: cookbook } } } };
+  const doc = {
+    id,
+    uuid: `Compendium.test.Actor.${id}`,
+    type: "monster",
+    name: `Creature ${id}`,
+    flags: data.flags,
+    getFlag: flagOf(data),
+    compendium: { testUserPermission: (u) => u.isGM },
+    toObject: () => ({ _id: id, name: `Creature ${id}`, type: "monster", flags: { [M]: { cookbook: { id: cookbook } } }, prototypeToken: {} }),
+  };
+  world.actors.set(`lib-${id}`, doc);
+  registry.set(doc.uuid, doc);
+  return doc;
+}
+
+/** Register a naming that says the spell names the creature carrying the cookbook id. */
+const nameByCookbook = (id = COOKBOOK) =>
+  logic.registerSummonNaming((req) => (req.source ? req.source.flags?.[M]?.cookbook?.id === id : req.sourceRef === id));
+
+await t("a spell-named creature is resolved on the GM's client by its cookbook id, and the seat never opens its shelf", async () => {
+  setup();
+  const shelf = makeShelfSource();
+  const off = nameByCookbook();
+  try {
+    const out = await summonRelay(place({ sourceUuid: COOKBOOK, castId: "castS1" }));
+    assert.equal(out.ok, true, "a Player seat summons a creature on a shelf it cannot read");
+    assert.equal(calls.tokenCreate.length, 2);
+    const rec = calls.tokenCreate[0].delta.flags[M][logic.SUMMON_RECORD_FLAG];
+    assert.equal(rec.sourceUuid, shelf.uuid, "the record names the resolved document, not the ref the seat sent");
+    assert.equal(rec.castId, "castS1");
+    assert.equal(calls.actorCreate[0].flags[M][logic.SUMMON_COPY_FLAG].sourceUuid, shelf.uuid, "the one world copy is keyed by the resolved uuid");
+    assert.equal((await summonRelay(place({ sourceUuid: `uuid:${shelf.uuid}`, positions: [{ x: 5, y: 5 }], count: 1 }))).ok, true, "a uuid: prefix and a plain uuid resolve too");
+    assert.equal(calls.actorCreate.length, 1, "both reach the one copy");
+  } finally {
+    off();
+  }
+});
+
+await t("a ref no lookup answers is badSource, and a bare request never reaches the library by an id", async () => {
+  setup();
+  makeShelfSource();
+  const off = nameByCookbook();
+  try {
+    assert.equal((await summonRelay(place({ sourceUuid: "def.invented.nobody" }))).reason, "badSource");
+    assert.equal((await summonRelay(place({ sourceUuid: "" }))).reason, "badSource");
+    const bare = await summonRelay(place({ sourceUuid: COOKBOOK, spellId: "", requestUserId: null }));
+    assert.equal(bare.reason, "badSource", "a GM's bare request names a document, not a cookbook id");
+    assert.equal(calls.tokenCreate.length, 0);
+  } finally {
+    off();
+  }
+});
+
+await t("the unreadable exemption is the naming's: a creature the spell does not name stays unreadable, and nothing is made", async () => {
+  setup();
+  makeShelfSource();
+  makeShelfSource("shelf2", "def.invented.other");
+  const off = nameByCookbook();
+  try {
+    assert.equal((await summonRelay(place({ sourceUuid: COOKBOOK }))).ok, true);
+    const forged = await summonRelay(place({ sourceUuid: "def.invented.other" }));
+    assert.deepEqual(forged, { ok: false, reason: "unreadable" }, "a forged request for another shelf creature");
+    assert.equal(calls.actorCreate.length, 1, "only the named creature was copied");
+  } finally {
+    off();
+  }
+  assert.equal((await summonRelay(place({ sourceUuid: COOKBOOK }))).reason, "unreadable", "with the naming removed the exemption is gone");
+});
+
+await t("a bare request naming a source the seat chose is unreadable, whatever a naming says", async () => {
+  setup();
+  makeShelfSource();
+  const off = logic.registerSummonNaming(() => true);
+  try {
+    assert.equal((await summonRelay(place({ sourceUuid: "Compendium.test.Actor.shelf1", spellId: "" }))).reason, "unreadable", "no spell, no exemption, whatever the naming answers");
+    const bareForGm = await summonRelay(place({ sourceUuid: "Compendium.test.Actor.shelf1", spellId: "", requestUserId: null }));
+    assert.equal(bareForGm.ok, true, "a GM reads every shelf");
+  } finally {
+    off();
+  }
+});
+
+await t("a naming that throws is logged and does not exempt; a naming must answer exactly true", async () => {
+  setup();
+  makeShelfSource();
+  const logged = [];
+  const realError = console.error;
+  console.error = (...args) => logged.push(String(args[0]));
+  const offs = [logic.registerSummonNaming(() => { throw new Error("broken naming"); }), logic.registerSummonNaming(() => "yes")];
+  try {
+    assert.equal((await summonRelay(place({ sourceUuid: COOKBOOK }))).reason, "unreadable", "a throwing naming does not exempt");
+    assert.equal((await summonRelay(place({ sourceUuid: "Compendium.test.Actor.shelf1" }))).reason, "unreadable");
+    assert.match(logged[0], /summon naming threw/);
+  } finally {
+    console.error = realError;
+    for (const off of offs) off();
+  }
+  assert.throws(() => logic.registerSummonNaming(null), TypeError);
+});
+
+await t("the seat's own pre-check leaves a spell-named, unresolvable ref to the GM, and the relay never does", () => {
+  const summoner = makeSummoner("sum", [p1.id], [SPELL]);
+  const off = nameByCookbook();
+  try {
+    const ask = (extra) => logic.checkPlaceRequest({ user: p1, summoner, source: null, count: 1, spellId: SPELL.id, ...extra });
+    assert.deepEqual(ask({ sourceRef: COOKBOOK }), { ok: true });
+    assert.equal(ask({ sourceRef: "def.invented.nobody" }).reason, "badSource");
+    assert.equal(ask({ sourceRef: "" }).reason, "badSource");
+    assert.equal(ask({ sourceRef: COOKBOOK, positions: [{ x: 1, y: 1 }] }).reason, "badSource", "with positions it is the relay's check, which needs a creature");
+    assert.equal(ask({ sourceRef: COOKBOOK, spellId: "" }).reason, "badSource", "a bare request has no naming to lean on");
+  } finally {
+    off();
+  }
+});
+
+await t("offerRows: a resolved row by its creature, an unresolved id passed through untouched, a plain name dropped", () => {
+  const rows = [
+    { ref: "def.invented.glimmerkin", name: "Glimmerkin", amount: 2 },
+    { ref: "Compendium.test.Actor.zzz", name: "", amount: 0 },
+    { ref: "a plain printed name", name: "", amount: 4 },
+    { ref: "", name: "open", amount: 1 },
+    { ref: "def.invented.glimmerkin", name: "Glimmerkin", amount: 2 },
+    { ref: "Actor.known", name: "ignored: the seat resolved it", amount: 3 },
+  ];
+  const resolved = [null, null, null, null, null, { uuid: "Actor.known", name: "Known Creature" }];
+  assert.deepEqual(logic.offerRows(rows, resolved), [
+    { value: "def.invented.glimmerkin", name: "Glimmerkin", amount: 2, passed: true },
+    { value: "Compendium.test.Actor.zzz", name: "", amount: 0, passed: true },
+    { value: "Actor.known", name: "Known Creature", amount: 3, passed: false },
+  ]);
+  assert.deepEqual(logic.offerRows(rows, undefined).map((o) => o.value), ["def.invented.glimmerkin", "Compendium.test.Actor.zzz", "Actor.known"], "with no resolver every id-like ref passes through");
+  assert.deepEqual(logic.offerRows(undefined, undefined), []);
+  assert.deepEqual(logic.offerRows([{ ref: "Actor.same" }, { ref: "other.ref" }], [{ uuid: "Actor.same", name: "N" }, { uuid: "Actor.same", name: "N" }]).map((o) => o.value), ["Actor.same"], "a creature offered twice is offered once");
+});
+
+await t("a ref reads as an id when it is dotted with no space, a uuid: prefix aside", () => {
+  for (const id of ["def.invented.glimmerkin", "Compendium.test.Actor.abc", "uuid:Actor.abc", "Actor.abc"]) assert.equal(logic.refLooksLikeId(id), true, id);
+  for (const name of ["glimmerkin", "a plain name", "St. Invented", "", " ", "end."]) assert.equal(logic.refLooksLikeId(name), false, name);
+  assert.equal(logic.normalizeRef("  uuid:Actor.abc "), "Actor.abc");
+});
+
 await t("summons group by the spell that called them, with a dangling spell loose and a hand-bound token apart", () => {
   const e = (name, record) => ({ name, record });
   const hound = (castId, spellId, at, extra = {}) => ({ castId, name: "Ashmantle Hound", spellId, at, ...extra });

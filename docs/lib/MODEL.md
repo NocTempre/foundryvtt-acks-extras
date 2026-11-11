@@ -2299,6 +2299,28 @@ are policies a feature registers (`registerSummonPolicy`), run inside
 client; a policy that throws is logged and counts as an allow. lib imports no
 feature.
 
+**A spell-named creature resolves on the GM's client.** A spell's row names its
+creature by a uuid or an importer cookbook id, and the Judge's Actor shelves are
+closed to players. `registerSummonNaming(fn)` is how a feature tells lib that a
+spell names a creature: `fn({user, summoner, source, sourceRef, count, spellId,
+spell})` answers exactly `true` or not (a throw is logged and means not). A
+creature the spell names is exempt from `sourceReadable`, and only that one:
+a bare request, a spell that names none and a creature another row does not name
+are held to it as before, so `unreadable` stays for a source the seat chose
+itself. The check runs in the order badSource, unreadable, badSpell,
+spellRequired, then policies, so a naming decides the exemption before a policy
+sees the request. `pickSummon` offers a row the seat cannot resolve whenever its
+ref reads as an id (dotted, no space; `offerRows`), labelled by the row's `name`
+or "Creature N", and `placeSummons` passes the ref on as `sourceUuid`. The
+seat's pre-check then runs with `source` null and `sourceRef` the ref, which a
+naming alone can accept, and only without positions; the relay always needs a
+creature in hand. The relay resolves the ref with the GM's access: the document
+its uuid names, else, for a request that names a spell, the library Actor
+carrying that cookbook id (`resolveSource`, after the library is warm); the
+record and the one world copy are keyed by the resolved uuid. The seat's
+preview is then the plain token core draws for one with no picture, because it
+cannot read the creature's look.
+
 **Placing.** The seat picks the creature and a count: `pickSummon` for a cast
 from a spell (the spell's named creatures, preselected with their amount, else
 the shelves), or the bare Summon… prompt, which offers the Actor shelves the

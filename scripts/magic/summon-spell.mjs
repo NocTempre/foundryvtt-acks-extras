@@ -50,7 +50,9 @@ export function isSummonSpell(item) {
 
 /**
  * The creatures a summon spell offers, one per `summon` row, as `{ ref,
- * amount, value, summonFormat, control }`. The rows come from the spell's own
+ * name, amount, value, summonFormat, control }` (`name` is the creature's
+ * imported name where the row carries one, else empty, and is what a seat that
+ * cannot open the creature labels the choice by). The rows come from the spell's own
  * flag; a spell with none of its own (a copy that lost them) reads its
  * library `twin`'s. An empty array means the spell names no creature, which
  * the caller reads as "pick from the open shelf".
@@ -63,6 +65,7 @@ export function summonOptionsOf(spell, { twin = null } = {}) {
   if (!rows.length && twin) rows = summonRows(twin);
   return rows.map((row) => ({
     ref: String(row.ref ?? "").trim(),
+    name: String(row.name ?? "").trim(),
     amount: Number(row.amount) || 0,
     value: row.value ?? null,
     summonFormat: row.summonFormat ?? "",

@@ -18,11 +18,14 @@
  * A summoning is tied to the spell that calls it: a request names the
  * summoner's spell item, and only a seat `bareSummonAllowed` answers true for
  * may name none. Feature rules over a spell's creature and count arrive as
- * policies (`registerSummonPolicy`), which this file never imports.
+ * policies (`registerSummonPolicy`), and which creature a spell names as a
+ * naming (`registerSummonNaming`); this file imports neither. A creature a
+ * spell names is resolved on the GM's client with the GM's access, so a seat
+ * that cannot open its shelf still summons it.
  */
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import { makeLoc } from "./util.mjs";
-import { libraryPacks } from "./library.mjs";
+import { libraryPacks, byCookbookId, whenReady } from "./library.mjs";
 import {
   SUMMON_COPY_FLAG,
   MAX_SUMMONS,
@@ -38,9 +41,12 @@ import {
   summonEntries,
   bareSummonAllowed,
   registerSummonPolicy,
+  registerSummonNaming,
+  normalizeRef,
+  offerRows,
 } from "./summons-logic.mjs";
 
-export { summonerOf, registerSummonPolicy };
+export { summonerOf, registerSummonPolicy, registerSummonNaming };
 
 const libLoc = makeLoc(LANG_PREFIX);
 
@@ -178,10 +184,31 @@ async function createTokens({ copy, scene, positions, flags, ownership }) {
   return uuids;
 }
 
+/**
+ * The creature a request names, with the GM's access: the document its uuid
+ * names, else, for a request that names a spell, the library creature carrying
+ * that importer cookbook id. A bare request names a document or nothing, so it
+ * never reaches the library by an id the seat typed. A ref no lookup answers
+ * is null, never a throw.
+ */
+async function resolveSource(ref, spellId) {
+  const key = normalizeRef(ref);
+  if (!key) return null;
+  try {
+    const doc = await fromUuid(key);
+    if (doc) return doc;
+  } catch {
+    // an id that is no uuid: the library lookup below answers for it
+  }
+  if (!spellId) return null;
+  await whenReady();
+  return byCookbookId("Actor", key);
+}
+
 /** Place summons: authorize, find or make the copy, create the tokens. */
 async function placeOp({ summonerUuid, sourceUuid, sceneId, positions, count, spellId = "", castId = "", user }) {
   const summoner = await fromUuid(summonerUuid);
-  const source = await fromUuid(sourceUuid);
+  const source = await resolveSource(sourceUuid, spellId);
   const scene = game.scenes.get(sceneId);
   const verdict = checkPlaceRequest({ user, summoner, source, scene, count, positions, spellId });
   if (!verdict.ok) return refused(verdict.reason);
@@ -243,10 +270,14 @@ async function send(payload) {
 /*  The seat's half                              */
 /* -------------------------------------------- */
 
-/** The preview data for each creature to place: its own look, one per creature. */
+/**
+ * The preview data for each creature to place: its own look, one per creature.
+ * A creature this seat could not open has no look to read, so its preview is
+ * the plain one core draws for a token with no picture.
+ */
 async function previewsFor(source, summoner, count) {
-  const proto = source.prototypeToken.toObject();
-  const images = proto.randomImg ? await source.getTokenImages().catch(() => []) : [];
+  const proto = source?.prototypeToken?.toObject() ?? null;
+  const images = proto?.randomImg ? await source.getTokenImages().catch(() => []) : [];
   return Array.from({ length: count }, () => {
     const data = previewTokenData(proto, summoner.id);
     // A token is placed on a level, and core defaults one to the scene's first
@@ -263,7 +294,9 @@ async function previewsFor(source, summoner, count) {
  * far; one cancelled outright places nothing.
  * @param {Actor} summoner  the character summoning
  * @param {object} o
- * @param {string} o.sourceUuid  the library creature
+ * @param {string} o.sourceUuid  the library creature: a document uuid, or, for a request that names a
+ *   spell, the ref a spell's row carries (an importer cookbook id) when this seat cannot open the
+ *   creature. The GM's client resolves it; the preview this seat places is then a plain token
  * @param {number} [o.count=1]
  * @param {string} [o.spellId]  the spell item of the summoner this is cast from; empty is refused
  *   `spellRequired` unless the seat is `bareSummonAllowed`
@@ -274,8 +307,8 @@ async function previewsFor(source, summoner, count) {
  */
 export async function placeSummons(summoner, { sourceUuid, count = 1, spellId = "", preConfirm } = {}) {
   const scene = sceneNow();
-  const source = sourceUuid ? await fromUuid(sourceUuid).catch(() => null) : null;
-  const verdict = checkPlaceRequest({ user: game.user, summoner, source, scene, count, spellId });
+  const source = sourceUuid ? await fromUuid(normalizeRef(sourceUuid)).catch(() => null) : null;
+  const verdict = checkPlaceRequest({ user: game.user, summoner, source, sourceRef: sourceUuid, scene, count, spellId });
   if (!verdict.ok) return refused(verdict.reason);
   if (!canvas?.ready || !scene) return refused("noCanvas");
   if (game.paused && !game.user.isGM) return refused("paused");
@@ -335,6 +368,17 @@ function warnRefusal(reason) {
   ui.notifications.warn(loc(`refused.${reason}`));
 }
 
+/**
+ * Tell the seat how a placement went: the count placed, or the reason it was
+ * refused in the seat's own words (nothing for a cancel). For a caller that
+ * runs `placeSummons` itself, as a spell's cast does.
+ * @param {{ok: boolean, reason?: string, tokenUuids?: string[]}|null} result  `placeSummons`' answer
+ */
+export function announceSummon(result) {
+  if (result?.ok) ui.notifications.info(loc("placed", { n: result.tokenUuids?.length ?? 0 }));
+  else warnRefusal(result?.reason ?? "noGm");
+}
+
 /** The window classes every prompt here carries: the module's own and its scroll contract. */
 const PROMPT_CLASSES = ["acks-ui", "acks-extras", "acks-extras-scroll"];
 
@@ -362,14 +406,18 @@ async function promptNoMonsters(title) {
  * own `options` (`summonOptionsOf` rows: `{ref, amount, ...}`) decide the
  * choices: each row whose `ref` the caller's `resolveRef` turns into a creature
  * is offered, the first one preselected, and its `amount` is the count the
- * field opens on; with no such row the seat picks from the shelves it can open.
- * `resolveRef` is passed in because lib imports no feature. The prompt only
- * asks: nothing is placed, and the answer goes to `placeSummons`.
+ * field opens on. A row the seat cannot resolve (the creature sits on a shelf a
+ * player cannot open) is still offered when its ref reads as an id: the ref goes
+ * on untouched as the answer's `sourceUuid`, labelled by the row's `name`, and
+ * the GM's client resolves it. With no offerable row the seat picks from the
+ * shelves it can open. `resolveRef` is passed in because lib imports no
+ * feature. The prompt only asks: nothing is placed, and the answer goes to
+ * `placeSummons`.
  *
  * @param {Actor} summoner
  * @param {object} [o]
  * @param {{id: string, name: string}} [o.spell]  the summoner's spell item the cast is made from
- * @param {{ref?: string, amount?: number}[]} [o.options]
+ * @param {{ref?: string, name?: string, amount?: number}[]} [o.options]
  * @param {(ref: string) => Promise<{uuid: string, name: string}|null>} [o.resolveRef]
  * @returns {Promise<{sourceUuid: string, count: number, spellId: string}|null>} null when the prompt was closed
  *   or there was no creature to choose
@@ -377,16 +425,18 @@ async function promptNoMonsters(title) {
 export async function pickSummon(summoner, { spell, options = [], resolveRef } = {}) {
   const esc = foundry.utils.escapeHTML;
   const title = spell?.name || loc("title");
-  const named = [];
+  const resolved = [];
   for (const row of options) {
     const ref = String(row?.ref ?? "").trim();
-    if (!ref || !resolveRef) continue;
-    const doc = await Promise.resolve(resolveRef(ref)).catch(() => null);
-    if (doc?.uuid && !named.some((n) => n.uuid === doc.uuid)) named.push({ uuid: doc.uuid, name: String(doc.name ?? ""), amount: Number(row.amount) || 0 });
+    resolved.push(ref && resolveRef ? await Promise.resolve(resolveRef(ref)).catch(() => null) : null);
   }
+  const named = offerRows(options, resolved);
   let choices;
   if (named.length) {
-    choices = named.map((n) => `<option value="${esc(n.uuid)}" data-amount="${n.amount || ""}">${esc(n.name)}</option>`).join("");
+    // A row this seat could not open is offered by the name its row carries, else a plain count, and its ref goes on untouched.
+    choices = named
+      .map((n, i) => `<option value="${esc(n.value)}" data-amount="${n.amount || ""}">${esc(n.name || loc("creatureN", { n: i + 1 }))}</option>`)
+      .join("");
   } else {
     const shelves = summonShelves();
     if (!shelves.length) {
@@ -472,8 +522,7 @@ export async function promptSummon(summoner) {
   });
   if (!form || typeof form !== "object") return null;
   const result = await placeSummons(summoner, form);
-  if (result.ok) ui.notifications.info(loc("placed", { n: result.tokenUuids?.length ?? 0 }));
-  else warnRefusal(result.reason);
+  announceSummon(result);
   return result;
 }
 

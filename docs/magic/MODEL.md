@@ -141,9 +141,10 @@ owner may delete it.
 `character` whose flag carries a `summon` effect row, or whose type words
 (`schools`, which keeps every word a stat line printed) or primary `type` name
 the summoning type; a spell on a monster or on no actor is never summonable.
-`summonOptionsOf(spell, {twin})` turns each `summon` row into `{ref, amount,
-value, summonFormat, control}` (`value` is the row's LevelValue object,
-unresolved); a spell with no rows of its own reads its library twin's, and no
+`summonOptionsOf(spell, {twin})` turns each `summon` row into `{ref, name,
+amount, value, summonFormat, control}` (`value` is the row's LevelValue object,
+unresolved; `name` is the creature's imported name where the row carries one,
+else empty); a spell with no rows of its own reads its library twin's, and no
 rows at all is `[]`, which the caller reads as the open shelf picker. An empty
 `ref` is an open pick within a row. `libraryTwin(spell, {byCookbookId,
 fromUuidSync})` finds the twin by the cookbook stamp, else by the document
@@ -156,5 +157,44 @@ strips the flag from every spell item in the world, on world actors and on
 unlinked token actors; core's strings stay, so a spell keeps its stat line.
 The importer's provenance stamp is the importer's to strip.
 
-Nothing casts or prices yet; those are the releases in
-[ROADMAP.md](ROADMAP.md).
+**Casting a summoning spell** (`cast-summon.mjs`). A claimant on lib's cast
+seam (key `acks-extras.magic.castSummon`, registered at `init`) takes the cast
+of a summoning spell on a `character` this seat owns, whichever door the player
+pressed (the system's sheet button, the Magic tab's Cast, a macro); `claims` is
+synchronous and never answers true for a monster's spell items or a character
+the seat does not own. Its `cast` asks with lib's `pickSummon` (the spell's rows
+as the choices, the first row's amount as the count), has the seat click the
+places and the GM's client make the tokens (`placeSummons`, naming the spell),
+and calls the seam's `spend()` only when the relay answered ok, before `cast`
+returns: a cancel, a closed prompt or a refusal spends nothing. The system's
+`use()` does not await `_useSpell`, so `castSummon(spell, options)` (also on
+`acksExtras.magic`) awaits the wrapped `_useSpell` for a caller that must wait.
+After the spend the caster gets one cast record (`spellEffectData`, role
+`caster`, `castId` the relay's answer, so it matches the summons' record), whose
+duration is `castDuration` of the spell's imported duration, else its library
+twin's. No caster level is passed, because a class level is not always the
+caster level (a lagging ladder), so a per-level duration reads "none" and the
+record stays until its owner removes it.
+
+*The creature resolves on the GM's client.* A row's `ref` is a uuid or a
+cookbook id. A seat that cannot open the creature's shelf (the Judge's shelves
+are closed to players) still offers the row when its ref reads as an id, labelled
+by the row's `name` or else "Creature N", and passes the ref on untouched; the
+GM's client resolves it (lib MODEL, "Summons"). The preview that seat places is
+the plain token core draws for one with no picture, so the creature's size and
+look are unknown to it until the tokens appear.
+
+*Two rules ride lib's registries* and read the summoner's spell item on both
+sides. The naming (`registerSummonNaming`) says a spell names a creature when
+one of its non-empty rows' refs equals the creature's uuid, its cookbook id or
+its name; only a spell-named creature is exempt from the shelf-readable check.
+The policy (`registerSummonPolicy`) refuses `notNamed` (the rows name creatures
+and this is not one), `badCount` (more than the amount every fitting row states)
+and `badSpell` (a seat that may not summon bare naming a spell that is no
+summoning spell). A row with no ref is an open pick that fits any creature; a
+row stating no amount sets no limit; a spell with no rows asks nothing. Both
+read the spell item the player owns, so they hold a player to what the spell
+says and to nothing a player can not edit on their own item.
+
+Nothing prices yet, and a cast of any other spell is still the system's own;
+those are the releases in [ROADMAP.md](ROADMAP.md).

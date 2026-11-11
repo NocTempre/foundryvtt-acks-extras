@@ -362,6 +362,33 @@ still needs 1b and still follows it. Question 4 moves the facilities check from
 the henchmen "has X" walk to the location document: a researcher without a
 linked location cannot start a project, which is the rule.
 
+### A summoning spell's creature resolves on the GM's client (2026-11-11)
+
+**Asked.** Casting a summoning spell places its creatures (P1-3 of the
+summons-onto-spells plan). A row names its creature by a uuid or a cookbook id,
+and the importer's Actor shelves are the Judge's alone, so a Player seat cannot
+resolve what its own spell names. Does the seat need to read the shelf?
+
+**Ruled (owner).** No. The seat offers the row, passes the ref through
+untouched, and the GM's client resolves it with the GM's access. A spell-named
+creature is exempt from the shelf-readable check for the requesting seat; the
+exemption is a naming the magic feature registers with lib, decided on both
+sides from the summoner's own spell item, never from the request. A bare
+request naming a source the seat chose itself stays `unreadable`.
+
+**Rejected.** *Exempting any request that names a spell.* A Player could name
+any rowless spell and any Judge-shelf uuid. *Opening the shelves to players.*
+It shows a Player every creature the Judge keeps back.
+
+**What it cost.** A Player's preview is a plain token (the creature's size and
+look are not readable to the seat). A row has no name field, so an unresolved
+choice is labelled by a `name` the row does not yet carry, else "Creature N".
+A Player holding a summoning spell with no rows and no readable shelf has no
+creature to pick and cannot tick the cast. The rules read the spell item the
+player owns, so they bind a player no harder than the player's own edits to
+that item allow. The cast record has no duration for a per-level spell, since
+the caster level is not read.
+
 ### Where the lang-key convention is recorded
 
 The convention that a magic family's displayed label comes from

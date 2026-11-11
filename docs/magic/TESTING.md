@@ -146,3 +146,63 @@ recipes live there; this section says which.
 ### Teardown
 
 Each recipe's own; `api.sweepTracked()` once, quoted.
+
+## Casting a summoning spell
+
+Built for the Magic tab's Cast on a summoning spell (MODEL, "Casting a summoning
+spell"). A mock cannot prove three things: that a Player seat that may not
+observe the creature still places it, that the cast count is spent only after the relay
+answers, and that core's click-to-place takes the plain preview. No book needs
+to be connected; the spell's row is built by hand.
+
+**Fixtures** (kept; found by marker, built when none carries it):
+- `magic/summon-creature` and `magic/summon-other` are `monster` actors with
+  `ownership.default` 0. The Player's client still resolves a world actor by
+  uuid (`fromUuid` returns it) but may not observe it, and observing is what the
+  exemption turns on. The walk asserts both at its start.
+- `magic/summon-open` is a `monster` the Player observes, which the spell does
+  not name.
+- `magic/summon-caster` is a `character` the Player owns, spells enabled.
+- `magic/summon-spell` is a `spell` on that character. Each run rewrites its
+  flag to one summon row (`ref` the creature's uuid, `amount` 2) and a fixed
+  two-hour duration, and its `system.cast` to 0.
+- `magic/summon-scene` is the field both seats view, as in
+  docs/character-sheet/TESTING.md "Summons from a Player seat".
+
+`tools/live/magic-cast-summon.mjs` walks the steps on the GM and Player seats,
+after a reload of each seat under a boot recorder.
+
+**Drive mechanics (learned live).** The mechanics of "Summons from a Player
+seat" apply: unpause the world, close every framed window before placing, pan
+the scene's middle to the viewport's before reading click points, real CDP
+clicks. The Cast button is pressed without awaiting it, because `item.use()`
+does not await the cast. The prompt is the answer, and the count is read in
+three states.
+
+**Steps, from the Player seat** (the sheet open on the Magic tab):
+1. Press the spell row's Cast (Character sheet → Magic tab → Cast).
+   *Observable:* the creature prompt, titled for the spell, offers the row's one
+   choice, labelled, with the count opening on the row's amount and no free
+   spell field. `system.cast` is unchanged with the prompt up, and again with
+   the previews up.
+2. Place on the map and click twice. *Observable:* two tokens carry `spellId`,
+   `spellName` and one `castId`, and the Player owns each. `system.cast` rose by
+   exactly 1 and exactly one card posted. One caster record carries that
+   `castId`, the spell and the caster, with a 2-hour duration. The GM's client
+   made the one world copy, owned by no player.
+3. Cast again and right-click the preview; cast again and close the prompt.
+   *Observable:* each leaves the count, posts no card, makes no token and writes
+   no record, with no warning or error.
+4. Refusals. *Observable:* a request sent straight to the relay for an unnamed
+   creature the Player cannot open answers `unreadable`; for an unnamed one the
+   Player can read, `notNamed`; for the named creature over the row's amount,
+   `badCount`; with no spell, `spellRequired`. Nothing is made. The seat's own
+   `placeSummons` stops before any click, and the Player's Summon… is refused
+   with a warning and no prompt.
+5. From the GM seat, Summon… (`promptSummon`, the party cell's menu entry): pick
+   a library creature with no spell and place it. *Observable:* one token whose
+   record carries no spell, and the spell's count unchanged.
+
+**Teardown.** Delete only what the run tracked: the tokens, the cards, the
+caster records, and the world copies where none stood before. The fixtures
+stay. Quote `gm.sweepTracked({only})`'s result.

@@ -4,13 +4,21 @@
 
 ### Added
 
-- **Summon creatures from the character sheet.** On a character you own, the
-  character sheet's party cell (bottom right rail) → Summon… asks for a creature
-  from the monster compendia you can open, how many, and optionally one of the
-  character's spells. Click the map to place each one; the GM's client makes the
-  tokens, so no ownership of the creature is needed. Each summoned creature is
-  its own token, owned by the character's owners, counted in the party cell, and
-  gone when its token is. If you can open no monster compendium the prompt says so.
+- **Summon creatures from the character sheet.** On a GM seat, the character
+  sheet's party cell (bottom right rail) → Summon… asks for a creature from the
+  monster compendia, how many, and optionally one of the character's spells.
+  Click the map to place each one. Each summoned creature is its own token,
+  owned by the character's owners, counted in the party cell, and gone when its
+  token is. On a player's seat, Summon… says to summon through one of the
+  character's spells instead.
+- **Cast a summoning spell to summon.** Character sheet → Magic tab → Cast on a
+  summoning spell (or the system's own cast button, or a macro) asks which of
+  the spell's creatures and how many, then has you click the map where each
+  stands; the GM's client makes the tokens, so a creature on a compendium closed
+  to players still comes. The cast is spent only once they stand: a cancel or a
+  refusal spends nothing. A player summons only a creature the spell names, and
+  no more than its count. The caster gains an effect recording the cast, which
+  lasts the spell's imported duration where one is imported.
 - **Dismiss summons.** The character sheet's party cell (bottom right rail) → Dismiss
   lists each summoning on the scene. It asks first, then removes that summoning's
   tokens. Release now applies only to creatures you bound by hand with Bind, which
