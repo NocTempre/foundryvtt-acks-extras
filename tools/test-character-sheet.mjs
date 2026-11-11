@@ -11,9 +11,10 @@
  * Run: npm test
  */
 import assert from "node:assert";
+import { readFileSync } from "node:fs";
 import {
   xpBar, hpCell, acCell, nextAcMode, slowedTone, moveCell, gripCell, lightCell, saveCells, partyCell, tabList, resolveTab,
-  effectivePins, togglePin, buildFrameModel, loadBar, bridgeHands, storedSystem, carriesMorale,
+  effectivePins, togglePin, buildFrameModel, loadBar, bridgeHands, storedSystem, carriesMorale, partyMenuModel, standingBySpell,
 } from "../scripts/character-sheet/view-model.mjs";
 import { CONDITION_SAVES, RAIL_CONDITIONS, SAVE_KEYS, TAB_ORDER } from "../scripts/character-sheet/constants.mjs";
 import { buildThrows } from "../scripts/character-sheet/tabs/stats.mjs";
@@ -122,6 +123,87 @@ test("the cell promotes to the formation only when its party token is on the sce
   assert.equal(here.mode, "formation");
   assert.equal(here.sub, "5");
   assert.equal(here.icon, "fa-solid fa-people-line");
+});
+
+console.log("character sheet: the party menu");
+/** A summon entry as `partyOf` gives it; a null record is one bound by hand. */
+const summonEntry = (tokenId, record) => ({ tokenId, name: `Beast ${tokenId}`, img: null, record });
+const castRecord = (castId, spellId = "", extra = {}) => ({ castId, spellId, sourceUuid: "Actor.src1", name: "Grey Beast", at: 10, ...extra });
+const menuKinds = (items) => items.map((i) => i.kind);
+test("every summoning spell is offered: Cast while none of its creatures stand, Dismiss with the count once some do", () => {
+  const spells = [{ id: "spB", name: "Bramble Call" }, { id: "spA", name: "Ash Call" }];
+  const party = { henchmen: [], summons: [summonEntry("t1", castRecord("c1", "spB")), summonEntry("t2", castRecord("c1", "spB")), summonEntry("t3", castRecord("c2", "spB"))] };
+  const items = partyMenuModel({ party, spells, owner: true });
+  const cast = items.find((i) => i.kind === "cast");
+  assert.deepEqual([cast.spellId, cast.key, cast.data.name], ["spA", "party.cast", "Ash Call"], "the spell with nothing standing offers Cast");
+  const dismiss = items.filter((i) => i.kind === "dismiss");
+  assert.equal(dismiss.length, 1, "one Dismiss per spell, whatever number of casts stand");
+  assert.deepEqual([dismiss[0].spellId, dismiss[0].data, dismiss[0].tokenIds], ["spB", { name: "Bramble Call", n: 3 }, ["t1", "t2", "t3"]], "the spell's Dismiss names it, counts its standing creatures and covers both casts");
+  assert.ok(!items.some((i) => i.kind === "cast" && i.spellId === "spB"), "no Cast while the spell's creatures stand");
+  assert.ok(menuKinds(items).indexOf("cast") < menuKinds(items).indexOf("dismiss"), "the spells read in name order");
+  assert.ok(!items.some((i) => i.kind === "dismissAll"), "one Dismiss needs no Dismiss all");
+});
+test("a cast whose spell is gone is a loose cast, dismissed by itself under its record's name", () => {
+  const party = { summons: [summonEntry("t1", castRecord("c9", "gone1", { spellName: "Old Word" })), summonEntry("t2", castRecord("c9", "gone1", { spellName: "Old Word" })), summonEntry("t3", castRecord("c8"))] };
+  const items = partyMenuModel({ party, spells: [], owner: true });
+  const loose = items.filter((i) => i.kind === "dismiss");
+  assert.deepEqual(loose.map((i) => [i.castId, i.data.name, i.tokenIds]), [["c9", "Old Word", ["t1", "t2"]], ["c8", "Grey Beast", ["t3"]]], "a dangling spell reads by its recorded name; a bare summoning by its creature's");
+  const all = items.find((i) => i.kind === "dismissAll");
+  assert.deepEqual(all.tokenIds, ["t1", "t2", "t3"], "two dismissals add Dismiss all over every recorded summon");
+  assert.deepEqual(all.tipData, { n: 3 });
+});
+test("a creature bound by hand keeps Release and is never in a Dismiss", () => {
+  const party = { summons: [summonEntry("t1", null), summonEntry("t2", castRecord("c1", "spA"))] };
+  const items = partyMenuModel({ party, spells: [{ id: "spA", name: "Ash Call" }], owner: true });
+  const release = items.find((i) => i.kind === "release");
+  assert.deepEqual([release.tokenIds, release.data], [["t1"], { n: 1 }]);
+  assert.ok(items.filter((i) => i.tokenIds && i.kind !== "release").every((i) => !i.tokenIds.includes("t1")), "no Dismiss reaches the bound creature");
+});
+test("every standing summon is reached by exactly one of spell Dismiss, loose Dismiss and Release", () => {
+  // A GM's bare summoning cast from a spell that is no summoning spell: its id resolves on the actor but not among the summoning spells.
+  const party = {
+    summons: [
+      summonEntry("a", castRecord("c1", "spA")),
+      summonEntry("b", castRecord("c2", "plain1", { spellName: "Plain Word" })),
+      summonEntry("c", castRecord("c3")),
+      summonEntry("d", null),
+      summonEntry("e", castRecord("c4", "spA")),
+    ],
+  };
+  const items = partyMenuModel({ party, spells: [{ id: "spA", name: "Ash Call" }], owner: true });
+  const reach = new Map();
+  for (const it of items.filter((i) => i.kind === "dismiss" || i.kind === "release")) for (const id of it.tokenIds) reach.set(id, (reach.get(id) ?? 0) + 1);
+  assert.deepEqual([...reach.entries()].sort(), [["a", 1], ["b", 1], ["c", 1], ["d", 1], ["e", 1]]);
+});
+test("the spell-less Summon… is offered only where the seat may summon bare; a non-owner gets the roster of who stands and the tab", () => {
+  const party = { henchmen: [{ onScene: true, tokenIds: ["h1"], name: "Henchling", img: null }, { onScene: false }], summons: [summonEntry("t1", castRecord("c1", "spA"))] };
+  const spells = [{ id: "spA", name: "Ash Call" }];
+  assert.ok(!partyMenuModel({ party, spells, owner: true, bare: false }).some((i) => i.kind === "summon"), "a Player seat is offered no Summon…");
+  assert.ok(partyMenuModel({ party, spells, owner: true, bare: true }).some((i) => i.kind === "summon"), "a GM seat is");
+  const viewer = partyMenuModel({ party, spells, owner: false, bare: true });
+  assert.deepEqual(menuKinds(viewer), ["token", "token", "info", "tab"], "a viewer who does not own the character sees who stands, who is away and the tab");
+  assert.deepEqual(viewer[0].valueKey, "party.henchman");
+  assert.deepEqual(viewer[1].valueKey, "party.summon");
+});
+test("Bind takes the controlled tokens through untouched; the roster shows where asked", () => {
+  const tokens = [{ id: "x" }, { id: "y" }];
+  const items = partyMenuModel({ party: {}, owner: true, controlled: tokens, roster: true });
+  const bind = items.find((i) => i.kind === "bind");
+  assert.equal(bind.tokens, tokens);
+  assert.deepEqual(bind.data, { n: 2 });
+  assert.deepEqual(menuKinds(items), ["bind", "roster", "tab"]);
+});
+test("the Magic tab's standing count groups the summons by the spell their record names", () => {
+  const m = standingBySpell([summonEntry("t1", castRecord("c1", "spA")), summonEntry("t2", castRecord("c2", "spA")), summonEntry("t3", castRecord("c3")), summonEntry("t4", null)]);
+  assert.deepEqual([...m.entries()], [["spA", ["t1", "t2"]]]);
+});
+test("the Magic tab's standing count carries its tooltip and its Dismiss is named and wired", () => {
+  const tpl = readFileSync(new URL("../templates/character-sheet/magic.hbs", import.meta.url), "utf8");
+  assert.match(tpl, /data-tooltip-text="\{\{spell\.summon\.tip\}\}">\{\{spell\.summon\.label\}\}/, "the count shows its provenance on hover");
+  const dismiss = tpl.split("\n").find((l) => l.includes('data-action="spellDismiss"'));
+  assert.ok(dismiss && /<button type="button"/.test(dismiss) && /aria-label="\{\{localize /.test(dismiss), "a real button with a name");
+  const sheet = readFileSync(new URL("../scripts/character-sheet/sheet.mjs", import.meta.url), "utf8");
+  assert.match(sheet, /spellDismiss: AcksCharacterSheet\.#onSpellDismiss/);
 });
 
 console.log("character sheet: the left rail");

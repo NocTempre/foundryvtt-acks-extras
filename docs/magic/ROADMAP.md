@@ -19,7 +19,9 @@ before 1b.
   with the rounds-to-seconds rewrite when a combat ends (the flag weighed
   against a sub-type first), damage and healing cards, summons placed by
   click (a summoning spell's cast is built; MODEL, "Casting a summoning
-  spell") with a Judge-confirmed dismissal on expiry, concentration and disruption
+  spell", and its expiry card, "A cast's end"), the same expiry card for a
+  non-summoning spell's record, combat rounds that age a cast record (combat
+  does not move the clock), concentration and disruption
   prompts, repertoires (a prayerful caster's first-level repertoire among
   them) and the spellbook migration to references, the Magic tab redesign,
   settings and macros. A printed spell executes the effect rows the

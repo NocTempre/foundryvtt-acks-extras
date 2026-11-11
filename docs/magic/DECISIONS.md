@@ -389,6 +389,39 @@ player owns, so they bind a player no harder than the player's own edits to
 that item allow. The cast record has no duration for a per-level spell, since
 the caster level is not read.
 
+### A cast's end is told on a card, read from the module's own clock math (2026-11-11)
+
+**Asked.** When a summoning's cast runs its duration, what happens to the
+creatures it left standing (P1-5 of the summons-onto-spells plan)?
+
+**Ruled (owner, Q1-c).** A whispered card with a Dismiss button goes to the
+caster's owners and the GM; the creatures stay until someone presses it.
+
+**Ruled (build).** The end is the module's own reading of the caster's record,
+its start time plus its stored duration on the world clock, checked on each
+forward step on the one GM window that runs the automation. Core's
+`duration.expired` is not read. This settles the 2026-09-25 proposal under
+question 2 ("react to `duration.expired`") against it, on what reading core 14's
+effect registry showed: core counts a duration it cannot convert to seconds as
+already run, and this system's combat round has no length on core's clock, so a
+`rounds` record outside combat would read as ended the moment it is made. A
+`rounds` record is counted at the module's structural round length instead.
+The record is stamped before the card is made, so a second clock step, a reload
+or a second GM window posts nothing. A cast whose creatures are all gone already
+is stamped and posts nothing. Only the caster's record is announced.
+
+**Rejected.** *Deleting the creatures on expiry.* The owner kept the prompt
+(question 3, 2026-09-25). *A per-client check on render.* Every seat would
+decide, and the once guarantee would need a lock no client holds. *Setting
+core's `expiryAction`.* It is a world-wide global over every effect, a peer
+module's included.
+
+**What it cost.** Combat does not move this system's clock, so a combat's
+rounds do not age a record; a fight that runs past a summoning's duration says
+nothing until the clock next steps. Core's own `expired` mark on a `rounds`
+record is left as core writes it, and is not read here; that core marks one was
+read from its source and has not been observed in a world.
+
 ### Where the lang-key convention is recorded
 
 The convention that a magic family's displayed label comes from

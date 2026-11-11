@@ -33,6 +33,7 @@
  */
 import { LIGHT_ICONS, TAB_ORDER, TOOL_CELLS } from "./constants.mjs";
 import { num, clampPct, xpBar, hpCell, acCell, moveCell, partyCell, saveCells, resolveTab } from "../lib/frame-model.mjs";
+import { groupByCast, groupBySpell } from "../lib/summons-logic.mjs";
 
 export {
   RAIL_ROWS, signed, xpBar, hpCell, nextAcMode, acCell, slowedTone, moveCell, partyCell, saveCells, resolveTab, effectivePins, togglePin, loadBar,
@@ -104,6 +105,97 @@ export function lightCell({ lit = null, ambient = null, sense = null, blinded = 
     return { key: sense.kind, icon, sub: `${num(sense.range)}′`, tone: sense.kind === "shadowy" ? null : "hi", pct: null };
   }
   return { key: "dark", icon: LIGHT_ICONS.dark, sub: "0′", tone: "bad", pct: null };
+}
+
+/* -------------------------------------------- */
+/*  The party menu                               */
+/* -------------------------------------------- */
+
+/**
+ * The party cell's menu, as plain items the sheet localizes and hangs under
+ * the cell. An item's `key` (with `data`) is its label's lang key under the
+ * sheet's root; a token row carries its name as `label` instead. `tipKey` and
+ * `valueKey` are lang keys too.
+ *
+ * Who of the party is on the scene comes first, for every viewer. An owner
+ * then gets one row per summoning spell: Cast while none of its creatures
+ * stand, else Dismiss with the count standing, which covers every cast of
+ * that spell. A recorded summon whose spell is no summoning spell of the
+ * character (deleted, or a GM's bare summoning) is a loose cast, dismissed
+ * cast by cast. A creature bound by hand carries no record and only Release
+ * lets it go. Each standing summon is reached by exactly one of those three.
+ * The spell-less Summon… is offered only where `bare` says the seat may make
+ * one (`bareSummonAllowed`).
+ * @param {object} o
+ * @param {{henchmen?: object[], summons?: object[]}} o.party  `partyOf`'s facts
+ * @param {{id: string, name: string}[]} [o.spells]  the character's summoning spells
+ * @param {boolean} [o.owner]  the seat owns the character
+ * @param {boolean} [o.bare]  the seat may summon with no spell
+ * @param {object[]} [o.controlled]  the tokens Bind would take, passed through untouched
+ * @param {boolean} [o.roster]  whether the roster entry shows
+ * @returns {object[]}
+ */
+export function partyMenuModel({ party = {}, spells = [], owner = false, bare = false, controlled = [], roster = false } = {}) {
+  const items = [];
+  const henchmen = party.henchmen ?? [];
+  const summons = party.summons ?? [];
+  for (const h of henchmen.filter((x) => x.onScene)) {
+    items.push({ kind: "token", tokenId: h.tokenIds?.[0], img: h.img, label: h.name, valueKey: h.calamity ? "party.calamity" : "party.henchman", on: !!h.calamity });
+  }
+  for (const s of summons) items.push({ kind: "token", tokenId: s.tokenId, img: s.img, label: s.name, valueKey: "party.summon" });
+  const away = henchmen.filter((x) => !x.onScene).length;
+  if (away) items.push({ kind: "info", icon: "fa-solid fa-person-walking-arrow-right", key: "party.away", data: { n: away }, disabled: true });
+  if (owner) {
+    const byId = new Map(spells.map((s) => [s.id, s]));
+    const { casts, loose, bound } = groupBySpell(summons, byId);
+    const dismissals = [];
+    for (const spell of [...spells].sort((a, b) => String(a.name).localeCompare(String(b.name)))) {
+      const tokenIds = casts.filter((c) => c.spellId === spell.id).flatMap((c) => c.tokens.map((t) => t.tokenId));
+      if (!tokenIds.length) {
+        items.push({ kind: "cast", spellId: spell.id, icon: "fa-solid fa-wand-magic-sparkles", key: "party.cast", data: { name: spell.name }, tipKey: "party.castTip" });
+        continue;
+      }
+      const row = { kind: "dismiss", spellId: spell.id, tokenIds, icon: "fa-solid fa-ghost", key: "party.dismiss", data: { name: spell.name, n: tokenIds.length }, tipKey: "party.dismissTip", tipData: { n: tokenIds.length } };
+      items.push(row);
+      dismissals.push(row);
+    }
+    for (const c of groupByCast(loose).casts) {
+      const tokenIds = c.entries.map((e) => e.tokenId);
+      const row = { kind: "dismiss", castId: c.castId, tokenIds, icon: "fa-solid fa-ghost", key: "party.dismiss", data: { name: c.spellName || c.name, n: tokenIds.length }, tipKey: "party.dismissTip", tipData: { n: tokenIds.length } };
+      items.push(row);
+      dismissals.push(row);
+    }
+    if (dismissals.length > 1) {
+      const n = dismissals.reduce((sum, d) => sum + d.tokenIds.length, 0);
+      items.push({ kind: "dismissAll", tokenIds: dismissals.flatMap((d) => d.tokenIds), icon: "fa-solid fa-ghost", key: "party.dismissAll", tipKey: "party.dismissTip", tipData: { n } });
+    }
+    if (bare) items.push({ kind: "summon", icon: "fa-solid fa-hand-sparkles", key: "party.summonNew" });
+    if (controlled.length) items.push({ kind: "bind", tokens: controlled, icon: "fa-solid fa-wand-magic-sparkles", key: "party.bind", data: { n: controlled.length } });
+    if (bound.length) {
+      items.push({ kind: "release", tokenIds: bound.map((s) => s.tokenId), icon: "fa-solid fa-link-slash", key: "party.release", data: { n: bound.length }, tipKey: "party.releaseTip", tipData: { n: bound.length } });
+    }
+    if (roster) items.push({ kind: "roster", icon: "fa-solid fa-people-group", key: "followers.roster" });
+  }
+  items.push({ kind: "tab", icon: "fa-solid fa-users", key: "tab.followers" });
+  return items;
+}
+
+/**
+ * How many of a character's summons stand for each of its spells, by the spell
+ * id their record names, with the tokens' ids: what the Magic tab shows on a
+ * summoning spell's row and what its Dismiss removes.
+ * @param {{tokenId: string, record: object|null}[]} summons  `partyOf`'s summons
+ * @returns {Map<string, string[]>}  spell id → token ids
+ */
+export function standingBySpell(summons) {
+  const out = new Map();
+  for (const s of summons ?? []) {
+    const id = s?.record?.spellId;
+    if (!id) continue;
+    if (!out.has(id)) out.set(id, []);
+    out.get(id).push(s.tokenId);
+  }
+  return out;
 }
 
 /* -------------------------------------------- */

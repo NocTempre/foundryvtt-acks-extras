@@ -51,7 +51,10 @@ structure — a shape picker with its value control per line, the lists, the
 reversal pair; Description, core's own part with its strings editable and
 following the flag; Mechanics, the effect rows through the shared row editor
 (`lib/apps/effect-row-editor.mjs`, over a store the sheet supplies) with the
-system's Active Effects folded in below. `acksExtras.magic` exposes the
+system's Active Effects folded in below. A summon row names its creature
+where the world can open it: `describeSpellEffect(e, {nameOf})` takes the
+sheet's lookup (lib's `summonRefName`), and with none, or none found, prints
+the ref. `acksExtras.magic` exposes the
 model, the stat-line readers and writers, the traditions and dedupe key the
 class picker uses, and `stripModuleData`.
 
@@ -195,6 +198,23 @@ summoning spell). A row with no ref is an open pick that fits any creature; a
 row stating no amount sets no limit; a spell with no rows asks nothing. Both
 read the spell item the player owns, so they hold a player to what the spell
 says and to nothing a player can not edit on their own item.
+
+**A cast's end** (`cast-expiry.mjs`, registered at `init`). On each forward
+step of the world clock, read on the one GM window lib's `onWorldTimeAdvanced`
+fires on, every `character` actor's caster records are checked against their
+end: the record's `start.time` plus its stored duration, a calendar unit
+converted by the world's calendar the way core converts one, `rounds` at
+`ROUND_SECONDS` (`TURN_SECONDS` over `ROUNDS_PER_TURN`). A record with no
+duration, or one in a unit the clock cannot count, never ends here. Core's own
+`duration.expired` is not read (DECISIONS, 2026-11-11). A record past its end
+is stamped `ended` (the world time, in the `spellEffect` flag; `spellEffectOf`
+reads it back) and only then, where its cast still has creatures standing on
+any scene, one card is whispered to every GM and every other owner of the
+caster: the spell, the caster, the count, and a Dismiss button that runs lib's
+`promptDismiss` on that cast's tokens (`castTokens`, matched by the summons'
+`castId`). The card tells; the creatures stay until someone presses it. A
+recipient's record is never announced, since it carries the same cast. Combat
+does not move this system's clock, so a combat's rounds do not age a record.
 
 Nothing prices yet, and a cast of any other spell is still the system's own;
 those are the releases in [ROADMAP.md](ROADMAP.md).

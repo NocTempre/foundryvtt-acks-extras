@@ -67,26 +67,41 @@ is the character's own party on the scene: the henchmen present as a figure
 and each summon present as an asterisk (`1**`), red while any henchman has a
 calamity pending on its henchmen record. A summon is a token whose actor
 carries `flags["acks-extras"].summonedBy` naming this character. The click
-opens a menu: each member on the scene (a pick selects its token and pans to
-it), how many are elsewhere, and for an owner *Summon…* (below), a *Dismiss*
-row for each cast of summons on the scene, the binding of the controlled
-tokens as summons, the release of those bound by hand, the roster and the
-Followers tab. While the character marches in a formation whose party token is on the scene the cell
+opens a menu (`view-model.mjs` `partyMenuModel`): each member on the scene (a
+pick selects its token and pans to it), how many are elsewhere, and for an
+owner one row per summoning spell (below), a *Dismiss* for each loose cast,
+*Summon…* on a GM seat, the binding of the controlled tokens as summons, the
+release of those bound by hand, the roster and the Followers tab. While the character marches in a formation whose party token is on the scene the cell
 is that formation — the marching-order glyph, the count of its members
 present — and opens the party sheet. With no party and no formation it is a
 dashed pad that still opens the menu, which is where the first summon is
 bound. Token creates, updates and deletes on the scene, the scene change and
 the formation record all re-count it.
 
-**Summon…** opens a prompt over the monster library the seat can read: the
-creature, how many, and optionally one of the character's spells to record the
-summoning against. Nothing is created from the seat: the owner clicks where
-each creature stands, and the GM's client makes the tokens (lib MODEL,
-"Summons"). A summon made this way carries a record beside `summonedBy`
-naming its creature, cast and time, so the menu groups it with the rest of
-its cast and *Dismiss* removes the cast's tokens after a confirmation. A
-creature bound by hand has no record: it is only ever *Release*d, never
-removed by the cell.
+**Summons go through spells.** Every spell of the character that is a
+summoning spell (magic MODEL, "Summon spells") has one row. While none of
+its creatures stand on the scene the row is *Cast <spell>*, which runs the
+spell's own cast (`castSummon`): the creature prompt, the clicks, and the cast
+spent only once they stand. Once some stand the row is *Dismiss <spell> (n)*,
+covering every cast of that spell. Nothing is created from the seat: the GM's
+client makes and removes the tokens (lib MODEL, "Summons"). Each summon the
+module made carries a record beside `summonedBy` naming its creature, spell
+and cast, which is how the menu sorts it: a record naming no summoning
+spell the character still has (a bare *Summon…* with no spell picked or with
+another spell, or a spell since deleted) is a loose cast with a *Dismiss* of its own, by the name the record
+kept. Two dismissals add *Dismiss all summons*. A creature bound by hand has
+no record: it is only ever *Release*d, never removed by the cell. Each summon
+on the scene is reached by exactly one of the three.
+
+**Summon…**, on a GM seat only (`bareSummonAllowed`), opens a prompt over the
+monster library: the creature, how many, and optionally the spell to record
+it against.
+
+**The Magic tab** (`tabs/magic.mjs`) shows on each summoning spell's row how
+many of its creatures stand on the scene the party cell counts on
+(`standingBySpell`), the count's tooltip naming the scene, and, while some
+stand, a *Dismiss* button for them. A cast that runs out on the world clock
+posts a whispered card with its own *Dismiss* (magic MODEL, "A cast's end").
 
 Every glyph is a Font Awesome icon the platform ships; the figure-in-glyph
 is text overlaid on the icon.

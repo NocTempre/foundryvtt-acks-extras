@@ -72,8 +72,11 @@ the dark at 0′ — with a menu to light, douse, shutter or ready a torch; and
 the party: how many of the character's henchmen are on the scene, with an
 asterisk for each summon present (`1**` is one henchman and two summons),
 red while a henchman is down with a calamity pending. Click it for who is
-here — a pick selects the token — and, as the owner, to bind the tokens you
-have selected as this character's summons or release them. When the
+here — a pick selects the token — and, as the owner, to cast each of the
+character's summoning spells while none of its creatures stand, dismiss
+those that do, and bind the tokens you have selected as this character's
+summons or release them. The Magic tab shows beside each summoning spell how
+many of its creatures stand, with a Dismiss button while some do. When the
 character marches in a formation that is on the scene, the cell is the
 formation and opens the party sheet.
 

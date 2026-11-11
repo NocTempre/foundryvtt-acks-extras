@@ -975,6 +975,30 @@ hold.
 to summon. A policy that throws is logged and counts as an allow, so a broken
 feature rule never blocks a placement and never enforces one either.
 
+## 2026-11-11 — The party cell's summoning rows are one per spell
+
+**Asked.** T-0456, P1-4: how the party cell lists a summoning spell's commands
+(owner rulings Q0 A, the cell is the group's place; Q1 A, every summoning spell
+appears, with *Cast* while none of its creatures stand).
+
+**Ruled.** One row per summoning spell of the character: *Cast <spell>* while
+none of its creatures stand on the scene, else *Dismiss <spell> (n)*, which
+covers every cast of that spell. A record naming no summoning spell the
+character still has is a loose cast with a *Dismiss* of its own, so nothing
+the module summoned is left without a way off the scene. A creature bound by
+hand keeps *Release* only. Every summon on the scene is reached by exactly one
+of the three, which the offline suite pins. The Magic tab carries the same
+*Dismiss* on the spell's row with its standing count.
+
+**Rejected.** *A Dismiss row per cast under each spell.* Two casts of one spell
+would show as two rows naming the same spell, which the cell's one-line menu
+cannot tell apart; the cast's end card dismisses a single cast where one is
+needed. *Cast offered beside Dismiss.* Q1 A offers Cast while none stand; a
+second cast while some do goes through the Magic tab's Cast.
+
+**What it cost.** From the cell, a player cannot dismiss one cast of a spell
+and keep another; the card a cast's end posts is the one per-cast control.
+
 ### An Adventuring row is the better of the stored figure and the held skill's throw (2026-11-11)
 
 **Asked.** T-0478: a Thief's Rolls tab showed the Adventuring group at the

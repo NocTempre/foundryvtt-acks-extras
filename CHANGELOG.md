@@ -9,20 +9,32 @@
   monster compendia, how many, and optionally one of the character's spells.
   Click the map to place each one. Each summoned creature is its own token,
   owned by the character's owners, counted in the party cell, and gone when its
-  token is. On a player's seat, Summon… says to summon through one of the
-  character's spells instead.
-- **Cast a summoning spell to summon.** Character sheet → Magic tab → Cast on a
-  summoning spell (or the system's own cast button, or a macro) asks which of
+  token is. A player's seat summons through the character's spells instead, and
+  its party cell offers no Summon….
+- **Cast a summoning spell to summon.** The character sheet's party cell (bottom
+  right rail) lists each of the character's summoning spells, with Cast while
+  none of its creatures stand. That Cast, Character sheet → Magic tab → Cast on
+  a summoning spell, the system's own cast button and a macro all ask which of
   the spell's creatures and how many, then has you click the map where each
   stands; the GM's client makes the tokens, so a creature on a compendium closed
   to players still comes. The cast is spent only once they stand: a cancel or a
   refusal spends nothing. A player summons only a creature the spell names, and
   no more than its count. The caster gains an effect recording the cast, which
-  lasts the spell's imported duration where one is imported.
-- **Dismiss summons.** The character sheet's party cell (bottom right rail) → Dismiss
-  lists each summoning on the scene. It asks first, then removes that summoning's
-  tokens. Release now applies only to creatures you bound by hand with Bind, which
-  Dismiss never removes.
+  lasts the spell's imported duration where one is imported. When the world
+  clock passes that duration, the caster's owners and the GM get a whispered
+  chat card with a Dismiss button for the creatures that cast left standing;
+  they stay until someone presses it.
+- **Dismiss summons.** The character sheet's party cell (bottom right rail)
+  shows Dismiss with the count standing for each summoning spell whose
+  creatures stand, a Dismiss for a summoning whose spell is gone, and Dismiss
+  all summons when there are two. Character sheet → Magic tab shows each
+  summoning spell's standing count, with a Dismiss button beside it while some
+  stand. Each asks first, then removes those tokens. Release now applies only
+  to creatures you bound by hand with Bind, which Dismiss never removes.
+- **Drop a creature onto a summoning row.** A spell's sheet → Mechanics tab →
+  Effect rows → Edit on a summon row: drop an actor on its Reference field to
+  name the creature, and the field says which creature it names. The Mechanics
+  tab lists the row by the creature's name.
 - **A magic light is an effect you size.** On an item's sheet, the Effects tab
   → Add Effect (or, for an item with nothing else to show, the footer beside
   Details), shown to whoever may edit the item, offers a blank effect or a Magic

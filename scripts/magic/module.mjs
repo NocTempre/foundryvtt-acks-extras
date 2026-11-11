@@ -27,6 +27,7 @@ import {
   fillGeneratedRepertoire,
 } from "./repertoire.mjs";
 import { registerCastSummon, castSummon } from "./cast-summon.mjs";
+import { registerCastExpiry } from "./cast-expiry.mjs";
 import { coreItemSheetFor } from "../lib/util.mjs";
 import { TEMPLATE_HOOKS } from "../lib/constants.mjs";
 
@@ -108,6 +109,13 @@ Hooks.once("init", () => {
     registerCastSummon();
   } catch (err) {
     console.error(`${MODULE_ID} | the summoning cast could not register`, err);
+  }
+  // A summoning's cast that runs out on the world clock tells its caster's
+  // owners and the GMs, with a Dismiss for what it left standing.
+  try {
+    registerCastExpiry();
+  } catch (err) {
+    console.error(`${MODULE_ID} | the cast-end watch could not register`, err);
   }
   console.log(`${MODULE_ID} | initialised (spell primitive ready)`);
 });

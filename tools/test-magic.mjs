@@ -269,6 +269,15 @@ t("effect rows read as one line each, spell kinds and shared kinds alike", () =>
   assert.equal(describeSpellEffect({ type: "curse" }).kind, "Curse");
 });
 
+t("a summon row names its creature through the lookup it is given, and reads its ref as written where none answers", () => {
+  const row = { type: "summon", amount: 2, ref: "Actor.inv1" };
+  const named = (nameOf) => describeSpellEffect(row, { nameOf }).text;
+  assert.equal(named((ref) => (ref === "Actor.inv1" ? "Glimmerkin" : null)), "2× Glimmerkin");
+  assert.equal(named(() => null), "2× Actor.inv1", "an unresolved ref reads as written");
+  assert.equal(named(() => { throw new Error("invented"); }), "2× Actor.inv1", "a lookup that throws reads as written");
+  assert.equal(describeSpellEffect(row).text, "2× Actor.inv1", "no lookup reads as before");
+});
+
 t("a printed stat block parses into lists, types, range and duration, and the primitive follows it", () => {
   const stat = parseStatBlock("Arcane 4, Divine 4 Type: blast, elemental (fire) Range: 120’ Duration: 1 round");
   assert.deepEqual(stat.lists, [{ source: "Arcane", level: 4 }, { source: "Divine", level: 4 }]);
@@ -1035,6 +1044,127 @@ await ta("the naming exempts a named creature from the readable check; an unname
   } finally {
     off();
   }
+});
+
+/* ------------------------------------------------------------------ */
+/*  A cast's end                                                       */
+/* ------------------------------------------------------------------ */
+
+const { ROUND_SECONDS, castRecordEnd, castEnded, castTokens, castEndedRecipients, announceEndedCast, sweepEndedCasts } = await import("../scripts/magic/cast-expiry.mjs");
+
+/** An invented calendar: a minute of 50 seconds, an hour of 40 minutes; any other unit is unknown. */
+const SECS = { seconds: 1, minutes: 50, hours: 2000 };
+const secondsOf = (value, units) => (units in SECS ? value * SECS[units] : null);
+
+/** A caster's record as a document gives it: source start and duration, the cast mark. */
+const castRecordDoc = ({ start = 1000, value = 3, units = "minutes", role = "caster", ended, castId = "cast7", uuid = "Actor.c1.ActiveEffect.e1" } = {}) => {
+  const mark = { spellUuid: "Actor.c1.Item.sp1", castId, casterUuid: "Actor.c1", role };
+  if (ended != null) mark.ended = ended;
+  return { uuid, _source: { start: { time: start }, duration: { value, units } }, flags: { "acks-extras": { spellEffect: mark } } };
+};
+
+t("a record ends at its start plus its duration on the world clock, by the calendar it is given", () => {
+  assert.equal(castRecordEnd(castRecordDoc(), secondsOf), 1150);
+  assert.equal(castRecordEnd(castRecordDoc({ units: "hours", value: 1 }), secondsOf), 3000);
+});
+t("a rounds record counts its rounds at a structural round, a turn's seconds over its rounds", () => {
+  assert.equal(ROUND_SECONDS, TURN_SECONDS / ROUNDS_PER_TURN);
+  assert.equal(castRecordEnd(castRecordDoc({ units: "rounds", value: 4 }), () => null), 1000 + 4 * ROUND_SECONDS);
+});
+t("a record with no duration, no start, a combat turn or a unit the calendar does not answer never ends on the clock", () => {
+  assert.equal(castRecordEnd(castRecordDoc({ value: null }), secondsOf), null);
+  assert.equal(castRecordEnd({ ...castRecordDoc(), _source: { duration: { value: 3, units: "minutes" } } }, secondsOf), null);
+  assert.equal(castRecordEnd({ ...castRecordDoc(), _source: { start: { time: null }, duration: { value: 3, units: "minutes" } } }, secondsOf), null);
+  assert.equal(castRecordEnd(castRecordDoc({ units: "turns" }), secondsOf), null);
+  assert.equal(castRecordEnd(castRecordDoc({ units: "weeks" }), secondsOf), null);
+});
+t("only an open caster record whose end the clock has reached has ended", () => {
+  const at = (worldTime, over) => castEnded(castRecordDoc(over), { worldTime, secondsOf });
+  assert.equal(at(1149), false, "a second short");
+  assert.equal(at(1150), true, "at its end");
+  assert.equal(at(5000, { role: "recipient" }), false, "a recipient's record carries the same cast and is not announced");
+  assert.equal(at(5000, { ended: 1200 }), false, "a stamped record is closed");
+  assert.equal(castEnded({ _source: { start: { time: 0 }, duration: { value: 1, units: "seconds" } } }, { worldTime: 9, secondsOf }), false, "an effect no cast made");
+});
+t("a cast's tokens are found on every scene, by the caster and the cast id, and no other", () => {
+  const tok = (summoner, castId) => ({ actor: { getFlag: (_s, key) => (key === "summonedBy" ? summoner : castId ? { castId } : null) } });
+  const scenes = [{ tokens: [tok("Actor.c1", "cast7"), tok("Actor.c1", "cast8"), tok("Actor.c2", "cast7")] }, { tokens: [tok("Actor.c1", "cast7"), tok("Actor.c1", null)] }];
+  assert.equal(castTokens(scenes, "Actor.c1", "cast7").length, 2);
+});
+t("the card goes to every GM and every other owner of the caster", () => {
+  const isGM = (id) => id === "gm1";
+  assert.deepEqual(castEndedRecipients({ default: 0, gm1: 3, p1: 3, p2: 2, p3: 3 }, ["gm1"], isGM).sort(), ["gm1", "p1", "p3"]);
+});
+await ta("an ended cast is stamped before its card, and a second call finds it closed", async () => {
+  const doc = castRecordDoc();
+  const order = [];
+  const deps = {
+    worldTime: 1200,
+    secondsOf,
+    stamp: async (effect, time) => {
+      order.push(["stamp", time]);
+      effect.flags["acks-extras"].spellEffect.ended = time;
+    },
+    standing: () => [{ id: "t1" }, { id: "t2" }],
+    post: async ({ tokens, record }) => order.push(["post", tokens.length, record.castId]),
+  };
+  assert.deepEqual(await announceEndedCast(doc, deps), { posted: true, n: 2 });
+  assert.deepEqual(order, [["stamp", 1200], ["post", 2, "cast7"]]);
+  assert.deepEqual(await announceEndedCast(doc, deps), { posted: false, reason: "closed" });
+  assert.equal(order.length, 2, "nothing is stamped or posted twice");
+});
+await ta("an ended cast with nothing left standing is stamped and posts no card", async () => {
+  const posts = [];
+  const doc = castRecordDoc();
+  const r = await announceEndedCast(doc, { worldTime: 1200, stamp: async (e, time) => { e.flags["acks-extras"].spellEffect.ended = time; }, standing: () => [], post: async () => posts.push(1) });
+  assert.deepEqual(r, { posted: false, reason: "noneStanding" });
+  assert.equal(posts.length, 0);
+  assert.equal(spellEffectOf(doc).ended, 1200);
+});
+await ta("two steps of the clock before the stamp lands announce once", async () => {
+  const doc = castRecordDoc();
+  let release;
+  const gate = new Promise((r) => { release = r; });
+  const posts = [];
+  const deps = { worldTime: 1200, secondsOf, stamp: async (e, time) => { await gate; e.flags["acks-extras"].spellEffect.ended = time; }, standing: () => [{}], post: async () => posts.push(1) };
+  const first = announceEndedCast(doc, deps);
+  const second = await announceEndedCast(doc, deps);
+  release();
+  await first;
+  assert.deepEqual(second, { posted: false, reason: "closed" });
+  assert.equal(posts.length, 1);
+});
+await ta("a sweep announces only the ended, open caster records, and one that throws leaves the rest", async () => {
+  const actors = [
+    { effects: [castRecordDoc({ uuid: "a" }), castRecordDoc({ uuid: "b", start: 1190 }), castRecordDoc({ uuid: "c", ended: 1100 })] },
+    { effects: [castRecordDoc({ uuid: "d", castId: "boom" }), castRecordDoc({ uuid: "e", castId: "cast9" })] },
+  ];
+  const posted = [];
+  const errors = [];
+  const quiet = console.error;
+  console.error = (...args) => errors.push(args);
+  try {
+    const out = await sweepEndedCasts(actors, {
+      worldTime: 1200,
+      secondsOf,
+      stamp: async (e, time) => { e.flags["acks-extras"].spellEffect.ended = time; },
+      standing: (record) => {
+        if (record.castId === "boom") throw new Error("invented failure");
+        return [{}];
+      },
+      post: async ({ record }) => posted.push(record.castId),
+    });
+    assert.equal(out.length, 2, "a and e; b has time left, c was stamped, d threw");
+  } finally {
+    console.error = quiet;
+  }
+  assert.deepEqual(posted, ["cast7", "cast9"]);
+  assert.equal(errors.length, 1, "the throw is logged");
+});
+t("the cast-end card's strings exist, and the record's stamp is read back", () => {
+  for (const key of ["ACKS-MAGIC.castEnded.text", "ACKS-MAGIC.castEnded.dismiss"]) assert.equal(typeof lang[key], "string", key);
+  assert.equal(spellEffectOf(castRecordDoc({ ended: 77 })).ended, 77);
+  assert.equal("ended" in spellEffectOf(castRecordDoc()), false, "an open record carries no stamp");
 });
 
 console.log(`\n${n} magic tests passed`);

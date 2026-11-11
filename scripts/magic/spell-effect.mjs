@@ -77,17 +77,21 @@ export function spellEffectData({ spell, caster, castId, role, duration, changes
 
 /**
  * The record an Active Effect carries, `{ spellUuid, castId, casterUuid, role }`,
- * or null for an effect no cast made (or one whose mark is incomplete).
+ * or null for an effect no cast made (or one whose mark is incomplete). A
+ * record whose end has been announced also carries `ended`, the world time it
+ * was stamped at (`cast-expiry.mjs`).
  *
  * @param {object} effect  An Active Effect document or its plain data.
  */
 export function spellEffectOf(effect) {
   const raw = effect?.flags?.[MODULE_ID]?.[FLAG_SPELL_EFFECT] ?? effect?.getFlag?.(MODULE_ID, FLAG_SPELL_EFFECT);
   if (!raw || typeof raw !== "object" || !raw.castId || !SPELL_EFFECT_ROLES.includes(raw.role)) return null;
-  return {
+  const record = {
     spellUuid: String(raw.spellUuid ?? ""),
     castId: String(raw.castId),
     casterUuid: String(raw.casterUuid ?? ""),
     role: raw.role,
   };
+  if (raw.ended != null && Number.isFinite(Number(raw.ended))) record.ended = Number(raw.ended);
+  return record;
 }

@@ -1,4 +1,4 @@
-/* global foundry, game */
+/* global foundry, game, fromUuidSync */
 /**
  * The effect-row editor — one window per row of an `effectsField()` list,
  * and the sheet actions that add, open, delete and reorder rows.
@@ -16,10 +16,16 @@
  * no Save button. A row is addressed by index, so the sheet closes every
  * editor on the store when it deletes or reorders a row — an index that
  * survived a splice would edit whichever row slid into its place.
+ *
+ * A summon row's creature field takes a dropped Actor, from the sidebar or a
+ * compendium, as its uuid, and says under it which creature the ref names.
+ * A companion row's `ref` is the importer's entry id and takes no drop.
  */
 import { MODULE_ID, LANG_PREFIX } from "../constants.mjs";
 import * as V from "../vocab.mjs";
 import { vocabChoices } from "../magic-vocab.mjs";
+import { summonRefName } from "../summons-logic.mjs";
+import { byCookbookId } from "../library.mjs";
 
 const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 
@@ -202,9 +208,34 @@ export class EffectRowEditor extends HandlebarsApplicationMixin(ApplicationV2) {
         field.value = value ?? "";
         if (spec.list) field.list = Object.entries(spec.list()).map(([key, label]) => ({ key, label }));
       }
+      if (name === "ref" && row.type === "summon") {
+        field.drop = true;
+        const named = field.value ? summonRefName(field.value, { fromUuidSync: (uuid) => fromUuidSync(uuid), byCookbookId }) : null;
+        field.refLine = !field.value ? "" : named ? loc("refNames", { name: named }) : loc("refUnknown");
+      }
       return field;
     });
     return context;
+  }
+
+  /** @override */
+  async _onRender(context, options) {
+    await super._onRender(context, options);
+    for (const group of this.element?.querySelectorAll?.("[data-acks-extras-ref-drop]") ?? []) {
+      group.addEventListener("dragover", (event) => event.preventDefault());
+      group.addEventListener("drop", (event) => this.#onDropRef(event, group));
+    }
+  }
+
+  /** A dropped Actor becomes the row's creature, by uuid; anything else is ignored. */
+  async #onDropRef(event, group) {
+    event.preventDefault();
+    const data = foundry.applications.ux.TextEditor.implementation.getDragEventData(event);
+    if (data?.type !== "Actor" || !data.uuid) return;
+    const input = group.querySelector('input[name="ref"]');
+    if (!input) return;
+    input.value = data.uuid;
+    await this.#apply();
   }
 
   /** The window's fields as a row fragment: sets and lists as arrays, everything else as typed. */

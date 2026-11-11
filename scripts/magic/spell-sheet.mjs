@@ -20,6 +20,7 @@ import { describeSpellEffect } from "./describe.mjs";
 import { displayRange, displayDuration, coreFieldsFrom } from "./spell-logic.mjs";
 import { effectRowActions } from "../lib/apps/effect-row-editor.mjs";
 import { cookbookId, byCookbookId } from "../lib/library.mjs";
+import { summonRefName } from "../lib/summons-logic.mjs";
 import { classItems } from "../classes/registry.mjs";
 import * as V from "../lib/vocab.mjs";
 import { vocabChoices, vocabLabel } from "../lib/magic-vocab.mjs";
@@ -196,7 +197,9 @@ export function createSpellSheet(Base) {
       };
       const id = cookbookId(this.item);
       context.provenance = { id, imported: !!id, cite: data.cite ?? "" };
-      context.effectRows = (data.effects ?? []).map((e, i) => ({ index: i, ...describeSpellEffect(e) }));
+      // A summon row names its creature as the world resolves its ref.
+      const nameOf = (ref) => summonRefName(ref, { fromUuidSync: (uuid) => fromUuidSync(uuid), byCookbookId });
+      context.effectRows = (data.effects ?? []).map((e, i) => ({ index: i, ...describeSpellEffect(e, { nameOf }) }));
       return context;
     }
 

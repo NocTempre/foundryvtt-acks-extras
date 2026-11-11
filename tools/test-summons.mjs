@@ -719,4 +719,21 @@ await t("flags name the summoner and carry the record", () => {
   assert.equal(logic.summonerOf(null), null);
 });
 
+await t("a summon row's ref is named by its uuid, else by its importer id, and never by something that is no Actor", () => {
+  const docs = { "Actor.inv1": { documentName: "Actor", name: "Glimmerkin" }, "Item.inv2": { documentName: "Item", name: "Not A Creature" }, "Compendium.x.y.Actor.inv3": { name: "Indexed Beast" } };
+  const lookups = {
+    fromUuidSync: (uuid) => {
+      if (!uuid.includes(".")) throw new Error("invented: not a uuid");
+      return docs[uuid] ?? null;
+    },
+    byCookbookId: (type, id) => (type === "Actor" && id === "def.invented.mote" ? { name: "Mote" } : null),
+  };
+  assert.equal(logic.summonRefName("uuid:Actor.inv1", lookups), "Glimmerkin", "a leading uuid: is dropped");
+  assert.equal(logic.summonRefName("Compendium.x.y.Actor.inv3", lookups), "Indexed Beast", "a compendium index entry answers by its name");
+  assert.equal(logic.summonRefName("def.invented.mote", lookups), "Mote", "an importer id answers through the library");
+  assert.equal(logic.summonRefName("Item.inv2", lookups), null, "an Item is no creature");
+  assert.equal(logic.summonRefName("nodots", lookups), null, "a throwing lookup counts as no answer");
+  assert.equal(logic.summonRefName("", lookups), null);
+});
+
 console.log(`\ntest-summons: ${n} tests passed`);

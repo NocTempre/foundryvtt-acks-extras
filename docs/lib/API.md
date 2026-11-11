@@ -824,7 +824,8 @@ the seat can open. It asks and places nothing; pass the answer to
 `placeSummons`, whose `sourceUuid` may then be a uuid or a cookbook id for a
 request that names a spell. The Foundry-free
 checks (`checkPlaceRequest`, `checkDismissRequest`, `groupByCast`,
-`groupBySpell`, `bareSummonAllowed`, `summonOwnership`) are in
+`groupBySpell`, `bareSummonAllowed`, `summonOwnership`, and `summonRefName`,
+the name of the creature a row's ref names, or null) are in
 `scripts/lib/summons-logic.mjs`, imported directly.
 
 ## `spellUse` — the cast seam (apiVersion 36)

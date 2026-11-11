@@ -2326,6 +2326,17 @@ record and the one world copy are keyed by the resolved uuid. The seat's
 preview is then the plain token core draws for one with no picture, because it
 cannot read the creature's look.
 
+**Naming a row's creature.** `summonRefName(ref, {fromUuidSync, byCookbookId})`
+reads synchronously the name of the creature a ref names: the Actor its uuid
+names, else the library Actor carrying it as a cookbook id, else null (a lookup
+that throws, or a uuid naming something other than an Actor, is null). The
+effect-row editor (`apps/effect-row-editor.mjs`) makes a `summon` row's `ref`
+field a drop target: an Actor dropped there writes its uuid, and the field's
+hint names the creature the ref reaches, or says none in this world does. A
+companion row's `ref` is an importer id and takes no drop. The spell sheet
+names the creature in its effect rows the same way (magic MODEL, "The
+sheet").
+
 **Placing.** The seat picks the creature and a count: `pickSummon` for a cast
 from a spell (the spell's named creatures, preselected with their amount, else
 the shelves), or the bare Summon… prompt, which offers the Actor shelves the

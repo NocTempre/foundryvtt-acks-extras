@@ -315,10 +315,23 @@ export function henchmanIds(actor) {
 }
 
 /**
+ * The character's summons on a scene: each token whose actor names this
+ * character as summoner, with the record the module's own summoning stamped,
+ * or null for one bound by hand.
+ * @param {Actor} actor
+ * @param {Scene|null} [scene]  omitted, the one the party cell counts on
+ * @returns {{tokenId: string, name: string, img: string|null, record: object|null}[]}
+ */
+export function summonsOnScene(actor, scene = currentScene()) {
+  return [...(scene?.tokens ?? [])]
+    .filter((t) => summonerOf(t.actor) === actor.uuid)
+    .map((t) => ({ tokenId: t.id, name: t.name, img: t.texture?.src ?? t.actor?.img ?? null, record: summonRecordOf(t.actor) }));
+}
+
+/**
  * The character's own party, and who of it is on the scene: the henchmen
- * (with a pending calamity read off the henchmen record), the summons (tokens
- * whose actor names this character as summoner, each with the record the
- * module's own summoning stamped, or null for one bound by hand), and the formation with
+ * (with a pending calamity read off the henchmen record), the summons
+ * (`summonsOnScene`), and the formation with
  * whether its party token is on this scene and how many of its members are.
  */
 export function partyOf(actor) {
@@ -340,9 +353,7 @@ export function partyOf(actor) {
         calamity: !!h.getFlag(MODULE_ID, FLAG_RECORD)?.special?.pendingCalamity,
       };
     });
-  const summons = tokens
-    .filter((t) => summonerOf(t.actor) === actor.uuid)
-    .map((t) => ({ tokenId: t.id, name: t.name, img: t.texture?.src ?? t.actor?.img ?? null, record: summonRecordOf(t.actor) }));
+  const summons = summonsOnScene(actor, scene);
 
   let formation = null;
   const record = globalThis.acksExtras?.formation?.getFormationForActor?.(actor.id) ?? null;

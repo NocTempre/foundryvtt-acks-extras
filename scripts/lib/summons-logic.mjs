@@ -365,6 +365,37 @@ export function groupBySpell(entries, spellsById) {
 export const normalizeRef = (ref) => String(ref ?? "").trim().replace(/^uuid:/u, "");
 
 /**
+ * The name of the creature a summon row's ref names, read synchronously with
+ * the lookups passed in: the document (or compendium index entry) its uuid
+ * names, else the library creature carrying it as an importer cookbook id.
+ * Null where neither answers, or where the uuid names something that is not
+ * an Actor; a lookup that throws counts as no answer.
+ * @param {string} ref
+ * @param {{fromUuidSync: (uuid: string) => object|null, byCookbookId: (type: string, id: string) => object|null}} lookups
+ * @returns {string|null}
+ */
+export function summonRefName(ref, { fromUuidSync, byCookbookId }) {
+  const key = normalizeRef(ref);
+  if (!key) return null;
+  let doc = null;
+  try {
+    doc = fromUuidSync?.(key) ?? null;
+  } catch {
+    doc = null;
+  }
+  if (doc && (doc.documentName ?? "Actor") !== "Actor") doc = null;
+  if (!doc) {
+    try {
+      doc = byCookbookId?.("Actor", key) ?? null;
+    } catch {
+      doc = null;
+    }
+  }
+  const name = String(doc?.name ?? "").trim();
+  return name || null;
+}
+
+/**
  * Does a ref read as an id the GM's client can resolve (a document uuid or an
  * importer cookbook id, both dotted and with no space) rather than a printed
  * name? Only an id is worth passing through unresolved.

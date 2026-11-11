@@ -31,9 +31,15 @@
       </span>
       <span class="acks-extras-frame__fact-label">{{localize "ACKS.spells.Cast"}}</span>
       <input class="acks-input acks-extras-frame__fact-input is-xs acks-nums" type="number" data-item-field="system.cast" value="{{spell.cast}}" {{disabled (not @root.editable)}}>
+      {{#if spell.summon}}
+      <span class="acks-extras-frame__fact-label acks-nums" data-tooltip-text="{{spell.summon.tip}}">{{spell.summon.label}}</span>
+      {{/if}}
       <span class="acks-extras-frame__ctls">
         <span class="acks-extras-frame__grp">
           <button type="button" class="acks-extras-frame__mini" data-action="spellCast" data-tooltip="{{localize 'ACKS-CHARACTER.magic.cast'}}"><i class="fa-solid fa-wand-magic-sparkles" inert></i></button>
+          {{#if mg.editable}}{{#if spell.summon.standing}}
+          <button type="button" class="acks-extras-frame__mini" data-action="spellDismiss" aria-label="{{localize 'ACKS-CHARACTER.magic.dismiss'}}" data-tooltip=""><i class="fa-solid fa-ghost" inert></i></button>
+          {{/if}}{{/if}}
         </span>
         {{#if @root.editable}}
         <span class="acks-extras-frame__grp">

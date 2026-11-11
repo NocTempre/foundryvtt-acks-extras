@@ -22,10 +22,12 @@
 import { MODULE_ID, LANG, SHEET_CLASS, SHEET_FLAG, TRAINING_VIEW_FLAG, MOVE_MODES, TAB_ORDER } from "./constants.mjs";
 import { makeLoc, libStorage } from "../lib/util.mjs";
 import { FRAME_CLASS, FRAME_LANG_PREFIX, FRAME_VIEW_ACTIONS, FrameMixin } from "../lib/frame.mjs";
-import { SUMMON_FLAG, summonerOf, groupByCast } from "../lib/summons-logic.mjs";
-import { promptSummon, promptDismiss } from "../lib/summons.mjs";
+import { SUMMON_FLAG, summonerOf, summonRecordOf, bareSummonAllowed } from "../lib/summons-logic.mjs";
+import { promptSummon, promptDismiss, summonsOf } from "../lib/summons.mjs";
+import { isSummonSpell } from "../magic/summon-spell.mjs";
+import { castSummon } from "../magic/cast-summon.mjs";
 import { snapshotFrame, sheetFlag, saveLabel, partyOf, henchmanIds, currentScene } from "./snapshot.mjs";
-import { buildFrameModel, nextAcMode } from "./view-model.mjs";
+import { buildFrameModel, nextAcMode, partyMenuModel } from "./view-model.mjs";
 import { rollInventory, rollById } from "./rolls.mjs";
 import { buildEquipmentTab } from "./tabs/equipment.mjs";
 import { companionSlots, openCompanionPicker, releaseCompanion } from "../abilities/companions.mjs";
@@ -174,6 +176,7 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
       abilityFilter: AcksCharacterSheet.#onAbilityFilter,
       pickLanguage: AcksCharacterSheet.#onPickLanguage,
       spellCast: AcksCharacterSheet.#onSpellCast,
+      spellDismiss: AcksCharacterSheet.#onSpellDismiss,
       spellReset: AcksCharacterSheet.#onSpellReset,
       rest: AcksCharacterSheet.#onRest,
       roster: AcksCharacterSheet.#onRoster,
@@ -829,50 +832,41 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
   }
 
   /**
-   * The party menu: who of the party is on the scene (a pick selects the
-   * token and pans to it), how many are elsewhere, and for an owner the
-   * summoning, the dismissal of each cast, and the bind and release of
-   * creatures by hand — the controlled tokens become this character's
-   * summons — plus the roster and the Followers tab. A cast is dismissed
-   * through the GM's client (`lib/summons.mjs`); a creature bound by hand is
-   * only released, never removed.
+   * The party menu (`partyMenuModel`): who of the party is on the scene (a
+   * pick selects the token and pans to it), how many are elsewhere, and for an
+   * owner each summoning spell's Cast or Dismiss, a loose cast's Dismiss, the
+   * GM's spell-less Summon…, and the bind and release of creatures by hand —
+   * the controlled tokens become this character's summons — plus the roster
+   * and the Followers tab. A cast goes through the spell's own cast
+   * (`castSummon`), so it is spent only once its creatures stand; a dismissal
+   * goes through the GM's client (`lib/summons.mjs`); a creature bound by hand
+   * is only released, never removed.
    */
   static #onPartyMenu(event, target) {
     const facts = partyOf(this.actor);
     const scene = currentScene();
-    const items = [];
-    for (const h of facts.henchmen.filter((x) => x.onScene)) {
-      items.push({ kind: "token", tokenId: h.tokenIds[0], img: h.img, label: h.name, value: h.calamity ? loc("party.calamity") : loc("party.henchman"), on: h.calamity });
-    }
-    for (const s of facts.summons) items.push({ kind: "token", tokenId: s.tokenId, img: s.img, label: s.name, value: loc("party.summon") });
-    const away = facts.henchmen.filter((x) => !x.onScene).length;
-    if (away) items.push({ kind: "info", icon: "fa-solid fa-person-walking-arrow-right", label: loc("party.away", { n: away }), disabled: true });
-    const { casts, loose } = groupByCast(facts.summons);
-    if (this.actor.isOwner) {
-      items.push({ kind: "summon", icon: "fa-solid fa-hand-sparkles", label: loc("party.summonNew") });
-      for (const c of casts) {
-        items.push({
-          kind: "dismiss",
-          castId: c.castId,
-          icon: "fa-solid fa-ghost",
-          label: loc("party.dismiss", { name: c.name, n: c.entries.length }),
-          tip: loc("party.dismissTip", { n: c.entries.length }),
-        });
-      }
-      if (casts.length > 1) {
-        items.push({ kind: "dismissAll", icon: "fa-solid fa-ghost", label: loc("party.dismissAll"), tip: loc("party.dismissTip", { n: casts.reduce((n, c) => n + c.entries.length, 0) }) });
-      }
-      const mine = new Set(henchmanIds(this.actor));
-      const controlled = (canvas?.tokens?.controlled ?? [])
-        .map((t) => t.document)
-        .filter((t) => t.actorId !== this.actor.id && !mine.has(t.actorId) && summonerOf(t.actor) !== this.actor.uuid && t.actor);
-      if (controlled.length) items.push({ kind: "bind", tokens: controlled, icon: "fa-solid fa-wand-magic-sparkles", label: loc("party.bind", { n: controlled.length }) });
-      if (loose.length) {
-        items.push({ kind: "release", icon: "fa-solid fa-link-slash", label: loc("party.release", { n: loose.length }), tip: loc("party.releaseTip", { n: loose.length }) });
-      }
-      if (!this.actor.system?.retainer?.enabled) items.push({ kind: "roster", icon: "fa-solid fa-people-group", label: loc("followers.roster") });
-    }
-    items.push({ kind: "tab", icon: "fa-solid fa-users", label: loc("tab.followers") });
+    const owner = this.actor.isOwner;
+    const mine = new Set(henchmanIds(this.actor));
+    const controlled = owner
+      ? (canvas?.tokens?.controlled ?? [])
+          .map((t) => t.document)
+          .filter((t) => t.actorId !== this.actor.id && !mine.has(t.actorId) && summonerOf(t.actor) !== this.actor.uuid && t.actor)
+      : [];
+    const model = partyMenuModel({
+      party: facts,
+      spells: this.actor.items.filter((i) => isSummonSpell(i)).map((i) => ({ id: i.id, name: i.name })),
+      owner,
+      bare: bareSummonAllowed(game.user),
+      controlled,
+      roster: !this.actor.system?.retainer?.enabled,
+    });
+    const items = model.map((it) => ({
+      ...it,
+      label: it.label ?? loc(it.key, it.data),
+      value: it.valueKey ? loc(it.valueKey) : undefined,
+      tip: it.tipKey ? loc(it.tipKey, it.tipData ?? it.data) : undefined,
+    }));
+    const tokensOf = (ids) => (ids ?? []).map((id) => scene?.tokens.get(id)).filter(Boolean);
     this._frameMenu(target, items, async (pick) => {
       switch (pick.kind) {
         case "token": {
@@ -891,17 +885,20 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
           this.render();
           return;
         case "release":
-          for (const s of loose) await scene?.tokens.get(s.tokenId)?.actor?.unsetFlag(MODULE_ID, SUMMON_FLAG);
+          for (const t of tokensOf(pick.tokenIds)) await t.actor?.unsetFlag(MODULE_ID, SUMMON_FLAG);
           this.render();
           return;
         case "summon":
           await promptSummon(this.actor);
           return;
-        case "dismiss":
-          await promptDismiss(this.actor, { castId: pick.castId });
+        case "cast": {
+          const spell = this.actor.items.get(pick.spellId);
+          if (spell) await castSummon(spell);
           return;
+        }
+        case "dismiss":
         case "dismissAll":
-          await promptDismiss(this.actor);
+          await promptDismiss(this.actor, { tokens: tokensOf(pick.tokenIds) });
           return;
         case "roster":
           openRosterApp(this.actor);
@@ -1295,6 +1292,14 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
     if (!item) return;
     // The system's `use` on a spell counts the casting and shows its card.
     item.use?.({ skipDialog: skipDialogFor(event) });
+  }
+
+  /** A summoning spell's Dismiss: every creature its casts left standing on the scene the party cell counts on. */
+  static async #onSpellDismiss(event, target) {
+    const item = this.#itemOf(target);
+    if (!item) return;
+    const tokens = summonsOf(this.actor, { scene: currentScene() }).filter((t) => summonRecordOf(t.actor)?.spellId === item.id);
+    await promptDismiss(this.actor, { tokens });
   }
 
   static async #onSpellReset() {

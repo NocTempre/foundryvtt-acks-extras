@@ -33,9 +33,14 @@ const qualifier = (e, extra = []) => {
 };
 
 /**
+ * A row's reading. A summon row names its creature through `nameOf`, a
+ * synchronous lookup the caller passes (the spell sheet resolves the ref in
+ * the world); a ref it cannot name reads as written.
+ * @param {object} e  the effect row
+ * @param {{nameOf?: (ref: string) => string|null}} [o]
  * @returns {{kind: string, text: string}} the row's kind label and its reading
  */
-export function describeSpellEffect(e) {
+export function describeSpellEffect(e, { nameOf } = {}) {
   const kind = label(V.EFFECT_TYPES, e.type);
   const n = valueText(e.value);
   switch (e.type) {
@@ -51,13 +56,22 @@ export function describeSpellEffect(e) {
       return { kind, text: `${subject(e)}${[e.roll || n, list(e.damage)].filter(Boolean).join(" ")}${qualifier(e)}` };
     case "heal":
       return { kind, text: `${subject(e)}${[vocabLabel("healKind", e.healKind), e.roll || n].filter(Boolean).join(": ")}${qualifier(e)}` };
-    case "summon":
+    case "summon": {
+      let creature = e.ref || "";
+      if (creature && typeof nameOf === "function") {
+        try {
+          creature = nameOf(e.ref) || creature;
+        } catch {
+          // a lookup that fails leaves the ref as written
+        }
+      }
       return {
         kind,
-        text: `${[vocabLabel("summonFormat", e.summonFormat), e.amount ? `${e.amount}×` : "", e.ref || "", n ? `${n} HD` : "", vocabLabel("controlKind", e.control)]
+        text: `${[vocabLabel("summonFormat", e.summonFormat), e.amount ? `${e.amount}×` : "", creature, n ? `${n} HD` : "", vocabLabel("controlKind", e.control)]
           .filter(Boolean)
           .join(" ")}${qualifier(e)}`,
       };
+    }
     case "control":
       return { kind, text: `${subject(e)}${vocabLabel("controlKind", e.control)}${qualifier(e)}`.trim() || "—" };
     case "conditionGrant":
