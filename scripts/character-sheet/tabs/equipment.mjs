@@ -17,6 +17,8 @@ import { companionSlots } from "../../abilities/companions.mjs";
 import { carriedWeight6, capacity6, load6 } from "../../lib/capacity.mjs";
 import { mountOf } from "../../lib/mount.mjs";
 import { getLoadout, heldHandsClause } from "../../equipment/loadout.mjs";
+import { heldGrip } from "../../equipment/attack-mods.mjs";
+import { heldDieTip } from "../../equipment/weapon-figures.mjs";
 import { wearLocation, wearLabel } from "../../equipment/wear.mjs";
 import { WEAR, WEAR_ICONS } from "../../equipment/config.mjs";
 import { containerReport, containedIn, contentsOf, isContainer } from "../../equipment/containers.mjs";
@@ -39,9 +41,9 @@ const loc = makeLoc(LANG);
 const num = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
 
 /** What a row says under its name: damage for a weapon, AC for armour, worth for coin, weight for goods. */
-function lineOf(item) {
+function lineOf(item, held) {
   const parts = [];
-  if (item.type === ITEM_TYPE.weapon) parts.push(item.system?.damage?.base?.formula ?? "");
+  if (item.type === ITEM_TYPE.weapon) parts.push(held?.formula ?? "");
   if (item.type === ITEM_TYPE.armor) parts.push(`AC ${num(item.system?.ac?.value)}`);
   if (isCurrency(item)) parts.push(gpLabel(coinTotalGC([item])));
   // `weight6Of` already weighs the whole stack (it reads the bundle size, and
@@ -152,11 +154,14 @@ function rowOf(actor, item, ctx, depth = 0) {
   // The mapper's quill and parchment are listed at the hands while the role is
   // held; the row says why a plain item sits there.
   const kit = loadout.mappingKit.some((k) => k.id === item.id);
+  // A weapon's die is the one its row rolls: the grip it is held in.
+  const held = item.type === ITEM_TYPE.weapon ? heldGrip(actor, item) : null;
   const row = {
     id: item.id,
     name: item.name,
     img: item.img,
-    line: [lineOf(item), kit ? loc("equipment.kitInHand") : ""].filter(Boolean).join(" · "),
+    line: [lineOf(item, held), kit ? loc("equipment.kitInHand") : ""].filter(Boolean).join(" · "),
+    lineTip: held ? heldDieTip(held) : "",
     qty: stackCountOf(item),
     // A coin row always shows its count — an empty purse reads as empty.
     stack: isCurrency(item) || (stackCountOf(item) ?? 1) > 1,

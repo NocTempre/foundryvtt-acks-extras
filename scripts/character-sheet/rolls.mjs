@@ -114,10 +114,11 @@ export function rollInventory(actor) {
     for (const mode of modes) {
       const missileMode = mode.id === "atk:missile";
       const bonus = (missileMode ? missile.total : melee.total) + num(item.system?.bonus?.attack);
-      const suffix = mode.id === "atk:melee2h" ? loc("rolls.mode.twoHanded") : missileMode && item.system?.melee ? loc("rolls.mode.thrown") : "";
+      const suffix = mode.twoHanded ? loc("rolls.mode.twoHanded") : missileMode && item.system?.melee ? loc("rolls.mode.thrown") : "";
       attackRows.push(
         row(`wpn:${item.id}:${mode.id}`, suffix ? `${item.name}, ${suffix}` : item.name, `${T}+ · ${signed(bonus)}`, {
           line: [`${mode.v} ${typeLabel}`.trim(), state].filter(Boolean).join(" · "),
+          lineTip: mode.tip ?? "",
           eq: wielded.has(item.id),
           pinned: !!item.system?.favorite,
           item: item.id,

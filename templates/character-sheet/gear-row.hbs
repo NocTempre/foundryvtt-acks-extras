@@ -6,7 +6,7 @@
     <img class="acks-extras-frame__gear-img" src="{{img}}" alt="" inert>
     <span class="acks-extras-frame__gear-text">
       <a class="acks-extras-frame__gear-name" data-action="itemEdit">{{name}}{{#if stack}} <span class="acks-nums">×{{qty}}</span>{{/if}}</a>
-      {{#if line}}<span class="acks-extras-frame__gear-line acks-nums">{{line}}</span>{{/if}}
+      {{#if line}}<span class="acks-extras-frame__gear-line acks-nums"{{#if lineTip}} data-tooltip-text="{{lineTip}}"{{/if}}>{{line}}</span>{{/if}}
     </span>
     <span class="acks-extras-frame__ctls">
       {{#if controls.roll}}

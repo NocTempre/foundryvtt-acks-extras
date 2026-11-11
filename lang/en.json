@@ -1144,6 +1144,7 @@
   "ACKS-LIB.followerCard.atkThrow": "Throw",
   "ACKS-LIB.followerCard.atkBonus": "Bonus",
   "ACKS-LIB.followerCard.atkDamage": "Damage",
+  "ACKS-LIB.followerCard.dieSetByHand": "Damage die set by hand on this card, in place of the weapon's.",
   "ACKS-LIB.followerCard.atkDmgBonus": "Dmg bonus",
   "ACKS-LIB.attack.override": "Override",
   "ACKS-LIB.rollDialog.situational": "Situational",
@@ -1799,6 +1800,8 @@
       "figureFromRow": "{figure}: read from the {weapon} row of the weapon table ({cite}).",
       "figureFromRowNoPage": "{figure}: read from the {weapon} row of the weapon table.",
       "figureMissing": "{figure}: not imported, so no figure is shown. Import the weapon table from your own book, or set it on this item.",
+      "dieOneHanded": "Damage die, one-handed grip",
+      "dieTwoHanded": "Damage die, two-handed grip",
       "gripsAutoNoSize": "Auto: {grips}; the size is not imported, so the hands are unknown and count as one.",
       "weaponTypeSource": {
         "flag": "type set here",

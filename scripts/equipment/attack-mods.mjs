@@ -33,6 +33,7 @@ import { LANG, EFFECT_DOMAINS } from "./constants.mjs";
 import { SIZE } from "./config.mjs";
 import { getLoadout } from "./loadout.mjs";
 import { classifyWeapon, canOneHand } from "./profiles.mjs";
+import { damageFormulaOf } from "./properties.mjs";
 import { isWeaponProficient } from "./proficiency.mjs";
 import { hasEffectFlag, stringFlagValue } from "./effects.mjs";
 import { maneuverMods, MANEUVERS, overlayEnabled as maneuverOverlayEnabled } from "./overlays/maneuvers.mjs";
@@ -250,11 +251,50 @@ export function attackTypesFor(item, types) {
 }
 
 /**
+ * The grip a weapon is held in now, and the die it deals there: the one
+ * answer every surface that shows a melee die or sends a damage mode reads.
+ *
+ * The grip is the loadout's (`wieldTwoHanded`): a chosen grip, or the auto
+ * grip, which takes the second hand only while nothing else wants it. The
+ * ALTERNATE die answers only where the weapon has one to offer (the item's own
+ * alternate, or the two-handed figure of a versatile weapon's row); a weapon
+ * held in both hands with no such die deals its own. A weapon that is not
+ * drawn, a non-character, and any attack but a melee swing answer the base die.
+ *
+ * Pure: reads the documents and returns data; the tooltip is worded apart
+ * (`heldDieTip`).
+ *
+ * @param {Actor|null} actor
+ * @param {Item} item the weapon
+ * @param {string} [attackType] only a melee attack takes the two-handed die
+ * @returns {{mode: string, twoHanded: boolean, versatile: boolean, formula: string,
+ *   declared: boolean, key: string|null}}
+ *   `mode` is the damage mode to send; `twoHanded` the hold itself, whether or
+ *   not a die differs; `versatile` that the weapon offers a choice of grip;
+ *   `formula` the die dealt in that mode ("" when none is stated); `declared`
+ *   whether the item states that die itself; `key` the weapon-table row, or null
+ */
+export function heldGrip(actor, item, attackType = ATTACK_TYPE.melee) {
+  const profile = item?.type === ITEM_TYPE.weapon ? classifyWeapon(item) : null;
+  const own = String(damageFormulaOf(item) ?? "").trim();
+  const base = { mode: DAMAGE_MODE.base, twoHanded: false, versatile: false, formula: own || profile?.damage || "", declared: !!own, key: profile?.key ?? null };
+  if (!profile || attackType !== ATTACK_TYPE.melee) return base;
+  const stated = String(item.system?.damage?.alternate?.formula ?? "").trim();
+  const offered = !!profile.damage2h && (canOneHand(profile) || !!stated);
+  const versatile = offered && canOneHand(profile);
+  if (actor?.type !== ACTOR_TYPE.character || !item.id) return { ...base, versatile };
+  const entry = getLoadout(actor).weapons.find((w) => w.item.id === item.id);
+  if (!entry?.wieldTwoHanded) return { ...base, versatile };
+  if (!offered) return { ...base, twoHanded: true, versatile };
+  return { mode: DAMAGE_MODE.alternate, twoHanded: true, versatile, formula: profile.damage2h, declared: !!stated, key: profile.key };
+}
+
+/**
  * The damage modes a weapon offers for one kind of attack, first mode the
  * default. A medium melee weapon the table prints a two-handed die for
  * offers the ALTERNATE mode whether or not the item has one written in; the
- * mode asked for — by the caller, else by a loadout that already holds the
- * weapon in both hands — goes first.
+ * mode asked for goes first, and a caller that asks for none gets the grip
+ * the weapon is held in (`heldGrip`).
  *
  * @param {Actor|null} actor
  * @param {Item} item
@@ -269,11 +309,7 @@ export function damageModesFor(actor, item, attackType, modes, preferred = null)
   if (attackType === ATTACK_TYPE.melee && profile.damage2h && canOneHand(profile) && !out.includes(DAMAGE_MODE.alternate)) {
     out.push(DAMAGE_MODE.alternate);
   }
-  let want = preferred;
-  if (!want && actor?.type === ACTOR_TYPE.character && item.id) {
-    const entry = getLoadout(actor).weapons.find((w) => w.item.id === item.id);
-    if (entry?.wieldTwoHanded) want = DAMAGE_MODE.alternate;
-  }
+  const want = preferred || heldGrip(actor, item, attackType).mode;
   if (want && out.includes(want)) out = [want, ...out.filter((m) => m !== want)];
   return out;
 }

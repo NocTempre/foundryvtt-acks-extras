@@ -124,6 +124,14 @@
 
 ### Changed
 
+- **A weapon's melee row follows its grip.** A weapon that can be held in one
+  hand or two has one melee row, on its item sheet's Rolls tab, the character
+  sheet's Rolls and Equipment tabs and the Follower Card: held in both hands it
+  shows and rolls the two-handed die, held in one it shows and rolls the
+  one-handed die, and hovering the die names the grip and where the die came
+  from. The separate two-handed row is gone, so a roll pinned to it is no
+  longer pinned; pin the melee row instead. A die typed on a Follower Card is
+  shown and rolled as typed, whatever the grip.
 - **A Martial Training pick grants the weapons its option lists.** A pick of
   one of the book's Martial Training options (the ability's sheet → Mechanics
   tab) grants exactly the weapons that option names, read from your book, and

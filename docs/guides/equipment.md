@@ -27,14 +27,18 @@ in the two-handed style; otherwise it stays in one hand until you set the grip
 yourself, so a default never walks you into the non-proficient package.
 
 A two-handed grip deals the die the weapon's type prints for that grip, with
-the weapon's own modifier carried over, and the item sheet's Rolls tab lists
-it as its own row. A weapon whose die you changed to one its type does not
-print deals its own damage in either grip.
+the weapon's own modifier carried over. The weapon's melee row, on the item
+sheet's Rolls tab, the character sheet's Rolls and Equipment tabs and the
+Follower Card, shows that die while the weapon is held in both hands and rolls
+it; held in one hand, it shows and rolls the one-handed die. Hover the die to
+see which grip it is and where it came from. A weapon whose die you changed to
+one its type does not print deals its own damage in either grip.
 
 ![](../releases/v11.3.0/equipment-two-handed.png)
 
-*A masterwork Sword's Rolls tab: the melee row at its own damage, and the
-two-handed row at the larger die with the masterwork modifier kept.*
+*A masterwork Sword's Rolls tab as of 11.3.0: the melee row at its own damage,
+and a separate two-handed row at the larger die with the masterwork modifier
+kept. The tab now lists one melee row that follows the grip.*
 
 **A shield counts only in trained hands.** The Weapon & Shield style's benefit
 is the shield's own armour class (RR ch. 3): a character with the style gets

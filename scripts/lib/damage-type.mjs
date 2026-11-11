@@ -149,7 +149,11 @@ export async function setDamageType(item, type) {
  * unarmed and improvised — including an improvised throw — which is exactly
  * what a body with empty hands can do.
  *
- * @returns {Array<{key,label,type,itemId,damageType,icon,damage,at}>}
+ * A melee option of a weapon the equipment feature can place also carries
+ * `heldDamage` (the die of the grip the weapon is held in), `damageMode` (the
+ * mode that die is rolled in) and `dmgTip` (where the die came from).
+ *
+ * @returns {Array<{key,label,type,itemId,damageType,icon,damage,at,heldDamage?,damageMode?,dmgTip?}>}
  */
 export function attackOptionsFor(actor) {
   const items = actor?.items?.contents ?? [];
@@ -159,10 +163,14 @@ export function attackOptionsFor(actor) {
     const damageType = damageTypeOf(w);
     const icon = DAMAGE_TYPE_ICONS[damageType] ?? UNTYPED_ICON;
     const base = { label: w.name, itemId: w.id, damageType, icon, damage: w.system?.damage?.base?.formula || "", at: 1 };
-    if (w.system?.melee) options.push({ ...base, key: `${w.id}:melee`, type: "melee" });
+    // The die a melee swing deals is the one in the grip the weapon is held
+    // in; `damage` stays the item's own base die, the field an edit writes.
+    const held = equipmentApi()?.heldGrip?.(actor, w, "melee") ?? null;
+    const melee = held ? { heldDamage: held.formula, damageMode: held.mode, dmgTip: equipmentApi().heldDieTip?.(held) ?? "" } : {};
+    if (w.system?.melee) options.push({ ...base, ...melee, key: `${w.id}:melee`, type: "melee" });
     if (w.system?.missile || w.system?.special?.thrown) options.push({ ...base, key: `${w.id}:missile`, type: "missile" });
     // A weapon flagged neither (data gap) still rolls as its sheet type.
-    if (!w.system?.melee && !w.system?.missile) options.push({ ...base, key: `${w.id}:melee`, type: "melee" });
+    if (!w.system?.melee && !w.system?.missile) options.push({ ...base, ...melee, key: `${w.id}:melee`, type: "melee" });
   }
   if (options.length) return options;
 

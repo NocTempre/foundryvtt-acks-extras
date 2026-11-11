@@ -413,7 +413,10 @@ export async function followerCardContext(actor, { editable = false, interactive
       const ov = atkOv[o.key] ?? {};
       const baseBonus = bonusFor(o.type);
       const baseDmgMod = dmgModFor(o.type === "missile" ? "missile" : "melee");
+      // The die shown is the one the roll deals: a hand-set die, else the grip's.
+      // The edit row keeps the item's own base die, the field an edit writes.
       const dmgDie = ov.damage ?? o.damage;
+      const shownDie = ov.damage ?? (o.heldDamage || o.damage);
       const dmgBonus = ov.damageBonus != null ? num(ov.damageBonus) : baseDmgMod;
       return {
         ...o,
@@ -422,7 +425,8 @@ export async function followerCardContext(actor, { editable = false, interactive
         size: item ? sizePips(item) : { count: 0, label: "", pips: [] },
         target: ov.target != null ? num(ov.target) : throwTarget,
         bonus: signed(ov.bonus != null ? num(ov.bonus) : baseBonus),
-        dmg: dmgDie ? withMod(dmgDie, dmgBonus) : "",
+        dmg: shownDie ? withMod(shownDie, dmgBonus) : "",
+        dmgTip: ov.damage != null ? game.i18n.localize("ACKS-LIB.followerCard.dieSetByHand") : (o.dmgTip ?? ""),
         // raw values for the edit row + the roll
         edit: {
           label: ov.label ?? o.label,

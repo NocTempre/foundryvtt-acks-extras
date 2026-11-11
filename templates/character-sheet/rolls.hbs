@@ -19,7 +19,7 @@
           </button>
           <span class="acks-extras-frame__row-text">
             <span class="acks-extras-frame__row-label">{{row.label}}</span>
-            {{#if row.line}}<span class="acks-extras-frame__row-line">{{row.line}}</span>{{/if}}
+            {{#if row.line}}<span class="acks-extras-frame__row-line"{{#if row.lineTip}} data-tooltip-text="{{row.lineTip}}"{{/if}}>{{row.line}}</span>{{/if}}
           </span>
           {{#if row.mods.length}}<span class="acks-tag-group">{{#each row.mods}}<span class="acks-tag acks-tag--ghost">{{this}}</span>{{/each}}</span>{{/if}}
           <span class="acks-extras-frame__row-value acks-nums"{{#if row.tip}} data-tooltip-text="{{row.tip}}"{{/if}}>{{row.value}}</span>

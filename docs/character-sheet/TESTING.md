@@ -126,8 +126,8 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 4. Rolls tab. *Observable:* every group lists; the five adventuring throws
    appear once, as `adv:*` rows under Adventuring, and no `abl:` row names
    the Adventuring item (an Adventuring row that a held skill's throw beats,
-   and its roll, are `tools/live/character-sheet-adventuring.mjs`, below); the sword shows melee and
-   two-handed rows and the dagger a thrown row; clicking a row makes the roll
+   and its roll, are `tools/live/character-sheet-adventuring.mjs`, below); the sword shows one melee row,
+   at the die of the grip it is held in, and the dagger a thrown row; clicking a row makes the roll
    through core's pipeline (a chat card, the module's attack card format);
    the pin on a save row writes the actor flag, the pin on a weapon row flips
    the item's favourite. A crossbow's missile row, clicked and then starred

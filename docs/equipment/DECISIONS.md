@@ -1762,8 +1762,9 @@ damage bonus, a manoeuvre's penalty — and `roll-wrap.mjs` registers it as the
 seam's contributor and spends ammunition on the post-attack hook. The
 two-handed die of a medium weapon is the system's ALTERNATE damage mode:
 offered where the weapon table prints one and put first when the loadout
-holds the weapon in both hands; the item sheet's 2H row asks for it by name
-(`options.acksLib.damageMode`). A weapon's qualities are the system's
+holds the weapon in both hands; ~~the item sheet's 2H row asks for it by name
+(`options.acksLib.damageMode`)~~ (**superseded 2026-11-11, *A held weapon shows
+and rolls one die*: one melee row sends the held grip's mode**). A weapon's qualities are the system's
 `special.*` fields and its `customTags`; the Construction strip reads and
 writes those, and the registry's `{title, value}` tags are no longer stored.
 The loadout effect's keys are `system.ac.mod` and `system.attack.mod.*`; the
@@ -2042,6 +2043,11 @@ device is filled again by the next pass, since null also means never stated.
 `damageType`, `handy`, `thrown` and the weapon's melee and missile booleans
 are still stamped from the weapon table on every pass.
 
+> **Superseded in part 2026-11-11.** New evidence: since "No weapon ships"
+> (the same day), Annotate (`api.mjs` `annotateItem`) writes a weapon's profile
+> key and its melee and missile booleans only; `damageType`, `handy` and
+> `thrown` are no longer stamped, so a pass leaves them as the item has them.
+
 ### A helmet never replaces the suit (2026-11-10)
 
 Owner report T-0459, a character's AC still wrong after the fixes before it.
@@ -2261,3 +2267,33 @@ that holds that category alone, and a key no single option holds stays the
 category. A pick stored as the old category key still ticks the box of the option it
 resolves to, since the key is one of that option's aliases. The ability sheet's Martial
 Training list is empty until the martial options are imported, and says so.
+
+### A held weapon shows and rolls one die (2026-11-11)
+
+Owner ruling on T-0154 and T-0444 (first given 2026-09-22): the die matches
+the weapon as equipped. The auto grip chooses the best die and yields to
+wielding another one-handed item. Supersedes the line of *The attack seam rides
+the system's labelled modifiers* (2026-10-20) that had the item sheet's two-handed
+row ask for the alternate mode by name.
+
+**Ruled.**
+- `heldGrip(actor, item, attackType)` answers which grip a weapon is held in now
+  and the die it deals there. Every surface that shows a melee die or sends a
+  damage mode reads it: the Rolls tab's single `atk:melee` row (shown die and
+  the mode `rollById` sends), the Equipment-tab row line, the Follower Card's
+  melee option, and `damageModesFor`'s default. The item sheet no longer lists
+  a separate two-handed row.
+- The Follower Card reaches `heldGrip` through the equipment API, since lib
+  cannot import this feature. Its editor's damage field stays the item's own
+  base die; a die typed there is rolled in the base mode.
+- The loadout stays the one owner of the hold; `heldGrip` reads `wieldTwoHanded`
+  and adds only whether the weapon has a larger die to offer.
+
+**Rejected.** A second row for the other grip: it let the shown die and the
+rolled die differ by which row was pressed, and the grip control already
+chooses. A remap of pins or macros that name the old `atk:melee2h` row id: no
+migration for earlier worlds is built; a pin that names it matches no row.
+
+**What it cost.** The two-handed die of a weapon held in one hand is not listed
+beside the one-handed die; the grip control changes which one the row shows.
+A pin on the old two-handed row falls out until it is pinned again.

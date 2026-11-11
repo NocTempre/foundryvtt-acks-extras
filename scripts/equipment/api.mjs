@@ -57,6 +57,8 @@ import { bridgeContributions } from "./abilities-bridge.mjs";
 import * as CONFIG_DATA from "./config.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
 import { weaponRow } from "../lib/weapons.mjs";
+import { heldGrip } from "./attack-mods.mjs";
+import { heldDieTip } from "./weapon-figures.mjs";
 
 /**
  * Stamp module profile flags onto a core item from its RAW profile.
@@ -232,6 +234,8 @@ export function buildApi() {
     classifyWeapon,
     equipmentClass, // the equipment "root": name → core type + stats (the importer consumes it)
     handCost,
+    heldGrip, // the grip a weapon is held in now and the die it deals there
+    heldDieTip, // where that die came from, as a tooltip
     focusGroup,
     weaponKey,
     weaponIdentity, // which RAW weapon a document is, and on whose authority

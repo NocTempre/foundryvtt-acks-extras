@@ -45,3 +45,18 @@ export function figureTip(state, label) {
   }
   return game.i18n.format("ACKS-EQUIPMENT.props.figureMissing", f);
 }
+
+/**
+ * The tooltip of the die a weapon deals in the grip it is held in
+ * (`attack-mods.mjs` `heldGrip`): whose die it is, the item's or a row's with
+ * its page, or not imported. A weapon that offers a choice of grip names the
+ * grip in the figure's label; any other names only "Damage die".
+ *
+ * @param {{mode: string, versatile: boolean, formula: string, declared: boolean, key: string|null}} held
+ * @param {string} [dieLabel] the figure's label where the weapon offers no choice of grip; the plain "Damage die" when omitted
+ */
+export function heldDieTip(held, dieLabel = game.i18n.localize("ACKS-EQUIPMENT.itemSheet.rolls.dieLabel")) {
+  const twoHanded = held.mode === "alternate";
+  const label = held.versatile ? game.i18n.localize(`ACKS-EQUIPMENT.props.${twoHanded ? "dieTwoHanded" : "dieOneHanded"}`) : dieLabel;
+  return figureTip(figureState({ key: held.key, field: twoHanded ? "damage2h" : "damage", declared: held.declared ? held.formula : null }), label);
+}

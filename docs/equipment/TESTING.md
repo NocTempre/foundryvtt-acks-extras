@@ -185,8 +185,9 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    **Non-proficient**, apart from the weapon's own row, which carries only the
    weapon's bonus; `attackThrowRows(actor, item, "melee")`
    (`scripts/equipment/attack-mods.mjs`) returns that one row. Roll the same
-   weapon from the item sheet's 2H row: the dialog opens on the two-handed
-   die (the system's alternate damage mode first).
+   weapon from the item sheet's melee row while the loadout holds it in both
+   hands: the dialog opens on the two-handed die (the system's alternate
+   damage mode first).
 3e. Training an imported proficiency states (`tools/live/equipment-ability-training.mjs`,
    GM seat). Fixture `equipment/ability-training`: a character whose training
    effect declares one weapon class (`weaponProf` = `axe`), an equipped sword,
@@ -415,9 +416,10 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
     (imported, or made by hand; read its `deltas.damage` as D first). Give one
     the damage tier
     (`api.equipment.setMasterwork(item, "weaponToDamage")`) and type another's
-    damage to 1d10. *Observable:* the first's Rolls tab lists a one-handed row
-    at `1d6` plus D and a two-handed row at `1d8` plus D; the 1d10 Sword lists
-    one row. Silver the third (Details → Silver), press the pencil, type `1d8`
+    damage to 1d10. *Observable:* the first's Rolls tab lists one melee row, at
+    `1d6` plus D with the grip one-handed and at `1d8` plus D with it
+    two-handed (`classifyWeapon(item).damage2h` carries D); the 1d10 Sword
+    lists one row at its own die in either grip. Silver the third (Details → Silver), press the pencil, type `1d8`
     in Record → Damage with real keys and leave the field, then apply the
     damage tier. *Observable:* damage reads `1d8` plus D (it read `1d6` before
     the fix). Type `1d10` plus D, then clear masterwork and silver.
@@ -673,7 +675,7 @@ does not dereference them.
 3. **The loose match no longer beats a recorded base.**
    `weaponIdentity(sword)`. *Observable:* `twohandedsword`, and
    `classifyWeapon().damage2h` is `null` — the sword stops offering a
-   two-handed row at a smaller die than its own.
+   two-handed figure at a smaller die than its own.
 4. **A mint id identifies.** *Observable:* `Hachereau` → `battleaxe`, source
    `mint`.
 5. **A declaration outranks all of it.** `setWeaponProfile(bare, "handaxe")`.
@@ -931,7 +933,7 @@ grant for it (MODEL, "What every class throws is not a grant").
    the first three only.
 2. Character sheet, Rolls tab. *Observable:* the dart's row carries a
    Non-proficient tag; the oil's and the unholy water's do not; the torch's
-   melee and two-handed rows carry it and its thrown row does not.
+   melee row carries it and its thrown row does not.
 3. Draw the oil and press its row. *Observable:* the attack-throw dialog
    reads `1d20`, "Hits on 10+", with no Non-proficient line. Roll it; the
    chat card's formula is `1d20`. The card is the run's: delete it by its id.
@@ -1417,3 +1419,51 @@ suites only).
 The kept actor stays. The run's own cards are tracked by id and swept by that
 list, and the sweep object is printed; the overrides are cleared in a
 `finally`.
+
+## The die a held weapon shows and rolls
+
+A versatile weapon's melee die is the one answer `heldGrip` gives (MODEL, "One
+answer says which die a melee swing deals"): the Rolls tab, the Equipment-tab
+row and the Follower Card show it, and every roll sends its mode. The suite is
+`tools/test-held-grip.mjs`; this walk is the part mocks cannot reach, the
+cards the system posts and the tooltips.
+
+### Fixtures
+
+- **Kept, `equipment/held-grip`**: a `character` carrying one drawn weapon
+  whose name is a weapon row the world imported that states a two-handed die
+  (found by marker; built by `api.fixture`), with the actor's `styles` flag
+  naming the two-handed style so the auto grip takes both hands, and no
+  shield. Each run brings the weapon to shape first: drawn, `grip` flag
+  cleared, no second weapon, shield or held light on the actor.
+- **Kept, `equipment/held-grip-hireling`**: a hireling `character` with the
+  same weapon and flag, for the Follower Card.
+
+### Steps
+
+1. Open the held-grip actor's sheet, Rolls tab. *Observable:* the weapon has
+   one melee row (`wpn:<id>:atk:melee`), titled "…, two-handed", its line
+   reading the row's two-handed die and a "No shield" tag; hover the die: the
+   tooltip names the two-handed grip and the weapon-table row with its page.
+2. Press that row, skipping the dialog. *Observable:* the chat card's damage
+   formula is that same die (`api.equipment.heldGrip(actor, item).formula`),
+   not the base die. The card is the run's: track it by id.
+3. Cycle the grip control (Equipment tab) to one-handed, reopen the Rolls
+   tab. *Observable:* the row reads the base die, no "two-handed" suffix and
+   no tag; its tooltip names the one-handed grip. Press it: the card's damage
+   formula is the base die.
+4. Set the grip back to auto, then give the actor a second drawn weapon.
+   *Observable:* the first weapon's row reads the base die (the auto grip
+   yields to the other weapon) and rolls it. Remove the second weapon.
+5. Equipment tab. *Observable:* the weapon's row line carries the die the
+   Rolls row shows, with the same tooltip, in each grip of steps 1 and 3.
+6. The item sheet's Rolls tab for the same weapon. *Observable:* the same
+   single melee row and die; no second two-handed row is listed.
+7. **The Follower Card** (hireling fixture, open on the Follower Card sheet).
+   *Observable:* the weapon's attack row shows the two-handed die, tooltip
+   naming the grip and the row's page. Press its die: the card posted by the
+   system deals that die. Type a die into the row's editor: the row shows the
+   typed die with the "set by hand" tooltip and a roll deals the typed die,
+   not the two-handed one. Clear the editor's override.
+8. Teardown. The sweep of the run's tracked cards is printed; the grip flag is
+   cleared and the second weapon removed.

@@ -263,9 +263,28 @@ empty off hand that he has no hands.
 **A two-handed grip deals the row's larger die.** `classifyWeapon`'s
 `damage2h` (`twoHandedDamage`) is the row's two-handed figure, carrying any flat
 modifier the item holds on the row's own die (a masterwork tier, a dent, a
-Judge's +1). An item whose die is not the row's has no two-handed figure: the
-item sheet offers no two-handed row, and a two-handed grip deals the item's own
-damage.
+Judge's +1). An item whose die is not the row's has no two-handed figure: a
+two-handed grip deals the item's own damage.
+
+**One answer says which die a melee swing deals.** `heldGrip(actor, item,
+attackType)` (`attack-mods.mjs`, on the API) reads the loadout's hold
+(`wieldTwoHanded`: a chosen grip, or the auto grip, which yields to a second
+weapon, a shield in hand or a held light) and answers `{mode, twoHanded,
+versatile, formula, declared, key}`. `mode` is `alternate` only for a melee
+swing by a character's drawn weapon that is held in both hands and has a
+larger die to offer (the item's own alternate, or the row's two-handed figure
+of a versatile weapon); every other case is `base`. Everything that shows or
+sends a melee die reads it: the Rolls tab's single `atk:melee` row (it shows
+`formula`, names the two-handed grip and carries the no-shield note when
+`mode` is `alternate`, and `rollById` sends `mode` through
+`options.acksLib.damageMode`), the character sheet's Equipment-tab row line,
+the Follower Card's melee option (`lib/damage-type.mjs` reaches it through the
+equipment API, so lib imports nothing here), and `damageModesFor`'s default,
+which puts the held grip's mode first for a caller that names none. Each die
+carries a tooltip (`heldDieTip`) naming the grip where the weapon offers a
+choice of grips, and whether the die is the item's own or a row's with its
+page, or not imported. A hand-set die on a Follower Card replaces the weapon's
+base die and is rolled in the base mode.
 
 A weapon whose minimum cost is both hands — a bow, a crossbow, a great sword —
 is held in both (`wieldTwoHanded`) whatever else is carried; anything beside
@@ -534,8 +553,8 @@ documents in the same collection and re-renders, debounced; `_onClose`
 detaches them.
 
 **Rolls are never invented.** `rolls.mjs` gathers a weapon's attack modes
-(the system's own throw, its kind of attack named and the two-handed row
-asking for the ALTERNATE damage mode first through `options.acksLib`), the
+(the system's own throw, its kind of attack named and the one melee row
+sending the held grip's damage mode through `options.acksLib`), the
 manoeuvre overlay (an attack with `options.acksLib.maneuver`, whose penalty
 the contributor adds as a row), a spell book's formulae (listed, not rollable)
 and the lock rows (`locks.mjs`). A row gets a Roll button only where a real

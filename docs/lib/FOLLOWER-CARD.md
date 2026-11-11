@@ -71,6 +71,11 @@ shortened to a line, a roll for a proficiency with a throw, a star (below)
 and show; **Adventuring** throws, a typed figure being a card-only target;
 **Attacks**, each row a throw on the row itself and on its die, with the
 pencil opening the attack's editor under it (`is-editing`, view state only).
+A weapon's melee row shows the die of the grip the weapon is held in and rolls
+that grip's damage mode (`heldGrip`, reached through the equipment API;
+docs/equipment/MODEL.md), with a tooltip naming where the die came from; the
+editor's damage field stays the item's own base die, and a die typed there
+replaces it on the row and is rolled in the base mode.
 **Notes** as a prose editor, **Equipment** with the worn toggle, the divide
 control and the coin-order block, the class-build strips, and the caster's
 slots.

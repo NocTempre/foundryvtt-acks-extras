@@ -376,11 +376,14 @@ export class FollowerCardSheet extends foundry.applications.api.HandlebarsApplic
       side === "missile"
         ? (types.includes("missile") ? "missile" : types.includes("thrown") ? "thrown" : undefined)
         : (types.includes("melee") ? "melee" : undefined);
+    // The mode the shown die is dealt in: the grip's, or the base for a
+    // hand-set die, which the copy carries as its base formula.
+    const damageMode = stored && attackType === "melee" ? (ov?.damage != null ? "base" : target.dataset.damageMode) : null;
     this.actor.makeAttackThrow?.({
       item,
       attackType,
       skipDialog: skipDialogFor(event),
-      acksLib: this.#overrideRows(ov, side),
+      acksLib: { ...this.#overrideRows(ov, side), ...(damageMode ? { damageMode } : {}) },
     });
   }
 

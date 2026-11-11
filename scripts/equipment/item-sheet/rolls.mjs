@@ -23,8 +23,8 @@ import { isSpellbook, spellbookSpells } from "../spellbook.mjs";
 import { containerOf, isLocked } from "../containers.mjs";
 import { pickLock, bashOpen, canPick, canBash, wearingGloves } from "../locks.mjs";
 import { isWeaponProficient, weaponProficiencyDecided } from "../proficiency.mjs";
-import { figureState, figureTip } from "../weapon-figures.mjs";
-import { ATTACK_TYPE } from "../attack-mods.mjs";
+import { figureState, figureTip, heldDieTip } from "../weapon-figures.mjs";
+import { ATTACK_TYPE, DAMAGE_MODE, heldGrip } from "../attack-mods.mjs";
 import { damageGlyphOf, damageTypeLabel, damageTypeOf } from "../../lib/damage-type.mjs";
 import { ITEM_TYPE, ACTOR_TYPE } from "../../lib/vocab.mjs";
 import { signed, DASH } from "./format.mjs";
@@ -79,30 +79,23 @@ export function rollGroups(item, actor = rollerFor(item)) {
     const meleeMods = nonProficient(ATTACK_TYPE.melee);
     const missileMods = nonProficient(ATTACK_TYPE.missile);
     if (item.system?.melee ?? profile.melee) {
-      const hands = isTwoHandedOnly(profile) ? "2H" : canOneHand(profile) ? "1H" : "2H";
+      // One row, in the grip the weapon is held in now: the die it shows is
+      // the die `rollById` sends the system.
+      const held = heldGrip(actor, item);
+      const twoHandedDie = held.mode === DAMAGE_MODE.alternate;
+      const hands = held.twoHanded || isTwoHandedOnly(profile) ? "2H" : canOneHand(profile) ? "1H" : "2H";
       rows.push({
         id: "atk:melee",
         m: hands,
         glyph,
-        v: damage || null,
-        label: loc("itemSheet.rolls.row.melee"),
-        line: [`${signed(bonus)} ${loc("itemSheet.rolls.throw")}`, `${dieShown} ${typeLabel}`.trim()].join(" · "),
-        tip: dieTip,
-        mods: [...meleeMods],
+        v: held.formula || null,
+        twoHanded: twoHandedDie,
+        label: loc(twoHandedDie ? "itemSheet.rolls.row.twoHanded" : "itemSheet.rolls.row.melee"),
+        line: [`${signed(bonus)} ${loc("itemSheet.rolls.throw")}`, `${held.formula || game.i18n.localize("ACKS-EQUIPMENT.printed.notImported")} ${typeLabel}`.trim()].join(" · "),
+        tip: heldDieTip(held, loc("itemSheet.rolls.dieLabel")),
+        mods: twoHandedDie ? [...meleeMods, loc("itemSheet.rolls.mod.noShield")] : [...meleeMods],
         rollable: !!actor,
       });
-      if (profile.damage2h && canOneHand(profile)) {
-        rows.push({
-          id: "atk:melee2h",
-          m: "2H",
-          glyph,
-          v: profile.damage2h,
-          label: loc("itemSheet.rolls.row.twoHanded"),
-          line: [`${signed(bonus)} ${loc("itemSheet.rolls.throw")}`, `${profile.damage2h} ${typeLabel}`.trim()].join(" · "),
-          mods: [...meleeMods, loc("itemSheet.rolls.mod.noShield")],
-          rollable: !!actor,
-        });
-      }
     }
     if (item.system?.missile ?? profile.missile) {
       const r = item.system?.range ?? {};
@@ -208,7 +201,8 @@ export const rollIds = (groups) => groups.flatMap((g) => g.rows.map((r) => r.id)
 /**
  * Make one roll by id. Attacks go through the system's own attack throw with
  * the kind chosen: a hurled row is the system's "thrown" where the weapon
- * offers it, the two-handed row opens on the ALTERNATE damage mode, and a
+ * offers it, the melee row opens on the damage mode of the grip the weapon is
+ * held in (`heldGrip`), and a
  * manoeuvre is a melee attack with the manoeuvre declared, which the
  * equipment contributor puts on the throw as its own row. The lock rows call
  * the lock actions. Returns false when the id names nothing rollable.
@@ -227,7 +221,8 @@ export async function rollById(item, id, { event } = {}) {
       key === "missile"
         ? (types.includes("missile") ? "missile" : types.includes("thrown") ? "thrown" : "missile")
         : "melee";
-    const acksLib = key === "melee2h" ? { damageMode: "alternate" } : key === "melee" ? { damageMode: "base" } : {};
+    // The melee row sends the mode its die was shown in.
+    const acksLib = key === "melee" ? { damageMode: heldGrip(actor, item).mode } : {};
     await actor.makeAttackThrow({ item, attackType, skipDialog, acksLib });
     return true;
   }
