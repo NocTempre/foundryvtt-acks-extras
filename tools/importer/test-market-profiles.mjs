@@ -7,8 +7,9 @@
  * Judge's alias before the default map, and one that translates nowhere is
  * reported rather than dropped; the domain record's class outranks the
  * grid's and a disagreement is flagged; an import never overwrites a class,
- * a family count or a base demand the Judge already set; and a later
- * printing's base replaces an earlier one's, never the reverse.
+ * a family count or a base demand the Judge already set; a record that
+ * declares its family count a misprint supplies none; and a later printing's
+ * base replaces an earlier one's, never the reverse.
  */
 import assert from "node:assert/strict";
 import { MODULE_ID } from "../../scripts/importer/constants.mjs";
@@ -124,6 +125,29 @@ ok("a record that declares the grid's class a misprint keeps its class with no c
   assert.equal(p.marketClass, 3);
   assert.equal(p.gridClass, 5);
   assert.equal(p.classConflict, false);
+});
+
+ok("a record that declares its family count a misprint supplies none, and its place keeps the count it holds", () => {
+  const records = { mkt1: { families: "1,204", marketClass: "V", familiesErratum: "bk-p9-families" } };
+  const [p] = marketProfiles({ grids: [GRID], records, resolve: goodsResolver([]) });
+  assert.equal(p.families, null);
+  assert.equal(p.familiesErratum, "bk-p9-families");
+  // The record still supplies its class, which agrees with its row.
+  assert.equal(p.marketClass, 5);
+  assert.equal(p.classConflict, false);
+  const fresh = marketProfileUpdate(null, p, SOURCE);
+  assert.equal(fresh.wrote.families, false);
+  assert.equal("urbanFamilies" in fresh.update["system.market"], false);
+  const held = { marketClassOverride: null, urbanFamilies: 88, goods: {} };
+  for (const force of [false, true]) {
+    const { update, wrote } = marketProfileUpdate(held, p, SOURCE, { force });
+    assert.equal(wrote.families, false);
+    assert.equal("system.market.urbanFamilies" in update, false);
+  }
+  // A record that declares nothing still supplies its count.
+  const [plain] = marketProfiles({ grids: [GRID], records: { mkt1: { families: "1,204", marketClass: "V" } }, resolve: goodsResolver([]) });
+  assert.equal(plain.families, 1204);
+  assert.equal(plain.familiesErratum, null);
 });
 
 ok("a corrected market whose base this page stocked takes the class with it; any other keeps its class", () => {

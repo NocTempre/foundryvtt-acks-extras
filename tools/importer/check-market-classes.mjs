@@ -16,7 +16,10 @@
  *   - a record whose class differs from its row's and declares no
  *     `meta.gridClassErratum`;
  *   - a record that declares one while its class equals its row's, or while
- *     either class does not read, so a corrected page clears the flag.
+ *     either class does not read, so a corrected page clears the flag;
+ *   - a record that declares `meta.familiesErratum` while its family count
+ *     does not read. The count's class cannot be checked here: the bands that
+ *     map a count to a class are printed figures this module does not ship.
  *
  * Requires the LOCAL reference PDFs, so it SKIPS (exit 0) where they are
  * absent — CI included. Output names entry ids, never a class or a heading.
@@ -28,7 +31,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { openBook } from "../../scripts/importer/extract.mjs";
 import { executeEntry } from "../../scripts/importer/executor.mjs";
-import { parseMarketClass } from "../../scripts/importer/market-profile-binding.mjs";
+import { parseFamilies, parseMarketClass } from "../../scripts/importer/market-profile-binding.mjs";
 import { FILES, referenceComplete } from "./reference-lib.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -82,6 +85,11 @@ for (const f of fs.readdirSync(COOKBOOK).filter((n) => n.endsWith(".json") && n 
     if (!node?.ok) {
       faults.push(`${rec.id}: the record does not read`);
       continue;
+    }
+    // A family count the record declares a misprint is a cell the page must
+    // still print; one that no longer reads has nothing left to waive.
+    if (rec.meta?.familiesErratum && parseFamilies(node.fields?.families) === null) {
+      faults.push(`${rec.id}: declares familiesErratum ${rec.meta.familiesErratum}, but its family count does not read`);
     }
     const recordClass = parseMarketClass(node.fields?.marketClass);
     const gridClass = rowClass.get(market);

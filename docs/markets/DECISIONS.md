@@ -1068,3 +1068,49 @@ until a Judge aliased each.
 `baseIsImportable` lets the same page write it again; a base the Judge set
 stays without them. A Judge's alias for either column still outranks the
 default map (`goodsResolver`).
+
+## 2026-11-11 — AX3's market 20 families are corrected, and its demand rows 11 to 13 are suspected
+
+A probe of AX3's regional demand grids (2026-10-28) left two findings open.
+This entry rules both.
+
+**Ruled.**
+- **Market 20's families figure is a printing error, and corrected.** AX3
+  p.32's domain record for market 20 prints a class, and its grid row (p.223,
+  row 20) prints the same class. The families figure, read through the
+  families bands of RR ch. 8, falls one class away from both. `ERRATA.md`
+  records it as `ax3-p32-families`. The record declares it
+  (`meta.familiesErratum`); the binding then writes no family count from the
+  record (`marketProfiles` answers `families: null`), so a place keeps the
+  count it holds, and the place carries a note naming the entry, its link
+  opening the record's page. The record's class still lands, since it agrees
+  with its row. The register lint holds the id to `ERRATA.md`, as for
+  `gridClassErratum`; `check-market-classes` fails a declaration whose count
+  no longer reads.
+- **Demand rows 11 to 13 (sites 3, 2 and 1, AX3 p.222) are a suspected
+  printing error, and nothing is corrected.** The three rows carry identical
+  goods figures, 31 of 31 against each other, and site 3's region text names
+  a class equal to row 10's, not row 11's. No second printing tests them.
+  The importer reads the page as printed, and there is no `ERRATA.md` entry:
+  its headings are ids the register declares, and nothing here is declared.
+
+*Rejected:*
+- Taking the class as the misprint for market 20. The record and the grid
+  row agree on it; the families figure stands alone.
+- Correcting rows 11 to 13 as an offset, as `ax3-p223-offset` does for rows
+  21 to 25. That entry rests on a second printing matching the shifted rows
+  31 of 31 against a median of 8. No second printing attests a shift here,
+  and the region text is the only source that disagrees with the grid.
+- Leaving market 20's family count to import with a warning. It would write
+  a count one class off its own record onto the place.
+
+*Cost:*
+- A place built from AX3 alone for market 20 holds no family count from the
+  page until a Judge types one.
+- A world that already imported the figure keeps it; no repair rewrites it
+  (the owner's ruling is that earlier versions' data gets no repair).
+- Rows 11 to 13 import as printed, so if they are a misprint, up to two of
+  the three markets carry another market's base demand until a second
+  printing settles it.
+- One note per place: a record that declared both `gridClassErratum` and
+  `familiesErratum` would carry the class note only.

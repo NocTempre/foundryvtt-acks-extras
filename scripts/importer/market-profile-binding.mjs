@@ -122,11 +122,12 @@ export function goodsResolver(catalog = []) {
  * One profile per market row across a book's grids.
  * @param {object} args
  * @param {Array<{rows: Array<{key: string, cells: object}>, header?: object}>} args.grids executed grid outputs
- * @param {Record<string, {families?: string, marketClass?: string, gridClassErratum?: string|null}>} [args.records]
- *   domain-record reads by market key; `gridClassErratum` says the grid's class for that row is a misprint
+ * @param {Record<string, {families?: string, marketClass?: string, gridClassErratum?: string|null, familiesErratum?: string|null}>} [args.records]
+ *   domain-record reads by market key; `gridClassErratum` says the grid's class for that row is a
+ *   misprint, `familiesErratum` that the record's own family count is one, so none is read from it
  * @param {(column: string, header?: string) => string|null} args.resolve see `goodsResolver`
  * @returns {Array<{market: string, marketClass: number|null, gridClass: number|null, recordClass: number|null,
- *   families: number|null, demand: Array<{category: string, modifier: number}>,
+ *   families: number|null, familiesErratum: string|null, demand: Array<{category: string, modifier: number}>,
  *   unmapped: Array<{column: string, header: string}>, duplicates: string[], classConflict: boolean}>}
  */
 export function marketProfiles({ grids = [], records = {}, resolve }) {
@@ -171,7 +172,10 @@ export function marketProfiles({ grids = [], records = {}, resolve }) {
         marketClass: recordClass ?? gridClass,
         gridClass,
         recordClass,
-        families: parseFamilies(record?.families),
+        // A record that declares its family count a misprint supplies none, so
+        // the place keeps whatever count it holds.
+        families: record?.familiesErratum ? null : parseFamilies(record?.families),
+        familiesErratum: record?.familiesErratum ?? null,
         demand,
         unmapped,
         duplicates,

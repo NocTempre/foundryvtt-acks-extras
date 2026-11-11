@@ -191,7 +191,8 @@
       34
     ],
     "meta": {
-      "market": "mkt20"
+      "market": "mkt20",
+      "familiesErratum": "ax3-p32-families"
     },
     "assists": {
       "nameBox": {

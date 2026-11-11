@@ -263,7 +263,8 @@ const marketKeysOf = (r) =>
  * reads from a band other than the one printed beside the name: a market of
  * the grid, or one a row of the book claims (`meta.market`) whose figures no
  * band of any of its grids holds. A record's `meta.gridClassErratum` says the
- * grid's class for its row is the misprint, so the two are not a conflict.
+ * grid's class for its row is the misprint, so the two are not a conflict, and
+ * its `meta.familiesErratum` says the record's own family count is.
  * @param {Map<string, object>} rows every register row, by id
  * @param {Set<string>} errataIds the ids `ERRATA.md` defines
  */
@@ -297,6 +298,10 @@ export function erratumProblems(rows, errataIds) {
     if (meta.gridClassErratum !== undefined) {
       if (r.kind !== "kind.marketRecord") out.push(`${id}: meta.gridClassErratum belongs on a market record only`);
       else known(meta.gridClassErratum, `${id}: meta.gridClassErratum`);
+    }
+    if (meta.familiesErratum !== undefined) {
+      if (r.kind !== "kind.marketRecord") out.push(`${id}: meta.familiesErratum belongs on a market record only`);
+      else known(meta.familiesErratum, `${id}: meta.familiesErratum`);
     }
   }
   return out;

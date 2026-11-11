@@ -537,8 +537,9 @@ whose figures it holds, never by reading the name) and `kind.marketRecord`
 (one domain record; the heading proved by its `printKey` hash, plus the
 families and class cells). A page that prints names and figures out of step
 is re-keyed and declared: the grid's `meta.errata` names each market the
-correction touches, and a record's `meta.gridClassErratum` declares its grid
-row's class cell a misprint. Each names an id in `docs/importer/ERRATA.md`, which
+correction touches, a record's `meta.gridClassErratum` declares its grid
+row's class cell a misprint, and its `meta.familiesErratum` declares the
+record's own families cell one. Each names an id in `docs/importer/ERRATA.md`, which
 the register lint holds them to. A grid printed
 sideways (AX1 p.27: goods down the side, markets across) is the same kind with
 `transpose`, its goods keyed by authored band keys, AX3's column keys, and its
@@ -551,7 +552,8 @@ executes both and hands the reads to `market-profile-binding.mjs`:
   first, then `ACKS1_GOODS`. A column that resolves nowhere is reported.
 - `marketProfiles` builds, per market, the class (record over grid, a
   mismatch flagged unless the record declares `gridClassErratum`; none where
-  the page prints none), the families and the base demand rows.
+  the page prints none), the families (none from a record that declares
+  `familiesErratum`) and the base demand rows.
 - `marketProfileUpdate` writes class and families only where the place holds
   none, and the base where `baseIsImportable` allows: the base is empty, or
   its `dmProfile.source` is the same page, or a book `laterBook` ranks earlier
@@ -562,7 +564,8 @@ executes both and hands the reads to `market-profile-binding.mjs`:
   market's is (`meta.markets`, the record's `place`, else its own id), and
   never made.
 - `withErratumNote` appends to a corrected market's place one note, stamped
-  `<market id>#erratum`, citing the grid's page with a link that opens it.
+  `<market id>#erratum`, citing the grid's page with a link that opens it
+  (the record's page, for a `familiesErratum`).
   `heldErratumNotes` lets the places step count a place whose notes hold only
   such notes as empty.
 

@@ -7910,6 +7910,7 @@
   "ACKS-IMPORTER.markets.erratumMoved": "Corrected by the module (erratum {id}): the printed demand grid sets this market's figures beside another market's name. Its base demand and class are read from the figures that belong to it.",
   "ACKS-IMPORTER.markets.erratumUnprinted": "Corrected by the module (erratum {id}): the printed demand grid sets this market's name beside another market's figures and prints none of its own. No base demand or class is imported for it.",
   "ACKS-IMPORTER.markets.erratumClass": "Corrected by the module (erratum {id}): the printed demand grid gives this market a different class from its domain record. The record's class is used.",
+  "ACKS-IMPORTER.markets.erratumFamilies": "Corrected by the module (erratum {id}): the urban family count printed on this market's domain record disagrees with the record's class and the demand grid's. No family count is imported for it.",
   "ACKS-IMPORTER.markets.duplicates": "Market profiles: {n} printed good(s) feed a merchandise item another column already fills, and were left out: {list}. A good mapped through Aliases takes precedence.",
   "ACKS-IMPORTER.markets.done": "Market profiles: {made} market(s) created, {updated} updated, {paired} joined to the same market from another book, {kept} kept as set by the Judge or a later printing, {waiting} waiting for their place to be imported, {refused} skipped (page did not match the cookbook).",
   "ACKS-IMPORTER.ui.progressFactions": "Importing organisations…",

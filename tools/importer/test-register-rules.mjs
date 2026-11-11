@@ -141,6 +141,9 @@ flags("errata on a place", errata(loc("ax3.home", { meta: { errata: {} } })), /m
 none("a record whose grid class is the misprint", errata(record("ax3.mkt1", { gridClassErratum: "bk-p9-offset" })));
 flags("a grid-class erratum ERRATA.md does not define", errata(record("ax3.mkt1", { gridClassErratum: "bk-p9-class" })), /does not define/);
 flags("a grid-class erratum on a grid", errata(bandGrid({ gridClassErratum: "bk-p9-offset" })), /market record only/);
+none("a record whose family count is the misprint", errata(record("ax3.mkt1", { familiesErratum: "bk-p9-offset" })));
+flags("a families erratum ERRATA.md does not define", errata(record("ax3.mkt1", { familiesErratum: "bk-p9-families" })), /does not define/);
+flags("a families erratum on a grid", errata(bandGrid({ familiesErratum: "bk-p9-offset" })), /market record only/);
 
 /* --- one row's own meta: revisions and character binding --- */
 

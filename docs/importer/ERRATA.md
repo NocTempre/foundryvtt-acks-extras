@@ -9,8 +9,8 @@ A place the importer corrects carries a note naming the entry, with a link that
 opens the printed page.
 
 Each heading is the id the importer's register declares (`meta.errata` on a
-grid, `meta.gridClassErratum` on a record). The register lint refuses an id
-this file does not define.
+grid, `meta.gridClassErratum` or `meta.familiesErratum` on a record). The
+register lint refuses an id this file does not define.
 
 ## ax3-p223-offset
 
@@ -59,3 +59,25 @@ this file does not define.
   The place carries a note naming this entry.
 - **Ruling:** `docs/markets/DECISIONS.md`, 2026-10-28, "AX3's demand grid is
   corrected as printing errata".
+
+## ax3-p32-families
+
+- **Where:** AX3 p.32 (PDF page 34), the domain record of market 20, the
+  urban families cell. The market is row 20 of the second regional demand
+  grid (AX3 p.223).
+- **The error:** the record's families figure belongs to a different class
+  from the record's own class. The record's class and its grid row's class
+  agree with each other, and the families bands of RR ch. 8 put the printed
+  families one class away from both. The figure is the misprint, not the
+  class.
+- **What the importer does:** imports the record's class and name as for any
+  record, and writes no family count from this record onto the place; a count
+  the place already holds stays. The place carries a note naming this entry,
+  with a link that opens the record's page.
+- **Evidence:** two sources agree on the class (the record and its grid row)
+  against one that disagrees (the families figure read through the bands). AX1
+  prints neither the class nor the family count, so no second printing
+  attests the figure. The row itself is not shifted: it sits above row 21,
+  where `ax3-p223-offset` begins.
+- **Ruling:** `docs/markets/DECISIONS.md`, 2026-11-11, "AX3's market 20
+  families are corrected, and its demand rows 11 to 13 are suspected".

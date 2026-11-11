@@ -6054,7 +6054,10 @@ export function marketTakes(place, profile, source, { corrected = false, repair,
  * base demand unless an earlier printing wrote it (`baseIsImportable`). Goods
  * that translate to no merchandise, and a record whose class differs from its
  * grid row unless the record declares the grid's class a misprint
- * (`meta.gridClassErratum`), are reported. A market the grid's `meta.errata`
+ * (`meta.gridClassErratum`), are reported. A record that declares its own
+ * family count a misprint (`meta.familiesErratum`) writes none onto its place.
+ * A place carries one erratum note, its citation on the page the misprint is
+ * on. A market the grid's `meta.errata`
  * names carries a note citing the page, and one no band holds is cleared of
  * what this page wrote (`unprintedMarketUpdate`). See docs/markets/DECISIONS.md,
  * "A setting book's market profile lands as the base", "A later printing's
@@ -6106,6 +6109,9 @@ export async function cookbookImportMarketProfiles({ books: only = null, repair 
         name: placeName(printedNameOf(node, "")),
         place: e.meta.place ?? null,
         gridClassErratum: e.meta.gridClassErratum ?? null,
+        familiesErratum: e.meta.familiesErratum ?? null,
+        cite: e.cite ?? "",
+        page: e.pages?.[0],
       };
     }
     const label = bookLabel(bookId);
@@ -6124,9 +6130,11 @@ export async function cookbookImportMarketProfiles({ books: only = null, repair 
         // A market the grid's errata names carries a note citing this page,
         // so the Judge can see what was corrected and open the printing.
         const errata = e.meta?.errata ?? {};
-        const noteErratum = async (place, entryId, key, erratum) => {
+        // The citation opens the grid's page, or `at`'s where the misprint is
+        // on a record's.
+        const noteErratum = async (place, entryId, key, erratum, at = { cite: e.cite ?? "", page: e.pages?.[0] }) => {
           const text = game.i18n.format(`${LANG_PREFIX}.markets.${key}`, { id: erratum });
-          const notes = withErratumNote(place.system?.notes ?? "", { entryId, text, cite: e.cite ?? "", book: bookId, page: e.pages?.[0] });
+          const notes = withErratumNote(place.system?.notes ?? "", { entryId, text, cite: at.cite, book: bookId, page: at.page });
           if (notes !== null) await place.update({ "system.notes": notes });
         };
         for (const profile of marketProfiles({ grids: [grid], records: recordOf, resolve })) {
@@ -6177,6 +6185,7 @@ export async function cookbookImportMarketProfiles({ books: only = null, repair 
           }
           if (corrected) await noteErratum(place, entryId, "erratumMoved", corrected);
           else if (record?.gridClassErratum) await noteErratum(place, entryId, "erratumClass", record.gridClassErratum);
+          else if (record?.familiesErratum) await noteErratum(place, entryId, "erratumFamilies", record.familiesErratum, record);
           if (fresh) counts.made++;
           else if (paired) counts.paired++;
           else if (wrote.marketClass || wrote.families || wrote.demand) counts.updated++;

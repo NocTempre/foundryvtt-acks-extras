@@ -283,6 +283,12 @@
 
 ### Fixed
 
+- **AX3's market 20 no longer imports a misprinted family count.** The urban
+  family count AX3 prints on that market's domain record (p. 32) disagrees
+  with the class the record and the demand grid both print. *Import
+  Everything* on AX3 now writes no family count for that market, keeps any
+  count the place already holds, and leaves a note on the place naming the
+  correction, with a link that opens the page.
 - **A reaction roll opened from the sheet lists the target's standing.** With a
   token targeted, the character sheet header's Influence button now opens the
   reaction roll with the target's standing rows and relation notes, as a roll
