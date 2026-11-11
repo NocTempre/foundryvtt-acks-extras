@@ -5212,3 +5212,56 @@ hand keeps it off; a delete is refused.
 - **Light and proficiency are two checks.** Without a light there is no
   mapping; without the proficiency the measurements are vague.
 - **No mapper means "?".** Measurements read as unknown, as they do now.
+
+## 2026-11-11 — Mapping is two checks, read where the mapper stands
+
+**Asked.** The only gate on mapping was "some lit, open light exists somewhere
+in the formation". It read no place and no radius, ignored the day and a magic
+light, let a dead, down or left-behind mapper map, saw only the first mapper,
+and sat below the fog switch so a world with fog management off never had its
+measurement read. The strip's light warning ignored the switch that gates the
+rule and the proficiency warning reached every seat.
+
+**Ruled (the owner, 2026-11-11), built.** Mapping is two checks. No light, no
+mapping: the scene's measurement reads "?" and the fog goes the way it already
+does on a failed light. No proficiency, vague measurements: `fuzzMeasurement`
+stays, it implements the rule. `mapperNeedsLight` is a GM automation override
+and stays; with it off the module assumes light. No mapper, "?" stands. The
+three lines under "Also recorded here" above are the same rulings; this entry
+is their build. MODEL, "Mapping", has the mechanics.
+
+**Built here, not ruled.**
+- **Lit is read where the mapper stands**, by the day outside or a light whose
+  bright reach covers their place, straight-line. A world with no light figures
+  imported reads a lit, open flame as lighting them and the surface says "not
+  imported", the way every other surface with nothing imported does.
+- **Several mappers.** The verdict is per mapper. Proficiency counts over the
+  mappers who are mapping (working and lit), so a proficient mapper in the dark
+  does not make the record, while who holds a new Map item and whether an
+  archive is warped count over those who can work: an archive only happens with
+  the fog on, which needs a mapper mapping.
+- **A mapper who cannot work maps nothing**: dead, down, left behind, or out on
+  another scene.
+- **The measurement and its release stand above the fog switch.**
+- **The fog notice is whispered to the GMs**: it tells the table whether the
+  party can map.
+- **The proficiency warning is the Judge's alone**; the light warning shows only
+  with the switch on, naming who is unlit.
+
+**Rejected.**
+- **A house rule that lets the party map in the dark.** None ships; the switch
+  is an automation override for a Judge who runs the light by hand.
+- **Reading the column's canvas lights.** They draw only with light sync on and
+  a visible party token, so a world with either off would read "?" with a torch
+  burning. The record gives the same lights.
+- **Counting a proficient but unlit mapper for the measurement.** Their hand
+  draws nothing; a lit unproficient mapper beside them is the record.
+- **Hiding the state from players.** Whether the party is mapping, and by what
+  light, is observable at the table; only the proficiency is secret.
+
+**Cost.** A world with fog management off now has its scene measurement
+written: players see "~" distances or "?" where before they saw true ones, until
+a party is mapping. A burst of edits that move a light (a token drag, an ambient
+light, a shutter) is one extra environment sweep, debounced. A light outside a
+wall still lights a mapper, as every straight-line light read in the module
+does.

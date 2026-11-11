@@ -511,17 +511,38 @@ export function hasAbility(actor, pattern) {
   return actor?.items?.some((i) => i.type === ITEM_TYPE.ability && pattern.test(i.name)) ?? false;
 }
 
-/** The formation's mapper actor, if a member has the Mapper role. */
+/** Does this actor hold the Mapping proficiency (RR ch. 3), by its capability or an ability of that name? */
+export function actorMapsProficiently(actor) {
+  return !!actor && (hasCapability(actor, "kw:mapping") || hasAbility(actor, /mapping/i));
+}
+
+/**
+ * Can this member work the mapper's kit now? Not when the actor is gone, the
+ * party has left the member behind, the cell is a stack (no single pair of
+ * hands), or the member is down or dead.
+ */
+export function memberCanWork(member, actor = getMemberActor(member)) {
+  return !!actor && !member?.left && !isStackMember(member) && !isCasualty(actor, member);
+}
+
+/** The members holding the Mapper role, in marching order, working or not. */
+export function mapperMembers(formation) {
+  return realMembers(formation).filter((m) => m.roles?.includes("mapper"));
+}
+
+/**
+ * The actor of the first member holding the Mapper role who can work the kit,
+ * or null. The party has several mappers when it wants them; the one who can
+ * work holds a new map.
+ */
 export function getMapperActor(formation) {
-  const member = formation.members.find((m) => m.roles?.includes("mapper"));
+  const member = mapperMembers(formation).find((m) => memberCanWork(m));
   return member ? getMemberActor(member) : null;
 }
 
-/** Is the formation's mapper proficient in Mapping (RR p. 114)? */
+/** Is a mapper who can work the kit proficient in Mapping (RR ch. 6, "Marching and Mapping")? */
 export function mapperIsProficient(formation) {
-  const mapper = getMapperActor(formation);
-  if (!mapper) return false;
-  return hasCapability(mapper, "kw:mapping") || hasAbility(mapper, /mapping/i);
+  return mapperMembers(formation).some((m) => memberCanWork(m) && actorMapsProficiently(getMemberActor(m)));
 }
 
 /** Whether this seat lacks a character's derived figures: core computes them for its owner and a GM alone. */
@@ -877,15 +898,19 @@ export function formationHasLight(formation) {
  */
 export { canSeeInDark };
 
+/** Is the scene itself dark? Its darkness level reads half or more; no scene reads as not dark. */
+export function sceneIsDark(scene) {
+  if (!scene) return false;
+  const darkness = scene.environment?.darknessLevel ?? scene.darkness ?? 0;
+  return darkness >= 0.5;
+}
+
 /**
  * Is the party effectively in darkness? Only when the scene itself is dark
  * (so daylight travel is unaffected) and no unshuttered light is lit.
  */
 export function isPartyInDark(formation) {
-  const scene = getPartyScene(formation);
-  if (!scene) return false;
-  const darkness = scene.environment?.darknessLevel ?? scene.darkness ?? 0;
-  if (darkness < 0.5) return false;
+  if (!sceneIsDark(getPartyScene(formation))) return false;
   return !formationHasLight(formation);
 }
 

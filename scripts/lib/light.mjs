@@ -630,6 +630,64 @@ function centreOf(doc, gridSize) {
   return { x: doc.x + (w * gridSize) / 2, y: doc.y + (h * gridSize) / 2 };
 }
 
+/** The scene's darkness level, 0 (day) to 1 (night). */
+function darknessOf(scene) {
+  return Number(scene?.environment?.darknessLevel ?? scene?.darkness ?? 0) || 0;
+}
+
+/**
+ * Whether a stored light source shines at all, for the reader that must not
+ * count a source that only looks like one: a darkness source (`negative`)
+ * sheds none, and a light with an activation range shines only while the
+ * scene's darkness is inside it.
+ */
+function shinesNow(config, darkness) {
+  if (config?.negative) return false;
+  const { min = 0, max = 1 } = config?.darkness ?? {};
+  return darkness >= min && darkness <= max;
+}
+
+/**
+ * The largest bright radius, in scene units, among the scene's sources that
+ * reach `me` (a pixel point): ambient lights, tokens' own lights and a
+ * marching column's lights. Straight-line, ignoring walls. `strict` also
+ * leaves out a source that does not shine (`shinesNow`); `extra` is more
+ * points, `{x, y, bright}`, a caller holds that no document stores.
+ */
+function strongestReach(scene, me, { strict = false, extra = [] } = {}) {
+  const perUnit = pixelsPerUnit(scene);
+  if (!perUnit) return 0;
+  const gridSize = Number(scene.grid.size);
+  const darkness = darknessOf(scene);
+
+  let best = 0;
+  const consider = (source, radius) => {
+    const bright = Number(radius) || 0;
+    if (bright <= best) return; // cannot win; skip the distance work
+    const at = centreOf(source, gridSize);
+    const feet = Math.hypot(at.x - me.x, at.y - me.y) / perUnit;
+    if (feet <= bright) best = bright;
+  };
+
+  for (const light of scene.lights ?? []) {
+    if (light.hidden || (strict && !shinesNow(light.config, darkness))) continue;
+    consider(light, light.config?.bright);
+  }
+  for (const other of scene.tokens ?? []) {
+    if (other.hidden || (strict && !shinesNow(other.light, darkness))) continue;
+    consider(other, other.light?.bright);
+  }
+  // The lights a marching column sheds from its bearers' cells, which no
+  // document stores. Asked through the shared namespace, as `bearerLights`
+  // asks: each point is a pixel centre with a bright radius in scene units.
+  const columnPoints = globalThis.acksExtras?.formation?.carriedLightPoints;
+  if (typeof columnPoints === "function") {
+    for (const point of columnPoints(scene) ?? []) consider({ x: point.x, y: point.y, width: 0, height: 0 }, point.bright);
+  }
+  for (const point of extra) consider({ x: point.x, y: point.y, width: 0, height: 0 }, point.bright);
+  return best;
+}
+
 /**
  * The largest BRIGHT radius, in scene units, whose source actually reaches
  * this token — the "light range" ACKS Night Vision doubles indoors (MM §5;
@@ -647,32 +705,26 @@ export function brightestLightReaching(tokenDoc) {
   const scene = tokenDoc?.parent;
   const perUnit = pixelsPerUnit(scene);
   if (!perUnit) return 0;
-  const gridSize = Number(scene.grid.size);
-  const me = centreOf(tokenDoc, gridSize);
+  return strongestReach(scene, centreOf(tokenDoc, Number(scene.grid.size)));
+}
 
-  let best = 0;
-  const consider = (source, radius) => {
-    const bright = Number(radius) || 0;
-    if (bright <= best) return; // cannot win; skip the distance work
-    const at = centreOf(source, gridSize);
-    const feet = Math.hypot(at.x - me.x, at.y - me.y) / perUnit;
-    if (feet <= bright) best = bright;
-  };
-
-  for (const light of scene.lights ?? []) {
-    if (light.hidden) continue;
-    consider(light, light.config?.bright);
-  }
-  for (const other of scene.tokens ?? []) {
-    if (other.hidden) continue;
-    consider(other, other.light?.bright);
-  }
-  // The lights a marching column sheds from its bearers' cells, which no
-  // document stores. Asked through the shared namespace, as `bearerLights`
-  // asks: each point is a pixel centre with a bright radius in scene units.
-  const columnPoints = globalThis.acksExtras?.formation?.carriedLightPoints;
-  if (typeof columnPoints === "function") {
-    for (const point of columnPoints(scene) ?? []) consider({ x: point.x, y: point.y, width: 0, height: 0 }, point.bright);
-  }
-  return best;
+/**
+ * The largest bright radius, in scene units, among the lights that shine on a
+ * point of the scene: what a reader asks of a square, a body's place in a
+ * column or a token's centre. Reads what `brightestLightReaching` reads, but
+ * counts only a source that shines now: a darkness source (`negative`) never
+ * does, and a source with an activation range does only while the scene's
+ * darkness sits in it. Straight-line, ignoring walls, and answers for a scene
+ * nobody is viewing.
+ *
+ * @param {Scene} scene
+ * @param {{x: number, y: number}} point pixel centre
+ * @param {object} [opts]
+ * @param {{x: number, y: number, bright: number}[]} [opts.extra] further light
+ *   points the caller reads from its own record, `bright` in scene units
+ * @returns {number} bright radius in scene units, 0 when nothing reaches
+ */
+export function brightestLightAt(scene, point, { extra = [] } = {}) {
+  if (!scene || !Number.isFinite(point?.x) || !Number.isFinite(point?.y)) return 0;
+  return strongestReach(scene, point, { strict: true, extra });
 }

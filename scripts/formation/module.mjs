@@ -1310,6 +1310,52 @@ Hooks.on("updateActor", (actor, changes) => {
   syncKit();
 });
 
+/* Whether a party is mapping reads the light where the mapper stands
+ * (mapping.mjs), and almost nothing that moves that light writes the formation
+ * record the sweep otherwise answers to: the day turning, an ambient light
+ * edited, a token walking or changing its light, a magic light shuttered or
+ * stowed. Each is a fresh look at every party that has a mapper on that scene,
+ * debounced so a drag or a burst of edits is one sweep. */
+const mappingParties = () =>
+  Object.values(getFormations()).filter((f) => f.members.some((m) => m.roles?.includes(ROLES.MAPPER)));
+const mapsOnScene = (sceneId) => !!sceneId && mappingParties().some((f) => f.sceneId === sceneId);
+const memberHoldsMapping = (actor) => !!actor?.id && mappingParties().some((f) => f.members.some((m) => m.actorId === actor.id));
+let lookAtMappingSoon = null;
+const lookAtMapping = () => {
+  lookAtMappingSoon ??= foundry.utils.debounce(
+    () => syncEnvironments().catch((err) => console.error(`${MODULE_ID} | mapping sync failed`, err)),
+    300,
+  );
+  lookAtMappingSoon();
+};
+const ownerActorOf = (doc) => (doc?.parent?.documentName === "Actor" ? doc.parent : doc?.parent?.parent ?? null);
+for (const hook of ["createActiveEffect", "updateActiveEffect", "deleteActiveEffect", "createItem", "updateItem", "deleteItem"]) {
+  Hooks.on(hook, (doc) => {
+    if (!isPrimaryGM()) return;
+    const actor = doc?.documentName === "Item" ? doc.parent : ownerActorOf(doc);
+    if (memberHoldsMapping(actor)) lookAtMapping();
+  });
+}
+for (const hook of ["createAmbientLight", "updateAmbientLight", "deleteAmbientLight"]) {
+  Hooks.on(hook, (light) => {
+    if (isPrimaryGM() && mapsOnScene(light?.parent?.id)) lookAtMapping();
+  });
+}
+Hooks.on("updateScene", (scene, changes) => {
+  if (!isPrimaryGM() || !mapsOnScene(scene.id)) return;
+  if (foundry.utils.hasProperty(changes, "environment") || foundry.utils.hasProperty(changes, "darkness")) lookAtMapping();
+});
+Hooks.on("updateToken", (tokenDoc, changes) => {
+  if (!isPrimaryGM() || !mapsOnScene(tokenDoc.parent?.id)) return;
+  const moved = ["x", "y", "width", "height", "hidden", "light", "elevation"].some((key) => key in changes);
+  if (moved) lookAtMapping();
+});
+/* The two switches the verdict and its measurement answer to. */
+const MAPPING_SETTINGS = ["mapperNeedsLight", "fuzzMeasurement"].map((key) => `${MODULE_ID}.${key}`);
+Hooks.on("updateSetting", (setting) => {
+  if (isPrimaryGM() && MAPPING_SETTINGS.includes(setting.key)) lookAtMapping();
+});
+
 /* -------------------------------------------- */
 /*  UI entry points                              */
 /* -------------------------------------------- */

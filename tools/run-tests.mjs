@@ -80,6 +80,7 @@ const COMMITTED = [
   "test-formation-column.mjs",
   "test-formation-binding.mjs",
   "test-mapper-vulnerable.mjs",
+  "test-mapper.mjs",
   "test-light-binding.mjs",
   "test-delve-encounter-binding.mjs",
   "test-skill-audit-roll.mjs",

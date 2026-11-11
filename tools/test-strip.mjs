@@ -428,6 +428,46 @@ const stripOf = (id) => {
 }
 
 /* -------------------------------------------- */
+/*  The mapper's warnings                       */
+/* -------------------------------------------- */
+
+{
+  const scene = makeScene("S.strip.mapper", { kind: "hex", miles: 7 });
+  scene.environment = { darknessLevel: 1 };
+  const token = makeToken(scene, "t.strip.mapper");
+  const id = makeFormation(scene, token, { mode: "delve" });
+  settings.formations[id].members[0].roles = ["mapper"];
+  const warnings = () => buildWarnings(getFormation(id), 120).join("\n");
+  const mapper = actors.get(settings.formations[id].members[0].actorId);
+
+  assert.match(warnings(), /warnings\.mapperNoLight/, "a mapper no light reaches is warned of, by name");
+  assert.match(warnings(), /warnings\.mapperNoProficiency/, "the Judge is told the mapper lacks the proficiency");
+
+  game.user.isGM = false;
+  assert.match(warnings(), /warnings\.mapperNoLight/, "a player still sees the light warning");
+  assert.doesNotMatch(warnings(), /mapperNoProficiency/, "the proficiency warning is the Judge's alone");
+  game.user.isGM = true;
+
+  settings.mapperNeedsLight = false;
+  assert.doesNotMatch(warnings(), /mapperNoLight/, "with the light requirement off the module assumes light and has no light to warn of");
+  assert.match(warnings(), /mapperNoProficiency/, "and the proficiency warning is unaffected by it");
+  delete settings.mapperNeedsLight;
+
+  scene.environment = { darknessLevel: 0 };
+  assert.doesNotMatch(warnings(), /mapperNoLight/, "the day outside lights the mapper");
+  scene.environment = { darknessLevel: 1 };
+
+  mapper.items = [{ type: "ability", name: "Mapping" }];
+  assert.doesNotMatch(warnings(), /mapperNoProficiency/, "a proficient mapper draws no proficiency warning");
+  mapper.items = [];
+
+  mapper.statuses = new Set(["dead"]);
+  assert.match(warnings(), /warnings\.mapperDown/, "a mapper who cannot work is named");
+  assert.doesNotMatch(warnings(), /mapperNoLight/, "and the light warning leaves them out");
+  mapper.statuses = new Set();
+}
+
+/* -------------------------------------------- */
 /*  The templates                               */
 /* -------------------------------------------- */
 

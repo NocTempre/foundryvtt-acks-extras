@@ -3956,3 +3956,69 @@ no combat holding them.
 **Teardown.** `api.sweepTracked({only})` over the combats and the status
 effects the run tracked. The fixtures stay. The party's name and the member's
 role are put back.
+
+## The mapper (added with the mapping verdict)
+
+Whether a party is mapping: `docs/formation/MODEL.md`, "Mapping". Walked by
+`tools/live/formation-mapper-mapping.mjs` from the GM seat and the Player seat.
+Offline, `tools/test-mapper.mjs` pins the verdict and `tools/test-strip.mjs` the
+warnings. The walk never calls the environment sync: each step is a real write
+(an effect, an item, a status, a setting, the scene), and what the sync reads
+afterward is the observable, so a write the hooks in `module.mjs` do not catch
+shows as a verdict that never moves.
+
+**Fixtures** (kept; found by marker): scene `formation/mapper-lit-scene` (5 ft
+cells, dark, fog on its own mode), party `formation/mapper-lit-party` with its
+adopted token, characters `formation/mapper-lit` (the mapper, first in the
+column) and `formation/mapper-lit-bearer` (one cell behind, carries the light).
+The walk's own ledger holds the magic-light effect, the Mapping ability, the
+status effect, the Map item a session opens and the cards the sync posts; the
+Map item and the cards are found afterward by the mapper and by the scene's name
+inside the run's window, and swept by those ids. Built where absent: the party
+token (`api.create`, tracked). The party's `mapSession` is set to null at the
+start and the end.
+
+**Settings** the walk flips, each read first and put back in a `finally`:
+`manageFog`, `fuzzMeasurement`, `mapperNeedsLight`. It also writes the scene's
+darkness and fog mode and the mapper's role, and puts them back.
+
+1. **No light.** Dark scene, fog management off, no light on either character.
+   **Observable:** on the GM seat the verdict is not mapping with block `dark`,
+   one working mapper and none lit; the scene's `measure` flag reads `unknown`
+   on both seats although fog management is off; the strip names no light
+   reaching the mapper on both seats; the proficiency warning shows on the GM
+   seat and not on the Player seat.
+2. **A magic light in reach.** An effect on the bearer writing the bright
+   radius key, an invented reach covering one cell. **Observable:** mapping,
+   `litBy` `light`, flag `fuzzy` on both seats (no proficiency), no light
+   warning.
+3. **Out of reach.** The same effect with a reach under one cell.
+   **Observable:** `dark` again and `unknown`; back in reach, `fuzzy`.
+4. **Shuttered.** `setLightShutter(effect, true)`. **Observable:** the flag
+   returns to `unknown` with no other write, so the light-moving hooks carry it.
+5. **The day.** Scene darkness 0 with the light still shuttered. **Observable:**
+   `litBy` `ambient`, `fuzzy`; darkness 1 again returns `unknown`.
+6. **The proficiency.** The light open, then an ability named for Mapping on
+   the mapper. **Observable:** the flag `off` on both seats and the Judge's
+   warning gone. With the light shuttered again the party still reads not
+   mapping (light is its own check). Delete the ability: `fuzzy`.
+7. **The Judge's switch.** Shutter the light, set `mapperNeedsLight` off.
+   **Observable:** mapping, `litBy` `assumed`, `fuzzy`, no light warning; on
+   again, `unknown`.
+8. **A mapper who cannot work.** Toggle `dead` on the mapper. **Observable:**
+   block `down`, zero working, `unknown`; the strip says the mapper cannot work
+   the kit and does not say no light reaches them; lifting `dead` returns
+   `fuzzy`.
+9. **The fog.** Fog management on, scene dark, the light shuttered.
+   **Observable:** the scene's fog mode is disabled, the management flag keeps
+   the original mode, the cards naming the scene went to the GMs alone and none
+   to the table; the light open again, the fog is back. Close the session the
+   sync opened (`mapSession` null) and track the Map item.
+- Console: a recorder attached before the GM seat's reload reads `init`,
+  `setup` and `ready` clean of any error naming mapping, the mapper or the
+  environment sync, and the page's own error listener sees none across the walk.
+
+**Teardown.** `api.sweepTracked({only})` over the run's effect, ability, status
+effect, Map items, cards and party token. The fixtures stay. The settings, the
+scene's darkness and fog mode and its management flag, and the mapper's role are
+put back.

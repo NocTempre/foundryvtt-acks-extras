@@ -16,7 +16,7 @@ Legend: ✅ automated · 🟡 partial / assisted · 🔧 needs development · �
 | Marching order & roles (§3) | ✅ | Ordered list, Scout/Mapper/Pole/Rear Guard/Non-combatant chips. |
 | Corridor-width formation (RR ch. 6, Marching and Mapping) (§3) | 🟡 | The party marches as a column of one cell per body along the ground it walked, at the declared frontage, and squeezes where a wall shuts a file out: the file goes to the other hand or the next rank, drawn, lit and deployed alike (MODEL "The column", Walls). What remains is the squeeze reaching the **rules**: the procedures that count ranks (trap victims, `effectiveFrontage()`, which nothing reads yet) still count the declared frontage, and a per-formation toggle to march unsqueezed. |
 | Mapper: bright light, both hands, **vulnerable** (§3.1) | 🟡 | Light requirement drives fog. **Hands are now real**: the role needs a quill and parchment (`ROLE_GEAR`) and each piece occupies a hand in the equipment loadout, so a mapper cannot also hold a drawn weapon. v0.5.0 warns when the mapper lacks the Mapping proficiency (vague measurements, no passive error detection). *Vulnerable* is applied automatically and lifts on the mapper's first free turn of a fight (shipped; docs/formation/MODEL.md, "The mapper is vulnerable"). |
-| Mapping proficiency (secret error-detection throw) (§3.1) | 🔧 | **Unblocked 2026-08-16** — the proficiency text is now in the local extract (`acks-rules/acks-formation/PROFICIENCIES.md`), which states the throw: one turn and an 11+ to interpret a layout, map from memory, or notice an irregularity in one's own map. What is still missing is development, not text: a "map error" concept, which is only meaningful now the map-object system exists (an unproficient mapper's Map item could get GM-injected distortions). |
+| Mapping proficiency (secret error-detection throw) (§3.1) | 🔧 | **A Judge-only party check, `kw:mapping`.** The proficiency text is in the local extract (`acks-rules/acks-formation/PROFICIENCIES.md`); its throw is the Judge's secret one, rolled for a mapper who can work and holds the proficiency, when the map and the ground disagree. Not built: it is one more Judge-only entry in `PARTY_CHECKS`, resolved as the other party checks are (MODEL, "The party check's throw"), with the result shown to the Judge alone. What the proficiency changes today is read by the mapping verdict (MODEL, "Mapping"): exact measurements, and a Map item that is not warped. |
 | Light sources & burnout (§4) | ✅ | Burn clock, guttering, inventory consumption, light from each bearer's cell in the column; reach and burn time imported (lib's light table). |
 | Shadowy senses / lightless vision (§4) | ✅ | Both now reach the TOKEN: sight derived from the sheet by the lib subsystem `senses.mjs` (shadowy 30', lightless its recorded range, both as dim monochrome; ordinary eyes range 0, seeing only what is lit). Applies to any actor, in a party or not. Mapping still requires bright light, so the mapper gating is unchanged — RAW, senses cannot do bright-light tasks. |
 | Searching & listening throws (§5) | ✅ (v0.5.0) | Party-roll buttons (Listen / Hasty Search / Methodical Search / Bash Door) roll every member using **their sheet's numbers** — a matching ability item's rollTarget (thief skills) first, else the sheet's Adventuring target — GM-whispered as one card. RAW enforced: hasty search skill-only, methodical +4 for skill users and auto-consumes 1 turn, listening once per turn while moving, bashing ±4×STR. |
@@ -54,9 +54,9 @@ black, the union re-archives on each dungeon-turn tick and at session end,
 the fog-reload socket tells clients to re-pull after GM-side surgery,
 anchoring composites a held Map item into every user's FogExploration
 (sceneId-guarded), and "Save my current fog as a Map item" gives the GM the
-sellable-map author. Mapping pauses — session intact — while there is no
-working mapper, no unshielded lit light (setting-gated), a hurried pace, or
-an active combat.
+sellable-map author. Mapping pauses — session intact — while the party is
+not mapping (MODEL, "Mapping"): no mapper who can work, no light reaching
+one (setting-gated), a hurried pace, or an active combat.
 
 Still unbuilt, in likely order:
 - **Auto-suggest anchoring** — pixel-test the party's position against a held

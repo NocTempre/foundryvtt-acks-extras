@@ -430,6 +430,70 @@ collapse to one, and a marked effect a hand disabled stays disabled. Whoever
 no longer qualifies (role set down, member removed, an actor no formation
 holds) has the marked effect deleted by the same sweep.
 
+## Mapping
+
+Whether a party is mapping is one verdict, read by the fog, the scene's
+measurement flag, the Map item, the warnings strip and the Kit tab's Maps
+section (RR ch. 6, "Marching and Mapping"). It is two checks that never merge:
+
+- **Light decides whether anyone maps.** A mapper the light does not reach
+  draws nothing: the party is not mapping, the scene's measurements read "?"
+  and the fog closes as it does for any party that is not mapping.
+- **Proficiency decides how good the record is.** A party that maps with no
+  proficient mapper keeps its fog and gets vague measurements (`measure-fuzz.mjs`'s
+  `fuzzy`), and its Map item is warped when archived. The Judge alone is told
+  of it: the proficiency warning is built for a GM seat only.
+
+Several mappers are allowed, each with their own facts. `mappersOf`
+(`mapping.mjs`) gives, per Mapper-role member in marching order, `{working, lit,
+litBy, proficient}`; `mapper-logic.mjs` turns them into the verdict with no
+Foundry globals (`formationMapping`, `mapperLit`, `measureModeFor`).
+
+- **Working.** The actor exists, the party has not left the member behind, the
+  cell is not a stack, the member is not down or dead, and the member's own
+  token does not stand on another scene (`memberCanWork`). A mapper who is not
+  working maps nothing and is no one's proficiency.
+- **Lit.** With the light requirement on (`mapperNeedsLight`, the Judge's
+  automation switch), a mapper is lit by the day outside (a delve's scene
+  darkness below one half, a journey's clock by day: `ambientBright`), or by a
+  light whose bright reach covers the mapper's place, or by a lit, open flame
+  whose reach is not imported (`litBy` says which; nothing is a figure). With
+  the switch off the module assumes light and reads none. A light shuttered by
+  hand, stowed, doused or closed lights no one.
+- **The mapper's place** is the centre of their cell in the party's column, or
+  of their own token while they stand out on the map. The light reaching it is
+  `lib/light.mjs`'s `brightestLightAt`: the scene's ambient lights and tokens'
+  lights (a darkness source and a light outside its activation range left out),
+  plus the formation's own record, which the sweep reads whether or not light
+  sync draws the column's lights on the canvas: each bearer's flames and effect
+  light from their cell, and a deployed member's from their token. Straight
+  line, through no wall.
+- **Proficient** is the actor's `kw:mapping` capability or a Mapping ability
+  (`actorMapsProficiently`). The verdict counts it only over the mappers who are
+  mapping (working and lit), so a proficient mapper in the dark does not make
+  the record; `getMapperActor` (who holds a new Map item) and
+  `mapperIsProficient` (whether an archive is warped) count over the mappers
+  who can work, lit or not.
+
+Not mapping, in this order: no mapper, a fight on, a hurried pace, no mapper who
+can work, no light reaching any who can. A scene's measurement is exact in a
+fight and with a proficient party mapping, vague with an unproficient one
+mapping, and "?" when no party on it is mapping.
+
+`scene-sync.mjs` runs it: the measurement and its release stand above the fog
+switch (so they follow with fog management off), the fog and the auto-started
+map session below it. Fog closing or reopening is announced to the GMs by
+whisper. Nothing that moves a light writes the formation record, so
+`module.mjs` listens for what does (the day turning, an ambient light, a token's
+step or light, a magic light's shutter or its item's container, the Judge's light
+and measurement switches) and re-runs the
+sweep, debounced, on the active GM.
+
+The Kit tab's Maps section shows the state ("Mapping" or "Not mapping") with a
+tooltip naming, per mapper, whether they can work and what lights them, and the
+pause a fight or a hurry puts on it. Neither the strip nor the tooltip says
+whether a mapper has the proficiency.
+
 ## Which way the block points
 
 A deploy lays the marching order out as a block: files spread across the line of

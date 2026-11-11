@@ -21,6 +21,7 @@ import {
   getFrontage,
   getMapperActor,
   getMemberActor,
+  mapperMembers,
   realMembers,
   getPartyScene,
   getPartyToken,
@@ -35,6 +36,8 @@ import {
   partySpeed,
 } from "./formation-model.mjs";
 import { isMemberDeployed } from "./deployment.mjs";
+import { LIT_BY, MAP_BLOCK } from "./mapper-logic.mjs";
+import { journeyIsNight, mappingNeedsLight, mappingOf } from "./mapping.mjs";
 import { bringableActors } from "./membership.mjs";
 import { senseProfile } from "../lib/senses.mjs";
 import { mountOf } from "../lib/mount.mjs";
@@ -373,6 +376,31 @@ export function buildFormationView(formation) {
 /*  Maps (shared, per-user sanitized)           */
 /* -------------------------------------------- */
 
+/** The `map.state` lang key, under this feature's root, that says how a mapper came to be lit. */
+const LIT_STATE_KEY = Object.freeze({
+  [LIT_BY.AMBIENT]: "litAmbient",
+  [LIT_BY.LIGHT]: "litLight",
+  [LIT_BY.UNIMPORTED]: "litUnimported",
+  [LIT_BY.ASSUMED]: "litAssumed",
+});
+
+/**
+ * Whether the party is mapping, for the Maps section: `{mapping, label, tip}`.
+ * The tip is where the verdict came from, one line per mapper (can they work,
+ * and what lights them) and the pause a fight or a hurry puts on it. It carries
+ * no figure and never says whether a mapper has the proficiency, which stays a
+ * Judge's secret. Assembled at render, so it reaches the template as text.
+ */
+function mapStateView(verdict) {
+  const say = (key, data) => game.i18n.format(`ACKS-FORMATION.map.state.${key}`, data);
+  const lines = verdict.mappers.map((m) =>
+    m.working ? say("works", { name: m.name, lit: say(m.lit ? LIT_STATE_KEY[m.litBy] : "litNone") }) : say("down", { name: m.name }),
+  );
+  if (verdict.block === MAP_BLOCK.COMBAT) lines.push(say("blockedCombat"));
+  if (verdict.block === MAP_BLOCK.HURRIED) lines.push(say("blockedHurried"));
+  return { mapping: verdict.mapping, label: say(verdict.mapping ? "on" : "off"), tip: lines.join(" ") };
+}
+
 /**
  * The mapping status and the party's Map items — for EVERY user, because the
  * party carries the maps. Sanitized per viewer: whether the record is
@@ -392,6 +420,7 @@ function buildMapsView(formation) {
     hasMapper: !!mapper,
     mapperName: mapper?.name ?? null,
     canStart: viewing && !!mapper,
+    state: mapperMembers(formation).length ? mapStateView(mappingOf(formation)) : null,
   };
   if (gm) mapping.proficient = mapperIsProficient(formation);
   if (formation.mapSession) {
@@ -443,15 +472,23 @@ export function buildWarnings(formation, speed) {
   const lightMatters = !journeying || inDark;
   // A closed lantern sheds no light at all.
   const anyLitLight = formation.lights.some((l) => l.lit && !l.shielded);
-  const mapper = formation.members.find((m) => m.roles?.includes("mapper"));
-  if (formation.members.length && !mapper) {
+  if (formation.members.length && !mapperMembers(formation).length) {
     warnings.push(game.i18n.localize("ACKS-FORMATION.warnings.noMapper"));
-  }
-  if (mapper && !anyLitLight && lightMatters) {
-    warnings.push(game.i18n.localize("ACKS-FORMATION.warnings.mapperNoLight"));
-  }
-  if (mapper && !hasAbility(getMemberActor(mapper), /mapping/i)) {
-    warnings.push(game.i18n.localize("ACKS-FORMATION.warnings.mapperNoProficiency"));
+  } else if (mapperMembers(formation).length) {
+    // The mapping verdict, read the way the fog and the measurement read it. A
+    // light warning needs the light requirement on: with it off the module
+    // assumes light, so no mapper is ever unlit. The proficiency warning is the
+    // Judge's alone, as the proficiency is a Judge's secret.
+    const verdict = mappingOf(formation);
+    const names = (rows) => rows.map((m) => m.name).join(", ");
+    if (!verdict.working) {
+      warnings.push(game.i18n.format("ACKS-FORMATION.warnings.mapperDown", { names: names(verdict.mappers) }));
+    } else if (mappingNeedsLight() && !verdict.lit) {
+      warnings.push(game.i18n.format("ACKS-FORMATION.warnings.mapperNoLight", { names: names(verdict.mappers.filter((m) => m.working)) }));
+    }
+    if (game.user.isGM && verdict.working && !verdict.mappers.some((m) => m.working && m.proficient)) {
+      warnings.push(game.i18n.localize("ACKS-FORMATION.warnings.mapperNoProficiency"));
+    }
   }
   if (formation.members.length && !anyLitLight) {
     if (inDark) {
@@ -670,15 +707,6 @@ const STRIP_MODES = Object.freeze({
 });
 
 const tenths = (n) => Math.round((Number(n) || 0) * 10) / 10;
-
-/**
- * Whether the journey stands after dark: the Judge's word on the hour, else the
- * world clock. The same answer as `journeyNight` in journey.mjs, which this
- * file cannot import (it imports `travelReadout` from here).
- */
-function journeyIsNight(formation) {
-  return isNight({ hour: travelOf(formation).hour }, { dark: clockReading()?.dark ?? null });
-}
 
 /**
  * The strip's clock cell for a journey: the time, whether it is night by the

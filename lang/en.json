@@ -2552,6 +2552,19 @@
       "sessionLabel": "Working map:",
       "noSession": "No active map session — exploration is not being drawn onto a map object. Start one with \"New Map\" (requires a Mapper and viewing the party's scene).",
       "notViewing": "view the party's scene to archive",
+      "state": {
+        "on": "Mapping",
+        "off": "Not mapping",
+        "blockedCombat": "A fight is on, so the module pauses mapping.",
+        "blockedHurried": "The party is hurrying, so the module pauses mapping.",
+        "works": "{name}: can work, {lit}.",
+        "down": "{name}: cannot work (down, dead or left behind).",
+        "litAmbient": "the day outside lights them",
+        "litLight": "a light reaches their place",
+        "litUnimported": "a flame is lit and its reach is not imported",
+        "litAssumed": "light is assumed (the light requirement is off)",
+        "litNone": "no light reaches their place"
+      },
       "newMap": "New Map",
       "newMapHint": "Close the current map, wipe the scene's explored fog, and start a fresh map from black — used when the party loses its bearings (fell through a hole, teleported) or starts a new area.",
       "newMapConfirm": "Start a new map? The scene's explored fog is reset for everyone — the party keeps only what the working map records, and only sees fresh exploration from here on.",
@@ -2721,7 +2734,7 @@
     },
     "role": {
       "mapper": "Mapper",
-      "mapperHint": "Maps the dungeon: needs bright light and a quill and parchment, which occupy both hands; vulnerable while mapping. With Mapping proficiency the Judge gives accurate measurements.",
+      "mapperHint": "Draws the map. The module has the party map only while a mapper can work and a light reaches where they stand, and reads the scene's measurements exact with the Mapping proficiency and vague without it. Quill and parchment fill both hands, and the module holds Vulnerable on them until the kit is stashed (RR ch. 6, Marching and Mapping).",
       "scout": "Scout",
       "scoutHint": "Moves ahead of the front rank in trap-heavy areas (usually a thief; hasty-searches within 5', 10' with a pole)",
       "rearguard": "Rear Guard",
@@ -2770,7 +2783,7 @@
       "saveTitle": "{save} saving throw",
       "saveMagical": "Against a magical effect: each character's bonus vs magic and WIS modifier apply.",
       "saveMundane": "Against a mundane effect: no bonus vs magic, no WIS modifier.",
-      "fogLost": "With no one mapping, the party's map of {scene} fades — the fog of war closes back in. Assign a Mapper (with a lit light source) to keep explored areas revealed.",
+      "fogLost": "With no one mapping, the party's map of {scene} fades — the fog of war closes back in. Assign a Mapper who can work, with a light reaching them, to keep explored areas revealed.",
       "fogRestored": "The mapper takes up the quill — explored areas of {scene} stay revealed on the map.",
       "spellExpired": "{caster}'s \"{spell}\" has expired!",
       "spellEnding": "{caster}'s \"{spell}\" is in its final turn!",
@@ -2798,8 +2811,9 @@
     "warnings": {
       "inCombat": "Members are deployed for combat — the party reforms automatically when the combat ends.",
       "noMapper": "No mapper assigned — without a map the party risks getting lost (assign the Mapper role).",
-      "mapperNoLight": "The mapper has no lit light source — mapping requires bright light.",
-      "mapperNoProficiency": "The mapper lacks the Mapping proficiency (RR p. 264).",
+      "mapperNoLight": "No light reaches {names}: the module draws no map for this party and the scene's measurements read \"?\" (RR ch. 6, Marching and Mapping).",
+      "mapperDown": "{names} cannot work the kit: the module draws no map for this party and the scene's measurements read \"?\" (RR ch. 6, Marching and Mapping).",
+      "mapperNoProficiency": "No mapper who can work has the Mapping proficiency: the module warps the saved map and reads the scene's measurements vague (RR ch. 6, Marching and Mapping).",
       "noLight": "No lit light source — the party cannot see (unless members have shadowy senses or lightless vision).",
       "winded": "Winded: the party cannot charge or run until it rests (RR p. 271).",
       "restDue": "The party is due a rest — it must rest now or become winded (RR p. 271).",
@@ -2921,7 +2935,7 @@
       },
       "mapperNeedsLight": {
         "name": "Mapper requires a lit light source",
-        "hint": "When enabled, the map (fog exploration) is only retained while the formation also has a lit torch, lantern, or candle (RR p. 264)."
+        "hint": "A Judge's automation switch. On: the module draws a map only while a light reaches the mapper's place (the day outside counts as light), and reads the scene's measurements \"?\" while none does. Off: it assumes light and reads none (RR ch. 6, Marching and Mapping)."
       },
       "syncTokenLight": {
         "name": "Party token emits light",
@@ -2929,7 +2943,7 @@
       },
       "fuzzMeasurement": {
         "name": "Fuzz player measurements without a proficient mapper",
-        "hint": "On scenes where the formation's mapper lacks Mapping proficiency, players' ruler and drag distances show a hidden consistent error (~×0.8–1.25, rounded to the grid); with no working mapper at all they show \"?\". GMs always see true values. Players can still count grid squares — this is a deterrent, not a lock."
+        "hint": "On scenes where the party maps with no proficient mapper, players' ruler and drag distances show a hidden consistent error (~×0.8–1.25, rounded to the grid); while no party there is mapping at all they show \"?\". GMs always see true values. Players can still count grid squares — this is a deterrent, not a lock."
       },
       "travelLogCap": {
         "name": "Travel log length",

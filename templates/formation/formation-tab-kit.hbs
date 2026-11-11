@@ -88,6 +88,11 @@
 
   <section class="maps">
     <h3>{{localize "ACKS-FORMATION.map.section"}}</h3>
+    {{#if mapping.state}}
+    <p class="mapping-state{{#unless mapping.state.mapping}} warn{{/unless}}" data-tooltip-text="{{mapping.state.tip}}">
+      <i class="fa-solid fa-pen-ruler"></i> {{mapping.state.label}}
+    </p>
+    {{/if}}
     {{#if mapping.session}}
     <p class="session">
       <i class="fa-solid fa-map"></i> {{localize "ACKS-FORMATION.map.sessionLabel"}} <strong>{{mapping.itemName}}</strong>

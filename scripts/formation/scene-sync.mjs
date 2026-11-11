@@ -1,14 +1,16 @@
-/* global game, ChatMessage, CONST */
-import { FLAG_PARTY_SIGHT, FLAG_PARTY_SIZE, MODULE_ID, ROLES } from "./constants.mjs";
+/* global game, ChatMessage, CONST, foundry */
+import { FLAG_PARTY_SIGHT, FLAG_PARTY_SIZE, MODULE_ID } from "./constants.mjs";
 import { deployedTokens, isMemberDeployed } from "./deployment.mjs";
-import { getFormations, getPartyActor, getPartyToken, mapperIsProficient, partyTokenShape, patchFormation } from "./formation-model.mjs";
+import { getFormation, getFormations, getPartyActor, getPartyToken, partyTokenShape, patchFormation } from "./formation-model.mjs";
 import { FLAG_FOOTPRINT_LOCK } from "../battlemap/constants.mjs";
 import { ensureMapSession } from "./map-items.mjs";
 import { syncMapperKits } from "./mapper-kit.mjs";
-import { MEASURE_FLAG, MEASURE_MODES } from "./measure-fuzz.mjs";
+import { measureModeFor } from "./mapper-logic.mjs";
+import { mappingOf } from "./mapping.mjs";
+import { MEASURE_FLAG } from "./measure-fuzz.mjs";
 import { VISION_MODES, senseProfile } from "../lib/senses.mjs";
 import { SETTING_MANAGE_VISION, applyTokenLight, applyTokenVision, syncTokenFromActor, visionClaimed } from "../lib/token-sync.mjs";
-import { isPrimaryGM } from "../lib/util.mjs";
+import { gmIds, isPrimaryGM } from "../lib/util.mjs";
 
 /**
  * Keeps the world in step with formation state (runs on the primary GM client
@@ -16,12 +18,16 @@ import { isPrimaryGM } from "../lib/util.mjs";
  *
  * - **Fog of war ↔ the mapper.** Fog exploration (`scene.fog.mode` on v14,
  *   `scene.fog.exploration` on v13) stays on only while a formation on the
- *   scene has a member with the Mapper role (and, optionally, a lit light
- *   source — mapping requires bright light, RR p. 264). Without a mapper the
- *   fog is fully DISABLED: nothing is displayed *or recorded* — the party
- *   still sees current surroundings via the party token's vision, but no map
- *   memory accumulates while no one is drawing it. The scene's original mode
- *   is remembered in a flag and restored when no formation remains.
+ *   scene is mapping (`mapping.mjs`): a Mapper who can work, lit where they
+ *   stand when the light requirement is on (RR ch. 6). Otherwise the fog is
+ *   fully DISABLED: nothing is displayed *or recorded* — the party still sees
+ *   current surroundings via the party token's vision, but no map memory
+ *   accumulates while no one is drawing it. The scene's original mode is
+ *   remembered in a flag and restored when no formation remains.
+ *
+ * - **Measurement ↔ the mapper.** The scene's measurement flag (`measure-fuzz.mjs`)
+ *   follows the same verdict, and stands above the fog switch: exact with a
+ *   proficient mapper mapping, vague with an unproficient one, "?" when none is.
  *
  * - **Party token light: none of its own.** A member's light shines from
  *   that member's place in the column (`column-light.mjs`), so the party
@@ -37,16 +43,12 @@ import { isPrimaryGM } from "../lib/util.mjs";
  *   through (and may move) the party token while their character is inside it.
  */
 
+/**
+ * Is this formation mapping now? Its verdict (`mappingOf`): a mapper who can
+ * work, lit where they stand, with no fight and no hurry.
+ */
 function canMap(formation) {
-  // Nobody maps mid-battle: recording and map memory pause while deployed.
-  if (formation.combat?.active) return false;
-  // Exploring at combat speed loses the ability to map (RR p. 263).
-  if (formation.stance?.pace === "hurried") return false;
-  const hasMapper = formation.members.some((m) => m.roles?.includes(ROLES.MAPPER));
-  if (!hasMapper) return false;
-  if (!game.settings.get(MODULE_ID, "mapperNeedsLight")) return true;
-  // A closed lantern sheds no light: mapping needs an unshielded source.
-  return formation.lights.some((l) => l.lit && !l.shielded);
+  return mappingOf(formation).mapping;
 }
 
 /* -------------------------------------------- */
@@ -64,12 +66,13 @@ function fogIsEnabled(value) {
   return FOG_MODES ? value !== FOG_MODES.DISABLED : !!value;
 }
 
+/** The fog closing or reopening is a Judge's note: it tells the table whether the party can map, so it goes to the GMs alone. */
 async function announceFog(sceneName, restored) {
   await ChatMessage.create({
-    content: `<div class="acks-formation-card"><em>${game.i18n.format(
-      restored ? "ACKS-FORMATION.chat.fogRestored" : "ACKS-FORMATION.chat.fogLost",
-      { scene: sceneName },
+    content: `<div class="acks-formation-card"><em>${foundry.utils.escapeHTML(
+      game.i18n.format(restored ? "ACKS-FORMATION.chat.fogRestored" : "ACKS-FORMATION.chat.fogLost", { scene: sceneName }),
     )}</em></div>`,
+    whisper: gmIds(),
   });
 }
 
@@ -107,7 +110,9 @@ async function syncSceneFog(scene, formationsOnScene) {
 
 /**
  * Maintain the measurement-fuzz flag read by the wrapped rulers: exact with a
- * proficient working mapper, ~fuzzed with an unproficient one, "?" with none.
+ * proficient mapper who is mapping, ~fuzzed with an unproficient one, "?" when
+ * no party on the scene is mapping (`measureModeFor`). Combat is round-scale
+ * and tactical, so measurement stays exact during it.
  */
 async function syncMeasureFlag(scene, formationsOnScene) {
   const current = scene.getFlag(MODULE_ID, MEASURE_FLAG);
@@ -115,12 +120,7 @@ async function syncMeasureFlag(scene, formationsOnScene) {
     if (current) await scene.unsetFlag(MODULE_ID, MEASURE_FLAG);
     return;
   }
-  // Combat is round-scale and tactical: measurement stays exact during it.
-  const inCombat = formationsOnScene.some((f) => f.combat?.active);
-  const mapping = formationsOnScene.some(canMap);
-  const proficient = formationsOnScene.some((f) => canMap(f) && mapperIsProficient(f));
-  const mode =
-    inCombat || (mapping && proficient) ? MEASURE_MODES.OFF : mapping ? MEASURE_MODES.FUZZY : MEASURE_MODES.UNKNOWN;
+  const mode = measureModeFor(formationsOnScene.map(mappingOf), { combat: formationsOnScene.some((f) => f.combat?.active) });
   // The hidden error factor is rolled once per scene and then never changes,
   // so re-measuring always shows the same wrong number.
   const factor = current?.factor ?? Math.round((0.8 + Math.random() * 0.45) * 100) / 100;
@@ -462,7 +462,6 @@ async function runEnvironmentSync() {
   // alone writes it, so two seats never race the same effect.
   await step("mapper kit", () => (isPrimaryGM() ? syncMapperKits(formations) : null));
 
-  if (!game.settings.get(MODULE_ID, "manageFog")) return;
   const byScene = new Map();
   for (const formation of formations) {
     if (!formation.sceneId || !formation.members.length) continue;
@@ -470,40 +469,52 @@ async function runEnvironmentSync() {
     byScene.get(formation.sceneId).push(formation);
   }
 
+  // The scene's measurement answers to the mapping verdict and not to fog
+  // management, so it too stands above the fog switch; a scene the formations
+  // have left lets go of it here as well.
+  //
+  // Ids, not held documents, and the scene re-resolved per step. Each write
+  // awaits, and a scene deleted while the sweep is running leaves a reference
+  // that still answers `.id` and still reads its flags: only the WRITE fails,
+  // and by then it is a request already on its way to a server that no longer
+  // has the scene.
+  for (const [sceneId, group] of byScene) {
+    if (!game.scenes.has(sceneId)) continue;
+    await step("measurement", () => withLiveScene(sceneId, (scene) => syncMeasureFlag(scene, group)), () => game.scenes.has(sceneId));
+  }
+  for (const sceneId of [...game.scenes].map((s) => s.id)) {
+    if (byScene.has(sceneId)) continue;
+    await step("release measurement", () => withLiveScene(sceneId, releaseMeasureFlag), () => game.scenes.has(sceneId));
+  }
+
+  if (!game.settings.get(MODULE_ID, "manageFog")) return;
+
   // Re-resolved per step, not captured: resolving once and holding the
   // document across BOTH awaits is the same staleness the release loop below
   // avoids — a scene deleted between the two writes fails the second.
   for (const [sceneId, group] of byScene) {
     if (!game.scenes.has(sceneId)) continue;
-    const sceneLives = () => game.scenes.has(sceneId);
-    await step("scene fog", () => withLiveScene(sceneId, (scene) => syncSceneFog(scene, group)), sceneLives);
-    await step("measurement", () => withLiveScene(sceneId, (scene) => syncMeasureFlag(scene, group)), sceneLives);
+    await step("scene fog", () => withLiveScene(sceneId, (scene) => syncSceneFog(scene, group)), () => game.scenes.has(sceneId));
     // Assigning a Mapper IS "start mapping": open a session automatically.
-    if (game.settings.get(MODULE_ID, "manageFog")) {
-      for (const formation of group) {
-        if (canMap(formation) && !formation.mapSession) {
-          try {
-            await ensureMapSession(formation);
-          } catch (err) {
-            console.error(`${MODULE_ID} | auto map session failed`, err);
-          }
+    for (const held of group) {
+      // The sweep awaits between steps, so the copy it holds can predate a
+      // fight that began meanwhile: the decision reads the record as it stands.
+      const formation = getFormation(held.id) ?? held;
+      if (canMap(formation) && !formation.mapSession) {
+        try {
+          await ensureMapSession(formation);
+        } catch (err) {
+          console.error(`${MODULE_ID} | auto map session failed`, err);
         }
       }
     }
   }
 
   // Scenes we managed previously but that no longer host a formation.
-  //
-  // Ids, not held documents. Each release awaits, and a scene deleted while
-  // the sweep is running leaves a reference that still answers `.id` and
-  // still reads its flags — only the WRITE fails, and by then it is a request
-  // already on its way to a server that no longer has the scene.
   for (const sceneId of [...game.scenes].map((s) => s.id)) {
     if (byScene.has(sceneId)) continue;
-    const sceneLives = () => game.scenes.has(sceneId);
     if (game.scenes.get(sceneId)?.getFlag(MODULE_ID, "fogOriginal") !== undefined) {
-      await step("release fog", () => withLiveScene(sceneId, releaseSceneFog), sceneLives);
+      await step("release fog", () => withLiveScene(sceneId, releaseSceneFog), () => game.scenes.has(sceneId));
     }
-    await step("release measurement", () => withLiveScene(sceneId, releaseMeasureFlag), sceneLives);
   }
 }

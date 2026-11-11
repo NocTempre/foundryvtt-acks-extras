@@ -79,6 +79,17 @@
   fight it lifts on the mapper's own initiative turn in the first round they are
   not surprised, and returns when the combat ends. A dead, left-behind or
   stacked member never carries it, and a Vulnerable you set by hand is left alone.
+- **A party maps only while a light reaches its mapper.** A party maps while a
+  mapper who can work stands where a light reaches them, or outside by day. Its
+  scene's measurements read exact when that mapper has the Mapping proficiency,
+  vague without it, and "?" when no party on the scene is mapping, now also in
+  worlds with fog management off. Party sheet → Kit tab → Maps shows Mapping or
+  Not mapping; hover it to see why. The warnings strip names the missing light
+  or the mapper who cannot work, and the missing-proficiency warning shows to
+  the Judge only. The fog closing or reopening is whispered to the GMs. The
+  Judge's switches are Settings tab → Game Settings → ACKS Extras → Mapper
+  requires a lit light source, and Fuzz player measurements without a
+  proficient mapper.
 - **The hit point maximum shows how it was reached.** Character sheet → Stats
   tab → Vitals: a line under the maximum, and the field's tooltip, list each
   level's dice as they fell, the Constitution part, any flat bonus and the
