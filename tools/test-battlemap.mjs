@@ -9,6 +9,8 @@ import { boxCells, fitGrid, feetPerSquare, hexSizeFromBox, pixelsPerUnit, roundS
 import { footprintFeet, tokenSpan, SPAN_MIN } from "../scripts/battlemap/footprint.mjs";
 import { hexAlignment } from "../scripts/battlemap/hex-fit.mjs";
 import { SIZES } from "../scripts/monsters/config.mjs";
+import { SIZE_DOC, SIZE_TABLE, SIZE_ROW, sizeSquares, sizeCite, parseFrontage } from "../scripts/monsters/sizes.mjs";
+import { PRIORITY, registerTable, unregisterTable, resetTables } from "../scripts/lib/tables.mjs";
 
 const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a} !~ ${b} (tol ${tol})`);
 
@@ -255,12 +257,79 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
 /* -------------------------------------------- */
 
 {
-  // Override wins outright; size category converts its squares; default is one square.
+  // The frontage cells are invented here, in shapes the reader takes: a pair
+  // with its mirror, a lone figure, a fraction, and a cell with no figure.
+  const frontage = (cells, priority = PRIORITY.WORLD) => registerTable(
+    { id: SIZE_DOC, source: { pages: "XX 1" }, tables: { [SIZE_TABLE]: { [SIZE_ROW]: cells } } },
+    { priority },
+  );
+  const CELLS = {
+    small: "1 sq",
+    man: "1/4 sq",
+    large: "7 × 3 / 3 × 7",
+    huge: "9 x 9",
+    gigantic: "n/a",
+  };
+
+  // Nothing imported: a size category has no footprint, and says so with null.
+  resetTables();
+  assert.equal(sizeSquares("large"), null, "no document, no squares");
+  assert.equal(footprintFeet({ sizeKey: "large", feetPerSquare: 5 }), null, "no frontage imported: no footprint");
+  assert.equal(sizeCite(), null, "and no page to cite");
+  // Override wins outright; a token with no size category is one square.
   assert.deepEqual(footprintFeet({ override: { w: 12, h: 8 } }), { w: 12, h: 8 });
-  const large = footprintFeet({ sizeKey: "large", sizes: SIZES, feetPerSquare: 5 });
-  assert.deepEqual(large, { w: SIZES.large.footprint.w * 5, h: SIZES.large.footprint.h * 5 });
+  assert.deepEqual(footprintFeet({ override: { w: 12, h: 8 }, sizeKey: "large" }), { w: 12, h: 8 }, "an override needs no table");
   assert.deepEqual(footprintFeet({ feetPerSquare: 5 }), { w: 5, h: 5 });
-  assert.deepEqual(footprintFeet({ sizeKey: "nonsense", sizes: SIZES, feetPerSquare: 5 }), { w: 5, h: 5 });
+
+  // Imported: the first printed arrangement, in squares, times what a square is worth.
+  frontage(CELLS);
+  assert.deepEqual(sizeSquares("large"), { w: 7, h: 3 });
+  assert.deepEqual(footprintFeet({ sizeKey: "large", feetPerSquare: 5 }), { w: 35, h: 15 });
+  assert.deepEqual(footprintFeet({ sizeKey: "huge", feetPerSquare: 10 }), { w: 90, h: 90 }, "a lone figure fills both sides");
+  // A body never occupies less than one token square.
+  assert.deepEqual(sizeSquares("small"), { w: 1, h: 1 });
+  assert.deepEqual(sizeSquares("man"), { w: 1, h: 1 }, "a fraction of a square reads as one");
+  // A cell holding no figure, a category the row lacks, and a name that is no category.
+  assert.equal(sizeSquares("gigantic"), null, "a cell with no figure");
+  assert.equal(sizeSquares("colossal"), null, "a category the row does not carry");
+  assert.equal(sizeSquares("constructor"), null, "an inherited name is no category");
+  assert.equal(footprintFeet({ sizeKey: "nonsense", feetPerSquare: 5 }), null, "an unknown category has no footprint");
+  assert.equal(sizeCite(), "XX 1", "the cite is the page the import recorded");
+
+  // A row the import could not read is not a row.
+  registerTable({ id: SIZE_DOC, tables: { [SIZE_TABLE]: { [SIZE_ROW]: { __missing: true } } } }, { priority: PRIORITY.WORLD });
+  assert.equal(sizeSquares("large"), null, "a missing-row placeholder answers nothing");
+
+  // A Judge's override of one cell wins over the import and is the printed shape.
+  frontage(CELLS);
+  frontage({ ...CELLS, large: "2 x 5" }, PRIORITY.OVERRIDE);
+  assert.deepEqual(sizeSquares("large"), { w: 2, h: 5 }, "the override layer wins");
+  assert.equal(sizeCite(), null, "an override has no page");
+  unregisterTable(SIZE_DOC, { priority: PRIORITY.OVERRIDE });
+  assert.deepEqual(sizeSquares("large"), { w: 7, h: 3 }, "and reverts");
+
+  assert.equal(parseFrontage(""), null);
+  assert.equal(parseFrontage(null), null);
+  assert.deepEqual(parseFrontage("4 × 3 or 3 × 4 squares"), { w: 4, h: 3 });
+  assert.deepEqual(parseFrontage("0 × 0"), { w: 1, h: 1 }, "no side is under one square");
+
+  // The tokens the scene would resize and the ones its table cannot: a token
+  // with a category the table lacks keeps its size and is counted; a token
+  // with no category, a locked one and a marker are not.
+  const { sizeForToken, unsizedTokenCount } = await import("../scripts/battlemap/token-scale.mjs");
+  const scene = { grid: { distance: 5, units: "ft" } };
+  const tokenOf = (sizeKey, { locked = false, type = "monster" } = {}) => ({
+    getFlag: (_ns, key) => (key === "footprintLock" ? locked || undefined : key === "extras" ? (sizeKey ? { size: sizeKey } : undefined) : undefined),
+    actor: { documentName: "Actor", type, getFlag: (_ns, key) => (key === "extras" ? (sizeKey ? { size: sizeKey } : undefined) : undefined) },
+  });
+  scene.tokens = [tokenOf("large"), tokenOf("gigantic"), tokenOf("colossal"), tokenOf(null), tokenOf("colossal", { locked: true }), tokenOf("colossal", { type: "acks-extras.domain" })];
+  assert.deepEqual(sizeForToken(scene.tokens[0], scene), { width: 7, height: 3 }, "a category with a cell is sized");
+  assert.equal(sizeForToken(scene.tokens[2], scene), null, "a category without one is left alone");
+  assert.equal(unsizedTokenCount(scene), 2, "two sized creatures have no footprint");
+  resetTables();
+  assert.equal(unsizedTokenCount(scene), 3, "with nothing imported, every categorised creature has none");
+  assert.equal(unsizedTokenCount(null), 0);
+  resetTables();
 }
 
 {
@@ -272,9 +341,9 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
   assert.equal(tokenSpan(0, 5), SPAN_MIN);
 }
 
-// Every SIZES entry carries a usable numeric footprint.
+// The size table holds a label per category and no figure of the page's.
 for (const [key, entry] of Object.entries(SIZES)) {
-  assert.ok(entry.footprint?.w >= 1 && entry.footprint?.h >= 1, `SIZES.${key} footprint`);
+  assert.deepEqual(Object.keys(entry), ["label"], `SIZES.${key} carries only its label`);
 }
 
 /* -------------------------------------------- */

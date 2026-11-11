@@ -8,6 +8,7 @@
  */
 
 import { FEET_PER_RANK } from "../formation/trap-rules.mjs";
+import { sizeSquares } from "../monsters/sizes.mjs";
 
 /**
  * Token spans are quantized to quarter squares with a quarter-square floor: a
@@ -18,21 +19,23 @@ export const SPAN_STEP = 0.25;
 export const SPAN_MIN = 0.25;
 
 /**
- * Resolve a token's footprint in feet.
+ * Resolve a token's footprint in feet. A size category's squares are the
+ * imported frontage cells (`monsters/sizes.mjs`); a category the world holds no
+ * figure for has no footprint, so the answer is null and the caller leaves the
+ * token as it is. A token with no category is one square.
  * @param {object} input
  * @param {{w:number,h:number}|null} [input.override]  Explicit feet (token or
  *   actor flag) — wins outright.
  * @param {string|null} [input.sizeKey]  Monster size-category key.
- * @param {object} [input.sizes]  The SIZES table (footprints in squares at the
- *   5-ft combat square).
  * @param {number} [input.feetPerSquare]  What one footprint square is worth.
- * @returns {{w:number,h:number}} feet.
+ * @returns {{w:number,h:number}|null} feet, or null for a category with no
+ *   imported frontage.
  */
-export function footprintFeet({ override = null, sizeKey = null, sizes = {}, feetPerSquare = FEET_PER_RANK } = {}) {
+export function footprintFeet({ override = null, sizeKey = null, feetPerSquare = FEET_PER_RANK } = {}) {
   if (override && override.w > 0 && override.h > 0) return { w: override.w, h: override.h };
-  const cat = sizeKey ? sizes[sizeKey]?.footprint : null;
-  if (cat) return { w: cat.w * feetPerSquare, h: cat.h * feetPerSquare };
-  return { w: feetPerSquare, h: feetPerSquare };
+  if (!sizeKey) return { w: feetPerSquare, h: feetPerSquare };
+  const squares = sizeSquares(sizeKey);
+  return squares ? { w: squares.w * feetPerSquare, h: squares.h * feetPerSquare } : null;
 }
 
 /** Fit a length in feet into grid squares of `distance` feet each. */

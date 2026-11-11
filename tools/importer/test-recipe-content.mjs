@@ -26,6 +26,8 @@ import { parseStones, parseTollCpPerSt, parseTariffPct, parseStayFee, diceRange 
 import { parseMoneyCp } from "../../scripts/markets/rules/commissions.mjs";
 import { parseMiles } from "../../scripts/markets/rules/routes.mjs";
 import { parseOptions, parseFocus, parseThrowable, parseDealtBy, parseMarkedOptions, parseSelection } from "../../scripts/importer/weapon-binding.mjs";
+import { parseFrontage } from "../../scripts/monsters/sizes.mjs";
+import { SIZES } from "../../scripts/monsters/config.mjs";
 import { FILES } from "./reference-lib.mjs";
 
 /** The tables under test, by recipe document. Each is one entry of `TABLE_RECIPES`. */
@@ -66,6 +68,8 @@ const TABLES = {
     "personalAuthority", "moraleRoll", "moraleLevels", "moraleEffects",
     "settlementInvestment", "settlementRevenue", "settlementExpenses",
   ],
+  // The frontage a monster size category occupies on a battle grid.
+  monsters: ["sizeFrontage"],
 };
 
 const NEEDED = [...new Set(
@@ -338,6 +342,19 @@ for (const id of ["senses.shadowySensesProse", "senses.nightVisionProse", "sense
     for (const v of recipe.values) if (isNum(out?.[v.key]) && !(out[v.key] > 0)) fail(`${v.key}: not above zero`);
   };
 }
+// The monster size frontage row: the one declared row, every category's cell
+// read and holding a figure the frontage reader takes. Shape only; no figure is
+// named.
+VERIFY["monsters.sizeFrontage"] = (out, recipe, fail) => {
+  const row = out?.[recipe.rows[0].key];
+  if (!row || isMissingRow(row)) return fail("squares: row not read");
+  for (const col of recipe.cellColumns) {
+    if (!isText(row[col.key])) fail(`${col.key}: empty or non-text`);
+    else if (!parseFrontage(row[col.key])) fail(`${col.key}: parseFrontage reads no figure`);
+  }
+  for (const col of recipe.cellColumns) if (!SIZES[col.key]) fail(`${col.key}: not a size category the monsters feature declares`);
+  for (const key of Object.keys(SIZES)) if (!recipe.cellColumns.some((col) => col.key === key)) fail(`${key}: a declared size category the recipe does not read`);
+};
 // Prose tables with nothing beyond declared keys and finite numbers.
 for (const id of [
   "availability.marketRulesProse", "availability.bargainingProse", "magicItems.priceProse",

@@ -83,6 +83,7 @@ import { damageTotal, derivedLeaderRoles, entryLeaderTemplate, importedThrowLadd
 import { deriveLeader, importedLeaderProcedure } from "../monsters/leader-derive.mjs";
 import { kitPresets, unionKitAxis } from "./kit-presets.mjs";
 import { importedKits } from "../monsters/kits.mjs";
+import { sizeSquares } from "../monsters/sizes.mjs";
 import { hdFormula } from "../lib/actor-read.mjs";
 import { parseEncounterLine, appearingFormula } from "../lib/encounter-line.mjs";
 
@@ -526,20 +527,15 @@ export function buildExtras(node) {
 }
 
 /**
- * Size key -> prototype token footprint in grid squares. Small and Man-Sized
- * both read 1×1: frontage describes how many creatures fit in a line, not a
- * sub-square token. Kept local rather than imported from the monsters
- * feature's own size table, since a seat may not have it installed.
- * `largeHugeGigantic` is absent: that register key names a printed range, and
+ * A size key's prototype token footprint in grid squares, `{width, height}`,
+ * read from the imported frontage table; null where the world holds none for
+ * the key, which leaves Foundry's default token size alone.
+ * `largeHugeGigantic` has no cell: that register key names a printed range, and
  * picking a single footprint for it would be inventing one.
  */
-const TOKEN_SIZE = {
-  small: { width: 1, height: 1 },
-  man: { width: 1, height: 1 },
-  large: { width: 2, height: 1 },
-  huge: { width: 2, height: 2 },
-  gigantic: { width: 4, height: 3 },
-  colossal: { width: 8, height: 6 },
+const tokenSize = (key) => {
+  const squares = sizeSquares(key);
+  return squares ? { width: squares.w, height: squares.h } : null;
 };
 
 /**
@@ -784,7 +780,7 @@ export function bindMonster(node) {
   // A Gigantic monster on a 1×1 token is wrong before anyone reads a stat, and
   // the size is right there in the block. Only set what the table actually
   // says: an unrecognised or ranged size leaves Foundry's default alone.
-  const token = TOKEN_SIZE[s.size?.key];
+  const token = tokenSize(s.size?.key);
 
   return {
     system,
@@ -4316,7 +4312,7 @@ export function templateOption(ax, row, cells, { id, cite, sectionText, spellSou
   // Presentation channels the page itself prints: an age row's SIZE category
   // scales the token; a type row's HIDE COLOR tints it.
   const sizeWord = (/^\s*([A-Za-z-]+)/.exec(String(cells.size ?? ""))?.[1] ?? "").toLowerCase().split("-")[0];
-  const token = TOKEN_SIZE[sizeWord] ? { ...TOKEN_SIZE[sizeWord] } : {};
+  const token = tokenSize(sizeWord) ?? {};
 
   return {
     key: row.key,

@@ -4296,7 +4296,7 @@ export const TABLE_RECIPES = {
   // Monster figures a binder works out rather than reads off the creature's
   // own block. `importer/leader-roles.mjs` keys the ladder rows.
   monsters: {
-    source: { book: "ACKS II Revised Rulebook + AXIOMS Compendium", pages: "RR 296, 441; AXIOMS 43-44" },
+    source: { book: "ACKS II Revised Rulebook + AXIOMS Compendium + ACKS II Monstrous Manual", pages: "RR 296, 441; AXIOMS 43-44; MM 11" },
     tables: {
       // Attack Throws by Level and HD (RR ch. 6): the Monster HD column and
       // the throw value at its far right. The class-level columns between are
@@ -4448,6 +4448,30 @@ export const TABLE_RECIPES = {
           { key: "header", labelRe: "^b\\s*a\\s*s\\s*e$" },
           ...["4", "6", "8", "10"].map((die) => ({ key: `d${die}`, labelRe: `^1d${die}$`, set: { die: `1d${die}` } })),
         ],
+      },
+      // Monster Size (MM Overview p. 11): the size categories run across the
+      // page and each line of the table down it, so the one row read here is
+      // the frontage in battle-grid squares and its six cells are the
+      // categories, left to right. The row is claimed by its bracketed unit,
+      // which the frontage-in-feet row above it does not carry. Cells are read
+      // whole and parsed by `monsters/sizes.mjs`, so a Judge's override is the
+      // printed shape. The weight, length and feet lines are not read.
+      sizeFrontage: {
+        shape: "gridRows",
+        book: "mm",
+        printedPage: 11,
+        locate: "Monster Size",
+        column: { xMin: 40, xMax: 570, yMin: 640, yMax: 720 },
+        labelMaxX: 140,
+        cellColumns: [
+          { key: "small", x: 148, w: 68, row: true, pattern: "raw" },
+          { key: "man", x: 219, w: 68, row: true, pattern: "raw" },
+          { key: "large", x: 289, w: 62, row: true, pattern: "raw" },
+          { key: "huge", x: 352, w: 70, row: true, pattern: "raw" },
+          { key: "gigantic", x: 423, w: 70, row: true, pattern: "raw" },
+          { key: "colossal", x: 495, w: 75, row: true, pattern: "raw" },
+        ],
+        rows: [{ key: "squares", labelRe: "\\(5\\W+squares" }],
       },
     },
   },

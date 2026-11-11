@@ -58,18 +58,17 @@ export const MONSTER_TYPES = {
 };
 
 /**
- * Size categories (MM Overview p.11; Creation Mass & Size table p.390).
- * `footprint` is the category's frontage as whole battle-grid squares
- * ({ w, h } at the 5-ft combat square) for token sizing; a body never occupies
- * less than one token square, so a sub-square frontage reads as a full 1×1.
+ * Size categories (MM Overview p.11; Creation Mass & Size table p.390), in
+ * ascending order. The frontage each occupies on a battle grid is imported
+ * (`sizes.mjs`), never held here.
  */
 export const SIZES = {
-  small: { label: "Small", footprint: { w: 1, h: 1 } },
-  man: { label: "Man-Sized", footprint: { w: 1, h: 1 } },
-  large: { label: "Large", footprint: { w: 2, h: 1 } },
-  huge: { label: "Huge", footprint: { w: 2, h: 2 } },
-  gigantic: { label: "Gigantic", footprint: { w: 4, h: 3 } },
-  colossal: { label: "Colossal", footprint: { w: 8, h: 6 } },
+  small: { label: "Small" },
+  man: { label: "Man-Sized" },
+  large: { label: "Large" },
+  huge: { label: "Huge" },
+  gigantic: { label: "Gigantic" },
+  colossal: { label: "Colossal" },
 };
 
 /** Degree of intelligence (Creation p.396). */

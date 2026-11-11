@@ -226,7 +226,7 @@ such region is never written.
 | File | Responsibility |
 |---|---|
 | `calibrate-logic.mjs` | Pure solver: 1D-per-axis grid fit (square/rect modes), 2D lattice fit with basis reduction (affine mode), scale-bar conversion, nice-number suggestions, output-square conversion, the scale-only (size, distance) pair, and hex size from a measured reference box. No Foundry. |
-| `footprint.mjs` | Pure footprint resolution (override → size category → man default) and feet→squares quantization. No Foundry. |
+| `footprint.mjs` | Pure footprint resolution (override → imported size-category frontage → one square for a token with no category) and feet→squares quantization. No Foundry. |
 | `token-scale.mjs` | The ONE writer of width/height for generic tokens: scene-wide rescale, the selection hotbar's stamp/reset, and `preCreateToken` auto-sizing gated on the scene's `autoScale` flag. |
 | `scene-image.mjs` | The one place that knows where a scene's background lives: reads it off the active Level, writes it through that Level's own update. Every background read and write in the feature goes through here. |
 | `capture.mjs` | Canvas overlay: screen-space pointer catcher (core GridConfig's preview pattern), sample glyphs, live fitted-grid preview (GridMesh for square fits, drawn lattice lines otherwise), eraser and undo. |
@@ -354,9 +354,18 @@ token shape (`docs/formation/MODEL.md`, "Data flow"). Each side skips the
 other's tokens, so no token ever has two size owners.
 
 Footprint precedence, resolved by `footprint.mjs`: token flag `footprint
-{w,h}` (feet) → actor flag → the monster size category's `footprint` (squares
-at the 5-ft combat square, `scripts/monsters/config.mjs` SIZES) → man-sized
-one square. `footprintLock` on a token opts it out of every automatic resize,
+{w,h}` (feet) → actor flag → the monster size category's frontage in squares
+at the 5-ft combat square → one square for a token with no category. The
+frontage is imported, never held in source: it is the Frontage (5'-squares)
+line of MM Overview p. 11, read into registry document `monsters`, table
+`sizeFrontage`, and taken through `monsters/sizes.mjs` `sizeSquares`
+(`docs/monsters/MODEL.md`, "The size frontage"). A category the world holds no
+figure for has no footprint: `footprintFeet` answers null, `sizeForToken`
+answers null, and the token keeps the size it has. The assistant's "Rescale
+tokens on scene" then adds a warning naming how many tokens kept their size
+(`unsizedTokenCount`) and that the frontage is not imported; the
+preCreateToken auto-size leaves such a token alone without a message.
+`footprintLock` on a token opts it out of every automatic resize,
 the party token's included. No surface sets it; it is written by script.
 Spans quantize to quarter squares with a quarter-square floor (DECISIONS).
 

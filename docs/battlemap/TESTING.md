@@ -163,18 +163,37 @@ by hand.
    `grid.distance` change and Foundry's grid sits on the drawn one; the
    scene flag `acks-extras.battlemap` reads `{calibrated: true, autoScale:
    true, distance: <D>}`.
-6. Drop the Large monster onto the calibrated scene.
-   *Observable:* its token lands 2×1 (preCreateToken sized it). Toggle
-   autoScale off in scene config and drop again: the token keeps its
-   prototype size.
+6. With the Monstrous Manual connected and the `monsters` tables imported
+   (`sizeFrontage` among them), drop the Large monster onto the calibrated
+   scene.
+   *Observable:* its token lands at the squares the imported Large cell gives
+   (the `squares` row of `sizeFrontage`, read from `acksExtras.lib.tables`
+   `getDoc("monsters")`), preCreateToken having sized it. Toggle autoScale off
+   in scene config and drop again: the token keeps its prototype size.
+6a. **Frontage not imported.** Take the world layer of the `monsters`
+   document off the registry (`unregisterTable("monsters", {priority: 20})`
+   from `acksExtras.lib.tables`), then drop the Large monster again and press
+   "Rescale tokens on scene" with the Large monster's token and the character
+   token present.
+   *Observable:* the monster's token keeps the size it had (no write to its
+   `width`/`height`), the character token still resizes, and the second
+   notification reads "1 monster token(s) keep their size: the monster size
+   frontage (Monstrous Manual p. 11) is not imported." Restore by importing the
+   rules tables again (Settings tab → Game Settings → ACKS II — Extras →
+   Manage imports → Rules tables).
+6b. **A Judge's override.** In the Ruledata Browser, override the `sizeFrontage`
+   row's Large cell with a pair of your own, then press "Rescale tokens on
+   scene".
+   *Observable:* the Large monster's token takes the override's squares; clear
+   the override and it returns to the imported cell.
 7. Press "Rescale tokens on scene" with the character token and the party
    token present.
-   *Observable:* the character token resizes to man-size at the scene's
+   *Observable:* the character token resizes to one square at the scene's
    scale; the party token is UNTOUCHED by this path.
 8. Select two tokens, click the 10' hotbar chip; then "Reset selected".
    *Observable:* both resize and carry `flags.acks-extras.footprint =
    {w:10,h:10}`; reset clears the flag and re-derives (monster back to its
-   category, character to man-size).
+   category, character to one square).
 9. Coarse-map output: confirm the box value as 100, set output square 5.
    *Observable:* the grid-px field re-derives to box/20; after apply, each
    drawn box carries 20 Foundry squares whose lines coincide with the box

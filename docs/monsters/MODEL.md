@@ -237,6 +237,22 @@ cell writes no throw, so the member's own stands, and a grid template row with
 no printed throw keeps the actor's default; nothing is guessed. The same
 ladder gives a grid row its throw where the row prints none.
 
+**The size frontage** is the Frontage (5'-squares) line of the Monster Size
+table (MM Overview p. 11), imported into registry document `monsters`, table
+`sizeFrontage`: one row, `squares`, with a cell per size category (`small` …
+`colossal`, the keys of `config.mjs` `SIZES`) holding the page's own text.
+`scripts/monsters/sizes.mjs` `sizeSquares(key)` reads a cell as `{w, h}`
+squares: the first printed pair, else a lone figure or fraction, each side held
+to one square at the least (a body never occupies less than a token square).
+Two readers take it: the battlemap's `footprintFeet`
+(`docs/battlemap/MODEL.md`, "Token sizing") and the importer, which sets a
+monster's prototype token to it. The Judge edits it in the Ruledata Browser
+like any imported table, and the override wins. A world with no table, an
+unread row, or a cell holding no figure answers null for that category, so the
+battlemap leaves the token as it is and a monster is imported with Foundry's
+default token. The weight, length and feet lines of the same table are not
+read.
+
 **Provenance.** Each derived throw and save row stores its parts on the
 generated actor (`extras.derived`: the figure written, the member's figure
 and rating it moved from, the rating it moved to, the ladder rows between, the

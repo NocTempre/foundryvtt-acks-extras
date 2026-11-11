@@ -143,13 +143,19 @@ Two separate buttons, in either order, as often as you like:
   the map's distances are worth. Nothing is rescaled and nothing moves.
 - **Rescale tokens on scene** resizes every token to its real footprint at
   the scene's scale: monsters by their size category, everything else
-  man-sized unless told otherwise. A formation's party token is left to the
-  formation rules, which size it by its frontage.
+  one square unless told otherwise. A formation's party token is left to the
+  formation rules, which size it by its frontage. A monster's size category
+  takes its frontage from the Monstrous Manual's Monster Size table, which
+  you import with the rest of the rules tables (Settings tab → Game Settings →
+  ACKS II — Extras → Manage imports → Rules tables). Until it is imported, a
+  monster's token keeps the size it has, and the button says how many did.
+  Edit the table in the Ruledata Browser (Settings tab → Game Settings →
+  ACKS II — Extras → Open Ruledata Browser) and your figure wins.
 
 After applying, the scene auto-sizes tokens as they are dropped — a Large
-monster lands 2×1, a character on a 100' wilderness grid lands as a quarter
-square. Turn this off with the **Auto-size tokens** checkbox in the scene's
-configuration.
+monster lands at its imported frontage, a character on a 100' wilderness grid
+lands as a quarter square. Turn this off with the **Auto-size tokens** checkbox
+in the scene's configuration.
 
 ## The size hotbar
 

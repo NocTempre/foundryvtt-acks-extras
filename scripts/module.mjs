@@ -39,10 +39,11 @@
  *              grant, henchmen's coin adapter/time/market-class rules, and
  *              location's market subtree; nothing consumes it.
  *   monsters   near-last — no hooks depend on it, but battlemap reads its pure
- *              config (SIZES footprints), so it registers first of the two.
- *   battlemap  after monsters — sizes tokens from monsters' SIZES table and
- *              formation's flags; both are plain data imports, so only this
- *              comment depends on the order.
+ *              size-frontage reader (`sizes.mjs`), so it registers first of
+ *              the two.
+ *   battlemap  after monsters — sizes tokens from monsters' imported size
+ *              frontage and formation's flags; both are plain data imports, so
+ *              only this comment depends on the order.
  *   character-sheet after every feature it draws from — it reads equipment's
  *              loadout, the class registry, the abilities roller, henchmen's
  *              cards and location's storage through direct imports, and

@@ -278,3 +278,31 @@ importer is the `acks-printed-value` procedure's case.
 
 **Rejected.** Keeping the columns for a later reader: an unread figure in
 source is the value rule broken with no function performing the rule.
+
+## 2026-11-11 — The size footprint is imported, and a category with none is left alone
+
+**Ruled:** `SIZES` carries a label and nothing else. The frontage of each
+category is read from the Judge's Monstrous Manual (Monster Size, MM p. 11,
+the Frontage (5'-squares) line) into `monsters` / `sizeFrontage`, and
+`sizes.mjs` is its one reader, for the battlemap's footprint and for the
+importer's prototype token (which carried a second copy of the same figures).
+This closes the case the entry above left open. A category the world holds no
+cell for has no footprint: the battlemap leaves the token at the size it has
+and says so, and an import sets no prototype size. A token with no category
+stays one square, which is the token-square floor and not a printed figure.
+Each side is held to one square at the least in the reader, so a cell that
+prints less than a square reads as a full one, as the table always did.
+
+**Rejected.** Reading the feet line instead: it is not the squares line times
+the combat square, so the tokens would change size. Resolving a token with no
+category through the Man-Sized cell: that cell prints less than a square and
+floors to the same one, so it would only make every character token wait on
+an import for a figure it does not need. Parsing the cell in the extractor:
+the registry then holds a structure the book does not print, and a Judge's
+override is the page's own shape rather than a pair of numbers.
+
+**What it cost.** A world whose monster tables were imported before this
+release has no `sizeFrontage` until they are imported again, so its monsters'
+tokens are not sized to a scene until then, and monsters imported meanwhile
+carry Foundry's default token. Monsters already imported keep the prototype
+token they were given.
