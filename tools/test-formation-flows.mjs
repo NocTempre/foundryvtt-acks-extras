@@ -1361,6 +1361,41 @@ await scenario("disband tears everything down", async () => {
   assert.ok(scene.tokens.some((t) => t.actorId === alice.id), "member token restored");
 });
 
+await scenario("a party-token delete that throws still deletes the record", async () => {
+  // The party's Scene can be gone by the time its token is deleted; the record
+  // must not be orphaned by that failure.
+  const aliceToken = scene.tokens.find((t) => t.actorId === alice.id);
+  await game.settings.set(MODULE_ID, "formations", {}); // isolate
+  let formation = await model.createFormation("Doomed Party");
+  formation = await model.addMember(formation, alice, aliceToken);
+  await drain();
+  const stored = onlyFormation();
+  assert.ok(scene.tokens.get(stored.tokenId), "the party token is on the scene");
+
+  const realDelete = scene.deleteEmbeddedDocuments;
+  const realError = console.error;
+  const logged = [];
+  scene.deleteEmbeddedDocuments = async () => {
+    throw new Error("scene is gone");
+  };
+  console.error = (...args) => logged.push(args);
+  try {
+    await model.dissolveFormation(model.getFormation(stored.id));
+    await drain();
+  } finally {
+    scene.deleteEmbeddedDocuments = realDelete;
+    console.error = realError;
+  }
+
+  assert.equal(Object.keys(readFormations()).length, 0, "the record is deleted although the token delete threw");
+  assert.ok(logged.some((args) => String(args[0]).includes("party token")), "and the failure was logged");
+
+  // Leave the world as the next scenario expects: no party actor or token.
+  await game.actors.get(stored.actorId)?.delete();
+  await scene.deleteEmbeddedDocuments("Token", [stored.tokenId]);
+  await drain();
+});
+
 await scenario("players steer their own members via the GM relay", async () => {
   const dave = await ActorMock.create({
     name: "Dave",

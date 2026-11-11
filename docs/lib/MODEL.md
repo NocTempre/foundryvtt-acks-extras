@@ -1183,6 +1183,16 @@ is the whole question:
 A harness makes the walking easier; it does not make a horse's burden lighter,
 and it does not make the kit weigh less.
 
+The speed a bearing gives is the system's, never the module's:
+`explorationSpeedBearing({stone, max, mod})` runs core's `_calculateMovement`
+on a stub shaped as that method reads (`system.encumbrance`, `movement`,
+`movementacks`) and returns the exploration figure, or null where the actor
+class has no such method. The stub carries no `statuses`, which the condition
+wrapper on that method reads as nothing to apply, so a hypothetical bearing is
+never slowed by the real actor's conditions. A seat core derived no
+encumbrance for, and a carrier's load with a casualty's share added, are the
+two bearings the document does not hold.
+
 ### Two stores, and why nothing outside this file knows
 
 Core owns `system.equipped` on `weapon` and `armor`; its own equip toggle and the

@@ -30,12 +30,40 @@ export const PRIORITY = Object.freeze({ SAMPLE: 0, CATALOG: 10, WORLD: 20, OVERR
 /** docId → Map<priority, doc> */
 const _layers = new Map();
 
+/** Subscribers told which document changed, in subscription order. */
+const _listeners = new Set();
+
+/**
+ * Subscribe to registry changes: `listener(docId)` runs after a layer of
+ * `docId` is registered or removed, on the client that made the change. A
+ * surface that draws from a table repaints from it, since a read at draw time
+ * sees an override or an import only when something redraws. A throwing
+ * listener is logged and never blocks the registration or the other listeners.
+ * `resetTables` is silent. Returns the function that unsubscribes.
+ */
+export function onTablesChanged(listener) {
+  _listeners.add(listener);
+  return () => _listeners.delete(listener);
+}
+
+/** Tell every subscriber that `docId` changed. */
+function notifyChanged(docId) {
+  for (const listener of [..._listeners]) {
+    try {
+      listener(docId);
+    } catch (err) {
+      console.error("acks-extras | a tables listener threw", err);
+    }
+  }
+}
+
 /** Register one parsed ruledata document (must carry `id`). */
 export function registerTable(doc, { priority = PRIORITY.SAMPLE, source } = {}) {
   if (!doc?.id) throw new Error("registerTable: document must carry `id`");
   let layers = _layers.get(doc.id);
   if (!layers) _layers.set(doc.id, (layers = new Map()));
   layers.set(priority, source ? { ...doc, _registeredBy: source } : doc);
+  notifyChanged(doc.id);
 }
 
 /** Drop-in alias for the historical per-module registry call. */
@@ -47,9 +75,14 @@ export function initTables(doc) {
 export function unregisterTable(docId, { priority } = {}) {
   const layers = _layers.get(docId);
   if (!layers) return false;
-  if (priority == null) return _layers.delete(docId);
+  if (priority == null) {
+    _layers.delete(docId);
+    notifyChanged(docId);
+    return true;
+  }
   const had = layers.delete(priority);
   if (!layers.size) _layers.delete(docId);
+  if (had) notifyChanged(docId);
   return had;
 }
 

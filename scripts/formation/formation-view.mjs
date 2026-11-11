@@ -560,7 +560,7 @@ export function buildWarnings(formation, speed) {
         .map((c) =>
           game.i18n.format(
             c.over ? "ACKS-FORMATION.warnings.carrierOver" : "ACKS-FORMATION.warnings.carrierLine",
-            { name: c.name, base: c.baseEnc, eff: c.effEnc, cap: c.capacity, speed: c.speed },
+            { name: c.name, base: c.baseEnc, eff: c.effEnc, cap: c.capacity, speed: c.speed ?? "—" },
           ),
         )
         .join(" · ");

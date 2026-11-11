@@ -5374,3 +5374,26 @@ limits it only while moving, and a stricter plan would be a house rule.
 
 **Cost.** A Judge who advances by Round ten times passes a turn the plan never
 resolves. A world's party sheet carries a Turn plan section on every delve.
+
+
+## 2026-11-11 — A speed under a load is the system's, and a table change repaints the column
+
+**Ruled.** A speed the actor's own document does not hold (a seat core derived
+nothing for, a carrier under a casualty's share) is asked of core's own
+movement calculation on a stub (`lib/capacity.mjs` `explorationSpeedBearing`),
+and the module's copy of the tiers and bands is deleted. The movement modifier
+now reaches a carrier's pace as it already reached every other body's, since
+the system's calculation applies it. Where the system answers nothing the speed
+is null and the carrier line prints a dash, never a figure of ours.
+
+**Ruled.** The marching column's lights repaint when the light table changes,
+through `lib/tables.mjs` `onTablesChanged`, a subscription in the registry
+itself. A hook was the first design; the registry is Foundry-free and every
+client already runs its mirror from the world setting's change, so a listener
+there fires on each client at the moment its registry moves.
+
+**Rejected.** Keying the column on the location store's setting: the formation
+would then know the name of another feature's storage.
+
+**Cost.** A listener runs on every registration, including the many at load;
+the column's refresh is a no-op until a canvas is ready.

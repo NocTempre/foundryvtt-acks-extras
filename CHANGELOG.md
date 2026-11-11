@@ -347,6 +347,28 @@
   party gains on its members, now skip a member only for an Endurance ability
   imported from the book (or one that provides it), never for any item whose
   name contains "endurance".
+- **A quantity typed to take back survives a redraw.** The amount typed beside
+  a stored item's Take it back, on a location's sheet and on a character
+  sheet's Storage tab, is no longer cleared when the sheet redraws, and Take it
+  back takes that many instead of the whole stack.
+- **A party member's speed is the system's on every seat.** The speed a Party
+  sheet (Actors sidebar tab → a party actor) shows for a member a seat does not
+  own, and a carrier's pace while bearing a casualty, now come from the
+  system's own movement calculation, so they match the owner's seat and a
+  carrier's movement modifier counts.
+- **The marching column repaints an overridden light.** Overriding a light's
+  figure in the Ruledata Browser (Settings tab → Game Settings → ACKS II —
+  Extras → Open Ruledata Browser) now redraws the marching column's light on
+  every seat at once.
+- **A journey encounter card links its creature on the first roll.** An
+  encounter rolled before the library finished loading posts its creature as a
+  link, not plain text.
+- **Ending a party whose token cannot be removed still ends it.** A party whose
+  token could not be deleted from its scene no longer leaves its record behind
+  to be adopted by the next Add to party.
+- **Senses no longer warn about a renamed core class.** A token's special
+  senses and Hiding no longer write a deprecation warning to the browser
+  console.
 - **The Party sheet's bar no longer covers its name at a large type size.** At a
   large type size (Settings tab → Game Settings → ACKS II — Extras → ACKS font
   size) the progress bar in a Party sheet's header (Actors sidebar tab → a

@@ -438,7 +438,7 @@ cadence is imported" and "The encounter throw's dice are imported too").
 | `party-rolls.mjs` resolver | the methodical-use bonuses, the proficiency bonus magnitudes, a substituted throw target | The worst by doctrine: each is a magnitude the book attaches to a NAMED proficiency a reader picked, so each already has an owner — the character's own imported ability. `ability-bridge.mjs` already resolves imported ability terms; what is missing is a granted-modifier read, not a subsystem. |
 | `obstacles.mjs` | the registered obstacle magnitudes | Counter-example to §6's original claim; unexamined in detail. |
 | `trap-rules.mjs` | the default trigger, the crude-trap modifiers, the botch bands, pit and spike damage | Found by the 2026-09-23 audit. The trap's trigger field falls back to an imported default once one exists. |
-| `formation-model.mjs`, `formation-view.mjs` | the exploration-speed grid, the capacity fallback, the blind speed share, the combat-speed ratio | Found by the 2026-09-23 audit: the grid §6a's first pass deleted survives here with two readers. |
+| `formation-model.mjs`, `formation-view.mjs` | the capacity fallback, the blind speed share, the combat-speed ratio | Found by the 2026-09-23 audit. The exploration-speed bands are no longer here: the figure is read off the system's own movement calculation (`lib/capacity.mjs` `explorationSpeedBearing`). |
 | `travel.mjs`, `march.mjs`, `searching.mjs`, `search-run.mjs`, `lib/movement-scales.mjs` | the ancillary-activity count, the hour a slot is worth (`SLOT_HOURS`), the march's hours by pace (`TRAVEL_PACE`), the forced march's factor, and the feet-per-turn-to-miles-per-day ratio | The hour is the structural unit; the count, the pace hours and the ratio are printed. Owned by the movement-scales pass; the march engine (2026-10-09) reads them through `marchBudget` and `expeditionFrom`, so registering them is a change to two readers. |
 | `constants.mjs` `ROLE_GEAR` | the parchment fallback's cost | A printed price; the fallback carries no cost. |
 | `encounter-scaling.mjs` | the number-appearing rate per level step and the reaction step | Found 2026-09-23 while making the shift reachable. Pass them in, as `jumping.mjs` takes its figures. The 4.2.0 CHANGELOG entry states the rate too; the local-only rules test may keep it. |
@@ -465,26 +465,17 @@ legitimately sit.
   truth. Nothing calls it: during an episode they read the party token, which
   stands at the believed hex. `walkAstray`, which moves the shadow and paints
   the believed day's hex, has no caller either.
-- **Players enrolling their own tokens.** Both add paths are hard-gated to the
-  Judge and the player relay has no `join` case — structurally, because every
-  case validates that the actor is already a member. Ruled 2026-08-31: a player
-  may enrol a token they own into a formation they already hold a member in,
-  behind a `playersAddMembers` world setting defaulting off (the shape
-  `playersMoveParty` already set). The relay must resolve the token GM-side by
-  id and never trust a payload; the relay's sender is attested since 8.1.0.
-  MODEL.md's player-capability table needs the new row.
-- **The night, and what a night restores.** ROADMAP §4 claims to walk JJ's
-  expedition sequence rule by rule and omits steps 10 and 11 — fatigue and
-  rest healing — along with RR §VI.2's sleep block. Four clocks that must not
-  be conflated: the dungeon rest turn clears Winded, a night's sleep restores
-  every tradition's castings and **no** hit points, a dedicated day restores
-  hit points, and fatigue clears only to both together. **ACKS II has no watch
+- **The night, and what a night restores.** The night's fatigue and
+  armoured-sleep clocks are built (`lib/fatigue.mjs`, `formation/rest.mjs`).
+  Missing: a rest-now prompt; a night restoring castings
+  (`classes/casting.mjs` `restPools` is never called from `formation/rest.mjs`);
+  and a day restoring hit points, which a night does not. **ACKS II has no watch
   procedure** — standing watch is an activity, not a throw, and the Surprise
   Matrix takes no watch input — so a watch roster would be invention and is not
-  planned. Every hour count, healing die and fatigue run is a printed value:
-  the importer recipes ship first and this degrades by refusing to adjudicate
-  the night, never by defaulting. `survival.mjs`'s `naturalHealing` forbid has
-  no consumer until this exists.
+  planned. Every hour count and healing die is a printed value: the importer
+  recipes ship first and this degrades by refusing to adjudicate, never by
+  defaulting. `survival.mjs`'s `naturalHealing` forbid has no consumer until
+  the day's healing exists.
 - **One owner for chat visibility.** Three spellings of "the GMs" (`gmIds()`,
   a hand-rolled filter, `getWhisperRecipients`) and three hand-rolled versions
   of the public/private split (`initiative-card`, `surprise-card`,

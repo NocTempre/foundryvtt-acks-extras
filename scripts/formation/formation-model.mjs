@@ -25,7 +25,7 @@ import { tokenHasStatus, tokenHitPoints } from "../lib/hp-logic.mjs";
 import { monsterExplorationSpeed } from "./monster-traits.mjs";
 import { canSeeInDark } from "../lib/senses.mjs";
 import { carriesItem, findCarried } from "../lib/item-model.mjs";
-import { capacityStone } from "../lib/capacity.mjs";
+import { capacityStone, explorationSpeedBearing } from "../lib/capacity.mjs";
 import { announceChange } from "../lib/util.mjs";
 import { equipForRole } from "./judge-override.mjs";
 import { ACTOR_TYPE, ITEM_TYPE } from "../lib/vocab.mjs";
@@ -553,16 +553,32 @@ const encumbranceOf = (actor) => (seatLacksDerived(actor)
   ? Math.round(borneWeight6(actor) / STONE)
   : Number(actor?.system?.encumbrance?.value ?? 0));
 
+/**
+ * A character's maximum encumbrance in stone. The primitive answers with core's
+ * own maximum, which resolves a GM's forced max against 20 + STR; a seat core
+ * derived none for falls back to the strength-derived one.
+ */
+const maxStoneOf = (actor) => capacityStone(actor) ?? 20 + (actor?.system?.scores?.str?.mod ?? 0);
+
+/**
+ * The speed in feet per turn of a character bearing `stone`, as the system's
+ * own movement calculation gives it (`explorationSpeedBearing`); null where the
+ * system answers none.
+ */
+const paceBearing = (actor, stone) =>
+  explorationSpeedBearing({ stone, max: maxStoneOf(actor), mod: actor?.system?.movement?.mod });
+
 /** Exploration speed in feet/turn. Monsters with a Full Monster Sheet report
  *  their own Speed table (running/exploration rate); otherwise the acks system
  *  value computed from encumbrance is used, and a seat core computed none for
- *  reads the same tiers off the character's weight, so every seat agrees. */
+ *  asks the system's own calculation of the character's weight, so every seat
+ *  agrees. */
 export function explorationSpeedOf(actor) {
   const monster = monsterExplorationSpeed(actor);
   if (typeof monster === "number") return monster;
   if (seatLacksDerived(actor) && actor.system?.config?.movementAuto) {
-    const tier = encToExplorationSpeed(encumbranceOf(actor), actor.system?.scores?.str?.mod ?? 0);
-    return Math.max(tier + (Number(actor.system?.movement?.mod) || 0), 0);
+    const bearing = paceBearing(actor, encumbranceOf(actor));
+    if (bearing != null) return bearing;
   }
   const v = actor?.system?.movementacks?.exploration;
   if (typeof v === "number") return v;
@@ -707,15 +723,6 @@ export const isIncapacitated = (actor, member = null) =>
 export const isCasualty = (actor, member = null) =>
   isPerson(actor) && (isDown(actor, member) || isDead(actor, member));
 
-/** Exploration speed for an encumbrance total (RR speed tiers). */
-function encToExplorationSpeed(enc, strMod = 0) {
-  if (enc <= 5) return 120;
-  if (enc <= 7) return 90;
-  if (enc <= 10) return 60;
-  if (enc <= 20 + strMod) return 30;
-  return 0;
-}
-
 /**
  * Carried load: each down member's body and a share of their equipment
  * encumbrance (the rescue rule, RR p. 271), split evenly among members with
@@ -743,9 +750,7 @@ export function carriedLoad(formation) {
     down: down.map((e) => e.actor),
     carriers: carriers.map((e) => {
       const baseEnc = encumbranceOf(e.actor);
-      // The primitive answers with core's own maximum, which resolves a GM's
-      // forced max against 20 + STR — never re-derive the formula here.
-      const capacity = capacityStone(e.actor) ?? 20 + (e.actor?.system?.scores?.str?.mod ?? 0);
+      const capacity = maxStoneOf(e.actor);
       const effEnc = Math.round((baseEnc + sharePerCarrier) * 10) / 10;
       return {
         actor: e.actor,
@@ -753,7 +758,7 @@ export function carriedLoad(formation) {
         baseEnc,
         effEnc,
         capacity,
-        speed: encToExplorationSpeed(effEnc, e.actor?.system?.scores?.str?.mod ?? 0),
+        speed: paceBearing(e.actor, effEnc),
         over: effEnc > capacity,
       };
     }),
@@ -804,7 +809,7 @@ export function memberPace(formation, member, actor = getMemberActor(member), lo
   const carrier = pacingCarrierOf(actor);
   if (carrier) return carrierSpeedFor(carrier, formation);
   if (load.down.length && member.roles?.includes(ROLES.CARRIER)) {
-    return encToExplorationSpeed(encumbranceOf(actor) + load.sharePerCarrier, actor.system?.scores?.str?.mod ?? 0);
+    return paceBearing(actor, encumbranceOf(actor) + load.sharePerCarrier);
   }
   return explorationSpeedOf(actor);
 }
@@ -1351,11 +1356,19 @@ export async function dissolveFormation(formation) {
   } catch (err) {
     console.error(`${MODULE_ID} | failed to restore member tokens`, err);
   }
-  const scene = getPartyScene(formation);
-  if (scene && formation.tokenId && scene.tokens.get(formation.tokenId)) {
-    await scene.deleteEmbeddedDocuments("Token", [formation.tokenId]);
+  // The scene can vanish while the restoration above awaits, and its delete can
+  // throw regardless; the record goes either way, or it is left orphaned.
+  try {
+    const scene = getPartyScene(formation);
+    const live = scene ? game.scenes.get(scene.id) : null;
+    if (live && formation.tokenId && live.tokens.get(formation.tokenId)) {
+      await live.deleteEmbeddedDocuments("Token", [formation.tokenId]);
+    }
+  } catch (err) {
+    console.error(`${MODULE_ID} | failed to delete the party token`, err);
+  } finally {
+    await deleteFormationRecord(formation.id);
   }
-  await deleteFormationRecord(formation.id);
 }
 
 /** Restore all member tokens, then remove the party token, actor, and record. */

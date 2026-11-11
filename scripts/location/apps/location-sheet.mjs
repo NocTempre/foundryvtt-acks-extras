@@ -39,7 +39,7 @@ import { openHireGroupDialog } from "../../henchmen/apps/hire-group-dialog.mjs";
 import { now, advanceDays, nextMarketRollTime } from "../../henchmen/time.mjs";
 import { ACTOR_TYPE } from "../../lib/vocab.mjs";
 import { prepareTradeTab, bindTradeTab, TRADE_TAB_ACTIONS } from "../../markets/apps/trade-tab.mjs";
-import { PicksMixin } from "../../lib/picks.mjs";
+import { PicksMixin, spendPicks } from "../../lib/picks.mjs";
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ActorSheetV2 } = foundry.applications.sheets;
 
@@ -1398,8 +1398,13 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
       ui.notifications.warn(loc("storage.noClaimant"));
       return;
     }
-    const input = target.closest(".acks-location-row")?.querySelector("input[data-quantity]");
+    // A pick survives the sheet's redraws, so a typed amount is read from the
+    // control and spent once the retrieval has taken it.
+    const row = target.closest(".acks-location-row");
+    const pick = `qty-${itemId}`;
+    const input = row?.querySelector(`input[data-pick="${pick}"]`);
     const quantity = input?.value === "" || input == null ? null : Number(input.value);
+    spendPicks(row, [pick]);
     await storage().retrieve(this.actor, owner, [{ id: itemId, quantity }]);
     this.render();
   }

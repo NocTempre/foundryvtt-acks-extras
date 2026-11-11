@@ -50,7 +50,7 @@
               {{#if row.stackable}}
                 <span class="acks-location-row-qty">&times;{{row.quantity}}</span>
                 <input class="acks-location-row-take" type="number" min="1" max="{{row.quantity}}"
-                       data-quantity placeholder="{{row.quantity}}"
+                       data-pick="qty-{{row.id}}" placeholder="{{row.quantity}}"
                        data-tooltip="{{localize 'ACKS-LOCATION.storage.quantityPrompt'}}" />
               {{/if}}
               <button type="button" class="acks-location-btn acks-location-btn--sm" data-acksl-action="retrieve"

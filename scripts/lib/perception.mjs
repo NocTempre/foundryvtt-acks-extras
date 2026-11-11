@@ -1,4 +1,4 @@
-/* global foundry, game, CONFIG, Token */
+/* global foundry, game, CONFIG */
 
 /**
  * The ACKS senses as Foundry perception modes: `senses.mjs` decides WHAT a
@@ -126,7 +126,7 @@ function buildDetectionModes() {
       if (!super._canDetect(visionSource, target, level)) return false;
       // RULES §4: Hiding proficiency alone defeats it; blind/invisible are
       // already handled by core's SIGHT-mode base.
-      if (target instanceof Token) {
+      if (target instanceof foundry.canvas.placeables.Token) {
         const doc = target.document;
         if (doc.hasStatusEffect(STATUS_HIDDEN) && hidesFromLightless(target.actor)) return false;
       }
@@ -160,7 +160,7 @@ function buildDetectionModes() {
       const src = visionSource?.object?.document;
       if (src?.hasStatusEffect(CONFIG.specialStatusEffects.BURROW)) return false;
       if (srcDeaf(visionSource)) return false;
-      if (target instanceof Token && target.document.hasStatusEffect(CONFIG.specialStatusEffects.BURROW)) {
+      if (target instanceof foundry.canvas.placeables.Token && target.document.hasStatusEffect(CONFIG.specialStatusEffects.BURROW)) {
         return false;
       }
       // Deliberately no `visionSource.blinded.darkness` check: a bat in a
@@ -179,10 +179,8 @@ function buildDetectionModes() {
     _canDetect(visionSource, target, level) {
       const src = visionSource?.object?.document;
       if (src?.hasStatusEffect(CONFIG.specialStatusEffects.BURROW)) return false;
-      if (target instanceof Token && target.document.hasStatusEffect(CONFIG.specialStatusEffects.BURROW)) {
-        return false;
-      }
-      return true;
+      const burrowed = target instanceof foundry.canvas.placeables.Token && target.document.hasStatusEffect(CONFIG.specialStatusEffects.BURROW);
+      return !burrowed;
     }
   }
 

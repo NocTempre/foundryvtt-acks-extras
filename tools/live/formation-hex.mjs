@@ -362,9 +362,12 @@ const P = {
     const H = globalThis.__p2b;
     const scene = game.scenes.get(sceneId);
     const key = H.F.hexStock.pure.hexStockKey({ offset });
-    const point = (name, found) => ({ id: foundry.utils.randomID(), kind: "placed", name, sub: null, rarity: null, creature: null, draw: null, found, placeUuid: null, note: "" });
-    const P = point("Point P", { [fid]: game.time.worldTime });
-    const Q = point("Point Q", {});
+    // Fixed ids, because a plate stands a point where a hash of its id says
+    // (`formation/plate.mjs`): these two land on opposite sides of the cell, about
+    // 1.3 reach-radii apart, so the ring of samples round Q never reads P's gold.
+    const point = (id, name, found) => ({ id, kind: "placed", name, sub: null, rarity: null, creature: null, draw: null, found, placeUuid: null, note: "" });
+    const P = point("hexstock-p93", "Point P", { [fid]: game.time.worldTime });
+    const Q = point("hexstock-q176", "Point Q", {});
     const record = { label, stocked: true, stockedAt: game.time.worldTime, terrain: "grassland", territory: X, count: 2, judgeCount: 2, substitute: false, points: [P, Q], searches: {}, assessments: {} };
     await H.F.hexStock.writeStock(scene, key, record);
     await H.sleep(400);

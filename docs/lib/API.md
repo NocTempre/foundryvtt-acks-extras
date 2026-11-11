@@ -105,7 +105,11 @@ null, never merged · `hasDoc` · `docInfo()` → `[{id, priority, source}]` for
 diagnostics · `bracketRow(rows, value)` (null max = open-ended) ·
 `bandDie(rows)` → `"1d<top>"`, the die of a table rolled on one die, its faces
 the highest band edge (bands run up from 1 or from a band open below), or
-null with no edge · `resetTables()`.
+null with no edge · `resetTables()` (silent) ·
+`onTablesChanged(listener)` → unsubscribe (`listener(docId)` runs after a layer
+registers or is removed, on the client that made the change; a surface that
+draws from a table repaints from it, the way the marching column repaints its
+lights).
 
 **Rows an import could not read** (apiVersion 21). An importer stores
 `{__missing: true}` where the page held no such row, and a later import

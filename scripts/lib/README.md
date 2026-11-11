@@ -69,7 +69,7 @@ sibling modules) — never the import path for this module's own features.
 | --- | --- |
 | `attachment.mjs` | THE carry model: one actor attached to another in a role (rider/passenger/draft/crew/cargo) with a station and a draft kind — one flag on the carried actor, a forest by construction, `carrierChain`/`rootCarrierOf`, and a cached (never authoritative) reverse index. |
 | `mount.mjs` | Rider-role FACADE over `attachment.mjs` — the mounted-combat vocabulary (`mountOf`/`riderOf`/hooks); legacy symmetric pairs still read, every write converges them. |
-| `capacity.mjs` | How much any document can hold / is holding / is it over — in sixths of a stone. |
+| `capacity.mjs` | How much any document can hold / is holding / is it over — in sixths of a stone — and `explorationSpeedBearing`, the system's own movement calculation run on a stub for a bearing the document does not hold. |
 | `movement-scales.mjs` | The four ACKS speeds (combat/running/exploration/expedition) and their book names. |
 | `distance-units.mjs` | What a scene's `grid.units` is worth in FEET — the picker's unit table, `feetPerUnit`, `feetToUnits` (a feet radius in a scene's own unit, which token light and sight are stored in), and `sceneFeetPerCell`. Every feet→squares conversion divides by that. Foundry-free. |
 | `color.mjs` | `lighten` (a `#rrggbb` colour mixed toward white) and `hashedColor` (a stable `#rrggbb` colour from any text). The ONE place a map colour is mixed or hashed: the map overlays parse a colour by its hex digits, so a CSS colour string such as `hsl(...)` draws black there. Foundry-free. |

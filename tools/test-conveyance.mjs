@@ -650,6 +650,16 @@ await t("a seat core gave no figure reads a member off their weight, and the pac
   const id = party([mine, theirs]);
   theirs.isOwner = false;
   game.user = { id: "p1", isGM: false };
+  // The system's own movement calculation, stood in for with bands of this
+  // file's own invention: the module states none of them.
+  const hadClass = CONFIG.Actor.documentClass;
+  CONFIG.Actor.documentClass = class {
+    _calculateMovement() {
+      const { value, max } = this.system.encumbrance;
+      const base = value > max ? 0 : value > 9 ? 25 : value > 4 ? 50 : 100;
+      this.system.movementacks.exploration = Math.max(base + this.system.movement.mod, 0);
+    }
+  };
   try {
     const light = explorationSpeedOf(theirs);
     assert.ok(light > 40);
@@ -662,8 +672,13 @@ await t("a seat core gave no figure reads a member off their weight, and the pac
     assert.equal(explorationSpeedOf(theirs), 0);
     theirs.system.movementacks.exploration = 55;
     assert.equal(explorationSpeedOf(theirs), 55, "a hand-set speed is on the document for every seat");
+    // A carrier under a casualty's share is paced by the same calculation.
+    const hauling = { down: [{}], carriers: [], sharePerCarrier: 4 };
+    assert.equal(memberPace(getFormation(id), { actorId: "mine", roles: ["carrier"] }, mine, hauling), 50, "the share lifts the bearing into a slower band");
+    assert.equal(memberPace(getFormation(id), { actorId: "mine", roles: ["carrier"] }, mine, { ...hauling, sharePerCarrier: 0 }), 100, "and no share leaves it where it was");
   } finally {
     game.user = gmSeat;
+    CONFIG.Actor.documentClass = hadClass;
   }
   theirs.system.config.movementAuto = true;
   assert.equal(explorationSpeedOf(theirs), 55, "a GM's seat reads core's own figure");

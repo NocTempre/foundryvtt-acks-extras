@@ -3726,7 +3726,8 @@ unset. A kept fixture carries what the last walk left.
    *Observable:* rank 1 and rank 2 stand on cells the head walked (around the
    corner, never through the wall), and each light's `x`/`y` is the centre of
    its bearer's drawn cell. After the step, the token carries
-   `flags.acks-extras.trail` with three cells, newest first, written once,
+   `flags.acks-extras.trail` with four cells (one more than the party's three
+   bodies, `trailBound`), newest first, written once,
    and the move animated to its end (the trail write did not stop it).
 3. Reload the Player seat.
    *Observable:* the drawn cells and the light positions are the same as

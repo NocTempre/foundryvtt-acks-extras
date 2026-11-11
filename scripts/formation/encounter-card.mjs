@@ -24,7 +24,7 @@
 import { MODULE_ID } from "../lib/constants.mjs";
 import { makeLoc, gmIds, fractionLabel, numOrNull } from "../lib/util.mjs";
 import { nameKeys } from "../lib/vocab.mjs";
-import { libraryActors } from "../lib/library.mjs";
+import { libraryActors, whenReady } from "../lib/library.mjs";
 import { readTable, TRAVEL_DOC } from "../vehicles/vehicle-speed.mjs";
 import { DAY_SECONDS, travelOf, trueTravelOf, storedTravelOf, DAY_KINDS } from "./travel.mjs";
 import {
@@ -310,6 +310,9 @@ async function drawZoneTable(zones) {
 export async function postEncounterCard(formation, chain, {
   terrain, activity, night, hex = null, travel, zones = null, zoneDraw = null, nights = 0, rng = Math.random,
 } = {}) {
+  // The posted card never redraws, so a creature read from a cold shelf would
+  // stay a book line for the life of the message.
+  await whenReady();
   const outcomeKey = chain.outcome ?? chain.territory?.outcome ?? "none";
   const creature = chain.creature?.ok ? chain.creature : null;
   const actor = creature ? resolveCreature(creature.name) : null;

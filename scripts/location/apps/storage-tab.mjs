@@ -24,6 +24,7 @@ import { openStashDialog } from "./stash-dialog.mjs";
 import { depositReach, listsWhenEmpty, pinnedPlaces, reachScan, setPinnedPlace } from "../reach.mjs";
 import { ITEM_TYPE, ACTOR_TYPE } from "../../lib/vocab.mjs";
 import { COIN_ORDER_TEMPLATE, bindCoinOrder, coinOrderView } from "../../lib/coin-order.mjs";
+import { readPicks, restorePicks, spendPicks } from "../../lib/picks.mjs";
 
 const ANCHOR_CLASS = "acks-location-storage-anchor";
 const TAB_CLASS = "acks-location-storage-tab";
@@ -140,7 +141,12 @@ function injectSummary(root, data) {
   header.after(line);
 }
 
-function injectTab(app, root, actor, html) {
+/**
+ * Add the Storage tab. `picks` are the amounts typed into the previous
+ * injection's retrieve boxes (`readPicks`), written into the new tab so a
+ * redraw does not blank them, and a blank retrieves the whole stack.
+ */
+function injectTab(app, root, actor, html, picks) {
   const nav = root.querySelector("nav.tabs");
   const sections = root.querySelectorAll('section.tab[data-group="primary"]');
   if (!nav || !sections.length) return;
@@ -160,6 +166,7 @@ function injectTab(app, root, actor, html) {
   section.dataset.group = "primary";
   section.dataset.tab = STORAGE_TAB_ID;
   section.innerHTML = html;
+  restorePicks(section, picks);
   sections[sections.length - 1].after(section);
   section.addEventListener("click", (event) => onAction(event, actor));
 }
@@ -206,7 +213,11 @@ async function onAction(event, actor) {
     case "retrieve": {
       const row = button.closest("[data-item-id]");
       if (!row?.dataset.itemId) break;
-      const raw = row.querySelector("input[data-quantity]")?.value ?? "";
+      // The typed amount is a pick the render hook carries across redraws, so
+      // it is read here and then spent: the retrieval has taken it.
+      const pick = `qty-${row.dataset.itemId}`;
+      const raw = row.querySelector(`input[data-pick="${pick}"]`)?.value ?? "";
+      spendPicks(row, [pick]);
       await api.retrieve(place, actor, [{ id: row.dataset.itemId, quantity: raw === "" ? null : Number(raw) }]);
       break;
     }
@@ -300,6 +311,9 @@ export function installStorageTab() {
       ]);
       if (epochs.get(app) !== mine) return;
 
+      // The previous injection survives the redraw (it is not a part); its typed
+      // amounts are read before it is removed.
+      const picks = readPicks(root.querySelector(`.${TAB_CLASS}`));
       clear(root);
       injectCoinOrder(root, orderHtml);
       if (!data) return;
@@ -308,7 +322,7 @@ export function installStorageTab() {
         return;
       }
       injectSummary(root, data);
-      injectTab(app, root, actor, html);
+      injectTab(app, root, actor, html, picks);
       bindPlaceDrop(root, actor);
     } catch (err) {
       console.error(`${MODULE_ID} | storage tab injection failed`, err);

@@ -2658,7 +2658,7 @@ PLAYER seat.
   and click `.acks-location-storage-anchor`. The place is `[data-place-uuid]`
   inside `.acks-location-storage-tab`, its controls
   `[data-acksl-action="deposit"]`, `"retrieveAll"` and, on a row, `"retrieve"`
-  beside `input[data-quantity]`.
+  beside `input[data-pick^="qty-"]`.
 
 1. **No GM connected.** With the GM's driver closed, press the abbey row's
    Deposit on the depositor's Equipment tab, tick the coin, type 3000, confirm.

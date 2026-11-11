@@ -8,7 +8,7 @@
  * coin weighs is a figure off a page, and none is stated in the repo.
  */
 import assert from "node:assert/strict";
-import { capacity6, load6, overCapacity, capacityStone, loadStone, RIDER_BODY6, borneWeight6, carriedWeight6 } from "../scripts/lib/capacity.mjs";
+import { capacity6, load6, overCapacity, capacityStone, loadStone, RIDER_BODY6, borneWeight6, carriedWeight6, explorationSpeedBearing } from "../scripts/lib/capacity.mjs";
 import {
   STONE, isCurrency, isGoods, isPhysical, hasStock, stackCountOf, perStoneOf, systemCoinsPerStone,
   weight6Of, sumWeight6, encumbering6, contentsWeight6,
@@ -190,6 +190,50 @@ assert.equal(perStoneOf(purse), 40, "the coin's own declaration outranks the sys
 assert.equal(sumWeight6([coin({ id: "s1", qty: 37 }), coin({ id: "s2", qty: 40, perStone: 40 })]), 2 * STONE,
   "two rates in one purse are each divided by their own");
 delete globalThis.CONFIG;
+
+/* --- the system's own movement, run on a stand-in -------------------------- */
+// A stand-in for the system's movement calculation with bands of this file's
+// own invention. The helper states none: every figure below comes from it.
+let seenStub = null;
+globalThis.CONFIG = {
+  Actor: {
+    documentClass: class {
+      _calculateMovement() {
+        seenStub = this;
+        const { value, max } = this.system.encumbrance;
+        const base = value > max ? 0 : value > 9 ? 25 : value > 4 ? 50 : 100;
+        this.system.movementacks.exploration = Math.max(base + this.system.movement.mod, 0);
+      }
+    },
+  },
+};
+assert.equal(explorationSpeedBearing({ stone: 2, max: 20 }), 100, "a light bearing reads the top rung");
+assert.equal(explorationSpeedBearing({ stone: 6, max: 20 }), 50, "the stand-in's next band");
+assert.equal(explorationSpeedBearing({ stone: 12, max: 20 }), 25, "and its heaviest walking band");
+assert.equal(explorationSpeedBearing({ stone: 21, max: 20 }), 0, "past the maximum nothing walks");
+assert.equal(explorationSpeedBearing({ stone: 6, max: 20, mod: -10 }), 40, "the movement modifier is the system's to apply");
+assert.equal(explorationSpeedBearing({ stone: 2, max: 20, mod: -500 }), 0, "and the system floors it at nothing");
+assert.equal(seenStub.statuses, undefined, "the stand-in carries no statuses, so a condition wrapper has nothing to apply");
+globalThis.CONFIG = { Actor: { documentClass: class {} } };
+assert.equal(explorationSpeedBearing({ stone: 2, max: 20 }), null, "a system with no movement calculation answers nothing");
+globalThis.CONFIG = {
+  Actor: {
+    documentClass: class {
+      _calculateMovement() {
+        throw new Error("stand-in fault");
+      }
+    },
+  },
+};
+const warn = console.warn;
+console.warn = () => {};
+try {
+  assert.equal(explorationSpeedBearing({ stone: 2, max: 20 }), null, "a calculation that throws answers nothing");
+} finally {
+  console.warn = warn;
+}
+delete globalThis.CONFIG;
+assert.equal(explorationSpeedBearing({ stone: 2, max: 20 }), null, "no system at all answers nothing");
 
 /* --- rider constant ------------------------------------------------------- */
 assert.equal(RIDER_BODY6, 15 * STONE, "RR prices the adventurer at 15 stone");

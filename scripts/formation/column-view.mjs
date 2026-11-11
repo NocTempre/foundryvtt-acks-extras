@@ -22,6 +22,8 @@ import { FLAG_FORMATION_ID, FLAG_TRAIL, MODULE_ID, SETTING_PARTY_TOKEN_SHAPE } f
 import { columnFor, memberCells, pathCells } from "./column.mjs";
 import { destroyColumnLights, syncColumnLights } from "./column-light.mjs";
 import { getFormationForActor, getMemberActor, isLinkedPartyToken, partyTokenShape, readFormations, SETTING_FORMATIONS } from "./formation-model.mjs";
+import { LIGHT_DOC } from "../lib/light.mjs";
+import { onTablesChanged } from "../lib/tables.mjs";
 
 /** Opacity of a body's tint square. */
 const TINT_ALPHA = 0.28;
@@ -203,6 +205,11 @@ export function installColumnView() {
   };
   Hooks.on("createSetting", onSetting);
   Hooks.on("updateSetting", onSetting);
+  // A light figure is read from the lib's table registry, which an import or a
+  // Judge's override rewrites without touching any setting named above.
+  onTablesChanged((docId) => {
+    if (docId === LIGHT_DOC) refreshAllColumns();
+  });
   // A member's effect light (a spell on them, an item they carry) is read off
   // their actor, not the record: an effect or an item with effects that
   // changes on a member lays the columns again. Drawing only, so every

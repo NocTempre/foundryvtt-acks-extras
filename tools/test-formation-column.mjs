@@ -387,4 +387,55 @@ test("with no light figures imported a lit torch sheds nothing", () => {
   assert.deepEqual(columnLights(f, cells, GS), []);
 });
 
+{
+  // The column's view subscribes at install; `canvas.tokens` is read once per
+  // laying of the columns, so its reads count the layings.
+  let laid = 0;
+  globalThis.Hooks = { on: () => {} };
+  globalThis.canvas = {
+    ready: true,
+    get tokens() {
+      laid++;
+      return { placeables: [] };
+    },
+  };
+  const { installColumnView } = await import("../scripts/formation/column-view.mjs");
+  installColumnView();
+  tables.registerTable({ id: "invented-other", tables: { t: {} } });
+  assert.equal(laid, 0, "another document leaves the column alone");
+  tables.registerTable({ id: LIGHT_DOC, tables: { [LIGHT_TABLE]: { torch: { radius: 1 } } } });
+  assert.equal(laid, 1, "a registered light document lays the columns again");
+  tables.unregisterTable(LIGHT_DOC, { priority: tables.PRIORITY.OVERRIDE });
+  assert.equal(laid, 1, "removing a layer that was never there changes nothing");
+  tables.unregisterTable(LIGHT_DOC);
+  assert.equal(laid, 2, "removing the document lays them again");
+  tables.unregisterTable("invented-other");
+  delete globalThis.Hooks;
+  delete globalThis.canvas;
+  passed++;
+}
+
+test("a table listener hears each change once, and a throwing one blocks nobody", () => {
+  const heard = [];
+  const silence = console.error;
+  console.error = () => {};
+  const off = tables.onTablesChanged(() => {
+    throw new Error("listener fault");
+  });
+  const offSecond = tables.onTablesChanged((docId) => heard.push(docId));
+  try {
+    tables.registerTable({ id: "invented-doc", tables: {} });
+    tables.unregisterTable("invented-doc", { priority: tables.PRIORITY.WORLD });
+    tables.unregisterTable("invented-doc", { priority: tables.PRIORITY.SAMPLE });
+  } finally {
+    off();
+    offSecond();
+    console.error = silence;
+  }
+  assert.deepEqual(heard, ["invented-doc", "invented-doc"], "register and an effective removal each notify once");
+  tables.registerTable({ id: "invented-doc", tables: {} });
+  assert.equal(heard.length, 2, "an unsubscribed listener hears nothing more");
+  tables.unregisterTable("invented-doc");
+});
+
 console.log(`test-formation-column: ${passed} passed`);

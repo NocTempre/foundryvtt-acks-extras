@@ -1191,6 +1191,36 @@ function makeZone(scene, id, { x, y, width, height }, fields = {}) {
   assert.ok(when[0].n >= 1 && when[0].n <= TABLE_MILES, "the line's die is within the cadence's miles");
   assert.equal(open.result, open.chat.at(-1), "the card hands back the message it created");
 
+  // A creature held only on a shelf that has not loaded yet is still linked: the
+  // posted card never redraws, so it waits for the shelf.
+  const shelf = {
+    metadata: { packageType: "world", label: "ACKS Cookbook — Actor" },
+    documentName: "Actor",
+    index: { size: 1 },
+    size: 0,
+    contents: [],
+    async getDocuments() {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      this.size = 1;
+      this.contents = [{ id: "inv1", name: "Invented Beast", uuid: "Compendium.invented.Actor.inv1" }];
+    },
+  };
+  const hadPacks = game.packs;
+  const hadActors = game.actors;
+  game.packs = [shelf];
+  // The library reads the sidebar's actors by iteration, which the stub lacks.
+  game.actors = { ...hadActors, [Symbol.iterator]: function* () {} };
+  try {
+    const cold = await observe(() => postEncounterCard(getFormation(clear), {
+      ...thrown,
+      creature: { ok: true, name: "Invented Beast", roll: 4, rarity: "common" },
+    }, { terrain: "grassland", activity: "travel", night: false }));
+    assert.match(cold.cards.at(-1).creature.link, /Compendium\.invented\.Actor\.inv1/, "a cold shelf is loaded before the creature is read");
+  } finally {
+    game.packs = hadPacks;
+    game.actors = hadActors;
+  }
+
   // A rainy sky's ceiling pulls the opening in, and the card prints that distance.
   const rain = makeFormation(null, null, { travel: { ground: "grassland", weather: { precipitation: "rainy" } } });
   const wet = await observe(() => postEncounterCard(getFormation(rain), thrown, { terrain: "grassland", activity: "travel", night: true }));
