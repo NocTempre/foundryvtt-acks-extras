@@ -120,6 +120,34 @@
   Rolls tab shows "Proficiency not imported" instead of marking the weapon
   non-proficient. On the character sheet's Equipment tab, a container that
   holds gear but states no capacity reads "capacity not imported".
+- **A container's capacity is the one your book prints.** Pack, sack, chest
+  and barrel capacities were built into the module. The importer now reads each
+  from the equipment price row that states it, so an imported container carries
+  your book's figure (Settings tab → Game Settings → ACKS II — Extras → Manage
+  imports → Rebuild tab repairs items imported before). On an item's sheet, the
+  Details tab → Capacity and the Contents tab → Capacity, and on the container
+  headers the module adds to the character sheet's Equipment tab, hover the
+  figure to see the page it came from, that you typed over it, or that none is
+  imported. A container
+  whose row states no capacity (a quiver, a case, a barrel in some books) still
+  holds gear, with no limit, and says "not imported" with no number.
+- **Holds other items only declares a container.** Item sheet → Details tab →
+  Holds other items no longer fills in a capacity of its own. Ticking it makes the
+  item a container with no stated capacity; type one in the Capacity field beside
+  it. Unticking it clears the capacity too.
+- **A loaded bowquiver counts what the item says.** Annotate Equipment reads how
+  many items a loaded bowquiver counts as from the item's own description. An item
+  that states none is not adjusted.
+- **Weapon Finesse sizes and the unarmed strike's die come from your book.** They
+  are read with the equipment tables (Settings tab → Game Settings → ACKS II —
+  Extras → Manage imports → Rules tables), and can be overridden in the Ruledata
+  Browser (Settings tab → Game Settings → ACKS II — Extras → Open Ruledata
+  Browser, the equipment rows `weaponFinesse` and `unarmedStrike`). With the list not
+  imported, Weapon Finesse refuses no weapon, and a weapon's Effects tab →
+  Granted While Equipped carries the note in the tooltip of its Dexterity row
+  that the sizes are not imported. With the die not imported, the character sheet's
+  Equipment tab → Unarmed Strike makes the attack throw, rolls no damage and says
+  so.
 - **Force repair keeps what a Judge changed.** Import manager → Adventures
   tab → Force repair now writes a book's places and people in place. Text you
   added to or changed on a place, a person or a template creature stays as it

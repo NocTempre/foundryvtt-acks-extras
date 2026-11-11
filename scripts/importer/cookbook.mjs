@@ -74,7 +74,7 @@ import { getDoc, getLayer, hasDoc, PRIORITY } from "../lib/tables.mjs";
 import { pageItems, pageArtPlacements } from "./extract.mjs";
 import { WEAPON_TABLE, extractWeaponsFromDoc, bindWeaponRow, bindAmmoRow } from "./weapon-tables.mjs";
 import { ARMOR_TABLE, extractArmorFromDoc, bindArmorRow } from "./armor-tables.mjs";
-import { extractPriceMapFromDoc, extractPriceRowsFromDoc, priceFor, priceKey, PRICE_TABLES } from "./gear-prices.mjs";
+import { extractPriceMapFromDoc, extractPriceRowsFromDoc, priceFor, priceKey, capacityFor, PRICE_TABLES } from "./gear-prices.mjs";
 import { savesForLevel, parseHitDice } from "./stats.mjs";
 import { damageTotal, derivedLeaderRoles, entryLeaderTemplate, importedThrowLadder, leaderTemplateId, monsterThrowForHd, overviewIsLore, procedureBuildsFor, proseLeaderRoles, ratingText, readRoleSentences, SOURCE_AXIS, splitWeaponModifier } from "./leader-roles.mjs";
 import { deriveLeader, importedLeaderProcedure } from "../monsters/leader-derive.mjs";
@@ -124,7 +124,7 @@ import { equipmentClass } from "../equipment/profiles.mjs";
 import { gearProfileFor } from "../equipment/config.mjs";
 import { annotateItem } from "../equipment/api.mjs";
 import { declaresSlots } from "../lib/item-model.mjs";
-import { ANIMAL_TYPE, TEMPLATE_TYPE } from "../lib/constants.mjs";
+import { ANIMAL_TYPE, TEMPLATE_TYPE, FLAG_GEAR } from "../lib/constants.mjs";
 import { acksExtras } from "../namespace.mjs";
 import { elementOf, unset } from "../lib/util.mjs";
 
@@ -11805,6 +11805,8 @@ async function buildEquipmentItem(found, id, node) {
     const priced = priceFor(await gearPriceMap(), found.entry.name);
     if (priced?.cost != null) doc.system.cost = priced.cost;
     if (priced?.weight6 != null) doc.system.weight6 = priced.weight6;
+    const held = capacityFor(priced, found.entry.name);
+    if (held != null) withCapacity(doc, held);
   }
   // What the grids do not price, the entry's own paragraphs often do — the
   // "Cost: 25gp" run-in, a stated stone weight, a stated damage die (the BTA
@@ -12153,14 +12155,14 @@ async function rewriteRow(held, build, policy, repair) {
  * name to (plain inventory without it), the subtype its section heading names,
  * and its price and weight from the page.
  */
-function pricedDoc(row, id, cite) {
+export function pricedDoc(row, id, cite) {
   // The equipment root owns the rule mapping a NAME to the item type it should
   // be, exactly as bindEquipment defers to it; absent the module a priced row
   // is plain inventory.
   const klass = equipmentClass(row.name) ?? null;
   const type = klass?.type ?? "item";
   const subtype = subtypeForSection(row.section);
-  return {
+  const doc = {
     name: row.name,
     type,
     img: "icons/containers/bags/pouch-simple-brown.webp",
@@ -12171,6 +12173,22 @@ function pricedDoc(row, id, cite) {
     },
     flags: { [MODULE_ID]: { cookbook: { id, cite }, minted: true } },
   };
+  if (row.capacity != null) withCapacity(doc, row.capacity);
+  return doc;
+}
+
+/**
+ * Declare how much an item holds, in stone, where the page stated it: the
+ * gear flag's `capacity`, the same field the item sheet's Construction tab
+ * edits. Nothing is written for an item whose page states none.
+ */
+export function withCapacity(doc, stone) {
+  const flags = (doc.flags[MODULE_ID] ??= {});
+  flags[FLAG_GEAR] = { ...flags[FLAG_GEAR], capacity: stone };
+  // The figure the page gave, beside the import's stamp, so a surface can tell
+  // it from one a Judge typed or changed (`printed-layers.mjs` `capacitySource`).
+  const cookbook = (flags.cookbook ??= {});
+  cookbook.read = { ...cookbook.read, capacity: stone };
 }
 
 /**

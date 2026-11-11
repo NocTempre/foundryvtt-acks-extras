@@ -17,7 +17,7 @@
  * where a Judge changed the figures the import stamped as read.
  */
 import { libraryItems, cookbookId } from "../lib/library.mjs";
-import { containedIn } from "../lib/item-model.mjs";
+import { containedIn, capacityOf } from "../lib/item-model.mjs";
 import { MODULE_ID, VARIATION_ITEM_TYPE } from "./constants.mjs";
 import { MASTERWORK, SILVER } from "./config.mjs";
 import { sumDeltas, definitionFrom, entryOf } from "./variations.mjs";
@@ -101,6 +101,31 @@ export function provenanceTip(source) {
   if (source?.edited) return game.i18n.format("ACKS-EQUIPMENT.printed.editedByHand", { name, cite: source.cite || name });
   if (source?.cite) return game.i18n.format("ACKS-EQUIPMENT.printed.fromPage", { name, cite: source.cite });
   return game.i18n.format("ACKS-EQUIPMENT.printed.fromDocument", { name });
+}
+
+/**
+ * Where an item's stated capacity came from, shaped for `provenanceTip`: the
+ * import stamp's `read.capacity` is the figure the page gave, so a capacity
+ * equal to it cites the page, one that differs was edited by hand, and an
+ * item whose import read none (or that no import made) was set by hand.
+ *
+ * @returns {{name: string, cite: string, byHand: boolean, edited: boolean}}
+ */
+export function capacitySource(item) {
+  const stamp = item?.flags?.[MODULE_ID]?.cookbook ?? item?.getFlag?.(MODULE_ID, "cookbook");
+  const read = stamp?.read?.capacity;
+  const base = { name: String(item?.name ?? ""), cite: String(stamp?.cite ?? "") };
+  if (!Number.isFinite(read)) return { ...base, byHand: true, edited: false };
+  return { ...base, byHand: false, edited: read !== capacityOf(item) };
+}
+
+/**
+ * The tooltip of an item's capacity figure: its provenance when one is
+ * stated, and that it is not imported, with no number, when none is.
+ */
+export function capacityTip(item) {
+  if (capacityOf(item) === null) return game.i18n.localize("ACKS-EQUIPMENT.printed.capacityNotImportedTip");
+  return provenanceTip(capacitySource(item));
 }
 
 /** The tooltip for a layer whose document is not imported, naming the key to make or import. */

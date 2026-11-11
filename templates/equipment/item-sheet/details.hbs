@@ -64,7 +64,7 @@
       <span>{{localize 'ACKS-EQUIPMENT.itemSheet.options.holds'}}</span>
     </label>
     {{#if details.holds}}
-    <label class="acks-extras-item-sheet__field is-xs">
+    <label class="acks-extras-item-sheet__field is-xs" data-tooltip-text="{{details.capacityTip}}">
       <span class="acks-extras-item-sheet__field-label">{{localize 'ACKS-EQUIPMENT.itemSheet.options.capacity'}}</span>
       <input class="acks-input acks-input--line acks-nums" type="number" name="{{capacityPath}}" value="{{details.capacityStone}}" min="0" step="0.5" {{disabled (not editing)}}>
     </label>

@@ -3,7 +3,7 @@ import assert from "node:assert";
 import fs from "node:fs";
 import { openBook, pageItems } from "../../scripts/importer/extract.mjs";
 import { FILES, referenceComplete } from "./reference-lib.mjs";
-import { extractPriceMapFromDoc, extractPriceRowsFromDoc, extractPrices, priceFor, parseCost, PRICE_TABLES } from "../../scripts/importer/gear-prices.mjs";
+import { extractPriceMapFromDoc, extractPriceRowsFromDoc, extractPrices, priceFor, parseCost, labelCapacity, capacityFor, PRICE_TABLES } from "../../scripts/importer/gear-prices.mjs";
 
 let pass = 0;
 const check = (label, cond) => { assert.ok(cond, label); pass++; };
@@ -27,6 +27,28 @@ check("parseCost '1, 500gp' → 1500", parseCost("1, 500gp") === 1500);
 check("parseCost 1000gp → 1000", parseCost("1000gp") === 1000);
 // A three-digit price must be untouched by the separator handling.
 check("parseCost 500gp → 500", parseCost("500gp") === 500);
+
+// Unit: the capacity a row's own label states, in stone. The figures are INVENTED.
+check("labelCapacity reads a whole figure", labelCapacity("Crate (holds 9 stone)") === 9);
+check("labelCapacity reads a fraction", labelCapacity("Crate/Box (holds 1/3 stone)") === 1 / 3);
+check("labelCapacity reads the abbreviated unit", labelCapacity("Crate, Banded (holds 8 st.)") === 8);
+check("labelCapacity reads a decimal", labelCapacity("Crate (holds 2.5 stone)") === 2.5);
+check("a label that states no capacity reads none", labelCapacity("Quiver, 20 Arrows") === null && labelCapacity("Barrel (20 gallon)") === null && labelCapacity("Holds") === null);
+check("a stated capacity of nothing is a capacity", labelCapacity("Crate (holds 0 stone)") === 0);
+check("a figure in a parenthesis that does not open with holds is no capacity", labelCapacity("Crate (9 stone)") === null && labelCapacity("Crate (weighs 9 stone)") === null);
+{
+  const R = { rowTol: 3, sides: [{ nameX0: 40, nameX1: 240, costX: 250, encX: 300 }] };
+  const run = (str, x, y) => ({ str, x, y });
+  const rows = extractPrices([run("Crate (holds 9 stone)", 40, 10), run("1gp", 250, 10), run("1", 300, 10), run("Rope", 40, 20), run("1gp", 250, 20), run("1", 300, 20)], R);
+  check("an extracted row carries the capacity its label states, and none otherwise", rows.find((r) => r.name.startsWith("Crate"))?.capacity === 9 && rows.find((r) => r.name === "Rope")?.capacity === null);
+}
+{
+  const exact = { name: "Crate (holds 9 stone)", capacity: 9 };
+  const variant = { name: "Crate, Iron (holds 9 stone)", capacity: 9 };
+  check("a row that IS the entry states its capacity", capacityFor(exact, "Crate") === 9);
+  check("a variant the prefix lookup fell back to does not state the entry's", capacityFor(variant, "Crate") === null);
+  check("a row with no stated capacity, or no row, states none", capacityFor({ name: "Rope", capacity: null }, "Rope") === null && capacityFor(null, "Rope") === null);
+}
 
 // Unit: a grid that stacks SECTIONS. One recipe reads the second price page,
 // which prints clothing, then livestock, then provisions — so a row's name is
@@ -93,7 +115,12 @@ check("nor is a foodstuff", sectionOf("Salt (1 lb)") !== sectionOf("Cow (550 lbs
 // The gear page is one section, and the recipes disagree about which page they
 // read — so `table` cannot stand in for `section` and both are carried.
 check("the gear page is a single section", new Set(priced.filter((r) => r.table === "gear").map((r) => r.section)).size === 1);
-check("the gear section is not the clothing one", sectionOf("Backpack (holds 4 stone)") !== sectionOf("Belt/Sash, Leather"));
+const backpackRow = priced.find((r) => /^backpack/i.test(r.name))?.name ?? "";
+check("the gear section is not the clothing one", sectionOf(backpackRow) !== sectionOf("Belt/Sash, Leather"));
+// Seven rows of the gear grid state what they hold in their own label; the
+// count is the page's, the figures are not asserted.
+check(`${priced.filter((r) => r.capacity != null).length} price rows state a capacity (7 expected)`, priced.filter((r) => r.capacity != null).length === 7);
+check("every row that states one is on the gear page", priced.filter((r) => r.capacity != null).every((r) => r.table === "gear"));
 // The subtype lookup is CONFIG's, not ours — but the heading it is asked about
 // has to be the word the system's own vocabulary knows, or nothing matches and
 // every clothing row silently stays plain inventory.

@@ -6,7 +6,7 @@
     <div class="acks-row">
       <span class="acks-extras-item-sheet__rule-title">{{localize 'ACKS-EQUIPMENT.itemSheet.contents.capacity'}}</span>
       <span class="acks-spacer"></span>
-      <span class="acks-extras-item-sheet__fact-value acks-nums">{{contents.capLine}} {{localize 'ACKS-EQUIPMENT.itemSheet.contents.stone'}}{{#unless contents.capacityStated}} · {{localize 'ACKS-EQUIPMENT.printed.notImported'}}{{/unless}}</span>
+      <span class="acks-extras-item-sheet__fact-value acks-nums" data-tooltip-text="{{contents.capacityTip}}">{{contents.capLine}} {{localize 'ACKS-EQUIPMENT.itemSheet.contents.stone'}}{{#unless contents.capacityStated}} · {{localize 'ACKS-EQUIPMENT.printed.notImported'}}{{/unless}}</span>
     </div>
     <div class="acks-bar{{#if contents.over}} acks-bar--danger{{/if}}"><div class="acks-bar-fill" style="--acks-bar-value: {{contents.capPct}}"></div></div>
   </div>

@@ -123,7 +123,7 @@ export const ITEM_FLAGS = Object.freeze({
   CONTAINER: "container",
   CONTAINED_IN: "containedIn", // id of the container item this item is stored in
   HARNESS: "harness", // adventurer's harness: relieves the wearer of the weight its `gear.relief` states
-  BOWQUIVER: "bowquiver", // bowquiver: assembly counts as 2 items when loaded
+  BOWQUIVER: "bowquiver", // bowquiver: the loaded assembly counts as the figure its own text states
   NAMED: "named", // {trueName, givenName, ladder[], unlocked, revealed, guesses{}}
   WORN_HAND: "hand", // set by paper-doll normalization: "main" | "off" | "mainOff"
   GRIP: "grip", // player's chosen grip for a versatile weapon: "auto" | "1h" | "2h"

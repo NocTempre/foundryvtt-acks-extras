@@ -134,4 +134,23 @@ check("an exploding mark is Foundry's x; a plain die stays plain", forms.orchard
 check("dice still reads past the mark", forms.orchardDice === "2d8");
 check("a share in words is its fraction", forms.holds === 2 / 3 && forms.falls === 0.25 && forms.sags === 0.5);
 
+// The sizeList take: the size words of the clause, up to the word that ends it.
+const sizes = read(
+  [
+    "A reaver striking with mini, little, or middling blades uses the quick form.",
+    "A mason carrying tiny, small, or large tools and, separately, a huge anvil.",
+    "A cook ladling a tiny spoon, a tiny spoon, and a medium spoon, then weapons of large size.",
+    "A scribe uses neither.",
+  ],
+  [
+    { key: "none", find: "a reaver striking with", take: "sizeList", span: 60 },
+    { key: "mason", find: "a mason carrying", take: "sizeList", span: 60 },
+    { key: "cook", find: "a cook ladling", take: "sizeList", span: 100 },
+    { key: "scribe", find: "a scribe uses", take: "sizeList", span: 30 },
+  ],
+);
+check("a clause naming no size reads nothing", sizes.none === undefined && sizes.scribe === undefined);
+check("sizes read in order, a word outside the size vocabulary skipped", JSON.stringify(sizes.mason) === JSON.stringify(["tiny", "small", "large"]));
+check("a size is listed once, and words after the list's end are not read", JSON.stringify(sizes.cook) === JSON.stringify(["tiny", "medium"]));
+
 console.log(`test-prose-values: ${pass} checks passed.`);

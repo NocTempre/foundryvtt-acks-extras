@@ -106,6 +106,31 @@ export function parseCost(text) {
   return unit === "sp" ? n / 10 : unit === "cp" ? n / 100 : n;
 }
 
+/**
+ * The stone a row's printed label says its item holds, or null when the label
+ * states none: a parenthetical that opens "holds", then a whole, decimal or
+ * fractional figure and "stone" or "st.". Only the pattern ships; the figure
+ * is the reader's page.
+ */
+export function labelCapacity(name) {
+  const m = /\(\s*holds\s+(\d+(?:\.\d+)?)(?:\s*\/\s*(\d+))?\s*(?:stones?|st)\b\.?\s*\)/i.exec(String(name ?? ""));
+  if (!m) return null;
+  const stone = m[2] ? Number(m[1]) / Number(m[2]) : Number(m[1]);
+  return Number.isFinite(stone) && stone >= 0 ? stone : null;
+}
+
+/**
+ * The capacity a price lookup states for the entry `name`: the matched row's
+ * own, and only when that row IS the entry. `priceFor` falls back to the one
+ * variant whose key extends the entry's, and a variant's label states the
+ * variant's capacity, not the entry's.
+ * @param {{name:string, capacity?:number|null}|null} priced what `priceFor` returned
+ * @returns {number|null}
+ */
+export function capacityFor(priced, name) {
+  return priced?.capacity != null && priceKey(priced.name) === priceKey(name) ? priced.capacity : null;
+}
+
 /** Encumbrance (stone) → weight6. "1/6"→1, "2"→12; "-"/blank→null. */
 function encToWeight6(enc) {
   const s = String(enc ?? "").trim();
@@ -179,7 +204,7 @@ export function extractPrices(items, recipe) {
       // A real row must carry a price; header/section rows do not.
       if (cost == null && weight6 == null) continue;
       priced++;
-      out.push({ name, cost, weight6, section });
+      out.push({ name, cost, weight6, section, capacity: labelCapacity(name) });
     }
     // A SECTION HEADING, not a row: nothing on the line is priced, and only
     // the first column carries text. The column-heading line under it repeats
@@ -205,7 +230,7 @@ export async function extractPriceMapFromDoc(doc, readPage) {
   const map = new Map();
   for (const row of await extractPriceRowsFromDoc(doc, readPage)) {
     const key = priceKey(row.name);
-    if (key && !map.has(key)) map.set(key, { name: row.name, cost: row.cost, weight6: row.weight6 });
+    if (key && !map.has(key)) map.set(key, { name: row.name, cost: row.cost, weight6: row.weight6, capacity: row.capacity ?? null });
   }
   return map;
 }

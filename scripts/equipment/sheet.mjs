@@ -44,6 +44,7 @@ import {
 } from "./containers.mjs";
 import { pickLock, bashOpen, canPick, canBash } from "./locks.mjs";
 import { annotateItem } from "./api.mjs";
+import { capacityTip } from "./printed-layers.mjs";
 import { companionSlots, openCompanionPicker, releaseCompanion } from "../abilities/companions.mjs";
 
 /** Stone display shared with the container app. */
@@ -530,7 +531,7 @@ function containerHeader(actor, c, onRerender) {
 
   const note = c.capacityStone ? `${st(c.load6)} / ${c.capacityStone} st` : `${st(c.load6)} st`;
   const noteEl = el("span", "acks-equipment-wear__bucket-note", c.capacityUnimported ? `${note} · ${game.i18n.localize("ACKS-EQUIPMENT.printed.capacityNotImported")}` : note);
-  if (c.capacityUnimported) noteEl.dataset.tooltipText = game.i18n.localize("ACKS-EQUIPMENT.printed.capacityNotImportedTip");
+  noteEl.dataset.tooltipText = capacityTip(c.item);
   header.append(noteEl);
 
   const controls = el("div", "acks-equipment-container__controls");

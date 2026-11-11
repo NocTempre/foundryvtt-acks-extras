@@ -972,6 +972,15 @@ function takeProse(window, take, spec = {}) {
       const m = window.match(/\b(day|week|month|year)\b/);
       return m ? m[1] : undefined;
     }
+    case "sizeList": {
+      // The weapon-size words a clause names, in reading order, up to the
+      // word that ends the list ("tiny, small, or medium melee weapons" reads
+      // up to "weapons"). The size vocabulary is the module's own
+      // (`equipment/config.mjs` `SIZE`); which sizes a rule names is the page's.
+      const head = window.split(/\bweapons?\b/)[0];
+      const sizes = [...new Set([...head.matchAll(/\b(tiny|small|medium|large)\b/g)].map((m) => m[1]))];
+      return sizes.length ? sizes : undefined;
+    }
     case "rarityTier": {
       // rarity ladder word → camel key ("very rare" → "veryRare")
       const m = window.match(/\b(ubiquitous|common|uncommon|very rare|extremely rare|rare|legendary)\b/);

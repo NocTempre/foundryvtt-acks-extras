@@ -52,6 +52,9 @@ const TABLES = {
   // The level-gain morale bonuses: two levels and the bonus each earns.
   wages: ["henchmanLimit", "employerLevelCap", "levelMorale"],
   // The domain month: every table its procedure runs on.
+  // The equipment document's two one-sentence figures: the sizes Weapon
+  // Finesse takes and the unarmed strike's die.
+  equipment: ["weaponFinesse", "unarmedStrike"],
   // The weapon lists' prose: the kinds each folio names, read into windows.
   weaponProse: ["martialProse", "focusProse", "narrowProse", "twoHandsFirst", "twoHandsSecond", "throwableProse", "damageTypeProse"],
   domain: [
@@ -351,6 +354,19 @@ VERIFY["weaponProse.throwableProse"] = (out, recipe, fail) => {
 VERIFY["weaponProse.damageTypeProse"] = (out, recipe, fail) => {
   nonEmptyWindow(out, recipe, fail);
   for (const v of recipe.values) if (!parseDealtBy(out?.[v.key]).length) fail(`${v.key}: no weapon list read`);
+};
+
+/* ------------------- the equipment document's one-sentence figures ------------------- */
+
+VERIFY["equipment.weaponFinesse"] = (out, recipe, fail) => {
+  proseKeys(out, recipe, fail);
+  const sizes = out?.sizes;
+  if (!Array.isArray(sizes) || !sizes.length) return fail("sizes: no size word read");
+  if (sizes.some((s) => !["tiny", "small", "medium", "large"].includes(s))) fail("sizes: a word outside the size vocabulary");
+};
+VERIFY["equipment.unarmedStrike"] = (out, recipe, fail) => {
+  proseKeys(out, recipe, fail);
+  if (!/^\d+d\d+$/.test(String(out?.damage ?? ""))) fail("damage: not a dice expression");
 };
 
 /* ------------------------------- the domain ------------------------------- */

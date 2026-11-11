@@ -49,7 +49,7 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
   `freeHands` alone.
 - **A container must DECLARE that it holds gear** before `isContainer` is true
   and anything can be stored in it — a plain sack is not a container until its
-  `gear.capacity` says so.
+  `gear.holds` says so.
 - **The container calls take the ACTOR first, and `contentsOf` takes an ID.**
   `canStore(actor, item, container)`, `storeIn(actor, item, container)`,
   `contentsOf(actor, containerId)`, `contentsWeight6(actor, containerId)`,
@@ -360,7 +360,7 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 5. Right rail: EQP toggles `system.equipped`; PIN toggles `system.favorite`.
    Torch: `splitOne` → a worn qty-1 split with `splitFrom`, stack reads 2;
    `restack` → split gone, stack reads 3.
-6. Container: Details → Holds other items (`gear.capacity` 0, Contents tab
+6. Container: Details → Holds other items (`gear.holds` true, Contents tab
    appears), capacity 4, tick Weapons + Tools, type a refusal. Store the axe
    (row appears in place); `canStore` on the Flask → `{ok:false,
    reason:"refused", message}` and `storeIn` warns with it; take-out clears
@@ -1333,3 +1333,75 @@ The four kept actors stay. The annotate item is swept by uuid; the walk's sweep
 of everything else is empty and is printed. `registerTable` after `unregisterTable`
 is the only restore the absent step needs; `restoreLayers` runs it again in the
 walk's `finally` if the step died half way.
+
+## Figures the book prints
+
+A container's capacity, the sizes Weapon Finesse takes and the unarmed
+strike's die arrive from the rules book and reach a consumer only as read
+(docs/equipment/MODEL.md, "Figures the book prints, and what is read without
+them"). Walked by `tools/live/equipment-printed-figures.mjs` on the GM seat with
+the rules book connected, and on the Player seat for the registry. The walk
+prints booleans and counts, never a page figure or a row's name.
+
+### Fixtures
+
+- **Kept, `equipment/printed-figures-actor`**: a character the Player seat
+  owns with three items found by name: a container whose gear flag the walk
+  brings to what the importer writes for a price row that states a capacity
+  (the row is one of the real grid's, bound by the importer's own `pricedDoc`
+  and given `holds`, the declaration Annotate adds by name), a container that
+  only declares it holds gear, and a plain sack. Each run clears the gear and
+  import-stamp flags of all three and rewrites those shapes before its first
+  check.
+- **The tables are the world's**: the equipment document's `weaponFinesse` and
+  `unarmedStrike` tables. When either is absent the walk runs the Rules tables
+  import for the `equipment` document from the staged rules book. "Absent" is a
+  Judge's override of the table written through the Ruledata Browser's own
+  `setOverride`, never an edit of the world's imported layer, and a table
+  that already carries an override the run did not write is left alone and the
+  step fails by name.
+
+### Steps
+
+1. The price grid is read from the open book. *Observable:* seven rows state a
+   capacity in their own label, all on one page; the equipment tables hold a
+   finesse list of sizes with at least one taken and one refused, and a die
+   the module's strike carries.
+2. The container bound from a price row. *Observable:* the Details tab shows
+   Holds other items ticked and a filled capacity field, whose label tooltip
+   is `printed.fromPage` with the stamp's citation; the Contents tab shows the
+   figure with the same tooltip and no "not imported". Press the pencil, type a
+   capacity over it: the tooltip becomes `editedByHand`. Clear the field:
+   `holds` stays, the capacity is gone, the tooltip is the not-imported one and
+   carries no digit. The Player seat's model reads the same.
+3. The container with no stated capacity. *Observable:* a container with no
+   limit; the capacity field is empty, its tooltip the not-imported one, and
+   the Contents tab says "not imported" beside no figure.
+4. Holds other items. Press the pencil on the plain sack, then the checkbox.
+   *Observable:* `gear.holds` is true and no capacity is stated; the capacity
+   field appears empty; a figure typed there reads `byHand`; unticking the box
+   writes `holds` false and clears the capacity.
+5. Weapon Finesse. Override the table to hold no sizes, then one size, then a
+   value that is not a list. *Observable:* with none the gate refuses nothing
+   and `finesseSizesImported` is false; with one size exactly that size is
+   taken and the other three refused; a value that is not a list counts as
+   none.
+6. The unarmed strike. *Observable:* imported, the strike's formula is the
+   table's die. With an override holding none, the formula is blank and
+   `rollUnarmed` says `unarmedNoDie` and posts its attack card (tracked, swept
+   by id). An invented die in the override wins; text that is not `NdM` counts
+   as none.
+7. Clear the run's two overrides. *Observable:* none left, and the registry
+   serves the imported counts again on both seats.
+
+What it cannot reach: the equipment tab's container header (the actor sheet's
+bucket note), the Effects tab's Granted While Equipped row an undecided finesse
+size leaves a tooltip on (needs a finesse effect, an equipped weapon and roll automation on), and a
+rebuild that rewrites a stamped capacity (`REPAIR` is covered by the unit
+suites only).
+
+### Teardown
+
+The kept actor stays. The run's own cards are tracked by id and swept by that
+list, and the sweep object is printed; the overrides are cleared in a
+`finally`.

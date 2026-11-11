@@ -64,7 +64,7 @@ import { weaponRow } from "../lib/weapons.mjs";
  * Four layers, applied in ONE write:
  *  - weapons: the profile key, and the two attack booleans of a thrown melee
  *    row;
- *  - carrying devices: capacity, harness, bowquiver;
+ *  - carrying devices: holds, harness, bowquiver;
  *  - EVERY physical item: where it sits (`gear.slots`) and what it costs to
  *    reach into (`gear.access`), inferred by `inferGear`;
  *  - coin: how many make a stone (`gear.perStone`), where its own text says.
@@ -112,15 +112,16 @@ export async function annotateItem(item) {
   if (profile) {
     if (profile.harness) updates[`flags.${MODULE_ID}.${ITEM_FLAGS.HARNESS}`] = true;
     if (profile.bowquiver) updates[`flags.${MODULE_ID}.${ITEM_FLAGS.BOWQUIVER}`] = true;
-    if (profile.capacity != null) key ??= "container";
+    if (profile.holds) key ??= "container";
   }
 
-  // Where it sits, what it costs to reach into, and how much it holds — only
-  // stamped when there is something to say, and key by key only where the
-  // item declares nothing: a Judge's slots, capacity, access or relief stand,
+  // Where it sits, what it costs to reach into, and whether it takes gear —
+  // only stamped when there is something to say, and key by key only where the
+  // item declares nothing: a Judge's slots, access, holds or relief stand,
   // since a later pass cannot tell its own earlier answer from theirs.
-  // Capacity is written into the gear flag rather than the container record,
-  // which keeps only the lock's state.
+  // How much it holds is never stamped here: the page states it and the
+  // importer writes it to the gear flag's `capacity` (the container record
+  // keeps only the lock's state).
   const G = `flags.${MODULE_ID}.${FLAG_GEAR}`;
   const gear = inferGear(item);
   const inferred = inferredGearFlag(item);
@@ -128,21 +129,23 @@ export async function annotateItem(item) {
     const held = gearOf(item);
     if (!declaresSlots(item)) updates[`${G}.slots`] = inferred.slots;
     if (!held.access) updates[`${G}.access`] = inferred.access;
-    if (capacityOf(item) == null) updates[`${G}.capacity`] = inferred.capacity;
+    if (inferred.holds && held.holds == null) updates[`${G}.holds`] = true;
     if ("relief" in inferred && reliefOf(item) == null) updates[`${G}.relief`] = inferred.relief;
-    key ??= gear.capacity != null ? "container" : "gear";
+    if ("loaded6" in inferred && !Number.isFinite(held.loaded6)) updates[`${G}.loaded6`] = inferred.loaded6;
+    key ??= gear.holds ? "container" : "gear";
   }
 
   // A device sold with its load — "Quiver, 20 Arrows" — is the ammunition;
-  // re-running annotate clears a capacity an earlier pass mistakenly stamped,
-  // the one key this pass takes back.
+  // re-running annotate clears a capacity or holds declaration an earlier
+  // pass mistakenly stamped, the two keys this pass takes back.
   //
   // The count is never written here (DECISIONS.md, "Annotate declares the
   // bundle and never the count (2026-09-05)").
   const rounds = CONFIG_DATA.bundledAmmoCount(item.name ?? "");
   if (rounds != null) {
-    if (capacityOf(item) != null) {
+    if (capacityOf(item) != null || gearOf(item).holds === true) {
       updates[`${G}.capacity`] = null;
+      updates[`${G}.holds`] = false;
       key = "ammunition";
     }
     // The name states a bundle, so the printed weight beside it is the

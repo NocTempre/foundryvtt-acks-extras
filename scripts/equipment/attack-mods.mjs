@@ -40,8 +40,46 @@ import { RULEDATA_DOC } from "./overlays/scavenged.mjs";
 import { ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
 import { hasDoc, getDoc } from "../lib/tables.mjs";
 
-/** Sizes eligible for Weapon Finesse (RR 121); a weapon of no known size is not refused it. */
-const FINESSE_SIZES = [SIZE.TINY, SIZE.SMALL, SIZE.MEDIUM];
+/**
+ * The `equipment` document's tables for two figures a single sentence prints:
+ * the sizes Weapon Finesse takes (RR 121) and the unarmed strike's die (RR 299).
+ */
+export const PRINTED_FIGURE_TABLES = Object.freeze({ finesse: "weaponFinesse", unarmed: "unarmedStrike" });
+
+/** One table of the `equipment` document as the registry holds it now, or `{}`. */
+function equipmentTable(table) {
+  const t = hasDoc(RULEDATA_DOC) ? getDoc(RULEDATA_DOC)?.tables?.[table] : null;
+  return t && typeof t === "object" ? t : {};
+}
+
+/**
+ * Whether Weapon Finesse takes a weapon of this size: true when the imported
+ * list names it, false when the list is imported, the size is known and the list
+ * does not name it, and null when either the list or the size is not stated.
+ * Only false refuses. A Judge's override may hold anything, so a list that is
+ * not an array of words counts as not imported.
+ * @param {string|null|undefined} size a `SIZE` value
+ * @returns {boolean|null}
+ */
+export function finesseTakes(size) {
+  const list = equipmentTable(PRINTED_FIGURE_TABLES.finesse).sizes;
+  const sizes = Array.isArray(list) ? list.filter((s) => typeof s === "string" && s) : [];
+  if (!sizes.length || !size) return null;
+  return sizes.includes(size);
+}
+
+/** Whether the list of sizes Weapon Finesse takes is imported (`finesseTakes` can decide at all). */
+export const finesseSizesImported = () => finesseTakes(SIZE.MEDIUM) !== null;
+
+/**
+ * The unarmed strike's damage die as the Judge's import holds it, or null when
+ * it is not imported. A die is `NdM`; anything else counts as not imported.
+ * @returns {string|null}
+ */
+export function unarmedStrikeDie() {
+  const die = equipmentTable(PRINTED_FIGURE_TABLES.unarmed).damage;
+  return typeof die === "string" && /^\d*d\d+$/i.test(die.trim()) ? die.trim() : null;
+}
 
 /**
  * The tables of the equipment document the non-proficient package reads
@@ -159,7 +197,7 @@ export function attackThrowRows(actor, item, attackType, { maneuver = null } = {
     if (penalty) rows.push({ label: label("nonProficient", {}, "Non-proficient"), value: penalty });
   } else if (
     attackType === ATTACK_TYPE.melee &&
-    (c.profile.size == null || FINESSE_SIZES.includes(c.profile.size)) &&
+    finesseTakes(c.profile.size) !== false &&
     hasEffectFlag(actor, EFFECT_DOMAINS.FINESSE)
   ) {
     const str = abilityMod(actor, "str");

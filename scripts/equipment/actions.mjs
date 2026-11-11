@@ -12,6 +12,7 @@ import { ITEM_TYPE, isWearSlot } from "../lib/vocab.mjs";
 import { SHIELD_VARIANTS } from "./config.mjs";
 import { equipmentClass, classifyWeapon, GRIPS, WEAPON_CATEGORY_VALUES, inferredGearFlag } from "./profiles.mjs";
 import { consumeItem, roundsOf } from "./ammo.mjs";
+import { unarmedStrikeDie } from "./attack-mods.mjs";
 import {
   tableFor, accumulate, needsReroll, SCAVENGED_TABLES,
   importedTable, importedNeedsReroll, accumulateImported, importedRow, rowToEffects,
@@ -107,7 +108,9 @@ export async function prepareTorch(actor, item, { draw = false } = {}) {
 /**
  * The synthetic weapon an unarmed strike rolls through (RR p.299). The
  * Unarmed Fighting proficiency changes only lethality, not the die — so
- * there is one die here. Melee only.
+ * there is one die here, the imported one (`unarmedStrikeDie`); with none
+ * imported the weapon carries a blank formula and its throw rolls no damage.
+ * Melee only.
  */
 export function unarmedStrikeData() {
   return {
@@ -116,7 +119,7 @@ export function unarmedStrikeData() {
       : "Unarmed Strike",
     type: "weapon",
     img: "icons/skills/melee/unarmed-punch-fist.webp",
-    system: { damage: { base: { formula: "1d3" } }, melee: true, missile: false, bonus: { attack: 0, damage: 0 }, equipped: false },
+    system: { damage: { base: { formula: unarmedStrikeDie() ?? "" } }, melee: true, missile: false, bonus: { attack: 0, damage: 0 }, equipped: false },
   };
 }
 
@@ -133,7 +136,9 @@ export function rollUnarmed(actor, options = {}) {
   if (!actor) return null;
   const cls = CONFIG?.Item?.documentClass;
   if (!cls) return null;
-  const weapon = new cls(unarmedStrikeData(), { parent: actor });
+  const data = unarmedStrikeData();
+  if (!data.system.damage.base.formula) notify("unarmedNoDie");
+  const weapon = new cls(data, { parent: actor });
   return actor.makeAttackThrow({ item: weapon, attackType: "melee", skipDialog: options.skipDialog ?? skipDialogFor(options.event) });
 }
 
@@ -265,9 +270,22 @@ export async function setGearAccess(item, value) {
 }
 
 /**
- * Declare how much this holds, in stone. Blank clears it back to "holds
- * nothing" — distinct from 0, a container whose size nobody has stated,
- * which therefore never warns. Any gear may be given one (see
+ * Declare that this takes gear, or that it does not. On leaves any stated
+ * capacity alone and states none: a container with no limit, whose surface
+ * says its capacity is not imported. Off also clears the capacity, so it holds
+ * nothing and a later Annotate does not declare it again.
+ */
+export async function setGearHolds(item, on) {
+  if (!item) return false;
+  const G = `flags.${MODULE_ID}.${FLAG_GEAR}`;
+  await item.update(on ? { [`${G}.holds`]: true } : { [`${G}.holds`]: false, [`${G}.capacity`]: null });
+  return true;
+}
+
+/**
+ * Declare how much this holds, in stone. Blank clears the figure back to
+ * unstated — a container with no limit, "not imported" — distinct from 0, a
+ * stated capacity of nothing. Any gear may be given one (see
  * docs/equipment/DECISIONS.md, "Capacity lives on the gear flag, not the
  * container record (2026-09-22)").
  */

@@ -2161,3 +2161,37 @@ on any weapon and cannot classify one by name until the import runs.
 `WEAPON_UNITS` (lib apiVersion 37). Printed values left in source and not moved
 here: `FINESSE_SIZES` (the sizes Weapon Finesse takes) and the unarmed strike's
 die in `actions.mjs`.
+
+## 2026-11-11 — Capacities, finesse sizes and the unarmed die are read, not shipped
+
+**Ruled.** The three printed figures the entry above left in source moved to
+the importer, with the container capacities and the bowquiver counts:
+
+- A container's capacity is the figure its price row's own label states, read
+  at import (`gear-prices.mjs` `labelCapacity`) and written to `gear.capacity`
+  with a stamp (`cookbook.read.capacity`) that lets a surface tell the page's
+  figure from a typed one. `GEAR_PROFILES` keeps `holds: true` only. A
+  container whose row states none is a container with no limit and "not
+  imported", not a container of zero.
+- The capacity binds only where the price row IS the entry (`capacityFor`,
+  exact `priceKey`). `priceFor` falls back to a variant whose key extends the
+  entry's, and a variant's label states the variant's capacity.
+- A bowquiver's loaded count is read from the item's own description
+  (`gear.loaded6`), like a harness's relief; an item that states none is not
+  corrected.
+- Weapon Finesse's sizes (`weaponFinesse`) and the unarmed die
+  (`unarmedStrike`) are `proseValues` reads of the `equipment` document. A size
+  or list the import cannot answer decides nothing: only a list that states the
+  size absent refuses it. A blank unarmed die means an attack throw and no
+  damage roll.
+- The item sheet's Holds other items toggle declares the container and writes no
+  figure; unticking it clears the capacity.
+
+**Rejected.** Writing the book's figure for the four literals the grid prints
+no capacity for (a bowquiver, a quiver, a case, a barrel): no page states one,
+so the shipped figure had no source to be checked against.
+
+**What it cost.** `equipment.config.GEAR_PROFILES` entries carry no `capacity`
+and `inferGear` answers none, folded into lib apiVersion 37. An item annotated
+before keeps its stamped figure until a rebuild repairs it, and a rebuild writes
+the page's capacity over one a Judge typed on an imported item.

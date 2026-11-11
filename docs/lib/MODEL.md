@@ -1218,10 +1218,10 @@ it.
 
 `gear.slots` is the list an item MAY occupy; `gear.wornAt` is the one it does.
 `gear.capacity` is how much it holds and `gear.relief` how much a harness
-secures, both in stone and both the book's figures: read off the item — core's
-pouch names its capacity, core's harness describes its relief — by the
-annotate pass, or typed on the item's sheet. Unstated holds nothing and
-secures nothing.
+secures, both in stone and both the book's figures: a capacity is the one the
+importer read from the item's price row and wrote, a relief is read off the
+item's own text by the annotate pass, and either can be typed on the item's
+sheet. Unstated holds nothing and secures nothing.
 `declaresSlots` separates "declared to sit nowhere" from "never annotated" —
 both give `slotsOf` an empty list, and every name-heuristic fallback in the
 family gates on the former so a deliberate ruling is not undone by an item's

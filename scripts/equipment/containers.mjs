@@ -369,13 +369,14 @@ export function encumbranceDelta6(actor) {
     delta -= Math.min(relief * STONE, harnessEligible6(actor, harness.id));
   }
 
-  // 2. Bowquiver: the assembly counts as one figure loaded and another empty
-  //    (RR p. 142), rather than quiver + bow + arrows summed.
+  // 2. Bowquiver: a loaded assembly counts as the figure its own text states
+  //    (`gear.loaded6`, in sixths of a stone; RR p. 142), rather than
+  //    quiver + bow + arrows summed. An empty one is its own weight, and one
+  //    whose text states no figure stays the plain sum.
   for (const q of actor.items.filter((i) => i.getFlag?.(MODULE_ID, ITEM_FLAGS.BOWQUIVER))) {
-    const contents = contentsOf(actor, q.id);
-    const flat = weight6Of(q) + contentsWeight6(actor, q.id);
-    const raw = contents.length ? 2 : 1; // in sixths of a stone
-    delta += raw - flat;
+    const loaded6 = gearOf(q).loaded6;
+    if (!Number.isFinite(loaded6) || !contentsOf(actor, q.id).length) continue;
+    delta += loaded6 - (weight6Of(q) + contentsWeight6(actor, q.id));
   }
 
   // 3. Thrown-away weapons: a weapon that has been thrown has left the

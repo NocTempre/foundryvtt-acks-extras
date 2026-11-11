@@ -9,7 +9,7 @@
  * RAW value is baked here; the root supplies them.
  */
 import assert from "node:assert";
-import { bindEquipment } from "../../scripts/importer/cookbook.mjs";
+import { bindEquipment, pricedDoc, withCapacity } from "../../scripts/importer/cookbook.mjs";
 import { useWeaponFixture, FIXTURE_ROWS } from "../weapon-fixture.mjs";
 
 // The equipment root reads the weapon rows through the seam; these are invented.
@@ -62,5 +62,33 @@ check("no price is invented for a form the book does not price", kite.system.cos
 const buckler = bindEquipment(shield("Buckler", "buckler"), { fields: { values: [{ field: "weight6.item", amount: 1 }] } }, "def.equip.shieldBuckler");
 check("an encumbrance printed in ITEMS is already sixths", buckler.system.weight6 === 1);
 check("a locator that did not match leaves the field absent", buckler.system.ac === undefined);
+
+// --- A container's capacity: the grid row's label states it, the import writes it --
+// A price row no entry claims becomes an item; the capacity its label states
+// (INVENTED figures here) rides the item's gear flag, and the import's stamp
+// records the figure the page gave so a surface can tell it from a typed one.
+const crate = pricedDoc({ name: "Crate (holds 9 stone)", cost: 1, weight6: 6, section: "", capacity: 9 }, "def.priced.crate", "RR p. 1");
+check("a priced row that states a capacity writes it to the gear flag", crate.flags[MODULE_ID].gear.capacity === 9);
+check("and records the figure the page gave in the import's stamp", crate.flags[MODULE_ID].cookbook.read.capacity === 9);
+const rope = pricedDoc({ name: "Rope", cost: 1, weight6: 6, section: "", capacity: null }, "def.priced.rope", "RR p. 1");
+check("a row that states none writes no gear flag and no read stamp", rope.flags[MODULE_ID].gear === undefined && rope.flags[MODULE_ID].cookbook.read === undefined);
+const nothing = pricedDoc({ name: "Crate (holds 0 stone)", cost: 1, weight6: 6, section: "", capacity: 0 }, "def.priced.crate0", "RR p. 1");
+check("a row that states a capacity of nothing writes it: nothing is a figure, not an absence", nothing.flags[MODULE_ID].gear.capacity === 0 && nothing.flags[MODULE_ID].cookbook.read.capacity === 0);
+// A rebuild writes the page's capacity back onto an item the importer made, under the id it holds.
+const { REPAIR } = await import("../../scripts/importer/refresh.mjs");
+check("a rebuild repairs the gear flag of an imported equipment entry and of a price row's item", REPAIR.equipment.flags.includes("gear") && REPAIR.priced.flags.includes("gear"));
+const sized = { flags: { [MODULE_ID]: { cookbook: { id: "x" }, gear: { slots: ["back"] } } } };
+withCapacity(sized, 4);
+const sizedFlags = sized.flags[MODULE_ID];
+check("a capacity joins the gear flag's other keys and the stamp's identity",
+  sizedFlags.gear.capacity === 4 && sizedFlags.gear.slots[0] === "back" && sizedFlags.cookbook.id === "x" && sizedFlags.cookbook.read.capacity === 4);
+// The plan a rebuild writes: the page's figure over a stored one, the stored declaration's other keys untouched.
+const { refreshPlan } = await import("../../scripts/importer/refresh.mjs");
+const stored = { type: "item", name: "Crate", system: {}, flags: { [MODULE_ID]: { cookbook: { id: "x", read: { capacity: 9 } }, gear: { slots: ["back"], holds: true, capacity: 99 } } } };
+const rebuilt = { type: "item", name: "Crate", system: {}, flags: { [MODULE_ID]: { cookbook: { id: "x", read: { capacity: 4 } }, gear: { holds: true, capacity: 4 } } } };
+const written = refreshPlan(stored, rebuilt, REPAIR.priced).update.flags?.[MODULE_ID];
+check("a rebuild writes the page's capacity over a stored one and leaves the declaration's other keys out of the write", written?.gear?.capacity === 4 && written.cookbook.read.capacity === 4 && !("slots" in written.gear));
+const nothingStated = { type: "item", name: "Crate", system: {}, flags: { [MODULE_ID]: { cookbook: { id: "x" } } } };
+check("a build that states none writes none over what a hand typed", Object.keys(refreshPlan(stored, nothingStated, REPAIR.priced).update).length === 0);
 
 console.log(`test-equipment-binding: all ${pass} checks passed`);

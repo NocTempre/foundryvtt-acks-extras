@@ -421,7 +421,9 @@ that names what it accepts.*
 - **Details** — the price ledger (listed price, plating, masterwork, variations,
   condition, final) with the value mode (Priced / Unknown / N/A), the applied
   variations, the feature switches (*Holds other items*, capacity, *Will
-  Accept* kinds and the refusal message), the construction controls (their shape is *Worn at*,
+  Accept* kinds and the refusal message; an imported container's capacity is the
+  one its price row in the book states, and a container whose row states none
+  reads *not imported* until you type one), the construction controls (their shape is *Worn at*,
   above), and the core record fields.
 
 An item with nothing to roll, no effects, no durability and no contents — coin,
@@ -443,8 +445,9 @@ selected.
 - **Loadout Inspector** shows the actor's loadout as the module reads it:
   hands in use, the fighting style in force, armour and shield, and any
   violation.
-- **Containers** stamps capacities onto every carrying device the actor owns,
-  then opens the sheet's equipment tab, where containers are worked.
+- **Containers** declares every carrying device the actor owns as a container
+  (its capacity is the one the importer read from your book, if any), then
+  opens the sheet's equipment tab, where containers are worked.
 - **Item Loss from Damage** resolves the optional rule for equipment destroyed
   by an area attack (JJ p. 398): it asks for the hit points after the attack
   and the damage type, and posts what is lost to chat. The **Overlay: item

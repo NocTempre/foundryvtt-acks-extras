@@ -1739,6 +1739,7 @@
       "remove": "Take it off ({slot})",
       "readied": "Readied a torch from the stack.",
       "readyHint": "Ready a torch — pull one from the stack to wield, light, or throw.",
+      "unarmedNoDie": "The unarmed strike's damage die is not imported: the throw is made and no damage is rolled.",
       "noStock": "No {item} left in the stack to ready.",
       "notReadiable": "{item} is not a torch stack; nothing to ready.",
       "scavenge": "Scavenged",
@@ -2324,6 +2325,7 @@
         "styleTrained": "Trained",
         "styleUntrained": "Untrained",
         "finesseSizeUnknown": "This weapon's size is not imported or declared, so it is not refused Weapon Finesse.",
+        "finesseSizesNotImported": "The sizes Weapon Finesse takes are not imported, so no weapon is refused it.",
         "proficiencyUndecided": "Whether this character is trained with it is not imported, so it is not refused."
       },
       "src": {

@@ -118,43 +118,46 @@ export const SILVER = Object.freeze({ quality: "silver", variation: "material.si
  * them in place (see the Annotate macro) rather than duplicating them.
  *
  * One table, because these are all the same fact about one piece of gear:
- * `capacity` (stone) is how much it holds, `slots` where it rides, and `access`
- * what it costs to get something out — free from rigging worn on the body
+ * `holds` says it takes other gear, `slots` where it rides, and `access` what
+ * it costs to get something out — free from rigging worn on the body
  * (harness, belt pouch, bowcase, quiver, sheath), an action in lieu of movement
  * from a pack (backpack, rucksack, sack). A container with no slots is not worn
  * at all: a barrel and an ironbound chest sit on the floor.
+ *
+ * How MUCH a container holds is never here: the price grid prints it in the
+ * row's label and the importer writes it to the item's `gear.capacity`
+ * (`importer/gear-prices.mjs` `labelCapacity`). A container the grid states no
+ * capacity for holds without a limit and says it is not imported.
  */
 // A pouch under the names a Judge types, without core's "(holds …)" suffix:
-// where it rides and what reaching into it costs are the device's; how much
-// it holds is the book's, and a name that does not say leaves it unstated
-// for the Judge to set on the item.
+// where it rides and what reaching into it costs are the device's.
 const POUCH = Object.freeze({ slots: [SLOT.belt], access: "free" });
 
 export const GEAR_PROFILES = Object.freeze({
   // Rigging — worn, and RAW-free to draw from.
   adventurersharness: { slots: [SLOT.belt], access: "free", harness: true },
-  bowquiver: { slots: [SLOT.back], access: "free", capacity: 1, bowquiver: true },
-  quiver: { slots: [SLOT.belt], access: "free", capacity: 1 },
+  bowquiver: { slots: [SLOT.back], access: "free", holds: true, bowquiver: true },
+  quiver: { slots: [SLOT.belt], access: "free", holds: true },
   // "Case, 20 Bolts". Generic enough to want the comment: the only `case` in
   // the RAW equipment list is the bolt case.
-  case: { slots: [SLOT.belt], access: "free", capacity: 1 },
+  case: { slots: [SLOT.belt], access: "free", holds: true },
   scabbard: { slots: [SLOT.belt], access: "free" },
-  pouchpurse: { ...POUCH, capacity: 0.5 },
+  pouchpurse: { ...POUCH, holds: true },
   // Without keys of their own, "Belt Pouch" falls through to the garment
   // patterns, which claim the word "belt" and annotate it as a belt that
   // holds nothing.
   beltpouch: POUCH,
   purse: POUCH,
   // Packs — worn, but an action to open.
-  backpack: { slots: [SLOT.back], access: "action", capacity: 4 },
-  rucksack: { slots: [SLOT.back], access: "action", capacity: 2 },
-  sacklarge: { slots: [SLOT.back], access: "action", capacity: 6 },
-  sacksmall: { slots: [SLOT.back], access: "action", capacity: 2 },
+  backpack: { slots: [SLOT.back], access: "action", holds: true },
+  rucksack: { slots: [SLOT.back], access: "action", holds: true },
+  sacklarge: { slots: [SLOT.back], access: "action", holds: true },
+  sacksmall: { slots: [SLOT.back], access: "action", holds: true },
   // Rides the mount, not the rider — so no slot on a character.
-  saddlebag: { access: "action", capacity: 3 },
+  saddlebag: { access: "action", holds: true },
   // Fixed containers: never worn.
-  chestironbound: { capacity: 20 },
-  barrel: { capacity: 15 },
+  chestironbound: { holds: true },
+  barrel: { holds: true },
 });
 
 /**
@@ -167,7 +170,7 @@ export const GEAR_PROFILES = Object.freeze({
  */
 export function bundledAmmoCount(name) {
   const text = String(name ?? "");
-  // "(holds 4 stone)" is a CAPACITY, not a load — core names every pack, sack
+  // "(holds N stone)" is a CAPACITY, not a load — core names every pack, sack
   // and pouch that way, and `stone` is both the unit they are measured in and
   // the shot a sling throws. The word `holds` is what tells the two apart.
   if (/\bholds\b/i.test(text)) return null;
@@ -178,7 +181,7 @@ export function bundledAmmoCount(name) {
 /**
  * Resolve a gear profile from an item name, or null.
  *
- * A loaded device keeps its place and loses its capacity: it arrives full of
+ * A loaded device keeps its place and stops holding gear: it arrives full of
  * its own arrows, so it is not also somewhere to put things (see
  * docs/equipment/DECISIONS.md, "2026-08-11 — a device sold with its load is
  * the ammunition, not a container").
@@ -187,9 +190,9 @@ export function gearProfileFor(name) {
   const key = slug(name);
   const profile = GEAR_PROFILES[key] ?? Object.entries(GEAR_PROFILES).find(([k]) => key.startsWith(k) || key.includes(k))?.[1];
   if (!profile) return null;
-  if (profile.capacity != null && bundledAmmoCount(name) != null) {
-    const { capacity, ...rest } = profile;
-    void capacity;
+  if (profile.holds && bundledAmmoCount(name) != null) {
+    const { holds, ...rest } = profile;
+    void holds;
     return Object.freeze(rest);
   }
   return profile;

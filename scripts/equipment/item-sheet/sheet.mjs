@@ -23,7 +23,7 @@ import { buildConstructionPanel } from "./construction.mjs";
 import { buildMagicPanel } from "../../markets/apps/magic-panel.mjs";
 import { ITEM_FLAG as MARKETS_FLAG } from "../../markets/constants.mjs";
 import { applyVariation, isVariationItem, removeVariation, revealVariation, concealVariation } from "../variation-items.mjs";
-import { disguiseItem, revealItem, setGearCapacity, prepareTorch, readiedWeaponData, wearItem, removeItem } from "../actions.mjs";
+import { disguiseItem, revealItem, setGearHolds, prepareTorch, readiedWeaponData, wearItem, removeItem } from "../actions.mjs";
 import { PRISTINE, recomputeItemFields, layerDeltas, baseForTyped } from "../properties.mjs";
 import { containerOf, setLocked, storeIn, takeOut, setContainerRecord } from "../containers.mjs";
 import { isSpellbook, spellbookSpells, setSpellbookSpells, parseSpellList, formatSpellList } from "../spellbook.mjs";
@@ -778,10 +778,9 @@ export default class AcksItemSheet extends PicksMixin(HandlebarsApplicationMixin
     await (v.system?.hidden ? revealVariation(v) : concealVariation(v));
   }
 
-  /** "Holds other items": a declared capacity, unstated size until one is typed. */
+  /** "Holds other items": declared with no stated size until a capacity is typed; off clears both. */
   static async #onToggleHolds() {
-    const holds = this.#model?.details?.holds;
-    await setGearCapacity(this.item, holds ? "" : 0);
+    await setGearHolds(this.item, !this.#model?.details?.holds);
   }
 
   static async #onToggleDisguisable() {

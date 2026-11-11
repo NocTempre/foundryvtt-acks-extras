@@ -16,7 +16,7 @@
  *   magic      {is, aura, identified}     disguise {enabled, active, trueName,
  *              trueDescription, trueCost, apparentName}
  *   named      {given, trueName, revealed, unlocked, total, cats[], by} | null
- *   container  {holds, capacityStone, capacityStated, load6, cap6, locked, lockMod, quality,
+ *   container  {holds, capacityStone, capacityStated, capacityTip, load6, cap6, locked, lockMod, quality,
  *              keys[], fragile, accepts[], refusal, contents[], canSee} | null
  *   spellbook  {pagesUsed, pagesCap, groups[]} | null
  *   chart      {sceneName, explored, pct} | null
@@ -403,6 +403,7 @@ export function buildItemSheetModel(snap, viewer = {}) {
       variations: snap.variations ?? [],
       holds: !!container?.holds,
       capacityStone: container?.capacityStone ?? null,
+      capacityTip: container?.capacityTip ?? "",
       accepts: container?.accepts ?? [],
       acceptChips: (snap.acceptKinds ?? []).map((k) => ({ key: k, on: (container?.accepts ?? []).includes(k) })),
       refusal: container?.refusal ?? "",

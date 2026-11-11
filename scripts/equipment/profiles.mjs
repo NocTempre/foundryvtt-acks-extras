@@ -73,13 +73,15 @@ export function isHelmet(item) {
  * not gear you wear, and they get the wear features switched off by declaring
  * nowhere to go.
  *
- * @returns {{slots: string[], access: string, capacity: number|null, relief: number|null}}
- *   `access` is blank and `capacity` null unless the item holds something;
- *   `relief` is null unless the item is a harness whose own text states the
- *   weight it secures.
+ * @returns {{slots: string[], access: string, holds: boolean, relief: number|null, loaded6: number|null}}
+ *   `access` is blank unless the item holds something; `holds` says only that
+ *   it takes gear, never how much (the capacity is the item's own, read from
+ *   the page by the importer); `relief` is null unless the item is a harness
+ *   whose own text states the weight it secures, and `loaded6` unless it is a
+ *   bowquiver whose own text states what the loaded assembly counts as.
  */
 export function inferGear(item) {
-  const none = { slots: [], access: "", capacity: null, relief: null };
+  const none = { slots: [], access: "", holds: false, relief: null, loaded6: null };
   if (!item) return none;
 
   const profile = gearProfileFor(item.name ?? "");
@@ -87,10 +89,12 @@ export function inferGear(item) {
     return {
       slots: [...(profile.slots ?? [])],
       access: profile.access ?? "",
-      capacity: profile.capacity ?? null,
+      holds: profile.holds === true,
       // What a harness secures is the book's figure, and it arrives with the
       // item — read off its own name or description — never from a profile.
       relief: profile.harness ? reliefStated(item) : null,
+      // The same for a bowquiver's loaded count: the item's own text, or none.
+      loaded6: profile.bowquiver ? loadedStated(item) : null,
     };
   }
 
@@ -119,19 +123,20 @@ export function inferGear(item) {
 
 /**
  * The `gear` flag the Annotate pass writes for an item — where it sits, what
- * reaching into it costs, how much it holds — or null when inference has
+ * reaching into it costs, whether it takes gear — or null when inference has
  * nothing to say (rations, loot, coin), which keeps the item plain goods.
  */
 export function inferredGearFlag(item) {
   const gear = inferGear(item);
-  if (!gear.slots.length && !gear.access && gear.capacity == null && gear.relief == null) return null;
+  if (!gear.slots.length && !gear.access && !gear.holds && gear.relief == null && gear.loaded6 == null) return null;
   return {
     slots: gear.slots,
     access: gear.access,
-    capacity: gear.capacity,
+    ...(gear.holds ? { holds: true } : {}),
     // Only when the item's own text states it: a silent harness keeps
     // whatever the Judge typed on its sheet.
     ...(gear.relief != null ? { relief: gear.relief } : {}),
+    ...(gear.loaded6 != null ? { loaded6: gear.loaded6 } : {}),
   };
 }
 
@@ -164,6 +169,19 @@ function reliefStated(item) {
   const text = `${item?.name ?? ""} ${item?.system?.description ?? ""}`;
   const m = /\bignores?\s+(\d+(?:\.\d+)?(?:\s*\/\s*\d+)?)\s*stones?\b/i.exec(text);
   return m ? stoneNumber(m[1]) : null;
+}
+
+/**
+ * What a loaded bowquiver counts as for encumbrance, in sixths of a stone (the
+ * family's weight unit, which an "item" is), as the item's own description
+ * states it — the clause that sets the assembly against a count of items — or
+ * null when it does not say, which leaves the plain sum standing. An empty
+ * one counts as its own weight and needs no figure.
+ */
+function loadedStated(item) {
+  const text = String(item?.system?.description ?? "").replace(/<[^>]*>/g, " ");
+  const m = /\bwith\b[^.]*?\bcounts?\s+as\s+(\d+)\s+items?\b/i.exec(text);
+  return m ? Number(m[1]) : null;
 }
 
 /**

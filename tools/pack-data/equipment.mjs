@@ -53,14 +53,15 @@ new foundry.applications.api.DialogV2({
     _id: "acksEqContainer0",
     name: "Containers",
     img: "icons/containers/bags/pack-leather-brown.webp",
-    command: `// Annotate carrying gear from the RAW capacity table (RR pp. 142-145, 161)
-// and open the sheet where containers now live.
+    command: `// Annotate carrying gear (RR pp. 142-145, 161) and open the sheet where
+// containers now live.
 //
 // The Container Manager window is retired: opening, locking, concealing,
 // filling and emptying a container all happen on the character sheet's
 // equipment tab, next to the gear they act on. This macro does the one thing
-// that was genuinely bulk — stamping capacities onto every carrying device the
-// character owns — and then shows you the tab.
+// that was genuinely bulk — declaring every carrying device the character owns
+// as a container; a capacity is the figure the importer read from the book,
+// where it prints one — and then shows you the tab.
 const api = game.modules.get("acks-extras")?.api?.equipment ?? globalThis.acksExtras?.equipment;
 if (!api) { ui.notifications.error("ACKS Extras is not active."); return; }
 if (typeof api.annotateItem !== "function" || typeof api.isContainer !== "function") { ui.notifications.warn("ACKS Extras | Containers needs a newer build of this module."); return; }

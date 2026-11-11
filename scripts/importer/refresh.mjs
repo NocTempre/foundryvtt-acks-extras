@@ -136,7 +136,9 @@ export const REPAIR = Object.freeze({
   equipment: {
     keep: ["quantity", "equipped", "subtype", "melee", "missile"],
     prose: ["description"],
-    flags: ["light", "shieldVariant"],
+    // `gear` carries only what the page states of the item (how much it
+    // holds); the rest of the stored declaration is merged, not replaced.
+    flags: ["light", "shieldVariant", "gear"],
   },
   animal: { prose: ["details.biography"], flags: ["extras"] },
   // An item a book introduces: the place it is worn and its magic mark are
@@ -176,7 +178,7 @@ export const REPAIR = Object.freeze({
   armor: { keep: ["equipped"], prose: ["description"], flags: ["armor"] },
   // The equipment annotation layer settles an ammunition stack's subtype.
   ammunition: { keep: ["quantity", "subtype"], prose: ["description"], flags: ["ammunition"] },
-  priced: { keep: ["quantity"] },
+  priced: { keep: ["quantity"], flags: ["gear"] },
   // A language's place in the taxonomy; its description is the library's or the
   // Judge's, since the import writes none.
   language: { flags: ["language"] },

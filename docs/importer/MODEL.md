@@ -1105,6 +1105,26 @@ a list of the services this body provides. The registry's lint and the faction
 feature's bindings read it; today it is the `"smuggling"` tag that marks a body
 offering that trade route.
 
+## A figure a price row's label states
+
+Some rows of the RR price grid state what the item holds inside their own
+label, in stone. `gear-prices.mjs` `labelCapacity` reads it off the label as the
+row is extracted, so a price row carries `capacity` beside its cost and
+encumbrance, and `capacityFor` hands it to an entry only where the row IS the
+entry (the same `priceKey`), never to a variant the prefix lookup fell back to.
+The cookbook binds it onto the item's `gear.capacity` (`withCapacity`, for a
+minted entry and for a price row no entry claims) and records the figure in the
+`cookbook.read.capacity` stamp, which is how a surface later tells the page's
+figure from one a Judge typed. `REPAIR` carries the `gear` flag for the
+equipment and priced shelves, so a rebuild writes the page's capacity back
+under the id the item holds. A label that states none reads none; nothing here
+supplies a capacity by name (`docs/equipment/MODEL.md`, "Figures the book
+prints").
+
+Two sentences of RR read as `proseValues` windows of the `equipment` document:
+the sizes Weapon Finesse takes (`weaponFinesse`, the `sizeList` take) and the
+unarmed strike's die (`unarmedStrike`, the `dice` take).
+
 ## An entry's heading line
 
 An AX book's entry is anchored on, and its flow stopped by, heading LINES

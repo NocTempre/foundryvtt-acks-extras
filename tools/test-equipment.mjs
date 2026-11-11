@@ -410,6 +410,34 @@ check("Weapon Finesse → +(dex−str) = +2", sumRows(rows) === 2);
 check("Weapon Finesse is named as its own row, so the roll shows the swap", rows.length === 1 && rows[0].label === "Weapon Finesse" && rows[0].value === 2);
 check("Weapon Finesse does not apply to missile attacks", attackThrowRows(a, swordItem, "missile").length === 0);
 
+// The sizes Weapon Finesse takes are imported (the equipment document's
+// `weaponFinesse` table); the lists below are INVENTED. Only a listed table, a
+// known size and a size the table does not name refuses: the sword here is a
+// medium weapon.
+{
+  const { registerTable: reg, unregisterTable: unreg, PRIORITY: P } = await import(new URL("../lib/tables.mjs", S));
+  const { finesseTakes, finesseSizesImported } = await import(new URL("attack-mods.mjs", S));
+  const withSizes = (sizes) => ({ id: "equipment", tables: { weaponFinesse: { sizes } } });
+  check("no list imported: no size is decided and the list reads as not imported", finesseTakes("medium") === null && finesseTakes("large") === null && finesseSizesImported() === false);
+  reg(withSizes(["tiny", "small"]), { priority: P.WORLD, source: "test" });
+  check("an imported list names a size: true; omits a known size: false; leaves an unknown size undecided",
+    finesseTakes("small") === true && finesseTakes("medium") === false && finesseTakes(null) === null && finesseSizesImported() === true);
+  check("a medium sword is refused the swap when the list omits medium", attackThrowRows(a, swordItem, "melee").length === 0);
+  unreg("equipment", { priority: P.WORLD });
+  reg(withSizes(["medium"]), { priority: P.WORLD, source: "test" });
+  check("a list that names medium gives the swap back", sumRows(attackThrowRows(a, swordItem, "melee")) === 2);
+  unreg("equipment", { priority: P.WORLD });
+  reg(withSizes("small"), { priority: P.WORLD, source: "test" });
+  check("an override that is not a list counts as not imported and refuses nothing", finesseTakes("large") === null && sumRows(attackThrowRows(a, swordItem, "melee")) === 2);
+  unreg("equipment", { priority: P.WORLD });
+  reg(withSizes([]), { priority: P.WORLD, source: "test" });
+  check("an empty list counts as not imported", finesseTakes("small") === null);
+  unreg("equipment", { priority: P.WORLD });
+  reg(withSizes([5, null, ""]), { priority: P.WORLD, source: "test" });
+  check("a list of things that are not size words counts as not imported", finesseTakes("small") === null && finesseSizesImported() === false);
+  unreg("equipment", { priority: P.WORLD });
+}
+
 // Lone medium sword is wielded two-handed → the two-handed die is the system's
 // ALTERNATE damage mode, offered first; the alternate the item leaves blank
 // reads the table's two-handed die.
@@ -837,12 +865,17 @@ check("a harness with no stated relief secures nothing", encumbranceDelta6(withI
 const half = gear("Adventurer's Harness", 1, { id: "h5", wornAt: "belt", flags: { harness: true, gear: { relief: 0.5 } } });
 check("the relief is the item's own figure", encumbranceDelta6(withItems([half, ...manySmalls])) === -3);
 
-// Bowquiver: a loaded assembly counts as 2 items, not quiver + bow + arrows.
-const quiver = gear("Bowquiver", 1, { id: "bq", flags: { bowquiver: true, container: { capacity: 1 } } });
+// Bowquiver: a loaded assembly counts as the figure its own text states
+// (`gear.loaded6`; INVENTED here), not quiver + bow + arrows. An empty one is
+// its own weight, and one that states no figure stays the plain sum.
+const quiver = gear("Bowquiver", 1, { id: "bq", flags: { bowquiver: true, container: { capacity: 1 }, gear: { loaded6: 3 } } });
 const cbow = gear("Composite Bow", 6, { id: "cb", type: "weapon", flags: { containedIn: "bq" } });
 const arrows = gear("Quiver, 20 Arrows", 1, { id: "ar", flags: { containedIn: "bq" } });
-check("loaded bowquiver -> RAW 2 items, not 8 (delta -6)", encumbranceDelta6(withItems([quiver, cbow, arrows])) === -6);
-check("empty bowquiver -> RAW 1 item (delta 0)", encumbranceDelta6(withItems([quiver])) === 0);
+check("loaded bowquiver counts as its stated figure, not the sum (delta 3 - 8)", encumbranceDelta6(withItems([quiver, cbow, arrows])) === -5);
+check("empty bowquiver is its own weight (delta 0)", encumbranceDelta6(withItems([quiver])) === 0);
+const mutedQuiver = gear("Bowquiver", 1, { id: "bq0", flags: { bowquiver: true, container: { capacity: 1 } } });
+const cbow0 = gear("Composite Bow", 6, { id: "cb0", type: "weapon", flags: { containedIn: "bq0" } });
+check("a loaded bowquiver whose text states no figure stays the plain sum", encumbranceDelta6(withItems([mutedQuiver, cbow0])) === 0);
 
 // Nesting rolls up; a self-referencing pair must not hang the sheet.
 const sack = gear("Small Sack", 1, { id: "sk", flags: { container: { capacity: 2 }, containedIn: "bp" } });
@@ -856,8 +889,9 @@ check("self-referencing containers do not hang", contentsWeight6(withItems([loop
 // Container profiles must match core's REAL item names in acks-adventuring-
 // equipment (we annotate those in place rather than duplicating them).
 const { gearProfileFor } = await import(new URL("config.mjs", S));
-check("backpack profile from core's name '(holds 4 stone)'", gearProfileFor("Backpack (holds 4 stone)").capacity === 4);
-check("rucksack 2 st / large sack 6 st / saddlebag 3 st", gearProfileFor("Rucksack (holds 2 stone)").capacity === 2 && gearProfileFor("Sack, Large (holds 6 stone)").capacity === 6 && gearProfileFor("Saddlebag (holds 3 stone)").capacity === 3);
+// The names below state INVENTED capacities: a profile never reads one.
+check("backpack profile from core's name, which states a capacity the profile never reads", gearProfileFor("Backpack (holds 11 stone)").holds === true && !("capacity" in gearProfileFor("Backpack (holds 11 stone)")));
+check("rucksack, large sack and saddlebag hold gear and carry no figure", ["Rucksack (holds 12 stone)", "Sack, Large (holds 13 stone)", "Saddlebag (holds 14 stone)"].every((n) => gearProfileFor(n).holds === true && !("capacity" in gearProfileFor(n))));
 check("adventurer's harness profile flags the harness rule", gearProfileFor("Adventurer's Harness").harness === true);
 check("bowquiver profile flags the 2-item rule", gearProfileFor("Bowquiver").bowquiver === true);
 check("a sword is not a container", gearProfileFor("Sword") === null);
@@ -865,26 +899,33 @@ check("a sword is not a container", gearProfileFor("Sword") === null);
 // Where gear sits. RAW gives a slot one job — you cannot wear two of the same
 // (TT Miscellaneous Magic Item Form) — so these are guesses the item sheet can
 // correct, and the test pins the ones that carry a rule.
-const { inferGear } = await import(new URL("profiles.mjs", S));
+const { inferGear, inferredGearFlag } = await import(new URL("profiles.mjs", S));
 const clothing = (name) => ({ name, type: "item", system: { cost: 0, weight6: 0, subtype: "clothing" }, getFlag: () => undefined });
 const goods = (name) => ({ name, type: "item", system: { cost: 0, weight6: 1, subtype: "item" }, getFlag: () => undefined });
 check("the harness rides the belt and is free to reach (RR pp293-294)", inferGear(goods("Adventurer's Harness")).slots.join() === "belt" && inferGear(goods("Adventurer's Harness")).access === "free");
-check("a backpack rides the back and costs an action to open", inferGear(goods("Backpack (holds 4 stone)")).slots.join() === "back" && inferGear(goods("Backpack (holds 4 stone)")).access === "action");
-check("a belt pouch and a quiver are free; a sack is not", inferGear(goods("Pouch/Purse (holds 1/2 stone)")).access === "free" && inferGear(goods("Quiver, 20 Arrows")).access === "free" && inferGear(goods("Sack, Small (holds 2 stone)")).access === "action");
-check("a belt pouch by the name a Judge types is the pouch, not a belt — and states no capacity of its own",
+check("a backpack rides the back and costs an action to open", inferGear(goods("Backpack (holds 11 stone)")).slots.join() === "back" && inferGear(goods("Backpack (holds 11 stone)")).access === "action");
+check("a belt pouch and a quiver are free; a sack is not", inferGear(goods("Pouch/Purse (holds 1/3 stone)")).access === "free" && inferGear(goods("Quiver, 20 Arrows")).access === "free" && inferGear(goods("Sack, Small (holds 12 stone)")).access === "action");
+check("a belt pouch by the name a Judge types is the pouch, not a belt — and does not hold gear on its own",
   inferGear(goods("Belt Pouch")).slots.join() === "belt" && inferGear(goods("Belt Pouch")).access === "free"
-  && inferGear(goods("Belt Pouch")).capacity === null && gearProfileFor("Purse").capacity == null);
+  && inferGear(goods("Belt Pouch")).holds === false && !gearProfileFor("Purse").holds);
 // What a harness secures is read off the item's own text, in stone, fractions
 // included; a harness that says nothing states nothing.
 const described = (text) => ({ ...goods("Adventurer's Harness"), system: { ...goods("").system, description: text } });
 check("a harness states its relief in its own description", inferGear(described("<p>Straps and sheaths. Wearing it you may ignore 1 stone of small gear.</p>")).relief === 1);
 check("a fractional relief reads as a fraction", inferGear(described("Light rigging: ignores 1/2 stone of gear.")).relief === 0.5);
-check("a silent harness states no relief", inferGear(goods("Adventurer's Harness")).relief === null && inferGear(goods("Backpack (holds 4 stone)")).relief === null);
-check("a barrel holds things but is worn nowhere", inferGear(goods("Barrel (20 gallon)")).slots.length === 0 && gearProfileFor("Barrel (20 gallon)").capacity === 15);
-check("inference carries capacity, so annotate has one home to write", inferGear(goods("Backpack (holds 4 stone)")).capacity === 4 && inferGear(goods("Rope, 50'")).capacity === null);
+// A bowquiver's loaded count is read the same way, from the sentence that sets
+// the assembly against a count of items; the digit here is INVENTED.
+const bowText = (text) => ({ ...goods("Bowquiver"), system: { ...goods("").system, description: text } });
+check("a bowquiver states what a loaded assembly counts as, from its description", inferGear(bowText("<p>It rests securely with its bow. An empty one counts as 1 item, while one with a bow and arrows counts as 5 items.</p>")).loaded6 === 5);
+check("a bowquiver that says nothing states no loaded count; a pack never does",
+  inferGear(goods("Bowquiver")).loaded6 === null && inferGear(bowText("An empty one counts as 1 item for encumbrance.")).loaded6 === null && inferGear({ ...goods("Backpack (holds 11 stone)"), system: { ...goods("").system, description: "with a bow counts as 5 items" } }).loaded6 === null);
+check("a silent harness states no relief", inferGear(goods("Adventurer's Harness")).relief === null && inferGear(goods("Backpack (holds 11 stone)")).relief === null);
+check("a barrel holds things but is worn nowhere", inferGear(goods("Barrel (19 gallon)")).slots.length === 0 && gearProfileFor("Barrel (19 gallon)").holds === true);
+check("inference says a container holds gear and never how much", inferGear(goods("Backpack (holds 11 stone)")).holds === true && !("capacity" in inferGear(goods("Backpack (holds 11 stone)"))) && inferGear(goods("Rope, 50'")).holds === false);
+check("inferred flag declares holds and no capacity", JSON.stringify(inferredGearFlag(goods("Backpack (holds 11 stone)"))) === JSON.stringify({ slots: ["back"], access: "action", holds: true }));
 // A garment gets NO capacity guessed for it: whether a coat has usable pockets
 // is a ruling about that coat, not something its name can be read for.
-check("no capacity is invented for a garment", inferGear(clothing("Cloak, Silk, Hooded")).capacity === null);
+check("no capacity is invented for a garment", inferGear(clothing("Cloak, Silk, Hooded")).holds === false && !("capacity" in inferGear(clothing("Cloak, Silk, Hooded"))));
 
 // A device sold WITH its load is the ammunition, not somewhere to put it. It
 // keeps where it rides and what it costs to draw from — both facts about the
@@ -892,14 +933,14 @@ check("no capacity is invented for a garment", inferGear(clothing("Cloak, Silk, 
 const { bundledAmmoCount } = await import(new URL("config.mjs", S));
 check("a loaded quiver keeps its belt slot and free draw",
   inferGear(goods("Quiver, 20 Arrows")).slots.join() === "belt" && inferGear(goods("Quiver, 20 Arrows")).access === "free");
-check("a loaded quiver is not a container", inferGear(goods("Quiver, 20 Arrows")).capacity === null);
-check("a loaded bolt case is not a container", inferGear(goods("Case, 20 Bolts")).capacity === null);
+check("a loaded quiver is not a container", inferGear(goods("Quiver, 20 Arrows")).holds === false);
+check("a loaded bolt case is not a container", inferGear(goods("Case, 20 Bolts")).holds === false);
 check("the load is read off the name so the tracker can spend it",
   bundledAmmoCount("Quiver, 20 Arrows") === 20 && bundledAmmoCount("Case, 20 Bolts") === 20 && bundledAmmoCount("30 Sling Stones") === 30);
-// "holds 4 stone" is a capacity, and `stone` is also what a sling throws — the
-// packs must not read as bundles of shot and lose the capacity they exist for.
+// "holds N stone" is a capacity, and `stone` is also what a sling throws — the
+// packs must not read as bundles of shot and stop being containers.
 check("a pack that HOLDS stone is still a container",
-  bundledAmmoCount("Backpack (holds 4 stone)") === null && inferGear(goods("Backpack (holds 4 stone)")).capacity === 4);
+  bundledAmmoCount("Backpack (holds 11 stone)") === null && inferGear(goods("Backpack (holds 11 stone)")).holds === true);
 check("an ordinary item carries no load", bundledAmmoCount("Rope, 50'") === null);
 
 // Clothing that no named slot claims is still worn. The structural test reads
@@ -953,7 +994,7 @@ check("a declared place outranks the name", wearableSlots(wearable("Leather belt
 const bareBelt = wearable("Leather belt");
 check("wearing an unannotated belt declares it and puts it on in one write",
   (await wearItem(bareBelt, "belt")) === true && bareBelt.writes.length === 1
-  && JSON.stringify(bareBelt.writes[0]["flags.acks-extras.gear"]) === JSON.stringify({ slots: ["belt"], access: "", capacity: null, wornAt: "belt" }));
+  && JSON.stringify(bareBelt.writes[0]["flags.acks-extras.gear"]) === JSON.stringify({ slots: ["belt"], access: "", wornAt: "belt" }));
 const misplaced = wearable("Leather belt");
 check("a place the name does not give is refused, and nothing is written", (await wearItem(misplaced, "head")) === false && misplaced.writes.length === 0);
 const typedCapacity = wearable("Leather belt", { capacity: 0.5 });
@@ -1281,6 +1322,34 @@ check("api.named namespace is present", typeof api.named?.resolveGuess === "func
   const loaded = doc("Quiver, 20 Arrows", "item", { slots: ["belt"], capacity: 1 });
   await api.annotateItem(loaded);
   check("a loaded quiver has its capacity cleared and keeps its slots", write(loaded)[`${GEAR_KEY}.capacity`] === null && !(`${GEAR_KEY}.slots` in write(loaded)));
+  // A container is declared as one and never given a size: how much it holds is
+  // the page's (the importer writes it), so annotate stamps `holds` only.
+  const bare = doc("Backpack (holds 11 stone)", "item", null);
+  await api.annotateItem(bare);
+  check("annotate declares a backpack holds gear and states no capacity", write(bare)[`${GEAR_KEY}.holds`] === true && !(`${GEAR_KEY}.capacity` in write(bare)));
+  const statedPack = doc("Backpack", "item", { capacity: 5 });
+  await api.annotateItem(statedPack);
+  check("a backpack that states a capacity keeps it", !(`${GEAR_KEY}.capacity` in write(statedPack)));
+  const refused = doc("Backpack", "item", { holds: false });
+  await api.annotateItem(refused);
+  check("a Judge's holds: false on a backpack stands against a later annotate", !(`${GEAR_KEY}.holds` in write(refused)));
+  const staleHolds = doc("Quiver, 20 Arrows", "item", { slots: ["belt"], holds: true });
+  await api.annotateItem(staleHolds);
+  check("a loaded quiver has its holds declaration taken back", write(staleHolds)[`${GEAR_KEY}.holds`] === false);
+  const bowq = doc("Bowquiver", "item", null, { description: "A bowquiver with a bow and arrows counts as 5 items." });
+  await api.annotateItem(bowq);
+  check("annotate stamps a bowquiver's stated loaded count, and the flag that marks it", write(bowq)[`${GEAR_KEY}.loaded6`] === 5 && write(bowq)["flags.acks-extras.bowquiver"] === true);
+  const setBow = doc("Bowquiver", "item", { loaded6: 9 }, { description: "A bowquiver with a bow and arrows counts as 5 items." });
+  await api.annotateItem(setBow);
+  check("annotate leaves a loaded count a Judge or an earlier pass set", !(`${GEAR_KEY}.loaded6` in write(setBow)));
+  // The Holds toggle declares and never sizes: it writes `holds` alone, and clears the capacity on its way off.
+  const { setGearHolds } = await import(new URL("actions.mjs", S));
+  const toggled = doc("Sack", "item", null);
+  await setGearHolds(toggled, true);
+  check("ticking Holds writes the declaration and no capacity", write(toggled)[`${GEAR_KEY}.holds`] === true && !(`${GEAR_KEY}.capacity` in write(toggled)));
+  const untoggled = doc("Sack", "item", { holds: true, capacity: 4 });
+  await setGearHolds(untoggled, false);
+  check("unticking Holds writes holds false and clears the capacity", write(untoggled)[`${GEAR_KEY}.holds`] === false && write(untoggled)[`${GEAR_KEY}.capacity`] === null);
   const sizedAxe = doc("Battle Axe", "weapon", null, { size: "large", melee: true });
   await api.annotateItem(sizedAxe);
   check("annotate stamps no size on a weapon that declares one", !("flags.acks-extras.size" in write(sizedAxe)));
@@ -2128,11 +2197,44 @@ const inHand = await prepareTorch(handActor, handStack, { draw: true });
 check("prepareTorch {draw} readies a torch and draws it", inHand?.name === "Torch" && drawn.length === 1 && drawn[0]["system.equipped"] === true && handStack.system.quantity.value === 1);
 
 /* ---------------------------------------------------------------------- */
-/*  #3 Unarmed strike (RR p299: 1d3 nonlethal, melee only)                 */
+/*  #3 Unarmed strike (RR p299: melee only, its die imported)               */
 /* ---------------------------------------------------------------------- */
 
-const unarmed = unarmedStrikeData();
-check("unarmed strike is 1d3 melee-only", unarmed.system.damage.base.formula === "1d3" && unarmed.system.melee === true && unarmed.system.missile === false);
+// The die is the imported one (the equipment document's `unarmedStrike` table;
+// the figure here is INVENTED). With none the weapon states no formula.
+{
+  const { registerTable: reg, unregisterTable: unreg, PRIORITY: P } = await import(new URL("../lib/tables.mjs", S));
+  const bare = unarmedStrikeData();
+  check("no die imported: the unarmed strike is melee-only and states no damage formula", bare.system.damage.base.formula === "" && bare.system.melee === true && bare.system.missile === false);
+  reg({ id: "equipment", tables: { unarmedStrike: { damage: "1d7" } } }, { priority: P.WORLD, source: "test" });
+  check("an imported die is the strike's formula", unarmedStrikeData().system.damage.base.formula === "1d7");
+  unreg("equipment", { priority: P.WORLD });
+  reg({ id: "equipment", tables: { unarmedStrike: { damage: "lots" } } }, { priority: P.WORLD, source: "test" });
+  check("an override that is not a die counts as not imported", unarmedStrikeData().system.damage.base.formula === "");
+  unreg("equipment", { priority: P.WORLD });
+
+  // The throw is made either way; with no die it says the die is not imported.
+  const { rollUnarmed } = await import(new URL("actions.mjs", S));
+  const said = [];
+  const prevInfo = globalThis.ui.notifications.info;
+  const prevConfig = globalThis.CONFIG;
+  globalThis.ui.notifications.info = (m) => said.push(String(m));
+  globalThis.CONFIG = { ...(prevConfig ?? {}), Item: { documentClass: class { constructor(data) { this.data = data; } } } };
+  const throws = [];
+  const striker = { makeAttackThrow: (o) => { throws.push(o); return true; } };
+  try {
+    rollUnarmed(striker, { skipDialog: true });
+    check("no die imported: the throw is made and the notice says the die is not imported", throws.length === 1 && said.length === 1 && said[0].includes("unarmedNoDie"));
+    reg({ id: "equipment", tables: { unarmedStrike: { damage: "1d7" } } }, { priority: P.WORLD, source: "test" });
+    said.length = 0;
+    rollUnarmed(striker, { skipDialog: true });
+    check("a die imported: the throw is made and nothing is said", throws.length === 2 && said.length === 0);
+    unreg("equipment", { priority: P.WORLD });
+  } finally {
+    globalThis.ui.notifications.info = prevInfo;
+    globalThis.CONFIG = prevConfig;
+  }
+}
 
 /* ---------------------------------------------------------------------- */
 /*  #4 Masterwork (RR p159): stamped onto core fields, reversible          */
@@ -2371,6 +2473,15 @@ check("an edit to one slot of a tier is an edit", tipOf(printedLayers.masterwork
 useLibrary([variationItem("material.silver", { cost: { baseMul: FIG.silver }, cite: "" })]);
 check("a minted document with no page still names the document", tipOf(printedLayers.silverFigure()).startsWith("ACKS-EQUIPMENT.printed.fromDocument"));
 check("the not-imported tooltip names the key", printedLayers.notImportedTip(SILVER.variation).includes(SILVER.variation));
+// A container's stated capacity wears the same three states: the page the import
+// read it from, an edit to that figure, or a hand; none stated is "not imported".
+const capItem = (capacity, cookbook) => ({ name: "Crate", flags: { "acks-extras": { gear: capacity == null ? {} : { capacity }, ...(cookbook ? { cookbook } : {}) } } });
+const capTip = (item) => printedLayers.capacityTip(item);
+check("a capacity equal to the figure its import read cites the page", capTip(capItem(9, { cite: "Invented p. 2", read: { capacity: 9 } })).startsWith("ACKS-EQUIPMENT.printed.fromPage") && capTip(capItem(9, { cite: "Invented p. 2", read: { capacity: 9 } })).includes("Invented p. 2"));
+check("a capacity a Judge changed says so and names the page the import read", capTip(capItem(12, { cite: "Invented p. 2", read: { capacity: 9 } })).startsWith("ACKS-EQUIPMENT.printed.editedByHand") && capTip(capItem(12, { cite: "Invented p. 2", read: { capacity: 9 } })).includes("Invented p. 2"));
+check("a capacity the import did not read is set by hand, stamp or no stamp", capTip(capItem(3, { cite: "Invented p. 2" })).startsWith("ACKS-EQUIPMENT.printed.byHand") && capTip(capItem(3)).startsWith("ACKS-EQUIPMENT.printed.byHand"));
+check("a capacity of zero is stated and cites its source", capTip(capItem(0)).startsWith("ACKS-EQUIPMENT.printed.byHand"));
+check("no stated capacity says not imported and cites nothing", capTip(capItem(null, { cite: "Invented p. 2" })).includes("capacityNotImportedTip") && !capTip(capItem(null)).includes("Invented"));
 useLibrary(IMPORTED_VARIATIONS);
 const provenanceItem = mockDoc("weapon", { name: "Sword", damage: "1d6" });
 provenanceItem._flags.masterwork = { tier: "weaponToHit" };

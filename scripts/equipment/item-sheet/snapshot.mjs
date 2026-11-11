@@ -11,10 +11,10 @@
 import { MODULE_ID, ITEM_FLAGS, LANG, EFFECT_DOMAINS, SETTINGS } from "../constants.mjs";
 import { FLAG_GEAR } from "../../lib/constants.mjs";
 import { makeLoc } from "../../lib/util.mjs";
-import { SIZE } from "../config.mjs";
+import { finesseTakes, finesseSizesImported } from "../attack-mods.mjs";
 import { isDisguised, readiedWeaponData } from "../actions.mjs";
 import { masterworkTierOf, scavengedOf, silveredFlagOf, pristineOf, layerDeltas, unstatedLayers } from "../properties.mjs";
-import { silverFigure, masterworkFigure, provenanceTip, notImportedTip } from "../printed-layers.mjs";
+import { silverFigure, masterworkFigure, provenanceTip, notImportedTip, capacityTip } from "../printed-layers.mjs";
 import { variationItemsOf, itemBaseType } from "../variation-items.mjs";
 import { containerOf, isContainer, isLocked, canSeeInside } from "../containers.mjs";
 import { isSpellbook, spellbookSpells, pagesUsed, pagesCapacity } from "../spellbook.mjs";
@@ -43,10 +43,6 @@ import { priceLedger } from "./price-ledger.mjs";
 import { signed } from "./format.mjs";
 
 const loc = makeLoc(LANG);
-
-/** Sizes eligible for Weapon Finesse — mirrors roll-wrap.mjs's own list, the
- * gate that actually decides the attack throw's attribute at roll time. */
-const FINESSE_SIZES = [SIZE.TINY, SIZE.SMALL, SIZE.MEDIUM];
 
 /** The flags this sheet owns on the item (the rest belong to their features). */
 export const SHEET_FLAGS = Object.freeze({
@@ -173,11 +169,12 @@ function inheritedGrants(item, actor) {
     // describing a throw the roll does not make.
     const finesse = !!loadout && game.settings.get(MODULE_ID, SETTINGS.ROLL_AUTOMATION) &&
       !loadout.nonProficientUse && !usingNonProfWeapon && dex > str &&
-      (profile.size == null || FINESSE_SIZES.includes(profile.size)) && hasEffectFlag(actor, EFFECT_DOMAINS.FINESSE);
+      finesseTakes(profile.size) !== false && hasEffectFlag(actor, EFFECT_DOMAINS.FINESSE);
     // A figure the gate could not decide is taken as no refusal, and the row
     // says which figure it is: the size, the proficiency, or both.
     const undecided = [
       profile.size == null ? loc("itemSheet.grant.finesseSizeUnknown") : "",
+      !finesseSizesImported() ? loc("itemSheet.grant.finesseSizesNotImported") : "",
       !!loadout && !weaponProficiencyDecided(actor, profile) ? loc("itemSheet.grant.proficiencyUndecided") : "",
     ].filter(Boolean).join(" ");
     if (finesse && dex) out.push({ label: loc("itemSheet.grant.dexterity", { n: scores.dex?.value ?? "" }), detail: `${signed(dex)} ${loc("itemSheet.grant.attackMelee")}`, src: loc("itemSheet.src.attribute"), tip: undecided });
@@ -385,6 +382,7 @@ function containerSnapshot(item) {
     holds,
     capacityStone: cap,
     capacityStated: cap != null,
+    capacityTip: capacityTip(item),
     cap6: cap ? cap * STONE : 0,
     load6,
     locked: isLocked(item),

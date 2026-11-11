@@ -2099,8 +2099,29 @@ export const TABLE_RECIPES = {
     },
   },
   equipment: {
-    source: { book: "ACKS II Revised Rulebook + Judges Journal", pages: "RR 15, 140, 160, 296; JJ 252" },
+    source: { book: "ACKS II Revised Rulebook + Judges Journal", pages: "RR 15, 121, 140, 160, 296, 299; JJ 252" },
     tables: {
+      // The weapon sizes Weapon Finesse takes (RR ch. 3, Weapon Finesse): the
+      // size words the proficiency's own sentence names, read as a list.
+      // `equipment/attack-mods.mjs` `finesseTakes` refuses only a size this
+      // list does not hold, and none while it is not imported.
+      weaponFinesse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 121,
+        locate: "When attacking with tiny",
+        values: [{ key: "sizes", find: "when attacking with", take: "sizeList", span: 60 }],
+      },
+      // The unarmed strike's damage die (RR ch. 6, Dealing Damage).
+      // `equipment/actions.mjs` `unarmedStrikeData` rolls it; with none
+      // imported the strike makes its attack throw and rolls no damage.
+      unarmedStrike: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 299,
+        locate: "Unarmed strikes deal",
+        values: [{ key: "damage", find: "unarmed strikes deal", take: "dice", span: 20 }],
+      },
       // Non-proficient use (RR 15, the sidebar): the further penalty a
       // character of no level takes while equipped with what their class
       // cannot use. The sidebar names the throw everyone else fights with by

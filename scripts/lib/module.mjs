@@ -174,7 +174,9 @@ const localImpl = Object.freeze({
   // 37: the shipped weapon table is gone from the equipment API's `config`
   // (`WEAPONS`, `WEAPON_FOCUS_GROUPS`, `ANYONE_THROWS`, `WEAPON_ALIASES`) and
   // from the training view (`WEAPON_UNITS`); the rows are the imported ones,
-  // read through the weapon seam.
+  // read through the weapon seam. The equipment API's `config.GEAR_PROFILES`
+  // entries carry no `capacity` and `inferGear` answers none: a container's
+  // capacity is the figure its price row states, written at import.
   apiVersion: 37,
   vocab,
   fields,

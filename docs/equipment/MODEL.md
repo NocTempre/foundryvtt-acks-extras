@@ -66,7 +66,7 @@ enums; local-only, never in the repo).
 | Item flag (armor) | `flags.acks-extras.{shieldVariant,strap,masterwork,helmet}` | Overlay metadata. |
 | Item flag (weapon/ammo) | `flags.acks-extras.silvered` | RR ch.4 Silver quality. `true` plated, `false` explicitly not, absent = the guess in `silver.mjs` (weapon table, then name). Only `true` applies the price layer — the RAW list already charges Silver Dagger and Silver Arrow their silvered price. |
 | Item flag (weapon/shield) | `flags.acks-extras.hand` | `main` \| `off` — which hand the item was drawn into; resolves dual-wield off-hand identity. |
-| Item flag (any physical item) | `flags.acks-extras.gear` | `{slots, wornAt, access, capacity, relief}` — where this gear MAY sit, where it sits now, the RAW cost of drawing from it, how much it holds and, on a harness, how much it secures (the item's own figure, read from its text by Annotate or typed on its Construction tab). The model and its read path are the lib subsystem's (`docs/lib/MODEL.md`); this feature infers the values (`profiles.mjs` `inferGear`) and stamps them (Annotate Equipment, and the importer on every gear and price row it makes), each key only where the item leaves it blank. An item that declares no `slots` is read through `wearableSlots` — its inferred places — by every Wear control this feature draws, and `actions.mjs` `wearItem` declares them in the write that puts it on. |
+| Item flag (any physical item) | `flags.acks-extras.gear` | `{slots, wornAt, access, holds, capacity, relief, loaded6}` — where this gear MAY sit, where it sits now, the RAW cost of drawing from it, whether it is a container, how much it holds (the figure its price row states, written at import, or typed on its Details tab) and, on a harness, how much it secures (the item's own figure, read from its text by Annotate or typed on its Construction tab). The model and its read path are the lib subsystem's (`docs/lib/MODEL.md`); this feature infers the values (`profiles.mjs` `inferGear`: slots, access, `holds`, relief, `loaded6`) and stamps them (Annotate Equipment, and the importer on every gear and price row it makes), each key only where the item leaves it blank. `capacity` is never inferred; see "Figures the book prints" below. An item that declares no `slots` is read through `wearableSlots` — its inferred places — by every Wear control this feature draws, and `actions.mjs` `wearItem` declares them in the write that puts it on. |
 | Item flag (container) | `flags.acks-extras.container.{quality,lockMod,keys,accepts,refusal}` | The lock's quality text and pick modifier, the keys that open it (`[{uuid,name}]`), the kinds it will accept (`item-sheet/accept-kinds.mjs`) and the refusal it gives a wrong drop. Beside the `locked/opened/concealed/fragile` fields `containers.mjs` already holds. |
 | Item flag | `flags.acks-extras.pins` | Roll ids the item pins to its art, oldest first, at most two. |
 | Item flag | `flags.acks-extras.valueMode` | `priced` \| `unknown` \| `na` — what the value badge reads (`item-sheet/view-model.mjs` `valueBadge`). |
@@ -888,6 +888,40 @@ weapon, a size or a class nothing imported states. Undecided never penalises.
   of three states (`weapon-figures.mjs`): declared on the item, read from the
   weapon row with its page, or not imported with no number.
 
+## Figures the book prints, and what is read without them
+
+Three figures arrive through the importer and reach a consumer only as the
+reader's own book gave them. Nothing falls back to a shipped number.
+
+- **A container's capacity** (RR gear price grid, the rows whose own label
+  states what they hold). `gear-prices.mjs` `labelCapacity` reads the stone
+  figure off the label and `capacityFor` hands it over only where the row IS
+  the entry (the same `priceKey`), never a variant the prefix lookup fell back
+  to. The cookbook writes it to `gear.capacity` and records the figure in the
+  import stamp (`cookbook.read.capacity`), so `printed-layers.mjs`
+  `capacitySource` tells a page-read figure (cites the page) from a typed one
+  (the hand's). `GEAR_PROFILES` states only `holds: true`: structure. A
+  container with no stated capacity is still a container with no limit; its
+  figure tooltip says "not imported" and shows no number (`capacityTip`, on the
+  equipment tab's container header and the item sheet's Details and Contents).
+  An item sheet's "Holds other items" toggle writes `holds` alone
+  (`setGearHolds`); the capacity is the field beside it. A rebuild of the
+  importer repairs `gear` on an imported item and prices row (`REPAIR`), so
+  a stale stamped figure is replaced by the page's.
+- **A bowquiver's loaded count** (`gear.loaded6`). Annotate reads it from the
+  item's own description (`profiles.mjs` `loadedStated`: a "counts as N items"
+  clause) and never from source; `encumbranceDelta6` corrects a quiver's
+  encumbrance only where the item states one and has contents.
+- **Weapon Finesse sizes and the unarmed strike die** (RR 121 and RR 299). The
+  `weaponFinesse` and `unarmedStrike` tables of the `equipment` ruledata doc
+  are `proseValues` reads (`sizeList` and `dice` takes). `attack-mods.mjs`
+  `finesseTakes(size)` is true, false or null: only false refuses, a size or
+  list the import cannot answer never does, and the ledger row says the list is
+  not imported (`finesseSizesImported`). `unarmedStrikeDie()` answers the
+  imported die or null; `unarmedStrikeData` then carries a blank formula (an
+  attack throw with no damage roll, core's reading of a blank formula) and
+  `rollUnarmed` says "no die imported".
+
 ## Weapon rows read from the book — `weapon-source.mjs`
 
 Equipment ships no weapon. `weapon-source.mjs` exports `librarySource`, the
@@ -920,9 +954,9 @@ own nouns, else by a category's own name (`resolveWeaponGroupPick`), and a
 focus pick no imported focus names is null; `lib/proficiency-strip.mjs` keeps
 only the plain spellings of a category's own name, and places a single weapon
 through its row. A weapon needs both hands where its row says so or the item
-carries core's Two-handed tag, whatever its size. Weapon Finesse reads a size
-nothing states as eligible, and the ledger row's tooltip says the size is not
-imported.
+carries core's Two-handed tag, whatever its size. Weapon Finesse reads its
+eligible sizes from the imported `weaponFinesse` table (below), and refuses
+only a size the list states is not eligible.
 
 `annotateItem` is the only writer of a weapon flag that depended on the old
 table, and writes the identity alone (above).
