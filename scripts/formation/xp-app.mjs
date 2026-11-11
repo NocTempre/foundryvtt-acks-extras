@@ -31,7 +31,7 @@ export async function dealExperience(formation) {
     const d = divideXp(actors, total, { bonusOf });
     const rows = d.rows
       .map((r) => `<tr><td>${foundry.utils.escapeHTML(r.name)}</td><td>${r.share}</td><td>${bonusCell(bonuses.get(r.actor))}</td>`
-        + `<td><strong>${r.xp}</strong>${r.unrecorded ? `<br><span class="hint">${game.i18n.localize(`${LANG_PREFIX}.unrecorded`)}</span>` : ""}</td></tr>`)
+        + `<td><strong>${r.xp}</strong>${r.onRecord ? `<br><span class="hint">${game.i18n.localize(`${LANG_PREFIX}.onRecord`)}</span>` : ""}</td></tr>`)
       .join("");
     const left = d.excluded
       .map((r) => `<li>${foundry.utils.escapeHTML(r.name)} — ${reasonLabel(r.reason)}</li>`)

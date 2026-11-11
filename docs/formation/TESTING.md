@@ -674,11 +674,15 @@ Constitution lost. The rendered section carries no raw lang keys.
 
 ## Deal XP
 
-Fixtures: the party actor with two characters enrolled, plus a disposable
-monster actor carrying a henchman record (`flags.acks-extras.record` with
-`terms.xpShare`) enrolled beside them. Give each character an owner seat that
-is a player's (`ownership: {[playerId]: 3}`): a character no player owns and
-nobody hired is an NPC, and takes no share.
+Fixtures: the party actor with two characters enrolled, plus two disposable
+`monster` actors enrolled beside them, each carrying a marker
+(`flags.world.fixture`): `formation/xp-hired-monster`, hired by
+`acksExtras.henchmen.hireMonster(monster, employer)` so it carries a henchman
+record, and `formation/xp-handmade-monster`, whose `system.retainer` is
+written by an update after the create (`enabled: true`, `managerid`,
+`category` `henchman`) with no hire behind it. Give each character an owner
+seat that is a player's (`ownership: {[playerId]: 3}`): a character no player
+owns and nobody hired is an NPC, and takes no share.
 
 1. As the GM, open the party sheet.
    *Observable:* the experience cell among the quick tools
@@ -701,9 +705,18 @@ nobody hired is an NPC, and takes no share.
    `system.details.xp.value` rises by exactly the listed Gains — the Tweaks
    character included, whose percentage core applies to the unadjusted base.
    Core posts a card per character. Those cards and the dialog's summary card
-   are all created by the run: read them back and `api.track` each. The
-   monster henchman is listed with a share and a "Not recorded" note, and its
-   sheet is not written — the system keeps no experience for a monster.
+   are all created by the run: read them back and `api.track` each. Each
+   monster henchman is listed with a share and the note that it is credited to
+   its own record, because the system keeps no experience for a monster. Read
+   `flags["acks-extras"].experience` on each: `bySource.deal` equals the
+   listed Gains, and its `system.details.xp` (what it is worth defeated) is
+   unchanged. Open the monster's sheet, **Service** tab: the **Terms**
+   group's **Experience** row reads that figure, and hovering it lists
+   "Deal XP" with the same figure and a page. Deal again and the figure is
+   the sum; a monster with nothing credited reads 0 and its tooltip says so.
+   Open a hireling `character`'s Service tab: no Experience row. The row shows
+   no advancement or readiness line, and nothing about the monster's Hit Dice
+   changed.
 5. Enrol hirelings by hand on the system sheet: a disposable employer
    `character`, plus three `character` actors whose `system.retainer` is
    written by an update after the create (`enabled: true`,

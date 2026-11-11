@@ -48,9 +48,11 @@ const pc = (name, extra = {}) => ({
   name, type: "character", system: { details: { xp: { share: 100 } } },
   getFlag: () => null, getExperience: async (v) => calls.push([name, v]), ...extra,
 });
+const bearFlags = {};
 const bear = {
   name: "Bound Bear", type: "monster",
-  getFlag: (_m, k) => (k === "record" ? { terms: { xpShare: 0.5, wageBasis: "hd" } } : null),
+  getFlag: (_m, k) => (k === "record" ? { terms: { xpShare: 0.5, wageBasis: "hd" } } : bearFlags[k] ?? null),
+  setFlag: async (_m, k, v) => { bearFlags[k] = v; },
   getExperience: async (v) => calls.push(["Bound Bear", v]),
 };
 const keen = pc("Keen"), plain = pc("Plain"), tweaked = pc("Tweaked");
@@ -62,10 +64,13 @@ const d = divideXp([keen, plain, tweaked, bear], 3500, { bonusOf: (a) => table.g
 assert.deepEqual(d.rows.map((r) => [r.name, r.base, r.xp]), [
   ["Keen", 1000, 1080], ["Plain", 1000, 1000], ["Tweaked", 1000, 1080], ["Bound Bear", 500, 500],
 ]);
-assert.equal(d.rows[3].unrecorded, true, "the system keeps no experience for a monster");
+assert.equal(d.rows[3].onRecord, true, "the system keeps no experience for a monster, so its share is kept on its own record");
+assert.equal(d.rows[0].onRecord, false, "a character is credited through the system");
 
 await awardXp(d);
 assert.deepEqual(calls, [["Keen", 1080], ["Plain", 1000], ["Tweaked", 1000]],
   "core gets the adjusted gain, except where core applies its own Tweaks percentage; the bear is not handed to a call that drops it");
+assert.deepEqual(bearFlags.experience, { bySource: { deal: 500 } }, "the bear's share is credited on its own flag, under the source Deal XP names");
+assert.deepEqual(d.rows.map((r) => r.credited?.via ?? null), ["system", "system", "system", "flag"]);
 
-console.log("test-xp-bonus: OK (binding, lower attribute, no table, division, award)");
+console.log("test-xp-bonus: OK (binding, lower attribute, no table, division, award, a monster's share kept on its record)");

@@ -151,11 +151,14 @@ and nothing else in the chain changes.
 bequeathing named items to the heir is by hand (docs/classes/DECISIONS.md,
 2026-09-30).
 
-**A monster henchman's experience.** The system gives a `monster` actor no
-experience field (its `details.xp` is what it is worth when defeated), so Deal
-XP lists a monster henchman's share with a "Not recorded" note and writes
-nothing. Where that experience should live, and how it advances Hit Dice, is
-undecided.
+**A monster henchman's advancement.** Deal XP credits a monster henchman's
+share onto its own flag and the Service panel shows the total
+(docs/henchmen/MODEL.md). Not built: showing that the creature has enough
+experience to advance, and advancing it. Both need the book's monster
+advancement thresholds, which no importer recipe reads yet, so the panel shows
+the credited figure alone. The importer reads the threshold first, then the
+panel shows readiness as a figure with its page; applying an advance stays the
+Judge's.
 
 ---
 

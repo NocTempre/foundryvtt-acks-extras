@@ -974,6 +974,13 @@ is listed too, with why — a mercenary is paid in wages rather than experience,
 pack mule is not a party member. A fallen member still takes their share. Only
 **Deal XP** writes anything.
 
+A monster hired as a henchman takes its share too. The system keeps no
+experience for a monster, so the share is credited to the monster's own record
+and the dialog says so beside it. The monster's sheet shows the total: open the
+sheet's **Service** tab, and the **Terms** group's **Experience** row carries
+it, with where it came from in its tooltip. The figure is a tally; it
+does not advance the monster, which stays the Judge's to do.
+
 Whether a hireling is a henchman, a mercenary or a specialist is read from the
 **Category** on the hireling's own sheet, including for a hireling added on the
 system sheet rather than hired through a market. Change it there and Deal XP

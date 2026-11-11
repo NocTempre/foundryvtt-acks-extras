@@ -114,6 +114,7 @@ const COMMITTED = [
   "test-languages.mjs",
   "test-xp-shares.mjs",
   "test-xp-bonus.mjs",
+  "test-experience.mjs",
   "test-legacy.mjs",
   "test-zero-level.mjs",
   "test-table-docs.mjs",

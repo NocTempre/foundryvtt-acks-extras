@@ -90,6 +90,15 @@
         </span>
         <span class="acks-extras-frame__row-value acks-nums" data-tooltip-text="{{s.terms.shareTip}}">{{s.terms.share}}</span>
       </div>
+      {{#if s.experience}}
+      <div class="acks-extras-frame__row">
+        <span class="acks-extras-frame__row-text">
+          <span class="acks-extras-frame__row-label">{{localize "ACKS-HENCHMEN.service.experience"}}</span>
+          <span class="acks-extras-frame__row-line">{{localize "ACKS-HENCHMEN.service.experienceLine"}}</span>
+        </span>
+        <span class="acks-extras-frame__row-value acks-nums" data-tooltip-text="{{s.experience.tip}}">{{s.experience.value}}</span>
+      </div>
+      {{/if}}
       <div class="acks-extras-frame__row">
         <span class="acks-extras-frame__row-text">
           <span class="acks-extras-frame__row-label">{{localize "ACKS-HENCHMEN.service.signingBonus"}}</span>

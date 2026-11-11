@@ -20,6 +20,7 @@ import { SECONDS_PER_DAY } from "./constants.mjs";
 import { makeLoc } from "../lib/util.mjs";
 import { signed } from "../lib/frame-model.mjs";
 import { classLevel } from "../lib/actor-read.mjs";
+import { creditedExperience, keepsExperienceOnFlag } from "../lib/experience.mjs";
 import { ACTOR_TYPE } from "../lib/vocab.mjs";
 
 /** The lang root of the panel's strings. */
@@ -98,6 +99,20 @@ function wageTip(terms, { actor, henchman }) {
     });
   }
   return loc(henchman ? "tip.wageUnset" : "tip.wageUnsetOther");
+}
+
+/**
+ * The experience credited to a creature the system keeps none for, as the
+ * row's figure and its tooltip: each source's points, named, adding up to the
+ * figure. Null for a character, whose experience is its own sheet's field.
+ * Nothing about advancing is read or shown: no imported table gives a
+ * monster's thresholds.
+ */
+export function experienceView(actor) {
+  if (!keepsExperienceOnFlag(actor)) return null;
+  const { total, parts } = creditedExperience(actor);
+  const listed = parts.map(([source, n]) => `${localizeIf(`${SERVICE_LANG_PREFIX}.xpFrom.${source}`, source)} ${n}`).join(" · ");
+  return { value: String(total), tip: total ? loc("tip.experience", { parts: listed }) : loc("tip.experienceNone") };
 }
 
 /** The recorded scores, each named by the system's own short label (Will is its `wis`). */
@@ -221,6 +236,7 @@ export function buildServicePanel(actor, { isGM = false, pins = [] } = {}) {
     category: game.i18n.localize(`ACKS-HENCHMEN.category.${category}`),
     standing,
     terms: termsView,
+    experience: experienceView(actor),
     employer: employerView,
     ledger: ledgerRows(record),
     events: eventRows(record),

@@ -316,6 +316,13 @@
 
 ### Fixed
 
+- **A monster henchman receives its share of Deal XP.** Pressing Deal XP (the
+  party sheet's quick tools → the experience star) now credits a hired
+  monster's share. The system keeps no experience for a monster, so the share
+  is credited to the monster's own record and the dialog says so; the monster
+  sheet's Service tab shows the total as the Terms group's Experience row, with
+  where it came from in its tooltip. The monster is not advanced, and
+  experience owed before this release is not recovered.
 - **A monster served from its own sheet leaves its old employer's roster.**
   A monster served from its own sheet (Service tab → **Serve as henchman
   of…**, beside the manager's name) now moves off its previous employer's

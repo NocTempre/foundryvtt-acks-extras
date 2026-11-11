@@ -19,8 +19,12 @@ import { MODULE_ID } from "./constants.mjs";
 import { getMemberActor, realMembers } from "./formation-model.mjs";
 import { withXpBonus } from "../classes/xp-bonus.mjs";
 import { earnsExperience, hirelingKind, UNSHARED_BASES } from "../lib/actor-read.mjs";
+import { creditExperience, keepsExperienceOnFlag } from "../lib/experience.mjs";
 
 export { hirelingKind, UNSHARED_BASES };
+
+/** The source a Deal XP credit is recorded under; the Service panel's tooltip names it. */
+export const DEAL_SOURCE = "deal";
 
 /** No key-attribute adjustment: the default for a division with no reader. */
 const NO_BONUS = Object.freeze({ bonus: 0, source: null });
@@ -125,7 +129,7 @@ export function divideXp(actors = [], total = 0, { bonusOf = () => NO_BONUS } = 
   const rows = taking.map((r) => {
     const base = Math.floor(r.share * perShare);
     const { bonus = 0, source = null } = bonusOf(r.actor) ?? NO_BONUS;
-    return { ...r, base, bonus, bonusSource: source, xp: withXpBonus(base, bonus), unrecorded: r.actor.type !== "character" };
+    return { ...r, base, bonus, bonusSource: source, xp: withXpBonus(base, bonus), onRecord: keepsExperienceOnFlag(r.actor) };
   });
   return {
     rows,
@@ -137,24 +141,21 @@ export function divideXp(actors = [], total = 0, { bonusOf = () => NO_BONUS } = 
 }
 
 /**
- * Hand the experience over through the system's own `getExperience`, so its
- * chat line and whatever else core does with a gain keep happening.
+ * Credit every row through `creditExperience`: a character through the
+ * system's own `getExperience`, so its chat line and whatever else core does
+ * with a gain keep happening; a monster or an animal onto its own flag, since
+ * the system keeps no experience for it (those rows are `onRecord`).
  *
- * Core applies only the Actor Tweaks percentage, and applies it itself: a row
- * whose adjustment came from there hands core the unadjusted base, any other
- * row the adjusted gain. A row that is not a `character` is skipped — core's
- * call does nothing for it and the system gives it no experience field to
- * write — and stays `unrecorded` for the card to name.
+ * Core applies only the Actor Tweaks percentage, and applies it itself: a
+ * character row whose adjustment came from there hands core the unadjusted
+ * base, any other row the adjusted gain. Each row carries what was credited
+ * as `credited`, null where nothing was.
  */
 export async function awardXp(division) {
   for (const row of division.rows ?? []) {
-    if (!row.xp || row.unrecorded) continue;
-    const handed = row.bonusSource === "tweaks" ? row.base : row.xp;
-    if (typeof row.actor.getExperience === "function") await row.actor.getExperience(handed);
-    else {
-      const now = Number(row.actor.system?.details?.xp?.value) || 0;
-      await row.actor.update({ "system.details.xp.value": now + row.xp });
-    }
+    if (!row.xp) continue;
+    const handed = row.bonusSource === "tweaks" && !row.onRecord ? row.base : row.xp;
+    row.credited = await creditExperience(row.actor, handed, { source: DEAL_SOURCE });
   }
   return division;
 }

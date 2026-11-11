@@ -5376,6 +5376,38 @@ limits it only while moving, and a stricter plan would be a house rule.
 resolves. A world's party sheet carries a Turn plan section on every delve.
 
 
+## 2026-11-11 — A monster henchman's share of Deal XP is credited to its own record
+
+**Ruled.** Deal XP credits every share it lists. A character is credited
+through the system's own `getExperience`, as before. A monster or an animal is
+credited onto `flags["acks-extras"].experience`, a tally per source, through
+`creditExperience` in `lib/experience.mjs`: core's `getExperience` returns
+without doing anything for a non-character and the monster's data model has no
+experience field (its `details.xp` is what it is worth defeated), so the share
+the dialog listed used to be dropped with a "Not recorded" note. The owner's
+ruling of 2026-09-22 ("Follow RAW - add XP to monster henchmen") is the
+authority; the 2026-09-23 design (M8) named the helper and the flag. Whose
+share it is stays `shareFor`'s decision, unchanged: a monster hired as a
+henchman, by `hireMonster`, `hireExistingActor` or a hand-set retainer, takes
+the share its terms name, and a mercenary or specialist still takes none.
+
+The Service panel (the monster sheet's Service tab, the character sheet's
+Service tab for a hireling that is not a character) shows the credited figure
+with the parts of it in its tooltip. **Readiness to advance is not shown.** The
+book's monster advancement threshold is a printed figure, no imported table
+carries it, and so the panel shows the credited experience alone and says
+nothing about advancing; the module never advances a monster itself.
+
+**Rejected.** A field inside the henchman record: the record is the henchmen
+feature's schema and a re-hire rewrites it, so the lib helper would own a
+field it cannot see the shape of. A capped award log: the tooltip's parts must
+add up to the figure, which a capped list cannot promise; a per-source tally
+does.
+
+**Cost.** A creature's credited experience has no effect on its statistics
+until a Judge reads it and advances the creature by hand. Experience credited
+to a monster before this change was never recorded and is not recovered.
+
 ## 2026-11-11 — A speed under a load is the system's, and a table change repaints the column
 
 **Ruled.** A speed the actor's own document does not hold (a seat core derived
