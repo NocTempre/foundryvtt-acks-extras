@@ -1648,6 +1648,17 @@ the wrong slot to provoke.
    editor re-serializes the block), and run again: that page counts `updated`
    and still holds the book's text, and its `sum` is unchanged. Put the first
    page's word back as it was: the next run counts it `updated`.
+   *The editor's half without an AX3 world:* build a block from invented
+   paragraphs with `bookText(paragraphs, label, {id, book, page})`
+   (`scripts/importer/prose.mjs`), put a table inside it, create a page holding
+   it with `cookbook.sum` set to `blockDigest(bookTextBlock(html, id))`, open
+   it, save without typing, and compare `blockDigest` of the saved block with
+   `sum`. *Observable:* equal, although the editor reordered the block's
+   attributes, dropped the anchor's `href` and wrapped each table cell in a
+   `<p>`; one changed word makes them differ.
+   `foundry.prosemirror.dom.serializeString(parseString(html).content)` is the
+   same round trip with no window open. This reaches neither the run's counts
+   nor its notice; those need the AX3 run above.
 9. **The same edit under a repair is listed, and taken only on a yes.** With
    your paragraph back on the page, and again with a word of the block
    changed, run

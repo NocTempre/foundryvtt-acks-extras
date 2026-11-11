@@ -15,7 +15,11 @@
   neither its name nor its sub-header places now follows the other weapons
   under its sub-header when they agree. The buttons need the weapon lists
   imported; a world imported before the options table was read needs its
-  weapon lists imported again (Import Manager → Import tab).
+  weapon lists imported again (Settings tab → Game Settings → ACKS II — Extras
+  → Manage imports → Import tab). The sub-header rule needs each weapon's
+  sub-header, which a weapon imported before this release does not carry:
+  repair the Weapons shelf (Compendium tab → ACKS Extras Macros → Reimport One
+  Shelf (GM) → Weapons).
 - **Summon creatures from the character sheet.** On a GM seat, the character
   sheet's party cell (bottom right rail) → Summon… asks for a creature from the
   monster compendia, how many, and optionally one of the character's spells.

@@ -674,15 +674,25 @@ Constitution lost. The rendered section carries no raw lang keys.
 
 ## Deal XP
 
-Fixtures: the party actor with two characters enrolled, plus two disposable
-`monster` actors enrolled beside them, each carrying a marker
-(`flags.world.fixture`): `formation/xp-hired-monster`, hired by
+Fixtures, by marker (`flags.world.fixture`): the party `formation/xp-party`
+(type `acks-extras.party`) with the characters `formation/xp-member-1` and
+`formation/xp-member-2` enrolled, plus two `monster` actors enrolled beside
+them: `formation/xp-hired-monster`, hired by member 1 through
 `acksExtras.henchmen.hireMonster(monster, employer)` so it carries a henchman
 record, and `formation/xp-handmade-monster`, whose `system.retainer` is
 written by an update after the create (`enabled: true`, `managerid`,
 `category` `henchman`) with no hire behind it. Give each character an owner
 seat that is a player's (`ownership: {[playerId]: 3}`): a character no player
-owns and nobody hired is an NPC, and takes no share.
+owns and nobody hired is an NPC, and takes no share. Seat the members by
+dropping each actor's uuid on the party sheet (a `drop` event carrying
+`{type: "Actor", uuid}`, as `tools/live/formation-audit.mjs` `seat` does) and
+poll `getFormation(fid).members` until it holds them; the formation is found
+by `getFormations()` entry whose `actorId` is the party's. The dialog is a
+`DialogV2` whose `total` input takes an `input` event before **Deal XP**
+(`data-action="ok"`) reads it. A monster opens on the Follower Card by
+default, which has no tabs: the Service tab is the ACKS Full Monster sheet's
+(construct `CONFIG.Actor.sheetClasses.monster["acks-extras.FullMonsterSheet"].cls`
+with `{document}` and render it; the actor's own sheet setting is left alone).
 
 1. As the GM, open the party sheet.
    *Observable:* the experience cell among the quick tools

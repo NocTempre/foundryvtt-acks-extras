@@ -366,16 +366,33 @@ What a mock cannot prove: that the rows read the lists the importer wrote, that
 a press lands in the class grant, and that every button is reachable from the
 keyboard and says where it came from.
 
-**Not yet walked.** The recipe is written from the code; nothing here has been
-driven live.
+**Walked in part (2026-11-11, Assistant GM seat):** steps 2 and the press,
+overlap and size-clause steps, and the header tooltips, on a classless
+fixture whose first press creates its training effect. Keyboard focus does
+not survive the re-render after a press (ledger T-0508). Not yet walked: the
+absent state, the Judge's override, the player and observer seats, and
+`other`.
 
 **Fixtures** (kept; found by marker, built when none carries it):
 - The world's own import: the weapons grid and the `weaponLists` document with
   its `options` table, read from the Judge's copy
   (docs/importer/MODEL.md, "The weapon lists"; `tools/live/equipment-weapon-rows.mjs`
   skips and says so when they are absent). A world imported before the options
-  table was read has none until the weapon-list step is run again. Read what is
+  table was read has none until the weapon-list step is run again: with the
+  Rulebook and the Judges Journal connected,
+  `acksExtras.importer.cookbookImportTables(["weaponProse"])` — the RAW
+  document; naming the assembled `weaponLists` reads nothing. Read what is
   in with `(await import("/modules/acks-extras/scripts/lib/weapons.mjs")).weaponOptions().length`.
+  The grid's sub-headers (`flags.acks-extras.weapon.block` on the minted
+  weapons of the world's cookbook item pack) arrive only with the weapon items
+  themselves: a world whose weapons were imported before the sub-header was
+  recorded carries none, and the sub-header and mates tiers place nothing
+  until the Weapons shelf is repaired
+  (`acksExtras.importer.cookbookReimportShelf("Weapons", {ask: async () => true})`,
+  the merged repair the Import Manager's *Reimport a shelf or a book* runs for
+  the Weapons shelf). It is minutes long, past a page-script call's budget:
+  start it and count again from a later call. Count them before reading a
+  tier's placements.
   The absent state is made the way that walk makes it: unregister the
   `weaponLists` layers on this client only and put the very same documents back
   in a `finally`, so no import is retired.
