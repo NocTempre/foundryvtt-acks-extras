@@ -22,6 +22,7 @@ import {
 } from "../lib/vocab.mjs";
 import { CLASS_TYPE, CHASSIS_KEYS, PROGRESSIONS_DOC_ID, CLASS_DOC_PREFIX, FLAG_CLASSES, FLAG_TEMPLATE_PART, MODULE_ID } from "./constants.mjs";
 import { libraryItems, libraryPacks, cookbookId, whenReady } from "../lib/library.mjs";
+import { skillLadderRungs } from "../abilities/skill-ladders.mjs";
 
 /** Every class Item the library holds — the sidebar's and the imported pack's. */
 export function classItems() {
@@ -387,6 +388,10 @@ export function effectiveLevel(atLevel = "full", level = 1, round = "up") {
  * "automatic" from "unpublished". Both read the same rungs through the
  * same rule, so they cannot disagree about which one a level reaches.
  *
+ * A ladder the class document does not publish is read from the world's
+ * imported skill of that key (`abilities/skill-ladders.mjs`), whatever `as`
+ * names.
+ *
  * @returns {{atLevel: number, value: number|null, text: string, outcome: string}|null}
  */
 export function ladderRungAt(as, table, atLevel = "full", level = 1, round = "up") {
@@ -395,8 +400,11 @@ export function ladderRungAt(as, table, atLevel = "full", level = 1, round = "up
   // getDoc THROWS on an id nobody registered, so a class with no published
   // tables must be caught here rather than at roll time.
   const doc = docId && hasTableDoc(docId) ? getTableDoc(docId) : null;
-  const rungs = doc?.tables?.[`ladder.${table}`];
-  if (!Array.isArray(rungs) || !rungs.length) return null;
+  const published = doc?.tables?.[`ladder.${table}`];
+  // A class that publishes no such ladder borrows the imported skill's own: a
+  // thief's skills live on the skill items, not on the class document.
+  const rungs = Array.isArray(published) && published.length ? published : skillLadderRungs(table);
+  if (!rungs.length) return null;
   const eff = effectiveLevel(atLevel, level, round);
   let best = null;
   for (const rung of rungs) {

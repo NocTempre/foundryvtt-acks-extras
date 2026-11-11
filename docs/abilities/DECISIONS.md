@@ -768,3 +768,40 @@ a TODO.
 
 *Cost:* a reviewer reads every note; a copy imported before this keeps the old
 strings until Update Abilities.
+
+## 2026-11-11 — A throw's modifiers are the abilities' rows, and they name their parts
+
+**Asked.** T-0481: the party check printed Alertness, Trapfinding and a
+methodical bonus as literals while the abilities' own roller applied only the
+older `modifier` rows, so a character's search figure differed by surface.
+
+**Ruled.** `throwModifiers` reads `modifies` rows: matched by the capability the
+rolled ability provides (never its name), every `ifHas` held, stacking by lib
+`resolveStacking` (the larger of two abilities sharing a capability), an
+`appliesToRoll` scope honoured. It returns the `parts` with their pages beside
+the sum. The older `modifier` rows keep applying unconditioned. For an
+Adventuring figure, a stand-in ability (`kw:alertness` with a `searchListen`
+throw) replaces the stored figure only where no skill is held and only when
+better, and the rows that need no skill (the Trapfinding shape) lower the
+stored side; a row whose `ifHas` is the skill itself acts on the skill's throw
+alone. Alertness is therefore two additive rows, one per activity, each
+needing that skill; Attunement to Nature is additive too (it was a replacing
+row nothing applied). The `searchListen` throw sits on the Alertness class
+power as it does on the proficiency.
+
+**New evidence** (named because the 2026-11-11 Adventuring entry in
+`docs/character-sheet/DECISIONS.md` is under a week old and is amended by this
+one): the register's row shapes already held `ifHas` and `modifies` for these
+abilities while the roller read neither, and RR ch. 3 Adventuring names all
+five Activity proficiency throws (5 of 5), so the figure an Adventuring row
+shows is the character's throw and takes the abilities' bonuses to it.
+
+**Rejected.** *A bonus table inside the roller.* The rows are the book's
+structure and the roller holds no figure. *Matching a hand-made item by name.*
+A name is how a sheet spells it, not what it does.
+
+**Cost.** A world copy holds the old conditioned `modifier` row until Update
+Abilities rewrites it, and a hand-made item with no row gives nothing. The
+registry's `ladderRungAt` now falls back to an imported skill's ladder for a
+borrowed throw (a thief's skills live on the skill items), so a borrowed throw
+reads nothing until its skill is imported.

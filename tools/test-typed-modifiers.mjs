@@ -316,4 +316,14 @@ check("origin: a condition counts by its presence, so a copy holding older words
   assert.equal(heldOrigin([{ type: "modifier", target: "initiative" }], labelled), "scan", "a copy with no condition where the recipe has one is not the recipe's");
 });
 
+check("origin: a copy holding an older reading of a `modifies` row is stamped scan, by type or by mode", () => {
+  const row = (extra = {}) => ({ type: "modifies", target: "proficiencyThrow", refs: ["kw:searching"], ifHas: ["kw:searching"], from: { pattern: "x" }, ...extra });
+  const entry = { fields: { effects: { op: "effects", specs: [row({ mode: "add" })] } } };
+  const held = (extra = {}) => [{ type: "modifies", target: "proficiencyThrow", refs: ["kw:searching"], ifHas: ["kw:searching"], ...extra }];
+  assert.equal(heldOrigin(held({ mode: "add" }), entry), "recipe");
+  assert.equal(heldOrigin(held(), entry), "recipe", "an absent mode is additive");
+  assert.equal(heldOrigin(held({ mode: "replace" }), entry), "scan", "the replacing row is the older reading");
+  assert.equal(heldOrigin([{ type: "modifier", target: "proficiencyThrow", forWhat: "Searching and Listening", condition: "situational" }], entry), "scan", "the conditioned modifier that stated the bonus without applying it");
+});
+
 console.log(`test-typed-modifiers: ${pass} passed`);

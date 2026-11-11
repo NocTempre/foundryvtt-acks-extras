@@ -301,6 +301,44 @@ t("a fromProgression roll with no materialized ladder is dropped, never guessed"
 });
 
 /* ------------------------------------------------------------------ */
+/*  a borrowed throw: the proportion and the rounding come off the page */
+/* ------------------------------------------------------------------ */
+
+const borrow = (extra = {}) => ({
+  key: "x",
+  label: { pattern: "(wade) as a" },
+  target: {
+    pattern: "wade as a gondolier of",
+    progression: { as: "gondolier", table: "wading", fraction: { pattern: "gondolier of (one[- ]third) his", group: 1 }, round: { pattern: "\\(rounded (up|down)\\)" } },
+    ...extra,
+  },
+});
+
+t("a borrowed throw reads its proportion and rounding from the prose", () => {
+  const [r] = materializeRolls([borrow()], paras("He can wade as a gondolier of one-third his class level (rounded down)."));
+  assert.equal(r.label, "wade");
+  assert.equal(r.scale, "level");
+  assert.deepEqual(r.target, { kind: "progression", as: "gondolier", table: "wading", atLevelNum: 1, atLevelDen: 3, round: "down" });
+});
+
+t("a borrowed throw with no proportion in the recipe reads the whole level, and states no rounding the page does not", () => {
+  const spec = { key: "x", target: { pattern: "wade as a gondolier of his level", progression: { as: "gondolier", table: "wading" } } };
+  const [r] = materializeRolls([spec], paras("He can wade as a gondolier of his level."));
+  assert.deepEqual(r.target, { kind: "progression", as: "gondolier", table: "wading" });
+});
+
+t("a borrowed throw whose proportion the page does not yield is dropped, never read at the whole level", () => {
+  assert.deepEqual(materializeRolls([borrow()], paras("He can wade as a gondolier of an uncertain portion of his class level.")), []);
+  assert.deepEqual(materializeRolls([borrow()], paras("Nothing is borrowed here.")), []);
+});
+
+t("a proportion no small fraction states exactly is dropped rather than rounded into one", () => {
+  const spec = borrow();
+  spec.target.progression.fraction = { pattern: "of (0\\.333) his" };
+  assert.deepEqual(materializeRolls([spec], paras("He can wade as a gondolier of 0.333 his class level.")), []);
+});
+
+/* ------------------------------------------------------------------ */
 /*  outcome locators: band edge and fraction come off the page         */
 /* ------------------------------------------------------------------ */
 

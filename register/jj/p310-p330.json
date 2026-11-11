@@ -48,7 +48,23 @@
     ],
     "meta": {
       "category": "classPower"
-    }
+    },
+    "rolls": [
+      {
+        "key": "climbSheer",
+        "label": {
+          "pattern": "to (climb) walls as a thief"
+        },
+        "target": {
+          "pattern": "climb walls as a thief of (?:his|her|their) (?:class )?level",
+          "progression": {
+            "as": "thief",
+            "table": "climbing"
+          }
+        },
+        "note": "Read from the imported Climbing skill's ladder at the character's level."
+      }
+    ]
   },
   {
     "id": "def.power.ageless",
@@ -3617,6 +3633,28 @@
     "meta": {
       "category": "classPower"
     },
+    "rolls": [
+      {
+        "key": "pickPockets",
+        "label": {
+          "pattern": "sleight-of-hand to (pick pockets) as a thief"
+        },
+        "target": {
+          "pattern": "pick pockets as a thief of [a-z -]{0,30}class level",
+          "progression": {
+            "as": "thief",
+            "table": "pickpocketing",
+            "fraction": {
+              "pattern": "pick pockets as a thief of ([a-z -]{0,30}?) (?:his|her|their) class level"
+            },
+            "round": {
+              "pattern": "class level \\(rounded (up|down)\\)"
+            }
+          }
+        },
+        "note": "Read from the imported Pickpocketing skill's ladder at the fraction of the character's level the page states."
+      }
+    ],
     "icon": "systems/acks/assets/icons/prestidigitation.webp"
   },
   {

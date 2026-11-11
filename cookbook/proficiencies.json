@@ -1260,14 +1260,34 @@
               }
             },
             {
-              "type": "modifier",
+              "type": "modifies",
+              "refs": [
+                "kw:searching"
+              ],
+              "ifHas": [
+                "kw:searching"
+              ],
               "target": "proficiencyThrow",
-              "forWhat": "Searching and Listening",
               "mode": "add",
-              "condition": "situational (RR p.105)",
               "from": {
                 "pattern": "proficient\\s*in\\s*Searching\\s*or\\s*Listening,\\s*he\\s*gains\\s*a\\s*\\+\\s*(\\d+)"
-              }
+              },
+              "note": "Applies to the Searching throw where the character holds the skill."
+            },
+            {
+              "type": "modifies",
+              "refs": [
+                "kw:listening"
+              ],
+              "ifHas": [
+                "kw:listening"
+              ],
+              "target": "proficiencyThrow",
+              "mode": "add",
+              "from": {
+                "pattern": "proficient\\s*in\\s*Searching\\s*or\\s*Listening,\\s*he\\s*gains\\s*a\\s*\\+\\s*(\\d+)"
+              },
+              "note": "Applies to the Listening throw where the character holds the skill."
             },
             {
               "type": "throw",
@@ -2822,6 +2842,25 @@
               }
             }
           ]
+        },
+        "rolls": {
+          "op": "rolls",
+          "specs": [
+            {
+              "key": "climb",
+              "label": {
+                "pattern": "character can (climb) as a thief"
+              },
+              "target": {
+                "pattern": "climb as a thief of (?:his|her|their) (?:class )?level",
+                "progression": {
+                  "as": "thief",
+                  "table": "climbing"
+                }
+              },
+              "note": "Read from the imported Climbing skill's ladder at the character's level."
+            }
+          ]
         }
       }
     },
@@ -3851,6 +3890,25 @@
                   6
                 ]
               }
+            }
+          ]
+        },
+        "rolls": {
+          "op": "rolls",
+          "specs": [
+            {
+              "key": "listen",
+              "label": {
+                "pattern": "character can (listen) for noises as a thief"
+              },
+              "target": {
+                "pattern": "listen for noises as a thief of (?:his|her|their) (?:class )?level",
+                "progression": {
+                  "as": "thief",
+                  "table": "listening"
+                }
+              },
+              "note": "Read from the imported Listening skill's ladder at the character's level."
             }
           ]
         }
@@ -7038,6 +7096,31 @@
               }
             }
           ]
+        },
+        "rolls": {
+          "op": "rolls",
+          "specs": [
+            {
+              "key": "pickPockets",
+              "label": {
+                "pattern": "sleight-of-hand to (pick pockets) as a thief"
+              },
+              "target": {
+                "pattern": "pick pockets as a thief of [a-z -]{0,30}class level",
+                "progression": {
+                  "as": "thief",
+                  "table": "pickpocketing",
+                  "fraction": {
+                    "pattern": "pick pockets as a thief of ([a-z -]{0,30}?) (?:his|her|their) class level"
+                  },
+                  "round": {
+                    "pattern": "class level \\(rounded (up|down)\\)"
+                  }
+                }
+              },
+              "note": "Read from the imported Pickpocketing skill's ladder at the fraction of the character's level the page states."
+            }
+          ]
         }
       }
     },
@@ -9131,6 +9214,46 @@
                 "pattern": "trap on a throw of \\d+-(\\d+) on 1d6"
               },
               "note": "When it is thrown, and what a failure yields, is the Judge's to apply; the module rolls the throw only."
+            },
+            {
+              "key": "findTraps",
+              "label": {
+                "pattern": "He can (find) and remove wilderness traps as a thief"
+              },
+              "target": {
+                "pattern": "traps as a thief of [a-z -]{0,30}class level",
+                "progression": {
+                  "as": "thief",
+                  "table": "searching",
+                  "fraction": {
+                    "pattern": "remove wilderness traps as a thief of ([a-z -]{0,30}?) (?:his|her|their) class level"
+                  },
+                  "round": {
+                    "pattern": "class level \\(rounded (up|down)\\)"
+                  }
+                }
+              },
+              "note": "Read from the imported Searching skill's ladder at the fraction of the character's level the page states."
+            },
+            {
+              "key": "removeTraps",
+              "label": {
+                "pattern": "find and (remove) wilderness traps as a thief"
+              },
+              "target": {
+                "pattern": "traps as a thief of [a-z -]{0,30}class level",
+                "progression": {
+                  "as": "thief",
+                  "table": "trapbreaking",
+                  "fraction": {
+                    "pattern": "remove wilderness traps as a thief of ([a-z -]{0,30}?) (?:his|her|their) class level"
+                  },
+                  "round": {
+                    "pattern": "class level \\(rounded (up|down)\\)"
+                  }
+                }
+              },
+              "note": "Read from the imported Trapbreaking skill's ladder at the fraction of the character's level the page states."
             }
           ]
         }

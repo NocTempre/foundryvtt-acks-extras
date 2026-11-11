@@ -15,6 +15,7 @@
 import { pageItems, pageArtInfo, SPOIL_RE } from "./extract.mjs";
 import { rowsByY, applyCellPattern, slugLabel, joinRuns as joinCellRuns } from "./table-extract.mjs";
 import { opensWithNumber, printKey } from "./printed-name.mjs";
+import { levelFraction } from "../lib/vocab.mjs";
 
 /**
  * Schema v2 (2026-07-24) is v1 plus the `grid` instruction — nothing existing
@@ -710,6 +711,11 @@ export function materializeEffects(specs, paras) {
  * without one. A `fromLadders` spec is skipped here and expanded by the binder,
  * which can reach the class entry that publishes the ladders.
  *
+ * `target.progression` (`{as, table, fraction?, round?}`) makes the throw a
+ * borrowed one: the target locator proves the page prints the borrowing,
+ * `as`/`table` name the class and skill ladder it reads, and `fraction` and
+ * `round` are locators for the proportion of the level and the way it rounds.
+ *
  * `target.on` names a VALUE_SCALES scale ("rank", "level"): the locator's
  * capture groups become the ladder's steps in order, so "18+ / 14+ / 10+"
  * with on:"rank" is ranks 1/2/3. `steps` overrides the step numbers when the
@@ -766,6 +772,31 @@ export function materializeRolls(specs, paras, ctx = {}) {
       if (!ctx.progression?.breakpoints?.length) continue;
       roll.scale = "level";
       roll.target = ctx.progression;
+      out.push(roll);
+      continue;
+    }
+
+    // A BORROWED throw: "as a thief of one-half his class level (rounded up)".
+    // The recipe ships which class's skill the sentence borrows and where the
+    // sentence is; the proportion and the rounding are read off the seat's own
+    // prose. A proportion the recipe names but the page does not yield drops the
+    // roll, since reading at the whole level would be a figure nobody printed. A
+    // rounding the page does not state is left off, for the caller's default.
+    if (target?.progression) {
+      if (!run(target)) continue;
+      const { as, table, fraction, round } = target.progression;
+      const borrowed = { kind: "progression", as, table };
+      if (fraction) {
+        const fm = run(fraction);
+        const parts = fm ? levelFraction(readNumber(fm[fraction.group ?? 1], true)) : null;
+        if (!parts) continue;
+        if (parts.num !== parts.den) Object.assign(borrowed, { atLevelNum: parts.num, atLevelDen: parts.den });
+      }
+      const rm = round ? run(round) : null;
+      const way = String(rm?.[round?.group ?? 1] ?? "").toLowerCase();
+      if (way === "up" || way === "down") borrowed.round = way;
+      roll.scale = "level";
+      roll.target = borrowed;
       out.push(roll);
       continue;
     }

@@ -956,8 +956,8 @@ async function seat(key) {
   seats[key] = api;
   note(`${key} ready after (s)`, await ready(api, key));
   // The seat must run the working tree, not a cached copy: a function this change added is the marker.
-  const fresh = await api.eval(`typeof globalThis.acksExtras?.formation?.travel?.trueTravelOf === "function" && globalThis.acksExtras?.formation?.apiVersion === 20`);
-  if (!fresh) throw new Error(`${key}: stale module code loaded (trueTravelOf missing or apiVersion not 20); the page did not pick up the working tree`);
+  const fresh = await api.eval(`typeof globalThis.acksExtras?.formation?.travel?.trueTravelOf === "function" && globalThis.acksExtras?.formation?.apiVersion >= 21`);
+  if (!fresh) throw new Error(`${key}: stale module code loaded (trueTravelOf missing or apiVersion below 21); the page did not pick up the working tree`);
   note(`${key} runs the working tree`, fresh);
   await installP(api);
   return api;

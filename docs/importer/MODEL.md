@@ -863,6 +863,18 @@ what, what the module does not track); the lint refuses a figure in it
 outside a page reference, and a TODO (`noteProblem`). Whether a remark
 paraphrases the rule is left to review: no pattern tells the two apart.
 
+**A borrowed throw.** A roll spec whose `target` has a locator proving the page
+prints the borrowing and a `progression` object (`{as, table, fraction?,
+round?}`) materializes a `progression` target: `{kind: "progression", as,
+table}` plus, when the page prints a fraction of the level, `atLevelNum` /
+`atLevelDen` (`levelFraction`, `lib/vocab.mjs`), and `round` when it prints a
+rounding direction. The class key `as` and the ladder `table` ship as
+structure; the fraction and rounding are read from the seat's page through the
+`fraction` and `round` locators, and a fraction the page does not yield drops
+the roll. `materializeRolls` writes `scale: "level"`. The ladder itself is the
+class registry's (`ladderRungAt`), or the imported skill's own
+(`abilities/skill-ladders.mjs`) where no class publishes one.
+
 **An effects frame.** `assists.effectsFrames` names boxes on the anchor's page
 whose text the effects locators read beside the description: a bonus table
 printed under the entry, outside its prose. The compiler emits them as an

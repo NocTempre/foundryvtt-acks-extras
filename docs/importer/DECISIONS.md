@@ -9644,3 +9644,27 @@ which misses `export … from` and a multi-line import and reads comments.
 *Cost:* until the move slices land, the baseline carries every existing edge
 from the shared importer into the OSE files, and every member the entry points
 reach.
+
+## 2026-11-11 — A borrowed throw is a recipe, and a typed row names its mode
+
+**Ruled by the owner** ("follow RAW", T-0481): the thief-ladder borrow and the
+level fraction are part of the character's throw on every surface, not a
+party-check-only flag. Their rulings are in `docs/abilities/DECISIONS.md` and
+`docs/formation/DECISIONS.md`; this entry records what the importer does
+because of them.
+
+**Ruled.** A roll spec's `target.progression` makes the throw a borrowed one
+(`executor.mjs` `materializeRolls`): the class key and table ship, the fraction
+and the rounding are read by locators from the seat's page, and a fraction that
+does not yield drops the roll rather than shipping a whole level. The compile
+of 2790 cookbook entries lost 0, gained 0 and changed 12; `provides`, `notStacksWith` and `aliasOf` are
+unchanged on every one. `effects-origin.mjs` `shapeOf` now includes a
+`modifies` row's `mode`, so a library copy stamped from the old `replace` shape
+reads stale and Update Abilities rewrites it.
+
+**Rejected:** shipping the fraction as a recipe constant (a printed value), and
+a book-scoped compile spliced into the cookbook (it dropped provides on an
+earlier attempt; the full compile is the only landing path).
+
+*Cost:* a world's copies keep their old rows until Update Abilities runs; the
+old conditioned `modifier` rows stay pending, applied to nothing, until then.

@@ -12,7 +12,7 @@ import {
   setOverride,
 } from "./ability-bridge.mjs";
 import { getFormation, getMemberActor, realMembers } from "./formation-model.mjs";
-import { PARTY_CHECKS, boundChecks, resolveCheck, scaledSkillTarget, inferredThiefSkill, skillGateAllows } from "./party-rolls.mjs";
+import { PARTY_CHECKS, boundChecks, partText, resolveCheck, skillGateAllows } from "./party-rolls.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
 import { rollAbilityForParty as rollForParty } from "./audit-roll.mjs";
 
@@ -20,12 +20,10 @@ const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
 /**
  * Skill Audit (GM): full transparency into how every party roll resolves for
- * every member — which item or Adventuring target is used, the auto-scaled
- * level and factor, and the bonuses applied. Also the editor for **custom
- * skills**: any ability item can be flagged to participate in a party roll
- * (`checkKey`), auto-scale on a thief progression (`thiefSkill`), and scale
- * at a fraction of the owner's level (`levelFactor`, e.g. 0.5 for a skill
- * that works at half the owner's class level).
+ * every member — which item or Adventuring target is used and the bonuses
+ * applied. Also the editor for **custom skills**: any ability item can be
+ * flagged to participate in a party roll (`checkKey`). How a skill scales
+ * with level is the item's own throw, edited on its ability sheet.
  */
 export default class SkillAuditApp extends HandlebarsApplicationMixin(ApplicationV2) {
   #formationId;
@@ -112,13 +110,6 @@ export default class SkillAuditApp extends HandlebarsApplicationMixin(Applicatio
         }, {}),
       ),
     ];
-    // The skills offered are the ones this world has imported — the only ones
-    // a ladder can be read for. An empty list means no skills imported yet.
-    const progressionOptions = [
-      { value: "", label: game.i18n.localize("ACKS-FORMATION.audit.fixedTarget") },
-      ...importedSkillKeys().map((key) => ({ value: key, label: key })),
-    ];
-
     context.members = realMembers(formation)
       .map((member) => getMemberActor(member))
       .filter(Boolean)
@@ -129,8 +120,9 @@ export default class SkillAuditApp extends HandlebarsApplicationMixin(Applicatio
         resolutions: Object.entries(PARTY_CHECKS).map(([key, cfg]) => {
           const check = resolveCheck(actor, cfg);
           if (!check) return { label: "—", source: "" };
-          const bonus = check.bonus ? (check.bonus > 0 ? ` +${check.bonus}` : ` ${check.bonus}`) : "";
-          return { label: `${check.target}+${bonus}`, source: check.source };
+          // The parts are inside the target, so they are the source's detail.
+          const detail = check.parts.map(partText).join(", ");
+          return { label: `${check.target}+`, source: detail ? `${check.source}; ${detail}` : check.source };
         }),
         items: actor.items
           .filter((i) => i.type === ITEM_TYPE.ability)
@@ -139,15 +131,9 @@ export default class SkillAuditApp extends HandlebarsApplicationMixin(Applicatio
             name: item.name,
             target: item.system?.rollTarget ?? 0,
             checkKey: item.getFlag(MODULE_ID, "checkKey") ?? "",
-            thiefSkill: item.getFlag(MODULE_ID, "thiefSkill") ?? "",
-            levelFactor: item.getFlag(MODULE_ID, "levelFactor") ?? 1,
             checkOptions: checkOptions.map((o) => ({
               ...o,
               active: o.value === (item.getFlag(MODULE_ID, "checkKey") ?? ""),
-            })),
-            progressionOptions: progressionOptions.map((o) => ({
-              ...o,
-              active: o.value === (item.getFlag(MODULE_ID, "thiefSkill") ?? ""),
             })),
           })),
       }));
@@ -171,12 +157,11 @@ export default class SkillAuditApp extends HandlebarsApplicationMixin(Applicatio
         const { itemUuid, field } = event.currentTarget.dataset;
         const item = fromUuidSync(itemUuid);
         if (!item) return;
-        let value = event.currentTarget.value;
-        if (field === "levelFactor") value = Number(value) || 1;
+        const value = event.currentTarget.value;
         if (value === "" || value === null) await item.unsetFlag(MODULE_ID, field);
         else await item.setFlag(MODULE_ID, field, value);
         // Binding an item to a party roll makes it a skill (turns on its tab).
-        if ((field === "checkKey" || field === "thiefSkill") && value) {
+        if (field === "checkKey" && value) {
           await item.setFlag(MODULE_ID, "isSkill", true);
         }
         this.render();
@@ -260,15 +245,14 @@ const loc = makeLoc("ACKS-FORMATION");
 export function isSkillItem(item) {
   const explicit = item.getFlag(MODULE_ID, "isSkill");
   if (explicit !== undefined) return !!explicit;
-  return !!(item.getFlag(MODULE_ID, "checkKey") || item.getFlag(MODULE_ID, "thiefSkill"));
+  return !!item.getFlag(MODULE_ID, "checkKey");
 }
 
 /**
  * Ability item sheets grow a "Skill" checkbox on the details pane; checking it
  * turns on a **Skill tab** showing the party-roll binding (Used for), the
- * thief progression with the owner's current row highlighted, the level
- * factor, and the live resolved target with every stacked bonus itemized.
- * GMs edit; owners of a flagged skill see the tab read-only.
+ * Judge's Throw bonus, and the live resolved target with every stacked bonus
+ * itemized. GMs edit; owners of a flagged skill see the tab read-only.
  */
 export function registerSkillFlagEditor() {
   Hooks.on("renderApplicationV2", (app, element) => {
@@ -347,7 +331,6 @@ function injectSkillUI(app, root, item) {
       event.stopPropagation();
       const field = event.currentTarget.dataset.field;
       let value = event.currentTarget.value;
-      if (field === "levelFactor") value = Number(value) || 1;
       // 0 means "no adjustment", which is the same as no flag at all.
       if (field === "targetMod") value = Number(value) || null;
       if (value === "" || value === null) await item.unsetFlag(MODULE_ID, field);
@@ -359,10 +342,7 @@ function injectSkillUI(app, root, item) {
 function buildSkillTabHTML(item, gm) {
   const esc = foundry.utils.escapeHTML;
   const checkKey = item.getFlag(MODULE_ID, "checkKey") ?? "";
-  const thiefSkill = item.getFlag(MODULE_ID, "thiefSkill") ?? "";
-  const levelFactor = item.getFlag(MODULE_ID, "levelFactor") ?? 1;
   const targetMod = item.getFlag(MODULE_ID, "targetMod") ?? 0;
-  const inferredKey = thiefSkill ? null : inferredThiefSkill(item);
   const dis = gm ? "" : "disabled";
   const owner = item.parent;
 
@@ -370,65 +350,16 @@ function buildSkillTabHTML(item, gm) {
   const checkOpts = [`<option value="">${loc("audit.flagNone")}</option>`]
     .concat(flagKeys.map((k) => `<option value="${k}" ${k === checkKey ? "selected" : ""}>${k}</option>`))
     .join("");
-  // A binding the world can no longer resolve (its skill was never imported, or
-  // the import was removed) still lists itself, so the GM sees their own choice
-  // rather than a silently blank select.
-  const progKeys = [...new Set([...importedSkillKeys(), ...(thiefSkill ? [thiefSkill] : [])])].sort();
-  const progOpts = [`<option value="">${loc("audit.fixedTarget")}</option>`]
-    .concat(progKeys.map((k) => `<option value="${k}" ${k === thiefSkill ? "selected" : ""}>${k}</option>`))
-    .join("");
-
   let html = `<div class="content">`;
   html += `<fieldset class="acks-formation-flags"><legend>${loc("audit.sheetSection")}</legend>
     <div class="acks-formation-flag-row">
       <label>${loc("audit.usedFor")}</label>
       <select data-field="checkKey" ${dis}>${checkOpts}</select>
-      <label>${loc("audit.progression")}</label>
-      <select data-field="thiefSkill" ${dis}>${progOpts}</select>
-      <label>${loc("audit.factor")}</label>
-      <input type="number" step="0.25" min="0.25" max="2" value="${levelFactor}" data-field="levelFactor" ${dis}/>
       <label title="${loc("audit.throwBonusHint")}">${loc("audit.throwBonus")}</label>
       <input type="number" step="1" value="${targetMod}" data-field="targetMod" title="${loc("audit.throwBonusHint")}" ${dis}/>
     </div>
     ${checkKey ? "" : `<p class="hint">${loc("audit.tabNotSkill")}</p>`}
   </fieldset>`;
-
-  // Progression by level with the owner's current row highlighted. An explicit
-  // binding wins; a cookbook identity names the same skill with no setup. The
-  // ladder itself comes from the world's imported copy of that skill, so this
-  // shows the GM's own book rather than anything this module carries.
-  const progressionKey = thiefSkill || inferredKey;
-  const rows = progressionKey ? ladderRows(importedLadderFor(progressionKey, owner)) : [];
-  html += `<fieldset class="acks-formation-flags"><legend>${loc("audit.progressionRow")}</legend>`;
-  if (inferredKey && rows.length) {
-    html += `<p class="hint">${loc("audit.inferredProgression", { key: inferredKey })}</p>`;
-  }
-  if (rows.length) {
-    const factor = Number(levelFactor) || 1;
-    const level = owner?.system?.details?.level ?? null;
-    const maxLevel = rows[rows.length - 1].level;
-    const row = level !== null ? Math.min(Math.max(Math.ceil(level * factor), 1), maxLevel) : null;
-    html += `<div class="acks-formation-progression">`;
-    for (const cell of rows) {
-      html += `<span class="cell${row === cell.level ? " current" : ""}"><label>L${cell.level}</label>${cell.value}+</span>`;
-    }
-    html += `</div>`;
-    if (row !== null) {
-      html += `<p class="hint">${loc("audit.effectiveRow", { name: esc(owner.name), level, factor, row })}</p>`;
-    }
-  } else if (progressionKey) {
-    // Bound to a skill this world has not imported: say so plainly, because the
-    // roll will quietly use the sheet target instead of the ladder.
-    html += `<p class="warning">${loc("audit.progressionNotImported", { key: progressionKey })}</p>`;
-    html += `<p class="hint">${loc("audit.sheetTarget")}: ${Number(item.system?.rollTarget) || 0}+</p>`;
-  } else {
-    // No table applies — but an imported ability may carry its own ladder
-    // (acks-abilities extras), which is what the party roll will actually use.
-    const scaled = owner ? scaledSkillTarget(owner, item) : null;
-    if (scaled) html += `<p class="hint">${loc("audit.importedTarget")}: ${scaled.target}+</p>`;
-    else html += `<p class="hint">${loc("audit.sheetTarget")}: ${Number(item.system?.rollTarget) || 0}+</p>`;
-  }
-  html += `</fieldset>`;
 
   // Live resolution for the owner: what the party roll actually uses,
   // including the full stacked-bonus breakdown.
@@ -442,8 +373,8 @@ function buildSkillTabHTML(item, gm) {
         html += `<li><strong>${label}</strong>: —</li>`;
         continue;
       }
-      const breakdown = (check.parts ?? []).map((p) => `+${p.value} ${p.label}`).join(", ");
-      html += `<li><strong>${label}</strong>: ${check.target}+ <em>(${esc(check.source)}${breakdown ? `; ${breakdown}` : ""})</em></li>`;
+      const breakdown = (check.parts ?? []).map(partText).join(", ");
+      html += `<li><strong>${label}</strong>: ${check.target}+ <em>(${esc(check.source)}${breakdown ? `; ${esc(breakdown)}` : ""})</em></li>`;
     }
     html += `</ul></fieldset>`;
   }

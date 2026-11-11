@@ -3760,6 +3760,25 @@
               }
             }
           ]
+        },
+        "rolls": {
+          "op": "rolls",
+          "specs": [
+            {
+              "key": "climbSheer",
+              "label": {
+                "pattern": "to (climb) walls as a thief"
+              },
+              "target": {
+                "pattern": "climb walls as a thief of (?:his|her|their) (?:class )?level",
+                "progression": {
+                  "as": "thief",
+                  "table": "climbing"
+                }
+              },
+              "note": "Read from the imported Climbing skill's ladder at the character's level."
+            }
+          ]
         }
       }
     },
@@ -4074,14 +4093,34 @@
               }
             },
             {
-              "type": "modifier",
+              "type": "modifies",
+              "refs": [
+                "kw:searching"
+              ],
+              "ifHas": [
+                "kw:searching"
+              ],
               "target": "proficiencyThrow",
-              "forWhat": "Searching and Listening",
               "mode": "add",
-              "condition": "situational (RR p.26)",
               "from": {
                 "pattern": "proficient\\s*in\\s*Searching\\s*or\\s*Listening,\\s*he\\s*gains\\s*a\\s*\\+\\s*(\\d+)"
-              }
+              },
+              "note": "Applies to the Searching throw where the character holds the skill."
+            },
+            {
+              "type": "modifies",
+              "refs": [
+                "kw:listening"
+              ],
+              "ifHas": [
+                "kw:listening"
+              ],
+              "target": "proficiencyThrow",
+              "mode": "add",
+              "from": {
+                "pattern": "proficient\\s*in\\s*Searching\\s*or\\s*Listening,\\s*he\\s*gains\\s*a\\s*\\+\\s*(\\d+)"
+              },
+              "note": "Applies to the Listening throw where the character holds the skill."
             },
             {
               "type": "throw",
@@ -13972,14 +14011,34 @@
               }
             },
             {
-              "type": "modifier",
+              "type": "modifies",
+              "refs": [
+                "kw:searching"
+              ],
+              "ifHas": [
+                "kw:searching"
+              ],
               "target": "proficiencyThrow",
-              "forWhat": "Searching and Listening",
               "mode": "add",
-              "condition": "situational (RR p.26)",
               "from": {
                 "pattern": "proficient\\s*in\\s*Searching\\s*or\\s*Listening,\\s*he\\s*gains\\s*a\\s*\\+\\s*(\\d+)"
-              }
+              },
+              "note": "Applies to the Searching throw where the character holds the skill."
+            },
+            {
+              "type": "modifies",
+              "refs": [
+                "kw:listening"
+              ],
+              "ifHas": [
+                "kw:listening"
+              ],
+              "target": "proficiencyThrow",
+              "mode": "add",
+              "from": {
+                "pattern": "proficient\\s*in\\s*Searching\\s*or\\s*Listening,\\s*he\\s*gains\\s*a\\s*\\+\\s*(\\d+)"
+              },
+              "note": "Applies to the Listening throw where the character holds the skill."
             },
             {
               "type": "throw",
@@ -15899,14 +15958,34 @@
               }
             },
             {
-              "type": "modifier",
+              "type": "modifies",
+              "refs": [
+                "kw:searching"
+              ],
+              "ifHas": [
+                "kw:searching"
+              ],
               "target": "proficiencyThrow",
-              "forWhat": "Searching and Listening",
               "mode": "add",
-              "condition": "situational (RR p.26)",
               "from": {
                 "pattern": "proficient\\s*in\\s*Searching\\s*or\\s*Listening,\\s*he\\s*gains\\s*a\\s*\\+\\s*(\\d+)"
-              }
+              },
+              "note": "Applies to the Searching throw where the character holds the skill."
+            },
+            {
+              "type": "modifies",
+              "refs": [
+                "kw:listening"
+              ],
+              "ifHas": [
+                "kw:listening"
+              ],
+              "target": "proficiencyThrow",
+              "mode": "add",
+              "from": {
+                "pattern": "proficient\\s*in\\s*Searching\\s*or\\s*Listening,\\s*he\\s*gains\\s*a\\s*\\+\\s*(\\d+)"
+              },
+              "note": "Applies to the Listening throw where the character holds the skill."
             },
             {
               "type": "throw",
@@ -16860,6 +16939,31 @@
                   0
                 ]
               }
+            }
+          ]
+        },
+        "rolls": {
+          "op": "rolls",
+          "specs": [
+            {
+              "key": "pickPockets",
+              "label": {
+                "pattern": "sleight-of-hand to (pick pockets) as a thief"
+              },
+              "target": {
+                "pattern": "pick pockets as a thief of [a-z -]{0,30}class level",
+                "progression": {
+                  "as": "thief",
+                  "table": "pickpocketing",
+                  "fraction": {
+                    "pattern": "pick pockets as a thief of ([a-z -]{0,30}?) (?:his|her|their) class level"
+                  },
+                  "round": {
+                    "pattern": "class level \\(rounded (up|down)\\)"
+                  }
+                }
+              },
+              "note": "Read from the imported Pickpocketing skill's ladder at the fraction of the character's level the page states."
             }
           ]
         }
@@ -22273,14 +22377,34 @@
               }
             },
             {
-              "type": "modifier",
+              "type": "modifies",
+              "refs": [
+                "kw:searching"
+              ],
+              "ifHas": [
+                "kw:searching"
+              ],
               "target": "proficiencyThrow",
-              "forWhat": "Searching and Listening",
               "mode": "add",
-              "condition": "situational (RR p.26)",
               "from": {
                 "pattern": "proficient\\s*in\\s*Searching\\s*or\\s*Listening,\\s*he\\s*gains\\s*a\\s*\\+\\s*(\\d+)"
-              }
+              },
+              "note": "Applies to the Searching throw where the character holds the skill."
+            },
+            {
+              "type": "modifies",
+              "refs": [
+                "kw:listening"
+              ],
+              "ifHas": [
+                "kw:listening"
+              ],
+              "target": "proficiencyThrow",
+              "mode": "add",
+              "from": {
+                "pattern": "proficient\\s*in\\s*Searching\\s*or\\s*Listening,\\s*he\\s*gains\\s*a\\s*\\+\\s*(\\d+)"
+              },
+              "note": "Applies to the Listening throw where the character holds the skill."
             },
             {
               "type": "throw",
@@ -22289,6 +22413,25 @@
               "from": {
                 "pattern": "succeeds\\s*on\\s*a\\s*proficiency\\s*throw\\s*of\\s*(\\d+)\\+"
               }
+            }
+          ]
+        },
+        "rolls": {
+          "op": "rolls",
+          "specs": [
+            {
+              "key": "searchListen",
+              "label": {
+                "pattern": "Adventuring proficiency to (search or listen)"
+              },
+              "target": {
+                "pattern": "search or listen[\\s\\S]{0,60}?proficiency throw of (\\d+)\\+"
+              },
+              "condition": "by method (RR p.26)",
+              "conditionFrom": {
+                "pattern": "(when\\s*using[^,]*)"
+              },
+              "note": "Used in place of the usual Adventuring search/listen target, not added to it."
             }
           ]
         }
@@ -28480,11 +28623,11 @@
                 "kw:searching"
               ],
               "target": "proficiencyThrow",
-              "mode": "replace",
+              "mode": "add",
               "from": {
                 "pattern": "proficient in Searching,? they gain a \\+(\\d+) bonus"
               },
-              "note": "mode replace: stands in place of the Adventuring throw's target where ifHas holds."
+              "note": "Applies to the Searching throw where the character holds the skill."
             },
             {
               "type": "modifies",
@@ -28495,11 +28638,11 @@
                 "kw:listening"
               ],
               "target": "proficiencyThrow",
-              "mode": "replace",
+              "mode": "add",
               "from": {
                 "pattern": "proficient in Listening,? they gain a \\+(\\d+) bonus"
               },
-              "note": "mode replace: stands in place of the Adventuring throw's target where ifHas holds. Its figure is read apart from the Searching row's, which is why the entry is not an alias of Alertness."
+              "note": "Applies to the Listening throw where the character holds the skill. Its figure is read apart from the Searching row's, which is why the entry is not an alias of Alertness."
             }
           ]
         },

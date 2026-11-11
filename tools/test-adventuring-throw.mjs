@@ -7,7 +7,10 @@
  * character's level, a tie stays stored, keys with no skill stay stored, the
  * Adventuring proficiency's own throws never stand in for a skill, the
  * creature's conditions are left out of the figure (the throw's wrapper
- * applies them once), and the group lists a skill throw it stands for once.
+ * applies them once), an ability's own throw stands in for the stored figure
+ * only where no skill is held, the `modifies` rows that name the activity lower
+ * the stored figure or the skill's (an `ifHas` the skill must meet applies to
+ * the skill alone), and the group lists a skill throw it stands for once.
  * The roll itself, and what a seat sees, are the live walk's
  * (docs/character-sheet/TESTING.md).
  */
@@ -53,8 +56,8 @@ const ladder = (...pairs) => ({ kind: "breakpoints", breakpoints: pairs.map(([at
 const throwOf = (key, target, extra = {}) => ({ key, label: key, formula: "1d20", rollType: "above", target, scale: "level", ...extra });
 let serial = 0;
 /** An ability item: its name, the throws it stores, the capability ids it declares. */
-function item(name, rolls, { provides = [], id = `i${++serial}`, cite = "" } = {}) {
-  const flags = { "acks-extras": { extras: { rolls, effects: [], provides }, cookbook: cite ? { cite } : undefined } };
+function item(name, rolls, { provides = [], id = `i${++serial}`, cite = "", effects = [] } = {}) {
+  const flags = { "acks-extras": { extras: { rolls, effects, provides }, cookbook: cite ? { cite } : undefined } };
   return { id, type: "ability", name, system: {}, flags, getFlag: (scope, key) => flags[scope]?.[key] };
 }
 /** A character at `level` holding `items`, with the stored Adventuring figures. */
@@ -158,6 +161,62 @@ await ok("the creature's conditions are left out of the figure", async () => {
   } finally {
     unregisterTable(CONDITIONS_DOC, "test");
   }
+});
+
+/** A `modifies` row on the proficiency throw: the capabilities it names, what it needs held, and its size. */
+const modifies = (refs, flat, extra = {}) => ({ type: "modifies", target: "proficiencyThrow", mode: "add", refs, value: { flat }, ...extra });
+/** An ability that stands in for the stored figure where no skill is held. */
+const STAND = (flat, extra = {}) => item("Sharp Senses", [throwOf("searchListen", { kind: "flat", flat })], { provides: ["kw:alertness"], cite: "XX p.4", ...extra });
+
+await ok("a stand-in replaces a worse stored figure only where no skill is held", async () => {
+  const stood = adventuringThrow(actor(3, [STAND(14)]), "searching");
+  assert.deepEqual([stood.target, stood.source, stood.other, stood.standIn?.name, stood.standIn?.cite], [14, "standIn", 17, "Sharp Senses", "XX p.4"]);
+  assert.equal(adventuringThrow(actor(3, [STAND(14)]), "listening").source, "standIn", "listening has the same stand-in");
+  const worse = adventuringThrow(actor(3, [STAND(18)]), "searching");
+  assert.deepEqual([worse.target, worse.source, worse.standIn], [17, "stored", null], "a stand-in that is worse is not used");
+  const held = adventuringThrow(actor(3, [SEARCH(), STAND(5)]), "searching");
+  assert.deepEqual([held.target, held.source, held.standIn], [11, "skill", null], "with the skill held the stand-in is never consulted");
+  assert.equal(adventuringThrow(actor(3, [STAND(5)]), "climb").source, "stored", "climbing has no stand-in");
+});
+
+await ok("a stand-in is not read from a throw that is zero or a below throw", async () => {
+  const zero = item("Sharp Senses", [throwOf("searchListen", { kind: "flat", flat: 0 })], { provides: ["kw:alertness"] });
+  assert.equal(adventuringThrow(actor(3, [zero]), "searching").source, "stored", "zero is the importer's no-number sentinel");
+  const below = item("Sharp Senses", [throwOf("searchListen", { kind: "flat", flat: 3 }, { rollType: "below" })], { provides: ["kw:alertness"] });
+  assert.equal(adventuringThrow(actor(3, [below]), "searching").source, "stored");
+});
+
+await ok("a bonus that needs no skill lowers the stored figure, and one that needs the skill does not", async () => {
+  const unconditional = item("Eyes For Traps", [], { effects: [modifies(["kw:searching", "kw:trapbreaking"], 2)], cite: "XX p.2" });
+  const found = adventuringThrow(actor(3, [unconditional]), "trapbreaking");
+  assert.deepEqual([found.target, found.source, found.other], [15, "stored", null]);
+  assert.deepEqual(found.parts.map((p) => [p.label, p.value, p.cite]), [["Eyes For Traps", 2, "XX p.2"]]);
+
+  const needsSkill = item("Sharp Senses", [], { effects: [modifies(["kw:searching"], 2, { ifHas: ["kw:searching"] })] });
+  const without = adventuringThrow(actor(3, [needsSkill]), "searching");
+  assert.deepEqual([without.target, without.parts], [17, []], "an unmet ifHas does not apply to the stored figure");
+});
+
+await ok("a bonus lowers the held skill's throw too, once, and the better side wins", async () => {
+  const bonus = item("Eyes For Traps", [], { effects: [modifies(["kw:searching"], 2)] });
+  const a = actor(3, [SEARCH(), bonus]);
+  const found = adventuringThrow(a, "searching");
+  assert.deepEqual([found.target, found.source], [9, "skill"], "11 less the bonus, not less it twice");
+  assert.deepEqual(found.parts.map((p) => [p.label, p.value]), [["Eyes For Traps", 2]]);
+  assert.equal(found.other, 15, "the stored figure, with the same bonus");
+});
+
+await ok("a bonus whose ifHas the skill meets applies to the skill's throw", async () => {
+  const keen = item("Sharp Senses", [], { effects: [modifies(["kw:searching"], 1, { ifHas: ["kw:searching"] })] });
+  const found = adventuringThrow(actor(3, [SEARCH(), keen]), "searching");
+  assert.deepEqual([found.target, found.parts.length], [10, 1]);
+});
+
+await ok("a flat target of zero on a skill is not a figure, a ladder rung of zero is", async () => {
+  const flatZero = item("Searching", [throwOf("methodical", { kind: "flat", flat: 0 })], { provides: ["kw:searching"] });
+  assert.equal(adventuringThrow(actor(3, [flatZero]), "searching").source, "stored");
+  const rungZero = item("Searching", [throwOf("methodical", ladder([1, 4], [3, 0]))], { provides: ["kw:searching"] });
+  assert.deepEqual([adventuringThrow(actor(3, [rungZero]), "searching").target, adventuringThrow(actor(3, [rungZero]), "searching").source], [0, "skill"]);
 });
 
 /* --- the Rolls tab's group ---------------------------------------------------- */

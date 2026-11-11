@@ -796,6 +796,25 @@ export function levelFactor(spec) {
   return PROGRESSION_LEVELS[spec?.atLevel]?.factor ?? 1;
 }
 
+/**
+ * A factor as the `atLevelNum` / `atLevelDen` pair a LevelValue stores: the
+ * smallest denominator up to twelve that states it exactly. Null for a factor
+ * that is not positive or that no such fraction states, so a figure is never
+ * rounded into one the page did not print.
+ *
+ * @param {number} factor
+ * @returns {{num: number, den: number}|null}
+ */
+export function levelFraction(factor) {
+  const f = Number(factor);
+  if (!Number.isFinite(f) || f <= 0) return null;
+  for (let den = 1; den <= 12; den++) {
+    const num = Math.round(f * den);
+    if (num > 0 && Math.abs(num / den - f) < 1e-6) return { num, den };
+  }
+  return null;
+}
+
 /** A fraction as it is written — "2/3", or the legacy shorthand's own label. */
 export function levelFactorLabel(spec) {
   const num = Number(spec?.atLevelNum);

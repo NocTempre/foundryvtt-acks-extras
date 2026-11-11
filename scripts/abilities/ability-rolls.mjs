@@ -10,7 +10,10 @@
  */
 import { MODULE_ID, FLAG_EXTRAS } from "./constants.mjs";
 import AbilityExtras from "./ability-extras.mjs";
-import { slug, ATTRIBUTES, isMeasure } from "../lib/vocab.mjs";
+import { slug, ATTRIBUTES, isMeasure, ITEM_TYPE, capabilityForId, satisfies } from "../lib/vocab.mjs";
+import { cookbookId } from "../lib/library.mjs";
+import { resolveStacking } from "../lib/typed-modifiers.mjs";
+import { hasCapability } from "../lib/capabilities.mjs";
 import { abilityMod } from "../lib/actor-read.mjs";
 import { rollMath, subjectOf } from "../lib/conditions.mjs";
 import { auditLine, rollDetailsDialog, situationalTerm, skipDialogFor } from "../lib/roll-dialog.mjs";
@@ -47,8 +50,84 @@ const namesActivity = (forWhat, wanted) =>
     .some((part) => slug(part) === wanted);
 
 /**
+ * The page an imported item's own stamp names, or the empty string: the
+ * citation a figure's tooltip points at.
+ */
+export const citeOf = (item) => String(item?.flags?.[MODULE_ID]?.cookbook?.cite ?? item?.getFlag?.(MODULE_ID, "cookbook")?.cite ?? "");
+
+/** An ability as the `{id, provides}` a capability test reasons over. */
+const refOf = (item) => ({ id: cookbookId(item) || null, provides: item?.getFlag?.(MODULE_ID, FLAG_EXTRAS)?.provides ?? [] });
+
+/** The capabilities an ability provides, its own id's included, folded. */
+const capsOf = (ref) => [...(ref.id ? [capabilityForId(ref.id)] : []), ...ref.provides.map((p) => String(p).toLowerCase())];
+
+/**
+ * The `modifies` rows of the character's abilities that act on a subject's
+ * proficiency throw, after stacking.
+ *
+ * A row acts when its `target` is the proficiency throw, it is the holder's own
+ * and additive, one of its `refs` names a capability the subject provides, and
+ * every `ifHas` is held by the character. Two rows whose abilities provide one
+ * capability, or that name each other in `notStacksWith`, do not stack: the
+ * larger applies. A row scoped by `appliesToRoll` applies to that throw alone.
+ *
+ * @param {Actor} actor
+ * @param {{id: string|null, provides: string[]}} subject what is being thrown: an
+ *   ability's own reference, or the capability an Adventuring figure stands for
+ * @param {object} [opts]
+ * @param {object} [opts.roll] the throw being resolved
+ * @param {boolean} [opts.unskilled] the subject is a figure the character holds
+ *   no skill for: a row whose `ifHas` needs the subject itself is left out
+ * @returns {{kept: Array<{label: string, value: number, cite: string, itemId: string}>,
+ *   dropped: Array<{label: string, value: number, yieldsTo: string}>}}
+ */
+export function modifiesParts(actor, subject, { roll = null, unskilled = false } = {}) {
+  const resolve = globalThis.acksExtras?.lib?.resolveLevelValue;
+  const candidates = [];
+  const seen = new Set();
+  for (const other of actor?.items ?? []) {
+    if (other.type !== ITEM_TYPE.ability) continue;
+    const name = slug(other.name);
+    if (seen.has(name)) continue;
+    seen.add(name);
+    const extras = other.getFlag(MODULE_ID, FLAG_EXTRAS) ?? {};
+    const ref = refOf(other);
+    for (const effect of extras.effects ?? []) {
+      if (effect?.type !== "modifies" || effect.target !== THROW_TARGET) continue;
+      if ((effect.appliesTo ?? "self") !== "self") continue;
+      if (effect.mode && effect.mode !== "add") continue;
+      if (!(effect.refs ?? []).some((token) => satisfies([subject], token))) continue;
+      const needs = effect.ifHas ?? [];
+      if (unskilled && needs.some((token) => satisfies([subject], token))) continue;
+      if (!needs.every((token) => hasCapability(actor, token))) continue;
+      const scoped = String(effect.appliesToRoll ?? "");
+      if (scoped && roll?.key !== scoped) continue;
+      const scales = scalesFor(actor, other);
+      const value = resolve ? resolve(effect.value, scales.level, scales) : (effect.value?.flat ?? null);
+      if (typeof value !== "number" || !value) continue;
+      candidates.push({
+        label: other.name,
+        value,
+        cite: citeOf(other),
+        itemId: other.id,
+        ref,
+        caps: capsOf(ref),
+        stacksWith: effect.stacksWith ?? [],
+        notStacksWith: effect.notStacksWith ?? [],
+      });
+    }
+  }
+  const { kept, dropped } = resolveStacking(candidates);
+  return {
+    kept: kept.map(({ label, value, cite, itemId }) => ({ label, value, cite, itemId })),
+    dropped: dropped.map(({ label, value, yieldsTo }) => ({ label, value, yieldsTo })),
+  };
+}
+
+/**
  * What this character's other abilities do to THIS ability's throws: the
- * proficiency-throw modifiers naming it in `forWhat`. Each ability counts once
+ * proficiency-throw modifiers naming it in `forWhat`, and the `modifies` rows
+ * naming a capability it provides (`modifiesParts`). Each ability counts once
  * (a second copy is rank, RR §III.3); one scoped by `appliesToRoll` applies to
  * that throw alone; a conditioned one naming no throw is returned in `pending`,
  * unapplied. See docs/abilities/DECISIONS.md, "A modifier must name what it
@@ -56,10 +135,12 @@ const namesActivity = (forWhat, wanted) =>
  *
  * @param {object} [roll] the throw being resolved; omit for the ability's
  *   unscoped total
- * @returns {{bonus: number, pending: Array<{name: string, amount: number, condition: string}>}}
+ * @returns {{bonus: number, pending: Array<{name: string, amount: number, condition: string}>,
+ *   parts: Array<{label: string, value: number, cite: string, itemId: string}>}}
+ *   `parts` itemizes `bonus`, one entry per ability that contributed
  */
 export function throwModifiers(actor, item, roll = null) {
-  const out = { bonus: 0, pending: [] };
+  const out = { bonus: 0, pending: [], parts: [] };
   if (!actor || !item) return out;
   const mine = slug(item.name);
   const resolve = globalThis.acksExtras?.lib?.resolveLevelValue;
@@ -86,12 +167,23 @@ export function throwModifiers(actor, item, roll = null) {
       const scoped = String(effect.appliesToRoll ?? "");
       if (scoped) {
         // Named a throw: it applies to that one and to no other.
-        if (roll && roll.key === scoped) out.bonus += amount;
+        if (roll && roll.key === scoped) {
+          out.bonus += amount;
+          out.parts.push({ label: other.name, value: amount, cite: citeOf(other), itemId: other.id });
+        }
         continue;
       }
       if (effect.condition) out.pending.push({ name: other.name, amount, condition: effect.condition });
-      else out.bonus += amount;
+      else {
+        out.bonus += amount;
+        out.parts.push({ label: other.name, value: amount, cite: citeOf(other), itemId: other.id });
+      }
     }
+  }
+
+  for (const part of modifiesParts(actor, refOf(item), { roll }).kept) {
+    out.bonus += part.value;
+    out.parts.push(part);
   }
   return out;
 }
@@ -172,9 +264,12 @@ function scoreWritten(term) {
  * @param {object} [opts]
  * @param {boolean} [opts.conditions=true] fold the character's conditions into
  *   the target; false leaves them out, for a caller whose own roll applies them
- * @returns {{outcome: string, target: number|null, text: string}}
+ * @returns {{outcome: string, target: number|null, text: string,
+ *   parts?: Array<{kind: string, label: string, value: number, cite: string}>}}
  *   `outcome` is "throw" (roll against `target`), "auto" (no roll — it happens)
  *   or "none" (not available to this character yet); `text` is the printed cell.
+ *   `parts` itemizes what moved the target, one entry per ability, score and
+ *   conditions source, and is present on a throw.
  */
 export function throwOutcome(roll, actor, item, { conditions = true } = {}) {
   const none = (target = null, text = "") => ({ outcome: "throw", target, text });
@@ -195,7 +290,22 @@ export function throwOutcome(roll, actor, item, { conditions = true } = {}) {
     return none(target?.flat ?? null);
   }
   if (verdict.outcome !== "throw") return verdict;
-  return { ...verdict, target: withModifiers(verdict.target, roll, actor, item, { conditions }) };
+  const parts = typeof verdict.target === "number" ? targetModifiers(roll, actor, item, { conditions }) : [];
+  return { ...verdict, target: withModifiers(verdict.target, roll, parts), parts: itemized(parts) };
+}
+
+/**
+ * A throw's standing bonuses with the abilities' share broken out by ability:
+ * one entry per source that moved the target, `kind` "abilities", "score" or
+ * "conditions", `label` the ability's or the score's name (blank for
+ * conditions) and `cite` the page an ability's import names.
+ */
+function itemized(parts) {
+  return parts.flatMap((part) =>
+    part.kind === "abilities" && part.parts?.length
+      ? part.parts.map(({ label, value, cite }) => ({ kind: "abilities", label, value, cite }))
+      : [{ kind: part.kind, label: part.label, value: part.value, cite: "" }],
+  );
 }
 
 /**
@@ -236,8 +346,9 @@ export const targetOf = (roll, actor, item) => throwOutcome(roll, actor, item).t
 export function targetModifiers(roll, actor, item, { conditions = true } = {}) {
   if (!actor) return [];
   const term = scoreTerm(roll, actor);
+  const mods = throwModifiers(actor, item, roll);
   return [
-    { kind: "abilities", label: "", value: throwModifiers(actor, item, roll).bonus },
+    { kind: "abilities", label: "", value: mods.bonus, parts: mods.parts },
     { kind: "score", label: term?.label ?? "", value: term?.bonus ?? 0 },
     { kind: "conditions", label: "", value: conditions ? rollMath("throw", subjectOf(actor)).total : 0 },
   ].filter((part) => part.value);
@@ -248,13 +359,13 @@ const modifierTotal = (parts) => parts.reduce((sum, part) => sum + part.value, 0
 
 /**
  * A resolved target with the character's standing bonuses folded in
- * (`targetModifiers`). A bonus lowers an "above" target and raises a "below"
- * one; an exact-match throw takes neither. Applied here, once, so every surface
- * reads the same number.
+ * (`targetModifiers`, already read by the caller). A bonus lowers an "above"
+ * target and raises a "below" one; an exact-match throw takes neither. Applied
+ * here, once, so every surface reads the same number.
  */
-function withModifiers(target, roll, actor, item, opts) {
-  if (typeof target !== "number" || !actor) return target;
-  const bonus = modifierTotal(targetModifiers(roll, actor, item, opts));
+function withModifiers(target, roll, parts) {
+  if (typeof target !== "number") return target;
+  const bonus = modifierTotal(parts);
   if (!bonus) return target;
   const type = roll?.rollType || "above";
   if (type === "result") return target;

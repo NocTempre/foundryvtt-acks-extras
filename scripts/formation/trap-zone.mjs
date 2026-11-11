@@ -2,7 +2,7 @@
 import { MODULE_ID, ROLES, TRAP_ITEM_TYPE, TRAP_ZONE_TYPE } from "./constants.mjs";
 import { getPartyToken, isDown, isHurried, marchingOrder, updateFormation } from "./formation-model.mjs";
 import { segmentDistance, setWallTrap, trapWallsCrossed, wallTrap } from "./trap-walls.mjs";
-import { PARTY_CHECKS, resolveCheck } from "./party-rolls.mjs";
+import { PARTY_CHECKS, partText, resolveCheck } from "./party-rolls.mjs";
 import { advanceRounds, advanceTurns } from "./turn-engine.mjs";
 import { renderRollCard } from "../lib/roll-card.mjs";
 import { makeLoc } from "../lib/util.mjs";
@@ -473,7 +473,7 @@ export async function sweepForTraps(formation, { from = null, to = null, hurried
       if (success) spotted = true;
       else lock = lockAfterFailure(lock, actor.id, level);
 
-      const breakdown = (check.parts ?? []).map((p) => `+${p.value} ${p.label}`);
+      const breakdown = (check.parts ?? []).map(partText);
       if (crude) breakdown.push(`+${CRUDE.find} ${loc("partCrude")}`);
       rows.push({
         name: actor.name,
@@ -870,15 +870,15 @@ export async function attemptDisarm(formation, actor, { mode = "methodical", ext
   const check = resolveCheck(actor, PARTY_CHECKS[cfgKey]);
   const plan = disarmPlan({ mode, crude, skilled: check.skilled, extra });
 
-  // `resolveCheck` already carries the methodical bonus and Trapfinding's; the
-  // plan adds what is true of the TRAP rather than of the character.
+  // `resolveCheck` already carries the character's bonuses in its target; the
+  // die adds what is true of the TRAP rather than of the character.
   const bonus = check.bonus + (crude ? CRUDE.remove : 0) + (Number(extra) || 0);
   const roll = await new Roll(bonus > 0 ? `1d20 + ${bonus}` : bonus < 0 ? `1d20 - ${-bonus}` : "1d20").evaluate();
   const natural = roll.dice[0]?.results?.[0]?.result ?? roll.total - bonus;
   const success = roll.total >= check.target;
   const botched = isBotch(natural, mode);
 
-  const breakdown = (check.parts ?? []).map((p) => `+${p.value} ${p.label}`);
+  const breakdown = (check.parts ?? []).map(partText);
   if (crude) breakdown.push(`+${CRUDE.remove} ${loc("partCrude")}`);
 
   let outcome;

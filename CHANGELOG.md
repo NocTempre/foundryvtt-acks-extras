@@ -100,6 +100,18 @@
 
 ### Changed
 
+- **The party check reads each character's own throw.** Party sheet → Order
+  tab → Skill audit, and the party's Search and Listen rolls, take each
+  member's target from the same throw the ability's own sheet and the character
+  sheet's Rolls tab show. Bonuses such as Alertness, Attunement to Nature and
+  Trapfinding are the abilities' own rows, and the party card names each part
+  with the page it cites; a hand-made item named for one gives nothing until it
+  has a row of its own. With your books open, press *Update Abilities* at the
+  top of the Items sidebar to refresh the abilities this changes.
+- **Progression and Factor move onto the ability's throw.** An ability's sheet
+  → Skill tab no longer has Progression and Factor: a borrowed thief throw is
+  set in the throw editor on the same sheet, and an item's old Progression and
+  Factor are moved there when the world loads.
 - **A weapon with no table says so.** Open a weapon's item sheet (character
   sheet → Equipment tab → the weapon): the Details tab's type, class, size and
   grips rows say in their tooltips where each figure came from (set on the

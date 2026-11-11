@@ -91,6 +91,31 @@ before conditions, read by `throwOutcome` like every other surface
 `throwOutcome` and `targetModifiers` take `{conditions: false}` for a caller
 whose own roll applies them.
 
+**What other abilities do to a throw** is `throwModifiers`, and it returns the
+parts as well as the sum: one `{label, value, cite}` per ability, the cite being
+the page the ability's own import names. A `modifies` row on the proficiency
+throw acts on every ability that provides a capability its `refs` name, by
+capability and never by name; every `ifHas` must be held by the character;
+two rows whose abilities share a capability do not stack (the larger applies,
+lib `resolveStacking`); a row scoped by `appliesToRoll` acts on that throw
+alone. The older `modifier` row naming the activity in `forWhat` still applies
+unconditioned and is returned in `pending` where it carries a condition. For an
+Adventuring figure the same rows act on a subject that is only a capability
+(`modifiesParts`, `unskilled`): a row that needs the skill held is left out of
+the stored side, and a row that does not (the Trapfinding shape) lowers it. An
+ability that provides `kw:alertness` and carries a `searchListen` throw stands
+in for the stored Adventuring figure on Searching and Listening where the
+character holds no skill for it, and only when it is the better figure.
+
+A borrowed throw reads a thief-style ladder from the skill the world imported
+(`skill-ladders.mjs`) when no class document publishes one: the thief's skills
+live on the skill items, so `ladderRungAt` falls back to the imported
+`def.skill.<table>`'s ladder. A cold cache answers no rung, never a wrong one.
+The recipe for such a throw ships the class and the skill, and the proportion
+and the rounding are read off the seat's own page (`target.progression`,
+`docs/importer/MODEL.md`); a rounding the page does not state is left to the
+registry's default.
+
 `rollsOf()` reads the set and `writeRolls()` changes it — no other path does
 either. Between them they keep two invariants: every throw has a unique key,
 which is assigned once and never rewritten, and an emptied list stays empty

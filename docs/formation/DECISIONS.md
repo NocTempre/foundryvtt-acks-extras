@@ -495,6 +495,11 @@ imported copy of a skill, by way of acks-importer:
 
 Anything else returns null and the caller falls back to the sheet's roll target.
 
+*Superseded in part, 2026-11-11 ("The party check resolves through the
+abilities"): the `thiefSkill` and `levelFactor` flags and their resolution are
+gone, and the ladder helpers live in `abilities/skill-ladders.mjs`. That the
+numbers come from the GM's own import stands.*
+
 **Attunement to Nature is +4 with Listening, not +2** — verified against JJ p.311
 and authored into the acks-importer register on 2026-07-19. It is deliberately not
 an alias of Alertness precisely because the value differs.
@@ -4790,7 +4795,9 @@ unbound row keeps the ability's own throw.
   on the party sheet.
 - The target's tooltip is the source and each part by name with the member's own
   figures, as the party card's detail line prints them. A part rides the die, not the
-  target, exactly as it does on the party card.
+  target, exactly as it does on the party card. *Superseded, 2026-11-11 ("The party
+  check resolves through the abilities"): a part is in the target and the die is
+  bare.*
 - A bound copy from which the check cannot be made (the item switched off, with no
   Adventuring fallback) is named in the footnote, not rolled on its own throw: the
   table shows nothing for that member either.
@@ -5142,6 +5149,62 @@ naming no level stands on every one), and the column walk holds it to
 polygon backend, which answer only for the scene being viewed; and squeezing
 in the rules (`effectiveFrontage`), which nothing reads yet and which is the
 roadmap's, not this report's.
+
+## 2026-11-11 — The party check resolves through the abilities
+
+**Asked.** T-0481: the party check, the Rolls tab and the skill's own sheet
+resolved a member's search, listen or trapbreak throw three ways, and the party
+check kept printed bonuses (Alertness, Trapfinding, the methodical bonus) as
+literals in `party-rolls.mjs`.
+
+**Ruled by the owner (2026-11-11, "follow RAW").** Trapfinding applies to
+Adventuring-based search and trapbreaking; and the thief-ladder borrow and the
+level fraction are part of the character's throw on every surface, not a party
+check's own scaling.
+
+**New evidence** (what the 2026-07-19 ladders entry and the 2026-11-03 "A part
+rides the die" bullet did not know): RR ch. 3 names four proficiencies that
+borrow a thief skill at the character's level (two whole, two fractional) and
+JJ ch. 12 two custom powers that do, so the borrow is the character's throw
+wherever the character holds the ability; the register's row shapes now
+express a bonus that needs a skill (`modifies` with `ifHas`) where the party
+check's name patterns could not; and RR ch. 3 Adventuring names all five
+Activity proficiency throws (5 of 5), so the Adventuring figure is a throw of
+the character's own.
+
+**Ruled.**
+- *One resolver.* `resolveCheck` takes the abilities' figure: `skillThrow` for a
+  held skill, else `adventuringThrow` (`abilities/adventuring-throw.mjs`). It
+  holds no bonus of its own. The `skillBonus`, `alertness`, `trapfinding`
+  literals, their name patterns and `CAP_*` are deleted; a check names only the
+  capability, the Adventuring key and the throw it reads (`rollKey`).
+- *A part is in the target.* Every bonus the character's abilities carry, with
+  the page each ability's import names, is in the target; the die is a bare
+  `1d20` (a bash adds its Strength, which is not an ability). `bonus` stays 0 for
+  `trap-zone.mjs` and the Disarm dialog. This supersedes the 2026-11-03 bullet.
+- *Conditions once, as a part.* The creature's conditions are applied here, once,
+  as the named part `conditions`, on the figure the abilities resolve without
+  them (`throwOutcome` with `conditions: false`).
+- *The borrow is the throw's.* The skill ladders moved to
+  `abilities/skill-ladders.mjs` (formation re-exports them) and
+  `ladderRungAt` falls back to the imported `def.skill.<table>`. A one-time
+  migration moves an item's `thiefSkill` and `levelFactor` flags onto its default
+  throw as a `progression` target and removes the flags; the Skill tab's
+  Progression and Factor fields are gone (the throw editor on the ability sheet
+  replaces them). This supersedes the 2026-07-19 entry's flag consultation.
+- *A hand-made item named for a bonus gives nothing.* The name patterns were the
+  only route a hand-made Alertness took into the check; a bonus now needs a
+  row of its own, and the Rolls tab says "not imported" where nothing is stored.
+- *`PARTY_CHECKS` is public,* so `apiVersion` moves for the removed fields.
+
+**Rejected.** *Keeping the party's own scaling beside the abilities'.* Two
+resolvers of one figure drifted within a month. *A level option on
+`throwOutcome`.* The registry already completes a `progression`.
+
+**Cost.** A world copy keeps the old conditioned `modifier` row (pending, never
+applied) until Update Abilities rewrites it, so an unrefreshed world loses the
+Alertness bonus on the card. A hand-made Alertness stops applying. A borrowed
+throw reads nothing until the skill it borrows is imported.
 
 ## 2026-11-11 — The encounter throw ships no house modifier
 

@@ -1027,3 +1027,16 @@ throw is better (the tooltip says why). A skill throw an Adventuring row stands
 for has no row of its own, so its star on the folded card is gone with it. The
 follower card, the PDF export and the Stats tab still read the stored field;
 formation's party check resolves its own skill target (T-0481).
+
+**Amended, 2026-11-11 (T-0481).** The figure also takes the abilities' bonuses
+to the throw: the `modifies` rows that name the activity (a bonus that needs the
+skill held acts on the skill's throw only; one that does not lowers the stored
+figure too), and an Alertness-like ability's `searchListen` throw replaces the
+stored figure where no skill is held. The tooltip lists those parts with their
+pages and says "not imported" where nothing is stored. New evidence: the
+register's row shapes (`modifies` with `ifHas`) and RR ch. 3 Adventuring naming
+all five Activity proficiency throws (5 of 5). The cost line's "formation's party
+check resolves its own skill target" no longer holds: formation's check reads
+`adventuringThrow` and `skillThrow`
+([formation DECISIONS](../formation/DECISIONS.md) 2026-11-11; abilities
+DECISIONS, same date).

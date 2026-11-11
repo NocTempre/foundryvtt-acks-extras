@@ -90,7 +90,9 @@ globalThis.foundry = {
 };
 
 const { rollAbilityForParty } = await import("../scripts/formation/audit-roll.mjs");
-const { evaluateThrow, rollAbility } = await import("../scripts/abilities/ability-rolls.mjs");
+const { evaluateThrow, rollAbility, rollsOf, throwOutcome } = await import("../scripts/abilities/ability-rolls.mjs");
+const { registerTable, unregisterTable, PRIORITY } = await import("../scripts/lib/tables.mjs");
+const { CONDITIONS_DOC, CONDITIONS_TABLE } = await import("../scripts/lib/conditions.mjs");
 const { renderRollCard } = await import("../scripts/lib/roll-card.mjs");
 const { PARTY_CHECKS, boundChecks, resolveCheck, rollCheckFor } = await import("../scripts/formation/party-rolls.mjs");
 
@@ -109,7 +111,7 @@ const throwOf = (flat, extra = {}) => ({
 function actor(id, abilities = [], { hp = 5, level = 3 } = {}) {
   const a = { id, name: id, img: `${id}.webp`, system: { hp: { value: hp }, details: { level } }, items: [] };
   for (const spec of abilities) {
-    const flags = { "acks-extras": { extras: { rolls: spec.rolls ?? [], effects: spec.effects ?? [] }, ...spec.flags } };
+    const flags = { "acks-extras": { extras: { rolls: spec.rolls ?? [], effects: spec.effects ?? [], provides: spec.provides ?? [] }, ...spec.flags } };
     a.items.push({
       type: "ability",
       name: spec.name,
@@ -275,31 +277,79 @@ await ok("evaluateThrow posts nothing and reports the target, base and parts; ro
   assert.deepEqual([posted.total, posted.target, posted.success], [9, 14, false]);
 });
 
-await ok("a row a party check takes rolls the check's resolved target, parts itemized, the same the table resolves", async () => {
+/** An imported-shape bonus: it provides one capability and adds to throws that name another, when the character holds a third. */
+const alertness = (flat = 2) => ({
+  name: "Alertness",
+  provides: ["kw:alertness"],
+  flags: { cookbook: { id: "def.prof.alertness", cite: "XX p.1" } },
+  effects: [{ type: "modifies", target: "proficiencyThrow", refs: ["kw:searching"], ifHas: ["kw:searching"], mode: "add", value: { flat } }],
+});
+const searching = (flat = 15, flags = {}) => ({ name: "Searching", provides: ["kw:searching"], rolls: [throwOf(flat)], system: { rollTarget: flat }, flags });
+
+await ok("a row a party check takes rolls the check's resolved target, parts itemized, on a bare die", async () => {
   reset();
-  const keen = { name: "Alertness", system: { rollTarget: 0 } };
-  const a = actor("Alder", [
-    { name: "Searching", rolls: [throwOf(15)], system: { rollTarget: 15 }, flags: { targetMod: 1 } },
-    keen,
-  ]);
+  const a = actor("Alder", [searching(15, { targetMod: 1 }), alertness()]);
   const hasty = PARTY_CHECKS.searchHasty;
   assert.equal(boundChecks(a.items[0])[0].checkKey, "searchHasty", "the first check in table order that takes the item");
+  assert.deepEqual(boundChecks(a.items[1]), [], "a bonus-giving ability is not itself a check");
   const table = resolveCheck(a, hasty);
-  assert.equal(table.target, 14, "the table's figure: the sheet target less the throw bonus");
-  assert.deepEqual(table.parts.map((p) => p.value), [2]);
+  assert.equal(table.target, 12, "the abilities' figure less the Judge's throw bonus");
+  assert.equal(table.bonus, 0, "every bonus is in the target, none rides the die");
+  assert.deepEqual(table.parts.map((p) => [p.label, p.value]), [["Alertness", 2], ["Throw bonus", 1]]);
 
-  dice.push(11);
+  dice.push(12);
   const result = await rollAbilityForParty(party("Alder"), SEARCH);
   assert.equal(result.rolled, 1);
-  assert.equal(seen.formulas[0], "1d20 + 2", "the check's bonus rides the die, as the party card's does");
+  assert.equal(seen.formulas[0], "1d20", "a bare die: the bonuses are in the target");
   const html = seen.created[0].content;
-  assert.match(html, /data-tooltip-text="Target 14\+: Searching \(L3\) \[\+1\]; \+2 Alertness\.">14\+<\/td>/);
-  assert.match(html, /<td class="acks-nums"[^>]*>13<\/td>/, "11 and the +2");
+  assert.match(html, /data-tooltip-text="Target 12\+: Searching \[\+1\]; \+2 Alertness \(XX p\.1\), \+1 Throw bonus\.">12\+<\/td>/);
+  assert.match(html, /<td class="acks-nums"[^>]*>12<\/td>/, "the die as thrown");
   assert.match(html, /Rolled as the party check: Hasty Search\./);
   // The card's row is the party card's row for the same member and die.
-  dice.push(11);
+  dice.push(12);
   const direct = await rollCheckFor(a, hasty);
-  assert.deepEqual([direct.row.target, direct.row.total, direct.row.source], [table.target, 13, "Searching (L3) [+1]; +2 Alertness"]);
+  assert.deepEqual([direct.row.target, direct.row.total, direct.row.source], [table.target, 12, "Searching [+1]; +2 Alertness, +1 Throw bonus"]);
+});
+
+await ok("a bonus whose ifHas the character does not hold, or a renamed holder of it, does not change the figure", async () => {
+  reset();
+  const bare = actor("Alder", [searching(), { ...alertness(), effects: [{ ...alertness().effects[0], ifHas: ["kw:somethingelse"] }] }]);
+  assert.equal(resolveCheck(bare, PARTY_CHECKS.searchHasty).target, 15, "an unmet ifHas applies nothing");
+  const renamed = actor("Birch", [searching(), { ...alertness(), name: "Sharp Senses" }]);
+  assert.deepEqual(resolveCheck(renamed, PARTY_CHECKS.searchHasty).parts.map((p) => [p.label, p.value]), [["Sharp Senses", 2]], "found by what it provides, not by its name");
+  const handmade = actor("Cedar", [searching(), { name: "Alertness", system: { rollTarget: 5 } }]);
+  assert.equal(resolveCheck(handmade, PARTY_CHECKS.searchHasty).target, 15, "a hand-made item named for a bonus, carrying no row of its own, gives nothing");
+});
+
+await ok("the party's target is the figure the skill's own sheet resolves, conditions applied once and named", async () => {
+  reset();
+  const a = actor("Alder", [searching(15), alertness()]);
+  const item = a.items[0];
+  const roll = rollsOf(item)[0];
+  assert.equal(resolveCheck(a, PARTY_CHECKS.searchHasty).target, throwOutcome(roll, a, item).target, "the sheet and the party read one figure");
+
+  registerTable({ id: CONDITIONS_DOC, source: "invented", tables: { [CONDITIONS_TABLE]: { queasy: { all: -4 } } } }, { priority: PRIORITY.WORLD, source: "test" });
+  try {
+    a.statuses = new Set(["queasy"]);
+    a.appliedEffects = [{ statuses: ["queasy"], flags: {} }];
+    const found = resolveCheck(a, PARTY_CHECKS.searchHasty);
+    assert.equal(found.target, throwOutcome(roll, a, item).target, "with a condition the two still agree");
+    assert.equal(found.target, 13 + 4, "the penalty applies once, not on both sides of the die");
+    assert.deepEqual(found.parts.filter((p) => p.label === "conditions").map((p) => p.value), [-4], "named once, as the creature's");
+    assert.equal(found.bonus, 0);
+  } finally {
+    unregisterTable(CONDITIONS_DOC, "test");
+  }
+});
+
+await ok("a member with no skill rolls Adventuring, and a bonus that needs the skill is not carried over", async () => {
+  reset();
+  const a = actor("Elm", [alertness()]);
+  a.system.adventuring = { searching: 17 };
+  assert.equal(resolveCheck(a, PARTY_CHECKS.searchHasty), null, "a hasty search is not permitted through Adventuring");
+  const found = resolveCheck(a, PARTY_CHECKS.searchMethodical);
+  assert.deepEqual([found.target, found.source, found.skilled], [17, "Adventuring", false]);
+  assert.deepEqual(found.parts, [], "the bonus names a skill the character does not hold");
 });
 
 await ok("an unbound row keeps the ability's own throw and says nothing of a party check", async () => {

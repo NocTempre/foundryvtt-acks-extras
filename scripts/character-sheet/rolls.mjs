@@ -46,9 +46,17 @@ const num = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallb
  */
 function adventuringTip(found) {
   const cite = found.cite ? ` (${found.cite})` : "";
-  const parts = { target: num(found.target), other: num(found.other), skill: found.skillName ?? "", cite };
-  if (found.source === "skill") return loc(found.other == null ? "rolls.adv.fromSkillOnly" : "rolls.adv.fromSkill", parts);
-  return loc(found.skillName ? "rolls.adv.fromStoredBetter" : "rolls.adv.fromStored", parts);
+  const fill = { target: num(found.target), other: num(found.other), skill: found.skillName ?? "", cite };
+  const included = (found.parts ?? []).length
+    ? ` ${loc("rolls.adv.parts", { parts: found.parts.map((p) => `${p.label} ${signed(p.value)}${p.cite ? ` (${p.cite})` : ""}`).join(", ") })}`
+    : "";
+  if (found.source === "skill") return loc(found.other == null ? "rolls.adv.fromSkillOnly" : "rolls.adv.fromSkill", fill) + included;
+  if (found.source === "standIn") {
+    const stand = { ...fill, skill: found.standIn.name, cite: found.standIn.cite ? ` (${found.standIn.cite})` : "" };
+    return loc(found.other == null ? "rolls.adv.fromStandInOnly" : "rolls.adv.fromStandIn", stand) + included;
+  }
+  if (found.target == null) return loc("rolls.adv.notImported");
+  return loc(found.skillName ? "rolls.adv.fromStoredBetter" : "rolls.adv.fromStored", fill) + included;
 }
 
 /** Where a weapon is, as the line under its row. */
@@ -139,8 +147,8 @@ export function rollInventory(actor) {
     rows: ADVENTURING_KEYS.map((k) => {
       const found = adventuringThrow(actor, k);
       if (found.backs) backed.add(`${found.backs.itemId}:${found.backs.rollKey}`);
-      return row(`adv:${k}`, game.i18n.localize(`ACKS.adventuring.${k}`), `${num(found.target)}+`, {
-        line: found.source === "skill" ? found.skillName : "",
+      return row(`adv:${k}`, game.i18n.localize(`ACKS.adventuring.${k}`), found.target == null ? "—" : `${found.target}+`, {
+        line: found.source === "skill" ? found.skillName : (found.standIn?.name ?? ""),
         tip: adventuringTip(found),
       });
     }),
@@ -213,10 +221,11 @@ export async function rollById(actor, id, { event } = {}) {
       await actor.rollSave(saveSystemKey(a), { event });
       return true;
     case "adv": {
-      // The skill's figure is thrown against in place of the stored one only
-      // where it won; the throw's wrapper applies the conditions to it.
+      // The derived figure is thrown against in place of the stored one
+      // wherever it differs; the throw's wrapper applies the conditions to it.
       const found = adventuringThrow(actor, a);
-      await actor.rollAdventuring(a, { event, ...(found.source === "skill" ? { target: found.target } : {}) });
+      const stored = Number(sys.adventuring?.[a]);
+      await actor.rollAdventuring(a, { event, ...(found.target != null && found.target !== stored ? { target: found.target } : {}) });
       return true;
     }
     case "bhr":

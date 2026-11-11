@@ -143,6 +143,8 @@ const COMMITTED = [
   "test-status-palette.mjs",
   "test-adventuring-roll.mjs",
   "test-adventuring-throw.mjs",
+  "test-throw-modifiers.mjs",
+  "test-skill-ladders.mjs",
   "test-stored-inputs.mjs",
   "test-legacy-source.mjs",
   "test-surprise-pools.mjs",

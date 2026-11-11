@@ -16,9 +16,16 @@ import { registerRollWrap } from "./roll-wrap.mjs";
 import { registerSheetRolls } from "./sheet-rolls.mjs";
 import { companionSlots, openCompanionPicker, bindCompanion, releaseCompanion, registerCompanions } from "./companions.mjs";
 import { coreItemSheetFor } from "../lib/util.mjs";
+import { initLadders } from "./skill-ladders.mjs";
+import { installSkillFlagMigration } from "./skill-flag-migration.mjs";
 
 /** The dynamically-created sheet class (base is resolved at ready). */
 let AcksAbilitySheet = null;
+
+// A borrowed throw reads the imported skills' ladders, and the party check's old
+// scaling flags move onto the throws once the library is up.
+Hooks.once("ready", () => initLadders());
+installSkillFlagMigration();
 
 Hooks.once("init", () => {
   // Public API for consumer modules (the importer writes this flag on import;

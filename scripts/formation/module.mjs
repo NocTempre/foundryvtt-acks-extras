@@ -736,8 +736,12 @@ Hooks.once("init", () => {
      * `travel.movement.set`, the Judge's word. `addMember` raises
      * `acksExtras.memberJoined`, and `carrierSpeedFor` takes `adding`, the stone
      * to price a wagon's tier with beyond its load.
+     *
+     * 21 drops `alertness`, `trapfinding` and `skillBonus` from the
+     * `PARTY_CHECKS` rows, which name a `rollKey` instead: the abilities
+     * resolve each member's throw and its bonuses.
      */
-    apiVersion: 20,
+    apiVersion: 21,
     travel: { ...travel, ...journey, closeDay, offerDayEnd },
     weather,
     settlement,

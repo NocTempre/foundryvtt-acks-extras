@@ -60,7 +60,7 @@ function checkRowFor({ roll, row }) {
     total: row.total,
     tooltip: auditLine(roll) || roll.formula,
     target: row.target,
-    targetTooltip: loc("audit.checkTip", { target: `${row.target}+`, source: row.source }),
+    targetTooltip: loc("audit.checkTip", { target: `${row.target}+`, source: row.sourceTip }),
     outcome: game.i18n.localize(`ACKS-FORMATION.rolls.${row.success ? "success" : "failure"}`),
     emphasis: row.success ? "success" : "failure",
   };

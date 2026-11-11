@@ -1399,7 +1399,7 @@ try {
   gm = await seat("gm");
   const census = await run(gm, P.census, MOD);
   note("gm census", census);
-  check("the GM seat is the active GM, the page runs the working tree (formation apiVersion 20) and the influence page hosts (apiVersion ≥ 6)", census.activeGMIsSelf && census.role === 4 && census.working === 20 && census.influenceApi >= 6, { role: census.role, manifest: census.module, working: census.working, influenceApi: census.influenceApi });
+  check("the GM seat is the active GM, the page runs the working tree (formation apiVersion ≥ 21) and the influence page hosts (apiVersion ≥ 6)", census.activeGMIsSelf && census.role === 4 && census.working >= 21 && census.influenceApi >= 6, { role: census.role, manifest: census.module, working: census.working, influenceApi: census.influenceApi });
   if (!census.activeGMIsSelf) throw new Error("another GM client is the active GM");
   note("install", await run(gm, P.install));
 

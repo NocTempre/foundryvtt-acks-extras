@@ -322,6 +322,38 @@ The two mutations themselves belong to the equipment feature (`grantGear`,
 the rule about *what* is needed. Missing the equipment feature degrades to
 supplying nothing, never to an error.
 
+## The party check's throw
+
+A party check (`PARTY_CHECKS` in `party-rolls.mjs`) holds no figure and no
+bonus. It names the capability that finds a member's skills (`capability`), the
+Adventuring key a member without the skill falls back to (`advKey`, absent where
+the rules do not permit the fallback) and which of the skill's throws it reads
+(`rollKey`). `resolveCheck` then takes the abilities' resolution of that throw:
+
+- **A held skill**: the lowest `skillThrow` (`abilities/adventuring-throw.mjs`)
+  among the candidate items, each lowered by the item's Throw bonus. That throw is
+  `throwOutcome` without conditions, so a ladder at the member's level, a borrowed
+  throw (a `progression` target reading an imported skill's ladder), the abilities'
+  `modifies` rows and the score term are already in it
+  ([abilities MODEL](../abilities/MODEL.md)). A candidate with no figure, or whose
+  rung is automatic or not yet open, is passed over so it cannot shadow the
+  fallback.
+- **No skill**: `adventuringThrow`, the better of the stored Adventuring figure
+  (or the stand-in ability's) and a held skill the Judge has not switched off,
+  with the bonuses that need no skill (Trapfinding's) applied.
+- **Conditions** are applied here, once, as the named part `conditions`.
+
+The result is `{target, source, bonus: 0, parts, skilled}`; `parts` lists each
+ability's contribution with the page its import names, the Judge's Throw bonus
+and the conditions, and the card, the Skill audit's Resolution table and its roll
+read it. `bonus` stays on the result, always 0, for the trap zone and the Disarm
+dialog that read it. The Skill tab's Progression and Factor fields do not exist:
+a borrowed throw is the ability's own throw, edited on the ability sheet, and a
+one-time migration (`abilities/skill-flag-migration.mjs`) moves the old
+`thiefSkill` and `levelFactor` item flags onto it. A hand-made item matches a
+check by its `checkKey` binding or, if it carries a stored target or a
+level-scaled throw, by name; it contributes no bonus unless it carries a row.
+
 ## The audit roll
 
 Each row of the Skill audit's party roster has a roll control. It rolls that ability
@@ -338,9 +370,10 @@ show through Dice So Nice to the Judges.
   - **A party check takes it**: the holder rolls that check's throw through
     `rollCheckFor`, the function `rollPartyCheck` calls for each member. The target is
     `resolveCheck`'s, so it is the figure the Resolution table shows for that member:
-    the item's scaled or sheet target less the Throw bonus, the Adventuring fallback,
-    and the Strength a bash adds. The methodical, Alertness and Trapfinding parts ride
-    the die. When several checks take the copy (hasty and methodical search share one
+    the abilities' own figure for the throw (see *The party check's throw* below)
+    less the Throw bonus on the item's Skill tab and with the creature's conditions
+    applied once. The die is a bare d20, plus the Strength a bash adds. When several
+    checks take the copy (hasty and methodical search share one
     flag) the first in `PARTY_CHECKS` order is rolled and the card's note names it.
     A copy the check cannot be made from (switched off with no Adventuring fallback)
     makes no roll and is named in the footnote.

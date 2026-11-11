@@ -24,9 +24,12 @@ export const effectsOriginOf = (entry) => (entry?.fields?.effects?.specs?.length
  * One effect's shape, without its figures: what a recipe fixes and a scan
  * guesses. A condition counts by its presence, never its text: the words are
  * the page's or a label, and either changes under a copy without changing
- * which reader wrote it.
+ * which reader wrote it. A `modifies` row also counts by its mode: an additive
+ * row and a replacing one act differently on the same throw, so a copy holding
+ * the other is the older reading.
  */
-const shapeOf = (e) => [e?.type ?? "", e?.target ?? "", e?.forWhat ?? "", e?.condition ? "c" : "", e?.gate?.kind ?? ""].join("|");
+const shapeOf = (e) =>
+  [e?.type ?? "", e?.target ?? "", e?.forWhat ?? "", e?.condition ? "c" : "", e?.gate?.kind ?? "", e?.type === "modifies" ? (e.mode ?? "add") : ""].join("|");
 const shapes = (list) => (list ?? []).filter((e) => e?.type !== "capability").map(shapeOf);
 
 /**

@@ -3516,11 +3516,12 @@ card, the evaluator and the footnote. `tools/live/formation-audit.mjs` walks it.
    bonus; member 2's has no bonus line.
 3a. **A bound row rolls the table's target.** Bind `Audit Search` to a party check
    (its Skill tab's *Used for*: Search), give member 1 a Throw bonus on that tab and
-   an Alertness-named ability, then open the audit. *Observable:* the card's note
+   the library's Alertness, then open the audit. *Observable:* the card's note
    names the check ("Rolled as the party check: Hasty Search"); member 1's target
-   equals the figure the Resolution table prints in that check's column for member
-   1, and its tooltip lists the source and `+2 Alertness`-style parts by name; the
-   total carries the die plus those parts. Unbind it: the card returns to the
+   equals the figure the same ability reads on its own skill sheet and on the
+   Rolls tab for that member, and its tooltip lists the source and each bonus by
+   ability name with the page its import cites; the total is a bare die against
+   that target. Unbind it: the card returns to the
    ability's own throw and the note is gone. Switch the item off for member 2
    (Skill unchecked): member 2 is named in the footnote as unable to attempt the
    party check, and the table shows nothing for them in that column.
@@ -3538,6 +3539,65 @@ card, the evaluator and the footnote. `tools/live/formation-audit.mjs` walks it.
 Teardown: the cards the run posted are the module's; read each id back right after
 the press and `api.track(id, "ChatMessage")` it, then `api.sweepTracked()`. The kept
 fixtures stay.
+
+## The party check resolves through the abilities (added with T-0481)
+
+The party card, the Rolls tab, the skill sheet and the disarm dialog read one
+figure for a character's throw. Walked by `tools/live/formation-party-skills.mjs`
+on the GM seat with the RR and JJ connected; offline,
+`tools/test-skill-audit-roll.mjs`, `test-adventuring-throw.mjs`,
+`test-throw-modifiers.mjs` and `test-skill-ladders.mjs` pin the figures.
+
+**Fixtures** (kept; found by marker): `formation/skills-party` holding
+`formation/skills-thief` (level 6, the library's Searching, Trapbreaking and
+Eavesdropping), `skills-alert` (the library's Alertness proficiency),
+`skills-elf` (Attunement to Nature and the Alertness power), `skills-handmade`
+(three hand-made abilities, rebuilt at the section's start: one named
+Alertness with no import behind it, one bound to Search with a flat throw, one
+whose throw borrows a ladder no import holds) and `skills-borrowed` (a
+hand-made skill rebuilt at the section's start with the legacy `thiefSkill`
+and `levelFactor` flags). Every member's stored Adventuring figures are set to
+an invented value at the start. Update Abilities runs first for the walk's
+library ids: a library copy older than the recipes holds the old rows.
+
+1. **Four surfaces, one figure.** For each member and throw, read the party
+   check's resolved target (`resolveCheck`), the Rolls tab row
+   (`rollInventory`: the `abl:` row, or the `adv:` row where the Adventuring row
+   stands behind the skill), the skill sheet's row (`_prepareContext().rollRows`)
+   and the item's own `throwOutcome` without conditions. *Observable:* the
+   three surfaces print the same integer and the party figure is the throw's
+   own.
+2. **Alertness is a stand-in, not a bonus.** On `skills-alert` and `skills-elf`
+   the Adventuring figure's source is the stand-in and lower than the stored
+   figure, on the card and the Rolls tab alike.
+3. **A hand-made item is not the printed one.** The hand-made Alertness leaves
+   the stored figure standing; the flat Search throw is the card's target with
+   no part; the throw naming a ladder nothing imported has no figure on the
+   sheet or the Rolls tab and the party check passes it over for the member's
+   Adventuring figure.
+4. **A condition counts once.** Put a status that moves proficiency throws on
+   the thief (found by trying each of `CONFIG.statusEffects` and reading
+   `rollMath("throw", ...)`). *Observable:* the card's target is the throw's own
+   moved by the condition, named once in its parts; the hasty row on the Rolls
+   tab and the skill sheet agree; the methodical row, which is the Adventuring
+   one, is the figure before conditions. Toggle the status off.
+5. **The disarm dialog.** Build `TrapbreakApp` (`formationId`, `actorId`) and
+   read `_prepareContext()`. *Observable:* its resolved check equals the audit's
+   for the thief in both modes; a member with no Trapbreaking skill has the
+   methodical attempt on the Adventuring figure and no hasty one.
+6. **The legacy flags.** Before `migrateItem`, the party check reads the item's
+   own throw. After it the default throw borrows the ladder at the stored
+   fraction and rounding, both flags are gone, the three surfaces agree, and a
+   second run reports nothing to do. With no imported ladder the plan is
+   `keep`, reason `notImported`, and the flags stay.
+7. **The real card.** `rollPartyCheck(formation, "listen")` posts one card,
+   whispered to the Judges, one row per member who can listen, each target with
+   a tooltip. Open the thief's Searching sheet: it renders. Open the Skill audit
+   from the party sheet's Order tab: its roster lists abilities and has no
+   Progression or Factor column.
+
+Teardown: the card is tracked by id the moment it posts and swept; the status
+the condition step turned on is turned off by the run; the fixtures stay.
 
 ## The column and its lights (added with the marching column)
 

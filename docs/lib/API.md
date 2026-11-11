@@ -479,10 +479,13 @@ How the book's recurring shapes map:
 
 - **Modifies another ability** — Skulking's *+2 to Hiding and Sneaking throws*:
   `{type:"modifies", refs:[hiding, sneaking], target:"proficiencyThrow", value:2, mode:"add"}`.
-- **Conditional override ("instead")** — Alertness searches at 14+, *but if you
-  are separately proficient in Searching you get +2 to that throw instead*: a
-  base `throw` effect plus
-  `{type:"modifies", refs:[searching, listening], ifHas:[searching, listening], value:2, mode:"replace"}`.
+- **Conditional override ("instead")** — Alertness is a stand-in throw, *but if
+  you are separately proficient in Searching you get +2 to that throw instead*:
+  a `searchListen` throw (read only where no skill is held, as the Adventuring
+  figure's stand-in) plus one additive row per skill,
+  `{type:"modifies", refs:[searching], ifHas:[searching], value:2, mode:"add"}`.
+  The row names a capability, so it follows the skill however the item is named;
+  with no skill held it is not applied.
 - **Stacking rules** — Diplomacy's *+1 reaction stacks with Mystic Aura but not
   Intimidation or Seduction*:
   `{type:"modifier", target:"reaction", value:1, stacksWith:[mysticAura], notStacksWith:[intimidation, seduction]}`.
