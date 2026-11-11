@@ -143,7 +143,8 @@
   posting is refused with a notice naming the missing table, and a location
   sheet's **Process time** warns and leaves the month unrolled. A Judge can set
   the shares in the Ruledata Browser (Settings tab → Game Settings → ACKS II —
-  Extras → Open Ruledata Browser).
+  Extras → Open Ruledata Browser). A world imported before this release runs
+  Rules tables again to read them.
 - **Dark senses read their reach from your books.** The shadowy senses'
   radius, Night Vision's multiple of the light reaching it, and the reach a
   dark sense takes when its stat line records none are read at import from
@@ -152,8 +153,11 @@
   sheet's Stats tab vision rows and its rail light cell read "not imported",
   the Party sheet's Formation tab shows a dash for dark sight, and the token
   gets no sight radius from that sense; the sense itself still works. A Judge
-  can set each figure in the Ruledata Browser.
-- **A carrier core gives no maximum load shows a dash.** On the Party sheet's
+  can set each figure in the Ruledata Browser. A world imported before this
+  release runs Rules tables again (Settings tab → Game Settings → ACKS II —
+  Extras → Manage imports → Rules tables) to read them; until it does, a
+  dark-sighted token sees no further than its light.
+- **A carrier with no maximum load from core shows a dash.** On the Party sheet's
   Formation tab, a carrier whose maximum load core does not derive on this
   seat shows a dash for its capacity and speed instead of a maximum made up
   from Strength, and is never shown as unable to move.
@@ -316,6 +320,10 @@
 
 ### Fixed
 
+- **The repair tool names its Abilities group.** In the repair tool
+  (Settings tab → Game Settings → ACKS II — Extras → Repair this world), the
+  group holding the abilities check showed a raw key as its heading; it now
+  reads Abilities.
 - **A monster henchman receives its share of Deal XP.** Pressing Deal XP (the
   party sheet's quick tools → the experience star) now credits a hired
   monster's share. The system keeps no experience for a monster, so the share

@@ -3643,9 +3643,10 @@ connected to the importer.
 **Fixtures, kept and found by marker.**
 - The character `lib/senses-shadowy`: Shadowy Senses on its sheet and no
   recorded range, with a linked token on a scene.
-- The character `lib/senses-night`: Night Vision on its sheet, a linked token
-  on a scene with a lit torch in range (`lib/senses-night-light`, an ambient
-  light on that scene).
+- The monster `lib/senses-night`: Night Vision on its stat block
+  (`flags.acks-extras.extras.vision` holding `night`; a character's ability of
+  that name is not read), a linked token on a scene with a lit torch in range
+  (`lib/senses-night-light`, an ambient light on that scene).
 - The monster `lib/senses-lightless`: Lightless Vision on its stat block with
   no Lightless Range, and a linked token on a scene.
 - A formation holding `lib/senses-shadowy` (`lib/senses-party`).
