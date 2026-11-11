@@ -106,13 +106,15 @@ places at world start; **Disable Storage Here** turns it off again.
 here** turns it on.*
 
 One of those piles is **the house** — what the place itself owns rather than
-what somebody left there. The Judge can lock a row so it cannot be taken, and a
-spoil that has not been valued yet sits there awaiting its throw.
+what somebody left there. A player takes a row of the house only once the
+Judge releases it: on the location's sheet, **Storage** tab (Judge seat), press
+the lock beside the row (**Player-retrievable (Judge)**) and it opens. That
+holds for a spoil too, marked with a bone; the Judge releases it, and no throw
+claims it.
 
 ![](../releases/v4.0.0/location-house-pile.png)
 
-*A location's own coin and stock: the Judge's locks, and a spoil awaiting its
-throw.*
+*A location's own coin and stock: the Judge's locks, and a spoil beside them.*
 
 Stored goods are real items on the location actor, so an item that has left a
 character genuinely stops weighing on them. Stowing is a **move, not a copy**:

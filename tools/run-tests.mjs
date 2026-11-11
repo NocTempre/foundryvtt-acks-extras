@@ -152,6 +152,7 @@ const COMMITTED = [
   "test-hex-topology.mjs",
   "test-location-reach.mjs",
   "test-location-notes.mjs",
+  "test-location-spoil.mjs",
   "importer/test-prose.mjs",
   "importer/test-book-match.mjs",
   "importer/test-book-registry.mjs",

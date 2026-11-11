@@ -469,6 +469,30 @@ by hand.
     `system.gmNotes` field and none of the Judge's text. *Observable:* both
     seats' recorders saw init, setup and ready and no error.
 
+25. **A spoil in the house pile has no claim throw; the Judge releases it.**
+    `tools/live/location-house-spoil.mjs` walks it
+    (`node tools/live/run.mjs location-house-spoil`) on a GM seat and the
+    Player seat, both reloaded under a load recorder, on two kept fixtures:
+    `location/house-spoil` (a location the Player seat observes, holding goods)
+    and `location/house-spoil-hero` (a character the Player seat owns). The
+    walk's own embedded items carry `flags.world.fixtureItem`, and the step's
+    start deletes those on both fixtures and stocks one spoil for the house
+    (`stockProvider`, the row flagged `spoil`, locked). *Observable:* the
+    Player seat's sheet of the place holds no `[data-action="houseAttemptSpoil"]`,
+    no dice glyph and no raw claim string, and no Storage tab, which is the
+    Judge's: the claim control was never reachable from a player's seat.
+    *Observable:* a retrieval from that seat (`lib.storage.retrieve`, the call
+    the sheets' take buttons make, relayed to the GM seat) is refused while the
+    row is locked, and the spoil stays at the place. On the GM seat's Storage
+    tab *Observable:* the spoil row shows its bone and the release lock, with no
+    claim button. Press the lock. *Observable:* the row is
+    retrievable. *Observable:* the Player seat's retrieval then lands and the
+    spoil sits on the hero, still a spoil. The walk reads
+    `game.users.activeGM` on the asking seat in the same call as the retrieval,
+    since a higher-role GM seat that joins mid-walk takes the relay.
+    *Observable:* both seats' recorders saw init, setup and ready and no error.
+    The fixtures are kept; the walk builds nothing a sweep removes.
+
 The repair tool's location checks (stale links, banked coin, storage whose
 owner is gone) are walked in docs/lib/TESTING.md, "The repair tool". Coin
 moving between holders is docs/lib/TESTING.md, "Coin: one stack, moved and

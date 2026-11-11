@@ -1418,6 +1418,8 @@ any non-`foundry.css` stylesheet that reads a legacy Foundry variable.
 
 ## 2026-08-14 — Money is physical; four rulings land at once
 
+*Superseded in part: the spoil throw named under Consequences was removed 2026-11-11 — see docs/location/DECISIONS.md, "2026-11-11 — A spoil is released by the Judge, not claimed by a throw".*
+
 **Amended 2026-10-01** by "Currency is one stack with one count, weighed by
 how many make a stone", below. Change is no longer "returned by the same
 planner": it has a planner of its own and is exact. The Judge's mint and

@@ -993,3 +993,34 @@ editor saved empty leaves an empty paragraph, which would keep every place
 anyone opened).
 
 *Cost:* a place whose notes nobody wants is kept until they are cleared.
+
+## 2026-11-11 — A spoil is released by the Judge, not claimed by a throw
+
+**Asked.** Whether the location sheet's **Attempt to claim** throw on a spoil
+in the house pile survives the owner's ruling that no house rules ship. The
+button rolled 1d20 against `Number(taker.system?.adventuring ?? 11)`; that
+field is an object, so every press threw against the fallback literal. The book prints no such throw for taking a spoil (RR ch. 3,
+Adventuring; MM ch. 3, Monster Parts). Harvesting is a proficiency gate with
+tools and time, which the button never modelled. The button was also
+unreachable: the Storage tab is the Judge's, and the button showed only to a
+non-Judge.
+
+**Ruled (architect, under the owner's no-house-rules ruling; owner, on what
+replaces it).** The button, its action, its two chat lines and its flavour are
+removed. A Judge releases a spoil with the row's retrievable lock, the same
+control as any other house row, and a player's retrieval of the released row
+is unchanged. What replaces the button is a timed Harvest action: harvesting
+is a choice that takes time, pressed like the methodical search, and it rolls
+the proficiency throws the harvest procedure prescribes. That action is the
+next slice and lands separately from this removal.
+
+**Rejected:** keeping the throw until the request exists (it throws a number
+no rule prints, to a seat that cannot press it). **Rejected:** nothing
+replacing it (the owner asked for the harvest procedure). **Rejected:** a
+roadmap row for the action (it is scheduled work, not an idea). **Rejected:**
+a claim posted as a request awaiting the Judge (harvesting is the player's
+timed choice, not a permission).
+
+*Cost:* until the Harvest action lands, a spoil is released by hand, the Judge
+deciding who earned it. Supersedes in part the spoil throw named in
+docs/lib/DECISIONS.md, "2026-08-14 — Money is physical".

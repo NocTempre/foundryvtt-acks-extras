@@ -114,7 +114,6 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
       retrieveRow: LocationSheet.#onRetrieveRow,
       retrieveAll: LocationSheet.#onRetrieveAll,
       houseRetrievable: LocationSheet.#onHouseRetrievable,
-      houseAttemptSpoil: LocationSheet.#onHouseAttemptSpoil,
       depositHere: LocationSheet.#onDepositHere,
       openManager: LocationSheet.#onOpenManager,
       holdGoods: LocationSheet.#onHoldGoods,
@@ -1324,8 +1323,8 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
       const isHouse = HOUSE && bucket.ownerUuid === HOUSE;
       const owner = isHouse ? null : api.resolveActorSync(bucket.ownerUuid);
       // The house bucket is the place's OWN till and stock: the Judge takes
-      // freely; a player takes only rows the Judge marked retrievable, and a
-      // spoil row only after its unlocking throw.
+      // freely; a player takes only rows the Judge marked retrievable, a spoil
+      // row included.
       const canTakeGroup = isHouse ? game.user.isGM : game.user.isGM || !!owner?.isOwner;
       groups.push({
         ownerUuid: bucket.ownerUuid,
@@ -1351,7 +1350,6 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
             spoil,
             retrievable,
             canTake: canTakeGroup || (isHouse && retrievable),
-            canAttempt: isHouse && !game.user.isGM && spoil && !retrievable,
           };
         }),
       });
@@ -1382,9 +1380,9 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
     return { itemId: row?.dataset.itemId ?? null, ownerUuid: group?.dataset.ownerUuid ?? "" };
   }
 
-  /** A non-GM may take a house row only once it is marked retrievable (a
-   * spoil row earns that mark through its throw). UI rule, like the rest of
-   * the storage surface — the Judge's manager outranks it. */
+  /** A non-GM may take a house row only once the Judge marks it retrievable
+   * (a spoil row included). UI rule, like the rest of the storage surface —
+   * the Judge's manager outranks it. */
   #houseRowBlocked(itemId, ownerUuid) {
     if (game.user.isGM || ownerUuid !== acksExtras.lib?.money?.HOUSE_OWNER) return false;
     const item = this.actor.items.get(itemId);
@@ -1430,31 +1428,6 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
     if (!item) return;
     const flag = item.getFlag(MODULE_ID, "storage") ?? {};
     await item.setFlag(MODULE_ID, "storage", { ...flag, retrievable: !flag.retrievable });
-    this.render();
-  }
-
-  /**
-   * A spoil in the house pile is taken by winning a proficiency throw — the
-   * MECHANISM ships now (an Adventuring-target roll on the taker's own
-   * numbers, posted openly); which proficiency each spoil kind demands is a
-   * rules extraction still to come, and will slot in as the roll's target.
-   */
-  static async #onHouseAttemptSpoil(_event, target) {
-    const { itemId, ownerUuid } = this.#rowContext(target);
-    const item = this.actor.items.get(itemId);
-    const taker = this.#claimant(ownerUuid);
-    if (!item || !taker) return;
-    const targetNum = Number(taker.system?.adventuring ?? 11) || 11;
-    const roll = await new Roll("1d20").evaluate();
-    const success = roll.total >= targetNum;
-    await roll.toMessage({
-      speaker: ChatMessage.getSpeaker({ actor: taker }),
-      flavor: loc(success ? "storage.spoilUnlocked" : "storage.spoilHeld", { name: item.name, target: targetNum }),
-    });
-    if (success) {
-      const flag = item.getFlag(MODULE_ID, "storage") ?? {};
-      await item.setFlag(MODULE_ID, "storage", { ...flag, retrievable: true });
-    }
     this.render();
   }
 

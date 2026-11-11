@@ -79,6 +79,12 @@
 
 ### Removed
 
+- **A spoil's Attempt to claim throw is gone.** The button on a spoil in a
+  location's house pile (location sheet → Storage tab) rolled against a figure
+  no rule prints, and it never showed to anyone, since only the Judge has the
+  Storage tab and the button was for players. The Judge releases a spoil with
+  the row's Player-retrievable lock. A timed Harvest action that runs the
+  book's harvest procedure is coming.
 - **Light and noise no longer modify encounter throws.** The optional setting
   that shifted the party formation's wandering-monster throw by the party's
   light and pace, in Settings tab → Game Settings → ACKS II — Extras, was a
