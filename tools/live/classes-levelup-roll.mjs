@@ -2,23 +2,23 @@
  * Live walk, classes-levelup-roll: the level-up wizard's hit points. Walks
  * docs/classes/TESTING.md "The wizard's kept roll" on the GM and Player seats:
  * the roll a climb offers is made once and survives a closed wizard and a
- * reloaded page; it is rolled again only for a different level, mode or hit
- * dice, and a changed Constitution, a temporary effect's included, keeps the
+ * reloaded page; it is rolled again only for a different level or hit dice,
+ * and a changed Constitution, a temporary effect's included, keeps the
  * dice and recomputes its own part; it is cleared by the climb and by a level
  * moved under it; the old maximum is the stored one, not one an effect raised;
- * a class printing no hit dice rolls nothing and says so; a level with no cell
- * takes the dice its class's rows print; the Intellect bonus picks are the
- * system's own modifier; and the class picker keeps the hit points when it
- * re-binds the class held at the level held. Machine values arrive through
- * ./_env.mjs.
+ * a class printing no hit dice rolls no dice and says so; a level with no cell
+ * takes the dice its class's rows print; Game Settings offers no other
+ * procedure; the Intellect bonus picks are the system's own modifier; and the
+ * class picker keeps the hit points when it re-binds the class held at the
+ * level held. Machine values arrive through ./_env.mjs.
  *
  * Fixtures, kept and found by marker: three classes with INVENTED level rows
  * (`classes/levelup-roll-class`, `classes/levelup-roll-gap-class`,
  * `classes/levelup-roll-nohd-class`) and `classes/levelup-roll-character`, a
  * character the Player seat owns, brought to a known shape at each step's
  * start. The run's own documents — the cards its climbs post and the effect it
- * adds — are tracked and swept by uuid. The hit-point mode setting and the
- * fixture's Constitution are restored in the finally. Every figure printed is
+ * adds — are tracked and swept by uuid. The fixture's Constitution is
+ * restored in the finally; no setting is changed. Every figure printed is
  * a boolean, or one of the invented classes' own.
  */
 import { connect, sleep } from "./_driver.mjs";
@@ -189,7 +189,9 @@ const P = {
     const ok = H.root(dialog)?.querySelector('button[data-action="ok"]');
     if (!ok) return { pressed: false };
     ok.click();
-    await H.poll(() => actor.system.details.level !== before && actor.getFlag("acks-extras", "classes")?.levelUpRoll == null, { tries: 50 });
+    // The level lands first (its own write clears the kept roll); the hit point
+    // write, record step included, follows the grants. Wait for that step.
+    await H.poll(() => actor.system.details.level !== before && (actor.getFlag("acks-extras", "classes")?.hpRolls ?? []).some((s) => s.level === before + 1), { tries: 75 });
     await H.sleep(800);
     return {
       pressed: true,
@@ -266,10 +268,18 @@ const P = {
     ]);
     return { uuid: effect?.uuid ?? null, stored: actor._source.system.hp.max, prepared: actor.system.hp.max };
   },
-  setting: async ({ value }) => {
-    const prior = game.settings.get("acks-extras", "levelUpHpMode");
-    if (value != null) await game.settings.set("acks-extras", "levelUpHpMode", value);
-    return { prior, now: game.settings.get("acks-extras", "levelUpHpMode") };
+  /** Settings tab → Game Settings, rendered: is a level-up hit point setting registered or listed? */
+  hpSetting: async () => {
+    const H = globalThis.__cl;
+    const key = "acks-extras.levelUpHpMode";
+    const app = new foundry.applications.settings.SettingsConfig();
+    await app.render({ force: true });
+    const root = await H.poll(() => H.root(app));
+    await H.sleep(500);
+    const listed = !!root?.querySelector(`[name="${key}"]`);
+    const sectionShown = !!root?.querySelector('[name^="acks-extras."]');
+    await app.close({ animate: false });
+    return { registered: game.settings.settings.has(key), listed, rendered: !!root, sectionShown };
   },
   intPicks: async ({ actorId }) => {
     const actor = game.actors.get(actorId);
@@ -373,7 +383,6 @@ async function reload(port, label, api) {
 let gm = null;
 let player = null;
 let actorId = null;
-let priorMode = null;
 /** The uuids of what this run made: its climbs' cards and the effect it adds. The only documents teardown deletes. */
 const own = [];
 const WALL_MS = Number(process.env.WALK_WALL_MS ?? 570_000);
@@ -406,9 +415,6 @@ try {
     name: "QA Climber", type: "character", ownership: { default: 0, [playerId]: 3 }, system: { scores: { con: { value: CON.plain } } },
   });
   actorId = character.id;
-  priorMode = (await run(gm, P.setting, { value: null })).prior;
-  note("hit-point mode before the walk", priorMode);
-  if (priorMode === "additive") await run(gm, P.setting, { value: "raw" });
 
   section("the wizard keeps its roll");
   let shaped = await run(gm, P.shape, { actorId, classId: cls.id, start: 2, con: CON.plain });
@@ -437,7 +443,8 @@ try {
   const boosted = await run(player, P.openWizard, { actorId });
   check("a temporary effect on Constitution rolls nothing again", boost.raised && JSON.stringify(boosted.kept?.faces) === JSON.stringify(first.kept?.faces) && boosted.newMax === offerFrom(boosted), { raised: boost.raised, sameFaces: JSON.stringify(boosted.kept?.faces) === JSON.stringify(first.kept?.faces) });
   await run(player, P.closeWizard);
-  if (boost.uuid) note("boost swept", await gm.sweepTracked({ only: [boost.uuid] }));
+  // A uuid swept here leaves `own`: the driver untracks what it sweeps, and refuses a teardown sweep naming it.
+  if (boost.uuid) { note("boost swept", await gm.sweepTracked({ only: [boost.uuid] })); own.splice(own.indexOf(boost.uuid), 1); }
   const fifth = await run(player, P.openWizard, { actorId });
   await run(player, P.clearNotes);
   const climbed = await run(player, P.applyWizard, { actorId });
@@ -460,7 +467,7 @@ try {
   check("the wizard's old maximum is the stored one, not the raised one", raised.dialog && raised.oldMax === raised.storedMax && raised.oldMax !== raised.preparedMax, { stored: raised.oldMax === raised.storedMax });
   const climbedRaised = await run(player, P.applyWizard, { actorId });
   check("the climb stores the offered maximum, and the effect still adds on top of it", climbedRaised.storedMax === raised.newMax && climbedRaised.preparedMax === raised.newMax + 5, { stored: climbedRaised.storedMax === raised.newMax, onTop: climbedRaised.preparedMax === raised.newMax + 5 });
-  if (raise.uuid) note("effect swept", await gm.sweepTracked({ only: [raise.uuid] }));
+  if (raise.uuid) { note("effect swept", await gm.sweepTracked({ only: [raise.uuid] })); own.splice(own.indexOf(raise.uuid), 1); }
 
   section("a class printing no hit dice");
   await run(gm, P.clearNotes);
@@ -478,18 +485,9 @@ try {
   check("the climb to 2nd of a class printing no 2nd-level cell rolls two dice of the size its last die row prints", gapped.dialog && gapped.rolled && gapped.kept?.hd === "2d6", gapped.kept?.hd);
   await run(player, P.closeWizard);
 
-  section("additive mode");
-  await run(gm, P.shape, { actorId, classId: cls.id, start: 2, con: CON.plain });
-  const full = await run(player, P.openWizard, { actorId });
-  await run(player, P.closeWizard);
-  note("mode set", await run(gm, P.setting, { value: "additive" }));
-  await sleep(800);
-  const additive = await run(player, P.openWizard, { actorId });
-  check("additive mode replaces the full-mode roll with one die of the next level's size", full.kept?.mode === "full" && additive.kept?.mode === "additive" && /^1d6/.test(additive.kept?.formula ?? ""), { full: full.kept?.mode, additive: additive.kept?.mode, oneDie: /^1d6/.test(additive.kept?.formula ?? "") });
-  check("additive mode offers the old maximum plus the die and the modifier, at least one", additive.newMax === additive.oldMax + Math.max(1, (additive.kept?.total ?? 0) + additive.conMod), { adds: additive.newMax - additive.oldMax });
-  await run(player, P.closeWizard);
-  note("mode restored", await run(gm, P.setting, { value: priorMode === "additive" ? "additive" : priorMode }));
-  priorMode = null;
+  section("the rules' procedure is the only one");
+  const hpSetting = await run(gm, P.hpSetting);
+  check("Game Settings renders the module's section and lists no level-up hit point setting, and none is registered", hpSetting.rendered && hpSetting.sectionShown && !hpSetting.listed && !hpSetting.registered, hpSetting);
 
   section("the class picker keeps hit points when it re-binds the class held");
   shaped = await run(gm, P.shape, { actorId, classId: cls.id, start: 3, con: CON.plain });
@@ -518,9 +516,6 @@ try {
   checks.push(["walk ran to the end", false]);
 } finally {
   section("teardown");
-  if (gm && priorMode != null) {
-    try { note("mode restored", await run(gm, P.setting, { value: priorMode })); } catch (err) { console.error("mode restore:", err?.message ?? err); }
-  }
   if (gm && actorId) {
     try { await run(gm, P.setCon, { actorId, con: CON.plain }); } catch (err) { console.error("con restore:", err?.message ?? err); }
   }

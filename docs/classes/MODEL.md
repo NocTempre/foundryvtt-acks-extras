@@ -500,8 +500,9 @@ the document's source.
 character (`flags["acks-extras"].classes.levelUpRoll`: level, mode, hit dice,
 the faces as they fell, the Constitution modifier rolled under, formula and
 totals) and answers every later open for the same target level, so cancelling
-and reopening is not a second draw. A record that differs in level, mode or hit
-dice is replaced by a fresh roll. Constitution is applied to the kept faces at
+and reopening is not a second draw. A record that differs in level or hit
+dice is replaced by a fresh roll, as is one whose mode is not `full` (kept
+under the removed additive option). Constitution is applied to the kept faces at
 every read (`hitpoints.mjs` `hitPointsFromFaces`: on each die, none below one,
 RR ch. 1, Constitution), so a modifier that moved since — a temporary effect
 included — changes the Constitution part and never the dice; a record without
@@ -509,7 +510,7 @@ its faces counts only for the modifier it was rolled under. The modifier read
 is the prepared one, so an effect on Constitution at the moment of Apply is
 written into the stored maximum with the rest. It is cleared when the wizard applies the level and by
 `guardLevelWrite` whenever the held level moves. The class picker's rebuild
-rolls afresh and keeps no record. A picker bind of the class the character
+rolls afresh and keeps no level-up roll. A picker bind of the class the character
 already holds, at the level it holds, rebuilds nothing and the hit points
 stand (`apply.mjs` `rebindsHeldClass`); a bind at another level sets that level
 and rolls it.
@@ -519,9 +520,54 @@ and rolls it.
 class at 1st level or above is rebuilt level by level, as the picker rebuilds
 it, and the climbs' record (`hpAt`) is replaced by the new figure. Any other
 character rolls its own `system.hp.hd` once, Constitution on each die and, from
-1st level, the floor on the first. Only a formula that is not one cell of dice
-falls to the system's own `rollHP`, which applies neither. Maximum and current
-are written together, and the chat card lists each level's roll.
+1st level, the floor on the first. One cell of dice is read in any spelling
+Foundry rolls alike (`parseHd`: `2D6`, `d8`, a signed flat). Where nothing can
+be read (a class with no hit dice set for the levels held, or a formula of two
+dice terms) nothing is rolled or written, and `rerollRefusal` gives the reason
+for the caller to show; the module never hands the roll to the system's own
+`rollHP`, which applies no Constitution. Maximum and current are written
+together, and the chat card lists each level's roll.
+
+**Every roll the module makes is recorded per level**
+(`flags["acks-extras"].classes.hpRolls`, built by `hitpoints.mjs`
+`hpRollStep`). A step holds the level, its kind (`roll`, the level's whole
+pool rolled, every level past the last die level included; `none`, a level
+whose class prints no hit dice, which takes the previous maximum plus one),
+the formula, the faces as they fell (null where the roll reported none), the
+Constitution modifier applied, the printed flat, the 1st-level floor used
+(present on a step rolled under it: the figure, or null where none was
+imported, `importedDieMinimum`), the level's own figure, the maximum it left,
+`prior` where that maximum is one over the previous rather than the roll, and
+when. Its writers:
+
+- a bind that rebuilds (`applyClass` with `rebuildVitals`: the picker, and
+  chargen's 1st level) replaces the whole record with one step per level, in
+  the same write as the maximum; leaving 0th level keeps one over the old
+  maximum, and the last step then carries that figure with the old one as
+  `prior` (`closeHpRolls`);
+- the level-up wizard's Apply puts its level's step in place, dropping any
+  step at or above it (`withHpRoll`); `levelUpHitPoints` builds the step from
+  the figures behind the offered maximum, and a maximum held over the roll
+  carries the stored one it was held over as `prior`;
+- the sheet's hit dice roll (`rerollHitPoints`, the henchman hire's roll
+  among its callers) replaces the record with its steps; a character with no
+  class rolls its own formula once, and that one step is marked `whole`: it
+  stands for every level up to its own;
+- `guardLevelWrite` drops the steps above a lowered level, unless the write
+  carries its own record.
+
+A maximum typed by hand writes no step. The character sheet's Stats tab reads
+the record against the stored maximum (`hitPointAudit`): the last step's
+maximum is the stored one at the level held (`recorded`), or not (`differs`,
+shown as the two figures side by side, since a hand edit, a level lowered by
+hand and core's own roll all leave it), or the record ends at another level than the one held
+(`level`), or there is none. Levels below the last step that carry none, and
+above any `whole` step, are named. `hitPointAuditText` assembles the maximum's tooltip — each step's
+formula, faces, Constitution part, flat and floor ("not imported" where none
+was), its figure and the maximum, the citation RR ch. 1, Hit Points, and the
+figure effects put in force — and the compact line shown under the field
+(each level's faces and maximum, then the same notes). Nothing is derived to
+fill a gap: a character built before the record reads "no roll recorded".
 
 ## Experience adjustment
 
@@ -572,9 +618,9 @@ when it holds any.
 
 [scripts/classes/levelup.mjs](../../scripts/classes/levelup.mjs) watches XP
 cross the class document's next-level threshold and notifies — never applies.
-The wizard rolls HP per the world setting (RAW default: reroll the full Hit
-Dice, Constitution per die and never on the printed flat bonus, minimum one
-over the old maximum; see *Hit points*), lists the new level's fixed awards, opens
+The wizard rolls HP by the rules' procedure, and by no other (reroll the full
+Hit Dice, Constitution per die and never on the printed flat bonus, minimum
+one over the old maximum; see *Hit points*), lists the new level's fixed awards, opens
 a rung control per choice award ([picks.mjs](../../scripts/classes/picks.mjs)),
 then applies the class row for the new level, and only once that lands grants
 the abilities, writes HP with the maximum on each side of the climb

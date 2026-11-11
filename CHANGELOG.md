@@ -61,6 +61,13 @@
   fight it lifts on the mapper's own initiative turn in the first round they are
   not surprised, and returns when the combat ends. A dead, left-behind or
   stacked member never carries it, and a Vulnerable you set by hand is left alone.
+- **The hit point maximum shows how it was reached.** Character sheet → Stats
+  tab → Vitals: a line under the maximum, and the field's tooltip, list each
+  level's dice as they fell, the Constitution part, any flat bonus and the
+  first-die floor (or "not imported"), with the maximum they give. Character
+  creation, the class picker, the level-up wizard's Apply and Roll hit dice
+  record their rolls. A maximum typed by hand is never recorded as a roll: the
+  line shows the sheet's figure beside the one the rolls give.
 
 ### Changed
 
@@ -91,6 +98,11 @@
   Storage tab and the button was for players. The Judge releases a spoil with
   the row's Player-retrievable lock. A timed Harvest action that runs the
   book's harvest procedure is coming.
+- **The Level-up hit points setting is gone.** Settings tab → Game Settings →
+  ACKS II — Extras → Level-up hit points and its add-one-die option were a
+  house rule. The level-up wizard always rerolls the full hit dice by the
+  rules, keeping the better of the roll and one over the old maximum. A world
+  that stored the house rule now gets the rules' procedure.
 - **Light and noise no longer modify encounter throws.** The optional setting
   that shifted the party formation's wandering-monster throw by the party's
   light and pace, in Settings tab → Game Settings → ACKS II — Extras, was a
@@ -106,6 +118,12 @@
   throw at their current level, and rolls against that figure. Hover the figure
   to see which won and the other one. The skill's throw is no longer listed a
   second time under Proficiencies & powers.
+- **Roll hit dice applies Constitution.** Character sheet → Stats tab → Vitals
+  → Roll hit dice handed the roll to the system's own, which adds none. It now
+  rebuilds the total by the classes feature's rules, with Constitution on every
+  die, and reads hit dice written as `2D6`, `d8` or `1d8-1`. Its chat card shows
+  each level's dice and Constitution part. Where it cannot read the hit dice it
+  says why and writes nothing.
 - **A signing bonus the employer cannot cover no longer reads as paid.** The
   hire goes ahead, the bonus is recorded as owed (the hireling's sheet →
   Service tab → Terms → Signing bonus), and the refusal counts as a calamity,

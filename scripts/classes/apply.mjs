@@ -19,7 +19,7 @@ import { managedDelete } from "../lib/managed-effects.mjs";
 import { pathGroups, pathTrainingChanges, unansweredGroups, actorPaths } from "./paths.mjs";
 import { planTrainingSync } from "./training-logic.mjs";
 import { saveBandAt, attackBandAt, resolveLevelValue, findByRef } from "./registry.mjs";
-import { normalizeHd, rebuildHitPoints, storedMaxHp, xpForLevel } from "./hitpoints.mjs";
+import { HP_ROLLS_KEY, closeHpRolls, normalizeHd, rebuildHitPoints, storedMaxHp, xpForLevel } from "./hitpoints.mjs";
 import { grantLanguages } from "./languages.mjs";
 import { adventuringDoc, awardsThrough, grantAbility, grantAdventuring, ownsRef, refOf, rungProficiencyType } from "./grants.mjs";
 import { closesRung, grantsFrom, readRungs, rungLabel, rungOptions, rungSelectHtml } from "./picks.mjs";
@@ -346,6 +346,9 @@ export async function applyClass(
   // hit dice of its own. The level-up wizard never does — it has already
   // rolled the one die it means to add.
   let hpSteps = null;
+  // The hit point record the rebuild replaces, closed on the maximum written;
+  // null leaves the record as it stands.
+  let hpRolls = null;
   const built = rebuildVitals ? await rebuildHitPoints(actor, classItem, clamped) : null;
   if (rebuildVitals && !built) {
     // A class printing no hit dice has nothing to roll: the hit points stand.
@@ -362,11 +365,13 @@ export async function applyClass(
       const max = Math.max(built.max, oldMax + 1);
       update["system.hp.max"] = max;
       update["system.hp.value"] = Math.min(max, (Number(actor.system?.hp?.value) || 0) + max - oldMax);
+      hpRolls = closeHpRolls(built.steps, max, oldMax);
     } else {
       update["system.hp.max"] = built.max;
       // A rebuilt maximum with the old current value beside it reads as a
       // wound nobody took, so a fresh build arrives whole.
       update["system.hp.value"] = built.max;
+      hpRolls = built.steps;
     }
   }
 
@@ -564,6 +569,7 @@ export async function applyClass(
       // for this character in this class, and re-applying must not re-ask it.
       ...(election ? { damageBonus: { class: classKey, applies: election } } : {}),
       ...(Object.keys(pathPicks).length ? { paths: pathPicks } : {}),
+      ...(hpRolls ? { [HP_ROLLS_KEY]: hpRolls } : {}),
       ...(closed.length || grantAwards ? { awardsTaken: [...new Set([...takenAlready, ...closed])] } : {}),
     },
   });

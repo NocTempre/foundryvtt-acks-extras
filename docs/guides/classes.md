@@ -100,8 +100,8 @@ Three small controls appear beside the class field:
   real, repairable documents.*
 - **Rising arrow** (when XP qualifies) — the level-up wizard: HP rerolled per
   RAW (full Hit Dice, Constitution per die, never on the flat bonus past
-  9th, minimum one over the old maximum — an additive house rule is a world
-  setting), the new level's powers granted, class/general proficiency picks
+  9th, minimum one over the old maximum), the new level's powers granted,
+  class/general proficiency picks
   offered, slots bumped.
 
   ![](../releases/v3.0.0/classes-levelup.png)

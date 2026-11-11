@@ -27,7 +27,7 @@ import { applyClass, classUpdateData, normalizeHd, syncClassTraining } from "./a
 import { pathGroups, pathOptions, chosenOption, pathTrainingChanges, unansweredGroups, actorPaths, setActorPath, templateSelection } from "./paths.mjs";
 import { openClassPicker, registerAssignUi } from "./assign.mjs";
 import * as casting from "./casting.mjs";
-import { openLevelUp, registerLevelUp, parseHd, HP_MODE_SETTING } from "./levelup.mjs";
+import { openLevelUp, registerLevelUp, parseHd } from "./levelup.mjs";
 import { registerHitPointExpectations, firstLevelDieMinimum, HITPOINTS_DOC } from "./hitpoints.mjs";
 import { registerXpBonusExpectations, xpBonusFor } from "./xp-bonus.mjs";
 import * as legacy from "./legacy.mjs";
@@ -80,20 +80,6 @@ Hooks.once("init", () => {
   // Picks a character owes, drawn on the sheet and answerable from it.
   registerPendingChoices();
 
-  // How a gained level rolls HP. RAW (user-confirmed ruling): reroll the full
-  // Hit Dice, minimum one over the old maximum; additive is the house rule.
-  game.settings.register(MODULE_ID, HP_MODE_SETTING, {
-    name: `${LANG_PREFIX}.settings.levelUpHpMode.name`,
-    hint: `${LANG_PREFIX}.settings.levelUpHpMode.hint`,
-    scope: "world",
-    config: true,
-    type: String,
-    choices: {
-      raw: `${LANG_PREFIX}.settings.levelUpHpMode.raw`,
-      additive: `${LANG_PREFIX}.settings.levelUpHpMode.additive`,
-    },
-    default: "raw",
-  });
   // How a campaign rolls attributes: the printed method (RR Ch. 1 §I.2), or
   // one of the Judges Journal's options (JJ Ch. 16). A campaign rule, so the
   // world holds it and every player's generator obeys it.

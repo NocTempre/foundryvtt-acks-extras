@@ -120,8 +120,10 @@
           <span class="acks-extras-frame__fact-label">{{localize "ACKS-CHARACTER.vitals.hp"}}</span>
           <input class="acks-input acks-extras-frame__fact-input acks-nums" type="number" name="system.hp.value" value="{{st.vitals.hp.value}}" {{disabled (not @root.editable)}}>
           <span class="acks-extras-frame__fact-of">/</span>
-          <input class="acks-input acks-extras-frame__fact-input acks-nums" type="number" name="system.hp.max" value="{{st.vitals.hp.max}}" {{disabled (not @root.editable)}}>
+          <input class="acks-input acks-extras-frame__fact-input acks-nums" type="number" name="system.hp.max" value="{{st.vitals.hp.max}}"{{#if st.vitals.hp.audit}} data-tooltip-text="{{st.vitals.hp.audit.tip}}"{{/if}} {{disabled (not @root.editable)}}>
         </div>
+        {{!-- The maximum's record, visible: a tooltip never holds the only copy. --}}
+        {{#if st.vitals.hp.audit}}<div class="acks-extras-frame__hint acks-nums acks-extras-classes-hp-record" data-tooltip-text="{{st.vitals.hp.audit.tip}}">{{st.vitals.hp.audit.line}}</div>{{/if}}
         <div class="acks-extras-frame__fact">
           <i class="fa-solid fa-dice acks-extras-frame__fact-icon" inert></i>
           <span class="acks-extras-frame__fact-label">{{localize "ACKS.HitDice"}} <span class="acks-extras-frame__fact-note">· {{localize "ACKS-CHARACTER.vitals.hdNote"}}</span></span>

@@ -53,7 +53,8 @@ import { promptDivide } from "../lib/stack-prompt.mjs";
 import { unpackBundle, landCoin } from "../lib/bundles.mjs";
 import { skipDialogFor } from "../lib/roll-dialog.mjs";
 import { openClassPicker } from "../classes/assign-app.mjs";
-import { openLevelUp, rerollHitPoints } from "../classes/levelup.mjs";
+import { openLevelUp, rerollHitPoints, rerollRefusal } from "../classes/levelup.mjs";
+import { hitPointAuditText } from "../classes/hitpoints.mjs";
 import { reopenChargen } from "../classes/reopen-chargen.mjs";
 import { openLegacy } from "../classes/legacy.mjs";
 import { setActorPath } from "../classes/paths.mjs";
@@ -982,9 +983,11 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
 
   /**
    * Roll the hit dice and write the result as the full total — after asking.
-   * The module's hit point rules roll it (`rerollHitPoints`); the system's own
-   * roll, which applies neither Constitution nor the 1st-level floor, answers
-   * only a formula those rules cannot read.
+   * The module's hit point rules roll it (`rerollHitPoints`). Where they cannot
+   * read the hit dice it shows `rerollRefusal`'s reason and writes nothing; the
+   * system's own roll, which applies no Constitution, is never the fallback.
+   * The card carries the record's own account of each level, Constitution part
+   * included (`hitPointAuditText`).
    */
   static async #onRollHitDice() {
     const ok = await foundry.applications.api.DialogV2.confirm({
@@ -995,11 +998,13 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
     });
     if (!ok) return;
     const built = await rerollHitPoints(this.actor);
-    const total = built ? built.max : (await this.actor.rollHP(true)).total;
-    // The dice are shown, not just their conclusion, as the class apply shows them.
-    const steps = built?.steps?.length
-      ? `<p class="hint">${game.i18n.localize("ACKS-CLASSES.apply.hpRolls")} ${built.steps.map((s) => `${s.level}: ${s.formula} → ${s.total}`).join(", ")}</p>`
-      : "";
+    if (!built) {
+      ui.notifications?.warn(await rerollRefusal(this.actor));
+      return;
+    }
+    const total = built.max;
+    // The dice and each level's parts are shown, not just their conclusion.
+    const steps = built.steps?.length ? `<p class="hint">${hitPointAuditText(this.actor).tip}</p>` : "";
     await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: this.actor }), content: `<p>${loc("vitals.rerolled", { name: this.actor.name, total })}</p>${steps}` });
   }
 

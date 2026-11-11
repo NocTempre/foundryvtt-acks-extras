@@ -99,8 +99,9 @@ own decision, and not as a side effect of whatever comes next.
 - **The RR's optional 1st-level hit-point rules.** The book offers three (max
   at 1st, no minimums, the 0th-level walk-up). The imported floor is
   unconditional; a campaign wanting one of the options has no switch. If this
-  is wanted, extend the existing level-up HP mode setting rather than adding a
-  second one — one family of campaign HP options, not two.
+  is wanted, it is one setting for the book's own options; the wizard ships no
+  house rule (DECISIONS 2026-11-11, "The level-up wizard ships the rules'
+  procedure only").
 - **Whether a racial value of 0 should still carry its race's rates.** The
   books gate neither the racial XP increment nor the racial hit-point rate on
   points spent, but the derivation gates both (and the cap, traits and

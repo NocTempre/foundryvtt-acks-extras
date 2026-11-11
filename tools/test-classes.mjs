@@ -27,10 +27,25 @@ import {
 } from "../scripts/classes/builder-logic.mjs";
 import { classUpdateData, damageBonusLadder, rebindsHeldClass, syncClassTraining } from "../scripts/classes/apply.mjs";
 import { classForActor, findByRef, publish } from "../scripts/classes/registry.mjs";
-import { CLASS_TYPE, PROGRESSIONS_DOC_ID } from "../scripts/classes/constants.mjs";
+import { CLASS_TYPE, LANG_PREFIX, PROGRESSIONS_DOC_ID } from "../scripts/classes/constants.mjs";
 import { awardsAt, awardsThrough, choosableGenerals, spellLanes, admitsSpell, choosableSpells } from "../scripts/classes/grants.mjs";
 import { ANSWERED, closesRung, grantableRefs, grantsFrom } from "../scripts/classes/picks.mjs";
-import { rebuildHitPoints, rollFullHitPoints, firstLevelDieMinimum, hdAt, lastDieLevel, storedMaxHp, HITPOINTS_DOC } from "../scripts/classes/hitpoints.mjs";
+import {
+  rebuildHitPoints,
+  rollFullHitPoints,
+  firstLevelDieMinimum,
+  importedDieMinimum,
+  hdAt,
+  lastDieLevel,
+  storedMaxHp,
+  closeHpRolls,
+  hitPointRolls,
+  withHpRoll,
+  hitPointAudit,
+  hitPointAuditText,
+  parseHd,
+  HITPOINTS_DOC,
+} from "../scripts/classes/hitpoints.mjs";
 import { registerTable, unregisterTable, PRIORITY, getLayer, citeOf } from "../scripts/lib/tables.mjs";
 import { isOffer, offerKey } from "../scripts/classes/pending-choices.mjs";
 import { TRAINING_KEYS, normalizeTraining, trainingChanges, trainingOf, withTraining, classTrainingEffect, trainingIsBlank, planTrainingSync } from "../scripts/classes/training-logic.mjs";
@@ -727,13 +742,49 @@ await atest("the sheet's full reroll: a class rebuilds level by level, any other
     // A flat bonus printed past the dice takes no Constitution.
     globalThis.Roll = scriptDie([5]);
     assert.equal((await rollFullHitPoints(actor(1, 2, "1d7+2"), null)).max, 9);
-    assert.equal(await rollFullHitPoints(actor(1, 0, "1d7+1d5"), null), null, "not one cell of dice, so the caller falls back");
+    assert.equal(await rollFullHitPoints(actor(1, 0, "1d7+1d5"), null), null, "not one cell of dice, so nothing is rolled");
     // A class printing no hit-dice cell has no chain to roll, so the caller falls back there too.
     const bare = { system: { maximumLevel: 6, levels: [], levelRow: () => null } };
     assert.equal(await rollFullHitPoints(actor(2, 1, "2d7"), bare), null, "no printed hit dice: nothing is guessed");
     assert.equal(await rebuildHitPoints(actor(2, 1, "2d7"), bare, 2), null);
   } finally {
     unregisterTable(HITPOINTS_DOC, { priority: PRIORITY.WORLD });
+  }
+});
+
+await atest("the sheet's full reroll applies Constitution on every branch and never reaches the system's own roll", async () => {
+  // One cell of dice in any spelling Foundry rolls the same way; two terms stay unreadable.
+  assert.deepEqual(parseHd("2D6"), { dice: 2, sides: 6, flat: 0 });
+  assert.deepEqual(parseHd("d8"), { dice: 1, sides: 8, flat: 0 });
+  assert.deepEqual(parseHd("1d8 - 1"), { dice: 1, sides: 8, flat: -1 });
+  assert.deepEqual(parseHd("3d6+2"), { dice: 3, sides: 6, flat: 2 });
+  for (const bad of ["1d7+1d5", "", "0d6", "1d0", "5", null]) assert.equal(parseHd(bad), null, `${bad} is not one cell of dice`);
+  const refused = () => { throw new Error("the system's roll applies no Constitution"); };
+  const actor = (level, con, hd) => ({ system: { details: { level }, scores: { con: { mod: con } }, hp: { hd } }, rollHP: refused });
+  // No class, an upper-case formula: both dice take Constitution (1 + 2 each).
+  globalThis.Roll = scriptDie([1]);
+  let built = await rollFullHitPoints(actor(2, 2, "2D6"), null, { dieMinimum: null });
+  assert.deepEqual([built.max, built.steps[0].con, built.steps[0].faces], [6, 2, [1, 1]]);
+  // A negative flat lands after Constitution: 4 + 1 - 1.
+  globalThis.Roll = scriptDie([4]);
+  built = await rollFullHitPoints(actor(1, 1, "1d8-1"), null, { dieMinimum: null });
+  assert.deepEqual([built.max, built.steps[0].flat], [4, -1]);
+  // A class: every level's dice take Constitution. 1st: 1 + 2 = 3; 2nd: two dice of 1 + 2 = 6.
+  globalThis.Roll = scriptDie([1]);
+  built = await rollFullHitPoints(actor(2, 2, "1d8"), diceClass(), { dieMinimum: null });
+  assert.deepEqual(built.steps.map((s) => [s.con, s.total]), [[2, 3], [2, 6]]);
+  // Nothing readable: null, and still no system roll.
+  assert.equal(await rollFullHitPoints(actor(2, 2, "1d7+1d5"), null), null);
+  assert.equal(await rollFullHitPoints(actor(2, 2, "2d7"), { system: { maximumLevel: 6, levels: [], levelRow: () => null } }), null);
+  // Neither the roll nor the sheet's button calls the system's roll, and the module says why it wrote nothing.
+  for (const file of ["classes/hitpoints.mjs", "classes/levelup.mjs", "character-sheet/sheet.mjs"]) {
+    const src = readFileSync(new URL(`../scripts/${file}`, import.meta.url), "utf8");
+    assert.doesNotMatch(src.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, ""), /\.rollHP\(/, `${file} calls the system's roll`);
+  }
+  const levelup = readFileSync(new URL("../scripts/classes/levelup.mjs", import.meta.url), "utf8");
+  const en = JSON.parse(readFileSync(new URL("../lang/en.json", import.meta.url), "utf8"));
+  for (const key of ["rerollNoHd", "rerollUnreadable"]) {
+    assert.ok(levelup.includes(`levelup.${key}`) && en[`${LANG_PREFIX}.levelup.${key}`], `${key} is said and has its text`);
   }
 });
 
@@ -2151,7 +2202,7 @@ await atest("the stored maximum, not the prepared one, is what a hit-point chang
   assert.equal(storedMaxHp({}), 0);
   // 4 dice of 2 with Constitution 1 each = 12: over the stored 10, and not over the prepared 13.
   globalThis.Roll = scriptDie([2]);
-  const climb = await levelUpHitPoints(actor, diceClass(), 4, "full");
+  const climb = await levelUpHitPoints(actor, diceClass(), 4);
   assert.deepEqual([climb.oldMax, climb.newMax], [10, 12]);
   // The class apply reads the same figure, never `system.hp.max`.
   const apply = readFileSync(new URL("../scripts/classes/apply.mjs", import.meta.url), "utf8");
@@ -2163,94 +2214,86 @@ await atest("the level-up roll is made once per character and level, and reopeni
   const cls = diceClass();
   const actor = climber();
   globalThis.Roll = scriptDie([2]);
-  const first = await levelUpHitPoints(actor, cls, 4, "full");
+  const first = await levelUpHitPoints(actor, cls, 4);
   assert.equal(actor.updates.length, 1);
   assert.equal(first.roll.total, 8);
   assert.equal(first.newMax, 12);
   // The wizard is cancelled and opened again: better dice are on offer and are not used.
   globalThis.Roll = scriptDie([7]);
-  const again = await levelUpHitPoints(actor, cls, 4, "full");
+  const again = await levelUpHitPoints(actor, cls, 4);
   assert.deepEqual([again.newMax, again.roll.total, again.roll.formula], [first.newMax, first.roll.total, first.roll.formula]);
   assert.equal(actor.updates.length, 1, "nothing is rolled or written the second time");
   // Another level is another roll.
   globalThis.Roll = scriptDie([7]);
-  const other = await levelUpHitPoints(actor, cls, 5, "full");
+  const other = await levelUpHitPoints(actor, cls, 5);
   assert.equal(actor.updates.length, 2);
   assert.notEqual(other.roll.total, first.roll.total);
   assert.equal(actor.flag.levelUpRoll.level, 5, "one record, for the level being climbed");
-  // Changed hit dice or mode roll afresh: the kept dice answered another question.
+  // Changed hit dice roll afresh: the kept dice answered another question.
   globalThis.Roll = scriptDie([2]);
-  await levelUpHitPoints(actor, diceClass(4, 5), 5, "full");
+  await levelUpHitPoints(actor, diceClass(4, 5), 5);
   assert.equal(actor.updates.length, 3);
-  const moded = climber();
+  // A roll kept under a mode the wizard no longer offers is not the rules' roll.
+  const moded = climber({ flag: { levelUpRoll: { level: 4, mode: "additive", hd: "4d7", con: 1, formula: "1d7", dice: 6, faces: [6], total: 6 } } });
   globalThis.Roll = scriptDie([2]);
-  await levelUpHitPoints(moded, cls, 4, "full");
-  globalThis.Roll = scriptDie([2]);
-  await levelUpHitPoints(moded, cls, 4, "additive");
-  assert.equal(moded.updates.length, 2, "the setting changed, so the dice are rolled under the new rule");
+  const rerolled = await levelUpHitPoints(moded, cls, 4);
+  assert.deepEqual([moded.updates.length, moded.flag.levelUpRoll.mode, moded.flag.levelUpRoll.faces], [1, "full", [2, 2, 2, 2]]);
+  assert.equal(rerolled.newMax, 12);
 });
 
 await atest("a changed Constitution keeps the kept dice and recomputes only its own part, per die", async () => {
   const cls = diceClass();
   const actor = climber({ stored: 4, con: 1 });
   globalThis.Roll = scriptDie([1, 5, 2, 6]);
-  const first = await levelUpHitPoints(actor, cls, 4, "full");
+  const first = await levelUpHitPoints(actor, cls, 4);
   assert.deepEqual(actor.flag.levelUpRoll.faces, [1, 5, 2, 6], "the record keeps each face");
   assert.equal(first.newMax, 2 + 6 + 3 + 7);
   // A bonus, a penalty and back: never a new roll, and no die below one.
   globalThis.Roll = scriptDie([7]);
   actor.system.scores.con.mod = 3;
-  const raised = await levelUpHitPoints(actor, cls, 4, "full");
+  const raised = await levelUpHitPoints(actor, cls, 4);
   assert.equal(raised.newMax, 4 + 8 + 5 + 9);
   actor.system.scores.con.mod = -2;
-  const lowered = await levelUpHitPoints(actor, cls, 4, "full");
+  const lowered = await levelUpHitPoints(actor, cls, 4);
   assert.equal(lowered.newMax, Math.max(1 + 3 + 1 + 4, 4 + 1), "the penalty floors the 1 and the 2 at one");
   actor.system.scores.con.mod = 1;
-  const back = await levelUpHitPoints(actor, cls, 4, "full");
+  const back = await levelUpHitPoints(actor, cls, 4);
   assert.equal(back.newMax, first.newMax);
   assert.equal(actor.updates.length, 1, "nothing was rolled or written after the first open");
   assert.equal(raised.roll.total, first.roll.total, "the line shows the same dice");
-  // The additive rule's one die is kept the same way.
-  const added = climber({ stored: 10, con: 0 });
-  globalThis.Roll = scriptDie([4]);
-  const a1 = await levelUpHitPoints(added, cls, 4, "additive");
-  added.system.scores.con.mod = 2;
-  globalThis.Roll = scriptDie([1]);
-  const a2 = await levelUpHitPoints(added, cls, 4, "additive");
-  assert.deepEqual([a1.newMax, a2.newMax, added.updates.length], [14, 16, 1]);
 });
 
 await atest("a kept roll recorded without its faces counts only for the modifier it was rolled under", async () => {
   const cls = diceClass();
   const actor = climber({ con: 1, flag: { levelUpRoll: { level: 4, mode: "full", hd: "4d7", con: 1, formula: "4d7", dice: 8, total: 12 } } });
   globalThis.Roll = scriptDie([2]);
-  const same = await levelUpHitPoints(actor, cls, 4, "full");
+  const same = await levelUpHitPoints(actor, cls, 4);
   assert.deepEqual([same.newMax, actor.updates.length], [12, 0], "the same modifier reads the record as it stands");
   actor.system.scores.con.mod = 2;
   globalThis.Roll = scriptDie([3]);
-  const moved = await levelUpHitPoints(actor, cls, 4, "full");
+  const moved = await levelUpHitPoints(actor, cls, 4);
   assert.equal(actor.updates.length, 1, "another modifier with no faces to apply it to rolls again");
   assert.deepEqual(actor.flag.levelUpRoll.faces, [3, 3, 3, 3]);
   assert.equal(moved.newMax, 4 * 5);
 });
 
-await atest("the additive house rule keeps its one die per level, and past the last die level rolls nothing", async () => {
+await atest("past the last die level a climb rolls the whole pool, and keeps the better of it and one over the old maximum", async () => {
   const cls = diceClass();
-  const actor = climber();
-  globalThis.Roll = scriptDie([6]);
-  const added = await levelUpHitPoints(actor, cls, 4, "additive");
-  assert.deepEqual([added.roll.formula, added.newMax], ["1d7", 10 + 6 + 1]);
+  // 5th prints 4d7+1. Faces of 2 with Constitution 1: 4 × 3 + 1 = 13, over 10 + 1.
+  globalThis.Roll = scriptDie([2]);
+  const won = await levelUpHitPoints(climber(), cls, 5);
+  assert.deepEqual([won.roll.formula, won.newMax, won.step.kind, won.step.faces.length, won.step.flat, won.step.total], ["4d7", 13, "roll", 4, 1, 13]);
+  assert.equal("prior" in won.step, false, "the roll won");
+  // Faces of 1: 4 × 2 + 1 = 9, under 10 + 1, which the step names.
   globalThis.Roll = scriptDie([1]);
-  const same = await levelUpHitPoints(actor, cls, 4, "additive");
-  assert.equal(same.newMax, added.newMax, "the one die is kept too");
-  const flat = await levelUpHitPoints(climber(), cls, 5, "additive");
-  assert.deepEqual([flat.roll, flat.newMax], [null, 11], "the printed flat's rise, at least one");
+  const held = await levelUpHitPoints(climber(), cls, 5);
+  assert.deepEqual([held.newMax, held.step.kind, held.step.total, held.step.prior], [11, "roll", 9, 10]);
 });
 
-await atest("a class with no hit dice rolls nothing and says so", async () => {
+await atest("a class with no hit dice set rolls no dice, adds one over the old maximum and says so", async () => {
   const bare = { system: { maximumLevel: 6, levels: [], levelRow: () => null } };
   const actor = climber();
-  const climb = await levelUpHitPoints(actor, bare, 4, "full");
+  const climb = await levelUpHitPoints(actor, bare, 4);
   assert.deepEqual([climb.missingHd, climb.roll, climb.newMax], [true, null, 11]);
   assert.equal(actor.updates.length, 0);
 });
@@ -2271,6 +2314,203 @@ test("the kept roll is cleared when the level moves, and by nothing else", () =>
   const src = readFileSync(new URL("../scripts/classes/levelup.mjs", import.meta.url), "utf8");
   const body = src.slice(src.indexOf("async function runLevelUp"));
   assert.match(body, /\.\$\{ROLL_KEY\}`\]: unset\(\)/, "the wizard's own write clears it as the level is applied");
+});
+
+/* ------------- the hit point record: one step per level rolled ------------- */
+
+// Every figure below is invented: a die no page prints, a floor of 3 that is
+// deliberately not the printed one, made-up maxima.
+
+await atest("a rebuild records every level it rolls: dice, faces, Constitution, the floor, the figure", async () => {
+  const actor = { system: { scores: { con: { mod: 1 } } } };
+  assert.equal(importedDieMinimum(), null, "nothing imported reads as no floor");
+  globalThis.Roll = scriptDie([2]);
+  let built = await rebuildHitPoints(actor, diceClass(), 2);
+  assert.equal(built.steps[0].floor, null, "the 1st-level step says no floor was imported");
+  assert.equal("floor" in built.steps[1], false, "the floor is a 1st-level part only");
+  registerTable({ id: HITPOINTS_DOC, tables: { firstLevel: { dieMinimum: 3 } } }, { priority: PRIORITY.WORLD });
+  try {
+    assert.equal(importedDieMinimum(), 3);
+    // 1st: a 1 floored to 3, +1 = 4. 2nd: 4 and 2, +1 each = 8, over 4 + 1.
+    globalThis.Roll = scriptDie([1, 4, 2]);
+    built = await rebuildHitPoints(actor, diceClass(), 2);
+    const [one, two] = built.steps;
+    assert.deepEqual(
+      [one.level, one.kind, one.formula, one.faces, one.con, one.floor, one.total, one.max],
+      [1, "roll", "1d7", [1], 1, 3, 4, 4],
+    );
+    assert.deepEqual([two.level, two.formula, two.faces, two.con, two.total, two.max], [2, "2d7", [4, 2], 1, 8, 8]);
+    assert.equal(built.max, two.max, "the last step's maximum is the one written");
+    assert.ok(Number.isFinite(one.at), "each step says when");
+    // The flat a row prints past its dice is its own part.
+    globalThis.Roll = scriptDie([1]);
+    built = await rebuildHitPoints(actor, diceClass(), 5);
+    assert.deepEqual([built.steps.length, built.steps[4].flat, built.steps[4].total], [5, 1, 9]);
+    assert.deepEqual([built.steps[4].kind, built.steps[4].faces.length], ["roll", 4], "past the last die level the whole pool is rolled");
+    // A level whose roll falls under one over the last keeps that, and names it:
+    // 1st a 6; 2nd two 1s = 2, under 6 + 1.
+    globalThis.Roll = scriptDie([6, 1, 1]);
+    built = await rebuildHitPoints({ system: { scores: { con: { mod: 0 } } } }, diceClass(), 2);
+    assert.deepEqual([built.steps[1].total, built.steps[1].max, built.steps[1].prior, "prior" in built.steps[0]], [2, 7, 6, false]);
+    // The sheet's reroll without a class records its one roll the same way.
+    globalThis.Roll = scriptDie([1]);
+    built = await rollFullHitPoints({ system: { details: { level: 1 }, scores: { con: { mod: 0 } }, hp: { hd: "1d5" } } }, null);
+    assert.deepEqual([built.steps[0].level, built.steps[0].floor, built.steps[0].max, built.steps[0].whole], [1, 3, 3, true]);
+    globalThis.Roll = scriptDie([2]);
+    const classless = { system: { details: { level: 3 }, scores: { con: { mod: 0 } }, hp: { hd: "3d5", max: 0 } }, getFlag: () => ({}) };
+    built = await rollFullHitPoints(classless, null);
+    classless.getFlag = () => ({ hpRolls: built.steps });
+    classless.system.hp.max = built.max;
+    const audit = hitPointAudit(classless);
+    assert.deepEqual([audit.state, audit.missing], ["recorded", []], "one roll of the whole formula stands for every level up to its own");
+  } finally {
+    unregisterTable(HITPOINTS_DOC, { priority: PRIORITY.WORLD });
+  }
+});
+
+test("a rebuilt record closes on the maximum written, and a level's step replaces that level and everything above", () => {
+  const steps = [{ level: 1, max: 4 }, { level: 2, max: 6 }];
+  assert.equal(closeHpRolls(steps, 6, 9), steps, "the written maximum is the last step's own");
+  assert.deepEqual(closeHpRolls(steps, 10, 9).at(-1), { level: 2, max: 10, prior: 9 });
+  assert.deepEqual(closeHpRolls([], 5, 4), []);
+  const record = [{ level: 1 }, { level: 2 }, { level: 3 }];
+  assert.deepEqual(withHpRoll(record, { level: 4 }).map((s) => s.level), [1, 2, 3, 4]);
+  assert.deepEqual(withHpRoll(record, { level: 2, n: "new" }), [{ level: 1 }, { level: 2, n: "new" }]);
+  assert.deepEqual(withHpRoll(undefined, { level: 1 }), [{ level: 1 }]);
+  const holder = { getFlag: () => ({ hpRolls: [{ level: 2 }, null, { level: 1 }, { level: "x" }] }) };
+  assert.deepEqual(hitPointRolls(holder), [{ level: 1 }, { level: 2 }], "in level order, malformed steps left out");
+  assert.deepEqual(hitPointRolls({ getFlag: () => undefined }), []);
+});
+
+/** A character carrying `hpRolls`, at `level`, storing `stored` and preparing `prepared`. */
+const recorded = ({ steps, level = 2, stored = 7, prepared = stored }) => ({
+  system: { details: { level }, hp: { max: prepared } },
+  _source: { system: { hp: { max: stored } } },
+  getFlag: (scope, key) => (scope === "acks-extras" && key === "classes" && steps ? { hpRolls: steps } : undefined),
+});
+const STEPS = [
+  { level: 1, mode: "full", kind: "roll", formula: "1d7", faces: [1], con: 1, flat: 0, floor: 3, total: 4, max: 4 },
+  { level: 2, mode: "full", kind: "roll", formula: "2d7", faces: [4, 2], con: 1, flat: 0, total: 7, max: 7 },
+];
+/** The audit text with each lang key read as its last segment and its data. */
+const auditText = (actor) => {
+  const saved = globalThis.game.i18n;
+  globalThis.game.i18n = { format: (key, data) => `${key.slice(key.lastIndexOf(".") + 1)}${data ? JSON.stringify(data) : ""}` };
+  try {
+    return hitPointAuditText(actor);
+  } finally {
+    globalThis.game.i18n = saved;
+  }
+};
+
+test("the sheet reads the record against the stored maximum, and says what it does not account for", () => {
+  assert.equal(hitPointAudit(recorded({ steps: STEPS })).state, "recorded");
+  assert.deepEqual(hitPointAudit(recorded({ steps: STEPS, stored: 8 })).state, "differs", "a hand edit is not a roll");
+  assert.equal(hitPointAudit(recorded({ steps: STEPS, level: 3 })).state, "level", "a level set by hand rolled nothing");
+  assert.equal(hitPointAudit(recorded({})).state, "none");
+  const climbed = hitPointAudit(recorded({ steps: [{ ...STEPS[1], level: 3 }], level: 3 }));
+  assert.deepEqual([climbed.state, climbed.missing], ["recorded", [1, 2]], "a climb on a character built before the record");
+  const zeroth = hitPointAudit(recorded({ steps: [{ ...STEPS[0], level: 0 }], level: 0, stored: 4 }));
+  assert.deepEqual([zeroth.state, zeroth.missing], ["recorded", []]);
+});
+
+test("the maximum's tooltip names each level's parts with the character's numbers, and the visible line carries the same record", () => {
+  const ok = auditText(recorded({ steps: STEPS, prepared: 9 }));
+  assert.equal(ok.state, "recorded");
+  assert.match(ok.tip, /^head\{"max":7\}/);
+  assert.match(ok.tip, /stepRoll\{"level":1,"total":4,"max":4,"formula":"1d7","faces":"1","parts":"conPerDie\{\\"con\\":\\"\+1\\"\}, floor\{\\"floor\\":3\}"\}/);
+  assert.match(ok.tip, /stepRoll\{"level":2,[^}]*"faces":"4, 2","parts":"conPerDie\{\\"con\\":\\"\+1\\"\}"\}/, "no floor part past 1st level");
+  assert.match(ok.tip, /inForce\{"value":9\}/, "effects' figure, since the field's own effect note is covered");
+  assert.match(ok.line, /^line\{"steps":"short\{\\"level\\":1,\\"faces\\":\\"1\\",\\"max\\":4\} · short/);
+  const notImported = auditText(recorded({ steps: [{ ...STEPS[0], floor: null }], level: 1, stored: 4 }));
+  assert.match(notImported.tip, /floorNone/);
+  const byHand = auditText(recorded({ steps: STEPS, stored: 8 }));
+  assert.match(byHand.tip, /differs\{"recorded":7,"stored":8\}/);
+  assert.match(byHand.line, /differs/, "what the user needs to act on is visible too");
+  assert.doesNotMatch(byHand.tip, /inForce/);
+  const none = auditText(recorded({}));
+  assert.deepEqual([none.state, none.line], ["none", "lineNone"]);
+  assert.match(none.tip, /^head\{"max":7\} · none$/, "no steps invented");
+  const gaps = auditText(recorded({ steps: [{ ...STEPS[1], level: 3 }], level: 3 }));
+  assert.match(gaps.tip, /missing\{"levels":"1, 2"\}/);
+  const moved = auditText(recorded({ steps: STEPS, level: 4 }));
+  assert.match(moved.tip, /otherLevel\{"recorded":2,"level":4\}/);
+  const kinds = auditText(
+    recorded({
+      steps: [
+        { level: 1, kind: "roll", formula: "1d7", faces: [5], con: -1, flat: 0, total: 4, max: 4 },
+        { level: 2, kind: "none", faces: null, total: 0, max: 5, prior: 4 },
+        { level: 3, kind: "roll", formula: "2d7", faces: null, con: 0, flat: 2, total: 5, max: 6, prior: 5 },
+      ],
+      level: 3,
+      stored: 6,
+    }),
+  );
+  assert.match(kinds.tip, /stepRoll\{"level":1,[^}]*"parts":"conPerDie\{\\"con\\":\\"-1\\"\}"\}/);
+  assert.match(kinds.tip, /stepNone\{"level":2,"total":0,"max":5,"prior":4\} · /, "the not-imported level names the maximum it rose from, once");
+  assert.match(kinds.tip, /stepRoll\{"level":3,"total":5,"max":6,"formula":"2d7","faces":"facesUnknown",.*?flat\{\\"flat\\":\\"\+2\\"\}.*?\} prior\{"prior":5\}/, "a level past the last die rolls its whole pool, held over the previous");
+  const whole = auditText(recorded({ steps: [{ ...STEPS[1], level: 3, whole: true }], level: 3, stored: 7 }));
+  assert.match(whole.tip, /stepWhole\{"level":3,/);
+  assert.doesNotMatch(whole.tip, /missing/);
+});
+
+test("every audit string the record's text asks for is in the language file", () => {
+  const src = readFileSync(new URL("../scripts/classes/hitpoints.mjs", import.meta.url), "utf8");
+  const lang = JSON.parse(readFileSync(new URL("../lang/en.json", import.meta.url), "utf8"));
+  const asked = new Set([...src.matchAll(/fmt\(\s*"(\w+)"/g)].map((m) => m[1]));
+  for (const m of src.matchAll(/"(step\w+)"/g)) asked.add(m[1]);
+  for (const m of src.matchAll(/\?\s*"(\w+)"\s*:\s*"(\w+)"/g)) asked.add(m[1]).add(m[2]);
+  // The audit's state names ride the same ternary shape and are not strings.
+  for (const state of ["differs", "recorded"]) if (!src.includes(`fmt("${state}"`)) asked.delete(state);
+  assert.equal(asked.size, Object.keys(lang).filter((k) => k.startsWith(`${LANG_PREFIX}.hpAudit.`)).length, "every string asked for, and none left over");
+  for (const segment of asked) assert.ok(`${LANG_PREFIX}.hpAudit.${segment}` in lang, `${segment} has no string`);
+  // A hand edit, a level lowered by hand and core's own roll all differ alike.
+  const differs = lang[`${LANG_PREFIX}.hpAudit.differs`];
+  assert.doesNotMatch(differs, /hand/i, "the mismatch names no cause");
+  assert.ok(differs.includes("{stored}") && differs.includes("{recorded}"));
+});
+
+await atest("the level-up wizard's step is made from the figures it writes", async () => {
+  const cls = diceClass();
+  globalThis.Roll = scriptDie([2]);
+  const full = await levelUpHitPoints(climber(), cls, 4);
+  assert.deepEqual(
+    [full.step.level, full.step.kind, full.step.formula, full.step.faces, full.step.con, full.step.total, full.step.max],
+    [4, "roll", "4d7", [2, 2, 2, 2], 1, 12, full.newMax],
+  );
+  assert.equal("floor" in full.step, false, "a climb is never rolled under the 1st-level floor");
+  assert.equal("prior" in full.step, false, "the roll is the maximum");
+  globalThis.Roll = scriptDie([1]);
+  const held = await levelUpHitPoints(climber(), cls, 4);
+  assert.deepEqual([held.step.total, held.step.max, held.step.prior], [8, 11, 10], "held over the stored maximum, which the step names");
+  const bare = await levelUpHitPoints(climber(), { system: { maximumLevel: 6, levels: [], levelRow: () => null } }, 4);
+  assert.deepEqual([bare.step.kind, bare.step.faces, bare.step.max, bare.step.prior], ["none", null, bare.newMax, 10]);
+  assert.equal("mode" in full.step, false, "the wizard has one procedure, so a step names none");
+});
+
+test("a lowered level drops the record's steps above it, unless the write carries its own", () => {
+  guarded(() => {
+    const flag = { hpRolls: [1, 2, 3, 4].map((level) => ({ level, max: level * 3 })) };
+    const lowered = { system: { details: { level: 2 } } };
+    guardLevelWrite(boundAt(4, 0, flag), lowered, {});
+    assert.deepEqual(flagOf(lowered).hpRolls.map((s) => s.level), [1, 2]);
+    const rebuilt = { system: { details: { level: 2 } }, flags: { "acks-extras": { classes: { hpRolls: [{ level: 1 }, { level: 2 }] } } } };
+    guardLevelWrite(boundAt(4, 0, flag), rebuilt, {});
+    assert.deepEqual(flagOf(rebuilt).hpRolls, [{ level: 1 }, { level: 2 }]);
+    const raised = { system: { details: { level: 5 } } };
+    guardLevelWrite(boundAt(4, 0, flag), raised, {});
+    assert.equal(flagOf(raised).hpRolls, undefined, "a raised level rolled nothing and touches nothing");
+  });
+});
+
+test("every path that writes a rolled maximum writes the record beside it", () => {
+  const levelup = readFileSync(new URL("../scripts/classes/levelup.mjs", import.meta.url), "utf8");
+  const climb = levelup.slice(levelup.indexOf("async function runLevelUp"), levelup.indexOf("export async function rerollHitPoints"));
+  assert.match(climb, /\$\{HP_ROLLS_KEY\}`\]: withHpRoll\(/, "the wizard's apply");
+  const reroll = levelup.slice(levelup.indexOf("export async function rerollHitPoints"), levelup.indexOf("export function guardLevelWrite"));
+  assert.match(reroll, /\$\{HP_ROLLS_KEY\}`\]: built\.steps/, "the sheet's reroll");
+  const apply = readFileSync(new URL("../scripts/classes/apply.mjs", import.meta.url), "utf8");
+  assert.match(apply, /\[HP_ROLLS_KEY\]: hpRolls/, "a bind that rebuilds, chargen's 1st level among them");
 });
 
 console.log(`test-classes: ${passed} assertion groups passed.`);

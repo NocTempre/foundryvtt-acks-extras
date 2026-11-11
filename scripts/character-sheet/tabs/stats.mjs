@@ -21,6 +21,7 @@ import { armourTrainingRows } from "../../equipment/abilities-bridge.mjs";
 import { standingModifiers } from "../../lib/typed-modifiers.mjs";
 import { TRAINING_VIEWS, arrangeUnits } from "../../equipment/training-view.mjs";
 import { trainingSourceName, trainingProvenance, editedSlots, classTraining, hasTraining } from "../../classes/training.mjs";
+import { hitPointAuditText } from "../../classes/hitpoints.mjs";
 import { LIGHT_SOURCES, lightFigures, lightCite } from "../../lib/light.mjs";
 import { senseProfile, VISION_MODES } from "../../lib/senses.mjs";
 import { ATTRIBUTES } from "../../lib/vocab.mjs";
@@ -391,8 +392,16 @@ export function buildStatsTab(actor, { openBuckets = new Set(), editing = false,
   ];
 
   const acTip = acTips(actor, sys, stored, typedFor(actor));
+  // The maximum's provenance (classes `hitPointAuditText`); a throw there leaves
+  // the field without it rather than the tab unrendered.
+  let hpAudit = null;
+  try {
+    hpAudit = hitPointAuditText(actor);
+  } catch (err) {
+    console.error("acks-extras | hit point record could not be read; the maximum stands without it", err);
+  }
   const vitals = {
-    hp: { value: num(stored.hp?.value), max: num(stored.hp?.max) },
+    hp: { value: num(stored.hp?.value), max: num(stored.hp?.max), audit: hpAudit },
     hd: String(stored.hp?.hd ?? ""),
     ac: [
       { icon: "fa-solid fa-shield-halved", label: loc("vitals.acShield"), value: num(sys.ac?.value), tip: acTip.shield, shown: num(sys.ac?.shield) > 0 },

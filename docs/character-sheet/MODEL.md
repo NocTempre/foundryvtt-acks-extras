@@ -296,6 +296,12 @@ the prepared data. A field whose path an effect touches (`actor.overrides`)
 is marked `is-overridden` at render, and its tooltip names the figure in
 force. The Class tab's level and XP inputs are stored-sourced the same way.
 
+The hit point maximum's tooltip and the line under it are the classes
+feature's per-level record (docs/classes/MODEL.md, "Hit points";
+`hitPointAuditText`), set as `data-tooltip-text`, which core's tooltip manager
+reads before the `is-overridden` mark's `data-tooltip`; the record's tooltip
+therefore carries the figure in force itself.
+
 **Class** shows the bound class document (opens on click), the level and
 title, the XP pair and the free-text class field, with chips for the class
 picker and the Scores Generator. While the XP bar is full a gold band names

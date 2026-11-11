@@ -1377,6 +1377,9 @@ maximum is at least one higher than the old; past 9th the printed flat bonus
 applies with no CON adjustment. An additive-die house rule may be offered as
 a setting, never as the default. (Consumed by the level-up wizard — ROADMAP.)
 
+*Superseded in part, 2026-11-11 ("The level-up wizard ships the rules'
+procedure only"): the house-rule setting is removed; the procedure stands.*
+
 ## 2026-08-05 — Casting is a typed framework from the start
 
 Ruled (user): nothing deferred — the casting schema carries kind-typed
@@ -1905,3 +1908,108 @@ the stored maximum. Keeping the Constitution part apart from the stored dice
 across the character's life is a model change, put to the owner.
 
 **What it cost.** A kept roll is a few numbers longer.
+
+## 2026-11-11 — each level's hit point roll is recorded on the character
+
+**Ruled (owner, T-0447).** Each level's hit point roll is recorded for
+auditing on the character sheet.
+
+**Ruled (owner, on review).** No new dice does not mean no roll: every level
+is a roll against one over the previous maximum, the better kept. A level
+past the class's last die level rolls its whole pool — its dice, Constitution
+on each, the printed flat — and its step is a `roll`, with `prior` where one
+over the previous won. The first draft recorded two "non-roll" kinds; one of
+them belonged to the additive option, removed the same day (next entry).
+
+**Chosen here (implementation, not the owner's).**
+- The record reconciles on a running maximum per step, not on a sum: each
+  level is the higher of its roll and one over the last, so the levels'
+  figures never add up to the stored maximum.
+- A level whose class prints no hit dice is recorded as kind `none`: its dice
+  are not imported, and the wizard wrote the previous maximum plus one, which
+  the step names as `prior`. Leaving it out would make every later level read
+  as outside the record. Its text says the dice are not imported; it never
+  reads as a roll.
+- The sheet's hit dice roll writes the record too, though the ruling named
+  chargen, the bind and the wizard: it writes a maximum from a module roll,
+  and without a record every reroll would read as outside the record.
+- A stored maximum that is not the record's is shown as the two figures
+  ("The sheet holds S; the recorded rolls give R"), naming no cause (ruled by
+  the coordinator on review). A hand edit, a level lowered by hand after a
+  rebuild (whose `hpAt` holds only the level rebuilt, so nothing is
+  restored), and core's own `rollHP` fallback all leave that state, and the
+  record cannot tell them apart. Restoring a maximum from the record on a
+  lowered level was rejected: it would make the guard write maxima the
+  record was only meant to audit.
+- The copy reachable without hover is one line under the field (each
+  level's faces and maximum, and the notes); the parts of each roll are in
+  the tooltip. A disclosure was rejected: the sheet re-renders on every field
+  change and closes it, and holding its state is the sheet's, not this
+  feature's.
+
+**Rejected.** Deriving steps for a character built before the record from its
+stored maximum: that invents rolls nobody made. Such a character reads "no
+roll recorded".
+
+**What it cost.** A level a Judge types by hand rolls nothing and is shown as
+outside the record until the sheet's hit dice roll rebuilds it.
+
+## 2026-11-11 — The level-up wizard ships the rules' procedure only
+
+**Ruled (owner).** No shipping house rules. This retires the setting clause
+of 2026-08-05 ("Level-up HP is RAW: reroll the full HD, minimum +1"), which
+allowed an additive-die house rule as a setting, never the default; that
+entry is older than seven days, and the ruling stands on its own.
+
+**Removed.**
+- The world setting `levelUpHpMode` (Settings tab → Game Settings → the
+  module's section → "Level-up hit points") and its four lang keys. With one
+  procedure left it would gate nothing, so it is not registered at all.
+- Every additive branch of `levelUpHitPoints`: one new die per level, and the
+  printed flat's rise past the last die level.
+- The record's `mode` field and its `flat` step kind, which only the additive
+  option produced and read.
+
+**What a stored value does now.** Nothing reads it. A world that stored
+`additive` gets the rules' procedure. A climb's kept roll still carries
+`mode: "full"`, and a kept roll stamped with any other mode (one kept under
+the additive option, one die) no longer answers the climb and is rolled
+again under the rules — keeping the stamp, rather than dropping it, is what
+stops a one-die roll standing in for the whole pool.
+
+**What it cost.** A table that played the additive option has no switch for
+it; that is the ruling.
+
+## 2026-11-11 — the sheet's hit dice roll never hands off to the system's roll
+
+**Evidence.** An owner report (ledger T-0479): the Stats tab's Roll hit dice
+applied no Constitution. Every released build calls the system's `rollHP`
+from that button (core `actor.mjs`: `new Roll(system.hp.hd)`, bare), which is
+the cause on any tagged release; the 2026-11-10 entry above moved the button
+onto `rerollHitPoints`, and no tag carries that yet. What the 2026-11-10 entry
+did not know: its route still ended in `rollHP` whenever `rerollHitPoints`
+returned null (the sheet's fallback), and null came from any spelling
+`parseHd` refused, `2D6` and `1d8-1` among them. A read-only census of the
+test world's characters found none on that route, so it is a hole, not the
+reported case.
+
+**Ruled.**
+- `parseHd` reads one cell of dice in every spelling Foundry rolls alike: an
+  upper-case `D`, an omitted count, a signed flat. Two dice terms stay
+  unreadable.
+- Where nothing can be read, nothing is rolled and `rerollRefusal` names why
+  (the class sets no hit dice for the levels held, or the formula is not one
+  cell of dice). `rerollHitPoints` keeps returning null there, the contract
+  the henchman hire's roll reads.
+- The sheet (`character-sheet/sheet.mjs` `#onRollHitDice`) shows that reason
+  in place of a roll and has no `rollHP` fallback. Its card shows the
+  record's own text, so each level's Constitution part is visible there too.
+
+**Rejected.** Rolling an unreadable formula through `Roll` with Constitution
+on every die term: it applies the per-die rule to a formula no class prints,
+and a refusal the Judge can act on costs less than a figure nobody can audit.
+Warning from `rerollHitPoints` itself: the hire flow reads its null and
+reports the missing class on its own, so a warning there would double.
+
+**What it cost.** A character whose formula has two dice terms gets a refusal
+instead of a total until its formula is one cell.

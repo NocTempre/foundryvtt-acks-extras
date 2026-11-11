@@ -942,13 +942,13 @@ point line is the paragraph holding `→`, and closing the dialog without
 answering is a cancel. A reload is a real `Page.reload` over the seat's CDP
 target, never a navigation; mark the old page first and wait for a page
 without the mark, since the old one answers *ready* until the reload takes it
-down. The hit-point mode is the world setting `levelUpHpMode`; the walk
-restores it in its `finally`.
+down.
 
 **Steps → observable.**
 1. START 2, open the wizard. *A roll is shown, and
    `flags["acks-extras"].classes.levelUpRoll` holds it stamped with level 3,
-   mode `full`, the 3rd-level dice and the Constitution modifier.*
+   mode `full`, the 3rd-level dice and the Constitution modifier.* (`full` is
+   the only mode; a roll kept under any other is rolled again.)
 2. Close it and open it again; then reload the Player page and open it again.
    *The same line and the same record each time.*
 3. Raise Constitution to a score with another modifier and open it. *The
@@ -970,9 +970,8 @@ restores it in its `finally`.
    record.*
 8. Bind the gap class at 1st and open the wizard. *The record's dice are two
    of the size the class's last die row prints.*
-9. START 2, open and close the wizard, set the mode to additive, open it
-   again. *The record now reads mode `additive` and one die; the offer is the
-   old maximum plus that die and the modifier, at least one.*
+9. Open Settings tab → Game Settings → the module's section. *No level-up
+   hit point setting is listed: the wizard has only the rules' procedure.*
 10. On the Player page, read `acksExtras.classes.intBonusPicks` over the
     scores 3–18 against `CONFIG.Actor.dataModels.character.getAttributeModifier`.
     *The system serves the function; the picks are its modifier clamped at
@@ -984,6 +983,60 @@ restores it in its `finally`.
     held, and press Apply. *The stored maximum is unchanged.* Open it again,
     type 4 into the level field (a `change` event, which re-renders the
     window), and press Apply. *Level 4; the maximum is rolled.*
+12. The hit point record, read where a user reads it. START 2 (the bind
+    rebuilds) and open the character sheet's Stats tab from the Player seat.
+    *`flags["acks-extras"].classes.hpRolls` holds steps for levels 1 and 2,
+    each with formula, faces, the Constitution modifier and the maximum; the
+    1st-level step's `floor` is the imported figure, or null with the
+    `hitPoints` table unregistered. The last step's `max` is
+    `_source.system.hp.max`. The line under Hit points
+    (`.acks-extras-classes-hp-record`) lists both levels' faces and maxima,
+    and the `system.hp.max` input's `data-tooltip-text` names each level's
+    formula, faces, Constitution part and the floor ("not imported" where
+    none was), and RR ch. 1.* Hovering the input shows that text.
+    Climb to 3 through the wizard. *A third step, its faces the wizard's kept
+    roll's and its `max` the applied maximum; the earlier two unchanged.*
+    Type a different maximum into the field. *The line and the tooltip give
+    the stored and recorded figures side by side; no step is added.*
+    Type the level back to 2. *The record holds levels 1 and 2 only.*
+    Press the dice beside Hit dice. *The record is replaced, one step per
+    level, its last `max` the new maximum.* Add an effect that ADDs to
+    `system.hp.max`. *The tooltip ends with the figure in force.* Sweep it.
+    A character whose classes flag is unset and whose maximum is typed.
+    *The line reads "No hit point roll recorded"; the tooltip is the head and
+    "No roll recorded", no step.* A class whose dice stop rising (a long one,
+    twelve invented rows), bound one level short of a level past its last
+    die level; climb with `CONFIG.Dice.randomUniform` rigged on the climbing
+    seat (0.025 throws high, 0.975 low on core 14; probe one roll, restore it
+    in a `finally`), once shaped low and climbed high, once the other way.
+    *Both climbs record `kind: "roll"` with as many faces as the level's pool
+    prints, `total` the faces with Constitution each plus the printed flat,
+    and `max` the better of `total` and the previous plus one; the second
+    names the previous maximum as `prior`.* Two characters with a
+    Constitution modifier above zero, one bound to a class at 2nd level and
+    one with no class whose formula is `2D6`; with every die rigged to 1 and
+    the actor's `rollHP` watched, press the dice beside Hit dice on each from
+    the GM seat. *Every step carries the modifier as `con` and a `total` of
+    the dice with it applied; the classless one is one `whole` step of two
+    faces; each card carries the record's Constitution part.* Set the
+    classless one's formula to two dice terms and press the dice again.
+    *A warning shows `rerollRefusal`'s reason, naming the formula in
+    localized text; the hit points and record are unchanged; no card is
+    posted; `rollHP` was never called.* Close the long class character's sheet and
+    open it again on the Stats tab. *At the sheet's default width the line,
+    its row and its column each have `scrollWidth <= clientWidth`.*
+
+    `tools/live/classes-hp-record.mjs` walks this step. Fixtures (kept, by
+    marker): `classes/hp-record-class` and `classes/hp-record-long-class`
+    (invented rows), and the Player-owned characters
+    `classes/hp-record-character`, `classes/hp-record-high-character`,
+    `classes/hp-record-blank-character`, `classes/hp-record-con-character`
+    and `classes/hp-record-con-classless-character`. The watch on `rollHP` is
+    an own property on each actor, deleted in teardown. The bind of step 12 goes through the
+    real picker window (`pickerApply`); the hand edit is typed into the
+    rendered Stats tab field; the reroll is the Stats tab's dice confirmed in
+    its DialogV2. Core's tooltip manager is read through
+    `game.tooltip.activate(input)`.
 
 **Teardown.** The fixtures are kept. The cards the climbs post (made by the
 Player's client, spoken by the fixture) and the step 6 effect are tracked by
