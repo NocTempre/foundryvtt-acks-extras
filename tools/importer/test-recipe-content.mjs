@@ -20,7 +20,7 @@ import { openBook, pageItems } from "../../scripts/importer/extract.mjs";
 import { extractTable } from "../../scripts/importer/table-extract.mjs";
 import { locatePageNumber, recipeLocates } from "../../scripts/importer/tables-binding.mjs";
 import { TABLE_RECIPES } from "../../scripts/importer/table-recipes.mjs";
-import { isMissingRow, missingRowKeys } from "../../scripts/lib/tables.mjs";
+import { isMissingRow, missingRowKeys, quantity } from "../../scripts/lib/tables.mjs";
 import { parseCell } from "../../scripts/markets/rules/availability.mjs";
 import { parseStones, parseTollCpPerSt, parseTariffPct, parseStayFee, diceRange } from "../../scripts/markets/rules/arbitrage.mjs";
 import { parseMoneyCp } from "../../scripts/markets/rules/commissions.mjs";
@@ -50,7 +50,8 @@ const TABLES = {
   morale: ["monsterMorale", "hirelingObedience"],
   // The hiring offer: a result column and the two penalties beside it.
   // The loyalty roll's figure per level of apparent difference.
-  influence: ["hiringOffer", "apparentLevel"],
+  // The three tone pages' modifier lists (diplomacy, intimidation, seduction).
+  influence: ["hiringOffer", "apparentLevel", "diplomacyModifiers", "intimidationModifiers", "seductionModifiers"],
   // The henchman limit's base: one figure the roster counts every hire against.
   // The employer-level cap: the ladder a leveled henchman search is judged on.
   // The level-gain morale bonuses: two levels and the bonus each earns.
@@ -277,6 +278,18 @@ VERIFY["influence.hiringOffer"] = (out, recipe, fail) => {
   for (const key of ["slanderPenalty", "refusalPenalty"]) if (isNum(out?.[key]) && !(out[key] < 0)) fail(`${key}: not below zero`);
   bandLadder(out?.bands, "bands", fail, 5);
 };
+// A tone page's modifier list: every declared key read as a finite number or,
+// where the recipe takes a quantity, as one the registry reads; the rows that
+// carry their wording (`label: true`) carry distinct text.
+for (const id of ["influence.diplomacyModifiers", "influence.intimidationModifiers", "influence.seductionModifiers"]) {
+  VERIFY[id] = (out, recipe, fail) => {
+    proseKeys(out, recipe, fail);
+    rowLabels(out, recipe, fail);
+    for (const v of recipe.values) {
+      if (v.take === "quantity" && out?.[v.key] !== undefined && !quantity(out[v.key])) fail(`${v.key}: not a quantity the registry reads`);
+    }
+  };
+}
 // The loyalty roll's apparent-level figure: multiplied by a count of levels,
 // so a whole number below zero the reader accepts as it stands.
 VERIFY["influence.apparentLevel"] = (out, recipe, fail) => {

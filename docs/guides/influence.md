@@ -48,6 +48,14 @@ Situational modifiers are **toggles**, not silent additions. The roll is offered
 never asserted: you decide what is really in play, and the module does not decide
 for you.
 
+**The Diplomacy, Intimidation and Seduction pages show your book's figures.**
+Each row's figure is read from your Judges Journal when you import the rules
+tables (Settings tab → Game Settings → ACKS II — Extras → Manage imports →
+Import tab); hover a row's name to see the page it came from. A row whose
+figure has not been imported is greyed out with a badge saying so, adds
+nothing to the roll, and a notice above the rows says the page is waiting on
+its import ([importing from your books](importer.md)).
+
 **A proficiency is offered only to a character who holds it.** Diplomacy,
 Intimidation, Seduction and Mystic Aura draw a box on the hiring and market
 assessment pages only for a character holding that proficiency, or a power

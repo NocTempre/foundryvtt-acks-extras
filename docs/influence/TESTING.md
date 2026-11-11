@@ -25,9 +25,10 @@ hand.
   roll, look for `Attitude: <target name>` in `influencer.items` filtered to
   `acks-extras.attitude`. Looking on the target finds nothing and reads as the
   write having failed.
-- Modifiers are listed on the card by name. An alignment match contributes +1
-  without anything being configured, so a "no modifiers" expectation fails on
-  two actors that happen to share an alignment — set them deliberately.
+- Modifiers are listed on the card by name. With the tone page imported, an
+  alignment match contributes its figure without anything being configured, so
+  a "no modifiers" expectation fails on two actors that happen to share an
+  alignment — set them deliberately.
 - A player's roll against a hidden target is re-resolved on a GM client
   through the `resolveHiddenRoll` socket handler. Testing it needs a real
   second seat (the capture driver's browser), not a second pane tab.
@@ -267,6 +268,46 @@ read layers and the drive are docs/henchmen/TESTING.md step 16.
     adds and contributes the count times it, and the roll-complete payload's
     `parts` carry that line.
 
+## The tone pages
+
+The three reaction tones read `influence.diplomacyModifiers`,
+`intimidationModifiers` and `seductionModifiers`. Fixtures: the influencer and
+target above, set to differing alignments and a level gap wide enough to clear
+the floor, and a character holding Diplomacy.
+
+Drive mechanics:
+
+- **Check before importing, and import one document.** As for the hiring page
+  above: `hasDoc("influence")` first. A world that already holds it is not the
+  run's to remove, so register invented tables in the client instead
+  (`registerTable({id: "influence", tables: {diplomacyModifiers: {...}}},
+  {priority})`, unregistered after). Otherwise
+  `cookbookImportTables(["influence"])` with the Judges Journal connected, and
+  `removeDoc("influence")` at teardown.
+- Read a row's state from `app._prepareContext({}).groups`: a disabled row has
+  `isDisabled`, an unread one `isNotImported`, and `figureTip` is the string the
+  label's tooltip shows.
+
+Steps:
+
+21. With no `influence` tone table: open each tone page.
+    *Observable:* every row that names a figure is disabled with the
+    not-imported badge, the notice above the rows names the page, the total
+    contributes nothing from them, a pre-fill (alignment, level gap, age,
+    social status) fills none of them, and the character's Diplomacy item is
+    offered in its own row with its own effect rather than a dead box. No label
+    shows a number other than a page reference or a tier.
+22. Import the tables, or register invented ones, and reopen each tone.
+    *Observable:* no disabled row, no notice; each figured row shows its figure
+    and the label's tooltip names the page it was read from; a rung select
+    lists the rungs that were read under a blank option, and choosing a rung
+    changes the total by that rung's figure; the pre-fills fill from the
+    imported figures; a level gap short of the imported floor fills nothing.
+23. Set an override layer for one table and reopen.
+    *Observable:* that table's tooltips say the figure is the Judge's own.
+24. Delete the tables again (the DELETE path) and reopen.
+    *Observable:* step 21's state returns without a reload.
+
 ## Teardown
 
 Delete the influencer, the target, and every `acks-extras.attitude` item the
@@ -276,5 +317,6 @@ document, if the run imported it. For the hiring and loyalty pages, walked by
 `tools/live/henchmen.mjs`: no actor is swept, since its fixtures are kept and
 its cards are retired by the next run (docs/henchmen/TESTING.md, Teardown);
 remove the `influence` document if the run imported it, or unregister the
-figures it registered.
+figures it registered; the tone pages' walk (steps 21-24) leaves the same
+layers behind and removes them the same way.
 Unregister any condition figures the run registered in the client.

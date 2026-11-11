@@ -11,8 +11,10 @@
  */
 import assert from "node:assert/strict";
 import { resolveLevelValue } from "../scripts/lib/vocab.mjs";
-import { EXTERNAL_MODES, INFLUENCE_DOC, INFLUENCE_MODIFIERS, INFLUENCE_TONE, REACTION_CHANGE_KEY, ROLL_FAMILY, externalRows } from "../scripts/influence/constants.mjs";
+import fs from "node:fs";
+import { EXTERNAL_MODES, INFLUENCE_DOC, INFLUENCE_MODIFIERS, INFLUENCE_TONE, REACTION_CHANGE_KEY, ROLL_FAMILY, TONE_PAGES, externalRows } from "../scripts/influence/constants.mjs";
 import {
+  computeDefaults,
   effectRowsForPage,
   getActsAsPowers,
   getEffectReactionMods,
@@ -23,7 +25,7 @@ import {
   offeredEffectRows,
   resolveHeldRows,
 } from "../scripts/influence/actor-data.mjs";
-import { MORALE_DOC, modeRows, printedBands, printedFigure, printedLabel } from "../scripts/influence/printed.mjs";
+import { MORALE_DOC, figureOrigin, modeRows, printedBands, printedFigure, printedLabel, toneRows } from "../scripts/influence/printed.mjs";
 import { conditionEntries, conditionRows } from "../scripts/influence/condition-rows.mjs";
 import { PRIORITY, registerTable, resetTables } from "../scripts/lib/tables.mjs";
 import { getAbilityReactionMods, itemsWithReactionEffects } from "../scripts/influence/ability-effects.mjs";
@@ -646,5 +648,204 @@ t("a creature with no conditions adds no row", () => {
     globalThis.acksExtras.lib.tables = saved;
   }
 }
+
+/* --- the tone pages: structure ships, figures arrive from the import --- */
+
+/** Every row a tone page declares, with its tone. */
+const toneRowsDeclared = () => Object.entries(INFLUENCE_MODIFIERS).flatMap(([tone, groups]) => groups.flatMap((g) => g.mods.map((mod) => ({ tone, mod }))));
+
+/** The page's rows after the read, flat, against whatever the registry holds. */
+const toneRead = (tone) => toneRows(INFLUENCE_MODIFIERS[tone], TONE_PAGES[tone].table, INFLUENCE_DOC).flatMap((g) => g.mods);
+
+/** INVENTED figures, one per key a tone page's rows name: none is a book's. */
+const inventedTable = (tone) => {
+  const table = {};
+  let count = 0;
+  for (const { mod } of toneRowsDeclared().filter((row) => row.tone === tone)) {
+    for (const key of [mod.figure, ...(mod.rungs ?? []).map((r) => r.figure), ...Object.values(mod.autoFigures ?? {})]) {
+      if (key && table[key] === undefined) table[key] = count++ % 2 ? 6 + count : -(6 + count);
+    }
+  }
+  return table;
+};
+
+t("a tone page declares each row's figure by key and ships no figure", () => {
+  for (const { tone, mod } of toneRowsDeclared()) {
+    const where = `${tone}.${mod.key}`;
+    assert.equal(mod.value, undefined, `${where}: no figure`);
+    if (mod.figure !== undefined) assert.equal(mod.factor, undefined, `${where}: a figured row carries no factor`);
+    if (mod.options) assert.equal(mod.key, "bribe", `${where}: only the bribe tiers are literal options`);
+    if (mod.options) assert.deepEqual(mod.options.map((o) => o.value), [0, 1, 2, 3], `${where}: tier ordinals`);
+    if (mod.factor !== undefined) assert.equal(Math.abs(mod.factor), 1, `${where}: a count's sign, not a figure`);
+    for (const rung of mod.rungs ?? []) assert.equal(rung.value, undefined, `${where}.${rung.rung}: no figure`);
+  }
+  for (const [tone, page] of Object.entries(TONE_PAGES)) {
+    assert.ok(page.table && /^JJ \d+$/.test(page.cite), `${tone}: names its table and page`);
+  }
+});
+
+t("with nothing imported a figured row is disabled, contributes nothing and says not imported", () => {
+  resetTables();
+  for (const tone of Object.values(INFLUENCE_TONE)) {
+    const declared = toneRowsDeclared().filter((row) => row.tone === tone).map((row) => row.mod);
+    const read = toneRead(tone);
+    assert.equal(read.length, declared.length, `${tone}: no row is dropped`);
+    declared.forEach((mod, i) => {
+      const row = read[i];
+      const figured = mod.figure !== undefined || mod.rungs !== undefined;
+      assert.equal(Boolean(row.disabled), figured, `${tone}.${mod.key}: disabled exactly when it carries a figure`);
+      if (!figured) return;
+      assert.equal(row.unread, true, `${tone}.${mod.key}`);
+      assert.deepEqual(row.figureFrom, { docId: INFLUENCE_DOC, tableId: TONE_PAGES[tone].table });
+      if (mod.type === "select") assert.deepEqual(row.options.map((o) => o.value), [0], `${tone}.${mod.key}: only the blank`);
+      if (mod.auto?.startsWith("prof:")) assert.equal(row.auto, undefined, `${tone}.${mod.key}: an unread box claims no item`);
+    });
+  }
+  // A typed row is the Judge's, with or without an import.
+  const authority = toneRead(INFLUENCE_TONE.DIPLOMACY).find((m) => m.key === "authority");
+  assert.equal(authority.disabled, undefined);
+  assert.equal(authority.type, "signed");
+});
+
+t("an unread proficiency box leaves its item to speak for itself", () => {
+  resetTables();
+  const groups = toneRows(INFLUENCE_MODIFIERS.diplomacy, TONE_PAGES.diplomacy.table, INFLUENCE_DOC);
+  assert.equal(itemsWithProficiencyRows(actor, groups).has("i-dip"), false, "unread: the Diplomacy item's own effect still reaches the page");
+  registerTable({ id: INFLUENCE_DOC, tables: { [TONE_PAGES.diplomacy.table]: inventedTable("diplomacy") } }, { priority: PRIORITY.WORLD });
+  const read = toneRows(INFLUENCE_MODIFIERS.diplomacy, TONE_PAGES.diplomacy.table, INFLUENCE_DOC);
+  assert.equal(itemsWithProficiencyRows(actor, read).has("i-dip"), true, "read: the box speaks and claims it");
+  resetTables();
+});
+
+t("a read tone page is worth the imported figures, rung by rung", () => {
+  resetTables();
+  for (const tone of Object.values(INFLUENCE_TONE)) {
+    const table = inventedTable(tone);
+    registerTable({ id: INFLUENCE_DOC, tables: { [TONE_PAGES[tone].table]: table } }, { priority: PRIORITY.WORLD });
+    const declared = toneRowsDeclared().filter((row) => row.tone === tone).map((row) => row.mod);
+    toneRead(tone).forEach((row, i) => {
+      const mod = declared[i];
+      assert.equal(row.disabled, undefined, `${tone}.${mod.key}: read`);
+      if (mod.figure !== undefined && mod.type === "check") assert.equal(row.value, table[mod.figure], `${tone}.${mod.key}`);
+      if (mod.figure !== undefined && mod.type === "factor") assert.equal(row.factor, table[mod.figure], `${tone}.${mod.key}`);
+      if (mod.rungs) {
+        assert.equal(row.byIndex, true);
+        assert.deepEqual(row.options.slice(1).map((o) => [o.rung, o.figure]), mod.rungs.map((r) => [r.rung, table[r.figure]]), `${tone}.${mod.key}: rungs in page order`);
+        assert.deepEqual(row.options.map((o) => o.value), [0, ...mod.rungs.map((_, j) => j + 1)], `${tone}.${mod.key}: a blank, then each rung's own position`);
+      }
+    });
+    resetTables();
+  }
+});
+
+t("a rung the import did not read is left out, the rest stay", () => {
+  resetTables();
+  const tone = INFLUENCE_TONE.INTIMIDATION;
+  const table = inventedTable(tone);
+  delete table.outnumberYou2;
+  registerTable({ id: INFLUENCE_DOC, tables: { [TONE_PAGES[tone].table]: table } }, { priority: PRIORITY.WORLD });
+  const row = toneRead(tone).find((m) => m.key === "outnumber");
+  assert.deepEqual(row.options.slice(1).map((o) => o.rung), ["outnumberYou1", "outnumberYou3", "outnumberTarget1", "outnumberTarget2", "outnumberTarget3"]);
+  resetTables();
+});
+
+t("a rung is worded by the page when the import caught its row", () => {
+  resetTables();
+  const tone = INFLUENCE_TONE.INTIMIDATION;
+  registerTable(
+    { id: INFLUENCE_DOC, tables: { [TONE_PAGES[tone].table]: { ...inventedTable(tone), outnumberYou1Label: "  Invented wording  " } } },
+    { priority: PRIORITY.WORLD },
+  );
+  const options = toneRead(tone).find((m) => m.key === "outnumber").options;
+  assert.equal(options[1].printedLabel, "Invented wording");
+  assert.equal(options[2].printedLabel, null);
+  resetTables();
+});
+
+t("a figure says where it came from: the page, a Judge's override, or nothing imported", () => {
+  resetTables();
+  const tableId = TONE_PAGES.diplomacy.table;
+  assert.deepEqual(figureOrigin(tableId, INFLUENCE_DOC), { state: "missing", cite: null });
+  registerTable({ id: INFLUENCE_DOC, cites: { [tableId]: "JJ p. 0" }, tables: { [tableId]: { brandishing: 7 } } }, { priority: PRIORITY.WORLD });
+  assert.deepEqual(figureOrigin(tableId, INFLUENCE_DOC), { state: "imported", cite: "JJ p. 0" });
+  registerTable({ id: INFLUENCE_DOC, tables: { [tableId]: { brandishing: 8 } } }, { priority: PRIORITY.OVERRIDE });
+  assert.deepEqual(figureOrigin(tableId, INFLUENCE_DOC), { state: "override", cite: null }, "an override has no page, and is not the same as absent");
+  resetTables();
+});
+
+/** A character of a given level and alignment, as the auto sources read one. */
+const sitter = (level, alignment = "") => ({
+  type: "character",
+  system: { details: { alignment, level }, scores: { cha: { mod: 0 }, wis: { mod: 0 } } },
+  items: [],
+  effects: [],
+  getFlag: () => undefined,
+});
+
+t("alignment and level gap answer a direction; the rung and the figure are the page's", () => {
+  resetTables();
+  const ahead = sitter(9, "Lawful");
+  const behind = sitter(1, "Chaotic");
+  // Nothing imported: the rows are disabled, nothing is filled, and the
+  // typed level-gap row has no threshold to answer from.
+  const bare = computeDefaults(ahead, behind, Object.fromEntries(Object.values(INFLUENCE_TONE).map((tone) => [tone, toneRows(INFLUENCE_MODIFIERS[tone], TONE_PAGES[tone].table, INFLUENCE_DOC)])));
+  assert.equal(bare.diplomacy.alignment, 0);
+  assert.equal(bare.intimidation.levelGap, 0);
+  assert.equal(bare.seduction.levelGap, 0);
+
+  const dip = inventedTable("diplomacy");
+  const intim = { ...inventedTable("intimidation"), levelGapMin: { value: 6, atLeast: true } };
+  const sed = { ...inventedTable("seduction"), levelGapMin: { value: 6, atLeast: true } };
+  registerTable(
+    { id: INFLUENCE_DOC, tables: { [TONE_PAGES.diplomacy.table]: dip, [TONE_PAGES.intimidation.table]: intim, [TONE_PAGES.seduction.table]: sed } },
+    { priority: PRIORITY.WORLD },
+  );
+  const config = () => Object.fromEntries(Object.values(INFLUENCE_TONE).map((tone) => [tone, toneRows(INFLUENCE_MODIFIERS[tone], TONE_PAGES[tone].table, INFLUENCE_DOC)]));
+  const rungOf = (tone, key, value) => toneRead(tone).find((m) => m.key === key).options[value].rung;
+
+  const opposed = computeDefaults(ahead, behind, config());
+  assert.equal(rungOf("diplomacy", "alignment", opposed.diplomacy.alignment), "alignMismatch", "law against chaos is the clash rung");
+  assert.equal(rungOf("seduction", "levelGap", opposed.seduction.levelGap), "levelGapHigh", "a gap of eight clears a threshold of six");
+  assert.equal(opposed.intimidation.levelGap, intim.levelGapChar, "the typed row is filled with the page's figure for the character ahead");
+
+  const reverse = computeDefaults(behind, ahead, config());
+  assert.equal(rungOf("seduction", "levelGap", reverse.seduction.levelGap), "levelGapLow");
+  assert.equal(reverse.intimidation.levelGap, intim.levelGapTarget, "and the target's figure when the target is ahead");
+
+  const near = computeDefaults(sitter(5, "Lawful"), sitter(1, "Lawful"), config());
+  assert.equal(rungOf("diplomacy", "alignment", near.diplomacy.alignment), "alignMatch");
+  assert.equal(near.seduction.levelGap, 0, "a gap of four is under a threshold of six");
+  assert.equal(near.intimidation.levelGap, 0);
+
+  // The threshold is a floor: exactly the threshold meets it.
+  const edge = computeDefaults(sitter(7, "Lawful"), sitter(1, "Lawful"), config());
+  assert.equal(rungOf("seduction", "levelGap", edge.seduction.levelGap), "levelGapHigh");
+
+  // A page that has its figures but not its threshold leaves the row alone.
+  const { levelGapMin, ...noThreshold } = intim;
+  registerTable({ id: INFLUENCE_DOC, tables: { [TONE_PAGES.intimidation.table]: noThreshold } }, { priority: PRIORITY.WORLD });
+  assert.equal(computeDefaults(ahead, behind, config()).intimidation.levelGap, 0);
+  resetTables();
+});
+
+t("a disabled row is neither pre-filled nor counted", () => {
+  resetTables();
+  const groups = toneRows(INFLUENCE_MODIFIERS.diplomacy, TONE_PAGES.diplomacy.table, INFLUENCE_DOC);
+  const defaults = computeDefaults(sitter(1, "Lawful"), sitter(1, "Lawful"), { diplomacy: groups });
+  assert.equal(defaults.diplomacy.alignment, 0, "an unread select stays on the blank");
+  assert.equal(defaults.diplomacy.diplomacyProf, false, "an unread box is not auto-ticked");
+});
+
+t("no lang string of the tone pages carries a magnitude", () => {
+  const lang = JSON.parse(fs.readFileSync(new URL("../lang/en.json", import.meta.url), "utf8"));
+  const keys = Object.keys(lang).filter((k) => /^ACKS-INFLUENCE\.(mod|opt)\./.test(k));
+  assert.ok(keys.length > 40, "the sweep reads the rows");
+  for (const key of keys) {
+    // A page reference and a tier's own ordinal are the places a digit may
+    // stand; they are read past before looking for any other.
+    const text = lang[key].replace(/\b(?:JJ|RR|MM) \d+(?:-\d+)?/g, "").replace(/\bTier \d\b/g, "");
+    assert.equal(/\d/.test(text), false, `${key}: states a figure`);
+  }
+});
 
 console.log(`\n${n} tests passed (influence modifier sources)`);

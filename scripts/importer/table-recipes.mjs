@@ -3793,8 +3793,83 @@ export const TABLE_RECIPES = {
   // prose beside it, one per slander in the town and one per earlier refusal
   // of the party.
   influence: {
-    source: { book: "ACKS II Revised Rulebook", pages: "RR 162, 168" },
+    source: { book: "ACKS II Revised Rulebook + Judges Journal", pages: "RR 162, 168; JJ 85-87" },
     tables: {
+      // The three tone pages' bulleted modifier lists (JJ 85-87): each row
+      // prints its figure after its wording, so an anchor is the row's own
+      // opening words, never its figure. A row that is a rung of a ladder is
+      // told from its siblings by `occurrence`. A row stating a level gap in
+      // parentheses prints its threshold there: `quantity` reads it with its
+      // floor, `signed` reads the figure after it. The margin tab sits right
+      // of x590 and is windowed out. Rows the page words as a floor or a rate
+      // ("or more", "per favor") are not read: the Judge types those.
+      diplomacyModifiers: {
+        shape: "proseValues",
+        book: "jj",
+        printedPage: 85,
+        locate: "Diplomatic Modifiers",
+        column: { xMin: 20, xMax: 590 },
+        values: [
+          { key: "alignMatch", find: "character believed to be lawful; target is lawful or neutral", take: "signed", span: 8 },
+          { key: "alignMismatch", find: "character believed to be lawful; target is chaotic", take: "signed", span: 8 },
+          { key: "lairChar", find: "character is in own lair", take: "signed", span: 8 },
+          { key: "lairTarget", find: "character is trespassing in target", take: "signed", span: 14 },
+          { key: "diplomacyProf", find: "character has diplomacy proficiency", take: "signed", span: 8 },
+          { key: "mysticAura", find: "character has mystic aura proficiency", take: "signed", span: 8 },
+          { key: "brandishing", find: "character is brandishing weapon", take: "signed", span: 8 },
+          { key: "believesHarmed", find: "target believes character has harmed friends", take: "signed", span: 8 },
+          { key: "evidenceHarmed", find: "that character harmed friends", take: "signed", span: 8 },
+          { key: "personallyHarmed", find: "target has been personally harmed by character", take: "signed", span: 8 },
+        ],
+      },
+      intimidationModifiers: {
+        shape: "proseValues",
+        book: "jj",
+        printedPage: 86,
+        locate: "Intimidation Modifiers",
+        column: { xMin: 20, xMax: 590 },
+        values: [
+          { key: "outnumberYou1", find: "character and party members outnumber target(s)", occurrence: 1, take: "signed", span: 8, label: true },
+          { key: "outnumberYou2", find: "character and party members outnumber target(s)", occurrence: 2, take: "signed", span: 20, label: true },
+          { key: "outnumberYou3", find: "character and party members outnumber target(s)", occurrence: 3, take: "signed", span: 20, label: true },
+          { key: "outnumberTarget1", find: "target and friends outnumber character and party members", occurrence: 1, take: "signed", span: 8, label: true },
+          { key: "outnumberTarget2", find: "target and friends outnumber character and party members", occurrence: 2, take: "signed", span: 20, label: true },
+          { key: "outnumberTarget3", find: "target and friends outnumber character and party members", occurrence: 3, take: "signed", span: 20, label: true },
+          { key: "lairChar", find: "character is in own lair", take: "signed", span: 8 },
+          { key: "lairTarget", find: "target is in own lair", take: "signed", span: 8 },
+          { key: "weaponChar", find: "character is brandishing weapon", take: "signed", span: 8 },
+          { key: "weaponTarget", find: "target is armed", take: "signed", span: 8 },
+          { key: "magicChar", find: "character is brandishing magic items", take: "signed", span: 8 },
+          { key: "magicTarget", find: "target has spells or magic items available", take: "signed", span: 8 },
+          { key: "levelGapChar", find: "character is significantly higher level than target (", take: "signed", span: 30 },
+          { key: "levelGapTarget", find: "target is significantly higher level than character (", take: "signed", span: 30 },
+          { key: "levelGapMin", find: "character is significantly higher level than target (", take: "quantity", span: 30 },
+          { key: "intimidationProf", find: "character has intimidation proficiency and either", take: "signed", span: 60 },
+          { key: "mysticAura", find: "character has mystic aura", take: "signed", span: 8 },
+          { key: "sawFriendsHurt", find: "target has witnessed character kill or torture", take: "signed", span: 40 },
+        ],
+      },
+      seductionModifiers: {
+        shape: "proseValues",
+        book: "jj",
+        printedPage: 87,
+        locate: "Seduction Modifiers",
+        column: { xMin: 20, xMax: 590 },
+        values: [
+          { key: "agePerCategory", find: "younger age category than target attracted to youthful mates", take: "signed", span: 16 },
+          { key: "socialPerRank", find: "higher social status than target", take: "signed", span: 16 },
+          { key: "levelGapHigh", find: "significantly higher level (", take: "signed", span: 30 },
+          { key: "levelGapLow", find: "significantly lower level (", take: "signed", span: 30 },
+          { key: "levelGapMin", find: "significantly higher level (", take: "quantity", span: 30 },
+          { key: "alone", find: "character and target are alone", take: "signed", span: 8 },
+          { key: "friendsPresent", find: "are in front of target", take: "signed", span: 16 },
+          { key: "mysticAura", find: "character has mystic aura proficiency", take: "signed", span: 8 },
+          { key: "seductionProf", find: "character has seduction proficiency", take: "signed", span: 8 },
+          { key: "performanceArt", find: "also demonstrates performance or art proficiency", take: "signed", span: 8 },
+          { key: "tookAdvantageFriends", find: "taken advantage of target", occurrence: 1, take: "signed", span: 30 },
+          { key: "tookAdvantageTarget", find: "taken advantage of target", occurrence: 2, take: "signed", span: 30 },
+        ],
+      },
       // The Hireling Loyalty roll's penalty per level an employer is found to
       // have overstated (RR 168 prose): the signed figure before the clause
       // that names what it counts, which no other page prints.

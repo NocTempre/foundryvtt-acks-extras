@@ -121,20 +121,21 @@
                 </span>
               {{else if this.isCheck}}
                 <input type="checkbox" name="mod.{{this.key}}" id="{{@root.partId}}-mod-{{this.key}}"
-                       {{checked this.checked}}/>
+                       {{checked this.checked}} {{#if this.isDisabled}}disabled{{/if}}/>
               {{else if this.isSelect}}
                 <select name="mod.{{this.key}}" id="{{@root.partId}}-mod-{{this.key}}" data-dtype="Number"
-                        data-tooltip="{{this.label}}">
+                        data-tooltip="{{this.label}}" {{#if this.isDisabled}}disabled{{/if}}>
                   {{selectOptions this.options valueAttr="value" labelAttr="label" selected=this.value}}
                 </select>
               {{else}}
                 <input type="number" name="mod.{{this.key}}" id="{{@root.partId}}-mod-{{this.key}}"
                        value="{{this.value}}" data-dtype="Number" class="{{#if this.isGold}}influence-gold{{/if}}"
-                       {{#if this.feeTip}}data-tooltip-text="{{this.feeTip}}"{{/if}}/>
+                       {{#if this.feeTip}}data-tooltip-text="{{this.feeTip}}"{{/if}} {{#if this.isDisabled}}disabled{{/if}}/>
               {{/if}}
               {{#if this.isGold}}{{#unless this.masked}}<span class="influence-gp-suffix">gp</span>{{/unless}}{{/if}}
             </div>
-            <label class="influence-mod-label" for="{{@root.partId}}-mod-{{this.key}}">
+            <label class="influence-mod-label" for="{{@root.partId}}-mod-{{this.key}}"
+                   {{#if this.figureTip}}data-tooltip-text="{{this.figureTip}}"{{/if}}>
               {{this.label}}
               {{#if this.isAuto}}
                 <i class="fa-solid fa-wand-magic-sparkles influence-auto-badge"
@@ -151,6 +152,10 @@
               {{#if this.isUnread}}
                 <i class="fa-solid fa-book-open influence-unread-badge"
                    data-tooltip="{{localize 'ACKS-INFLUENCE.unread.badge'}}"></i>
+              {{/if}}
+              {{#if this.isNotImported}}
+                <i class="fa-solid fa-book-open influence-unread-badge"
+                   data-tooltip="{{localize 'ACKS-INFLUENCE.notImported.badge'}}"></i>
               {{/if}}
               {{#if this.isUnvalued}}
                 <i class="fa-solid fa-book-open influence-unread-badge"

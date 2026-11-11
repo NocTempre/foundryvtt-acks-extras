@@ -145,6 +145,39 @@ roll-complete payload carries `outcome: null` for such a roll. The hiring page
 is not: a hire needs a result to apply, so with no column it warns and refuses
 to roll.
 
+**The tone pages.** The three reaction tones read the `influence` document
+the same way, one table each (`TONE_PAGES` in `constants.mjs` names it and its
+folio): `diplomacyModifiers` (JJ 85), `intimidationModifiers` (JJ 86),
+`seductionModifiers` (JJ 87). The importer reads them from the Judge's Judges
+Journal by `proseValues` recipes (anchors and column geometry, no figure), and
+`toneRows` (`printed.mjs`) turns `INFLUENCE_MODIFIERS`' rows into what the
+dialog draws:
+
+| Declared | Read | Not read |
+|---|---|---|
+| `check` with a `figure` | a tick worth the figure, shown beside the row's name | disabled, flagged not imported |
+| `factor` with a `figure` | the row's count times the figure | disabled, flagged not imported |
+| `select` with `rungs` | a choice among the rungs that were read, by position, each worded as the page words it where the import caught one | disabled, flagged not imported |
+
+A disabled row contributes nothing, is never pre-filled, and a page with any
+disabled row says once, above its rows, that its page is not imported. A
+proficiency box that cannot be worth anything drops its `prof:` claim, so the
+item's own Active Effect still reaches the page. Every figure's row carries a
+tooltip naming where the figure came from: the page the importer read it from,
+the Judge's own override, or not imported (`figureOrigin`).
+
+Two things are read as structure and not as a figure: which direction a
+level gap or an alignment match points (a rung's name, found by `autoRung`),
+and the threshold a level gap must reach before it counts, which the page
+prints as a floor and the recipe reads as a quantity
+(`printedQuantity`). With the threshold unread, the gap's row fills nothing.
+A row that is typed by the roller because the page prints a floor or a rate
+("or more", "per favor") stays a typed `signed` field; its label names it and
+cites the page, and no figure ships for it. A bribe tier is its own ordinal
+(`BRIBE_OPTIONS`, labelled "Tier 1" to "Tier 3"), and its fee comes from the
+henchmen api (`DECISIONS.md`, "The tone pages read their figures from the
+imported page").
+
 **Held rows.** A proficiency the hiring page and the market assessment page
 offer — Diplomacy, Intimidation, Seduction, Mystic Aura — is declared `held`
 and carries no figure. `resolveHeldRows` (`actor-data.mjs`) draws the box

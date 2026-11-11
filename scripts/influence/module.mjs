@@ -160,10 +160,11 @@ Hooks.once("init", () => {
   // Also expose globally as a resilient fallback for macros.
   acksExtras.influence = api;
 
-  // The printed tables the morale, hiring and loyalty pages read, declared so
-  // the import names them while a Judge's books have not supplied them.
+  // The printed tables the morale, hiring, loyalty and tone pages read,
+  // declared so the import names them while a Judge's books have not
+  // supplied them.
   expectTables(MORALE_DOC, ["monsterMorale", "hirelingObedience"]);
-  expectTables(INFLUENCE_DOC, ["hiringOffer", "apparentLevel"]);
+  expectTables(INFLUENCE_DOC, ["hiringOffer", "apparentLevel", "diplomacyModifiers", "intimidationModifiers", "seductionModifiers"]);
 
   // Every sheet's Morale button (lib's `morale-roll` contract): the creature
   // is the page's subject, and nobody stands opposite it.

@@ -617,3 +617,47 @@ order reaches, not the change a payment could actually make; a fee that is
 covered in value yet cannot be made in coin still warns at payment and still
 counts its modifier. A roll with no influencer has no purse and is not held
 to one.
+
+### The tone pages read their figures from the imported page (2026-11-11)
+
+Closes ledger rows T-0094 (the `mod.*` labels printed their magnitudes) and
+T-0208 (no producer for them). Supersedes the ROADMAP's old section 1, which
+proposed the label fix and left the figure's source open, and removes the cost
+the 2026-09-03 entry and the hiring-page entry's last paragraph record (the
+tone pages' labels and proficiency boxes at a shipped figure).
+
+**Ruled** (owner, 2026-11-11). Every figure beside a diplomacy, intimidation
+or seduction modifier is read at import from the Judge's Judges Journal into
+`influence.diplomacyModifiers`, `intimidationModifiers` and
+`seductionModifiers`, and the roller reads it through the registry. A label
+states what the row is and cites its page; it carries no magnitude. A row
+whose figure is not imported renders disabled, says it is not imported, and
+contributes nothing. A figure's tooltip names its origin: the imported page,
+the Judge's override, or not imported.
+
+- *A typed row stays typed.* The rows whose page prints a floor or a rate
+  ("or more", "per favor") remain `signed` fields the roller types, with the
+  magnitude removed from the label. The page prints no one figure for them to
+  read.
+- *A bribe tier is its ordinal.* The three tiers are labelled by position and
+  buy the bonus their position names; the fee is the henchmen api's. A
+  session's call, not yet confirmed by the owner: the ordinal is the structure
+  the bribe row already ran on, and the label no longer prints the bonus.
+- *An unread proficiency box claims no item.* The item's own Active Effect
+  then speaks, so a roller holding the proficiency is not left with a dead
+  box over a live effect.
+- *A level gap needs its threshold.* The gap's floor is a figure the page
+  prints, read as a quantity; unread, the row fills nothing instead of
+  guessing the floor.
+
+**Rejected:** a frozen fallback table for the unread case (the registry's rule
+since the extraction program: no sample values); keeping the magnitude in the
+label with a citation beside it (a citation does not launder a figure);
+deleting the typed rows (they are the page's own procedure).
+
+**What it cost.** A world that has not imported the Judges Journal loses the
+pre-filled modifiers on all three tone pages until it does, and the three
+pages say so above their rows. The relationship ladder, the loyalty and
+irrefusable bands, the irrefusable offer's alignment figure and the age
+table's year bounds still ship figures, found here and left for their own
+rows (`ROADMAP.md`).

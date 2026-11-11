@@ -1,8 +1,8 @@
 /**
- * Static rules data for the ACKS II influence rolls.
- * Sourced from the player rules (pp. 84-87) and the Judges Journal GM screen.
- * The modifier layout mirrors the GM screen: rows in screen order, grouped by
- * the Both / Either / Character / Target keys, with "±" rows as selects.
+ * Static structure for the ACKS II influence rolls: which rows each tone page
+ * has (JJ 85-87), grouped by the Both / Either / Character / Target keys of the
+ * Judges Journal GM screen, with a two-sided row as a select. No figure is
+ * here: each row's figure is read from the `influence` document (`TONE_PAGES`).
  *
  * All user-facing labels are localization keys resolved via game.i18n; see
  * lang/en.json. See acks-rules/acks-influence/ACKS-Reactions-Reference.md for the rules reference.
@@ -236,9 +236,21 @@ export function henchmanMonthlyWage(hd) {
  * - `factor` : magnitude input; contributes `factor * value`.
  * - `gold`   : a gp amount that does NOT modify the roll (e.g. the bribe fee).
  *
+ * A row's figure is the page's, never this file's. A `check` or `factor` row
+ * names its figure in `figure`, and a `select` row lists `rungs` (`figure`
+ * plus the rung's own `label`, with `rung` naming it for an `autoRung`); each
+ * is a key of the tone's table (`TONE_PAGES`), and `toneRows` (printed.mjs)
+ * turns them into the rows the roller runs: the figure read, or a disabled
+ * row that says it is not imported. A `select` with literal `options` is a
+ * tier ladder whose value is the tier's own ordinal.
+ *
  * `auto` pre-fills a field from the actor/target. Sources resolved in
- * actor-data.mjs: "cha", "targetWill", "alignment", "prof:<name>", "bribeFee".
- * All `label`/`group`/option `label` values are localization keys.
+ * actor-data.mjs: "cha", "targetWill", "alignment", "levelGap", "age",
+ * "socialRank", "targetMorale", "prof:<name>", "bribeFee". `alignment` and
+ * `levelGap` answer a direction (1, -1 or 0): a `select` maps it to a rung
+ * through `autoRung`, a `signed` row to a figure through `autoFigures`, and
+ * `autoThreshold` names the table key holding the gap a level difference
+ * must meet. All `label`/`group`/option `label` values are localization keys.
  *
  * `exclusive: "<name>"` marks a set of `check` mods of which at most ONE may be
  * active. The three tone proficiencies are mutually exclusive in RAW (each
@@ -250,11 +262,39 @@ export function henchmanMonthlyWage(hd) {
  * handler (manual ticking).
  */
 
-const LAIR_OPTIONS = [
-  { label: "ACKS-INFLUENCE.opt.dash", value: 0 },
-  { label: "ACKS-INFLUENCE.opt.lairChar", value: 1 },
-  { label: "ACKS-INFLUENCE.opt.lairTarget", value: -1 },
+/**
+ * The lair row's two rungs, one per side of the lair. Each tone page prints
+ * both under the same two keys of its own table.
+ */
+const LAIR_RUNGS = [
+  { rung: "lairChar", figure: "lairChar", label: "ACKS-INFLUENCE.opt.lairChar" },
+  { rung: "lairTarget", figure: "lairTarget", label: "ACKS-INFLUENCE.opt.lairTarget" },
 ];
+
+/**
+ * The bribe row's tiers. A tier's bonus is its own ordinal and the henchmen
+ * feature prices each tier (`#bribeTiers` in influence-app.mjs), so the value
+ * stays the ordinal and no label states a bonus.
+ */
+const BRIBE_OPTIONS = [
+  { label: "ACKS-INFLUENCE.opt.dash", value: 0 },
+  { label: "ACKS-INFLUENCE.opt.bribeTier1", value: 1 },
+  { label: "ACKS-INFLUENCE.opt.bribeTier2", value: 2 },
+  { label: "ACKS-INFLUENCE.opt.bribeTier3", value: 3 },
+];
+
+/** `autoRung` / `autoFigures` direction keys: the character ahead, the target ahead. */
+const DIRECTION = { ahead: "1", behind: "-1" };
+
+/**
+ * Where each tone page's printed figures are read from: the `influence`
+ * document's table and the page it cites. The rows below name keys of it.
+ */
+export const TONE_PAGES = Object.freeze({
+  [INFLUENCE_TONE.DIPLOMACY]: { table: "diplomacyModifiers", cite: "JJ 85" },
+  [INFLUENCE_TONE.INTIMIDATION]: { table: "intimidationModifiers", cite: "JJ 86" },
+  [INFLUENCE_TONE.SEDUCTION]: { table: "seductionModifiers", cite: "JJ 87" },
+});
 
 export const INFLUENCE_MODIFIERS = Object.freeze({
   [INFLUENCE_TONE.DIPLOMACY]: [
@@ -266,13 +306,13 @@ export const INFLUENCE_MODIFIERS = Object.freeze({
           type: "select",
           label: "ACKS-INFLUENCE.mod.diplomacy.alignment",
           auto: "alignment",
-          options: [
-            { label: "ACKS-INFLUENCE.opt.dash", value: 0 },
-            { label: "ACKS-INFLUENCE.opt.alignMatch", value: 1 },
-            { label: "ACKS-INFLUENCE.opt.alignMismatch", value: -1 },
+          autoRung: { [DIRECTION.ahead]: "alignMatch", [DIRECTION.behind]: "alignMismatch" },
+          rungs: [
+            { rung: "alignMatch", figure: "alignMatch", label: "ACKS-INFLUENCE.opt.alignMatch" },
+            { rung: "alignMismatch", figure: "alignMismatch", label: "ACKS-INFLUENCE.opt.alignMismatch" },
           ],
         },
-        { key: "lair", type: "select", label: "ACKS-INFLUENCE.mod.diplomacy.lair", options: LAIR_OPTIONS },
+        { key: "lair", type: "select", label: "ACKS-INFLUENCE.mod.diplomacy.lair", rungs: LAIR_RUNGS },
       ],
     },
     {
@@ -281,35 +321,25 @@ export const INFLUENCE_MODIFIERS = Object.freeze({
         { key: "authority", type: "signed", label: "ACKS-INFLUENCE.mod.diplomacy.authority" },
         { key: "favors", type: "signed", label: "ACKS-INFLUENCE.mod.diplomacy.favors" },
         { key: "charisma", type: "signed", label: "ACKS-INFLUENCE.mod.charisma", auto: "cha" },
-        {
-          key: "bribe",
-          type: "select",
-          label: "ACKS-INFLUENCE.mod.diplomacy.bribe",
-          options: [
-            { label: "ACKS-INFLUENCE.opt.dash", value: 0 },
-            { label: "ACKS-INFLUENCE.opt.plus1", value: 1 },
-            { label: "ACKS-INFLUENCE.opt.plus2", value: 2 },
-            { label: "ACKS-INFLUENCE.opt.plus3", value: 3 },
-          ],
-        },
+        { key: "bribe", type: "select", label: "ACKS-INFLUENCE.mod.diplomacy.bribe", options: BRIBE_OPTIONS },
         { key: "bribeFee", type: "gold", label: "ACKS-INFLUENCE.mod.diplomacy.bribeFee", auto: "bribeFee", profModifier: "bribery" },
       ],
     },
     {
       group: "ACKS-INFLUENCE.group.character",
       mods: [
-        { key: "diplomacyProf", type: "check", label: "ACKS-INFLUENCE.mod.diplomacy.prof", value: 1, auto: "prof:diplomacy" },
-        { key: "mysticAura", type: "check", label: "ACKS-INFLUENCE.mod.mysticAura", value: 1, auto: "prof:mysticAura" },
-        { key: "brandishing", type: "check", label: "ACKS-INFLUENCE.mod.diplomacy.brandishing", value: -1 },
+        { key: "diplomacyProf", type: "check", label: "ACKS-INFLUENCE.mod.diplomacy.prof", figure: "diplomacyProf", auto: "prof:diplomacy" },
+        { key: "mysticAura", type: "check", label: "ACKS-INFLUENCE.mod.mysticAura", figure: "mysticAura", auto: "prof:mysticAura" },
+        { key: "brandishing", type: "check", label: "ACKS-INFLUENCE.mod.diplomacy.brandishing", figure: "brandishing" },
       ],
     },
     {
       group: "ACKS-INFLUENCE.group.target",
       mods: [
         { key: "targetWill", type: "factor", factor: -1, label: "ACKS-INFLUENCE.mod.targetWill", auto: "targetWill" },
-        { key: "believesHarmed", type: "check", label: "ACKS-INFLUENCE.mod.diplomacy.believesHarmed", value: -1 },
-        { key: "evidenceHarmed", type: "check", label: "ACKS-INFLUENCE.mod.diplomacy.evidenceHarmed", value: -2 },
-        { key: "personallyHarmed", type: "check", label: "ACKS-INFLUENCE.mod.diplomacy.personallyHarmed", value: -5 },
+        { key: "believesHarmed", type: "check", label: "ACKS-INFLUENCE.mod.diplomacy.believesHarmed", figure: "believesHarmed" },
+        { key: "evidenceHarmed", type: "check", label: "ACKS-INFLUENCE.mod.diplomacy.evidenceHarmed", figure: "evidenceHarmed" },
+        { key: "personallyHarmed", type: "check", label: "ACKS-INFLUENCE.mod.diplomacy.personallyHarmed", figure: "personallyHarmed" },
       ],
     },
   ],
@@ -321,17 +351,18 @@ export const INFLUENCE_MODIFIERS = Object.freeze({
           key: "outnumber",
           type: "select",
           label: "ACKS-INFLUENCE.mod.intimidation.outnumber",
-          options: [
-            { label: "ACKS-INFLUENCE.opt.dash", value: 0 },
-            { label: "ACKS-INFLUENCE.opt.outYou1", value: 1 },
-            { label: "ACKS-INFLUENCE.opt.outYou2", value: 2 },
-            { label: "ACKS-INFLUENCE.opt.outYou3", value: 5 },
-            { label: "ACKS-INFLUENCE.opt.outTgt1", value: -1 },
-            { label: "ACKS-INFLUENCE.opt.outTgt2", value: -2 },
-            { label: "ACKS-INFLUENCE.opt.outTgt3", value: -5 },
+          // Each rung is worded by the page when the import caught its row
+          // (the ratio it names is the page's), else by its own ordinal.
+          rungs: [
+            { rung: "outnumberYou1", figure: "outnumberYou1", label: "ACKS-INFLUENCE.opt.outYou", n: 1 },
+            { rung: "outnumberYou2", figure: "outnumberYou2", label: "ACKS-INFLUENCE.opt.outYou", n: 2 },
+            { rung: "outnumberYou3", figure: "outnumberYou3", label: "ACKS-INFLUENCE.opt.outYou", n: 3 },
+            { rung: "outnumberTarget1", figure: "outnumberTarget1", label: "ACKS-INFLUENCE.opt.outTgt", n: 1 },
+            { rung: "outnumberTarget2", figure: "outnumberTarget2", label: "ACKS-INFLUENCE.opt.outTgt", n: 2 },
+            { rung: "outnumberTarget3", figure: "outnumberTarget3", label: "ACKS-INFLUENCE.opt.outTgt", n: 3 },
           ],
         },
-        { key: "lair", type: "select", label: "ACKS-INFLUENCE.mod.intimidation.lair", options: LAIR_OPTIONS },
+        { key: "lair", type: "select", label: "ACKS-INFLUENCE.mod.intimidation.lair", rungs: LAIR_RUNGS },
       ],
     },
     {
@@ -341,33 +372,38 @@ export const INFLUENCE_MODIFIERS = Object.freeze({
           key: "brandishing",
           type: "select",
           label: "ACKS-INFLUENCE.mod.intimidation.weapons",
-          options: [
-            { label: "ACKS-INFLUENCE.opt.dash", value: 0 },
-            { label: "ACKS-INFLUENCE.opt.weaponChar", value: 1 },
-            { label: "ACKS-INFLUENCE.opt.weaponTarget", value: -1 },
+          rungs: [
+            { rung: "weaponChar", figure: "weaponChar", label: "ACKS-INFLUENCE.opt.weaponChar" },
+            { rung: "weaponTarget", figure: "weaponTarget", label: "ACKS-INFLUENCE.opt.weaponTarget" },
           ],
         },
         {
           key: "magicItems",
           type: "select",
           label: "ACKS-INFLUENCE.mod.intimidation.magic",
-          options: [
-            { label: "ACKS-INFLUENCE.opt.dash", value: 0 },
-            { label: "ACKS-INFLUENCE.opt.magicChar", value: 1 },
-            { label: "ACKS-INFLUENCE.opt.magicTarget", value: -1 },
+          rungs: [
+            { rung: "magicChar", figure: "magicChar", label: "ACKS-INFLUENCE.opt.magicChar" },
+            { rung: "magicTarget", figure: "magicTarget", label: "ACKS-INFLUENCE.opt.magicTarget" },
           ],
         },
         { key: "advantage", type: "signed", label: "ACKS-INFLUENCE.mod.intimidation.advantage" },
         { key: "authority", type: "signed", label: "ACKS-INFLUENCE.mod.intimidation.authority" },
-        { key: "levelGap", type: "signed", label: "ACKS-INFLUENCE.mod.intimidation.levelGap", auto: "levelGap" },
+        {
+          key: "levelGap",
+          type: "signed",
+          label: "ACKS-INFLUENCE.mod.intimidation.levelGap",
+          auto: "levelGap",
+          autoThreshold: "levelGapMin",
+          autoFigures: { [DIRECTION.ahead]: "levelGapChar", [DIRECTION.behind]: "levelGapTarget" },
+        },
       ],
     },
     {
       group: "ACKS-INFLUENCE.group.character",
       mods: [
         { key: "charisma", type: "signed", label: "ACKS-INFLUENCE.mod.charisma", auto: "cha" },
-        { key: "intimidationProf", type: "check", label: "ACKS-INFLUENCE.mod.intimidation.prof", value: 1, auto: "prof:intimidation" },
-        { key: "mysticAura", type: "check", label: "ACKS-INFLUENCE.mod.mysticAura", value: 1, auto: "prof:mysticAura" },
+        { key: "intimidationProf", type: "check", label: "ACKS-INFLUENCE.mod.intimidation.prof", figure: "intimidationProf", auto: "prof:intimidation" },
+        { key: "mysticAura", type: "check", label: "ACKS-INFLUENCE.mod.mysticAura", figure: "mysticAura", auto: "prof:mysticAura" },
       ],
     },
     {
@@ -375,7 +411,7 @@ export const INFLUENCE_MODIFIERS = Object.freeze({
       mods: [
         { key: "targetMorale", type: "factor", factor: -1, label: "ACKS-INFLUENCE.mod.intimidation.morale", auto: "targetMorale" },
         { key: "targetWill", type: "factor", factor: -1, label: "ACKS-INFLUENCE.mod.targetWill", auto: "targetWill" },
-        { key: "sawFriendsHurt", type: "check", label: "ACKS-INFLUENCE.mod.intimidation.sawFriendsHurt", value: 1 },
+        { key: "sawFriendsHurt", type: "check", label: "ACKS-INFLUENCE.mod.intimidation.sawFriendsHurt", figure: "sawFriendsHurt" },
         { key: "lossOfFace", type: "signed", label: "ACKS-INFLUENCE.mod.intimidation.lossOfFace" },
         { key: "fearsBoss", type: "signed", label: "ACKS-INFLUENCE.mod.intimidation.fearsBoss" },
       ],
@@ -385,8 +421,8 @@ export const INFLUENCE_MODIFIERS = Object.freeze({
     {
       group: "ACKS-INFLUENCE.group.both",
       mods: [
-        { key: "alone", type: "check", label: "ACKS-INFLUENCE.mod.seduction.alone", value: 1 },
-        { key: "friendsPresent", type: "check", label: "ACKS-INFLUENCE.mod.seduction.friendsPresent", value: -1 },
+        { key: "alone", type: "check", label: "ACKS-INFLUENCE.mod.seduction.alone", figure: "alone" },
+        { key: "friendsPresent", type: "check", label: "ACKS-INFLUENCE.mod.seduction.friendsPresent", figure: "friendsPresent" },
       ],
     },
     {
@@ -397,15 +433,18 @@ export const INFLUENCE_MODIFIERS = Object.freeze({
           type: "select",
           label: "ACKS-INFLUENCE.mod.seduction.levelGap",
           auto: "levelGap",
-          options: [
-            { label: "ACKS-INFLUENCE.opt.dash", value: 0 },
-            { label: "ACKS-INFLUENCE.opt.charHigher", value: 1 },
-            { label: "ACKS-INFLUENCE.opt.charLower", value: -1 },
+          autoThreshold: "levelGapMin",
+          autoRung: { [DIRECTION.ahead]: "levelGapHigh", [DIRECTION.behind]: "levelGapLow" },
+          rungs: [
+            { rung: "levelGapHigh", figure: "levelGapHigh", label: "ACKS-INFLUENCE.opt.charHigher" },
+            { rung: "levelGapLow", figure: "levelGapLow", label: "ACKS-INFLUENCE.opt.charLower" },
           ],
         },
-        // Auto-filled from the Character Aging table (race inferred from class);
-        // assumes youthful-mate preference — the GM flips the sign for mature.
-        { key: "age", type: "signed", label: "ACKS-INFLUENCE.mod.seduction.age", auto: "age" },
+        // Auto-filled with the age categories between the two (race inferred
+        // from class), counted as for a target who prefers youthful mates: the
+        // GM flips the sign for a mature preference. Each category is worth
+        // the page's figure.
+        { key: "age", type: "factor", figure: "agePerCategory", label: "ACKS-INFLUENCE.mod.seduction.age", auto: "age" },
         { key: "appeal", type: "signed", label: "ACKS-INFLUENCE.mod.seduction.appeal" },
       ],
     },
@@ -413,20 +452,21 @@ export const INFLUENCE_MODIFIERS = Object.freeze({
       group: "ACKS-INFLUENCE.group.character",
       mods: [
         // Auto-filled with the rungs the character stands above the target
-        // when both ranks are known (henchmen `facts.getSocialRank`).
-        { key: "socialStatus", type: "factor", factor: 1, label: "ACKS-INFLUENCE.mod.seduction.socialStatus", auto: "socialRank" },
+        // when both ranks are known (henchmen `facts.getSocialRank`), each
+        // worth the page's figure.
+        { key: "socialStatus", type: "factor", figure: "socialPerRank", label: "ACKS-INFLUENCE.mod.seduction.socialStatus", auto: "socialRank" },
         { key: "charisma", type: "signed", label: "ACKS-INFLUENCE.mod.charisma", auto: "cha" },
-        { key: "seductionProf", type: "check", label: "ACKS-INFLUENCE.mod.seduction.prof", value: 1, auto: "prof:seduction" },
-        { key: "mysticAura", type: "check", label: "ACKS-INFLUENCE.mod.mysticAura", value: 1, auto: "prof:mysticAura" },
-        { key: "performanceArt", type: "check", label: "ACKS-INFLUENCE.mod.seduction.performanceArt", value: 1, auto: "prof:performanceArt" },
+        { key: "seductionProf", type: "check", label: "ACKS-INFLUENCE.mod.seduction.prof", figure: "seductionProf", auto: "prof:seduction" },
+        { key: "mysticAura", type: "check", label: "ACKS-INFLUENCE.mod.mysticAura", figure: "mysticAura", auto: "prof:mysticAura" },
+        { key: "performanceArt", type: "check", label: "ACKS-INFLUENCE.mod.seduction.performanceArt", figure: "performanceArt", auto: "prof:performanceArt" },
       ],
     },
     {
       group: "ACKS-INFLUENCE.group.target",
       mods: [
         { key: "targetWill", type: "factor", factor: -1, label: "ACKS-INFLUENCE.mod.targetWill", auto: "targetWill" },
-        { key: "tookAdvantageFriends", type: "check", label: "ACKS-INFLUENCE.mod.seduction.tookAdvantageFriends", value: -1 },
-        { key: "tookAdvantageTarget", type: "check", label: "ACKS-INFLUENCE.mod.seduction.tookAdvantageTarget", value: -2 },
+        { key: "tookAdvantageFriends", type: "check", label: "ACKS-INFLUENCE.mod.seduction.tookAdvantageFriends", figure: "tookAdvantageFriends" },
+        { key: "tookAdvantageTarget", type: "check", label: "ACKS-INFLUENCE.mod.seduction.tookAdvantageTarget", figure: "tookAdvantageTarget" },
         { key: "personalRisk", type: "signed", label: "ACKS-INFLUENCE.mod.seduction.personalRisk" },
       ],
     },
@@ -643,17 +683,7 @@ export const EXTERNAL_MODES = Object.freeze({
       {
         group: "ACKS-INFLUENCE.mode.assessment.bribe",
         mods: [
-          {
-            key: "bribe",
-            type: "select",
-            label: "ACKS-INFLUENCE.mod.diplomacy.bribe",
-            options: [
-              { label: "ACKS-INFLUENCE.opt.dash", value: 0 },
-              { label: "ACKS-INFLUENCE.opt.plus1", value: 1 },
-              { label: "ACKS-INFLUENCE.opt.plus2", value: 2 },
-              { label: "ACKS-INFLUENCE.opt.plus3", value: 3 },
-            ],
-          },
+          { key: "bribe", type: "select", label: "ACKS-INFLUENCE.mod.diplomacy.bribe", options: BRIBE_OPTIONS },
           { key: "bribeFee", type: "gold", label: "ACKS-INFLUENCE.mod.diplomacy.bribeFee", auto: "bribeFee", profModifier: "bribery" },
         ],
       },

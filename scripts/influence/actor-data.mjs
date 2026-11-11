@@ -3,7 +3,9 @@
  * Reads auto-populatable values from the influencing actor and the targeted
  * token's actor, using only public ACKS data paths (no system internals).
  */
-import { CHANGE_KEY_FAMILY, henchmanMonthlyWage, INFLUENCE_MODIFIERS, MODULE_ID } from "./constants.mjs";
+import { CHANGE_KEY_FAMILY, henchmanMonthlyWage, INFLUENCE_DOC, INFLUENCE_MODIFIERS, MODULE_ID, TONE_PAGES } from "./constants.mjs";
+import { printedFigure, printedQuantity } from "./printed.mjs";
+import { meetsQuantity } from "../lib/tables.mjs";
 import { inferRace, optionalRuleEnabled, parseKindList } from "./racial.mjs";
 // Ability mod and level-or-HD read once from the lib subsystem (the
 // henchmen feature reads the same schema).
@@ -48,9 +50,10 @@ export const toLibAlignment = (value) => LIB_ALIGNMENT[String(value ?? "").toLow
 
 
 /**
- * Diplomacy alignment modifier: +1 when the two alignments match (same L/N/C),
- * -1 when they are opposed (Law vs Chaos), 0 otherwise (a Neutral mixed with a
- * non-matching alignment). Always overridable in the form.
+ * Diplomacy alignment direction: 1 when the two alignments match (same
+ * L/N/C), -1 when they are opposed (Law vs Chaos), 0 otherwise (a Neutral
+ * mixed with a non-matching alignment). The row maps it to a rung (`autoRung`)
+ * worth the page's figure. Always overridable in the form.
  */
 function alignmentModifier(charActor, targetActor) {
   if (!charActor || !targetActor) return 0;
@@ -221,7 +224,7 @@ function buildContext(actor, targetActor) {
     // stays editable as a manual override.
     targetMorale: moraleRatingOf(targetActor),
     alignment: alignmentModifier(actor, targetActor),
-    levelGap: levelGapModifier(actor, targetActor),
+    levelGap: levelGapOf(actor, targetActor),
     age: ageModifier(actor, targetActor),
     socialRank: socialRankModifier(actor, targetActor),
     profs,
@@ -246,14 +249,28 @@ function socialRankModifier(charActor, targetActor) {
 }
 
 /**
- * Level/HD gap modifier: +1 when the character is 3+ levels/HD above the target,
- * -1 when 3+ below, else 0. Uses class level for characters, HD for monsters.
+ * The level/HD difference between the two, character minus target, using class
+ * level for characters and HD for monsters; null when either side is missing.
+ * Whether it is a gap is the page's threshold, applied in `levelGapDirection`.
  */
-function levelGapModifier(charActor, targetActor) {
-  if (!charActor || !targetActor) return 0;
-  const diff = getActorHD(charActor) - getActorHD(targetActor);
-  if (diff >= 3) return 1;
-  if (diff <= -3) return -1;
+function levelGapOf(charActor, targetActor) {
+  if (!charActor || !targetActor) return null;
+  return getActorHD(charActor) - getActorHD(targetActor);
+}
+
+/**
+ * The direction a level difference points on a page: 1 when the character is
+ * ahead by at least the page's threshold, -1 when behind by it, 0 otherwise.
+ * Undefined when the page's threshold is not imported, so the row is left
+ * untouched rather than answered from a figure of this file.
+ * @param {number|null} diff character level minus target level
+ * @param {object|null} thresholdQuantity the page's printed threshold
+ */
+function levelGapDirection(diff, thresholdQuantity) {
+  if (!thresholdQuantity) return undefined;
+  if (diff === null) return 0;
+  if (meetsQuantity(thresholdQuantity, diff)) return 1;
+  if (meetsQuantity(thresholdQuantity, -diff)) return -1;
   return 0;
 }
 
@@ -282,9 +299,10 @@ export function ageCategoryIndex(actor) {
 }
 
 /**
- * Age modifier for Seduction (±1 per age category). Defaults to the common case
- * that targets prefer youthful mates, so a younger character is +per category.
- * The GM flips the sign when the target prefers mature mates.
+ * The age categories between the two for Seduction: the count the row's
+ * per-category figure is owed for. Defaults to the common case that targets
+ * prefer youthful mates, so a younger character counts positive. The GM flips
+ * the sign when the target prefers mature mates.
  */
 function ageModifier(charActor, targetActor) {
   if (!charActor || !targetActor) return 0;
@@ -294,13 +312,19 @@ function ageModifier(charActor, targetActor) {
   return t - c; // + when the character is the younger category
 }
 
-/** Resolve a single `auto` source string to its value. */
-function resolveAutoValue(source, ctx) {
+/**
+ * Resolve a single `auto` source string to its value. `levelGap` answers a
+ * direction by the page's threshold (`tableId`, the tone's table of the
+ * `influence` document, through the row's `autoThreshold`).
+ */
+function resolveAutoValue(source, ctx, mod = {}, tableId = null) {
   if (source === "cha") return ctx.cha;
   if (source === "targetWill") return ctx.targetWill;
   if (source === "targetMorale") return ctx.targetMorale;
   if (source === "alignment") return ctx.alignment;
-  if (source === "levelGap") return ctx.levelGap;
+  if (source === "levelGap") {
+    return levelGapDirection(ctx.levelGap, tableId && mod.autoThreshold ? printedQuantity(tableId, mod.autoThreshold, INFLUENCE_DOC) : null);
+  }
   if (source === "age") return ctx.age;
   if (source === "socialRank") return ctx.socialRank;
   if (source.startsWith("prof:")) return Boolean(ctx.profs[source.slice(5)]);
@@ -310,6 +334,24 @@ function resolveAutoValue(source, ctx) {
     return value === undefined ? 0 : Number(value) || 0;
   }
   return undefined;
+}
+
+/**
+ * What an auto direction fills a row with: a `select` takes the option of the
+ * rung its direction names (`autoRung`), a typed row takes the page's figure
+ * for that direction (`autoFigures`), and any other row takes the value as
+ * resolved. A direction of 0, or a rung or figure the import did not read,
+ * leaves the row at 0.
+ */
+function autoOutcome(mod, resolved, tableId) {
+  if (!mod.autoRung && !mod.autoFigures) return resolved;
+  const direction = String(Math.sign(Number(resolved)));
+  if (direction === "0") return 0;
+  if (mod.autoRung) {
+    const at = (mod.options ?? []).findIndex((o) => o.rung === mod.autoRung[direction]);
+    return Math.max(0, at);
+  }
+  return printedFigure(tableId, mod.autoFigures[direction], INFLUENCE_DOC) ?? 0;
 }
 
 /**
@@ -332,6 +374,7 @@ export function computeDefaults(actor, targetActor, modConfig = INFLUENCE_MODIFI
   const defaults = {};
   for (const [tone, groups] of Object.entries(modConfig)) {
     defaults[tone] = {};
+    const tableId = TONE_PAGES[tone]?.table ?? null;
     // Exclusive sets: the FIRST auto-detected member wins, the rest stay off.
     // Without this a character holding all three tone proficiencies would
     // auto-populate every one of them on a page that shows them together.
@@ -339,9 +382,11 @@ export function computeDefaults(actor, targetActor, modConfig = INFLUENCE_MODIFI
     for (const group of groups) {
       for (const mod of group.mods) {
         let value = mod.type === "check" ? false : 0;
-        if (mod.auto) {
-          const resolved = resolveAutoValue(mod.auto, ctx);
-          if (resolved !== undefined) value = resolved;
+        if (mod.disabled) {
+          // A figure not imported: nothing to pre-fill, nothing to count.
+        } else if (mod.auto) {
+          const resolved = resolveAutoValue(mod.auto, ctx, mod, tableId);
+          if (resolved !== undefined) value = autoOutcome(mod, resolved, tableId);
         } else if (Object.hasOwn(mod, "default")) {
           value = mod.default;
         }

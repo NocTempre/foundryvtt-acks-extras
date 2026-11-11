@@ -1,51 +1,26 @@
 # Influence — not built
 
-## 1. The modifier labels still carry printed magnitudes
+## 1. Printed figures the roller still ships
 
-25 of the 39 `ACKS-INFLUENCE.mod.*` keys in `lang/en.json` state a modifier's
-size inside the label a user reads:
+The three tone pages read their figures from the imported page, and their
+labels carry none (`MODEL.md`, "Printed pages"). Still shipped in
+`scripts/influence/`, found while moving them and left for their own rows:
 
-- `mod.diplomacy.personallyHarmed` — "Harmed by character (-5)"
-- `mod.diplomacy.brandishing` — "Brandishing a weapon (-1)"
-- `mod.diplomacy.authority` — "Has authority over the other (±1 or more)"
-- `mod.diplomacy.favors` — "Owes favors (±1 per unrequited favor)"
+- the relationship ladder (`INFLUENCE_RELATIONSHIP_MOD`) and the result bands
+  (`INFLUENCE_BANDS`), which are also in `api.constants`;
+- the loyalty and irrefusable result bands, and the irrefusable offer's
+  opposite-alignment figure with its label;
+- the year bounds of each race's age categories (`AGE_TABLE` in
+  `actor-data.mjs`);
+- the bewitched total's own figure.
 
-A modifier's size is content: it is read off a page, and the doctrine puts it
-on the far side of the line from the procedure that applies it. That these are
-*labels* rather than constants changes nothing — the number reaches the reader
-either way, and a label is the more visible of the two.
-
-**Why it survived the 6.2.0 pass.** That pass moved the two figures the code
-*computed* with (`INFLUENCE_TIME_STEPS`, `HENCHMAN_MONTHLY_WAGE`) and stopped
-at the boundary of `lang/`. The magnitudes here are not computed with at all —
-each row's value is a number the user types into the box beside the label — so
-they never appeared in the constants sweep. Searching for values the code
-*reads* does not find values the code only *prints*.
-
-`ip-scan.mjs` does not catch these and cannot: it decides file paths and
-pasted copyright notices, and since the 2026-09-03 ruling nothing else — the
-prose rule and the value rule are both reviewer-only. This is what that clause
-is for. Note that these labels carry no page reference either, having never had
-one; the fix that retires a magnitude should leave a reference behind it.
-
-**Shape of the fix.** The label states what the row *is*; the magnitude arrives
-registered, the way `influenceTimeLadder` now takes its ladder — so the row
-reads "Harmed by character" and shows its value only where the reader's own
-book supplied one. The awkward cases are the two that are not a single number
-(`±1 or more`, `±1 per unrequited favor`): those are a *rule about how to pick*
-a value, not a value, and want deciding before the sweep rather than during it.
-
-Not a 6.2.0 regression — these have shipped since the feature existed.
-
-**The surface is wider than `mod.*`.** A sweep of `lang/en.json` for a signed
-number, a coin/weight/die quantity, or a `per`-scaled figure inside a string a
-user reads counts **73** `ACKS-INFLUENCE` keys and **125** module-wide
-(`ACKS-HENCHMEN` 22, `ACKS-FORMATION` 12, `ACKS-EQUIPMENT` 9, the rest in
-ones and twos). The 25 above are the concentration, not the extent; whatever
-mechanism retires them has to run over the other roots too, and
-`ACKS-EQUIPMENT` reaches into macro bodies as well as labels
-(`item-loss-from-damage` prints its threshold in three places, one of them the
-default value of an input).
+**The surface is wider than the influence feature.** A sweep of `lang/en.json`
+for a signed number, a coin/weight/die quantity, or a `per`-scaled figure
+inside a string a user reads counted **73** `ACKS-INFLUENCE` keys and **125**
+module-wide (`ACKS-HENCHMEN` 22, `ACKS-FORMATION` 12, `ACKS-EQUIPMENT` 9, the
+rest in ones and twos) before the tone pages were moved. Whatever mechanism
+retires the rest has to run over the other roots too, and `ACKS-EQUIPMENT`
+reaches into macro bodies as well as labels.
 
 ## 2. The unaudited badge is a standing admission
 
@@ -60,9 +35,7 @@ It is currently neither.
 
 The `influence` document's `attemptTime` (the attempt-time ladder) is read in
 `influence/constants.mjs`, and no recipe writes it, so it is absent in every
-world. `tools/validate-producers.mjs` waives it against this section. §1's
-fix is this work seen from the other side: a label can drop its magnitude
-once the magnitude has a document to arrive in.
+world. `tools/validate-producers.mjs` waives it against this section.
 
 The bribe's own Cost of Bribes table (RR ch. 6, "Offering Bribes") has no
 capture either. A bribe prices off the signing bonus ladders the hiring and
@@ -72,10 +45,8 @@ table itself would let its cite name the bribe's own page.
 
 The `morale` document and the `influence` document's `hiringOffer` are the
 pattern: each has a recipe, and the `morale`, `obedience` and `hiring` pages
-read them (`MODEL.md`, "Printed pages"). The three reaction tones, `loyalty`
-and `irrefusable` are what §1 still describes, and the tone pages'
-proficiency rows still carry a figure each; the hiring page's `held` rows are
-the shape that retires it.
+read them (`MODEL.md`, "Printed pages"), and so do the three reaction tones'
+modifier tables, proficiency boxes included.
 
 ## 4. What the morale pages left behind
 

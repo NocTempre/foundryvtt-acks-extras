@@ -5,7 +5,9 @@ import {
   INFLUENCE_ATTITUDE_LABELS,
   INFLUENCE_BAND_LABELS,
   INFLUENCE_BANDS,
+  INFLUENCE_DOC,
   INFLUENCE_MODIFIERS,
+  TONE_PAGES,
   INFLUENCE_RELATIONSHIP_MOD,
   influenceTimeLadder,
   INFLUENCE_TONE,
@@ -37,7 +39,7 @@ import {
 import { getAbilityReactionMods, itemsWithReactionEffects } from "./ability-effects.mjs";
 import { henchmanWageCite, signingBonusCite, signingBonusCost } from "../henchmen/rules/wages.mjs";
 import { hatredNotes, kindOf, optionalRuleEnabled, parseKindList, relationFor } from "./racial.mjs";
-import { modeRows, printedBands } from "./printed.mjs";
+import { figureOrigin, modeRows, printedBands, toneRows } from "./printed.mjs";
 import { scopeApplies } from "../lib/vocab.mjs";
 import { abilityMod } from "../lib/actor-read.mjs";
 import { sinkCoin, spendableGp, transferCoin } from "../lib/money.mjs";
@@ -384,7 +386,12 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
       return config;
     }
     for (const tone of Object.values(INFLUENCE_TONE)) {
-      const groups = INFLUENCE_MODIFIERS[tone].map((g) => ({ group: g.group, mods: g.mods.map(nameAfterPower) }));
+      // The page's figures are the imported table's; a row it did not supply
+      // is disabled (`toneRows`).
+      const groups = toneRows(INFLUENCE_MODIFIERS[tone], TONE_PAGES[tone].table, INFLUENCE_DOC).map((g) => ({
+        group: g.group,
+        mods: g.mods.map(nameAfterPower),
+      }));
       const forTone = effectRowsForPage(effectMods, {
         family: ROLL_FAMILY.REACTION,
         tone,
@@ -413,6 +420,8 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
   /* -------------------------------------------- */
 
   #contribution(mod, value) {
+    // A row whose figure is not imported adds nothing, whatever the form holds.
+    if (mod.disabled) return 0;
     switch (mod.type) {
       case "check":
         return value ? mod.value : 0;
@@ -540,6 +549,20 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
       wageCite: henchmanWageCite() ?? noPage,
       periodCite: signingBonusCite() ?? noPage,
     });
+  }
+
+  /**
+   * Where a tone row's figure came from: the page the import read it from, a
+   * Judge's override in the Ruledata Browser, or that nothing was imported.
+   * @param {{docId: string, tableId: string}} from the table the row reads
+   * @param {string} tone the page the row is on, which names the page to import
+   */
+  #figureTip({ docId, tableId }, tone) {
+    const origin = figureOrigin(tableId, docId);
+    const cite = TONE_PAGES[tone]?.cite ?? "";
+    if (origin.state === "override") return game.i18n.localize("ACKS-INFLUENCE.figure.tipOverride");
+    if (origin.state === "imported") return game.i18n.format("ACKS-INFLUENCE.figure.tipImported", { cite: origin.cite ?? cite });
+    return game.i18n.format("ACKS-INFLUENCE.figure.tipMissing", { cite });
   }
 
   /** Refresh the auto bribe fee unless the GM has overridden it. */
@@ -809,6 +832,12 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
         if (isBribeGuess) label = L("ACKS-INFLUENCE.mod.diplomacy.bribeOffer");
         // A rung is named by the page's wording, or by its figure alone.
         const optionLabel = (opt) => {
+          // A tone page's rung: the page's wording of it when the import
+          // caught one, else the rung's own name, with its figure beside it.
+          if (opt.showFigure) {
+            const name = opt.printedLabel ?? (opt.n === undefined ? L(opt.label) : game.i18n.format(opt.label, { n: opt.n }));
+            return withFigure(name, opt.figure);
+          }
           if (opt.label) return L(opt.label);
           return opt.printedLabel ? withFigure(opt.printedLabel, opt.figure) : signedText(opt.figure);
         };
@@ -828,8 +857,13 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
           // A machine-classified mechanic, badged so the sheet never presents a
           // scan's guess as the book's ruling.
           unaudited: Boolean(mod.unaudited),
-          // A printed figure the import has not supplied: typed by hand.
-          isUnread: Boolean(mod.unread),
+          // A printed figure the import has not supplied: typed by hand on a
+          // mode page, disabled on a tone page.
+          isUnread: Boolean(mod.unread) && !mod.disabled,
+          isNotImported: Boolean(mod.disabled),
+          isDisabled: Boolean(mod.disabled),
+          // Where the row's figure came from, on the label that names it.
+          figureTip: mod.figureFrom ? this.#figureTip(mod.figureFrom, tone) : null,
           // A held proficiency whose item carries no figure: typed by hand.
           isUnvalued: Boolean(mod.unvalued),
           // A ladder's options are a page's wording, wider than the control
@@ -917,6 +951,11 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
       // offering the result to be read off the page.
       const notice = this.#mode.postsWithoutBands ? "ACKS-INFLUENCE.mode.unreadNotice" : "ACKS-INFLUENCE.mode.unreadNoticeNoRoll";
       context.unreadNotice = this.#unread() ? game.i18n.format(notice, { cite: this.#mode.cite }) : "";
+    } else {
+      // A tone page says once that some of its rows wait on the import.
+      const tone = this.#system.tone;
+      const waiting = this.#modConfig[tone].some((group) => group.mods.some((mod) => mod.disabled));
+      context.unreadNotice = waiting ? game.i18n.format("ACKS-INFLUENCE.tone.unreadNotice", { cite: TONE_PAGES[tone].cite }) : "";
     }
 
     return context;
