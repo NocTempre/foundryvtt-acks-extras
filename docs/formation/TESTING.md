@@ -3760,9 +3760,16 @@ Senses); every reach typed here is invented.
 
 **Fixtures** (kept; found by marker, built when none carries it):
 
-- `formation/column-scene` (above): the party token's scene.
+- `formation/magic-light-scene`: a room of its own, built like
+  `formation/column-scene` (above). The corridor holds other recipes' lit
+  columns, so `carriedLightPoints` there is never empty.
 - `formation/magic-light`: a party actor, its formation seeded by the
-  createActor hook, its token on `formation/column-scene` (`actorLink: true`),
+  createActor hook (only on the window that leads its seat: an actor made
+  while the seat's election is still joining is passed by, so await
+  `automationSettled()` from `lib/automation-client.mjs` before building it,
+  or adopt it with `adoptPartyActor`, the repair tool's adoption), its token,
+  marked `formation/magic-light-token`, on `formation/magic-light-scene`
+  (`actorLink: true`),
   with one member seated through the party sheet's drop (*Core drive
   mechanics*). The member carries `formation/magic-light-member`, and holds
   one gear item carrying `formation/magic-light-item`.
@@ -3771,7 +3778,9 @@ At the start: the item has no effect writing either key (a leftover one is
 the fixture's own: delete it with the item sheet's own control), and the
 member is inside the party token, not deployed.
 
-1. **Add light.** Open the item's sheet and press its Effects tab → Add light.
+1. **Add light.** Open the item's sheet and press Add light. An item with no
+   effect yet opens in the simple view, which has no tab strip: the control
+   stands beside Details. Otherwise it is on the Effects tab.
    The control shows while the sheet is locked. `api.track` the effect the
    click made (read its id from `item.effects` at once). *Observable:* one
    effect on the item, transfer on, named "Magic light", two changes keyed as
@@ -3791,7 +3800,8 @@ member is inside the party token, not deployed.
    reads "11 ft bright" and shows no figure for the dim.
 4. **Disable and delete.** Disable the effect from its config sheet.
    *Observable:* the row and the point are gone. Enable it again and they
-   return; delete the effect with the item sheet's trash and they go again.
+   return; delete the effect with the item sheet's trash (shown only once the
+   header's edit toggle unlocks the sheet) and they go again.
    (Re-add through step 1 for the next step.)
 5. **A flame beside it.** With the light table imported, light a torch for the
    member from the Kit tab. *Observable:* the column point takes the larger
@@ -3801,7 +3811,12 @@ member is inside the party token, not deployed.
    member's own token reads `light.bright` and `light.dim` in the scene's
    units, `light.animation.type` null, `light.color` null, and carries
    `flags.acks-extras.managedLight`; the column point is gone. Gather the
-   member back and the token's light clears.
+   member back and the token's light clears. The member's stash keeps its
+   token between deploys, flags included, so a kept member comes back
+   released by an earlier walk's step 7. Bring that one token to shape by
+   unsetting its `flags.acks-extras.managedLightStamp` (the reclaim's write;
+   never `migrateWorldVision({reclaim: true})`, which reclaims every scene in
+   the world) and changing a figure.
 7. **A hand edit.** Set that token's bright radius by hand in Token Config while
    it is detached, then re-open the effect and change a figure.
    *Observable:* the token keeps the hand's radius, and its

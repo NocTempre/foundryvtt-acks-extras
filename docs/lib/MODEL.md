@@ -712,7 +712,9 @@ an Active Effect with two changes, `flags.acks-extras.magicLight.bright` and
 `.dim` (feet), of type `upgrade`. On an item it transfers to the owner; one placed
 on the actor (a spell cast on them) works the same. The figure is typed by the
 Judge from their own copy, so nothing printed ships (the item sheet's Effects tab
-has an Add light control that creates the effect with both values empty).
+has an Add light control that creates the effect with both values empty; an item
+with no effect opens in the simple view, which has no tab strip, so the control
+also stands beside Details there).
 `magicLights(actor)` reads one entry per applied effect that writes either key,
 `{id, label, itemName, bright, dim}`, from the effect's own change values (not
 the prepared flag) so each source stays nameable; `appliedEffects` already leaves
