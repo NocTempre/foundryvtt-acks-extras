@@ -6,7 +6,7 @@
  * RosterApp / checkHenchmanLimit. Monsters carry the shared `retainer`
  * schema natively, so wage/loyalty/manager fields work unchanged.
  */
-import { MODULE_ID, HOOKS, FLAG_RECORD, FLAG_MONSTER_LIST } from "../constants.mjs";
+import { MODULE_ID, HOOKS, FLAG_RECORD } from "../constants.mjs";
 import HenchmanRecord from "../data/henchman-record.mjs";
 import { henchmanWage } from "../rules/wages.mjs";
 import { startingLoyalty, effectiveLoyalty } from "../rules/loyalty.mjs";
@@ -17,6 +17,7 @@ import * as adapter from "../acks-adapter.mjs";
 import { openThrowDialog } from "../apps/throw-dialog.mjs";
 import { checkHenchmanLimit, limitReachedMessage } from "./hire.mjs";
 import { now } from "../time.mjs";
+import { assignMonsterEmployer } from "./monster-employer.mjs";
 
 /** HD for recruitment/wages: monster extras when present, else parsed. */
 export function monsterHd(monster) {
@@ -140,6 +141,7 @@ export async function hireMonster(monster, employer, opts = {}) {
     base: opts.baseLoyalty ?? 0,
     elan: !!opts.elan,
     irrefusable: opts.irrefusable ?? null,
+    bounds: adapter.loyaltyBounds(monster.type),
   });
 
   // Visibility: the hiring player(s) become owners of the monster hireling.
@@ -155,11 +157,6 @@ export async function hireMonster(monster, employer, opts = {}) {
     quantity: 1,
   });
 
-  const list = employer.getFlag(MODULE_ID, FLAG_MONSTER_LIST) ?? [];
-  if (!list.includes(monster.id)) {
-    await employer.setFlag(MODULE_ID, FLAG_MONSTER_LIST, [...list, monster.id]);
-  }
-
   const record = new HenchmanRecord({
     origin: "adventure",
     employerUuid: employer.uuid,
@@ -171,6 +168,9 @@ export async function hireMonster(monster, employer, opts = {}) {
     special: { irrefusableResult: opts.irrefusableOutcome ?? "" },
   });
   await monster.setFlag(MODULE_ID, FLAG_RECORD, record.toObject());
+  // After the record: a monster hired away from another employer leaves that
+  // employer's list, and the record already names the new one.
+  const { previous } = await assignMonsterEmployer(monster, employer);
   await HenchmanRecord.logEvent(monster, {
     type: "hired",
     note: game.i18n.format("ACKS-HENCHMEN.monster.hiredNote", { employer: employer.name, hd }),
@@ -180,10 +180,14 @@ export async function hireMonster(monster, employer, opts = {}) {
   // Effective loyalty incl. employer CHA/effects onto the core field.
   await adapter.setLoyalty(
     monster,
-    effectiveLoyalty(record.toObject(), {
-      chaLoyalty: adapter.getChaLoyalty(employer),
-      baseLoyaltyBonus: sumEffectModifiers(employer, "baseLoyalty"),
-    })
+    effectiveLoyalty(
+      record.toObject(),
+      {
+        chaLoyalty: adapter.getChaLoyalty(employer),
+        baseLoyaltyBonus: sumEffectModifiers(employer, "baseLoyalty"),
+      },
+      adapter.loyaltyBounds(monster.type)
+    )
   );
 
   if (opts.irrefusableOutcome === "betrayal" || opts.irrefusableOutcome === "escape") {
@@ -203,5 +207,6 @@ export async function hireMonster(monster, employer, opts = {}) {
   });
   Hooks.callAll(HOOKS.HIRED, { employer, actor: monster, location: null, record: record.toObject(), candidate: null });
   Hooks.callAll(HOOKS.ROSTER_CHANGED, { employer });
+  for (const former of previous) Hooks.callAll(HOOKS.ROSTER_CHANGED, { employer: former });
   return { actor: monster };
 }

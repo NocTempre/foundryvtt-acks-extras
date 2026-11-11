@@ -275,6 +275,42 @@
 
 ### Fixed
 
+- **The buttons on a hireling's chat cards work.** A hireling event card in
+  the Chat sidebar tab (the Judge's wages-due card among them) now acts when
+  its button is pressed; before, the press did nothing.
+- **A payday paid in part names who went unpaid.** When a player presses Pay
+  wages (character sheet → Followers tab) for hirelings the Judge runs and only
+  some can be paid, the one notice now names what was paid and then each
+  hireling left unpaid, with the reason where there is one (not on the same
+  scene as the employer).
+- **A monster hired away leaves its old employer's roster.** Transferring a
+  monster hireling (the employer's Roster → the row's Transfer) or hiring it
+  from another employer now removes it from the old employer's Roster and
+  records the new employer in one place. Settings tab → Game Settings → ACKS II
+  — Extras → Repair this world gains Monster hirelings listed under a former
+  employer, which lists a monster still on a roster its record no longer names,
+  and Fix removes it from every roster but its employer's.
+- **Deleting an employer and its hirelings no longer logs errors.** Deleting
+  actors that name each other as employer and hireling, together or in quick
+  succession, no longer writes failed-update errors to the browser console for
+  an actor that was itself being deleted.
+- **A monster hireling's morale keeps its own range.** Loyalty and morale on
+  the Roster, a hireling's Service tab and every throw are now held to the
+  range the system gives that kind of actor, so a monster's morale can sit
+  below a character's floor where the system allows it.
+- **Trade history keeps its order within a day.** Trade history (a market's
+  Trade tab) lists trades made at the same moment newest first, instead of in
+  an arbitrary order.
+- **A blank class row offers nothing.** A "+" row left blank on a class item's
+  sheet (Items sidebar tab → a class item) among its proficiencies, powers or
+  thief skills, or among a race's powers, is no longer counted, offered at
+  character creation, or granted. The blank row stays on the sheet to fill.
+- **A score rolled early counts against the dice.** A score rolled on the
+  Scores Generator before the page finished loading is now counted against the
+  page's dice allowance like any other roll.
+- **The Legacy chip updates at once.** The Legacy chip on the character sheet's
+  Class tab now shows a change to the player's legacy fund as soon as it is
+  made, instead of when the sheet is next opened.
 - **An open Party sheet shows the party it was opened on.** A Party sheet
   (Actors sidebar tab → a party actor) whose first drawing overlapped a change
   to the party (a member joining or leaving, the marching order, the plan)

@@ -1063,6 +1063,25 @@ assert.strictEqual(parseMoneyCp("-"), 0, "unreadable money is zero");
   assert.ok(!HISTORY_TYPES.includes("hire"), "a hire is the market's business, not trade history");
   assert.strictEqual(historyNetGp(mine), 15, "the net coin movement, paid negative");
   assert.deepStrictEqual(historyRows(ledgers, { actorUuids: ["Actor.A", "Actor.B"], limit: 2 }).map((r) => r.time), [400, 300], "the cap keeps the newest");
+  const sameInstant = [
+    {
+      marketUuid: "Actor.M1",
+      marketName: "First",
+      rows: [
+        { time: 70, type: "purchase", note: "first of three", actorUuid: "Actor.A" },
+        { time: 70, type: "purchase", note: "second of three", actorUuid: "Actor.A" },
+        { time: 60, type: "purchase", note: "earlier", actorUuid: "Actor.A" },
+        { time: 70, type: "sale", note: "third of three", actorUuid: "Actor.A" },
+      ],
+    },
+  ];
+  assert.deepStrictEqual(
+    historyRows(sameInstant, { actorUuids: ["Actor.A"] }).map((r) => r.note),
+    ["third of three", "second of three", "first of three", "earlier"],
+    "rows stamped in one instant list the later-appended first, under a note that says newest first"
+  );
+  assert.deepStrictEqual(historyRows(sameInstant, { actorUuids: ["Actor.A"], limit: 1 }).map((r) => r.note), ["third of three"], "and the cap keeps the newest of them");
+  assert.deepStrictEqual(Object.keys(historyRows(sameInstant, { actorUuids: ["Actor.A"] })[0]).sort(), ["actorUuid", "gp", "marketName", "marketUuid", "note", "time", "type"], "a row carries no sort key");
   assert.deepStrictEqual(historyRows(ledgers, { actorUuids: [] }), [], "nobody, nothing");
   assert.deepStrictEqual(historyRows(ledgers, { actorUuids: ["Actor.Z"] }), [], "a stranger sees nothing");
 }

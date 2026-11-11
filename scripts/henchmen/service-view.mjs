@@ -129,8 +129,8 @@ export function buildServicePanel(actor, { isGM = false, pins = [] } = {}) {
   const category = retainer.category || "henchman";
   const henchman = keepsLoyalty(category);
   const mods = employerLoyaltyMods(employer);
-  const loyalty = loyaltyParts(record, mods);
-  const morale = moraleParts(record, adapter.getMorale(actor), employerMoraleBase(employer));
+  const loyalty = loyaltyParts(record, mods, adapter.loyaltyBounds(actor.type));
+  const morale = moraleParts(record, adapter.getMorale(actor), employerMoraleBase(employer), adapter.moraleBounds(actor.type));
   const moraleValue = signed(effectiveMoraleFor(actor));
   const pending = !!record.special?.pendingCalamity;
 

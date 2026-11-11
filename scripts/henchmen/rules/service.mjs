@@ -50,11 +50,12 @@ export function wageClock({ lastPaid, now, month, day }) {
 /**
  * The pieces an effective loyalty is summed from: the start at hiring, the
  * permanents still counting (and how many entries count), the employer's
- * Charisma and the employer's powers. `total` is the clamped sum.
+ * Charisma and the employer's powers. `total` is the sum held to `bounds`.
  * @param {object} record HenchmanRecord-shaped
  * @param {{chaLoyalty?: number, baseLoyaltyBonus?: number}} mods
+ * @param {{min?: number, max?: number}} [bounds] the hireling's loyalty field's range
  */
-export function loyaltyParts(record, mods = {}) {
+export function loyaltyParts(record, mods = {}, bounds) {
   const permanents = record?.loyalty?.permanents ?? [];
   const start = num(record?.loyalty?.start);
   const sum = sumPermanents(permanents);
@@ -66,7 +67,7 @@ export function loyaltyParts(record, mods = {}) {
     uncompensated: permanents.filter(isActivePermanent).length,
     cha,
     powers,
-    total: clampScore(start + sum + cha + powers),
+    total: clampScore(start + sum + cha + powers, bounds),
   };
 }
 
@@ -74,13 +75,14 @@ export function loyaltyParts(record, mods = {}) {
  * The pieces of an effective morale: the base (the record's, else the
  * sheet's), the permanents still counting, and the employer's `moraleBase`
  * powers handed in as `powers`. `total` clamps base and permanents, then
- * clamps again with the powers added, as `effectiveMoraleFor` does.
+ * clamps again with the powers added, as `effectiveMoraleFor` does; both
+ * clamps hold to `bounds`, the hireling's morale field's range.
  */
-export function moraleParts(record, fallbackBase = 0, powers = 0) {
+export function moraleParts(record, fallbackBase = 0, powers = 0, bounds) {
   const base = num(record?.morale?.base, num(fallbackBase));
   const permanents = sumPermanents(record?.morale?.permanents ?? []);
   const bonus = num(powers);
-  return { base, permanents, powers: bonus, total: clampScore(clampScore(base + permanents) + bonus) };
+  return { base, permanents, powers: bonus, total: clampScore(clampScore(base + permanents, bounds) + bonus, bounds) };
 }
 
 /**

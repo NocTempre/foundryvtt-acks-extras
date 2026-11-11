@@ -11,6 +11,7 @@
 import { MODULE_ID, FLAG_RECORD, FLAG_MONSTER_LIST, HOOKS } from "../constants.mjs";
 import HenchmanRecord from "../data/henchman-record.mjs";
 import { checkHenchmanLimit, enrollHenchman } from "../engine/hire.mjs";
+import { assignMonsterEmployer } from "../engine/monster-employer.mjs";
 import { unvaluedPowers } from "../effects.mjs";
 import {
   openLoyaltyRoll,
@@ -207,7 +208,7 @@ export class RosterApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const terms = termsFor(actor, record, retainer);
     const clock = clockFor(record);
     const quantity = Number(retainer.quantity) || 1;
-    const parts = loyaltyParts(record, mods);
+    const parts = loyaltyParts(record, mods, adapter.loyaltyBounds(actor.type));
 
     const tags = [{ label: game.i18n.localize(`ACKS-HENCHMEN.category.${category}`) }];
     if (isMonster) {
@@ -389,8 +390,14 @@ export class RosterApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const newEmployer = newId ? game.actors.get(newId) : null;
     if (!newEmployer) return;
     try {
-      await adapter.delHenchman(this.employer, actor.id);
-      await adapter.addHenchman(newEmployer, actor.id);
+      if (actor.type === ACTOR_TYPE.monster) {
+        // Core's roster takes characters only, so a monster moves on the lists
+        // this module keeps.
+        await assignMonsterEmployer(actor, newEmployer);
+      } else {
+        await adapter.delHenchman(this.employer, actor.id);
+        await adapter.addHenchman(newEmployer, actor.id);
+      }
     } catch (err) {
       // The employment record must keep pointing at whoever actually holds the
       // hireling — a failed move must not rewrite it to the intended employer.

@@ -47,7 +47,7 @@ export function employerLoyaltyMods(employer) {
 export function effectiveLoyaltyFor(actor) {
   const record = actor.getFlag(MODULE_ID, FLAG_RECORD) ?? {};
   const employer = adapter.getManager(actor);
-  return effectiveLoyalty(record, employerLoyaltyMods(employer));
+  return effectiveLoyalty(record, employerLoyaltyMods(employer), adapter.loyaltyBounds(actor.type));
 }
 
 /** The employer's `moraleBase` powers, which every hireling's morale score adds; 0 without an employer. */
@@ -55,10 +55,15 @@ export function employerMoraleBase(employer) {
   return employer ? sumEffectModifiers(employer, "moraleBase") : 0;
 }
 
-/** Effective morale (record base+permanents, falling back to core morale, plus the employer's powers). */
+/**
+ * Effective morale (record base+permanents, falling back to core morale, plus
+ * the employer's powers), held to the range the system gives the hireling's
+ * own actor type: a monster's morale field is not a character's.
+ */
 export function effectiveMoraleFor(actor) {
   const record = actor.getFlag(MODULE_ID, FLAG_RECORD) ?? {};
-  return clampScore(effectiveMorale(record, adapter.getMorale(actor)) + employerMoraleBase(adapter.getManager(actor)));
+  const bounds = adapter.moraleBounds(actor.type);
+  return clampScore(effectiveMorale(record, adapter.getMorale(actor), bounds) + employerMoraleBase(adapter.getManager(actor)), bounds);
 }
 
 /** Recompute and persist core retainer.loyalty from the record. */
@@ -542,10 +547,14 @@ const payrollOf = (employer) => [...rosterOf(employer).filter((a) => adapter.isR
  * a wage clock runs. One refused whole is told only where another seat ran it
  * (`relayed`): a seat that ran its own has heard each refused transfer. The
  * refusal names its reason and the payees when the answer carries one the
- * wording knows, and says only that nothing was paid otherwise.
+ * wording knows, and says only that nothing was paid otherwise. One that paid
+ * some entries and was refused others, where another seat ran it, adds the
+ * unpaid payees (and their shared reason, where the wording knows it) to the
+ * notice of what was paid.
  */
 function tellPayday(employer, result, { relayed = false } = {}) {
-  const say = (level, key, data = {}) => ui.notifications[level](game.i18n.format(`ACKS-HENCHMEN.${key}`, { name: employer.name, ...data }));
+  const words = (key, data = {}) => game.i18n.format(`ACKS-HENCHMEN.${key}`, { name: employer.name, ...data });
+  const say = (level, key, data = {}) => ui.notifications[level](words(key, data));
   switch (result?.status) {
     case "nothingDue": {
       const next = wageBill(employer).nextDue;
@@ -561,8 +570,16 @@ function tellPayday(employer, result, { relayed = false } = {}) {
       const why = `wage.refusedBecause.${result.reason}`;
       return who.length && game.i18n.has(`ACKS-HENCHMEN.${why}`) ? say("warn", why, { who: who.join(", ") }) : say("warn", "wage.refused");
     }
-    case "paid":
-      return say("info", result.arrears > 0 ? "wage.paidPartNote" : "wage.paidNote", { gp: gpText(result.paid), owed: gpText(result.arrears) });
+    case "paid": {
+      const paid = words(result.arrears > 0 ? "wage.paidPartNote" : "wage.paidNote", { gp: gpText(result.paid), owed: gpText(result.arrears) });
+      // The seat that ran the payday has heard each refused transfer say why;
+      // a handed-over one is told who went unpaid here, in the same notice.
+      const who = relayed ? (result.payees ?? []).map((id) => game.actors.get(id)?.name).filter(Boolean) : [];
+      if (!who.length) return ui.notifications.info(paid);
+      const because = `wage.unpaidBecause.${result.reason}`;
+      const unpaid = words(result.reason && game.i18n.has(`ACKS-HENCHMEN.${because}`) ? because : "wage.unpaidNote", { who: who.join(", ") });
+      return ui.notifications.warn(`${paid} ${unpaid}`);
+    }
     default:
       return undefined;
   }
@@ -618,8 +635,9 @@ export function installWagePayment() {
  *   reason?: string, payees?: string[]}>}
  *   `total` and `count` are what was billed when the purse fell short; `paid`
  *   is the gold that left the employer and `arrears` what was booked as owed;
- *   `payees` are the ids of the actors left unpaid when every transfer was
- *   refused, and `reason` the refusal they share, when they share one
+ *   `payees` are the ids of the actors left unpaid by a refused transfer
+ *   (`refused` and, when only some were refused, `paid` carry them), and
+ *   `reason` the refusal they share, when they share one
  */
 async function runPayday(employer, { markMissed = false } = {}) {
   const currentTime = now();
@@ -705,10 +723,12 @@ async function runPayday(employer, { markMissed = false } = {}) {
     }
   }
   const count = due.length - refused.length;
-  if (!count) {
-    const reasons = [...new Set(refused.map((d) => d.reason))];
-    return { status: "refused", ...(reasons.length === 1 && reasons[0] ? { reason: reasons[0] } : {}), payees: refused.map((d) => d.id) };
-  }
+  const reasons = [...new Set(refused.map((d) => d.reason))];
+  const unpaid = {
+    ...(reasons.length === 1 && reasons[0] ? { reason: reasons[0] } : {}),
+    payees: refused.map((d) => d.id),
+  };
+  if (!count) return { status: "refused", ...unpaid };
   if (markMissed) {
     Hooks.callAll(HOOKS.WAGES_MISSED, { employer, total: total - refused.reduce((s, d) => s + d.amount, 0), count });
     return { status: "missed", count };
@@ -716,7 +736,7 @@ async function runPayday(employer, { markMissed = false } = {}) {
   // `total` is the coin that left the employer; `arrears` what was booked as
   // owed because no whole coin could pay it.
   Hooks.callAll(HOOKS.WAGES_PAID, { employer, total: movedCp / 100, arrears: bookedCp / 100, count });
-  return { status: "paid", paid: movedCp / 100, arrears: bookedCp / 100, count };
+  return { status: "paid", paid: movedCp / 100, arrears: bookedCp / 100, count, ...(refused.length ? unpaid : {}) };
 }
 
 /**

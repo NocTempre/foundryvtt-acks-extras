@@ -27,7 +27,7 @@ const SPECIALIST_PACKAGE_KEYS = Object.freeze({
   sage: ["sage"],
   lawyer: ["lawyer"],
 });
-import { startingLoyalty, effectiveLoyalty } from "../rules/loyalty.mjs";
+import { startingLoyalty, effectiveLoyalty, clampScore } from "../rules/loyalty.mjs";
 import { hiredClassName, isJudgePick, rollAttributes } from "../rules/candidates.mjs";
 import { sumEffectModifiers, hasEffectFlag, unvaluedPowers } from "../effects.mjs";
 import * as adapter from "../acks-adapter.mjs";
@@ -253,7 +253,7 @@ export async function hireExistingActor(location, specialHireId, employer, opts 
   } else {
     // Visibility: the hiring player(s) become owners of their new hireling.
     await target.update({ ownership: { ...target.ownership, ...employerOwnership(employer) } });
-    const loyaltyStart = startingLoyalty({ base: opts.baseLoyalty ?? 0, elan: !!opts.elan });
+    const loyaltyStart = startingLoyalty({ base: opts.baseLoyalty ?? 0, elan: !!opts.elan, bounds: adapter.loyaltyBounds(target.type) });
     // Only a henchman's wage falls back to the ladder.
     const wage =
       Number(target.system?.retainer?.wage) || (category === "henchman" ? henchmanWage(adapter.getWageLevel(target)) : 0);
@@ -297,7 +297,7 @@ export async function hireExistingActor(location, specialHireId, employer, opts 
       effectiveLoyalty(record.toObject(), {
         chaLoyalty: adapter.getChaLoyalty(employer),
         baseLoyaltyBonus: sumEffectModifiers(employer, "baseLoyalty"),
-      })
+      }, adapter.loyaltyBounds(target.type))
     );
     Hooks.callAll(HOOKS.HIRED, { employer, actor: target, location, record: record.toObject(), candidate: null });
     Hooks.callAll(HOOKS.ROSTER_CHANGED, { employer });
@@ -335,10 +335,11 @@ export async function enrollHenchman(employer, actor, { loyalty = null, morale =
   const chaLoyalty = adapter.getChaLoyalty(employer);
   const baseLoyaltyBonus = sumEffectModifiers(employer, "baseLoyalty");
   const have = Number.isFinite(Number(loyalty)) && loyalty !== null ? Number(loyalty) : null;
-  const start = have === null ? startingLoyalty({}) : have - chaLoyalty - baseLoyaltyBonus;
+  const loyaltyBounds = adapter.loyaltyBounds(actor.type);
+  const start = have === null ? startingLoyalty({ bounds: loyaltyBounds }) : have - chaLoyalty - baseLoyaltyBonus;
   const wage = Number(actor.system?.retainer?.wage) || henchmanWage(adapter.getWageLevel(actor));
   await adapter.setRetainer(actor, { enabled: true, wage: String(wage), managerid: employer.id, category: "henchman", quantity: 1 });
-  if (morale !== null && Number.isFinite(Number(morale))) await actor.update({ "system.details.morale": Math.max(-4, Math.min(4, Math.round(Number(morale)))) });
+  if (morale !== null && Number.isFinite(Number(morale))) await actor.update({ "system.details.morale": clampScore(Number(morale), adapter.moraleBounds(actor.type)) });
   await adapter.addHenchman(employer, actor.id);
   const record = new HenchmanRecord({
     origin: "manual",
@@ -351,7 +352,7 @@ export async function enrollHenchman(employer, actor, { loyalty = null, morale =
     special: { skipCalamityLoyalty: hasEffectFlag(employer, "skipCalamityLoyalty") },
   });
   await actor.setFlag(MODULE_ID, FLAG_RECORD, record.toObject());
-  await adapter.setLoyalty(actor, effectiveLoyalty(record.toObject(), { chaLoyalty, baseLoyaltyBonus }));
+  await adapter.setLoyalty(actor, effectiveLoyalty(record.toObject(), { chaLoyalty, baseLoyaltyBonus }, loyaltyBounds));
   Hooks.callAll(HOOKS.HIRED, { employer, actor, location: null, record: record.toObject(), candidate: null });
   Hooks.callAll(HOOKS.ROSTER_CHANGED, { employer });
   return { actor };
@@ -446,6 +447,7 @@ export async function hire(location, candidateId, employer, opts = {}) {
     base: opts.baseLoyalty ?? 0,
     elan: !!opts.elan,
     irrefusable: opts.irrefusable ?? null,
+    bounds: adapter.loyaltyBounds(ACTOR_TYPE.character),
   });
 
   // 1. Create the hireling actor with retainer fields pre-set so every guard
@@ -595,7 +597,7 @@ export async function hire(location, candidateId, employer, opts = {}) {
     chaLoyalty: adapter.getChaLoyalty(employer),
     baseLoyaltyBonus: sumEffectModifiers(employer, "baseLoyalty"),
   };
-  await adapter.setLoyalty(actor, effectiveLoyalty(record.toObject(), employerMods));
+  await adapter.setLoyalty(actor, effectiveLoyalty(record.toObject(), employerMods, adapter.loyaltyBounds(actor.type)));
   } catch (err) {
     console.error(`${MODULE_ID} | hire enrichment failed for ${actor.name} (record/loyalty incomplete)`, err);
   }

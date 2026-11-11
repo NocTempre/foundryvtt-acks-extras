@@ -20,9 +20,19 @@ export function apparentLevelPenalty() {
   return Number.isInteger(perLevel) ? perLevel : null;
 }
 
-/** Clamp a loyalty/morale score to the ACKS -4..+4 range. */
-export function clampScore(v) {
-  return Math.max(-4, Math.min(4, Math.round(v)));
+/**
+ * Round a loyalty or morale score and hold it to `bounds`, the range the
+ * actor's own schema field allows (`acks-adapter.mjs` `loyaltyBounds` /
+ * `moraleBounds`). A side the bounds do not name stays open.
+ * @param {number} v
+ * @param {{min?: number|null, max?: number|null}} [bounds]
+ */
+export function clampScore(v, bounds) {
+  const { min, max } = bounds ?? {};
+  let score = Math.round(v);
+  if (Number.isFinite(min)) score = Math.max(min, score);
+  if (Number.isFinite(max)) score = Math.min(max, score);
+  return score;
 }
 
 /**
@@ -51,24 +61,28 @@ export function reasonKey(track, reason) {
 
 /**
  * Effective loyalty score = start + Σ permanents + employer CHA loyalty mod
- * + employer baseLoyalty effect bonuses (Blood of Kings…), clamped -4..+4.
+ * + employer baseLoyalty effect bonuses (Blood of Kings…), held to `bounds`.
  * @param {object} record - HenchmanRecord-shaped plain object
  * @param {{chaLoyalty:number, baseLoyaltyBonus:number}} employer
+ * @param {{min?: number, max?: number}} [bounds] the hireling's loyalty field's range
  */
-export function effectiveLoyalty(record, employer) {
+export function effectiveLoyalty(record, employer, bounds) {
   const start = Number(record?.loyalty?.start ?? 0);
   const permanents = sumPermanents(record?.loyalty?.permanents ?? []);
-  return clampScore(start + permanents + (employer?.chaLoyalty ?? 0) + (employer?.baseLoyaltyBonus ?? 0));
+  return clampScore(start + permanents + (employer?.chaLoyalty ?? 0) + (employer?.baseLoyaltyBonus ?? 0), bounds);
 }
 
 /**
  * Effective morale score = base + Σ permanents (+ leader modifiers are
- * situational and applied in the roll dialog, not stored).
+ * situational and applied in the roll dialog, not stored), held to `bounds`.
+ * @param {object} record
+ * @param {number} [fallbackBase] the sheet's morale, read when the record holds none
+ * @param {{min?: number, max?: number}} [bounds] the hireling's morale field's range
  */
-export function effectiveMorale(record, fallbackBase = 0) {
+export function effectiveMorale(record, fallbackBase = 0, bounds) {
   const base = Number(record?.morale?.base ?? fallbackBase);
   const permanents = sumPermanents(record?.morale?.permanents ?? []);
-  return clampScore(base + permanents);
+  return clampScore(base + permanents, bounds);
 }
 
 /** Permanent loyalty deltas from a loyalty-roll outcome (RR 166). */
@@ -109,11 +123,12 @@ export function penaltyReason(key) {
  * @param {number} [o.base=0] - role base (mercenary officer -2, ruffian -2,
  *   forced servitude -4, follower +2/+4 — from wages.json baseLoyalty)
  * @param {boolean} [o.elan] - rolled "Accept with élan" (+1)
- * @param {number} [o.irrefusable] - Irrefusable Offer loyaltyOnHire value (-2/0/+1)
+ * @param {number} [o.irrefusable] - Irrefusable Offer loyaltyOnHire value, read from the imported table
+ * @param {{min?: number, max?: number}} [o.bounds] - the hireling's loyalty field's range
  */
-export function startingLoyalty({ base = 0, elan = false, irrefusable = null } = {}) {
+export function startingLoyalty({ base = 0, elan = false, irrefusable = null, bounds } = {}) {
   let start = base;
   if (irrefusable !== null && irrefusable !== undefined) start = irrefusable;
   if (elan) start += 1;
-  return clampScore(start);
+  return clampScore(start, bounds);
 }

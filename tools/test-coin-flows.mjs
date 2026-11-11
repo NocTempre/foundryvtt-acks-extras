@@ -1177,6 +1177,23 @@ await test("a payday handed to the Judge and refused whole is told once, on the 
   assert.deepEqual([purse(boss), purse(hand), purse(mate)], [["Gold ×9"], [], []], "nothing moved");
   assert.deepEqual([hand, mate].map((a) => a.flags["acks-extras"].record.terms.lastPaidTime), [0, 0], "and the month is still due");
 });
+await test("a handed-over payday refused in part tells the asking seat who went unpaid, in the notice of what was paid", async () => {
+  const boss = makeActor({ id: "boss", name: "Boss", items: [gold(9)] });
+  worldActors.set(boss.id, boss);
+  const hand = onPayroll(boss, { id: "hand", name: "Hand", wageGp: 4 });
+  onPayroll(boss, { id: "mate", name: "Mate", wageGp: 2, managerid: "another" });
+  hand.owners = [];
+  connectJudge();
+  const told = await toldBy(async () => {
+    game.user = PLAYER;
+    await payWagesFor(boss);
+  });
+  const paid = `ACKS-HENCHMEN.wage.paidNote ${JSON.stringify({ name: "Boss", gp: "4", owed: "0" })}`;
+  const unpaid = `ACKS-HENCHMEN.wage.unpaidBecause.notTogether ${JSON.stringify({ name: "Boss", who: "Mate" })}`;
+  assert.deepEqual(told.filter(([seat]) => seat === "player"), [["player", "warn", `${paid} ${unpaid}`]], "one notice: what moved, then who went unpaid and why");
+  assert.deepEqual([purse(boss), purse(hand)], [["Gold ×5"], ["Gold ×4"]], "Hand was paid and Mate was not");
+  assert.ok("ACKS-HENCHMEN.wage.unpaidBecause.notTogether" in wording && "ACKS-HENCHMEN.wage.unpaidNote" in wording, "the language file holds both sentences");
+});
 await test("a refusal the wording has no sentence for is told as a payday that paid nothing", async () => {
   const boss = makeActor({ id: "boss", name: "Boss", items: [gold(9)] });
   worldActors.set(boss.id, boss);

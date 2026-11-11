@@ -75,8 +75,3 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   officer straight onto the employer's books, where an offer through the Hire
   button rolls each head's reaction (RR 162; [MODEL.md](MODEL.md) §2, "Bulk
   rows"). The unit's heads would answer the same way before the stack is made.
-- **A handed-over payday refused in part does not tell the asking seat who
-  went unpaid.** Its answer is `paid` and carries no refusal, so the one
-  notification names only what moved ([MODEL.md](MODEL.md) §4c). The answer
-  would carry the unpaid entries as a payday refused whole does, and the
-  paid notification would name them.

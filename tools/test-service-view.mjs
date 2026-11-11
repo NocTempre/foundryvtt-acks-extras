@@ -15,7 +15,7 @@ import {
   judgePickHitPoints, offersClassPick,
 } from "../scripts/henchmen/rules/service.mjs";
 import { JUDGE_PICK_CLASS, hiredClassName } from "../scripts/henchmen/rules/candidates.mjs";
-import { effectiveMorale, effectiveLoyalty, clampScore } from "../scripts/henchmen/rules/loyalty.mjs";
+import { effectiveMorale, effectiveLoyalty, clampScore, startingLoyalty } from "../scripts/henchmen/rules/loyalty.mjs";
 import { henchmanWage, henchmanWageCite } from "../scripts/henchmen/rules/wages.mjs";
 import * as tables from "../scripts/lib/tables.mjs";
 
@@ -25,6 +25,13 @@ const test = (name, fn) => {
   passed++;
   console.log(`  ✓ ${name}`);
 };
+
+// Invented ranges, deliberately unlike any system's: the helpers hold a score
+// to whatever they are handed, a monster's morale field bounded apart from a
+// character's.
+const CHAR_LOYALTY = { min: -3, max: 5 };
+const CHAR_MORALE = { min: -2, max: 6 };
+const MONSTER_MORALE = { min: -7, max: 2 };
 
 const DAY = 86400;
 const MONTH = 28 * DAY;
@@ -76,11 +83,14 @@ test("loyalty sums start, the permanents still counting, Charisma and powers, an
 });
 test("the loyalty parts' total is the figure the panel and the throws read", () => {
   const cases = [[record, { chaLoyalty: 1, baseLoyaltyBonus: 0 }], [{ loyalty: { start: 4 } }, { chaLoyalty: 3 }], [{}, {}], [{ loyalty: { start: -4, permanents: [{ delta: -3 }] } }, { baseLoyaltyBonus: 1 }]];
-  for (const [r, mods] of cases) assert.equal(loyaltyParts(r, mods).total, effectiveLoyalty(r, mods));
+  for (const [r, mods] of cases) assert.equal(loyaltyParts(r, mods, CHAR_LOYALTY).total, effectiveLoyalty(r, mods, CHAR_LOYALTY));
 });
-test("the total is clamped to the score's range", () => {
-  assert.equal(loyaltyParts({ loyalty: { start: 4 } }, { chaLoyalty: 3 }).total, 4);
-  assert.equal(loyaltyParts({ loyalty: { start: -4, permanents: [{ delta: -3 }] } }, {}).total, -4);
+test("the total is held to the bounds it is handed, and only on the sides they name", () => {
+  assert.equal(loyaltyParts({ loyalty: { start: 4 } }, { chaLoyalty: 3 }, CHAR_LOYALTY).total, 5);
+  assert.equal(loyaltyParts({ loyalty: { start: -4, permanents: [{ delta: -3 }] } }, {}, CHAR_LOYALTY).total, -3);
+  assert.equal(loyaltyParts({ loyalty: { start: 40 } }, {}, { max: 9 }).total, 9, "a bound with no floor leaves the floor open");
+  assert.equal(loyaltyParts({ loyalty: { start: -40 } }, {}, { max: 9 }).total, -40);
+  assert.equal(loyaltyParts({ loyalty: { start: 40 } }, {}).total, 40, "no bounds, no clamp: no range is assumed");
 });
 test("morale reads the record's base, else the sheet's, plus the permanents", () => {
   assert.deepEqual(moraleParts(record, 2), { base: 0, permanents: 1, powers: 0, total: 1 });
@@ -88,14 +98,31 @@ test("morale reads the record's base, else the sheet's, plus the permanents", ()
 });
 test("the employer's powers are a part of morale, added after base and permanents are held to the range", () => {
   assert.deepEqual(moraleParts(record, 2, 1), { base: 0, permanents: 1, powers: 1, total: 2 });
-  const high = { morale: { base: 4, permanents: [{ delta: 2 }] } };
-  assert.equal(moraleParts(high, 0, -1).total, 3, "held at 4 before the power, so the power counts from there");
+  const high = { morale: { base: 6, permanents: [{ delta: 2 }] } };
+  assert.equal(moraleParts(high, 0, -1, CHAR_MORALE).total, 5, "held at the ceiling before the power, so the power counts from there");
 });
 test("the parts' total is the figure the obedience throw and the roster read", () => {
-  const cases = [[record, 2, 0], [record, 2, 1], [{}, -3, -2], [{ morale: { base: 4, permanents: [{ delta: 2 }] } }, 0, -1]];
-  for (const [r, sheet, powers] of cases) {
-    assert.equal(moraleParts(r, sheet, powers).total, clampScore(effectiveMorale(r, sheet) + powers));
+  const cases = [[record, 2, 0], [record, 2, 1], [{}, -3, -2], [{ morale: { base: 6, permanents: [{ delta: 2 }] } }, 0, -1]];
+  for (const bounds of [CHAR_MORALE, MONSTER_MORALE]) {
+    for (const [r, sheet, powers] of cases) {
+      assert.equal(moraleParts(r, sheet, powers, bounds).total, clampScore(effectiveMorale(r, sheet, bounds) + powers, bounds));
+    }
   }
+});
+test("a monster's morale floor is its own, lower than a character's", () => {
+  const low = { morale: { base: -5, permanents: [] } };
+  assert.equal(moraleParts(low, 0, 0, CHAR_MORALE).total, -2, "a character's morale stops at its floor");
+  assert.equal(moraleParts(low, 0, 0, MONSTER_MORALE).total, -5, "a monster's goes further down");
+  assert.equal(moraleParts(low, 0, -4, MONSTER_MORALE).total, -7, "and the power cannot take it past its own floor");
+  assert.equal(effectiveMorale(low, 0, MONSTER_MORALE), -5);
+  assert.equal(effectiveMorale({ morale: { base: 9 } }, 0, MONSTER_MORALE), 2, "or above its own ceiling");
+});
+test("a starting loyalty is held to the bounds handed in", () => {
+  assert.equal(startingLoyalty({ base: 9, bounds: CHAR_LOYALTY }), 5);
+  assert.equal(startingLoyalty({ base: -9, elan: true, bounds: CHAR_LOYALTY }), -3);
+  assert.equal(startingLoyalty({ base: 1, elan: true, bounds: CHAR_LOYALTY }), 2);
+  assert.equal(startingLoyalty({ base: 1, irrefusable: -4, bounds: CHAR_LOYALTY }), -3, "the imported figure replaces the base, then is held");
+  assert.equal(startingLoyalty({ base: 99 }), 99, "no bounds, no clamp");
 });
 test("the badge is one while a calamity's throw is owed", () => {
   assert.equal(serviceBadge(record), 1);

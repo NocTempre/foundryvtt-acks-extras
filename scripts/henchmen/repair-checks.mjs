@@ -1,11 +1,13 @@
 /* global game, fromUuid */
 /**
- * Henchmen's repair check: an employer's list, a monster list or a manager
- * pointer naming an actor that no longer exists. It wraps `repair.mjs`, which
- * stays the one owner of what counts as dangling and how it is cleared.
+ * Henchmen's repair checks: an employer's list, a monster list or a manager
+ * pointer naming an actor that no longer exists, and a monster list still
+ * holding a monster whose record names another employer. They wrap
+ * `repair.mjs`, which stays the one owner of what counts as dangling or stale
+ * and how it is cleared.
  */
 import { fixEach, registerRepairCheck } from "../lib/repair.mjs";
-import { isClean, repairActor, scanActor } from "./repair.mjs";
+import { isClean, pruneStaleMonsters, repairActor, scanActor, staleMonsterIds } from "./repair.mjs";
 
 const loc = (key, data = {}) => game.i18n.format(`ACKS-HENCHMEN.repair.check.${key}`, data);
 
@@ -35,6 +37,22 @@ export function registerHenchmenRepairChecks() {
       fixEach(findings, async (f) => {
         const actor = await fromUuid(f.uuid);
         if (actor) await repairActor(actor);
+      }),
+  });
+  registerRepairCheck({
+    id: "henchmen.monsterEmployers",
+    label: "ACKS-HENCHMEN.repair.check.employers.label",
+    hint: "ACKS-HENCHMEN.repair.check.employers.hint",
+    order: 11,
+    scan: () =>
+      game.actors.contents
+        .map((actor) => [actor, staleMonsterIds(actor)])
+        .filter(([, stale]) => stale.length)
+        .map(([actor, stale]) => ({ key: actor.uuid, uuid: actor.uuid, name: actor.name, detail: loc("employers.detail", { count: stale.length }) })),
+    fix: (findings) =>
+      fixEach(findings, async (f) => {
+        const actor = await fromUuid(f.uuid);
+        if (actor) await pruneStaleMonsters(actor);
       }),
   });
 }

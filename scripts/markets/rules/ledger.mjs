@@ -40,23 +40,28 @@ export const HISTORY_TYPES = Object.freeze([
 export function historyRows(ledgers, { actorUuids = [], limit = 60 } = {}) {
   const who = new Set(actorUuids.filter(Boolean));
   if (!who.size) return [];
-  const out = [];
+  const found = [];
   for (const { marketUuid, marketName, rows } of ledgers ?? []) {
-    for (const row of rows ?? []) {
-      if (!row?.actorUuid || !who.has(row.actorUuid) || !HISTORY_TYPES.includes(row.type)) continue;
-      out.push({
-        time: Number(row.time) || 0,
-        type: row.type,
-        note: String(row.note ?? ""),
-        gp: Number(row.gp) || 0,
-        actorUuid: row.actorUuid,
-        marketUuid,
-        marketName,
+    (rows ?? []).forEach((row, index) => {
+      if (!row?.actorUuid || !who.has(row.actorUuid) || !HISTORY_TYPES.includes(row.type)) return;
+      found.push({
+        index,
+        row: {
+          time: Number(row.time) || 0,
+          type: row.type,
+          note: String(row.note ?? ""),
+          gp: Number(row.gp) || 0,
+          actorUuid: row.actorUuid,
+          marketUuid,
+          marketName,
+        },
       });
-    }
+    });
   }
-  out.sort((a, b) => b.time - a.time);
-  return out.slice(0, Math.max(0, limit));
+  // The ledger is append-only, so rows stamped in one instant sit in the order
+  // they happened: the later index is the newer row.
+  found.sort((a, b) => b.row.time - a.row.time || b.index - a.index);
+  return found.slice(0, Math.max(0, limit)).map((f) => f.row);
 }
 
 /** The net coin movement of a history, as the trader saw it (paid negative). */

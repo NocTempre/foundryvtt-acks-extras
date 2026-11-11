@@ -193,7 +193,13 @@ calamity recorded at hire: it has already happened, and a later payment does
 not undo it.
 - `loyalty {start, permanents[]}` / `morale {base, permanents[]}` — the
   ledgers; **effective scores are computed at read time** (base + permanents +
-  employer CHA + employer effect bonuses) so transfers recalculate (RR 163).
+  employer CHA + employer effect bonuses) so transfers recalculate (RR 163),
+  and held to the range the system's data model gives the field for the
+  hireling's actor type (`acks-adapter.mjs` `loyaltyBounds` / `moraleBounds`,
+  read off `CONFIG.Actor.dataModels[type].schema`: a monster's morale field is
+  bounded apart from a character's). The `rules/` helpers take those bounds as
+  an argument and hold no range of their own; with none handed in a score is
+  rounded and left open.
   Each entry carries `compensated`: RR 166 penalties (permanent wounds,
   tampering side effects) apply only *while uncompensated*, so the Judge
   suspends one from the roster ledger and it stops scoring **without leaving
@@ -207,6 +213,16 @@ not undo it.
 Employer-side flags: `monsterHenchmenList[]` (monster roster — core
 `addHenchman` accepts only characters), `retainBonus` (manual extra slots),
 `apparent {monthlySpendGp, lastCheckTime}`.
+
+A monster hireling's employer is held in three places that agree: the
+employer's `monsterHenchmenList`, the monster's `retainer.managerid` and the
+record's `employerUuid`. `engine/monster-employer.mjs` `assignMonsterEmployer`
+is the one writer, called by `hireMonster` and by the roster's Transfer (which
+leaves core's `addHenchman` / `delHenchman` alone for a monster); it removes
+the monster from every other actor's list. The repair check
+`henchmen.monsterEmployers` prunes a list still holding a monster whose record
+names a different employer, and leaves one whose record is missing or names an
+actor that is gone.
 
 The henchman limit (`acks-adapter.mjs > getRetainMax`) is the imported base
 (`wages.henchmanLimit`, RR 168, read by `rules/wages.mjs > henchmanLimitBase`)
@@ -341,7 +357,7 @@ cleanup, so the ids accumulate. Three layers answer it, all in `repair.mjs`:
 
 | Layer | What it does |
 | --- | --- |
-| `registerDeletionCleanup()` | on a hireling's delete, clears its id from every employer's list and any `managerid` naming it — the ids never accumulate in the first place |
+| `registerDeletionCleanup()` | on a hireling's delete, clears its id from every employer's list and any `managerid` naming it — the ids never accumulate in the first place; an actor deleted in the same operation (`options.ids`) or gone by the time its turn comes is skipped |
 | `sweepAtReady()` | one GM-side pass for the ids a world already has, under the `autoRepairReferences` setting (default on) |
 | `installWageGuard()` | the wrap on `getTotalWages`: it skips a missing hireling instead of throwing, so a sheet renders even mid-repair |
 
@@ -400,7 +416,8 @@ nothing, so no payday is recorded for that entry, its month stays due, and
 the `wagesPaid` hook counts neither the entry nor its gold. When every entry
 is refused the hook does not fire, and `runPayday` answers `refused` with the
 ids of the actors left unpaid (`payees`) and the `reason` their refusals
-share, when they share one.
+share, when they share one. A payday that paid some entries and was refused
+others answers `paid` and carries the same `payees` and `reason`.
 
 **Which seat runs it.** `payWagesFor(employer)` is the one entry: the
 Followers tab's control, the system sheet's button (§4b), the roster app and
@@ -422,8 +439,10 @@ it. A seat that handed it over is told once, from the answer: the refusal and
 who went unpaid where the wording holds a sentence for the `reason`
 (`ACKS-HENCHMEN.wage.refusedBecause.<reason>`), and otherwise that nothing
 was paid. A handed-over payday that paid some entries and was refused others
-tells the asking seat what was paid, and its refusals are said on the GM's
-seat alone. No chat card is posted. The `wagesPaid` and `wagesMissed` hooks
+tells the asking seat what was paid and, in the same notice, who went unpaid
+and the shared `reason` where the wording holds a sentence for it
+(`ACKS-HENCHMEN.wage.unpaidBecause.<reason>`, else `wage.unpaidNote`); the
+seat that ran it has heard each refusal from `transferCoin`. No chat card is posted. The `wagesPaid` and `wagesMissed` hooks
 fire on the seat that ran the payday, which is the GM's when it was relayed.
 
 A signing bonus and a week's recruiting fee are paid where the hire is made:

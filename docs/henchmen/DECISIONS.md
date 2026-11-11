@@ -993,6 +993,11 @@ and the score range `clampScore` holds both scores to. Both are the value
 rule's case (`.claude/rules/ip-doctrine.md`) and are on the bug-intake
 ledger.
 
+> **The score range is settled 2026-11-11:** `clampScore` takes its bounds
+> from core's schema field for the actor's type (`loyaltyBounds`,
+> `moraleBounds`, `acks-adapter.mjs`), so a monster hireling's morale keeps the
+> floor core gives a monster. No constant is left. The share stays open.
+
 **What it cost.** The wage's tooltip names the table's page only where the
 importer recorded one; a Judge's override layer and a module sample record
 none, so their wage reads "no page recorded".
