@@ -140,6 +140,46 @@
 
 ### Changed
 
+- **A henchman's share of treasure and experience is read from your
+  Rulebook.** The share a henchman takes (its sheet's Service tab, the Terms
+  group's Share row) and the share Deal XP gives it (the party sheet's quick
+  tools → the experience star) are read when you import the rules tables
+  (Settings tab → Game Settings → ACKS II — Extras → Manage imports → Rules
+  tables) and no longer built into the module. Hover the row, or the
+  henchman's cell in Deal XP, to see the page it was read from, that it is set
+  on that henchman's own record, or that it is not imported. With nothing
+  imported and none set, the row says "not imported" and Deal XP gives that
+  henchman no share. A world imported before this release runs Rules tables
+  again to read it.
+- **A monster's token size is read from your Monstrous Manual.** The frontage
+  each size category occupies is read when you import the rules tables
+  (Settings tab → Game Settings → ACKS II — Extras → Manage imports → Rules
+  tables, with the Monstrous Manual connected) and no longer built into the
+  module. Until it is imported, *Rescale tokens on scene* (Battlemap in the
+  scene controls) leaves a monster's token at the size it has and says how
+  many it left, and a monster you import gets Foundry's default token size. A
+  Judge can set any category's frontage in the Ruledata Browser (Settings tab
+  → Game Settings → ACKS II — Extras → Open Ruledata Browser). A world
+  imported before this release runs Rules tables again to read it.
+- **Item loss from damage runs on your own Judges Journal.** Its figures and
+  the materials each damage type harms are read when you import the rules
+  tables (Settings tab → Game Settings → ACKS II — Extras → Manage imports →
+  Rules tables, with the Judges Journal connected) and no longer built into
+  the module; without them the flow says "not imported" and plans nothing.
+  Compendium tab → ACKS Extras Macros → Item Loss from Damage opens the
+  Judge's flow, which marks a light item destroyed and takes armour class off
+  a heavy armour, and the item sheet's Durability tab says how the item
+  stands. The Electric damage type is now named Electrical everywhere. A world
+  imported before this release runs Rules tables again to read them.
+- **The influence roller's tone pages read their modifiers from your Judges
+  Journal.** On the Diplomacy, Intimidation and Seduction pages of the
+  influence roller (the character sheet header's Influence button), each
+  modifier's figure is read when you import the rules tables (Settings tab →
+  Game Settings → ACKS II — Extras → Manage imports → Rules tables, with the
+  Judges Journal connected), and the row labels no longer print a modifier's
+  size. Hover a row for the page it came from; a row whose figure is not
+  imported is greyed out and adds nothing. A world imported before this
+  release runs Rules tables again to read them.
 - **Henchman arrivals wait for the arrival schedule to be imported.** How many
   of a month's candidates arrive each week is read from your Rulebook (Settings
   tab → Game Settings → ACKS II — Extras → Manage imports → Rules tables) and
@@ -350,6 +390,23 @@
   under *Your edits and the book*. Formatting alone (bold, a moved line break)
   is not seen as an edit. Pages imported before this release carry no record
   and are refreshed as before.
+- **An edit inside any imported book text is kept, not only a journal
+  page's.** A word you changed inside the text an import wrote (an item's or
+  actor's description, a character's biography, a monster's text, a roll
+  table's description, a place's notes) was overwritten by the next repair or
+  re-import unless you had also written outside it. Each import now records
+  what it wrote in each field and keeps the field when that text has changed:
+  an adventure's Repair (Import Manager → Adventures tab → Repair) lists it
+  under *Your edits and the book* and writes over it only where you take it,
+  and a plain import and *Update Abilities* (top of the Items sidebar) count it
+  as kept. Text the editor only re-saved, with no word changed, is still
+  refreshed. Fields imported before this release carry no record and are
+  refreshed once.
+- **A pressed control keeps keyboard focus when its sheet redraws.** Pressing
+  a control with Enter or Space on a module sheet, such as a training pill, a
+  printed-group button (after Edit) or a bucket chip in the character sheet's
+  Stats tab → Training block, now leaves focus on that control after the sheet
+  redraws instead of dropping it to the page.
 - **A repair refreshes a market place's name from the market's heading.**
   Repairing an adventure (Import Manager → Adventures tab → Repair) now names a
   market place from the heading its market prints, whichever import step
