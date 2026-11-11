@@ -23,7 +23,7 @@ import { buildConstructionPanel } from "./construction.mjs";
 import { buildMagicPanel } from "../../markets/apps/magic-panel.mjs";
 import { ITEM_FLAG as MARKETS_FLAG } from "../../markets/constants.mjs";
 import { applyVariation, isVariationItem, removeVariation, revealVariation, concealVariation } from "../variation-items.mjs";
-import { containerFieldsOnlyWhenFired, disguiseItem, revealItem, setGearHolds, prepareTorch, readiedWeaponData, wearItem, removeItem } from "../actions.mjs";
+import { containerFieldsOnlyWhenFired, disguiseItem, revealItem, setGearHolds, prepareTorch, readiedWeaponData, wearItem, removeItem, setDestroyed } from "../actions.mjs";
 import { PRISTINE, recomputeItemFields, layerDeltas, baseForTyped } from "../properties.mjs";
 import { containerOf, setLocked, storeIn, takeOut, setContainerRecord } from "../containers.mjs";
 import { isSpellbook, spellbookSpells, setSpellbookSpells, parseSpellList, formatSpellList } from "../spellbook.mjs";
@@ -610,9 +610,7 @@ export default class AcksItemSheet extends PicksMixin(HandlebarsApplicationMixin
   }
 
   static async #onMarkDestroyed() {
-    const on = !!this.item.getFlag(MODULE_ID, SHEET_FLAGS.DESTROYED);
-    if (on) await this.item.unsetFlag(MODULE_ID, SHEET_FLAGS.DESTROYED);
-    else await this.item.setFlag(MODULE_ID, SHEET_FLAGS.DESTROYED, true);
+    await setDestroyed(this.item, !this.item.getFlag(MODULE_ID, SHEET_FLAGS.DESTROYED));
   }
 
   /* -------------------------------------------- */

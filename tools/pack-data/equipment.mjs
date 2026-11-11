@@ -80,46 +80,13 @@ actor.sheet.render(true);`,
     _id: "acksEqItemLoss00",
     name: "Item Loss from Damage",
     img: "icons/svg/fire.svg",
-    command: `// JJ p. 398 (optional rule): the equipment an area attack destroys on a
-// creature it took far below zero hit points, in the page's positional order,
-// skipping materials the damage type cannot harm. The thresholds and the
-// order are the module's planItemLoss; this asks for its inputs and posts
-// what it resolves.
-const MOD = "acks-extras";
-const api = game.modules.get(MOD)?.api?.equipment ?? globalThis.acksExtras?.equipment;
+    command: `// JJ p. 398 (optional rule): item loss from damage. Launches the module's
+// Judge flow, which asks for its inputs, plans the loss from the figures your
+// own book imported, and on a yes writes it to the items' own condition.
+const api = game.modules.get("acks-extras")?.api?.equipment ?? globalThis.acksExtras?.equipment;
 if (!api) { ui.notifications.error("ACKS Extras is not active."); return; }
-if (typeof api.planItemLoss !== "function" || typeof api.getLoadout !== "function") { ui.notifications.warn("ACKS Extras | Item Loss from Damage needs a newer build of this module."); return; }
-if (!game.settings.get(MOD, "overlayItemLoss")) { ui.notifications.warn("Enable the 'Item loss from damage' overlay in module settings first."); return; }
-const actor = canvas.tokens.controlled[0]?.actor ?? game.user.character;
-if (!actor) { ui.notifications.warn("Select a token."); return; }
-const types = ["acidic","arcane","bludgeoning","piercing","poisonous","slashing","cold","electric","fire","luminous","necrotic","seismic"];
-const form = await foundry.applications.api.DialogV2.prompt({
-  classes: ["acks-extras", "acks-extras-scroll"],
-  window: { title: \`Item Loss — \${actor.name}\` },
-  content: \`<div style="display:grid;gap:.5rem">
-    <p>For a creature an area attack it did not save against took below zero hit points (JJ p. 398).</p>
-    <label>Hit points after the attack <input type="number" name="hp" value="\${actor.system.hp?.value ?? 0}"></label>
-    <label>Damage type <select name="dt">\${types.map((t) => \`<option value="\${t}">\${t}</option>\`).join("")}</select></label>
-    <label><input type="checkbox" name="rear"> Damaged from the flank or rear (reverses the order)</label>
-  </div>\`,
-  ok: { label: "Resolve", callback: (_e, btn) => new FormData(btn.form) },
-  rejectClose: false,
-});
-if (!form) return;
-const loadout = api.getLoadout(actor);
-const plan = api.planItemLoss(actor, loadout, { hp: Number(form.get("hp")), damageType: form.get("dt"), fromRear: !!form.get("rear") });
-if (!plan.stones) { ui.notifications.info("Not low enough: no equipment is at risk (JJ p. 398)."); return; }
-const list = plan.destroyed.length
-  ? plan.destroyed.map((d) => \`<li><b>\${d.item.name}</b> <span style="opacity:.7">(\${d.material})</span></li>\`).join("")
-  : "<li><em>nothing vulnerable to that damage type</em></li>";
-ChatMessage.create({
-  speaker: ChatMessage.getSpeaker({ actor }),
-  content: \`<div class="acks-equipment-loadout"><h3>Item Loss — \${actor.name}</h3>
-    <p><b>\${plan.stones}</b> stone at risk (\${form.get("dt")}\${form.get("rear") ? ", from the rear" : ""}).</p>
-    <ul>\${list}</ul>
-    <p style="opacity:.75;font-size:.9em">\${plan.survivors} item(s) were immune to this damage type and skipped. A magic item saves before it is destroyed, and a heavy item is damaged rather than destroyed (JJ p. 398).</p>
-  </div>\`,
-});`,
+if (typeof api.openItemLoss !== "function") { ui.notifications.warn("ACKS Extras | Item Loss from Damage needs a newer build of this module."); return; }
+await api.openItemLoss();`,
   },
   {
     _id: "acksEqRecover000",

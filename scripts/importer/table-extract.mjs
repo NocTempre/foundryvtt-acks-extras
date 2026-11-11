@@ -112,6 +112,21 @@ export function applyCellPattern(text, pattern = "raw") {
       // "Crusader, Mage, Thief, Venturer" -> ["crusader","mage",...]
       return t.split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
     }
+    case "wordList": {
+      // A list of kinds in a sentence's shape: commas, a closing "and", quoted
+      // words, a bracket of examples and the word "items" after a kind are the
+      // setting, not the kinds. A cell that reads "none" is an empty list, which
+      // is a row that was read and holds nothing.
+      // "x, y, and “z” items (e.g. w)" -> ["x","y","z"]
+      const words = t
+        .toLowerCase()
+        .replace(/\([^)]*\)?/g, " ")
+        .replace(/[“”"‘’]/g, "")
+        .split(/,|\band\b/)
+        .map((x) => x.replace(/\bitems?\b/g, "").replace(/\s+/g, " ").trim())
+        .filter(Boolean);
+      return words.length === 1 && words[0] === "none" ? [] : words;
+    }
     case "spreadBand": {
       // "2, 3, 4" | "5, 6" | "14+" (a name may trail) -> {min, max};
       // an open "+" spread leaves max null.

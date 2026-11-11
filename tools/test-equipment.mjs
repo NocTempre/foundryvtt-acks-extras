@@ -75,7 +75,7 @@ const { cycleStrap, strapOf } = await import(new URL("overlays/shield-variants.m
 const { disguiseItem, revealItem, isDisguised } = await import(new URL("actions.mjs", S));
 const { helmetType, isEnclosingHelm, helmFigures } = await import(new URL("overlays/enclosing-helm.mjs", S));
 const { isSpellbook, pagesUsed, spellbookValue, parseSpellList, setSpellbookSpells, overCapacity: bookOver } = await import(new URL("spellbook.mjs", S));
-const { setMaterial, MATERIALS } = await import(new URL("overlays/item-loss.mjs", S));
+const { setMaterial, materialVocabulary } = await import(new URL("overlays/item-loss.mjs", S));
 // The weapon rows are invented (tools/weapon-fixture.mjs); the module ships none.
 const { useWeaponFixture, FIXTURE_ROWS } = await import(new URL("weapon-fixture.mjs", import.meta.url));
 useWeaponFixture();
@@ -1012,43 +1012,139 @@ check("a weapon declares the hands", inferGear({ name: "Sword", type: "weapon", 
 
 // --- Phase 5b: item loss from damage (JJ p. 398) ------------------------------
 SETTINGS_STATE.overlayItemLoss = true;
-const { stonesAtRisk, isVulnerable, materialOf, planItemLoss, LOSS_ORDER_FRONT, LOSS_ORDER_REAR } =
+const { stonesAtRisk, isVulnerable, materialOf, planItemLoss, itemLossFigures, itemLossMaterials, itemLossFact, lossClassOf, LOSS_ORDER_FRONT, LOSS_ORDER_REAR } =
   await import(new URL("overlays/item-loss.mjs", S));
+const { applyItemLoss, planMarkup, ITEM_LOSS_DAMAGE_TYPES } = await import(new URL("item-loss-flow.mjs", S));
+const { DAMAGE_TYPES: VOCAB_DAMAGE_TYPES } = await import(new URL("../lib/vocab.mjs", S));
 
-check("no loss above -6 hp", stonesAtRisk(-5) === 0 && stonesAtRisk(0) === 0);
-check("-6 hp risks 1 stone; each further 6 damage risks another", stonesAtRisk(-6) === 1 && stonesAtRisk(-11) === 1 && stonesAtRisk(-12) === 2 && stonesAtRisk(-18) === 3);
+// Every figure below is INVENTED; nothing here is a printed value. The
+// threshold is -7 with a step of 5, a layer of clothing counts 3 stone, light
+// ends at 2 stone and heavy begins at 4, and a full stone costs 2 AC.
+const LOSS_FIGURES = { threshold: -7, step: 5, clothingStones: 3, lightMax: 2, heavyMin: 4, acPerStone: 2 };
+const LOSS_MATERIALS = {
+  fire: ["cloth", "leather", "wood", "combustibles"],
+  piercing: ["glass"],
+  poisonous: [],
+  electrical: ["metal", "combustibles"],
+};
+const lossTables = { id: "equipment", tables: { itemLoss: LOSS_FIGURES, itemLossMaterials: Object.fromEntries(Object.entries(LOSS_MATERIALS).map(([k, v]) => [k, { materials: v }])) } };
+const lossActor = () => withItems([]);
+
+// Nothing imported: every reader answers null and the plan does nothing.
+check("without the import every figure reads null", Object.values(itemLossFigures()).every((v) => v === null) && itemLossMaterials() === null);
+check("without the import the loss count is null, not zero", stonesAtRisk(-40, itemLossFigures()) === null);
+check("without the import a material's fate is null, not 'unharmed'", isVulnerable("cloth", "fire") === null);
+const unreadPlan = planItemLoss(lossActor(), { handShields: [], armor: null }, { hp: -40, damageType: "fire" });
+check("without the import the plan is not ready, destroys and damages nothing, and names what to import",
+  unreadPlan.ready === false && unreadPlan.destroyed.length === 0 && unreadPlan.damaged.length === 0 && unreadPlan.stones === 0
+  && ["threshold", "step", "clothingStones", "lightMax", "heavyMin", "acPerStone", "itemLossMaterials"].every((m) => unreadPlan.missing.includes(m)));
+check("without the import the Durability tab's item-loss fact says not imported", itemLossFact(gear("Spear", 6))?.state === "notImported");
+SETTINGS_STATE.overlayItemLoss = false;
+check("with the overlay off the Durability tab shows no item-loss fact", itemLossFact(gear("Spear", 6)) === null);
+SETTINGS_STATE.overlayItemLoss = true;
+
+registerTable(lossTables, { priority: PRIORITY.WORLD, source: "test" });
+check("the figures read back from the imported table", JSON.stringify(itemLossFigures()) === JSON.stringify(LOSS_FIGURES));
+check("no loss above the imported threshold", stonesAtRisk(-6, LOSS_FIGURES) === 0 && stonesAtRisk(0, LOSS_FIGURES) === 0);
+check("the threshold risks 1 stone; each further step risks another", stonesAtRisk(-7, LOSS_FIGURES) === 1 && stonesAtRisk(-11, LOSS_FIGURES) === 1 && stonesAtRisk(-12, LOSS_FIGURES) === 2 && stonesAtRisk(-17, LOSS_FIGURES) === 3);
 check("rear order is the exact reverse of the front order", LOSS_ORDER_REAR.join() === [...LOSS_ORDER_FRONT].reverse().join());
+check("the Durability fact classes an item against the imported bounds", lossClassOf(12, LOSS_FIGURES) === "destroyed" && lossClassOf(24, LOSS_FIGURES) === "damaged" && lossClassOf(18, LOSS_FIGURES) === "unplaced" && lossClassOf(6, {}) === null);
+check("an item's item-loss fact is its class against the weights", itemLossFact(gear("Spear", 6)).state === "destroyed" && itemLossFact(gear("Wall", 30)).state === "damaged" && itemLossFact(gear("Odd Chest", 18)).state === "unplaced");
 
-// Materials table (JJ p. 398): fire burns cloth, piercing does not; poison
-// destroys nothing at all.
-check("fire destroys cloth/leather/wood, not metal", isVulnerable("cloth", "fire") && isVulnerable("leather", "fire") && !isVulnerable("metal", "fire"));
-check("piercing destroys only ceramic and glass", isVulnerable("glass", "piercing") && !isVulnerable("cloth", "piercing"));
-check("poison destroys nothing", !isVulnerable("cloth", "poisonous") && !isVulnerable("metal", "poisonous"));
-check("bludgeoning destroys metal and stone, not cloth", isVulnerable("metal", "bludgeoning") && !isVulnerable("cloth", "bludgeoning"));
+// The materials table is the import's: a fire row burns cloth and combustibles
+// (plural, folded), a poisonous row that read empty harms nothing, and a type
+// whose row did not read answers null.
+check("the imported fire row harms cloth and leather, not metal", isVulnerable("cloth", "fire") === true && isVulnerable("leather", "fire") === true && isVulnerable("metal", "fire") === false);
+check("a printed plural is one word with the singular", isVulnerable("combustible", "fire") === true && isVulnerable("combustible", "piercing") === false);
+check("a row that read empty harms nothing, which is not the same as unread", isVulnerable("cloth", "poisonous") === false && isVulnerable("cloth", "seismic") === null);
+check("the electrical key is the vocabulary's", isVulnerable("metal", "electrical") === true && isVulnerable("metal", "electric") === null);
+check("the damage types the flow asks about are the vocabulary's, less the one that defers to the weapon",
+  ITEM_LOSS_DAMAGE_TYPES.includes("electrical") && !ITEM_LOSS_DAMAGE_TYPES.includes("electric") && !ITEM_LOSS_DAMAGE_TYPES.includes("varies")
+  && ITEM_LOSS_DAMAGE_TYPES.length === Object.keys(VOCAB_DAMAGE_TYPES).length - 1);
 check("material guessed from name (oil = combustible, holy water = good)", materialOf(gear("Oil, Military", 1)) === "combustible" && materialOf(gear("Holy Water", 1)) === "good");
 check("explicit material flag beats the guess", materialOf(gear("Odd Thing", 1, { flags: { material: "glass" } })) === "glass");
 
-// The Judges Journal's own worked example: Andravus at -18 hp from a fireball
-// risks 3 stone; fire cannot touch his metal flasks of holy water or his coins,
-// so those are skipped rather than consuming the budget.
-const jjShield = { id: "sh", name: "Shield", type: "armor", system: { cost: 0, equipped: true, type: "shield", ac: { value: 1 }, weight6: 6 }, getFlag: (_m, k) => ({ material: "wood" }[k]), effects: [] };
+// A fireball at the invented -17 hp risks 3 stone; fire cannot touch a metal
+// flask, so it is skipped rather than consuming the budget.
+const jjShield ={ id: "sh", name: "Shield", type: "armor", system: { cost: 0, equipped: true, type: "shield", ac: { value: 1 }, weight6: 6 }, getFlag: (_m, k) => ({ material: "wood" }[k]), effects: [] };
 const jjSpear = gear("Spear", 6, { id: "sp", type: "weapon", flags: { material: "wood" } });
 const jjHolyWater = gear("Holy Water", 1, { id: "hw", flags: { material: "metal" } });
 const jjOil = gear("Oil, Military", 1, { id: "oil" });
 const jjActor = withItems([jjShield, jjSpear, jjHolyWater, jjOil]);
 const jjLo = { handShields: [jjShield], armor: null };
-const plan = planItemLoss(jjActor, jjLo, { hp: -18, damageType: "fire" });
-check("fireball at -18 hp risks 3 stone", plan.stones === 3);
+const plan = planItemLoss(jjActor, jjLo, { hp: -17, damageType: "fire" });
+check("a fireball at -17 hp risks 3 stone", plan.ready && plan.stones === 3);
 check("wooden shield in hand is destroyed first (front order)", plan.destroyed[0].item.id === "sh");
 check("metal holy-water flask is skipped by fire, not destroyed", !plan.destroyed.some((d) => d.item.id === "hw") && plan.survivors >= 1);
 check("the wooden spear burns too", plan.destroyed.some((d) => d.item.id === "sp"));
 
 // Damaged from the rear the order flips: the shield in hand is now last.
-const rearPlan = planItemLoss(jjActor, jjLo, { hp: -6, damageType: "fire", fromRear: true });
+const rearPlan = planItemLoss(jjActor, jjLo, { hp: -7, damageType: "fire", fromRear: true });
 check("from the rear the shield is not the first thing lost", rearPlan.destroyed[0]?.item.id !== "sh");
 
-// Poison destroys nothing regardless of how far below -6 the victim is.
+// Poison destroys nothing regardless of how far below the threshold the victim is.
 check("poison at -30 hp destroys nothing", planItemLoss(jjActor, jjLo, { hp: -30, damageType: "poisonous" }).destroyed.length === 0);
+
+// The split: a light item (<= 2 st) is destroyed, a heavy one (>= 4 st) takes
+// the budget that is left, up to its own weight, and loses AC per full stone.
+const heavyMail = armor("Mail", "medium", { id: "mail", ac: 5, w6: 24, flags: { material: "leather" } });
+const splitActor = withItems([jjShield, jjSpear, heavyMail]);
+const splitLo = { handShields: [jjShield], armor: heavyMail };
+const split = planItemLoss(splitActor, splitLo, { hp: -22, damageType: "fire" });
+check("a light item lands in destroyed and a heavy one in damaged", split.destroyed.map((d) => d.item.id).join() === "sh,sp" && split.damaged.length === 1 && split.damaged[0].item.id === "mail");
+check("the heavy item takes what the light ones left of 4 stone: 2 full stones, 4 AC at 2 per stone", split.stones === 4 && split.damaged[0].damage6 === 12 && split.damaged[0].stones === 2 && split.damaged[0].acLost === 4);
+const flask = gear("Oil, Military", 1, { id: "oilFlask" });
+const sub = planItemLoss(withItems([flask, heavyMail]), { handShields: [], armor: heavyMail }, { hp: -7, damageType: "fire" });
+check("a part of a stone of damage costs the heavy item no AC", sub.destroyed.length === 1 && sub.damaged[0].damage6 === 5 && sub.damaged[0].stones === 0 && sub.damaged[0].acLost === 0);
+const shallow = planItemLoss(withItems([heavyMail]), { handShields: [], armor: heavyMail }, { hp: -7, damageType: "fire" });
+check("a full stone of damage costs the imported AC per stone", shallow.damaged[0].stones === 1 && shallow.damaged[0].acLost === 2);
+const partial = planItemLoss(withItems([heavyMail]), { handShields: [], armor: heavyMail }, { hp: -7, damageType: "fire", figures: { ...LOSS_FIGURES, lightMax: 1, heavyMin: 2 }, materials: { fire: ["leather"] } });
+check("a plan takes its figures and table as arguments", partial.ready && partial.damaged[0].item.id === "mail");
+const oddChest = gear("Odd Chest", 18, { id: "chest", flags: { material: "wood" } });
+const between = planItemLoss(withItems([oddChest]), { handShields: [], armor: null }, { hp: -7, damageType: "fire" });
+check("a weight between the bounds is unplaced, spends nothing and changes nothing", between.unplaced.length === 1 && between.destroyed.length === 0 && between.damaged.length === 0);
+const garment = gear("Tunic", 1, { id: "tn", subtype: "clothing", flags: { material: "cloth" } });
+const clothed = planItemLoss(withItems([garment]), { handShields: [], armor: null }, { hp: -7, damageType: "fire" });
+check("a layer of clothing counts as the imported number of stone, whatever its listed weight", clothed.destroyed.length + clothed.unplaced.length + clothed.damaged.length === 1 && (clothed.destroyed[0] ?? clothed.damaged[0] ?? clothed.unplaced[0]).weight6 === 18);
+const hook = gear("Hook", 6, { id: "hook", flags: { material: "metal" } });
+const electrical = planItemLoss(withItems([heavyMail, oddChest, hook]), { handShields: [], armor: heavyMail }, { hp: -7, damageType: "electrical" });
+check("electrical reaches metal and not leather or wood", electrical.ready && electrical.survivors === 1 && electrical.damaged.length === 0 && electrical.destroyed.map((d) => d.item.id).join() === "hook");
+check("a damage type whose row is unread plans nothing and names the row", planItemLoss(splitActor, splitLo, { hp: -22, damageType: "seismic" }).missing.join() === "itemLossMaterials.seismic");
+
+// Applying the plan writes the item's own condition: a light item is marked
+// destroyed, a heavy armour loses AC on its one condition record.
+const lossDoc = (name, ac, weight6) => ({
+  id: name, type: "armor", name, system: { ac: { value: ac }, weight6, cost: 0 }, _flags: {},
+  getFlag(_m, k) { return this._flags[k]; },
+  async setFlag(_m, k, v) { this._flags[k] = v; },
+  async unsetFlag(_m, k) { delete this._flags[k]; },
+  async update(u) {
+    for (const [path, v] of Object.entries(u)) {
+      if (path.startsWith("flags.acks-extras.")) this._flags[path.slice("flags.acks-extras.".length)] = v;
+      else if (path === "system.ac.value") this.system.ac.value = v;
+      else if (path === "system.weight6") this.system.weight6 = v;
+      else if (path === "system.cost") this.system.cost = v;
+    }
+  },
+});
+const wornMail = lossDoc("Mail", 5, 24);
+const wornShield = lossDoc("Shield", 1, 6);
+const applied = await applyItemLoss({ ready: true, destroyed: [{ item: wornShield }], damaged: [{ item: wornMail, acLost: 4 }, { item: wornShield, acLost: 0 }] });
+check("applying marks a light item destroyed", wornShield._flags.destroyed === true && applied.destroyed === 1);
+check("applying takes AC off the heavy armour through its condition record", wornMail.system.ac.value === 1 && wornMail._flags.scavenged.ac === -4 && applied.acLost === 4);
+await applyItemLoss({ ready: true, destroyed: [], damaged: [{ item: wornMail, acLost: 2 }] });
+check("a second loss merges into the same record rather than replacing it", wornMail._flags.scavenged.ac === -6 && wornMail.system.ac.value === 0);
+await clearScavenged(wornMail);
+check("clearing the condition repairs the AC", wornMail.system.ac.value === 5 && wornMail._flags.scavenged === undefined);
+check("an unready plan writes nothing", (await applyItemLoss({ ready: false, destroyed: [{ item: wornMail }], damaged: [] })).applied === false && wornMail._flags.destroyed === undefined);
+SETTINGS_STATE.overlayItemLoss = false;
+check("with the overlay off applying refuses", (await applyItemLoss({ ready: true, destroyed: [{ item: wornMail }], damaged: [] })).reason === "off" && wornMail._flags.destroyed === undefined);
+SETTINGS_STATE.overlayItemLoss = true;
+
+const card = planMarkup(split, { damageType: "electrical", fromRear: false, figures: LOSS_FIGURES });
+check("the card names every item and carries a tooltip per figure", /Spear/.test(card) && /Mail/.test(card) && (card.match(/data-tooltip-text/g) ?? []).length >= 4);
+unregisterTable("equipment", { priority: PRIORITY.WORLD });
+check("with the import removed the plan is not ready again", planItemLoss(splitActor, splitLo, { hp: -22, damageType: "fire" }).ready === false);
 SETTINGS_STATE.overlayItemLoss = false;
 
 
@@ -2723,7 +2819,7 @@ check("a stored spell list keeps a renamed book recognised", isSpellbook(renamed
 /*  Material picker + apparent-value disguise (GM tool)                    */
 /* ---------------------------------------------------------------------- */
 
-check("MATERIALS lists the material vocabulary", MATERIALS.includes("wood") && MATERIALS.includes("metal") && MATERIALS.includes("cloth"));
+check("the material vocabulary is the imported table's words, and empty without one", materialVocabulary(null).length === 0 && materialVocabulary({ zork: ["wood", "metal"], quux: ["cloth"] }).join() === "cloth,metal,wood");
 const matItem = mockDoc("weapon", { name: "Mystery Rod" });
 await setMaterial(matItem, "wood");
 check("setMaterial stamps the flag; materialOf reads it", matItem._flags.material === "wood" && materialOf(matItem) === "wood");

@@ -40,7 +40,7 @@ import { declaresSlots, slotsOf, gearOf, reliefOf } from "../../lib/item-model.m
 import { ACCESS_COSTS, slotCapacity, ITEM_TYPE } from "../../lib/vocab.mjs";
 import { LABELABLE } from "../../lib/a11y.mjs";
 import { helmetType } from "../overlays/enclosing-helm.mjs";
-import { MATERIALS, MATERIALS_BY_DAMAGE_TYPE, setMaterial, materialOf } from "../overlays/item-loss.mjs";
+import { materialVocabulary, itemLossMaterials, isVulnerable, setMaterial, materialOf } from "../overlays/item-loss.mjs";
 import { tableFor } from "../overlays/scavenged.mjs";
 import { isContainer } from "../containers.mjs";
 import { wearLabel } from "../wear.mjs";
@@ -375,17 +375,22 @@ export function buildConstructionPanel(item, { editing = false } = {}) {
   }
 
   // MATERIAL (any physical item) — "Auto" clears the flag → the name/type guess.
+  // The words to pick from are the imported table's; a material already chosen
+  // stays selectable whether or not that table is imported.
+  const lossTable = itemLossMaterials();
+  const chosen = String(item.getFlag(MODULE_ID, ITEM_FLAGS.MATERIAL) ?? "auto").toLowerCase();
+  const words = [...new Set([...materialVocabulary(lossTable), ...(chosen === "auto" ? [] : [chosen])])].sort();
   row("ACKS-EQUIPMENT.props.material", select(
-    [{ value: "auto", label: loc("props.materialAuto", { guess: materialOf(item) }) }, ...MATERIALS.map((m) => ({ value: m, label: m }))],
-    String(item.getFlag(MODULE_ID, ITEM_FLAGS.MATERIAL) ?? "auto").toLowerCase(),
+    [{ value: "auto", label: loc("props.materialAuto", { guess: materialOf(item) }) }, ...words.map((m) => ({ value: m, label: m }))],
+    chosen,
     (v) => setMaterial(item, v),
   ));
   // Material has no standing modifier — it decides WHICH damage types can
   // destroy the item (JJ p398 item loss). Saying so stops it reading as a
-  // setting that silently does nothing.
+  // setting that silently does nothing; with the table unread it says that.
   const mat = materialOf(item);
-  const harms = Object.entries(MATERIALS_BY_DAMAGE_TYPE).filter(([, list]) => list.includes(mat)).map(([dt]) => dt);
-  note(harms.length ? loc("props.materialNote", { types: harms.join(", ") }) : loc("props.materialNoneNote"));
+  const harms = lossTable ? Object.keys(lossTable).filter((dt) => isVulnerable(mat, dt, lossTable)) : null;
+  note(!lossTable ? loc("props.materialNotImportedNote") : harms.length ? loc("props.materialNote", { types: harms.join(", ") }) : loc("props.materialNoneNote"));
 
   if (item.type === ITEM_TYPE.armor && item.system?.type === "shield") {
     row("ACKS-EQUIPMENT.props.variant", select(

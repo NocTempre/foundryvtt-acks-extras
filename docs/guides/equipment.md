@@ -454,10 +454,13 @@ selected.
 - **Containers** declares every carrying device the actor owns as a container
   (its capacity is the one the importer read from your book, if any), then
   opens the sheet's equipment tab, where containers are worked.
-- **Item Loss from Damage** resolves the optional rule for equipment destroyed
-  by an area attack (JJ p. 398): it asks for the hit points after the attack
-  and the damage type, and posts what is lost to chat. The **Overlay: item
-  loss from damage (JJ)** setting must be on in Game Settings.
+- **Item Loss from Damage** resolves the optional rule for equipment lost to
+  an area attack (JJ p. 398): it asks for the hit points after the attack, the
+  damage type and the direction, shows which items are destroyed or damaged,
+  and on Apply marks them on their own sheets (the item sheet's Durability
+  tab). It runs on the figures your own Judges Journal imported and says what
+  is not imported when they are missing. The **Overlay: item loss from damage
+  (JJ)** setting must be on in Game Settings.
 - **Recover Thrown Weapons** clears the thrown state of the actor's weapons,
   so they are back in hand and weigh again.
 - **Configure Proficiencies** sets the actor's fighting styles, weapon

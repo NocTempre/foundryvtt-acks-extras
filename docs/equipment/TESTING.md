@@ -243,10 +243,34 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 6. Variations: apply the variation item to the weapon via `variations`.
    *Observable:* the named bonus lands on the item and is visible on its
    sheet; removing the variation removes it.
-7. Wear and item loss: run `planItemLoss(actor, …)` and the "Item Loss from
-   Damage" macro with a token controlled.
-   *Observable:* the plan names the stones at risk and which items are
-   vulnerable; nothing is deleted until the macro is confirmed.
+7. Item loss (JJ p. 398), on a GM seat with the Judges Journal connected. The
+   fixture is a disposable `character` with a wooden shield in hand, a light
+   item, a heavy armour (marker `equipment/item-loss-armour`) and a weapon;
+   build the armour when no document carries the marker. Walk it five ways:
+   - **Imported.** Import the `equipment` tables, turn on **Overlay: item loss
+     from damage (JJ)** (Settings tab → Game Settings → Configure Settings →
+     ACKS Extras), then run **Compendium tab → ACKS Extras Macros → Item Loss
+     from Damage** with the token controlled. *Observable:* the dialog offers the
+     vocabulary's damage types (Electrical, never Electric); the confirm card
+     lists destroyed, damaged and unplaced items, each figure with a tooltip
+     naming the page; `api.equipment.ITEM_LOSS_FIGURES` has six numbers and
+     `ITEM_LOSS_MATERIALS` twelve rows.
+   - **A light item destroyed.** Apply. *Observable:* the light item's sheet,
+     Durability tab, reads Destroyed (its band is struck through), and the
+     Item loss fact reads "Destroyed outright".
+   - **A heavy item damaged.** Hit hard enough that the heavy armour takes a full
+     stone. Apply. *Observable:* its Durability tab shows AC now-of-full lower
+     by the imported AC per full stone and the condition reads Damaged; a
+     second loss merges into the same record rather than replacing it;
+     `clearScavenged` (or a scavenged re-roll) repairs it.
+   - **Absent.** Unregister the tables (or use a world that never imported):
+     *Observable:* the macro's dialog says what is not imported and offers no
+     form, `planItemLoss` answers `ready: false`, and the Durability tab's Item
+     loss fact and the Materials note read not imported.
+   - **The setting off.** *Observable:* the macro warns that the overlay is off,
+     `applyItemLoss` refuses, and the Durability tab has no Item loss fact.
+   An override set in the Ruledata Browser on `equipment.itemLoss` wins and
+   reverts like `heavyHelm`'s (step 4's mechanics).
 8. Training: the pills are read and edited on the Stats tab, not the
    Inventory — the render is walked in `docs/character-sheet/TESTING.md`
    under "Training on Stats". What a grant does to equipment is steps 3 and

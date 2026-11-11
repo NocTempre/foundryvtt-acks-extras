@@ -1204,6 +1204,13 @@ Two sentences of RR read as `proseValues` windows of the `equipment` document:
 the sizes Weapon Finesse takes (`weaponFinesse`, the `sizeList` take) and the
 unarmed strike's die (`unarmedStrike`, the `dice` take).
 
+Item loss reads JJ 398 into two more `equipment` tables: `itemLoss` (six
+`proseValues` figures) and `itemLossMaterials`, a `gridRows` whose row keys are
+`lib/vocab.mjs` `DAMAGE_TYPES` keys and whose one cell, `materials`, is read by
+the `wordList` cell pattern: a sentence-shaped list of kinds, with its commas,
+closing "and", quotes, bracket of examples and the word "items" dropped, and a
+cell reading "none" as an empty list.
+
 ## An entry's heading line
 
 An AX book's entry is anchored on, and its flow stopped by, heading LINES

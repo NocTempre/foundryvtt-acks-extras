@@ -109,6 +109,26 @@ check("one rate is both ends, silver read as gp", rate("6sp/ cart") === '{"min":
 check("a word for a rate is null", applyCellPattern("Ask", "gpRate") === null);
 check("a signed list reads each figure", JSON.stringify(applyCellPattern("+2/+4", "signedList")) === "[2,4]" && JSON.stringify(applyCellPattern("−5", "signedList")) === "[-5]");
 check("a list with a word in it is no list", applyCellPattern("+2/some", "signedList") === null);
+check("a word list drops its closing and, its quotes, its bracket of examples and the word items",
+  JSON.stringify(applyCellPattern("aa, bb (e.g. cc), and “dd” items", "wordList")) === '["aa","bb","dd"]');
+check("a word list cell reading none is an empty list, not an absent one", JSON.stringify(applyCellPattern("None", "wordList")) === "[]");
+{
+  // The item-loss materials recipe on invented runs: the margin tab sits left
+  // of the column, a label splits across runs, and the electrical row's label
+  // is the printed short adjective.
+  const recipeOf = TABLE_RECIPES.equipment.tables.itemLossMaterials;
+  const rowKeys = recipeOf.rows.map((r) => r.key);
+  const runs = [run("Materials Destroyed by Damage Type", 45, 576), run("Material", 156, 591), run("c", 10, 592), run("M", 10, 610)];
+  rowKeys.forEach((key, i) => {
+    const y = 605 + i * 11;
+    const printed = key.replace(/al$/, "");
+    runs.push(run(printed[0], 49, y, 5), run(printed.slice(1), 55, y), run(i === 3 ? "None" : `zz${i}, yy${i}, and “xx${i}” items (e.g. ww)`, 156, y));
+  });
+  const grid = extractTable(runs, recipeOf);
+  check("the materials grid reads one row per vocabulary key under that key", Object.keys(grid).join() === rowKeys.join() && !rowKeys.includes("varies") && rowKeys.includes("electrical"));
+  check("each row's cell is the word list, an empty one where the page printed none",
+    JSON.stringify(grid[rowKeys[0]]) === '{"materials":["zz0","yy0","xx0"]}' && JSON.stringify(grid[rowKeys[3]]) === '{"materials":[]}');
+}
 
 /* --- the shipped Range of Trade recipe on invented runs ---------------------- */
 // The page's layout with invented figures: a two-line header, then one row per

@@ -18,6 +18,7 @@
 
 import { HIT_POINTS_DOC, HP_AFTER_NINE_TABLE } from "./hitpoint-tables.mjs";
 import { MERCHANDISE_KEYS } from "../markets/merchandise-keys.mjs";
+import { DAMAGE_TYPES } from "../lib/vocab.mjs";
 
 // Henchman/mercenary availability rows share the RR market-class grid: a label
 // column, six market-class cells (dice strings kept raw), and — for henchmen —
@@ -2149,7 +2150,7 @@ export const TABLE_RECIPES = {
     },
   },
   equipment: {
-    source: { book: "ACKS II Revised Rulebook + Judges Journal", pages: "RR 15, 121, 140, 160, 296, 299; JJ 252" },
+    source: { book: "ACKS II Revised Rulebook + Judges Journal", pages: "RR 15, 121, 140, 160, 296, 299; JJ 252, 398" },
     tables: {
       // The weapon sizes Weapon Finesse takes (RR ch. 3, Weapon Finesse): the
       // size words the proficiency's own sentence names, read as a list.
@@ -2219,6 +2220,44 @@ export const TABLE_RECIPES = {
           { key: "listening", find: "penalty to surprise rolls and", take: "signed", span: 12 },
           { key: "mortalWounds", find: "but offers a", take: "signed", span: 12 },
         ],
+      },
+      // Item loss from damage (JJ ch. 16): the six figures its two paragraphs
+      // state, each read after the words that open its clause. `equipment/
+      // overlays/item-loss.mjs` `itemLossFigures` serves them and plans nothing
+      // while any is unread.
+      itemLoss: {
+        shape: "proseValues",
+        book: "jj",
+        printedPage: 398,
+        locate: "Anytime a creature is reduced",
+        values: [
+          { key: "threshold", find: "creature is reduced to", take: "signed", span: 16 },
+          { key: "step", find: "another stone of equipment for each", take: "int", span: 12 },
+          { key: "clothingStones", find: "treat each layer of clothing as", take: "int", span: 12 },
+          { key: "lightMax", find: "ordinary items are simply destroyed if", take: "int", span: 12 },
+          { key: "heavyMin", find: "or less. items of", take: "int", span: 12 },
+          { key: "acPerStone", find: "bonus granted if any by", take: "int", span: 12 },
+        ],
+      },
+      // Materials Destroyed by Damage Type (JJ ch. 16): the kinds of material
+      // each damage type can harm, one row per type, keyed by the vocabulary's
+      // own key (`lib/vocab.mjs` DAMAGE_TYPES) so the consumer needs no second
+      // list. The page prints the electrical type's adjective short, so a
+      // row's label is its key without that suffix. The margin tab sits left of
+      // `xMin`, and `yMin` starts the grid below the prose that names it.
+      itemLossMaterials: {
+        shape: "gridRows",
+        book: "jj",
+        printedPage: 398,
+        locate: "Materials Destroyed by Damage Type",
+        column: { xMin: 40, xMax: 620, yMin: 570 },
+        labelMaxX: 150,
+        rowTol: 4,
+        joinGap: 1,
+        cellColumns: [{ key: "materials", x: 154, w: 460, row: true, pattern: "wordList" }],
+        rows: Object.keys(DAMAGE_TYPES)
+          .filter((key) => key !== "varies")
+          .map((key) => ({ key, labelRe: `^${key.replace(/al$/, "")}` })),
       },
       scavengedPiercingSlashing: scavengedGrid({
         locate: "Piercing/Slashing Weapons",

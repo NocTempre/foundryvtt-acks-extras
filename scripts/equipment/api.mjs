@@ -22,7 +22,8 @@ import { FLAG_GEAR } from "../lib/constants.mjs";
 import { capacityOf, bundleSizeOf, gearOf, isCurrency, declaresSlots, reliefOf } from "../lib/item-model.mjs";
 import { weaponProficiency, isWeaponProficient, armorMax, isArmorProficient, thiefSkillsGated, isArmorGatedSkill, grantMatches, normalizeGrantToken, classifyGrantToken } from "./proficiency.mjs";
 import { refreshLoadout } from "./enforce.mjs";
-import { planItemLoss, stonesAtRisk, isVulnerable, materialOf, setMaterial, MATERIALS } from "./overlays/item-loss.mjs";
+import { planItemLoss, stonesAtRisk, isVulnerable, materialOf, setMaterial, materialVocabulary, itemLossFigures, itemLossMaterials } from "./overlays/item-loss.mjs";
+import { openItemLoss, applyItemLoss } from "./item-loss-flow.mjs";
 import { isSilvered, canBeSilvered, setSilvered, dealsExtraordinaryDamage } from "./silver.mjs";
 import { maneuverMods, MANEUVERS } from "./overlays/maneuvers.mjs";
 import * as named from "./overlays/named.mjs";
@@ -267,8 +268,17 @@ export function buildApi() {
     classifyGrantToken,
     // Overlays
     planItemLoss,
+    applyItemLoss,
+    openItemLoss, // the Judge's item-loss flow; the "Item Loss from Damage" macro launches it
     stonesAtRisk,
     isVulnerable,
+    // Read at every access: the import's and the Judge's, each null until imported.
+    get ITEM_LOSS_FIGURES() {
+      return itemLossFigures();
+    },
+    get ITEM_LOSS_MATERIALS() {
+      return itemLossMaterials();
+    },
     materialOf,
     maneuverMods,
     MANEUVERS,
@@ -319,7 +329,10 @@ export function buildApi() {
       return helmFigures();
     },
     setMaterial,
-    MATERIALS,
+    // The material words the imported item-loss table names; empty until imported.
+    get MATERIALS() {
+      return materialVocabulary();
+    },
     // Silver (RR ch.4) — the one material that changes what a weapon counts as
     isSilvered,
     canBeSilvered,

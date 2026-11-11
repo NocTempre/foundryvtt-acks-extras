@@ -54,11 +54,13 @@ Hooks.once("init", () => {
   // The non-proficient package's, the dual weapon style's and the heavy
   // helmet's figures are imported; the import names these tables as missing
   // until the Judge's books supply them, and so are the sizes Weapon Finesse
-  // takes and the unarmed strike's die. The ids are `attack-mods.mjs`
+  // takes and the unarmed strike's die, and item loss's figures and its
+  // materials per damage type. The ids are `attack-mods.mjs`
   // NON_PROFICIENT_TABLES and PRINTED_FIGURE_TABLES, `effects.mjs`
-  // DUAL_STYLE_TABLE and `enclosing-helm.mjs` HELM_TABLE, written as literals
-  // because the producers gate reads this call from source.
-  expectTables(RULEDATA_DOC, ["zeroLevelAttackThrow", "nonProficientUse", "dualWeaponStyle", "heavyHelm", "weaponFinesse", "unarmedStrike"]);
+  // DUAL_STYLE_TABLE, `enclosing-helm.mjs` HELM_TABLE and `item-loss.mjs`
+  // ITEM_LOSS_TABLES, written as literals because the producers gate reads this
+  // call from source.
+  expectTables(RULEDATA_DOC, ["zeroLevelAttackThrow", "nonProficientUse", "dualWeaponStyle", "heavyHelm", "weaponFinesse", "unarmedStrike", "itemLoss", "itemLossMaterials"]);
 
   // Every weapon reader asks the weapon seam; this is the source behind it, the
   // imported rows placed against the imported lists.

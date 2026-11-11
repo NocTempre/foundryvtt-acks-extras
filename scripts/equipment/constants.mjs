@@ -106,6 +106,7 @@ export const ITEM_FLAGS = Object.freeze({
   MASTERWORK: "masterwork", // {tier} — a config.MASTERWORK key, never the row it names
   HELMET: "helmet", // "light" | "heavy"
   MATERIAL: "material", // primary material, for the item-loss materials table
+  DESTROYED: "destroyed", // the item is wrecked — struck through, tagged, still carried
   SILVERED: "silvered", // RR ch.4 Silver quality: true = plated (price layer), false = explicitly not
   // The archer's declaration: fire THIS stack next, ahead of the plain-first
   // rule. Its own flag because `system.equipped` cannot carry it — an

@@ -8,9 +8,17 @@
       <span class="acks-extras-item-sheet__fact-value">
         {{#if durability.destroyed}}{{localize 'ACKS-EQUIPMENT.itemSheet.condition.destroyed'}}
         {{else if durability.conditionLabel}}{{durability.conditionLabel}}
+        {{else if durability.damaged}}{{localize 'ACKS-EQUIPMENT.itemSheet.condition.damaged'}}
         {{else}}{{localize 'ACKS-EQUIPMENT.props.pristine'}}{{/if}}
       </span>
     </div>
+    {{#if durability.itemLoss}}
+    <div class="acks-extras-item-sheet__fact">
+      <span class="acks-extras-item-sheet__fact-label">{{localize 'ACKS-EQUIPMENT.itemLoss.fact'}}</span>
+      <span class="acks-spacer"></span>
+      <span class="acks-extras-item-sheet__fact-value" data-tooltip-text="{{durability.itemLoss.tip}}">{{localize (concat 'ACKS-EQUIPMENT.itemLoss.state.' durability.itemLoss.state)}}</span>
+    </div>
+    {{/if}}
     {{#if durability.acLine}}
     <div class="acks-extras-item-sheet__fact">
       <span class="acks-extras-item-sheet__fact-label">{{localize 'ACKS-EQUIPMENT.itemSheet.field.ac'}}</span>

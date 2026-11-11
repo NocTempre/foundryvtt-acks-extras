@@ -17,7 +17,7 @@ import {
   tableFor, accumulate, needsReroll, SCAVENGED_TABLES,
   importedTable, importedNeedsReroll, accumulateImported, importedRow, rowToEffects,
 } from "./overlays/scavenged.mjs";
-import { recomputeItemFields, withFlatDelta, damageFormulaOf } from "./properties.mjs";
+import { recomputeItemFields, withFlatDelta, damageFormulaOf, scavengedOf } from "./properties.mjs";
 import { unset } from "../lib/util.mjs";
 import { skipDialogFor } from "../lib/roll-dialog.mjs";
 
@@ -447,6 +447,30 @@ export async function setScavenged(item, cond) {
   if (!cond) return clearScavenged(item);
   await recomputeItemFields(item, { scavenged: cond });
   await item.setFlag?.(MODULE_ID, "scavenged", cond);
+}
+
+/**
+ * Take armour class off an armour or shield by merging it into the item's one
+ * condition record, so it shows on the Durability tab beside every other
+ * condition and `clearScavenged` repairs it. The rest of the record stays as it
+ * was. False when the item is not armour or the amount is not above zero.
+ */
+export async function loseArmourClass(item, amount) {
+  if (!item || item.type !== ITEM_TYPE.armor || !(amount > 0)) return false;
+  const held = scavengedOf(item) ?? {};
+  await setScavenged(item, {
+    labels: [], damage: 0, attack: 0, initiative: 0, encumbrance: 0, breaks: false, cannotSneak: false, notes: [], valueMultiplier: 1,
+    ...held,
+    ac: (held.ac ?? 0) - amount,
+  });
+  return true;
+}
+
+/** Mark an item destroyed (or restore it): struck through and tagged on its sheet, still carried. */
+export async function setDestroyed(item, on = true) {
+  if (!item) return;
+  if (on) await item.setFlag?.(MODULE_ID, ITEM_FLAGS.DESTROYED, true);
+  else await item.unsetFlag?.(MODULE_ID, ITEM_FLAGS.DESTROYED);
 }
 
 /**

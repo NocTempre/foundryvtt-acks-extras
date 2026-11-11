@@ -19,7 +19,7 @@ import { variationItemsOf, itemBaseType } from "../variation-items.mjs";
 import { containerOf, isContainer, isLocked, canSeeInside } from "../containers.mjs";
 import { isSpellbook, spellbookSpells, pagesUsed, pagesCapacity } from "../spellbook.mjs";
 import * as named from "../overlays/named.mjs";
-import { materialOf } from "../overlays/item-loss.mjs";
+import { materialOf, itemLossFact } from "../overlays/item-loss.mjs";
 import { classifyWeapon, inferGear, isShield, isHelmet } from "../profiles.mjs";
 import { wearLabel } from "../wear.mjs";
 import { collectEffectModifiers, hasEffectFlag, stringFlagValue } from "../effects.mjs";
@@ -49,7 +49,7 @@ export const SHEET_FLAGS = Object.freeze({
   PINS: "pins", // roll ids pinned to the art, oldest first
   VALUE_MODE: "valueMode", // "priced" | "unknown" | "na"
   DISGUISABLE: "disguisable", // the Appearance tab's disguise drop target is offered
-  DESTROYED: "destroyed", // the item is wrecked — struck through, tagged, still carried
+  DESTROYED: ITEM_FLAGS.DESTROYED, // the item is wrecked — struck through, tagged, still carried
 });
 
 /** The form path of a currency's own rate — how many of it make a stone. */
@@ -367,6 +367,9 @@ function conditionOf(item, container) {
     uses: Number.isFinite(qty?.value) && Number(qty?.max) > 0 ? { now: qty.value, max: qty.max } : null,
     breaks: !!sc?.breaks,
     notes: [...(sc?.notes ?? []), ...(sc?.cannotSneak ? [loc("itemSheet.condition.cannotSneak")] : [])],
+    // Present only while the item-loss overlay is on, the way the spells tab is
+    // present only on a caster.
+    itemLoss: itemLossFact(item),
   };
 }
 

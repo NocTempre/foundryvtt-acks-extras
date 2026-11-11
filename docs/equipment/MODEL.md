@@ -950,6 +950,35 @@ reader's own book gave them. Nothing falls back to a shipped number.
   imported die or null; `unarmedStrikeData` then carries a blank formula (an
   attack throw with no damage roll, core's reading of a blank formula) and
   `rollUnarmed` says "no die imported".
+- **Item loss from damage** (JJ p. 398, the optional rule; `overlays/item-loss.mjs`,
+  gated by `overlayItemLoss`). The `equipment` doc carries two tables read from
+  that page: `itemLoss` (`proseValues`: the threshold, the step, what a layer of
+  clothing counts as, where a light item ends and a heavy one begins, and the
+  armour class a full stone costs) and `itemLossMaterials` (`gridRows`, one
+  row per `lib/vocab.mjs` `DAMAGE_TYPES` key but `varies`, each row's
+  `materials` read by the `wordList` cell pattern). `planItemLoss` takes both
+  as arguments, defaulting to the registry, and returns the split: `destroyed`
+  (a light item), `damaged` (a heavy one, with the stones of damage it took
+  and the `acLost` of its full stones, armour only) and `unplaced` (a weight
+  between the two bounds, which the page states no case for; it spends
+  nothing and is the Judge's). With any figure or the table unread the plan is
+  `ready: false`, plans nothing and names what to import; an unread type row is
+  null from `isVulnerable`, which is not "nothing vulnerable". The materials
+  picker and the Materials note on the Construction tab read the same table
+  and say "not imported" without it.
+  `item-loss-flow.mjs` is the Judge's flow (`api.openItemLoss`, launched by the
+  *Item Loss from Damage* macro): hit points, damage type, direction, the plan
+  with a tooltip per figure, and on a yes `applyItemLoss`. A write is the
+  item's existing condition and nothing more: a light item gets the
+  `destroyed` flag (`actions.mjs` `setDestroyed`, which the sheet's Mark
+  destroyed button shares), and a heavy armour has its `acLost` merged into the
+  one `scavenged` record (`loseArmourClass`), so the Durability tab's AC line
+  and `clearScavenged` already follow it. The Durability tab adds an Item loss
+  fact (the item's class against the imported weights, its tooltip the weight,
+  the bounds and the page) only while the overlay is on. The setting gates the
+  dialog, the write and that fact; `planItemLoss` itself is pure. The damage
+  stones a heavy item took are not stored: only full stones act, each hit is
+  judged alone, and a part of a stone changes nothing the module tracks.
 
 ## Weapon rows read from the book — `weapon-source.mjs`
 

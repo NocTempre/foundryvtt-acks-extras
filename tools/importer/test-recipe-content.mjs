@@ -59,8 +59,9 @@ const TABLES = {
   wages: ["henchmanLimit", "employerLevelCap", "levelMorale", "treasureShare", "xpShare"],
   // The domain month: every table its procedure runs on.
   // The equipment document's two one-sentence figures: the sizes Weapon
-  // Finesse takes and the unarmed strike's die.
-  equipment: ["weaponFinesse", "unarmedStrike"],
+  // Finesse takes and the unarmed strike's die; and item loss's six figures
+  // and its materials grid.
+  equipment: ["weaponFinesse", "unarmedStrike", "itemLoss", "itemLossMaterials"],
   // The weapon lists' prose: the kinds each folio names, read into windows.
   weaponProse: ["martialProse", "focusProse", "selectionProse", "narrowProse", "twoHandsFirst", "twoHandsSecond", "throwableProse", "damageTypeProse"],
   domain: [
@@ -441,6 +442,20 @@ VERIFY["equipment.weaponFinesse"] = (out, recipe, fail) => {
 VERIFY["equipment.unarmedStrike"] = (out, recipe, fail) => {
   proseKeys(out, recipe, fail);
   if (!/^\d+d\d+$/.test(String(out?.damage ?? ""))) fail("damage: not a dice expression");
+};
+VERIFY["equipment.itemLoss"] = (out, recipe, fail) => {
+  proseKeys(out, recipe, fail);
+  if (isNum(out?.threshold) && out.threshold >= 0) fail("threshold: not below zero");
+  for (const key of ["step", "clothingStones", "lightMax", "heavyMin", "acPerStone"]) {
+    if (isNum(out?.[key]) && out[key] <= 0) fail(`${key}: not a positive figure`);
+  }
+  if (isNum(out?.lightMax) && isNum(out?.heavyMin) && out.heavyMin < out.lightMax) fail("heavyMin: below lightMax");
+};
+VERIFY["equipment.itemLossMaterials"] = (out, recipe, fail) => {
+  for (const { key, row } of keyedRows(out, recipe, fail)) {
+    if (!Array.isArray(row.materials)) fail(`row ${key}: materials is not a list`);
+    else if (row.materials.some((m) => !isText(m) || /[,()“”]/.test(m))) fail(`row ${key}: a material word carries list punctuation`);
+  }
 };
 
 /* ------------------------------- the domain ------------------------------- */
