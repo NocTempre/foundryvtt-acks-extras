@@ -58,6 +58,14 @@
 
 ### Changed
 
+- **Force repair keeps what a Judge changed.** Import manager → Adventures
+  tab → Force repair now writes a book's places and people in place. Text you
+  added to or changed on a place, a person or a template creature stays as it
+  is, as do a place you renamed, a block you took out of a place's notes, and
+  place text written before this version that no longer matches the book.
+  Stat-block monsters, items, roll tables, organisations and market profiles
+  are still written over. The confirm counts every place the book writes text
+  onto, a place another book holds included, and states what it keeps.
 - **Silver plating and masterwork apply what your book says.** A weapon plated
   in silver, or an item given a masterwork tier (the item sheet's Details tab),
   took its price, bonus and weight change from figures built into the module.

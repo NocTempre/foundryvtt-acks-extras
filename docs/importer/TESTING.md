@@ -569,6 +569,93 @@ The rebuilt documents are the fixtures from then on, under the ids they
 had. Delete the hand drawing, return the pregen to the Judge, delete the
 dragged copy by id.
 
+## A forced adventure repair writes places in place, and holds a Judge's edits
+
+`cookbookReimportAdventure(bookId, {mode: "force", ask, decision})`; the
+Adventures tab's force control on a book row runs it with no decision. Every
+fixture below is a library document the import made, driven only by a session
+seated alone on this surface: a forced repair writes the book's places for
+every client.
+
+Live: `tools/live/importer-forced-places.mjs` walks the census of "An
+adventure book's Force repair" step 1 (answered No) on ax1 and ax3, and steps
+1–4 only with `FORCED_REPAIR_OK=1`, the owner's go-ahead to write over the
+world's corpus import; step 4 there takes the walk's own edit keys alone.
+
+### Fixtures
+
+Library actors live in a compendium, where no marker can name them (a fixture
+is a world document): each is found by its cookbook claim
+(`importedActorFor(id, {copies: false})`), and the shared places by the rows
+that write onto them (`placeBlockRows`). The names below are the recipe's
+labels, not markers. When the book holds no such document, import the book
+first (Adventures tab, Repair on its row) and look again. ax1 and ax3 together
+hold every kind.
+
+- `importer/forced-keyed-place`: a keyed place of an adventure book whose
+  roster names a creature made from its own stat line (a roster row whose
+  `uuid` is an actor claiming `<place id>-o<n>`).
+- `importer/forced-statline-creature`: that creature.
+- `importer/forced-shared-place`: a place two books print, both imported: its
+  `flags.acks-extras.cookbook.merged` is not empty and its notes hold two
+  stamped blocks (`data-acks-entry`), one per book. The book under test is the
+  one whose row is in `merged` or in `id`; note which.
+- `importer/forced-bound-place`: a market or settlement place a region site of
+  the same book is bound onto: its notes hold a block whose `data-acks-entry`
+  is not the place's own claim.
+- `importer/forced-quarter`: a quarter's place (claim `<book>.district.<slug>`)
+  whose notes hold its overview's block.
+- `importer/forced-pregen`: a pregenerated character of the book (a library
+  `character` actor whose cookbook `book` is the book under test), where the
+  book prints one.
+
+Record each fixture's uuid, `_stats.createdTime`, name, notes and cookbook
+flag before step 1.
+
+### Steps
+
+1. **The first forced repair**, from the API with the confirm answered:
+   `r = await acksExtras.importer.cookbookReimportAdventure(book, {mode: "force", ask: async () => true})`.
+   *Observable:* every fixture keeps its uuid and `createdTime`; the shared
+   place keeps its `id`, `merged` and the other book's block byte for byte;
+   the bound place and the quarter keep every block but the one this book's
+   row writes; the creature's `_stats.modifiedTime` moved and its roster row
+   on the keyed place still resolves; `r.edits` is an array. On the first run
+   no block carries a checksum yet: a row's block equal to the page gains one
+   in `flags.acks-extras.cookbook.blocks` and is otherwise untouched, and one
+   that differs is left as it stands and listed in `r.edits` with
+   `unstamped: true`. A row with no block is written only onto notes empty but
+   for the place's erratum notes; beside the Judge's text or another row's
+   block it is listed in `r.edits` with `current` empty.
+2. **A Judge's edits.** Change one word inside this book's block on the
+   shared place, rename the shared place (only where this book's row is its
+   `id`), add `<p>Judge note.</p>` after the block on the keyed place, delete
+   this book's block from the bound place, and add the same note to the
+   pregenerated character's biography. Repeat step 1.
+   *Observable:* `r.edits` lists each edit once, each with `key`, `uuid`,
+   `path` (`system.notes#<row id>`, `name`, `system.notes`,
+   `system.details.biography`), `current`, `page` and `cite`; the edited word,
+   the rename, both notes and the deleted block's absence all stand (the
+   deleted block's `current` is empty); every other block is written again. A
+   changed figure (a stat, a roster row) is not held: it is the page's again.
+3. **Take one.** Repeat with `decision: {take: new Set([r.edits[0].key])}`.
+   *Observable:* that one edit is replaced by the page's value; the others
+   stand and are listed again.
+4. **Take all.** Repeat with `decision: "take"`.
+   *Observable:* `r.edits` is empty and every fixture reads as the page gives
+   it, each block of this book's rows now carrying a checksum; uuids are still
+   those recorded. Steps 2 and 3 assume this stamped state: on a world where
+   step 1 listed unstamped blocks, walk step 4 before step 2.
+5. **The control.** Adventures tab, the book row's force control; confirm.
+   *Observable:* the notice counts the places written; a fixture edited as
+   in step 2 keeps its edit (the control passes no decision).
+
+### Teardown
+
+The fixtures stay, under their markers. Step 4 returns them to the page's
+text; after step 5, run step 4 once more. The walk creates and deletes no
+document.
+
 ## One entry at a time
 
 **(Re)import Individual Entries (GM)** —
@@ -3425,14 +3512,20 @@ price, all on documents the marker names.
    and a pregenerated character, or the step for the missing one is not walked.
 2. Again, answer **Yes**.
    *Observable:* the result is `mode: "force"` with replaced counts; the edited
-   price, the biography note and the table's description are the build's again;
-   the place's notes and roster, the organisation's relations and roster, and
-   the market class are the book's again (a base a later book wrote is not);
-   the pregenerated character's biography is rewritten and it holds each item
-   once (count its items before and after: no twin, the item a Judge gave it
-   still there); ids, folders and owners are unchanged; no document of the book
-   is added or removed; the maps, a library copy dragged out and a player's
-   character are untouched. A place two books print is counted as left.
+   price and the table's description are the build's again, as is a note in a
+   stat-block monster's description; the place's roster, the organisation's
+   relations and roster, and the market class are the book's again (a base a
+   later book wrote is not). The control passes no decision, so hand-written
+   prose on a person, a template creature or a place stands and is listed in
+   the result's `edits`: a biography note, the line beside a place's stamped
+   block, the pregenerated character's biography note. A changed figure on
+   them is the page's again. The character holds
+   each item once (count its items before and after: no twin, the item a Judge
+   gave it still there); ids, folders and owners are unchanged; no document of
+   the book is added or removed; the maps, a library copy dragged out and a
+   player's character are untouched. A place two books print has its row's
+   block written in place (the recipe "A forced adventure repair writes places
+   in place, and holds a Judge's edits").
    Ordinary **Repair** on the same edits keeps the notes, the place and the
    character as they were.
 3. Player seat: open Manage Imports.

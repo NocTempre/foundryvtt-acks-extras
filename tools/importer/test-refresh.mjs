@@ -11,6 +11,7 @@ import {
   actorPolicy,
   REPAIR,
   policyFor,
+  decidedPolicy,
   handWrittenProse,
   repairTally,
   repairCounts,
@@ -333,5 +334,22 @@ check("a build with nothing to write carries no flags, token, items or prose", b
 const tableTally = repairTally({ force: true });
 tableTally.tables = new Set(["priced"]);
 check("a tally carries the table importers a run repairs, and counts skip it", tableTally.tables.has("priced") && !("tables" in repairCounts(tableTally)));
+
+/* --- a decision meets the Judge's prose -------------------------------------- */
+const judgedBio = `${stamped("Bio.")}<p>The Judge's line.</p>`;
+const judgedSource = { name: "Kept", type: "monster", system: { details: { biography: judgedBio } }, flags: { [M]: { cookbook: { id: "x" }, extras: { a: 1 } } } };
+const bioKey = "Actor.kept#system.details.biography";
+const keptByDefault = decidedPolicy(judgedSource, actorBuilt, policyFor(policy, { force: true }), { uuid: "Actor.kept", cite: "XX p.9" });
+check("with no decision a hand-written biography is an edit, held whatever the tally's force",
+  keptByDefault.edits.length === 1 && keptByDefault.policy.force === false && keptByDefault.policy.prose.includes("details.biography"));
+check("the edit names the document, the field, both values and the page",
+  JSON.stringify(keptByDefault.edits[0]) === JSON.stringify({
+    key: bioKey, uuid: "Actor.kept", name: "Kept", path: "system.details.biography", current: judgedBio, page: actorBuilt.system.details.biography, cite: "XX p.9",
+  }));
+check("and the plan it narrows writes no biography", !("biography" in (refreshPlan(judgedSource, actorBuilt, keptByDefault.policy).update.system?.details ?? {})));
+const bioTaken = decidedPolicy(judgedSource, actorBuilt, policy, { uuid: "Actor.kept", decision: { take: new Set([bioKey]) } });
+check("a decision that takes the key lifts its guard, and nothing is held", bioTaken.edits.length === 0 && !bioTaken.policy.prose.includes("details.biography"));
+check("so the plan writes the page's biography", refreshPlan(judgedSource, actorBuilt, bioTaken.policy).update.system.details.biography === actorBuilt.system.details.biography);
+check("a stamped block alone is no edit", decidedPolicy({ ...judgedSource, system: { details: { biography: stamped("Old.") } } }, actorBuilt, policy, {}).edits.length === 0);
 
 console.log(`test-refresh: ${pass} passed`);

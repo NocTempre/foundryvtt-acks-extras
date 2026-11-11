@@ -62,6 +62,59 @@ export function kindOf(kinds, claim) {
   return owners[0] ?? null;
 }
 
+/**
+ * Every document that claims a set of ids, arranged for writes that hold one
+ * document per claim at a time. A document claims an id when its own claim is
+ * the id or a row filed beneath it (`<id>.<row>`); it is held under its own
+ * claim, since a build writes over the document holding the claim it stamps.
+ * Pass `n` holds the `n`th document of each claim, so a claim two documents
+ * answer is written on both. A row beneath the id whose claim another kind
+ * owns, or no one kind owns, is `foreign` and held by no pass; where the id
+ * itself has no one owning kind, every claimer is held. An id no document
+ * claims exactly is `missing`.
+ *
+ * @param {string[]} ids the cookbook ids to write
+ * @param {object[]} docs the library's documents to look through
+ * @param {object} how
+ * @param {(doc: object) => string} how.claimOf a document's own cookbook claim, "" for none
+ * @param {object[]} [how.kinds] the kind declaration; omitted, every claimer is held
+ * @returns {{passes: Map<string, object>[], missing: string[], foreign: object[]}}
+ */
+export function claimerPasses(ids, docs, { claimOf, kinds = null }) {
+  const kindKey = (claim) => {
+    if (!kinds) return null;
+    const owners = ownersOf(kinds, claim);
+    return owners.length === 1 ? owners[0].key : undefined;
+  };
+  const byClaim = new Map();
+  const foreign = [];
+  const missing = [];
+  for (const id of ids) {
+    const want = kindKey(id);
+    let exact = false;
+    for (const doc of docs) {
+      const claim = claimOf(doc);
+      if (claim !== id && !claim.startsWith(`${id}.`)) continue;
+      if (want && claim !== id && kindKey(claim) !== want) {
+        if (!foreign.includes(doc)) foreign.push(doc);
+        continue;
+      }
+      if (claim === id) exact = true;
+      if (!byClaim.has(claim)) byClaim.set(claim, []);
+      if (!byClaim.get(claim).includes(doc)) byClaim.get(claim).push(doc);
+    }
+    if (!exact) missing.push(id);
+  }
+  const passes = [];
+  for (const [claim, held] of byClaim) {
+    held.forEach((doc, n) => {
+      if (!passes[n]) passes[n] = new Map();
+      passes[n].set(claim, doc);
+    });
+  }
+  return { passes, missing, foreign };
+}
+
 /** The books a kind holds claims from: its own `books`, else those its entries' claims are read from. */
 export const booksOfKind = (kind) =>
   kind.books ? kind.books() : [...new Set(kind.entries().map(([claim]) => kind.book(claim)).filter(Boolean))];

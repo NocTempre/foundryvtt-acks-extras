@@ -18,9 +18,10 @@ import { trainingChanges } from "../classes/training-logic.mjs";
 import { BUILDER_DOC_ID, baseXpCost, xpSchedule } from "../classes/builder-logic.mjs";
 import { LANGUAGES_DOC_ID } from "./language-binding.mjs";
 import { bookText, entryText, entryTable, escapeText, keepParagraphs, nodeParagraphs } from "./prose.mjs";
-import { answersFor, bindPatch, claimIds, placePairs, takeoverPatch } from "./place-pair.mjs";
+import { answersFor, bindPatch, claimIds, placePairs, rowBlockPatch, takeoverPatch } from "./place-pair.mjs";
 import {
   actorPolicy,
+  decidedPolicy,
   handWrittenProse,
   refreshImported,
   REPAIR,
@@ -31,6 +32,7 @@ import {
   countRepair,
   unrepaired,
 } from "./refresh.mjs";
+import { decides, heldEdit } from "./held-edits.mjs";
 import {
   isPoiEntry, poiGroupOf, districtPlaceId, districtPlaceData, poiLocationData, isRegionSite, isRegionOverview, regionPlaceId, regionPlaceData,
   keySpacesOf, isKeyedPlace, keyedParentId, occupantsOf, occupantFigures,
@@ -64,7 +66,7 @@ import { effectsOriginOf } from "./effects-origin.mjs";
 import { slugLabel } from "./table-extract.mjs";
 import { TABLE_RECIPES } from "./table-recipes.mjs";
 import { ownerOfClaim, rebuildVerdict } from "./rebuild-guard.mjs";
-import { ancestorsOf, runSetFor as deriveRunSet } from "./import-kinds.mjs";
+import { ancestorsOf, claimerPasses, runSetFor as deriveRunSet } from "./import-kinds.mjs";
 import { GM_STEPS } from "./getting-started.mjs";
 import { getDoc, getLayer, hasDoc, PRIORITY } from "../lib/tables.mjs";
 import { pageItems, pageArtPlacements } from "./extract.mjs";
@@ -931,10 +933,19 @@ let rewriteScope = null;
  * calls. The held documents not written when it ends (their page no longer
  * matched, or the build failed) are counted as left. Scopes do not nest.
  *
- * @param {{held: Map<string, foundry.abstract.Document>, tally: object, retract?: string[]}} scope
+ * @param {{held: Map<string, foundry.abstract.Document>, tally: object, retract?: string[],
+ *   blocks?: Map<string, foundry.abstract.Document>}} scope
  *   `retract` names `system` fields the build does not carry that a write
  *   returns to their initial value (a place's roster, a body's relations), so a
- *   field the import fills after the create is rebuilt rather than topped up
+ *   field the import fills after the create is rebuilt rather than topped up.
+ *   `blocks` maps a row's cookbook id to a place it writes text onto but does
+ *   not build (a place two books print, a market or settlement a site is bound
+ *   onto, a quarter or region its overview describes): the row's own block is
+ *   written over in place (`writeRowBlock`) and the place is never built again.
+ *   `decision`, where the scope carries the key, is the caller's word on the
+ *   Judge's edits (`decides`): an edit it does not take is left standing and
+ *   listed in `tally.edits`, and the tally's force is not read. A scope
+ *   without it writes as the tally's force says.
  * @param {() => Promise<unknown>} run
  */
 export async function withRewrite(scope, run) {
@@ -943,12 +954,44 @@ export async function withRewrite(scope, run) {
     return await run();
   } finally {
     rewriteScope = null;
-    for (const doc of scope.held.values()) if (!scope.tally.seen.has(doc.uuid ?? doc.id)) scope.tally.refused++;
+    const docs = new Set([...scope.held.values(), ...(scope.blocks?.values() ?? [])]);
+    for (const doc of docs) if (!scope.tally.seen.has(doc.uuid ?? doc.id)) scope.tally.refused++;
   }
 }
 
 /** Whether a rewrite holds the document for this cookbook id: the importers skip their "already imported" read and their art for it. */
 export const isRewriting = (id) => !!rewriteScope?.held.has(id);
+
+/** A rewrite scope's `decision`, taken from a tally whose caller set one, else nothing. */
+const decisionOf = (tally) => (tally && "decision" in tally ? { decision: tally.decision } : {});
+
+/** The place a rewrite writes row `id`'s block onto (`withRewrite`'s `blocks`), or null. */
+const blockTarget = (id) => rewriteScope?.blocks?.get(id) ?? null;
+
+/**
+ * Write a row's fresh build over its own block on a place it shares
+ * (`rowBlockPatch`), and count the place once in the rewrite's tally. A
+ * Judge's edit the rewrite's `decision` does not take is left standing and
+ * listed in the tally's `edits`. A place that already holds the build is
+ * counted as written; a write Foundry rejects is logged and counted as left.
+ * @param {Actor} target the place `blockTarget` answered
+ * @param {{id: string, notes?: string, name?: string, after?: string, cite?: string}} row
+ * @returns {Promise<Actor>} the place
+ */
+async function writeRowBlock(target, row) {
+  const tally = rewriteScope?.tally ?? null;
+  const first = unrepaired(tally, target);
+  const { update: patch, edits } = rowBlockPatch({ ...target.toObject(), uuid: target.uuid }, row, { decision: rewriteScope?.decision ?? null });
+  if (tally && edits.length) (tally.edits ??= []).push(...edits);
+  try {
+    if (Object.keys(patch).length) await target.update(patch);
+    if (first) tally.replaced++;
+  } catch (err) {
+    console.error(`${MODULE_ID} | repair of ${target.name} failed`, err);
+    if (first) tally.refused++;
+  }
+  return target;
+}
 
 /** The held document a create of `data` writes over, or null. */
 function rewriteTarget(cls, data) {
@@ -964,8 +1007,37 @@ function rewriteTarget(cls, data) {
 async function rewriteHeld(held, data) {
   const tally = rewriteScope.tally;
   const policy = { ...actorPolicy(data), retract: rewriteScope.retract ?? [] };
-  if (unrepaired(tally, held)) countRepair(tally, await refreshImported(held, data, policyFor(policy, tally)));
+  if (!unrepaired(tally, held)) return held;
+  // A scope that carries a decision writes a Judge's edit only where the
+  // decision takes it, and lists the rest; one without keeps the tally's force.
+  if (!("decision" in rewriteScope)) {
+    countRepair(tally, await refreshImported(held, data, policyFor(policy, tally)));
+    return held;
+  }
+  // A place's notes are its prose: text a Judge wrote beside the stamped block is an edit.
+  const guarded = data?.system?.notes !== undefined ? { ...policy, prose: [...policy.prose, "notes"] } : policy;
+  const decided = decidedPolicy(held.toObject(), data, guarded, {
+    decision: rewriteScope.decision, uuid: held.uuid, cite: data?.flags?.[MODULE_ID]?.cookbook?.cite ?? "",
+  });
+  if (decided.edits.length) (tally.edits ??= []).push(...decided.edits);
+  countRepair(tally, await refreshImported(held, data, decided.policy));
   return held;
+}
+
+/**
+ * Whether a write an importer makes after its create keeps `current`, what
+ * the held `doc` stores at `path`, instead of `page`: true under a rewrite
+ * that carries a `decision`, where the stored text holds hand-written prose
+ * (`handWrittenProse`), differs from the page and the decision does not take
+ * it; the edit is then listed in the tally's `edits`. False anywhere else.
+ */
+export function keepsJudgeProse(doc, path, current, page, cite = "") {
+  if (!rewriteScope || !("decision" in rewriteScope) || !doc) return false;
+  if (current === page || !handWrittenProse(current)) return false;
+  const edit = heldEdit({ uuid: doc.uuid ?? "", name: doc.name ?? "", path, current, page, cite });
+  if (decides(rewriteScope.decision, edit.key) === "take") return false;
+  (rewriteScope.tally.edits ??= []).push(edit);
+  return true;
 }
 
 /** Whether the rewrite in progress has already written this document over (its build was accepted). */
@@ -2147,7 +2219,10 @@ async function repairBook(bookId, label, { force = false, ask = null } = {}) {
  * whole (`refillMonster`); a template, a family, a person or a legacy block
  * (`rewrites`) is built by its importer again, and the create it would make is a
  * write over the held document (`withRewrite`); an OSE creature (`oseIds`) is
- * read by the OSE importer the same way. `tally.force` lifts the prose guards.
+ * read by the OSE importer the same way. `tally.force` lifts the prose guards
+ * of a stat-block monster, and of the rest where the tally carries no
+ * `decision`; with one (`decisionOf`), a rewrite holds hand-written prose as an
+ * edit (`decidedPolicy`) and pushes it to `tally.edits`.
  *
  * @param {{monsters?: string[], rewrites?: string[], oseIds?: string[]}} ids cookbook ids by how each is written
  * @param {foundry.documents.Actor[]} actors the imported actors, the library's and the world's
@@ -2171,17 +2246,23 @@ async function repairActors({ monsters = [], rewrites = [], oseIds = [] }, actor
       countRepair(tally, done?.ok ? done : (done?.reason ?? "error"));
     }
   }
-  const held = new Map();
-  for (const id of rewrites) {
-    const [doc] = actors.filter(claimedBy(id));
-    if (doc) held.set(id, doc);
-    else missing.push(id);
+  // Every document claiming a rewritten id is written: one pass per document
+  // a claim has, each holding one document per claim, so two documents under
+  // one claim are both built over. A claimer another kind owns is left. An
+  // entry is built only in a pass that holds its own claim: these importers
+  // create without asking presence, so a build with nothing held under its
+  // claim would make a twin.
+  const living = actors.filter((doc) => !doc.flags?.[MODULE_ID]?.templatePart);
+  const { passes, missing: unclaimed, foreign } = claimerPasses(rewrites, living, { claimOf: claimedId, kinds: IMPORT_KINDS });
+  missing.push(...unclaimed);
+  tally.refused += foreign.length;
+  for (const held of passes) {
+    await withRewrite({ held, tally, ...decisionOf(tally) }, async () => {
+      for (const id of rewrites.filter((id) => held.has(id))) {
+        await importOne(bookOf(cookbookEntry(id)), id, null).catch((err) => console.error(`${MODULE_ID} | repair ${id}`, err));
+      }
+    });
   }
-  await withRewrite({ held, tally }, async () => {
-    for (const id of held.keys()) {
-      await importOne(bookOf(cookbookEntry(id)), id, null).catch((err) => console.error(`${MODULE_ID} | repair ${id}`, err));
-    }
-  });
   const imported = missing.length ? await importMany(missing, game.i18n.localize(`${LANG_PREFIX}.ui.cookbookWorking`)) : null;
   let ose = null;
   if (oseIds.length) {
@@ -2592,6 +2673,66 @@ function bodyRowIds(bookId) {
   return { places, factions };
 }
 
+/**
+ * The rows of one book that write their text onto a place they do not build,
+ * each with the claim of that place: a row of a place two books print (the
+ * place it shares, found under the row's own id), a region site bound onto a
+ * market or the book's own settlement (`regionSiteClaim`), a quarter's
+ * overview (its quarter's place) and a region's overview (the region's
+ * place). Pure; a forced repair resolves each claim to the library's
+ * document (`forcedPlaceHold`).
+ * @param {string} bookId
+ * @param {Record<string, object>} entries the book's cookbook entries
+ * @param {Map<string, object>} pairs the place pairs every cookbook declares (`placePairs`)
+ * @returns {{id: string, place: string}[]}
+ */
+export function placeBlockRows(bookId, entries, pairs) {
+  const spaces = keySpacesOf(entries);
+  const rows = [];
+  for (const [id, e] of Object.entries(entries ?? {})) {
+    if (isPoiEntry(e)) {
+      const group = poiGroupOf(e.meta?.group);
+      if (group.kind === "overview") rows.push({ id, place: districtPlaceId(bookId, group.district) });
+      else if (pairs.has(id)) rows.push({ id, place: id });
+    } else if (isRegionOverview(e)) {
+      rows.push({ id, place: regionPlaceId(bookId) });
+    } else if (isRegionSite(e)) {
+      const claim = regionSiteClaim(bookId, e, id, entries);
+      if (claim.onto !== "site") rows.push({ id, place: claim.claimId });
+      else if (pairs.has(id)) rows.push({ id, place: id });
+    } else if (isKeyedPlace(e, id, spaces) && pairs.has(id)) {
+      rows.push({ id, place: id });
+    }
+  }
+  return rows;
+}
+
+/**
+ * What a forced repair of one book's places writes in place (`withRewrite`'s
+ * `held` and `blocks`). `held`: the places it builds again (`placeIds`, from
+ * `bodyRowIds`), each under its own claim, and the creatures made from their
+ * stat lines (`<place>-o<i>`). `blocks`: the places the book's rows write
+ * their text onto without building them (`placeBlockRows`), a shared place
+ * only once it answers for the row. A place held by a claim merged into it is
+ * never built over, since a build stamps the arriving row's claim.
+ */
+async function forcedPlaceHold(bookId, placeIds) {
+  const held = new Map();
+  for (const [id, doc] of await heldById(placeIds)) if (claimedId(doc) === id) held.set(id, doc);
+  const stems = new Set(held.keys());
+  for (const doc of await importedDocs("Actor")) {
+    const claim = claimedId(doc);
+    const stem = /^(.+)-o\d+$/.exec(claim)?.[1];
+    if (stem && stems.has(stem) && !held.has(claim) && !doc.flags?.[MODULE_ID]?.templatePart) held.set(claim, doc);
+  }
+  const blocks = new Map();
+  for (const { id, place } of placeBlockRows(bookId, data.books.get(bookId)?.entries ?? {}, placePairs(data.books))) {
+    const doc = await importedActor(place, { copies: false });
+    if (doc && answersFor(doc.getFlag(MODULE_ID, "cookbook"), place)) blocks.set(id, doc);
+  }
+  return { held, blocks };
+}
+
 /** The library's documents for a list of cookbook ids, by id; an id the world does not hold is left out. */
 async function heldById(ids) {
   const held = new Map();
@@ -2661,8 +2802,10 @@ async function runAdventureBookSteps(bookId, { force = false, tally = null } = {
   const rewriting = !!tally?.force;
   const ids = rewriting ? bodyRowIds(bookId) : { places: [], factions: [] };
   const scoped = async (list, retract, fn) => (rewriting ? withRewrite({ held: await heldById(list), tally, retract }, fn) : fn());
+  const placesScoped = async (fn) =>
+    (rewriting ? withRewrite({ ...(await forcedPlaceHold(bookId, ids.places)), tally, retract: ["roster"], ...decisionOf(tally) }, fn) : fn());
   await run("stepJournals", () => a.cookbookImportJournals(only));
-  if (hasPlaceRows(bookId)) await run("stepPoi", () => scoped(ids.places, ["roster"], () => a.cookbookImportPoiPlaces(only)));
+  if (hasPlaceRows(bookId)) await run("stepPoi", () => placesScoped(() => a.cookbookImportPoiPlaces(only)));
   await run("stepFactions", () => scoped(ids.factions, ["relations", "strength"], () => a.cookbookImportFactions(only)));
   await run("stepMarkets", () => a.cookbookImportMarketProfiles({ ...only, repair: tally }));
   await run("stepRollTables", () => a.cookbookImportRollTables({ ...only, repair: tally }));
@@ -2684,9 +2827,11 @@ const typeCount = (type, n) => {
 /**
  * What a force repair of an adventure book writes over: the documents the book
  * owns, counted by kind as `written` (its places and organisations apart from
- * its creatures and people), `markets` when the book prints a market grid whose
- * profiles are written onto its places, and the `left` it does not write (a
- * place two books print, and the abilities and classes another step owns).
+ * its creatures and people, a place one of its rows writes text onto counted
+ * among the places, another book's included), `markets` when the book prints
+ * a market grid whose profiles are written onto its places, and the `left` it
+ * does not write (the abilities and classes another step owns, and a place no
+ * row of the book writes onto).
  * @returns {Promise<{written: string, left: number, markets: boolean}>}
  */
 async function adventureForceCensus(bookId) {
@@ -2696,12 +2841,22 @@ async function adventureForceCensus(bookId) {
   };
   const owned = adventureDropRows(await bookDocuments(bookId), bookId, { ownerOf, isWorldCopy, isPlayers: playersCharacter });
   const bodies = bodyRowIds(bookId);
-  const places = new Set(bodies.places);
+  // A place a row writes its text onto counts as written, the book's own or
+  // another's (a place two books print, held by the other book).
+  const blockRows = placeBlockRows(bookId, data.books.get(bookId)?.entries ?? {}, placePairs(data.books));
+  const places = new Set([...bodies.places, ...blockRows.map((r) => r.place)]);
   const factions = new Set(bodies.factions);
   const byType = new Map();
   let nPlaces = 0;
   let nFactions = 0;
   let left = 0;
+  const ownedDocs = new Set(owned.map((r) => r.doc));
+  const shared = new Set();
+  for (const { place } of blockRows) {
+    const doc = await importedActor(place, { copies: false });
+    if (doc && !ownedDocs.has(doc) && answersFor(doc.getFlag(MODULE_ID, "cookbook"), place)) shared.add(doc);
+  }
+  nPlaces += shared.size;
   for (const { type, doc } of owned) {
     const id = claimedId(doc);
     if (type === "Actor" && places.has(id)) nPlaces++;
@@ -2740,18 +2895,24 @@ async function adventureForceCensus(bookId) {
  * state — a Judge's edit to the Adventure on the shelf included (`force`).
  *
  * @param {string} bookId a Judge's book of BOOKS, open on this seat.
- * `mode: "force"` is a repair that also writes over, in place, the creatures
- * and people, the book's own items and the roll tables the world holds of the
- * book (`adventureForceCensus` counts them for the confirm), a description a
- * Judge wrote in included. That is also its places and organisations (an
- * edited place or roster is replaced) and the market profiles on its places;
- * a place two books print is joined by its own step and left.
+ * `mode: "force"` is a repair that also writes over, in place, what the world
+ * holds of the book (`adventureForceCensus` counts it for the confirm). Its
+ * stat-block monsters, its own items, its roll tables and its organisations
+ * (an edited roster is replaced) are written a description a Judge wrote in
+ * included, as are the market profiles on its places. Its other creatures and
+ * people, its places, the creatures made from their stat lines, and the text
+ * a row writes onto a place it shares (a place two books print, a market or
+ * settlement a site is bound onto, a quarter or region an overview describes)
+ * are written under `decision`: a Judge's edit there is written only where
+ * the decision takes it, and is otherwise kept and returned in `edits`.
  *
- * @param {{mode?: "drop"|"repair"|"force", ask?: Function|null}} [opts] `ask`
- *   answers the confirm in its place (`confirmRepair`)
- * @returns {Promise<{book: string, mode: string, removed: number, steps: object[], errors: object[]}|null|undefined>}
+ * @param {{mode?: "drop"|"repair"|"force", ask?: Function|null, decision?: Parameters<typeof decides>[0]}} [opts]
+ *   `ask` answers the confirm in its place (`confirmRepair`); `decision` is the
+ *   word on a Judge's edits (`decides`), none keeping every one
+ * @returns {Promise<{book: string, mode: string, removed: number, steps: object[], errors: object[],
+ *   edits?: ReturnType<typeof heldEdit>[]}|null|undefined>} `edits` on a forced repair: what it kept
  */
-export async function cookbookReimportAdventure(bookId, { mode = "drop", ask = null } = {}) {
+export async function cookbookReimportAdventure(bookId, { mode = "drop", ask = null, decision = null } = {}) {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (deletes and re-creates documents).`);
   const label = bookLabel(bookId);
   const t = (key, data) => game.i18n.format(`${LANG_PREFIX}.ui.${key}`, data ?? {});
@@ -2760,7 +2921,7 @@ export async function cookbookReimportAdventure(bookId, { mode = "drop", ask = n
   // Repair and force repair delete nothing; both write the Adventure anew.
   const force = mode === "repair" || mode === "force";
   // A force repair also writes over, in place, what the world holds of the book.
-  const tally = mode === "force" ? repairTally({ force: true }) : null;
+  const tally = mode === "force" ? { ...repairTally({ force: true }), decision, edits: [] } : null;
   let removed = 0;
   // A rebuild deletes first; a book the module does not offer is not rebuilt.
   if (!force && !BOOKS[bookId]) return ui.notifications.warn(t("reimportAdventureWithdrawn", { book: label }));
@@ -2817,7 +2978,9 @@ export async function cookbookReimportAdventure(bookId, { mode = "drop", ask = n
     force ? t("reimportAdventureRepaired", { book: label, steps: steps.length, errors: tail }) : t("reimportAdventureDone", { book: label, removed, steps: steps.length, errors: tail }),
   );
   if (tally) reportRepair(tally);
-  return { book: bookId, mode: tally ? "force" : force ? "repair" : "drop", removed, steps, errors, ...(tally ? repairCounts(tally) : {}) };
+  return {
+    book: bookId, mode: tally ? "force" : force ? "repair" : "drop", removed, steps, errors, ...(tally ? { ...repairCounts(tally), edits: tally.edits } : {}),
+  };
 }
 
 /* -------------------------------------------- */
@@ -3242,8 +3405,11 @@ const BOOK_STEP_KINDS = [
  * lists the fields): the entry sources, the table shelves and the adventure
  * book's steps. A cookbook claim is owned by at most one kind, and each kind
  * names the run that re-creates it. A claim owned by no kind is one nothing
- * here can re-create: a constant, a class's metadata, an OSE book's keyed
- * areas, the retired per-map Adventures.
+ * here can re-create: a constant, a class's metadata, the retired per-map
+ * Adventures, and an OSE book's keyed areas and adventure place. The OSE
+ * claims stay unowned and get no in-place writer while those books are
+ * switched off (docs/importer/DECISIONS.md, "The books statted for OSE are
+ * switched off, and their code kept").
  */
 export const IMPORT_KINDS = Object.freeze([...ENTRY_SOURCES, ...TABLE_SHELF_KINDS, ...BOOK_STEP_KINDS]);
 
@@ -4913,7 +5079,8 @@ async function importCharacter(bookId, id, folderId, node, found) {
   // A document already standing under the stable id is this entry's from an
   // earlier run; making another under it is a duplicate-id throw.
   // A forced repair holds the character: the create below returns it, and the
-  // sheet import and the biography write that follow land on it where it stands.
+  // sheet import and the biography write that follow land on it where it stands;
+  // a biography a Judge wrote in is kept under a decision (`keepsJudgeProse`).
   const { pack } = await packOptsFor("Actor", lineOfData(shell));
   if (!isRewriting(id) && (pack ? game.packs.get(pack)?.index.has(_id) : game.actors.has(_id))) {
     console.warn(`${MODULE_ID} | ${id}: a character already stands under its id — skipped.`);
@@ -4947,8 +5114,10 @@ async function importCharacter(bookId, id, folderId, node, found) {
     ...missing.map((u) => ({ label: game.i18n.localize(`${LANG_PREFIX}.character.missing`), text: u.name })),
     ...report.noted,
   ];
+  const biography = entryText(node, id, found.entry.cite) + asPrintedBlock({ id, statline: sl.text, differences: report.checks, rows }, words);
+  const keepBiography = isRewriting(id) && keepsJudgeProse(actor, "system.details.biography", actor.system?.details?.biography, biography, found.entry.cite ?? "");
   await actor.update({
-    "system.details.biography": entryText(node, id, found.entry.cite) + asPrintedBlock({ id, statline: sl.text, differences: report.checks, rows }, words),
+    ...(keepBiography ? {} : { "system.details.biography": biography }),
     ...(Number.isInteger(morale) && moraleField ? { "system.details.morale": Math.clamp(morale, moraleField.min, moraleField.max) } : {}),
     [`flags.${MODULE_ID}.printed`]: { differences: report.checks.length, missing: missing.length },
   });
@@ -5174,7 +5343,8 @@ export async function cookbookImportPoiPlaces({ books = null, ids = null, quiet 
         continue;
       }
       const overview = group.kind === "overview";
-      const held = overview || isRewriting(id) ? null : await importedActor(id, { copies: false });
+      const block = blockTarget(id);
+      const held = overview || block || isRewriting(id) ? null : await importedActor(id, { copies: false });
       if (held) {
         // A role is structural (which kind of place), not a page value, so a
         // place imported before the cookbook named it is stamped without a page
@@ -5198,8 +5368,9 @@ export async function cookbookImportPoiPlaces({ books = null, ids = null, quiet 
           book: bookId, bookLabel: label, district: group.district, parentUuid: city?.uuid ?? "", folderId: folder,
         })));
       // Notes that hold anything are the world's — asked before the page is
-      // read, which is what keeps a second run from reading it at all.
-      if (overview && (!district || district.system?.notes)) {
+      // read, which is what keeps a second run from reading it at all. A
+      // forced repair writes the overview's own block over in place instead.
+      if (overview && !block && (!district || district.system?.notes)) {
         already++;
         continue;
       }
@@ -5208,6 +5379,10 @@ export async function cookbookImportPoiPlaces({ books = null, ids = null, quiet 
       const node = await executeEntry(ctx.sessionDocs.get(bookId).doc, cb, data.registers, id).catch(() => null);
       if (!node?.ok) {
         refused++;
+        continue;
+      }
+      if (block) {
+        await writeRowBlock(block, pairRow(run.pairs, { id, name: printedNameOf(node, e.name), notes: entryText(node, id, e.cite), cite: e.cite ?? "" }, block));
         continue;
       }
       if (overview) {
@@ -5317,8 +5492,10 @@ async function importKeyedPlace(bookId, id, run) {
   const parent = isKeyedPlace(cb.entries[parentId], parentId, run.spacesOf(bookId))
     ? await run.placeFor(bookId, parentId)
     : await run.bookPlaceFor(bookId);
-  // A place a forced repair holds is built again and written over (`withRewrite`).
-  const held = isRewriting(id) ? null : await importedActor(id, { copies: false });
+  // A place a forced repair holds is built again and written over (`withRewrite`);
+  // one it writes this row's block onto is read for the block alone.
+  const block = blockTarget(id);
+  const held = isRewriting(id) || block ? null : await importedActor(id, { copies: false });
   if (held) {
     const patch = siteBindPatch(held, { parentUuid: parent?.uuid ?? "" });
     // A parent made again is a new document: the uuid the place names is then
@@ -5336,6 +5513,7 @@ async function importKeyedPlace(bookId, id, run) {
   }
   const name = printedNameOf(node, e.name);
   const notes = entryText(node, id, e.cite);
+  if (block) return writeRowBlock(block, pairRow(run.pairs, { id, name, notes, cite: e.cite ?? "" }, block));
   const paired = await pairedPlace(run.pairs, id);
   if (paired) {
     // Only a bind fills a roster, and only an empty one: the lines are not
@@ -5421,7 +5599,8 @@ async function keyedOccupantRows(bookId, id, node, run) {
  */
 async function statLineCreature(bookId, placeId, occ, node, run) {
   const oid = `${placeId}-o${occ.index}`;
-  const held = await importedActor(oid, { copies: false });
+  // A creature a forced repair holds is built again and written over (`withRewrite`).
+  const held = isRewriting(oid) ? null : await importedActor(oid, { copies: false });
   if (held) return held;
   const folder = (await ensureFolderPath("Actor", [bookLabel(bookId), "Creatures"], lineOf(bookId)))?.id ?? null;
   const bound = bindNpc({ fields: { statline: occ.stats ?? {} } });
@@ -5439,7 +5618,7 @@ async function statLineCreature(bookId, placeId, occ, node, run) {
       items: bound.items ?? [],
       flags: { [MODULE_ID]: { cookbook: { id: oid, book: bookId, kind: "kind.npc", unaudited: true } } },
     }));
-  if (made) {
+  if (made && !isRewriting(oid)) {
     run.tally.creatures++;
     run.created.creatures.push(made.uuid);
   }
@@ -5487,6 +5666,18 @@ export function siteBindPatch(target, { notes = "", parentUuid = "", role = "" }
   if (parentUuid && !sys.parentUuid && parentUuid !== target?.uuid) patch["system.parentUuid"] = parentUuid;
   if (isPlaceRole(role) && !sys.role) patch["system.role"] = role;
   return patch;
+}
+
+/**
+ * A row's build as `rowBlockPatch` writes it onto `target`: an earlier pair
+ * row on the place the later row has taken over keeps its block to the
+ * paragraphs only it prints, set after the later row's; any other row is
+ * written as built.
+ */
+function pairRow(pairs, row, target) {
+  const pair = pairs?.get(row.id);
+  if (pair?.earlier !== row.id || claimedId(target) !== pair.later) return row;
+  return { ...row, notes: keepParagraphs(row.notes, pair.unique), after: pair.later };
 }
 
 /**
@@ -5571,6 +5762,16 @@ async function importRegionRow({ bookId, id, e, region }, tally, run) {
   const read = () => executeEntry(ctx.sessionDocs.get(bookId).doc, cb, data.registers, id).catch(() => null);
   const role = e.meta?.role ?? "";
   const parentUuid = place?.uuid ?? "";
+
+  // A forced repair writes this row's block over in place on the place it
+  // shares (`blockTarget`); what a Judge changed there is held (`rowBlockPatch`).
+  const block = blockTarget(id);
+  if (block) {
+    const node = await read();
+    if (!node?.ok) return void tally.refused++;
+    await writeRowBlock(block, pairRow(run.pairs, { id, name: printedNameOf(node, e.name), notes: entryText(node, id, e.cite), cite: e.cite ?? "" }, block));
+    return;
+  }
 
   if (region === "overview") {
     if (!place || place.system?.notes) return void tally.already++;

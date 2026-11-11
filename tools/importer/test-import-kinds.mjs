@@ -21,12 +21,15 @@ import assert from "node:assert";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import {
-  ancestorsOf, ownersOf, kindOf, booksOfKind, runSetFor, ADVENTURE_BOOK_RUN,
+  ancestorsOf, ownersOf, kindOf, booksOfKind, runSetFor, claimerPasses, ADVENTURE_BOOK_RUN,
 } from "../../scripts/importer/import-kinds.mjs";
+import { placePairs } from "../../scripts/importer/place-pair.mjs";
 import {
   IMPORT_KINDS, ENTRY_SOURCES, SHELF_REFILL, REPAIR_RUNS, TABLE_BOOKS, cookbookRunSet, cookbookReimportShelf, cookbookReimportBook,
-  cookbookReimportAdventure, cookbookReimportEntries, reimportableShelves, initCookbook, loadCookbook,
+  cookbookReimportAdventure, cookbookReimportEntries, reimportableShelves, initCookbook, loadCookbook, isRewriting, placeBlockRows,
+  withRewrite, createDoc, keepsJudgeProse,
 } from "../../scripts/importer/cookbook.mjs";
+import { bookText } from "../../scripts/importer/prose.mjs";
 import { TABLE_RECIPES } from "../../scripts/importer/table-recipes.mjs";
 import { bookIsJudges } from "../../scripts/importer/books.mjs";
 import { GM_STEPS } from "../../scripts/importer/getting-started.mjs";
@@ -547,6 +550,7 @@ same("a stat-line creature is read from its place's book", IMPORT_KINDS.find((k)
   same("an adventure book's content shelves are rebuilt as a plain book's are", names(content), adventure.runs.filter((r) => r.run !== ADVENTURE_BOOK_RUN).map((r) => r.run));
   const last = adventure.runs.at(-1);
   check("and its own rows are the one adventure book run, last", last.run === ADVENTURE_BOOK_RUN && last.book === "ax1");
+  check("which a book scope names exactly once", adventure.runs.filter((r) => r.run === ADVENTURE_BOOK_RUN).length === 1);
   same(
     "which names every kind its steps report",
     last.kinds,
@@ -576,6 +580,212 @@ same("a stat-line creature is read from its place's book", IMPORT_KINDS.find((k)
       "cookbookImportMarketProfiles", "cookbookImportPoiPlaces", "cookbookImportRollTables", "cookbookImportScenes",
     ],
   );
+}
+
+/* --- a forced adventure repair holds its places in place --- */
+
+{
+  /** An imported Actor as the library holds it, claiming `id` (and `merged`). */
+  const stockActor = (id, { merged = null, type = "location" } = {}) => {
+    const _id = mint();
+    const cookbook = { id, ...(merged ? { merged } : {}) };
+    const doc = {
+      id: _id,
+      _id,
+      name: id,
+      type,
+      pack: actors.shelf.collection,
+      documentName: "Actor",
+      flags: { [MODULE_ID]: { cookbook } },
+      system: { notes: "" },
+      items: [],
+      get uuid() {
+        return `Compendium.${actors.shelf.collection}.Actor.${this.id}`;
+      },
+      getFlag(scope, key) {
+        return this.flags?.[scope]?.[key] ?? null;
+      },
+      toObject() {
+        return structuredClone({ name: this.name, type: this.type, flags: this.flags, system: this.system, items: this.items });
+      },
+      async update() {
+        return this;
+      },
+    };
+    actors.shelf.docs.set(_id, doc);
+    actors.shelf.index.set(_id, { _id });
+    return doc;
+  };
+  emptyShelves();
+  stockActor("ax1.room1");
+  stockActor("ax1.room1-o2", { type: "monster" });
+  // Another book's place that took over a row of this book: found under the
+  // row's id, and never built over by it.
+  stockActor("zz.keep", { merged: ["ax1.area"] });
+  const seen = {};
+  const api = namespace.importer;
+  const poi = api.cookbookImportPoiPlaces;
+  api.cookbookImportPoiPlaces = async (arg) => {
+    for (const id of ["ax1.room1", "ax1.room1-o2", "ax1.area", "zz.keep"]) seen[id] = isRewriting(id);
+    return poi(arg);
+  };
+  let result = null;
+  try {
+    const walked = await drive(async () => {
+      result = await cookbookReimportAdventure("ax1", { mode: "force", ask: async () => true });
+    });
+    check("the forced repair walks the places step", names(walked).includes("cookbookImportPoiPlaces"));
+  } finally {
+    api.cookbookImportPoiPlaces = poi;
+  }
+  same(
+    "the places step holds the book's places under their own claims and the creatures made from their stat lines, never a place a claim was merged into",
+    seen,
+    { "ax1.room1": true, "ax1.room1-o2": true, "ax1.area": false, "zz.keep": false },
+  );
+  check("a forced repair returns the edits it kept", Array.isArray(result?.edits));
+  check("outside the step nothing is held", !isRewriting("ax1.room1"));
+}
+
+/* --- a whole-build write under a decision holds the Judge's prose --- */
+
+{
+  const stampedBio = (text) => bookText([text], "AX 1", { id: "ax1.npc1", book: "ax1", page: 1 });
+  const judged = `${stampedBio("Old.")}<p>The Judge's line.</p>`;
+  const heldDoc = () => {
+    const doc = {
+      id: "held0000000001",
+      uuid: "Actor.held0000000001",
+      name: "Npc",
+      type: "npc",
+      documentName: "Actor",
+      system: { details: { biography: judged } },
+      flags: { [MODULE_ID]: { cookbook: { id: "ax1.npc1" } } },
+      writes: [],
+      toObject() {
+        return structuredClone({ name: this.name, type: this.type, system: this.system, flags: this.flags });
+      },
+      async update(patch) {
+        this.writes.push(patch);
+        return this;
+      },
+    };
+    return doc;
+  };
+  const build = { name: "Npc", type: "npc", system: { details: { biography: stampedBio("New.") } }, flags: { [MODULE_ID]: { cookbook: { id: "ax1.npc1", cite: "AX 1" } } } };
+  const run = async (scope) => {
+    const doc = heldDoc();
+    const tally = { replaced: 0, keptProse: 0, refused: 0, handMade: 0, force: true, seen: new Set(), edits: [] };
+    await withRewrite({ held: new Map([["ax1.npc1", doc]]), tally, ...scope }, () => createDoc({ documentName: "Actor" }, structuredClone(build)));
+    const bio = doc.writes.map((w) => w.system?.details?.biography).find((b) => b !== undefined);
+    return { tally, bio };
+  };
+  const kept = await run({ decision: null });
+  same("under a decision that takes nothing, the Judge's biography is held and listed",
+    [kept.bio, kept.tally.edits.map((e) => [e.uuid, e.path, e.cite])], [undefined, [["Actor.held0000000001", "system.details.biography", "AX 1"]]]);
+  const taken = await run({ decision: { take: new Set(["Actor.held0000000001#system.details.biography"]) } });
+  check("a decision that takes it writes the page's biography, holding nothing", taken.bio === build.system.details.biography && taken.tally.edits.length === 0);
+  const legacy = await run({});
+  check("a scope with no decision writes as the tally's force says", legacy.bio === build.system.details.biography && legacy.tally.edits.length === 0);
+
+  // A write an importer makes after its create (a character's biography) asks the same decision.
+  const page = stampedBio("New.");
+  const after = async (scope, current) => {
+    const doc = heldDoc();
+    const tally = { replaced: 0, keptProse: 0, refused: 0, handMade: 0, force: true, seen: new Set(), edits: [] };
+    let keeps = null;
+    await withRewrite({ held: new Map([["ax1.npc1", doc]]), tally, ...scope }, async () => {
+      keeps = keepsJudgeProse(doc, "system.details.biography", current, page, "AX 1");
+    });
+    return { keeps, edits: tally.edits.map((e) => [e.key, e.current, e.page]) };
+  };
+  same("under a decision a later write keeps the Judge's prose and lists it",
+    await after({ decision: null }, judged), { keeps: true, edits: [["Actor.held0000000001#system.details.biography", judged, page]] });
+  same("prose that is only the stamped text is written", await after({ decision: null }, stampedBio("Old.")), { keeps: false, edits: [] });
+  same("a decision taking it writes it", await after({ decision: "take" }, judged), { keeps: false, edits: [] });
+  same("a scope with no decision writes it", await after({}, judged), { keeps: false, edits: [] });
+  check("outside a rewrite nothing is kept", keepsJudgeProse(heldDoc(), "system.details.biography", judged, page) === false);
+  const source = fs.readFileSync(new URL("../../scripts/importer/cookbook.mjs", import.meta.url), "utf8");
+  const character = source.slice(source.indexOf("async function importCharacter"), source.indexOf("/** The kinds that bind to a journal page"));
+  check("a character's biography write asks keepsJudgeProse under its rewrite",
+    /isRewriting\(id\) && keepsJudgeProse\(actor, "system\.details\.biography",/.test(character) && /keepBiography \? \{\} :/.test(character));
+}
+
+/* --- every claimer, and the rows that write onto a place they share --- */
+
+{
+  const kinds = [
+    { key: "A", owns: (c) => c.startsWith("A.") && !c.endsWith(".foreign") },
+    { key: "Z", owns: (c) => c.endsWith(".foreign") },
+  ];
+  const doc = (claim, n) => ({ claim, n });
+  const d1 = doc("A.1", 1);
+  const d2 = doc("A.1", 2);
+  const d3 = doc("A.1.leaders", 3);
+  const d4 = doc("A.1.foreign", 4);
+  const d5 = doc("A.3.leaders", 5);
+  const claimOf = (d) => d.claim;
+  const out = claimerPasses(["A.1", "A.2", "A.3"], [d1, d2, d3, d4, d5], { claimOf, kinds });
+  same("pass one holds the first document of every claim, under its own claim",
+    [...out.passes[0]].map(([c, d]) => `${c}:${d.n}`), ["A.1:1", "A.1.leaders:3", "A.3.leaders:5"]);
+  same("pass two holds the twin, so both documents under one claim are written", [...out.passes[1]].map(([c, d]) => `${c}:${d.n}`), ["A.1:2"]);
+  same("a row beneath the id that another kind owns is left", out.foreign.map((d) => d.n), [4]);
+  same("an id no document claims exactly is missing", out.missing, ["A.2", "A.3"]);
+  same("with no declaration every claimer is held", claimerPasses(["A.1"], [d4], { claimOf }).passes.map((p) => [...p.keys()]), [["A.1.foreign"]]);
+  same("an id no kind owns holds every claimer", claimerPasses(["B.1"], [doc("B.1.foreign", 6)], { claimOf, kinds }).foreign, []);
+
+  const entries = {
+    "ax9.over": { kind: "kind.location", meta: { group: "North — Overview" } },
+    "ax9.poi1": { kind: "kind.location", meta: { group: "North — Points of Interest" } },
+    "ax9.poi2": { kind: "kind.location", meta: { group: "North — Points of Interest", sameAs: "zz.poi" } },
+    "ax9.rov": { kind: "kind.location", meta: { group: "Region — Overview" } },
+    "ax9.site1": { kind: "kind.location", meta: { group: "Region — Sites", market: "mkt1" } },
+    "ax9.site2": { kind: "kind.location", meta: { group: "Region — Sites", place: "adventure" } },
+    "ax9.site3": { kind: "kind.location", meta: { group: "Region — Sites" } },
+    "ax9.site4": { kind: "kind.location", meta: { group: "Region — Sites", sameAs: "zz.site" } },
+    "ax9.space": { kind: "kind.location" },
+    "ax9.room": { kind: "kind.location", meta: { space: "ax9.space", sameAs: "zz.room" } },
+    "ax9.room2": { kind: "kind.location", meta: { space: "ax9.space" } },
+  };
+  const rows = placeBlockRows("ax9", entries, placePairs(new Map([["ax9", { entries }]])));
+  same(
+    "the rows that write onto a place they do not build, each with that place's claim",
+    rows.map((r) => `${r.id}>${r.place}`),
+    [
+      "ax9.over>ax9.district.north", "ax9.poi2>ax9.poi2", "ax9.rov>ax9.region", "ax9.site1>ax9.mkt1", "ax9.site2>ax9.adventure",
+      "ax9.site4>ax9.site4", "ax9.room>ax9.room",
+    ],
+  );
+
+  const source = fs.readFileSync(new URL("../../scripts/importer/cookbook.mjs", import.meta.url), "utf8");
+  const body = source.slice(source.indexOf("async function repairActors"), source.indexOf("async function repairEntries"));
+  check("repairActors takes every claimer through claimerPasses", /claimerPasses\(rewrites,/.test(body));
+  check("and builds an entry only in a pass that holds its own claim", /rewrites\.filter\(\(id\) => held\.has\(id\)\)/.test(body));
+  const statLine = source.slice(source.indexOf("async function statLineCreature"), source.indexOf("export function regionSiteClaim"));
+  check("a held stat-line creature is built again, not returned as it stands", /isRewriting\(oid\) \? null :/.test(statLine));
+
+  // The block writers run only against a real page read; these pin their wiring.
+  const fnOf = (head) => {
+    const start = source.indexOf(head);
+    return start < 0 ? "" : source.slice(start, source.indexOf("\n}\n", start));
+  };
+  const poi = fnOf("export async function cookbookImportPoiPlaces");
+  check("a POI row a forced repair writes onto a shared place skips the held read", /overview \|\| block \|\| isRewriting\(id\) \? null :/.test(poi));
+  check("and its overview is read even though the quarter holds notes", /overview && !block && \(/.test(poi));
+  check("and the read goes through writeRowBlock", /if \(block\) \{\s*await writeRowBlock\(block, pairRow\(run\.pairs,/.test(poi));
+  const keyed = fnOf("async function importKeyedPlace");
+  check("a keyed place's block row skips the held read", /isRewriting\(id\) \|\| block \? null :/.test(keyed));
+  check("and writes its block before any pair takeover can run again",
+    /if \(block\) return writeRowBlock\(block, pairRow\(/.test(keyed) && keyed.indexOf("writeRowBlock(") < keyed.indexOf("pairedPlace("));
+  const regionRow = fnOf("async function importRegionRow");
+  check("a region row's block is written at the top, before any held or bind path",
+    /const block = blockTarget\(id\);\s*if \(block\) \{[^}]*writeRowBlock\(block, pairRow\(/.test(regionRow) && regionRow.indexOf("writeRowBlock(") < regionRow.indexOf("siteBindPatch("));
+  check("writeRowBlock lists the edits it kept in the tally",
+    /if \(tally && edits\.length\) \(tally\.edits \?\?= \[\]\)\.push\(\.\.\.edits\);/.test(fnOf("async function writeRowBlock")));
+  const hold = fnOf("async function forcedPlaceHold");
+  check("forcedPlaceHold holds a shared place for a row only once it answers for the place",
+    /if \(doc && answersFor\(doc\.getFlag\(MODULE_ID, "cookbook"\), place\)\) blocks\.set\(id, doc\)/.test(hold));
+  check("and the forced adventure walk scopes its places with it", /withRewrite\(\{ \.\.\.\(await forcedPlaceHold\(bookId, ids\.places\)\),/.test(source));
 }
 
 /* --- ticked entries: the picker and the derivation agree --- */

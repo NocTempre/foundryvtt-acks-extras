@@ -15,6 +15,7 @@
 import { MODULE_ID } from "./constants.mjs";
 import { stripBookText } from "./prose.mjs";
 import { keepUnrenderedFields } from "../lib/sheet-rows.mjs";
+import { decides, heldEdit } from "./held-edits.mjs";
 
 /** The value at a dotted path, or undefined. */
 const getPath = (node, path) =>
@@ -388,6 +389,47 @@ export const repairCounts = (tally) => ({
 
 /** The policy a run writes under: `policy`, forced when the tally is. */
 export const policyFor = (policy, tally) => (tally?.force ? { ...policy, force: true } : policy);
+
+/**
+ * The policy a write runs under once a caller's decision has met the Judge's
+ * edits: every prose field the unforced plan would keep as hand-written is an
+ * edit (`heldEdit`), and stays guarded unless `decision` takes it (`decides`;
+ * none keeps). The prose guard is the edit a whole-build write can detect: the
+ * other figures it writes carry no read stamp to compare with.
+ *
+ * @param {object} source the document's stored data (`toObject()`)
+ * @param {object} built a fresh build of its entry
+ * @param {object} policy the kind's policy (`REPAIR`, `actorPolicy`)
+ * @param {{decision?: Parameters<typeof decides>[0], uuid?: string, cite?: string}} [opts]
+ * @returns {{policy: object, edits: ReturnType<typeof heldEdit>[]}} `policy` unforced, its guard
+ *   narrowed to the kept edits; `edits` the edits left standing
+ */
+export function decidedPolicy(source, built, policy, { decision = null, uuid = "", cite = "" } = {}) {
+  const unforced = { ...policy, force: false };
+  const taken = new Set();
+  const edits = [];
+  for (const path of refreshPlan(source, built, unforced).keptProse) {
+    const flag = path.startsWith("flags.");
+    const rest = flag ? path.slice("flags.".length) : path;
+    const [stored, page] = flag
+      ? [source?.flags?.[MODULE_ID], built?.flags?.[MODULE_ID]]
+      : [source?.system, built?.system];
+    const edit = heldEdit({
+      uuid, name: source?.name ?? "", path: flag ? `flags.${MODULE_ID}.${rest}` : `system.${rest}`,
+      current: getPath(stored, rest), page: getPath(page, rest), cite,
+    });
+    if (decides(decision, edit.key) === "take") taken.add(path);
+    else edits.push(edit);
+  }
+  return {
+    policy: {
+      ...unforced,
+      prose: (policy.prose ?? []).filter((p) => !taken.has(p)),
+      proseFlags: (policy.proseFlags ?? []).filter((p) => !taken.has(`flags.${p}`)),
+    },
+    edits,
+  };
+}
 
 /**
  * Is this the first time the tally meets `doc`? A document another entry was

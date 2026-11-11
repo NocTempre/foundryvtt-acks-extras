@@ -14,7 +14,12 @@
 import { MODULE_ID } from "./constants.mjs";
 import { isPlaceRole } from "../location/constants.mjs";
 import { bookTextBlock, insertBookTextAfter, keepParagraphs, swapBookText } from "./prose.mjs";
-import { marketEntryId } from "./market-profile-binding.mjs";
+import { heldErratumNotes, marketEntryId } from "./market-profile-binding.mjs";
+import { blockSum, decides, heldEdit } from "./held-edits.mjs";
+import { handWrittenProse } from "./refresh.mjs";
+
+/** A stamped block's opening tag: notes that carry one hold some row's text. */
+const BLOCK_MARK = /data-acks-entry=/i;
 
 /** Every id a stamped document answers for: its own, then those merged into it. */
 export const claimIds = (flag) => [flag?.id, ...(flag?.merged ?? [])].filter(Boolean);
@@ -114,4 +119,74 @@ export function bindPatch(target, earlier) {
   if (isPlaceRole(earlier.role) && !sys.role) patch["system.role"] = earlier.role;
   if (earlier.roster?.length && !sys.roster?.length) patch["system.roster"] = earlier.roster;
   return patch;
+}
+
+/**
+ * One row's text written over in place on a place it shares: a place two
+ * books print, a market or settlement a site is bound onto, a quarter or
+ * region its overview describes. Entry `row.id`'s stamped block is replaced by
+ * the fresh `row.notes`, every other byte of the notes kept (the other book's
+ * block, an erratum note, a Judge's text); a row with no block yet has it set
+ * after `row.after`'s block, else the place's own, else leading. Where the
+ * row is the place's own (`flags.cookbook.id`), its read name becomes
+ * `printed`, and the place's name follows only while it is still the printed
+ * one. The id, `merged`, parent, role, roster and every play field are never
+ * written.
+ *
+ * Each block written records its checksum (`blockSum`) in the stamp's
+ * `blocks`, the read stamp a later write compares the stored block with. A
+ * block that no longer matches its checksum, and a name that is no longer the
+ * printed one, are a Judge's edits: each is reported in `edits` and written
+ * only where `decision` takes it (`decides`; none keeps). A block written
+ * before its checksum was recorded and differing from the page is held too,
+ * marked `unstamped`: nothing tells the Judge's edit from the page's change;
+ * one equal to the page is stamped. A missing block is an edit where its
+ * checksum is recorded (the Judge took it out), or where the notes hold
+ * anything but erratum notes: the Judge's own text, or another row's block,
+ * beside which the import writes nothing. Notes empty but for erratum notes
+ * take it.
+ *
+ * @param {object} target the held place's stored data (`toObject()`), with its `uuid`
+ * @param {{id: string, notes?: string, name?: string, after?: string, cite?: string}} row the row's
+ *   fresh build, an earlier pair row's block already kept to its unique paragraphs (`keepParagraphs`)
+ * @param {{decision?: Parameters<typeof decides>[0]}} [opts]
+ * @returns {{update: object, edits: ReturnType<typeof heldEdit>[]}} `update` is empty when the
+ *   place already holds the build or every difference is a kept edit
+ */
+export function rowBlockPatch(target, row, { decision = null } = {}) {
+  const flag = target?.flags?.[MODULE_ID]?.cookbook ?? {};
+  const stored = String(target?.system?.notes ?? "");
+  const uuid = String(target?.uuid ?? "");
+  const update = {};
+  const edits = [];
+  const held = (path, current, page, unstamped = false) => {
+    const edit = heldEdit({ uuid, name: target?.name ?? "", path, current, page, cite: row.cite ?? "", unstamped });
+    if (decides(decision, edit.key) === "take") return false;
+    edits.push(edit);
+    return true;
+  };
+  if (row.notes) {
+    const block = bookTextBlock(stored, row.id);
+    const sums = Array.isArray(flag.blocks) ? flag.blocks : [];
+    const sum = sums.find((b) => b?.id === row.id)?.sum;
+    // Without a block, what the notes hold besides their erratum notes decides:
+    // the Judge's text, or another row's block, which the import never writes beside.
+    const beside = block ? "" : heldErratumNotes(stored, claimIds(flag)).rest;
+    const unstamped = !!block && !sum && block !== row.notes;
+    const edited = block
+      ? unstamped || (!!sum && blockSum(block) !== sum && block !== row.notes)
+      : !!sum || handWrittenProse(beside) || BLOCK_MARK.test(beside);
+    if (!(edited && held(`system.notes#${row.id}`, block ?? "", row.notes, unstamped))) {
+      const notes = block ? swapBookText(stored, row.id, row.notes) : insertBookTextAfter(stored, row.after ?? flag.id, row.notes);
+      if (notes !== stored) update["system.notes"] = notes;
+      const next = [...sums.filter((b) => b?.id !== row.id), { id: row.id, sum: blockSum(row.notes) }];
+      if (sum !== blockSum(row.notes)) update[`flags.${MODULE_ID}.cookbook.blocks`] = next;
+    }
+  }
+  if (row.name && row.id === flag.id && flag.printed !== row.name) {
+    update[`flags.${MODULE_ID}.cookbook.printed`] = row.name;
+    const renamed = flag.printed !== undefined && target?.name !== flag.printed;
+    if (flag.printed !== undefined && (!renamed || !held("name", target?.name ?? "", row.name))) update.name = row.name;
+  }
+  return { update, edits };
 }
