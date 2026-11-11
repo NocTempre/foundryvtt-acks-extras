@@ -186,6 +186,13 @@ Still unbuilt, in likely order:
     them from the stash needs an actor built from it, and a write path that
     lands in the stash, as `adjustStashedHp` does for hit points (MODEL, "Data
     flow"; DECISIONS 2026-09-23).
+12. **Dividing coin and treasure among the party.** Experience already divides
+    across the party's members by a shares rule (`divideXp` in
+    `scripts/formation/xp-shares.mjs`, a henchman's share read from its own
+    record). Nothing in formation moves coin or divides treasure. Not built: a
+    split of a find or a hoard over the members the party names, which would
+    move the coin through `transferCoin` in `scripts/lib/money.mjs`. Whether
+    the split is equal or by share is a ruling this file does not take.
 
 ## 4. Land travel — RAW coverage checklist (audited 2026-08-29)
 

@@ -2297,3 +2297,19 @@ migration for earlier worlds is built; a pin that names it matches no row.
 **What it cost.** The two-handed die of a weapon held in one hand is not listed
 beside the one-handed die; the grip control changes which one the row shows.
 A pin on the old two-handed row falls out until it is pinned again.
+
+## 2026-11-11 — Two overrides of one numeric domain: the later wins
+
+**Ruled** (owner, on T-0454, the numeric twin of T-0115). A numeric domain
+(`armorTraining`, `styleInit` and the rest of §3's numeric rows) replays its
+changes in Foundry's own order (`activeNumericChanges`): `add`s sum, and an
+`override` sets the value, so of two items that both override the domain the
+later by priority keeps its figure and the other's is lost. That is Foundry's
+meaning of the mode, and a Judge who wants both counted writes `add`.
+
+**Rejected.** Summing overrides, as a CSV domain unions them ("A CSV grant is
+a union", lib DECISIONS): a numeric override exists to replace a figure, and
+summing would make it a second spelling of `add`.
+
+**What it cost.** Nothing changes in code. Two items written with `override`
+on one numeric domain still count once.

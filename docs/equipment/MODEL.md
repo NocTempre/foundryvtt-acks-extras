@@ -78,7 +78,10 @@ enums; local-only, never in the repo).
 
 ## 3. Effect contract — `flags.acks-extras.<domain>`
 
-Numeric domains sum; CSV domains collect; boolean-ish domains test presence.
+Numeric domains replay their changes in Foundry's order (`activeNumericChanges`):
+`add`s sum and an `override` sets the figure, the later of two by priority
+winning (DECISIONS, "Two overrides of one numeric domain"). CSV domains
+collect; boolean-ish domains test presence.
 A CSV domain is a set of grants (`collectStringFlags`): an `add`, an
 `override` and a `custom` change each join it and a `subtract` takes its
 tokens out, so two items that both override `weaponProf` grant both, and the

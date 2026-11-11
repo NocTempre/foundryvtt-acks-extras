@@ -39,6 +39,15 @@ the code, not missing from it; the rulings behind the built half are
   effect's flag alone. A row with the typed ledger's tooltip, beside the save
   and Avoid Surprise rows, gives it a figure to sit on.
 
+- **A per-source breakdown of an attack or damage bonus.** A weapon figure's
+  tooltip says whether the item declares it, the weapon table states it, or
+  nothing does (`figureState` and `figureTip` in
+  `scripts/equipment/weapon-figures.mjs`), and an adventuring throw lists its
+  parts (`rolls.adv.parts` in `scripts/character-sheet/rolls.mjs`). Neither
+  names the item, ability or effect behind an attack or damage bonus. Not
+  built: a figure's parts, each named by its contributor, read from the
+  modifiers the figure is made of.
+
 - **A summons model.** The party cell reads a summon off one flag on the
   summoned actor, bound by hand from the party menu. A spell that summons
   could write that flag when its creature is placed, and a duration could

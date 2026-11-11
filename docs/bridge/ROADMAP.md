@@ -121,6 +121,14 @@ sheet's readings, text for cards, a PNG for the map):
 Both fit under the same commands; which surface takes which is a ruling for
 DECISIONS when built.
 
+- **Chat formatting in Discord.** A relayed message reaches Discord as the
+  plain text `textOf` (`scripts/bridge/text.mjs`, called from
+  `scripts/bridge/events.mjs`) makes of its HTML, so the bold, italic and lists
+  a Foundry message carries arrive flattened. Discord renders a markdown subset
+  of its own, so a converter from the message HTML to that subset, in place of
+  `textOf` on the relay, would keep the emphasis and the list shape. Not built;
+  anything the subset cannot express still arrives as text.
+
 ## The map in Discord
 
 v1 posts the Judge's view. Wanted: a **player-vision map** — the seat

@@ -124,3 +124,14 @@ without becoming a second copy. An alias or variant that grants a rank of
 another ability is absorbed by that root, leaving the root's own count alone,
 so the mechanics read the count plus every granted rank. The two numbers
 answer different questions — how often it was taken, and what it reads at.
+
+## A throw that states what it costs in time
+
+Nothing records how long an ability's throw takes. The party's checks already
+state the unit they spend (`consumesRound` and `consumesTurn` in
+`scripts/formation/party-rolls.mjs`), but an ability's roll definition, read
+through `scripts/abilities/ability-rolls.mjs`, carries no time, so using the
+ability spends none the module can see. Not built: a structured time cost on
+the roll definition, stated in the unit vocabulary the turn plan spends
+([formation ROADMAP](../formation/ROADMAP.md), "The turn plan"), with the
+imported figure where the book prints one.

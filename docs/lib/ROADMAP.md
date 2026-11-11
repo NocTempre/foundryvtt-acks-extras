@@ -204,6 +204,13 @@ rest of each entry is not automated:
   and carries nothing.
 - **Cover is one grade or the other, by hand.** Nothing reads it from the
   scene, and a proficiency that discounts it is not applied.
+- **A flank or a rear read from token facing.** The Flanked status
+  (`scripts/lib/conditions.mjs`) marks a token and adds no bonus of its own:
+  the bonus for attacking a flanked creature is the system's. The side an
+  attacker stands on is picked in the system's attack dialog and is not read
+  from the two tokens' positions and rotations on the canvas. Not built: that
+  read, which would use the token rotation the formation heading already
+  reads, and a ruling on which sides count as a flank and which as a rear.
 
 ## Active Effects on Foundry v14's model
 
