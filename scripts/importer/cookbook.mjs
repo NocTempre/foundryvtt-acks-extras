@@ -56,7 +56,7 @@ import { gridTypeFor } from "../battlemap/constants.mjs";
 import { mirrorCreatedLinks } from "../location/scene-link.mjs";
 import { occupantRow } from "../lib/place.mjs";
 import { oseAdventureData, oseAdventureId } from "./ose-location.mjs";
-import { BOOKS, bookIsJudges, bookLine, keptBook, laterBook } from "./books.mjs";
+import { BOOKS, bookIsJudges, bookLine, citeFor, keptBook, laterBook } from "./books.mjs";
 import { OSE_PREFIX, oseSourceLabel, oseSourceLine } from "./ose-source.mjs";
 import { oseGroupBookOf } from "./ose-template.mjs";
 import { executeEntry, materializeEffects, attackModel, convertName } from "./executor.mjs";
@@ -11449,7 +11449,7 @@ export async function importWeapons(folderId, { repair = null } = {}) {
     if (!row.ammunition && !weaponIdentity({ type: ITEM_TYPE.WEAPON, name: row.name, flags: { [MODULE_ID]: { cookbook: { id } } } }).key) {
       unidentified.push(row.name);
     }
-    const cite = `${BOOKS[WEAPON_TABLE.book]?.short ?? "RR"} p. ${WEAPON_TABLE.page}`;
+    const cite = citeFor(WEAPON_TABLE.book, WEAPON_TABLE.page);
     // Whether an ammunition row names a carrying device is the equipment root's
     // question — it owns the gear profiles that answer it — so it is asked, not
     // restated here. Absent the module every ammunition row is a bare stack,
@@ -11588,7 +11588,7 @@ export async function importPricedGear(folderId, { repair = null } = {}) {
   // A repair writes the rows this world already made items of; the loop below
   // then passes those over as claimed.
   if (repair) {
-    const cite0 = `${BOOKS[WEAPON_TABLE.book]?.short ?? "RR"} p. ${PRICE_TABLES.gear.page}`;
+    const cite0 = citeFor(WEAPON_TABLE.book, PRICE_TABLES.gear.page);
     for (const row of rows) {
       const id = pricedId(row.name);
       const held = await importedItem(id);
@@ -11640,7 +11640,7 @@ export async function importPricedGear(folderId, { repair = null } = {}) {
   // clothing page carries the provisions and livestock too.
   const folder =
     folderId ?? (await ensureItemFolder("def.priced."))?.id ?? null;
-  const cite = `${BOOKS[WEAPON_TABLE.book]?.short ?? "RR"} p. ${PRICE_TABLES.gear.page}`;
+  const cite = citeFor(WEAPON_TABLE.book, PRICE_TABLES.gear.page);
   let created = 0;
   const seen = new Set();
   for (const row of rows) {
@@ -11717,7 +11717,7 @@ export async function importArmor(folderId, { repair = null } = {}) {
   let created = 0;
   for (const row of rows) {
     const id = armorId(row.name);
-    const cite = `${BOOKS[ARMOR_TABLE.book]?.short ?? "RR"} p. ${ARMOR_TABLE.page}`;
+    const cite = citeFor(ARMOR_TABLE.book, ARMOR_TABLE.page);
     const held = await importedItem(id);
     if (held) {
       await rewriteRow(held, () => bindArmorRow(row, id, cite), REPAIR.armor, repair);

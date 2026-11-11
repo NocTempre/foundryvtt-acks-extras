@@ -32,4 +32,18 @@ for (const id of dropped) {
   check(`a dropped ${id} still parses from its citation`, parseCite(citeFor(id, 5))?.book === id);
 }
 
+// A citation names the printed folio, so it is composed by `citeFor` alone: an
+// importer that interpolates a table's page into "<short> p. <page>" cites the
+// PDF page, past the folio by the book's offset.
+{
+  const { readFileSync, readdirSync } = await import("node:fs");
+  const { dirname, join } = await import("node:path");
+  const { fileURLToPath } = await import("node:url");
+  const dir = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "scripts", "importer");
+  const raw = /\.short \?\? "[A-Za-z0-9]+"\} p\. \$\{/;
+  const offenders = readdirSync(dir).filter((f) => f.endsWith(".mjs") && raw.test(readFileSync(join(dir, f), "utf8")));
+  check(`no importer file composes a citation from a raw page (${offenders.join(", ") || "none"})`, offenders.length === 0);
+  check("a citation names the folio, not the PDF page", citeFor("rr", 10) === `${REGISTRY.rr.short} p.${10 - (REGISTRY.rr.printedOffset ?? 0)}`);
+}
+
 console.log(`\ntest-book-registry: all ${pass} checks passed`);
