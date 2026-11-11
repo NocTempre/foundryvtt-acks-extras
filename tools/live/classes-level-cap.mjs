@@ -11,14 +11,21 @@
  * point floor imported and with it absent, and records the floor as "not
  * imported" where there is none; the builder reads the last die level and the
  * per-level rates from the world's tables, writes the dice cells with them,
- * and with the level absent writes none and names it; and the Intellect bonus
- * picks follow the system's own modifier at every score. Machine values arrive
- * through ./_env.mjs.
+ * and with the level absent writes none and names it; a class with racial
+ * value -1 takes the imported human cap and one at 0 or more the racial
+ * table's row on its total points; saved builders in the pre-upgrade shape
+ * (racial value 0 for both) are corrected once, in the world and on a
+ * character, by the sweep called directly and by the world's own `ready` on a
+ * reload; and the Intellect bonus picks follow the system's own modifier at
+ * every score. Machine values arrive through ./_env.mjs.
  *
  * Fixtures, kept and found by marker: three classes with INVENTED level rows
  * (`classes/level-cap-open-class`, four rows and no cap;
  * `classes/level-cap-capped-class`, the same rows and an invented cap;
- * `classes/level-cap-builder-class`, builder mode) and
+ * `classes/level-cap-builder-class`, builder mode), four for the migration
+ * (`classes/level-cap-saved-human`, `-saved-racial`, `-saved-held` on
+ * `classes/level-cap-saved-holder`), each brought to its pre-upgrade shape at
+ * the step's start, and
  * `classes/level-cap-character`, a character the Player seat owns, brought to
  * a known shape at each step's start. "Absent" is an OVERRIDE layer this run
  * registers in each page's table registry and removes in the finally, so no
@@ -132,6 +139,7 @@ const P = {
     return {
       builderDoc: has(BUILDER_DOC),
       afterLevel: Number.isInteger(rates?.afterLevel) && rates.afterLevel > 1,
+      humanCap: Number.isInteger(budget?.humanMaxLevel) && budget.humanMaxLevel >= 1,
       rates: Number.isInteger(rates?.crusaderMage) && Number.isInteger(rates?.fighterThief),
       floorDoc: !!floorDoc,
       floor: Number.isInteger(floorDoc?.tables?.firstLevel?.dieMinimum) && floorDoc.tables.firstLevel.dieMinimum > 0,
@@ -151,11 +159,12 @@ const P = {
     }
     if (other(BUILDER_DOC)) return { hidden: false, reason: "foreign override" };
     const budget = structuredClone(T.getDoc(BUILDER_DOC).tables.budget);
-    if (what === "afterLevel") delete budget.hpAfterNine?.afterLevel;
+    if (what === "humanCap") delete budget.humanMaxLevel;
+    else if (what === "afterLevel") delete budget.hpAfterNine?.afterLevel;
     else delete budget.hpAfterNine;
     T.registerTable({ id: BUILDER_DOC, tables: { budget } }, { priority: T.PRIORITY.OVERRIDE, source: globalThis.__lc.tag });
     const hp = T.getDoc(BUILDER_DOC).tables.budget.hpAfterNine;
-    return { hidden: true, afterLevel: Number.isInteger(hp?.afterLevel), rates: Number.isInteger(hp?.crusaderMage) };
+    return { hidden: true, afterLevel: Number.isInteger(hp?.afterLevel), rates: Number.isInteger(hp?.crusaderMage), humanCap: Number.isInteger(T.getDoc(BUILDER_DOC).tables.budget.humanMaxLevel) };
   },
   /** Remove every OVERRIDE layer this run's tag registered. */
   unhide: async () => {
@@ -199,7 +208,7 @@ const P = {
     await H.sleep(300);
     const cite = item.system.source?.cite ?? "";
     const want = (key, data) => game.i18n.format(`ACKS-CLASSES.sheet.${key}`, data ?? {});
-    const kind = item.system.maximumLevel == null ? "capNoneTip" : cite ? "capCiteTip" : "capHandTip";
+    const kind = item.system.maximumLevel == null ? "capNoneTip" : cite ? "capCiteTip" : item.system.builder?.enabled ? "capBuiltTip" : "capHandTip";
     return {
       found: !!input,
       value: input?.value ?? null,
@@ -373,12 +382,12 @@ const P = {
       "system.levels": [],
       "system.hitDie": "",
       "system.maximumLevel": null,
-      "system.builder": { enabled: true, hdValue: 1, fighting: { value: 2, sub: "", damageBonus: "" }, thievery: { value: 0, skills: [] }, magic: [], race: { value: 0 }, tradeoffs: [], powers: [] },
+      "system.builder": { enabled: true, hdValue: 1, fighting: { value: 2, sub: "", damageBonus: "" }, thievery: { value: 0, skills: [] }, magic: [], race: { value: -1 }, tradeoffs: [], powers: [] },
     });
-    return { rows: item.system.levels.length, enabled: item.system.builder.enabled };
+    return { rows: item.system.levels.length, enabled: item.system.builder.enabled, value: item.system.builder.race.value };
   },
   /** The Builder tab's issue list and the Derive dialog, as a Judge reads them, then Derive confirmed. */
-  derive: async ({ itemId }) => {
+  derive: async ({ itemId, noRows }) => {
     const H = globalThis.__lc;
     const item = game.items.get(itemId);
     const sheet = item.sheet;
@@ -393,6 +402,8 @@ const P = {
       derivable: !!button && !button.disabled,
       sheetNamesLastDie: sheetIssues.includes(text("missingLastDieLevel")),
       sheetNamesRate: sheetIssues.some((t) => t.startsWith(text("missingHpAfterNine", { chassis: "@@" }).split("@@")[0])),
+      sheetNamesHumanCap: sheetIssues.includes(text("missingHumanMaxLevel")),
+      summaryNotSet: [...H.root(sheet).querySelectorAll("fieldset p")].some((p) => p.textContent.replace(/\s+/g, " ").includes(`${game.i18n.localize("ACKS-CLASSES.sheet.maximumLevel")}: ${game.i18n.localize("ACKS-CLASSES.sheet.capNone")}`)),
     };
     if (!button || button.disabled) return out;
     button.click();
@@ -401,11 +412,136 @@ const P = {
     const items = [...H.root(dialog).querySelectorAll("li")].map((li) => li.textContent.trim());
     out.dialog = true;
     out.dialogNamesLastDie = items.includes(text("missingLastDieLevel"));
+    out.dialogNamesHumanCap = items.includes(text("missingHumanMaxLevel"));
     H.root(dialog).querySelector('button[data-action="yes"]')?.click();
-    await H.poll(() => item.system.levels.length > 0, { tries: 40 });
-    await H.sleep(600);
+    // A derive with no cap writes no rows, so the dialog closing is the signal there.
+    if (noRows) await H.poll(() => !foundry.applications.instances.has(dialog.id), { tries: 40 });
+    else await H.poll(() => item.system.levels.length > 0, { tries: 40 });
+    await H.sleep(noRows ? 1200 : 600);
     await sheet.close({ animate: false });
     return out;
+  },
+  /** The class's cap and rows as stored, against the cap figures the registry serves; booleans and counts only. */
+  capState: async ({ itemId, figure }) => {
+    const { BUILDER_DOC } = globalThis.__lcK;
+    const T = acksExtras.lib.tables;
+    const budget = T.hasDoc(BUILDER_DOC) ? T.getDoc(BUILDER_DOC).tables?.budget : null;
+    const item = game.items.get(itemId);
+    const human = Number.isInteger(budget?.humanMaxLevel) ? budget.humanMaxLevel : null;
+    const racial = budget?.racialCaps?.find((r) => r.points === 4)?.maxLevel ?? null;
+    const stored = item.system.maximumLevel ?? null;
+    const rows = item.system.levels.length;
+    return {
+      stored: stored === null ? "none" : "set",
+      rows,
+      storedIsHuman: stored !== null && stored === human,
+      rowsReachIt: stored !== null && rows === stored,
+      storedIsRacialFour: stored !== null && stored === racial,
+      humanDiffersFromRacialFour: human !== null && racial !== null && human !== racial,
+      storedIsFigure: figure != null && stored === figure,
+    };
+  },
+  /** A builder class with four points spent on its categories and `value` as its racial value (-1: none; 0 or more: a racial class). */
+  shapeValue: async ({ itemId, value }) => {
+    const item = game.items.get(itemId);
+    await item.update({ "system.builder.race.value": value, "system.builder.thievery": { value: 1, skills: [] } });
+    return { value: item.system.builder.race.value, spent: item.system.builder.hdValue + item.system.builder.fighting.value + item.system.builder.thievery.value };
+  },
+  /** The Builder tab's racial value input as a Judge reads it: its figure, its floor and its hint. */
+  racialField: async ({ itemId }) => {
+    const H = globalThis.__lc;
+    const item = game.items.get(itemId);
+    const sheet = item.sheet;
+    await sheet.render({ force: true });
+    await H.poll(() => H.root(sheet)?.querySelector('[data-action="classTab"][data-tab="builder"]'));
+    H.root(sheet).querySelector('[data-action="classTab"][data-tab="builder"]').click();
+    await H.sleep(600);
+    const input = H.root(sheet).querySelector('input[name="system.builder.race.value"]');
+    const hint = input ? H.root(sheet).ownerDocument.getElementById(input.getAttribute("aria-describedby")) : null;
+    const out = { found: !!input, shown: input ? Number(input.value) : null, floor: input?.getAttribute("min") ?? null, hintOk: !!hint && hint.textContent.trim() === game.i18n.localize("ACKS-CLASSES.builder.racialValueHint") };
+    await sheet.close({ animate: false });
+    return out;
+  },
+  /** Bring a saved class to the shape the previous release stored: record version 0, `value` as its racial value and `race` as its race reference. */
+  saveOld: async ({ uuid, value, race }) => {
+    const item = await fromUuid(uuid);
+    await item.update({
+      "system._schemaVersion": 0,
+      "system.race": race,
+      "system.levels": [],
+      "system.maximumLevel": null,
+      "system.hitDie": "",
+      "system.builder": { enabled: true, hdValue: 1, fighting: { value: 2, sub: "", damageBonus: "" }, thievery: { value: 1, skills: [] }, magic: [], race: { value }, tradeoffs: [], powers: [] },
+    });
+    const s = item._source.system;
+    return { version: s._schemaVersion, value: s.builder.race.value, race: !!s.race };
+  },
+  /** What each saved class stores: its record version, its racial value and whether it names a race. */
+  readSaved: async ({ uuids }) => {
+    const out = {};
+    for (const uuid of uuids) {
+      const s = (await fromUuid(uuid))?._source?.system;
+      out[uuid] = s ? { version: s._schemaVersion, value: s.builder?.race?.value ?? null, race: !!s.race } : null;
+    }
+    return out;
+  },
+  /** Set a stamped class's racial value by hand, as a Judge does on the sheet. */
+  setValue: async ({ uuid, value }) => {
+    const item = await fromUuid(uuid);
+    await item.update({ "system.builder.race.value": value });
+    return item._source.system.builder.race.value;
+  },
+  /** The sweep the ready hook runs, called on the GM seat: what it stamped and corrected, as counts. */
+  migrate: async () => {
+    const m = await import("/modules/acks-extras/scripts/classes/builder-race-migration.mjs");
+    return m.migrateBuilderRace();
+  },
+  /**
+   * The Ruledata Browser as a Judge uses it: open it, press Edit on the builder's budget row, put a figure in
+   * the human maximum level and Save; or press Revert on the row. Answers whether the row was there, whether the
+   * registry then serves the figure, and whether an override of another's was already in place (then it does nothing).
+   */
+  browserOverride: async ({ figure, revert }) => {
+    const H = globalThis.__lc;
+    const { BUILDER_DOC } = globalThis.__lcK;
+    const T = acksExtras.lib.tables;
+    const store = await import("/modules/acks-extras/scripts/location/table-store.mjs");
+    const docs = await import("/modules/acks-extras/scripts/location/table-docs.mjs");
+    const entry = docs.listEntries().find((e) => e.docId === BUILDER_DOC && e.tableId === "budget");
+    if (!entry) return { row: false };
+    const had = store.hasOverride(BUILDER_DOC, "budget");
+    if (!revert && had) return { row: true, foreign: true };
+    const loc = await import("/modules/acks-extras/scripts/location/ruledata-browser.mjs");
+    let app = [...foundry.applications.instances.values()].find((a) => a.id === "acks-location-ruledata-browser");
+    if (!app) { loc.openRuledataBrowser(); app = await H.poll(() => [...foundry.applications.instances.values()].find((a) => a.id === "acks-location-ruledata-browser" && H.root(a)?.querySelector("[data-entry-key]"))); }
+    if (!app) return { row: true, opened: false };
+    const rowEl = () => [...H.root(app).querySelectorAll("[data-entry-key]")].find((el) => el.dataset.entryKey === entry.key);
+    if (!rowEl()) return { row: true, opened: true, listed: false };
+    const served = () => T.getDoc(BUILDER_DOC).tables.budget.humanMaxLevel;
+    if (revert) {
+      rowEl().querySelector('[data-action="revertEntry"]')?.click();
+      const reverted = await H.poll(() => !store.hasOverride(BUILDER_DOC, "budget"), { tries: 40 });
+      await H.sleep(500);
+      return { row: true, opened: true, revertPressed: true, overrideGone: !!reverted && !store.hasOverride(BUILDER_DOC, "budget"), servedFigureIsFigure: served() === figure };
+    }
+    rowEl().querySelector('[data-action="editEntry"]')?.click();
+    const dialog = await H.poll(() => [...foundry.applications.instances.values()].find((a) => H.root(a)?.querySelector("textarea.ruledata-editor")));
+    if (!dialog) return { row: true, opened: true, editor: false };
+    const area = H.root(dialog).querySelector("textarea.ruledata-editor");
+    const data = JSON.parse(area.value);
+    area.value = JSON.stringify({ ...data, humanMaxLevel: figure });
+    H.root(dialog).querySelector('button[data-action="ok"]')?.click();
+    const took = await H.poll(() => served() === figure, { tries: 40 });
+    await H.sleep(500);
+    return { row: true, opened: true, editor: true, made: store.hasOverride(BUILDER_DOC, "budget"), overrideStored: store.hasOverride(BUILDER_DOC, "budget"), servedFigureIsFigure: !!took && served() === figure, otherFiguresKept: Number.isInteger(T.getDoc(BUILDER_DOC).tables.budget.basePoints) };
+  },
+  /** Remove a Browser override this run made (the driver says whether it did), if one is still standing. */
+  browserRevert: async ({ made }) => {
+    const { BUILDER_DOC } = globalThis.__lcK;
+    const store = await import("/modules/acks-extras/scripts/location/table-store.mjs");
+    if (!made || !store.hasOverride(BUILDER_DOC, "budget")) return "none";
+    await store.clearOverride(BUILDER_DOC, "budget");
+    return "removed";
   },
   /** The derived dice cells against the imported last die level, by shape only. */
   cells: async ({ itemId }) => {
@@ -442,7 +578,7 @@ const P = {
     for (let s = 3; s <= 18; s++) if (picks(s) === Math.max(0, Number(model.getAttributeModifier(s)) || 0)) agree++;
     return { scores: 16, agree };
   },
-  drain: async () => ({ errors: globalThis.__lc.errors.slice(), cards: globalThis.__lc.cards.slice() }),
+  drain: async () => ({ errors: globalThis.__lc.errors.splice(0), cards: globalThis.__lc.cards.splice(0) }),
   restore: async () => {
     const H = globalThis.__lc;
     if (!H?.patched) return "never installed";
@@ -518,7 +654,20 @@ let player = null;
 let actorId = null;
 /** The uuids of what this run made: its climbs' cards. The only documents teardown deletes. */
 const own = [];
-const WALL_MS = Number(process.env.WALK_WALL_MS ?? 570_000);
+const errorsSeen = [];
+/** Whether this run stored a Ruledata Browser override it has not yet reverted: the page's own record would not survive a reload. */
+let browserMade = false;
+/** Take a seat page's console errors and the cards its climbs posted on the character: the cards are tracked, and swept by their ids at teardown. */
+async function claim(seat, label) {
+  const d = await run(seat, P.drain);
+  for (const e of d.errors) errorsSeen.push(`${label}: ${e}`);
+  for (const c of d.cards) {
+    if (c.actor !== actorId) continue;
+    await gm.track(c.id, "ChatMessage");
+    own.push(`ChatMessage.${c.id}`);
+  }
+}
+const WALL_MS = Number(process.env.WALK_WALL_MS ?? 900_000);
 setTimeout(() => {
   console.error(`WALK ERROR: wall clock of ${WALL_MS} ms reached; closing the seats`);
   try { player?.close(); } catch {}
@@ -554,7 +703,7 @@ try {
   section("the tables this walk reads");
   let tables = await run(gm, P.tables);
   note("tables before", tables);
-  if (!tables.afterLevel || !tables.floor) {
+  if (!tables.afterLevel || !tables.floor || !tables.humanCap) {
     const staged = books(["rr", "jj"]);
     check("the staged books the import needs are named", staged.length === 2, { n: staged.length });
     for (const { id, path } of staged) {
@@ -571,7 +720,7 @@ try {
     tables = await run(gm, P.tables);
     note("tables after", tables);
   }
-  check("the world holds the builder's last die level, its rates and the 1st-level floor", tables.builderDoc && tables.afterLevel && tables.rates && tables.floor && tables.floorServed, tables);
+  check("the world holds the builder's last die level, its rates, its human maximum level and the 1st-level floor", tables.builderDoc && tables.afterLevel && tables.rates && tables.humanCap && tables.floor && tables.floorServed, tables);
   const player0 = await run(player, P.tables);
   check("the Player seat's registry holds the same", player0.afterLevel && player0.floor, player0);
   const agree = await run(gm, P.agreement);
@@ -669,6 +818,131 @@ try {
   check("imported: the Builder tab does not name the last die level missing, and Derive runs", derived.derivable && !derived.sheetNamesLastDie && derived.dialog && !derived.dialogNamesLastDie, derived);
   let cells = await run(gm, P.cells, { itemId: built.id });
   check("imported: the dice rise to the imported level and the flat begins after it, none before", cells.rows > 0 && cells.diceRiseToIt && cells.flatBeginsAfterIt && cells.noFlatBeforeIt && cells.readsBack, cells);
+  let capState = await run(gm, P.capState, { itemId: built.id });
+  check("imported: a human class gets the imported cap and a row for each level to it", capState.storedIsHuman && capState.rowsReachIt, capState);
+
+  section("a class with no racial category, a racial class's row, and the Ruledata Browser");
+  // The racial value is -1 for no racial category and 0 or more for a racial class. Four points spent either way.
+  await run(gm, P.builderShape, { itemId: built.id });
+  const noCategory = await run(gm, P.shapeValue, { itemId: built.id, value: -1 });
+  check("the builder fixture spends four points on its categories and stores racial value -1", noCategory.value === -1 && noCategory.spent === 4, noCategory);
+  derived = await run(gm, P.derive, { itemId: built.id });
+  capState = await run(gm, P.capState, { itemId: built.id });
+  check("racial value -1: Derive takes the imported human cap, not the racial table's row", derived.derivable && capState.storedIsHuman && !capState.storedIsRacialFour && capState.humanDiffersFromRacialFour && capState.rowsReachIt, { derived, capState });
+  const derivedTip = await run(gm, P.capField, { itemId: built.id });
+  check("the Maximum level tooltip on a derived figure says it was derived on the Builder tab, not only set on the sheet", derivedTip.stored !== null && derivedTip.tipKind === "capBuiltTip" && derivedTip.tipOk, derivedTip);
+  await run(gm, P.closeSheet, { itemId: built.id });
+  const racialInput = await run(gm, P.racialField, { itemId: built.id });
+  check("the Builder tab shows the racial value as -1, with a floor of -1 and its hint", racialInput.found && racialInput.shown === -1 && racialInput.floor === "-1" && racialInput.hintOk, racialInput);
+  await run(gm, P.builderShape, { itemId: built.id });
+  const racialShape = await run(gm, P.shapeValue, { itemId: built.id, value: 0 });
+  check("racial value 0 spends nothing more: still four points", racialShape.value === 0 && racialShape.spent === 4, racialShape);
+  derived = await run(gm, P.derive, { itemId: built.id });
+  capState = await run(gm, P.capState, { itemId: built.id });
+  check("racial value 0: Derive takes the racial table's row on its total, not the human cap", derived.derivable && capState.storedIsRacialFour && capState.humanDiffersFromRacialFour && capState.rowsReachIt, { derived, capState });
+
+  await run(gm, P.builderShape, { itemId: built.id });
+  const noHuman = await run(gm, P.hide, { what: "humanCap" });
+  check("the human maximum level is hidden and the rest of the budget stands", noHuman.hidden && noHuman.humanCap === false && noHuman.afterLevel === true && noHuman.rates === true, noHuman);
+  derived = await run(gm, P.derive, { itemId: built.id, noRows: true });
+  capState = await run(gm, P.capState, { itemId: built.id });
+  check("absent cap: the Builder tab and the Derive dialog name it, and the summary reads 'not set'", derived.derivable && derived.sheetNamesHumanCap && derived.dialog && derived.dialogNamesHumanCap && derived.summaryNotSet, derived);
+  check("absent cap: no cap and no level row is written, and the Judge's cap field is left unset", capState.stored === "none" && capState.rows === 0, capState);
+  await run(gm, P.unhide);
+
+  // A Judge overrides the budget through the Ruledata Browser: the figure wins, the rest stands, and Revert restores the import.
+  const BROWSER_FIGURE = CAP + 17;
+  await run(gm, P.builderShape, { itemId: built.id });
+  const edit = await run(gm, P.browserOverride, { figure: BROWSER_FIGURE });
+  browserMade = !!edit.made;
+  if (edit.foreign) note("a Ruledata Browser override of another's stands on the budget: this part is not run", edit);
+  else {
+    check("the Ruledata Browser's Edit on the budget row stores an override that the registry serves", edit.row && edit.editor && edit.overrideStored && edit.servedFigureIsFigure && edit.otherFiguresKept, edit);
+    derived = await run(gm, P.derive, { itemId: built.id });
+    capState = await run(gm, P.capState, { itemId: built.id, figure: BROWSER_FIGURE });
+    check("the override wins: Derive gives the human class the Judge's figure", derived.derivable && capState.storedIsFigure && capState.rowsReachIt, capState);
+    const revert = await run(gm, P.browserOverride, { figure: BROWSER_FIGURE, revert: true });
+    check("Revert on the row removes the override and the imported figure is served again", revert.revertPressed && revert.overrideGone && revert.servedFigureIsFigure === false, revert);
+    if (revert.overrideGone) browserMade = false;
+    await run(gm, P.builderShape, { itemId: built.id });
+    derived = await run(gm, P.derive, { itemId: built.id });
+    capState = await run(gm, P.capState, { itemId: built.id });
+    check("after Revert, Derive gives the imported cap again", derived.derivable && capState.storedIsHuman && capState.rowsReachIt, capState);
+  }
+
+  // The reload below drops the GM page's record of the cards and console errors it made, so they are claimed first.
+  await claim(gm, "gm");
+
+  section("saved builders from before the racial value was -1 are corrected once");
+  // The previous release stored 0 for a class with no racial category and for a racial class alike. The
+  // PRE-UPGRADE shape is built on purpose: record version 0, racial value 0, with and without a race reference.
+  const savedHuman = await gm.fixture("classes/level-cap-saved-human", "Item", { name: "QA Saved Human", type: `${MOD}.class`, system: {} });
+  const savedRacial = await gm.fixture("classes/level-cap-saved-racial", "Item", { name: "QA Saved Racial", type: `${MOD}.class`, system: {} });
+  const holder = await gm.fixture("classes/level-cap-saved-holder", "Actor", { name: "QA Saved Holder", type: "character", system: {} });
+  const savedHeld = await gm.fixture("classes/level-cap-saved-held", "Item", { name: "QA Saved Held", type: `${MOD}.class`, system: {} }, { parent: holder.uuid });
+  const SAVED = [savedHuman.uuid, savedRacial.uuid, savedHeld.uuid];
+  const stage = async () => {
+    const shapes = [
+      await run(gm, P.saveOld, { uuid: savedHuman.uuid, value: 0, race: "" }),
+      await run(gm, P.saveOld, { uuid: savedRacial.uuid, value: 0, race: "def.race.qa-level-cap" }),
+      await run(gm, P.saveOld, { uuid: savedHeld.uuid, value: 0, race: "" }),
+    ];
+    return shapes.every((s) => s.version === 0 && s.value === 0) && shapes.map((s) => s.race).join() === "false,true,false";
+  };
+  check("the pre-upgrade shape is stored: version 0 and racial value 0, one class naming a race, one in the world, one on a character", await stage());
+
+  const first = await run(gm, P.migrate);
+  note("the sweep's tally (world class items stamped, on characters, racial values rewritten)", first);
+  check("the sweep rewrote at least the two classes with no racial category, in the world and on a character", first.corrected >= 2 && first.world >= 2 && first.actors >= 1, first);
+  let saved = await run(gm, P.readSaved, { uuids: SAVED });
+  check("no racial category now stores -1, in the world and on the character", saved[savedHuman.uuid].value === -1 && saved[savedHeld.uuid].value === -1, saved);
+  check("a racial class at value 0 keeps 0", saved[savedRacial.uuid].value === 0 && saved[savedRacial.uuid].race === true, saved[savedRacial.uuid]);
+  check("every one is stamped current", SAVED.every((u) => saved[u].version >= 1), SAVED.map((u) => saved[u].version));
+  const savedDerived = async (item) => {
+    await run(gm, P.shapeValue, { itemId: item.id, value: saved[item.uuid].value });
+    const d = await run(gm, P.derive, { itemId: item.id });
+    return { derived: d, state: await run(gm, P.capState, { itemId: item.id }) };
+  };
+  const human = await savedDerived(savedHuman);
+  check("the corrected class derives the imported human cap", human.derived.derivable && human.state.storedIsHuman && human.state.rowsReachIt, human.state);
+  const racial = await savedDerived(savedRacial);
+  check("the racial class at 0 derives the racial table's row on its total", racial.derived.derivable && racial.state.storedIsRacialFour && racial.state.rowsReachIt, racial.state);
+
+  const again = await run(gm, P.migrate);
+  check("a second run stamps and rewrites nothing", again.world === 0 && again.actors === 0 && again.corrected === 0, again);
+  await run(gm, P.setValue, { uuid: savedHuman.uuid, value: 0 });
+  const kept = await run(gm, P.migrate);
+  saved = await run(gm, P.readSaved, { uuids: SAVED });
+  check("a racial value of 0 a Judge sets afterwards on a stamped class is left alone", kept.corrected === 0 && saved[savedHuman.uuid].value === 0, { kept, value: saved[savedHuman.uuid].value });
+
+  // The real trigger: the world's own `ready`, on a reload of the GM's page.
+  check("the pre-upgrade shape is stored again", await stage());
+  note("gm reloaded; ready after (s)", await record(PORTS.gm, "gm", gm));
+  const reloaded = await run(gm, P.install, { tag: TAG });
+  check("the reload ran init, setup and ready with no error recorded", ["init", "setup", "ready"].every((p) => (reloaded.boot?.phases ?? []).includes(p)) && (reloaded.boot?.errors ?? []).length === 0, { phases: reloaded.boot?.phases ?? [], errors: (reloaded.boot?.errors ?? []).length });
+  let healed = null;
+  for (let n = 0; n < 60 && !healed; n++) {
+    saved = await run(gm, P.readSaved, { uuids: SAVED });
+    if (SAVED.every((u) => saved[u]?.version >= 1)) healed = saved;
+    else await sleep(1000);
+  }
+  check("on ready the sweep corrected the classes without a racial category and kept the racial one at 0", !!healed && healed[savedHuman.uuid].value === -1 && healed[savedHeld.uuid].value === -1 && healed[savedRacial.uuid].value === 0, healed ? SAVED.map((u) => healed[u].value) : "not stamped after 60 s");
+  // A canary proves the hook ran on this reload: the embedded class is put back below the stamp, and the
+  // stamped class beside it carries a 0 a Judge typed.
+  await run(gm, P.setValue, { uuid: savedHuman.uuid, value: 0 });
+  const canary = await run(gm, P.saveOld, { uuid: savedHeld.uuid, value: 0, race: "" });
+  check("the canary is below the stamp and a stamped class holds a hand-set 0", canary.version === 0 && canary.value === 0 && (await run(gm, P.readSaved, { uuids: [savedHuman.uuid] }))[savedHuman.uuid].value === 0);
+  note("gm reloaded again; ready after (s)", await record(PORTS.gm, "gm", gm));
+  await run(gm, P.install, { tag: TAG });
+  let ran = null;
+  for (let n = 0; n < 60 && !ran; n++) {
+    saved = await run(gm, P.readSaved, { uuids: SAVED });
+    if (saved[savedHeld.uuid]?.version >= 1) ran = saved;
+    else await sleep(1000);
+  }
+  check("a second ready ran the sweep, and left a stamped class's hand-set 0 alone", !!ran && ran[savedHeld.uuid].value === -1 && ran[savedHuman.uuid].value === 0 && ran[savedRacial.uuid].value === 0, ran ? SAVED.map((u) => ran[u].value) : "the canary was not stamped after 60 s");
+
+  section("the last die level and the per-level rates, hidden in turn");
   await run(gm, P.builderShape, { itemId: built.id });
   const noLevel = await run(gm, P.hide, { what: "afterLevel" });
   check("the last die level is hidden and the per-level rates stand", noLevel.hidden && noLevel.afterLevel === false && noLevel.rates === true, noLevel);
@@ -690,19 +964,15 @@ try {
   const picks = await run(player, P.intPicks);
   check("the picks equal the system's modifier clamped at zero at every score", picks.agree === picks.scores, picks);
 
-  const drained = await run(player, P.drain);
-  const gmDrained = await run(gm, P.drain);
-  check("no console error on either seat over the walk", !drained.errors.length && !gmDrained.errors.length, { player: drained.errors.slice(0, 3), gm: gmDrained.errors.slice(0, 3) });
-  for (const c of [...drained.cards, ...gmDrained.cards]) {
-    if (c.actor !== actorId) continue;
-    await gm.track(c.id, "ChatMessage");
-    own.push(`ChatMessage.${c.id}`);
-  }
+  await claim(player, "player");
+  await claim(gm, "gm");
+  check("no console error on either seat over the walk", !errorsSeen.length, errorsSeen.slice(0, 3));
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err);
   checks.push(["walk ran to the end", false]);
 } finally {
   section("teardown");
+  try { if (gm) note("browser override", await run(gm, P.browserRevert, { made: browserMade })); } catch (err) { console.error("browser revert:", err?.message ?? err); }
   for (const [label, seat] of [["gm", gm], ["player", player]]) {
     try { if (seat) note(`overrides removed (${label})`, await run(seat, P.unhide)); } catch (err) { console.error(`unhide ${label}:`, err?.message ?? err); }
   }
@@ -711,7 +981,7 @@ try {
   }
   // The ledger also holds any fixture `fixture` built this run; only the run's own cards go.
   try { if (gm && own.length) note("swept", await gm.sweepTracked({ only: own })); } catch (err) { console.error("sweep:", err?.message ?? err); }
-  console.log("fixtures kept: classes/level-cap-open-class, classes/level-cap-capped-class, classes/level-cap-builder-class, classes/level-cap-character");
+  console.log("fixtures kept: classes/level-cap-open-class, classes/level-cap-capped-class, classes/level-cap-builder-class, classes/level-cap-character, classes/level-cap-saved-human, classes/level-cap-saved-racial, classes/level-cap-saved-holder, classes/level-cap-saved-held");
   try { if (player) await player.close(); } catch {}
   try { if (gm) await gm.close(); } catch {}
   section("summary");

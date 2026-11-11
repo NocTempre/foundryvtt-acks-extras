@@ -28,7 +28,7 @@ const BUILDER_DOC_ID = "acks.classBuilder";
  */
 export const PRODUCES = Object.freeze({
   [BUILDER_DOC_ID]: {
-    budget: ["basePoints", "savesRule", "smoothing", "xpRules", "hpAfterNine", "racialCaps", "tradeoffPenalty"],
+    budget: ["basePoints", "savesRule", "smoothing", "xpRules", "hpAfterNine", "racialCaps", "proficiencyCount", "tradeoffPenalty"],
     hd: "hdRaw",
     fighting: "fightingRaw",
     thievery: "thieveryRaw",
@@ -161,6 +161,14 @@ export function assembleBuilderTables(raw) {
     budget.racialCaps = Object.entries(raw.racialCaps)
       .filter(([, r]) => r && !r.__missing && isNum(r.maxLevel))
       .map(([points, r]) => ({ points: Number(points), maxLevel: r.maxLevel }));
+  }
+  // A human class's maximum level. No page states it outright: JJ 297 prints
+  // the class list's proficiency count as a total less the maximum level, and
+  // gives the count a typical class ends up with. That a typical class is a
+  // human one is this module's inference (docs/classes/DECISIONS.md), so the
+  // cap exists only when both integers were read and the difference is a level.
+  if (isNum(raw.proficiencyCount?.total) && isNum(raw.proficiencyCount?.typical) && raw.proficiencyCount.total - raw.proficiencyCount.typical >= 1) {
+    budget.humanMaxLevel = raw.proficiencyCount.total - raw.proficiencyCount.typical;
   }
   if (isNum(raw.tradeoffPenalty?.perPower)) budget.tradeInXp = raw.tradeoffPenalty.perPower;
   if (Object.keys(budget).length) out.budget = budget;
@@ -356,6 +364,26 @@ export function parseBuild(window) {
   return out;
 }
 
+/**
+ * The class `system.builder` fields one parsed build paragraph sets. A build
+ * that names no race stores the racial value -1, no racial category; one that
+ * names a race stores that race's value.
+ */
+export function builderUpdate(parsed) {
+  return {
+    "system.builder.enabled": true,
+    "system.builder.hdValue": parsed.hdValue ?? 0,
+    "system.builder.fighting.value": parsed.fighting?.value ?? 0,
+    "system.builder.fighting.sub": parsed.fighting?.sub ?? "",
+    "system.builder.thievery.value": parsed.thievery ?? 0,
+    "system.builder.magic": parsed.magic,
+    "system.builder.race.value": parsed.race?.value ?? -1,
+    // The paragraph names the trade-offs in prose; keep it whole so the
+    // Judge elects them by hand with the source in view.
+    "system.builder.notes": parsed.notes,
+  };
+}
+
 /* ------------------------------------------------------------------ */
 /*  Foundry appliers                                                   */
 /* ------------------------------------------------------------------ */
@@ -456,18 +484,7 @@ export async function applyBuilderImport({ repair = null } = {}) {
     const parsed = parseBuild(block.build);
     const cls = await importedItemFor(`def.class.${id}`);
     if (cls?.type !== CLASS_TYPE) continue;
-    const update = {
-      "system.builder.enabled": true,
-      "system.builder.hdValue": parsed.hdValue ?? 0,
-      "system.builder.fighting.value": parsed.fighting?.value ?? 0,
-      "system.builder.fighting.sub": parsed.fighting?.sub ?? "",
-      "system.builder.thievery.value": parsed.thievery ?? 0,
-      "system.builder.magic": parsed.magic,
-      "system.builder.race.value": parsed.race?.value ?? 0,
-      // The paragraph names the trade-offs in prose; keep it whole so the
-      // Judge elects them by hand with the source in view.
-      "system.builder.notes": parsed.notes,
-    };
+    const update = builderUpdate(parsed);
     if (parsed.race) {
       const raceItem = await importedItemFor(`def.race.${parsed.race.key}`);
       if (raceItem) update["system.race"] = raceItem.flags?.[MODULE_ID]?.cookbook?.id ?? `uuid:${raceItem.uuid}`;

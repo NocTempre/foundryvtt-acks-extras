@@ -28,7 +28,9 @@ import {
 import { classUpdateData, damageBonusLadder, rebindsHeldClass, syncClassTraining } from "../scripts/classes/apply.mjs";
 import { clampLevel, atLevelCap, levelCap } from "../scripts/classes/level-cap.mjs";
 import { classForActor, findByRef, publish } from "../scripts/classes/registry.mjs";
-import { CLASS_TYPE, LANG_PREFIX, PROGRESSIONS_DOC_ID } from "../scripts/classes/constants.mjs";
+import { CLASS_SCHEMA_VERSION, CLASS_TYPE, LANG_PREFIX, PROGRESSIONS_DOC_ID } from "../scripts/classes/constants.mjs";
+import { builderRaceUpdate, migrateBuilderRace } from "../scripts/classes/builder-race-migration.mjs";
+import { builderUpdate } from "../scripts/importer/builder-binding.mjs";
 import { awardsAt, awardsThrough, choosableGenerals, spellLanes, admitsSpell, choosableSpells } from "../scripts/classes/grants.mjs";
 import { ANSWERED, closesRung, grantableRefs, grantsFrom } from "../scripts/classes/picks.mjs";
 import {
@@ -65,6 +67,9 @@ const test = (name, fn) => {
 
 /* ---------------------------- fixtures ---------------------------- */
 
+/** A builder's racial value for a class with no racial category. */
+const NO_RACE = { value: -1 };
+
 const TABLES = {
   budget: {
     basePoints: 4,
@@ -72,13 +77,16 @@ const TABLES = {
     smoothing: { level: 7, nearest: 5000 },
     postEight: { crusaderThief: 100000, fighter: 120000, mage: 150000 },
     hpAfterNine: { crusaderMage: 3, fighterThief: 5, afterLevel: 6 },
+    // Invented figures: a cap per total of build points, and the one a human
+    // class takes; none is a figure the book prints.
     racialCaps: [
-      { points: 8, maxLevel: 9 },
-      { points: 7, maxLevel: 10 },
-      { points: 6, maxLevel: 11 },
-      { points: 5, maxLevel: 12 },
-      { points: 4, maxLevel: 13 },
+      { points: 8, maxLevel: 8 },
+      { points: 7, maxLevel: 11 },
+      { points: 6, maxLevel: 12 },
+      { points: 5, maxLevel: 14 },
+      { points: 4, maxLevel: 15 },
     ],
+    humanMaxLevel: 16,
     tradeInXp: 250,
   },
   hd: [
@@ -334,8 +342,8 @@ test("cleavesValue maps table tokens to LevelValues", () => {
 });
 
 test("racialMaxLevel reads the printed points→cap table", () => {
-  assert.equal(racialMaxLevel(7, TABLES.budget), 10);
-  assert.equal(racialMaxLevel(4, TABLES.budget), 13);
+  assert.equal(racialMaxLevel(7, TABLES.budget), 11);
+  assert.equal(racialMaxLevel(4, TABLES.budget), 15);
   assert.equal(racialMaxLevel(9, TABLES.budget), null);
 });
 
@@ -363,9 +371,9 @@ test("derivePlan assembles a racial build end-to-end (the spellsword shape)", ()
     titles: [{ level: 1, title: "Novice" }],
   });
   const u = plan.update;
-  assert.equal(u.maximumLevel, 10); // 7 total points → printed cap
+  assert.equal(u.maximumLevel, 11); // 7 total points → the table's row
   assert.equal(u.hitDie, "1d6");
-  assert.equal(u.levels.length, 10);
+  assert.equal(u.levels.length, 11);
   assert.equal(u.levels[0].title, "Novice");
   assert.equal(u.levels[1].xp, 4000); // the discounted spellsword base
   // saves ignore the racial value: fighting 2 beats arcane 1 → fighter;
@@ -409,7 +417,7 @@ test("a race's post-9th hit points add to the chassis rate, and the flat is cumu
 test("the level hit dice stop rising at is read from the budget, and a missing read costs only itself", () => {
   const plan = (hpAfterNine) =>
     derivePlan({
-      builder: { hdValue: 1, fighting: { value: 2, sub: "" }, magic: [], race: { value: 0 }, tradeoffs: [], powers: [] },
+      builder: { hdValue: 1, fighting: { value: 2, sub: "" }, magic: [], race: NO_RACE, tradeoffs: [], powers: [] },
       tables: { ...TABLES, budget: { ...TABLES.budget, hpAfterNine } },
       race: null,
       chassisAttack: CHASSIS_ATTACK,
@@ -452,7 +460,7 @@ test("the trade-off ticks decide who a built class's damage bonus applies to", (
   const fighterLadders = { damageBonus: { key: "damageBonus", label: "Damage Bonus", values: [{ atLevel: 1, value: 1 }] } };
   const plan = (tradeoffs, damageBonus = "") =>
     derivePlan({
-      builder: { hdValue: 1, fighting: { value: 2, sub: "", damageBonus }, magic: [], race: { value: 0 }, tradeoffs, powers: [] },
+      builder: { hdValue: 1, fighting: { value: 2, sub: "", damageBonus }, magic: [], race: NO_RACE, tradeoffs, powers: [] },
       tables: TABLES,
       race: null,
       chassisAttack: CHASSIS_ATTACK,
@@ -471,7 +479,7 @@ test("derivePlan copies progenitor thief-skill ladders for chosen skills", () =>
       fighting: { value: 1, sub: "b" },
       thievery: { value: 1, skills: ["def.skill.climbing", "def.skill.hiding", "def.skill.sneaking", "def.skill.lockpicking"] },
       magic: [],
-      race: { value: 0 },
+      race: NO_RACE,
     },
     tables: TABLES,
     race: null,
@@ -490,7 +498,7 @@ test("derivePlan copies progenitor thief-skill ladders for chosen skills", () =>
 test("derivePlan skips what a partial table set cannot answer", () => {
   const plan = derivePlan({
     builder: { hdValue: 0, fighting: { value: 2 }, magic: [] },
-    tables: { budget: {}, hd: TABLES.hd, fighting: TABLES.fighting },
+    tables: { budget: { humanMaxLevel: TABLES.budget.humanMaxLevel }, hd: TABLES.hd, fighting: TABLES.fighting },
     race: null,
   });
   assert.equal(plan.update.hitDie, "1d4");
@@ -502,6 +510,124 @@ test("derivePlan skips what a partial table set cannot answer", () => {
   assert.ok(plan.issues.some((i) => i.key === "missingHpAfterNine"));
   assert.ok(plan.issues.some((i) => i.key === "missingLastDieLevel"));
   assert.ok(plan.update.levels.every((r) => r.hd === ""), "no last die level, no hit-dice cell");
+});
+
+/* A class's cap is the book's, or nothing: a human build reads the budget's
+ * one figure for it, a racial build the table's row on its points, and one the
+ * world lacks is a named gap with no cap and no level rows. The figures are the
+ * fixture's own. */
+
+const BUILD = (over = {}) => ({ hdValue: 1, fighting: { value: 2, sub: "" }, thievery: { value: 1, skills: [] }, magic: [], race: NO_RACE, tradeoffs: [], powers: [], ...over });
+const planWith = (builder, budget, extra = {}) =>
+  derivePlan({ builder, tables: { ...TABLES, budget }, race: null, chassisAttack: CHASSIS_ATTACK, ...extra });
+const hasIssue = (p, key) => p.issues.some((i) => i.key === key);
+const { humanMaxLevel: _human, ...NO_HUMAN } = TABLES.budget;
+
+test("a human build takes the budget's cap, and every row runs to it", () => {
+  const plan = planWith(BUILD({ thievery: { value: 0, skills: [] } }), TABLES.budget);
+  assert.equal(plan.update.maximumLevel, TABLES.budget.humanMaxLevel);
+  assert.equal(plan.update.levels.length, TABLES.budget.humanMaxLevel);
+  assert.equal(plan.summary.maxLevel, TABLES.budget.humanMaxLevel);
+  assert.ok(!hasIssue(plan, "missingHumanMaxLevel"));
+  // Another imported figure moves it.
+  assert.equal(planWith(BUILD(), { ...TABLES.budget, humanMaxLevel: 9 }).update.maximumLevel, 9);
+});
+
+test("a human build with no imported cap has none, writes no rows, and names the gap", () => {
+  const plan = planWith(BUILD(), NO_HUMAN);
+  assert.equal("maximumLevel" in plan.update, false, "no stand-in cap is written");
+  assert.equal(plan.update.levels, undefined, "no number of rows is known");
+  assert.equal(plan.summary.maxLevel, null);
+  assert.ok(hasIssue(plan, "missingHumanMaxLevel"));
+  assert.equal(plan.update.hitDie, "1d6", "what the cap does not touch is still derived");
+  assert.ok(!hasIssue(plan, "missingHpAfterNine"), "with no rows there is no flat to price");
+  // A cap that is not a whole level is no cap.
+  for (const bad of [0, -3, 2.5, "9", null, NaN]) assert.ok(hasIssue(planWith(BUILD(), { ...TABLES.budget, humanMaxLevel: bad }), "missingHumanMaxLevel"), `${bad}`);
+  // A racial build never reads it.
+  const racial = planWith(BUILD({ race: { value: 3 }, hdValue: 1, fighting: { value: 0 } }), NO_HUMAN, { race: ELF });
+  assert.ok(!hasIssue(racial, "missingHumanMaxLevel"));
+});
+
+test("racial value -1 is no racial category and 0 or more is one: the racial row, no base-budget check", () => {
+  // 4 total points; -1 adds none and 0 adds none.
+  const human = BUILD();
+  assert.equal(human.race.value, -1);
+  const zero = BUILD({ race: { value: 0 } });
+  assert.equal(pointsSpent(human), 4);
+  assert.equal(pointsSpent(zero), 4, "a racial value of 0 spends nothing");
+  assert.equal(pointsSpent(BUILD({ race: { value: 1 } })), 5);
+  // -1 takes the imported human figure; 0 takes the table's row on its total, with no race document.
+  assert.equal(planWith(human, TABLES.budget).update.maximumLevel, TABLES.budget.humanMaxLevel);
+  const racial = planWith(zero, TABLES.budget);
+  assert.equal(racial.update.maximumLevel, racialMaxLevel(4, TABLES.budget), "the table's row, not the human figure");
+  assert.notEqual(racial.update.maximumLevel, TABLES.budget.humanMaxLevel);
+  assert.ok(!hasIssue(racial, "missingRacialCap") && !hasIssue(racial, "missingRaceDoc") && !hasIssue(racial, "missingHumanMaxLevel"));
+  // A build that stores no racial value at all is -1.
+  assert.equal(planWith(BUILD({ race: undefined }), TABLES.budget).update.maximumLevel, TABLES.budget.humanMaxLevel);
+  assert.equal(derivePlan({ builder: { hdValue: 1 }, tables: { ...TABLES, budget: { basePoints: 4, humanMaxLevel: 9 } }, race: null }).update.maximumLevel, 9);
+  // A racial class may spend more than the base budget without a points report; a -1 one may not.
+  const over = (value) => BUILD({ hdValue: 2, race: { value } });
+  assert.equal(pointsSpent(over(0)), 5);
+  assert.ok(!hasIssue(planWith(over(0), TABLES.budget), "pointsOff"));
+  assert.ok(hasIssue(planWith(over(-1), TABLES.budget), "pointsOff"));
+  // The gate is the value, never a race's name, species or document: an invented folk that calls
+  // itself human, spending racial value, takes the racial row on its total; the same document
+  // beside a -1 build changes nothing.
+  for (const key of ["qa-folk", "human"]) {
+    const folk = { ...DWARF, key, name: key, species: "human", values: [{ value: 1, label: key, xpCost: 100, powers: [] }] };
+    const spending = BUILD({ hdValue: 1, fighting: { value: 2, sub: "" }, thievery: { value: 0, skills: [] }, race: { value: 1 } });
+    const plan = planWith(spending, TABLES.budget, { race: folk });
+    assert.equal(plan.update.maximumLevel, racialMaxLevel(4, TABLES.budget), `${key} takes the racial row`);
+    assert.ok(!hasIssue(plan, "pointsOff"));
+    assert.equal(planWith(human, TABLES.budget, { race: folk }).update.maximumLevel, TABLES.budget.humanMaxLevel, `${key} beside -1 stays at the human figure`);
+  }
+  // A racial total the table has no row for is named and caps nothing: never the human figure.
+  const narrow = BUILD({ thievery: { value: 0, skills: [] }, race: { value: 0 } });
+  assert.equal(pointsSpent(narrow), 3);
+  const wide = planWith(narrow, TABLES.budget, { race: DWARF });
+  assert.ok(hasIssue(wide, "missingRacialCap"));
+  assert.equal("maximumLevel" in wide.update, false);
+  assert.equal(wide.update.levels, undefined);
+  assert.ok(hasIssue(planWith(narrow, TABLES.budget), "missingRaceDoc"), "no row and no race document: that is named");
+  // No cap table imported: the same, for a racial build.
+  const noTable = planWith(zero, { ...TABLES.budget, racialCaps: undefined }, { race: DWARF });
+  assert.ok(hasIssue(noTable, "missingRacialCap") && !("maximumLevel" in noTable.update));
+});
+
+test("a printed rate absent and no cap: no hit-point rate is demanded, with a cap it is", () => {
+  const { hpAfterNine: _hp, ...NO_RATES } = TABLES.budget;
+  assert.ok(!hasIssue(planWith(BUILD(), { ...NO_RATES, humanMaxLevel: undefined }), "missingHpAfterNine"));
+  assert.ok(hasIssue(planWith(BUILD(), NO_RATES), "missingHpAfterNine"));
+});
+
+test("with no cap, attack bands and traditions take what the imported tables hold", () => {
+  // The imported grid is taken whole.
+  const grid = { ...TABLES, attackThrows: [1, 2, 3, 20, 25].map((level) => ({ level, values: { 2: 9 } })) };
+  assert.equal(attackBands({ value: 2 }, grid, null, CHASSIS_ATTACK, []).at(-1).maxLevel, 25);
+  // The chassis's bands are taken as printed: its open-ended band stays open, and none is clamped to a stand-in.
+  const open = attackBands(valueRow(TABLES.fighting, 2), TABLES, null, CHASSIS_ATTACK, []);
+  assert.deepEqual(open, FIGHTER_ATTACK);
+  assert.deepEqual(attackBands(valueRow(TABLES.fighting, 2), TABLES, 5, CHASSIS_ATTACK, []).at(-1), { minLevel: 4, maxLevel: 5, throw: 8 });
+  // A progression can only be unrolled to some level: no cap, no bands, and no invented ones.
+  const issues = [];
+  assert.deepEqual(attackBands(valueRow(TABLES.fighting, 4), TABLES, null, CHASSIS_ATTACK, issues), []);
+  assert.deepEqual(issues, []);
+  // The tradition keeps every grid row; a cap trims them.
+  const arcane = (cap) => deriveTradition({ type: "arcane", value: 1 }, TABLES.magicTypes.arcane, null, cap, []);
+  assert.equal(arcane(null).tradition.slots.length, 2);
+  assert.equal(arcane(1).tradition.slots.length, 1);
+  assert.equal(arcane(null).ladder.values.length, 2);
+  assert.equal(arcane(undefined).tradition.slots.length, 2);
+  // A grid row far above any level a stand-in could name is still kept.
+  const tall = { ...TABLES.magicTypes.arcane, values: [{ ...TABLES.magicTypes.arcane.values[0], slots: [{ atLevel: 1, s1: 1, casterLevel: 0 }, { atLevel: 40, s1: 9, casterLevel: 9 }] }] };
+  assert.equal(deriveTradition({ type: "arcane", value: 1 }, tall, null, null, []).tradition.slots.length, 2);
+  assert.equal(deriveTradition({ type: "arcane", value: 1 }, tall, null, 12, []).tradition.slots.length, 1);
+  // And through the whole derivation: ladders are not filtered to nothing.
+  const plan = planWith(BUILD({ magic: [{ type: "arcane", value: 1 }] }), NO_HUMAN, {
+    fighterLadders: { damageBonus: { key: "damageBonus", label: "Damage Bonus", values: [{ atLevel: 1, value: 1 }, { atLevel: 30, value: 2 }] } },
+  });
+  assert.equal(plan.update.ladders.find((l) => l.key === "damageBonus").values.length, 2);
+  assert.equal(plan.update.casting[0].slots.length, 2);
 });
 
 /* ------------------- awards owed for a level held ------------------- */
@@ -1881,9 +2007,10 @@ test("a class with no level cap has none: nothing clamps a level and no figure s
 });
 
 test("no source stands a level cap in for a class that sets none", () => {
-  for (const file of ["classes/apply.mjs", "classes/levelup.mjs", "classes/hitpoints.mjs", "classes/assign-app.mjs", "character-sheet/tabs/class.mjs"]) {
+  for (const file of ["classes/apply.mjs", "classes/levelup.mjs", "classes/hitpoints.mjs", "classes/assign-app.mjs", "character-sheet/tabs/class.mjs", "classes/builder-logic.mjs"]) {
     const src = readFileSync(new URL(`../scripts/${file}`, import.meta.url), "utf8").replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "");
-    assert.doesNotMatch(src, /maximumLevel\s*(\|\||\?\?)\s*\d/, `${file} falls back to a cap`);
+    assert.doesNotMatch(src, /(maximumLevel|maxLevel|cap)\s*(\|\||\?\?)\s*\d/, `${file} falls back to a cap`);
+    assert.doesNotMatch(src, /(?:let|const)\s+(?:maxLevel|cap)\s*=\s*\d/, `${file} starts a cap at a figure`);
   }
 });
 
@@ -2584,6 +2711,91 @@ test("every path that writes a rolled maximum writes the record beside it", () =
   assert.match(reroll, /\$\{HP_ROLLS_KEY\}`\]: built\.steps/, "the sheet's reroll");
   const apply = readFileSync(new URL("../scripts/classes/apply.mjs", import.meta.url), "utf8");
   assert.match(apply, /\[HP_ROLLS_KEY\]: hpRolls/, "a bind that rebuilds, chargen's 1st level among them");
+});
+
+/* ---------- a saved builder's "no racial category" is corrected once ---------- */
+
+/** A stored class `system` source: the builder's racial value, an optional race ref, a record version. */
+const stored = (value, { race = "", version } = {}) => ({ ...(version === undefined ? {} : { _schemaVersion: version }), race, builder: { race: value === undefined ? {} : { value } } });
+
+test("a stored 0 with no race becomes -1 and every other builder keeps its value", () => {
+  const humanZero = builderRaceUpdate(stored(0));
+  assert.equal(humanZero.corrected, true);
+  assert.equal(humanZero.update["system.builder.race.value"], -1);
+  assert.equal(humanZero.update["system._schemaVersion"], CLASS_SCHEMA_VERSION);
+  // A racial category chosen at 0 stays 0, however the race is named; only the record is stamped.
+  for (const race of ["def.race.qa-folk", "uuid:Item.abc"]) {
+    const racialZero = builderRaceUpdate(stored(0, { race }));
+    assert.equal(racialZero.corrected, false, race);
+    assert.deepEqual(racialZero.update, { "system._schemaVersion": CLASS_SCHEMA_VERSION });
+  }
+  // A racial value spent, a value already -1, and a value never stored are not rewritten.
+  for (const value of [1, 4, -1, undefined]) {
+    assert.equal(builderRaceUpdate(stored(value)).corrected, false, `${value}`);
+  }
+  // A record at the current version is left alone, so a Judge's later 0 is never rewritten.
+  assert.equal(builderRaceUpdate(stored(0, { version: CLASS_SCHEMA_VERSION })), null);
+  assert.equal(builderRaceUpdate(stored(0, { version: CLASS_SCHEMA_VERSION + 1 })), null);
+  assert.equal(builderRaceUpdate(undefined).corrected, false, "a record with no source is stamped, never failed");
+});
+
+test("an imported build naming no race stores -1, and one naming a race stores its value", () => {
+  const base = { hdValue: 1, fighting: { value: 2, sub: "" }, thievery: 1, magic: [], notes: "n" };
+  assert.equal(builderUpdate(base)["system.builder.race.value"], -1);
+  assert.equal(builderUpdate({ ...base, race: { key: "qa-folk", value: 0 } })["system.builder.race.value"], 0);
+  assert.equal(builderUpdate({ ...base, race: { key: "qa-folk", value: 3 } })["system.builder.race.value"], 3);
+  assert.equal(builderUpdate({})["system.builder.race.value"], -1, "a paragraph that reads nothing is no racial category");
+});
+
+test("a new class record starts at the version the migration stamps", () => {
+  const model = readFileSync(new URL("../scripts/classes/class-data.mjs", import.meta.url), "utf8");
+  assert.match(model, /_schemaVersion: int\(CLASS_SCHEMA_VERSION,/);
+  assert.match(model, /race: new SchemaField\(\{ value: int\(-1, \{ min: -1 \}\) \}\)/, "a new builder is -1: no racial category");
+});
+
+await atest("the sweep corrects the world's and the characters' class items once, and a second run writes nothing", async () => {
+  const writes = [];
+  const item = (id, source, type = CLASS_TYPE) => ({ id, type, _source: { system: source } });
+  const world = [item("w1", stored(0)), item("w2", stored(0, { race: "def.race.qa-folk" })), item("w3", stored(2)), { id: "w4", type: "weapon", _source: { system: stored(0) } }];
+  const held = [item("a1", stored(0)), item("a2", stored(0, { version: CLASS_SCHEMA_VERSION }))];
+  const apply = (rows, docs) => {
+    for (const row of rows) {
+      const doc = docs.find((d) => d.id === row._id);
+      const next = { ...doc._source.system };
+      for (const [path, value] of Object.entries(row)) {
+        if (path === "_id") continue;
+        if (path === "system._schemaVersion") next._schemaVersion = value;
+        if (path === "system.builder.race.value") next.builder = { ...next.builder, race: { ...next.builder.race, value } };
+      }
+      doc._source.system = next;
+    }
+    writes.push(...rows);
+  };
+  const actor = { items: held, updateEmbeddedDocuments: async (_k, rows) => apply(rows, held) };
+  const saved = globalThis.game;
+  globalThis.game = { user: { isGM: true }, items: Object.assign([...world], { documentClass: { updateDocuments: async (rows) => apply(rows, world) } }), actors: [actor] };
+  try {
+    const first = await migrateBuilderRace();
+    assert.deepEqual(first, { world: 3, actors: 1, corrected: 2 });
+    assert.equal(world[0]._source.system.builder.race.value, -1);
+    assert.equal(world[1]._source.system.builder.race.value, 0);
+    assert.equal(world[2]._source.system.builder.race.value, 2);
+    assert.equal(world[3]._source.system.builder.race.value, 0, "an item that is not a class is never read");
+    assert.equal(held[0]._source.system.builder.race.value, -1);
+    const wrote = writes.length;
+    assert.deepEqual(await migrateBuilderRace(), { world: 0, actors: 0, corrected: 0 });
+    assert.equal(writes.length, wrote, "a second run writes nothing");
+    // A Judge who sets 0 on a stamped record after the sweep keeps it.
+    world[0]._source.system.builder.race.value = 0;
+    assert.deepEqual(await migrateBuilderRace(), { world: 0, actors: 0, corrected: 0 });
+    // A player's client changes nothing.
+    world[1]._source.system._schemaVersion = 0;
+    globalThis.game.user.isGM = false;
+    assert.deepEqual(await migrateBuilderRace(), { world: 0, actors: 0, corrected: 0 });
+    assert.equal(world[1]._source.system._schemaVersion, 0);
+  } finally {
+    globalThis.game = saved;
+  }
 });
 
 console.log(`test-classes: ${passed} assertion groups passed.`);

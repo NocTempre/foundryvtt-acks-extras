@@ -137,7 +137,7 @@
           {{localize "ACKS-CLASSES.builder.points"}}: {{builderSummary.points.spent}}{{#if builderSummary.points.base}} / {{builderSummary.points.base}}{{/if}}
           &nbsp;·&nbsp; {{localize "ACKS-CLASSES.builder.powersLeft"}}: {{builderSummary.powers.left}}
           &nbsp;·&nbsp; {{localize "ACKS-CLASSES.builder.baseXp"}}: {{builderSummary.baseXp}}
-          &nbsp;·&nbsp; {{localize "ACKS-CLASSES.sheet.maximumLevel"}}: {{builderSummary.maxLevel}}
+          &nbsp;·&nbsp; {{localize "ACKS-CLASSES.sheet.maximumLevel"}}: {{#if builderSummary.maxLevel}}{{builderSummary.maxLevel}}{{else}}{{localize "ACKS-CLASSES.sheet.capNone"}}{{/if}}
         </p>
         {{#if builderIssues.length}}
           <ul class="acks-extras-classes-issues">
@@ -200,7 +200,8 @@
           {{#each builderRaces}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
         </select>
         <label>{{localize "ACKS-CLASSES.builder.racialValue"}}</label>
-        <input name="system.builder.race.value" type="number" value="{{builderState.race.value}}" min="0" step="1" />
+        <input name="system.builder.race.value" type="number" value="{{builderState.race.value}}" min="-1" step="1" aria-describedby="{{@root.partId}}-racial-value-hint" />
+        <p class="hint" id="{{@root.partId}}-racial-value-hint">{{localize "ACKS-CLASSES.builder.racialValueHint"}}</p>
       </div>
       {{#if raceUnresolved}}<p class="notification warning">{{localize "ACKS-CLASSES.builder.raceUnresolved"}}</p>{{/if}}
     </fieldset>

@@ -184,7 +184,18 @@
   it for where its figure came from), and the class takes any level, through
   Level up, the class picker's level field and character creation. Type a
   figure to cap a class, clear the field to remove the cap. A class the importer
-  gave a maximum keeps it, and its tooltip names the page.
+  gave a maximum keeps it, and its tooltip names the page. Derive on the Builder
+  tab takes a class with no racial category to the maximum level read from your
+  Judges Journal's custom-class proficiency count (Settings tab → Game Settings →
+  ACKS II — Extras → Manage imports → Rules tables; override it under Settings
+  tab → Game Settings → Imported Rules Tables → Open Ruledata Browser → the
+  builder's budget row → Edit), where it assumed a level built into the
+  module; with none imported it writes no maximum and no level rows and says so.
+  The racial value on the Builder tab is -1 for a class with no racial category
+  and 0 to 4 for a racial class; a racial class, even at 0, takes the racial
+  table's row on its total build points and is not held to the base budget. The
+  Maximum level field's tooltip on a builder class says the figure was derived
+  there or set on the sheet.
 - **The class builder reads where hit dice stop from your book.** Open a class's
   item sheet → Builder tab → Derive. The level past which a class gains
   hit points instead of dice is read with the builder tables from your own
@@ -227,6 +238,13 @@
 
 ### Fixed
 
+- **Existing built classes are corrected on load.** A class built on the item
+  sheet's Builder tab with no race (a racial value of 0 and no race named) now
+  stores a racial value of -1, once, when the world loads with a GM connected,
+  in the world's class items and the class items on characters. A class that is
+  racial at 0 keeps it. Nothing else about the class changes; set the racial
+  value on the Builder tab (item sheet → Builder tab → Racial value) to correct
+  one by hand.
 - **A two-handed weapon takes both hands.** A weapon the system tags
   Two-handed now takes both hands even where its weapon row is a medium melee
   weapon, so no shield is allowed beside it (an item sheet's Details tab →

@@ -3395,6 +3395,21 @@ export const TABLE_RECIPES = {
       // but its subject is hit points, so it is read under its own name
       // (hitpoint-tables.mjs) rather than as two more values on savesRule.
       hpAfterNine: HP_AFTER_NINE_TABLE,
+      // JJ 297, the custom-class chapter's proficiency count. The page states a
+      // class's maximum level only through it: the count is a total less the
+      // maximum level, and the sentence after gives the count a typical class
+      // ends up with. Both integers are read here; builder-binding.mjs takes
+      // their difference as the human class's cap.
+      proficiencyCount: {
+        shape: "proseValues",
+        book: "jj",
+        printedPage: 297,
+        locate: "Number of Proficiencies in Class List",
+        values: [
+          { key: "total", find: "always equal to", take: "int", span: 20 },
+          { key: "typical", find: "For most classes, this will be", take: "int", span: 30 },
+        ],
+      },
       xpRules: {
         shape: "proseValues",
         book: "jj",

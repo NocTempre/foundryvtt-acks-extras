@@ -19,7 +19,7 @@ import { num, str, int, bool, html, choice, choiceSet, refList, levelValueField,
 import { normalizeTraining } from "./training-logic.mjs";
 import { choiceSpecField } from "../lib/choice-spec.mjs";
 import { ATTRIBUTES, RUNG_OUTCOMES } from "../lib/vocab.mjs";
-import { CASTING_KINDS, REPERTOIRE_KINDS } from "./constants.mjs";
+import { CASTING_KINDS, CLASS_SCHEMA_VERSION, REPERTOIRE_KINDS } from "./constants.mjs";
 import { atLevelCap } from "./level-cap.mjs";
 
 /** Award kinds: an automatic grant at a level, or an offered pick. */
@@ -233,7 +233,7 @@ export default class ClassData extends foundry.abstract.TypeDataModel {
       });
 
     return {
-      _schemaVersion: int(0, { min: 0 }),
+      _schemaVersion: int(CLASS_SCHEMA_VERSION, { min: 0 }),
 
       /** Stable slug ("fighter"); chassis borrowing and the registry key on it. */
       key: str(),
@@ -388,8 +388,10 @@ export default class ClassData extends foundry.abstract.TypeDataModel {
             delayed: bool(),
           }),
         ),
-        /** Racial value spent, against the bound race document's ladder. */
-        race: new SchemaField({ value: int(0, { min: 0 }) }),
+        /** Racial value spent, against the bound race document's ladder; -1 is
+         *  a class with no racial category at all, which the derivation reads
+         *  apart from a racial class that spends none (0). */
+        race: new SchemaField({ value: int(-1, { min: -1 }) }),
         /** Trade-off elections (keys of the ruledata `tradeoffs` table:
          *  armour/weapon/style narrowings and their kin). */
         tradeoffs: refList(),

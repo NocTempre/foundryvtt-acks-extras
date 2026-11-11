@@ -3,14 +3,32 @@
 How it behaves now is [MODEL.md](MODEL.md); rulings are
 [DECISIONS.md](DECISIONS.md).
 
-## Printed values the builder still carries
+## A racial power that raises the maximum level
 
-`builder-logic.mjs` writes a built human class's maximum level as a literal, and
-`attackBands` / `deriveTradition` repeat it as their own fallback. No page the
-searches reached prints that figure for a custom class as a number (the
-custom-class chapter implies it through the proficiency-list count, and the
-class pages print it per class), so whether it is structural or printed is the
-owner's call. Until then a build with no racial value derives at that literal.
+The owner's ruling (2026-11-11): the cap is a base plus a racial adjustment,
+where the base is the human cap (-1) or the points table's row (0 to 4), and the
+adjustment is the sum of the maximum-level adjustments the race's own powers
+carry, 0 for no race and for a race whose powers carry none. One human-bodied
+race's value-0 power is printed in the Judges Journal's custom-class chapter as
+raising the maximum level, and the same chapter lists a custom power with the
+same effect that any class below a printed ceiling may buy through the builder's
+powers. The adjustment's size is printed, so it is imported, never shipped.
+
+Not built, because the carrier is a design call. What exists today: a race rung
+has a `maxLevel` field the derivation does not read; a rung's `powers` are ability refs; an ability
+carries typed `modifier` effects, but `MODIFIER_TARGETS` names no maximum-level
+target; the importer materializes race documents only for the two races whose
+value ladders it reads (`builder-binding.mjs`), so the human-bodied race has no
+document to carry a power at all.
+
+Two carriers: (1) a `maximumLevel` modifier target, read from the power's own
+imported text through the ability effect scan or a register recipe, summed by
+the builder from the rung powers (and from `builder.powers`, which would give the
+custom power the same effect for free); (2) a Judge-editable adjustment field on
+the race rung, filled by a `proseValues` read of the power text. Either needs a
+race document for the human-bodied race, so an importer table for that race's
+ladder first. An unresolved power has to show its adjustment as "not imported"
+and the cap has to say it is the base only.
 
 ## Starting templates, folded into the path group rather than pointed at
 

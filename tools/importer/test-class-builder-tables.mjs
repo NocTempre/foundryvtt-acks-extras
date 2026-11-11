@@ -82,6 +82,10 @@ check("the level the post-9 rates begin after reads as an integer, from the same
 
 check("racial caps: 4→13 … 7→10", raw.racialCaps?.["4"]?.maxLevel === 13 && raw.racialCaps?.["7"]?.maxLevel === 10 && raw.racialCaps?.["6"]?.maxLevel === 11 && raw.racialCaps?.["5"]?.maxLevel === 12);
 
+// The proficiency count is the page's only statement of a class's maximum
+// level: two integers, read apart, whose difference is the cap.
+check("the class list's proficiency count reads as two integers, the total over the typical", Number.isInteger(raw.proficiencyCount?.total) && Number.isInteger(raw.proficiencyCount?.typical) && raw.proficiencyCount.total > raw.proficiencyCount.typical);
+
 check("tradeoffs: ten rows with benefits", Object.values(raw.tradeoffsRaw ?? {}).filter((r) => r.benefit).length === 10);
 check("weapon broad→narrow yields two powers", /2/.test(raw.tradeoffsRaw?.["weapons.broadNarrow"]?.benefit ?? ""));
 check("trade-off XP penalty is a number", Number.isFinite(raw.tradeoffPenalty?.perPower));
@@ -114,6 +118,14 @@ check("a missing last die level costs only itself", (() => {
   const rates = assembleBuilderTables({ ...raw, hpAfterNine: { afterLevel: raw.hpAfterNine.afterLevel } }).budget.hpAfterNine;
   return lost.afterLevel === undefined && Number.isInteger(lost.crusaderMage) && Number.isInteger(lost.fighterThief)
     && rates.afterLevel === raw.hpAfterNine.afterLevel && rates.crusaderMage === undefined;
+})());
+check("budget assembles the human maximum level as the total less the typical count", asm.budget.humanMaxLevel === raw.proficiencyCount.total - raw.proficiencyCount.typical && asm.budget.humanMaxLevel >= 1);
+check("a half-read count assembles no human maximum level, and nothing else changes", (() => {
+  const total = assembleBuilderTables({ ...raw, proficiencyCount: { total: raw.proficiencyCount.total } }).budget;
+  const typical = assembleBuilderTables({ ...raw, proficiencyCount: { typical: raw.proficiencyCount.typical } }).budget;
+  const none = assembleBuilderTables({ ...raw, proficiencyCount: undefined }).budget;
+  const inverted = assembleBuilderTables({ ...raw, proficiencyCount: { total: 3, typical: 9 } }).budget;
+  return [total, typical, none, inverted].every((b) => b.humanMaxLevel === undefined && b.racialCaps?.length > 0 && b.basePoints === asm.budget.basePoints);
 })());
 check("races: the dwarf's post-9 hit points survive assembly", Number.isInteger(asm.races.dwarf.hpAfter9) && asm.races.dwarf.hpAfter9 === raw.dwarfRules.hpAfter9);
 check("races: the elf prints no post-9 hit points, and assembly says so", asm.races.elf.hpAfter9 === null);

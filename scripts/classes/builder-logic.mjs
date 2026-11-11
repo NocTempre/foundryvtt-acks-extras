@@ -24,7 +24,7 @@ export const BUILDER_DOC_ID = "acks.classBuilder";
  *
  * - `budget` — { basePoints, savesPrecedence: [magic-or-category keys…],
  *   smoothing: { level, nearest }, postEight: { crusaderThief, fighter,
- *   mage }, racialCaps: [{ points, maxLevel }], tradeInXp }
+ *   mage }, racialCaps: [{ points, maxLevel }], humanMaxLevel, tradeInXp }
  * - `hd` — [{ value, die ("d6"), mortalWounds, cost }]
  * - `fighting` — [{ value, sub (""|"a"|"b"), label, cost, attackAs (chassis
  *   key), attack: { step, every }, damage: { step, every } | null, cleaves
@@ -94,7 +94,8 @@ export function valueRow(rows, value, sub = "") {
 export function pointsSpent(builder) {
   const b = builder ?? {};
   const magic = (b.magic ?? []).reduce((sum, m) => sum + (m.value || 0), 0);
-  return (b.hdValue || 0) + (b.fighting?.value || 0) + (b.thievery?.value || 0) + magic + (b.race?.value || 0);
+  // -1 marks no racial category and is no points.
+  return (b.hdValue || 0) + (b.fighting?.value || 0) + (b.thievery?.value || 0) + magic + Math.max(0, b.race?.value ?? 0);
 }
 
 /** Ladder labels for the narrowed damage-bonus keys derive can emit. */
@@ -226,11 +227,17 @@ export function bandify(series) {
  * already in the world); the row's own progression parameters, based off the
  * fighter chassis's first printed throw.
  *
+ * A null `maxLevel` (the class has no cap) invents no bound: the grid and the
+ * chassis bands are taken as imported, the chassis's open-ended band stays
+ * open, and the progression parameters, which can only be unrolled to some
+ * level, produce no bands.
+ *
  * @param {Map<string, Array>} chassisAttack - chassis key → printed attack
  *   bands ({minLevel,maxLevel,throw}), resolved by the caller
  */
 export function attackBands(fightRow, tables, maxLevel, chassisAttack = new Map(), issues = []) {
-  const cap = maxLevel || 14;
+  const capped = isNum(maxLevel);
+  const cap = capped ? maxLevel : Infinity;
   const grid = tables?.attackThrows;
   if (Array.isArray(grid) && grid.length) {
     const column = fightRow?.attackColumn ?? String(fightRow?.value ?? 0);
@@ -243,9 +250,10 @@ export function attackBands(fightRow, tables, maxLevel, chassisAttack = new Map(
     return chassisAttack
       .get(fightRow.attackAs)
       .filter((b) => b.minLevel <= cap)
-      .map((b) => ({ minLevel: b.minLevel, maxLevel: b.maxLevel == null || b.maxLevel > cap ? cap : b.maxLevel, throw: b.throw }));
+      .map((b) => ({ minLevel: b.minLevel, maxLevel: b.maxLevel == null ? (capped ? cap : null) : Math.min(b.maxLevel, cap), throw: b.throw }));
   }
   const params = fightRow?.attack;
+  if (!capped && params) return [];
   if (params && isNum(params.step) && isNum(params.every) && params.every > 0) {
     const base = chassisAttack.get("fighter")?.[0]?.throw;
     if (!isNum(base)) {
@@ -327,7 +335,9 @@ export function deriveTradition(magicEntry, typeDef, progenitorCasting, maxLevel
   const value = effectiveValue ?? magicEntry?.value ?? 0;
   if (!(value > 0)) return null;
   const row = valueRow(typeDef?.values, value);
-  const cap = maxLevel || 14;
+  // A class with no cap keeps every level the grid holds: nothing here
+  // supplies a bound the book's grid does not.
+  const cap = isNum(maxLevel) ? maxLevel : Infinity;
   const tradition = {
     key: magicEntry.type,
     label: magicEntry.label || typeDef?.label || magicEntry.type,
@@ -441,21 +451,36 @@ export function derivePlan({
 
   const budget = tables.budget ?? {};
   const spent = pointsSpent(builder);
-  const racialValue = builder?.race?.value ?? 0;
+  // The racial value is -1 for a class with no racial category and 0 or more
+  // for a racial class, which may spend none of its points on the race and is
+  // still racial. It is the only thing that tells the two apart: never a
+  // species, a race's name or whether a race document resolved.
+  const racialValue = builder?.race?.value ?? -1;
+  const racial = racialValue >= 0;
   const basePoints = isNum(budget.basePoints) ? budget.basePoints : null;
-  // A human class spends the base budget; a racial class may spend up to the
-  // cap table's largest row. Overspend/underspend is reported, never blocked.
-  if (basePoints != null && racialValue === 0 && spent !== basePoints) issues.push({ key: "pointsOff", spent, base: basePoints });
+  // A class with no racial category spends the base budget; a racial class may
+  // spend up to the cap table's largest row. Overspend/underspend is reported,
+  // never blocked.
+  if (basePoints != null && !racial && spent !== basePoints) issues.push({ key: "pointsOff", spent, base: basePoints });
 
-  // --- max level: the racial cap table by TOTAL points; human default 14 ---
-  let maxLevel = 14;
-  if (racialValue > 0) {
+  // --- max level: a racial class's by the cap table on its TOTAL points, a
+  // class with no racial category by the one figure the book implies for it
+  // (`humanMaxLevel`; the key names the default, not a species). A cap the world
+  // lacks stays null and is named; nothing stands in for it, and a null cap
+  // writes no `maximumLevel` and no level rows.
+  let maxLevel = null;
+  if (racial) {
     const cap = racialMaxLevel(spent, budget);
     if (cap) maxLevel = cap;
     else if (!race) issues.push({ key: "missingRaceDoc" });
     else issues.push({ key: "missingRacialCap", points: spent });
+  } else if (Number.isInteger(budget.humanMaxLevel) && budget.humanMaxLevel >= 1) {
+    maxLevel = budget.humanMaxLevel;
+  } else {
+    issues.push({ key: "missingHumanMaxLevel" });
   }
-  update.maximumLevel = maxLevel;
+  if (maxLevel != null) update.maximumLevel = maxLevel;
+  const withinCap = (rung) => maxLevel == null || rung.atLevel <= maxLevel;
 
   // --- hit die + mortal wounds ladder ---
   const hdRow = valueRow(tables.hd, builder?.hdValue ?? 0);
@@ -504,11 +529,13 @@ export function derivePlan({
   const lastDie = isNum(hpRates.afterLevel) ? hpRates.afterLevel : null;
   let hpPerLevel = isNum(hpRates[HP_GROUP[chassis]]) ? hpRates[HP_GROUP[chassis]] : null;
   if (lastDie == null) issues.push({ key: "missingLastDieLevel" });
-  if (hpPerLevel == null && (lastDie == null || maxLevel > lastDie)) issues.push({ key: "missingHpAfterNine", chassis });
+  if (maxLevel != null && hpPerLevel == null && (lastDie == null || maxLevel > lastDie)) issues.push({ key: "missingHpAfterNine", chassis });
   if (hpPerLevel != null && racialValue > 0 && isNum(race?.hpAfter9)) hpPerLevel += race.hpAfter9;
 
-  const thresholds = xpSchedule(baseXp, maxLevel, { smoothing: budget.smoothing, postEightIncrement: increment ?? 0 });
-  update.levels = thresholds.map((xp, i) => {
+  // Rows run to the cap, so a class with none gets none: no number of rows is
+  // known, and a short table written as if it were whole would read as one.
+  const thresholds = maxLevel != null ? xpSchedule(baseXp, maxLevel, { smoothing: budget.smoothing, postEightIncrement: increment ?? 0 }) : null;
+  if (thresholds) update.levels = thresholds.map((xp, i) => {
     const level = i + 1;
     // The printed cell carries the CUMULATIVE flat, not the per-level rate:
     // parseHd reads "Nd6+F" as N dice and F points, so each row past the last
@@ -542,7 +569,7 @@ export function derivePlan({
     ladders.push({
       key: dmgKey,
       label: dmgKey === "damageBonus" ? fighterLadders.damageBonus.label || "Damage Bonus" : DAMAGE_BONUS_LABELS[dmgKey],
-      values: fighterLadders.damageBonus.values.filter((r) => r.atLevel <= maxLevel),
+      values: fighterLadders.damageBonus.values.filter(withinCap),
     });
   } else if (fightRow?.damage && dmgKey) {
     issues.push({ key: "missingDamageLadder" });
@@ -576,7 +603,7 @@ export function derivePlan({
     update["inventory.skills"] = skillRefs.map((ref) => {
       const ladder = skillLadders.get(ref);
       if (ladder?.values?.length) {
-        ladders.push({ key: ladder.key, label: ladder.label ?? "", values: ladder.values.filter((r) => r.atLevel <= maxLevel) });
+        ladders.push({ key: ladder.key, label: ladder.label ?? "", values: ladder.values.filter(withinCap) });
         return { ref, ladderKey: ladder.key };
       }
       return { ref, ladderKey: "" };

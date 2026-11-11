@@ -10,6 +10,13 @@ export const LANG_PREFIX = "ACKS-CLASSES";
 /** The class Item sub-type (declared in module.json `documentTypes.Item`). */
 export const CLASS_TYPE = `${MODULE_ID}.class`;
 
+/**
+ * The class record version a new class document starts at and a one-time
+ * migration stamps (builder-race-migration.mjs). A record below it is read once
+ * by that migration.
+ */
+export const CLASS_SCHEMA_VERSION = 1;
+
 /** The race Item sub-type — the racial-value ladder the builder spends and
  *  simple-mode classes bind by ref (declared in module.json alongside class). */
 export const RACE_TYPE = `${MODULE_ID}.race`;

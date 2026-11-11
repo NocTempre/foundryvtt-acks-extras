@@ -668,7 +668,11 @@ and JJ books connected. Two seats (GM, Player).
 (a class with a levels table and no `maximumLevel`),
 `classes/level-cap-capped-class` (the same with a cap and a citation),
 `classes/level-cap-builder-class` (an empty class the builder derives onto),
-`classes/level-cap-character` (a character the Player owns). Kept between runs.
+`classes/level-cap-character` (a character the Player owns), and for step 10
+`classes/level-cap-saved-human`, `classes/level-cap-saved-racial`,
+`classes/level-cap-saved-holder` (a character) and `classes/level-cap-saved-held`
+(a class item embedded on it). Kept between runs; the saved ones are brought to
+their pre-upgrade shape at the step's start.
 
 **Steps and observables.**
 1. Import the `Rules tables` pair for the 1st-level floor and the class builder
@@ -694,8 +698,40 @@ and JJ books connected. Two seats (GM, Player).
    imported level and the flat begins after it; absent level, the Builder tab
    and the Derive dialog name it and no hit-dice cell is written; both absent,
    both gaps are named.
-7. Read `acksExtras.classes.intBonusPicks` at every score. *Observable:* equals
+7. Set the builder class's racial value to -1 (no racial category) with four
+   points spent on its categories and Derive. *Observable:* it takes the
+   imported human maximum level (the Rules tables import reads it from the
+   custom-class proficiency count) and a level row for each level to it; the
+   Overview tab's Maximum level tooltip says it was derived on the Builder tab;
+   the Builder tab's racial value input shows -1 with a floor of -1 and its hint. Set
+   the racial value to 0 with the same four points and Derive again.
+   *Observable:* it takes the racial table's row on its total, not the human
+   figure, and no points-off report. Hide the human maximum level
+   with an override layer and Derive. *Observable:* the Builder tab and the
+   Derive dialog name `missingHumanMaxLevel`, the summary reads "not set", and
+   no cap and no level row is written.
+8. Open Settings tab → Game Settings → Imported Rules Tables → Open Ruledata
+   Browser, press Edit on the builder's budget row, put a figure in
+   `humanMaxLevel` and Save. *Observable:* the registry serves it and Derive
+   gives the class that figure; Revert on the row restores the imported cap.
+   The walk does nothing where an override of another's already stands on the
+   row, and removes its own by Revert (and, failing that, `clearOverride`).
+9. Read `acksExtras.classes.intBonusPicks` at every score. *Observable:* equals
    the system's modifier clamped at zero.
+10. Build the pre-upgrade shape on purpose (`system._schemaVersion` 0, racial
+   value 0): a world class with no `system.race`, a world class naming a race by
+   reference, and a class item embedded on a character with no race. Call
+   `migrateBuilderRace()` from `scripts/classes/builder-race-migration.mjs` on
+   the GM seat, as the `ready` hook does. *Observable:* the two classes with no
+   race store -1 and the one naming a race stores 0; all three are stamped
+   current; Derive on the first takes the imported human cap, on the racial one
+   the racial table's row; the call's tally counts the two rewrites and a second
+   call writes nothing; a 0 set by hand on a stamped class survives another
+   call. Stage the shape again and reload the GM's page (a real reload, with the
+   boot recorder). *Observable:* the world's own `ready` corrects the same
+   classes with no error recorded from `init` on, and a second reload leaves a
+   hand-set 0 alone. The first run on a world also stamps every other class item
+   it holds, so the tally's world count is that world's, not the walk's.
 
 **Drive mechanics.** `cookbookImportTables` runs in a background job: poll
 `globalThis.__lcImport`. A class whose `maximumLevel` is `null` must reach
@@ -705,7 +741,7 @@ level only where the world holds imported classes; this test world holds none,
 so that line is a note, not a check.
 
 **Teardown.** Remove the run's override layers by their tag, then
-`sweepTracked()` for what the run built; the four fixtures stay.
+`sweepTracked()` for what the run built; the eight fixtures stay.
 
 ## A pick the character owes
 

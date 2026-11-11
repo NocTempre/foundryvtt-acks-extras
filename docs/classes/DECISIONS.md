@@ -2050,3 +2050,87 @@ until its Maximum level field is cleared. A world whose builder tables were
 imported before this change holds no last die level until Rules tables → Races
 is re-run (or the whole tables import); until then Derive writes no hit-dice
 cell and says why.
+
+## 2026-11-11 — a human class's maximum level is the proficiency count's difference
+
+**Evidence.** Ledger T-0453 left the builder's human maximum level as a literal
+at three sites, put to the owner as a question (no page the searches reached
+states it as a number). The Build Point Level Limit table prints racial rows
+only.
+
+**Ruled (owner).** "max class level is buried in the JJ custom class based on
+build value points." The one place JJ 297 reaches it is the class-list
+proficiency-count sentence: the count is a total less the maximum level, and the
+sentence after gives the count "most classes" end up with.
+
+**Ours, not the book's.** That "most classes" stands for a human class is this
+module's inference; the page does not say so. The importer reads the two
+integers (`budget.humanMaxLevel` is their difference, present only when both
+were read and the difference is a level), and a Judge who finds the inference
+wrong overrides the one figure in the Ruledata Browser. A page that states the
+cap outright replaces the read and this entry.
+
+**Chosen here.**
+- A human build with no figure has no cap: Derive writes no `maximumLevel` and
+  no level rows (no number of rows is known) and names `missingHumanMaxLevel`.
+  Nothing is clamped, and the attack bands and traditions keep what the imported
+  grids hold rather than a bound of their own.
+- A racial build with no table row for its points does the same under its
+  existing issue; it never falls back to the human figure.
+- A class is racial by its racial value, which is -1 for no racial category and
+  0 or more for one: see "the racial value is -1 for no racial category" below.
+  The other racial-value gates (the post-8 increment, the hit point rate, the
+  traits, the requirements) keep their `racialValue > 0` test, which is the open
+  question in ROADMAP "Whether a racial value of 0 should still carry its race's
+  rates".
+
+**What it cost.** A world whose builder tables were imported before this change
+holds no figure until its Rules tables import is re-run, and until then a
+Derive on a human build writes no level rows. The figure is read from a sentence
+that names it only by implication, so an edition that rewords the sentence reads
+nothing and says so rather than guessing.
+
+## 2026-11-11 — the racial value is -1 for no racial category, and saved builders are corrected once
+
+**Evidence.** The first cut of the human cap told a human class from a racial one
+that spends none of its points on the race by whether the class named a race
+document. Two of the Judges Journal's human-bodied races spend racial value and
+have no species of their own to test, so a test on a race's name, species or
+document is the wrong gate; and a stored 0 meant both "no racial category" and
+"a racial category at its first rung".
+
+**Ruled (owner).** "-1 is no race/human, races are 0-4." "Keep the math clean with
+no caveat branches." "Fix the already saved to note the human value correctly."
+
+**Chosen here.**
+- One rule, on the stored racial value alone. -1 takes the imported human cap
+  (`budget.humanMaxLevel`); 0 to 4 takes `racialMaxLevel(total build points)`,
+  the budget's printed points-to-cap table. A figure the world lacks is null and
+  named, never stood in for. No branch reads a race's name, its species or
+  whether its document resolved, and -1 never enters a points total.
+- The cap is keyed on the class's TOTAL build points, never on the racial value
+  alone.
+- New builders store -1 (`ClassData` default, floor -1); the importer stamps a
+  build that names no race -1; the class sheet's racial value input has a floor
+  of -1 and a hint saying what -1 and 0 mean.
+- A one-time migration (`classes/builder-race-migration.mjs`) corrects what every
+  earlier release stored. A class record below `CLASS_SCHEMA_VERSION` that stores
+  a racial value of 0 and names no race (`system.race` empty) becomes -1; every
+  other record keeps its value; each is stamped current. It covers the world's
+  class items and the class items embedded on characters, runs at `ready` in
+  the window that automates (the primary GM), reports a count, and a second run
+  writes nothing. The race document is consulted only here: the derivation reads
+  the value alone. A new class record starts at the current version, so the
+  sweep never rewrites a 0 a Judge sets afterwards. No shipped pack carries class
+  builder state, so no pack source changes.
+
+**What it cost.** A saved class that was racial at 0 but never bound to a race
+document is indistinguishable from one with no racial category and reads -1 after
+the sweep; the Judge sets 0 again once on the Builder tab. A world nobody opens as
+GM never runs the sweep.
+
+**Not built.** A race's own power can raise the maximum level (owner: a printed
+adjustment on one human-bodied race), so the cap is a base plus a racial
+adjustment, and a class of that race derives the base only until it is built. How
+the adjustment is carried is an open design call: ROADMAP "A racial power that
+raises the maximum level".

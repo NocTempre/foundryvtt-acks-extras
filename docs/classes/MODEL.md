@@ -205,8 +205,22 @@ turns that state into a PLAN:
   smoothing level rounded to its printed nearest; past 8th a flat increment
   keyed on the SAVES chassis, plus any racial increase the race document
   carries.
-- **Maximum level** — the budget's racial cap table by TOTAL build points
-  when a racial value is spent; 14 otherwise.
+- **Maximum level** — read from the builder's racial value alone: -1 is no
+  racial category and 0 to 4 is one. A racial class's is the budget's racial cap
+  table row on its TOTAL build points (a racial value of 0 adds none, -1 never
+  enters the total); a class with no racial category takes
+  `budget.humanMaxLevel`, read from JJ 297's class-list proficiency count (the
+  count is a total less the maximum level, and the sentence after gives the
+  typical count; that a typical class is a human one is this module's
+  inference, DECISIONS 2026-11-11). No branch reads a race's name, species or
+  document. A new builder stores -1, and a one-time migration
+  (`builder-race-migration.mjs`, at `ready` on the primary GM) rewrites a saved
+  class's stored 0 with no `system.race` to -1 once, stamping the record with
+  `_schemaVersion` (`CLASS_SCHEMA_VERSION`) so it never runs again on it. A cap
+  the world lacks stays null: Derive writes no
+  `maximumLevel` and no level rows, names `missingHumanMaxLevel` (or
+  `missingRacialCap`), and the attack bands and traditions keep every row the
+  imported grids hold.
 - **Hit-dice cells** — one die per level up to the last die level, then the
   printed flat accumulating at the chassis's per-level rate. Both the level and
   the rates are read from the JJ custom-class chapter into
