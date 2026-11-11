@@ -476,6 +476,17 @@ names afterwards — the frame's fold and tab change, and whatever the sheet
 lists beside them: a menu, a roll, a window opened — so an observer can
 fold, browse and roll while every write control stays disabled.
 
+**Focus across a press.** A part's HTML is replaced on render, so the control
+a user pressed is detached and focus falls to `<body>`. The mixin notes every
+`[data-action]` click in the capture phase (ahead of the action's handler) and,
+in `_postRender`, focuses the same control in the new DOM (`press-focus.mjs`).
+The control is matched by its `data-*` set less the tooltip pair, and by its
+position among controls that repeat that set; it is focused only if the press
+was recent, focus was inside the window at the press and is lost now, and the
+control exists as before. A press stays remembered through every render it
+causes (one press can write twice) until the window after it lapses or a
+render finds focus held elsewhere. Anything else leaves focus alone.
+
 **The menu under a rail cell** (`_frameMenu`) is one row per option, the
 current one marked; a click picks, a click anywhere else closes. It is built
 by the anchor's own document, so a sheet first rendered in a detached

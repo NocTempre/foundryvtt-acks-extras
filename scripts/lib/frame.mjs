@@ -19,6 +19,7 @@
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import { atTypeScale } from "./util.mjs";
 import { moveBandIntoHeader } from "./header-band.mjs";
+import { PressFocus } from "./press-focus.mjs";
 import { FOLD_FLAG, SHEET_FLAG, sheetFlag, togglePin } from "./frame-model.mjs";
 
 export { FOLD_FLAG, SHEET_FLAG, sheetFlag };
@@ -134,6 +135,30 @@ export function FrameMixin(Base) {
         }
       }
       this._renderSteps([["band", () => moveBandIntoHeader(this.element)]]);
+    }
+
+    /** The press whose render is pending: where keyboard focus returns once the part's HTML is replaced. */
+    #press = new PressFocus();
+
+    /**
+     * Note every `[data-action]` press as it lands, in the capture phase so
+     * it runs ahead of the action's own handler. The root persists across
+     * renders; only its parts' HTML is replaced.
+     */
+    _attachFrameListeners() {
+      super._attachFrameListeners();
+      const root = this.element;
+      root.addEventListener("click", (event) => this.#press.note(event.target, root), { capture: true });
+    }
+
+    /** After every hook has run: focus back on the control a press re-rendered (`press-focus.mjs`). */
+    async _postRender(context, options) {
+      await super._postRender(context, options);
+      try {
+        this.#press.restore(this.element);
+      } catch (err) {
+        console.error(`${MODULE_ID} | ${this.constructor.name}: restoring focus failed`, err);
+      }
     }
 
     /** Run render steps one by one; a step that throws is logged and the rest still run. */

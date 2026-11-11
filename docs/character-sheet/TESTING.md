@@ -368,8 +368,7 @@ keyboard and says where it came from.
 
 **Walked in part (2026-11-11, Assistant GM seat):** steps 2 and the press,
 overlap and size-clause steps, and the header tooltips, on a classless
-fixture whose first press creates its training effect. Keyboard focus does
-not survive the re-render after a press (ledger T-0508). Not yet walked: the
+fixture whose first press creates its training effect. Not yet walked: the
 absent state, the Judge's override, the player and observer seats, and
 `other`.
 
@@ -451,10 +450,17 @@ its `data-tooltip-text`.
 10. Join as a Player seat that owns a character, then one that only observes.
     *Observable:* the owner's pencil arms the rows; the observer has no pencil
     and no row in the DOM.
+11. Focus a pill (or a shortcut, or a bucket chip) and press it with Enter or
+    Space. *Observable:* once the re-render lands, `document.activeElement`
+    is the same control (same `data-action` and `data-slot`, `data-shortcut`
+    or `data-bucket`) in the new DOM, not `<body>`. Scripted: `el.focus();
+    el.click()` (a keyboard press is a click with `detail` 0), wait a beat for
+    the render, read `document.activeElement.dataset`; for a sheet in a
+    detached window read that window's `document`.
 
-**Not provable offline:** that a press survives the sheet's own re-render
-(`document.activeElement` returns to the pressed button's place) and that the
-rows follow a type-size change at the largest setting.
+**Not provable offline:** that core's click dispatch, a real key press and
+`focus()` on the live DOM agree with `tools/test-press-focus.mjs`'s mock, and that the rows follow a
+type-size change at the largest setting.
 
 **Teardown.** Put the fixture's grant back and the unregistered layers back;
 leave the fixture.
