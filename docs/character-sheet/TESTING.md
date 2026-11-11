@@ -566,31 +566,36 @@ ledger.
 
 ## Summons from a Player seat
 
-Built for the party cell's *Summon…* (lib MODEL, "Summons"). The two things a
-mock cannot prove are the ones this walk is for: that core's click-to-place
-accepts a preview standing on the summoner's actor for a non-GM, and that a
-token owned only through its delta behaves as its player's.
+Built for the party cell's summoning rows, the Magic tab's standing count and
+*Dismiss*, and the card a cast's end posts (MODEL, "Summons go through spells";
+magic MODEL, "A cast's end"). A mock cannot prove that the cell's rows turn
+from *Cast* to *Dismiss* as real tokens appear and go, that the clock step
+reaches the one GM window and posts one card a real Player can see and press,
+or that a menu pick runs the spell's own cast. The cast's prompt, copies,
+cancels and refusals are the magic recipe's ("Casting a summoning spell").
 
-**Fixtures** (kept; found by marker, built when none carries it):
+**Fixtures** (kept; found by marker with `api.fixture`, built when none
+carries it):
 - `summons/summoner` — a `character` actor owned by the Player seat (OWNER)
-  and by nobody else but the GM. Build it with `api.fixture("summons/summoner",
-  "Actor", {...})`. Give it one `spell` item to choose.
-- `summons/spike-source` — a `monster` actor. The prompt lists compendium
-  creatures only, so step 1's creature is one from a pack the Player can open
-  (the system's monster pack or an importer Actor shelf). The spike source, a
-  world actor, goes through `acksExtras.lib.summons.placeSummons` instead, with
-  the Player granted OBSERVER on it (the relay refuses a source the sender
-  cannot read), and exercises the same relay.
+  and by nobody else but the GM, spells enabled.
+- `summons/spell-named` and `summons/spell-open` — `spell` items on the
+  summoner (built with `{parent: <summoner uuid>}`). Each run rewrites their
+  flags: the named one carries one summon row (`ref` the spike source's uuid,
+  `amount` 2) and an invented one-minute fixed duration; the open one a summon
+  row with no `ref` and no duration, so it picks from a shelf and its record
+  never ends.
+- `summons/spike-source` — a `monster` actor with `ownership.default` 0, the
+  named spell's creature.
 - `summons/scene` — a scene the Player seat VIEWS (`scene.view()`; it need not
   be active, since the relay accepts a scene its sender is viewing or can
   observe), with the summoner's token `summons/summoner-token` on it.
 - `summons/stranger` — a `character` the Player seat observes and does not own,
-  for step 6.
+  for step 9.
 - `summons/bindable` — an unlinked token of `summons/spike-source` on the scene,
   owned by the Player through its delta, for step 8.
 
-`tools/live/character-sheet-summons.mjs` walks steps 1–8 on the GM and Player
-seats.
+`tools/live/character-sheet-summons.mjs` walks steps 1–9 on the GM and Player
+seats, after a reload of each seat under a boot recorder.
 
 **Drive mechanics (learned live).**
 - A paused world refuses a player's summons ("The game is paused."), so the
@@ -604,55 +609,73 @@ seats.
   restored view position moves the view between viewing the scene and placing.
 - The clicks are real CDP `Input.dispatchMouseEvent` presses on the seat's own
   page, the pointer moved there first so the preview follows it.
+- Move the seat's real pointer to the middle of its viewport before reading
+  click points. While previews are being placed, core pans toward any edge the
+  pointer sits within 50 px of, and each pan replays the last pointer position.
+  A pointer left at the page's corner (where a reload leaves it) runs the view
+  to its clamp, off the scene, and no point maps inside it.
+- The clock is moved from the GM seat (`game.time.advance`), forward only: the
+  cast-end watch ignores a backward step, and the walk leaves the world clock
+  62 seconds on. The card is read by its `castEnded` flag's `castId`, never by
+  its text.
+- The card's *Dismiss* is pressed in the Player seat's rendered chat log, and
+  the confirmation is answered by its Yes button.
 
 At the start the summoner has no summons on the scene; a leftover token is a
-past run's, read by its `summon` record and removed through *Dismiss all*.
+past run's, read by its `summon` record and removed through *Dismiss all*
+before the walk is run again. A bindable token a stopped run left bound is
+released at the start.
 
 **Steps, from the Player seat** (a real Player user, the sheet open on the
 summoner, the Tokens layer active):
-1. Party cell → *Summon…* appears. In the prompt, pick the creature, set the
-   count to 3, pick the spell, press *Place on the map*. *Observable:* three
-   previews follow the pointer in turn with no error; a left click places each.
-   (If core throws "You must be an owner of the Tokens", the stand-in actor
-   assumption is wrong: record it and report it.)
-2. After the third click: three tokens exist on the scene. *Observable:* each
-   has `actorLink === false`, `token.isOwner`, `token.actor.isOwner` and
-   `canUserModify(game.user, "update")` all true for the Player; each
-   `token.actor.getFlag("acks-extras", "summonedBy")` is the summoner's uuid and
-   `getFlag("acks-extras", "summon")` has the cast id (the same on all three),
-   the source uuid, the spell id and `at` equal to the world time of the
-   summoning; the party cell shows three asterisks.
-3. *Observable:* `game.actors.filter(a => a.getFlag("acks-extras",
-   "summonCopy"))` holds ONE actor for that source, owned by no player
-   (`ownership.default === 0`, and no player's id with a level; core makes the
-   creating GM seat an owner, which grants nothing), filed in a folder named
-   "Summoned" that the Player's sidebar does not show. Summon the same
-   creature again: still one copy.
-4. As the Player, move one token (`{animate: false}`) and open its sheet.
-   *Observable:* the move persists on the GM's seat and the sheet is editable;
-   a synthetic update to its hit points is accepted. The other two tokens'
-   hit points differ from it where the system rolls them (an unlinked monster's
-   hit points are rolled per token).
-5. Cancel path: *Summon…* again, right-click every preview. *Observable:* no
-   token is made, no warning for a cancelled placement.
-6. Refusal path, from the Player seat on `summons/stranger`: its cell offers
-   no *Summon…*; calling `acksExtras.lib.summons.placeSummons` on it directly
-   resolves `{ok: false, reason: "notOwner"}` and nothing is made.
-7. Party cell → *Dismiss <creature> (3)*. *Observable:* a confirmation
-   dialog; pressing No or closing it removes nothing; pressing Yes removes all
-   three tokens and the cell drops to `0`. The "Summoned" copy remains.
-8. Bind a hand-picked token as a summon (*Bind*, as step 14 above), summon
-   one more creature so two casts stand (*Dismiss all* is offered from two
-   casts up), then *Dismiss all*. *Observable:* the bound token is untouched; *Release* is the
-   only control that lets go of it.
-9. With the Player seat able to open no monster pack (set the shelves' ownership
-   to NONE for players), *Summon…* opens a prompt that says there is nothing to
-   choose and offers no list. Restore the ownership afterwards.
+1. Character sheet → party cell. *Observable:* the menu offers *Cast <spell>*
+   for both summoning spells, and neither *Summon…* nor any *Dismiss*.
+2. Pick *Cast* for the named spell. *Observable:* the creature prompt offers the
+   spell's one creature with the count opening on 2. Place on the map and click
+   twice: two tokens of one cast, each record naming the spell; the spell's
+   cast count is 1; one caster record carries that cast id, not stamped
+   `ended`, with the one-minute duration. The cell now offers
+   *Dismiss <named spell> (2)* and no *Cast* for it, and still *Cast* for the
+   open spell.
+3. Character sheet → Magic tab. *Observable:* the named spell's row reads
+   "2 standing" with a tooltip, and carries a *Dismiss* button named by its
+   `aria-label`; the open spell's row reads "0 standing", tooltipped, and has no
+   *Dismiss*.
+4. Party cell → *Cast* for the open spell, pick a creature from a shelf the
+   Player can open, place one. *Observable:* a third token of a second cast
+   naming the open spell; its caster record has no duration. The cell offers
+   both spells' *Dismiss*, *Dismiss all summons*, and no *Cast*.
+5. From the GM seat, move the clock forward past the minute. *Observable:* one
+   card, whispered to the Player and to the GM, for the named cast; that
+   cast's record is stamped `ended`; no card for the open cast. A further step
+   of the clock posts no second card. All three tokens still stand.
+6. On the Player seat, the card is visible; press its *Dismiss* and answer No.
+   *Observable:* nothing is removed. Press it again and answer Yes.
+   *Observable:* the named cast's two tokens are gone and the open cast's one
+   stands.
+7. Magic tab → the open spell's *Dismiss*, answer Yes. *Observable:* no summons
+   stand; the cell offers both *Cast*s again.
+8. Control the bindable token alone; party cell → *Bind*. *Observable:* the
+   token names the summoner; the cell offers *Release* and no *Dismiss*;
+   *Release* lets it go.
+9. *Observable:* on the Player seat, `summons/stranger`'s cell offers neither
+   *Cast* nor *Summon…*, and `acksExtras.lib.summons.placeSummons` called on it
+   directly resolves `{ok: false, reason: "notOwner"}` before any click, with
+   nothing made; on the GM seat, the summoner's cell offers *Summon…* beside
+   both *Cast*s.
 
-**Teardown.** The three fixtures are kept. Delete only what the run made, by
-its own ledger: the token uuids the relay returned (`api.track` each). The
-"Summoned" copy is the run's too when step 3 found none before: track it by
-its uuid and sweep it with the rest. Never sweep the "Summoned" folder by name.
+Not walked here: that a summoned token behaves as its Player's (moved, its
+sheet edited, its hit points updated from the Player seat). The magic recipe's
+walk asserts the Player owns each token; the edit itself is checked by hand.
+
+Both seats' boot recorders, attached before Foundry's scripts, report no
+console or uncaught error from `init` to the walk's end.
+
+**Teardown.** The eight fixtures are kept. Delete only what the run made, by
+its own ledger (`api.track` each, `gm.sweepTracked({only})`): the tokens the
+casts placed, the caster records, the cards the casts and the cast's end
+posted, and a "Summoned" world copy where none stood for that source before the
+run. Never sweep the "Summoned" folder by name. Quote the sweep's result.
 
 ## Adding a proficiency by hand, from a Player seat
 
