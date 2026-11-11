@@ -8,7 +8,9 @@
     {{/each}}
     {{#if ab.editable}}
     <span class="acks-spacer"></span>
-    <button type="button" class="acks-extras-frame__chip" data-action="itemCreate" data-type="ability"><i class="fa-solid fa-plus" inert></i>{{localize "ACKS-CHARACTER.abilities.add"}}</button>
+    <button type="button" class="acks-extras-frame__chip" data-action="proficiencyCreate" data-list="class" data-tooltip="{{localize 'ACKS-CHARACTER.abilities.addClassTip'}}"><i class="fa-solid fa-plus" inert></i>{{localize "ACKS-CHARACTER.abilities.addClass"}}</button>
+    <button type="button" class="acks-extras-frame__chip" data-action="proficiencyCreate" data-list="general" data-tooltip="{{localize 'ACKS-CHARACTER.abilities.addGeneralTip'}}"><i class="fa-solid fa-plus" inert></i>{{localize "ACKS-CHARACTER.abilities.addGeneral"}}</button>
+    <button type="button" class="acks-extras-frame__chip" data-action="itemCreate" data-type="ability" data-tooltip="{{localize 'ACKS-CHARACTER.abilities.addTip'}}"><i class="fa-solid fa-plus" inert></i>{{localize "ACKS-CHARACTER.abilities.add"}}</button>
     <button type="button" class="acks-extras-frame__chip" data-action="itemCreate" data-type="language"><i class="fa-solid fa-plus" inert></i>{{localize "ACKS-CLASSES.cattabs.language"}}</button>
     {{/if}}
   </div>

@@ -29,6 +29,13 @@
   Sources shows each member's magic light after the carried lights: the item it
   rides on, the bearer and the reach in feet, with no toggle or burn time. Hover
   the reach to see which effect sets it; an effect with no reach says it is not set.
+- **Add a class or general proficiency by hand.** The character sheet's
+  Abilities tab gains Class proficiency and General proficiency beside Ability.
+  Each offers the list it names, your class's own list or the general list, as
+  far as the world has imported them; the pick is added as that list's kind, and
+  Blank makes an empty one to fill in on its own sheet. A character with no
+  class gets the blank class proficiency straight away. Picking one you already
+  hold adds another copy.
 
 ### Changed
 

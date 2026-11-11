@@ -105,6 +105,14 @@ whether its rows came from a recipe, so the unverified marks are right.
 On the character sheet the ability list files itself, so a long proficiency list
 is not one scroll.
 
+To add a proficiency by hand, open the character sheet's **Abilities** tab and
+press **Class proficiency** or **General proficiency**. Where the world has
+imported proficiencies, a window offers the character class's own list (or the
+general list); pick one and press **Add**, or press **Blank** to make an empty
+one and fill it in on its own sheet. A character with no class bound gets the
+blank straight away from **Class proficiency**. The new proficiency is created
+as a class or a general one to match the button you pressed.
+
 ![](../releases/v3.3.0/classes-category-tabs.png)
 
 *The ability list's filter bar: fighting, thief skills, general, powers.*

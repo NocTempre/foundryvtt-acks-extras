@@ -653,6 +653,61 @@ its own ledger: the token uuids the relay returned (`api.track` each). The
 "Summoned" copy is the run's too when step 3 found none before: track it by
 its uuid and sweep it with the rest. Never sweep the "Summoned" folder by name.
 
+## Adding a proficiency by hand, from a Player seat
+
+Built for the Abilities tab's *Class proficiency* and *General proficiency*
+buttons (MODEL, "Abilities"). What a mock cannot prove: that a Player can read
+the library the picker lists, and that the copy lands in the list whose button
+was pressed.
+
+**Fixtures** (kept; found by marker, built when none carries it):
+- `character-sheet/hand-proficiency` — a `character` owned by the Player seat,
+  bound to an imported class whose own list holds at least one proficiency
+  (`api.fixture("character-sheet/hand-proficiency", "Actor", {...})`, then,
+  from the GM seat, `acksExtras.classes.applyClass(actor, cls, {level: 1,
+  confirm: false})` with the first class in `classItems()` for which
+  `proficiencyOptions(actor, "class", cls)` is non-empty). A kept copy carries whatever past runs
+  added: read the count of the picked proficiency at the start of a step and
+  assert the count after it, never an absolute.
+- `character-sheet/hand-proficiency-bare` — a `character` owned by the Player
+  seat with no class bound, for step 4.
+
+**Steps, from the Player seat** (a real Player user, the sheet open on the
+Abilities tab):
+1. *Class proficiency*. *Observable:* a window titled for a class proficiency
+   opens listing the class's own proficiencies; every control in it takes
+   focus from the keyboard. Pick one, press *Add*. The row appears under the
+   class group and `system.proficiencytype` of the new item reads `class`, even
+   where the definition is imported as general.
+2. *General proficiency*, pick one, *Add*. *Observable:* the row is under the
+   general group; `system.proficiencytype` reads `general`.
+3. *General proficiency* again, pick the same one. *Observable:* a second copy
+   appears; nothing is silently dropped. Close the window with no pick:
+   nothing is made.
+4. On the bare fixture, *Class proficiency*. *Observable:* no window; a blank
+   ability of type `class` is made and its sheet opens, and it files under the
+   class group.
+5. Back on the first fixture, *Class proficiency* then *Blank*. *Observable:*
+   the same blank class ability and sheet. Change its Proficiency Type on the
+   Details tab to General: the row moves to the general group.
+6. Hover each of the two buttons. *Observable:* the tooltip says where the pick
+   comes from.
+
+**Not provable offline:** whether a Player seat can open the library the lists
+are read from. If step 1 offers nothing to a Player where the GM sees a list,
+the library's permissions are the finding; the button then falls through to a
+blank, which is the documented behaviour.
+
+**Teardown.** Delete the copies the run made by their uuids (`api.track` each
+as the item id is read back); the fixtures stay.
+
+**Walk:** `tools/live/character-sheet-add-proficiency.mjs` drives steps 1–5
+and checks that each button carries a tooltip; step 5's type change and
+step 6's hover are by hand. It finds the new window as the `DialogV2`
+instance that was not open before the click, and reads a step's copy count
+by the name the previous pick made, since a kept fixture already holds
+earlier runs' copies.
+
 ## A field an effect changes
 
 **Fixtures.** A disposable `character` with `system.ac.mod` and

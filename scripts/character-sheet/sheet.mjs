@@ -62,6 +62,7 @@ import { castingStripElement, restPools } from "../classes/casting.mjs";
 import { toggleTraining, resetTraining } from "../classes/training.mjs";
 import { nextTrainingView, TRAINING_VIEWS } from "../equipment/training-view.mjs";
 import { LANGUAGE_ACTIONS } from "../abilities/language-slots.mjs";
+import { addProficiency } from "../abilities/add-proficiency.mjs";
 import { openRosterApp } from "../henchmen/apps/roster-app.mjs";
 import { dismissMonster } from "../henchmen/apps/hirelings-grid.mjs";
 import { openLoyaltyRoll, openObedienceRoll, payWagesFor, setPermanentCompensated } from "../henchmen/engine/events.mjs";
@@ -133,6 +134,7 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
       itemDelete: AcksCharacterSheet.#onItemDelete,
       itemShow: AcksCharacterSheet.#onItemShow,
       itemCreate: AcksCharacterSheet.#onItemCreate,
+      proficiencyCreate: AcksCharacterSheet.#onProficiencyCreate,
       itemFavorite: AcksCharacterSheet.#onItemFavorite,
       toggleEquip: AcksCharacterSheet.#onToggleEquip,
       toggleWear: AcksCharacterSheet.#onToggleWear,
@@ -1033,6 +1035,11 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
     if (!type) return;
     const [created] = await this.actor.createEmbeddedDocuments("Item", [{ name: loc(`items.new.${type}`), type }]);
     created?.sheet?.render(true);
+  }
+
+  /** The Abilities tab's per-list add: a class or general proficiency, picked from the list or made blank. */
+  static async #onProficiencyCreate(event, target) {
+    await addProficiency(this.actor, target.dataset.list);
   }
 
   static async #onItemFavorite(event, target) {

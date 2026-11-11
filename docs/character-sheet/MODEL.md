@@ -157,7 +157,17 @@ favourite star (the item's own `system.favorite`), show, edit and delete. A
 pending pick (the classes feature's marker item) is listed under *Choose*,
 and the classes feature's own render hook makes the row open the chooser.
 Open language slots on a carrier item appear as a *Choose: a language* row
-whose button runs the abilities feature's picker.
+whose button runs the abilities feature's picker. The tab's toolbar adds by
+hand: *Class proficiency* and *General proficiency* run
+`abilities/add-proficiency.mjs`, which offers the list the button names (the
+bound class's own proficiencies, or the world's general list) through the
+classes feature's rung options and `<select>`, grants the pick as the type of
+that list (so a definition on both lists carries the type of the button
+pressed), and makes a blank ability of that type on *Blank* or when the list is
+empty. It waits for the library and the bound class to load before deciding
+the list is empty.
+A pick the actor already holds adds another copy. *Ability* stays the
+untyped blank, which files as general.
 
 **Equipment** (`tabs/equipment.mjs`) is the body map made a list. The Load
 header's underline is the encumbrance bar with the system's breakpoints as

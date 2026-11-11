@@ -550,4 +550,184 @@ test("an armour-training line shows the rungs it adds with their parts, and says
   }
 });
 
+console.log("character sheet: adding a proficiency by hand");
+const atest = async (name, fn) => {
+  await fn();
+  passed++;
+  console.log(`  ✓ ${name}`);
+};
+const { addProficiency, proficiencyOptions, blankProficiencyData } = await import("../scripts/abilities/add-proficiency.mjs");
+const { abilityBucket } = await import("../scripts/classes/sheet-tabs.mjs");
+
+/** A world holding one class whose own list names one definition, and a general list of two. All names invented. */
+function handWorld({ withClass = true, cold = false } = {}) {
+  const definition = (uuid, id, name, type) => ({
+    uuid, name, type: "ability",
+    flags: { "acks-extras": { cookbook: { id } } },
+    system: { proficiencytype: type },
+    toObject: () => ({ _id: uuid, name, type: "ability", flags: { "acks-extras": { cookbook: { id } } }, system: { proficiencytype: type } }),
+  });
+  const both = definition("Item.both", "def.prof.both", "Both Lists", "general");
+  const general = definition("Item.gen", "def.prof.gen", "Only General", "general");
+  const klass = { uuid: "Item.cls", name: "Testclass", type: "acks-extras.class", flags: {}, system: { inventory: { classProfs: ["def.prof.both", "def.prof.gone"] }, awards: [] } };
+  const made = [];
+  const asked = [];
+  const warned = [];
+  const actor = {
+    isOwner: true,
+    items: [],
+    getFlag: () => null,
+    system: { details: { class: withClass ? "Testclass" : "", level: 1 } },
+    createEmbeddedDocuments: async (_type, data) => {
+      made.push(...data);
+      actor.items.push(...data);
+      return data.map((d) => ({ ...d, sheet: { render() {} } }));
+    },
+  };
+  const docs = [both, general, ...(withClass ? [klass] : [])];
+  // A cold shelf holds its rows in the index only until something loads them.
+  const shelf = {
+    metadata: { packageType: "world", label: "ACKS Cookbook — Item" },
+    documentName: "Item",
+    collection: "world.cold-shelf",
+    index: { size: docs.length },
+    size: 0,
+    contents: [],
+    getDocuments: async () => {
+      shelf.contents.push(...docs);
+      shelf.size = docs.length;
+      return docs;
+    },
+  };
+  globalThis.game = {
+    items: cold ? [] : docs,
+    packs: cold ? [shelf] : [],
+    i18n: { has: () => false, localize: (k) => k, format: (k, d = {}) => `${k}|${JSON.stringify(d)}` },
+  };
+  globalThis.ui = { notifications: { warn: (m) => warned.push(m) } };
+  return { actor, made, asked, warned, ask: (answer) => async (list, options) => { asked.push({ list, options }); return answer; } };
+}
+const dropWorld = () => {
+  delete globalThis.game;
+  delete globalThis.ui;
+};
+
+await atest("the class list offers the bound class's own proficiencies, and drops a ref the library cannot resolve", async () => {
+  const { actor } = handWorld();
+  try {
+    assert.deepEqual(proficiencyOptions(actor, "class").map((o) => o.name), ["Both Lists"]);
+    assert.deepEqual(proficiencyOptions(actor, "general").map((o) => o.name), ["Both Lists", "Only General"]);
+    assert.deepEqual(proficiencyOptions(actor, "powers"), [], "an unknown list offers nothing");
+  } finally {
+    dropWorld();
+  }
+});
+
+await atest("a pick from the class list is granted as a class proficiency even where the definition is typed general", async () => {
+  const w = handWorld();
+  try {
+    const done = await addProficiency(w.actor, "class", { ask: w.ask({ ref: "def.prof.both" }) });
+    assert.deepEqual(done, { via: "library", ref: "def.prof.both" });
+    assert.equal(w.made.length, 1);
+    assert.equal(w.made[0].system.proficiencytype, "class");
+    assert.equal(abilityBucket(w.made[0], new Set()), "class", "it files under the list whose button was pressed");
+  } finally {
+    dropWorld();
+  }
+});
+
+await atest("a pick from the general list is granted as a general proficiency", async () => {
+  const w = handWorld();
+  try {
+    await addProficiency(w.actor, "general", { ask: w.ask({ ref: "def.prof.gen" }) });
+    assert.equal(w.made[0].system.proficiencytype, "general");
+    assert.equal(abilityBucket(w.made[0], new Set()), "general");
+  } finally {
+    dropWorld();
+  }
+});
+
+await atest("picking one already held adds another copy, never a silent nothing", async () => {
+  const w = handWorld();
+  try {
+    await addProficiency(w.actor, "class", { ask: w.ask({ ref: "def.prof.both" }) });
+    const options = proficiencyOptions(w.actor, "class");
+    assert.equal(options[0].owned, true, "the held one is marked for the picker");
+    await addProficiency(w.actor, "class", { ask: w.ask({ ref: "def.prof.both" }) });
+    assert.equal(w.made.length, 2);
+  } finally {
+    dropWorld();
+  }
+});
+
+await atest("Blank makes an empty ability of the list's type, and each lands in its own bucket", async () => {
+  const w = handWorld();
+  try {
+    const cls = await addProficiency(w.actor, "class", { ask: w.ask({ blank: true }) });
+    const gen = await addProficiency(w.actor, "general", { ask: w.ask({ blank: true }) });
+    assert.equal(cls.via, "blank");
+    assert.equal(gen.via, "blank");
+    assert.deepEqual(w.made.map((d) => [d.type, d.system.proficiencytype]), [["ability", "class"], ["ability", "general"]]);
+    assert.deepEqual(w.made.map((d) => abilityBucket(d, new Set())), ["class", "general"]);
+    assert.deepEqual(blankProficiencyData("class", "X"), { name: "X", type: "ability", system: { proficiencytype: "class" } });
+  } finally {
+    dropWorld();
+  }
+});
+
+await atest("with no class list to pick from, the class control makes a blank class proficiency without a dialog", async () => {
+  const w = handWorld({ withClass: false });
+  try {
+    const done = await addProficiency(w.actor, "class", { ask: w.ask({ ref: "def.prof.both" }) });
+    assert.equal(done.via, "blank");
+    assert.equal(w.asked.length, 0, "nothing to choose from, nothing asked");
+    assert.equal(w.made[0].system.proficiencytype, "class");
+    // The general list needs no class.
+    await addProficiency(w.actor, "general", { ask: w.ask(null) });
+    assert.equal(w.asked.length, 1);
+  } finally {
+    dropWorld();
+  }
+});
+
+await atest("a closed dialog, an empty pick and a non-owner create nothing", async () => {
+  const w = handWorld();
+  try {
+    assert.equal(await addProficiency(w.actor, "class", { ask: w.ask(null) }), null);
+    assert.equal(await addProficiency(w.actor, "class", { ask: w.ask({ ref: "" }) }), null);
+    assert.equal(w.warned.length, 1, "an empty pick says why nothing happened");
+    w.actor.isOwner = false;
+    assert.equal(await addProficiency(w.actor, "class", { ask: w.ask({ blank: true }) }), null);
+    assert.equal(w.made.length, 0);
+  } finally {
+    dropWorld();
+  }
+});
+
+await atest("a library shelf not yet loaded still offers its list, instead of falling through to a blank", async () => {
+  const w = handWorld({ cold: true });
+  try {
+    const done = await addProficiency(w.actor, "class", { ask: w.ask({ ref: "def.prof.both" }) });
+    assert.equal(w.asked.length, 1, "the picker was shown");
+    assert.deepEqual(w.asked[0].options.map((o) => o.name), ["Both Lists"]);
+    assert.equal(done.via, "library");
+    assert.equal(w.made[0].system.proficiencytype, "class");
+  } finally {
+    dropWorld();
+  }
+});
+
+await atest("the Abilities tab carries one add control per list, wired to the sheet's action", async () => {
+  const { readFileSync } = await import("node:fs");
+  const tpl = readFileSync(new URL("../templates/character-sheet/abilities.hbs", import.meta.url), "utf8");
+  for (const list of ["class", "general"]) {
+    const chip = tpl.split("\n").find((l) => l.includes(`data-action="proficiencyCreate" data-list="${list}"`));
+    assert.ok(chip, `a ${list} control exists`);
+    assert.match(chip, /<button type="button"/, "a real button, so the keyboard reaches it");
+    assert.match(chip, /data-tooltip="\{\{localize /, "it carries a tooltip key");
+  }
+  const sheet = readFileSync(new URL("../scripts/character-sheet/sheet.mjs", import.meta.url), "utf8");
+  assert.match(sheet, /proficiencyCreate: AcksCharacterSheet\.#onProficiencyCreate/);
+});
+
 console.log(`character sheet: ${passed} passed`);
