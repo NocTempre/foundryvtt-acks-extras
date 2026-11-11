@@ -553,12 +553,21 @@ the permission AND the editor rail's pencil, held on the sheet instance and
 reset on close. Every control that writes the document (the band's fields, the
 Details fields, the construction controls, the effect and key removers, the
 drop zones) is disabled until armed; the use-actions (equip, roll, pin, take
-out, configure an effect, identify) answer to `editable` alone. While the
+out, add or configure an effect, identify) answer to `editable` alone. While the
 sheet is locked for a viewer who may edit it, a disabled control with no
 tooltip of its own names the pencil when pointed at (`#hintLockedFields`). A
 control in the header band keeps its pointerdown and double click from the
 window header, so pressing or double-clicking the name neither drags nor
 minimizes the window.
+
+**One Add effect control.** An effect is added from one control, `addEffect`:
+the Effects tab's own group and, for an item with no effect (the simple view,
+which has no Effects tab), the footer beside Details. It opens a small choice,
+a blank effect or a magic light (`effect-starts.mjs`, `EFFECT_STARTS`), then
+creates the effect transferred to the bearer and opens its config sheet.
+Closing the choice creates nothing. The light start writes both radius changes
+as `upgrade` with no figure (lib MODEL, Senses), so the Judge types the feet
+from their own copy.
 
 **Construction is one shape.** `item-sheet/construction.mjs` builds the
 Details tab's Construction rule over the pure `construction-model.mjs`: a

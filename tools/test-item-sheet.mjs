@@ -11,6 +11,9 @@ import assert from "node:assert";
 import { buildItemSheetModel, togglePin, effectivePins, resolveTab, valueBadge, TAB_ORDER } from "../scripts/equipment/item-sheet/view-model.mjs";
 import { kindsOf, acceptsKinds, cleanAccepts, ACCEPT_KINDS } from "../scripts/equipment/item-sheet/accept-kinds.mjs";
 import { priceLedger } from "../scripts/equipment/item-sheet/price-ledger.mjs";
+import { EFFECT_STARTS, effectStartData } from "../scripts/equipment/item-sheet/effect-starts.mjs";
+import { MAGIC_LIGHT_CHANGE_KEYS } from "../scripts/lib/light.mjs";
+import { CHANGE } from "../scripts/lib/effect-scan.mjs";
 import { stoneLabel, gpLabel, countLabel, signed, initialOf } from "../scripts/equipment/item-sheet/format.mjs";
 import {
   CHIP, HAND_SLOTS, stripChips, toggledSet, placeChips, nextPlaces, gripChips, nextGrips,
@@ -397,6 +400,24 @@ test("the ledger applies plating, surcharge and resale in the rules' order", () 
 test("variations contribute in the same three phases", () => {
   const { final } = priceLedger({ base: 10, variations: [{ name: "Gilded", add: 2 }, { name: "Masterwork", baseMul: 1.5 }] });
   assert.equal(final, 17, "(10 × 1.5) + 2");
+});
+
+console.log("item sheet: Add effect starts");
+test("a blank start is a transferred effect with no change", () => {
+  const data = effectStartData("blank", { name: "Crowbar", img: "i.svg" }, { lightName: "Light" });
+  assert.deepEqual(data, { name: "Crowbar", img: "i.svg", transfer: true, disabled: false });
+});
+test("a light start carries both radius changes, upgrading, with no figure", () => {
+  const data = effectStartData("light", { name: "Crowbar", img: "i.svg" }, { lightName: "Light" });
+  assert.equal(data.name, "Light");
+  assert.equal(data.transfer, true);
+  assert.deepEqual(data.changes.map((c) => c.key), [MAGIC_LIGHT_CHANGE_KEYS.bright, MAGIC_LIGHT_CHANGE_KEYS.dim]);
+  assert.ok(data.changes.every((c) => c.type === CHANGE.UPGRADE && c.value === ""), "upgrade, value left for the Judge");
+});
+test("every offered start builds data, and a closed choice builds none", () => {
+  for (const kind of EFFECT_STARTS) assert.ok(effectStartData(kind, { name: "x", img: "y" }, { lightName: "z" }), kind);
+  assert.equal(effectStartData(null, { name: "x", img: "y" }, { lightName: "z" }), null);
+  assert.equal(effectStartData("cancel", { name: "x", img: "y" }, { lightName: "z" }), null);
 });
 
 console.log(`item sheet: ${passed} checks passed`);

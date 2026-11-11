@@ -19,9 +19,9 @@
         <i class="fa-solid {{#if showDetails}}fa-chevron-up{{else}}fa-chevron-down{{/if}}" inert></i>
         {{localize 'ACKS-EQUIPMENT.itemSheet.tab.details'}}
       </button>
-      {{!-- An item with no effect has no Effects tab here, and a magic light is
-            the effect such an item most often gains. --}}
-      <button type="button" class="acks-btn acks-btn--quiet acks-btn--sm" data-action="addLight" data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.effects.addLightHint'}}"><i class="fa-solid fa-sun" inert></i>{{localize 'ACKS-EQUIPMENT.itemSheet.effects.addLight'}}</button>
+      {{!-- An item with no effect has no Effects tab here, so its first effect
+            is added from this footer; the same control sits on that tab. --}}
+      <button type="button" class="acks-btn acks-btn--quiet acks-btn--sm" data-action="addEffect" data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.effects.addHint'}}"><i class="fa-solid fa-plus" inert></i>{{localize 'ACKS-EQUIPMENT.itemSheet.effects.add'}}</button>
     </div>
     {{/if}}
     {{#if showDetails}}

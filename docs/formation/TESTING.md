@@ -3752,7 +3752,7 @@ Fixtures: `formation/column-scene` (above).
 
 Teardown: `api.sweepTracked()`; quote what it removed.
 
-## A magic light (added with the Add light control)
+## A magic light (added with the Add effect control's Magic Light choice)
 
 Walked by hand on the GM seat. A magic light is an Active Effect on an item
 that writes `flags.acks-extras.magicLight.bright` and `.dim` (lib MODEL,
@@ -3778,10 +3778,10 @@ At the start: the item has no effect writing either key (a leftover one is
 the fixture's own: delete it with the item sheet's own control), and the
 member is inside the party token, not deployed.
 
-1. **Add light.** Open the item's sheet and press Add light. An item with no
-   effect yet opens in the simple view, which has no tab strip: the control
-   stands beside Details. Otherwise it is on the Effects tab.
-   The control shows while the sheet is locked. `api.track` the effect the
+1. **Add a light.** Open the item's sheet, press Add Effect and choose Magic
+   Light. An item with no effect yet opens in the simple view, which has no
+   tab strip: the control stands beside Details. Otherwise it is on the
+   Effects tab. The control shows while the sheet is locked. `api.track` the effect the
    click made (read its id from `item.effects` at once). *Observable:* one
    effect on the item, transfer on, named "Magic light", two changes keyed as
    above, each of type `upgrade` with an empty value, and its config sheet

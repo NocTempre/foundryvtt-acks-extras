@@ -29,8 +29,7 @@ import { containerOf, setLocked, storeIn, takeOut, setContainerRecord } from "..
 import { isSpellbook, spellbookSpells, setSpellbookSpells, parseSpellList, formatSpellList } from "../spellbook.mjs";
 import * as named from "../overlays/named.mjs";
 import { containedIn, siblingsOf, isEquippable, isWorn } from "../../lib/item-model.mjs";
-import { MAGIC_LIGHT_CHANGE_KEYS } from "../../lib/light.mjs";
-import { CHANGE } from "../../lib/effect-scan.mjs";
+import { EFFECT_STARTS, effectStartData } from "./effect-starts.mjs";
 import { wearableSlots } from "../profiles.mjs";
 import { ITEM_TYPE } from "../../lib/vocab.mjs";
 import { quantityOf } from "../../lib/storage-logic.mjs";
@@ -92,7 +91,6 @@ export default class AcksItemSheet extends PicksMixin(HandlebarsApplicationMixin
       removeKey: AcksItemSheet.#onRemoveKey,
       markDestroyed: AcksItemSheet.#onMarkDestroyed,
       addEffect: AcksItemSheet.#onAddEffect,
-      addLight: AcksItemSheet.#onAddLight,
       configureEffect: AcksItemSheet.#onConfigureEffect,
       deleteEffect: AcksItemSheet.#onDeleteEffect,
       guessName: AcksItemSheet.#onGuessName,
@@ -618,31 +616,39 @@ export default class AcksItemSheet extends PicksMixin(HandlebarsApplicationMixin
   /*  Actions — effects & the name                 */
   /* -------------------------------------------- */
 
+  /**
+   * The one Add effect control, on the Effects tab and in the simple view's
+   * footer: asks what the effect starts as (`EFFECT_STARTS`), creates it, and
+   * opens it so the Judge fills it in. Closing the choice creates nothing.
+   */
   static async #onAddEffect() {
-    const [effect] = await this.item.createEmbeddedDocuments("ActiveEffect", [
-      { name: this.item.name, img: this.item.img, transfer: true, disabled: false },
-    ]);
+    if (!this.isEditable) return;
+    const kind = await AcksItemSheet.#askEffectStart();
+    const data = effectStartData(kind, this.item, { lightName: loc("itemSheet.effects.lightEffect") });
+    if (!data) return;
+    const [effect] = await this.item.createEmbeddedDocuments("ActiveEffect", [data]);
     effect?.sheet?.render(true);
   }
 
   /**
-   * Add a magic light: a transferred effect carrying both radius changes with
-   * no figure in them, opened at once so the Judge types the feet from their
-   * own copy. The changes are `upgrade`, so the engine too keeps the largest
-   * where several lights ride one bearer.
+   * Offer each starting point as a button; resolves the chosen kind, or null
+   * when the window is closed. No button carries a callback, so a button
+   * resolves its own action string and nothing nullish stands in for a cancel.
    */
-  static async #onAddLight() {
-    if (!this.isEditable) return;
-    const [effect] = await this.item.createEmbeddedDocuments("ActiveEffect", [
-      {
-        name: game.i18n.localize("ACKS-EQUIPMENT.itemSheet.effects.lightEffect"),
-        img: this.item.img,
-        transfer: true,
-        disabled: false,
-        changes: [MAGIC_LIGHT_CHANGE_KEYS.bright, MAGIC_LIGHT_CHANGE_KEYS.dim].map((key) => ({ key, type: CHANGE.UPGRADE, value: "" })),
-      },
-    ]);
-    effect?.sheet?.render(true);
+  static #askEffectStart() {
+    const icon = { blank: "fa-solid fa-plus", light: "fa-solid fa-sun" };
+    return foundry.applications.api.DialogV2.wait({
+      classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
+      window: { title: loc("itemSheet.effects.add") },
+      content: `<p>${loc("itemSheet.effects.addBlankHint")}</p><p>${loc("itemSheet.effects.addLightHint")}</p>`,
+      buttons: EFFECT_STARTS.map((action, i) => ({
+        action,
+        label: loc(action === "light" ? "itemSheet.effects.addLight" : "itemSheet.effects.addBlank"),
+        icon: icon[action],
+        default: i === 0,
+      })),
+      rejectClose: false,
+    });
   }
 
   static #onConfigureEffect(event, target) {

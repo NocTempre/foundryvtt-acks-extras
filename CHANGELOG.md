@@ -15,9 +15,10 @@
   lists each summoning on the scene. It asks first, then removes that summoning's
   tokens. Release now applies only to creatures you bound by hand with Bind, which
   Dismiss never removes.
-- **A magic light is an effect you size.** The item sheet gains Add light, on its
-  Effects tab or, for an item with nothing else to show, beside Details, shown to
-  whoever may edit the item. It adds an effect, carried
+- **A magic light is an effect you size.** The item sheet gains Add Effect, on
+  its Effects tab or, for an item with nothing else to show, in the footer beside
+  Details, shown to whoever may edit the item. It offers a blank effect or a Magic
+  Light. Magic Light adds an effect, carried
   by whoever holds the item, with a bright and a dim change left empty, and opens
   it so you can type the reach in feet from your own book. An effect placed on a
   character works the same way, and a disabled one sheds nothing. The character's

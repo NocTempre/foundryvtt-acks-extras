@@ -364,7 +364,20 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 7. Lock: Durability → Locked; LOCK cell and "The Lock" group appear; add a
    Lockpicking ability to the actor → the Pick Roll button appears without
    reopening; a pick modifier and quality write to the container record.
-8. Effects: Add Effect creates an ActiveEffect and opens it; set
+8. Effects (the Add Effect half is `tools/live/equipment-add-effect.mjs`, GM
+   seat, fixture `equipment/add-effect-item`: a world item with nothing that
+   earns a tab, cleared of effects at the walk's start): on the Effects tab
+   and, on a SIMPLE fixture, in the footer beside
+   Details, one Add Effect control shows while the sheet is locked (no
+   Add Light beside it). It opens a choice, Blank Effect or Magic Light.
+   *Observable:* Blank creates one transferred ActiveEffect with no change and
+   opens its config sheet; Magic Light creates one named "Magic light" with
+   two `upgrade` changes keyed `flags.acks-extras.magicLight.bright` and
+   `.dim`, values empty, and opens its sheet (after the simple view's first
+   effect the sheet re-renders tabbed, so poll for the config sheet); closing
+   the choice (its header button, or Escape) creates nothing, and the tab
+   strip appears once the item has an effect.
+   `api.track` each effect made, read from `item.effects` at once. Set
    `markets {magic:true, identified:"none"}` → Appearance tab; the three
    steps write `identified`; the Aura select writes `markets.aura` and rings
    the art. Tick Can be disguised, disguise with the Crowbar → renamed,
