@@ -1871,6 +1871,26 @@ that throws is logged and never costs the table a cast. What a caller can await,
 and until when `spend` is valid, are in the file's header. Ruling: DECISIONS,
 "One owner of the cast seam: lib".
 
+## The weapon seam
+
+`lib/weapons.mjs` is the one door to the weapon table. A reader asks
+`weaponRow(key)` for a row, `weaponKeys()` for the keys in the source's order,
+`keyForName(name)` for the key a written name is (the name folded to letters and
+digits, or an alias of a row), `weaponFocusGroup(key)` for the Weapon Focus
+group and `weaponThrowsAsAnyone(key)` for whether every class throws it; it
+never names where the rows live. `hasWeaponRows()` tells a reader whether
+there is a table at all, which is how the Training strips fall back to every
+melee class for a size clause when there is none.
+
+The rows come from the one source `registerWeaponSource(source)` installed,
+replacing the one before and returning it. A source's `rows`, `aliases` and
+`focusGroups` are objects or functions returning them, read at every call;
+with no source every accessor answers empty and nothing stands in for one.
+Equipment registers the source its own weapon table backs when its `config.mjs`
+loads, ahead of `init`, because the training units read the table at load and
+the headless suites never run `init`. A reader that evaluates at load can rely on
+that order and nothing else.
+
 ## Automated Animations
 
 Automated Animations has no handler for this system, so its generic chat reader

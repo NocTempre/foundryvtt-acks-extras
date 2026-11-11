@@ -18,12 +18,10 @@
  * the answer's provenance is reported.
  */
 import { MODULE_ID, ITEM_FLAGS } from "./constants.mjs";
-import {
-  SIZE, STYLE, WEAPONS, WEAPON_ALIASES, WEAPON_CATEGORY, WEAPON_FOCUS_GROUPS,
-  gearProfileFor, clothingSlotsFor, ANYONE_THROWS,
-} from "./config.mjs";
+import { SIZE, STYLE, WEAPON_CATEGORY, gearProfileFor, clothingSlotsFor } from "./config.mjs";
 import { slotsOf, declaresSlots, isClothing } from "../lib/item-model.mjs";
 import { SLOT, slug, nameKeys, ITEM_TYPE } from "../lib/vocab.mjs";
+import { weaponRow, weaponKeys, keyForName, weaponFocusGroup, weaponThrowsAsAnyone } from "../lib/weapons.mjs";
 import { splitDamage, joinDamage, damageFormulaOf } from "./properties.mjs";
 
 /* -------------------------------------------- */
@@ -223,10 +221,9 @@ function mflag(item, key) {
  */
 function namedKey(name) {
   if (!name) return null;
-  for (const key of nameKeys(name)) {
-    if (WEAPONS[key]) return key;
-    const alias = WEAPON_ALIASES[key];
-    if (alias && WEAPONS[alias]) return alias;
+  for (const form of nameKeys(name)) {
+    const key = keyForName(form);
+    if (key) return key;
   }
   return null;
 }
@@ -243,7 +240,7 @@ function namedKey(name) {
 function containedKey(name) {
   const key = slug(name);
   if (!key) return null;
-  const byLength = Object.keys(WEAPONS).sort((a, b) => b.length - a.length);
+  const byLength = weaponKeys().sort((a, b) => b.length - a.length);
   return byLength.find((k) => key.includes(k)) ?? null;
 }
 
@@ -310,7 +307,7 @@ export function weaponIdentity(item, { ignoreDeclared = false } = {}) {
   return loose ? { key: loose, source: "loose" } : { key: null, source: "" };
 }
 
-/** Resolve the canonical WEAPONS key for an item, or null. */
+/** Resolve the canonical weapon-table key for an item, or null. */
 export function weaponKey(item) {
   return weaponIdentity(item).key;
 }
@@ -337,10 +334,7 @@ export function isUnidentifiedWeapon(item) {
  * plain inventory.
  */
 function strictWeaponKey(name) {
-  const key = slug(name);
-  if (WEAPONS[key]) return key;
-  if (WEAPON_ALIASES[key] && WEAPONS[WEAPON_ALIASES[key]]) return WEAPON_ALIASES[key];
-  return null;
+  return keyForName(name);
 }
 
 /**
@@ -350,7 +344,7 @@ function strictWeaponKey(name) {
  * torch (a light-weapon) and a flask of military oil / holy water (thrown
  * splash flasks) import as WEAPONS, while a lantern/candle stay plain
  * light-bearing items. The importer CONSUMES this rather than re-hardcoding the
- * rules; the WEAPONS config here stays the single source of truth. Uses strict
+ * rules; the weapon table (`lib/weapons.mjs`) stays the single source of truth. Uses strict
  * (exact/alias) matching so ordinary gear is never reclassified by a loose
  * substring hit.
  * @returns {{type:string, damage?:string, melee?:boolean, missile?:boolean,
@@ -360,7 +354,7 @@ function strictWeaponKey(name) {
 export function equipmentClass(name) {
   const key = strictWeaponKey(name);
   if (key) {
-    const w = WEAPONS[key];
+    const w = weaponRow(key);
     const special = w.special ?? [];
     // A THROWN melee weapon is usable as a missile too (RR p. 296), so it
     // imports with BOTH melee and missile set, and the system offers each as
@@ -434,7 +428,7 @@ export function classifyWeapon(item) {
   // reads as "no overrides declared" rather than as "cannot see them".
   const flag = (k) => mflag(item, k);
   const key = weaponKey(item);
-  const base = key ? WEAPONS[key] : null;
+  const base = key ? weaponRow(key) : null;
   const tags = tagTokens(item);
 
   // (1) core booleans/tags, (3) lookup, (4) default
@@ -486,7 +480,7 @@ const IMPROVISED_THROWN = /\b(flasks?|bottles?|vials?|grenades?|jars?|pots?|rock
  * Does every character throw this proficiently, whatever their class (RR ch.
  * 1, Weapon Proficiency: bottles, flasks, rocks, sticks and torches)?
  *
- * A weapon-table row says so with `ANYONE_THROWS`. Beyond the table, two
+ * A weapon-table row says so (`weaponThrowsAsAnyone`). Beyond the table, two
  * readings make it every grenade and not only the four rows the table prints:
  * anything that bursts where it lands (`splash`, the row's or a custom tag the
  * item carries, or a `grenade` tag) is a flask or a bottle whatever it holds,
@@ -496,7 +490,7 @@ const IMPROVISED_THROWN = /\b(flasks?|bottles?|vials?|grenades?|jars?|pots?|rock
  */
 function throwsAsAnyone(item, profile, tags) {
   const special = profile.special ?? [];
-  if (special.includes(ANYONE_THROWS) || special.includes("splash")) return true;
+  if (weaponThrowsAsAnyone(profile.key) || special.includes("splash")) return true;
   if (tags.has("splash") || tags.has("grenade")) return true;
   if (profile.key) return false;
   return !!(profile.thrown || profile.missile) && IMPROVISED_THROWN.test(item?.name ?? "");
@@ -554,10 +548,7 @@ export function inferredGrips(profile) {
 /** The Weapon Focus group key covering this weapon, or null. */
 export function focusGroup(profile) {
   if (!profile.key) return null;
-  for (const [group, keys] of Object.entries(WEAPON_FOCUS_GROUPS)) {
-    if (keys.includes(profile.key)) return group;
-  }
-  return null;
+  return weaponFocusGroup(profile.key);
 }
 
 /**

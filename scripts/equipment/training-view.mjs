@@ -23,7 +23,8 @@
  * CSV that covers exactly them, in a fixed order, so every writer of a grant
  * spells the same set the same way and a hand-read of the effect is stable.
  */
-import { WEAPONS, SIZE, WEAPON_CATEGORY } from "./config.mjs";
+import { SIZE, WEAPON_CATEGORY } from "./config.mjs";
+import { weaponKeys, weaponRow } from "../lib/weapons.mjs";
 import { grantMatches, classifyGrantToken, normalizeGrantToken } from "./proficiency.mjs";
 import { DAMAGE_TYPE_ICONS, UNTYPED_ICON } from "../lib/damage-type.mjs";
 import { slug } from "../lib/vocab.mjs";
@@ -53,7 +54,8 @@ const unitToken = (key) => (classifyGrantToken(key) === "weapon" ? key : `weapon
  * unit alone writes.
  */
 export const WEAPON_UNITS = Object.freeze(
-  Object.entries(WEAPONS)
+  weaponKeys()
+    .map((key) => [key, weaponRow(key)])
     .map(([key, w]) =>
       Object.freeze({
         key,

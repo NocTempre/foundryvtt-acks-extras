@@ -559,6 +559,15 @@ them today; treat a change here as cheap until magic lands.
   ritual, effect rows) and by `effectField.spellRef`, which the free-text
   `spell` string on `effectField` still shadows for rows written before it.
 
+## `weapons` — the weapon seam (module-internal, not on the api)
+
+`scripts/lib/weapons.mjs` exports `weaponRow(key)`, `weaponKeys()`,
+`keyForName(name)`, `hasWeaponRows()`, `weaponFocusGroup(key)`,
+`weaponThrowsAsAnyone(key)` and `registerWeaponSource(source)`. Features import
+them from the file; `lib.*` does not carry them, so a feature outside this
+module reads the equipment API's `config` as before. The contract is
+docs/lib/MODEL.md, "The weapon seam".
+
 ## `repair` — the standing repair tool (apiVersion 18)
 
 How the tool behaves is docs/lib/MODEL.md, "The repair tool". `scan` and `fix`

@@ -155,7 +155,7 @@ export function trainedStyles(actor) {
   }
   // A fighting style an imported proficiency item states trains it the way a
   // marker does: the same reading lights its Training pill.
-  for (const s of abilityGrants(actor, null).styles) set.add(styleKey(s));
+  for (const s of abilityGrants(actor).styles) set.add(styleKey(s));
   return set;
 }
 

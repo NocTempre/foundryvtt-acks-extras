@@ -10,6 +10,7 @@
 import { DAMAGE_TYPE_ICONS, UNTYPED_ICON } from "./damage-type.mjs";
 import { ITEM_TYPE, ACTOR_TYPE, SELECTION_VOCAB, matchSelectionKey } from "./vocab.mjs";
 import { locOr as loc } from "./util.mjs";
+import { weaponRow, weaponKeys, hasWeaponRows } from "./weapons.mjs";
 
 // Read off globalThis so a resolver called before `game` exists — or from a
 // Node harness with no Foundry at all — answers null instead of throwing.
@@ -59,10 +60,10 @@ const ARMOUR = [
  * read through `weaponTokenClasses`. Unarmed is always available, so it
  * lights for every character and golds only with Unarmed Fighting.
  */
-function coveredClasses(all, tokens, api) {
+function coveredClasses(all, tokens) {
   const covered = new Set(["unarmed"]);
   if (all) for (const c of WEAPON_CLASSES) covered.add(c.key);
-  else for (const t of tokens) for (const k of weaponTokenClasses(t, api)) covered.add(k);
+  else for (const t of tokens) for (const k of weaponTokenClasses(t)) covered.add(k);
   return covered;
 }
 
@@ -128,15 +129,15 @@ const matchSynonym = (token, table) => {
  *   all             → every class
  *   missile:all     → every missile class
  *   melee:<size>    → every melee weapon class holding a weapon of that size
- *                     (read off the equipment table when live; every melee
- *                     class otherwise). Unarmed is no weapon in that
+ *                     (read off the weapon table when it holds rows; every
+ *                     melee class otherwise). Unarmed is no weapon in that
  *                     grammar, so a size clause never names it.
  *   <category>      → that class, by key or by the book's plural name
  * Anything else is a single named weapon or an unlisted phrasing: the
- * synonym table places it, else the equipment feature's own weapon table.
+ * synonym table places it, else the weapon table (`weapons.mjs`).
  * @returns {string[]} `SLOT_VOCAB.weapons[].key` values, in vocabulary order
  */
-export function weaponTokenClasses(token, equipment = equipmentApi()) {
+export function weaponTokenClasses(token) {
   // `weapon:<key>` is the grammar's way of naming one weapon where the bare
   // key would read as a category; at class granularity it is the weapon's class.
   if (/^weapon:/i.test(String(token ?? "").trim())) token = String(token).trim().slice(7);
@@ -146,10 +147,10 @@ export function weaponTokenClasses(token, equipment = equipmentApi()) {
   if (key === "missile:all") return keysWhere((c) => c.missile);
   if (key?.startsWith("melee:")) {
     const size = key.slice(6);
-    const table = equipment?.config?.WEAPONS;
-    if (!table) return keysWhere((c) => c.melee && c.key !== "unarmed");
+    if (!hasWeaponRows()) return keysWhere((c) => c.melee && c.key !== "unarmed");
     const sized = new Set(
-      Object.values(table)
+      weaponKeys()
+        .map(weaponRow)
         .filter((w) => w?.melee && norm(w.size) === norm(size))
         .map((w) => norm(w.cat)),
     );
@@ -158,7 +159,7 @@ export function weaponTokenClasses(token, equipment = equipmentApi()) {
   if (key && WEAPON_CLASSES.some((c) => c.key === key)) return [key];
   const syn = matchSynonym(token, WEAPON_SYNONYMS);
   if (syn) return [syn];
-  const cat = norm(equipment?.config?.WEAPONS?.[norm(token)]?.cat);
+  const cat = norm(weaponRow(norm(token))?.cat);
   return cat && WEAPON_CLASSES.some((c) => c.key === cat) ? [cat] : [];
 }
 
@@ -200,13 +201,13 @@ export function abilityContributions(actor) {
 
 /**
  * What the character's imported proficiency items grant, folded to the
- * strips' vocabulary. `equipment` is that feature's API, for placing a named
- * weapon by its table. The equipment feature's proficiency gate reads the
+ * strips' vocabulary; a named weapon is placed by the weapon table
+ * (`weapons.mjs`). The equipment feature's proficiency gate reads the
  * styles and the armour rung from here, so a lit pill and the gate agree.
  * @returns {{styles: Set<string>, weapons: Set<string>, armourRank: number, has: {styles: boolean, weapons: boolean, armour: boolean}}}
  *   `armourRank` indexes the armour ladder lightest first, -1 for none.
  */
-export function abilityGrants(actor, equipment) {
+export function abilityGrants(actor) {
   const out = { styles: new Set(), spec: new Set(), weapons: new Set(), armourRank: -1, has: { styles: false, weapons: false, armour: false } };
   for (const { category, tokens } of abilityContributions(actor)) {
     if (category === "fightingStyle") {
@@ -217,7 +218,7 @@ export function abilityGrants(actor, equipment) {
       }
     } else if (category === "weaponProficiency") {
       out.has.weapons = true;
-      for (const t of tokens) for (const k of weaponTokenClasses(t, equipment)) out.weapons.add(k);
+      for (const t of tokens) for (const k of weaponTokenClasses(t)) out.weapons.add(k);
     } else if (category === "armorProficiency") {
       out.has.armour = true;
       for (const t of tokens) {
@@ -239,7 +240,7 @@ export function profileStrips(actor) {
   const api = equipmentApi();
   // Imported proficiency items are a first-class source, so the strips work
   // with the abilities feature alone, no equipment profile needed.
-  const grants = abilityGrants(actor, api);
+  const grants = abilityGrants(actor);
   const anyGrant = grants.has.styles || grants.has.weapons || grants.has.armour;
   if (!api && !anyGrant) return { styles: [], weapons: [], armour: [], any: false };
 
@@ -320,7 +321,7 @@ export function profileStrips(actor) {
   // permissive default, not a granted selection — consulted only when a
   // profile actually exists (see the ruling above).
   const equipmentWeapons = flagSet("weaponProficiency") || profTokens.size > 0;
-  const covered = equipmentWeapons ? coveredClasses(allWeapons, profTokens, api) : new Set();
+  const covered = equipmentWeapons ? coveredClasses(allWeapons, profTokens) : new Set();
   for (const w of grants.weapons) covered.add(w);
   // Unarmed is always available: `coveredClasses` adds it for a profile, so
   // training declared only by ability items adds it too.

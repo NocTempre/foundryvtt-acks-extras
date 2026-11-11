@@ -61,6 +61,7 @@ const COMMITTED = [
   "test-equipment.mjs",
   "test-weapon-rows.mjs",
   "test-weapon-lists.mjs",
+  "test-weapon-source.mjs",
   "test-typed-modifiers.mjs",
   "test-quick-effects.mjs",
   "test-ability-sheet.mjs",

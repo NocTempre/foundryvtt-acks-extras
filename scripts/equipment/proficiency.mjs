@@ -16,8 +16,9 @@
  * list on its own.
  */
 import { MODULE_ID, ACTOR_FLAGS, EFFECT_DOMAINS, SETTINGS } from "./constants.mjs";
-import { ARMOR_LADDER, ARMOR_GATED_SKILLS, ARMOR_GATE_MAX, WEAPONS, WEAPON_ALIASES } from "./config.mjs";
+import { ARMOR_LADDER, ARMOR_GATED_SKILLS, ARMOR_GATE_MAX } from "./config.mjs";
 import { slug, SELECTION_VOCAB, matchSelectionKey } from "../lib/vocab.mjs";
+import { keyForName } from "../lib/weapons.mjs";
 import { abilityContributions, abilityGrants, weaponTokenClasses } from "../lib/proficiency-strip.mjs";
 import { collectStringFlags, sumEffectModifiers } from "./effects.mjs";
 
@@ -96,12 +97,9 @@ export function normalizeGrantToken(token) {
   return SIZE_TOKENS.has(t) ? `melee:${t}` : t;
 }
 
-/** The canonical WEAPONS key a token names (aliases resolved), or "". */
+/** The canonical weapon-table key a token names (aliases resolved), or "". */
 function weaponTokenKey(token) {
-  const key = slug(token);
-  if (WEAPONS[key]) return key;
-  const alias = WEAPON_ALIASES[key];
-  return alias && WEAPONS[alias] ? alias : "";
+  return keyForName(token) ?? "";
 }
 
 /**
@@ -133,7 +131,7 @@ export function classifyGrantToken(token) {
  *   <category>          axe | bow | crossbow | flailHammerMace | swordDagger |
  *                       spearPolearm | other
  *   <weaponKey>         a single named weapon (the restricted list), by any name
- *                       config.mjs knows — "Great Sword" reaches twohandedsword
+ *                       the weapon table knows — "Great Sword" reaches twohandedsword
  *   weapon:<key>        the same, written so it cannot be read as a category
  *                       where the key is also one (`crossbow`)
  *
@@ -160,9 +158,6 @@ export function grantMatches(token, profile) {
   return !!key && profile.key === key;
 }
 
-/** This feature's weapon table, in the shape the strips' resolvers read an equipment API. */
-const OWN_TABLE = Object.freeze({ config: { WEAPONS } });
-
 /**
  * The weapon grant tokens the character's imported proficiency items state,
  * in this file's grant grammar. A pick the sheet's vocabulary names is its
@@ -177,7 +172,7 @@ function abilityWeaponTokens(actor) {
     for (const pick of tokens) {
       const read = [matchSelectionKey(SELECTION_VOCAB.weaponProficiency, pick), pick].find((t) => t && !["", "unknown"].includes(classifyGrantToken(t)));
       if (read) out.push(normalizeGrantToken(read));
-      else for (const k of weaponTokenClasses(pick, OWN_TABLE)) if (CATEGORY_TOKENS.has(k)) out.push(k);
+      else for (const k of weaponTokenClasses(pick)) if (CATEGORY_TOKENS.has(k)) out.push(k);
     }
   }
   return out;
@@ -249,7 +244,7 @@ export function armorMax(actor) {
   if (flag) candidates.push(String(flag).toLowerCase());
   // An imported proficiency raises a declared limit and never declares one.
   // The strips' armour ladder is this one, rung for rung.
-  const abilityRung = candidates.length ? ARMOR_LADDER[abilityGrants(actor, OWN_TABLE).armourRank] : undefined;
+  const abilityRung = candidates.length ? ARMOR_LADDER[abilityGrants(actor).armourRank] : undefined;
   if (abilityRung) candidates.push(abilityRung);
   // Compare case-insensitively against the ladder (which is camelCase).
   const rankOf = (c) => ARMOR_LADDER.findIndex((l) => l.toLowerCase() === String(c).toLowerCase());

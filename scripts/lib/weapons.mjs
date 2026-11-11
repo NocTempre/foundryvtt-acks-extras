@@ -26,9 +26,14 @@
  * `equipment/weapon-rows.mjs` publishes, or any `{ key: { name, block, … } }`)
  * and the lists (`weaponLists()`), and receives the same rows with their
  * placements.
+ *
+ * The file is also the seam every reader of the weapon table goes through:
+ * `weaponRow`, `weaponKeys`, `keyForName`, `hasWeaponRows`, `weaponFocusGroup`
+ * and `weaponThrowsAsAnyone` answer from the one source registered with
+ * `registerWeaponSource`, so a reader never names where the rows live.
  */
 import { expectTables, getDoc, getLayer, hasDoc, PRIORITY } from "./tables.mjs";
-import { nameKeys } from "./vocab.mjs";
+import { nameKeys, slug } from "./vocab.mjs";
 
 /** The ruledata document the importer writes the lists into. */
 export const WEAPON_LISTS_DOC = "weaponLists";
@@ -213,4 +218,90 @@ export function weaponLists() {
   const held = WEAPON_LIST_TABLES.filter((name) => tables[name] != null);
   _lists = { docs, value: held.length ? Object.fromEntries(held.map((name) => [name, tables[name]])) : null };
   return _lists.value;
+}
+
+/**
+ * Where the weapon rows come from. Each of `rows`, `aliases` and `focusGroups`
+ * is an object or a function returning one, read at every call so a source
+ * that holds live data is never stale:
+ *
+ *  - `rows`: `{ [key]: row }`, the weapons in the order readers list them
+ *  - `aliases`: `{ [spelling]: key }`, other spellings of a row's key; an
+ *    alias answers only where its target is a row
+ *  - `focusGroups`: `{ [group]: key[] }`, the Weapon Focus group of each key
+ *  - `throwsAsAnyone(key, row)`: whether every character throws this row
+ *    proficiently
+ *
+ * @typedef {object} WeaponSource
+ */
+
+/** The registered source, or null: with none, every accessor answers empty. */
+let _source = null;
+
+/** The no-rows answer of a missing or malformed source field. */
+const NONE = Object.freeze({});
+
+/** One object-valued field of the source, or the empty object. */
+function sourceField(name) {
+  const v = typeof _source?.[name] === "function" ? _source[name]() : _source?.[name];
+  return v && typeof v === "object" ? v : NONE;
+}
+
+/**
+ * Register the source every weapon accessor answers from, replacing the one
+ * registered before. A null source leaves no rows.
+ *
+ * @param {WeaponSource|null} source
+ * @returns {WeaponSource|null} the source this replaced, so a caller can put it back
+ */
+export function registerWeaponSource(source) {
+  const previous = _source;
+  _source = source && typeof source === "object" ? source : null;
+  return previous;
+}
+
+/** The row of a weapon key exactly as the source keys it, or null. */
+export function weaponRow(key) {
+  const rows = sourceField("rows");
+  return typeof key === "string" && Object.hasOwn(rows, key) ? rows[key] : null;
+}
+
+/** Every weapon key the source holds, in its order. A fresh array each call. */
+export function weaponKeys() {
+  return Object.keys(sourceField("rows"));
+}
+
+/** Does the source hold any weapon row? */
+export function hasWeaponRows() {
+  return weaponKeys().length > 0;
+}
+
+/**
+ * The weapon key a written name is, or null: the name folded to letters and
+ * digits is a key, or an alias of one. The name as written only: no
+ * reordered form and no substring match, which are `nameKeys` and the
+ * caller's own ladder.
+ */
+export function keyForName(name) {
+  const key = slug(name);
+  if (!key) return null;
+  if (weaponRow(key)) return key;
+  const aliases = sourceField("aliases");
+  const alias = Object.hasOwn(aliases, key) ? aliases[key] : null;
+  return alias && weaponRow(alias) ? alias : null;
+}
+
+/** The Weapon Focus group the source files a weapon key under, or null. */
+export function weaponFocusGroup(key) {
+  const groups = sourceField("focusGroups");
+  for (const group of Object.keys(groups)) {
+    if (Array.isArray(groups[group]) && groups[group].includes(key)) return group;
+  }
+  return null;
+}
+
+/** Does the source say every character throws this weapon proficiently? */
+export function weaponThrowsAsAnyone(key) {
+  const row = weaponRow(key);
+  return !!row && _source?.throwsAsAnyone?.(key, row) === true;
 }

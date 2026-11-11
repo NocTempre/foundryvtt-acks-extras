@@ -7,6 +7,7 @@
  * names (lowercase, non-alphanumerics stripped).
  */
 import { SLOT, WEAR_SLOTS, WEAR_SLOT_ORDER, slug } from "../lib/vocab.mjs";
+import { registerWeaponSource } from "../lib/weapons.mjs";
 
 /** Weapon size classes → base one-handed hand cost. RR p. 127. */
 export const SIZE = Object.freeze({ TINY: "tiny", SMALL: "small", MEDIUM: "medium", LARGE: "large" });
@@ -134,6 +135,17 @@ export const WEAPON_ALIASES = Object.freeze({
   compbow: "compositebow",
   holywaterflask: "holywater",
   vialofholywater: "holywater",
+});
+
+// The table above is the source every weapon reader reaches through
+// `lib/weapons.mjs`. It registers when this file loads, ahead of `init`, so a
+// reader that evaluates at load (the training units) and a headless suite that
+// imports a profile module alike find it.
+registerWeaponSource({
+  rows: WEAPONS,
+  aliases: WEAPON_ALIASES,
+  focusGroups: WEAPON_FOCUS_GROUPS,
+  throwsAsAnyone: (_key, row) => (row.special ?? []).includes(ANYONE_THROWS),
 });
 
 /** Armour weight categories (core `system.type`) ordered light→heavy. */

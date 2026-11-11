@@ -25,8 +25,9 @@
  * module says what the weapon counts as and leaves the ruling where it belongs.
  */
 import { MODULE_ID, ITEM_FLAGS } from "./constants.mjs";
-import { SILVER, WEAPONS } from "./config.mjs";
+import { SILVER } from "./config.mjs";
 import { weaponKey } from "./profiles.mjs";
+import { weaponRow } from "../lib/weapons.mjs";
 import { silveredFlagOf, recomputeItemFields } from "./properties.mjs";
 import { isAmmoItem } from "../lib/item-model.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
@@ -51,7 +52,7 @@ export function isSilvered(item) {
   const explicit = silveredFlagOf(item);
   if (explicit !== null) return explicit;
   const key = weaponKey(item);
-  if (key && (WEAPONS[key]?.special ?? []).includes(SILVER.quality)) return true;
+  if (key && (weaponRow(key)?.special ?? []).includes(SILVER.quality)) return true;
   return /\bsilver(ed|-?coated|-?plated)?\b/i.test(item?.name ?? "");
 }
 

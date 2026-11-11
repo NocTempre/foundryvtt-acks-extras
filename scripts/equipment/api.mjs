@@ -56,6 +56,7 @@ import { collectEffectModifiers, sumEffectModifiers, collectStringFlags, hasEffe
 import { bridgeContributions } from "./abilities-bridge.mjs";
 import * as CONFIG_DATA from "./config.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
+import { weaponRow } from "../lib/weapons.mjs";
 
 /**
  * Stamp module profile flags onto a core item from its RAW profile.
@@ -86,7 +87,7 @@ export async function annotateItem(item) {
   if (item.type === ITEM_TYPE.weapon) {
     key = weaponKey(item);
     if (key) {
-      const base = CONFIG_DATA.WEAPONS[key];
+      const base = weaponRow(key);
       // A size the item declares — on its sheet, or the system's own field an
       // import wrote — stands; only a weapon that states none is given one.
       const sized = item.flags?.[MODULE_ID]?.[ITEM_FLAGS.SIZE] != null || CORE_SIZES[item.system?.size] != null;

@@ -841,8 +841,9 @@ of the row's name and block.
   for `acksExtras.weaponRowsChanged`**, fired once, 50 ms after the last
   publication or withdrawal of a burst. Neither is exposed on the module api
   yet; no consumer reads the document.
-- No consumer reads the document yet: `WEAPONS` in `config.mjs` is still the
-  classifier's source.
+- No consumer reads the document yet: the classifier and the other readers of
+  the weapon table ask `lib/weapons.mjs` (docs/lib/MODEL.md, "The weapon seam"),
+  and the source registered there is still the `WEAPONS` table in `config.mjs`.
 
 **Field specs** (`lib/field-spec.mjs`) are how both a base type's metadata and a
 variation's own storage get rendered without being shipped: a definition
