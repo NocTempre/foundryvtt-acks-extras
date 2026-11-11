@@ -716,6 +716,16 @@ sits there indefinitely. The chain should either ask once, on the panel,
 before it starts, or hand the step a confirmed flag so the modal is the
 standalone macro's alone.
 
+## Import speed
+
+A full import re-runs each recipe over its pages on every run, and nothing in
+this file records how long a run takes or where the time goes. The caches that
+exist cover folders, packs and the presence of an imported document
+(`importedCache` in `scripts/importer/cookbook.mjs`). Not built: a skip for an
+entry whose source and recipe are unchanged since its last import, judged by a
+stamp on the imported document, and a cache of a book's parsed pages shared by
+the recipes of one run. Measure a full run before choosing between them.
+
 ## An OSE column that CONTINUES an entry is claimed by everything on the page
 
 The harvester's column walk knows a column is taken when something STARTS in
@@ -904,9 +914,10 @@ and ruin lookups, and the throw now rolls them (DECISIONS, 2026-09-30). In order
 5. **The sea chain**, which wants a voyage encounter consumer that no feature
    owns yet.
 6. **The Judge-only d-tables**: each a small cookbook RollTable.
-7. **Treasure and magic items**, after a ruling on how core's treasure pack,
-   the Treasure Tome and the Judges Journal relate. Gems are this wave (see
-   *Gems are DEFERRED* above).
+7. **Treasure and magic items**: every table read from the Judges Journal,
+   with the Treasure Tome layered over it and nothing read from core's
+   treasure pack (DECISIONS 2026-11-11, "Treasure is read from the Judges
+   Journal"). Gems are this wave (see *Gems are DEFERRED* above).
 8. **The custom-class, custom-spell and magic-type remainders**, gated on the
    magic work.
 

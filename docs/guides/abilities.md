@@ -179,8 +179,8 @@ score is still shown, said plainly to be unapplied.
 
 Set **Target** to *Breakpoints* and the window grows a table. Add one step for
 each point where the printed number changes — a step holds from where it starts
-until the next one begins, so a throw that is 11+ at one rank, 7+ at two and 3+
-at three is three steps, not one per level.
+until the next one begins, so a throw whose target changes at the second rank
+and again at the third is three steps, not one per level.
 
 The table belongs to that throw. Sharing one table between abilities is not
 built yet.

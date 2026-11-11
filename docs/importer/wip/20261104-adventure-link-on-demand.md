@@ -128,6 +128,10 @@ Adventure, a template part or a materialized rules table.
 5. **What does "visible to a player" mean?** (A) LIMITED or more.
    (B) OBSERVER or more. Recommended: A.
 
+**Answered 2026-11-11: A to each of the five.** The proposal is otherwise
+unchanged and still not in effect; the answers move into DECISIONS with the
+first slice that lands.
+
 ## Slices, for a later release
 
 | | Slice | Effort |

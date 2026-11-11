@@ -2361,6 +2361,11 @@ column — stale survivors of the margin fix that the in-place compile's
 folding behaviour never replaced. The determinism bug is toolchain work and
 is recorded in the intake ledger, not patched in a hotfix.
 
+> **Settled 2026-11-11:** the measurement was the contaminated one. Two
+> from-scratch `compile-cookbook --out` runs on a quiet tree were
+> byte-identical to each other and to the committed cookbook, all 34 files, so
+> the compiler is deterministic and the drift gate's premise holds.
+
 **Ruled: a clause the page interleaves is dropped whole.** The Spellsword's
 spread lands its proficiency list mid-sentence in the raw column text,
 capitalised exactly like tongues, so no shape test can separate them. The
@@ -9816,3 +9821,25 @@ them.
 
 *Cost:* the guide's import manager plate predates the button and stays stale
 until it is shot again.
+
+## 2026-11-11 — Treasure is read from the Judges Journal, and the Treasure Tome is a layer over it
+
+Recorded here from the owner's ruling of 2026-09-30, which the ledger held
+and no document did.
+
+**Asked.** Wave 7 of the Judges Journal charts (ROADMAP, *The Judges Journal
+charts not yet read*) waited on how three sources relate: core's treasure
+RollTables pack, the Judges Journal's treasure chapter, and the Treasure Tome,
+which expands it.
+
+**Ruled.** Every treasure table is read from the Judges Journal, including
+those core's pack also holds in the same form; the module reads nothing from
+core's treasure pack. The Treasure Tome is an import layer over the Judges
+Journal: its row replaces the Journal's where the two differ, and its added
+rows extend the table. The wave order 3 to 8 stands.
+
+**Rejected.** Reusing core's pack where its table matches the page, the other
+option the question offered.
+
+*Cost:* none until wave 7 is built. The treasure-by-terrain lookup wave 2
+reads into `encounters` is not one of these tables and is unchanged.

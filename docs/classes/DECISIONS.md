@@ -205,6 +205,11 @@ and pins ~2000 documents in memory against the platform's own eviction policy.
 That is a memory-for-correctness trade across every consumer, not a bug fix, and
 it is not made inside a hotfix. Tracked separately.
 
+> **Settled 2026-11-11.** The owner kept the platform's eviction: no read
+> re-arms the timer. A consumer that renders again recovers on that render; one
+> that cannot awaits `whenReady()` as ruled above. The latency after an idle
+> window is the accepted cost.
+
 **Cost, measured.** The surfaces now block on a cold shelf where they previously
 rendered something immediately: `openClassPicker` on a just-evicted library took
 **5.7 s** to open, against 49 ms warm; the Scores Generator and the drop path

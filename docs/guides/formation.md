@@ -868,7 +868,7 @@ because neither announces itself when it is missing:
 
 Anyone who can search throws first — and not only against the trap in the way.
 A thief moving at exploration speed throws against **every** hidden trap the
-party passes within 5' of, 10' with a pole, measured against the ground they
+party passes within reach of, farther with a pole, measured against the ground they
 actually walked rather than where they stopped. You hear about it only when
 something is spotted; the misses are silent, or the log would be unreadable.
 Each character gets one throw per trap per level, which is what a hasty search
@@ -876,7 +876,7 @@ costs them.
 
 A thief at the front who makes it spots the trap before anyone touches it. Then
 the 10' pole probes a square ahead of its bearer, then the party itself, rank by
-rank, each on its own secret 1d6. The first throw that comes up inside the
+rank, each on its own secret throw. The first throw that comes up inside the
 trigger band springs it, and the party stops there rather than walking on.
 
 At combat speed there is no pole and no searching — the party is moving too
@@ -1118,7 +1118,7 @@ Every token's vision now comes from its own sheet, whether or not it is in a
 party. Ordinary eyes see **only what a light source reveals** — walk a torchless
 character into a black corridor and they see nothing, which is the rule. A
 character with **lightless vision** (or infravision) sees its recorded range,
-and a thief's **shadowy senses** reach 30'; both see as dim light — colourless,
+and a thief's **shadowy senses** reach their own short radius; both see as dim light — colourless,
 no reading, no fine detail.
 
 ![](../releases/v3.3.0/token-vision.png)
@@ -1128,8 +1128,9 @@ radii — they come off the lamp and the character's own senses.*
 
 **Night vision** works differently from either, because it is not sight without
 light — it is sight that makes more of the light there is. It brightens dim light
-to daylight, and indoors it carries **twice as far as the light it is seeing
-by**: a creature standing in a torch's 15' bright radius sees 30'. It does not
+to daylight, and indoors it carries **a multiple of the light it is seeing
+by** (MM, Night Vision): a creature standing in a torch's bright radius sees
+well past its edge. It does not
 need to be *its* torch — the party's lamp will do, which is exactly the creature
 watching you from beyond the edge of your own light. In a corridor with nothing
 burning at all there is nothing to double, and a night-eyed creature is as blind
