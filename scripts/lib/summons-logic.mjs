@@ -13,8 +13,52 @@ import { MODULE_ID } from "./constants.mjs";
 /** The actor flag naming the character a creature was summoned by (an actor uuid). */
 export const SUMMON_FLAG = "summonedBy";
 
-/** The actor flag the module's own summoning writes: `{sourceUuid, name, spellId, castId, at}`. */
+/** The actor flag the module's own summoning writes: `{sourceUuid, name, spellId, spellName, castId, at}`. */
 export const SUMMON_RECORD_FLAG = "summon";
+
+/**
+ * The one switch that decides whether a summoning may name no spell. A request
+ * whose summoner names a spell is never held to it; a request that names none
+ * is refused `spellRequired` for a seat this answers false for. Every gate that
+ * depends on the answer (the relay's check, the seat's own pre-check, the
+ * bare Summon… prompt) reads it here and nowhere else.
+ * @param {{isGM?: boolean}|null} user
+ * @returns {boolean} true for a GM seat
+ */
+export const bareSummonAllowed = (user) => !!user?.isGM;
+
+/** The registered policies, in registration order. */
+const policies = new Set();
+
+/**
+ * Register a refusal policy a feature adds to `checkPlaceRequest` without lib
+ * importing the feature. A policy is `({user, summoner, source, count, spellId,
+ * spell}) => string|null`: null (or anything that is not a non-empty string)
+ * allows, a string is the refusal's reason id. It runs after every built-in
+ * check, on the requesting seat and on the GM's client alike, so it must
+ * answer from documents both can read. A policy that throws is logged and
+ * counts as an allow: a broken feature never locks the summoner out.
+ * @param {Function} fn
+ * @returns {() => boolean} unregisters it; true when it was registered
+ */
+export function registerSummonPolicy(fn) {
+  if (typeof fn !== "function") throw new TypeError("registerSummonPolicy needs a function");
+  policies.add(fn);
+  return () => policies.delete(fn);
+}
+
+/** The first refusal a registered policy gives, or null. A throwing policy is logged and skipped. */
+function policyRefusal(req) {
+  for (const fn of policies) {
+    try {
+      const reason = fn(req);
+      if (typeof reason === "string" && reason) return reason;
+    } catch (err) {
+      console.error(`${MODULE_ID} | a summon policy threw and was treated as an allow`, err);
+    }
+  }
+  return null;
+}
 
 /** The flag on the GM's world copy of a summoned creature: which source document it was copied from. */
 export const SUMMON_COPY_FLAG = "summonCopy";
@@ -52,11 +96,16 @@ export function summonRecordOf(actor) {
 /**
  * The flags a summoned token's delta carries: the summoner and the record.
  * @param {string} summonerUuid
- * @param {{sourceUuid: string, name?: string, spellId?: string, castId: string, at: number}} record
+ * @param {{sourceUuid: string, name?: string, spellId?: string, spellName?: string, castId: string, at: number}} record
+ *   `spellName` is kept beside `spellId` so a cast reads by the spell's name
+ *   after the spell item is gone
  */
-export function summonFlags(summonerUuid, { sourceUuid, name = "", spellId = "", castId, at }) {
+export function summonFlags(summonerUuid, { sourceUuid, name = "", spellId = "", spellName = "", castId, at }) {
   const summon = { sourceUuid, name, castId, at };
-  if (spellId) summon.spellId = spellId;
+  if (spellId) {
+    summon.spellId = spellId;
+    if (spellName) summon.spellName = spellName;
+  }
   return { [MODULE_ID]: { [SUMMON_FLAG]: summonerUuid, [SUMMON_RECORD_FLAG]: summon } };
 }
 
@@ -162,7 +211,8 @@ export function sourceReadable(source, user) {
  * @param {object} [req.scene]  the scene to place on
  * @param {number} req.count
  * @param {{x: number, y: number}[]} [req.positions]  omitted when the seat is only asking whether it may
- * @param {string} [req.spellId]
+ * @param {string} [req.spellId]  the summoner's spell item the cast is made from; empty is a bare
+ *   summoning, which only a seat `bareSummonAllowed` answers true for may make (`spellRequired`)
  * @returns {{ok: true}|{ok: false, reason: string}}
  */
 export function checkPlaceRequest({ user, summoner, source, scene = null, count, positions = null, spellId = "" } = {}) {
@@ -172,7 +222,11 @@ export function checkPlaceRequest({ user, summoner, source, scene = null, count,
   if (!validCount(count)) return { ok: false, reason: "badCount" };
   if (!source || !SUMMON_SOURCE_TYPES.includes(source.type)) return { ok: false, reason: "badSource" };
   if (!sourceReadable(source, user)) return { ok: false, reason: "unreadable" };
-  if (spellId && summoner.items?.get?.(spellId)?.type !== "spell") return { ok: false, reason: "badSpell" };
+  const spell = spellId ? (summoner.items?.get?.(spellId) ?? null) : null;
+  if (spellId && spell?.type !== "spell") return { ok: false, reason: "badSpell" };
+  if (!spellId && !bareSummonAllowed(user)) return { ok: false, reason: "spellRequired" };
+  const refusal = policyRefusal({ user, summoner, source, count, spellId, spell });
+  if (refusal) return { ok: false, reason: refusal };
   if (positions) {
     if (!sceneViewable(scene, user)) return { ok: false, reason: "badScene" };
     const rect = scene.dimensions?.rect ?? null;
@@ -210,7 +264,7 @@ export function checkDismissRequest({ user, summoner, tokens } = {}) {
  * Group summons by the cast that made them. Entries the module's own
  * summoning did not make (no record) are returned apart as `loose`.
  * @param {{record: object|null}[]} entries  anything carrying a `record`
- * @returns {{casts: {castId: string, name: string, sourceUuid: string, spellId: string, at: number, entries: object[]}[], loose: object[]}}
+ * @returns {{casts: {castId: string, name: string, sourceUuid: string, spellId: string, spellName: string, at: number, entries: object[]}[], loose: object[]}}
  */
 export function groupByCast(entries) {
   const byId = new Map();
@@ -222,11 +276,42 @@ export function groupByCast(entries) {
       continue;
     }
     if (!byId.has(r.castId)) {
-      byId.set(r.castId, { castId: r.castId, name: String(r.name ?? ""), sourceUuid: String(r.sourceUuid ?? ""), spellId: String(r.spellId ?? ""), at: Number(r.at) || 0, entries: [] });
+      byId.set(r.castId, { castId: r.castId, name: String(r.name ?? ""), sourceUuid: String(r.sourceUuid ?? ""), spellId: String(r.spellId ?? ""), spellName: String(r.spellName ?? ""), at: Number(r.at) || 0, entries: [] });
     }
     byId.get(r.castId).entries.push(entry);
   }
   return { casts: [...byId.values()].sort((a, b) => a.at - b.at), loose };
+}
+
+/**
+ * Group a character's summons by the spell that called them, then by cast.
+ * Three destinations, each a different command in the party cell:
+ * - `casts`: a record whose `spellId` still resolves to a spell, one entry per
+ *   cast (oldest first), carrying the spell's CURRENT name (the record's
+ *   `spellName` when the lookup gives none);
+ * - `loose`: a record with no spell that resolves (a bare GM summoning, or a
+ *   spell since deleted), left as plain entries so a caller can still group
+ *   them with `groupByCast` and dismiss them;
+ * - `bound`: an entry with no record at all (bound by hand), which only
+ *   Release acts on.
+ * @param {{record: object|null}[]} entries  anything carrying a `record`
+ * @param {Map<string, {name?: string}>|Record<string, {name?: string}>} spellsById  the summoner's spells by item id
+ * @returns {{casts: {spellId: string, spellName: string, castId: string, tokens: object[]}[], loose: object[], bound: object[]}}
+ */
+export function groupBySpell(entries, spellsById) {
+  const spellOf = (id) => (typeof spellsById?.get === "function" ? spellsById.get(id) : spellsById?.[id]) ?? null;
+  const grouped = groupByCast(entries);
+  const out = { casts: [], loose: [], bound: grouped.loose.filter(Boolean) };
+  const { casts } = grouped;
+  for (const cast of casts) {
+    const spell = cast.spellId ? spellOf(cast.spellId) : null;
+    if (!spell) {
+      out.loose.push(...cast.entries);
+      continue;
+    }
+    out.casts.push({ spellId: cast.spellId, spellName: String(spell.name ?? cast.spellName ?? ""), castId: cast.castId, tokens: cast.entries });
+  }
+  return out;
 }
 
 /**

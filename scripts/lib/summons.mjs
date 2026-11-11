@@ -14,6 +14,11 @@
  * GM), creates the tokens and answers with their uuids. A dismissal runs the
  * same way: the seat confirms, the GM deletes the tokens the module made for
  * that summoner and no others. The world copy stays.
+ *
+ * A summoning is tied to the spell that calls it: a request names the
+ * summoner's spell item, and only a seat `bareSummonAllowed` answers true for
+ * may name none. Feature rules over a spell's creature and count arrive as
+ * policies (`registerSummonPolicy`), which this file never imports.
  */
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import { makeLoc } from "./util.mjs";
@@ -31,9 +36,11 @@ import {
   checkPlaceRequest,
   checkDismissRequest,
   summonEntries,
+  bareSummonAllowed,
+  registerSummonPolicy,
 } from "./summons-logic.mjs";
 
-export { summonerOf };
+export { summonerOf, registerSummonPolicy };
 
 const libLoc = makeLoc(LANG_PREFIX);
 
@@ -181,7 +188,9 @@ async function placeOp({ summonerUuid, sourceUuid, sceneId, positions, count, sp
   const copy = await worldCopy(source);
   if (!copy) return refused("noCopy");
   const cast = validCastId(castId) ? castId : foundry.utils.randomID();
-  const flags = summonFlags(summoner.uuid, { sourceUuid: source.uuid, name: source.name, spellId, castId: cast, at: game.time.worldTime });
+  // The spell's name is read here, from the summoner's own item, never taken from the payload.
+  const spellName = spellId ? (summoner.items.get(spellId)?.name ?? "") : "";
+  const flags = summonFlags(summoner.uuid, { sourceUuid: source.uuid, name: source.name, spellId, spellName, castId: cast, at: game.time.worldTime });
   const ownership = summonOwnership(summoner.ownership, [user.id], (id) => !!game.users.get(id)?.isGM);
   const tokenUuids = await createTokens({ copy, scene, positions, flags, ownership });
   return { ok: true, castId: cast, tokenUuids };
@@ -256,7 +265,8 @@ async function previewsFor(source, summoner, count) {
  * @param {object} o
  * @param {string} o.sourceUuid  the library creature
  * @param {number} [o.count=1]
- * @param {string} [o.spellId]  the spell item of the summoner this is cast from
+ * @param {string} [o.spellId]  the spell item of the summoner this is cast from; empty is refused
+ *   `spellRequired` unless the seat is `bareSummonAllowed`
  * @param {Function} [o.preConfirm]  core's placement hook, `({event, document, index, count}) => boolean|void`:
  *   returning false refuses that click, which is where a summoning that
  *   constrains where the creature appears states its constraint
@@ -325,31 +335,118 @@ function warnRefusal(reason) {
   ui.notifications.warn(loc(`refused.${reason}`));
 }
 
+/** The window classes every prompt here carries: the module's own and its scroll contract. */
+const PROMPT_CLASSES = ["acks-ui", "acks-extras", "acks-extras-scroll"];
+
+/** The `<option>` markup of the seat's creature shelves, grouped by pack. */
+function shelfOptionsHtml(shelves) {
+  const esc = foundry.utils.escapeHTML;
+  return shelves
+    .map((s) => `<optgroup label="${esc(s.label)}">${s.entries.map((e) => `<option value="${esc(e.uuid)}">${esc(e.name)}</option>`).join("")}</optgroup>`)
+    .join("");
+}
+
+/** Tell the seat there is no creature it can open, and offer nothing. */
+async function promptNoMonsters(title) {
+  await foundry.applications.api.DialogV2.prompt({
+    classes: PROMPT_CLASSES,
+    window: { title },
+    content: `<p class="notes">${foundry.utils.escapeHTML(loc("noMonsters"))}</p>`,
+    ok: { label: loc("close"), callback: () => false },
+    rejectClose: false,
+  });
+}
+
 /**
- * The Summon… prompt: the creature from the library this seat can read, how
- * many, and optionally the spell it is cast from, then the placement. With no
- * creature the seat can read, the prompt says so and offers nothing.
+ * The creature and count prompt of a summoning cast from a spell. The spell's
+ * own `options` (`summonOptionsOf` rows: `{ref, amount, ...}`) decide the
+ * choices: each row whose `ref` the caller's `resolveRef` turns into a creature
+ * is offered, the first one preselected, and its `amount` is the count the
+ * field opens on; with no such row the seat picks from the shelves it can open.
+ * `resolveRef` is passed in because lib imports no feature. The prompt only
+ * asks: nothing is placed, and the answer goes to `placeSummons`.
+ *
+ * @param {Actor} summoner
+ * @param {object} [o]
+ * @param {{id: string, name: string}} [o.spell]  the summoner's spell item the cast is made from
+ * @param {{ref?: string, amount?: number}[]} [o.options]
+ * @param {(ref: string) => Promise<{uuid: string, name: string}|null>} [o.resolveRef]
+ * @returns {Promise<{sourceUuid: string, count: number, spellId: string}|null>} null when the prompt was closed
+ *   or there was no creature to choose
+ */
+export async function pickSummon(summoner, { spell, options = [], resolveRef } = {}) {
+  const esc = foundry.utils.escapeHTML;
+  const title = spell?.name || loc("title");
+  const named = [];
+  for (const row of options) {
+    const ref = String(row?.ref ?? "").trim();
+    if (!ref || !resolveRef) continue;
+    const doc = await Promise.resolve(resolveRef(ref)).catch(() => null);
+    if (doc?.uuid && !named.some((n) => n.uuid === doc.uuid)) named.push({ uuid: doc.uuid, name: String(doc.name ?? ""), amount: Number(row.amount) || 0 });
+  }
+  let choices;
+  if (named.length) {
+    choices = named.map((n) => `<option value="${esc(n.uuid)}" data-amount="${n.amount || ""}">${esc(n.name)}</option>`).join("");
+  } else {
+    const shelves = summonShelves();
+    if (!shelves.length) {
+      await promptNoMonsters(title);
+      return null;
+    }
+    choices = shelfOptionsHtml(shelves);
+  }
+  const opening = Math.min(MAX_SUMMONS, Math.max(1, named[0]?.amount || 1));
+  const form = await foundry.applications.api.DialogV2.prompt({
+    classes: PROMPT_CLASSES,
+    window: { title },
+    content:
+      `<div class="form-group"><label>${esc(loc("creature"))}</label><select name="source">${choices}</select></div>` +
+      `<div class="form-group"><label>${esc(loc("count"))}</label><input type="number" name="count" value="${opening}" min="1" max="${MAX_SUMMONS}" step="1"></div>`,
+    render: (_event, dialog) => {
+      const root = dialog.element;
+      const select = root?.querySelector?.('select[name="source"]');
+      const count = root?.querySelector?.('input[name="count"]');
+      select?.addEventListener("change", () => {
+        const amount = Number(select.selectedOptions?.[0]?.dataset?.amount) || 0;
+        if (amount && count) count.value = String(Math.min(MAX_SUMMONS, amount));
+      });
+    },
+    ok: {
+      label: loc("place"),
+      callback: (_event, button) => ({
+        sourceUuid: button.form.elements.source.value,
+        count: Number(button.form.elements.count.value),
+        spellId: spell?.id ?? "",
+      }),
+    },
+    rejectClose: false,
+  });
+  return form && typeof form === "object" ? form : null;
+}
+
+/**
+ * The bare Summon… prompt: the creature from the library this seat can read,
+ * how many, and optionally the spell it is cast from, then the placement. It
+ * is the spell-less path, so it answers `spellRequired` at once for a seat
+ * `bareSummonAllowed` does not allow it. With no creature the seat can read,
+ * the prompt says so and offers nothing.
  * @param {Actor} summoner
  * @returns {Promise<{ok: boolean, reason?: string}|null>} null when the prompt was closed
  */
 export async function promptSummon(summoner) {
   const esc = foundry.utils.escapeHTML;
   const DialogV2 = foundry.applications.api.DialogV2;
-  const classes = ["acks-ui", "acks-extras", "acks-extras-scroll"];
+  const classes = PROMPT_CLASSES;
+  if (!bareSummonAllowed(game.user)) {
+    warnRefusal("spellRequired");
+    return refused("spellRequired");
+  }
   const shelves = summonShelves();
   if (!shelves.length) {
-    await DialogV2.prompt({
-      classes,
-      window: { title: loc("title") },
-      content: `<p class="notes">${esc(loc("noMonsters"))}</p>`,
-      ok: { label: loc("close"), callback: () => false },
-      rejectClose: false,
-    });
+    await promptNoMonsters(loc("title"));
     return null;
   }
-  const options = shelves
-    .map((s) => `<optgroup label="${esc(s.label)}">${s.entries.map((e) => `<option value="${esc(e.uuid)}">${esc(e.name)}</option>`).join("")}</optgroup>`)
-    .join("");
+  const options = shelfOptionsHtml(shelves);
   const spells = [...summoner.items].filter((i) => i.type === "spell").sort((a, b) => a.name.localeCompare(b.name));
   const spellField = spells.length
     ? `<div class="form-group"><label>${esc(loc("spell"))}</label><select name="spell"><option value="">—</option>${spells

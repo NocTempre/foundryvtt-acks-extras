@@ -696,6 +696,8 @@
   "ACKS-LIB.summons.refused.paused": "The game is paused.",
   "ACKS-LIB.summons.refused.placement": "The placement could not start. Nothing was summoned.",
   "ACKS-LIB.summons.refused.none": "This character has no summons to dismiss.",
+  "ACKS-LIB.summons.refused.spellRequired": "Summon through one of this character's spells.",
+  "ACKS-LIB.summons.refused.notNamed": "That creature is not one this spell calls.",
   "ACKS-LIB.combatRound.notYourTurn": "The round did not advance: only a player whose combatant is up can start the next round.",
   "ACKS-LIB.storage.duplicated": "The move half-finished and the goods now exist BOTH on the source and at {name}. Delete one copy.",
   "ACKS-LIB.storage.returnedTitle": "{place} was destroyed — stored goods returned",

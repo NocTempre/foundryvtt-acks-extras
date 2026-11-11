@@ -760,6 +760,9 @@ acksExtras.lib.summons = {
                                            // → Promise<{ok, reason?, castId?, tokenUuids?}>
   dismissSummons(summoner, {tokens?, castId?, confirm?}),
                                            // → Promise<{ok, reason?, deleted?, refused?}>
+  pickSummon(summoner, {spell?, options?, resolveRef?}),
+                                           // → Promise<{sourceUuid, count, spellId}|null>
+  registerSummonPolicy(fn),                // → unregister(): boolean
 }
 ```
 
@@ -769,10 +772,31 @@ that makes the tokens. `preConfirm` is core's placement hook; returning false
 refuses a click. `dismissSummons` asks the seat first (`confirm: false` only
 when the caller already has); it removes only tokens the module's own
 summoning made for that summoner. `reason` is one of `noUser`, `notSummoner`,
-`notOwner`, `badCount`, `badSource`, `unreadable`, `badSpell`, `badScene`,
-`badPositions`, `noCopy`, `badOp`, `noCanvas`, `paused`, `placement`, `none`, `cancelled`,
-`declined`, `noGm`. The Foundry-free checks (`checkPlaceRequest`,
-`checkDismissRequest`, `groupByCast`, `summonOwnership`) are in
+`notOwner`, `badCount`, `badSource`, `unreadable`, `badSpell`, `spellRequired`,
+`badScene`, `badPositions`, `noCopy`, `badOp`, `noCanvas`, `paused`,
+`placement`, `none`, `cancelled`, `declined`, `noGm`, or a reason id a
+registered policy gave.
+
+A summoning belongs to the spell that calls it: `spellId` names a spell item of
+the summoner, and the record the cast stamps keeps `spellId` and `spellName`.
+A request naming no spell is refused `spellRequired` unless
+`bareSummonAllowed(user)` (summons-logic.mjs) answers true, which it does for a
+GM seat; that function is the one place the choice is made.
+
+`registerSummonPolicy(fn)` adds a refusal a feature owns, so lib imports no
+feature. `fn({user, summoner, source, count, spellId, spell})` returns null to
+allow or a reason id to refuse. Policies run after every built-in check, on the
+requesting seat and on the GM's client, and each must answer from documents
+both can read. A policy that throws is logged to the console and counts as an
+allow. The call returns a function that unregisters it.
+
+`pickSummon` is the creature and count prompt for a cast from `spell`: each
+`options` row (`summonOptionsOf`) whose `ref` the caller's `resolveRef(ref)`
+turns into `{uuid, name}` is offered, the first preselected with the row's
+`amount` as the count; with none it offers the shelves the seat can open. It
+asks and places nothing; pass the answer to `placeSummons`. The Foundry-free
+checks (`checkPlaceRequest`, `checkDismissRequest`, `groupByCast`,
+`groupBySpell`, `bareSummonAllowed`, `summonOwnership`) are in
 `scripts/lib/summons-logic.mjs`, imported directly.
 
 ## Versioning

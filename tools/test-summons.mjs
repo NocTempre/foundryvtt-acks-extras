@@ -190,6 +190,9 @@ const t = async (name, fn) => {
   console.log(`ok - ${name}`);
 };
 
+/** The spell every request names unless a test says otherwise: a Player seat may only summon through one. */
+const SPELL = { id: "sp1", type: "spell", name: "Thornwake Call" };
+
 const place = (over = {}) => ({
   op: "place",
   summonerUuid: "Actor.sum",
@@ -197,12 +200,13 @@ const place = (over = {}) => ({
   sceneId: "s1",
   positions: [{ x: 100, y: 100 }, { x: 200, y: 200, rotation: 90 }],
   count: 2,
+  spellId: SPELL.id,
   requestUserId: p1.id,
   ...over,
 });
 
 const setup = (extra = {}) => {
-  const summoner = makeSummoner("sum", [p1.id, p2.id], extra.items ?? []);
+  const summoner = makeSummoner("sum", [p1.id, p2.id], extra.items ?? [SPELL]);
   const source = makeSource("m1", extra.source);
   const scene = makeScene("s1", extra.scene);
   return { summoner, source, scene };
@@ -248,7 +252,8 @@ await t("an owner's request makes one world copy and unlinked tokens owned throu
     assert.equal(rec.castId, "castA1");
     assert.equal(rec.at, 42, "the GM's clock");
     assert.equal(rec.sourceUuid, "Compendium.test.Actor.m1");
-    assert.equal(rec.spellId, undefined);
+    assert.equal(rec.spellId, SPELL.id);
+    assert.equal(rec.spellName, SPELL.name, "the record carries the spell's name, read by the GM's client");
     assert.equal(d._id, undefined);
   }
   assert.equal(calls.tokenCreate[1].rotation, 90);
@@ -278,12 +283,31 @@ await t("a malformed cast id is replaced by the GM's own", async () => {
 });
 
 await t("a spell is recorded only when it is a spell on the summoner", async () => {
-  setup({ items: [{ id: "sp1", type: "spell" }, { id: "wp1", type: "weapon" }] });
+  setup({ items: [SPELL, { id: "wp1", type: "weapon", name: "Blade" }] });
   const ok = await summonRelay(place({ spellId: "sp1" }));
   assert.equal(calls.tokenCreate[0].delta.flags[M][logic.SUMMON_RECORD_FLAG].spellId, "sp1");
   assert.equal(ok.ok, true);
   assert.deepEqual(await summonRelay(place({ spellId: "wp1" })), { ok: false, reason: "badSpell" });
   assert.deepEqual(await summonRelay(place({ spellId: "nope" })), { ok: false, reason: "badSpell" });
+});
+
+await t("the spell's name is the item's, never the payload's", async () => {
+  setup();
+  await summonRelay(place({ spellId: SPELL.id, spellName: "Forged Name" }));
+  assert.equal(calls.tokenCreate[0].delta.flags[M][logic.SUMMON_RECORD_FLAG].spellName, SPELL.name);
+});
+
+await t("a Player seat with no spell is refused spellRequired and nothing is made; a GM seat is not", async () => {
+  setup();
+  assert.equal(logic.bareSummonAllowed(p1), false);
+  assert.equal(logic.bareSummonAllowed(gm), true);
+  assert.deepEqual(await summonRelay(place({ spellId: "" })), { ok: false, reason: "spellRequired" });
+  assert.equal(calls.actorCreate.length + calls.tokenCreate.length, 0);
+  const bare = await summonRelay(place({ spellId: "", requestUserId: null }));
+  assert.equal(bare.ok, true, "a GM's bare summoning stands");
+  const rec = calls.tokenCreate[0].delta.flags[M][logic.SUMMON_RECORD_FLAG];
+  assert.equal(rec.spellId, undefined);
+  assert.equal(rec.spellName, undefined);
 });
 
 await t("a count or a set of places the relay will not act on is refused", async () => {
@@ -376,13 +400,117 @@ await t("a dismissal names stale or foreign uuids without throwing", async () =>
 /* -------------------------------------------- */
 
 await t("the same checks serve the seat before it asks the GM", () => {
-  const summoner = makeSummoner("sum", [p1.id]);
+  const summoner = makeSummoner("sum", [p1.id], [SPELL]);
   const source = makeSource("m1");
-  assert.deepEqual(logic.checkPlaceRequest({ user: p1, summoner, source, count: 2 }), { ok: true });
-  assert.equal(logic.checkPlaceRequest({ user: stranger, summoner, source, count: 2 }).reason, "notOwner");
-  assert.equal(logic.checkPlaceRequest({ user: p1, summoner: source, source, count: 2 }).reason, "notSummoner");
-  assert.equal(logic.checkPlaceRequest({ user: p1, summoner, source, count: 0 }).reason, "badCount");
-  assert.equal(logic.checkPlaceRequest({ summoner, source, count: 1 }).reason, "noUser");
+  const spellId = SPELL.id;
+  assert.deepEqual(logic.checkPlaceRequest({ user: p1, summoner, source, count: 2, spellId }), { ok: true });
+  assert.equal(logic.checkPlaceRequest({ user: stranger, summoner, source, count: 2, spellId }).reason, "notOwner");
+  assert.equal(logic.checkPlaceRequest({ user: p1, summoner: source, source, count: 2, spellId }).reason, "notSummoner");
+  assert.equal(logic.checkPlaceRequest({ user: p1, summoner, source, count: 0, spellId }).reason, "badCount");
+  assert.equal(logic.checkPlaceRequest({ summoner, source, count: 1, spellId }).reason, "noUser");
+});
+
+await t("spellRequired follows the one switch: GM-only as shipped, everyone when it is flipped", async () => {
+  const summoner = makeSummoner("sum", [p1.id], [SPELL]);
+  const source = makeSource("m1");
+  const bare = { summoner, source, count: 1 };
+  assert.equal(logic.checkPlaceRequest({ user: p1, ...bare }).reason, "spellRequired", "shipped: a Player seat needs a spell");
+  assert.equal(logic.checkPlaceRequest({ user: gm, ...bare }).ok, true, "shipped: a GM seat may summon bare");
+  assert.equal(logic.checkPlaceRequest({ user: p1, ...bare, spellId: SPELL.id }).ok, true, "a spell is never held to the switch");
+
+  // The other position: the same module with its one switch line rewritten, in a scratch copy.
+  const { mkdtemp, readFile, writeFile, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const { pathToFileURL } = await import("node:url");
+  const dir = await mkdtemp(join(tmpdir(), "acks-summons-switch-"));
+  try {
+    const line = "export const bareSummonAllowed = (user) => !!user?.isGM;";
+    const src = await readFile(new URL("../scripts/lib/summons-logic.mjs", import.meta.url), "utf8");
+    assert.ok(src.includes(line), "the switch is one line the test can flip");
+    await writeFile(join(dir, "summons-logic.mjs"), src.replace(line, "export const bareSummonAllowed = (user) => !!user;"));
+    await writeFile(join(dir, "constants.mjs"), await readFile(new URL("../scripts/lib/constants.mjs", import.meta.url), "utf8"));
+    const flipped = await import(pathToFileURL(join(dir, "summons-logic.mjs")).href);
+    assert.equal(flipped.checkPlaceRequest({ user: p1, ...bare }).ok, true, "flipped: a Player seat may summon bare");
+    assert.equal(flipped.checkPlaceRequest({ user: stranger, ...bare }).reason, "notOwner", "ownership is still checked first");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+await t("a registered policy refuses with its own reason, on the seat and on the relay", async () => {
+  const { summoner } = setup();
+  const source = makeSource("m1");
+  const seen = [];
+  const off = logic.registerSummonPolicy((req) => {
+    seen.push(req);
+    return req.source.name === "Creature m1" ? "notNamed" : null;
+  });
+  try {
+    assert.equal(logic.checkPlaceRequest({ user: p1, summoner, source, count: 1, spellId: SPELL.id }).reason, "notNamed");
+    assert.equal(seen[0].spell, summoner.items.get(SPELL.id), "the policy is handed the spell item");
+    assert.deepEqual(await summonRelay(place()), { ok: false, reason: "notNamed" });
+    assert.equal(calls.actorCreate.length + calls.tokenCreate.length, 0, "a refused request makes nothing");
+  } finally {
+    assert.equal(off(), true);
+  }
+  assert.equal(off(), false, "unregistering twice says so");
+  assert.equal(logic.checkPlaceRequest({ user: p1, summoner, source, count: 1, spellId: SPELL.id }).ok, true, "once removed it no longer refuses");
+  assert.throws(() => logic.registerSummonPolicy("nope"), TypeError);
+});
+
+await t("a policy that answers null allows; a throwing policy is logged and treated as an allow", () => {
+  const summoner = makeSummoner("sum", [p1.id], [SPELL]);
+  const source = makeSource("m1");
+  const req = { user: p1, summoner, source, count: 1, spellId: SPELL.id };
+  const logged = [];
+  const realError = console.error;
+  console.error = (...args) => logged.push(args);
+  const offs = [logic.registerSummonPolicy(() => null), logic.registerSummonPolicy(() => { throw new Error("broken policy"); })];
+  try {
+    assert.deepEqual(logic.checkPlaceRequest(req), { ok: true }, "a throwing policy lets the request through");
+    assert.equal(logged.length, 1, "and is logged once");
+    assert.match(String(logged[0][0]), /summon policy threw/);
+    offs.push(logic.registerSummonPolicy(() => "badCount"));
+    assert.equal(logic.checkPlaceRequest(req).reason, "badCount", "a later policy still refuses after a throwing one");
+  } finally {
+    console.error = realError;
+    for (const off of offs) off();
+  }
+});
+
+await t("summons group by the spell that called them, with a dangling spell loose and a hand-bound token apart", () => {
+  const e = (name, record) => ({ name, record });
+  const hound = (castId, spellId, at, extra = {}) => ({ castId, name: "Ashmantle Hound", spellId, at, ...extra });
+  const entries = [
+    e("a", hound("late", "sp1", 9)),
+    e("b", hound("early", "sp1", 2, { spellName: "Old Name" })),
+    e("c", hound("late", "sp1", 9)),
+    e("d", hound("orphan", "gone", 4, { spellName: "Vanished Rite" })),
+    e("e", hound("bare", "", 5)),
+    e("f", null),
+    null,
+  ];
+  const spellsById = new Map([["sp1", { name: "Thornwake Call" }]]);
+  const { casts, loose, bound } = logic.groupBySpell(entries, spellsById);
+  assert.deepEqual(casts.map((c) => [c.spellId, c.spellName, c.castId, c.tokens.map((x) => x.name)]), [
+    ["sp1", "Thornwake Call", "early", ["b"]],
+    ["sp1", "Thornwake Call", "late", ["a", "c"]],
+  ]);
+  assert.deepEqual(loose.map((x) => x.name), ["d", "e"], "a dangling spellId and a bare cast are loose");
+  assert.equal(bound.length, 1, "a token with no record is bound; a null entry is dropped");
+  assert.equal(bound[0].name, "f");
+  assert.deepEqual(logic.groupBySpell(entries, { sp1: { name: "Plain Object" } }).casts[0].spellName, "Plain Object", "a plain object serves as the lookup");
+  assert.deepEqual(logic.groupBySpell(undefined, undefined), { casts: [], loose: [], bound: [] });
+  assert.equal(logic.groupBySpell([e("x", hound("c1", "sp1", 1))], undefined).loose.length, 1, "no spells to resolve against: everything is loose");
+});
+
+await t("a cast reads its spell's name from the record, and groupByCast carries it", () => {
+  const f = logic.summonFlags("Actor.s", { sourceUuid: "u", name: "Wolf", spellId: "sp1", spellName: "Thornwake Call", castId: "c", at: 7 });
+  assert.deepEqual(f[M][logic.SUMMON_RECORD_FLAG], { sourceUuid: "u", name: "Wolf", castId: "c", at: 7, spellId: "sp1", spellName: "Thornwake Call" });
+  assert.equal(logic.summonFlags("Actor.s", { sourceUuid: "u", spellName: "Orphan", castId: "c", at: 1 })[M][logic.SUMMON_RECORD_FLAG].spellName, undefined, "a name with no spell id is not kept");
+  const { casts } = logic.groupByCast([{ record: f[M][logic.SUMMON_RECORD_FLAG] }]);
+  assert.equal(casts[0].spellName, "Thornwake Call");
 });
 
 await t("casts group by their record, oldest first, with hand-bound creatures apart", () => {

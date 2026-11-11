@@ -2202,7 +2202,9 @@ API.md, "`summons`".
 
 **What a summon is.** An UNLINKED token whose actor carries the summoner's
 uuid in `flags["acks-extras"].summonedBy`, written into that token's own
-delta, beside a `summon` record `{sourceUuid, name, spellId?, castId, at}`.
+delta, beside a `summon` record `{sourceUuid, name, spellId?, spellName?, castId, at}`
+(`spellName` is read by the GM's client from the summoner's spell item, never
+from the payload, so a cast still reads by name after the spell is deleted).
 The token's base actor is a world copy of the library creature that nobody
 but the GM owns; the token is owned through `delta.ownership`, which grants
 OWNER to every non-GM owner of the summoner and to nobody else. Each token is
@@ -2210,9 +2212,27 @@ therefore its own creature with its own hit points and flags, and leaves the
 world with its token. The party cell counts `summonedBy` (character-sheet
 MODEL, "The party cell"); the record is what groups a cast.
 
-**Placing.** The seat picks the creature off the Actor shelves it can open
-(the importer's, and the system's, by pack index; a pack the seat cannot open
-offers nothing), a count, and optionally a spell item of the summoner. It
+**A summoning is tied to its spell.** The request names a spell item of the
+summoner, and the records it stamps keep that spell, so the party cell can group
+a character's summons by spell (`groupBySpell`: a cast whose spell still
+resolves is under it; a record whose spell is gone, or that never named one, is
+`loose` and still dismissable as a cast; a token with no record, bound by
+hand, is `bound` and only Release acts on it). A request naming no spell is
+refused `spellRequired` unless `bareSummonAllowed(user)` says so. That function
+is the one switch: the relay's check, the seat's own pre-check and the bare
+Summon… prompt all read it. It answers true for a GM seat only, so a Player
+seat summons through a spell (docs/character-sheet/DECISIONS.md, 2026-11-11).
+Feature rules over what a spell may call (which creature it names, how many)
+are policies a feature registers (`registerSummonPolicy`), run inside
+`checkPlaceRequest` after the built-in checks on the seat and on the GM's
+client; a policy that throws is logged and counts as an allow. lib imports no
+feature.
+
+**Placing.** The seat picks the creature and a count: `pickSummon` for a cast
+from a spell (the spell's named creatures, preselected with their amount, else
+the shelves), or the bare Summon… prompt, which offers the Actor shelves the
+seat can open (the importer's, and the system's, by pack index; a pack the seat
+cannot open offers nothing) and optionally a spell item of the summoner. It
 clicks the places with core's `canvas.tokens.placeTokens(previews, {create:
 false, preConfirm})`, which creates nothing and answers with the placed
 preview documents. A preview is the creature's own look and nothing that acts
@@ -2236,7 +2256,8 @@ alphanumeric string, and the time is the GM's clock.
   (`MAX_SUMMONS`, a bound on a relayed call, not a rule); the positions match
   the count, are finite and inside the scene's rectangle; the scene is the
   sender's viewed scene, the active one, or one they have LIMITED access to;
-  a named spell is a spell item on the summoner. Then the GM finds or makes
+  a named spell is a spell item on the summoner, and an unnamed one needs
+  `bareSummonAllowed`; then every registered policy allows. Then the GM finds or makes
   the ONE world copy of that creature (found by `summonCopy.sourceUuid`; made
   once per source even when two requests race), in an Actor folder stamped
   `summonFolder` and named by a lang key, owned by nobody but the GM and shorn

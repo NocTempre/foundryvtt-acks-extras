@@ -59,7 +59,7 @@ import { keepDetachedMarks, pinFontScale, pinLook, pinTheme } from "./client-pin
 import * as moneyLogic from "./money-logic.mjs";
 import * as storage from "./storage.mjs";
 import * as places from "./place.mjs";
-import { summonerOf, summonsOf, placeSummons, dismissSummons, registerSummons } from "./summons.mjs";
+import { summonerOf, summonsOf, placeSummons, dismissSummons, pickSummon, registerSummonPolicy, registerSummons } from "./summons.mjs";
 import * as actorRead from "./actor-read.mjs";
 import { loadRuledata } from "./ruledata.mjs";
 import { resolveLevelValue } from "./vocab.mjs";
@@ -374,9 +374,11 @@ const localImpl = Object.freeze({
    * A character's summoned creatures (summons.mjs): `summonerOf` reads whose
    * summon a creature is, `summonsOf` lists a character's on a scene,
    * `placeSummons` has the seat click where each stands and the GM's client
-   * make the tokens, `dismissSummons` confirms and has the GM remove them.
+   * make the tokens, `dismissSummons` confirms and has the GM remove them,
+   * `pickSummon` asks the creature and count of a spell's cast, and
+   * `registerSummonPolicy` adds a feature's refusal to the placement check.
    */
-  summons: { summonerOf, summonsOf, placeSummons, dismissSummons },
+  summons: { summonerOf, summonsOf, placeSummons, dismissSummons, pickSummon, registerSummonPolicy },
   /** Shared item baseline: isPhysical / isEquippable / weight6Of / … */
   itemModel,
   /** System actor reads: abilityMod / classLevel / monsterHd / hitDiceOrLevel. */

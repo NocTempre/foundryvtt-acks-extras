@@ -890,6 +890,9 @@ ROADMAP).
 
 ## 2026-11-10 — A summon is an unlinked token of a GM-made copy
 
+*Superseded in part* by 2026-11-11, "A summoning is tied to its spell", below:
+a Player seat no longer summons from a prompt with the spell optional.
+
 **Asked.** Players need tools to create the monster tokens a spell can summon
 (ledger row T-0456). The 2026-09-03 ruling above already makes a summon any
 creature whose actor names the character in `summonedBy`, bound from tokens
@@ -939,3 +942,31 @@ preview while it is placed. A player who may open no monster pack has nothing to
 summon, and the prompt says so. How a summoning entry constrains where its
 creature appears is not read yet: `placeSummons` takes the placement hook, and
 no feature supplies one.
+
+## 2026-11-11 — A summoning is tied to its spell
+
+**Asked.** T-0456 again, with the owner's rulings of 2026-11-11: summons are
+tied to spells; a summoning spell's commands sit in the character's party cell,
+its cast included while no creature of it stands; and the bare *Summon…* that
+names no spell stays for GM seats only.
+
+**New evidence.** Those rulings. The entry above, a day older, let any seat
+summon any creature its shelves held with a spell optional, which is what tying
+a summoning to its spell exists to stop.
+
+**Ruled.** A request names a spell item of the summoner, and the records it
+stamps keep that spell and its name, read on the GM's client from the item
+(lib MODEL, "Summons"). A request naming no spell is refused `spellRequired`
+unless `bareSummonAllowed(user)` allows it, and it allows a GM seat only. That
+one function is what the relay's check, the seat's pre-check and the bare
+prompt read, so widening it is one line. What a spell may call is a policy a
+feature registers with lib (`registerSummonPolicy`); lib imports no feature.
+The token shape, the GM-made copy and the relay of the entry above stand.
+
+**Rejected.** *Removing the bare prompt.* A GM still places creatures no spell
+names. *Leaving it to every seat.* A player would call whatever the shelves
+hold.
+
+**What it cost.** A player whose character holds no summoning spell has nothing
+to summon. A policy that throws is logged and counts as an allow, so a broken
+feature rule never blocks a placement and never enforces one either.
