@@ -48,10 +48,16 @@
   created in the Actors sidebar tab in the first seconds after a GM joined the
   game never became a party: it had no formation behind it until the repair
   tool adopted it. It is now set up as soon as your window has finished joining.
+- **Re-binding your class keeps your hit points.** Pressing Apply in the class
+  picker (the character sheet's class field → graduation cap) on the class and
+  level you already hold rolled your hit points again. They now stand; choosing
+  another level still sets that level and rolls it.
 - **The level-up wizard keeps its hit-point roll.** Closing the level-up wizard
   (the character sheet's class field → rising arrow) and opening it again rolled
   the hit points again. It now shows the same roll until the level is applied or
-  changes, even after a reload. Its old maximum is the one stored on the
+  changes, even after a reload. A change to your Constitution, a temporary one
+  included, keeps the dice and recomputes only the Constitution part, on each
+  die. Its old maximum is the one stored on the
   character, so an effect that raises maximum hit points is no longer written
   into it, and the class picker (the class field → graduation cap) does the same
   when a character leaves 0th level.

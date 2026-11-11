@@ -260,6 +260,18 @@ function replacingOwnFlags({ _id, data: { flags = {}, ...rest } }) {
  * @returns {Promise<{ok: boolean, election?: string|null, classKey?: string}>}
  *   `ok` false on a refusal or a dismissed election
  */
+/**
+ * Does binding `classItem` at `level` re-bind the class `actor` already holds,
+ * at the level it holds? Such a bind sets nothing the character does not
+ * already carry, so the class picker keeps its hit points rather than rolling
+ * them again; a bind at another level still sets that level.
+ */
+export function rebindsHeldClass(actor, classItem, level) {
+  const held = actor?.getFlag?.(MODULE_ID, FLAG_CLASSES);
+  const key = classItem?.system?.key || String(classItem?.name ?? "").toLowerCase();
+  return !!key && held?.key === key && Number(actor?.system?.details?.level) === Number(level);
+}
+
 export async function readyToApply(actor, classItem, { election: answer = null } = {}) {
   if (!actor || classItem?.type !== `${MODULE_ID}.class`) return { ok: false };
   if (classItem.system.isStub) {

@@ -33,7 +33,7 @@
 import { MODULE_ID, LANG_PREFIX, FLAG_CLASSES } from "./constants.mjs";
 import { classForActor, classForActorAsync, findByRef } from "./registry.mjs";
 import { applyClass, classUpdateData, XP_PATH } from "./apply.mjs";
-import { hdAt, lastDieLevel, parseHd, rollFullHitPoints, rollHitDice, storedMaxHp, xpForLevel } from "./hitpoints.mjs";
+import { hdAt, hitPointsFromFaces, lastDieLevel, parseHd, rollFullHitPoints, rollHitDice, storedMaxHp, xpForLevel } from "./hitpoints.mjs";
 import { awardKeyLevel, awardsAt, grantAbility, rungProficiencyType } from "./grants.mjs";
 import { closesRung, grantsFrom, readRungs, rungLabel, rungOptions, rungSelectHtml } from "./picks.mjs";
 import { isZeroLevel, readyForFirst, zeroLevelXp } from "./zero-level.mjs";
@@ -94,11 +94,14 @@ const ROLL_KEY = "levelUpRoll";
  * The dice are rolled once per (character, target level): the roll is kept on
  * the character and answers every later open of the wizard, so cancelling and
  * reopening cannot fish for a better one. A kept roll counts only for the
- * level, the mode, the hit dice and the Constitution modifier it was rolled
- * under; a record that differs in any of them is replaced by a fresh roll. The
- * record is cleared when the level is applied or moves
- * (`runLevelUp`, `guardLevelWrite`). The old maximum is the stored one, never
- * the prepared figure (`storedMaxHp`).
+ * level, the mode and the hit dice it was rolled under; a record that differs
+ * in any of them is replaced by a fresh roll. The record keeps the faces, and
+ * Constitution is applied to them at every read (`hitPointsFromFaces`), so a
+ * modifier that moved since — a temporary one included — changes the
+ * Constitution part and never the dice. A record without its faces counts only
+ * for the modifier it was rolled under. The record is cleared when the level
+ * is applied or moves (`runLevelUp`, `guardLevelWrite`). The old maximum is
+ * the stored one, never the prepared figure (`storedMaxHp`).
  *
  * @returns {Promise<{oldMax: number, newMax: number, conMod: number,
  *   roll: {formula: string, total: number}|null, missingHd: boolean}>}
@@ -119,23 +122,27 @@ export async function levelUpHitPoints(actor, classItem, next, mode) {
     return { oldMax, newMax: oldMax + Math.max(1, hd.flat - (prev?.flat ?? 0)), conMod, roll: null, missingHd: false };
   }
 
-  const stamp = { level: next, mode: additive ? "additive" : "full", hd: `${hd.dice}d${hd.sides}`, con: conMod };
+  const stamp = { level: next, mode: additive ? "additive" : "full", hd: `${hd.dice}d${hd.sides}` };
   const held = actor.getFlag(MODULE_ID, FLAG_CLASSES)?.[ROLL_KEY];
-  let kept = held && Object.entries(stamp).every(([key, value]) => held[key] === value) ? held : null;
+  const answers = held && Object.entries(stamp).every(([key, value]) => held[key] === value);
+  let kept = answers && (Array.isArray(held.faces) || held.con === conMod) ? held : null;
   if (!kept) {
     if (additive) {
       const roll = await new Roll(`1d${hd.sides}`).evaluate();
-      kept = { ...stamp, formula: roll.formula, dice: roll.total, total: roll.total };
+      kept = { ...stamp, con: conMod, formula: roll.formula, dice: roll.total, faces: [roll.total], total: roll.total };
     } else {
       // Constitution applies to each die and cannot take any of them below one
       // (hitpoints.mjs) — the same arithmetic the picker's rebuild uses, so a
       // character built at 5th and one levelled to 5th are rolled alike.
       const rolled = await rollHitDice(hd, conMod);
-      kept = { ...stamp, formula: rolled.roll.formula, dice: rolled.roll.total, total: rolled.total };
+      kept = { ...stamp, con: conMod, formula: rolled.roll.formula, dice: rolled.roll.total, faces: rolled.faces, total: rolled.total };
     }
     await actor.update({ [`flags.${MODULE_ID}.${FLAG_CLASSES}.${ROLL_KEY}`]: kept });
   }
-  const newMax = additive ? oldMax + Math.max(1, kept.total + conMod) : Math.max(kept.total, oldMax + 1);
+  // The full rule's total is the faces under the modifier held now; the additive
+  // rule's one die takes it below.
+  const total = !additive && Array.isArray(kept.faces) ? hitPointsFromFaces(kept.faces, conMod, { flat: hd.flat ?? 0 }) : kept.total;
+  const newMax = additive ? oldMax + Math.max(1, total + conMod) : Math.max(total, oldMax + 1);
   return { oldMax, newMax, conMod, roll: { formula: kept.formula, total: kept.dice }, missingHd: false };
 }
 

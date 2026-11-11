@@ -45,16 +45,27 @@ export function parseHd(formula) {
  * it fell, so a cell of several dice floors one of them. A term reporting no
  * faces (Foundry evaluated the formula some other way) falls back to a bulk
  * adjustment that holds the same floor on the total.
- * @returns {Promise<{roll: Roll, total: number, perDie: boolean}>}
+ * @returns {Promise<{roll: Roll, total: number, perDie: boolean, faces: number[]|null}>}
+ *   `faces` are the dice as they fell, null where the roll reported none
  */
 export async function rollHitDice(hd, conMod, { dieMinimum = 1 } = {}) {
   const roll = await new Roll(`${hd.dice}d${hd.sides}`).evaluate();
   const faces = (roll.dice?.[0]?.results ?? []).filter((r) => r.active !== false).map((r) => r.result);
   const perDie = faces.length === hd.dice;
-  const rolled = perDie
-    ? faces.reduce((sum, face, i) => sum + Math.max(1, (i === 0 ? Math.max(face, dieMinimum) : face) + conMod), 0)
-    : Math.max(roll.total, dieMinimum + Math.max(0, hd.dice - 1)) + hd.dice * conMod;
-  return { roll, total: rolled + (hd.flat ?? 0), perDie };
+  const total = perDie
+    ? hitPointsFromFaces(faces, conMod, { dieMinimum, flat: hd.flat ?? 0 })
+    : Math.max(roll.total, dieMinimum + Math.max(0, hd.dice - 1)) + hd.dice * conMod + (hd.flat ?? 0);
+  return { roll, total, perDie, faces: perDie ? faces : null };
+}
+
+/**
+ * A hit-dice cell's point total from its faces: Constitution on each die, no
+ * die below one, `dieMinimum` raising the first face before Constitution, and
+ * the cell's printed flat added after. The dice and the modifier stay apart,
+ * so the same faces answer for whatever modifier the character holds.
+ */
+export function hitPointsFromFaces(faces, conMod, { dieMinimum = 1, flat = 0 } = {}) {
+  return faces.reduce((sum, face, i) => sum + Math.max(1, (i === 0 ? Math.max(face, dieMinimum) : face) + conMod), 0) + flat;
 }
 
 /**

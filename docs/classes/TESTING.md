@@ -940,8 +940,10 @@ with `tabGroups.primary = "class"` and click `[data-action="levelUp"]`. The
 wizard is the DialogV2 holding `.acks-extras-classes-levelup-body`; its hit
 point line is the paragraph holding `→`, and closing the dialog without
 answering is a cancel. A reload is a real `Page.reload` over the seat's CDP
-target, never a navigation. The hit-point mode is the world setting
-`levelUpHpMode`; the walk restores it in its `finally`.
+target, never a navigation; mark the old page first and wait for a page
+without the mark, since the old one answers *ready* until the reload takes it
+down. The hit-point mode is the world setting `levelUpHpMode`; the walk
+restores it in its `finally`.
 
 **Steps → observable.**
 1. START 2, open the wizard. *A roll is shown, and
@@ -949,8 +951,11 @@ target, never a navigation. The hit-point mode is the world setting
    mode `full`, the 3rd-level dice and the Constitution modifier.*
 2. Close it and open it again; then reload the Player page and open it again.
    *The same line and the same record each time.*
-3. Raise Constitution to a score with another modifier and open it. *A new
-   roll, stamped with the new modifier.* Put Constitution back.
+3. Raise Constitution to a score with another modifier and open it. *The
+   record's faces are the same; the offer is those faces with the new
+   modifier on each, none below one.* Put Constitution back, add an effect
+   that ADDs to `system.scores.con.value`, and open it. *The same faces again;
+   nothing is rolled.* Sweep the effect.
 4. Open it and press Apply. *Level 3; the stored maximum is the figure the
    line offered; the record is gone.*
 5. Give the character 4th's experience (the climb leaves it at 3rd's, where
@@ -973,6 +978,12 @@ target, never a navigation. The hit-point mode is the world setting
     *The system serves the function; the picks are its modifier clamped at
     zero, none at the lowest score, never falling; for a character, its own
     prepared modifier.*
+11. START 3, set the stored maximum to a figure no roll of the class can make,
+    then from the Player seat open the class picker
+    (`acksExtras.classes.openClassPicker`), leave it on the class and level
+    held, and press Apply. *The stored maximum is unchanged.* Open it again,
+    type 4 into the level field (a `change` event, which re-renders the
+    window), and press Apply. *Level 4; the maximum is rolled.*
 
 **Teardown.** The fixtures are kept. The cards the climbs post (made by the
 Player's client, spoken by the fixture) and the step 6 effect are tracked by

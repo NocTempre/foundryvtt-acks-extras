@@ -498,12 +498,21 @@ the document's source.
 
 **The wizard rolls once per character and level.** The roll is kept on the
 character (`flags["acks-extras"].classes.levelUpRoll`: level, mode, hit dice,
-Constitution modifier, formula and totals) and answers every later open for the
-same target level, so cancelling and reopening is not a second draw. A record
-that differs in level, mode, hit dice or Constitution is replaced by a fresh
-roll. It is cleared when the wizard applies the level and by
+the faces as they fell, the Constitution modifier rolled under, formula and
+totals) and answers every later open for the same target level, so cancelling
+and reopening is not a second draw. A record that differs in level, mode or hit
+dice is replaced by a fresh roll. Constitution is applied to the kept faces at
+every read (`hitpoints.mjs` `hitPointsFromFaces`: on each die, none below one,
+RR ch. 1, Constitution), so a modifier that moved since — a temporary effect
+included — changes the Constitution part and never the dice; a record without
+its faces counts only for the modifier it was rolled under. The modifier read
+is the prepared one, so an effect on Constitution at the moment of Apply is
+written into the stored maximum with the rest. It is cleared when the wizard applies the level and by
 `guardLevelWrite` whenever the held level moves. The class picker's rebuild
-rolls afresh and keeps no record.
+rolls afresh and keeps no record. A picker bind of the class the character
+already holds, at the level it holds, rebuilds nothing and the hit points
+stand (`apply.mjs` `rebindsHeldClass`); a bind at another level sets that level
+and rolls it.
 
 **The character sheet's hit dice roll rebuilds the total** (`levelup.mjs`
 `rerollHitPoints`, the arithmetic `rollFullHitPoints`). A character holding a

@@ -8,7 +8,7 @@
  */
 import { MODULE_ID, LANG_PREFIX, FLAG_CLASSES } from "./constants.mjs";
 import { classItems, classForActor, byBookOrder } from "./registry.mjs";
-import { applyClass } from "./apply.mjs";
+import { applyClass, rebindsHeldClass } from "./apply.mjs";
 import { applyTemplate, netBonusPicks, templateShortfall } from "./chargen.mjs";
 import { awardsThrough, choosableGenerals, grantAbility, refOf } from "./grants.mjs";
 import { classPanelHtml, picksPanelHtml, templatePanelHtml } from "./panels.mjs";
@@ -282,7 +282,7 @@ export class ClassAssignApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const applied = await applyClass(this.actor, cls, {
       level: this.binding.level,
       confirm: false,
-      rebuildVitals: true,
+      rebuildVitals: !rebindsHeldClass(this.actor, cls, this.binding.level),
       grantAwards: true,
       answers: this.#offeredAnswers(),
     });

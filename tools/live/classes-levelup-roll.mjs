@@ -2,12 +2,15 @@
  * Live walk, classes-levelup-roll: the level-up wizard's hit points. Walks
  * docs/classes/TESTING.md "The wizard's kept roll" on the GM and Player seats:
  * the roll a climb offers is made once and survives a closed wizard and a
- * reloaded page; it is rolled again only for a different level, mode or
- * Constitution modifier; it is cleared by the climb and by a level moved under
- * it; the old maximum is the stored one, not one an effect raised; a class
- * printing no hit dice rolls nothing and says so; a level with no cell takes
- * the dice its class's rows print; and the Intellect bonus picks are the
- * system's own modifier. Machine values arrive through ./_env.mjs.
+ * reloaded page; it is rolled again only for a different level, mode or hit
+ * dice, and a changed Constitution, a temporary effect's included, keeps the
+ * dice and recomputes its own part; it is cleared by the climb and by a level
+ * moved under it; the old maximum is the stored one, not one an effect raised;
+ * a class printing no hit dice rolls nothing and says so; a level with no cell
+ * takes the dice its class's rows print; the Intellect bonus picks are the
+ * system's own modifier; and the class picker keeps the hit points when it
+ * re-binds the class held at the level held. Machine values arrive through
+ * ./_env.mjs.
  *
  * Fixtures, kept and found by marker: three classes with INVENTED level rows
  * (`classes/levelup-roll-class`, `classes/levelup-roll-gap-class`,
@@ -196,6 +199,47 @@ const P = {
       kept: actor.getFlag("acks-extras", "classes")?.levelUpRoll ?? null,
     };
   },
+  /** A temporary effect raising the Constitution score by `by`, as a potion's would. */
+  addConBoost: async ({ actorId, by }) => {
+    const actor = game.actors.get(actorId);
+    const before = actor.system.scores.con.mod;
+    const [effect] = await actor.createEmbeddedDocuments("ActiveEffect", [
+      { name: "QA Hearty Tonic", changes: [{ key: "system.scores.con.value", mode: CONST.ACTIVE_EFFECT_MODES.ADD, value: String(by) }] },
+    ]);
+    await new Promise((r) => setTimeout(r, 400));
+    return { uuid: effect?.uuid ?? null, raised: actor.system.scores.con.mod !== before };
+  },
+  /** Put a stored maximum no roll of the invented class can make, so a rebuild cannot hide behind a coincidence. */
+  setSentinel: async ({ actorId, max }) => {
+    const actor = game.actors.get(actorId);
+    await actor.update({ "system.hp.max": max, "system.hp.value": max });
+    return actor._source.system.hp.max;
+  },
+  /**
+   * The class picker as the sheet's graduation cap opens it, on the class bound, with the level field set
+   * to `level` the way a typed value submits it, then Apply pressed.
+   */
+  pickerApply: async ({ actorId, classId, level }) => {
+    const H = globalThis.__cl;
+    const actor = game.actors.get(actorId);
+    for (const app of foundry.applications.instances.values()) if (H.root(app)?.classList?.contains("acks-extras-classes-assign")) await app.close({ animate: false });
+    await acksExtras.classes.openClassPicker(actor);
+    const app = await H.poll(() => [...foundry.applications.instances.values()].find((a) => a.id === `acks-classes-assign-${actorId}` && H.root(a)));
+    if (!app) return { opened: false };
+    const onClass = app.binding.classUuid === game.items.get(classId)?.uuid;
+    const field = H.root(app).querySelector('input[name="acks-level"]');
+    if (field && Number(field.value) !== level) {
+      field.value = String(level);
+      field.dispatchEvent(new Event("change", { bubbles: true }));
+      await H.poll(() => app.binding.level === level, { tries: 30 });
+      await H.sleep(400);
+    }
+    const before = actor.system.details.level;
+    H.root(app).querySelector('footer button[type="submit"]')?.click();
+    await H.poll(() => !foundry.applications.instances.has(app.id), { tries: 60 });
+    await H.sleep(800);
+    return { opened: true, onClass, before, level: actor.system.details.level, storedMax: actor._source.system.hp.max };
+  },
   /** Give the character the experience its class asks for the next level, so the wizard is ready again. */
   readyNext: async ({ actorId, classId }) => {
     const actor = game.actors.get(actorId);
@@ -310,10 +354,19 @@ async function record(port, label, api) {
 }
 /** A real reload of the seat's page: the page, its module state and its open windows all go. */
 async function reload(port, label, api) {
+  // The old page answers "ready" until the reload takes it down, so it is marked first and the wait is for a page without the mark.
+  await api.eval(`globalThis.__clOldPage = true`);
   const s = await cdp(port);
   await s.send("Page.reload");
   s.close();
-  await sleep(1500);
+  const t0 = Date.now();
+  for (;;) {
+    let fresh = false;
+    try { fresh = await api.eval(`!globalThis.__clOldPage`); } catch { fresh = false; }
+    if (fresh) break;
+    if (Date.now() - t0 > 60_000) throw new Error(`${label}: the page did not reload`);
+    await sleep(500);
+  }
   return ready(api, label);
 }
 
@@ -372,11 +425,19 @@ try {
   const third = await run(player, P.openWizard, { actorId });
   check("after a real page reload the wizard shows the same roll", third.dialog && third.line === first.line && JSON.stringify(third.kept) === JSON.stringify(first.kept), { sameLine: third.line === first.line });
   await run(player, P.closeWizard);
+  // The full rule's offer from the kept faces under a modifier: Constitution on each die, none below one.
+  const offerFrom = (w) => Math.max((w.kept?.faces ?? []).reduce((sum, f) => sum + Math.max(1, f + w.conMod), 0), w.oldMax + 1);
   const highMod = await run(gm, P.setCon, { actorId, con: CON.high });
   const fourth = await run(player, P.openWizard, { actorId });
-  check("a different Constitution modifier is rolled again, stamped with the new one", fourth.dialog && fourth.kept?.con === highMod && fourth.kept?.con !== first.kept?.con, { stamped: fourth.kept?.con === highMod, differs: fourth.kept?.con !== first.kept?.con });
+  check("a different Constitution modifier keeps the dice and recomputes only its own part", fourth.dialog && highMod !== first.conMod && JSON.stringify(fourth.kept?.faces) === JSON.stringify(first.kept?.faces) && fourth.newMax === offerFrom(fourth) && fourth.newMax !== first.newMax, { sameFaces: JSON.stringify(fourth.kept?.faces) === JSON.stringify(first.kept?.faces), recomputed: fourth.newMax === offerFrom(fourth) });
   await run(player, P.closeWizard);
   await run(gm, P.setCon, { actorId, con: CON.plain });
+  const boost = await run(gm, P.addConBoost, { actorId, by: CON.high - CON.plain });
+  if (boost.uuid) { await gm.track(boost.uuid, "ActiveEffect"); own.push(boost.uuid); }
+  const boosted = await run(player, P.openWizard, { actorId });
+  check("a temporary effect on Constitution rolls nothing again", boost.raised && JSON.stringify(boosted.kept?.faces) === JSON.stringify(first.kept?.faces) && boosted.newMax === offerFrom(boosted), { raised: boost.raised, sameFaces: JSON.stringify(boosted.kept?.faces) === JSON.stringify(first.kept?.faces) });
+  await run(player, P.closeWizard);
+  if (boost.uuid) note("boost swept", await gm.sweepTracked({ only: [boost.uuid] }));
   const fifth = await run(player, P.openWizard, { actorId });
   await run(player, P.clearNotes);
   const climbed = await run(player, P.applyWizard, { actorId });
@@ -429,6 +490,15 @@ try {
   await run(player, P.closeWizard);
   note("mode restored", await run(gm, P.setting, { value: priorMode === "additive" ? "additive" : priorMode }));
   priorMode = null;
+
+  section("the class picker keeps hit points when it re-binds the class held");
+  shaped = await run(gm, P.shape, { actorId, classId: cls.id, start: 3, con: CON.plain });
+  const SENTINEL = 999;
+  const sentinel = await run(gm, P.setSentinel, { actorId, max: SENTINEL });
+  const rebound = await run(player, P.pickerApply, { actorId, classId: cls.id, level: 3 });
+  check("a re-bind of the class held, at the level held, keeps the stored maximum", sentinel === SENTINEL && rebound.opened && rebound.onClass && rebound.level === 3 && rebound.storedMax === SENTINEL, { opened: rebound.opened, onClass: rebound.onClass, level: rebound.level, kept: rebound.storedMax === SENTINEL });
+  const moved = await run(player, P.pickerApply, { actorId, classId: cls.id, level: 4 });
+  check("a bind of the same class at another level sets that level and rolls its hit points", moved.opened && moved.level === 4 && moved.storedMax !== SENTINEL && moved.storedMax > 0, { level: moved.level, rebuilt: moved.storedMax !== SENTINEL });
 
   section("the Intellect bonus picks are the system's modifier");
   const picks = await run(player, P.intPicks, { actorId });

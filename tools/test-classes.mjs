@@ -25,7 +25,7 @@ import {
   valueRow,
   xpSchedule,
 } from "../scripts/classes/builder-logic.mjs";
-import { classUpdateData, damageBonusLadder, syncClassTraining } from "../scripts/classes/apply.mjs";
+import { classUpdateData, damageBonusLadder, rebindsHeldClass, syncClassTraining } from "../scripts/classes/apply.mjs";
 import { classForActor, findByRef, publish } from "../scripts/classes/registry.mjs";
 import { CLASS_TYPE, PROGRESSIONS_DOC_ID } from "../scripts/classes/constants.mjs";
 import { awardsAt, awardsThrough, choosableGenerals, spellLanes, admitsSpell, choosableSpells } from "../scripts/classes/grants.mjs";
@@ -744,6 +744,21 @@ await atest("the level-up wizard never passes a first-level floor", () => {
   for (const call of src.matchAll(/rollHitDice\(([^)]*)\)/g)) {
     assert.equal(call[1].split(",").length, 2, `rollHitDice(${call[1]}) takes a third argument`);
   }
+});
+
+await atest("the class picker keeps hit points when it re-binds the class held, at the level held", () => {
+  const holder = (key, level) => ({
+    system: { details: { level } },
+    getFlag: (_m, k) => (k === "classes" && key ? { key } : undefined),
+  });
+  const cls = (key) => ({ name: "Invented", system: { key } });
+  assert.equal(rebindsHeldClass(holder("invented", 3), cls("invented"), 3), true, "same class, same level");
+  assert.equal(rebindsHeldClass(holder("invented", 3), cls("invented"), 4), false, "same class at another level sets that level");
+  assert.equal(rebindsHeldClass(holder("other", 3), cls("invented"), 3), false, "another class");
+  assert.equal(rebindsHeldClass(holder(null, 1), cls("invented"), 1), false, "no class held");
+  assert.equal(rebindsHeldClass(holder("invented", 2), { name: "Invented", system: {} }, 2), true, "a class with no key is matched by its name");
+  const src = readFileSync(new URL("../scripts/classes/assign-app.mjs", import.meta.url), "utf8");
+  assert.match(src, /rebuildVitals:\s*!rebindsHeldClass\(/, "the picker asks before it rebuilds");
 });
 
 await atest("chargen asks for the rebuild, so a generated character's hit points are rolled", () => {
@@ -2163,20 +2178,60 @@ await atest("the level-up roll is made once per character and level, and reopeni
   assert.equal(actor.updates.length, 2);
   assert.notEqual(other.roll.total, first.roll.total);
   assert.equal(actor.flag.levelUpRoll.level, 5, "one record, for the level being climbed");
-  // A changed Constitution, hit dice or mode rolls afresh: the kept dice answered another question.
-  globalThis.Roll = scriptDie([2]);
-  actor.system.scores.con.mod = 2;
-  await levelUpHitPoints(actor, cls, 5, "full");
-  assert.equal(actor.updates.length, 3);
+  // Changed hit dice or mode roll afresh: the kept dice answered another question.
   globalThis.Roll = scriptDie([2]);
   await levelUpHitPoints(actor, diceClass(4, 5), 5, "full");
-  assert.equal(actor.updates.length, 4);
+  assert.equal(actor.updates.length, 3);
   const moded = climber();
   globalThis.Roll = scriptDie([2]);
   await levelUpHitPoints(moded, cls, 4, "full");
   globalThis.Roll = scriptDie([2]);
   await levelUpHitPoints(moded, cls, 4, "additive");
   assert.equal(moded.updates.length, 2, "the setting changed, so the dice are rolled under the new rule");
+});
+
+await atest("a changed Constitution keeps the kept dice and recomputes only its own part, per die", async () => {
+  const cls = diceClass();
+  const actor = climber({ stored: 4, con: 1 });
+  globalThis.Roll = scriptDie([1, 5, 2, 6]);
+  const first = await levelUpHitPoints(actor, cls, 4, "full");
+  assert.deepEqual(actor.flag.levelUpRoll.faces, [1, 5, 2, 6], "the record keeps each face");
+  assert.equal(first.newMax, 2 + 6 + 3 + 7);
+  // A bonus, a penalty and back: never a new roll, and no die below one.
+  globalThis.Roll = scriptDie([7]);
+  actor.system.scores.con.mod = 3;
+  const raised = await levelUpHitPoints(actor, cls, 4, "full");
+  assert.equal(raised.newMax, 4 + 8 + 5 + 9);
+  actor.system.scores.con.mod = -2;
+  const lowered = await levelUpHitPoints(actor, cls, 4, "full");
+  assert.equal(lowered.newMax, Math.max(1 + 3 + 1 + 4, 4 + 1), "the penalty floors the 1 and the 2 at one");
+  actor.system.scores.con.mod = 1;
+  const back = await levelUpHitPoints(actor, cls, 4, "full");
+  assert.equal(back.newMax, first.newMax);
+  assert.equal(actor.updates.length, 1, "nothing was rolled or written after the first open");
+  assert.equal(raised.roll.total, first.roll.total, "the line shows the same dice");
+  // The additive rule's one die is kept the same way.
+  const added = climber({ stored: 10, con: 0 });
+  globalThis.Roll = scriptDie([4]);
+  const a1 = await levelUpHitPoints(added, cls, 4, "additive");
+  added.system.scores.con.mod = 2;
+  globalThis.Roll = scriptDie([1]);
+  const a2 = await levelUpHitPoints(added, cls, 4, "additive");
+  assert.deepEqual([a1.newMax, a2.newMax, added.updates.length], [14, 16, 1]);
+});
+
+await atest("a kept roll recorded without its faces counts only for the modifier it was rolled under", async () => {
+  const cls = diceClass();
+  const actor = climber({ con: 1, flag: { levelUpRoll: { level: 4, mode: "full", hd: "4d7", con: 1, formula: "4d7", dice: 8, total: 12 } } });
+  globalThis.Roll = scriptDie([2]);
+  const same = await levelUpHitPoints(actor, cls, 4, "full");
+  assert.deepEqual([same.newMax, actor.updates.length], [12, 0], "the same modifier reads the record as it stands");
+  actor.system.scores.con.mod = 2;
+  globalThis.Roll = scriptDie([3]);
+  const moved = await levelUpHitPoints(actor, cls, 4, "full");
+  assert.equal(actor.updates.length, 1, "another modifier with no faces to apply it to rolls again");
+  assert.deepEqual(actor.flag.levelUpRoll.faces, [3, 3, 3, 3]);
+  assert.equal(moved.newMax, 4 * 5);
 });
 
 await atest("the additive house rule keeps its one die per level, and past the last die level rolls nothing", async () => {
