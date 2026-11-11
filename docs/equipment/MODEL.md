@@ -145,6 +145,19 @@ Per-actor proficiency profile (not effects): `flags.acks-extras.styles` (trained
 fighting styles), `.weaponProficiency` (a CSV of grant tokens), `.armorMax`
 (heaviest armour category). Set via the Configure Proficiencies macro.
 
+**Imported proficiency items widen the profile.** A character's ability items
+of the weapon-proficiency, armour-proficiency and fighting-style categories,
+read through `lib/proficiency-strip.mjs` `abilityContributions` and
+`abilityGrants` (the Training pills' own reader), count toward the gate:
+`weaponProficiency` reads each weapon pick in the grant grammar below (the
+sheet vocabulary's key, else a named weapon, else the class
+`weaponTokenClasses` files it under), `armorMax` takes the stated rung as one
+more candidate, and `trainedStyles` adds the style. They widen a declared
+weapon list or armour limit and never declare one, so a character with
+neither stays permissive. A pick naming one weapon passes that weapon while
+its pill lights the weapon's class, as a named token from the flag or a
+marker does.
+
 **Grant tokens** (JJ p. 290) are the shared vocabulary of `.weaponProficiency`
 and the `weaponProf` / `martialWeapons` effect domains:
 

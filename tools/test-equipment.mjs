@@ -1097,6 +1097,37 @@ try {
   check("strip: a restricted list lights the classes its weapons are filed under",
     restricted.has("other") && restricted.has("sworddagger") && restricted.has("spearpolearm") && !restricted.has("axe") && !restricted.has("bow"));
   check("strip: an unrestricted pick lights everything", lit(["all"]).size === 8);
+
+  // The proficiency gate honours the training an imported proficiency
+  // states, read the way the pills read it: what the pill lights, the gate
+  // passes, on top of a declared list; with no list it declares nothing.
+  const proficiencyItem = (category, selections) => ({
+    id: `p-${category}`, name: category, type: "ability", system: {}, effects: [], getFlag: () => undefined,
+    flags: { "acks-extras": { extras: { category, selections } } },
+  });
+  const axeChunk = marker("weaponProf", "axe");
+  const swordP2 = classifyWeapon(weapon("Sword", { melee: true }));
+  const daggerP2 = classifyWeapon(weapon("Dagger", { melee: true }));
+  const axeP2 = classifyWeapon(weapon("Battle Axe", { melee: true }));
+  const withSwords = actor([proficiencyItem("weaponProficiency", ["swords"])], { effects: [axeChunk] });
+  check("gate: a class pick the pill lights passes beside a declared list", isWeaponProficient(withSwords, swordP2) && isWeaponProficient(withSwords, daggerP2) && isWeaponProficient(withSwords, axeP2));
+  check("gate: every weapon filed under a lit pill passes",
+    lit(["swords"]).has("sworddagger") && Object.entries(WEAPON_TABLE).filter(([, w]) => w.cat === "swordDagger").every(([k]) => isWeaponProficient(withSwords, classifyWeapon(weapon(k, { melee: true })))));
+  const withDagger = actor([proficiencyItem("weaponProficiency", ["dagger"])], { effects: [axeChunk] });
+  check("gate: a named weapon pick passes that weapon, not its whole class", isWeaponProficient(withDagger, daggerP2) && !isWeaponProficient(withDagger, swordP2));
+  check("gate: without the imported pick the declared list alone refuses the sword", !isWeaponProficient(actor([], { effects: [axeChunk] }), swordP2));
+  const onlyAbility = actor([proficiencyItem("weaponProficiency", ["axe"])]);
+  check("gate: an imported pick with no declared list declares none", weaponProficiency(onlyAbility).all && isWeaponProficient(onlyAbility, swordP2));
+  const swordHeld = weapon("Sword", { melee: true, id: "gs" });
+  check("gate: the non-proficient use package is absent with the imported pick, present without",
+    !getLoadout(actor([swordHeld, proficiencyItem("weaponProficiency", ["swords"])], { effects: [axeChunk] })).nonProficientUse
+    && getLoadout(actor([swordHeld], { effects: [axeChunk] })).nonProficientUse);
+  check("gate: imported armour training raises a declared cap",
+    armorMax(actor([proficiencyItem("armorProficiency", ["medium"])], { effects: [marker("armourProficiency", "light")] })) === "medium");
+  check("gate: imported armour training alone declares no cap", armorMax(actor([proficiencyItem("armorProficiency", ["light"])])) === "heavy");
+  const { trainedStyles: stylesOf } = await import(new URL("loadout.mjs", S));
+  check("gate: an imported fighting style trains that style",
+    stylesOf(actor([proficiencyItem("fightingStyle", ["two-handed"])])).has("twohanded") && !stylesOf(actor([])).has("twohanded"));
 } finally {
   globalThis.acksExtras.abilities = savedAbilities;
   globalThis.acksExtras.equipment = savedEquipment;

@@ -44,6 +44,11 @@
 
 ### Fixed
 
+- **A proficiency your character's ability grants counts on attack.** A weapon
+  proficiency ability whose pick lights a Training pill on the character sheet's
+  Stats tab no longer leaves that weapon attacking as non-proficient, and armour
+  and fighting-style proficiency abilities count the same way, on top of the
+  training the class declares.
 - **A party made just after you join is set up.** A Party Formation actor
   created in the Actors sidebar tab in the first seconds after a GM joined the
   game never became a party: it had no formation behind it until the repair

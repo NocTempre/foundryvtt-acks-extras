@@ -10,10 +10,15 @@
  *   flags.acks-extras.armorMax           unarmored|veryLight|light|medium|heavy
  *   flags.acks-extras.martialWeapons     (effect) CSV of added weapon categories
  *   flags.acks-extras.armorTraining      (effect) integer categories added
+ * The training a character's imported proficiency items state (read through
+ * lib/proficiency-strip.mjs, as the Training pills read it) widens a declared
+ * weapon list or armour limit and adds fighting styles; it never declares a
+ * list on its own.
  */
 import { MODULE_ID, ACTOR_FLAGS, EFFECT_DOMAINS, SETTINGS } from "./constants.mjs";
 import { ARMOR_LADDER, ARMOR_GATED_SKILLS, ARMOR_GATE_MAX, WEAPONS, WEAPON_ALIASES } from "./config.mjs";
-import { slug } from "../lib/vocab.mjs";
+import { slug, SELECTION_VOCAB, matchSelectionKey } from "../lib/vocab.mjs";
+import { abilityContributions, abilityGrants, weaponTokenClasses } from "../lib/proficiency-strip.mjs";
 import { collectStringFlags, sumEffectModifiers } from "./effects.mjs";
 
 /**
@@ -155,9 +160,34 @@ export function grantMatches(token, profile) {
   return !!key && profile.key === key;
 }
 
+/** This feature's weapon table, in the shape the strips' resolvers read an equipment API. */
+const OWN_TABLE = Object.freeze({ config: { WEAPONS } });
+
 /**
- * The actor's resolved weapon proficiency: the per-actor profile flag, plus the
- * class-training chunks and Martial Training grants carried as effect markers.
+ * The weapon grant tokens the character's imported proficiency items state,
+ * in this file's grant grammar. A pick the sheet's vocabulary names is its
+ * key, and a pick the grammar already reads (one named weapon) is itself;
+ * anything else is placed at class granularity by `weaponTokenClasses`, the
+ * reading that lights the Training pill.
+ */
+function abilityWeaponTokens(actor) {
+  const out = [];
+  for (const { category, tokens } of abilityContributions(actor)) {
+    if (category !== "weaponProficiency") continue;
+    for (const pick of tokens) {
+      const read = [matchSelectionKey(SELECTION_VOCAB.weaponProficiency, pick), pick].find((t) => t && !["", "unknown"].includes(classifyGrantToken(t)));
+      if (read) out.push(normalizeGrantToken(read));
+      else for (const k of weaponTokenClasses(pick, OWN_TABLE)) if (CATEGORY_TOKENS.has(k)) out.push(k);
+    }
+  }
+  return out;
+}
+
+/**
+ * The actor's resolved weapon proficiency: the per-actor profile flag, the
+ * class-training chunks and Martial Training grants carried as effect
+ * markers, and the training the character's imported proficiency items
+ * state.
  * @returns {{all:boolean, tokens:Set<string>}}
  */
 export function weaponProficiency(actor) {
@@ -176,6 +206,9 @@ export function weaponProficiency(actor) {
   // "proficient with nothing" turned a slip of the keyboard into a character
   // non-proficient with every weapon it owns, and said nothing about it.
   if (!tokens.size) return { all: true, tokens };
+  // An imported proficiency's training widens a declared list; it never
+  // declares one, so a character with no list stays permissive above.
+  for (const t of abilityWeaponTokens(actor)) tokens.add(t);
   return { all: tokens.has("all"), tokens };
 }
 
@@ -204,15 +237,20 @@ export function isWeaponProficient(actor, profile, prof = weaponProficiency(acto
 
 /**
  * Highest armour category the actor may wear without penalty: the best of the
- * per-actor profile flag and any class-training chunk, then raised by Armour
- * Training. With neither flag nor chunk we stay permissive ("heavy") rather than
- * penalise an un-configured character.
+ * per-actor profile flag, any class-training chunk and the armour training an
+ * imported proficiency item states, then raised by Armour Training. With
+ * neither flag nor chunk we stay permissive ("heavy") rather than penalise an
+ * un-configured character.
  */
 export function armorMax(actor) {
   const granted = [...collectStringFlags(actor, EFFECT_DOMAINS.ARMOR_PROF)];
   const flag = actor.getFlag?.(MODULE_ID, ACTOR_FLAGS.ARMOR_MAX);
   const candidates = [...granted];
   if (flag) candidates.push(String(flag).toLowerCase());
+  // An imported proficiency raises a declared limit and never declares one.
+  // The strips' armour ladder is this one, rung for rung.
+  const abilityRung = candidates.length ? ARMOR_LADDER[abilityGrants(actor, OWN_TABLE).armourRank] : undefined;
+  if (abilityRung) candidates.push(abilityRung);
   // Compare case-insensitively against the ladder (which is camelCase).
   const rankOf = (c) => ARMOR_LADDER.findIndex((l) => l.toLowerCase() === String(c).toLowerCase());
   let base = "heavy";

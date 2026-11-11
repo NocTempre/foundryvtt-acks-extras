@@ -183,6 +183,21 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    (`scripts/equipment/attack-mods.mjs`) returns that one row. Roll the same
    weapon from the item sheet's 2H row: the dialog opens on the two-handed
    die (the system's alternate damage mode first).
+3e. Training an imported proficiency states (`tools/live/equipment-ability-training.mjs`,
+   GM seat). Fixture `equipment/ability-training`: a character whose training
+   effect declares one weapon class (`weaponProf` = `axe`), an equipped sword,
+   a Strength above average, and a weapon-proficiency ability as the ability
+   sheet writes one (`flags.acks-extras.extras`: category `weaponProficiency`,
+   picks set by the walk); each run brings it to that shape first. With
+   enforcement `on` and a pick covering swords: *Observable:* the swords pill
+   is lit, `getLoadout(actor).nonProficientUse` is false, and an attack through
+   the system's own `actor.makeAttackThrow({item, attackType: "melee",
+   skipDialog: true})` carries no **Non-proficient** row in
+   `outcome.result.attack.modifiers` or on its card. Move the pick to Bows: the
+   pill goes dark and the same attack carries the row. Put it back: the row is
+   gone. Assert presence only, never the row's size. Teardown: the walk sweeps
+   its attack cards by id and restores the enforcement setting; the fixture
+   stays.
 4. Containers: declare capacity on the sack, `storeIn` the weapon, then
    `takeOut`.
    *Observable:* `contentsOf(sack)` lists it, `encumbranceDelta6` changes, and

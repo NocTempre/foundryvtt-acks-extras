@@ -2086,3 +2086,30 @@ responder exists to close.
 **What it cost.** The first load after an update now writes the loadout effect
 of each owned character whose changes differ from what is stored, one write
 each, where before nothing was written until an equip toggle.
+
+### The proficiency gate honours an imported proficiency's training (2026-11-11)
+
+A weapon-proficiency ability lit its Training pill, since
+`lib/proficiency-strip.mjs` reads ability items as a source of its own, while
+`isWeaponProficient` read only effect markers and the actor flag: a sword the
+pill showed as trained attacked with the non-proficient package. Armour and
+fighting-style abilities had the same split.
+
+**Ruled (owner).** The gate honours the training an ability states. It reads
+the items through the strips' own reader (`abilityContributions`,
+`abilityGrants`), so the two cannot disagree on which items count.
+
+**Ruled here.** An ability's training widens a declared weapon list or armour
+limit and never declares one: with neither from a marker or the flag, the gate
+stays permissive, even where the strips, which take an ability as configuring
+them, show unlit pills. A weapon pick is read in the gate's grammar first, so
+a pick naming one weapon passes that weapon and not its class; only a pick the
+grammar cannot read is placed at class granularity, as the pill places it.
+
+**Rejected.** The pill no longer lighting for an ability (the owner's other
+option). An ability declaring a list by itself: importing one proficiency
+would make the character non-proficient with every weapon it does not name,
+the failure the permissive default exists to prevent.
+
+**What it cost.** Every loadout build reads the character's ability items.
+Where no list is declared, an unlit pill beside a permissive gate remains.

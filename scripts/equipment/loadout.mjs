@@ -13,6 +13,7 @@ import { EFFECT_DOMAINS } from "./constants.mjs";
 import { weaponProficiency, isWeaponProficient, armorMax, isArmorProficient, thiefSkillsGated, enforcementActive } from "./proficiency.mjs";
 import { occupiesHand } from "./overlays/shield-variants.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
+import { abilityGrants } from "../lib/proficiency-strip.mjs";
 import { bearerLights, lightTypeOf } from "../lib/light.mjs";
 import { containedIn } from "../lib/item-model.mjs";
 
@@ -152,6 +153,9 @@ export function trainedStyles(actor) {
     const [style, kind] = s.split(":");
     if (!kind) set.add(styleKey(style)); // base training marker
   }
+  // A fighting style an imported proficiency item states trains it the way a
+  // marker does: the same reading lights its Training pill.
+  for (const s of abilityGrants(actor, null).styles) set.add(styleKey(s));
   return set;
 }
 

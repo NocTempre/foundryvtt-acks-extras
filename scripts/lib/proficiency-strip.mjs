@@ -201,9 +201,12 @@ export function abilityContributions(actor) {
 /**
  * What the character's imported proficiency items grant, folded to the
  * strips' vocabulary. `equipment` is that feature's API, for placing a named
- * weapon by its table.
+ * weapon by its table. The equipment feature's proficiency gate reads the
+ * styles and the armour rung from here, so a lit pill and the gate agree.
+ * @returns {{styles: Set<string>, weapons: Set<string>, armourRank: number, has: {styles: boolean, weapons: boolean, armour: boolean}}}
+ *   `armourRank` indexes the armour ladder lightest first, -1 for none.
  */
-function abilityGrants(actor, equipment) {
+export function abilityGrants(actor, equipment) {
   const out = { styles: new Set(), spec: new Set(), weapons: new Set(), armourRank: -1, has: { styles: false, weapons: false, armour: false } };
   for (const { category, tokens } of abilityContributions(actor)) {
     if (category === "fightingStyle") {
