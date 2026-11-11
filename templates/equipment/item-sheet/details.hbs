@@ -17,10 +17,12 @@
       </div>
       {{#each details.price.lines}}
       <div class="acks-extras-item-sheet__fact">
-        <span class="acks-extras-item-sheet__fact-label is-plain">{{label}}{{#if op}} <span class="acks-nums">{{#if (eq op "mul")}}× {{amount}}{{else if (eq op "add")}}+ {{amount}}{{/if}}</span>{{/if}}</span>
+        <span class="acks-extras-item-sheet__fact-label is-plain"{{#if tip}} data-tooltip-text="{{tip}}"{{/if}}>{{label}}{{#if op}} <span class="acks-nums">{{#if (eq op "mul")}}× {{amount}}{{else if (eq op "add")}}+ {{amount}}{{/if}}</span>{{/if}}</span>
         <span class="acks-spacer"></span>
         {{#if (and @root.editing (eq key "listed"))}}
         <input class="acks-input acks-input--line acks-nums is-xs" type="number" name="acksListedPrice" value="{{amount}}" min="0" step="any" aria-label="{{label}}">
+        {{else if notImported}}
+        <span class="acks-extras-item-sheet__fact-value"{{#if tip}} data-tooltip-text="{{tip}}"{{/if}}>{{localize 'ACKS-EQUIPMENT.printed.notImported'}}</span>
         {{else}}
         <span class="acks-extras-item-sheet__fact-value acks-nums">{{runningLabel}}</span>
         {{/if}}

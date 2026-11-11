@@ -23,7 +23,9 @@
  */
 import { MODULE_ID, ITEM_FLAGS } from "./constants.mjs";
 import { MASTERWORK, SILVER } from "./config.mjs";
+import { silverFigure, masterworkFigure, provenanceTip, notImportedTip } from "./printed-layers.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
+import { whenReady } from "../lib/library.mjs";
 import { sumDeltas, entryOf, definitionFrom } from "./variations.mjs";
 import { variationItemsOf } from "./variation-items.mjs";
 
@@ -111,15 +113,19 @@ export function layerDeltas(
   // surcharge, which RAW states as a flat addition (RR p. 159); a scavenged item
   // is then worth a fraction of whatever it would otherwise fetch (RR p. 160).
   const d = { bonus: 0, damage: 0, ac: 0, weight6: 0, costAdd: 0, costMul: 1, costBaseMul: 1 };
-  // Silver moves no other number (RR ch.4).
-  if (silvered) d.costBaseMul *= SILVER.priceMultiplier;
-  const mw = masterwork && masterwork !== "none" ? MASTERWORK[masterwork] : null;
-  if (mw) {
-    d.bonus += mw.toHit ?? 0;
-    d.damage += mw.toDamage ?? 0;
-    d.ac += mw.ac ?? 0;
-    d.weight6 -= (mw.weightMinusStone ?? 0) * 6;
-    d.costAdd += mw.cost ?? 0;
+  // Both layers read the imported variation documents (`printed-layers.mjs`);
+  // a layer whose document is not imported applies nothing.
+  const sv = silvered ? silverFigure() : null;
+  const mw = masterwork && masterwork !== "none" ? masterworkFigure(masterwork) : null;
+  for (const fig of [sv, mw]) {
+    if (!fig) continue;
+    d.bonus += fig.bonus;
+    d.damage += fig.damage;
+    d.ac += fig.ac;
+    d.weight6 += fig.weight6;
+    d.costAdd += fig.costAdd;
+    d.costMul *= fig.costMul;
+    d.costBaseMul *= fig.costBaseMul;
   }
   if (scavenged) {
     d.bonus += scavenged.attack ?? 0;
@@ -160,6 +166,9 @@ export function layerDeltas(
  */
 export async function recomputeItemFields(item, overrides = {}) {
   if (!item) return;
+  // The layers' figures are library documents, read synchronously; a shelf
+  // still loading would answer null and write the item back to pristine.
+  await whenReady();
   const masterwork = "masterwork" in overrides ? overrides.masterwork : masterworkTierOf(item);
   const scavenged = "scavenged" in overrides ? overrides.scavenged : scavengedOf(item);
   const silvered = "silvered" in overrides ? overrides.silvered : silveredFlagOf(item) === true;
@@ -212,6 +221,40 @@ export function baseForTyped(key, typed, delta) {
   return Number.isFinite(base) ? base : null;
 }
 
+/**
+ * The silver and masterwork layers an item is set to but whose imported
+ * document is absent, so they apply nothing. Each names the variation key a
+ * Judge would import or make by hand.
+ *
+ * @returns {{layer: "silver"|"masterwork", tier?: string, key: string}[]}
+ */
+export function unstatedLayers(
+  item,
+  { masterwork = masterworkTierOf(item), silvered = silveredFlagOf(item) === true } = {},
+) {
+  const out = [];
+  if (silvered && !silverFigure()) out.push({ layer: "silver", key: SILVER.variation });
+  if (masterwork && masterwork !== "none" && MASTERWORK[masterwork] && !masterworkFigure(masterwork)) {
+    out.push({ layer: "masterwork", tier: masterwork, key: MASTERWORK[masterwork] });
+  }
+  return out;
+}
+
+/**
+ * Where the silver and masterwork figures on an item came from, one clause
+ * per layer it carries, joined as a tooltip: the document and page each was
+ * read from, or that it is not imported. Empty when the item carries neither.
+ */
+export function layerProvenance(item) {
+  const tier = masterworkTierOf(item);
+  const parts = [];
+  const add = (label, fig, key) =>
+    parts.push(`${game.i18n.localize(label)}: ${fig ? provenanceTip(fig.source) : notImportedTip(key)}`);
+  if (tier && tier !== "none" && MASTERWORK[tier]) add("ACKS-EQUIPMENT.props.masterwork", masterworkFigure(tier), MASTERWORK[tier]);
+  if (silveredFlagOf(item) === true) add("ACKS-EQUIPMENT.props.silver", silverFigure(), SILVER.variation);
+  return parts.join(" · ");
+}
+
 /** Human summary of what the layers are doing, for the sheet. */
 export function layerSummary(item) {
   const d = layerDeltas(item);
@@ -220,6 +263,9 @@ export function layerSummary(item) {
   if (d.damage) bits.push(`${d.damage > 0 ? "+" : ""}${d.damage} dmg`);
   if (d.ac) bits.push(`${d.ac > 0 ? "+" : ""}${d.ac} AC`);
   if (d.weight6) bits.push(`${d.weight6 > 0 ? "+" : ""}${(d.weight6 / 6).toFixed(2).replace(/\.?0+$/, "")} st`);
+  for (const u of unstatedLayers(item)) {
+    bits.push(game.i18n.format("ACKS-EQUIPMENT.printed.layerNotImported", { layer: game.i18n.localize(`ACKS-EQUIPMENT.props.${u.layer}`) }));
+  }
   const sc = scavengedOf(item);
   if (sc?.breaks) bits.push("breaks on a 1");
   if (sc?.cannotSneak) bits.push("cannot sneak");

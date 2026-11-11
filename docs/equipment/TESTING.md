@@ -367,16 +367,22 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 13. Close the sheet. *Observable:* `Hooks.events.updateItem.length` returns
     to its pre-open count (the sibling watch detached).
 14. Layered fields and the two-handed figure. Fixtures: three world weapons
-    named Sword at 1d6. Give one masterwork +1 damage
+    named Sword at 1d6, and the library's `masterwork.weaponDamage` variation
+    (imported, or made by hand; read its `deltas.damage` as D first). Give one
+    the damage tier
     (`api.equipment.setMasterwork(item, "weaponToDamage")`) and type another's
     damage to 1d10. *Observable:* the first's Rolls tab lists a one-handed row
-    at `1d6 + 1` and a two-handed row at `1d8 + 1`; the 1d10 Sword lists one
-    row. Silver the third (Details → Silver), press the pencil, type `1d8` in
-    Record → Damage with real keys and leave the field, then apply masterwork
-    +1 damage. *Observable:* damage reads `1d8 + 1` (it read `1d6` before the
-    fix). Type `1d10 + 1`, then clear masterwork and silver. *Observable:* the
-    snapshot reads `1d10` after the typing, damage reads `1d10` after each
-    clear, and `flags.acks-extras.pristine` is gone after the last. The
+    at `1d6` plus D and a two-handed row at `1d8` plus D; the 1d10 Sword lists
+    one row. Silver the third (Details → Silver), press the pencil, type `1d8`
+    in Record → Damage with real keys and leave the field, then apply the
+    damage tier. *Observable:* damage reads `1d8` plus D (it read `1d6` before
+    the fix). Type `1d10` plus D, then clear masterwork and silver.
+    *Observable:* the snapshot reads `1d10` after the typing, damage reads
+    `1d10` after each clear, and `flags.acks-extras.pristine` is gone after the
+    last. With the library variation absent, the tier stamps nothing, the
+    Details ledger lists the layer as *not imported* with no figure, and its
+    tooltip names the key; with it present the ledger line's tooltip names the
+    document and its page, or *Set by hand* on a hand-made one. The
     importer's library notices stack over the top of a sheet at load; move the
     sheet below them before clicking the pencil.
 15. A typed guess holds, and an empty one is no guess. On a disposable
@@ -1068,3 +1074,43 @@ effect puts the suit's back (MODEL, "A helmet never replaces the suit").
 ### Teardown
 
 The fixtures stay with their armour unequipped.
+
+## Weapon rows, and the silver and masterwork figures
+
+The `weapons` ruledata document is built from the minted library weapons;
+the silver plating and the masterwork tiers read the library's variation
+documents (MODEL, "Weapon rows" and "The silver and masterwork flags read
+the imported documents").
+
+### Fixtures
+
+- **Kept, `equipment/layer-sword`**: a world weapon with no layers. Found by
+  its marker; built from any imported sword row when nothing carries it.
+- **Setup is the subject for the figures.** The library variations
+  `material.silver` and `masterwork.*` are the import's own. A world that
+  imported the rules book has them; for the absent case, remove the import
+  with the driver's `api.retire` and reimport, tracking what the import made.
+
+### Steps
+
+1. After `ready`, read `acksExtras.lib.tables.getTable("weapons", "grid")`.
+   *Observable:* one row per imported weapon, keyed by weapon key, each with
+   a `cite`; `citeOf("weapons", "grid")` names a page. Edit one library
+   weapon's damage and read again: the row follows. Delete that weapon: its
+   row is gone. A weapon on an actor moves nothing. A weapon imported before
+   the system's own weapon fields were written gives no row.
+2. Set `layer-sword` to the damage tier and to Silvered (Details). With the
+   variations imported, *Observable:* the stamped fields equal the
+   documents' figures; the ledger lines' tooltips name the document and its
+   page. A hand-made `masterwork.weaponDamage` variation reads *Set by hand*.
+3. Remove the variations from the library. *Observable:* the next recompute
+   stamps nothing, the ledger lists each layer as *not imported* with no
+   figure, its tooltip names the variation key, and the Net row says so.
+4. **Player seat** (`connect({user: "Player"})`): repeat step 2's recompute
+   on an owned item. *Observable:* the figures read as the GM seat read them;
+   a seat that cannot open the shelf reads *not imported*, which is the case
+   this step is looking for.
+
+### Teardown
+
+The kept sword stays; re-import the variations if step 3 removed them.

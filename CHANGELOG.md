@@ -29,6 +29,18 @@
   rides on, the bearer and the reach in feet, with no toggle or burn time. Hover
   the reach to see which effect sets it; an effect with no reach says it is not set.
 
+### Changed
+
+- **Silver plating and masterwork apply what your book says.** A weapon plated
+  in silver, or an item given a masterwork tier (the item sheet's Details tab),
+  took its price, bonus and weight change from figures built into the module.
+  They now come from the silver and masterwork variations imported from your own
+  book (Settings tab → Game Settings → ACKS II — Extras → Manage imports). Until
+  those are imported, the plating or tier is recorded but changes nothing, and
+  the Details tab's price says "not imported". Hover a figure to see the page it
+  was read from, or that it was set by hand. An item changed before keeps its
+  old figures until it is next recomputed.
+
 ### Fixed
 
 - **The level-up wizard keeps its hit-point roll.** Closing the level-up wizard

@@ -44,7 +44,7 @@ export function canBeSilvered(item) {
  * Does this blade count as silver? An explicit answer wins; otherwise the RAW
  * weapon table decides (Silver Dagger carries the quality), and failing that the
  * name does — "Silver Arrow" and "Silvered Sword" are what a reader types when
- * they mean it, and both are RAW-purchasable at 10× the weapon's listed price.
+ * they mean it, and both are RAW-purchasable at a silvered price.
  */
 export function isSilvered(item) {
   if (!canBeSilvered(item)) return false;
@@ -69,7 +69,7 @@ export function dealsExtraordinaryDamage(item) {
  * Plate an item in silver, or strip the plating. Writing `false` rather than
  * clearing is deliberate: it is how a reader overrules a name or a table entry
  * that says silver when the item in hand is not. Recomputing afterwards is what
- * applies (or unwinds) the 10× price through the property layers.
+ * applies (or unwinds) the silvered price through the property layers.
  */
 export async function setSilvered(item, silvered) {
   if (silvered === null || silvered === "auto") {

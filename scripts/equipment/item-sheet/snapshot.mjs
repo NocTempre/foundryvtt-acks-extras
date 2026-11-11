@@ -11,9 +11,10 @@
 import { MODULE_ID, ITEM_FLAGS, LANG, EFFECT_DOMAINS, SETTINGS } from "../constants.mjs";
 import { FLAG_GEAR } from "../../lib/constants.mjs";
 import { makeLoc } from "../../lib/util.mjs";
-import { MASTERWORK, SILVER, SIZE } from "../config.mjs";
+import { SIZE } from "../config.mjs";
 import { isDisguised, readiedWeaponData } from "../actions.mjs";
-import { masterworkTierOf, scavengedOf, silveredFlagOf, pristineOf, layerDeltas } from "../properties.mjs";
+import { masterworkTierOf, scavengedOf, silveredFlagOf, pristineOf, layerDeltas, unstatedLayers } from "../properties.mjs";
+import { silverFigure, masterworkFigure, provenanceTip, notImportedTip } from "../printed-layers.mjs";
 import { variationItemsOf, itemBaseType } from "../variation-items.mjs";
 import { containerOf, isContainer, isLocked, canSeeInside } from "../containers.mjs";
 import { isSpellbook, spellbookSpells, pagesUsed, pagesCapacity } from "../spellbook.mjs";
@@ -235,14 +236,25 @@ function priceOf(item, marketsFlag) {
   }
   const base = Number(pristineOf(item).cost ?? item.system?.cost ?? 0);
   const tier = masterworkTierOf(item);
-  const mw = tier && tier !== "none" && MASTERWORK[tier]
-    ? { label: game.i18n.localize(`ACKS-EQUIPMENT.masterwork.${tier}`), add: MASTERWORK[tier].cost ?? 0 }
+  const mwFigure = tier && tier !== "none" ? masterworkFigure(tier) : null;
+  const mw = mwFigure
+    ? { label: game.i18n.localize(`ACKS-EQUIPMENT.masterwork.${tier}`), add: mwFigure.costAdd, tip: provenanceTip(mwFigure.source) }
     : null;
+  const svFigure = silveredFlagOf(item) === true ? silverFigure() : null;
+  // A layer the item is set to whose document is not imported is a line with
+  // no figure, so the ledger says so rather than leaving the layer out.
+  const unstated = unstatedLayers(item).map((u) => ({
+    key: u.layer,
+    label: u.layer === "silver" ? loc("itemSheet.ledger.silver") : game.i18n.localize(`ACKS-EQUIPMENT.masterwork.${u.tier}`),
+    tip: notImportedTip(u.key),
+  }));
   const sc = scavengedOf(item);
   const ledger = priceLedger({
     base,
-    silverMul: silveredFlagOf(item) === true ? SILVER.priceMultiplier : null,
+    silverMul: svFigure ? svFigure.costBaseMul : null,
+    silverTip: svFigure ? provenanceTip(svFigure.source) : "",
     masterwork: mw,
+    unstated,
     variations: variationItemsOf(item).map((v) => ({
       name: v.name,
       baseMul: Number(v.system?.cost?.baseMul ?? 1),

@@ -64,7 +64,7 @@ enums; local-only, never in the repo).
 | Item flag (weapon) | `flags.acks-extras.category` | Which proficiency CLASS the weapon belongs to (a `WEAPON_CATEGORY` value), read by `classifyWeapon` ahead of the table row's own. Written by the item sheet's Class control; absent = the row's. |
 | Item flag (weapon) | `flags.acks-extras.{size,hands,style,handy,thrown,damageType}` | Per-item classifier overrides (stamped by Annotate; `size` only where neither it nor the system's `system.size` states one). `hands` is superseded by `grips` and is written by nothing. |
 | Item flag (armor) | `flags.acks-extras.{shieldVariant,strap,masterwork,helmet}` | Overlay metadata. |
-| Item flag (weapon/ammo) | `flags.acks-extras.silvered` | RR ch.4 Silver quality. `true` plated, `false` explicitly not, absent = the guess in `silver.mjs` (weapon table, then name). Only `true` applies the 10× price layer — the RAW list already charges Silver Dagger and Silver Arrow their silvered price. |
+| Item flag (weapon/ammo) | `flags.acks-extras.silvered` | RR ch.4 Silver quality. `true` plated, `false` explicitly not, absent = the guess in `silver.mjs` (weapon table, then name). Only `true` applies the price layer — the RAW list already charges Silver Dagger and Silver Arrow their silvered price. |
 | Item flag (weapon/shield) | `flags.acks-extras.hand` | `main` \| `off` — which hand the item was drawn into; resolves dual-wield off-hand identity. |
 | Item flag (any physical item) | `flags.acks-extras.gear` | `{slots, wornAt, access, capacity, relief}` — where this gear MAY sit, where it sits now, the RAW cost of drawing from it, how much it holds and, on a harness, how much it secures (the item's own figure, read from its text by Annotate or typed on its Construction tab). The model and its read path are the lib subsystem's (`docs/lib/MODEL.md`); this feature infers the values (`profiles.mjs` `inferGear`) and stamps them (Annotate Equipment, and the importer on every gear and price row it makes), each key only where the item leaves it blank. An item that declares no `slots` is read through `wearableSlots` — its inferred places — by every Wear control this feature draws, and `actions.mjs` `wearItem` declares them in the write that puts it on. |
 | Item flag (container) | `flags.acks-extras.container.{quality,lockMod,keys,accepts,refusal}` | The lock's quality text and pick modifier, the keys that open it (`[{uuid,name}]`), the kinds it will accept (`item-sheet/accept-kinds.mjs`) and the refusal it gives a wrong drop. Beside the `locked/opened/concealed/fragile` fields `containers.mjs` already holds. |
@@ -750,6 +750,60 @@ delta set, sharing the cost order documented above. Until those flags retire, a
 flag OWNS its family: applying a `masterwork.*` variation to an item whose
 masterwork flag is set is refused by name, because the two would otherwise both
 count.
+
+**The silver and masterwork flags read the imported documents**
+(`printed-layers.mjs`). `config.SILVER` and `config.MASTERWORK` hold no figure:
+`SILVER.variation` and each `MASTERWORK` tier name the key of the variation
+document the importer mints (`material.silver`, `masterwork.<tier>`, the
+damage tier registered as `weaponDamage`). `libraryVariation(key)` finds the
+library's copy, the world sidebar's before a shelf's, skipping any variation
+applied to an item. The figure is that document summed by `sumDeltas`, the
+rule an applied variation follows, so `layerDeltas`, the price ledger and the
+Net row all read one answer.
+
+- **No document, no figure.** An absent document, or one carrying only the
+  schema's neutral figures (an import whose locators did not read), answers
+  null. The layer then applies nothing and the flag stays recorded, so the
+  layer takes effect on the next import. Nothing falls back to a constant.
+- **The surface says so.** `unstatedLayers(item)` lists each layer an item is
+  set to whose document is missing. The Details tab's price ledger shows that
+  layer's line with "not imported" in place of a figure, and the Net row on the
+  Construction tab names it.
+- **Each figure carries where it came from.** The ledger line and the Net row
+  take a tooltip: the page the document's import stamp cites, "set by hand" on a
+  document with no import stamp (a Judge's own), or "not imported" naming the
+  variation key to import or make. A Judge's edit to the document is the
+  override; the registry's override layer holds tables and these are items.
+- **The weapon-table tag stays structural.** `SILVER.quality` is the tag the
+  weapon list marks a silvered row with, read by `silver.mjs`.
+
+## Weapon rows — `weapon-rows.mjs`
+
+The importer mints a core `weapon` item per printed row of the seat's weapons
+grid (`def.weapon.*`), writing size, melee and missile, the special qualities,
+the cleave limit and the base and alternate damage into the system's own
+fields. `weapon-rows.mjs` reads them back and registers the `weapons` ruledata
+document at WORLD priority, table `grid`, one row per weapon key (the
+vocabulary of `weaponIdentity`): `size` (null where the system's size is
+`na`), `melee`, `missile`, `thrown`, `handy`, `special`, `cleaveLimit` (only on
+a weapon that cleaves), `damage`, `damage2h` and `cite`.
+
+- A row is exactly what the item carries. An import from before the importer
+  wrote the structured fields yields no row: such an item holds the system's
+  defaults, which a live document always has, so the mark is shape (a melee
+  weapon with no size, or a quality word kept as a custom tag while its special
+  property is unlit). An item the importer did not mint, and one no weapon key
+  names, yield no row either.
+- Where two items name one key, the better-attested identity wins (a minted id
+  over a name match), then library order.
+- Each row's `cite` is the item's stored citation, so a tooltip can name the
+  page; the table's own `cites` entry is set when every row shares one.
+- It publishes once the library has loaded, and again on create, update or
+  delete of a library weapon (a weapon on an actor moves nothing). A delete
+  leaves the deleted document out explicitly, since its hook can fire while
+  the collection still lists it. With no row left the document is withdrawn.
+- No consumer reads the document yet: `WEAPONS` in `config.mjs` is still the
+  classifier's source.
 
 **Field specs** (`lib/field-spec.mjs`) are how both a base type's metadata and a
 variation's own storage get rendered without being shipped: a definition

@@ -13,20 +13,26 @@
  * @param {object} p
  * @param {number} p.base              the listed (pristine) price
  * @param {number} [p.silverMul]       silvering's multiplier, when plated; omit when not
- * @param {{label:string, add:number}|null} [p.masterwork]   the tier's surcharge
+ * @param {string} [p.silverTip]       where that multiplier was read from
+ * @param {{label:string, add:number, tip?:string}|null} [p.masterwork]   the tier's surcharge
  * @param {{name:string, baseMul?:number, add?:number, mul?:number}[]} [p.variations]
  * @param {{label:string, mul:number}|null} [p.condition]  the scavenged resale fraction
- * @returns {{lines:{key:string,label:string,op:string|null,amount:number,running:number}[], final:number}}
+ * @param {{key:string, label:string, tip?:string}[]} [p.unstated]  layers set on the item whose
+ *   figure is not imported: each is a line carrying no amount, and moves nothing
+ * @returns {{lines:{key:string,label:string,op:string|null,amount:number,running:number,tip?:string,notImported?:boolean}[], final:number}}
  */
-export function priceLedger({ base = 0, silverMul = null, masterwork = null, variations = [], condition = null } = {}) {
+export function priceLedger({ base = 0, silverMul = null, silverTip = "", masterwork = null, variations = [], condition = null, unstated = [] } = {}) {
   const lines = [];
   let running = Number(base) || 0;
   lines.push({ key: "listed", label: null, op: null, amount: running, running });
+  for (const u of unstated) {
+    lines.push({ key: `unstated:${u.key}`, label: u.label, op: null, amount: 0, running, notImported: true, ...(u.tip ? { tip: u.tip } : {}) });
+  }
 
   // Base multipliers first: silver, then any variation scaling the listed price.
   if (silverMul && silverMul !== 1) {
     running *= silverMul;
-    lines.push({ key: "silver", label: null, op: "mul", amount: silverMul, running });
+    lines.push({ key: "silver", label: null, op: "mul", amount: silverMul, running, ...(silverTip ? { tip: silverTip } : {}) });
   }
   for (const v of variations) {
     if (v.baseMul && v.baseMul !== 1) {
@@ -37,7 +43,7 @@ export function priceLedger({ base = 0, silverMul = null, masterwork = null, var
   // Flat surcharges second.
   if (masterwork?.add) {
     running += masterwork.add;
-    lines.push({ key: "masterwork", label: masterwork.label, op: "add", amount: masterwork.add, running });
+    lines.push({ key: "masterwork", label: masterwork.label, op: "add", amount: masterwork.add, running, ...(masterwork.tip ? { tip: masterwork.tip } : {}) });
   }
   for (const v of variations) {
     if (v.add) {

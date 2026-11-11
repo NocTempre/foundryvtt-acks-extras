@@ -1714,6 +1714,14 @@
       "armorLight": "Weight",
       "armorAC": "Armor Class"
     },
+    "printed": {
+      "notImported": "not imported",
+      "notImportedTip": "Not imported, so it applies nothing. Import it from your own book, or make a variation with the key {key}.",
+      "fromPage": "Read from {name} ({cite}).",
+      "fromDocument": "Read from {name}.",
+      "byHand": "Set by hand on {name}.",
+      "layerNotImported": "{layer} not imported"
+    },
     "strap": {
       "cycle": "Carry position — click to cycle in hand / on the back / on the front. A strapped shield costs no hand.",
       "hand": "In hand",

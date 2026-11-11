@@ -27,7 +27,7 @@ import {
   setShieldVariant, SHIELD_VARIANT_KEYS, setGearSlotList, setGearAccess, setGearRelief, SLOT_AUTO,
   setWeaponProfile, setWeaponSize, setWeaponGrips, setWeaponCategory,
 } from "../actions.mjs";
-import { masterworkTierOf, scavengedOf, layerSummary, silveredFlagOf } from "../properties.mjs";
+import { masterworkTierOf, scavengedOf, layerSummary, layerProvenance, silveredFlagOf } from "../properties.mjs";
 import { canBeSilvered, isSilvered, setSilvered } from "../silver.mjs";
 import { classifyWeapon, isHelmet, inferGear, weaponIdentity, inferredGrips, WEAPON_CATEGORY_VALUES } from "../profiles.mjs";
 import { weaponName, CATEGORY_TOKENS } from "../training-view.mjs";
@@ -327,7 +327,12 @@ export function buildConstructionPanel(item, { editing = false } = {}) {
     if (item.type === ITEM_TYPE.weapon && tier !== "none" && !isSilvered(item)) note(loc("props.masterworkReachNote"));
 
     const summary = layerSummary(item);
-    if (summary) row("ACKS-EQUIPMENT.props.net", el("span", "acks-extras-item-sheet__prop-note", summary));
+    if (summary) {
+      const net = el("span", "acks-extras-item-sheet__prop-note", summary);
+      const provenance = layerProvenance(item);
+      if (provenance) net.dataset.tooltipText = provenance;
+      row("ACKS-EQUIPMENT.props.net", net);
+    }
   }
 
   // SILVER (RR ch.4) — a weapon quality, so weapons and ammunition only.

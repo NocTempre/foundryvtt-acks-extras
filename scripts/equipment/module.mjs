@@ -32,6 +32,7 @@ import { registerManagedEffect, managedDelete } from "../lib/managed-effects.mjs
 import { expectTables } from "../lib/tables.mjs";
 import { registerEquipmentRepairChecks } from "./repair-checks.mjs";
 import { RULEDATA_DOC } from "./overlays/scavenged.mjs";
+import { registerWeaponRows } from "./weapon-rows.mjs";
 
 
 Hooks.once("init", () => {
@@ -55,6 +56,14 @@ Hooks.once("init", () => {
   // `enclosing-helm.mjs` HELM_TABLE, written as literals because the
   // producers gate reads this call from source.
   expectTables(RULEDATA_DOC, ["zeroLevelAttackThrow", "nonProficientUse", "dualWeaponStyle", "heavyHelm"]);
+
+  // The library's minted weapon rows, published as the `weapons` ruledata
+  // document once the shelves load and on every change to a library weapon.
+  try {
+    registerWeaponRows();
+  } catch (err) {
+    console.error(`${MODULE_ID} | weapon row publication failed to register`, err);
+  }
 
   // The variation Item sub-type. Wrapped because a throw in `init` leaves the
   // rest of the hook dead, and everything above this line has to survive a

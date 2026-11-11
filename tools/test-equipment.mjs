@@ -69,7 +69,7 @@ const { getLoadout, VIOLATION } = await import(new URL("loadout.mjs", S));
 const { buildLoadoutChanges, dualStyleFigure } = await import(new URL("effects.mjs", S));
 const { weaponProficiency, isWeaponProficient, armorMax, isArmorProficient, thiefSkillsGated, lightlyEquipped, classifyGrantToken } = await import(new URL("proficiency.mjs", S));
 const { buildMacros } = await import(new URL("../tools/pack-data/equipment.mjs", import.meta.url));
-const { MASTERWORK } = await import(new URL("config.mjs", S));
+const { MASTERWORK, SILVER } = await import(new URL("config.mjs", S));
 const { readiedWeaponData, prepareTorch, unarmedStrikeData, masterworkTiersFor, addToDamage, setMasterwork, scavengeItem, clearScavenged, rollScavengedD20s, setShieldVariant } = await import(new URL("actions.mjs", S));
 const { cycleStrap, strapOf } = await import(new URL("overlays/shield-variants.mjs", S));
 const { disguiseItem, revealItem, isDisguised } = await import(new URL("actions.mjs", S));
@@ -1169,6 +1169,133 @@ check("an unwielded named item does not advance", N.advanceWieldedOnLevelUp({ it
 SETTINGS_STATE.overlayNamed = false;
 
 
+/* ---------------------------------------------------------------------- */
+/*  Weapon rows — the library's minted weapons, published as ruledata       */
+/* ---------------------------------------------------------------------- */
+//
+// Library items here carry INVENTED core fields (a tiny sword, a die no page
+// prints), so each assertion is against what the item says, never a constant.
+
+{
+  const rows = await import(new URL("weapon-rows.mjs", S));
+  const reg = await import(new URL("../lib/tables.mjs", S));
+  const savedHooks = globalThis.Hooks;
+  const savedReady = game.ready;
+  const savedItems = game.items;
+  reg.unregisterTable("weapons");
+
+  const minted = (id, name, slug, sys = {}, cite = "Invented p. 4") => ({
+    id,
+    name,
+    type: "weapon",
+    flags: { "acks-extras": { cookbook: { id: `def.weapon.${slug}`, cite } } },
+    system: {
+      melee: true,
+      missile: false,
+      size: "tiny",
+      special: { cleave: false, handy: true, thrown: false },
+      cleaveLimit: { numeric: 2, addStrMod: false },
+      damage: { base: { formula: "9d3" }, alternate: { formula: "" } },
+      ...sys,
+    },
+  });
+  const sword = minted("w1", "Sword", "sword");
+  const axe = minted("w2", "Battle Axe", "battle-axe", {
+    size: "large",
+    special: { cleave: true, handy: false, thrown: true },
+    cleaveLimit: { numeric: 5, addStrMod: true },
+    damage: { base: { formula: "7d2" }, alternate: { formula: "6d4" } },
+  });
+  const handlers = {};
+  globalThis.Hooks = { on: (name, fn) => (handlers[name] ??= []).push(fn), once: (name, fn) => (handlers[`once:${name}`] ??= []).push(fn), callAll: () => {} };
+  game.ready = true;
+  game.items = [sword, axe];
+
+  check("PRODUCES names the weapons document's grid table", Object.keys(rows.PRODUCES).join() === rows.WEAPONS_DOC && "grid" in rows.PRODUCES[rows.WEAPONS_DOC]);
+  check("publish registers one row per minted weapon", rows.publish() === 2 && Object.keys(reg.getTable("weapons", "grid")).sort().join() === "battleaxe,sword");
+  const grid = () => reg.getTable("weapons", "grid");
+  check("a row carries the item's own size, grips, dice and qualities", grid().sword.size === "tiny" && grid().sword.damage === "9d3" && grid().sword.damage2h === "" && grid().sword.handy === true && grid().sword.thrown === false && grid().sword.melee === true && grid().sword.missile === false);
+  check("the alternate die and the thrown quality read off the item", grid().battleaxe.damage2h === "6d4" && grid().battleaxe.thrown === true && grid().battleaxe.special.join() === "cleave,thrown");
+  check("a cleaving weapon carries its limit, and one that does not carries none", grid().battleaxe.cleaveLimit.numeric === 5 && grid().battleaxe.cleaveLimit.addStrMod === true && grid().sword.cleaveLimit === null);
+  check("a row's citation is the item's stored one, and a shared one cites the table", grid().sword.cite === "Invented p. 4" && reg.citeOf("weapons", "grid") === "Invented p. 4");
+  check("the document is registered at world priority", reg.getLayer("weapons", reg.PRIORITY.WORLD) != null);
+
+  check("the hooks register for create, update and delete, and a ready publication", ["createItem", "updateItem", "deleteItem"].every((h) => handlers[h] === undefined) && (rows.registerWeaponRows(), ["createItem", "updateItem", "deleteItem", "once:ready"].every((h) => handlers[h]?.length === 1)));
+
+  // An edit to a library weapon republishes.
+  axe.system.damage.base.formula = "8d2";
+  handlers.updateItem[0](axe);
+  check("an edit to a library weapon republishes its row", grid().battleaxe.damage === "8d2");
+
+  // A weapon the importer has not minted, or that sits on an actor, moves nothing.
+  const owned = { ...minted("w9", "Sword", "sword", { damage: { base: { formula: "1d1" }, alternate: { formula: "" } } }), parent: { documentName: "Actor" } };
+  game.items = [sword, axe, owned];
+  handlers.createItem[0](owned);
+  check("a weapon on an actor does not republish", grid().sword.damage === "9d3");
+  game.items = [sword, axe];
+
+  // A create adds a row.
+  const mace = minted("w3", "Mace", "mace", { melee: false, missile: true, size: "na", special: {} });
+  game.items = [sword, axe, mace];
+  handlers.createItem[0](mace);
+  check("a created library weapon adds its row", grid().mace != null);
+  check("a size the system calls na is no size (a missile row prints none)", grid().mace.size === null && grid().mace.special.length === 0);
+
+  // A delete removes it, even while the collection still lists the document.
+  handlers.deleteItem[0](mace);
+  check("a delete removes the row even before the collection drops the document", grid().mace === undefined && grid().sword != null);
+  game.items = [sword, axe];
+  handlers.deleteItem[0](axe);
+  check("a delete of an unlisted document removes its row", grid().battleaxe === undefined);
+
+  // Items that carry no core fields give no row, and nothing stands in.
+  const oldImport = minted("w4", "Mace", "mace", {});
+  oldImport.system = { damage: "1d4", melee: true }; // before the structured weapon fields
+  const noSpecial = minted("w5", "Mace", "mace", {});
+  delete noSpecial.system.special;
+  const noDie = minted("w6", "Mace", "mace", {});
+  noDie.system.damage = { base: {} };
+  game.items = [sword, oldImport, noSpecial, noDie];
+  rows.publish();
+  check("an item without the structured weapon fields gives no row rather than a guessed one", grid().mace === undefined && grid().sword != null);
+
+  // A live document always holds every field: the schema fills the defaults.
+  // An import from before the importer wrote the weapon fields is that shape.
+  const defaults = () => ({ cleave: false, entangling: false, flexible: false, handy: false, impact: false, incapacitating: false, long: false, mounted: false, silver: false, slow: false, thrown: false });
+  const unsized = minted("w11", "Mace", "mace", { melee: true, missile: false, size: "na", special: defaults(), cleaveLimit: { numeric: 2, addStrMod: false } });
+  const tagged = minted("w12", "Mace", "mace", { melee: false, missile: true, size: "na", special: defaults(), customTags: ["Handy", "Slow"] });
+  const taggedCleave = minted("w13", "Mace", "mace", { melee: false, missile: true, size: "na", special: defaults(), customTags: [{ title: "Cleave 2", value: "" }] });
+  for (const [label, item] of [["an unsized melee weapon", unsized], ["quality words left as tags", tagged], ["a cleave word left as a tag object", taggedCleave]]) {
+    game.items = [sword, item];
+    rows.publish();
+    check(`${label}, every schema default, gives no row`, grid().mace === undefined);
+  }
+  const customOnly = minted("w14", "Mace", "mace", { melee: false, missile: true, size: "na", special: { ...defaults(), handy: true }, customTags: ["A tag no property names"] });
+  game.items = [sword, customOnly];
+  rows.publish();
+  check("a tag no special property names, beside lit properties, is not a legacy mark", grid().mace?.handy === true);
+
+  // Identity: an unplaceable item, an un-minted item, and a duplicate key.
+  const unplaced = minted("w7", "Zorgle", "zorgle");
+  const handMade = { ...minted("w8", "Dagger", "dagger"), flags: {} };
+  const named = minted("w10", "Sword", "homebrew", { damage: { base: { formula: "5d5" }, alternate: { formula: "" } } });
+  game.items = [named, sword, unplaced, handMade];
+  rows.publish();
+  check("an item that names no weapon of the module's has no row", Object.keys(grid()).join() === "sword");
+  check("an item the importer did not mint has no row", grid().dagger === undefined);
+  check("two items for one weapon: the minted identity wins whatever the order", grid().sword.damage === "9d3");
+
+  // No rows: the document is withdrawn.
+  game.items = [unplaced];
+  check("with no row to publish the document is withdrawn", rows.publish() === 0 && !reg.hasDoc("weapons"));
+
+  Object.assign(globalThis, { Hooks: savedHooks });
+  game.ready = savedReady;
+  if (savedItems === undefined) delete game.items;
+  else game.items = savedItems;
+  reg.unregisterTable("weapons");
+}
+
 // --- buildApi smoke test ------------------------------------------------------
 // Actually building the api is the guard: `node --check` is syntax-only, and a
 // name exposed but never imported throws only when buildApi() actually runs.
@@ -2127,20 +2254,61 @@ const mockDoc = (type, sys = {}) => ({
   },
 });
 
+/*
+ * The silver plating and each masterwork tier read the library's variation
+ * documents. These stand in for what the importer mints, carrying INVENTED
+ * figures (none is a printed one), so every assertion below is against the
+ * document's number and never a constant of the module's.
+ */
+const { VARIATION_ITEM_TYPE } = await import(new URL("constants.mjs", S));
+const variationItem = (key, { deltas = {}, cost = {}, cite = "Invented p. 1", minted = true } = {}) => ({
+  id: `var-${key}`,
+  type: VARIATION_ITEM_TYPE,
+  name: `Invented ${key}`,
+  flags: { "acks-extras": minted ? { cookbook: { id: `def.variation.${key}`, cite } } : {} },
+  system: {
+    key,
+    deltas: { bonus: 0, damage: 0, ac: 0, weight6: 0, ...deltas },
+    cost: { baseMul: 1, add: 0, mul: 1, ...cost },
+    source: { cite: minted ? cite : "" },
+  },
+});
+const FIG = {
+  hit: { bonus: 3, add: 7 },
+  dmg: { damage: 2, add: 7 },
+  both: { bonus: 3, damage: 2, add: 11 },
+  light: { weight6: -12, add: 5 },
+  ac: { ac: 2, add: 13 },
+  silver: 4,
+};
+const IMPORTED_VARIATIONS = [
+  variationItem("masterwork.weaponToHit", { deltas: { bonus: FIG.hit.bonus }, cost: { add: FIG.hit.add } }),
+  variationItem("masterwork.weaponDamage", { deltas: { damage: FIG.dmg.damage }, cost: { add: FIG.dmg.add } }),
+  variationItem("masterwork.weaponBoth", { deltas: { bonus: FIG.both.bonus, damage: FIG.both.damage }, cost: { add: FIG.both.add } }),
+  variationItem("masterwork.armorLight", { deltas: { weight6: FIG.light.weight6 }, cost: { add: FIG.light.add } }),
+  variationItem("masterwork.armorAC", { deltas: { ac: FIG.ac.ac }, cost: { add: FIG.ac.add } }),
+  variationItem("material.silver", { cost: { baseMul: FIG.silver } }),
+];
+const useLibrary = (items) => { game.items = items; };
+const libraryAbsent = () => { delete game.items; };
+useLibrary(IMPORTED_VARIATIONS);
+
 const mkWeapon = mockDoc("weapon", { bonus: 0, damage: "1d6", weight6: 6 });
 await setMasterwork(mkWeapon, "weaponBoth");
-check("masterwork +1/+1 stamps both bonus and damage", mkWeapon.system.bonus.attack === 1 && /1d6 \+ 1/.test(mkWeapon.system.damage.base.formula));
+check("a masterwork tier stamps the imported bonus and damage", mkWeapon.system.bonus.attack === FIG.both.bonus && mkWeapon.system.damage.base.formula === `1d6 + ${FIG.both.damage}`);
 check("masterwork records the tier; the baseline is the shared `pristine` flag", mkWeapon._flags.masterwork?.tier === "weaponBoth" && mkWeapon._flags.pristine?.damage === "1d6");
 await setMasterwork(mkWeapon, "weaponToHit");
-check("switching tiers restarts from base (never compounds the die)", mkWeapon.system.bonus.attack === 1 && mkWeapon.system.damage.base.formula === "1d6");
+check("switching tiers restarts from base (never compounds the die)", mkWeapon.system.bonus.attack === FIG.hit.bonus && mkWeapon.system.damage.base.formula === "1d6");
+await setMasterwork(mkWeapon, "weaponToDamage");
+check("the damage tier reads the document registered under the damage key", mkWeapon.system.bonus.attack === 0 && mkWeapon.system.damage.base.formula === `1d6 + ${FIG.dmg.damage}`);
 await setMasterwork(mkWeapon, "none");
 check("masterwork None restores the base exactly and clears both flags", mkWeapon.system.bonus.attack === 0 && mkWeapon.system.damage.base.formula === "1d6" && mkWeapon._flags.masterwork === undefined && mkWeapon._flags.pristine === undefined);
 
 const mkArmor = mockDoc("armor", { aac: 4, weight6: 30 });
 await setMasterwork(mkArmor, "armorLight");
-check("masterwork −1 stone reduces weight6 by 6", mkArmor.system.weight6 === 24 && mkArmor.system.ac.value === 4);
+check("an armour tier moves the weight by the document's sixths", mkArmor.system.weight6 === 30 + FIG.light.weight6 && mkArmor.system.ac.value === 4);
 await setMasterwork(mkArmor, "armorAC");
-check("masterwork +1 AC raises aac from base, restores weight", mkArmor.system.ac.value === 5 && mkArmor.system.weight6 === 30);
+check("an armour tier raises aac from base and restores the weight", mkArmor.system.ac.value === 4 + FIG.ac.ac && mkArmor.system.weight6 === 30);
 
 /* ---------------------------------------------------------------------- */
 /*  #5 Shield strap cycle — free a hand by slinging (overlay on)           */
@@ -2189,14 +2357,14 @@ check("scavenge stamps -1 AC on armour + records break flag", scArmor.system.ac.
 // A single baseline, never a per-layer snapshot: two layers snapshotting their
 // own "base" would let clearing one restore the other's delta as if pristine.
 const both = mockDoc("weapon", { name: "Sword", damage: "1d6", bonus: 0, weight6: 6 });
-await setMasterwork(both, "weaponBoth"); // +1 hit, +1 damage
-check("masterwork alone: +1 hit / 1d6 + 1", both.system.bonus.attack === 1 && both.system.damage.base.formula === "1d6 + 1");
+await setMasterwork(both, "weaponBoth");
+check("masterwork alone: the document's bonus and damage", both.system.bonus.attack === FIG.both.bonus && both.system.damage.base.formula === `1d6 + ${FIG.both.damage}`);
 await scavengeItem(both, { roll: () => 7 }); // rusty: -1 damage
-check("masterwork + scavenged cancel numerically to 1d6 (not '1d6 + 1-1')", both.system.damage.base.formula === "1d6" && both.system.bonus.attack === 1);
+check("masterwork + scavenged combine numerically (not '1d6 + 2-1')", both.system.damage.base.formula === `1d6 + ${FIG.both.damage - 1}` && both.system.bonus.attack === FIG.both.bonus);
 await clearScavenged(both);
-check("clearing the condition leaves masterwork intact", both.system.damage.base.formula === "1d6 + 1" && both.system.bonus.attack === 1);
+check("clearing the condition leaves masterwork intact", both.system.damage.base.formula === `1d6 + ${FIG.both.damage}` && both.system.bonus.attack === FIG.both.bonus);
 await scavengeItem(both, { roll: () => 11 }); // off balance: -1 attack
-check("scavenged attack penalty stacks onto the masterwork bonus (net 0)", both.system.bonus.attack === 0);
+check("scavenged attack penalty stacks onto the masterwork bonus", both.system.bonus.attack === FIG.both.bonus - 1);
 await setMasterwork(both, "none");
 check("clearing masterwork keeps the condition's -1 attack", both.system.bonus.attack === -1 && !!both._flags.scavenged);
 await clearScavenged(both);
@@ -2207,32 +2375,95 @@ check("clearing the LAST layer restores the item exactly + drops the baseline",
 // change keeps it (the item sheet routes a typed layered field through here).
 const { baseForTyped, layerDeltas: deltasOf, recomputeItemFields } = await import(new URL("properties.mjs", S));
 const typed = mockDoc("weapon", { name: "Sword", damage: "1d6", bonus: 0, weight6: 6 });
-await setMasterwork(typed, "weaponBoth"); // 1d6 + 1, +1 hit
-const typedDamage = baseForTyped("damage", "1d8 + 1", deltasOf(typed));
+await setMasterwork(typed, "weaponBoth");
+const typedDamage = baseForTyped("damage", `1d8 + ${FIG.both.damage}`, deltasOf(typed));
 check("a typed damage backs the layers' delta out of the baseline", typedDamage === "1d8");
-typed._flags.pristine = { ...typed._flags.pristine, damage: typedDamage, bonus: baseForTyped("bonus", 3, deltasOf(typed)) };
+const typedBonus = 9;
+typed._flags.pristine = { ...typed._flags.pristine, damage: typedDamage, bonus: baseForTyped("bonus", typedBonus, deltasOf(typed)) };
 await recomputeItemFields(typed);
-check("the recompute writes back exactly what was typed", typed.system.damage.base.formula === "1d8 + 1" && typed.system.bonus.attack === 3);
+check("the recompute writes back exactly what was typed", typed.system.damage.base.formula === `1d8 + ${FIG.both.damage}` && typed.system.bonus.attack === typedBonus);
 await setMasterwork(typed, "none");
-check("a later layer change keeps the typed values", typed.system.damage.base.formula === "1d8" && typed.system.bonus.attack === 2);
+check("a later layer change keeps the typed values", typed.system.damage.base.formula === "1d8" && typed.system.bonus.attack === typedBonus - FIG.both.bonus);
 check("a blank damage stays blank; a number that is not one is refused",
   baseForTyped("damage", " ", { damage: 1 }) === "" && baseForTyped("bonus", "x", { bonus: 1 }) === null);
 
 /* --- GOLD VALUE follows the layers (the number on the sheet must move) --- */
 const priced = mockDoc("weapon", { name: "Sword", damage: "1d6", cost: 10, weight6: 6 });
-await setMasterwork(priced, "weaponToHit"); // +1 hit, +80gp (RR p159)
-check("masterwork adds its surcharge to the price (10 → 90gp)", priced.system.cost === 90);
-await scavengeItem(priced, { roll: () => 7 }); // rusty: -1 dmg, -33% value
-check("a scavenged condition scales the price (90 × 0.67 ≈ 60.3gp)", Math.abs(priced.system.cost - 60.3) < 0.01);
+await setMasterwork(priced, "weaponToHit");
+check("masterwork adds the document's surcharge to the price", priced.system.cost === 10 + FIG.hit.add);
+await scavengeItem(priced, { roll: () => 7 }); // rusty: -1 dmg, resale fraction
+const resale = priced._flags.scavenged.valueMultiplier;
+check("a scavenged condition scales the whole price", Math.abs(priced.system.cost - (10 + FIG.hit.add) * resale) < 0.01);
 await setMasterwork(priced, "none");
-check("dropping masterwork reprices from pristine (10 × 0.67 = 6.7gp)", Math.abs(priced.system.cost - 6.7) < 0.01);
+check("dropping masterwork reprices from pristine", Math.abs(priced.system.cost - 10 * resale) < 0.01);
 await clearScavenged(priced);
 check("clearing every layer restores the original price", priced.system.cost === 10);
-const { layerSummary } = await import(new URL("properties.mjs", S));
+const { layerSummary, layerProvenance, unstatedLayers } = await import(new URL("properties.mjs", S));
 const p3 = mockDoc("armor", { name: "Plate", aac: 6, cost: 60, weight6: 36 });
-await setMasterwork(p3, "armorAC"); // +1 AC, +650gp
-check("armour masterwork: +1 AC and +650gp both land", p3.system.ac.value === 7 && p3.system.cost === 710);
-check("layerSummary states the new price so the sheet can explain it", /710gp \(was 60gp\)/.test(layerSummary(p3)));
+await setMasterwork(p3, "armorAC");
+check("armour masterwork: the document's AC and surcharge both land", p3.system.ac.value === 6 + FIG.ac.ac && p3.system.cost === 60 + FIG.ac.add);
+check("layerSummary states the new price so the sheet can explain it", layerSummary(p3).includes(`${60 + FIG.ac.add}gp (was 60gp)`));
+
+/* --- NOT IMPORTED: a layer with no document applies nothing and says so --- */
+const printedLayers = await import(new URL("printed-layers.mjs", S));
+libraryAbsent();
+const bareMw = mockDoc("weapon", { name: "Sword", damage: "1d6", bonus: 0, cost: 10, weight6: 6 });
+await setMasterwork(bareMw, "weaponBoth");
+check("a masterwork tier with no imported document stamps nothing", bareMw.system.bonus.attack === 0 && bareMw.system.damage.base.formula === "1d6" && bareMw.system.cost === 10);
+check("the tier is still recorded, so the layer survives an import", bareMw._flags.masterwork?.tier === "weaponBoth");
+check("masterworkFigure answers null with no document", printedLayers.masterworkFigure("weaponBoth") === null && printedLayers.silverFigure() === null);
+const bareUnstated = unstatedLayers(bareMw);
+check("the layer is listed as not imported, naming the key to import", bareUnstated.length === 1 && bareUnstated[0].layer === "masterwork" && bareUnstated[0].key === MASTERWORK.weaponBoth);
+check("layerSummary says it is not imported and shows no figure", layerSummary(bareMw).includes("ACKS-EQUIPMENT.printed.layerNotImported"));
+const platedMock = (flags = {}) => ({ name: "Sword", type: "weapon", system: { cost: 10, weight6: 1, damage: "1d4" }, getFlag: (_m, k) => flags[k] });
+const barePlated = platedMock({ silvered: true });
+check("a plated blade with no document is scaled by nothing", deltasOf(barePlated, { silvered: true, masterwork: null, scavenged: null }).costBaseMul === 1);
+check("and is listed as not imported", unstatedLayers(barePlated).some((u) => u.layer === "silver" && u.key === SILVER.variation));
+check("an item set to neither layer lists nothing", unstatedLayers(platedMock()).length === 0);
+
+// A document the import could not fill holds the schema's neutral figures, which is not a figure.
+useLibrary([
+  variationItem("masterwork.weaponToHit"),
+  variationItem("material.silver"),
+]);
+check("a document carrying only neutral figures counts as not imported", printedLayers.masterworkFigure("weaponToHit") === null && printedLayers.silverFigure() === null);
+check("a tier the module does not know has no figure", printedLayers.masterworkFigure("noSuchTier") === null);
+
+// An applied variation is not the library's copy: it never answers for the key.
+useLibrary([{ ...variationItem("material.silver", { cost: { baseMul: FIG.silver } }), flags: { "acks-extras": { containedIn: "item1" } } }]);
+check("a variation applied to an item is not read as the library's document", printedLayers.silverFigure() === null);
+
+/* --- PROVENANCE: the page, the hand, or not imported --- */
+const fmt = game.i18n.format;
+game.i18n.format = (k, d) => `${k}|${JSON.stringify(d ?? {})}`;
+useLibrary(IMPORTED_VARIATIONS);
+const tipOf = (figure) => printedLayers.provenanceTip(figure.source);
+check("a minted document's tooltip names its page", tipOf(printedLayers.silverFigure()).startsWith("ACKS-EQUIPMENT.printed.fromPage") && tipOf(printedLayers.silverFigure()).includes("Invented p. 1"));
+useLibrary([variationItem("material.silver", { cost: { baseMul: FIG.silver }, minted: false })]);
+check("a hand-made document's tooltip says it was set by hand", tipOf(printedLayers.silverFigure()).startsWith("ACKS-EQUIPMENT.printed.byHand"));
+useLibrary([variationItem("material.silver", { cost: { baseMul: FIG.silver }, cite: "" })]);
+check("a minted document with no page still names the document", tipOf(printedLayers.silverFigure()).startsWith("ACKS-EQUIPMENT.printed.fromDocument"));
+check("the not-imported tooltip names the key", printedLayers.notImportedTip(SILVER.variation).includes(SILVER.variation));
+useLibrary(IMPORTED_VARIATIONS);
+const provenanceItem = mockDoc("weapon", { name: "Sword", damage: "1d6" });
+provenanceItem._flags.masterwork = { tier: "weaponToHit" };
+provenanceItem._flags.silvered = true;
+check("layerProvenance joins one clause per layer the item carries", layerProvenance(provenanceItem).split(" · ").length === 2);
+check("and is empty for an item with neither", layerProvenance(mockDoc("weapon", { name: "Sword", damage: "1d6" })) === "");
+const { priceLedger } = await import(new URL("item-sheet/price-ledger.mjs", S));
+const led = priceLedger({
+  base: 10,
+  silverMul: FIG.silver,
+  silverTip: "tip-silver",
+  masterwork: { label: "M", add: FIG.hit.add, tip: "tip-mw" },
+  unstated: [{ key: "masterwork", label: "U", tip: "tip-missing" }],
+});
+const ledLine = (key) => led.lines.find((l) => l.key === key);
+check("a ledger line carries the tooltip of the figure it shows", ledLine("silver").tip === "tip-silver" && ledLine("masterwork").tip === "tip-mw");
+check("a layer not imported is a line with no amount and its own tooltip", ledLine("unstated:masterwork").notImported === true && ledLine("unstated:masterwork").amount === 0 && ledLine("unstated:masterwork").tip === "tip-missing");
+check("a layer not imported moves no price", led.final === 10 * FIG.silver + FIG.hit.add && ledLine("unstated:masterwork").running === 10);
+game.i18n.format = fmt;
+libraryAbsent();
 
 // Shield variant: make any shield a buckler, and clear back to standard.
 const shieldVar = mockDoc("armor", { name: "Shield", aac: 1, armorType: "shield" });
@@ -2537,7 +2768,7 @@ const silverItem = (name, type = "weapon", flags = {}) => ({
 check("the RAW Silver Dagger counts as silver", isSilvered(silverItem("Silver Dagger")));
 check("an ordinary dagger does not", !isSilvered(silverItem("Dagger")));
 
-// The name, for the 10× silver version of any other common weapon RAW allows.
+// The name, for the silvered version of any other common weapon RAW allows.
 check("a silvered sword counts as silver", isSilvered(silverItem("Silvered Sword")));
 check("a silver-coated spear counts as silver", isSilvered(silverItem("Silver-Coated Spear")));
 
@@ -2558,15 +2789,17 @@ check("silver deals extraordinary damage", dealsExtraordinaryDamage(silverItem("
 check("an already-extraordinary weapon still does", dealsExtraordinaryDamage(silverItem("Sword", "weapon", { extraordinary: true })));
 check("an ordinary sword does not", !dealsExtraordinaryDamage(silverItem("Sword")));
 
-// PRICE. Plating multiplies the weapon's own listed price; a masterwork
-// surcharge is a flat "additional 80gp" (RR p159) and must not be multiplied
-// with it. 10gp blade → 100gp silvered → 180gp silvered AND masterworked.
+// PRICE. Plating scales the weapon's own listed price by the imported
+// document's multiplier; a masterwork surcharge is a flat addition and must
+// not be scaled with it. The figures are the invented ones registered above.
+useLibrary(IMPORTED_VARIATIONS);
 const silverOnly = layerDeltas(silverItem("Sword"), { silvered: true, masterwork: null, scavenged: null });
-check("silver multiplies the listed price tenfold", silverOnly.costBaseMul === 10 && silverOnly.costAdd === 0);
+check("silver scales the listed price by the document's multiplier", silverOnly.costBaseMul === FIG.silver && silverOnly.costAdd === 0);
 check("silver moves no other number", !silverOnly.bonus && !silverOnly.damage && !silverOnly.ac && !silverOnly.weight6);
 const silverMw = layerDeltas(silverItem("Sword"), { silvered: true, masterwork: "weaponToHit", scavenged: null });
 const silverMwPrice = 10 * silverMw.costBaseMul + silverMw.costAdd;
-check("a masterwork surcharge is added after plating, never multiplied by it", silverMwPrice === 180);
+check("a masterwork surcharge is added after plating, never scaled by it", silverMwPrice === 10 * FIG.silver + FIG.hit.add);
+libraryAbsent();
 
 // The quality survives a decorated name. `dagger` is declared before
 // `silverdagger` in the weapon table, so table order alone answered "dagger".

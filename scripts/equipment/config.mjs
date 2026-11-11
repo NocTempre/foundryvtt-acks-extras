@@ -174,18 +174,19 @@ export const SHIELD_VARIANTS = Object.freeze({
 });
 
 /**
- * Masterwork tiers (RR p.159): REFERENCE DATA, not automation (see
- * constants.mjs, the note by the overlay settings; docs/equipment/DECISIONS.md,
- * "Masterwork stamps core fields rather than a roll-time overlay
- * (2026-09-22)"). A masterwork item is DATA — a tier key plus the pristine
- * baseline, written onto the item. Nothing reads this table at runtime.
+ * The masterwork tiers (RR p.159), each mapped to the key of the variation
+ * document the importer mints for it. A tier is a name an item's flag stores
+ * (`flags.acks-extras.masterwork.tier`); what the tier is worth is the
+ * document's `deltas` and `cost`, read by `printed-layers.mjs` and absent
+ * until the Judge's book is imported. The tier `weaponToDamage` is the
+ * document registered as `weaponDamage`.
  */
 export const MASTERWORK = Object.freeze({
-  weaponToHit: { cost: 80, toHit: 1 },
-  weaponToDamage: { cost: 80, toDamage: 1 },
-  weaponBoth: { cost: 650, toHit: 1, toDamage: 1 },
-  armorLight: { cost: 80, weightMinusStone: 1 },
-  armorAC: { cost: 650, ac: 1 },
+  weaponToHit: "masterwork.weaponToHit",
+  weaponToDamage: "masterwork.weaponDamage",
+  weaponBoth: "masterwork.weaponBoth",
+  armorLight: "masterwork.armorLight",
+  armorAC: "masterwork.armorAC",
 });
 
 /**
@@ -195,15 +196,16 @@ export const MASTERWORK = Object.freeze({
  * there is no cold iron, mithril or adamantine. Its whole mechanical weight is
  * what the blade COUNTS AS, never a stat: a monster whose immunity or
  * resistance carries the silver flaw treats a silver weapon as magic, and the
- * spells that turn aside mundane damage do not turn silver aside. So this table
- * holds a price and nothing else.
+ * spells that turn aside mundane damage do not turn silver aside.
  *
- * `priceMultiplier` scales the weapon's own listed price and is applied ONLY to
- * an item a reader explicitly plated (properties.mjs) — the RAW price list
- * already charges "Silver Dagger" and "Silver Arrow" at their silvered price,
- * and multiplying those again would bill the same plating twice.
+ * `quality` is the weapon-table tag the quality goes by. `variation` is the
+ * key of the document the importer mints for the plating; its price scaling
+ * (`cost.baseMul`) is read by `printed-layers.mjs` and applied ONLY to an item
+ * a reader explicitly plated (properties.mjs): the weapon list already prices
+ * its silvered rows at their silvered price, and scaling those again would
+ * bill the same plating twice.
  */
-export const SILVER = Object.freeze({ priceMultiplier: 10, quality: "silver" });
+export const SILVER = Object.freeze({ quality: "silver", variation: "material.silver" });
 
 /**
  * RAW carrying devices (RR pp. 142–145, 293–294). Core's
