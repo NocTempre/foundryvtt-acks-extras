@@ -194,3 +194,26 @@ export function rowBlockPatch(target, row, { decision = null } = {}) {
   }
   return { update, edits };
 }
+
+/**
+ * What a region site writes of a market place's name, where the place is the
+ * market's own (`id` is its claim): its read heading, and only while the place
+ * still holds the neutral label `placeholder` the market step falls back to,
+ * unrenamed. A name the market step read from its page (a record's heading, a
+ * column's header) is never overwritten, and neither is a Judge's: whichever
+ * of the two steps runs first, the market step's read name is the one that
+ * stands, and the site's heading stands where the market step read none.
+ * `printed` follows, so the market step's own write (`rowBlockPatch`) still
+ * finds the name as the import's.
+ *
+ * @param {object} target the held place's stored data (`toObject()`)
+ * @param {{id: string, name: string, placeholder: string}} site `id` the market claim the site is bound onto,
+ *   `name` the site's read heading, `placeholder` the market step's neutral label
+ * @returns {object} an update payload, empty when nothing is owed
+ */
+export function siteNamePatch(target, { id, name, placeholder }) {
+  const flag = target?.flags?.[MODULE_ID]?.cookbook ?? {};
+  if (!name || !placeholder || name === placeholder || flag.id !== id) return {};
+  if (flag.printed !== placeholder || target?.name !== placeholder) return {};
+  return { name, [`flags.${MODULE_ID}.cookbook.printed`]: name };
+}

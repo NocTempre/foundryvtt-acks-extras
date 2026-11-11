@@ -310,6 +310,20 @@
   roster and onto the new employer's, with its record naming the new
   employer, as a transfer does. Before, it stayed on the first employer's
   list and joined no monster roster.
+- **An edit inside an imported journal page's text is kept.** *Import
+  Everything* (Import Manager → Import tab) and an adventure's Repair (Import
+  Manager → Adventures tab → Repair) no longer overwrite a location journal
+  page whose imported text you edited by hand. The import records what it
+  wrote on each page and keeps the page when the words inside its own block
+  have changed: the notice counts it as kept (edited), and a repair lists it
+  under *Your edits and the book*. Formatting alone (bold, a moved line break)
+  is not seen as an edit. Pages imported before this release carry no record
+  and are refreshed as before.
+- **A repair refreshes a market place's name from the market's heading.**
+  Repairing an adventure (Import Manager → Adventures tab → Repair) now names a
+  market place from the heading its market prints, whichever import step
+  created the place first. A name you gave the place is kept and offered under
+  *Your edits and the book*; a market that prints no heading keeps its site's.
 - **AX3's market 20 no longer imports a misprinted family count.** The urban
   family count AX3 prints on that market's domain record (p. 32) disagrees
   with the class the record and the demand grid both print. *Import

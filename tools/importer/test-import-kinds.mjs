@@ -32,7 +32,7 @@ import {
 } from "../../scripts/importer/cookbook.mjs";
 import { mergedTally } from "../../scripts/importer/refresh.mjs";
 import { blockSum, playStamp, pregenDefault } from "../../scripts/importer/held-edits.mjs";
-import { bookText } from "../../scripts/importer/prose.mjs";
+import { blockDigest, bookTable, bookText, readableText } from "../../scripts/importer/prose.mjs";
 import { TABLE_RECIPES } from "../../scripts/importer/table-recipes.mjs";
 import { BOOKS, bookIsJudges } from "../../scripts/importer/books.mjs";
 import { GM_STEPS } from "../../scripts/importer/getting-started.mjs";
@@ -810,12 +810,61 @@ same("a stat-line creature is read from its place's book", IMPORT_KINDS.find((k)
   same("a rewrite without a decision writes where the tally is forced", (await outcome(judged, { tally: { force: true } })).how, "written");
   same("and keeps the page where it is not", (await outcome(judged, { tally: { force: false } })).how, "kept");
 
+  // An edit inside the import's own block: the page records the digest of the
+  // block it was written with, and a stored block that no longer reads as it did is the Judge's.
+  const ROOM = "zz.room1";
+  const SUM = `flags.${MODULE_ID}.cookbook.sum`;
+  const sealed = (content, flags = { id: ROOM, sum: blockDigest(stamped("Old text.")) }, pageSort = 100) => {
+    const page = made(content, pageSort);
+    page.flags = { [MODULE_ID]: { cookbook: flags } };
+    return page;
+  };
+  const settle = async (page, scope = null) => {
+    const tally = { ...mergedTally(scope?.decision ?? "keep") };
+    const run = () => writeJournalPage(page, built, 200, "ZZ 1");
+    const how = scope ? await withRewrite({ held: new Map(), tally, decision: scope.decision }, run) : await run();
+    return { how, writes: page.writes, edits: tally.edits.map((e) => [e.key, e.path]) };
+  };
+  const reworded = stamped("Old text, as the Judge reads it.") + creatureLine;
+  const rewrittenWhole = [{ "text.content": built, [SUM]: blockDigest(stamped("New text.")), sort: 200 }];
+
+  same("an edit inside the block is kept outside a repair: only its sort is written, the digest stays",
+    await settle(sealed(reworded)).then((r) => [r.how, r.writes]), ["kept", [{ sort: 200 }]]);
+  same("and under keep it is listed as a held edit of the page's text",
+    await settle(sealed(reworded), { decision: "keep" }).then((r) => [r.how, r.edits]), ["kept", [[KEY, "text.content"]]]);
+  same("a decision that takes it writes the build and records the new digest",
+    await settle(sealed(reworded), { decision: { take: new Set([KEY]) } }).then((r) => [r.how, r.writes]), ["written", rewrittenWhole]);
+  same("a block written before the digest was recorded is the import's own, edited or not",
+    await settle(sealed(reworded, { id: ROOM })).then((r) => [r.how, r.writes]), ["written", rewrittenWhole]);
+  same("a block the editor re-serialized, its words as written, is untouched and is refreshed",
+    await settle(sealed(
+      `<div data-acks-entry="${ROOM}" class="acks-extras-importer-book-text">\n  <p>Old&nbsp;text.</p>\n  <p class="acks-extras-importer-cite"><a href="#" data-page="3" data-book="zz" class="acks-extras-importer-cite-link">ZZ 1</a></p>\n</div>${creatureLine}`,
+    )).then((r) => [r.how, r.writes]), ["written", rewrittenWhole]);
+  same("a page whose block was taken out holds no edit of this kind", await settle(sealed(creatureLine)).then((r) => r.how), "written");
+  same("an edit beside the block is held with or without a digest", await settle(sealed(judged)).then((r) => r.how), "kept");
+  same("a page the build writes records the digest of the block it wrote",
+    await settle(sealed(stamped("Old text.") + creatureLine, { id: ROOM })).then((r) => r.writes), rewrittenWhole);
+  same("a page already recording the written digest is not asked to record it again",
+    await settle(sealed(built, { id: ROOM, sum: blockDigest(stamped("New text.")) })).then((r) => r.writes),
+    [{ "text.content": built, sort: 200 }]);
+
+  // A table's cells come back from the editor as paragraphs; the reading of the block ignores that.
+  const table = bookTable(["Roll", "Result"], [["1", "Alpha row"], ["2", "Beta row"]], "ZZ 1", { id: ROOM, book: "zz", page: 3 });
+  const wrapped = table.replace(/<(td|th)>([^<]*)<\/\1>/g, "<$1><p>$2</p></$1>").replace("<thead>", "<thead>\n").replace(/<\/tr>/g, "</tr>\n");
+  check("a table block with its cells wrapped in paragraphs reads the same", blockDigest(wrapped) === blockDigest(table));
+  check("a table block with a cell reworded does not", blockDigest(wrapped.replace("Beta row", "Gamma row")) !== blockDigest(table));
+  check("a changed word reads differently", blockDigest(stamped("Old text.")) !== blockDigest(stamped("Old text!")));
+  same("escaped angle brackets stay text and are not read as tags", readableText("<p>&lt;b&gt; 1 &amp; 2</p>"), "<b> 1 & 2");
+  same("an image counts by its source, so one added inside the block is seen", readableText('<p>x</p><img class="a" src="art/a.webp">'), "x [image art/a.webp]");
+
   // The call sites: the step carries the pass's decision on both passes, and the importer writes through the same function.
   const source = fs.readFileSync(new URL("../../scripts/importer/cookbook.mjs", import.meta.url), "utf8");
   const steps = source.slice(source.indexOf("async function runAdventureBookSteps"), source.indexOf("/** A document type's name in the user's language"));
   check("the journals step runs under the pass's decision, on pass two as well as pass one",
     /withRewrite\(\{ held: new Map\(\), tally, \.\.\.decisionOf\(tally\) \}, fn\)/.test(steps) && /await run\("stepJournals", \(\) => journalsScoped\(\(\) => a\.cookbookImportJournals\(only\)\)\);/.test(steps));
   const journals = source.slice(source.indexOf("export async function cookbookImportJournals"), source.indexOf("/**\n * Points of interest:"));
+  check("a page the importer creates records the digest of its block in its stamp",
+    /cookbook: \{ id, book: bookId, sum: blockDigestIn\(content, id\) \}/.test(journals));
   check("the journal importer writes an existing page through writeJournalPage and counts the page kept",
     /writeJournalPage\(existing, content, sort, e\.cite \?\? ""\)\) === "kept"\) preserved\+\+/.test(journals) && /!made && !updated && !preserved/.test(journals));
 }

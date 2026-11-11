@@ -15,6 +15,7 @@
  *    pass tell text this module wrote from text a Judge wrote over it, so a
  *    re-import replaces its own work and never someone else's.
  */
+import { blockSum } from "./held-edits.mjs";
 
 /** The wrapper an import stamps around materialized book text. */
 export const BOOK_TEXT_CLASS = "acks-extras-importer-book-text";
@@ -162,6 +163,38 @@ export const entryTable = (node, id, cite, columns = []) =>
  * text, and both are this module's writing.
  */
 export const stripBookText = (html) => String(html ?? "").replace(BOOK_TEXT_BLOCK, " ").replace(LEGACY_TAG, " ");
+
+const NAMED_ENTITIES = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
+
+/**
+ * What a reader sees of a block, as one line: tags dropped (an image keeps its
+ * source), entities decoded, runs of whitespace collapsed. Everything the
+ * editor re-serializes without changing a word falls away: attribute order and
+ * quoting, a cell's text wrapped in a paragraph, a reflowed line, an
+ * `&nbsp;`. Tags go before entities are decoded, so escaped angle brackets stay
+ * text.
+ */
+export function readableText(html) {
+  return String(html ?? "")
+    .replace(/<img\b[^>]*?\bsrc\s*=\s*(["'])(.*?)\1[^>]*>/gi, " [image $2] ")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (whole, code) => {
+      const point = /^#x/i.test(code) ? parseInt(code.slice(2), 16) : /^#/.test(code) ? Number(code.slice(1)) : null;
+      if (point === null) return NAMED_ENTITIES[code.toLowerCase()] ?? whole;
+      return Number.isInteger(point) && point > 0 && point <= 0x10ffff ? String.fromCodePoint(point) : whole;
+    })
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * The checksum a journal page records for the block it was written with
+ * (`readableText` of the block, through `blockSum`): a stored block whose
+ * digest differs has been edited since, a change the stamp alone cannot show.
+ * A change that leaves the readable text as it was (bold on a word, a moved
+ * line break) is not seen.
+ */
+export const blockDigest = (block) => blockSum(readableText(block));
 
 /** Entry `id`'s stamped block in a stored string, or "" when it holds none. */
 export function bookTextBlock(html, id) {

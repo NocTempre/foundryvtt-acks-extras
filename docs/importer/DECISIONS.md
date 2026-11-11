@@ -9843,3 +9843,38 @@ option the question offered.
 
 *Cost:* none until wave 7 is built. The treasure-by-terrain lookup wave 2
 reads into `encounters` is not one of these tables and is unchanged.
+
+## 2026-11-11 — A Judge's edit inside an imported journal block is found by a digest in the page's stamp
+
+**Asked.** `writeJournalPage` kept a page holding hand-written prose outside
+the stamped block, but `handWrittenProse` strips the block, so a word typed
+inside it was invisible and the next import rewrote the page. Import
+Everything rewrites every imported location page, so the edit was lost on every
+run.
+
+**Ruled (owner, 2026-11-11).** The import stamps a hash of what it wrote, and a
+stored block that no longer hashes to its stamp is the Judge's: the page is
+kept exactly as the outside-prose case keeps it (counted `preserved`, a held
+edit under a repair). A page with no hash is read as unedited; there is no
+backfill and no scan.
+
+- The hash is `blockDigest` over the block's readable text, recorded in the
+  page's own stamp (`flags.acks-extras.cookbook.sum`) beside the entry id. It
+  is not an attribute of the block: the editor keeps `data-*` attributes today,
+  but a stamp in the document's flags cannot be dropped by anything the editor
+  does to the markup, and no markup written by any other writer changes.
+- Readable text, not markup: the editor re-serializes attribute order, wraps a
+  table cell's text in a paragraph and reflows lines without a word changing,
+  and an untouched block must never read as edited after a save. The cost is
+  that a formatting-only edit (bold on a word, a moved paragraph break) is not
+  seen and the page is refreshed.
+
+**Rejected.** A note in the guide telling Judges to write outside the block: it
+asks every Judge to know a stamp they cannot see, and the loss stays silent for
+the one who does not.
+
+*Cost:* the other writers of a stamped block (a description, a biography, a
+monster's prose field, a roll table's description) still see an edit inside
+their block as nothing. They hold the block by `handWrittenProse` alone and
+carry no stamp to put a digest in; a place's notes already record a checksum per
+block (`rowBlockPatch`). Each is a separate change.

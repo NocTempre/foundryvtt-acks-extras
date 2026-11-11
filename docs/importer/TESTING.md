@@ -1637,8 +1637,20 @@ the wrong slot to provoke.
    it was. Remove your paragraph and run again: `preserved: 0`, `updated: 17`,
    the page rewritten from the book. A page that only has the import's own
    block and a creature line is never held, whichever way the book's text moved.
+   **An edit inside the block is kept too.** Pages made by the run in step 5 or
+   later carry the digest of their block in
+   `page.flags["acks-extras"].cookbook.sum`; a page written before the digest
+   existed has none and is read as unedited, so use a page that the step 5 run
+   wrote. Open another AX3 page, change one word inside the imported text
+   itself (not beside it), save, and run `cookbookImportJournals()`.
+   *Observable:* `preserved: 1`, the notice says one page kept (edited), and the
+   word stands. Then open a third page and press save without typing (the
+   editor re-serializes the block), and run again: that page counts `updated`
+   and still holds the book's text, and its `sum` is unchanged. Put the first
+   page's word back as it was: the next run counts it `updated`.
 9. **The same edit under a repair is listed, and taken only on a yes.** With
-   your paragraph back on the page, run
+   your paragraph back on the page, and again with a word of the block
+   changed, run
    `acksExtras.importer.cookbookReimportAdventure("ax3")`, answer the confirm
    Yes. *Observable:* the held-edits dialog lists the page (field
    `text.content`, the AX3 reference). Keep it: the page still holds your

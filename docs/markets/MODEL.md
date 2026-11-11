@@ -583,6 +583,18 @@ joined through `takeoverPatch` or `bindPatch`
 heading when there is one, else its column's header when the grid prints it
 as text, else `Market N`, and stamps that name as `printed`.
 
+The market step owns the name it reads (`nameMarketPlace`): a record's heading
+or a column's header is written, on every run and every repair, onto the place
+claimed under the market's own id, on one a region site made first as on one
+made by the step. The name follows only while the place still holds the one the
+import last wrote (`rowBlockPatch`); a Judge's rename stands, and under a merged
+repair is a held edit until a decision takes it. A region site bound onto a
+market names it only where the step read no name: it fills the neutral
+`Market N` label with its own heading (`siteNamePatch`), never a name the step
+read or a Judge's. Whichever step runs first, a market the step read a name for
+ends with it, and one it read none for ends with its site's heading, else
+`Market N`.
+
 ## Market reports and the trade house
 
 What a character believes about a market's demand is an Item, not a row on the

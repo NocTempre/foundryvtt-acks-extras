@@ -15,7 +15,7 @@ import assert from "node:assert/strict";
 import { MODULE_ID } from "../../scripts/importer/constants.mjs";
 import { bookText, bookTextBlock, insertBookTextAfter, keepParagraphs, swapBookText } from "../../scripts/importer/prose.mjs";
 import { poiLocationData } from "../../scripts/importer/poi-binding.mjs";
-import { answersFor, bindPatch, claimIds, placePairs, rowBlockPatch, takeoverPatch } from "../../scripts/importer/place-pair.mjs";
+import { answersFor, bindPatch, claimIds, placePairs, rowBlockPatch, siteNamePatch, takeoverPatch } from "../../scripts/importer/place-pair.mjs";
 import { blockSum, decides } from "../../scripts/importer/held-edits.mjs";
 
 let pass = 0;
@@ -254,6 +254,42 @@ eq("a block the Judge took out after its stamp is held, not put back", [gone.upd
 const emptied = write({ ...lRepaired, system: { notes: "" } }, { id: L.id, notes: lAgain });
 eq("even from notes the Judge emptied", [emptied.update, emptied.edits.length], [{}, 1]);
 eq("a build with no notes writes none", write(shared, { id: "lb.over" }).update, {});
+
+/* --- a market's name: the market step's read name stands, a site's heading fills only the neutral label --- */
+
+{
+  const MARKET = "lb.mkt4";
+  const neutral = "Market Four";
+  const marketPlace = (name, printed = name, extra = {}) => ({
+    uuid: "Actor.mkt4", name, system: { notes: "" }, flags: { [MODULE_ID]: { cookbook: { id: MARKET, printed, ...extra } } },
+  });
+  const site = { id: MARKET, name: "Harbour Site", placeholder: neutral };
+  const printedKey = `flags.${MODULE_ID}.cookbook.printed`;
+
+  eq("a site's heading names a market place still holding the neutral label, and stamps it as printed",
+    siteNamePatch(marketPlace(neutral), site), { name: "Harbour Site", [printedKey]: "Harbour Site" });
+  eq("a name the market step read is not overwritten", siteNamePatch(marketPlace("Quay Exchange"), site), {});
+  eq("nor is a Judge's rename of the neutral label", siteNamePatch(marketPlace("Judged", neutral), site), {});
+  eq("nor the name of a place claimed under another id", siteNamePatch({ ...marketPlace(neutral), flags: { [MODULE_ID]: { cookbook: { id: "zz.mkt4", printed: neutral } } } }, site), {});
+  eq("a place stamped before it recorded its printed name is left alone", siteNamePatch(marketPlace(neutral, null), site), {});
+  eq("a site that read no heading names nothing", siteNamePatch(marketPlace(neutral), { ...site, name: "" }), {});
+  eq("a second run finds the name already the site's", siteNamePatch(applied(marketPlace(neutral), siteNamePatch(marketPlace(neutral), site)), site), {});
+
+  // Either order ends with the market step's read name, through the same rule a repair writes by.
+  const step = (doc, name, opts) => rowBlockPatch(doc, { id: MARKET, name, cite: "LB 5" }, opts);
+  const siteFirst = applied(marketPlace("Harbour Site"), {});
+  eq("a place a site made first takes the market step's read name", applied(siteFirst, step(siteFirst, "Quay Exchange").update).name, "Quay Exchange");
+  const afterFill = applied(marketPlace(neutral), siteNamePatch(marketPlace(neutral), site));
+  eq("one a site filled takes it too", applied(afterFill, step(afterFill, "Quay Exchange").update).name, "Quay Exchange");
+  const marketFirst = marketPlace("Quay Exchange");
+  eq("a place the market step named first keeps it against the site", [applied(marketFirst, siteNamePatch(marketFirst, site)).name, step(marketFirst, "Quay Exchange").update], ["Quay Exchange", {}]);
+  const reread = step(marketFirst, "Quay Bourse");
+  eq("a repair that reads a different heading refreshes the name and its printed record", [applied(marketFirst, reread.update).name, applied(marketFirst, reread.update).flags[MODULE_ID].cookbook.printed], ["Quay Bourse", "Quay Bourse"]);
+  const renamed = marketPlace("Judged", "Quay Exchange");
+  eq("a Judge's rename stands against the market step and is listed as an edit",
+    [step(renamed, "Quay Bourse").update, step(renamed, "Quay Bourse").edits.map((e) => [e.path, e.current, e.page])], [{}, [["name", "Judged", "Quay Bourse"]]]);
+  eq("unless the decision takes it", applied(renamed, step(renamed, "Quay Bourse", { decision: "take" }).update).name, "Quay Bourse");
+}
 
 /* --- the decision and the checksum --- */
 

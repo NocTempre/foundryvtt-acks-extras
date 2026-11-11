@@ -17,8 +17,8 @@ import { MODULE_ID, LANG_PREFIX, ITEM_TYPE, DEFAULT_IMG } from "./constants.mjs"
 import { trainingChanges } from "../classes/training-logic.mjs";
 import { BUILDER_DOC_ID, baseXpCost, xpSchedule } from "../classes/builder-logic.mjs";
 import { LANGUAGES_DOC_ID } from "./language-binding.mjs";
-import { bookText, entryText, entryTable, escapeText, keepParagraphs, nodeParagraphs } from "./prose.mjs";
-import { answersFor, bindPatch, claimIds, placePairs, rowBlockPatch, takeoverPatch } from "./place-pair.mjs";
+import { blockDigest, bookText, bookTextBlock, entryText, entryTable, escapeText, keepParagraphs, nodeParagraphs } from "./prose.mjs";
+import { answersFor, bindPatch, claimIds, placePairs, rowBlockPatch, siteNamePatch, takeoverPatch } from "./place-pair.mjs";
 import {
   actorPolicy,
   decidedPolicy,
@@ -1119,16 +1119,37 @@ const CREATURE_LINE = /<p><strong>Creatures:<\/strong>[^<]*<\/p>/g;
  */
 const judgedPage = (stored) => handWrittenProse(String(stored ?? "").replace(CREATURE_LINE, " "));
 
+/** The page's cookbook stamp: its entry id and the digest of the block the import last wrote. */
+const pageStamp = (page) => page?.flags?.[MODULE_ID]?.cookbook ?? {};
+
+/** The digest of entry `id`'s stamped block in a page's text, or "" where the text holds none. */
+const blockDigestIn = (html, id) => {
+  const block = id ? bookTextBlock(html, id) : "";
+  return block ? blockDigest(block) : "";
+};
+
+/**
+ * Whether a Judge edited inside the page's own stamped block: the page records
+ * the digest of the block the import wrote (`pageStamp`), and the stored block
+ * no longer reads as it did. A page with no digest (written before it was
+ * recorded) or none left of the block is not an edit of this kind.
+ */
+function editedInBlock(page, stored) {
+  const { id, sum } = pageStamp(page);
+  return !!sum && !!blockDigestIn(stored, id) && blockDigestIn(stored, id) !== sum;
+}
+
 /**
  * Whether a journal page write keeps the stored text (`current`) instead of the
  * build's (`built`): true where the page holds hand-written prose
- * (`judgedPage`) that differs from the build and nothing takes it. Outside a
+ * (`judgedPage`) or an edit inside its stamped block (`editedInBlock`) that
+ * differs from the build, and nothing takes it. Outside a
  * rewrite it is kept. Under a rewrite that carries a `decision` it is kept
  * unless the decision takes it, and a kept page is listed in the tally's
  * `edits`; a rewrite without one follows the tally's force.
  */
 function keepsJudgePage(page, current, built, cite) {
-  if (current === built || !judgedPage(current)) return false;
+  if (current === built || !(judgedPage(current) || editedInBlock(page, current))) return false;
   if (!rewriteScope) return true;
   if (!("decision" in rewriteScope)) return !rewriteScope.tally?.force;
   const edit = heldEdit({ uuid: page.uuid ?? "", name: page.name ?? "", path: "text.content", current, page: built, cite });
@@ -1139,8 +1160,10 @@ function keepsJudgePage(page, current, built, cite) {
 
 /**
  * Write a journal page the import already made: `sort` always, its text
- * (`content`) unless the stored text holds a Judge's prose that differs from
- * it (`keepsJudgePage`).
+ * (`content`) unless the stored text holds a Judge's prose or an edit inside
+ * the import's block that differs from it (`keepsJudgePage`). A written page
+ * records the digest of its block (`blockDigest`) in its stamp, which is what
+ * a later run reads an edit inside the block against.
  * @param {JournalEntryPage} page
  * @param {string} content the page text the build gives
  * @param {number} sort
@@ -1150,6 +1173,9 @@ function keepsJudgePage(page, current, built, cite) {
 export async function writeJournalPage(page, content, sort, cite = "") {
   const kept = keepsJudgePage(page, page.text?.content ?? "", content, cite);
   const patch = kept ? {} : { "text.content": content };
+  const { id, sum } = pageStamp(page);
+  const written = kept ? "" : blockDigestIn(content, id);
+  if (written && written !== sum) patch[`flags.${MODULE_ID}.cookbook.sum`] = written;
   if (!kept || page.sort !== sort) patch.sort = sort;
   if (Object.keys(patch).length) await page.update(patch);
   return kept ? "kept" : "written";
@@ -5325,7 +5351,8 @@ const journalEntriesOf = (entries) => {
  * register maps one); a setting table's is the printed rows laid out as a
  * table under the register's header words; a passage's is its paragraphs.
  * Pages update in place on re-import, so coverage grows without duplicating.
- * A page whose stored text holds a Judge's prose that differs from the build
+ * A page whose stored text holds a Judge's prose, or an edit inside its stamped
+ * block, that differs from the build
  * keeps it (`writeJournalPage`) and is counted in `preserved`: outside a
  * repair always, and inside a merged repair unless its decision takes it, where
  * a page kept is listed as a held edit.
@@ -5428,7 +5455,7 @@ export async function cookbookImportJournals({ books = null, quiet = false } = {
                 type: "text",
                 sort,
                 text: { content, format: CONST.JOURNAL_ENTRY_PAGE_FORMATS.HTML },
-                flags: { [MODULE_ID]: { cookbook: { id, book: bookId } } },
+                flags: { [MODULE_ID]: { cookbook: { id, book: bookId, sum: blockDigestIn(content, id) } } },
               },
             ]);
             made++;
@@ -5947,7 +5974,9 @@ async function importRegionRow({ bookId, id, e, region }, tally, run) {
   if (block) {
     const node = await read();
     if (!node?.ok) return void tally.refused++;
-    await writeRowBlock(block, pairRow(run.pairs, { id, name: printedNameOf(node, e.name), notes: entryText(node, id, e.cite), cite: e.cite ?? "" }, block));
+    const siteName = printedNameOf(node, e.name);
+    await writeRowBlock(block, pairRow(run.pairs, { id, name: siteName, notes: entryText(node, id, e.cite), cite: e.cite ?? "" }, block));
+    await nameBoundMarket(block, regionSiteClaim(bookId, e, id, cb.entries), e, siteName);
     return;
   }
 
@@ -6010,7 +6039,46 @@ async function importRegionRow({ bookId, id, e, region }, tally, run) {
   if (!target) return void tally.refused++;
   const patch = siteBindPatch(target, { notes, parentUuid, role });
   if (Object.keys(patch).length) await target.update(patch);
+  await nameBoundMarket(target, claim, e, name);
   tally.bound++;
+}
+
+/**
+ * A region site bound onto a market's place yields the place's name to the
+ * market step: it writes its heading only where the place still holds the
+ * neutral label (`siteNamePatch`). A site bound anywhere else names nothing.
+ * @param {Actor} place the place the site's text was written onto
+ * @param {{claimId: string, onto: string}} claim `regionSiteClaim`'s answer for the site
+ * @param {object} entry the site's cookbook entry
+ * @param {string} name the site's read heading
+ */
+async function nameBoundMarket(place, claim, entry, name) {
+  if (claim.onto !== "market") return;
+  const patch = siteNamePatch({ ...place.toObject(), uuid: place.uuid }, { id: claim.claimId, name, placeholder: marketPlaceholder(entry.meta?.market) });
+  if (Object.keys(patch).length) await place.update(patch);
+}
+
+/** The neutral label a market carries until a page names it: the market step's fallback and the one a region site yields to. */
+const marketPlaceholder = (market) => game.i18n.format(`${LANG_PREFIX}.markets.label`, { n: marketOrdinal(market) });
+
+/**
+ * Write the name the market step read (`printed`: a record's heading or a
+ * column's header) onto the place that is the market's own, and onto no other:
+ * a place claimed under another id (a pair another book took over, the
+ * settlement) is named by its own row. The name follows only while the place
+ * still holds the one the import last wrote (`rowBlockPatch`); a Judge's
+ * rename stands, and under a merged repair is listed in the tally's `edits`
+ * until a decision takes it.
+ */
+async function nameMarketPlace(place, entryId, printed, cite, repair) {
+  const stored = { ...place.toObject(), uuid: place.uuid };
+  if (stored.flags?.[MODULE_ID]?.cookbook?.id !== entryId) return;
+  const merged = !!repair && "decision" in repair;
+  const { update, edits } = rowBlockPatch(stored, { id: entryId, name: printed, cite }, { decision: merged ? repair.decision : null });
+  if (merged && edits.length) (repair.edits ??= []).push(...edits);
+  if (!Object.keys(update).length) return;
+  await place.update(update);
+  if ((repair?.force || merged) && unrepaired(repair, place)) repair.replaced++;
 }
 
 /**
@@ -6145,9 +6213,8 @@ export async function cookbookImportMarketProfiles({ books: only = null, repair 
           const entryId = marketEntryId(bookId, profile.market);
           // A grid printed sideways heads each market's column with its name,
           // as text; one printed the other way keys its rows by position.
-          const name = record?.name
-            || placeName(grid.header?.[profile.market])
-            || game.i18n.format(`${LANG_PREFIX}.markets.label`, { n: marketOrdinal(profile.market) });
+          const printedName = record?.name || placeName(grid.header?.[profile.market]);
+          const name = printedName || marketPlaceholder(profile.market);
           // A column may name the place it is (`meta.markets`): the book's own
           // settlement, a place another row builds, or another book's market.
           const column = e.meta?.markets?.[profile.market] ?? {};
@@ -6169,6 +6236,9 @@ export async function cookbookImportMarketProfiles({ books: only = null, repair 
           } else {
             ({ place, fresh, paired } = await claimMarketPlace(entryId, pairs, { id: entryId, book: bookId, name, notes: "", region: label },
               () => createDoc(Actor, marketActorData({ name, entryId, book: bookId, bookLabel: label, folderId: folder }))));
+            // This step owns the name it reads, on a place a region site made
+            // first as on one a repair finds held.
+            if (place && printedName) await nameMarketPlace(place, entryId, printedName, e.cite ?? "", repair);
           }
           if (!place) {
             counts.refused++;

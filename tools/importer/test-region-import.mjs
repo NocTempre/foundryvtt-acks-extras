@@ -30,6 +30,8 @@ import {
   mapCreateData, regionSiteClaim, siteBindPatch, forgetImportedIndex, repairHeldMap, holdingLibrary, importedDocs,
 } from "../../scripts/importer/cookbook.mjs";
 import { withErratumNote } from "../../scripts/importer/market-profile-binding.mjs";
+import { printKey } from "../../scripts/importer/printed-name.mjs";
+import { mergedTally } from "../../scripts/importer/refresh.mjs";
 
 let failed = 0;
 const check = (name, got, want) => {
@@ -1362,6 +1364,95 @@ const map = game.scenes.find((s) => s.getFlag(MODULE_ID, "cookbook")?.id === "zz
     [[], null, true, false]);
   sessions.delete("er");
   delete BOOK_FILES.er;
+}
+
+// --- a market place's name: the market step's read name stands in either run order, and a repair refreshes it ----
+{
+  // Two markets bound by a site each. The first has a record that prints a heading; the second has none, so
+  // the market step reads no name for it and its site's heading stands.
+  const rawCol = (key, x0) => ({ key, x0, x1: x0 + 90, pattern: "raw" });
+  const bookOf = (heading) => ({
+    schema: SCHEMA, book: { id: "nm" },
+    entries: {
+      "nm.region": loc("Region — Overview"),
+      "nm.site1": { ...loc("Region — Sites", { market: "mkt1" }), name: "First Site" },
+      "nm.site2": { ...loc("Region — Sites", { market: "mkt2" }), name: "Second Site" },
+      "nm.mkt1": {
+        kind: "kind.marketRecord", name: "Record", cite: "N 2", pages: [1], meta: { market: "mkt1" },
+        fields: { name: { op: "heading", page: 1, box: { x0: 0, x1: 400, y0: 295, y1: 310 }, hash: printKey(heading) } },
+      },
+      "nm.mkt2": { kind: "kind.marketRecord", name: "Record", cite: "N 2", pages: [1], meta: { market: "mkt2" }, fields: {} },
+      "nm.grid1": {
+        kind: "kind.marketGrid", name: "Grid", cite: "N 1", pages: [1],
+        fields: {
+          "grids.markets": {
+            op: "grid", page: 1, box: { x0: 0, x1: 400, y0: 200, y1: 240 },
+            rowBands: [{ key: "mkt1", y0: 205, y1: 215 }, { key: "mkt2", y0: 225, y1: 235 }],
+            cols: [rawCol("salt", 100), rawCol("spices", 200), rawCol("marketClass", 300)],
+          },
+        },
+      },
+    },
+  });
+  const shelf = game.packs.get(ACTOR_PACK);
+  const flagOf = (d) => d?.flags?.[MODULE_ID]?.cookbook ?? {};
+  const shelved = (cbId) => shelf.docs.find((d) => flagOf(d).id === cbId);
+  const names = () => [shelved("nm.mkt1")?.name, shelved("nm.mkt2")?.name];
+  const load = async (heading) => {
+    BOOK_FILES.nm = bookOf(heading);
+    await loadCookbook();
+    sessions.set("nm", {
+      doc: textPdf([["+3", 110, 210], ["-2", 210, 210], ["III", 310, 210], ["+1", 110, 230], ["0", 210, 230], ["II", 310, 230], [heading, 10, 300]]),
+    });
+  };
+  const wipe = () => {
+    for (const d of shelf.docs.filter((x) => flagOf(x).book === "nm")) shelf.docs.delete(d.id);
+    forgetImportedIndex();
+  };
+  const places = () => cookbookImportPoiPlaces({ books: ["nm"] });
+  const markets = (repair = null) => cookbookImportMarketProfiles({ repair });
+
+  await load("Orchard Market");
+  await places();
+  check("a site that makes its market first names it by its own heading", names(), ["First Site", "Second Site"]);
+  await markets();
+  check("the market step then names the market it read, and leaves the one it read no name for",
+    [names(), shelved("nm.mkt1")?.flags[MODULE_ID].cookbook.printed], [["Orchard Market", "Second Site"], "Orchard Market"]);
+
+  wipe();
+  await markets();
+  check("the market step first leaves the neutral label where it read no name", [shelved("nm.mkt1")?.name, shelved("nm.mkt2")?.name?.startsWith("ACKS-IMPORTER.markets.label")], ["Orchard Market", true]);
+  await places();
+  check("the sites then bind: the read name stands, the site's heading fills the neutral one", names(), ["Orchard Market", "Second Site"]);
+  await places();
+  await markets();
+  check("run again, the same names", names(), ["Orchard Market", "Second Site"]);
+
+  // A repair that reads another heading refreshes the name; a Judge's rename holds until a decision takes it.
+  await load("Orchard Exchange");
+  await markets();
+  check("a heading read again renames a place the import named", names(), ["Orchard Exchange", "Second Site"]);
+  const judged = shelved("nm.mkt1");
+  judged.name = "Judged";
+  await load("Orchard Bourse");
+  await markets();
+  check("an ordinary run leaves a Judge's rename", judged.name, "Judged");
+  const keep = mergedTally("keep");
+  await markets(keep);
+  check("a repair holding the rename lists it with both names and writes neither",
+    [judged.name, keep.edits.map((e) => [e.path, e.current, e.page])], ["Judged", [["name", "Judged", "Orchard Bourse"]]]);
+  const take = mergedTally({ take: new Set([`${judged.uuid}#name`]) });
+  await markets(take);
+  check("and a decision taking it writes the read name", [judged.name, take.edits.length], ["Orchard Bourse", 0]);
+
+  // The site's own place, written on a repair, never names the market.
+  const source = readFileSync(new URL("../../scripts/importer/cookbook.mjs", import.meta.url), "utf8");
+  const row = source.slice(source.indexOf("async function importRegionRow"), source.indexOf("async function nameBoundMarket"));
+  ok("a repair's site row yields the name the same way the first import's does",
+    /await writeRowBlock\(block, [^;]*;\s*await nameBoundMarket\(block, regionSiteClaim\(/.test(row) && /await nameBoundMarket\(target, claim, e, name\);/.test(row));
+  sessions.delete("nm");
+  delete BOOK_FILES.nm;
+  wipe();
 }
 
 // --- shapes the Foundry half depends on -------------------------------------------------------

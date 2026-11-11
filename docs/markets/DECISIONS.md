@@ -1114,3 +1114,34 @@ This entry rules both.
   printing settles it.
 - One note per place: a record that declared both `gridClassErratum` and
   `familiesErratum` would carry the class note only.
+
+## 2026-11-11 — The market step owns a market place's name, and a region site fills only the neutral label
+
+**Asked.** A repair did not refresh a market place's name: the place's name was
+written only by whichever step made it, a region site (by its own heading) when
+the places step ran first, and a place already held was never renamed by the
+market step, so run order decided which row named it.
+
+**Ruled (owner, 2026-11-11).** The market step owns a market place's name on a
+repair, as the model already says (a record's heading, else its column's
+header, else `Market N`).
+
+- **The step writes the name it reads** (`nameMarketPlace`), on every run, onto
+  a place claimed under the market's own id, through `rowBlockPatch`'s name
+  rule: the name follows only while it is the one the import last wrote, a
+  Judge's rename stands and is a held edit under a merged repair.
+- **A site fills only the neutral label** (`siteNamePatch`). The owner's
+  ruling allows the site to name the place only where the step has not; 18 of
+  AX3's 25 site-bound markets have no record, so the step reads no name for
+  them, and a site that never named a market would turn each into `Market N`
+  where a fresh import names it by the site's heading today. A name the step
+  read, and a Judge's, are never overwritten by a site, in either order.
+
+**Rejected.** The region site row as the place's namer, which creates the place
+today and so decided the name by run order. A site that never names the place at
+all: it makes the 18 record-less AX3 markets `Market N`.
+
+*Cost:* a place a site made, named by its heading, is renamed by a later market
+step that reads a different name. A place two books print keeps the later book's
+row as its namer (`takeoverPatch`), a site's heading included, until that book's
+market step reads a name of its own.

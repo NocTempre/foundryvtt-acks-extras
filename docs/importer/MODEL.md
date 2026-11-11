@@ -275,11 +275,24 @@ decision, so a description a Judge wrote in is held. Its pregenerated
 characters are put to the Judge (`repairPregens`). Journals are refreshed by
 their step, run inside a `withRewrite` that holds no document and carries the
 pass's decision: a page whose stored text holds a Judge's prose beyond the
-import's own block and creature line is an edit (`writeJournalPage`, path
-`text.content`), listed in the choice dialog and written only where the
-decision takes it, on the second pass as the first; every other page is written
-whole. Outside a repair (Import Everything, the entry picker's import) such a
-page is kept, its sort alone written, and the run counts it `preserved`. Maps
+import's own block and creature line, or an edit inside the block, is an edit
+(`writeJournalPage`, path `text.content`), listed in the choice dialog and
+written only where the decision takes it, on the second pass as the first;
+every other page is written whole. Outside a repair (Import Everything, the
+entry picker's import) such a page is kept, its sort alone written, and the run
+counts it `preserved`. An edit inside the block is found by a digest the page
+records in its stamp (`flags.acks-extras.cookbook.sum`) each time the import
+writes it: `blockDigest` of the stamped block, a checksum over the block's
+readable text (`readableText`: tags dropped, entities decoded, whitespace
+collapsed, an image kept by its source). A stored block that no longer digests
+to the stamp was edited by hand, and the page is held as above. The digest is
+taken over text so that what the editor re-serializes without changing a word
+(attribute order, a table cell's text wrapped in a paragraph, a reflowed line,
+`&nbsp;`) never reads as an edit; a change that leaves the readable text as it
+was (bold on a word, a moved paragraph break) is not seen and the page is
+refreshed. A page with no digest, written before it was recorded, is read as
+unedited. The stamp, not the markup, holds the digest, so nothing the editor
+does to the block can strip it. Maps
 are refreshed by their own step (`repairHeldMap`, which keeps the Judge's
 regions, fog and tokens). The adventures step runs once, after the last pass,
 with `force`, which `bookAdventureState` reads as stale whatever the stamp
@@ -800,6 +813,7 @@ that market's record says `place: "adventure"`; a row with
 on a place of its own under the region. A bound site writes its notes, its
 parent (the region) and its role onto the place it lands on, each only where
 that place holds none (`siteBindPatch`), and never makes a second place. The
+market's name is the market step's (docs/markets/MODEL.md). The
 step lists the region's place and each place it makes for a site in its
 `created.places`. The journal step leaves region rows alone (`journalBound`).
 
