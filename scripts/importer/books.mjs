@@ -11,6 +11,11 @@
  * book declaring none goes to the ACKS ones. Only books from outside the ACKS
  * library carry it — the ACKS line is the default, not a name in this file.
  *
+ * `stats` declares the stat system the book's rows print: `"ose"` for a book
+ * whose creatures and places are statted for Old-School Essentials. It is
+ * absent for a book that prints ACKS-native stats, which is the default, and it
+ * is what `activeBooks` drops when the OSE line is switched off.
+ *
  * `judge` marks a book whose own rows are the Judge's — an adventure, a
  * gazetteer, a supplement that prints a keyed place: every document its ids
  * name (its places, people, organisations, lists, maps, monsters and its
@@ -39,8 +44,12 @@
  * number printed on the page they turn to. Every book carries one, because
  * every book has front matter: a reader handed a raw PDF page is sent two
  * pages past what they were looking for.
+ *
+ * `REGISTRY` is every book this file knows, the answer to a question about an
+ * id a world, a flag or a citation already holds. `BOOKS` is the subset the
+ * module currently offers, shipped and imported.
  */
-export const BOOKS = {
+export const REGISTRY = {
   rr: {
     label: "ACKS II Revised Rulebook",
     short: "RR",
@@ -147,6 +156,7 @@ export const BOOKS = {
   qd1: {
     label: "Quick Delve #1: Milk",
     line: "Quick Delve",
+    stats: "ose",
     short: "QD1",
     pages: 20,
     titleRe: /^Milk$/i,
@@ -155,6 +165,7 @@ export const BOOKS = {
   qd2: {
     label: "Quick Delve #2: The Grotesques' Grotto",
     line: "Quick Delve",
+    stats: "ose",
     short: "QD2",
     pages: 20,
     titleRe: /Grotesques/i,
@@ -163,6 +174,7 @@ export const BOOKS = {
   qd3: {
     label: "Quick Delve #3: Against the Horselord",
     line: "Quick Delve",
+    stats: "ose",
     short: "QD3",
     pages: 24,
     titleRe: /Against the Horselord/i,
@@ -171,6 +183,7 @@ export const BOOKS = {
   aft: {
     label: "OSE Advanced Fantasy Referee's Tome",
     line: "Old-School Essentials",
+    stats: "ose",
     short: "AFT",
     pages: 257,
     titleRe: /Referee/i,
@@ -178,6 +191,7 @@ export const BOOKS = {
   dmb: {
     label: "Dolmenwood Monster Book",
     line: "Dolmenwood",
+    stats: "ose",
     short: "DMB",
     pages: 137,
     titleRe: /Dolmenwood/i,
@@ -191,6 +205,7 @@ export const BOOKS = {
   wld1: {
     label: "Wicked Little Delves, vol 1",
     line: "Wicked Little Delves",
+    stats: "ose",
     short: "WLD1",
     pages: 25,
     titleRe: /Wickedv1/i,
@@ -199,6 +214,7 @@ export const BOOKS = {
   wld2: {
     label: "Wicked Little Delves, vol 2",
     line: "Wicked Little Delves",
+    stats: "ose",
     short: "WLD2",
     pages: 25,
     titleRe: /Wickedv2/i,
@@ -207,6 +223,7 @@ export const BOOKS = {
   wld3: {
     label: "Wicked Little Delves, vol 3",
     line: "Wicked Little Delves",
+    stats: "ose",
     short: "WLD3",
     pages: 29,
     titleRe: /Wickedv3/i,
@@ -215,6 +232,7 @@ export const BOOKS = {
   pc1: {
     label: "Planar Compass, Issue 1",
     line: "Planar Compass",
+    stats: "ose",
     short: "PC1",
     pages: 60,
     titleRe: /Planar\s*Compass\s*1/i,
@@ -223,6 +241,7 @@ export const BOOKS = {
   pc2: {
     label: "Planar Compass, Issue 2",
     line: "Planar Compass",
+    stats: "ose",
     short: "PC2",
     pages: 72,
     titleRe: /Planar\s*Compass\s*2/i,
@@ -231,6 +250,7 @@ export const BOOKS = {
   pc3: {
     label: "Planar Compass, Issue 3",
     line: "Planar Compass",
+    stats: "ose",
     short: "PC3",
     pages: 72,
     titleRe: /Planar\s*Compass\s*3/i,
@@ -304,6 +324,31 @@ export const BOOKS = {
   },
 };
 
+/**
+ * The owner's switch for the OSE line. `true` offers every book in `REGISTRY`;
+ * `false` withdraws each book whose rows are statted for Old-School Essentials
+ * (`stats: "ose"`) from `BOOKS`, while `REGISTRY` still answers for it. The
+ * ruling and its scope are in docs/importer/DECISIONS.md.
+ */
+export const OSE_BOOKS_ACTIVE = true;
+
+/**
+ * The books a registry offers: every entry, minus each one declaring
+ * `stats: "ose"` when `oseActive` is false. Pure; the input is not changed.
+ *
+ * @param {Record<string, object>} registry book id → registry entry
+ * @param {boolean} oseActive whether books statted for OSE are offered
+ * @returns {Record<string, object>} the offered entries, in registry order
+ */
+export const activeBooks = (registry, oseActive) =>
+  Object.fromEntries(Object.entries(registry).filter(([, book]) => oseActive || book.stats !== "ose"));
+
+/**
+ * The books the module offers: `REGISTRY` as `OSE_BOOKS_ACTIVE` leaves it.
+ * Enumerations that offer, connect or import a book read this; a fact about an
+ * id that already exists in a world, a flag or a citation reads `REGISTRY`.
+ */
+export const BOOKS = activeBooks(REGISTRY, OSE_BOOKS_ACTIVE);
 
 /**
  * The citation a reader is shown for one PDF page of one book.
@@ -315,7 +360,7 @@ export const BOOKS = {
  * folio printed on the paper. Composing one by interpolating the raw page is
  * how six of the seven call sites came to cite two pages past the entry.
  */
-export const citeFor = (bookId, page) => `${BOOKS[bookId]?.short ?? bookId} p.${page - (BOOKS[bookId]?.printedOffset ?? 0)}`;
+export const citeFor = (bookId, page) => `${REGISTRY[bookId]?.short ?? bookId} p.${page - (REGISTRY[bookId]?.printedOffset ?? 0)}`;
 
 /**
  * The inverse of `citeFor`: the book id and PDF page a citation names, or null
@@ -329,15 +374,15 @@ export function parseCite(text) {
   const m = /^\s*([A-Za-z][A-Za-z0-9]*)\s+(PDF\s+)?pp?\.?\s*(\d+)/i.exec(String(text ?? ""));
   if (!m) return null;
   const short = m[1].toUpperCase();
-  const bookId = Object.keys(BOOKS).find((id) => String(BOOKS[id].short ?? "").toUpperCase() === short);
+  const bookId = Object.keys(REGISTRY).find((id) => String(REGISTRY[id].short ?? "").toUpperCase() === short);
   if (!bookId) return null;
   const printed = Number(m[3]);
-  return { book: bookId, page: m[2] ? printed : printed + (BOOKS[bookId].printedOffset ?? 0) };
+  return { book: bookId, page: m[2] ? printed : printed + (REGISTRY[bookId].printedOffset ?? 0) };
 }
 
 /** Human-readable fingerprint check; returns null when OK, else a warning. */
 export function fingerprintWarning(bookId, numPages, title) {
-  const book = BOOKS[bookId];
+  const book = REGISTRY[bookId];
   if (!book) return `unknown book id "${bookId}"`;
   const problems = [];
   if (numPages !== book.pages) problems.push(`page count ${numPages} (expected ${book.pages})`);
@@ -359,7 +404,7 @@ export function fingerprintWarning(bookId, numPages, title) {
  * drift a warning rather than a refusal.
  */
 export function identifyBook(numPages, title) {
-  const hits = Object.entries(BOOKS).filter(
+  const hits = Object.entries(REGISTRY).filter(
     ([, book]) => book.pages === numPages && (!title || book.titleRe.test(title)),
   );
   return hits.length === 1 ? hits[0][0] : null;
@@ -372,13 +417,13 @@ export function identifyBook(numPages, title) {
  * it — those carry their line on their own world record, and `cookbook.mjs`
  * asks both.
  */
-export const bookLine = (bookId) => BOOKS[bookId]?.line ?? null;
+export const bookLine = (bookId) => REGISTRY[bookId]?.line ?? null;
 
 /** Whether a shipped book is the Judge's alone (`judge` in the registry). */
-export const bookIsJudges = (bookId) => BOOKS[bookId]?.judge === true;
+export const bookIsJudges = (bookId) => REGISTRY[bookId]?.judge === true;
 
 /** Whether a registry entry is a fillable form rather than a book (`form`). */
-export const bookIsForm = (bookId) => BOOKS[bookId]?.form === true;
+export const bookIsForm = (bookId) => REGISTRY[bookId]?.form === true;
 
 /**
  * The shelved books a seat opens at join: each one the registry knows, not
@@ -404,8 +449,8 @@ export const shelfBooksToOpen = (staged, observes, isOpen) =>
  * a rule of its own.
  */
 export function laterBook(a, b) {
-  const ya = BOOKS[a]?.published;
-  const yb = BOOKS[b]?.published;
+  const ya = REGISTRY[a]?.published;
+  const yb = REGISTRY[b]?.published;
   if (!Number.isInteger(ya) || !Number.isInteger(yb) || ya === yb) return null;
   return ya > yb ? a : b;
 }
@@ -421,7 +466,7 @@ export function keptBook(a, b) {
   const later = laterBook(a, b);
   if (later) return later;
   const rank = (id) => {
-    const i = Object.keys(BOOKS).indexOf(id);
+    const i = Object.keys(REGISTRY).indexOf(id);
     return i < 0 ? Number.MAX_SAFE_INTEGER : i;
   };
   return rank(a) < rank(b) ? a : b;

@@ -25,7 +25,7 @@ import { fileURLToPath } from "node:url";
 import { openBook, pageItems as extractPageItems, listHeadings, detectColumns, colOf, glyphColorRuns, pageArtPlacements } from "../../scripts/importer/extract.mjs";
 import { runsIn, joinRuns, attackModel } from "../../scripts/importer/executor.mjs";
 import { rowsByY, slugLabel } from "../../scripts/importer/table-extract.mjs";
-import { BOOKS, citeFor, fingerprintWarning } from "../../scripts/importer/books.mjs";
+import { REGISTRY, citeFor, fingerprintWarning } from "../../scripts/importer/books.mjs";
 import { SCENE_LINK_KIND, SCENE_ZONE_KIND, ZONE_FIGURES, placementHolding, recipeContext, recipeProblems, zoneProblems } from "../../scripts/importer/scene-binding.mjs";
 import { wallsWarnings } from "../../scripts/importer/wall-trace.mjs";
 import { caseCarriesNothing, opensWithNumber, printKey } from "../../scripts/importer/printed-name.mjs";
@@ -6235,8 +6235,8 @@ async function main() {
     const out = {
       schema: "acks-cookbook/2",
       book: {
-        id: bookId, label: BOOKS[bookId].label, short: BOOKS[bookId].short,
-        pages: BOOKS[bookId].pages, titleRe: BOOKS[bookId].titleRe.source,
+        id: bookId, label: REGISTRY[bookId].label, short: REGISTRY[bookId].short,
+        pages: REGISTRY[bookId].pages, titleRe: REGISTRY[bookId].titleRe.source,
       },
       entries: {},
     };
@@ -6779,7 +6779,7 @@ async function main() {
     path.join(COOKBOOK, "index.json"),
     JSON.stringify(
       {
-        books: present.map(stem).filter((s) => BOOKS[s]),
+        books: present.map(stem).filter((s) => REGISTRY[s]),
         content: present.map(stem).filter((s) => contentNames.has(s)),
       },
       null,

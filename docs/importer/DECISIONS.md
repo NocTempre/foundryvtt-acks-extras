@@ -9534,3 +9534,41 @@ that keeps it out of every repair, and it may carry their own edits.
 until they delete it and drag out the rebuilt template; the changelog says so.
 A rebuild's template keeps its id only while the page that deleted it stays
 open (`deleteImported` records ids in memory).
+
+## 2026-11-10 — The books statted for OSE are switched off, and their code kept
+
+**Ruled by the owner.** The non-ACKS books are deactivated "for now": the
+code stays, and the module stops shipping them, allowing their import,
+supporting them and testing them in builds until the decision is reversed.
+Asked where the line falls, the owner answered that The OSR Catgirl is a
+third-party ACKS book and that anything shipping ACKS-native stats stays; that
+the code leaves the release zip as well; and that the System Compatibility
+Guide stays listed.
+
+So the line is the stat system a book prints, not its publisher. Every book
+whose compiled rows are only `kind.oseMonster` and `kind.oseLocation` carries
+`stats: "ose"` in `books.mjs`: the three Quick Delves, the Referee's Tome, the
+Dolmenwood Monster Book, the three Wicked Little Delves and the three Planar
+Compass issues. The sources a Judge registers for the OSE path, and converting
+by hand, go with them. The catgirl and the Compatibility Guide carry no mark.
+
+**Suspended, not superseded:** "Third-party books get shipped cookbooks
+(2026-08-19)" for these titles, and "Another game's books get their own shelf
+(2026-08-25)". Turning the switch back on restores them as written.
+
+**How.** One switch, `OSE_BOOKS_ACTIVE`. `REGISTRY` keeps every book's facts,
+so an id a world already holds (a flag, a citation, a remembered shelf, a
+fingerprinted PDF) still resolves. `BOOKS` is what the module offers, connects
+and imports. The withdrawal lands one surface at a time: what is offered and
+imported, the tests, then the zip. The switch stays on until every surface
+reads it, so nothing is half-withdrawn in a release.
+
+**Rejected:** keying the switch on `line`, because the catgirl carries one and
+prints ACKS stats. Deleting the code, because the owner wants the decision
+reversible.
+
+*Cost:* a world that imported one of these books keeps what it made; nothing
+deletes it, and no rebuild may delete what a book it cannot read made. The OSE
+code reaches shared importer files at a dozen points (the import module's
+settings, API and dialogs; the cookbook's source labels and refill run; the
+place binding), so it cannot leave the zip until those are untangled.

@@ -33,7 +33,7 @@
  */
 import { MODULE_ID, LANG_PREFIX, ACTOR_TYPE, DEFAULT_IMG } from "./constants.mjs";
 import { bookText, CITE_CLASS, CITE_LINK_CLASS } from "./prose.mjs";
-import { BOOKS, bookIsForm, bookIsJudges, fingerprintWarning, identifyBook, parseCite, shelfBooksToOpen } from "./books.mjs";
+import { BOOKS, REGISTRY, bookIsForm, bookIsJudges, fingerprintWarning, identifyBook, parseCite, shelfBooksToOpen } from "./books.mjs";
 import { matchFilesToBooks } from "./book-match.mjs";
 import { readForm } from "../character-sheet/pdf/form.mjs";
 import { RECIPES } from "./recipes.mjs";
@@ -229,9 +229,9 @@ async function locations() {
     // tables moved into the JJ and RR in 0.38.0) must not be offered for
     // reconnect: there is nothing left for it to unlock, and every downstream
     // caller would have to defend itself against a book id with no entry in
-    // BOOKS. The record is left in place rather than deleted — harmless, and a
+    // REGISTRY. The record is left in place rather than deleted — harmless, and a
     // withdrawn book that ever comes back finds its location still remembered.
-    if (!BOOKS[key]) {
+    if (!REGISTRY[key]) {
       console.log(`${MODULE_ID} | remembered location for "${key}" ignored — this build no longer reads that book.`);
       return;
     }
@@ -365,7 +365,7 @@ const shelfReadable = (record) =>
  * @returns {Promise<boolean>} whether a viewer was opened at the page
  */
 export async function openBookPage(bookId, pdfPage) {
-  const label = BOOKS[bookId]?.label ?? bookId;
+  const label = REGISTRY[bookId]?.label ?? bookId;
   const journal = shelfJournal(bookId);
   const page = shelfPage(journal);
   if (!page?.src) {
@@ -497,7 +497,7 @@ async function shelfPut(bookId, record) {
     if (existing) await existing.delete();
     return shelf();
   }
-  const label = BOOKS[bookId]?.label ?? bookId;
+  const label = REGISTRY[bookId]?.label ?? bookId;
   const stamp = { book: bookId, name: record.name ?? record.path.split("/").pop(), size: record.size ?? 0 };
   if (existing) {
     const update = { [`flags.${MODULE_ID}.${SHELF_FLAG}`]: stamp };
@@ -539,7 +539,7 @@ async function migrateShelfSetting() {
   if (!entries.length || !(await primaryGMSettled())) return 0;
   let moved = 0;
   for (const [bookId, record] of entries) {
-    if (!BOOKS[bookId] || !record?.path) {
+    if (!REGISTRY[bookId] || !record?.path) {
       console.warn(`${MODULE_ID} | the shelf setting named "${bookId}" with no book or no path; dropped.`);
       continue;
     }
@@ -547,7 +547,7 @@ async function migrateShelfSetting() {
       await shelfPut(bookId, record);
       moved++;
     } catch (err) {
-      console.error(`${MODULE_ID} | the shelf could not be carried into journals at ${BOOKS[bookId].label}; it tries again on the next load.`, err);
+      console.error(`${MODULE_ID} | the shelf could not be carried into journals at ${REGISTRY[bookId].label}; it tries again on the next load.`, err);
       return moved;
     }
   }
@@ -566,7 +566,7 @@ async function shelvePath(bookId, path, { name = null, size = 0 } = {}) {
   try {
     await connectBookUrl(bookId, path, { remember: false, bridge: false });
   } catch (err) {
-    console.warn(`${MODULE_ID} | ${path} could not be shelved as ${BOOKS[bookId]?.label ?? bookId}`, err);
+    console.warn(`${MODULE_ID} | ${path} could not be shelved as ${REGISTRY[bookId]?.label ?? bookId}`, err);
     ui.notifications.warn(
       err?.wrongBook
         ? `${MODULE_ID} | ${err.message}`
@@ -743,11 +743,11 @@ async function restoreShelf() {
       await connectBookUrl(bookId, record.path, { remember: false, bridge: false });
       opened.push(bookId);
     } catch (err) {
-      console.warn(`${MODULE_ID} | shelved ${BOOKS[bookId]?.label ?? bookId} could not be read at ${record.path}`, err);
+      console.warn(`${MODULE_ID} | shelved ${REGISTRY[bookId]?.label ?? bookId} could not be read at ${record.path}`, err);
     }
   }
   if (opened.length) {
-    console.log(`${MODULE_ID} | opened ${opened.length} book(s) from the shelf: ${opened.map((id) => BOOKS[id].label).join(", ")}`);
+    console.log(`${MODULE_ID} | opened ${opened.length} book(s) from the shelf: ${opened.map((id) => REGISTRY[id].label).join(", ")}`);
   }
   return opened;
 }
@@ -884,7 +884,7 @@ async function openCached(bookId) {
     // Re-stash: the buffer below is about to be detached, and a seat that
     // refreshes twice in a row should be bridged both times.
     await ingestBook(bookId, await blob.arrayBuffer(), { silent: true, cache: blob });
-    console.log(`${MODULE_ID} | ${BOOKS[bookId]?.label ?? bookId} restored across a page reload — no gesture needed.`);
+    console.log(`${MODULE_ID} | ${REGISTRY[bookId]?.label ?? bookId} restored across a page reload — no gesture needed.`);
     return true;
   } catch (err) {
     // The file moved out from under a stored reference, or the blob is gone.
@@ -1042,8 +1042,8 @@ async function ingestBook(bookId, buffer, { silent = false, cache = null } = {})
       await doc.destroy?.();
       const err = new Error(
         game.i18n.format(`${LANG_PREFIX}.ui.connectWrongBook`, {
-          book: BOOKS[bookId]?.label ?? bookId,
-          actual: BOOKS[actualId].label,
+          book: REGISTRY[bookId]?.label ?? bookId,
+          actual: REGISTRY[actualId].label,
         }),
       );
       err.wrongBook = actualId;
@@ -1331,11 +1331,11 @@ async function ingestPairs(matched, byFile, { announce = true } = {}) {
       ui.notifications.error(
         err.wrongBook
           ? `${MODULE_ID} | ${err.message}`
-          : `${BOOKS[bookId].label}: ${game.i18n.localize(`${LANG_PREFIX}.ui.reconnectFailed`)}`,
+          : `${REGISTRY[bookId].label}: ${game.i18n.localize(`${LANG_PREFIX}.ui.reconnectFailed`)}`,
       );
       continue;
     }
-    done.push(BOOKS[bookId].label);
+    done.push(REGISTRY[bookId].label);
     // Remembering is a separate outcome from reading, and reported as one: the
     // book is open either way, and saying "could not be opened" over a storage
     // failure describes a book the reader can see working.
@@ -1371,7 +1371,7 @@ async function ingestPairs(matched, byFile, { announce = true } = {}) {
  */
 async function openRemembered(bookId, record, { interactive = false } = {}) {
   if (sessionDocs.has(bookId)) return true;
-  const label = BOOKS[bookId]?.label ?? bookId;
+  const label = REGISTRY[bookId]?.label ?? bookId;
 
   // Was this page just reloaded? Then the bytes are still bridged and every
   // kind reopens for free — including the `file` kind, which has no other way
@@ -1479,7 +1479,7 @@ async function connectFolderPicks(picks, { remember = null } = {}) {
   if (!candidates.length) {
     return ui.notifications.info(
       game.i18n.format(`${LANG_PREFIX}.ui.reconnectAllOpen`, {
-        books: [...sessionDocs.keys()].map((id) => BOOKS[id]?.label ?? id).join(", "),
+        books: [...sessionDocs.keys()].map((id) => REGISTRY[id]?.label ?? id).join(", "),
       }),
     );
   }
@@ -2007,7 +2007,7 @@ async function booksPanel({ firstRun = false, notice = "" } = {}) {
         say(
           "[data-status-bulk]",
           blocked.length
-            ? L("reconnectAllPartial", { books: blocked.map((id) => BOOKS[id]?.label ?? id).join(", ") })
+            ? L("reconnectAllPartial", { books: blocked.map((id) => REGISTRY[id]?.label ?? id).join(", ") })
             : opened
               ? L("reconnectAllDone", { count: opened })
               : L("reconnectAllNothing"),
@@ -2678,7 +2678,7 @@ async function fillMonster(actor, recipe) {
   const session = sessionDocs.get(recipe.book);
   if (!session) {
     ui.notifications.warn(
-      `${MODULE_ID} | ${BOOKS[recipe.book]?.label ?? recipe.book} is not open this session — connect it (PoC 2 / unlock) to fill ${actor.name}.`,
+      `${MODULE_ID} | ${REGISTRY[recipe.book]?.label ?? recipe.book} is not open this session — connect it (PoC 2 / unlock) to fill ${actor.name}.`,
     );
     return false;
   }
@@ -2737,7 +2737,7 @@ async function applyStats() {
       continue;
     }
     if (refilled?.reason === "book-closed") {
-      closed.add(BOOKS[refilled.book]?.label ?? refilled.book);
+      closed.add(REGISTRY[refilled.book]?.label ?? refilled.book);
       continue;
     }
     // Ours, but its entry carries no stat block this surface can re-read. Named

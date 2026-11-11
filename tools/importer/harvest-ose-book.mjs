@@ -36,7 +36,7 @@ import { fileURLToPath } from "node:url";
 import { openBook, pageItems, listHeadings, pageArtPlacements, detectColumns } from "../../scripts/importer/extract.mjs";
 import { findStatBlocks, runinLabelAbove, statLineTest } from "../../scripts/importer/ose-blocks.mjs";
 import { parseOseStatline, PROFILES, OSE_CANONICAL } from "../../scripts/importer/ose-statline.mjs";
-import { BOOKS } from "../../scripts/importer/books.mjs";
+import { REGISTRY } from "../../scripts/importer/books.mjs";
 import { OSE_FILES } from "./reference-lib.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -306,7 +306,7 @@ const slugOf = (s) =>
 
 // A book that declares a dialect is LOCATED with it too: the labels a profile
 // adds are what make its blocks countable as blocks.
-const PROFILE = PROFILES[BOOKS[BOOK]?.profile] ?? OSE_CANONICAL;
+const PROFILE = PROFILES[REGISTRY[BOOK]?.profile] ?? OSE_CANONICAL;
 /** "Is this line statistics rather than prose", built once for this book. */
 const isStatText = statLineTest(PROFILE);
 

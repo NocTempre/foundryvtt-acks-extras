@@ -10,7 +10,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { BOOKS } from "../../scripts/importer/books.mjs";
+import { REGISTRY } from "../../scripts/importer/books.mjs";
 import {
   SCENE_LINK_KIND, SCENE_ZONE_KIND, ZONE_FIGURES, bandOfSection, gridProblems, isLinkRow, recipeContext, recipeProblems, zoneProblems,
 } from "../../scripts/importer/scene-binding.mjs";
@@ -360,7 +360,7 @@ if (fs.existsSync(kindsDir)) {
 for (const dirent of fs.existsSync(REGISTER) ? fs.readdirSync(REGISTER, { withFileTypes: true }) : []) {
   if (!dirent.isDirectory() || dirent.name.startsWith("_")) continue;
   const bookId = dirent.name;
-  if (!BOOKS[bookId]) err(`register/${bookId}: unknown book directory`);
+  if (!REGISTRY[bookId]) err(`register/${bookId}: unknown book directory`);
   for (const f of fs.readdirSync(path.join(REGISTER, bookId)).sort()) {
     if (!f.endsWith(".json")) continue;
     const label = `register/${bookId}/${f}`;
@@ -676,7 +676,7 @@ if (fs.existsSync(refsDir)) {
       for (const [id, node] of Object.entries(r.nodes ?? {})) {
         if (!DEF_ID.test(id)) err(`${label}: bad node id "${id}"`);
         for (const [, ed] of Object.entries(node.editions ?? {})) {
-          if (ed.book && !BOOKS[ed.book]) err(`${label}: ${id} unknown edition book "${ed.book}"`);
+          if (ed.book && !REGISTRY[ed.book]) err(`${label}: ${id} unknown edition book "${ed.book}"`);
         }
       }
     }
