@@ -371,6 +371,24 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
     withTables(docs, () => assert.strictEqual(apparentLevelPenalty(), null, `${label}: no figure`));
   }
 
+  // The two henchman shares: a fraction written in words after each recipe's
+  // clause. The fractions and the sentences around them are invented; the
+  // recipes hold only the anchors.
+  for (const [id, word, fraction] of [["treasureShare", "quarter", 0.25], ["xpShare", "fifth", 0.2]]) {
+    const recipe = TABLE_RECIPES.wages.tables[id];
+    const got = extractTable(page([`The badgers divide the hoard, and the cousins ${recipe.values[0].find} ${word}-share each. Another clause names a third.`]), recipe);
+    assert.deepStrictEqual(got, { share: fraction }, `${id}: the recipe reads the fraction its clause is followed by`);
+    assert.deepStrictEqual(extractTable(page(["The badgers divide the hoard among themselves."]), recipe), {}, `${id}: a page without the clause reads nothing`);
+  }
+  const { importedShare } = await import(new URL("../scripts/henchmen/rules/wages.mjs", import.meta.url));
+  withTables({ wages: { treasureShare: { share: 0.25 }, xpShare: { share: 0.2 } } }, () => {
+    assert.strictEqual(importedShare("treasure"), 0.25, "the reader takes what the recipe extracts");
+    assert.strictEqual(importedShare("xp"), 0.2, "each share its own table");
+  });
+  for (const [docs, label] of [[{}, "nothing imported"], [{ wages: { xpShare: {} } }, "an empty table"], [{ wages: { xpShare: { share: "0.2" } } }, "a figure read as text"], [{ wages: { xpShare: { share: Number.NaN } } }, "a non-number"]]) {
+    withTables(docs, () => assert.strictEqual(importedShare("xp"), null, `${label}: no figure`));
+  }
+
   // The fallback throw carries no figure of its own for the count.
   const { THROWS_DATA } = await import(new URL("../scripts/henchmen/data/throws-data.mjs", import.meta.url));
   const row = THROWS_DATA.throws.hirelingLoyalty.modifiers.find((m) => m.id === "apparentLevelDiff");

@@ -9,7 +9,7 @@
 import { MODULE_ID, FLAG_RECORD } from "./constants.mjs";
 import { effectiveLoyaltyFor, effectiveMoraleFor, employerLoyaltyMods, employerMoraleBase } from "./engine/events.mjs";
 import { reasonKey } from "./rules/loyalty.mjs";
-import { henchmanWage, henchmanWageCite } from "./rules/wages.mjs";
+import { henchmanWage, henchmanWageCite, importedShare, importedShareCite } from "./rules/wages.mjs";
 import {
   wageClock, loyaltyParts, moraleParts, ledgerEntries, termsOf, rolledOf, slotOf, keepsLoyalty, serviceBadge, ROLLED_SCORES, signingControls,
   offersClassPick,
@@ -32,8 +32,29 @@ export const EVENTS_SHOWN = 50;
 
 const localizeIf = (key, fallback = "") => (key && game.i18n.has(key) ? game.i18n.localize(key) : fallback);
 
-/** The words for a share kind from `shareKind`. */
-const shareLabel = (share) => (share.kind === "pct" ? loc("shareKind.pct", { pct: share.pct }) : loc(`shareKind.${share.kind}`));
+/** The words for a share kind from `shareKind`, or "not imported" for the null a missing figure leaves. */
+const shareLabel = (share) => (share == null ? loc("shareUnimported") : share.kind === "pct" ? loc("shareKind.pct", { pct: share.pct }) : loc(`shareKind.${share.kind}`));
+
+/** Whether two shares read the same: both missing, or one kind and figure. */
+const sameShare = (a, b) => (a == null || b == null ? a == b : a.kind === b.kind && a.pct === b.pct);
+
+/**
+ * Where the two shares came from, as `termsOf` names them: the record's own
+ * term, the imported table with the page its import recorded (or "no page
+ * recorded" where a Judge's override stands), or not imported. One sentence
+ * where both say the same, else each named.
+ */
+function shareTip(terms) {
+  const part = (kind) => {
+    const from = terms.shareFrom[kind];
+    if (from === "record") return loc("tip.shareRecord");
+    if (from === "imported") return loc("tip.shareImported", { page: importedShareCite(kind) ?? loc("tip.noPage") });
+    return loc("tip.shareUnimported");
+  };
+  const treasure = part("treasure");
+  const xp = part("xp");
+  return treasure === xp ? treasure : loc("tip.shareSplit", { treasure, xp });
+}
 
 /** A ledger entry with its words: the track, the reason and the toggle's tooltip. */
 export function ledgerRows(record) {
@@ -65,6 +86,7 @@ export function termsFor(actor, record, retainer) {
     sheetWage: retainer.wage,
     ladder: keepsLoyalty(category) ? henchmanWage(adapter.getWageLevel(actor)) : 0,
     category,
+    shares: { treasure: importedShare("treasure"), xp: importedShare("xp") },
   });
 }
 
@@ -189,10 +211,11 @@ export function buildServicePanel(actor, { isGM = false, pins = [] } = {}) {
     wageTip: wageTip(terms, { actor, henchman }),
     wageUnset: terms.wageUnset,
     basis: loc(`wageBasis.${basisKey}`, { n: adapter.getWageLevel(actor) }),
-    share: terms.treasureShare.kind === terms.xpShare.kind && terms.treasureShare.pct === terms.xpShare.pct
+    share: sameShare(terms.treasureShare, terms.xpShare)
       ? shareLabel(terms.treasureShare)
       : loc("shareSplit", { treasure: shareLabel(terms.treasureShare), xp: shareLabel(terms.xpShare) }),
-    shareTip: loc(terms.sharesDefaulted ? "tip.shareDefault" : "tip.shareAgreed"),
+    shareTip: shareTip(terms),
+    shareUnset: terms.treasureShare == null && terms.xpShare == null,
     // A bonus the employer could not pay at hire reads as owed, on the row's
     // face as well as in its tooltip.
     signingBonus: terms.signingOwed > 0 ? loc("signingOwedValue", { gp: terms.signingOwed }) : loc("gp", { gp: terms.signingBonus }),

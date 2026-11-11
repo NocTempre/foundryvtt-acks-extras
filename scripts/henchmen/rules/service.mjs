@@ -7,6 +7,7 @@
  */
 import { sumPermanents, isActivePermanent, clampScore } from "./loyalty.mjs";
 import { clampPct, num, signed } from "../../lib/frame-model.mjs";
+import { resolveShare } from "./wages.mjs";
 import { JUDGE_PICK_CLASS } from "./candidates.mjs";
 
 /** The roster's filter keys, in strip order; each but `all` is a bucket of `bucketOf`. */
@@ -131,24 +132,28 @@ export function shareKind(fraction) {
  * is still owed (`signingOwed`) and the arrears. `wageUnset` is a wage that
  * comes to nothing, which bills nothing.
  * `wageFrom` names where the wage in force came from — `agreed`, `sheet`,
- * `ladder`, or null for none — and `sharesDefaulted` is a share the record
- * never stated, read at the default instead.
+ * `ladder`, or null for none. A share is the record's own figure, else the
+ * imported one handed in as `shares`, else null (`shareKind` is never asked
+ * about a missing figure); `shareFrom` names which answered, per share, as
+ * `resolveShare` does.
  * @param {object} record HenchmanRecord-shaped
- * @param {{sheetWage?: unknown, ladder?: number, category?: string}} given
+ * @param {{sheetWage?: unknown, ladder?: number, category?: string, shares?: {treasure?: number|null, xp?: number|null}}} given
  */
-export function termsOf(record, { sheetWage = null, ladder = 0, category = "henchman" } = {}) {
+export function termsOf(record, { sheetWage = null, ladder = 0, category = "henchman", shares = {} } = {}) {
   const terms = record?.terms ?? {};
   const agreed = Number(terms.wageGp ?? sheetWage);
   const wage = agreed > 0 ? agreed : keepsLoyalty(category) ? num(ladder) : 0;
   const wageFrom = agreed > 0 ? (terms.wageGp != null ? "agreed" : "sheet") : wage > 0 ? "ladder" : null;
+  const treasure = resolveShare(terms.treasureShare, shares.treasure);
+  const xp = resolveShare(terms.xpShare, shares.xp);
   return {
     wage,
     wageUnset: !(wage > 0),
     wageFrom,
-    sharesDefaulted: terms.treasureShare == null || terms.xpShare == null,
+    shareFrom: { treasure: treasure.from, xp: xp.from },
     basis: terms.wageBasis ?? "level",
-    treasureShare: shareKind(terms.treasureShare ?? 0.5),
-    xpShare: shareKind(terms.xpShare ?? 0.5),
+    treasureShare: treasure.value == null ? null : shareKind(treasure.value),
+    xpShare: xp.value == null ? null : shareKind(xp.value),
     signingBonus: num(terms.signingBonusGp),
     signingOwed: num(terms.signingBonusOwedGp),
     arrears: num(terms.arrearsGp),

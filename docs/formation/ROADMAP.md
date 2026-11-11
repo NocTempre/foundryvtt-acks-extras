@@ -189,7 +189,7 @@ Still unbuilt, in likely order:
 12. **Dividing coin and treasure among the party.** Experience already divides
     across the party's members by a shares rule (`divideXp` in
     `scripts/formation/xp-shares.mjs`, a henchman's share read from its own
-    record). Nothing in formation moves coin or divides treasure. Not built: a
+    record, else the imported one). Nothing in formation moves coin or divides treasure. Not built: a
     split of a find or a hoard over the members the party names, which would
     move the coin through `transferCoin` in `scripts/lib/money.mjs`. Whether
     the split is equal or by share is a ruling this file does not take.

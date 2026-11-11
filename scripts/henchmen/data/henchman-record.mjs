@@ -90,8 +90,11 @@ export default class HenchmanRecord extends foundry.abstract.DataModel {
           initial: "level",
           choices: ["level", "hd", "mercenary", "specialist", "upkeep"],
         }),
-        treasureShare: new fields.NumberField({ required: true, initial: 0.5 }),
-        xpShare: new fields.NumberField({ required: true, initial: 0.5 }),
+        // This hireling's own shares, as fractions of a full one. Null defers
+        // to the imported table (`rules/wages.mjs` `resolveShare`); nothing
+        // stands in for a figure that is neither set nor imported.
+        treasureShare: num(),
+        xpShare: num(),
         signingBonusGp: num(),
         // The part of `signingBonusGp` the employer could not pay at hire.
         // Kept apart from `arrearsGp`, which paydays bill and forgive as wages.

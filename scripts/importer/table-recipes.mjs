@@ -2387,7 +2387,7 @@ export const TABLE_RECIPES = {
     },
   },
   wages: {
-    source: { book: "ACKS II Revised Rulebook", pages: "RR 108, 162-171" },
+    source: { book: "ACKS II Revised Rulebook", pages: "RR 108, 162-171, 311" },
     tables: {
       // The henchman levels an employer's level allows (RR 168 prose): one
       // rung per sentence, the last open above with its rise per level. Read
@@ -2505,6 +2505,30 @@ export const TABLE_RECIPES = {
         locate: "may hire at most",
         locateBare: true,
         values: [{ key: "base", find: "may hire at most", take: "int", span: 12 }],
+      },
+      // The share of found treasure a henchman is hired for (RR 162 prose, the
+      // hiring rules' own sentence), a fraction written in words. The anchor
+      // names the henchman clause, because the next clause of the same
+      // sentence opens on the same words for the other hireling kinds.
+      treasureShare: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 162,
+        locate: "henchmen are typically hired for a",
+        locateBare: true,
+        values: [{ key: "share", find: "henchmen are typically hired for a", take: "fractionWord", span: 24 }],
+      },
+      // The share of an adventure's experience a henchman takes (RR 311 prose,
+      // the experience chapter's division rule), read the same way. The hiring
+      // chapter states it in a second place; the chapter that divides the
+      // experience is the one a Judge's table runs on.
+      xpShare: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 311,
+        locate: "with henchmen receiving a",
+        locateBare: true,
+        values: [{ key: "share", find: "with henchmen receiving a", take: "fractionWord", span: 24 }],
       },
       mercenaryWages: {
         shape: "gridRows",

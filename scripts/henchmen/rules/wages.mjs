@@ -138,6 +138,41 @@ export function signingBonusCost(tier, monthlyWage, briberyProficient) {
   return { gp: Math.ceil(gp), wages: row.wages };
 }
 
+/** The two shares a henchman takes, each a table of the `wages` document: found treasure (RR 162) and an adventure's experience (RR ch. 6). */
+export const SHARE_KINDS = Object.freeze(["treasure", "xp"]);
+
+/** A share as a fraction of a full one: a finite number from zero up. Anything else is no figure, never zero. */
+const isShare = (v) => typeof v === "number" && Number.isFinite(v) && v >= 0;
+
+/**
+ * The imported share a henchman takes of `kind` (`SHARE_KINDS`), or null
+ * where its table is unread, blank or holds anything but a number.
+ */
+export function importedShare(kind) {
+  const share = optTable("wages", `${kind}Share`)?.share;
+  return isShare(share) ? share : null;
+}
+
+/** The page an imported share was read from; null where none is imported or the layer read records none. */
+export function importedShareCite(kind) {
+  return optTable("wages", `${kind}Share`) ? optCite("wages", `${kind}Share`) : null;
+}
+
+/**
+ * The share in force: the record's own figure when it holds one (a number the
+ * Judge set), else the imported one, else none. `from` names which answered —
+ * `record`, `imported` or null — and the value is null with it: nothing
+ * stands in for a figure that was never read.
+ * @param {unknown} own the record's `terms.<kind>Share`
+ * @param {number|null} imported `importedShare(kind)`
+ * @returns {{value: number|null, from: "record"|"imported"|null}}
+ */
+export function resolveShare(own, imported) {
+  if (isShare(own)) return { value: own, from: "record" };
+  if (isShare(imported)) return { value: imported, from: "imported" };
+  return { value: null, from: null };
+}
+
 /** The page the signing bonus ladder was read from, or null where none is recorded. */
 export function signingBonusCite() {
   return optCite("wages", "signingBonus");

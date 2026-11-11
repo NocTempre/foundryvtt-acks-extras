@@ -4,6 +4,17 @@
  */
 import assert from "node:assert/strict";
 import { divideXp, shareFor, SHARE_REASON, UNSHARED_BASES } from "../scripts/formation/xp-shares.mjs";
+import * as tables from "../scripts/lib/tables.mjs";
+
+/* A henchman's share is the record's own figure, else the imported table's,
+ * else none. The imported figure here is invented, as are the records'. */
+globalThis.acksExtras = { lib: { tables } };
+const IMPORTED = 0.3;
+const importShare = () => {
+  tables.resetTables();
+  tables.registerTable({ id: "wages", source: { pages: "T 1" }, cites: { xpShare: "T 2" }, tables: { xpShare: { share: IMPORTED } } }, { priority: tables.PRIORITY.WORLD });
+};
+importShare();
 
 /* Minimal actor doubles — the module only ever asks for these fields. */
 const pc = (name, share = 100, extra = {}) => ({
@@ -28,8 +39,28 @@ assert.equal(shareFor(hireling("Squire", { xpShare: 0.4, wageBasis: "level" })).
 
 /* a hireling's own terms win over the default */
 assert.equal(shareFor(hireling("Favoured", { xpShare: 0.75, wageBasis: "level" })).share, 0.75);
-/* an absent xpShare falls back to the shipped default */
-assert.equal(shareFor(hireling("Vague", { wageBasis: "level" })).share, 0.5);
+/* an absent xpShare reads the imported one, and says so */
+assert.deepEqual(shareFor(hireling("Vague", { wageBasis: "level" })), { share: IMPORTED, reason: SHARE_REASON.henchman, from: "imported" });
+assert.deepEqual(shareFor(hireling("Vague", { xpShare: null, wageBasis: "level" })), { share: IMPORTED, reason: SHARE_REASON.henchman, from: "imported" },
+  "a record holding null defers to the import");
+assert.equal(shareFor(hireling("Squire", { xpShare: 0.4, wageBasis: "level" })).from, "record");
+assert.equal(shareFor(hireling("Squire", { xpShare: 0.4, wageBasis: "level" })).share, 0.4, "the record's own figure wins over the import");
+assert.deepEqual(shareFor(hireling("Barred", { xpShare: 0, wageBasis: "level" })), { share: 0, reason: SHARE_REASON.noShare },
+  "a record's zero is its own share, not a missing one");
+
+/* with nothing imported: a record's own figure still answers, an absent one is not imported */
+tables.resetTables();
+assert.equal(shareFor(hireling("Squire", { xpShare: 0.4, wageBasis: "level" })).share, 0.4);
+for (const terms of [{ wageBasis: "level" }, { xpShare: null, wageBasis: "level" }, { xpShare: "x", wageBasis: "level" }]) {
+  assert.deepEqual(shareFor(hireling("Vague", terms)), { share: 0, reason: SHARE_REASON.notImported },
+    `${JSON.stringify(terms)}: no computed share, and it says not imported`);
+}
+{
+  const d0 = divideXp([pc("Leader"), hireling("Vague", { wageBasis: "level" })], 1000);
+  assert.deepEqual(d0.rows.map((r) => [r.name, r.xp]), [["Leader", 1000]], "the unimported henchman is paid nothing");
+  assert.deepEqual(d0.excluded.map((r) => [r.name, r.reason]), [["Vague", SHARE_REASON.notImported]], "and is listed as not imported");
+}
+importShare();
 
 /* --- mercenaries and specialists are paid in coin, not experience -------- */
 for (const basis of UNSHARED_BASES) {
@@ -53,8 +84,12 @@ for (const category of ["mercenary", "specialist"]) {
     assert.equal(r.reason, SHARE_REASON.mercenary);
   }
 }
-assert.deepEqual(shareFor(enrolled("Sworn", "henchman")), { share: 0.5, reason: SHARE_REASON.henchman },
-  "a henchman by the sheet with no record yet takes a henchman's share, not a full one");
+assert.deepEqual(shareFor(enrolled("Sworn", "henchman")), { share: IMPORTED, reason: SHARE_REASON.henchman, from: "imported" },
+  "a henchman by the sheet with no record yet takes the imported henchman's share, not a full one");
+tables.resetTables();
+assert.deepEqual(shareFor(enrolled("Sworn", "henchman")), { share: 0, reason: SHARE_REASON.notImported },
+  "and with nothing imported, none");
+importShare();
 assert.equal(shareFor(enrolled("Sworn", "henchman", { xpShare: 0.4 })).share, 0.4);
 
 /* out of service, the record answers from how they were paid */
@@ -96,6 +131,10 @@ assert.equal(d.awarded, 4800);
 assert.deepEqual(d.excluded.map((r) => r.name), ["Mercs", "Baggage Wagon"],
   "and it says who was left out");
 
+/* a henchman with no share of their own divides on the imported one */
+d = divideXp([pc("Leader"), hireling("Vague", { wageBasis: "level" })], 1300);
+assert.deepEqual(d.rows.map((r) => [r.name, r.xp, r.from]), [["Leader", 1000, undefined], ["Vague", 300, "imported"]]);
+
 /* --- the dead still count ------------------------------------------------ */
 const fallen = pc("Vitellia");
 d = divideXp([pc("Leader"), fallen], 1000);
@@ -124,4 +163,4 @@ d = divideXp([pc("Leader")], 0);
 assert.equal(d.rows[0].xp, 0);
 assert.equal(divideXp([pc("Leader")], -100).rows[0].xp, 0, "a negative award is no award");
 
-console.log("test-xp-shares: OK (full, half, own terms, mercenaries, sheet category, non-persons, dead, rounding)");
+console.log("test-xp-shares: OK (full, own terms, imported share, not imported, mercenaries, sheet category, non-persons, dead, rounding)");

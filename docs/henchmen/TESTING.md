@@ -167,7 +167,7 @@ a step it does not name is walked by hand.
    in-service chip naming the employer; a click on either reaches the tab.
    Standing reads the loyalty with its parts and the morale, each a roll row
    whose press throws and whose pin stars it for the folded bar; Terms reads
-   the wage, the share as a word (`½` for the default fractions), the clock;
+   the wage, the share as a word (or "not imported", step 23), the clock;
    Employer names the employer and opens them. `recordCalamity(actor, …)`
    with the throw left owing: the warning row leads the panel, the tab reads
    a count of 1, the chip carries the dot, and the GM seat's **Throw now**
@@ -918,6 +918,39 @@ walked in docs/lib/TESTING.md, "The repair tool".
       "Nothing found"; A's list no longer holds the monster, B's still does,
       and the monster's record still names B.
     Nothing to sweep: the run makes no card, and the three fixtures stay.
+23. The henchman shares, imported, absent and overridden, on the Service tab
+    of a henchman whose record holds no share of its own (marker
+    `henchmen/share-henchman`, built through the hire path so its record is
+    the module's: `terms.treasureShare` and `terms.xpShare` read `null`).
+    Read the share by `rules/wages.mjs > importedShare("treasure" | "xp")`
+    and `importedShareCite`. The layers are this client's, registered at
+    priority 30 and lifted at teardown, as step 16's are; the world's own
+    import is read first and left as it was.
+    - *Imported.* With the world's `wages` document holding `treasureShare`
+      and `xpShare`, or each table read off the connected book through
+      `TABLE_RECIPES.wages.tables.treasureShare` / `.xpShare` into a
+      priority-30 layer. Open the hireling's character sheet, Service tab.
+      *Observable:* Terms → **Share** reads the word for the fraction in force
+      (`shareKind`) and one figure when both agree. Its tooltip says "the
+      imported share" and names the page `importedShareCite` returns, one per
+      share where the two differ. Compare in page and report the match, never
+      the fraction.
+    - *Absent.* Register an empty `wages.treasureShare` and `wages.xpShare`
+      (`table: {}`) at priority 30. *Observable:* the row reads "not imported"
+      with no figure, dimmed, and its tooltip says "not imported". Register
+      only `xpShare`: the row reads the treasure side "not imported" beside
+      the experience figure.
+    - *Override.* Register an invented `xpShare` at priority 30 with no
+      `cites`. *Observable:* the figure is the invented one and the tooltip
+      says "no page recorded"; lifting the layer returns the imported figure
+      and its page.
+    - *The record's own.* Write the henchman's `terms.xpShare` on the record
+      flag to an invented fraction. *Observable:* the row reads it and the
+      tooltip says "set on this hireling's own record", whatever the table
+      holds; writing `null` back returns the table's figure. Open the
+      roster: the hireling's row is unaffected.
+    The Deal XP half is formation's TESTING.md, "Deal XP". The recipes' shape
+    against the real book is `tools/importer/test-recipe-content.mjs`.
 
 ## Teardown
 

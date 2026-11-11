@@ -16,7 +16,7 @@ import {
 } from "../scripts/henchmen/rules/service.mjs";
 import { JUDGE_PICK_CLASS, hiredClassName } from "../scripts/henchmen/rules/candidates.mjs";
 import { effectiveMorale, effectiveLoyalty, clampScore, startingLoyalty } from "../scripts/henchmen/rules/loyalty.mjs";
-import { henchmanWage, henchmanWageCite } from "../scripts/henchmen/rules/wages.mjs";
+import { henchmanWage, henchmanWageCite, importedShare, importedShareCite, resolveShare } from "../scripts/henchmen/rules/wages.mjs";
 import * as tables from "../scripts/lib/tables.mjs";
 
 let passed = 0;
@@ -188,15 +188,71 @@ test("the wage table's page is the one the import recorded for the table the wag
     globalThis.acksExtras = saved;
   }
 });
-test("a share the record never stated is read at the default, and says so", () => {
-  assert.equal(termsOf({ terms: { treasureShare: 0.5, xpShare: 0.5 } }).sharesDefaulted, false);
-  assert.equal(termsOf({ terms: { treasureShare: 1 } }).sharesDefaulted, true);
-  assert.equal(termsOf({}).sharesDefaulted, true);
+test("an imported share and its page are read from its own table, in the layer that holds it", () => {
+  const saved = globalThis.acksExtras;
+  globalThis.acksExtras = { lib: { tables } };
+  try {
+    tables.resetTables();
+    assert.equal(importedShare("treasure"), null, "nothing imported: no figure");
+    assert.equal(importedShareCite("treasure"), null, "and no page");
+    tables.registerTable({ id: "wages", source: { pages: "W 1-9" }, cites: { treasureShare: "W 2", xpShare: "W 7" }, tables: { treasureShare: { share: 0.3 }, xpShare: { share: 0.2 } } }, { priority: tables.PRIORITY.WORLD });
+    assert.equal(importedShare("treasure"), 0.3);
+    assert.equal(importedShare("xp"), 0.2);
+    assert.equal(importedShareCite("treasure"), "W 2", "each share names its own page");
+    assert.equal(importedShareCite("xp"), "W 7");
+    tables.registerTable({ id: "wages", tables: { xpShare: { share: 0.6 } } }, { priority: tables.PRIORITY.OVERRIDE });
+    assert.equal(importedShare("xp"), 0.6, "a Judge's override wins");
+    assert.equal(importedShareCite("xp"), null, "and holds no page");
+    assert.equal(importedShare("treasure"), 0.3, "the other share still reads the import");
+    for (const table of [{}, { share: null }, { share: "0.3" }, { share: Number.NaN }, { share: -0.1 }]) {
+      tables.resetTables();
+      tables.registerTable({ id: "wages", tables: { treasureShare: table } }, { priority: tables.PRIORITY.WORLD });
+      assert.equal(importedShare("treasure"), null, `${JSON.stringify(table)}: unread, never zero`);
+    }
+    tables.resetTables();
+    tables.registerTable({ id: "wages", tables: { treasureShare: { share: 0 } } }, { priority: tables.PRIORITY.WORLD });
+    assert.equal(importedShare("treasure"), 0, "zero is a figure");
+  } finally {
+    tables.resetTables();
+    globalThis.acksExtras = saved;
+  }
 });
-test("the shares default to the record's initial and the arrears to nothing", () => {
+test("resolveShare takes the record's number, else the import's, else none", () => {
+  assert.deepEqual(resolveShare(0.4, 0.3), { value: 0.4, from: "record" });
+  assert.deepEqual(resolveShare(0, 0.3), { value: 0, from: "record" }, "a record's zero is its own");
+  assert.deepEqual(resolveShare(null, 0.3), { value: 0.3, from: "imported" });
+  assert.deepEqual(resolveShare(undefined, 0.3), { value: 0.3, from: "imported" });
+  assert.deepEqual(resolveShare("0.4", 0.3), { value: 0.3, from: "imported" }, "text is no figure");
+  assert.deepEqual(resolveShare(null, null), { value: null, from: null });
+});
+test("a share is the record's own figure, else the imported one, else none", () => {
+  // Invented fractions: one the record holds, one the import holds.
+  const shares = { treasure: 0.3, xp: 0.2 };
+  const own = termsOf({ terms: { treasureShare: 0.75, xpShare: 1 } }, { shares });
+  assert.deepEqual(own.shareFrom, { treasure: "record", xp: "record" }, "the record's own term wins over the import");
+  assert.deepEqual(own.treasureShare, shareKind(0.75));
+  assert.deepEqual(own.xpShare, shareKind(1));
+  const read = termsOf({}, { shares });
+  assert.deepEqual(read.shareFrom, { treasure: "imported", xp: "imported" });
+  assert.deepEqual(read.treasureShare, shareKind(0.3));
+  assert.deepEqual(read.xpShare, shareKind(0.2), "each share reads its own table");
+  const mixed = termsOf({ terms: { xpShare: 0.4 } }, { shares: { treasure: 0.3 } });
+  assert.deepEqual(mixed.shareFrom, { treasure: "imported", xp: "record" });
+});
+test("with no share set and none imported a share is null, never a default", () => {
+  for (const [record, given] of [[{}, {}], [{ terms: { treasureShare: null, xpShare: null } }, { shares: { treasure: null, xp: null } }], [{ terms: { xpShare: "0.4" } }, { shares: { xp: Number.NaN } }]]) {
+    const t = termsOf(record, given);
+    assert.equal(t.treasureShare, null);
+    assert.equal(t.xpShare, null);
+    assert.deepEqual(t.shareFrom, { treasure: null, xp: null });
+  }
+  const one = termsOf({}, { shares: { xp: 0.2 } });
+  assert.equal(one.treasureShare, null, "a share is missing alone");
+  assert.deepEqual(one.xpShare, shareKind(0.2));
+  assert.deepEqual(termsOf({ terms: { xpShare: 0 } }, {}).xpShare, shareKind(0), "zero is a figure the record may hold");
+});
+test("the arrears and signing bonus read as before", () => {
   const t = termsOf({ terms: { signingBonusGp: 50, arrearsGp: 7 } });
-  assert.equal(t.treasureShare.kind, "half");
-  assert.equal(t.xpShare.kind, "half");
   assert.equal(t.signingBonus, 50);
   assert.equal(t.arrears, 7);
   assert.equal(termsOf({}).arrears, 0);

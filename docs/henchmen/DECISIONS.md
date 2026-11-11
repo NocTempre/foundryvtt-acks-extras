@@ -1228,3 +1228,34 @@ is the downed watcher's (`onUpdateActor` sets it at 0 hit points and clears
 it on the next update above 0), so a debt would raise a badge that any
 healing clears and no loyalty roll does. The missed-wage path does not set
 it either.
+
+### A henchman's shares are printed values, and arrive through the importer (2026-11-11)
+
+The record's `terms.treasureShare` and `terms.xpShare` initial, `termsOf`'s
+fallback and Deal XP's fallback shipped one fraction as a constant (bug intake
+T-0296). Owner ruling: what a henchman takes of treasure and of experience is
+a printed value, read from the Judge's own Rulebook, and the module holds no
+figure for it.
+
+- **Two tables, one page each.** `wages.treasureShare` (RR 162) and
+  `wages.xpShare` (RR 311, the experience chapter) are `proseValues` reads of
+  a fraction in words, so each tooltip names its own page. The hiring chapter
+  prints the experience share a second time; the chapter that divides the
+  experience is the one read.
+- **Record, else import, else none.** The record's own term stays as the
+  per-henchman figure and is null until one is set. Where it is null the
+  imported figure answers; where neither exists the share is null, Deal XP
+  gives that henchman no computed share (reason `notImported`) and the
+  Service panel says "not imported".
+- **Records already stored are left alone.** A record written with the old
+  initial keeps that figure as its own: no migration or repair tool for
+  previous-version data (owner, 2026-11-11).
+- **Two copies in words went too.** The hire card's "plus a half share of
+  treasure" and the monster recruit line's "plus a half share if sapient" named
+  the figure and stated the rule; both now say the wage alone.
+
+**Cost.** A world that has not imported the Rules tables after this release
+reads every henchman's share as "not imported", and a henchman takes no share
+of a Deal XP division until it does. `shareKind` still gives certain fractions
+words (`½`, full, none): that is how a number is said, not a page's figure,
+and is left for the owner's call if it is read otherwise.

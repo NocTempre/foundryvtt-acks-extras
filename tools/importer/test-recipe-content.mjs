@@ -52,7 +52,8 @@ const TABLES = {
   // The henchman limit's base: one figure the roster counts every hire against.
   // The employer-level cap: the ladder a leveled henchman search is judged on.
   // The level-gain morale bonuses: two levels and the bonus each earns.
-  wages: ["henchmanLimit", "employerLevelCap", "levelMorale"],
+  // The henchman shares: a fraction of a full share each, for treasure and for experience.
+  wages: ["henchmanLimit", "employerLevelCap", "levelMorale", "treasureShare", "xpShare"],
   // The domain month: every table its procedure runs on.
   // The equipment document's two one-sentence figures: the sizes Weapon
   // Finesse takes and the unarmed strike's die.
@@ -293,6 +294,14 @@ VERIFY["wages.henchmanLimit"] = (out, recipe, fail) => {
   proseKeys(out, recipe, fail);
   if (isNum(out?.base) && !(Number.isInteger(out.base) && out.base > 0)) fail("base: not a positive whole number");
 };
+// A henchman's share: a fraction above zero and within the whole, which is
+// what the reader accepts. Shape only; no value is named.
+for (const id of ["wages.treasureShare", "wages.xpShare"]) {
+  VERIFY[id] = (out, recipe, fail) => {
+    proseKeys(out, recipe, fail);
+    if (isNum(out?.share) && !(out.share > 0 && out.share <= 1)) fail("share: not a fraction above zero and within the whole");
+  };
+}
 // The employer-level cap: rungs of whole levels, each starting one above the
 // last, the allowances never falling, and only the last open, rising by a
 // positive whole number per level.

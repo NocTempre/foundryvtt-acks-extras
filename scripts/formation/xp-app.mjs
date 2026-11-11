@@ -4,13 +4,14 @@
  *
  * The division is shown BEFORE it is given. A Judge entering four thousand
  * experience should see, in one glance, that the two players take full shares,
- * the henchman takes half, the hired crossbowmen take nothing because they are
- * paid in coin, and the wagon takes nothing because it is a wagon — and that
+ * the henchman takes their own share, the hired crossbowmen take nothing
+ * because they are paid in coin, and the wagon takes nothing because it is a wagon — and that
  * the character who died on the way out is still on the list, because the rule
  * counts everyone who returned, alive or dead.
  */
 import { MODULE_ID } from "./constants.mjs";
 import { divideXp, awardXp, participantsOf, reasonLabel } from "./xp-shares.mjs";
+import { importedShareCite } from "../henchmen/rules/wages.mjs";
 import { elementOf, gmIds } from "../lib/util.mjs";
 import { xpBonusFor } from "../classes/xp-bonus.mjs";
 
@@ -30,7 +31,7 @@ export async function dealExperience(formation) {
   const preview = (total) => {
     const d = divideXp(actors, total, { bonusOf });
     const rows = d.rows
-      .map((r) => `<tr><td>${foundry.utils.escapeHTML(r.name)}</td><td>${r.share}</td><td>${bonusCell(bonuses.get(r.actor))}</td>`
+      .map((r) => `<tr><td>${foundry.utils.escapeHTML(r.name)}</td><td data-tooltip-text="${foundry.utils.escapeHTML(shareTip(r))}">${r.share}</td><td>${bonusCell(bonuses.get(r.actor))}</td>`
         + `<td><strong>${r.xp}</strong>${r.onRecord ? `<br><span class="hint">${game.i18n.localize(`${LANG_PREFIX}.onRecord`)}</span>` : ""}</td></tr>`)
       .join("");
     const left = d.excluded
@@ -77,6 +78,21 @@ export async function dealExperience(formation) {
     whisper: gmIds(),
   });
   return division;
+}
+
+/**
+ * A row's share tooltip: why the row takes a share, and for a henchman where
+ * the figure came from — its own record, or the imported table with the page
+ * its import recorded.
+ */
+function shareTip(row) {
+  const reason = reasonLabel(row.reason);
+  if (row.from === "record") return game.i18n.format(`${LANG_PREFIX}.shareRecord`, { reason });
+  if (row.from === "imported") {
+    const page = importedShareCite("xp") ?? game.i18n.localize(`${LANG_PREFIX}.shareNoPage`);
+    return game.i18n.format(`${LANG_PREFIX}.shareImported`, { reason, page });
+  }
+  return reason;
 }
 
 /** The adjustment column: the percentage and where it was read from. */

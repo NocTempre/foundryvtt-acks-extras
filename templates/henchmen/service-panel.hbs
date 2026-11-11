@@ -88,7 +88,7 @@
           <span class="acks-extras-frame__row-label">{{localize "ACKS-HENCHMEN.service.share"}}</span>
           <span class="acks-extras-frame__row-line">{{localize "ACKS-HENCHMEN.service.shareLine"}}</span>
         </span>
-        <span class="acks-extras-frame__row-value acks-nums" data-tooltip-text="{{s.terms.shareTip}}">{{s.terms.share}}</span>
+        <span class="acks-extras-frame__row-value acks-nums{{#if s.terms.shareUnset}} is-faint{{/if}}" data-tooltip-text="{{s.terms.shareTip}}">{{s.terms.share}}</span>
       </div>
       {{#if s.experience}}
       <div class="acks-extras-frame__row">

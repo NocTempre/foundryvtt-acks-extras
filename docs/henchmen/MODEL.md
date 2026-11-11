@@ -174,7 +174,8 @@ Serialized DataModel at `actor.flags["acks-extras"].record`
   level die, template) for the future class-autogeneration module, and the
   hit points rolled at hire (`hpRoll`, `hpSteps`) or why none were
   (`hpUnrolled`, below)
-- `terms.*` — wage + basis, shares (½/½), signing bonus and
+- `terms.*` — wage + basis, the two shares (`treasureShare`, `xpShare`: null
+  until a Judge sets one, see "The shares" below), signing bonus and
   `signingBonusOwedGp`, `lastPaidTime`, `arrearsGp`, `vassalDomain`
 
 **Hit points at hire.** `hire()` (`engine/hire.mjs` `rollHireHitPoints`)
@@ -275,6 +276,26 @@ against the level the candidates believe the employer to be, the presented
 one where a level is presented, and refuses a search above the cap. Where
 the world holds no rung for that level the cap is null and nothing is
 refused.
+
+**The shares.** What a henchman takes of found treasure and of an
+adventure's experience are two imported tables of the `wages` document, each
+one fraction read from a sentence of the Rulebook: `wages.treasureShare` (RR
+162, the hiring rules) and `wages.xpShare` (RR 311, the experience chapter's
+division rule; the hiring chapter states it a second time, which the importer
+does not read). `rules/wages.mjs > importedShare` returns the figure or null
+for a table that is unread, blank or not a number, and `importedShareCite` the
+page its import recorded. `resolveShare` picks the figure in force: the
+record's own `terms.treasureShare` / `terms.xpShare` where it holds a number,
+else the imported one, else none, with `from` naming which answered (`record`,
+`imported`, null). A Judge changes the imported figure in the Ruledata
+Browser's override layer, and one henchman's in their record. Nothing stands
+in for a figure that is neither: the Service panel's Share row reads "not
+imported" with no figure, and Deal XP (`formation/xp-shares.mjs > shareFor`)
+gives that henchman no computed share, reason `notImported`, and lists them
+among those taking none. A record written before the shares were imported
+keeps the figure it stored, which counts as its own. Nothing in the module
+writes a record's share; it is set by writing `terms.xpShare` or
+`terms.treasureShare` on the record flag.
 
 A level gain in service (`engine/events.mjs`, the actor-update watcher on the
 primary GM) earns the permanent morale bonuses of the imported
@@ -518,8 +539,10 @@ panel names its source in a tooltip (`.claude/rules/ui-tooltips.md`): a score
 its parts and the page, held at the score's range where that cut the sum; the
 wage whether it was agreed at hire, set on the sheet, or read off the wage
 table at the hireling's level with the page that table was imported from
-(`henchmanWageCite`, lib `citeOf`), or what is missing; the shares whether
-the record states them (`sharesDefaulted`); the counters and recorded rolls
+(`henchmanWageCite`, lib `citeOf`), or what is missing; each share whether it
+is the record's own, the imported table's (with `importedShareCite`'s page, or
+"no page recorded" under a Judge's override) or not imported (`shareFrom`);
+the counters and recorded rolls
 that the record keeps them. A downed hireling's calamity
 (`special.pendingCalamity`, which the event watcher sets when hit points
 reach 0 and clears on the next update above it; no other calamity sets it)
@@ -528,7 +551,7 @@ the band's in-service chip and, through the lib's `FOLLOWER_CARD_HOOK`
 (`module.mjs`), dots the follower's name on the employer's compact card
 ([../lib/FOLLOWER-CARD.md](../lib/FOLLOWER-CARD.md), "What a feature
 adds"). Terms are the wage, its basis, the two shares
-said as words from the stored fractions, the signing bonus (read as owed, in
+said as words from the fraction in force (`shareKind`, or "not imported"), the signing bonus (read as owed, in
 the negative tone, where `signingBonusOwedGp` holds any), arrears and the
 wage clock (days since the last payday against the month, in tone once it is
 behind). Employer names the employer and the calamity and level counters,

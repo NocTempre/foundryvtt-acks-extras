@@ -7,9 +7,10 @@
  *
  *  - **the fallen still count.** Nothing here filters on a member being down:
  *    a character who died on the way out takes a share like the rest;
- *  - **a henchman's share is their own record's**, `terms.xpShare`, which the
- *    hiring negotiation may have moved — so the record is asked rather than a
- *    constant assumed.
+ *  - **a henchman's share is their own record's**, `terms.xpShare`, else the
+ *    imported one (`henchmen/rules/wages.mjs`, RR ch. 6), so the record is
+ *    asked rather than a constant assumed. With neither, the henchman takes
+ *    no computed share and the division says why.
  *
  * WHO GETS NOTHING. Hired mercenaries and specialists are paid in wages, not
  * experience. Neither do the animals, the wagons, or anything summoned: they
@@ -20,6 +21,7 @@ import { getMemberActor, realMembers } from "./formation-model.mjs";
 import { withXpBonus } from "../classes/xp-bonus.mjs";
 import { earnsExperience, hirelingKind, UNSHARED_BASES } from "../lib/actor-read.mjs";
 import { creditExperience, keepsExperienceOnFlag } from "../lib/experience.mjs";
+import { importedShare, resolveShare } from "../henchmen/rules/wages.mjs";
 
 export { hirelingKind, UNSHARED_BASES };
 
@@ -36,7 +38,7 @@ const recordOf = (actor) => actor?.getFlag?.(MODULE_ID, "record") ?? null;
 
 /**
  * The system stores a character's share as a PERCENTAGE — a full share is 100,
- * not 1 — while a henchman's record stores a fraction (half a share is 0.5).
+ * not 1 — while a henchman's record stores a fraction of one full share.
  * Everything here is normalised to fractions of one full share, or the two
  * scales silently mix and a henchman standing beside two players takes about a
  * two-hundredth of the loot instead of a fifth.
@@ -50,7 +52,8 @@ export const SYSTEM_FULL_SHARE = 100;
  */
 export const SHARE_REASON = Object.freeze({
   full: "full", // a player character
-  henchman: "henchman", // half, or whatever their terms say
+  henchman: "henchman", // the record's own share, else the imported one
+  notImported: "notImported", // a henchman, with no share set or imported
   mercenary: "mercenary", // paid in wages
   notAPerson: "notAPerson", // a wagon, a mule, a summoned thing
   noShare: "noShare", // a share explicitly set to zero
@@ -75,10 +78,12 @@ export function shareFor(actor) {
   // Paid in coin: no experience, however long they marched.
   if (kind && kind !== "henchman") return { share: 0, reason: SHARE_REASON.mercenary };
   if (kind) {
-    const share = Number(recordOf(actor)?.terms?.xpShare);
-    const value = Number.isFinite(share) ? share : 0.5;
+    // The record's own figure, else the imported one, else none: a missing
+    // figure is tested before any `Number()`, which reads null as zero.
+    const { value, from } = resolveShare(recordOf(actor)?.terms?.xpShare, importedShare("xp"));
+    if (value == null) return { share: 0, reason: SHARE_REASON.notImported };
     return value > 0
-      ? { share: value, reason: SHARE_REASON.henchman }
+      ? { share: value, reason: SHARE_REASON.henchman, from }
       : { share: 0, reason: SHARE_REASON.noShare };
   }
 

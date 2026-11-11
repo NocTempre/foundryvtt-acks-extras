@@ -716,7 +716,8 @@ with `{document}` and render it; the actor's own sheet setting is left alone).
    character included, whose percentage core applies to the unadjusted base.
    Core posts a card per character. Those cards and the dialog's summary card
    are all created by the run: read them back and `api.track` each. Each
-   monster henchman is listed with a share and the note that it is credited to
+   monster henchman is listed with a share (the imported one, or the record's
+   own; step 5 covers a missing one) and the note that it is credited to
    its own record, because the system keeps no experience for a monster. Read
    `flags["acks-extras"].experience` on each: `bySource.deal` equals the
    listed Gains, and its `system.details.xp` (what it is worth defeated) is
@@ -736,8 +737,20 @@ with `{document}` and render it; the actor's own sheet setting is left alone).
    then run `enrollNewcomers(employer)` from `henchmen/engine/events.mjs` and
    read them again.
    *Observable:* both times, the mercenary and the specialist take 0 with the
-   reason `mercenary` and the henchman takes 0.5, never a full share. A
-   `divideXp` over all four lists the two in `excluded`.
+   reason `mercenary` and the henchman takes the imported xp share
+   (`henchmen/rules/wages.mjs > importedShare("xp")`, `from: "imported"`),
+   never a full share. A `divideXp` over all four lists the two in `excluded`.
+   Three states of the figure, the layers this client's at priority 30 and
+   lifted at teardown: with the `wages.xpShare` table imported the henchman
+   takes it and the dialog's Share cell tooltip names "the imported share" and
+   the page `importedShareCite("xp")` returns; with `wages.xpShare` registered
+   empty and the henchman's record holding no `terms.xpShare` (a hire's record
+   holds `null`), `shareFor` gives 0 with the reason `notImported`, the dialog
+   lists the henchman among those taking no share as "a henchman's share, not
+   imported", and the total divides over the others; with an invented
+   `terms.xpShare` written on the record the henchman takes it whatever the
+   table holds and the Share cell's tooltip says it is set on the record. A
+   record whose `terms.xpShare` is `0` takes none, reason `noShare`.
 6. Enrol a third `character` with no player owner and no retainer.
    *Observable:* `shareFor` gives it 0 with the reason `npc`, and Deal XP lists
    it among those left out; giving a player seat ownership of it restores a
