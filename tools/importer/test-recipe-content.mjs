@@ -25,7 +25,7 @@ import { parseCell } from "../../scripts/markets/rules/availability.mjs";
 import { parseStones, parseTollCpPerSt, parseTariffPct, parseStayFee, diceRange } from "../../scripts/markets/rules/arbitrage.mjs";
 import { parseMoneyCp } from "../../scripts/markets/rules/commissions.mjs";
 import { parseMiles } from "../../scripts/markets/rules/routes.mjs";
-import { parseOptions, parseFocus, parseThrowable, parseDealtBy } from "../../scripts/importer/weapon-binding.mjs";
+import { parseOptions, parseFocus, parseThrowable, parseDealtBy, parseMarkedOptions, parseSelection } from "../../scripts/importer/weapon-binding.mjs";
 import { FILES } from "./reference-lib.mjs";
 
 /** The tables under test, by recipe document. Each is one entry of `TABLE_RECIPES`. */
@@ -56,7 +56,7 @@ const TABLES = {
   // Finesse takes and the unarmed strike's die.
   equipment: ["weaponFinesse", "unarmedStrike"],
   // The weapon lists' prose: the kinds each folio names, read into windows.
-  weaponProse: ["martialProse", "focusProse", "narrowProse", "twoHandsFirst", "twoHandsSecond", "throwableProse", "damageTypeProse"],
+  weaponProse: ["martialProse", "focusProse", "selectionProse", "narrowProse", "twoHandsFirst", "twoHandsSecond", "throwableProse", "damageTypeProse"],
   domain: [
     "strongholdMinimum", "growth", "prestigeImmigration", "revenue", "expenses", "peace",
     "magistrateShare", "titles", "tribute", "tributeInefficiency", "baseMoraleModifiers",
@@ -333,6 +333,21 @@ for (const id of ["weaponProse.martialProse", "weaponProse.narrowProse"]) {
     if (!options.some((nouns) => nouns.length)) fail("options: no option yields a noun");
   };
 }
+// The Martial Training window must read as one contiguous marked list.
+const verifyMartialMarkers = VERIFY["weaponProse.martialProse"];
+VERIFY["weaponProse.martialProse"] = (out, recipe, fail) => {
+  verifyMartialMarkers(out, recipe, fail);
+  if (!parseMarkedOptions(out?.options).length) fail("options: the markers do not run from 1 without a gap");
+};
+// The selection window must hold all three lists, each agreeing with the total its own sentence prints.
+VERIFY["weaponProse.selectionProse"] = (out, recipe, fail) => {
+  nonEmptyWindow(out, recipe, fail);
+  const levels = parseSelection(out?.levels);
+  for (const level of ["restricted", "narrow", "broad"]) {
+    if (!levels[level]) fail(`levels: the ${level} list did not read, or its total disagrees with its options`);
+  }
+  if (!/\bunrestricted:/i.test(String(out?.levels ?? ""))) fail("levels: the window ends before the unrestricted head");
+};
 VERIFY["weaponProse.focusProse"] = (out, recipe, fail) => {
   nonEmptyWindow(out, recipe, fail);
   if (!Object.keys(parseFocus(out?.list)).length) fail("list: no weapon focus group read");

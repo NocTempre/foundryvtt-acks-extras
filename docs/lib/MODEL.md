@@ -1924,6 +1924,21 @@ pick (a Martial Training or Weapon Focus choice) is placed: it answers the
 single key of the imported `weaponLists` table whose nouns the phrase names,
 or null.
 
+The printed option lists are read through the same door.
+- `resolveRows` adds `row.options`: the ids (`<list>.<n>`) of the noun-list
+  and single-weapon options that hold a row, at most one per list. They are
+  placed by the rule that places `category` (name, then grid sub-header; an
+  ambiguous match places nothing). Predicates and combinations place no row.
+- `weaponOptions()` is every imported option, flat, with its kind and cite.
+- `optionListImported(list)` says whether a list holds an option.
+- `optionVerdict(option, profile)` answers true, false or null for one weapon.
+  A predicate is read from the weapon's use and size. A noun or weapon option
+  is read from the row's `options`. A combination is always false.
+- `listedOption(list, text)` places a written phrase on one option.
+- `categoryOptions()` maps each category token to the options that hold any of
+  its rows: the provenance between the module's categories and the page's
+  groups.
+
 ## Automated Animations
 
 Automated Animations has no handler for this system, so its generic chat reader

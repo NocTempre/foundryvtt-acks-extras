@@ -9,6 +9,9 @@
  * in the printing's own words (`importer/weapon-binding.mjs`):
  *
  *   category    `{ [token]: nouns }`, the module's proficiency category tokens
+ *   options     `{ [list]: { cite, pick?, total?, options } }`, the book's own
+ *               option lists (restricted, narrow, broad, martial), each option
+ *               under its printed marker
  *   focus       `{ [key]: nouns }`, one entry per Weapon Focus the book names
  *   damageType  `{ [type]: nouns }`, the weapons each physical type is dealt by
  *   throwables  `{ oil|holyWater|torch: { damage, types, extraordinary? } }`
@@ -39,7 +42,10 @@ import { nameKeys, slug } from "./vocab.mjs";
 export const WEAPON_LISTS_DOC = "weaponLists";
 
 /** The tables the document carries, in the order the resolver reads them. */
-export const WEAPON_LIST_TABLES = Object.freeze(["category", "focus", "damageType", "throwables", "twoHands"]);
+export const WEAPON_LIST_TABLES = Object.freeze(["category", "options", "focus", "damageType", "throwables", "twoHands"]);
+
+/** The option lists the `options` table holds, in the order a reader lists them. */
+export const OPTION_LISTS = Object.freeze(["restricted", "narrow", "broad", "martial"]);
 
 expectTables(WEAPON_LISTS_DOC, WEAPON_LIST_TABLES);
 
@@ -112,6 +118,40 @@ const keyWords = (key) => String(key).replace(/([A-Z])/g, " $1").toLowerCase().s
 /** The table of a lists object as the resolver reads it, or an empty one. */
 const table = (lists, name) => (lists && typeof lists[name] === "object" && lists[name] ? lists[name] : {});
 
+/** What an option is, by the fields it holds, or null for one that holds none of them. */
+function optionKind(option) {
+  if (!option || typeof option !== "object") return null;
+  if (Number.isFinite(option.any) && option.any > 0) return "combination";
+  if (option.melee === true || option.missile === true) return "predicate";
+  if (typeof option.weapon === "string" && option.weapon.trim()) return "weapon";
+  return nounsOf(option.nouns).length ? "nouns" : null;
+}
+
+/**
+ * The options of one list as stored, in printed order: each an object with a
+ * whole-number `n`, the first where a number repeats; empty for a malformed list.
+ */
+function listOptions(lists, list) {
+  const stored = table(lists, "options")[list]?.options;
+  if (!Array.isArray(stored)) return [];
+  const held = stored.filter((o) => o && typeof o === "object" && Number.isInteger(o.n) && o.n > 0);
+  return held.filter((o, i) => held.findIndex((p) => p.n === o.n) === i).sort((a, b) => a.n - b.n);
+}
+
+/** The id an option is known by: its list and printed number, `narrow.3`. */
+const optionId = (list, option) => `${list}.${option.n}`;
+
+/** One list's options that name kinds, `{ [id]: nouns }`: a noun list as its nouns, a restricted option as its one weapon. */
+function optionKinds(lists, list) {
+  const kinds = {};
+  for (const option of listOptions(lists, list)) {
+    const kind = optionKind(option);
+    if (kind === "weapon") kinds[optionId(list, option)] = [option.weapon];
+    else if (kind === "nouns") kinds[optionId(list, option)] = nounsOf(option.nouns);
+  }
+  return kinds;
+}
+
 /** `grid` → `lists` → resolved rows. A list-less grid is keyed on a stand-in object. */
 const MEMO = new WeakMap();
 const NO_LISTS = Object.freeze({});
@@ -123,6 +163,11 @@ const NO_LISTS = Object.freeze({});
  *  - `focus`: the Weapon Focus key, or null
  *  - `damageType`: the damage type the combat chapter's nouns place the row
  *    under, or the throwables section's type for a flask or torch, or null
+ *  - `options`: the ids (`narrow.3`) of the noun-list and single-weapon
+ *    options that hold the row, at most one per option list, each placed by the
+ *    same rule (name, then grid sub-header). Size and use predicates and
+ *    combinations place no row; `optionVerdict` answers for them. Empty where
+ *    no option list is imported
  *  - `twoHands`: true where the descriptions say the weapon needs both hands,
  *    else null (not stated, never false)
  *  - `placedBy`: for each of `category`, `focus` and `damageType`, `"name"`,
@@ -150,6 +195,7 @@ export function resolveRows(grid, lists) {
 
   const out = {};
   const twoHandsKeys = new Set(nounsOf(lists?.twoHands).flatMap((noun) => [...nameKeys(noun)]));
+  const optionTables = OPTION_LISTS.map((list) => optionKinds(lists, list));
   for (const [key, row] of Object.entries(grid)) {
     const nameRuns = runForms(wordsOf(row?.name));
     const blockRuns = runForms(wordsOf(row?.block));
@@ -161,6 +207,10 @@ export function resolveRows(grid, lists) {
       category: category?.key ?? null,
       focus: focus?.key ?? null,
       damageType: damageType?.key ?? null,
+      options: optionTables.flatMap((kinds) => {
+        const hit = place(kinds, nameRuns, blockRuns);
+        return hit ? [hit.key] : [];
+      }),
       twoHands: row?.name && [...nameKeys(row.name)].some((k) => twoHandsKeys.has(k)) ? true : null,
       placedBy: { category: category?.via ?? null, focus: focus?.via ?? null, damageType: damageType?.via ?? null },
     };
@@ -188,6 +238,7 @@ export function resolveRows(grid, lists) {
         damage: typeof entry.damage === "string" ? entry.damage : "",
         types,
         damageType: types[0] ?? null,
+        options: [],
         throwable: { kind, ...entry },
       };
     }
@@ -211,6 +262,21 @@ export function listedKind(tableName, text) {
   return hits.length === 1 ? hits[0] : null;
 }
 
+/**
+ * The id of the one option of an imported list that a written phrase names:
+ * the noun-list or single-weapon option whose nouns match a word or a run of
+ * words of the phrase, by the rule a grid row is placed by. Null when the
+ * phrase names no option or more than one, and when that list is not imported.
+ *
+ * @param {"restricted"|"narrow"|"broad"|"martial"} list
+ * @param {string} text
+ * @returns {string|null} the id, `narrow.3`
+ */
+export function listedOption(list, text) {
+  const hits = hitKeys(optionKinds(weaponLists(), list), runForms(wordsOf(text)));
+  return hits.length === 1 ? hits[0] : null;
+}
+
 /** The layers of the lists document, lowest first: what the memo below is keyed on. */
 const LAYERS = Object.freeze(Object.values(PRIORITY));
 
@@ -218,7 +284,7 @@ const LAYERS = Object.freeze(Object.values(PRIORITY));
 let _lists = { docs: [], value: null };
 
 /**
- * The imported lists, `{ category, focus, damageType, throwables, twoHands }`
+ * The imported lists, `{ category, options, focus, damageType, throwables, twoHands }`
  * (each present only where it was read or a Judge supplied it), or null when
  * none is imported. Layered per table, so a Judge's override of one list wins
  * over the import's; the same object is returned until a layer is registered
@@ -233,6 +299,124 @@ export function weaponLists() {
   const held = WEAPON_LIST_TABLES.filter((name) => tables[name] != null);
   _lists = { docs, value: held.length ? Object.fromEntries(held.map((name) => [name, tables[name]])) : null };
   return _lists.value;
+}
+
+/** The last flattening of the option lists and the lists object it was made from. */
+let _options = { lists: null, value: null };
+
+/** An option's prerequisites as stored, each clause with both of its noun lists non-empty. */
+const prereqsOf = (stored) =>
+  (Array.isArray(stored) ? stored : [])
+    .map((p) => ({ weapons: nounsOf(p?.weapons), requires: nounsOf(p?.requires) }))
+    .filter((p) => p.weapons.length && p.requires.length);
+
+/**
+ * Every option of every imported list, flat, in list order (restricted,
+ * narrow, broad, martial) and printed order within a list:
+ *
+ *   `{ id, list, n, marker, label, kind, cite, … }`
+ *
+ * `id` is `<list>.<n>` (`narrow.3`), `marker` the number as printed, `label`
+ * the option's words as printed and `cite` the page its list was read from
+ * (empty when none is stored). `kind` says which of the rest it holds:
+ * `"nouns"` (`nouns`), `"weapon"` (`weapon`, one weapon of a restricted list),
+ * `"predicate"` (`melee` and/or `missile`, and `sizes`, empty for any size) or
+ * `"combination"` (`any`, how many weapons it takes, and `prereqs`, each
+ * `{ weapons, requires }`). An option that holds none of these, or repeats a
+ * number its list already holds, is left out. Empty where no list is
+ * imported. The same array is returned until the lists change.
+ *
+ * @returns {object[]}
+ */
+export function weaponOptions() {
+  const lists = weaponLists();
+  if (_options.value && _options.lists === lists) return _options.value;
+  const out = [];
+  for (const list of OPTION_LISTS) {
+    const cite = typeof table(lists, "options")[list]?.cite === "string" ? table(lists, "options")[list].cite : "";
+    for (const option of listOptions(lists, list)) {
+      const kind = optionKind(option);
+      if (!kind) continue;
+      const entry = { id: optionId(list, option), list, n: option.n, marker: String(option.marker ?? option.n), label: String(option.label ?? ""), kind, cite };
+      if (kind === "nouns") entry.nouns = nounsOf(option.nouns);
+      else if (kind === "weapon") entry.weapon = option.weapon.trim();
+      else if (kind === "predicate") {
+        if (option.melee === true) entry.melee = true;
+        if (option.missile === true) entry.missile = true;
+        entry.sizes = nounsOf(option.sizes);
+      } else {
+        entry.any = option.any;
+        entry.prereqs = prereqsOf(option.prereqs);
+      }
+      out.push(entry);
+    }
+  }
+  _options = { lists, value: Object.freeze(out) };
+  return _options.value;
+}
+
+/**
+ * Which printed options hold each category's rows: for every category token,
+ * the ids (`narrow.3`) of the options whose resolved rows include any row the
+ * category places, in `weaponOptions()` order. A category and the options sit
+ * side by side; this is the provenance between them.
+ *
+ * @param {object} [rows] resolved rows (`resolveRows`'s answer); omitted, the
+ *   rows of the registered weapon source, which carry the same placements
+ * @returns {Record<string, string[]>} by category token; a token with no row on any option maps to an empty array
+ */
+export function categoryOptions(rows) {
+  const source = rows && typeof rows === "object" ? rows : Object.fromEntries(weaponKeys().map((key) => [key, weaponRow(key)]));
+  const held = {};
+  for (const row of Object.values(source)) {
+    const token = row?.category ?? row?.cat;
+    if (typeof token !== "string" || !token) continue;
+    const ids = (held[token] ??= new Set());
+    for (const id of Array.isArray(row.options) ? row.options : []) ids.add(id);
+  }
+  const order = weaponOptions().map((o) => o.id);
+  return Object.fromEntries(Object.entries(held).map(([token, ids]) => [token, order.filter((id) => ids.has(id))]));
+}
+
+/** Is any option of this list imported? */
+export function optionListImported(list) {
+  return weaponOptions().some((o) => o.list === list);
+}
+
+/**
+ * Does an option cover a weapon? True, false, or null where the answer is not
+ * known:
+ *
+ *  - a noun-list or single-weapon option covers the weapons the resolver
+ *    placed on it: the profile's `key` must be a row of the weapon seam, whose
+ *    `options` hold the option's `id`. Null with no `key`, no such row, or a
+ *    row the lists never resolved
+ *  - a predicate covers a melee weapon (where it names `melee`) or a missile
+ *    weapon (where it names `missile`) of the sizes it lists, any size when it
+ *    lists none. A size it lists against a weapon of no stated size is null
+ *    unless another use of the weapon already covers it
+ *  - a combination covers nothing by itself: false
+ *
+ * @param {object} option one entry of `weaponOptions()`
+ * @param {{key?: string, melee?: boolean, missile?: boolean, size?: string|null}} profile
+ */
+export function optionVerdict(option, profile) {
+  if (!profile || typeof profile !== "object") return null;
+  const kind = optionKind(option);
+  if (!kind) return null;
+  if (kind === "combination") return false;
+  if (kind === "predicate") {
+    const sizes = nounsOf(option.sizes);
+    const size = typeof profile.size === "string" ? profile.size.toLowerCase() : null;
+    const uses = [];
+    if (option.melee === true) uses.push(profile.melee);
+    if (option.missile === true) uses.push(profile.missile);
+    const verdicts = uses.map((on) => (!on ? false : !sizes.length ? true : size == null ? null : sizes.includes(size)));
+    return verdicts.includes(true) ? true : verdicts.includes(null) ? null : false;
+  }
+  if (typeof profile.key !== "string" || typeof option.id !== "string") return null;
+  const row = weaponRow(profile.key);
+  return row && Array.isArray(row.options) ? row.options.includes(option.id) : null;
 }
 
 /**

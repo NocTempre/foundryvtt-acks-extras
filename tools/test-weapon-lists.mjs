@@ -9,10 +9,12 @@
  */
 import assert from "node:assert";
 import {
-  WEAPON_PROSE_DOC_ID, WEAPON_LISTS_DOC_ID, PRODUCES, applyWeaponListsImport, assembleWeaponLists, assembleCategory,
-  categoryOf, parseDealtBy, parseFocus, parseNouns, parseOptions, parseThrowable, parseTwoHands,
+  WEAPON_PROSE_DOC_ID, WEAPON_LISTS_DOC_ID, WEAPON_LISTS_IMPORTED_HOOK, PRODUCES, applyWeaponListsImport, assembleWeaponLists, assembleCategory,
+  categoryOf, optionOf, parseDealtBy, parseFocus, parseMarkedOptions, parseNouns, parseOptions, parsePrereqs, parseSelection, parseThrowable, parseTwoHands,
 } from "../scripts/importer/weapon-binding.mjs";
-import { WEAPON_LISTS_DOC, WEAPON_LIST_TABLES, resolveRows, weaponLists } from "../scripts/lib/weapons.mjs";
+import {
+  WEAPON_LISTS_DOC, WEAPON_LIST_TABLES, categoryOptions, listedOption, optionListImported, optionVerdict, registerWeaponSource, resolveRows, weaponLists, weaponOptions,
+} from "../scripts/lib/weapons.mjs";
 import { registerTable, unregisterTable, resetTables, expectedTables, PRIORITY } from "../scripts/lib/tables.mjs";
 import * as services from "../scripts/lib/services.mjs";
 import { TABLE_RECIPES } from "../scripts/importer/table-recipes.mjs";
@@ -86,10 +88,78 @@ eq("an entry that says it needs both hands is named as the grid names it", parse
 eq("a grip among several, or a conditional one, is no such need", parseTwoHands("blorp: usable with one or two hands. quux: if used mounted with two hands, it reaches."), []);
 eq("a page that begins on an entry keeps its head", parseTwoHands("flib: flibs are two-handed things. blorp: usable with one hand."), ["flib"]);
 
+/* ------------------------- the option lists ------------------------- */
+
+eq(
+  "markers are arabic or roman, and the text between them loses its separators",
+  parseMarkedOptions("preface: (1) zork, (2) blorp, and (3) flib; more"),
+  [{ marker: "1", n: 1, text: "zork" }, { marker: "2", n: 2, text: "blorp" }, { marker: "3", n: 3, text: "flib" }],
+);
+eq(
+  "a roman run reads to ten and a stop ends the last option",
+  parseMarkedOptions("x: (i) a; (ii) b; (iii) c; (iv) d; (v) e; (vi) f; (vii) g; (viii) h; (ix) i; (x) j. then stray words").slice(-3).map((o) => [o.marker, o.n, o.text]),
+  [["viii", 8, "h"], ["ix", 9, "i"], ["x", 10, "j"]],
+);
+eq("a gap in the markers reads no list", parseMarkedOptions("(1) zork; (3) blorp"), []);
+eq("markers that do not start at one read no list", parseMarkedOptions("(2) zork; (3) blorp"), []);
+eq("a word in parentheses is no marker", parseMarkedOptions("(hero) zork; (monster) blorp"), []);
+eq("no window, no list", parseMarkedOptions(undefined), []);
+
+const opt = (text, o) => optionOf({ n: 1, marker: "i", text }, o);
+eq("a noun list", opt("any zorks and blorps").nouns, ["zorks", "blorps"]);
+eq("a restricted option names one weapon", opt("zork", { restricted: true }).weapon, "zork");
+eq("a restricted option naming two is a noun list", opt("zork and blorp", { restricted: true }).nouns, ["zork", "blorp"]);
+eq("a combination by its count", [opt("any combination of 3 junk 4 words").any, opt("any combination of 3 junk 4 words").label], [3, "any combination of 3"]);
+eq("a combination by a number word", [opt("any four weapons").any, opt("any four weapons").prereqs], [4, []]);
+eq("a predicate of sizes and melee", [opt("any tiny, small, or medium melee weapons").melee, opt("any tiny, small, or medium melee weapons").sizes], [true, ["tiny", "small", "medium"]]);
+eq("a predicate of missile alone", [opt("all missile weapons").missile, "sizes" in opt("all missile weapons"), "nouns" in opt("all missile weapons")], [true, false, false]);
+eq("sizes against an invented vocabulary", [opt("any wee melee weapons", { sizes: ["wee"] }).sizes, opt("any wee melee weapons").nouns], [["wee"], ["wee melee"]]);
+eq("words beyond sizes and uses make a noun list", opt("any small zorks").nouns, ["small zorks"]);
+eq("an option that names nothing is none", [opt("any 4 of 5"), opt("")], [null, null]);
+
+eq(
+  "a prerequisite in the proficient-in shape",
+  parsePrereqs("x. the class can only be proficient in snarf or quux if also proficient in zork and the class can only be proficient in grub if also proficient in blorp or flib. y"),
+  [{ weapons: ["snarf", "quux"], requires: ["zork"] }, { weapons: ["grub"], requires: ["blorp", "flib"] }],
+);
+eq("a prerequisite that omits the proficient-in words", parsePrereqs("the class can only be proficient in snarf if also zork. more"), [{ weapons: ["snarf"], requires: ["zork"] }]);
+eq(
+  "a prerequisite in the select shape",
+  parsePrereqs("when selecting option 3, the character can only select snarf or quux if he already has or also selects zork; and the character can only select grub if he already has or also selects blorp. note that"),
+  [{ weapons: ["snarf", "quux"], requires: ["zork"] }, { weapons: ["grub"], requires: ["blorp"] }],
+);
+eq("no such sentence, no prerequisite", parsePrereqs("the class can select any zork if it likes"), []);
+
+// One window holding every level, as the page prints them: a pick count and a total ahead of each
+// list, an example paragraph after it whose own markers are no options, a table spliced into the
+// last narrow option, and the unrestricted head last.
+const LEVELS =
+  "levels: a selection can be restricted, narrow, broad, or unrestricted. the rules follow. " +
+  "restricted: the class can select any 2 of the following 3 specific weapons: (i) zork, (ii) blorp, (iii) flib. example: the standard thing took (i) zork and (ii) blorp. " +
+  "narrow: the class can select any 1 of the following 4 narrow groups: (i) any zorks; (ii) any blorps and flibs; (iii) any quuxes; " +
+  "or (iv) any combination of 3 table (hero) 4 +3 per 2 levels weapons. when selecting option iv, the class can only be proficient in snarf or quux if also proficient in zork. example: the standard foo chose (i) any zorks and (ii) any blorps. " +
+  "broad: the class can select any 2 of the following 3 broad choices: (i) any tiny or small melee weapons, (ii) all missile weapons; and (iii) any combination of 2 weapons. example: the standard bar chose (i) any tiny. " +
+  "unrestricted: the class has proficiency in all weapons. armor: more.";
+const levels = parseSelection(LEVELS);
+eq("every level with a list is read, and unrestricted holds none", Object.keys(levels), ["restricted", "narrow", "broad"]);
+eq("a level keeps its pick count, its printed total and its options", [levels.restricted.pick, levels.restricted.total, levels.restricted.options.length], [2, 3, 3]);
+eq("restricted options are single weapons", levels.restricted.options.map((o) => o.weapon), ["zork", "blorp", "flib"]);
+eq("the example paragraph's markers are no options", [levels.narrow.options.length, levels.broad.options.length], [4, 3]);
+eq("a narrow level reads nouns and a combination with its prerequisites", [levels.narrow.options.map((o) => o.nouns ?? o.any), levels.narrow.options[3].prereqs], [[["zorks"], ["blorps", "flibs"], ["quuxes"], 3], [{ weapons: ["snarf", "quux"], requires: ["zork"] }]]);
+eq("a broad level reads predicates", [levels.broad.options[0].melee, levels.broad.options[0].sizes, levels.broad.options[1].missile, levels.broad.options[2].any], [true, ["tiny", "small"], true, 2]);
+eq("a prerequisite sentence of one level does not reach another", levels.broad.options[2].prereqs, []);
+eq("a level whose printed total is not the options read is dropped", Object.keys(parseSelection(LEVELS.replace("following 4 narrow", "following 5 narrow"))), ["restricted", "broad"]);
+eq("a level with no pick sentence is dropped", Object.keys(parseSelection(LEVELS.replace("any 1 of the following 4 narrow groups", "the narrow groups"))), ["restricted", "broad"]);
+eq("an option no shape reads drops its level", Object.keys(parseSelection(LEVELS.replace("(iii) any quuxes;", "(iii) 12;"))), ["restricted", "broad"]);
+eq("markers with a gap drop their level", Object.keys(parseSelection(LEVELS.replace("(ii) any blorps and flibs;", "(iii) any blorps and flibs;"))), ["restricted", "broad"]);
+eq("a head that is only part of unrestricted opens no level", parseSelection("unrestricted: any 1 of the following 1 things: (i) zorks."), {});
+eq("no window, no levels", parseSelection(undefined), {});
+
 /* ------------------------------ assembly ------------------------------ */
 
 const raw = {
-  martialProse: { options: "pick: (1) zorks; (2) blorps/flibs; (3) any four weapons. more" },
+  martialProse: { options: "pick: (1) zorks; (2) blorps/flibs; (3) any four weapons. when selecting option 3, the character can only select snarf if he already has or also selects zork. more" },
+  selectionProse: { levels: LEVELS },
   narrowProse: { options: ": (i) any zorks; (ii) any quuxes and flibs; (iii) any combination of 3 gizmos" },
   focusProse: { list: ": zorks; blorps and flibs. more" },
   damageTypeProse: { gooey: "x. gooey damage can be dealt by zorks, and so on. y", sticky: "x. sticky damage is dealt by quuxes, and similar weapons. y", fire: "x. fire damage can be dealt by natural heat. y" },
@@ -100,10 +170,18 @@ const raw = {
 const lists = assembleWeaponLists(raw, TOKENS);
 eq("the category table joins both books' options", lists.category, { zork: ["zorks"], blorpFlib: ["blorps", "flibs"], other: ["quuxes"] });
 eq("the focus table is read", lists.focus, { zorks: ["zorks"], blorpsflibs: ["blorps", "flibs"] });
+eq("the option table holds every list read, in the books' order", Object.keys(lists.options), ["restricted", "narrow", "broad", "martial"]);
+eq("a martial option list carries its prerequisites on its combination", [lists.options.martial.options.map((o) => o.nouns ?? o.any), lists.options.martial.options[2].prereqs], [[["zorks"], ["blorps", "flibs"], 4], [{ weapons: ["snarf"], requires: ["zork"] }]]);
+eq("a list carries the pick and total its sentence prints", [lists.options.narrow.pick, lists.options.narrow.total, "pick" in lists.options.martial], [1, 4, false]);
+eq("a list carries its own cite where the raw document gave one", Object.values(assembleWeaponLists(raw, TOKENS, { martialProse: "RR p.1", selectionProse: "JJ p.2" }).options).map((l) => l.cite), ["JJ p.2", "JJ p.2", "JJ p.2", "RR p.1"]);
+check("and none where it gave none", Object.values(lists.options).every((l) => !("cite" in l)));
+eq("a selection window that did not read costs its levels and the martial list stands", Object.keys(assembleWeaponLists({ ...raw, selectionProse: {} }, TOKENS).options), ["martial"]);
+eq("every level failing its self-check leaves the options to the martial list", Object.keys(assembleWeaponLists({ ...raw, selectionProse: { levels: LEVELS.replace(/following \d+/g, "following 9") } }, TOKENS).options), ["martial"]);
+check("no list read, no options table", !("options" in assembleWeaponLists({ focusProse: raw.focusProse }, TOKENS)));
 eq("only a type the module names is read, with the weapons it is dealt by", lists.damageType, { fire: ["natural heat"] });
 eq("a throwable assembles from its window", lists.throwables, { oil: { damage: "1d9", types: ["fire"] }, holyWater: { damage: "1d9", types: ["luminous"] }, torch: { damage: "1d2", types: ["fire"] } });
 eq("the weapons that need both hands are read from both folios", lists.twoHands, ["grand zork", "flib", "long-reach snarf", "wide bar"]);
-eq("a window that did not read costs only its list", Object.keys(assembleWeaponLists({ ...raw, focusProse: {}, twoHandsFirst: {}, twoHandsSecond: {} }, TOKENS)).sort(), ["category", "damageType", "throwables"]);
+eq("a window that did not read costs only its list", Object.keys(assembleWeaponLists({ ...raw, focusProse: {}, twoHandsFirst: {}, twoHandsSecond: {} }, TOKENS)).sort(), ["category", "damageType", "options", "throwables"]);
 eq("nothing read, nothing assembled", assembleWeaponLists({}, TOKENS), {});
 
 /* ------------------------------ wiring ------------------------------ */
@@ -117,28 +195,40 @@ check(
 const windowKeys = (id) => TABLE_RECIPES[WEAPON_PROSE_DOC_ID].tables[id].values.map((v) => v.key);
 eq("the recipes read the windows the binding parses", {
   options: [windowKeys("martialProse"), windowKeys("narrowProse")],
+  levels: windowKeys("selectionProse"),
   list: windowKeys("focusProse"),
   first: windowKeys("twoHandsFirst"),
   second: windowKeys("twoHandsSecond"),
   throwables: windowKeys("throwableProse"),
-}, { options: [["options"], ["options"]], list: ["list"], first: ["entries"], second: ["entries"], throwables: ["oil", "holyWater", "torch"] });
+}, { options: [["options"], ["options"]], levels: ["levels"], list: ["list"], first: ["entries"], second: ["entries"], throwables: ["oil", "holyWater", "torch"] });
+eq("the options are read from the martial and the selection windows", PRODUCES[WEAPON_LISTS_DOC].options, ["martialProse", "selectionProse"]);
 check("every window is a window take", Object.values(TABLE_RECIPES[WEAPON_PROSE_DOC_ID].tables).every((t) => t.values.every((v) => v.take === "window")));
 check("lib declares the tables it reads", expectedTables().some((e) => e.docId === WEAPON_LISTS_DOC && e.tableIds.join() === WEAPON_LIST_TABLES.join()));
 check("no import service, nothing assembled", (await applyWeaponListsImport()).assembled.length === 0);
 
 {
   const imported = [];
+  const fired = [];
   services.register("ruledata-import", { importDoc: async (doc, opts) => imported.push({ doc, opts }) });
   eq("no raw document, nothing assembled", (await applyWeaponListsImport()).assembled, []);
   registerTable(
-    { id: WEAPON_PROSE_DOC_ID, source: { book: "x" }, cites: { martialProse: "RR p.9", narrowProse: "JJ p.3", focusProse: "RR p.12", twoHandsFirst: "RR p.30", twoHandsSecond: "RR p.31" }, tables: { ...raw } },
+    { id: WEAPON_PROSE_DOC_ID, source: { book: "x" }, cites: { martialProse: "RR p.9", narrowProse: "JJ p.3", selectionProse: "JJ p.4", focusProse: "RR p.12", twoHandsFirst: "RR p.30", twoHandsSecond: "RR p.31" }, tables: { ...raw } },
     { priority: PRIORITY.WORLD },
   );
   const got = await applyWeaponListsImport();
+  eq("with no Hooks global the import still completes", got.assembled.includes("options"), true);
+  imported.length = 0;
+  globalThis.Hooks = { callAll: (name, payload) => fired.push({ name, payload, importedFirst: imported.length }) };
+  const again = await applyWeaponListsImport();
+  delete globalThis.Hooks;
+  eq("the hook fires once, after the document is imported, with what was assembled", fired, [{ name: WEAPON_LISTS_IMPORTED_HOOK, payload: { assembled: again.assembled }, importedFirst: 1 }]);
+  eq("and the hook is the module's own", WEAPON_LISTS_IMPORTED_HOOK, "acksExtras.weaponListsImported");
   check("the lists are registered as their own document", imported.length === 1 && imported[0].doc.id === WEAPON_LISTS_DOC && imported[0].opts.priority === PRIORITY.WORLD);
   eq("the document holds the lists and nothing raw", Object.keys(imported[0].doc.tables).sort(), got.assembled.sort());
   eq("a list cites the pages of the raw tables it was read from", [imported[0].doc.cites.category, imported[0].doc.cites.twoHands, imported[0].doc.cites.focus], ["RR p.9; JJ p.3", "RR p.30-31", "RR p.12"]);
-  check("no raw table's cite is carried over", !("martialProse" in imported[0].doc.cites));
+  eq("the options table cites both windows it was read from", imported[0].doc.cites.options, "RR p.9; JJ p.4");
+  eq("and each option list carries the cite of its own window", Object.fromEntries(Object.entries(imported[0].doc.tables.options).map(([k, v]) => [k, v.cite])), { restricted: "JJ p.4", narrow: "JJ p.4", broad: "JJ p.4", martial: "RR p.9" });
+  check("no raw table's cite is carried over", !("martialProse" in imported[0].doc.cites) && !("selectionProse" in imported[0].doc.cites));
   services.resetServices();
   unregisterTable(WEAPON_PROSE_DOC_ID);
 }
@@ -151,6 +241,19 @@ const L = {
   damageType: { gooey: ["zorks"], sticky: ["quuxes"] },
   throwables: { oil: { damage: "1d9", types: ["fire"] }, holyWater: { damage: "1d9", types: ["luminous"] }, torch: { damage: "1d2", types: ["fire"] } },
   twoHands: ["grand zork"],
+  options: {
+    restricted: { cite: "JJ p.1", pick: 1, total: 2, options: [{ n: 1, marker: "i", label: "zork", weapon: "zork" }, { n: 2, marker: "ii", label: "flib", weapon: "flib" }] },
+    narrow: {
+      cite: "JJ p.1", pick: 1, total: 4,
+      options: [
+        { n: 1, marker: "i", label: "any zorks", nouns: ["zorks"] },
+        { n: 2, marker: "ii", label: "any blorps and flibs", nouns: ["blorps", "flibs"] },
+        { n: 3, marker: "iii", label: "any small melee weapons", melee: true, sizes: ["small"] },
+        { n: 4, marker: "iv", label: "any combination of 3", any: 3, prereqs: [{ weapons: ["snarf"], requires: ["zork"] }] },
+      ],
+    },
+    martial: { cite: "RR p.2", options: [{ n: 1, marker: "1", label: "quuxes", nouns: ["quuxes"] }] },
+  },
 };
 const grid = {
   zork: { name: "Zork", block: "Gizmos", cite: "p.1" },
@@ -180,7 +283,20 @@ eq("the placements say what placed them", [out.zork.placedBy, out.snarf.placedBy
   { category: null, focus: null, damageType: null },
 ]);
 eq("the row's own figures ride through", [out.zork.name, out.zork.block, out.zork.cite], ["Zork", "Gizmos", "p.1"]);
-check("the grid is not changed", !("category" in grid.zork));
+check("the grid is not changed", !("category" in grid.zork) && !("options" in grid.zork));
+
+const optsOf = (k) => out[k].options;
+eq("a name places a row on the noun option of each list that holds it", optsOf("zork"), ["restricted.1", "narrow.1"]);
+eq("a run of the name's words places it", optsOf("grandzork"), ["restricted.1", "narrow.1"]);
+eq("a single-weapon option and a noun option place the same row apart", optsOf("flib"), ["restricted.2", "narrow.2"]);
+eq("a plural noun places a singular name", optsOf("blorp"), ["narrow.2"]);
+eq("a block that names two options of one list places nothing in it, one in another", optsOf("snarf"), ["restricted.1"]);
+eq("a block places a row whose name places nothing", optsOf("thing"), ["martial.1"]);
+eq("a row nothing places holds no option", optsOf("orphan"), []);
+eq("a name naming two options of one list places nothing in it, and the block is not asked", optsOf("both"), ["martial.1"]);
+check("a predicate and a combination place no row", Object.values(out).every((r) => !r.options.includes("narrow.3") && !r.options.includes("narrow.4")));
+check("a throwable's kind row holds no option", out.holywater.options.length === 0 && out.torch.options.length === 0);
+check("no lists, no options", Object.values(resolveRows(grid, null)).every((r) => Array.isArray(r.options) && r.options.length === 0));
 
 eq("a throwable enriches the row of its name and types it", [out.oil.throwable, out.oil.damageType, out.oil.placedBy.damageType], [{ kind: "oil", damage: "1d9", types: ["fire"] }, "fire", "throwable"]);
 eq("a throwable no row names is a kind row of its own", [out.holywater.kind, out.holywater.name, out.holywater.damage, out.holywater.types, out.holywater.damageType], ["holyWater", "", "1d9", ["luminous"], "luminous"]);
@@ -217,5 +333,71 @@ unregisterTable(WEAPON_LISTS_DOC, { priority: PRIORITY.OVERRIDE });
 eq("withdrawing the override restores the import's", weaponLists().focus, L.focus);
 unregisterTable(WEAPON_LISTS_DOC);
 eq("withdrawing the import leaves none", weaponLists(), null);
+
+/* ------------------------------ the option readers ------------------------------ */
+
+eq("no lists, no options and no list imported", [weaponOptions(), optionListImported("narrow")], [[], false]);
+eq("no lists, no phrase names an option", listedOption("narrow", "zorks"), null);
+registerTable({ id: WEAPON_LISTS_DOC, tables: { options: L.options } }, { priority: PRIORITY.WORLD });
+const flat = weaponOptions();
+const by = (id) => flat.find((o) => o.id === id);
+eq("the options are flat, in list order then printed order", flat.map((o) => o.id), ["restricted.1", "restricted.2", "narrow.1", "narrow.2", "narrow.3", "narrow.4", "martial.1"]);
+eq("each says what it is", flat.map((o) => o.kind), ["weapon", "weapon", "nouns", "nouns", "predicate", "combination", "nouns"]);
+eq("each carries its list's cite, its marker and its label", [flat[0].cite, flat[6].cite, flat[5].marker, flat[3].label], ["JJ p.1", "RR p.2", "iv", "any blorps and flibs"]);
+eq("a kind carries its own fields", [flat[0].weapon, flat[2].nouns, flat[4].melee, flat[4].sizes, "missile" in flat[4], flat[5].any, flat[5].prereqs], ["zork", ["zorks"], true, ["small"], false, 3, [{ weapons: ["snarf"], requires: ["zork"] }]]);
+check("the same array comes back until the lists change", weaponOptions() === flat);
+eq("a list is imported where it holds an option", ["restricted", "narrow", "broad", "martial"].map(optionListImported), [true, true, false, true]);
+eq(
+  "a phrase names the one option whose nouns it holds, in the list asked",
+  [listedOption("narrow", "a blorp"), listedOption("narrow", "zorks and blorps"), listedOption("narrow", "quux"), listedOption("broad", "zorks"), listedOption("restricted", "the zork"), listedOption("martial", "quux")],
+  ["narrow.2", null, null, null, "restricted.1", "martial.1"],
+);
+
+eq(
+  "each category maps to the options that hold its rows, in option order",
+  categoryOptions(out),
+  { zork: ["restricted.1", "narrow.1"], blorpFlib: ["restricted.2", "narrow.2"], other: ["martial.1"] },
+);
+eq("a category no option holds maps to nothing", categoryOptions({ x: { category: "zork", options: [] }, y: { category: null, options: ["narrow.1"] } }), { zork: [] });
+eq("the registered source's rows answer when none is passed", [categoryOptions({}), (registerWeaponSource({ rows: { z: { cat: "zork", options: ["narrow.2", "narrow.1"] } } }), categoryOptions())], [{}, { zork: ["narrow.1", "narrow.2"] }]);
+const rowsSeen = registerWeaponSource({ rows: out });
+eq(
+  "a noun or single-weapon option covers the rows placed on it",
+  [optionVerdict(by("narrow.1"), { key: "zork" }), optionVerdict(by("narrow.1"), { key: "blorp" }), optionVerdict(by("restricted.1"), { key: "snarf" }), optionVerdict(by("martial.1"), { key: "thing" })],
+  [true, false, true, true],
+);
+eq("no weapon identity, no such row or no profile is no answer", [optionVerdict(by("narrow.1"), {}), optionVerdict(by("narrow.1"), { key: "nope" }), optionVerdict(by("narrow.1"), null)], [null, null, null]);
+eq("a combination covers nothing by itself", optionVerdict(by("narrow.4"), { key: "zork", melee: true, size: "small" }), false);
+eq("a predicate reads the size and the use", [
+  optionVerdict(by("narrow.3"), { melee: true, size: "small" }),
+  optionVerdict(by("narrow.3"), { melee: true, size: "Small" }),
+  optionVerdict(by("narrow.3"), { melee: true, size: "large" }),
+  optionVerdict(by("narrow.3"), { melee: false, missile: true, size: "small" }),
+], [true, true, false, false]);
+eq("a size against a weapon of none stated is no answer", optionVerdict(by("narrow.3"), { melee: true, size: null }), null);
+const missile = { id: "x.1", kind: "predicate", missile: true, sizes: [] };
+eq("a missile predicate asks the use alone", [optionVerdict(missile, { missile: true, size: null }), optionVerdict(missile, { missile: false })], [true, false]);
+const either = { id: "x.2", kind: "predicate", melee: true, missile: true, sizes: ["small"] };
+eq(
+  "a predicate of both uses is covered by either, and unknown while one use could cover it",
+  [optionVerdict(either, { melee: true, size: "small" }), optionVerdict(either, { melee: true, size: "large" }), optionVerdict(either, { melee: false, missile: true, size: null })],
+  [true, false, null],
+);
+eq("an object that is no option is no answer", [optionVerdict({}, { key: "zork" }), optionVerdict(null, { key: "zork" })], [null, null]);
+registerWeaponSource({ rows: { zork: { name: "Zork" } } });
+eq("a row the lists never resolved is no answer", optionVerdict(by("narrow.1"), { key: "zork" }), null);
+registerWeaponSource(rowsSeen);
+
+registerTable(
+  { id: WEAPON_LISTS_DOC, tables: { options: { narrow: { options: [null, { n: "x", nouns: ["a"] }, { n: 1, nouns: "zorks" }, { n: 2, nouns: ["blorps"] }, { n: 2, nouns: ["flibs"] }] }, martial: "bad", broad: { options: "bad" } } } },
+  { priority: PRIORITY.OVERRIDE },
+);
+eq("a malformed override keeps the options that read and drops the rest", weaponOptions().map((o) => [o.id, o.nouns]), [["narrow.2", ["blorps"]]]);
+check("and answers from a new array", weaponOptions() !== flat);
+eq("the resolver reads it the same way", resolveRows({ blorp: grid.blorp }, weaponLists()).blorp.options, ["narrow.2"]);
+unregisterTable(WEAPON_LISTS_DOC, { priority: PRIORITY.OVERRIDE });
+eq("withdrawing the override restores the import's options", weaponOptions().length, 7);
+unregisterTable(WEAPON_LISTS_DOC);
+eq("withdrawing the import leaves none", weaponOptions(), []);
 
 console.log(`test-weapon-lists: ${pass} checks passed`);

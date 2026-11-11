@@ -60,11 +60,10 @@ questions. Five tabs:
   handed `{quiet: true}`: the journals, keyed-places and maps steps, finding
   nothing in the open books to write, resolve null without a notice, as they
   do when a book's rebuild scopes them to that book; run alone, they say what
-  is missing. Import everything takes a
-  mode: *Import what is missing* is the chain; each of the other three runs
-  the merged repair (below) over every open book and every open adventure
-  book (`cookbookReimportEverything`, `api.reimportEverything()`), asked
-  once. `everything.mjs` runs each part first with an `ask` that records the
+  is missing. Beside **Import everything**, which runs the chain,
+  **Repair everything** runs the merged repair (below) over every open book
+  and every open adventure book (`host.runEverything("repair")`, which calls
+  `api.reimportEverything()`), asked once. `everything.mjs` runs each part first with an `ask` that records the
   confirm it would show and answers No, which writes nothing because every
   part asks before its first write (`confirmRepair`'s `ask`). That pass runs
   inside `holdingLibrary`, so the library is read once per document type for
@@ -77,12 +76,11 @@ questions. Five tabs:
   once, after the last pass.
 - **Rebuild** — the shelf, book and rules-table options of
   `rebuildOptions()`, run by `runRebuildPick(value)`: a shelf or a book runs
-  the merged repair, the rules tables are re-read in place. The tab's Mode
-  select is still drawn and is ignored. The Reimport One Shelf dialog draws
+  the merged repair, the rules tables are re-read in place. The Reimport One Shelf dialog draws
   from the same two functions, so the two surfaces can never offer different
   things.
 - **Adventures** — each adventure book open on this seat (`adventureBooks()`,
-  each with its `bookCensus`): its three repair buttons all run
+  each with its `bookCensus`): Repair runs
   `cookbookReimportAdventure` (below), Write Adventure runs the adventures
   step for that book alone.
 - **Tools** — the entry picker, the audit, the repair window on the
@@ -1102,7 +1100,8 @@ resolved at import time and no noun, die or type ships.
 
 - **Two documents.** The `weaponProse` raw document holds one `proseValues`
   recipe per folio, each a `take: "window"` read: the Martial Training options
-  (RR ch. 3), the narrow-selection options (JJ ch. 12), the Weapon Focus
+  (RR ch. 3), the narrow-selection options and the whole selection-level
+  passage (JJ ch. 12, `selectionProse`), the Weapon Focus
   sentence (RR ch. 3), each physical damage type's entry and the thrown flask
   and torch entries (RR ch. 6), and the weapon descriptions (RR ch. 4, two
   folios: the first opens on the section heading, the second runs from the
@@ -1119,6 +1118,25 @@ resolved at import time and no noun, die or type ships.
   glyph in the text layer, decoded by `damageTypeOf`. The "extraordinary" mark
   on a flask is an icon colour the text layer does not carry, so the flag is
   absent unless the printing spells the word.
+- **The printed option lists, whole.** `options` keeps the JJ ch. 12
+  restricted, narrow and broad lists and the Martial Training options as the
+  book numbers them. It sits beside `category` permanently, as the provenance
+  of what each category holds. `parseSelection` splits the passage at each
+  level's head (a word boundary keeps `restricted:` out of `unrestricted:`) and
+  cuts each level at its example paragraph, whose markers are not options. A
+  level is kept only where it prints a pick count out of a total and the total
+  equals the options parsed. A list whose markers have a gap, or that holds an
+  option no shape reads, is dropped. Each option keeps its marker and one of
+  five shapes:
+  - a noun list;
+  - one weapon (the restricted level);
+  - a melee predicate with sizes, or a missile predicate (every word a
+    `config.SIZE` value, "melee" or "missile");
+  - a combination with its prerequisites (the sentences saying a weapon needs
+    another first, in each wording the page uses).
+
+  Each list cites its own window. `acksExtras.weaponListsImported` fires with
+  `{ assembled }` once the document is registered.
 - **A window that did not read costs its list only.** The list is absent, the
   resolver places nothing from it, and nothing is defaulted.
 - **A grid row's sub-header.** `extractValueRows` records the labelled row that

@@ -932,6 +932,18 @@ export const TABLE_RECIPES = {
         locateBare: true,
         values: [{ key: "list", find: "available weapon focuses are", take: "window", span: 160 }],
       },
+      // JJ ch. 12 weapon selection levels: the restricted, narrow and broad
+      // lists a custom class picks from, one window from the sentence that
+      // introduces the levels to past the head of the unrestricted level, so
+      // the binding reads each level's pick count, option total and options.
+      selectionProse: {
+        shape: "proseValues",
+        book: "jj",
+        printedPage: 290,
+        locate: "restricted, narrow, broad",
+        locateBare: true,
+        values: [{ key: "levels", find: "restricted, narrow, broad", take: "window", span: 2700 }],
+      },
       // JJ ch. 12 narrow weapon selection: the kinds a custom class may pick.
       narrowProse: {
         shape: "proseValues",
