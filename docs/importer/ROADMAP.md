@@ -1005,8 +1005,8 @@ outside a family"), and the Kit axis with its three tables (monsters MODEL,
 
 ## Repair in place: what it does not write yet
 
-Repair (DECISIONS, 2026-09-24) writes what a fresh read yields over a held
-document. Three things it leaves to Rebuild:
+Repair (MODEL, "The merged repair") writes what a fresh read yields over a
+held document. Three things it does not write yet:
 
 - **A field the page stopped printing.** Outside a monster's stat paths, a
   repair cannot tell a field the page states as none from one this seat could
@@ -1022,8 +1022,8 @@ document. Three things it leaves to Rebuild:
   lists as the Judge's. A read snapshot stamped at import, under a new flag,
   would let it tell an edited field from a stale one.
 
-Rules tables merge in both modes. A Rebuild that removed the world layer before
-re-reading would undo "a re-read that finds nothing keeps what it had".
+Rules tables merge. A repair that removed the world layer before re-reading
+would undo "a re-read that finds nothing keeps what it had".
 
 ## Edits taken: what a repair still leaves
 

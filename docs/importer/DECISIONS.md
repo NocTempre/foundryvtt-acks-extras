@@ -4089,6 +4089,10 @@ lint never looks at its categories.
 
 ### A book is a reimport unit too (2026-09-16)
 
+> **Superseded in part 2026-11-11** by "One repair, in place, and the Judge
+> chooses what it writes over": a book's run repairs in place and deletes
+> nothing first. The book as a repair unit stands.
+
 **Ruled.** The reimport picker offers every book open on this seat beside the
 shelves, and `cookbookReimportBook(bookId)` deletes every document imported
 from that book — on every shelf with a refill run — and runs those refills.
@@ -5131,6 +5135,11 @@ re-reads its rules tables. The eleven waived gaps stay gaps; each is a ROADMAP
 line, and the gate fails the day one closes without its waiver going.
 
 ### A rebuild can repair in place instead (2026-09-24)
+
+> **Superseded in part 2026-11-11** by "One repair, in place, and the Judge
+> chooses what it writes over": the mode is gone and every control repairs in
+> place; a field a guard keeps is put to the Judge as a held edit. MODEL.md,
+> "The merged repair", says how it works now.
 
 **Reported.** Every rebuild deletes and imports again. A corrected read reached
 a world only by costing it the documents' ids, and with them every link, grant
@@ -8472,6 +8481,12 @@ mostly launch other windows.
 
 ## 2026-10-28 — An adventure book is a reimport unit
 
+> **Superseded in part 2026-11-11** by "One repair, in place, and the Judge
+> chooses what it writes over" and "The manager draws only the one repair, and
+> Repair everything replaces the Mode select": *Rebuild* is gone, and an
+> adventure book offers Repair alone, which deletes nothing. The book as one
+> unit, the maps kept and Repair forcing the Adventure stand.
+
 The owner asked for "a reimport and repair option" for adventure imports
 specifically. A shelf rebuild could not reach an adventure book: its
 documents land as world journals, places, factions, scenes and items, none
@@ -8808,6 +8823,11 @@ needs a locator for it. The ruling settles the design's section (e); the
 build is the design's seven slices and lands under its own entries.
 
 ## 2026-10-29 — A book's own item is repaired in place
+
+> **Superseded in part 2026-11-11** by "One repair, in place, and the Judge
+> chooses what it writes over": a description a Judge wrote is put to the
+> Judge as a held edit instead of being kept outright. The run and the
+> routes that reach it stand.
 
 Supersedes the *Cost* line of "An item a book introduces is worn where its
 page says" (2026-10-28), one day old. The new evidence: after 11.12.0 shipped
@@ -9217,6 +9237,11 @@ shows none of this until a re-import or a repair of it in place.
 
 ## 2026-11-04 — A forced repair, and what it still keeps
 
+> **Superseded in part 2026-11-11** by "One repair, in place, and the Judge
+> chooses what it writes over": Force repair is gone, and the guard it lifted
+> wholesale is answered per edit by the Judge. What it lists as kept because
+> the import does not own it is still kept.
+
 **Reported.** T-0387, the owner: "There needs to be a repair in place that
 forces no skips." Repair in place (2026-09-24) leaves documents and fields
 for stated reasons, and a Judge who wants every document the import writes
@@ -9277,6 +9302,11 @@ for the kinds and the adventure book; the rest of this entry stands.
 
 ## 2026-11-04 — Every kind gets an in-place write
 
+> **Superseded in part 2026-11-11** by "One repair, in place, and the Judge
+> chooses what it writes over": there is one repair, not an ordinary and a
+> forced one, and a pregenerated character is the Judge's choice per repair.
+> Every kind's in-place write stands.
+
 **Ruled** (owner, "Yes, all of them (Recommended)"): weapons, armour and the
 price rows, languages and races, monster templates and families, NPCs, OSE
 creatures and the rest that were rebuild-only get an in-place write, for the
@@ -9308,6 +9338,10 @@ item a Judge added to an imported creature that was not minted survives and one
 a Judge edited that was minted does not; the confirm says what is kept.
 
 ## 2026-11-04 — An adventure book has a forced repair
+
+> **Superseded 2026-11-11** by "One repair, in place, and the Judge chooses
+> what it writes over": an adventure book's Repair is the one repair, with no
+> forced mode.
 
 **Ruled** (owner, "Yes"): the Adventures tab's Repair gains a forced mode with
 the same confirm and counts; Cancel writes nothing. It writes in place the
@@ -9354,6 +9388,12 @@ second writer and a branch in `importArt`).
 Restore; nothing flags it yet.
 
 ## 2026-11-04 — A forced repair writes the places, bodies and pregenerated characters too
+
+> **Superseded in part 2026-11-11** by "One repair, in place, and the Judge
+> chooses what it writes over": the one repair writes places, organisations
+> and market profiles in place, and each edit it meets is the Judge's to take
+> or keep; a pregenerated character is the Judge's choice per repair, not a
+> mode's rewrite. Places and bodies written through the existing scope stand.
 
 **Ruled** (coordinator, from the owner's "There needs to be a repair in place
 that forces no skips" and "Yes, all of them"): an adventure book's Force repair
@@ -9481,6 +9521,13 @@ hyphenated spelling the text layer splits.
 derived leaders until it imports them again; the printed leaders stand.
 
 ## 2026-11-04 — Import everything takes the three modes, over every open book, asked once
+
+> **Superseded in part 2026-11-11** by "One repair, in place, and the Judge
+> chooses what it writes over" and "The manager draws only the one repair, and
+> Repair everything replaces the Mode select": the three modes are gone.
+> Repair everything, beside Import everything, runs the one repair over every
+> open book and then every open adventure book. The parts and the single
+> confirm stand.
 
 **Ruled (owner).** Import everything gains Rebuild, Repair in place and Force
 repair beside importing what is missing. Each runs that mode over every book

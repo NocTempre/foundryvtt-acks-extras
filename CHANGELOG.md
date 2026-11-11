@@ -365,10 +365,11 @@
   adventure book (Manage imports → Adventures) could delete documents nothing on
   this seat could import again: a table row whose book was closed, a document
   whose entry no loaded cookbook holds, or one from a book this build does not
-  offer. Those are now left as they are, and the confirm and the notice say how
-  many. A copy dragged out of the library no longer answers for the library's
-  own organisation, roll table, room or companion when an import looks for it,
-  and rebuilding ticked entries no longer deletes such a copy.
+  offer. Every one of these controls now repairs in place and deletes nothing
+  first; those documents are left as they are, and the confirm and the notice
+  say how many. A copy dragged out of the library no longer answers for the
+  library's own organisation, roll table, room or companion when an import
+  looks for it, and repairing ticked entries leaves such a copy as it is.
 - **Imported weapons, armour and gear cite the printed page.** Items made from
   the weapon, armour and price tables cited the PDF's page rather than the one
   printed in the book (RR ch. 4). Items imported earlier keep the page they were
@@ -392,9 +393,9 @@
   no longer opens as a bare sheet with no rail), and a hireling's Follower Card
   offers its shield toggle in the Equipment list; the first wear records the
   place on the item. Newly
-  imported price rows carry their place, and Settings tab → Game
-  Settings → ACKS II — Extras → Manage imports, the Equipment step in Repair in
-  place mode, gives one to a held row that has none.
+  imported price rows carry their place, and a repair of the Equipment shelf
+  (Settings tab → Game Settings → ACKS II — Extras → Manage imports → Rebuild
+  tab, Equipment, then Go) gives one to a held row that has none.
 - **More garment names find their place.** Plurals ("Belts", "Silk sashes"), a
   cap, a turban and a head dress are read, and a name is read up to "with", so a
   cassock with a hood is worn on the body and a belt with a buckle at the belt.
@@ -482,9 +483,9 @@
   family (Settings tab → Game Settings → ACKS II — Extras → Manage imports →
   Tools → (Re)import individual entries) deleted the library's template and
   then took the copy for it, so nothing was imported again and the copy kept
-  the shape it was made with. The library's template is now imported again
-  and the copy is left as it is: delete the copy and drag the rebuilt template
-  out of the library to use it.
+  the shape it was made with. The library's template is now written in place
+  and the copy is left as it is: delete the copy and drag the repaired
+  template out of the library to use it.
 
 ## 11.14.4
 

@@ -3513,8 +3513,8 @@ the run's own.
    0; the notice says "repaired in place"; each item has its slot, mark and
    price back exactly as the fresh import gave them; the quantity of 3 and
    the binder's one paragraph stay.
-4. Strip them again and run the book repair (`cookbookReimportBook(book,
-   {mode: "repair"})`, its confirm answered yes by the walk).
+4. Strip them again and run the book repair (`cookbookReimportBook(book)`,
+   its confirm answered yes by the walk).
    *Observable:* one confirm, the result's refill names the items step, the
    replaced count covers the run's items, and each is back in the fresh shape.
 
@@ -3688,8 +3688,7 @@ the run's own.
    step-2 shape under the uuid it had.
 4. Type an experience figure and a title of the walk's own into level 2 of
    the first class, stub the others again, and run the book repair
-   (`cookbookReimportBook(book, { mode: "repair" })`, its confirm answered yes
-   by the walk).
+   (`cookbookReimportBook(book)`, its confirm answered yes by the walk).
    *Observable:* one confirm; the refill names the class step and the
    replaced count covers the run's classes; the typed title stands on level 2
    with the build's hit dice, and so does the typed figure where the class is
@@ -3887,20 +3886,18 @@ The Monstrous Manual open on the seat (`acksExtras.importer.bookOpen("mm")`;
 a fresh seat opens its books one by one after `ready`, and the entry picker
 lists only an open book's rows, so wait for it first). Drive the picker
 (Manage Imports → Tools → (Re)import individual entries) in short page calls:
-open it, tick `Monsters|mm.familyBeastman`, set the mode, press Reimport, press
-Yes, and leave the run's promise on the page; poll for it to settle. A single
-evaluate held over the import outlives the driver's timeout, and closing the
-page then kills the run after its delete.
+open it, tick `Monsters|mm.familyBeastman`, press Reimport, press Yes, and
+leave the run's promise on the page; poll for it to settle. A single evaluate
+held over the import outlives the driver's timeout, and closing the page then
+kills the run part-way.
 
-1. Mode Rebuild. *The confirm counts no document of the copy; one library
-   template stamped `mm.familyBeastman` stands after, with the current Role
-   axis (its default Standard); no "already covers" notice; the copy's
-   `system` is byte-identical before and after.*
-2. Mode Repair in place. *The library template is written in place under its
-   id; the copy is unchanged.*
+1. Reimport, answered Yes. *The confirm, titled Repair in place, counts no
+   document of the copy; the library template stamped `mm.familyBeastman` is
+   written in place under its id, with the current Role axis (its default
+   Standard); no "already covers" notice; the copy's `system` is
+   byte-identical before and after.* Where *Your edits and the book* opens,
+   the copy is not among its rows.
 
 ### Teardown
 
-The fixture is kept. A rebuild's template replaces the library's under a
-recorded id only while the page that deleted it stays open; check nothing
-names the old id before letting a new one stand.
+The fixture is kept.
