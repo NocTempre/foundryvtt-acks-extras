@@ -104,6 +104,53 @@ embedded copies (`spellPayload`; `docs/monsters/MODEL.md`), and
 generator's `acksExtras.templateResolved` hook (`lib/constants.mjs`
 `TEMPLATE_HOOKS`), registered at init. `acksExtras.magic` exposes all of it.
 
+**Casting: durations and the cast record.** Two pure files shape what a cast
+leaves on an actor; neither casts. `cast-duration.mjs` `castDuration(duration,
+{casterLevel, roll})` reads a spell's duration object (the flag's, shape plus
+value, unit, dice and the plus pair) into the `{value, units}` pair a Foundry
+Active Effect stores, or `{none: <reason id>}`. Every figure comes from the
+object and the caster: `fixed` is its value, `perLevel` the value times the
+caster's level, `basePlusPerLevel` the base plus the per-level figure times the
+level and only when both are in one unit, `dice` the injected `roll(formula)`
+(synchronous; Foundry's `evaluateSync` serves). A caster's level is never
+defaulted: a shape that needs one without it answers `noLevel`. Instantaneous,
+every concentration, perpetual, indefinite, permanent and special have no time
+to count and answer `untimed`. The unit map has one row per `TIME_UNITS`
+member: rounds stay rounds, an ACKS turn becomes seconds through
+`TURN_SECONDS` (Foundry's `turns` is a combat turn), a week becomes seven days,
+and minutes, hours, days, months and years pass through. Core 14's effect
+duration has no seconds-only shape beside `{value, units}`, so a `seconds`
+count is a `value` in the `seconds` unit. A `rounds` duration is correct data
+that Foundry ages only through a combat's round counter: the world's
+round length is zero, so outside combat it does not run down on the clock.
+`TURN_SECONDS` and `ROUNDS_PER_TURN` are the module's own time unit, owned by
+`lib/constants.mjs`; `formation/constants.mjs` re-exports them under the same
+names.
+`spell-effect.mjs` is the cast record: `spellEffectData({spell, caster, castId,
+role, duration, changes, transfer, name})` returns Active Effect creation data
+with `origin` the spell's uuid, the spell's name and image, the cast's
+duration, and `flags["acks-extras"].spellEffect = {spellUuid, castId,
+casterUuid, role}`, role `caster` or `recipient`. One `castId` (`newCastId`)
+ties the caster's record to each recipient's. `spellEffectOf(effect)` reads the
+flag back or answers null. The record is not a managed effect
+(`lib/managed-effects.mjs` locks only markers a feature registers), so its
+owner may delete it.
+
+**Summon spells** (`summon-spell.mjs`, pure apart from injected lookups).
+`isSummonSpell(item)` is true for a `spell` item on an actor of type
+`character` whose flag carries a `summon` effect row, or whose type words
+(`schools`, which keeps every word a stat line printed) or primary `type` name
+the summoning type; a spell on a monster or on no actor is never summonable.
+`summonOptionsOf(spell, {twin})` turns each `summon` row into `{ref, amount,
+value, summonFormat, control}` (`value` is the row's LevelValue object,
+unresolved); a spell with no rows of its own reads its library twin's, and no
+rows at all is `[]`, which the caller reads as the open shelf picker. An empty
+`ref` is an open pick within a row. `libraryTwin(spell, {byCookbookId,
+fromUuidSync})` finds the twin by the cookbook stamp, else by the document
+`_stats.compendiumSource` names. `resolveSummonRef(ref, {fromUuid,
+byCookbookId})` resolves a uuid first (a `uuid:` prefix is dropped), else a
+cookbook id on the Actor shelf, else null.
+
 **Uninstall** (`uninstall.mjs`; the *Uninstall — Strip Spell Data* macro)
 strips the flag from every spell item in the world, on world actors and on
 unlinked token actors; core's strings stay, so a spell keeps its stat line.

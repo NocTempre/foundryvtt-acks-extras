@@ -30,6 +30,11 @@ import {
   headingCase,
 } from "../scripts/magic/spell-logic.mjs";
 import { describeSpellEffect } from "../scripts/magic/describe.mjs";
+import { castDuration, NONE } from "../scripts/magic/cast-duration.mjs";
+import { spellEffectData, spellEffectOf, newCastId } from "../scripts/magic/spell-effect.mjs";
+import { isSummonSpell, summonOptionsOf, libraryTwin, resolveSummonRef, SUMMONING_TYPE } from "../scripts/magic/summon-spell.mjs";
+import { TURN_SECONDS, ROUNDS_PER_TURN } from "../scripts/lib/constants.mjs";
+import * as formationConstants from "../scripts/formation/constants.mjs";
 
 const lang = JSON.parse(readFileSync(new URL("../lang/en.json", import.meta.url), "utf8"));
 const ENUM_PREFIX = "ACKS-LIB.enum.";
@@ -448,5 +453,291 @@ t("a frequency phrase reads to its key", () => {
   assert.equal(frequencyOf("whenever it likes"), "");
   assert.equal(frequencyOf(null), "");
 });
+
+/* ------------------------------------------------------------------ */
+/*  Cast durations                                                     */
+/* ------------------------------------------------------------------ */
+
+t("the time constants live in lib and formation re-exports the same figures", () => {
+  assert.equal(formationConstants.TURN_SECONDS, TURN_SECONDS);
+  assert.equal(formationConstants.ROUNDS_PER_TURN, ROUNDS_PER_TURN);
+  assert.equal(typeof TURN_SECONDS, "number");
+  assert.equal(typeof ROUNDS_PER_TURN, "number");
+});
+
+t("every duration shape has a row in the duration table, and an untimed one answers none", () => {
+  const shapes = {
+    instantaneous: { duration: {}, none: NONE.untimed },
+    fixed: { duration: { value: 3, unit: "hours" }, out: { value: 3, units: "hours" } },
+    perLevel: { duration: { value: 2, unit: "minutes" }, out: { value: 14, units: "minutes" } },
+    basePlusPerLevel: { duration: { value: 5, unit: "days", plus: { value: 1, unit: "days" } }, out: { value: 12, units: "days" } },
+    dice: { duration: { dice: "1d6", unit: "hours" }, out: { value: 4, units: "hours" } },
+    concentration: { duration: { concentration: "mobile" }, none: NONE.untimed },
+    concentrationMax: { duration: { value: 1, unit: "hours", concentration: "mobile" }, none: NONE.untimed },
+    concentrationPlus: { duration: { value: 1, unit: "turns", plus: { value: 1, unit: "turns" } }, none: NONE.untimed },
+    perpetual: { duration: {}, none: NONE.untimed },
+    indefinite: { duration: {}, none: NONE.untimed },
+    permanent: { duration: {}, none: NONE.untimed },
+    special: { duration: { note: "see the entry" }, none: NONE.untimed },
+  };
+  assert.deepEqual(Object.keys(shapes).sort(), Object.keys(MAGIC_VOCAB.durationShape).sort(), "one row per DURATION_SHAPES member");
+  for (const [shape, c] of Object.entries(shapes)) {
+    const got = castDuration({ shape, ...c.duration }, { casterLevel: 7, roll: () => 4 });
+    if (c.none) assert.deepEqual(got, { none: c.none }, shape);
+    else assert.deepEqual(got, c.out, shape);
+  }
+});
+
+t("every time unit maps onto a Foundry duration unit: turns to seconds, weeks to days, the rest alike", () => {
+  const expected = {
+    rounds: { value: 3, units: "rounds" },
+    turns: { value: 3 * TURN_SECONDS, units: "seconds" },
+    minutes: { value: 3, units: "minutes" },
+    hours: { value: 3, units: "hours" },
+    days: { value: 3, units: "days" },
+    weeks: { value: 21, units: "days" },
+    months: { value: 3, units: "months" },
+    years: { value: 3, units: "years" },
+  };
+  assert.deepEqual(Object.keys(expected).sort(), Object.keys(MAGIC_VOCAB.timeUnit).sort(), "one row per TIME_UNITS member");
+  for (const [unit, out] of Object.entries(expected)) {
+    assert.deepEqual(castDuration({ shape: "fixed", value: 3, unit }), out, unit);
+  }
+});
+
+t("a per-level duration needs the caster's level and never defaults it", () => {
+  const d = { shape: "perLevel", value: 2, unit: "turns" };
+  assert.deepEqual(castDuration(d, { casterLevel: 5 }), { value: 10 * TURN_SECONDS, units: "seconds" });
+  for (const casterLevel of [undefined, 0, -1, NaN, "x"]) {
+    assert.deepEqual(castDuration(d, { casterLevel }), { none: NONE.noLevel }, String(casterLevel));
+  }
+  assert.deepEqual(castDuration(d), { none: NONE.noLevel });
+  assert.deepEqual(castDuration({ shape: "fixed", value: 2, unit: "turns" }), { value: 2 * TURN_SECONDS, units: "seconds" }, "a fixed time needs no level");
+});
+
+t("a base plus a per-level time adds only in one unit", () => {
+  const same = { shape: "basePlusPerLevel", value: 4, unit: "turns", plus: { value: 2, unit: "turns" } };
+  assert.deepEqual(castDuration(same, { casterLevel: 3 }), { value: 10 * TURN_SECONDS, units: "seconds" });
+  const mixed = { shape: "basePlusPerLevel", value: 4, unit: "hours", plus: { value: 2, unit: "turns" } };
+  assert.deepEqual(castDuration(mixed, { casterLevel: 3 }), { none: NONE.unitMismatch });
+  assert.deepEqual(castDuration({ shape: "basePlusPerLevel", value: 4, unit: "hours" }, { casterLevel: 3 }), { none: NONE.unitMismatch }, "no plus unit");
+  assert.deepEqual(castDuration(same, {}), { none: NONE.noLevel });
+});
+
+t("a rolled duration goes through the injected roll and refuses a bad result", () => {
+  const seen = [];
+  const roll = (formula) => (seen.push(formula), 6);
+  const d = { shape: "dice", dice: "2d4+1", unit: "weeks" };
+  assert.deepEqual(castDuration(d, { roll }), { value: 42, units: "days" });
+  assert.deepEqual(seen, ["2d4+1"]);
+  assert.deepEqual(castDuration(d, {}), { none: NONE.noRoll });
+  assert.deepEqual(castDuration(d, { roll: () => NaN }), { none: NONE.badRoll });
+  assert.deepEqual(castDuration(d, { roll: () => { throw new Error("bad formula"); } }), { none: NONE.badRoll });
+  assert.deepEqual(castDuration(d, { roll: () => 0 }), { none: NONE.noFigure });
+  assert.deepEqual(castDuration({ shape: "dice", unit: "hours" }, { roll }), { none: NONE.noFigure }, "no formula");
+});
+
+t("an unreadable duration answers none with a reason, never a figure", () => {
+  assert.deepEqual(castDuration(null), { none: NONE.noShape });
+  assert.deepEqual(castDuration({}), { none: NONE.noShape });
+  assert.deepEqual(castDuration({ shape: "wobbly", value: 1, unit: "hours" }), { none: NONE.noShape });
+  assert.deepEqual(castDuration({ shape: "fixed", value: 0, unit: "hours" }), { none: NONE.noFigure });
+  assert.deepEqual(castDuration({ shape: "fixed", unit: "hours" }), { none: NONE.noFigure });
+  assert.deepEqual(castDuration({ shape: "fixed", value: 2, unit: "fortnights" }), { none: NONE.unknownUnit });
+  assert.deepEqual(castDuration({ shape: "fixed", value: 2 }), { none: NONE.unknownUnit });
+  assert.deepEqual(castDuration({ shape: "fixed", value: 1.5, unit: "hours" }), { none: NONE.fractional });
+  assert.deepEqual(castDuration({ shape: "perLevel", value: 1.5, unit: "hours" }, { casterLevel: 3 }), { none: NONE.fractional }, "4.5 hours has no integer in Foundry's hours");
+});
+
+/* ------------------------------------------------------------------ */
+/*  The cast record                                                    */
+/* ------------------------------------------------------------------ */
+
+t("the cast record carries the spell, the cast, the caster and the side, and reads back", () => {
+  const spell = { uuid: "Actor.aaa.Item.bbb", name: "Moth Lantern", img: "icons/lantern.svg" };
+  const caster = { uuid: "Actor.aaa" };
+  const data = spellEffectData({ spell, caster, castId: "cast1", role: "recipient", duration: { value: 12, units: "hours" } });
+  assert.equal(data.origin, spell.uuid);
+  assert.equal(data.name, "Moth Lantern");
+  assert.equal(data.img, "icons/lantern.svg");
+  assert.equal(data.transfer, false);
+  assert.deepEqual(data.changes, []);
+  assert.deepEqual(data.duration, { value: 12, units: "hours" });
+  assert.deepEqual(data.flags["acks-extras"].spellEffect, {
+    spellUuid: spell.uuid,
+    castId: "cast1",
+    casterUuid: "Actor.aaa",
+    role: "recipient",
+  });
+  assert.deepEqual(spellEffectOf(data), data.flags["acks-extras"].spellEffect);
+  // A document answers through getFlag; plain data answers through flags.
+  const doc = { getFlag: (scope, key) => data.flags[scope]?.[key] };
+  assert.equal(spellEffectOf(doc).castId, "cast1");
+  const named = spellEffectData({ spell, caster, castId: "c2", role: "caster", name: "Lantern glow", changes: [{ key: "k", value: "1" }], transfer: true });
+  assert.equal(named.name, "Lantern glow");
+  assert.equal(named.transfer, true);
+  assert.deepEqual(named.changes, [{ key: "k", value: "1" }]);
+});
+
+t("the cast record leaves the duration alone when the cast has none, and rejects an unknown side", () => {
+  const spell = { uuid: "Actor.a.Item.b", name: "X", img: "" };
+  const caster = { uuid: "Actor.a" };
+  assert.equal("duration" in spellEffectData({ spell, caster, castId: "c", role: "caster", duration: { none: NONE.untimed } }), false);
+  assert.equal("duration" in spellEffectData({ spell, caster, castId: "c", role: "caster" }), false);
+  assert.throws(() => spellEffectData({ spell, caster, castId: "c", role: "bystander" }), /unknown role/);
+});
+
+t("an effect no cast made reads as null", () => {
+  assert.equal(spellEffectOf(null), null);
+  assert.equal(spellEffectOf({}), null);
+  assert.equal(spellEffectOf({ flags: { "acks-extras": { spellEffect: { castId: "c", role: "other" } } } }), null);
+  assert.equal(spellEffectOf({ flags: { "acks-extras": { spellEffect: { role: "caster" } } } }), null);
+  assert.equal(spellEffectOf({ flags: { "acks-extras": { fromClass: "x" } } }), null);
+});
+
+t("a cast id comes from foundry's randomID when present and from an injected or local source otherwise", () => {
+  assert.equal(newCastId({ randomID: (len) => "z".repeat(len) }), "z".repeat(16));
+  const saved = globalThis.foundry;
+  try {
+    globalThis.foundry = { utils: { randomID: () => "from-foundry" } };
+    assert.equal(newCastId(), "from-foundry");
+    globalThis.foundry = undefined;
+    const a = newCastId();
+    assert.match(a, /^[a-z0-9]{16}$/);
+    assert.notEqual(a, newCastId());
+  } finally {
+    globalThis.foundry = saved;
+  }
+});
+
+/* ------------------------------------------------------------------ */
+/*  Summon spells                                                      */
+/* ------------------------------------------------------------------ */
+
+const flagged = (spell, parentType = "character", extra = {}) => ({
+  type: "spell",
+  name: "Test Spell",
+  parent: parentType ? { type: parentType } : null,
+  flags: { "acks-extras": { spell } },
+  ...extra,
+});
+const summonRow = (over = {}) => ({
+  type: "summon",
+  ref: "",
+  amount: 2,
+  value: { kind: "flat", flat: 3 },
+  summonFormat: "conjuration",
+  control: "obedient",
+  ...over,
+});
+
+t("the summoning type word is a spell type the vocabulary knows", () => {
+  assert.ok(SUMMONING_TYPE in MAGIC_VOCAB.spellType);
+});
+
+t("a character's spell is summonable by a summon row or by the summoning type word, and by nothing else", () => {
+  assert.equal(isSummonSpell(flagged({ schools: ["summoning"] })), true, "the type word alone");
+  assert.equal(isSummonSpell(flagged({ schools: ["Enchantment", " Summoning "] })), true, "the word among others, any case");
+  assert.equal(isSummonSpell(flagged({ type: "summoning", schools: [] })), true, "the primary type");
+  assert.equal(isSummonSpell(flagged({ effects: [summonRow()] })), true, "a row alone");
+  assert.equal(isSummonSpell(flagged({ effects: { 0: summonRow() } })), true, "rows arriving as a numeric-keyed object");
+  assert.equal(isSummonSpell(flagged({ schools: ["enchantment"], effects: [{ type: "damage" }] })), false);
+  assert.equal(isSummonSpell(flagged({})), false);
+  assert.equal(isSummonSpell({ type: "spell", parent: { type: "character" }, flags: {} }), false, "no flag at all");
+  assert.equal(isSummonSpell(flagged({ effects: [summonRow()] }, "character", { type: "weapon" })), false, "not a spell item");
+  assert.equal(isSummonSpell(null), false);
+});
+
+t("a spell on a monster, or on no actor, is never summonable", () => {
+  assert.equal(isSummonSpell(flagged({ effects: [summonRow()], schools: ["summoning"] }, "monster")), false);
+  assert.equal(isSummonSpell(flagged({ effects: [summonRow()], schools: ["summoning"] }, null)), false);
+  assert.equal(isSummonSpell(flagged({ effects: [summonRow()] }, "party")), false);
+});
+
+t("a summon spell's options are its rows: none for a type word alone, one per row otherwise", () => {
+  assert.deepEqual(summonOptionsOf(flagged({ schools: ["summoning"] })), [], "a type word names no creature");
+  const named = summonOptionsOf(flagged({ effects: [summonRow({ ref: "Actor.zzz" })] }));
+  assert.deepEqual(named, [
+    { ref: "Actor.zzz", amount: 2, value: { kind: "flat", flat: 3 }, summonFormat: "conjuration", control: "obedient" },
+  ]);
+  const open = summonOptionsOf(flagged({ effects: [summonRow({ ref: "  " })] }));
+  assert.equal(open.length, 1);
+  assert.equal(open[0].ref, "", "an empty ref is an open pick, not a missing row");
+  const several = summonOptionsOf(
+    flagged({
+      effects: [
+        summonRow({ ref: "def.invented.ashwren", amount: 1, control: "hostile" }),
+        { type: "damage", roll: "1d6" },
+        summonRow({ ref: "Actor.qqq", amount: 4, summonFormat: "calling" }),
+      ],
+    }),
+  );
+  assert.deepEqual(
+    several.map((o) => [o.ref, o.amount, o.summonFormat, o.control]),
+    [
+      ["def.invented.ashwren", 1, "conjuration", "hostile"],
+      ["Actor.qqq", 4, "calling", "obedient"],
+    ],
+    "rows in order, non-summon rows skipped",
+  );
+});
+
+t("a spell with no rows of its own reads its library twin's, and its own rows win", () => {
+  const bare = flagged({ schools: ["summoning"] });
+  const twin = flagged({ effects: [summonRow({ ref: "def.invented.glimmerkin", amount: 3 })] }, null);
+  assert.deepEqual(summonOptionsOf(bare, { twin }).map((o) => [o.ref, o.amount]), [["def.invented.glimmerkin", 3]]);
+  assert.deepEqual(summonOptionsOf(bare, { twin: null }), []);
+  assert.deepEqual(summonOptionsOf(bare, { twin: flagged({}, null) }), []);
+  const own = flagged({ effects: [summonRow({ ref: "Actor.own" })] });
+  assert.deepEqual(summonOptionsOf(own, { twin }).map((o) => o.ref), ["Actor.own"]);
+});
+
+t("the library twin is found by cookbook stamp, else by compendium source, never itself", () => {
+  const shelf = { id: "def.spell.invented" };
+  const twinDoc = { name: "twin" };
+  const calls = [];
+  const byCookbookId = (type, id) => (calls.push([type, id]), id === shelf.id ? twinDoc : null);
+  const fromUuidSync = (uuid) => {
+    if (uuid === "boom") throw new Error("not a uuid");
+    return uuid === "Compendium.x.Item.src" ? { name: "source" } : null;
+  };
+  const stamped = { flags: { "acks-extras": { cookbook: { id: shelf.id } } }, _stats: { compendiumSource: "Compendium.x.Item.src" } };
+  assert.equal(libraryTwin(stamped, { byCookbookId, fromUuidSync }), twinDoc);
+  assert.deepEqual(calls, [["Item", shelf.id]]);
+  const sourced = { flags: {}, _stats: { compendiumSource: "Compendium.x.Item.src" } };
+  assert.equal(libraryTwin(sourced, { byCookbookId, fromUuidSync }).name, "source");
+  const staleStamp = { flags: { "acks-extras": { cookbook: { id: "def.spell.gone" } } }, _stats: { compendiumSource: "Compendium.x.Item.src" } };
+  assert.equal(libraryTwin(staleStamp, { byCookbookId, fromUuidSync }).name, "source", "a stamp the shelf lacks falls to the source");
+  assert.equal(libraryTwin({ flags: {}, _stats: { compendiumSource: "boom" } }, { byCookbookId, fromUuidSync }), null, "a throwing lookup is a miss");
+  assert.equal(libraryTwin({ flags: {} }, { byCookbookId, fromUuidSync }), null);
+  const self = { flags: { "acks-extras": { cookbook: { id: "def.spell.me" } } } };
+  assert.equal(libraryTwin(self, { byCookbookId: () => self, fromUuidSync }), null, "never the spell itself");
+});
+
+{
+  const actors = { "Actor.abc": { name: "by uuid", documentName: "Actor" }, "Item.def": { name: "an item", documentName: "Item" } };
+  const shelf = { "def.invented.glimmerkin": { name: "by cookbook" } };
+  const fromUuid = async (uuid) => {
+    if (uuid === "throws") throw new Error("bad uuid");
+    return actors[uuid] ?? null;
+  };
+  const byCookbookId = (type, id) => (type === "Actor" ? (shelf[id] ?? null) : null);
+  const lookups = { fromUuid, byCookbookId };
+
+  assert.equal((await resolveSummonRef("Actor.abc", lookups)).name, "by uuid");
+  n++;
+  console.log("ok - a summon ref resolves by uuid first");
+  assert.equal((await resolveSummonRef("uuid:Actor.abc", lookups)).name, "by uuid", "the uuid: prefix");
+  assert.equal((await resolveSummonRef("def.invented.glimmerkin", lookups)).name, "by cookbook");
+  n++;
+  console.log("ok - a summon ref resolves by cookbook id on the Actor shelf");
+  assert.equal(await resolveSummonRef("def.invented.nobody", lookups), null);
+  assert.equal(await resolveSummonRef("", lookups), null);
+  assert.equal(await resolveSummonRef(undefined, lookups), null);
+  assert.equal(await resolveSummonRef("Item.def", lookups), null, "a uuid naming a non-Actor does not answer");
+  assert.equal((await resolveSummonRef("throws", { fromUuid, byCookbookId: (t2, id) => (id === "throws" ? { name: "fell through" } : null) })).name, "fell through", "a throwing fromUuid falls to the shelf");
+  n++;
+  console.log("ok - an unresolved or unparseable ref is null, never a throw");
+}
 
 console.log(`\n${n} magic tests passed`);

@@ -32,6 +32,16 @@ export const VARIATION_TYPE = `${MODULE_ID}.variation`;
  */
 export const KEEP_HIT_POINTS_OPTION = `${MODULE_ID}.keepHitPoints`;
 
+/**
+ * Seconds in one dungeon turn, the module's own unit of game time. An ACKS
+ * `turns` duration is this many seconds on the world clock, never a Foundry
+ * combat turn.
+ */
+export const TURN_SECONDS = 600;
+
+/** Combat rounds per dungeon turn for time-keeping (RR p. 263). */
+export const ROUNDS_PER_TURN = 10;
+
 /** The prefix every custom hook this module fires is named under. */
 const NAMESPACE = "acksExtras";
 

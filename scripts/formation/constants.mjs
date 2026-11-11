@@ -8,9 +8,11 @@
  * lang/en.json.
  */
 
-import { MODULE_ID } from "../lib/constants.mjs";
+import { MODULE_ID, TURN_SECONDS, ROUNDS_PER_TURN } from "../lib/constants.mjs";
 import { getDoc as getTableDoc, hasDoc as hasTableDoc } from "../lib/tables.mjs";
-export { MODULE_ID };
+// The turn's length and its rounds are the module's own time unit, owned by
+// lib (`lib/constants.mjs`); formation reads them under the names it always did.
+export { MODULE_ID, TURN_SECONDS, ROUNDS_PER_TURN };
 
 /** Flag on the party TokenDocument / party Actor pointing back at a formation. */
 export const FLAG_FORMATION_ID = "formationId";
@@ -19,9 +21,9 @@ export const PARTY_TYPE = `${MODULE_ID}.party`;
 /** Flag on member actors while the party is winded (marker Active Effect id). */
 export const WINDED_EFFECT_NAME = "Winded";
 
-/** One dungeon turn is 10 minutes; 10 rounds per turn; 6 turns per hour. */
-export const TURN_SECONDS = 600;
+/** Dungeon turns in an hour of game time (a turn's length is `TURN_SECONDS`). */
 export const TURNS_PER_HOUR = 6;
+/** Dungeon turns in a day of game time. */
 export const TURNS_PER_DAY = 144;
 
 /** The registered document this feature's printed figures arrive in. */
@@ -173,9 +175,6 @@ export const ROLE_HINTS = Object.freeze({
  * track the RELEASED system, never the dev branch".
  */
 export const SAVE_KEYS = Object.freeze(["paralysis", "death", "blast", "implements", "spell"]);
-
-/** Combat rounds per dungeon turn for time-keeping (RR p. 263). */
-export const ROUNDS_PER_TURN = 10;
 
 /*
  * Thief skill level ladders are read from the GM's own book, not shipped here.

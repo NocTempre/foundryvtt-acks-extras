@@ -5,3 +5,5 @@ export const LANG_PREFIX = "ACKS-MAGIC";
 export const SPELL_TYPE = "spell";
 /** Flag key under flags["acks-extras"] holding the spell primitive. */
 export const FLAG_SPELL = "spell";
+/** Flag key under flags["acks-extras"] on an Active Effect a cast left behind. */
+export const FLAG_SPELL_EFFECT = "spellEffect";
