@@ -1,4 +1,4 @@
-# lib API (apiVersion 35)
+# lib API (apiVersion 36)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -31,7 +31,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 35,
+  apiVersion: 36,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -63,6 +63,7 @@ acksExtras.lib = {
   // 33: groups.canDeploy, groups.STACK_DRAG_TYPE — a stack's row dragged to the map (docs/lib/GROUPS.md, "The sheet")
   // 34: groups.moveStack, groups.moveRefusal — a stack's row between groups (docs/lib/GROUPS.md, "A row moved between groups")
   // 35: tables.bandDie — a one-die table's die, read off its own bands
+  summons,             // lib/summons.mjs — a character's summoned creatures (below); 36
 }
 ```
 
@@ -745,6 +746,34 @@ rest. `source` is `condition`, `state`, `custom`, `system` or `foreign`;
 `CONFIG.statusEffects` holds the status. The arrangement itself is the world
 setting `acks-extras.statusPalette`; the Foundry-free model that reads and
 writes its shape is `scripts/lib/status-palette.mjs`, imported directly.
+
+## `summons` — a character's summoned creatures (apiVersion 36)
+
+The model is docs/lib/MODEL.md, "Summons"; the ruling is
+docs/character-sheet/DECISIONS.md, "A summon is an unlinked token of a GM-made copy".
+
+```
+acksExtras.lib.summons = {
+  summonerOf(actor),                       // → the summoner's actor uuid, or null
+  summonsOf(summoner, {scene}?),           // → the TokenDocuments on the scene (default: the canvas's) whose creature names it
+  placeSummons(summoner, {sourceUuid, count?, spellId?, preConfirm?}),
+                                           // → Promise<{ok, reason?, castId?, tokenUuids?}>
+  dismissSummons(summoner, {tokens?, castId?, confirm?}),
+                                           // → Promise<{ok, reason?, deleted?, refused?}>
+}
+```
+
+`placeSummons` runs on the summoner's owner's seat: core's click-to-place
+(`canvas.tokens.placeTokens`, `create: false`), then a relay to the GM's client
+that makes the tokens. `preConfirm` is core's placement hook; returning false
+refuses a click. `dismissSummons` asks the seat first (`confirm: false` only
+when the caller already has); it removes only tokens the module's own
+summoning made for that summoner. `reason` is one of `noUser`, `notSummoner`,
+`notOwner`, `badCount`, `badSource`, `unreadable`, `badSpell`, `badScene`,
+`badPositions`, `noCopy`, `badOp`, `noCanvas`, `paused`, `placement`, `none`, `cancelled`,
+`declined`, `noGm`. The Foundry-free checks (`checkPlaceRequest`,
+`checkDismissRequest`, `groupByCast`, `summonOwnership`) are in
+`scripts/lib/summons-logic.mjs`, imported directly.
 
 ## Versioning
 

@@ -10,7 +10,8 @@
  * a second reading of the same flag. The tab panels read through their own
  * builders under `tabs/`.
  */
-import { MODULE_ID, SUMMON_FLAG, CONDITION_SAVES, RAIL_CONDITIONS, SAVE_KEYS, CLOCK_MARKS } from "./constants.mjs";
+import { MODULE_ID, CONDITION_SAVES, RAIL_CONDITIONS, SAVE_KEYS, CLOCK_MARKS } from "./constants.mjs";
+import { summonerOf, summonRecordOf } from "../lib/summons-logic.mjs";
 import { sheetFlag } from "../lib/frame-model.mjs";
 import { netNumericChange } from "../lib/effect-scan.mjs";
 import { rollMath, subjectOf } from "../lib/conditions.mjs";
@@ -308,9 +309,6 @@ export function formationOf(actor) {
 /** The scene the party cell counts on: the one on the canvas, else the world's active one. */
 export const currentScene = () => canvas?.scene ?? game.scenes?.active ?? null;
 
-/** The character a creature was summoned by, as the actor uuid its flag names, or null. */
-export const summonerOf = (actor) => actor?.getFlag?.(MODULE_ID, SUMMON_FLAG) ?? null;
-
 /** The ids of every henchman of this character: the system's list and the module's monster list. */
 export function henchmanIds(actor) {
   return [...new Set([...(actor.system?.henchmenList ?? []), ...(actor.getFlag(MODULE_ID, "monsterHenchmenList") ?? [])])];
@@ -319,7 +317,8 @@ export function henchmanIds(actor) {
 /**
  * The character's own party, and who of it is on the scene: the henchmen
  * (with a pending calamity read off the henchmen record), the summons (tokens
- * whose actor names this character as summoner), and the formation with
+ * whose actor names this character as summoner, each with the record the
+ * module's own summoning stamped, or null for one bound by hand), and the formation with
  * whether its party token is on this scene and how many of its members are.
  */
 export function partyOf(actor) {
@@ -343,7 +342,7 @@ export function partyOf(actor) {
     });
   const summons = tokens
     .filter((t) => summonerOf(t.actor) === actor.uuid)
-    .map((t) => ({ tokenId: t.id, name: t.name, img: t.texture?.src ?? t.actor?.img ?? null }));
+    .map((t) => ({ tokenId: t.id, name: t.name, img: t.texture?.src ?? t.actor?.img ?? null, record: summonRecordOf(t.actor) }));
 
   let formation = null;
   const record = globalThis.acksExtras?.formation?.getFormationForActor?.(actor.id) ?? null;

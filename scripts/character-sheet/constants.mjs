@@ -75,13 +75,6 @@ export const LIGHT_ICONS = Object.freeze({
   lightless: "fa-solid fa-eye",
 });
 
-/**
- * Actor flag naming the character a creature was summoned by (an actor uuid).
- * Written on the summoned actor — a token's own delta for an unlinked token —
- * by the party cell's bind control; read by the party count.
- */
-export const SUMMON_FLAG = "summonedBy";
-
 /** The far-right rail: tools that act on the sheet, never on the character. */
 export const TOOL_CELLS = Object.freeze([
   { key: "editDescription", icon: "fa-solid fa-pen-to-square" },

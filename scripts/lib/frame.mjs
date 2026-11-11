@@ -153,7 +153,8 @@ export function FrameMixin(Base) {
      * anchor's own document, so a sheet in a detached window gets a menu of
      * that window's.
      * @param {HTMLElement} anchor the cell the menu hangs under
-     * @param {object[]} items [{label, icon?, img?, value?, on?, disabled?}, …]
+     * @param {object[]} items [{label, icon?, img?, value?, on?, disabled?, tip?}, …];
+     *   `tip` is a tooltip assembled at render, written as text
      * @param {(item: object) => any} onPick called with the item picked
      */
     _frameMenu(anchor, items, onPick) {
@@ -164,7 +165,7 @@ export function FrameMixin(Base) {
       menu.innerHTML = items
         .map(
           (it, i) =>
-            `<button type="button" class="${FRAME_CLASS}__menu-item${it.on ? " is-on" : ""}" data-menu-index="${i}"${it.disabled ? " disabled" : ""}>` +
+            `<button type="button" class="${FRAME_CLASS}__menu-item${it.on ? " is-on" : ""}" data-menu-index="${i}"${it.disabled ? " disabled" : ""}${it.tip ? ` data-tooltip-text="${foundry.utils.escapeHTML(it.tip)}"` : ""}>` +
             `${it.icon ? `<i class="${it.icon}" inert></i>` : it.img ? `<img src="${it.img}" alt="" inert>` : ""}<span>${foundry.utils.escapeHTML(it.label)}</span>` +
             `${it.value != null ? `<b>${foundry.utils.escapeHTML(String(it.value))}</b>` : ""}</button>`,
         )

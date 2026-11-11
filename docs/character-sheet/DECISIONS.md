@@ -887,3 +887,55 @@ the system's sheet lists them. The save modifier carries no in-force note:
 Rolls folds it into each save's target instead of listing it. A situational
 modifier on the surprise and out-of-combat initiative rolls is not built (see
 ROADMAP).
+
+## 2026-11-10 — A summon is an unlinked token of a GM-made copy
+
+**Asked.** Players need tools to create the monster tokens a spell can summon
+(ledger row T-0456). The 2026-09-03 ruling above already makes a summon any
+creature whose actor names the character in `summonedBy`, bound from tokens
+that exist; nothing let a player make one. The magic ruling of 2026-09-25
+(docs/magic/DECISIONS.md, answer 3) fixes the shape of the answer:
+click-to-place is the baseline, a summoning entry's own constraint on where the
+creature appears is followed with its figures imported, and dismissal keeps its
+prompt.
+
+**Ruled.** *Summon…* in the party cell's menu (lib MODEL, "Summons"). The
+creature is one token per summon, UNLINKED, of a world copy of the library
+creature made once per source by the GM's client, filed in a folder a player
+cannot open and owned by nobody but the GM. The token is owned by the
+character's owners through its own `delta.ownership`, and carries `summonedBy`
+and a `summon` record `{sourceUuid, name, spellId?, castId, at}` in its delta.
+A world copy because a token needs a world actor; unlinked because each summon
+is its own creature, with its own hit points, and goes when its token goes. The
+seat places the tokens with core's click-to-place (`create: false`) and sends
+the positions to the GM, whose relay authorizes the sender (owns the summoner,
+can read the creature, may view the scene) and is the only writer of
+documents. A dismissal confirms on the requesting seat and the GM deletes the
+tokens the module made for that summoner; the copy stays. The cell's *Release*
+now applies only to creatures bound by hand, which have no record: a bound
+token may be a standing NPC, and the cell never removes one.
+
+**Rejected.** *A player-owned base actor.* It gives the player every token of
+that creature, including ones another summoner made. *A linked actor per
+summon.* It puts one sidebar actor per summoned creature in the world's
+directory and leaves each behind when its token goes. *Previews built with no
+actor, as the first design had it.* Core refuses a preview the seat does not
+own (`placeTokens` checks `isOwner`, and a token is owned through its actor), so
+a seat's placement of an actorless preview throws; the preview stands on the
+summoner's own actor instead.
+
+**Not yet verified live, and a departure from the design as first drawn.** The
+preview standing on the summoner's actor, `Release` leaving the relay, and a
+dismissal touching only record-bearing tokens are this slice's own rulings; the
+token's `delta.ownership` grants every non-GM owner of the summoner rather than
+the requester alone, as a companion's does. The walk (TESTING.md, "Summons from
+a Player seat") settles whether a non-GM's placement accepts that preview and
+whether any module hook on token drawing treats it as the summoner's token.
+
+**What it cost.** The GM's folder gains one actor per distinct creature
+summoned and keeps it; nothing removes them. The preview's synthetic actor is
+the summoner's, so any status icon the summoner shows can be drawn on the
+preview while it is placed. A player who may open no monster pack has nothing to
+summon, and the prompt says so. How a summoning entry constrains where its
+creature appears is not read yet: `placeSummons` takes the placement hook, and
+no feature supplies one.

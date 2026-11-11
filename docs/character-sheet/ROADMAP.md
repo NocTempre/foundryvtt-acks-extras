@@ -96,3 +96,9 @@ the code, not missing from it; the rulings behind the built half are
   window, where an ability's throw asks first. Route them through
   `scripts/lib/roll-dialog.mjs` as ability rolls do, so Shift skips the
   window and the figure typed there lands as its own term on the card.
+- **A summoning entry's own limits on the summons.** *Summon…* places any
+  library creature, any number, anywhere on the viewed scene; a spell that
+  names the creature, how many and how far from the caster would supply them
+  as imported figures through `placeSummons`' `preConfirm`, which a spell
+  entry does not yet reach. The prompt's spell choice records the cast and
+  constrains nothing.

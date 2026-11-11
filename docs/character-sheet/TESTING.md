@@ -563,6 +563,73 @@ Initiative's note is the Rolls figure.
 **Teardown.** None for the kept fixture; a first-run copy is swept by the
 ledger.
 
+## Summons from a Player seat
+
+Built for the party cell's *Summon…* (lib MODEL, "Summons"). The two things a
+mock cannot prove are the ones this walk is for: that core's click-to-place
+accepts a preview standing on the summoner's actor for a non-GM, and that a
+token owned only through its delta behaves as its player's.
+
+**Fixtures** (kept; found by marker, built when none carries it):
+- `summons/summoner` — a `character` actor owned by the Player seat (OWNER)
+  and by nobody else but the GM. Build it with `api.fixture("summons/summoner",
+  "Actor", {...})`. Give it one `spell` item to choose.
+- `summons/spike-source` — a `monster` actor. The prompt lists compendium
+  creatures only, so step 1's creature is one from a pack the Player can open
+  (the system's monster pack or an importer Actor shelf). The spike source, a
+  world actor, goes through `acksExtras.lib.summons.placeSummons` instead, with
+  the Player granted OBSERVER on it (the relay refuses a source the sender
+  cannot read), and exercises the same relay.
+- `summons/scene` — a scene, ACTIVATED, with the Player seat viewing it and a
+  token of the summoner on it.
+
+At the start the summoner has no summons on the scene; a leftover token is a
+past run's, read by its `summon` record and removed through *Dismiss all*.
+
+**Steps, from the Player seat** (a real Player user, the sheet open on the
+summoner, the Tokens layer active):
+1. Party cell → *Summon…* appears. In the prompt, pick the creature, set the
+   count to 3, pick the spell, press *Place on the map*. *Observable:* three
+   previews follow the pointer in turn with no error; a left click places each.
+   (If core throws "You must be an owner of the Tokens", the stand-in actor
+   assumption is wrong: record it and report it.)
+2. After the third click: three tokens exist on the scene. *Observable:* each
+   has `actorLink === false`, `token.isOwner`, `token.actor.isOwner` and
+   `canUserModify(game.user, "update")` all true for the Player; each
+   `token.actor.getFlag("acks-extras", "summonedBy")` is the summoner's uuid and
+   `getFlag("acks-extras", "summon")` has the cast id (the same on all three),
+   the source uuid, the spell id and `at` equal to the world time of the
+   summoning; the party cell shows three asterisks.
+3. *Observable:* `game.actors.filter(a => a.getFlag("acks-extras",
+   "summonCopy"))` holds ONE actor for that source, owned by nobody but the GM
+   (`ownership.default === 0`, no user ids), filed in a folder named
+   "Summoned" that the Player's sidebar does not show. Summon the same
+   creature again: still one copy.
+4. As the Player, move one token (`{animate: false}`) and open its sheet.
+   *Observable:* the move persists on the GM's seat and the sheet is editable;
+   a synthetic update to its hit points is accepted. The other two tokens'
+   hit points differ from it where the system rolls them (an unlinked monster's
+   hit points are rolled per token).
+5. Cancel path: *Summon…* again, right-click every preview. *Observable:* no
+   token is made, no warning for a cancelled placement.
+6. Refusal path from a second Player seat that does not own the summoner: the
+   cell offers no *Summon…*; calling `acksExtras.lib.summons.placeSummons`
+   directly resolves `{ok: false, reason: "notOwner"}` and nothing is made.
+7. Party cell → *Dismiss <creature> (3)*. *Observable:* a confirmation
+   dialog; pressing No or closing it removes nothing; pressing Yes removes all
+   three tokens and the cell drops to `0`. The "Summoned" copy remains.
+8. Bind a hand-picked token as a summon (*Bind*, as step 14 above), then
+   *Dismiss all*. *Observable:* the bound token is untouched; *Release* is the
+   only control that lets go of it.
+9. With the Player seat able to open no monster pack (set the shelves' ownership
+   to NONE for players), *Summon…* opens a prompt that says there is nothing to
+   choose and offers no list. Restore the ownership afterwards.
+
+**Teardown.** The three fixtures are kept. Delete only what the run made, by
+its own ledger: the token uuids the relay returned (`api.track` each). The
+"Summoned" copy is the run's too when step 3 found none before: track it by
+its uuid and sweep it with the rest. Never sweep the "Summoned" folder by name.
+
 ## A field an effect changes
 
 **Fixtures.** A disposable `character` with `system.ac.mod` and

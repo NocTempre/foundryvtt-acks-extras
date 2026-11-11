@@ -59,6 +59,7 @@ import { keepDetachedMarks, pinFontScale, pinLook, pinTheme } from "./client-pin
 import * as moneyLogic from "./money-logic.mjs";
 import * as storage from "./storage.mjs";
 import * as places from "./place.mjs";
+import { summonerOf, summonsOf, placeSummons, dismissSummons, registerSummons } from "./summons.mjs";
 import * as actorRead from "./actor-read.mjs";
 import { loadRuledata } from "./ruledata.mjs";
 import { resolveLevelValue } from "./vocab.mjs";
@@ -167,7 +168,8 @@ const localImpl = Object.freeze({
   // 33: groups `canDeploy` and `STACK_DRAG_TYPE`, what a stack's row carries.
   // 34: groups `moveStack` and `moveRefusal`, a stack's row between groups.
   // 35: tables `bandDie`, a one-die table's die read off its own bands.
-  apiVersion: 35,
+  // 36: summons — a character's summoned creatures, placed and dismissed.
+  apiVersion: 36,
   vocab,
   fields,
   /**
@@ -368,6 +370,13 @@ const localImpl = Object.freeze({
    * separate mechanism. Nesting (cycle-guarded), rosters, stack splitting.
    */
   places,
+  /**
+   * A character's summoned creatures (summons.mjs): `summonerOf` reads whose
+   * summon a creature is, `summonsOf` lists a character's on a scene,
+   * `placeSummons` has the seat click where each stands and the GM's client
+   * make the tokens, `dismissSummons` confirms and has the GM remove them.
+   */
+  summons: { summonerOf, summonsOf, placeSummons, dismissSummons },
   /** Shared item baseline: isPhysical / isEquippable / weight6Of / … */
   itemModel,
   /** System actor reads: abilityMod / classLevel / monsterHd / hitDiceOrLevel. */
@@ -454,6 +463,7 @@ Hooks.once("init", () => {
   attachment.registerAttachmentIndex();
   registerStorageCleanup();
   void registerStorageRelay();
+  void registerSummons();
   registerGroupCleanup();
   registerStackDrop();
   registerEncounterTokens();

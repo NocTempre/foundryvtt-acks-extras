@@ -19,10 +19,12 @@
  * Registered at ready as the default for `character` (module.mjs); the
  * system's own sheet stays registered and Sheet Config switches back.
  */
-import { MODULE_ID, LANG, SHEET_CLASS, SHEET_FLAG, TRAINING_VIEW_FLAG, SUMMON_FLAG, MOVE_MODES, TAB_ORDER } from "./constants.mjs";
+import { MODULE_ID, LANG, SHEET_CLASS, SHEET_FLAG, TRAINING_VIEW_FLAG, MOVE_MODES, TAB_ORDER } from "./constants.mjs";
 import { makeLoc, libStorage } from "../lib/util.mjs";
 import { FRAME_CLASS, FRAME_LANG_PREFIX, FRAME_VIEW_ACTIONS, FrameMixin } from "../lib/frame.mjs";
-import { snapshotFrame, sheetFlag, saveLabel, partyOf, summonerOf, henchmanIds, currentScene } from "./snapshot.mjs";
+import { SUMMON_FLAG, summonerOf, groupByCast } from "../lib/summons-logic.mjs";
+import { promptSummon, promptDismiss } from "../lib/summons.mjs";
+import { snapshotFrame, sheetFlag, saveLabel, partyOf, henchmanIds, currentScene } from "./snapshot.mjs";
 import { buildFrameModel, nextAcMode } from "./view-model.mjs";
 import { rollInventory, rollById } from "./rolls.mjs";
 import { buildEquipmentTab } from "./tabs/equipment.mjs";
@@ -826,8 +828,11 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
   /**
    * The party menu: who of the party is on the scene (a pick selects the
    * token and pans to it), how many are elsewhere, and for an owner the
-   * bind and release of summons — the controlled tokens become this
-   * character's summons — plus the roster and the Followers tab.
+   * summoning, the dismissal of each cast, and the bind and release of
+   * creatures by hand — the controlled tokens become this character's
+   * summons — plus the roster and the Followers tab. A cast is dismissed
+   * through the GM's client (`lib/summons.mjs`); a creature bound by hand is
+   * only released, never removed.
    */
   static #onPartyMenu(event, target) {
     const facts = partyOf(this.actor);
@@ -839,13 +844,29 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
     for (const s of facts.summons) items.push({ kind: "token", tokenId: s.tokenId, img: s.img, label: s.name, value: loc("party.summon") });
     const away = facts.henchmen.filter((x) => !x.onScene).length;
     if (away) items.push({ kind: "info", icon: "fa-solid fa-person-walking-arrow-right", label: loc("party.away", { n: away }), disabled: true });
+    const { casts, loose } = groupByCast(facts.summons);
     if (this.actor.isOwner) {
+      items.push({ kind: "summon", icon: "fa-solid fa-hand-sparkles", label: loc("party.summonNew") });
+      for (const c of casts) {
+        items.push({
+          kind: "dismiss",
+          castId: c.castId,
+          icon: "fa-solid fa-ghost",
+          label: loc("party.dismiss", { name: c.name, n: c.entries.length }),
+          tip: loc("party.dismissTip", { n: c.entries.length }),
+        });
+      }
+      if (casts.length > 1) {
+        items.push({ kind: "dismissAll", icon: "fa-solid fa-ghost", label: loc("party.dismissAll"), tip: loc("party.dismissTip", { n: casts.reduce((n, c) => n + c.entries.length, 0) }) });
+      }
       const mine = new Set(henchmanIds(this.actor));
       const controlled = (canvas?.tokens?.controlled ?? [])
         .map((t) => t.document)
         .filter((t) => t.actorId !== this.actor.id && !mine.has(t.actorId) && summonerOf(t.actor) !== this.actor.uuid && t.actor);
       if (controlled.length) items.push({ kind: "bind", tokens: controlled, icon: "fa-solid fa-wand-magic-sparkles", label: loc("party.bind", { n: controlled.length }) });
-      if (facts.summons.length) items.push({ kind: "release", icon: "fa-solid fa-link-slash", label: loc("party.release", { n: facts.summons.length }) });
+      if (loose.length) {
+        items.push({ kind: "release", icon: "fa-solid fa-link-slash", label: loc("party.release", { n: loose.length }), tip: loc("party.releaseTip", { n: loose.length }) });
+      }
       if (!this.actor.system?.retainer?.enabled) items.push({ kind: "roster", icon: "fa-solid fa-people-group", label: loc("followers.roster") });
     }
     items.push({ kind: "tab", icon: "fa-solid fa-users", label: loc("tab.followers") });
@@ -867,8 +888,17 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
           this.render();
           return;
         case "release":
-          for (const s of facts.summons) await scene?.tokens.get(s.tokenId)?.actor?.unsetFlag(MODULE_ID, SUMMON_FLAG);
+          for (const s of loose) await scene?.tokens.get(s.tokenId)?.actor?.unsetFlag(MODULE_ID, SUMMON_FLAG);
           this.render();
+          return;
+        case "summon":
+          await promptSummon(this.actor);
+          return;
+        case "dismiss":
+          await promptDismiss(this.actor, { castId: pick.castId });
+          return;
+        case "dismissAll":
+          await promptDismiss(this.actor);
           return;
         case "roster":
           openRosterApp(this.actor);

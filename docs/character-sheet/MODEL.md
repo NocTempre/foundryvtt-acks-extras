@@ -68,14 +68,25 @@ and each summon present as an asterisk (`1**`), red while any henchman has a
 calamity pending on its henchmen record. A summon is a token whose actor
 carries `flags["acks-extras"].summonedBy` naming this character. The click
 opens a menu: each member on the scene (a pick selects its token and pans to
-it), how many are elsewhere, and for an owner the binding of the controlled
-tokens as summons, their release, the roster and the Followers tab. While the
-character marches in a formation whose party token is on the scene the cell
+it), how many are elsewhere, and for an owner *Summon…* (below), a *Dismiss*
+row for each cast of summons on the scene, the binding of the controlled
+tokens as summons, the release of those bound by hand, the roster and the
+Followers tab. While the character marches in a formation whose party token is on the scene the cell
 is that formation — the marching-order glyph, the count of its members
 present — and opens the party sheet. With no party and no formation it is a
 dashed pad that still opens the menu, which is where the first summon is
 bound. Token creates, updates and deletes on the scene, the scene change and
 the formation record all re-count it.
+
+**Summon…** opens a prompt over the monster library the seat can read: the
+creature, how many, and optionally one of the character's spells to record the
+summoning against. Nothing is created from the seat: the owner clicks where
+each creature stands, and the GM's client makes the tokens (lib MODEL,
+"Summons"). A summon made this way carries a record beside `summonedBy`
+naming its creature, cast and time, so the menu groups it with the rest of
+its cast and *Dismiss* removes the cast's tokens after a confirmation. A
+creature bound by hand has no record: it is only ever *Release*d, never
+removed by the cell.
 
 Every glyph is a Font Awesome icon the platform ships; the figure-in-glyph
 is text overlaid on the icon.

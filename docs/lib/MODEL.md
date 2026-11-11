@@ -2166,6 +2166,71 @@ The draft lives on the window: nothing is written until *Save*, closing with
 unsaved changes asks first, and *Reset to default* returns every source to
 its default and the order to by-name while keeping the Judge's own statuses.
 
+## Summons
+
+A character's owner summons creatures from the monster library without
+owning any of them (`summons.mjs` over `summons-logic.mjs`). The contract is
+API.md, "`summons`".
+
+**What a summon is.** An UNLINKED token whose actor carries the summoner's
+uuid in `flags["acks-extras"].summonedBy`, written into that token's own
+delta, beside a `summon` record `{sourceUuid, name, spellId?, castId, at}`.
+The token's base actor is a world copy of the library creature that nobody
+but the GM owns; the token is owned through `delta.ownership`, which grants
+OWNER to every non-GM owner of the summoner and to nobody else. Each token is
+therefore its own creature with its own hit points and flags, and leaves the
+world with its token. The party cell counts `summonedBy` (character-sheet
+MODEL, "The party cell"); the record is what groups a cast.
+
+**Placing.** The seat picks the creature off the Actor shelves it can open
+(the importer's, and the system's, by pack index; a pack the seat cannot open
+offers nothing), a count, and optionally a spell item of the summoner. It
+clicks the places with core's `canvas.tokens.placeTokens(previews, {create:
+false, preConfirm})`, which creates nothing and answers with the placed
+preview documents. A preview is the creature's own look and nothing that acts
+(`previewTokenData`), standing on the SUMMONER's actor: core refuses a preview
+the seat does not own, and an unlinked token is owned through its actor, so the
+summoner's own is the one actor the seat is certain to own. A caller's
+`preConfirm` returning false refuses a click, which is where a summoning that
+limits where its creature appears states the limit. The positions go to the
+GM.
+
+**The relay** (`summonRelay`, registered at `init` on the one transport,
+`sockets.mjs`) answers two operations. It authorizes on the sender the
+transport attested, runs `checkPlaceRequest` / `checkDismissRequest`, and
+trusts the payload for nothing but ids and positions: the token data is rebuilt
+from the world copy, the cast id is the sender's only if it is a short
+alphanumeric string, and the time is the GM's clock.
+
+- `place`: the sender owns a character-type summoner (a GM always does); the
+  creature is a monster or animal the sender can read, through the pack's
+  own permission; the count is a whole number within a fixed request bound
+  (`MAX_SUMMONS`, a bound on a relayed call, not a rule); the positions match
+  the count, are finite and inside the scene's rectangle; the scene is the
+  sender's viewed scene, the active one, or one they have LIMITED access to;
+  a named spell is a spell item on the summoner. Then the GM finds or makes
+  the ONE world copy of that creature (found by `summonCopy.sourceUuid`; made
+  once per source even when two requests race), in an Actor folder stamped
+  `summonFolder` and named by a lang key, owned by nobody but the GM and shorn
+  of the library's cookbook mark, and creates the tokens one after another,
+  so each is numbered against the ones before it; the system's own token
+  `_preCreate` rolls each unlinked monster token's hit points when its
+  auto-roll setting is on.
+- `dismiss`: the sender owns the summoner; each named token is deleted only
+  if its actor names this summoner AND carries the module's record. A token
+  bound by hand, or summoned by another character, is counted as refused and
+  left.
+
+**Dismissing** confirms on the requesting seat first (`DialogV2.confirm`,
+proceeding only on `=== true`, since a closed dialog resolves null), then
+relays. The world copy stays in the GM's folder.
+
+**Which packs a Player seat can open** is decided by pack ownership, not by
+this module: a pack declares `ownership` by role, defaulting to OBSERVER for
+a player, and the importer's Judge shelves are NONE for every player seat
+(`JUDGE_SHELF_OWNERSHIP`). The picker lists `pack.visible` shelves only, and
+says so when there is none.
+
 ## The repair tool
 
 One window for data this module left damaged: a link to a document that is
