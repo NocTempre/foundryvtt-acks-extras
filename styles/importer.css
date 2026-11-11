@@ -428,6 +428,58 @@
   border-bottom: none;
 }
 
+/* The repair's choice (`apps/held-edits-dialog.mjs`): one frame per document,
+   one row per held edit, the Judge's value above the page's. Values are
+   imported names and prose, so their column may shrink and wrap. */
+.acks-extras-held-doc {
+  border: 1px solid var(--acks-rule-color);
+  border-radius: 3px;
+  padding: var(--acks-sp-2);
+  margin: 0 0 var(--acks-sp-3);
+}
+
+.acks-extras-held-row {
+  display: grid;
+  gap: var(--acks-sp-1);
+  padding: var(--acks-sp-2) 0;
+  border-bottom: var(--acks-border-soft);
+}
+
+.acks-extras-held-row:last-child {
+  border-bottom: none;
+}
+
+.acks-extras-held-pair {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--acks-sp-1) var(--acks-sp-2);
+  align-items: baseline;
+}
+
+.acks-extras-held-label,
+.acks-extras-held-unstamped {
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-held-unstamped {
+  border: 1px solid var(--acks-rule-color);
+  border-radius: 3px;
+  padding: 0 var(--acks-sp-1);
+}
+
+.acks-extras-held-pregen {
+  display: flex;
+  gap: var(--acks-sp-2);
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--acks-sp-1) 0;
+}
+
+.acks-extras-held-pregen > span {
+  min-width: 0;
+}
+
 /* --- Importing another game's books (docs/importer/OSE.md) -------------------------- */
 
 /* One candidate stat block in the review dialog. Each is a self-contained

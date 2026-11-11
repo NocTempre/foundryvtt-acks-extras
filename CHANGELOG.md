@@ -172,14 +172,24 @@
   that the sizes are not imported. With the die not imported, the character sheet's
   Equipment tab → Unarmed Strike makes the attack throw, rolls no damage and says
   so.
-- **Force repair keeps what a Judge changed.** Import manager → Adventures
-  tab → Force repair now writes a book's places and people in place. Text you
-  added to or changed on a place, a person or a template creature stays as it
-  is, as do a place you renamed, a block you took out of a place's notes, and
-  place text written before this version that no longer matches the book.
-  Stat-block monsters, items, roll tables, organisations and market profiles
-  are still written over. The confirm counts every place the book writes text
-  onto, a place another book holds included, and states what it keeps.
+- **One repair, and you choose what it writes over.** Every rebuild control
+  now repairs in place: Settings tab → Game Settings → ACKS II — Extras →
+  Manage imports → Import tab (Import everything), Rebuild tab, the Adventures
+  tab's buttons and Tools tab → (Re)import individual entries; and Compendium
+  tab → ACKS Extras Macros → Reimport One Shelf (GM). The last two no longer
+  have a Mode. Each document keeps its id, folder and owners. Where
+  the repair meets an edit you made to what the import wrote, a window titled
+  *Your edits and the book* opens after it, listing each edit beside the
+  book's value (hover either for where it came from): tick the ones to take
+  the book's and press *Apply these choices*, or take or keep them all. A
+  pregenerated character is never written over without asking: the same
+  window offers to keep it under a new id and restore the book's, to leave it,
+  or to write the book over it. A character changed since it was imported (or
+  imported before this version) is offered the restore first; one that still
+  matches what was imported is offered leave. Every choice in the import
+  manager's Mode selects runs this same repair; what Force repair did is now
+  taking the book's value for every edit. Documents from a book this module no
+  longer offers are left as they are and counted.
 - **Silver plating and masterwork apply what your book says.** A weapon plated
   in silver, or an item given a masterwork tier (the item sheet's Details tab),
   took its price, bonus and weight change from figures built into the module.

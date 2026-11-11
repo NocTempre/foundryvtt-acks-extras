@@ -1,14 +1,15 @@
 /**
- * Live walk, importer-force-repair: the import manager's Books tab, Force
- * repair, the Adventures tab's Force repair, overhead token art and Make
- * Encounter on a wildcard token. Walks docs/importer/TESTING.md:
+ * Live walk, importer-force-repair: the import manager's Books tab, the merged
+ * repair with its confirm and its choice, the Adventures tab's and the Rebuild
+ * tab's repair controls, overhead token art and Make Encounter on a wildcard
+ * token. Walks docs/importer/TESTING.md:
  *   - "The import manager", steps 1 and 2 (the Books tab as the first tab, and
  *     the Player seat seeing it alone), with "The Books tab"'s panel;
- *   - "Repair in place", step 9 (a forced repair over a Judge's description,
- *     its confirm answered No then Yes) on the run's own items of the book
- *     `cat`, and step 10's confirms (no shelf rebuild only, every kind's count)
- *     answered No;
- *   - "An adventure book's Force repair", steps 1 and 3, answered No;
+ *   - "Repair in place", the merged repair over a Judge's description on the
+ *     run's own items of the book `cat` (its confirm answered No, then Yes with
+ *     the choice answered Keep all, then Yes with the one edit ticked and
+ *     applied, then Yes with nothing held), and every kind's confirm answered No;
+ *   - "Rebuild or repair an adventure book", every repair button answered No;
  *   - "Overhead token art from an installed compendium", steps 1, 4 (Make
  *     Encounter from a wildcard monster) and 8.
  * Machine values arrive through ./_env.mjs; `cat` must be open on the GM seat
@@ -19,12 +20,12 @@
  * world lacks them and tracked (the typography and item-repair walks sweep
  * theirs, so the library holds none between runs); where the world already
  * holds them under another hand the walk stops, since those are read, never
- * driven. Every confirm is the real dialog, read and answered by its own
- * buttons; a No path is proved by a create/update/delete observer that holds
- * nothing. A Yes is pressed only over the run's own items. The group Make
- * Encounter builds is tracked. Teardown sweeps the ledger and empties a shelf
- * this run opened. Every id printed is a cookbook id or a uuid; no book word
- * leaves the page.
+ * driven. Every confirm and every choice is the real dialog, read and answered
+ * by its own buttons; a No path is proved by a create/update/delete observer
+ * that holds nothing. A Yes is pressed only over the run's own items, so the
+ * choice lists nothing but their edits. The group Make Encounter builds is
+ * tracked. Teardown sweeps the ledger and empties a shelf this run opened.
+ * Every id printed is a cookbook id or a uuid; no book word leaves the page.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -162,28 +163,71 @@ const P = {
     });
     return true;
   },
-  /** Answer the newest dialog opened since `before`, reading what it says first. */
+  /** Answer the newest confirm opened since `before`, reading what it says first. */
   answer: async ({ before, yes, expect }) => {
     const H = globalThis.__fr;
-    const app = await H.poll(() => H.dialogs().find((a) => !before.includes(a.id) && H.root(a)?.querySelector("button[data-action='yes']")));
+    const app = await H.poll(() => H.dialogs().find((a) => !before.includes(a.id) && H.root(a)?.querySelector("button[data-action='yes']")), { tries: 240 });
     if (!app) return { found: false, open: H.dialogs().map((a) => a.options?.window?.title ?? a.id) };
     const root = H.root(app);
     const text = (root.querySelector(".dialog-content, .window-content")?.textContent ?? "").replace(/\s+/g, " ").trim();
     const title = app.options?.window?.title ?? "";
     const out = {
       found: true,
-      forceTitle: title === game.i18n.localize("ACKS-IMPORTER.ui.forceTitle"),
-      keeps: text.includes(game.i18n.localize("ACKS-IMPORTER.ui.forceKeeps").replace(/\s+/g, " ").slice(0, 40)),
+      merged: title === game.i18n.localize("ACKS-IMPORTER.ui.repairMergedTitle"),
+      keeps: text.includes(game.i18n.localize("ACKS-IMPORTER.ui.repairMergedKeeps").replace(/\s+/g, " ").slice(0, 40)),
       expected: expect ? text.includes(expect.replace(/\s+/g, " ")) : null,
       count: Number(text.match(/\d+/)?.[0] ?? NaN),
     };
     root.querySelector(`button[data-action='${yes ? "yes" : "no"}']`).click();
     await H.poll(() => !app.rendered);
-    return out;
+    return { ...out, after: H.dialogs().map((a) => a.id) };
+  },
+  /**
+   * The choice a repair puts once its first pass has run (`chooseHeldEditsDialog`), opened since
+   * `before`: what it lists, read off the window a Judge sees. The window is left open.
+   */
+  chooser: async ({ before }) => {
+    const H = globalThis.__fr;
+    // Inside the transport's 90 s, so a choice that never opens is reported with what is open instead.
+    const app = await H.poll(() => H.dialogs().find((a) => !before.includes(a.id) && H.root(a)?.querySelector(".acks-extras-held-list")), { tries: 320 });
+    if (!app) return { found: false, open: H.dialogs().map((a) => a.options?.window?.title ?? a.id) };
+    const root = H.root(app);
+    const rows = [...root.querySelectorAll(".acks-extras-held-row")].map((row) => ({
+      path: row.querySelector(".acks-extras-held-path code")?.textContent ?? null,
+      key: row.querySelector("input[name='take']")?.value ?? null,
+      unstamped: !!row.querySelector(".acks-extras-held-unstamped"),
+      tips: [...row.querySelectorAll(".acks-extras-held-value")].map((v) => (v.dataset.tooltipText ?? "").length > 0),
+    }));
+    // The importer dialogs scroll their `.dialog-content`, the footer pinned below it (styles/importer.css).
+    const content = root.querySelector(".dialog-content");
+    return {
+      found: true,
+      id: app.id,
+      title: app.options?.window?.title === game.i18n.localize("ACKS-IMPORTER.ui.repairMergedChooseTitle"),
+      docs: root.querySelectorAll("fieldset.acks-extras-held-doc").length,
+      rows,
+      pregens: root.querySelectorAll("select[name='pregen']").length,
+      buttons: [...root.querySelectorAll("footer button[data-action], .form-footer button[data-action]")].map((b) => b.dataset.action),
+      scroller: content ? getComputedStyle(content).overflowY : null,
+      resizable: !!root.querySelector(".window-resize-handle"),
+    };
+  },
+  /** The open choice answered by its own button, `tick` the take boxes ticked first. */
+  choose: async ({ id, action, tick = [] }) => {
+    const H = globalThis.__fr;
+    const app = foundry.applications.instances.get(id);
+    const root = H.root(app);
+    for (const box of root.querySelectorAll("input[name='take']")) {
+      box.checked = tick.includes(box.value);
+      box.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    root.querySelector(`button[data-action='${action}']`).click();
+    await H.poll(() => !app.rendered);
+    return !app.rendered;
   },
   dialogIds: async () => globalThis.__fr.dialogs().map((a) => a.id),
-  /** The entry picker, its rows for `ids` ticked, the mode chosen, Reimport pressed; the run is left in flight. */
-  pickEntries: async ({ ids, mode }) => {
+  /** The entry picker, its rows for `ids` ticked, Reimport pressed; the run is left in flight. */
+  pickEntries: async ({ ids }) => {
     const H = globalThis.__fr;
     H.notes.splice(0);
     const before = H.dialogs().map((a) => a.id);
@@ -191,13 +235,12 @@ const P = {
     const app = await H.poll(() => H.dialogs().find((a) => !before.includes(a.id) && H.root(a)?.querySelector(".acks-extras-importer-mon-list")), { tries: 240 });
     if (!app) return { opened: false };
     const root = H.root(app);
-    const modes = [...root.querySelectorAll("select[name='mode'] option")].map((o) => o.value);
+    const modes = root.querySelectorAll("select[name='mode']").length;
     let ticked = 0;
     for (const id of ids) {
       const box = root.querySelector(`input[name='sel'][value='BookItems|${id}']`);
       if (box) { box.checked = true; box.dispatchEvent(new Event("change", { bubbles: true })); ticked++; }
     }
-    root.querySelector("select[name='mode']").value = mode;
     const dialogsBefore = H.dialogs().map((a) => a.id);
     root.querySelector("button[data-action='ok']").click();
     return { opened: true, modes, ticked, before: dialogsBefore };
@@ -209,7 +252,7 @@ const P = {
     return { result: r && typeof r === "object" ? r : null, notes: H.notes.map((n) => n.text) };
   },
   expected: async ({ key, data }) => game.i18n.format(key, data),
-  /** The Reimport One Shelf dialog: its mode options and which shelves still say rebuild only. */
+  /** The Reimport One Shelf dialog: whether it still carries a mode, and which shelves still say rebuild only. */
   shelfDialog: async () => {
     const H = globalThis.__fr;
     const before = H.dialogs().map((a) => a.id);
@@ -219,20 +262,19 @@ const P = {
     const root = H.root(app);
     const tag = `(${game.i18n.localize("ACKS-IMPORTER.ui.reimportRebuildOnly")})`;
     const out = {
-      modes: [...root.querySelectorAll("select[name='mode'] option")].map((o) => o.value),
-      selected: root.querySelector("select[name='mode']").value,
+      modes: root.querySelectorAll("select[name='mode']").length,
       rebuildOnly: [...root.querySelectorAll("select[name='pick'] option")].filter((o) => o.textContent.endsWith(tag)).map((o) => o.value),
       shelves: [...root.querySelectorAll("select[name='pick'] option")].map((o) => o.value).filter((v) => v.startsWith("shelf:")),
     };
     await app.close({ animate: false });
     return out;
   },
-  /** A shelf force-repaired, left in flight for `answer`. */
-  forceShelf: async ({ shelf }) => {
+  /** A shelf's repair, left in flight for `answer`. */
+  repairShelf: async ({ shelf }) => {
     const H = globalThis.__fr;
     H.notes.splice(0);
     const before = H.dialogs().map((a) => a.id);
-    H.flight = acksExtras.importer.cookbookReimportShelf(shelf, { mode: "force" });
+    H.flight = acksExtras.importer.cookbookReimportShelf(shelf);
     return before;
   },
   /** The import manager, opened as the macro opens it, with what its strip and panel hold. */
@@ -317,18 +359,18 @@ const P = {
     dlg.setPosition({ left: Math.round(r.left + 40), top: Math.round(r.top + 230), width: Math.min(560, Math.round(r.width - 80)) });
     await H.sleep(400);
     return {
-      dialog: dlg.id, before, title: dlg.options?.window?.title === game.i18n.localize("ACKS-IMPORTER.ui.forceTitle"),
+      dialog: dlg.id, before, title: dlg.options?.window?.title === game.i18n.localize("ACKS-IMPORTER.ui.repairMergedTitle"),
       redrawn: { pick: form?.querySelector("select[name='pick']")?.value ?? null, mode: form?.querySelector("select[name='mode']")?.value ?? null },
     };
   },
-  /** The Adventures tab's Force repair pressed on `book`; the confirm is left open. */
-  adventureForce: async ({ book }) => {
+  /** One of the Adventures tab's repair buttons (`action`) pressed on `book`; the confirm is left open. */
+  adventureButton: async ({ book, action }) => {
     const H = globalThis.__fr;
     H.notes.splice(0);
     const app = foundry.applications.instances.get("acks-extras-import-manager");
     app.changeTab("adventures", "primary");
     await H.sleep(300);
-    const button = H.root(app).querySelector(`[data-action='adventureForce'][data-book='${book}']`);
+    const button = H.root(app).querySelector(`[data-action='${action}'][data-book='${book}']`);
     if (!button) return { button: false };
     const before = H.dialogs().map((a) => a.id);
     button.click();
@@ -391,7 +433,10 @@ const P = {
 /*  Driver side                                                         */
 /* ------------------------------------------------------------------ */
 async function run(api, fn, ...args) {
-  const text = await api.eval(`(${fn.toString()})(...${JSON.stringify(args)}).then((v) => JSON.stringify(v === undefined ? null : v))`);
+  // A timeout names the page step it stopped in; the transport's own error does not.
+  const text = await api.eval(`(${fn.toString()})(...${JSON.stringify(args)}).then((v) => JSON.stringify(v === undefined ? null : v))`).catch((err) => {
+    throw new Error(`${fn.name || "page step"}: ${err?.message ?? err}`);
+  });
   return JSON.parse(text);
 }
 async function ready(api, label, seconds = 240) {
@@ -491,7 +536,7 @@ try {
   check("the Player seat's bookStatus() opens the same window on Books", pstatus.opened && pstatus.tab === "books", pstatus);
   await run(player, P.closeManager);
 
-  section("Repair in place 9: the mode, the confirm, and a forced repair over the run's own items");
+  section("The merged repair over the run's own items: the confirm, then the choice");
   const IDS = itemIds();
   const packsBefore = await run(gm, P.packs);
   const heldBefore = await run(gm, P.held, { ids: IDS });
@@ -515,88 +560,106 @@ try {
 
   const shelfDlg = await run(gm, P.shelfDialog);
   note("Reimport One Shelf", shelfDlg);
-  check("9: Reimport One Shelf's Mode reads three options, Rebuild chosen, Force repair third", same(shelfDlg?.modes, ["drop", "repair", "force"]) && shelfDlg.selected === "drop", shelfDlg?.modes);
-  check("10: no shelf is marked rebuild only", shelfDlg && shelfDlg.rebuildOnly.length === 0, shelfDlg?.rebuildOnly);
-  const tabModes = (await run(gm, P.manager, { tab: "rebuild" })).modes;
-  check("9: the manager's Rebuild tab carries the same three", same(tabModes, ["drop", "repair", "force"]), tabModes);
-  await run(gm, P.closeManager);
+  check("Reimport One Shelf asks for a shelf or book and carries no Mode", shelfDlg && shelfDlg.modes === 0, shelfDlg?.modes);
+  check("no shelf is marked rebuild only", shelfDlg && shelfDlg.rebuildOnly.length === 0, shelfDlg?.rebuildOnly);
 
-  // Force repair, answered No: the confirm counts, and nothing is written.
+  // Answered No: the confirm counts, and nothing is written.
   await run(gm, P.observe, { on: true });
-  let pick = await run(gm, P.pickEntries, { ids: mineIds, mode: "force" });
-  check("9: the entry picker offers the three modes and ticks the run's items", same(pick.modes, ["drop", "repair", "force"]) && pick.ticked === mineIds.length, { modes: pick.modes, ticked: pick.ticked });
-  let expectText = await run(gm, P.expected, { key: "ACKS-IMPORTER.ui.forceConfirmEntries", data: { n: mine.length, picked: mineIds.length } });
+  let pick = await run(gm, P.pickEntries, { ids: mineIds });
+  check("the entry picker carries no Mode and ticks the run's items", pick.modes === 0 && pick.ticked === mineIds.length, { modes: pick.modes, ticked: pick.ticked });
+  const expectText = await run(gm, P.expected, { key: "ACKS-IMPORTER.ui.repairMergedConfirmEntries", data: { n: mine.length, picked: mineIds.length } });
   let said = await run(gm, P.answer, { before: pick.before, yes: false, expect: expectText });
   let flight = await run(gm, P.flight);
   let writes = await run(gm, P.observe, { on: false });
-  note("force, No", { said, writes: writes.length });
-  check("9: a confirm titled Force repair in place counts the documents to rewrite and closes on what is still kept", said.found && said.forceTitle && said.expected && said.keeps && said.count === mine.length, said);
+  note("repair, No", { said, writes: writes.length });
+  check("a confirm titled Repair in place counts the documents to write over and closes on what is kept", said.found && said.merged && said.expected && said.keeps && said.count === mine.length, said);
   const afterNo = await run(gm, P.shape, { uuid: subject });
-  check("9: answered No, nothing is written: the note stands, modifiedTime has not moved, the observer holds nothing", afterNo.judged && afterNo.modified === edited.modified && writes.length === 0 && flight.result === null, { modified: afterNo.modified === edited.modified, writes: writes.length });
+  check("answered No, nothing is written and no choice is put: the note stands, modifiedTime has not moved, the observer holds nothing", afterNo.judged && afterNo.modified === edited.modified && writes.length === 0 && flight.result === null, { modified: afterNo.modified === edited.modified, writes: writes.length });
 
-  // Repair in place, Yes: the note is kept.
-  pick = await run(gm, P.pickEntries, { ids: mineIds, mode: "repair" });
+  // Yes, then Keep all: the note stays, the price comes back.
+  const editKey = `${subject}#system.description`;
+  pick = await run(gm, P.pickEntries, { ids: mineIds });
+  said = await run(gm, P.answer, { before: pick.before, yes: true });
+  // Measured from before the confirm: a quick first pass can put the choice up before the confirm's close is read.
+  let choice = await run(gm, P.chooser, { before: pick.before });
+  note("choice", choice);
+  check("Yes puts the choice: one frame for the run's edited item, its description row with a take box keyed by the edit, both values carrying a tooltip", choice.found && choice.title && choice.docs === 1 && choice.rows.length === 1 && choice.rows[0].path === "system.description" && choice.rows[0].key === editKey && choice.rows[0].tips.every(Boolean) && choice.rows[0].tips.length === 2, choice.rows);
+  check("the choice offers Apply, Take all and Keep all, scrolls in its body and resizes", same(choice.buttons, ["apply", "takeAll", "keepAll"]) && ["auto", "scroll"].includes(choice.scroller) && choice.resizable, { buttons: choice.buttons, scroller: choice.scroller, resizable: choice.resizable });
+  if (process.env.SHOTS === "1" && choice.found) note("plate", await gm.shot(plate("importer-repair-choice.png"), `#${choice.id}`));
+  await run(gm, P.choose, { id: choice.id, action: "keepAll", tick: [editKey] });
+  flight = await run(gm, P.flight);
+  note("Keep all", { result: flight.result && { mode: flight.result.mode, replaced: flight.result.replaced, taken: flight.result.taken, held: flight.result.held, refused: flight.result.refused } });
+  const afterKeep = await run(gm, P.shape, { uuid: subject });
+  const keptText = flight.result ? await run(gm, P.expected, { key: "ACKS-IMPORTER.ui.repairMergedDone", data: { replaced: flight.result.replaced, taken: flight.result.taken, held: flight.result.held, recreated: flight.result.recreated, refused: flight.result.refused } }) : null;
+  check("Keep all, though the box was ticked, takes nothing: the note stands and is still held, the price is the page's again", flight.result?.mode === "repair" && flight.result.taken === 0 && flight.result.held === 1 && afterKeep.judged && afterKeep.cost === fresh.cost, { taken: flight.result?.taken, held: flight.result?.held, judged: afterKeep.judged, cost: afterKeep.cost === fresh.cost });
+  check("the notice reads Repaired in place with the counts", flight.notes.includes(keptText), flight.notes.length);
+
+  // Yes, then the one edit ticked and Apply: the note goes; id, folder, owners and quantity stay.
+  pick = await run(gm, P.pickEntries, { ids: mineIds });
+  said = await run(gm, P.answer, { before: pick.before, yes: true });
+  choice = await run(gm, P.chooser, { before: pick.before });
+  note("choice again", { found: choice.found, open: choice.open ?? null });
+  if (!choice.found) throw new Error(`the second choice never opened: ${JSON.stringify(choice.open)}`);
+  await run(gm, P.choose, { id: choice.id, action: "apply", tick: [editKey] });
+  flight = await run(gm, P.flight);
+  note("take one", { result: flight.result && { replaced: flight.result.replaced, taken: flight.result.taken, held: flight.result.held, refused: flight.result.refused } });
+  const afterTake = await run(gm, P.shape, { uuid: subject });
+  check("the edit ticked and applied is taken and no longer held", flight.result?.taken === 1 && flight.result.held === 0, { taken: flight.result?.taken, held: flight.result?.held });
+  check("the Judge's description is replaced: the build's text again, the note gone", !afterTake.judged && afterTake.textLength === fresh.textLength, { judged: afterTake.judged, textLength: afterTake.textLength === fresh.textLength });
+  check("the document keeps its id, folder and owners (read back)", afterTake.id === edited.id && afterTake.folder === edited.folder && same(afterTake.ownership, edited.ownership), { id: afterTake.id === edited.id, folder: afterTake.folder === edited.folder, owners: same(afterTake.ownership, edited.ownership) });
+  check("what play set is kept: the quantity is still 3", afterTake.quantity === 3, afterTake.quantity);
+
+  // Nothing held: no choice is put.
+  pick = await run(gm, P.pickEntries, { ids: mineIds });
   said = await run(gm, P.answer, { before: pick.before, yes: true });
   flight = await run(gm, P.flight);
-  note("repair, Yes", { result: flight.result && { mode: flight.result.mode, replaced: flight.result.replaced, keptProse: flight.result.keptProse, refused: flight.result.refused } });
-  const afterRepair = await run(gm, P.shape, { uuid: subject });
-  check("Repair in place keeps the note and counts it kept, and puts the price back", flight.result?.mode === "repair" && flight.result.keptProse >= 1 && afterRepair.judged && afterRepair.cost === fresh.cost, { keptProse: flight.result?.keptProse, judged: afterRepair.judged, cost: afterRepair.cost === fresh.cost });
+  const quiet = await run(gm, P.dialogIds);
+  check("with no edit held and no character listed, the repair puts no choice", flight.result?.mode === "repair" && flight.result.held === 0 && quiet.length === 0, { held: flight.result?.held, open: quiet.length });
 
-  // Force repair, Yes: the note goes; id, folder, owners and quantity stay.
-  pick = await run(gm, P.pickEntries, { ids: mineIds, mode: "force" });
-  said = await run(gm, P.answer, { before: pick.before, yes: true });
-  flight = await run(gm, P.flight);
-  note("force, Yes", { result: flight.result && { mode: flight.result.mode, replaced: flight.result.replaced, refused: flight.result.refused, handMade: flight.result.handMade } });
-  const afterForce = await run(gm, P.shape, { uuid: subject });
-  const doneText = flight.result ? await run(gm, P.expected, { key: "ACKS-IMPORTER.ui.forceDone", data: { replaced: flight.result.replaced, refused: flight.result.refused, handMade: flight.result.handMade } }) : null;
-  check("9: the notice reads Force-repaired in place, with no kept count", flight.result?.mode === "force" && flight.result.replaced >= 1 && flight.notes.includes(doneText), { replaced: flight.result?.replaced, noticed: flight.notes.includes(doneText) });
-  check("9: the Judge's description is replaced: the build's text again, the note gone", !afterForce.judged && afterForce.textLength === fresh.textLength, { judged: afterForce.judged, textLength: afterForce.textLength === fresh.textLength });
-  check("9: the document keeps its id, folder and owners (read back)", afterForce.id === edited.id && afterForce.folder === edited.folder && same(afterForce.ownership, edited.ownership), { id: afterForce.id === edited.id, folder: afterForce.folder === edited.folder, owners: same(afterForce.ownership, edited.ownership) });
-  check("9: what play set is kept: the quantity is still 3", afterForce.quantity === 3, afterForce.quantity);
-
-  section("Repair in place 10: every kind's confirm counts, answered No");
+  section("Every kind's confirm counts, answered No");
   for (const shelf of ["Weapons", "Armor", "Languages", "Races"]) {
-    if (!shelfDlg?.shelves.includes(`shelf:${shelf}`)) { check(`10: ${shelf} is offered as a shelf`, false, shelfDlg?.shelves); continue; }
+    if (!shelfDlg?.shelves.includes(`shelf:${shelf}`)) { check(`${shelf} is offered as a shelf`, false, shelfDlg?.shelves); continue; }
     await run(gm, P.observe, { on: true });
-    const before = await run(gm, P.forceShelf, { shelf });
+    const before = await run(gm, P.repairShelf, { shelf });
     const asked = await run(gm, P.answer, { before, yes: false });
     const done = await run(gm, P.flight);
     writes = await run(gm, P.observe, { on: false });
-    note(`${shelf}, force, No`, { found: asked.found, title: asked.forceTitle, count: asked.count, writes: writes.length });
-    check(`10: ${shelf} opens the forced confirm with a count, not a rebuild-only warning, and No writes nothing`, asked.found && asked.forceTitle && Number.isInteger(asked.count) && done.result === null && writes.length === 0 && done.notes.length === 0, { count: asked.count, writes: writes.length, notes: done.notes.length });
+    note(`${shelf}, No`, { found: asked.found, title: asked.merged, count: asked.count, writes: writes.length });
+    check(`${shelf} opens the repair's confirm with a count, not a rebuild-only warning, and No writes nothing`, asked.found && asked.merged && Number.isInteger(asked.count) && done.result === null && writes.length === 0 && done.notes.length === 0, { count: asked.count, writes: writes.length, notes: done.notes.length });
   }
 
-  section("An adventure book's Force repair: the confirm, answered No (steps 1, 3)");
+  section("An adventure book's repair buttons: one confirm, answered No");
   const am = await run(gm, P.manager, { tab: "adventures" });
   note("adventure rows", am.adventureRows);
-  check("the Adventures tab offers Force repair beside each book's row", am.adventureRows.length > 0, am.adventureRows.length);
+  check("the Adventures tab offers its repair buttons beside each book's row", am.adventureRows.length > 0, am.adventureRows.length);
   if (am.adventureRows.length) {
     const book = am.adventureRows.includes(BOOK) ? BOOK : am.adventureRows[0];
-    await run(gm, P.observe, { on: true });
-    const pressed = await run(gm, P.adventureForce, { book });
-    if (process.env.SHOTS === "1" && pressed.dialog) {
-      note("plate", await gm.shot(plate("importer-adventure-force.png"), `#${pressed.dialog}`));
+    for (const action of ["adventureDrop", "adventureRepair", "adventureForce"]) {
+      await run(gm, P.observe, { on: true });
+      const pressed = await run(gm, P.adventureButton, { book, action });
+      if (process.env.SHOTS === "1" && pressed.dialog && action === "adventureRepair") {
+        note("plate", await gm.shot(plate("importer-adventure-repair.png"), `#${pressed.dialog}`));
+      }
+      const asked = await run(gm, P.answer, { before: pressed.before, yes: false });
+      await sleep(1000);
+      writes = await run(gm, P.observe, { on: false });
+      note(`${action}, No`, { book, found: asked.found, title: asked.merged, writes: writes.length });
+      check(`1: ${action} opens the one repair's confirm, titled Repair in place, and its No writes nothing`, pressed.button && asked.found && asked.merged && writes.length === 0, { title: asked.merged, writes: writes.length });
     }
-    const asked = await run(gm, P.answer, { before: pressed.before, yes: false });
-    await sleep(1000);
-    writes = await run(gm, P.observe, { on: false });
-    note("adventure force, No", { book, tip: pressed.tip, found: asked.found, title: asked.forceTitle, writes: writes.length });
-    check("1: the button carries its tooltip and opens a confirm titled Force repair in place", pressed.button && pressed.tip === "ACKS-IMPORTER.manager.adventureForceTip" && asked.found && asked.forceTitle, { tip: pressed.tip, title: asked.forceTitle });
-    check("1: answered No, nothing is written", writes.length === 0, writes.slice(0, 5));
   }
   await run(gm, P.closeManager);
   check("3: the Player seat's manager has no Adventures tab and none of its buttons", !pm.sections.includes("adventures") && pm.adventureRows.length === 0);
 
-  section("The Rebuild tab's Force repair (plate)");
+  section("The Rebuild tab: Go runs the one repair whatever its Mode reads (plate)");
   await gm.compose();
   await run(gm, P.manager, { tab: "rebuild" });
   const chosen = await run(gm, P.rebuildTab, { pick: `book:${BOOK}`, mode: "force" });
-  check("the Rebuild tab offers the open book, and Force repair can be chosen", chosen.has && chosen.mode === "force", chosen);
+  check("the Rebuild tab offers the open book", chosen.has, chosen);
   const rb = await run(gm, P.rebuildGo);
   note("rebuild tab", { dialog: !!rb.dialog, title: rb.title, redrawn: rb.redrawn });
-  check("Go, book and Force repair chosen, asks under Force repair in place", !!rb.dialog && rb.title, { title: rb.title });
-  check("while the forced confirm is up, the redrawn Rebuild form still reads the user's pick and Force repair", rb.redrawn?.pick === `book:${BOOK}` && rb.redrawn?.mode === "force", { pick: rb.redrawn?.pick === `book:${BOOK}`, mode: rb.redrawn?.mode });
-  if (process.env.SHOTS === "1" && rb.dialog) note("plate", await gm.shot(plate("importer-force-repair.png"), "#acks-extras-import-manager"));
+  check("Go asks under Repair in place", !!rb.dialog && rb.title, { title: rb.title });
+  check("while the confirm is up, the redrawn Rebuild form still reads the user's pick", rb.redrawn?.pick === `book:${BOOK}`, { pick: rb.redrawn?.pick === `book:${BOOK}` });
+  if (process.env.SHOTS === "1" && rb.dialog) note("plate", await gm.shot(plate("importer-repair-in-place.png"), "#acks-extras-import-manager"));
   if (rb.dialog) {
     await run(gm, P.observe, { on: true });
     await run(gm, P.answer, { before: rb.before, yes: false });

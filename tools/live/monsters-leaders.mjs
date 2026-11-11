@@ -774,7 +774,7 @@ const P = {
     };
   },
 
-  /** Fire the entry picker's Repair in place on the given rows, tick them, choose the mode, and confirm. */
+  /** Fire the entry picker's repair on the given rows, tick them, and confirm; a choice it puts is closed (keep every edit). */
   repair: async ({ rows }) => {
     const H = globalThis.__ml;
     const known = new Set(foundry.applications.instances.keys());
@@ -795,14 +795,18 @@ const P = {
       await picker.close({ animate: false });
       return { opened: true, ticked, confirmed: false, missingRows: rows.filter((r) => !ticked.includes(r)) };
     }
-    const mode = root.querySelector("select[name='mode']");
-    mode.value = "repair";
-    mode.dispatchEvent(new Event("change", { bubbles: true }));
     known.add(picker.id);
     root.querySelector("button[data-action='ok']").click();
     const confirm = await H.poll(() => fresh().find((a) => H.root(a)?.querySelector("button[data-action='yes']")), { tries: 50, every: 200 });
     if (!confirm) return { opened: true, ticked, confirmed: false };
     H.root(confirm).querySelector("button[data-action='yes']").click();
+    (async () => {
+      for (let n = 0; n < 2400 && !globalThis.__mlRepair.done; n++) {
+        const chooser = fresh().find((a) => H.root(a)?.querySelector(".acks-extras-held-list"));
+        if (chooser) await chooser.close();
+        await new Promise((r) => setTimeout(r, 250));
+      }
+    })();
     return { opened: true, ticked, confirmed: true };
   },
   repairState: async () => globalThis.__mlRepair ?? { done: false },

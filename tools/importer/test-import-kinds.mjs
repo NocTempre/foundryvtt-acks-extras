@@ -27,9 +27,10 @@ import { placePairs } from "../../scripts/importer/place-pair.mjs";
 import {
   IMPORT_KINDS, ENTRY_SOURCES, SHELF_REFILL, REPAIR_RUNS, TABLE_BOOKS, cookbookRunSet, cookbookReimportShelf, cookbookReimportBook,
   cookbookReimportAdventure, cookbookReimportEntries, reimportableShelves, initCookbook, loadCookbook, isRewriting, placeBlockRows,
-  withRewrite, createDoc, keepsJudgeProse, keepsJudgeFigure, marketTakes, recreateUnderId, rewriteTable,
+  withRewrite, createDoc, keepsJudgeProse, keepsJudgeFigure, marketTakes, recreateUnderId, rewriteTable, repairPregens,
 } from "../../scripts/importer/cookbook.mjs";
 import { mergedTally } from "../../scripts/importer/refresh.mjs";
+import { playStamp, pregenDefault } from "../../scripts/importer/held-edits.mjs";
 import { bookText } from "../../scripts/importer/prose.mjs";
 import { TABLE_RECIPES } from "../../scripts/importer/table-recipes.mjs";
 import { bookIsJudges } from "../../scripts/importer/books.mjs";
@@ -935,6 +936,108 @@ same("a stat-line creature is read from its place's book", IMPORT_KINDS.find((k)
   foundry.utils.getDocumentClass = was;
 }
 
+/* --- pregenerated characters under a merged repair --- */
+
+{
+  const calls = [];
+  let refuseCopy = false;
+  const cls = {
+    async deleteDocuments(ids, opts) {
+      calls.push(["delete", ids, opts]);
+      return held.filter((d) => ids.includes(d.id));
+    },
+    async createDocuments(data, opts) {
+      calls.push(["create", data, opts]);
+      if (refuseCopy) throw new Error("refused");
+      return data.map((d) => ({ ...d, id: "copy0000000001", uuid: `Compendium.${opts?.pack}.Actor.copy0000000001` }));
+    },
+  };
+  const was = { cls: foundry.utils.getDocumentClass, format: game.i18n.format, error: console.error, log: console.log, warn: console.warn };
+  foundry.utils.getDocumentClass = () => cls;
+  game.i18n.format = (key, data) => `${key.split(".").pop()}:${JSON.stringify(data)}`;
+  console.error = console.log = console.warn = () => {};
+  globalThis.CONST = { DOCUMENT_OWNERSHIP_LEVELS: { OWNER: 3 } };
+  game.users = { get: () => ({ isGM: false }) };
+  const pack = actors.shelf.collection;
+  const pregen = (id, extra = {}) => ({
+    id: `pre${id.replace(/\W/g, "").slice(-10).padStart(10, "0")}`,
+    uuid: `Compendium.${pack}.Actor.${id}`,
+    name: `Hero ${id}`,
+    type: "character",
+    pack,
+    documentName: "Actor",
+    ownership: {},
+    flags: { [MODULE_ID]: { cookbook: { id }, note: "kept" }, ...(extra.flags ?? {}) },
+    _stats: extra._stats ?? {},
+    system: { hp: { value: 7 }, details: { biography: "<p>Invented.</p>" } },
+    items: [{ _id: "itm0000000001", name: "Stick", type: "item", system: { quantity: { value: 1 } }, sort: 5 }],
+    getFlag(scope, key) {
+      return this.flags?.[scope]?.[key] ?? null;
+    },
+    toObject() {
+      return structuredClone({ _id: this.id, name: this.name, type: this.type, flags: this.flags, folder: "fold000000001", system: this.system, items: this.items });
+    },
+  });
+  // As the character importer leaves one: its play stamp recorded over what it wrote.
+  const stamped = (id) => {
+    const doc = pregen(id);
+    doc.flags[MODULE_ID].playStamp = playStamp(doc.toObject());
+    return doc;
+  };
+  {
+    const asImported = stamped("zz.npc5");
+    const hp = stamped("zz.npc6");
+    hp.system.hp.value = 3;
+    const item = stamped("zz.npc7");
+    item.items[0].system.quantity.value = 4;
+    const moved = stamped("zz.npc8");
+    moved.items[0].sort = 99;
+    moved.flags[MODULE_ID].note = "moved";
+    const listing = mergedTally("keep");
+    await repairPregens(["zz.npc5", "zz.npc6", "zz.npc7", "zz.npc8", "zz.npc9"], [asImported, hp, item, moved, pregen("zz.npc9")], listing);
+    same("pass one marks each character changed where its play stamp moved or was never recorded",
+      listing.pregens.map((p) => [p.id, p.changed, !!p.unstamped]),
+      [["zz.npc5", false, false], ["zz.npc6", true, false], ["zz.npc7", true, false], ["zz.npc8", false, false], ["zz.npc9", true, true]]);
+    same("and the default it offers is leave for one as imported, restore for one played, edited in an item, or unstamped",
+      listing.pregens.map((p) => pregenDefault(p)), ["leave", "restore", "restore", "leave", "restore"]);
+  }
+  const owned = pregen("zz.npc4");
+  owned.ownership = { user0000000001: 3 };
+  const held = [stamped("zz.npc1"), pregen("zz.npc2", { flags: { [MODULE_ID]: { cookbook: { id: "zz.npc2" }, worldCopy: true } } }), owned];
+  const first = mergedTally("keep");
+  await repairPregens(["zz.npc1", "zz.npc2", "zz.npc3", "zz.npc4"], held, first);
+  same("pass one lists each held character and writes nothing; a copy dragged out of the library, a player's character and an absent one are not listed",
+    [first.pregens.map((p) => p.id), calls.length], [["zz.npc1"], 0]);
+  const second = (answer) => Object.assign(mergedTally({ take: new Set(), pregens: new Map([[held[0].uuid, answer]]) }), { steps: new Set(["pregens"]) });
+  const left = second("leave");
+  await repairPregens(["zz.npc1"], held, left);
+  check("a character answered leave is not touched", calls.length === 0 && !left.restored && !left.pregenRefused);
+  const restore = second("restore");
+  await repairPregens(["zz.npc1"], held, restore);
+  const [made, removed] = calls;
+  same("restore first copies the character under a new id where it stands, its claim and play stamp taken off and its origin recorded",
+    [made?.[0], made?.[1][0]._id, made?.[1][0].flags[MODULE_ID], made?.[1][0].name, made?.[2]],
+    ["create", undefined, { note: "kept", keptFrom: { id: "zz.npc1", uuid: held[0].uuid } }, `repairMergedPregenKeptName:{"name":"Hero zz.npc1"}`, { pack }]);
+  same("then removes the character from the library, to import the book's again under its id", [removed?.[0], removed?.[1]], ["delete", [held[0].id]]);
+  check("and counts the character once, restored or, where the import made nothing, refused", (restore.restored ?? 0) + (restore.pregenRefused ?? 0) === 1);
+  same("the kept copy's uuid is recorded, so a caller can find it", restore.kept, [`Compendium.${pack}.Actor.copy0000000001`]);
+  calls.length = 0;
+  const rewrite = second("rewrite");
+  await repairPregens(["zz.npc1"], held, rewrite);
+  same("a rewrite whose import throws is counted refused, never rewritten", [rewrite.rewritten ?? 0, rewrite.pregenRefused ?? 0], [0, 1]);
+  calls.length = 0;
+  refuseCopy = true;
+  const refused = second("restore");
+  await repairPregens(["zz.npc1"], held, refused);
+  same("a refused copy leaves the character whole and is counted", [calls.map((c) => c[0]), refused.pregenRefused], [["create"], 1]);
+  check("no tally carrying no decision lists or acts on any character", (await repairPregens(["zz.npc1"], held, { replaced: 0, edits: [] })) === undefined);
+  Object.assign(console, { error: was.error, log: was.log, warn: was.warn });
+  delete globalThis.CONST;
+  delete game.users;
+  game.i18n.format = was.format;
+  foundry.utils.getDocumentClass = was.cls;
+}
+
 /* --- a rules table's description under a decision --- */
 
 {
@@ -1033,6 +1136,9 @@ same("a stat-line creature is read from its place's book", IMPORT_KINDS.find((k)
   check("a POI row a forced repair writes onto a shared place skips the held read", /overview \|\| block \|\| isRewriting\(id\) \? null :/.test(poi));
   check("and its overview is read even though the quarter holds notes", /overview && !block && \(/.test(poi));
   check("and the read goes through writeRowBlock", /if \(block\) \{\s*await writeRowBlock\(block, pairRow\(run\.pairs,/.test(poi));
+  const character = fnOf("async function importCharacter");
+  check("a character import records its play stamp as its last write, over what it wrote",
+    /await actor\.update\(\{ \[`flags\.\$\{MODULE_ID\}\.playStamp`\]: playStamp\(actor\.toObject\(\)\) \}\);\s*return actor;$/.test(character));
   const keyed = fnOf("async function importKeyedPlace");
   check("a keyed place's block row skips the held read", /isRewriting\(id\) \|\| block \? null :/.test(keyed));
   check("and writes its block before any pair takeover can run again",

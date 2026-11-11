@@ -11,8 +11,9 @@
  * writes the run's OWN items into the shape the step gave them before it read
  * their paragraph — no slot, no mark, cost 0 — which is what a world imported
  * before 11.12.0 holds. Step 3 repairs through the items step's tally and
- * step 4 through the book repair's own gesture, its confirm answered yes by
- * the walk. Teardown sweeps the ledger and empties a shelf this run opened.
+ * step 4 through the book's merged repair, its confirm answered yes by the
+ * walk and its choice, where one is put, answered as keep. A live walk may
+ * write over the test world's documents (owner ruling, 2026-11-11). Teardown sweeps the ledger and empties a shelf this run opened.
  * Every id printed is a cookbook id; no book word leaves the page.
  */
 import fs from "node:fs";
@@ -99,20 +100,20 @@ const P = {
     const r = await acksExtras.importer.cookbookImportAdventureItems({ books: ["cat"], only: new Set(only), repair: tally });
     return { result: r, tally: H.RF.repairCounts(tally), notes: H.notes.map((n) => n.text) };
   },
-  /** The book repair's own gesture, its confirm answered yes for the walk and the dialog restored after. */
+  /**
+   * The book repair, its confirm answered yes in the walk's place (`ask`) and its choice answered
+   * through `choose` as the Judge's dialog answers it, keeping every edit and leaving every character.
+   */
   repairBook: async () => {
     const H = globalThis.__ir;
     H.notes.splice(0);
-    const D = foundry.applications.api.DialogV2;
-    const orig = D.confirm;
     let asked = 0;
-    D.confirm = async () => { asked++; return true; };
-    try {
-      const r = await acksExtras.importer.cookbookReimportBook("cat", { mode: "repair" });
-      return { result: r, asked, notes: H.notes.map((n) => n.text) };
-    } finally {
-      D.confirm = orig;
-    }
+    let chosen = 0;
+    const r = await acksExtras.importer.cookbookReimportBook("cat", {
+      ask: async () => { asked++; return true; },
+      choose: async () => { chosen++; return "keep"; },
+    });
+    return { result: r, asked, chosen, notes: H.notes.map((n) => n.text) };
   },
   restore: async () => {
     const H = globalThis.__ir;
@@ -207,7 +208,7 @@ try {
   section("4. repaired through the book repair's own gesture");
   for (const u of mine) await run(gm, P.strip, { uuid: u });
   const byBook = await run(gm, P.repairBook);
-  note("repair book", { asked: byBook.asked, result: byBook.result && { mode: byBook.result.mode, replaced: byBook.result.replaced, refused: byBook.result.refused, runs: Object.keys(byBook.result.refill ?? {}) } });
+  note("repair book", { asked: byBook.asked, chosen: byBook.chosen, result: byBook.result && { mode: byBook.result.mode, replaced: byBook.result.replaced, refused: byBook.result.refused, runs: Object.keys(byBook.result.refill ?? {}) } });
   check("4: the book repair asked once, ran the items step and replaced at least this run's items", byBook.asked === 1 && byBook.result?.mode === "repair" && !!byBook.result.refill?.cookbookImportAdventureItems && byBook.result.replaced >= mine.length, byBook.result && { replaced: byBook.result.replaced, refill: Object.keys(byBook.result.refill ?? {}) });
   const again = {};
   for (const u of mine) again[u] = await run(gm, P.shape, { uuid: u });

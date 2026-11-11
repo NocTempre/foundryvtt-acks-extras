@@ -9668,3 +9668,83 @@ earlier attempt; the full compile is the only landing path).
 
 *Cost:* a world's copies keep their old rows until Update Abilities runs; the
 old conditioned `modifier` rows stay pending, applied to nothing, until then.
+
+## 2026-11-11 — One repair, in place, and the Judge chooses what it writes over
+
+**Ruled by the owner**, 2026-11-11:
+
+- **In-place rebuild.** Every rebuild control repairs in place, under the id
+  each document holds; none deletes first.
+- **R2.** "A repair prompts the Judge to choose, case by case or all; this
+  replaces force repair." The edits a repair meets are put to the Judge after
+  its first pass, one by one or all at once.
+- **Q1.** A book the module no longer offers is not checked: its documents are
+  passed over and counted (`notOffered`).
+- **Q2.** A body's relations the Judge changed or deleted are listed as an
+  unstamped edit, kept by default.
+- **Q3.** A pregenerated character is the Judge's choice per repair. The
+  default offered keeps the played character under a new id, as a document of
+  its own, and restores the book's under its cookbook id; the alternatives are
+  to leave it, or to write the book over it in place under the decision.
+- **Walks.** A live walk may write over or clear the test world's documents as
+  it needs, the AX1 and AX3 corpus import included; no permission switch gates
+  it.
+
+**New evidence, superseding the 2026-11-04 entries on a forced repair** ("A
+forced repair, and what it still keeps", "An adventure book has a forced
+repair", "A forced repair writes the places, bodies and pregenerated
+characters too", "Import everything takes the three modes, over every open
+book, asked once"): the owner's R2.
+Those entries ruled three modes, each its own control, with Force repair
+lifting the prose guard wholesale. R2 replaces the modes with one repair whose
+guard is answered per edit by the Judge; what those entries list as kept
+because the import does not own it is still kept. Their text stands as
+history.
+
+**Ruled.**
+
+- **One repair** (`mergedRepair`, MODEL "The merged repair"): pass one under
+  "keep" holds every edit and lists every pregenerated character; the choice
+  dialog (`chooseHeldEditsDialog`) answers; pass two runs under the answer only
+  where something is taken or a character is not left, and only over the steps
+  that listed something. A `mode` from an API caller is ignored and named on
+  the console. The import manager's Mode selects and the Adventures tab's three
+  repair buttons are still drawn and all run the one repair; removing them is
+  later work.
+- **A decision passed in answers before anything is held**, so one pass runs
+  and no character is acted on; `choose` answers as the dialog does.
+- **Q3 as built: the default follows the play stamp** (coordinator's reading
+  of the owner's ruling, which the owner may overrule; not itself an owner
+  ruling). Q3 says "the played pregen". An untouched character has nothing to
+  keep, and restoring every listed character by default made a "(kept)" copy
+  of each on every repair. So the character importer records a checksum of
+  what play can change (`playStamp`: name, `system` with the biography, each
+  embedded item's name, type and `system`, sorted; ids, stats, ownership,
+  sort, folder, flags and effects left out) after its last write. A repair
+  offers restore where the stamp moved or was never recorded (a character
+  imported before this change), and leave, with the note that it matches what
+  was imported, where it holds. A restored character is imported fresh and
+  stamped, and a rewrite re-stamps, so a second repair offers leave.
+- **A data-model migration reads as play.** A system update that rewrites a
+  stored field changes the stamp without a player, and the next repair offers
+  restore for that character: one extra kept copy, which the Judge can answer
+  leave or delete. Accepted.
+- **The kept copy is the module's no longer**: its cookbook claim and play
+  stamp are taken off and `keptFrom` records where it came from, so no import
+  or repair counts it again. A refused copy leaves the character whole; a
+  re-import that makes nothing, or a rewrite that throws, is counted in
+  `pregenRefused`. A player's character and a copy dragged out of the library
+  are never listed.
+
+**Rejected:** comparing a dry repair plan with the character
+(`refreshPlan`): a character's build is a shell its sheet import fills on the
+live actor, so a plan sees no difference whether it was played or not. A
+scratch import per character per repair to compare against: exact, but slow,
+and it writes during the pass meant to write nothing. Defaulting every
+character to leave: it drops the owner's default offer. Keeping Force repair
+beside the merged repair: R2 replaces it.
+
+*Cost:* every repair that meets a held edit or a listed character asks a
+second question after its confirm. A character imported before the play stamp
+is offered restore once. An API caller that relied on `mode: "drop"` deleting
+first now gets an in-place repair.

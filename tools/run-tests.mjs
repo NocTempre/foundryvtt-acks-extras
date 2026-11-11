@@ -213,6 +213,7 @@ const COMMITTED = [
   "importer/test-region-import.mjs",
   "importer/test-refresh.mjs",
   "importer/test-merged-repair.mjs",
+  "importer/test-held-edits-dialog.mjs",
   "importer/test-token-art.mjs",
   "importer/test-register-rules.mjs",
   "importer/test-ax-statline.mjs",

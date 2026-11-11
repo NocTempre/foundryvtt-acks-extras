@@ -1025,13 +1025,21 @@ document. Three things it leaves to Rebuild:
 Rules tables merge in both modes. A Rebuild that removed the world layer before
 re-reading would undo "a re-read that finds nothing keeps what it had".
 
-## Forced repair: what it still leaves
+## Edits taken: what a repair still leaves
+
+- **The import manager's leftover choices.** The Import and Rebuild tabs
+  still carry a Mode select, and the Adventures tab three repair buttons, all
+  running the one repair; `reimportModeHint` still describes three modes, and
+  `repairShelfRebuildOnly` still tells the Judge to choose Rebuild. Wanted:
+  the selects, the extra buttons and their lang keys removed, the hint
+  rewritten.
 
 - **A place two books print.** Either side of a pair is joined by its own step
-  and a forced repair does not rewrite it. Wanted: a rewrite that rebuilds the
-  joined place from both rows.
-- **A pregenerated character's grants.** Its sheet import runs again and its
-  biography is written, but an item the import granted that a Judge edited is
+  and a repair does not rebuild the join, edits taken or not. Wanted: a
+  rewrite that rebuilds the joined place from both rows.
+- **A pregenerated character's grants.** Answered *Write the book over it*,
+  its sheet import runs again and its biography is written, but an item the
+  import granted that a Judge edited is
   not replaced. Replacing it means deleting the stamped grants and binding the
   class again, which the class bind skips for a character already at that class
   and level; it needs the bind's round trip walked live before it is safe.
@@ -1160,10 +1168,6 @@ What each book still owes, in the order it is worth doing:
 - **Adventure links from the sites:** a site that is an adventure's own
   location (25 to AX4, 44 and 46 to AX5, 52 to AX6) opens that adventure's
   document. AX1's (27 and 28) are planned with AX1's own work.
-- **The reimport dialog's mode line:** a rules-table pick says nothing is
-  deleted while the Mode select beneath still reads *Rebuild (delete and
-  import again)*; the mode belongs to shelves and books and should fold away
-  under a table pick.
 
 ## A die cell bounded on one side
 

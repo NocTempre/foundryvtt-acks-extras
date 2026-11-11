@@ -415,23 +415,23 @@ regression. The management window is the surface; the four controls are
 shortcuts into it, and the entry picker is the debug tool beside them.
 
 Reimport one shelf, e.g. Weapons:
-*Observable:* the confirm names the count; afterwards the shelf holds exactly
-what it held before and the pack's total is unchanged (38 removed, 38 written,
-1,008 either side). Nothing on another shelf is touched, and a class template's
-documents are never among the deleted — they carry acks-extras' stamp.
+*Observable:* the confirm, titled Repair in place, names the count; afterwards
+the shelf holds exactly what it held before, every document under its own id
+and `_stats.createdTime`, and the pack's total is unchanged. Nothing on another
+shelf is touched, and a class template's documents are never written.
 
 Reimport one book. Fixtures: a second book open on this seat that is not yet
 imported (By This Axe, read one-off so nothing is remembered), then import
 equipment — its own items appear; note their ids. Steps: the same picker, the
 "Books open on this seat" group, that book, confirm.
 *Observable:* the confirm names the count AND the shelves it spans; afterwards
-every noted id answers again with the same name and a later
-`_stats.createdTime` — written again under the id it had; every
-other book's item count is unchanged; a Rulebook item carrying one of the
-book's ids in `cookbook.merged` is still there. The group lists only books
-open on this seat, and `cookbookReimportBook` for a book that is not open
-warns and deletes nothing. Teardown: delete the re-created items by id;
-reload the seat so the one-off book is closed.
+every noted id answers again with the same name and the same
+`_stats.createdTime` — written over in place; every other book's item count is
+unchanged; a Rulebook item carrying one of the book's ids in `cookbook.merged`
+is still there. The group lists only books open on this seat, and
+`cookbookReimportBook` for a book that is not open warns and writes nothing.
+Teardown: delete the items the first import made, by id; reload the seat so
+the one-off book is closed.
 Right after a reload the group can list only part of the shelf while books
 reconnect; wait until `bookStatus()` shows the book before opening the picker.
 A book read one-off is closed by that reload and needs reading again first.
@@ -449,7 +449,7 @@ page. Portable Battering Ram and Personal Automaton read as separate words.
 One AppV2 window, five tabs; it runs nothing of its own, so the walk is each
 tab's primary action reaching the run it names.
 `tools/live/importer-force-repair.mjs` walks steps 1 and 2, the Player seat included;
-`tools/live/importer-everything.mjs` walks step 3's modes, each answered No.
+`tools/live/importer-everything.mjs` walks step 3's repair options, each answered No.
 
 ### Fixtures
 
@@ -488,15 +488,15 @@ tab's primary action reaching the run it names.
    *Observable:* the window's status line names the step while it runs and
    its buttons are disabled; the step's own notification lands; the buttons
    return.
-   Then set the mode beside **Import everything** to each of Rebuild, Repair
-   in place and Force repair in turn and press it, answering the confirm
-   **No** each time, with a create/update/delete observer armed.
-   *Observable:* one confirm per press, titled for its mode, listing every
-   open book and every open adventure book that has something to touch
-   under its own name, each with the lines its own Rebuild or Repair shows;
-   the observer holds nothing after each No. A Yes rewrites the shared
-   world's whole library and is walked only in a world kept for it; each
-   part's Yes is walked in its own recipe. The asking pass of a repair reads
+   Then set the mode beside **Import everything** to each of its three
+   repair options in turn and press it, answering the confirm **No** each
+   time, with a create/update/delete observer armed.
+   *Observable:* one confirm per press, the same one whichever option was
+   chosen, titled Repair in place, listing every open book and every open
+   adventure book under its own name, each with the lines its own repair
+   shows; the observer holds nothing after each No. A Yes repairs the whole
+   library and puts every held edit of every part to one choice; each part's
+   Yes is walked in its own recipe. The asking pass of a repair reads
    the whole library, so the confirm can take longer than one scripted
    evaluation: press, then wait for it in rounds, and log the seconds.
    Then call the journals, keyed-places and maps steps narrowed to a book id
@@ -507,10 +507,12 @@ tab's primary action reaching the run it names.
    anything for it.
 4. Rebuild tab: the picker's groups equal `rebuildOptions()` — the same
    options as *Reimport One Shelf*'s picker, in the same order. Pick
-   *Rules tables → one document*, mode Repair, **Go**.
+   *Rules tables → one document*, **Go** (the Mode select beside it is
+   ignored).
    *Observable:* the table's re-read notification, nothing deleted.
 5. Adventures tab: one row per open Judge's book, each with the census line
-   (`bookCensus`). The three actions are walked in the recipe below.
+   (`bookCensus`). Its three repair buttons all run the one repair, walked in
+   the recipe below.
 6. Tools tab: **Repair checks** opens the repair window already scanning;
    **(Re)import individual entries** opens the picker; **Audit the recipes**
    runs the audit. **Remove ALL imports** asks first — Cancel.
@@ -526,8 +528,9 @@ re-read wrote in place.
 
 ## Rebuild or repair an adventure book
 
-`acksExtras.importer.cookbookReimportAdventure(bookId, {mode})`, from the
-Adventures tab's **Rebuild** and **Repair**.
+`acksExtras.importer.cookbookReimportAdventure(bookId)`, from any of the
+Adventures tab's three repair buttons; all three run the one repair.
+`tools/live/importer-force-repair.mjs` walks step 3's buttons, answered No.
 
 ### Fixtures
 
@@ -537,50 +540,56 @@ Adventures tab's **Rebuild** and **Repair**.
   Adventure on the shelf (`bookAdventureId("ax1")`).
 - One place dragged out of the library into the sidebar (a world copy), one
   of the book's pregen characters handed to a player (owner), and one scene
-  of the book with a drawing added by hand. Each is what the rebuild must
+  of the book with a drawing added by hand. Each is what the repair must
   keep.
 
 ### Steps
 
 1. **Repair** on the AX1 row. Edit the Adventure's description on the shelf
    first.
-   *Observable:* the confirm says the edited Adventure is written anew;
-   after it, the Adventure's `flags.acks-extras.cookbook.writtenAt` is
-   fresh and the description edit is gone; no place, journal, table or item
-   was deleted (same ids, same `_stats.createdTime`); the scenes step's
-   summary names the held maps it repaired; the result object lists one
-   entry per step and no errors.
-2. **Rebuild** on the AX1 row.
-   *Observable:* the confirm names a count per document type and says the
-   maps, the dragged copy and the player's character are kept. After it:
-   every noted place, journal, table and item id answers again with a later
-   `_stats.createdTime`; the Adventure stands again under the same id with a
-   fresh `writtenAt`; the scene still carries the hand-drawn drawing; the
-   dragged copy and the player's character are untouched; a pin on the
-   scene's region still resolves to its place; the result's `removed`
-   equals the confirm's total.
-3. The same two actions on a row for a book that is not open (close it,
-   reload): the Adventures tab lists no such row, and the api call warns
-   "not open on this seat" and deletes nothing.
+   *Observable:* the confirm, titled Repair in place, counts the documents by
+   kind and says the edited Adventure is written anew; answer Yes. If the
+   repair held an edit or lists a pregenerated character, the choice opens:
+   answer every character *Leave it as it stands* and press *Keep every edit
+   of mine*.
+   After it, the Adventure's `flags.acks-extras.cookbook.writtenAt` is fresh
+   and the description edit is gone; no place, journal, table or item was
+   deleted (same ids, same `_stats.createdTime`); the scene still carries the
+   hand-drawn drawing; the dragged copy and the player's character are
+   untouched (neither is listed in the choice); the scenes step's summary
+   names the held maps it repaired; the result object lists one entry per
+   step and no errors.
+2. The same action on a row for a book that is not open (close it, reload):
+   the Adventures tab lists no such row, and the api call warns "not open on
+   this seat" and writes nothing.
+3. Each of the three repair buttons on the AX1 row, the confirm answered
+   **No**, with a create/update/delete observer armed.
+   *Observable:* each opens the same confirm, titled Repair in place; the
+   observer holds nothing.
 
 ### Teardown
 
-The rebuilt documents are the fixtures from then on, under the ids they
-had. Delete the hand drawing, return the pregen to the Judge, delete the
-dragged copy by id.
+The repaired documents are the fixtures from then on. Delete the hand
+drawing, return the pregen to the Judge, delete the dragged copy by id.
 
-## A forced adventure repair writes places in place, and holds a Judge's edits
+## An adventure book's repair writes places in place, and holds a Judge's edits
 
-`cookbookReimportAdventure(bookId, {mode: "force", ask, decision})`; the
-Adventures tab's force control on a book row runs it with no decision. Every
-fixture below is a library document the import made, driven only by a session
-seated alone on this surface: a forced repair writes the book's places for
-every client.
+`cookbookReimportAdventure(bookId, {ask, choose})`; the Adventures tab's
+buttons run it with the choice dialog. Every fixture below is a library
+document the import made. A live walk may write over the test world's corpus
+(owner ruling, 2026-11-11), but the repair writes the book's places for every
+client, so find out who is seated on this surface first.
 
-Live: `tools/live/importer-forced-places.mjs` walks the census of "An
-adventure book's Force repair" step 1 (answered No) on ax1 and ax3, and steps
-1–4 only with `FORCED_REPAIR_OK=1`, the owner's go-ahead to write over the
-world's corpus import; step 4 there takes the walk's own edit keys alone.
+Live: `tools/live/importer-forced-places.mjs` walks the census (answered No)
+and steps 1–4 on ax1 and ax3, the character steps included; every choice it
+answers names only the walk's own edit keys and its one character.
+
+**Answering the choice from a script.** `choose(edits, {pregens})` is called
+with what the dialog would list and answers as the dialog does:
+`{take: Set<edit key>, pregens: Map<uuid, "restore"|"leave"|"rewrite">}`. A key
+or character it does not name is kept or left. A `decision` passed instead
+answers before anything is held and runs one pass, so it never reaches a
+character.
 
 ### Fixtures
 
@@ -614,9 +623,17 @@ flag before step 1.
 
 ### Steps
 
-1. **The first forced repair**, from the API with the confirm answered:
-   `r = await acksExtras.importer.cookbookReimportAdventure(book, {mode: "force", ask: async () => true})`.
-   *Observable:* every fixture keeps its uuid and `createdTime`; the shared
+1. **The first repair**, from the API with the confirm answered and the
+   character answered restore:
+   `r = await acksExtras.importer.cookbookReimportAdventure(book, {ask: async () => true, choose: async () => ({take: new Set(), pregens: new Map([[pregenUuid, "restore"]])})})`.
+   *Observable:* every fixture but the character keeps its uuid and
+   `createdTime`; the choice listed the character `changed` (and
+   `unstamped` where it was imported before the play stamp), so the dialog
+   would have offered restore; `r.restored` is 1 and `r.kept` holds one uuid:
+   a copy in the same pack, named "(kept)", with no cookbook claim, no
+   `playStamp` and `keptFrom.uuid` the character's; the character stands
+   again under its own uuid with a later `createdTime` and a `playStamp`.
+   Track the copy's uuid from `r.kept` and sweep it. The shared
    place keeps its `id`, `merged` and the other book's block byte for byte;
    the bound place and the quarter keep every block but the one this book's
    row writes; the creature's `_stats.modifiedTime` moved and its roster row
@@ -631,30 +648,41 @@ flag before step 1.
    shared place, rename the shared place (only where this book's row is its
    `id`), add `<p>Judge note.</p>` after the block on the keyed place, delete
    this book's block from the bound place, and add the same note to the
-   pregenerated character's biography. Repeat step 1.
-   *Observable:* `r.edits` lists each edit once, each with `key`, `uuid`,
-   `path` (`system.notes#<row id>`, `name`, `system.notes`,
+   pregenerated character's biography. Repeat step 1, the character answered
+   rewrite.
+   *Observable:* the choice lists the character `changed` and stamped (its
+   biography moved the play stamp), so restore would be offered; `r.edits`
+   lists each edit once, each with `key`, `uuid`, `path`
+   (`system.notes#<row id>`, `name`, `system.notes`,
    `system.details.biography`), `current`, `page` and `cite`; the edited word,
    the rename, both notes and the deleted block's absence all stand (the
-   deleted block's `current` is empty); every other block is written again. A
-   changed figure (a stat, a roster row) is not held: it is the page's again.
-3. **Take one.** Repeat with `decision: {take: new Set([r.edits[0].key])}`.
+   deleted block's `current` is empty); every other block is written again;
+   `r.rewritten` is 1. A changed figure (a stat, a roster row) is not held: it
+   is the page's again.
+3. **Take one.** Repeat with `choose` answering `{take: new Set([r.edits[0].key])}`.
    *Observable:* that one edit is replaced by the page's value; the others
-   stand and are listed again.
-4. **Take all.** Repeat with `decision: "take"`.
-   *Observable:* `r.edits` is empty and every fixture reads as the page gives
-   it, each block of this book's rows now carrying a checksum; uuids are still
-   those recorded. Steps 2 and 3 assume this stamped state: on a world where
-   step 1 listed unstamped blocks, walk step 4 before step 2.
-5. **The control.** Adventures tab, the book row's force control; confirm.
-   *Observable:* the notice counts the places written; a fixture edited as
-   in step 2 keeps its edit (the control passes no decision).
+   stand and are listed again. The character, rewritten and so re-stamped in
+   step 2, is listed unchanged: the dialog would offer leave, with the note
+   that it matches what was imported.
+4. **Take the rest.** Repeat with `choose` answering every remaining key of
+   the walk's own, the character answered rewrite where its biography edit is
+   among them (an edit to a character is written only by a rewrite).
+   *Observable:* every fixture reads as the page gives it, each block of this
+   book's rows now carrying a checksum; uuids are still those recorded but the
+   character's. Steps 2 and 3 assume this stamped state: on a world where step
+   1 listed unstamped blocks, take those first.
+5. **The control.** Adventures tab, the book row's Repair; Yes.
+   *Observable:* the choice opens (titled *Your edits and the book*) with a
+   fixture edited as in step 2 listed, its two values each carrying a
+   tooltip, and the character with its note. Set the character to *Leave it
+   as it stands* and press *Keep every edit of mine*: the edit stands and is
+   still held, and the notice counts the places written.
 
 ### Teardown
 
-The fixtures stay, under their markers. Step 4 returns them to the page's
-text; after step 5, run step 4 once more. The walk creates and deletes no
-document.
+The fixtures stay. Step 4 returns them to the page's text; after step 5, run
+step 4 once more. The only document the walk creates is the character's kept
+copy, tracked from `r.kept` and swept.
 
 ## One entry at a time
 
@@ -801,13 +829,15 @@ find and what refused.
 
 `tools/live/importer-force-repair.mjs` walks step 9 on its own items of one book and step 10's confirms answered No.
 
-Both rebuild dialogs carry a **Mode** select: *Rebuild (delete and import
-again)*, chosen when the dialog opens, and *Repair in place*. The API takes it
-as `cookbookReimportShelf(shelf, { mode: "repair" })` and
-`cookbookReimportBook(bookId, { mode: "repair" })`; the entry picker passes the
-select's value to `runEntryReimport`. Each goes to a confirm that counts what
-it will write over, then to a notice counting what was written over, what kept
-a description the Judge wrote, and what was left.
+Every control runs the one repair (`mergedRepair`): Reimport One Shelf and the
+entry picker carry no Mode select, and the API's `mode` option is ignored
+(`cookbookReimportShelf(shelf)`, `cookbookReimportBook(bookId)`). Each goes to
+a confirm titled *Repair in place* that counts what it will write over; where
+the run held an edit a Judge made to what the import wrote, or met a
+pregenerated character, *Your edits and the book* opens next; then a notice
+counts what was written over, what was taken, what is still held and what was
+left. Steps 2–7 answer that choice **Keep every edit of mine**, which leaves
+the documents as the old *Repair* did.
 
 ### Fixtures
 
@@ -876,26 +906,27 @@ never a delete list.
 ### Steps
 
 1. **The control.** Open Reimport One Shelf.
-   *Observable:* the Mode select reads Rebuild; the Weapons, Armor, Languages
-   and Races options end in *(rebuild only)*. Choose Weapons with Repair.
-   *Observable:* a warning that the shelf has no in-place write; no confirm
-   opens and nothing is written.
-2. **A shelf.** Choose Traps with Repair.
+   *Observable:* no Mode select; no option ends in *(rebuild only)*.
+2. **A shelf.** Choose Traps.
    *Observable:* the confirm counts 13 to write over and says what a repair
-   keeps. Confirm. The notice reads 13 written over, 1 keeping a description
-   the Judge wrote; every fixture keeps its id and its `Fixture · ` name, and
-   the edited one its level and its note. A document already equal to its
+   keeps. Confirm; the choice lists the edited trap's description; Keep every
+   edit of mine. The notice reads 13 written over, 1 kept; every fixture keeps
+   its id and its `Fixture · ` name, and the edited one its level and its
+   note. A document already equal to its
    build is not written at all — Foundry drops an empty diff — so its
    `modifiedTime` does not move although the notice counts it.
 3. **Picked entries.** Open the entry picker.
-   *Observable:* the Mode select reads Rebuild; a monster family's row and
-   every OSE creature's row carry the hammer mark, whose tooltip and
-   accessible name say *Rebuild only*; a stat-block monster's row does not.
-   Tick the stack, the proficiency, the class and the monster, choose Repair,
-   press *Reimport*.
+   *Observable:* no Mode select; only a row no run writes in place
+   (`monsterRepair` null, not a pregenerated character) carries the hammer
+   mark, whose tooltip and accessible name say a repair deletes it and
+   imports it again under the same id; a stat-block monster's, a family's
+   and a pregenerated character's row do not.
+   Tick the stack, the proficiency, the class and the monster, press
+   *Reimport*.
    *Observable:* the confirm counts the four documents and carries the
-   monster, ability and class lines. Confirm. The notice counts five written
-   over — the character's copy is the fifth — all five keeping the note.
+   monster, ability and class lines. Confirm, and Keep every edit of mine. The
+   notice counts five written over — the character's copy is the fifth — all
+   five keeping the note.
    - the stack keeps its id, quantity 7 and note; its cost is the library's;
    - the proficiency and the character's copy keep their notes; both
      categories are the library's;
@@ -907,7 +938,8 @@ never a delete list.
      `minted` items remain and as many new ones stand, with the library's
      names; its image and token art are unchanged.
 4. **Rows, a variation, a vehicle table, a copy.** Tick the first trap, the
-   variation and the vehicle table's entry, Repair.
+   variation and the vehicle table's entry, *Reimport*, Keep every edit of
+   mine.
    *Observable:* the trap's first row has the library's `damageFormula` back
    and still an `attackThrow` of 7 — a row field the binder does not write is
    the Judge's — and its other rows match the library's; the variation keeps
@@ -933,50 +965,54 @@ never a delete list.
    *Observable:* every library original's `modifiedTime`, the class's effect
    ids, the monster's item ids and the class table's result ids are as
    recorded, and the observer holds nothing outside the run's own documents.
-8. **A book.** Reimport One Shelf, the books group, a book, Repair.
-   *Observable:* the confirm names the count and the shelves it spans (and the
-   documents it leaves on rebuild-only shelves, where the book has any).
+8. **A book.** Reimport One Shelf, the books group, a book.
+   *Observable:* the confirm names the count and the shelves it spans.
    Answer No: a book repair writes over every document of that book, through
    the runs steps 2–4 already walked.
-9. **A forced repair.** The Mode select now reads three options, the third
-   *Force repair*; the manager's Rebuild tab carries the same three. Note
-   which fixture still carries the Judge's note from steps 2–4 (re-append
-   `<p>Judge note.</p>` to the first trap's description and the stack's), and
-   make one hand-made proficiency: an `ability` item with no cookbook flag,
-   named as a cookbook proficiency and carrying a written description
-   (`api.create`, so the ledger holds it).
-   Choose Traps with Force repair, press the go control, answer **No**.
-   *Observable:* a confirm titled *Force repair in place* counts the documents
-   to rewrite and says edits to imported fields are replaced, a description
-   you wrote in included; it closes on what is still kept. No fixture's
-   `modifiedTime` moved and the observer holds nothing.
-   Run it again and answer **Yes**.
-   *Observable:* the notice reads *Force-repaired in place*, 0 kept a note
-   (the notice has no kept count); the first trap's description is the
-   stamped block of its entry with the note gone; its level is still the
-   Judge's, as step 2 showed, and a row field the binder does not write
-   (`attackThrow`) is still 7.
-   Tick the proficiency fixtures and the hand-made one in the entry picker,
-   Force repair.
-   *Observable:* no ability-collision dialog opens; the flagged proficiency's
-   description is the library's; the hand-made item is untouched, and the
-   notice counts it among those left alone.
-   Close the book (mask it as step 6 does) and Force repair the Traps shelf.
-   *Observable:* as step 6: the confirm counts 0 to write over, nothing is
-   written, the hint to open the book appears.
+9. **The choice.** Import one book's items (the run's own, `api.track`ed) and
+   give the first a Judge's note in its description, a quantity of 3 and an
+   owner beside the default. Tick the run's items in the entry picker and
+   press *Reimport*; answer the confirm **No**.
+   *Observable:* the confirm is titled *Repair in place*, counts the
+   documents and closes on what a repair keeps; nothing is written, no
+   choice opens, and the note stands.
+   Again, **Yes**.
+   *Observable:* *Your edits and the book* opens with one frame for the
+   edited item and one row, its description, carrying a *Take the book's*
+   box; *Yours* and *The book's* each carry a tooltip (the page the build read
+   from, or that none was recorded); the buttons are *Apply these choices*,
+   *Take the book's for every edit* and *Keep every edit of mine*; the frame
+   scrolls and resizes. Tick the box and press Keep every edit of mine.
+   *Observable:* nothing is taken (`taken` 0, `held` 1): the note stands, the
+   price is the page's again, and the notice reads *Repaired in place* with
+   the counts.
+   Again, Yes, tick the box and press Apply these choices.
+   *Observable:* `taken` 1, `held` 0; the description is the build's again,
+   the note gone; the item keeps its id, folder and owners, and its quantity
+   of 3.
+   Again, Yes, with nothing held.
+   *Observable:* no choice opens; `held` 0.
+   With a pregenerated character in the world, its row in the choice offers
+   three answers — keep it under a new id and restore the book's, leave it,
+   or write the book over it — preselected by its note: *Changed since it was
+   imported* and *Imported before changes were recorded* default to the
+   first, *Matches what was imported* to Leave. `tools/live/importer-forced-places.mjs`
+   walks all three answers.
 10. **Every kind has an in-place write.** With the books of the shelves open,
     pick the Weapons, Armor, Languages and Races shelves and a book's monster
-    templates and families, NPCs and OSE creatures one at a time, Repair, answer
+    templates and families, NPCs and OSE creatures one at a time, answer
     **No**, then **Yes**. Before the Yes, edit one weapon's damage die and mark
-    it equipped, change one language's taxonomy flag, and rename nothing.
+    it equipped, change one language's taxonomy flag, and rename nothing; if
+    the choice opens, press Take the book's for every edit (a field the kind
+    does not hold as the Judge's is written over without asking).
     *Observable:* no shelf is marked rebuild only; each Yes reports a replaced
     count; the weapon's die is the table's again and it is still equipped; the
     language's flag is back; every document keeps its id, folder and owners (the
     run's own `modifiedTime` and `_id` record). A pregenerated character picked in
-    the entry picker is counted as left. Close the book of one shelf and repeat:
-    its rows are counted as left, none written. The rewrite scope is not
-    observable apart from these; confirm that no second copy of any document
-    appears on the shelf (counts before and after are equal).
+    the entry picker is listed in the choice, not written over. Close the book of
+    one shelf and repeat: its rows are counted as left, none written. The rewrite
+    scope is not observable apart from these; confirm that no second copy of any
+    document appears on the shelf (counts before and after are equal).
 
 ### Driving it
 
@@ -986,9 +1022,14 @@ never a delete list.
   the filter.
 - `bookStatus()` opens the manager on its Books tab and resolves with the
   window at once. Count the books open on the seat with `reimportableBooks()`.
-- The dialog's promise resolves with the run's result — `{replaced,
-  keptProse, refused, refill}` — once the confirm is answered and the run
-  ends; wrapping `ui.notifications.notify` records the notices word for word.
+- The dialog's promise resolves with the run's result — `{mode: "repair",
+  replaced, keptProse, taken, held, refused, refill, …}` (`mergedRepair`) —
+  once the confirm and the choice are answered and the run ends; wrapping
+  `ui.notifications.notify` records the notices word for word.
+- The choice is a `DialogV2` carrying `.acks-extras-held-list`; a scripted
+  run that does not drive it passes `choose` to the API instead (it resolves
+  `{take: Set, pregens: Map}`, or `"keep"` / `"take"`), and closing the
+  window answers keep.
 
 ### Teardown
 
@@ -3483,12 +3524,16 @@ the run's own.
 The sweep removes the ledger's items; a shelf the run opened and left empty
 is deleted. The notice patch is restored.
 
-## An adventure book's Force repair
+## An adventure book's repair, edits taken
 
-The Adventures tab's third action (MODEL, "An adventure book, rebuilt or
-repaired"). Offline: `tools/importer/test-adventure-item-repair.mjs` (the
-rewrite scope) and `tools/importer/test-import-manager.mjs`.
-Live: `tools/live/importer-force-repair.mjs` walks steps 1 (answered No) and 3.
+The Adventures tab's repair, every button of it (MODEL, "An adventure book,
+repaired"), with the Judge's edits taken. Offline:
+`tools/importer/test-adventure-item-repair.mjs` (the rewrite scope) and
+`tools/importer/test-import-manager.mjs`.
+Live: `tools/live/importer-force-repair.mjs` walks step 1 (answered No, on each
+button) and step 3; `tools/live/importer-forced-places.mjs` walks step 2's
+takes through the API's `choose`, its own edits by key rather than the Take
+all button, on places and a pregenerated character.
 
 ### Fixtures
 
@@ -3500,34 +3545,37 @@ price, all on documents the marker names.
 
 ### Steps
 
-1. GM seat, Adventures tab, the book's **Force repair**; answer **No**.
-   *Observable:* a confirm counts the creatures and people, places,
-   organisations, items and roll tables it will rewrite, says the market
-   profiles are written onto the places, names the count it leaves, and closes
-   on what is kept; nothing's `modifiedTime` moved.
+1. GM seat, Adventures tab, any of the book's repair buttons; answer **No**.
+   *Observable:* a confirm titled *Repair in place* counts the creatures and
+   people, places, organisations, items and roll tables it will write over,
+   says the market profiles are written onto the places, names the count it
+   leaves until after the run, and closes on what is kept; nothing's
+   `modifiedTime` moved.
    Before this step, edit one of the book's places (its notes and one roster
    row), one organisation (add a relation and a member), set a market class on
    a place the book's grid prints, and note a pregenerated character's
    biography; the book must have a place row, an organisation row, a market grid
    and a pregenerated character, or the step for the missing one is not walked.
 2. Again, answer **Yes**.
-   *Observable:* the result is `mode: "force"` with replaced counts; the edited
-   price and the table's description are the build's again, as is a note in a
-   stat-block monster's description; the place's roster, the organisation's
-   relations and roster, and the market class are the book's again (a base a
-   later book wrote is not). The control passes no decision, so hand-written
-   prose on a person, a template creature or a place stands and is listed in
-   the result's `edits`: a biography note, the line beside a place's stamped
-   block, the pregenerated character's biography note. A changed figure on
-   them is the page's again. The character holds
-   each item once (count its items before and after: no twin, the item a Judge
-   gave it still there); ids, folders and owners are unchanged; no document of
-   the book is added or removed; the maps, a library copy dragged out and a
-   player's character are untouched. A place two books print has its row's
-   block written in place (the recipe "A forced adventure repair writes places
-   in place, and holds a Judge's edits").
-   Ordinary **Repair** on the same edits keeps the notes, the place and the
-   character as they were.
+   *Observable:* *Your edits and the book* opens, listing each edit above by
+   document and field, and the pregenerated character with its three
+   answers. Press **Take the book's for every edit** with the character
+   answered *Write the book over it*.
+   The result is `mode: "repair"` with replaced counts and `taken` equal to
+   the edits listed; the edited price and the table's description are the
+   build's again, as is a note in a stat-block monster's description; the
+   place's roster, the organisation's relations and roster, and the market
+   class are the book's again (a base a later book wrote is not); the
+   character's biography note is gone and `rewritten` is 1. The character
+   holds each item once (count its items before and after: no twin, the item
+   a Judge gave it still there); ids, folders and owners are unchanged; no
+   document of the book is added or removed; the maps, a library copy dragged
+   out and a player's character are untouched. A place two books print has
+   its row's block written in place (the recipe "An adventure book's repair
+   writes places in place, and holds a Judge's edits").
+   The same run answered **Keep every edit of mine** keeps the notes, the
+   place and the character as they were, and lists them again on the next
+   repair.
 3. Player seat: open Manage Imports.
    *Observable:* the Books tab alone; the Adventures tab and its buttons are
    absent.

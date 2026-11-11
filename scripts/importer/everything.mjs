@@ -1,6 +1,6 @@
 /**
- * One mode over every open book: the parts (a book's Rebuild, Repair in place
- * or Force repair, an adventure book's) asked about in one confirm. Foundry-free:
+ * One repair over every open book: the parts (a book's merged repair, an
+ * adventure book's) asked about in one confirm. Foundry-free:
  * the parts, the confirm and the closing runs are handed in.
  *
  * Each part is first run with an `ask` that records the confirm it would show

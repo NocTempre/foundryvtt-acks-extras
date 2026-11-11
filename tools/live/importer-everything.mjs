@@ -1,12 +1,14 @@
 /**
  * Live walk, importer-everything: the import manager's Import tab, Import
- * everything in each of its modes. Walks docs/importer/TESTING.md, "The import
- * manager", step 3's mode select: Rebuild, Repair in place and Force repair
- * pressed in turn, each confirm read and answered No by its own button, with a
- * create/update/delete observer armed and the world's compendium list read
- * before and after. A Yes rewrites the shared world's whole library and is
- * never pressed here. Machine values arrive through ./_env.mjs; the books the
- * shelf opens on join are the books the confirm lists.
+ * everything under each repair option of its mode select. Walks
+ * docs/importer/TESTING.md, "The import manager", step 3: each option pressed
+ * in turn opens the one merged repair's confirm, read and answered No by its
+ * own button, with a create/update/delete observer armed and the world's
+ * compendium list read before and after. A Yes repairs the whole library and
+ * puts every held edit of the corpus to the choice; the merged repair's Yes
+ * is walked over one book in importer-force-repair, and is not pressed here.
+ * Machine values arrive through ./_env.mjs; the books the shelf opens on join
+ * are the books the confirm lists.
  *
  * Fixtures: none. The walk reads the world and writes nothing; every check
  * that something was not written is the observer's. Every figure printed is a
@@ -157,7 +159,7 @@ const P = {
     return { results, notes: H.notes.slice(said) };
   },
   /** One round of waiting for the pressed mode's confirm; `{waiting: true}` until it stands, then what it shows. */
-  confirmOf: async ({ mode }) => {
+  confirmOf: async () => {
     const H = globalThis.__ie;
     const app = foundry.applications.instances.get("acks-extras-import-manager");
     const { before, at, parts: offered } = H.pressed;
@@ -168,16 +170,12 @@ const P = {
     await H.sleep(300);
     const text = (H.root(dlg).querySelector(".dialog-content, .window-content")?.textContent ?? "").replace(/\s+/g, " ").trim();
     // The count is read off the opening line, which states it; a part's own lines may carry bold too.
-    const key = { drop: "Drop", repair: "Repair", force: "Force" }[mode];
-    const [head, tail] = game.i18n.format(`ACKS-IMPORTER.ui.everythingConfirm${key}`, { n: "\u0000" }).replace(/\s+/g, " ").trim().split("\u0000");
+    const [head, tail] = game.i18n.format("ACKS-IMPORTER.ui.repairMergedEverything", { n: "\u0000" }).replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim().split("\u0000");
     const quote = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const parts = Number(text.match(new RegExp(`^${quote(head)}(\\d+)${quote(tail.slice(0, 12))}`))?.[1] ?? 0);
-    const opening = game.i18n.format(`ACKS-IMPORTER.ui.everythingConfirm${key}`, { n: parts }).replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+    const opening = game.i18n.format("ACKS-IMPORTER.ui.repairMergedEverything", { n: parts }).replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
     const closing = game.i18n.localize("ACKS-IMPORTER.ui.everythingClosed").replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
     const title = dlg.options?.window?.title ?? "";
-    // A book's own line with a count of nothing, cut at the book's name: a part that should not have asked.
-    const bookKey = { drop: "reimportConfirmBook", repair: "repairConfirmBook", force: "forceConfirmBook" }[mode];
-    const zeroLine = game.i18n.format(`ACKS-IMPORTER.ui.${bookKey}`, { n: 0, book: "\u0001", shelves: "" }).replace(/<[^>]+>/g, "").replace(/\s+/g, " ").split("\u0001")[0].trim();
     // The confirm stands inside the manager's frame, below the bar and its mode, for the plate.
     const r = H.root(app).getBoundingClientRect();
     const bar = H.root(app).querySelector("[data-import-form]")?.getBoundingClientRect();
@@ -191,10 +189,9 @@ const P = {
       parts,
       offered,
       seconds,
-      zeroParts: zeroLine.length > 8 && text.includes(zeroLine),
       opens: text.startsWith(opening.slice(0, 30)),
       closes: text.includes(closing.slice(0, 30)),
-      title: title === game.i18n.localize(`ACKS-IMPORTER.ui.${mode === "force" ? "forceTitle" : "reimportTitle"}`),
+      title: title === game.i18n.localize("ACKS-IMPORTER.ui.repairMergedTitle"),
       kept: form?.value ?? null,
       dialogs: H.dialogs().filter((a) => !before.includes(a.id)).length,
     };
@@ -295,7 +292,7 @@ try {
   await gm.compose();
   const tab = await run(gm, P.importTab);
   note("import tab", tab);
-  check("3: a Mode select beside Import everything, importing what is missing first, then Rebuild, Repair in place, Force repair", tab.form && tab.button && same(tab.modes, ["import", "drop", "repair", "force"]) && tab.selected === "import", tab.modes);
+  check("3: a Mode select beside Import everything, importing what is missing first; its three repair options all run the one merged repair", tab.form && tab.button && same(tab.modes, ["import", "drop", "repair", "force"]) && tab.selected === "import", tab.modes);
   check("3: every option carries a label and the select is named by its own caption", tab.labels.every(Boolean) && tab.named, { labels: tab.labels, named: tab.named });
   check("3: no id inside the body", tab.ids === 0, tab.ids);
 
@@ -309,12 +306,10 @@ try {
     await run(gm, P.observe, { on: true });
     await run(gm, P.press, { mode });
     let asked = { waiting: true };
-    for (let round = 0; asked.waiting && round < 10; round++) asked = await run(gm, P.confirmOf, { mode });
+    for (let round = 0; asked.waiting && round < 10; round++) asked = await run(gm, P.confirmOf);
     note(`${mode}: confirm`, { found: !!asked.dialog, seconds: asked.seconds, parts: asked.parts, offered: asked.offered, title: asked.title, opens: asked.opens, closes: asked.closes, dialogs: asked.dialogs });
-    check(`3, ${mode}: ONE confirm, titled for its mode, opening on its count of parts and closing on what is not touched`, !!asked.dialog && asked.dialogs === 1 && asked.title && asked.opens && asked.closes && asked.parts > 0, asked);
+    check(`3, ${mode}: ONE confirm, the merged repair's whatever the mode, opening on its count of parts and closing on what is not touched`, !!asked.dialog && asked.dialogs === 1 && asked.title && asked.opens && asked.closes && asked.parts > 0, asked);
     check(`3, ${mode}: no more parts than the open books and adventure books offer`, asked.parts > 0 && asked.parts <= asked.offered, { parts: asked.parts, offered: asked.offered });
-    // A repair of a book with nothing imported still imports what the world lacks, so it asks.
-    if (mode === "drop") check("3, drop: no book in the confirm has nothing to delete", asked.zeroParts === false, asked.zeroParts);
     check(`3, ${mode}: while the confirm is up, the redrawn bar still reads the mode chosen`, asked.kept === mode, asked.kept);
     if (process.env.SHOTS === "1" && asked.dialog && mode === "drop") {
       note("plate", await gm.shot(plate("importer-import-everything-modes.png"), "#acks-extras-import-manager"));

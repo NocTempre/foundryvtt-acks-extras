@@ -33,8 +33,9 @@ import {
   countRepair,
   unrepaired,
 } from "./refresh.mjs";
-import { coversFigure, decides, heldEdit } from "./held-edits.mjs";
+import { coversFigure, decides, heldEdit, playStamp, pregenAnswer } from "./held-edits.mjs";
 import { mergedRepair, mergedStep, secondPass } from "./merged-repair.mjs";
+import { chooseHeldEditsDialog } from "./apps/held-edits-dialog.mjs";
 import {
   isPoiEntry, poiGroupOf, districtPlaceId, districtPlaceData, poiLocationData, isRegionSite, isRegionOverview, regionPlaceId, regionPlaceData,
   keySpacesOf, isKeyedPlace, keyedParentId, occupantsOf, occupantFigures,
@@ -2066,9 +2067,10 @@ const repairableEntryIds = () =>
  * monster (`refillMonster`), `rewrite` for a template, a family, a person or a
  * legacy block, which its importer builds again under a rewrite (`withRewrite`),
  * and null for what no run writes. A pregenerated character is `rewrite` only
- * under a forced repair (`force`): the sheet import onto the held character
- * lands what it lacks and answers what it holds, and its biography and morale
- * are written again; any other repair leaves the character as it stands.
+ * where `force` asks for it: the sheet import onto the held character lands
+ * what it lacks and answers what it holds, and its biography and morale are
+ * written again. A merged repair passes no `force` and puts the character to
+ * the Judge instead (`repairPregens`).
  */
 const monsterRepair = (id, force = false) => {
   const entry = cookbookEntry(id)?.entry;
@@ -2155,8 +2157,84 @@ export async function recreateUnderId(tally, doc, built) {
   return { recreated: made, update: {}, keptProse: [], retract: [], replace: {} };
 }
 
-/** The answer a merged repair takes for the edits its first pass held: every one kept, until a Judge's choice is asked. */
-const chooseHeldEdits = async () => "keep";
+/**
+ * Copy `doc` under a new id where it stands (its pack, or the sidebar), in its
+ * folder and with its owners, as a document of its own: its claim on the
+ * cookbook and its play stamp are taken off, so no import or repair counts it as the book's again,
+ * the claim it came from is recorded as `keptFrom`, and its name says it is
+ * the kept one.
+ * @returns {Promise<foundry.abstract.Document|null>} the copy, or null when the create was refused
+ */
+export async function keepUnderNewId(doc) {
+  const cls = foundry.utils.getDocumentClass(doc.documentName);
+  const data = doc.toObject();
+  delete data._id;
+  const { cookbook, playStamp: _stamp, ...own } = data.flags?.[MODULE_ID] ?? {};
+  data.flags = { ...(data.flags ?? {}), [MODULE_ID]: { ...own, keptFrom: { id: cookbook?.id ?? null, uuid: doc.uuid ?? "" } } };
+  data.name = game.i18n.format(`${LANG_PREFIX}.ui.repairMergedPregenKeptName`, { name: doc.name });
+  try {
+    const [made] = await cls.createDocuments([data], doc.pack ? { pack: doc.pack } : {});
+    return made ?? null;
+  } catch (err) {
+    console.error(`${MODULE_ID} | repair of ${doc.name}: the kept copy was refused`, err);
+    return null;
+  }
+}
+
+/**
+ * The pregenerated characters `ids` claim, under a merged repair (a tally
+ * carrying a `decision`); nothing under any other tally. Pass one lists each
+ * one the library holds in `tally.pregens` and writes nothing to it, `changed`
+ * where its play stamp (`playStamp`) moved since the import recorded it or was
+ * never recorded (`unstamped`). Pass two
+ * acts on each as the decision answers it (`pregenAnswer`): `restore` keeps the
+ * character under a new id (`keepUnderNewId`), then removes it and imports the
+ * book's again under the id it stood under; `rewrite` writes the book over it
+ * in place under the decision; `leave` does nothing. A copy dragged out of the
+ * library, a player's character and a template's part are never listed. A
+ * character whose kept copy is refused is left whole, and one whose book's
+ * import then makes nothing keeps only its copy; both are counted in
+ * `tally.pregenRefused`, as is a rewrite that throws. Each kept copy's uuid
+ * is listed in `tally.kept`.
+ */
+export async function repairPregens(ids, actors, tally) {
+  if (!tally || !("decision" in tally)) return;
+  for (const id of ids) {
+    const doc = actors.find((d) => !d.flags?.[MODULE_ID]?.templatePart && !isWorldCopy(d) && !playersCharacter(d) && claimsEntry(d, id));
+    if (!doc) continue;
+    if (!secondPass(tally)) {
+      const stamp = doc.flags?.[MODULE_ID]?.playStamp;
+      (tally.pregens ??= []).push({ uuid: doc.uuid, name: doc.name, id, changed: !stamp || stamp !== playStamp(doc.toObject()), ...(stamp ? {} : { unstamped: true }) });
+      continue;
+    }
+    const answer = pregenAnswer(tally.decision, doc.uuid);
+    if (answer === "leave") continue;
+    if (answer === "rewrite") {
+      const wrote = await withRewrite({ held: new Map([[id, doc]]), tally, ...decisionOf(tally) }, () => importOne(bookOf(cookbookEntry(id)), id, null))
+        .then(() => true)
+        .catch((err) => (console.error(`${MODULE_ID} | repair ${id}`, err), false));
+      if (wrote) tally.rewritten = (tally.rewritten ?? 0) + 1;
+      else tally.pregenRefused = (tally.pregenRefused ?? 0) + 1;
+      continue;
+    }
+    const copy = await keepUnderNewId(doc);
+    if (!copy) {
+      tally.pregenRefused = (tally.pregenRefused ?? 0) + 1;
+      continue;
+    }
+    (tally.kept ??= []).push(copy.uuid);
+    await deleteImported("Actor", [doc]);
+    forgetImportedIndex();
+    // The kept copy stands whatever the import does; an import that made nothing is counted, never retried here.
+    const made = await importMany([id], game.i18n.localize(`${LANG_PREFIX}.ui.cookbookWorking`)).catch((err) => {
+      console.error(`${MODULE_ID} | repair ${id}: the book's character was not imported again`, err);
+      return 0;
+    });
+    if (made) tally.restored = (tally.restored ?? 0) + 1;
+    else tally.pregenRefused = (tally.pregenRefused ?? 0) + 1;
+  }
+}
+
 
 /** Say on the console that an API caller's `mode` picks nothing now: every repair is the merged one. */
 function ignoredMode(mode, fn) {
@@ -2174,6 +2252,11 @@ function reportMerged(result) {
   }));
   if (result.refused) ui.notifications.info(game.i18n.localize(`${LANG_PREFIX}.ui.repairRefusedHint`));
   if (result.notOffered) ui.notifications.info(game.i18n.format(`${LANG_PREFIX}.ui.repairMergedNotOffered`, { n: result.notOffered }));
+  if (result.pregens) {
+    ui.notifications.info(game.i18n.format(`${LANG_PREFIX}.ui.repairMergedPregensDone`, {
+      restored: result.restored, rewritten: result.rewritten, left: Math.max(0, result.pregens - result.restored - result.rewritten - result.pregenRefused),
+    }));
+  }
   if (result.edits?.length) console.info(`${MODULE_ID} | edits kept`, result.edits.map((e) => `${e.name || e.uuid} · ${e.path}${e.unstamped ? " (unstamped)" : ""}`));
 }
 
@@ -2374,7 +2457,7 @@ async function repairActors({ monsters = [], rewrites = [], oseIds = [] }, actor
  * tables merge as they always do; one pass of a merged repair, under `tally`.
  * A kind no run writes in place is deleted and imported again under the same
  * id (`stableDocId`), on the first pass only; a pregenerated character the
- * world holds is left as it stands.
+ * world holds is listed for the Judge and acted on as answered (`repairPregens`).
  *
  * @param {{key: string, id: string}[]} picked ticked rows whose book is open here
  * @param {number} closed ticked rows refused for a closed book, counted into the report
@@ -2392,8 +2475,10 @@ async function repairEntries(picked, closed, { tally, quiet = false, ask = null 
   const rewrites = [];
   const oseIds = byKey.get("OseCreatures") ?? [];
   let rebuildOnly = 0;
-  // Under a merged repair: the ids no run writes, rebuilt under the same id.
+  // Under a merged repair: the ids no run writes, rebuilt under the same id, and the
+  // pregenerated characters, put to the Judge after pass one (`repairPregens`).
   const rebuilds = [];
+  const pregens = [];
   for (const [key, ids] of byKey) {
     if (key === "Tables" || key === "OseCreatures") continue;
     if (key === "Monsters") {
@@ -2404,6 +2489,7 @@ async function repairEntries(picked, closed, { tally, quiet = false, ask = null 
         else {
           rebuildOnly++;
           if (!characterEntry(cookbookEntry(id)?.entry)) rebuilds.push(id);
+          else pregens.push(id);
         }
       }
       continue;
@@ -2447,6 +2533,7 @@ async function repairEntries(picked, closed, { tally, quiet = false, ask = null 
   const actors = await mergedStep(tally, "actors", () => repairActors({ monsters, rewrites, oseIds }, docs.Actor, tally));
   if (actors?.missing.length) refill.Monsters = actors.imported;
   if (actors && oseIds.length) refill.OseCreatures = actors.ose;
+  if (pregens.length) await mergedStep(tally, "pregens", () => repairPregens(pregens, docs.Actor, tally));
   for (const [run, only] of runs) refill[run] = (await mergedStep(tally, run, () => REPAIR_RUNS[run](only, tally))) ?? null;
   const tables = byKey.get("Tables");
   if (tables?.length && !second) {
@@ -2501,14 +2588,15 @@ export const reimportableShelves = () =>
  * Run a merged repair (`mergedRepair`) over one scope, `pass`, and report it
  * once. Handed a `tally`, the caller drives the passes (`cookbookReimportEverything`):
  * one pass runs under it, quiet on a second pass, and nothing is reported.
- * `choose` answers for the held edits in the Judge's place (`chooseHeldEdits`).
+ * The Judge answers for the held edits and the pregenerated characters left
+ * (`chooseHeldEditsDialog`); `choose` answers in the Judge's place.
  * @param {(tally: object, at: {first: boolean}) => Promise<object|null|undefined>} pass
  * @param {{decision?: unknown, tally?: object|null, finish?: ((tally: object) => Promise<unknown>)|null,
- *   choose?: ((edits: object[]) => Promise<unknown>)|null}} [opts]
+ *   choose?: ((edits: object[], more: {pregens: object[]}) => Promise<unknown>)|null}} [opts]
  */
 async function runMerged(pass, { decision = null, tally = null, finish = null, choose = null } = {}) {
   if (tally) return pass(tally, { first: !secondPass(tally) });
-  const result = await mergedRepair({ pass, decision, choose: choose ?? chooseHeldEdits, makeTally: repairPassTally, finish });
+  const result = await mergedRepair({ pass, decision, choose: choose ?? chooseHeldEditsDialog, makeTally: repairPassTally, finish });
   if (result) reportMerged(result);
   return result;
 }
@@ -2760,7 +2848,7 @@ function bodyRowIds(bookId) {
  * place it shares, found under the row's own id), a region site bound onto a
  * market or the book's own settlement (`regionSiteClaim`), a quarter's
  * overview (its quarter's place) and a region's overview (the region's
- * place). Pure; a forced repair resolves each claim to the library's
+ * place). Pure; a repair resolves each claim to the library's
  * document (`forcedPlaceHold`).
  * @param {string} bookId
  * @param {Record<string, object>} entries the book's cookbook entries
@@ -2789,7 +2877,7 @@ export function placeBlockRows(bookId, entries, pairs) {
 }
 
 /**
- * What a forced repair of one book's places writes in place (`withRewrite`'s
+ * What a repair of one book's places writes in place (`withRewrite`'s
  * `held` and `blocks`). `held`: the places it builds again (`placeIds`, from
  * `bodyRowIds`), each under its own claim, and the creatures made from their
  * stat lines (`<place>-o<i>`). `blocks`: the places the book's rows write
@@ -2839,7 +2927,8 @@ async function heldById(ids) {
  * organisations and market profiles (`bodyRowIds`, `withRewrite`,
  * `marketProfileUpdate`'s `force`). Under a decision, a place's roster, and a
  * body's strength and relations, that no longer hold the page's are edits
- * (`heldRoster`, `keepsJudgeFigure`); nothing a body holds is retracted.
+ * (`heldRoster`, `keepsJudgeFigure`); nothing a body holds is retracted; and
+ * a pregenerated character the library holds is put to the Judge (`repairPregens`).
  * A page of a journal is always refreshed in place and a map is refreshed by
  * its own step; on a merged repair's second pass (`secondPass`) only the steps
  * whose first pass held an edit run (`mergedStep`). `adventure: false` leaves
@@ -2870,16 +2959,23 @@ async function runAdventureBookSteps(bookId, { force = false, tally = null, adve
     const handled = new Set();
     if (tally) {
       const how = { monsters: [], rewrites: [] };
+      const pregens = [];
       for (const { id } of rows) {
         const kind = monsterRepair(id, !!tally.force);
         if (kind === "refill") how.monsters.push(id);
         else if (kind === "rewrite") how.rewrites.push(id);
-        else continue;
+        else {
+          // A pregenerated character the world lacks is imported below, like any other absent row.
+          if (characterEntry(cookbookEntry(id)?.entry)) pregens.push(id);
+          continue;
+        }
         handled.add(id);
       }
-      written = (await repairActors(how, await importedDocs("Actor"), tally)).imported ?? 0;
+      const actors = await importedDocs("Actor");
+      written = (await repairActors(how, actors, tally)).imported ?? 0;
+      await repairPregens(pregens, actors, tally);
     }
-    // Whatever is still absent (an unforced repair leaves a pregenerated character as it stands).
+    // Whatever is still absent.
     const present = await importedIdSet();
     const ids = rows.filter((r) => !handled.has(r.id) && !present.has(r.id)).map((r) => r.id);
     return written + (ids.length ? await importMany(ids, game.i18n.localize(`${LANG_PREFIX}.gs.stepMonsters`)) : 0);
@@ -2979,8 +3075,10 @@ async function adventureForceCensus(bookId) {
  * place two books print, a market or settlement a site is bound onto, a
  * quarter or region an overview describes). A Judge's edit to any of them is
  * written only where the decision takes it, and is otherwise kept and
- * returned in `edits`; a pregenerated character the world holds is left as it
- * stands. The book's Adventure is written anew once, after the last pass.
+ * returned in `edits`; a pregenerated character the library holds is put to
+ * the Judge (`repairPregens`), answered by `choose` only, since a decision
+ * passed in runs one pass and pass one acts on no character. The book's
+ * Adventure is written anew once, after the last pass.
  * Kept: a copy dragged out of the library (`isWorldCopy`), a character a
  * player owns (`playersCharacter`), and a document another book owns that
  * merged one of this book's ids. See docs/importer/DECISIONS.md, "An
@@ -5068,7 +5166,7 @@ async function importCharacter(bookId, id, folderId, node, found) {
   };
   // A document already standing under the stable id is this entry's from an
   // earlier run; making another under it is a duplicate-id throw.
-  // A forced repair holds the character: the create below returns it, and the
+  // A character answered rewrite is held: the create below returns it, and the
   // sheet import and the biography write that follow land on it where it stands;
   // a biography a Judge wrote in is kept under a decision (`keepsJudgeProse`).
   const { pack } = await packOptsFor("Actor", lineOfData(shell));
@@ -5111,6 +5209,8 @@ async function importCharacter(bookId, id, folderId, node, found) {
     ...(Number.isInteger(morale) && moraleField ? { "system.details.morale": Math.clamp(morale, moraleField.min, moraleField.max) } : {}),
     [`flags.${MODULE_ID}.printed`]: { differences: report.checks.length, missing: missing.length },
   });
+  // Recorded after the last write, so a repair tells a character played since from one as imported (`playStamp`).
+  await actor.update({ [`flags.${MODULE_ID}.playStamp`]: playStamp(actor.toObject()) });
   return actor;
 }
 
@@ -5359,7 +5459,7 @@ export async function cookbookImportPoiPlaces({ books = null, ids = null, quiet 
         })));
       // Notes that hold anything are the world's — asked before the page is
       // read, which is what keeps a second run from reading it at all. A
-      // forced repair writes the overview's own block over in place instead.
+      // repair writes the overview's own block over in place instead.
       if (overview && !block && (!district || district.system?.notes)) {
         already++;
         continue;
@@ -5482,7 +5582,7 @@ async function importKeyedPlace(bookId, id, run) {
   const parent = isKeyedPlace(cb.entries[parentId], parentId, run.spacesOf(bookId))
     ? await run.placeFor(bookId, parentId)
     : await run.bookPlaceFor(bookId);
-  // A place a forced repair holds is built again and written over (`withRewrite`);
+  // A place a repair holds is built again and written over (`withRewrite`);
   // one it writes this row's block onto is read for the block alone.
   const block = blockTarget(id);
   const held = isRewriting(id) || block ? null : await importedActor(id, { copies: false });
@@ -5589,7 +5689,7 @@ async function keyedOccupantRows(bookId, id, node, run) {
  */
 async function statLineCreature(bookId, placeId, occ, node, run) {
   const oid = `${placeId}-o${occ.index}`;
-  // A creature a forced repair holds is built again and written over (`withRewrite`).
+  // A creature a repair holds is built again and written over (`withRewrite`).
   const held = isRewriting(oid) ? null : await importedActor(oid, { copies: false });
   if (held) return held;
   const folder = (await ensureFolderPath("Actor", [bookLabel(bookId), "Creatures"], lineOf(bookId)))?.id ?? null;
@@ -5753,7 +5853,7 @@ async function importRegionRow({ bookId, id, e, region }, tally, run) {
   const role = e.meta?.role ?? "";
   const parentUuid = place?.uuid ?? "";
 
-  // A forced repair writes this row's block over in place on the place it
+  // A repair writes this row's block over in place on the place it
   // shares (`blockTarget`); what a Judge changed there is held (`rowBlockPatch`).
   const block = blockTarget(id);
   if (block) {
@@ -6109,7 +6209,7 @@ export async function cookbookImportFactions({ books = null } = {}) {
         const place = await importedActor(placeId);
         if (place && !holdings.some((h) => h.uuid === place.uuid)) holdings.push({ uuid: place.uuid, name: place.name });
       }
-      // A body a forced repair holds is built again and written over (`withRewrite`).
+      // A body a repair holds is built again and written over (`withRewrite`).
       // Presence and every write below ask the library's own document: a copy a
       // map brought across answers the links above, never this.
       let faction = isRewriting(id) ? null : await importedActor(id, { copies: false });
@@ -6202,21 +6302,22 @@ export async function cookbookImportFactions({ books = null } = {}) {
     bar.finish();
   }
   if (!counts.made && !counts.already && counts.refused) {
-    return ui.notifications.warn(`${MODULE_ID} | organisations: ${counts.refused} page(s) did not match the cookbook (different printing?) — none written.`);
+    return ui.notifications.warn(`${MODULE_ID} | ${game.i18n.format(`${LANG_PREFIX}.ui.repairMergedOrgsNoneWritten`, { n: counts.refused })}`);
   }
+  const part = (key, n, always = false) => (n || always ? game.i18n.format(`${LANG_PREFIX}.ui.${key}`, { n }) : "");
   const parts = [
-    `${counts.made} faction(s) created`,
-    counts.rewritten ? `${counts.rewritten} written over` : "",
-    counts.already ? `${counts.already} already held` : "",
-    counts.rostered ? `${counts.rostered} member(s) rostered` : "",
-    counts.related ? `${counts.related} relation(s) written` : "",
-    counts.relationsKept ? `${counts.relationsKept} kept their relations` : "",
-    counts.counted ? `${counts.counted} given their strength` : "",
-    counts.figuresKept ? `${counts.figuresKept} kept their figures` : "",
-    counts.missing ? `${counts.missing} member(s) not yet imported` : "",
-    counts.refused ? `${counts.refused} skipped (page did not match the cookbook)` : "",
+    part("repairMergedOrgsCreated", counts.made, true),
+    part("repairMergedOrgsRewritten", counts.rewritten),
+    part("repairMergedOrgsAlready", counts.already),
+    part("repairMergedOrgsRostered", counts.rostered),
+    part("repairMergedOrgsRelated", counts.related),
+    part("repairMergedOrgsRelationsKept", counts.relationsKept),
+    part("repairMergedOrgsCounted", counts.counted),
+    part("repairMergedOrgsFiguresKept", counts.figuresKept),
+    part("repairMergedOrgsMissing", counts.missing),
+    part("repairMergedOrgsRefused", counts.refused),
   ].filter(Boolean);
-  ui.notifications.info(`${MODULE_ID} | organisations: ${parts.join(", ")}.`);
+  ui.notifications.info(`${MODULE_ID} | ${game.i18n.format(`${LANG_PREFIX}.ui.repairMergedOrgsDone`, { parts: parts.join(", ") })}`);
   return counts;
 }
 

@@ -152,6 +152,46 @@ function scope({ answer = true, editedBy = { "doc.a": "Judge text" } } = {}) {
   ok("uniqueEdits keeps the first edit per key", uniqueEdits([{ key: "a", n: 1 }, { key: "b" }, { key: "a", n: 2 }]).map((e) => `${e.key}${e.n ?? ""}`).join() === "a1,b");
 }
 
+/* --- pregenerated characters: listed on pass one, acted on by pass two as answered --- */
+{
+  const log = [];
+  const pass = async (tally, { first }) => {
+    await mergedStep(tally, "people", async () => {
+      log.push(`people:${secondPass(tally) ? 2 : 1}`);
+      if (!secondPass(tally)) {
+        (tally.pregens ??= []).push({ uuid: "Actor.p1", name: "Hero", id: "zz.npc1" }, { uuid: "Actor.p1", name: "Hero", id: "zz.npc1" });
+        return;
+      }
+      const answer = tally.decision?.pregens?.get("Actor.p1");
+      if (answer === "restore") {
+        tally.restored = (tally.restored ?? 0) + 1;
+        (tally.kept ??= []).push("Actor.copy1");
+      }
+      if (answer === "rewrite") tally.rewritten = (tally.rewritten ?? 0) + 1;
+    });
+    await mergedStep(tally, "places", async () => log.push(`places:${secondPass(tally) ? 2 : 1}`));
+    return first ? { scope: "people" } : {};
+  };
+  let offered = null;
+  const restored = await mergedRepair({ pass, choose: async (edits, more) => ((offered = more.pregens), { take: new Set(), pregens: new Map([["Actor.p1", "restore"]]) }) });
+  ok("the chooser is offered each character once, with no edits held", offered?.length === 1 && offered[0].uuid === "Actor.p1");
+  ok("a character answered restore runs pass two over the step that listed it alone", log.join() === "people:1,places:1,people:2", log.join());
+  ok("and is counted restored", restored.restored === 1 && restored.rewritten === 0 && restored.pregens === 1, JSON.stringify(restored));
+  ok("the result carries pass two's kept copies", restored.kept.join() === "Actor.copy1", JSON.stringify(restored.kept));
+  log.length = 0;
+  const rewritten = await mergedRepair({ pass, choose: async () => ({ take: new Set(), pregens: new Map([["Actor.p1", "rewrite"]]) }) });
+  ok("a character answered rewrite is counted rewritten from pass two, and keeps no copy", rewritten.rewritten === 1 && rewritten.restored === 0 && rewritten.kept.length === 0, JSON.stringify(rewritten));
+  log.length = 0;
+  const left = await mergedRepair({ pass, choose: async () => ({ take: new Set(), pregens: new Map([["Actor.p1", "leave"]]) }) });
+  ok("a character left runs nothing more", log.join() === "people:1,places:1" && left.restored === 0 && !("second" in left), log.join());
+  log.length = 0;
+  await mergedRepair({ pass, choose: async () => null });
+  ok("a closed choice leaves it too", log.join() === "people:1,places:1");
+  log.length = 0;
+  const told = await mergedRepair({ pass, decision: "take", choose: async () => assert.fail("asked") });
+  ok("a caller's word decision asks nothing and leaves every character", log.join() === "people:1,places:1" && told.restored === 0);
+}
+
 /* --- a build of another type: the tally's recreate answers the refusal --- */
 {
   const doc = { uuid: "Item.typ0000000001", type: "item", toObject: () => ({ type: "item", system: {} }) };

@@ -61,29 +61,30 @@ questions. Five tabs:
   nothing in the open books to write, resolve null without a notice, as they
   do when a book's rebuild scopes them to that book; run alone, they say what
   is missing. Import everything takes a
-  mode: *Import what is missing* is the chain; Rebuild, Repair in place and
-  Force repair run that mode over every open book and every open adventure
-  book (`cookbookReimportEverything`, `api.reimportEverything(mode)`), asked
+  mode: *Import what is missing* is the chain; each of the other three runs
+  the merged repair (below) over every open book and every open adventure
+  book (`cookbookReimportEverything`, `api.reimportEverything()`), asked
   once. `everything.mjs` runs each part first with an `ask` that records the
   confirm it would show and answers No, which writes nothing because every
   part asks before its first write (`confirmRepair`'s `ask`). That pass runs
   inside `holdingLibrary`, so the library is read once per document type for
-  every part rather than once per part. Under Rebuild, a book or adventure
-  book with nothing of its own to delete does not ask, since the chain that
-  closes the run imports what is missing; under a repair every open book
-  asks, because its repair imports the entries the world lacks. The lines go
-  into one confirm under each part's label, and a Yes runs each part that
-  asked with its confirm answered. A repair closes on the rules tables
-  re-read in place; a rebuild closes on the whole chain, which lands in its
-  order what the rebuilds emptied.
+  every part rather than once per part. Every open book asks, because its
+  repair imports the entries the world lacks. The lines go into one confirm
+  under each part's label, and a Yes runs each part that asked with its
+  confirm answered, every part under one tally per pass, so the edits all of
+  them held are put to the Judge together. The first pass closes on the
+  rules tables re-read in place; each adventure book's Adventure is written
+  once, after the last pass.
 - **Rebuild** — the shelf, book and rules-table options of
-  `rebuildOptions()` under a mode, run by `runRebuildPick(value, mode)`. The
-  Reimport One Shelf dialog draws from the same two functions, so the two
-  surfaces can never offer different things.
+  `rebuildOptions()`, run by `runRebuildPick(value)`: a shelf or a book runs
+  the merged repair, the rules tables are re-read in place. The tab's Mode
+  select is still drawn and is ignored. The Reimport One Shelf dialog draws
+  from the same two functions, so the two surfaces can never offer different
+  things.
 - **Adventures** — each adventure book open on this seat (`adventureBooks()`,
-  each with its `bookCensus`): Rebuild, Repair and Force repair run
-  `cookbookReimportAdventure` in its three modes (below), Write Adventure runs
-  the adventures step for that book alone.
+  each with its `bookCensus`): its three repair buttons all run
+  `cookbookReimportAdventure` (below), Write Adventure runs the adventures
+  step for that book alone.
 - **Tools** — the entry picker, the audit, the repair window on the
   importer's checks (every check where it registers none), the merchandise
   build, overhead token art (below) and Remove All Imports.
@@ -91,36 +92,87 @@ questions. Five tabs:
 One run at a time: the window names what runs in a status line and disables
 its buttons until the run resolves, then re-renders.
 
-## A forced repair
+## The merged repair
 
-Repair in place (`refreshImported`, DECISIONS 2026-09-24) writes a fresh read
-over a held document and keeps what play or a Judge set. A **forced repair**
-(`mode: "force"` on `cookbookReimportShelf`, `cookbookReimportBook`,
-`runRebuildPick` and the entry picker; the third option of every Mode select
-and of the Rebuild tab) writes the same documents with one guard lifted: the
-**hand-written prose guard**. `repairTally({force: true})` carries the flag
-through the runs that already carry a tally; `policyFor(policy, tally)` adds
-`force: true` to the `REPAIR` policy a write goes under, and `refreshPlan`
-then skips its `prose` and `proseFlags` loops, so a description or a monster's
-prose field a Judge wrote in is rewritten like a stamped one and `keptProse`
-stays empty. `cookbookUpdateAbilities` reads `repair.force` for a flagged
-ability the same way (`annotated` is false), and does not ask its collision
-dialog: the name-adopted documents it would have asked about are counted in
-`tally.handMade`, left as they are. `refillMonster(actor, {whole, force})`
-takes the same flag for a stat-block monster. The forced adventure repair
-alone carries a `decision` beside the flag, which holds a Judge's edit to its
-people and places rather than writing over it (below).
+Every rebuild control runs one repair: a shelf (`cookbookReimportShelf`), a
+book (`cookbookReimportBook`), the entry picker's ticked entries, an adventure
+book (`cookbookReimportAdventure`) and everything
+(`cookbookReimportEverything`). Each writes a fresh read over what the world
+holds of its scope in place (`refreshImported`), under the id each document
+holds, imports what the world lacks, and deletes nothing first. A `mode` an
+API caller passes is ignored and named on the console (`ignoredMode`).
 
-Each of the three repair entry points (`repairShelf`, `repairBook`,
-`repairEntries`) asks its own confirm when forced, under its own title
-(`ui.forceTitle`), with the count of documents it will write and a closing
-line of what is still kept (`ui.forceKeeps`); it is `DialogV2.confirm` with
-`rejectClose: false`, so No and closing the window both answer false and the
-tally, the runs and the notice are never reached. The result carries
-`mode: "force"` and `handMade`.
+**Two passes** (`mergedRepair`, `merged-repair.mjs`, Foundry-free; `runMerged`
+in cookbook.mjs drives it and reports it once). The scope asks its confirm
+(`confirmRepair`, titled `ui.repairMergedTitle`, `DialogV2.confirm` with
+`rejectClose: false`: No and closing write nothing), then pass one runs under
+the decision "keep" (`mergedTally`): every writer writes what the page gives
+and holds each Judge's edit it meets in `tally.edits` (`heldEdit`: document,
+field, stored and page values, page reference, `unstamped` where the value
+predates its read stamp), and `repairPregens` lists each pregenerated
+character in `tally.pregens`. Where either list holds anything, the Judge
+answers in the choice dialog (`chooseHeldEditsDialog`). A decision that takes
+no edit and leaves every character ends the repair there. Otherwise pass two
+runs under it on a fresh tally, and only the steps pass one named
+(`mergedStep`, `tally.edited`), so a delete-and-reimport or a rules-table
+re-read is never run twice. The notice (`reportMerged`) counts what was
+written, the edits taken and kept, what was made again as another type
+(`recreateUnderId`) and what was left, and the characters restored, rewritten
+and left; the edits still standing go to the console.
 
-**What a forced repair still does not write**, each kept because the import
-does not own it or has nothing to write from:
+An API caller may answer in the Judge's place. `decision` (a word, `"keep"` or
+`"take"`, or `{take, keep, all}` by edit key, read by `decides`) answers
+before anything is held, so one pass runs, which acts on no character.
+`choose(edits, {pregens})` answers as the dialog does, characters included.
+
+**The choice dialog** (`apps/held-edits-dialog.mjs`). One frame per document,
+a row per edit: the value the document holds beside the page's (a list or a
+strength table by its row count, prose without its markup, cut to a cell with
+the longer form in the tooltip), the unstamped mark, and a take box keyed by
+the edit. Each value's tooltip says where it came from: the document, or the
+page reference it was read from. A frame of pregenerated characters follows,
+each with its note and a select of `PREGEN_ANSWERS`. Apply takes the ticked
+edits; Take all and Keep all take every edit or none, and are offered only
+where edits are listed; every button reads the character selects. Closing
+answers `"keep"` and leaves every character.
+
+**Pregenerated characters** (`repairPregens`). Pass one never writes a
+character the library holds; it lists it. A copy dragged out of the library, a
+player's character and a template part are never listed. Pass two acts on each
+as answered: `restore` keeps the character under a new id (`keepUnderNewId`:
+same pack and folder, its cookbook claim and play stamp taken off, `keptFrom`
+recording the claim and uuid it came from, named "(kept)"), removes it, and
+imports the book's again under the cookbook id; `rewrite` writes the book over
+it in place under the decision (the rewrite scope, below); `leave` does
+nothing. The default offered comes from the **play stamp** (`playStamp`,
+`held-edits.mjs`): a checksum the character importer records in
+`flags.acks-extras.playStamp` after its last write, over the actor's name and
+`system` (the biography included) and each embedded item's name, type and
+`system`, the items sorted. Ids, `_stats`, ownership, sort, folder, flags and
+effects are outside it. A stamp that differs, or none, marks the character
+`changed` and offers restore; an equal one offers leave, with the note that it
+matches what was imported (`pregenDefault`, `pregenNoteKey`). A rewrite
+re-stamps, since the importer runs again over it. A refused copy leaves the
+character whole; a re-import that makes nothing, or a rewrite that throws, is
+counted in `pregenRefused`, the copy standing. The result carries `pregens`,
+`restored`, `rewritten`, `pregenRefused` and `kept`, the copies' uuids.
+
+**Out of scope.** A document of a book the module no longer offers
+(`offeredHere`) is passed over: nothing is asked or written for it, and it is
+counted in `notOffered`. A document whose book is not open on this seat is
+left and counted.
+
+**Organisations' relations.** Under the rewrite, a body's relations that no
+longer hold the page's are an unstamped edit (`keepsJudgeFigure`), kept unless
+taken; the organisations notice counts the bodies that kept theirs.
+
+`repairTally({force: true})` and `policyFor` remain the runs' internal flag for
+lifting the hand-written prose guard (`refreshPlan` skips its `prose` and
+`proseFlags` loops; `cookbookUpdateAbilities` and `refillMonster` read it too).
+No control sets it.
+
+**What the repair does not write**, each kept because the import does not own
+it or has nothing to write from:
 
 - a document the import did not make: an unflagged item or actor, a
   name-adopted ability, an embedded effect or attack without `minted`, a
@@ -135,15 +187,15 @@ does not own it or has nothing to write from:
 - a document with nothing to be written from: its book is not open on this
   seat, its page no longer matches, a monster entry that claims no stats, a
   build of another document type, a write Foundry rejects;
-- an item a Judge gave a pregenerated character: a forced repair of the
-  character (below) lands what its sheet import grants that it lacks and keeps
-  what it holds, and an unforced repair leaves the character as it stands;
+- an item a Judge gave a pregenerated character: a rewrite of the character
+  (below) lands what its sheet import grants that it lacks and keeps what it
+  holds;
 - a document whose row the page no longer yields (a vehicle or merchandise
   row, a creature the page dropped): there is nothing to write from, so it is
   counted as refused or left.
 
 **Every other kind has an in-place write**, under the same guards, in the two
-shapes below. A forced repair differs from a repair only in the prose guard.
+shapes below.
 
 **The rewrite scope.** A monster template or family, an NPC, a legacy block and
 an OSE creature are built by importers whose build is also what they create.
@@ -158,7 +210,7 @@ policy from the build: the flags the build stamps, its token, its embedded
 items as `minted`, and a biography. A held document nothing wrote is counted
 as left when the scope ends. `repairActors` is the one entry that classifies
 monster-shelf entries (`monsterRepair`: stat-block monsters refill, the rest
-rewrite, a pregenerated character rewrites only under a forced tally) and runs
+rewrite, a pregenerated character is left to `repairPregens`) and runs
 the scope, once per document a claim has (`claimerPasses`), so two documents
 claiming one id are both written; a row beneath the id that another kind owns
 is left and counted, and an entry is built only in a pass that holds its own
@@ -185,13 +237,14 @@ a shelf and a book to the importers that rebuild its rows, and `isTableRow`
 tells a shelf's repair which documents are rows. A row of a table whose book is
 not open on this seat is left.
 
-**What a rebuild deletes.** A shelf rebuild, a book rebuild and the entry
-picker's rebuild delete a library document only where `rebuildable` allows it
-(`rebuild-guard.mjs`): a loaded owner re-creates the claim (an entry of a loaded
-cookbook, an OSE generator whose book's cookbook is loaded, or the recipe of the
-table a row is read from, `TABLE_BOOKS`), that claim's book is open on this
-seat, and the book is in `BOOKS`. A document refused is left standing and
-counted (`kept` on a shelf, `left` on a book, `refused` on the picker).
+**What a repair deletes.** The entry picker deletes and imports again an entry
+no run writes in place (`repairEntries`), and only where `rebuildable` allows
+it (`rebuild-guard.mjs`): a loaded owner re-creates the claim (an entry of a
+loaded cookbook, an OSE generator whose book's cookbook is loaded, or the
+recipe of the table a row is read from, `TABLE_BOOKS`), that claim's book is
+open on this seat, and the book is in `BOOKS`; an entry refused is left
+standing and counted. A character's restore removes it only once its copy
+stands, inside a scope whose book is open here.
 
 **The kind declaration.** `IMPORT_KINDS` (`cookbook.mjs`) declares every family
 of document the importer makes: the entry picker's sources (`ENTRY_SOURCES`),
@@ -210,39 +263,30 @@ an adventure book's own rows as one `runAdventureBookSteps`, so no document is
 counted by two runs. No command calls it yet; `test-import-kinds.mjs` holds each
 scope's answer to what the shelf, book, adventure and entry rebuilds call.
 
-## An adventure book, rebuilt or repaired
+## An adventure book, repaired
 
-`cookbookReimportAdventure(bookId, {mode})` treats one Judge's book as a
-unit, as `cookbookReimportBook` treats a book's shelf items.
-
-**Rebuild** (`mode: "drop"`) deletes every Actor, RollTable, JournalEntry and
-Item the book's stamp names (`bookDocuments`, both the library's copy and
-the world twin it is filed under, `adventureDropRows`) and the book's
-Adventure off its shelf, forgets the import index, then runs the book's
-steps again. Not deleted: the book's maps, which the scenes step refreshes in
-place (`repairHeldMap`) and which carry the Judge's regions, fog and tokens;
-a copy dragged out of the library (`isWorldCopy`); a character a player owns
-(`playersCharacter`); a document another book owns that merged one of this
-book's ids. What comes back stands under the ids it had: `deleteImported`
-records every removed document's id by type and cookbook id, and
-`createDoc`/`createDocs` settle every type's id through `itemIds` (the
-record, else `stableDocId`, else core's), so a map's pins and an
-organisation's seats resolve again.
-
-**Repair** (`mode: "repair"`) deletes nothing: the same steps run, each
-passing over what the world holds, and the adventures step runs with
-`force`, which `bookAdventureState` reads as stale whatever the stamp says,
-so the Adventure is written anew, a Judge's edit to it included.
-
-**Force repair** (`mode: "force"`) is Repair that also writes, in place, what
-the world already holds of the book's own: its creatures and people
-(`repairActors`, through the rewrite scope above), the items it introduces and
-its roll tables (`rewriteTable`: formula, description, results). The items,
-the roll tables and the stat-block monsters (`refillMonster`) go under a
-forced tally, so a description a Judge wrote in is replaced; the other
-creatures and people go under the step's `decision`, which holds a Judge's
-edit instead (below). Journals and the
-Adventure are already refreshed by Repair, and maps by their step. **Places and
+`cookbookReimportAdventure(bookId)` repairs one Judge's book as a unit, as
+`cookbookReimportBook` repairs a book's shelf items, through the merged
+repair above. It deletes nothing: the book's steps run under each pass's tally
+(`runAdventureBookSteps` with `force`), importing what the world lacks and
+writing over, in place, what the world holds of the book's own: its creatures
+and people (`repairActors`, through the rewrite scope above; the stat-block
+monsters by `refillMonster`), the items it introduces and its roll tables
+(`rewriteTable`: formula, description, results), each under the pass's
+decision, so a description a Judge wrote in is held. Its pregenerated
+characters are put to the Judge (`repairPregens`). Journals are refreshed by
+their step and maps by theirs (`repairHeldMap`, which keeps the Judge's
+regions, fog and tokens). The adventures step runs once, after the last pass,
+with `force`, which `bookAdventureState` reads as stale whatever the stamp
+says, so the Adventure is written anew, a Judge's edit to it included. Not
+touched: a copy dragged out of the library (`isWorldCopy`), a character a
+player owns (`playersCharacter`), and a document another book owns that merged
+one of this book's ids. Where a document is removed and made again (a
+character's restore), it stands under the id it had: `deleteImported` records
+every removed document's id by type and cookbook id, and
+`createDoc`/`createDocs` settle every type's id through `itemIds` (the record,
+else `stableDocId`, else core's), so a map's pins and an organisation's seats
+resolve again. **Places and
 organisations** are written over through the same scope: `bodyRowIds` lists the
 book's keyed places, points of interest, region sites that stand as their own
 place, and organisations; the places and organisations step each run inside a
@@ -272,23 +316,20 @@ name with `printed`. A block with no checksum yet that differs from the page
 is held too, marked `unstamped` (the Judge's edit and the page's change look
 alike there); one equal to the page is stamped. A missing block is held where a
 checksum was recorded, or where the notes hold anything but the place's
-erratum notes (the Judge's text, another row's block), which keeps a forced
-repair to the one row an import writes onto such a place. A whole-build write
+erratum notes (the Judge's text, another row's block), which keeps a repair
+to the one row an import writes onto such a place. A whole-build write
 (`decidedPolicy`) treats prose the unforced plan would keep as hand-written as
 the edit, a place's notes included, and a pregenerated character's biography,
-written after its create, asks the same decision (`keepsJudgeProse`). Each is
-returned in the result's `edits` (`heldEdit`: document, field, stored and page
-values, page, `unstamped` where so) and written only where the caller's
-`decision` takes it (`decides`); none keeps them all. **Market profiles** run with the forced tally:
-`marketProfileUpdate`'s `force` writes the class and the family count over what
-a place holds and the base demand over any base but one a later printing wrote
-(`baseIsForceable`). Its confirm counts the documents by kind
+written after its create under a rewrite, asks the same decision
+(`keepsJudgeProse`). Each is returned in the result's `edits` and written only
+where the decision takes it. **Market profiles** are written under the
+decision (`marketTakes`): a class, a family count or a base demand the place
+holds differently from the page is an unstamped edit, held unless taken. The
+confirm (`ui.repairMergedAdventureConfirm`) counts the documents by kind
 (`adventureForceCensus`, places and organisations apart, a place one of the
 book's rows writes text onto (`placeBlockRows`) counted among the places
-whichever book holds it), says the market
-profiles are written onto the places, names what is left, and closes on what is
-kept; Cancel writes nothing. The result carries `mode: "force"` and the repair
-counts.
+whichever book holds it), says the market profiles are written onto the
+places, names what is left, and closes on what is kept; No writes nothing.
 
 The steps (`runAdventureBookSteps`) are the chain's that read an adventure
 book, narrowed to it in the chain's order: its monsters and people the world
@@ -301,8 +342,7 @@ runs (`cookbookImportJournals`, `cookbookImportPoiPlaces`,
 `cookbookImportScenes`, `cookbookImportAdventures`) each take `{books}` and
 return their empty counts quietly when the books named hold nothing for them.
 One failed step is logged and reported; the rest run. The result is
-`{book, mode, removed, steps, errors}`, with the repair counts and `edits` on
-a forced repair.
+`mergedRepair`'s, with the first pass's `book`, `steps` and `errors`.
 
 ## A settlement's map
 

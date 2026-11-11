@@ -13,8 +13,9 @@
  * the experience priced from each class's build where the world holds the JJ
  * builder tables, by structure only. Step 4 types an experience figure and a
  * title into one level, as a Judge copying the page would, and repairs
- * through the book repair's own gesture, its confirm answered yes by the
- * walk; a priced figure replaces the typed one, the title stays. Teardown sweeps the ledger and empties a shelf
+ * through the book's merged repair, its confirm answered yes by the walk and
+ * its choice, where one is put, answered as keep; a priced figure replaces the
+ * typed one, the title stays. Teardown sweeps the ledger and empties a shelf
  * this run opened. Every id printed is a cookbook id; the typed figure and
  * title are the walk's own, and no book word or number leaves the page.
  */
@@ -148,20 +149,19 @@ const P = {
     const n = await acksExtras.importer.cookbookUpdateClasses({ only: new Set(only), confirm: false, repair: tally });
     return { rewritten: n, tally: H.RF.repairCounts(tally) };
   },
-  /** The book repair's own gesture, its confirm answered yes for the walk and the dialog restored after. */
+  /**
+   * The book repair, its confirm answered yes in the walk's place (`ask`) and its choice answered
+   * through `choose` as the Judge's dialog answers it, keeping every edit and leaving every character.
+   */
   repairBook: async () => {
     const H = globalThis.__cr;
     H.notes.splice(0);
-    const D = foundry.applications.api.DialogV2;
-    const orig = D.confirm;
     let asked = 0;
-    D.confirm = async () => { asked++; return true; };
-    try {
-      const r = await acksExtras.importer.cookbookReimportBook("cat", { mode: "repair" });
-      return { result: r, asked };
-    } finally {
-      D.confirm = orig;
-    }
+    const r = await acksExtras.importer.cookbookReimportBook("cat", {
+      ask: async () => { asked++; return true; },
+      choose: async () => "keep",
+    });
+    return { result: r, asked };
   },
   restore: async () => {
     const H = globalThis.__cr;

@@ -287,6 +287,14 @@ const P = {
     const confirm = await wait((a) => a !== picker && !!a.element?.querySelector('button[data-action="yes"]'));
     if (!confirm) return { picker: true, row: true, confirm: false };
     confirm.element.querySelector('button[data-action="yes"]').click();
+    // The repair may put its choice once its first pass has run; closed, it keeps every edit and leaves every character.
+    (async () => {
+      for (let n = 0; n < 2400 && !globalThis.__icRebuild.done; n++) {
+        const chooser = find((a) => !!a.element?.querySelector(".acks-extras-held-list"));
+        if (chooser) await chooser.close();
+        await new Promise((r) => setTimeout(r, 250));
+      }
+    })();
     return { picker: true, row: true, confirm: true };
   },
   rebuildState: async () => globalThis.__icRebuild,

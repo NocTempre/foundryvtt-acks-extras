@@ -187,6 +187,7 @@ globalThis.Folder = {
 let confirms = 0;
 let answer = true;
 const asked = [];
+const chooserShown = [];
 globalThis.foundry = {
   utils: {
     fetchJsonWithTimeout: async (url) => fetched(url),
@@ -196,7 +197,8 @@ globalThis.foundry = {
     mergeObject: (a, b) => ({ ...structuredClone(a), ...structuredClone(b) }),
     setProperty: (obj, path, value) => applyUpdate(obj, { [path]: value }),
   },
-  applications: { api: { DialogV2: { confirm: async (opts) => (confirms++, asked.push(opts), answer) } } },
+  // The repair's choice dialog (`wait`) is closed unanswered, which keeps every edit.
+  applications: { api: { DialogV2: { confirm: async (opts) => (confirms++, asked.push(opts), answer), wait: async (opts) => (chooserShown.push(opts), null) } } },
 };
 
 /* --- the book --------------------------------------------------------------------------- */
@@ -322,6 +324,8 @@ const onShelf = (cbId) => shelf.docs.find((d) => d.getFlag(MODULE_ID, "cookbook"
   const byBook = await cookbookReimportBook(BOOK);
   ok("the book repair asks once and runs the items step", confirms === 1 && !!byBook?.refill?.cookbookImportAdventureItems, JSON.stringify(byBook));
   ok("it replaced both items, refused none and held the one edit", byBook.mode === "repair" && byBook.replaced === 2 && byBook.refused === 0 && byBook.held === 1, JSON.stringify(byBook));
+  ok("with no caller's choice, the Judge is asked about the edit once, and closing it keeps the edit",
+    chooserShown.length === 1 && chooserShown[0].content.includes("<code>system.description</code>") && byBook.taken === 0, `${chooserShown.length}`);
   ok("and the price is the build's again", one.system.cost === 0 && two.system.cost === 0);
 
   /* --- the merged repair: an edit is held, and written only where it is taken ---------- */
