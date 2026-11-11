@@ -850,10 +850,47 @@ variation's own storage get rendered without being shipped: a definition
 declares its fields as data and one renderer builds the form. A spec naming a
 kind this version cannot render is reported by name rather than dropped.
 
+## Weapon rows not imported — what every reader does
+
+Every reader of the weapon table asks the weapon seam, and the seam answers
+empty where no rows are registered, so each reader has a defined answer for a
+weapon, a size or a class nothing imported states. Undecided never penalises.
+
+- `classifyWeapon` states `size` and `cat` as null and the die as "" where
+  nothing states them: not the item (a flag, the system's own field, its die)
+  and not a row. Only a weapon no row places, while the table holds rows,
+  keeps the module's long-standing medium, class `other` and `1d6` (`unplaced`).
+  A row that leaves a figure out leaves it unstated.
+- `grantVerdict(token, profile)` is true, false, or null where the figure the
+  token asks of the profile is not imported (a size grant against no size, a
+  class grant against no class, a weapon name when the table holds no rows).
+  `grantMatches` is the true case. `isWeaponProficient` reads a weapon that
+  no grant covers and some grant cannot decide as proficient, except for the
+  Training pills (`grantsOnly`), which light only for a grant that covers it.
+  `weaponProficiencyDecided` names the undecided state for a surface. A token
+  outside the grammar is still false, never null, while the table holds rows.
+- A size nothing states is one hand: `handCost` is 1 for either grip,
+  `canOneHand` is true, and the Auto grip is `1h`.
+- `weaponUnits()` is empty with no rows, `canonicalGrant` of no units is "",
+  never `all`, and a grant covers nothing.
+- `readiedWeaponData` readies a torch only from a torch row and states that
+  row's die and type; a row that states neither readies one with neither.
+- `annotateItem` writes a weapon's identity and then only what its row states:
+  a size the row has, a damage type it has, and the two uses with `handy` and
+  `thrown` only from a row that states a use.
+- `ready` awaits `rowsReady()` before the first loadout sync.
+- A container that declares `gear.holds` and no capacity is a container with no
+  limit: `holdsGear` is true, `capacityStated` false, `containerReport` says
+  `capacityUnimported`, and the equipment tab's header says so.
+- The item sheet's Construction panel words each weapon figure's tooltip as one
+  of three states (`weapon-figures.mjs`): declared on the item, read from the
+  weapon row with its page, or not imported with no number.
+
 ## Training units and organisations — `training-view.mjs`
 
-The grant grammar above is read one more way: as ATOMIC UNITS. `WEAPON_UNITS`
-is every weapon of `config.mjs` as `{key, token, name, cat, size, melee,
+The grant grammar above is read one more way: as ATOMIC UNITS. `weaponUnits()`
+(and `WEAPON_UNITS`, a read-only array view of it that follows the table)
+is every weapon the weapon seam holds as `{key, token, name, cat, size, melee,
 missile, icon, profile}` — `token` is what a control for that weapon alone
 writes (the bare key, or `weapon:<key>` where the bare key is also a category:
 `crossbow`), `profile` the shape `grantMatches` reads. `TRAINING_VIEWS` are the

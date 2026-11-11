@@ -1174,3 +1174,61 @@ the imported documents").
 ### Teardown
 
 The kept sword stays; re-import the variations if step 3 removed them.
+
+## Weapon rows not imported
+
+Every weapon reader answers when the weapon table holds no rows (MODEL,
+"Weapon rows not imported — what every reader does"). The world's table is
+the shipped one today, so the empty case is reached by registering an empty
+source through the seam for the length of the check.
+
+### Fixtures
+
+- **Kept, `equipment/weapon-nulls-actor`**: a character the Player seat owns,
+  with an invented melee weapon, a container that states a capacity
+  (`flags["acks-extras"].gear.capacity`), a container that only declares it
+  holds gear (`gear.holds`, no capacity) and a one-token weapon-proficiency
+  list (`small`). Found by its marker; built from those items when nothing
+  carries it. Each run's shape step declares the weapon's type
+  (`setWeaponProfile`) to a row that states a class and a size, clears any
+  declared class, size or grips, and puts the gear records back.
+- **The source is the subject of step 3.** `registerWeaponSource` returns the
+  source it replaced; keep it and put it back in a `finally`, then assert the
+  restore by the same first row object and the same key count, not by a flag.
+
+### Steps
+
+1. Reload each seat under the boot recorder
+   (`Page.addScriptToEvaluateOnNewDocument`; `connect()` itself hooks after
+   `ready`). *Observable:* `init`, `setup` and `ready` all ran, and no error
+   recorded names equipment, the weapon seam or `rowsReady`.
+2. With the shipped table registered, open the weapon's item sheet fresh (close
+   it, render it again) and the character's sheet on its Equipment tab, on
+   both seats. *Observable:* the construction panel is in the Details part,
+   and the Rolls rows render. The class, size and grips rows each carry the
+   *read from the weapon table's row* tooltip as `data-tooltip-text` on the
+   row, never on the select (a select disabled until the sheet is armed raises
+   no pointer events); the type row carries the *set on this item* one. No
+   "not imported" text in the notes, the class and size rows, the Rolls lines
+   or the Rolls tags. The container that states a capacity shows it and no
+   note; the one that only holds gear reads *capacity not imported* with the
+   explanatory tooltip.
+3. Register an empty source, and render a fresh item sheet and a fresh
+   character sheet inside the one `try`. *Observable:* the type note says no
+   table is imported, the grips note says the size is not imported, the class
+   and size rows read *not imported*, all four figures carry the *not
+   imported* tooltip, and a Rolls row carries *Proficiency not imported*
+   instead of a refusal. The character sheet still renders the weapon and
+   both containers.
+4. After the `finally`. *Observable:* the first row is the same object, the key
+   count is the one found, and a fresh item sheet reads from the row again.
+5. *Observable:* no console error on either seat over the whole walk.
+   `tools/live/equipment-weapon-nulls.mjs` walks steps 1 to 5. What it
+   cannot reach: a Judge-edited row that omits one field (the unit
+   suites cover it), a table that finishes loading after `ready`, and the
+   Training pills, which are the character sheet's `stats` tab.
+
+### Teardown
+
+The kept actor stays. The walk writes nothing else; its sweep is empty and is
+printed.

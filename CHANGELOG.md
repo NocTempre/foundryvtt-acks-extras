@@ -81,6 +81,14 @@
 
 ### Changed
 
+- **A weapon with no table says so.** Open a weapon's item sheet (character
+  sheet → Equipment tab → the weapon): the Details tab's type, class, size and
+  grips rows say in their tooltips where each figure came from (set on the
+  item, read from the weapon table's row, or not imported), and read "not
+  imported" when nothing states it, where a stand-in figure stood before. The
+  Rolls tab shows "Proficiency not imported" instead of marking the weapon
+  non-proficient. On the character sheet's Equipment tab, a container that
+  holds gear but states no capacity reads "capacity not imported".
 - **Force repair keeps what a Judge changed.** Import manager → Adventures
   tab → Force repair now writes a book's places and people in place. Text you
   added to or changed on a place, a person or a template creature stays as it

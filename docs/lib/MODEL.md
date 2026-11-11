@@ -1150,9 +1150,12 @@ dragged out of a hold onto such a sheet
 
 ### Capacity
 
-`capacityOf(item)` is stone, or `null` for "holds nothing". It reads
+`capacityOf(item)` is stone, or `null` when the item states no capacity. It reads
 `gear.capacity` first and the legacy `container.capacity` second, so worlds
 annotated before the concept moved answer correctly with nothing to migrate.
+Null is not "holds nothing": an item that declares `gear.holds` is a
+container whose size is not imported, so `holdsGear` is true for it,
+`capacityStated` false, and it counts no limit.
 
 **It is not a container property.** While capacity lived inside the equipment
 feature's container record, only items that feature recognised as carrying

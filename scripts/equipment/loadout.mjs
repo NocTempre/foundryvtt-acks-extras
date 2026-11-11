@@ -10,7 +10,7 @@ import { STYLE } from "./config.mjs";
 import { classifyWeapon, handCost, inferStyle, isHelmet, isShield } from "./profiles.mjs";
 import { collectStringFlags, sumEffectModifiers, hasEffectFlag } from "./effects.mjs";
 import { EFFECT_DOMAINS } from "./constants.mjs";
-import { weaponProficiency, isWeaponProficient, armorMax, isArmorProficient, thiefSkillsGated, enforcementActive } from "./proficiency.mjs";
+import { weaponProficiency, isWeaponProficient, weaponProficiencyDecided, armorMax, isArmorProficient, thiefSkillsGated, enforcementActive } from "./proficiency.mjs";
 import { occupiesHand } from "./overlays/shield-variants.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
 import { abilityGrants } from "../lib/proficiency-strip.mjs";
@@ -245,6 +245,9 @@ export function getLoadout(actor, opts = {}) {
       melee: profile.melee,
       missile: profile.missile,
       proficient: isWeaponProficient(actor, profile, wprof),
+      // False where the grants cannot say: a figure they ask of this weapon is
+      // not imported, so `proficient` is an absence of refusal, not a verdict.
+      proficiencyDecided: weaponProficiencyDecided(actor, profile, wprof),
     };
   });
 

@@ -32,7 +32,7 @@ import { registerManagedEffect, managedDelete } from "../lib/managed-effects.mjs
 import { expectTables } from "../lib/tables.mjs";
 import { registerEquipmentRepairChecks } from "./repair-checks.mjs";
 import { RULEDATA_DOC } from "./overlays/scavenged.mjs";
-import { registerWeaponRows } from "./weapon-rows.mjs";
+import { registerWeaponRows, rowsReady } from "./weapon-rows.mjs";
 
 
 Hooks.once("init", () => {
@@ -155,6 +155,9 @@ Hooks.once("ready", async () => {
   // the window `primaryResponder` names, which a window still joining its
   // seat's election is not, so both wait for the election to settle.
   await automationSettled();
+  // The loadout reads weapon rows, and the rows publish when the library has
+  // loaded: a read before then answers from rows that are not all in yet.
+  await rowsReady();
   const owned = game.actors.filter((a) => a.type === ACTOR_TYPE.character && a.isOwner);
   for (const actor of owned) {
     refreshLoadout(actor).catch((err) => console.error(`${MODULE_ID} | initial loadout sync failed for ${actor.name}`, err));

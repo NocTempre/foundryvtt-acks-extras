@@ -1761,6 +1761,8 @@
       "fromDocument": "Read from {name}.",
       "byHand": "Set by hand on {name}.",
       "editedByHand": "Edited by hand on {name}; the import read it from {cite}.",
+      "capacityNotImported": "capacity not imported",
+      "capacityNotImportedTip": "This holds gear, but how much is not imported, so no limit is counted. Import it from your own book, or set a capacity on the item.",
       "layerNotImported": "{layer} not imported"
     },
     "strap": {
@@ -1781,6 +1783,12 @@
       "weaponTypeAutoNone": "Auto (unidentified)",
       "weaponTypeNote": "{weapon} — proficiency category {category}, read from the {source}.",
       "weaponTypeNone": "Unidentified: nothing names which weapon this is. Proficiency category, size and damage type fall back to their defaults, so a character trained on this weapon can still be told it is non-proficient. Pick the type above.",
+      "weaponTypeNoTable": "No weapon table is imported, so nothing can name which weapon this is. Its class and size are not imported: proficiency treats them as undecided and does not penalise this weapon, and its hands count as one. Import the weapon table from your own book, or pick the type above.",
+      "figureDeclared": "{figure}: set on this item, which outranks the weapon table.",
+      "figureFromRow": "{figure}: read from the {weapon} row of the weapon table ({cite}).",
+      "figureFromRowNoPage": "{figure}: read from the {weapon} row of the weapon table.",
+      "figureMissing": "{figure}: not imported, so no figure is shown. Import the weapon table from your own book, or set it on this item.",
+      "gripsAutoNoSize": "Auto: {grips}; the size is not imported, so the hands are unknown and count as one.",
       "weaponTypeSource": {
         "flag": "type set here",
         "mint": "imported weapon row",
@@ -2105,6 +2113,7 @@
         "range": "range {range}",
         "mod": {
           "nonProficient": "Non-proficient",
+          "proficiencyNotImported": "Proficiency not imported",
           "noShield": "No shield",
           "trickery": "Combat Trickery",
           "gloved": "Gloves block it",

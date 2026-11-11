@@ -23,7 +23,7 @@ import { isHelmet, isShield } from "./profiles.mjs";
 // go through it. `isStowable` is where coin's missing cost/weight6 is
 // reconciled: coin is goods without being physical, so asking `isPhysical`
 // here loses it.
-import { weight6Of, coreWeight6Of, sumWeight6, bundleSizeOf, isCurrency, perStoneOf, isStowable, isWorn, isClothing, isAmmoItem, gearOf, capacityOf, holdsGear, reliefOf, STONE, containedIn, contentsOf, contentsWeight6, isLocked } from "../lib/item-model.mjs";
+import { weight6Of, coreWeight6Of, sumWeight6, bundleSizeOf, isCurrency, perStoneOf, isStowable, isWorn, isClothing, isAmmoItem, gearOf, capacityOf, capacityStated, holdsGear, reliefOf, STONE, containedIn, contentsOf, contentsWeight6, isLocked } from "../lib/item-model.mjs";
 import { kindsOf, acceptsKinds, cleanAccepts } from "./item-sheet/accept-kinds.mjs";
 import { itemBaseType } from "./variation-items.mjs";
 // Containment READS live in lib now (the capacity primitive needs them, and
@@ -301,6 +301,9 @@ export function containerReport(actor) {
       return {
         item: c,
         capacityStone: cap,
+        // A container that declares it holds gear and states no size: it has
+        // no limit, and its surface says the capacity is not imported.
+        capacityUnimported: holdsGear(c) && !capacityStated(c),
         load6,
         loadStone: load6 / STONE,
         over: cap > 0 && load6 > cap * STONE,

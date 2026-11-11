@@ -529,7 +529,9 @@ function containerHeader(actor, c, onRerender) {
   header.append(icon, el("span", "acks-equipment-wear__bucket-label", c.item.name));
 
   const note = c.capacityStone ? `${st(c.load6)} / ${c.capacityStone} st` : `${st(c.load6)} st`;
-  header.append(el("span", "acks-equipment-wear__bucket-note", note));
+  const noteEl = el("span", "acks-equipment-wear__bucket-note", c.capacityUnimported ? `${note} · ${game.i18n.localize("ACKS-EQUIPMENT.printed.capacityNotImported")}` : note);
+  if (c.capacityUnimported) noteEl.dataset.tooltipText = game.i18n.localize("ACKS-EQUIPMENT.printed.capacityNotImportedTip");
+  header.append(noteEl);
 
   const controls = el("div", "acks-equipment-container__controls");
 

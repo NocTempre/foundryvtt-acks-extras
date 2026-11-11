@@ -482,7 +482,9 @@ export async function setWorn(item, slot = null) {
 /* -------------------------------------------- */
 
 /**
- * How much this item holds, in STONE, or `null` for "holds nothing". Capacity
+ * How much this item holds, in STONE, or `null` when it states no capacity.
+ * Null is not "holds nothing": an item that declares `gear.holds` is a
+ * container whose size is not imported (`holdsGear`). Capacity
  * is a property of GEAR, not of a category called containers — see
  * docs/lib/MODEL.md, "Capacity". Reads the gear model first and the legacy
  * container record second, so worlds annotated before the concept moved keep
@@ -495,8 +497,15 @@ export function capacityOf(item) {
   return Number.isFinite(legacy) ? Number(legacy) : null;
 }
 
-/** Can gear be put inside this at all? */
-export const holdsGear = (item) => capacityOf(item) !== null;
+/**
+ * Can gear be put inside this at all? A stated capacity says so, and so does a
+ * `gear.holds` declaration with none: that container takes gear with no limit,
+ * and a surface says its capacity is not imported (`capacityStated`).
+ */
+export const holdsGear = (item) => capacityOf(item) !== null || gearOf(item).holds === true;
+
+/** Does this container state how much it holds? False for one that only declares it holds. */
+export const capacityStated = (item) => capacityOf(item) !== null;
 
 /**
  * The weight of ordinary equipment a harness relieves its wearer of, in

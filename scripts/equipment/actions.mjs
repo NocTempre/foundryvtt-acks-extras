@@ -34,7 +34,8 @@ function notify(key, data) {
  * The item payload a readied torch becomes — a SINGLE weapon (core weapons have
  * no quantity field), melee AND thrown (so core's range selector offers
  * both a swing and a hurl), flagged a light source. Pure, so a test can assert
- * the shape without Foundry.
+ * the shape without Foundry. Its damage die and type are the weapon table's
+ * row for a torch and nothing else: a table with no torch row readies none.
  * @returns {object|null} null when `item` is not a preparable light-weapon.
  */
 export function readiedWeaponData(item) {
@@ -53,7 +54,7 @@ export function readiedWeaponData(item) {
     type: "weapon",
     img: item.img,
     system: {
-      damage: { base: { formula: klass.damage || "1d4" } },
+      damage: { base: { formula: klass.damage ?? "" } },
       melee: klass.melee ?? true,
       missile: klass.missile ?? true,
       bonus: { attack: 0, damage: 0 },
@@ -63,7 +64,7 @@ export function readiedWeaponData(item) {
       weight6: Number(item.system?.weight6 ?? 0),
     },
     flags: {
-      [MODULE_ID]: { light: true, [ITEM_FLAGS.DAMAGE_TYPE]: klass.damageType || "fire", readied: true },
+      [MODULE_ID]: { light: true, ...(klass.damageType ? { [ITEM_FLAGS.DAMAGE_TYPE]: klass.damageType } : {}), readied: true },
     },
   };
 }

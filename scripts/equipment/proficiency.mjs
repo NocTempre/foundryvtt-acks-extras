@@ -18,7 +18,7 @@
 import { MODULE_ID, ACTOR_FLAGS, EFFECT_DOMAINS, SETTINGS } from "./constants.mjs";
 import { ARMOR_LADDER, ARMOR_GATED_SKILLS, ARMOR_GATE_MAX } from "./config.mjs";
 import { slug, SELECTION_VOCAB, matchSelectionKey } from "../lib/vocab.mjs";
-import { keyForName } from "../lib/weapons.mjs";
+import { keyForName, hasWeaponRows } from "../lib/weapons.mjs";
 import { abilityContributions, abilityGrants, weaponTokenClasses } from "../lib/proficiency-strip.mjs";
 import { collectStringFlags, sumEffectModifiers } from "./effects.mjs";
 
@@ -120,6 +120,40 @@ export function classifyGrantToken(token) {
 }
 
 /**
+ * What one grant token says of one weapon profile: `true` it covers it,
+ * `false` it does not, `null` it cannot say. A token cannot say where the
+ * figure it asks of the profile is not imported: a size grant against a weapon
+ * of no stated size, a category grant against one of no stated class, and a
+ * weapon name or key when the weapon table holds no rows to resolve it by. A
+ * token outside the grammar is `false` while the table holds rows.
+ */
+export function grantVerdict(token, profile) {
+  const t = normalizeGrantToken(token);
+  if (!t) return false;
+  if (t === "all") return true;
+  if (t === "missile:all") return !!profile.missile;
+  if (t.startsWith("melee:")) {
+    if (!profile.melee) return false;
+    return profile.size == null ? null : String(profile.size).toLowerCase() === t.slice(6);
+  }
+  // `weapon:<key>` names ONE weapon even where the bare key is also a category
+  // (`crossbow` is both): the category reading wins on a bare token, so a
+  // writer that means the single weapon says so.
+  const named = (name) => {
+    const key = weaponTokenKey(name);
+    if (!key) return hasWeaponRows() ? false : null;
+    return profile.key === key;
+  };
+  if (t.startsWith("weapon:")) return named(t.slice(7));
+  if (CATEGORY_TOKENS.has(slug(t))) return profile.cat == null ? null : String(profile.cat).toLowerCase() === slug(t);
+  return named(t);
+}
+
+/**
+ * Does one grant token cover one weapon profile? Only a token that says so
+ * does: a token that cannot say (`grantVerdict` null) covers nothing here, and
+ * `isWeaponProficient` is what treats it as undecided rather than as a refusal.
+ *
  * Grant-token grammar for class training (JJ p. 290). A proficiency grant is a
  * CSV of tokens; the class's selection chunks are expressed with these:
  *   all                 unrestricted
@@ -141,21 +175,7 @@ export function classifyGrantToken(token) {
  * everything. The Configure Proficiencies macro warns rather than let that pass.
  */
 export function grantMatches(token, profile) {
-  const t = normalizeGrantToken(token);
-  if (!t) return false;
-  if (t === "all") return true;
-  if (t === "missile:all") return !!profile.missile;
-  if (t.startsWith("melee:")) return !!profile.melee && String(profile.size).toLowerCase() === t.slice(6);
-  // `weapon:<key>` names ONE weapon even where the bare key is also a category
-  // (`crossbow` is both): the category reading wins on a bare token, so a
-  // writer that means the single weapon says so.
-  if (t.startsWith("weapon:")) {
-    const key = weaponTokenKey(t.slice(7));
-    return !!key && profile.key === key;
-  }
-  if (CATEGORY_TOKENS.has(slug(t))) return String(profile.cat).toLowerCase() === slug(t);
-  const key = weaponTokenKey(t);
-  return !!key && profile.key === key;
+  return grantVerdict(token, profile) === true;
 }
 
 /**
@@ -216,18 +236,44 @@ export function weaponProficiency(actor) {
  * With no `attack` the question is whether carrying it equipped is the
  * non-proficient use package, and it is not, since every class can throw it.
  *
+ * A weapon the grants cannot decide is proficient: where a figure a grant asks
+ * of the weapon is not imported (`grantVerdict` null) and no grant covers it,
+ * nothing refuses it. `weaponProficiencyDecided` names that state for a surface
+ * that says "not imported".
+ *
  * @param {{attack?: "melee"|"missile"|"thrown"|null, grantsOnly?: boolean}} [options]
  *   `grantsOnly` answers what the grants cover and nothing else — the Training
- *   pills, which edit grants and must not light for a rule that is not one.
+ *   pills, which edit grants and must not light for a rule that is not one,
+ *   nor for a weapon they cannot decide.
  */
 export function isWeaponProficient(actor, profile, prof = weaponProficiency(actor), { attack = null, grantsOnly = false } = {}) {
   if (!enforcementActive()) return true; // kill switch: never penalise
   if (!grantsOnly && profile?.anyoneThrows && !(attack === "melee" && profile.melee)) return true;
-  if (prof.all) return true;
+  const coverage = grantCoverage(prof, profile);
+  return coverage === "covered" || (coverage === "undecided" && !grantsOnly);
+}
+
+/** Do the grants cover the weapon, refuse it, or fail to say? */
+function grantCoverage(prof, profile) {
+  if (prof.all) return "covered";
+  let undecided = false;
   for (const token of prof.tokens) {
-    if (grantMatches(token, profile)) return true;
+    const verdict = grantVerdict(token, profile);
+    if (verdict === true) return "covered";
+    if (verdict === null) undecided = true;
   }
-  return false;
+  return undecided ? "undecided" : "refused";
+}
+
+/**
+ * Can the actor's grants decide this weapon? False when a grant asks of it a
+ * figure that is not imported and none covers it: the weapon reads as
+ * proficient (`isWeaponProficient`), and a surface says why instead of
+ * showing a verdict. True for an actor with no declared list, which decides
+ * nothing and refuses nothing.
+ */
+export function weaponProficiencyDecided(actor, profile, prof = weaponProficiency(actor)) {
+  return grantCoverage(prof, profile) !== "undecided";
 }
 
 /**

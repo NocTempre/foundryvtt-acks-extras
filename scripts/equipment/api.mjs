@@ -86,26 +86,33 @@ export async function annotateItem(item) {
 
   if (item.type === ITEM_TYPE.weapon) {
     key = weaponKey(item);
-    if (key) {
-      const base = weaponRow(key);
+    const base = key ? weaponRow(key) : null;
+    if (base) {
+      // The identity itself, written down (DECISIONS.md, "What a weapon
+      // IS is declared, not read off its name (2026-09-07)").
+      updates[`flags.${MODULE_ID}.${ITEM_FLAGS.PROFILE_KEY}`] = key;
       // A size the item declares — on its sheet, or the system's own field an
-      // import wrote — stands; only a weapon that states none is given one.
+      // import wrote — stands; only a weapon that states none is given one,
+      // and only a size the row states.
       const sized = item.flags?.[MODULE_ID]?.[ITEM_FLAGS.SIZE] != null || CORE_SIZES[item.system?.size] != null;
-      if (!sized) updates[`flags.${MODULE_ID}.${ITEM_FLAGS.SIZE}`] = base.size;
-      Object.assign(updates, {
-        // The identity itself, written down (DECISIONS.md, "What a weapon
-        // IS is declared, not read off its name (2026-09-07)").
-        [`flags.${MODULE_ID}.${ITEM_FLAGS.PROFILE_KEY}`]: key,
-        [`flags.${MODULE_ID}.${ITEM_FLAGS.DAMAGE_TYPE}`]: base.type || "",
-        [`flags.${MODULE_ID}.${ITEM_FLAGS.HANDY}`]: !!base.handy,
-        [`flags.${MODULE_ID}.${ITEM_FLAGS.THROWN}`]: !!base.thrown,
-        // A thrown melee weapon is a MISSILE too (RR p296), and core only offers
-        // its melee-vs-thrown range selector when BOTH booleans are set — so
-        // reconcile the core item to the RAW profile. melee/missile are left as-is
-        // for a purely melee or purely missile weapon (base.thrown false).
-        "system.melee": base.melee ?? item.system?.melee ?? false,
-        "system.missile": !!(base.missile || base.thrown),
-      });
+      if (!sized && Object.values(CORE_SIZES).includes(base.size)) updates[`flags.${MODULE_ID}.${ITEM_FLAGS.SIZE}`] = base.size;
+      // A figure the row leaves out is left off the item: nothing is written
+      // for it, so no default stands in for a page's.
+      if (typeof base.type === "string") updates[`flags.${MODULE_ID}.${ITEM_FLAGS.DAMAGE_TYPE}`] = base.type;
+      // A row that states no use at all (neither melee, missile nor thrown) is
+      // an empty shell, and the figures below are not read off it.
+      if (base.melee || base.missile || base.thrown) {
+        Object.assign(updates, {
+          [`flags.${MODULE_ID}.${ITEM_FLAGS.HANDY}`]: !!base.handy,
+          [`flags.${MODULE_ID}.${ITEM_FLAGS.THROWN}`]: !!base.thrown,
+          // A thrown melee weapon is a MISSILE too (RR p296), and core only offers
+          // its melee-vs-thrown range selector when BOTH booleans are set — so
+          // reconcile the core item to the RAW profile. melee/missile are left as-is
+          // for a purely melee or purely missile weapon (base.thrown false).
+          "system.melee": base.melee ?? item.system?.melee ?? false,
+          "system.missile": !!(base.missile || base.thrown),
+        });
+      }
     }
   }
 

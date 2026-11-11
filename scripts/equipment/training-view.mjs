@@ -47,38 +47,68 @@ export const weaponName = (key) => WEAPON_NAMES[key] ?? String(key).charAt(0).to
  */
 const unitToken = (key) => (classifyGrantToken(key) === "weapon" ? key : `weapon:${key}`);
 
+/** The units of the rows last read: the keys, the rows by identity, the list and its index. */
+let _units = { keys: [], rows: [], list: [], byKey: new Map() };
+
+/** Every unit the weapon table's rows make now, alphabetical by name. */
+function readUnits() {
+  const keys = weaponKeys();
+  const rows = keys.map((key) => weaponRow(key));
+  if (keys.length === _units.keys.length && keys.every((k, i) => k === _units.keys[i] && rows[i] === _units.rows[i])) return _units;
+  const list = Object.freeze(
+    keys
+      .map((key, i) => [key, rows[i]])
+      .map(([key, w]) =>
+        Object.freeze({
+          key,
+          token: unitToken(key),
+          name: weaponName(key),
+          cat: slug(w.cat),
+          size: w.size ?? null,
+          melee: !!w.melee,
+          missile: !!w.missile,
+          icon: DAMAGE_TYPE_ICONS[w.type] ?? UNTYPED_ICON,
+          profile: Object.freeze({ ...w, key }),
+        }),
+      )
+      .sort((a, b) => a.name.localeCompare(b.name)),
+  );
+  _units = { keys, rows, list, byKey: new Map(list.map((u) => [u.key, u])) };
+  return _units;
+}
+
 /**
- * Every weapon of the table as a unit, alphabetical by name. `profile` is the
+ * Every weapon of the table as a unit, alphabetical by name: empty while the
+ * table holds no rows, and rebuilt when the rows change. `profile` is the
  * shape `grantMatches` reads, so a token is tested against a unit the way the
  * attack roll tests it against the weapon; `token` is what a control for this
  * unit alone writes.
+ *
+ * @returns {readonly object[]}
  */
-export const WEAPON_UNITS = Object.freeze(
-  weaponKeys()
-    .map((key) => [key, weaponRow(key)])
-    .map(([key, w]) =>
-      Object.freeze({
-        key,
-        token: unitToken(key),
-        name: weaponName(key),
-        cat: slug(w.cat),
-        size: w.size,
-        melee: !!w.melee,
-        missile: !!w.missile,
-        icon: DAMAGE_TYPE_ICONS[w.type] ?? UNTYPED_ICON,
-        profile: Object.freeze({ ...w, key }),
-      }),
-    )
-    .sort((a, b) => a.name.localeCompare(b.name)),
-);
+export const weaponUnits = () => readUnits().list;
 
-const unitByKey = new Map(WEAPON_UNITS.map((u) => [u.key, u]));
+/**
+ * `weaponUnits()` as a constant: a read-only array view that follows the
+ * table, so a holder of the export sees the rows now rather than the rows at
+ * load.
+ */
+export const WEAPON_UNITS = new Proxy([], {
+  get: (_target, prop) => {
+    const live = weaponUnits();
+    const value = Reflect.get(live, prop);
+    return typeof value === "function" ? value.bind(live) : value;
+  },
+  has: (_target, prop) => Reflect.has(weaponUnits(), prop),
+  set: () => false,
+  deleteProperty: () => false,
+});
 
 /** Does one grant token cover one unit? Unknown tokens cover nothing. */
 const covers = (token, unit) => grantMatches(token, unit.profile);
 
 /** The units one token covers, in unit order. */
-export const tokenUnits = (token) => WEAPON_UNITS.filter((u) => covers(token, u));
+export const tokenUnits = (token) => weaponUnits().filter((u) => covers(token, u));
 
 /** Tier captions: the kind of clause a group's token is, as the grammar names them. */
 export const TIER = Object.freeze({ UNRESTRICTED: "unrestricted", BROAD: "broad", NARROW: "narrow", RESTRICTED: "restricted" });
@@ -142,11 +172,11 @@ export function arrangeUnits(viewKey) {
   const view = TRAINING_VIEWS.find((v) => v.key === viewKey) ?? TRAINING_VIEWS[0];
   const placed = new Set();
   const groups = view.groups.map((g) => {
-    const members = WEAPON_UNITS.filter((u) => !placed.has(u.key) && covers(g.token, u));
+    const members = weaponUnits().filter((u) => !placed.has(u.key) && covers(g.token, u));
     for (const u of members) placed.add(u.key);
     return { ...g, members };
   });
-  const leftovers = WEAPON_UNITS.filter((u) => !placed.has(u.key));
+  const leftovers = weaponUnits().filter((u) => !placed.has(u.key));
   if (leftovers.length) groups.push({ key: "leftovers", token: null, label: "ACKS-LIB.weaponGroup.leftovers", tier: null, members: leftovers });
   return groups;
 }
@@ -172,7 +202,7 @@ export function coveredUnits(tokens) {
       unknown.push(t);
       continue;
     }
-    for (const u of WEAPON_UNITS) if (covers(t, u)) units.add(u.key);
+    for (const u of weaponUnits()) if (covers(t, u)) units.add(u.key);
   }
   return { units, unknown };
 }
@@ -182,12 +212,15 @@ export function coveredUnits(tokens) {
  * when everything is covered; else `missile:all`, the size clauses lightest
  * first, the categories in strip order — each emitted only when every unit it
  * covers is in the set and it adds one the earlier clauses did not — then the
- * remaining units by name. Unknown tokens ride at the end as written.
+ * remaining units by name. Unknown tokens ride at the end as written. With no
+ * weapon in the table nothing is covered, so no set is every unit: the answer
+ * is the unknown tokens alone, never `all`.
  */
 export function canonicalGrant(unitKeys, unknown = []) {
-  const want = new Set([...unitKeys].filter((k) => unitByKey.has(k)));
+  const { list, byKey } = readUnits();
+  const want = new Set([...unitKeys].filter((k) => byKey.has(k)));
   const tail = unknown.map((t) => String(t).trim()).filter(Boolean);
-  if (want.size === WEAPON_UNITS.length) return ["all", ...tail].join(",");
+  if (list.length && want.size === list.length) return ["all", ...tail].join(",");
   const out = [];
   const covered = new Set();
   const clauses = ["missile:all", ...SIZE_ORDER.map((s) => `melee:${s}`), ...CATEGORY_TOKENS.map((c) => c.token)];
@@ -198,7 +231,7 @@ export function canonicalGrant(unitKeys, unknown = []) {
     out.push(token);
     for (const u of members) covered.add(u.key);
   }
-  for (const u of WEAPON_UNITS) if (want.has(u.key) && !covered.has(u.key)) out.push(u.token);
+  for (const u of list) if (want.has(u.key) && !covered.has(u.key)) out.push(u.token);
   return [...out, ...tail].join(",");
 }
 

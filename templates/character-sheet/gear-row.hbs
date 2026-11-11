@@ -29,7 +29,7 @@
   {{#if container}}
   <div class="acks-extras-frame__bar is-thin{{#if container.over}} is-bad{{/if}}"><i style="width: {{container.pct}}%"></i>{{#each container.ticks}}<u style="left: {{this}}%"></u>{{/each}}</div>
   <div class="acks-extras-frame__gear-head">
-    <span class="acks-extras-frame__gear-line acks-nums">{{container.load}}{{#if container.visible}} · {{container.count}}{{/if}}</span>
+    <span class="acks-extras-frame__gear-line acks-nums"{{#if container.capacityTip}} data-tooltip-text="{{container.capacityTip}}"{{/if}}>{{container.load}}{{#if container.visible}} · {{container.count}}{{/if}}</span>
     <span class="acks-extras-frame__ctls"><span class="acks-extras-frame__grp">
       {{#each container.controls}}<button type="button" class="acks-extras-frame__ctl" data-action="{{action}}" data-tooltip="{{title}}"><i class="{{icon}}" inert></i></button>{{/each}}
     </span></span>

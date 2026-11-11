@@ -7,7 +7,8 @@
  *   1. core weapon data (`system.melee/missile`, `system.special.*`, `system.customTags`)
  *   2. per-item overrides `flags.acks-extras.{size,hands,style,handy,thrown,damageType}`
  *   3. the RAW table row the item is identified as (`weaponIdentity`)
- *   4. default: medium melee, one-handed
+ *   4. default: melee, one-handed; a size, class or damage die nothing above
+ *      states is null (the die ""), never invented (see `unplaced`)
  *
  * The annotate macro stamps (2) onto existing core `acks-all-equipment` items so
  * classification is exact; without it, (1)+(3) still classify the RAW weapons.
@@ -21,7 +22,7 @@ import { MODULE_ID, ITEM_FLAGS } from "./constants.mjs";
 import { SIZE, STYLE, WEAPON_CATEGORY, gearProfileFor, clothingSlotsFor } from "./config.mjs";
 import { slotsOf, declaresSlots, isClothing } from "../lib/item-model.mjs";
 import { SLOT, slug, nameKeys, ITEM_TYPE } from "../lib/vocab.mjs";
-import { weaponRow, weaponKeys, keyForName, weaponFocusGroup, weaponThrowsAsAnyone } from "../lib/weapons.mjs";
+import { weaponRow, weaponKeys, keyForName, hasWeaponRows, weaponFocusGroup, weaponThrowsAsAnyone } from "../lib/weapons.mjs";
 import { splitDamage, joinDamage, damageFormulaOf } from "./properties.mjs";
 
 /* -------------------------------------------- */
@@ -418,7 +419,30 @@ export function twoHandedDamage(damage, row) {
 }
 
 /**
- * Build the resolved profile for a weapon item.
+ * The long-standing default of a figure nothing states, for a weapon no row
+ * places while the weapon table holds rows. A row that is there and leaves the
+ * figure out, and a table with no rows at all, answer null: undecided, with no
+ * figure standing in for the page's.
+ */
+function unplaced(base, standIn) {
+  return !base && hasWeaponRows() ? standIn : null;
+}
+
+/**
+ * The size and class the weapon table's row states for a weapon key, or null
+ * where no row states one: what a surface shows beside "Auto".
+ * @returns {{size: string|null, cat: string|null}}
+ */
+export function tableFigures(key) {
+  const base = key ? weaponRow(key) : null;
+  return { size: base?.size ?? unplaced(base, SIZE.MEDIUM), cat: base?.cat ?? unplaced(base, WEAPON_CATEGORY.OTHER) };
+}
+
+/**
+ * Build the resolved profile for a weapon item. `size`, `cat` and `damage` are
+ * null, null and "" where nothing imported states them (the item itself, or a
+ * row that carries the field): such a weapon is undecided to proficiency
+ * (`isWeaponProficient`) and costs one hand.
  * @returns {{key,size,melee,missile,thrown,handy,twoHandedForced,damage,damage2h,type,cat,special,reqStr,grips}}
  */
 export function classifyWeapon(item) {
@@ -443,8 +467,11 @@ export function classifyWeapon(item) {
   // declaration — the row still answers it.
   const sizeOverride = flag(ITEM_FLAGS.SIZE);
   const coreSize = CORE_SIZES[item.system?.size] ?? null;
-  const size = sizeOverride ?? coreSize ?? base?.size ?? (twoHandedTag ? SIZE.LARGE : SIZE.MEDIUM);
-  const damage = damageFormulaOf(item) || base?.damage || "1d6";
+  const size = sizeOverride ?? coreSize ?? base?.size ?? (twoHandedTag ? SIZE.LARGE : unplaced(base, SIZE.MEDIUM));
+  // A row that prints no die ("") keeps the long-standing 1d6; one that omits
+  // the field states nothing, and so does a table with no rows.
+  const damageStandIn = base ? (base.damage == null ? null : "1d6") : unplaced(base, "1d6");
+  const damage = damageFormulaOf(item) || base?.damage || damageStandIn || "";
   const alternate = item.system?.damage?.alternate?.formula?.trim?.() || null;
 
   const profile = {
@@ -461,7 +488,7 @@ export function classifyWeapon(item) {
     // The declared class outranks the row's, and an unknown value is no
     // declaration at all — a hand-edited flag degrades to the row, never to a
     // class no grant can name.
-    cat: WEAPON_CATEGORY_VALUES.has(flag(ITEM_FLAGS.CATEGORY)) ? flag(ITEM_FLAGS.CATEGORY) : base?.cat ?? WEAPON_CATEGORY.OTHER,
+    cat: WEAPON_CATEGORY_VALUES.has(flag(ITEM_FLAGS.CATEGORY)) ? flag(ITEM_FLAGS.CATEGORY) : base?.cat ?? unplaced(base, WEAPON_CATEGORY.OTHER),
     special: base?.special ?? [],
     anyoneThrows: false,
     reqStr: base?.reqStr ?? 0,
@@ -510,6 +537,8 @@ export function handCost(profile, { twoHanded = false } = {}) {
   if (profile.handsOverride != null) return profile.handsOverride;
   if (profile.twoHandedForced) return 2;
   if (profile.missile && !profile.melee) return profile.handy || profile.thrown ? 1 : 2;
+  // A size nothing states leaves the hands unknown, and unknown is one hand.
+  if (profile.size == null) return 1;
   switch (profile.size) {
     case SIZE.TINY:
     case SIZE.SMALL:
@@ -533,6 +562,7 @@ export function canOneHand(profile) {
   if (profile.grips) return profile.grips !== "2h";
   if (profile.handsOverride === 1) return true;
   if (profile.twoHandedForced) return false;
+  if (profile.size == null) return true;
   return [SIZE.TINY, SIZE.SMALL, SIZE.MEDIUM].includes(profile.size);
 }
 

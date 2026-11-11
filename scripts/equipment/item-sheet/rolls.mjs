@@ -22,7 +22,7 @@ import { MANEUVERS, overlayEnabled as maneuverOverlayEnabled, trickeryFor } from
 import { isSpellbook, spellbookSpells } from "../spellbook.mjs";
 import { containerOf, isLocked } from "../containers.mjs";
 import { pickLock, bashOpen, canPick, canBash, wearingGloves } from "../locks.mjs";
-import { isWeaponProficient } from "../proficiency.mjs";
+import { isWeaponProficient, weaponProficiencyDecided } from "../proficiency.mjs";
 import { ATTACK_TYPE } from "../attack-mods.mjs";
 import { damageGlyphOf, damageTypeLabel, damageTypeOf } from "../../lib/damage-type.mjs";
 import { ITEM_TYPE, ACTOR_TYPE } from "../../lib/vocab.mjs";
@@ -58,12 +58,20 @@ export function rollGroups(item, actor = rollerFor(item)) {
     const profile = classifyWeapon(item);
     const glyph = damageGlyphOf(item);
     const typeLabel = damageTypeOf(item) ? damageTypeLabel(damageTypeOf(item)) : "";
-    const damage = damageFormulaOf(item) || profile.damage || "1d6";
+    const damage = damageFormulaOf(item) || profile.damage;
+    // No die stated by the item or a row reads "not imported", never a die.
+    const dieShown = damage || game.i18n.localize("ACKS-EQUIPMENT.printed.notImported");
     const bonus = attackBonusOf(item);
     const rows = [];
     // Asked per mode: a weapon every class may throw can still be one a class
     // may not swing, and the tag has to agree with the roll's own rows.
-    const nonProficient = (attack) => (actor?.type === ACTOR_TYPE.character && !isWeaponProficient(actor, profile, undefined, { attack }) ? [loc("itemSheet.rolls.mod.nonProficient")] : []);
+    // A weapon the grants cannot decide (a figure they ask of it is not
+    // imported) is no refusal, and says so instead.
+    const nonProficient = (attack) => {
+      if (actor?.type !== ACTOR_TYPE.character) return [];
+      if (!isWeaponProficient(actor, profile, undefined, { attack })) return [loc("itemSheet.rolls.mod.nonProficient")];
+      return weaponProficiencyDecided(actor, profile) ? [] : [loc("itemSheet.rolls.mod.proficiencyNotImported")];
+    };
     const meleeMods = nonProficient(ATTACK_TYPE.melee);
     const missileMods = nonProficient(ATTACK_TYPE.missile);
     if (item.system?.melee ?? profile.melee) {
@@ -72,9 +80,9 @@ export function rollGroups(item, actor = rollerFor(item)) {
         id: "atk:melee",
         m: hands,
         glyph,
-        v: damage,
+        v: damage || null,
         label: loc("itemSheet.rolls.row.melee"),
-        line: [`${signed(bonus)} ${loc("itemSheet.rolls.throw")}`, `${damage} ${typeLabel}`.trim()].join(" · "),
+        line: [`${signed(bonus)} ${loc("itemSheet.rolls.throw")}`, `${dieShown} ${typeLabel}`.trim()].join(" · "),
         mods: [...meleeMods],
         rollable: !!actor,
       });
@@ -98,9 +106,9 @@ export function rollGroups(item, actor = rollerFor(item)) {
         id: "atk:missile",
         m: profile.thrown ? "HRL" : "SHT",
         glyph,
-        v: damage,
+        v: damage || null,
         label: loc(profile.thrown ? "itemSheet.rolls.row.hurled" : "itemSheet.rolls.row.shoot"),
-        line: [`${signed(bonus)} ${loc("itemSheet.rolls.throw")}`, `${damage} ${typeLabel}`.trim(), range ? loc("itemSheet.rolls.range", { range }) : null].filter(Boolean).join(" · "),
+        line: [`${signed(bonus)} ${loc("itemSheet.rolls.throw")}`, `${dieShown} ${typeLabel}`.trim(), range ? loc("itemSheet.rolls.range", { range }) : null].filter(Boolean).join(" · "),
         mods: [...missileMods],
         rollable: !!actor,
       });

@@ -21,7 +21,7 @@
  */
 import { MODULE_ID, ITEM_FLAGS, LANG } from "../constants.mjs";
 import { makeLoc } from "../../lib/util.mjs";
-import { SHIELD_VARIANTS, WEAPONS, SIZE, WEAPON_CATEGORY } from "../config.mjs";
+import { SHIELD_VARIANTS, SIZE } from "../config.mjs";
 import {
   setMasterwork, masterworkTiersFor, scavengeItem, clearScavenged, setScavengedRow, scavengedOptions,
   setShieldVariant, SHIELD_VARIANT_KEYS, setGearSlotList, setGearAccess, setGearRelief, SLOT_AUTO,
@@ -29,8 +29,10 @@ import {
 } from "../actions.mjs";
 import { masterworkTierOf, scavengedOf, layerSummary, layerProvenance, silveredFlagOf } from "../properties.mjs";
 import { canBeSilvered, isSilvered, setSilvered } from "../silver.mjs";
-import { classifyWeapon, isHelmet, inferGear, weaponIdentity, inferredGrips, WEAPON_CATEGORY_VALUES } from "../profiles.mjs";
+import { classifyWeapon, isHelmet, inferGear, weaponIdentity, inferredGrips, tableFigures, WEAPON_CATEGORY_VALUES } from "../profiles.mjs";
 import { weaponName, CATEGORY_TOKENS } from "../training-view.mjs";
+import { weaponKeys, hasWeaponRows } from "../../lib/weapons.mjs";
+import { figureState, figureTip } from "../weapon-figures.mjs";
 import { setBaseType } from "../variation-items.mjs";
 import { baseTypesFor, baseTypeIsDeclared, baseTypeOf, BASE_TYPE_FLAG } from "../base-types.mjs";
 import { inferBaseType } from "../base-type-infer.mjs";
@@ -191,48 +193,64 @@ export function buildConstructionPanel(item, { editing = false } = {}) {
     const identity = weaponIdentity(item);
     const profile = classifyWeapon(item);
     const auto = weaponIdentity(item, { ignoreDeclared: true });
-    const classLabel = (cat) => game.i18n.localize(`ACKS-LIB.weaponCat.${cat}`);
+    const notImported = game.i18n.localize("ACKS-EQUIPMENT.printed.notImported");
+    const classLabel = (cat) => (cat ? game.i18n.localize(`ACKS-LIB.weaponCat.${cat}`) : notImported);
+    // What the weapon table's row says, beside what the item declares: the
+    // "Auto" answer of the class and size controls, and each figure's tooltip.
+    const figures = tableFigures(identity.key);
+    /**
+     * A row with the provenance of the figure it shows as its tooltip. The
+     * tooltip rides the row, not the control: a control disabled until the sheet
+     * is armed raises no pointer events of its own.
+     */
+    const withTip = (rowEl, field, declared, labelKey) => {
+      rowEl.dataset.tooltipText = figureTip(figureState({ key: identity.key, field, declared }), game.i18n.localize(labelKey));
+      return rowEl;
+    };
 
-    row("ACKS-EQUIPMENT.props.weaponType", select(
+    withTip(row("ACKS-EQUIPMENT.props.weaponType", select(
       [{ value: SLOT_AUTO, label: auto.key ? loc("props.weaponTypeAuto", { guess: weaponName(auto.key) }) : loc("props.weaponTypeAutoNone") },
-        ...Object.keys(WEAPONS).map((k) => ({ value: k, label: weaponName(k) })).sort((a, b) => a.label.localeCompare(b.label))],
+        ...weaponKeys().map((k) => ({ value: k, label: weaponName(k) })).sort((a, b) => a.label.localeCompare(b.label))],
       identity.source === "flag" ? identity.key : SLOT_AUTO,
       (v) => setWeaponProfile(item, v),
-    ));
+    )), null, identity.source === "flag" ? identity.key : null, "ACKS-EQUIPMENT.props.weaponType");
     // An unidentified weapon falls back to a medium, class-`other` weapon
-    // and says nothing on its own; naming the consequence here connects
-    // this control to the badge that sent the reader.
+    // where a table is imported, and to no class and no size where none is;
+    // naming the consequence here connects this control to the badge that
+    // sent the reader.
     note(identity.key
       ? loc("props.weaponTypeNote", {
         weapon: weaponName(identity.key),
         category: classLabel(profile.cat),
         source: game.i18n.localize(`ACKS-EQUIPMENT.props.weaponTypeSource.${identity.source}`),
       })
-      : loc("props.weaponTypeNone"));
+      : loc(hasWeaponRows() ? "props.weaponTypeNone" : "props.weaponTypeNoTable"));
 
     // CLASS — the seven the character sheet's training lists, in its order
     // and its words. The table row's class is the "Auto" answer; declaring
     // one is what makes a weapon no row identifies count as trained.
     const declaredClass = item.getFlag(MODULE_ID, ITEM_FLAGS.CATEGORY);
-    row("ACKS-EQUIPMENT.props.weaponClass", select(
-      [{ value: SLOT_AUTO, label: loc("props.weaponClassAuto", { guess: classLabel(WEAPONS[identity.key]?.cat ?? WEAPON_CATEGORY.OTHER) }) },
+    const classDeclared = WEAPON_CATEGORY_VALUES.has(declaredClass) ? declaredClass : null;
+    withTip(row("ACKS-EQUIPMENT.props.weaponClass", select(
+      [{ value: SLOT_AUTO, label: loc("props.weaponClassAuto", { guess: classLabel(figures.cat) }) },
         ...CATEGORY_TOKENS.map((c) => ({ value: c.cat, label: game.i18n.localize(c.label) }))],
-      WEAPON_CATEGORY_VALUES.has(declaredClass) ? declaredClass : SLOT_AUTO,
+      classDeclared ?? SLOT_AUTO,
       (v) => setWeaponCategory(item, v),
-    ));
+    )), "cat", classDeclared, "ACKS-EQUIPMENT.props.weaponClass");
 
-    row("ACKS-EQUIPMENT.props.weaponSize", select(
-      [{ value: SLOT_AUTO, label: loc("props.weaponSizeAuto", { guess: game.i18n.localize(`ACKS-EQUIPMENT.size.${WEAPONS[identity.key]?.size ?? SIZE.MEDIUM}`) }) },
+    const sizeDeclared = item.getFlag(MODULE_ID, ITEM_FLAGS.SIZE);
+    withTip(row("ACKS-EQUIPMENT.props.weaponSize", select(
+      [{ value: SLOT_AUTO, label: loc("props.weaponSizeAuto", { guess: figures.size ? game.i18n.localize(`ACKS-EQUIPMENT.size.${figures.size}`) : notImported }) },
         ...Object.values(SIZE).map((s) => ({ value: s, label: game.i18n.localize(`ACKS-EQUIPMENT.size.${s}`) }))],
-      String(item.getFlag(MODULE_ID, ITEM_FLAGS.SIZE) ?? SLOT_AUTO),
+      String(sizeDeclared ?? SLOT_AUTO),
       (v) => setWeaponSize(item, v),
-    ));
+    )), "size", sizeDeclared, "ACKS-EQUIPMENT.props.weaponSize");
 
     // GRIPS — the hands the weapon may be held in, as two chips because that
     // is what the answer is: one of them, or both (versatile). The size table's
     // answer shows dashed until one is declared; both off returns to it.
     const grips = { declared: profile.grips, inferred: inferredGrips(profile) };
-    row("ACKS-EQUIPMENT.props.grips", strip({
+    const gripsRow = row("ACKS-EQUIPMENT.props.grips", strip({
       chips: gripChips(grips),
       declared: !!grips.declared,
       labelOf: (k) => game.i18n.localize(`ACKS-EQUIPMENT.grip.${k}`),
@@ -240,7 +258,11 @@ export function buildConstructionPanel(item, { editing = false } = {}) {
       onAuto: () => setWeaponGrips(item, SLOT_AUTO),
       onToggle: (k) => setWeaponGrips(item, nextGrips(grips, k) ?? SLOT_AUTO),
     }));
-    note(loc(grips.declared ? "props.gripsNote" : "props.gripsAuto", { grips: game.i18n.localize(`ACKS-EQUIPMENT.grip.${grips.declared ?? grips.inferred}`) }));
+    // Auto reads the size: with none imported the hands are unknown and count
+    // as one, and the note says so rather than citing a size nothing states.
+    const gripsFromSize = !grips.declared && profile.melee && profile.size == null && !profile.twoHandedForced && profile.handsOverride == null;
+    withTip(gripsRow, "size", grips.declared, "ACKS-EQUIPMENT.props.grips");
+    note(loc(grips.declared ? "props.gripsNote" : gripsFromSize ? "props.gripsAutoNoSize" : "props.gripsAuto", { grips: game.i18n.localize(`ACKS-EQUIPMENT.grip.${grips.declared ?? grips.inferred}`) }));
 
     // QUALITIES — the weapon's two uses and the system's special properties,
     // every one offered; a chip writes the field the attack reads.
