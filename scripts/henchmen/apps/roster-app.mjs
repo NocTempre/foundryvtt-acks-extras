@@ -220,6 +220,7 @@ export class RosterApp extends HandlebarsApplicationMixin(ApplicationV2) {
     if (quantity > 1) tags.push({ label: loc("times", { n: quantity }) });
     const slot = slotOf(record, category);
     if (slot === "noSlot") tags.push({ label: loc("noSlotTag"), ghost: true, title: loc("noSlot") });
+    if (terms.signingOwed > 0) tags.push({ label: loc("owedTag"), owed: true, title: loc("owedTitle", { gp: terms.signingOwed }) });
 
     const loyalty = henchman
       ? {

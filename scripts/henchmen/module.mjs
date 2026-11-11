@@ -32,7 +32,7 @@ import { openRecruitDialog, openRecruitSpecial } from "./apps/recruit-dialog.mjs
 import { createPosting, processLocation, processAllLocations, effectiveMarketClass } from "./engine/recruitment.mjs";
 import { materializePendingHires } from "./apps/recruit-dialog.mjs";
 import { postSlaveMarketCard, slaveryEnabled } from "./engine/slavery-market.mjs";
-import { hire, checkHenchmanLimit, addSpecialHire, hireExistingActor } from "./engine/hire.mjs";
+import { hire, checkHenchmanLimit, addSpecialHire, hireExistingActor, payOwedSigningBonus, forgiveSigningBonus } from "./engine/hire.mjs";
 import * as candidateRules from "./rules/candidates.mjs";
 import * as identityRules from "./rules/identity.mjs";
 import { onTimeAdvanced, advanceDays, now } from "./time.mjs";
@@ -175,6 +175,8 @@ Hooks.once("setup", async () => {
     addSpecialHire,
     registerFoundRecruit: (location, actor, opts = {}) => addSpecialHire(location, actor, { ...opts, origin: "found" }),
     hireExistingActor,
+    payOwedSigningBonus,
+    forgiveSigningBonus,
     openRecruitSpecial,
     // data
     HenchmanRecord,
@@ -313,6 +315,26 @@ Hooks.on("renderChatMessageHTML", (_message, html) => bindCardListeners(html));
 Hooks.on(FOLLOWER_CARD_HOOK, (actor, ctx) => {
   if (!actor?.getFlag?.(MODULE_ID, FLAG_RECORD)?.special?.pendingCalamity) return;
   ctx.pending = { title: game.i18n.localize("ACKS-HENCHMEN.roster.pending") };
+});
+
+/* The Service panel's owed-bonus controls. The panel is hosted by the
+ * character and monster sheets, and these act on the henchmen record alone,
+ * so they are wired here once rather than as an action of each host; a
+ * button already wired by an earlier render of the same part is skipped. */
+Hooks.on("renderActorSheetV2", (app, element) => {
+  const actor = app.actor ?? app.document;
+  const root = elementOf(element);
+  if (!actor || !root) return;
+  for (const button of root.querySelectorAll(".acks-extras-service [data-signing]")) {
+    if (button.dataset.wired) continue;
+    button.dataset.wired = "1";
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (button.dataset.signing === "pay") payOwedSigningBonus(actor);
+      else if (button.dataset.signing === "forgive") forgiveSigningBonus(actor);
+    });
+  }
 });
 
 /* Roster button on acks character sheets (additive DOM only — the

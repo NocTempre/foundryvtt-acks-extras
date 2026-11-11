@@ -709,6 +709,109 @@ a step it does not name is walked by hand.
       with a fee for each week.
     Not walked: the map-reach refusal (a place linked to a map, the employer
     off it), which needs a scene pairing no fixture holds yet.
+20. A signing bonus the purse refuses, and hit points rolled at hire, on
+    `henchmen/bonus-place` (a location with `emptyMarket()`, the Player seat
+    an observer) and `henchmen/bonus-employer` (a character the Player seat
+    owns). Walked by `tools/live/henchmen-hire-terms.mjs`. The hires are not
+    kept: each is tracked by the uuid read back from the call's `actor` (the
+    Player's, by the new actor under the employer once the candidate reads
+    `hired`), as are the chat cards that speak as the employer or a hire and
+    the coin rows the walk mints or changes, and the walk sweeps that list
+    alone after unlinking the hires from the employer's roster. A hire an
+    interrupted run left behind is found at the next start as an actor
+    managed by the employer whose record names the place, and swept with
+    the rest. The walk sets `enforceHenchmanLimit` off for its length and
+    restores it. At the step's start write the place's market as
+    `emptyMarket()` and delete the employer's `money` items. Find an
+    imported class whose level rows carry hit dice (`acksExtras.lib` library
+    items of type `acks-extras.class` with a `hd` cell on row 2), and write
+    four candidates straight into `system.market.candidates`, each
+    `kind: "henchman"`, `status: "available"`, a `wageGp`, `privateToUuid`
+    the employer's uuid (so the Player's location sheet lists them) and
+    `attributes` with a Constitution whose modifier is not zero: one at
+    level 2 naming that class's `system.key` as `classKey`; one at level 2
+    naming a `classKey` no class carries; one at level 0; and a fourth like
+    the first for the Player's hire.
+    - `acksExtras.henchmen.hire(place, <first id>, employer, {signingBonusGp:
+      40})` on the GM seat. *Observable:* the hire goes ahead with no
+      `hire enrichment failed` or `hit point roll failed` on the console
+      (either leaves the record or the roll silently absent); the record's
+      `terms.signingBonusGp` and `terms.signingBonusOwedGp` both read 40,
+      `terms.arrearsGp` 0, and its events end `hired`, `signingBonusOwed`,
+      `calamity`, the calamity's note the localized
+      `ACKS-HENCHMEN.hire.signingBonusCalamity`. `counters.calamities` is 1,
+      `loyalty.permanents` holds one uncompensated -1 `calamity` entry with
+      that note, and with `autoRollCalamity` off (the walk sets it and
+      restores it) a GM-whispered event card speaking as the hire carries
+      the Roll Loyalty button (`rollLoyaltySecret`); with it on, the loyalty
+      roll opens at once instead. `special.pendingCalamity` stays false and
+      the Service tab carries no badge: that flag is the downed watcher's.
+      The actor's `system.hp.max` and `.value` equal `rolled.hpRoll`;
+      `rolled.hpSteps` holds one entry per level, each with that level's
+      cell as its formula; and
+      `flags.acks-extras.classes.hpAt` holds `[{level: 2, max}]`. On the
+      hireling's character sheet, Service tab, the Signing bonus row reads
+      "40 gp owed" in the negative tone, its line "agreed at <place>, not
+      paid", and its tooltip names the refusal; Recorded rolls show a Hit
+      points row whose tooltip lists each level's roll.
+    - The second candidate, with no bonus. *Observable:* `rolled.hpRoll`
+      null, `rolled.hpUnrolled` `noClass`, `system.hp` the type's defaults;
+      the Hit points row reads "not imported", faint, its tooltip naming the
+      class text, and no calamity. The third, with the same refused bonus:
+      nothing in `rolled.hp*`, no Hit points row, the bonus owed and a
+      calamity recorded.
+    - `acksExtras.henchmen.openRosterApp(employer)` on the GM seat.
+      *Observable:* exactly the first and third hires' rows
+      (`.acks-extras-roster__row[data-actor-id]`) carry the "bonus owed" tag
+      (`.acks-tag--danger`), each with a tooltip naming the owed figure.
+    - On the GM seat, the first hire's Service tab, press **Pay** on the
+      Signing bonus row with the purse still empty. *Observable:* both Pay
+      and Forgive render as `<button>`s with an `aria-label` and a
+      `data-tooltip`; the press shows the module's own refusal
+      (`ACKS-HENCHMEN.service.signingPayRefused`; the coin transfer may warn
+      beside it), `signingBonusOwedGp` still reads 40, no
+      `signingBonusPaid` event.
+    - Write an invented `terms.arrearsGp` on the third hire and press
+      **Forgive** on its Service tab. *Observable:* `signingBonusOwedGp` 0,
+      the events end `signingBonusForgiven`, `arrearsGp` unchanged,
+      `counters.calamities` still 1, and the row then offers neither
+      control.
+    - `mintCoin(employer, <enough>)` and, as the Player seat, press the
+      fourth candidate's Recruit button on the location sheet and roll the
+      hiring page with a signing bonus chosen until it accepts. *Observable:*
+      the purse drops by the bonus, `signingBonusOwedGp` is 0, no
+      `signingBonusOwed` event, and the Signing bonus row reads the figure
+      in the plain tone with "paid at <place>".
+    - As the Player seat, open the first hire's Service tab. *Observable:*
+      Pay renders and Forgive does not. Press Pay: the employer's purse
+      drops by 40 with no warning, `signingBonusOwedGp` 0, the events end
+      `signingBonusPaid`, and the calamity and its loyalty point stay.
+      The Player's hire, paid in full, records no calamity.
+    The walk also measures, writing nothing, how many `classKey` values the
+    world's market candidates and the imported rarity tables name resolve
+    through `classForActorAsync`, and prints the unresolved by shape;
+    market keys are world state, so an unresolved one is printed as a
+    finding, not failed.
+
+    Drive mechanics. The Recruit button picks the seat's assigned character
+    before any other, so where the Player seat has one that is not the
+    employer, the walk opens `openRecruitDialog(place, id, employer)`
+    directly; with none, an employer prompt
+    (`select[name="employerId"]`) may come first. The hiring page is an
+    `InfluenceApp` with `select[name="mod.signingBonus"]` and
+    `[data-action="roll"]`; rig `CONFIG.Dice.randomUniform` to `0.01` (a
+    high throw) for the roll and answer each `button[data-action="yes"]`.
+    The Player's hire runs on the GM, so the GM polls for the candidate's
+    `hired` status and the new managed actor, and the cards it posts are
+    created on the GM seat, some after the hire lands: the walk captures
+    `ChatMessage.create` on both seats and drains both captures, keeping the
+    ids that speak as the employer or a hire, after each Player step and
+    once more before teardown. Pay and Forgive carry
+    `data-signing`, not `data-action`; a plain `click()` reaches them once
+    the sheet has rendered with the Service tab active
+    (`sheet.changeTab("service", "primary")`).
+    The `noDice` reason (a class whose rows carry no hit dice) is checked
+    offline only, in `tools/test-service-view.mjs`.
 
 The reference repair's check in the repair tool (`henchmen.references`) is
 walked in docs/lib/TESTING.md, "The repair tool".
@@ -716,7 +819,9 @@ walked in docs/lib/TESTING.md, "The repair tool".
 ## Teardown
 
 Nothing is swept: the fixtures stay, and the next run brings them to shape
-and retires the series the create paths left. Restore the layers, the limit
+and retires the series the create paths left. Step 20 is the exception: its
+hires, cards and coin rows are swept by their tracked uuids, and only its
+two fixtures stay. Restore the layers, the limit
 policy and the client state the walk changed, and remove the `influence`
 document if the run imported it. Quote the driver's closing `kept` and
 `reused` lines: a run after the first builds only its hires and cards.

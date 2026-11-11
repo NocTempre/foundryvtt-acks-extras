@@ -26,7 +26,7 @@ function ledgerEntry() {
 }
 
 export default class HenchmanRecord extends foundry.abstract.DataModel {
-  static ARRAY_PATHS = ["loyalty.permanents", "morale.permanents", "events", "rolled.doubleD100"];
+  static ARRAY_PATHS = ["loyalty.permanents", "morale.permanents", "events", "rolled.doubleD100", "rolled.hpSteps"];
 
   static defineSchema() {
     return {
@@ -68,7 +68,16 @@ export default class HenchmanRecord extends foundry.abstract.DataModel {
         classRarity: str(),
         template: str(),
         level: num({ integer: true }),
+        // The hit point maximum rolled at hire and each level's roll behind
+        // it (classes `rebuildHitPoints`); `hpUnrolled` names why none was
+        // rolled — "noClass" (no imported class matches) or "noDice" (the
+        // class carries no hit dice) — and is blank where a roll was made or
+        // none was attempted.
         hpRoll: num({ integer: true }),
+        hpSteps: new fields.ArrayField(
+          new fields.SchemaField({ level: int(), formula: str(), total: int() })
+        ),
+        hpUnrolled: str(),
         doubleD100: new fields.ArrayField(new fields.NumberField({ integer: true })),
         notes: str(),
       }),
@@ -83,6 +92,9 @@ export default class HenchmanRecord extends foundry.abstract.DataModel {
         treasureShare: new fields.NumberField({ required: true, initial: 0.5 }),
         xpShare: new fields.NumberField({ required: true, initial: 0.5 }),
         signingBonusGp: num(),
+        // The part of `signingBonusGp` the employer could not pay at hire.
+        // Kept apart from `arrearsGp`, which paydays bill and forgive as wages.
+        signingBonusOwedGp: new fields.NumberField({ required: true, initial: 0 }),
         // The employer level the hireling BELIEVES (RR 168 presented level);
         // discovery of the truth prefills a henchman's loyalty roll with the
         // apparent-level penalty. null = hired honestly.

@@ -746,4 +746,128 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
   }
 }
 
-console.log(`test-henchmen: OK (${macros.length} macros, bulk offers, network step, power values, henchman limit, network posting, classes never offered, hiring offer, hosted pages, spend receipt)`);
+// ---- a refused signing bonus: owed, a calamity, then paid or forgiven ----
+// hire() against stand-in Foundry globals: the purse refuses the bonus, so the
+// record owes it and the refusal runs the calamity path; Pay and Forgive then
+// clear the debt and leave the calamity. Figures are invented.
+{
+  const keys = ["foundry", "game", "ui", "ChatMessage", "Hooks", "CONST", "Roll", "Actor", "fromUuidSync"];
+  const saved = Object.fromEntries(keys.map((k) => [k, globalThis[k]]));
+  const { acksExtras: ns } = await import(new URL("../scripts/namespace.mjs", import.meta.url));
+  const savedLib = ns.lib;
+  const Field = class { constructor(...a) { this.a = a; } };
+  globalThis.foundry = {
+    data: { fields: new Proxy({}, { get: () => Field }) },
+    abstract: { DataModel: class { constructor(d = {}) { this._d = structuredClone(d); } toObject() { return structuredClone(this._d); } } },
+    utils: { randomID: () => Math.random().toString(36).slice(2), deepClone: (v) => structuredClone(v), mergeObject: (a, b) => Object.assign(a, b), getProperty: () => undefined, setProperty: () => {} },
+    applications: { api: { HandlebarsApplicationMixin: (c) => c, ApplicationV2: class {}, DialogV2: class {} }, handlebars: { renderTemplate: async (_t, d) => JSON.stringify(d) } },
+  };
+  const posted = [];
+  const warned = [];
+  let covered = false;
+  const actors = new Map();
+  globalThis.ChatMessage = { create: async (m) => { posted.push(m); return m; }, getSpeaker: () => ({}) };
+  globalThis.Hooks = { on() {}, once() {}, call() {}, callAll() {} };
+  globalThis.ui = { notifications: { warn: (t) => warned.push(t), info() {}, error() {} } };
+  globalThis.CONST = { DOCUMENT_OWNERSHIP_LEVELS: { OWNER: 3 } };
+  globalThis.game = {
+    i18n: { localize: (k) => k, format: (k) => k, has: () => true },
+    settings: { get: (_m, k) => (k === "autoRollCalamity" ? false : "off") },
+    time: { worldTime: 1000 },
+    user: { name: "gm", isGM: true },
+    actors: { get: (id) => actors.get(id) ?? null },
+    users: [],
+    items: [],
+    packs: [],
+    modules: { get: () => null },
+  };
+  globalThis.Roll = class { constructor(f) { this.formula = f; } async evaluate() { this.total = 1; this.dice = [{ results: [{ result: 1, active: true }] }]; return this; } };
+  const makeActor = (id, data) => {
+    const src = structuredClone(data);
+    src.flags ??= {};
+    const a = {
+      id, uuid: `Actor.${id}`, name: src.name, type: src.type, ownership: {}, isOwner: true,
+      get system() { return src.system; },
+      _source: src,
+      getFlag: (s, k) => src.flags[s]?.[k],
+      setFlag: async (s, k, v) => { (src.flags[s] ??= {})[k] = structuredClone(v); },
+      update: async (u) => {
+        for (const [k, v] of Object.entries(u)) {
+          const parts = k.split(".");
+          let n = src;
+          for (const p of parts.slice(0, -1)) n = n[p] ??= {};
+          n[parts.at(-1)] = v;
+        }
+      },
+      createEmbeddedDocuments: async () => [],
+    };
+    actors.set(id, a);
+    return a;
+  };
+  globalThis.Actor = { create: async (d) => { d.system.hp = { hd: "1d8", max: 4, value: 4 }; return makeActor("hire1", d); } };
+  ns.lib = {
+    money: { transferCoin: async () => ({ ok: covered }), sinkCoin: async () => ({ ok: covered }), spendableGp: () => 0 },
+    tables: { getDoc: () => null, hasDoc: () => false, expectTables() {}, optTable: () => null },
+    services: { get: () => null },
+  };
+  globalThis.fromUuidSync = () => null;
+  try {
+    const hire = await import(new URL("../scripts/henchmen/engine/hire.mjs", import.meta.url));
+    const employer = makeActor("emp", { name: "Employer", type: "character", system: { details: { level: 3 }, scores: { cha: { mod: 0 } }, retainer: {} } });
+    employer.addHenchman = async () => {};
+    const candidate = { id: "c1", status: "available", name: "Hireling", classKey: "", level: 2, wageGp: 9, attributes: { str: 10, int: 10, wil: 10, dex: 10, con: 10, cha: 10 } };
+    const location = { uuid: "Actor.loc", name: "Place", system: { candidates: [candidate], postings: [], marketLog: [] }, update: async () => {} };
+
+    // The data model was loaded by an earlier block under a bare stand-in, so
+    // the hire's record enrichment logs its own failure here; it is held and
+    // checked to be that one alone.
+    const errors = [];
+    const consoleError = console.error;
+    console.error = (...args) => errors.push(args.map(String).join(" "));
+    let res;
+    try {
+      res = await hire.hire(location, "c1", employer, { signingBonusGp: 6 });
+    } finally {
+      console.error = consoleError;
+    }
+    assert.ok(errors.every((e) => /hire enrichment failed/.test(e)), "no failure but the stand-in's enrichment");
+    assert.ok(!res.error, "a refused bonus never stops the hire");
+    const hireling = actors.get("hire1");
+    hireling._source.system.retainer = { ...(hireling._source.system.retainer ?? {}), managerid: "emp" };
+    const rec = () => hireling.getFlag("acks-extras", "record");
+    assert.strictEqual(rec().terms.signingBonusOwedGp, 6, "the refused bonus is owed in full");
+    // The record's hired entry is the data model's, absent here for the same
+    // reason; the two entries the refusal appends are what is asserted.
+    assert.deepStrictEqual(rec().events.map((e) => e.type).slice(-2), ["signingBonusOwed", "calamity"], "and the refusal is a calamity");
+    assert.strictEqual(rec().events.at(-1).note, "ACKS-HENCHMEN.hire.signingBonusCalamity", "the calamity names the unpaid bonus");
+    assert.strictEqual(rec().counters.calamities, 1, "the calamity counter counts it");
+    assert.deepStrictEqual(rec().loyalty.permanents.map((p) => [p.delta, p.reason, p.compensated]), [[-1, "calamity", false]], "and charges its loyalty point");
+    assert.strictEqual(posted.filter((m) => /calamityTitle/.test(m.content ?? "")).length, 1, "the Judge is prompted with the calamity card");
+    assert.ok(!rec().special?.pendingCalamity, "the downed watcher's flag is left alone");
+
+    assert.strictEqual(await hire.payOwedSigningBonus(hireling), false, "Pay against a short purse pays nothing");
+    assert.ok(warned.includes("ACKS-HENCHMEN.service.signingPayRefused"), "and says so");
+    assert.strictEqual(rec().terms.signingBonusOwedGp, 6, "and changes nothing");
+    covered = true;
+    assert.strictEqual(await hire.payOwedSigningBonus(hireling), true, "a covering purse pays it");
+    assert.strictEqual(rec().terms.signingBonusOwedGp, 0, "the debt is cleared");
+    assert.strictEqual(rec().events.at(-1).type, "signingBonusPaid", "and the payment logged");
+    assert.strictEqual(rec().counters.calamities, 1, "the calamity stands");
+
+    await hireling.setFlag("acks-extras", "record", { ...rec(), terms: { ...rec().terms, signingBonusOwedGp: 6, arrearsGp: 3 } });
+    game.user.isGM = false;
+    assert.strictEqual(await hire.forgiveSigningBonus(hireling), false, "a player cannot forgive the debt");
+    assert.strictEqual(rec().terms.signingBonusOwedGp, 6, "and nothing changes");
+    game.user.isGM = true;
+    assert.strictEqual(await hire.forgiveSigningBonus(hireling), true, "the Judge forgives it");
+    assert.strictEqual(rec().terms.signingBonusOwedGp, 0, "the debt is cleared");
+    assert.strictEqual(rec().terms.arrearsGp, 3, "the arrears are not");
+    assert.strictEqual(rec().events.at(-1).type, "signingBonusForgiven", "and the forgiveness logged");
+    assert.strictEqual(rec().counters.calamities, 1, "the calamity stands");
+  } finally {
+    for (const k of keys) globalThis[k] = saved[k];
+    ns.lib = savedLib;
+  }
+}
+
+console.log(`test-henchmen: OK (${macros.length} macros, bulk offers, network step, power values, henchman limit, network posting, classes never offered, hiring offer, hosted pages, spend receipt, refused signing bonus)`);

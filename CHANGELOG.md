@@ -45,6 +45,16 @@
   scene's thumbnail and level images, a journal page's file and a roll-table
   result's image are listed too but left for you to change, since none has a
   default image.
+- **Pay or forgive a signing bonus later.** A hireling still owed a signing
+  bonus shows Pay on the hireling's sheet → Service tab → Signing bonus row, for
+  whoever may edit the hireling; the employer's coin pays it. The Judge also
+  gets Forgive there, which moves no coin and leaves any arrears. Paying does
+  not undo the calamity. The employer's roster window (character sheet →
+  Roster) tags each hireling still owed.
+- **A hired henchman gets hit points.** A henchman hired into an imported class
+  has hit points rolled level by level from the class's hit dice. Without an
+  imported class or dice they stay unset, and the hireling's sheet → Service
+  tab → Recorded rolls → Hit points says "not imported".
 
 ### Changed
 
@@ -70,6 +80,12 @@
 
 ### Fixed
 
+- **A signing bonus the employer cannot cover no longer reads as paid.** The
+  hire goes ahead, the bonus is recorded as owed (the hireling's sheet →
+  Service tab → Terms → Signing bonus), and the refusal counts as a calamity,
+  like a missed wage: a loyalty point is charged and the Judge gets the
+  calamity card to roll loyalty, or the roll is made at once when the auto-roll
+  setting is on.
 - **A proficiency your character's ability grants counts on attack.** A weapon
   proficiency ability whose pick lights a Training pill on the character sheet's
   Stats tab no longer leaves that weapon attacking as non-proficient, and armour

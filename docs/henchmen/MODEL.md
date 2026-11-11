@@ -145,9 +145,45 @@ Serialized DataModel at `actor.flags["acks-extras"].record`
   with no hire behind it, as an imported official sheet does: origin `manual`,
   no location, the loyalty start set so the henchman reads the score given
 - `rolled.*` — recorded roll results (attributes 3d6×6, double-d100 class,
-  level die, template) for the future class-autogeneration module
-- `terms.*` — wage + basis, shares (½/½), signing bonus, `lastPaidTime`,
-  `arrearsGp`, `vassalDomain`
+  level die, template) for the future class-autogeneration module, and the
+  hit points rolled at hire (`hpRoll`, `hpSteps`) or why none were
+  (`hpUnrolled`, below)
+- `terms.*` — wage + basis, shares (½/½), signing bonus and
+  `signingBonusOwedGp`, `lastPaidTime`, `arrearsGp`, `vassalDomain`
+
+**Hit points at hire.** `hire()` (`engine/hire.mjs` `rollHireHitPoints`)
+rolls a new henchman's hit points through the classes feature when the
+actor stands at 1st level or above: the class its `details.class` names
+(`classForActorAsync`, which matches a class's name or key) rebuilt level by
+level by `rerollHitPoints` — the arithmetic, the write of maximum and
+current points and the climbs' `hpAt` record are the classes feature's
+([../classes/MODEL.md](../classes/MODEL.md), "Hit points"). The record keeps
+the maximum and each level's roll. With no class matching, or a class whose
+rows carry no hit dice, nothing is rolled or written — `rerollHitPoints` is
+never reached without a class, since it would otherwise fall to the system's
+default hit-dice formula — and `hpUnrolled` names which was missing
+(`rules/service.mjs` `hireHitPoints`). A 0th-level hire attempts nothing. The
+level-up wizard's kept roll (`levelUpRoll`) belongs to a climb in progress
+and is not written at hire.
+
+**A signing bonus the employer cannot pay.** Both hire paths pay the bonus
+through `paySigningBonus` (`engine/hire.mjs`), which wraps `spendGold`. A
+refused payment never stops the hire: the full bonus is written as
+`terms.signingBonusOwedGp` beside the agreed `signingBonusGp`, a
+`signingBonusOwed` event is logged, and the refusal is recorded as a
+calamity through `recordCalamity` (`engine/events.mjs`), as a missed wage is, its note the
+`ACKS-HENCHMEN.hire.signingBonusCalamity` string: the calamity counter, the
+uncompensated loyalty point, and the Judge's card or the auto-roll. Like the
+missed-wage calamity it does not set `special.pendingCalamity`, which is the
+downed watcher's. It is kept apart from `arrearsGp`, which
+a payday bills and `forgiveWageDebts` zeroes as wages. It is cleared by
+`payOwedSigningBonus` (the employer pays the hireling through `spendGold`;
+paid, the figure is zeroed and `signingBonusPaid` logged, refused, nothing
+changes and the seat is warned) or by the GM-only `forgiveSigningBonus`
+(zeroed with `signingBonusForgiven`, no coin moved, `arrearsGp` untouched);
+both are on the api and the Service panel (§4d). Neither touches the
+calamity recorded at hire: it has already happened, and a later payment does
+not undo it.
 - `loyalty {start, permanents[]}` / `morale {base, permanents[]}` — the
   ledgers; **effective scores are computed at read time** (base + permanents +
   employer CHA + employer effect bonuses) so transfers recalculate (RR 163).
@@ -427,18 +463,23 @@ wage whether it was agreed at hire, set on the sheet, or read off the wage
 table at the hireling's level with the page that table was imported from
 (`henchmanWageCite`, lib `citeOf`), or what is missing; the shares whether
 the record states them (`sharesDefaulted`); the counters and recorded rolls
-that the record keeps them. A calamity still owing its throw
-(`special.pendingCalamity`) puts a warning row first, badges the tab, dots
+that the record keeps them. A downed hireling's calamity
+(`special.pendingCalamity`, which the event watcher sets when hit points
+reach 0 and clears on the next update above it; no other calamity sets it)
+puts a warning row first, badges the tab, dots
 the band's in-service chip and, through the lib's `FOLLOWER_CARD_HOOK`
 (`module.mjs`), dots the follower's name on the employer's compact card
 ([../lib/FOLLOWER-CARD.md](../lib/FOLLOWER-CARD.md), "What a feature
 adds"). Terms are the wage, its basis, the two shares
-said as words from the stored fractions, the signing bonus, arrears and the
+said as words from the stored fractions, the signing bonus (read as owed, in
+the negative tone, where `signingBonusOwedGp` holds any), arrears and the
 wage clock (days since the last payday against the month, in tone once it is
 behind). Employer names the employer and the calamity and level counters,
 and whether the hireling takes a slot. The ledger lists the permanents newest
 first, a suspended one struck through; Events the last `EVENTS_SHOWN`;
-Recorded rolls the candidate's scores where the record keeps them. A
+Recorded rolls the candidate's scores where the record keeps them, and the
+hit points rolled at hire with each level's roll in the tooltip, or "not
+imported" with what was missing. A
 mercenary keeps no loyalty score (`keepsLoyalty`), so its Standing holds the
 morale throw alone and says why.
 
@@ -447,7 +488,12 @@ calamity, **Obedience**) and the compensated toggle render and run on
 `game.user.isGM` alone (`setPermanentCompensated` refuses anyone else); **Pay
 wages** renders for a GM or an owner of the employer and calls
 `payWagesFor(employer)` (§4c); the employer's name opens the employer for any
-viewer.
+viewer. An owed signing bonus carries two controls on its row
+(`signingControls`): **Pay** for whoever may edit the hireling, calling
+`payOwedSigningBonus`, and **Forgive** for a GM, calling
+`forgiveSigningBonus` (§3). The panel is hosted by two sheets, so these are
+not host actions: they carry `data-signing` and are wired by the henchmen
+module's own `renderActorSheetV2` hook (`module.mjs`).
 
 **The roster app** (`apps/roster-app.mjs`) is the employer's side. Its band is
 the frame's, moved into the window header; the body is the limit rule (count
@@ -457,8 +503,9 @@ another naming the unvalued powers), the wage rule (`wageBill`: the month's
 due or the monthly cost, **Pay wages** while anything is due, the two card
 controls), the four bucket filters with their counts (`ROSTER_FILTERS`), and
 a row per hireling: portrait, the name as the disclosure toggle (a button, so
-a second copy of the window and the keyboard both reach it), the kind tags,
-loyalty, morale and wage with the wage's tone, and the controls the seat may
+a second copy of the window and the keyboard both reach it), the kind tags
+(a "bonus owed" tag in the danger tone, the owed figure in its tooltip, while
+`signingBonusOwedGp` holds any), loyalty, morale and wage with the wage's tone, and the controls the seat may
 use — the Judge's loyalty and obedience throws, calamity and penalty,
 transfer and dismiss; a mercenary's morale throw; open for everyone. An open
 row adds the wage clock and the record, the last `ROW_EVENTS` events and the
@@ -483,7 +530,8 @@ turns obey, and say so in a notice rather than doing nothing when it is off.
 `game.modules.get("acks-extras").api.henchmen` (mirrored to `globalThis.acksExtras.henchmen`):
 apps (`openPostingDialog`, `openRecruitDialog`, `openThrowDialog`…), engine
 (`createPosting`, `processLocation`, `processAllLocations`, `hire`,
-`checkHenchmanLimit`, candidate rollers, `payWagesFor`, `wageBill`),
+`checkHenchmanLimit`, candidate rollers, `payWagesFor`, `wageBill`,
+`payOwedSigningBonus`, `forgiveSigningBonus`),
 `getRecord(actor)`, pure `rules.*`, `tables`, `adapter`, `effects`, `time`.
 
 Hooks fired (`Hooks.on("acksExtras.<event>", …)`): `postingCreated`,

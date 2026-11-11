@@ -95,7 +95,13 @@
           <span class="acks-extras-frame__row-label">{{localize "ACKS-HENCHMEN.service.signingBonus"}}</span>
           {{#if s.terms.signingWhere}}<span class="acks-extras-frame__row-line">{{s.terms.signingWhere}}</span>{{/if}}
         </span>
-        <span class="acks-extras-frame__row-value acks-nums" data-tooltip-text="{{s.terms.signingTip}}">{{s.terms.signingBonus}}</span>
+        <span class="acks-extras-frame__row-value acks-nums{{#if s.terms.signingOwed}} is-neg{{/if}}" data-tooltip-text="{{s.terms.signingTip}}">{{s.terms.signingBonus}}</span>
+        {{#if s.terms.signingControls.pay}}
+        <button type="button" class="acks-extras-frame__ctl" data-signing="pay" aria-label="{{localize 'ACKS-HENCHMEN.service.signingPay'}}" data-tooltip="{{localize 'ACKS-HENCHMEN.service.signingPayHint'}}"><i class="fa-solid fa-coins" inert></i></button>
+        {{/if}}
+        {{#if s.terms.signingControls.forgive}}
+        <button type="button" class="acks-extras-frame__ctl" data-signing="forgive" aria-label="{{localize 'ACKS-HENCHMEN.service.signingForgive'}}" data-tooltip="{{localize 'ACKS-HENCHMEN.service.signingForgiveHint'}}"><i class="fa-solid fa-hand-holding-heart" inert></i></button>
+        {{/if}}
       </div>
       <div class="acks-extras-frame__row">
         <span class="acks-extras-frame__row-text">
@@ -209,6 +215,12 @@
           {{#if s.rolled.template}}<span class="acks-extras-frame__row-line">{{s.rolled.template}}</span>{{/if}}
         </span>
         <span class="acks-extras-frame__row-value acks-nums" data-tooltip-text="{{s.rolled.rolledTip}}">{{s.rolled.classLevel}}</span>
+      </div>
+      {{/if}}
+      {{#if s.rolled.hp}}
+      <div class="acks-extras-frame__row">
+        <span class="acks-extras-frame__row-label is-plain">{{localize "ACKS-HENCHMEN.service.hitPoints"}}</span>
+        <span class="acks-extras-frame__row-value acks-nums acks-extras-service__push{{#if s.rolled.hp.unset}} is-faint{{/if}}" data-tooltip-text="{{s.rolled.hp.tip}}">{{s.rolled.hp.value}}</span>
       </div>
       {{/if}}
     </div>

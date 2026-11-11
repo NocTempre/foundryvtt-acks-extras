@@ -40,7 +40,7 @@
       <img class="acks-extras-roster__portrait" src="{{r.img}}" alt="" inert>
       <button type="button" class="acks-extras-roster__who" data-action="toggleRow" aria-expanded="{{r.open}}" data-tooltip="{{localize 'ACKS-HENCHMEN.roster.toggle'}}">
         <span class="acks-extras-roster__name">{{r.name}}{{#if r.pending}}<i class="acks-extras-roster__dot" data-tooltip="{{localize 'ACKS-HENCHMEN.roster.pending'}}" inert></i>{{/if}}<i class="fa-solid fa-chevron-{{#if r.open}}up{{else}}down{{/if}} acks-extras-roster__chev" inert></i></span>
-        <span class="acks-tag-group">{{#each r.tags as |t|}}<span class="acks-tag{{#if t.ghost}} acks-tag--ghost{{/if}}" {{#if t.title}}data-tooltip="{{t.title}}"{{/if}}>{{t.label}}</span>{{/each}}</span>
+        <span class="acks-tag-group">{{#each r.tags as |t|}}<span class="acks-tag{{#if t.ghost}} acks-tag--ghost{{/if}}{{#if t.owed}} acks-tag--danger{{/if}}"{{#if t.title}}data-tooltip="{{t.title}}"{{/if}}>{{t.label}}</span>{{/each}}</span>
       </button>
       <span class="acks-extras-roster__stat" data-tooltip="{{r.loyalty.title}}"><span class="acks-extras-roster__k">{{localize "ACKS-HENCHMEN.roster.loyalty"}}</span><span class="acks-extras-roster__v acks-nums">{{r.loyalty.value}}</span></span>
       <span class="acks-extras-roster__stat" data-tooltip="{{r.morale.title}}"><span class="acks-extras-roster__k">{{localize "ACKS-HENCHMEN.roster.morale"}}</span><span class="acks-extras-roster__v acks-nums">{{r.morale.value}}</span></span>

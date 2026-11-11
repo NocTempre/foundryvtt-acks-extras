@@ -1183,3 +1183,43 @@ a map ends at the first week the employer stands on another map, even with
 coin on hand. A place on no map is reached through its owners, so a party
 that walks away from one keeps paying. Postings booked as paid before this
 change keep their rows.
+
+### A signing bonus the employer cannot pay is owed, a calamity, and the hire stands (2026-11-11)
+
+Both hire paths discarded `spendGold`'s answer for the signing bonus, so a
+refused payment left the record stating a bonus nobody paid (bug intake
+T-0443). Owner ruling: the hire goes ahead, the unpaid bonus is recorded as
+owed on the henchman, and a roll decides whether the henchman stays. Asked
+whether that roll is a calamity's, the owner ruled that an unpaid bonus is a
+missed wage upon hire, and that the Judge can prompt a manual roll.
+
+- **Owed, on its own field.** `terms.signingBonusOwedGp` takes the full
+  bonus (`spendGold` pays all or nothing) beside the agreed figure, with a
+  `signingBonusOwed` event, and the Service panel reads it as owed. It is not
+  booked as `arrearsGp`: a payday bills arrears and the wage-debt repair
+  forgives them, and the bonus is owed apart from the month's wage.
+- **A calamity, by the missed-wage path.** The book's list of calamities
+  names going without wages and leaves other dire outcomes to the Judge
+  (RR ch. 4, Hireling Loyalty); the signing bonus appears on the page only
+  as a modifier on the hiring reaction roll (RR ch. 4, Hiring). The owner's
+  ruling reads the unpaid bonus into the first, so the refusal calls
+  `recordCalamity`, as a missed wage does: the counter, the uncompensated
+  loyalty point, and the Judge's card with its loyalty-roll button, or the
+  roll at once under the auto-roll setting. No new roll is added.
+- **The calamity stands once recorded.** A later Pay clears the debt and
+  does not undo the calamity, which has already happened; Forgive clears
+  the debt only.
+- **The debt ships with its Judge tools.** A recorded debt nobody can clear
+  is a surface nobody can reach, so the same change adds Pay (whoever may
+  edit the hireling; the employer pays through `spendGold`, a refusal
+  changes nothing) and the GM's Forgive (no coin, arrears untouched) on the
+  Service panel, and an owed tag on the roster row. The panel is hosted by
+  the character and monster sheets, so the two controls are wired by the
+  henchmen module's own render hook rather than registered as an action on
+  each host.
+
+**Rejected.** Setting `special.pendingCalamity` with the calamity: that flag
+is the downed watcher's (`onUpdateActor` sets it at 0 hit points and clears
+it on the next update above 0), so a debt would raise a badge that any
+healing clears and no loyalty roll does. The missed-wage path does not set
+it either.

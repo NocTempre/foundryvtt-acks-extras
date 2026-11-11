@@ -124,8 +124,9 @@ export function shareKind(fraction) {
 /**
  * The terms as the panel reads them: the wage in force (the record's agreed
  * figure, else the sheet's, else the ladder's handed in as `ladder` for a
- * henchman alone), its basis, the two shares, the signing bonus and the
- * arrears. `wageUnset` is a wage that comes to nothing, which bills nothing.
+ * henchman alone), its basis, the two shares, the signing bonus, what of it
+ * is still owed (`signingOwed`) and the arrears. `wageUnset` is a wage that
+ * comes to nothing, which bills nothing.
  * `wageFrom` names where the wage in force came from — `agreed`, `sheet`,
  * `ladder`, or null for none — and `sharesDefaulted` is a share the record
  * never stated, read at the default instead.
@@ -146,27 +147,69 @@ export function termsOf(record, { sheetWage = null, ladder = 0, category = "henc
     treasureShare: shareKind(terms.treasureShare ?? 0.5),
     xpShare: shareKind(terms.xpShare ?? 0.5),
     signingBonus: num(terms.signingBonusGp),
+    signingOwed: num(terms.signingBonusOwedGp),
     arrears: num(terms.arrearsGp),
     claimedEmployerLevel: terms.claimedEmployerLevel ?? null,
   };
 }
 
+/**
+ * Which owed-bonus controls the Service panel offers: paying it to whoever
+ * may edit the hireling, forgiving it to a GM alone, and neither once nothing
+ * is owed.
+ * @param {{signingOwed?: number}} terms `termsOf`'s answer
+ * @param {{isOwner?: boolean, isGM?: boolean}} viewer
+ * @returns {{pay: boolean, forgive: boolean}}
+ */
+export function signingControls(terms, { isOwner = false, isGM = false } = {}) {
+  const owed = num(terms?.signingOwed) > 0;
+  return { pay: owed && !!isOwner, forgive: owed && !!isGM };
+}
+
 /** The six scores a hire records, in the order `rolledOf` prints them. */
 export const ROLLED_SCORES = Object.freeze(["str", "int", "wil", "dex", "con", "cha"]);
 
-/** The recorded rolls as the panel prints them: the six scores in order, or null where none was recorded. */
+/**
+ * The recorded rolls as the panel prints them: the six scores in order, or
+ * null where none was recorded; the hit points rolled at hire with each
+ * level's roll (`hpSteps`), or why none were (`hpUnrolled`).
+ */
 export function rolledOf(record) {
   const r = record?.rolled ?? {};
   const a = r.attributes ?? {};
   const keys = ROLLED_SCORES;
   const scores = keys.every((k) => a[k] == null) ? null : keys.map((k) => (a[k] == null ? "—" : String(a[k])));
+  const hpRoll = r.hpRoll ?? null;
+  const hpUnrolled = hpRoll == null ? r.hpUnrolled || "" : "";
   return {
     scores,
     classKey: r.classKey ?? "",
     level: r.level ?? null,
     template: r.template ?? "",
-    hpRoll: r.hpRoll ?? null,
-    any: !!(scores || r.classKey || r.level != null || r.template),
+    hpRoll,
+    hpSteps: hpRoll == null ? [] : (r.hpSteps ?? []),
+    hpUnrolled,
+    any: !!(scores || r.classKey || r.level != null || r.template || hpRoll != null || hpUnrolled),
+  };
+}
+
+/**
+ * The record's `rolled` hit-point slice for a hire: `built` is the classes
+ * feature's `rebuildHitPoints` answer (null where the class carries no hit
+ * dice), `classFound` whether an imported class matched the hireling at all.
+ * Nothing is rolled in place of a missing class or missing dice; the slice
+ * then names which was missing.
+ * @param {boolean} classFound
+ * @param {{max: number, steps: Array<{level: number, formula: string, total: number}>}|null} built
+ * @returns {{hpRoll: number|null, hpSteps: Array<{level: number, formula: string, total: number}>, hpUnrolled: ""|"noClass"|"noDice"}}
+ */
+export function hireHitPoints(classFound, built) {
+  if (!classFound) return { hpRoll: null, hpSteps: [], hpUnrolled: "noClass" };
+  if (!built) return { hpRoll: null, hpSteps: [], hpUnrolled: "noDice" };
+  return {
+    hpRoll: built.max,
+    hpSteps: (built.steps ?? []).map((s) => ({ level: s.level, formula: s.formula, total: s.total })),
+    hpUnrolled: "",
   };
 }
 

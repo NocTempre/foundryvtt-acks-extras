@@ -11,7 +11,7 @@
 import assert from "node:assert";
 import {
   ROSTER_FILTERS, bucketOf, keepsLoyalty, wageClock, loyaltyParts, moraleParts, ledgerEntries, shareKind, termsOf,
-  rolledOf, slotOf, serviceBadge, filterRows, filterCounts, ROLLED_SCORES,
+  rolledOf, slotOf, serviceBadge, filterRows, filterCounts, ROLLED_SCORES, hireHitPoints, signingControls,
 } from "../scripts/henchmen/rules/service.mjs";
 import { effectiveMorale, effectiveLoyalty, clampScore } from "../scripts/henchmen/rules/loyalty.mjs";
 import { henchmanWage, henchmanWageCite } from "../scripts/henchmen/rules/wages.mjs";
@@ -172,6 +172,24 @@ test("the shares default to the record's initial and the arrears to nothing", ()
   assert.equal(t.arrears, 7);
   assert.equal(termsOf({}).arrears, 0);
 });
+test("a signing bonus refused at hire reads as owed, apart from the arrears", () => {
+  const owed = termsOf({ terms: { signingBonusGp: 40, signingBonusOwedGp: 40, arrearsGp: 3 } });
+  assert.equal(owed.signingBonus, 40, "the agreed figure stays");
+  assert.equal(owed.signingOwed, 40, "and what is owed of it is read beside it");
+  assert.equal(owed.arrears, 3, "the wage arrears are not touched by it");
+  assert.equal(termsOf({ terms: { signingBonusGp: 40, signingBonusOwedGp: 0 } }).signingOwed, 0, "a paid bonus owes nothing");
+  assert.equal(termsOf({ terms: { signingBonusGp: 40 } }).signingOwed, 0, "a record from before the field owes nothing");
+});
+
+test("an owed bonus offers Pay to whoever may edit the hireling and Forgive to a GM alone", () => {
+  const owed = termsOf({ terms: { signingBonusGp: 40, signingBonusOwedGp: 40 } });
+  assert.deepEqual(signingControls(owed, { isOwner: true, isGM: false }), { pay: true, forgive: false }, "an owning player pays, never forgives");
+  assert.deepEqual(signingControls(owed, { isOwner: true, isGM: true }), { pay: true, forgive: true }, "a GM may do either");
+  assert.deepEqual(signingControls(owed, { isOwner: false, isGM: false }), { pay: false, forgive: false }, "an onlooker gets neither");
+  const paid = termsOf({ terms: { signingBonusGp: 40, signingBonusOwedGp: 0, arrearsGp: 3 } });
+  assert.deepEqual(signingControls(paid, { isOwner: true, isGM: true }), { pay: false, forgive: false }, "nothing owed: no control, arrears or not");
+  assert.deepEqual(signingControls(null), { pay: false, forgive: false }, "no terms: no control");
+});
 
 console.log("service: the record's extras");
 test("recorded rolls print the six scores in order, a missing one as a dash", () => {
@@ -181,6 +199,28 @@ test("recorded rolls print the six scores in order, a missing one as a dash", ()
   assert.equal(r.any, true);
   assert.equal(rolledOf({}).any, false);
   assert.equal(rolledOf({}).scores, null);
+});
+test("hit points at hire: rolled from the classes feature's rebuild, or nothing in place of a missing class or missing dice", () => {
+  const built = { max: 11, steps: [{ level: 1, formula: "1d5", total: 4 }, { level: 2, formula: "2d5", total: 7, extra: true }] };
+  const rolled = hireHitPoints(true, built);
+  assert.equal(rolled.hpRoll, 11, "the rebuilt maximum is recorded");
+  assert.deepEqual(rolled.hpSteps, [{ level: 1, formula: "1d5", total: 4 }, { level: 2, formula: "2d5", total: 7 }], "each level's roll, in the record's shape");
+  assert.equal(rolled.hpUnrolled, "");
+  assert.deepEqual(hireHitPoints(false, built), { hpRoll: null, hpSteps: [], hpUnrolled: "noClass" }, "no class: nothing rolled, even with dice in hand");
+  assert.deepEqual(hireHitPoints(true, null), { hpRoll: null, hpSteps: [], hpUnrolled: "noDice" }, "a class with no hit dice: nothing rolled");
+});
+test("recorded rolls carry the hit points, or why there are none", () => {
+  const rolled = rolledOf({ rolled: { hpRoll: 9, hpSteps: [{ level: 1, formula: "1d5", total: 9 }] } });
+  assert.equal(rolled.hpRoll, 9);
+  assert.equal(rolled.hpSteps.length, 1);
+  assert.equal(rolled.hpUnrolled, "");
+  assert.equal(rolled.any, true, "a hit point roll alone shows the block");
+  const unrolled = rolledOf({ rolled: { hpRoll: null, hpUnrolled: "noDice" } });
+  assert.equal(unrolled.hpRoll, null);
+  assert.equal(unrolled.hpUnrolled, "noDice");
+  assert.equal(unrolled.any, true, "a reason alone shows the block, so the panel can say not imported");
+  assert.equal(rolledOf({ rolled: { hpRoll: 5, hpUnrolled: "noClass" } }).hpUnrolled, "", "a roll outranks a stale reason");
+  assert.equal(rolledOf({ rolled: { hpRoll: null, hpSteps: [{ level: 1, formula: "1d5", total: 3 }] } }).hpSteps.length, 0, "no steps without a total");
 });
 test("a henchman takes a slot unless the record exempts them; the other kinds never do", () => {
   assert.equal(slotOf({}, "henchman"), "counted");

@@ -11,7 +11,7 @@ import { effectiveLoyaltyFor, effectiveMoraleFor, employerLoyaltyMods, employerM
 import { reasonKey } from "./rules/loyalty.mjs";
 import { henchmanWage, henchmanWageCite } from "./rules/wages.mjs";
 import {
-  wageClock, loyaltyParts, moraleParts, ledgerEntries, termsOf, rolledOf, slotOf, keepsLoyalty, serviceBadge, ROLLED_SCORES,
+  wageClock, loyaltyParts, moraleParts, ledgerEntries, termsOf, rolledOf, slotOf, keepsLoyalty, serviceBadge, ROLLED_SCORES, signingControls,
 } from "./rules/service.mjs";
 import * as adapter from "./acks-adapter.mjs";
 import { now, secondsPerMonth, dateLabel } from "./time.mjs";
@@ -177,9 +177,15 @@ export function buildServicePanel(actor, { isGM = false, pins = [] } = {}) {
       ? shareLabel(terms.treasureShare)
       : loc("shareSplit", { treasure: shareLabel(terms.treasureShare), xp: shareLabel(terms.xpShare) }),
     shareTip: loc(terms.sharesDefaulted ? "tip.shareDefault" : "tip.shareAgreed"),
-    signingBonus: loc("gp", { gp: terms.signingBonus }),
-    signingTip: loc("tip.signing"),
-    signingWhere: record.settlementName ? loc("signingWhere", { where: record.settlementName }) : "",
+    // A bonus the employer could not pay at hire reads as owed, on the row's
+    // face as well as in its tooltip.
+    signingBonus: terms.signingOwed > 0 ? loc("signingOwedValue", { gp: terms.signingOwed }) : loc("gp", { gp: terms.signingBonus }),
+    signingTip: terms.signingOwed > 0 ? loc("tip.signingOwed", { gp: terms.signingBonus || terms.signingOwed }) : loc("tip.signing"),
+    signingOwed: terms.signingOwed > 0,
+    signingControls: signingControls(terms, { isOwner: !!actor.isOwner, isGM }),
+    signingWhere: record.settlementName
+      ? loc(terms.signingOwed > 0 ? "signingOwedWhere" : "signingWhere", { where: record.settlementName })
+      : "",
     arrears: loc("gp", { gp: terms.arrears }),
     arrearsTip: loc("tip.arrears"),
     arrearsOwed: terms.arrears > 0,
@@ -225,8 +231,26 @@ export function buildServicePanel(actor, { isGM = false, pins = [] } = {}) {
           rolledTip: loc("tip.rolled"),
           classLevel: [rolled.classKey, rolled.level != null ? rolled.level : ""].filter((x) => x !== "").join(" · "),
           template: rolled.template,
-          hpRoll: rolled.hpRoll,
+          hp: hitPointsView(rolled),
         }
       : null,
+  };
+}
+
+/**
+ * The Recorded rolls' hit-point row: the maximum rolled at hire with each
+ * level's roll in its tooltip, or "not imported" with what was missing.
+ * Null where the record holds neither.
+ */
+function hitPointsView(rolled) {
+  if (rolled.hpRoll != null) {
+    const steps = rolled.hpSteps.map((s) => loc("hpStep", { level: s.level, formula: s.formula, total: s.total })).join(" · ");
+    return { value: String(rolled.hpRoll), unset: false, tip: loc("tip.hpRolled", { steps }) };
+  }
+  if (!rolled.hpUnrolled) return null;
+  return {
+    value: loc("hpUnimported"),
+    unset: true,
+    tip: loc(rolled.hpUnrolled === "noDice" ? "tip.hpNoDice" : "tip.hpNoClass", { class: rolled.classKey || "—" }),
   };
 }

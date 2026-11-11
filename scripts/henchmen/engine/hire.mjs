@@ -35,9 +35,114 @@ import HenchmanRecord from "../data/henchman-record.mjs";
 import { now } from "../time.mjs";
 import { ACTOR_TYPE } from "../../lib/vocab.mjs";
 import { appendMarketLog } from "../../location/data/market-log.mjs";
+import { gpText } from "../../lib/money-logic.mjs";
+import { hireHitPoints } from "../rules/service.mjs";
+import { whenReady } from "../../lib/library.mjs";
+import { recordCalamity } from "./events.mjs";
 
 async function roll(formula) {
   return (await new Roll(formula).evaluate()).total;
+}
+
+/**
+ * Pay a signing bonus through `spendGold`; a refused payment never stops the
+ * hire. With `hireling` given, a refusal is written on its record as owed
+ * (`terms.signingBonusOwedGp`, the agreed figure kept beside it), logged as
+ * an event, and recorded as a calamity through `recordCalamity`, the path a
+ * missed wage takes, which charges its loyalty point and prompts or rolls
+ * the loyalty throw.
+ * @returns {Promise<number>} the gp left owed — 0 when paid or when there was none
+ */
+async function paySigningBonus(employer, gp, reason, spendOpts, hireling = null) {
+  if (!(gp > 0)) return 0;
+  const paid = await adapter.spendGold(employer, gp, reason, spendOpts);
+  if (paid) return 0;
+  if (hireling) {
+    const record = hireling.getFlag(MODULE_ID, FLAG_RECORD) ?? {};
+    await hireling.setFlag(MODULE_ID, FLAG_RECORD, {
+      ...record,
+      terms: { ...(record.terms ?? {}), signingBonusGp: record.terms?.signingBonusGp ?? gp, signingBonusOwedGp: gp },
+    });
+    await HenchmanRecord.logEvent(hireling, {
+      type: "signingBonusOwed",
+      note: game.i18n.format("ACKS-HENCHMEN.service.signingOwedValue", { gp: gpText(gp) }),
+    });
+    await recordCalamity(hireling, game.i18n.localize("ACKS-HENCHMEN.hire.signingBonusCalamity"));
+  }
+  return gp;
+}
+
+/** The signing bonus a hireling's record still owes, in gp; 0 for none. */
+const owedOf = (hireling) => Number(hireling?.getFlag(MODULE_ID, FLAG_RECORD)?.terms?.signingBonusOwedGp) || 0;
+
+/** Zero the record's owed bonus and log `type` with the figure it cleared. */
+async function clearOwed(hireling, owed, type) {
+  const record = hireling.getFlag(MODULE_ID, FLAG_RECORD) ?? {};
+  await hireling.setFlag(MODULE_ID, FLAG_RECORD, { ...record, terms: { ...(record.terms ?? {}), signingBonusOwedGp: 0 } });
+  await HenchmanRecord.logEvent(hireling, { type, note: game.i18n.format("ACKS-HENCHMEN.service.gp", { gp: gpText(owed) }) });
+}
+
+/**
+ * Pay what a hireling's record still owes of its signing bonus: the employer
+ * pays the hireling through `spendGold`, as the hire tried to. Runs on a seat
+ * that may edit the hireling. Paid, the owed figure is zeroed and a
+ * `signingBonusPaid` event logged; refused, nothing changes and the seat is
+ * told.
+ * @returns {Promise<boolean>} whether it was paid
+ */
+export async function payOwedSigningBonus(hireling) {
+  const owed = owedOf(hireling);
+  if (!(owed > 0) || !hireling.isOwner) return false;
+  const employer = adapter.getManager(hireling);
+  const paid = employer
+    ? await adapter.spendGold(employer, owed, game.i18n.format("ACKS-HENCHMEN.hire.signingBonusReason", { name: hireling.name }), { to: hireling })
+    : false;
+  if (!paid) {
+    ui.notifications.warn(game.i18n.format("ACKS-HENCHMEN.service.signingPayRefused", { name: hireling.name }));
+    return false;
+  }
+  await clearOwed(hireling, owed, "signingBonusPaid");
+  return true;
+}
+
+/**
+ * The Judge's forgiveness of a hireling's owed signing bonus: zeroed with a
+ * `signingBonusForgiven` event, no coin moved and the wage arrears untouched.
+ * GM-only, enforced here.
+ * @returns {Promise<boolean>} whether anything changed
+ */
+export async function forgiveSigningBonus(hireling) {
+  if (!game.user.isGM) {
+    ui.notifications.warn(game.i18n.localize("ACKS-HENCHMEN.service.signingForgiveGmOnly"));
+    return false;
+  }
+  const owed = owedOf(hireling);
+  if (!(owed > 0)) return false;
+  await clearOwed(hireling, owed, "signingBonusForgiven");
+  return true;
+}
+
+/**
+ * A new henchman's hit points, rolled through the classes feature: the class
+ * the actor names (`classForActorAsync`) rebuilt level by level at its level
+ * (`rerollHitPoints`, which writes the maximum, current points and the
+ * climbs' record). Below 1st level nothing is attempted and the answer is
+ * null. With no imported class, or a class carrying no hit dice, nothing is
+ * rolled and nothing written — never a fallback die — and the slice says
+ * which was missing (`hireHitPoints`).
+ */
+async function rollHireHitPoints(actor) {
+  if (!(Number(actor.system?.details?.level) >= 1)) return null;
+  const { classForActorAsync } = await import("../../classes/registry.mjs");
+  // The answer is written once, so the library is loaded whole first: a
+  // class matched by key on a cold shelf would otherwise read as missing.
+  await whenReady();
+  const classItem = await classForActorAsync(actor);
+  // Gated on a resolved class: without one `rerollHitPoints` falls to the
+  // actor's own hit-dice formula, which is the system's default.
+  if (!classItem) return hireHitPoints(false, null);
+  const { rerollHitPoints } = await import("../../classes/levelup.mjs");
+  return hireHitPoints(true, await rerollHitPoints(actor));
 }
 
 /**
@@ -200,17 +305,16 @@ export async function hireExistingActor(location, specialHireId, employer, opts 
   }
   if (!result?.error) {
     await updateSpecialHire(location, specialHireId, { status: "hired" });
-    if (opts.signingBonusGp > 0) {
-      await adapter.spendGold(
-        employer,
-        opts.signingBonusGp,
-        game.i18n.format("ACKS-HENCHMEN.hire.signingBonusReason", { name: entry.name }),
-        // The bonus lands in the new hire's hands (they were just added to the
-        // roster, which is the reach); a hire that made no actor pays the till.
-        // It is paid where the hire is made: coin on hand, or kept there.
-        { to: result?.actor ?? location, at: location, within: location }
-      );
-    }
+    await paySigningBonus(
+      employer,
+      opts.signingBonusGp,
+      game.i18n.format("ACKS-HENCHMEN.hire.signingBonusReason", { name: entry.name }),
+      // The bonus lands in the new hire's hands (they were just added to the
+      // roster, which is the reach); a hire that made no actor pays the till.
+      // It is paid where the hire is made: coin on hand, or kept there.
+      { to: result?.actor ?? location, at: location, within: location },
+      result?.actor ?? null
+    );
   }
   return result;
 }
@@ -421,6 +525,18 @@ export async function hire(location, candidateId, employer, opts = {}) {
     console.warn(`${MODULE_ID} | core addHenchman failed; roster link incomplete`, err);
   }
 
+  // Hit points (enrichment — non-fatal): a henchman of an imported class at
+  // 1st level or above gets them rolled; the record keeps what was rolled or
+  // what was missing.
+  let hp = null;
+  if (category === "henchman") {
+    try {
+      hp = await rollHireHitPoints(actor);
+    } catch (err) {
+      console.error(`${MODULE_ID} | hit point roll failed for ${actor.name}`, err);
+    }
+  }
+
   // 3. Module record (enrichment — non-fatal; see the commit above).
   let record;
   try {
@@ -443,7 +559,9 @@ export async function hire(location, candidateId, employer, opts = {}) {
       classRarity: candidate.classRarity ?? "",
       template: candidate.template ?? "",
       level: candidate.level ?? null,
-      hpRoll: candidate.hpRoll ?? null,
+      hpRoll: hp?.hpRoll ?? null,
+      hpSteps: hp?.hpSteps ?? [],
+      hpUnrolled: hp?.hpUnrolled ?? "",
       doubleD100: candidate.doubleD100 ?? [],
     },
     terms: {
@@ -487,16 +605,16 @@ export async function hire(location, candidateId, employer, opts = {}) {
   } catch {
     /* ledger is best-effort */
   }
-  if (opts.signingBonusGp > 0) {
-    await adapter.spendGold(
-      employer,
-      opts.signingBonusGp,
-      game.i18n.format("ACKS-HENCHMEN.hire.signingBonusReason", { name: actor.name }),
-      { to: actor, within: location }
-    );
-  }
+  await paySigningBonus(
+    employer,
+    opts.signingBonusGp,
+    game.i18n.format("ACKS-HENCHMEN.hire.signingBonusReason", { name: actor.name }),
+    { to: actor, within: location },
+    actor
+  );
 
-  Hooks.callAll(HOOKS.HIRED, { employer, actor, location, record: record?.toObject?.() ?? null, candidate });
+  // The stored record, which carries a bonus left owed after it was built.
+  Hooks.callAll(HOOKS.HIRED, { employer, actor, location, record: actor.getFlag(MODULE_ID, FLAG_RECORD) ?? null, candidate });
   Hooks.callAll(HOOKS.ROSTER_CHANGED, { employer });
   ChatMessage.create({
     content: game.i18n.format("ACKS-HENCHMEN.hire.hiredChat", {
