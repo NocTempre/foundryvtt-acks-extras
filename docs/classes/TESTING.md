@@ -918,6 +918,66 @@ page to throw once on an `ability` create, after the selects are set.
 **Teardown.** The fixture is kept. Track the chat cards spoken by it, by id,
 and `api.sweepTracked({only: [those uuids]})`.
 
+## The wizard's kept roll
+
+`tools/live/classes-levelup-roll.mjs` walks this section on the GM and Player
+seats.
+
+**Fixtures (kept; found by marker, built when none carries it).** Three
+classes with invented level rows, so no figure the walk prints is a book's:
+`classes/levelup-roll-class` (a die more at each of four levels),
+`classes/levelup-roll-gap-class` (no cell at 2nd, between two that print one)
+and `classes/levelup-roll-nohd-class` (no cell at all). The character
+`classes/levelup-roll-character` is owned by the Player seat. Each step brings
+it to a known shape from the GM seat first: its effects deleted,
+`flags["acks-extras"].classes` unset, level 1 and experience 0, Constitution
+set, then `applyClass(actor, cls, {level: START, confirm: false,
+rebuildVitals: true})` and experience set to `cls.system.nextXp(START)`, which
+is what puts *Level up* on the Class tab.
+
+**Drive mechanics.** The click is the Player seat's: open `AcksCharacterSheet`
+with `tabGroups.primary = "class"` and click `[data-action="levelUp"]`. The
+wizard is the DialogV2 holding `.acks-extras-classes-levelup-body`; its hit
+point line is the paragraph holding `→`, and closing the dialog without
+answering is a cancel. A reload is a real `Page.reload` over the seat's CDP
+target, never a navigation. The hit-point mode is the world setting
+`levelUpHpMode`; the walk restores it in its `finally`.
+
+**Steps → observable.**
+1. START 2, open the wizard. *A roll is shown, and
+   `flags["acks-extras"].classes.levelUpRoll` holds it stamped with level 3,
+   mode `full`, the 3rd-level dice and the Constitution modifier.*
+2. Close it and open it again; then reload the Player page and open it again.
+   *The same line and the same record each time.*
+3. Raise Constitution to a score with another modifier and open it. *A new
+   roll, stamped with the new modifier.* Put Constitution back.
+4. Open it and press Apply. *Level 3; the stored maximum is the figure the
+   line offered; the record is gone.*
+5. Give the character 4th's experience (the climb leaves it at 3rd's, where
+   the wizard is not ready), open the wizard at 3rd and close it, then type
+   the level back to 2. *A record for 4th is held, then gone.*
+6. START 2 again with an effect that ADDs 5 to `system.hp.max`. *The line's
+   old maximum is `_source.system.hp.max`, not the raised one; after Apply the
+   stored maximum is the offered figure and the prepared one is 5 above it.*
+7. Bind the diceless class at 1st with the maximum set to 6. *The maximum
+   stays 6 and a warning says no hit points were rolled. The wizard shows no
+   roll, offers one point more, carries the `levelup.noHd` hint, and keeps no
+   record.*
+8. Bind the gap class at 1st and open the wizard. *The record's dice are two
+   of the size the class's last die row prints.*
+9. START 2, open and close the wizard, set the mode to additive, open it
+   again. *The record now reads mode `additive` and one die; the offer is the
+   old maximum plus that die and the modifier, at least one.*
+10. On the Player page, read `acksExtras.classes.intBonusPicks` over the
+    scores 3–18 against `CONFIG.Actor.dataModels.character.getAttributeModifier`.
+    *The system serves the function; the picks are its modifier clamped at
+    zero, none at the lowest score, never falling; for a character, its own
+    prepared modifier.*
+
+**Teardown.** The fixtures are kept. The cards the climbs post (made by the
+Player's client, spoken by the fixture) and the step 6 effect are tracked by
+id and swept with `api.sweepTracked({only})`.
+
 ## Experience follows a set level; tracking; leaving 0th level
 
 **Before.** Import the `experience` tables with RR and JJ connected

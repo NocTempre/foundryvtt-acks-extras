@@ -580,8 +580,29 @@ token owned only through its delta behaves as its player's.
   world actor, goes through `acksExtras.lib.summons.placeSummons` instead, with
   the Player granted OBSERVER on it (the relay refuses a source the sender
   cannot read), and exercises the same relay.
-- `summons/scene` — a scene, ACTIVATED, with the Player seat viewing it and a
-  token of the summoner on it.
+- `summons/scene` — a scene the Player seat VIEWS (`scene.view()`; it need not
+  be active, since the relay accepts a scene its sender is viewing or can
+  observe), with the summoner's token `summons/summoner-token` on it.
+- `summons/stranger` — a `character` the Player seat observes and does not own,
+  for step 6.
+- `summons/bindable` — an unlinked token of `summons/spike-source` on the scene,
+  owned by the Player through its delta, for step 8.
+
+`tools/live/character-sheet-summons.mjs` walks steps 1–8 on the GM and Player
+seats.
+
+**Drive mechanics (learned live).**
+- A paused world refuses a player's summons ("The game is paused."), so the
+  world is unpaused for the walk and paused again after it.
+- A Player seat with no assigned character opens its User Configuration window
+  on join, and that window and the character sheet stand over the map: close
+  every framed window before placing, or the clicks land on them.
+- Pan the scene's middle to the viewport's middle immediately before reading
+  the click points (`canvas.clientCoordinatesFromCanvas`), and check that
+  `document.elementFromPoint` at each is the canvas: a controlled token or a
+  restored view position moves the view between viewing the scene and placing.
+- The clicks are real CDP `Input.dispatchMouseEvent` presses on the seat's own
+  page, the pointer moved there first so the preview follows it.
 
 At the start the summoner has no summons on the scene; a leftover token is a
 past run's, read by its `summon` record and removed through *Dismiss all*.
@@ -601,8 +622,9 @@ summoner, the Tokens layer active):
    the source uuid, the spell id and `at` equal to the world time of the
    summoning; the party cell shows three asterisks.
 3. *Observable:* `game.actors.filter(a => a.getFlag("acks-extras",
-   "summonCopy"))` holds ONE actor for that source, owned by nobody but the GM
-   (`ownership.default === 0`, no user ids), filed in a folder named
+   "summonCopy"))` holds ONE actor for that source, owned by no player
+   (`ownership.default === 0`, and no player's id with a level; core makes the
+   creating GM seat an owner, which grants nothing), filed in a folder named
    "Summoned" that the Player's sidebar does not show. Summon the same
    creature again: still one copy.
 4. As the Player, move one token (`{animate: false}`) and open its sheet.
@@ -612,14 +634,15 @@ summoner, the Tokens layer active):
    hit points are rolled per token).
 5. Cancel path: *Summon…* again, right-click every preview. *Observable:* no
    token is made, no warning for a cancelled placement.
-6. Refusal path from a second Player seat that does not own the summoner: the
-   cell offers no *Summon…*; calling `acksExtras.lib.summons.placeSummons`
-   directly resolves `{ok: false, reason: "notOwner"}` and nothing is made.
+6. Refusal path, from the Player seat on `summons/stranger`: its cell offers
+   no *Summon…*; calling `acksExtras.lib.summons.placeSummons` on it directly
+   resolves `{ok: false, reason: "notOwner"}` and nothing is made.
 7. Party cell → *Dismiss <creature> (3)*. *Observable:* a confirmation
    dialog; pressing No or closing it removes nothing; pressing Yes removes all
    three tokens and the cell drops to `0`. The "Summoned" copy remains.
-8. Bind a hand-picked token as a summon (*Bind*, as step 14 above), then
-   *Dismiss all*. *Observable:* the bound token is untouched; *Release* is the
+8. Bind a hand-picked token as a summon (*Bind*, as step 14 above), summon
+   one more creature so two casts stand (*Dismiss all* is offered from two
+   casts up), then *Dismiss all*. *Observable:* the bound token is untouched; *Release* is the
    only control that lets go of it.
 9. With the Player seat able to open no monster pack (set the shelves' ownership
    to NONE for players), *Summon…* opens a prompt that says there is nothing to
