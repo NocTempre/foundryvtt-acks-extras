@@ -179,6 +179,14 @@ a shelf and a book to the importers that rebuild its rows, and `isTableRow`
 tells a shelf's repair which documents are rows. A row of a table whose book is
 not open on this seat is left.
 
+**What a rebuild deletes.** A shelf rebuild, a book rebuild and the entry
+picker's rebuild delete a library document only where `rebuildable` allows it
+(`rebuild-guard.mjs`): a loaded owner re-creates the claim (an entry of a loaded
+cookbook, an OSE generator whose book's cookbook is loaded, or the recipe of the
+table a row is read from, `TABLE_BOOKS`), that claim's book is open on this
+seat, and the book is in `BOOKS`. A document refused is left standing and
+counted (`kept` on a shelf, `left` on a book, `refused` on the picker).
+
 ## An adventure book, rebuilt or repaired
 
 `cookbookReimportAdventure(bookId, {mode})` treats one Judge's book as a

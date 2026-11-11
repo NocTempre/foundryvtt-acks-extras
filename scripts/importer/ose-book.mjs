@@ -366,8 +366,9 @@ export async function importOseAreas(bookId, { folderId = null } = {}) {
     const entry = cb.entries[id];
     bar.step(entry.name ?? id);
     // Asked before the page is read, not only before the write: reading a room
-    // this world already holds is the cost a re-run exists to avoid.
-    if (await importedActorFor(id)) {
+    // this world already holds is the cost a re-run exists to avoid. The
+    // library's own room answers; a copy dragged out of it does not.
+    if (await importedActorFor(id, { copies: false })) {
       already++;
       continue;
     }

@@ -9535,6 +9535,40 @@ until they delete it and drag out the rebuilt template; the changelog says so.
 A rebuild's template keeps its id only while the page that deleted it stays
 open (`deleteImported` records ids in memory).
 
+## 2026-11-10 — A rebuild deletes only what a loaded owner can put back
+
+**Ruled by the owner.** "The entire point of the rebuild settings was to not
+ignore the existing items. The point of repair is fix the existing items
+without breaking links. Check you are fixing this globally." An audit of every
+delete a rebuild makes found that the guard ("A closed book is refused, not
+rebuilt") asked only whether a claim's book was open. It deleted a claim no
+loaded entry owns, a table row whose table book was closed (the book rebuild
+never reached rows, the shelf rebuild did), and, once books can be switched
+off (the entry below), a claim from a book this build no longer offers. Each
+delete left nothing in its place.
+
+**Ruled.** Before any rebuild deletes a library document, `rebuildable`
+(`rebuild-guard.mjs`) asks three things: a loaded owner re-creates the claim
+(an entry of a loaded cookbook under the claim or a dot-ancestor of it, a
+generator whose book's cookbook is loaded, or the recipe of the table the row
+is read from), that owner's book is open on this seat, and the book is offered
+(`BOOKS`). A document refused stays and is counted on the confirm and the
+notice. The shelf rebuild, the book rebuild, the entry picker and the two
+type-fixing repairs ask it; an adventure book's rebuild refuses a book outside
+`BOOKS` before it deletes. The same audit found presence reads that a copy
+dragged out of the library could answer (an organisation, a roll table's
+forced repair, an OSE room, a companion slot): each now asks for the
+library's own document, as the family template lookup does since the entry
+above, and a link read (a place, a leader, a scene's table) still takes a copy.
+
+**Rejected:** keeping the open-book test and adding the other two as
+warnings. A warning after a delete is a report of data loss.
+
+*Cost:* a shelf rebuild no longer sweeps documents that claim no loaded entry.
+Prune Abilities removes such abilities, after listing them; on any other shelf
+they stay until a Judge deletes them. The picker's refusal now runs under
+repair as well, where it changes nothing while every loaded book is offered.
+
 ## 2026-11-10 — The books statted for OSE are switched off, and their code kept
 
 **Ruled by the owner.** The non-ACKS books are deactivated "for now": the

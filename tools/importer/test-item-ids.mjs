@@ -13,9 +13,19 @@
  * The shelf mock rejects a whole write that repeats an id it holds, as the
  * server does, so a guard that let one through fails here the way it would
  * fail live.
+ *
+ * The third part is the guard a rebuild applies before it deletes: a document
+ * goes only when a loaded owner can put it back, its book is open on the seat
+ * and the book is one the module offers. It is checked as a pure function
+ * (`rebuildVerdict`, `ownerOfClaim`) and again through the shelf and the book
+ * rebuilds, which leave what the guard refuses standing and count it.
  */
 import assert from "node:assert";
-import { itemIds, createDoc, createDocs, cookbookReimportShelf } from "../../scripts/importer/cookbook.mjs";
+import {
+  itemIds, createDoc, createDocs, cookbookReimportShelf, cookbookReimportBook, initCookbook, loadCookbook, importedActorFor,
+} from "../../scripts/importer/cookbook.mjs";
+import { ownerOfClaim, rebuildVerdict } from "../../scripts/importer/rebuild-guard.mjs";
+import { WEAPON_TABLE } from "../../scripts/importer/weapon-tables.mjs";
 import { stableDocId } from "../../scripts/importer/adventure-binding.mjs";
 import { libraryPackLabel } from "../../scripts/lib/library.mjs";
 
@@ -149,6 +159,12 @@ const ashelf = {
   async getDocuments() {
     return [...this.docs.values()];
   },
+  async getIndex() {
+    return [...this.docs.values()].map((d) => ({ _id: d.id, flags: d.flags }));
+  },
+  async getDocument(id) {
+    return this.docs.get(id) ?? null;
+  },
 };
 const actorWrites = [];
 class ActorMock {
@@ -179,8 +195,30 @@ globalThis.game = {
   i18n: { format: () => "", localize: () => "" },
 };
 globalThis.ui = { notifications: { info() {}, warn() {}, error() {} } };
+/** One loaded content cookbook: two classes of an open book, one of a book the module does not offer. */
+const OPEN_BOOK = "rr";
+const OFF_BOOK = "zz";
+const served = {
+  "registers.json": {},
+  "index.json": { books: [], content: ["classes"] },
+  "classes.json": {
+    entries: {
+      "def.class.alpha": { kind: "kind.class", name: "Alpha", book: OPEN_BOOK },
+      "def.class.beta": { kind: "kind.class", name: "Beta", book: OPEN_BOOK },
+      "def.class.offered": { kind: "kind.class", name: "Offered", book: OFF_BOOK },
+    },
+  },
+};
 globalThis.foundry = {
-  utils: { getDocumentClass: () => ItemMock, escapeHTML: (x) => x },
+  utils: {
+    getDocumentClass: () => ItemMock,
+    escapeHTML: (x) => x,
+    fetchJsonWithTimeout: async (url) => {
+      const name = String(url).split("/").pop();
+      if (!(name in served)) throw new Error(`not served: ${name}`);
+      return served[name];
+    },
+  },
   applications: { api: { DialogV2: { confirm: async () => true } } },
 };
 
@@ -218,6 +256,17 @@ globalThis.foundry = {
   check("and the retry writes the ids the batch carried", made.map((d) => d.id).join() === [stableDocId("def.class.zeta"), stableDocId("def.class.eta")].join());
 }
 
+// The seat holds the open book's cookbook and has that book open; the
+// rebuilds below read both.
+initCookbook({ sessionDocs: new Map([[OPEN_BOOK, { doc: {} }], [OFF_BOOK, { doc: {} }]]) });
+{
+  const log = console.log;
+  console.log = () => {}; // the load announces itself
+  const loaded = await loadCookbook();
+  console.log = log;
+  check("the content cookbook loaded", loaded === true);
+}
+
 // What a world imported before ids were kept: Items under ids core minted.
 shelf.docs.clear();
 shelf.index.clear();
@@ -242,6 +291,103 @@ check("a class written in a batch comes back under the uuid it had", uuidOf("def
 check("each was written again, not left standing", rebuilt.refill.every((d) => d && shelf.docs.get(d.id) === d));
 const again = await cookbookReimportShelf("Classes");
 check("a second rebuild keeps them too", again?.removed === 2 && uuidOf("def.class.alpha") === before.alpha && uuidOf("def.class.beta") === before.beta);
+
+/* --- the guard a rebuild applies before it deletes --- */
+
+{
+  const books = { [OPEN_BOOK]: {} };
+  const isOpen = (...open) => (book) => open.includes(book);
+  const verdict = (claim, ...open) => rebuildVerdict({ ...claim, isOpen: isOpen(...open), books });
+  check("a loaded owner, its book open and offered: the delete is allowed", verdict({ owned: true, book: OPEN_BOOK }, OPEN_BOOK) === "rebuild");
+  check("a claim nothing loaded owns is refused", verdict({ owned: false, book: null }, OPEN_BOOK) === "unowned");
+  check("a book that is not open on the seat is refused", verdict({ owned: true, book: OPEN_BOOK }) === "closed");
+  check("a book the module does not offer is refused, though open", verdict({ owned: true, book: OFF_BOOK }, OFF_BOOK) === "withdrawn");
+  check("an owner that names no book has none to be closed", verdict({ owned: true, book: null }) === "rebuild");
+
+  const entries = new Map([["def.class.alpha", OPEN_BOOK], ["def.nobook.one", null]]);
+  const resolvers = {
+    entryBookOf: (id) => (entries.has(id) ? entries.get(id) : undefined),
+    groupBookOf: (id) => (id === "zz.group.one" ? OPEN_BOOK : undefined),
+    tableBookOf: (id) => (id.startsWith("def.row.") ? OPEN_BOOK : undefined),
+  };
+  check("an entry owns its own claim", JSON.stringify(ownerOfClaim("def.class.alpha", resolvers)) === JSON.stringify({ owned: true, book: OPEN_BOOK }));
+  check("an entry owns a row filed beneath it", ownerOfClaim("def.class.alpha.row.two", resolvers).book === OPEN_BOOK);
+  check("an entry that names no book is owned, with no book", JSON.stringify(ownerOfClaim("def.nobook.one", resolvers)) === JSON.stringify({ owned: true, book: null }));
+  check("a generator owns its claim through its book", ownerOfClaim("zz.group.one", resolvers).owned);
+  check("a table row is owned through the table's book", ownerOfClaim("def.row.sword", resolvers).book === OPEN_BOOK);
+  check("a claim no entry, generator or table recipe names has no owner", !ownerOfClaim("def.class.ghost", resolvers).owned);
+  check("a claim of one segment is no entry's descendant", !ownerOfClaim("def", resolvers).owned);
+}
+
+const sessions = new Map([[OPEN_BOOK, { doc: {} }], [OFF_BOOK, { doc: {} }]]);
+initCookbook({ sessionDocs: sessions });
+const noRefill = async () => [];
+namespace.importer = { importClasses: noRefill, importWeapons: noRefill, importAllEquipment: noRefill };
+const stock = (...claims) => {
+  shelf.docs.clear();
+  shelf.index.clear();
+  for (const [n, spec] of claims.entries()) {
+    const [id, extra] = Array.isArray(spec) ? spec : [spec, {}];
+    const _id = `guardrow${String(n).padStart(8, "0")}`;
+    const doc = makeDoc(row(id, extra), _id);
+    shelf.docs.set(_id, doc);
+    shelf.index.set(_id, { _id });
+  }
+};
+const standing = () => [...shelf.docs.values()].map((d) => d.getFlag(MODULE_ID, "cookbook").id).sort();
+const stampedWith = (id, book) => ({ flags: { [MODULE_ID]: { cookbook: { id, book } } } });
+
+{
+  stock("def.weapon.blade", "def.weapon.bolt");
+  const done = await cookbookReimportShelf("Weapons");
+  check("a table row whose book is open is deleted and rebuilt", done.removed === 2 && done.kept === 0 && standing().length === 0);
+
+  stock("def.weapon.blade", "def.weapon.bolt");
+  sessions.delete(WEAPON_TABLE.book);
+  const closed = await cookbookReimportShelf("Weapons");
+  sessions.set(WEAPON_TABLE.book, { doc: {} });
+  check("a table row whose book is closed is left standing and counted", closed.removed === 0 && closed.kept === 2 && standing().length === 2);
+
+  stock("def.equip.ghost", "def.priced.rope");
+  const equipment = await cookbookReimportShelf("Equipment");
+  check("a claim with no loaded entry is left; a price-list row of an open book goes", equipment.removed === 1 && equipment.kept === 1 && standing().join() === "def.equip.ghost");
+
+  stock("def.class.alpha", "def.class.offered", "def.class.alpha.row.two", "def.class.ghost");
+  const classes = await cookbookReimportShelf("Classes");
+  check("an entry's row goes with its entry; an unloaded entry's and an unoffered book's stay", classes.removed === 2 && classes.kept === 2 && standing().join() === "def.class.ghost,def.class.offered");
+}
+
+{
+  stock("def.class.alpha", ["def.class.stray", stampedWith("def.class.stray", OPEN_BOOK)], ["def.class.offered", stampedWith("def.class.offered", OFF_BOOK)]);
+  const book = await cookbookReimportBook(OPEN_BOOK);
+  check("a book rebuild deletes what the book's entries own", book.removed === 1 && !standing().includes("def.class.alpha"));
+  check("and leaves a claim its cookbook does not hold, counting it", book.left === 1 && standing().includes("def.class.stray"));
+
+  const off = await cookbookReimportBook(OFF_BOOK);
+  check("a book the module does not offer is not rebuilt, though open", off.removed === 0 && off.left === 1 && standing().includes("def.class.offered"));
+}
+
+/* --- a copy dragged out of the library answers a link, never a presence or write read --- */
+
+{
+  const claimId = "zz.faction.one";
+  const copy = {
+    name: "copy",
+    flags: claim(claimId),
+    _stats: { compendiumSource: `Compendium.${APACK}.Actor.libraryactor0001` },
+    getFlag(scope, key) {
+      return this.flags?.[scope]?.[key] ?? null;
+    },
+  };
+  game.actors.push(copy);
+  check("a link read finds the copy", (await importedActorFor(claimId)) === copy);
+  check("a presence or write read passes over it", (await importedActorFor(claimId, { copies: false })) === null);
+  const library = { ...makeDoc({ name: "body", type: "faction", flags: claim(claimId) }, "libraryactor0001"), documentName: "Actor", pack: APACK };
+  ashelf.docs.set(library.id, library);
+  check("and finds the library's own document instead", (await importedActorFor(claimId, { copies: false })) === library);
+  ashelf.docs.clear();
+  game.actors.pop();
+}
 
 namespace.importer = importerWas;
 delete globalThis.foundry;

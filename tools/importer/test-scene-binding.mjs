@@ -290,6 +290,22 @@ ok("an import built from the system's own compendium is not", !isWorldCopy({ ...
   const body = (name) => src.slice(src.indexOf(`async function ${name}(`), src.indexOf("\n}\n", src.indexOf(`async function ${name}(`)));
   ok("the held-id set leaves a library copy out", /!isWorldCopy\(d\)/.test(body("importedIdsOfType")));
   ok("the template lookup leaves a library copy out", /game\.actors\.filter\(\(a\) => a\.type === type && !isWorldCopy\(a\)\)/.test(body("importedActorsOfType")));
+
+  // A presence read and a write target both pass a copy over; a link read
+  // (a place, a leader, a holding, a relation's other end) still finds one.
+  const orgs = body("cookbookImportFactions");
+  ok("an organisation's presence read leaves a copy out", /isRewriting\(id\) \? null : await importedActor\(id, \{ copies: false \}\)/.test(orgs));
+  ok("the strength grid is written onto the library's body, not a copy", /importedActor\(orgId, \{ copies: false \}\)/.test(orgs));
+  ok("the links an organisation carries still find a copy", /importedActor\(placeId\)/.test(orgs) && /importedActor\(r\.to\)/.test(orgs));
+  ok("a roll table's forced repair writes onto the library's table", /rewriteTable\(await importedTable\(id, \{ copies: false \}\)/.test(body("cookbookImportRollTables")));
+  ok("the table lookup leaves a copy out when asked", /\(copies \|\| !isWorldCopy\(t\)\)/.test(body("importedTable")));
+  const picker = body("runEntryReimport");
+  ok("the picker's rebuild delete leaves a copy out", /isWorldCopy\(doc\)/.test(picker));
+  ok("and reaches the creature an equipment entry is filed as", /src\.asCreature \? \["Item", "Actor"\]/.test(picker));
+  ok("an adventure book's rebuild checks the book is offered before it deletes", /!force && !BOOKS\[bookId\]/.test(body("cookbookReimportAdventure")));
+  ok("a companion slot links the library's creature, not a copy", /importedActor\(effect\.ref, \{ copies: false \}\)/.test(body("resolveCompanion")));
+  const oseBook = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "..", "scripts", "importer", "ose-book.mjs"), "utf8");
+  ok("the OSE areas presence read leaves a copy out", /if \(await importedActorFor\(id, \{ copies: false \}\)\)/.test(oseBook));
 }
 
 /* ---------------- the picture and the geometry turn by one rule ---------------- */

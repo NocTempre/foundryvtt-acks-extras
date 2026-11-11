@@ -63,6 +63,7 @@ import { executeEntry, materializeEffects, attackModel, convertName } from "./ex
 import { effectsOriginOf } from "./effects-origin.mjs";
 import { slugLabel } from "./table-extract.mjs";
 import { TABLE_RECIPES } from "./table-recipes.mjs";
+import { ownerOfClaim, rebuildVerdict } from "./rebuild-guard.mjs";
 import { getDoc, getLayer, hasDoc, PRIORITY } from "../lib/tables.mjs";
 import { pageItems, pageArtPlacements } from "./extract.mjs";
 import { WEAPON_TABLE, extractWeaponsFromDoc, bindWeaponRow, bindAmmoRow } from "./weapon-tables.mjs";
@@ -2307,10 +2308,11 @@ export const reimportableShelves = () =>
 /**
  * GM: empty ONE top-level shelf and import it again. Deleting first is the
  * point — import is idempotent, so only an empty shelf gets rebuilt.
- * Documents a class template made are never touched, nor is a document whose
- * entry's book is not open on this seat (`readableHere`) — the refill could
- * put back a stub at best. See docs/importer/DECISIONS.md, "Three controls,
- * not twenty-one".
+ * Documents a class template made are never touched, nor is a document
+ * nothing loaded here can put back (`rebuildable`): its entry or table recipe
+ * is not loaded, its book is not open on this seat, or the book is not offered.
+ * Those are left standing and counted as `kept`. See docs/importer/DECISIONS.md,
+ * "Three controls, not twenty-one".
  *
  * `mode: "repair"` writes over the shelf's documents in place instead
  * (`repairShelf`); `mode: "force"` does the same and also rewrites a
@@ -2349,7 +2351,7 @@ export async function cookbookReimportShelf(shelf = null, { mode = "drop" } = {}
     !d.flags?.[MODULE_ID]?.templatePart &&
     prefixes.some((p) => String(d.getFlag(MODULE_ID, "cookbook")?.id ?? "").startsWith(`${p}.`));
   const shelved = (await importedDocs("Item")).filter(mine);
-  const doomed = shelved.filter((d) => readableHere(claimedId(d)));
+  const doomed = shelved.filter((d) => rebuildable(claimedId(d)));
   const kept = shelved.length - doomed.length;
 
   const ok = await foundry.applications.api.DialogV2.confirm({
@@ -2357,7 +2359,7 @@ export async function cookbookReimportShelf(shelf = null, { mode = "drop" } = {}
     classes: ["acks-ui", "acks-extras-importer-dialog"],
     content:
       `<p>${game.i18n.format(`${LANG_PREFIX}.ui.reimportConfirm`, { n: doomed.length, shelf })}</p>` +
-      (kept ? `<p>${game.i18n.format(`${LANG_PREFIX}.ui.reimportKeepsClosed`, { n: kept })}</p>` : ""),
+      (kept ? `<p>${game.i18n.format(`${LANG_PREFIX}.ui.reimportLeft`, { n: kept })}</p>` : ""),
   });
   if (!ok) return null;
 
@@ -2365,7 +2367,7 @@ export async function cookbookReimportShelf(shelf = null, { mode = "drop" } = {}
   forgetImportedIndex(); // the shelf it remembers is the one just deleted
   const made = await api()[SHELF_REFILL[shelf]]();
   ui.notifications.info(game.i18n.format(`${LANG_PREFIX}.ui.reimportDone`, { n: doomed.length, shelf }));
-  if (kept) ui.notifications.info(game.i18n.format(`${LANG_PREFIX}.ui.reimportKeptClosed`, { n: kept }));
+  if (kept) ui.notifications.info(game.i18n.format(`${LANG_PREFIX}.ui.reimportLeft`, { n: kept }));
   return { shelf, removed: doomed.length, kept, refill: made ?? null };
 }
 
@@ -2478,7 +2480,9 @@ export const reimportableBooks = () => {
  * GM: delete every document imported from ONE book and import them again.
  * Only shelves with a refill run are touched. A document another book owns
  * that MERGED one of this book's ids stays, because it is that book's
- * document. See docs/importer/DECISIONS.md, "A book is a reimport unit too".
+ * document. A document nothing loaded here can put back (`rebuildable`) stays
+ * too, and is counted as `left`. See docs/importer/DECISIONS.md, "A book is a
+ * reimport unit too".
  *
  * `mode: "repair"` writes over the book's documents in place instead
  * (`repairBook`); `mode: "force"` also rewrites a description a Judge wrote in.
@@ -2495,13 +2499,20 @@ export async function cookbookReimportBook(bookId, { mode = "drop", ask = null }
   }
   if (mode === "repair" || mode === "force") return repairBook(bookId, label, { force: mode === "force", ask });
   const shelves = new Set();
+  // What the book's claims name but nothing loaded here can put back.
+  let left = 0;
   const mine = (d) => {
     if (d.flags?.[MODULE_ID]?.templatePart) return false;
     const flag = d.getFlag(MODULE_ID, "cookbook");
     if (!flag?.id || bookOfFlag(flag) !== bookId) return false;
     const shelf = refillShelfOf(flag.id);
-    if (shelf) shelves.add(shelf);
-    return !!shelf;
+    if (!shelf) return false;
+    if (!rebuildable(flag.id)) {
+      left++;
+      return false;
+    }
+    shelves.add(shelf);
+    return true;
   };
   const doomed = (await importedDocs("Item")).filter(mine);
   // Asked on another's behalf, a book with nothing to delete does not ask:
@@ -2509,7 +2520,14 @@ export async function cookbookReimportBook(bookId, { mode = "drop", ask = null }
   if (ask && !doomed.length) return null;
   const shelfList = [...shelves].sort().join(", ") || "—";
 
-  const ok = await confirmRepair([game.i18n.format(`${LANG_PREFIX}.ui.reimportConfirmBook`, { n: doomed.length, book: label, shelves: shelfList })], "reimportTitle", ask);
+  const ok = await confirmRepair(
+    [
+      game.i18n.format(`${LANG_PREFIX}.ui.reimportConfirmBook`, { n: doomed.length, book: label, shelves: shelfList }),
+      left ? game.i18n.format(`${LANG_PREFIX}.ui.reimportLeft`, { n: left }) : "",
+    ],
+    "reimportTitle",
+    ask,
+  );
   if (!ok) return null;
 
   await deleteImported("Item", doomed);
@@ -2519,7 +2537,8 @@ export async function cookbookReimportBook(bookId, { mode = "drop", ask = null }
   const refill = {};
   for (const run of runs) refill[run] = (await api()[run]()) ?? null;
   ui.notifications.info(game.i18n.format(`${LANG_PREFIX}.ui.reimportDoneBook`, { n: doomed.length, book: label }));
-  return { book: bookId, removed: doomed.length, shelves: [...shelves].sort(), refill };
+  if (left) ui.notifications.info(game.i18n.format(`${LANG_PREFIX}.ui.reimportLeft`, { n: left }));
+  return { book: bookId, removed: doomed.length, left, shelves: [...shelves].sort(), refill };
 }
 
 /**
@@ -2740,6 +2759,8 @@ export async function cookbookReimportAdventure(bookId, { mode = "drop", ask = n
   // A force repair also writes over, in place, what the world holds of the book.
   const tally = mode === "force" ? repairTally({ force: true }) : null;
   let removed = 0;
+  // A rebuild deletes first; a book the module does not offer is not rebuilt.
+  if (!force && !BOOKS[bookId]) return ui.notifications.warn(t("reimportAdventureWithdrawn", { book: label }));
   if (!force) {
     const ownerOf = (doc) => {
       const flag = doc.getFlag?.(MODULE_ID, "cookbook") ?? doc.flags?.[MODULE_ID]?.cookbook ?? null;
@@ -2819,6 +2840,8 @@ const ENTRY_SOURCES = [
   {
     key: "Equipment",
     type: "Item",
+    // An animal is an equipment entry filed as a creature, so its document is an Actor.
+    asCreature: true,
     refill: "importAllEquipment",
     entries: () => cookbookEquipmentIds().map((id) => [id, cookbookEntry(id)?.entry ?? {}]),
   },
@@ -2864,6 +2887,43 @@ const claimedId = (doc) => String(doc.getFlag(MODULE_ID, "cookbook")?.id ?? "");
 const readableHere = (id) => {
   const book = bookOf(cookbookEntry(id)) ?? oseGroupBookOf(id);
   return !book || !!ctx?.sessionDocs?.has(book);
+};
+
+/**
+ * The `TABLE_BOOKS` key a claim files under when it is a row of a printed table
+ * (a weapon, an armour row, a price-list row, a language, a race), or null for
+ * any other claim.
+ */
+const tableShelfOfClaim = (id) => {
+  const shelf = ITEM_SHELF[shelfKeyOf(id)] ?? null;
+  if (shelf === "Equipment") return String(id).startsWith("def.priced.") ? "priced" : null;
+  return shelf && Object.hasOwn(TABLE_BOOKS, shelf) ? shelf : null;
+};
+
+/**
+ * Whether a rebuild may delete the library document claiming `id`: a loaded
+ * owner can re-create it (an entry of a loaded cookbook, an OSE generator whose
+ * book's cookbook is loaded, or the recipe of the table a row is read from),
+ * its book is open on this seat, and that book is one the module offers
+ * (`BOOKS`). Every delete a rebuild makes asks this first; a document it
+ * refuses is left standing and counted. See `rebuildVerdict`.
+ */
+const rebuildable = (id) => {
+  const owner = ownerOfClaim(id, {
+    entryBookOf: (claim) => {
+      const found = cookbookEntry(claim);
+      return found ? bookOf(found) : undefined;
+    },
+    groupBookOf: (claim) => {
+      const book = oseGroupBookOf(claim);
+      return book && data.books.has(book) ? book : undefined;
+    },
+    tableBookOf: (claim) => {
+      const shelf = tableShelfOfClaim(claim);
+      return shelf ? (tableBookOf(shelf) ?? undefined) : undefined;
+    },
+  });
+  return rebuildVerdict({ ...owner, isOpen: (book) => !!ctx?.sessionDocs?.has(book), books: BOOKS }) === "rebuild";
 };
 
 /**
@@ -3047,10 +3107,11 @@ export async function cookbookReimportEntries() {
  * wrote in.
  */
 async function runEntryReimport(all, { mode = "drop" } = {}) {
-  // Rules tables carry no book to check and delete nothing.
-  const closed = all.filter(({ key, id }) => key !== "Tables" && !readableHere(id));
+  // Rules tables carry no book to check and delete nothing. An entry nothing
+  // loaded here can put back (`rebuildable`) is refused before any delete.
+  const closed = all.filter(({ key, id }) => key !== "Tables" && !rebuildable(id));
   const picked = all.filter((p) => !closed.includes(p));
-  if (closed.length) ui.notifications.warn(game.i18n.format(`${LANG_PREFIX}.ui.reimportEntriesClosed`, { n: closed.length }));
+  if (closed.length) ui.notifications.warn(game.i18n.format(`${LANG_PREFIX}.ui.reimportLeft`, { n: closed.length }));
   if (!picked.length) return null;
   if (mode === "repair" || mode === "force") return repairEntries(picked, closed.length, { force: mode === "force" });
   // Re-read: the dialog's list was drawn when it opened, and another window may
@@ -3066,9 +3127,13 @@ async function runEntryReimport(all, { mode = "drop" } = {}) {
   for (const [key, ids] of byKey) {
     const src = ENTRY_SOURCES.find((s) => s.key === key);
     if (!src?.type) continue; // a source that is not documents has nothing to delete
-    for (const doc of docs[src.type]) {
-      if (doc.flags?.[MODULE_ID]?.templatePart || playersCharacter(doc)) continue;
-      if (ids.some((id) => claimsEntry(doc, id))) doomed[src.type].push(doc);
+    // An entry filed as a creature (an animal) is an Actor under an Item source.
+    for (const type of src.asCreature ? ["Item", "Actor"] : [src.type]) {
+      for (const doc of docs[type]) {
+        // Never a copy dragged out of the library: it is the Judge's, and no refill puts it back.
+        if (doc.flags?.[MODULE_ID]?.templatePart || isWorldCopy(doc) || playersCharacter(doc)) continue;
+        if (ids.some((id) => claimsEntry(doc, id))) doomed[type].push(doc);
+      }
     }
   }
   const removing = doomed.Actor.length + doomed.Item.length;
@@ -5437,7 +5502,9 @@ export async function cookbookImportFactions({ books = null } = {}) {
         if (place && !holdings.some((h) => h.uuid === place.uuid)) holdings.push({ uuid: place.uuid, name: place.name });
       }
       // A body a forced repair holds is built again and written over (`withRewrite`).
-      let faction = isRewriting(id) ? null : await importedActor(id);
+      // Presence and every write below ask the library's own document: a copy a
+      // map brought across answers the links above, never this.
+      let faction = isRewriting(id) ? null : await importedActor(id, { copies: false });
       if (faction) {
         counts.already++;
         const patch = {};
@@ -5498,7 +5565,7 @@ export async function cookbookImportFactions({ books = null } = {}) {
         continue;
       }
       for (const [orgId, keys] of plan.owners) {
-        const found = await importedActor(orgId);
+        const found = await importedActor(orgId, { copies: false });
         const faction = found?.system ? found : found?.uuid ? await fromUuid(found.uuid) : null;
         if (!faction) continue;
         if (faction.system.strength?.rows?.length && !wasRewritten(faction)) {
@@ -5610,7 +5677,8 @@ export async function cookbookImportRollTables({ books = null, repair = null } =
           (Math.min(...lows) === 1 ? `1d${Math.max(...his)}` : "");
         if (held) {
           skipped++;
-          await rewriteTable(await importedTable(id), { formula, description: entryText(node, id, e.cite), results }, repair);
+          // The library's own table, never a copy a Judge dragged out of it.
+          await rewriteTable(await importedTable(id, { copies: false }), { formula, description: entryText(node, id, e.cite), results }, repair);
           continue;
         }
         await createDoc(RollTable, {
@@ -5670,9 +5738,14 @@ async function rewriteTable(table, built, repair) {
   }
 }
 
-/** The imported roll table for a cookbook id — the world's own first, then the shelves — or null. */
-async function importedTable(id) {
-  const world = game.tables.find((t) => t.getFlag(MODULE_ID, "cookbook")?.id === id);
+/**
+ * The imported roll table for a cookbook id — the world's own first, then the
+ * shelves — or null. A link (a scene's incident list, a zone's table) takes
+ * whichever answers; `copies: false` asks for the library's own table and
+ * passes over a copy (`isWorldCopy`), which is what a write wants.
+ */
+async function importedTable(id, { copies = true } = {}) {
+  const world = game.tables.find((t) => t.getFlag(MODULE_ID, "cookbook")?.id === id && (copies || !isWorldCopy(t)));
   if (world) return world;
   for (const collection of ourPacksOfType("RollTable")) {
     const index = await collection.getIndex({ fields: [`flags.${MODULE_ID}.cookbook.id`] }).catch(() => null);
@@ -11141,9 +11214,9 @@ export const cookbookEquipmentIds = () =>
  * Remove `ability` items mis-created from equipment entries. An item's type
  * cannot be changed in place, so they are deleted and re-created properly by
  * the equipment import. Only OUR generated documents are touched; a
- * hand-made item is never deleted, and neither is one whose entry cannot be
- * read on this seat (`readableHere`): the import that would re-create it
- * passes it over, so the delete would leave nothing in its place.
+ * hand-made item is never deleted, and neither is one nothing loaded here can
+ * put back (`rebuildable`): the import that would re-create it passes it
+ * over, so the delete would leave nothing in its place.
  * @returns {Promise<number>} how many were removed
  */
 export async function repairEquipmentAbilities() {
@@ -11152,7 +11225,7 @@ export async function repairEquipmentAbilities() {
       i.type === ITEM_TYPE.ABILITY &&
       i.getFlag(MODULE_ID, "minted") &&
       String(i.getFlag(MODULE_ID, "cookbook")?.id ?? "").startsWith("def.equip.") &&
-      readableHere(claimedId(i)),
+      rebuildable(claimedId(i)),
   );
   if (!wrong.length) return 0;
   await deleteImported("Item", wrong);
@@ -11168,8 +11241,8 @@ export async function repairEquipmentAbilities() {
  *
  * A no-op before `game.actors` exists — without the animal sub-type reachable
  * yet, removing the items would delete data with nothing to replace it. An
- * item whose entry cannot be read on this seat is kept for the same reason:
- * the import passes it over instead of re-creating it.
+ * item nothing loaded here can put back (`rebuildable`) is kept for the same
+ * reason: the import passes it over instead of re-creating it.
  *
  * @returns {Promise<number>} how many were removed
  */
@@ -11182,7 +11255,7 @@ export async function repairAnimalItems() {
       .map(([id]) => id),
   );
   const wrong = (await importedDocs("Item")).filter(
-    (i) => i.getFlag(MODULE_ID, "minted") && animalIds.has(i.getFlag(MODULE_ID, "cookbook")?.id) && readableHere(claimedId(i)),
+    (i) => i.getFlag(MODULE_ID, "minted") && animalIds.has(i.getFlag(MODULE_ID, "cookbook")?.id) && rebuildable(claimedId(i)),
   );
   if (!wrong.length) return 0;
   await deleteImported("Item", wrong);
@@ -11675,7 +11748,9 @@ async function resolveCompanion(effect) {
   if (effect?.type !== "companion" || effect.actorUuid || !effect.ref) return effect;
   const found = cookbookEntry(effect.ref);
   if (!found) return effect;
-  const existing = await importedActor(effect.ref);
+  // The library's own creature, never a copy dragged out of it: the slot is a
+  // link that outlives the copy, and a copy answering would stop the import.
+  const existing = await importedActor(effect.ref, { copies: false });
   if (existing) return { ...effect, actorUuid: existing.uuid };
   const bookId = bookOf(found);
   if (!ctx.sessionDocs.has(bookId)) return effect; // bookless: leave the bucket
