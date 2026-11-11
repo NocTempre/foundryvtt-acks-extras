@@ -5296,6 +5296,37 @@ await scenario("the delve's wandering throw takes its cadence from the setting o
     assert.deepEqual([params.every, params.target], [3, 2], "an override of one table leaves the other imported");
     assert.match(engine.cadenceProvenance(params, "target"), /cadenceFrom\.override/, "the overridden figure names no page");
     assert.match(engine.cadenceProvenance(params, "every"), /cadenceFrom\.import/, "the imported one still does");
+
+    // The throw is the stated die for a hurried party and for a dark one: no
+    // light or pace adds a figure to it. See docs/formation/DECISIONS.md,
+    // "The encounter throw ships no house modifier".
+    registerTable({ id: DELVE_ENCOUNTER_DOC, tables: { die: "1d8", every: 3, target: 5 } }, { priority: PRIORITY.WORLD });
+    unregisterTable(DELVE_ENCOUNTER_DOC, { priority: PRIORITY.OVERRIDE });
+    const thrown = [];
+    const RollBeforeSpy = globalThis.Roll;
+    globalThis.Roll = class extends RollBeforeSpy {
+      constructor(formula) {
+        super(formula);
+        thrown.push(formula);
+      }
+    };
+    const darknessBefore = scene.environment.darknessLevel;
+    try {
+      scene.environment.darknessLevel = 0.9;
+      const careful = model.getFormation(id);
+      assert.ok(model.isPartyInDark(careful), "the party stands in the dark");
+      await engine.encounterCheck(careful, { manual: true });
+      const hurry = model.getFormation(id);
+      hurry.stance = { ...(hurry.stance ?? {}), pace: "hurried" };
+      await model.updateFormation(hurry);
+      await drain();
+      await engine.encounterCheck(model.getFormation(id), { manual: true });
+    } finally {
+      globalThis.Roll = RollBeforeSpy;
+      scene.environment.darknessLevel = darknessBefore;
+    }
+    assert.deepEqual(thrown.filter((formula) => String(formula).startsWith("1d8")), ["1d8", "1d8"], "a dark party and a hurried one both throw the bare die");
+    assert.ok(thrown.every((formula) => !String(formula).includes("+")), "no modifier joins any throw");
   } finally {
     unregisterTable(DELVE_ENCOUNTER_DOC, { priority: PRIORITY.OVERRIDE });
     unregisterTable(DELVE_ENCOUNTER_DOC, { priority: PRIORITY.WORLD });

@@ -59,6 +59,15 @@
   figures by hand. An item changed before keeps its
   old figures until it is next recomputed.
 
+### Removed
+
+- **Light and noise no longer modify encounter throws.** The optional setting
+  that shifted the party formation's wandering-monster throw by the party's
+  light and pace, in Settings tab → Game Settings → ACKS II — Extras, was a
+  house rule and is gone: the throw is always the die the book states. A world
+  that had it on carries on without it. The throw card still says whether a
+  light is visible and whether the party is hurried.
+
 ### Fixed
 
 - **A proficiency your character's ability grants counts on attack.** A weapon

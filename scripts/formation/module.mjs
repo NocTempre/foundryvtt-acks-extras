@@ -361,15 +361,6 @@ Hooks.once("init", () => {
     default: true,
   });
 
-  game.settings.register(MODULE_ID, "signalAffectsEncounters", {
-    name: "ACKS-FORMATION.settings.signalAffectsEncounters.name",
-    hint: "ACKS-FORMATION.settings.signalAffectsEncounters.hint",
-    scope: "world",
-    config: true,
-    type: Boolean,
-    default: false,
-  });
-
   game.settings.register(MODULE_ID, "fuzzMeasurement", {
     name: "ACKS-FORMATION.settings.fuzzMeasurement.name",
     hint: "ACKS-FORMATION.settings.fuzzMeasurement.hint",

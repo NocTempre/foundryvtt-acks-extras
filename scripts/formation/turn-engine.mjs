@@ -18,7 +18,7 @@ import {
   TURNS_PER_DAY,
   WINDED_EFFECT_NAME,
 } from "./constants.mjs";
-import { effectiveSpeed, formationHasLight, getMemberActor, getFormation, isDown, isHurried, isPartyInDark, realMembers, updateFormation } from "./formation-model.mjs";
+import { effectiveSpeed, formationHasLight, getMemberActor, getFormation, isDown, isHurried, realMembers, updateFormation } from "./formation-model.mjs";
 import { feetPerTurn, settlementOf } from "./settlement.mjs";
 import { cityTurnCompleted, creditHoledUpDays } from "./settlement-turn.mjs";
 import { sceneBlockFeet } from "../battlemap/scene-setup.mjs";
@@ -216,18 +216,13 @@ export async function encounterCheck(formation, { manual = false, params = null 
     return false;
   }
 
-  // The party's signature: what the dungeon can see and hear of them. RAW
-  // (extracts) ties this to surprise and earshot; an OPTIONAL setting lets
-  // it sway the throw itself (+1 hurried/loud, -1 dark and careful).
+  // The party's signature: what the dungeon can see and hear of them. The
+  // card reports it for the Judge's surprise and earshot rulings; the throw
+  // itself is the stated die, whatever the party's light or pace.
   const lit = formationHasLight(formation);
   const hurried = isHurried(formation);
-  let signalMod = 0;
-  if (game.settings.get(MODULE_ID, "signalAffectsEncounters")) {
-    if (hurried) signalMod += 1;
-    if (!lit && !hurried && isPartyInDark(formation)) signalMod -= 1;
-  }
 
-  const roll = await new Roll(signalMod ? `${die} + ${signalMod}` : die).evaluate();
+  const roll = await new Roll(die).evaluate();
   const encounter = roll.total >= target;
 
   const tipped = (key, text) => `<span data-tooltip-text="${foundry.utils.escapeHTML(cadenceProvenance(resolved, key))}">${text}</span>`;
@@ -240,7 +235,7 @@ export async function encounterCheck(formation, { manual = false, params = null 
   content += `<br><span class="src">${loc("chat.signature", {
     light: game.i18n.localize(lit ? "ACKS-FORMATION.chat.sigLit" : "ACKS-FORMATION.chat.sigDark"),
     noise: game.i18n.localize(hurried ? "ACKS-FORMATION.chat.sigLoud" : "ACKS-FORMATION.chat.sigQuiet"),
-  })}${signalMod ? ` (${signalMod > 0 ? "+" : ""}${signalMod})` : ""}</span>`;
+  })}</span>`;
   content += `</div>`;
 
   const messages = [

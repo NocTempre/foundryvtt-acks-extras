@@ -2171,6 +2171,8 @@ example's named characters.
   the die the code rolls. The encounter die moves with the encounter values,
   and the district die is held with the city ruling of 2026-09-12.
 - The signal house rule's hint, which states the module's own figures.
+  (Superseded 2026-11-11, "The encounter throw ships no house modifier": the
+  setting and its hint are gone.)
 
 **Corrected citations.**
 - Tracking is RR p. 120, not p. 121.
@@ -5140,3 +5142,34 @@ naming no level stands on every one), and the column walk holds it to
 polygon backend, which answer only for the scene being viewed; and squeezing
 in the rules (`effectiveFrontage`), which nothing reads yet and which is the
 roadmap's, not this report's.
+
+## 2026-11-11 — The encounter throw ships no house modifier
+
+**Ruled.** The owner's order: "No shipping house rules please". The world
+setting `signalAffectsEncounters` (Settings tab → Game Settings → ACKS II —
+Extras → "Light & noise modify encounter throws (optional)"), whose own hint
+called it an optional house rule the module had not found in the rules it was
+given, is removed. With it on, the wandering-monster throw took +1 for a
+hurried party and -1 for a dark, careful one.
+
+**Removed.** The registration, its lang name and hint, and the branch in
+`encounterCheck` that built `${die} + ${mod}` and printed the signed figure on
+the card. The throw is always the stated die. This supersedes the "Kept"
+line on the signal house rule's hint in "Formation strings name the field and
+cite the page" (2026-09-23), marked there.
+
+**Kept.** The signature line on the throw card (light visible or not, hurried
+or careful) and `isHurried`, `isPartyInDark` and `formationHasLight`: the card
+reports the signature for the Judge's surprise and earshot rulings, and the
+pace, the pole and hasty-search gates, the strip and the movement rate read
+the rest.
+
+**A stored value.** A world that stored `true` keeps a Setting document for
+the key. Core 14 reads a setting only through its registration
+(`ClientSettings#get` resolves the key against the registered set first), and
+the Setting document's construction (`_castType`) and its create and update
+hooks read its config with optional chaining, so an unregistered stored row
+loads, is never read and never throws. The
+throw behaves as it did with the setting off; no migration runs.
+
+*Cost:* a Judge who wanted the modifier applies it by hand.

@@ -3718,8 +3718,14 @@ scene, standing in no Encounter Zone. At the start, assert both world settings
    (`tools/test-formation-flows.mjs`, "the delve's wandering throw takes its
    cadence…"): no card is scheduled, the counter stays at 0, and the Encounter
    throw tool warns that the die or the target is neither set nor imported.
+7. Open `Settings tab → Game Settings → ACKS II — Extras`.
+   *Observable:* no setting named "Light & noise modify encounter throws"
+   among the formation settings. A hurried party and a dark one press the
+   Encounter throw tool: each card's roll formula is the bare imported die,
+   with no modifier after it (pinned offline in `tools/test-formation-flows.mjs`).
 
 Teardown: set both settings back to blank and clear any override step 5 left.
+After step 7, set the party's pace back to careful and the scene's darkness back.
 The party is a kept fixture; the cards the turns posted are this run's:
 `api.track` each card's id as the turn resolves and `api.sweepTracked()` them.
 

@@ -2306,7 +2306,10 @@ is still rolled, on the turn's own length (`ROUNDS_PER_TURN`); no distance is
 rolled, and the card says it is not imported. The GM's ready notice names the
 document while it is missing, beside the light table. The throw card's die,
 target and rolled distance each carry a tooltip naming the layer they came
-from, and the page for an imported one (`cadenceProvenance`).
+from, and the page for an imported one (`cadenceProvenance`). The throw is the
+die as stated: the party's light and pace add nothing to it. The card's
+signature line only reports whether a light is visible and whether the party
+is hurried, for the Judge's surprise and earshot rulings.
 
 **Zones on a journey.** An Encounter Zone region changes a journey's throws
 where the party really is: `journeyZones` reads every zone under
