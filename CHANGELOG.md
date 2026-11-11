@@ -328,6 +328,20 @@
   to the party (a member joining or leaving, the marching order, the plan)
   used to keep the roster it started with until something else redrew it. It
   now redraws once with the change.
+- **An ability's name no longer turns into its picks.** An ability whose name
+  ends in words in brackets no longer shows those words as ticked picks on its
+  sheet (the ability's sheet → Mechanics tab) or stores them as picks when the
+  sheet is saved; only words that name one of its options count as a pick, and
+  saving with nothing ticked leaves the name as it was.
+- **A capability row names the ability that provides it.** A row on an
+  ability's sheet → Mechanics tab that modifies or requires a capability reads
+  as the name of the ability providing it, with no raw token and no empty
+  brackets.
+- **The proficiency penalty setting says where training comes from.** Settings
+  tab → Game Settings → ACKS II — Extras → Proficiency penalties now names the
+  class's Training block (character sheet → Stats tab) and imported
+  proficiency abilities instead of a compendium that is gone, and says that
+  Automatic acts as Never enforce.
 - **Endurance is read from the ability, not its name.** The Party sheet's
   Dungeon tab → Rest a turn and the turn plan's rest, and the winded marker a
   party gains on its members, now skip a member only for an Endurance ability

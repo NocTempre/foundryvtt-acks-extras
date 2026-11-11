@@ -13,7 +13,7 @@
  */
 import { MODULE_ID, FLAG_EXTRAS } from "./constants.mjs";
 import { num, str, bool, choice, refList, effectsField, defensesField, rollsField } from "../lib/fields.mjs";
-import { ABILITY_CATEGORIES, CONVERSION_STATUS } from "../lib/vocab.mjs";
+import { ABILITY_CATEGORIES, CONVERSION_STATUS, namedPicks } from "../lib/vocab.mjs";
 
 export default class AbilityExtras extends foundry.abstract.DataModel {
   /** Array-valued paths, reconstructed from FormDataExtended's numeric-keyed objects. */
@@ -119,18 +119,26 @@ export default class AbilityExtras extends foundry.abstract.DataModel {
 }
 
 /**
+ * The picks STORED on an ability copy: its `selections` array, trimmed, with
+ * blanks dropped. What a sheet shows and saves, since a name is never a store.
+ * @param {Item} item
+ * @returns {string[]} [] when none are stored
+ */
+export function storedSelections(item) {
+  return (AbilityExtras.fromItem(item).selections ?? []).map((s) => String(s).trim()).filter(Boolean);
+}
+
+/**
  * The picks recorded on a character's copy of an ability — the only supported
- * way to read them. Prefers the stored `selections` array; absent that, reads
- * the legacy "(X)" suffix on the item name, so no consumer parses item names
- * itself.
+ * way to READ them. Prefers the stored `selections` array; absent that, reads
+ * the "(X)" suffix on the item name where X names an entry of the ability's own
+ * vocabulary (`namedPicks`), so no consumer parses item names itself. Read at
+ * use only: nothing here writes the result back.
  * @param {Item} item
  * @returns {string[]} trimmed, non-empty picks; [] when none are recorded
  */
 export function selectionsOf(item) {
-  const stored = (AbilityExtras.fromItem(item).selections ?? [])
-    .map((s) => String(s).trim())
-    .filter(Boolean);
+  const stored = storedSelections(item);
   if (stored.length) return stored;
-  const m = /\(([^)]+)\)\s*$/.exec(item?.name ?? "");
-  return m ? m[1].split(",").map((s) => s.trim()).filter(Boolean) : [];
+  return namedPicks(item, AbilityExtras.fromItem(item).category);
 }

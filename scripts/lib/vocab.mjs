@@ -585,6 +585,30 @@ export function nameWithSelections(baseName, picks, vocab) {
   return labels.length ? `${base} (${labels.join(", ")})` : base;
 }
 
+/**
+ * The picks an ability's name carries in its trailing "(X)", for an item that
+ * stores none — the display convention `nameWithSelections` writes, read back.
+ *
+ * A fragment counts only when it names an entry of the ability's own
+ * vocabulary outright (key, alias or label, never the loose substring pass), so
+ * a parenthetical that merely ends a name — "Thing (variant words)" — is not a
+ * pick, and a loose substring cannot claim one. An ability with no vocabulary,
+ * or one whose list is not imported, has none. A READ: the result is never
+ * written back to the item's selections or its name.
+ *
+ * @param {object} item the ability
+ * @param {string} category its stored category, which picks the vocabulary when it has no own
+ * @returns {string[]} the fragments as written, in order
+ */
+export function namedPicks(item, category) {
+  const m = /\(([^)]+)\)\s*$/.exec(item?.name ?? "");
+  if (!m) return [];
+  const vocab = selectionVocabFor(item, category);
+  if (!vocab) return [];
+  const closed = { ...vocab, exact: true };
+  return m[1].split(",").map((s) => s.trim()).filter((s) => s && matchSelectionKey(closed, s));
+}
+
 /** Domains a `proficiencyGrant` effect covers (RR Combat: Combat Proficiencies). */
 export const PROFICIENCY_DOMAINS = {
   weapon: { label: "Weapon" },

@@ -64,8 +64,8 @@ Hooks.once("init", () => {
     setDefaultKey,
     // The picks a character's copy records (Martial Training's weapon group,
     // Fighting Style Specialization's style, …). Reads the stored `selections`
-    // array and absorbs the legacy "(X)" name-suffix convention — consumers
-    // must never parse item names themselves.
+    // array, else the "(X)" name suffix where X names an entry of the ability's
+    // vocabulary — consumers must never parse item names themselves.
     selectionsOf,
     // The companion SLOTS a character's abilities confer, and the gestures on
     // them: choose (the picker), bind (a chosen creature), release. The slot's

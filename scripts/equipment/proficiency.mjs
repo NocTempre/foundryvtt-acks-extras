@@ -26,15 +26,16 @@ import { collectStringFlags, sumEffectModifiers } from "./effects.mjs";
  * Is proficiency ENFORCEMENT live?
  *
  * This module infers proficiency from its own `flags.acks-extras.*` actor
- * flags and effect markers — the ones the ACKS Class Training compendium items
- * set: weapon and armour proficiency lists, and fighting styles. The weapon and
+ * flags and effect markers — what the class's training sets (character sheet →
+ * Stats tab → Training block) and what imported proficiency abilities carry:
+ * weapon and armour proficiency lists, and fighting styles. The weapon and
  * armour resolvers stay PERMISSIVE when the actor carries no such flags (no
  * list ⇒ proficient), so an un-configured character is not penalised for those.
  * A trained fighting STYLE, however, is required to use any weapon at all
- * (RR p. 15), so a weapon-wielding character with no Class-Training style item
- * reads as non-proficient once enforcement is on — configure each character
- * with its Class Training items (a style plus the weapon/armour lists) and the
- * gate is correct.
+ * (RR p. 15), so a weapon-wielding character with no trained style reads as
+ * non-proficient once enforcement is on — configure the class's training (a
+ * style plus the weapon/armour lists) or give the character the proficiency
+ * abilities, and the gate is correct.
  *
  * The abilities feature owns a richer model of the same facts but cannot yet
  * express the base class proficiency LISTS; its POSITIVE grants (Weapon
@@ -42,10 +43,10 @@ import { collectStringFlags, sumEffectModifiers } from "./effects.mjs";
  * still apply through the bridge regardless of this setting.
  *
  * The `proficiencyEnforcement` world setting selects the policy:
- *   "on"   (default) — always enforce; a declared Class-Training limit is real.
- *   "auto"           — enforce only while the abilities feature is absent (the
- *                      pre-merge default); use it if characters rely on the
- *                      abilities model and read as falsely non-proficient.
+ *   "on"   (default) — always enforce; a declared training limit is real.
+ *   "auto"           — enforce only while `acksExtras.abilities` is absent.
+ *                      The abilities feature assigns it unconditionally at
+ *                      init, so in a running world this reads as "off".
  *   "off"            — never enforce; all proficiency gating goes permissive.
  *
  * Scope: this toggles the PENALTIES (the non-proficient use package, RR p. 15:

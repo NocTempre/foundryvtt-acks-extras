@@ -11,10 +11,10 @@
 import { MODULE_ID, FLAG_EXTRAS } from "./constants.mjs";
 import { definitionId } from "../lib/capabilities.mjs";
 import { libraryItems } from "../lib/library.mjs";
-import AbilityExtras, { selectionsOf } from "./ability-extras.mjs";
+import AbilityExtras, { storedSelections } from "./ability-extras.mjs";
 import { keyOf, rollsOf, scalesFor, measures, throwText, throwOutcome, labelOf } from "./ability-rolls.mjs";
 import { ladderRungs, classByKey, effectiveLevel } from "../classes/registry.mjs";
-import { PROGRESSION_CLASSES, levelFactorLabel } from "../lib/vocab.mjs";
+import { PROGRESSION_CLASSES, levelFactorLabel, nameWithSelections, capabilityForId, isCapabilityToken } from "../lib/vocab.mjs";
 import { elementOf } from "../lib/util.mjs";
 import { modifierDisposition, isUnverified } from "../lib/typed-modifiers.mjs";
 import { QUICK_EFFECT_ACTIONS, quickEffectStatus } from "./quick-effects.mjs";
@@ -58,12 +58,31 @@ function companionName(uuid) {
 }
 
 /**
+ * A `kw:` capability token as a reader names it: the name of the library
+ * ability whose own definition id yields that capability (an alias is skipped,
+ * since it shares its target's), else the token without its prefix. Display
+ * only; the data keeps the token.
+ *
+ * @param {string} token e.g. `kw:<slug>`
+ * @returns {string}
+ */
+export function capabilityLabel(token) {
+  const want = String(token).toLowerCase();
+  const owner = libraryItems().find((i) => {
+    const id = definitionId(i);
+    return id && !i.getFlag?.(MODULE_ID, FLAG_EXTRAS)?.aliasOf && capabilityForId(id) === want;
+  });
+  return owner?.name || String(token).replace(/^kw:/i, "");
+}
+
+/**
  * A definition id ("def.power.longeval") shown as the ability's own name when
  * that ability is in the world. Display only: the data keeps the id, and the id
  * is returned whenever the referenced ability cannot be found.
  */
 function refName(ref) {
   if (!ref) return ref;
+  if (isCapabilityToken(ref)) return capabilityLabel(ref);
   // lib owns the provenance-flag read (and the importer's scope name with it);
   // it survives on the item whether or not the importer is active.
   const match = (i) => definitionId(i) === ref;
@@ -228,11 +247,16 @@ export function describeEffect(e, V) {
     case "requires":
     case "grants":
       return { kind: label(V.EFFECT_TYPES, e.type), text: `${refs(e.refs) || refName(e.ref)}${e.choose ? ` (choose ${e.choose})` : ""}` };
-    case "modifies":
+    case "modifies": {
+      // Target, figure and mode print only where the row carries them; a row
+      // that names only what it modifies reads as that name alone.
+      const detail = [e.target ? label(V.MODIFIER_TARGETS, e.target) : "", signed(n)].filter(Boolean).join(" ");
+      const mode = e.mode ? ` (${label(V.EFFECT_MODES, e.mode)})` : "";
       return {
         kind: label(V.EFFECT_TYPES, e.type),
-        text: `${refs(e.refs) || refName(e.ref)}: ${label(V.MODIFIER_TARGETS, e.target)} ${signed(n)} (${label(V.EFFECT_MODES, e.mode)})`,
+        text: `${refs(e.refs) || refName(e.ref)}${detail ? `: ${detail}` : ""}${mode}`,
       };
+    }
     case "spellLike":
       return { kind: label(V.EFFECT_TYPES, e.type), text: [e.spell, label(V.SPELL_LIKE_FREQ, e.frequency)].filter(Boolean).join(" — ") };
     case "sense":
@@ -272,6 +296,24 @@ export function describeEffect(e, V) {
       // names what it covers and the condition when it holds.
       return { kind: label(V.EFFECT_TYPES, e.type), text: e.note ? withCondition(e.note) : e.condition || "—" };
   }
+}
+
+/**
+ * The name a save writes for an ability's picks: the base name carrying them
+ * (`nameWithSelections`), or null to leave the name as it is. A save with no
+ * picks before and none after leaves it alone, so a name that merely ends in a
+ * parenthetical is not stripped; clearing stored picks does strip the suffix
+ * they put there.
+ *
+ * @param {string} name the name the form submits
+ * @param {string[]} stored the picks the item stores now
+ * @param {string[]} picks the picks the form saves
+ * @param {object} vocab the ability's pick vocabulary
+ * @returns {string|null}
+ */
+export function nameForSelections(name, stored, picks, vocab) {
+  if (!stored.length && !picks.length) return null;
+  return nameWithSelections(name, picks, vocab) || null;
 }
 
 /**
@@ -350,9 +392,10 @@ export function createAbilitySheet(Base) {
       // comma-separated line as fallback for picks the vocabulary does not
       // name. Matched with case and punctuation folded. Boxes come from
       // selectionOptions(), never Object.entries (a vocabulary's meta keys are
-      // not picks). Read through selectionsOf, never `extras.selections`
-      // directly — it also absorbs the legacy "(X)" name-suffix convention.
-      const picks = selectionsOf(this.item);
+      // not picks). The form shows the STORED picks only: a name's "(X)" is
+      // read by consumers at use (`selectionsOf`), and seeding the form from it
+      // would save it back as a pick.
+      const picks = storedSelections(this.item);
       const vocab = V.selectionVocabFor?.(this.item, extras.category) ?? null;
       const matched = new Set();
       context.selectionOptions = vocab
@@ -538,14 +581,7 @@ export function createAbilitySheet(Base) {
       context.aliasOf = extras.aliasOf ? refName(extras.aliasOf) : null;
       // Capabilities read better as the thing they stand for than as raw
       // tokens: "kw:sensingevil" is the Sensing Evil capability.
-      context.provides = (extras.provides ?? []).map((token) => {
-        const slug = String(token).replace(/^kw:/, "");
-        const owner = libraryItems().find((i) => {
-          const id = definitionId(i);
-          return id && !i.getFlag("acks-extras", "extras")?.aliasOf && V.capabilityForId?.(id) === token;
-        });
-        return { token, label: owner?.name ?? slug };
-      });
+      context.provides = (extras.provides ?? []).map((token) => ({ token, label: capabilityLabel(token) }));
       return context;
     }
 
@@ -651,14 +687,14 @@ export function createAbilitySheet(Base) {
         // selections is authoritative from the form (an emptied list must stick).
         if (Array.isArray(raw.selections)) merged.selections = raw.selections;
         // The "(spec)" suffix is derived from the picks, never typed, and only
-        // when the ability has a vocabulary; clearing the picks removes it.
+        // when the ability has a vocabulary; clearing stored picks removes it.
         if (Array.isArray(merged.selections)) {
           const V = globalThis.acksExtras?.lib?.vocab;
           const vocab = V?.selectionVocabFor?.(this.item, merged.category);
-          if (vocab && V?.nameWithSelections) {
-            const named = V.nameWithSelections(submitData.name ?? this.item.name, merged.selections, vocab);
-            if (named) submitData.name = named;
-          }
+          const named = vocab
+            ? nameForSelections(submitData.name ?? this.item.name, storedSelections(this.item), merged.selections, vocab)
+            : null;
+          if (named) submitData.name = named;
         }
         try {
           foundry.utils.setProperty(submitData, path, AbilityExtras.normalize(merged));

@@ -262,9 +262,11 @@ Weapon and armour lists stay **permissive** when absent: no list means
 proficient, so an unconfigured character is not punished. It is the *style* that
 is required.
 
-Configure a character with its Class Training items and the gate is correct. The
+Configure a character's class training (character sheet → Stats tab → Training
+block), or give it imported proficiency abilities, and the gate is correct. The
 **Proficiency penalties** setting, in **Settings tab → Game Settings → ACKS II —
-Extras**, offers **Automatic** and **Never enforce** if you would rather not.
+Extras**, offers **Never enforce** if you would rather not. **Automatic** does
+the same, because the ACKS Abilities feature is always loaded.
 
 ### What a character is trained in, at a glance
 

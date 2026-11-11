@@ -1527,9 +1527,9 @@
       },
       "proficiencyEnforcement": {
         "name": "Proficiency penalties",
-        "hint": "Whether weapon, armour, and fighting-style proficiency PENALTIES are enforced (Non-Proficient Use). Positive facts from ACKS Abilities characters — Weapon Finesse, a Specialization's style, Martial/Armour Training picks, Weapon Focus — always apply through the bridge regardless of this setting. Always enforce treats this module's flags as authoritative: configure each character with its ACKS Class Training items (a fighting style plus weapon/armour lists) and the gate is correct. Automatic instead keeps penalties off while ACKS Abilities is active, for worlds where characters rely on it for their base proficiency lists (which its model cannot yet express, so absence of a fact must not read as untrained).",
-        "auto": "Automatic — penalties off while ACKS Abilities is active; bridged bonuses still apply",
-        "on": "Always enforce — this module's flags are authoritative (default; configure characters via the ACKS Class Training compendium)",
+        "hint": "Whether weapon, armour, and fighting-style proficiency PENALTIES are enforced (Non-Proficient Use). Positive facts from ACKS Abilities characters — Weapon Finesse, a Specialization's style, Martial/Armour Training picks, Weapon Focus — always apply through the bridge regardless of this setting. Always enforce reads each character's training from its class (character sheet → Stats tab → Training block) and from its imported proficiency abilities. Automatic keeps penalties off while this module's ACKS Abilities feature is loaded, and that feature is always loaded, so Automatic acts as Never enforce.",
+        "auto": "Automatic — acts as Never enforce, since the ACKS Abilities feature is always loaded; bridged bonuses still apply",
+        "on": "Always enforce — training comes from the class (character sheet → Stats tab → Training block) and imported proficiency abilities (default)",
         "off": "Never enforce (equip limits, styles, and bridged bonuses still apply)"
       },
       "rollAutomation": {

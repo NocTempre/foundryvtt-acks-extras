@@ -1808,12 +1808,6 @@ check("bridge: an imported row is reported with its step, rank and total",
 check("bridge: an ability neither named nor carrying the row is not reported",
   armourTrainingRows(withItems([abil("Weapon Finesse", "def.prof.weaponFinesse")])).length === 0);
 
-// Name-suffix fallback: a hand-made item with no extras still carries its pick.
-const suffix = withItems([abil("Martial Training (Axes)", null, {})]);
-suffix.getFlag = (_m, k) => (k === "weaponProficiency" ? "swordDagger" : undefined);
-check("bridge: '(X)' name suffix works with no stored selections",
-  isWeaponProficient(suffix, classifyWeapon(weapon("Battle Axe", { melee: true }))));
-
 // Dedup: an item speaking the native effect language stands aside — its AE
 // counts once, the bridge adds nothing on top.
 const nativeReflexes = abil("Combat Reflexes", null, {}, {
@@ -2009,6 +2003,12 @@ check("resolveWeaponGroupPick reads a category by its own name when the lists do
     swordish.getFlag = (_m, k) => (k === "weaponProficiency" ? "axe" : undefined);
     const covered = (name, flags) => isWeaponProficient(swordish, classifyWeapon(weapon(name, flags)));
     check("a pick covers its own weapons and not the rest of the category it shares", covered("Hurl", { missile: true }) === true && covered("Stray", { melee: true }) === false);
+    // A hand-made copy with no stored picks carries one in its name's "(X)" only
+    // where X names an option of the imported list; any other trailing
+    // parenthetical is no pick.
+    const named = (name) => [...collectStringFlags(withItems([abil(name, null, {})]), "martialWeapons")].sort().join();
+    check("a name's \"(X)\" that names an imported option is read as its pick", named("Martial Training (zorgs)") === "axe");
+    check("a name's trailing parenthetical that names no option grants nothing", named("Martial Training (variant words)") === "");
   } finally {
     unregisterTable("weaponLists", layer);
     unregisterTable(WEAPONS_DOC, layer);

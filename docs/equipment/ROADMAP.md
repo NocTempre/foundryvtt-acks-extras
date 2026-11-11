@@ -13,6 +13,12 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   mounted overlay — `heightAdvantage` is already published and waiting — and
   every other conditional combat proficiency with it.
 
+- **The Proficiency penalties "Automatic" choice is inert.** It enforces only
+  while `acksExtras.abilities` is absent, and the abilities feature assigns
+  that unconditionally at init, so Automatic always acts as Never enforce.
+  Removing the choice or giving it a real condition is a setting change that
+  needs a migration for worlds that saved it; the owner decides which.
+
 - **Loot tables and templates grant variations directly.** A table entry or a
   template names an item *and* the variations it comes with, so a masterwork
   blade needs no pre-combined document. The importer already mints one

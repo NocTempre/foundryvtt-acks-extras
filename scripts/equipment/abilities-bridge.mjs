@@ -27,7 +27,7 @@
  */
 import { EFFECT_PREFIX, EFFECT_DOMAINS } from "./constants.mjs";
 import { WEAPON_CATEGORY } from "./config.mjs";
-import { slug, abilitySlug, resolveLevelValue, ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
+import { slug, abilitySlug, namedPicks, resolveLevelValue, ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
 import { forms, keyForName, listedKind, martialOption, optionUnits } from "../lib/weapons.mjs";
 import { CATEGORY_TOKENS, canonicalGrant, grantTokens } from "./training-view.mjs";
 
@@ -38,7 +38,11 @@ const ABILITIES_FLAG_SCOPE = "acks-extras";
 // keyed alike. It reads the importer's cookbook id where there is one and falls
 // back to the item's own name with any trailing "(X)" pick suffix removed.
 
-/** The picks, via the abilities API when live, else its documented flag shape. */
+/**
+ * The picks, via the abilities API when live, else its documented flag shape;
+ * a name's "(X)" counts only where it names an entry of the ability's own
+ * vocabulary (`namedPicks`).
+ */
 function picksOf(item) {
   const api = globalThis.acksExtras?.abilities;
   if (api?.selectionsOf) {
@@ -53,8 +57,7 @@ function picksOf(item) {
     const picks = stored.map((s) => String(s).trim()).filter(Boolean);
     if (picks.length) return picks;
   }
-  const m = /\(([^)]+)\)\s*$/.exec(item?.name ?? "");
-  return m ? m[1].split(",").map((s) => s.trim()).filter(Boolean) : [];
+  return namedPicks(item, categoryOf(item));
 }
 
 /**
