@@ -5331,3 +5331,24 @@ override of one of this module's word flags with its bare value, as it prints
 an add, since it now does what an add does. A numeric override still sets
 its field (`netNumericChange`), so two overrides on one number still leave
 only the higher-priced one.
+
+## 2026-11-10 — A magic light is an effect the Judge sizes
+
+**Ruled.** Light that is not a carried flame is declared by an Active Effect
+with two changes, `flags.acks-extras.magicLight.bright` and `.dim` in feet, of
+type `upgrade`, transferred from an item to its owner or placed on the actor
+(`magicLights`, `effectLight`, `shedLight`; lib MODEL, Senses). The Judge types
+the feet from their own copy; the item sheet's Effects tab has Add light to make
+the effect with both values empty. A token or a column point shines the larger of
+its flames and its effects, and a magic light is drawn steady, with no animation
+and no tint (`MAGIC_LIGHT_LOOK`), where a flame keeps its own look. A change's
+type is not read: the largest figure per radius stands, whatever the Judge
+picked.
+
+**Rejected.** A fourth `LIGHT_SOURCES` kind with imported figures. A spell's
+reach is a sentence in its prose, not a row of a table, so there is no figure
+for the importer to read, and the light belongs to whatever item it was cast on,
+not to a kind the party carries and burns down.
+
+**Cost.** A Judge types the reach once per item. A magic light has no burn
+time, no toggle and no fuel: it sheds while its effect is applied.

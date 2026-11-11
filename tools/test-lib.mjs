@@ -50,8 +50,11 @@ import {
   canSeeInDark,
   senseProfile,
 } from "../scripts/lib/senses.mjs";
-import { LIGHT_DOC, LIGHT_TABLE, brightestLightReaching, emittedLight, lightCite, lightFigures } from "../scripts/lib/light.mjs";
-import { applyTokenLight, applyTokenVision, isManagedLight, sceneIsDrawing, syncTokenFromActor } from "../scripts/lib/token-sync.mjs";
+import {
+  LIGHT_DOC, LIGHT_TABLE, MAGIC_LIGHT_CHANGE_KEYS, brightestLightReaching, effectLight, emittedLight, lightCite,
+  lightFigures, magicLights, mergeLight, shedLight,
+} from "../scripts/lib/light.mjs";
+import { MAGIC_LIGHT_LOOK, applyTokenLight, applyTokenVision, isManagedLight, sceneIsDrawing, syncTokenFromActor } from "../scripts/lib/token-sync.mjs";
 import { installTokenLightPaddingPatch, unpaddedRadius } from "../scripts/lib/patches/token-light-padding.mjs";
 import { hdFormula, monsterHd, monsterHitDice } from "../scripts/lib/actor-read.mjs";
 import { auditLine, auditOf, situationalTerm, skipDialogFor } from "../scripts/lib/roll-dialog.mjs";
@@ -1880,6 +1883,84 @@ t("emittedLight: the brightest lit, unshuttered source wins", () => {
   assert.deepEqual(emittedLight([]), { bright: 0, dim: 0 });
 });
 
+/**
+ * An actor whose applied effects are `effects`, each `{id, name, item, bright,
+ * dim, disabled}`: the item names the Item the effect rides on, and a figure
+ * may be a string as a change value is stored. Radii here are invented.
+ */
+const effectActor = (effects, { id = "a1", flameLights = [] } = {}) => ({
+  id,
+  getFlag: (scope, key) => (scope === "acks-extras" && key === "lights" ? flameLights : undefined),
+  appliedEffects: effects
+    .filter((e) => !e.disabled)
+    .map((e) => ({
+      id: e.id,
+      name: e.name ?? "",
+      disabled: !!e.disabled,
+      parent: e.item ? { documentName: "Item", name: e.item } : { documentName: "Actor" },
+      changes: [
+        ...(e.bright !== undefined ? [{ key: MAGIC_LIGHT_CHANGE_KEYS.bright, type: "upgrade", value: e.bright }] : []),
+        ...(e.dim !== undefined ? [{ key: MAGIC_LIGHT_CHANGE_KEYS.dim, type: "upgrade", value: e.dim }] : []),
+        ...(e.other ? [{ key: "system.something", type: "add", value: "1" }] : []),
+      ],
+    })),
+});
+
+t("magicLights: each applied effect that writes a radius is one named source", () => {
+  const actor = effectActor([
+    { id: "e1", name: "Glow", item: "Lamp of Testing", bright: "21", dim: "42" },
+    { id: "e2", name: "Spark", dim: "9" },
+    { id: "e3", name: "Unrelated", other: true },
+  ]);
+  assert.deepEqual(magicLights(actor), [
+    { id: "e1", label: "Glow", itemName: "Lamp of Testing", bright: 21, dim: 42 },
+    { id: "e2", label: "Spark", itemName: null, bright: null, dim: 9 },
+  ]);
+  assert.equal(magicLights(effectActor([{ id: "e9", name: "Unrelated", other: true }])).length, 0, "an effect that writes neither key is no light");
+});
+
+t("magicLights: an effect that names a light with no figure is listed with none, and a disabled one is not", () => {
+  const actor = effectActor([
+    { id: "e1", name: "Blank", bright: "", dim: "" },
+    { id: "e2", name: "Off", bright: "17", dim: "29", disabled: true },
+  ]);
+  // The scan skips the disabled effect itself; a suppressed one reaching the list is skipped here.
+  actor.appliedEffects.push({ id: "e3", name: "Held", disabled: false, isSuppressed: true, parent: { documentName: "Actor" }, changes: [{ key: MAGIC_LIGHT_CHANGE_KEYS.bright, value: "50" }] });
+  actor.appliedEffects.push({ id: "e4", name: "Off", disabled: true, parent: { documentName: "Actor" }, changes: [{ key: MAGIC_LIGHT_CHANGE_KEYS.bright, value: "50" }] });
+  assert.deepEqual(magicLights(actor), [{ id: "e1", label: "Blank", itemName: null, bright: null, dim: null }]);
+  assert.deepEqual(effectLight(actor), { bright: 0, dim: 0 }, "no figure, no light");
+  assert.deepEqual(effectLight({ id: "x" }), { bright: 0, dim: 0 }, "an actor with no effects sheds none");
+});
+
+t("effectLight: several lights take the largest of each radius", () => {
+  const actor = effectActor([
+    { id: "e1", bright: "15", dim: "30" },
+    { id: "e2", bright: "9", dim: "50" },
+    { id: "e3", bright: "x", dim: "-4" },
+  ]);
+  assert.deepEqual(effectLight(actor), { bright: 15, dim: 50 });
+});
+
+t("mergeLight: the larger bright radius wins the kind, and a tie keeps the flame", () => {
+  assert.deepEqual(mergeLight({ bright: 10, dim: 20 }, { bright: 14, dim: 14 }), { bright: 14, dim: 20, kind: "magic" });
+  assert.deepEqual(mergeLight({ bright: 10, dim: 20 }, { bright: 10, dim: 20 }), { bright: 10, dim: 20, kind: "flame" });
+  assert.deepEqual(mergeLight({ bright: 10, dim: 20 }, { bright: 10, dim: 25 }), { bright: 10, dim: 25, kind: "magic" });
+  assert.deepEqual(mergeLight(null, null), { bright: 0, dim: 0, kind: "flame" });
+});
+
+t("shedLight: the stronger of flame and effect, and which kind it was", () => {
+  importLights();
+  const lit = [{ id: "l1", type: "torch", lit: true }];
+  const flameOnly = effectActor([], { flameLights: lit });
+  assert.deepEqual(shedLight(flameOnly), { bright: 13, dim: 27, kind: "flame" });
+  const bigger = effectActor([{ id: "e1", bright: "20", dim: "35" }], { flameLights: lit });
+  assert.deepEqual(shedLight(bigger), { bright: 20, dim: 35, kind: "magic" });
+  const smaller = effectActor([{ id: "e1", bright: "6", dim: "40" }], { flameLights: lit });
+  assert.deepEqual(shedLight(smaller), { bright: 13, dim: 40, kind: "flame" });
+  const effectOnly = effectActor([{ id: "e1", bright: "8" }]);
+  assert.deepEqual(shedLight(effectOnly), { bright: 8, dim: 0, kind: "magic" }, "an effect lights a bearer with no flame");
+});
+
 t("light padding: a managed token's light reaches its figure, a hand-set one keeps core's padding", () => {
   // Core's padding, as `Token#getLightRadius` adds it: half the token's side.
   class FakeToken {
@@ -2041,6 +2122,46 @@ t("token light: a hand edit releases the module's light for good, and a light fr
   assert.equal(isManagedLight(old), true, "a managed light from before the stamp reads as managed");
   applyTokenLight(old, feet);
   assert.deepEqual(old.writes, [{ "flags.acks-extras.managedLightStamp": { bright: 20, dim: 40 } }], "and the first sync that finds it right stamps it, writing nothing else");
+});
+
+t("token light: a magic light is drawn steady, with no tint and no animation", () => {
+  const token = sceneToken("ft");
+  applyTokenLight(token, { bright: 20, dim: 35, kind: "magic" });
+  assert.deepEqual(token.writes[0].light, {
+    bright: 20,
+    dim: 35,
+    color: MAGIC_LIGHT_LOOK.color,
+    alpha: 0.3,
+    animation: { type: null },
+  });
+  assert.equal(token.writes[0].light.color, null, "no tint");
+  assert.equal(token.flags["acks-extras.managedLight"], true);
+  assert.deepEqual(token.flags["acks-extras.managedLightStamp"], { bright: 20, dim: 35 }, "the stamp is the radii alone, as for a flame");
+});
+
+t("token light: the radii compare against the stored source, never the prepared light", () => {
+  // Preparation can show a radius the document never stored: it is neither already written nor a hand edit.
+  const token = sceneToken("ft");
+  token._source = { light: { bright: 0, dim: 0 } };
+  token.light.bright = 20;
+  token.light.dim = 35;
+  applyTokenLight(token, { bright: 20, dim: 35 });
+  assert.equal(token.writes.length, 1, "a prepared-only match is still written");
+
+  // A stamped, managed light whose prepared radii drifted is not an edit while its source is intact.
+  const stamped = sceneToken("ft");
+  stamped._source = { light: { bright: 20, dim: 35 } };
+  stamped.light.bright = 25;
+  stamped.light.dim = 35;
+  stamped.flags["acks-extras.managedLight"] = true;
+  stamped.flags["acks-extras.managedLightStamp"] = { bright: 20, dim: 35 };
+  assert.equal(isManagedLight(stamped), true, "the stored radii still match the stamp");
+  applyTokenLight(stamped, { bright: 20, dim: 35 });
+  assert.equal(stamped.writes.length, 0, "the stored light is already right, so nothing is written or released");
+
+  // A stored edit still reads as the Judge's, whatever preparation shows.
+  stamped._source.light.bright = 3;
+  assert.equal(isManagedLight(stamped), false);
 });
 
 t("token sight: a range is written in the scene's units and settles", () => {

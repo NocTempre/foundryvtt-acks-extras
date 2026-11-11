@@ -19,7 +19,11 @@ import { columnLights } from "./column-light-logic.mjs";
 import { columnFor } from "./column.mjs";
 import { getPartyToken, readFormations } from "./formation-model.mjs";
 import { feetToUnits } from "../lib/distance-units.mjs";
-import { CARRIED_LIGHT_LOOK } from "../lib/token-sync.mjs";
+import { effectLight } from "../lib/light.mjs";
+import { lightLookFor } from "../lib/token-sync.mjs";
+
+/** A member's effect light in feet, the extra source a column point may take. */
+const memberEffectLight = (actorId) => effectLight(game.actors?.get?.(actorId));
 
 /** The world setting that turns carried light on the map on or off. */
 const SETTING_SYNC_LIGHT = "syncTokenLight";
@@ -55,7 +59,7 @@ export function syncColumnLights(state, formation, token, cells) {
   const wanted = new Map();
   // A hidden party token sheds nothing, as a hidden token's own light does not.
   if (columnLightsOn() && gs > 0 && !doc.hidden && token.visible !== false) {
-    for (const point of columnLights(formation, cells, gs)) wanted.set(point.bearerId, point);
+    for (const point of columnLights(formation, cells, gs, memberEffectLight)) wanted.set(point.bearerId, point);
   }
   let changed = false;
   for (const [bearerId, source] of state.lights) {
@@ -72,7 +76,7 @@ export function syncColumnLights(state, formation, token, cells) {
     // A token refreshes every frame, and a perception update refreshes it
     // again: a source is re-initialised only when what it shines changed, or
     // the two would drive each other.
-    const key = `${point.x},${point.y},${point.bright},${point.dim},${doc.elevation ?? 0},${doc.level ?? ""},${pixels},${units}`;
+    const key = `${point.x},${point.y},${point.bright},${point.dim},${point.kind},${doc.elevation ?? 0},${doc.level ?? ""},${pixels},${units}`;
     let source = state.lights.get(bearerId);
     // Still in core's collection too: a source a re-initialisation dropped is
     // added again, whatever the key says.
@@ -83,15 +87,16 @@ export function syncColumnLights(state, formation, token, cells) {
     }
     (state.lightKeys ??= new Map()).set(bearerId, key);
     defaults ??= new foundry.data.LightData().toObject();
+    const look = lightLookFor(point.kind);
     source.initialize({
       ...defaults,
       x: point.x,
       y: point.y,
       elevation: doc.elevation ?? 0,
       level: doc.level ?? null,
-      color: CARRIED_LIGHT_LOOK.color,
-      alpha: CARRIED_LIGHT_LOOK.alpha,
-      animation: { ...defaults.animation, ...CARRIED_LIGHT_LOOK.animation },
+      color: look.color,
+      alpha: look.alpha,
+      animation: { ...defaults.animation, ...look.animation },
       // Feet at the scene's scale, never padded by the token's own size.
       bright: feetToUnits(point.bright, units) * pixels,
       dim: feetToUnits(point.dim, units) * pixels,
@@ -131,7 +136,7 @@ export function carriedLightPoints(scene) {
     if (!token || token.parent?.id !== scene.id || token.hidden) continue;
     const at = columnFor(formation, token);
     if (!at) continue;
-    for (const point of columnLights(formation, at.cells, gs)) {
+    for (const point of columnLights(formation, at.cells, gs, memberEffectLight)) {
       out.push({ x: point.x, y: point.y, bright: feetToUnits(point.bright, scene.grid.units) });
     }
   }

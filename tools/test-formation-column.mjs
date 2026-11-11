@@ -347,8 +347,28 @@ test("two bearers give two light points, each at its bearer's cell centre", () =
   const cells = columnCells(f, { anchor: at(5, 5), heading: "north", gs: GS });
   const points = columnLights(f, cells, GS);
   assert.deepEqual(points.map((p) => p.bearerId), ["a", "c"]);
-  assert.deepEqual(points[0], { bearerId: "a", x: 550, y: 550, bright: 7, dim: 11 });
-  assert.deepEqual(points[1], { bearerId: "c", x: 550, y: 750, bright: 9, dim: 13 });
+  assert.deepEqual(points[0], { bearerId: "a", x: 550, y: 550, bright: 7, dim: 11, kind: "flame" });
+  assert.deepEqual(points[1], { bearerId: "c", x: 550, y: 750, bright: 9, dim: 13, kind: "flame" });
+});
+
+test("a member's effect light gives a point, and joins a flame at the larger of each radius", () => {
+  const f = { frontage: 1, members: [{ actorId: "a" }, { actorId: "b" }, { actorId: "c" }], lights: [
+    { id: "l1", type: "torch", bearerId: "a", lit: true },
+  ] };
+  const cells = columnCells(f, { anchor: at(5, 5), heading: "north", gs: GS });
+  // Invented reaches: "b" has nothing but an effect, "a" a flame beaten by one, "c" nothing at all.
+  const reach = { a: { bright: 20, dim: 8 }, b: { bright: 15, dim: 30 }, c: { bright: 0, dim: 0 } };
+  const points = columnLights(f, cells, GS, (id) => reach[id]);
+  assert.deepEqual(points.map((p) => p.bearerId), ["a", "b"]);
+  assert.deepEqual(points[0], { bearerId: "a", x: 550, y: 550, bright: 20, dim: 11, kind: "magic" });
+  assert.deepEqual(points[1], { bearerId: "b", x: 550, y: 650, bright: 15, dim: 30, kind: "magic" });
+  assert.deepEqual(columnLights(f, cells, GS, () => null).map((p) => p.bearerId), ["a"], "no effect light leaves the flame alone");
+});
+
+test("a deployed member's effect light is not the column's", () => {
+  const f = { frontage: 1, members: [{ actorId: "a", deployedTokenId: "t1" }], lights: [] };
+  const cells = columnCells(f, { anchor: at(5, 5), heading: "north", gs: GS });
+  assert.deepEqual(columnLights(f, cells, GS, () => ({ bright: 10, dim: 20 })), []);
 });
 
 test("a deployed bearer and a shuttered lantern shed nothing in the column", () => {

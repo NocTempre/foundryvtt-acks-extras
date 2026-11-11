@@ -27,9 +27,12 @@
       <span class="acks-empty-hint">{{#if effects.hiddenByIdentification}}{{localize 'ACKS-EQUIPMENT.itemSheet.effects.unidentifiedHint'}}{{else}}{{localize 'ACKS-EQUIPMENT.itemSheet.effects.mundaneHint'}}{{/if}}</span>
     </div>
     {{/each}}
-    {{#if editing}}
+    {{#if editable}}
     <div class="acks-row">
+      {{#if editing}}
       <button type="button" class="acks-btn acks-btn--quiet acks-btn--sm" data-action="addEffect"><i class="fa-solid fa-plus" inert></i>{{localize 'ACKS-EQUIPMENT.itemSheet.effects.add'}}</button>
+      {{/if}}
+      <button type="button" class="acks-btn acks-btn--quiet acks-btn--sm" data-action="addLight" data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.effects.addLightHint'}}"><i class="fa-solid fa-sun" inert></i>{{localize 'ACKS-EQUIPMENT.itemSheet.effects.addLight'}}</button>
     </div>
     {{/if}}
   </div>

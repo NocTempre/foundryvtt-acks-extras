@@ -3752,6 +3752,68 @@ Fixtures: `formation/column-scene` (above).
 
 Teardown: `api.sweepTracked()`; quote what it removed.
 
+## A magic light (added with the Add light control)
+
+Walked by hand on the GM seat. A magic light is an Active Effect on an item
+that writes `flags.acks-extras.magicLight.bright` and `.dim` (lib MODEL,
+Senses); every reach typed here is invented.
+
+**Fixtures** (kept; found by marker, built when none carries it):
+
+- `formation/column-scene` (above): the party token's scene.
+- `formation/magic-light`: a party actor, its formation seeded by the
+  createActor hook, its token on `formation/column-scene` (`actorLink: true`),
+  with one member seated through the party sheet's drop (*Core drive
+  mechanics*). The member carries `formation/magic-light-member`, and holds
+  one gear item carrying `formation/magic-light-item`.
+
+At the start: the item has no effect writing either key (a leftover one is
+the fixture's own: delete it with the item sheet's own control), and the
+member is inside the party token, not deployed.
+
+1. **Add light.** Open the item's sheet and press its Effects tab → Add light.
+   The control shows while the sheet is locked. `api.track` the effect the
+   click made (read its id from `item.effects` at once). *Observable:* one
+   effect on the item, transfer on, named "Magic light", two changes keyed as
+   above, each of type `upgrade` with an empty value, and its config sheet
+   open. No console error as the actor prepares with the empty values.
+2. **Not set.** Open the Party sheet's Kit tab → Light Sources. *Observable:*
+   one read-only row, the item's name and the member's, reading "reach not
+   set" with a tooltip saying so, and no button on it. The party token's
+   column holds no point (`acksExtras.formation.carriedLightPoints(scene)` is
+   empty) and the member's own token, if any, has no managed light.
+3. **Type the feet.** In the effect's config sheet, Changes tab, type 11 and 23
+   into the two values. *Observable:* the row reads "11 / 23 ft" and its
+   tooltip names the effect, the item and both reaches. One column point
+   stands at the member's cell (`carriedLightPoints` has one, `bright` the
+   figure in scene units) and the client light source of that bearer is steady:
+   `animation.type` null, no tint. With only the bright value typed the row
+   reads "11 ft bright" and shows no figure for the dim.
+4. **Disable and delete.** Disable the effect from its config sheet.
+   *Observable:* the row and the point are gone. Enable it again and they
+   return; delete the effect with the item sheet's trash and they go again.
+   (Re-add through step 1 for the next step.)
+5. **A flame beside it.** With the light table imported, light a torch for the
+   member from the Kit tab. *Observable:* the column point takes the larger
+   bright radius and, where the torch's is larger, its flame look; with the
+   effect's reach the larger, the steady look. Douse the torch before moving on.
+6. **Detached.** Deploy the member out of the party token. *Observable:* the
+   member's own token reads `light.bright` and `light.dim` in the scene's
+   units, `light.animation.type` null, `light.color` null, and carries
+   `flags.acks-extras.managedLight`; the column point is gone. Gather the
+   member back and the token's light clears.
+7. **A hand edit.** Set that token's bright radius by hand in Token Config while
+   it is detached, then re-open the effect and change a figure.
+   *Observable:* the token keeps the hand's radius, and its
+   `managedLightStamp` reads `{released: true}`.
+8. **On the actor.** Delete the item's effect and place an effect of the same
+   shape on the member's actor directly. *Observable:* the same row, now
+   labelled with the effect's name, and the same point.
+
+Teardown: `api.sweepTracked()`; quote what it removed. The effect each Add
+light made is in the ledger from step 1; the kept fixtures are left with no
+effect on them.
+
 ## Teardown
 
 `api.sweepTracked()` over the ledger: the scene, the party actor (its

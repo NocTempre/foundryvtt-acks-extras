@@ -29,6 +29,8 @@ import { containerOf, setLocked, storeIn, takeOut, setContainerRecord } from "..
 import { isSpellbook, spellbookSpells, setSpellbookSpells, parseSpellList, formatSpellList } from "../spellbook.mjs";
 import * as named from "../overlays/named.mjs";
 import { containedIn, siblingsOf, isEquippable, isWorn } from "../../lib/item-model.mjs";
+import { MAGIC_LIGHT_CHANGE_KEYS } from "../../lib/light.mjs";
+import { CHANGE } from "../../lib/effect-scan.mjs";
 import { wearableSlots } from "../profiles.mjs";
 import { ITEM_TYPE } from "../../lib/vocab.mjs";
 import { quantityOf } from "../../lib/storage-logic.mjs";
@@ -90,6 +92,7 @@ export default class AcksItemSheet extends PicksMixin(HandlebarsApplicationMixin
       removeKey: AcksItemSheet.#onRemoveKey,
       markDestroyed: AcksItemSheet.#onMarkDestroyed,
       addEffect: AcksItemSheet.#onAddEffect,
+      addLight: AcksItemSheet.#onAddLight,
       configureEffect: AcksItemSheet.#onConfigureEffect,
       deleteEffect: AcksItemSheet.#onDeleteEffect,
       guessName: AcksItemSheet.#onGuessName,
@@ -618,6 +621,26 @@ export default class AcksItemSheet extends PicksMixin(HandlebarsApplicationMixin
   static async #onAddEffect() {
     const [effect] = await this.item.createEmbeddedDocuments("ActiveEffect", [
       { name: this.item.name, img: this.item.img, transfer: true, disabled: false },
+    ]);
+    effect?.sheet?.render(true);
+  }
+
+  /**
+   * Add a magic light: a transferred effect carrying both radius changes with
+   * no figure in them, opened at once so the Judge types the feet from their
+   * own copy. The changes are `upgrade`, so the engine too keeps the largest
+   * where several lights ride one bearer.
+   */
+  static async #onAddLight() {
+    if (!this.isEditable) return;
+    const [effect] = await this.item.createEmbeddedDocuments("ActiveEffect", [
+      {
+        name: game.i18n.localize("ACKS-EQUIPMENT.itemSheet.effects.lightEffect"),
+        img: this.item.img,
+        transfer: true,
+        disabled: false,
+        changes: [MAGIC_LIGHT_CHANGE_KEYS.bright, MAGIC_LIGHT_CHANGE_KEYS.dim].map((key) => ({ key, type: CHANGE.UPGRADE, value: "" })),
+      },
     ]);
     effect?.sheet?.render(true);
   }

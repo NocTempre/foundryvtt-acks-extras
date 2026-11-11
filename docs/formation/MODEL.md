@@ -480,14 +480,26 @@ passes for its cell, and nothing while the party token is hidden from that seat;
 a GM sees the whole column. In `fixed` nothing is drawn.
 
 **Lights.** Every bearer still inside the party token who holds a lit,
-unshuttered source sheds it from the centre of their own first cell, in both
-shapes (`columnLights`, over lib's `emittedLight`: each bearer's brightest). A
-deployed bearer is excluded; their own token carries the light. Each point is a
+unshuttered source, or whose effects shed a magic light, sheds it from the
+centre of their own first cell, in both shapes (`columnLights`: each radius the
+larger of lib's `emittedLight` over the bearer's flames and the `extraOf`
+callback, which `column-light.mjs` answers with lib's `effectLight` of the
+member's actor, so a member with only a magic light gives a point). A point
+carries the `kind` that won, and a `magic` one is drawn with lib's steady look
+instead of the flame's. A deployed bearer is excluded; their own token carries
+the light, flame or magic (lib MODEL, Senses). Each point is a
 client `PointLightSource` (`column-light.mjs`), created, moved and destroyed with
 the column, never a document: lighting, dousing or shuttering is a record write,
 and every client rebuilds. Its radius is the figure in feet converted to the
 scene's units, with no token padding (lib MODEL, Senses). The `syncTokenLight`
 world setting turns all of it off, and a hidden party token sheds nothing.
+An effect or an item with effects that changes on a member lays every column
+again on every client (`column-view.mjs`), a drawing only. The Kit tab's Lights
+section lists each member's magic lights after the carried rows
+(`magicLightRows`): the item the effect rides on (else the effect's name), the
+bearer, and the reach in feet, read-only with no toggle or burn time; the
+figure's tooltip names the effect and its item or bearer, and an effect with no
+reach says it is not set and shows no number.
 `carriedLightPoints(scene)`, published on the formation namespace, is the same
 set at rest, read from the stored record, position and trail, for the Night
 Vision sweep (lib's `brightestLightReaching`), which runs on scenes no canvas is

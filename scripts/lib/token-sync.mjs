@@ -45,7 +45,7 @@ import { isActiveGMSeat, isPrimaryGM, unset } from "./util.mjs";
 import { feetPerUnit, feetToUnits } from "./distance-units.mjs";
 import { hasNightVision, senseProfile } from "./senses.mjs";
 import { DETECTION_MODES } from "./perception.mjs";
-import { bearerLights, brightestLightReaching, emittedLight } from "./light.mjs";
+import { brightestLightReaching, shedLight } from "./light.mjs";
 import { isMarkerActor } from "./place.mjs";
 
 /**
@@ -225,8 +225,14 @@ function visionDelta(tokenDoc, profile) {
  * stamp, and the light is never written again, so the Judge's light keeps
  * core's padding (`isManagedLight`). A managed token lit before the stamp
  * existed is stamped on the first sync that finds its light already right.
+ *
+ * Radii are compared against the STORED light (`storedLight`), never the
+ * prepared one: preparation can move a radius without anything having been
+ * written, and a prepared-only change must read neither as already written nor
+ * as a human edit. `look` is how a lit write draws: the flame's unless
+ * `feet` carries the `kind` of a `shedLight` answer (`lightLookFor`).
  */
-function lightDelta(tokenDoc, feet) {
+function lightDelta(tokenDoc, feet, look = lightLookFor(feet?.kind)) {
   if (!tokenDoc) return null;
   const stamp = tokenDoc.getFlag(MODULE_ID, FLAG_LIGHT_STAMP);
   if (stamp?.released) return null;
@@ -239,7 +245,8 @@ function lightDelta(tokenDoc, feet) {
   if (managed && stamp && !matchesStamp(tokenDoc, stamp)) {
     return { [`flags.${MODULE_ID}.${FLAG_LIGHT}`]: false, [stampKey]: { released: true } };
   }
-  if (tokenDoc.light.bright === bright && tokenDoc.light.dim === dim) {
+  const stored = storedLight(tokenDoc);
+  if (stored?.bright === bright && stored?.dim === dim) {
     return managed && lit && !stamp ? { [stampKey]: { bright, dim } } : null;
   }
   if (!lit && !managed) return null;
@@ -248,18 +255,28 @@ function lightDelta(tokenDoc, feet) {
     light: {
       bright,
       dim,
-      color: lit ? CARRIED_LIGHT_LOOK.color : null,
-      alpha: lit ? CARRIED_LIGHT_LOOK.alpha : 0.5,
-      animation: lit ? { ...CARRIED_LIGHT_LOOK.animation } : { type: null },
+      color: lit ? look.color : null,
+      alpha: lit ? look.alpha : 0.5,
+      animation: lit ? { ...look.animation } : { type: null },
     },
     [`flags.${MODULE_ID}.${FLAG_LIGHT}`]: lit,
     ...(lit ? { [stampKey]: { bright, dim } } : stamp ? { [stampKey]: unset() } : {}),
   };
 }
 
+/**
+ * The light a token document holds as written: its source data, which
+ * preparation does not touch, falling back to the live field where a document
+ * exposes no source.
+ */
+function storedLight(tokenDoc) {
+  return tokenDoc?._source?.light ?? tokenDoc?.light;
+}
+
 /** Whether a token's stored light radii are still the ones `stamp` records. */
 function matchesStamp(tokenDoc, stamp) {
-  return tokenDoc?.light?.bright === stamp?.bright && tokenDoc?.light?.dim === stamp?.dim;
+  const stored = storedLight(tokenDoc);
+  return stored?.bright === stamp?.bright && stored?.dim === stamp?.dim;
 }
 
 /**
@@ -272,6 +289,22 @@ export const CARRIED_LIGHT_LOOK = Object.freeze({
   alpha: 0.3,
   animation: Object.freeze({ type: "torch", speed: 2, intensity: 3 }),
 });
+
+/**
+ * How a magic light looks: steady, with no animation and no tint, at the
+ * flame's alpha. Drawn wherever a magic light stronger than any carried flame
+ * is the light shed (`shedLight`'s kind).
+ */
+export const MAGIC_LIGHT_LOOK = Object.freeze({
+  color: null,
+  alpha: CARRIED_LIGHT_LOOK.alpha,
+  animation: Object.freeze({ type: null }),
+});
+
+/** The look for a `shedLight` kind: `"magic"` is steady, anything else a flame. */
+export function lightLookFor(kind) {
+  return kind === "magic" ? MAGIC_LIGHT_LOOK : CARRIED_LIGHT_LOOK;
+}
 
 /**
  * Whether this token's light is the module's own: `applyTokenLight` wrote it,
@@ -303,7 +336,10 @@ export async function applyTokenVision(tokenDoc, profile) {
   return !delta.claim;
 }
 
-/** Emit `{bright, dim}` feet of light from a token. Returns true if written. */
+/**
+ * Emit `{bright, dim}` feet of light from a token. A `kind` of `"magic"` on
+ * `light` (a `shedLight` answer) draws it steady. Returns true if written.
+ */
 export async function applyTokenLight(tokenDoc, light) {
   const delta = lightDelta(tokenDoc, light);
   if (!delta) return false;
@@ -335,7 +371,7 @@ function tokenSyncDelta(tokenDoc) {
   // The light found is stored in the scene's units; the profile works in feet.
   const litBy = hasNightVision(actor) ? brightestLightReaching(tokenDoc) * feetPerUnit(tokenDoc.parent?.grid?.units) : 0;
   const vision = visionDelta(tokenDoc, senseProfile(actor, { litBy }));
-  const light = lightDelta(tokenDoc, emittedLight(bearerLights(actor)));
+  const light = lightDelta(tokenDoc, shedLight(actor));
   if (!vision && !light) return null;
   return Object.assign({}, vision?.update, light);
 }

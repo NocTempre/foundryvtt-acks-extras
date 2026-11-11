@@ -1051,6 +1051,7 @@ for (const hook of ["createItem", "updateItem", "deleteItem"]) {
   Hooks.on(hook, (item) => {
     if (game.system?.id !== "acks" || !item?.parent?.id) return;
     syncActorTokens(item.parent).catch((err) => console.warn(`${MODULE_ID} | actor sense sync failed`, err));
+    if (item.effects?.size) relightPartyOf(item.parent);
   });
 }
 
@@ -1059,6 +1060,7 @@ for (const hook of ["createActiveEffect", "updateActiveEffect", "deleteActiveEff
     const actor = effect?.parent instanceof Actor ? effect.parent : effect?.parent?.parent;
     if (game.system?.id !== "acks" || !actor?.id) return;
     syncActorTokens(actor).catch((err) => console.warn(`${MODULE_ID} | actor sense sync failed`, err));
+    relightPartyOf(actor);
   });
 }
 
@@ -1119,6 +1121,17 @@ Hooks.on("updateToken", (tokenDoc, changes) => {
   if (!("x" in changes || "y" in changes || "light" in changes || "hidden" in changes || trail)) return;
   relightNightVision(tokenDoc?.parent);
 });
+
+// A member's effect light is a point of the party's marching column, which
+// stands on no token: when an effect or an item's effects change on a member,
+// the scene the party token stands on is relit for Night Vision. The formation
+// is asked through the namespace, as below; an actor in none relights nothing
+// here, its own token being synced by the hooks above.
+function relightPartyOf(actor) {
+  const formations = acksExtras.formation;
+  const formation = formations?.getFormationForActor?.(actor?.id);
+  if (formation) relightNightVision(formations.getPartyToken?.(formation)?.parent);
+}
 
 // A party record's write can light, douse, shutter or hand over a light in its
 // marching column, which stands on no token: relight each scene a party token

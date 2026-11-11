@@ -14,9 +14,13 @@
  * fuel and shutters, and it is what the party sheet writes. Only an actor with
  * no formation falls back to its own flag. Reading both, or preferring the flag,
  * would let a member carry two contradictory torches.
+ *
+ * Light that is not a carried flame comes from Active Effects instead
+ * (`magicLights`), and the token burns the stronger of the two (`shedLight`).
  */
 
 import { MODULE_ID } from "./constants.mjs";
+import { appliedEffects } from "./effect-scan.mjs";
 import { findCarried } from "./item-model.mjs";
 import { citeOf, expectTables, getDoc, hasDoc } from "./tables.mjs";
 
@@ -370,6 +374,94 @@ export function emittedLight(lights) {
     dim = Math.max(dim, figures.dim ?? 0);
   }
   return { bright, dim };
+}
+
+/* -------------------------------------------- */
+/*  Light an effect sheds                       */
+/* -------------------------------------------- */
+
+/**
+ * The flag namespace a magic light's two changes write under:
+ * `flags.<module>.magicLight.bright` and `.dim`, in feet. A light that is not a
+ * carried flame — cast on a character, or worn on an item — is declared as an
+ * Active Effect carrying these, so the Judge types the reach from their own
+ * copy and nothing printed ships.
+ */
+export const MAGIC_LIGHT_KEY = "magicLight";
+
+/** The change keys of a magic light effect, by radius. */
+export const MAGIC_LIGHT_CHANGE_KEYS = Object.freeze({
+  bright: `flags.${MODULE_ID}.${MAGIC_LIGHT_KEY}.bright`,
+  dim: `flags.${MODULE_ID}.${MAGIC_LIGHT_KEY}.dim`,
+});
+
+/**
+ * Every magic light an actor sheds: one entry per applied Active Effect that
+ * writes a radius key, `{id, label, itemName, bright, dim}`. `itemName` is the
+ * item the effect rides on, null for an effect placed on the actor; `bright`
+ * and `dim` are feet, each null when the effect states none. Read from the
+ * effect's own change values rather than from the prepared flag, so each
+ * source stays nameable. A disabled or suppressed effect is not applied and so
+ * is not listed; a change's type is not read, the largest figure per radius
+ * standing when an effect repeats a key.
+ */
+export function magicLights(actor) {
+  const out = [];
+  for (const effect of appliedEffects(actor)) {
+    if (!effect || effect.disabled || effect.isSuppressed === true) continue;
+    let bright = null;
+    let dim = null;
+    let writes = false;
+    for (const change of [...(effect.changes ?? [])]) {
+      if (change?.key === MAGIC_LIGHT_CHANGE_KEYS.bright) {
+        writes = true;
+        bright = Math.max(bright ?? 0, figure(change.value) ?? 0) || null;
+      } else if (change?.key === MAGIC_LIGHT_CHANGE_KEYS.dim) {
+        writes = true;
+        dim = Math.max(dim ?? 0, figure(change.value) ?? 0) || null;
+      }
+    }
+    if (!writes) continue;
+    const itemName = effect.parent?.documentName === "Item" ? String(effect.parent.name ?? "") || null : null;
+    out.push({ id: effect.id ?? null, label: String(effect.name ?? "") || itemName || "", itemName, bright, dim });
+  }
+  return out;
+}
+
+/** The largest `{bright, dim}` reach, in feet, among the actor's magic lights. */
+export function effectLight(actor) {
+  let bright = 0;
+  let dim = 0;
+  for (const light of magicLights(actor)) {
+    bright = Math.max(bright, light.bright ?? 0);
+    dim = Math.max(dim, light.dim ?? 0);
+  }
+  return { bright, dim };
+}
+
+/**
+ * The stronger of a flame's reach and a magic light's, and which kind it
+ * came from, so a caller can pick the look: `{bright, dim, kind}` with `kind`
+ * `"magic"` when the magic light has the larger bright radius (the larger dim
+ * radius when the bright radii tie) and `"flame"` otherwise, a tie included.
+ * Each radius is the larger of the two, so a short flame never dims a long
+ * effect's far edge.
+ */
+export function mergeLight(flame, magic) {
+  const f = { bright: Number(flame?.bright) || 0, dim: Number(flame?.dim) || 0 };
+  const m = { bright: Number(magic?.bright) || 0, dim: Number(magic?.dim) || 0 };
+  const magicWins = m.bright > f.bright || (m.bright === f.bright && m.dim > f.dim);
+  return { bright: Math.max(f.bright, m.bright), dim: Math.max(f.dim, m.dim), kind: magicWins ? "magic" : "flame" };
+}
+
+/**
+ * The light an actor's token burns: the stronger of what its carried flames
+ * shed (`emittedLight`) and what its effects shed (`effectLight`), in feet,
+ * with the `kind` that won (`mergeLight`).
+ * @returns {{bright: number, dim: number, kind: "flame"|"magic"}}
+ */
+export function shedLight(actor) {
+  return mergeLight(emittedLight(bearerLights(actor)), effectLight(actor));
 }
 
 /* -------------------------------------------- */

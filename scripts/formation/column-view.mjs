@@ -21,7 +21,7 @@
 import { FLAG_FORMATION_ID, FLAG_TRAIL, MODULE_ID, SETTING_PARTY_TOKEN_SHAPE } from "./constants.mjs";
 import { columnFor, memberCells, pathCells } from "./column.mjs";
 import { destroyColumnLights, syncColumnLights } from "./column-light.mjs";
-import { getMemberActor, isLinkedPartyToken, partyTokenShape, readFormations, SETTING_FORMATIONS } from "./formation-model.mjs";
+import { getFormationForActor, getMemberActor, isLinkedPartyToken, partyTokenShape, readFormations, SETTING_FORMATIONS } from "./formation-model.mjs";
 
 /** Opacity of a body's tint square. */
 const TINT_ALPHA = 0.28;
@@ -203,6 +203,21 @@ export function installColumnView() {
   };
   Hooks.on("createSetting", onSetting);
   Hooks.on("updateSetting", onSetting);
+  // A member's effect light (a spell on them, an item they carry) is read off
+  // their actor, not the record: an effect or an item with effects that
+  // changes on a member lays the columns again. Drawing only, so every
+  // client does it and none writes.
+  const relightMember = (actor) => {
+    if (actor?.id && getFormationForActor(actor.id)) refreshAllColumns();
+  };
+  for (const hook of ["createActiveEffect", "updateActiveEffect", "deleteActiveEffect"]) {
+    Hooks.on(hook, (effect) => relightMember(effect?.parent?.documentName === "Actor" ? effect.parent : effect?.parent?.parent));
+  }
+  for (const hook of ["createItem", "updateItem", "deleteItem"]) {
+    Hooks.on(hook, (item) => {
+      if (item?.effects?.size) relightMember(item.parent);
+    });
+  }
   // What this seat sees moved: show and hide bodies again.
   Hooks.on("sightRefresh", () => {
     if (game.user?.isGM) return;

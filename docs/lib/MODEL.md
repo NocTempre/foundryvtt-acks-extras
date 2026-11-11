@@ -707,6 +707,32 @@ nothing imported a lit light sheds nothing (`emittedLight` reads 0), burns
 uncounted (`remaining` left unset), and every surface that shows a figure says
 it is not imported.
 
+**A magic light is an effect.** Light that is not a carried flame is declared by
+an Active Effect with two changes, `flags.acks-extras.magicLight.bright` and
+`.dim` (feet), of type `upgrade`. On an item it transfers to the owner; one placed
+on the actor (a spell cast on them) works the same. The figure is typed by the
+Judge from their own copy, so nothing printed ships (the item sheet's Effects tab
+has an Add light control that creates the effect with both values empty).
+`magicLights(actor)` reads one entry per applied effect that writes either key,
+`{id, label, itemName, bright, dim}`, from the effect's own change values (not
+the prepared flag) so each source stays nameable; `appliedEffects` already leaves
+out a disabled or suppressed effect, and a change's type is not read: the largest
+figure per radius stands. `effectLight(actor)` is the largest `{bright, dim}`
+among them. `shedLight(actor)` is the stronger of `emittedLight(bearerLights)` and
+`effectLight`, each radius taking the larger, with the `kind` that won
+(`mergeLight`): `magic` when the effect has the larger bright radius (the dim on
+a tie), else `flame`. `tokenSyncDelta` writes it through `lightDelta` with the
+kind's look: a flame keeps `CARRIED_LIGHT_LOOK`, a magic light takes
+`MAGIC_LIGHT_LOOK` (steady, no tint, the flame's alpha). The look is written
+with the radii: a token whose stored radii already match is not rewritten when
+only the kind changes.
+`lightDelta` and `matchesStamp` compare the token's stored light
+(`_source.light`), never the prepared one, so a prepared-only change reads
+neither as already written nor as a hand edit. An effect or item with effects
+that changes on an actor re-syncs its tokens (`createActiveEffect`,
+`updateActiveEffect`, `deleteActiveEffect` and the item hooks) and, for a
+formation member, relights the party token's scene for Night Vision.
+
 **A managed light.** A token's light is the module's when the module wrote it:
 `applyTokenLight` sets `flags.acks-extras.managedLight` true with every lit
 write and false when it clears the light, and stamps the radii it wrote in

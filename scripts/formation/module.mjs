@@ -1218,6 +1218,17 @@ for (const hook of ["createItem", "updateItem", "deleteItem"]) {
   });
 }
 
+/* A member's effect light is a row on the Kit tab, read off the actor: an effect
+ * created, changed or deleted on a member, or on an item they carry, redraws
+ * the open sheets on this client. A drawing only, so every client does it; the
+ * item hooks above already redraw the primary GM's. */
+const redrawForMember = (actor) => {
+  if (actor?.id && getFormationForActor(actor.id)) PartySheet.refreshAll();
+};
+for (const hook of ["createActiveEffect", "updateActiveEffect", "deleteActiveEffect"]) {
+  Hooks.on(hook, (effect) => redrawForMember(effect?.parent?.documentName === "Actor" ? effect.parent : effect?.parent?.parent));
+}
+
 /* -------------------------------------------- */
 /*  Cross-client refresh                        */
 /* -------------------------------------------- */

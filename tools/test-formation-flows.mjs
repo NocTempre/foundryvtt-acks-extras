@@ -1927,6 +1927,51 @@ await scenario("template renders live controls for a member-owner", async () => 
   assert.ok(html.includes("ACKS-FORMATION.map.section"), "maps section renders for players");
   assert.ok(!html.includes("distorted"), "no distortion tell in a player render");
   assert.ok(!html.includes('data-action="advanceTurn"'), "GM clock buttons absent for players");
+  assert.ok(!html.includes("data-magic-light"), "no effect light, no magic-light row");
+
+  // A member's effect light is a read-only row on the Kit tab, with its source
+  // in the figure's tooltip and no control; one with no reach says so.
+  const { MAGIC_LIGHT_CHANGE_KEYS } = await import("../scripts/lib/light.mjs");
+  const change = (key, value) => ({ key, type: "upgrade", value });
+  dave.effects.push(
+    {
+      id: "fxlit",
+      name: "Glow",
+      disabled: false,
+      parent: { documentName: "Item", name: "Lamp of Testing" },
+      changes: [change(MAGIC_LIGHT_CHANGE_KEYS.bright, "11"), change(MAGIC_LIGHT_CHANGE_KEYS.dim, "23")],
+    },
+    { id: "fxblank", name: "Blank", disabled: false, parent: { documentName: "Actor" }, changes: [change(MAGIC_LIGHT_CHANGE_KEYS.bright, "")] },
+    {
+      id: "fxpart",
+      name: "Half",
+      disabled: false,
+      parent: { documentName: "Actor" },
+      changes: [change(MAGIC_LIGHT_CHANGE_KEYS.bright, "7"), change(MAGIC_LIGHT_CHANGE_KEYS.dim, "")],
+    },
+  );
+  game.user = game.users.get("PL1");
+  let magicHtml;
+  let judgeHtml;
+  try {
+    magicHtml = template({ isGM: false, formation, ...view.buildFormationView(formation), ...view.buildPlayerPanel(formation) });
+    game.user = gmUser;
+    judgeHtml = template({ isGM: true, formation, ...view.buildFormationView(formation) });
+  } finally {
+    game.user = gmUser;
+    dave.effects.length = 0;
+  }
+  const rows = [...magicHtml.matchAll(/<div class="light magic-light"[\s\S]*?<\/div>/g)].map((m) => m[0]);
+  assert.equal(rows.length, 3, "one read-only row per magic light");
+  assert.ok(rows[0].includes(`data-magic-light="${dave.id}.fxlit"`) && rows[0].includes("Lamp of Testing"), "the row names the item it rides on");
+  assert.ok(rows[0].includes("magicLightReach") && rows[0].includes("&quot;bright&quot;:11") && rows[0].includes("&quot;dim&quot;:23"), "the row shows both radii");
+  assert.ok(rows[0].includes("magicLightTip") && rows[0].includes("Lamp of Testing"), "the figure's tooltip names the item the light rides on");
+  assert.ok(!rows[0].includes("Glow") && rows[0].includes("effects.lightEffect"), "a player is not told an item-borne effect's own name");
+  const judgeRow = judgeHtml.match(/<div class="light magic-light" data-magic-light="[^"]*fxlit"[\s\S]*?<\/div>/)?.[0] ?? "";
+  assert.ok(judgeRow.includes("Glow") && judgeRow.includes("Lamp of Testing"), "the Judge's tooltip names the effect and its item");
+  assert.ok(rows[1].includes("magicLightNotSet") && !rows[1].includes("magicLightReach") && !rows[1].includes("magicLightTip"), "a light with no reach says it is not set and shows no figure");
+  assert.ok(rows[2].includes("magicLightBrightOnly") && !rows[2].includes("magicLightReach") && !rows[2].includes("&quot;dim&quot;"), "a light with one radius shows that radius and no zero for the other");
+  assert.ok(!rows.join("").includes("<button"), "a magic light has no toggle");
 
   // The sheet itself must be live for a member-owner despite Observer-only
   // party-actor ownership (Foundry disables ALL controls otherwise).

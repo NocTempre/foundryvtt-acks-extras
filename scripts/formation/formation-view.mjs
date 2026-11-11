@@ -1,6 +1,6 @@
 /* global game, canvas, fromUuidSync */
 import { defaultPartyShape, isCasualty, isDead, partyTokenShape } from "./formation-model.mjs";
-import { lightCite, lightFigures } from "../lib/light.mjs";
+import { lightCite, lightFigures, magicLights } from "../lib/light.mjs";
 import {
   LIGHT_SOURCES,
   PARTY_TOKEN_SHAPES,
@@ -105,6 +105,44 @@ import { searchSpec, searchesAvailable } from "./searching.mjs";
 import { weatherEffects, throwPenalty, foragePenalty } from "./weather-effects.mjs";
 import { hexStockView, readStock } from "./hex-stock-run.mjs";
 import { hexStockKey } from "./hex-stock.mjs";
+
+/**
+ * The Kit tab's read-only rows for the light the members' effects shed: one
+ * per magic light on each member, `{key, label, bearer, reachText, tip, set}`.
+ * `label` is the item the effect rides on, else the effect's own name; a light
+ * whose effect states no reach says so and shows no figure. The `tip` names
+ * the effect and where it sits, the way a figure's tooltip owes its source.
+ */
+export function magicLightRows(formation) {
+  const rows = [];
+  const seen = new Set();
+  for (const member of realMembers(formation)) {
+    if (seen.has(member.actorId)) continue;
+    seen.add(member.actorId);
+    const actor = getMemberActor(member);
+    if (!actor) continue;
+    for (const light of magicLights(actor)) {
+      const set = light.bright != null || light.dim != null;
+      // Only a radius the effect states is shown: an unset one is no zero.
+      const reachKey = light.bright != null && light.dim != null ? "magicLightReach" : light.bright != null ? "magicLightBrightOnly" : "magicLightDimOnly";
+      const reachText = set ? game.i18n.format(`ACKS-FORMATION.app.${reachKey}`, { ...(light.bright != null ? { bright: light.bright } : {}), ...(light.dim != null ? { dim: light.dim } : {}) }) : game.i18n.localize("ACKS-FORMATION.app.magicLightNotSet");
+      // A player is not told an item-borne effect's own name: on an item not yet
+      // identified it is what the item sheet hides. The item's name is the one
+      // the player already sees, a disguise's included.
+      const effectName = light.itemName && !game.user?.isGM ? game.i18n.localize("ACKS-EQUIPMENT.itemSheet.effects.lightEffect") : light.label;
+      const args = { effect: effectName, source: light.itemName ?? actor.name, reach: reachText };
+      rows.push({
+        key: `${actor.id}.${light.id}`,
+        label: light.itemName ?? light.label,
+        bearer: actor.name,
+        set,
+        reachText,
+        tip: game.i18n.format(set ? "ACKS-FORMATION.app.magicLightTip" : "ACKS-FORMATION.app.magicLightNotSetTip", args),
+      });
+    }
+  }
+  return rows;
+}
 
 /**
  * Build the display context shared by the GM formation window and the party
@@ -287,6 +325,8 @@ export function buildFormationView(formation) {
       canControl: game.user.isGM || owned,
     };
   });
+
+  view.magicLights = magicLightRows(formation);
 
   view.spells = (formation.spells ?? []).map((spell) => ({
     ...spell,

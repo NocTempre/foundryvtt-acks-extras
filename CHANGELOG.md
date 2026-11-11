@@ -2,8 +2,52 @@
 
 ## Unreleased
 
+### Added
+
+- **Summon creatures from the character sheet.** On a character you own, the
+  character sheet's party cell (bottom right rail) → Summon… asks for a creature
+  from the monster compendia you can open, how many, and optionally one of the
+  character's spells. Click the map to place each one; the GM's client makes the
+  tokens, so no ownership of the creature is needed. Each summoned creature is
+  its own token, owned by the character's owners, counted in the party cell, and
+  gone when its token is. If you can open no monster compendium the prompt says so.
+- **Dismiss summons.** The character sheet's party cell (bottom right rail) → Dismiss
+  lists each summoning on the scene. It asks first, then removes that summoning's
+  tokens. Release now applies only to creatures you bound by hand with Bind, which
+  Dismiss never removes.
+- **A magic light is an effect you size.** An item's Effects tab (the item sheet)
+  gains Add light, shown to whoever may edit the item. It adds an effect, carried
+  by whoever holds the item, with a bright and a dim change left empty, and opens
+  it so you can type the reach in feet from your own book. An effect placed on a
+  character works the same way, and a disabled one sheds nothing. The character's
+  token, a member's own token once deployed and the party token's marching column
+  all shine it, steady and untinted, and take the larger reach where a flame also
+  burns.
+- **The Party sheet lists magic lights.** The Party sheet's Kit tab → Light
+  Sources shows each member's magic light after the carried lights: the item it
+  rides on, the bearer and the reach in feet, with no toggle or burn time. Hover
+  the reach to see which effect sets it; an effect with no reach says it is not set.
+
 ### Fixed
 
+- **A token light the sync could not see.** A token whose displayed light differed
+  from its stored light by preparation alone was taken for already written, or for
+  a light you had edited by hand, and so was skipped or released. The sync now
+  compares the light as the token stores it.
+- **A rebuild keeps what it cannot put back.** Rebuilding a shelf or a book
+  (Settings tab → Game Settings → ACKS II — Extras → Manage imports → Rebuild),
+  ticked entries (Manage imports → Tools → (Re)import individual entries) or an
+  adventure book (Manage imports → Adventures) could delete documents nothing on
+  this seat could import again: a table row whose book was closed, a document
+  whose entry no loaded cookbook holds, or one from a book this build does not
+  offer. Those are now left as they are, and the confirm and the notice say how
+  many. A copy dragged out of the library no longer answers for the library's
+  own organisation, roll table, room or companion when an import looks for it,
+  and rebuilding ticked entries no longer deletes such a copy.
+- **Imported weapons, armour and gear cite the printed page.** Items made from
+  the weapon, armour and price tables cited the PDF's page rather than the one
+  printed in the book (RR ch. 4). Items imported earlier keep the page they were
+  written with until they are rebuilt.
 - **Every character throws a flask.** A character drawing military oil, holy
   water, a rock, a torch or any other flask, bottle or grenade was counted as
   using a weapon it was not trained in, so every attack and the armour bonus took
