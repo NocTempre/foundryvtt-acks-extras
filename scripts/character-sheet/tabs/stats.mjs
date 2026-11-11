@@ -19,8 +19,10 @@ import { collectStringFlags, findLoadoutEffect, loadoutPart, partSource } from "
 import { getLoadout } from "../../equipment/loadout.mjs";
 import { armourTrainingRows } from "../../equipment/abilities-bridge.mjs";
 import { standingModifiers } from "../../lib/typed-modifiers.mjs";
-import { TRAINING_VIEWS, arrangeUnits } from "../../equipment/training-view.mjs";
-import { trainingSourceName, trainingProvenance, editedSlots, classTraining, hasTraining } from "../../classes/training.mjs";
+import { SHORTCUT_LISTS, TRAINING_VIEWS, arrangeUnits, coverageOf, coveredUnits, shortcuts } from "../../equipment/training-view.mjs";
+import { WEAPON_LISTS_DOC, categoryOptions, optionFindings, weaponOptions } from "../../lib/weapons.mjs";
+import { citeOf } from "../../lib/tables.mjs";
+import { trainingSourceName, trainingProvenance, editedSlots, editedWeaponTokens, classTraining, hasTraining } from "../../classes/training.mjs";
 import { hitPointAuditText } from "../../classes/hitpoints.mjs";
 import { LIGHT_SOURCES, lightFigures, lightCite } from "../../lib/light.mjs";
 import { senseCite, senseProfile, VISION_MODES } from "../../lib/senses.mjs";
@@ -61,12 +63,139 @@ function annotate(pill, contributions, covering, { editing, edited }) {
   return { ...pill, fromClass, others, locked, edited, editing, tooltip: tip.join(" · ") };
 }
 
+/**
+ * Where a printed option or Weapon Focus was read, as its tooltip names it:
+ * its list, its marker where it has one, and its page. A Judge's override
+ * carries no page (`citeOf` answers null), and says so.
+ */
+function optionWhere(option) {
+  const where = [loc(`stats.optionList.${option.list}`), option.marker].filter(Boolean).join(" ");
+  const table = option.list === "focus" ? "focus" : "options";
+  const page = citeOf(WEAPON_LISTS_DOC, table);
+  const cite = page ? option.cite || page : null;
+  return cite ? loc("stats.optionWhereCited", { where, cite }) : loc("stats.optionWhereJudge", { where });
+}
+
+/** What every category header's tooltip reads, once: the options, which hold each category, the predicates and the findings. */
+function tipContext() {
+  return { options: weaponOptions(), held: categoryOptions(), predicates: shortcuts().filter((s) => s.kind === "predicate"), found: optionFindings() };
+}
+
+/**
+ * The printed options a category group's tooltip names as holding its weapons:
+ * the noun-list options the placement put a weapon of the group on
+ * (`categoryOptions`) and the size-and-use options one of them satisfies, in
+ * the order the import lists them, each by its printed words and where it was
+ * read. The restricted list's single picks are the weapons themselves and are
+ * not named. With no option list imported the tooltip says so and names none.
+ * With options imported it also says where the options fall short: that none
+ * holds any of the group's weapons, that no single option holds all of them,
+ * and how many of its weapons are in no option at all.
+ *
+ * @param {{token: string}} group the category group, by its slugged token
+ * @param {string} label the group's own name, the tooltip's first part
+ * @param {{key: string}[]} members the group's weapons
+ * @param {object} [context] `tipContext()`, read once for every group of a build
+ */
+export function categoryTip(group, label, members, context = tipContext()) {
+  const { options, held, predicates, found } = context;
+  if (!options.length) return [label, loc("stats.optionsNotImported")].join(" · ");
+  const keys = new Set(members.map((m) => m.key));
+  const token = Object.keys(held).find((t) => slug(t) === group.token);
+  const named = new Set((held[token] ?? []).filter((id) => options.find((o) => o.id === id)?.list !== "restricted"));
+  for (const s of predicates) if (s.units.some((k) => keys.has(k))) named.add(s.id);
+  const holding = options.filter((o) => named.has(o.id)).map((o) => loc("stats.optionHeld", { label: o.label, where: optionWhere(o) }));
+  const parts = [label, holding.length ? loc("stats.optionsHolding", { options: holding.join("; ") }) : loc("stats.optionsNoneHold")];
+  if (found.notWhole.some((t) => slug(t) === group.token)) parts.push(loc("stats.optionsNotWhole"));
+  const loose = members.filter((m) => found.unplaced.includes(m.key)).length;
+  if (loose) parts.push(loc("stats.optionsLoose", { count: loose }));
+  return parts.join(" · ");
+}
+
+/** The face and the `aria-pressed` of each coverage a shortcut can show. */
+const SHORTCUT_FACE = Object.freeze({
+  all: { icon: "fa-solid fa-circle-check", pressed: "true" },
+  some: { icon: "fa-solid fa-circle-half-stroke", pressed: "mixed" },
+  none: { icon: "fa-regular fa-circle", pressed: "false" },
+});
+
+/**
+ * The quick-select rows under the Weapons heading: one per imported list that
+ * holds a group (narrow, broad, martial, Weapon Focus), one button per group
+ * by its printed words. A button's state is how much of its weapons the
+ * weapons grant a press rewrites covers (`editedWeaponTokens`), so the face and
+ * the press read one list. Its tooltip names the list, the marker, the page and
+ * how many of its weapons are in the grant; a group no weapon is placed on is
+ * `aria-disabled` and says so. With no list imported there are no rows and
+ * `imported` is false.
+ *
+ * @returns {{imported: boolean, rows: {key: string, caption: string, buttons: object[]}[]}}
+ */
+export function trainingShortcuts(actor) {
+  const all = shortcuts();
+  if (!all.length) return { imported: false, rows: [] };
+  const { units: covered } = coveredUnits(editedWeaponTokens(actor));
+  const rows = [];
+  for (const list of SHORTCUT_LISTS) {
+    const buttons = all
+      .filter((s) => s.list === list)
+      .map((s) => {
+        const state = coverageOf(s.units, covered);
+        const held = s.units.filter((k) => covered.has(k)).length;
+        const figures = { label: s.label, where: optionWhere(s), held, total: s.units.length };
+        return {
+          id: s.id,
+          label: s.label,
+          state,
+          on: state === "all",
+          partial: state === "some",
+          icon: SHORTCUT_FACE[state].icon,
+          pressed: SHORTCUT_FACE[state].pressed,
+          count: `${held}/${s.units.length}`,
+          empty: !s.units.length,
+          aria: loc("stats.shortcutAria", { label: s.label, state: loc(`stats.shortcutState.${state}`), held, total: s.units.length }),
+          tip: loc(s.units.length ? "stats.shortcutTip" : "stats.shortcutTipEmpty", figures),
+        };
+      });
+    if (buttons.length) rows.push({ key: list, caption: loc(`stats.optionList.${list}`), buttons });
+  }
+  return { imported: true, rows };
+}
+
+/** The shortcut rows, or none when reading them throws: a convenience never kills the tab. */
+function shortcutsOrNone(actor) {
+  try {
+    return trainingShortcuts(actor);
+  } catch (err) {
+    console.error("acks-extras | the training shortcuts could not be read; the pills stand alone", err);
+    return { imported: true, rows: [] };
+  }
+}
+
 /** The weapon list: every unit once, under the view's groups. */
 function weaponGroups(actor, strips, { view, openBuckets, editing, prov, edited }) {
   const prof = weaponProficiency(actor);
   const focus = new Set([...collectStringFlags(actor, EFFECT_DOMAINS.WEAPON_FOCUS)].map(norm));
   const configured = strips.weapons.some((w) => !w.unset);
   const unitOn = (u) => (configured && !prof.all ? isWeaponProficient(actor, u.profile, prof, { grantsOnly: true }) : configured && prof.all);
+  // The option tooltips are a convenience: a throw in reading them leaves the header's own name.
+  let tips = null;
+  if (view === "category") {
+    try {
+      tips = tipContext();
+    } catch (err) {
+      console.error("acks-extras | the printed options could not be read; the headers stand unannotated", err);
+    }
+  }
+  const tipFor = (g, label, members) => {
+    if (!tips || !g.token) return label;
+    try {
+      return categoryTip(g, label, members, tips);
+    } catch (err) {
+      console.error("acks-extras | a category header's printed options could not be named", err);
+      return label;
+    }
+  };
   return arrangeUnits(view).map((g) => {
     const members = g.members.map((u) => {
       const group = focusGroup(u.profile);
@@ -74,10 +203,13 @@ function weaponGroups(actor, strips, { view, openBuckets, editing, prov, edited 
       return annotate(pill, prov.weapons, (t) => grantMatches(t, u.profile), { editing, edited: edited.weapons.has(u.key) });
     });
     const lit = members.filter((m) => m.on);
+    const label = game.i18n.localize(g.label);
     const head = {
       key: g.key,
       token: g.token,
-      label: game.i18n.localize(g.label),
+      label,
+      // A category group says which printed options hold its weapons; another organisation's group is not one.
+      tip: tipFor(g, label, members),
       tier: g.tier ? loc(`stats.tier.${g.tier}`) : "",
       on: members.length > 0 && lit.length === members.length,
       partial: lit.length > 0 && lit.length < members.length,
@@ -368,6 +500,7 @@ export function buildStatsTab(actor, { openBuckets = new Set(), editing = false,
     styles,
     unarmed: unarmed ? { ...unarmed, tooltip: unarmed.label } : null,
     groups: weaponGroups(actor, strips, { view: currentView.key, openBuckets, editing, prov, edited }),
+    shortcuts: editing ? shortcutsOrNone(actor) : { imported: true, rows: [] },
     rungs,
     shield,
     armourSteps: armourTrainingRows(actor).map(armourStepRow),

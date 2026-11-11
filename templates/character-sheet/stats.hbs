@@ -50,9 +50,24 @@
         {{#if st.training.unarmed}}
         <div class="acks-extras-frame__pills">{{> acksExtrasTrainingPill st.training.unarmed group="weapons" editing=false}}</div>
         {{/if}}
+        {{#if st.training.editing}}
+        {{!-- The book's printed groups: each a shortcut to the same grant the pills write. --}}
+        {{#if st.training.shortcuts.imported}}
+        {{#each st.training.shortcuts.rows}}
+        <div class="acks-extras-frame__shortcuts" role="group" aria-label="{{caption}}">
+          <span class="acks-extras-frame__shortcuts-caption">{{caption}}</span>
+          {{#each buttons}}
+          <button type="button" class="acks-extras-frame__pill is-shortcut{{#if on}} is-on{{/if}}{{#if partial}} is-partial{{/if}}" data-action="toggleTrainingShortcut" data-shortcut="{{id}}" aria-pressed="{{pressed}}" aria-label="{{aria}}" data-tooltip-text="{{tip}}"{{#if empty}} aria-disabled="true"{{/if}}><i class="{{icon}}" inert></i>{{label}}<span class="acks-extras-frame__pill-n">{{count}}</span></button>
+          {{/each}}
+        </div>
+        {{/each}}
+        {{else}}
+        <div class="acks-extras-frame__hint" data-tooltip="ACKS-CHARACTER.stats.shortcutsNoneTip">{{localize "ACKS-CHARACTER.stats.shortcutsNone"}}</div>
+        {{/if}}
+        {{/if}}
         {{#each st.training.groups as |g|}}
         <div class="acks-extras-frame__bucket">
-          <button type="button" class="acks-extras-frame__pill is-bucket{{#if g.on}} is-on{{/if}}{{#if g.partial}} is-partial{{/if}}{{#if g.unset}} is-unset{{/if}}{{#if g.edited}} is-edited{{/if}}" data-action="toggleBucket" data-bucket="{{g.key}}" data-tooltip="{{g.label}}">
+          <button type="button" class="acks-extras-frame__pill is-bucket{{#if g.on}} is-on{{/if}}{{#if g.partial}} is-partial{{/if}}{{#if g.unset}} is-unset{{/if}}{{#if g.edited}} is-edited{{/if}}" data-action="toggleBucket" data-bucket="{{g.key}}" data-tooltip-text="{{g.tip}}">
             <i class="fa-solid {{#if g.open}}fa-chevron-down{{else}}fa-chevron-right{{/if}}" inert></i>{{g.label}}{{#if g.tier}}<span class="acks-extras-frame__pill-n">{{g.tier}}</span>{{/if}}
           </button>
           {{#if g.token}}{{#if g.editing}}

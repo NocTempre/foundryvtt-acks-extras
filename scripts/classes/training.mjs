@@ -32,7 +32,7 @@ import { MODULE_ID, FLAG_FROM_CLASS, LANG_PREFIX } from "./constants.mjs";
 import { SLOT_VOCAB, weaponTokenClasses, abilityContributions } from "../lib/proficiency-strip.mjs";
 import { appliedEffects } from "../lib/effect-scan.mjs";
 import { unset } from "../lib/util.mjs";
-import { coveredUnits, grantTokens, toggledGrant } from "../equipment/training-view.mjs";
+import { coveredUnits, grantTokens, shortcutUnits, toggledGrant, toggledUnits } from "../equipment/training-view.mjs";
 import { bridgeContributions } from "../equipment/abilities-bridge.mjs";
 import { pathTrainingChanges, actorPaths } from "./paths.mjs";
 import { syncClassTraining } from "./apply.mjs";
@@ -167,6 +167,38 @@ export async function toggleTraining(actor, group, key, { create = false, on = n
   await effect.update({ changes: withGroup(effect, group, value) });
   return true;
 }
+
+/**
+ * Press one of the printed-group shortcuts: ON adds every unit it resolves to,
+ * OFF removes them, and the weapons grant is rewritten canonically, the write a
+ * pill makes (`toggleTraining`). The units are resolved from the shortcut's id
+ * at the press. Left to decide, a shortcut whose units are all covered goes OFF
+ * and any other goes ON.
+ *
+ * @param {Actor} actor
+ * @param {string} id a shortcut id (`training-view.mjs` `shortcuts`)
+ * @param {{create?: boolean, on?: boolean|null}} [options] as `toggleTraining`
+ * @returns {Promise<boolean>} whether anything was written
+ */
+export async function toggleTrainingShortcut(actor, id, { create = false, on = null } = {}) {
+  const units = shortcutUnits(id);
+  if (!units.length) return false;
+  let effect = targetEffect(actor, "weapons");
+  if (!effect && create) effect = await ensureTrainingEffect(actor);
+  if (!effect) return false;
+  const value = toggledUnits(rawValue(effect, "weapons"), units, on);
+  if (value == null) return false;
+  await effect.update({ changes: withGroup(effect, "weapons", value) });
+  return true;
+}
+
+/**
+ * The weapons grant the editor rewrites, as tokens: the CSV of the effect a
+ * press writes into (`toggleTraining`, `toggleTrainingShortcut`), empty where
+ * the actor has none. What a control shows of the grant and what a press
+ * changes are this one list.
+ */
+export const editedWeaponTokens = (actor) => grantTokens(rawValue(targetEffect(actor, "weapons"), "weapons"));
 
 /** Does the actor have a class training effect to edit at all? */
 export const hasTraining = (actor) => trainingEffect(actor) !== null;

@@ -22,9 +22,15 @@
  * `canonicalGrant` is the inverse: from a set of units back to the shortest
  * CSV that covers exactly them, in a fixed order, so every writer of a grant
  * spells the same set the same way and a hand-read of the effect is stable.
+ *
+ * The book's printed groups are SHORTCUTS over the units (`shortcuts`): each
+ * resolves to a set of unit keys and writes through `toggledUnits`, the path a
+ * pill takes. A shortcut stores nothing and holds no state; what it shows is
+ * how much of its set the grant covers (`coverageOf`), so two shortcuts may
+ * hold the same weapon.
  */
 import { SIZE, WEAPON_CATEGORY } from "./config.mjs";
-import { weaponKeys, weaponRow } from "../lib/weapons.mjs";
+import { optionUnits, weaponFocusGroup, weaponKeys, weaponLists, weaponOptions, weaponRow } from "../lib/weapons.mjs";
 import { grantMatches, classifyGrantToken, normalizeGrantToken } from "./proficiency.mjs";
 import { DAMAGE_TYPE_ICONS, UNTYPED_ICON } from "../lib/damage-type.mjs";
 import { slug } from "../lib/vocab.mjs";
@@ -216,24 +222,95 @@ export function canonicalGrant(unitKeys, unknown = []) {
 }
 
 /**
- * A grant with one token switched: ON adds every unit the token covers, OFF
- * removes them; the result is written canonically. Left to decide for itself,
- * a token whose units are all covered goes OFF and any other goes ON — so a
- * partly covered group completes; pass `on` to force the direction. A token
- * the grammar does not know changes nothing and is reported as such.
+ * A grant with a set of units switched: ON adds every one, OFF removes them;
+ * the result is written canonically, so a clause that covered one of them and
+ * now covers less is rewritten into the units it still holds. Left to decide
+ * for itself, a set whose units are all covered goes OFF and any other goes ON,
+ * so a partly covered set completes; pass `on` to force the direction. Keys the
+ * table does not hold are ignored, and a set holding none changes nothing.
+ * @param {Iterable<string>} unitKeys
  * @param {boolean|null} [on] true to grant, false to withdraw, null to decide
- * @returns {string|null} the new CSV, or null when the token means nothing
+ * @returns {string|null} the new CSV, or null when no unit is named
  */
-export function toggledGrant(csv, token, on = null) {
-  const t = normalizeGrantToken(token);
-  if (!t || classifyGrantToken(t) === "unknown") return null;
-  const { units, unknown } = coveredUnits(grantTokens(csv));
-  const members = tokenUnits(t).map((u) => u.key);
+export function toggledUnits(csv, unitKeys, on = null) {
+  const { byKey } = readUnits();
+  const members = [...unitKeys].filter((k) => byKey.has(k));
   if (!members.length) return null;
+  const { units, unknown } = coveredUnits(grantTokens(csv));
   const grant = on == null ? !members.every((k) => units.has(k)) : !!on;
   for (const k of members) {
     if (grant) units.add(k);
     else units.delete(k);
   }
   return canonicalGrant(units, unknown);
+}
+
+/**
+ * A grant with one token switched: ON adds every unit the token covers, OFF
+ * removes them (`toggledUnits`). A token the grammar does not know changes
+ * nothing and is reported as such.
+ * @param {boolean|null} [on] true to grant, false to withdraw, null to decide
+ * @returns {string|null} the new CSV, or null when the token means nothing
+ */
+export function toggledGrant(csv, token, on = null) {
+  const t = normalizeGrantToken(token);
+  if (!t || classifyGrantToken(t) === "unknown") return null;
+  return toggledUnits(csv, tokenUnits(t).map((u) => u.key), on);
+}
+
+/** The lists a shortcut row is drawn for, in order: the options' lists a training pick is made from, then Weapon Focus. */
+export const SHORTCUT_LISTS = Object.freeze(["narrow", "broad", "martial", "focus"]);
+
+/**
+ * The printed groups as quick-select shortcuts over the units, in
+ * `SHORTCUT_LISTS` order and printed order within a list. One entry per
+ * imported option that holds weapons by naming them or by a size and use (a
+ * noun list or a predicate), and one per Weapon Focus the import read:
+ *
+ *   `{ id, list, marker, label, kind, cite, units }`
+ *
+ * `id` is the option's (`narrow.3`), or `focus.<key>`; `marker` the number as
+ * printed ("" for a focus); `label` the words as printed, a focus's nouns
+ * joined; `kind` `"nouns"`, `"predicate"` or `"focus"`; `cite` the page of the
+ * option's list ("" where none is stored, always for a focus: its page is the
+ * lists document's `focus` cite); `units` the unit keys it holds, in unit
+ * order, empty where no row is placed on it. The restricted list's single picks
+ * are the units themselves and a combination names no set, so neither appears.
+ * Empty where no list is imported.
+ *
+ * @returns {object[]}
+ */
+export function shortcuts() {
+  const order = new Map(weaponUnits().map((u, i) => [u.key, i]));
+  const inUnitOrder = (keys) => keys.filter((k) => order.has(k)).sort((a, b) => order.get(a) - order.get(b));
+  const out = [];
+  for (const o of weaponOptions()) {
+    if (o.list === "restricted" || (o.kind !== "nouns" && o.kind !== "predicate")) continue;
+    out.push({ id: o.id, list: o.list, marker: o.marker, label: o.label, kind: o.kind, cite: o.cite, units: inUnitOrder(optionUnits(o.id)) });
+  }
+  const focus = weaponLists()?.focus;
+  if (focus && typeof focus === "object" && !Array.isArray(focus)) {
+    for (const [key, nouns] of Object.entries(focus)) {
+      const words = Array.isArray(nouns) ? nouns.filter((n) => typeof n === "string" && n.trim()) : [];
+      if (!words.length) continue;
+      out.push({ id: `focus.${key}`, list: "focus", marker: "", label: words.join(", "), kind: "focus", cite: "", units: inUnitOrder(weaponKeys().filter((k) => weaponFocusGroup(k) === key)) });
+    }
+  }
+  return out.sort((a, b) => SHORTCUT_LISTS.indexOf(a.list) - SHORTCUT_LISTS.indexOf(b.list));
+}
+
+/** The unit keys of the shortcut an id names, or none: what a press reads, never what the page sent. */
+export const shortcutUnits = (id) => shortcuts().find((s) => s.id === id)?.units ?? [];
+
+/**
+ * How much of a set of units a grant covers: `"all"`, `"some"` or `"none"`
+ * (an empty set is none). `covered` is `coveredUnits(...).units`.
+ * @param {Iterable<string>} unitKeys
+ * @param {Set<string>} covered
+ * @returns {"all"|"some"|"none"}
+ */
+export function coverageOf(unitKeys, covered) {
+  const keys = [...unitKeys];
+  const held = keys.filter((k) => covered.has(k)).length;
+  return !keys.length || !held ? "none" : held === keys.length ? "all" : "some";
 }

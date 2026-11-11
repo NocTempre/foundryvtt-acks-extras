@@ -571,7 +571,7 @@ them today; treat a change here as cheap until magic lands.
 `scripts/lib/weapons.mjs` exports `weaponRow(key)`, `weaponKeys()`,
 `keyForName(name)`, `hasWeaponRows()`, `weaponFocusGroup(key)`,
 `weaponThrowsAsAnyone(key)`, `listedKind(table, text)`,
-`optionUnits(id)`, `martialOption(pick)` and `registerWeaponSource(source)`. Features import them from the file; `lib.*`
+`optionUnits(id)`, `optionFindings()`, `martialOption(pick)` and `registerWeaponSource(source)`. Features import them from the file; `lib.*`
 does not carry them. A feature outside this module reads a weapon through the equipment
 API's `classifyWeapon`; its `config` no longer holds a weapon table
 (apiVersion 37 removed `WEAPONS`, `WEAPON_FOCUS_GROUPS`, `ANYONE_THROWS` and

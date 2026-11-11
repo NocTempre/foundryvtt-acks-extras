@@ -5455,3 +5455,36 @@ the owner reads its clock against the advance, so the owner passes
 
 **Cost.** Each registrant of a once-per-turn limit, and the formation that
 passes the predicate, carries the ledger of uses outside the plan.
+
+## 2026-11-11 — A row takes the kind its sub-header mates agree on
+
+**Asked.** Ledger T-0498: of the rows of the real weapons grid, six place on no
+category by name or by sub-header (a row whose sub-header names two categories,
+a compound name no noun matches, rows whose sub-header names no noun). A weapon
+no category holds is in no training group and is trained only by its own pill.
+
+**Ruled (owner, 2026-11-11).** `resolveRows` gains a third placement tier for
+every table: a row neither its name nor its sub-header places takes the kind
+every other row under the same sub-header was placed into, when those rows
+agree on exactly one kind, and `placedBy` reports it as `"mates"`
+(docs/lib/MODEL.md, "The weapon seam"). It serves `category`, `focus`,
+`damageType` and the noun-list options. A single-weapon option stays name-only.
+A row whose sub-header names two kinds takes no description read in its place
+and stays unplaced while its mates disagree; that row is reported on the
+surface, not guessed.
+
+**Rejected.** Reading the weapon's description to place the leftovers: it is
+prose the module does not read for placement. A shipped word list of the odd
+weapons: a name list is content (`ip-doctrine.md`).
+
+**Refined at the build.** A row the first two tiers found AMBIGUOUS (its name or
+its sub-header matched several kinds) takes the mates' kind only when it is
+one of the kinds the row was torn between. Read literally, the ruling would let
+mates overrule a name that matched two other kinds, which breaks the standing
+rule that a name naming two kinds places nothing; the refinement keeps that
+rule and still lets mates break a tie.
+
+**What it cost.** A sub-header that mixes kinds under a heading that names none
+can pass one wrong kind to a stray row. The placement is visible on the surface
+(a group header names the options holding its weapons) and a Judge overrides
+the list. A row that no sub-header, name or mates place stays in no group.

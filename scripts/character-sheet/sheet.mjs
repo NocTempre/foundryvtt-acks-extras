@@ -62,7 +62,7 @@ import { openLegacy } from "../classes/legacy.mjs";
 import { setActorPath } from "../classes/paths.mjs";
 import { classForActor, classForActorAsync } from "../classes/registry.mjs";
 import { castingStripElement, restPools } from "../classes/casting.mjs";
-import { toggleTraining, resetTraining } from "../classes/training.mjs";
+import { toggleTraining, toggleTrainingShortcut, resetTraining } from "../classes/training.mjs";
 import { nextTrainingView, TRAINING_VIEWS } from "../equipment/training-view.mjs";
 import { LANGUAGE_ACTIONS } from "../abilities/language-slots.mjs";
 import { addProficiency } from "../abilities/add-proficiency.mjs";
@@ -164,6 +164,7 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
       mountOpen: AcksCharacterSheet.#onMountOpen,
       mountDismount: AcksCharacterSheet.#onMountDismount,
       toggleTraining: AcksCharacterSheet.#onToggleTraining,
+      toggleTrainingShortcut: AcksCharacterSheet.#onToggleTrainingShortcut,
       toggleBucket: AcksCharacterSheet.#onToggleBucket,
       trainingEdit: AcksCharacterSheet.#onTrainingEdit,
       trainingView: AcksCharacterSheet.#onTrainingView,
@@ -1222,6 +1223,18 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
       await toggleTraining(this.actor, group, slot, { create: true });
     } catch (err) {
       console.error(`${MODULE_ID} | toggling class training failed`, err);
+      ui.notifications.error(game.i18n.localize("ACKS-CLASSES.modifiers.failed"));
+    }
+  }
+
+  /** A printed-group shortcut: its units are resolved from its id at the press, never read off the page. */
+  static async #onToggleTrainingShortcut(event, target) {
+    const { shortcut } = target.dataset;
+    if (!shortcut || !this.#ui.trainingEdit) return;
+    try {
+      await toggleTrainingShortcut(this.actor, shortcut, { create: true });
+    } catch (err) {
+      console.error(`${MODULE_ID} | pressing a training shortcut failed`, err);
       ui.notifications.error(game.i18n.localize("ACKS-CLASSES.modifiers.failed"));
     }
   }

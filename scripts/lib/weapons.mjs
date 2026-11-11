@@ -25,10 +25,17 @@
  * guessed. Nothing is placed from a missing list, and nothing stands in for
  * one.
  *
+ * A row that neither tier places takes a third: the kind its sub-header
+ * MATES were placed into, when every other row under the same sub-header that a
+ * tier placed agrees on exactly one kind (`placedBy` says `"mates"`). Mates
+ * that disagree, a sub-header none of them was placed under, and a row with no
+ * sub-header place nothing. A row the first two tiers found ambiguous takes the
+ * mates' kind only when it is one of the kinds they were torn between.
+ *
  * A single-weapon option (a restricted list's) names one weapon, and a
  * sub-header names a family, so that option matches a row by its NAME alone and
- * is never placed by `block`; noun-list options, categories, foci and damage
- * types are placed by both tiers.
+ * is never placed by `block` or by mates; noun-list options, categories, foci
+ * and damage types are placed by all three tiers.
  *
  * Pure: no Foundry imports. A caller passes the grid (the rows
  * `equipment/weapon-rows.mjs` publishes, or any `{ key: { name, block, … } }`)
@@ -106,20 +113,57 @@ function hitKeys(kinds, runs) {
 }
 
 /**
- * The kind a row is of: by name when its name matches any kind, else by block.
- * A name that matches more than one kind places nothing, and the block is not
- * consulted then; neither is a block that matches more than one. A key in
- * `nameOnly` is a candidate by name and never by block.
+ * What the two tiers say of a row: the kind it is of, by name when its name
+ * matches any kind, else by block. A name that matches more than one kind
+ * places nothing, and the block is not consulted then; neither is a block that
+ * matches more than one. A key in `nameOnly` is a candidate by name and never
+ * by block.
+ *
+ * `placed` is the kind, or null; `candidates` holds every kind the deciding
+ * tier matched, so a refusal can be told from silence: two or more candidates
+ * is an ambiguous row, none is a row the lists say nothing of.
  *
  * @param {Set<string>} [nameOnly] the kinds the block tier leaves out
- * @returns {{key: string, via: "name"|"block"}|null}
+ * @returns {{placed: {key: string, via: "name"|"block"}|null, candidates: string[]}}
  */
 function place(kinds, nameRuns, blockRuns, nameOnly) {
   for (const [via, runs] of [["name", nameRuns], ["block", blockRuns]]) {
     const hits = hitKeys(kinds, runs).filter((key) => via === "name" || !nameOnly?.has(key));
-    if (hits.length) return hits.length === 1 ? { key: hits[0], via } : null;
+    if (hits.length) return { placed: hits.length === 1 ? { key: hits[0], via } : null, candidates: hits };
   }
-  return null;
+  return { placed: null, candidates: [] };
+}
+
+/**
+ * Every row's placement against one table of kinds: both tiers, then the third.
+ * A row that neither its name nor its block placed takes the kind every OTHER
+ * row of its block was placed into by name or block, when those rows agree on
+ * exactly one kind (`via: "mates"`). Mates that disagree, a block no row was
+ * placed in, and a row with no block place nothing, and a placement made this
+ * way is never itself a mate. A row the tiers found ambiguous takes a mates'
+ * kind only if it is one of the kinds they were torn between, so the third tier
+ * breaks a tie and never overrules a row's own words. A key in `nameOnly` is
+ * never taken from mates.
+ *
+ * @param {[string, {name: Set<string>, block: Set<string>, blockText: string|null}][]} rows
+ * @param {Set<string>} [nameOnly] the kinds the block and mates tiers leave out
+ * @returns {Map<string, {key: string, via: "name"|"block"|"mates"}|null>} by row key
+ */
+function placeAll(kinds, rows, nameOnly) {
+  const tiers = new Map(rows.map(([key, r]) => [key, place(kinds, r.name, r.block, nameOnly)]));
+  const out = new Map(rows.map(([key]) => [key, tiers.get(key).placed]));
+  const blocks = new Map();
+  for (const [key, r] of rows) if (r.blockText) blocks.set(r.blockText, [...(blocks.get(r.blockText) ?? []), key]);
+  for (const keys of blocks.values()) {
+    const held = new Set(keys.map((k) => tiers.get(k).placed?.key).filter((kind) => kind && !nameOnly?.has(kind)));
+    if (held.size !== 1) continue;
+    const [kind] = held;
+    for (const k of keys) {
+      const { placed, candidates } = tiers.get(k);
+      if (!placed && (!candidates.length || candidates.includes(kind))) out.set(k, { key: kind, via: "mates" });
+    }
+  }
+  return out;
 }
 
 /** The words of a camelCase key: `holyWater` is `holy`, `water`. */
@@ -182,16 +226,16 @@ const NO_LISTS = Object.freeze({});
  *    under, or the throwables section's type for a flask or torch, or null
  *  - `options`: the ids (`narrow.3`) of the noun-list and single-weapon
  *    options that hold the row, at most one per option list. A noun-list option
- *    is placed by the same rule (name, then grid sub-header); a single-weapon
- *    option, which names one weapon, is placed by the row's name alone and
- *    never by its sub-header. Size and use predicates and combinations place no
- *    row; `optionVerdict` answers for them. Empty where no option list is
- *    imported
+ *    is placed by the same rule (name, grid sub-header, then sub-header mates);
+ *    a single-weapon option, which names one weapon, is placed by the row's name
+ *    alone. Size and use predicates and combinations place no row;
+ *    `optionVerdict` answers for them. Empty where no option list is imported
  *  - `twoHands`: true where the descriptions say the weapon needs both hands,
  *    else null (not stated, never false)
  *  - `placedBy`: for each of `category`, `focus` and `damageType`, `"name"`,
- *    `"block"` or `"throwable"` (null where nothing placed), so a reader can
- *    refuse a placement made by the sub-header alone
+ *    `"block"`, `"mates"` or `"throwable"` (null where nothing placed), so a
+ *    reader can refuse a placement made by the sub-header alone or inferred
+ *    from the rows beside it
  *  - `throwable`: the throwables entry whose kind the row's name is (the
  *    military oil row is `oil`), else absent
  *
@@ -214,24 +258,33 @@ export function resolveRows(grid, lists) {
 
   const out = {};
   const twoHandsKeys = new Set(nounsOf(lists?.twoHands).flatMap((noun) => [...nameKeys(noun)]));
-  const optionTables = OPTION_LISTS.map((list) => optionKinds(lists, list));
+  const rows = Object.entries(grid).map(([key, row]) => [
+    key,
+    {
+      name: runForms(wordsOf(row?.name)),
+      block: runForms(wordsOf(row?.block)),
+      blockText: typeof row?.block === "string" && row.block.trim() ? row.block.trim() : null,
+    },
+  ]);
+  const category = placeAll(table(lists, "category"), rows);
+  const focus = placeAll(table(lists, "focus"), rows);
+  const damageType = placeAll(table(lists, "damageType"), rows);
+  const optionPlaced = OPTION_LISTS.map((list) => {
+    const { kinds, nameOnly } = optionKinds(lists, list);
+    return placeAll(kinds, rows, nameOnly);
+  });
   for (const [key, row] of Object.entries(grid)) {
-    const nameRuns = runForms(wordsOf(row?.name));
-    const blockRuns = runForms(wordsOf(row?.block));
-    const category = place(table(lists, "category"), nameRuns, blockRuns);
-    const focus = place(table(lists, "focus"), nameRuns, blockRuns);
-    const damageType = place(table(lists, "damageType"), nameRuns, blockRuns);
     out[key] = {
       ...row,
-      category: category?.key ?? null,
-      focus: focus?.key ?? null,
-      damageType: damageType?.key ?? null,
-      options: optionTables.flatMap(({ kinds, nameOnly }) => {
-        const hit = place(kinds, nameRuns, blockRuns, nameOnly);
+      category: category.get(key)?.key ?? null,
+      focus: focus.get(key)?.key ?? null,
+      damageType: damageType.get(key)?.key ?? null,
+      options: optionPlaced.flatMap((placed) => {
+        const hit = placed.get(key);
         return hit ? [hit.key] : [];
       }),
       twoHands: row?.name && [...nameKeys(row.name)].some((k) => twoHandsKeys.has(k)) ? true : null,
-      placedBy: { category: category?.via ?? null, focus: focus?.via ?? null, damageType: damageType?.via ?? null },
+      placedBy: { category: category.get(key)?.via ?? null, focus: focus.get(key)?.via ?? null, damageType: damageType.get(key)?.via ?? null },
     };
   }
 
@@ -525,19 +578,54 @@ export function weaponThrowsAsAnyone(key) {
 }
 
 /**
- * The weapons a printed option holds: the keys of the rows whose placement
- * lists `id` (`narrow.3`) among its `options`, in the source's order. Empty for
- * an id no imported noun-list or single-weapon option has, for a predicate or
- * a combination (which place no row, and a combination names no weapons), and
- * where no list or no row is imported.
+ * The weapons a printed option holds, in the source's order:
+ *
+ *  - a noun-list or single-weapon option holds the rows whose placement lists
+ *    `id` (`narrow.3`) among its `options`
+ *  - a predicate holds the rows `optionVerdict` answers true for from their use
+ *    and size; a row of no stated size, against an option that lists sizes, is
+ *    not held
+ *  - a combination names no weapons and holds none
+ *
+ * Empty as well for an id no imported option has and where no list or no row is
+ * imported.
  *
  * @param {string} id
  * @returns {string[]}
  */
 export function optionUnits(id) {
   const held = weaponOptions().find((o) => o.id === id);
-  if (!held || (held.kind !== "nouns" && held.kind !== "weapon")) return [];
+  if (!held || held.kind === "combination") return [];
+  if (held.kind === "predicate") return weaponKeys().filter((key) => optionVerdict(held, { ...weaponRow(key), key }) === true);
   return weaponKeys().filter((key) => weaponRow(key)?.options?.includes(id));
+}
+
+/**
+ * What the printed options leave out, as the keys the surface reports:
+ *
+ *  - `unplaced`: every weapon no imported option holds, by any list
+ *  - `notWhole`: every category token whose weapons no single option holds all
+ *    of
+ *
+ * Both are empty where no option list or no weapon is imported (nothing is
+ * left out of a book that was never read). A category is the token a row's
+ * placement names, in the source's spelling.
+ *
+ * @returns {{unplaced: string[], notWhole: string[]}}
+ */
+export function optionFindings() {
+  const options = weaponOptions();
+  const keys = weaponKeys();
+  if (!options.length || !keys.length) return { unplaced: [], notWhole: [] };
+  const held = options.map((o) => new Set(optionUnits(o.id)));
+  const unplaced = keys.filter((key) => !held.some((units) => units.has(key)));
+  const byCategory = new Map();
+  for (const key of keys) {
+    const cat = weaponRow(key)?.cat ?? weaponRow(key)?.category;
+    if (typeof cat === "string" && cat) byCategory.set(cat, [...(byCategory.get(cat) ?? []), key]);
+  }
+  const notWhole = [...byCategory].filter(([, rows]) => !held.some((units) => rows.every((key) => units.has(key)))).map(([cat]) => cat);
+  return { unplaced, notWhole };
 }
 
 /**

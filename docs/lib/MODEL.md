@@ -1959,13 +1959,29 @@ The printed option lists are read through the same door.
 - `resolveRows` adds `row.options`: the ids (`<list>.<n>`) of the noun-list
   and single-weapon options that hold a row, at most one per list. A noun-list
   option is placed by the rule that places `category` (name, then grid
-  sub-header; an ambiguous match places nothing). A single-weapon option names
-  one weapon, so it matches a row by name alone and never by sub-header.
-  Predicates and combinations place no row.
-- `optionUnits(id)` is the weapon keys whose row lists the option, in grid
-  order; empty for an unknown id, a predicate, a combination and an empty
-  import. `optionOfCategory(list, token)` is the one option whose weapons all
-  carry a category.
+  sub-header, then sub-header mates; an ambiguous match places nothing). A
+  single-weapon option names one weapon, so it matches a row by name alone,
+  never by sub-header and never by mates. Predicates and combinations place no
+  row.
+- The third tier serves every table (`category`, `focus`, `damageType` and the
+  noun-list options). A row neither its name nor its sub-header places takes
+  the kind the other rows under its sub-header were placed into by name or
+  sub-header, when those agree on exactly one kind; `placedBy` says `"mates"`.
+  Mates that disagree, a sub-header none was placed under and a row with no
+  sub-header place nothing, and a mates placement is never itself a mate. A
+  row the first two tiers found ambiguous takes the mates' kind only when it
+  is one of the kinds they were torn between, so the tier breaks a tie and
+  never overrules a row's own words. Ruling: DECISIONS, "A row takes the kind
+  its sub-header mates agree on".
+- `optionUnits(id)` is the weapon keys an option holds, in grid order: the rows
+  whose placement lists a noun-list or single-weapon option, and the rows a
+  predicate's use and size accept (`optionVerdict` true; a row of no stated
+  size is not held where the predicate lists sizes). A combination, an unknown
+  id and an empty import hold none. `optionOfCategory(list, token)` is the one
+  option whose weapons all carry a category. `optionFindings()` reports what
+  the options leave out: `unplaced`, the weapons no option holds, and
+  `notWhole`, the categories no single option holds all of; both are empty
+  while no list or no weapon is imported.
 - `weaponOptions()` is every imported option, flat, with its kind and cite.
 - `optionListImported(list)` says whether a list holds an option.
 - `optionVerdict(option, profile)` answers true, false or null for one weapon.

@@ -266,7 +266,7 @@ const grid = {
   thing: { name: "Thing", block: "Quuxes" },
   orphan: { name: "Orphan", block: null },
   both: { name: "Zork Flib", block: "Quuxes" },
-  oil: { name: "Burning Oil", block: "Gizmos" },
+  oil: { name: "Burning Oil", block: null },
 };
 const out = resolveRows(grid, L);
 const of = (k) => [out[k].category, out[k].focus, out[k].damageType, out[k].twoHands];
@@ -299,6 +299,54 @@ check("the grid is not changed", !("category" in grid.zork) && !("options" in gr
   eq("a block naming a weapon option and a noun option counts only the noun option", resolveRows({ gizmo: { name: "Gizmo", block: "Zorks" } }, mixed).gizmo.options, ["narrow.1"]);
   const twice = { options: { restricted: { options: [{ n: 1, label: "zork", weapon: "zork" }, { n: 2, label: "gizmo", weapon: "gizmo" }] } } };
   eq("a name naming two single-weapon options places neither", resolveRows({ both: { name: "Zork Gizmo", block: null } }, twice).both.options, []);
+}
+
+{
+  // The third tier: a row neither its name nor its block places takes the kind its sub-header mates agree on.
+  const mates = resolveRows(
+    {
+      zorkA: { name: "Zork A", block: "Agree" },
+      wizA: { name: "Wizzle A", block: "Agree" },
+      wizA2: { name: "Wozzle A", block: "Agree" },
+      oilA: { name: "Military Oil", block: "Agree" },
+      zorkB: { name: "Zork B", block: "Torn" },
+      blorpB: { name: "Blorp B", block: "Torn" },
+      wizB: { name: "Wizzle B", block: "Torn" },
+      zorkC: { name: "Zork C", block: "Zorks and blorps" },
+      blorpC: { name: "Blorp C", block: "Zorks and blorps" },
+      wizC: { name: "Wizzle C", block: "Zorks and blorps" },
+      zorkD: { name: "Zork D", block: "Zorks and blorps again" },
+      wizD: { name: "Wizzle D", block: "Zorks and blorps again" },
+      wizE: { name: "Wizzle E", block: "Lonely" },
+      wizE2: { name: "Wozzle E", block: "Lonely" },
+      zorkF: { name: "Zork F", block: null },
+      wizF: { name: "Wizzle F", block: null },
+      quuxG: { name: "Quux G", block: "Quuxes" },
+      bothG: { name: "Zork Flib G", block: "Quuxes" },
+      zorkH: { name: "Zork H", block: "Tie" },
+      tieH: { name: "Zork Flib H", block: "Tie" },
+    },
+    L,
+  );
+  const cat = (k) => [mates[k].category, mates[k].placedBy.category];
+  eq("mates that agree place a row nothing else places", [cat("wizA"), cat("wizA2"), cat("zorkA")], [["zork", "mates"], ["zork", "mates"], ["zork", "name"]]);
+  eq("every table is placed the same way", [mates.wizA.focus, mates.wizA.placedBy.focus, mates.wizA.damageType, mates.wizA.placedBy.damageType], ["zorksblorps", "mates", "gooey", "mates"]);
+  eq("mates that disagree place nothing", [cat("wizB"), cat("blorpB")], [[null, null], ["blorpFlib", "name"]]);
+  eq("a sub-header naming two kinds places nothing while its mates disagree", cat("wizC"), [null, null]);
+  eq("and takes the one kind its mates agree on where that is a kind it names", cat("wizD"), ["zork", "mates"]);
+  eq("a sub-header no row was placed under places nothing", cat("wizE"), [null, null]);
+  eq("a row with no sub-header has no mates", cat("wizF"), [null, null]);
+  eq("a row whose name names two kinds takes no kind of its mates that the name is not torn between", [mates.bothG.category, mates.bothG.placedBy.category], [null, null]);
+  eq("and takes the mates' kind where it is one of the two the name names", cat("tieH"), ["zork", "mates"]);
+  eq("a mates placement carries to the options of a noun list", [mates.wizA.options, mates.zorkA.options], [["narrow.1"], ["restricted.1", "narrow.1"]]);
+  const lonely = (k) => mates[k].options;
+  eq("a single-weapon option is never taken from mates", [lonely("wizA").includes("restricted.1"), lonely("wizA2").includes("restricted.1")], [false, false]);
+  eq("the rows placed by mates are these and no others", Object.keys(mates).filter((k) => mates[k].placedBy?.category === "mates"), ["wizA", "wizA2", "oilA", "wizD", "tieH"]);
+  eq(
+    "a throwable's own type outranks the type its mates gave the row, and its category stays the mates'",
+    [mates.oilA.placedBy.damageType, mates.oilA.damageType, mates.oilA.category, mates.oilA.placedBy.category],
+    ["throwable", "fire", "zork", "mates"],
+  );
 }
 
 const optsOf = (k) => out[k].options;

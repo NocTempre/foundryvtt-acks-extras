@@ -4,6 +4,18 @@
 
 ### Added
 
+- **The book's weapon groups as quick-select buttons.** On the character
+  sheet's Stats tab, the Training heading's Edit button now also draws one row
+  of buttons per imported weapon list (narrow, broad, martial, Weapon Focus)
+  under Weapons. A button grants or withdraws all of its weapons in the one
+  training setting the pills write, and shows whether all, some or none are
+  covered and how many. Its tooltip names its list, marker and page, or says
+  the Judge set it; each category header's tooltip names the printed options
+  that hold its weapons, and says where none holds them all. A weapon that
+  neither its name nor its sub-header places now follows the other weapons
+  under its sub-header when they agree. The buttons need the weapon lists
+  imported; a world imported before the options table was read needs its
+  weapon lists imported again (Import Manager → Import tab).
 - **Summon creatures from the character sheet.** On a GM seat, the character
   sheet's party cell (bottom right rail) → Summon… asks for a creature from the
   monster compendia, how many, and optionally one of the character's spells.

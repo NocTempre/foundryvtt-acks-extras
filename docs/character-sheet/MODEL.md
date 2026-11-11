@@ -288,7 +288,29 @@ where a hand moved it off what the class prints (`editedSlots`). The pencil
 arms the pills for an owner — a pill another source lit refuses the click
 and says why; a character with no training effect gets one, stamped by hand,
 on the first edit — and *Reset to class* re-applies the printed training
-while a departure exists. A note names the effect the edits write. Movement
+while a departure exists. A note names the effect the edits write. While the
+pencil is armed the Weapons block also draws the book's printed groups as
+quick-select buttons (`panels.stats.training.shortcuts`, `trainingShortcuts`
+in `tabs/stats.mjs`): one row per imported list (narrow, broad, martial,
+Weapon Focus), one button per option by its printed words
+(`training-view.mjs` `shortcuts`). The restricted level's single picks are
+the pills already and a combination option names no set, so neither has a
+button. A press resolves the option's weapons from its id at the press, adds
+them to the class grant when any is missing and removes them when all are
+there, and writes through `canonicalGrant`, the pill's own path
+(`toggleTrainingShortcut`): a size clause the press takes a weapon from is
+rewritten into the weapons it still holds. A button stores nothing. Its face
+is how much of its weapons the grant a press rewrites covers (the weapons
+change of the first training effect carrying one; all, some or none;
+`aria-pressed` true, mixed or false, with a covered-over-total count), so two
+buttons may hold one weapon. Its tooltip names the list, the marker, the page
+and how many of its weapons are in the grant. Under the category arrangement
+each group header's tooltip names the printed options that hold its weapons,
+with their pages, and says where they fall short: that none holds them, that
+no single option holds them all, how many are in no option. With no list
+imported the row says *not imported* and the headers say so. Ruling:
+DECISIONS, "The book's printed groups are shortcuts to the one training
+setting". Movement
 by mode (fields freed when the system's
 auto-movement is off), vision light by light (daylight ∞, the dark at 0′ or
 the sense's reach, each light source's reach, the two dark senses), the

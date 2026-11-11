@@ -37,7 +37,7 @@ check("and no spelling resolves", keyForName("battleax") === null && keyForName(
 // --- the source reads what an import wrote -----------------------------------------
 const GRID = {
   zorgle: { name: "Zorgle Axe", block: "Quibs", size: "large", melee: true, damage: "7d2", special: ["zork"] },
-  quib: { name: "Quib Flask", block: "Quibs", size: "small", missile: true, thrown: true, damage: "9d3" },
+  quib: { name: "Quib Flask", block: "Flasks", size: "small", missile: true, thrown: true, damage: "9d3" },
   zorkoil: { name: "Zork Oil", block: "Quibs", size: "small", missile: true, thrown: true, damage: "4d3" },
   twohandedsword: { name: "Two-Handed Sword", block: null, size: "large", melee: true, damage: "5d2" },
 };

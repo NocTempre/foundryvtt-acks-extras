@@ -359,6 +359,89 @@ the effect carrying the `fromClass` flag: its `changes`.
 created; clear `trainingView` from your user flags if you want the default
 back.
 
+## The printed groups as shortcuts on Stats
+
+Built for the quick-select rows under the Weapons heading (MODEL, "Stats").
+What a mock cannot prove: that the rows read the lists the importer wrote, that
+a press lands in the class grant, and that every button is reachable from the
+keyboard and says where it came from.
+
+**Not yet walked.** The recipe is written from the code; nothing here has been
+driven live.
+
+**Fixtures** (kept; found by marker, built when none carries it):
+- The world's own import: the weapons grid and the `weaponLists` document with
+  its `options` table, read from the Judge's copy
+  (docs/importer/MODEL.md, "The weapon lists"; `tools/live/equipment-weapon-rows.mjs`
+  skips and says so when they are absent). A world imported before the options
+  table was read has none until the weapon-list step is run again. Read what is
+  in with `(await import("/modules/acks-extras/scripts/lib/weapons.mjs")).weaponOptions().length`.
+  The absent state is made the way that walk makes it: unregister the
+  `weaponLists` layers on this client only and put the very same documents back
+  in a `finally`, so no import is retired.
+- `character-sheet/training-shortcuts` — a `character` carrying a training
+  effect stamped from a class whose grant is size and missile clauses, as in
+  "Training on Stats". Before a step that needs a known grant, set it by
+  `toggleTraining`/`toggleTrainingShortcut` (`classes/training.mjs`) or by
+  rewriting the effect's `flags.acks-extras.weaponProf` change, and assert it
+  at the step's start: the fixture keeps what the last walk left.
+
+**Drive mechanics.** The rows are `panels.stats.training.shortcuts` from
+`_prepareContext()` with the pencil armed (`rows[].buttons[]` carry `id`,
+`state`, `count`, `tip`, `aria`). A press is the real click on the button, or
+`toggleTrainingShortcut(actor, id, {create: true})`. The findings are
+`optionFindings()` from the same file as `weaponOptions`; a header's tooltip is
+its `data-tooltip-text`.
+
+**Steps, GM seat** (the sheet open on Stats):
+1. With the lists withdrawn on this client (above), press Edit. *Observable:*
+   no row of buttons; a *not imported* line with a tooltip; each category
+   header's tooltip ends in *Printed options not imported*. The pills still
+   toggle.
+2. Put the lists back and re-render. *Observable:* one row per list
+   that holds a group (narrow, broad, martial, Weapon Focus), each button
+   labelled in the printed words; a count over each; the restricted level has
+   no row and no combination option has a button.
+3. Tab through the buttons, hover each, read its `aria-label`. *Observable:*
+   every one takes keyboard focus; its tooltip names the list, the marker, the
+   page and how many of its weapons the grant holds; `aria-pressed` is `true`,
+   `mixed` or `false` with the face's icon and count agreeing; a button no
+   weapon is placed on is `aria-disabled`, still takes focus, writes nothing
+   when pressed and says why in its tooltip.
+4. Press a narrow-list button. *Observable:* the effect's `weaponProf` is the
+   canonical spelling of the old grant plus that option's weapons, its pills
+   light, a dot appears where the class did not print it, the button reads
+   `true`. Press it again: the grant returns to what it was and the dots go.
+5. Press two buttons that hold one weapon in common, then press one of them.
+   *Observable:* the shared weapon leaves the grant with it and the other
+   button reads `mixed`.
+6. Make the grant a size clause that covers some of a button's weapons and all
+   the rest of that button's, then press the button off. *Observable:* the size
+   clause is gone from the grant and the weapons it covered that the button
+   does not hold are named one by one.
+7. In the category arrangement, set the grant to the catch-all category by its
+   header toggle. *Observable:* every weapon of it ticks; the buttons whose
+   weapons are all inside it read `true`. Report any weapon of the catch-all
+   that no miscellaneous option holds, and any option weapon outside it. Press a
+   button holding part of it off: the category is rewritten into its remainder.
+8. Hover each category header. *Observable:* the tooltip names the printed
+   options that hold its weapons with their pages, and where options fall
+   short says so. Open the book at each page it names: the findings are the
+   categories no option holds whole and the weapons in no option, quoted as
+   counts from `optionFindings()`.
+9. Withdraw the page: register a Judge override of the options table.
+   *Observable:* every tooltip says the Judge set it and shows no page.
+10. Join as a Player seat that owns a character, then one that only observes.
+    *Observable:* the owner's pencil arms the rows; the observer has no pencil
+    and no row in the DOM.
+
+**Not provable offline:** that a press survives the sheet's own re-render
+(`document.activeElement` returns to the pressed button's place) and that the
+rows follow a type-size change at the largest setting.
+
+**Teardown.** Put the fixture's grant back and the unregistered layers back;
+leave the fixture.
+
 ## The official sheet (PDF)
 
 **Fixtures.**

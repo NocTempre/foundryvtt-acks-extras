@@ -1877,6 +1877,39 @@ button.acks-extras-frame__pinchip {
   box-shadow: 0 0 0 1px var(--acks-tint-2);
 }
 
+/* The book's printed groups: a caption, then one button per group. */
+.acks-extras-frame__shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(4px * var(--acks-extras-k));
+  padding: calc(3px * var(--acks-extras-k)) 0;
+}
+
+.acks-extras-frame__shortcuts-caption {
+  min-width: 5em;
+  font-family: var(--acks-font-ui);
+  font-size: calc(10.5px * var(--acks-extras-k));
+  color: var(--acks-ink-faint);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.acks-extras-frame__pill.is-shortcut {
+  height: calc(22px * var(--acks-extras-k));
+  font-family: var(--acks-font-ui);
+  font-size: calc(10.5px * var(--acks-extras-k));
+  font-weight: var(--acks-weight-medium);
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+/* A group no weapon is placed on stays focusable and refuses the press. */
+.acks-extras-frame__pill.is-shortcut[aria-disabled="true"] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 /* A group some but not all of whose weapons are trained. */
 .acks-extras-frame__pill.is-partial {
   border-style: dashed;
