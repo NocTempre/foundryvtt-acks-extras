@@ -18,7 +18,9 @@
  * an error: importing an OSE source without it still yields actors, and the
  * axes that need arithmetic are filled later by a second pass.
  */
+import { MODULE_ID } from "./constants.mjs";
 import { executeEntry } from "./executor.mjs";
+import { cookbookContentFile, cookbookRegisters, cookbookSessionDoc } from "./cookbook.mjs";
 
 /** Cookbook entry id per constant, keyed by the name the converter uses. */
 export const SCG_CONSTANT_IDS = {
@@ -48,6 +50,25 @@ export async function readScgConstants(doc, cookbook, registers) {
     out[key] = v;
   }
   return out;
+}
+
+/**
+ * The guide's constants, read from the copy this seat has open.
+ *
+ * @returns `{acDescending, acAscending, attackThrow, saveThrow}`, or null when
+ *   the guide is not open, its cookbook file is absent, or the read fails
+ *   (the failure is logged; the caller treats all three as "not connected")
+ */
+export async function currentScgConstants() {
+  const doc = cookbookSessionDoc("scg");
+  const file = cookbookContentFile("constants");
+  if (!doc || !file) return null;
+  try {
+    return await readScgConstants(doc, file, cookbookRegisters());
+  } catch (err) {
+    console.warn(`${MODULE_ID} | could not read the conversion constants`, err);
+    return null;
+  }
 }
 
 /**

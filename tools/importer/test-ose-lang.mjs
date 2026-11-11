@@ -17,7 +17,7 @@ const ROOT = path.join(HERE, "..", "..");
 const PREFIX = "ACKS-IMPORTER.";
 
 const lang = JSON.parse(fs.readFileSync(path.join(ROOT, "lang", "en.json"), "utf8"));
-const src = ["ose-app.mjs", "ose-manual.mjs", "ose-book.mjs"]
+const src = ["ose-app.mjs", "ose-manual.mjs", "ose-book.mjs", "ose-axes.mjs"]
   .map((f) => fs.readFileSync(path.join(ROOT, "scripts", "importer", f), "utf8"))
   .join("\n");
 

@@ -19,7 +19,7 @@ import { parseOseStatline, PROFILES, OSE_CANONICAL } from "./ose-statline.mjs";
 import { oseActorDataFromFields, moraleBoundsFromSchema } from "./ose-binding.mjs";
 import { isRangedCreature, oseTemplateDataFromFields, oseTemplateFromGroup, oseGroupId, oseGroupBookOf } from "./ose-template.mjs";
 import { oseLocationData, oseAdventureData, oseAdventureId } from "./ose-location.mjs";
-import { currentScgConstants } from "./ose-app.mjs";
+import { currentScgConstants } from "./scg-constants.mjs";
 import {
   createDoc,
   claimActorImport,

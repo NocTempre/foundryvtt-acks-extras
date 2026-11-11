@@ -127,6 +127,59 @@ check("and a null one does not throw", assembleStatline(null), "");
   check("same gaps", viaHand.gaps, viaPage.gaps);
 }
 
+/* --- the dialog modules import each other in no direction ------------------ */
+
+// The review dialog, the hand editor and the book importer share two leaves
+// (the axis table and the constants reader). A helper that drifts back into one
+// of them would restore an import cycle, which a module-graph walk cannot hide.
+{
+  const { readFileSync } = await import("node:fs");
+  const { dirname, join, basename } = await import("node:path");
+  const { fileURLToPath } = await import("node:url");
+  const dir = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "scripts", "importer");
+  const mods = ["ose-app", "ose-manual", "ose-book", "ose-axes", "scg-constants"];
+  const edges = Object.fromEntries(
+    mods.map((m) => [
+      m,
+      [...readFileSync(join(dir, `${m}.mjs`), "utf8").matchAll(/^\s*(?:import|export)\b[^;]*?from\s+"\.\/([\w-]+)\.mjs"/gm)]
+        .map((x) => basename(x[1]))
+        .filter((t) => mods.includes(t)),
+    ]),
+  );
+  const cyclic = [];
+  for (const start of mods) {
+    const seen = new Set();
+    const walk = (m) => {
+      for (const t of edges[m]) {
+        if (t === start) cyclic.push(start);
+        if (!seen.has(t)) {
+          seen.add(t);
+          walk(t);
+        }
+      }
+    };
+    walk(start);
+  }
+  ok("no import cycle among the OSE dialog modules and their leaves", cyclic.length === 0, [...new Set(cyclic)].join(", "));
+  ok("the axis table imports no dialog module", edges["ose-axes"].length === 0, edges["ose-axes"].join(", "));
+  ok("the manual editor does not import the review dialog", !edges["ose-manual"].includes("ose-app"));
+  ok("the book importer does not import the review dialog", !edges["ose-book"].includes("ose-app"));
+}
+
+/* --- every moved symbol resolves at its new home ----------------------------- */
+
+{
+  const axes = await import("../../scripts/importer/ose-axes.mjs");
+  const scg = await import("../../scripts/importer/scg-constants.mjs");
+  ok("axisTable is exported by ose-axes", typeof axes.axisTable === "function");
+  ok("showVal is exported by ose-axes", typeof axes.showVal === "function");
+  ok("currentScgConstants is exported by scg-constants", typeof scg.currentScgConstants === "function");
+  check("showVal renders a null as a dash", axes.showVal(null), "—");
+  check("showVal unwraps a lone value", axes.showVal({ value: 8 }), "8");
+  check("showVal nests one deep", axes.showVal({ death: { value: 8 }, wands: { value: 9 } }), "death 8, wands 9");
+  check("with no guide open the constants read is null", await scg.currentScgConstants(), null);
+}
+
 if (failed) {
   console.error(`\nose-manual: ${failed} failure(s)`);
   process.exit(1);

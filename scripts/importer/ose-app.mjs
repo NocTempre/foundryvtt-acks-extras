@@ -33,8 +33,9 @@ import {
   matchOseSources,
 } from "./ose-source.mjs";
 import { oseActorData, moraleBoundsFromSchema, convertUnconvertedOse } from "./ose-binding.mjs";
-import { createDoc, cookbookContentFile, cookbookRegisters, cookbookSessionDoc, importFolderFor } from "./cookbook.mjs";
-import { readScgConstants } from "./scg-constants.mjs";
+import { createDoc, importFolderFor } from "./cookbook.mjs";
+import { currentScgConstants } from "./scg-constants.mjs";
+import { axisTable } from "./ose-axes.mjs";
 import { BOOKS } from "./books.mjs";
 import { oseManualDialog } from "./ose-manual.mjs";
 
@@ -210,47 +211,6 @@ export async function oseBrowseDialog(preselect = null) {
 /* -------------------------------------------- */
 /*  Reviewing what was found                    */
 /* -------------------------------------------- */
-
-/** One candidate's per-axis table: printed, on whose authority, and result. */
-export function axisTable(converted) {
-  const rows = [
-    ...converted.conversions.map(
-      (c) =>
-        `<tr><td>${esc(c.axis)}</td><td>${esc(showVal(c.printed))}</td><td>${esc(loc(`ose.route.${c.route}`))}</td><td>${esc(showVal(c.value))}</td></tr>`,
-    ),
-    ...converted.gaps.map(
-      (g) => `<tr class="acks-extras-importer-ose-gap"><td>${esc(g.axis)}</td><td>${esc(showVal(g.printed))}</td><td colspan="2">${esc(loc(`ose.gap.${g.reason}`))}</td></tr>`,
-    ),
-  ].join("");
-  return `<table class="acks-extras-importer-ose-axes"><thead><tr>
-      <th>${loc("ose.axis")}</th><th>${loc("ose.printed")}</th><th>${loc("ose.authority")}</th><th>${loc("ose.result")}</th>
-    </tr></thead><tbody>${rows}</tbody></table>`;
-}
-
-/**
- * Render a printed or converted value compactly.
- *
- * Nested one deep on purpose: several converted values are objects OF objects —
- * the saving-throw row arrives as `{death: {value: 8}, …}` — and a renderer
- * that skipped anything object-valued showed a correctly converted save row as
- * an em dash, which reads as "nothing happened" to the one person checking.
- */
-export function showVal(v, depth = 0) {
-  if (v === null || v === undefined) return "—";
-  if (Array.isArray(v)) return v.map((x) => showVal(x, depth + 1)).join("; ") || "—";
-  if (typeof v === "object") {
-    // A lone `{value: n}` wrapper carries nothing worth printing but the number.
-    const keys = Object.keys(v);
-    if (keys.length === 1 && keys[0] === "value") return showVal(v.value, depth + 1);
-    return (
-      Object.entries(v)
-        .filter(([, x]) => x !== null && x !== undefined)
-        .map(([k, x]) => (depth > 1 ? String(x) : `${k} ${showVal(x, depth + 1)}`))
-        .join(", ") || "—"
-    );
-  }
-  return String(v);
-}
 
 /**
  * Show every candidate on a page with its full reading, and import the ones the
@@ -443,22 +403,6 @@ export async function oseCalibrateDialog(sourceId, page, pageData = null) {
 /* -------------------------------------------- */
 /*  Stage B                                     */
 /* -------------------------------------------- */
-
-/**
- * The guide's constants, if this seat has the guide open. Imported lazily so
- * this module does not force the cookbook to load when it is not being used.
- */
-export async function currentScgConstants() {
-  const doc = cookbookSessionDoc("scg");
-  const file = cookbookContentFile("constants");
-  if (!doc || !file) return null;
-  try {
-    return await readScgConstants(doc, file, cookbookRegisters());
-  } catch (err) {
-    console.warn(`${MODULE_ID} | could not read the conversion constants`, err);
-    return null;
-  }
-}
 
 /**
  * Fill in the axes that needed the guide, on everything imported without it.

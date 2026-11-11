@@ -86,6 +86,7 @@ export const OSE_SILO = Object.freeze({
     "scripts/importer/ose-location.mjs",
     "scripts/importer/ose-app.mjs",
     "scripts/importer/ose-manual.mjs",
+    "scripts/importer/ose-axes.mjs",
     "scripts/importer/scg-constants.mjs",
     "scripts/monsters/source-view.mjs",
     "templates/monsters/tab-source.hbs",

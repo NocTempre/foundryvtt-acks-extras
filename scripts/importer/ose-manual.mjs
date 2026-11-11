@@ -26,7 +26,8 @@ import { parseOseStatline, OSE_CANONICAL, resolveProfile } from "./ose-statline.
 import { LINEAGES } from "./ose-convert.mjs";
 import { oseSource, oseSources, parsePastedBlock } from "./ose-source.mjs";
 import { oseActorDataFromFields, moraleBoundsFromSchema } from "./ose-binding.mjs";
-import { axisTable, currentScgConstants } from "./ose-app.mjs";
+import { axisTable } from "./ose-axes.mjs";
+import { currentScgConstants } from "./scg-constants.mjs";
 import { createDoc, importFolderFor, unlinedFolderFor } from "./cookbook.mjs";
 
 const loc = (k, data) => (data ? game.i18n.format(`${LANG_PREFIX}.${k}`, data) : game.i18n.localize(`${LANG_PREFIX}.${k}`));

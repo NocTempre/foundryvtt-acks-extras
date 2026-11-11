@@ -1,6 +1,7 @@
 {
   "members": [
     "scripts/importer/ose-app.mjs",
+    "scripts/importer/ose-axes.mjs",
     "scripts/importer/ose-binding.mjs",
     "scripts/importer/ose-blocks.mjs",
     "scripts/importer/ose-book.mjs",
@@ -29,6 +30,11 @@
     {
       "rule": "closure",
       "file": "scripts/importer/ose-app.mjs",
+      "target": "scripts/module.mjs"
+    },
+    {
+      "rule": "closure",
+      "file": "scripts/importer/ose-axes.mjs",
       "target": "scripts/module.mjs"
     },
     {
