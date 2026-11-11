@@ -13,7 +13,14 @@
         <span class="acks-extras-item-sheet__row-label">{{label}}</span>
         <span class="acks-extras-item-sheet__row-line">{{detail}}</span>
       </span>
+      {{#if light}}
+      <span class="acks-tag{{#unless light.shining}} acks-tag--ghost{{/unless}}" data-state="{{light.state}}" data-tooltip-text="{{light.stateTip}}">{{light.badge}}</span>
+      {{#if light.canShutter}}
+      <button type="button" class="acks-btn acks-btn--quiet acks-btn--sm" data-action="shutterEffect" data-effect="{{id}}" aria-label="{{light.actionAria}}" data-tooltip-text="{{light.actionTip}}">{{light.actionLabel}}</button>
+      {{/if}}
+      {{else}}
       <span class="acks-tag">{{when}}</span>
+      {{/if}}
       {{#if @root.editable}}
       <button type="button" class="acks-btn acks-btn--quiet acks-btn--icon" data-action="configureEffect" data-effect="{{id}}" data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.effects.configure'}}"><i class="fa-solid fa-pen-to-square" inert></i></button>
       {{/if}}

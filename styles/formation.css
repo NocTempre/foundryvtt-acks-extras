@@ -1967,6 +1967,20 @@
   padding: 0;
 }
 
+/* A magic light's shutter button carries a word, not a glyph, so it takes its
+   text's width; the state badge beside it is a plain label, not a control. */
+.acks-extras:is(.party-sheet, .skill-audit) .light button.acks-extras-light-shutter {
+  flex: 0 0 auto;
+  width: auto;
+  padding: 0 8px;
+  font-size: var(--acks-fs-label);
+  white-space: nowrap;
+}
+
+.acks-extras:is(.party-sheet, .skill-audit) .light .acks-extras-light-state {
+  white-space: nowrap;
+}
+
 .acks-extras:is(.party-sheet, .skill-audit) .add-light {
   display: flex;
   gap: 4px;

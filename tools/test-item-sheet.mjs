@@ -420,4 +420,52 @@ test("every offered start builds data, and a closed choice builds none", () => {
   assert.equal(effectStartData("cancel", { name: "x", img: "y" }, { lightName: "z" }), null);
 });
 
+console.log("item sheet: a magic light's tag");
+{
+  const { default: Handlebars } = await import("handlebars");
+  const { readFileSync } = await import("node:fs");
+  Handlebars.registerHelper("localize", (key) => String(key));
+  Handlebars.registerHelper("and", (...args) => args.slice(0, -1).every(Boolean));
+  const effectsTemplate = Handlebars.compile(readFileSync("templates/equipment/item-sheet/effects.hbs", "utf8"));
+  /** A light effect's ledger row as the snapshot builds it: the control `lightControl` hands over, invented figures. */
+  const lightRow = (over = {}) => ({
+    id: "fx1",
+    label: "Test Glow",
+    detail: "magicLight.bright 20",
+    when: "Equipped",
+    light: {
+      state: "shining", shining: true, badge: "Shining", stateTip: "Test Lamp is worn, so it shines.", canShutter: true,
+      shuttered: false, actionLabel: "Shutter", actionAria: "Shutter the light of Test Lamp", actionTip: "Hide the light of Test Lamp.",
+    },
+    ...over,
+  });
+  const render = (own, opts = { isGM: true, editable: true }) => {
+    const model = buildItemSheetModel(base({ effects: { own, inherited: [] } }), opts);
+    return effectsTemplate({ ...model, editable: opts.editable, editing: false, gm: opts.isGM });
+  };
+
+  test("the view-model hands a light row's control through untouched", () => {
+    const row = lightRow();
+    assert.deepEqual(buildItemSheetModel(base({ effects: { own: [row], inherited: [] } }), { isGM: true }).effects.own[0].light, row.light);
+  });
+  test("a light's tag shows its state, and the owner's toggle is a real button named for the item", () => {
+    const html = render([lightRow()]);
+    assert.ok(/<span class="acks-tag" data-state="shining" data-tooltip-text="Test Lamp is worn, so it shines\.">Shining<\/span>/.test(html), "the state is the tag");
+    assert.ok(!html.includes(">Equipped<"), "the 'Equipped' tag gives way to the state");
+    const button = html.match(/<button[^>]*data-action="shutterEffect"[^>]*>[\s\S]*?<\/button>/)?.[0] ?? "";
+    assert.ok(button.includes('type="button"') && button.includes('aria-label="Shutter the light of Test Lamp"'), "named for the item");
+    assert.ok(button.includes('data-tooltip-text="Hide the light of Test Lamp."') && button.includes('data-effect="fx1"') && button.includes(">Shutter<"));
+  });
+  test("a stowed or shuttered light's tag recedes, and a seat that does not own the effect has no toggle", () => {
+    const stowed = lightRow({ light: { ...lightRow().light, state: "stowed", shining: false, badge: "Stowed", canShutter: false } });
+    const html = render([stowed]);
+    assert.ok(html.includes("acks-tag acks-tag--ghost") && html.includes('data-state="stowed"'), "a ghost tag for a light that is not shining");
+    assert.ok(!html.includes('data-action="shutterEffect"'), "no button for a seat that does not own the effect");
+  });
+  test("an effect that is no light keeps its usual tag", () => {
+    const html = render([lightRow({ light: null })]);
+    assert.ok(html.includes('<span class="acks-tag">Equipped</span>') && !html.includes("shutterEffect"));
+  });
+}
+
 console.log(`item sheet: ${passed} checks passed`);

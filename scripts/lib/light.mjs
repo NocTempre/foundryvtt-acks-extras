@@ -17,12 +17,15 @@
  *
  * Light that is not a carried flame comes from Active Effects instead
  * (`magicLights`), and the token burns the stronger of the two (`shedLight`).
+ * An effect's light shines only while its holder lets it (`lightStateOf`): worn,
+ * carried loose, or on the actor itself, and not shuttered by hand.
  */
 
 import { MODULE_ID } from "./constants.mjs";
 import { appliedEffects } from "./effect-scan.mjs";
-import { findCarried } from "./item-model.mjs";
+import { canWear, containedIn, findCarried, isPhysical, isWorn, siblingsOf } from "./item-model.mjs";
 import { citeOf, expectTables, getDoc, hasDoc } from "./tables.mjs";
+import { ITEM_TYPE } from "./vocab.mjs";
 
 /**
  * World setting deciding how hard the equipment requirement bites:
@@ -395,15 +398,143 @@ export const MAGIC_LIGHT_CHANGE_KEYS = Object.freeze({
   dim: `flags.${MODULE_ID}.${MAGIC_LIGHT_KEY}.dim`,
 });
 
+/** The flag on an Active Effect that a hand has shuttered: its light is held back, the effect stays applied. */
+export const LIGHT_SHUTTER_FLAG = "lightShutter";
+
 /**
- * Every magic light an actor sheds: one entry per applied Active Effect that
- * writes a radius key, `{id, label, itemName, bright, dim}`. `itemName` is the
- * item the effect rides on, null for an effect placed on the actor; `bright`
- * and `dim` are feet, each null when the effect states none. Read from the
+ * What a magic light is doing: `shining` (it counts toward what the bearer
+ * sheds), `shuttered` (held back by hand) or `stowed` (its holder is not
+ * carrying it where it shines).
+ */
+export const LIGHT_STATE = Object.freeze({ SHINING: "shining", SHUTTERED: "shuttered", STOWED: "stowed" });
+
+/** Whether an effect declares a magic light: it carries a change on either radius key. */
+export function writesMagicLight(effect) {
+  return [...(effect?.changes ?? [])].some(
+    (change) => change?.key === MAGIC_LIGHT_CHANGE_KEYS.bright || change?.key === MAGIC_LIGHT_CHANGE_KEYS.dim,
+  );
+}
+
+/** Whether a hand has shuttered this effect's light. */
+export function isLightShuttered(effect) {
+  return (effect?.getFlag?.(MODULE_ID, LIGHT_SHUTTER_FLAG) ?? effect?.flags?.[MODULE_ID]?.[LIGHT_SHUTTER_FLAG]) === true;
+}
+
+/** The name of the container an item is stored in, or null when it names none that can be found. */
+function containerNameOf(item) {
+  const id = containedIn(item);
+  const found = id ? siblingsOf(item)?.get?.(id) : null;
+  return String(found?.name ?? "") || null;
+}
+
+/**
+ * Whether an effect's light shines, and why. `null` for an effect that is never
+ * a carried light (one on a spell item: a spell's light is cast onto a holder,
+ * never held). Otherwise `{state, why, container}`: `why` names the rule that
+ * decided, one of `actor` (the effect is on the actor itself), `item` (on an
+ * item that is not goods, such as an ability), `worn`, `carried` (a thing that
+ * cannot be worn, outside any container), `unworn`, `container` (stowed in
+ * `container`, a name or null), or `shuttered`.
+ *
+ * The gate reads only the item the effect rides on, because the hooks that
+ * relight a party fire for that item's own update. A wearable shines only while
+ * worn; a thing that cannot be worn only while it is outside every container.
+ * The shutter is read last, so a stowed light stays stowed whatever the shutter
+ * says and keeps the shutter's setting for when it comes out.
+ */
+export function lightStateDetail(effect) {
+  const holder = effect?.parent?.documentName === "Item" ? effect.parent : null;
+  let why = "actor";
+  let container = null;
+  if (holder) {
+    if (holder.type === ITEM_TYPE.spell) return null;
+    if (!isPhysical(holder)) why = "item";
+    else {
+      const stowed = containedIn(holder);
+      container = stowed ? containerNameOf(holder) : null;
+      if (canWear(holder)) {
+        if (!isWorn(holder)) return { state: LIGHT_STATE.STOWED, why: stowed ? "container" : "unworn", container };
+        why = "worn";
+      } else {
+        if (stowed) return { state: LIGHT_STATE.STOWED, why: "container", container };
+        why = "carried";
+      }
+    }
+  }
+  if (isLightShuttered(effect)) return { state: LIGHT_STATE.SHUTTERED, why: "shuttered", container: null };
+  return { state: LIGHT_STATE.SHINING, why, container: null };
+}
+
+/** An effect's light state (`LIGHT_STATE`), or null for an effect that is never a carried light. */
+export function lightStateOf(effect) {
+  return lightStateDetail(effect)?.state ?? null;
+}
+
+/**
+ * Hold an effect's light back, or let it shine again. Written to a flag on the
+ * effect, never to `disabled`: an effect may carry other changes, and a disabled
+ * effect leaves the actor's applied effects altogether. The write is the
+ * seat's own, so only a user who owns the effect may make it.
+ * @returns {Promise<boolean>} whether anything was written
+ */
+export async function setLightShutter(effect, on) {
+  if (!effect?.isOwner || isLightShuttered(effect) === !!on) return false;
+  if (on) await effect.setFlag(MODULE_ID, LIGHT_SHUTTER_FLAG, true);
+  else await effect.unsetFlag(MODULE_ID, LIGHT_SHUTTER_FLAG);
+  return true;
+}
+
+/** A lang string from this module's light keys, or the key itself where no i18n stands. */
+function lightText(key, data) {
+  const full = `ACKS-LIB.light.state.${key}`;
+  try {
+    return game?.i18n?.has?.(full) ? game.i18n.format(full, data) : full;
+  } catch {
+    return full;
+  }
+}
+
+/**
+ * What a surface shows for one light effect: its state's badge and the tooltip
+ * saying why, and the shutter control for a seat that owns the effect.
+ * `{state, shining, badge, stateTip, canShutter, shuttered, actionLabel,
+ * actionAria, actionTip}`; null for an effect that is never a carried light. Every name in
+ * it is the item's (`name`), never the effect's, because an effect's own name
+ * can be hidden until its item is identified. `bearer` is who carries it.
+ * @param {ActiveEffect} effect
+ * @param {{name: string, bearer?: string}} names
+ */
+export function lightControl(effect, { name, bearer = "" } = {}) {
+  const detail = lightStateDetail(effect);
+  if (!detail) return null;
+  const shuttered = isLightShuttered(effect);
+  const why = detail.why === "container" && !detail.container ? "containerUnnamed" : detail.why;
+  const args = { name, bearer, container: detail.container ?? "" };
+  return {
+    state: detail.state,
+    shining: detail.state === LIGHT_STATE.SHINING,
+    badge: lightText(`label.${detail.state}`),
+    stateTip: lightText(`why.${why}`, args),
+    canShutter: !!effect?.isOwner,
+    shuttered,
+    actionLabel: lightText(shuttered ? "open" : "shutter"),
+    actionAria: lightText(shuttered ? "openAria" : "shutterAria", args),
+    actionTip: lightText(shuttered ? "openTip" : "shutterTip", args),
+  };
+}
+
+/**
+ * Every magic light an actor holds: one entry per applied Active Effect that
+ * writes a radius key, `{id, uuid, label, itemName, itemId, bright, dim,
+ * state}`. `itemName` and `itemId` are the item the effect rides on, null for
+ * an effect placed on the actor; `bright` and `dim` are feet, each null when
+ * the effect states none; `state` is the effect's `LIGHT_STATE`. Read from the
  * effect's own change values rather than from the prepared flag, so each
  * source stays nameable. A disabled or suppressed effect is not applied and so
- * is not listed; a change's type is not read, the largest figure per radius
- * standing when an effect repeats a key.
+ * is not listed, nor is one that is never a carried light (`lightStateOf`
+ * null); a change's type is not read, the largest figure per radius standing
+ * when an effect repeats a key. Only a shining entry counts toward what the
+ * actor sheds (`effectLight`).
  */
 export function magicLights(actor) {
   const out = [];
@@ -422,17 +553,30 @@ export function magicLights(actor) {
       }
     }
     if (!writes) continue;
-    const itemName = effect.parent?.documentName === "Item" ? String(effect.parent.name ?? "") || null : null;
-    out.push({ id: effect.id ?? null, label: String(effect.name ?? "") || itemName || "", itemName, bright, dim });
+    const state = lightStateOf(effect);
+    if (!state) continue;
+    const onItem = effect.parent?.documentName === "Item";
+    const itemName = onItem ? String(effect.parent.name ?? "") || null : null;
+    out.push({
+      id: effect.id ?? null,
+      uuid: effect.uuid ?? null,
+      label: String(effect.name ?? "") || itemName || "",
+      itemName,
+      itemId: onItem ? effect.parent.id ?? null : null,
+      bright,
+      dim,
+      state,
+    });
   }
   return out;
 }
 
-/** The largest `{bright, dim}` reach, in feet, among the actor's magic lights. */
+/** The largest `{bright, dim}` reach, in feet, among the actor's shining magic lights. */
 export function effectLight(actor) {
   let bright = 0;
   let dim = 0;
   for (const light of magicLights(actor)) {
+    if (light.state !== LIGHT_STATE.SHINING) continue;
     bright = Math.max(bright, light.bright ?? 0);
     dim = Math.max(dim, light.dim ?? 0);
   }

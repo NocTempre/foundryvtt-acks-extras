@@ -377,6 +377,18 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    effect the sheet re-renders tabbed, so poll for the config sheet); closing
    the choice (its header button, or Escape) creates nothing, and the tab
    strip appears once the item has an effect.
+   *A magic light's tag and toggle* (fixture `formation/magic-light-item` and
+   its recipe's seats, docs/formation/TESTING.md, "A magic light"; an item no
+   actor carries, such as the world item above, keeps the "Equipped" tag and
+   has no toggle): with the
+   item worn, or loose when it cannot be worn, the Magic Light row's tag reads
+   Shining with a tooltip saying why, and a Shutter button stands beside it for
+   a seat that owns the effect. Press it as the Player: the tag reads
+   Shuttered and the button reads Open, and `flags.acks-extras.lightShutter` is
+   true on the effect. Store the item in a container: the tag reads Stowed with
+   the container named, and the sheet redraws without a reload. The Observer
+   seat sees the tag and no button. The button works while the sheet is locked.
+   Walked in `tools/live/formation-magic-light.mjs`, sections 1 and 4.
    `api.track` each effect made, read from `item.effects` at once. Set
    `markets {magic:true, identified:"none"}` → Appearance tab; the three
    steps write `identified`; the Aura select writes `markets.aura` and rings

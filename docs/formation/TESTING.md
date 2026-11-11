@@ -3760,7 +3760,17 @@ Teardown: `api.sweepTracked()`; quote what it removed.
 
 ## A magic light (added with the Add effect control's Magic Light choice)
 
-Walked by hand on the GM seat. A magic light is an Active Effect on an item
+Steps 8 to 11 are walked by `tools/live/formation-magic-light.mjs`, with the
+item sheet's tag and toggle and the Kit row's fit at 14 and 18 px; it adds the
+fixtures `formation/magic-light-member-worn` (a member the Player owns),
+`formation/magic-light-worn` (an armor on it, for `canWear`/`isWorn`) and
+`formation/magic-light-world` (a world item, which shows no state tag). The
+walk's Observer is the Player user taken to ownership 2 of both members. A
+Player who owns no member cannot open the party sheet once the GM's ownership
+sync runs, so the Observer case is driven on a sheet already open when the
+ownership falls, and a fresh open expects refusal (state stays closed). Steps
+1 to 7 and 12 are walked by hand on the GM seat, with the Player and Observer
+seats for steps 9 and 10. A magic light is an Active Effect on an item
 that writes `flags.acks-extras.magicLight.bright` and `.dim` (lib MODEL,
 Senses); every reach typed here is invented.
 
@@ -3778,13 +3788,21 @@ Senses); every reach typed here is invented.
   (`actorLink: true`),
   with one member seated through the party sheet's drop (*Core drive
   mechanics*). The member carries `formation/magic-light-member`, and holds
-  one gear item carrying `formation/magic-light-item`.
+  one gear item carrying `formation/magic-light-item` and a container carrying
+  `formation/magic-light-pack` (capacity set on its sheet, so it takes the item).
+- The seats: the GM seat; the Player seat that owns the member (a real Player
+  seat: the GM's `isOwner` is true for every effect, so only a Player proves
+  the ownership gate); an Observer seat that does not own it.
 
 At the start: the item has no effect writing either key (a leftover one is
 the fixture's own: delete it with the item sheet's own control), and the
 member is inside the party token, not deployed.
 
-1. **Add a light.** Open the item's sheet, press Add Effect and choose Magic
+1. **Add a light.** First assert the kept item's shape, which an earlier walk
+   may have left stowed or unworn: it is outside every container (no
+   `containedIn`) and, if `canWear(item)` is true, worn (`isWorn(item)`).
+   Bring it to that shape before going on, or every light below reads Stowed.
+   Then open the item's sheet, press Add Effect and choose Magic
    Light. An item with no effect yet opens in the simple view, which has no
    tab strip: the control stands beside Details. Otherwise it is on the
    Effects tab. The control shows while the sheet is locked. `api.track` the effect the
@@ -3793,8 +3811,9 @@ member is inside the party token, not deployed.
    above, each of type `upgrade` with an empty value, and its config sheet
    open. No console error as the actor prepares with the empty values.
 2. **Not set.** Open the Party sheet's Kit tab → Light Sources. *Observable:*
-   one read-only row, the item's name and the member's, reading "reach not
-   set" with a tooltip saying so, and no button on it. The party token's
+   one row, the item's name and the member's, reading "reach not set" with a
+   tooltip saying so, a Shining badge and, on the GM seat, a Shutter button
+   (no burn or douse control). The party token's
    column holds no point (`acksExtras.formation.carriedLightPoints(scene)` is
    empty) and the member's own token, if any, has no managed light.
 3. **Type the feet.** In the effect's config sheet, Changes tab, type 11 and 23
@@ -3827,11 +3846,39 @@ member is inside the party token, not deployed.
    it is detached, then re-open the effect and change a figure.
    *Observable:* the token keeps the hand's radius, and its
    `managedLightStamp` reads `{released: true}`.
-8. **On the actor.** Delete the item's effect and place an effect of the same
-   shape on the member's actor directly. *Observable:* the same row, now
-   labelled with the effect's name, and the same point.
+8. **Stowed and taken out.** Start from the shape step 1 asserts, with the
+   effect typed 11 / 23 and the member inside the party token. Store the item
+   in `formation/magic-light-pack` (the equipment recipe's stow gesture: drop
+   it on the pack's contents). *Observable:* the Kit row reads Stowed and dims,
+   its badge tooltip names the pack, `carriedLightPoints(scene)` is empty, and
+   the item sheet's effect tag reads Stowed. Take it out with the pack's Take
+   Out: the row reads Shining and the point returns, with no reload. For an item
+   that can be worn, take it off instead and the row reads Stowed with the
+   unworn tooltip; wear it and it returns.
+9. **Shutter, as the Player.** Join as the Player seat that owns the member and
+   press Shutter on the row (Kit tab → Light Sources). *Observable:* the
+   effect's `flags.acks-extras.lightShutter` is true and `disabled` is false;
+   the row reads Shuttered and its button reads Open; the column point is gone;
+   no chat card posted. Deploy the member out as the Judge and the token's
+   managed light is gone too, with the effect still applied (`appliedEffects`
+   holds it). Press Open: the point and the token's light return and the flag is
+   cleared, not written false.
+10. **An Observer has no button.** Join as the Observer seat, which does not own
+    the member. *Observable:* the row shows its state badge and tooltip and no
+    Shutter or Open button; `setLightShutter(effect, true)` called from that
+    seat returns false and writes nothing.
+11. **The shutter outlasts the pack.** Shutter the light, store the item, then
+    take it out. *Observable:* stowed, the row reads Stowed whatever the shutter
+    says and the point is gone; taken out, it reads Shuttered, not Shining, and
+    the point stays gone until Open. The item sheet's own toggle writes the same
+    flag (docs/equipment/TESTING.md, "Effects").
+12. **On the actor.** Delete the item's effect and place an effect of the same
+    shape on the member's actor directly. *Observable:* the same row, now
+    labelled with the effect's name, and the same point; an effect on the actor
+    shines whatever the pack holds, and its shutter works the same.
 
-Teardown: `api.sweepTracked()`; quote what it removed. The effect each Add
+Teardown: leave the effect open (Open, so the flag is cleared), the item out of
+the pack, and `api.sweepTracked()`; quote what it removed. The effect each Add
 light made is in the ledger from step 1; the kept fixtures are left with no
 effect on them.
 

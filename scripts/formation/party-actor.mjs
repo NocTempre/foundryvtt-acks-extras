@@ -271,15 +271,25 @@ export class PartySheet extends HandlebarsApplicationMixin(foundry.applications.
     // The primary GM's formation refresh does not reach other seats when only a
     // member's hit points or seat move, and the hurt figure and the pace read them.
     const isMember = (actorId) => !!actorId && (this.formation?.members ?? []).some((m) => m?.actorId === actorId);
+    // An ownership change redraws too: the shutter button is drawn from the
+    // effect's `isOwner`, which changes with no other write.
     const onActor = (actor, changes) => {
-      if (isMember(actor?.id) && (foundry.utils.hasProperty(changes, "system.hp") || seatChanged(changes))) this.#renderSoon();
+      if (isMember(actor?.id) && (foundry.utils.hasProperty(changes, "system.hp") || foundry.utils.hasProperty(changes, "ownership") || seatChanged(changes))) this.#renderSoon();
     };
     const onToken = (token, changes) => {
       if (isMember(token?.actorId) && foundry.utils.hasProperty(changes, "delta.system.hp")) this.#renderSoon();
     };
+    // A magic light's state follows where its item sits (worn, in a container),
+    // and the primary GM's item refresh does not reach other seats either.
+    const onItem = (item) => {
+      if (item?.effects?.size && isMember(item.parent?.id)) this.#renderSoon();
+    };
     this.#watch = [
       ["updateActor", Hooks.on("updateActor", onActor)],
       ["updateToken", Hooks.on("updateToken", onToken)],
+      ["createItem", Hooks.on("createItem", onItem)],
+      ["updateItem", Hooks.on("updateItem", onItem)],
+      ["deleteItem", Hooks.on("deleteItem", onItem)],
     ];
   }
 

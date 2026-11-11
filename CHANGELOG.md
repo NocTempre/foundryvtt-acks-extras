@@ -15,20 +15,30 @@
   lists each summoning on the scene. It asks first, then removes that summoning's
   tokens. Release now applies only to creatures you bound by hand with Bind, which
   Dismiss never removes.
-- **A magic light is an effect you size.** The item sheet gains Add Effect, on
-  its Effects tab or, for an item with nothing else to show, in the footer beside
-  Details, shown to whoever may edit the item. It offers a blank effect or a Magic
-  Light. Magic Light adds an effect, carried
-  by whoever holds the item, with a bright and a dim change left empty, and opens
-  it so you can type the reach in feet from your own book. An effect placed on a
-  character works the same way, and a disabled one sheds nothing. The character's
-  token, a member's own token once deployed and the party token's marching column
-  all shine it, steady and untinted, and take the larger reach where a flame also
-  burns.
+- **A magic light is an effect you size.** On an item's sheet, the Effects tab
+  → Add Effect (or, for an item with nothing else to show, the footer beside
+  Details), shown to whoever may edit the item, offers a blank effect or a Magic
+  Light. Magic Light adds an effect with a bright and a dim change left empty
+  and opens it so you can type the reach in feet from your own book. The light
+  shines only while the item is worn, or, for an item that cannot be worn, while
+  it is carried outside any container; an effect placed on a character, or on an
+  ability, always shines, and a disabled one sheds nothing. The character's
+  token, a member's own token once deployed and the party token's marching
+  column all shine it, steady and untinted, and take the larger reach where a
+  flame also burns.
+- **Shutter a magic light.** On an item's sheet, the Effects tab shows each
+  magic light's state (Shining, Shuttered or Stowed; hover it to see why) with a
+  Shutter or Open button for anyone who owns the effect. The Party sheet's Kit
+  tab → Light Sources shows the same state beside each member's light, with the
+  same button for the seat that owns it. A shuttered light stays on the item but
+  sheds nothing, and a stowed light comes back when the item is worn or taken
+  out of its container. An open Party sheet redraws when a member's ownership
+  changes, so the button appears or goes as the viewer's permission does.
 - **The Party sheet lists magic lights.** The Party sheet's Kit tab → Light
   Sources shows each member's magic light after the carried lights: the item it
-  rides on, the bearer and the reach in feet, with no toggle or burn time. Hover
-  the reach to see which effect sets it; an effect with no reach says it is not set.
+  rides on, the bearer, the reach in feet and its state, with no burn time.
+  Hover the reach to see which effect sets it, and the state to see why; an
+  effect with no reach says it is not set.
 - **Add a class or general proficiency by hand.** The character sheet's
   Abilities tab gains Class proficiency and General proficiency beside Ability.
   Each offers the list it names, your class's own list or the general list, as

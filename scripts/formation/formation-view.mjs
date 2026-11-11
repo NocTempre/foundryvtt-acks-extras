@@ -1,6 +1,7 @@
 /* global game, canvas, fromUuidSync */
 import { defaultPartyShape, isCasualty, isDead, partyTokenShape } from "./formation-model.mjs";
-import { lightCite, lightFigures, magicLights } from "../lib/light.mjs";
+import { appliedEffects } from "../lib/effect-scan.mjs";
+import { lightCite, lightControl, lightFigures, magicLights } from "../lib/light.mjs";
 import {
   LIGHT_SOURCES,
   PARTY_TOKEN_SHAPES,
@@ -107,11 +108,16 @@ import { hexStockView, readStock } from "./hex-stock-run.mjs";
 import { hexStockKey } from "./hex-stock.mjs";
 
 /**
- * The Kit tab's read-only rows for the light the members' effects shed: one
- * per magic light on each member, `{key, label, bearer, reachText, tip, set}`.
+ * The Kit tab's rows for the light the members' effects hold: one per magic
+ * light on each member, `{key, label, bearer, reachText, tip, set}` and the
+ * light's `lightControl` fields (state badge and its `stateTip`, and the shutter
+ * button's label, aria-label and tip, shown only where `canShutter`), with
+ * `actorId` and `effectId` for the button's action to find the effect again.
  * `label` is the item the effect rides on, else the effect's own name; a light
  * whose effect states no reach says so and shows no figure. The `tip` names
  * the effect and where it sits, the way a figure's tooltip owes its source.
+ * The state badge, the button and every name in them speak of the item, never
+ * the effect.
  */
 export function magicLightRows(formation) {
   const rows = [];
@@ -131,13 +137,18 @@ export function magicLightRows(formation) {
       // the player already sees, a disguise's included.
       const effectName = light.itemName && !game.user?.isGM ? game.i18n.localize("ACKS-EQUIPMENT.itemSheet.effects.lightEffect") : light.label;
       const args = { effect: effectName, source: light.itemName ?? actor.name, reach: reachText };
+      const effect = appliedEffects(actor).find((e) => e.id === light.id);
+      const control = lightControl(effect, { name: light.itemName ?? light.label, bearer: actor.name }) ?? {};
       rows.push({
         key: `${actor.id}.${light.id}`,
+        actorId: actor.id,
+        effectId: light.id,
         label: light.itemName ?? light.label,
         bearer: actor.name,
         set,
         reachText,
         tip: game.i18n.format(set ? "ACKS-FORMATION.app.magicLightTip" : "ACKS-FORMATION.app.magicLightNotSetTip", args),
+        ...control,
       });
     }
   }

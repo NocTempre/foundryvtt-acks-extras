@@ -45,6 +45,8 @@ import { arrangeFastest, chooseConveyance, setGroupMovement, undoArrangement } f
 import { announce } from "./announce.mjs";
 import { toggleDetachMember, toggleMemberLeft } from "./deployment.mjs";
 import { dismount } from "../lib/mount.mjs";
+import { appliedEffects } from "../lib/effect-scan.mjs";
+import { isLightShuttered, setLightShutter } from "../lib/light.mjs";
 import { refuseGoods } from "../lib/bundles.mjs";
 import { runForageDay } from "./forage-run.mjs";
 import { runSearchHour } from "./search-run.mjs";
@@ -705,6 +707,18 @@ export const SHARED_ACTIONS = {
     const light = formation.lights.find((l) => l.id === lightId);
     if (!light || !ownsActor(light.bearerId)) return;
     await requestPartyAction(formation.id, "lightShield", { lightId });
+  },
+
+  /**
+   * Shutter or open a member's magic light. The write is the effect's own, so
+   * it needs no relay: whoever owns the effect makes it, and the redraw comes
+   * from the effect hooks on every client.
+   */
+  async shutterMagicLight(event, target) {
+    const actor = game.actors.get(target.dataset.lightActor);
+    const effect = appliedEffects(actor).find((e) => e.id === target.dataset.lightEffect);
+    if (!effect) return;
+    await setLightShutter(effect, !isLightShuttered(effect));
   },
 
   /** Pace (RR p. 263): careful exploration, or hurried. */

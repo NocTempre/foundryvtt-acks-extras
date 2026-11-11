@@ -132,6 +132,7 @@ globalThis.foundry = {
     escapeHTML: (s) => String(s),
     isEmpty: (v) => v == null || (typeof v === "object" && !Object.keys(v).length),
     mergeObject: (a, b) => Object.assign(a, b),
+    debounce: (fn) => fn,
   },
   abstract: { TypeDataModel: class {}, DataModel: class {} },
   data: {
@@ -159,6 +160,7 @@ globalThis.foundry = {
         get actor() {
           return this.options.document ?? null;
         }
+        async _onFirstRender() {}
         render() {
           return this;
         }
@@ -1941,40 +1943,69 @@ await scenario("template renders live controls for a member-owner", async () => 
   assert.ok(!html.includes('data-action="advanceTurn"'), "GM clock buttons absent for players");
   assert.ok(!html.includes("data-magic-light"), "no effect light, no magic-light row");
 
-  // A member's effect light is a read-only row on the Kit tab, with its source
-  // in the figure's tooltip and no control; one with no reach says so.
+  // A member's effect light is a row on the Kit tab, with its source in the
+  // figure's tooltip, its state beside it and a shutter for the seat that owns
+  // the effect; one with no reach says so.
   const { MAGIC_LIGHT_CHANGE_KEYS } = await import("../scripts/lib/light.mjs");
   const change = (key, value) => ({ key, type: "upgrade", value });
+  // An effect's `isOwner` is read per seat, as core's is: the Judge and the named users own it.
+  const ownedBy = (effect, ...ids) => Object.defineProperty(effect, "isOwner", { get: () => game.user.isGM || ids.includes(game.user.id), enumerable: true });
   dave.effects.push(
-    {
+    ownedBy({
       id: "fxlit",
       name: "Glow",
       disabled: false,
       parent: { documentName: "Item", name: "Lamp of Testing" },
       changes: [change(MAGIC_LIGHT_CHANGE_KEYS.bright, "11"), change(MAGIC_LIGHT_CHANGE_KEYS.dim, "23")],
-    },
-    { id: "fxblank", name: "Blank", disabled: false, parent: { documentName: "Actor" }, changes: [change(MAGIC_LIGHT_CHANGE_KEYS.bright, "")] },
-    {
+    }, "PL1"),
+    ownedBy({ id: "fxblank", name: "Blank", disabled: false, parent: { documentName: "Actor" }, changes: [change(MAGIC_LIGHT_CHANGE_KEYS.bright, "")] }, "PL1"),
+    ownedBy({
       id: "fxpart",
       name: "Half",
       disabled: false,
       parent: { documentName: "Actor" },
       changes: [change(MAGIC_LIGHT_CHANGE_KEYS.bright, "7"), change(MAGIC_LIGHT_CHANGE_KEYS.dim, "")],
-    },
+    }, "PL1"),
   );
+  // A light on a member the player does not own: the Judge's seat only.
+  eve.effects.push(ownedBy({
+    id: "fxeve",
+    name: "Spark",
+    disabled: false,
+    parent: { documentName: "Item", name: "Eve Lamp" },
+    changes: [change(MAGIC_LIGHT_CHANGE_KEYS.bright, "5")],
+  }));
   game.user = game.users.get("PL1");
   let magicHtml;
   let judgeHtml;
+  let shutteredHtml;
+  let stowedHtml;
+  const fxlit = dave.effects.find((e) => e.id === "fxlit");
   try {
     magicHtml = template({ isGM: false, formation, ...view.buildFormationView(formation), ...view.buildPlayerPanel(formation) });
     game.user = gmUser;
     judgeHtml = template({ isGM: true, formation, ...view.buildFormationView(formation) });
+    // The owner shutters it: the state reads shuttered and the button offers Open.
+    game.user = game.users.get("PL1");
+    fxlit.flags = { "acks-extras": { lightShutter: true } };
+    shutteredHtml = template({ isGM: false, formation, ...view.buildFormationView(formation), ...view.buildPlayerPanel(formation) });
+    // The same effect on a thing stowed in a container reads stowed, shutter or no.
+    fxlit.parent = {
+      documentName: "Item",
+      name: "Lamp of Testing",
+      type: "item",
+      system: { cost: 1, weight6: 1 },
+      flags: { "acks-extras": { containedIn: "bag1" } },
+      parent: { items: new Map([["bag1", { id: "bag1", name: "Test Pack" }]]) },
+    };
+    stowedHtml = template({ isGM: false, formation, ...view.buildFormationView(formation), ...view.buildPlayerPanel(formation) });
   } finally {
     game.user = gmUser;
     dave.effects.length = 0;
+    eve.effects.length = 0;
   }
   const rows = [...magicHtml.matchAll(/<div class="light magic-light"[\s\S]*?<\/div>/g)].map((m) => m[0]);
-  assert.equal(rows.length, 3, "one read-only row per magic light");
+  assert.equal(rows.length, 4, "one row per magic light, the other member's included");
   assert.ok(rows[0].includes(`data-magic-light="${dave.id}.fxlit"`) && rows[0].includes("Lamp of Testing"), "the row names the item it rides on");
   assert.ok(rows[0].includes("magicLightReach") && rows[0].includes("&quot;bright&quot;:11") && rows[0].includes("&quot;dim&quot;:23"), "the row shows both radii");
   assert.ok(rows[0].includes("magicLightTip") && rows[0].includes("Lamp of Testing"), "the figure's tooltip names the item the light rides on");
@@ -1983,7 +2014,28 @@ await scenario("template renders live controls for a member-owner", async () => 
   assert.ok(judgeRow.includes("Glow") && judgeRow.includes("Lamp of Testing"), "the Judge's tooltip names the effect and its item");
   assert.ok(rows[1].includes("magicLightNotSet") && !rows[1].includes("magicLightReach") && !rows[1].includes("magicLightTip"), "a light with no reach says it is not set and shows no figure");
   assert.ok(rows[2].includes("magicLightBrightOnly") && !rows[2].includes("magicLightReach") && !rows[2].includes("&quot;dim&quot;"), "a light with one radius shows that radius and no zero for the other");
-  assert.ok(!rows.join("").includes("<button"), "a magic light has no toggle");
+
+  // The owner's seat is offered a shutter on each of their own lights; an
+  // observer of another member's light sees its state and no button.
+  assert.ok(rows.slice(0, 3).every((row) => row.includes('data-action="shutterMagicLight"')), "the owner sees a shutter on each of their lights");
+  assert.ok(
+    rows[0].includes(`data-light-actor="${dave.id}"`) && rows[0].includes('data-light-effect="fxlit"'),
+    "the button names the member and the effect the action finds again",
+  );
+  const button = rows[0].match(/<button[^>]*>[\s\S]*?<\/button>/)?.[0] ?? "";
+  assert.ok(button.includes('type="button"') && button.includes("aria-label=") && button.includes("shutterAria") && button.includes("Lamp of Testing"), "a real button, named for the item");
+  assert.ok(button.includes("data-tooltip-text=") && button.includes("shutterTip") && !button.includes("Glow"), "its tooltip speaks of the item, not the effect");
+  assert.ok(rows[0].includes("state.label.shining") && rows[0].includes("sparkles lit"), "a shining light says shining and its glyph is lit");
+  assert.ok(rows[0].includes("why.item"), "the badge's tooltip names why it shines");
+  assert.ok(!rows[3].includes("<button") && rows[3].includes("state.label.shining"), "an observer sees the state and no shutter");
+  const eveJudge = judgeHtml.match(/<div class="light magic-light" data-magic-light="[^"]*fxeve"[\s\S]*?<\/div>/)?.[0] ?? "";
+  assert.ok(eveJudge.includes('data-action="shutterMagicLight"'), "the Judge's seat owns every effect and is offered the shutter");
+  const shutteredRow = shutteredHtml.match(/<div class="light magic-light unlit"[^>]*fxlit[\s\S]*?<\/div>/)?.[0] ?? "";
+  assert.ok(shutteredRow.includes("state.label.shuttered") && shutteredRow.includes("why.shuttered"), "a shuttered light reads shuttered, and says by hand");
+  assert.ok(shutteredRow.includes("openAria") && shutteredRow.includes("state.open"), "and its button offers Open");
+  assert.ok(!shutteredRow.includes("sparkles lit"), "the glyph is no longer lit");
+  const stowedRow = stowedHtml.match(/<div class="light magic-light unlit"[^>]*fxlit[\s\S]*?<\/div>/)?.[0] ?? "";
+  assert.ok(stowedRow.includes("state.label.stowed") && stowedRow.includes("why.container") && stowedRow.includes("Test Pack"), "a stowed light reads stowed and names its container");
 
   // The sheet itself must be live for a member-owner despite Observer-only
   // party-actor ownership (Foundry disables ALL controls otherwise).
@@ -1994,6 +2046,28 @@ await scenario("template renders live controls for a member-owner", async () => 
     assert.ok(sheet.isEditable, "member-owner's sheet is editable");
   } finally {
     game.user = gmUser;
+  }
+
+  // An open sheet redraws when a member's ownership changes: the shutter button
+  // is drawn from `isOwner`, which a drop to Observer changes with no other write.
+  const watched = new partyActorModule.PartySheet({ document: partyActor });
+  let redraws = 0;
+  watched.render = () => {
+    redraws += 1;
+    return watched;
+  };
+  watched.rendered = true;
+  const before = new Map([...hooks].map(([name, list]) => [name, list.length]));
+  await watched._onFirstRender({}, {});
+  try {
+    Hooks.call("updateActor", dave, { ownership: { PL1: 2 } });
+    assert.equal(redraws, 1, "a member's ownership change redraws the open sheet");
+    Hooks.call("updateActor", dave, { name: "Renamed" });
+    assert.equal(redraws, 1, "an unrelated member change does not");
+    Hooks.call("updateActor", { id: "stranger" }, { ownership: { PL1: 2 } });
+    assert.equal(redraws, 1, "an ownership change on an actor outside the party does not");
+  } finally {
+    for (const [name, list] of hooks) list.length = before.get(name) ?? 0;
   }
 
   await model.disband(model.getFormation(formation.id));

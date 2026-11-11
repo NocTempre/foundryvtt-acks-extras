@@ -23,10 +23,14 @@
     </div>
     {{/each}}
     {{#each magicLights}}
-    <div class="light magic-light" data-magic-light="{{this.key}}">
-      <i class="fa-solid fa-wand-magic-sparkles lit" aria-hidden="true"></i>
+    <div class="light magic-light{{#unless this.shining}} unlit{{/unless}}" data-magic-light="{{this.key}}">
+      <i class="fa-solid fa-wand-magic-sparkles{{#if this.shining}} lit{{/if}}" aria-hidden="true"></i>
       <span class="label">{{this.label}} — {{this.bearer}}</span>
       <span class="remaining" data-tooltip-text="{{this.tip}}">{{this.reachText}}</span>
+      <span class="remaining acks-extras-light-state" data-state="{{this.state}}" data-tooltip-text="{{this.stateTip}}">{{this.badge}}</span>
+      {{#if this.canShutter}}
+      <button type="button" class="acks-extras-light-shutter" data-action="shutterMagicLight" data-light-actor="{{this.actorId}}" data-light-effect="{{this.effectId}}" aria-label="{{this.actionAria}}" data-tooltip-text="{{this.actionTip}}">{{this.actionLabel}}</button>
+      {{/if}}
     </div>
     {{/each}}
     {{#if isGM}}

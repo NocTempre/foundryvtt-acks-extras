@@ -5334,7 +5334,44 @@ an add, since it now does what an add does. A numeric override still sets
 its field (`netNumericChange`), so two overrides on one number still leave
 only the higher-priced one.
 
+## 2026-11-11 — A magic light shines where its holder lets it
+
+**Ruled.** An effect's light counts toward what a bearer sheds only while its
+holder lets it (`lightStateOf`, lib MODEL, Senses): on the actor or on an item
+that is not goods it always shines; on a spell item it is never a carried light;
+on wearable goods only while worn; on goods that cannot be worn only while the
+item is outside every container, so a torch-like item is carried like a torch and
+put away as needed. A light the bearer can hold back has a shutter: a flag on the
+effect, set by any seat that owns it, shown on the Party sheet's Kit tab and on
+the item sheet's Effects tab with the state it is in and why. The shutter is read
+after the gate, so a stowed light stays stowed and keeps its setting.
+
+**Supersedes** the "every applied effect" reading and the "no toggle" half of
+"A magic light is an effect the Judge sizes" (2026-11-10, below, under seven
+days old); sizing the light as an effect, the larger-of-the-two merge and the
+steady look stand. This entry sits above the one it amends.
+
+**New evidence.** The owner's rulings of 2026-11-11 on the party light, which the
+2026-11-10 entry did not have: to read equipped effects, allow casting spells,
+and offer a shutter to whoever wants to control the light; and that a
+non-wearable item sheds while carried outside any container.
+
+**Rejected.** Writing `disabled` for the shutter: an effect may carry other
+changes, and a disabled effect leaves `appliedEffects`, so nothing could tell a
+shuttered light from a removed one. Gating on a record other than the light
+item's own, such as the container's contents or the actor's loadout: the hooks
+that relight a party fire for the item that changed, so a gate that read another
+record would go stale on the very write that changes it.
+
+**Cost.** A magic light on an item that has to be worn or put away is dark in a
+pack without a word on the sheet that carries it, so the Kit tab and the item
+sheet both say stowed and name the container. Anyone who owns the effect can
+shutter it, including a player over a light the Judge placed on their item.
+
 ## 2026-11-10 — A magic light is an effect the Judge sizes
+
+**Superseded in part** by "A magic light shines where its holder lets it"
+(2026-11-11, above): the "every applied effect" reading and the "no toggle" half.
 
 **Ruled.** Light that is not a carried flame is declared by an Active Effect
 with two changes, `flags.acks-extras.magicLight.bright` and `.dim` in feet, of

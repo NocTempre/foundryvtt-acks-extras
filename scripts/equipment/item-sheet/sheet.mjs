@@ -29,6 +29,7 @@ import { containerOf, setLocked, storeIn, takeOut, setContainerRecord } from "..
 import { isSpellbook, spellbookSpells, setSpellbookSpells, parseSpellList, formatSpellList } from "../spellbook.mjs";
 import * as named from "../overlays/named.mjs";
 import { containedIn, siblingsOf, isEquippable, isWorn } from "../../lib/item-model.mjs";
+import { isLightShuttered, setLightShutter } from "../../lib/light.mjs";
 import { EFFECT_STARTS, effectStartData } from "./effect-starts.mjs";
 import { wearableSlots } from "../profiles.mjs";
 import { ITEM_TYPE } from "../../lib/vocab.mjs";
@@ -93,6 +94,7 @@ export default class AcksItemSheet extends PicksMixin(HandlebarsApplicationMixin
       addEffect: AcksItemSheet.#onAddEffect,
       configureEffect: AcksItemSheet.#onConfigureEffect,
       deleteEffect: AcksItemSheet.#onDeleteEffect,
+      shutterEffect: AcksItemSheet.#onShutterEffect,
       guessName: AcksItemSheet.#onGuessName,
       renameItem: AcksItemSheet.#onRenameItem,
       saveNamed: AcksItemSheet.#onSaveNamed,
@@ -657,6 +659,12 @@ export default class AcksItemSheet extends PicksMixin(HandlebarsApplicationMixin
 
   static async #onDeleteEffect(event, target) {
     await this.item.effects.get(target.dataset.effect)?.delete();
+  }
+
+  /** Shutter a magic light effect, or open it again; a play control, so it needs no armed edit. */
+  static async #onShutterEffect(event, target) {
+    const effect = this.item.effects.get(target.dataset.effect);
+    if (effect) await setLightShutter(effect, !isLightShuttered(effect));
   }
 
   static async #onGuessName() {

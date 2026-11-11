@@ -537,12 +537,19 @@ and every client rebuilds. Its radius is the figure in feet converted to the
 scene's units, with no token padding (lib MODEL, Senses). The `syncTokenLight`
 world setting turns all of it off, and a hidden party token sheds nothing.
 An effect or an item with effects that changes on a member lays every column
-again on every client (`column-view.mjs`), a drawing only. The Kit tab's Lights
+again on every client (`column-view.mjs`), a drawing only. A column point
+counts only a shining light (lib MODEL, Senses). The Kit tab's Light Sources
 section lists each member's magic lights after the carried rows
 (`magicLightRows`): the item the effect rides on (else the effect's name), the
-bearer, and the reach in feet, read-only with no toggle or burn time; the
-figure's tooltip names the effect and its item or bearer, and an effect with no
-reach says it is not set and shows no number.
+bearer, and the reach in feet, with no burn time; the figure's tooltip names the
+effect and its item or bearer, and an effect with no reach says it is not set and
+shows no number. Each row carries a state badge, Shining, Shuttered or Stowed,
+whose tooltip says why (worn, stowed in a named container, shuttered by hand),
+and a Shutter or Open button shown only to a seat that owns the effect
+(`shutterMagicLight`, beside `toggleShield`). The button writes the effect's own
+flag with no relay, and every control names the item, never the effect. A
+member's sheet redraws on an item's change as well as an effect's, so a seat
+that is not the primary GM sees a light stow or return.
 `carriedLightPoints(scene)`, published on the formation namespace, is the same
 set at rest, read from the stored record, position and trail, for the Night
 Vision sweep (lib's `brightestLightReaching`), which runs on scenes no canvas is

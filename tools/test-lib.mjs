@@ -51,8 +51,9 @@ import {
   senseProfile,
 } from "../scripts/lib/senses.mjs";
 import {
-  LIGHT_DOC, LIGHT_TABLE, MAGIC_LIGHT_CHANGE_KEYS, brightestLightReaching, effectLight, emittedLight, lightCite,
-  lightFigures, magicLights, mergeLight, shedLight,
+  LIGHT_DOC, LIGHT_SHUTTER_FLAG, LIGHT_STATE, LIGHT_TABLE, MAGIC_LIGHT_CHANGE_KEYS, brightestLightReaching, effectLight, emittedLight,
+  isLightShuttered, lightCite, lightControl, lightFigures, lightStateDetail, lightStateOf, magicLights, mergeLight, setLightShutter,
+  shedLight, writesMagicLight,
 } from "../scripts/lib/light.mjs";
 import { MAGIC_LIGHT_LOOK, applyTokenLight, applyTokenVision, isManagedLight, sceneIsDrawing, syncTokenFromActor } from "../scripts/lib/token-sync.mjs";
 import { installTokenLightPaddingPatch, unpaddedRadius } from "../scripts/lib/patches/token-light-padding.mjs";
@@ -1886,8 +1887,10 @@ t("emittedLight: the brightest lit, unshuttered source wins", () => {
 
 /**
  * An actor whose applied effects are `effects`, each `{id, name, item, bright,
- * dim, disabled}`: the item names the Item the effect rides on, and a figure
- * may be a string as a change value is stored. Radii here are invented.
+ * dim, disabled, parent, shuttered}`: the item names the Item the effect rides
+ * on (a plain goods item that cannot be worn), `parent` is a whole holder in
+ * its place, `shuttered` sets the shutter flag, and a figure may be a string as
+ * a change value is stored. Radii here are invented.
  */
 const effectActor = (effects, { id = "a1", flameLights = [] } = {}) => ({
   id,
@@ -1898,7 +1901,8 @@ const effectActor = (effects, { id = "a1", flameLights = [] } = {}) => ({
       id: e.id,
       name: e.name ?? "",
       disabled: !!e.disabled,
-      parent: e.item ? { documentName: "Item", name: e.item } : { documentName: "Actor" },
+      flags: e.shuttered ? { "acks-extras": { [LIGHT_SHUTTER_FLAG]: true } } : {},
+      parent: e.parent ?? (e.item ? { documentName: "Item", name: e.item } : { documentName: "Actor" }),
       changes: [
         ...(e.bright !== undefined ? [{ key: MAGIC_LIGHT_CHANGE_KEYS.bright, type: "upgrade", value: e.bright }] : []),
         ...(e.dim !== undefined ? [{ key: MAGIC_LIGHT_CHANGE_KEYS.dim, type: "upgrade", value: e.dim }] : []),
@@ -1914,8 +1918,8 @@ t("magicLights: each applied effect that writes a radius is one named source", (
     { id: "e3", name: "Unrelated", other: true },
   ]);
   assert.deepEqual(magicLights(actor), [
-    { id: "e1", label: "Glow", itemName: "Lamp of Testing", bright: 21, dim: 42 },
-    { id: "e2", label: "Spark", itemName: null, bright: null, dim: 9 },
+    { id: "e1", uuid: null, label: "Glow", itemName: "Lamp of Testing", itemId: null, bright: 21, dim: 42, state: "shining" },
+    { id: "e2", uuid: null, label: "Spark", itemName: null, itemId: null, bright: null, dim: 9, state: "shining" },
   ]);
   assert.equal(magicLights(effectActor([{ id: "e9", name: "Unrelated", other: true }])).length, 0, "an effect that writes neither key is no light");
 });
@@ -1928,7 +1932,7 @@ t("magicLights: an effect that names a light with no figure is listed with none,
   // The scan skips the disabled effect itself; a suppressed one reaching the list is skipped here.
   actor.appliedEffects.push({ id: "e3", name: "Held", disabled: false, isSuppressed: true, parent: { documentName: "Actor" }, changes: [{ key: MAGIC_LIGHT_CHANGE_KEYS.bright, value: "50" }] });
   actor.appliedEffects.push({ id: "e4", name: "Off", disabled: true, parent: { documentName: "Actor" }, changes: [{ key: MAGIC_LIGHT_CHANGE_KEYS.bright, value: "50" }] });
-  assert.deepEqual(magicLights(actor), [{ id: "e1", label: "Blank", itemName: null, bright: null, dim: null }]);
+  assert.deepEqual(magicLights(actor), [{ id: "e1", uuid: null, label: "Blank", itemName: null, itemId: null, bright: null, dim: null, state: "shining" }]);
   assert.deepEqual(effectLight(actor), { bright: 0, dim: 0 }, "no figure, no light");
   assert.deepEqual(effectLight({ id: "x" }), { bright: 0, dim: 0 }, "an actor with no effects sheds none");
 });
@@ -1960,6 +1964,157 @@ t("shedLight: the stronger of flame and effect, and which kind it was", () => {
   assert.deepEqual(shedLight(smaller), { bright: 13, dim: 40, kind: "flame" });
   const effectOnly = effectActor([{ id: "e1", bright: "8" }]);
   assert.deepEqual(shedLight(effectOnly), { bright: 8, dim: 0, kind: "magic" }, "an effect lights a bearer with no flame");
+});
+
+/**
+ * The Item an effect rides on, for the light gate: carried goods that cannot be
+ * worn unless `over` says otherwise. `bag1` is the one container its owner
+ * holds. Names are invented.
+ */
+const lightHolder = (over = {}) => ({
+  documentName: "Item",
+  id: "it1",
+  name: "Test Lamp",
+  type: "item",
+  system: { cost: 1, weight6: 1 },
+  flags: {},
+  parent: { items: new Map([["bag1", { id: "bag1", name: "Test Pack" }]]) },
+  ...over,
+});
+const gearFlags = (gear, extra = {}) => ({ "acks-extras": { gear, ...extra } });
+const stateRow = (parent, extra = {}) => lightStateDetail({ parent, flags: {}, ...extra });
+
+t("lightStateOf: the state table, one row per kind of holder", () => {
+  const wearable = { slots: ["worn"] };
+  const rows = [
+    ["the actor itself", { documentName: "Actor" }, "shining", "actor"],
+    ["a spell item: its light is cast, never held", lightHolder({ type: "spell", system: {} }), null, undefined],
+    ["an ability, which is no goods", lightHolder({ type: "ability", system: {} }), "shining", "item"],
+    ["a wearable thing worn", lightHolder({ flags: gearFlags({ ...wearable, wornAt: "worn" }) }), "shining", "worn"],
+    ["a wearable thing not worn", lightHolder({ flags: gearFlags(wearable) }), "stowed", "unworn"],
+    ["a wearable thing in a container, not worn", lightHolder({ flags: gearFlags(wearable, { containedIn: "bag1" }) }), "stowed", "container"],
+    ["a weapon wielded", lightHolder({ type: "weapon", system: { cost: 1, weight6: 1, equipped: true } }), "shining", "worn"],
+    ["a weapon put away", lightHolder({ type: "weapon", system: { cost: 1, weight6: 1, equipped: false } }), "stowed", "unworn"],
+    ["a thing that cannot be worn, carried loose", lightHolder(), "shining", "carried"],
+    ["a thing that cannot be worn, in a container", lightHolder({ flags: { "acks-extras": { containedIn: "bag1" } } }), "stowed", "container"],
+  ];
+  for (const [label, parent, state, why] of rows) {
+    const detail = stateRow(parent);
+    assert.equal(detail?.state ?? null, state, `${label}: state`);
+    assert.equal(detail?.why, why, `${label}: why`);
+    assert.equal(lightStateOf({ parent, flags: {} }), state, `${label}: lightStateOf agrees`);
+  }
+  assert.equal(stateRow(lightHolder({ flags: { "acks-extras": { containedIn: "bag1" } } })).container, "Test Pack", "a container is named");
+  assert.equal(stateRow(lightHolder({ flags: { "acks-extras": { containedIn: "gone" } } })).container, null, "a container that cannot be found is not named");
+  assert.equal(lightStateOf(null), "shining", "an effect with no holder is the actor's own");
+});
+
+t("lightStateOf: a shuttered light reads shuttered, but a stowed one stays stowed and keeps the shutter", () => {
+  const shutter = { flags: { "acks-extras": { [LIGHT_SHUTTER_FLAG]: true } } };
+  assert.equal(lightStateOf({ parent: lightHolder(), ...shutter }), "shuttered");
+  assert.equal(lightStateDetail({ parent: lightHolder(), ...shutter }).why, "shuttered");
+  assert.equal(lightStateOf({ parent: { documentName: "Actor" }, ...shutter }), "shuttered", "an effect on the actor shutters too");
+  const inPack = lightHolder({ flags: { "acks-extras": { containedIn: "bag1" } } });
+  assert.equal(lightStateOf({ parent: inPack, ...shutter }), "stowed", "stowed wins while it is put away");
+  const out = lightHolder();
+  assert.equal(lightStateOf({ parent: out, ...shutter }), "shuttered", "taken out, the shutter is still set");
+  assert.equal(isLightShuttered({ getFlag: (scope, key) => (scope === "acks-extras" && key === LIGHT_SHUTTER_FLAG ? true : undefined) }), true, "read through getFlag");
+  assert.equal(isLightShuttered({ flags: { "acks-extras": { [LIGHT_SHUTTER_FLAG]: "yes" } } }), false, "only true shutters");
+});
+
+t("magicLights and effectLight: only a shining light counts, and a spell's is not listed", () => {
+  const worn = { slots: ["worn"], wornAt: "worn" };
+  const actor = effectActor([
+    { id: "e1", bright: "10", dim: "20", parent: lightHolder({ id: "w1", name: "Worn Lamp", flags: gearFlags(worn) }) },
+    { id: "e2", bright: "50", dim: "60", shuttered: true },
+    { id: "e3", bright: "99", dim: "99", parent: lightHolder({ id: "p1", name: "Packed Lamp", flags: { "acks-extras": { containedIn: "bag1" } } }) },
+    { id: "e4", bright: "77", parent: lightHolder({ type: "spell", system: {} }) },
+  ]);
+  const lights = magicLights(actor);
+  assert.deepEqual(lights.map((l) => [l.id, l.state]), [["e1", "shining"], ["e2", "shuttered"], ["e3", "stowed"]], "the spell's effect is not listed");
+  assert.equal(lights[0].itemId, "w1");
+  assert.equal(lights[2].itemName, "Packed Lamp");
+  assert.deepEqual(effectLight(actor), { bright: 10, dim: 20 }, "the shuttered and the stowed shed nothing, however large");
+  assert.deepEqual(shedLight(actor), { bright: 10, dim: 20, kind: "magic" });
+  const dark = effectActor([{ id: "e5", bright: "30", shuttered: true }]);
+  assert.deepEqual(effectLight(dark), { bright: 0, dim: 0 });
+  assert.deepEqual(shedLight(dark), { bright: 0, dim: 0, kind: "flame" }, "nothing shining: no magic kind");
+});
+
+t("writesMagicLight: an effect declares a light by either radius key", () => {
+  assert.equal(writesMagicLight({ changes: [{ key: MAGIC_LIGHT_CHANGE_KEYS.dim, value: "" }] }), true);
+  assert.equal(writesMagicLight({ changes: [{ key: "system.something" }] }), false);
+  assert.equal(writesMagicLight({}), false);
+});
+
+/** An effect that records its flag writes, owned by this seat or not. */
+const shutterable = ({ owner = true, shuttered = false, parent = lightHolder() } = {}) => {
+  const calls = [];
+  const effect = {
+    isOwner: owner,
+    parent,
+    flags: shuttered ? { "acks-extras": { [LIGHT_SHUTTER_FLAG]: true } } : {},
+    getFlag(scope, key) {
+      return this.flags[scope]?.[key];
+    },
+    async setFlag(scope, key, value) {
+      calls.push(["set", scope, key, value]);
+      (this.flags[scope] ??= {})[key] = value;
+    },
+    async unsetFlag(scope, key) {
+      calls.push(["unset", scope, key]);
+      delete this.flags[scope]?.[key];
+    },
+  };
+  return { effect, calls };
+};
+
+await (async () => {
+  const mine = shutterable();
+  assert.equal(await setLightShutter(mine.effect, true), true);
+  assert.deepEqual(mine.calls, [["set", "acks-extras", LIGHT_SHUTTER_FLAG, true]], "it writes the effect's own flag, not `disabled`");
+  assert.equal(lightStateOf(mine.effect), "shuttered");
+  assert.equal(await setLightShutter(mine.effect, true), false, "setting what is already set writes nothing");
+  assert.equal(await setLightShutter(mine.effect, false), true);
+  assert.deepEqual(mine.calls.at(-1), ["unset", "acks-extras", LIGHT_SHUTTER_FLAG], "opening clears the flag rather than writing false");
+  assert.equal(lightStateOf(mine.effect), "shining");
+  const theirs = shutterable({ owner: false });
+  assert.equal(await setLightShutter(theirs.effect, true), false, "a seat that does not own the effect writes nothing");
+  assert.deepEqual(theirs.calls, []);
+  n++;
+  console.log("ok - setLightShutter writes only for the effect's owner, and only a change");
+})();
+
+t("lightControl: the badge, the tip and the shutter button name the item, and the button is the owner's", () => {
+  const owned = lightControl(shutterable().effect, { name: "Test Lamp", bearer: "Test Bearer" });
+  assert.equal(owned.state, "shining");
+  assert.equal(owned.shining, true);
+  assert.equal(owned.canShutter, true);
+  assert.equal(owned.badge, "ACKS-LIB.light.state.label.shining");
+  assert.equal(owned.stateTip, "ACKS-LIB.light.state.why.carried");
+  assert.equal(owned.actionLabel, "ACKS-LIB.light.state.shutter");
+  assert.equal(owned.actionAria, "ACKS-LIB.light.state.shutterAria");
+  const seen = lightControl(shutterable({ owner: false, shuttered: true }).effect, { name: "Test Lamp" });
+  assert.equal(seen.canShutter, false, "an observer is offered no button");
+  assert.equal(seen.state, "shuttered");
+  assert.equal(seen.actionLabel, "ACKS-LIB.light.state.open", "a shuttered light offers Open");
+  const packed = lightControl(shutterable({ parent: lightHolder({ flags: { "acks-extras": { containedIn: "bag1" } } }) }).effect, { name: "Test Lamp" });
+  assert.equal(packed.state, "stowed");
+  assert.equal(packed.stateTip, "ACKS-LIB.light.state.why.container");
+  const lost = lightControl(shutterable({ parent: lightHolder({ flags: { "acks-extras": { containedIn: "gone" } } }) }).effect, { name: "Test Lamp" });
+  assert.equal(lost.stateTip, "ACKS-LIB.light.state.why.containerUnnamed", "an unnamed container has its own wording");
+  assert.equal(lightControl(shutterable({ parent: lightHolder({ type: "spell", system: {} }) }).effect, { name: "x" }), null, "a spell's effect has no control");
+  const formatted = [];
+  const prevGame = globalThis.game;
+  globalThis.game = { i18n: { has: () => true, format: (key, data) => (formatted.push([key, data]), key) } };
+  try {
+    lightControl(shutterable({ parent: lightHolder({ flags: { "acks-extras": { containedIn: "bag1" } } }) }).effect, { name: "Test Lamp", bearer: "Test Bearer" });
+  } finally {
+    if (prevGame === undefined) delete globalThis.game;
+    else globalThis.game = prevGame;
+  }
+  const tip = formatted.find(([key]) => key.endsWith("why.container"));
+  assert.deepEqual(tip[1], { name: "Test Lamp", bearer: "Test Bearer", container: "Test Pack" }, "the tip names the item, its bearer and the container");
 });
 
 t("light padding: a managed token's light reaches its figure, a hand-set one keeps core's padding", () => {

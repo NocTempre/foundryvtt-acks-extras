@@ -32,6 +32,7 @@ import {
   isCurrency, perStoneOf, systemCoinsPerStone, stackCountOf, gearOf,
 } from "../../lib/item-model.mjs";
 import { coinTotalGC } from "../../lib/money-logic.mjs";
+import { lightControl, writesMagicLight } from "../../lib/light.mjs";
 import { damageGlyphOf } from "../../lib/damage-type.mjs";
 import { ITEM_TYPE, ACTOR_TYPE, WEAR_SLOTS } from "../../lib/vocab.mjs";
 import { rollGroups } from "./rolls.mjs";
@@ -210,13 +211,22 @@ function inheritedGrants(item, actor) {
   return out;
 }
 
-/** The item's own Active Effects as ledger rows. */
+/**
+ * The item's own Active Effects as ledger rows. A magic light's row also
+ * carries `light`, the state tag and shutter control `lightControl` builds
+ * (named for the item, never the effect), which the row's tag shows in place
+ * of its "when". An effect that is disabled, or does not transfer to the
+ * bearer, sheds nothing and has none; nor has an item no actor carries, whose
+ * light is no one's to shine or shutter.
+ */
 function ownEffects(item) {
+  const carried = item.parent?.documentName === "Actor";
   return [...(item.effects ?? [])].map((e) => ({
     id: e.id,
     label: e.name,
     detail: (e.changes ?? []).map((c) => `${c.key.replace(/^system\./, "")} ${c.value}`).join(" · ") || loc("itemSheet.effects.noChanges"),
     when: loc(e.disabled ? "itemSheet.effects.disabled" : e.transfer ? "itemSheet.effects.whileEquipped" : "itemSheet.effects.onItem"),
+    light: carried && !e.disabled && e.transfer && writesMagicLight(e) ? lightControl(e, { name: item.name, bearer: item.parent?.name ?? "" }) : null,
   }));
 }
 

@@ -716,11 +716,12 @@ has an Add effect control whose Magic Light choice creates the effect with both
 values empty; an item with no effect opens in the simple view, which has no tab
 strip, so the control also stands beside Details there).
 `magicLights(actor)` reads one entry per applied effect that writes either key,
-`{id, label, itemName, bright, dim}`, from the effect's own change values (not
-the prepared flag) so each source stays nameable; `appliedEffects` already leaves
-out a disabled or suppressed effect, and a change's type is not read: the largest
-figure per radius stands. `effectLight(actor)` is the largest `{bright, dim}`
-among them. `shedLight(actor)` is the stronger of `emittedLight(bearerLights)` and
+`{id, uuid, label, itemName, itemId, bright, dim, state}`, from the effect's own
+change values (not the prepared flag) so each source stays nameable;
+`appliedEffects` already leaves out a disabled or suppressed effect, and a
+change's type is not read: the largest figure per radius stands. `effectLight(actor)`
+is the largest `{bright, dim}` among the entries whose `state` is `shining`.
+`shedLight(actor)` is the stronger of `emittedLight(bearerLights)` and
 `effectLight`, each radius taking the larger, with the `kind` that won
 (`mergeLight`): `magic` when the effect has the larger bright radius (the dim on
 a tie), else `flame`. `tokenSyncDelta` writes it through `lightDelta` with the
@@ -734,6 +735,30 @@ neither as already written nor as a hand edit. An effect or item with effects
 that changes on an actor re-syncs its tokens (`createActiveEffect`,
 `updateActiveEffect`, `deleteActiveEffect` and the item hooks) and, for a
 formation member, relights the party token's scene for Night Vision.
+
+**A magic light shines where its holder lets it.** `lightStateOf(effect)` is the
+gate, read from the item the effect rides on and nothing else, because the item
+hooks relight a party for that item's own update. An effect on the actor itself
+shines; on an item that is not goods (an ability, a quick-effects transfer) it
+shines; on a spell item it is never a carried light (`null`, so `magicLights`
+omits it: a spell's light is cast onto a holder, not held). On goods that can be
+worn (`canWear`) it shines only while `isWorn`; on goods that cannot, only while
+the item is outside every container (`containedIn`), so a torch-like item is
+carried and put away. The result is `shining`, `shuttered` or `stowed`;
+`lightStateDetail` adds the rule that decided (`why`) and the container's name,
+which the surfaces turn into tooltips (`lightControl`). `effectLight`, and so
+`shedLight` and a column point, count only a shining light.
+
+The **shutter** is `flags["acks-extras"].lightShutter` on the effect, written by
+`setLightShutter(effect, on)` for any seat that owns the effect, with no relay
+and no chat card. It is not `disabled`: an effect may carry other changes, and a
+disabled effect leaves `appliedEffects` altogether. It is read last, after the
+gate, so a stowed light reads `stowed` whatever the shutter says and keeps the
+setting for when it is taken out. It rides the existing effect hooks, which
+re-sync the actor's tokens and relight the party. The Kit tab's Light Sources
+rows (formation MODEL, Lights) and the item sheet's Effects tab, for an item an
+actor carries, show the state as a badge and offer the toggle, both built by
+`lightControl` so the names and tooltips are written once.
 
 **A managed light.** A token's light is the module's when the module wrote it:
 `applyTokenLight` sets `flags.acks-extras.managedLight` true with every lit
