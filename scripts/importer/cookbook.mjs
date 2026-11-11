@@ -32,6 +32,8 @@ import {
   mergedTally,
   countRepair,
   unrepaired,
+  asMinted,
+  unstampedTwins,
 } from "./refresh.mjs";
 import { coversFigure, decides, heldEdit, playStamp, pregenAnswer } from "./held-edits.mjs";
 import { mergedRepair, mergedStep, secondPass } from "./merged-repair.mjs";
@@ -973,25 +975,40 @@ const blockTarget = (id) => rewriteScope?.blocks?.get(id) ?? null;
 
 /**
  * Write a row's fresh build over its own block on a place it shares
- * (`rowBlockPatch`), and count the place once in the rewrite's tally. A
- * Judge's edit the rewrite's `decision` does not take is left standing and
- * listed in the tally's `edits`. A place that already holds the build is
- * counted as written; a write Foundry rejects is logged and counted as left.
+ * (`rowBlockPatch`), and count the place once in the rewrite's tally, at the
+ * first row that settles it. A Judge's edit the rewrite's `decision` does not
+ * take is left standing and listed in the tally's `edits`; a row whose only
+ * differences are such edits writes nothing and settles nothing, so a later
+ * row of the same place still counts it, and the place is reported as held
+ * (`edits`), not replaced. A place that already holds the build is counted as
+ * written; a write Foundry rejects is logged and counted as left.
  * @param {Actor} target the place `blockTarget` answered
  * @param {{id: string, notes?: string, name?: string, after?: string, cite?: string}} row
  * @returns {Promise<Actor>} the place
  */
-async function writeRowBlock(target, row) {
+export async function writeRowBlock(target, row) {
   const tally = rewriteScope?.tally ?? null;
   const first = unrepaired(tally, target);
   const { update: patch, edits } = rowBlockPatch({ ...target.toObject(), uuid: target.uuid }, row, { decision: rewriteScope?.decision ?? null });
   if (tally && edits.length) (tally.edits ??= []).push(...edits);
+  const written = Object.keys(patch).length > 0;
+  const heldOnly = !written && edits.length > 0;
+  // The places a held-only first row left uncounted, for a later row to settle.
+  const unsettled = tally ? (tally.unsettled ??= new Set()) : null;
+  const key = target.uuid ?? target.id;
+  const counts = first || !!unsettled?.has(key);
   try {
-    if (Object.keys(patch).length) await target.update(patch);
-    if (first) tally.replaced++;
+    if (written) await target.update(patch);
+    if (counts && !heldOnly) {
+      unsettled.delete(key);
+      tally.replaced++;
+    } else if (first && heldOnly) unsettled.add(key);
   } catch (err) {
     console.error(`${MODULE_ID} | repair of ${target.name} failed`, err);
-    if (first) tally.refused++;
+    if (counts) {
+      unsettled.delete(key);
+      tally.refused++;
+    }
   }
   return target;
 }
@@ -1018,7 +1035,9 @@ async function rewriteHeld(held, data) {
   // decision takes it, and lists the rest; one without keeps the tally's force.
   if (!("decision" in rewriteScope)) plan = await refreshImported(held, data, policyFor(policy, tally));
   else {
-    const cite = data?.flags?.[MODULE_ID]?.cookbook?.cite ?? "";
+    // A place's build stamps no cite; its row's own is the page a held edit names.
+    const stamp = data?.flags?.[MODULE_ID]?.cookbook;
+    const cite = stamp?.cite || (stamp?.id ? cookbookEntry(stamp.id)?.entry?.cite : "") || "";
     // A place's notes are its prose: text a Judge wrote beside the stamped block is an edit.
     const guarded = data?.system?.notes !== undefined ? { ...policy, prose: [...policy.prose, "notes"] } : policy;
     const { build, retract } = heldRoster(held, data, guarded.retract, cite);
@@ -4974,7 +4993,8 @@ export function bindLegacyMonster(node) {
  * A parsed quick-stat block (the `statline` pattern) onto a monster-type
  * actor. Values persist in world fields (the GM's hand-typed equivalence);
  * ability scores and gear notes go to flags — the monster schema has no score
- * fields — and the entry's own text is written into the biography.
+ * fields — and the entry's own text is written into the biography. The items
+ * it builds carry the `minted` stamp.
  */
 export function bindNpc(node) {
   const sl = node.fields.statline ?? {};
@@ -5013,7 +5033,8 @@ export function bindNpc(node) {
       },
     });
   }
-  return { system, items, statline: sl };
+  // The items are the import's own, stamped so a repair replaces them and keeps any a Judge added.
+  return { system, items: items.map(asMinted), statline: sl };
 }
 
 /** Actor import for kind.npc / kind.monsterLegacy (with the defer rule). */
@@ -5694,6 +5715,11 @@ async function statLineCreature(bookId, placeId, occ, node, run) {
   if (held) return held;
   const folder = (await ensureFolderPath("Actor", [bookLabel(bookId), "Creatures"], lineOf(bookId)))?.id ?? null;
   const bound = bindNpc({ fields: { statline: occ.stats ?? {} } });
+  // A held creature's items the build also makes and that carry no stamp are
+  // stamped first, so the write below replaces them (`unstampedTwins`).
+  const standing = rewriteScope?.held.get(oid);
+  const twins = standing ? unstampedTwins(standing.toObject?.().items ?? [], bound.items) : [];
+  if (twins.length) await standing.updateEmbeddedDocuments("Item", twins.map((_id) => ({ _id, [`flags.${MODULE_ID}.minted`]: true })));
   const line = String(occ.stats?.text ?? "").trim();
   const cite = data.books.get(bookId)?.entries?.[placeId]?.cite ?? "";
   const made = await claimActorImport(oid, () =>

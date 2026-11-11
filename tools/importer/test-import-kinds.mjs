@@ -27,10 +27,10 @@ import { placePairs } from "../../scripts/importer/place-pair.mjs";
 import {
   IMPORT_KINDS, ENTRY_SOURCES, SHELF_REFILL, REPAIR_RUNS, TABLE_BOOKS, cookbookRunSet, cookbookReimportShelf, cookbookReimportBook,
   cookbookReimportAdventure, cookbookReimportEntries, reimportableShelves, initCookbook, loadCookbook, isRewriting, placeBlockRows,
-  withRewrite, createDoc, keepsJudgeProse, keepsJudgeFigure, marketTakes, recreateUnderId, rewriteTable, repairPregens,
+  withRewrite, createDoc, keepsJudgeProse, keepsJudgeFigure, marketTakes, recreateUnderId, rewriteTable, repairPregens, writeRowBlock,
 } from "../../scripts/importer/cookbook.mjs";
 import { mergedTally } from "../../scripts/importer/refresh.mjs";
-import { playStamp, pregenDefault } from "../../scripts/importer/held-edits.mjs";
+import { blockSum, playStamp, pregenDefault } from "../../scripts/importer/held-edits.mjs";
 import { bookText } from "../../scripts/importer/prose.mjs";
 import { TABLE_RECIPES } from "../../scripts/importer/table-recipes.mjs";
 import { bookIsJudges } from "../../scripts/importer/books.mjs";
@@ -790,6 +790,19 @@ same("a stat-line creature is read from its place's book", IMPORT_KINDS.find((k)
   const empty = await write(place([]), "keep");
   check("an empty roster takes the build's and is no edit", empty.rosterWritten && empty.tally.edits.length === 0);
 
+  // A place's build stamps no cite of its own; the edit it holds names its row's.
+  const roomRow = served["ax1.json"].entries["ax1.room1"];
+  roomRow.cite = "AX 1 p.3";
+  const uncited = { ...build, flags: { [MODULE_ID]: { cookbook: { id: "ax1.room1" } } } };
+  const citeTally = { replaced: 0, keptProse: 0, refused: 0, handMade: 0, seen: new Set(), edits: [], decision: "keep" };
+  await withRewrite({ held: new Map([["ax1.room1", place(judged)]]), tally: citeTally, retract: ["roster"], decision: "keep" }, () => createDoc({ documentName: "Actor" }, structuredClone(uncited)));
+  same("a held roster on a place whose build stamps no cite names its row's page", citeTally.edits.map((e) => [e.path, e.cite]), [["system.roster", "AX 1 p.3"]]);
+  delete roomRow.cite;
+  const noRow = { ...uncited, flags: { [MODULE_ID]: { cookbook: { id: "ax1.ghost" } } } };
+  const ghostTally = { replaced: 0, keptProse: 0, refused: 0, handMade: 0, seen: new Set(), edits: [], decision: "keep" };
+  await withRewrite({ held: new Map([["ax1.ghost", place(judged)]]), tally: ghostTally, retract: ["roster"], decision: "keep" }, () => createDoc({ documentName: "Actor" }, structuredClone(noRow)));
+  same("and one whose id no row answers to names none", ghostTally.edits.map((e) => e.cite), [""]);
+
   // An organisation's strength figures: a write after the create asks keepsJudgeFigure.
   const body = place([]);
   const pageStrength = { rows: [{ key: "a", n: 10 }] };
@@ -1126,6 +1139,8 @@ same("a stat-line creature is read from its place's book", IMPORT_KINDS.find((k)
   check("and builds an entry only in a pass that holds its own claim", /rewrites\.filter\(\(id\) => held\.has\(id\)\)/.test(body));
   const statLine = source.slice(source.indexOf("async function statLineCreature"), source.indexOf("export function regionSiteClaim"));
   check("a held stat-line creature is built again, not returned as it stands", /isRewriting\(oid\) \? null :/.test(statLine));
+  check("and its unstamped twins of the build's items are stamped before the write replaces them",
+    /unstampedTwins\(standing\.toObject\?\.\(\)\.items \?\? \[\], bound\.items\)/.test(statLine) && statLine.indexOf("unstampedTwins(") < statLine.indexOf("createDoc("));
 
   // The block writers run only against a real page read; these pin their wiring.
   const fnOf = (head) => {
@@ -1152,6 +1167,64 @@ same("a stat-line creature is read from its place's book", IMPORT_KINDS.find((k)
   check("forcedPlaceHold holds a shared place for a row only once it answers for the place",
     /if \(doc && answersFor\(doc\.getFlag\(MODULE_ID, "cookbook"\), place\)\) blocks\.set\(id, doc\)/.test(hold));
   check("and the forced adventure walk scopes its places with it", /withRewrite\(\{ \.\.\.\(await forcedPlaceHold\(bookId, ids\.places\)\),/.test(source));
+}
+
+/* --- a row's block written in place: a place counts replaced only where something was written --- */
+
+{
+  const rowId = "ax1.mkt1";
+  const stamped = (text) => bookText([text], "AX 1", { id: rowId, book: "ax1", page: 1 });
+  const onPage = stamped("As the page reads.");
+  const reread = stamped("As the page reads now.");
+  const judged = stamped("As the Judge reworded it.");
+  // A block whose stamp records the page's text, so a block that differs is a Judge's edit.
+  const place = (notes, cookbook = {}) => ({
+    id: "blk00000000001",
+    uuid: "Actor.blk00000000001",
+    name: "Market",
+    documentName: "Actor",
+    system: { notes },
+    flags: { [MODULE_ID]: { cookbook: { id: rowId, blocks: [{ id: rowId, sum: blockSum(onPage) }], ...cookbook } } },
+    writes: [],
+    toObject() {
+      return structuredClone({ name: this.name, system: this.system, flags: this.flags });
+    },
+    async update(patch) {
+      this.writes.push(patch);
+      return this;
+    },
+  });
+  const run = async (doc, rows, decision = "keep") => {
+    const tally = { replaced: 0, keptProse: 0, refused: 0, handMade: 0, seen: new Set(), edits: [] };
+    await withRewrite({ held: new Map(), blocks: new Map([[rowId, doc]]), tally, decision }, async () => {
+      for (const row of rows) await writeRowBlock(doc, row);
+    });
+    return { tally, writes: doc.writes.length };
+  };
+  const counts = (r) => [r.tally.replaced, r.tally.refused, r.tally.edits.length, r.writes];
+
+  same("a place whose only difference is the Judge's edit is held: nothing written, nothing replaced, nothing refused",
+    counts(await run(place(judged), [{ id: rowId, notes: reread }])), [0, 0, 1, 0]);
+  same("the same place under a decision that takes the edit is written and counted replaced",
+    counts(await run(place(judged), [{ id: rowId, notes: reread }], "take")), [1, 0, 0, 1]);
+  same("a place whose block the page changes is written and counted replaced",
+    counts(await run(place(onPage), [{ id: rowId, notes: reread }])), [1, 0, 0, 1]);
+  same("a place that already holds the build is counted as written",
+    counts(await run(place(onPage), [{ id: rowId, notes: onPage }])), [1, 0, 0, 0]);
+  same("a held row followed by a row that writes counts the place once",
+    counts(await run(place(judged), [{ id: rowId, notes: reread }, { id: rowId, name: "Named", notes: reread }])), [1, 0, 2, 1]);
+  same("a row that writes followed by a held one counts the place once",
+    counts(await run(place(judged), [{ id: rowId, name: "Named", notes: reread }, { id: rowId, notes: reread }])), [1, 0, 2, 1]);
+  const refusing = place(onPage);
+  refusing.update = async () => {
+    throw new Error("refused");
+  };
+  const errorWas = console.error;
+  console.error = () => {};
+  const refused = await run(refusing, [{ id: rowId, notes: reread }, { id: rowId, notes: reread }]);
+  console.error = errorWas;
+  same("a write Foundry rejects is counted as left, once", [refused.tally.replaced, refused.tally.refused], [0, 1]);
+  check("outside a rewrite the write needs no tally", (await writeRowBlock(place(onPage), { id: rowId, notes: reread })).writes.length === 1);
 }
 
 /* --- ticked entries: the picker and the derivation agree --- */

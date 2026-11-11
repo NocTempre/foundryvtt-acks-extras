@@ -526,4 +526,10 @@ ok("a person's by-weapon damage moves its modifier; a die keeps its own", () => 
   assert.equal(q.items[0].system.damage.base.formula, "1d6+1");
 });
 
+ok("a person's built items carry the minted stamp, so a repair replaces them", () => {
+  const p = bindNpc({ fields: { statline: { atk: { text: "spear", throw: 9 }, dmg: "1d6" } } });
+  assert.equal(p.items.length, 1);
+  assert.ok(p.items.every((i) => i.flags["acks-extras"].minted === true));
+});
+
 console.log(`\n${passed} passed`);

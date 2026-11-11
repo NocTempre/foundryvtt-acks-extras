@@ -15,7 +15,7 @@
 import { MODULE_ID } from "./constants.mjs";
 import { stripBookText } from "./prose.mjs";
 import { keepUnrenderedFields } from "../lib/sheet-rows.mjs";
-import { decides, heldEdit } from "./held-edits.mjs";
+import { coversFigure, decides, heldEdit } from "./held-edits.mjs";
 
 /** The value at a dotted path, or undefined. */
 const getPath = (node, path) =>
@@ -208,10 +208,26 @@ export function actorPolicy(built) {
 }
 
 /** A build's embedded document, stamped as the module's so the next repair replaces it. */
-const asMinted = (doc) => ({
+export const asMinted = (doc) => ({
   ...doc,
   flags: { ...(doc.flags ?? {}), [MODULE_ID]: { ...(doc.flags?.[MODULE_ID] ?? {}), minted: true } },
 });
+
+/**
+ * The stored embedded documents with no `minted` stamp that are the build's
+ * own: each has a build document of the same type and name whose `system` it
+ * still holds (`coversFigure`). Stamped, a repair replaces them like any other
+ * minted document; a document a Judge edited, or made under a name the build
+ * does not use, differs or has no twin and is never returned.
+ * @param {object[]} have the stored documents (`toObject()` of the embedded collection)
+ * @param {object[]} built the build's documents for the same collection
+ * @returns {string[]} the `_id`s to stamp
+ */
+export function unstampedTwins(have = [], built = []) {
+  return have
+    .filter((d) => !d?.flags?.[MODULE_ID]?.minted && built.some((b) => b.type === d.type && b.name === d.name && coversFigure(d.system, b.system)))
+    .map((d) => d._id);
+}
 
 /**
  * What one repair writes, as data. Foundry-free; `refreshImported` performs it.

@@ -17,6 +17,8 @@ import {
   repairCounts,
   countRepair,
   unrepaired,
+  asMinted,
+  unstampedTwins,
 } from "../../scripts/importer/refresh.mjs";
 import { bookText } from "../../scripts/importer/prose.mjs";
 
@@ -351,5 +353,27 @@ const bioTaken = decidedPolicy(judgedSource, actorBuilt, policy, { uuid: "Actor.
 check("a decision that takes the key lifts its guard, and nothing is held", bioTaken.edits.length === 0 && !bioTaken.policy.prose.includes("details.biography"));
 check("so the plan writes the page's biography", refreshPlan(judgedSource, actorBuilt, bioTaken.policy).update.system.details.biography === actorBuilt.system.details.biography);
 check("a stamped block alone is no edit", decidedPolicy({ ...judgedSource, system: { details: { biography: stamped("Old.") } } }, actorBuilt, policy, {}).edits.length === 0);
+
+/* --- items an import left unstamped: the build's own are adopted, a Judge's never --- */
+{
+  const attack = { name: "Axe", type: "weapon", system: { damage: { base: { formula: "1d6" } }, equipped: true, melee: true } };
+  const build = [asMinted(attack)];
+  check("asMinted stamps the module's minted mark and keeps the document's own flags",
+    build[0].flags[M].minted === true && asMinted({ ...attack, flags: { other: { a: 1 }, [M]: { x: 1 } } }).flags.other.a === 1);
+  const stored = (over = {}, id = "old00000000001") => ({ _id: id, ...attack, system: { ...attack.system, weight: 0, cost: 0 }, ...over });
+  check("an unstamped item that still holds the build's figures is adopted, defaults beside them and all", unstampedTwins([stored()], build).join() === "old00000000001");
+  check("one a Judge edited is left", unstampedTwins([stored({ system: { ...attack.system, damage: { base: { formula: "1d8" } } } })], build).length === 0);
+  check("one of another name or type is left", unstampedTwins([stored({ name: "Mace" }), stored({ type: "feature" }, "old00000000002")], build).length === 0);
+  check("a stamped item is not offered again", unstampedTwins([stored({ flags: { [M]: { minted: true } } })], build).length === 0);
+  check("a build with no items adopts nothing", unstampedTwins([stored()], []).length === 0);
+  const unstamped = { type: "monster", name: "Guard", system: {}, flags: { [M]: { cookbook: { id: "x" } } }, items: [stored()] };
+  const keptAsIs = refreshPlan(unstamped, { type: "monster", system: {}, items: build }, actorPolicy({ items: build }));
+  check("unstamped, the stored item stands in for the build's and is never refreshed", keptAsIs.replace.items.remove.length === 0 && keptAsIs.replace.items.add.length === 0);
+  const adopted = refreshPlan({ ...unstamped, items: [stored({ flags: { [M]: { minted: true } } })] }, { type: "monster", system: {}, items: build }, actorPolicy({ items: build }));
+  check("stamped, a repair removes it and adds the build's", adopted.replace.items.remove.join() === "old00000000001" && adopted.replace.items.add.length === 1);
+  const judge = { _id: "mine0000000001", name: "Lantern", type: "item", system: {} };
+  const both = refreshPlan({ ...unstamped, items: [stored({ flags: { [M]: { minted: true } } }), judge] }, { type: "monster", system: {}, items: build }, actorPolicy({ items: build }));
+  check("and a Judge's own item stays", !both.replace.items.remove.includes("mine0000000001"));
+}
 
 console.log(`test-refresh: ${pass} passed`);
