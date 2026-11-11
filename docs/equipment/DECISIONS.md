@@ -2229,3 +2229,35 @@ which is the same bug without a lock.
 **What it cost.** A locked chest nobody declared reads unticked beside its own
 Contents tab. Unticking forgets the accepted kinds and the refusal, as it
 already forgot the capacity.
+
+## 2026-11-11 — A Martial Training pick grants its option's own weapons
+
+**Ruled.** A Martial Training pick (RR ch. 3) resolves to the weapons of the
+one martial option it means, and no wider (`resolveWeaponGroupPick`, ledger
+T-0497). A pick that is an option id or names one option's nouns takes that
+option's rows (`optionUnits`); a stored category key takes the one option
+whose rows all carry the category, and is itself where there is none; any
+other pick is the weapon, then the category its words name. Each result is
+spelled by `canonicalGrant`, so an option that holds a whole category writes
+the category token again. A category token also covers an item flagged with a
+class that has no row (`profiles.mjs`), which a per-weapon token does not.
+The pick vocabulary is the imported martial options, registered by
+`lib/weapons.mjs` as a provider (`registerSelectionVocab`) that
+`selectionVocabFor` asks at each call. The same ruling stops a single-weapon
+option from matching a row by its grid sub-header (docs/lib/MODEL.md, "The
+weapon seam"): the miscellaneous option's category token covered weapons the
+option does not list, and a one-weapon option held rows of its neighbours.
+
+**Rejected.** Per-weapon tokens with no `canonicalGrant`: an item flagged with
+a class that has no row would lose a grant the category token gave it. A copy
+of the option lists in the `acks.selectionVocab` registry: a Judge's override
+of `weaponLists` would never reach it, and `vocab` importing `weapons` would be
+a cycle. Keeping `listedKind("category")` as the pick's first step: it is what
+maps a weapon the option does not list to its category.
+
+**What it cost.** A legacy pick changes meaning and nothing stored is
+rewritten: a pick of a category key now grants the weapons of the option
+that holds that category alone, and a key no single option holds stays the
+category. A pick stored as the old category key still ticks the box of the option it
+resolves to, since the key is one of that option's aliases. The ability sheet's Martial
+Training list is empty until the martial options are imported, and says so.

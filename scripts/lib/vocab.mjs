@@ -401,16 +401,8 @@ export const SELECTION_VOCAB_BY_ABILITY = {
     slingsthrown: { label: "Slings & Thrown", aliases: ["slings", "thrown"] },
     spearspolearms: { label: "Spears & Polearms", aliases: ["spears", "polearms"] },
   },
-  // JJ p. 290 — Martial Training names a weapon category.
-  martialtraining: {
-    axe: { label: "Axes" },
-    sworddagger: { label: "Swords & Daggers", aliases: ["swords", "daggers"] },
-    flailhammermace: { label: "Flails, Hammers & Maces", aliases: ["flails", "hammers", "maces"] },
-    spearpolearm: { label: "Spears & Polearms", aliases: ["spears", "polearms"] },
-    bow: { label: "Bows" },
-    crossbow: { label: "Crossbows" },
-    other: { label: "Other weapons", aliases: ["other weapons"] },
-  },
+  // Martial Training (RR ch. 3) has no entry here: its picks are the printed
+  // martial options, registered by `weapons.mjs` (`registerSelectionVocab`).
   // RR p. 108 / JJ p. 291 — the five styles the loadout rules resolve.
   fightingstylespecialization: {
     single: { label: "Single Weapon", aliases: ["single weapon", "one weapon"] },
@@ -483,8 +475,32 @@ function registeredVocab(slug) {
   return entries && typeof entries === "object" ? entries : null;
 }
 
+/** The vocabulary providers, `{ abilitySlug → () => vocabulary }`. */
+const PROVIDERS = new Map();
+
 /**
- * The pick vocabulary for one ability: its own first, else its category's.
+ * Register the function that answers an ability's pick vocabulary at each call,
+ * so the entries follow the imported lists and a Judge's override of them,
+ * which a copy written into `SELECTION_VOCAB_DOC` would never see. `fn`
+ * returns `{ [key]: { label, aliases? } }`, with the meta keys of `VOCAB_META`
+ * where the family has them; an empty object where nothing is imported. A
+ * provider replaces any entry the ability has in `SELECTION_VOCAB_BY_ABILITY`
+ * and wins over the registry. Passing no function withdraws the provider.
+ *
+ * @param {string} abilitySlugKey the ability's `abilitySlug`
+ * @param {(() => object)|null} fn
+ */
+export function registerSelectionVocab(abilitySlugKey, fn) {
+  if (typeof fn === "function") PROVIDERS.set(abilitySlugKey, fn);
+  else PROVIDERS.delete(abilitySlugKey);
+}
+
+/** Does a provider answer this ability's pick vocabulary? Then an empty one means "not imported". */
+export const hasSelectionProvider = (item) => PROVIDERS.has(abilitySlug(item));
+
+/**
+ * The pick vocabulary for one ability: a registered provider's first, then its
+ * own, else its category's.
  *
  * A CLOSED family is returned as it stands. Widening one is not an oversight —
  * a fighting style the loadout rules cannot resolve would be a box that lights
@@ -493,6 +509,11 @@ function registeredVocab(slug) {
  */
 export function selectionVocabFor(item, category) {
   const slug = abilitySlug(item);
+  const provided = PROVIDERS.get(slug);
+  if (provided) {
+    const vocab = provided();
+    return vocab && typeof vocab === "object" ? vocab : {};
+  }
   const own = SELECTION_VOCAB_BY_ABILITY[slug];
   if (own) {
     const { open, ...options } = own;

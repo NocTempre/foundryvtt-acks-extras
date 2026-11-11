@@ -1920,15 +1920,20 @@ the book"); nothing ships a weapon, so before that registration, and in a world
 that imported none, every accessor answers empty. A reader never evaluates the
 table at load: the training units read it at each call, and a headless suite
 registers its own source. `listedKind(table, text)` is the one place a written
-pick (a Martial Training or Weapon Focus choice) is placed: it answers the
-single key of the imported `weaponLists` table whose nouns the phrase names,
-or null.
+Weapon Focus pick is placed: it answers the single key of the imported
+`weaponLists` table whose nouns the phrase names, or null.
 
 The printed option lists are read through the same door.
 - `resolveRows` adds `row.options`: the ids (`<list>.<n>`) of the noun-list
-  and single-weapon options that hold a row, at most one per list. They are
-  placed by the rule that places `category` (name, then grid sub-header; an
-  ambiguous match places nothing). Predicates and combinations place no row.
+  and single-weapon options that hold a row, at most one per list. A noun-list
+  option is placed by the rule that places `category` (name, then grid
+  sub-header; an ambiguous match places nothing). A single-weapon option names
+  one weapon, so it matches a row by name alone and never by sub-header.
+  Predicates and combinations place no row.
+- `optionUnits(id)` is the weapon keys whose row lists the option, in grid
+  order; empty for an unknown id, a predicate, a combination and an empty
+  import. `optionOfCategory(list, token)` is the one option whose weapons all
+  carry a category.
 - `weaponOptions()` is every imported option, flat, with its kind and cite.
 - `optionListImported(list)` says whether a list holds an option.
 - `optionVerdict(option, profile)` answers true, false or null for one weapon.
@@ -1938,6 +1943,16 @@ The printed option lists are read through the same door.
 - `categoryOptions()` maps each category token to the options that hold any of
   its rows: the provenance between the module's categories and the page's
   groups.
+- `martialOption(pick)` is the martial option a Martial Training pick means: an
+  option id, else the one option whose nouns the pick names, else the one
+  option whose weapons all carry the category the pick is. The file registers
+  the martial options as the Martial Training pick vocabulary with
+  `registerSelectionVocab("martialtraining", fn)` in `vocab.mjs`: one exact
+  entry per option, labelled with its printed words, answering to its nouns and
+  to the category keys `martialOption` resolves to it. `selectionVocabFor` asks
+  a registered provider first and at every call, so a Judge's override of the
+  lists reaches it, and `hasSelectionProvider(item)` tells the ability sheet an
+  empty answer means "not imported". `vocab` never imports `weapons`.
 
 ## Automated Animations
 

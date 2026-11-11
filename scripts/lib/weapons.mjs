@@ -25,6 +25,11 @@
  * guessed. Nothing is placed from a missing list, and nothing stands in for
  * one.
  *
+ * A single-weapon option (a restricted list's) names one weapon, and a
+ * sub-header names a family, so that option matches a row by its NAME alone and
+ * is never placed by `block`; noun-list options, categories, foci and damage
+ * types are placed by both tiers.
+ *
  * Pure: no Foundry imports. A caller passes the grid (the rows
  * `equipment/weapon-rows.mjs` publishes, or any `{ key: { name, block, … } }`)
  * and the lists (`weaponLists()`), and receives the same rows with their
@@ -34,9 +39,12 @@
  * `weaponRow`, `weaponKeys`, `keyForName`, `hasWeaponRows`, `weaponFocusGroup`
  * and `weaponThrowsAsAnyone` answer from the one source registered with
  * `registerWeaponSource`, so a reader never names where the rows live.
+ * `optionUnits` and `martialOption` read the same rows to say which weapons a
+ * printed option holds, and the file registers the Martial Training pick
+ * vocabulary (the martial options) with `vocab.mjs`.
  */
 import { expectTables, getDoc, getLayer, hasDoc, PRIORITY } from "./tables.mjs";
-import { nameKeys, slug } from "./vocab.mjs";
+import { nameKeys, registerSelectionVocab, slug } from "./vocab.mjs";
 
 /** The ruledata document the importer writes the lists into. */
 export const WEAPON_LISTS_DOC = "weaponLists";
@@ -100,13 +108,15 @@ function hitKeys(kinds, runs) {
 /**
  * The kind a row is of: by name when its name matches any kind, else by block.
  * A name that matches more than one kind places nothing, and the block is not
- * consulted then; neither is a block that matches more than one.
+ * consulted then; neither is a block that matches more than one. A key in
+ * `nameOnly` is a candidate by name and never by block.
  *
+ * @param {Set<string>} [nameOnly] the kinds the block tier leaves out
  * @returns {{key: string, via: "name"|"block"}|null}
  */
-function place(kinds, nameRuns, blockRuns) {
+function place(kinds, nameRuns, blockRuns, nameOnly) {
   for (const [via, runs] of [["name", nameRuns], ["block", blockRuns]]) {
-    const hits = hitKeys(kinds, runs);
+    const hits = hitKeys(kinds, runs).filter((key) => via === "name" || !nameOnly?.has(key));
     if (hits.length) return hits.length === 1 ? { key: hits[0], via } : null;
   }
   return null;
@@ -141,15 +151,22 @@ function listOptions(lists, list) {
 /** The id an option is known by: its list and printed number, `narrow.3`. */
 const optionId = (list, option) => `${list}.${option.n}`;
 
-/** One list's options that name kinds, `{ [id]: nouns }`: a noun list as its nouns, a restricted option as its one weapon. */
+/**
+ * One list's options that name kinds: `kinds` is `{ [id]: nouns }`, a noun list
+ * as its nouns and a restricted option as its one weapon; `nameOnly` holds the
+ * ids of the single-weapon options, which a row matches by name alone.
+ */
 function optionKinds(lists, list) {
   const kinds = {};
+  const nameOnly = new Set();
   for (const option of listOptions(lists, list)) {
     const kind = optionKind(option);
-    if (kind === "weapon") kinds[optionId(list, option)] = [option.weapon];
-    else if (kind === "nouns") kinds[optionId(list, option)] = nounsOf(option.nouns);
+    if (kind === "weapon") {
+      kinds[optionId(list, option)] = [option.weapon];
+      nameOnly.add(optionId(list, option));
+    } else if (kind === "nouns") kinds[optionId(list, option)] = nounsOf(option.nouns);
   }
-  return kinds;
+  return { kinds, nameOnly };
 }
 
 /** `grid` → `lists` → resolved rows. A list-less grid is keyed on a stand-in object. */
@@ -164,10 +181,12 @@ const NO_LISTS = Object.freeze({});
  *  - `damageType`: the damage type the combat chapter's nouns place the row
  *    under, or the throwables section's type for a flask or torch, or null
  *  - `options`: the ids (`narrow.3`) of the noun-list and single-weapon
- *    options that hold the row, at most one per option list, each placed by the
- *    same rule (name, then grid sub-header). Size and use predicates and
- *    combinations place no row; `optionVerdict` answers for them. Empty where
- *    no option list is imported
+ *    options that hold the row, at most one per option list. A noun-list option
+ *    is placed by the same rule (name, then grid sub-header); a single-weapon
+ *    option, which names one weapon, is placed by the row's name alone and
+ *    never by its sub-header. Size and use predicates and combinations place no
+ *    row; `optionVerdict` answers for them. Empty where no option list is
+ *    imported
  *  - `twoHands`: true where the descriptions say the weapon needs both hands,
  *    else null (not stated, never false)
  *  - `placedBy`: for each of `category`, `focus` and `damageType`, `"name"`,
@@ -207,8 +226,8 @@ export function resolveRows(grid, lists) {
       category: category?.key ?? null,
       focus: focus?.key ?? null,
       damageType: damageType?.key ?? null,
-      options: optionTables.flatMap((kinds) => {
-        const hit = place(kinds, nameRuns, blockRuns);
+      options: optionTables.flatMap(({ kinds, nameOnly }) => {
+        const hit = place(kinds, nameRuns, blockRuns, nameOnly);
         return hit ? [hit.key] : [];
       }),
       twoHands: row?.name && [...nameKeys(row.name)].some((k) => twoHandsKeys.has(k)) ? true : null,
@@ -273,7 +292,7 @@ export function listedKind(tableName, text) {
  * @returns {string|null} the id, `narrow.3`
  */
 export function listedOption(list, text) {
-  const hits = hitKeys(optionKinds(weaponLists(), list), runForms(wordsOf(text)));
+  const hits = hitKeys(optionKinds(weaponLists(), list).kinds, runForms(wordsOf(text)));
   return hits.length === 1 ? hits[0] : null;
 }
 
@@ -504,3 +523,77 @@ export function weaponThrowsAsAnyone(key) {
   const row = weaponRow(key);
   return !!row && _source?.throwsAsAnyone?.(key, row) === true;
 }
+
+/**
+ * The weapons a printed option holds: the keys of the rows whose placement
+ * lists `id` (`narrow.3`) among its `options`, in the source's order. Empty for
+ * an id no imported noun-list or single-weapon option has, for a predicate or
+ * a combination (which place no row, and a combination names no weapons), and
+ * where no list or no row is imported.
+ *
+ * @param {string} id
+ * @returns {string[]}
+ */
+export function optionUnits(id) {
+  const held = weaponOptions().find((o) => o.id === id);
+  if (!held || (held.kind !== "nouns" && held.kind !== "weapon")) return [];
+  return weaponKeys().filter((key) => weaponRow(key)?.options?.includes(id));
+}
+
+/**
+ * The one option of a list whose weapons all carry a category: every unit of
+ * the option, and at least one, is a row of that category. Null where no option
+ * qualifies or more than one does.
+ *
+ * @param {"restricted"|"narrow"|"broad"|"martial"} list
+ * @param {string} token a category token, in any spelling `slug` folds alike
+ * @returns {string|null} the id, `martial.3`
+ */
+export function optionOfCategory(list, token) {
+  const want = slug(token);
+  if (!want) return null;
+  const rowCategory = (key) => slug(weaponRow(key)?.cat ?? weaponRow(key)?.category);
+  const held = weaponOptions().filter((o) => {
+    if (o.list !== list) return false;
+    const units = optionUnits(o.id);
+    return units.length > 0 && units.every((key) => rowCategory(key) === want);
+  });
+  return held.length === 1 ? held[0].id : null;
+}
+
+/**
+ * The martial option a Martial Training pick means, or null: the option whose
+ * id the pick is (`martial.3`, any kind of option), else the one option whose
+ * nouns the pick names (`listedOption`), else the one option every weapon of
+ * which carries the category the pick is (`optionOfCategory`).
+ *
+ * @param {string} pick
+ * @returns {string|null} the id
+ */
+export function martialOption(pick) {
+  const text = String(pick ?? "").trim();
+  if (!text) return null;
+  const id = text.toLowerCase();
+  if (weaponOptions().some((o) => o.list === "martial" && o.id === id)) return id;
+  return listedOption("martial", text) ?? optionOfCategory("martial", text);
+}
+
+/**
+ * The Martial Training pick vocabulary: one entry per imported martial option,
+ * keyed by its id, labelled with its printed words, and answering to its nouns
+ * and to every category key a stored pick may still carry that `martialOption`
+ * resolves to it. The entries are exact: a pick names an option outright or is
+ * left as typed. Empty of entries where no martial list is imported.
+ */
+function martialVocab() {
+  const keys = Object.keys(table(weaponLists(), "category"));
+  const out = { exact: true };
+  for (const option of weaponOptions()) {
+    if (option.list !== "martial") continue;
+    const nouns = option.kind === "nouns" ? option.nouns : option.kind === "weapon" ? [option.weapon] : [];
+    out[option.id] = { label: option.label || option.id, aliases: [...nouns, ...keys.filter((key) => martialOption(key) === option.id)] };
+  }
+  return out;
+}
+
+registerSelectionVocab("martialtraining", martialVocab);

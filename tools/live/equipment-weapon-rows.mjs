@@ -295,7 +295,10 @@ const P = {
       otherClassDecided: po.cat != null && po.cat !== pa.cat,
       unplacedHasNoClass: pu.cat === null && pu.key === null,
       unplacedIsUndecidedNotRefused: H.PF.isWeaponProficient(actor, pu) === true && H.PF.weaponProficiencyDecided(actor, pu) === false,
-      pickByNounIsTheClass: noun != null && H.AB.resolveWeaponGroupPick(noun) === String(catKey).toLowerCase(),
+      pickByNounIsTheClass: noun != null && (() => {
+        const grants = H.AB.resolveWeaponGroupPick(noun);
+        return Array.isArray(grants) && grants.length > 0 && grants.some((t) => H.PF.grantMatches(t, pa));
+      })(),
       focusByNounIsTheFocus: focusKey != null && H.AB.resolveFocusPick(focusNoun) === focusKey,
       focusNounNamed: !!focusNoun,
     };
@@ -538,7 +541,7 @@ try {
   if (t.enforcementOn) check("and refused, since the list does not cover it", t.otherClassRefused, t);
   else skip("a weapon of another class is refused", "proficiency enforcement is off in this world");
   check("a weapon no row names has no class, and is proficient and undecided, never refused", t.unplacedHasNoClass && t.unplacedIsUndecidedNotRefused, t);
-  check("a Martial Training pick worded as the imported category's own noun resolves to that class", t.pickByNounIsTheClass, t);
+  check("a Martial Training pick worded as the imported category's own noun resolves to grants that cover that class's weapon", t.pickByNounIsTheClass, t);
   if (t.focusNounNamed) check("a Weapon Focus pick worded as an imported focus's noun resolves to that focus", t.focusByNounIsTheFocus, t);
   else skip("a Weapon Focus pick resolves to its focus", "the imported focus list names no noun");
 

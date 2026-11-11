@@ -955,10 +955,16 @@ its fields read the registry at every call.
   the suites bring invented rows (`tools/weapon-fixture.mjs`).
 
 What reads the rows by name or class: a launcher is told by its imported class
-(`ammo.mjs`), never by a bow's name; `abilities-bridge.mjs` places a
-Martial Training or Weapon Focus pick through `listedKind`, the imported lists'
-own nouns, else by a category's own name (`resolveWeaponGroupPick`), and a
-focus pick no imported focus names is null; `lib/proficiency-strip.mjs` keeps
+(`ammo.mjs`), never by a bow's name; `abilities-bridge.mjs` resolves a
+Martial Training pick (`resolveWeaponGroupPick`) to the grant tokens of one
+martial option's own weapons: an option id, or a phrase naming one option's
+nouns, gives `optionUnits(id)`; a stored category key gives the one option
+whose weapons all carry it (`martialOption`), else the key; any other pick is
+the weapon it names, else the category its words name. Each is spelled by
+`canonicalGrant`, so a whole category stays its token, a combination or an
+unknown id grants nothing, and with nothing imported the last two steps stand
+alone. A Weapon Focus pick goes through `listedKind`, and one no imported focus
+names is null; `lib/proficiency-strip.mjs` keeps
 only the plain spellings of a category's own name, and places a single weapon
 through its row. A weapon needs both hands where its row says so or the item
 carries core's Two-handed tag, whatever its size. Weapon Finesse reads its

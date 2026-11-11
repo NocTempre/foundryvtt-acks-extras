@@ -28,7 +28,8 @@
 import { EFFECT_PREFIX, EFFECT_DOMAINS } from "./constants.mjs";
 import { WEAPON_CATEGORY } from "./config.mjs";
 import { slug, abilitySlug, resolveLevelValue, ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
-import { forms, listedKind } from "../lib/weapons.mjs";
+import { forms, keyForName, listedKind, martialOption, optionUnits } from "../lib/weapons.mjs";
+import { CATEGORY_TOKENS, canonicalGrant, grantTokens } from "./training-view.mjs";
 
 const ABILITIES_FLAG_SCOPE = "acks-extras";
 
@@ -144,16 +145,44 @@ function categoryNamedBy(pick) {
 }
 
 /**
- * Martial-Training pick → a grant token proficiency.mjs understands: the
- * category the imported lists place the pick under, else the one whose own name
- * the pick holds, else the normalized pick itself (which grantMatches treats as
- * a named-weapon key — "Martial Training (Sword)").
+ * Martial-Training pick → the grant tokens proficiency.mjs understands, one
+ * option's own weapons and no wider (RR ch. 3):
+ *
+ *  1. A pick that is a martial option's id (`martial.3`), or names exactly one
+ *     option, is that option's weapons (`optionUnits`) as `canonicalGrant`
+ *     spells them, so a whole category collapses back to its category token (a
+ *     token also covers an item flagged with a class that has no row, which
+ *     per-weapon tokens would not). A combination holds no weapons and grants
+ *     none; an id no option has grants none. A phrase that names an option
+ *     whose weapons are not imported falls through to 2 and 3.
+ *  2. A pick that is a stored category key resolves to the one martial option
+ *     whose weapons all carry that category, spelled the same way; with no such
+ *     option, to the key itself.
+ *  3. Otherwise the weapon the pick names, else the category whose own name
+ *     the pick holds, else the normalized pick itself (which grantMatches
+ *     treats as a named-weapon key).
+ *
+ * Nothing imported resolves by 2 and 3 alone. Call-time only: it reads
+ * `training-view.mjs`, which reaches back to this file through its imports, so
+ * no top-level code here or there may read an import.
+ *
+ * @returns {string[]} the tokens, empty for no pick or an option that grants none
  */
 export function resolveWeaponGroupPick(pick) {
   const n = slug(pick);
-  if (!n) return null;
-  const category = listedKind("category", pick) ?? categoryNamedBy(pick);
-  return category ? slug(category) : n; // a named weapon, or "other"
+  if (!n) return [];
+  const asId = /^martial\.\d+$/i.test(String(pick).trim());
+  const option = martialOption(pick);
+  if (asId && !option) return [];
+  if (option) {
+    const units = optionUnits(option);
+    if (units.length || asId) return grantTokens(canonicalGrant(units));
+  }
+  if (CATEGORY_TOKENS.some((c) => c.token === n)) return [n];
+  const key = keyForName(pick);
+  if (key) return grantTokens(canonicalGrant([key]));
+  const category = categoryNamedBy(pick);
+  return [category ? slug(category) : n];
 }
 
 /**
@@ -385,7 +414,7 @@ export function bridgeContributions(actor) {
         break;
       }
       case "martialtraining": {
-        for (const pick of picksOf(item)) addStr(EFFECT_DOMAINS.MARTIAL_WEAPONS, resolveWeaponGroupPick(pick));
+        for (const pick of picksOf(item)) for (const token of resolveWeaponGroupPick(pick)) addStr(EFFECT_DOMAINS.MARTIAL_WEAPONS, token);
         break;
       }
       case "weaponfocus": {

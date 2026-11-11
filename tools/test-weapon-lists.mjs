@@ -13,8 +13,10 @@ import {
   categoryOf, optionOf, parseDealtBy, parseFocus, parseMarkedOptions, parseNouns, parseOptions, parsePrereqs, parseSelection, parseThrowable, parseTwoHands,
 } from "../scripts/importer/weapon-binding.mjs";
 import {
-  WEAPON_LISTS_DOC, WEAPON_LIST_TABLES, categoryOptions, listedOption, optionListImported, optionVerdict, registerWeaponSource, resolveRows, weaponLists, weaponOptions,
+  WEAPON_LISTS_DOC, WEAPON_LIST_TABLES, categoryOptions, listedOption, martialOption, optionListImported, optionOfCategory, optionUnits, optionVerdict, registerWeaponSource,
+  resolveRows, weaponLists, weaponOptions,
 } from "../scripts/lib/weapons.mjs";
+import { hasSelectionProvider, matchSelectionKey, nameWithSelections, selectionOptions, selectionVocabFor } from "../scripts/lib/vocab.mjs";
 import { registerTable, unregisterTable, resetTables, expectedTables, PRIORITY } from "../scripts/lib/tables.mjs";
 import * as services from "../scripts/lib/services.mjs";
 import { TABLE_RECIPES } from "../scripts/importer/table-recipes.mjs";
@@ -285,12 +287,26 @@ eq("the placements say what placed them", [out.zork.placedBy, out.snarf.placedBy
 eq("the row's own figures ride through", [out.zork.name, out.zork.block, out.zork.cite], ["Zork", "Gizmos", "p.1"]);
 check("the grid is not changed", !("category" in grid.zork) && !("options" in grid.zork));
 
+{
+  const byBlock = resolveRows({ gizmo: { name: "Gizmo", block: "Zorks" }, zork: grid.zork }, L);
+  eq("a row whose sub-header names a weapon's noun stays off that single-weapon option and joins the noun option", [byBlock.gizmo.options, byBlock.zork.options], [["narrow.1"], ["restricted.1", "narrow.1"]]);
+  eq(
+    "the other tables still place by the sub-header",
+    [byBlock.gizmo.category, byBlock.gizmo.focus, byBlock.gizmo.damageType, byBlock.gizmo.placedBy],
+    ["zork", "zorksblorps", "gooey", { category: "block", focus: "block", damageType: "block" }],
+  );
+  const mixed = { options: { restricted: { options: [{ n: 1, label: "zork", weapon: "zork" }] }, narrow: { options: [{ n: 1, label: "any zorks", nouns: ["zorks"] }] } } };
+  eq("a block naming a weapon option and a noun option counts only the noun option", resolveRows({ gizmo: { name: "Gizmo", block: "Zorks" } }, mixed).gizmo.options, ["narrow.1"]);
+  const twice = { options: { restricted: { options: [{ n: 1, label: "zork", weapon: "zork" }, { n: 2, label: "gizmo", weapon: "gizmo" }] } } };
+  eq("a name naming two single-weapon options places neither", resolveRows({ both: { name: "Zork Gizmo", block: null } }, twice).both.options, []);
+}
+
 const optsOf = (k) => out[k].options;
 eq("a name places a row on the noun option of each list that holds it", optsOf("zork"), ["restricted.1", "narrow.1"]);
 eq("a run of the name's words places it", optsOf("grandzork"), ["restricted.1", "narrow.1"]);
 eq("a single-weapon option and a noun option place the same row apart", optsOf("flib"), ["restricted.2", "narrow.2"]);
 eq("a plural noun places a singular name", optsOf("blorp"), ["narrow.2"]);
-eq("a block that names two options of one list places nothing in it, one in another", optsOf("snarf"), ["restricted.1"]);
+eq("a block that names two noun options of one list places nothing in it, and a single-weapon option is not placed by a block", optsOf("snarf"), []);
 eq("a block places a row whose name places nothing", optsOf("thing"), ["martial.1"]);
 eq("a row nothing places holds no option", optsOf("orphan"), []);
 eq("a name naming two options of one list places nothing in it, and the block is not asked", optsOf("both"), ["martial.1"]);
@@ -338,6 +354,7 @@ eq("withdrawing the import leaves none", weaponLists(), null);
 
 eq("no lists, no options and no list imported", [weaponOptions(), optionListImported("narrow")], [[], false]);
 eq("no lists, no phrase names an option", listedOption("narrow", "zorks"), null);
+eq("no lists, no option holds a weapon", optionUnits("narrow.1"), []);
 registerTable({ id: WEAPON_LISTS_DOC, tables: { options: L.options } }, { priority: PRIORITY.WORLD });
 const flat = weaponOptions();
 const by = (id) => flat.find((o) => o.id === id);
@@ -363,9 +380,12 @@ eq("the registered source's rows answer when none is passed", [categoryOptions({
 const rowsSeen = registerWeaponSource({ rows: out });
 eq(
   "a noun or single-weapon option covers the rows placed on it",
-  [optionVerdict(by("narrow.1"), { key: "zork" }), optionVerdict(by("narrow.1"), { key: "blorp" }), optionVerdict(by("restricted.1"), { key: "snarf" }), optionVerdict(by("martial.1"), { key: "thing" })],
-  [true, false, true, true],
+  [optionVerdict(by("narrow.1"), { key: "zork" }), optionVerdict(by("narrow.1"), { key: "blorp" }), optionVerdict(by("restricted.1"), { key: "zork" }), optionVerdict(by("restricted.1"), { key: "snarf" }), optionVerdict(by("martial.1"), { key: "thing" })],
+  [true, false, true, false, true],
 );
+eq("a single-weapon option holds the rows its name places and no block's", [optionUnits("restricted.1"), optionUnits("restricted.2")], [["zork", "grandzork"], ["flib"]]);
+eq("a noun option holds the rows its nouns place by name or by block, in grid order", [optionUnits("narrow.1"), optionUnits("narrow.2"), optionUnits("martial.1")], [["zork", "grandzork"], ["flib", "blorp"], ["thing", "both"]]);
+eq("a predicate, a combination, an unknown id and no id hold no weapon", [optionUnits("narrow.3"), optionUnits("narrow.4"), optionUnits("nope.1"), optionUnits(undefined)], [[], [], [], []]);
 eq("no weapon identity, no such row or no profile is no answer", [optionVerdict(by("narrow.1"), {}), optionVerdict(by("narrow.1"), { key: "nope" }), optionVerdict(by("narrow.1"), null)], [null, null, null]);
 eq("a combination covers nothing by itself", optionVerdict(by("narrow.4"), { key: "zork", melee: true, size: "small" }), false);
 eq("a predicate reads the size and the use", [
@@ -399,5 +419,78 @@ unregisterTable(WEAPON_LISTS_DOC, { priority: PRIORITY.OVERRIDE });
 eq("withdrawing the override restores the import's options", weaponOptions().length, 7);
 unregisterTable(WEAPON_LISTS_DOC);
 eq("withdrawing the import leaves none", weaponOptions(), []);
+
+/* ------------------------------ the martial pick ------------------------------ */
+
+{
+  const martialItem = { name: "Martial Training", flags: { "acks-extras": { cookbook: { id: "def.prof.martialTraining" } } } };
+  const vocabOf = () => selectionVocabFor(martialItem, "proficiency");
+  const entries = () => selectionOptions(vocabOf());
+  check("the martial provider is registered by the lib", hasSelectionProvider(martialItem));
+  eq("nothing imported, no entry and no option to tick", [entries(), martialOption("martial.1"), martialOption("zorks")], [[], null, null]);
+
+  registerTable(
+    {
+      id: WEAPON_LISTS_DOC,
+      tables: {
+        category: { zork: ["zorks"], blorpFlib: ["blorps", "flibs"], other: ["dorbs"] },
+        options: {
+          martial: {
+            cite: "RR p.2",
+            options: [
+              { n: 1, marker: "1", label: "zorks", nouns: ["zorks"] },
+              { n: 2, marker: "2", label: "blorps, flibs", nouns: ["blorps", "flibs"] },
+              { n: 3, marker: "3", label: "any combination of 2", any: 2 },
+              { n: 4, marker: "4", label: "dorbs, quuxes", nouns: ["dorbs", "quuxes"] },
+            ],
+          },
+        },
+      },
+    },
+    { priority: PRIORITY.WORLD },
+  );
+  const rows = {
+    z1: { cat: "zork", options: ["martial.1"] },
+    z2: { cat: "zork", options: ["martial.1"] },
+    b1: { cat: "blorpFlib", options: ["martial.2"] },
+    f1: { cat: "blorpFlib", options: ["martial.2"] },
+    d1: { cat: "other", options: ["martial.4"] },
+    q1: { cat: "other", options: ["martial.4"] },
+    lone: { cat: "other", options: [] },
+  };
+  const before = registerWeaponSource({ rows });
+
+  eq("a pick is an option's id, in any case", [martialOption("martial.2"), martialOption("Martial.3")], ["martial.2", "martial.3"]);
+  eq("a pick naming one option's noun is that option, plural or not", [martialOption("zork"), martialOption("flibs"), martialOption("Quux")], ["martial.1", "martial.2", "martial.4"]);
+  eq("a category key no option's nouns name resolves to the one option whose weapons all carry it", [martialOption("other"), martialOption("blorpFlib"), martialOption("blorpflib")], ["martial.4", "martial.2", "martial.2"]);
+  eq("an empty pick and an unnamed pick are no option", [martialOption(""), martialOption(undefined), martialOption("grub")], [null, null, null]);
+  eq("a category the weapons of one option all carry is that option; one nothing carries, and an empty one, is none",[optionOfCategory("martial", "zork"), optionOfCategory("martial", "nothing"), optionOfCategory("martial", "")], ["martial.1", null, null]);
+  registerWeaponSource({ rows: { ...rows, b1: { cat: "zork", options: ["martial.2"] }, f1: { cat: "zork", options: ["martial.2"] } } });
+  eq("a category held by two options is no option", optionOfCategory("martial", "zork"), null);
+  registerWeaponSource({ rows });
+
+  eq("the vocabulary is one entry per martial option, labelled with its printed words", entries().map(([key, def]) => [key, def.label]), [
+    ["martial.1", "zorks"],
+    ["martial.2", "blorps, flibs"],
+    ["martial.3", "any combination of 2"],
+    ["martial.4", "dorbs, quuxes"],
+  ]);
+  eq("each answers to its nouns and to the category keys that resolve to it", entries().map(([, def]) => def.aliases), [["zorks", "zork"], ["blorps", "flibs", "blorpFlib"], [], ["dorbs", "quuxes", "other"]]);
+  check("the entries are exact, so a pick that names no option stays as typed", vocabOf().exact === true && matchSelectionKey(vocabOf(), "sword") === null);
+  const same = (pick) => matchSelectionKey(vocabOf(), pick) === martialOption(pick);
+  check("every legacy category key and noun ticks the box of the option the resolver reaches", ["zork", "blorpFlib", "other", "zorks", "flibs", "quuxes", "martial.3"].every(same));
+
+  const named = nameWithSelections("Martial Training", ["martial.2"], vocabOf());
+  eq("the name carries the label", named, "Martial Training (blorps, flibs)");
+  const fragments = /\(([^)]+)\)\s*$/.exec(named)[1].split(",").map((s) => s.trim()).filter(Boolean);
+  eq("and the comma-split fragments each resolve to the same option", fragments.map(martialOption), ["martial.2", "martial.2"]);
+
+  registerTable({ id: WEAPON_LISTS_DOC, tables: { options: { martial: { options: [{ n: 1, label: "zorks", nouns: ["zorks"] }] } } } }, { priority: PRIORITY.OVERRIDE });
+  eq("a Judge's override of the lists reaches the vocabulary at once", entries().map(([key]) => key), ["martial.1"]);
+  unregisterTable(WEAPON_LISTS_DOC, { priority: PRIORITY.OVERRIDE });
+  unregisterTable(WEAPON_LISTS_DOC);
+  registerWeaponSource(before);
+  eq("withdrawn, the vocabulary is empty again and is still the provider's", [entries(), hasSelectionProvider(martialItem)], [[], true]);
+}
 
 console.log(`test-weapon-lists: ${pass} checks passed`);

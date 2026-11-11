@@ -1958,12 +1958,64 @@ check("the bridge leaves typed initiative to the loadout",
 
 // Pick resolvers.
 check("resolveStylePick handles 'Weapon and Shield'", resolveStylePick("Weapon and Shield") === "weaponshield");
-check("resolveWeaponGroupPick: crossbows before bows", resolveWeaponGroupPick("Crossbows") === "crossbow");
-check("resolveWeaponGroupPick: a named weapon passes through", resolveWeaponGroupPick("Sword") === "sworddagger" || resolveWeaponGroupPick("Whip") === "whip");
+check("resolveWeaponGroupPick: crossbows before bows", resolveWeaponGroupPick("Crossbows").join() === "crossbow");
+check("resolveWeaponGroupPick: a named weapon is that weapon alone, not its category", resolveWeaponGroupPick("Sword").join() === "sword" && resolveWeaponGroupPick("Whip").join() === "whip");
 check("resolveFocusPick maps bows and crossbows together", resolveFocusPick("Bows & Crossbows") === "bowscrossbows");
 check("resolveFocusPick answers null for a pick no imported focus names", resolveFocusPick("Zorgle") === null && resolveFocusPick("") === null);
 check("resolveFocusPick takes an imported focus key as written", resolveFocusPick("axes") === "axes");
-check("resolveWeaponGroupPick reads a category by its own name when the lists do not place the pick", resolveWeaponGroupPick("Thrown Spears and Polearms") === "spearpolearm" && resolveWeaponGroupPick("Zorgle") === "zorgle" && resolveWeaponGroupPick("") === null);
+check("resolveWeaponGroupPick reads a category by its own name when the lists do not place the pick", resolveWeaponGroupPick("Thrown Spears and Polearms").join() === "spearpolearm" && resolveWeaponGroupPick("Zorgle").join() === "zorgle" && resolveWeaponGroupPick("").length === 0);
+
+// A Martial Training pick grants its option's own weapons, built through the real
+// path: the grid and the lists registered, the rows placed by the resolver. The
+// nouns and names are invented; the category tokens are the module's own. Rows
+// outside every option keep each size and use bucket from covering a whole option.
+{
+  const { registerWeaponSource: useSource } = await import(new URL("../lib/weapons.mjs", S));
+  const { librarySource, WEAPONS_DOC, WEAPONS_TABLE } = await import(new URL("weapon-source.mjs", S));
+  const row = (name, size, use) => ({ name, block: null, size, melee: use === "m", missile: use === "r" });
+  const GRID = {
+    zorg: row("Zorg", "small", "m"), greatzorg: row("Great Zorg", "large", "m"), blorp: row("Blorp", "medium", "r"), flib: row("Flib", "small", "r"),
+    hurl: row("Hurl", "small", "r"), quux: row("Quux", "tiny", "m"), dorb: row("Dorb", "medium", "m"), stray: row("Stray", "medium", "m"),
+    plain: row("Plain", "large", "m"), filler: row("Filler", "small", "m"), speck: row("Speck", "tiny", "m"),
+  };
+  const CATEGORY = { axe: ["zorgs"], bow: ["blorps"], crossbow: ["flibs"], other: ["quuxes", "dorbs", "hurls", "strays"] };
+  const MARTIAL = {
+    martial: {
+      options: [
+        { n: 1, marker: "1", label: "zorgs", nouns: ["zorgs"] },
+        { n: 2, marker: "2", label: "blorps, flibs", nouns: ["blorps", "flibs"] },
+        { n: 3, marker: "3", label: "any combination of 2", any: 2 },
+        { n: 4, marker: "4", label: "quuxes, dorbs, hurls", nouns: ["quuxes", "dorbs", "hurls"] },
+      ],
+    },
+  };
+  const layer = { priority: PRIORITY.OVERRIDE, source: "martial-test" };
+  const previous = useSource(librarySource);
+  registerTable({ id: WEAPONS_DOC, tables: { [WEAPONS_TABLE]: GRID } }, layer);
+  registerTable({ id: "weaponLists", tables: { category: CATEGORY, options: MARTIAL } }, layer);
+  const pick = (p) => resolveWeaponGroupPick(p).join();
+  try {
+    check("an option's id resolves to its own weapons", pick("martial.4") === "dorb,hurl,quux");
+    check("a phrase naming one option's nouns resolves the same way", pick("quuxes and dorbs") === "dorb,hurl,quux" && pick("Hurl") === "dorb,hurl,quux");
+    check("an option holding a whole category collapses to its category token", pick("martial.1") === "axe" && pick("zorgs") === "axe");
+    check("an option over two categories is both tokens", pick("martial.2") === "bow,crossbow" && pick("blorps") === "bow,crossbow");
+    check("a legacy category key resolves through the one option whose weapons all carry it, and never to the category's other weapons", pick("other") === "dorb,hurl,quux" && pick("axe") === "axe");
+    check("a legacy key no single option holds stays the key itself", pick("bow") === "bow" && pick("crossbow") === "crossbow" && pick("sworddagger") === "sworddagger");
+    check("a combination grants nothing, and so does an id no option has", pick("martial.3") === "" && pick("martial.9") === "" && resolveWeaponGroupPick("martial.3").length === 0);
+    check("a pick no option names is the weapon, else the category named, else the pick", pick("Stray") === "stray" && pick("Crossbows") === "crossbow" && pick("Zorgle") === "zorgle");
+    const grants = (...selections) => [...collectStringFlags(withItems([abil("Martial Training", "def.prof.martialTraining", { selections })]), "martialWeapons")].sort().join();
+    check("the bridge writes every token of every pick", grants("martial.4", "martial.1") === "axe,dorb,hurl,quux");
+    const swordish = withItems([abil("Martial Training", "def.prof.martialTraining", { selections: ["martial.4"] })]);
+    swordish.getFlag = (_m, k) => (k === "weaponProficiency" ? "axe" : undefined);
+    const covered = (name, flags) => isWeaponProficient(swordish, classifyWeapon(weapon(name, flags)));
+    check("a pick covers its own weapons and not the rest of the category it shares", covered("Hurl", { missile: true }) === true && covered("Stray", { melee: true }) === false);
+  } finally {
+    unregisterTable("weaponLists", layer);
+    unregisterTable(WEAPONS_DOC, layer);
+    useSource(previous);
+  }
+  check("nothing imported, the pick falls back without throwing", pick("martial.4") === "" && pick("other") === "other" && pick("Crossbows") === "crossbow" && pick("axes") === "axe");
+}
 
 /* ---------------------------------------------------------------------- */
 /*  Paper Doll placement planner (sheet → doll mirror)                      */

@@ -124,6 +124,16 @@
 
 ### Changed
 
+- **A Martial Training pick grants the weapons its option lists.** A pick of
+  one of the book's Martial Training options (the ability's sheet → Mechanics
+  tab) grants exactly the weapons that option names, read from your book, and
+  the whole category only where the option holds all of it. A pick stored as
+  the miscellaneous category now covers that option's weapons alone, so a
+  weapon of the category the option does not list is no longer trained by it;
+  nothing stored is rewritten. A restricted option that names one weapon now
+  matches that weapon only, where it had also taken in the weapons sharing its
+  heading in the weapons table. With nothing imported, the Mechanics tab says
+  the options are not imported.
 - **The party check reads each character's own throw.** Party sheet → Order
   tab → Skill audit, and the party's Search and Listen rolls, take each
   member's target from the same throw the ability's own sheet and the character

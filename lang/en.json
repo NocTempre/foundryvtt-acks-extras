@@ -1509,6 +1509,7 @@
   "ACKS-ABILITIES.mech.selectionsPlaceholder": "e.g. Axes, Sword",
   "ACKS-ABILITIES.mech.selectionsHint": "What each take chose, comma-separated and order-aligned with Times Taken - the weapon group, style, discipline, or other pick this ability spends its takes on. Leave blank for abilities where a repeat deepens a rank instead of widening a list.",
   "ACKS-ABILITIES.mech.selectionsBoxHint": "Tick the standard picks;",
+  "ACKS-ABILITIES.mech.selectionsNotImported": "Not imported: import your books to list these options.",
   "ACKS-ABILITIES.mech.selectionsWeaponHint": "A size box covers every melee weapon of that size and the missile box every missile weapon. A single weapon is typed by name in the line and stays as typed: a box is a whole group, so \"sword\" is the one weapon and \"swords\" ticks the group.",
   "ACKS-EQUIPMENT": {
     "attack": {

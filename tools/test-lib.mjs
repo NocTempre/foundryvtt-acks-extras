@@ -2658,11 +2658,33 @@ t("a template's own phrasing lands on the pick the mechanics read", () => {
 });
 
 t("a pick naming one entry outright is never claimed by another's substring", () => {
-  const martial = vocab.SELECTION_VOCAB_BY_ABILITY.martialtraining;
-  // "crossbow" contains "bow"; the exact pass has to run over the WHOLE
+  const options = { zorb: { label: "Zorbs" }, crosszorb: { label: "Crosszorbs" } };
+  // "crosszorb" contains "zorb"; the exact pass has to run over the WHOLE
   // vocabulary before any loose match, or order decides the answer.
-  assert.equal(vocab.matchSelectionKey(martial, "crossbow"), "crossbow");
-  assert.equal(vocab.matchSelectionKey(martial, "bow"), "bow");
+  assert.equal(vocab.matchSelectionKey(options, "crosszorb"), "crosszorb");
+  assert.equal(vocab.matchSelectionKey(options, "zorb"), "zorb");
+});
+
+t("a registered provider answers an ability's vocabulary, and no static copy of Martial Training remains", () => {
+  assert.equal(vocab.SELECTION_VOCAB_BY_ABILITY.martialtraining, undefined);
+  const item = abilityWith("def.prof.zorbTraining");
+  assert.equal(vocab.hasSelectionProvider(item), false);
+  assert.equal(vocab.selectionVocabFor(item, "proficiency"), null);
+  let live = { one: { label: "One" } };
+  vocab.registerSelectionVocab("zorbtraining", () => live);
+  try {
+    assert.equal(vocab.hasSelectionProvider(item), true);
+    assert.deepEqual(vocab.selectionVocabFor(item, "proficiency"), { one: { label: "One" } });
+    live = { two: { label: "Two" } };
+    assert.deepEqual(Object.keys(vocab.selectionVocabFor(item, "proficiency")), ["two"], "read at every call");
+    live = null;
+    assert.deepEqual(vocab.selectionVocabFor(item, "proficiency"), {}, "a provider with nothing is an empty vocabulary");
+    // The provider wins over the registry and the category's own.
+    assert.deepEqual(vocab.selectionVocabFor(item, "fightingStyle"), {});
+  } finally {
+    vocab.registerSelectionVocab("zorbtraining", null);
+  }
+  assert.equal(vocab.hasSelectionProvider(item), false);
 });
 
 t("a pick the shortlist does not name stays free text", () => {
@@ -2710,9 +2732,6 @@ t("weapon proficiency: a single named weapon is never widened to its group", () 
     vocab.nameWithSelections("Weapons", ["missile:all", "melee:tiny", "dagger"], weapons),
     "Weapons (All missile weapons, Tiny melee, dagger)",
   );
-  // Exactness is the weapon family's: Martial Training grants a CATEGORY by
-  // rule, so there a weapon's name still widens to the group it belongs to.
-  assert.equal(vocab.matchSelectionKey(vocab.SELECTION_VOCAB_BY_ABILITY.martialtraining, "Sword"), "sworddagger");
 });
 
 t("the (spec) suffix is derived from the pick, and replaced rather than stacked", () => {

@@ -1300,7 +1300,8 @@ the first placed row of another class), so no name is written in the walk.
    *Observable:* the listed weapon is proficient and decided; the other class
    is decided and refused (where enforcement is on); the unplaced weapon has no
    key and no class and is proficient and undecided; a Martial Training pick
-   worded as the imported category's own noun resolves to that class, and a
+   worded as the imported category's own noun resolves to grants that cover
+   that class's weapon, and a
    Weapon Focus pick worded as an imported focus's noun resolves to it.
 6. On the holy character: classify the two items, read `equipmentClass`.
    *Observable:* both are kind rows that throw as anyone, the torch is a light,

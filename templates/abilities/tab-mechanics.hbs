@@ -85,6 +85,8 @@
         </label>
         {{/each}}
       </div>
+      {{else if selectionsNotImported}}
+      <p class="hint">{{localize "ACKS-ABILITIES.mech.selectionsNotImported"}}</p>
       {{/if}}
       <div class="form-fields">
         <input type="text" name="{{x}}.selections" value="{{selectionsCSV}}"

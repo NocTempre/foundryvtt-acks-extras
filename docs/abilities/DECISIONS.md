@@ -499,6 +499,11 @@ core restyles a die.
 
 ### A weapon proficiency's boxes are the grant grammar, and a weapon's name is not a group (2026-09-03)
 
+> **Superseded in part 2026-11-11** by equipment DECISIONS "A Martial Training
+> pick grants its option's own weapons": a Martial Training pick grants the
+> weapons its printed option lists, not a category by rule. The exact match for
+> the weapon-proficiency family stands.
+
 **Asked.** A class trained in every missile weapon and every melee weapon up to
 medium size opened its Weapons proficiency on eight boxes — seven categories
 and Unarmed — with nowhere to say missile, or a size. Typed into the line
