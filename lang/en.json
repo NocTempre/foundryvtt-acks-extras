@@ -4907,7 +4907,7 @@
   "ACKS-HENCHMEN.command.recruit": "Open the recruitment board",
   "ACKS-HENCHMEN.command.noLocations": "No recruitment locations exist yet. Create a Location actor first.",
   "ACKS-HENCHMEN.setting.daysPerMonth": "Days per game month",
-  "ACKS-HENCHMEN.setting.daysPerMonthHint": "Used for wage cycles and monthly availability rolls (default 30).",
+  "ACKS-HENCHMEN.setting.daysPerMonthHint": "Used for wage cycles and monthly availability rolls (JJ ch. 3, Campaign Turn).",
   "ACKS-HENCHMEN.setting.autoRollCalamity": "Auto-roll loyalty on calamity",
   "ACKS-HENCHMEN.setting.autoRollCalamityHint": "Skip the GM prompt and roll the secret loyalty check immediately when a calamity is detected.",
   "ACKS-HENCHMEN.setting.enforceHenchmanLimit": "Henchman limit enforcement",

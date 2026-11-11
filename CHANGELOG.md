@@ -182,6 +182,10 @@
 - **The Level-up hit points setting says what it does.** Its description, in
   Settings tab → Game Settings → ACKS II — Extras, restated the rule; it now
   names the two ways the level-up wizard can roll and points at the page.
+- **The Days per game month setting stops misstating its default.** Its
+  description, in Settings tab → Game Settings → ACKS II — Extras, named a
+  default the setting does not start at; it now points at the page the month
+  comes from.
 - **A helmet no longer takes the armour's AC away.** A helmet equipped after the
   suit was read as the character's armour, so Armour Class dropped by the suit's
   whole figure: the system reads the last armour put on. The suit's AC now

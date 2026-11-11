@@ -13,7 +13,7 @@ export function registerSettings() {
     scope: "world",
     config: true,
     type: Number,
-    default: 28, // 4 weeks — the no-calendar market cadence
+    default: 28, // four weekly stages to a month: JJ ch. 3, Campaign Turn
   });
   reg("autoRollCalamity", {
     name: "ACKS-HENCHMEN.setting.autoRollCalamity",
