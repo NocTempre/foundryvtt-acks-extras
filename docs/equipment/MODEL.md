@@ -958,10 +958,13 @@ reader's own book gave them. Nothing falls back to a shipped number.
   row per `lib/vocab.mjs` `DAMAGE_TYPES` key but `varies`, each row's
   `materials` read by the `wordList` cell pattern). `planItemLoss` takes both
   as arguments, defaulting to the registry, and returns the split: `destroyed`
-  (a light item), `damaged` (a heavy one, with the stones of damage it took
-  and the `acLost` of its full stones, armour only) and `unplaced` (a weight
-  between the two bounds, which the page states no case for; it spends
-  nothing and is the Judge's). With any figure or the table unread the plan is
+  (a light item the budget left covers whole), `marred` (a light item reached
+  with less budget than its weight: it takes what is left, nothing changes,
+  and the budget ends there), `damaged` (a heavy one, with the stones of
+  damage it took and the `acLost` of its full stones, armour only; under one
+  full stone it is listed with `stones: 0` and changes nothing) and `unplaced`
+  (a weight between the two bounds, which the page states no case for; it
+  spends nothing and is the Judge's). With any figure or the table unread the plan is
   `ready: false`, plans nothing and names what to import; an unread type row is
   null from `isVulnerable`, which is not "nothing vulnerable". The materials
   picker and the Materials note on the Construction tab read the same table
@@ -971,14 +974,25 @@ reader's own book gave them. Nothing falls back to a shipped number.
   with a tooltip per figure, and on a yes `applyItemLoss`. A write is the
   item's existing condition and nothing more: a light item gets the
   `destroyed` flag (`actions.mjs` `setDestroyed`, which the sheet's Mark
-  destroyed button shares), and a heavy armour has its `acLost` merged into the
-  one `scavenged` record (`loseArmourClass`), so the Durability tab's AC line
-  and `clearScavenged` already follow it. The Durability tab adds an Item loss
-  fact (the item's class against the imported weights, its tooltip the weight,
-  the bounds and the page) only while the overlay is on. The setting gates the
-  dialog, the write and that fact; `planItemLoss` itself is pure. The damage
-  stones a heavy item took are not stored: only full stones act, each hit is
-  judged alone, and a part of a stone changes nothing the module tracks.
+  destroyed button shares), and a heavy armour has its `acLost` added to the
+  `itemLossAc` flag (`loseArmourClass` → `setItemLossAc`). That is a layer of
+  its own in `properties.mjs` (`itemLossAcOf`, subtracted in `layerDeltas`, an
+  `itemLossAc` override and an `anyLayer` member in `recomputeItemFields`), so
+  a scavenged roll, pick or clear, which rewrite the whole `scavenged` record,
+  never touch it. `clearScavenged` is therefore not a repair of item loss: no
+  page prints one, so only `setItemLossAc(item, 0)` lowers it, and the sheet
+  has no control for that. The Durability tab's AC line reads full as the
+  baseline plus the masterwork, silver and variation layers (neither wear
+  layer), its `damaged` tag also stands on item loss, and its tooltip names
+  the full figure, the scavenged condition and item loss, the last with the
+  page the AC per stone was read from. A plan entry that changes nothing
+  writes nothing, and `applyItemLoss` counts as `damaged` only the armour whose
+  AC changed. The Durability tab adds an Item loss fact (the item's class
+  against the imported weights, its tooltip the weight, the bounds and the
+  page) only while the overlay is on. The setting gates the dialog, the write
+  and that fact; `planItemLoss` itself is pure. The damage stones a heavy item
+  took are not stored (DECISIONS, "Partial damage is not stored"): only full
+  stones act, and each hit is judged alone (JJ p. 398).
 - **Armour limits on abilities — `armour-limits.mjs`** (JJ ch. 12,
   Limitations on Thief Skill Usage, folio 292). The class-builder doc carries a
   `thiefLimits` table, a `proseValues` read of three parts: the armour the page
@@ -1008,6 +1022,30 @@ reader's own book gave them. Nothing falls back to a shipped number.
   Worn & Wielded header lists them, its tooltip saying where the figures came
   from (the Judge's override, the page, or "not imported" with no figure).
   Nothing imported is nothing blocked: the abilities read as undecided.
+- **Special maneuvers** (`overlays/maneuvers.mjs`, gated by `overlayManeuvers`).
+  Five `equipment` tables, each a `proseValues` read: `maneuverDisarm` (RR 305:
+  disarm's penalty and the save bonus a two-handed grip earns the target),
+  `maneuverPenalties` (RR 306: the other penalties, with sunder's second figure
+  for a shaft read from the words before the weapon it names),
+  `combatTrickery` (RR 109: the reduction, the save modifier and the larger
+  reduction for a maneuver with no save), `maneuverQualities` (RR 127: the
+  bonus of Entangling, Flexible and Incapacitating) and `hookedWeapon` (MM 56:
+  the hooked weapon's reduction and save modifier). `MANEUVERS` holds only the
+  procedure: the label, the save, whether it damages, whether size adjusts it
+  and `shaftVariant` for sunder. Which qualities help which maneuvers, that
+  Trickery takes the no-save reduction where there is no save, and that a
+  hooked weapon counts only for disarm are code. `maneuverMods` sums the parts
+  that apply and returns `attackPenalty` and `targetSaveMod` as null when a
+  part that applies is not imported (never the parts that did read), with
+  `missing` naming each `<table>.<field>` and `parts` the read ones with their
+  table. `attackThrowRows` leaves a null penalty off the throw, as the
+  non-proficient package does. The Rolls tab's manoeuvre rows show the penalty
+  this actor's Trickery and this weapon's qualities give, its tooltip naming
+  the parts and the pages (`citeOf`, or "set in the Ruledata Browser" for an
+  override); with a part unread the row says "penalty not imported" with no
+  figure, stays rollable, and the roll warns which tables it went without. The
+  `hooked`, `targetShaft` and `targetTwoHanded` options have no caller in the
+  module: they are API only.
 
 ## Weapon rows read from the book — `weapon-source.mjs`
 

@@ -17,7 +17,7 @@ import {
   tableFor, accumulate, needsReroll, SCAVENGED_TABLES,
   importedTable, importedNeedsReroll, accumulateImported, importedRow, rowToEffects,
 } from "./overlays/scavenged.mjs";
-import { recomputeItemFields, withFlatDelta, damageFormulaOf, scavengedOf } from "./properties.mjs";
+import { recomputeItemFields, withFlatDelta, damageFormulaOf, scavengedOf, itemLossAcOf } from "./properties.mjs";
 import { unset } from "../lib/util.mjs";
 import { skipDialogFor } from "../lib/roll-dialog.mjs";
 
@@ -435,7 +435,11 @@ export function rollScavengedD20s(tableKey, roll = rollD20) {
   return rolls;
 }
 
-/** Clear a scavenged condition; the fields fall back to the remaining layers. */
+/**
+ * Clear a scavenged condition; the fields fall back to the remaining layers,
+ * which include any armour class item loss has taken (`setItemLossAc`): this
+ * is not the repair of that loss.
+ */
 export async function clearScavenged(item) {
   await recomputeItemFields(item, { scavenged: null });
   await item.unsetFlag?.(MODULE_ID, "scavenged");
@@ -450,20 +454,29 @@ export async function setScavenged(item, cond) {
 }
 
 /**
- * Take armour class off an armour or shield by merging it into the item's one
- * condition record, so it shows on the Durability tab beside every other
- * condition and `clearScavenged` repairs it. The rest of the record stays as it
- * was. False when the item is not armour or the amount is not above zero.
+ * Set the armour class an armour or shield has lost to item loss, as a count
+ * (0 clears it). It is its own layer under its own flag: a scavenged roll,
+ * pick or clear never touches it, and nothing but this writer removes it. The
+ * item's fields are recomputed from the pristine baseline. False when the item
+ * is not armour.
+ */
+export async function setItemLossAc(item, total) {
+  if (!item || item.type !== ITEM_TYPE.armor) return false;
+  const lost = Math.max(0, Number(total) || 0);
+  await recomputeItemFields(item, { itemLossAc: lost });
+  if (lost > 0) await item.setFlag?.(MODULE_ID, ITEM_FLAGS.ITEM_LOSS_AC, lost);
+  else await item.unsetFlag?.(MODULE_ID, ITEM_FLAGS.ITEM_LOSS_AC);
+  return true;
+}
+
+/**
+ * Take armour class off an armour or shield: the amount adds to what item loss
+ * has already cost it. False when the item is not armour or the amount is not
+ * above zero.
  */
 export async function loseArmourClass(item, amount) {
   if (!item || item.type !== ITEM_TYPE.armor || !(amount > 0)) return false;
-  const held = scavengedOf(item) ?? {};
-  await setScavenged(item, {
-    labels: [], damage: 0, attack: 0, initiative: 0, encumbrance: 0, breaks: false, cannotSneak: false, notes: [], valueMultiplier: 1,
-    ...held,
-    ac: (held.ac ?? 0) - amount,
-  });
-  return true;
+  return setItemLossAc(item, itemLossAcOf(item) + amount);
 }
 
 /** Mark an item destroyed (or restore it): struck through and tagged on its sheet, still carried. */

@@ -217,7 +217,7 @@ export function buildItemSheetModel(snap, viewer = {}) {
     glyph: r.glyph ?? null,
     m: r.glyph ? null : r.m,
     v: r.v ?? DASH,
-    title: `${r.label} — ${r.line}`,
+    title: r.tip ? `${r.label} — ${r.line}. ${r.tip}` : `${r.label} — ${r.line}`,
     rollable: !!r.rollable,
   }));
   const leftPads = Math.max(0, LEFT_CELLS - 2 - rollCells.length);
@@ -361,7 +361,7 @@ export function buildItemSheetModel(snap, viewer = {}) {
       ? {
           ...dur,
           conditionLabel: dur.labels?.length ? dur.labels.join("; ") : null,
-          acLine: dur.acNow !== null && dur.acNow !== undefined ? { now: dur.acNow, full: dur.acFull } : null,
+          acLine: dur.acNow !== null && dur.acNow !== undefined ? { now: dur.acNow, full: dur.acFull, tip: dur.acTip ?? "" } : null,
           lock: container?.holds || container?.locked || container?.lockMod ? container : null,
         }
       : null,

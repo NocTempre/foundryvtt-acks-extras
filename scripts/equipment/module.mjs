@@ -63,6 +63,12 @@ Hooks.once("init", () => {
   // call from source.
   expectTables(RULEDATA_DOC, ["zeroLevelAttackThrow", "nonProficientUse", "dualWeaponStyle", "heavyHelm", "weaponFinesse", "unarmedStrike", "itemLoss", "itemLossMaterials"]);
 
+  // The special maneuvers' figures (`overlays/maneuvers.mjs` MANEUVER_TABLES):
+  // each penalty, Combat Trickery's reductions and save modifier, the weapon
+  // qualities' bonus and the hooked weapon's, written as literals for the same
+  // reason.
+  expectTables(RULEDATA_DOC, ["maneuverDisarm", "maneuverPenalties", "combatTrickery", "maneuverQualities", "hookedWeapon"]);
+
   // Every weapon reader asks the weapon seam; this is the source behind it, the
   // imported rows placed against the imported lists.
   registerWeaponSource(librarySource);

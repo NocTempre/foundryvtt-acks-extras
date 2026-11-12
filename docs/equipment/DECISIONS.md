@@ -2313,3 +2313,39 @@ summing would make it a second spelling of `add`.
 
 **What it cost.** Nothing changes in code. Two items written with `override`
 on one numeric domain still count once.
+
+## 2026-11-11 — Partial damage is not stored
+
+**Asked** (item loss, JJ p. 398). Where to keep the stones of damage a heavy
+item has taken short of a full stone, so a later hit could add to it: a key
+under the `scavenged` record, a flag of its own, or nowhere.
+
+**Ruled** (owner: follow the rules as written). Nowhere. The page gives damage
+under one full stone no game effect and judges each hit on its own, so nothing
+carries over; a count of stones taken would be state no rule reads. Only a
+full stone acts, and it acts through the armour class it costs.
+
+**Rejected.** A stored count with a carry-over: it would make two hits that
+the page treats separately add up, a rule the page does not print.
+
+**What it cost.** A Judge who wants a running tally keeps it by hand. The plan
+still lists a heavy item reached with less than a stone, with `stones: 0`, and
+a light item reached with less budget than its weight (`marred`), so the card
+shows both and the write changes neither.
+
+## 2026-11-11 — Item-loss armour class is its own layer
+
+**Ruled.** The armour class an armour loses to item loss is stored under its
+own item flag (`itemLossAc`) and applied as a layer in `properties.mjs`, not
+merged into the `scavenged` record. A scavenged roll, pick or clear writes the
+whole `scavenged` record, so a loss kept there was erased by a re-roll.
+`clearScavenged` leaves item loss alone: no page prints a repair for it, and
+the module does not invent one. The only writer that lowers it is
+`setItemLossAc`, which has no sheet control.
+
+**Rejected.** Reading a scavenged clear as a repair of everything on the item:
+it ties two rules the books keep apart (RR p. 160, JJ p. 398).
+
+**What it cost.** A Judge cannot restore a lost point from the Durability
+tab, and `api.equipment` does not expose `setItemLossAc`. No migration:
+nothing shipped with the earlier shape.

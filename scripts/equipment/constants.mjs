@@ -115,6 +115,7 @@ export const ITEM_FLAGS = Object.freeze({
   // govern the next quiver.
   NOCKED: "nocked",
   LOSS_CATEGORY: "lossCategory", // explicit position in the item-loss order
+  ITEM_LOSS_AC: "itemLossAc", // armour class an armour has lost to item loss: a lasting layer, apart from the scavenged record
   LAYER: "layer", // clothing: "over" | "under" (armour)
   // {capacity: <stone>, locked, opened, concealed, fragile, lockMod} — marks an
   // item as a container. See containers.mjs for what each means; in short:

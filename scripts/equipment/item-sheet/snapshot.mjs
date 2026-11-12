@@ -13,13 +13,13 @@ import { FLAG_GEAR } from "../../lib/constants.mjs";
 import { makeLoc } from "../../lib/util.mjs";
 import { finesseTakes, finesseSizesImported } from "../attack-mods.mjs";
 import { isDisguised, readiedWeaponData } from "../actions.mjs";
-import { masterworkTierOf, scavengedOf, silveredFlagOf, pristineOf, layerDeltas, unstatedLayers } from "../properties.mjs";
+import { masterworkTierOf, scavengedOf, itemLossAcOf, silveredFlagOf, pristineOf, layerDeltas, unstatedLayers } from "../properties.mjs";
 import { silverFigure, masterworkFigure, provenanceTip, notImportedTip, capacityTip } from "../printed-layers.mjs";
 import { variationItemsOf, itemBaseType } from "../variation-items.mjs";
 import { containerOf, isContainer, isLocked, canSeeInside } from "../containers.mjs";
 import { isSpellbook, spellbookSpells, pagesUsed, pagesCapacity } from "../spellbook.mjs";
 import * as named from "../overlays/named.mjs";
-import { materialOf, itemLossFact } from "../overlays/item-loss.mjs";
+import { materialOf, itemLossFact, itemLossCite } from "../overlays/item-loss.mjs";
 import { classifyWeapon, inferGear, isShield, isHelmet } from "../profiles.mjs";
 import { wearLabel } from "../wear.mjs";
 import { collectEffectModifiers, hasEffectFlag, stringFlagValue } from "../effects.mjs";
@@ -343,27 +343,42 @@ function recordOf(item) {
   }
 }
 
+/**
+ * What stands behind the armour class line: the full figure, then each part
+ * that lowers it, named. The scavenged condition and item loss are separate
+ * layers, so each is a clause of its own; item loss carries the page its
+ * armour class per stone was read from, or says it is set by hand.
+ */
+function acTipOf({ full, scavenged, lost }) {
+  const parts = [loc("itemSheet.condition.acFull", { n: full })];
+  if (scavenged) parts.push(loc("itemSheet.condition.acScavenged", { n: scavenged }));
+  if (lost) parts.push(loc("itemSheet.condition.acItemLoss", { n: lost, cite: itemLossCite() ?? loc("itemLoss.byHand") }));
+  return parts.join(" · ");
+}
+
 /** Condition, armour class now-of-full, material: the Durability tab's facts. */
-function conditionOf(item, container) {
+export function conditionOf(item, container) {
   const physical = item.type === ITEM_TYPE.weapon || item.type === ITEM_TYPE.armor;
   const sc = scavengedOf(item);
   const material = item.getFlag(MODULE_ID, ITEM_FLAGS.MATERIAL) ?? null;
   const destroyed = !!item.getFlag(MODULE_ID, SHEET_FLAGS.DESTROYED);
   const lockish = !!(container?.holds || container?.locked || container?.lockMod);
   if (!physical && !sc && !material && !destroyed && !lockish) return null;
-  const deltas = layerDeltas(item, { scavenged: null });
+  const lost = itemLossAcOf(item);
+  const deltas = layerDeltas(item, { scavenged: null, itemLossAc: 0 });
   const base = pristineOf(item);
   const acNow = item.type === ITEM_TYPE.armor ? Number(item.system?.ac?.value ?? 0) : null;
   const acFull = item.type === ITEM_TYPE.armor ? Math.max(0, Number(base.ac ?? 0) + deltas.ac) : null;
   const qty = item.system?.quantity;
   return {
     labels: sc?.labels ?? [],
-    damaged: !!sc && ((sc.damage ?? 0) < 0 || (sc.attack ?? 0) < 0 || (sc.ac ?? 0) < 0 || (sc.encumbrance ?? 0) > 0 || !!sc.breaks),
+    damaged: lost > 0 || (!!sc && ((sc.damage ?? 0) < 0 || (sc.attack ?? 0) < 0 || (sc.ac ?? 0) < 0 || (sc.encumbrance ?? 0) > 0 || !!sc.breaks)),
     destroyed,
     material: materialOf(item),
     materialDeclared: !!material,
     acNow,
     acFull,
+    acTip: acNow === null ? null : acTipOf({ full: acFull, scavenged: Number(sc?.ac ?? 0), lost }),
     uses: Number.isFinite(qty?.value) && Number(qty?.max) > 0 ? { now: qty.value, max: qty.max } : null,
     breaks: !!sc?.breaks,
     notes: [...(sc?.notes ?? []), ...(sc?.cannotSneak ? [loc("itemSheet.condition.cannotSneak")] : [])],

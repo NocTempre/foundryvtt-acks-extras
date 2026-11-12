@@ -23,7 +23,7 @@
     <div class="acks-extras-item-sheet__fact">
       <span class="acks-extras-item-sheet__fact-label">{{localize 'ACKS-EQUIPMENT.itemSheet.field.ac'}}</span>
       <span class="acks-spacer"></span>
-      <span class="acks-extras-item-sheet__fact-value acks-nums">{{durability.acLine.now}}<span class="acks-extras-item-sheet__of">{{localize 'ACKS-EQUIPMENT.itemSheet.of' n=durability.acLine.full}}</span></span>
+      <span class="acks-extras-item-sheet__fact-value acks-nums"{{#if durability.acLine.tip}} data-tooltip-text="{{durability.acLine.tip}}"{{/if}}>{{durability.acLine.now}}<span class="acks-extras-item-sheet__of">{{localize 'ACKS-EQUIPMENT.itemSheet.of' n=durability.acLine.full}}</span></span>
     </div>
     {{/if}}
     {{#if durability.uses}}

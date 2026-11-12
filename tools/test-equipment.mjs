@@ -692,30 +692,92 @@ const mWhip = classifyWeapon(weapon("Whip", { melee: true }));
 const mNet = classifyWeapon(weapon("Net", { melee: true }));
 const mSword = classifyWeapon(weapon("Sword", { melee: true }));
 
-check("base maneuver penalty is −4", maneuverMods(plainActor, mSword, "knockDown").attackPenalty === -4);
-// Combat Trickery: −4 → −2 AND the target saves at −2.
+// Every figure is the Judge's import, so each case registers its own INVENTED
+// ones (none of them a printed value); nothing imported answers null, and the
+// attack throw goes out without a manoeuvre row.
+const MAN_FIG = {
+  id: "equipment",
+  tables: {
+    maneuverDisarm: { disarm: -7, twoHandedSave: 3 },
+    maneuverPenalties: { forceBack: -8, incapacitate: -9, knockDown: -11, overrun: -12, wrestling: -13, sunder: -15, sunderShaft: -10 },
+    combatTrickery: { reduction: 3, noSaveReduction: 6, saveMod: -5 },
+    maneuverQualities: { entangling: 8, flexible: 10, incapacitating: 12 },
+    hookedWeapon: { reduction: 5, saveMod: -7 },
+  },
+};
+const manActor = rollActor([swordItem, armor("Shield", "shield", { id: "sh" })], { flags: { styles: "weaponShield" }, system: { scores: { str: { mod: 1 }, dex: { mod: 1 } } } });
 const trick = actor([], { effects: [marker("maneuverTrickery", "knockDown")] });
-let mm = maneuverMods(trick, mSword, "knockDown");
-check("Combat Trickery → penalty −2 and target saves −2", mm.attackPenalty === -2 && mm.targetSaveMod === -2);
-// No-save maneuver: Trickery reduces the penalty by 4 instead of 2.
 const trickInc = actor([], { effects: [marker("maneuverTrickery", "incapacitate")] });
-mm = maneuverMods(trickInc, mSword, "incapacitate");
-check("Trickery on a no-save maneuver → penalty 0, no save mod", mm.attackPenalty === 0 && mm.targetSaveMod === 0 && MANEUVERS.incapacitate.save === null);
-// Weapon qualities: Flexible (whip) +2 to disarm; Entangling (net) +2 to wrestle.
-check("Flexible whip → disarm at −2", maneuverMods(plainActor, mWhip, "disarm").attackPenalty === -2);
-check("Entangling net → wrestle at −2", maneuverMods(plainActor, mNet, "wrestling").attackPenalty === -2);
-check("quality does not apply to an unrelated maneuver", maneuverMods(plainActor, mWhip, "overrun").attackPenalty === -4);
-// Trickery and weapon quality stack: −4 +2 +2 = 0.
 const trickDisarm = actor([], { effects: [marker("maneuverTrickery", "disarm")] });
-check("Trickery + Flexible stack → disarm at 0", maneuverMods(trickDisarm, mWhip, "disarm").attackPenalty === 0);
-// Sunder: −4 against shafts, −6 otherwise.
-check("sunder −6 normally, −4 vs staff/spear/polearm", maneuverMods(plainActor, mSword, "sunder").attackPenalty === -6 && maneuverMods(plainActor, mSword, "sunder", { targetShaft: true }).attackPenalty === -4);
-// Disarm: two-handed grip gives the target +4 to save.
-check("disarm vs two-handed grip → target saves +4", maneuverMods(plainActor, mSword, "disarm", { targetTwoHanded: true }).targetSaveMod === 4);
-// Hooked (MM) acts as Trickery for disarm, but must not double up with it.
-check("hooked weapon → disarm −2, target saves −2", (() => { const r = maneuverMods(plainActor, mSword, "disarm", { hooked: true }); return r.attackPenalty === -2 && r.targetSaveMod === -2; })());
-check("hooked does not stack on top of Trickery", maneuverMods(trickDisarm, mSword, "disarm", { hooked: true }).attackPenalty === -2);
+
+// Nothing imported: no penalty, no sum of the parts that would have read, and
+// the missing field named.
+let mm = maneuverMods(plainActor, mSword, "knockDown");
+check("nothing imported → the penalty is null, not 0", mm.attackPenalty === null && mm.missing.join() === "maneuverPenalties.knockDown" && mm.parts.length === 0);
+check("nothing imported → Trickery's reduction and save modifier are named too", maneuverMods(trick, mSword, "knockDown").missing.join() === "maneuverPenalties.knockDown,combatTrickery.reduction,combatTrickery.saveMod");
+check("nothing imported → a no-save maneuver names the no-save reduction", maneuverMods(trickInc, mSword, "incapacitate").missing.includes("combatTrickery.noSaveReduction"));
+check("nothing imported → the attack throw carries no manoeuvre row", attackThrowRows(manActor, swordItem, "melee", { maneuver: "knockDown" }).length === 0);
+check("nothing imported → a MANEUVERS entry states no penalty", Object.values(MANEUVERS).every((m) => !("penalty" in m) && !("penaltyVsShaft" in m)));
 check("unknown maneuver → null", maneuverMods(plainActor, mSword, "nonsense") === null);
+
+registerTable(MAN_FIG, { priority: PRIORITY.WORLD, source: "test" });
+const base = (key, o) => maneuverMods(plainActor, mSword, key, o);
+check("each maneuver's penalty is the imported one", [["disarm", -7], ["forceBack", -8], ["incapacitate", -9], ["knockDown", -11], ["overrun", -12], ["wrestling", -13]].every(([k, v]) => base(k).attackPenalty === v));
+check("a read penalty names its part and table", (() => { const r = base("knockDown"); return r.missing.length === 0 && r.parts.length === 1 && r.parts[0].part === "base" && r.parts[0].table === "maneuverPenalties"; })());
+check("disarm reads its own table", base("disarm").parts[0].table === "maneuverDisarm");
+// The attack throw's row is the penalty, labelled as the manoeuvre.
+{
+  const rows = attackThrowRows(manActor, swordItem, "melee", { maneuver: "knockDown" });
+  check("the attack throw carries the manoeuvre's penalty row", rows.length === 1 && rows[0].label === MANEUVERS.knockDown.label && rows[0].value === -11);
+}
+// Combat Trickery: the penalty is reduced AND the target saves worse.
+mm = maneuverMods(trick, mSword, "knockDown");
+check("Combat Trickery → penalty reduced and the save modifier imposed", mm.attackPenalty === -11 + 3 && mm.targetSaveMod === -5);
+// No-save maneuver: the other reduction, and no save modifier.
+mm = maneuverMods(trickInc, mSword, "incapacitate");
+check("Trickery on a no-save maneuver → the no-save reduction, no save mod", mm.attackPenalty === -9 + 6 && mm.targetSaveMod === 0 && MANEUVERS.incapacitate.save === null);
+// Weapon qualities: Flexible (whip) to disarm; Entangling (net) to wrestle.
+check("Flexible whip → disarm carries the quality's bonus", base("disarm").attackPenalty === -7 && maneuverMods(plainActor, mWhip, "disarm").attackPenalty === -7 + 10);
+check("Entangling net → wrestle carries the quality's bonus", maneuverMods(plainActor, mNet, "wrestling").attackPenalty === -13 + 8);
+check("quality does not apply to an unrelated maneuver", maneuverMods(plainActor, mWhip, "overrun").attackPenalty === -12);
+// Trickery and a weapon quality stack.
+check("Trickery + Flexible stack on disarm", maneuverMods(trickDisarm, mWhip, "disarm").attackPenalty === -7 + 3 + 10);
+// Sunder: its own figure, and another against a shaft.
+check("sunder reads one figure normally and another against a shaft", base("sunder").attackPenalty === -15 && base("sunder", { targetShaft: true }).attackPenalty === -10);
+check("targetShaft changes no other manoeuvre", base("knockDown", { targetShaft: true }).attackPenalty === -11);
+// Disarm: the two-handed grip changes the target's save.
+check("disarm vs two-handed grip → the imported save bonus", base("disarm", { targetTwoHanded: true }).targetSaveMod === 3);
+// Hooked (MM) acts as Trickery for disarm, but must not double up with it.
+check("hooked weapon → disarm reduced and the save modifier imposed", (() => { const r = base("disarm", { hooked: true }); return r.attackPenalty === -7 + 5 && r.targetSaveMod === -7; })());
+check("hooked does not stack on top of Trickery", maneuverMods(trickDisarm, mSword, "disarm", { hooked: true }).attackPenalty === -7 + 3);
+
+// One table of the five absent: only the figures that need it go null.
+unregisterTable("equipment", { priority: PRIORITY.WORLD });
+registerTable({ id: "equipment", tables: { ...MAN_FIG.tables, combatTrickery: undefined } }, { priority: PRIORITY.WORLD, source: "test" });
+check("Combat Trickery not imported → its manoeuvre's penalty is null, another's is not", maneuverMods(trick, mSword, "knockDown").attackPenalty === null && base("knockDown").attackPenalty === -11);
+unregisterTable("equipment", { priority: PRIORITY.WORLD });
+registerTable({ id: "equipment", tables: { ...MAN_FIG.tables, maneuverQualities: undefined, hookedWeapon: undefined, maneuverDisarm: { disarm: -7 } } }, { priority: PRIORITY.WORLD, source: "test" });
+check("weapon qualities not imported → a Flexible whip's disarm penalty is null, a sword's is not", maneuverMods(plainActor, mWhip, "disarm").attackPenalty === null && base("disarm").attackPenalty === -7);
+check("hooked not imported → disarm's penalty and save modifier are null", (() => { const r = base("disarm", { hooked: true }); return r.attackPenalty === null && r.targetSaveMod === null; })());
+check("the two-handed bonus not imported → the save modifier is null, the penalty is not", (() => { const r = base("disarm", { targetTwoHanded: true }); return r.targetSaveMod === null && r.attackPenalty === -7; })());
+// A Judge's override of one field wins, and a blank field reads as not imported.
+unregisterTable("equipment", { priority: PRIORITY.WORLD });
+registerTable(MAN_FIG, { priority: PRIORITY.WORLD, source: "test" });
+registerTable({ id: "equipment", tables: { maneuverPenalties: { ...MAN_FIG.tables.maneuverPenalties, knockDown: -20, overrun: "" } } }, { priority: PRIORITY.OVERRIDE });
+check("an override changes the figure; a blank one is not imported", base("knockDown").attackPenalty === -20 && base("overrun").attackPenalty === null);
+unregisterTable("equipment", { priority: PRIORITY.OVERRIDE });
+// The Rolls tab: the row shows the penalty the throw will carry, with its
+// tooltip; nothing imported shows no figure and still lists the roll.
+{
+  const { rollGroups } = await import("../scripts/equipment/item-sheet/rolls.mjs");
+  const manRow = (key) => rollGroups(swordItem, manActor).find((g) => g.key === "maneuvers")?.rows.find((r) => r.id === `man:${key}`);
+  const read = manRow("knockDown");
+  check("imported: the Rolls row shows the penalty and a provenance tooltip", read.v === "−11" && read.line.startsWith("−11 ") && /maneuver\.tip$/.test(read.tip));
+  unregisterTable("equipment", { priority: PRIORITY.WORLD });
+  const none = manRow("knockDown");
+  check("not imported: the Rolls row says so, shows no figure, names the tables in its tooltip and still rolls",
+    none.v === "—" && /maneuver\.notImported$/.test(none.line.split(" · ")[0]) && /maneuver\.notImportedTip$/.test(none.tip) && none.rollable === true);
+}
 
 
 // --- Phase 7: containers ------------------------------------------------------
@@ -1135,11 +1197,11 @@ const wornMail = lossDoc("Mail", 5, 24);
 const wornShield = lossDoc("Shield", 1, 6);
 const applied = await applyItemLoss({ ready: true, destroyed: [{ item: wornShield }], damaged: [{ item: wornMail, acLost: 4 }, { item: wornShield, acLost: 0 }] });
 check("applying marks a light item destroyed", wornShield._flags.destroyed === true && applied.destroyed === 1);
-check("applying takes AC off the heavy armour through its condition record", wornMail.system.ac.value === 1 && wornMail._flags.scavenged.ac === -4 && applied.acLost === 4);
+check("applying takes AC off the heavy armour into its own item-loss layer", wornMail.system.ac.value === 1 && wornMail._flags.itemLossAc === 4 && wornMail._flags.scavenged === undefined && applied.acLost === 4 && applied.damaged === 1);
 await applyItemLoss({ ready: true, destroyed: [], damaged: [{ item: wornMail, acLost: 2 }] });
-check("a second loss merges into the same record rather than replacing it", wornMail._flags.scavenged.ac === -6 && wornMail.system.ac.value === 0);
+check("a second loss adds to the same layer rather than replacing it", wornMail._flags.itemLossAc === 6 && wornMail.system.ac.value === 0);
 await clearScavenged(wornMail);
-check("clearing the condition repairs the AC", wornMail.system.ac.value === 5 && wornMail._flags.scavenged === undefined);
+check("clearing the scavenged condition leaves the item-loss AC", wornMail.system.ac.value === 0 && wornMail._flags.itemLossAc === 6);
 check("an unready plan writes nothing", (await applyItemLoss({ ready: false, destroyed: [{ item: wornMail }], damaged: [] })).applied === false && wornMail._flags.destroyed === undefined);
 SETTINGS_STATE.overlayItemLoss = false;
 check("with the overlay off applying refuses", (await applyItemLoss({ ready: true, destroyed: [{ item: wornMail }], damaged: [] })).reason === "off" && wornMail._flags.destroyed === undefined);

@@ -61,6 +61,7 @@ const COMMITTED = [
   "test-battlemap.mjs",
   "test-battlemap-scene-nav.mjs",
   "test-equipment.mjs",
+  "test-item-loss.mjs",
   "test-armour-limits.mjs",
   "test-weapon-rows.mjs",
   "test-weapon-lists.mjs",

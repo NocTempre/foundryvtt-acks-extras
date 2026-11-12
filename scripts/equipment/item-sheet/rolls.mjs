@@ -18,7 +18,9 @@ import { makeLoc } from "../../lib/util.mjs";
 import { classifyWeapon, canOneHand, isTwoHandedOnly } from "../profiles.mjs";
 import { attackBonusOf, damageFormulaOf } from "../properties.mjs";
 import { skipDialogFor } from "../../lib/roll-dialog.mjs";
-import { MANEUVERS, overlayEnabled as maneuverOverlayEnabled, trickeryFor } from "../overlays/maneuvers.mjs";
+import { MANEUVERS, maneuverMods, overlayEnabled as maneuverOverlayEnabled, trickeryFor } from "../overlays/maneuvers.mjs";
+import { RULEDATA_DOC } from "../overlays/scavenged.mjs";
+import { citeOf } from "../../lib/tables.mjs";
 import { isSpellbook, spellbookSpells } from "../spellbook.mjs";
 import { containerOf, isLocked } from "../containers.mjs";
 import { pickLock, bashOpen, canPick, canBash, wearingGloves } from "../locks.mjs";
@@ -35,6 +37,32 @@ const loc = makeLoc(LANG);
 const MANEUVER_MNEMONIC = Object.freeze({
   disarm: "DIS", forceBack: "FRC", incapacitate: "INC", knockDown: "KNK", overrun: "OVR", sunder: "SND", wrestling: "WRS",
 });
+
+/**
+ * Where a manoeuvre's penalty came from, as the tooltip on the figure: the
+ * parts that make it up, each named and carrying its own number, and the page
+ * (or the Judge's hand) each was read from. A penalty with a part not
+ * imported names the missing tables and states no number.
+ * @param {{attackPenalty: number|null, missing: string[], parts: {part: string, value: number, table: string}[]}} mods a `maneuverMods` result
+ */
+function maneuverTip(mods) {
+  if (mods.attackPenalty == null) {
+    return loc("itemSheet.rolls.maneuver.notImportedTip", { tables: mods.missing.join(", ") });
+  }
+  const names = {
+    base: () => loc("itemSheet.rolls.maneuver.part.base"),
+    trickery: () => loc("itemSheet.rolls.maneuver.part.trickery"),
+    hooked: () => loc("itemSheet.rolls.maneuver.part.hooked"),
+    entangling: () => loc("itemSheet.rolls.maneuver.part.entangling"),
+    flexible: () => loc("itemSheet.rolls.maneuver.part.flexible"),
+    incapacitating: () => loc("itemSheet.rolls.maneuver.part.incapacitating"),
+  };
+  const cites = [...new Set(mods.parts.map((p) => citeOf(RULEDATA_DOC, p.table) ?? loc("itemSheet.rolls.maneuver.byHand")))];
+  return loc("itemSheet.rolls.maneuver.tip", {
+    parts: mods.parts.map((p) => `${names[p.part]?.() ?? p.part} ${signed(p.value)}`).join(" · "),
+    cite: cites.join("; "),
+  });
+}
 
 /**
  * The actor a roll is made by: the item's owner, else the controlled token,
@@ -116,16 +144,26 @@ export function rollGroups(item, actor = rollerFor(item)) {
 
     if (maneuverOverlayEnabled() && actor?.type === ACTOR_TYPE.character) {
       const trickery = trickeryFor(actor);
-      const manRows = Object.entries(MANEUVERS).map(([key, m]) => ({
-        id: `man:${key}`,
-        m: MANEUVER_MNEMONIC[key] ?? key.slice(0, 3).toUpperCase(),
-        glyph: null,
-        v: signed(m.penalty),
-        label: m.label,
-        line: m.save ? loc("itemSheet.rolls.maneuver.save", { save: m.save }) : loc("itemSheet.rolls.maneuver.noSave"),
-        mods: trickery.has(key.toLowerCase()) ? [loc("itemSheet.rolls.mod.trickery")] : [],
-        rollable: true,
-      }));
+      // The penalty the throw will carry: this actor's Combat Trickery and this
+      // weapon's qualities included. One not imported reads "not imported" and
+      // no figure; the row still rolls, as the weapon die's does, and the roll
+      // says what it went without.
+      const manRows = Object.entries(MANEUVERS).map(([key, m]) => {
+        const man = maneuverMods(actor, profile, key);
+        const penalty = man.attackPenalty;
+        const saveLine = m.save ? loc("itemSheet.rolls.maneuver.save", { save: m.save }) : loc("itemSheet.rolls.maneuver.noSave");
+        return {
+          id: `man:${key}`,
+          m: MANEUVER_MNEMONIC[key] ?? key.slice(0, 3).toUpperCase(),
+          glyph: null,
+          v: penalty == null ? DASH : signed(penalty),
+          label: m.label,
+          line: [penalty == null ? loc("itemSheet.rolls.maneuver.notImported") : `${signed(penalty)} ${loc("itemSheet.rolls.throw")}`, saveLine].join(" · "),
+          tip: maneuverTip(man),
+          mods: trickery.has(key.toLowerCase()) ? [loc("itemSheet.rolls.mod.trickery")] : [],
+          rollable: true,
+        };
+      });
       groups.push({ key: "maneuvers", name: loc("itemSheet.rolls.group.maneuvers"), note: loc("itemSheet.rolls.group.maneuversNote"), src: null, rows: manRows });
     }
   }
@@ -228,6 +266,12 @@ export async function rollById(item, id, { event } = {}) {
   }
   if (kind === "man") {
     if (!MANEUVERS[key]) return false;
+    // A penalty not imported is no penalty to invent: the throw goes out
+    // without the row, and the Judge is told which tables it lacked.
+    const man = maneuverMods(actor, classifyWeapon(item), key);
+    if (man?.attackPenalty == null) {
+      ui.notifications?.warn(loc("itemSheet.rolls.maneuver.rolledWithout", { name: MANEUVERS[key].label, tables: man?.missing.join(", ") ?? "" }));
+    }
     await actor.makeAttackThrow({ item, attackType: "melee", skipDialog, acksLib: { maneuver: key } });
     return true;
   }

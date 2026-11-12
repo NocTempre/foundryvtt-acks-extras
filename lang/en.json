@@ -1792,6 +1792,8 @@
       "destroyedHead": "Destroyed",
       "damagedHead": "Damaged",
       "unplacedHead": "Not placed by its weight",
+      "marredHead": "Marred",
+      "noEffect": "(no effect)",
       "damagedLine": "takes {stones} st of damage",
       "acLost": "{n} AC lost",
       "nothing": "Nothing is vulnerable to that damage type.",
@@ -1801,6 +1803,7 @@
       "destroyTip": "{weight} st, within the {light} st a light item runs to. {cite}",
       "damageTip": "{weight} st, at or over the {heavy} st a heavy item starts at. {cite}",
       "acTip": "{stones} full stone of damage at {per} AC per stone. {cite}",
+      "marredTip": "{weight} st, within the {light} st a light item runs to, but only {left} st of the loss was left when it was reached. {cite}",
       "unplacedTip": "{weight} st, between {light} st and {heavy} st. The import holds no case for that weight, so it is yours to rule. {cite}",
       "fact": "Item loss",
       "factTip": "{weight} st. Light up to {light} st, heavy from {heavy} st. {cite}",
@@ -2088,6 +2091,9 @@
         "uses": "Uses",
         "breaks": "Breaks",
         "breaksOn1": "On a natural 1",
+        "acFull": "Full: {n}",
+        "acScavenged": "Scavenged condition: {n}",
+        "acItemLoss": "Item loss: -{n}. {cite}",
         "materialHint": "Decides which damage types can destroy it (item loss).",
         "markDestroyed": "Mark destroyed",
         "restore": "Restore",
@@ -2204,7 +2210,20 @@
         },
         "maneuver": {
           "save": "{save} save",
-          "noSave": "No save"
+          "noSave": "No save",
+          "notImported": "penalty not imported",
+          "notImportedTip": "Not imported, so no penalty is counted: {tables}. Import them from your own book (Rules tables).",
+          "tip": "{parts}. Read from {cite}.",
+          "byHand": "the value set in the Ruledata Browser",
+          "rolledWithout": "{name} was rolled without its attack penalty: not imported ({tables}). Import the rules tables from your own book.",
+          "part": {
+            "base": "Base",
+            "trickery": "Combat Trickery",
+            "hooked": "Hooked weapon",
+            "entangling": "Entangling",
+            "flexible": "Flexible",
+            "incapacitating": "Incapacitating"
+          }
         },
         "spell": {
           "level": "Level {n}"

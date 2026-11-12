@@ -258,11 +258,27 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    - **A light item destroyed.** Apply. *Observable:* the light item's sheet,
      Durability tab, reads Destroyed (its band is struck through), and the
      Item loss fact reads "Destroyed outright".
+   - **A light item reached with too little budget.** Give the armour no
+     scavenged condition, then hit so the budget left when a light item is
+     reached is smaller than its weight (a light item of the weight just over
+     the budget, ahead of it in the order). Apply. *Observable:* the card lists
+     it under Marred with "(no effect)", the budget ends there (nothing after it
+     is listed), and its sheet is unchanged (no Destroyed mark, same weight).
    - **A heavy item damaged.** Hit hard enough that the heavy armour takes a full
      stone. Apply. *Observable:* its Durability tab shows AC now-of-full lower
-     by the imported AC per full stone and the condition reads Damaged; a
-     second loss merges into the same record rather than replacing it;
-     `clearScavenged` (or a scavenged re-roll) repairs it.
+     by the imported AC per full stone and the condition reads Damaged; hover
+     the AC figure: the tooltip names the full figure and "Item loss" with the
+     page. A second loss adds to the same figure. A hit that leaves the armour
+     under one full stone lists it "(no effect)" and the armour is unchanged.
+   - **Item loss survives a scavenged write.** On the damaged armour, open the
+     Construction tab and roll, then pick, then clear a scavenged condition.
+     *Observable:* after each the AC line still carries the item-loss points
+     (now-of-full, and an "Item loss" clause in the tooltip beside the
+     "Scavenged condition" clause); clearing the condition alone does not
+     repair them. There is no sheet control or `api` entry to undo a loss: to
+     reset a test fixture, import `setItemLossAc` from
+     `/modules/acks-extras/scripts/equipment/actions.mjs` in the console and
+     call it with 0 on the item; AC returns to the full figure.
    - **Absent.** Unregister the tables (or use a world that never imported):
      *Observable:* the macro's dialog says what is not imported and offers no
      form, `planItemLoss` answers `ready: false`, and the Durability tab's Item
@@ -1437,6 +1453,69 @@ bucket note), the Effects tab's Granted While Equipped row an undecided finesse
 size leaves a tooltip on (needs a finesse effect, an equipped weapon and roll automation on), and a
 rebuild that rewrites a stamped capacity (`REPAIR` is covered by the unit
 suites only).
+
+### Teardown
+
+The kept actor stays. The run's own cards are tracked by id and swept by that
+list, and the sweep object is printed; the overrides are cleared in a
+`finally`.
+
+## Special maneuver figures
+
+Every maneuver penalty, Combat Trickery's reduction and save modifier, the
+weapon qualities' bonus and the hooked weapon's arrive from the rules books
+and reach a consumer only as read (docs/equipment/MODEL.md, "Figures the book
+prints, and what is read without them"). GM seat with the Revised Rulebook and
+the Monstrous Manual connected, and the Player seat for the registry. The walk
+prints booleans and counts, never a page figure.
+
+### Fixtures
+
+- **Kept, `equipment/maneuvers-actor`**: a character with the manoeuvre
+  overlay's setting on, the sword and a whip (the weapon row that carries the
+  Flexible quality) in its items, and a `maneuverTrickery` effect naming
+  `knockDown` and `incapacitate` (a manoeuvre with a save and one without).
+  Found by the marker, else built.
+- **The tables are the world's**: the `equipment` document's five maneuver
+  tables. When one is absent the walk runs the Rules tables import for the
+  `equipment` document from the staged books. "Absent" is a Judge's override
+  written through the Ruledata Browser's own `setOverride` with the field
+  blank, never an edit of the imported layer; an override the run did not write
+  fails the step by name.
+
+### Steps
+
+1. The import. *Observable:* `maneuverDisarm` holds two numbers,
+   `maneuverPenalties` seven, `combatTrickery` three, `maneuverQualities`
+   three and `hookedWeapon` two; every one is a finite number and `citeOf`
+   answers a page for each table.
+2. Open the sword's sheet on the Rolls tab. *Observable:* a Special
+   Manoeuvres group of seven rows, each showing a signed figure on its line
+   and in the pinned-roll cell; the Knock Down and Incapacitate rows carry the
+   Trickery tag and a figure above the others'; hovering the line names the
+   parts (Base, Combat Trickery) and the pages read from. The whip's Disarm
+   row names a Flexible part.
+3. Press Roll on Knock Down. *Observable:* the attack dialog lists a row
+   labelled as the manoeuvre whose value is the row's figure, and the card
+   posts (track its id, sweep by it).
+4. Override one `maneuverPenalties` field with an invented number. *Observable:*
+   that row's figure changes, its tooltip names the Ruledata Browser instead of
+   a page, and the other rows do not move. Clear it; the imported figure
+   returns.
+5. The absent case. Blank `maneuverPenalties.knockDown` in an override.
+   *Observable:* the Knock Down row says *penalty not imported*, shows no digit
+   on its line, its pinned cell and its tooltip, and is still rollable; Roll
+   warns naming `maneuverPenalties.knockDown`; the attack dialog carries no
+   manoeuvre row; the other rows are unchanged. Blank `combatTrickery.reduction`
+   instead: the Trickery rows go to *not imported* and a plain row does not.
+6. Read the five tables on the Player seat. *Observable:* the same key counts.
+7. Clear the run's overrides. *Observable:* none left, and the registry serves
+   the imported counts again on both seats.
+
+What it cannot reach: a manoeuvre declared through a macro's `acksLib.maneuver`
+with a part unread (the throw goes out without the row and no warning is
+shown; the unit suite covers the null), and the `hooked`, `targetShaft` and
+`targetTwoHanded` options, which nothing in the module passes.
 
 ### Teardown
 

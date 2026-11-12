@@ -13,7 +13,7 @@
  *     writes fake name/cost/damage/AC into core fields with the truth kept only
  *     in our flag; stripping the flag without revealing first would make the
  *     fake identity permanent.
- *   • Masterwork / scavenged stat layers — OPTIONALLY reverted to the pristine
+ *   • Masterwork / scavenged / item-loss stat layers — OPTIONALLY reverted to the pristine
  *     snapshot (`revertLayers`). Off by default: a masterwork blade genuinely
  *     is +1 and most tables want to keep what the fiction earned. Named-item
  *     rungs already unlocked stay in core fields either way (they are earned
@@ -53,8 +53,8 @@ async function cleanItems(parent, items, counts, { revertLayers }) {
       await revealItem(item);
       counts.revealed++;
     }
-    if (revertLayers && (flags[ITEM_FLAGS.MASTERWORK] || flags.scavenged || flags.pristine)) {
-      await recomputeItemFields(item, { masterwork: null, scavenged: null });
+    if (revertLayers && (flags[ITEM_FLAGS.MASTERWORK] || flags.scavenged || flags[ITEM_FLAGS.ITEM_LOSS_AC] || flags.pristine)) {
+      await recomputeItemFields(item, { masterwork: null, scavenged: null, itemLossAc: 0 });
       counts.reverted++;
     }
     strips.push({ _id: item.id, [`flags.${MODULE_ID}`]: unset() });

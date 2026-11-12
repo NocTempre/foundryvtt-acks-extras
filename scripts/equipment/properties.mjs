@@ -14,7 +14,7 @@
  * the first time any layer is applied — and every change RECOMPUTES the fields
  * from it:
  *
- *     pristine → + masterwork → + scavenged → written to the item
+ *     pristine → + masterwork → + scavenged → − item loss → written to the item
  *
  * Clearing the last layer restores the pristine values exactly and drops the
  * snapshot, so an item can always get back to what it was. Damage deltas are
@@ -98,6 +98,12 @@ export function pristineOf(item) {
 export const masterworkTierOf = (item) => item?.getFlag?.(MODULE_ID, ITEM_FLAGS.MASTERWORK)?.tier ?? null;
 /** The accumulated scavenged condition on an item, or null. */
 export const scavengedOf = (item) => item?.getFlag?.(MODULE_ID, "scavenged") ?? null;
+/**
+ * The armour class an item has lost to item loss, as a count above zero or 0.
+ * It is a layer of its own, so rolling or clearing a scavenged condition never
+ * touches it.
+ */
+export const itemLossAcOf = (item) => Math.max(0, Number(item?.getFlag?.(MODULE_ID, ITEM_FLAGS.ITEM_LOSS_AC)) || 0);
 
 /**
  * The combined deltas of every active layer.
@@ -105,7 +111,7 @@ export const scavengedOf = (item) => item?.getFlag?.(MODULE_ID, "scavenged") ?? 
  */
 export function layerDeltas(
   item,
-  { masterwork = masterworkTierOf(item), scavenged = scavengedOf(item), silvered = silveredFlagOf(item) === true } = {},
+  { masterwork = masterworkTierOf(item), scavenged = scavengedOf(item), silvered = silveredFlagOf(item) === true, itemLossAc = itemLossAcOf(item) } = {},
 ) {
   // `costBaseMul` scales the weapon's OWN listed price, `costAdd` is then added,
   // and `costMul` scales the whole. The order is the rules': silver multiplies
@@ -134,6 +140,7 @@ export function layerDeltas(
     d.weight6 += (scavenged.encumbrance ?? 0) * 6;
     if (Number.isFinite(scavenged.valueMultiplier)) d.costMul *= scavenged.valueMultiplier;
   }
+  d.ac -= itemLossAc;
 
   // The open-ended half. The three legacy flags above are closed and shipped;
   // a variation is a DOCUMENT applied to this one and carries its own numbers,
@@ -172,8 +179,9 @@ export async function recomputeItemFields(item, overrides = {}) {
   const masterwork = "masterwork" in overrides ? overrides.masterwork : masterworkTierOf(item);
   const scavenged = "scavenged" in overrides ? overrides.scavenged : scavengedOf(item);
   const silvered = "silvered" in overrides ? overrides.silvered : silveredFlagOf(item) === true;
+  const itemLossAc = "itemLossAc" in overrides ? overrides.itemLossAc : itemLossAcOf(item);
   const anyLayer =
-    !!(masterwork && masterwork !== "none") || !!scavenged || silvered || variationItemsOf(item).length > 0;
+    !!(masterwork && masterwork !== "none") || !!scavenged || silvered || itemLossAc > 0 || variationItemsOf(item).length > 0;
 
   const stored = item.getFlag?.(MODULE_ID, PRISTINE) ?? null;
   // With no snapshot yet, the item as it stands IS pristine — capture it before
@@ -195,7 +203,7 @@ export async function recomputeItemFields(item, overrides = {}) {
     return;
   }
 
-  const d = layerDeltas(item, { masterwork, scavenged, silvered });
+  const d = layerDeltas(item, { masterwork, scavenged, silvered, itemLossAc });
   if (item.type === ITEM_TYPE.weapon) {
     update["system.bonus.attack"] = base.bonus + d.bonus;
     update["system.damage.base.formula"] = withFlatDelta(base.damage, d.damage);

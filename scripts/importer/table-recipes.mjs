@@ -2150,7 +2150,7 @@ export const TABLE_RECIPES = {
     },
   },
   equipment: {
-    source: { book: "ACKS II Revised Rulebook + Judges Journal", pages: "RR 15, 121, 140, 160, 296, 299; JJ 252, 398" },
+    source: { book: "ACKS II Revised Rulebook + Judges Journal + Monstrous Manual", pages: "RR 15, 109, 121, 127, 140, 160, 296, 299, 305-306; JJ 252, 398; MM 56" },
     tables: {
       // The weapon sizes Weapon Finesse takes (RR ch. 3, Weapon Finesse): the
       // size words the proficiency's own sentence names, read as a list.
@@ -2258,6 +2258,76 @@ export const TABLE_RECIPES = {
         rows: Object.keys(DAMAGE_TYPES)
           .filter((key) => key !== "varies")
           .map((key) => ({ key, labelRe: `^${key.replace(/al$/, "")}` })),
+      },
+      // The special maneuvers' attack penalties (RR ch. 10, Special Maneuvers):
+      // disarm opens its own folio and names the saving bonus a two-handed grip
+      // earns the target; the rest follow on the next, sunder's with its second
+      // figure, for a shaft, read from the words before the weapon it names.
+      // `equipment/overlays/maneuvers.mjs` `maneuverMods` sums them; a figure
+      // not read leaves the penalty null.
+      maneuverDisarm: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 305,
+        locate: "To disarm an opponent",
+        values: [
+          { key: "disarm", find: "to disarm an opponent", take: "signed" },
+          { key: "twoHandedSave", find: "the opponent gains a", take: "signed", span: 12 },
+        ],
+      },
+      maneuverPenalties: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 306,
+        locate: "To force back an opponent",
+        values: [
+          { key: "forceBack", find: "to force back an opponent", take: "signed" },
+          { key: "incapacitate", find: "to make an incapacitating attack", take: "signed" },
+          { key: "knockDown", find: "to knock down an opponent", take: "signed" },
+          { key: "overrun", find: "to overrun an opponent, the", take: "signed" },
+          { key: "sunderShaft", find: "to sunder staffs", before: true, span: 40, take: "signed" },
+          { key: "sunder", find: "to sunder any other", before: true, span: 40, take: "signed" },
+          { key: "wrestling", find: "to wrestle an opponent", take: "signed" },
+        ],
+      },
+      // Combat Trickery (RR ch. 3): how far it reduces the penalty and the
+      // modifier it puts on the target's save, and the larger reduction for a
+      // maneuver that allows no save, which the same paragraph prints second.
+      combatTrickery: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 109,
+        locate: "Pick a special maneuver",
+        values: [
+          { key: "reduction", find: "maneuver is reduced by", take: "int", span: 8 },
+          { key: "saveMod", find: "opponent suffers a", take: "signed", span: 8 },
+          { key: "noSaveReduction", find: "maneuver is reduced by", occurrence: 2, take: "int", span: 8 },
+        ],
+      },
+      // The bonus the weapon qualities that name a maneuver grant (RR ch. 4,
+      // Weapon Qualities); which maneuvers each applies to is the procedure.
+      maneuverQualities: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 127,
+        locate: "Entangling: The weapon grants",
+        values: [
+          { key: "entangling", find: "entangling: the weapon grants", take: "signed", span: 12 },
+          { key: "flexible", find: "flexible: the weapon grants", take: "signed", span: 12 },
+          { key: "incapacitating", find: "incapacitating: the weapon grants", take: "signed", span: 12 },
+        ],
+      },
+      // The hooked weapon's disarm (MM, the beastmen's special rules): the
+      // same two figures Combat Trickery has, read from that paragraph.
+      hookedWeapon: {
+        shape: "proseValues",
+        book: "mm",
+        printedPage: 56,
+        locate: "Hooked Weapons.",
+        values: [
+          { key: "reduction", find: "maneuver is reduced by", take: "int", span: 8 },
+          { key: "saveMod", find: "opponent suffers a", take: "signed", span: 8 },
+        ],
       },
       scavengedPiercingSlashing: scavengedGrid({
         locate: "Piercing/Slashing Weapons",

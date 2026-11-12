@@ -69,8 +69,12 @@ const TABLES = {
   // The domain month: every table its procedure runs on.
   // The equipment document's two one-sentence figures: the sizes Weapon
   // Finesse takes and the unarmed strike's die; and item loss's six figures
-  // and its materials grid.
-  equipment: ["weaponFinesse", "unarmedStrike", "itemLoss", "itemLossMaterials"],
+  // and its materials grid; the special maneuvers' penalties, Combat
+  // Trickery's figures, the weapon qualities' bonus and the hooked weapon's.
+  equipment: [
+    "weaponFinesse", "unarmedStrike", "itemLoss", "itemLossMaterials",
+    "maneuverDisarm", "maneuverPenalties", "combatTrickery", "maneuverQualities", "hookedWeapon",
+  ],
   // The weapon lists' prose: the kinds each folio names, read into windows.
   weaponProse: ["martialProse", "focusProse", "selectionProse", "narrowProse", "twoHandsFirst", "twoHandsSecond", "throwableProse", "damageTypeProse"],
   domain: [
@@ -533,6 +537,34 @@ VERIFY["equipment.itemLoss"] = (out, recipe, fail) => {
     if (isNum(out?.[key]) && out[key] <= 0) fail(`${key}: not a positive figure`);
   }
   if (isNum(out?.lightMax) && isNum(out?.heavyMin) && out.heavyMin < out.lightMax) fail("heavyMin: below lightMax");
+};
+// A manoeuvre's penalty is a modifier, so it is a signed figure below zero; a
+// reduction or a bonus is above zero; a save modifier is either sign but not 0.
+VERIFY["equipment.maneuverDisarm"] = (out, recipe, fail) => {
+  proseKeys(out, recipe, fail);
+  if (isNum(out?.disarm) && !(out.disarm < 0)) fail("disarm: not below zero");
+  if (isNum(out?.twoHandedSave) && !(out.twoHandedSave > 0)) fail("twoHandedSave: not above zero");
+};
+VERIFY["equipment.maneuverPenalties"] = (out, recipe, fail) => {
+  proseKeys(out, recipe, fail);
+  for (const v of recipe.values) if (isNum(out?.[v.key]) && !(out[v.key] < 0)) fail(`${v.key}: not below zero`);
+  if (isNum(out?.sunder) && isNum(out?.sunderShaft) && out.sunder === out.sunderShaft) fail("sunder: the shaft figure was read twice");
+};
+VERIFY["equipment.combatTrickery"] = (out, recipe, fail) => {
+  proseKeys(out, recipe, fail);
+  if (isNum(out?.reduction) && !(out.reduction > 0)) fail("reduction: not above zero");
+  if (isNum(out?.noSaveReduction) && !(out.noSaveReduction > 0)) fail("noSaveReduction: not above zero");
+  if (isNum(out?.saveMod) && out.saveMod === 0) fail("saveMod: zero");
+  if (isNum(out?.reduction) && isNum(out?.noSaveReduction) && out.reduction === out.noSaveReduction) fail("noSaveReduction: the first reduction was read twice");
+};
+VERIFY["equipment.maneuverQualities"] = (out, recipe, fail) => {
+  proseKeys(out, recipe, fail);
+  for (const v of recipe.values) if (isNum(out?.[v.key]) && !(out[v.key] > 0)) fail(`${v.key}: not above zero`);
+};
+VERIFY["equipment.hookedWeapon"] = (out, recipe, fail) => {
+  proseKeys(out, recipe, fail);
+  if (isNum(out?.reduction) && !(out.reduction > 0)) fail("reduction: not above zero");
+  if (isNum(out?.saveMod) && out.saveMod === 0) fail("saveMod: zero");
 };
 VERIFY["equipment.itemLossMaterials"] = (out, recipe, fail) => {
   for (const { key, row } of keyedRows(out, recipe, fail)) {

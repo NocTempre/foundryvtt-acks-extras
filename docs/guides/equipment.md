@@ -400,7 +400,11 @@ the art, its toolbar wrapped onto a second row above the text.*
 - **Rolls** — a weapon's attack modes, the special manoeuvres when that overlay
   is on, a spell book's recorded formulae, a locked container's Pick / Break
   rows. Roll buttons appear only where a real throw exists — the lock rows need
-  the character's own Lockpicking or Dungeon Bashing.
+  the character's own Lockpicking or Dungeon Bashing. A manoeuvre's row shows
+  the penalty the throw will carry, its tooltip naming the parts and the pages
+  they were read from; the figures come from your own books on import, and a
+  manoeuvre whose penalty is not imported says so, shows no figure and rolls
+  without one, telling you which tables it went without.
 - **Chart** — drop a Scene on any item and it becomes a chart of that scene;
   *Update From Exploration* captures the explored fog of war and records how
   much of the scene is charted.

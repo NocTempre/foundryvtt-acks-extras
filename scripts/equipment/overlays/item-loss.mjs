@@ -246,10 +246,13 @@ export function lossClassOf(weight6, { lightMax = null, heavyMin = null } = {}) 
  *
  * A layer of clothing counts as the imported number of stones whatever its
  * listed weight. An item the damage type cannot harm is skipped rather than
- * consuming the budget. A light item is destroyed and spends its weight; a
- * heavy one takes the remaining budget up to its own weight, and loses armour
- * class for each full stone of it (armour only: other items grant none, so
- * their damage changes nothing the module tracks). A weight between the bounds
+ * consuming the budget. A light item is destroyed only when the budget left
+ * covers its whole weight, and spends that weight; reached with less, it takes
+ * what is left as damage with no effect (`marred`) and the budget ends there.
+ * A heavy item takes the remaining budget up to its own weight, and loses
+ * armour class for each full stone of it (armour only: other items grant none,
+ * so their damage changes nothing the module tracks); under one full stone it
+ * is listed with `stones: 0` and changes nothing. A weight between the bounds
  * is `unplaced`: it spends nothing and is the Judge's call.
  *
  * With any figure or the materials table unread, nothing is planned and
@@ -266,11 +269,12 @@ export function lossClassOf(weight6, { lightMax = null, heavyMin = null } = {}) 
  * @returns {{ready: boolean, missing: string[], stones: number,
  *   destroyed: {item: Item, material: string, weight6: number}[],
  *   damaged: {item: Item, material: string, weight6: number, damage6: number, stones: number, acLost: number}[],
+ *   marred: {item: Item, material: string, weight6: number, damage6: number}[],
  *   unplaced: {item: Item, material: string, weight6: number}[],
  *   survivors: number}}
  */
 export function planItemLoss(actor, loadout, { hp, damageType, fromRear = false, figures = itemLossFigures(), materials = itemLossMaterials() } = {}) {
-  const plan = { ready: false, missing: lossMissing({ figures, materials, damageType }), stones: 0, destroyed: [], damaged: [], unplaced: [], survivors: 0 };
+  const plan = { ready: false, missing: lossMissing({ figures, materials, damageType }), stones: 0, destroyed: [], damaged: [], marred: [], unplaced: [], survivors: 0 };
   if (plan.missing.length) return plan;
   plan.ready = true;
   plan.stones = stonesAtRisk(hp, figures);
@@ -299,9 +303,12 @@ export function planItemLoss(actor, loadout, { hp, damageType, fromRear = false,
       // a weightless item still spends the smallest unit so the budget ends.
       const weight6 = isClothing(item) ? figures.clothingStones * STONE : Math.max(1, Number(item.system?.weight6 ?? 1));
       const kind = lossClassOf(weight6, figures);
-      if (kind === "destroyed") {
+      if (kind === "destroyed" && budget6 >= weight6) {
         plan.destroyed.push({ item, material, weight6 });
         budget6 -= weight6;
+      } else if (kind === "destroyed") {
+        plan.marred.push({ item, material, weight6, damage6: budget6 });
+        budget6 = 0;
       } else if (kind === "damaged") {
         const damage6 = Math.min(budget6, weight6);
         const full = Math.floor(damage6 / STONE);
@@ -315,6 +322,9 @@ export function planItemLoss(actor, loadout, { hp, damageType, fromRear = false,
   }
   return plan;
 }
+
+/** The page the `itemLoss` figures were read from, or null when they were not imported. */
+export const itemLossCite = () => citeOf(RULEDATA_DOC, ITEM_LOSS_TABLES.figures);
 
 /**
  * What the Durability tab says about item loss for one item, or null when the
