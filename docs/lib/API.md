@@ -522,13 +522,15 @@ ability is resolved in this order (`modifierDisposition`):
    `condition`, is **situational**;
 6. the rest is **standing**.
 
-`gate` (`effectField`) is `{kind, armourMax, loadMax, style, status}`; the
+`gate` (`effectField`) is `{kind, armourMax, noShield, loadMax, style, status}`; the
 importer reads its figures off the page (`loadMax` through a `gate.loadMax`
 locator) and the recipe ships only the kind and the rung word. Evaluators
 answer true, false, or null when they cannot decide, which lists the row as
 situational: lib registers `status`, equipment `lightlyEquipped` (armour rung
 and load in stone, against the loadout), `activeStyle`, and `specializedStyle`
-(the active style, specialized in; `docs/equipment/MODEL.md`).
+(the active style, specialized in; `docs/equipment/MODEL.md`). The
+`armourCeiling` gate is read off a `limitation` row, not a modifier: true is
+"the limit stands now" (`docs/equipment/MODEL.md`, "Armour limits on abilities").
 
 `standingModifiers(actor, {ctx, resolve})` values the standing and gated rows
 (the classes resolver where loaded; rank from `abilities.rankOf`, else the

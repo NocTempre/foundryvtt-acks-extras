@@ -82,6 +82,7 @@
 
 .acks-equipment-wear__title {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
   padding: 0.15rem 0.25rem;

@@ -67,7 +67,7 @@ const S = new URL("../scripts/equipment/", import.meta.url);
 const { classifyWeapon, handCost, equipmentClass } = await import(new URL("profiles.mjs", S));
 const { getLoadout, VIOLATION } = await import(new URL("loadout.mjs", S));
 const { buildLoadoutChanges, dualStyleFigure } = await import(new URL("effects.mjs", S));
-const { weaponProficiency, isWeaponProficient, armorMax, isArmorProficient, thiefSkillsGated, lightlyEquipped, classifyGrantToken } = await import(new URL("proficiency.mjs", S));
+const { weaponProficiency, isWeaponProficient, armorMax, isArmorProficient, armourCeiling, lightlyEquipped, classifyGrantToken } = await import(new URL("proficiency.mjs", S));
 const { buildMacros } = await import(new URL("../tools/pack-data/equipment.mjs", import.meta.url));
 const { MASTERWORK, SILVER } = await import(new URL("config.mjs", S));
 const { readiedWeaponData, prepareTorch, unarmedStrikeData, masterworkTiersFor, addToDamage, setMasterwork, scavengeItem, clearScavenged, rollScavengedD20s, setShieldVariant } = await import(new URL("actions.mjs", S));
@@ -231,9 +231,13 @@ check("armorMax light: leather ok, plate not", isArmorProficient(lightOnly, armo
 const trained = actor([], { flags: { armorMax: "light" }, effects: [marker("armorTraining", "1")] });
 check("Armour Training light→medium", armorMax(trained) === "medium" && isArmorProficient(trained, armor("Chain", "medium")));
 
-check("thief gate: heavy armour blocks", thiefSkillsGated({ armor: armor("Plate", "heavy") }));
-check("thief gate: leather + no shield ok", !thiefSkillsGated({ armor: armor("Leather", "light"), shield: null }));
-check("thief gate: leather + shield blocks", thiefSkillsGated({ armor: armor("Leather", "light"), shield: armor("Shield", "shield") }));
+// The armour ceiling decides by the rung and shield rule it is handed; an
+// ability's own page supplies them at import. Figures are invented.
+const ceiling = { armourMax: "light", noShield: true };
+check("armour ceiling: armour over the rung breaks it", armourCeiling({ armor: armor("Plate", "heavy") }, ceiling) === true);
+check("armour ceiling: armour at the rung, no shield, holds", armourCeiling({ armor: armor("Leather", "light"), shield: null }, ceiling) === false);
+check("armour ceiling: a shield a limit refuses breaks it", armourCeiling({ armor: armor("Leather", "light"), shield: armor("Shield", "shield") }, ceiling) === true);
+check("armour ceiling: no rung read leaves it undecided", armourCeiling({ armor: armor("Plate", "heavy") }, {}) === null);
 
 // The lightly-equipped gate decides by the arguments its import read, and an
 // argument it did not read leaves it undecided. Figures are invented.

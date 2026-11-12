@@ -912,7 +912,7 @@ weapon, a size or a class nothing imported states. Undecided never penalises.
 
 ## Figures the book prints, and what is read without them
 
-Three figures arrive through the importer and reach a consumer only as the
+These figures arrive through the importer and reach a consumer only as the
 reader's own book gave them. Nothing falls back to a shipped number.
 
 - **A container's capacity** (RR gear price grid, the rows whose own label
@@ -979,6 +979,35 @@ reader's own book gave them. Nothing falls back to a shipped number.
   dialog, the write and that fact; `planItemLoss` itself is pure. The damage
   stones a heavy item took are not stored: only full stones act, each hit is
   judged alone, and a part of a stone changes nothing the module tracks.
+- **Armour limits on abilities — `armour-limits.mjs`** (JJ ch. 12,
+  Limitations on Thief Skill Usage, folio 292). The class-builder doc carries a
+  `thiefLimits` table, a `proseValues` read of three parts: the armour the page
+  refuses (`forbidden`), the shield rule (`noShield`) and the skills it names
+  (`skills`). `parseArmourLimits` turns it into the names, a rung of
+  `ARMOR_LADDER` (`ceilingBelow`: the rung under the lowest ladder word found)
+  and a shield flag; a part that did not read is null, never a default. The
+  limit is generic: a `limitation` effect row whose `gate` is
+  `{kind: "armourCeiling"}`, optionally with its own `armourMax` and
+  `noShield`. `armourCeiling(loadout, gate)` is the verdict, true meaning the
+  limit stands now and null meaning the gate names no rung. A row naming no
+  rung resolves its figures LIVE from the table (`resolveArmourGate`), so a
+  Ruledata Browser override or a revert reaches every stamped ability with no
+  re-stamp and no figure sits on an item; a row stating its own `armourMax`
+  states its own shield rule and ignores the table (a shield rule alone is no
+  figure). A Judge's own ability carries its own row through the effect row
+  editor's Limitation fields.
+  The import stamps the row: `thief-limit-binding.mjs` `applyThiefLimitImport`
+  runs after the class-builder tables import, adds or clears the imported row
+  on every imported `def.skill.*` ability (world items and the copies on
+  actors) whose name the table names, and `cookbook.mjs` `bindAbility` re-adds
+  it through `limitRowsFor` where Update Abilities rewrites `extras`. A Judge's
+  ability with no cookbook id is never stamped. `armourLimitedAbilities(actor,
+  loadout)` names the actor's blocked abilities and the undecided ones (a row
+  with no resolvable rung); `getLoadout` raises them as advisory violations
+  (`abilityArmourLimited`, `abilityArmourUndecided`) and the equipment tab's
+  Worn & Wielded header lists them, its tooltip saying where the figures came
+  from (the Judge's override, the page, or "not imported" with no figure).
+  Nothing imported is nothing blocked: the abilities read as undecided.
 
 ## Weapon rows read from the book — `weapon-source.mjs`
 

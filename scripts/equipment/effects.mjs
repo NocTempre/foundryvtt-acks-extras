@@ -21,7 +21,8 @@ import { PRIORITY, citeOf, getDoc, getLayer, hasDoc } from "../lib/tables.mjs";
 import { bridgeContributions } from "./abilities-bridge.mjs";
 import { appliedEffects, makeEffectMeta, activeNumericChanges, csvFlagSet, csvFlagValue, sumModifiers } from "../lib/effect-scan.mjs";
 import { standingModifiers, registerGate } from "../lib/typed-modifiers.mjs";
-import { lightlyEquipped } from "./proficiency.mjs";
+import { lightlyEquipped, armourCeiling } from "./proficiency.mjs";
+import { resolveArmourGate } from "./armour-limits.mjs";
 import { managedDelete } from "../lib/managed-effects.mjs";
 
 const effectMeta = makeEffectMeta(MODULE_ID);
@@ -99,6 +100,9 @@ export function stringFlagValue(actor, domain) {
 // which fighting style it fights in. Lazy reads, so the cycle with
 // proficiency.mjs (which reads this file's collectors) resolves at call time.
 registerGate("lightlyEquipped", (actor, gate, ctx) => (ctx.loadout ? lightlyEquipped(actor, ctx.loadout, gate) : null));
+// An armour limit's verdict is "the limit stands now": true is a loadout over
+// the ceiling, the answer `armourLimitedAbilities` collects per ability.
+registerGate("armourCeiling", (actor, gate, ctx) => (ctx.loadout ? armourCeiling(ctx.loadout, resolveArmourGate(gate)) : null));
 registerGate("activeStyle", (actor, gate, ctx) => {
   if (!gate.style || !ctx.loadout) return null;
   return String(ctx.loadout.activeStyle ?? "").toLowerCase() === String(gate.style).toLowerCase();

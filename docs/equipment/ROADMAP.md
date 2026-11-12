@@ -104,3 +104,8 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   becomes a window of the feature (an app under `scripts/equipment/apps/`, a
   template, lang keys), and the macro its launcher, as docs/DECISIONS.md §25
   rules for every macro.
+- **An armour limit is stamped by cookbook id only.** A Judge's ability with
+  no cookbook id is never given the imported limit row (it carries its own
+  through the row editor), and a change to which skills the page names reaches
+  the abilities only at the next class-builder tables import or Update
+  Abilities; the rung and the shield rule follow an override live.

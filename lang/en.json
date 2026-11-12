@@ -1618,7 +1618,8 @@
       "armorNotProficient": "{items} is heavier than this character's armour proficiency (max: {max}).",
       "styleNotProficient": "Untrained in the {style} fighting style.",
       "nonProficientUse": "Equipped non-proficiently: {items} (RR p. 15).",
-      "thiefSkillGated": "Backstabbing, Hiding, Pickpocketing, and Sneaking are unavailable while wearing {items}."
+      "abilityArmourLimited": "{abilities}: unavailable while wearing {items}.",
+      "abilityArmourUndecided": "{abilities}: armour limit not imported, so the loadout cannot be judged against it."
     },
     "training": {
       "section": "Training"
@@ -1639,6 +1640,11 @@
       "untrained": "untrained style",
       "handsLights": "{n} held for light",
       "handsMapping": "{n} held for mapping",
+      "armourBlocked": "{abilities} unavailable in this armour",
+      "armourUndecided": "armour limit not imported: {abilities}",
+      "armourSourceCite": "Armour limits on abilities: read from {cite}.",
+      "armourSourceJudge": "Armour limits on abilities: the Judge's own edit.",
+      "armourSourceNone": "Armour limits on abilities: not imported.",
       "manage": "Open the Container Manager",
       "noContainers": "No containers yet — use “Annotate carrying gear” above to flag the packs and sacks this character already carries, then drag gear onto one to stow it.",
       "head": "Head",
@@ -9269,6 +9275,8 @@
   "ACKS-LIB.effectEditor.field.unit": "Unit",
   "ACKS-LIB.effectEditor.field.period": "Period",
   "ACKS-LIB.effectEditor.field.restriction": "Restriction",
+  "ACKS-LIB.effectEditor.field.gate.armourMax": "Armour limit: heaviest suit allowed",
+  "ACKS-LIB.effectEditor.field.gate.noShield": "Armour limit: no shield",
   "ACKS-LIB.effectEditor.field.trigger": "Trigger",
   "ACKS-LIB.effectEditor.field.consequence": "Consequence",
   "ACKS-LIB.effectEditor.field.naturalMax": "Natural roll up to",

@@ -1,6 +1,6 @@
 /* global game */
 /**
- * Proficiency resolution — weapon, armour, and thief-skill armour gates.
+ * Proficiency resolution — weapon and armour proficiency, and the armour gates.
  *
  * RAW proficiency comes from a character's class, which the core system does not
  * store. So the actor carries a per-actor proficiency profile via flags
@@ -16,7 +16,7 @@
  * list on its own.
  */
 import { MODULE_ID, ACTOR_FLAGS, EFFECT_DOMAINS, SETTINGS } from "./constants.mjs";
-import { ARMOR_LADDER, ARMOR_GATED_SKILLS, ARMOR_GATE_MAX } from "./config.mjs";
+import { ARMOR_LADDER } from "./config.mjs";
 import { slug, SELECTION_VOCAB, matchSelectionKey } from "../lib/vocab.mjs";
 import { keyForName, hasWeaponRows } from "../lib/weapons.mjs";
 import { abilityContributions, abilityGrants, weaponTokenClasses } from "../lib/proficiency-strip.mjs";
@@ -315,21 +315,21 @@ export function isArmorProficient(actor, armorItem, max = armorMax(actor)) {
 }
 
 /**
- * Thief-skill armour gate (JJ p. 292): Backstabbing, Hiding, Pickpocketing, and
- * Sneaking require ≤ leather (light) armour and no shield.
- * @returns {boolean} true if the gated skills are currently BLOCKED.
+ * Whether a loadout breaks an ability's armour limit (`armourCeiling` gate).
+ * The limit is a rung of the armour ladder the worn suit may not exceed, and
+ * `noShield` adds that no shield may be carried. `true` is "the limit stands
+ * now" (the loadout is over the rung, or carries a shield the limit refuses),
+ * `false` is within it, and null where the gate names no rung: a limit with no
+ * ceiling cannot say anything about a suit. Any equipped shield counts, in hand
+ * or strapped.
+ * @param {{armor?: Item|null, shield?: Item|null}} loadout
+ * @param {{armourMax?: string, noShield?: boolean|null}} [gate]
+ * @returns {boolean|null}
  */
-export function thiefSkillsGated(loadout) {
+export function armourCeiling(loadout, { armourMax = "", noShield = null } = {}) {
+  if (!armourMax || armorRank(armourMax) < 0) return null;
   const armorCat = loadout?.armor?.system?.type ?? "unarmored";
-  const overLight = armorRank(armorCat) > armorRank(ARMOR_GATE_MAX);
-  const hasShield = !!loadout?.shield;
-  return overLight || hasShield;
-}
-
-/** Is a named skill/ability subject to the armour gate? */
-export function isArmorGatedSkill(name) {
-  const n = slug(name);
-  return ARMOR_GATED_SKILLS.some((s) => n.includes(slug(s)));
+  return armorRank(armorCat) > armorRank(armourMax) || (noShield === true && !!loadout?.shield);
 }
 
 /**

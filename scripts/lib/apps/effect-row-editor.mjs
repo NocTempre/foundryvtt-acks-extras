@@ -26,6 +26,7 @@ import * as V from "../vocab.mjs";
 import { vocabChoices } from "../magic-vocab.mjs";
 import { summonRefName } from "../summons-logic.mjs";
 import { byCookbookId } from "../library.mjs";
+import { SLOT_VOCAB } from "../proficiency-strip.mjs";
 
 const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 
@@ -84,7 +85,15 @@ const FIELD_SPECS = {
   routine: { kind: "text" },
   condition: { kind: "text" },
   note: { kind: "text" },
+  // A limitation's armour limit, written on the row's `gate`: the rung the worn
+  // suit may not exceed and whether a shield breaks it. Setting either marks
+  // the row an `armourCeiling` limit (`GATE_KIND`).
+  "gate.armourMax": { kind: "select", choices: () => Object.fromEntries(SLOT_VOCAB.armour.map((r) => [r.token, game.i18n.localize(r.label)])) },
+  "gate.noShield": { kind: "boolean" },
 };
+
+/** The gate kind a limitation row takes once an armour limit field is set on it. */
+const GATE_KIND = "armourCeiling";
 
 /** Which fields each kind edits, in the order they are shown; the tail is shared. */
 const TYPE_FIELDS = {
@@ -93,7 +102,7 @@ const TYPE_FIELDS = {
   throw: ["forWhat", "roll", "rollType", "value"],
   progressionAs: ["as", "atLevel"],
   proficiencyGrant: ["domain", "breadth", "group"],
-  limitation: ["restriction"],
+  limitation: ["restriction", "gate.armourMax", "gate.noShield"],
   outcome: ["trigger", "naturalMax", "belowFraction", "consequence"],
   requires: ["refs", "choose"],
   grants: ["refs", "choose"],
@@ -185,9 +194,11 @@ export class EffectRowEditor extends HandlebarsApplicationMixin(ApplicationV2) {
     context.none = loc("none");
     context.fields = fieldsForType(row.type).map((name) => {
       const spec = FIELD_SPECS[name] ?? { kind: "text" };
-      const value = row[name];
+      const value = foundry.utils.getProperty(row, name);
       const field = { name, kind: spec.kind, label: loc(`field.${name}`) };
-      if (spec.kind === "select") {
+      if (spec.kind === "boolean") {
+        field.checked = value === true;
+      } else if (spec.kind === "select") {
         field.choices = spec.choices(domain);
         field.value = value ?? "";
       } else if (spec.kind === "set") {
@@ -274,6 +285,10 @@ export class EffectRowEditor extends HandlebarsApplicationMixin(ApplicationV2) {
     const form = this.#fromForm() ?? {};
     const next = { ...current, ...form };
     if (form.value && typeof form.value === "object") next.value = { ...(current.value ?? {}), ...form.value };
+    // The gate's fields arrive as a fragment: merged into the row's gate, never
+    // over it, and the row keeps its kind or takes the armour limit's once a
+    // field of it is set; a row that sets none stays a plain limitation.
+    if (form.gate && typeof form.gate === "object" && (current.gate?.kind || form.gate.armourMax || form.gate.noShield)) next.gate = { ...(current.gate ?? {}), ...form.gate, kind: current.gate?.kind || GATE_KIND };
     rows[this.index] = next;
     await this.store.write(rows);
     this.render();

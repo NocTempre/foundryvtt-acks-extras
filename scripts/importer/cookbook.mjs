@@ -128,6 +128,7 @@ import { warmSpellPacks } from "../classes/grants.mjs";
 import { equipmentClass } from "../equipment/profiles.mjs";
 import { gearProfileFor } from "../equipment/config.mjs";
 import { annotateItem } from "../equipment/api.mjs";
+import { limitRowsFor } from "../equipment/armour-limits.mjs";
 import { declaresSlots } from "../lib/item-model.mjs";
 import { ANIMAL_TYPE, TEMPLATE_TYPE, FLAG_GEAR } from "../lib/constants.mjs";
 import { acksExtras } from "../namespace.mjs";
@@ -8235,7 +8236,7 @@ export function bindAbility(entry, node, id, opts = {}) {
     // chef-authored spec with no `from` locator is pure structure (a
     // prerequisite, a companion slot) and applies without the book; anything
     // pointing at a number still waits for it.
-    effects: [...aliasEffects, ...(node?.fields?.effects ?? materializeEffects(entry.fields?.effects?.specs, []))],
+    effects: [...aliasEffects, ...(node?.fields?.effects ?? materializeEffects(entry.fields?.effects?.specs, [])), ...limitRowsFor(entry.name, id)],
     // `rolls` is assembled below and assigned onto this same object, once the
     // throws are classified.
     // Materialized from the seat's OWN prose via the executor's vocabulary

@@ -28,6 +28,7 @@ import { parseMiles } from "../../scripts/markets/rules/routes.mjs";
 import { parseOptions, parseFocus, parseThrowable, parseDealtBy, parseMarkedOptions, parseSelection } from "../../scripts/importer/weapon-binding.mjs";
 import { parseFrontage } from "../../scripts/monsters/sizes.mjs";
 import { SIZES } from "../../scripts/monsters/config.mjs";
+import { parseArmourLimits } from "../../scripts/equipment/armour-limits.mjs";
 import { FILES } from "./reference-lib.mjs";
 
 /** The tables under test, by recipe document. Each is one entry of `TABLE_RECIPES`. */
@@ -72,6 +73,8 @@ const TABLES = {
   ],
   // The frontage a monster size category occupies on a battle grid.
   monsters: ["sizeFrontage"],
+  // The armour limits on abilities.
+  "acks.classBuilder": ["thiefLimits"],
 };
 
 const NEEDED = [...new Set(
@@ -368,6 +371,17 @@ VERIFY["monsters.sizeFrontage"] = (out, recipe, fail) => {
   }
   for (const col of recipe.cellColumns) if (!SIZES[col.key]) fail(`${col.key}: not a size category the monsters feature declares`);
   for (const key of Object.keys(SIZES)) if (!recipe.cellColumns.some((col) => col.key === key)) fail(`${key}: a declared size category the recipe does not read`);
+};
+// The armour limits on abilities: a skill list the binding can split, a phrase
+// holding a ladder word the consumer maps to a rung, and a shield window. Shape
+// only; no skill, rung or rule is named.
+VERIFY["acks.classBuilder.thiefLimits"] = (out, recipe, fail) => {
+  proseKeys(out, recipe, fail);
+  const limits = parseArmourLimits(out);
+  if (!limits?.names.length) fail("skills: no name read");
+  else if (limits.names.some((n) => !/^[A-Za-z][A-Za-z' -]*$/.test(n))) fail("skills: a name carries punctuation or a figure");
+  if (!limits?.armourMax) fail("forbidden: names no ladder word the consumer maps to a rung");
+  if (limits?.noShield === null) fail("noShield: nothing read");
 };
 // Prose tables with nothing beyond declared keys and finite numbers.
 for (const id of [

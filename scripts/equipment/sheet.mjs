@@ -25,6 +25,7 @@ import { getLoadout, cycleGrip, heldHandsClause } from "./loadout.mjs";
 import { prepareTorch, rollUnarmed, drawItem, sheatheItem, wearItem, removeItem } from "./actions.mjs";
 import { STONE, isWorn, isEquippable, isCurrency } from "../lib/item-model.mjs";
 import { wearableSlots } from "./profiles.mjs";
+import { armourLimitSource } from "./armour-limits.mjs";
 import { ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
 import { lightTypeOf } from "../lib/light.mjs";
 import { profileStripElement } from "../lib/proficiency-strip.mjs";
@@ -100,17 +101,32 @@ function buildWornSection(actor, tab, loadout) {
   // lists, so the total has to name them or it cannot be reconciled with the
   // gear under it.
   const held = heldHandsClause(loadout);
-  head.append(
-    el(
-      "span",
-      `acks-equipment-wear__status${loadout.styleProficient ? "" : " advisory"}`,
-      game.i18n.format("ACKS-EQUIPMENT.wear.status", {
-        used: loadout.handsUsed,
-        budget: loadout.handBudget,
-        style: wearLabel(`style.${loadout.activeStyle}`),
-      }) + (held ? ` · ${held}` : "") + style,
-    ),
+  const status = el(
+    "span",
+    `acks-equipment-wear__status${loadout.styleProficient ? "" : " advisory"}`,
+    game.i18n.format("ACKS-EQUIPMENT.wear.status", {
+      used: loadout.handsUsed,
+      budget: loadout.handBudget,
+      style: wearLabel(`style.${loadout.activeStyle}`),
+    }) + (held ? ` · ${held}` : "") + style,
   );
+  // Where the armour limits abilities carry were read from: the page the import
+  // cites, the Judge's own edit, or nothing yet. Composed at render, so it is
+  // text, not a lang key.
+  const source = armourLimitSource();
+  status.dataset.tooltipText = source?.judge
+    ? game.i18n.localize("ACKS-EQUIPMENT.wear.armourSourceJudge")
+    : source?.cite
+      ? game.i18n.format("ACKS-EQUIPMENT.wear.armourSourceCite", { cite: source.cite })
+      : game.i18n.localize("ACKS-EQUIPMENT.wear.armourSourceNone");
+  head.append(status);
+  const limits = loadout.armourLimits ?? { blocked: [], undecided: [] };
+  if (limits.blocked.length) {
+    head.append(el("span", "acks-equipment-wear__status advisory", game.i18n.format("ACKS-EQUIPMENT.wear.armourBlocked", { abilities: limits.blocked.join(", ") })));
+  }
+  if (limits.undecided.length) {
+    head.append(el("span", "acks-equipment-wear__status advisory", game.i18n.format("ACKS-EQUIPMENT.wear.armourUndecided", { abilities: limits.undecided.join(", ") })));
+  }
   section.append(head);
 
   let moved = 0;

@@ -44,12 +44,6 @@ export const IMPROVISED_THROWN = /\b(flasks?|bottles?|vials?|grenades?|jars?|pot
 /** Armour weight categories (core `system.type`) ordered light→heavy. */
 export const ARMOR_LADDER = Object.freeze(["unarmored", "veryLight", "light", "medium", "heavy"]);
 
-/** Thief skills that require ≤ light (leather) armour and no shield. JJ p. 292. */
-export const ARMOR_GATED_SKILLS = Object.freeze(["backstabbing", "backstab", "hiding", "hide", "pickpocketing", "pickpocket", "sneaking", "sneak"]);
-
-/** Max armour category permitted for the armour-gated thief skills. */
-export const ARMOR_GATE_MAX = "light";
-
 /**
  * JJ shield-variant profiles (Judges Journal pp. 407–408). Only consulted when
  * the shield-variant overlay is enabled. enc in stone; ac is the granted bonus.

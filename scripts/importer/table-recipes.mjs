@@ -3469,6 +3469,23 @@ export const TABLE_RECIPES = {
         ],
         rows: VALUE_ROWS_4_TO_0,
       },
+      // Limitations on Thief Skill Usage (JJ ch. 12): which skills the page
+      // restricts, and what the character may not wear or carry to use them.
+      // Three phrases, each read after the words that open its clause;
+      // `importer/thief-limit-binding.mjs` resolves the skill names to the
+      // world's ability items and the armour words to a ladder rung, and
+      // stamps one limitation row on each skill.
+      thiefLimits: {
+        shape: "proseValues",
+        book: "jj",
+        printedPage: 292,
+        locate: "Limitations on Thief Skill Usage",
+        values: [
+          { key: "forbidden", find: "that the character not wear", take: "phrase", span: 90 },
+          { key: "noShield", find: "and not carry", take: "window", span: 24 },
+          { key: "skills", find: "the skills are:", take: "phrase", span: 160 },
+        ],
+      },
       divineRaw: {
         shape: "gridRows",
         book: "jj",

@@ -20,7 +20,8 @@ import {
 import { classifyWeapon, handCost, focusGroup, weaponKey, weaponIdentity, isUnidentifiedWeapon, inferredGrips, equipmentClass, inferGear, inferredGearFlag, wearableSlots, isHelmet, isShield, perStoneStated } from "./profiles.mjs";
 import { FLAG_GEAR } from "../lib/constants.mjs";
 import { capacityOf, bundleSizeOf, gearOf, isCurrency, declaresSlots, reliefOf } from "../lib/item-model.mjs";
-import { weaponProficiency, isWeaponProficient, armorMax, isArmorProficient, thiefSkillsGated, isArmorGatedSkill, grantMatches, normalizeGrantToken, classifyGrantToken } from "./proficiency.mjs";
+import { weaponProficiency, isWeaponProficient, armorMax, isArmorProficient, armourCeiling, grantMatches, normalizeGrantToken, classifyGrantToken } from "./proficiency.mjs";
+import { armourLimitedAbilities } from "./armour-limits.mjs";
 import { refreshLoadout } from "./enforce.mjs";
 import { planItemLoss, stonesAtRisk, isVulnerable, materialOf, setMaterial, materialVocabulary, itemLossFigures, itemLossMaterials } from "./overlays/item-loss.mjs";
 import { openItemLoss, applyItemLoss } from "./item-loss-flow.mjs";
@@ -258,8 +259,8 @@ export function buildApi() {
     isWeaponProficient,
     armorMax,
     isArmorProficient,
-    thiefSkillsGated,
-    isArmorGatedSkill,
+    armourCeiling, // does a loadout break an armourCeiling gate's limit
+    armourLimitedAbilities, // an actor's abilities held by an armour limit under a loadout
     // The class-training grant grammar, inspectable: what a token means, and
     // whether it means anything at all. The Configure Proficiencies macro builds
     // its picker from these rather than re-stating the grammar in a second place.

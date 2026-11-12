@@ -336,13 +336,16 @@ export function effectField() {
     // Gate: the structured form of WHEN a modifier stands, decided against the
     // character's state by the evaluator `lib/typed-modifiers.mjs`
     // `registerGate` holds for `kind` (equipment's `lightlyEquipped`,
-    // `activeStyle` and `specializedStyle`, lib's `status`). The arguments are read off the
+    // `activeStyle`, `specializedStyle` and `armourCeiling`, lib's `status`). The arguments are read off the
     // ability's own page by the import; one it did not read leaves the gate
     // undecided, and the modifier is listed rather than applied. See
     // docs/lib/API.md, "Typed modifiers".
     gate: new SchemaField({
       kind: str(),
       armourMax: str(), // an armour rung: unarmored, veryLight, light, medium, heavy
+      // A shield also breaks an `armourCeiling` limit. Null where nothing says
+      // so, so a row that never named it stores no verdict either way.
+      noShield: new (F().BooleanField)({ required: false, nullable: true, initial: null }),
       loadMax: num(), // in stone
       style: str(), // a fighting-style key
       status: str(), // a status id

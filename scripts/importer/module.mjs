@@ -45,6 +45,7 @@ import { mapPairs } from "./stats-map.mjs";
 import { createDocFor } from "./poc.mjs";
 import { importTables, tableRecipeBooks, tableRecipeCount } from "./tables-binding.mjs";
 import { applyBuilderImport } from "./builder-binding.mjs";
+import { applyThiefLimitImport } from "./thief-limit-binding.mjs";
 import { applyTravelImport, TRAVEL_DOC_ID } from "./travel-binding.mjs";
 import { applyWeatherImport, WEATHER_DOC_ID } from "./weather-binding.mjs";
 import { applyEncountersImport, ENCOUNTERS_DOC_ID } from "./encounters-binding.mjs";
@@ -1187,6 +1188,16 @@ async function cookbookImportTables(only = null, { repair = null } = {}) {
     } catch (err) {
       console.error(`${MODULE_ID} | class-builder binding failed`, err);
       ui.notifications.warn(`${MODULE_ID} | class builder: ${err.message}`);
+    }
+    // The same document's armour limits on abilities: one row on each skill the
+    // page restricts, stamped after the builder write so a failure in either
+    // leaves the other standing.
+    try {
+      const limited = await applyThiefLimitImport();
+      console.log(`${MODULE_ID} | armour-limit binding`, limited);
+    } catch (err) {
+      console.error(`${MODULE_ID} | armour-limit binding failed`, err);
+      ui.notifications.warn(`${MODULE_ID} | armour limits: ${err.message}`);
     }
   }
   // The travel doc likewise: the raw page reads assemble into the

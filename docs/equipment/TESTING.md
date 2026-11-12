@@ -1491,3 +1491,46 @@ cards the system posts and the tooltips.
    not the two-handed one. Clear the editor's override.
 8. Teardown. The sweep of the run's tracked cards is printed; the grip flag is
    cleared and the second weapon removed.
+
+## Armour limits on abilities
+
+### Fixtures
+
+- **Kept, `equipment/thief-limit`**: a `character` carrying one imported
+  ability whose cookbook id is a `def.skill.*` the class-builder table names
+  (found by marker; built by `api.fixture`, then the ability added from the
+  world's imported library), one light and one heavy armour item, and one
+  shield. Each run brings it to shape first: nothing worn, the ability's
+  imported limit row present.
+- **A Judge's own ability**, tracked per run: a hand-made ability with one
+  `limitation` row carrying its own `armourMax`, built through the row editor.
+
+### Drive mechanics (learned live)
+
+- The class-builder tables are read by Settings tab → Game Settings → ACKS II
+  — Extras → Manage imports → Rules tables; the stamp on the abilities by the
+  same run (`applyThiefLimitImport`) or Update Abilities. Confirm the stamp by
+  reading the ability's `flags.acks-extras.extras.effects`: the row holds
+  `gate.kind` and no figure.
+- A Ruledata Browser override of `thiefLimits` is live: no re-stamp is needed.
+
+### Steps
+
+1. Wear the heavy armour. *Observable:* the equipment tab's Worn & Wielded
+   header lists the ability as limited; hover the status: the tooltip names
+   the page the figures were read from.
+2. Wear the light armour, no shield. *Observable:* the advisory is gone.
+3. Add the shield. *Observable:* the ability is listed again exactly when the
+   imported table states the shield rule.
+4. Override `thiefLimits` in the Ruledata Browser to a different rung.
+   *Observable:* the header follows with no re-import, and its tooltip now
+   says the figures are the Judge's.
+5. Clear the override, then clear the class-builder tables. *Observable:* the
+   ability reads as undecided, the tooltip says "not imported" and shows no
+   figure.
+6. Open the Judge-own ability's limitation row in the row editor, choose a
+   rung and tick the shield box. *Observable:* the row keeps the editor's
+   figures after a re-render, an imported row opened and closed without
+   touching the gate fields stays on the table.
+7. Teardown. The run's tracked documents are swept by ledger; the override is
+   cleared.

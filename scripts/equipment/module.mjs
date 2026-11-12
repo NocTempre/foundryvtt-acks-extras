@@ -30,6 +30,7 @@ import { wearItem } from "./actions.mjs";
 import { ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
 import { registerManagedEffect, managedDelete } from "../lib/managed-effects.mjs";
 import { expectTables } from "../lib/tables.mjs";
+import { BUILDER_DOC_ID } from "../classes/builder-logic.mjs";
 import { registerEquipmentRepairChecks } from "./repair-checks.mjs";
 import { RULEDATA_DOC } from "./overlays/scavenged.mjs";
 import { registerWeaponRows, rowsReady } from "./weapon-rows.mjs";
@@ -65,6 +66,11 @@ Hooks.once("init", () => {
   // Every weapon reader asks the weapon seam; this is the source behind it, the
   // imported rows placed against the imported lists.
   registerWeaponSource(librarySource);
+
+  // The armour limits on abilities (`armour-limits.mjs`) are read from the
+  // class-builder document's `thiefLimits` table (THIEF_LIMITS_TABLE), written
+  // as a literal because the producers gate reads this call from source.
+  expectTables(BUILDER_DOC_ID, ["thiefLimits"]);
 
   // The library's minted weapon rows, published as the `weapons` ruledata
   // document once the shelves load and on every change to a library weapon.

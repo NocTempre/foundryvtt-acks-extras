@@ -69,7 +69,9 @@
       <div class="form-group"{{#if f.drop}} data-acks-extras-ref-drop{{/if}}>
         <label>{{f.label}}</label>
         <div class="form-fields">
-          {{#if (eq f.kind "select")}}
+          {{#if (eq f.kind "boolean")}}
+            <input type="checkbox" name="{{f.name}}" {{checked f.checked}}>
+          {{else if (eq f.kind "select")}}
             <select name="{{f.name}}">{{selectOptions f.choices selected=f.value blank=@root.none}}</select>
           {{else if (eq f.kind "number")}}
             <input type="number" step="any" name="{{f.name}}" value="{{f.value}}" placeholder="—">

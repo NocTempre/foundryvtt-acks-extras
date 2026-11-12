@@ -10,7 +10,8 @@ import { STYLE } from "./config.mjs";
 import { classifyWeapon, handCost, inferStyle, isHelmet, isShield } from "./profiles.mjs";
 import { collectStringFlags, sumEffectModifiers, hasEffectFlag } from "./effects.mjs";
 import { EFFECT_DOMAINS } from "./constants.mjs";
-import { weaponProficiency, isWeaponProficient, weaponProficiencyDecided, armorMax, isArmorProficient, thiefSkillsGated, enforcementActive } from "./proficiency.mjs";
+import { weaponProficiency, isWeaponProficient, weaponProficiencyDecided, armorMax, isArmorProficient, enforcementActive } from "./proficiency.mjs";
+import { armourLimitedAbilities } from "./armour-limits.mjs";
 import { occupiesHand } from "./overlays/shield-variants.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
 import { abilityGrants } from "../lib/proficiency-strip.mjs";
@@ -27,7 +28,8 @@ export const VIOLATION = Object.freeze({
   ARMOR_NOT_PROFICIENT: "armorNotProficient", // worn armour above class proficiency (advisory; triggers nonProficientUse)
   STYLE_NOT_PROFICIENT: "styleNotProficient", // using an untrained fighting style (advisory; triggers nonProficientUse)
   NON_PROFICIENT_USE: "nonProficientUse", // the full non-proficient use package (RR p. 15): attacks as a 0th-level fighter, no attribute bonus to attack/AC, no class powers, no XP
-  THIEF_SKILL_GATED: "thiefSkillGated", // Backstab/Hide/Pickpocket/Sneak blocked by armour/shield (advisory)
+  ABILITY_ARMOUR_LIMITED: "abilityArmourLimited", // abilities whose imported armour limit the loadout breaks (advisory)
+  ABILITY_ARMOUR_UNDECIDED: "abilityArmourUndecided", // abilities carrying an armour limit with no imported rung to judge by (advisory)
 });
 
 /** The player's chosen grip for a weapon: "auto" (default), "1h", or "2h". */
@@ -408,9 +410,24 @@ export function getLoadout(actor, opts = {}) {
     });
   }
 
-  const thiefGated = thiefSkillsGated({ armor, shield: shields[0] ?? null });
-  if (thiefGated) {
-    violations.push({ type: VIOLATION.THIEF_SKILL_GATED, items: [armor, shields[0]].filter(Boolean), advisory: true });
+  // Armour limits an ability carries (`armour-limits.mjs`): any equipped shield
+  // counts, in hand or strapped.
+  const armourLimits = armourLimitedAbilities(actor, { armor, shield: shields[0] ?? null });
+  if (armourLimits.blocked.length) {
+    violations.push({
+      type: VIOLATION.ABILITY_ARMOUR_LIMITED,
+      items: [armor, shields[0]].filter(Boolean),
+      advisory: true,
+      detail: { abilities: armourLimits.blocked.join(", ") },
+    });
+  }
+  if (armourLimits.undecided.length) {
+    violations.push({
+      type: VIOLATION.ABILITY_ARMOUR_UNDECIDED,
+      items: [],
+      advisory: true,
+      detail: { abilities: armourLimits.undecided.join(", ") },
+    });
   }
 
   return {
@@ -444,7 +461,7 @@ export function getLoadout(actor, opts = {}) {
     styleProficient,
     shieldStyled,
     nonProficientUse,
-    thiefSkillsGated: thiefGated,
+    armourLimits,
     violations,
     legal: violations.every((v) => v.advisory),
   };
@@ -480,6 +497,7 @@ function canUseShieldStyle(actor, trained = trainedStyles(actor)) {
  * @property {Set<string>} specStyles
  * @property {boolean} styleProficient
  * @property {boolean} shieldStyled the in-hand shield is backed by the style, so its AC counts
+ * @property {{blocked: string[], undecided: string[]}} armourLimits the actor's abilities whose armour limit the loadout breaks, and those it cannot be judged for
  * @property {{type,items,advisory?,detail?}[]} violations
  * @property {boolean} legal
  */
