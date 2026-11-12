@@ -385,7 +385,7 @@ const torchP = classifyWeapon(weapon("Torch", { melee: true, missile: true }));
 check("a torch is everyone's thrown, and carried", isWeaponProficient(swordsOnly, torchP, undefined, { attack: "thrown" }) && isWeaponProficient(swordsOnly, torchP));
 check("a torch swung in melee needs its grant", !isWeaponProficient(swordsOnly, torchP, undefined, { attack: "melee" }));
 // Beyond the table: anything that bursts, and a thrown thing the table
-// cannot place that its name calls a flask, a bottle or a grenade.
+// cannot place that its name calls a flask or a bottle, and a tagged grenade.
 const acidP = classifyWeapon(weapon("Flask of acid", { missile: true, melee: false }));
 const brickP = classifyWeapon(weapon("Brick", { missile: true, melee: false }));
 const taggedP = classifyWeapon(weapon("Smoke charge", { missile: true, melee: false, tags: ["Grenade"] }));
@@ -1273,14 +1273,14 @@ check("JJ thief broad selection: medium melee + all missile, not great swords", 
 const { SELECTION_VOCAB, selectionOptions } = await import(new URL("../scripts/lib/vocab.mjs", import.meta.url));
 const boxKinds = selectionOptions(SELECTION_VOCAB.weaponProficiency).filter(([k]) => k !== "unarmed").map(([k]) => classifyGrantToken(k));
 check("every weapon-proficiency box is a grant token this grammar resolves",
-  boxKinds.length >= 13 && boxKinds.every((k) => k && k !== "unknown" && k !== "weapon"));
+  boxKinds.length >= 12 && boxKinds.every((k) => k && k !== "unknown" && k !== "weapon"));
 
 // The strips read the same picks at class granularity, through one resolver.
 const { profileStrips, weaponTokenClasses } = await import(new URL("../scripts/lib/proficiency-strip.mjs", import.meta.url));
 check("weaponTokenClasses: missile:all lights the missile classes only",
-  (() => { const c = weaponTokenClasses("missile:all"); return c.includes("bow") && c.includes("crossbow") && c.includes("other") && !c.includes("axe"); })());
+  (() => { const c = weaponTokenClasses("missile:all"); return c.includes("bowcrossbow") && c.includes("other") && !c.includes("axe"); })());
 check("weaponTokenClasses: a size clause lights every melee class",
-  (() => { const c = weaponTokenClasses("melee:small"); return c.includes("axe") && c.includes("sworddagger") && c.includes("other") && !c.includes("bow"); })());
+  (() => { const c = weaponTokenClasses("melee:small"); return c.includes("axe") && c.includes("sworddagger") && c.includes("other") && !c.includes("bowcrossbow"); })());
 check("weaponTokenClasses: a named weapon lights the class it is filed under",
   weaponTokenClasses("dagger")[0] === "sworddagger" && weaponTokenClasses("dart")[0] === "spearpolearm");
 check("weaponTokenClasses: a token nothing recognises covers no class", weaponTokenClasses("pointy stick").length === 0);
@@ -1297,15 +1297,15 @@ try {
     flags: { "acks-extras": { cookbook: { id: "def.prof.weaponProficiency" }, extras: { category: "weaponProficiency", selections } } },
   });
   const lit = (picks) => new Set(profileStrips(actor([weaponsAbility(picks)])).weapons.filter((w) => w.on).map((w) => w.key));
-  check("strip: a broad missile + small-melee training lights every class", lit(["missile:all", "melee:tiny", "melee:small", "melee:medium"]).size === 8);
+  check("strip: a broad missile + small-melee training lights every class", lit(["missile:all", "melee:tiny", "melee:small", "melee:medium"]).size === 7);
   const missile = lit(["all missile weapons", "dagger"]);
   check("strip: missile picks light the missile classes, a dagger its own, unarmed always",
-    missile.has("bow") && missile.has("crossbow") && missile.has("other") && missile.has("sworddagger") && missile.has("unarmed")
+    missile.has("bowcrossbow") && missile.has("other") && missile.has("sworddagger") && missile.has("unarmed")
     && !missile.has("axe") && !missile.has("flailhammermace") && !missile.has("spearpolearm"));
   const restricted = lit(["club", "dagger", "dart", "staff"]);
   check("strip: a restricted list lights the classes its weapons are filed under",
-    restricted.has("other") && restricted.has("sworddagger") && restricted.has("spearpolearm") && !restricted.has("axe") && !restricted.has("bow"));
-  check("strip: an unrestricted pick lights everything", lit(["all"]).size === 8);
+    restricted.has("other") && restricted.has("sworddagger") && restricted.has("spearpolearm") && !restricted.has("axe") && !restricted.has("bowcrossbow"));
+  check("strip: an unrestricted pick lights everything", lit(["all"]).size === 7);
 
   // The proficiency gate honours the training an imported proficiency
   // states, read the way the pills read it: what the pill lights, the gate
@@ -2114,7 +2114,7 @@ check("the bridge leaves typed initiative to the loadout",
 
 // Pick resolvers.
 check("resolveStylePick handles 'Weapon and Shield'", resolveStylePick("Weapon and Shield") === "weaponshield");
-check("resolveWeaponGroupPick: crossbows before bows", resolveWeaponGroupPick("Crossbows").join() === "crossbow");
+check("resolveWeaponGroupPick: bows and crossbows are one category", resolveWeaponGroupPick("Crossbows").join() === "bowcrossbow" && resolveWeaponGroupPick("Bows").join() === "bowcrossbow");
 check("resolveWeaponGroupPick: a named weapon is that weapon alone, not its category", resolveWeaponGroupPick("Sword").join() === "sword" && resolveWeaponGroupPick("Whip").join() === "whip");
 check("resolveFocusPick maps bows and crossbows together", resolveFocusPick("Bows & Crossbows") === "bowscrossbows");
 check("resolveFocusPick answers null for a pick no imported focus names", resolveFocusPick("Zorgle") === null && resolveFocusPick("") === null);
@@ -2134,7 +2134,7 @@ check("resolveWeaponGroupPick reads a category by its own name when the lists do
     hurl: row("Hurl", "small", "r"), quux: row("Quux", "tiny", "m"), dorb: row("Dorb", "medium", "m"), stray: row("Stray", "medium", "m"),
     plain: row("Plain", "large", "m"), filler: row("Filler", "small", "m"), speck: row("Speck", "tiny", "m"),
   };
-  const CATEGORY = { axe: ["zorgs"], bow: ["blorps"], crossbow: ["flibs"], other: ["quuxes", "dorbs", "hurls", "strays"] };
+  const CATEGORY = { axe: ["zorgs"], bowCrossbow: ["blorps"], swordDagger: ["flibs"], other: ["quuxes", "dorbs", "hurls", "strays"] };
   const MARTIAL = {
     martial: {
       options: [
@@ -2154,11 +2154,11 @@ check("resolveWeaponGroupPick reads a category by its own name when the lists do
     check("an option's id resolves to its own weapons", pick("martial.4") === "dorb,hurl,quux");
     check("a phrase naming one option's nouns resolves the same way", pick("quuxes and dorbs") === "dorb,hurl,quux" && pick("Hurl") === "dorb,hurl,quux");
     check("an option holding a whole category collapses to its category token", pick("martial.1") === "axe" && pick("zorgs") === "axe");
-    check("an option over two categories is both tokens", pick("martial.2") === "bow,crossbow" && pick("blorps") === "bow,crossbow");
+    check("an option over two categories is both tokens", pick("martial.2") === "sworddagger,bowcrossbow" && pick("blorps") === "sworddagger,bowcrossbow");
     check("a legacy category key resolves through the one option whose weapons all carry it, and never to the category's other weapons", pick("other") === "dorb,hurl,quux" && pick("axe") === "axe");
-    check("a legacy key no single option holds stays the key itself", pick("bow") === "bow" && pick("crossbow") === "crossbow" && pick("sworddagger") === "sworddagger");
+    check("a legacy key no single option holds stays the key itself", pick("bowcrossbow") === "bowcrossbow" && pick("crossbow") === "bowcrossbow" && pick("sworddagger") === "sworddagger");
     check("a combination grants nothing, and so does an id no option has", pick("martial.3") === "" && pick("martial.9") === "" && resolveWeaponGroupPick("martial.3").length === 0);
-    check("a pick no option names is the weapon, else the category named, else the pick", pick("Stray") === "stray" && pick("Crossbows") === "crossbow" && pick("Zorgle") === "zorgle");
+    check("a pick no option names is the weapon, else the category named, else the pick", pick("Stray") === "stray" && pick("Crossbows") === "bowcrossbow" && pick("Zorgle") === "zorgle");
     const grants = (...selections) => [...collectStringFlags(withItems([abil("Martial Training", "def.prof.martialTraining", { selections })]), "martialWeapons")].sort().join();
     check("the bridge writes every token of every pick", grants("martial.4", "martial.1") === "axe,dorb,hurl,quux");
     const swordish = withItems([abil("Martial Training", "def.prof.martialTraining", { selections: ["martial.4"] })]);
@@ -2176,7 +2176,7 @@ check("resolveWeaponGroupPick reads a category by its own name when the lists do
     unregisterTable(WEAPONS_DOC, layer);
     useSource(previous);
   }
-  check("nothing imported, the pick falls back without throwing", pick("martial.4") === "" && pick("other") === "other" && pick("Crossbows") === "crossbow" && pick("axes") === "axe");
+  check("nothing imported, the pick falls back without throwing", pick("martial.4") === "" && pick("other") === "other" && pick("Crossbows") === "bowcrossbow" && pick("axes") === "axe");
 }
 
 /* ---------------------------------------------------------------------- */
@@ -2204,6 +2204,16 @@ const { consumeForAttack, launcherAmmoPattern, roundsOf, isThrownAway, recoverTh
 // A launcher's ammo type is resolved from category/name.
 check("bow → arrows", launcherAmmoPattern(weapon("Long Bow", { missile: true, melee: false }), classifyWeapon(weapon("Long Bow", { missile: true, melee: false }))).test("Quiver, 20 Arrows"));
 check("crossbow → bolts", launcherAmmoPattern(weapon("Crossbow", { missile: true }), classifyWeapon(weapon("Crossbow", { missile: true }))).test("Case, 20 Bolts"));
+{
+  // One category holds both kinds, so the ammunition is read from the weapon's own name.
+  const patternOf = (name) => launcherAmmoPattern(weapon(name, { missile: true }), classifyWeapon(weapon(name, { missile: true })));
+  check("a bow takes no bolts and a crossbow no arrows", !patternOf("Long Bow").test("Case, 20 Bolts") && !patternOf("Crossbow").test("Quiver, 20 Arrows"));
+  check("an arbalest is a crossbow: bolts, no arrows", patternOf("Arbalest").test("Case, 20 Bolts") && !patternOf("Arbalest").test("Quiver, 20 Arrows"));
+  // A Judge's own launcher: no row places an invented name, so its class is declared.
+  const zorbler = weapon("Zorbler", { missile: true, flags: { category: "bowCrossbow" } });
+  const either = launcherAmmoPattern(zorbler, classifyWeapon(zorbler));
+  check("a launcher of the pair whose name says neither takes either", !!either && ["Quiver, 20 Arrows", "Case, 20 Bolts"].every((n) => either.test(n)));
+}
 check("sling → stones", launcherAmmoPattern(weapon("Sling", { missile: true }), classifyWeapon(weapon("Sling", { missile: true }))).test("30 Sling Stones"));
 check("a launcher is told by its imported class, never by its name", launcherAmmoPattern(weapon("Long Bow", { missile: true }), classifyWeapon(weapon("Zorgle Bow", { missile: true }))) === null);
 check("a melee sword has no ammo pattern", launcherAmmoPattern(weapon("Sword", { melee: true }), classifyWeapon(weapon("Sword", { melee: true }))) === null);

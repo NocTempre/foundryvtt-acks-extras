@@ -14,13 +14,20 @@ import { unset } from "../lib/util.mjs";
 
 /**
  * Ammo-name pattern a launcher consumes, or null if it is not a launcher. A bow
- * and a crossbow are told by the category the imported lists place them in; a
+ * or a crossbow is told by the category the imported lists place it in; a
  * weapon with no category is no launcher here, and a sling is told by its name.
+ * The category holds both, so which ammunition it takes is read from the
+ * weapon's own name and its row's key: a crossbow, and an arbalest, which is a
+ * heavy crossbow (RR ch. 4, Equipment Descriptions), take bolts; any other bow
+ * arrows; a launcher whose name says neither takes either.
  */
 export function launcherAmmoPattern(item, profile) {
   const n = slug(item?.name ?? "");
-  if (profile?.cat === WEAPON_CATEGORY.BOW) return /arrow/i;
-  if (profile?.cat === WEAPON_CATEGORY.CROSSBOW) return /bolt|quarrel/i;
+  if (profile?.cat === WEAPON_CATEGORY.BOW_CROSSBOW) {
+    const named = `${n} ${slug(profile.key ?? "")}`;
+    if (/crossbow|arbalest/.test(named)) return /bolt|quarrel/i;
+    return /bow/.test(named) ? /arrow/i : /arrow|bolt|quarrel/i;
+  }
   if (/sling/.test(n)) return /stone|bullet|shot/i;
   return null;
 }

@@ -287,7 +287,7 @@ real language document on the character.*
 says "Swords" ticks *Swords & Daggers*, rather than leaving the words sitting in
 free text where nothing matches them.
 
-**Weapon proficiency offers the whole selection vocabulary.** Beside the seven
+**Weapon proficiency offers the whole selection vocabulary.** Beside the six
 weapon groups sit *Any weapon*, *All missile weapons* and one box per melee
 size, so a class trained in every missile weapon and every melee weapon up to
 medium size is four ticks, and the Training strip lights every class they

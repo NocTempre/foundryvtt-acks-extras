@@ -36,11 +36,11 @@ const row = (name, size, uses, damage, type, cat, extra = {}) => ({
 
 /** The invented rows, keyed as the readers key them: the name, run together. */
 export const FIXTURE_ROWS = Object.freeze({
-  arbalest: row("Arbalest", "medium", "r", "1d11", "piercing", "crossbow", { handy: true, special: ["slow"] }),
-  crossbow: row("Crossbow", "small", "r", "1d9", "piercing", "crossbow", { handy: true, special: ["slow"] }),
-  compositebow: row("Composite Bow", "medium", "r", "1d9", "piercing", "bow"),
-  longbow: row("Long Bow", "large", "r", "1d9", "piercing", "bow"),
-  shortbow: row("Short Bow", "small", "r", "1d9", "piercing", "bow"),
+  arbalest: row("Arbalest", "medium", "r", "1d11", "piercing", "bowCrossbow", { handy: true, special: ["slow"] }),
+  crossbow: row("Crossbow", "small", "r", "1d9", "piercing", "bowCrossbow", { handy: true, special: ["slow"] }),
+  compositebow: row("Composite Bow", "medium", "r", "1d9", "piercing", "bowCrossbow"),
+  longbow: row("Long Bow", "large", "r", "1d9", "piercing", "bowCrossbow"),
+  shortbow: row("Short Bow", "small", "r", "1d9", "piercing", "bowCrossbow"),
   battleaxe: row("Battle Axe", "medium", "m", "1d9", "slashing", "axe", { damage2h: "1d11" }),
   greataxe: row("Great Axe", "large", "m", "1d13", "slashing", "axe"),
   handaxe: row("Hand Axe", "small", "mt", "1d9", "slashing", "axe", { special: ["thrown"] }),
@@ -99,8 +99,7 @@ const LISTS = Object.freeze({
       axe: ["axe"],
       flailHammerMace: ["flail", "hammer", "mace"],
       spearPolearm: ["spear", "polearm"],
-      bow: ["bow"],
-      crossbow: ["crossbow"],
+      bowCrossbow: ["bow", "crossbow"],
     },
     focus: {
       axes: ["axe"],

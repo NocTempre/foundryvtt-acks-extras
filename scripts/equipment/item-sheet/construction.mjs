@@ -225,7 +225,7 @@ export function buildConstructionPanel(item, { editing = false } = {}) {
       })
       : loc(hasWeaponRows() ? "props.weaponTypeNone" : "props.weaponTypeNoTable"));
 
-    // CLASS — the seven the character sheet's training lists, in its order
+    // CLASS — the six the character sheet's training lists, in its order
     // and its words. The table row's class is the "Auto" answer; declaring
     // one is what makes a weapon no row identifies count as trained.
     const declaredClass = item.getFlag(MODULE_ID, ITEM_FLAGS.CATEGORY);

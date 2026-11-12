@@ -198,7 +198,7 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    is lit, `getLoadout(actor).nonProficientUse` is false, and an attack through
    the system's own `actor.makeAttackThrow({item, attackType: "melee",
    skipDialog: true})` carries no **Non-proficient** row in
-   `outcome.result.attack.modifiers` or on its card. Move the pick to Bows: the
+   `outcome.result.attack.modifiers` or on its card. Move the pick to Bows & Crossbows: the
    pill goes dark and the same attack carries the row. Put it back: the row is
    gone. Assert presence only, never the row's size. Teardown: the walk sweeps
    its attack cards by id and restores the enforcement setting; the fixture
@@ -376,9 +376,15 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    name does not.
 2a. Construction (Details, armed), on the axe. *Observable:* Base type,
    Weapon type, Class and Size are selects, Auto first and naming the guess,
-   and Class lists the character sheet's classes in its order. Pick Class
-   *Bow* → `flags.acks-extras.category === "bow"` and `classifyWeapon(item).cat`
-   reads it; Auto clears the flag. Grips: both chips dashed, since the
+   and Class lists the character sheet's six classes in its order, bows and
+   crossbows as the one *Bows & Crossbows* (a weapon row the lists place only by
+   its sub-header, an arbalest-kind row, reads that class in Auto). Pick Class
+   *Bows & Crossbows* (one option, the printed category) →
+   `flags.acks-extras.category === "bowCrossbow"` and `classifyWeapon(item).cat`
+   reads it; Auto clears the flag. With ammo tracking on and a quiver of arrows
+   and a case of bolts carried, a crossbow's attack spends a bolt and a bow's an
+   arrow, never the other's (the category holds both; the ammunition is read from
+   the weapon's name). Grips: both chips dashed, since the
    axe offers either; click *Two-handed* → `grips === "1h"` (One-handed
    solid, Two-handed ghost); click *Two-handed* again → `versatile`, both
    solid; click *One-handed* → `2h`; click *Two-handed* → both off, the flag
@@ -768,7 +774,7 @@ for each:
 |---|---|---|
 | stored | `weaponProficiency: "axe,sword"`, `styles: "single,missile,dual"`, `armorMax: "light"`, and one key the macro does not write | linked |
 | blank | none | linked |
-| base | `weaponProficiency: "bow"` | **unlinked** |
+| base | `weaponProficiency: "bowcrossbow"` | **unlinked** |
 | player-owned | `weaponProficiency: "axe,sword"`, `styles: "single,missile"`, `armorMax: "light"`, and one key the macro does not write; `ownership.default: 3` | linked, on a scene of its own with `ownership.default: 2` |
 
 `api.create` records every one of them.
@@ -806,20 +812,20 @@ named and presses Save.
    `armorMax` and the key the macro does not write are unchanged; the notice
    reads `weapons unrestricted`; no `forced deletion` line.
 2. **A profile is set.** On `stored` again: untick All weapons, tick Axes,
-   Bows and Two-handed, type `sword`, pick Medium.
-   *Observable:* `weaponProficiency: "axe,bow,sword"`,
+   Bows & crossbows and Two-handed, type `sword`, pick Medium.
+   *Observable:* `weaponProficiency: "axe,bowCrossbow,sword"`,
    `styles: "single,missile,dual,twoHanded"`, `armorMax: "medium"`.
 3. **Nothing stated, nothing stored.** On `blank`: untick All weapons.
    *Observable:* `styles: "single,missile"` and `armorMax: "heavy"` are
    written and no `weaponProficiency` key appears; no `forced deletion` line.
-4. **An unlinked token keeps its own.** On `base`'s token: untick Bows, tick
+4. **An unlinked token keeps its own.** On `base`'s token: untick Bows & crossbows, tick
    Axes.
    *Observable:* the token's delta holds `weaponProficiency: "axe"`; the base
-   actor still holds `"bow"`.
+   actor still holds `"bowcrossbow"`.
 5. **Clearing an unlinked token returns it to its base.** On the same token:
    untick Axes.
    *Observable:* the delta holds no `weaponProficiency` and the token's actor
-   reads the base actor's `"bow"` again. The notice still says `unrestricted`:
+   reads the base actor's `"bowcrossbow"` again. The notice still says `unrestricted`:
    it reports what was saved, which is no longer what the token reads.
 6. **A player's own character.** From the Player seat in a browser of its own,
    with a GM client connected: step 1 on `player-owned`.
@@ -1084,7 +1090,8 @@ effects are all `override` at priority 50
   `flags.world.fixturePart`:
   - six `ability` items, each with one transfer effect whose one change is
     `type: "override"`, `priority: 50`: `weaponProf` `axe` (`grant-a`) and
-    `bow` (`grant-b`), `styleProficient` `weaponShield` (`style-a`) and
+    `bowcrossbow` (`grant-b`; a fixture built before the merge still holds
+    `bow`, which reads as unknown, so re-set it), `styleProficient` `weaponShield` (`style-a`) and
     `twoHanded` (`style-b`), `armourProficiency` `light` (`armour-a`) and
     `medium` (`armour-b`). Names are neutral (`QA pre-upgrade <part>`); the
     pack's own are in git;
@@ -1103,7 +1110,7 @@ effects are all `override` at priority 50
 ### Steps
 
 1. Read the sets. *Observable:* `collectStringFlags(actor, "weaponProf")`
-   holds `axe`, `bow`, `crossbow` and `sworddagger`; `trainedStyles(actor)`
+   holds `axe`, `bowcrossbow` and `sworddagger`; `trainedStyles(actor)`
    holds `weaponshield` and `twohanded`; `armorMax(actor)` is `medium`.
    *Control:* the replaced reading (an override resets the set), replayed over
    `orderedChanges(actor, "flags.acks-extras.weaponProf")`, keeps one token.

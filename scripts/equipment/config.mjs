@@ -25,8 +25,7 @@ export const STYLE = Object.freeze({
  */
 export const WEAPON_CATEGORY = Object.freeze({
   AXE: "axe",
-  BOW: "bow",
-  CROSSBOW: "crossbow",
+  BOW_CROSSBOW: "bowCrossbow", // one category: the books list bows and crossbows together (RR ch. 1, Weapons)
   FLAIL_HAMMER_MACE: "flailHammerMace",
   SWORD_DAGGER: "swordDagger",
   SPEAR_POLEARM: "spearPolearm",
@@ -35,11 +34,12 @@ export const WEAPON_CATEGORY = Object.freeze({
 
 /**
  * What a thrown thing is called when the book's name for it says every class
- * throws it: a flask, a bottle, a vial, a grenade, a jar, a pot, a rock, a
- * stick or a torch (RR ch. 1, Weapon Proficiency). Read against the printed
- * name of a weapon row and the name of a thrown item no row places.
+ * throws it: a flask, a bottle, a rock, a stick or a torch (RR ch. 1, Weapon
+ * Proficiency), and a vial, the holy water's printed container (RR ch. 4,
+ * Equipment Descriptions). Read against the printed name of a weapon row and
+ * the name of a thrown item no row places.
  */
-export const IMPROVISED_THROWN = /\b(flasks?|bottles?|vials?|grenades?|jars?|pots?|rocks?|sticks?|torch(?:es)?)\b/i;
+export const IMPROVISED_THROWN = /\b(flasks?|bottles?|vials?|rocks?|sticks?|torch(?:es)?)\b/i;
 
 /** Armour weight categories (core `system.type`) ordered light→heavy. */
 export const ARMOR_LADDER = Object.freeze(["unarmored", "veryLight", "light", "medium", "heavy"]);

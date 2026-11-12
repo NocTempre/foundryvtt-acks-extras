@@ -41,8 +41,7 @@ const WEAPON_CLASSES = [
   { key: "sworddagger", chip: "SW", melee: true, label: "ACKS-LIB.weaponCat.swordDagger", fallback: "Swords & Daggers" },
   { key: "flailhammermace", chip: "MC", melee: true, label: "ACKS-LIB.weaponCat.flailHammerMace", fallback: "Flails, Hammers & Maces" },
   { key: "spearpolearm", chip: "SP", melee: true, label: "ACKS-LIB.weaponCat.spearPolearm", fallback: "Spears & Polearms" },
-  { key: "bow", chip: "BW", missile: true, label: "ACKS-LIB.weaponCat.bow", fallback: "Bows" },
-  { key: "crossbow", chip: "XB", missile: true, label: "ACKS-LIB.weaponCat.crossbow", fallback: "Crossbows" },
+  { key: "bowcrossbow", chip: "BX", missile: true, label: "ACKS-LIB.weaponCat.bowCrossbow", fallback: "Bows & Crossbows" },
   { key: "other", chip: "OT", melee: true, missile: true, label: "ACKS-LIB.weaponCat.other", fallback: "Other weapons" },
 ];
 
@@ -89,8 +88,7 @@ export const isProfileAbility = (item) =>
 const WEAPON_SYNONYMS = {
   sworddagger: ["sword", "swords", "dagger", "daggers", "swordsdaggers", "sworddagger", "swordsanddaggers"],
   axe: ["axe", "axes"],
-  bow: ["bow", "bows", "bowscrossbows"],
-  crossbow: ["crossbow", "crossbows"],
+  bowcrossbow: ["bow", "bows", "crossbow", "crossbows", "bowscrossbows", "bowsandcrossbows"],
   flailhammermace: ["mace", "maces", "flail", "flails", "hammer", "hammers", "macesflailshammers", "flailhammermace", "flailshammersmaces"],
   spearpolearm: ["spear", "spears", "polearm", "polearms", "spearspolearms", "spearsandpolearms"],
   other: ["other"],
@@ -301,7 +299,7 @@ export function profileStrips(actor) {
     axes: "axe",
     macesflailshammers: "flailhammermace",
     swordsdaggers: "sworddagger",
-    bowscrossbows: "bow",
+    bowscrossbows: "bowcrossbow",
     slingsthrown: "other",
     spearspolearms: "spearpolearm",
   };
@@ -311,8 +309,6 @@ export function profileStrips(actor) {
     for (const g of api.collectStringFlags?.(actor, domain) ?? []) {
       const cat = FOCUS_TO_CATEGORY[norm(g)];
       if (cat) focusCats.add(cat);
-      // A focused bow group also covers crossbows.
-      if (norm(g) === "bowscrossbows") focusCats.add("crossbow");
     }
   } catch {
     /* no focus data — no gold, which is the honest default */

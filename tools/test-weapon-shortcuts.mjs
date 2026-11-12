@@ -59,7 +59,7 @@ const LISTS = {
   id: "weaponLists",
   cites: { options: "ZZ p.1; ZZ p.2", focus: "ZZ p.3" },
   tables: {
-    category: { axe: ["zork"], bow: ["blorp"], other: ["quux"], crossbow: ["klonk"] },
+    category: { axe: ["zork"], bowCrossbow: ["blorp"], other: ["quux"], spearPolearm: ["klonk"] },
     focus: { zorks: ["zork"], quuxs: ["quux", "gnarl"] },
     options: {
       restricted: { cite: "ZZ p.2", options: [{ n: 1, marker: "i", label: "gnarl", weapon: "gnarl" }] },
@@ -102,7 +102,7 @@ registerTable(LISTS, layer);
 const cat = (k) => weaponRow(k).cat;
 eq("a row neither name nor sub-header places takes its sub-header mates' kind", [cat("gnarl"), cat("quuxa")], ["other", "other"]);
 eq("a row with no sub-header and no name stays unplaced", [cat("stray"), weaponRow("stray").options], [null, []]);
-eq("a row placed on a category no option names holds no option", [cat("klonka"), weaponRow("klonka").options], ["crossbow", []]);
+eq("a row placed on a category no option names holds no option", [cat("klonka"), weaponRow("klonka").options], ["spearPolearm", []]);
 
 // ----------------------------------------------------------------- the shortcuts
 eq(
@@ -127,8 +127,8 @@ eq("coverage is all, some or none of the set", [coverageOf(["zorka", "zorkb"], k
 eq("a press on an empty grant adds the units, written as the category they complete", toggledUnits("", unitsOf("narrow.1")), "axe");
 eq("pressed again it withdraws them", toggledUnits("axe", unitsOf("narrow.1")), "");
 eq("a partly covered set completes on a press and withdraws when forced off", [toggledUnits("zorka", unitsOf("narrow.1")), toggledUnits("axe", unitsOf("narrow.1"), false)], ["axe", ""]);
-eq("overlapping shortcuts write the one grant", toggledUnits(toggledUnits("", unitsOf("narrow.1")), unitsOf("martial.2")), "axe,bow");
-eq("withdrawing one overlap leaves the weapons the other still holds", toggledUnits("axe,bow", unitsOf("narrow.2")), "axe");
+eq("overlapping shortcuts write the one grant", toggledUnits(toggledUnits("", unitsOf("narrow.1")), unitsOf("martial.2")), "axe,bowcrossbow");
+eq("withdrawing one overlap leaves the weapons the other still holds", toggledUnits("axe,bowcrossbow", unitsOf("narrow.2")), "axe");
 eq("a size clause a shortcut takes a weapon from is rewritten into what remains", toggledUnits("melee:small", unitsOf("narrow.1"), false), "gnarl,quuxb");
 eq("a clause the withdrawal does not touch stands", toggledUnits("melee:tiny,melee:small", unitsOf("narrow.1"), false), "melee:tiny,gnarl,quuxb");
 eq("a token nothing recognises rides through a press", toggledUnits("pointy stick", unitsOf("narrow.1")), "axe,pointy stick");
@@ -143,7 +143,7 @@ eq("a press that takes one member out rewrites the category into its remainder",
 eq(
   "the weapons no option holds and the categories no option holds whole are reported",
   optionFindings(),
-  { unplaced: ["klonka", "stray"], notWhole: ["crossbow"] },
+  { unplaced: ["klonka", "stray"], notWhole: ["spearPolearm"] },
 );
 
 // ----------------------------------------------------------------- the surface
@@ -183,9 +183,9 @@ const trained = (grant, extra = {}) => ({
   check("a category header names the printed options that hold its weapons, each with its page", /stats\.optionsHolding\|/.test(axes) && /any zorks/.test(axes) && /zorks and blorps/.test(axes) && /ZZ p\.2/.test(axes) && /ZZ p\.1/.test(axes));
   check("and a size-and-use option one of its weapons satisfies", /any tiny or small melee weapons/.test(axes));
   check("and not the restricted list's single picks", !/label\W+gnarl/.test(tip("other", "quuxa", "quuxb", "gnarl")) && /label\W+quuxes/.test(tip("other", "quuxa", "quuxb", "gnarl")));
-  const crossbows = tip("crossbow", "klonka");
-  check("a category no option holds says so, and that no one option holds it whole", /stats\.optionsNoneHold/.test(crossbows) && /stats\.optionsNotWhole/.test(crossbows));
-  check("and says how many of its weapons are in no option", /stats\.optionsLoose\|\{"count":1\}/.test(crossbows));
+  const klonks = tip("spearpolearm", "klonka");
+  check("a category no option holds says so, and that no one option holds it whole", /stats\.optionsNoneHold/.test(klonks) && /stats\.optionsNotWhole/.test(klonks));
+  check("and says how many of its weapons are in no option", /stats\.optionsLoose\|\{"count":1\}/.test(klonks));
   check("a category some option holds whole carries neither finding", !/optionsNotWhole|optionsLoose/.test(axes));
   unregisterTable(WEAPONS_DOC, { priority: PRIORITY.WORLD });
   unregisterTable("weaponLists", { priority: PRIORITY.WORLD });

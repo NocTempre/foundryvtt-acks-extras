@@ -182,7 +182,11 @@ const localImpl = Object.freeze({
   // sense's default reach or Night Vision's multiple is not imported;
   // `shadowySenseRange`, `lightlessDefaultRange`, `nightLightFactor` and
   // `senseCite` read the `senses` document.
-  apiVersion: 38,
+  // 39: bows and crossbows are one weapon class — `vocab`'s
+  // `SELECTION_VOCAB.weaponProficiency` and the proficiency strip's weapon
+  // classes hold one `bowcrossbow` where they held `bow` and `crossbow`, and a
+  // bare `crossbow` grant names the one weapon.
+  apiVersion: 39,
   vocab,
   fields,
   /**

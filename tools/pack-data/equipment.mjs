@@ -140,8 +140,7 @@ const SIZES = [
 ];
 const CATEGORIES = [
   ["axe", "Axes"],
-  ["bow", "Bows"],
-  ["crossbow", "Crossbows"],
+  ["bowCrossbow", "Bows &amp; crossbows"],
   ["flailHammerMace", "Flails, hammers &amp; maces"],
   ["swordDagger", "Swords &amp; daggers"],
   ["spearPolearm", "Spears &amp; pole arms"],

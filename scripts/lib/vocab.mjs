@@ -340,8 +340,7 @@ export const SELECTION_VOCAB = {
       aliases: ["flails", "hammers", "maces", "flails, hammers and maces", "maces, flails and hammers", "maces, flails & hammers"],
     },
     spearpolearm: { label: "Spears & Polearms", aliases: ["spears", "polearms", "spears and polearms"] },
-    bow: { label: "Bows" },
-    crossbow: { label: "Crossbows" },
+    bowcrossbow: { label: "Bows & Crossbows", aliases: ["bows", "crossbows", "bows and crossbows"] },
     other: { label: "Other weapons", aliases: ["other weapons"] },
   },
   fightingStyle: {

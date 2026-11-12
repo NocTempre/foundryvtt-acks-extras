@@ -2743,7 +2743,7 @@ t("weapon proficiency: every box is a grant token, and the family carries the wh
   const weapons = vocab.SELECTION_VOCAB.weaponProficiency;
   const keys = vocab.selectionOptions(weapons).map(([k]) => k);
   assert.ok(!keys.includes("exact"), "a meta key is not a box");
-  for (const k of ["all", "missile:all", "melee:tiny", "melee:small", "melee:medium", "melee:large", "axe", "sworddagger", "flailhammermace", "spearpolearm", "bow", "crossbow", "other"]) {
+  for (const k of ["all", "missile:all", "melee:tiny", "melee:small", "melee:medium", "melee:large", "axe", "sworddagger", "flailhammermace", "spearpolearm", "bowcrossbow", "other"]) {
     assert.ok(keys.includes(k), `${k} is offered`);
   }
   // The phrasings a class spread or a Judge writes land on the box the grammar reads.

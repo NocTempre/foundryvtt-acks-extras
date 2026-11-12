@@ -126,9 +126,9 @@ check("a missile grant covers a missile weapon that states no size", isWeaponPro
 const missileOnly = actorWith("missile:all");
 check("and refuses a melee one it can decide", isWeaponProficient(missileOnly, { ...bare, melee: true, missile: false }) === false);
 check("a melee size grant refuses a weapon that is not melee, undecided or not", grantVerdict("melee:small", { ...bare, melee: false }) === false);
-const declared = classifyWeapon(weap("Zorgle", { flags: { category: "bow", size: "tiny" } }));
+const declared = classifyWeapon(weap("Zorgle", { flags: { category: "bowCrossbow", size: "tiny" } }));
 check("a declared class and size decide it", weaponProficiencyDecided(actorWith("axe,melee:small"), declared) === true && isWeaponProficient(actorWith("axe,melee:small"), declared) === false);
-check("a declared class a grant covers is proficient", isWeaponProficient(actorWith("bow"), declared) === true && isWeaponProficient(actorWith("melee:tiny"), declared) === true);
+check("a declared class a grant covers is proficient", isWeaponProficient(actorWith("bowcrossbow"), declared) === true && isWeaponProficient(actorWith("melee:tiny"), declared) === true);
 check("an actor with no declared list refuses nothing and decides nothing", isWeaponProficient(actorWith(undefined), bare) === true && weaponProficiencyDecided(actorWith(undefined), bare) === true);
 check("the kill switch still wins over a decided refusal", (() => {
   const strict = actorWith("axe");
@@ -287,7 +287,7 @@ check("the tooltip of a missing figure carries no number", !/\d/.test(figures.fi
   const { launcherAmmoPattern } = await import(new URL("ammo.mjs", S));
   const longbow = weap("Long Bow", { system: { missile: true, melee: false } });
   check("with no class imported a bow is told by nothing, not by its name", launcherAmmoPattern(longbow, classifyWeapon(longbow)) === null);
-  const declaredBow = weap("Long Bow", { flags: { category: "bow" } });
+  const declaredBow = weap("Long Bow", { flags: { category: "bowCrossbow" } });
   check("a class the item declares tells it", launcherAmmoPattern(declaredBow, classifyWeapon(declaredBow))?.test("Arrow") === true);
 }
 

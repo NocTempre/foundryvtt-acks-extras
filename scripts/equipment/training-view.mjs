@@ -45,7 +45,7 @@ export const weaponName = (key) => weaponRow(key)?.name || String(key).charAt(0)
 /**
  * The token that names ONE unit and nothing wider: the bare key where the
  * grammar reads it as a weapon, `weapon:<key>` where the bare key is also a
- * category (`crossbow`) and the category reading would win.
+ * category and the category reading would win.
  */
 const unitToken = (key) => (classifyGrantToken(key) === "weapon" ? key : `weapon:${key}`);
 
@@ -100,10 +100,10 @@ export const tokenUnits = (token) => weaponUnits().filter((u) => covers(token, u
 export const TIER = Object.freeze({ UNRESTRICTED: "unrestricted", BROAD: "broad", NARROW: "narrow", RESTRICTED: "restricted" });
 
 /**
- * The seven weapon classes in the strips' order, each as the grant token that
+ * The six weapon classes in the strips' order, each as the grant token that
  * names it, the `WEAPON_CATEGORY` value a weapon declares, and the lib label
  * every surface prints — the character sheet's training and the item sheet's
- * Class control list the same seven words in the same order because both read
+ * Class control list the same six words in the same order because both read
  * this.
  */
 export const CATEGORY_TOKENS = Object.freeze([
@@ -111,8 +111,7 @@ export const CATEGORY_TOKENS = Object.freeze([
   { token: "sworddagger", cat: WEAPON_CATEGORY.SWORD_DAGGER, label: "ACKS-LIB.weaponCat.swordDagger" },
   { token: "flailhammermace", cat: WEAPON_CATEGORY.FLAIL_HAMMER_MACE, label: "ACKS-LIB.weaponCat.flailHammerMace" },
   { token: "spearpolearm", cat: WEAPON_CATEGORY.SPEAR_POLEARM, label: "ACKS-LIB.weaponCat.spearPolearm" },
-  { token: "bow", cat: WEAPON_CATEGORY.BOW, label: "ACKS-LIB.weaponCat.bow" },
-  { token: "crossbow", cat: WEAPON_CATEGORY.CROSSBOW, label: "ACKS-LIB.weaponCat.crossbow" },
+  { token: "bowcrossbow", cat: WEAPON_CATEGORY.BOW_CROSSBOW, label: "ACKS-LIB.weaponCat.bowCrossbow" },
   { token: "other", cat: WEAPON_CATEGORY.OTHER, label: "ACKS-LIB.weaponCat.other" },
 ]);
 

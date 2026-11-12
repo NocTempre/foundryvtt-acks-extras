@@ -19,6 +19,7 @@ import {
 import { hasSelectionProvider, matchSelectionKey, nameWithSelections, selectionOptions, selectionVocabFor } from "../scripts/lib/vocab.mjs";
 import { registerTable, unregisterTable, resetTables, expectedTables, PRIORITY } from "../scripts/lib/tables.mjs";
 import * as services from "../scripts/lib/services.mjs";
+import { WEAPON_CATEGORY } from "../scripts/equipment/config.mjs";
 import { TABLE_RECIPES } from "../scripts/importer/table-recipes.mjs";
 
 let pass = 0;
@@ -347,6 +348,25 @@ check("the grid is not changed", !("category" in grid.zork) && !("options" in gr
     [mates.oilA.placedBy.damageType, mates.oilA.damageType, mates.oilA.category, mates.oilA.placedBy.category],
     ["throwable", "fire", "zork", "mates"],
   );
+}
+
+{
+  // Bows and crossbows are ONE category (the module's own token): both printed nouns reach it, so the
+  // sub-header that names the pair places a row whose own name places nothing. Every row under that
+  // sub-header here is unplaceable by name, so only the block can have placed it, never its mates.
+  const category = assembleCategory([["bows", "crossbows"], ["axes"]]);
+  eq("the bow and crossbow nouns both land on the one category token", category, { [WEAPON_CATEGORY.BOW_CROSSBOW]: ["bows", "crossbows"], axe: ["axes"] });
+  eq("and a lone noun of either lands there as well", [categoryOf("bow"), categoryOf("crossbows"), categoryOf("quuxes")], [WEAPON_CATEGORY.BOW_CROSSBOW, WEAPON_CATEGORY.BOW_CROSSBOW, WEAPON_CATEGORY.OTHER]);
+  const pair = resolveRows(
+    { zarb: { name: "Zarb", block: "Bows/crossbows" }, zarbtwo: { name: "Zarb Two", block: "Bows/crossbows" }, quuxa: { name: "Quux A", block: "Axes" } },
+    { category },
+  );
+  eq(
+    "a row of the pair's sub-header no name places is placed in the merged category by the block",
+    [pair.zarb.category, pair.zarb.placedBy.category, pair.zarbtwo.category, pair.zarbtwo.placedBy.category],
+    [WEAPON_CATEGORY.BOW_CROSSBOW, "block", WEAPON_CATEGORY.BOW_CROSSBOW, "block"],
+  );
+  eq("while another sub-header's row is placed on its own category", [pair.quuxa.category, pair.quuxa.placedBy.category], ["axe", "block"]);
 }
 
 const optsOf = (k) => out[k].options;

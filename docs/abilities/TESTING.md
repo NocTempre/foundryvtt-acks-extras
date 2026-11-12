@@ -129,7 +129,7 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    equipment's grant token, a single weapon stays as typed and is never widened
    to its group. The name reads `… (All missile weapons, dagger)`. Put the
    ability on a character and open the follower card: the weapon strip lights
-   Bows, Crossbows, Other, Swords & Daggers and Unarmed, and NOT Axes, Flails
+   Bows & Crossbows, Other, Swords & Daggers and Unarmed, and NOT Axes, Flails
    or Spears. Tick *Medium melee* and save: the three dark pills light.
 
 13. **A companion is chosen into its slot.** Drag the companion ability onto

@@ -79,7 +79,7 @@ function raiseCategory(category, steps) {
 }
 
 /** Known weapon-category tokens (JJ p. 290 narrow/broad groupings). */
-const CATEGORY_TOKENS = new Set(["axe", "bow", "crossbow", "flailhammermace", "sworddagger", "spearpolearm", "other"]);
+const CATEGORY_TOKENS = new Set(["axe", "bowcrossbow", "flailhammermace", "sworddagger", "spearpolearm", "other"]);
 
 /** Weapon sizes (RR p. 127) — the axis broad choices i and ii select on. */
 const SIZE_TOKENS = new Set(["tiny", "small", "medium", "large"]);
@@ -137,9 +137,9 @@ export function grantVerdict(token, profile) {
     if (!profile.melee) return false;
     return profile.size == null ? null : String(profile.size).toLowerCase() === t.slice(6);
   }
-  // `weapon:<key>` names ONE weapon even where the bare key is also a category
-  // (`crossbow` is both): the category reading wins on a bare token, so a
-  // writer that means the single weapon says so.
+  // `weapon:<key>` names ONE weapon even where the bare key is also a category:
+  // the category reading wins on a bare token, so a writer that means the
+  // single weapon says so.
   const named = (name) => {
     const key = weaponTokenKey(name);
     if (!key) return hasWeaponRows() ? false : null;
@@ -163,12 +163,12 @@ export function grantVerdict(token, profile) {
  *                       size-based, not category-based, so sizes are
  *                       first-class here. A
  *                       bare `tiny` / `small` / `medium` / `large` means this.
- *   <category>          axe | bow | crossbow | flailHammerMace | swordDagger |
+ *   <category>          axe | bowCrossbow | flailHammerMace | swordDagger |
  *                       spearPolearm | other
  *   <weaponKey>         a single named weapon (the restricted list), by any name
  *                       the weapon table knows — "Great Sword" reaches twohandedsword
  *   weapon:<key>        the same, written so it cannot be read as a category
- *                       where the key is also one (`crossbow`)
+ *                       where the key is also one
  *
  * A token outside the grammar (`classifyGrantToken` → "unknown") matches
  * nothing. That is not a silent no-op: a profile with ONLY unknown tokens still

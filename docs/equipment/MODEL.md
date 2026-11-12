@@ -169,9 +169,9 @@ and the `weaponProf` / `martialWeapons` effect domains:
 | `all` | every weapon |
 | `missile:all` | every missile weapon (broad choice v) |
 | `melee:<size>` | melee weapons of that size — `tiny`/`small`/`medium`/`large`. Broad choices i–ii are size-based, not category-based, so a **bare size is read as this**: `tiny,small,medium` is broad choice i |
-| `<category>` | `axe`, `bow`, `crossbow`, `flailHammerMace`, `swordDagger`, `spearPolearm`, `other` |
+| `<category>` | `axe`, `bowCrossbow`, `flailHammerMace`, `swordDagger`, `spearPolearm`, `other` |
 | `<weapon>` | one named weapon, by any name or spelling the imported rows know (aliases resolve: "Great Sword" → `twohandedsword`) |
-| `weapon:<key>` | the same, written so it cannot be read as a category where the key is also one (`crossbow`); what a per-weapon control writes |
+| `weapon:<key>` | the same, written so it cannot be read as a category where the key is also one; what a per-weapon control writes |
 
 A token outside the grammar matches nothing — `api.classifyGrantToken` reports
 which kind a token is, or `"unknown"`. A profile that parses to **no** tokens is
@@ -1073,7 +1073,10 @@ its fields read the registry at every call.
   the suites bring invented rows (`tools/weapon-fixture.mjs`).
 
 What reads the rows by name or class: a launcher is told by its imported class
-(`ammo.mjs`), never by a bow's name; `abilities-bridge.mjs` resolves a
+(`ammo.mjs`), never by a bow's name, and only the ammunition it takes, bolts for
+a crossbow or an arbalest and arrows for any other bow, is read from its name; the one category
+holds both (DECISIONS, "Bows and crossbows are one proficiency category");
+`abilities-bridge.mjs` resolves a
 Martial Training pick (`resolveWeaponGroupPick`) to the grant tokens of one
 martial option's own weapons: an option id, or a phrase naming one option's
 nouns, gives `optionUnits(id)`; a stored category key gives the one option
@@ -1097,9 +1100,9 @@ table, and writes the identity alone (above).
 The grant grammar above is read one more way: as ATOMIC UNITS. `weaponUnits()`
 is every weapon the weapon seam holds as `{key, token, name, cat, size, melee,
 missile, icon, profile}` — `token` is what a control for that weapon alone
-writes (the bare key, or `weapon:<key>` where the bare key is also a category:
-`crossbow`), `profile` the shape `grantMatches` reads. `TRAINING_VIEWS` are the
-organisations a training list can be regrouped by — *category* (the seven
+writes (the bare key, or `weapon:<key>` where the bare key is also a category),
+`profile` the shape `grantMatches` reads. `TRAINING_VIEWS` are the
+organisations a training list can be regrouped by — *category* (the six
 narrow tokens), *size* (`melee:<size>` lightest first, then `missile:all`),
 *flat* (`all`) — each group named by the one token that means all of it and
 captioned with the token's kind (`TIER`). `arrangeUnits(view)` places every

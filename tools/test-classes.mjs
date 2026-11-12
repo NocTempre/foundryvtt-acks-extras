@@ -1620,7 +1620,7 @@ try {
   test("the class-granularity reading still lights what a clause covers", () => {
     const thief = trainingActor("missile:all,melee:tiny,melee:small,melee:medium");
     const lit = grantedKeys(thief.effect, "weapons");
-    for (const k of ["bow", "crossbow", "other", "axe", "sworddagger", "flailhammermace", "spearpolearm"]) assert.ok(lit.has(k), `${k} lit`);
+    for (const k of ["bowcrossbow", "other", "axe", "sworddagger", "flailhammermace", "spearpolearm"]) assert.ok(lit.has(k), `${k} lit`);
     assert.ok(!lit.has("unarmed"), "a class grant says nothing about unarmed");
     // A size clause lights only the classes holding a weapon of that size: no
     // axe is tiny, so a grant reduced to `melee:tiny` cannot keep Axes lit.
@@ -1642,11 +1642,13 @@ try {
     assert.ok(weaponGrant(fighter).split(",").includes("arbalest"));
     await toggleTraining(fighter, "weapons", "weapon:crossbow");
     assert.equal(weaponGrant(fighter), "all");
-    // The bare `crossbow` is the CATEGORY; the one weapon is written so it cannot be read as one.
-    assert.equal(canonicalGrant(["crossbow"]), "weapon:crossbow");
+    // Bows and crossbows are one category, so the bare `crossbow` names the one weapon and
+    // `bowcrossbow` the whole of it.
+    assert.equal(canonicalGrant(["crossbow"]), "crossbow");
     assert.deepEqual([...coveredUnits(["weapon:crossbow"]).units], ["crossbow"]);
-    assert.deepEqual([...coveredUnits(["crossbow"]).units].sort(), ["arbalest", "crossbow"]);
-    assert.equal(weaponUnits().find((u) => u.key === "crossbow").token, "weapon:crossbow");
+    assert.deepEqual([...coveredUnits(["crossbow"]).units], ["crossbow"]);
+    assert.deepEqual([...coveredUnits(["bowcrossbow"]).units].sort(), ["arbalest", "compositebow", "crossbow", "longbow", "shortbow"]);
+    assert.equal(weaponUnits().find((u) => u.key === "crossbow").token, "crossbow");
     assert.equal(weaponUnits().find((u) => u.key === "arbalest").token, "arbalest");
     // OFF a size group from a size grant drops exactly that size.
     const thief = trainingActor("missile:all,melee:tiny,melee:small,melee:medium");
@@ -1660,8 +1662,8 @@ try {
     // A token nothing recognises rides along; unarmed is no weapon and writes nothing.
     const typo = trainingActor("axe,pointy stick");
     assert.equal(await toggleTraining(typo, "weapons", "unarmed"), false);
-    await toggleTraining(typo, "weapons", "bow");
-    assert.equal(weaponGrant(typo), "axe,bow,pointy stick");
+    await toggleTraining(typo, "weapons", "bowcrossbow");
+    assert.equal(weaponGrant(typo), "axe,bowcrossbow,pointy stick");
     assert.equal(toggledGrant("axe", "nonsense"), null);
     // A partly covered group completes when left to decide; forced OFF it withdraws.
     const partly = trainingActor("missile:all,melee:tiny,melee:small,melee:medium");

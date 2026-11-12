@@ -44,7 +44,7 @@ const GRID = {
 const LISTS = {
   id: "weaponLists",
   tables: {
-    category: { axe: ["zorgle"], bow: ["quib"] },
+    category: { axe: ["zorgle"], bowCrossbow: ["quib"] },
     focus: { zorgs: ["zorgle"] },
     damageType: { slashing: ["zorgle"], fire: ["zork"] },
     twoHands: ["Zorgle Axe"],
@@ -73,7 +73,7 @@ check("a kind with no grid row is a row of its own: thrown, melee too, a light, 
 check("a throwables kind throws as anyone", weaponThrowsAsAnyone("zorkoil") && weaponThrowsAsAnyone("torch"));
 check("a thrown weapon throws as anyone by its printed name, a melee one does not", weaponThrowsAsAnyone("quib") === true && weaponThrowsAsAnyone("zorgle") === false);
 
-check("listedKind finds the one entry a phrase names", listedKind("focus", "Zorgles and others") === "zorgs" && listedKind("category", "the quibs") === "bow");
+check("listedKind finds the one entry a phrase names", listedKind("focus", "Zorgles and others") === "zorgs" && listedKind("category", "the quibs") === "bowCrossbow");
 check("listedKind answers null for a phrase naming none, and for a list not imported", listedKind("category", "pointy stick") === null && listedKind("damageType", "") === null);
 
 // the registry is read at every call

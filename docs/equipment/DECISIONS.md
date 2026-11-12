@@ -2298,6 +2298,59 @@ migration for earlier worlds is built; a pin that names it matches no row.
 beside the one-handed die; the grip control changes which one the row shows.
 A pin on the old two-handed row falls out until it is pinned again.
 
+## 2026-11-11 — Bows and crossbows are one proficiency category
+
+**Ruled** (owner, T-0509: follow the rules as written). `WEAPON_CATEGORY` has
+one token, `bowCrossbow`, where it had `bow` and `crossbow`. Every printed list
+treats the pair as one category: RR ch. 1 (Weapons, the categories a class's
+weapon proficiency is taken in), JJ ch. 12 (the custom class builder's narrow
+options), RR ch. 3 (Martial Training, and Weapon Focus, which already named
+one bows-and-crossbows focus). The weapons grid's sub-header mirrors it, so a
+crossbow-kind row whose own name places nothing is now placed by that
+sub-header instead of being torn between two tokens and left with no class.
+The importer needs no rule of its own: a printed noun, "bows" or "crossbows",
+reaches the token whose own name holds the word (`weapon-binding.mjs`
+`categoryOf`), and both are in `bowCrossbow`.
+
+`ammo.mjs` read the two tokens to tell arrows from bolts. The category no
+longer says which, so a launcher of the pair takes bolts when its own name or
+its row's key holds "crossbow" or "arbalest" (RR ch. 4, Equipment
+Descriptions: a crossbow fires bolts, and an arbalest is a heavy crossbow),
+arrows when it holds "bow", and either when it says neither (a Judge's own
+launcher). A weapon with no category is still no launcher, so the lists still
+decide whether a weapon launches at all.
+
+**Rejected.** An alias that reads a stored `bow` or `crossbow` grant as the
+merged token, and a migration of items declaring the old category: owner rule
+2026-11-11, no compatibility code for earlier data. Keeping two tokens and a
+sub-header rule for the pair: it would keep a split the book does not make.
+
+**What it cost.** A stored grant, class training or item class that holds
+`bow` is read as unknown and a weapon-class flag holding either old value is
+ignored; it is re-picked once. A stored `crossbow` is not unknown but a
+different grant: with the weapon rows imported it names the one Crossbow row,
+no longer the category. A launcher whose name says none of "bow",
+"crossbow" or "arbalest" spends whichever of arrows or bolts the carrier
+holds.
+
+## 2026-11-11 — Everyone throws the printed things, and a vial
+
+**Ruled** (owner: no house rules ship; T-0509). `IMPROVISED_THROWN` names what
+RR ch. 1 (Weapons, proficiency) says every character throws proficiently:
+bottles, flasks, rocks, sticks and torches, and a vial, which RR ch. 4
+(Equipment Descriptions, holy water) gives as the container of a thrown
+weapon. A grenade, a jar and a pot were in the list and no page in RR or JJ
+puts them there: the one pot is a ship's fire pot, which is dumped, not
+thrown, and the jar is a store of components.
+
+**Rejected.** Keeping the three as a convenience: a word list is a rule, and
+the Judge's `grenade` tag still marks any item the Judge says bursts where it
+lands.
+
+**What it cost.** A thrown item no row places whose name is only "grenade",
+"jar" or "pot" is no longer thrown proficiently by every class; its grant
+decides, or the Judge tags it.
+
 ## 2026-11-11 — Two overrides of one numeric domain: the later wins
 
 **Ruled** (owner, on T-0454, the numeric twin of T-0115). A numeric domain

@@ -318,7 +318,7 @@ the real pill click with the pencil armed. The view is
 the effect carrying the `fromClass` flag: its `changes`.
 
 1. Open Stats. *Observable:* Fighting styles as five pills; Weapons under
-   seven category headers each captioned *narrow*, every weapon of the table
+   six category headers (bows and crossbows are one, *Bows & Crossbows*) each captioned *narrow*, every weapon of the table
    exactly once across them, no *Elsewhere* group; Armour as five rungs lit
    to Medium plus a Shield pill; the note names the class. The pills do not
    answer the mouse.

@@ -10425,8 +10425,7 @@ export function parseTrainingProse(para) {
  *  groups are the consumer's vocabulary (`classifyGrantToken`), not this book's. */
 const TRAINING_GROUPS = [
   [/\baxes\b/i, "axe"],
-  [/\bcrossbows\b/i, "crossbow"],
-  [/\bbows\b/i, "bow"],
+  [/\b(?:cross)?bows\b/i, "bowCrossbow"],
   [/\b(?:hammers|maces|flails)\b/i, "flailHammerMace"],
   [/\b(?:swords|daggers)\b/i, "swordDagger"],
   [/\b(?:spears|pole\s*arms|polearms)\b/i, "spearPolearm"],
