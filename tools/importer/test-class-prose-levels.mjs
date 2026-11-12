@@ -98,6 +98,14 @@ ok("a printed grid wins over the sentence", grid.levels.length === 1 && grid.lev
 const bookless = bindClass(entry, null, "def.class.inventedWarden").system;
 ok("bookless, the class stays a stub", bookless.levels.length === 0 && !bookless.ladders.length);
 
+// A row that withholds its printed name carries a neutral label; the heading op
+// reads the words off the Judge's page and the binder names the class with them.
+const headed = (title, caps) => ({ fields: { ...node.fields, name: { ok: true, title, ...(caps ? { caps: true } : {}) } } });
+ok("a class is named by the heading's read name", bindClass(entry, headed("Quillfen Keeper"), "def.class.inventedWarden").name === "Quillfen Keeper");
+ok("a name the page sets in capitals is set as a title", bindClass(entry, headed("QUILLFEN KEEPER", true), "def.class.inventedWarden").name === "Quillfen Keeper");
+ok("no name read, the entry's own label stands", bindClass(entry, node, "def.class.inventedWarden").name === entry.name && bindClass(entry, null, "def.class.inventedWarden").name === entry.name);
+ok("the key stays the entry's own", bindClass(entry, headed("Quillfen Keeper"), "def.class.inventedWarden").system.key === bindClass(entry, node, "def.class.inventedWarden").system.key);
+
 /* --- the experience priced from the class's build ---------------------------------------- */
 
 // Invented tables in the shape `assembleBuilderTables` emits, and an invented

@@ -98,7 +98,9 @@ its expression, so an entry compiled from such a row carries a neutral `name`
 (`POI 30`, `Organisation 4`) and a `heading` instruction, and the binding names
 the document from `fields.name.title`. The locator is a pointer of the same
 standing as a page number: the key number the book prints, or a hash of the
-name's folded letters that says nothing about what they are.
+name's folded letters that says nothing about what they are. A class's or a
+definition's display heading takes the hash too (`docs/importer/MODEL.md`,
+"A name read by its key").
 
 **Defenses are materialized, never baked.** Immunities / resistances /
 susceptibilities are not shipped per creature. The executor scans each

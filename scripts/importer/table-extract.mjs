@@ -920,6 +920,46 @@ function levelLadder(window, split) {
   return rungs.length ? rungs : undefined;
 }
 
+/** Words a run-in title may carry in lower case between its capitalised ones. */
+const RUNIN_SMALL_WORDS = "a|an|and|as|at|by|for|in|of|on|or|the|to|with";
+
+/**
+ * A title word: a capital, then letters, digits, apostrophes and hyphens. A
+ * label is one capitalised word, then up to seven more, each capitalised or a
+ * small word.
+ */
+const RUNIN_LABEL = new RegExp(
+  `(?<![\\p{L}\\p{N}])(\\p{Lu}[\\p{L}\\p{N}'’-]*(?:\\s+(?:\\p{Lu}[\\p{L}\\p{N}'’-]*|${RUNIN_SMALL_WORDS})){0,7})\\s*:`,
+  "gu",
+);
+
+/** What closes a sentence, with the quote or bracket that may trail it. */
+const SENTENCE_END = /[.!?]["”’)\]]*\s*$/u;
+
+/**
+ * Run-in titled paragraphs read from a window of the page AS PRINTED
+ * (`take: "runins"`): each Title-Case phrase that ends in a colon where a
+ * sentence starts, with the text that follows it up to the next such phrase.
+ * A sentence starts at the window's first character or after a closing stop; a
+ * capitalised phrase and colon mid-sentence is no title. The labels and the
+ * text are the reader's page and are never a string of this repo. Undefined
+ * when the window holds none.
+ * @param {string} cased the window with its case, whitespace collapsed
+ * @returns {{label: string, text: string}[]|undefined}
+ */
+function takeRunins(cased) {
+  const found = [];
+  for (const m of cased.matchAll(RUNIN_LABEL)) {
+    if (m.index > 0 && !SENTENCE_END.test(cased.slice(0, m.index))) continue;
+    found.push({ label: m[1].replace(/\s+/g, " "), at: m.index, end: m.index + m[0].length });
+  }
+  const out = found.map((f, i) => ({
+    label: f.label,
+    text: cased.slice(f.end, found[i + 1]?.at ?? cased.length).replace(/\s+/g, " ").trim(),
+  }));
+  return out.length ? out : undefined;
+}
+
 function takeProse(window, take, spec = {}) {
   const num = (s) => Number(s.replace(/,/g, ""));
   switch (take) {
@@ -1176,7 +1216,10 @@ export function extractProseValues(items, recipe) {
     if (idx < 0) continue; // absent, not undefined: page-span merges keep earlier pages' captures
     const span = v.span ?? 90;
     const window = v.before ? text.slice(Math.max(0, idx - span), idx) : text.slice(idx + find.length, idx + find.length + span);
-    let val = takeProse(window, v.take ?? "int", v);
+    // `runins` is read from the page's own case; every other take reads the
+    // lowercased window.
+    const casedWindow = v.before ? cased.slice(Math.max(0, idx - span), idx) : cased.slice(idx + find.length, idx + find.length + span);
+    let val = v.take === "runins" ? takeRunins(casedWindow.trim()) : takeProse(window, v.take ?? "int", v);
     if (v.before && val !== undefined) {
       // before-windows want the LAST match, not the first
       let last;

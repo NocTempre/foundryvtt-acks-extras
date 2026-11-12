@@ -1243,6 +1243,44 @@ heading printed in the running-head band (AX1 p.37), `x0` for a page whose
 column starts inside the default margin (AX1's even pages, at x 28). The
 override reaches the anchor, the hash candidates and the flow's stop alike.
 
+## A name read by its key
+
+A row that withholds a printed name locates it by `anchor.hash`, the
+`printKey` of the name's folded letters (`printed-name.mjs`), and the words
+arrive from the Judge's page. Four mechanisms carry that past the keyed
+places of an adventure.
+
+- **Display headings.** `compileClass` (a `kind.class` row with `anchor.hash`
+  in place of `anchor.display`) and `compileDefinition` (a row with
+  `anchor: {hash, as: "display"}`, or a kind whose default locate is
+  `display`) find the display head whose box reads back to the key
+  (`displayHeadByHash`, trying a box tight to the heading's own runs, over a
+  heading that wraps, and out to the column edge, in that order; a hash wants
+  an exact read-back, where `expect` tolerated trailing text) and ship `fields.name` as a `heading` instruction, `caps` set where the
+  printed case carries nothing. No head answering the key throws. A class
+  table's `title` and `profList.label` may be the common-word tail of the
+  printed one: the proficiency-list label is found inside the run it ends by
+  the row-level fallback (`findLabelRun`, a substring match), the lowest such
+  row winning. The first-pass test stays `startsWith`: widening it to a
+  substring moved the list boxes of shipped classes.
+- **The binder takes the read name.** `bindClass` and `bindAbility` name the
+  document `printedNameOf(node, entry.name)`: the heading's read name, set as
+  a title when the page prints capitals, else the entry's neutral label. A
+  `system.key` still comes from `entry.meta.key` or the label.
+- **The printed-name index.** A `powerSource` row may carry `nameKey`, the
+  `printKey` of a name it does not spell, in place of `name`.
+  `refForPrintedName` tries the folded name first and then the `printKey` of
+  what it was handed; two rows under one key resolve to nothing, as two
+  under one fold do.
+- **Run-in paragraphs.** A `proseValues` entry with `take: "runins"` splits
+  its window, cut from the page as printed, into `[{label, text}]`: each
+  Title-Case phrase closed by a colon at a sentence start (the window's first
+  character, or after a closing stop), with the text up to the next such
+  phrase. A capitalised phrase and colon mid-sentence is no label, and text
+  before the first label belongs to none. A page whose lowercase form is
+  longer than its text (the fallback `extractProseValues` documents) is read
+  from the lowercased text, which has no capitals to find.
+
 ## A book's page bands
 
 A book whose every page the AX defaults misplace is listed in the compiler's

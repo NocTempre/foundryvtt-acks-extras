@@ -175,6 +175,7 @@ const COMMITTED = [
   "importer/test-import-manager.mjs",
   "importer/test-reimport-everything.mjs",
   "importer/test-executor.mjs",
+  "importer/test-runins.mjs",
   "importer/test-typography.mjs",
   "importer/test-hit-dice.mjs",
   "importer/test-equipment-binding.mjs",

@@ -47,7 +47,7 @@ import {
   isOrganisationRow, organisationData, organisationPlan, owedRelations, controlledRegions,
   isStrengthGridRow, strengthPlan, strengthFromGrid,
 } from "./faction-binding.mjs";
-import { printedNameOf, withoutKeyNumber } from "./printed-name.mjs";
+import { printedNameOf, printKey, withoutKeyNumber } from "./printed-name.mjs";
 import { reimportEverything } from "./everything.mjs";
 import {
   GRID_SCENE_PADDING, zoneMovedBy,
@@ -8297,7 +8297,7 @@ export function bindAbility(entry, node, id, opts = {}) {
   ];
 
   return {
-    name: entry.name,
+    name: printedNameOf(node, entry.name),
     type: "ability",
     img: abilityIcon(entry),
     system: {
@@ -9991,7 +9991,7 @@ export function bindClass(
   });
 
   return {
-    name: entry.name,
+    name: printedNameOf(node, entry.name), // the class heading's read name, else the entry's label
     type: CLASS_ITEM_TYPE,
     ...(entry.icon ? { img: entry.icon } : {}),
     system: {
@@ -12743,6 +12743,10 @@ const nameKey = (s) => String(s ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
  * register — the printed name and the definition's own name are not always
  * the same name. A name several definitions answer to resolves to NOTHING
  * rather than a guess. Built once and memoised on the register.
+ *
+ * A row that withholds the printed name carries `nameKey`, the `printKey` of
+ * it, instead: the row is then indexed under that key as well, in the same map
+ * behind a `#` no folded name holds.
  * See docs/importer/DECISIONS.md, "The printed name and the defined name are two different names".
  */
 function printedNameIndex() {
@@ -12751,11 +12755,13 @@ function printedNameIndex() {
   const ambiguous = new Set();
   for (const rows of Object.values(data.registers?.tables?.powerSource ?? {})) {
     for (const row of rows ?? []) {
-      const key = nameKey(row?.name);
-      if (!key || !row.ref) continue;
-      const seen = index.get(key);
-      if (seen && seen !== row.ref) ambiguous.add(key);
-      else index.set(key, row.ref);
+      if (!row?.ref) continue;
+      for (const key of [nameKey(row.name), row.nameKey ? `#${row.nameKey}` : ""]) {
+        if (!key) continue;
+        const seen = index.get(key);
+        if (seen && seen !== row.ref) ambiguous.add(key);
+        else index.set(key, row.ref);
+      }
     }
   }
   for (const key of ambiguous) index.delete(key);
@@ -12769,10 +12775,17 @@ function printedNameIndex() {
  * The definition id a printed power name means, or null when the register
  * does not name it (or names it ambiguously).
  *
+ * The folded name is tried first, then its `printKey` against the rows that
+ * carry a `nameKey`.
+ *
  * @param {string} name the name as a class or race spread prints it
  * @returns {string|null} a `def.*` cookbook id
  */
-export const refForPrintedName = (name) => printedNameIndex().get(nameKey(name)) ?? null;
+export const refForPrintedName = (name) => {
+  const index = printedNameIndex();
+  const keyed = printKey(name);
+  return index.get(nameKey(name)) ?? (keyed ? index.get(`#${keyed}`) : undefined) ?? null;
+};
 
 /**
  * Resolve an item name to a definition id. Tries the name as printed, then

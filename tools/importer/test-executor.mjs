@@ -22,7 +22,7 @@ import { CLAUSE_FIELDS, effectScan, executeEntry, locateCondition, materializeEf
 import {
   CONDITION_LABELS, CONSEQUENCE_LABELS, RESTRICTION_LABELS, bareLabel, citeLabel, conditionProblem, fieldProblem, isConditionLabel, isLabel, noteProblem,
 } from "../../scripts/importer/condition-labels.mjs";
-import { axAsideBoxes, gridBandParas, rollTableDetails } from "./compile-cookbook.mjs";
+import { axAsideBoxes, displayHeadByHash, gridBandParas, rollTableDetails } from "./compile-cookbook.mjs";
 import { printKey } from "../../scripts/importer/printed-name.mjs";
 
 let n = 0;
@@ -959,6 +959,32 @@ t("every shipped restriction and consequence is a word or two or a cited label, 
   }
   assert.deepEqual(offenders, []);
   assert.ok([...RESTRICTION_LABELS, ...CONSEQUENCE_LABELS].every((l) => l.split(" ").length <= 4), "a label names a kind and states nothing");
+});
+
+await ta("a display heading is located by the key of its letters and ships as a heading op", async () => {
+  const head = (str, x, y, w) => ({ ...run(str, x, y, w), h: 14 });
+  // Two heads in one column, set in capitals, with prose under the first.
+  const pd = page(head("QQ ZORBLE", 40, 100, 120), run("QQ prose under it.", 40, 120), head("QQ BRAMBLE", 40, 300, 120));
+  const heads = [{ text: "QQ ZORBLE", y: 100, col: 0 }, { text: "QQ BRAMBLE", y: 300, col: 0 }];
+  const boxesOf = (a) => [{ x0: 35, x1: 300, y0: a.y - 16, y1: a.y + 6 }];
+  const hit = displayHeadByHash(pd, heads, boxesOf, printKey("qq bramble"), 1);
+  assert.equal(hit.head, heads[1], "the head whose box reads back to the key");
+  assert.equal(hit.name.op, "heading");
+  assert.equal(hit.name.hash, printKey("QQ BRAMBLE"));
+  assert.equal(hit.name.caps, true, "a line set in capitals says its case carries nothing");
+  assert.ok(!JSON.stringify(hit.name).includes("BRAMBLE"), "the instruction ships no word of the heading");
+  assert.equal(displayHeadByHash(pd, heads, boxesOf, printKey("qq absent"), 1), null, "no head answers, no anchor");
+  // The shipped instruction reads the same words back under the executor.
+  const cookbook = { schema: "acks-cookbook/3", entries: { "qq.def": { kind: "kind.proficiency", fields: { name: hit.name } } } };
+  const node = await executeEntry(null, cookbook, {}, "qq.def", { pageCache: new Map([[1, pd]]) });
+  assert.equal(node.fields.name.ok, true);
+  assert.equal(node.fields.name.title, "QQ BRAMBLE");
+  assert.equal(node.fields.name.caps, true);
+  // A heading that wraps is found by the box over both lines.
+  const wrapped = page(head("QQ GRIM", 40, 100, 80), head("QQ HOLLOW", 40, 114, 90));
+  const wrapHeads = [{ text: "QQ GRIM", y: 100, col: 0 }, { text: "QQ HOLLOW", y: 114, col: 0 }];
+  const twoLines = (a) => [{ x0: 35, x1: 300, y0: a.y - 4, y1: 120 }, { x0: 35, x1: 300, y0: a.y - 4, y1: a.y + 4 }];
+  assert.equal(displayHeadByHash(wrapped, wrapHeads, twoLines, printKey("qq grim qq hollow"), 1)?.head, wrapHeads[0]);
 });
 
 console.log(`\n${n} tests passed`);

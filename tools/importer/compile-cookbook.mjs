@@ -659,6 +659,31 @@ function withFixes(instr, pd, dropSet, stripMap) {
 }
 
 /**
+ * The display heading of a page that a row's `anchor.hash` locates: the first
+ * head one of whose candidate boxes READS BACK, as the executor's `heading` op
+ * would read it, to the key. What is located here is by construction what the
+ * executor checks. The name instruction is returned as it ships, with `caps`
+ * when the printed case carries nothing. It prints no word of a heading.
+ * @param {object} pd the page's items
+ * @param {{text: string, y: number, col: number}[]} heads display heads, in reading order
+ * @param {(head: object) => object[]} boxesOf candidate boxes for a head, tried in order
+ * @param {string} hash the row's `anchor.hash`
+ * @param {number} page the page the instruction names
+ * @returns {{head: object, name: object}|null}
+ */
+export function displayHeadByHash(pd, heads, boxesOf, hash, page) {
+  for (const head of heads) {
+    for (const box of boxesOf(head)) {
+      const instr = withFixes({ op: "heading", page, box, hash }, pd);
+      const read = joinRuns(runsIn(pd, instr), instr.fixes);
+      if (printKey(read) !== hash) continue;
+      return { head, name: caseCarriesNothing(read) ? { ...instr, caps: true } : instr };
+    }
+  }
+  return null;
+}
+
+/**
  * Paragraph boxes from body lines: break where the line gap opens up — past
  * `gapMin` where the book declares its paragraph gap, else past 1.6× the
  * median pitch (a book whose gap is under that ratio never splits without it).
@@ -4072,18 +4097,61 @@ async function compileClass(doc, entry, kindRow) {
   const assists = entry.assists ?? {};
   const anchorLabel = entry.anchor?.label ?? null;
   const anchors = listHeadings(pd).filter((a) => a.mode === "display");
-  const anchor = anchorLabel
-    ? listHeadings(pd).find((a) => a.mode === "runin" && a.text === anchorLabel)
-    : anchors.find((a) => fold(a.text).startsWith(fold(entry.anchor.display)));
-  if (!anchor) throw new Error(`${anchorLabel ? "anchor label" : "display anchor"} "${anchorLabel ?? entry.anchor.display}" not found on p.${page}`);
+  // `anchor.hash` locates a display heading whose words the row does not spell:
+  // the head whose box reads back to the key. Its name is then a `heading`
+  // instruction, read for the binding, where a spelled anchor ships an `expect`.
+  const classHash = !anchorLabel && entry.anchor?.hash != null ? String(entry.anchor.hash) : null;
+  const hashedAnchor = classHash
+    ? displayHeadByHash(
+        pd,
+        anchors,
+        (a) => {
+          const x0 = cols[a.col] - 5;
+          const x1 = cols[a.col + 1] ? cols[a.col + 1] - 6 : pd.width;
+          // A heading that wraps reads over both lines: the next head of the
+          // column, when it sits within a line's pitch below.
+          const next = anchors.find((h) => h.col === a.col && h.y > a.y + 2 && h.y - a.y <= 20);
+          // An exact read-back wants the heading's own runs and nothing set
+          // beside it: the box stops where the heading's runs end, and only
+          // then runs to the column edge.
+          const own = (yEnd) => pd.items.filter((it) => it.h >= HEADING_MIN_H && colOf(it.x, cols) === a.col && it.y >= a.y - 2 && it.y <= yEnd + 2);
+          const tight = (yEnd) => {
+            const runs = own(yEnd);
+            return runs.length ? Math.min(Math.max(...runs.map((it) => it.x + (it.w ?? 0))) + 2, x1) : x1;
+          };
+          return [
+            ...(next ? [{ x0, x1: tight(next.y), y0: a.y - 16, y1: next.y + 6 }] : []),
+            { x0, x1: tight(a.y), y0: a.y - 16, y1: a.y + 6 },
+            ...(next ? [{ x0, x1, y0: a.y - 16, y1: next.y + 6 }] : []),
+            { x0, x1, y0: a.y - 16, y1: a.y + 6 },
+          ];
+        },
+        classHash,
+        page,
+      )
+    : null;
+  const anchor = classHash
+    ? hashedAnchor?.head
+    : anchorLabel
+      ? listHeadings(pd).find((a) => a.mode === "runin" && a.text === anchorLabel)
+      : anchors.find((a) => fold(a.text).startsWith(fold(entry.anchor.display)));
+  if (!anchor) {
+    throw new Error(
+      classHash
+        ? `no display heading on p.${page} answers to the anchor hash`
+        : `${anchorLabel ? "anchor label" : "display anchor"} "${anchorLabel ?? entry.anchor.display}" not found on p.${page}`,
+    );
+  }
   const colX = cols[anchor.col];
   const nextX = cols[anchor.col + 1];
   const colRight = nextX ? nextX - 6 : pd.width;
-  fields.name = {
-    op: "expect", page,
-    box: { x0: colX - 5, x1: colRight, y0: anchor.y - (anchorLabel ? 6 : 16), y1: anchor.y + 6 },
-    text: anchorLabel ?? entry.anchor.display,
-  };
+  fields.name = hashedAnchor
+    ? hashedAnchor.name
+    : {
+        op: "expect", page,
+        box: { x0: colX - 5, x1: colRight, y0: anchor.y - (anchorLabel ? 6 : 16), y1: anchor.y + 6 },
+        text: anchorLabel ?? entry.anchor.display,
+      };
 
   /* --- tables located by their printed titles --- */
   const tableEdges = [];
@@ -5251,7 +5319,14 @@ async function compileDefinition(doc, entry, kindRow, siblings = []) {
   // can print as display headings in one book and body-size run-ins in
   // another (BTA sets its proficiencies as run-ins, and its sigils as
   // display heads on a kind whose default is runin).
-  const mode = entry.anchor?.runin ? "runin" : entry.anchor?.display ? "display" : kindRow.fields.name.locate;
+  // `anchor.hash` with `as: "display"` locates a display heading by the key of
+  // its letters (`displayHeadByHash`), where `display` would spell it.
+  const defHash = entry.anchor?.hash != null ? String(entry.anchor.hash) : null;
+  const mode = entry.anchor?.runin
+    ? "runin"
+    : entry.anchor?.display || (defHash && entry.anchor.as === "display")
+      ? "display"
+      : kindRow.fields.name.locate;
   const fields = {};
   let bodyText = "";
 
@@ -5285,14 +5360,39 @@ async function compileDefinition(doc, entry, kindRow, siblings = []) {
     let matched = want;
     // Folded compare: heading runs may join with no inter-word spaces at all.
     const foldAnchor = (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, "");
-    for (const c of candidates.filter(Boolean)) {
-      anchor = heads.find((a) => foldAnchor(a.text).startsWith(foldAnchor(c)));
-      if (anchor) {
-        matched = c;
-        break;
+    // A hashed row locates its head by what the heading's box reads back to,
+    // over the one line and over the wrapped chain the block absorbs below.
+    let hashed = null;
+    if (defHash) {
+      hashed = displayHeadByHash(
+        pd,
+        heads,
+        (a) => {
+          const hx0 = hcols[a.col] - 5;
+          const hx1 = hcols[a.col + 1] ? hcols[a.col + 1] - 6 : pd.width;
+          let end = a.y;
+          for (const h of heads.filter((o) => o.col === a.col && o.y > a.y + 2)) if (h.y - end <= 20) end = h.y;
+          const own = pd.items.filter((it) => it.h >= HEADING_MIN_H && colOf(it.x, hcols) === a.col && it.y >= a.y - 2 && it.y <= end + 2);
+          const tightX1 = own.length ? Math.min(Math.max(...own.map((it) => it.x + (it.w ?? 0))) + 2, hx1) : hx1;
+          return [
+            { x0: hx0, x1: tightX1, y0: a.y - 16, y1: end + 6 },
+            ...(end > a.y ? [{ x0: hx0, x1: tightX1, y0: a.y - 16, y1: a.y + 6 }] : []),
+          ];
+        },
+        defHash,
+        page,
+      );
+      anchor = hashed?.head ?? null;
+    } else {
+      for (const c of candidates.filter(Boolean)) {
+        anchor = heads.find((a) => foldAnchor(a.text).startsWith(foldAnchor(c)));
+        if (anchor) {
+          matched = c;
+          break;
+        }
       }
     }
-    if (!anchor) throw new Error(`display anchor "${want}" not found on p.${page}`);
+    if (!anchor) throw new Error(defHash ? `no display heading on p.${page} answers to the anchor hash` : `display anchor "${want}" not found on p.${page}`);
     // Everything below indexes the SAME filtered columns the heads were
     // grouped over — mixing them with the raw detection would clip boxes at
     // the phantom gutter the regrouping just erased.
@@ -5370,11 +5470,13 @@ async function compileDefinition(doc, entry, kindRow, siblings = []) {
       (it) => it.h >= HEADING_MIN_H && colOf(it.x, hcols) === anchor.col && it.y >= anchor.y - 2 && it.y <= endY + 2,
     );
     const headX1 = headItems.length ? Math.max(...headItems.map((it) => it.x + (it.w ?? 0))) + 2 : box.x1;
-    fields.name = {
-      op: "expect", page,
-      box: { x0: box.x0, x1: Math.min(headX1, box.x1), y0: anchor.y - 16, y1: endY + 6 },
-      text: matched,
-    };
+    fields.name = hashed
+      ? hashed.name
+      : {
+          op: "expect", page,
+          box: { x0: box.x0, x1: Math.min(headX1, box.x1), y0: anchor.y - 16, y1: endY + 6 },
+          text: matched,
+        };
     const body = pd.items.filter((it) => it.h < DEF_BODY_MAX_H && it.x >= box.x0 && it.x <= box.x1 && it.y > endY + 2 && it.y < stopY);
     bodyText = joinBody(body);
     const paras = paragraphBoxes(toLines(body), box.x0, box.x1).map((p) => withFixes(p, pd, tabs));

@@ -8,7 +8,8 @@
  * test-cookbook-coherence.
  */
 import assert from "node:assert";
-import { abilitySurfaceIndex, preferredId, rebracket, tokenizeProfs } from "../../scripts/importer/cookbook.mjs";
+import { abilitySurfaceIndex, bindAbility, loadCookbook, preferredId, rebracket, refForPrintedName, tokenizeProfs } from "../../scripts/importer/cookbook.mjs";
+import { printKey } from "../../scripts/importer/printed-name.mjs";
 
 let pass = 0;
 const check = (label, cond) => {
@@ -98,5 +99,41 @@ check("a balanced token is left alone", rebracket("Crafting (tin) 2", knows) ===
 check("a token with no bracket is left alone", rebracket("Crafting 2", knows) === "Crafting 2");
 check("words that name nothing are left alone", rebracket("Unheard Of thing)", knows) === "Unheard Of thing)");
 check("a bracket with no specialty before it is left alone", rebracket("Crafting)", knows) === "Crafting)");
+
+/* --- a printed name read off the page names the ability ------------------- */
+
+const power = { name: "Ability 3", kind: "kind.power", book: "rr", cite: "RR p.1", meta: {}, fields: {} };
+const read = (title, caps) => ({ fields: { name: { ok: true, title, ...(caps ? { caps: true } : {}) } } });
+check("a heading's read name wins over the entry's neutral label", bindAbility(power, read("Quillfen Warden:"), "def.power.ability3").name === "Quillfen Warden");
+check("a name the page sets in capitals is set as a title", bindAbility(power, read("QUILLFEN WARDEN", true), "def.power.ability3").name === "Quillfen Warden");
+check("no name read, the entry's own label stands", bindAbility(power, null, "def.power.ability3").name === "Ability 3");
+check("a heading that failed its check names nothing", bindAbility(power, { fields: { name: { ok: false, title: null } } }, "def.power.ability3").name === "Ability 3");
+
+/* --- a row that withholds its printed name is found by its key ------------- */
+
+// Invented register rows: one named, one carrying only `nameKey`, and two keyed
+// rows that mean different definitions under one key.
+const REGISTERS = {
+  tables: {
+    powerSource: {
+      alpha: [
+        { name: "Plain Quill", ref: "def.power.plainQuill" },
+        { nameKey: printKey("Fen Warden"), ref: "def.power.ability3" },
+        { nameKey: printKey("Mire Hound"), ref: "def.power.ability4" },
+      ],
+      beta: [{ nameKey: printKey("Mire Hound"), ref: "def.power.ability5" }],
+    },
+  },
+};
+globalThis.foundry = { utils: { fetchJsonWithTimeout: async (url) => { if (url.endsWith("registers.json")) return REGISTERS; throw new Error(`404 ${url}`); } } };
+const log = console.log;
+console.log = () => {};
+await loadCookbook();
+console.log = log;
+check("a named row still resolves by its fold", refForPrintedName("plain-quill") === "def.power.plainQuill");
+check("a keyed row resolves by the key of the name the page prints", refForPrintedName("Fen Warden") === "def.power.ability3");
+check("the key reads as the fold does: case and punctuation fall away", refForPrintedName("FEN-WARDEN") === "def.power.ability3");
+check("a key two definitions answer to resolves to nothing", refForPrintedName("Mire Hound") === null);
+check("a name no row holds resolves to nothing", refForPrintedName("Unheard Of") === null && refForPrintedName("") === null);
 
 console.log(`test-ability-names: ${pass} checks passed.`);
