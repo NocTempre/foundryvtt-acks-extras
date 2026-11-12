@@ -25,7 +25,6 @@
  */
 import { MODULE_ID } from "./constants.mjs";
 import { LOCATION_TYPE, isPlaceRole } from "../location/constants.mjs";
-import { oseAdventureId } from "./ose-location.mjs";
 
 /** The group suffixes a settlement book prints per quarter, and what each holds. */
 const POI_GROUPS = Object.freeze({ "Points of Interest": "poi", "Notable Residents": "residents", Overview: "overview" });
@@ -119,6 +118,33 @@ export function regionPlaceData({ book, bookLabel = "", folderId = null }) {
   };
 }
 
+/** The adventure's own id — one per book, so its rooms nest under one place. */
+export const adventurePlaceId = (book) => `${book}.adventure`;
+
+/**
+ * Actor data for the adventure the areas belong to.
+ *
+ * Created so the rooms have something to nest under. It carries no prose of its
+ * own — the book's introduction is not a place — only the identity that makes
+ * the nesting mean something on the sheet. The `ose` flag and `kind.oseAdventure`
+ * are the stamp a world already holds on such a place, whatever book made it;
+ * both names stay.
+ */
+export function adventurePlaceData({ book, bookLabel, folderId = null }) {
+  return {
+    name: bookLabel || book,
+    type: LOCATION_TYPE,
+    folder: folderId,
+    system: { region: bookLabel, notes: "", parentUuid: "" },
+    flags: {
+      [MODULE_ID]: {
+        ose: { kind: "adventure", sourceId: book, sourceLabel: bookLabel, origin: "page" },
+        cookbook: { id: adventurePlaceId(book), book, kind: "kind.oseAdventure", unaudited: true },
+      },
+    },
+  };
+}
+
 /**
  * Actor data for one keyed point of interest. `notes` is the page's own text,
  * already materialized (`entryText`), reference last — the same text the
@@ -163,7 +189,7 @@ export const isKeyedPlace = (entry, id, spaces) => entry?.kind === "kind.locatio
  * The cookbook id of the place a keyed place sits inside: its parent, else its
  * space, else the book's own place. A space sits in the book's place.
  */
-export const keyedParentId = (entry, book) => entry?.meta?.parent ?? entry?.meta?.space ?? oseAdventureId(book);
+export const keyedParentId = (entry, book) => entry?.meta?.parent ?? entry?.meta?.space ?? adventurePlaceId(book);
 
 /**
  * A keyed place's occupants in printed order. The executor returns the

@@ -40,6 +40,15 @@ export function ancestorsOf(claim) {
   return out;
 }
 
+/** The cookbook id of the generator a book's per-step blocks are gathered into. */
+export const groupId = (bookId, key) => `${bookId}.group.${key}`;
+
+/** The book a `groupId` names, or null for any other id. */
+export function groupBookOf(id) {
+  const m = /^(.+)\.group\.[^.]+$/.exec(String(id ?? ""));
+  return m ? m[1] : null;
+}
+
 /**
  * Every kind that owns a claim. A sound declaration answers at most one; the
  * count is the check, so a first match never hides an overlap.

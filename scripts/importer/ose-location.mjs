@@ -14,8 +14,8 @@
  * imported text does: read once from the Judge's own copy at import and written
  * into the room, page reference last.
  *
- * The adventure itself becomes a place too, and the rooms nest inside it. That
- * is what makes a keyed dungeon navigable as a dungeon rather than as
+ * The adventure itself becomes a place too (`adventurePlaceData`, in
+ * `poi-binding.mjs`), and the rooms nest inside it. That is what makes a keyed dungeon navigable as a dungeon rather than as
  * seventeen unrelated actors sharing a numbering convention.
  */
 
@@ -68,31 +68,6 @@ export function oseLocationData({
         // The same identity every other import writes, and what a second run
         // of the import asks before it builds a room again.
         cookbook: { id: entryId, book, kind: "kind.oseLocation", unaudited: true },
-      },
-    },
-  };
-}
-
-/** The adventure's own id — one per book, so its rooms nest under one place. */
-export const oseAdventureId = (book) => `${book}.adventure`;
-
-/**
- * Actor data for the adventure the areas belong to.
- *
- * Created so the rooms have something to nest under. It carries no prose of its
- * own — the book's introduction is not a place — only the identity that makes
- * the nesting mean something on the sheet.
- */
-export function oseAdventureData({ book, bookLabel, folderId = null }) {
-  return {
-    name: bookLabel || book,
-    type: LOCATION_TYPE,
-    folder: folderId,
-    system: { region: bookLabel, notes: "", parentUuid: "" },
-    flags: {
-      [MODULE_ID]: {
-        ose: { kind: "adventure", sourceId: book, sourceLabel: bookLabel, origin: "page" },
-        cookbook: { id: oseAdventureId(book), book, kind: "kind.oseAdventure", unaudited: true },
       },
     },
   };

@@ -17,8 +17,10 @@ import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import { executeEntry } from "./executor.mjs";
 import { parseOseStatline, PROFILES, OSE_CANONICAL } from "./ose-statline.mjs";
 import { oseActorDataFromFields, moraleBoundsFromSchema } from "./ose-binding.mjs";
-import { isRangedCreature, oseTemplateDataFromFields, oseTemplateFromGroup, oseGroupId, oseGroupBookOf } from "./ose-template.mjs";
-import { oseLocationData, oseAdventureData, oseAdventureId } from "./ose-location.mjs";
+import { isRangedCreature, oseTemplateDataFromFields, oseTemplateFromGroup } from "./ose-template.mjs";
+import { oseLocationData } from "./ose-location.mjs";
+import { adventurePlaceData, adventurePlaceId } from "./poi-binding.mjs";
+import { groupBookOf, groupId as generatorId } from "./import-kinds.mjs";
 import { currentScgConstants } from "./scg-constants.mjs";
 import {
   createDoc,
@@ -99,7 +101,7 @@ export async function importOseBook(bookId, { folderId = null, art = true, only 
   const templateFolder = shelf("Templates");
 
   /** Generator id for a group of steps: keys are bare words shared by books. */
-  const groupId = (key) => oseGroupId(bookId, key);
+  const groupId = (key) => generatorId(bookId, key);
   const rowOf = (id) => (cb.entries[id].meta?.templateGroup ? groupId(cb.entries[id].meta.templateGroup) : id);
   const ids = Object.keys(cb.entries).filter(
     (id) => cb.entries[id].kind === "kind.oseMonster" && (!only || only.has(rowOf(id))),
@@ -285,7 +287,7 @@ export function oseEntryRows() {
       if (e.kind !== "kind.oseMonster") continue;
       const key = e.meta?.templateGroup;
       if (!key) rows.push([id, e]);
-      else if (!groups.has(key)) groups.set(key, [oseGroupId(bookId, key), { name: e.meta.templateName ?? e.name, cite: e.cite ?? "" }]);
+      else if (!groups.has(key)) groups.set(key, [generatorId(bookId, key), { name: e.meta.templateName ?? e.name, cite: e.cite ?? "" }]);
     }
     rows.push(...groups.values());
   }
@@ -299,7 +301,7 @@ export function oseEntryRows() {
 export async function importOseEntries(ids) {
   const byBook = new Map();
   for (const id of ids ?? []) {
-    const bookId = oseGroupBookOf(id) ?? cookbookEntry(id)?.cb?.book?.id ?? null;
+    const bookId = groupBookOf(id) ?? cookbookEntry(id)?.cb?.book?.id ?? null;
     if (!bookId) continue;
     if (!byBook.has(bookId)) byBook.set(bookId, new Set());
     byBook.get(bookId).add(id);
@@ -352,9 +354,9 @@ export async function importOseAreas(bookId, { folderId = null } = {}) {
   // The adventure first, so every room has something to sit inside — and only
   // once: a second run nests its rooms under the adventure already there
   // rather than building a second dungeon beside the first.
-  const adventureId = oseAdventureId(bookId);
+  const adventureId = adventurePlaceId(bookId);
   const adventure = await claimActorImport(adventureId, () =>
-    createDoc(Actor, oseAdventureData({ book: bookId, bookLabel: label, folderId: adventureFolder })),
+    createDoc(Actor, adventurePlaceData({ book: bookId, bookLabel: label, folderId: adventureFolder })),
   );
   const bar = progressBar(loc("ose.areasImporting", { book: label }), ids.length);
   const pageCache = new Map();

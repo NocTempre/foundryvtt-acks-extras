@@ -95,17 +95,7 @@
     {
       "rule": "imports",
       "file": "scripts/importer/cookbook.mjs",
-      "target": "scripts/importer/ose-location.mjs"
-    },
-    {
-      "rule": "imports",
-      "file": "scripts/importer/cookbook.mjs",
       "target": "scripts/importer/ose-source.mjs"
-    },
-    {
-      "rule": "imports",
-      "file": "scripts/importer/cookbook.mjs",
-      "target": "scripts/importer/ose-template.mjs"
     },
     {
       "rule": "imports",
@@ -126,11 +116,6 @@
       "rule": "imports",
       "file": "scripts/importer/module.mjs",
       "target": "scripts/importer/ose-source.mjs"
-    },
-    {
-      "rule": "imports",
-      "file": "scripts/importer/poi-binding.mjs",
-      "target": "scripts/importer/ose-location.mjs"
     },
     {
       "rule": "imports",

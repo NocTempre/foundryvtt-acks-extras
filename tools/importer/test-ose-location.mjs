@@ -8,7 +8,7 @@
  * a Judge who imported the adventure reads the room without the book open, and
  * a re-import can tell its own writing from theirs.
  */
-import { oseLocationData, oseAdventureData, LOCATION_TYPE } from "../../scripts/importer/ose-location.mjs";
+import { oseLocationData, LOCATION_TYPE } from "../../scripts/importer/ose-location.mjs";
 
 let failed = 0;
 const check = (name, got, want) => {
@@ -25,11 +25,6 @@ const ok = (name, cond, detail = "") => {
     failed++;
   }
 };
-
-const adventure = oseAdventureData({ book: "qd1", bookLabel: "Quick Delve #1: Milk" });
-check("the adventure is a place too", adventure.type, LOCATION_TYPE);
-check("named for the book", adventure.name, "Quick Delve #1: Milk");
-ok("and carries no prose of its own", adventure.system.notes === "");
 
 const room = oseLocationData({
   name: "2. Statue Hall",

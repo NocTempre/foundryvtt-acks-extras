@@ -23,7 +23,7 @@ import { dirname, join } from "node:path";
 import {
   poiGroupOf, isPoiEntry, isDistrictOverview, districtPlaceId, districtPlaceData, poiLocationData,
   REGION_GROUPS, regionGroupOf, isRegionSite, isRegionOverview, regionPlaceId, regionPlaceData,
-  keySpacesOf, isKeyedPlace, keyedParentId, occupantsOf, occupantFigures,
+  keySpacesOf, isKeyedPlace, keyedParentId, occupantsOf, occupantFigures, adventurePlaceId, adventurePlaceData,
 } from "../../scripts/importer/poi-binding.mjs";
 import { creatureKeys, nameKeys } from "../../scripts/lib/vocab.mjs";
 import { LOCATION_TYPE, isPlaceRole } from "../../scripts/location/constants.mjs";
@@ -265,6 +265,30 @@ const unparented = ax1Locations.filter(([id, e]) => {
 check("every AX1 place sits in a keyed place of the book, or a space in the book's own", unparented, []);
 const spacesInBook = [...ax1Spaces].filter((id) => keyedParentId(ax1[id], "ax1") !== "ax1.adventure");
 check("a key space sits in the book's own place", spacesInBook, []);
+
+/* The adventure's own place, whichever book makes it. The stamp is what a world already holds on
+ * such a place, so the whole object is pinned, key order included. */
+check("the adventure's id is the book's, once", adventurePlaceId("zzb"), "zzb.adventure");
+check("a place with no parent in a row is the book's own", keyedParentId({}, "zzb"), "zzb.adventure");
+check(
+  "the adventure's own place is written as it always was",
+  adventurePlaceData({ book: "zzb", bookLabel: "Invented Book", folderId: "folder1" }),
+  {
+    name: "Invented Book",
+    type: LOCATION_TYPE,
+    folder: "folder1",
+    system: { region: "Invented Book", notes: "", parentUuid: "" },
+    flags: {
+      [MODULE_ID]: {
+        ose: { kind: "adventure", sourceId: "zzb", sourceLabel: "Invented Book", origin: "page" },
+        cookbook: { id: "zzb.adventure", book: "zzb", kind: "kind.oseAdventure", unaudited: true },
+      },
+    },
+  },
+);
+check("an unlabelled book is named by its id", adventurePlaceData({ book: "zzb" }).name, "zzb");
+check("a place with no folder is filed nowhere", adventurePlaceData({ book: "zzb", bookLabel: "X" }).folder, null);
+ok("the adventure's place carries no prose of its own", adventurePlaceData({ book: "zzb", bookLabel: "X" }).system.notes === "");
 
 if (failed) {
   console.error(`\npoi-binding: ${failed} failure(s)`);

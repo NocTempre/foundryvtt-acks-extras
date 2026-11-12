@@ -41,7 +41,7 @@ import { mergedRepair, mergedStep, secondPass } from "./merged-repair.mjs";
 import { chooseHeldEditsDialog } from "./apps/held-edits-dialog.mjs";
 import {
   isPoiEntry, poiGroupOf, districtPlaceId, districtPlaceData, poiLocationData, isRegionSite, isRegionOverview, regionPlaceId, regionPlaceData,
-  keySpacesOf, isKeyedPlace, keyedParentId, occupantsOf, occupantFigures,
+  keySpacesOf, isKeyedPlace, keyedParentId, occupantsOf, occupantFigures, adventurePlaceData, adventurePlaceId,
 } from "./poi-binding.mjs";
 import {
   isOrganisationRow, organisationData, organisationPlan, owedRelations, controlledRegions,
@@ -63,16 +63,14 @@ import { hexAlignment } from "../battlemap/hex-fit.mjs";
 import { gridTypeFor } from "../battlemap/constants.mjs";
 import { mirrorCreatedLinks } from "../location/scene-link.mjs";
 import { occupantRow } from "../lib/place.mjs";
-import { oseAdventureData, oseAdventureId } from "./ose-location.mjs";
 import { BOOKS, bookIsJudges, bookLine, citeFor, keptBook, laterBook, offeredBookFiles, registryBookOf } from "./books.mjs";
 import { OSE_PREFIX, oseSourceLabel, oseSourceLine } from "./ose-source.mjs";
-import { oseGroupBookOf } from "./ose-template.mjs";
 import { executeEntry, materializeEffects, attackModel, convertName } from "./executor.mjs";
 import { effectsOriginOf } from "./effects-origin.mjs";
 import { slugLabel } from "./table-extract.mjs";
 import { TABLE_RECIPES } from "./table-recipes.mjs";
 import { ownerOfClaim, rebuildVerdict } from "./rebuild-guard.mjs";
-import { ancestorsOf, claimerPasses, runSetFor as deriveRunSet } from "./import-kinds.mjs";
+import { ancestorsOf, claimerPasses, groupBookOf, runSetFor as deriveRunSet } from "./import-kinds.mjs";
 import { GM_STEPS } from "./getting-started.mjs";
 import { getDoc, getLayer, hasDoc, PRIORITY } from "../lib/tables.mjs";
 import { pageItems, pageArtPlacements } from "./extract.mjs";
@@ -3447,12 +3445,12 @@ export const ENTRY_SOURCES = [
     idsRefill: "oseImportEntries",
     entries: () => api().oseEntryRows?.() ?? [],
     owns: (claim) => {
-      const group = oseGroupBookOf(claim);
+      const group = groupBookOf(claim);
       if (group) return data.books.has(group);
       const rows = new Set((api().oseEntryRows?.() ?? []).map(([id]) => id));
       return ancestorsOf(claim).some((id) => rows.has(id));
     },
-    book: (claim) => oseGroupBookOf(claim) ?? entryBookOf(claim),
+    book: (claim) => groupBookOf(claim) ?? entryBookOf(claim),
     make: { run: "oseImportEntries", takes: ["ids"], whole: "oseImportAuthored" },
     chain: "stepOseBooks",
   },
@@ -3522,7 +3520,7 @@ const isPlaceClaim = (claim) => {
   const book = bookOfCookbookId(stem);
   if (data.books.has(book)) {
     if (stem.startsWith(`${book}.district.`) || stem === regionPlaceId(book)) return true;
-    if (stem === oseAdventureId(book)) return !oseSourceLabel(book);
+    if (stem === adventurePlaceId(book)) return !oseSourceLabel(book);
   }
   return placeEntryOwned(stem);
 };
@@ -3709,7 +3707,7 @@ const claimedId = (doc) => String(doc.getFlag(MODULE_ID, "cookbook")?.id ?? "");
  * docs/importer/DECISIONS.md, "A closed book is refused, not rebuilt."
  */
 const readableHere = (id) => {
-  const book = bookOf(cookbookEntry(id)) ?? oseGroupBookOf(id);
+  const book = bookOf(cookbookEntry(id)) ?? groupBookOf(id);
   return !book || !!ctx?.sessionDocs?.has(book);
 };
 
@@ -3721,7 +3719,7 @@ const readableHere = (id) => {
  */
 export const offeredHere = (id) => {
   const found = cookbookEntry(id);
-  const book = bookOf(found) ?? oseGroupBookOf(id) ?? (found ? null : registryBookOf(id));
+  const book = bookOf(found) ?? groupBookOf(id) ?? (found ? null : registryBookOf(id));
   return !book || !!BOOKS[book];
 };
 
@@ -3751,7 +3749,7 @@ const rebuildable = (id) => {
       return found ? bookOf(found) : undefined;
     },
     groupBookOf: (claim) => {
-      const book = oseGroupBookOf(claim);
+      const book = groupBookOf(claim);
       return book && data.books.has(book) ? book : undefined;
     },
     tableBookOf: (claim) => {
@@ -5597,8 +5595,8 @@ export async function cookbookImportPoiPlaces({ books = null, ids = null, quiet 
       const line = lineOf(bookId);
       // Two levels, which is all a pack allows: the book, then its places.
       const folder = (await ensureFolderPath("Actor", [label, "Places"], line))?.id ?? null;
-      const city = await claimActorImport(oseAdventureId(bookId), () =>
-        createDoc(Actor, oseAdventureData({ book: bookId, bookLabel: label, folderId: folder })));
+      const city = await claimActorImport(adventurePlaceId(bookId), () =>
+        createDoc(Actor, adventurePlaceData({ book: bookId, bookLabel: label, folderId: folder })));
       const district = await claimActorImport(districtPlaceId(bookId, group.district), () =>
         createDoc(Actor, districtPlaceData({
           book: bookId, bookLabel: label, district: group.district, parentUuid: city?.uuid ?? "", folderId: folder,
@@ -5697,12 +5695,12 @@ function keyedRun(tally) {
 
 /** The book's own place, the one its key spaces sit in: held, else made. */
 async function bookPlaceOf(bookId, run) {
-  const id = oseAdventureId(bookId);
+  const id = adventurePlaceId(bookId);
   const held = await importedActor(id, { copies: false });
   if (held) return held;
   const label = bookLabel(bookId);
   const folder = (await ensureFolderPath("Actor", [label, "Places"], lineOf(bookId)))?.id ?? null;
-  const made = await claimActorImport(id, () => createDoc(Actor, oseAdventureData({ book: bookId, bookLabel: label, folderId: folder })));
+  const made = await claimActorImport(id, () => createDoc(Actor, adventurePlaceData({ book: bookId, bookLabel: label, folderId: folder })));
   if (made) run.created.places.push(made.uuid);
   return made;
 }
@@ -5884,9 +5882,9 @@ export function regionSiteClaim(bookId, entry, id, entries = {}) {
   const market = entry?.meta?.market;
   if (market) {
     const claimId = marketEntryId(bookId, market);
-    return entries[claimId]?.meta?.place === "adventure" ? { claimId: oseAdventureId(bookId), onto: "adventure" } : { claimId, onto: "market" };
+    return entries[claimId]?.meta?.place === "adventure" ? { claimId: adventurePlaceId(bookId), onto: "adventure" } : { claimId, onto: "market" };
   }
-  if (entry?.meta?.place === "adventure") return { claimId: oseAdventureId(bookId), onto: "adventure" };
+  if (entry?.meta?.place === "adventure") return { claimId: adventurePlaceId(bookId), onto: "adventure" };
   return { claimId: id, onto: "site" };
 }
 
@@ -6069,7 +6067,7 @@ async function importRegionRow({ bookId, id, e, region }, tally, run) {
     if (target) run.created.places.push(target.uuid);
   } else if (!target) {
     target = await claimActorImport(claim.claimId, () =>
-      createDoc(Actor, oseAdventureData({ book: bookId, bookLabel: label, folderId: folder })));
+      createDoc(Actor, adventurePlaceData({ book: bookId, bookLabel: label, folderId: folder })));
     if (target) run.created.places.push(target.uuid);
   }
   if (!target) return void tally.refused++;
@@ -6259,8 +6257,8 @@ export async function cookbookImportMarketProfiles({ books: only = null, repair 
           let fresh = false;
           let paired = false;
           if (at === "adventure") {
-            place = await claimActorImport(oseAdventureId(bookId), () =>
-              createDoc(Actor, oseAdventureData({ book: bookId, bookLabel: label, folderId: folder })));
+            place = await claimActorImport(adventurePlaceId(bookId), () =>
+              createDoc(Actor, adventurePlaceData({ book: bookId, bookLabel: label, folderId: folder })));
           } else if (at) {
             // That row's own step builds it from its page; a stub here would
             // keep its text from ever landing.
@@ -6305,7 +6303,7 @@ export async function cookbookImportMarketProfiles({ books: only = null, repair 
           if (banded.has(market)) continue;
           const entryId = marketEntryId(bookId, market);
           const at = e.meta?.markets?.[market]?.place ?? recordOf[market]?.place ?? null;
-          const place = await importedActor(at === "adventure" ? oseAdventureId(bookId) : at ?? entryId, { copies: false });
+          const place = await importedActor(at === "adventure" ? adventurePlaceId(bookId) : at ?? entryId, { copies: false });
           if (!place) continue;
           const update = unprintedMarketUpdate(place.system?.market ?? null, source);
           if (Object.keys(update).length) {
@@ -6369,8 +6367,8 @@ export async function cookbookImportFactions({ books = null } = {}) {
   const seatsOf = async (bookId, district) => {
     const label = bookLabel(bookId);
     const placeFolder = (await ensureFolderPath("Actor", [label, "Places"], lineOf(bookId)))?.id ?? null;
-    const city = await claimActorImport(oseAdventureId(bookId), () =>
-      createDoc(Actor, oseAdventureData({ book: bookId, bookLabel: label, folderId: placeFolder })));
+    const city = await claimActorImport(adventurePlaceId(bookId), () =>
+      createDoc(Actor, adventurePlaceData({ book: bookId, bookLabel: label, folderId: placeFolder })));
     if (!district) return city;
     return claimActorImport(districtPlaceId(bookId, district), () =>
       createDoc(Actor, districtPlaceData({ book: bookId, bookLabel: label, district, parentUuid: city?.uuid ?? "", folderId: placeFolder })));
@@ -7077,7 +7075,7 @@ function mapIds(bookId, recipe) {
     return { mapPlaceId, districtIds: [], placeIds, all, region: true };
   }
   const quarterOf = (entryId) => poiGroupOf(cb.entries[entryId]?.meta?.group)?.district ?? "";
-  const mapPlaceId = recipe.place ?? oseAdventureId(bookId);
+  const mapPlaceId = recipe.place ?? adventurePlaceId(bookId);
   const districtIds = (recipe.districts ?? []).map((d) => districtPlaceId(bookId, quarterOf(d.place)));
   const placeIds = (recipe.places ?? []).map((p) => p.id);
   const all = [...new Set([mapPlaceId, ...districtIds, ...placeIds, ...keyedAbove(cb, bookId, [mapPlaceId, ...placeIds])])];

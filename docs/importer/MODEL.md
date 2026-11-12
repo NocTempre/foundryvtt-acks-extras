@@ -847,7 +847,7 @@ naming a market (`meta.market: "mkt<n>"`) on that market's place
 (`<book>.mkt<n>`, the id the market-profile step claims, made here with
 `marketActorData` when it is not there yet), or on the book's settlement when
 that market's record says `place: "adventure"`; a row with
-`meta.place: "adventure"` on the settlement (`oseAdventureId`); any other site
+`meta.place: "adventure"` on the settlement (`adventurePlaceId`); any other site
 on a place of its own under the region. A bound site writes its notes, its
 parent (the region) and its role onto the place it lands on, each only where
 that place holds none (`siteBindPatch`), and never makes a second place. The
@@ -1425,7 +1425,7 @@ takes none (`journalBound`). A place is filed in the book's `Places` folder,
 named by the heading its page prints, and given its page's text, stat lines
 included, as its notes. It sits inside the place its row names
 (`keyedParentId`): its parent row, else its space, else the book's own place
-(`oseAdventureId`), which every space sits in. A run asks for each place once
+(`adventurePlaceId`), which every space sits in. A run asks for each place once
 and its parent first (`keyedRun`), so the rows may be listed in any order. A
 held place, the library's own document, is not read again; a world copy is
 the Judge's and holds nothing for the step, as it answers no claim
@@ -1618,7 +1618,13 @@ their id prefix, their entry kinds and the member files that exist only for
 them. One silo exists, `ose` (`stats: "ose"`; prefix `ose.`; kinds
 `kind.oseMonster` and `kind.oseLocation`; members `OSE_SILO.members` in
 `tools/importer/check-silos.mjs`). The ACKS books are the engine's own library
-and own no silo: a row keyed to one of them is data in a shared recipe.
+and own no silo: a row keyed to one of them is data in a shared recipe. Two
+helpers that only look like silo code are shared: the place an adventure's rooms
+nest under (`adventurePlaceId`, `adventurePlaceData`, in `poi-binding.mjs`),
+built for every adventure book, and the generator-id grammar
+`<book>.group.<key>` (`groupId`, `groupBookOf`, in `import-kinds.mjs`), which
+repair and rebuild read. The `ose` flag and `kind.oseAdventure` on that place
+are the stamp worlds already hold, so both names stay.
 
 `tools/importer/check-silos.mjs` holds every file outside a silo to four rules,
 each a pure function over facts parsed from source (Node's bundled acorn, so it

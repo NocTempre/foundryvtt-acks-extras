@@ -21,7 +21,7 @@ import assert from "node:assert";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import {
-  ancestorsOf, ownersOf, kindOf, booksOfKind, runSetFor, claimerPasses, ADVENTURE_BOOK_RUN,
+  ancestorsOf, groupBookOf, groupId, ownersOf, kindOf, booksOfKind, runSetFor, claimerPasses, ADVENTURE_BOOK_RUN,
 } from "../../scripts/importer/import-kinds.mjs";
 import { placePairs } from "../../scripts/importer/place-pair.mjs";
 import {
@@ -53,6 +53,14 @@ const same = (label, a, b) => {
 {
   same("a claim's ancestors are its dot-prefixes of two segments or more, longest first", ancestorsOf("a.b.c.d"), ["a.b.c.d", "a.b.c", "a.b"]);
   same("a single segment names no entry", ancestorsOf("a"), []);
+  // The picker lists a per-step creature under its generator's id, and a rebuild
+  // has to find that id's book to refuse a closed one.
+  same("a generator id names its book and its group", groupId("zzb", "kind"), "zzb.group.kind");
+  same("the book is read back from a generator id", groupBookOf(groupId("zzb", "kind")), "zzb");
+  same("a dotted book id survives the round trip", groupBookOf(groupId("zz.rt", "kind")), "zz.rt");
+  same("an entry's own id is not a generator id", groupBookOf("zzb.entry1"), null);
+  same("a group key with a dot is not a generator id", groupBookOf("zzb.group.a.b"), null);
+  same("a missing id is not a generator id", groupBookOf(undefined), null);
 
   const books = { x: ["x"], y: ["y"] };
   const kind = (key, run, extra = {}) => ({
