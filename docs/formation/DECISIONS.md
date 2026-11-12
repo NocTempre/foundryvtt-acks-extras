@@ -41,8 +41,10 @@ either would leave the code unable to state its own procedure.
 
 **The doctrine's prose cannot be applied literally, and this is the joint.**
 Read literally — "every number read off a page is content, however small" — it
-condemns `jumping.mjs`, the file the doctrine names as its own model, which
-keeps eight printed constants deliberately. The narrower test this repo actually
+condemns `jumping.mjs`, the file the doctrine named as its own model, which
+kept eight printed constants deliberately (superseded 2026-11-11: they moved to
+the importer, see "Jumping, the fall, Spelunking and the street's dice are
+imported"). The narrower test this repo actually
 runs, reconstructed from the doors, jumping and march-width rulings: a number
 ships only if nothing else owns it, it is not a magnitude the book attaches to a
 named option a reader picks, and it is a unit the module defines or derives, or
@@ -726,6 +728,11 @@ order. That example is pinned in `tools/test-jumping.mjs`.
 ---
 
 ### 2026-08-15 — Jumping holds no printed value that already has an owner
+
+*Its closing claim, that jumping keeps the figures nothing else owns, is
+superseded 2026-11-11: see "Jumping, the fall, Spelunking and the street's dice
+are imported". The owners it names for the attribute modifier and Acrobatics
+stand.*
 
 Amends the entry above, which shipped with two tables it had no business
 holding: the attribute bonus bands (including the jumping rule's own extension
@@ -1532,6 +1539,11 @@ and costs no movement", which fails on the old write with the centre moving
 ---
 
 ### A city turn owes two throws, on two dice (2026-09-12)
+
+*The street's die and the incident list's die are no longer constants:
+superseded 2026-11-11 by "Jumping, the fall, Spelunking and the street's dice
+are imported". The two throws still run on two dice, and the card still names
+the one it rolled.*
 
 **Ruled.** The navigation throw is a d20 and the street's encounter throw is a
 d6, and both dice are named as exported constants the tick and the card read.
@@ -5445,3 +5457,49 @@ lacks it, which is the deleted fallback under another name.
 
 **Cost.** A seat that owns nothing of a carrier sees a dash where it saw a
 capacity and a pace.
+
+## 2026-11-11 — Jumping, the fall, Spelunking and the street's dice are imported
+
+**Ruled.** The owner's ruling of 2026-09-30: the jumping constants and the
+city's lookup dice arrive through the tables import. It reverses the 2026-08-15
+entries, which kept jumping's printed constants in source as the module's own
+model of structure-versus-values, and the 2026-09-12 entry, which named the
+street's and the incident list's dice as exported constants.
+
+What moved, each read from the Judge's own copy: the `jumping` table (the
+leap's constant and floor, the jump's die, the rate a stone of encumbrance
+takes off, the run-up, a standing start's share, a creature's baseline speed
+and assumed Dexterity, the die a failed landing falls short by) and the `fall`
+table (its die and its feet per die), RR pp. 270-271; the `spelunking` table
+(the feet one throw covers and each obstacle's Adventuring target or refusal),
+RR p. 268; the `cityTravel` `dice` table (the street's die, JJ p. 80, and the
+incident list's, JJ p. 81). The per-stone rate counts as a printed figure: it is
+a rate the page states, not a unit the module defines.
+
+What stayed: the procedure. The order the conditions apply in, the clamp at
+zero, a jump reported as a range, who may try an obstacle, what a failure and
+a natural 1 cost, which obstacles leave the climber helpless, and that a fixed
+rope makes a sheer face easy are the rule being performed. So is
+`NAVIGATION_DIE`: a throw is the game's own die, the one every throw in the
+module rolls, and no table prints it. A figure not imported reads null; every
+distance that rests on it is null with the figure named in `unknown`, and an
+ordinary adventurer's attempt at an obstacle reports "not imported" and rolls
+nothing. A street whose die is not imported is not thrown for, and its turn and
+its stay card say so rather than reporting a quiet street. A drawn RollTable's
+own formula still wins over the imported incident die, since the table says
+what it is thrown on.
+
+**Rejected.** A fallback die or distance for a world that has not imported:
+the 2026-09-12 entry's own failure (a throw on a wrongly scaled die that no
+card showed) is what a silent default produces. Leaving the party-roll flags
+alone is unchanged: they remain structural, and the duration locator is the
+travel ledger's, not this entry's.
+
+**Cost.** A world must re-import the Revised Rulebook and Judges Journal tables
+before jumping, the fall, the Spelunking attempts and the street's throw read a
+figure; until it does each says not imported. Several exports left the API
+(the jumping constants, `onSix` renamed `clearing`, the obstacle table's
+`adventuring` and `speed` fields and `FEET_PER_THROW`, `STREET_DIE` and
+`INCIDENT_DIE`), so `api.formation`'s reference page is stale until it is
+regenerated. `trap-rules.mjs` carries the same fall pair as literals and is
+left for its own row.

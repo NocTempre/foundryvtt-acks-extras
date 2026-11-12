@@ -178,6 +178,9 @@ function register({ searching = SEARCH_TABLES(), milesBreak = null } = {}) {
     ? searching
     : { ...searching, targets: [{ min: 0, max: milesBreak - 1, target: 19 }, { min: milesBreak, max: null, target: 8 }] };
   registerTable({ id: SEARCHING_DOC, tables }, { priority: PRIORITY.WORLD, source: "test" });
+  // Invented expedition figures: the march miles the target is priced on.
+  registerTable({ id: "travel", tables: { expedition: { feetPerMilePerDay: 7, dedicatedHours: 9, forcedHours: 14, ancillaryHours: 3, wildernessFactor: 4 } } },
+    { priority: PRIORITY.WORLD, source: "test" });
 }
 
 const token = (x, y, extra = {}) => ({ id: uid(), x, y, width: 1, height: 1, actorId: "pa1", getFlag: () => undefined, ...extra });

@@ -13,12 +13,11 @@
  * writes the returned day back to the formation and advances the clock by the
  * returned seconds.
  */
-import { TRAVEL_PACE } from "../lib/movement-scales.mjs";
+import { TRAVEL_PACE, paceFigures } from "../lib/movement-scales.mjs";
 
 /**
- * Hours one ancillary slot (a search hour, foraging, hunting) spends. A printed
- * figure; its registration is the movement-scales pass in
- * `docs/formation/ROADMAP.md`.
+ * Hours one ancillary slot (a search hour, foraging, hunting) spends: the hour
+ * the module's own clock counts, which a slot is one of by definition.
  */
 export const SLOT_HOURS = 1;
 
@@ -35,19 +34,24 @@ const number = (n) => (Number.isFinite(Number(n)) ? Number(n) : 0);
  * The hours a day's march may spend, and the miles that is at this speed: the
  * pace's marching hours plus `travelSlots` ancillary hours, unless the pace
  * already consumes the slots. A camp day is `pace: null` with its travel slots.
- * An unknown pace marches no hours.
+ * An unknown pace marches no hours. A pace whose hours are not imported leaves
+ * the day unpriced: `hours` is null, and so are the miles, which also stand on
+ * the speed (`milesPerHour` null: not imported, 0: a party that cannot move).
  * @param {object} o
  * @param {string|null} [o.pace]           a key of TRAVEL_PACE
  * @param {number} [o.travelSlots]         ancillary slots set to travel
  * @param {boolean} [o.paceConsumesSlots]  the pace already spends them
- * @param {number} [o.milesPerHour]
- * @returns {{hours: number, miles: number}}
+ * @param {number|null} [o.milesPerHour]
+ * @returns {{hours: number|null, miles: number|null}}
  */
-export function marchBudget({ pace = null, travelSlots = 0, paceConsumesSlots = false, milesPerHour = 0 } = {}) {
-  const paceHours = Object.hasOwn(TRAVEL_PACE, pace ?? "") ? TRAVEL_PACE[pace].hours : 0;
+export function marchBudget({ pace = null, travelSlots = 0, paceConsumesSlots = false, milesPerHour = null } = {}) {
+  const marches = Object.hasOwn(TRAVEL_PACE, pace ?? "");
+  const paceHours = marches ? paceFigures(pace).hours : 0;
+  if (paceHours == null) return { hours: null, miles: null };
   const slotHours = paceConsumesSlots ? 0 : Math.max(0, number(travelSlots)) * SLOT_HOURS;
   const hours = paceHours + slotHours;
-  return { hours, miles: Math.round(hours * Math.max(0, number(milesPerHour)) * 100) / 100 };
+  const speed = milesPerHour == null ? null : Math.max(0, number(milesPerHour));
+  return { hours, miles: speed == null ? null : Math.round(hours * speed * 100) / 100 };
 }
 
 /**

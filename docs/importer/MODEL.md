@@ -1133,6 +1133,29 @@ first, because each spec claims the first matching row below the one before
 it. It registers at the world layer with every rules table, and markets reads
 it (`docs/markets/MODEL.md`, "Range of Trade").
 
+## The expedition figures
+
+The `travel` document's `expedition` table is assembled by `travel-binding.mjs`
+(`assembleExpedition`) from two reads of the Expedition Speed page (RR 272):
+`expeditionRows` (a `gridRows` of its twelve unlabelled rows, claimed by
+position, the feet and miles cells kept raw) and `expeditionProse` (a
+`proseValues` that takes each travel day's hours from a window after an anchor
+and the wilderness scale from a `take: "times"` count). No printed number is in
+the recipe: every anchor is a phrase, and the rows are found by position.
+
+- `feetPerMilePerDay` is the ratio every row holds between its two columns
+  (`feetPerMilePerDay(rows)`). It needs at least two rows that read, and a
+  grid that disagrees with itself yields nothing, never an average.
+- `dedicatedHours`, `forcedHours` and `ancillaryHours` come from `parseHours`,
+  the first count before "hours" in the window, written as a digit or a word.
+  A window that drifted drops its own figure and no other. A pace multiplier is
+  never stored: the lib derives it from the hours.
+- `wildernessFactor` is the printed multiple, kept only when positive.
+- Page, placement and drift are the usual ones: `PRODUCES.travel.expedition`
+  names both raw reads, so the registry's `citeOf` answers the page; with the
+  book not imported the table is absent and every consumer says "not imported"
+  (`docs/lib/MODEL.md`, "Expedition figures").
+
 ## The weapon lists
 
 The weapons grid prints each row's figures and the sub-header it sits under,

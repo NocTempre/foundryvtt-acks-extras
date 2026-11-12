@@ -81,9 +81,9 @@ Hooks.on("dropActorSheetData", (target, _sheet, data) => {
 /**
  * Published because `landSpeed`/`seaSpeeds` are what another module (a
  * caravan cost, a wagon train's day) wants rather than its own reading of
- * the tables. Trap to note: `voyageDay` counts TWELVE hours where a
- * marching party counts eight — compare through `compareToMarch`, never by
- * setting the two day-figures side by side.
+ * the tables. Trap to note: `voyageDay` counts a vessel's day where a
+ * marching party counts a dedicated march's, which is shorter — compare
+ * through `compareToMarch`, never by setting the two day-figures side by side.
  */
 // apiVersion: bumped on additive changes; a removal is a new major. See
 // docs/vehicles/DECISIONS.md, "The sea's numbers come off the page too

@@ -4,12 +4,21 @@
  * carried-body load and the swimming throw read them through
  * `formationValue`).
  *
- * One page holds all eight figures (RR p. 271). The swimming paragraph gives
- * seven: what each named water condition costs the throw, what the Swimming
- * proficiency is worth, the share of speed a swimmer makes, the sink rate per
- * stone, a breath's base before Constitution, and the load a rescuer hauls —
- * the body's own figure and the share of its kit that comes with it. The rest
- * paragraph gives the turns an unrested party may explore before it is winded.
+ * One page holds the first eight figures (RR p. 271). The swimming paragraph
+ * gives seven: what each named water condition costs the throw, what the
+ * Swimming proficiency is worth, the share of speed a swimmer makes, the sink
+ * rate per stone, a breath's base before Constitution, and the load a rescuer
+ * hauls — the body's own figure and the share of its kit that comes with it.
+ * The rest paragraph gives the turns an unrested party may explore before it
+ * is winded.
+ *
+ * Two more passages follow. Jumping and Leaping (RR pp. 270-271) is read into
+ * the `jumping` table (the leap's formula and floor, the jump's die, the foot a
+ * stone takes off, the run-up and what lacking it keeps, a creature's scale and
+ * assumed Dexterity, the die a failed landing falls short by) and the `fall`
+ * table (the die and the feet it is dealt per). The Spelunking grids (RR p. 268)
+ * give the `spelunking` table: the stretch one throw covers and the target an
+ * adventurer with no climbing proficiency throws against, or that none may try.
  *
  * Each figure is read out of a short window of prose and parsed here, once. A
  * window that did not read leaves its key absent, so the reader reports that
@@ -40,8 +49,21 @@ export const PRODUCES = Object.freeze({
     swimSpeedShare: "swimmingProse",
     sinkFeetPerStone: "swimmingProse",
     breathRounds: "swimmingProse",
+    jumping: ["jumpingProse", "jumpingLandingProse"],
+    fall: "jumpingLandingProse",
+    spelunking: "spelunkingGrid",
   },
 });
+
+/**
+ * The obstacles each Spelunking grid's three columns hold, left to right, in
+ * the order the page stacks the grids. The names are formation/obstacles.mjs
+ * `OBSTACLES` keys: the module's own vocabulary for what the columns are.
+ */
+export const SPELUNKING_COLUMNS = Object.freeze([
+  Object.freeze(["easyClimb", "sheerClimb", "rappel"]),
+  Object.freeze(["crawl", "narrowLedge", "precariousLedge"]),
+]);
 
 /**
  * The water conditions the swimming throw prices, as the engine names them
@@ -176,6 +198,141 @@ export function parseRestInterval(window) {
   return null;
 }
 
+/**
+ * The first dice the text prints, as `NdM` rebuilt from its integers; null
+ * when it prints none. Nothing but two integers reaches a roll.
+ */
+export function parseDie(text) {
+  const m = /(?<![\w.])(\d+)\s*d\s*(\d+)(?!\w|\.\d)/.exec(String(text ?? "").toLowerCase());
+  const [count, faces] = m ? [Number(m[1]), Number(m[2])] : [0, 0];
+  return count > 0 && faces > 0 ? `${count}d${faces}` : null;
+}
+
+/** A whole figure the pattern captures from the window's first sentence; null when none. */
+const wholeAfter = (window, re) => {
+  const m = re.exec(firstSentence(window));
+  const n = m ? Number(m[1]) : NaN;
+  return Number.isInteger(n) && n >= 0 ? n : null;
+};
+
+/** The distance a text prints in feet, closest to the unit mark: `1’`, `10 feet`. */
+const FEET_MARK = String.raw`\s*(?:[’'′]|feet\b|foot\b|ft\b)`;
+
+/**
+ * The leap's height formula: the figure added to the Dexterity bonus and the
+ * floor the height holds to, read from the sentence's two figures by the
+ * words that name them.
+ * @returns {{plus: number|null, minimum: number|null}}
+ */
+export function parseLeap(window) {
+  return {
+    plus: wholeAfter(window, /bonus\s*\+\s*(\d+)/),
+    minimum: wholeAfter(window, /minimum\s+of\s+(\d+)/),
+  };
+}
+
+/**
+ * What a standing start keeps: "halved" is one half, "quartered" one quarter,
+ * and a share written any other way is the one `parseShareOf` reads.
+ */
+export function parseStandingShare(window) {
+  const s = firstSentence(window);
+  if (/\bhalved\b/.test(s)) return 0.5;
+  if (/\bquartered\b/.test(s)) return 0.25;
+  return parseShareOf(s);
+}
+
+/** A table's cell text: one run of words, lowercased and whitespace-collapsed. */
+const cellText = (cell) => String(cell ?? "").toLowerCase().replace(/\s+/g, " ").trim();
+
+/**
+ * The feet one throw covers, out of the grid's "one throw per N feet" cell;
+ * null for a cell that prints no distance.
+ */
+export function parseStretchFeet(cell) {
+  const m = new RegExp(String.raw`\bper\s+(\d+)${FEET_MARK}`).exec(cellText(cell));
+  const n = m ? Number(m[1]) : NaN;
+  return Number.isInteger(n) && n > 0 ? n : null;
+}
+
+/**
+ * The throw an adventurer with no climbing proficiency makes at one obstacle:
+ * the figure before the plus sign, `false` for the words that say none may
+ * try, and undefined for a cell that says neither (so it is left out, never
+ * read as a refusal).
+ */
+export function parseAdventuringCell(cell) {
+  const t = cellText(cell);
+  const m = /^(\d+)\s*\+$/.exec(t);
+  if (m) return Number(m[1]) > 0 ? Number(m[1]) : undefined;
+  return /^not\s*permitted$/.test(t) ? false : undefined;
+}
+
+/**
+ * The `jumping` table from the two passages' windows: each figure on its own,
+ * so a window that drifted costs that figure and nothing beside it. The jump's
+ * die is kept only where it is a single die, which is the one the range the
+ * jump reports is derived from.
+ */
+export function assembleJumping(jump = {}, landing = {}) {
+  const out = {};
+  const leap = parseLeap(jump.leap);
+  if (leap.plus != null) out.leapPlus = leap.plus;
+  if (leap.minimum != null) out.leapMinimum = leap.minimum;
+  const die = parseDie(firstSentence(jump.jump));
+  if (die && /^1d/.test(die)) out.jumpDie = die;
+  const perStone = new RegExp(String.raw`(\d+(?:\.\d+)?)${FEET_MARK}\s*per\s+stone`).exec(firstSentence(jump.load));
+  if (perStone && Number(perStone[1]) > 0) out.feetPerStone = Number(perStone[1]);
+  const runUp = parseFeet(jump.runUp);
+  if (runUp != null) out.runUpFeet = runUp;
+  const standing = parseStandingShare(jump.runUp);
+  if (standing != null) out.standingShare = standing;
+  const base = wholeAfter(landing.speed, /speed\s*\/\s*(\d+)/);
+  if (base) out.creatureSpeedBase = base;
+  const dex = wholeAfter(landing.dex, /^\s*(\d+)/);
+  if (dex != null) out.creatureDex = dex;
+  const short = parseDie(firstSentence(landing.short));
+  if (short) out.shortfallDie = short;
+  return out;
+}
+
+/** The `fall` table from the landing passage's last window: the die and the feet it is dealt per. */
+export function assembleFall(window) {
+  const s = firstSentence(window);
+  const out = {};
+  const die = parseDie(s);
+  if (die) out.die = die;
+  const feet = wholeAfter(s, new RegExp(String.raw`\bper\s+(\d+)${FEET_MARK}`));
+  if (feet) out.feetPerDie = feet;
+  return out;
+}
+
+/**
+ * The `spelunking` table from the two stacked grids: `stretchFeet`, the feet
+ * one throw covers (every column states it; the first read stands), and
+ * `adventuring`, one entry per obstacle that read. A grid that did not read,
+ * or a cell that says neither a target nor a refusal, leaves its obstacle out.
+ */
+export function assembleSpelunking(grid = {}) {
+  const out = {};
+  const rows = [
+    [grid.stretchFirst, grid.adventuringFirst, SPELUNKING_COLUMNS[0]],
+    [grid.stretchSecond, grid.adventuringSecond, SPELUNKING_COLUMNS[1]],
+  ];
+  const adventuring = {};
+  for (const [stretch, throws, kinds] of rows) {
+    for (const [i, kind] of kinds.entries()) {
+      const column = ["first", "second", "third"][i];
+      const feet = stretch?.__missing ? null : parseStretchFeet(stretch?.[column]);
+      if (feet != null && out.stretchFeet == null) out.stretchFeet = feet;
+      const target = throws?.__missing ? undefined : parseAdventuringCell(throws?.[column]);
+      if (target !== undefined) adventuring[kind] = target;
+    }
+  }
+  if (Object.keys(adventuring).length) out.adventuring = adventuring;
+  return out;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Assembly                                                           */
 /* ------------------------------------------------------------------ */
@@ -210,6 +367,13 @@ export function assembleFormationTables(raw = {}) {
 
   const rest = parseRestInterval(raw.restProse?.cadence);
   if (rest != null) out.restInterval = rest;
+
+  const jumping = assembleJumping(raw.jumpingProse, raw.jumpingLandingProse);
+  if (Object.keys(jumping).length) out.jumping = jumping;
+  const fall = assembleFall(raw.jumpingLandingProse?.fall);
+  if (Object.keys(fall).length) out.fall = fall;
+  const spelunking = assembleSpelunking(raw.spelunkingGrid);
+  if (Object.keys(spelunking).length) out.spelunking = spelunking;
 
   return out;
 }

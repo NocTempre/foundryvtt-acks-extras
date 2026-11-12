@@ -21,9 +21,10 @@ import { recipeCite } from "../scripts/importer/produces.mjs";
 import * as services from "../scripts/lib/services.mjs";
 import { registerTable, unregisterTable, getLayer, PRIORITY } from "../scripts/lib/tables.mjs";
 import {
-  FORMATION_DOC_ID, PRODUCES, WATER_KEYS, assembleFormationTables, applyFormationImport,
-  firstCount, firstSentence, parseCarriedBody, parseFeet, parseRestInterval, parseShareOf,
-  parseWaterModifiers, signedFigures,
+  FORMATION_DOC_ID, PRODUCES, SPELUNKING_COLUMNS, WATER_KEYS, assembleFall, assembleFormationTables,
+  assembleJumping, assembleSpelunking, applyFormationImport, firstCount, firstSentence, parseAdventuringCell,
+  parseCarriedBody, parseDie, parseFeet, parseLeap, parseRestInterval, parseShareOf, parseStandingShare,
+  parseStretchFeet, parseWaterModifiers, signedFigures,
 } from "../scripts/importer/formation-binding.mjs";
 import { assembleTravelTables, parseNavigationBonus } from "../scripts/importer/travel-binding.mjs";
 import { FORMATION_DOC, carriedBody, restEnforced, restInterval } from "../scripts/formation/constants.mjs";
@@ -47,7 +48,7 @@ check("the binding writes the document the feature reads", FORMATION_DOC_ID === 
 eq("the water keys are the engine's, less calm",
   [...WATER_KEYS].sort(), Object.keys(WATER).filter((k) => k !== "calm").sort());
 eq("every engine key is read from a recipe of this document",
-  [...new Set(Object.values(PRODUCES[FORMATION_DOC_ID]))].filter((raw) => !(raw in TABLE_RECIPES.formation.tables)), []);
+  [...new Set(Object.values(PRODUCES[FORMATION_DOC_ID]).flat())].filter((raw) => !(raw in TABLE_RECIPES.formation.tables)), []);
 
 /* --- the small readers ----------------------------------------------------- */
 eq("a window is cut at its first full stop", firstSentence(" Ducks paddle -3. Geese -9 "), "ducks paddle -3");
@@ -57,6 +58,70 @@ eq("an unsigned figure is not a signed one", signedFigures("counts 12 of them"),
 check("a count may be a word", firstCount("roughly seven gulps") === 7);
 check("an article is not a count", firstCount("a few gulps") === null);
 check("a count is not read out of a longer word", firstCount("often nineteen") === null);
+
+/* --- the jumping, fall and Spelunking readers (invented prose) -------------- */
+eq("a die is rebuilt from its integers, and a full stop after it is not a decimal point",
+  [parseDie("rolls 2D 6 each"), parseDie("the 1d8 die"), parseDie("ends on 1d12.")], ["2d6", "1d8", "1d12"]);
+eq("no dice, or a die of nothing, is no die", [parseDie("a handful"), parseDie("0d6"), parseDie("3d0"), parseDie(null)], [null, null, null, null]);
+eq("a leap reads its two figures by the words that name them",
+  parseLeap("Height is your bonus + 4 feet, with a minimum of 3 feet."), { plus: 4, minimum: 3 });
+eq("a leap sentence missing one figure costs only that figure",
+  parseLeap("Height is your bonus + 4 feet."), { plus: 4, minimum: null });
+eq("a standing start is read as its share", [
+  parseStandingShare("Without it the distance is halved."),
+  parseStandingShare("Without it the distance is quartered."),
+  parseStandingShare("Nothing changes."),
+], [0.5, 0.25, null]);
+eq("a throw's stretch is the distance a cell prints", [
+  parseStretchFeet("One throw per 30 feet"), parseStretchFeet("one throw per 45’"), parseStretchFeet("one throw"),
+], [30, 45, null]);
+eq("an adventurer's cell is a target, a refusal, or nothing at all", [
+  parseAdventuringCell("9+"), parseAdventuringCell("Not Permitted"), parseAdventuringCell("0+"), parseAdventuringCell("-"),
+], [9, false, undefined, undefined]);
+
+const JUMP_PROSE = {
+  leap: "Height is your bonus + 4 feet, with a minimum of 3 feet. Something else 9.",
+  jump: "Distance is your score + 1d10 feet. Another 1d4.",
+  load: "Each stone takes 3 feet off.  Then 3' per stone is wrong.",
+  runUp: "A run-up of 25 feet; without it the distance is halved.",
+};
+const LANDING_PROSE = { speed: "Scale by speed / 90. ", dex: "7 if none written.", short: "Lands 1d4 feet short.", fall: "A fall deals 1d8 per 12 feet." };
+const jumpingTable = assembleJumping(JUMP_PROSE, LANDING_PROSE);
+eq("the jumping table reads each figure from its own window", jumpingTable, {
+  leapPlus: 4, leapMinimum: 3, jumpDie: "1d10", runUpFeet: 25, standingShare: 0.5,
+  creatureSpeedBase: 90, creatureDex: 7, shortfallDie: "1d4",
+});
+eq("a stone's rate is read only where it is printed as one",
+  assembleJumping({ load: "Each stone takes 3' per stone." }).feetPerStone, 3);
+eq("a jump on more than one die is left out, since its range is one die's faces",
+  assembleJumping({ jump: "Distance is your score + 2d6 feet." }), {});
+eq("a window that read nothing leaves nothing", assembleJumping({}, {}), {});
+eq("the fall is its die and the feet it is dealt per", assembleFall(LANDING_PROSE.fall), { die: "1d8", feetPerDie: 12 });
+eq("a fall that prints no rate keeps only its die", assembleFall("A fall deals 1d8."), { die: "1d8" });
+
+const GRID = {
+  stretchFirst: { first: "one throw per 50 feet", second: "one throw per 50 feet", third: "one throw per 50 feet" },
+  adventuringFirst: { first: "7+", second: "Not permitted", third: "Not permitted" },
+  stretchSecond: { first: "one throw per 50 feet", second: "one throw per 50 feet", third: "one throw per 50 feet" },
+  adventuringSecond: { first: "7+", second: "6+", third: "Not permitted" },
+};
+eq("the grids read into one stretch and a target or refusal per obstacle", assembleSpelunking(GRID), {
+  stretchFeet: 50,
+  adventuring: { easyClimb: 7, sheerClimb: false, rappel: false, crawl: 7, narrowLedge: 6, precariousLedge: false },
+});
+eq("a grid that did not read costs only its own columns",
+  assembleSpelunking({ ...GRID, adventuringSecond: { __missing: true }, stretchFirst: { __missing: true } }), {
+    stretchFeet: 50,
+    adventuring: { easyClimb: 7, sheerClimb: false, rappel: false },
+  });
+eq("a cell that says neither is left out, never read as a refusal",
+  assembleSpelunking({ ...GRID, adventuringFirst: { first: "see text", second: "8+", third: "" } }).adventuring.easyClimb, undefined);
+eq("the six obstacles are three columns over two grids", SPELUNKING_COLUMNS.map((c) => c.length), [3, 3]);
+
+const assembled = assembleFormationTables({ jumpingProse: JUMP_PROSE, jumpingLandingProse: LANDING_PROSE, spelunkingGrid: GRID });
+eq("the document carries the three new tables beside the others", [!!assembled.jumping, !!assembled.fall, !!assembled.spelunking], [true, true, true]);
+eq("with their windows empty it carries none of them",
+  ["jumping", "fall", "spelunking"].filter((k) => k in assembleFormationTables({})), []);
 
 /* --- water: paired in the order the sentence names them -------------------- */
 eq("conditions take the penalties in the order they are named",
@@ -116,7 +181,10 @@ const raw = {
   restProse: extractTable(page(REST_PAGE), recipes.restProse),
 };
 const engine = assembleFormationTables(raw);
-eq("all eight figures assemble from the recipes' windows", Object.keys(engine).sort(), Object.keys(PRODUCES[FORMATION_DOC_ID]).sort());
+// The jumping, fall and Spelunking tables are fed their own windows above; the
+// invented pages here carry only the swimming and rest passages.
+eq("all eight figures assemble from the recipes' windows", Object.keys(engine).sort(),
+  Object.keys(PRODUCES[FORMATION_DOC_ID]).filter((k) => !["jumping", "fall", "spelunking"].includes(k)).sort());
 eq("the water penalties", engine.swimWaterModifiers, { rough: -6, cold: -11 });
 check("the proficiency bonus", engine.swimmingBonus === 3);
 check("the swimmer's share of speed", near(engine.swimSpeedShare, 1 / 3));

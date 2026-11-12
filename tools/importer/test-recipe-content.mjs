@@ -25,10 +25,12 @@ import { parseCell } from "../../scripts/markets/rules/availability.mjs";
 import { parseStones, parseTollCpPerSt, parseTariffPct, parseStayFee, diceRange } from "../../scripts/markets/rules/arbitrage.mjs";
 import { parseMoneyCp } from "../../scripts/markets/rules/commissions.mjs";
 import { parseMiles } from "../../scripts/markets/rules/routes.mjs";
+import { feetPerMilePerDay, parseFigure, parseHours } from "../../scripts/importer/travel-binding.mjs";
 import { parseOptions, parseFocus, parseThrowable, parseDealtBy, parseMarkedOptions, parseSelection } from "../../scripts/importer/weapon-binding.mjs";
 import { parseFrontage } from "../../scripts/monsters/sizes.mjs";
 import { SIZES } from "../../scripts/monsters/config.mjs";
 import { parseArmourLimits } from "../../scripts/equipment/armour-limits.mjs";
+import { SPELUNKING_COLUMNS, assembleFall, assembleJumping, assembleSpelunking, parseDie } from "../../scripts/importer/formation-binding.mjs";
 import { FILES } from "./reference-lib.mjs";
 
 /** The tables under test, by recipe document. Each is one entry of `TABLE_RECIPES`. */
@@ -46,6 +48,8 @@ const TABLES = {
   settlement: ["marketClassByFamilies"],
   // The three figures lib/senses.mjs reads: the shadowy radius, Night Vision's multiple and a dark sense's default reach.
   senses: ["shadowySensesProse", "nightVisionProse", "lightlessDefaultProse"],
+  // The expedition speed grid and the sentences around it: the ratio, the hours of each day, the wilderness scale.
+  travel: ["expeditionRows", "expeditionProse"],
   // The influence roller's two morale pages: a result column and a modifier
   // list each, every modifier with the wording of its own row.
   morale: ["monsterMorale", "hirelingObedience"],
@@ -87,6 +91,10 @@ const TABLES = {
   monsters: ["sizeFrontage"],
   // The armour limits on abilities.
   "acks.classBuilder": ["thiefLimits"],
+  // The jumping and fall figures, the Spelunking grids' stretch and targets,
+  // and the street's two dice.
+  formation: ["jumpingProse", "jumpingLandingProse", "spelunkingGrid"],
+  cityTravel: ["streetDieProse", "afterDarkProse"],
 };
 
 const NEEDED = [...new Set(
@@ -432,6 +440,26 @@ for (const id of ["senses.shadowySensesProse", "senses.nightVisionProse", "sense
     for (const v of recipe.values) if (isNum(out?.[v.key]) && !(out[v.key] > 0)) fail(`${v.key}: not above zero`);
   };
 }
+// The expedition grid: every declared row read, a figure in both cells, and
+// every row holding the same ratio between them (the binding takes that ratio
+// and refuses a grid that disagrees with itself). The prose windows: each hours
+// window holds a count of hours the binding reads, and the wilderness scale is
+// a number above zero. Shape only; no figure is named.
+VERIFY["travel.expeditionRows"] = (out, recipe, fail) => {
+  for (const spec of recipe.rows) {
+    const row = out?.[spec.key];
+    if (!row || isMissingRow(row)) { fail(`${spec.key}: row not read`); continue; }
+    for (const key of ["feet", "miles"]) if (parseFigure(row[key]) == null) fail(`${spec.key}: ${key} holds no figure`);
+  }
+  if (feetPerMilePerDay(out) == null) fail("rows: they do not all hold one ratio between feet and miles");
+};
+VERIFY["travel.expeditionProse"] = (out, recipe, fail) => {
+  proseKeys(out, recipe, fail);
+  for (const key of ["dedicatedDay", "forcedDay", "ancillaryDay"]) {
+    if (out?.[key] !== undefined && parseHours(out[key]) == null) fail(`${key}: names no count of hours`);
+  }
+  if (isNum(out?.wildernessScale) && !(out.wildernessScale > 0)) fail("wildernessScale: not above zero");
+};
 // The monster size frontage row: the one declared row, every category's cell
 // read and holding a figure the frontage reader takes. Shape only; no figure is
 // named.
@@ -461,6 +489,42 @@ for (const id of [
   "availability.marketRulesProse", "availability.bargainingProse", "magicItems.priceProse",
   "mercantile.impactProse", "mercantile.priceShiftProse",
 ]) VERIFY[id] = (out, recipe, fail) => proseKeys(out, recipe, fail);
+// The jumping passages: every window must read through the binding's own
+// parsers into the figures formation/jumping.mjs takes. Shape only; no figure
+// is named.
+/** Names each key of `keys` the assembled table does not hold. */
+const missingFigures = (table, keys, fail) => {
+  for (const key of keys) if (table?.[key] === undefined) fail(`${key}: the binding reads no figure from the window`);
+};
+VERIFY["formation.jumpingProse"] = (out, recipe, fail) => {
+  proseKeys(out, recipe, fail);
+  missingFigures(assembleJumping(out, {}), ["leapPlus", "leapMinimum", "jumpDie", "feetPerStone", "runUpFeet", "standingShare"], fail);
+};
+VERIFY["formation.jumpingLandingProse"] = (out, recipe, fail) => {
+  proseKeys(out, recipe, fail);
+  missingFigures(assembleJumping({}, out), ["creatureSpeedBase", "creatureDex", "shortfallDie"], fail);
+  missingFigures(assembleFall(out?.fall), ["die", "feetPerDie"], fail);
+};
+// The Spelunking grids: all four rows read, and the binding takes a stretch and
+// a target or a refusal for each of the six obstacles.
+VERIFY["formation.spelunkingGrid"] = (out, recipe, fail) => {
+  for (const spec of recipe.rows) if (!out?.[spec.key] || isMissingRow(out[spec.key])) fail(`${spec.key}: row not read`);
+  const table = assembleSpelunking(out);
+  if (table.stretchFeet == null) fail("stretchFeet: the binding reads no distance from the grids");
+  for (const kind of SPELUNKING_COLUMNS.flat()) {
+    if (table.adventuring?.[kind] === undefined) fail(`${kind}: the binding reads no target or refusal`);
+  }
+};
+// The street's two dice: each window must name a die the binding rebuilds.
+VERIFY["cityTravel.streetDieProse"] = (out, recipe, fail) => {
+  proseKeys(out, recipe, fail);
+  if (parseDie(out?.die) === null) fail("die: names no dice");
+};
+VERIFY["cityTravel.afterDarkProse"] = (out, recipe, fail) => {
+  proseKeys(out, recipe, fail);
+  if (parseDie(out?.die) === null) fail("die: names no dice");
+  if (!/adding\s+\d+\s+to\s+the\s+roll/i.test(String(out?.shift ?? ""))) fail("shift: names no figure added to the roll");
+};
 
 /* ------------------------- the weapon prose windows ------------------------ */
 

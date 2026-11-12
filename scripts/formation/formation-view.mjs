@@ -91,7 +91,7 @@ import {
   generatorReady,
 } from "./weather.mjs";
 import { ENCOUNTER_TERRAINS, encounterTerrainFor } from "./encounters.mjs";
-import { expeditionFrom } from "../lib/movement-scales.mjs";
+import { expeditionFrom, expeditionTip } from "../lib/movement-scales.mjs";
 import { fractionLabel } from "../lib/util.mjs";
 import { collectMapItems } from "./map-items.mjs";
 import { PARTY_CHECKS, resolveCheck } from "./party-rolls.mjs";
@@ -685,6 +685,8 @@ export function travelReadout(formation, feet) {
   });
   return {
     feet, camp: !kind.travels, multiplier, parts: composed.parts, conditions,
+    // Where the day's figures came from, for the strip's tooltip.
+    expeditionTip: expeditionTip({ pace: kind.pace ?? "dedicated" }),
     mode,
     modeLabel: game.i18n.localize(MOVEMENT_MODES[mode]?.label ?? ""),
     // What the mode refused or replaced, so a factor that vanished says why
@@ -699,13 +701,15 @@ export function travelReadout(formation, feet) {
  * The miles a day the party covers on the march, whatever the day board says:
  * the figure a search is priced against, since looking is paced on the march
  * and not on a camp day's dedicated pace. Read from a march-kind copy of the
- * record through `travelReadout` at the dark-free speed; 0 when the readout
- * cannot price a day.
+ * record through `travelReadout` at the dark-free speed; null while the
+ * expedition figures are not imported, so no search is priced on a day nobody
+ * could price.
  */
 export function expeditionMiles(formation) {
   const t = travelOf(formation);
   const marching = { ...formation, travel: { ...(formation.travel ?? {}), day: { ...t.day, kind: "march" } } };
-  return Number(travelReadout(marching, partySpeed(marching, { dark: false })).milesPerDay) || 0;
+  const miles = travelReadout(marching, partySpeed(marching, { dark: false })).milesPerDay;
+  return miles == null ? null : Number(miles) || 0;
 }
 
 /** The modes the band's select offers, in order, with the label of each. */
@@ -835,7 +839,9 @@ export function buildStripView(formation, speed, travelView = null) {
 
   if (mode === "journey") {
     const readout = travelReadout(formation, speed);
-    const milesPerHour = Number(readout.milesPerHour) || 0;
+    // Null while the expedition figures are not imported: the strip says so
+    // rather than print a zero for a speed nobody priced.
+    const milesPerHour = readout.milesPerHour ?? null;
     const budget = dayBudget(t, milesPerHour);
     const scene = getPartyScene(formation);
     // The cadence the engine spends by: the territory where the party REALLY
@@ -856,12 +862,14 @@ export function buildStripView(formation, speed, travelView = null) {
 
     strip.speed = {
       milesPerHour,
-      milesPerDay: Number(readout.milesPerDay) || 0,
+      milesPerDay: readout.milesPerDay ?? null,
       hexesPerDay: readout.hexesPerDay ?? null,
       camp: !!readout.camp,
       // The factors the figure was derived from, for the cell's tooltip. A ×1
       // factor says nothing, except the NOTE parts (a washed-out road, the
-      // tablesMissing line), whose whole point is explaining a silence.
+      // tablesMissing line), whose whole point is explaining a silence. The
+      // last part is where the expedition figures came from, or that they
+      // are not imported.
       partsLine: [
         `${readout.feet}'/${loc("ACKS-FORMATION.app.turn")}`,
         ...(readout.parts ?? [])
@@ -870,10 +878,17 @@ export function buildStripView(formation, speed, travelView = null) {
             const label = loc(`ACKS-VEHICLES.reason.${p.key}`);
             return p.note && p.factor === 1 ? label : `${label} ×${fractionLabel(p.factor)}`;
           }),
+        readout.expeditionTip,
       ].join(" · "),
     };
     strip.walked = { miles: tenths(t.day.miles), hours: tenths(t.day.hours) };
-    strip.budget = { hours: tenths(budget.hours), miles: tenths(budget.miles) };
+    // A day nobody could price (its pace's hours, or the speed, not imported)
+    // carries no budget: the tile says so instead of "of 0 h".
+    strip.budget = {
+      priced: budget.hours != null && budget.miles != null,
+      hours: budget.hours == null ? null : tenths(budget.hours),
+      miles: budget.miles == null ? null : tenths(budget.miles),
+    };
     strip.spent = dayIsSpent(t.day, budget);
     // The hex as the seat is shown it: the travel view's, blank while the
     // Judge shows the party nothing of where it stands.
@@ -1219,7 +1234,7 @@ function buildCampView(formation, t, milesPerDay = 0, stock = null) {
   const hunt = slots.includes("hunt") ? huntSpec({ territory: t.territory }) : null;
 
   const search = slots.includes("search")
-    ? searchSpec({ milesPerDay: Number(milesPerDay) || 0, terrain: t.ground, weather: throwPenalty(fx, "searching") })
+    ? searchSpec({ milesPerDay: milesPerDay ?? null, terrain: t.ground, weather: throwPenalty(fx, "searching") })
     : null;
 
   // The Judge's two search answers. The stock is offered only where the hex

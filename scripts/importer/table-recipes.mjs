@@ -838,15 +838,16 @@ export const TABLE_RECIPES = {
       },
     },
   },
-  // RR ch. 6 delving, one page: the swimming paragraph's figures — what the
+  // RR ch. 6 delving: the swimming paragraph's figures — what the
   // named water conditions cost the throw, the proficiency's bonus, a
   // swimmer's share of speed, the sink rate, a breath's base and the load a
   // rescuer hauls — and the rest paragraph's count of turns before a party is
-  // winded. Prose, so these are windows that open on the words before each
+  // winded, then the jumping paragraphs and the Spelunking grids (below).
+  // Prose, so these are windows that open on the words before each
   // figure; formation-binding.mjs parses them into the engine shape
   // acks-extras declares via expectTables.
   formation: {
-    source: { book: "ACKS II Revised Rulebook", pages: "RR 271" },
+    source: { book: "ACKS II Revised Rulebook", pages: "RR 268, 270-271" },
     tables: {
       swimmingProse: {
         shape: "proseValues",
@@ -877,6 +878,67 @@ export const TABLE_RECIPES = {
         // around it rather than by position.
         values: [
           { key: "cadence", find: "rest and recuperation", take: "window", span: 220 },
+        ],
+      },
+      // Jumping and Leaping (RR 270-271), one window per sentence: the leap's
+      // height formula, the jump's distance formula, what a stone of
+      // encumbrance takes off both, the run-up the jump wants and what lacking
+      // it does to them (`jumpingProse`); then a creature's scaling by running
+      // speed and its assumed Dexterity, how far short a failed landing falls,
+      // and what the fall that follows deals (`jumpingLandingProse`).
+      // formation-binding.mjs parses them into the `jumping` and `fall`
+      // tables formation/jumping.mjs reads.
+      jumpingProse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 270,
+        locate: "Jumping and Leaping",
+        column: { xMin: 300, xMax: 592 },
+        values: [
+          { key: "leap", find: "maximum height in feet", take: "window", span: 130 },
+          { key: "jump", find: "jump horizontally is equal to", take: "window", span: 40 },
+          { key: "load", find: "jumped are reduced by", take: "window", span: 50 },
+          { key: "runUp", find: "moving start of at least", take: "window", span: 110 },
+        ],
+      },
+      jumpingLandingProse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 271,
+        locate: "Creatures are assumed",
+        column: { xMin: 40, xMax: 300 },
+        values: [
+          { key: "speed", find: "multiplied by its", take: "window", span: 30 },
+          { key: "dex", find: "assumed to have dex scores of", take: "window", span: 20 },
+          { key: "short", find: "lands short by", take: "window", span: 20 },
+          { key: "fall", find: "lands him over empty space", take: "window", span: 80 },
+        ],
+      },
+      // The Spelunking tables (RR 268): two stacked grids of three obstacles
+      // each, claimed by their row labels in reading order. Only the two rows
+      // that carry a figure are read: the stretch one throw covers, and the
+      // target an adventurer with no climbing proficiency throws against (or
+      // the words that say none may try). `yMin`/`yMax` bound the grids on the
+      // page; formation-binding assigns each column to its obstacle by
+      // position, in the order its `SPELUNKING_COLUMNS` lists.
+      spelunkingGrid: {
+        shape: "gridRows",
+        book: "rr",
+        printedPage: 268,
+        locate: "Caving and Spelunking",
+        column: { xMin: 40, xMax: 592, yMin: 470, yMax: 760 },
+        labelMaxX: 165,
+        rows: [
+          { key: "stretchFirst", labelRe: "^throw\\s*required" },
+          { key: "adventuringFirst", labelRe: "^using\\s*adventuring" },
+          { key: "stretchSecond", labelRe: "^throw\\s*required" },
+          { key: "adventuringSecond", labelRe: "^using\\s*adventuring" },
+        ],
+        // Windowed, so a cell opened by a small-caps initial glyph joins whole.
+        cellColumns: [
+          { key: "first", x: 165, w: 120, pattern: "raw", row: true },
+          { key: "second", x: 289, w: 120, pattern: "raw", row: true },
+          { key: "third", x: 413, w: 120, pattern: "raw", row: true },
         ],
       },
     },
@@ -1666,6 +1728,21 @@ export const TABLE_RECIPES = {
         column: { xMin: 40, xMax: 592 },
         values: [
           { key: "shift", find: "roll 1d100", take: "window", span: 90 },
+          // The die sits in the same sentence, ahead of the shift's anchor,
+          // which a window opening after that anchor never holds.
+          { key: "die", find: "encounter occurs in an urban", take: "window", span: 30 },
+        ],
+      },
+      // The street's encounter throw: the die the cadence grid's throw column
+      // is read on. Its own window, since the grid cells carry only a target.
+      streetDieProse: {
+        shape: "proseValues",
+        book: "jj",
+        printedPage: 80,
+        locate: "Wandering the Streets",
+        column: { xMin: 40, xMax: 592 },
+        values: [
+          { key: "die", find: "an encounter occurs on", take: "window", span: 40 },
         ],
       },
       streetCadence: {
@@ -1807,6 +1884,47 @@ export const TABLE_RECIPES = {
         locateBare: true,
         values: [
           { key: "substitutions", find: "can be substituted for 1 heavy horse", before: true, span: 90, take: "window" },
+        ],
+      },
+      // The Expedition Speed grid's first two columns (RR 272): exploration
+      // speed against miles a day, one row per printed speed. The rows are
+      // claimed by position (nothing but the header sits above them, so
+      // `startAfter` skips it), which keeps every printed speed out of source;
+      // travel-binding takes the ratio the rows hold and requires them all to
+      // agree on it. The other columns restate it and are not read.
+      expeditionRows: {
+        shape: "gridRows",
+        book: "rr",
+        printedPage: 272,
+        locate: "dedicating the day to travel",
+        column: { xMin: 60, xMax: 590 },
+        labelMaxX: 60,
+        startAfter: "Miles per Hour",
+        rows: Array.from({ length: 12 }, (_, n) => ({ key: `row${n + 1}`, unlabelled: true })),
+        cellColumns: [
+          { key: "feet", x: 90, w: 30, pattern: "raw", row: true },
+          { key: "miles", x: 200, w: 60, pattern: "raw", row: true },
+        ],
+      },
+      // The sentences around that grid (RR 272): the hours a dedicated day
+      // marches and what remains of the daylight for ancillary work, the hours
+      // a forced march assumes, and how many times faster combat and running
+      // speed are in the wilderness. Each window opens straight after its
+      // anchor and the binding reads the count in it; the page's own ×3/2 and
+      // "half speed" are not read because each is the hours over the dedicated
+      // day's. `yMax` stops above the grid, whose left-hand cells would
+      // otherwise sort between the two columns of prose.
+      expeditionProse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 272,
+        locate: "dedicating the day to travel",
+        yMax: 580,
+        values: [
+          { key: "dedicatedDay", find: "undertaking", take: "window", span: 40 },
+          { key: "forcedDay", find: "force marching assumes", take: "window", span: 40 },
+          { key: "ancillaryDay", find: "with the remaining", take: "window", span: 30 },
+          { key: "wildernessScale", find: "running speed are", take: "times", span: 40 },
         ],
       },
       // Wilderness Frequency of Encounters (JJ ~41): activity rows × the four

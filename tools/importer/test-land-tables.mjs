@@ -283,6 +283,20 @@ check("the paces, the target, the modifier and the stray all read",
   && city.navigation.strayBlocks === "2d6+3");
 check("a doc with no district paragraph carries no districtTravel key",
   city.districtTravel === undefined);
+check("a doc with no dice windows carries no dice key", city.dice === undefined);
+
+/* The street's two dice are invented here and each reads from its own window,
+   rebuilt from its integers; a window that prints none costs only its die. */
+const dice = assembleCityTravelTables({
+  streetDieProse: { die: "Roll 1D 8 for the street." },
+  afterDarkProse: { die: "A list thrown on 1d30, adding 12 to the roll after dark.", shift: "adding 12 to the roll" },
+});
+check("both dice read and are rebuilt from their integers",
+  dice.dice.street === "1d8" && dice.dice.incident === "1d30" && dice.encounterAfterDark === 12);
+const oneDie = assembleCityTravelTables({ streetDieProse: { die: "Roll 2d4." }, afterDarkProse: { die: "no dice here" } });
+check("a window with no dice costs only its own die", oneDie.dice.street === "2d4" && !("incident" in oneDie.dice));
+check("neither die printed leaves no dice key",
+  assembleCityTravelTables({ streetDieProse: { die: "none" }, afterDarkProse: { die: "none" } }).dice === undefined);
 
 /* --- district travel (AX3) ------------------------------------------------
    Invented pace names ("hustle"/"stroll") and invented figures throughout —

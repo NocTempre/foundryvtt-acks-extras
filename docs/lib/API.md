@@ -1,4 +1,4 @@
-# lib API (apiVersion 39)
+# lib API (apiVersion 40)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -31,7 +31,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 39,
+  apiVersion: 40,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -599,6 +599,33 @@ null; `senseCite("shadowy" | "lightless" | "night")` is the page the table was
 read from, null where it is the Judge's own. apiVersion 38 removed
 `SHADOWY_SENSE_RANGE` and `DEFAULT_LIGHTLESS_RANGE`. The importer reads both ([docs/lib/MODEL.md](MODEL.md),
 "Perception: senses, light, and the token").
+
+## `movementScales` — the expedition figures (apiVersion 40 for the printed figures)
+
+`FEET_PER_TURN_PER_MILE_PER_DAY`, `MARCH_HOURS` and `WILDERNESS_FACTOR` are
+**removed** (apiVersion 40), and `TRAVEL_PACE` entries lose `multiplier` and `hours` (they keep
+`label` and gain `hoursKey`, the name of the figure the pace's hours are read
+under). The figures are the `expedition` table of the `travel` ruledata
+document (`TRAVEL_DOC`, `EXPEDITION_TABLE`; keys `EXPEDITION_KEYS`):
+`declareMovementTables()` registers the expectation, `expeditionFigures()`
+returns the figures (each a positive number or null) and `expeditionCite()` the
+page the table was read from, null for a Judge's override.
+
+- `paceFigures(pace)` answers `{hours, multiplier}`, each null where the table
+  lacks its figure. The multiplier is the pace's hours over the dedicated day's.
+- `expeditionFrom(feet, {multiplier, pace, milesPerHex})` answers null
+  `milesPerDay`, `hexesPerDay` and `milesPerHour` where their inputs are not
+  imported; `explorationFeetPerTurn` stays a number. `explorationFromExpedition`
+  and `inWilderness` answer null likewise.
+- `expeditionTip({pace})` is the provenance string for a tooltip, already
+  localized (the "not imported" text where nothing is), so a caller joins it
+  or hands it to `data-tooltip-text` as it is.
+
+The formation `marchBudget` and `dayBudget` return null hours and miles, and
+the vessel `compareToMarch`'s `partyPerHour`, `marchHours` and `faster` are
+null, where a march is unpriced. Callers test `== null` for the "not imported"
+state, never `> 0` alone. The mechanics are [docs/lib/MODEL.md](MODEL.md),
+"Expedition figures".
 
 ## `repair` — the standing repair tool (apiVersion 18)
 

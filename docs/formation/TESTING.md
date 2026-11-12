@@ -1979,7 +1979,10 @@ party actor with two members (each with an exploration speed, which a bare
 character actor also gets from the system's defaults) and its token on the
 first scene, an invented `travel` document registered at priority 30 carrying
 `encounterFrequency.traveling.<territory>.mileHex` equal to the first scene's
-cell (`cadenceMilesFor` reads that document), and the formation's territory
+cell (`cadenceMilesFor` reads that document) and an invented `expedition`
+table beside it (a positive `feetPerMilePerDay`, the three `…Hours` and a
+`wildernessFactor`; with none the journey prices no hours, see "The
+expedition figures, imported"), and the formation's territory
 set to that key in the Judge's hand (`applyTravelForm(id, {override:
 {territory}})`), since an unpainted hex scene answers none. Record `game.time.worldTime` before the walk and report the
 delta at the end. The dawn and dusk hours default to nothing and the per-hex
@@ -2082,6 +2085,56 @@ seat while the driver holds it. The Player seat is a second `connect()` on
 another port; render the party sheet there and read the mode tab's
 `[data-section]` keys, and that no `[data-application-part="judge"]` exists.
 
+
+## The expedition figures, imported (added with T-0175)
+
+The feet-per-mile ratio, each travel day's hours and the wilderness factor are
+the `travel` document's `expedition` table, read from the Judge's own Revised
+Rulebook (RR 272). No figure from the page enters the walk or its report:
+every observable compares a surface with `e = t.getDoc("travel").tables.expedition`
+(`t = acksExtras.lib.tables`), or with a quantity derived from it.
+
+Fixtures, kept and found again by marker: the party
+`formation/day-journey-party` with its members and scenes (*The march in
+miles*), and the vehicle `formation/expedition-wagon` (a land vehicle actor
+with a pulled draft, marked once made, on the Vehicle sheet's Travel tab).
+Step 4's invented layer is a product of the walk, `acks-extras` registry layer
+30, put back at the step's end by `t.unregisterTable("travel", {priority: 30})`.
+
+1. **Not imported.** With the travel layers holding no `expedition`
+   (`t.getDoc("travel")?.tables?.expedition` undefined; note the layers that
+   hold the document's other keys), open the party sheet's journey strip.
+   *Observable:* the speed reads a dash with "Not imported" beneath it (never
+   0, never a number), the budget line is absent, and dragging the token across
+   hexes tallies the miles and advances `game.time.worldTime` by nothing.
+   The Vehicle sheet's Travel tab shows "Not imported" in the miles-per-day
+   cell. A camp **Search** posts the unpriced whisper and rolls no die.
+2. **The import, by the Judge's gesture.**
+   `acksExtras.importer.cookbookReimportEntries()`, tick
+   `input[value="Tables|travel"]`, **Reimport**, answer the confirmation
+   (`button[data-action="yes"]`). *Observable:* the console logs `travel
+   tables assembled` naming `expedition`; `e` carries all five keys
+   (`EXPEDITION_KEYS`), each a positive number; `t.citeOf("travel",
+   "expedition")` answers `RR p.272`; the Ruledata Browser lists the raw
+   `expeditionRows` and `expeditionProse` beside it.
+3. **The surfaces price.** *Observable:* the strip's speed is a number and its
+   sub-line the miles a day; the ratio `milesPerDay / milesPerHour` on the
+   readout equals the dedicated hours `e.dedicatedHours`; a forced day kind
+   raises `milesPerDay` by `e.forcedHours / e.dedicatedHours` and leaves
+   `milesPerHour` alone; the budget line shows the pace's hours. The speed's
+   tooltip (hover the strip's first `.stat`, the speed) lists the ratio, the pace's
+   hours and `RR p.272`. The wagon's Travel tab cell shows the same miles a day
+   as the strip for the same speed, with the same tooltip. A camp Search now
+   rolls, its target the bracket for the march's miles a day.
+4. **A Judge's override wins, then reverts.** Register an invented
+   `expedition` table at layer 30 (any positive figures differing from `e`)
+   with `t.registerTable({id: "travel", tables: {expedition: {...}}},
+   {priority: 30, source: "live-check"})`. *Observable:* the strip reads the
+   invented figures at once, the tooltip carries no page (override), and
+   unregistering the layer returns the imported figures.
+5. **Teardown.** Unregister the layer; the import stays (it is the world's own
+   data). The report says which of steps 1 and 2 ran, since a world that
+   already holds the table starts at step 3.
 
 ## The hex stock (added with lairs per hex)
 
@@ -4209,3 +4262,81 @@ darkness and fog mode and the mapper's role, and puts them back.
 effect, Map items, cards and party token. The fixtures stay. The settings, the
 scene's darkness and fog mode and its management flag, and the mapper's role are
 put back.
+
+## Jumping, the fall, the Spelunking table and the street's dice (imported)
+
+The figures arrive with the tables import: `jumping`, `fall` and `spelunking`
+in the `formation` document from the Revised Rulebook (RR pp. 268, 270, 271),
+and `dice` in the `cityTravel` document from the Judges Journal (JJ pp. 80,
+81). MODEL, "The delve's printed figures" and "The city". A world mapped before
+this release holds none of them until Rules tables is run again in Reimport One
+Shelf with both books open. Read what arrived in the Ruledata Browser
+(`Settings tab → Game Settings → ACKS II — Extras → Open Ruledata Browser`) and
+use those figures below, never a number from memory.
+
+Fixtures: `formation/imported-climber`, a plain character actor with no
+climbing proficiency, built with `api.fixture` when no document carries the
+marker; `formation/imported-city-party`, a party of one member standing on a
+scene declared a settlement, built as the city section above builds its party
+and found by this marker (its pace and place re-asserted at the start of
+step 6).
+
+1. **The import reads them.** With the books open, run Rules tables.
+   *Observable:* `acksExtras.lib.tables.getTableDoc("formation").tables.jumping`
+   holds nine keys, `.fall` two, and `.spelunking` a stretch and six obstacle
+   entries, each a number or `false`; `getTableDoc("cityTravel").tables.dice`
+   holds `street` and `incident` as `NdM` strings. Count the agreement against
+   the pages named above with the book open and report it as a count of
+   figures, never the figures.
+2. **Jumping and the fall act on them.** In page context call
+   `acksExtras.formation.jumping.jumpDistance({dex: 12})`, `leapHeight({mod: 2})`
+   and `landingFailure("empty", 40)`.
+   *Observable:* `jumpDistance` returns numeric `min`, `max` and `average` with
+   `unknown` empty and `die` the imported die; the leap a number; the landing
+   `shortBy` the imported die and `damage` an `NdM` string whose count follows
+   the imported rate (the sum of dice for 40 feet against the imported feet
+   per die).
+3. **An obstacle attempt throws what the table says.** Run
+   `acksExtras.formation.obstacles.attemptObstacle([{actor}], {kind: "easyClimb", feet})`
+   with the climber, for a length of two stretches, then `kind: "sheerClimb"`.
+   *Observable:* a Judge-whispered card, one throw per stretch against the
+   imported target for the first, and the climber listed as unable to attempt
+   the second when the table says none may try. Nothing reaches a player seat.
+4. **Absent says not imported.** In the Ruledata Browser, give `formation` an
+   override that blanks `spelunking` (as step 5 of the delve's wandering
+   throw does for its distance), and repeat step 3.
+   *Observable:* the card lists the climber as unable, with the reason that the
+   Spelunking table is not imported, and the chat log gains no roll;
+   `jumpDistance({dex: 12})` is unchanged while `fall` is untouched. Clear the
+   override.
+5. **An override wins, and reverts.** Give `spelunking` an override whose
+   stretch is one the Judge picks, and repeat step 3 for a length of that
+   figure.
+   *Observable:* one throw. Clear the override and the imported stretch is
+   read again.
+6. **The street's die.** On the city party, press the Turn tool until the
+   turn owes a street throw (the card's "Threw … on <die> against … +" line).
+   *Observable:* the line names the imported street die, and hovering it says
+   Imported with the page it was read from (JJ p. 80). Blank `dice` in the
+   Ruledata Browser (`cityTravel` document) and take another turn: no throw is
+   made and the card says the die the street's encounter is thrown on is not
+   imported. Set the party holed up and advance the world clock a few days with
+   `dice` still blank: the stay card says the same, lists no day as undisturbed
+   and draws no incident. Clear the override. Not walked offline: the turn
+   card's tooltip (the stay and the not-imported cards are pinned in
+   `tools/test-formation-flows.mjs`).
+7. **The incident die.** Probe `acksExtras.formation.settlement.incidentDie()`.
+   *Observable:* it equals the Ruledata Browser's `dice.incident` as an `NdM`
+   string (JJ p. 81), and null with the table blanked. An incident drawn for a
+   met day on a map list that names no formula of its own totals within that
+   die's faces, plus the after-dark shift by night; a RollTable's own formula
+   wins where it has one.
+8. Console: a recorder attached before the GM seat's reload reads `init`,
+   `setup` and `ready` clean of any error naming jumping, obstacles or the
+   city dice, and the page's own error listener sees none across the walk.
+
+Teardown: clear every override steps 4 to 6 set. `api.track` each card's id as
+the turn resolves and `api.sweepTracked()` them; the fixtures stay.
+Pinned offline: `tools/test-jumping.mjs`, `tools/test-obstacles.mjs`,
+`tools/test-formation-binding.mjs`, `tools/importer/test-land-tables.mjs`,
+`tools/test-settlement.mjs`.

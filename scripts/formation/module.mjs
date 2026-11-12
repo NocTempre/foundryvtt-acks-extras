@@ -385,6 +385,10 @@ Hooks.once("init", () => {
   expectTables(FORMATION_DOC, [
     "restInterval", "carriedBodyStone", "carriedGearShare",
     "swimWaterModifiers", "swimmingBonus", "swimSpeedShare", "sinkFeetPerStone", "breathRounds",
+    // Jumping and the Spelunking tables (`jumping.mjs`, `obstacles.mjs`): the
+    // jump's figures, what a fall deals, and the stretch and targets of the
+    // obstacles. Printed, so none of them ship.
+    "jumping", "fall", "spelunking",
   ]);
   // The delve's wandering throw: its die, the turns between throws, the throw
   // that meets a monster, and the encounter distance's dice
@@ -418,6 +422,8 @@ Hooks.once("init", () => {
   expectTables(SETTLEMENT_DOC, [
     "paces", "navigation", "straggling", "encounters",
     "encounterIntent", "encounters100", "encounterAfterDark",
+    // The dice the street's encounter throw and the incident list are thrown on.
+    "dice",
     // The turns a walk between two points of interest costs (`poi.mjs`). It
     // arrives from a second book, so a world can hold every figure above and
     // not this one: declaring it is what makes that absence VISIBLE — the

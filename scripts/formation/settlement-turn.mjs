@@ -17,8 +17,10 @@ import { storedTravelOf, travelOf } from "./travel.mjs";
 import {
   advanceSettlementTurn, advanceSettlementDays, citySpec, streetCadence,
   resolveCityCadence, cadenceAttribution, pickIncidentSource, settlementEncounter, readIncident, isNight,
-  SETTLEMENT_LOCATIONS, NAVIGATION_DIE, STREET_DIE, INCIDENT_DIE,
+  SETTLEMENT_DOC, SETTLEMENT_LOCATIONS, NAVIGATION_DIE, streetDie, incidentDie,
 } from "./settlement.mjs";
+import { citeOf } from "../lib/tables.mjs";
+import { diceFormula } from "./constants.mjs";
 import { findEncounterZone } from "./encounter-zone.mjs";
 import { findDistrict } from "./district-zone.mjs";
 import { streetUnder, partyPoint } from "./zones.mjs";
@@ -33,9 +35,10 @@ const loc = makeLoc("ACKS-FORMATION");
  * as "not asked". The die is a parameter and never a default: the two throws a
  * city turn can owe are made on different dice against differently scaled
  * targets, and a shared default is how they come to be made on the same one.
+ * A die that is null (not imported) is no throw either; the caller says so.
  */
 async function maybeRoll(owed, formula) {
-  if (!owed) return { total: null, roll: null, die: formula };
+  if (!owed || !formula) return { total: null, roll: null, die: formula };
   const roll = await new Roll(formula).evaluate();
   return { total: roll.total, roll, die: formula };
 }
@@ -110,7 +113,7 @@ export async function cityTurnCompleted(formation, notes = []) {
   const willOweEncounter = !!cadence && ((board.turns + 1) % cadence.everyTurns === 0);
 
   const navThrow = await maybeRoll(nav.throws && nav.target != null, NAVIGATION_DIE);
-  const encThrow = await maybeRoll(willOweEncounter, STREET_DIE);
+  const encThrow = await maybeRoll(willOweEncounter, streetDie());
 
   const { board: next, events } = advanceSettlementTurn(board, {
     headcount,
@@ -118,6 +121,11 @@ export async function cityTurnCompleted(formation, notes = []) {
     encounterRoll: encThrow.total,
     cadence,
   });
+  // A throw owed on a die nobody imported is owed and not made: the card says
+  // so, where the tick (which is handed a roll or none) cannot tell why.
+  if (willOweEncounter && encThrow.die == null) {
+    events.push({ kind: "unpriced", what: loc("settlement.streetDie") });
+  }
 
   // The road is a SNAPSHOT of what the map said for this turn, so the card and
   // the panel report the street the turn was actually resolved on.
@@ -183,16 +191,24 @@ export async function runHoledUpDays(formation, days) {
 
   const rolls = [];
   const dice = [];
-  if (cadence) {
+  const die = streetDie();
+  if (cadence && die) {
     for (let d = 0; d < n; d++) {
-      const r = await new Roll(STREET_DIE).evaluate();
+      const r = await new Roll(die).evaluate();
       rolls.push(r.total);
       dice.push(r);
     }
   }
 
-  const { board: next, events } = advanceSettlementDays(board, { days: n, rolls, cadence });
+  const advanced = advanceSettlementDays(board, { days: n, rolls, cadence });
+  const next = advanced.board;
+  let events = advanced.events;
   if (events.some((e) => e.kind === "notHoledUp")) return null;
+  // Days owed a throw that was never made are not days nothing found them: the
+  // stay says its die is not imported instead of reporting a quiet one.
+  if (cadence && !die) {
+    events = [...events.filter((e) => e.kind !== "encounterOwed"), { kind: "unpriced", what: loc("settlement.streetDie") }];
+  }
 
   await patchFormation(formation.id, (record) => {
     const cur = storedTravelOf(record);
@@ -394,8 +410,9 @@ async function drawIncident(table, source) {
  * One list thrown on its OWN formula and read by range, with what it adds
  * after dark: rows past the die's last face are reached only by that
  * addition, and `table.roll()` never lands on them. `fallback` is the die for
- * a list whose formula does not parse. Null for a list with no ranged rows,
- * or with neither a formula nor a fallback.
+ * a list whose formula does not parse: the imported incident die, null until
+ * imported. Null for a list with no ranged rows, or with neither a formula nor
+ * a fallback.
  */
 async function throwBanded(table, { afterDark = 0, band = null, fallback = null }, night) {
   const rows = incidentRowsOf(table);
@@ -423,7 +440,7 @@ async function readMapIncident(
   { source, afterDark = 0, band = null, specialTableUuid = null, specialAfterDark = 0 },
   night,
 ) {
-  const read = await throwBanded(table, { afterDark, band, fallback: INCIDENT_DIE }, night);
+  const read = await throwBanded(table, { afterDark, band, fallback: incidentDie() }, night);
   if (!read) return null;
   const found = { ...read, source };
   if (!read.special || !specialTableUuid) return found;
@@ -487,7 +504,12 @@ export async function rollSettlementIncident({
   }
   const world = await findCityIncidentTable();
   const rows = incidentRowsOf(world);
-  const roll = await new Roll(INCIDENT_DIE).evaluate();
+  // The list's own die: the formula the importer read off the page onto the
+  // table, else the imported incident die for a list the registry holds. With
+  // neither, nothing is thrown and the card says there is no table to use.
+  const formula = diceFormula(world?.formula) ?? incidentDie();
+  if (!formula) return null;
+  const roll = await new Roll(formula).evaluate();
   const found = settlementEncounter(roll.total, { night, rows });
   return found ? { ...found, roll: roll.total, dice: roll, source: "city", table: world?.name ?? null } : null;
 }
@@ -562,6 +584,17 @@ function incidentLine(incident, text) {
   if (!incident.table) return loc(incident.afterDark ? "settlement.card.incident" : "settlement.card.incidentPlain", data);
   return loc(incident.afterDark ? "settlement.card.incidentBanded" : "settlement.card.incidentDrawn", data);
 }
+
+/**
+ * The street's die as a card prints it, its tooltip saying where the figure
+ * came from: the page it was imported from, or a Judge's override, which holds
+ * no page.
+ */
+const streetDieTip = (die) => {
+  const cite = citeOf(SETTLEMENT_DOC, "dice");
+  const from = cite ? loc("chat.cadenceFrom.import", { cite }) : loc("chat.cadenceFrom.override");
+  return `<span data-tooltip-text="${foundry.utils.escapeHTML(from)}">${foundry.utils.escapeHTML(die)}</span>`;
+};
 
 /** The marker's line on the card: that one was left, and the button that makes it a place. */
 const markerLine = (note) =>
@@ -684,7 +717,7 @@ async function whisperTurn(
     lines.push(owed.met === undefined
       ? loc("settlement.card.owed", { target: owed.target })
       : loc(owed.met ? "settlement.card.met" : "settlement.card.quiet",
-        { rolled: owed.rolled, target: owed.target, die: STREET_DIE }));
+        { rolled: owed.rolled, target: owed.target, die: streetDieTip(streetDie()) }));
     // A party that WANTS trouble and has no imported figure for it is told,
     // rather than quietly throwing at the ordinary target. The tick flags it;
     // this is the only surface that can say so.

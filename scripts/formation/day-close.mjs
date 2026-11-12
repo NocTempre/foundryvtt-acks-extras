@@ -79,7 +79,7 @@ export async function offerDayEnd(formationId) {
   // A camp day's budget is its travel slots alone, so with none it is never
   // spent by hours and only a step after dusk asks.
   const readout = travelReadout(formation, partySpeed(formation, { dark: false }));
-  const budget = dayBudget(t, readout.milesPerHour ?? 0);
+  const budget = dayBudget(t, readout.milesPerHour ?? null);
   const dark = journeyNight(t);
   if (!dayIsSpent(t.day, budget, { dark })) return null;
 
@@ -88,9 +88,12 @@ export async function offerDayEnd(formationId) {
   const answer = await foundry.applications.api.DialogV2.wait({
     window: { title: loc("travel.dayEnd.title") },
     classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
-    content: `<p>${loc("travel.dayEnd.body", {
-      miles: oneDecimal(t.day.miles), hours: oneDecimal(t.day.hours), budget: oneDecimal(budget.hours),
-    })}${dark ? ` ${loc("travel.dayEnd.dark")}` : ""}</p>`,
+    // A pace whose hours are not imported carries no budget to name.
+    content: `<p>${budget.hours == null
+      ? loc("travel.dayEnd.bodyUnpriced", { miles: oneDecimal(t.day.miles), hours: oneDecimal(t.day.hours) })
+      : loc("travel.dayEnd.body", {
+        miles: oneDecimal(t.day.miles), hours: oneDecimal(t.day.hours), budget: oneDecimal(budget.hours),
+      })}${dark ? ` ${loc("travel.dayEnd.dark")}` : ""}</p>`,
     buttons: [
       { action: "end", label: loc("travel.dayEnd.end"), default: true },
       { action: "push", label: loc("travel.dayEnd.push") },

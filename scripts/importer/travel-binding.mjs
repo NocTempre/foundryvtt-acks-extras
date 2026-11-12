@@ -13,6 +13,7 @@ import { MODULE_ID } from "./constants.mjs";
 import * as services from "../lib/services.mjs";
 import { getLayer, PRIORITY } from "../lib/tables.mjs";
 import { assembledDoc } from "./produces.mjs";
+import { parseCount } from "./survival-binding.mjs";
 
 /** The engine doc both halves agree on (acks-extras `expectTables`). */
 export const TRAVEL_DOC_ID = "travel";
@@ -30,6 +31,7 @@ export const PRODUCES = Object.freeze({
     draftEquivalents: "draftSubstitutionProse",
     encounterFrequency: "encounterFrequencyRaw",
     navigationBonus: "navigationProse",
+    expedition: ["expeditionRows", "expeditionProse"],
   },
 });
 
@@ -145,6 +147,62 @@ export function parseNavigationBonus(window) {
   return Object.keys(out).length ? out : null;
 }
 
+/** A count of hours a window opens with, as a positive number: a digit or a number word, then "hours". */
+export function parseHours(window) {
+  for (const m of String(window ?? "").toLowerCase().matchAll(/(?<![\w.,/-])([a-z]+|\d+(?:\.\d+)?)\s+hours?\b/g)) {
+    const n = parseCount(m[1]);
+    if (n != null && n > 0) return n;
+  }
+  return null;
+}
+
+/** An exploration-speed cell, "30’" → 30, or a miles cell, "6" → 6; a cell with no figure is null. */
+export function parseFigure(cell) {
+  const m = /^\s*(\d+(?:\.\d+)?)/.exec(String(cell ?? ""));
+  const n = m ? Number(m[1]) : null;
+  return n != null && n > 0 ? n : null;
+}
+
+/**
+ * The feet per turn that make one mile per day: the ratio the printed
+ * Expedition Speed grid holds between its first two columns. Every row that
+ * read must give the same ratio, and at least two must have read; a grid that
+ * disagrees with itself was misread and gives nothing, never an average.
+ */
+export function feetPerMilePerDay(rows) {
+  const ratios = Object.values(rows ?? {})
+    .map((row) => [parseFigure(row?.feet), parseFigure(row?.miles)])
+    .filter(([feet, miles]) => feet != null && miles != null)
+    .map(([feet, miles]) => feet / miles);
+  if (ratios.length < 2) return null;
+  return ratios.every((r) => Math.abs(r - ratios[0]) < 1e-9) ? ratios[0] : null;
+}
+
+/**
+ * The expedition figures (RR p. 272): the feet-to-miles ratio from the grid,
+ * the hours of the dedicated, forced and ancillary days from the sentences
+ * that state them, and the wilderness scale of combat and running speed.
+ * Each is read on its own, so a window that drifted costs its figure and
+ * nothing beside it. A pace's multiplier is not read: it is that pace's hours
+ * over the dedicated day's, which the reader derives.
+ * @returns {{feetPerMilePerDay?: number, dedicatedHours?: number, forcedHours?: number,
+ *   ancillaryHours?: number, wildernessFactor?: number}}
+ */
+export function assembleExpedition(raw = {}) {
+  const out = {};
+  const put = (key, value) => {
+    if (value != null) out[key] = value;
+  };
+  put("feetPerMilePerDay", feetPerMilePerDay(raw.expeditionRows));
+  const prose = raw.expeditionProse ?? {};
+  put("dedicatedHours", parseHours(prose.dedicatedDay));
+  put("forcedHours", parseHours(prose.forcedDay));
+  put("ancillaryHours", parseHours(prose.ancillaryDay));
+  const factor = Number(prose.wildernessScale);
+  put("wildernessFactor", Number.isFinite(factor) && factor > 0 ? factor : null);
+  return out;
+}
+
 /**
  * The engine tables from the raw ones. Pure — the committed tests feed it
  * invented cells.
@@ -203,6 +261,9 @@ export function assembleTravelTables(raw = {}) {
     }
     if (Object.keys(encounterFrequency).length) out.encounterFrequency = encounterFrequency;
   }
+
+  const expedition = assembleExpedition(raw);
+  if (Object.keys(expedition).length) out.expedition = expedition;
   return out;
 }
 

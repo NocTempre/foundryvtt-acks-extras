@@ -13,8 +13,8 @@ How it behaves now is [MODEL.md](MODEL.md); rulings are
   - the Seafaring ranks a seat asks (occupants.mjs `handProficiency`,
     `seatQualification`) and the master mariner's rank (vehicle-speed.mjs
     `seaSpeeds`) (RR ch. 3);
-  - the voyage and march day lengths (voyage.mjs `VOYAGE_HOURS`,
-    `MARCH_HOURS`, RR ch. 7), deferred to the movement-scales pass.
+  - the voyage day length (voyage.mjs `VOYAGE_HOURS`, RR ch. 7); the march
+    day it is compared with is read from the import.
 - **Venture logistics a vehicle would carry** — moorage and stabling by the
   day, cargo handling time, warehousing and hiring a hold out as a carrier
   (RR §VIII.6) are `docs/markets/ROADMAP.md` (Venture logistics). The deploy

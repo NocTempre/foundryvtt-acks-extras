@@ -26,6 +26,7 @@
  */
 import { getDoc, hasDoc } from "../lib/tables.mjs";
 import { numOrNull } from "../lib/util.mjs";
+import { diceFormula } from "./constants.mjs";
 
 /**
  * The registered document these derivations read.
@@ -42,20 +43,31 @@ export const SETTLEMENT_DOC = "cityTravel";
 export const SETTING_STRAGGLING = "settlementStraggling";
 
 /**
- * The die each settlement throw is made on.
+ * The die the navigation throw is made on: the game's own throw (JJ p. 79 names
+ * it a Navigation throw, and a throw is the d20 the rules define in their
+ * opening chapter), which is the die every other throw in the module rolls.
  *
- * Not interchangeable, and named here so no two readers can drift apart: the
- * navigation throw is a d20 against a target the registry prices on that
- * scale, and the street's encounter throw is the d6 the wandering-monster
- * throw already uses, against a d6-scale cadence target. Rolling one against
- * the other's target changes how often the street answers while changing
- * nothing a Judge can see on the card.
+ * Not interchangeable with the street's die, and named here so no two readers
+ * can drift apart: this throw is made against a target priced on its scale, and
+ * the street's encounter throw against a cadence target priced on another's.
+ * Rolling one against the other's target changes how often the street answers
+ * while changing nothing a Judge can see on the card.
  */
 export const NAVIGATION_DIE = "1d20";
-export const STREET_DIE = "1d6";
 
-/** The d100 the city's own imported incident table is read with. */
-export const INCIDENT_DIE = "1d100";
+/**
+ * The die the street's encounter throw is made on, from the imported `dice`
+ * table, or null until it is imported. Nothing is thrown on a guess: the
+ * caller reports the die as not imported. Rebuilt from its integers, since a
+ * Judge's override is free text.
+ */
+export const streetDie = () => diceFormula(table("dice")?.street);
+
+/**
+ * The die the city's own incident list is thrown on, from the imported `dice`
+ * table, or null until it is imported. Used where the list itself names none.
+ */
+export const incidentDie = () => diceFormula(table("dice")?.incident);
 
 /** The toggle, read defensively so the pure derivations stay Node-testable. */
 function stragglingEnabled() {

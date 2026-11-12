@@ -110,7 +110,7 @@ const positiveWhole = (value) => {
  * A stored dice formula (`NdM`, or `NdM*K`), rebuilt from its integers, or
  * null: a Judge's override is free text, and nothing but dice reaches a roll.
  */
-const diceFormula = (value) => {
+export const diceFormula = (value) => {
   const m = /^\s*(\d+)\s*d\s*(\d+)\s*(?:[*×x]\s*(\d+))?\s*$/i.exec(String(value ?? ""));
   if (!m || !(Number(m[1]) > 0) || !(Number(m[2]) > 0)) return null;
   return m[3] && Number(m[3]) > 0 ? `${Number(m[1])}d${Number(m[2])}*${Number(m[3])}` : `${Number(m[1])}d${Number(m[2])}`;

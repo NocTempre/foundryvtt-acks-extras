@@ -9,13 +9,13 @@
   <div class="stats acks-extras-strip-stats">
     <div class="stat" data-tooltip="{{strip.speed.partsLine}}">
       <span class="stat-label">{{localize "ACKS-FORMATION.strip.milesPerHour"}}</span>
-      <span class="value">{{strip.speed.milesPerHour}}</span>
-      <span class="sub">{{strip.speed.milesPerDay}} {{localize "ACKS-FORMATION.strip.milesPerDay"}}</span>
+      <span class="value">{{#if strip.speed.milesPerHour includeZero=true}}{{strip.speed.milesPerHour}}{{else}}—{{/if}}</span>
+      <span class="sub">{{#if strip.speed.milesPerDay includeZero=true}}{{strip.speed.milesPerDay}} {{localize "ACKS-FORMATION.strip.milesPerDay"}}{{else}}{{localize "ACKS-LIB.scale.notImported"}}{{/if}}</span>
     </div>
     <div class="stat {{#if strip.spent}}quiet{{/if}}">
       <span class="stat-label">{{localize "ACKS-FORMATION.strip.walked"}}</span>
       <span class="value">{{strip.walked.miles}} {{localize "ACKS-FORMATION.travel.milesShort"}}</span>
-      <span class="sub">{{strip.walked.hours}} h {{localize "ACKS-FORMATION.strip.ofBudget" hours=strip.budget.hours miles=strip.budget.miles}}</span>
+      <span class="sub">{{#if strip.speed.milesPerHour includeZero=true}}{{strip.walked.hours}} h{{#if strip.budget.priced}} {{localize "ACKS-FORMATION.strip.ofBudget" hours=strip.budget.hours miles=strip.budget.miles}}{{/if}}{{else}}{{localize "ACKS-LIB.scale.notImported"}}{{/if}}</span>
     </div>
     <div class="stat">
       <span class="stat-label">{{localize "ACKS-FORMATION.travel.hex"}}</span>

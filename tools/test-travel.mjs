@@ -36,7 +36,12 @@ import {
 import { CLIMATES } from "../scripts/formation/weather.mjs";
 import { SLOT_HOURS } from "../scripts/formation/march.mjs";
 import { DISTRICT_TYPE } from "../scripts/formation/district-find.mjs";
-import { TRAVEL_PACE } from "../scripts/lib/movement-scales.mjs";
+import { PRIORITY, registerTable } from "../scripts/lib/tables.mjs";
+
+/* The pace hours are printed and arrive through the importer; these are invented. */
+const DEDICATED_HOURS = 9;
+const FORCED_HOURS = 14;
+registerTable({ id: "travel", tables: { expedition: { dedicatedHours: DEDICATED_HOURS, forcedHours: FORCED_HOURS } } }, { priority: PRIORITY.WORLD });
 
 /* --- the day board ------------------------------------------------------- */
 let day = freshDay();
@@ -96,14 +101,16 @@ assert.equal(ended.secondsAdvanced, 0);
 /* --- the budget is in hours ------------------------------------------------ */
 const SPEED = 2.5; // invented miles per hour
 let budget = dayBudget({ day: freshDay("march") }, SPEED);
-assert.equal(budget.hours, TRAVEL_PACE.dedicated.hours, "a dedicated day marches its pace's hours");
-assert.equal(budget.miles, Math.round(TRAVEL_PACE.dedicated.hours * SPEED * 100) / 100);
+assert.equal(budget.hours, DEDICATED_HOURS, "a dedicated day marches its pace's hours");
+assert.equal(budget.miles, Math.round(DEDICATED_HOURS * SPEED * 100) / 100);
 budget = dayBudget({ day: withDayKind(null, "forced") }, SPEED);
-assert.equal(budget.hours, TRAVEL_PACE.forced.hours, "a forced march has consumed the slots; they add nothing");
+assert.equal(budget.hours, FORCED_HOURS, "a forced march has consumed the slots; they add nothing");
 budget = dayBudget({ day: { ...freshDay("camp"), activities: ["travel", "travel", null, null] } }, SPEED);
 assert.equal(budget.hours, 2 * SLOT_HOURS, "a camp day marches only its travel slots");
 budget = dayBudget({ day: { ...freshDay("march"), activities: ["travel", null, "search", null] } }, SPEED);
-assert.equal(budget.hours, TRAVEL_PACE.dedicated.hours + SLOT_HOURS, "a march day takes a travel slot on top");
+assert.equal(budget.hours, DEDICATED_HOURS + SLOT_HOURS, "a march day takes a travel slot on top");
+budget = dayBudget({ day: freshDay("march") }, null);
+assert.deepEqual(budget, { hours: DEDICATED_HOURS, miles: null }, "a speed nobody priced leaves the miles null, never zero");
 
 /* --- the day is spent when its hours reach the budget ---------------------- */
 assert.equal(dayIsSpent({ hours: 4 }, { hours: 8 }), false);

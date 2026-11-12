@@ -5488,3 +5488,30 @@ rule and still lets mates break a tie.
 can pass one wrong kind to a stray row. The placement is visible on the surface
 (a group header names the options holding its weapons) and a Judge overrides
 the list. A row that no sub-header, name or mates place stays in no group.
+
+### The expedition figures are imported (2026-11-11)
+
+**Asked.** Ledger T-0175: `movement-scales.mjs` shipped the feet-per-mile ratio,
+the march hours and the wilderness factor as constants, printed on RR 272.
+
+**Ruled.** The arithmetic stays linear ("Expedition speed is computed, not looked
+up", 2026-09-22); only its inputs move. They are the `expedition` table of the
+`travel` document, read by the importer, and a missing figure answers null all
+the way down to the surface, which says "not imported" (docs/lib/MODEL.md,
+"Expedition figures"). A pace's multiplier is not a figure of its own: it is the
+pace's hours over the dedicated day's, so the forced march's factor and the
+ancillary day's share cannot drift from the hours they restate. The formation's
+one-hour travel slot (`SLOT_HOURS`) is the unit the clock is cut in, a structural
+constant that no page prints as a figure.
+
+**Rejected.** Keeping the constants as defaults beneath the import: a default is
+a printed figure wearing a constant's name, and nothing then says the import is
+missing. Storing each pace's multiplier beside its hours: two readings of one
+printed fact.
+
+**What it cost.** Three exports are removed and `TRAVEL_PACE` loses two fields
+(docs/lib/API.md, "movementScales"). A world that has not re-imported the
+Revised Rulebook's travel tables prices no march, no day budget and no camp
+search target until it does. `ANCILLARY_SLOTS` (the stored record's slot count)
+and the sailing day's hours (`VOYAGE_HOURS`) still ship and are open on
+the ROADMAPs.

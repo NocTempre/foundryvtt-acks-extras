@@ -186,7 +186,11 @@ const localImpl = Object.freeze({
   // `SELECTION_VOCAB.weaponProficiency` and the proficiency strip's weapon
   // classes hold one `bowcrossbow` where they held `bow` and `crossbow`, and a
   // bare `crossbow` grant names the one weapon.
-  apiVersion: 39,
+  // 40: movement scales — `FEET_PER_TURN_PER_MILE_PER_DAY`, `MARCH_HOURS` and
+  // `WILDERNESS_FACTOR` are gone and `TRAVEL_PACE` entries carry no multiplier
+  // or hours; `expeditionFigures`, `paceFigures`, `expeditionCite` and
+  // `expeditionTip` read the `travel` document's `expedition` table.
+  apiVersion: 40,
   vocab,
   fields,
   /**
@@ -484,6 +488,7 @@ Hooks.once("init", () => {
   installLegacyCombatRescue();
   light.declareLightTables();
   senses.declareSenseTables();
+  movementScales.declareMovementTables();
   // Before any canvas builds a token's light source.
   installTokenLightPaddingPatch();
   installSpellUsePatch();

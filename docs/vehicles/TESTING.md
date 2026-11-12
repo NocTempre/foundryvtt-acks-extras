@@ -133,11 +133,18 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    reasons list carries the one `tablesMissing` line; with them the day's
    miles scale per the registered rows. An impassable terrain refuses through
    `canEnter` (structural — no table needed) rather than returning a number.
+   The miles-per-day cell reads "Not imported" until the `expedition` table is
+   registered (a positive `feetPerMilePerDay` and the three `…Hours` keys, any
+   invented values); then it shows a number whose tooltip lists the ratio and
+   the pace's hours, and a forced march's miles a day move by forced hours over
+   dedicated hours while the miles per hour stay put (`docs/formation/TESTING.md`,
+   "The expedition figures, imported").
 7. Sea vehicle: change `system.kind` to `sea`, set a wind, and run a voyage
    day.
    *Observable:* the sea speeds and the wind factor drive the result;
    `canSailRoundTheClock` gates the longer day; `compareToMarch` states the
-   vessel against a marching party.
+   vessel against a marching party, and its party figures are null while no
+   `expedition` table is registered.
 8. Damage and repair: `damageToVessel` past the sinking threshold, then
    `repairPlan`.
    *Observable:* `isSinking` turns true at the stated share, and the repair

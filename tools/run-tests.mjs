@@ -137,6 +137,8 @@ const COMMITTED = [
   "test-hex-stock-run.mjs",
   "test-search-run.mjs",
   "test-settlement.mjs",
+  "test-jumping.mjs",
+  "test-obstacles.mjs",
   "test-poi.mjs",
   "test-factions.mjs",
   "test-domains.mjs",

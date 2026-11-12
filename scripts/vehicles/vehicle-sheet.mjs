@@ -36,7 +36,7 @@ import { boardForBestPace, reboardLast } from "./boarding.mjs";
 import { explorationSpeedOf } from "../formation/formation-model.mjs";
 import { STONE, encumbering6, isCurrency } from "../lib/item-model.mjs";
 import { landCoin } from "../lib/bundles.mjs";
-import { expeditionFrom, TRAVEL_PACE } from "../lib/movement-scales.mjs";
+import { expeditionFrom, expeditionTip, TRAVEL_PACE } from "../lib/movement-scales.mjs";
 import { ITEM_FLAG as MARKETS_FLAG } from "../markets/constants.mjs";
 
 const LANG_PREFIX = "ACKS-VEHICLES";
@@ -193,7 +193,9 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
       // A wagon's day, in the scale a journey is actually planned in. The
       // terrain multiplier is already inside feetPerTurn, so it is not applied
       // a second time here.
-      expedition: isSea ? null : expeditionFrom(speed.feetPerTurn, { pace: this.#pace }),
+      // Null miles while the expedition figures are not imported; `tip` names
+      // the parts and the page they were read from.
+      expedition: isSea ? null : { ...expeditionFrom(speed.feetPerTurn, { pace: this.#pace }), tip: expeditionTip({ pace: this.#pace }) },
       // A vessel's day and the wagon's day run on different clocks, so the
       // two are never shown as the same kind of number.
       voyage: isSea ? voyageDay(sys, { wind: this.#wind, underSail: true, roles: effRoles }) : null,

@@ -1,25 +1,27 @@
 /* global game, Roll */
 /**
  * Obstacles the party has to get past one member at a time (RR ch. 6, the
- * Spelunking table): a wall to climb, a rope to rappel, a ledge to edge along.
+ * Spelunking tables): a wall to climb, a rope to rappel, a ledge to edge along.
  *
- * The table's shape is the whole feature. Each obstacle answers four questions
+ * The tables' shape is the whole feature. Each obstacle answers four questions
  * and they do NOT move together:
  *
- *  - **may an ordinary adventurer try at all?** An easy climb and a crawling
- *    traverse are open to Adventuring; a sheer face, a rappel and a precarious
- *    ledge are not permitted without Climbing or Mountaineering, and no roll
- *    changes that;
+ *  - **may an ordinary adventurer try at all?** Some obstacles are open to
+ *    Adventuring and the rest are not permitted without Climbing or
+ *    Mountaineering, and no roll changes that. Which is which, and the target
+ *    an open one throws against, are printed: they arrive in the `spelunking`
+ *    registered table (`adventuringTarget`);
  *  - **what does failure cost?** On the gentle obstacles, a round and nothing
  *    else. On the hard ones, a FALL — which is the difference between an
  *    inconvenience and a funeral;
  *  - **what does a natural 1 cost?** Usually the fall that failure did not;
- *  - **is the climber helpless while doing it?** Everything except an easy
- *    climb leaves them Vulnerable in combat.
+ *  - **is the climber helpless while doing it?** Some obstacles leave them
+ *    Vulnerable in combat and one does not.
  *
- * One throw per stretch of the obstacle, and success moves at a fraction of
- * combat speed (a rappel excepted — it is the one obstacle that is FASTER than
- * walking).
+ * One throw per stretch of the obstacle, the stretch being the imported figure
+ * (`stretchFeet`). Nothing here knows a distance or a target: with the table
+ * not imported an ordinary adventurer's attempt is reported as unknown, never
+ * rolled against a guess.
  *
  * A party has three ways to make a sheer face easy, and the module models the
  * outcome rather than the method: a rope secured by a proficient climber, a
@@ -27,7 +29,7 @@
  * `easy` for everyone who follows, which is what `assisted` means below.
  */
 import { postToJudges } from "../lib/roll-audience.mjs";
-import { MODULE_ID } from "./constants.mjs";
+import { MODULE_ID, formationValue } from "./constants.mjs";
 
 const LANG_PREFIX = "ACKS-FORMATION.obstacles";
 
@@ -41,42 +43,69 @@ export const OUTCOME = Object.freeze({
 });
 
 /**
- * The Spelunking table. `adventuring` is the throw an ordinary adventurer
- * needs; null means the obstacle is not permitted without a real climbing
- * proficiency, and no amount of Adventuring will do.
+ * The Spelunking tables, as the procedure each obstacle runs: its label, which
+ * way it goes, what a failure and a botch cost, and whether the climber is
+ * helpless on it. The keys name the six columns, in the order the grids print
+ * them (`importer/formation-binding.mjs` `SPELUNKING_COLUMNS`). What an
+ * ordinary adventurer throws is not here: see `adventuringTarget`.
  */
 export const OBSTACLES = Object.freeze({
   easyClimb: {
-    label: `${LANG_PREFIX}.easyClimb`, adventuring: 8, vertical: true,
-    fail: OUTCOME.noProgress, botch: OUTCOME.fallUnlessGeared, vulnerable: false, speed: "third",
+    label: `${LANG_PREFIX}.easyClimb`, vertical: true,
+    fail: OUTCOME.noProgress, botch: OUTCOME.fallUnlessGeared, vulnerable: false,
   },
   sheerClimb: {
-    label: `${LANG_PREFIX}.sheerClimb`, adventuring: null, vertical: true,
-    fail: OUTCOME.fallUnlessGeared, botch: OUTCOME.fall, vulnerable: true, speed: "third",
+    label: `${LANG_PREFIX}.sheerClimb`, vertical: true,
+    fail: OUTCOME.fallUnlessGeared, botch: OUTCOME.fall, vulnerable: true,
   },
   rappel: {
-    label: `${LANG_PREFIX}.rappel`, adventuring: null, vertical: true, descendOnly: true,
-    fail: OUTCOME.slowDescent, botch: OUTCOME.fallUnlessGeared, vulnerable: true, speed: "run",
+    label: `${LANG_PREFIX}.rappel`, vertical: true, descendOnly: true,
+    fail: OUTCOME.slowDescent, botch: OUTCOME.fallUnlessGeared, vulnerable: true,
   },
   crawl: {
-    label: `${LANG_PREFIX}.crawl`, adventuring: 8, vertical: false,
-    fail: OUTCOME.noProgress, botch: OUTCOME.fallUnlessGeared, vulnerable: true, speed: "third",
+    label: `${LANG_PREFIX}.crawl`, vertical: false,
+    fail: OUTCOME.noProgress, botch: OUTCOME.fallUnlessGeared, vulnerable: true,
   },
   narrowLedge: {
-    label: `${LANG_PREFIX}.narrowLedge`, adventuring: 8, vertical: false,
-    fail: OUTCOME.noProgress, botch: OUTCOME.fallUnlessBurglar, vulnerable: true, speed: "third",
+    label: `${LANG_PREFIX}.narrowLedge`, vertical: false,
+    fail: OUTCOME.noProgress, botch: OUTCOME.fallUnlessBurglar, vulnerable: true,
   },
   precariousLedge: {
-    label: `${LANG_PREFIX}.precariousLedge`, adventuring: null, vertical: false,
-    fail: OUTCOME.fallUnlessBurglar, botch: OUTCOME.fall, vulnerable: true, speed: "third",
+    label: `${LANG_PREFIX}.precariousLedge`, vertical: false,
+    fail: OUTCOME.fallUnlessBurglar, botch: OUTCOME.fall, vulnerable: true,
   },
 });
 
-/** One throw covers a hundred feet of it. */
-export const FEET_PER_THROW = 100;
+/**
+ * What an adventurer with no climbing proficiency throws against at this
+ * obstacle: the target, `false` where the table says none may try, or null
+ * until the table is imported. A Judge's override is free text, so a figure
+ * that is no positive number reads as not imported.
+ *
+ * @param {string} kind a key of OBSTACLES
+ * @returns {number|false|null}
+ */
+export function adventuringTarget(kind) {
+  const cell = formationValue("spelunking")?.adventuring?.[kind];
+  if (cell === false) return false;
+  const n = cell == null || cell === "" ? NaN : Number(cell);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
 
-/** Throws a distance demands — a wall is not one roll because it is one wall. */
-export const throwsFor = (feet) => Math.max(1, Math.ceil((Number(feet) || 0) / FEET_PER_THROW));
+/** The feet one throw covers, or null until the table is imported. */
+export function stretchFeet() {
+  const n = Number(formationValue("spelunking")?.stretchFeet);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+/**
+ * Throws a distance demands — a wall is not one roll because it is one wall.
+ * Null until the stretch one throw covers is imported.
+ */
+export function throwsFor(feet) {
+  const stretch = stretchFeet();
+  return stretch === null ? null : Math.max(1, Math.ceil((Number(feet) || 0) / stretch));
+}
 
 /**
  * What this member faces at this obstacle.
@@ -103,10 +132,12 @@ export function obstaclePlan({ kind, proficient = false, classThrow = null, assi
       ? { permitted: true, target: classThrow, reason: null, obstacle, effective }
       : { permitted: true, target: null, reason: "needsClassThrow", obstacle, effective };
   }
-  if (obstacle.adventuring == null) {
-    return { permitted: false, target: null, reason: "notPermitted", obstacle, effective };
-  }
-  return { permitted: true, target: obstacle.adventuring, reason: null, obstacle, effective };
+  const open = adventuringTarget(effective);
+  // Not imported is its own answer: an ordinary adventurer's attempt is
+  // neither refused nor rolled when the table that says which is absent.
+  if (open === null) return { permitted: false, target: null, reason: "notImported", obstacle, effective };
+  if (open === false) return { permitted: false, target: null, reason: "notPermitted", obstacle, effective };
+  return { permitted: true, target: open, reason: null, obstacle, effective };
 }
 
 /**
@@ -134,19 +165,25 @@ export function readThrow({ plan, natural, total }) {
  * than rolled for — being unable to try is a fact the party needs BEFORE
  * someone falls, not a failed roll.
  *
+ * The length is the obstacle's, in feet; left out it is one stretch of the
+ * imported table. With the stretch not imported no throw count can be made, so
+ * every member is listed as unable to attempt it, naming the table.
+ *
  * @param {Array<{actor: Actor, proficient?: boolean, classThrow?: number}>} members
  */
-export async function attemptObstacle(members, { kind, assisted = false, feet = FEET_PER_THROW } = {}) {
+export async function attemptObstacle(members, { kind, assisted = false, feet = stretchFeet() } = {}) {
   const throws = throwsFor(feet);
   const results = [];
 
   for (const m of members) {
-    const plan = obstaclePlan({ kind, proficient: m.proficient, classThrow: m.classThrow, assisted });
+    const plan = throws === null
+      ? { permitted: false, target: null, reason: "notImported", obstacle: OBSTACLES[kind] ?? null }
+      : obstaclePlan({ kind, proficient: m.proficient, classThrow: m.classThrow, assisted });
     if (!plan.permitted || plan.target == null) {
       results.push({ name: m.actor?.name, plan, blocked: true });
       continue;
     }
-    // Every hundred feet is its own throw, and the first fall ends the climb.
+    // Every stretch is its own throw, and the first fall ends the climb.
     const attempts = [];
     for (let i = 0; i < throws; i++) {
       const roll = await new Roll("1d20").evaluate();
@@ -159,10 +196,12 @@ export async function attemptObstacle(members, { kind, assisted = false, feet = 
   }
 
   await postToJudges({
-    flavor: game.i18n.format(`${LANG_PREFIX}.flavor`, {
-      obstacle: game.i18n.localize(OBSTACLES[kind]?.label ?? `${LANG_PREFIX}.unknown`),
-      feet,
-    }),
+    flavor: feet == null
+      ? game.i18n.localize(OBSTACLES[kind]?.label ?? `${LANG_PREFIX}.unknown`)
+      : game.i18n.format(`${LANG_PREFIX}.flavor`, {
+        obstacle: game.i18n.localize(OBSTACLES[kind]?.label ?? `${LANG_PREFIX}.unknown`),
+        feet,
+      }),
     content: `<ul class="acks-extras-obstacle-results">${results.map((r) => {
       if (r.blocked) {
         return `<li><strong>${r.name}</strong> — ${game.i18n.localize(`${LANG_PREFIX}.reason.${r.plan.reason}`)}</li>`;

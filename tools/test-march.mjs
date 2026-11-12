@@ -6,27 +6,43 @@
  */
 import assert from "node:assert/strict";
 import { SLOT_HOURS, cadenceOf, marchBudget, marchIsSpent, spendMarch } from "../scripts/formation/march.mjs";
-import { TRAVEL_PACE } from "../scripts/lib/movement-scales.mjs";
+import { PRIORITY, registerTable, unregisterTable } from "../scripts/lib/tables.mjs";
+
+/* The pace hours are printed and arrive through the importer; these are invented. */
+const DEDICATED = 9;
+const FORCED = 14;
+const expedition = { dedicatedHours: DEDICATED, forcedHours: FORCED, ancillaryHours: 3 };
+registerTable({ id: "travel", tables: { expedition } }, { priority: PRIORITY.WORLD });
 
 /* --- the day's budget ---------------------------------------------------- */
 assert.equal(SLOT_HOURS, 1);
 let b = marchBudget({ pace: "dedicated", milesPerHour: 3 });
-assert.deepEqual(b, { hours: TRAVEL_PACE.dedicated.hours, miles: TRAVEL_PACE.dedicated.hours * 3 }, "a dedicated day is its pace's hours");
+assert.deepEqual(b, { hours: DEDICATED, miles: DEDICATED * 3 }, "a dedicated day is its pace's hours");
 
 b = marchBudget({ pace: "forced", travelSlots: 4, paceConsumesSlots: true, milesPerHour: 2 });
-assert.equal(b.hours, TRAVEL_PACE.forced.hours, "a forced march has consumed the slots; they add nothing");
+assert.equal(b.hours, FORCED, "a forced march has consumed the slots; they add nothing");
 
 b = marchBudget({ pace: null, travelSlots: 2, milesPerHour: 3 });
 assert.deepEqual(b, { hours: 2 * SLOT_HOURS, miles: 6 }, "a camp day marches only its travel slots");
 
 b = marchBudget({ pace: "dedicated", travelSlots: 1, milesPerHour: 3 });
-assert.equal(b.hours, TRAVEL_PACE.dedicated.hours + SLOT_HOURS, "a dedicated day takes a travel slot on top");
+assert.equal(b.hours, DEDICATED + SLOT_HOURS, "a dedicated day takes a travel slot on top");
 
 b = marchBudget({ pace: "gallop", milesPerHour: 3 });
 assert.deepEqual(b, { hours: 0, miles: 0 }, "an unknown pace marches no hours");
 assert.deepEqual(marchBudget({ pace: "constructor", milesPerHour: 3 }), { hours: 0, miles: 0 }, "a prototype name is not a pace");
-assert.deepEqual(marchBudget(), { hours: 0, miles: 0 }, "no arguments, no march");
-assert.equal(marchBudget({ pace: "dedicated", milesPerHour: 1 / 3 }).miles, Math.round((TRAVEL_PACE.dedicated.hours / 3) * 100) / 100, "miles round to two decimals");
+assert.deepEqual(marchBudget(), { hours: 0, miles: null }, "no arguments, no march, and no speed to price it");
+assert.equal(marchBudget({ pace: "dedicated", milesPerHour: 1 / 3 }).miles, Math.round((DEDICATED / 3) * 100) / 100, "miles round to two decimals");
+
+/* --- a day nobody could price is null, never zero ------------------------ */
+assert.deepEqual(marchBudget({ pace: "dedicated" }), { hours: DEDICATED, miles: null }, "hours without a speed price no miles");
+assert.deepEqual(marchBudget({ pace: "dedicated", milesPerHour: 0 }), { hours: DEDICATED, miles: 0 }, "a party that cannot move walks no miles");
+registerTable({ id: "travel", tables: { expedition: { dedicatedHours: DEDICATED } } }, { priority: PRIORITY.WORLD });
+assert.deepEqual(marchBudget({ pace: "forced", milesPerHour: 3 }), { hours: null, miles: null }, "a pace whose hours are not imported has no budget");
+assert.deepEqual(marchBudget({ pace: null, travelSlots: 2, milesPerHour: 3 }), { hours: 2 * SLOT_HOURS, miles: 6 }, "a camp day needs no pace figure");
+unregisterTable("travel", { priority: PRIORITY.WORLD });
+assert.deepEqual(marchBudget({ pace: "dedicated", milesPerHour: 3 }), { hours: null, miles: null }, "nothing imported, no budget");
+registerTable({ id: "travel", tables: { expedition } }, { priority: PRIORITY.WORLD });
 
 /* --- the cadence --------------------------------------------------------- */
 assert.deepEqual(cadenceOf({ isHex: true, milesPerCell: 6, mileHex: 6 }), { by: "grid", miles: 6 }, "a hex the size of the table's counts crossings");
@@ -118,6 +134,8 @@ assert.equal(marchIsSpent({ hours: budget.hours - 0.5 }, budget), false, "short 
 assert.equal(marchIsSpent({ hours: budget.hours - 1e-12 }, budget), true, "float noise short of it is still spent");
 assert.equal(marchIsSpent({ hours: 3 }, { hours: 0 }), false, "a zero budget never spends a day by hours");
 assert.equal(marchIsSpent({ hours: 3 }, { hours: 0 }, { dark: false }), false);
+assert.equal(marchIsSpent({ hours: 30 }, { hours: null }), false, "a budget nobody could price never spends a day by hours");
+assert.equal(marchIsSpent({ hours: 1 }, { hours: null }, { dark: true }), true, "but dusk still ends it");
 assert.equal(marchIsSpent({ hours: 1 }, budget, { dark: true }), true, "a step after dusk ends the day");
 assert.equal(marchIsSpent({}, { hours: 0 }, { dark: true }), true, "even with no budget");
 assert.equal(marchIsSpent({}, budget), false, "a legacy day with no hours is open");

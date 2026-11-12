@@ -70,7 +70,7 @@ export const ANCILLARY_SLOTS = 4;
 
 /**
  * How the DAY itself is spent — the dedicated activity. A forced march buys
- * its half-again distance by spending every ancillary slot on the road; camp
+ * its longer day's distance by spending every ancillary slot on the road; camp
  * is a day that goes nowhere on purpose.
  */
 export const DAY_KINDS = Object.freeze({
@@ -195,10 +195,10 @@ export function withDayKind(day, kind) {
  * The hours the day's march may spend, and the miles that is at this speed:
  * the day kind's pace plus one hour per ancillary slot set to travel (unless
  * the pace already consumes the slots). A camp day marches only its travel
- * slots.
+ * slots. A pace whose hours are not imported prices no day (`marchBudget`).
  * @param {object} travel         a `travelOf` result
- * @param {number} milesPerHour   the readout's speed
- * @returns {{hours: number, miles: number}}
+ * @param {number|null} milesPerHour   the readout's speed, null while not imported
+ * @returns {{hours: number|null, miles: number|null}}
  */
 export function dayBudget(travel, milesPerHour) {
   const kind = DAY_KINDS[travel?.day?.kind] ?? DAY_KINDS.march;

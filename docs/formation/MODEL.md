@@ -86,6 +86,7 @@ All paths are under `scripts/formation/` unless noted.
 - **State** lives in one world setting (`formations`, keyed by id — see the shape documented at the top of `formation-model.mjs`). Only GM clients write it; the `updateSetting` hook re-renders the window on every client.
 - **Every write goes through one private `commit(mutate)`**, which reads the ledger inside the save lock — the lock and the read are a single act, so no writer can hold a copy from before its turn in the queue. Three writers sit on it: `createFormation` **inserts** (the only insert, and it mints the id); `updateFormation` writes **only what its copy changed** since the model handed it out (`readAs`, `applyChanges`): a changed sub-record key by key, a list of `id`-keyed records element by element, any other changed list whole, and a removal or a key the ledger also gained since the read stands; so a patch that lands while the caller awaits keeps its value unless the copy changed the same field, and a copy its writer cloned has no read and is written whole (DECISIONS 2026-10-17, "A whole write carries only what its copy changed"). It **refuses a record the ledger no longer holds**, since a caller arriving with a record that was dissolved while it worked has a moot write, not an urgent one, and **keeps the ledger's party token**: the ledger's `sceneId` and `tokenId` stand over the copy's, and its `clock.lastPosition` too when they name another token than the copy did, so only a patch moves the party token (DECISIONS 2026-10-17); `patchFormation` re-reads one record and applies a targeted mutation, which is what a hook or any background writer uses so a concurrent field change is not overwritten and its own guards are decided against current reality.
 - **The delve's printed figures** live in the `formation` ruledata document and are read through `formationValue` (`constants.mjs`): the turns an unrested party explores before it is winded (`restInterval`), a carried body's weight and the share of its kit hauled with it (`carriedBodyStone`, `carriedGearShare`), and the swimming throw's five (`swimWaterModifiers` as `{cold, rough}`, stored negative because the throw subtracts a modifier; `swimmingBonus`; `swimSpeedShare`; `sinkFeetPerStone`; `breathRounds`). The importer writes all eight from the Judge's own RR p. 271: [formation-binding.mjs](../../scripts/importer/formation-binding.mjs) reads each out of a short window of the page's prose, pairs the water penalties with the conditions in the order the sentence names them, and leaves a key whose window did not read absent. A reader without its figure says less rather than inventing one: the clock counts turns and asks for no rest, a rescue load and a drowning read as unknown, and a swimming throw that needs a missing figure returns no target and names it in `unknown`.
+- **Jumping, the fall and the Spelunking table** arrive in the same document as three more tables, read from RR pp. 268, 270 and 271. `jumping` holds the leap's constant and floor, the jump's die, the feet a stone of encumbrance takes off, the run-up, the share a standing start keeps, a creature's baseline running speed and assumed Dexterity, and the die a failed landing falls short by. `fall` holds the die and the feet it is dealt per. `spelunking` holds the feet one throw covers and, per obstacle, the target an ordinary adventurer throws or `false` where none may try. The binding reads each figure from its own window (the Spelunking grids by row label and column), so a window that drifted costs that figure only; the jump's die is kept only where it is a single die, since the range a jump reports is that die's faces. `jumping.mjs` and `obstacles.mjs` keep the procedure: the order the conditions apply in, a jump reported as a range, the clamp at zero, who may try an obstacle, what a failure and a natural 1 cost, which obstacles leave the climber helpless, and that a fixed rope makes a sheer face easy. Each reader answers null until its figure is imported. A jump, leap or landing that rests on one carries it by name in `unknown`; an obstacle attempt for an ordinary adventurer reports `notImported` and rolls nothing, since the stretch and the target are both the table's.
 - **Marching order** = order of `members[]`. Roles are per-member string arrays.
 - **Member tokens** are stashed as raw `toObject()` snapshots in `members[].tokenData` when the actor joins, and re-created around the party token on removal/disband.
 - **A member's deployment moves only by patch.** `updateFormation` keeps the ledger's `deployedTokenId`, `deployedSceneId`, `deployedStack`, `deployedCombatId`, `detached`, `detach` and `tokenData` for every member the ledger also holds, matched by actor, and brings the copy into line (`DEPLOYMENT_FIELDS`, `formation-model.mjs`). A deploy, a recall and a combat taking members over write them through `patchDeployments`; the re-anchor, a move between scenes and the roster's stash write patch them directly.
@@ -1072,6 +1073,18 @@ falling back to a flat day less what the day already advanced, and logs the
 miles and hours actually walked. It makes no navigation throw: the next day's
 is made at its first step off a road (§The navigation throw).
 
+**The march's figures are imported.** A pace's hours and the miles a day a
+party's speed is worth come from the `travel` document's `expedition` table
+(Expedition Speed, RR 272; [lib MODEL](../lib/MODEL.md), "Expedition figures"),
+and nothing ships beneath it. With the table absent the readout's
+miles-per-hour and miles-per-day are null, `marchBudget` and `dayBudget` answer
+null hours and miles, and a day is never spent by hours it cannot count (the
+dusk still ends it). The journey still tallies the miles a drag measured; it
+advances no clock for hours it cannot price. The strip shows a dash and "Not
+imported" where it would show the speed, the budget line is dropped, and the
+day-close offer names only what was walked. The speed's tooltip lists the
+ratio and the pace's hours with their page.
+
 **The encounter cadence is the imported one.** `cadenceOf` reads the
 miles-per-hex figure of the territory the step arrives in (§The country) from
 the registered `encounterFrequency` (`cadenceMilesFor`): a grid whose cell is
@@ -1487,7 +1500,9 @@ the party is astray.
 **The search is priced on the march.** The target reads the expedition's
 miles a day at the march pace whatever the day board says
 (`expeditionMiles`, a march-kind copy of the record through `travelReadout`
-with the dark-free speed). A tracker in the order (`kw:tracking`, or the
+with the dark-free speed); with no expedition table imported there are no
+miles to price and the search reports the expedition missing, rolling nothing.
+A tracker in the order (`kw:tracking`, or the
 ability by name) adds the imported Tracking bonus; when the figure is not
 registered the throw still rolls and the card says the bonus is unpriced.
 
@@ -2021,12 +2036,18 @@ and the same turn owes a navigation throw the dungeon never asks for. So
 `onTurnCompleted` hands a settlement turn to `cityTurnCompleted` and returns
 rather than falling through to the wandering-monster throw as well.
 
-The two throws a city turn can owe are made on **different dice** and named
-where both readers can see them (`NAVIGATION_DIE`, `STREET_DIE`): the way is
-found on a d20 against a d20-scale target, and the street answers on the same
-d6 the dungeon's wandering-monster throw uses, against a d6-scale cadence
-target. The card names the die it rolled, because a throw whose scale is wrong
-changes how often the street answers while changing nothing a Judge can see.
+The two throws a city turn can owe are made on **different dice**: the way is
+found on the game's own throw, `NAVIGATION_DIE` (`settlement.mjs`), against a
+target on that scale, and the street answers on the die the `cityTravel`
+document's `dice` table carries (`streetDie()`, JJ p. 80), against a cadence
+target priced on that die's scale. The same table's `incident` die (JJ p. 81,
+`incidentDie()`) is the one the city's own incident list is thrown on where
+neither a drawn RollTable's formula nor the list names one. Both are rebuilt
+from their integers before a roll. With the street's die not imported nothing
+is thrown for the street and the turn and the stay both say the die is not
+imported, rather than reporting a quiet street. The card names the die it
+rolled, because a throw whose scale is wrong changes how often the street
+answers while changing nothing a Judge can see.
 
 **What a Judge draws over the street wins.** `resolveCityCadence` puts the
 layers in order — street, then an Encounter Zone, then a district, each

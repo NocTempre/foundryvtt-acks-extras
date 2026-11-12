@@ -170,7 +170,11 @@ const CELL = 100; // pixels per cell
 const TABLE_MILES = 7; // the invented imported distance
 const TABLE = {
   id: "travel",
-  tables: { encounterFrequency: { traveling: { borderlands: { kind: "perHex", mileHex: TABLE_MILES } } } },
+  tables: {
+    encounterFrequency: { traveling: { borderlands: { kind: "perHex", mileHex: TABLE_MILES } } },
+    // Invented expedition figures: a speed to price the journey's miles at.
+    expedition: { feetPerMilePerDay: 7, dedicatedHours: 9, forcedHours: 14, ancillaryHours: 3, wildernessFactor: 4 },
+  },
 };
 const registerFrequency = () => registerTable(TABLE, { priority: PRIORITY.WORLD, source: "test" });
 registerFrequency();
@@ -430,7 +434,9 @@ const approx = (a, b, eps = 1e-6) => Math.abs(a - b) < eps;
 
 {
   resetTables();
-  assert.equal(cadenceMilesFor("borderlands"), null, "nothing imported");
+  // Only the expedition figures: the cadence table is the one not imported.
+  registerTable({ id: "travel", tables: { expedition: TABLE.tables.expedition } }, { priority: PRIORITY.WORLD, source: "test" });
+  assert.equal(cadenceMilesFor("borderlands"), null, "no cadence table imported");
 
   const hexScene = makeScene("S.hex.nt", { kind: "hex", miles: 7 });
   const hexToken = makeToken(hexScene, "t.hex.nt");
@@ -446,8 +452,17 @@ const approx = (a, b, eps = 1e-6) => Math.abs(a - b) < eps;
   assert.equal(b.result.units, 0, "a square map has no cadence to count without the table");
   assert.equal(b.hooks.length, 0);
   assert.equal(b.cards.length, 0);
-  assert.equal(b.result.miles, 21, "though the miles and the hours still run");
-  assert.ok(b.seconds > 0);
+  assert.equal(b.result.miles, 21, "though the miles still run");
+  assert.ok(b.seconds > 0, "and the hours still run");
+
+  // Nothing imported at all: the miles are still tallied, no hours are priced.
+  resetTables();
+  const bareScene = makeScene("S.sq.bare", { kind: "square", miles: 7 });
+  const bareToken = makeToken(bareScene, "t.sq.bare");
+  const bareId = makeFormation(bareScene, bareToken);
+  const c = await drag(bareToken, bareId, 3 * CELL, 0);
+  assert.equal(c.result.miles, 21, "the miles are tallied without any table");
+  assert.equal(c.seconds, 0, "no expedition table imported, no speed to price the hours at");
 
   registerFrequency();
   assert.equal(cadenceMilesFor("borderlands"), TABLE_MILES, "registered again");

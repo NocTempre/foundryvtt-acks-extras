@@ -33,6 +33,7 @@ import * as services from "../lib/services.mjs";
 import { getLayer, PRIORITY } from "../lib/tables.mjs";
 import { assembledDoc } from "./produces.mjs";
 import { parseCount, countFrom } from "./survival-binding.mjs";
+import { parseDie } from "./formation-binding.mjs";
 
 /** The engine doc both halves agree on (acks-extras `expectTables`). */
 export const CITY_TRAVEL_DOC_ID = "cityTravel";
@@ -51,6 +52,7 @@ export const PRODUCES = Object.freeze({
     districtTravel: "districtProse",
     encounterIntent: "intentProse",
     encounterAfterDark: "afterDarkProse",
+    dice: ["streetDieProse", "afterDarkProse"],
     gateTolls: "businessProse",
     smuggling: "businessProse",
   },
@@ -332,6 +334,16 @@ export function assembleCityTravelTables(raw = {}) {
   // The shift the dark puts on the incident roll — a bare figure, not a row.
   const dark = /adding\s+(\d+)\s+to\s+the\s+roll/i.exec(String(raw.afterDarkProse?.shift ?? ""));
   if (dark) out.encounterAfterDark = Number(dark[1]);
+
+  // The two dice the street throws on: the encounter throw's, and the
+  // incident list's. Each is rebuilt from its integers, and each is left out
+  // when its window did not print one.
+  const dice = {};
+  const street = parseDie(raw.streetDieProse?.die);
+  if (street) dice.street = street;
+  const incident = parseDie(raw.afterDarkProse?.die);
+  if (incident) dice.incident = incident;
+  if (Object.keys(dice).length) out.dice = dice;
 
   const gateTolls = assembleGateTolls(raw.businessProse?.tolls);
   if (gateTolls) out.gateTolls = gateTolls;

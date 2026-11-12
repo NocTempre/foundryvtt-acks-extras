@@ -64,6 +64,8 @@ function table(key) {
 export function searchTarget(milesPerDay) {
   const rows = table("targets");
   if (!Array.isArray(rows) || !rows.length) return null;
+  // A day nobody could price (null) is no distance at all, never the lowest rung.
+  if (milesPerDay == null) return null;
   const miles = Number(milesPerDay);
   if (!Number.isFinite(miles)) return null;
   return numOrNull(bracketRow(rows, miles)?.target);
@@ -92,6 +94,7 @@ export function searchSpec({
   const spec = SEARCH_SUBJECTS[subject];
   if (!spec) return { ok: false, reason: "subject" };
   if (!SEARCH_MODES[mode]) return { ok: false, reason: "mode" };
+  if (milesPerDay == null) return { ok: false, missing: "expedition", subject };
   const target = searchTarget(milesPerDay);
   if (target == null) return { ok: false, missing: "targets", subject };
 

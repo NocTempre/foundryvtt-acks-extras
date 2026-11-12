@@ -167,7 +167,11 @@ const CELL = 100; // pixels per cell
 const TABLE_MILES = 7; // the invented imported distance
 const TABLE = {
   id: "travel",
-  tables: { encounterFrequency: { traveling: { borderlands: { kind: "perHex", mileHex: TABLE_MILES } } } },
+  tables: {
+    encounterFrequency: { traveling: { borderlands: { kind: "perHex", mileHex: TABLE_MILES } } },
+    // Invented expedition figures: a speed to price the journey's miles at.
+    expedition: { feetPerMilePerDay: 7, dedicatedHours: 9, forcedHours: 14, ancillaryHours: 3, wildernessFactor: 4 },
+  },
 };
 const registerFrequency = () => registerTable(TABLE, { priority: PRIORITY.WORLD, source: "test" });
 registerFrequency();
@@ -274,7 +278,7 @@ const stripOf = (id) => {
   assert.ok(strip.speed.milesPerDay > mph, "a day is more than an hour");
   assert.deepEqual(strip.walked, { miles: 12.3, hours: 3.3 }, "the tally is shown to one decimal");
   const budget = dayBudget(travelOf(getFormation(id)), mph);
-  assert.deepEqual(strip.budget, { hours: tenths(budget.hours), miles: tenths(budget.miles) });
+  assert.deepEqual(strip.budget, { priced: true, hours: tenths(budget.hours), miles: tenths(budget.miles) });
   assert.ok(strip.budget.hours > 0);
   assert.equal(strip.spent, false, "3.3 h of a full day is not spent");
   assert.deepEqual(strip.hex, { label: "A1", entered: 2 });

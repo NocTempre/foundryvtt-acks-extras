@@ -1,16 +1,17 @@
 /**
  * A vessel's own clock (RR ch. 7): a ship's day is not a party's day. An
- * expedition speed is miles over an EIGHT-hour march; a voyage speed is
- * miles over TWELVE — so the two live in separate modules, agreeing only on
- * the HOUR, never a single "miles per day" field.
+ * expedition speed is miles over a dedicated march's hours; a voyage speed is
+ * miles over the vessel's own, longer day — so the two live in separate
+ * modules, agreeing only on the HOUR, never a single "miles per day" field.
  *
  * See docs/vehicles/DECISIONS.md, "A vessel's day is twelve hours and a
  * party's is eight."
  */
+import { paceFigures } from "../lib/movement-scales.mjs";
 import { seaSpeeds } from "./vehicle-speed.mjs";
 import { speedFactor, roundVoyage, roundCombat } from "./vessel-damage.mjs";
 
-/** Hours a crew works a vessel in a day — not the eight a marching party walks. */
+/** Hours a crew works a vessel in a day — not the dedicated march's a party walks. */
 export const VOYAGE_HOURS = 12;
 
 /** Hours in a day when sail, sea room, a navigator and a full crew allow it. */
@@ -82,22 +83,26 @@ export function voyageDay(vehicle, { wind = "moderate", underSail = true, roundT
 }
 
 /**
- * A party marches eight hours and a ship works twelve, so the only honest way
- * to state one against the other is per hour.
+ * A party marches its dedicated day's hours and a ship works her own, so the
+ * only honest way to state one against the other is per hour. The party's hours
+ * are the imported dedicated day (`paceFigures`); without them the party's hour
+ * and the comparison are null, never a default.
  *
  * @param {number} vesselMilesPerDay her voyage speed
  * @param {number} partyMilesPerDay the formation's expedition speed
+ * @returns {{vesselPerHour: number, partyPerHour: number|null, marchHours: number|null,
+ *   voyageHours: number, faster: "vessel"|"party"|"equal"|null}}
  */
 export function compareToMarch(vesselMilesPerDay, partyMilesPerDay) {
-  const MARCH_HOURS = 8;
+  const marchHours = paceFigures("dedicated").hours;
   const ship = milesPerHour(vesselMilesPerDay);
-  const march = (Number(partyMilesPerDay) || 0) / MARCH_HOURS;
+  const march = marchHours == null ? null : (Number(partyMilesPerDay) || 0) / marchHours;
   return {
     vesselPerHour: ship,
     partyPerHour: march,
-    marchHours: MARCH_HOURS,
+    marchHours,
     voyageHours: VOYAGE_HOURS,
-    faster: ship > march ? "vessel" : ship < march ? "party" : "equal",
+    faster: march == null ? null : ship > march ? "vessel" : ship < march ? "party" : "equal",
   };
 }
 

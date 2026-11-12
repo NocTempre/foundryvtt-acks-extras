@@ -21,7 +21,7 @@ import {
   strayBlocks, streetCadence, advanceSettlementTurn,
   SETTLEMENT_INTENTS, CONVEYANCES, advanceSettlementDays, settlementEncounter,
   feetPerTurn, carryStay, resolveCityCadence, cadenceAttribution, pickIncidentSource, districtReaction,
-  reenterSettlement, effectiveWhere, sceneStamp, NAVIGATION_DIE, STREET_DIE, INCIDENT_DIE,
+  reenterSettlement, effectiveWhere, sceneStamp, NAVIGATION_DIE, streetDie, incidentDie,
   readIncident, incidentBand, incidentRouting,
 } from "../scripts/formation/settlement.mjs";
 import { sceneIncidents, writeSceneIncidents } from "../scripts/battlemap/scene-setup.mjs";
@@ -47,6 +47,7 @@ const SAMPLE = {
     },
     encounterIntent: { trouble: 2 },          // invented
     encounterAfterDark: 25,                   // invented
+    dice: { street: "1d8", incident: "1d30" }, // invented
     encounters100: [                          // invented incidents, invented bands
       { min: 1, max: 40, text: "A goat is loose in the forum." },
       { min: 41, max: 80, text: "Two carters are shouting about a wheel." },
@@ -504,14 +505,34 @@ ok("but the day tick still throws for that same stay", () => {
 });
 
 
-// ---- the dice are structural, and they are not the same die ---------------
-ok("the navigation throw and the street throw are made on different dice", () => {
-  // Both readers price their targets on their own scale, so one die read
-  // against the other's target changes how often the street answers.
-  assert.equal(NAVIGATION_DIE, "1d20");
-  assert.equal(STREET_DIE, "1d6");
-  assert.equal(INCIDENT_DIE, "1d100");
-  assert.notEqual(NAVIGATION_DIE, STREET_DIE);
+// ---- the street's dice are imported, the navigation throw is the game's d20 --
+ok("the street and incident dice are read from the imported dice table", () => {
+  load();
+  assert.equal(streetDie(), "1d8");
+  assert.equal(incidentDie(), "1d30");
+  assert.notEqual(NAVIGATION_DIE, streetDie());
+  resetTables();
+});
+
+ok("with the dice table not imported neither die is named", () => {
+  resetTables();
+  assert.equal(streetDie(), null);
+  assert.equal(incidentDie(), null);
+});
+
+ok("a Judge's override that is no dice reads as not imported", () => {
+  registerTable({ ...SAMPLE, tables: { ...SAMPLE.tables, dice: { street: "a handful", incident: "0d6" } } },
+    { priority: PRIORITY.WORLD, source: "test" });
+  assert.equal(streetDie(), null);
+  assert.equal(incidentDie(), null);
+  resetTables();
+});
+
+ok("an override of the street die rebuilds from its integers", () => {
+  registerTable({ ...SAMPLE, tables: { ...SAMPLE.tables, dice: { street: " 2 D 4 ", incident: "1d30" } } },
+    { priority: PRIORITY.WORLD, source: "test" });
+  assert.equal(streetDie(), "2d4");
+  resetTables();
 });
 
 // ---- what a Judge draws over the street ----------------------------------

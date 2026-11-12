@@ -788,7 +788,7 @@ const P = {
   registerCity: async ({ target = 1, empty = false }) => {
     const H = globalThis.__d;
     const holedUp = empty ? {} : { any: { everyTurns: 1, throw: target } };
-    H.m.tables.registerTable({ id: acksExtras.formation.settlement.SETTLEMENT_DOC, tables: { encounters: { holedUp }, encounterAfterDark: 3 } }, { priority: 30, source: "formation-steps" });
+    H.m.tables.registerTable({ id: acksExtras.formation.settlement.SETTLEMENT_DOC, tables: { encounters: { holedUp }, encounterAfterDark: 3, dice: { street: "1d8", incident: "1d90" } } }, { priority: 30, source: "formation-steps" });
     return { doc: acksExtras.formation.settlement.SETTLEMENT_DOC, priced: !!acksExtras.formation.settlement.streetCadence({ where: "holedUp" }) };
   },
 

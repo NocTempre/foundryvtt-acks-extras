@@ -2066,6 +2066,34 @@ where a spell landed.
 Rulings: DECISIONS, "Automated Animations is told what a card cannot say". The
 recipe is TESTING, "Automated Animations".
 
+## Expedition figures
+
+[movement-scales.mjs](../../scripts/lib/movement-scales.mjs) turns a party's
+exploration speed (feet per turn) into miles per day and per hour, and prices a
+day's march. The figures under it are the Expedition Speed page's (RR ch. 6),
+and none ships: the feet-per-mile ratio, the dedicated, forced and ancillary
+travel hours, and the wilderness factor are the `expedition` table of the
+`travel` ruledata document, read by the importer from the Judge's copy
+([the importer's MODEL](../importer/MODEL.md), "The expedition figures").
+
+- A pace's multiplier is **derived**: its hours over the dedicated day's. The
+  dedicated pace is 1 by definition. A forced march is longer, not faster, so
+  `milesPerHour` is the same on every pace and `milesPerDay` scales with the
+  hours.
+- Nothing imported means **null all the way down**. `expeditionFrom`,
+  `explorationFromExpedition`, `inWilderness` and `paceFigures` answer null
+  for a figure whose inputs are missing, and one missing figure costs only what
+  stands on it: with no forced hours the forced pace has no multiplier, while the
+  dedicated day still prices. `explorationFeetPerTurn` stays a number (it is
+  the party's own speed). A consumer shows "not imported" (lang key
+  `ACKS-LIB.scale.notImported`) and never a zero, which a throw target or a day
+  budget would price as a real figure.
+- `expeditionTip` is the figure's provenance for a tooltip: the ratio, the
+  pace's hours and the page the table was read from (`expeditionCite`), or "not
+  imported". A Judge's override of the table replaces it whole and carries no page.
+- Consumers: the Formation journey strip and day close, the camp search's target,
+  the Vehicle sheet's Travel tab, and the voyage's comparison with a march.
+
 ## Movement modes
 
 Three speed derivations grew independently — a march, a voyage, a flight — and

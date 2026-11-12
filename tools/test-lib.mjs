@@ -71,7 +71,10 @@ import { PICK_SELECTOR, PicksMixin, isPick, pickChanged, readPicks, restorePicks
 import { leashBreach, oneRoundFeet } from "../scripts/formation/deployment.mjs";
 import { clockReading, darkBounds, isDarkAt, secondsToNextDawn, untilNextDawn } from "../scripts/lib/world-time.mjs";
 import { isExpeditionScale, sceneMilesPerCell } from "../scripts/lib/distance-units.mjs";
-import { expeditionFrom } from "../scripts/lib/movement-scales.mjs";
+import {
+  EXPEDITION_TABLE, TRAVEL_DOC, TRAVEL_PACE, expeditionCite, expeditionFigures, expeditionFrom,
+  expeditionTip, explorationFromExpedition, inWilderness, paceFigures,
+} from "../scripts/lib/movement-scales.mjs";
 import {
   capacityOf,
   declaresSlots,
@@ -3515,13 +3518,120 @@ t("a scene cell is read in miles, and a mile or more is the expedition scale", (
   assert.equal(isExpeditionScale(null), false);
 });
 
-t("expeditionFrom states hexes per day only against a stated hex", () => {
-  assert.equal(expeditionFrom(120).hexesPerDay, null);
-  assert.equal(expeditionFrom(120, { milesPerHex: 6 }).hexesPerDay, 4);
-  assert.equal(expeditionFrom(120, { milesPerHex: 24 }).hexesPerDay, 1);
-  assert.equal(expeditionFrom(120, { milesPerHex: 0 }).hexesPerDay, null);
-  assert.equal(expeditionFrom(120, { milesPerHex: null }).hexesPerDay, null);
-  assert.equal(expeditionFrom(120, { milesPerHex: 6 }).milesPerDay, expeditionFrom(120).milesPerDay, "the hex changes no mileage");
+/**
+ * Register an `expedition` table of INVENTED figures for the length of `fn`:
+ * a ratio of 7, a 9-hour dedicated day, a 15-hour forced one, 3 ancillary
+ * hours and a wilderness scale of 4. Tests never read the page's own.
+ */
+const withExpedition = (fn, figures = {}) => {
+  T.registerTable({
+    id: TRAVEL_DOC,
+    source: { pages: "BK p.1" },
+    tables: { [EXPEDITION_TABLE]: { feetPerMilePerDay: 7, dedicatedHours: 9, forcedHours: 15, ancillaryHours: 3, wildernessFactor: 4, ...figures } },
+  }, { priority: T.PRIORITY.WORLD });
+  try {
+    return fn();
+  } finally {
+    T.unregisterTable(TRAVEL_DOC, { priority: T.PRIORITY.WORLD });
+  }
+};
+
+t("expeditionFrom states hexes per day only against a stated hex", () => withExpedition(() => {
+  assert.equal(expeditionFrom(70).hexesPerDay, null);
+  assert.equal(expeditionFrom(70, { milesPerHex: 5 }).hexesPerDay, 2);
+  assert.equal(expeditionFrom(70, { milesPerHex: 20 }).hexesPerDay, 0.5);
+  assert.equal(expeditionFrom(70, { milesPerHex: 0 }).hexesPerDay, null);
+  assert.equal(expeditionFrom(70, { milesPerHex: null }).hexesPerDay, null);
+  assert.equal(expeditionFrom(70, { milesPerHex: 5 }).milesPerDay, expeditionFrom(70).milesPerDay, "the hex changes no mileage");
+}));
+
+t("expeditionFrom divides by the imported ratio and each pace's own day", () => withExpedition(() => {
+  const dedicated = expeditionFrom(70);
+  assert.equal(dedicated.milesPerDay, 10);
+  assert.equal(dedicated.milesPerHour, Math.round((10 / 9) * 100) / 100);
+  assert.equal(expeditionFrom(70, { multiplier: 0.5 }).milesPerDay, 5, "terrain and road ride in as one multiplier");
+  const forced = expeditionFrom(70, { pace: "forced" });
+  assert.equal(forced.milesPerDay, Math.round((10 * 15 / 9) * 100) / 100, "a pace's multiplier is its hours over the dedicated day's");
+  assert.equal(forced.milesPerHour, dedicated.milesPerHour, "a longer day is not a faster march");
+  const ancillary = expeditionFrom(70, { pace: "ancillary" });
+  assert.equal(ancillary.milesPerDay, Math.round((10 * 3 / 9) * 100) / 100);
+  assert.equal(ancillary.milesPerHour, dedicated.milesPerHour);
+  assert.equal(expeditionFrom(70, { pace: "no-such-pace" }).milesPerDay, 10, "an unknown pace is the dedicated day");
+  assert.equal(expeditionFrom(-70).milesPerDay, 0, "nothing goes negative");
+}));
+
+t("a Judge's override of the table replaces the import", () => withExpedition(() => {
+  T.registerTable({ id: TRAVEL_DOC, tables: { [EXPEDITION_TABLE]: { feetPerMilePerDay: 10, dedicatedHours: 9 } } }, { priority: T.PRIORITY.OVERRIDE });
+  try {
+    assert.equal(expeditionFrom(70).milesPerDay, 7);
+    assert.equal(expeditionFrom(70, { pace: "forced" }).milesPerDay, null, "the override carries no forced day, so a forced march is not priced");
+    assert.equal(expeditionCite(), null, "an override has no page to point at");
+  } finally {
+    T.unregisterTable(TRAVEL_DOC, { priority: T.PRIORITY.OVERRIDE });
+  }
+}));
+
+t("with nothing imported every expedition figure is null, never zero or a default", () => {
+  assert.deepEqual(Object.values(expeditionFigures()), [null, null, null, null, null]);
+  const e = expeditionFrom(70, { milesPerHex: 5 });
+  assert.deepEqual([e.milesPerDay, e.hexesPerDay, e.milesPerHour], [null, null, null]);
+  assert.equal(e.explorationFeetPerTurn, 70, "the feet are the party's own and need no import");
+  assert.equal(explorationFromExpedition(10), null);
+  assert.equal(inWilderness(40), null);
+  assert.deepEqual(paceFigures("dedicated"), { hours: null, multiplier: 1 }, "the table's own basis needs no import");
+  assert.deepEqual(paceFigures("forced"), { hours: null, multiplier: null });
+  assert.equal(expeditionCite(), null);
+  assert.equal(expeditionTip(), "ACKS-LIB.scale.notImported");
+});
+
+t("a window that did not read costs its figure and nothing beside it", () => {
+  withExpedition(() => {
+    const e = expeditionFrom(70);
+    assert.equal(e.milesPerDay, 10, "the miles stand on the ratio alone for the dedicated day");
+    assert.equal(e.milesPerHour, null, "the hour needs the day's hours");
+    assert.equal(expeditionFrom(70, { pace: "forced" }).milesPerDay, null);
+  }, { dedicatedHours: null });
+  withExpedition(() => {
+    assert.equal(expeditionFrom(70).milesPerDay, null, "no ratio, no miles");
+    assert.equal(paceFigures("forced").multiplier, 15 / 9);
+    assert.equal(inWilderness(40), 160);
+  }, { feetPerMilePerDay: null });
+  withExpedition(() => {
+    assert.equal(expeditionFrom(70).milesPerDay, 10);
+    assert.equal(inWilderness(40), null, "the wilderness scale is its own figure");
+  }, { wildernessFactor: "" });
+});
+
+t("a figure that is not a positive number reads as absent", () => {
+  for (const bad of [0, -3, "x", "", null, NaN]) {
+    withExpedition(() => assert.equal(expeditionFigures().dedicatedHours, null, `${String(bad)}`), { dedicatedHours: bad });
+  }
+});
+
+t("the table runs back to exploration speed and out to the wilderness", () => withExpedition(() => {
+  assert.equal(explorationFromExpedition(10), 70);
+  assert.equal(explorationFromExpedition(-1), 0);
+  assert.equal(inWilderness(40), 160);
+  assert.equal(inWilderness(-5), 0);
+}));
+
+t("the pace vocabulary holds names and hour keys, never a figure", () => {
+  assert.deepEqual(Object.keys(TRAVEL_PACE), ["dedicated", "forced", "ancillary"]);
+  for (const spec of Object.values(TRAVEL_PACE)) {
+    assert.deepEqual(Object.keys(spec).sort(), ["hoursKey", "label"]);
+  }
+});
+
+t("the tooltip names each imported part with its figure and the page, and leaves out what is not imported", () => {
+  withExpedition(() => {
+    const tip = expeditionTip({ pace: "forced" });
+    assert.ok(tip.includes("BK p.1"), "the page the table was read from");
+    assert.equal(tip.split(" · ").length, 3, "ratio, pace and page");
+    assert.equal(expeditionCite(), "BK p.1");
+  });
+  withExpedition(() => {
+    assert.equal(expeditionTip({ pace: "forced" }).split(" · ").length, 2, "the ratio and the page; the forced day is not imported");
+  }, { forcedHours: null });
 });
 
 /** A part root holding staging picks: a select offers `options`, an input has none. */

@@ -737,6 +737,9 @@ const INVENTED_LIGHTS = { candle: { bright: 2, dim: 6, turns: 7 }, torch: { brig
   const { registerTable, PRIORITY } = await import("../scripts/lib/tables.mjs");
   const { LIGHT_DOC, LIGHT_TABLE } = await import("../scripts/lib/light.mjs");
   registerTable({ id: LIGHT_DOC, tables: { [LIGHT_TABLE]: INVENTED_LIGHTS } }, { priority: PRIORITY.WORLD });
+  // Expedition figures, invented likewise: a day's hours and the speed a march is priced at.
+  registerTable({ id: "travel", tables: { expedition: { feetPerMilePerDay: 7, dedicatedHours: 9, forcedHours: 14, ancillaryHours: 3, wildernessFactor: 4 } } },
+    { priority: PRIORITY.WORLD });
 }
 // The world-clock gate belongs to lib, which this harness does not load (it
 // would drag in the sheets, data models and core patches). Register it here,
@@ -5103,7 +5106,7 @@ await scenario("the day change settles every journeying party once, however the 
  * one per draw — and every formula thrown is recorded. The transient-marker
  * setting is armed, so a stay that left a Note would have tried to.
  */
-async function takeStay({ faces, hour = "day", days = 3, start = 0, cadence = true, map = false, worldList = false }) {
+async function takeStay({ faces, hour = "day", days = 3, start = 0, cadence = true, dice = true, map = false, worldList = false }) {
   const { registerTable, unregisterTable, PRIORITY } = await import("../scripts/lib/tables.mjs");
   const { SETTLEMENT_DOC, freshSettlement } = await import("../scripts/formation/settlement.mjs");
   const { writeSceneIncidents } = await import("../scripts/battlemap/scene-setup.mjs");
@@ -5122,7 +5125,10 @@ async function takeStay({ faces, hour = "day", days = 3, start = 0, cadence = tr
       {
         id: SETTLEMENT_DOC,
         source: "invented",
-        tables: { encounters: { holedUp: { any: { everyTurns: 1, throw: 4 } } }, encounterAfterDark: 30 },
+        tables: {
+          encounters: { holedUp: { any: { everyTurns: 1, throw: 4 } } }, encounterAfterDark: 30,
+          ...(dice && { dice: { street: "1d8", incident: "1d90" } }),
+        },
       },
       { priority: PRIORITY.WORLD, source: "test" },
     );
@@ -5214,7 +5220,7 @@ await scenario("a stay draws an incident for each day that was met, on the map's
     "day 5's face reads the low band, under day 5");
   assert.ok(at("Invented middle incident.") > at('stayDay {"day":7}'), "day 7's face reads the middle band, under day 7");
   assert.ok(c.includes('incidentDrawn {"roll":10,"total":10') && !c.includes("incidentBanded"), "by day no after-dark shift is claimed");
-  assert.deepEqual(stay.thrown, ["1d6", "1d6", "1d6", "1d100", "1d100"], "a die a day, then the list's own die per met day");
+  assert.deepEqual(stay.thrown, ["1d8", "1d8", "1d8", "1d100", "1d100"], "a die a day, then the list's own die per met day");
   assert.ok(!stay.created.includes("Note"), "the party was indoors: no marker is left on the street");
   assert.ok(!c.includes("poi-promote") && !c.includes("settlement.card.marker"), "and the card offers none");
 });
@@ -5241,7 +5247,7 @@ await scenario("a stay with no met day draws nothing", async () => {
   const stay = await takeStay({ faces: [1, 2, 3], map: true });
   assert.ok(stay.content.includes('undisturbed {"throws":3}'), "the card says nothing found them");
   assert.ok(!stay.content.includes("stayDay") && !stay.content.includes("Invented"), "and carries no draw");
-  assert.deepEqual(stay.thrown, ["1d6", "1d6", "1d6"], "no incident die was thrown");
+  assert.deepEqual(stay.thrown, ["1d8", "1d8", "1d8"], "no incident die was thrown");
 });
 
 await scenario("a stay that cannot be priced, or has no incident list, still says so", async () => {
@@ -5259,6 +5265,13 @@ await scenario("a stay that cannot be priced, or has no incident list, still say
   assert.equal(said, 2, "one such line under each met day");
   assert.ok(bare.content.includes('stayDay {"day":1}') && bare.content.includes('stayDay {"day":2}'));
   assert.ok(!/incident(Drawn|Banded|Plain)|settlement\.card\.incident \{/.test(bare.content), "and no incident is claimed");
+});
+
+await scenario("a stay priced but with the street's die not imported throws nothing and names the die", async () => {
+  const noDie = await takeStay({ faces: [], dice: false, map: true });
+  assert.ok(/settlement\.card\.unpriced \{"what":"[^"]*settlement\.streetDie[^"]*"\}/.test(noDie.content), "the card names the missing die");
+  assert.deepEqual(noDie.thrown, [], "nothing was thrown on a die nobody printed");
+  assert.ok(!noDie.content.includes("stayDay"));
 });
 
 await scenario("a lost episode reads every seat's fog from the server", async () => {

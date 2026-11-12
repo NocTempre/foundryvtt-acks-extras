@@ -50,9 +50,8 @@ Feature-scoped roadmaps live in `docs/<feature>/ROADMAP.md`.
     `#bribeTiers` (`scripts/influence/influence-app.mjs`); three literals in
     vehicle arithmetic (`seaSpeeds` in `vehicle-speed.mjs`, `repairPlan` in
     `vessel-damage.mjs`, `#stationView` in `vehicle-sheet.mjs`). Unverified:
-    a multiplier in `scripts/lib/movement-scales.mjs`, the saves lookup in
-    `scripts/monsters/config.mjs`, and the hardcoded bonuses the formation
-    ability bridge applies in place of cookbook effects.
+    the saves lookup in `scripts/monsters/config.mjs`, and the hardcoded
+    bonuses the formation ability bridge applies in place of cookbook effects.
   - *Printed content in tracked, unshipped files:* the scavenged-condition
     fixtures in `tools/test-equipment.mjs`; a masterwork bonus and price in
     the pristine-snapshot ruling of `docs/equipment/DECISIONS.md`; printed

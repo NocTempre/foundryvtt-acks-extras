@@ -1506,7 +1506,7 @@ const P = {
       out.hasTravelAfter = t.hasDoc("travel");
     }
     if (phase === "invented") {
-      t.registerTable({ id: "travel", tables: { terrainMultipliers: { hills: 0.37 }, roads: { earth: { multiplier: 1.77, ineffectiveIf: ["raining"] } } } }, { priority: 20, source: "live-check" });
+      t.registerTable({ id: "travel", tables: { terrainMultipliers: { hills: 0.37 }, roads: { earth: { multiplier: 1.77, ineffectiveIf: ["raining"] } }, expedition: { feetPerMilePerDay: 7, dedicatedHours: 9, forcedHours: 14, ancillaryHours: 3, wildernessFactor: 4 } } }, { priority: 20, source: "live-check" });
       out.hasTravelAfter = t.hasDoc("travel");
     }
     const f = H.formation(fid);
