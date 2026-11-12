@@ -25,6 +25,24 @@ is a monster's embedded copy of a proficiency whose book is closed, on an
 actor whose own book is open (`bindMonster`, step 2). The ruling is DECISIONS
 2026-10-29, "Nothing is imported without the book".
 
+## A stat block's proficiencies
+
+`bindProficiency` (`cookbook.mjs`) mints the ability item for each proficiency
+a stat block names, for a direct import, a family member, a refill and *Apply
+Stats* (`applyStatsToActor` hands `mapPairs` the resolver
+`proficiencyResolver()` builds). Three tiers, first hit wins: the item the
+library already holds, copied whole with its extras; the cookbook's
+definition, built as `bindAbility` builds it; else the namesake
+(`stats-map.mjs` `namesakeAbility`). A name is matched as printed, then as a
+power's printed name (`refForPrintedName`); an authored `ref` wins outright.
+
+The first two carry the definition's own `extras`, category included. The
+namesake has no definition behind it and writes `extras.category: ""`, and a
+blank category reads as unknown everywhere (`docs/abilities/MODEL.md`). A
+re-import or refill (`REPAIR.monster`, `minted: ["items"]`) and *Apply Stats*
+replace the actor's minted items with this build; a namesake minted before it
+has no extras at all and reads the same, so none is migrated.
+
 ## The import manager
 
 One window (`apps/import-manager.mjs`, `openImportManager({tab})`) holds the

@@ -80,6 +80,7 @@ import { WEAPON_TABLE, extractWeaponsFromDoc, bindWeaponRow, bindAmmoRow } from 
 import { ARMOR_TABLE, extractArmorFromDoc, bindArmorRow } from "./armor-tables.mjs";
 import { extractPriceMapFromDoc, extractPriceRowsFromDoc, priceFor, priceKey, capacityFor, PRICE_TABLES } from "./gear-prices.mjs";
 import { savesForLevel, parseHitDice } from "./stats.mjs";
+import { namesakeAbility } from "./stats-map.mjs";
 import { damageTotal, derivedLeaderRoles, entryLeaderTemplate, importedThrowLadder, leaderTemplateId, monsterThrowForHd, overviewIsLore, procedureBuildsFor, proseLeaderRoles, ratingText, readRoleSentences, SOURCE_AXIS, splitWeaponModifier } from "./leader-roles.mjs";
 import { deriveLeader, importedLeaderProcedure } from "../monsters/leader-derive.mjs";
 import { kitPresets, unionKitAxis } from "./kit-presets.mjs";
@@ -635,6 +636,101 @@ function bindMonsterSpells(paras) {
   return out;
 }
 
+/**
+ * What a stat block's proficiency names resolve against: every definition id
+ * by name, and the ability items the library already holds by definition id.
+ * Built once per block; `loadedAbilityIndex` reads a compendium library only
+ * through the warm `importedIndex()` cache.
+ */
+export function proficiencyPools() {
+  return { nameIndex: abilityNameIndex(), loadedById: loadedAbilityIndex() };
+}
+
+/**
+ * A resolver for callers that hold names and no node: it warms the library
+ * index, builds the pools once and answers `bindProficiency` for each name.
+ * @returns {Promise<(name: string) => object>} name to the ability item for it
+ */
+export async function proficiencyResolver() {
+  await importedIndex();
+  const pools = proficiencyPools();
+  return (name) => bindProficiency({ text: name }, pools);
+}
+
+/**
+ * The ability item for one stat-block proficiency, resolved in three tiers:
+ * the item the library already holds, else the definition the cookbook carries
+ * built as `bindAbility` builds it, else the unclassified namesake. The first
+ * two carry the definition's own extras, category included; the namesake
+ * carries a blank category and every reader answers that as unknown.
+ *
+ * A name is matched as printed, then as a power's printed name the register
+ * maps to a definition, so a block that lists a class power among its
+ * proficiencies resolves too.
+ * @param {{text: string, ref?: string, target?: number, convertedFrom?: string}} prof
+ *   `ref` is an authored definition id and wins outright; `target` is the
+ *   creature's own throw, split off the name; `convertedFrom` the older name
+ * @param {{nameIndex: Map, loadedById: Map}} [pools] from `proficiencyPools`
+ */
+export function bindProficiency(prof, pools = proficiencyPools()) {
+  const { nameIndex, loadedById } = pools;
+  const present = new Set(loadedById.keys());
+  // When the stat block named it by an older name, the EMBEDDED copy records
+  // the rename (not the shared world item — that would stamp one source's
+  // history onto everyone's). The sheet then explains why the name on the
+  // page and the name in the book differ.
+  const renamed = prof.convertedFrom ? { conversionStatus: "renamed", conversionFrom: prof.convertedFrom } : {};
+
+  // An authored `ref` wins outright; without one, the name is resolved against
+  // the ids this world already holds before category preference applies.
+  const guess = prof.ref ? null : idForName(nameIndex, prof.text, present);
+  const id = prof.ref ?? guess?.id ?? refForPrintedName(prof.text);
+  // Once per distinct resolution: a bulk import walks hundreds of blocks with
+  // the same handful of shared names.
+  reportGuess(prof.text, guess);
+
+  // The creature's own throw target ("climbing 6+"), split off by stripRoll,
+  // outranks the definition's generic ladder — bindAbility resolves that only
+  // at 1st level, with no actor to read.
+  const withTarget = (item) =>
+    prof.target == null
+      ? item
+      : {
+          ...item,
+          system: {
+            ...item.system,
+            roll: item.system?.roll || "1d20",
+            rollType: item.system?.rollType || "above",
+            rollTarget: prof.target,
+          },
+        };
+
+  // 1. ALREADY LOADED — copy the item the world holds; it already materialized
+  //    its throws and effects, and carries whatever the GM tuned.
+  const loaded = id ? loadedById.get(id) : null;
+  if (loaded) {
+    const src = loaded.toObject();
+    // Identity and filing belong to the world item, not to this copy of it.
+    delete src._id;
+    delete src.folder;
+    delete src.sort;
+    if (prof.convertedFrom) {
+      const abil = ((src.flags ??= {})[MODULE_ID] ??= {});
+      abil.extras = { ...(abil.extras ?? {}), ...renamed };
+    }
+    return withTarget(src);
+  }
+
+  // 2. COULD BE LOADED — the cookbook carries the definition, so embed THAT
+  //    ability (descriptor, classification, shared cookbook id) rather
+  //    than a bare namesake.
+  const shared = id ? cookbookEntry(id) : null;
+  if (shared) return withTarget(bindAbility(shared.entry, null, id, renamed));
+
+  // 3. Nothing to point at — a named ability of unknown category, never a failure.
+  return withTarget(namesakeAbility(prof.text));
+}
+
 /** Map one executed node to acks actor data + embedded items. */
 export function bindMonster(node) {
   const f = node.fields;
@@ -687,82 +783,11 @@ export function bindMonster(node) {
   }
   // Melee and missile alike: the page gives the modifier no delivery.
   if (weaponMod) system.damage = { mod: { melee: weaponMod, missile: weaponMod } };
-  // Stat-block proficiency tokens resolve in three tiers — reuse what the world
-  // already has, else build it from the cookbook, else mint a namesake. Both
-  // indexes are built once per monster and only when there is a token to spend
-  // them on (most monsters print none).
+  // The pools are built once per monster and only when there is a token to
+  // spend them on (most monsters print none).
   const profs = (f.stats?.proficiencies ?? []).filter((p) => p.text && !/^none/i.test(p.text));
-  const nameIndex = profs.length ? abilityNameIndex() : null;
-  const loadedById = profs.length ? loadedAbilityIndex() : new Map();
-  const present = new Set(loadedById.keys());
-  for (const prof of profs) {
-    // When the stat block named it by an older name, the EMBEDDED copy records
-    // the rename (not the shared world item — that would stamp one source's
-    // history onto everyone's). The sheet then explains why the name on the
-    // page and the name in the book differ.
-    const renamed = prof.convertedFrom ? { conversionStatus: "renamed", conversionFrom: prof.convertedFrom } : {};
-
-    // An authored `ref` wins outright; without one, the name is resolved against
-    // the ids this world already holds before category preference applies.
-    const guess = prof.ref ? null : idForName(nameIndex, prof.text, present);
-    const id = prof.ref ?? guess?.id ?? null;
-    // Once per distinct resolution: a bulk import walks hundreds of blocks with
-    // the same handful of shared names.
-    reportGuess(prof.text, guess);
-
-    // The creature's own throw target ("climbing 6+"), split off by stripRoll,
-    // outranks the definition's generic ladder — bindAbility resolves that only
-    // at 1st level, with no actor to read.
-    const withTarget = (item) =>
-      prof.target == null
-        ? item
-        : {
-            ...item,
-            system: {
-              ...item.system,
-              roll: item.system?.roll || "1d20",
-              rollType: item.system?.rollType || "above",
-              rollTarget: prof.target,
-            },
-          };
-
-    // 1. ALREADY LOADED — copy the item the world holds; it already materialized
-    //    its throws and effects, and carries whatever the GM tuned.
-    const loaded = id ? loadedById.get(id) : null;
-    if (loaded) {
-      const src = loaded.toObject();
-      // Identity and filing belong to the world item, not to this copy of it.
-      delete src._id;
-      delete src.folder;
-      delete src.sort;
-      if (prof.convertedFrom) {
-        const abil = ((src.flags ??= {})[MODULE_ID] ??= {});
-        abil.extras = { ...(abil.extras ?? {}), ...renamed };
-      }
-      items.push(withTarget(src));
-      continue;
-    }
-
-    // 2. COULD BE LOADED — the cookbook carries the definition, so embed THAT
-    //    ability (descriptor, classification, shared cookbook id) rather
-    //    than a bare namesake.
-    const shared = id ? cookbookEntry(id) : null;
-    if (shared) {
-      items.push(withTarget(bindAbility(shared.entry, null, id, renamed)));
-      continue;
-    }
-
-    // 3. Nothing to point at — degrade to a plain named ability, never a failure.
-    items.push(withTarget({
-      name: prof.text,
-      type: "ability",
-      img: DEFAULT_IMG.ABILITY,
-      system: {
-        description: "", proficiencytype: "general", favorite: false, pattern: "white",
-        requirements: "", roll: "", rollType: "above", rollTarget: 0, blindroll: false, save: "",
-      },
-    }));
-  }
+  const pools = profs.length ? proficiencyPools() : null;
+  for (const prof of profs) items.push(bindProficiency(prof, pools));
   for (const sp of f.spoils ?? []) {
     items.push({
       name: capitalize(sp.name),

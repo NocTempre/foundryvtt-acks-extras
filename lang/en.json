@@ -1353,6 +1353,7 @@
   "ACKS-ABILITIES.tab.mechanics": "Mechanics",
   "ACKS-ABILITIES.mech.classification": "Classification",
   "ACKS-ABILITIES.mech.category": "Category",
+  "ACKS-ABILITIES.mech.categoryUnknown": "Unknown",
   "ACKS-ABILITIES.mech.general": "General Proficiency",
   "ACKS-ABILITIES.mech.generalHint": "Marked (G) in the book — available from the general list, not only a class list.",
   "ACKS-ABILITIES.mech.repeatable": "May Be Selected More Than Once",

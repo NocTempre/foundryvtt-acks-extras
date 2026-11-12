@@ -28,7 +28,7 @@
     <div class="form-group">
       <label>{{localize "ACKS-ABILITIES.mech.category"}}</label>
       <div class="form-fields">
-        <select name="{{x}}.category">{{selectOptions choices.category selected=extras.category}}</select>
+        <select name="{{x}}.category">{{selectOptions choices.category selected=extras.category blank=(localize "ACKS-ABILITIES.mech.categoryUnknown")}}</select>
       </div>
     </div>
 

@@ -187,6 +187,7 @@ const COMMITTED = [
   "importer/test-armor-tables.mjs",
   "importer/test-gear-prices.mjs",
   "importer/test-ability-names.mjs",
+  "importer/test-stat-block-proficiencies.mjs",
   "importer/test-starting-equipment.mjs",
   "importer/test-hitpoint-tables.mjs",
   "importer/test-class-builder-tables.mjs",

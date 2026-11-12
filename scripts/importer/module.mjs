@@ -91,7 +91,7 @@ const SIMPLE_BINDINGS = Object.freeze([
 import {
   initCookbook, loadCookbook, cookbookImport, cookbookImportIds, cookbookImportMonsters, cookbookRemoveImports, cookbookImportAbilities, cookbookImportAbilitiesDialog, cookbookUpdateAbilities,
   cookbookFillCompanions, cookbookPruneAbilities, registerAbilityDirectoryButtons, importAbility, cookbookDebug,
-  cookbookCount, refillMonster, resolveAbilities,
+  cookbookCount, refillMonster, resolveAbilities, proficiencyResolver,
   importEquipment, importAllEquipment, cookbookEquipmentIds, repairEquipmentAbilities,
   importWeapons, importArmor,
   importClasses, cookbookUpdateClasses, importTemplatePackages, importTraps, importSpells, importVariations, importVehicles, importMerchandise,
@@ -2628,7 +2628,9 @@ async function importArt(actor, doc, recipe) {
 async function applyStatsToActor(actor, doc, pageData, recipe) {
   const pairs = extractStatPairs(pageData);
   if (!pairs.length) return ui.notifications.warn(`${MODULE_ID} | ${recipe.name}: no stat rows found on PDF p. ${recipe.page}.`);
-  const { system, extras, items, applied, unmapped } = mapPairs(pairs);
+  // A named proficiency resolves against the library's definitions before it
+  // is minted as a bare namesake.
+  const { system, extras, items, applied, unmapped } = mapPairs(pairs, { proficiency: await proficiencyResolver() });
 
   // The entry's text goes to the visible APPEARANCE field
   // (extras.description.appearance) — the first field on the Description tab,

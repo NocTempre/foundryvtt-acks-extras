@@ -23,7 +23,9 @@ export default class AbilityExtras extends foundry.abstract.DataModel {
     const { SchemaField, ArrayField } = foundry.data.fields;
     return {
       // --- Classification (intrinsic; NEVER which class/monster owns it) ---
-      category: choice(ABILITY_CATEGORIES, { initial: "proficiency" }),
+      // Blank until something that read the item says what it is: an ability
+      // nobody classified is unknown, never a proficiency by default.
+      category: choice(ABILITY_CATEGORIES),
       general: bool(), // the "(G)" general-proficiency marker
       repeatable: bool(), // "may be selected multiple times"
       // How many times this character has taken it, as recorded on this item.

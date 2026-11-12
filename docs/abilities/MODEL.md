@@ -13,6 +13,13 @@ object (rollable, effect-bearing) even before its full prose is streamed.
   (blank numerics `null`, never 0): `category`, `general`, `repeatable`,
   `powerValue`, `deprecated`, `requires`, a `choice` branch, `effects[]` (the
   lib's typed primitives), and `defenses` (immunity/resistance/susceptibility).
+  `category` is blank until something that read the item says what it is, and
+  blank means unknown: no reader treats it as a proficiency, a power or a skill
+  (the Training strip and the equipment bridge each name the categories they
+  act on). An import writes the category of the definition it resolved, or
+  blank for a name it could not (`docs/importer/MODEL.md`, "A stat block's
+  proficiencies"); the Mechanics tab's Category select offers the blank, so a
+  save leaves it blank.
 - **Enhance**: an alternate ability sheet — Description, **Rolls**, **Mechanics**
   (Foundry's own Active Effects folded into the last of these).
 - **Invent**: nothing the system provides is duplicated.

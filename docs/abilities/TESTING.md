@@ -327,6 +327,35 @@ any other ability, also check that editing one row leaves every other row of
 that a row with a Start-ed quick effect still reports its state after a row
 above it is deleted.
 
+## A stat block's proficiencies: resolved, or unknown
+
+Fixture, marker `abilities/statblock-proficiencies`: a `monster` actor built
+from `bindMonster` (`/modules/acks-extras/scripts/importer/cookbook.mjs`) fed
+`{fields: {stats: {proficiencies: [...]}}}` naming one proficiency the loaded
+cookbook carries (read one off `cookbookAbilityIds()` and its entry, whose
+`meta.category` is not `proficiency`) and one invented name no definition has.
+Where the Judge's book is open, import a monster whose own stat block lists a
+proficiency instead, and add the invented name by hand through the same bind.
+
+1. Open the monster's sheet, Abilities tab. Both items are listed.
+2. Open the resolved item's sheet, Mechanics tab, Classification. **Observable:**
+   Category shows the definition's category, never Unknown, and
+   `flags.acks-extras.cookbook.id` is the definition's id.
+3. Open the invented one. **Observable:** `flags.acks-extras.extras.category`
+   is `""`, there is no `cookbook` flag, and Category shows Unknown. Save the
+   sheet without touching a field and read the flag again: still `""`, not the
+   select's first entry.
+4. Copy both onto a disposable `character` (track the copies) and open its
+   Training strip. **Observable:** neither the invented item nor an item of
+   blank category adds a pill, whatever the item is named; the resolved item
+   adds one only when its category is a style, weapon or armour proficiency.
+5. Re-run the bind through *Repair* on the monster (or *Apply Stats* on a
+   Proof of Concept monster): the minted items are replaced and steps 2-3
+   read the same.
+
+Teardown: sweep the ledger (`api.sweepTracked()`), which holds the monster and
+the character.
+
 ## Teardown
 
 Delete the ability item and the character. Confirm no `ability` items named

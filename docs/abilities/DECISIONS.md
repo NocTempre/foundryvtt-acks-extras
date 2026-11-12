@@ -810,3 +810,38 @@ Abilities rewrites it, and a hand-made item with no row gives nothing. The
 registry's `ladderRungAt` now falls back to an imported skill's ladder for a
 borrowed throw (a thief's skills live on the skill items), so a borrowed throw
 reads nothing until its skill is imported.
+
+## 2026-11-11 — An ability nobody classified is unknown, not a proficiency
+
+**Asked.** T-0121: `AbilityExtras` defaulted `category` to `proficiency`, so an
+ability item with no extras read as a proficiency, a positive answer where the
+right one is "unknown". Two importer paths minted such items (a monster's
+unresolved stat-block proficiency, and every proficiency `mapPairs` read), and
+the pack's sample monster abilities and the follower card's added skill carry
+no extras either.
+
+**Ruled.** The model's `category` has no default: it is blank, and blank is
+unknown. Every reader of it names the categories it acts on and answers
+nothing for a blank (the Training strip, the equipment bridge, the language
+checks, the selection vocabularies), and none compared against
+`proficiency`, so the default fed no behaviour and only misled the sheet. The
+Mechanics tab's Category select gains a blank option, since a select with
+none shows its first entry and the next save would write it back. The importer
+mints an unresolved stat-block name with `extras.category: ""` written out,
+and resolves a name against the library, the cookbook and the register's
+printed names before it does (`docs/importer/MODEL.md`).
+
+**Rejected.** *An `unknown` entry in `ABILITY_CATEGORIES`.* A vocabulary entry
+is a thing the sheet offers and the import dialog lists; the blank already
+says it. *Narrowing the fix to the importer's namesake.* It leaves every hand
+made, packed and follower-card ability reading as a proficiency. *Stamping the
+bestiary pack's `abilityCategory` as the extras category.* It holds a monster's
+special-ability kind (`SPECIAL_ABILITIES`), a different vocabulary read only
+by the monster sheet's Abilities tab.
+
+**Cost.** A hand-made ability opens with a blank Category until the Judge picks
+one. No item already in a world is migrated: one that stored no category now
+reads blank, and one that stored `proficiency` keeps it.
+`cookbook.mjs` `abilityCategory` still writes `proficiency` for a register
+entry that declares no category; that default is the importer's and is
+unchanged here.

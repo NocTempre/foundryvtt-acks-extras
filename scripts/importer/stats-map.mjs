@@ -119,7 +119,45 @@ const firstInt = (v) => {
   return m ? parseInt(m[1].replace(/,/g, ""), 10) : null;
 };
 
-export function mapPairs(pairs) {
+/**
+ * The ability item for a stat-block proficiency nothing resolved: the printed
+ * name and no more. Its category is written blank, which every reader answers
+ * as unknown, so it is never taken for a proficiency, a class power or a skill
+ * it was not read as. `mapPairs` mints it when it is given no resolver, and
+ * `bindProficiency` (cookbook.mjs) mints it when the name matches no definition.
+ * @param {string} name the name as the stat block prints it
+ */
+export function namesakeAbility(name) {
+  return {
+    name,
+    type: "ability",
+    img: DEFAULT_IMG.ABILITY,
+    system: {
+      description: "",
+      proficiencytype: "general",
+      favorite: false,
+      pattern: "white",
+      requirements: "",
+      roll: "",
+      rollType: "above",
+      rollTarget: 0,
+      blindroll: false,
+      save: "",
+    },
+    flags: { [MODULE_ID]: { extras: { category: "" } } },
+  };
+}
+
+/**
+ * Map a stat block's label/value pairs to a core system patch, the monster
+ * extras and the embedded items.
+ * @param {{label: string, value: string}[]} pairs
+ * @param {object} [options]
+ * @param {(name: string) => object} [options.proficiency] builds the ability
+ *   item for one named proficiency; the default is the unclassified namesake,
+ *   the importer passes the one that resolves the name against its definitions
+ */
+export function mapPairs(pairs, { proficiency = namesakeAbility } = {}) {
   const system = {};
   const extras = {};
   const items = [];
@@ -302,25 +340,7 @@ export function mapPairs(pairs) {
 
   const profs = take("Proficiencies");
   if (profs && !/^none/i.test(profs)) {
-    for (const name of profs.split(",").map((s) => s.trim()).filter(Boolean)) {
-      items.push({
-        name,
-        type: "ability",
-        img: DEFAULT_IMG.ABILITY,
-        system: {
-          description: "",
-          proficiencytype: "general",
-          favorite: false,
-          pattern: "white",
-          requirements: "",
-          roll: "",
-          rollType: "above",
-          rollTarget: 0,
-          blindroll: false,
-          save: "",
-        },
-      });
-    }
+    for (const name of profs.split(",").map((s) => s.trim()).filter(Boolean)) items.push(proficiency(name));
   }
 
   return { system, extras, items, applied, unmapped: [...unmappedLabels] };
