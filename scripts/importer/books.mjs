@@ -351,6 +351,37 @@ export const activeBooks = (registry, oseActive) =>
 export const BOOKS = activeBooks(REGISTRY, OSE_BOOKS_ACTIVE);
 
 /**
+ * The per-book cookbook files to fetch: the ids a compiled index lists, in the
+ * index's order, minus each book the module has withdrawn (known to `registry`,
+ * absent from `books`), so a withdrawn book's file is never requested. An id
+ * `registry` does not know is kept, as a claim naming no known book is offered
+ * (`registryBookOf`). With no index (`listed` null) every offered book is
+ * probed. Pure.
+ *
+ * @param {string[]|null|undefined} listed the index's `books`, when it has one
+ * @param {Record<string, object>} books the offered books (`BOOKS`)
+ * @param {Record<string, object>} [registry] every known book; defaults to `REGISTRY`
+ * @returns {string[]} book ids
+ */
+export const offeredBookFiles = (listed, books, registry = REGISTRY) =>
+  (listed ?? Object.keys(books)).filter((id) => Object.hasOwn(books, id) || !Object.hasOwn(registry, id));
+
+/**
+ * The book a cookbook id names by its first segment, when `registry` knows
+ * that book, else null. It reads the registry rather than `BOOKS`, so a book
+ * the module no longer offers still answers: a claim naming one is told apart
+ * from a claim naming no book. Pure.
+ *
+ * @param {string} id a cookbook id such as `<book>.<entry>`
+ * @param {Record<string, object>} [registry] defaults to `REGISTRY`
+ * @returns {string|null}
+ */
+export const registryBookOf = (id, registry = REGISTRY) => {
+  const first = String(id ?? "").split(".")[0];
+  return first && Object.hasOwn(registry, first) ? first : null;
+};
+
+/**
  * The citation a reader is shown for one PDF page of one book.
  *
  * THE ONE PLACE A PAGE NUMBER IS TRANSLATED. Everything upstream — register

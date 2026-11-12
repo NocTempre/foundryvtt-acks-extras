@@ -134,12 +134,18 @@ const libraryPacks = () =>
  * World settings, read raw and re-set in this module's namespace. The three
  * the importer still registers are copied; every other document left in the
  * retired namespace (a setting the old module itself had already dropped) is
- * residue nothing can read, and goes with them.
+ * residue nothing can read, and goes with them. A setting nobody registers in this
+ * module's namespace (its feature is not loaded) is neither copied nor swept:
+ * `game.settings.set` throws on it, and its legacy document is left in place.
+ *
+ * @returns {Promise<number>} how many legacy documents were moved or removed
  */
-async function migrateWorldSettings() {
+export async function migrateWorldSettings() {
   const storage = game.settings.storage.get("world");
+  const unregistered = new Set(WORLD_SETTINGS.filter((key) => !game.settings.settings.has(`${MODULE_ID}.${key}`)));
   let moved = 0;
   for (const key of WORLD_SETTINGS) {
+    if (unregistered.has(key)) continue;
     const setting = storage.getSetting(`${LEGACY_ID}.${key}`);
     if (!setting) continue;
     // A Setting document's `value` arrives parsed on this core; older data can
@@ -157,7 +163,8 @@ async function migrateWorldSettings() {
     await setting.delete();
     moved++;
   }
-  const residue = storage.filter((s) => String(s.key).startsWith(`${LEGACY_ID}.`));
+  const kept = new Set([...unregistered].map((key) => `${LEGACY_ID}.${key}`));
+  const residue = storage.filter((s) => String(s.key).startsWith(`${LEGACY_ID}.`) && !kept.has(String(s.key)));
   for (const setting of residue) await setting.delete();
   return moved + residue.length;
 }

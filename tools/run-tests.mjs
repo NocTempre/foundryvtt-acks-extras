@@ -174,6 +174,7 @@ const COMMITTED = [
   "importer/test-prose.mjs",
   "importer/test-book-match.mjs",
   "importer/test-book-registry.mjs",
+  "importer/test-offered-set-reads.mjs",
   "importer/test-shelf-restore.mjs",
   "importer/test-import-manager.mjs",
   "importer/test-reimport-everything.mjs",

@@ -64,7 +64,7 @@ import { gridTypeFor } from "../battlemap/constants.mjs";
 import { mirrorCreatedLinks } from "../location/scene-link.mjs";
 import { occupantRow } from "../lib/place.mjs";
 import { oseAdventureData, oseAdventureId } from "./ose-location.mjs";
-import { BOOKS, bookIsJudges, bookLine, citeFor, keptBook, laterBook } from "./books.mjs";
+import { BOOKS, bookIsJudges, bookLine, citeFor, keptBook, laterBook, offeredBookFiles, registryBookOf } from "./books.mjs";
 import { OSE_PREFIX, oseSourceLabel, oseSourceLine } from "./ose-source.mjs";
 import { oseGroupBookOf } from "./ose-template.mjs";
 import { executeEntry, materializeEffects, attackModel, convertName } from "./executor.mjs";
@@ -249,7 +249,9 @@ export async function loadCookbook() {
   } catch {
     /* cookbook compiled before the index existed — fall back to probing */
   }
-  const bookFiles = index?.books ?? Object.keys(BOOKS);
+  // A book the module does not offer is never fetched, listed or not: a build
+  // that withholds its file would otherwise log a 404 for each.
+  const bookFiles = offeredBookFiles(index?.books, BOOKS);
   const contentFiles = index?.content ?? CONTENT_FILES;
   for (const bookId of bookFiles) {
     try {
@@ -3711,9 +3713,15 @@ const readableHere = (id) => {
   return !book || !!ctx?.sessionDocs?.has(book);
 };
 
-/** Whether a claim's book is one the module offers (`BOOKS`); a claim naming no book is. A repair passes over the rest. */
-const offeredHere = (id) => {
-  const book = bookOf(cookbookEntry(id)) ?? oseGroupBookOf(id);
+/**
+ * Whether a claim's book is one the module offers (`BOOKS`); a claim naming no book is. A repair passes over the rest.
+ * A claim no loaded cookbook holds names its book by its id's first segment when the
+ * registry knows it, so a document of a book that is switched off, whose cookbook is
+ * not loaded, reads as not offered.
+ */
+export const offeredHere = (id) => {
+  const found = cookbookEntry(id);
+  const book = bookOf(found) ?? oseGroupBookOf(id) ?? (found ? null : registryBookOf(id));
   return !book || !!BOOKS[book];
 };
 

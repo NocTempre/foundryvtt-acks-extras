@@ -175,8 +175,13 @@ counted in `pregenRefused`, the copy standing. The result carries `pregens`,
 
 **Out of scope.** A document of a book the module no longer offers
 (`offeredHere`) is passed over: nothing is asked or written for it, and it is
-counted in `notOffered`. A document whose book is not open on this seat is
-left and counted.
+counted in `notOffered`. A claim no loaded cookbook holds names its book by its
+id's first segment when `REGISTRY` knows it (`registryBookOf`), so a document
+of a withdrawn book reads as not offered with its cookbook unloaded. The
+cookbook loader skips each index-listed book file that `REGISTRY` knows and
+`BOOKS` lacks (`offeredBookFiles`), so a withdrawn book's file is never
+requested. A
+document whose book is not open on this seat is left and counted.
 
 **Organisations' relations.** Under the rewrite, a body's relations that no
 longer hold the page's are an unstamped edit (`keepsJudgeFigure`), kept unless

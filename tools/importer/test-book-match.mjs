@@ -1,7 +1,7 @@
 /** Matching picked files to books, and telling a book by its fingerprint. No PDFs, no Foundry. */
 import assert from "node:assert";
 import { matchFilesToBooks } from "../../scripts/importer/book-match.mjs";
-import { BOOKS, identifyBook, keptBook, laterBook } from "../../scripts/importer/books.mjs";
+import { BOOKS, REGISTRY, identifyBook, keptBook, laterBook } from "../../scripts/importer/books.mjs";
 
 let pass = 0;
 const check = (label, cond) => { assert.ok(cond, label); pass++; };
@@ -120,9 +120,10 @@ check("an untitled printing is named by count alone", identifyBook(BOOKS.ax2.pag
 // title separates them, and a count belonging to one book still names it when
 // the printing carries no metadata title at all, as every AX book does.
 {
-  const counts = Object.values(BOOKS).map((b) => b.pages);
+  // `identifyBook` reads the registry, so the shared counts are the registry's.
+  const counts = Object.values(REGISTRY).map((b) => b.pages);
   const shared = new Set(counts.filter((c, i) => counts.indexOf(c) !== i));
-  for (const [id, book] of Object.entries(BOOKS)) {
+  for (const [id, book] of Object.entries(REGISTRY)) {
     const untitled = identifyBook(book.pages, "");
     if (shared.has(book.pages)) check(`a shared page count names nobody untitled (${id})`, untitled === null);
     else check(`a unique page count names its book untitled (${id})`, untitled === id);
@@ -157,7 +158,8 @@ check("a count collision with a foreign title names nobody", identifyBook(BOOKS.
   check("an unknown book names nobody", laterBook("ax1", "nope") === null);
 
   // An item's kept printing: the later year, else the earlier declaration, else the held one.
-  const declared = Object.keys(BOOKS);
+  // `keptBook` ranks by the registry, which still holds a book `BOOKS` has withdrawn.
+  const declared = Object.keys(REGISTRY);
   for (const [a, ba] of dated) {
     for (const [b, bb] of dated) {
       if (a === b) continue;
