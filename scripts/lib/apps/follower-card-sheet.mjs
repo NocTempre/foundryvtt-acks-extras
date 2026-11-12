@@ -461,9 +461,15 @@ export class FollowerCardSheet extends foundry.applications.api.HandlebarsApplic
     ]);
   }
 
+  /** A skill added here is classified a skill, so it never reads as an unknown ability. */
   static async #onAddSkill() {
     await this.actor.createEmbeddedDocuments("Item", [
-      { name: game.i18n.localize("ACKS-LIB.followerCard.newSkill"), type: "ability", system: { roll: "1d20" } },
+      {
+        name: game.i18n.localize("ACKS-LIB.followerCard.newSkill"),
+        type: "ability",
+        system: { roll: "1d20" },
+        flags: { [MODULE_ID]: { extras: { category: "skill" } } },
+      },
     ]);
   }
 }

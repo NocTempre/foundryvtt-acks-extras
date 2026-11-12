@@ -148,6 +148,10 @@ report the same symptom.
    the chips — and its **Full sheet** chip (`data-action="fcOpenFull"`) opens
    `FullMonsterSheet` beside it. The body is `.acks-lib-follower-card` (no
    `readonly` class) with `.acks-extras-frame__cols.is-3`.
+   Press the **Add skill** chip (`data-action="fcAddSkill"`).
+   *Observable:* one new `ability` item lands on the monster with
+   `flags.acks-extras.extras.category` `"skill"`, and its sheet's Mechanics
+   tab reads Skill, not Unknown. Delete it by the id read back.
    Give the monster `system.details.appearing` `{d: "", w: ""}`, then
    `{d: "2d6", w: "3d10"}`.
    *Observable:* with neither formula stored the card shows no number-appearing
