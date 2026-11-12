@@ -8,7 +8,6 @@
 import assert from "node:assert/strict";
 import {
   ANCILLARY_ACTIVITIES,
-  ANCILLARY_SLOTS,
   COUNTRY_DEFAULTS,
   DAY_KINDS,
   adoptSceneSystem,
@@ -32,21 +31,35 @@ import {
   travelOf,
   withDayKind,
   dayIsSpent,
+  ancillarySlots,
 } from "../scripts/formation/travel.mjs";
 import { CLIMATES } from "../scripts/formation/weather.mjs";
 import { SLOT_HOURS } from "../scripts/formation/march.mjs";
 import { DISTRICT_TYPE } from "../scripts/formation/district-find.mjs";
-import { PRIORITY, registerTable } from "../scripts/lib/tables.mjs";
+import { PRIORITY, registerTable, unregisterTable } from "../scripts/lib/tables.mjs";
 
-/* The pace hours are printed and arrive through the importer; these are invented. */
+/* --- the slot count is the imported ancillary hours ------------------------ */
+unregisterTable("travel");
+assert.equal(ancillarySlots(), null, "with nothing imported the slot count is unknown");
+assert.deepEqual(freshDay().activities, [], "and a fresh day carries no slot in its place");
+assert.deepEqual(freshDay().done, []);
+assert.deepEqual(withDayKind(null, "forced").activities, [], "nor does a forced march invent the slots it consumes");
+registerTable({ id: "travel", tables: { expedition: { ancillaryHours: 2.5 * SLOT_HOURS } } }, { priority: PRIORITY.WORLD });
+assert.equal(ancillarySlots(), 2, "part of a slot's hours makes no slot");
+unregisterTable("travel");
+
+/* The pace and ancillary hours are printed and arrive through the importer; these are invented. */
 const DEDICATED_HOURS = 9;
 const FORCED_HOURS = 14;
-registerTable({ id: "travel", tables: { expedition: { dedicatedHours: DEDICATED_HOURS, forcedHours: FORCED_HOURS } } }, { priority: PRIORITY.WORLD });
+const ANCILLARY_HOURS = 3;
+const SLOTS = ANCILLARY_HOURS / SLOT_HOURS;
+registerTable({ id: "travel", tables: { expedition: { dedicatedHours: DEDICATED_HOURS, forcedHours: FORCED_HOURS, ancillaryHours: ANCILLARY_HOURS } } }, { priority: PRIORITY.WORLD });
 
 /* --- the day board ------------------------------------------------------- */
 let day = freshDay();
 assert.equal(day.kind, "march");
-assert.equal(day.activities.length, ANCILLARY_SLOTS, "a day budgets four ancillary slots");
+assert.equal(ancillarySlots(), SLOTS);
+assert.equal(day.activities.length, SLOTS, "a day budgets one slot per imported ancillary hour");
 assert.ok(day.activities.every((a) => a === null), "and starts with them unspent");
 
 day = withDayKind(day, "forced");
@@ -79,11 +92,11 @@ const fresh = freshDay();
 for (const key of ["miles", "hours", "cadenceCarry", "carrySeconds", "secondsAdvanced"]) {
   assert.equal(fresh[key], 0, `a fresh day has spent no ${key}`);
 }
-assert.deepEqual(fresh.done, Array(ANCILLARY_SLOTS).fill(false), "and resolved none of its slots");
+assert.deepEqual(fresh.done, Array(SLOTS).fill(false), "and resolved none of its slots");
 
 const underway = {
   ...freshDay(), miles: 11.5, hours: 4.6, cadenceCarry: 2, carrySeconds: 0.25, secondsAdvanced: 16560,
-  done: [true, false, false, false],
+  done: [true, false, false],
 };
 for (const kind of ["forced", "camp", "march"]) {
   const pushedOn = withDayKind(underway, kind);
@@ -92,8 +105,16 @@ for (const kind of ["forced", "camp", "march"]) {
   assert.equal(pushedOn.cadenceCarry, 2, "and the miles not yet worth a throw");
   assert.equal(pushedOn.carrySeconds, 0.25, "and the fraction of a second the clock owes");
   assert.equal(pushedOn.secondsAdvanced, 16560, "and what the clock has advanced");
-  assert.deepEqual(pushedOn.done, [true, false, false, false], "and the slots already resolved");
+  assert.deepEqual(pushedOn.done, [true, false, false], "and the slots already resolved");
 }
+
+/* A day stored with another number of slots is read as stored. */
+const stored = { ...freshDay(), activities: ["hunt", null, "search", null, "rest"], done: [false, false, true] };
+assert.deepEqual(withDayKind(stored, "camp").activities, stored.activities, "an unforced kind change keeps the stored slots");
+assert.deepEqual(withDayKind(stored, "camp").done, [false, false, true, false, false], "with one done flag per stored slot");
+assert.equal(withDayKind(stored, "forced").activities.length, SLOTS, "a forced march spends the imported count");
+assert.deepEqual(travelOf({ travel: { day: stored } }).day.activities, stored.activities, "the record reads back as stored");
+assert.deepEqual(travelOf({ travel: { day: stored } }).day.done, [false, false, true, false, false]);
 const ended = withDayKind(null, "march");
 assert.equal(ended.miles, 0, "ending the day starts a fresh tally");
 assert.equal(ended.secondsAdvanced, 0);
@@ -141,12 +162,12 @@ assert.equal(t.hour, "clock", "the day-or-night source follows the clock unless 
 assert.equal(t.day.hexesEntered, 2, "what the legacy day did record stays");
 assert.equal(t.day.miles, 0);
 assert.equal(t.day.hours, 0);
-assert.deepEqual(t.day.done, Array(ANCILLARY_SLOTS).fill(false), "a legacy day has resolved no slots");
-assert.equal(t.day.activities.length, ANCILLARY_SLOTS);
+assert.deepEqual(t.day.done, Array(SLOTS).fill(false), "a legacy day has resolved no slots");
+assert.equal(t.day.activities.length, SLOTS);
 assert.equal(travelOf({ travel: { hour: "night" } }).hour, "night");
 assert.equal(travelOf({ travel: { hour: "constructor" } }).hour, "clock", "a prototype name is not an hour source");
 assert.equal(travelOf({ travel: { hour: "noon" } }).hour, "clock", "an hour outside the vocabulary follows the clock");
-assert.deepEqual(travelOf({ travel: { day: { done: [true, "yes"] } } }).day.done, [true, true, false, false],
+assert.deepEqual(travelOf({ travel: { day: { done: [true, "yes"] } } }).day.done, [true, true, false],
   "done is always one boolean per slot");
 t = travelOf({ travel: { mode: "journey", ground: "hills", road: "paved", pace: "forced" } });
 assert.equal(t.mode, "journey");

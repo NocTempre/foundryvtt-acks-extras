@@ -3368,6 +3368,7 @@
         "traps": "Managing traps"
       },
       "slotHint": "One ancillary hour of the day.",
+      "slotsNotImported": "Ancillary hours: not imported",
       "endDay": "End day",
       "endDayHint": "Log the day as shown, reset the board, and advance the world clock a day (when the module drives it).",
       "dayEnd": {
@@ -7428,11 +7429,7 @@
   "ACKS-FORMATION.obstacles.unknown": "obstacle",
   "ACKS-FORMATION.obstacles.flavor": "{obstacle} — {feet}'",
   "ACKS-FORMATION.obstacles.outcome.progress": "across",
-  "ACKS-FORMATION.obstacles.outcome.noProgress": "no progress this round",
-  "ACKS-FORMATION.obstacles.outcome.fall": "falls",
-  "ACKS-FORMATION.obstacles.outcome.fallUnlessGeared": "falls, unless roped with mountaineering gear",
-  "ACKS-FORMATION.obstacles.outcome.fallUnlessBurglar": "falls, unless a climbing cat burglar",
-  "ACKS-FORMATION.obstacles.outcome.slowDescent": "down, but only at walking pace",
+  "ACKS-FORMATION.obstacles.outcome.notImported": "missed; the outcome is not imported",
   "ACKS-FORMATION.obstacles.reason.notPermitted": "cannot attempt this without Climbing or Mountaineering",
   "ACKS-FORMATION.obstacles.reason.needsClassThrow": "is proficient, but has no climbing throw recorded",
   "ACKS-FORMATION.obstacles.reason.notImported": "cannot be told whether to attempt this: the Spelunking table is not imported",

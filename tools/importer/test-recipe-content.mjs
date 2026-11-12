@@ -30,7 +30,7 @@ import { parseOptions, parseFocus, parseThrowable, parseDealtBy, parseMarkedOpti
 import { parseFrontage } from "../../scripts/monsters/sizes.mjs";
 import { SIZES } from "../../scripts/monsters/config.mjs";
 import { parseArmourLimits } from "../../scripts/equipment/armour-limits.mjs";
-import { SPELUNKING_COLUMNS, assembleFall, assembleJumping, assembleSpelunking, parseDie } from "../../scripts/importer/formation-binding.mjs";
+import { SPELUNKING_COLUMNS, assembleFall, assembleJumping, assembleSpelunking, assembleSpelunkingOutcomes, parseDie } from "../../scripts/importer/formation-binding.mjs";
 import { FILES } from "./reference-lib.mjs";
 
 /** The tables under test, by recipe document. Each is one entry of `TABLE_RECIPES`. */
@@ -92,9 +92,9 @@ const TABLES = {
   monsters: ["sizeFrontage"],
   // The armour limits on abilities.
   "acks.classBuilder": ["thiefLimits"],
-  // The jumping and fall figures, the Spelunking grids' stretch and targets,
-  // and the street's two dice.
-  formation: ["jumpingProse", "jumpingLandingProse", "spelunkingGrid"],
+  // The jumping and fall figures, the Spelunking grids' stretch and targets
+  // and their missed-throw outcomes, and the street's two dice.
+  formation: ["jumpingProse", "jumpingLandingProse", "spelunkingGrid", "spelunkingOutcomeGrid"],
   cityTravel: ["streetDieProse", "afterDarkProse"],
 };
 
@@ -530,6 +530,15 @@ VERIFY["formation.spelunkingGrid"] = (out, recipe, fail) => {
   if (table.stretchFeet == null) fail("stretchFeet: the binding reads no distance from the grids");
   for (const kind of SPELUNKING_COLUMNS.flat()) {
     if (table.adventuring?.[kind] === undefined) fail(`${kind}: the binding reads no target or refusal`);
+  }
+};
+// The same grids' failed- and botched-throw rows: every row read, and the
+// binding takes both outcomes for each of the six obstacles.
+VERIFY["formation.spelunkingOutcomeGrid"] = (out, recipe, fail) => {
+  for (const spec of recipe.rows) if (!out?.[spec.key] || isMissingRow(out[spec.key])) fail(`${spec.key}: row not read`);
+  const table = assembleSpelunkingOutcomes(out);
+  for (const kind of SPELUNKING_COLUMNS.flat()) {
+    for (const which of ["fail", "botch"]) if (!table[kind]?.[which]) fail(`${kind}.${which}: the binding reads no outcome`);
   }
 };
 // The street's two dice: each window must name a die the binding rebuilds.

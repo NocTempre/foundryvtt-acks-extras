@@ -932,6 +932,34 @@ export const TABLE_RECIPES = {
           { key: "third", x: 413, w: 120, pattern: "raw", row: true },
         ],
       },
+      // The same two grids' failed-throw and botched-throw rows, whose cells
+      // are words printed over several lines with the label on a middle one
+      // (`wrapRows`). The second grid's heading row is claimed as a fence: its
+      // column heads wrap onto label-less lines that would otherwise join the
+      // first grid's last row. formation-binding keeps each cell's text and
+      // whether it is a fall, as the `spelunkingOutcomes` table.
+      spelunkingOutcomeGrid: {
+        shape: "gridRows",
+        book: "rr",
+        printedPage: 268,
+        locate: "Caving and Spelunking",
+        column: { xMin: 40, xMax: 592, yMin: 470, yMax: 760 },
+        labelMaxX: 165,
+        wrapRows: {},
+        joinGap: 1,
+        rows: [
+          { key: "failFirst", labelRe: "^failed\\s*throw" },
+          { key: "botchFirst", labelRe: "^botched\\s*throw" },
+          { key: "headSecond", labelRe: "^spelunking" },
+          { key: "failSecond", labelRe: "^failed\\s*throw" },
+          { key: "botchSecond", labelRe: "^botched\\s*throw" },
+        ],
+        cellColumns: [
+          { key: "first", x: 165, w: 120, pattern: "raw", row: true },
+          { key: "second", x: 289, w: 120, pattern: "raw", row: true },
+          { key: "third", x: 413, w: 120, pattern: "raw", row: true },
+        ],
+      },
     },
   },
   // RR ch. 6 Light and Darkness, one page: each light source's bright and dim

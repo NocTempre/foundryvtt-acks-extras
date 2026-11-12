@@ -18,7 +18,9 @@
  * assumed Dexterity, the die a failed landing falls short by) and the `fall`
  * table (the die and the feet it is dealt per). The Spelunking grids (RR p. 268)
  * give the `spelunking` table: the stretch one throw covers and the target an
- * adventurer with no climbing proficiency throws against, or that none may try.
+ * adventurer with no climbing proficiency throws against, or that none may try;
+ * and the `spelunkingOutcomes` table: what a failed and a botched throw cost at
+ * each obstacle, as the cell's words and whether they name a fall.
  *
  * Each figure is read out of a short window of prose and parsed here, once. A
  * window that did not read leaves its key absent, so the reader reports that
@@ -52,6 +54,7 @@ export const PRODUCES = Object.freeze({
     jumping: ["jumpingProse", "jumpingLandingProse"],
     fall: "jumpingLandingProse",
     spelunking: "spelunkingGrid",
+    spelunkingOutcomes: "spelunkingOutcomeGrid",
   },
 });
 
@@ -333,6 +336,43 @@ export function assembleSpelunking(grid = {}) {
   return out;
 }
 
+/**
+ * One failed- or botched-throw cell as the obstacle procedure reads it: the
+ * cell's words, kept whole for the card to print, and `falls`, whether they
+ * name a fall (which ends that climber's attempt). A cell with no words is
+ * null, so its obstacle is left out.
+ * @returns {{text: string, falls: boolean}|null}
+ */
+export function parseOutcomeCell(cell) {
+  const text = String(cell ?? "").replace(/\s+/g, " ").trim();
+  if (!text) return null;
+  return { text: text[0].toUpperCase() + text.slice(1), falls: /\bfall(?:s|ing)?\b/i.test(text) };
+}
+
+/**
+ * The `spelunkingOutcomes` table from the two grids' failed- and
+ * botched-throw rows: per obstacle, `fail` and `botch`, each a
+ * `parseOutcomeCell` result. A row that did not read, or a cell with no
+ * words, leaves that outcome out and nothing beside it.
+ */
+export function assembleSpelunkingOutcomes(grid = {}) {
+  const out = {};
+  const rows = [
+    [grid.failFirst, grid.botchFirst, SPELUNKING_COLUMNS[0]],
+    [grid.failSecond, grid.botchSecond, SPELUNKING_COLUMNS[1]],
+  ];
+  for (const [fails, botches, kinds] of rows) {
+    for (const [i, kind] of kinds.entries()) {
+      const column = ["first", "second", "third"][i];
+      const fail = fails?.__missing ? null : parseOutcomeCell(fails?.[column]);
+      const botch = botches?.__missing ? null : parseOutcomeCell(botches?.[column]);
+      if (!fail && !botch) continue;
+      out[kind] = { ...(fail ? { fail } : {}), ...(botch ? { botch } : {}) };
+    }
+  }
+  return out;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Assembly                                                           */
 /* ------------------------------------------------------------------ */
@@ -374,6 +414,8 @@ export function assembleFormationTables(raw = {}) {
   if (Object.keys(fall).length) out.fall = fall;
   const spelunking = assembleSpelunking(raw.spelunkingGrid);
   if (Object.keys(spelunking).length) out.spelunking = spelunking;
+  const outcomes = assembleSpelunkingOutcomes(raw.spelunkingOutcomeGrid);
+  if (Object.keys(outcomes).length) out.spelunkingOutcomes = outcomes;
 
   return out;
 }

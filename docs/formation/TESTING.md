@@ -490,8 +490,8 @@ each chat card id as it lands.
    and scales by pace alone; with them the speed cell's tooltip carries the
    factors joined on one line with ` · ` (terrain, then a road worth nothing
    in the rain) and the miles reflect
-   both the ground and the forced pace; the four ancillary slots read as
-   consumed and refuse edits. Step back to Dedicated march: the slots return
+   both the ground and the forced pace; every ancillary slot (as many as
+   `ancillarySlots()` gives) reads as consumed and refuses edits. Step back to Dedicated march: the slots return
    EMPTY, not the forced march's overwrite.
 3. Fill two ancillary slots (hunt, search), name a hex, **Next hex** twice.
    *Observable:* `travel.day.activities` holds the picks; `hexesEntered`
@@ -1188,7 +1188,7 @@ with one member, its token placed, `setJourneyMode(id, "journey")`.
    `travel.day.offered` is already true.
    *Observable:* walking further raises no second dialog.
 4. Answer **Push on**.
-   *Observable:* `day.kind` is `forced`, all four ancillary slots read
+   *Observable:* `day.kind` is `forced`, every ancillary slot reads
    `travel`, `hexesEntered` is UNCHANGED (pushing on must not un-walk the
    ground), the readout's allowance rises, and `offered` is back to false —
    the question is re-armed for the distance just bought.
@@ -2135,6 +2135,41 @@ Step 4's invented layer is a product of the walk, `acks-extras` registry layer
 5. **Teardown.** Unregister the layer; the import stays (it is the world's own
    data). The report says which of steps 1 and 2 ran, since a world that
    already holds the table starts at step 3.
+
+## The ancillary slots, imported (added with T-0515)
+
+The day board's slot count is `acksExtras.formation.travel.ancillarySlots()`:
+the `expedition` table's `ancillaryHours` (RR p. 272) cut into one-hour slots.
+Every observable compares with `n = acksExtras.formation.travel.ancillarySlots()`
+read on the same seat, never with a number from the page.
+
+Fixtures: the party `formation/day-journey-party` (above), in journey mode on
+the GM seat. The overrides are the walk's own, set and cleared in the Ruledata
+Browser (`Settings tab → Game Settings → ACKS II — Extras → Open Ruledata
+Browser`, `travel` document, `expedition` table).
+
+1. **Imported.** With the import in place, open the party sheet's Wilderness
+   tab → The day. Pick Dedicated march, then **End day** so the board is fresh.
+   *Observable:* `n` is a positive whole number; the board draws exactly `n`
+   slot selects (`select[name^="travel.day.slot."]`) and
+   `travel.day.activities.length` is `n`; hovering a select shows the slot hint
+   then `Imported (<cite>)`, `<cite>` being what `t.citeOf("travel",
+   "expedition")` returns. Forced march fills all `n` with travel and disables
+   them.
+2. **Not imported.** In the Ruledata Browser, override `expedition` with
+   `ancillaryHours` blanked, and re-render the sheet.
+   *Observable:* `n` is null; the board draws no slot select though the stored
+   day still holds its slots, and shows "Ancillary hours: not imported" with
+   the tooltip "Not imported"; `acksExtras.formation.travel.freshDay().activities`
+   is empty. Scripted: `tools/live/formation-day.mjs` step 2 (no tables) asserts
+   the same on the player seat's registry.
+3. **An override wins, and reverts.** Set the override's `ancillaryHours` to a
+   figure of the Judge's own, other than the imported one, then **End day**.
+   *Observable:* `n` follows the override, the fresh board draws that many
+   slots, and the slot tooltip says `Set by a Judge's override`. Clear the
+   override and **End day** again: the board returns to the imported count
+   with the cite in the tooltip.
+4. **Teardown.** Clear the override; the fixture stays.
 
 ## The hex stock (added with lairs per hex)
 
@@ -4340,3 +4375,41 @@ the turn resolves and `api.sweepTracked()` them; the fixtures stay.
 Pinned offline: `tools/test-jumping.mjs`, `tools/test-obstacles.mjs`,
 `tools/test-formation-binding.mjs`, `tools/importer/test-land-tables.mjs`,
 `tools/test-settlement.mjs`.
+
+## The Spelunking outcomes, imported (added with T-0516)
+
+What a failed and a botched throw cost at each obstacle is the `formation`
+document's `spelunkingOutcomes` table (RR p. 268), per obstacle `fail` and
+`botch`, each `{text, falls}`. Compare with
+`o = acksExtras.lib.tables.getTableDoc("formation").tables.spelunkingOutcomes`;
+no outcome's words enter the report, only counts.
+
+Fixtures: `formation/imported-climber` (above). Proficient throws are driven
+with `{proficient: true, classThrow}` so the target is the walk's, and the
+dice rig (`CONFIG.Dice.randomUniform`, set and restored by the walk) picks a
+miss and a natural 1.
+
+1. **The import reads them.** Run Rules tables with the Revised Rulebook open.
+   *Observable:* `o` holds six obstacles, each with `fail` and `botch` carrying
+   non-empty `text` and a boolean `falls`; the Ruledata Browser lists the raw
+   `spelunkingOutcomeGrid` beside it; `t.citeOf("formation",
+   "spelunkingOutcomes")` (`<cite>` below) names the page. Count the cells
+   agreeing with the page, book open, and report the count.
+2. **The card acts on them.** `attemptObstacle([{actor, proficient: true,
+   classThrow: 20}], {kind: "easyClimb", feet})` for two stretches, rigged to
+   miss: then rigged to a natural 1.
+   *Observable:* the miss prints `o.easyClimb.fail.text` and throws the second
+   stretch only when `o.easyClimb.fail.falls` is false; the natural 1 prints
+   `o.easyClimb.botch.text` and, `falls` true, throws no further stretch.
+   Hovering the outcome shows `Imported (<cite>)`.
+3. **Not imported.** In the Ruledata Browser give `formation` an override that
+   blanks `spelunkingOutcomes`, and repeat the rigged miss.
+   *Observable:* one throw only; the card prints "missed; the outcome is not
+   imported", its tooltip "Not imported"; nothing else is applied.
+4. **An override wins, and reverts.** Override `spelunkingOutcomes.easyClimb.fail`
+   with words of the Judge's own and `falls: true`, and repeat the rigged miss.
+   *Observable:* the card prints the Judge's words, the tooltip says `Set by a
+   Judge's override`, and the climb stops after the one throw. Clear the
+   override: the imported words and page return.
+5. **Teardown.** Clear every override; `api.track` each card's id as it posts
+   and `api.sweepTracked()` them; the fixture stays.

@@ -35,14 +35,14 @@ import { parentUuidOf, resolvePlaceSync } from "../lib/place.mjs";
 import { patchFormation, getFormation, getFormations, getPartyToken, realMembers, getMemberActor, hasAbility, derivedMovementMode } from "./formation-model.mjs";
 import { hasCapability } from "./ability-bridge.mjs";
 import { mayAdvanceWorldTime, untilNextDawn, calendarDay, calendarSeason } from "../lib/world-time.mjs";
-import { TRAVEL_PACE } from "../lib/movement-scales.mjs";
+import { TRAVEL_PACE, expeditionCite, expeditionFigures } from "../lib/movement-scales.mjs";
 import { isExpeditionScale } from "../lib/distance-units.mjs";
 import { hexLabelFromOffset, isHexScene, layerRegionsOf } from "../battlemap/terrain-paint.mjs";
 import { sceneTravelSystem } from "../battlemap/scene-setup.mjs";
 import { COUNTRY_KEYS, countryAt, riverTableFor } from "../battlemap/country.mjs";
 import { FOLLOWING_KINDS, TERRITORY_KEYS } from "./country-keys.mjs";
 import { TRAVEL_MODES } from "../lib/vocab.mjs";
-import { marchBudget, marchIsSpent } from "./march.mjs";
+import { SLOT_HOURS, marchBudget, marchIsSpent } from "./march.mjs";
 import { sceneHasDistrict } from "./district-find.mjs";
 import {
   CLIMATES,
@@ -65,8 +65,30 @@ export const SETTING_TRAVEL_LOG_CAP = "travelLogCap";
 /** A day in seconds: what a travel day ends on when the clock keeps no calendar to read a dawn from. */
 export const DAY_SECONDS = 24 * 60 * 60;
 
-/** How many ancillary activities a day budgets (RR ch. 6). */
-export const ANCILLARY_SLOTS = 4;
+/**
+ * How many ancillary activities a fresh day budgets: the imported ancillary
+ * hours (the `travel` document's `expedition` table, RR p. 272), cut into
+ * slots of `SLOT_HOURS`. Null while those hours are not imported, and a fresh
+ * day then carries no slots. A stored day keeps the slots it was made with.
+ * @returns {number|null}
+ */
+export function ancillarySlots() {
+  const hours = expeditionFigures().ancillaryHours;
+  return hours == null ? null : Math.floor(hours / SLOT_HOURS);
+}
+
+/**
+ * Where the slot count came from, for its tooltip: the page the expedition
+ * table was imported from, a Judge's override (which holds no page), or not
+ * imported.
+ */
+export function ancillarySlotsProvenance() {
+  if (ancillarySlots() == null) return game.i18n.localize("ACKS-FORMATION.chat.cadenceFrom.none");
+  const cite = expeditionCite();
+  return cite
+    ? game.i18n.format("ACKS-FORMATION.chat.cadenceFrom.import", { cite })
+    : game.i18n.localize("ACKS-FORMATION.chat.cadenceFrom.override");
+}
 
 /**
  * How the DAY itself is spent — the dedicated activity. A forced march buys
@@ -129,9 +151,10 @@ const trapCount = (n) => Math.max(0, Math.floor(Number(n) || 0));
 /** A fresh, unspent day board. */
 export function freshDay(kind = "march") {
   const spec = DAY_KINDS[kind] ? kind : "march";
+  const slots = ancillarySlots() ?? 0;
   return {
     kind: spec,
-    activities: Array.from({ length: ANCILLARY_SLOTS }, () => null),
+    activities: Array.from({ length: slots }, () => null),
     hexesEntered: 0,
     // Extra distance the day's bends cost over straight crossings, in hexes.
     winding: 0,
@@ -146,7 +169,7 @@ export function freshDay(kind = "march") {
     carrySeconds: 0,
     secondsAdvanced: 0,
     // Which ancillary slots have been resolved (a search hour, a forage).
-    done: Array.from({ length: ANCILLARY_SLOTS }, () => false),
+    done: Array.from({ length: slots }, () => false),
     /**
      * Whether the party has already been asked to call this day done. Deliberately
      * NOT carried across a kind change: pushing on buys more distance, so the
@@ -184,7 +207,7 @@ export function withDayKind(day, kind) {
     next.cadenceCarry = day.cadenceCarry ?? 0;
     next.carrySeconds = day.carrySeconds ?? 0;
     next.secondsAdvanced = day.secondsAdvanced ?? 0;
-    next.done = Array.from({ length: ANCILLARY_SLOTS }, (_, n) => !!day.done?.[n]);
+    next.done = next.activities.map((_, n) => !!day.done?.[n]);
     next.traps = trapCount(day.traps);
     next.noSleep = !!day.noSleep;
   }
@@ -466,11 +489,12 @@ function travelBase(formation) {
     hour: Object.hasOwn(HOUR_MODES, t.hour ?? "") ? t.hour : "clock",
     hex: { label: "", note: "", i: null, j: null, ...(t.hex ?? {}) },
     // A record from before the day counted miles reads as a day with nothing
-    // walked; `done` is always one boolean per ancillary slot.
+    // walked; `done` is always one boolean per slot the day carries, however
+    // many it was made with.
     day: {
       ...freshDay(),
       ...(t.day ?? {}),
-      done: Array.from({ length: ANCILLARY_SLOTS }, (_, n) => !!t.day?.done?.[n]),
+      done: (Array.isArray(t.day?.activities) ? t.day.activities : freshDay().activities).map((_, n) => !!t.day?.done?.[n]),
       traps: trapCount(t.day?.traps),
       noSleep: !!t.day?.noSleep,
     },
@@ -1005,15 +1029,18 @@ export async function setDayKind(formationId, kind, { override = false } = {}) {
   return result;
 }
 
-/** Fill one ancillary slot (null clears it). Refused under a forced march. */
+/**
+ * Fill one ancillary slot (null clears it). Refused under a forced march, and
+ * for an index past the slots the stored day carries.
+ */
 export function setAncillary(formationId, slot, activity) {
   return patchFormation(formationId, (record) => {
     const t = storedTravelOf(record);
     if (DAY_KINDS[t.day?.kind]?.consumesAncillary) return false;
-    const i = Number(slot);
-    if (!Number.isInteger(i) || i < 0 || i >= ANCILLARY_SLOTS) return false;
-    if (activity != null && !ANCILLARY_ACTIVITIES[activity]) return false;
     const activities = [...(t.day.activities ?? freshDay().activities)];
+    const i = Number(slot);
+    if (!Number.isInteger(i) || i < 0 || i >= activities.length) return false;
+    if (activity != null && !ANCILLARY_ACTIVITIES[activity]) return false;
     activities[i] = activity ?? null;
     record.travel = { ...t, day: { ...t.day, activities } };
   });
@@ -1655,7 +1682,7 @@ export async function applyTravelForm(formationId, tv = {}, { override = false }
         const activities = [...day.activities];
         for (const [k, v] of Object.entries(tv.day.slot)) {
           const i = Number(k);
-          if (Number.isInteger(i) && i >= 0 && i < ANCILLARY_SLOTS) activities[i] = ANCILLARY_ACTIVITIES[v] ? v : null;
+          if (Number.isInteger(i) && i >= 0 && i < activities.length) activities[i] = ANCILLARY_ACTIVITIES[v] ? v : null;
         }
         day = { ...day, activities };
       }

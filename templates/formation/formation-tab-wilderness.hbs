@@ -302,7 +302,7 @@
       <span class="acks-extras-slot {{#if done}}acks-extras-slot-done{{/if}}">
         <select name="travel.day.slot.{{index}}" {{#if @root.travel.forced}}disabled{{/if}}
                 aria-label="{{localize 'ACKS-FORMATION.travel.slotHint'}}"
-                data-tooltip="{{localize 'ACKS-FORMATION.travel.slotHint'}}">
+                data-tooltip-text="{{@root.travel.slotTip}}">
           <option value="" {{#if empty}}selected{{/if}}>—</option>
           {{#each options}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
         </select>
@@ -310,6 +310,10 @@
                        data-tooltip="{{localize 'ACKS-FORMATION.strip.slotDone'}}"></i>{{/if}}
       </span>
       {{/each}}
+      {{#if travel.slotsNotImported}}
+      <span class="hint acks-extras-formation-travel-slots-unimported"
+            data-tooltip-text="{{travel.slotTip}}">{{localize "ACKS-FORMATION.travel.slotsNotImported"}}</span>
+      {{/if}}
       <label>{{localize "ACKS-FORMATION.settlement.hourLabel"}}
         <select name="travel.hour">
           {{#each travel.hourOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}

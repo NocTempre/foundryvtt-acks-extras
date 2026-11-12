@@ -24,7 +24,7 @@ import {
   FORMATION_DOC_ID, PRODUCES, SPELUNKING_COLUMNS, WATER_KEYS, assembleFall, assembleFormationTables,
   assembleJumping, assembleSpelunking, applyFormationImport, firstCount, firstSentence, parseAdventuringCell,
   parseCarriedBody, parseDie, parseFeet, parseLeap, parseRestInterval, parseShareOf, parseStandingShare,
-  parseStretchFeet, parseWaterModifiers, signedFigures,
+  parseStretchFeet, parseWaterModifiers, signedFigures, assembleSpelunkingOutcomes, parseOutcomeCell,
 } from "../scripts/importer/formation-binding.mjs";
 import { assembleTravelTables, parseNavigationBonus } from "../scripts/importer/travel-binding.mjs";
 import { FORMATION_DOC, carriedBody, restEnforced, restInterval } from "../scripts/formation/constants.mjs";
@@ -118,6 +118,32 @@ eq("a cell that says neither is left out, never read as a refusal",
   assembleSpelunking({ ...GRID, adventuringFirst: { first: "see text", second: "8+", third: "" } }).adventuring.easyClimb, undefined);
 eq("the six obstacles are three columns over two grids", SPELUNKING_COLUMNS.map((c) => c.length), [3, 3]);
 
+/* --- what a missed throw costs: invented words, kept whole ----------------- */
+eq("an outcome cell keeps its words, its first letter raised, and says whether they name a fall",
+  parseOutcomeCell("  tumbles off  the  edge "), { text: "Tumbles off the edge", falls: false });
+eq("a fall named anywhere in the words ends the attempt", parseOutcomeCell("Slip and fall, unless roped").falls, true);
+eq("a word that only contains the letters is no fall", parseOutcomeCell("Fallow ground, wait").falls, false);
+eq("an empty cell is no outcome", parseOutcomeCell(" "), null);
+const OUTCOME_GRID = {
+  failFirst: { first: "fall down", second: "wait", third: "fall far" },
+  botchFirst: { first: "wait", second: "slide", third: "fall down" },
+  headSecond: { first: "a", second: "b", third: "c" },
+  failSecond: { first: "fall over", second: "wait", third: "wait" },
+  botchSecond: { first: "wait", second: "fall over", third: "" },
+};
+const outcomes = assembleSpelunkingOutcomes(OUTCOME_GRID);
+eq("each obstacle takes its column's failed and botched cells", outcomes.easyClimb,
+  { fail: { text: "Fall down", falls: true }, botch: { text: "Wait", falls: false } });
+eq("a column's empty cell leaves that outcome out and keeps the other", outcomes.precariousLedge,
+  { fail: { text: "Wait", falls: false } });
+eq("all six obstacles are read", Object.keys(outcomes), SPELUNKING_COLUMNS.flat());
+eq("a row that did not read costs only its own outcomes",
+  Object.keys(assembleSpelunkingOutcomes({ ...OUTCOME_GRID, failSecond: { __missing: true }, botchSecond: { __missing: true } })),
+  SPELUNKING_COLUMNS[0]);
+eq("the assembled document carries the outcomes from their own raw table",
+  !!assembleFormationTables({ spelunkingOutcomeGrid: OUTCOME_GRID }).spelunkingOutcomes, true);
+eq("the outcomes are produced from that raw table", PRODUCES[FORMATION_DOC_ID].spelunkingOutcomes, "spelunkingOutcomeGrid");
+
 const assembled = assembleFormationTables({ jumpingProse: JUMP_PROSE, jumpingLandingProse: LANDING_PROSE, spelunkingGrid: GRID });
 eq("the document carries the three new tables beside the others", [!!assembled.jumping, !!assembled.fall, !!assembled.spelunking], [true, true, true]);
 eq("with their windows empty it carries none of them",
@@ -184,7 +210,7 @@ const engine = assembleFormationTables(raw);
 // The jumping, fall and Spelunking tables are fed their own windows above; the
 // invented pages here carry only the swimming and rest passages.
 eq("all eight figures assemble from the recipes' windows", Object.keys(engine).sort(),
-  Object.keys(PRODUCES[FORMATION_DOC_ID]).filter((k) => !["jumping", "fall", "spelunking"].includes(k)).sort());
+  Object.keys(PRODUCES[FORMATION_DOC_ID]).filter((k) => !["jumping", "fall", "spelunking", "spelunkingOutcomes"].includes(k)).sort());
 eq("the water penalties", engine.swimWaterModifiers, { rough: -6, cold: -11 });
 check("the proficiency bonus", engine.swimmingBonus === 3);
 check("the swimmer's share of speed", near(engine.swimSpeedShare, 1 / 3));

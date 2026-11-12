@@ -5503,3 +5503,36 @@ figure; until it does each says not imported. Several exports left the API
 `INCIDENT_DIE`), so `api.formation`'s reference page is stale until it is
 regenerated. `trap-rules.mjs` carries the same fall pair as literals and is
 left for its own row.
+
+*Superseded in part, the same day, by the entry below: what a failed and a
+botched throw cost at an obstacle is imported too.*
+
+## 2026-11-11 — The ancillary slot count and the obstacle outcomes are imported
+
+**Ruled.** Two owner rulings of 2026-11-11 (Q8 and Q9):
+
+- **Q8.** The day's ancillary slot count is the same printed fact as the
+  ancillary hours the `expedition` table already carries (RR p. 272), so it is
+  derived from them: one slot per `SLOT_HOURS` of those hours. With the hours
+  not imported a fresh day carries no slot and the day board says so. A day
+  stored with another number of slots is read as stored; no migration and no
+  compatibility code is written for an earlier version's data.
+- **Q9.** The failed-throw and botched-throw rows of the Spelunking grids
+  (RR p. 268) are imported as the `spelunkingOutcomes` table. The entry above
+  kept them in code as procedure; the new evidence is the owner's ruling that
+  an outcome's words, and which obstacle's outcome is a fall, are what the page
+  prints. What still ships is that a failure and a natural 1 each have their
+  own outcome, that a fall ends the climber's attempt and any other outcome
+  does not, and that the card prints the outcome.
+
+**Rejected.** Keeping the slot count as a record layout beside the imported
+hours: two readings of one printed fact. Reading the outcomes into the module's
+own outcome keys with lang strings for each: those strings paraphrase the page.
+A missed throw whose outcome is not imported letting the climb continue: that
+assumes the outcome costs nothing; it ends that climber's attempt instead and
+the card says not imported.
+
+**Cost.** `ANCILLARY_SLOTS` and `OUTCOME` leave `api.formation`, and
+`OBSTACLES` loses `fail` and `botch`; `readThrow` answers the imported outcome
+and `ends`. A world shows no ancillary slot and applies no obstacle outcome
+until it re-imports the Revised Rulebook's tables.

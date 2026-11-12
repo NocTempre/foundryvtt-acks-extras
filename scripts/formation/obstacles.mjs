@@ -11,17 +11,19 @@
  *    Mountaineering, and no roll changes that. Which is which, and the target
  *    an open one throws against, are printed: they arrive in the `spelunking`
  *    registered table (`adventuringTarget`);
- *  - **what does failure cost?** On the gentle obstacles, a round and nothing
- *    else. On the hard ones, a FALL — which is the difference between an
- *    inconvenience and a funeral;
- *  - **what does a natural 1 cost?** Usually the fall that failure did not;
+ *  - **what does a failed throw cost?** and **what does a natural 1 cost?**
+ *    Each is its own row of the tables, and both arrive in the
+ *    `spelunkingOutcomes` registered table (`obstacleOutcome`): the row's words,
+ *    which the card prints, and whether they name a fall. A fall ends that
+ *    climber's attempt; any other outcome leaves the next stretch to throw;
  *  - **is the climber helpless while doing it?** Some obstacles leave them
  *    Vulnerable in combat and one does not.
  *
  * One throw per stretch of the obstacle, the stretch being the imported figure
- * (`stretchFeet`). Nothing here knows a distance or a target: with the table
- * not imported an ordinary adventurer's attempt is reported as unknown, never
- * rolled against a guess.
+ * (`stretchFeet`). Nothing here knows a distance, a target or an outcome: with
+ * the table not imported an ordinary adventurer's attempt is reported as
+ * unknown, never rolled against a guess, and a missed throw whose outcome is
+ * not imported ends that climber's attempt rather than assume it cost nothing.
  *
  * A party has three ways to make a sheer face easy, and the module models the
  * outcome rather than the method: a rope secured by a proficient climber, a
@@ -29,52 +31,58 @@
  * `easy` for everyone who follows, which is what `assisted` means below.
  */
 import { postToJudges } from "../lib/roll-audience.mjs";
-import { MODULE_ID, formationValue } from "./constants.mjs";
+import { citeOf } from "../lib/tables.mjs";
+import { FORMATION_DOC, MODULE_ID, formationValue } from "./constants.mjs";
 
 const LANG_PREFIX = "ACKS-FORMATION.obstacles";
 
-/** Failure and botch outcomes, named so a card can say them plainly. */
-export const OUTCOME = Object.freeze({
-  noProgress: "noProgress",
-  fall: "fall",
-  fallUnlessGeared: "fallUnlessGeared", // survives with Climbing + Mountaineering gear
-  fallUnlessBurglar: "fallUnlessBurglar", // survives with Climbing + Cat Burglary
-  slowDescent: "slowDescent", // a rappel that fails merely slows to combat speed
-});
+/** The registered table a failed or botched throw's outcome is read from. */
+export const OUTCOMES_TABLE = "spelunkingOutcomes";
 
 /**
  * The Spelunking tables, as the procedure each obstacle runs: its label, which
- * way it goes, what a failure and a botch cost, and whether the climber is
- * helpless on it. The keys name the six columns, in the order the grids print
- * them (`importer/formation-binding.mjs` `SPELUNKING_COLUMNS`). What an
- * ordinary adventurer throws is not here: see `adventuringTarget`.
+ * way it goes, and whether the climber is helpless on it. The keys name the six
+ * columns, in the order the grids print them (`importer/formation-binding.mjs`
+ * `SPELUNKING_COLUMNS`). What an ordinary adventurer throws and what a missed
+ * throw costs are not here: see `adventuringTarget` and `obstacleOutcome`.
  */
 export const OBSTACLES = Object.freeze({
-  easyClimb: {
-    label: `${LANG_PREFIX}.easyClimb`, vertical: true,
-    fail: OUTCOME.noProgress, botch: OUTCOME.fallUnlessGeared, vulnerable: false,
-  },
-  sheerClimb: {
-    label: `${LANG_PREFIX}.sheerClimb`, vertical: true,
-    fail: OUTCOME.fallUnlessGeared, botch: OUTCOME.fall, vulnerable: true,
-  },
-  rappel: {
-    label: `${LANG_PREFIX}.rappel`, vertical: true, descendOnly: true,
-    fail: OUTCOME.slowDescent, botch: OUTCOME.fallUnlessGeared, vulnerable: true,
-  },
-  crawl: {
-    label: `${LANG_PREFIX}.crawl`, vertical: false,
-    fail: OUTCOME.noProgress, botch: OUTCOME.fallUnlessGeared, vulnerable: true,
-  },
-  narrowLedge: {
-    label: `${LANG_PREFIX}.narrowLedge`, vertical: false,
-    fail: OUTCOME.noProgress, botch: OUTCOME.fallUnlessBurglar, vulnerable: true,
-  },
-  precariousLedge: {
-    label: `${LANG_PREFIX}.precariousLedge`, vertical: false,
-    fail: OUTCOME.fallUnlessBurglar, botch: OUTCOME.fall, vulnerable: true,
-  },
+  easyClimb: { label: `${LANG_PREFIX}.easyClimb`, vertical: true, vulnerable: false },
+  sheerClimb: { label: `${LANG_PREFIX}.sheerClimb`, vertical: true, vulnerable: true },
+  rappel: { label: `${LANG_PREFIX}.rappel`, vertical: true, descendOnly: true, vulnerable: true },
+  crawl: { label: `${LANG_PREFIX}.crawl`, vertical: false, vulnerable: true },
+  narrowLedge: { label: `${LANG_PREFIX}.narrowLedge`, vertical: false, vulnerable: true },
+  precariousLedge: { label: `${LANG_PREFIX}.precariousLedge`, vertical: false, vulnerable: true },
 });
+
+/**
+ * What a missed throw costs at this obstacle: `which` is `"fail"` for a failed
+ * throw and `"botch"` for a natural 1. Answers `{text, falls}` — the words the
+ * card prints and whether they end the attempt — or null until the table holds
+ * that outcome. A Judge's override with no words reads as not imported.
+ *
+ * @param {string} kind a key of OBSTACLES
+ * @param {"fail"|"botch"} which
+ * @returns {{text: string, falls: boolean}|null}
+ */
+export function obstacleOutcome(kind, which) {
+  const cell = formationValue(OUTCOMES_TABLE)?.[kind]?.[which];
+  const text = typeof cell?.text === "string" ? cell.text.trim() : "";
+  return text ? { text, falls: cell.falls === true } : null;
+}
+
+/**
+ * Where an outcome came from, for its tooltip: the page the table was imported
+ * from, a Judge's override (which holds no page), or not imported.
+ * @param {{text: string}|null} outcome an `obstacleOutcome` result
+ */
+export function outcomeProvenance(outcome) {
+  if (!outcome) return game.i18n.localize("ACKS-FORMATION.chat.cadenceFrom.none");
+  const cite = citeOf(FORMATION_DOC, OUTCOMES_TABLE);
+  return cite
+    ? game.i18n.format("ACKS-FORMATION.chat.cadenceFrom.import", { cite })
+    : game.i18n.localize("ACKS-FORMATION.chat.cadenceFrom.override");
+}
 
 /**
  * What an adventurer with no climbing proficiency throws against at this
@@ -141,20 +149,24 @@ export function obstaclePlan({ kind, proficient = false, classThrow = null, assi
 }
 
 /**
- * Read one throw's result against a plan. Pure, so the outcome table is
- * testable without dice.
+ * Read one throw's result against a plan, testable without dice. A miss
+ * answers the imported outcome (`obstacleOutcome`, null while not imported)
+ * and `ends`: whether the climber's attempt stops here, which it does on a
+ * fall and on an outcome nobody imported.
  */
 export function readThrow({ plan, natural, total }) {
   if (!plan?.permitted || plan.target == null) return { ok: false, outcome: null };
   const success = total >= plan.target;
-  if (success) return { ok: true, success: true, outcome: "progress", vulnerable: plan.obstacle.vulnerable };
+  if (success) return { ok: true, success: true, outcome: "progress", ends: false, vulnerable: plan.obstacle.vulnerable };
+  // A natural 1 is its own row on the table, read apart from a plain miss.
+  const botch = natural === 1;
+  const outcome = obstacleOutcome(plan.effective ?? plan.kind, botch ? "botch" : "fail");
   return {
     ok: true,
     success: false,
-    // A natural 1 is its own row on the table, and on the hard obstacles it is
-    // the difference between standing still and falling.
-    outcome: natural === 1 ? plan.obstacle.botch : plan.obstacle.fail,
-    botch: natural === 1,
+    outcome,
+    ends: outcome == null || outcome.falls,
+    botch,
     vulnerable: plan.obstacle.vulnerable,
   };
 }
@@ -190,7 +202,7 @@ export async function attemptObstacle(members, { kind, assisted = false, feet = 
       const natural = roll.dice[0]?.results?.[0]?.result ?? roll.total;
       const read = readThrow({ plan, natural, total: roll.total });
       attempts.push({ ...read, natural, total: roll.total, roll });
-      if (read.outcome === OUTCOME.fall || read.outcome === OUTCOME.fallUnlessGeared || read.outcome === OUTCOME.fallUnlessBurglar) break;
+      if (read.ends) break;
     }
     results.push({ name: m.actor?.name, plan, attempts, blocked: false });
   }
@@ -207,8 +219,13 @@ export async function attemptObstacle(members, { kind, assisted = false, feet = 
         return `<li><strong>${r.name}</strong> — ${game.i18n.localize(`${LANG_PREFIX}.reason.${r.plan.reason}`)}</li>`;
       }
       const last = r.attempts[r.attempts.length - 1];
-      const key = last.success ? "progress" : last.outcome;
-      return `<li><strong>${r.name}</strong> — ${game.i18n.localize(`${LANG_PREFIX}.outcome.${key}`)}` +
+      // The imported words are free text from the Judge's book or override, so
+      // they are escaped; the tooltip says which of the two, or not imported.
+      const said = last.success
+        ? game.i18n.localize(`${LANG_PREFIX}.outcome.progress`)
+        : `<span data-tooltip-text="${foundry.utils.escapeHTML(outcomeProvenance(last.outcome))}">`
+          + `${foundry.utils.escapeHTML(last.outcome?.text ?? game.i18n.localize(`${LANG_PREFIX}.outcome.notImported`))}</span>`;
+      return `<li><strong>${r.name}</strong> — ${said}` +
         ` <span>(${r.attempts.map((a) => a.total).join(", ")})</span></li>`;
     }).join("")}</ul>`,
     rolls: results.flatMap((r) => (r.attempts ?? []).map((a) => a.roll)),

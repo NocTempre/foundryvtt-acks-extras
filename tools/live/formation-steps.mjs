@@ -562,7 +562,7 @@ const P = {
     if (!f) return { gone: true };
     const t = H.T.travelOf(f);
     return {
-      kind: t.day.kind, allTravel: (t.day.activities ?? []).length === 4 && t.day.activities.every((a) => a === "travel"),
+      kind: t.day.kind, allTravel: (t.day.activities ?? []).length > 0 && t.day.activities.length === H.T.ancillarySlots() && t.day.activities.every((a) => a === "travel"),
       logLen: (t.log ?? []).length, dayCount: t.dayCount, hexesEntered: t.day.hexesEntered ?? 0, offered: !!t.day.offered,
       ground: t.ground, road: t.road,
     };
@@ -1204,7 +1204,7 @@ try {
   bc = await run(gm, P.barCards, { t0, names });
   await trackAll(bc.uuids);
   const seenBar = await run(player, P.seen, { ids: bc.ids });
-  check("Override: Set it anyway writes forced, all four slots travel, one Judge-whispered card naming the walker", r.dialog && ds.kind === "forced" && ds.allTravel && bc.count === 1 && bc.gmOnly && !bc.othersNamed, { dialog: r.dialog, kind: ds.kind, allTravel: ds.allTravel, cards: bc.count, gmOnly: bc.gmOnly });
+  check("Override: Set it anyway writes forced, every slot the imported hours give is travel, one Judge-whispered card naming the walker", r.dialog && ds.kind === "forced" && ds.allTravel && bc.count === 1 && bc.gmOnly && !bc.othersNamed, { dialog: r.dialog, kind: ds.kind, allTravel: ds.allTravel, cards: bc.count, gmOnly: bc.gmOnly });
   check("Override: the player seat is not shown the whispered card", seenBar.every((x) => !x.visible && !x.inLog), { seen: seenBar });
 
   r = await run(gm, P.pickDay, { partyId: p3.id, value: "march", names });

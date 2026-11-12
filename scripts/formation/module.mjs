@@ -386,9 +386,10 @@ Hooks.once("init", () => {
     "restInterval", "carriedBodyStone", "carriedGearShare",
     "swimWaterModifiers", "swimmingBonus", "swimSpeedShare", "sinkFeetPerStone", "breathRounds",
     // Jumping and the Spelunking tables (`jumping.mjs`, `obstacles.mjs`): the
-    // jump's figures, what a fall deals, and the stretch and targets of the
-    // obstacles. Printed, so none of them ship.
-    "jumping", "fall", "spelunking",
+    // jump's figures, what a fall deals, the stretch and targets of the
+    // obstacles, and what a missed throw costs at each. Printed, so none of
+    // them ship.
+    "jumping", "fall", "spelunking", "spelunkingOutcomes",
   ]);
   // The delve's wandering throw: its die, the turns between throws, the throw
   // that meets a monster, and the encounter distance's dice
@@ -749,8 +750,13 @@ Hooks.once("init", () => {
      * 21 drops `alertness`, `trapfinding` and `skillBonus` from the
      * `PARTY_CHECKS` rows, which name a `rollKey` instead: the abilities
      * resolve each member's throw and its bonuses.
+     *
+     * 22 drops `travel.ANCILLARY_SLOTS` for `travel.ancillarySlots()`, which
+     * answers null with nothing imported, and drops `obstacles.OUTCOME` and the
+     * `fail`/`botch` keys of `OBSTACLES`: `readThrow` returns the imported
+     * outcome as `{text, falls}` or null, beside `ends`.
      */
-    apiVersion: 21,
+    apiVersion: 22,
     travel: { ...travel, ...journey, closeDay, offerDayEnd },
     weather,
     settlement,

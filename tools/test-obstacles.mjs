@@ -8,8 +8,8 @@ import { registerTable, resetTables, PRIORITY } from "../scripts/lib/tables.mjs"
 import { FORMATION_DOC } from "../scripts/formation/constants.mjs";
 import { SPELUNKING_COLUMNS } from "../scripts/importer/formation-binding.mjs";
 import {
-  OBSTACLES, OUTCOME, OBSTACLE_KEYS, adventuringTarget, stretchFeet, throwsFor, obstaclePlan, readThrow,
-  attemptObstacle,
+  OBSTACLES, OBSTACLE_KEYS, OUTCOMES_TABLE, adventuringTarget, stretchFeet, throwsFor, obstaclePlan, readThrow,
+  attemptObstacle, obstacleOutcome, outcomeProvenance,
 } from "../scripts/formation/obstacles.mjs";
 
 let passed = 0;
@@ -25,10 +25,18 @@ const SPELUNKING = {
   },
 };
 
-const load = (spelunking = SPELUNKING) => registerTable(
-  { id: FORMATION_DOC, source: "invented", tables: { spelunking } },
+/** The registered `spelunkingOutcomes` table, with invented words. */
+const OUTCOMES = {
+  easyClimb: { fail: { text: "Waits a moment", falls: false }, botch: { text: "Slips a little", falls: false } },
+  sheerClimb: { fail: { text: "Holds on", falls: false }, botch: { text: "Plummets", falls: true } },
+};
+
+const load = (spelunking = SPELUNKING, outcomes = OUTCOMES) => registerTable(
+  { id: FORMATION_DOC, source: "invented", tables: { spelunking, ...(outcomes ? { [OUTCOMES_TABLE]: outcomes } : {}) } },
   { priority: PRIORITY.WORLD, source: "test" },
 );
+
+globalThis.game = { i18n: { localize: (k) => k, format: (k, d) => `${k}${JSON.stringify(d)}` } };
 
 // ---- the shape the importer fills ------------------------------------------
 ok("the six obstacles are the six columns the binding reads, in order", () => {
@@ -104,18 +112,56 @@ ok("one column left out leaves only that obstacle unimported", () => {
   resetTables();
 });
 
-// ---- what a failure costs is the procedure ----------------------------------
-ok("failure and a natural 1 cost what the obstacle's procedure says", () => {
+// ---- what a missed throw costs is imported ----------------------------------
+ok("a failed throw and a natural 1 each read their own imported row", () => {
   load();
   const at = (kind, natural, total) => readThrow({ plan: obstaclePlan({ kind, proficient: true, classThrow: 10 }), natural, total });
-  assert.equal(at("easyClimb", 5, 5).outcome, OUTCOME.noProgress);
-  assert.equal(at("easyClimb", 1, 1).outcome, OUTCOME.fallUnlessGeared);
-  assert.equal(at("sheerClimb", 5, 5).outcome, OUTCOME.fallUnlessGeared);
-  assert.equal(at("sheerClimb", 1, 1).outcome, OUTCOME.fall);
-  assert.equal(at("rappel", 5, 5).outcome, OUTCOME.slowDescent);
-  assert.equal(at("narrowLedge", 1, 1).outcome, OUTCOME.fallUnlessBurglar);
-  assert.equal(at("precariousLedge", 5, 5).outcome, OUTCOME.fallUnlessBurglar);
+  assert.deepEqual(at("easyClimb", 5, 5).outcome, OUTCOMES.easyClimb.fail);
+  assert.equal(at("easyClimb", 5, 5).ends, false, "an outcome that names no fall leaves the next stretch to throw");
+  assert.deepEqual(at("easyClimb", 1, 1).outcome, OUTCOMES.easyClimb.botch);
+  assert.equal(at("easyClimb", 1, 1).botch, true);
+  assert.equal(at("easyClimb", 1, 1).ends, false, "a natural 1 whose row names no fall does not end it either");
+  assert.equal(at("sheerClimb", 5, 5).ends, false);
+  assert.equal(at("sheerClimb", 1, 1).ends, true, "a fall ends the attempt");
   assert.equal(at("crawl", 12, 12).outcome, "progress");
+  resetTables();
+});
+
+ok("a fixed rope reads the easy climb's outcomes", () => {
+  load();
+  const read = readThrow({ plan: obstaclePlan({ kind: "sheerClimb", assisted: true }), natural: 4, total: 4 });
+  assert.deepEqual(read.outcome, OUTCOMES.easyClimb.fail);
+  resetTables();
+});
+
+ok("an outcome not imported is null, and a miss on it ends the attempt rather than cost nothing", () => {
+  load(SPELUNKING, null);
+  for (const kind of OBSTACLE_KEYS) {
+    assert.equal(obstacleOutcome(kind, "fail"), null, kind);
+    assert.equal(obstacleOutcome(kind, "botch"), null, kind);
+  }
+  const read = readThrow({ plan: obstaclePlan({ kind: "crawl" }), natural: 3, total: 3 });
+  assert.equal(read.outcome, null);
+  assert.equal(read.ends, true);
+  load();
+  assert.equal(obstacleOutcome("crawl", "fail"), null, "an obstacle the table leaves out is not imported");
+  resetTables();
+});
+
+ok("a Judge's override with no words reads as not imported, and `falls` must be said", () => {
+  load(SPELUNKING, { easyClimb: { fail: { text: "  " }, botch: { text: "Slides", falls: "yes" } } });
+  assert.equal(obstacleOutcome("easyClimb", "fail"), null);
+  assert.deepEqual(obstacleOutcome("easyClimb", "botch"), { text: "Slides", falls: false });
+  resetTables();
+});
+
+ok("the outcome's tooltip names the imported page, the override, or not imported", () => {
+  registerTable({ id: FORMATION_DOC, source: "invented", cites: { [OUTCOMES_TABLE]: "XX p. 9" }, tables: { [OUTCOMES_TABLE]: OUTCOMES } },
+    { priority: PRIORITY.WORLD, source: "test" });
+  assert.match(outcomeProvenance(obstacleOutcome("easyClimb", "fail")), /cadenceFrom\.import.*XX p\. 9/);
+  registerTable({ id: FORMATION_DOC, tables: { [OUTCOMES_TABLE]: OUTCOMES } }, { priority: PRIORITY.OVERRIDE, source: "judge" });
+  assert.match(outcomeProvenance(obstacleOutcome("easyClimb", "fail")), /cadenceFrom\.override/);
+  assert.match(outcomeProvenance(null), /cadenceFrom\.none/);
   resetTables();
 });
 
@@ -137,6 +183,7 @@ function mockWorld(naturals) {
     users: [{ id: "gm", isGM: true }],
     i18n: { localize: (k) => k, format: (k, d) => `${k}${JSON.stringify(d)}` },
   };
+  globalThis.foundry = { utils: { escapeHTML: (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;") } };
   globalThis.ChatMessage = { create: async (m) => { posted.push(m); return m; } };
   globalThis.Roll = class {
     constructor(formula) { this.formula = formula; rolled.push(formula); }
@@ -177,7 +224,22 @@ await okAsync("a fall on the first stretch stops that member's throws", async ()
   const results = await attemptObstacle([{ actor: { name: "Ayla" }, proficient: true, classThrow: 9 }],
     { kind: "sheerClimb", feet: 120 });
   assert.equal(world.rolled.length, 1);
-  assert.equal(results[0].attempts[0].outcome, OUTCOME.fall);
+  assert.deepEqual(results[0].attempts[0].outcome, OUTCOMES.sheerClimb.botch);
+  assert.match(world.posted[0].content, /Plummets/, "the card prints the imported words");
+  assert.match(world.posted[0].content, /data-tooltip-text="[^"]*cadenceFrom/, "with a tooltip saying where they came from");
+  resetTables();
+});
+
+await okAsync("imported words reach the card escaped, and an unimported outcome says so", async () => {
+  load(SPELUNKING, { crawl: { fail: { text: "<b>Stuck</b>", falls: false } } });
+  let world = mockWorld([2, 2]);
+  await attemptObstacle([{ actor: { name: "Ayla" } }], { kind: "crawl", feet: 80 });
+  assert.match(world.posted[0].content, /&lt;b>Stuck&lt;\/b>/);
+  world = mockWorld([2]);
+  const results = await attemptObstacle([{ actor: { name: "Ayla" } }], { kind: "narrowLedge", feet: 80 });
+  assert.equal(world.rolled.length, 1, "a miss with no outcome imported stops that climber");
+  assert.equal(results[0].attempts[0].outcome, null);
+  assert.match(world.posted[0].content, /obstacles\.outcome\.notImported/);
   resetTables();
 });
 

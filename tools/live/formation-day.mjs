@@ -1465,7 +1465,7 @@ const P = {
     };
   },
 
-  /** The day board's slot selects as drawn, and the record's activities. */
+  /** The day board's slot selects as drawn, the record's activities, and the slot count this seat's import gives. */
   jSlots: async ({ partyId, fid }) => {
     const H = globalThis.__a1;
     const el = H.root(game.actors.get(partyId).sheet);
@@ -1473,6 +1473,7 @@ const P = {
     return {
       selects: [...el.querySelectorAll('select[name^="travel.day.slot."]')].map((s) => ({ name: s.getAttribute("name"), value: s.value, disabled: s.disabled })),
       activities: day.activities ?? null, kind: day.kind ?? null,
+      count: H.T.ancillarySlots(),
     };
   },
 
@@ -1540,6 +1541,17 @@ const P = {
     out.lineHasMissing = at("tablesMissing") >= 0;
     out.lineTerrainThenWashedOut = at("terrain.hills") >= 0 && at("road.washedOut") > at("terrain.hills");
     out.lineEntries = line ? line.split(" · ").length : 0;
+    // The ancillary slot count rides the same expedition table: with it absent
+    // the count is unknown, a fresh day carries no slot, and the day board
+    // draws none and says the hours are not imported, whatever the stored day holds.
+    try {
+      const tv = view.buildTravelView(f);
+      out.slotCount = H.T.ancillarySlots();
+      out.freshSlots = H.T.freshDay().activities.length;
+      out.boardSlots = tv.slots?.length ?? null;
+      out.boardSaysNotImported = tv.slotsNotImported === true;
+      out.slotTipNotImported = String(tv.slotTip ?? "").includes(H.loc("ACKS-FORMATION.chat.cadenceFrom.none"));
+    } catch (e) { out.slotsError = String(e?.message ?? e); }
     return out;
   },
 
@@ -2717,14 +2729,15 @@ async function journey(gm, player, census) {
   }
   const s2 = await page(gm, P.jSlots, { partyId: party.id, fid });
   note("slots under the forced march", s2);
-  check("step 2: the four ancillary slots read as consumed: each select shows travel and is disabled, and the record holds travel four times", s2.selects.length === 4 && s2.selects.every((s) => s.disabled && s.value === "travel") && same(s2.activities, ["travel", "travel", "travel", "travel"]), s2);
+  check("step 2: the ancillary slots, one per slot the imported hours give, read as consumed: each select shows travel and is disabled, and the record holds travel in every slot", Number.isInteger(s2.count) && s2.count > 0 && s2.selects.length === s2.count && s2.selects.every((s) => s.disabled && s.value === "travel") && same(s2.activities, Array(s2.count).fill("travel")), s2);
   const rf = await page(gm, P.jRefuse, { fid });
-  check("step 2: a slot edit sent under the forced march is refused (the four travel stand)", rf.unchanged && same(rf.after, ["travel", "travel", "travel", "travel"]), rf);
+  check("step 2: a slot edit sent under the forced march is refused (every travel slot stands)", rf.unchanged && same(rf.after, Array(s2.count).fill("travel")), rf);
 
   section("journey step 2: the readout with no travel tables, then with invented rows at priority 20 (the player seat's registry; no automation runs there)");
   const rNone = await page(player, P.jReadout, { partyId: party.id, fid, phase: "none" });
   note("readout, no travel document", rNone);
   check("step 2 (no tables): the readout carries the tablesMissing line and prices no terrain and no road; its multiplier is the weather conditions' alone and its miles are the forced pace's (the strip shows them)", rNone.stripFound && rNone.dayKind === "forced" && !rNone.hasTravelAfter && rNone.tablesMissingPart && rNone.lineHasMissing && rNone.terrainParts === 0 && rNone.roadParts === 0 && rNone.byPaceAndConditionsAlone && rNone.readoutForced && rNone.stripMilesIsForced, { parts: rNone.parts, conditionParts: rNone.conditionParts, byPaceAndConditionsAlone: rNone.byPaceAndConditionsAlone, lineHasMissing: rNone.lineHasMissing, readoutForced: rNone.readoutForced, stripMilesIsForced: rNone.stripMilesIsForced, contextError: rNone.contextError ?? null });
+  check("step 2 (no tables): the ancillary slot count is not imported: ancillarySlots() is null, a fresh day carries no slot, and the day board draws none though the stored forced march holds them, saying not imported with the not-imported tooltip", rNone.slotCount === null && rNone.freshSlots === 0 && rNone.boardSlots === 0 && rNone.boardSaysNotImported && rNone.slotTipNotImported, { slotCount: rNone.slotCount, freshSlots: rNone.freshSlots, boardSlots: rNone.boardSlots, boardSaysNotImported: rNone.boardSaysNotImported, slotTipNotImported: rNone.slotTipNotImported, slotsError: rNone.slotsError ?? null });
   // The smith is not the player seat's, so that seat prices the party at 0 and
   // every pace's miles agree; "step 2 again" reads the paces on a party whose
   // every member the seat owns.
@@ -2733,13 +2746,14 @@ async function journey(gm, player, census) {
   note("readout, invented rows", rInv);
   const keys = rInv.parts?.map((p) => p.key) ?? [];
   check("step 2 (invented rows): terrain first (hills x0.37), then the earth road worth nothing in the rain (road.washedOut, x1, noted); no tablesMissing; the multiplier is the no-tables one x0.37 and the miles the forced pace's of it (the strip shows them)", keys[0] === "terrain.hills" && rInv.parts[0].factor === 0.37 && keys[1] === "road.washedOut" && rInv.parts[1].factor === 1 && rInv.parts[1].note && !rInv.tablesMissingPart && rInv.ratioToNone === 0.37 && rInv.readoutForced && rInv.stripMilesIsForced && rInv.lineTerrainThenWashedOut, { parts: rInv.parts, ratioToNone: rInv.ratioToNone, lineTerrainThenWashedOut: rInv.lineTerrainThenWashedOut, lineEntries: rInv.lineEntries, readoutForced: rInv.readoutForced, stripMilesIsForced: rInv.stripMilesIsForced });
+  check("step 2 (invented rows): the invented ancillaryHours 3 give a slot count of 3 and a fresh day of 3 slots; the board no longer says not imported", rInv.slotCount === 3 && rInv.freshSlots === 3 && !rInv.boardSaysNotImported && !rInv.slotTipNotImported, { slotCount: rInv.slotCount, freshSlots: rInv.freshSlots, boardSlots: rInv.boardSlots, boardSaysNotImported: rInv.boardSaysNotImported });
   const rBack = await page(player, P.jReadout, { partyId: party.id, fid, phase: "restore" });
   note("readout teardown", rBack);
   check("step 2 teardown: unregistering priority 20 and reload() put the world's travel document back on the player seat", rBack.hasTravel === rNone.before?.hasTravel && rBack.layer20Keys === rNone.before?.layer20Keys && !rBack.liveCheck && !rBack.invented && rBack.override === rNone.before?.override, { rBack, before: rNone.before });
   const back = await page(gm, P.frameField, { partyId: party.id, fid, name: "travel.day.kind", kind: "select", value: "march", path: "travel.day.kind" });
   const s3 = await page(gm, P.jSlots, { partyId: party.id, fid });
   note("slots back on the dedicated march", s3);
-  check("step 2: back on Dedicated march the slots return EMPTY (not the forced march's travel) and take edits again", back.recordOk && s3.selects.length === 4 && s3.selects.every((s) => !s.disabled && s.value === "") && (s3.activities ?? []).every((a) => !a), s3);
+  check("step 2: back on Dedicated march the slots return EMPTY (not the forced march's travel), one per slot the imported hours give, and take edits again", back.recordOk && Number.isInteger(s3.count) && s3.selects.length === s3.count && s3.selects.every((s) => !s.disabled && s.value === "") && (s3.activities ?? []).every((a) => !a), s3);
 
   section("journey step 1: the party token moved while journeying (feet-scale scene; the earth road is followed, so no navigation throw is owed)");
   const d1 = await page(gm, P.jDrag, { fid, dx: 0, dy: 500 });

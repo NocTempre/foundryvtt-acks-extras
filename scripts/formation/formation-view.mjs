@@ -51,7 +51,7 @@ import { driftSummary } from "./lost.mjs";
 import { shadowFor, shadowsOf, truePositionToken } from "./shadow.mjs";
 import {
   travelOf, trueTravelOf, countryOf, tokenCentre, dayBudget, dayIsSpent, effectiveSeason, navigationOwed,
-  DAY_KINDS, ANCILLARY_ACTIVITIES, FOLLOWING_KINDS, ROAD_KINDS, SHOWN_KINDS, TERRITORY_KEYS,
+  ancillarySlots, ancillarySlotsProvenance, DAY_KINDS, ANCILLARY_ACTIVITIES, FOLLOWING_KINDS, ROAD_KINDS, SHOWN_KINDS, TERRITORY_KEYS,
 } from "./travel.mjs";
 import { episodeScene } from "./lost-episode.mjs";
 import { compassBetween, compassPad } from "./plate.mjs";
@@ -1375,7 +1375,12 @@ export function buildTravelView(formation, { asPlayer = !game.user?.isGM } = {})
     value,
     label: game.i18n.localize(cfg.label),
   }));
-  view.slots = (t.day.activities ?? []).map((value, index) => ({
+  // With the slot count not imported the board draws no slot, whatever the
+  // stored day carries, and says why; with it imported the day's own slots are
+  // drawn, as many as it was made with.
+  view.slotsNotImported = ancillarySlots() == null;
+  view.slotTip = `${game.i18n.localize("ACKS-FORMATION.travel.slotHint")} · ${ancillarySlotsProvenance()}`;
+  view.slots = (view.slotsNotImported ? [] : t.day.activities ?? []).map((value, index) => ({
     index,
     options: activityOptions.map((o) => ({ ...o, selected: o.value === value })),
     empty: value == null,
