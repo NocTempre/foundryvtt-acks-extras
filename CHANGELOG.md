@@ -190,7 +190,9 @@
   there) and takes armour class off a heavy armour for each whole stone it
   takes. The item sheet's Durability tab says how the item stands; the armour
   class lost is a figure of its own that a scavenged condition leaves alone,
-  and hovering the AC names both. The Electric damage type is now named Electrical everywhere. A world
+  and hovering the AC names both. The Judge gives the loss back from an
+  armour's item sheet, pencil armed → Durability tab → Restore lost AC, which
+  asks first and leaves a scavenged condition as it is. The Electric damage type is now named Electrical everywhere. A world
   imported before this release runs Rules tables again to read them.
 - **The special maneuvers' penalties are read from your Rulebook.** Each
   manoeuvre's attack penalty, what Combat Trickery takes off it and puts on
@@ -451,7 +453,9 @@
   throws proficiently what the Revised Rulebook names, a bottle, a flask, a
   rock, a stick or a torch, and a vial; an item named only a
   grenade, a jar or a pot was in that list too, and no page puts it there. Its
-  own grant decides now, or the Judge's grenade tag.
+  own grant decides now. A Judge's own grenade is everyone's throw as any
+  throwable is, through its Weapon type (its item sheet → Construction tab), a
+  name that says flask or bottle, or a splash special or tag; no tag marks it.
 - **Light and noise no longer modify encounter throws.** The optional setting
   that shifted the party formation's wandering-monster throw by the party's
   light and pace, in Settings tab → Game Settings → ACKS II — Extras, was a
@@ -467,7 +471,8 @@
   nothing matches opens with Category *Unknown* (the ability's sheet →
   Mechanics tab → Classification). The Training strip on a character sheet's
   Stats tab counts only an ability whose category says it trains. A new
-  ability made by hand also opens with Category *Unknown* until you pick one.
+  ability made by hand also opens with Category *Unknown* until you pick one,
+  except a skill added with a Follower Card's Add skill, which opens as a Skill.
   A monster already in a world gets its abilities rebuilt this way when it is
   imported again or its shelf is repaired.
 - **The repair tool names its Abilities group.** In the repair tool
