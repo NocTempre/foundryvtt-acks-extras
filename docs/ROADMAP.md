@@ -217,4 +217,16 @@ browser/Foundry allowlist becomes the shared base, each repo's additions sit
 beside it, and `validate.mjs` calls the gate instead of each repo's
 `validate-extra`.
 
+## Book text still in comments and lang strings
+
+- **Comments that quote a book sentence.** The 2026-09-23 quote audit cleared
+  equipment, formation and lib; what remains sits mostly in the importer, with
+  a few each in classes, location, markets, henchmen and influence. Many
+  importer hits are compile anchors, which are structural, so each hit needs a
+  reviewer's call rather than a sweep.
+- **Lang strings a user reads that print a figure.** Influence, henchmen,
+  formation and equipment still hold keys whose text states a number. Each key
+  is ruled printed (it moves onto the import, `acks-printed-value`) or
+  structural (it stays), after a recount against the 2026-11-11 imports.
+
 ---

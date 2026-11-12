@@ -1365,3 +1365,48 @@ than on authoring:
   tier's cost line as a value with the tier's power, the history as its
   description. A content kind end to end — row, compiler, binding — rather
   than a row for a kind that exists.
+
+## Switching off the books statted for OSE
+
+The line goes dormant in one commit, with the files left in place:
+`OSE_BOOKS_ACTIVE` false; the grouped imports that wire the OSE files in
+commented out (the importer's `module.mjs` with its `ose*` api keys and the
+`oseSources` setting, the monster sheet's Source tool, `cookbook.mjs`'s
+`ose-source`); `stepOseBooks` and the `OseCreatures` kind removed together, as
+the chain pins require; `lineOf`, `bookOfCookbookId`, `bookLabel` and
+`isPlaceClaim` answering an `ose.*` id without the setting; and an `ose.*`
+claim reading as not offered, so a repair counts it and writes nothing. The
+compile loop then skips a book `BOOKS` lacks. Turning the line back on is
+uncommenting and flipping. Already in place: the loader never fetches a book
+`BOOKS` lacks (`offeredBookFiles`), and the adventure place and the group-id
+grammar every book uses live outside the OSE files.
+
+## Time phrases inside compiled roll specs
+
+Some roll specs carry a printed time cost inside their condition string, some
+notes paraphrase the page, and `def.prof.armorTraining` carries a literal. The
+fix is a duration locator read at compile, with the armour-training step
+imported.
+
+## A placeholder Import Everything leaves
+
+`resolveLegacyText` replaces every `@PdfText` tag the seat can and counts the
+rest: an entry id the cookbook no longer carries, a book not open on the seat,
+or a locked pack. A world was seen holding one; which case it is waits on that
+document's row in Repair This World.
+
+## Book-level Rebuild and Repair never reach a rulebook's actors
+
+A library template rebuilt from its own row comes back in the current shape,
+and a sidebar copy no longer absorbs the family's rebuild. Book-level Rebuild,
+Repair and Import Everything still never reach a rulebook's actors, nor some
+other kinds, so a template imported before 11.14.0 keeps its old roles until
+it is rebuilt from its own row.
+
+## The culture registry's printed names
+
+The culture registry in `table-recipes.mjs` carries ids, labels, and
+appearance and name-list anchors that are printed names, and one more
+people word sits in `identity.mjs` and `racial.mjs`. The name rule
+(`.claude/rules/ip-doctrine.md`) wants a neutral label, an ordinal id and a
+locator for each, with the words imported.
