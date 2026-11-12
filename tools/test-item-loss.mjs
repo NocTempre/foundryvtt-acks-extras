@@ -27,11 +27,25 @@ class StubApplicationV2 {
   render() { return this; }
   close() { return this; }
 }
+// A confirm the way core resolves one: a pressed button answers its callback
+// and, where that is nullish, its own action string; closing answers null.
+let pressed = "yes";
+const asked = [];
+class DialogV2 {
+  static async prompt() { return null; }
+  static async confirm({ yes = {}, no = {}, ...config } = {}) {
+    yes.callback ??= () => true;
+    no.callback ??= () => false;
+    asked.push(config);
+    if (pressed === "close") return null;
+    return (await { yes, no }[pressed].callback()) ?? pressed;
+  }
+}
 globalThis.foundry = {
   utils: { deepClone: (x) => JSON.parse(JSON.stringify(x)), randomID: () => "rand0000", mergeObject: (a, b) => ({ ...a, ...b }) },
   data: { operators: { ForcedDeletion: class ForcedDeletion {} } },
   applications: {
-    api: { ApplicationV2: StubApplicationV2, HandlebarsApplicationMixin: (Base) => class extends Base {}, DialogV2: class { static async prompt() { return null; } } },
+    api: { ApplicationV2: StubApplicationV2, HandlebarsApplicationMixin: (Base) => class extends Base {}, DialogV2 },
     handlebars: { loadTemplates: () => {} },
     instances: new Map(),
   },
@@ -43,6 +57,7 @@ const { applyItemLoss, planMarkup } = await import(new URL("item-loss-flow.mjs",
 const { loseArmourClass, setItemLossAc, clearScavenged, setScavenged, scavengeItem } = await import(new URL("actions.mjs", S));
 const { itemLossAcOf } = await import(new URL("properties.mjs", S));
 const { conditionOf } = await import(new URL("item-sheet/snapshot.mjs", S));
+const { restoreItemLoss } = await import(new URL("item-loss-flow.mjs", S));
 const { registerTable, unregisterTable, PRIORITY } = await import(new URL("../lib/tables.mjs", S));
 
 let pass = 0;
@@ -154,6 +169,26 @@ check("a loss of nothing, or on a non-armour, is refused", (await loseArmourClas
 await setItemLossAc(mail, 0);
 check("setting the loss to 0 restores the armour and drops the baseline", mail.system.ac.value === 6 && mail._flags.itemLossAc === undefined && mail._flags.pristine === undefined);
 check("a clean armour is not damaged", conditionOf(mail, null).damaged === false);
+
+// --- the Durability tab's restore control ----------------------------------------
+await loseArmourClass(mail, 3);
+check("the tab's condition carries the lost count for the control", conditionOf(mail, null).itemLossAc === 3 && conditionOf(doc("Whole", 30, { type: "armor", ac: 6 }), null).itemLossAc === 0);
+asked.length = 0;
+pressed = "no";
+check("a Cancel restores nothing", (await restoreItemLoss(mail)) === false && itemLossAcOf(mail) === 3 && mail.system.ac.value === 3);
+pressed = "close";
+check("a closed confirm restores nothing", (await restoreItemLoss(mail)) === false && itemLossAcOf(mail) === 3);
+check("each ask names the item and the count, and the module's classes", asked.length === 2 && asked.every((a) => /restoreBody \{&quot;name&quot;:&quot;Mail&quot;,&quot;n&quot;:3\}/.test(a.content) && a.classes.includes("acks-extras-scroll")));
+pressed = "yes";
+check("a yes gives the armour class back, drops the flag and the baseline", (await restoreItemLoss(mail)) === true && mail.system.ac.value === 6 && mail._flags.itemLossAc === undefined && mail._flags.pristine === undefined);
+asked.length = 0;
+check("with nothing lost there is nothing to ask", (await restoreItemLoss(mail)) === false && asked.length === 0);
+await setScavenged(mail, { labels: ["Worn"], damage: 0, attack: 0, initiative: 0, encumbrance: 0, ac: -1, breaks: false, cannotSneak: false, notes: [], valueMultiplier: 1 });
+await loseArmourClass(mail, 2);
+pressed = "yes";
+await restoreItemLoss(mail);
+check("a restore leaves the scavenged condition standing", mail._flags.itemLossAc === undefined && mail._flags.scavenged?.ac === -1 && mail.system.ac.value === 5);
+await clearScavenged(mail);
 
 registerTable({
   id: "equipment",

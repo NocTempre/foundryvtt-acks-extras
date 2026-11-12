@@ -122,6 +122,16 @@ test("tabs appear in the one fixed order and only when they have data", () => {
   assert.deepEqual(keys, TAB_ORDER.filter((k) => keys.includes(k)));
   assert.equal(m.simple, false);
 });
+test("the restore control is offered to an armed Judge, and only while item loss has taken armour class", () => {
+  const armour = (lost) => base({ type: "armor", condition: { labels: [], damaged: lost > 0, destroyed: false, material: "iron", acNow: 3, acFull: 6, notes: [], itemLossAc: lost } });
+  const offered = (snap, viewer) => buildItemSheetModel(snap, viewer).durability.restoreLoss;
+  assert.deepEqual(offered(armour(3), { isGM: true, editable: true, editing: true }), { n: 3 });
+  assert.equal(offered(armour(0), { isGM: true, editable: true, editing: true }), null, "nothing lost, nothing to restore");
+  assert.equal(offered(armour(3), { isGM: true, editable: true, editing: false }), null, "an unarmed sheet writes nothing");
+  assert.equal(offered(armour(3), { isGM: true, editable: false, editing: true }), null, "no permission to edit");
+  assert.equal(offered(armour(3), { isGM: false, editable: true, editing: true }), null, "a player's own sheet");
+  assert.equal(offered(armour(3), { isGM: true, previewAsPlayer: true, editable: true, editing: true }), null, "a Judge looking as a player");
+});
 test("the Holds toggle shows the gear declaration, and a container the record alone declares keeps its Contents", () => {
   const box = (declared) => ({ holds: true, declared, capacityStone: null, cap6: 0, load6: 0, locked: true, lockMod: 0, keys: [], accepts: [], refusal: "", contents: [], canSee: true });
   const locked = buildItemSheetModel(base({ container: box(false) }), { isGM: true, editable: true });

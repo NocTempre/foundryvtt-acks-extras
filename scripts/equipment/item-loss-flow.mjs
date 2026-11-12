@@ -22,7 +22,8 @@ import { damageTypeLabel } from "../lib/damage-type.mjs";
 import { STONE } from "../lib/item-model.mjs";
 import { citeOf } from "../lib/tables.mjs";
 import { getLoadout } from "./loadout.mjs";
-import { loseArmourClass, setDestroyed } from "./actions.mjs";
+import { loseArmourClass, setItemLossAc, setDestroyed } from "./actions.mjs";
+import { itemLossAcOf } from "./properties.mjs";
 import { overlayEnabled, planItemLoss, itemLossFigures, itemLossMaterials, lossMissing, ITEM_LOSS_TABLES } from "./overlays/item-loss.mjs";
 import { RULEDATA_DOC } from "./overlays/scavenged.mjs";
 
@@ -60,6 +61,28 @@ export async function applyItemLoss(plan) {
     }
   }
   return { applied: true, destroyed: plan.destroyed.length, damaged, acLost };
+}
+
+/**
+ * Give an armour the armour class item loss took from it, after a confirm. The
+ * confirm names the item and the count, and a Cancel or a closed window changes
+ * nothing. No callback is passed, so core's own yes (true) and no (false) stand.
+ * @param {Item} item an armour
+ * @returns {Promise<boolean>} whether the armour class was restored
+ */
+export async function restoreItemLoss(item) {
+  const lost = itemLossAcOf(item);
+  if (!(lost > 0)) return false;
+  const go = await foundry.applications.api.DialogV2.confirm({
+    classes: CLASSES,
+    window: { title: loc("itemLoss.restore") },
+    content: `<p>${esc(loc("itemLoss.restoreBody", { name: item.name, n: lost }))}</p>`,
+    yes: { label: loc("itemLoss.restoreYes") },
+    no: { label: loc("itemLoss.cancel") },
+    rejectClose: false,
+  });
+  if (go !== true) return false;
+  return setItemLossAc(item, 0);
 }
 
 /**

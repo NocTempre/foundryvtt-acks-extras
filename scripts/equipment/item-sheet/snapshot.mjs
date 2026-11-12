@@ -379,6 +379,7 @@ export function conditionOf(item, container) {
     acNow,
     acFull,
     acTip: acNow === null ? null : acTipOf({ full: acFull, scavenged: Number(sc?.ac ?? 0), lost }),
+    itemLossAc: lost,
     uses: Number.isFinite(qty?.value) && Number(qty?.max) > 0 ? { now: qty.value, max: qty.max } : null,
     breaks: !!sc?.breaks,
     notes: [...(sc?.notes ?? []), ...(sc?.cannotSneak ? [loc("itemSheet.condition.cannotSneak")] : [])],

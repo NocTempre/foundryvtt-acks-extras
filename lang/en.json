@@ -1807,6 +1807,10 @@
       "unplacedTip": "{weight} st, between {light} st and {heavy} st. The import holds no case for that weight, so it is yours to rule. {cite}",
       "fact": "Item loss",
       "factTip": "{weight} st. Light up to {light} st, heavy from {heavy} st. {cite}",
+      "restore": "Restore lost AC",
+      "restoreTip": "Item loss has taken {n} AC from this armor. Restoring gives it back and changes nothing else on the item.",
+      "restoreBody": "Give {name} back the {n} AC item loss took from it?",
+      "restoreYes": "Restore",
       "notImportedTip": "Not imported, so nothing is planned: {tables}. Import them from your own book.",
       "state": {
         "notImported": "Not imported",

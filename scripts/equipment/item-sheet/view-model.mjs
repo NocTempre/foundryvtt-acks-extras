@@ -20,7 +20,7 @@
  *              keys[], fragile, accepts[], refusal, contents[], canSee} | null
  *   spellbook  {pagesUsed, pagesCap, groups[]} | null
  *   chart      {sceneName, explored, pct} | null
- *   condition  {labels[], damaged, destroyed, material, acNow, acFull, uses, note,
+ *   condition  {labels[], damaged, destroyed, material, acNow, acFull, itemLossAc, uses, note,
  *              itemLoss}   itemLoss {state, tip} | null (overlay off)
  *              | null
  *   rolls      groups[{key, name, note, src, rows[{id, m, glyph, v, label,
@@ -363,6 +363,9 @@ export function buildItemSheetModel(snap, viewer = {}) {
           conditionLabel: dur.labels?.length ? dur.labels.join("; ") : null,
           acLine: dur.acNow !== null && dur.acNow !== undefined ? { now: dur.acNow, full: dur.acFull, tip: dur.acTip ?? "" } : null,
           lock: container?.holds || container?.locked || container?.lockMod ? container : null,
+          // Offered where Mark destroyed is (a Judge's armed sheet) and only
+          // while item loss has taken armour class: the count it would give back.
+          restoreLoss: gm && editing && Number(dur.itemLossAc) > 0 ? { n: dur.itemLossAc } : null,
         }
       : null,
     effects: {

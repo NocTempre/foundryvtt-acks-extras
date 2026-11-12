@@ -46,6 +46,12 @@
     <span class="acks-extras-item-sheet__fact-label" data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.condition.materialHint'}}">{{localize 'ACKS-EQUIPMENT.props.material'}}</span>
     <span class="acks-tag-group"><span class="acks-tag">{{durability.material}}</span></span>
     <span class="acks-spacer"></span>
+    {{#if durability.restoreLoss}}
+    <button type="button" class="acks-btn acks-btn--quiet acks-btn--sm" data-action="restoreItemLoss" aria-label="{{localize 'ACKS-EQUIPMENT.itemLoss.restore'}}" data-tooltip-text="{{localize 'ACKS-EQUIPMENT.itemLoss.restoreTip' n=durability.restoreLoss.n}}">
+      <i class="fa-solid fa-rotate-left" inert></i>
+      {{localize 'ACKS-EQUIPMENT.itemLoss.restore'}}
+    </button>
+    {{/if}}
     {{#if (and gm editing)}}
     <button type="button" class="acks-btn acks-btn--quiet acks-btn--sm" data-action="markDestroyed">
       <i class="fa-solid {{#if durability.destroyed}}fa-wrench{{else}}fa-heart-crack{{/if}}" inert></i>

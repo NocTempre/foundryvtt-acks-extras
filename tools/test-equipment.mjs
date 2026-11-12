@@ -385,12 +385,22 @@ const torchP = classifyWeapon(weapon("Torch", { melee: true, missile: true }));
 check("a torch is everyone's thrown, and carried", isWeaponProficient(swordsOnly, torchP, undefined, { attack: "thrown" }) && isWeaponProficient(swordsOnly, torchP));
 check("a torch swung in melee needs its grant", !isWeaponProficient(swordsOnly, torchP, undefined, { attack: "melee" }));
 // Beyond the table: anything that bursts, and a thrown thing the table
-// cannot place that its name calls a flask or a bottle, and a tagged grenade.
+// cannot place that its name calls a flask or a bottle. A tag marks nothing: a
+// Judge's own grenade reaches it by a Weapon type set on the item, by the name,
+// or by bursting, as every other throwable does.
 const acidP = classifyWeapon(weapon("Flask of acid", { missile: true, melee: false }));
 const brickP = classifyWeapon(weapon("Brick", { missile: true, melee: false }));
 const taggedP = classifyWeapon(weapon("Smoke charge", { missile: true, melee: false, tags: ["Grenade"] }));
 check("an unplaced thrown flask is everyone's", isWeaponProficient(swordsOnly, acidP));
-check("a grenade-tagged weapon is everyone's", isWeaponProficient(swordsOnly, taggedP));
+check("a grenade tag marks nothing: the item is no one's throw and no thrown weapon for it", taggedP.anyoneThrows === false && taggedP.thrown === false);
+// A Judge's own grenade, no row and no tag: each route that already exists.
+const byType = classifyWeapon(weapon("Smoke charge", { missile: true, melee: false, flags: { profileKey: "militaryoil" } }));
+const byName = classifyWeapon(weapon("Smoke flask", { missile: true, melee: false }));
+const bursts = classifyWeapon(weapon("Smoke charge", { missile: true, melee: false, tags: ["Splash"] }));
+check("a custom grenade with a throwables Weapon type set by hand is everyone's", byType.anyoneThrows === true && isWeaponProficient(swordsOnly, byType));
+check("a custom grenade whose name is a flask is everyone's", byName.anyoneThrows === true);
+check("a custom grenade that bursts (a splash tag) is everyone's", bursts.anyoneThrows === true);
+check("a category set by hand alone does not reach it", classifyWeapon(weapon("Smoke charge", { missile: true, melee: false, flags: { category: "other" } })).anyoneThrows === false);
 check("an unplaced throwable its name does not place is not everyone's", brickP.anyoneThrows === false);
 check("and with no class imported for it, its proficiency is undecided, not refused", isWeaponProficient(swordsOnly, brickP));
 check("a table-placed weapon is never read by name", classifyWeapon(weapon("Stick-handled mace", { melee: true, missile: true })).anyoneThrows === false);

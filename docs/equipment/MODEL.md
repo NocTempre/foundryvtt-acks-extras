@@ -182,10 +182,13 @@ the alternative made one typo silently non-proficient with everything.
 or a torch is thrown proficiently whatever the grants say (RR ch. 1, Weapon
 Proficiency). The classifier marks it `profile.anyoneThrows`: a row of a
 throwables kind (`weapon-source.mjs`, from the book's oil, holy water and torch
-entries), a thrown row whose printed name calls it a flask, bottle, vial,
-grenade, jar, pot, rock, stick or torch, anything that bursts (`splash`, or a
-`splash`/`grenade` custom tag), or a thrown weapon no row places whose own name
-says so. A placed weapon is never read by the item's name. `isWeaponProficient` answers yes for it, so
+entries), a thrown row whose printed name calls it a flask, bottle, vial, rock,
+stick or torch, anything that bursts (`splash`, or a `splash` custom tag), or a
+thrown weapon no row places whose own name says so. No tag marks a throwable:
+a Judge's own grenade is classified as every throwable is, through a Weapon
+type set on the item that names a throwables row, its name, or a burst. A
+category set by hand does not reach it, since the categories are the grants'
+and none is a throwables category. A placed weapon is never read by the item's name. `isWeaponProficient` answers yes for it, so
 carrying one equipped is never the non-proficient use package; only a melee
 swing (`{attack: "melee"}`, a torch) asks the grants, and `attack-mods.mjs`
 asks that for the swing alone, as the item roll groups' Non-proficient tag
@@ -980,8 +983,13 @@ reader's own book gave them. Nothing falls back to a shipped number.
   `itemLossAc` override and an `anyLayer` member in `recomputeItemFields`), so
   a scavenged roll, pick or clear, which rewrite the whole `scavenged` record,
   never touch it. `clearScavenged` is therefore not a repair of item loss: no
-  page prints one, so only `setItemLossAc(item, 0)` lowers it, and the sheet
-  has no control for that. The Durability tab's AC line reads full as the
+  page prints one, so only `setItemLossAc(item, 0)` lowers it. The one control
+  for that is the Durability tab's *Restore lost AC*, beside *Mark destroyed*
+  and offered on the same Judge's armed sheet, only while `itemLossAc` is above
+  zero (`durability.restoreLoss` in `item-sheet/view-model.mjs`): a
+  `DialogV2.confirm` (`item-loss-flow.mjs` `restoreItemLoss`) names the item
+  and the count, and only a yes gives the whole loss back. The Durability
+  tab's AC line reads full as the
   baseline plus the masterwork, silver and variation layers (neither wear
   layer), its `damaged` tag also stands on item loss, and its tooltip names
   the full figure, the scavenged condition and item loss, the last with the

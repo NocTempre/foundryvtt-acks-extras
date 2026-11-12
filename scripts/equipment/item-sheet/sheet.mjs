@@ -24,6 +24,7 @@ import { buildMagicPanel } from "../../markets/apps/magic-panel.mjs";
 import { ITEM_FLAG as MARKETS_FLAG } from "../../markets/constants.mjs";
 import { applyVariation, isVariationItem, removeVariation, revealVariation, concealVariation } from "../variation-items.mjs";
 import { containerFieldsOnlyWhenFired, disguiseItem, revealItem, setGearHolds, prepareTorch, readiedWeaponData, wearItem, removeItem, setDestroyed } from "../actions.mjs";
+import { restoreItemLoss } from "../item-loss-flow.mjs";
 import { PRISTINE, recomputeItemFields, layerDeltas, baseForTyped } from "../properties.mjs";
 import { containerOf, setLocked, storeIn, takeOut, setContainerRecord } from "../containers.mjs";
 import { isSpellbook, spellbookSpells, setSpellbookSpells, parseSpellList, formatSpellList } from "../spellbook.mjs";
@@ -91,6 +92,7 @@ export default class AcksItemSheet extends PicksMixin(HandlebarsApplicationMixin
       toggleLock: AcksItemSheet.#onToggleLock,
       removeKey: AcksItemSheet.#onRemoveKey,
       markDestroyed: AcksItemSheet.#onMarkDestroyed,
+      restoreItemLoss: AcksItemSheet.#onRestoreItemLoss,
       addEffect: AcksItemSheet.#onAddEffect,
       configureEffect: AcksItemSheet.#onConfigureEffect,
       deleteEffect: AcksItemSheet.#onDeleteEffect,
@@ -611,6 +613,12 @@ export default class AcksItemSheet extends PicksMixin(HandlebarsApplicationMixin
 
   static async #onMarkDestroyed() {
     await setDestroyed(this.item, !this.item.getFlag(MODULE_ID, SHEET_FLAGS.DESTROYED));
+  }
+
+  /** Give back the armour class item loss took, after the confirm; acts only where the model offered it. */
+  static async #onRestoreItemLoss() {
+    if (!this.#model?.durability?.restoreLoss) return;
+    await restoreItemLoss(this.item);
   }
 
   /* -------------------------------------------- */

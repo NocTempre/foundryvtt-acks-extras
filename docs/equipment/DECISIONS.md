@@ -1957,7 +1957,8 @@ The owner widened it to "grenades generally".
 **Ruled.**
 - The classifier marks the profile `anyoneThrows`, from a table tag on the four
   rows the table prints, from `splash` (whatever bursts is a flask or a
-  bottle), from a `splash` or `grenade` custom tag, and from the name of a
+  bottle), from a `splash` or `grenade` custom tag (the `grenade` part
+  superseded, 2026-11-11, at the end of this file), and from the name of a
   thrown weapon the table cannot place. A placed weapon is never read by name.
 - The mark makes the weapon proficient to carry and to throw. A melee swing
   asks the grants, since the page gives every class the throw alone; of the
@@ -2345,7 +2346,8 @@ thrown, and the jar is a store of components.
 
 **Rejected.** Keeping the three as a convenience: a word list is a rule, and
 the Judge's `grenade` tag still marks any item the Judge says bursts where it
-lands.
+lands. (That part is superseded by "A grenade tag marks a thrown weapon, not
+everyone's throw", at the end of this file.)
 
 **What it cost.** A thrown item no row places whose name is only "grenade",
 "jar" or "pot" is no longer thrown proficiently by every class; its grant
@@ -2394,7 +2396,8 @@ merged into the `scavenged` record. A scavenged roll, pick or clear writes the
 whole `scavenged` record, so a loss kept there was erased by a re-roll.
 `clearScavenged` leaves item loss alone: no page prints a repair for it, and
 the module does not invent one. The only writer that lowers it is
-`setItemLossAc`, which has no sheet control.
+`setItemLossAc`, which has no sheet control (superseded in that part, 2026-11-11:
+"Item loss can be undone from the Durability tab", at the end of this file).
 
 **Rejected.** Reading a scavenged clear as a repair of everything on the item:
 it ties two rules the books keep apart (RR p. 160, JJ p. 398).
@@ -2402,3 +2405,49 @@ it ties two rules the books keep apart (RR p. 160, JJ p. 398).
 **What it cost.** A Judge cannot restore a lost point from the Durability
 tab, and `api.equipment` does not expose `setItemLossAc`. No migration:
 nothing shipped with the earlier shape.
+
+## 2026-11-11 — A throwable needs no tag
+
+**Ruled** (owner, T-0514, superseding the 2026-11-10 "Everyone throws a flask"
+reading of a `grenade` custom tag, and the part of "Everyone throws the printed
+things, and a vial" that kept the tag). The new evidence is the owner's ruling
+of 2026-11-11: a grenade is just a specific case of a throwable weapon, and a
+throwable needs no special extra flag. No code reads a `grenade` tag, for
+everyone's throw or for thrown-ness, and none is offered anywhere. A Judge's
+own grenade is classified as every throwable is: a Weapon type set on the item
+that names a throwables row, a name the improvised reading matches, or a burst
+(`splash`, the row's special or a custom tag). The rule is unchanged: the
+improvised throwables stay proficient for every class (RR ch. 1, Weapon
+Proficiency). RR ch. 6 calls oil and torches splash weapons and prints no other,
+so the `splash` readings stand.
+
+**Rejected.** Reading the tag as "thrown" instead: it is the same extra flag
+under another meaning. A throwables category on the item: the categories are
+the grants' and a Judge's grenade has no printed one to read.
+
+**What it cost.** A grenade item no row places, whose name is no flask or
+bottle and that does not burst, is no one's throw until a Judge sets its Weapon
+type on the Construction panel to a throwables row. A category set by hand
+alone does not reach it.
+
+## 2026-11-11 — Item loss can be undone from the Durability tab
+
+**Ruled** (owner, T-0517, superseding the 2026-11-11 "Item-loss armour class is
+its own layer" statement that no sheet control lowers it). An armour that has
+lost armour class to item loss shows *Restore lost AC* on its Durability tab,
+beside *Mark destroyed*: only while `itemLossAc` is above zero, and only on a
+Judge's armed sheet, the gate Mark destroyed has. A confirm names the item and
+the count; a yes is `setItemLossAc(item, 0)`, which gives back the whole loss
+and drops the baseline if no other layer needs it. The new evidence is the
+owner's ruling that the restore is wanted. The page prints no repair for item
+loss (JJ p. 398), so this is a Judge's override and not a repair procedure;
+`clearScavenged` still leaves item loss alone, and `api.equipment` still does
+not expose `setItemLossAc`.
+
+**Rejected.** A partial restore by a chosen count: the ruling is a restore, and
+`loseArmourClass` already adds. Offering it to any user who may edit: a player's
+own armour would undo the Judge's item loss, where Mark destroyed is already a
+Judge's control.
+
+**What it cost.** Nothing is recorded of a restore; a Judge who wants the log
+keeps it by hand.

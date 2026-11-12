@@ -275,10 +275,20 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
      *Observable:* after each the AC line still carries the item-loss points
      (now-of-full, and an "Item loss" clause in the tooltip beside the
      "Scavenged condition" clause); clearing the condition alone does not
-     repair them. There is no sheet control or `api` entry to undo a loss: to
-     reset a test fixture, import `setItemLossAc` from
-     `/modules/acks-extras/scripts/equipment/actions.mjs` in the console and
-     call it with 0 on the item; AC returns to the full figure.
+     repair them.
+   - **Restore lost AC.** On the damaged armour (marker
+     `equipment/item-loss-armour`, with the scavenged condition still on it),
+     open its sheet as a GM, arm the pencil, Durability tab. *Observable:* a
+     *Restore lost AC* button sits beside *Mark destroyed*, its tooltip names the
+     lost count, and it has an `aria-label` and no `title`. Unarmed, as a
+     player seat that owns the armour, and with Preview as player on, the button
+     is absent. Press it and choose Cancel (then press it again and close the
+     window): the AC line and the Item loss clause are unchanged. Press it and
+     choose Restore: *Observable:* the AC line reads now-of-full with the loss
+     gone, the tooltip has no "Item loss" clause, the scavenged clause stays, the
+     button disappears, and `item.getFlag("acks-extras", "itemLossAc")` is
+     undefined. The same armour with no loss never shows the button. This is
+     also how a loss fixture is reset.
    - **Absent.** Unregister the tables (or use a world that never imported):
      *Observable:* the macro's dialog says what is not imported and offers no
      form, `planItemLoss` answers `ready: false`, and the Durability tab's Item
@@ -990,10 +1000,19 @@ grant for it (MODEL, "What every class throws is not a grant").
    *Observable:* `1d20`, no line. Cancel.
 6. The Stats tab's Training pills. *Observable:* no pill lit that the
    `swordDagger` grant does not light.
+7. A Judge's own grenade needs no tag. Add to the fixture a hand-made missile
+   `weapon` "Smoke charge" (no row, no tags) and set `system.equipped` on it.
+   *Observable:* `classifyWeapon(item).anyoneThrows` is false. Then, one at a
+   time: set its Weapon type (Construction tab) to the imported Military Oil
+   row; rename it "Smoke flask"; add the custom tag `splash` (rename it back
+   first). *Observable:* `anyoneThrows` is true after each, and false again once
+   each is undone. A custom tag `grenade` alone leaves it false, and the
+   item sheet's tag editor offers no Grenade suggestion. Undo the last edit; the
+   item is the run's, tracked and swept by its id.
 
 ### Teardown
 
-The fixture stays; the step 3 card is swept by id.
+The fixture stays; the step 3 card and the step 7 item are swept by id.
 
 ## Gear nobody annotated
 

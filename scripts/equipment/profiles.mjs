@@ -502,17 +502,17 @@ export function classifyWeapon(item) {
  *
  * A weapon row says so (`weaponThrowsAsAnyone`): a throwables kind, or a
  * thrown row whose printed name is one of the improvised throwables. Beyond the
- * rows, two readings make it every grenade and not only the rows marked:
- * anything that bursts where it lands (`splash`, the row's or a custom tag the
- * item carries, or a `grenade` tag) is a flask or a bottle whatever it holds,
- * and a thrown weapon the table cannot place is read by its name, so a Judge's
- * "Flask of acid" counts where nothing else could say so. A table-placed
- * weapon is never read by name — a "Stick-handled mace" is the mace.
+ * rows, two readings reach what the rows do not mark: anything that bursts
+ * where it lands (`splash`, the row's or a custom tag the item carries) is a
+ * flask or a bottle whatever it holds, and a thrown weapon the table cannot
+ * place is read by its name, so a Judge's "Flask of acid" counts where nothing
+ * else could say so. A table-placed weapon is never read by name — a
+ * "Stick-handled mace" is the mace.
  */
 function throwsAsAnyone(item, profile, tags) {
   const special = profile.special ?? [];
   if (weaponThrowsAsAnyone(profile.key) || special.includes("splash")) return true;
-  if (tags.has("splash") || tags.has("grenade")) return true;
+  if (tags.has("splash")) return true;
   if (profile.key) return false;
   return !!(profile.thrown || profile.missile) && IMPROVISED_THROWN.test(item?.name ?? "");
 }
