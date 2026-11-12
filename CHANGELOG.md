@@ -178,10 +178,26 @@
   Rules tables, with the Judges Journal connected) and no longer built into
   the module; without them the flow says "not imported" and plans nothing.
   Compendium tab → ACKS Extras Macros → Item Loss from Damage opens the
-  Judge's flow, which marks a light item destroyed and takes armour class off
-  a heavy armour, and the item sheet's Durability tab says how the item
-  stands. The Electric damage type is now named Electrical everywhere. A world
+  Judge's flow, which marks a light item destroyed when the loss left covers
+  its weight (with less, the item is marred to no effect and the loss ends
+  there) and takes armour class off a heavy armour for each whole stone it
+  takes. The item sheet's Durability tab says how the item stands; the armour
+  class lost is a figure of its own that a scavenged condition leaves alone,
+  and hovering the AC names both. The Electric damage type is now named Electrical everywhere. A world
   imported before this release runs Rules tables again to read them.
+- **The special maneuvers' penalties are read from your Rulebook.** Each
+  manoeuvre's attack penalty, what Combat Trickery takes off it and puts on
+  the target's save, the bonus an Entangling, Flexible or Incapacitating
+  weapon gives, and the hooked weapon's are read when you import the rules
+  tables (Settings tab → Game Settings → ACKS II — Extras → Manage imports →
+  Rules tables, with the Rulebook and the Monstrous Manual connected) and no
+  longer built into the module. A manoeuvre's row on a weapon's item sheet →
+  Rolls tab now shows the penalty the throw will carry, and hovering it names
+  the parts and the pages they were read from, or the Judge's figure from the
+  Ruledata Browser. A penalty not imported says so, shows no figure, and the
+  throw goes without it and says which tables it lacked. A world imported
+  before this release runs Rules tables again to read them. For module
+  authors, equipment's `MANEUVERS` no longer carries a penalty.
 - **The influence roller's tone pages read their modifiers from your Judges
   Journal.** On the Diplomacy, Intimidation and Seduction pages of the
   influence roller (the character sheet header's Influence button), each
@@ -191,6 +207,22 @@
   size. Hover a row for the page it came from; a row whose figure is not
   imported is greyed out and adds nothing. A world imported before this
   release runs Rules tables again to read them.
+- **The influence roller's results, ladders and bribe tiers are read from
+  your books.** In the influence roller (the character sheet header's
+  Influence button), the relationship ladder, each tone's results and how many
+  attitudes each shifts, the hireling-loyalty and irrefusable-offer results,
+  the age categories, the bewitching mark and the bribe tiers' bonuses, and on
+  a henchman's chat card the loyalty Insist costs, are read when you import
+  the rules tables (Settings tab → Game Settings → ACKS II — Extras → Manage
+  imports → Rules tables, with the Rulebook, the Judges Journal and the
+  Monstrous Manual connected) and no longer built into the module. Hover a
+  figure for the page it came from. Until they are imported the roller says
+  "not imported" where a figure would be, a roll with no imported result posts
+  its total and leaves the attitude as it was, and Insist re-rolls with no
+  loyalty cost and warns. A world imported before this release runs Rules
+  tables again to read them. For module authors, influence's `api.constants`
+  no longer carries `INFLUENCE_RELATIONSHIP_MOD` or `INFLUENCE_BANDS`, and the
+  influence-roll hook's band is `result1` to `result5`, or null.
 - **Henchman arrivals wait for the arrival schedule to be imported.** How many
   of a month's candidates arrive each week is read from your Rulebook (Settings
   tab → Game Settings → ACKS II — Extras → Manage imports → Rules tables) and
