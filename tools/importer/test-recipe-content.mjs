@@ -64,6 +64,7 @@ const TABLES = {
     "diplomacyReaction", "intimidationReaction", "seductionReaction",
     "diplomacyAttitude", "intimidationAttitude", "seductionAttitude",
     "hirelingLoyalty", "irrefusableOffer", "bribeTiers", "mysticAura", "characterAging",
+    "loyaltyChanges", "bribeCrime",
   ],
   // The henchman limit's base: one figure the roster counts every hire against.
   // The employer-level cap: the ladder a leveled henchman search is judged on.
@@ -349,6 +350,10 @@ VERIFY["influence.irrefusableOffer"] = (out, recipe, fail) => {
   proseKeys(out, recipe, fail);
   bandLadder(out?.bands, "bands", fail, 5);
   if (isNum(out?.oppositeAlignment) && !(Number.isInteger(out.oppositeAlignment) && out.oppositeAlignment < 0)) fail("oppositeAlignment: not a whole number below zero");
+  // The entering results' starts, worst first: whole numbers, each above the one before.
+  const starts = [out?.hesitateLoyalty, out?.acceptLoyalty, out?.elanLoyalty];
+  if (!starts.every(Number.isInteger)) fail("starts: not three whole numbers");
+  else if (!(starts[0] < starts[1] && starts[1] < starts[2])) fail("starts: not rising");
 };
 // The bribe tiers: three positive whole bonuses, each above the one before.
 VERIFY["influence.bribeTiers"] = (out, recipe, fail) => {
@@ -361,6 +366,18 @@ VERIFY["influence.bribeTiers"] = (out, recipe, fail) => {
 VERIFY["influence.mysticAura"] = (out, recipe, fail) => {
   proseKeys(out, recipe, fail);
   if (isNum(out?.at) && !(Number.isInteger(out.at) && out.at >= 2 && out.at <= 12)) fail("at: not a 2d6 total");
+};
+// RR 166's loyalty figures: the raising ones whole and above zero, the
+// lowering ones whole and below it.
+VERIFY["influence.loyaltyChanges"] = (out, recipe, fail) => {
+  proseKeys(out, recipe, fail);
+  for (const key of ["fanatic", "elan"]) if (!(Number.isInteger(out?.[key]) && out[key] > 0)) fail(`${key}: not a whole number above zero`);
+  for (const key of ["grudging", "forcedServitude"]) if (!(Number.isInteger(out?.[key]) && out[key] < 0)) fail(`${key}: not a whole number below zero`);
+};
+// The bribery charge mark: an unmodified 2d6 roll.
+VERIFY["influence.bribeCrime"] = (out, recipe, fail) => {
+  proseKeys(out, recipe, fail);
+  if (!(Number.isInteger(out?.natural) && out.natural >= 2 && out.natural <= 12)) fail("natural: not a 2d6 roll");
 };
 // Character Aging: each declared race a row of five categories, each a
 // `[first, last]` pair of whole years in order or null, and the categories of a

@@ -162,6 +162,7 @@ Hooks.once("init", () => {
   expectTables(MORALE_DOC, ["monsterMorale", "hirelingObedience"]);
   expectTables(INFLUENCE_DOC, [
     "hiringOffer", "apparentLevel", "hirelingLoyalty", "irrefusableOffer", "bribeTiers", "mysticAura", "characterAging",
+    "loyaltyChanges", "bribeCrime",
     "diplomacyModifiers", "intimidationModifiers", "seductionModifiers",
     "diplomacyReaction", "intimidationReaction", "seductionReaction",
     "diplomacyAttitude", "intimidationAttitude", "seductionAttitude",

@@ -4,6 +4,7 @@ import { postToJudges } from "../lib/roll-audience.mjs";
 import {
   INFLUENCE_ATTITUDE_LABELS,
   AGING_PAGE,
+  BRIBE_CRIME_PAGE,
   INFLUENCE_BAND_LABELS,
   INFLUENCE_DOC,
   INFLUENCE_MODIFIERS,
@@ -21,6 +22,7 @@ import {
 import {
   autoKeysByTone,
   bewitchMark,
+  bribeCrimeMark,
   classifyAlignment,
   computeDefaults,
   effectRowsForPage,
@@ -1332,7 +1334,14 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
     if (tone === INFLUENCE_TONE.DIPLOMACY && (Number(this.#modifiers[INFLUENCE_TONE.DIPLOMACY].bribe) || 0) > 0) {
       const hasBribery = getProficiencies(this.#actor).bribery;
       if (hasBribery) {
-        if (diceResult === 2) notes.push(game.i18n.localize("ACKS-INFLUENCE.note.bribeCrime"));
+        // The charge mark is the page's (RR 287); unread, the note says so and
+        // names no charge.
+        const mark = bribeCrimeMark();
+        if (mark === null) notes.push(game.i18n.localize("ACKS-INFLUENCE.note.bribeCrimeUnread"));
+        else if (diceResult === mark) {
+          const from = { docId: INFLUENCE_DOC, tableId: BRIBE_CRIME_PAGE.table, cite: BRIBE_CRIME_PAGE.cite };
+          notes.push(game.i18n.format("ACKS-INFLUENCE.note.bribeCrime", { origin: this.#figureTip(from, tone) }));
+        }
       } else {
         // Offered without the proficiency (RR 287): the note marks the risk and
         // cites the page, and never words the rule or its figure.

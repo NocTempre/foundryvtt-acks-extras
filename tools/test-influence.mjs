@@ -16,6 +16,7 @@ import { AGING_PAGE, BEWITCH_PAGE, EXTERNAL_MODES, INFLUENCE_DOC, INFLUENCE_MODI
 import {
   ageCategoryIndex,
   bewitchMark,
+  bribeCrimeMark,
   computeDefaults,
   effectRowsForPage,
   getActsAsPowers,
@@ -999,6 +1000,22 @@ t("the bewitching mark is the page's, or none", () => {
   registerTable({ id: INFLUENCE_DOC, tables: { [BEWITCH_PAGE.table]: { at: "n/a" } } }, { priority: PRIORITY.WORLD });
   assert.equal(bewitchMark(), null, "a value of the wrong kind is unread");
   resetTables();
+});
+
+const { BRIBE_CRIME_PAGE } = await import("../scripts/influence/constants.mjs");
+t("the bribery charge mark is the page's, or none", () => {
+  resetTables();
+  assert.equal(bribeCrimeMark(), null, "nothing imported names no mark");
+  registerTable({ id: INFLUENCE_DOC, tables: { [BRIBE_CRIME_PAGE.table]: { natural: 5 } } }, { priority: PRIORITY.WORLD });
+  assert.equal(bribeCrimeMark(), 5);
+  registerTable({ id: INFLUENCE_DOC, tables: { [BRIBE_CRIME_PAGE.table]: { natural: 8 } } }, { priority: PRIORITY.OVERRIDE });
+  assert.equal(bribeCrimeMark(), 8, "a Judge's override wins");
+  assert.equal(figureOrigin(BRIBE_CRIME_PAGE.table, INFLUENCE_DOC).state, "override", "and the note names the override");
+  resetTables();
+  const lang = JSON.parse(fs.readFileSync(new URL("../lang/en.json", import.meta.url), "utf8"));
+  for (const key of ["ACKS-INFLUENCE.note.bribeCrime", "ACKS-INFLUENCE.note.bribeCrimeUnread"]) {
+    assert.equal(/\d/.test(lang[key].replace(/\bRR \d+\b/g, "")), false, `${key}: states no figure`);
+  }
 });
 
 t("no lang string of the tone pages carries a magnitude", () => {

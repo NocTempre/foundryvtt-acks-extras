@@ -319,6 +319,27 @@ throw: `openLoyaltyRoll` hands `rules/loyalty.mjs > apparentLevelPenalty`
 in as the stepper's per-step figure. Unread, the throw takes no figure for
 the count and its info line names the count for the Judge to add by hand.
 
+**Loyalty results and starts are the import's.** `data/throws-data.mjs`
+ships no outcome table and no opposite-alignment figure; these, and the
+loyalty a result changes or a hire starts at, are read from the Judge's
+`influence` document and handed in by the opener:
+
+| Figure | Table (page) | Reader | Without it |
+|---|---|---|---|
+| Hireling Loyalty's result column | `hirelingLoyalty` (RR 166) | `rules/loyalty.mjs > hirelingLoyaltyOutcomes`, with the natural-roll clamps naming their rungs | the fallback throw posts its total and names no result; nothing is applied |
+| The permanent change of a Grudging or Fanatic result | `loyaltyChanges.grudging` / `.fanatic` (RR 166) | `loyaltyDeltaForOutcome` | no change is applied; the Judge is warned |
+| What an Accept with élan adds to a start | `loyaltyChanges.elan` (RR 166) | `engine/events.mjs > elanFigure` | nothing is added; the Judge is warned |
+| The Irrefusable Offer's result column and opposite-alignment figure | `irrefusableOffer` (MM 351) | `rules/irrefusable.mjs > irrefusableOutcomes`, `oppositeAlignmentFigure` | the throw rolls, names no result and hires nothing; the checkbox shows a dash and adds nothing |
+| The start of each entering Irrefusable result | `irrefusableOffer.hesitateLoyalty` / `acceptLoyalty` / `elanLoyalty` (MM 351) | `irrefusableStart` | the monster is not hired; the Judge is warned |
+| The start of a feigned acceptance (Betrayal, Escape) | `loyaltyChanges.forcedServitude` (RR 166) | `irrefusableStart` | as above |
+
+An Irrefusable start is the whole start: no élan figure is added to it. The
+provenance of an applied figure (`engine/events.mjs > originText`: the page,
+the Judge's override, or not imported) rides in the ledger entry's note for a
+loyalty change, in the hired event's note for a monster's start, and in the
+opposite-alignment checkbox's tooltip. A Judge edits any of them in the
+Ruledata Browser's override layer.
+
 ## 4. The Active Effect contract (data-driven modifiers)
 
 **Mechanics live on proficiency/power Items as Active Effect changes — never

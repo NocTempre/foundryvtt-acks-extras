@@ -65,6 +65,20 @@ export function optCite(docId, tableId) {
   return globalThis.acksExtras?.lib?.tables?.citeOf?.(docId, tableId) ?? null;
 }
 
+/**
+ * Where a table's figures come from right now: `override` when a Judge's
+ * layer holds the table, `imported` with the page it was read from, else
+ * `missing`. `citeOf` answers null for both an override and an absent table,
+ * so the layer is asked first.
+ * @returns {{state: "override"|"imported"|"missing", cite: string|null}}
+ */
+export function optOrigin(docId, tableId) {
+  const t = globalThis.acksExtras?.lib?.tables;
+  if (!optTable(docId, tableId)) return { state: "missing", cite: null };
+  if (t?.PRIORITY && t.getLayer?.(docId, t.PRIORITY.OVERRIDE)?.tables?.[tableId] != null) return { state: "override", cite: null };
+  return { state: "imported", cite: t?.citeOf?.(docId, tableId) ?? null };
+}
+
 /** Register a document directly (rarely needed; imports use ruledata-import). */
 export function initTables(doc) {
   return reg().registerTable(doc);

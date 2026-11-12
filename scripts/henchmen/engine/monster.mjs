@@ -11,8 +11,9 @@ import HenchmanRecord from "../data/henchman-record.mjs";
 import { henchmanWage } from "../rules/wages.mjs";
 import { startingLoyalty, effectiveLoyalty } from "../rules/loyalty.mjs";
 import { collectStringFlags, sumEffectModifiers, toDialogModifiers, collectEffectModifiers, unvaluedDialogModifiers } from "../effects.mjs";
-import { getTable } from "../rules/tables.mjs";
 import { hiringOffer } from "../rules/hiring-offer.mjs";
+import { IRREFUSABLE, irrefusableOutcomes, irrefusableStart, oppositeAlignmentFigure } from "../rules/irrefusable.mjs";
+import { elanFigure, originText } from "./events.mjs";
 import * as adapter from "../acks-adapter.mjs";
 import { openThrowDialog } from "../apps/throw-dialog.mjs";
 import { checkHenchmanLimit, limitReachedMessage } from "./hire.mjs";
@@ -88,11 +89,25 @@ export function recruitMonster(monster, employer, { captured = false } = {}) {
     ui.notifications.warn(game.i18n.localize("ACKS-HENCHMEN.recruit.hiringNotImported"));
     return;
   }
+  // The captured offer's column and opposite-alignment figure are the
+  // Judge's imported MM 351 table; unread, the throw still rolls, names no
+  // result and hires nothing.
+  let irrefusable = {};
+  if (captured) {
+    const outcomes = irrefusableOutcomes();
+    const opposite = oppositeAlignmentFigure();
+    if (!outcomes) ui.notifications.warn(game.i18n.localize("ACKS-HENCHMEN.loyaltyUnread.irrefusableBands"));
+    irrefusable = {
+      ...(outcomes ? { outcomes } : {}),
+      stepValues: opposite === null ? {} : { oppositeAlignment: opposite },
+      figureTips: { oppositeAlignment: originText(IRREFUSABLE, opposite !== null) },
+    };
+  }
   const dynamicModifiers = [...toDialogModifiers(collectEffectModifiers(employer, "hiring")), ...unvaluedDialogModifiers(employer, "hiring")];
   openThrowDialog(throwId, {
     ...(printed
       ? { outcomes: printed.outcomes, stepValues: { previousRefusals: printed.refusalPenalty, slander: printed.slanderPenalty } }
-      : {}),
+      : irrefusable),
     title: `${monster.name} — ${employer.name}`,
     actor: employer,
     derived: {
@@ -111,22 +126,33 @@ export function recruitMonster(monster, employer, { captured = false } = {}) {
       const outcome = result.outcome;
       Hooks.callAll(HOOKS.HIRING_OUTCOME, { monster, employer, result });
       if (captured) {
-        const loyaltyOnHire = getTable("throws", "irrefusableOfferOutcomes").loyaltyOnHire ?? {};
-        if (outcome === "betrayal" || outcome === "escape") {
-          // The monster FEIGNS acceptance — hire it, but the GM knows.
-          await hireMonster(monster, employer, { irrefusableOutcome: outcome, baseLoyalty: -4 });
-        } else if (outcome in loyaltyOnHire) {
-          await hireMonster(monster, employer, {
-            irrefusableOutcome: outcome,
-            irrefusable: loyaltyOnHire[outcome],
-            elan: outcome === "acceptElan",
-          });
-        }
+        await applyIrrefusableOutcome(monster, employer, outcome);
       } else if (outcome === "accept" || outcome === "acceptElan") {
         await hireMonster(monster, employer, { elan: outcome === "acceptElan" });
       }
     },
   });
+}
+
+/**
+ * Hire a captured monster on its Irrefusable Offer result (MM 351), at the
+ * imported start `irrefusableStart` gives it; a feigned acceptance is still
+ * hired, and the GM is told. Nothing is hired for a roll that named no
+ * result, or a result whose start is not imported, and the latter is warned.
+ * @returns {Promise<{actor: Actor}|null>}
+ */
+export async function applyIrrefusableOutcome(monster, employer, outcome) {
+  const start = irrefusableStart(outcome);
+  if (!start) return null;
+  if (start.figure === null) {
+    ui.notifications.warn(game.i18n.format("ACKS-HENCHMEN.loyaltyUnread.irrefusable", {
+      name: monster.name,
+      result: game.i18n.localize(`ACKS-HENCHMEN.outcome.${outcome}`),
+      cite: start.cite,
+    }));
+    return null;
+  }
+  return hireMonster(monster, employer, { irrefusableOutcome: outcome, irrefusable: start.figure, startOrigin: originText(start) });
 }
 
 /**
@@ -137,9 +163,10 @@ export function recruitMonster(monster, employer, { captured = false } = {}) {
 export async function hireMonster(monster, employer, opts = {}) {
   const hd = monsterHd(monster);
   const wage = henchmanWage(hd);
+  // An Irrefusable Offer start is the whole start: no élan figure rides on it.
   const loyaltyStart = startingLoyalty({
     base: opts.baseLoyalty ?? 0,
-    elan: !!opts.elan,
+    elan: opts.irrefusable == null ? elanFigure(monster.name, opts.elan) : 0,
     irrefusable: opts.irrefusable ?? null,
     bounds: adapter.loyaltyBounds(monster.type),
   });
@@ -173,7 +200,7 @@ export async function hireMonster(monster, employer, opts = {}) {
   const { previous } = await assignMonsterEmployer(monster, employer);
   await HenchmanRecord.logEvent(monster, {
     type: "hired",
-    note: game.i18n.format("ACKS-HENCHMEN.monster.hiredNote", { employer: employer.name, hd }),
+    note: [game.i18n.format("ACKS-HENCHMEN.monster.hiredNote", { employer: employer.name, hd }), opts.startOrigin].filter(Boolean).join(" · "),
     outcome: opts.irrefusableOutcome ?? "",
   });
 

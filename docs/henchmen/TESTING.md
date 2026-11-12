@@ -632,6 +632,61 @@ a step it does not name is walked by hand.
       entry for the first rung: the rung it crossed while unread is not made
       up.
       Walked by `tools/live/henchmen.mjs` stage 1, section 16.
+16a. The loyalty consequences, imported, absent and overridden: the
+    permanent change of a Grudging or Fanatic result, the élan figure, and
+    the Irrefusable Offer's starts (MM 351, and RR 166's forced-servitude
+    start for a feigned acceptance). The tables are the `influence`
+    document's `loyaltyChanges` and `irrefusableOffer`, layered as step 16's
+    are: read is the world's own import or the recipe
+    (`TABLE_RECIPES.influence.tables.loyaltyChanges` / `.irrefusableOffer`)
+    read into a priority-30 layer; absent is an empty table at priority 30;
+    override is a priority-30 layer holding invented figures, which is also
+    what the Ruledata Browser's override writes. Fixtures: step 16's
+    henchman (`henchmen/doubter`), and two disposable `monster` actors of
+    HD below employer A's level as captives, marked
+    `henchmen/captive-<n>` as their ids are read back. The influence-hosted
+    Irrefusable page names a result but does not hire (no roll-complete
+    branch handles it), so the starts are driven through
+    `applyIrrefusableOutcome(monster, employerA, outcome)`, imported from
+    `/modules/acks-extras/scripts/henchmen/engine/monster.mjs`; the loyalty
+    changes through `applyLoyaltyOutcome(henchman, {outcome})` from
+    `engine/events.mjs`, which both the hosted page and the fallback throw
+    call. Every step reads the henchman's `flags.acks-extras.record.loyalty`
+    before and after.
+    - *Imported.* `applyLoyaltyOutcome` with `grudging`, then `fanatic`; then
+      `applyIrrefusableOutcome` with `hesitate` on one captive and `escape`
+      on the other.
+      *Observable:* each loyalty result adds one `loyalty.permanents` entry
+      whose delta is the page's figure (compare in page against the book and
+      report the match, never the figure), reason `grudging` / `fanatic`,
+      its note naming the page; `loyal` adds none. Each captive enters
+      service with `loyalty.start` the page's figure for its result, the
+      hired event's note naming its page; the `escape` captive's GM-only
+      feigned card is whispered.
+    - *Absent.* The same calls with both tables empty.
+      *Observable:* each loyalty result warns that its change is not
+      imported and adds no entry; each captive warns that its start is not
+      imported and is not hired (no `monsterHenchmenList` entry, no record
+      flag). Hire a market candidate on **Accept with élan**
+      (`deliverHiringOutcome` or the recruit dialog with a rigged roll): it is
+      hired, its start carries no élan figure, and the Judge is warned.
+    - *Override.* Register invented figures for `grudging`, `elan` and
+      `acceptLoyalty`, repeat a `grudging` result, an élan hire and an
+      `accept` captive, then lift the layer and repeat the `grudging` result.
+      *Observable:* the entries and starts carry the invented figures, the
+      ledger and hired notes say a Judge's override set them; after lifting,
+      the next entry carries the imported figure and names its page again.
+    - The fallback throw: with the integration swapped (step 14's `ns`),
+      `recruitMonster(captive, employerA, {captured: true})` with the
+      `irrefusableOffer` column absent, then read.
+      *Observable:* absent, the Judge is warned the column is not imported,
+      the opposite-alignment checkbox shows a dash with a tooltip saying not
+      imported, and the roll names no result and hires nothing. Read, the
+      checkbox shows the page's figure with a tooltip naming MM 351 (or the
+      override), ticking it adds that figure to the total, and the result
+      the edges give hires at its start.
+    Teardown: retire `henchmen/captive-<n>` and the élan hire by marker; the
+    loyalty entries stay on the kept henchman, which step 16's reset clears.
 17. A market's classes never offered, on `henchmen/blocked-classes-place`
     (a location built carrying `system.market: emptyMarket()`, the Player seat
     an observer) and `henchmen/blocked-classes-employer` (a character the

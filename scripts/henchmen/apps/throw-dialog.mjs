@@ -10,8 +10,9 @@
  *  - secret throws: resolved GM-side, whispered to GMs, with a "Reveal
  *    outcome" button that posts a sanitized public card;
  *  - natural-roll clamps by OUTCOME (an outcome table's `naturalClamps`);
- *  - an imported outcome table and per-step figures handed in by the opener
- *    where the definition carries none (`context.outcomes`, `stepValues`).
+ *  - an imported outcome table and per-step or checkbox figures handed in by
+ *    the opener where the definition carries none (`context.outcomes`,
+ *    `stepValues`).
  *
  * Modifier kinds: "auto" (derived, locked; GM can unlock) and "situational"
  * (the user ticks what applies). Controls: checkbox / stepper / select.
@@ -37,12 +38,14 @@ export class ThrowDialog extends HandlebarsApplicationMixin(ApplicationV2) {
    *   { title?, derived?: {deriveKey: value}, dynamicModifiers?: [],
    *     speaker?, actor?, secretOverride?: boolean, infoText?,
    *     disabledOptions?: {modId: [optionId]}, optionLabels?: {modId: {optionId: text}},
-   *     outcomes?: object, stepValues?: {modId: number},
+   *     outcomes?: object, stepValues?: {modId: number}, figureTips?: {modId: string},
    *     onResolve?: (result) => void }
    *   `outcomes` is an outcome table (`outcomeFromTable`'s shape) the caller
    *   read from an import, used in place of the definition's `outcomeTable`;
-   *   `stepValues` gives a stepper's per-step figure where the definition
-   *   carries none. A stepper with no figure from either adds nothing.
+   *   `stepValues` gives a stepper's per-step figure, or a checkbox's figure,
+   *   where the definition carries none. A control with no figure from
+   *   either adds nothing. `figureTips` gives a control's figure its
+   *   provenance tooltip.
    */
   constructor({ throwId, context = {}, ...options } = {}) {
     super(options);
@@ -96,6 +99,8 @@ export class ThrowDialog extends HandlebarsApplicationMixin(ApplicationV2) {
       return {
         ...m,
         ...(m.control === "stepper" ? { valuePerStep: this.context.stepValues?.[m.id] ?? m.valuePerStep } : {}),
+        ...(m.control === "checkbox" ? this.#checkboxShown(m) : {}),
+        figureTip: this.context.figureTips?.[m.id] ?? "",
         labelText: m.label?.startsWith?.("ACKS-HENCHMEN.") ? game.i18n.localize(m.label) : m.label,
         hintText: m.hint?.startsWith?.("ACKS-HENCHMEN.") ? game.i18n.localize(m.hint) : (m.hint ?? ""),
         locked: (m.kind === "auto" && hasDerived) || m.dynamicLocked === true,
@@ -117,6 +122,20 @@ export class ThrowDialog extends HandlebarsApplicationMixin(ApplicationV2) {
     context.infoText = this.context.infoText ?? "";
     context.total = this.#formatTotal(this.#computeTotal(this.element));
     return context;
+  }
+
+  /** A checkbox's figure: the opener's `stepValues` entry, else the definition's own; null when neither holds a number. */
+  #checkboxFigure(m) {
+    const raw = this.context.stepValues?.[m.id] ?? m.value;
+    if (raw === undefined || raw === null || raw === "") return null;
+    const figure = Number(raw);
+    return Number.isFinite(figure) ? figure : null;
+  }
+
+  /** A checkbox's figure as shown: signed, or a dash where it has none. */
+  #checkboxShown(m) {
+    const value = this.#checkboxFigure(m);
+    return { value, valueText: value === null ? "—" : value >= 0 ? `+${value}` : String(value) };
   }
 
   #defaultValue(m) {
@@ -145,7 +164,7 @@ export class ThrowDialog extends HandlebarsApplicationMixin(ApplicationV2) {
       const input = root.querySelector(`[name="mod.${m.id}"]`);
       if (!input) continue;
       let value = 0;
-      if (m.control === "checkbox") value = input.checked ? m.value : 0;
+      if (m.control === "checkbox") value = input.checked ? (this.#checkboxFigure(m) ?? 0) : 0;
       else if (m.control === "stepper") {
         const perStep = Number(this.context.stepValues?.[m.id] ?? m.valuePerStep);
         value = Number.isFinite(perStep) ? (parseInt(input.value, 10) || 0) * perStep : 0;

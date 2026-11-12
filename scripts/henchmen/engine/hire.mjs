@@ -38,7 +38,7 @@ import { appendMarketLog } from "../../location/data/market-log.mjs";
 import { gpText } from "../../lib/money-logic.mjs";
 import { hireHitPoints, judgePickHitPoints } from "../rules/service.mjs";
 import { whenReady } from "../../lib/library.mjs";
-import { recordCalamity } from "./events.mjs";
+import { elanFigure, recordCalamity } from "./events.mjs";
 
 async function roll(formula) {
   return (await new Roll(formula).evaluate()).total;
@@ -253,7 +253,7 @@ export async function hireExistingActor(location, specialHireId, employer, opts 
   } else {
     // Visibility: the hiring player(s) become owners of their new hireling.
     await target.update({ ownership: { ...target.ownership, ...employerOwnership(employer) } });
-    const loyaltyStart = startingLoyalty({ base: opts.baseLoyalty ?? 0, elan: !!opts.elan, bounds: adapter.loyaltyBounds(target.type) });
+    const loyaltyStart = startingLoyalty({ base: opts.baseLoyalty ?? 0, elan: elanFigure(target.name, opts.elan), bounds: adapter.loyaltyBounds(target.type) });
     // Only a henchman's wage falls back to the ladder.
     const wage =
       Number(target.system?.retainer?.wage) || (category === "henchman" ? henchmanWage(adapter.getWageLevel(target)) : 0);
@@ -445,7 +445,7 @@ export async function hire(location, candidateId, employer, opts = {}) {
 
   const loyaltyStart = startingLoyalty({
     base: opts.baseLoyalty ?? 0,
-    elan: !!opts.elan,
+    elan: elanFigure(candidate.name, opts.elan),
     irrefusable: opts.irrefusable ?? null,
     bounds: adapter.loyaltyBounds(ACTOR_TYPE.character),
   });

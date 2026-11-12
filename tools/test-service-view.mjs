@@ -119,8 +119,9 @@ test("a monster's morale floor is its own, lower than a character's", () => {
 });
 test("a starting loyalty is held to the bounds handed in", () => {
   assert.equal(startingLoyalty({ base: 9, bounds: CHAR_LOYALTY }), 5);
-  assert.equal(startingLoyalty({ base: -9, elan: true, bounds: CHAR_LOYALTY }), -3);
-  assert.equal(startingLoyalty({ base: 1, elan: true, bounds: CHAR_LOYALTY }), 2);
+  assert.equal(startingLoyalty({ base: -9, elan: 3, bounds: CHAR_LOYALTY }), -3);
+  assert.equal(startingLoyalty({ base: 1, elan: 3, bounds: CHAR_LOYALTY }), 4, "the élan figure handed in is added");
+  assert.equal(startingLoyalty({ base: 1, elan: true, bounds: CHAR_LOYALTY }), 1, "a flag in place of a figure adds nothing");
   assert.equal(startingLoyalty({ base: 1, irrefusable: -4, bounds: CHAR_LOYALTY }), -3, "the imported figure replaces the base, then is held");
   assert.equal(startingLoyalty({ base: 99 }), 99, "no bounds, no clamp");
 });

@@ -16,8 +16,11 @@
 import { MODULE_ID, HOOKS, FLAG_RECORD, FLAG_MONSTER_LIST, FLAG_WAGE_REMINDED } from "../constants.mjs";
 import { isPrimaryGM } from "../../lib/util.mjs";
 import HenchmanRecord from "../data/henchman-record.mjs";
-import { effectiveLoyalty, effectiveMorale, loyaltyDeltaForOutcome, outcomeLeavesService, clampScore, reasonKey, apparentLevelPenalty, insistPenalty } from "../rules/loyalty.mjs";
-import { optCite } from "../rules/tables.mjs";
+import {
+  effectiveLoyalty, effectiveMorale, loyaltyDeltaForOutcome, outcomeLeavesService, clampScore, reasonKey, apparentLevelPenalty, insistPenalty,
+  loyaltyChange, LOYALTY_CHANGES, hirelingLoyaltyOutcomes,
+} from "../rules/loyalty.mjs";
+import { optCite, optOrigin } from "../rules/tables.mjs";
 import { henchmanWage, mercenaryWage, levelMoraleBumps } from "../rules/wages.mjs";
 import { FLAG_GROUP_PAY } from "./hire-group.mjs";
 import { GROUP_ACTOR_TYPE as GROUP_TYPE } from "../../lib/group-logic.mjs";
@@ -70,6 +73,33 @@ export function effectiveMoraleFor(actor) {
 /** Recompute and persist core retainer.loyalty from the record. */
 export async function syncLoyalty(actor) {
   await adapter.setLoyalty(actor, effectiveLoyaltyFor(actor));
+}
+
+/**
+ * A printed figure's provenance as one line a card, a ledger note or a
+ * tooltip carries: the page the import read it from (else `cite`), a Judge's
+ * override in the Ruledata Browser, or that it is not imported.
+ * @param {{docId: string, tableId: string, cite: string}} from the table the figure is read from, and the page that prints it
+ * @param {boolean} [read=true] whether the figure itself was read; a table holding the rest of its page but not this figure is not imported for it
+ */
+export function originText({ docId, tableId, cite }, read = true) {
+  const origin = read ? optOrigin(docId, tableId) : { state: "missing", cite: null };
+  if (origin.state === "override") return game.i18n.localize("ACKS-HENCHMEN.figure.override");
+  if (origin.state === "imported") return game.i18n.format("ACKS-HENCHMEN.figure.imported", { cite: origin.cite ?? cite });
+  return game.i18n.format("ACKS-HENCHMEN.figure.missing", { cite });
+}
+
+/**
+ * What an Accept with élan adds to a hire's starting loyalty: the imported
+ * figure (RR 166) when `elan` is set, else 0. Unread, it adds nothing and the
+ * Judge is warned, naming the hire.
+ */
+export function elanFigure(name, elan) {
+  if (!elan) return 0;
+  const figure = loyaltyChange("elan");
+  if (figure !== null) return figure;
+  ui.notifications?.warn(game.i18n.format("ACKS-HENCHMEN.loyaltyUnread.elan", { name }));
+  return 0;
 }
 
 /** Append a permanent loyalty ledger entry and resync. */
@@ -130,10 +160,12 @@ export async function setPermanentCompensated(actor, { track = "loyalty", index,
 /* ------------------------- loyalty / obedience rolls ------------------------- */
 
 /**
- * Apply a resolved Hireling Loyalty outcome: event log, permanent ±1
- * bookkeeping (Grudging/Fanatic), a departure card when the hireling
- * leaves service, and the LOYALTY_ROLLED hook. Shared by the module's
- * ThrowDialog and the influence-hosted loyalty page.
+ * Apply a resolved Hireling Loyalty outcome: event log, the permanent change
+ * a Grudging or Fanatic result applies (the imported figure, its provenance
+ * in the ledger note; unread, none is applied and the Judge is warned), a
+ * departure card when the hireling leaves service, and the LOYALTY_ROLLED
+ * hook. Shared by the module's ThrowDialog and the influence-hosted loyalty
+ * page.
  */
 export async function applyLoyaltyOutcome(actor, { outcome, total = null, note = "" } = {}) {
   const employer = adapter.getManager(actor);
@@ -144,8 +176,13 @@ export async function applyLoyaltyOutcome(actor, { outcome, total = null, note =
     outcome,
   });
   const delta = loyaltyDeltaForOutcome(outcome);
-  if (delta !== 0) {
-    await addLoyaltyPermanent(actor, delta, outcome === "fanatic" ? "fanatic" : "grudging");
+  if (delta === null) {
+    ui.notifications?.warn(game.i18n.format("ACKS-HENCHMEN.loyaltyUnread.outcome", {
+      name: actor.name,
+      result: game.i18n.localize(`ACKS-HENCHMEN.outcome.${outcome}`),
+    }));
+  } else if (delta !== 0) {
+    await addLoyaltyPermanent(actor, delta, outcome === "fanatic" ? "fanatic" : "grudging", originText(LOYALTY_CHANGES));
   }
   if (outcomeLeavesService(outcome)) {
     await postEventCard({
@@ -207,9 +244,13 @@ export function openLoyaltyRoll(actor, opts = {}) {
   // The stepper counts the levels; what each is worth is the import's. Unread,
   // the count adds nothing, so a count above zero is named for the Judge.
   const perLevel = apparentLevelPenalty();
+  // The result column is the import's; unread, the throw posts its total and
+  // names no result, and applyLoyaltyOutcome then applies none.
+  const outcomes = hirelingLoyaltyOutcomes();
   openThrowDialog("hirelingLoyalty", {
     title: opts.title ?? `${actor.name}${opts.reason ? ` (${opts.reason})` : ""}`,
     actor,
+    ...(outcomes ? { outcomes } : {}),
     derived: { effectiveLoyalty: effectiveLoyaltyFor(actor), apparentLevelDiff },
     stepValues: perLevel === null ? {} : { apparentLevelDiff: perLevel },
     infoText:

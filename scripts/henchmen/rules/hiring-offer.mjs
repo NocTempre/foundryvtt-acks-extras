@@ -7,7 +7,7 @@
  * unread figure is null, and a caller that needs it refuses to roll.
  */
 import { optTable } from "./tables.mjs";
-import { HIRING_OUTCOMES } from "./bulk-offer.mjs";
+import { HIRING_OUTCOMES, outcomeTableFromBands } from "./bulk-offer.mjs";
 
 /** The imported document the hiring figures arrive in. */
 export const HIRING_OFFER_DOC = "influence";
@@ -24,13 +24,7 @@ const edge = (v) => (v === null || v === undefined || v === "" || !Number.isFini
  * @returns {{outcomes: {min?: number, max?: number, effect: string}[]}|null}
  */
 export function hiringOutcomeTable(bands) {
-  if (!Array.isArray(bands) || bands.length !== HIRING_OUTCOMES.length) return null;
-  const outcomes = bands.map((band, i) => {
-    const min = edge(band?.min);
-    const max = edge(band?.max);
-    return { ...(min === null ? {} : { min }), ...(max === null ? {} : { max }), effect: HIRING_OUTCOMES[i] };
-  });
-  return outcomes.every((o) => o.min !== undefined || o.max !== undefined) ? { outcomes } : null;
+  return outcomeTableFromBands(bands, HIRING_OUTCOMES);
 }
 
 /**

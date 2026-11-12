@@ -12,13 +12,9 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   in this feature is the last resort, only if no candidate grows a
   data-driven write API.
 
-- **19 `ACKS-HENCHMEN` strings still print a magnitude in the label** — the
-  outcome hints (`outcomeHint.hesitate`, `.grudging`, `.fanatic`,
-  `.begrudging`, `.acceptElan`, `.refuses`, `.refuseSlander`), the modifier
-  labels (`mod.oppositeAlignment`, `.customaryTask`, `.recentCasualties`,
-  `.mercenaryAdventuring`), `cond.threats`' HD threshold,
-  `followers.loyaltyDefault`, `followers.loyaltyFanatic`, and
-  `monster.feigned.escape`'s band. The 2026-09-03 pass retired printed figures
+- **Three `ACKS-HENCHMEN` strings still print a magnitude in the label** —
+  `outcomeHint.refuseSlander`, `followers.loyaltyDefault` and
+  `followers.loyaltyFanatic`. The 2026-09-03 pass retired printed figures
   from 21 sibling strings in this root and deliberately left these; the reason
   and the order the fix has to take are one ruling, in
   [../influence/DECISIONS.md](../influence/DECISIONS.md). Unlike those 21 these
@@ -38,6 +34,26 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   freeze the sample automation into the world layer, so the same change makes
   the import merge over the written layer only, makes picker presence read the
   world layer, and lists only world and override tables in the journal.
+- **Loyalty figures still in source beside the imported ones.** The
+  calamity and level-gain loyalty changes in `engine/events.mjs` are printed
+  in the same list `influence.loyaltyChanges` reads (RR 166), so each is one
+  more row of that recipe. The signing-bonus option values in
+  `data/throws-data.mjs` are the same kind as the bribe tiers the influence
+  roller now imports. The `judgeAdj` stepper's bounds want a ruling on whether
+  they are printed before they move.
+- **A captured monster offered through the influence roller is never hired.**
+  With the influence API present the offer opens the roller's hosted page, and
+  `registerInfluenceIntegration` (`integrations/influence.mjs`) has no branch
+  for `irrefusableOffer`: the page names a result and hires nobody, and its top
+  rung is keyed `elan` where this feature's is `acceptElan`. Only the fallback
+  throw dialog applies an imported start through `applyIrrefusableOutcome`; the
+  branch maps the key and calls it.
+- **The liberation loyalty throw opens from nowhere.** `throws-data.mjs`
+  still declares `liberationLoyalty`, no surface opens it, and no page for its
+  figures has been found; it is wired to a page or removed.
+- **The insist tooltip has two states.** A Judge's override of the insist
+  penalty reads as imported; the third state (`ui-tooltips.md`) names the
+  override.
 - **Utter Domination's morale base has no located value.** `moraleBase` is
   read only from an Active Effect; the importer register carries no locator
   for it, and the page's figure is a floor rather than a bonus, so the shape a

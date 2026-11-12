@@ -43,11 +43,8 @@ Feature-scoped roadmaps live in `docs/<feature>/ROADMAP.md`.
   without staging are recoverable from the parent of the 8.0.7 commit.
 - **Findings of the comment sweep, not yet fixed.**
   - *Printed values in shipped code:* `WOUND_PENALTIES` in
-    `scripts/henchmen/rules/loyalty.mjs` (see
-    [henchmen/ROADMAP.md](henchmen/ROADMAP.md)); the loyalty, irrefusable
-    offer and liberation band and value fields in
-    `scripts/henchmen/data/throws-data.mjs`; the bribe ladder in
-    `#bribeTiers` (`scripts/influence/influence-app.mjs`); three literals in
+    `scripts/henchmen/rules/loyalty.mjs` and the henchmen figures left beside
+    it (see [henchmen/ROADMAP.md](henchmen/ROADMAP.md)); three literals in
     vehicle arithmetic (`seaSpeeds` in `vehicle-speed.mjs`, `repairPlan` in
     `vessel-damage.mjs`, `#stationView` in `vehicle-sheet.mjs`). Unverified:
     the saves lookup in `scripts/monsters/config.mjs`, and the hardcoded

@@ -118,7 +118,9 @@ figure each; unread, the row is a typed field with the *unread* badge, and the
 page says once that it waits on an import. The Irrefusable Offer (MM 351)
 reads `irrefusableOffer` the same way, for its result column and for its
 opposite-alignment row, a `printed` figure. The henchmen feature's fallback
-loyalty throw reads the loyalty figure too (`docs/henchmen/MODEL.md` §3).
+throws read these same tables, and the henchmen feature reads the
+consequences from two more: the starting loyalties in `irrefusableOffer` and
+the loyalty changes in `loyaltyChanges` (`docs/henchmen/MODEL.md` §3).
 
 `modeRows` (`printed.mjs`) turns the declared rows into the rows the dialog
 draws, against what the world holds:
@@ -183,7 +185,12 @@ tiers (`BRIBE_RUNGS`, labelled "Tier 1" to "Tier 3") whose bonuses are the
 the rest). What is stored is the tier's place, which the henchmen api prices
 (`DECISIONS.md`, "The tone pages read their figures from the imported page");
 a bribe row not imported is a disabled select, so no tier is chosen and no
-fee is asked.
+fee is asked. A bribe offered by a roller holding Bribery reads one more
+figure, `bribeCrime.natural` (RR 287, `bribeCrimeMark` in `actor-data.mjs`):
+an unmodified roll equal to it puts a note on the card that the charge mark
+was met, followed by where the figure came from (the page, the Judge's
+override, or not imported). Unread, the card notes that the mark is not
+imported and names no charge.
 
 **The reaction and the ladder.** What a tone page does with its total is the
 page's too. Each tone reads two more tables of the `influence` document

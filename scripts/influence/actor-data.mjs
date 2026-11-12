@@ -3,7 +3,7 @@
  * Reads auto-populatable values from the influencing actor and the targeted
  * token's actor, using only public ACKS data paths (no system internals).
  */
-import { AGING_PAGE, BEWITCH_PAGE, CHANGE_KEY_FAMILY, henchmanMonthlyWage, INFLUENCE_DOC, INFLUENCE_MODIFIERS, MODULE_ID, TONE_PAGES } from "./constants.mjs";
+import { AGING_PAGE, BEWITCH_PAGE, BRIBE_CRIME_PAGE, CHANGE_KEY_FAMILY, henchmanMonthlyWage, INFLUENCE_DOC, INFLUENCE_MODIFIERS, MODULE_ID, TONE_PAGES } from "./constants.mjs";
 import { ageRow, printedFigure, printedQuantity } from "./printed.mjs";
 import { meetsQuantity } from "../lib/tables.mjs";
 import { inferRace, optionalRuleEnabled, parseKindList } from "./racial.mjs";
@@ -329,6 +329,14 @@ function ageModifier(charActor, targetActor) {
  */
 export function bewitchMark() {
   return printedFigure(BEWITCH_PAGE.table, "at", INFLUENCE_DOC);
+}
+
+/**
+ * The unmodified roll that marks a proficient briber's offer as chargeable,
+ * or null when the page's figure is not imported (RR 287).
+ */
+export function bribeCrimeMark() {
+  return printedFigure(BRIBE_CRIME_PAGE.table, "natural", INFLUENCE_DOC);
 }
 
 /**

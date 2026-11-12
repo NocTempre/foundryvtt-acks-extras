@@ -1,12 +1,13 @@
 /**
  * Social-roll AUTOMATION config — this module's own, not an imported book
- * table. Maps the universal ACKS 2d6 outcome ladder onto this module's own
- * effect enums (`refuseSlander`, `tryAgain`, `acceptElan`…) and derive keys
- * (`chaMod`, `effectiveLoyalty`…). The hiring throw's result column and
- * per-count figures, and the loyalty throw's per-level apparent-difference
- * figure, are printed and arrive by import: an opener hands them in (see
- * `reactionToHiring` below). Ships at SAMPLE priority: a content catalog or
- * world import may still override it by the `throws` doc id.
+ * table: each throw's dice, controls and derive keys (`chaMod`,
+ * `effectiveLoyalty`…). No result column ships here: an opener hands in the
+ * imported one as `outcomes` (`rules/hiring-offer.mjs`, `rules/loyalty.mjs`
+ * `hirelingLoyaltyOutcomes`, `rules/irrefusable.mjs`), and an imported
+ * per-count or checkbox figure as `stepValues`. A control with no figure adds
+ * nothing, and a throw with no column names no result. Ships at SAMPLE
+ * priority: a content catalog or world import may still override it by the
+ * `throws` doc id.
  *
  * Registered at setup via the lib subsystem's table registry; read by
  * ThrowDialog and the influence-hosted pages through getThrowDef/getTable
@@ -21,41 +22,7 @@ const employerChaMod = {
 export const THROWS_DATA = {
   id: "throws",
   source: { note: "Module roll-automation config (module vocabulary; not book data)." },
-  tables: {
-    irrefusableOfferOutcomes: {
-      outcomes: [
-        { max: 2, effect: "betrayal" },
-        { min: 3, max: 5, effect: "escape" },
-        { min: 6, max: 8, effect: "hesitate" },
-        { min: 9, max: 11, effect: "accept" },
-        { min: 12, effect: "acceptElan" },
-      ],
-      loyaltyOnHire: { betrayal: null, escape: null, hesitate: -2, accept: 0, acceptElan: 1 },
-    },
-    hirelingLoyaltyOutcomes: {
-      outcomes: [
-        { max: 2, effect: "hostility" },
-        { min: 3, max: 5, effect: "resignation" },
-        { min: 6, max: 8, effect: "grudging", loyaltyDelta: -1 },
-        { min: 9, max: 11, effect: "loyal" },
-        { min: 12, effect: "fanatic", loyaltyDelta: 1 },
-      ],
-      naturalClamps: {
-        natural2: { noBetterThan: "resignation" },
-        natural12: { noWorseThan: "loyal" },
-      },
-    },
-    liberationLoyaltyOutcomes: {
-      gatedBy: "enableSlavery",
-      outcomes: [
-        { max: 2, effect: "hostility" },
-        { min: 3, max: 5, effect: "resignation" },
-        { min: 6, max: 8, effect: "grudging" },
-        { min: 9, max: 11, effect: "loyal" },
-        { min: 12, effect: "fanaticLiberation" },
-      ],
-    },
-  },
+  tables: {},
   throws: {
     // The result column and both per-count figures are the Judge's imported
     // `influence.hiringOffer` (rules/hiring-offer.mjs); an opener passes them
@@ -88,15 +55,17 @@ export const THROWS_DATA = {
         },
       ],
     },
+    // The result column and the opposite-alignment figure are the Judge's
+    // imported `influence.irrefusableOffer` (rules/irrefusable.mjs); the
+    // opener passes them in as `outcomes` and `stepValues`.
     irrefusableOffer: {
       label: "ACKS-HENCHMEN.throw.irrefusableOffer",
       formula: "2d6",
       secret: false,
-      outcomeTable: "irrefusableOfferOutcomes",
       modifiers: [
         employerChaMod,
         {
-          id: "oppositeAlignment", kind: "situational", control: "checkbox", value: -2,
+          id: "oppositeAlignment", kind: "situational", control: "checkbox",
           label: "ACKS-HENCHMEN.mod.oppositeAlignment",
         },
         {
@@ -106,11 +75,12 @@ export const THROWS_DATA = {
         },
       ],
     },
+    // The result column is the Judge's imported `influence.hirelingLoyalty`
+    // (rules/loyalty.mjs `hirelingLoyaltyOutcomes`), passed in as `outcomes`.
     hirelingLoyalty: {
       label: "ACKS-HENCHMEN.throw.hirelingLoyalty",
       formula: "2d6",
       secret: true,
-      outcomeTable: "hirelingLoyaltyOutcomes",
       modifiers: [
         {
           id: "effectiveLoyalty", kind: "auto", control: "stepper", valuePerStep: 1,
@@ -144,11 +114,11 @@ export const THROWS_DATA = {
         },
       ],
     },
+    // Names no result of its own: an opener hands in a column as `outcomes`.
     liberationLoyalty: {
       label: "ACKS-HENCHMEN.throw.liberationLoyalty",
       formula: "2d6",
       secret: true,
-      outcomeTable: "liberationLoyaltyOutcomes",
       modifiers: [
         {
           id: "liberatorCha", kind: "auto", control: "stepper", valuePerStep: 1,

@@ -364,6 +364,21 @@ Steps:
     fee is not asked. Read, the select lists Tier 1 to Tier 3 each with the
     registered bonus beside it; choosing a tier adds that bonus, and the fee
     field fills with the henchmen api's price for that tier's place.
+29a. The bribery charge mark (RR 287), on a Diplomacy roll by an influencer
+    holding the Bribery proficiency with a tier chosen and the fee covered:
+    `influence.bribeCrime` read (the world's import, or
+    `TABLE_RECIPES.influence.tables.bribeCrime` read into a priority-30
+    layer), absent (an empty table at priority 30), and overridden (an
+    invented `natural` at priority 30, as the Ruledata Browser writes it).
+    Rig the dice so the unmodified roll equals the figure in force, then so
+    it does not.
+    *Observable:* read, the card's notes carry the charge-mark line only on
+    the rigged roll that meets it, followed by "Read from your own book at
+    import" with the page; a roll that misses carries none. Overridden, the
+    line appears on the invented figure and says a Judge's override set it;
+    lifting the layer returns the page's figure. Absent, every such roll's
+    card notes that the mark is not imported, and none names a charge. An
+    influencer without Bribery gets the risk note (RR 287) in every state.
 30. Seduction with `characterAging` unread, then read (invented year spans
     for a human row), against two actors of the class "Fighter" at ages
     spanning different categories.

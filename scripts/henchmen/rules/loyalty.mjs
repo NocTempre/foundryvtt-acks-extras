@@ -8,6 +8,21 @@
  * transfers between employers recalculate automatically (RR 163).
  */
 import { optTable } from "./tables.mjs";
+import { outcomeTableFromBands } from "./bulk-offer.mjs";
+
+/** Hireling Loyalty's results worst first, in the throw's outcome vocabulary. */
+export const HIRELING_LOYALTY_OUTCOMES = Object.freeze(["hostility", "resignation", "grudging", "loyal", "fanatic"]);
+
+/**
+ * The Hireling Loyalty outcome table (`outcomeFromTable`'s shape) made from
+ * the Judge's imported result column (`influence.hirelingLoyalty`, RR 166), the
+ * one the influence-hosted loyalty page reads, with the page's natural-roll
+ * clamps naming their rungs. Null until the column is imported.
+ */
+export function hirelingLoyaltyOutcomes() {
+  const table = outcomeTableFromBands(optTable("influence", "hirelingLoyalty")?.bands, HIRELING_LOYALTY_OUTCOMES);
+  return table && { ...table, naturalClamps: { natural2: { noBetterThan: "resignation" }, natural12: { noWorseThan: "loyal" } } };
+}
 
 /**
  * The Hireling Loyalty roll's figure per level of apparent difference
@@ -30,6 +45,21 @@ export function apparentLevelPenalty() {
 export function insistPenalty() {
   const penalty = optTable("morale", "hirelingObedience")?.insistPenalty;
   return Number.isInteger(penalty) && penalty >= 0 ? penalty : null;
+}
+
+/**
+ * Where RR 166's loyalty changes and starting-loyalty figures arrive: the
+ * Judge's imported `influence.loyaltyChanges` table. Its keys are `fanatic`
+ * and `grudging` (each a signed permanent change), `elan`
+ * (what an Accept with élan adds to a hire's start) and `forcedServitude` (the
+ * start of a creature held against its will).
+ */
+export const LOYALTY_CHANGES = Object.freeze({ docId: "influence", tableId: "loyaltyChanges", cite: "RR 166" });
+
+/** One figure of the imported loyalty-changes table, or null; a blank or non-integer figure is unread. Zero is a figure. */
+export function loyaltyChange(key) {
+  const figure = optTable(LOYALTY_CHANGES.docId, LOYALTY_CHANGES.tableId)?.[key];
+  return Number.isInteger(figure) ? figure : null;
 }
 
 import { clampScore } from "../../lib/score-bounds.mjs";
@@ -87,10 +117,15 @@ export function effectiveMorale(record, fallbackBase = 0, bounds) {
   return clampScore(base + permanents, bounds);
 }
 
-/** Permanent loyalty deltas from a loyalty-roll outcome (RR 166). */
+/**
+ * The permanent loyalty change a Hireling Loyalty result applies (RR 166): the
+ * imported figure for a Grudging or Fanatic result, 0 for a result that
+ * changes none, and null where the result changes loyalty but its figure is
+ * not imported.
+ * @returns {number|null}
+ */
 export function loyaltyDeltaForOutcome(outcome) {
-  if (outcome === "fanatic") return 1;
-  if (outcome === "grudging") return -1;
+  if (outcome === "fanatic" || outcome === "grudging") return loyaltyChange(outcome);
   return 0;
 }
 
@@ -120,17 +155,17 @@ export function penaltyReason(key) {
 }
 
 /**
- * Starting loyalty for a new hire.
+ * Starting loyalty for a new hire: the role's base, or the Irrefusable Offer
+ * result's own start in its place, plus the élan figure.
  * @param {object} o
- * @param {number} [o.base=0] - role base (mercenary officer -2, ruffian -2,
- *   forced servitude -4, follower +2/+4 — from wages.json baseLoyalty)
- * @param {boolean} [o.elan] - rolled "Accept with élan" (+1)
- * @param {number} [o.irrefusable] - Irrefusable Offer loyaltyOnHire value, read from the imported table
+ * @param {number} [o.base=0] - the role's base loyalty, read from the imported tables
+ * @param {number} [o.elan=0] - what an Accept with élan adds (`loyaltyChange("elan")`), 0 for any other result
+ * @param {number} [o.irrefusable] - the Irrefusable Offer result's start, read from the imported table
  * @param {{min?: number, max?: number}} [o.bounds] - the hireling's loyalty field's range
  */
-export function startingLoyalty({ base = 0, elan = false, irrefusable = null, bounds } = {}) {
+export function startingLoyalty({ base = 0, elan = 0, irrefusable = null, bounds } = {}) {
   let start = base;
   if (irrefusable !== null && irrefusable !== undefined) start = irrefusable;
-  if (elan) start += 1;
+  start += Number.isFinite(elan) ? elan : 0;
   return clampScore(start, bounds);
 }

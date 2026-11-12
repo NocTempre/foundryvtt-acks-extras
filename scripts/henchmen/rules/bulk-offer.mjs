@@ -16,6 +16,26 @@ export const HIRING_OUTCOMES = ["refuseSlander", "refuse", "tryAgain", "accept",
 /** The answers that refuse and are recorded on the row as a refusal. */
 const REFUSALS = new Set(["refuseSlander", "refuse", "tryAgain"]);
 
+const edge = (v) => (v === null || v === undefined || v === "" || !Number.isFinite(Number(v)) ? null : Number(v));
+
+/**
+ * The outcome table (`outcomeFromTable`'s shape) an imported result column
+ * makes: band i, worst first, gives `effects[i]`. Null unless the column holds
+ * one band per effect and every band has an edge.
+ * @param {Array<{min?: number|null, max?: number|null}>} bands
+ * @param {string[]} effects the result effects, worst first
+ * @returns {{outcomes: {min?: number, max?: number, effect: string}[]}|null}
+ */
+export function outcomeTableFromBands(bands, effects) {
+  if (!Array.isArray(bands) || !Array.isArray(effects) || bands.length !== effects.length) return null;
+  const outcomes = bands.map((band, i) => {
+    const min = edge(band?.min);
+    const max = edge(band?.max);
+    return { ...(min === null ? {} : { min }), ...(max === null ? {} : { max }), effect: effects[i] };
+  });
+  return outcomes.every((o) => o.min !== undefined || o.max !== undefined) ? { outcomes } : null;
+}
+
 /**
  * The outcome effect an outcome table gives a roll. Rows run worst → best and
  * bracket the ADJUSTED total; a total past either end takes that end's row.

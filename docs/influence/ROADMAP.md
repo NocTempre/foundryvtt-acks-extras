@@ -6,14 +6,6 @@ The roller's pages read their figures from the imported page, and their labels
 carry none (`MODEL.md`, "Printed pages"). Still shipped, found while moving
 them and left for their own rows:
 
-- the bribery crime note's trigger and its label
-  (`ACKS-INFLUENCE.note.bribeCrime`): a natural roll tested against a literal
-  in `#rawNotes`, in a string that states the rule;
-- the henchmen feature's own copies of figures this feature now reads from the
-  import: `loyaltyDeltaForOutcome` in `henchmen/rules/loyalty.mjs` (the
-  permanent loyalty a Grudging or Fanatic result applies) and the outcome
-  tables of the fallback throws in `henchmen/data/throws-data.mjs` (the
-  hireling loyalty and irrefusable offer edges and their starting loyalties);
 - the wording of each tone result (`ACKS-INFLUENCE.band.<tone>.result1` to
   `result5`) and of the irrefusable and loyalty results, which paraphrase the
   page's own text.

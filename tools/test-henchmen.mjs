@@ -721,6 +721,78 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
   }
 }
 
+// ---- Hireling Loyalty and the Irrefusable Offer: every figure is the import's ----
+// The figures below are authored for the test; none is a page's.
+{
+  const { loyaltyDeltaForOutcome, loyaltyChange, hirelingLoyaltyOutcomes, LOYALTY_CHANGES } = await import(new URL("../scripts/henchmen/rules/loyalty.mjs", import.meta.url));
+  const { irrefusableOutcomes, irrefusableStart, oppositeAlignmentFigure, IRREFUSABLE } = await import(new URL("../scripts/henchmen/rules/irrefusable.mjs", import.meta.url));
+  const { outcomeFromTable } = await import(new URL("../scripts/henchmen/rules/bulk-offer.mjs", import.meta.url));
+  const { EXTERNAL_MODES } = await import(new URL("../scripts/influence/constants.mjs", import.meta.url));
+  const { THROWS_DATA } = await import(new URL("../scripts/henchmen/data/throws-data.mjs", import.meta.url));
+  const BANDS = [{ min: null, max: 4 }, { min: 5, max: 6 }, { min: 7, max: 9 }, { min: 10, max: 13 }, { min: 14, max: null }];
+  const docs = {
+    [LOYALTY_CHANGES.tableId]: { fanatic: 3, grudging: -5, elan: 7, forcedServitude: -6 },
+    hirelingLoyalty: { bands: BANDS },
+    [IRREFUSABLE.tableId]: { bands: BANDS, oppositeAlignment: -9, hesitateLoyalty: -3, acceptLoyalty: 2, elanLoyalty: 4 },
+  };
+  const saved = globalThis.acksExtras;
+  try {
+    globalThis.acksExtras = { lib: { tables: { hasDoc: (doc) => doc === "influence", getTable: (doc, id) => docs[id] ?? null } } };
+    assert.strictEqual(loyaltyDeltaForOutcome("fanatic"), 3, "a Fanatic result applies the imported figure");
+    assert.strictEqual(loyaltyDeltaForOutcome("grudging"), -5, "and so does a Grudging one");
+    assert.strictEqual(loyaltyDeltaForOutcome("loyal"), 0, "a result that changes no loyalty applies none");
+    assert.strictEqual(loyaltyChange("elan"), 7, "the élan figure is read");
+    const loyalty = hirelingLoyaltyOutcomes();
+    assert.deepStrictEqual(loyalty.outcomes.map((o) => o.effect), ["hostility", "resignation", "grudging", "loyal", "fanatic"], "the column names the loyalty results worst first");
+    assert.strictEqual(outcomeFromTable(loyalty, 5, 11), "loyal", "a total reads its band");
+    assert.strictEqual(outcomeFromTable(loyalty, 2, 15), "resignation", "a natural 2 is held at the clamp's rung");
+    assert.strictEqual(outcomeFromTable(loyalty, 12, 1), "loyal", "a natural 12 is lifted to the clamp's rung");
+    assert.strictEqual(outcomeFromTable(irrefusableOutcomes(), 6, 14), "acceptElan", "the captured offer reads its own column");
+    assert.strictEqual(oppositeAlignmentFigure(), -9);
+    assert.strictEqual(irrefusableStart("hesitate").figure, -3, "an entering result starts at its own figure");
+    assert.strictEqual(irrefusableStart("accept").figure, 2);
+    assert.strictEqual(irrefusableStart("acceptElan").figure, 4);
+    assert.strictEqual(irrefusableStart("acceptElan").cite, IRREFUSABLE.cite, "and names the page it is read from");
+    assert.deepStrictEqual([irrefusableStart("betrayal").figure, irrefusableStart("escape").tableId], [-6, LOYALTY_CHANGES.tableId], "a feigned acceptance starts at the forced-servitude figure");
+    assert.strictEqual(irrefusableStart("nonsense"), null, "an outcome of no such roll has no start");
+
+    const { optOrigin } = await import(new URL("../scripts/henchmen/rules/tables.mjs", import.meta.url));
+    const layers = { 20: { tables: { [LOYALTY_CHANGES.tableId]: {} } } };
+    Object.assign(globalThis.acksExtras.lib.tables, {
+      PRIORITY: { WORLD: 20, OVERRIDE: 30 },
+      getLayer: (doc, p) => (doc === "influence" ? layers[p] ?? null : null),
+      citeOf: (doc, id) => (layers[30]?.tables?.[id] ? null : `page of ${id}`),
+    });
+    assert.deepStrictEqual(optOrigin("influence", LOYALTY_CHANGES.tableId), { state: "imported", cite: `page of ${LOYALTY_CHANGES.tableId}` }, "an imported table names its page");
+    layers[30] = { tables: { [LOYALTY_CHANGES.tableId]: {} } };
+    assert.deepStrictEqual(optOrigin("influence", LOYALTY_CHANGES.tableId), { state: "override", cite: null }, "a Judge's layer reads as the override, never as imported");
+    assert.strictEqual(optOrigin("influence", "absentTable").state, "missing", "a table nobody holds is not imported");
+
+    docs[LOYALTY_CHANGES.tableId] = { fanatic: "", grudging: 1.5 };
+    assert.strictEqual(loyaltyDeltaForOutcome("fanatic"), null, "a blank figure is unread, never zero");
+    assert.strictEqual(loyaltyDeltaForOutcome("grudging"), null, "and so is a fractional one");
+
+    globalThis.acksExtras = { lib: { tables: { hasDoc: () => false } } };
+    assert.strictEqual(loyaltyDeltaForOutcome("fanatic"), null, "nothing imported: the change is unknown");
+    assert.strictEqual(loyaltyDeltaForOutcome("hostility"), 0, "a result that changes none still changes none");
+    assert.strictEqual(hirelingLoyaltyOutcomes(), null, "no column, no loyalty table");
+    assert.strictEqual(irrefusableOutcomes(), null, "no column, no captured-offer table");
+    assert.strictEqual(oppositeAlignmentFigure(), null);
+    assert.strictEqual(irrefusableStart("accept").figure, null, "no start without the import");
+    assert.strictEqual(irrefusableStart("escape").figure, null);
+  } finally {
+    globalThis.acksExtras = saved;
+  }
+
+  assert.deepStrictEqual([EXTERNAL_MODES.loyalty.printedDoc, EXTERNAL_MODES.loyalty.printed], ["influence", "hirelingLoyalty"], "the throw reads the column the hosted loyalty page reads");
+  assert.deepStrictEqual([EXTERNAL_MODES.irrefusableOffer.printedDoc, EXTERNAL_MODES.irrefusableOffer.printed], [IRREFUSABLE.docId, IRREFUSABLE.tableId], "and the captured offer's");
+  assert.deepStrictEqual(Object.keys(THROWS_DATA.tables), [], "the shipped config carries no outcome table");
+  for (const id of ["hirelingLoyalty", "irrefusableOffer", "liberationLoyalty"]) {
+    assert.strictEqual(THROWS_DATA.throws[id].outcomeTable, undefined, `${id}: names no shipped column`);
+  }
+  assert.strictEqual(THROWS_DATA.throws.irrefusableOffer.modifiers.find((m) => m.id === "oppositeAlignment").value, undefined, "no opposite-alignment figure ships");
+}
+
 // ---- the hosted pages: an employer's powers offered, and the unvalued ones named by item ----
 // The figures below are authored for the test; none is a page's.
 {

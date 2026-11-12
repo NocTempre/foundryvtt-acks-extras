@@ -4303,8 +4303,28 @@ export const TABLE_RECIPES = {
         yMax: 175,
         values: [{ key: "bands", find: "(2d6)", take: "bandEdges", span: 120 }],
       },
-      // The Irrefusable Offer (MM 351): the result column and the figure for
-      // an opposite alignment, both in the right column.
+      // The two Hireling Loyalty results' permanent changes in the list RR 166
+      // prints, each figure with its sign before the clause naming what earns
+      // it, so each anchor is read backwards from that clause; and two
+      // starting-loyalty figures from the paragraph above the list: the one an
+      // Accept with élan adds, and the one a creature forced into servitude
+      // starts at.
+      loyaltyChanges: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 166,
+        locate: "Hireling Loyalty",
+        values: [
+          { key: "fanatic", find: "permanent increase each time the employer rolls fanatic", before: true, take: "signed", span: 6 },
+          { key: "grudging", find: "permanent decrease each time the employer rolls grudging", before: true, take: "signed", span: 6 },
+          { key: "elan", find: "if the hireling rolled", before: true, take: "signed", span: 6 },
+          { key: "forcedServitude", find: "forced into servitude begin with loyalty scores of", take: "signedInt", span: 6 },
+        ],
+      },
+      // The Irrefusable Offer (MM 351): the result column, the figure for an
+      // opposite alignment, and the starting loyalty of each result that
+      // enters service, all in the right column. One start prints no sign,
+      // so the starts read `signedInt`.
       irrefusableOffer: {
         shape: "proseValues",
         book: "mm",
@@ -4314,6 +4334,9 @@ export const TABLE_RECIPES = {
         values: [
           { key: "oppositeAlignment", find: "opposite alignments, apply a", take: "signed", span: 8 },
           { key: "bands", find: "(2d6) r esult", take: "bandEdges", span: 110 },
+          { key: "hesitateLoyalty", find: "begins its service with a loyalty score of", take: "signedInt", span: 6 },
+          { key: "acceptLoyalty", find: "loyal to the character, with a loyalty score of", take: "signedInt", span: 6 },
+          { key: "elanLoyalty", find: "loyalty score begins at", take: "signedInt", span: 6 },
         ],
       },
       // The roll total at which a Mystic Aura bewitches its subject (RR 115),
@@ -4341,6 +4364,16 @@ export const TABLE_RECIPES = {
           { key: "tier2", find: "bonus", occurrence: 2, before: true, take: "signed", span: 6 },
           { key: "tier3", find: "bonus", occurrence: 3, before: true, take: "signed", span: 6 },
         ],
+      },
+      // Offering Bribes (RR 287): the unmodified roll that marks a proficient
+      // briber's offer as a chargeable crime. The page prints a figure in a
+      // second sentence too, so the anchor names the proficiency.
+      bribeCrime: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 287,
+        locate: "Cost of Bribes",
+        values: [{ key: "natural", find: "proficiency is only charged with the crime if he rolls an unmodified", take: "int", span: 6 }],
       },
       // Character Aging (RR 19): each race's age span per category, the
       // years as `[first, last]` and null for a category the race has none of.

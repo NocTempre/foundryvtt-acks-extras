@@ -316,6 +316,12 @@ export const AGING_PAGE = Object.freeze({ table: "characterAging", cite: "RR 19"
  */
 export const BEWITCH_PAGE = Object.freeze({ table: "mysticAura", cite: "RR 115" });
 
+/**
+ * The bribery-charge mark's table: `natural` is the unmodified roll that
+ * marks a proficient briber's offer as chargeable (RR 287).
+ */
+export const BRIBE_CRIME_PAGE = Object.freeze({ table: "bribeCrime", cite: "RR 287" });
+
 export const INFLUENCE_MODIFIERS = Object.freeze({
   [INFLUENCE_TONE.DIPLOMACY]: [
     {
