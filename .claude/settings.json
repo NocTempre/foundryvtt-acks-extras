@@ -113,6 +113,18 @@
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "node \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/unpushed-report.mjs\"",
+            "timeout": 20
+          }
+        ]
+      }
     ]
   }
 }

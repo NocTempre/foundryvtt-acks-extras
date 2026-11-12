@@ -41,6 +41,22 @@ drives the test world), `doc-scribe` (haiku: docs chores).
   bug that resists first diagnosis → `architect` or plan mode first; the
   write comes after the ruling.
 
+How much one agent and one session carry:
+
+- **One slice, one agent.** A finished agent is not resumed with new work; the
+  next slice gets a fresh agent and a fresh brief.
+- **A session works one batch of about ten ledger rows**, then hands the next
+  batch to a new session. Findings made on the way are registered, and are
+  fixed in the batch that picks them up. A printed value found in source is
+  the exception: the work that finds it fixes it
+  (`.claude/rules/ip-doctrine.md`).
+- **The agent definition picks the model.** An `implementer` is started with
+  no model override; work that needs a stronger model is design, and goes to
+  `architect`.
+- **An owner ruling reaches an agent in the owner's words.** The brief quotes
+  it, and the agent's report restates it with one example before anything is
+  built on it.
+
 ## Layout
 
 - `scripts/` — ESM runtime, entry `scripts/module.mjs`; `templates/` — .hbs;
