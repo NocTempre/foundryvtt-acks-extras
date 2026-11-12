@@ -151,6 +151,13 @@
   nothing is blocked. A Judge's own ability can carry its own limit through
   its effect row editor's Limitation fields. A world imported before this
   release runs Rules tables again to read the page.
+- **How light an armour an ability allows is read from your books.** The
+  abilities whose bonus holds only while their owner is lightly armoured and
+  lightly loaded read the heaviest armour they allow from their own passage,
+  beside the load they already read, and no longer carry it built in. Import
+  the books (Settings tab → Game Settings → ACKS II — Extras → Manage imports),
+  then press *Update Abilities* at the top of the Items sidebar: an ability
+  already in a world keeps the armour it had until you do.
 - **A henchman's share of treasure and experience is read from your
   Rulebook.** The share a henchman takes (its sheet's Service tab, the Terms
   group's Share row) and the share Deal XP gives it (the party sheet's quick
@@ -223,6 +230,48 @@
   tables again to read them. For module authors, influence's `api.constants`
   no longer carries `INFLUENCE_RELATIONSHIP_MOD` or `INFLUENCE_BANDS`, and the
   influence-roll hook's band is `result1` to `result5`, or null.
+- **Bows and crossbows are one weapon category, as the books list them.** On
+  the character sheet's Stats tab, Training shows one *Bows & Crossbows* group
+  where it showed two; an item sheet's Details tab → Construction → Class
+  offers it as one option; and Configure Proficiencies (Compendium tab → ACKS
+  Extras Macros) has one box for it. A crossbow-kind weapon its own name does
+  not place is placed by its sub-header in the weapon table. A crossbow or an
+  arbalest spends bolts, any other bow arrows. A weapon class or a training
+  grant stored as Bows or Crossbows before this release is not carried over:
+  pick it again. For module authors, equipment's `WEAPON_CATEGORY` has
+  `BOW_CROSSBOW` in place of `BOW` and `CROSSBOW`, and the grant token is
+  `bowcrossbow` (lib `apiVersion` 39).
+- **Travel speeds are read from your Rulebook.** The clock strip on the Party
+  sheet's first tab and a vehicle sheet's Travel tab price a day's march, the
+  hours of a dedicated, forced and ancillary day and the wilderness scale from
+  the Expedition Speed page, read when you import the rules tables (Settings
+  tab → Game Settings → ACKS II — Extras → Manage imports → Rules tables) and
+  no longer built into the module; the pace labels no longer print their
+  hours. Hover the speed for the page it came from. Until it is imported the
+  strip shows a dash and "Not imported" with no budget line, a journey counts
+  its miles but moves no clock, a camp search says the figures are missing and
+  rolls nothing, and the vehicle's Travel tab says "Not imported". A world
+  imported before this release runs Rules tables again to read it. For module
+  authors, lib's movement scales no longer export
+  `FEET_PER_TURN_PER_MILE_PER_DAY`, `MARCH_HOURS` or `WILDERNESS_FACTOR`,
+  `TRAVEL_PACE` entries carry no multiplier or hours, and the figures are read
+  through `expeditionFigures()` and `paceFigures()` (lib `apiVersion` 40).
+- **The city street's dice, jumping, the fall and the Spelunking obstacles
+  are read from your books.** The die a city street's encounter is thrown on
+  and the incident die (Judges Journal), and the figures behind a jump, a leap,
+  the fall after a failed landing and each Spelunking obstacle (Revised
+  Rulebook), are read when you import the rules tables (Settings tab → Game
+  Settings → ACKS II — Extras → Manage imports → Rules tables) and no longer
+  built into the module. The city turn card's die names the page it was read
+  from on hover. Until they are imported a city turn says the street's die is
+  not imported and throws nothing for the street, and a jump, a landing or an
+  obstacle attempt made through `acksExtras.formation` answers not imported
+  and rolls nothing. A world imported before this release runs Rules tables
+  again to read them. For module authors, formation's `jumping` constants,
+  `obstacles`' `FEET_PER_THROW` and per-obstacle figures, and `settlement`'s
+  `STREET_DIE` and `INCIDENT_DIE` are gone; read them through their functions
+  (`leapPlus()`, `adventuringTarget()`, `stretchFeet()`, `streetDie()`,
+  `incidentDie()` and the rest), and `canClear`'s `onSix` is `clearing`.
 - **Henchman arrivals wait for the arrival schedule to be imported.** How many
   of a month's candidates arrive each week is read from your Rulebook (Settings
   tab → Game Settings → ACKS II — Extras → Manage imports → Rules tables) and
@@ -398,6 +447,11 @@
   house rule. The level-up wizard always rerolls the full hit dice by the
   rules, keeping the better of the roll and one over the old maximum. A world
   that stored the house rule now gets the rules' procedure.
+- **Grenades, jars and pots are no longer everyone's throw.** Every character
+  throws proficiently what the Revised Rulebook names, a bottle, a flask, a
+  rock, a stick or a torch, and a vial; an item named only a
+  grenade, a jar or a pot was in that list too, and no page puts it there. Its
+  own grant decides now, or the Judge's grenade tag.
 - **Light and noise no longer modify encounter throws.** The optional setting
   that shifted the party formation's wandering-monster throw by the party's
   light and pace, in Settings tab → Game Settings → ACKS II — Extras, was a
