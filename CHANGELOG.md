@@ -461,6 +461,15 @@
 
 ### Fixed
 
+- **An ability nobody classified reads as unknown, not as a proficiency.** A
+  proficiency a monster's stat block names now takes the imported definition
+  it matches, its category and throw included, before one is made up; one
+  nothing matches opens with Category *Unknown* (the ability's sheet →
+  Mechanics tab → Classification). The Training strip on a character sheet's
+  Stats tab counts only an ability whose category says it trains. A new
+  ability made by hand also opens with Category *Unknown* until you pick one.
+  A monster already in a world gets its abilities rebuilt this way when it is
+  imported again or its shelf is repaired.
 - **The repair tool names its Abilities group.** In the repair tool
   (Settings tab → Game Settings → ACKS II — Extras → Repair this world), the
   group holding the abilities check showed a raw key as its heading; it now
