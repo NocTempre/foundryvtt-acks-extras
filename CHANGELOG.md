@@ -140,6 +140,42 @@
 
 ### Changed
 
+- **Printed names arrive from your own books.** Two Revised Rulebook classes,
+  the barbarian's three tribal origins, one class power and one proficiency
+  take their names from your Rulebook when you import it (Settings tab → Game
+  Settings → ACKS II — Extras → Manage imports); without the book they read
+  Class 20 and Class 21, Tribal Origin 1 to 3, Dark Fortress and Proficiency
+  15. The Judges Journal import now also builds the two peoples' races and the
+  Ready-for-Play build of every Revised Rulebook class. A world gets the new
+  documents by importing again; the old ones stay until Remove ALL Imports.
+- **Hireling Loyalty and the Irrefusable Offer read every figure from your
+  books.** Both result columns, the opposite-alignment figure, a Grudging or
+  Fanatic result's permanent change, what an Accept with élan adds, and each
+  Irrefusable result's starting loyalty are read when you import the rules
+  tables (Settings tab → Game Settings → ACKS II — Extras → Manage imports →
+  Rules tables), and a Judge can change any of them in the Ruledata Browser
+  (Settings tab → Game Settings → ACKS II — Extras → Open Ruledata Browser). A
+  figure that is not imported changes nothing and warns; a captured monster
+  whose starting loyalty is not imported is not hired. The top Irrefusable
+  result no longer adds the élan figure on top of its own start. The influence
+  roller's bribery note reads its charge mark from your Rulebook too, and says
+  so when the mark is not imported. For module authors,
+  `acksExtras.henchmen.rules.loyaltyDeltaForOutcome` answers null for a figure
+  not imported, and `startingLoyalty` takes `elan` as a number.
+- **The day's ancillary slots and the Spelunking outcomes are read from your
+  Rulebook.** The party sheet's Wilderness tab → The day draws one slot per
+  imported ancillary hour, and says "Ancillary hours: not imported" without
+  them. An obstacle throw that misses prints the imported failed- or
+  botched-throw outcome on its chat card, with a tooltip naming its page or
+  the Judge's override, and a fall ends that climber's attempt. Until the
+  rules tables are imported again (Settings tab → Game Settings → ACKS II —
+  Extras → Manage imports → Rules tables) the board shows no slots and a
+  missed throw reads "not imported". A Judge changes either in the Ruledata
+  Browser (Settings tab → Game Settings → ACKS II — Extras → Open Ruledata
+  Browser). For module authors, formation's `travel` no longer exports
+  `ANCILLARY_SLOTS` (`ancillarySlots()` answers the count, or null), and
+  `obstacles` no longer exports `OUTCOME` nor gives an obstacle `fail` and
+  `botch` keys (formation `apiVersion` 22).
 - **The thief skills' armour limit is read from your Judges Journal.** Which
   skills armour and a shield hold back, and how heavy an armour may be, are
   read when you import the rules tables (Settings tab → Game Settings → ACKS
