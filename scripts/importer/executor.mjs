@@ -16,6 +16,7 @@ import { pageItems, pageArtInfo, SPOIL_RE } from "./extract.mjs";
 import { rowsByY, applyCellPattern, slugLabel, joinRuns as joinCellRuns } from "./table-extract.mjs";
 import { opensWithNumber, printKey } from "./printed-name.mjs";
 import { levelFraction } from "../lib/vocab.mjs";
+import { ceilingOf } from "../equipment/armour-limits.mjs";
 
 /**
  * Schema v2 (2026-07-24) is v1 plus the `grid` instruction — nothing existing
@@ -490,8 +491,12 @@ const LOCATABLE_FIELDS = {
   belowFraction: "number",
   // A gate's figures (acks-lib `gate`, lib/typed-modifiers.mjs): the load a
   // lightly-equipped gate allows is the page's number, so the recipe ships the
-  // gate's kind and where to read its load, never the load itself.
+  // gate's kind and where to read its load, never the load itself. The armour
+  // rung is the page's too: the locator captures the clause naming what may be
+  // worn, and `ceilingOf` (the armour-limit binding's word table) maps the
+  // printed words to the ladder key.
   "gate.loadMax": "number",
+  "gate.armourMax": "armourRung",
 };
 
 /**
@@ -593,6 +598,9 @@ export function locateCondition(loc, text) {
  *   { "into": "gate.loadMax", "pattern": "carrying (\\d+) stone" }
  *        -> one level of nesting: a gate's figure, beside the gate's kind the
  *          recipe ships.
+ *   { "into": "gate.armourMax", "pattern": "wearing\\s*(.*?)\\s*and carrying" }
+ *        -> a gate's armour rung: the capture is the clause naming what may be
+ *          worn, and the heaviest ladder word in it is the rung (`ceilingOf`).
  *   { "on": "level", "pairs": true, "pattern": "…(\\d+)…(\\d+)…(\\d+)…(\\d+)…" }
  *        -> a breakpoint ladder. `on:"level"` gives a plain `breakpoints`
  *          LevelValue; any other VALUE_SCALES scale gives a `conditional` one.
@@ -646,6 +654,17 @@ export function materializeEffects(specs, paras) {
         continue;
       }
       const raw = String(m[loc.group ?? 1] ?? m[0]);
+      // A rung is a word, not a number: the clause names the ladder words, and
+      // a clause naming none reads no rung, which drops the row like any miss.
+      if (kind === "armourRung") {
+        const rung = ceilingOf(raw);
+        if (!rung) {
+          complete = false;
+          break;
+        }
+        setLocated(effect, into, rung);
+        continue;
+      }
       // Strip the page's own punctuation ("1,000 gp" -> 1000) but keep the
       // decimal point for the fields allowed to be fractional — `amount`, and
       // `value` because "one-half his class level" is a rate, not a count.

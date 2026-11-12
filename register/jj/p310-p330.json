@@ -536,8 +536,7 @@
         "target": "ac",
         "mode": "add",
         "gate": {
-          "kind": "lightlyEquipped",
-          "armourMax": "light"
+          "kind": "lightlyEquipped"
         },
         "stacksWith": [
           "def.prof.swashbuckling"
@@ -551,6 +550,10 @@
           {
             "into": "gate.loadMax",
             "pattern": "carrying\\s*(\\d+)\\s*stones?\\s*or\\s*less"
+          },
+          {
+            "into": "gate.armourMax",
+            "pattern": "wearing\\s*([^.]{0,80}?)\\s*,?\\s*and\\s*carrying"
           }
         ]
       }
@@ -2308,8 +2311,7 @@
         "target": "ac",
         "mode": "add",
         "gate": {
-          "kind": "lightlyEquipped",
-          "armourMax": "light"
+          "kind": "lightlyEquipped"
         },
         "stacksWith": [
           "def.prof.swashbuckling"
@@ -2323,6 +2325,10 @@
           {
             "into": "gate.loadMax",
             "pattern": "carrying\\s*(\\d+)\\s*stones?\\s*or\\s*less"
+          },
+          {
+            "into": "gate.armourMax",
+            "pattern": "wearing\\s*([^.]{0,80}?)\\s*,?\\s*and\\s*carrying"
           }
         ]
       }
@@ -2955,8 +2961,7 @@
         "target": "ac",
         "mode": "add",
         "gate": {
-          "kind": "lightlyEquipped",
-          "armourMax": "light"
+          "kind": "lightlyEquipped"
         },
         "stacksWith": [
           "def.prof.swashbuckling"
@@ -2970,6 +2975,10 @@
           {
             "into": "gate.loadMax",
             "pattern": "carrying\\s*(\\d+)\\s*stones?\\s*or\\s*less"
+          },
+          {
+            "into": "gate.armourMax",
+            "pattern": "wearing\\s*([^.]{0,80}?)\\s*,?\\s*and\\s*carrying"
           }
         ]
       }

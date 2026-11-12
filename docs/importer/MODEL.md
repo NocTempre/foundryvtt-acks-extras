@@ -904,11 +904,19 @@ bonus, a daily power — stays in the description. The rulings are DECISIONS
 An entry's register `effects` recipe replaces the vocabulary scan for that
 entry whole, so it carries every row the entry should have (modifiers, throws,
 limitations), each with locators for its figures. A recipe ships the row's
-structure — target, `forWhat`, `condition: "situational"`, a `gate`'s kind and
-armour rung word — and locators read everything printed: the value, a ladder's
-rungs, a per-level rate (`perGroup`, signed by `perSign`), and a gate's load
-(`{into: "gate.loadMax"}`, one level of nesting). A locator that misses drops
-its whole row. `bindAbility` stamps `extras.effectsFrom` — `"recipe"` or
+structure — target, `forWhat`, `condition: "situational"`, a `gate`'s kind —
+and locators read everything printed: the value, a ladder's rungs, a per-level
+rate (`perGroup`, signed by `perSign`), and a gate's load
+(`{into: "gate.loadMax"}`, one level of nesting) and armour rung
+(`{into: "gate.armourMax"}`: the capture is the clause naming what may be
+worn, and `ceilingOf` in `equipment/armour-limits.mjs`, the word table the
+thief-skill limit binding also uses, maps its heaviest ladder word to the
+rung key; a clause naming none reads no rung). A locator that misses drops
+its whole row. A world imported before the rung was read keeps the literal its
+stamped rows carry until Update Abilities (top of the Items sidebar, which
+rewrites an ability's mechanics from the seat's own book) or a re-import
+rewrites them; nothing migrates it (DECISIONS, 2026-11-11, "The armour rung on
+an ability's gate is imported"). `bindAbility` stamps `extras.effectsFrom` — `"recipe"` or
 `"scan"` (`effects-origin.mjs` `effectsOriginOf`) — which the sheet reads to
 mark a scan's applied rows unverified (`docs/abilities/MODEL.md`). The scan
 splits a phrase naming two fields at its conjunctions ("surprise and

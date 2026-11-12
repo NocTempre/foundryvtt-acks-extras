@@ -9930,3 +9930,36 @@ repair does not read it as an edit; guarding it is not part of this change.
 `takeoverPatch` still replaces the earlier book's block without asking whether
 it was edited: the later book's text supersedes it by ruling, and no held-edit
 path reaches that write.
+
+## 2026-11-11 — The armour rung on an ability's gate is imported (T-0513)
+
+Owner ruling. Six register rows (Swashbuckling, Blade-Dancing and its two
+aliases, the bladedancer's Graceful Fighting, both its rows) shipped the armour
+rung on a `lightlyEquipped` gate as a word in the recipe, so the shipped
+recipe stated which suit a printed ability allows. `ip-doctrine.md` lists a
+ladder rung as content, however small and however alone; the gate's load was
+already read off the page and its rung sat beside it as the one printed
+figure the recipe still carried.
+
+The recipe ships the gate's kind alone. A `gate.armourMax` locator
+(`executor.mjs`, `LOCATABLE_FIELDS`) captures the clause the page words as
+"wearing …, and carrying" and maps the heaviest ladder word in it to the rung
+key with `ceilingOf`, the sibling of `ceilingBelow` in `armour-limits.mjs`:
+the thief-skill limit binding's word table, read for an allowance where that
+one reads a prohibition. A clause naming no ladder word reads no rung, and a
+locator that misses drops its whole row like any other. Nothing imported
+leaves no row, and a hand-made row with no rung answers null (situational),
+never a default rung.
+
+**Rejected.** A registry table read at runtime, the route the armour limit
+took (`thiefLimits`): that limit is one rule printed once and applied to many
+abilities, so one table serves every row. Each of these rows reads its own
+passage, and the rung and the load are two figures of the same clause, so the
+locator beside `gate.loadMax` is the same shape and needs no table, document
+or override layer. A Judge changes a rung through the row editor, as for any
+row.
+
+*Cost:* a world imported before this keeps the literal in the rows it
+stamped until Update Abilities (top of the Items sidebar) or a re-import
+rewrites them; no migration reads them. The rung is not Judge-editable
+centrally, only per row.

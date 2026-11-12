@@ -294,6 +294,22 @@ character `abilities/typed-character`, a level-3 `character` actor):
     style's part carries its table the same way, but it writes the melee
     attack modifier, which no Stats row shows; check it on the loadout
     effect's `loadoutParts` flag (`table: "dualWeaponStyle"`).
+14. A gate's armour rung read off the page (fixture `abilities/gate-character`,
+    a level-3 `character`, found by that marker; the abilities are the
+    library's and need none): with the rulebook and the Judges Journal
+    imported, give it Swashbuckling, Blade-Dancing and the bladedancer's
+    Graceful Fighting, then run **Update Abilities** (top of the Items
+    sidebar). On each ability, read `flags.acks-extras.extras.effects` → every
+    `lightlyEquipped` gate carries `loadMax` and `armourMax`, the latter a
+    ladder key, and `cookbook/powers.json` and `proficiencies.json` hold no
+    `armourMax` on those specs. Equip armour of a heavier category than the
+    rung → the part leaves the AC tooltip, listed "its gate is not met"; unequip
+    → it returns. Add a hand-made row `{type: "modifier", target: "ac", value:
+    {kind: "flat", flat: 1}, gate: {kind: "lightlyEquipped", loadMax: 4}}`
+    (no rung) → the tooltip lists it as not applied under every loadout, never
+    applied by a default rung. A row stamped before the rung was read keeps
+    its old literal until **Update Abilities** rewrites it; compare a copy
+    made before this change.
 
 This walk is also the Stats tab's first live pass.
 

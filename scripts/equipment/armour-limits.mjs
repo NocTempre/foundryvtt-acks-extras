@@ -66,6 +66,30 @@ export function ceilingBelow(phrase) {
 }
 
 /**
+ * The heaviest armour rung a clause allows, from the phrase naming what may be
+ * worn: the highest ladder word the phrase names, with "no armour" counted as
+ * the lowest rung. The reading an importer locator applies to an allowance
+ * ("wearing X, Y or no armour"), where `ceilingBelow` reads a prohibition.
+ * Words match longest first so "very light" is not also "light". Null where the
+ * phrase names no rung.
+ * @param {string} phrase
+ * @returns {string|null}
+ */
+export function ceilingOf(phrase) {
+  let text = String(phrase ?? "").toLowerCase().replace(/\bno\s*armou?r\b/g, " unarmored ");
+  let highest = -1;
+  const order = ARMOR_LADDER.map((rung, i) => ({ rung, i })).sort((a, b) => b.rung.length - a.rung.length);
+  for (const { rung, i } of order) {
+    const re = rungPattern(rung);
+    if (re.test(text)) {
+      highest = Math.max(highest, i);
+      text = text.replace(re, " ");
+    }
+  }
+  return highest >= 0 ? ARMOR_LADDER[highest] : null;
+}
+
+/**
  * What the raw `thiefLimits` table states, each part only where it was read:
  * `names` the printed skill names (split on commas and "and"), `armourMax` the
  * rung from `forbidden`, `noShield` whether the page also refuses a shield.

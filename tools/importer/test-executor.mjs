@@ -761,21 +761,73 @@ await ta("a sideways grid keys its cells by the authored band key, and reads its
 /*  typed modifiers: gate arguments, rates, conjunctions, no numbers   */
 /* ------------------------------------------------------------------ */
 
-t("a gate's load is read off the page into the gate, beside the kind the recipe ships", () => {
-  const [e] = materializeEffects(
-    [
-      {
-        type: "modifier",
-        target: "initiative",
-        mode: "add",
-        gate: { kind: "lightlyEquipped", armourMax: "light" },
-        from: [{ pattern: "\\+(\\d+)\\s*bonus\\s*to\\s*initiative" }, { into: "gate.loadMax", pattern: "carrying\\s*(\\d+)\\s*stones?\\s*or\\s*less" }],
-      },
+t("a gate's load and armour rung are read off the page into the gate, beside the kind the recipe ships", () => {
+  const spec = {
+    type: "modifier",
+    target: "initiative",
+    mode: "add",
+    gate: { kind: "lightlyEquipped" },
+    from: [
+      { pattern: "\\+(\\d+)\\s*bonus\\s*to\\s*initiative" },
+      { into: "gate.loadMax", pattern: "carrying\\s*(\\d+)\\s*stones?\\s*or\\s*less" },
+      { into: "gate.armourMax", pattern: "wearing\\s*([^.]{0,80}?)\\s*,?\\s*and\\s*carrying" },
     ],
-    paras("While lightly armoured and carrying 7 stones or less, the character gains a +3 bonus to initiative."),
+  };
+  const [e] = materializeEffects(
+    [spec],
+    paras("While wearing medium armour, very light armour, or no armour, and carrying 7 stones or less, the character gains a +3 bonus to initiative."),
   );
-  assert.deepEqual(e.gate, { kind: "lightlyEquipped", armourMax: "light", loadMax: 7 });
+  assert.deepEqual(e.gate, { kind: "lightlyEquipped", loadMax: 7, armourMax: "medium" });
   assert.deepEqual(e.value, { kind: "flat", flat: 3 });
+  const [bare] = materializeEffects([spec], paras("While wearing no armour and carrying 2 stones or less, the character gains a +1 bonus to initiative."));
+  assert.equal(bare.gate.armourMax, "unarmored", "'no armour' alone is the lowest rung");
+  const [terse] = materializeEffects([spec], paras("If wearing heavy, very light or no armour and carrying 4 stones or less, the character gains a +1 bonus to initiative."));
+  assert.equal(terse.gate.armourMax, "heavy", "the heaviest word of a clause that names the suit once");
+  assert.deepEqual(
+    materializeEffects([spec], paras("While wearing any armour and carrying 7 stones or less, the character gains a +3 bonus to initiative.")),
+    [],
+    "a clause that names no ladder word reads no rung, so no row",
+  );
+  assert.deepEqual(materializeEffects([spec], paras("While carrying 7 stones or less, the character gains a +3 bonus to initiative.")), [], "no clause on the page, no row");
+  assert.deepEqual(materializeEffects([spec], []), [], "a bookless import carries no rung");
+});
+t("every register gate ships its kind alone and reads its armour rung off the page", () => {
+  const root = fileURLToPath(new URL("../../register/", import.meta.url));
+  const gated = [];
+  const walk = (dir) => {
+    for (const f of fs.readdirSync(dir, { withFileTypes: true })) {
+      const p = `${dir}${dir.endsWith("/") || dir.endsWith("\\") ? "" : "/"}${f.name}`;
+      if (f.isDirectory()) walk(p);
+      else if (f.name.endsWith(".json")) {
+        let rows;
+        try {
+          rows = JSON.parse(fs.readFileSync(p, "utf8"));
+        } catch {
+          continue;
+        }
+        for (const row of Array.isArray(rows) ? rows : []) {
+          for (const spec of row?.effects ?? []) if (spec?.gate) gated.push({ id: row.id, spec });
+        }
+      }
+    }
+  };
+  walk(root);
+  const lightly = gated.filter((g) => g.spec.gate.kind === "lightlyEquipped");
+  assert.equal(lightly.length, 6, "the six rows that gate on the armour worn and the load carried");
+  assert.deepEqual(gated.filter((g) => g.spec.gate.armourMax !== undefined).map((g) => g.id), [], "no register gate states a rung");
+  const clauses = [
+    "She is wearing medium armour, very light armour, or no armour, and carrying 5 stones or less encumbrance.",
+    "If wearing medium, very light, or no armour, and carrying 5 stones or less encumbrance.",
+    "While wearing medium armour or no armour and carrying 5 stones or less encumbrance.",
+  ];
+  for (const { id, spec } of lightly) {
+    const loc = spec.from.find((l) => l.into === "gate.armourMax");
+    assert.ok(loc, `${id}: a locator reads the rung`);
+    for (const clause of clauses) {
+      const [row] = materializeEffects([{ type: "modifier", gate: { kind: "lightlyEquipped" }, from: [loc] }], paras(clause));
+      assert.equal(row?.gate.armourMax, "medium", `${id}: ${clause}`);
+    }
+  }
 });
 t("a gate locator that misses drops the whole effect, never a gate without its load", () => {
   const out = materializeEffects(

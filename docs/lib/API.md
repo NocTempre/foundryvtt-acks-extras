@@ -524,7 +524,9 @@ ability is resolved in this order (`modifierDisposition`):
 
 `gate` (`effectField`) is `{kind, armourMax, noShield, loadMax, style, status}`; the
 importer reads its figures off the page (`loadMax` through a `gate.loadMax`
-locator) and the recipe ships only the kind and the rung word. Evaluators
+locator, the `armourMax` rung through a `gate.armourMax` locator whose captured
+clause the armour-limit word table maps to a ladder key) and the recipe ships
+only the kind. A gate with no rung answers null. Evaluators
 answer true, false, or null when they cannot decide, which lists the row as
 situational: lib registers `status`, equipment `lightlyEquipped` (armour rung
 and load in stone, against the loadout), `activeStyle`, and `specializedStyle`

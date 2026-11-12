@@ -7,7 +7,7 @@
  */
 import assert from "node:assert";
 import {
-  ARMOUR_LIMIT_KIND, THIEF_LIMITS_TABLE, armourLimitSource, armourLimitedAbilities, ceilingBelow, importedLimitRow,
+  ARMOUR_LIMIT_KIND, THIEF_LIMITS_TABLE, armourLimitSource, armourLimitedAbilities, ceilingBelow, ceilingOf, importedLimitRow,
   isArmourLimitRow, limitRowsFor, limitsSkill, parseArmourLimits, resolveArmourGate, withImportedLimit,
 } from "../scripts/equipment/armour-limits.mjs";
 import { armourCeiling } from "../scripts/equipment/proficiency.mjs";
@@ -37,6 +37,18 @@ eq("the same rung under the other spelling", ceilingBelow("unarmoured"), null);
 eq("nothing is below the lowest rung", ceilingBelow("unarmored or more"), null);
 eq("a phrase naming no ladder word has no rung", ceilingBelow("any armour at all"), null);
 eq("an empty phrase has no rung", ceilingBelow(""), null);
+
+/* -------------------------------- ceilingOf -------------------------------- */
+
+// The allowance reading: the heaviest word a clause names, from invented clauses.
+eq("the heaviest word named is the rung allowed", ceilingOf("medium armour, very light armour or no armour"), "medium");
+eq("the order the words are printed in does not matter", ceilingOf("no armour, or very light, or medium"), "medium");
+eq("a two-word rung is not also its one-word suffix", ceilingOf("very light armour"), "veryLight");
+eq("no armour alone is the lowest rung", ceilingOf("no armour"), "unarmored");
+eq("the same rung under the other spelling", ceilingOf("no armor at all"), "unarmored");
+eq("a comparative is no ladder word", ceilingOf("anything lighter"), null);
+eq("a phrase naming no ladder word has no rung", ceilingOf("any armour at all"), null);
+eq("an empty phrase has no rung", ceilingOf(""), null);
 
 /* ---------------------------- parseArmourLimits ---------------------------- */
 
