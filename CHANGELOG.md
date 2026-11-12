@@ -140,6 +140,17 @@
 
 ### Changed
 
+- **The thief skills' armour limit is read from your Judges Journal.** Which
+  skills armour and a shield hold back, and how heavy an armour may be, are
+  read when you import the rules tables (Settings tab → Game Settings → ACKS
+  II — Extras → Manage imports → Rules tables, with the Judges Journal
+  connected) and no longer built into the module. The Worn & Wielded header
+  on a character sheet's Equipment tab now names the abilities the worn
+  armour or shield holds back, and hovering it says where the figures came
+  from. Until the tables are imported those abilities read as undecided and
+  nothing is blocked. A Judge's own ability can carry its own limit through
+  its effect row editor's Limitation fields. A world imported before this
+  release runs Rules tables again to read the page.
 - **A henchman's share of treasure and experience is read from your
   Rulebook.** The share a henchman takes (its sheet's Service tab, the Terms
   group's Share row) and the share Deal XP gives it (the party sheet's quick
