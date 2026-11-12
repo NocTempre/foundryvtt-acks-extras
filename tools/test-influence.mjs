@@ -12,8 +12,10 @@
 import assert from "node:assert/strict";
 import { resolveLevelValue } from "../scripts/lib/vocab.mjs";
 import fs from "node:fs";
-import { EXTERNAL_MODES, INFLUENCE_DOC, INFLUENCE_MODIFIERS, INFLUENCE_TONE, REACTION_CHANGE_KEY, ROLL_FAMILY, TONE_PAGES, externalRows } from "../scripts/influence/constants.mjs";
+import { AGING_PAGE, BEWITCH_PAGE, EXTERNAL_MODES, INFLUENCE_DOC, INFLUENCE_MODIFIERS, INFLUENCE_RESULTS, INFLUENCE_TONE, REACTION_CHANGE_KEY, ROLL_FAMILY, TONE_PAGES, externalRows } from "../scripts/influence/constants.mjs";
 import {
+  ageCategoryIndex,
+  bewitchMark,
   computeDefaults,
   effectRowsForPage,
   getActsAsPowers,
@@ -25,7 +27,7 @@ import {
   offeredEffectRows,
   resolveHeldRows,
 } from "../scripts/influence/actor-data.mjs";
-import { MORALE_DOC, figureOrigin, modeRows, printedBands, printedFigure, printedLabel, toneRows } from "../scripts/influence/printed.mjs";
+import { MORALE_DOC, attitudeFigure, figureOrigin, modeRows, printedBands, printedFigure, printedLabel, toneBands, toneRows } from "../scripts/influence/printed.mjs";
 import { conditionEntries, conditionRows } from "../scripts/influence/condition-rows.mjs";
 import { PRIORITY, registerTable, resetTables } from "../scripts/lib/tables.mjs";
 import { getAbilityReactionMods, itemsWithReactionEffects } from "../scripts/influence/ability-effects.mjs";
@@ -443,9 +445,42 @@ t("a read hiring page owes each count the page's figure, under the mode's rung n
 
 /* --- the loyalty page: one printed figure on a page whose result column is not --- */
 
+t("the loyalty and irrefusable pages ship their structure and no figure or edge", () => {
+  for (const id of ["loyalty", "irrefusableOffer"]) {
+    const mode = EXTERNAL_MODES[id];
+    assert.equal(mode.bands, undefined, `${id}: no result edges`);
+    assert.equal(mode.printedDoc, INFLUENCE_DOC, `${id}: its table is of the influence document`);
+    assert.ok(mode.printed && mode.cite && mode.bandKeys.length && mode.postsWithoutBands, `${id}: names its page and posts without a result`);
+    for (const mod of mode.groups.flatMap((g) => g.mods)) {
+      assert.equal(mod.value, undefined, `${id}.${mod.key}: no figure`);
+    }
+  }
+  assert.equal(EXTERNAL_MODES.loyalty.printed, "hirelingLoyalty");
+});
+
+t("an unread irrefusable offer types its alignment figure by hand and names no result", () => {
+  resetTables();
+  const mode = EXTERNAL_MODES.irrefusableOffer;
+  const declared = mode.groups.flatMap((g) => g.mods).find((m) => m.key === "oppositeAlignment");
+  assert.deepEqual(rowOf(mode, "oppositeAlignment"), { key: "oppositeAlignment", label: declared.label, type: "signed", unread: true });
+  assert.equal(printedBands(mode.printed, mode.bandKeys, mode.printedDoc), null);
+  assert.equal(printedBands(EXTERNAL_MODES.loyalty.printed, EXTERNAL_MODES.loyalty.bandKeys, INFLUENCE_DOC), null);
+});
+
+t("a read irrefusable offer is worth the page's figure and takes the page's edges", () => {
+  resetTables();
+  const bands = [{ min: null, max: 3 }, { min: 4, max: 5 }, { min: 6, max: 9 }, { min: 10, max: 14 }, { min: 15, max: null }];
+  registerTable({ id: INFLUENCE_DOC, tables: { irrefusableOffer: { oppositeAlignment: -7, bands }, hirelingLoyalty: { bands } } }, { priority: PRIORITY.WORLD });
+  const mode = EXTERNAL_MODES.irrefusableOffer;
+  const row = rowOf(mode, "oppositeAlignment");
+  assert.deepEqual({ type: row.type, value: row.value, showFigure: row.showFigure }, { type: "check", value: -7, showFigure: true });
+  assert.deepEqual(printedBands(mode.printed, mode.bandKeys, mode.printedDoc).map((b) => b.key), ["betrayal", "escape", "hesitate", "accept", "elan"]);
+  assert.deepEqual(printedBands("hirelingLoyalty", EXTERNAL_MODES.loyalty.bandKeys, INFLUENCE_DOC).map((b) => b.key), ["hostility", "resignation", "grudging", "loyal", "fanatic"]);
+  resetTables();
+});
+
 t("the loyalty page names its one printed figure's table on the row and ships no figure for it", () => {
   const mode = EXTERNAL_MODES.loyalty;
-  assert.equal(mode.printed, undefined, "the page names no table of its own");
   const declared = mode.groups.flatMap((g) => g.mods).find((m) => m.key === "apparentLevelDiff");
   assert.deepEqual(
     { type: declared.type, printed: declared.printed, printedDoc: declared.printedDoc, factor: declared.factor, auto: declared.auto },
@@ -669,13 +704,20 @@ const inventedTable = (tone) => {
   return table;
 };
 
+/** INVENTED bribe tier bonuses: none is a book's. */
+const INVENTED_BRIBE = { tier1: 4, tier2: 6, tier3: 9 };
+
 t("a tone page declares each row's figure by key and ships no figure", () => {
   for (const { tone, mod } of toneRowsDeclared()) {
     const where = `${tone}.${mod.key}`;
     assert.equal(mod.value, undefined, `${where}: no figure`);
     if (mod.figure !== undefined) assert.equal(mod.factor, undefined, `${where}: a figured row carries no factor`);
-    if (mod.options) assert.equal(mod.key, "bribe", `${where}: only the bribe tiers are literal options`);
-    if (mod.options) assert.deepEqual(mod.options.map((o) => o.value), [0, 1, 2, 3], `${where}: tier ordinals`);
+    assert.equal(mod.options, undefined, `${where}: no literal option table`);
+    if (mod.key === "bribe") {
+      assert.equal(mod.complete, true, `${where}: the tiers are read whole`);
+      assert.equal(mod.table, "bribeTiers", `${where}: the tiers are their own page's`);
+      assert.deepEqual(mod.rungs.map((r) => r.figure), ["tier1", "tier2", "tier3"], `${where}: one rung per tier, in place order`);
+    }
     if (mod.factor !== undefined) assert.equal(Math.abs(mod.factor), 1, `${where}: a count's sign, not a figure`);
     for (const rung of mod.rungs ?? []) assert.equal(rung.value, undefined, `${where}.${rung.rung}: no figure`);
   }
@@ -696,7 +738,7 @@ t("with nothing imported a figured row is disabled, contributes nothing and says
       assert.equal(Boolean(row.disabled), figured, `${tone}.${mod.key}: disabled exactly when it carries a figure`);
       if (!figured) return;
       assert.equal(row.unread, true, `${tone}.${mod.key}`);
-      assert.deepEqual(row.figureFrom, { docId: INFLUENCE_DOC, tableId: TONE_PAGES[tone].table });
+      assert.deepEqual(row.figureFrom, mod.table ? { docId: INFLUENCE_DOC, tableId: mod.table, cite: mod.cite } : { docId: INFLUENCE_DOC, tableId: TONE_PAGES[tone].table });
       if (mod.type === "select") assert.deepEqual(row.options.map((o) => o.value), [0], `${tone}.${mod.key}: only the blank`);
       if (mod.auto?.startsWith("prof:")) assert.equal(row.auto, undefined, `${tone}.${mod.key}: an unread box claims no item`);
     });
@@ -721,7 +763,7 @@ t("a read tone page is worth the imported figures, rung by rung", () => {
   resetTables();
   for (const tone of Object.values(INFLUENCE_TONE)) {
     const table = inventedTable(tone);
-    registerTable({ id: INFLUENCE_DOC, tables: { [TONE_PAGES[tone].table]: table } }, { priority: PRIORITY.WORLD });
+    registerTable({ id: INFLUENCE_DOC, tables: { [TONE_PAGES[tone].table]: table, bribeTiers: INVENTED_BRIBE } }, { priority: PRIORITY.WORLD });
     const declared = toneRowsDeclared().filter((row) => row.tone === tone).map((row) => row.mod);
     toneRead(tone).forEach((row, i) => {
       const mod = declared[i];
@@ -729,8 +771,9 @@ t("a read tone page is worth the imported figures, rung by rung", () => {
       if (mod.figure !== undefined && mod.type === "check") assert.equal(row.value, table[mod.figure], `${tone}.${mod.key}`);
       if (mod.figure !== undefined && mod.type === "factor") assert.equal(row.factor, table[mod.figure], `${tone}.${mod.key}`);
       if (mod.rungs) {
+        const source = mod.table ? INVENTED_BRIBE : table;
         assert.equal(row.byIndex, true);
-        assert.deepEqual(row.options.slice(1).map((o) => [o.rung, o.figure]), mod.rungs.map((r) => [r.rung, table[r.figure]]), `${tone}.${mod.key}: rungs in page order`);
+        assert.deepEqual(row.options.slice(1).map((o) => [o.rung, o.figure]), mod.rungs.map((r) => [r.rung, source[r.figure]]), `${tone}.${mod.key}: rungs in page order`);
         assert.deepEqual(row.options.map((o) => o.value), [0, ...mod.rungs.map((_, j) => j + 1)], `${tone}.${mod.key}: a blank, then each rung's own position`);
       }
     });
@@ -836,9 +879,130 @@ t("a disabled row is neither pre-filled nor counted", () => {
   assert.equal(defaults.diplomacy.diplomacyProf, false, "an unread box is not auto-ticked");
 });
 
+/* --- the reaction table, the attitude ladder, the bribe tiers, aging and the bewitching mark --- */
+
+const RESULT_KEYS = INFLUENCE_RESULTS.map((r) => r.key);
+
+/** INVENTED edges and shift counts: none is a book's. */
+const INVENTED_REACTION = {
+  bands: [{ min: null, max: 3 }, { min: 4, max: 6 }, { min: 7, max: 9 }, { min: 10, max: 12 }, { min: 13, max: null }],
+  shift1: 3,
+  shift2: 2,
+  shift3: 2,
+  shift4: 2,
+  shift5: 3,
+};
+
+t("a tone's result column is the page's edges and shift counts under the result keys", () => {
+  resetTables();
+  for (const page of Object.values(TONE_PAGES)) assert.equal(toneBands(page.reaction, RESULT_KEYS, INFLUENCE_DOC), null, "nothing imported: no result column");
+  const tables = Object.fromEntries(Object.values(TONE_PAGES).map((page) => [page.reaction, INVENTED_REACTION]));
+  registerTable({ id: INFLUENCE_DOC, tables }, { priority: PRIORITY.WORLD });
+  const bands = toneBands(TONE_PAGES.diplomacy.reaction, RESULT_KEYS, INFLUENCE_DOC);
+  assert.deepEqual(bands.map((b) => [b.key, b.min, b.max, b.shift]), [
+    ["result1", undefined, 3, 3],
+    ["result2", 4, 6, 2],
+    ["result3", 7, 9, 2],
+    ["result4", 10, 12, 2],
+    ["result5", 13, undefined, 3],
+  ]);
+  // A count the import did not read leaves that result with no shift, not a zero.
+  const { shift4, ...partial } = INVENTED_REACTION;
+  registerTable({ id: INFLUENCE_DOC, tables: { [TONE_PAGES.seduction.reaction]: partial } }, { priority: PRIORITY.WORLD });
+  assert.equal(toneBands(TONE_PAGES.seduction.reaction, RESULT_KEYS, INFLUENCE_DOC)[3].shift, null);
+  assert.equal(toneBands(TONE_PAGES.seduction.reaction, RESULT_KEYS, INFLUENCE_DOC)[2].shift, 2);
+  // Four edges where the ladder has five results is some other table.
+  registerTable({ id: INFLUENCE_DOC, tables: { [TONE_PAGES.intimidation.reaction]: { ...INVENTED_REACTION, bands: INVENTED_REACTION.bands.slice(1) } } }, { priority: PRIORITY.WORLD });
+  assert.equal(toneBands(TONE_PAGES.intimidation.reaction, RESULT_KEYS, INFLUENCE_DOC), null);
+  resetTables();
+});
+
+t("each result has a direction on the ladder and no figure of its own", () => {
+  assert.deepEqual(INFLUENCE_RESULTS.map((r) => r.initialIndex), [0, 1, 2, 3, 4]);
+  assert.deepEqual(INFLUENCE_RESULTS.map((r) => r.direction), [-1, -1, 0, 1, 1]);
+  assert.deepEqual(INFLUENCE_RESULTS.map((r) => r.towardNeutral), [false, false, true, false, false]);
+  for (const r of INFLUENCE_RESULTS) assert.deepEqual(Object.keys(r).sort(), ["direction", "initialIndex", "key", "towardNeutral"]);
+});
+
+t("an attitude rung is worth what the page prints for it, and nothing where it prints none", () => {
+  resetTables();
+  const table = TONE_PAGES.diplomacy.attitude;
+  assert.equal(attitudeFigure(table, 0, INFLUENCE_DOC), null, "not imported");
+  registerTable({ id: INFLUENCE_DOC, tables: { [table]: { attitude0: -6, attitude1: 0, attitude3: 5 } } }, { priority: PRIORITY.WORLD });
+  assert.deepEqual([0, 1, 2, 3, 4].map((i) => attitudeFigure(table, i, INFLUENCE_DOC)), [-6, 0, null, 5, null]);
+  assert.deepEqual(figureOrigin(table, INFLUENCE_DOC), { state: "imported", cite: null });
+  assert.equal(TONE_PAGES.diplomacy.attitude === TONE_PAGES.seduction.attitude, false, "each page prints its own");
+  resetTables();
+});
+
+t("the bribe row reads its tiers whole and stores each tier's place", () => {
+  resetTables();
+  const mode = { ...EXTERNAL_MODES.marketAssessment };
+  const declared = mode.groups.flatMap((g) => g.mods).find((m) => m.key === "bribe");
+  assert.deepEqual({ type: declared.type, ordinal: declared.ordinal, printed: declared.printed, printedDoc: declared.printedDoc }, { type: "ladder", ordinal: true, printed: "bribeTiers", printedDoc: INFLUENCE_DOC });
+  const unread = rowOf(mode, "bribe");
+  assert.deepEqual({ type: unread.type, disabled: unread.disabled, unread: unread.unread, options: unread.options.map((o) => o.value) }, { type: "select", disabled: true, unread: true, options: [0] });
+  assert.deepEqual(unread.figureFrom, { docId: INFLUENCE_DOC, tableId: "bribeTiers", cite: declared.cite });
+  // A tier missing leaves the whole row unread: the places after it would renumber.
+  registerTable({ id: INFLUENCE_DOC, tables: { bribeTiers: { tier1: 4, tier3: 9 } } }, { priority: PRIORITY.WORLD });
+  assert.equal(rowOf(mode, "bribe").disabled, true);
+  registerTable({ id: INFLUENCE_DOC, tables: { bribeTiers: INVENTED_BRIBE } }, { priority: PRIORITY.WORLD });
+  const read = rowOf(mode, "bribe");
+  assert.equal(read.disabled, undefined);
+  assert.deepEqual(read.options.map((o) => [o.value, o.figure]), [[0, 0], [1, 4], [2, 6], [3, 9]]);
+  assert.equal(read.options[1].showFigure, true);
+  resetTables();
+});
+
+/** A character of a given class and age, for the aging table's reader. */
+const aged = (cls, age) => ({ system: { details: { class: cls, age } } });
+
+t("an age category is read off the imported aging table, and none without it", () => {
+  resetTables();
+  assert.equal(ageCategoryIndex(aged("Fighter", 30)), null, "nothing imported");
+  // INVENTED years: a human row of five categories and an elf row of two.
+  registerTable({
+    id: INFLUENCE_DOC,
+    tables: {
+      [AGING_PAGE.table]: {
+        human: { youth: [10, 19], adult: [20, 39], middleAged: [40, 59], old: [60, 79], ancient: [80, 99] },
+        elf: { youth: [10, 39], adult: [40, 300], middleAged: null, old: null, ancient: null },
+      },
+    },
+  }, { priority: PRIORITY.WORLD });
+  assert.deepEqual([5, 10, 19, 20, 45, 60, 85, 400].map((age) => ageCategoryIndex(aged("Fighter", age))), [0, 0, 0, 1, 2, 3, 4, 4]);
+  assert.deepEqual([12, 40, 250].map((age) => ageCategoryIndex(aged("Elven Spellsword", age))), [0, 1, 1], "a race with two categories has two");
+  assert.equal(ageCategoryIndex(aged("Gnomish Illusionist", 45)), 2, "a race the table has no row for counts as human");
+  assert.equal(ageCategoryIndex(aged("Fighter", undefined)), 1, "an unstated age is taken as Adult");
+  resetTables();
+});
+
+t("the age row counts the categories between the two, and leaves the row unfilled without the table", () => {
+  resetTables();
+  const withAge = (age) => ({ ...sitter(5, "Lawful"), system: { ...sitter(5).system, details: { ...sitter(5).system.details, class: "Fighter", age } } });
+  registerTable({ id: INFLUENCE_DOC, tables: { [TONE_PAGES.seduction.table]: inventedTable("seduction") } }, { priority: PRIORITY.WORLD });
+  const config = { seduction: toneRows(INFLUENCE_MODIFIERS.seduction, TONE_PAGES.seduction.table, INFLUENCE_DOC) };
+  assert.equal(computeDefaults(withAge(45), withAge(25), config).seduction.age, 0, "no aging table: the count is left at zero");
+  registerTable({ id: INFLUENCE_DOC, tables: { [AGING_PAGE.table]: { human: { youth: [10, 19], adult: [20, 39], middleAged: [40, 59], old: [60, 79], ancient: [80, 99] } } } }, { priority: PRIORITY.WORLD });
+  assert.equal(computeDefaults(withAge(45), withAge(25), config).seduction.age, -1, "the character one category older than the target");
+  assert.equal(computeDefaults(withAge(25), withAge(65), config).seduction.age, 2);
+  assert.equal(computeDefaults(withAge(65), withAge(95), config).seduction.age, 0, "Ancient counts as Old");
+  resetTables();
+});
+
+t("the bewitching mark is the page's, or none", () => {
+  resetTables();
+  assert.equal(bewitchMark(), null);
+  registerTable({ id: INFLUENCE_DOC, tables: { [BEWITCH_PAGE.table]: { at: 14 } } }, { priority: PRIORITY.WORLD });
+  assert.equal(bewitchMark(), 14);
+  registerTable({ id: INFLUENCE_DOC, tables: { [BEWITCH_PAGE.table]: { at: "n/a" } } }, { priority: PRIORITY.WORLD });
+  assert.equal(bewitchMark(), null, "a value of the wrong kind is unread");
+  resetTables();
+});
+
 t("no lang string of the tone pages carries a magnitude", () => {
   const lang = JSON.parse(fs.readFileSync(new URL("../lang/en.json", import.meta.url), "utf8"));
-  const keys = Object.keys(lang).filter((k) => /^ACKS-INFLUENCE\.(mod|opt)\./.test(k));
+  const keys = Object.keys(lang).filter((k) => /^ACKS-INFLUENCE\.(mod|opt|band|shift|mode\.(loyalty|irrefusable))\./.test(k));
   assert.ok(keys.length > 40, "the sweep reads the rows");
   for (const key of keys) {
     // A page reference and a tier's own ordinal are the places a digit may

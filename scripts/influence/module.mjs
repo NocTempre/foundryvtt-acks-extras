@@ -12,8 +12,6 @@ import {
   MORALE_CHANGE_KEY,
   ROLL_FAMILY,
   INFLUENCE_TONE,
-  INFLUENCE_BANDS,
-  INFLUENCE_RELATIONSHIP_MOD,
   influenceTimeLadder,
   henchmanMonthlyWage,
   HOOKS,
@@ -142,8 +140,6 @@ Hooks.once("init", () => {
       MORALE_CHANGE_KEY,
       ROLL_FAMILY,
       INFLUENCE_TONE,
-      INFLUENCE_BANDS,
-      INFLUENCE_RELATIONSHIP_MOD,
       influenceTimeLadder,
       henchmanMonthlyWage,
     },
@@ -164,7 +160,12 @@ Hooks.once("init", () => {
   // declared so the import names them while a Judge's books have not
   // supplied them.
   expectTables(MORALE_DOC, ["monsterMorale", "hirelingObedience"]);
-  expectTables(INFLUENCE_DOC, ["hiringOffer", "apparentLevel", "diplomacyModifiers", "intimidationModifiers", "seductionModifiers"]);
+  expectTables(INFLUENCE_DOC, [
+    "hiringOffer", "apparentLevel", "hirelingLoyalty", "irrefusableOffer", "bribeTiers", "mysticAura", "characterAging",
+    "diplomacyModifiers", "intimidationModifiers", "seductionModifiers",
+    "diplomacyReaction", "intimidationReaction", "seductionReaction",
+    "diplomacyAttitude", "intimidationAttitude", "seductionAttitude",
+  ]);
 
   // Every sheet's Morale button (lib's `morale-roll` contract): the creature
   // is the page's subject, and nobody stands opposite it.

@@ -146,45 +146,49 @@ export const INFLUENCE_ATTITUDE_LABELS = Object.freeze({
   ],
 });
 
-/** Roll modifier contributed by the target's current attitude. */
-export const INFLUENCE_RELATIONSHIP_MOD = Object.freeze([-2, -1, 0, 1, 2]);
-
 /**
- * Reaction bands for a 2d6 (+ modifiers) influence roll.
- * - `initialIndex` is the resulting attitude when establishing an initial reaction.
- * - `shift` is the number of ladder steps moved in CONTINUING mode. The 6-8 band
- *   is special: it always shifts one step *towards* Neutral (index 2).
+ * The rungs of a tone page's reaction table, worst first: the structure of the
+ * result column and nothing the page prints. The page supplies each rung's
+ * roll edges and how many attitudes it shifts (`toneBands` in printed.mjs);
+ * what is fixed here is which way a rung moves the ladder.
+ * - `initialIndex` is the attitude an initial reaction sets.
+ * - `direction` is the way a CONTINUING roll moves the attitude, -1 toward the
+ *   hostile end and +1 toward the other. The middle rung moves toward the
+ *   ladder's middle (`towardNeutral`) instead.
  */
-export const INFLUENCE_BANDS = Object.freeze([
-  { key: "2-", min: -Infinity, max: 2, initialIndex: 0, shift: -2, towardNeutral: false },
-  { key: "3-5", min: 3, max: 5, initialIndex: 1, shift: -1, towardNeutral: false },
-  { key: "6-8", min: 6, max: 8, initialIndex: 2, shift: 0, towardNeutral: true },
-  { key: "9-11", min: 9, max: 11, initialIndex: 3, shift: 1, towardNeutral: false },
-  { key: "12+", min: 12, max: Infinity, initialIndex: 4, shift: 2, towardNeutral: false },
+export const INFLUENCE_RESULTS = Object.freeze([
+  { key: "result1", initialIndex: 0, direction: -1, towardNeutral: false },
+  { key: "result2", initialIndex: 1, direction: -1, towardNeutral: false },
+  { key: "result3", initialIndex: 2, direction: 0, towardNeutral: true },
+  { key: "result4", initialIndex: 3, direction: 1, towardNeutral: false },
+  { key: "result5", initialIndex: 4, direction: 1, towardNeutral: false },
 ]);
 
-/** Per-tone descriptive text (localization keys) for each reaction band. */
+/** The ladder rung a "toward Neutral" shift settles on. */
+export const INFLUENCE_NEUTRAL_INDEX = 2;
+
+/** Per-tone descriptive text (localization keys) for each reaction result. */
 export const INFLUENCE_BAND_LABELS = Object.freeze({
   [INFLUENCE_TONE.DIPLOMACY]: {
-    "2-": "ACKS-INFLUENCE.band.diplomacy.2",
-    "3-5": "ACKS-INFLUENCE.band.diplomacy.35",
-    "6-8": "ACKS-INFLUENCE.band.diplomacy.68",
-    "9-11": "ACKS-INFLUENCE.band.diplomacy.911",
-    "12+": "ACKS-INFLUENCE.band.diplomacy.12",
+    result1: "ACKS-INFLUENCE.band.diplomacy.result1",
+    result2: "ACKS-INFLUENCE.band.diplomacy.result2",
+    result3: "ACKS-INFLUENCE.band.diplomacy.result3",
+    result4: "ACKS-INFLUENCE.band.diplomacy.result4",
+    result5: "ACKS-INFLUENCE.band.diplomacy.result5",
   },
   [INFLUENCE_TONE.INTIMIDATION]: {
-    "2-": "ACKS-INFLUENCE.band.intimidation.2",
-    "3-5": "ACKS-INFLUENCE.band.intimidation.35",
-    "6-8": "ACKS-INFLUENCE.band.intimidation.68",
-    "9-11": "ACKS-INFLUENCE.band.intimidation.911",
-    "12+": "ACKS-INFLUENCE.band.intimidation.12",
+    result1: "ACKS-INFLUENCE.band.intimidation.result1",
+    result2: "ACKS-INFLUENCE.band.intimidation.result2",
+    result3: "ACKS-INFLUENCE.band.intimidation.result3",
+    result4: "ACKS-INFLUENCE.band.intimidation.result4",
+    result5: "ACKS-INFLUENCE.band.intimidation.result5",
   },
   [INFLUENCE_TONE.SEDUCTION]: {
-    "2-": "ACKS-INFLUENCE.band.seduction.2",
-    "3-5": "ACKS-INFLUENCE.band.seduction.35",
-    "6-8": "ACKS-INFLUENCE.band.seduction.68",
-    "9-11": "ACKS-INFLUENCE.band.seduction.911",
-    "12+": "ACKS-INFLUENCE.band.seduction.12",
+    result1: "ACKS-INFLUENCE.band.seduction.result1",
+    result2: "ACKS-INFLUENCE.band.seduction.result2",
+    result3: "ACKS-INFLUENCE.band.seduction.result3",
+    result4: "ACKS-INFLUENCE.band.seduction.result4",
+    result5: "ACKS-INFLUENCE.band.seduction.result5",
   },
 });
 
@@ -272,29 +276,45 @@ const LAIR_RUNGS = [
 ];
 
 /**
- * The bribe row's tiers. A tier's bonus is its own ordinal and the henchmen
- * feature prices each tier (`#bribeTiers` in influence-app.mjs), so the value
- * stays the ordinal and no label states a bonus.
+ * The bribe row's three tiers, each worth the bonus the page prints for it
+ * (`bribeTiers` of the `influence` document, RR 287). What is stored is the
+ * tier's own ordinal, which the henchmen feature prices (`#bribeTiers` in
+ * influence-app.mjs), so the row reads whole or not at all (`ordinal`,
+ * `complete`) and no label states a bonus.
  */
-const BRIBE_OPTIONS = [
-  { label: "ACKS-INFLUENCE.opt.dash", value: 0 },
-  { label: "ACKS-INFLUENCE.opt.bribeTier1", value: 1 },
-  { label: "ACKS-INFLUENCE.opt.bribeTier2", value: 2 },
-  { label: "ACKS-INFLUENCE.opt.bribeTier3", value: 3 },
+const BRIBE_RUNGS = [
+  { rung: "bribeTier1", figure: "tier1", label: "ACKS-INFLUENCE.opt.bribeTier1" },
+  { rung: "bribeTier2", figure: "tier2", label: "ACKS-INFLUENCE.opt.bribeTier2" },
+  { rung: "bribeTier3", figure: "tier3", label: "ACKS-INFLUENCE.opt.bribeTier3" },
 ];
+
+/** The table and page the bribe tiers' bonuses are read from. */
+const BRIBE_TABLE = Object.freeze({ table: "bribeTiers", cite: "RR 287" });
 
 /** `autoRung` / `autoFigures` direction keys: the character ahead, the target ahead. */
 const DIRECTION = { ahead: "1", behind: "-1" };
 
 /**
  * Where each tone page's printed figures are read from: the `influence`
- * document's table and the page it cites. The rows below name keys of it.
+ * document's tables and the page they cite. `table` holds the page's
+ * modifier rows, which the rows below name keys of; `reaction` its result
+ * column and how far each result shifts the ladder; `attitude` the modifier
+ * for a target already at a rung of the ladder.
  */
 export const TONE_PAGES = Object.freeze({
-  [INFLUENCE_TONE.DIPLOMACY]: { table: "diplomacyModifiers", cite: "JJ 85" },
-  [INFLUENCE_TONE.INTIMIDATION]: { table: "intimidationModifiers", cite: "JJ 86" },
-  [INFLUENCE_TONE.SEDUCTION]: { table: "seductionModifiers", cite: "JJ 87" },
+  [INFLUENCE_TONE.DIPLOMACY]: { table: "diplomacyModifiers", reaction: "diplomacyReaction", attitude: "diplomacyAttitude", cite: "JJ 85" },
+  [INFLUENCE_TONE.INTIMIDATION]: { table: "intimidationModifiers", reaction: "intimidationReaction", attitude: "intimidationAttitude", cite: "JJ 86" },
+  [INFLUENCE_TONE.SEDUCTION]: { table: "seductionModifiers", reaction: "seductionReaction", attitude: "seductionAttitude", cite: "JJ 87" },
 });
+
+/** The Character Aging table of the `influence` document, and the page it is read from. */
+export const AGING_PAGE = Object.freeze({ table: "characterAging", cite: "RR 19" });
+
+/**
+ * The Mystic Aura rider's table: `at` is the roll total that bewitches the
+ * subject (RR 115).
+ */
+export const BEWITCH_PAGE = Object.freeze({ table: "mysticAura", cite: "RR 115" });
 
 export const INFLUENCE_MODIFIERS = Object.freeze({
   [INFLUENCE_TONE.DIPLOMACY]: [
@@ -321,7 +341,7 @@ export const INFLUENCE_MODIFIERS = Object.freeze({
         { key: "authority", type: "signed", label: "ACKS-INFLUENCE.mod.diplomacy.authority" },
         { key: "favors", type: "signed", label: "ACKS-INFLUENCE.mod.diplomacy.favors" },
         { key: "charisma", type: "signed", label: "ACKS-INFLUENCE.mod.charisma", auto: "cha" },
-        { key: "bribe", type: "select", label: "ACKS-INFLUENCE.mod.diplomacy.bribe", options: BRIBE_OPTIONS },
+        { key: "bribe", type: "select", label: "ACKS-INFLUENCE.mod.diplomacy.bribe", ...BRIBE_TABLE, complete: true, rungs: BRIBE_RUNGS },
         { key: "bribeFee", type: "gold", label: "ACKS-INFLUENCE.mod.diplomacy.bribeFee", auto: "bribeFee", profModifier: "bribery" },
       ],
     },
@@ -564,13 +584,13 @@ export const EXTERNAL_MODES = Object.freeze({
     // Loyalty-family effects only. A Diplomacy bonus is not a loyalty modifier;
     // Inhumanity is, and reaches this page through its own loyalty change.
     family: ROLL_FAMILY.LOYALTY,
-    bands: [
-      { max: 2, key: "hostility" },
-      { min: 3, max: 5, key: "resignation" },
-      { min: 6, max: 8, key: "grudging" },
-      { min: 9, max: 11, key: "loyal" },
-      { min: 12, key: "fanatic" },
-    ],
+    // Structure only: the result edges are the page's (RR 166). Unread, the
+    // roll posts its total and names no result; the consumer then applies none.
+    printed: "hirelingLoyalty",
+    printedDoc: INFLUENCE_DOC,
+    cite: "RR 166",
+    postsWithoutBands: true,
+    bandKeys: ["hostility", "resignation", "grudging", "loyal", "fanatic"],
     naturalClamps: { natural2: "resignation", natural12: "loyal" },
     bandLabels: {
       hostility: "ACKS-INFLUENCE.mode.loyalty.hostility",
@@ -683,7 +703,10 @@ export const EXTERNAL_MODES = Object.freeze({
       {
         group: "ACKS-INFLUENCE.mode.assessment.bribe",
         mods: [
-          { key: "bribe", type: "select", label: "ACKS-INFLUENCE.mod.diplomacy.bribe", options: BRIBE_OPTIONS },
+          {
+            key: "bribe", type: "ladder", ordinal: true, label: "ACKS-INFLUENCE.mod.diplomacy.bribe",
+            printed: BRIBE_TABLE.table, printedDoc: INFLUENCE_DOC, cite: BRIBE_TABLE.cite, rungs: BRIBE_RUNGS,
+          },
           { key: "bribeFee", type: "gold", label: "ACKS-INFLUENCE.mod.diplomacy.bribeFee", auto: "bribeFee", profModifier: "bribery" },
         ],
       },
@@ -756,13 +779,13 @@ export const EXTERNAL_MODES = Object.freeze({
     secret: false,
     family: ROLL_FAMILY.REACTION,
     subject: "actor",
-    bands: [
-      { max: 2, key: "betrayal" },
-      { min: 3, max: 5, key: "escape" },
-      { min: 6, max: 8, key: "hesitate" },
-      { min: 9, max: 11, key: "accept" },
-      { min: 12, key: "elan" },
-    ],
+    // Structure only: the result edges and the opposite-alignment figure are
+    // the page's (MM 351). Unread, the roll posts its total and names no result.
+    printed: "irrefusableOffer",
+    printedDoc: INFLUENCE_DOC,
+    cite: "MM 351",
+    postsWithoutBands: true,
+    bandKeys: ["betrayal", "escape", "hesitate", "accept", "elan"],
     bandLabels: {
       betrayal: "ACKS-INFLUENCE.mode.irrefusable.betrayal",
       escape: "ACKS-INFLUENCE.mode.irrefusable.escape",
@@ -775,7 +798,7 @@ export const EXTERNAL_MODES = Object.freeze({
         group: "ACKS-INFLUENCE.group.character",
         mods: [
           { key: "charisma", type: "signed", label: "ACKS-INFLUENCE.mod.charisma", auto: "cha" },
-          { key: "oppositeAlignment", type: "check", label: "ACKS-INFLUENCE.mode.irrefusable.oppositeAlignment", value: -2 },
+          { key: "oppositeAlignment", type: "printed", label: "ACKS-INFLUENCE.mode.irrefusable.oppositeAlignment", figure: "oppositeAlignment" },
           // The monster's own morale mod works AGAINST the offer.
           { key: "monsterMorale", type: "factor", factor: -1, label: "ACKS-INFLUENCE.mode.irrefusable.monsterMorale", auto: "targetMorale" },
         ],

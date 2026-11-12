@@ -50,6 +50,12 @@ export function printedLabel(tableId, key, docId = MORALE_DOC) {
  *    of something. Read, it becomes a `factor` of that figure, keeping the
  *    row's `auto` count.
  *
+ * A `ladder` marked `ordinal` stores each rung's place, which its consumer
+ * prices by, so it reads whole or not at all: any rung unread leaves a
+ * disabled select holding only the blank, flagged `unread`, naming its table
+ * in `figureFrom` with the row's own `cite`. Its rungs are then
+ * `{figure, label}`, each shown with its figure beside its name.
+ *
  * A row reads the mode's table unless it names its own in `printed` and
  * `printedDoc`, as a page whose result column is not printed does for the one
  * figure that is.
@@ -66,9 +72,30 @@ export function modeRows(mode) {
     const tableId = mod.printed ?? mode?.printed;
     const docId = mod.printedDoc ?? mode?.printedDoc ?? MORALE_DOC;
     if (mod.type === "ladder") {
-      const rungs = (mod.rungs ?? [])
-        .map((key) => ({ figure: printedFigure(tableId, key, docId), printedLabel: printedLabel(tableId, key, docId) }))
-        .filter((rung) => rung.figure !== null);
+      // A rung is a key of the table, or `{figure, label}` when the row names
+      // each rung itself and shows its figure beside that name.
+      const all = (mod.rungs ?? []).map((rung) => {
+        const key = typeof rung === "string" ? rung : rung.figure;
+        const named = typeof rung === "string" ? {} : { label: rung.label, rung: rung.rung, showFigure: true };
+        return { ...named, figure: printedFigure(tableId, key, docId), printedLabel: printedLabel(tableId, key, docId) };
+      });
+      const rungs = all.filter((rung) => rung.figure !== null);
+      // An `ordinal` ladder is read as a whole or not at all: the option chosen
+      // is the rung's place, which a consumer prices by, so a rung left out
+      // would renumber the ones after it. Unread, it stays a select holding
+      // only the blank, disabled, and names its table.
+      if (mod.ordinal && rungs.length !== all.length) {
+        return {
+          key: mod.key,
+          label: mod.label,
+          type: "select",
+          byIndex: true,
+          unread: true,
+          disabled: true,
+          figureFrom: { docId, tableId, cite: mod.cite },
+          options: [{ value: 0, figure: 0, label: "ACKS-INFLUENCE.opt.dash" }],
+        };
+      }
       if (!rungs.length) return unread(mod);
       return {
         key: mod.key,
@@ -127,6 +154,12 @@ export function figureOrigin(tableId, docId = MORALE_DOC) {
  *    keeps its `rung` name, which an `autoRung` finds it by, and the page's
  *    own wording of it where the import caught one.
  *
+ * A row names another table of the document in `table` (and its page in
+ * `cite`) where its figures sit on a different page than the tone's; that
+ * table is then the one it reads and names. A select marked `complete` reads
+ * whole or not at all, because the option chosen is the rung's place and a
+ * rung left out would renumber the rest.
+ *
  * Unread, a row is disabled and flagged `unread`: it contributes nothing, and
  * a proficiency row stops claiming its item, so the item's own effect still
  * speaks. A row that carries any figure of the table, read or not, names it
@@ -137,9 +170,10 @@ export function figureOrigin(tableId, docId = MORALE_DOC) {
  * @returns {Array<{group: string, mods: object[]}>}
  */
 export function toneRows(groups, tableId, docId) {
-  const from = { docId, tableId };
   const row = (mod) => {
-    const { figure, rungs, ...rest } = mod;
+    const { figure, rungs, table, cite, complete, ...rest } = mod;
+    const own = table ?? tableId;
+    const from = table ? { docId, tableId: own, cite } : { docId, tableId };
     if (figure === undefined && rungs === undefined) {
       return mod.autoFigures || mod.autoThreshold ? { ...mod, figureFrom: from } : mod;
     }
@@ -155,13 +189,13 @@ export function toneRows(groups, tableId, docId) {
     };
     if (rungs !== undefined) {
       const read = rungs
-        .map((r) => ({ ...r, figure: printedFigure(tableId, r.figure, docId), printedLabel: printedLabel(tableId, r.figure, docId) }))
+        .map((r) => ({ ...r, figure: printedFigure(own, r.figure, docId), printedLabel: printedLabel(own, r.figure, docId) }))
         .filter((r) => r.figure !== null);
-      if (!read.length) return unread();
+      if (!read.length || (complete && read.length !== rungs.length)) return unread();
       const options = read.map((r, i) => ({ value: i + 1, rung: r.rung, label: r.label, n: r.n, figure: r.figure, printedLabel: r.printedLabel, showFigure: true }));
       return { ...rest, byIndex: true, figureFrom: from, options: [dash, ...options] };
     }
-    const value = printedFigure(tableId, figure, docId);
+    const value = printedFigure(own, figure, docId);
     if (value === null) return unread();
     return mod.type === "factor"
       ? { ...rest, factor: value, showFigure: true, figureFrom: from }
@@ -189,4 +223,51 @@ export function printedBands(tableId, keys, docId = MORALE_DOC) {
     return { ...(min === null ? {} : { min }), ...(max === null ? {} : { max }), key: keys[i] };
   });
   return out.every((band) => band.min !== undefined || band.max !== undefined) ? out : null;
+}
+
+/**
+ * A tone page's reaction table: its result column as `printedBands` reads it,
+ * each rung also carrying `shift`, the number of attitudes a continuing roll
+ * moves the ladder, or null where the page's figure for that rung was not
+ * read. Null when the column itself is not read.
+ * @param {string} tableId the tone's reaction table
+ * @param {string[]} keys the result keys, worst first
+ * @param {string} docId the ruledata document holding it
+ * @returns {Array<{min?: number, max?: number, key: string, shift: number|null}>|null}
+ */
+export function toneBands(tableId, keys, docId) {
+  const bands = printedBands(tableId, keys, docId);
+  if (!bands) return null;
+  const table = tableOf(tableId, docId);
+  return bands.map((band, i) => {
+    const steps = numOrNull(table?.[`shift${i + 1}`]);
+    return { ...band, shift: steps !== null && Number.isInteger(steps) && steps >= 0 ? steps : null };
+  });
+}
+
+/**
+ * The roll modifier the page prints for a target already at one rung of the
+ * attitude ladder, or null: the table is not imported, or the page prints no
+ * modifier for that rung (the middle rung, and the top rung of a page that
+ * has none). Zero is a figure.
+ * @param {string} tableId the tone's attitude table
+ * @param {number} index the ladder rung, 0 at the hostile end
+ * @param {string} docId the ruledata document holding it
+ */
+export function attitudeFigure(tableId, index, docId) {
+  return printedFigure(tableId, `attitude${index}`, docId);
+}
+
+/**
+ * One race's age categories as printed: category key to its `[min, max]`
+ * years, null for a category the race has none of. Null when the table is not
+ * imported or holds no row for the race.
+ * @param {string} tableId the Character Aging table
+ * @param {string} race the race's key in that table
+ * @param {string} docId the ruledata document holding it
+ * @returns {Record<string, [number, number]|null>|null}
+ */
+export function ageRow(tableId, race, docId) {
+  const row = tableOf(tableId, docId)?.[race];
+  return row && typeof row === "object" && !Array.isArray(row) ? row : null;
 }

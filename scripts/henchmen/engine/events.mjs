@@ -16,7 +16,8 @@
 import { MODULE_ID, HOOKS, FLAG_RECORD, FLAG_MONSTER_LIST, FLAG_WAGE_REMINDED } from "../constants.mjs";
 import { isPrimaryGM } from "../../lib/util.mjs";
 import HenchmanRecord from "../data/henchman-record.mjs";
-import { effectiveLoyalty, effectiveMorale, loyaltyDeltaForOutcome, outcomeLeavesService, clampScore, reasonKey, apparentLevelPenalty } from "../rules/loyalty.mjs";
+import { effectiveLoyalty, effectiveMorale, loyaltyDeltaForOutcome, outcomeLeavesService, clampScore, reasonKey, apparentLevelPenalty, insistPenalty } from "../rules/loyalty.mjs";
+import { optCite } from "../rules/tables.mjs";
 import { henchmanWage, mercenaryWage, levelMoraleBumps } from "../rules/wages.mjs";
 import { FLAG_GROUP_PAY } from "./hire-group.mjs";
 import { GROUP_ACTOR_TYPE as GROUP_TYPE } from "../../lib/group-logic.mjs";
@@ -261,7 +262,9 @@ export function openObedienceRoll(actor, opts = {}) {
 
 /**
  * Apply an obedience result — log it, and on a refusal offer the "insist"
- * card (RR 167: insisting costs 1 permanent loyalty and forces a reroll).
+ * card (RR 167: insisting costs the page's permanent loyalty and forces a
+ * reroll). The button's tooltip names the penalty and the page it was read
+ * from, or says the penalty is not imported and is not applied.
  *
  * Shared by the module's own ThrowDialog and the influence-hosted page, so the
  * consequences do not depend on which UI produced the roll.
@@ -269,12 +272,17 @@ export function openObedienceRoll(actor, opts = {}) {
 export async function applyObedienceOutcome(actor, { outcome, total, note = "" } = {}) {
   await HenchmanRecord.logEvent(actor, { type: "obedienceRoll", note, rollTotal: total, outcome });
   if (outcome !== "refuses") return;
+  const penalty = insistPenalty();
+  const tooltip =
+    penalty === null
+      ? game.i18n.localize("ACKS-HENCHMEN.card.insistTipUnread")
+      : game.i18n.format("ACKS-HENCHMEN.card.insistTip", { penalty, cite: optCite("morale", "hirelingObedience") ?? "RR 167" });
   await postEventCard({
     titleKey: "ACKS-HENCHMEN.card.refusesTitle",
     bodyKey: "ACKS-HENCHMEN.card.refusesBody",
     data: { name: actor.name },
     buttons: [
-      { action: "insistOrder", label: "ACKS-HENCHMEN.card.insist", icon: "fas fa-gavel", payload: { actorUuid: actor.uuid } },
+      { action: "insistOrder", label: "ACKS-HENCHMEN.card.insist", icon: "fas fa-gavel", tooltip, payload: { actorUuid: actor.uuid } },
     ],
     actor,
   });
@@ -870,7 +878,10 @@ export function registerEventEngine() {
   registerCardAction("insistOrder", async ({ actorUuid }) => {
     const actor = await fromUuid(actorUuid);
     if (!actor) return;
-    await addLoyaltyPermanent(actor, -1, "insistence");
+    // The penalty is the page's; unread, nothing is applied and the Judge is told.
+    const penalty = insistPenalty();
+    if (penalty === null) ui.notifications?.warn(game.i18n.localize("ACKS-HENCHMEN.card.insistUnread"));
+    else if (penalty > 0) await addLoyaltyPermanent(actor, -penalty, "insistence");
     openObedienceRoll(actor, { reason: game.i18n.localize("ACKS-HENCHMEN.card.insisted") });
   });
   registerCardAction("payWages", async ({ employerUuid }) => {

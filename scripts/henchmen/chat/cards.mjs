@@ -73,6 +73,7 @@ export async function postEventCard(o) {
     buttons: (o.buttons ?? []).map((b) => ({
       ...b,
       label: game.i18n.has(b.label) ? game.i18n.localize(b.label) : b.label,
+      tooltip: b.tooltip ?? null,
       payload: JSON.stringify(b.payload ?? {}),
     })),
   });

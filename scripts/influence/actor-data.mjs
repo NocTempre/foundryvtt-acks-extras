@@ -3,8 +3,8 @@
  * Reads auto-populatable values from the influencing actor and the targeted
  * token's actor, using only public ACKS data paths (no system internals).
  */
-import { CHANGE_KEY_FAMILY, henchmanMonthlyWage, INFLUENCE_DOC, INFLUENCE_MODIFIERS, MODULE_ID, TONE_PAGES } from "./constants.mjs";
-import { printedFigure, printedQuantity } from "./printed.mjs";
+import { AGING_PAGE, BEWITCH_PAGE, CHANGE_KEY_FAMILY, henchmanMonthlyWage, INFLUENCE_DOC, INFLUENCE_MODIFIERS, MODULE_ID, TONE_PAGES } from "./constants.mjs";
+import { ageRow, printedFigure, printedQuantity } from "./printed.mjs";
 import { meetsQuantity } from "../lib/tables.mjs";
 import { inferRace, optionalRuleEnabled, parseKindList } from "./racial.mjs";
 // Ability mod and level-or-HD read once from the lib subsystem (the
@@ -278,23 +278,31 @@ function levelGapDirection(diff, thresholdQuantity) {
 /*  Age (Character Aging table, RR)             */
 /* -------------------------------------------- */
 
-// Lower bound (in years) of each age category: Youth, Adult, Middle-Aged, Old, Ancient.
-const AGE_TABLE = Object.freeze({
-  beastman: [12, 16, 31, 46, 61],
-  dwarf: [15, 26, 51, 76, 116],
-  elf: [15, 51], // Youth, Adult only
-  human: [13, 18, 36, 56, 76],
-  nobiran: [13, 18], // Youth, Adult only
-  zaharan: [13, 18, 36, 56, 76],
-});
+// The five age categories in the order the table prints them. The years each
+// race's categories span are the page's (`ageRow`), never this file's.
+const AGE_CATEGORIES = Object.freeze(["youth", "adult", "middleAged", "old", "ancient"]);
 
-/** The age-category index (0 = Youth … 4 = Ancient) for an actor. */
+/** The category an unstated age is taken to be in: Adult. */
+const UNSTATED_AGE_CATEGORY = 1;
+
+/**
+ * The age-category index (0 = Youth … 4 = Ancient) for an actor, read off the
+ * imported Character Aging table: the last category whose first year the
+ * actor has reached. A race the table has no row for counts as human. Null
+ * when the table is not imported.
+ */
 export function ageCategoryIndex(actor) {
-  const bounds = AGE_TABLE[inferRace(actor)] ?? AGE_TABLE.human;
+  const race = inferRace(actor);
+  const row = ageRow(AGING_PAGE.table, race, INFLUENCE_DOC) ?? ageRow(AGING_PAGE.table, "human", INFLUENCE_DOC);
+  if (!row) return null;
   const age = Number(actor?.system?.details?.age);
-  if (!Number.isFinite(age)) return 1; // assume Adult when unknown
+  if (!Number.isFinite(age)) return UNSTATED_AGE_CATEGORY;
+  const firsts = AGE_CATEGORIES.map((key) => (Array.isArray(row[key]) ? Number(row[key][0]) : NaN));
+  if (!firsts.some(Number.isFinite)) return null;
   let idx = 0;
-  for (let i = 0; i < bounds.length; i++) if (age >= bounds[i]) idx = i;
+  firsts.forEach((first, i) => {
+    if (Number.isFinite(first) && age >= first) idx = i;
+  });
   return idx;
 }
 
@@ -302,14 +310,25 @@ export function ageCategoryIndex(actor) {
  * The age categories between the two for Seduction: the count the row's
  * per-category figure is owed for. Defaults to the common case that targets
  * prefer youthful mates, so a younger character counts positive. The GM flips
- * the sign when the target prefers mature mates.
+ * the sign when the target prefers mature mates. Undefined, and so left
+ * unfilled, while the aging table is not imported.
  */
 function ageModifier(charActor, targetActor) {
   if (!charActor || !targetActor) return 0;
-  // Age categories only apply within the Youth–Old range; clamp Ancient to Old.
-  const c = Math.min(3, ageCategoryIndex(charActor));
-  const t = Math.min(3, ageCategoryIndex(targetActor));
-  return t - c; // + when the character is the younger category
+  const mine = ageCategoryIndex(charActor);
+  const theirs = ageCategoryIndex(targetActor);
+  if (mine === null || theirs === null) return undefined;
+  // The table's Ancient category is outside the Youth to Old range the row counts.
+  const oldest = AGE_CATEGORIES.indexOf("old");
+  return Math.min(oldest, theirs) - Math.min(oldest, mine); // + when the character is the younger category
+}
+
+/**
+ * The roll total that bewitches the subject of a Mystic Aura, or null when the
+ * page's figure is not imported (RR 115).
+ */
+export function bewitchMark() {
+  return printedFigure(BEWITCH_PAGE.table, "at", INFLUENCE_DOC);
 }
 
 /**
@@ -474,7 +493,10 @@ export function getEffectReactionMods(actor) {
             // an empty list rather than a magic token.
             tones: tones.length && !tones.includes("all") ? tones : [],
             optionalRule: f.optionalRule ? String(f.optionalRule) : null,
-            kickerAt: f.bewitched === true ? 12 : null,
+            // A bewitching source: the total that bewitches is the Mystic Aura
+            // page's (`bewitchMark`), not a figure of the effect.
+            bewitching: f.bewitched === true,
+            kickerAt: null,
             kickerNote: "",
             unaudited: false,
             source: "activeEffect",

@@ -643,6 +643,8 @@ the Judge's override, or not imported.
   buy the bonus their position names; the fee is the henchmen api's. A
   session's call, not yet confirmed by the owner: the ordinal is the structure
   the bribe row already ran on, and the label no longer prints the bonus.
+  **Superseded** the same day by "The roller's remaining printed figures are
+  read from the import": the bonus is printed.
 - *An unread proficiency box claims no item.* The item's own Active Effect
   then speaks, so a roller holding the proficiency is not left with a dead
   box over a live effect.
@@ -661,3 +663,62 @@ pages say so above their rows. The relationship ladder, the loyalty and
 irrefusable bands, the irrefusable offer's alignment figure and the age
 table's year bounds still ship figures, found here and left for their own
 rows (`ROADMAP.md`).
+
+### The roller's remaining printed figures are read from the import (2026-11-11)
+
+Retires the figures the entry above left shipped (T-0510): the relationship
+ladder, the five result edges and the count each shifts a continuing roll by,
+the loyalty and irrefusable result edges, the irrefusable offer's
+opposite-alignment figure, the year bounds of each race's age categories, the
+Mystic Aura's bewitching total, the bribe tiers' bonuses and the henchmen
+feature's insist penalty.
+
+**Ruled.** Each is a recipe-read table of the `influence` document
+(`<tone>Reaction`, `<tone>Attitude`, `hirelingLoyalty`, `irrefusableOffer`,
+`characterAging`, `mysticAura`, `bribeTiers`) or a value of the `morale`
+document's `hirelingObedience` (`insistPenalty`), and its consumer answers null
+when it is absent. The code keeps the structure: the five results and which
+way each moves the ladder (`INFLUENCE_RESULTS`), the five age categories, the
+three tiers as places.
+
+- *A bribe tier's bonus is a printed value, not its ordinal.* **New evidence:**
+  the Cost of Bribes table's column heads print each tier's bonus, and its prose
+  states one per tier, so "a tier is its own ordinal" was a figure copied into
+  structure. The select now stores the tier's place, which the henchmen api
+  prices, and is worth the page's bonus. It is read whole or not at all: a tier
+  left out would renumber the places after it.
+- *No result is better than a guessed one.* A tone roll whose result column, or
+  whose count for its result on a continuing roll, is not imported posts the
+  total and the modifiers, says the table is not imported, leaves the attitude
+  where it was and does not count the attempt. The roll-complete payload
+  carries `band: null`. The hiring page refuses to roll with no column; a tone
+  page posts, as the morale pages do, because the Judge can read the result off
+  the page and the tracker has not moved.
+- *A rung the page prints no modifier for adds nothing.* The middle rung of
+  every tone and the top rung of Intimidation have no row on their pages; the
+  old ladder gave each a figure no page prints. They answer null, and their
+  tooltip says the page prints none, apart from "not imported".
+- *The page's two ladder edges are structure only in direction.* A result's
+  count is the page's; that the middle result moves toward Neutral and never
+  past it, and that the others move toward their own end, is the procedure.
+- *The loyalty page and the irrefusable offer post with no result column.*
+  Their consumers act on a null outcome by applying nothing.
+- *The insist penalty reads from the obedience table.* Unread, the insist
+  button still re-rolls, applies no loyalty entry and warns, since the roll
+  itself is not blocked by a missing figure.
+
+**API.** `INFLUENCE_RELATIONSHIP_MOD` and `INFLUENCE_BANDS` are removed from
+`api.constants`; neither had a consumer in this repo. The roll-complete
+payload's `band` is now the result's position key (`result1` to `result5`)
+where it was the edges' label, and is null when no result was named.
+`apiVersion` is not touched.
+
+**Rejected:** keeping the old literals as the unread fallback (the registry's
+rule); a zero for a rung or a count the page does not print (it would stand in
+for a value nobody imported); renumbering a partly read bribe ladder (the place
+is what is priced).
+
+**What it cost.** A world that has not re-imported the `influence` and `morale`
+documents loses the attitude modifiers, the tone results and shifts, the bribe
+tiers, the Seduction age count, the bewitching total, the loyalty and
+irrefusable results and the insist penalty until it does. The rolls still post.

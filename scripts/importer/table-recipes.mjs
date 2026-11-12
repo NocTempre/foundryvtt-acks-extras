@@ -3839,6 +3839,9 @@ export const TABLE_RECIPES = {
           { key: "risk3", find: "ask exposes hireling to", occurrence: 3, before: true, take: "signed", span: 10, label: true },
           { key: "risk4", find: "ask exposes hireling to", occurrence: 4, before: true, take: "signed", span: 10, label: true },
           { key: "mercenary", find: "hireling is a mercenar", before: true, take: "signed", span: 10, label: true },
+          // The permanent loyalty an insisting employer pays, in the prose
+          // under the grid: the count after the clause that names it.
+          { key: "insistPenalty", find: "reduce the hireling", take: "int", span: 30 },
         ],
       },
     },
@@ -3849,7 +3852,7 @@ export const TABLE_RECIPES = {
   // prose beside it, one per slander in the town and one per earlier refusal
   // of the party.
   influence: {
-    source: { book: "ACKS II Revised Rulebook + Judges Journal", pages: "RR 162, 168; JJ 85-87" },
+    source: { book: "ACKS II Revised Rulebook + Judges Journal + ACKS II Monstrous Manual", pages: "RR 19, 115, 162, 166, 168, 287; JJ 85-87; MM 351" },
     tables: {
       // The three tone pages' bulleted modifier lists (JJ 85-87): each row
       // prints its figure after its wording, so an anchor is the row's own
@@ -3946,6 +3949,180 @@ export const TABLE_RECIPES = {
           { key: "bands", find: "ie r oll r esult", take: "bandEdges", span: 90 },
           { key: "slanderPenalty", find: "will be at a penalty of", take: "signed", span: 8 },
           { key: "refusalPenalty", find: "suffers a cumulative", take: "signed", span: 8 },
+        ],
+      },
+      // The three tone pages' Reaction tables (JJ 85-87): the 2d6 result
+      // column and the count each result's "Shift N attitudes" line prints, in
+      // reading order, so `shiftN` is the Nth result's. Each page prints its
+      // own table in the right column; the window is that column's rows.
+      diplomacyReaction: {
+        shape: "proseValues",
+        book: "jj",
+        printedPage: 85,
+        locate: "Reaction to Diplomacy",
+        column: { xMin: 330, xMax: 590 },
+        yMin: 80,
+        yMax: 225,
+        values: [
+          { key: "bands", find: "ttempt to influence", take: "bandEdges", span: 400 },
+          { key: "shift1", find: "s hift", occurrence: 1, take: "int", span: 8 },
+          { key: "shift2", find: "s hift", occurrence: 2, take: "int", span: 8 },
+          { key: "shift3", find: "s hift", occurrence: 3, take: "int", span: 8 },
+          { key: "shift4", find: "s hift", occurrence: 4, take: "int", span: 8 },
+          { key: "shift5", find: "s hift", occurrence: 5, take: "int", span: 8 },
+        ],
+      },
+      intimidationReaction: {
+        shape: "proseValues",
+        book: "jj",
+        printedPage: 86,
+        locate: "Reaction to Intimidation",
+        column: { xMin: 300, xMax: 590 },
+        yMin: 368,
+        yMax: 515,
+        values: [
+          { key: "bands", find: "ttempt to influence", take: "bandEdges", span: 400 },
+          { key: "shift1", find: "s hift", occurrence: 1, take: "int", span: 8 },
+          { key: "shift2", find: "s hift", occurrence: 2, take: "int", span: 8 },
+          { key: "shift3", find: "s hift", occurrence: 3, take: "int", span: 8 },
+          { key: "shift4", find: "s hift", occurrence: 4, take: "int", span: 8 },
+          { key: "shift5", find: "s hift", occurrence: 5, take: "int", span: 8 },
+        ],
+      },
+      seductionReaction: {
+        shape: "proseValues",
+        book: "jj",
+        printedPage: 87,
+        locate: "Reaction to Seduction",
+        column: { xMin: 330, xMax: 590 },
+        yMin: 308,
+        yMax: 455,
+        values: [
+          { key: "bands", find: "ttempt to influence", take: "bandEdges", span: 400 },
+          { key: "shift1", find: "s hift", occurrence: 1, take: "int", span: 8 },
+          { key: "shift2", find: "s hift", occurrence: 2, take: "int", span: 8 },
+          { key: "shift3", find: "s hift", occurrence: 3, take: "int", span: 8 },
+          { key: "shift4", find: "s hift", occurrence: 4, take: "int", span: 8 },
+          { key: "shift5", find: "s hift", occurrence: 5, take: "int", span: 8 },
+        ],
+      },
+      // The modifier each tone page prints for a target already at a rung of
+      // the attitude ladder, `attitudeN` the Nth rung from the hostile end. A
+      // rung the page prints no row for (the middle rung, and Intimidation's
+      // top) has no key, which the roller reads as "adds nothing".
+      diplomacyAttitude: {
+        shape: "proseValues",
+        book: "jj",
+        printedPage: 85,
+        locate: "Diplomatic Modifiers",
+        column: { xMin: 20, xMax: 590 },
+        values: [
+          { key: "attitude0", find: "target is already hostile", take: "signed", span: 8 },
+          { key: "attitude1", find: "target is already unfriendly", take: "signed", span: 8 },
+          { key: "attitude3", find: "target is already indifferent", take: "signed", span: 8 },
+          { key: "attitude4", find: "target is already friendly", take: "signed", span: 8 },
+        ],
+      },
+      intimidationAttitude: {
+        shape: "proseValues",
+        book: "jj",
+        printedPage: 86,
+        locate: "Intimidation Modifiers",
+        column: { xMin: 20, xMax: 590 },
+        values: [
+          { key: "attitude0", find: "target is already hostile", take: "signed", span: 8 },
+          { key: "attitude1", find: "target is already unfriendly", take: "signed", span: 8 },
+          { key: "attitude3", find: "target is already intimidated", take: "signed", span: 8 },
+        ],
+      },
+      seductionAttitude: {
+        shape: "proseValues",
+        book: "jj",
+        printedPage: 87,
+        locate: "Seduction Modifiers",
+        column: { xMin: 20, xMax: 590 },
+        values: [
+          { key: "attitude0", find: "target is already hostile", take: "signed", span: 8 },
+          { key: "attitude1", find: "target is already unfriendly", take: "signed", span: 8 },
+          { key: "attitude3", find: "target is already indifferent", take: "signed", span: 8 },
+          { key: "attitude4", find: "target is already friendly", take: "signed", span: 8 },
+        ],
+      },
+      // Hireling Loyalty's result column (RR 166); the page prints its
+      // per-level figure in prose (`apparentLevel`) and no other number.
+      hirelingLoyalty: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 166,
+        locate: "Hireling Loyalty",
+        column: { xMin: 300, xMax: 590 },
+        yMin: 100,
+        yMax: 175,
+        values: [{ key: "bands", find: "(2d6)", take: "bandEdges", span: 120 }],
+      },
+      // The Irrefusable Offer (MM 351): the result column and the figure for
+      // an opposite alignment, both in the right column.
+      irrefusableOffer: {
+        shape: "proseValues",
+        book: "mm",
+        printedPage: 351,
+        locate: "opposite alignments",
+        column: { xMin: 300, xMax: 590 },
+        values: [
+          { key: "oppositeAlignment", find: "opposite alignments, apply a", take: "signed", span: 8 },
+          { key: "bands", find: "(2d6) r esult", take: "bandEdges", span: 110 },
+        ],
+      },
+      // The roll total at which a Mystic Aura bewitches its subject (RR 115),
+      // stated in prose.
+      mysticAura: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 115,
+        locate: "bewitched",
+        values: [{ key: "at", find: "results in a total of", take: "int", span: 8 }],
+      },
+      // Offering Bribes (RR 287): the bonus each of the three tiers buys, read
+      // before the word "bonus" in the column heads, so `tierN` is the Nth
+      // tier's and the roller prices a tier by its place.
+      bribeTiers: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 287,
+        locate: "Cost of Bribes",
+        column: { xMin: 70, xMax: 330 },
+        yMin: 400,
+        yMax: 450,
+        values: [
+          { key: "tier1", find: "bonus", occurrence: 1, before: true, take: "signed", span: 6 },
+          { key: "tier2", find: "bonus", occurrence: 2, before: true, take: "signed", span: 6 },
+          { key: "tier3", find: "bonus", occurrence: 3, before: true, take: "signed", span: 6 },
+        ],
+      },
+      // Character Aging (RR 19): each race's age span per category, the
+      // years as `[first, last]` and null for a category the race has none of.
+      characterAging: {
+        shape: "gridRows",
+        book: "rr",
+        printedPage: 19,
+        locate: "Character Aging",
+        column: { xMin: 40, xMax: 570, yMin: 560, yMax: 650 },
+        labelMaxX: 150,
+        minCells: 3,
+        cellColumns: [
+          { key: "youth", x: 180, w: 80, pattern: "ageBand", row: true },
+          { key: "adult", x: 262, w: 80, pattern: "ageBand", row: true },
+          { key: "middleAged", x: 345, w: 80, pattern: "ageBand", row: true },
+          { key: "old", x: 427, w: 80, pattern: "ageBand", row: true },
+          { key: "ancient", x: 507, w: 62, pattern: "ageBand", row: true },
+        ],
+        rows: [
+          { key: "beastman", labelRe: "^beastman" },
+          { key: "dwarf", labelRe: "dwarf$" },
+          { key: "elf", labelRe: "^elf" },
+          { key: "human", labelRe: "^human" },
+          { key: "nobiran", labelRe: "^nobiran" },
+          { key: "zaharan", labelRe: "^zaharan" },
         ],
       },
     },

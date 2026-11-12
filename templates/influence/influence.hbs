@@ -22,14 +22,14 @@
         {{#each ladder}}
           <button type="button" data-action="setAttitude" data-index="{{this.index}}"
                   class="influence-rung rung-{{this.index}} {{#if this.isActive}}active{{/if}}"
-                  data-tooltip="{{localize 'ACKS-INFLUENCE.tracker.relationship'}}: {{numberFormat this.modifier sign=true}}">
+                  data-tooltip-text="{{this.tip}}">
             <span class="influence-rung-label">{{this.label}}</span>
           </button>
         {{/each}}
       </div>
       <div class="influence-ladder-hint">
         {{localize 'ACKS-INFLUENCE.tracker.relationship'}}:
-        <strong>{{numberFormat relationshipModifier sign=true}}</strong>
+        <strong>{{relationshipText}}</strong>
       </div>
     </div>
     {{/if}}

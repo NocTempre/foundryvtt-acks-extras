@@ -2,17 +2,21 @@
 
 ## 1. Printed figures the roller still ships
 
-The three tone pages read their figures from the imported page, and their
-labels carry none (`MODEL.md`, "Printed pages"). Still shipped in
-`scripts/influence/`, found while moving them and left for their own rows:
+The roller's pages read their figures from the imported page, and their labels
+carry none (`MODEL.md`, "Printed pages"). Still shipped, found while moving
+them and left for their own rows:
 
-- the relationship ladder (`INFLUENCE_RELATIONSHIP_MOD`) and the result bands
-  (`INFLUENCE_BANDS`), which are also in `api.constants`;
-- the loyalty and irrefusable result bands, and the irrefusable offer's
-  opposite-alignment figure with its label;
-- the year bounds of each race's age categories (`AGE_TABLE` in
-  `actor-data.mjs`);
-- the bewitched total's own figure.
+- the bribery crime note's trigger and its label
+  (`ACKS-INFLUENCE.note.bribeCrime`): a natural roll tested against a literal
+  in `#rawNotes`, in a string that states the rule;
+- the henchmen feature's own copies of figures this feature now reads from the
+  import: `loyaltyDeltaForOutcome` in `henchmen/rules/loyalty.mjs` (the
+  permanent loyalty a Grudging or Fanatic result applies) and the outcome
+  tables of the fallback throws in `henchmen/data/throws-data.mjs` (the
+  hireling loyalty and irrefusable offer edges and their starting loyalties);
+- the wording of each tone result (`ACKS-INFLUENCE.band.<tone>.result1` to
+  `result5`) and of the irrefusable and loyalty results, which paraphrase the
+  page's own text.
 
 **The surface is wider than the influence feature.** A sweep of `lang/en.json`
 for a signed number, a coin/weight/die quantity, or a `per`-scaled figure
@@ -38,10 +42,11 @@ The `influence` document's `attemptTime` (the attempt-time ladder) is read in
 world. `tools/validate-producers.mjs` waives it against this section.
 
 The bribe's own Cost of Bribes table (RR ch. 6, "Offering Bribes") has no
-capture either. A bribe prices off the signing bonus ladders the hiring and
-Bribery pages print, which hold the same pay periods (`DECISIONS.md`, "A bribe
-is priced off the imported wage and pay-period ladders"); a capture of the
-table itself would let its cite name the bribe's own page.
+capture of its cost column. Its tier bonuses are read (`bribeTiers`), but a
+bribe prices off the signing bonus ladders the hiring and Bribery pages print,
+which hold the same pay periods (`DECISIONS.md`, "A bribe is priced off the
+imported wage and pay-period ladders"); a capture of the cost column itself
+would let its cite name the bribe's own page.
 
 The `morale` document and the `influence` document's `hiringOffer` are the
 pattern: each has a recipe, and the `morale`, `obedience` and `hiring` pages
@@ -55,11 +60,6 @@ modifier tables, proficiency boxes included.
   with no result column reports none. The Judge reads the result off the page
   and has no button for what follows it. Wanted: a way to name the result by
   hand on a card that named none.
-- **The insist penalty is still a shipped figure.** The henchmen feature
-  applies it from a constant in `engine/events.mjs` and prints it in
-  `ACKS-HENCHMEN.card.insist`. RR 167 prints it in prose beside the table the
-  `hirelingObedience` recipe already reads, so it can ride that recipe as one
-  more value.
 - **The obedience fallback has no rows.** When the influence roller cannot
   open, the henchmen feature's own throw dialog rolls the morale score and
   whatever the employer's effects add, and names no result.

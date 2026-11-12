@@ -162,6 +162,11 @@ const gold = (qty) => ({
 });
 const goldHeld = (actor) => actor.items.filter((i) => i.type === "money").reduce((n, i) => n + i.system.quantity, 0);
 
+// The tier bonuses are the Judge's import; these are INVENTED.
+const { registerTable, PRIORITY } = await import("../scripts/lib/tables.mjs");
+const TIER_BONUS = { 1: 5, 2: 7, 3: 9 };
+registerTable({ id: "influence", tables: { bribeTiers: { tier1: TIER_BONUS[1], tier2: TIER_BONUS[2], tier3: TIER_BONUS[3] } } }, { priority: PRIORITY.WORLD });
+
 const { default: InfluenceApp } = await import("../scripts/influence/influence-app.mjs");
 const { openingTarget } = await import("../scripts/influence/actor-data.mjs");
 
@@ -196,7 +201,7 @@ console.log("influence: the bribe is checked before the roll");
 await test("a bribe the payer can cover counts and is paid", async () => {
   const payer = makeActor({ id: "payer", items: [gold(10)] });
   const card = await rollBribe({ payer, tier: 2, fee: 4 });
-  assert.equal(card.activeModifiers.some((m) => m.value === 2), true, "the tier's modifier is in the card's list");
+  assert.equal(card.activeModifiers.some((m) => m.value === TIER_BONUS[2]), true, "the tier's modifier is in the card's list");
   assert.ok(card.bribePaid?.line, "the card states the payment");
   assert.equal(goldHeld(payer), 6, "the fee left the purse");
   assert.equal(card.rawNotes.includes("ACKS-INFLUENCE.note.bribeUnpaid"), false);
@@ -210,8 +215,8 @@ await test("a bribe the payer cannot cover is left off the roll, and the card sa
   cards.length = 0;
   warnings.length = 0;
   const card = await rollBribe({ payer, tier: 2, fee: 4 });
-  assert.equal(card.modifier, base - 2, "the tier's figure is not in the total");
-  assert.equal(card.activeModifiers.some((m) => m.value === 2), false, "nor in the card's list");
+  assert.equal(card.modifier, base - TIER_BONUS[2], "the tier's figure is not in the total");
+  assert.equal(card.activeModifiers.some((m) => m.value === TIER_BONUS[2]), false, "nor in the card's list");
   assert.equal(card.bribePaid, null, "no payment is stated");
   assert.equal(goldHeld(payer), 3, "no coin moved");
   assert.equal(card.rawNotes.includes("ACKS-INFLUENCE.note.bribeUnpaid"), true, "the card says the bribe was not paid");
@@ -229,7 +234,7 @@ await test("a fee exactly covered is paid", async () => {
 await test("a tier with no fee has nothing to cover and counts", async () => {
   const payer = makeActor({ id: "payer", items: [gold(0)] });
   const card = await rollBribe({ payer, tier: 3, fee: 0 });
-  assert.equal(card.activeModifiers.some((m) => m.value === 3), true);
+  assert.equal(card.activeModifiers.some((m) => m.value === TIER_BONUS[3]), true);
   assert.equal(card.rawNotes.includes("ACKS-INFLUENCE.note.bribeUnpaid"), false);
 });
 
@@ -238,12 +243,86 @@ await test("a seat that may not write the payer cannot pay, so the bribe is left
   game.user.isGM = false;
   try {
     const card = await rollBribe({ payer, tier: 2, fee: 4 });
-    assert.equal(card.activeModifiers.some((m) => m.value === 2), false);
+    assert.equal(card.activeModifiers.some((m) => m.value === TIER_BONUS[2]), false);
     assert.equal(card.rawNotes.includes("ACKS-INFLUENCE.note.bribeUnpaid"), true);
     assert.equal(goldHeld(payer), 50);
   } finally {
     game.user.isGM = true;
   }
+});
+
+/* -------------------------------------------- */
+/*  The reaction table, through the roller      */
+/* -------------------------------------------- */
+
+console.log("influence: the result and the ladder are the page's");
+
+const { INFLUENCE_ATTITUDE_LABELS } = await import("../scripts/influence/constants.mjs");
+const { resetTables } = await import("../scripts/lib/tables.mjs");
+
+/** A Diplomacy roll (the mock's dice total 7 plus the modifier) with the form fields given; returns the card's context and the hook payload. */
+async function rollDiplomacy(object) {
+  const app = new InfluenceApp({ actor: makeActor({ id: "roller" }) });
+  await InfluenceApp.DEFAULT_OPTIONS.form.handler.call(app, null, null, { object });
+  await InfluenceApp.DEFAULT_OPTIONS.actions.roll.call(app);
+  return { card: cards.find((c) => c.data?.toneLabel)?.data, payload: hookCalls.find(([name]) => name === "acksExtras.influenceRollComplete")?.[1] };
+}
+
+// INVENTED edges and counts: a total of 7 is the third result.
+const REACTION = {
+  bands: [{ min: null, max: 5 }, { min: 6, max: 6 }, { min: 7, max: 8 }, { min: 9, max: 11 }, { min: 12, max: null }],
+  shift1: 3, shift2: 2, shift3: 1, shift4: 2, shift5: 3,
+};
+
+await test("with no reaction table imported the roll names no result and moves no attitude", async () => {
+  resetTables();
+  const { card, payload } = await rollDiplomacy({ attempt: 0, currentAttitude: 3 });
+  assert.equal(card.bandLabel, "");
+  assert.equal(card.noResult, "ACKS-INFLUENCE.tone.noResult");
+  assert.equal(card.resultAttitude, INFLUENCE_ATTITUDE_LABELS.diplomacy[3], "the attitude stays where it was");
+  assert.equal(payload.band, null);
+  assert.equal(payload.newAttitude, 3);
+  assert.equal(payload.attempt, 0);
+});
+
+await test("an initial roll sets the attitude by the page's edges, and the attempt advances", async () => {
+  resetTables();
+  registerTable({ id: "influence", tables: { diplomacyReaction: REACTION } }, { priority: PRIORITY.WORLD });
+  const { card, payload } = await rollDiplomacy({ attempt: 0, currentAttitude: 0 });
+  assert.equal(card.bandLabel, "ACKS-INFLUENCE.band.diplomacy.result3");
+  assert.equal(card.resultAttitude, INFLUENCE_ATTITUDE_LABELS.diplomacy[2]);
+  assert.deepEqual([payload.band, payload.newAttitude], ["result3", 2]);
+});
+
+await test("a continuing roll moves the ladder by the page's count, toward Neutral on the middle result", async () => {
+  resetTables();
+  registerTable({ id: "influence", tables: { diplomacyReaction: REACTION } }, { priority: PRIORITY.WORLD });
+  const down = await rollDiplomacy({ attempt: 1, currentAttitude: 4 });
+  assert.equal(down.payload.newAttitude, 3, "one step, the page's count, toward the middle");
+  assert.equal(down.card.shiftDescription, "ACKS-INFLUENCE.shift.toward");
+  cards.length = 0;
+  hookCalls.length = 0;
+  const settled = await rollDiplomacy({ attempt: 1, currentAttitude: 2 });
+  assert.equal(settled.payload.newAttitude, 2, "Neutral stays");
+  // A page whose count for this result is not imported leaves the roll with no result.
+  resetTables();
+  registerTable({ id: "influence", tables: { diplomacyReaction: { ...REACTION, shift3: undefined } } }, { priority: PRIORITY.WORLD });
+  cards.length = 0;
+  hookCalls.length = 0;
+  const unread = await rollDiplomacy({ attempt: 1, currentAttitude: 4 });
+  assert.deepEqual([unread.card.bandLabel, unread.payload.band, unread.payload.newAttitude], ["", null, 4]);
+});
+
+await test("the roll adds the modifier the page prints for the current attitude, and nothing for a rung it prints none for", async () => {
+  resetTables();
+  registerTable({ id: "influence", tables: { diplomacyReaction: REACTION, diplomacyAttitude: { attitude4: 6 } } }, { priority: PRIORITY.WORLD });
+  const base = (await rollDiplomacy({ attempt: 0, currentAttitude: 2 })).card.modifier;
+  cards.length = 0;
+  hookCalls.length = 0;
+  const top = (await rollDiplomacy({ attempt: 0, currentAttitude: 4 })).card;
+  assert.equal(top.modifier, base + 6);
+  assert.equal(top.activeModifiers.some((m) => m.value === 6), true, "named on the card");
+  resetTables();
 });
 
 /* -------------------------------------------- */

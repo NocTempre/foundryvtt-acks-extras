@@ -3,12 +3,13 @@ import { getSocket } from "../lib/sockets.mjs";
 import { postToJudges } from "../lib/roll-audience.mjs";
 import {
   INFLUENCE_ATTITUDE_LABELS,
+  AGING_PAGE,
   INFLUENCE_BAND_LABELS,
-  INFLUENCE_BANDS,
   INFLUENCE_DOC,
   INFLUENCE_MODIFIERS,
+  INFLUENCE_NEUTRAL_INDEX,
+  INFLUENCE_RESULTS,
   TONE_PAGES,
-  INFLUENCE_RELATIONSHIP_MOD,
   influenceTimeLadder,
   INFLUENCE_TONE,
   INFLUENCE_TONE_CHOICES,
@@ -19,6 +20,7 @@ import {
 } from "./constants.mjs";
 import {
   autoKeysByTone,
+  bewitchMark,
   classifyAlignment,
   computeDefaults,
   effectRowsForPage,
@@ -39,7 +41,7 @@ import {
 import { getAbilityReactionMods, itemsWithReactionEffects } from "./ability-effects.mjs";
 import { henchmanWageCite, signingBonusCite, signingBonusCost } from "../henchmen/rules/wages.mjs";
 import { hatredNotes, kindOf, optionalRuleEnabled, parseKindList, relationFor } from "./racial.mjs";
-import { figureOrigin, modeRows, printedBands, toneRows } from "./printed.mjs";
+import { ageRow, attitudeFigure, figureOrigin, modeRows, printedBands, toneBands, toneRows } from "./printed.mjs";
 import { scopeApplies } from "../lib/vocab.mjs";
 import { abilityMod } from "../lib/actor-read.mjs";
 import { sinkCoin, spendableGp, transferCoin } from "../lib/money.mjs";
@@ -51,7 +53,7 @@ const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 // exactly ONE implementation, imported statically above. vocab.mjs is
 // Foundry-free, so the import carries no load-order risk.
 
-const ATTITUDE_COUNT = INFLUENCE_RELATIONSHIP_MOD.length; // 5 rungs
+const ATTITUDE_COUNT = INFLUENCE_RESULTS.length; // one ladder rung per result
 const ATTITUDE_TYPE = `${MODULE_ID}.attitude`;
 // Modifier keys whose value depends on the (possibly hidden) target's stats.
 const TARGET_AUTO_SOURCES = new Set(["targetWill", "alignment", "levelGap", "age"]);
@@ -338,7 +340,7 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
         default: def,
         fromEffect: true,
         unaudited: Boolean(m.unaudited),
-        bewitched: Number.isFinite(m.kickerAt),
+        bewitched: Number.isFinite(m.kickerAt) || m.bewitching === true,
         kickerAt: m.kickerAt ?? null,
         // Target-scoped: the GM's real target data decides on hidden resolves.
         vsGated: Boolean(m.vsKinds?.length || m.vsAlignment),
@@ -445,13 +447,12 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
 
   /**
    * An external page's result bands: the page's own imported column for a mode
-   * naming a `printed` table, else the mode's own table, else the opener's
-   * (`ctx.bands`). Empty when none is there; the roll then names no result,
-   * or refuses on a page that cannot post without one.
+   * naming a `printed` table, else the opener's (`ctx.bands`). Empty when none
+   * is there; the roll then names no result, or refuses on a page that cannot
+   * post without one.
    */
   #modeBands() {
     if (this.#mode?.printed) return printedBands(this.#mode.printed, this.#mode.bandKeys, this.#mode.printedDoc) ?? [];
-    if (Array.isArray(this.#mode?.bands)) return this.#mode.bands;
     return Array.isArray(this.#ctx.bands) ? this.#ctx.bands : [];
   }
 
@@ -554,12 +555,12 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
   /**
    * Where a tone row's figure came from: the page the import read it from, a
    * Judge's override in the Ruledata Browser, or that nothing was imported.
-   * @param {{docId: string, tableId: string}} from the table the row reads
+   * @param {{docId: string, tableId: string, cite?: string}} from the table the row reads, and the page that prints it where it is not the tone's
    * @param {string} tone the page the row is on, which names the page to import
    */
-  #figureTip({ docId, tableId }, tone) {
+  #figureTip({ docId, tableId, cite: own }, tone) {
     const origin = figureOrigin(tableId, docId);
-    const cite = TONE_PAGES[tone]?.cite ?? "";
+    const cite = own ?? TONE_PAGES[tone]?.cite ?? this.#mode?.cite ?? "";
     if (origin.state === "override") return game.i18n.localize("ACKS-INFLUENCE.figure.tipOverride");
     if (origin.state === "imported") return game.i18n.format("ACKS-INFLUENCE.figure.tipImported", { cite: origin.cite ?? cite });
     return game.i18n.format("ACKS-INFLUENCE.figure.tipMissing", { cite });
@@ -624,9 +625,24 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
     }
   }
 
+  /**
+   * What the current tone's page prints for a target already at the current
+   * rung of the ladder: nothing is added for a rung the page prints no
+   * modifier for, or while the table is not imported.
+   */
   #relationshipModifier() {
     if (this.#mode) return 0; // external modes carry no attitude ladder
-    return INFLUENCE_RELATIONSHIP_MOD[this.#system.currentAttitude] ?? 0;
+    return this.#rungFigure(this.#system.tone, this.#system.currentAttitude) ?? 0;
+  }
+
+  /** The modifier a tone's page prints for one ladder rung, or null (see `attitudeFigure`). */
+  #rungFigure(tone, index) {
+    return attitudeFigure(TONE_PAGES[tone].attitude, index, INFLUENCE_DOC);
+  }
+
+  /** A tone's reaction table as `toneBands` reads it, or null while it is not imported. */
+  #toneBands(tone) {
+    return toneBands(TONE_PAGES[tone].reaction, INFLUENCE_RESULTS.map((r) => r.key), INFLUENCE_DOC);
   }
 
   #computeSubtotal() {
@@ -794,13 +810,21 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
   /* -------------------------------------------- */
 
   #attitudeLadder() {
-    const labels = INFLUENCE_ATTITUDE_LABELS[this.#system.tone];
-    return labels.map((label, index) => ({
-      index,
-      label: game.i18n.localize(label),
-      modifier: INFLUENCE_RELATIONSHIP_MOD[index],
-      isActive: index === this.#system.currentAttitude,
-    }));
+    const tone = this.#system.tone;
+    const labels = INFLUENCE_ATTITUDE_LABELS[tone];
+    const table = TONE_PAGES[tone].attitude;
+    const origin = figureOrigin(table, INFLUENCE_DOC);
+    const heading = game.i18n.localize("ACKS-INFLUENCE.tracker.relationship");
+    return labels.map((label, index) => {
+      const modifier = this.#rungFigure(tone, index);
+      // A rung's tooltip says where its figure came from, or that there is
+      // none: the table is not imported, or the page prints nothing for it.
+      const tip =
+        modifier !== null
+          ? `${heading}: ${signedText(modifier)}. ${this.#figureTip({ docId: INFLUENCE_DOC, tableId: table }, tone)}`
+          : `${heading}: ${game.i18n.format(origin.state === "missing" ? "ACKS-INFLUENCE.tracker.notImported" : "ACKS-INFLUENCE.tracker.nonePrinted", { cite: TONE_PAGES[tone].cite })}`;
+      return { index, label: game.i18n.localize(label), modifier, tip, isActive: index === this.#system.currentAttitude };
+    });
   }
 
   #buildGroups() {
@@ -925,7 +949,8 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
     context.externalModifiers = this.#externalModifiers
       .filter((m) => !(m.note && m.itemId && this.#heldItems.has(m.itemId)))
       .map((m) => ({ label: m.label, value: m.value, note: m.note }));
-    context.relationshipModifier = this.#relationshipModifier();
+    const rungFigure = this.#mode ? null : this.#rungFigure(this.#system.tone, this.#system.currentAttitude);
+    context.relationshipText = rungFigure === null ? game.i18n.localize("ACKS-INFLUENCE.tracker.none") : signedText(rungFigure);
     context.finalModifier = this.#finalModifier;
     context.targetHidden = this.#targetHidden();
     context.targetKindOverridden = this.#system.targetKindOverridden;
@@ -954,7 +979,13 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
     } else {
       // A tone page says once that some of its rows wait on the import.
       const tone = this.#system.tone;
-      const waiting = this.#modConfig[tone].some((group) => group.mods.some((mod) => mod.disabled));
+      // Rows that wait on an import, the reaction table, the attitude modifiers,
+      // and on Seduction the aging table its age row counts by.
+      const waiting =
+        this.#modConfig[tone].some((group) => group.mods.some((mod) => mod.disabled)) ||
+        !this.#toneBands(tone) ||
+        figureOrigin(TONE_PAGES[tone].attitude, INFLUENCE_DOC).state === "missing" ||
+        (tone === INFLUENCE_TONE.SEDUCTION && !ageRow(AGING_PAGE.table, "human", INFLUENCE_DOC));
       context.unreadNotice = waiting ? game.i18n.format("ACKS-INFLUENCE.tone.unreadNotice", { cite: TONE_PAGES[tone].cite }) : "";
     }
 
@@ -1152,31 +1183,25 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
   /*  Rolling                                     */
   /* -------------------------------------------- */
 
-  #applyShift(baseIndex, band) {
-    if (band.towardNeutral) {
-      if (baseIndex < 2) return baseIndex + 1;
-      if (baseIndex > 2) return baseIndex - 1;
-      return 2;
+  /**
+   * Where a continuing roll leaves the ladder: the page's own count of
+   * attitudes (`band.shift`) in the result's direction, or toward Neutral for
+   * the middle result, never past it.
+   */
+  #applyShift(baseIndex, band, result) {
+    const steps = band.shift;
+    if (result.towardNeutral) {
+      if (baseIndex < INFLUENCE_NEUTRAL_INDEX) return Math.min(INFLUENCE_NEUTRAL_INDEX, baseIndex + steps);
+      return Math.max(INFLUENCE_NEUTRAL_INDEX, baseIndex - steps);
     }
-    return Math.min(ATTITUDE_COUNT - 1, Math.max(0, baseIndex + band.shift));
+    return Math.min(ATTITUDE_COUNT - 1, Math.max(0, baseIndex + result.direction * steps));
   }
 
-  #shiftDescription(band) {
-    const label = game.i18n.localize(INFLUENCE_ATTITUDE_LABELS[this.#system.tone][ATTITUDE_COUNT - 1]);
-    switch (band.key) {
-      case "2-":
-        return game.i18n.localize("ACKS-INFLUENCE.shift.hostile2");
-      case "3-5":
-        return game.i18n.localize("ACKS-INFLUENCE.shift.hostile1");
-      case "6-8":
-        return game.i18n.localize("ACKS-INFLUENCE.shift.neutral1");
-      case "9-11":
-        return game.i18n.format("ACKS-INFLUENCE.shift.top1", { label });
-      case "12+":
-        return game.i18n.format("ACKS-INFLUENCE.shift.top2", { label });
-      default:
-        return "";
-    }
+  /** The chat line naming a continuing roll's shift: the page's count and the end of the ladder it moves toward. */
+  #shiftDescription(band, result) {
+    const labels = INFLUENCE_ATTITUDE_LABELS[this.#system.tone];
+    const toward = result.towardNeutral ? INFLUENCE_NEUTRAL_INDEX : result.direction < 0 ? 0 : ATTITUDE_COUNT - 1;
+    return game.i18n.format("ACKS-INFLUENCE.shift.toward", { n: band.shift, label: game.i18n.localize(labels[toward]) });
   }
 
   /**
@@ -1440,6 +1465,7 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
     // Capture the active modifiers before the roll (state is unchanged by rolling).
     const activeModifiers = this.#activeModifiers();
     const bewitchedActive = this.#bewitchedActive();
+    const bewitchAt = bewitchMark();
 
     const modifier = this.#finalModifier;
     const roll = new Roll(`2d6 + (${modifier})`);
@@ -1448,15 +1474,22 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
     const diceResult = roll.dice[0]?.total ?? roll.total - modifier;
     const total = roll.total;
 
-    const band = INFLUENCE_BANDS.find((b) => total >= b.min && total <= b.max);
-
     const tone = this.#system.tone;
     const labels = INFLUENCE_ATTITUDE_LABELS[tone];
     // Attempt 0 is the initial reaction (sets the attitude); 1+ shifts it.
     const isContinuing = this.#system.attempt > 0;
 
+    // The result is the page's: its column's edges, and for a continuing roll
+    // its count of attitudes. Whichever the import has not supplied leaves the
+    // roll with no result named and the attitude where it was.
+    const bands = this.#toneBands(tone);
+    const resultAt = (bands ?? []).findIndex((b) => (b.min === undefined || total >= b.min) && (b.max === undefined || total <= b.max));
+    const found = resultAt >= 0 ? bands[resultAt] : null;
+    const band = found && (!isContinuing || found.shift !== null) ? found : null;
+    const rung = band ? INFLUENCE_RESULTS[resultAt] : null;
+
     const startIndex = this.#system.currentAttitude;
-    const newIndex = isContinuing ? this.#applyShift(startIndex, band) : band.initialIndex;
+    const newIndex = !band ? startIndex : isContinuing ? this.#applyShift(startIndex, band, rung) : rung.initialIndex;
 
     const toneLabel = game.i18n.localize(
       INFLUENCE_TONE_CHOICES.find((t) => t.value === tone)?.label ?? tone,
@@ -1482,12 +1515,14 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
       modifier,
       total,
       activeModifiers,
-      bandLabel: game.i18n.localize(INFLUENCE_BAND_LABELS[tone][band.key]),
+      bandLabel: band ? game.i18n.localize(INFLUENCE_BAND_LABELS[tone][band.key]) : "",
+      noResult: band ? "" : game.i18n.format("ACKS-INFLUENCE.tone.noResult", { cite: TONE_PAGES[tone].cite }),
       startAttitude: game.i18n.localize(labels[startIndex]),
       resultAttitude: game.i18n.localize(labels[newIndex]),
-      shiftDescription: isContinuing ? this.#shiftDescription(band) : null,
-      // Mystic Aura / aura-power kicker: a total of 12+ bewitches the subject.
-      bewitched: bewitchedActive && total >= 12,
+      shiftDescription: band && isContinuing ? this.#shiftDescription(band, rung) : null,
+      // Mystic Aura / aura-power kicker: the page's total bewitches the subject.
+      bewitched: bewitchedActive && bewitchAt !== null && total >= bewitchAt,
+      bewitchUnread: bewitchedActive && bewitchAt === null,
       attempt: this.#system.attempt,
       timeLabel: isContinuing && timeStep?.time ? timeStep.time : null,
       opposed,
@@ -1532,16 +1567,19 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
     }
 
     // Advance the tracker to the new attitude and step to the next attempt level
-    // (the initial reaction rolls into the 1st attempt to influence).
-    this.#system.currentAttitude = newIndex;
-    // Capped only where a book said where the ladder ends; with nothing
-    // imported the module does not invent a printed limit.
-    const cap = influenceTimeLadder(this.#system.attempt).maxAttempt;
-    const raised = this.#system.attempt + 1;
-    const nextAttempt = cap == null ? raised : Math.min(cap, raised);
-    this.#system.attempt = nextAttempt;
-    // Persist the updated relationship (auto save/load).
-    void this.#saveAttitude(newIndex, nextAttempt);
+    // (the initial reaction rolls into the 1st attempt to influence). A roll
+    // that named no result moves neither: it is not an attempt the page scored.
+    if (band) {
+      this.#system.currentAttitude = newIndex;
+      // Capped only where a book said where the ladder ends; with nothing
+      // imported the module does not invent a printed limit.
+      const cap = influenceTimeLadder(this.#system.attempt).maxAttempt;
+      const raised = this.#system.attempt + 1;
+      const nextAttempt = cap == null ? raised : Math.min(cap, raised);
+      this.#system.attempt = nextAttempt;
+      // Persist the updated relationship (auto save/load).
+      void this.#saveAttitude(newIndex, nextAttempt);
+    }
     this.#recalculate();
 
     // Consumer-feature event (the henchmen feature etc.): the full resolved roll.
@@ -1553,7 +1591,7 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
       natural: diceResult,
       modifier,
       total,
-      band: band.key,
+      band: band?.key ?? null,
       startAttitude: startIndex,
       newAttitude: newIndex,
       bewitched: result.bewitched,

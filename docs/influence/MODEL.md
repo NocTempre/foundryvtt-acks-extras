@@ -109,15 +109,16 @@ feature's own hiring throw reads that same table (`docs/henchmen/MODEL.md`
 §2, "The hiring figures").
 
 A row may name a table of its own in the same two keys, and reads it in place
-of the mode's. The `loyalty` page (RR 166) is the case: its result column is
-the mode's own `bands`, so the mode names no table, and its one printed figure,
-the apparent-level row's per-level figure (RR 168), is a `printedFactor` naming
-the `influence` document's `apparentLevel`. The row counts the levels its
-opener hands in (`ctx.apparentLevelDiff`). Read, the count is owed that figure
-each; unread, the row is a typed field with the *unread* badge, and the page
-shows no notice, since its column is not waiting on an import. The henchmen
-feature's fallback loyalty throw reads the same figure
-(`docs/henchmen/MODEL.md` §3).
+of the mode's. The `loyalty` page (RR 166) reads the `influence` document's
+`hirelingLoyalty` for its result column, `postsWithoutBands` like the morale
+pages, and its apparent-level row names a table of its own: a `printedFactor`
+on `apparentLevel` (RR 168), the per-level figure. The row counts the levels
+its opener hands in (`ctx.apparentLevelDiff`). Read, the count is owed that
+figure each; unread, the row is a typed field with the *unread* badge, and the
+page says once that it waits on an import. The Irrefusable Offer (MM 351)
+reads `irrefusableOffer` the same way, for its result column and for its
+opposite-alignment row, a `printed` figure. The henchmen feature's fallback
+loyalty throw reads the loyalty figure too (`docs/henchmen/MODEL.md` §3).
 
 `modeRows` (`printed.mjs`) turns the declared rows into the rows the dialog
 draws, against what the world holds:
@@ -125,6 +126,7 @@ draws, against what the world holds:
 | Declared | Read from the page | Not read |
 |---|---|---|
 | `ladder` | a choice among the rungs that were read, each worded as the Judge's page words it and falling back to its figure | a typed signed field |
+| `ladder` marked `ordinal` | the same choice, read whole: its place is what a consumer prices by | a disabled select holding only the blank, flagged not imported |
 | `printed` | a tick worth the figure, shown beside the row's name | a typed signed field |
 | `printedFactor` | the row's count times the figure, the figure shown beside the row's name | a typed signed field |
 
@@ -160,7 +162,8 @@ dialog draws:
 | `select` with `rungs` | a choice among the rungs that were read, by position, each worded as the page words it where the import caught one | disabled, flagged not imported |
 
 A disabled row contributes nothing, is never pre-filled, and a page with any
-disabled row says once, above its rows, that its page is not imported. A
+disabled row, or with a table it reads for its result not imported (below),
+says once, above its rows, that its page is not imported. A
 proficiency box that cannot be worth anything drops its `prof:` claim, so the
 item's own Active Effect still reaches the page. Every figure's row carries a
 tooltip naming where the figure came from: the page the importer read it from,
@@ -173,10 +176,42 @@ prints as a floor and the recipe reads as a quantity
 (`printedQuantity`). With the threshold unread, the gap's row fills nothing.
 A row that is typed by the roller because the page prints a floor or a rate
 ("or more", "per favor") stays a typed `signed` field; its label names it and
-cites the page, and no figure ships for it. A bribe tier is its own ordinal
-(`BRIBE_OPTIONS`, labelled "Tier 1" to "Tier 3"), and its fee comes from the
-henchmen api (`DECISIONS.md`, "The tone pages read their figures from the
-imported page").
+cites the page, and no figure ships for it. The bribe row is a select of three
+tiers (`BRIBE_RUNGS`, labelled "Tier 1" to "Tier 3") whose bonuses are the
+`bribeTiers` table's (RR 287); it names that table in `table` and `cite` and is
+`complete`, so it is read whole or not at all (a tier left out would renumber
+the rest). What is stored is the tier's place, which the henchmen api prices
+(`DECISIONS.md`, "The tone pages read their figures from the imported page");
+a bribe row not imported is a disabled select, so no tier is chosen and no
+fee is asked.
+
+**The reaction and the ladder.** What a tone page does with its total is the
+page's too. Each tone reads two more tables of the `influence` document
+(`TONE_PAGES`): `<tone>Reaction`, the result column and `shift1` to `shift5`,
+the count of attitudes each result moves a continuing roll by, and
+`<tone>Attitude`, the modifier for a target already at a rung of the ladder
+(`attitude0` hostile end to `attitude4`; the middle rung and a rung the page
+prints no row for have no key and add nothing). `toneBands` and
+`attitudeFigure` (`printed.mjs`) read them. The structure stays in
+`INFLUENCE_RESULTS`: the five results worst first, the rung an initial reaction
+sets, and the direction a continuing roll moves (the middle result moves
+toward Neutral, never past it). A result column not imported, or a continuing
+roll whose count for its result was not read, leaves the roll with no result
+named: the card carries the total and the modifiers and says the table is not
+imported, the attitude stays where it was, and the attempt is not counted, so
+the `acksExtras.influenceRollComplete` payload carries `band: null` and
+`newAttitude` equal to `startAttitude`. A rung's tooltip names the modifier it
+adds and where it was read, that the page prints none for it, or that the table
+is not imported. The `band` of that payload is the result's position key
+(`result1` to `result5`), where it was once the roll edges.
+
+The Seduction page's age row counts categories between the two actors, which
+the `characterAging` table (RR 19) draws: `ageCategoryIndex` takes the last
+category whose first year the actor has reached, by the race the class names
+(a race with no row counts as human). Not imported, the row's count is left
+unfilled. The Mystic Aura's bewitching total is `mysticAura.at` (RR 115): at or
+above it the card names the subject bewitched, and unread the card says the
+mark is not imported. A power marked `bewitched` is a source, not a figure.
 
 **Held rows.** A proficiency the hiring page and the market assessment page
 offer — Diplomacy, Intimidation, Seduction, Mystic Aura — is declared `held`

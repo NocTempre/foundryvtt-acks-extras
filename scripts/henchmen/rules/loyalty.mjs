@@ -20,6 +20,18 @@ export function apparentLevelPenalty() {
   return Number.isInteger(perLevel) ? perLevel : null;
 }
 
+/**
+ * The permanent loyalty an employer pays to insist on an order a hireling
+ * refused (RR 167), as the positive count the page prints, read from the
+ * Judge's imported `morale.hirelingObedience` table, the one the
+ * influence-hosted obedience page reads. Null until imported; a blank or
+ * non-integer figure is unread.
+ */
+export function insistPenalty() {
+  const penalty = optTable("morale", "hirelingObedience")?.insistPenalty;
+  return Number.isInteger(penalty) && penalty >= 0 ? penalty : null;
+}
+
 import { clampScore } from "../../lib/score-bounds.mjs";
 
 /** The score clamp is `lib/score-bounds.mjs`'s; the rules here re-export it for their callers. */

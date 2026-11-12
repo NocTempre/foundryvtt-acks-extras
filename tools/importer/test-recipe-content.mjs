@@ -52,7 +52,15 @@ const TABLES = {
   // The hiring offer: a result column and the two penalties beside it.
   // The loyalty roll's figure per level of apparent difference.
   // The three tone pages' modifier lists (diplomacy, intimidation, seduction).
-  influence: ["hiringOffer", "apparentLevel", "diplomacyModifiers", "intimidationModifiers", "seductionModifiers"],
+  // The three tone pages' reaction tables and attitude modifiers, Hireling
+  // Loyalty's and the Irrefusable Offer's result columns, the bribe tiers, the
+  // Mystic Aura mark and the Character Aging grid.
+  influence: [
+    "hiringOffer", "apparentLevel", "diplomacyModifiers", "intimidationModifiers", "seductionModifiers",
+    "diplomacyReaction", "intimidationReaction", "seductionReaction",
+    "diplomacyAttitude", "intimidationAttitude", "seductionAttitude",
+    "hirelingLoyalty", "irrefusableOffer", "bribeTiers", "mysticAura", "characterAging",
+  ],
   // The henchman limit's base: one figure the roster counts every hire against.
   // The employer-level cap: the ladder a leveled henchman search is judged on.
   // The level-gain morale bonuses: two levels and the bonus each earns.
@@ -299,6 +307,67 @@ for (const id of ["influence.diplomacyModifiers", "influence.intimidationModifie
 VERIFY["influence.apparentLevel"] = (out, recipe, fail) => {
   proseKeys(out, recipe, fail);
   if (isNum(out?.perLevel) && !(Number.isInteger(out.perLevel) && out.perLevel < 0)) fail("perLevel: not a whole number below zero");
+};
+// A tone page's reaction table: a five-rung result column and a whole,
+// non-negative count of attitudes for each rung.
+for (const id of ["influence.diplomacyReaction", "influence.intimidationReaction", "influence.seductionReaction"]) {
+  VERIFY[id] = (out, recipe, fail) => {
+    proseKeys(out, recipe, fail);
+    bandLadder(out?.bands, "bands", fail, 5);
+    for (let n = 1; n <= 5; n++) if (isNum(out?.[`shift${n}`]) && !(Number.isInteger(out[`shift${n}`]) && out[`shift${n}`] > 0)) fail(`shift${n}: not a whole number above zero`);
+  };
+}
+// A tone page's attitude modifiers: signed whole numbers, one per rung the
+// page prints, the rungs below the middle negative and above it positive.
+for (const id of ["influence.diplomacyAttitude", "influence.intimidationAttitude", "influence.seductionAttitude"]) {
+  VERIFY[id] = (out, recipe, fail) => {
+    proseKeys(out, recipe, fail);
+    for (const [key, sign] of [["attitude0", -1], ["attitude1", -1], ["attitude3", 1], ["attitude4", 1]]) {
+      if (isNum(out?.[key]) && !(Number.isInteger(out[key]) && Math.sign(out[key]) === sign)) fail(`${key}: not a whole number on the ${sign < 0 ? "negative" : "positive"} side`);
+    }
+  };
+}
+// Hireling Loyalty and the Irrefusable Offer: a five-rung result column, and
+// the offer's one signed figure.
+VERIFY["influence.hirelingLoyalty"] = (out, recipe, fail) => {
+  proseKeys(out, recipe, fail);
+  bandLadder(out?.bands, "bands", fail, 5);
+};
+VERIFY["influence.irrefusableOffer"] = (out, recipe, fail) => {
+  proseKeys(out, recipe, fail);
+  bandLadder(out?.bands, "bands", fail, 5);
+  if (isNum(out?.oppositeAlignment) && !(Number.isInteger(out.oppositeAlignment) && out.oppositeAlignment < 0)) fail("oppositeAlignment: not a whole number below zero");
+};
+// The bribe tiers: three positive whole bonuses, each above the one before.
+VERIFY["influence.bribeTiers"] = (out, recipe, fail) => {
+  proseKeys(out, recipe, fail);
+  const tiers = [out?.tier1, out?.tier2, out?.tier3];
+  if (!tiers.every((n) => Number.isInteger(n) && n > 0)) fail("tiers: not three positive whole numbers");
+  else if (!(tiers[0] < tiers[1] && tiers[1] < tiers[2])) fail("tiers: not rising");
+};
+// The Mystic Aura mark: a roll total a 2d6 roll can reach.
+VERIFY["influence.mysticAura"] = (out, recipe, fail) => {
+  proseKeys(out, recipe, fail);
+  if (isNum(out?.at) && !(Number.isInteger(out.at) && out.at >= 2 && out.at <= 12)) fail("at: not a 2d6 total");
+};
+// Character Aging: each declared race a row of five categories, each a
+// `[first, last]` pair of whole years in order or null, and the categories of a
+// race rising year by year.
+VERIFY["influence.characterAging"] = (out, recipe, fail) => {
+  const categories = recipe.cellColumns.map((c) => c.key);
+  for (const { key } of recipe.rows) {
+    const row = out?.[key];
+    if (!row || typeof row !== "object") { fail(`${key}: absent`); continue; }
+    let last = -Infinity;
+    for (const category of categories) {
+      const years = row[category];
+      if (years === null) continue;
+      if (!Array.isArray(years) || years.length !== 2 || !years.every(Number.isInteger) || years[0] > years[1]) { fail(`${key}.${category}: not a [first, last] pair`); continue; }
+      if (years[0] <= last) fail(`${key}.${category}: does not follow the category before`);
+      last = years[1];
+    }
+    if (row[categories[0]] == null) fail(`${key}: no first category`);
+  }
 };
 // The level-gain morale bonuses: whole levels, the rung the first names (one
 // above the level left) below the one the second reaches, and each bonus a

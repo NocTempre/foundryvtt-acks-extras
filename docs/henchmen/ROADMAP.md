@@ -12,12 +12,12 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   in this feature is the last resort, only if no candidate grows a
   data-driven write API.
 
-- **20 `ACKS-HENCHMEN` strings still print a magnitude in the label** — the
+- **19 `ACKS-HENCHMEN` strings still print a magnitude in the label** — the
   outcome hints (`outcomeHint.hesitate`, `.grudging`, `.fanatic`,
   `.begrudging`, `.acceptElan`, `.refuses`, `.refuseSlander`), the modifier
   labels (`mod.oppositeAlignment`, `.customaryTask`, `.recentCasualties`,
   `.mercenaryAdventuring`), `cond.threats`' HD threshold,
-  `followers.loyaltyDefault`, `followers.loyaltyFanatic`, `card.insist`, and
+  `followers.loyaltyDefault`, `followers.loyaltyFanatic`, and
   `monster.feigned.escape`'s band. The 2026-09-03 pass retired printed figures
   from 21 sibling strings in this root and deliberately left these; the reason
   and the order the fix has to take are one ruling, in

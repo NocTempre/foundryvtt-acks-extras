@@ -371,6 +371,18 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
     withTables(docs, () => assert.strictEqual(apparentLevelPenalty(), null, `${label}: no figure`));
   }
 
+  // The insistence penalty: the count after the recipe's clause, in the
+  // obedience table. The sentence and the figure are invented.
+  const { insistPenalty } = await import(new URL("../scripts/henchmen/rules/loyalty.mjs", import.meta.url));
+  const insist = TABLE_RECIPES.morale.tables.hirelingObedience.values.find((v) => v.key === "insistPenalty");
+  const insisted = extractTable(page([`An employer who badgers the burrow ${insist.find} loyalty by 4 and rolls again.`]), { ...TABLE_RECIPES.morale.tables.hirelingObedience, values: [insist] });
+  assert.deepStrictEqual(insisted, { insistPenalty: 4 }, "the recipe reads the count after its clause");
+  withTables({ morale: { hirelingObedience: insisted } }, () => assert.strictEqual(insistPenalty(), 4, "the reader takes what the recipe extracts"));
+  withTables({ morale: { hirelingObedience: { insistPenalty: 0 } } }, () => assert.strictEqual(insistPenalty(), 0, "zero is a figure"));
+  for (const [docs, label] of [[{}, "nothing imported"], [{ morale: { hirelingObedience: { bands: [] } } }, "a table with no figure"], [{ morale: { hirelingObedience: { insistPenalty: "1" } } }, "a figure read as text"], [{ morale: { hirelingObedience: { insistPenalty: -1 } } }, "a negative count"]]) {
+    withTables(docs, () => assert.strictEqual(insistPenalty(), null, `${label}: no figure`));
+  }
+
   // The two henchman shares: a fraction written in words after each recipe's
   // clause. The fractions and the sentences around them are invented; the
   // recipes hold only the anchors.

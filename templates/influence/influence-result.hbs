@@ -35,14 +35,18 @@
   </div>
   <div class="influence-chat-shift">{{localize 'ACKS-INFLUENCE.result.opposedNoShift'}}</div>
   {{else}}
+  {{#if bandLabel}}
   <div class="influence-chat-band"><strong>{{localize 'ACKS-INFLUENCE.chat.reaction'}}:</strong> {{bandLabel}}</div>
 
   <div class="influence-chat-attitude">
     <strong>{{#if isContinuing}}{{localize 'ACKS-INFLUENCE.chat.attitude'}}{{else}}{{localize 'ACKS-INFLUENCE.chat.initialAttitude'}}{{/if}}:</strong>
     {{startAttitude}} &rarr; <span class="influence-chat-new">{{resultAttitude}}</span>
   </div>
+  {{else}}
+  <div class="influence-chat-band">{{noResult}}</div>
+  {{/if}}
 
-  {{#if isContinuing}}
+  {{#if shiftDescription}}
     <div class="influence-chat-shift">{{shiftDescription}}</div>
     {{#if timeLabel}}
       <div class="influence-chat-time"><strong>{{localize 'ACKS-INFLUENCE.chat.time'}}:</strong> {{timeLabel}}</div>
@@ -61,6 +65,13 @@
     <div class="influence-chat-bewitched">
       <i class="fa-solid fa-wand-magic-sparkles"></i>
       <span><strong>{{localize 'ACKS-INFLUENCE.chat.bewitchedLabel'}}:</strong> {{localize 'ACKS-INFLUENCE.chat.bewitched'}}</span>
+    </div>
+  {{/if}}
+
+  {{#if bewitchUnread}}
+    <div class="influence-chat-bewitched">
+      <i class="fa-solid fa-wand-magic-sparkles"></i>
+      <span><strong>{{localize 'ACKS-INFLUENCE.chat.bewitchedLabel'}}:</strong> {{localize 'ACKS-INFLUENCE.chat.bewitchUnread'}}</span>
     </div>
   {{/if}}
 

@@ -5,7 +5,7 @@
     {{#if buttons.length}}
     <div class="card-buttons">
       {{#each buttons}}
-      <button type="button" data-acks-extras-action="{{action}}" data-payload="{{payload}}">
+      <button type="button" data-acks-extras-action="{{action}}" data-payload="{{payload}}"{{#if tooltip}} data-tooltip-text="{{tooltip}}"{{/if}}>
         {{#if icon}}<i class="{{icon}}"></i> {{/if}}{{label}}
       </button>
       {{/each}}

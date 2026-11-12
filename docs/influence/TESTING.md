@@ -42,6 +42,11 @@ hand.
   and 12); a district's own row from `docs/formation/TESTING.md` (The
   districts).
 
+Steps 1 to 8 name a result and an attitude, which the tone pages read from the
+`influence` document's reaction and attitude tables: run them with those
+imported, or registered invented in the client as the tone pages' drive
+mechanics below describe. Without them the roll names no result (step 27).
+
 ## Steps
 
 1. `open(influencer, {targetActor: target})`.
@@ -260,13 +265,39 @@ The page opens from the henchmen feature's `openLoyaltyRoll` on a henchman
 whose record claims a higher employer level; the fixtures, the unread and
 read layers and the drive are docs/henchmen/TESTING.md step 16.
 
-20. Open the page with the `influence` document's `apparentLevel` unread,
-    then read, and press **Roll** each time.
+20. Open the page with the `influence` document's `apparentLevel` and
+    `hirelingLoyalty` unread, then read, and press **Roll** each time.
     *Observable:* unread, the apparent-level row is a typed field with the
-    unread badge and the page shows no notice, since its result column is
-    its own; the roll names a band. Read, the row shows the figure each level
-    adds and contributes the count times it, and the roll-complete payload's
-    `parts` carry that line.
+    unread badge, the notice names RR 166, and the card names no result (the
+    roll-complete payload's `outcome` is null, and the henchmen feature
+    applies no consequence). Read, the row shows the figure each level adds
+    and contributes the count times it, the `parts` carry that line, and the
+    card names the result the page's edges give the total.
+
+## The irrefusable offer and the insist card
+
+Fixtures: a disposable character as the employer and a disposable monster as
+the captive; the henchmen feature opens the page (`openIrrefusableViaInfluence`,
+`docs/henchmen/TESTING.md`). For the insist card, a hireling on a refusal:
+`openObedienceRoll(henchman)` with the adjustment pushed down far enough to
+refuse (step 13). Check `hasDoc("influence")` and `hasDoc("morale")` first and
+register invented tables in the client when a world holds them.
+
+21. Open the irrefusable offer with `influence.irrefusableOffer` unread, then
+    with invented edges and an invented opposite-alignment figure registered,
+    and roll each time.
+    *Observable:* unread, the opposite-alignment row is a typed field with the
+    unread badge, the notice names MM 351, and the card names no result. Read,
+    the row is a tick worth the registered figure with its tooltip naming the
+    page, and the card names the result the edges give.
+22. Refuse an obedience roll with `morale.hirelingObedience.insistPenalty`
+    unread, press the insist card's button; then register a figure, refuse
+    again, press it.
+    *Observable:* unread, the button's tooltip says the penalty is not
+    imported, pressing it warns, adds no loyalty entry to the hireling's
+    record and opens the obedience roll again. Read, the tooltip names the
+    registered figure and its page, and pressing adds one permanent loyalty
+    entry of exactly that figure, reason "insistence".
 
 ## The tone pages
 
@@ -290,23 +321,60 @@ Drive mechanics:
 
 Steps:
 
-21. With no `influence` tone table: open each tone page.
+23. With no `influence` tone table: open each tone page.
     *Observable:* every row that names a figure is disabled with the
     not-imported badge, the notice above the rows names the page, the total
     contributes nothing from them, a pre-fill (alignment, level gap, age,
     social status) fills none of them, and the character's Diplomacy item is
     offered in its own row with its own effect rather than a dead box. No label
     shows a number other than a page reference or a tier.
-22. Import the tables, or register invented ones, and reopen each tone.
+24. Import the tables, or register invented ones, and reopen each tone.
     *Observable:* no disabled row, no notice; each figured row shows its figure
     and the label's tooltip names the page it was read from; a rung select
     lists the rungs that were read under a blank option, and choosing a rung
     changes the total by that rung's figure; the pre-fills fill from the
     imported figures; a level gap short of the imported floor fills nothing.
-23. Set an override layer for one table and reopen.
+25. Set an override layer for one table and reopen.
     *Observable:* that table's tooltips say the figure is the Judge's own.
-24. Delete the tables again (the DELETE path) and reopen.
-    *Observable:* step 21's state returns without a reload.
+26. Delete the tables again (the DELETE path) and reopen.
+    *Observable:* step 23's state returns without a reload.
+27. Roll each tone with its `<tone>Reaction` table unread, then read (invented
+    edges, and a count for each result), with the character's current
+    attitude set to each rung in turn.
+    *Observable:* unread, the notice names the page, the card says the reaction
+    table is not imported and names no result, the attitude on the page and in
+    the influencer's attitude item is unchanged and the next roll is still the
+    same attempt. Read, an initial reaction sets the attitude by the result's
+    position; a continuing roll moves it by that result's count toward the
+    hostile end, the other end, or Neutral for the middle result, never past
+    either end; the shift line on the card names the count and the end. A
+    count left out of the registered table leaves a continuing roll with no
+    result and the attitude where it was.
+28. With `<tone>Attitude` unread, then read (invented figures for the rungs
+    the page prints), hover each rung of the ladder.
+    *Observable:* unread, every rung's tooltip says not imported and the line
+    under the ladder shows "none"; read, a rung with a figure names it and the
+    page it came from, a rung without one says the page prints none, and the
+    total changes by the figure when that rung is the current attitude and not
+    for a rung without one.
+29. Diplomacy with `influence.bribeTiers` unread, with one tier left out, then
+    read, and choose each tier.
+    *Observable:* unread or partial, the bribe select is disabled holding only
+    the blank, flagged not imported, with a tooltip naming RR 287, and the
+    fee is not asked. Read, the select lists Tier 1 to Tier 3 each with the
+    registered bonus beside it; choosing a tier adds that bonus, and the fee
+    field fills with the henchmen api's price for that tier's place.
+30. Seduction with `characterAging` unread, then read (invented year spans
+    for a human row), against two actors of the class "Fighter" at ages
+    spanning different categories.
+    *Observable:* unread, the notice names the aging table and the age row's
+    count stays zero. Read, the count is the number of categories the target
+    stands above the character's, with Ancient counted as Old.
+31. A roll with the Mystic Aura box ticked and `influence.mysticAura` unread,
+    then read (an invented total), then rolled to meet it.
+    *Observable:* unread, the card says the bewitching mark is not imported.
+    Read, the card names the subject bewitched only on a total at or above the
+    registered figure.
 
 ## Teardown
 
@@ -317,6 +385,6 @@ document, if the run imported it. For the hiring and loyalty pages, walked by
 `tools/live/henchmen.mjs`: no actor is swept, since its fixtures are kept and
 its cards are retired by the next run (docs/henchmen/TESTING.md, Teardown);
 remove the `influence` document if the run imported it, or unregister the
-figures it registered; the tone pages' walk (steps 21-24) leaves the same
+figures it registered; the tone pages' walk (steps 23-31) leaves the same
 layers behind and removes them the same way.
 Unregister any condition figures the run registered in the client.
