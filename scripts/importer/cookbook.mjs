@@ -8924,14 +8924,22 @@ const isAwardableByName = (entry) => !NON_ABILITY_KINDS.has(entry?.kind) && entr
  * docs/importer/DECISIONS.md, "A second printed name for a shipped entry is
  * authored on the entry".
  *
+ * A definition that withholds its printed name (its name instruction a
+ * `heading` read by `hash`) has no surface to spell. It answers to the key of
+ * that name's letters instead: `byPrintKey` holds it by the hash, and `menu`
+ * carries it as a row with `hash` and an empty surface, which `tokenizeProfs`
+ * tests against the words a cell opens with.
+ *
  * @returns {{byKey: Map<string, {ref: string, name: string, ambiguous: boolean}>,
- *           menu: Array<{surface: string, name: string, ref: string, alias: boolean}>}}
+ *           byPrintKey: Map<string, {ref: string, name: string, ambiguous: boolean}>,
+ *           menu: Array<{surface: string, name: string, ref: string, alias: boolean, hash?: string}>}}
  *   `byKey` is keyed by folded surface; `menu` is ordered longest SURFACE first
  *   (never longest name — a three-letter alias must not sort as if it were the
  *   sixteen-letter entry it belongs to).
  */
 export function abilitySurfaceIndex(entries = null) {
   const candidates = new Map(); // folded surface -> {ids:Set, name, alias}
+  const keyedCandidates = new Map(); // printKey -> {ids:Set, name}
   // Defaults to every content cookbook; takes an explicit [id, entry] list so
   // the invariant can be tested without a compiled cookbook behind it.
   const source = entries ?? (function* () {
@@ -8939,6 +8947,13 @@ export function abilitySurfaceIndex(entries = null) {
   })();
   for (const [defId, e] of source) {
     if (!isAwardableByName(e)) continue;
+    const hash = e.fields?.name?.op === "heading" ? e.fields.name.hash : null;
+    if (hash) {
+      const held = keyedCandidates.get(hash) ?? { ids: new Set(), name: e.name };
+      held.ids.add(defId);
+      keyedCandidates.set(hash, held);
+      continue;
+    }
     const surfaces = [e.name, ...(e.aliases ?? [])];
     surfaces.forEach((surface, i) => {
       const key = nameKey(surface);
@@ -8956,8 +8971,39 @@ export function abilitySurfaceIndex(entries = null) {
     byKey.set(key, { ref, name: held.name, ambiguous: ids.length > 1 });
     menu.push({ surface: held.surface, name: held.name, ref, alias: held.alias });
   }
+  const byPrintKey = new Map();
+  for (const [hash, held] of keyedCandidates) {
+    const ids = [...held.ids];
+    const ref = ids.length === 1 ? ids[0] : byCategory(ids);
+    byPrintKey.set(hash, { ref, name: held.name, ambiguous: ids.length > 1 });
+    menu.push({ surface: "", hash, name: held.name, ref, alias: false });
+  }
   menu.sort((a, b) => b.surface.length - a.surface.length);
-  return { byKey, menu };
+  return { byKey, byPrintKey, menu };
+}
+
+/** The most words a withheld name is tried over at the head of a cell. */
+const KEYED_NAME_WORDS = 8;
+
+/**
+ * The menu row a cell's opening words answer by the key of their letters, with
+ * how many characters those words take (trailing punctuation left in the
+ * cell), or null. The longest run of words is tried first. The row is named
+ * with the words as the page prints them, since its own name is a label.
+ */
+function keyedHead(rest, keyed) {
+  // A name opens on a letter or digit, as a spelled surface does; a separator
+  // ahead of it is skipped by the caller, never counted into the name.
+  if (!keyed.length || !/^[\p{L}\p{N}]/u.test(rest)) return null;
+  const words = rest.split(" ");
+  for (let k = Math.min(KEYED_NAME_WORDS, words.length); k > 0; k--) {
+    const span = words.slice(0, k).join(" ").replace(/[^\p{L}\p{N}]+$/u, "");
+    const key = printKey(span);
+    if (!key) continue;
+    const m = keyed.find((row) => row.hash === key);
+    if (m) return { ...m, name: span, len: span.length };
+  }
+  return null;
 }
 
 /** One printed name as a regex literal. */
@@ -8991,9 +9037,13 @@ export function tokenizeProfs(cellText, menu) {
   const out = [];
   let rest = String(cellText ?? "").replace(/\s+/g, " ").trim();
   let guard = 40;
+  // A withheld name is tried before any spelled one: a shorter surface must
+  // not claim the head of the words it is printed with.
+  const keyed = menu.filter((m) => m.hash);
+  const spelled = keyed.length ? menu.filter((m) => !m.hash) : menu;
   while (rest && guard-- > 0) {
-    let hit = null;
-    for (const m of menu) {
+    let hit = keyedHead(rest, keyed);
+    for (const m of hit ? [] : spelled) {
       const match = lenientRe(m.surface, { alias: m.alias }).exec(rest);
       if (match) {
         hit = { ...m, len: match[0].length };
@@ -9728,7 +9778,7 @@ export function bindClass(
 
   const levels = [];
   const ladderMap = new Map(); // colKey → rungs
-  const slotRowsBy = {}; // s: single tradition; a/d: the Nobiran's pair
+  const slotRowsBy = {}; // s: single tradition; a/d: a two-tradition class's pair
   for (const row of f.progression?.rows ?? []) {
     const level = intFrom(row.label);
     if (level == null) continue;
@@ -9738,8 +9788,8 @@ export function bindClass(
       title: capFirst(row.cells.title),
       hd: String(row.cells.hd ?? "").replace(/\*/g, "").trim(),
     });
-    // Slot columns: s1..s6 (single tradition) or a1..a6 / d1..d6 (the
-    // Nobiran's arcane and divine groups). Anything else non-fixed is a
+    // Slot columns: s1..s6 (single tradition) or a1..a6 / d1..d6 (a
+    // two-tradition class's arcane and divine groups). Anything else non-fixed is a
     // named ladder.
     const perPrefix = { s: {}, a: {}, d: {} };
     const any = { s: false, a: false, d: false };
@@ -9836,7 +9886,7 @@ export function bindClass(
 
   // Casting traditions: the chef classifies (key/kind/repertoire — structure);
   // every slot count comes from the progression grid's numbered columns. With
-  // one tradition the plain columns serve it; the Nobiran's pair each take
+  // one tradition the plain columns serve it; a two-tradition pair each take
   // their own prefixed group.
   const casting = (entry.casting ?? []).map((t) => {
     const key = t.key ?? "arcane";
@@ -9882,7 +9932,8 @@ export function bindClass(
   // tolerates missing inter-word space.
   const listText = String(f.profList ?? "").replace(/^.*?Proficiency\s*List:\s*/i, "");
   for (const name of splitList(listText)) {
-    const hit = surfaces.byKey.get(nameKey(name.replace(/\([^)]*\)/g, "")));
+    const bare = name.replace(/\([^)]*\)/g, "");
+    const hit = surfaces.byKey.get(nameKey(bare)) ?? surfaces.byPrintKey.get(printKey(bare));
     if (hit) classProfs.push(hit.ref);
     else unresolvedProfs.push(name);
   }
@@ -10574,7 +10625,7 @@ export function parseTongues(body) {
   // (the cleave pattern folds them for the same reason), so the runin arrives
   // as "ElfTongues:" as often as "Elf Tongues:" and a required space misses
   // the trait entirely.
-  // One word: the label's subject is the race ("Dwarf", "Elf", "Zaharan"),
+  // One word: the label's subject is the race ("Dwarf", "Elf"),
   // and reaching further back swallows the section heading when the space
   // between them is one of the dropped ones.
   const runin = /([A-Z][a-z]+)\s*Tongues\s*:/.exec(text);
@@ -10593,7 +10644,7 @@ export function parseTongues(body) {
   for (const clause of window.matchAll(/can\s*(?:also\s*)?speak\s*([^.]{0,80}?)(?=\s*(?:tongues|languages)\b|\.|$)/g)) {
     for (const piece of clause[1].replace(/^the\s*/i, "").split(/,|\band\b/)) {
       // Strip the glued terminator, then re-open a space the extraction
-      // dropped inside a name ("AncientZaharan") — book names carry no
+      // dropped inside a name ("AncientElven") — book names carry no
       // internal capitals, so a case boundary is a lost space.
       const name = piece
         .trim()

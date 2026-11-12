@@ -55,14 +55,14 @@ own decision, and not as a side effect of whatever comes next.
   caster-level ladder; their spend/refresh rules arrive with their books'
   recipes (BTA invocation throws, HFH ceremonial).
 - **Builder cookbook, the rest of it** — the JJ import now covers the core
-  builder tables, the dwarf and elf races, and the twelve RR Ready-for-Play
-  builds. Still importer-side work: the halfling / Nobiran / Zaharan races
-  (JJ p304–307), the JJ campaign classes' builds (barbarian, paladin,
-  priestess, shaman, venturer, warlock, witch, wonderworker, ruinguard),
-  the custom-power index with costs (JJ p308–331) and drawbacks, magic
-  types beyond arcane/divine (ceremonial, gnostic, alchemy, eldritch,
-  fairie — each its own `magicTypes` row from its book), and the boosted
-  Arcane + Elf/Zaharan 5–8 rows.
+  builder tables, four races (dwarf, elf, people1, people2) and the
+  Ready-for-Play build of every RR class. Still importer-side work: the
+  halfling race (JJ p302); the people races' attribute floors and their
+  max-level power (read as a power name, not applied to a cap); the
+  custom-power index with costs (JJ p308–331) and drawbacks; magic types
+  beyond arcane/divine (ceremonial, gnostic, alchemy, eldritch, fairie —
+  each its own `magicTypes` row from its book); and the boosted Arcane +
+  racial-value 5–8 rows of the two races that stack with arcane.
 - **Builder fidelity still open** — trade-off ELECTIONS are recorded as
   prose in `builder.notes` (the Ready-for-Play paragraphs name them; the
   Judge ticks the boxes by hand); custom-power EFFECTS (a chosen power

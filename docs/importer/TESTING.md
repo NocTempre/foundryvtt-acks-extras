@@ -371,7 +371,9 @@ The dedup rules, each with a case that used to break it.
   *Observable:* the end state matches the canonical order. Fingerprint the pack
   (document count, unique cookbook ids, duplicate count) before and after; the
   duplicate count is 0 either way. This is the check that caught two
-  `def.race.dwarf` and two `def.race.elf`.
+  `def.race.dwarf` and two `def.race.elf`; with JJ attached the JJ tables make
+  four race documents (`def.race.dwarf`, `elf`, `people1`, `people2`), one of
+  each after every repeat.
 - **A shelf that has gone cold.** A compendium drops the documents it holds 300
   seconds after the last access and keeps its index, so "run it twice" only
   covers the warm case — the interesting one is a second run after a pause.

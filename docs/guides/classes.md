@@ -196,8 +196,8 @@ Closing the dialog changes nothing. A chat card lists what was replaced, lost
 and marked.
 
 Casters get a per-tradition slot strip under the class field — click a pip to
-spend, click a spent pip to refund, the bed icon to rest. The Nobiran's
-arcane and divine pools sit side by side.
+spend, click a spent pip to refund, the bed icon to rest. A class with two
+traditions shows its arcane and divine pools side by side.
 
 ![](../releases/v3.3.0/classes-casting-strip.png)
 
@@ -333,7 +333,7 @@ default.
 ## Paths — when a class offers a choice
 
 Some classes are not one thing. A Barbarian's training depends on their region;
-a Zaharan has a dark path; a dwarf has a caste. On the class sheet these are
+some classes choose a dark path; a dwarf has a caste. On the class sheet these are
 **Paths**: named groups, each holding options of which a character takes exactly
 one, and an option can carry its own weapon, armour and fighting-style training.
 
@@ -359,7 +359,7 @@ second. **A group you leave unanswered grants nothing** — the module will not
 pick a region for you.
 
 Taking a starting template that names a variant answers the group for you:
-"Pit Fighter (Jutland)" chooses Jutland, and the training follows. A template
+a template annotated with a region chooses that region, and the training follows. A template
 that names no variant leaves your choice alone, and so does a second template if
 you have already chosen.
 

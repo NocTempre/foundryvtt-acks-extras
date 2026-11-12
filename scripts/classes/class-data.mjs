@@ -176,7 +176,7 @@ export default class ClassData extends foundry.abstract.TypeDataModel {
      */
     const pathOption = () =>
       new SchemaField({
-        key: str(), // stable slug ("jutland")
+        key: str(), // stable slug of the label ("region1")
         label: str(), // as printed
         note: str(),
         training: new SchemaField({
@@ -188,7 +188,7 @@ export default class ClassData extends foundry.abstract.TypeDataModel {
 
     /**
      * A PATH GROUP: one set of mutually exclusive class options (a
-     * Barbarian's region, a Zaharan's dark path, a dwarven caste). `source`
+     * Barbarian's region, class 21's dark path, a dwarven caste). `source`
      * says where the options live: empty means `options` below; `"templates"`
      * points at this class's own `templates` rows rather than copying them.
      * See docs/classes/DECISIONS.md, "2026-08-22 — a class's mutually
@@ -211,7 +211,7 @@ export default class ClassData extends foundry.abstract.TypeDataModel {
         rollMin: int(3, { min: 3, max: 18 }),
         rollMax: int(4, { min: 3, max: 18 }),
         name: str(),
-        annotation: str(), // parenthetical variant ("Jutland", a dark path, a tradition)
+        annotation: str(), // parenthetical variant (a region, a dark path, a tradition)
         caste: str(), // the dwarven templates' fifth column
         abilities: new ArrayField(templateAbility()),
         items: new ArrayField(templateItem()),

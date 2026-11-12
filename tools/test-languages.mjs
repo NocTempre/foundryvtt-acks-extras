@@ -105,13 +105,13 @@ assert.equal(g.openSlots, 8, "class + race + Intellect + abilities all add");
  * The book grants "Common" in one chapter and prints "Common Auran" in the
  * taxonomy; a unique word-boundary prefix is that tongue. Anything ambiguous
  * or boundary-breaking refuses, and the caller mints what was printed.      */
-const CANON = ["Common Auran", "Old Zaharan", "Dwarven", "Kemeshi"];
+const CANON = ["Common Auran", "Old Velmaric", "Dwarven", "Kemeshi"];
 assert.equal(wordPrefixMatch("Common", CANON), "Common Auran", "unique word-prefix adopts");
 assert.equal(wordPrefixMatch("common", CANON), "Common Auran", "case-blind");
 assert.equal(wordPrefixMatch("Kemeshi", CANON), "Kemeshi", "an exact name is its own prefix");
 assert.equal(wordPrefixMatch("Dwarvish", CANON), null, "a different word is not a prefix");
 assert.equal(wordPrefixMatch("Dwar", CANON), null, "a mid-word prefix does not adopt");
-assert.equal(wordPrefixMatch("Old", ["Old Zaharan", "Old Kem"]), null, "two candidates is ambiguous — refuse");
+assert.equal(wordPrefixMatch("Old", ["Old Velmaric", "Old Kem"]), null, "two candidates is ambiguous — refuse");
 assert.equal(wordPrefixMatch("", CANON), null);
 assert.equal(
   wordPrefixMatch("Common", CANON, (n) => ({ name: n })).name,

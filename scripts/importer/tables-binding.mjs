@@ -195,7 +195,9 @@ export async function importTables(sessionDocs, { priority, onProgress, only = n
     for (const block of recipe.valueBlocks) {
       const items = await locatePage(session.doc, valueBlockLocate(recipe, block));
       if (!items) continue; // a printing without that class simply omits it
-      const got = extractTable(items, { ...recipe, valueBlocks: null, emit: null, values: block.values, column: block.column ?? recipe.column });
+      // A block may bound its own page: a column, and a yMax above a table
+      // that shares the page with the prose it reads.
+      const got = extractTable(items, { ...recipe, valueBlocks: null, emit: null, values: block.values, column: block.column ?? recipe.column, yMax: block.yMax ?? recipe.yMax });
       if (Object.keys(got).length) out[block.id] = got;
     }
     return recipe.emit?.path?.length ? { [recipe.emit.path[0]]: out } : out;

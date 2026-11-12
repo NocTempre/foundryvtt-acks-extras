@@ -375,6 +375,13 @@ Steps:
     *Observable:* unread, the card says the bewitching mark is not imported.
     Read, the card names the subject bewitched only on a total at or above the
     registered figure.
+32. A people race read off the class, with RR and JJ imported: two actors whose
+    `details.class` is the printed name of `def.class.class20` and of
+    `def.class.class21`. Read `racial.mjs > kindOf(actor)` for each, then the
+    seduction aging row against a target of the other.
+    *Observable:* the races are `people1` and `people2`, each with the `human`
+    category and not `demi-human`; with `characterAging` read, each actor's
+    age row is the `people1` / `people2` row of the table, not the human one.
 
 ## Teardown
 

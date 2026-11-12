@@ -15,8 +15,10 @@ import fs from "node:fs";
 import { openBook, pageItems } from "../../scripts/importer/extract.mjs";
 import { extractTable, findPage } from "../../scripts/importer/table-extract.mjs";
 import { TABLE_RECIPES } from "../../scripts/importer/table-recipes.mjs";
-import { assembleBuilderTables, parseBuild, parseSavesMap, parseSavesPrecedence } from "../../scripts/importer/builder-binding.mjs";
+import { assembleBuilderTables, buildRaceWords, matchBuildClass, parseBuild, parseSavesMap, parseSavesPrecedence } from "../../scripts/importer/builder-binding.mjs";
 import { FILES, referenceComplete } from "./reference-lib.mjs";
+
+const CLASSES = JSON.parse(fs.readFileSync(new URL("../../cookbook/classes.json", import.meta.url), "utf8")).entries;
 
 if (!referenceComplete()) {
   console.log("test-class-builder-tables: reference PDFs absent — skipped.");
@@ -34,7 +36,7 @@ for (const [tableId, recipe] of Object.entries(recipes)) {
     for (const block of recipe.valueBlocks) {
       const found = await findPage({ ...block, book: recipe.book, searchRadius: 4 }, doc.numPages, readPage);
       if (!found) continue;
-      const got = extractTable(found.items, { ...recipe, valueBlocks: null, emit: null, values: block.values });
+      const got = extractTable(found.items, { ...recipe, valueBlocks: null, emit: null, values: block.values, column: block.column ?? recipe.column, yMax: block.yMax ?? recipe.yMax });
       if (Object.keys(got).length) out[block.id] = got;
     }
     raw[tableId] = out;
@@ -141,11 +143,18 @@ check("only weapon narrowing is priced, at the penalty per power gained", asm.tr
 /* --------------- races --------------- */
 
 const races = Object.values(asm.races);
-check("both race ladders assemble every raw rung, whole, with a rising cost", races.length === 2 && [[asm.races.dwarf, raw.dwarfRaw], [asm.races.elf, raw.elfRaw]].every(([r, rawRungs]) => r.values.length === keys(rawRungs).length && contiguousFromZero(r.values.map((v) => v.value)) && increasing(r.values.map((v) => v.xpCost))));
-check("only the first rung of a race grants base powers, each gated on the page printing it", races.every((r) => r.values[0].powerNames.length > 0 && r.values.slice(1).every((v) => v.powerNames.length === 0)));
+const RACE_KEYS = ["dwarf", "elf", "people1", "people2"];
+check("all four race ladders assemble every raw rung, whole, with a rising cost", races.length === 4 && RACE_KEYS.every((k) => {
+  const r = asm.races[k];
+  return r && r.values.length === keys(raw[`${k}Raw`]).length && contiguousFromZero(r.values.map((v) => v.value)) && increasing(r.values.map((v) => v.xpCost));
+}));
+check("only the first rung of a race grants base powers, one per run-in its page prints under the ladder", races.every((r) => r.values[0].powerNames.length > 0 && r.values[0].powerNames.length === raw[`${r.key}Powers`].powers.length && r.values.slice(1).every((v) => v.powerNames.length === 0)));
+check("a race's name is its value-0 label, read off the page", races.every((r) => r.name && r.name.toLowerCase().replace(/\s+/g, "") === r.values[0].label.toLowerCase().replace(/\s+/g, "")));
+check("no race powers run-in carries the next one's bullet or an empty text", races.every((r) => raw[`${r.key}Powers`].powers.every((p) => p.text.length > 0 && !/[\u0080-\u009F•]\s*$/u.test(p.text))));
 check("each race's attribute floor is read twice and the two reads agree", raw.raceRequirements?.dwarfCon === raw.dwarfRules?.con && asm.races.dwarf.minimumAttributes[0]?.min === raw.dwarfRules.con && asm.races.elf.minimumAttributes[0]?.min === raw.raceRequirements?.elfInt && isPosInt(raw.raceRequirements.elfInt) && asm.races.dwarf.minimumAttributes[0].attr !== asm.races.elf.minimumAttributes[0].attr);
 check("every race's post-8 increment is a positive integer", races.every((r) => r.postEight.length > 0 && r.postEight.every((p) => isPosInt(p.delta))));
-check("the stacking discount is carried only for the race that stacks", !!raw.elfRules?.stacksWithArcane && asm.races.elf.stacksWith === "arcane" && isPosInt(asm.races.elf.stackXpDiscount) && asm.races.dwarf.stacksWith === "");
+check("a stacking discount is carried only by a race that stacks", !!raw.elfRules?.stacksWithArcane && asm.races.elf.stacksWith === "arcane" && isPosInt(asm.races.elf.stackXpDiscount) && races.every((r) => (r.stacksWith === "") === !("stackXpDiscount" in r)));
+check("the races whose pages say their value stacks with the arcane one are read as stacking", asm.races.dwarf.stacksWith === "" && asm.races.people1.stacksWith === "" && asm.races.people2.stacksWith === "arcane");
 
 check("budget assembles the post-9 hit-point rates, keyed as the book pairs them", isInt(asm.budget.hpAfterNine?.crusaderMage) && isInt(asm.budget.hpAfterNine?.fighterThief));
 check("budget assembles the last die level beside the rates", asm.budget.hpAfterNine?.afterLevel === raw.hpAfterNine.afterLevel);
@@ -168,10 +177,23 @@ check("races: the elf prints no post-9 hit points, and assembly says so", asm.ra
 
 /* --------------- Printed class builds: parse, then price against the ladders --------------- */
 
-check("one build paragraph is read per class the recipe declares", keys(raw.builds).length === recipes.builds.valueBlocks.length && keys(raw.builds).every((k) => typeof raw.builds[k].build === "string" && raw.builds[k].build.length > 0));
+// The build paragraphs are matched to the cookbook's class rows the way the
+// import matches them to class documents: by name, else by a withheld name's
+// locator.
+const rrClasses = Object.entries(CLASSES)
+  .filter(([, e]) => e.book === "rr" && e.kind === "kind.class")
+  .map(([id, e]) => ({ id, name: e.name, hash: e.fields?.name?.hash ?? null, race: e.meta?.race ?? null }));
+const runins = Object.values(raw.builds).flatMap((b) => b.runins ?? []);
+const matched = runins.map((r) => ({ ...r, cls: matchBuildClass(r.label, rrClasses) }));
+check("both build pages are read, as run-in paragraphs with text", keys(raw.builds).length === recipes.builds.valueBlocks.length && runins.every((r) => r.label && r.text.length > 0));
+check("one build paragraph is read per class the rulebook ships, each matching a different class", runins.length === rrClasses.length && matched.every((r) => r.cls) && new Set(matched.map((r) => r.cls.id)).size === rrClasses.length);
+const raceWords = buildRaceWords(asm.races, matched.map((r) => ({ label: r.label, race: r.cls?.race })));
+check("every race is named by at least one word a build paragraph can use", RACE_KEYS.every((k) => Object.values(raceWords).includes(k)));
 
-const parsed = Object.fromEntries(keys(raw.builds).map((k) => [k, parseBuild(raw.builds[k].build)]));
+const parsed = Object.fromEntries(matched.map((r) => [r.cls.id, parseBuild(r.text, { raceWords })]));
 const builds = Object.values(parsed);
+check("every class the cookbook declares a race for builds on that race", matched.filter((r) => r.cls.race && asm.races[r.cls.race]).every((r) => parsed[r.cls.id].race?.key === r.cls.race) && matched.some((r) => r.cls.race === "people1") && matched.some((r) => r.cls.race === "people2"));
+check("a build reads no allocation past its first yield", parseBuild("Arcane 4 yields a cost. It counts as Divine 2.").magic.length === 1);
 check("every build parses at least one category", builds.every((b) => b.hdValue !== undefined || b.fighting || b.thievery !== undefined || b.magic.length > 0));
 
 const rung = (rows, value) => rows.find((r) => r.value === value);

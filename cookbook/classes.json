@@ -10618,9 +10618,9 @@
           "choice": {
             "label": "Tribal origin",
             "refs": [
-              "def.power.barbarianOriginJutland",
-              "def.power.barbarianOriginSkysostan",
-              "def.power.barbarianOriginIvoryKingdoms"
+              "def.power.barbarianOrigin1",
+              "def.power.barbarianOrigin2",
+              "def.power.barbarianOrigin3"
             ]
           },
           "starting": true,
@@ -16488,9 +16488,9 @@
         }
       }
     },
-    "def.class.nobiranWonderworker": {
+    "def.class.class20": {
       "kind": "kind.class",
-      "name": "Nobiran Wonderworker",
+      "name": "Class 20",
       "book": "rr",
       "cite": "RR p.92",
       "pages": [
@@ -16501,8 +16501,8 @@
       "icon": "icons/sundries/flags/banner-flag-white.webp",
       "meta": {
         "category": "class",
-        "key": "nobiranWonderworker",
-        "race": "nobiran",
+        "key": "class20",
+        "race": "people1",
         "chassis": {
           "saves": "",
           "attack": ""
@@ -16589,7 +16589,7 @@
       ],
       "fields": {
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 94,
           "box": {
             "x0": 45,
@@ -16597,7 +16597,7 @@
             "y0": 73,
             "y1": 95
           },
-          "text": "Nobiran Wonderworker"
+          "hash": "1ne1yll"
         },
         "progression": {
           "op": "grid",
@@ -16901,7 +16901,7 @@
           },
           "pattern": "raw",
           "dropText": [
-            "Nobiran Wonderworker Proficiency List:"
+            "Wonderworker Proficiency List:"
           ],
           "fixes": {
             "joinSpace": [
@@ -17000,9 +17000,9 @@
         }
       }
     },
-    "def.class.zaharanRuinguard": {
+    "def.class.class21": {
       "kind": "kind.class",
-      "name": "Zaharan Ruinguard",
+      "name": "Class 21",
       "book": "rr",
       "cite": "RR p.96",
       "pages": [
@@ -17014,8 +17014,8 @@
       "icon": "icons/sundries/flags/banner-skull-red.webp",
       "meta": {
         "category": "class",
-        "key": "zaharanRuinguard",
-        "race": "zaharan",
+        "key": "class21",
+        "race": "people2",
         "chassis": {
           "saves": "",
           "attack": ""
@@ -17066,7 +17066,7 @@
         {
           "ref": "def.power.giftOfTongues",
           "starting": true,
-          "note": "Zaharan Tongues — Racial trait; save adjustments are already factored into the printed tables."
+          "note": "Racial tongues — Racial trait; save adjustments are already factored into the printed tables."
         },
         {
           "ref": "def.power.spellStoring",
@@ -17105,7 +17105,7 @@
           }
         },
         {
-          "ref": "def.power.zaharanDarkFortress",
+          "ref": "def.power.darkFortress",
           "from": {
             "pattern": "Dark Fortress \\((\\d+)"
           }
@@ -17128,15 +17128,15 @@
       ],
       "fields": {
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 98,
           "box": {
             "x0": 45,
-            "x1": 612,
+            "x1": 220.38859999999997,
             "y0": 73,
             "y1": 95
           },
-          "text": "Zaharan Ruinguard"
+          "hash": "1amhw5z"
         },
         "progression": {
           "op": "grid",
@@ -17403,7 +17403,7 @@
           },
           "pattern": "raw",
           "dropText": [
-            "Zaharan Ruinguard Proficiency List:"
+            "Ruinguard Proficiency List:"
           ],
           "fixes": {
             "joinSpace": [
@@ -17417,7 +17417,10 @@
               7,
               8,
               9
-            ]
+            ],
+            "stripPrefix": {
+              "0": 35
+            }
           }
         },
         "description": {

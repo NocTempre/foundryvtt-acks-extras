@@ -951,6 +951,15 @@ walked in docs/lib/TESTING.md, "The repair tool".
       roster: the hireling's row is unaffected.
     The Deal XP half is formation's TESTING.md, "Deal XP". The recipes' shape
     against the real book is `tools/importer/test-recipe-content.mjs`.
+24. A people race's culture and age column, with RR and JJ imported (the
+    class documents `def.class.class20` / `class21` present) and the `people`
+    tables read. Read the class's printed name off its document, then
+    `rules/identity.mjs > raceForClass(<name lower-cased>)`, `pickCulture`
+    with that race, and `generateAge` for that name.
+    *Observable:* class 20's race is `people1` and its culture is `auran`;
+    class 21's race is `people2` and its culture is `people2` (label
+    `People 2`); both follow the `mage` age column. With the classes API
+    absent (a Node run), a name carrying no common race word reads `human`.
 
 ## Teardown
 

@@ -2,8 +2,8 @@
 /**
  * PATHS — a class's groups of mutually exclusive options.
  *
- * A spread that offers a choice offers it as a set: the Barbarian's region, the
- * Zaharan's dark path, a dwarven caste, and the eight starting templates. Every
+ * A spread that offers a choice offers it as a set: the Barbarian's region, class
+ * 21's dark path, a dwarven caste, and the eight starting templates. Every
  * one of them is "exactly one of these", and every one of them can change what
  * the character is trained to fight with, so they are one concept rather than a
  * special case each (2026-08-22, DECISIONS).
@@ -24,7 +24,7 @@ import { trainingChanges } from "./training-logic.mjs";
 const fold = (s) => String(s ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
 
 /** The stable key a template row contributes as a path option: its annotation
- *  where it prints one (the Barbarian's "Jutland"), else its name. */
+ *  where it prints one (the Barbarian's region), else its name. */
 export const templateOptionKey = (row) => fold(row?.annotation || row?.name);
 
 /**
@@ -125,7 +125,7 @@ export async function setActorPath(actor, groupKey, optionKey) {
 /**
  * The selection a TEMPLATE makes for the character who takes it.
  *
- * A template row prints its variant as an annotation — "Pit Fighter (Jutland)"
+ * A template row prints its variant as an annotation — "Pit Fighter (<region>)"
  * — and that annotation IS the option key in whichever group the class states
  * it under. So applying a template answers the group without asking, which is
  * the point: the template sets it, and the group is still a first-class choice

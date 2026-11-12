@@ -136,4 +136,16 @@ check("the key reads as the fold does: case and punctuation fall away", refForPr
 check("a key two definitions answer to resolves to nothing", refForPrintedName("Mire Hound") === null);
 check("a name no row holds resolves to nothing", refForPrintedName("Unheard Of") === null && refForPrintedName("") === null);
 
+/* --- a definition whose name is withheld answers to its locator --- */
+
+const WITHHELD = [
+  ...ENTRIES,
+  ["def.prof.proficiency9", entry("Proficiency 9", "kind.proficiency", { fields: { name: { op: "heading", hash: printKey("Lore of the Drowned Fen") } } })],
+];
+const keyed = abilitySurfaceIndex(WITHHELD);
+check("a withheld name is held by its locator, never by its neutral label", keyed.byPrintKey.get(printKey("Lore of the Drowned Fen"))?.ref === "def.prof.proficiency9" && !keyed.byKey.has("proficiency9"));
+const keyedCell = tokenizeProfs("Climbing, Lore of the Drowned Fen, Siege Engineering", keyed.menu);
+const heldRef = keyedCell.find((t) => t.ref === "def.prof.proficiency9");
+check("a template cell names the withheld definition with the page's own words", !!heldRef && heldRef.name === "Lore of the Drowned Fen" && keyedCell.some((t) => t.ref === "def.prof.siegeEngineering"), JSON.stringify(keyedCell));
+
 console.log(`test-ability-names: ${pass} checks passed.`);

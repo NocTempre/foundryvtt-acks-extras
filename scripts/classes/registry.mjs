@@ -65,6 +65,18 @@ export function classByKey(key) {
 }
 
 /**
+ * The class Item a name or a class key names — its name first, as the reader's
+ * book spells it, then its key — or null. What a caller holding only a
+ * class's name (an actor's free-text class, a henchman roll's class column)
+ * reaches the class's key and race through.
+ */
+export function classNamed(nameOrKey) {
+  const k = String(nameOrKey ?? "").trim().toLowerCase();
+  if (!k) return null;
+  return classItems().find((i) => i.name.toLowerCase() === k) ?? classByKey(k);
+}
+
+/**
  * Whether a `fromUuidSync` answer is a compendium INDEX ROW rather than a
  * document. Foundry drops a pack's documents five idle minutes after the last
  * read and keeps its index, and `fromUuidSync` then answers with the row —

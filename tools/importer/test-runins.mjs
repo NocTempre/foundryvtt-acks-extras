@@ -50,6 +50,22 @@ const before = extractProseValues(pageOf("Marsh Stalker: slow. Bog Lantern: brig
 }).powers;
 check("a window before the anchor is read the same way", before?.map((r) => r.label).join("|") === "Marsh Stalker|Bog Lantern", JSON.stringify(before));
 
+/* --- a bulleted list: each bullet opens a sentence --------------------------------------- */
+
+// A symbol font hands a bullet over as a C1 control as often as U+2022.
+for (const bullet of ["\u008d", "•", ""]) {
+  const listed = read([`The fen folk are listed below. ${bullet} Marsh Stalker: moves quietly`, `${bullet} Bog Lantern: glows when water is near`]);
+  check(`an item after a bullet (U+${bullet.codePointAt(0).toString(16).toUpperCase()}) is a title, the next bullet left out of the text before it`,
+    listed?.map((r) => r.label).join("|") === "Marsh Stalker|Bog Lantern" && listed[0].text === "moves quietly" && listed[1].text === "glows when water is near",
+    JSON.stringify(listed));
+}
+check("an unbulleted phrase after a sentence with no stop is still no title", read(["The fen folk are listed below. Marsh Stalker: moves 200 Bog Lantern: glows."])?.map((r) => r.label).join("|") === "Marsh Stalker");
+
+/* --- a window from the page's first character -------------------------------------------- */
+
+const whole = extractProseValues(pageOf("Marsh Stalker: slow. Bog Lantern: bright."), { values: [{ key: "powers", find: "", take: "runins", span: 900 }] }).powers;
+check("an empty anchor reads from the first character", whole?.map((r) => r.label).join("|") === "Marsh Stalker|Bog Lantern", JSON.stringify(whole));
+
 /* --- the other takes still read the lowercased window ------------------------------------ */
 
 const int = extractProseValues(pageOf("The fen folk are listed below. 14 of them."), { values: [{ key: "n", find: "listed below.", take: "int" }] });

@@ -125,7 +125,7 @@ export function classUpdateData(actor, classItem, level, { election = null } = {
     if (value != null && applies) Object.assign(update, damageBonusUpdate(value, applies));
   }
 
-  // Vancian slot grid. One tradition writes directly; with two (the Nobiran)
+  // Vancian slot grid. One tradition writes directly; with two (class 20's)
   // the arcane one takes the system grid — per-tradition pools are the
   // casting framework's surface, not this grid's.
   const traditions = sys.casting ?? [];

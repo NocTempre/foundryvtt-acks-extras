@@ -24403,10 +24403,10 @@
         }
       }
     },
-    "def.power.barbarianOriginJutland": {
-      "id": "def.power.barbarianOriginJutland",
+    "def.power.barbarianOrigin1": {
+      "id": "def.power.barbarianOrigin1",
       "kind": "kind.power",
-      "name": "Tribal Origin: Jutland",
+      "name": "Tribal Origin 1",
       "book": "rr",
       "cite": "RR p.48",
       "pages": [
@@ -24488,10 +24488,10 @@
         }
       }
     },
-    "def.power.barbarianOriginSkysostan": {
-      "id": "def.power.barbarianOriginSkysostan",
+    "def.power.barbarianOrigin2": {
+      "id": "def.power.barbarianOrigin2",
       "kind": "kind.power",
-      "name": "Tribal Origin: Skysostan",
+      "name": "Tribal Origin 2",
       "book": "rr",
       "cite": "RR p.48",
       "pages": [
@@ -24573,10 +24573,10 @@
         }
       }
     },
-    "def.power.barbarianOriginIvoryKingdoms": {
-      "id": "def.power.barbarianOriginIvoryKingdoms",
+    "def.power.barbarianOrigin3": {
+      "id": "def.power.barbarianOrigin3",
       "kind": "kind.power",
-      "name": "Tribal Origin: Ivory Kingdoms",
+      "name": "Tribal Origin 3",
       "book": "rr",
       "cite": "RR p.48",
       "pages": [
@@ -29179,10 +29179,10 @@
         }
       }
     },
-    "def.power.zaharanDarkFortress": {
-      "id": "def.power.zaharanDarkFortress",
+    "def.power.darkFortress": {
+      "id": "def.power.darkFortress",
       "kind": "kind.power",
-      "name": "Zaharan Dark Fortress",
+      "name": "Dark Fortress",
       "book": "rr",
       "cite": "RR p.97",
       "pages": [

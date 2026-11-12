@@ -226,6 +226,8 @@ Hooks.once("init", () => {
     resolveLevelValue: registry.resolveLevelValue,
     // Advanced mode: the builder derivation and the race documents it spends.
     builder,
+    /** The race key of the class a name or key names, or null (builder.mjs). */
+    raceKeyOfClass: builder.raceKeyOfClass,
     derivePlan,
     xpSchedule,
   };

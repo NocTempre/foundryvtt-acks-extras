@@ -10,8 +10,8 @@
  */
 import { getDoc, hasDoc, expectTables } from "../lib/tables.mjs";
 import { BUILDER_DOC_ID, BUILDER_TABLE_IDS, derivePlan } from "./builder-logic.mjs";
-import { classByKey, findByRef, effectiveAttack } from "./registry.mjs";
-import { LANG_PREFIX, RACE_TYPE, CHASSIS_KEYS } from "./constants.mjs";
+import { classByKey, classNamed, findByRef, effectiveAttack } from "./registry.mjs";
+import { LANG_PREFIX, MODULE_ID, RACE_TYPE, CHASSIS_KEYS } from "./constants.mjs";
 import { libraryItems } from "../lib/library.mjs";
 
 /** Every race Item the library holds — the sidebar's and the imported pack's. */
@@ -27,6 +27,21 @@ export function raceForClass(classItem) {
   if (direct?.type === RACE_TYPE) return direct;
   const k = String(ref).toLowerCase();
   return raceItems().find((i) => (i.system.key || "").toLowerCase() === k) ?? null;
+}
+
+/**
+ * The race key of the class a name or class key names — the race document it
+ * is bound to, else the race its import read off its spread — or null for a
+ * class of no race, or a name no class in the library answers to. How a
+ * subsystem that holds only a class's name (an actor's class field, a
+ * henchman roll's class column) learns its race without matching the name's
+ * words.
+ */
+export function raceKeyOfClass(nameOrKey) {
+  const cls = classNamed(nameOrKey);
+  if (!cls) return null;
+  const key = raceForClass(cls)?.system?.key || cls.flags?.[MODULE_ID]?.tongues?.race || "";
+  return key ? String(key).toLowerCase() : null;
 }
 
 /** The builder ruledata tables, or null when no world layer carries them. */

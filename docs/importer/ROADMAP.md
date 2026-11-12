@@ -47,7 +47,7 @@ crusader awards. Two candidate homes, undecided:
   are deliberately independent.
 
 The borrowers (craftpriest at full level, necromancer at half rounded down,
-Black Lore of Zahar at two thirds rounded up) need no extraction at all once the
+proficiency 15 at two thirds rounded up) need no extraction at all once the
 form exists — each is the same throw at a different fraction.
 
 ## Cross-book merging beyond the current signals
@@ -183,7 +183,7 @@ migration, and a recompiled cookbook.
 
 ## A class whose paragraph is interleaved with its own table
 
-The zaharan ruinguard states its combat training in a paragraph the level
+Class 21 (`def.class.class21`) states its combat training in a paragraph the level
 table sits inside, so extraction folds the table's cells through the sentence
 mid-word. The parse refuses the whole paragraph rather than grant the clauses
 that survived. Reading it needs the paragraph located by its COLUMN — the
@@ -597,11 +597,11 @@ documents inherit. What remains is the homeland pick itself — the regional
 languages a human character chooses from print as prose examples rather than
 a table, so that one slot is filled by hand from whatever the world holds.
 
-The Nobiran spread prints no Tongues runin at all, so a Nobiran class carries
-the human default and its race declaration waits for a page that names them.
+Class 20's spread prints no Tongues runin at all, so it carries the human
+default; its race (`people1`) is declared in its register row.
 
-**Searched 2026-08-16, and no such page exists.** The Nobiran racial spread
-(JJ custom-classes chapter) carries no tongues line, and the only Nobiran
+**Searched 2026-08-16, and no such page exists.** The people1 racial section
+(JJ custom-classes chapter) carries no tongues line, and the only people1
 language reference in either book is the *Bonus Languages* POWER — which several
 races may take and which grants a count rather than naming a list. So this is
 not a page we have failed to read: the human default is the correct answer until

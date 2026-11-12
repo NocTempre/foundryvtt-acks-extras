@@ -32,7 +32,7 @@ sheet. Both produce the same document and open in the same sheet.
   ([lib/choice-spec.mjs](../../scripts/lib/choice-spec.mjs)) — "choose N from
   the class inventory / the general list / a listed set". One chooser shape
   serves the award ladder, template bundles, and any future pick-N grant.
-- **Casting** — 0–2 traditions (2 only for the Nobiran), each typed by kind
+- **Casting** — 0–2 traditions (2 only for class 20), each typed by kind
   (`vancian` now; `points`, `ritual`, `ceremonial`, `gnosis` are carried by
   the schema so later content lands without a break), with a printed slot
   grid or a pool schedule and a repertoire kind.
@@ -990,7 +990,7 @@ system's breath→blast rename.
 ## Paths — a class's groups of mutually exclusive options
 
 `system.paths` is a list of GROUPS, each holding options of which a character
-takes exactly one: a Barbarian's region, a Zaharan's dark path, a dwarven caste,
+takes exactly one: a Barbarian's region, class 21's dark path, a dwarven caste,
 and the eight starting templates. `paths.mjs` resolves them; the resolution is
 pure and takes a class's `system` plus a selection map.
 
@@ -1010,6 +1010,6 @@ exactly like the class's own training. An unanswered group grants nothing:
 choosing for the player would hand them a training nobody selected.
 
 Applying a TEMPLATE answers the group its annotation names, and only if that
-group is unanswered — "Pit Fighter (Jutland)" chooses Jutland, while a row
+group is unanswered — "Pit Fighter (<region>)" chooses that region, while a row
 printing no variant chooses nothing and a choice already made is never
 overwritten.

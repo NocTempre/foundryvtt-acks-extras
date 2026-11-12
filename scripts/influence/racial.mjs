@@ -26,22 +26,25 @@ export function parseKindList(value) {
   return raw.map(slugKind).filter(Boolean);
 }
 
-/** Infer race from the class name (ACKS has no race field); defaults to human. */
+/**
+ * Infer race from the class name (ACKS has no race field); defaults to human.
+ * The common race words a name carries decide first; a name with none takes
+ * the race of the class it answers to in the library (the classes API, absent
+ * outside Foundry), else human.
+ */
 export function inferRace(actor) {
   const cls = String(actor?.system?.details?.class ?? "").toLowerCase();
   if (/dwarv|dwarf/.test(cls)) return "dwarf";
   if (/elv|elf/.test(cls)) return "elf";
   if (/gnom/.test(cls)) return "gnome";
-  if (/nobiran/.test(cls)) return "nobiran";
-  if (/zahar/.test(cls)) return "zaharan";
   if (/thrassian|lizard/.test(cls)) return "lizardman";
   if (/beastman|bugbear|gnoll|goblin|hobgoblin|kobold|orc/.test(cls)) return "beastman";
-  return "human";
+  return globalThis.acksExtras?.classes?.raceKeyOfClass?.(cls) || "human";
 }
 
 const DEMI_HUMAN_RACES = new Set(["dwarf", "elf", "gnome"]);
 // Races of men (count as human for Inhumanity-style "humans and demi-humans").
-const HUMAN_RACES = new Set(["human", "nobiran", "zaharan"]);
+const HUMAN_RACES = new Set(["human", "people1", "people2"]);
 // Specific beastman kinds recognisable from a monster's name/subtype.
 const BEASTMAN_KINDS = ["hobgoblin", "goblin", "kobold", "orc", "gnoll", "bugbear", "ogre", "troll"];
 

@@ -1758,9 +1758,9 @@
           "choice": {
             "label": "Tribal origin",
             "refs": [
-              "def.power.barbarianOriginJutland",
-              "def.power.barbarianOriginSkysostan",
-              "def.power.barbarianOriginIvoryKingdoms"
+              "def.power.barbarianOrigin1",
+              "def.power.barbarianOrigin2",
+              "def.power.barbarianOrigin3"
             ]
           },
           "starting": true,
@@ -5050,12 +5050,12 @@
     }
   },
   {
-    "id": "def.class.nobiranWonderworker",
+    "id": "def.class.class20",
     "kind": "kind.class",
     "book": "rr",
-    "name": "Nobiran Wonderworker",
+    "name": "Class 20",
     "anchor": {
-      "display": "Nobiran Wonderworker"
+      "hash": "1ne1yll"
     },
     "pages": [
       94,
@@ -5067,8 +5067,8 @@
     },
     "icon": "icons/sundries/flags/banner-flag-white.webp",
     "class": {
-      "key": "nobiranWonderworker",
-      "race": "nobiran",
+      "key": "class20",
+      "race": "people1",
       "templatesAssumeIntBonus": 1,
       "chassis": {
         "saves": "",
@@ -5168,7 +5168,7 @@
           ]
         },
         "attackSaves": {
-          "title": "Nobiran Wonderworker Attack and Saving Throws",
+          "title": "Wonderworker Attack and Saving Throws",
           "page": 95,
           "labelHeader": "Level",
           "band": true,
@@ -5206,14 +5206,15 @@
           ]
         },
         "templates": {
-          "title": "Nobiran Wonderworker Templates",
+          "title": "Wonderworker Templates",
           "page": 96,
           "kind": "templates"
         }
       },
       "profList": {
-        "label": "Nobiran Wonderworker Proficiency List:",
-        "page": 96
+        "label": "Wonderworker Proficiency List:",
+        "page": 96,
+        "x0": 295.5
       },
       "cleaves": {
         "pattern": "cleave[\\s\\S]{0,200}?once\\s*per\\s*round\\s*per\\s*(class\\s*level|two\\s*class\\s*levels)"
@@ -5295,12 +5296,12 @@
     }
   },
   {
-    "id": "def.class.zaharanRuinguard",
+    "id": "def.class.class21",
     "kind": "kind.class",
     "book": "rr",
-    "name": "Zaharan Ruinguard",
+    "name": "Class 21",
     "anchor": {
-      "display": "Zaharan Ruinguard"
+      "hash": "1amhw5z"
     },
     "pages": [
       98,
@@ -5313,8 +5314,8 @@
     },
     "icon": "icons/sundries/flags/banner-skull-red.webp",
     "class": {
-      "key": "zaharanRuinguard",
-      "race": "zaharan",
+      "key": "class21",
+      "race": "people2",
       "templatesAssumeIntBonus": 1,
       "chassis": {
         "saves": "",
@@ -5371,7 +5372,7 @@
           ]
         },
         "attackSaves": {
-          "title": "Zaharan Ruinguard Attack and Saving Throws",
+          "title": "Ruinguard Attack and Saving Throws",
           "page": 99,
           "labelHeader": "Level",
           "band": true,
@@ -5409,13 +5410,13 @@
           ]
         },
         "templates": {
-          "title": "Zaharan Ruinguard Templates",
+          "title": "Ruinguard Templates",
           "page": 100,
           "kind": "templates"
         }
       },
       "profList": {
-        "label": "Zaharan Ruinguard Proficiency List:",
+        "label": "Ruinguard Proficiency List:",
         "page": 101
       },
       "cleaves": {
@@ -5464,7 +5465,7 @@
         {
           "ref": "def.power.giftOfTongues",
           "starting": true,
-          "note": "Zaharan Tongues — Racial trait; save adjustments are already factored into the printed tables."
+          "note": "Racial tongues — Racial trait; save adjustments are already factored into the printed tables."
         },
         {
           "ref": "def.power.spellStoring",
@@ -5503,7 +5504,7 @@
           }
         },
         {
-          "ref": "def.power.zaharanDarkFortress",
+          "ref": "def.power.darkFortress",
           "from": {
             "pattern": "Dark Fortress \\((\\d+)"
           }
@@ -5687,11 +5688,11 @@
     }
   },
   {
-    "id": "def.power.zaharanDarkFortress",
+    "id": "def.power.darkFortress",
     "icon": "icons/environment/settlement/watchtower-moonlit-blue.webp",
     "kind": "kind.power",
     "book": "rr",
-    "name": "Zaharan Dark Fortress",
+    "name": "Dark Fortress",
     "anchor": {
       "runin": "Dark Fortress ("
     },

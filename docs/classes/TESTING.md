@@ -392,9 +392,9 @@ template rows whose annotations name authored options. It must not be a stub
 
 1. `acksExtras.classes.paths.pathGroups(cls.system)`.
    *Observable:* both groups; the `templates` one lists the ROWS
-   ("Pit Fighter (Jutland)"), and `cls.system.templates` is unchanged — the
+   ("Pit Fighter (<region>)"), and `cls.system.templates` is unchanged — the
    group points at the rows rather than absorbing them.
-2. `applyClass(actor, cls, { paths: { region: "ivory" } })`.
+2. `applyClass(actor, cls, { paths: { region: "<one option's key>" } })`.
    *Observable:* the ledger flag carries `paths.region`, and the actor holds one
    `fromClass` effect whose changes are that option's training.
 3. Re-apply choosing the OTHER option.
@@ -425,6 +425,33 @@ drafted and REMOVED rather than shipped, because it fired on healthy data. Until
 someone establishes what actually differs, the working rule is: **add keys in
 whatever shape the root already uses**, and check one existing sibling key
 resolves live afterwards.
+
+## Classes whose register row withholds the name (rows 20 and 21)
+
+Two RR classes, one barbarian power set, one proficiency and one class power
+ship under neutral labels (`Class 20`, `Class 21`, `Tribal Origin 1–3`,
+`Proficiency 15`, `Dark Fortress`); the words arrive at import from the
+reader's book. No fixture is built: the subject is what an import makes, so the
+walk reads the library's documents by cookbook id.
+
+1. With RR and JJ attached, import the classes and the JJ tables
+   (`Settings tab → Game Settings → ACKS II — Extras → Manage imports`).
+   *Observable:* `def.class.class20` and `def.class.class21` exist and their
+   names are the page's words, not `Class 20`/`Class 21`; the three
+   `def.power.barbarianOrigin1–3` and `def.prof.proficiency15` likewise.
+2. `acksExtras.classes.builder.raceItems()`.
+   *Observable:* four race documents — `def.race.dwarf`, `elf`, `people1`,
+   `people2` — each named from its ladder's value-0 label, each value-0 rung
+   holding as many powers (refs or note names) as the page prints under it.
+3. The class sheet of `def.class.class20` and `def.class.class21`.
+   *Observable:* `system.race` is `def.race.people1` / `def.race.people2`,
+   `system.builder.race.value` is 0 or more, and the proficiency list and
+   templates name proficiency 15 by the page's words where the book lists it.
+4. `acksExtras.classes.raceKeyOfClass(<class 20's name>)`.
+   *Observable:* `"people1"`; a human class's name answers null.
+5. Without JJ attached, run the same import.
+   *Observable:* no race documents are made, and the class documents still
+   import.
 
 ## Teardown
 

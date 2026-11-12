@@ -177,7 +177,7 @@ function main() {
     return;
   }
 
-  // { "black lore": "Black Lore of Zahar", … } — chef-authored, never guessed.
+  // { "<folded pack name>": "<register entry name>", … } — chef-authored, never guessed.
   const aliases = readJson(ALIAS_FILE, {});
   // Tried on the folded name too, so one "craft" row settles every discipline
   // the pack splits out rather than needing a line per Bowyer and Gemsmith.

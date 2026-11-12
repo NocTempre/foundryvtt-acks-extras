@@ -4255,7 +4255,7 @@ async function compileClass(doc, entry, kindRow) {
      *
      * Two shapes, one mechanism. A TEMPLATES table anchors its rows on the 3d6
      * band printed in the first column; a TRAINING table (the Barbarian's
-     * regions, a Zaharan's dark paths) anchors on the region NAME. Both have
+     * regions, class 21's dark paths) anchors on the region NAME. Both have
      * cells that wrap over several printed lines, which is why neither can be
      * read by clustering on y alone — a five-line equipment cell or a
      * twelve-weapon list would come back as five rows of fragments.
@@ -4396,7 +4396,7 @@ async function compileClass(doc, entry, kindRow) {
     const dataShaped = (r) =>
       rebuildCells(r, cellGap).length >= (t.colsFromHeader ? 3 : Math.max(Math.min(2, declaredCount), Math.ceil(declaredCount * 0.7)));
     // A spanning-group sub-header line is ALL small integers ("1 2 3 4 5 6",
-    // twice for the Nobiran) — enough cells to pass the shape gate, so it is
+    // twice for a two-tradition class) — enough cells to pass the shape gate, so it is
     // recognized by content and stays a header line.
     const allTinyInts = (r) => {
       const cells = rebuildCells(r, cellGap);
@@ -4523,7 +4523,7 @@ async function compileClass(doc, entry, kindRow) {
     let unmatched = false;
     for (const w of discovered ? [] : declared) {
       // `occurrence` picks the nth exact header match in x order — the
-      // Nobiran prints "1".."6" twice (arcane and divine spell groups).
+      // two-tradition class prints "1".."6" twice (arcane and divine spell groups).
       const exact = headerCells.filter((c) => fold(c.str) === fold(w.header)).sort((a, b) => a.x - b.x);
       const cell =
         (w.occurrence ? exact[w.occurrence - 1] : exact[0]) ??
@@ -4559,7 +4559,7 @@ async function compileClass(doc, entry, kindRow) {
         x1: Math.max(...idealRows.map((cells) => cells[i].x + Math.max(cells[i].w ?? 0, 4))),
       }));
     } else {
-      // Twelve tight single-digit columns (the Nobiran's dual spell groups)
+      // Twelve tight single-digit columns (a two-tradition class's spell groups)
       // fuse below the declared count in every row — fall back to spans
       // midway between the matched HEADER positions, which single-digit
       // centred cells sit under closely enough.

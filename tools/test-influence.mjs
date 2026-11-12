@@ -10,7 +10,7 @@
  * Run: npm test
  */
 import assert from "node:assert/strict";
-import { resolveLevelValue } from "../scripts/lib/vocab.mjs";
+import { ACTOR_TYPE, resolveLevelValue } from "../scripts/lib/vocab.mjs";
 import fs from "node:fs";
 import { AGING_PAGE, BEWITCH_PAGE, EXTERNAL_MODES, INFLUENCE_DOC, INFLUENCE_MODIFIERS, INFLUENCE_RESULTS, INFLUENCE_TONE, REACTION_CHANGE_KEY, ROLL_FAMILY, TONE_PAGES, externalRows } from "../scripts/influence/constants.mjs";
 import {
@@ -31,6 +31,7 @@ import { MORALE_DOC, attitudeFigure, figureOrigin, modeRows, printedBands, print
 import { conditionEntries, conditionRows } from "../scripts/influence/condition-rows.mjs";
 import { PRIORITY, registerTable, resetTables } from "../scripts/lib/tables.mjs";
 import { getAbilityReactionMods, itemsWithReactionEffects } from "../scripts/influence/ability-effects.mjs";
+import { inferRace, kindOf } from "../scripts/influence/racial.mjs";
 
 // The ladder authority is reached through the public global at runtime; the
 // tests supply the same implementation the module would find in a live world.
@@ -1009,6 +1010,27 @@ t("no lang string of the tone pages carries a magnitude", () => {
     // stand; they are read past before looking for any other.
     const text = lang[key].replace(/\b(?:JJ|RR|MM) \d+(?:-\d+)?/g, "").replace(/\bTier \d\b/g, "");
     assert.equal(/\d/.test(text), false, `${key}: states a figure`);
+  }
+});
+
+t("a character's race is the race of the class its name answers to, through the classes api", () => {
+  const actor = (cls) => ({ type: ACTOR_TYPE.character, system: { details: { class: cls } } });
+  const saved = globalThis.acksExtras.classes;
+  try {
+    // The api answers by the class's own record, never the name's words.
+    globalThis.acksExtras.classes = { raceKeyOfClass: (name) => ({ "marsh warden": "people1", "fen reaver": "people2" })[name] ?? null };
+    assert.equal(inferRace(actor("Marsh Warden")), "people1");
+    assert.equal(inferRace(actor("Fen Reaver")), "people2");
+    const kinds = kindOf(actor("Fen Reaver"));
+    assert.equal(kinds.race, "people2");
+    assert.ok(kinds.categories.has("human") && !kinds.categories.has("demi-human"), "a people race counts as human");
+    // A name no class answers to falls to its common words, then to human.
+    assert.equal(inferRace(actor("Elven Ranger")), "elf");
+    assert.equal(inferRace(actor("Lamplighter")), "human");
+    globalThis.acksExtras.classes = undefined;
+    assert.equal(inferRace(actor("Marsh Warden")), "human", "with no classes api, a name without a common race word is human");
+  } finally {
+    globalThis.acksExtras.classes = saved;
   }
 });
 

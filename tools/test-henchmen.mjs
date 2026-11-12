@@ -948,4 +948,41 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
   }
 }
 
+// ---- a class's race and age column, read off the class through the classes api ----
+// The classes, cultures and ages are invented; what is under test is that the
+// race comes from the class's record and not from words in its name.
+{
+  const { raceForClass, pickCulture, generateAge } = await import(new URL("../scripts/henchmen/rules/identity.mjs", import.meta.url));
+  const ns = (globalThis.acksExtras ??= {});
+  const saved = { classes: ns.classes, lib: ns.lib };
+  const cultures = { auran: { race: "human" }, people2: { race: "people2" }, fenfolk: { race: "human" } };
+  const ageRows = [{ level: 1, noble: 20, mage: 30 }];
+  try {
+    ns.lib = {
+      tables: {
+        hasDoc: (doc) => doc === "people",
+        getTable: (doc, id) => (id === "cultures" ? { list: cultures } : id === "ageByClass" ? { rows: ageRows } : null),
+      },
+    };
+    const CLASSES = { "marsh warden": { key: "class20", race: "people1" }, "fen reaver": { key: "class21", race: "people2" } };
+    ns.classes = {
+      raceKeyOfClass: (name) => CLASSES[name]?.race ?? null,
+      registry: { classNamed: (name) => (CLASSES[name] ? { system: { key: CLASSES[name].key } } : null) },
+    };
+    assert.strictEqual(raceForClass("marsh warden"), "people1", "the class record names the race");
+    assert.strictEqual(raceForClass("fen reaver"), "people2");
+    assert.strictEqual(raceForClass("elven lamplighter"), "elf", "a name no class answers to falls to its common adjective");
+    assert.strictEqual(raceForClass("lamplighter"), "human");
+    assert.strictEqual(pickCulture(() => 0, [], "people1"), "auran", "people1 draws from the auran lists");
+    assert.strictEqual(pickCulture(() => 0, [], "people2"), "people2", "people2 takes the culture that declares it");
+    const zero = () => 0;
+    assert.strictEqual(generateAge(zero, 1, "marsh warden"), 30, "class 20 follows the mage column, by its key");
+    assert.strictEqual(generateAge(zero, 1, "fen reaver"), 30, "class 21 follows the mage column, by its key");
+    assert.strictEqual(generateAge(zero, 1, "lamplighter"), 20, "an unlisted class follows the noble column");
+  } finally {
+    ns.classes = saved.classes;
+    ns.lib = saved.lib;
+  }
+}
+
 console.log(`test-henchmen: OK (${macros.length} macros, bulk offers, network step, power values, henchman limit, network posting, classes never offered, arrival split, hiring offer, hosted pages, spend receipt, refused signing bonus)`);

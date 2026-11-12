@@ -316,20 +316,20 @@
     "disposition": "rrPrimary"
    },
    {
-    "name": "Tribal Origin: Jutland",
-    "ref": "def.power.barbarianOriginJutland",
+    "nameKey": "11s2c7v",
+    "ref": "def.power.barbarianOrigin1",
     "rr": 50,
     "disposition": "rrPrimary"
    },
    {
-    "name": "Tribal Origin: Skysostan",
-    "ref": "def.power.barbarianOriginSkysostan",
+    "nameKey": "12e8bty",
+    "ref": "def.power.barbarianOrigin2",
     "rr": 50,
     "disposition": "rrPrimary"
    },
    {
-    "name": "Tribal Origin: Ivory Kingdoms",
-    "ref": "def.power.barbarianOriginIvoryKingdoms",
+    "nameKey": "1ahuw52",
+    "ref": "def.power.barbarianOrigin3",
     "rr": 50,
     "disposition": "rrPrimary"
    }
@@ -911,7 +911,7 @@
     "disposition": "rrPrimary"
    }
   ],
-  "nobiranWonderworker": [
+  "class20": [
    {
     "name": "Arcane Magic",
     "ref": "def.power.arcaneMagic",
@@ -961,7 +961,7 @@
     "disposition": "rrPrimary"
    }
   ],
-  "zaharanRuinguard": [
+  "class21": [
    {
     "name": "Dark Blessing",
     "ref": "def.power.darkBlessing",
@@ -1017,7 +1017,7 @@
     "disposition": "rrPrimary"
    },
    {
-    "name": "Zaharan Tongues",
+    "nameKey": "xk3vy9",
     "ref": "def.power.giftOfTongues",
     "rr": 101,
     "disposition": "rrPrimary"

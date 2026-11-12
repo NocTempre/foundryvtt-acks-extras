@@ -11,8 +11,9 @@
  * ALREADY world data — extracted from the seat's own book by the table
  * import — so reshaping it is mechanical, never a promotion.
  */
-import { createDoc, ensureItemFolder, importedItemFor, importedItemsByName, refForPrintedName } from "./cookbook.mjs";
+import { cookbookContentFile, createDoc, ensureItemFolder, importedDocs, importedItemFor, importedItemsByName, refForPrintedName } from "./cookbook.mjs";
 import { MODULE_ID } from "./constants.mjs";
+import { foldLabel, printKey, titleCaseHeading } from "./printed-name.mjs";
 import { countRepair, unrepaired } from "./refresh.mjs";
 import * as services from "../lib/services.mjs";
 import { getLayer, PRIORITY } from "../lib/tables.mjs";
@@ -110,21 +111,21 @@ const chassisOfStyle = (style) => {
   return m ? m[0] : "";
 };
 
-/** Canonical printed names of the racial value-0 powers, gated on the
- *  presence keys the prose extraction confirmed on the seat's page. */
-const RACE_POWER_NAMES = {
-  dwarf: {
-    sensitivityToRockAndStone: "Sensitivity to Rock and Stone",
-    dwarfTongues: "Dwarf Tongues",
-    hardy: "Hardy",
-  },
-  elf: {
-    animalFriendship: "Animal Friendship",
-    attunementToNature: "Attunement to Nature",
-    connectionToNature: "Connection to Nature",
-    elfTongues: "Elf Tongues",
-  },
-};
+/**
+ * The races the builder reads, in JJ ch. 12's order, each with the name it
+ * goes by when its ladder's value-0 label was not read. Every one reads its
+ * tables under its own key: `<key>Raw` (the ladder), `<key>Powers` (the
+ * value-0 powers), `<key>Rules` (post-8 increments, stacking, floors).
+ */
+const RACES = [
+  { key: "dwarf", fallback: "Dwarf" },
+  { key: "elf", fallback: "Elf" },
+  { key: "people1", fallback: "People 1" },
+  { key: "people2", fallback: "People 2" },
+];
+
+/** The attribute keys a race's floor may name, as `raceRequirements.<race><Attr>` or `<race>Rules.<attr>`. */
+const FLOOR_ATTRS = ["str", "int", "wis", "dex", "con", "cha"];
 
 /**
  * Assemble the engine-shaped tables from the raw extractions. Missing raw
@@ -276,48 +277,38 @@ export function assembleBuilderTables(raw) {
 
   // --- races ---
   const races = {};
-  const raceLadder = (valuesRaw, powerNames, rules) => {
-    if (!valuesRaw) return null;
-    return Object.entries(valuesRaw)
+  for (const { key, fallback } of RACES) {
+    const ladder = raw[`${key}Raw`];
+    if (!ladder) continue;
+    const rules = raw[`${key}Rules`] ?? {};
+    // The value-0 rung grants the race's base powers: the run-in labels its
+    // page prints under the ladder, as the reader's book spells them.
+    const powerNames = (raw[`${key}Powers`]?.powers ?? []).map((p) => p.label).filter(Boolean);
+    const values = Object.entries(ladder)
       .filter(([, r]) => r && !r.__missing)
       .map(([value, r]) => ({
         value: Number(value),
         label: String(r.label ?? ""),
         xpCost: r.cost ?? null,
-        // The value-0 rung grants the race's base powers; the prose presence
-        // checks gate each name on the seat's page actually printing it.
-        powerNames: Number(value) === 0 ? Object.entries(powerNames).filter(([k]) => rules?.[k]).map(([, name]) => name) : [],
+        powerNames: Number(value) === 0 ? powerNames : [],
       }))
       .sort((a, b) => a.value - b.value);
-  };
-  if (raw.dwarfRaw) {
-    const values = raceLadder(raw.dwarfRaw, RACE_POWER_NAMES.dwarf, raw.dwarfRules);
-    races.dwarf = {
-      key: "dwarf",
-      name: "Dwarf",
+    const floorOf = (attr) => raw.raceRequirements?.[`${key}${attr[0].toUpperCase()}${attr.slice(1)}`] ?? rules[attr];
+    const stacksWith = rules.stacksWithArcane ? "arcane" : "";
+    races[key] = {
+      key,
+      // What the race is called is its value-0 rung's label, read off the page.
+      name: titleCaseHeading(values.find((v) => v.value === 0)?.label ?? "") || fallback,
       values,
-      minimumAttributes: isNum(raw.raceRequirements?.dwarfCon ?? raw.dwarfRules?.con)
-        ? [{ attr: "con", min: raw.raceRequirements?.dwarfCon ?? raw.dwarfRules?.con }]
-        : [],
-      stacksWith: "",
-      hpAfter9: raw.dwarfRules?.hpAfter9 ?? null,
+      minimumAttributes: FLOOR_ATTRS.filter((a) => isNum(floorOf(a))).map((attr) => ({ attr, min: floorOf(attr) })),
+      stacksWith,
+      ...(stacksWith ? { stackXpDiscount: rules.arcaneDiscount ?? null } : {}),
+      hpAfter9: rules.hpAfter9 ?? null,
       postEight: [
-        ...(isNum(raw.dwarfRules?.post8Fighter) ? [{ chassis: "fighter", delta: raw.dwarfRules.post8Fighter }] : []),
-        ...(isNum(raw.dwarfRules?.post8CrusaderThief) ? [{ chassis: "crusaderThief", delta: raw.dwarfRules.post8CrusaderThief }] : []),
+        ...(isNum(rules.post8) ? [{ chassis: "", delta: rules.post8 }] : []),
+        ...(isNum(rules.post8Fighter) ? [{ chassis: "fighter", delta: rules.post8Fighter }] : []),
+        ...(isNum(rules.post8CrusaderThief) ? [{ chassis: "crusaderThief", delta: rules.post8CrusaderThief }] : []),
       ],
-    };
-  }
-  if (raw.elfRaw) {
-    const values = raceLadder(raw.elfRaw, RACE_POWER_NAMES.elf, raw.elfRules);
-    races.elf = {
-      key: "elf",
-      name: "Elf",
-      values,
-      minimumAttributes: isNum(raw.raceRequirements?.elfInt) ? [{ attr: "int", min: raw.raceRequirements.elfInt }] : [],
-      stacksWith: raw.elfRules?.stacksWithArcane ? "arcane" : "",
-      stackXpDiscount: raw.elfRules?.arcaneDiscount ?? null,
-      hpAfter9: null,
-      postEight: isNum(raw.elfRules?.post8) ? [{ chassis: "", delta: raw.elfRules.post8 }] : [],
     };
   }
   if (Object.keys(races).length) out.races = races;
@@ -325,24 +316,65 @@ export function assembleBuilderTables(raw) {
   return out;
 }
 
-/** The class names whose runins bound a build paragraph on p330–331. */
-const BUILD_ROSTER =
-  /\b(assassin|barbarian|bard|bladedancer|crusader|dwarven craftpriest|dwarven vaultguard|elven nightblade|elven spellsword|explorer|fighter|mage|nobiran wonderworker|paladin|priestess|shaman|thief|venturer|warlock|witch|zaharan ruinguard):/;
+/** A word as a regex alternative matches it literally. */
+const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/** The first word of a label, folded: how a build paragraph names a race in front of its value. */
+const firstWord = (label) => foldLabel(String(label ?? "").trim().split(/\s+/u)[0]);
 
 /**
- * Parse one Ready-for-Play build paragraph into builder state. The window may
- * bleed into the next class's paragraph — it is cut at the next roster runin.
+ * The class a build paragraph's run-in label names, among `classes`
+ * (`[{id, name, hash, race}]`): the one whose name folds to the label, else
+ * the one whose name op's locator is the label's `printKey` — the class a
+ * register row withholds the name of. Null when none answers.
+ */
+export function matchBuildClass(label, classes) {
+  const fold = foldLabel(label);
+  const key = printKey(label);
+  return (classes ?? []).find((c) => fold && foldLabel(c.name) === fold) ?? (classes ?? []).find((c) => key && c.hash === key) ?? null;
+}
+
+/**
+ * The words a build paragraph names a race by, folded, each mapped to the
+ * race's key: the first word of the race's value-0 label, and the first word
+ * of every build label whose class belongs to an assembled race — the page
+ * can call a race by its ladder's word or by its classes' adjective.
+ * @param {object} races the assembled races, by key
+ * @param {{label: string, race?: string|null}[]} [built] build labels with the race of the class each matched
+ * @returns {Record<string, string>}
+ */
+export function buildRaceWords(races, built = []) {
+  const words = {};
+  for (const race of Object.values(races ?? {})) {
+    const word = firstWord(race.values?.find((v) => v.value === 0)?.label);
+    if (word) words[word] = race.key;
+  }
+  for (const { label, race } of built) {
+    const word = firstWord(label);
+    if (word && race && races?.[race] && !words[word]) words[word] = race;
+  }
+  return words;
+}
+
+/**
+ * Parse one Ready-for-Play build paragraph into builder state. Allocation
+ * tokens are read before the first "yield": past it the paragraph explains
+ * what the allocation grants, and its value phrases are not purchases.
  * Superscript runs interleave ("capped th at 10 level"), so no parse assumes
  * adjacency.
+ * @param {string} window the paragraph's text
+ * @param {{raceWords?: Record<string, string>}} [opts] folded word → race key (`buildRaceWords`)
  */
-export function parseBuild(window) {
-  let text = String(window ?? "").toLowerCase();
-  const next = text.slice(1).match(BUILD_ROSTER);
-  if (next) text = text.slice(0, next.index + 1);
+export function parseBuild(window, { raceWords = {} } = {}) {
+  const text = String(window ?? "").toLowerCase();
+  const yields = text.search(/\byields?\b/);
+  const allocation = yields >= 0 ? text.slice(0, yields) : text;
 
   const out = { magic: [], notes: text.trim() };
   const seen = new Set();
-  for (const m of text.matchAll(/\b(hd|hit dice|fighting|thievery|thief|divine|arcane|dwarf|elf)\s+(?:value\s+)?(\d)([ab])?\b/g)) {
+  const raceAlt = Object.keys(raceWords).map(escapeRe).join("|");
+  const token = new RegExp(`\\b(hd|hit dice|fighting|thievery|thief|divine|arcane${raceAlt ? `|${raceAlt}` : ""})\\s+(?:value\\s+)?(\\d)([ab])?\\b`, "g");
+  for (const m of allocation.matchAll(token)) {
     const cat = m[1] === "hit dice" ? "hd" : m[1] === "thief" ? "thievery" : m[1];
     if (seen.has(cat)) continue;
     seen.add(cat);
@@ -350,7 +382,7 @@ export function parseBuild(window) {
     if (cat === "hd") out.hdValue = value;
     else if (cat === "fighting") out.fighting = { value, sub: m[3] ?? "" };
     else if (cat === "thievery") out.thievery = value;
-    else if (cat === "dwarf" || cat === "elf") out.race = { key: cat, value };
+    else if (raceWords[cat]) out.race = { key: raceWords[cat], value };
     else out.magic.push({ type: cat, value });
   }
   const xp = text.match(/yields an? ([\d,]+)\s*xp cost/);
@@ -478,19 +510,28 @@ export async function applyBuilderImport({ repair = null } = {}) {
   }
 
   // --- Ready-for-Play builds onto the matching class documents ---
-  const builds = doc.tables?.builds?.classes ?? {};
-  for (const [id, block] of Object.entries(builds)) {
-    if (!block?.build) continue;
-    const parsed = parseBuild(block.build);
-    const cls = await importedItemFor(`def.class.${id}`);
-    if (cls?.type !== CLASS_TYPE) continue;
+  // Each run-in label is matched against the class documents of ids the
+  // cookbook ships now, so a document left under an id that has since left
+  // the cookbook is never written.
+  const classEntries = cookbookContentFile("classes")?.entries ?? {};
+  const classes = (await importedDocs("Item"))
+    .filter((d) => d.type === CLASS_TYPE && classEntries[d.flags?.[MODULE_ID]?.cookbook?.id])
+    .map((d) => {
+      const id = d.flags[MODULE_ID].cookbook.id;
+      return { id, doc: d, name: d.name, hash: classEntries[id].fields?.name?.hash ?? null, race: d.flags?.[MODULE_ID]?.tongues?.race ?? null };
+    });
+  const runins = Object.values(doc.tables?.builds?.classes ?? {}).flatMap((block) => block?.runins ?? []);
+  const matched = runins.map((r) => ({ ...r, cls: matchBuildClass(r.label, classes) })).filter((r) => r.cls && r.text);
+  const raceWords = buildRaceWords(races, matched.map((r) => ({ label: r.label, race: r.cls.race })));
+  for (const { text, cls } of matched) {
+    const parsed = parseBuild(text, { raceWords });
     const update = builderUpdate(parsed);
     if (parsed.race) {
       const raceItem = await importedItemFor(`def.race.${parsed.race.key}`);
       if (raceItem) update["system.race"] = raceItem.flags?.[MODULE_ID]?.cookbook?.id ?? `uuid:${raceItem.uuid}`;
     }
-    await cls.update(update);
-    report.builds.push(id);
+    await cls.doc.update(update);
+    report.builds.push(cls.id);
   }
   return report;
 }

@@ -2352,10 +2352,10 @@
         }
       }
     },
-    "def.prof.blackLoreOfZahar": {
-      "id": "def.prof.blackLoreOfZahar",
+    "def.prof.proficiency15": {
+      "id": "def.prof.proficiency15",
       "kind": "kind.proficiency",
-      "name": "Black Lore of Zahar",
+      "name": "Proficiency 15",
       "book": "rr",
       "cite": "RR p.108",
       "pages": [
@@ -2369,7 +2369,7 @@
       "iconNiche": "modules/game-icons-net/blacktransparent/evil-book.svg",
       "fields": {
         "name": {
-          "op": "expect",
+          "op": "heading",
           "page": 110,
           "box": {
             "x0": 45,
@@ -2377,7 +2377,7 @@
             "y0": 213,
             "y1": 235
           },
-          "text": "Black Lore of Zahar"
+          "hash": "1enrwy3"
         },
         "description": {
           "op": "text",

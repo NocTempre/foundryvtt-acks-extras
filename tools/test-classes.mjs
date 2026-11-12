@@ -1214,14 +1214,14 @@ const pathSystem = () => ({
       label: "Region",
       source: "",
       options: [
-        { key: "jutland", label: "Jutland", training: { weapons: ["axe"], armour: "medium", styles: ["twohanded"] } },
-        { key: "ivory", label: "Ivory", training: { weapons: ["bola"], armour: "light", styles: ["dual"] } },
+        { key: "fenmark", label: "Fenmark", training: { weapons: ["axe"], armour: "medium", styles: ["twohanded"] } },
+        { key: "saltreach", label: "Saltreach", training: { weapons: ["bola"], armour: "light", styles: ["dual"] } },
       ],
     },
     { key: "template", label: "Starting Template", source: "templates", options: [] },
   ],
   templates: [
-    { name: "Pit Fighter", annotation: "Jutland", caste: "" },
+    { name: "Pit Fighter", annotation: "Fenmark", caste: "" },
     { name: "Nomad", annotation: "", caste: "" },
   ],
 });
@@ -1231,7 +1231,7 @@ test("a templates group draws its options from the rows, which are not moved", (
   const groups = pathGroups(sys);
   const tpl = groups.find((g) => g.source === "templates");
   assert.equal(tpl.options.length, 2);
-  assert.equal(tpl.options[0].label, "Pit Fighter (Jutland)");
+  assert.equal(tpl.options[0].label, "Pit Fighter (Fenmark)");
   // The rows themselves are untouched — the group points at them.
   assert.equal(sys.templates.length, 2);
   assert.equal(sys.templates[0].name, "Pit Fighter");
@@ -1239,17 +1239,17 @@ test("a templates group draws its options from the rows, which are not moved", (
 
 test("an option is matched by key OR by what the page printed", () => {
   const sys = pathSystem();
-  assert.equal(chosenOption(sys, "region", "jutland")?.key, "jutland");
-  assert.equal(chosenOption(sys, "region", "Jutland")?.key, "jutland");
+  assert.equal(chosenOption(sys, "region", "fenmark")?.key, "fenmark");
+  assert.equal(chosenOption(sys, "region", "Fenmark")?.key, "fenmark");
   // An unknown selection chooses NOTHING — silently picking the first would
   // grant a training nobody selected.
-  assert.equal(chosenOption(sys, "region", "skysostan"), null);
+  assert.equal(chosenOption(sys, "region", "duneholm"), null);
   assert.equal(chosenOption(sys, "region", ""), null);
 });
 
 test("the chosen option's training becomes effect changes, and only the chosen one", () => {
   const sys = pathSystem();
-  const changes = pathTrainingChanges(sys, { region: "ivory" });
+  const changes = pathTrainingChanges(sys, { region: "saltreach" });
   const byKey = Object.fromEntries(changes.map((c) => [c.key.split(".").pop(), c.value]));
   assert.equal(byKey.weaponProf, "bola");
   assert.equal(byKey.armourProficiency, "light");
@@ -1263,21 +1263,21 @@ test("the chosen option's training becomes effect changes, and only the chosen o
 test("a group with no answer is reported unanswered; a templates group needs one too", () => {
   const sys = pathSystem();
   assert.equal(unansweredGroups(sys, {}).length, 2);
-  assert.equal(unansweredGroups(sys, { region: "jutland" }).length, 1);
-  assert.equal(unansweredGroups(sys, { region: "jutland", template: "jutland" }).length, 0);
+  assert.equal(unansweredGroups(sys, { region: "fenmark" }).length, 1);
+  assert.equal(unansweredGroups(sys, { region: "fenmark", template: "fenmark" }).length, 0);
 });
 
 test("a template answers the group its annotation names", () => {
   const sys = pathSystem();
-  assert.deepEqual(templateSelection(sys, sys.templates[0]), { group: "region", option: "jutland" });
+  assert.deepEqual(templateSelection(sys, sys.templates[0]), { group: "region", option: "fenmark" });
   // A row printing no variant answers nothing rather than guessing.
   assert.equal(templateSelection(sys, sys.templates[1]), null);
-  assert.equal(templateOptionKey({ name: "Pit Fighter", annotation: "Jutland" }), "jutland");
+  assert.equal(templateOptionKey({ name: "Pit Fighter", annotation: "Fenmark" }), "fenmark");
 });
 
 test("a class stating no paths asks nothing and grants nothing", () => {
   assert.deepEqual(pathGroups({}), []);
-  assert.deepEqual(pathTrainingChanges({}, { region: "jutland" }), []);
+  assert.deepEqual(pathTrainingChanges({}, { region: "fenmark" }), []);
   assert.deepEqual(unansweredGroups({}, {}), []);
 });
 

@@ -54,7 +54,7 @@ The remaining work is all in `foundryvtt-acks-importer`:
    It needs no transposed grid mode: its label column is the undead type and its
    column headers are the crusader's levels, which is the shape
    `compile-cookbook`'s reader already takes. Fourteen tight single-digit
-   headers will land on the header-span fallback, as the Nobiran's dual spell
+   headers will land on the header-span fallback, as class 20's dual spell
    groups do.
 2. **A binding that turns those rows into ladders** — one per undead type, keyed
    off the row label. The cell rule is structural and needs no printed letter in

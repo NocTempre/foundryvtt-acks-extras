@@ -9963,3 +9963,42 @@ row.
 stamped until Update Abilities (top of the Items sidebar) or a re-import
 rewrites them; no migration reads them. The rung is not Judge-editable
 centrally, only per row.
+
+## 2026-11-11 — Rows named by a book's proper names ship ordinal labels and a locator (T-0394, T-0473, T-0494, T-0493)
+
+*Ruling:* two RR classes, the barbarian's three origin powers, one class
+power and one proficiency whose names are a people's or a place's ship as
+`def.class.class20`/`class21` ("Class 20/21"), `def.power.barbarianOrigin1–3`
+("Tribal Origin 1–3", file order), `def.power.darkFortress` ("Dark
+Fortress") and `def.prof.proficiency15` ("Proficiency 15"). Each register
+row carries `anchor.hash` (`printKey` of the heading) and the binder names
+the document from the page's words, so a world with the book sees the
+printed names. The two peoples of JJ ch. 12 are race keys `people1` /
+`people2`, named at import from their ladder's value-0 label. The
+stem-style ids rejected on 2026-09-17 stay rejected: an ordinal is the
+only id that holds nothing of the name. Region words stay on the class
+sheet's path options, which are read from the page.
+
+*What moved with the ids:* the builder reads both peoples' ladders, powers
+and post-8 increments, every race's value-0 powers as run-ins (no shipped
+power names), and every RR class's Ready-for-Play build as one run-in read
+over JJ 330–331, matched to the class documents of current cookbook ids by
+name or locator; a build names its race by the ladder's word or by its
+classes' adjective (`buildRaceWords`). A proficiency whose name is withheld
+resolves in class lists and template cells by its locator
+(`abilitySurfaceIndex().byPrintKey`). Influence and henchmen learn a class's
+race from the classes API (`raceKeyOfClass`) instead of the name's words;
+the culture row, the proficiencies-by-age columns and the character-aging
+rows key on `people1`/`people2`.
+
+*Rejected:* a migration of earlier worlds (owner, 2026-11-11). Splicing a
+book-scoped compile (it drops entry fields); the whole cookbook compiles to
+scratch and is copied in, every box byte-identical outside the changed rows.
+
+*Cost:* a world imported before this keeps its documents under the old ids
+beside the new ones a re-import builds; repair writes only ids the cookbook
+ships, so it visits the new documents and lists the old as left. Remove ALL
+Imports is the clean slate. A world setting or record holding the old race
+keys (a race relation, a culture id on a hireling) no longer matches them.
+Builds now stamp 21 classes, not 12. The people races' attribute floors and
+the max-level power are read as names only (classes ROADMAP).

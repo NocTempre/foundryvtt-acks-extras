@@ -25,7 +25,7 @@ function pickWeighted(rand, entries, weightOf) {
  * Registry entry for a class ({bucket, rarity, race?, cultures?, sex?,
  * alignment?}). DERIVED, not a shipped table: bucket comes from the
  * imported class distribution, rarity from the imported rarity ladder,
- * race from the class key's own adjective, and the RESTRICTIONS from the
+ * race from the class the key names (`raceFromClassKey`), and the RESTRICTIONS from the
  * imported `people.classRestrictions` blocks (RR class descriptions).
  */
 export function classInfo(classKey) {
@@ -47,8 +47,8 @@ export function classInfo(classKey) {
       break;
     }
   }
-  // Race from the key's own adjective — computed inline, NOT via
-  // raceForClass(): that reads classInfo and would recurse forever.
+  // Race from the class the key names — NOT via raceForClass(): that reads
+  // classInfo and would recurse forever.
   const race = raceFromClassKey(key);
   if (race) entry.race = race;
   Object.assign(entry, optTable("people", "classRestrictions")?.classes?.[key] ?? {});
@@ -56,13 +56,16 @@ export function classInfo(classKey) {
 }
 
 /**
- * Race announced by a class KEY's own adjective ("elven spellsword" → elf),
- * or null for unmarked (human) classes. Pure string work — classInfo builds
- * on this, so it must never read the registry back.
+ * The race of the class a class KEY (the henchmen tables' lower-cased class
+ * name) names: the key's own common adjective ("elven spellsword" → elf),
+ * else what the class in the library says (the classes API, absent outside
+ * Foundry), else null for unmarked (human) classes. classInfo builds on this,
+ * so it never reads the henchmen registry back.
  */
 export function raceFromClassKey(classKey) {
-  const m = String(classKey ?? "").toLowerCase().match(/^(elven|dwarven|zaharan|nobiran|thrassian)\b/);
-  return m ? { elven: "elf", dwarven: "dwarf", zaharan: "zaharan", nobiran: "nobiran", thrassian: "thrassian" }[m[1]] : null;
+  const m = String(classKey ?? "").toLowerCase().match(/^(elven|dwarven|thrassian)\b/);
+  if (m) return { elven: "elf", dwarven: "dwarf", thrassian: "thrassian" }[m[1]];
+  return globalThis.acksExtras?.classes?.raceKeyOfClass?.(classKey) || null;
 }
 
 /** The race a class belongs to ("human" when nothing declares otherwise). */
@@ -87,16 +90,16 @@ export function raceOfCulture(cultureId) {
 
 /**
  * Resolve a culture id from the location's demographics weights,
- * CONSTRAINED to a race so culture and class always align (no Zaharan
- * humans, no elven vaultguards). Falls back to the race's own culture(s)
- * when the demographics don't include one; a race other than human matches
- * the cultures that declare it.
+ * CONSTRAINED to a race so culture and class always align (no human of a
+ * people's own culture, no elven vaultguards). Falls back to the race's own
+ * culture(s) when the demographics don't include one; a race other than human
+ * matches the cultures that declare it.
  */
 export function pickCulture(rand, demographics, race = null, cultureWhitelist = null) {
   const cultures = getTable("people", "cultures").list;
-  // Nobiran are a human-passing bloodline of the empire — the book gives them
-  // Auran names rather than a list of their own.
-  if (race === "nobiran" && cultures.auran) return "auran";
+  // people1 has no culture of its own in the registry: it draws from the
+  // `auran` culture's lists.
+  if (race === "people1" && cultures.auran) return "auran";
   const matchesRace = (id) => {
     if (cultureWhitelist && !cultureWhitelist.includes(id)) return false;
     if (!race) return true;
@@ -158,15 +161,21 @@ export function generateAppearance(rand, cultureId) {
  */
 const AGE_CLASS_GROUPS = {
   crusader: ["crusader", "bladedancer", "priestess", "shaman", "paladin", "dwarven craftpriest", "witch"],
-  mage: ["mage", "warlock", "nobiran wonderworker", "elven spellsword", "zaharan ruinguard"],
+  mage: ["mage", "warlock", "class20", "elven spellsword", "class21"],
   thief: ["thief", "assassin", "bard", "elven nightblade", "venturer"],
   noble: ["fighter", "explorer", "barbarian", "dwarven vaultguard"],
 };
 
+/**
+ * The column a class follows: matched on the class's key, read off the class
+ * the name answers to in the library (the classes API, absent outside
+ * Foundry), and on the name's own words.
+ */
 function ageColumnFor(classKey) {
   const wanted = String(classKey ?? "").toLowerCase();
+  const key = String(globalThis.acksExtras?.classes?.registry?.classNamed?.(wanted)?.system?.key ?? "").toLowerCase();
   for (const [column, classes] of Object.entries(AGE_CLASS_GROUPS)) {
-    if (classes.some((c) => wanted.includes(c))) return column;
+    if (classes.some((c) => c === key || wanted.includes(c))) return column;
   }
   return "noble";
 }

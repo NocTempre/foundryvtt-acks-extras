@@ -937,25 +937,35 @@ const RUNIN_LABEL = new RegExp(
 const SENTENCE_END = /[.!?]["”’)\]]*\s*$/u;
 
 /**
+ * A list bullet as a symbol font hands it over: a C1 control or a private-use
+ * code point as often as U+2022 (the set `ROW_EDGE` matches).
+ */
+const BULLET = "[\\u0080-\\u009F\\u2022\\uE000-\\uF8FF]";
+const BULLET_END = new RegExp(`${BULLET}\\s*$`, "u");
+const BULLETS_TRAILING = new RegExp(`(?:\\s*${BULLET})+\\s*$`, "u");
+
+/**
  * Run-in titled paragraphs read from a window of the page AS PRINTED
  * (`take: "runins"`): each Title-Case phrase that ends in a colon where a
  * sentence starts, with the text that follows it up to the next such phrase.
- * A sentence starts at the window's first character or after a closing stop; a
- * capitalised phrase and colon mid-sentence is no title. The labels and the
- * text are the reader's page and are never a string of this repo. Undefined
- * when the window holds none.
+ * A sentence starts at the window's first character, after a closing stop, or
+ * after a list bullet; a capitalised phrase and colon mid-sentence is no title.
+ * The bullet that opens the next item is not part of the text before it. The
+ * labels and the text are the reader's page and are never a string of this
+ * repo. Undefined when the window holds none.
  * @param {string} cased the window with its case, whitespace collapsed
  * @returns {{label: string, text: string}[]|undefined}
  */
 function takeRunins(cased) {
   const found = [];
   for (const m of cased.matchAll(RUNIN_LABEL)) {
-    if (m.index > 0 && !SENTENCE_END.test(cased.slice(0, m.index))) continue;
+    const before = cased.slice(0, m.index);
+    if (m.index > 0 && !SENTENCE_END.test(before) && !BULLET_END.test(before)) continue;
     found.push({ label: m[1].replace(/\s+/g, " "), at: m.index, end: m.index + m[0].length });
   }
   const out = found.map((f, i) => ({
     label: f.label,
-    text: cased.slice(f.end, found[i + 1]?.at ?? cased.length).replace(/\s+/g, " ").trim(),
+    text: cased.slice(f.end, found[i + 1]?.at ?? cased.length).replace(BULLETS_TRAILING, "").replace(/\s+/g, " ").trim(),
   }));
   return out.length ? out : undefined;
 }

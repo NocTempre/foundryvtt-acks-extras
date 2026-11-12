@@ -60,31 +60,31 @@
   "meta": { "category": "classPower" }
  },
  {
-  "id": "def.power.barbarianOriginJutland",
+  "id": "def.power.barbarianOrigin1",
   "icon": "icons/magic/water/snowflake-ice-blue-white.webp",
   "kind": "kind.power",
   "book": "rr",
-  "name": "Tribal Origin: Jutland",
+  "name": "Tribal Origin 1",
   "anchor": { "runin": "Barbarian Combat Proficiencies" },
   "pages": [50],
   "meta": { "category": "classPower" }
  },
  {
-  "id": "def.power.barbarianOriginSkysostan",
+  "id": "def.power.barbarianOrigin2",
   "icon": "icons/magic/air/wind-stream-blue-gray.webp",
   "kind": "kind.power",
   "book": "rr",
-  "name": "Tribal Origin: Skysostan",
+  "name": "Tribal Origin 2",
   "anchor": { "runin": "Barbarian Combat Proficiencies" },
   "pages": [50],
   "meta": { "category": "classPower" }
  },
  {
-  "id": "def.power.barbarianOriginIvoryKingdoms",
+  "id": "def.power.barbarianOrigin3",
   "icon": "icons/creatures/mammals/cat-hunched-glowing-red.webp",
   "kind": "kind.power",
   "book": "rr",
-  "name": "Tribal Origin: Ivory Kingdoms",
+  "name": "Tribal Origin 3",
   "anchor": { "runin": "Barbarian Combat Proficiencies" },
   "pages": [50],
   "meta": { "category": "classPower" }

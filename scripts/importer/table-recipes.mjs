@@ -191,7 +191,7 @@ const CULTURE_APPEARANCE = [
   ["shebatean", 500, "shebatean hair is", "shebatean eyes are"],
   ["skysos", 501, "hair of the skysos is", ""], // eyes phrasing varies; hair only
   ["somirean", 501, "somirean hair is", "somirean eyes are"],
-  ["zaharan", 503, "", "zaharan eyes are"], // hair phrasing varies; eyes only
+  ["people2", 503, "", "zaharan eyes are"], // hair phrasing varies; eyes only
 ];
 
 const CULTURE_APPEARANCE_BLOCKS = CULTURE_APPEARANCE.map(([id, page, hair, eyes]) => {
@@ -306,29 +306,20 @@ const slotGrid = ({ page, startAfter, side, verso = false }) => {
   };
 };
 
-// Ready-for-Play Class Builds (JJ p330–331): one prose paragraph per class.
-// The window take hands the whole paragraph to builder-binding, which parses
-// the allocation tokens mechanically; the class roster is the cookbook's own.
-const buildBlock = (id, page, locate) => ({
-  id,
+// A race's value-0 powers (JJ ch. 12): the run-in paragraphs under its value
+// ladder, bounded to the print column and the band they occupy so the ladder
+// above and the next section below never reach the read. The labels are the
+// reader's page; builder-binding.mjs names the rung's powers from them.
+const racePowers = ({ page, locate, column, yMin, yMax }) => ({
+  shape: "proseValues",
+  book: "jj",
   printedPage: page,
   locate,
-  values: [{ key: "build", find: locate.toLowerCase(), take: "window", span: 560 }],
+  column,
+  yMin,
+  yMax,
+  values: [{ key: "powers", find: "", take: "runins", span: 4000 }],
 });
-const BUILD_BLOCKS = [
-  buildBlock("assassin", 330, "Assassin:"),
-  buildBlock("bard", 330, "Bard:"),
-  buildBlock("bladedancer", 330, "Bladedancer:"),
-  buildBlock("crusader", 330, "Crusader:"),
-  buildBlock("dwarvenCraftpriest", 330, "Dwarven Craftpriest:"),
-  buildBlock("dwarvenVaultguard", 330, "Dwarven Vaultguard:"),
-  buildBlock("elvenNightblade", 330, "Elven Nightblade:"),
-  buildBlock("elvenSpellsword", 330, "Elven Spellsword:"),
-  buildBlock("explorer", 330, "Explorer:"),
-  buildBlock("fighter", 330, "Fighter:"),
-  buildBlock("mage", 330, "Mage:"),
-  buildBlock("thief", 331, "Thief:"),
-];
 
 /* ------------------------------------------------------------------ */
 /*  Wilderness encounters (the `encounters` ruledata document)         */
@@ -2933,7 +2924,7 @@ export const TABLE_RECIPES = {
           { cultureId: "shebatean", printedPage: 500, anchor: "Abaddon", meta: { label: "Shebatean", patronym: { male: "Ibn {parent}", female: "Bint {parent}" } } },
           { cultureId: "skysos", printedPage: 501, anchor: "Attila", meta: { label: "Skysos" } },
           { cultureId: "somirean", printedPage: 501, anchor: "Artashumara", meta: { label: "Somirean" } },
-          { cultureId: "zaharan", printedPage: 503, anchor: "Ashurdan", meta: { label: "Zaharan", patronym: { male: "Bet-{parent}", female: "Bet-{parent}" }, race: "zaharan" } },
+          { cultureId: "people2", printedPage: 503, anchor: "Ashurdan", meta: { label: "People 2", patronym: { male: "Bet-{parent}", female: "Bet-{parent}" }, race: "people2" } },
           { cultureId: "thrassian", printedPage: 502, anchor: "Akalamdug", meta: { label: "Thrassian", race: "thrassian" } },
         ],
       },
@@ -2974,8 +2965,8 @@ export const TABLE_RECIPES = {
           { key: "human", x: 189, pattern: "ageBand" , row: true },
           { key: "dwarf", x: 270, pattern: "ageBand" , row: true },
           { key: "elf", x: 352, pattern: "ageBand" , row: true },
-          { key: "nobiran", x: 434, pattern: "ageBand" , row: true },
-          { key: "zaharan", x: 517, pattern: "ageBand" , row: true },
+          { key: "people1", x: 434, pattern: "ageBand" , row: true },
+          { key: "people2", x: 517, pattern: "ageBand" , row: true },
         ],
         rows: Array.from({ length: 8 }, (_, i) => ({ key: String(i + 1), labelRe: `^${i + 1}$`, set: { count: i + 1 } })),
         emit: { container: "rows", keyField: "count" },
@@ -3595,7 +3586,7 @@ export const TABLE_RECIPES = {
   // materializes race items and stamps the Ready-for-Play builds onto the
   // matching class documents.
   "acks.classBuilder": {
-    source: { book: "ACKS II Judges Journal", pages: "JJ 289-301, 330-331" },
+    source: { book: "ACKS II Judges Journal", pages: "JJ 289-305, 330-331" },
     tables: {
       basePoints: {
         shape: "proseValues",
@@ -3837,11 +3828,10 @@ export const TABLE_RECIPES = {
           // then crusader/thief) disambiguate by occurrence.
           { key: "post8Fighter", find: "each level after 8", take: "int", span: 40 },
           { key: "post8CrusaderThief", find: "each level after 8", take: "int", span: 40, occurrence: 2 },
-          { key: "sensitivityToRockAndStone", find: "sensitivity to rock and stone:", take: "window", span: 24 },
-          { key: "dwarfTongues", find: "dwarf tongues:", take: "window", span: 24 },
-          { key: "hardy", find: "hardy:", take: "window", span: 24 },
         ],
       },
+      // Verso: the powers sit in the right print column below the ladder.
+      dwarfPowers: racePowers({ page: 300, locate: "DWARVEN CUSTOM", column: { xMin: 295, xMax: 590 }, yMin: 226, yMax: 360 }),
       elfRaw: {
         shape: "gridRows",
         book: "jj",
@@ -3868,10 +3858,66 @@ export const TABLE_RECIPES = {
           // The superscript "th" splits "each level [th] after 8"; the first
           // "after 8" on the page is the section heading, so occurrence 2.
           { key: "post8", find: "after 8", take: "int", span: 40, occurrence: 2 },
-          { key: "animalFriendship", find: "animal friendship:", take: "window", span: 24 },
-          { key: "attunementToNature", find: "attunement to nature:", take: "window", span: 24 },
-          { key: "connectionToNature", find: "connection to nature:", take: "window", span: 24 },
-          { key: "elfTongues", find: "elf tongues:", take: "window", span: 24 },
+        ],
+      },
+      // The page-margin chapter tab (x≈597) stays outside the column.
+      elfPowers: racePowers({ page: 301, locate: "stack with points", column: { xMin: 320, xMax: 590 }, yMin: 170, yMax: 360 }),
+      // The two peoples of JJ ch. 12 that close the racial sections, keyed by
+      // their order there. Each reads the same parts as the elf: a value
+      // ladder, the powers under it, the post-8 increment, and, where the page
+      // says the racial value stacks with the arcane one, that sentence.
+      people1Raw: {
+        shape: "gridRows",
+        book: "jj",
+        printedPage: 303,
+        locate: "substitute for it",
+        column: { xMin: 320, xMax: 600 },
+        labelMaxX: 360,
+        rowTol: 4,
+        minCells: 2,
+        cellColumns: [
+          { key: "label", x: 365, w: 155, row: true, pattern: "raw" },
+          { key: "cost", x: 521, w: 40, row: true, pattern: "int" },
+        ],
+        rows: VALUE_ROWS_4_TO_0,
+      },
+      people1Powers: racePowers({ page: 303, locate: "substitute for it", column: { xMin: 320, xMax: 590 }, yMin: 590, yMax: 765 }),
+      people1Rules: {
+        shape: "proseValues",
+        book: "jj",
+        printedPage: 304,
+        locate: "eldritch",
+        // Verso page, as the dwarf's.
+        colSplit: 295,
+        values: [
+          // The first "after 8" is the section heading, as on the elf's page.
+          { key: "post8", find: "after 8", take: "int", span: 40, occurrence: 2 },
+        ],
+      },
+      people2Raw: {
+        shape: "gridRows",
+        book: "jj",
+        printedPage: 304,
+        locate: "eldritch",
+        column: { xMin: 295, xMax: 600 },
+        labelMaxX: 340,
+        rowTol: 4,
+        minCells: 2,
+        cellColumns: [
+          { key: "label", x: 345, w: 145, row: true, pattern: "raw" },
+          { key: "cost", x: 492, w: 40, row: true, pattern: "int" },
+        ],
+        rows: VALUE_ROWS_4_TO_0,
+      },
+      people2Powers: racePowers({ page: 305, locate: "Once transformed", column: { xMin: 20, xMax: 300 }, yMin: 135, yMax: 670 }),
+      people2Rules: {
+        shape: "proseValues",
+        book: "jj",
+        printedPage: 305,
+        locate: "Once transformed",
+        values: [
+          { key: "stacksWithArcane", find: "stack with points allocated to the arcane value", take: "window", span: 24 },
+          { key: "post8", find: "after 8", take: "int", span: 40, occurrence: 2 },
         ],
       },
       raceRequirements: {
@@ -3884,11 +3930,20 @@ export const TABLE_RECIPES = {
           { key: "elfInt", find: "elven classes require intellect", take: "int" },
         ],
       },
+      // Ready-for-Play Class Builds (JJ 330–331): one run-in paragraph per
+      // class, its label the class as the reader's book names it.
+      // builder-binding.mjs matches each label to an imported class and parses
+      // the allocation tokens mechanically. The first page holds the build
+      // point table below the paragraphs, hence its yMax; the second's margin
+      // tab (x≈597) stays outside the column.
       builds: {
         shape: "proseValues",
         book: "jj",
         emit: { path: ["classes"] },
-        valueBlocks: BUILD_BLOCKS,
+        valueBlocks: [
+          { id: "p330", printedPage: 330, locate: "Ready-for-Play", yMax: 470, values: [{ key: "runins", find: "class builds", take: "runins", span: 8000 }] },
+          { id: "p331", printedPage: 331, locate: "accepts a class drawback", column: { xMin: 20, xMax: 590 }, values: [{ key: "runins", find: "", take: "runins", span: 8000 }] },
+        ],
       },
     },
   },
@@ -4309,8 +4364,10 @@ export const TABLE_RECIPES = {
           { key: "dwarf", labelRe: "dwarf$" },
           { key: "elf", labelRe: "^elf" },
           { key: "human", labelRe: "^human" },
-          { key: "nobiran", labelRe: "^nobiran" },
-          { key: "zaharan", labelRe: "^zaharan" },
+          // The two peoples printed after the human row, in their order there
+          // (the builder's people1 and people2): any label claims the next row.
+          { key: "people1", labelRe: "\\S" },
+          { key: "people2", labelRe: "\\S" },
         ],
       },
     },

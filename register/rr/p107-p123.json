@@ -658,12 +658,13 @@
     "iconNiche": "modules/game-icons-net/blacktransparent/enrage.svg"
   },
   {
-    "id": "def.prof.blackLoreOfZahar",
+    "id": "def.prof.proficiency15",
     "kind": "kind.proficiency",
     "book": "rr",
-    "name": "Black Lore of Zahar",
+    "name": "Proficiency 15",
     "anchor": {
-      "display": "Black Lore of Zahar"
+      "hash": "1enrwy3",
+      "as": "display"
     },
     "pages": [
       110
