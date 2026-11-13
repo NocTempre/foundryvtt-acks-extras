@@ -63,7 +63,7 @@ const STRUCTURAL = new Set(
   ].map(key),
 );
 /**
- * "<Class> Proficiency List:" — the same structural label, printed long. Tested
+ * The class's proficiency-list label (RR p25) — the same structural label, printed long. Tested
  * folded, because the runs it is made of often carry no space between them.
  */
 const isProfListLabel = (s) => key(s).endsWith("proficiencylist");

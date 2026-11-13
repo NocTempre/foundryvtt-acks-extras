@@ -39,7 +39,8 @@ t = parseCombatTraining(
   RUNIN,
 );
 check("sizes: weapons", t.weapons, ["missile:all", "melee:tiny", "melee:small", "melee:medium"]);
-// "light and very light" is a LIGHT class — the deeper rung must not win.
+// Armor proficiency listing both the light and the very light rung is a LIGHT class
+// (RR p26, JJ p290) — the deeper rung must not win.
 check("sizes: armour", t.armour, "light");
 // The exclusion clause names weapon-and-shield; reading it would grant it.
 check("sizes: styles", t.styles, ["dual", "twohanded"]);

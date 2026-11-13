@@ -2623,7 +2623,7 @@ t("an ability with no vocabulary of its own falls back to its category's", () =>
 
 t("a template's own phrasing lands on the pick the mechanics read", () => {
   // The importer writes a template cell's parenthesized selection verbatim
-  // ("Fighting Style Spec. (weapon & shield)"), so the shortlist has to
+  // (a fighting-style specialization cell with its style in brackets, RR p25), so the shortlist has to
   // recognise it rather than leave it in free text where nothing matches it.
   const styles = vocab.SELECTION_VOCAB_BY_ABILITY.fightingstylespecialization;
   assert.equal(vocab.matchSelectionKey(styles, "weapon & shield"), "weaponshield");

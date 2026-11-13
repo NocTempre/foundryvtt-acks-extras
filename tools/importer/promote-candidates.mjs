@@ -43,7 +43,8 @@ const camel = (s) =>
 
 // Extraction artifacts, not vocabulary: UNBALANCED parens (comma-split inside
 // a paren), prices, weights, leading digits. Balanced parens are legitimate
-// ACKS vocabulary ("Combat Trickery (Wrestling)", "energy protection (fire)").
+// ACKS vocabulary (a power or proficiency with its specialization in brackets,
+// MM p90, p177).
 const balanced = (t) => {
   let d = 0;
   for (const ch of t) {

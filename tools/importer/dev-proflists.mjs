@@ -4,7 +4,7 @@
  *
  * The authoring loop for `profList` boxes. A list that sweeps in the
  * Proficiency Progression paragraph printed beside it produces names welded out
- * of prose ("paladins select one class" + "Berserkergang"), and the only way to
+ * of prose (the paragraph's last words + the first list entry, RR p62), and the only way to
  * see it is to run the compiled box against the book and tokenize the result.
  *
  * IP posture as its siblings: a diagnostic for the authoring agent. It prints

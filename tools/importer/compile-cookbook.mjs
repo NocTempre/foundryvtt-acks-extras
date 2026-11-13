@@ -92,7 +92,7 @@ const DEF_TOP_BAND = 60;
 /**
  * What stops a continuation. `isAnchor` knows only the heading style that ends
  * a block of THIS kind, which is not the only thing that can end one: a class
- * power flowing overleaf runs into "Code of Behavior" and the template table,
+ * power flowing overleaf runs into the class's behavior-code section and the template table,
  * headings of a different kind entirely, and the flow read straight through
  * them to the next power — carrying a whole class's remaining text under one
  * ability's name. Prose continues across a column and across a page; it never
@@ -784,8 +784,9 @@ async function compileMonster(doc, entry, kindRow, glyphChars) {
     if (!anchor) throw new Error(`anchor label "${label}" not found on p.${page}`);
   } else {
     // Fallback ladder for outline titles that differ from the printed heading
-    // (parent/variant pages: "Statue, Animated Bronze" prints as "BRONZE" under
-    // a "STATUE, ANIMATED" parent; "(Overview)" suffixes never print). Try the
+    // (parent/variant pages: a "<Family>, <Variant>" outline title prints as the
+    // variant alone under a "<FAMILY>, <KIND>" parent heading, MM p4; "(Overview)"
+    // suffixes never print). Try the
     // full title, then without parentheticals, then progressively shorter word
     // tails. The string that MATCHES becomes the shipped expect text.
     const candidates = [];
@@ -1522,8 +1523,9 @@ async function compileMonsterTemplate(doc, entry, kindRow, bookCtx) {
         if (!first || !runinAnchors.some((c) => Math.abs(first.x - c) < 15)) continue;
         let acc = "";
         for (const it of items.slice(0, 3)) {
-          // The closing colon may OPEN the next run (": The dragon can…") —
-          // that colon ends the run-in; the rest of the run is body text.
+          // The closing colon may OPEN the next run (a run that starts with the
+          // colon, JJ p143, MM p108) — that colon ends the run-in; the rest of
+          // the run is body text.
           if (acc && it.str.startsWith(":")) {
             const t2 = `${acc.trim().replace(/\s+/g, " ")}:`;
             if (runinRe.test(t2)) colRunins.push({ text: t2, y: first.y });
@@ -4144,8 +4146,8 @@ async function compileClass(doc, entry, kindRow) {
         continue;
       }
       // The table ends at its Notes line — or at a bare footnote asterisk:
-      // the mage's table closes with "* Each template assumes…" and no Notes
-      // prefix at all.
+      // the mage's table closes with an asterisked template footnote (RR p35)
+      // and no Notes prefix at all.
       const notes = flat.find(
         (i) => i.y > bandLabels[bandLabels.length - 1].y + 4 && (/^Notes/i.test(i.str.trim()) || /^\*/.test(i.str.trim())),
       );
@@ -4525,7 +4527,7 @@ async function compileClass(doc, entry, kindRow) {
       // boxed the list across the full page width and swept in the Proficiency
       // Progression paragraph printed beside it. Read in y-then-x order, that
       // paragraph's runs interleave with the list's, welding prose onto entry
-      // names ("paladins select one class" + "Berserkergang") — which then
+      // names (the paragraph's closing words + the first list entry, RR p62) — which then
       // arrive as unresolved names nothing can match.
       //
       // `x0`/`x1` on the register entry override both edges, for a spread whose
@@ -5025,7 +5027,7 @@ function defColumns(pd) {
   // Run-in HEADINGS always sit at a column's left edge, so their x-positions
   // recover columns the histogram misses when a dominant table starves a bin.
   // A heading is read as a LINE, not a run: a superscript ordinal splits
-  // "Chieftain's Hall (9th level):" into three runs, none of which carries the
+  // "<Stronghold name> (9th level):" (RR p49) into three runs, none of which carries the
   // name and its colon, and a column whose only run-in is split that way went
   // unrecovered. Runs on one line are split at every gap wider than a word
   // space — a gutter, a cell edge — and each piece is tested on its own.
@@ -5494,7 +5496,7 @@ async function compileDefinition(doc, entry, kindRow, siblings = []) {
     // The next run-in heading ends this entry. Font alias alone does NOT
     // identify one: the JJ sets run-in headings and italic emphasis from the
     // same font resource, so a flavour name italicised at the start of a line
-    // ("…mog brutes call it *pugilism*, and pugilists…") looked exactly like
+    // (a power's descriptive prose, JJ p310) looked exactly like
     // the next heading and cut Blade-Dancing in half — six of its eleven
     // printed lines, including the whole Swashbuckling stacking rule, and its
     // alias Graceful Fighting with it. A heading is a NAME FOLLOWED BY A
@@ -5557,8 +5559,8 @@ async function compileDefinition(doc, entry, kindRow, siblings = []) {
           // set in another alias (BTA p98: "Firewood:" and "Refined Oil:"), and
           // "not the body face" misses a page whose run-ins ARE set in the body
           // face (JJ p310, where every see-reference shares it) — which let
-          // "Alien Senses: See alertness." swallow the entry after it and
-          // quietly stop being an alias at all. A heading is either.
+          // a one-line see-reference entry swallow the entry after it and
+          // quietly stop being an alias at all (JJ p308). A heading is either.
           (it.alias === anchor.alias || (bodyAlias && it.alias !== bodyAlias)) &&
           colOf(it.x, cols) === col &&
           it.y > anchor.y + 2 &&
@@ -5576,8 +5578,8 @@ async function compileDefinition(doc, entry, kindRow, siblings = []) {
       )
       .sort((a, b) => a.y - b.y)[0];
     // A block also ends at a SECTION heading, which is a different thing from
-    // the next entry: "Code of Behavior" closes Longeval and belongs to the
-    // class, not to any power. It carries no colon, so the stop above cannot
+    // the next entry: the class's behavior-code section (RR p38, JJ p294) closes
+    // the last power and belongs to the class, not to any power. It carries no colon, so the stop above cannot
     // see it. Same calibration, different shape: a line-initial run in a
     // non-body face that occupies its WHOLE line is a heading. Testing the
     // RUN's own text rather than the line's is what keeps a bullet glyph — its
@@ -5673,7 +5675,7 @@ async function compileDefinition(doc, entry, kindRow, siblings = []) {
       acc += it.str;
       headEnd = it.x + (it.w ?? 30) - 1;
     }
-    // An ordinal inside a heading ("Hideout (9th level)") prints its suffix as
+    // An ordinal inside a heading ("<Stronghold name> (9th level)", RR p46) prints its suffix as
     // a SUPERSCRIPT on its own baseline a few points higher. It belongs to the
     // heading, so it joins the heading's drop set — otherwise it survives as a
     // stray "th" at the head of the description.
@@ -5686,7 +5688,7 @@ async function compileDefinition(doc, entry, kindRow, siblings = []) {
     // Box membership tests a run's ORIGIN x, and the prose run starts flush
     // after the heading — so stop just short of it.
     // The band reaches above the baseline to catch tall glyphs. Where the
-    // heading carries a SUPERSCRIPT ("Hideout (9th level)"), that ordinal sits
+    // heading carries a SUPERSCRIPT ("<Stronghold name> (9th level)", RR p46), that ordinal sits
     // on its own baseline inside the band and lands in the extracted text,
     // which then cannot match the printed name. `assists.expectTop` tightens
     // the band to exclude it.
@@ -6004,8 +6006,8 @@ function parseCount(tok) {
  * for a per-entry read (docs/importer/RECIPES.md, "Never generalize a fix across
  * entries"). It looked harmless because it was only setting booleans, and it
  * was true on all twelve entries it hit — but six of those twelve state a
- * per-rank PROGRESSION in the very sentence it matched ("each time improving
- * the proficiency throw", "learning an additional three languages each"), and
+ * per-rank PROGRESSION in the very sentence it matched (an improvement to a
+ * throw on each selection, an additional language count per selection, RR p113), and
  * flattening them to `repeatable: true` made that missing mechanic invisible.
  * A conclusion the chef never drew must not look like one they did.
  *
@@ -6037,8 +6039,8 @@ const META_HINTS = {
 const META_PRESENT = {
   deprecated: /removed|no\s*longer|retired/i,
   // Every gap is \s* for the same reason the precise hints above are: the
-  // compile-time run join drops inter-run spaces, so "selected multiple times"
-  // can arrive as "selectedmultipletimes". A literal-space version of this net
+  // compile-time run join drops inter-run spaces, so a repeat-selection phrase
+  // (RR p108, JJ p311) can arrive with its words welded. A literal-space version of this net
   // reported five entries as unsupported that I had read and verified myself.
   repeatable: /multiple\s*times|more\s*than\s*once|additional\s*times?|each\s*selection|again/i,
 };
@@ -6049,7 +6051,7 @@ function metaCandidates(id, entry, bodyText) {
     const hinted = re.test(bodyText);
     const authored = !!entry.meta?.[flag];
     // A hint is a READING PROMPT, not a finding: the pattern cannot tell
-    // "can be selected multiple times" from "cannot", and does not see what
+    // a repeat-selection phrase from its negation (RR p108, JJ p311), and does not see what
     // the rest of the sentence goes on to say.
     if (hinted && !authored) warn(`${id}: text may state "${flag}" — read the entry and author meta.${flag} if so`);
     if (authored && !META_PRESENT[flag].test(bodyText)) {
@@ -6112,7 +6114,8 @@ function seeReference(bodyText) {
 
 /**
  * Resolve a see-reference to a known definition id. Handles the three ways the
- * naive slug misses: trailing locators ("see alertness ABOVE"), cross-registry
+ * naive slug misses: trailing locators (a see-reference followed by an ABOVE
+ * direction word, JJ p321), cross-registry
  * references (a power pointing at a proficiency), and headings the PDF prints
  * without a space ("DiscernEvil"), which slug differently but compare equal
  * case-folded. Returns null when unresolvable — better no alias than a wrong one.

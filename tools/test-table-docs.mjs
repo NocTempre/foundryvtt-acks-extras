@@ -457,10 +457,10 @@ await test("removal lists the shelves' documents and the sidebar's both", async 
 });
 
 await test("an ampersand in the book's own wording does not rebuild forever", async () => {
-  // Live-found: the two occupation tables whose entries read "grain &
-  // vegetables" and "armor & weapons" were deleted and recreated on EVERY
-  // pass, because the stored text comes back HTML-normalized and the
-  // comparison was against the raw spec.
+  // A table whose entries carry an ampersand (the occupation tables, RR p374,
+  // JJ p202, MM p223) must not be deleted and recreated on EVERY pass: the
+  // stored text comes back HTML-normalized, so the comparison has to be
+  // against the normalized spec, not the raw one.
   world({
     registry: {
       people: {
@@ -487,7 +487,7 @@ await test("an ampersand in the book's own wording does not rebuild forever", as
 
 await test("a dropped table reads back the words, not the entities", async () => {
   // The same normalization on the way OUT: an override rebuilt from a table
-  // the Judge edited must put "grain & vegetables" into the rules data, or
+  // the Judge edited must put the ampersand character into the rules data, or
   // every later reader gets the entity instead of the character.
   world({
     registry: {

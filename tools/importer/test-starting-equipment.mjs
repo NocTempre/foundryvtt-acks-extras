@@ -70,13 +70,13 @@ check("an uncounted container stays one item", names("pouch with herbs").length 
 
 /* --- A pair of known items splits, whatever they are called ---------------- */
 //
-// The whole-descriptor guard exists so "tunic and pants" — one printed outfit
-// at one printed price — is not torn in half. It used to ask `resolve`, whose
-// containment fallback answered yes for the wrong reason: "spear and short
-// sword" CONTAINS "short sword", so the joined string read as an already-known
-// item and the pair never split. The character got one item named for two
-// weapons, and the rule only ever fired when both halves happened to fold
-// shorter than six characters.
+// The whole-descriptor guard exists so a printed outfit of two garments (RR p25,
+// JJ p449) — one printed outfit at one printed price — is not torn in half. It
+// must not ask `resolve`, whose containment fallback answers yes for the wrong
+// reason: a pair whose second name CONTAINS a known item's name reads as an
+// already-known item and the pair never splits. The character would get one
+// item named for two weapons, and the rule would only fire when both halves
+// happened to fold shorter than six characters.
 check("a pair of known weapons splits", names("spear and sword", menu("Spear", "Sword")).length === 2);
 check("a long-named half no longer swallows the pair",
   names("spear and short sword", menu("Spear", "Short Sword")).length === 2);
@@ -99,9 +99,9 @@ check("splitting is not attempted on a phrase with no 'and'", names("short sword
 
 // A DESCRIBED half is still a known half. Both of these read as pairs of bare
 // catalogue names until the cell dresses one of them, and a printed cell always
-// does: "polished sword and dagger" came out as ONE weapon carrying the
-// dagger's damage, because the containment floor could not see a base name of
-// five letters and so declared the left half unknown.
+// does (RR p39): a described pair of weapons must not come out as ONE weapon
+// carrying the second's damage, which happens when the containment floor cannot
+// see a base name of five letters and so declares the left half unknown.
 check("an embellished half still splits the pair",
   names("polished sword and dagger", menu("Sword", "Dagger")).length === 2);
 check("both descriptions survive the split",
@@ -167,9 +167,9 @@ check("the head of a qualified name is not a form of it",
 
 /* --- A set the catalogue sells whole is not torn in half ------------------- */
 //
-// "Quiver, 20 Arrows" is one priced row; the cell writes it "quiver with 20
-// arrows". Split, the character got two things the price list has never heard
-// of, and the encumbrance was counted twice.
+// A quiver sold with its arrows is one priced row (RR p126); the cell words the
+// same set with a connective. Split, the character would get two things the
+// price list has never heard of, and the encumbrance would be counted twice.
 const set = parseEquipment("quiver with 20 arrows", menu("Quiver, 20 Arrows"));
 check("a catalogue set stays one item", set.items.length === 1);
 check("and it points at the row that sells it", set.items[0].ref === "def.equip.quiver20arrows");
@@ -244,10 +244,10 @@ check("coin outside brackets is still read", parseEquipment("a dagger, 12gp", me
 
 /* --- A creature named in an equipment cell is not equipment ---------------- */
 //
-// "Rat totem animal" is the template answering a question the ABILITY leaves
-// open: the companion slot is empty on purpose, because which creature it is
-// was never a property of the ability. Read as gear it became an item with no
-// base, no mechanics and no creature behind it.
+// A totem-animal cell (RR p70) is the template answering a question the
+// ABILITY leaves open: the companion slot is empty on purpose, because which
+// creature it is is not a property of the ability. Read as gear it would be an
+// item with no base, no mechanics and no creature behind it.
 const COMPANIONS = { "totem animal": { ref: "def.power.totemanimal" }, familiar: { ref: "def.prof.familiar" } };
 const kit = [{ name: "Rat totem animal", ref: "" }, { name: "club", ref: "def.equip.club" }];
 const profs = [];

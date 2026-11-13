@@ -86,7 +86,7 @@ function looksLikeRegex(v) {
  *
  * The key is the only part of a column that survives into a class document's
  * ladder — the header is a locator and is dropped. So a header that narrows
- * what a value APPLIES TO ("Melee Damage Bonus") and a key that does not
+ * what a value APPLIES TO (a melee-only damage-bonus column, RR p60) and a key that does not
  * ("damageBonus") hand the consumer a broader rule than the page states, and
  * nothing downstream can tell the difference: the paladin's melee-only bonus
  * arrives shaped exactly like the fighter's melee-and-missile one.

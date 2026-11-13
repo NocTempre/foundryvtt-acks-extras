@@ -107,7 +107,7 @@ t("`per` overrides the rate for the base-then-increment shape", () => {
 });
 
 t("a proportion written as a WORD is located, not shipped", () => {
-  // "one-half his class level (round up)" carries no digit. The alternatives
+  // A half-class-level proportion rounded up (RR p60) carries no digit. The alternatives
   // are shipping 0.5 or dropping the mechanic; both are wrong.
   const [e] = materializeEffects(
     [

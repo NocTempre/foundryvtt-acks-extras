@@ -3163,8 +3163,8 @@ check("an ordinary decorated dagger is still a dagger", weaponKeyOf("Dagger, mas
 //
 // The name is the only source that can be wrong about an item everything else
 // describes correctly: a starting template renames the gear it grants to the
-// words its own page printed, so a hand axe arrives called "Francisca" and a
-// two-handed sword called "Two-handed iron sword".
+// words its own page printed (RR p50), so a hand axe arrives under a
+// culture's weapon name and a two-handed sword under a descriptive label.
 
 const { weaponIdentity, isUnidentifiedWeapon, classifyWeapon: classify, handCost: cost, inferredGrips: guessGrips } =
   await import(new URL("profiles.mjs", S));
