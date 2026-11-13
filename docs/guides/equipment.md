@@ -1,8 +1,10 @@
 # Equipment, containers and fighting styles
 
-The character sheet's inventory grows containers, wear locations and hand
-accounting. Core's own rows are moved into place rather than rebuilt, so every
-control you already knew keeps working.
+The character sheet's inventory carries containers, wear locations and hand
+accounting. On the system's own character sheet, core's rows are moved into
+place rather than rebuilt, so core's controls keep working; the module's
+character sheet shows the same on its Equipment tab
+([the character sheet](character-sheet.md#equipment)).
 
 ![](../releases/v3.3.0/equipment-light-controls.png)
 
@@ -17,14 +19,13 @@ One taxonomy drives the buckets and the loadout summary, so they cannot disagree
 
 Hands are counted. A two-handed weapon needs both; a lit torch occupies one, and
 you cannot light one with no hand free. The controls sit in their own box beside
-core's, because core's control column is a fixed 35–60px and anything added
-inside it overflows.
+core's own.
 
 A weapon held in both hands has no bucket of its own: it is listed under
 **Main hand · Off hand**, the two places it spans. A versatile weapon drawn
 alone takes the two-handed grip by itself only when the character is trained
 in the two-handed style; otherwise it stays in one hand until you set the grip
-yourself, so a default never walks you into the non-proficient package.
+yourself.
 
 A two-handed grip deals the die the weapon's type prints for that grip, with
 the weapon's own modifier carried over. The weapon's melee row, on the item
@@ -36,15 +37,13 @@ one its type does not print deals its own damage in either grip.
 
 ![](../releases/v11.3.0/equipment-two-handed.png)
 
-*A masterwork Sword's Rolls tab as of 11.3.0: the melee row at its own damage,
-and a separate two-handed row at the larger die with the masterwork modifier
-kept. The tab now lists one melee row that follows the grip.*
+*A masterwork Sword's Rolls tab: the melee row, with the die for the grip the
+weapon is held in and the masterwork modifier kept.*
 
-**A shield counts only in trained hands.** The Weapon & Shield style's benefit
-is the shield's own armour class (RR ch. 3): a character with the style gets
-exactly what the shield says, and Fighting Style Specialization in it adds its
-bonus on top. Without the style the shield is marked with an advisory and its
-AC is cancelled, so the figure on the sheet is the one the rules give.
+**A shield counts only in trained hands.** The sheet counts a shield's own
+armour class (RR ch. 3) for a character trained in the Weapon & Shield style,
+and Fighting Style Specialization in it adds its imported bonus on top. Without
+the style the shield is marked with an advisory and its AC is not counted.
 
 ## Lighting a lamp from your own sheet
 
@@ -64,56 +63,54 @@ stays lit until you put it out.
 
 Players use these on their own characters: the click is declared to the Judge's
 client, which checks the character is yours and carries it out, and the table
-sees what was declared. What a player may do is unchanged — you still need the
-lamp, its oil, and a hand free. A Judge clicking the same control is the Judge,
-so the gear and the hand are supplied rather than demanded.
+sees what was declared. A player needs the lamp, its oil, and a hand free. A
+Judge clicking the same control is the Judge, so the gear and the hand are
+supplied rather than demanded.
 
 ## Where gear is worn
 
-The system only lets a **weapon** or a suit of **armour** be equipped, so a
-cloak, a pair of gloves, a belt pouch or a backpack had nowhere to be worn. Gear
-now declares its own place, and every worn item that is not a weapon or armour
-gets a **wear / take off** control on its row.
+The system itself only equips a **weapon** or a suit of **armour**. This module
+lets gear declare its own place, so a cloak, a pair of gloves, a belt pouch or a
+backpack can be worn, and every item that is not a weapon or armour gets a
+**wear / take off** control on its row.
 
-Run **Annotate Equipment (RAW profiles)** from the module's macro compendium and
-it fills this in for everything a character (or the whole world) owns:
+Run **Annotate Equipment (RAW profiles)** from the *ACKS Extras Macros*
+compendium (Compendium Packs sidebar tab) and it fills this in for everything a
+character (or the whole world) owns:
 
 - garments land on the body part they name — cloaks on the shoulders, boots on
   the feet, gloves on the hands, belts and sashes at the belt;
-- carrying gear lands where it rides, with the RAW cost of reaching into it: an
-  adventurer's harness, belt pouch, bowcase, quiver or sheath is **free** to draw
-  from, while a backpack, rucksack or sack costs an **action in lieu of
-  movement** (RR pp. 293–294);
+- carrying gear lands where it rides, with whether drawing from it is **Free**
+  or costs an **Action in lieu of movement** (RR pp. 293–294);
 - rations, tools, rope, loot and coin declare nothing, because they are carried
   rather than worn — that is what keeps them plain goods.
 
 Gear nobody has annotated gets the control anyway, at the place its name puts it,
-and declares that place the first time you wear it.
+and declares that place the first time you wear it. The **Annotate gear** chip
+in the Equipment tab's Load header (module sheet), and the wand button in the
+Stowed section's header (system sheet), run the same pass for one character's
+carrying gear and coin.
 
 The belt and the back take any number of *different* things — a belt, a pouch,
-a scabbard, a quiver and a harness are five forms hung from one place, and a
-pack rides beside a bowcase. The only wear rule ACKS II has refuses a second of
-the same form, so those two places are not capped.
+a scabbard, a quiver and a harness hang from one place, and a pack rides beside
+a bowcase. Those two places, and the general Worn place, are not capped.
 
 A place counts two things, and clothing is neither. Magic items count by form
-— the Treasure Tome's one of a form, with its own allowance for rings — and
-armour and weapons count against what the body carries once: a second helm is
-over, a coif under the first is not, and a magic circlet over both is fine.
-The badge on a place shows the larger count; hover it for both.
+(Treasure Tome), and armour and weapons count against what the body carries;
+the badge on a place shows the larger count, and hovering it gives both.
 
 **An adventurer's harness secures gear by weight, not by count.** Worn, it
-relieves you of the weight its own description states — small things and
-light weapons, never a heavy piece, never coin, and nothing at all over heavy
-armour (RR ch. 6). The figure is the book's and travels with the item: Annotate
-reads it off the harness's text into **Secures** on its Construction tab, and
+relieves you of the weight its own description states (RR ch. 6). The figure
+is the book's and travels with the item: Annotate reads it off the harness's
+text into **Secures (stone)** on its Details tab, under **Construction**, and
 a harness that says nothing secures nothing until you type it there. The
-character sheet's Load bar shows what it is forgiving as a dashed phantom past
-the fill, so you can see the rule working.
+character sheet's Load bar shows what is relieved as a dashed phantom past the
+fill.
 
 **The slot is a guess, and you can correct it.** Open any item, press the
-pencil, and find *Worn at* under **Construction**: every place the character
-sheet's Worn rail knows, in its order, as a strip of toggles. Three readings
-matter:
+pencil, and find *Worn at* under **Construction** on its **Details** tab:
+every place the character sheet's Worn rail knows, in its order, as a strip of
+toggles. Three readings matter:
 
 | Reading | Means |
 |---|---|
@@ -138,49 +135,50 @@ with the masterwork row beneath.*
 **Construction** and the rail beside the art shows it. The item then weighs as
 clothing whichever sheet, import or macro made the declaration, and the Details
 tab's record has no kind of its own to disagree with it. Only an item offers
-clothing: core weighs every armour document as armour. An item that disagreed
-before this version keeps its weight until you set it; *Annotate* settles one
-the rail already calls clothing.
+clothing: core weighs every armour document as armour. *Annotate* settles an
+item the rail already calls clothing.
 
 ![](../releases/v8.1.0/equipment-record.png)
 
 *An item's Details tab: Construction says what it is and where it is worn, and
 the record below it holds only the quantities.*
 
-A slot's only rule is that you cannot wear two of the same thing, so a wrong
-guess costs nothing but that. Rings are the exception the Treasure Tome spells
-out: you benefit from **two**, and a third stops all of them working.
+A place holds a limited number of things, so a wrong guess costs nothing but
+that: hovering a place's badge gives its count. Rings have an allowance of
+their own (Treasure Tome).
 
 ## Silvered weapons
 
-RAW lets you commission a silver version of **any** common weapon for 10× its
-listed price, not just the Silver Dagger on the price list. Open the weapon, go
-to **Construction**, and set *Silver* to **Silvered** — the price goes up tenfold
-and nothing else about the weapon changes, which is exactly what the rules say
-happens.
+Any weapon can be silvered, not only the one the price list names (RR p. 159).
+Open the weapon, go to its **Details** tab, then **Construction**, and set
+*Silver* to **Silvered** — the price is scaled by the silvering figure your
+import read from your own book, and nothing else about the weapon changes. With
+the figure not imported, the field says *not imported* and applies nothing; a
+variation of your own can stand in
+([writing your own](#writing-your-own)).
 
 | Choice | Means |
 |---|---|
-| *Auto (…)* | read it off the weapon table and the name — a Silver Dagger or a "Silvered Sword" is already silver, and costs nothing extra because you bought it that way |
-| *Silvered* | plate this weapon now: 10× the listed price |
+| *Auto (…)* | read it off the weapon table and the name — a weapon already listed or named as silver is silver, and costs nothing extra |
+| *Silvered* | plate this weapon now, at the silvering's price figure |
 | *Not silvered* | it is not silver whatever it is called |
 
 ![](../releases/v3.3.0/equipment-item-sheet.png)
 
-*A silvered weapon's Construction tab: the Silver control, and what the plating
-buys.*
+*A silvered weapon's Details tab, under Construction: the Silver control, and
+what the plating buys.*
 
-What silver buys is not a bonus — it is what the blade **counts as**. A monster
-whose defence has the silver flaw treats it as magic, and the spells that turn
-aside mundane damage do not turn it aside. Mark the flaw on the monster's
-**Defenses** tab, beside *Mundane* and *Extraordinary*; the stat block will say
-"silver weapons deal extraordinary damage against it" when it applies.
+Silver is not a bonus on the weapon's numbers. It changes what the blade
+**counts as**: against a monster whose defence carries the *Silver flaw* mark
+(RR ch. 6), a silvered weapon is read as dealing extraordinary damage. Set the
+mark on the monster's **Defenses** tab, in its Immunities or Resistances,
+beside *Mundane* and *Extraordinary*; the stat block lists *Silver flaw* with
+that defence.
 
-Masterwork is a separate thing and does not help here: it edits the weapon's
-numbers, never its ability to harm something that shrugs off ordinary weapons
-(RR p. 159). The sheet says so under the tier picker. On a weapon with
-masterwork, a condition or silver, a damage, bonus or weight you type is the
-figure it keeps: changing those later works from what you typed.
+Masterwork is a separate layer: it edits the weapon's numbers and does not
+make it silver (RR p. 159). On a weapon with masterwork, a condition or silver,
+a damage, bonus or weight you type is the figure it keeps: changing those later
+works from what you typed.
 
 ![](../releases/v11.3.0/equipment-typed-layered.png)
 
@@ -189,8 +187,8 @@ figure typed is the one it keeps.*
 
 ![](../releases/v4.9.0/equipment-masterwork-tier.png)
 
-*A shipped sample's Construction tab naming the tier it is, with the net effect
-against its base price.*
+*A sample item's Details tab, under Construction, naming the masterwork tier it
+is, with the net effect against its base price.*
 
 ![](../releases/v3.3.0/equipment-silver-ammo.png)
 
@@ -198,13 +196,18 @@ against its base price.*
 
 **Silver arrows are never spent by accident.** With both plain and silver
 ammunition in your pack, shots come out of the plain stack until it is empty, and
-when a silver round does go the notification says so. There is no way yet to
-declare "fire the silver ones now" — to shoot silver deliberately, keep it as the
-only ammunition to hand, or spend it by hand on the stack.
+when a silver round does go the notification says so. Nothing on the sheet
+declares "fire the silver ones now" — to shoot silver deliberately, keep it as
+the only ammunition to hand, or spend it by hand on the stack.
 
 ## Containers
 
-**New container** on the equipment tab. Drop items onto its bucket to stow them.
+A container is any item that **Holds other items**: tick that under *Options*
+on its **Details** tab, or run the Annotate pass
+([where gear is worn](#where-gear-is-worn)), which marks the packs, sacks and
+quivers a character already carries. Containers you carry rather than wear
+list under **Stowed** on the Equipment tab; drop an item onto a container's
+bucket to stow it.
 
 - A container shows its own header, load, and controls next to the gear it
   holds — there is no separate window.
@@ -214,9 +217,10 @@ only ammunition to hand, or spend it by hand on the stack.
 - A container holding coin is a store a payment can draw on, and can be named
   as where you pay from or receive into
   ([where coin is paid from](character-sheet.md#where-coin-is-paid-from-and-where-it-lands)).
-- Locked and concealed containers are supported: picking a lock does not remove
-  it, so the two states are tracked separately. Coin behind a lock you cannot
-  open still weighs on you, and no payment reaches it.
+- A container's contents fold with the chevron on its header, and a container
+  can be locked. Picking a lock does not remove it, so locked and opened are
+  tracked separately. Coin behind a lock you cannot open still weighs on you,
+  and no payment reaches it.
 - **Emptying** a container leaves its contents loose on the actor rather than
   deleting them.
 
@@ -227,20 +231,22 @@ likewise.
 
 A **single** thrown weapon — a hand axe, a lone javelin — is not destroyed. It is
 marked *thrown away*, unequipped, and stops weighing on you until recovered. Use
-the **Recover** macro to clear the state.
+the **Recover Thrown Weapons** macro (*ACKS Extras Macros* compendium) to clear
+the state.
 
-There is no automatic recovery percentage, because the rules give none: recovery
-is the Judge's call and thrown weapons come back by being picked up.
+There is no automatic recovery: recovery is the Judge's call and thrown weapons
+come back by being picked up.
 
-**A quiver of arrows is arrows.** "Quiver, 20 Arrows" and "Case, 20 Bolts" are
-sold packed, so they are the ammunition rather than something to put ammunition
-in — the count on the row is what you have, and it goes down as you shoot. They
-still ride your belt and are still free to draw from.
+**A quiver of arrows is arrows.** A quiver or case sold packed with its
+arrows or bolts is the ammunition rather than something to put ammunition in —
+the count on the row is what you have, and it goes down as you shoot. It still
+rides your belt and is still free to draw from.
 
-If a quiver in your world shows a capacity it should not have — *0 / 1 st,
-empty*, next to a name that says twenty arrows — run **Annotate carrying gear**
-from the inventory header once. It clears the capacity and leaves the count
-alone, so a half-empty quiver is not refilled.
+If a packed quiver in your world shows a capacity bar reading empty, next to a
+name that says how many arrows it holds, run **Annotate carrying gear** (the
+wand button in the Stowed section's header, or **Annotate gear** in the module
+sheet's Load header) once. It clears the capacity and leaves the count alone,
+so a half-empty quiver is not refilled.
 
 The same pass, and the **Annotate Equipment (RAW profiles)** macro, also
 settle coin: where a coin's own description states how many make a stone and
@@ -250,11 +256,11 @@ the rest.
 
 ## Proficiency
 
-With enforcement on (the default), a character wielding a weapon with no
-Class-Training fighting-style item reads as non-proficient and takes the RR p. 15
-package — attacks as a 0th-level fighter, no attribute bonus to attack or AC.
-The package is a row on the system's own attack card, beside the system's
-attribute row, so the throw's formula and every term in it read on one card.
+With **Always enforce** (the default), a character wielding a weapon with no
+Class-Training fighting-style item reads as non-proficient and takes the
+non-proficient penalties (RR p. 15). They appear as a row on the system's own
+attack card, beside the system's attribute row, so the throw's formula and
+every term in it read on one card.
 
 ![](../releases/v11.7.0/equipment-attack-card.png)
 
@@ -270,15 +276,16 @@ Configure a character's class training (character sheet → Stats tab → Traini
 block), or give it imported proficiency abilities, and the gate is correct. The
 **Proficiency penalties** setting, in **Settings tab → Game Settings → ACKS II —
 Extras**, offers **Never enforce** if you would rather not. **Automatic** does
-the same, because the ACKS Abilities feature is always loaded.
+the same, because the module's abilities feature is always loaded.
 
 ### What a character is trained in, at a glance
 
 The system character sheet's Inventory tab opens with a **Training** row: the
 fighting styles, the weapon classes and the armour ladder, with every slot
-always showing. A slot the
-character is trained in lights up, and one they are specialized or focused in
-goes gold. A character with no class applied reads grey throughout — which says
+always showing. A slot the character is trained in lights up, and one they are
+specialized or focused in goes gold. (On the module's character sheet the same
+reading is the Stats tab's Training block;
+[character sheet](character-sheet.md#stats).) A character with no class applied reads grey throughout — which says
 "nothing configured" rather than "not proficient", and those are different
 answers.
 
@@ -294,8 +301,8 @@ across the bottom of a follower card.
 A **variation** is one way an item differs from its plain self: masterwork, a
 silvering, a notch taken out of the edge, a stranger's crest, a name. Each is a
 document, and you put it on an item the way you put a rope in a backpack — drag
-it onto the item, and it is listed on the item's **Construction** tab under
-*Applied variations* until you take it off.
+it onto the item, and it is listed on the item's **Details** tab under
+*Variations* until you take it off.
 
 ![Applied variations](../releases/v4.11.0/equipment-variations.png)
 
@@ -314,8 +321,9 @@ a tongue nobody present reads is seen and not understood.
 ### Writing your own
 
 You do not need to have imported anything. Make a **Variation** item from the
-Items sidebar and fill it in: what it is, what it changes, what it costs, and who
-may know about it.
+Items sidebar tab (create an item and choose the Variation type) and fill it
+in: what it is, what it changes, what it costs, and who may know about it. The
+**Add** button under *Variations* on an item's Details tab makes one by hand.
 
 ![A variation itself](../releases/v4.11.0/equipment-variation-sheet.png)
 
@@ -327,19 +335,29 @@ your variations exclude each other. Everything after the dot is yours to name.
 The three cost fields are applied in the order the rules use them: the item's
 listed price is scaled, the flat surcharge is added, then the whole is scaled.
 
-> **The old fields still work.** Masterwork, Silver and the shield variant are
-> still their own controls further up the same tab, with their own numbers.
-> Whichever of the two you use owns that kind of difference — put a masterwork
-> variation on an item whose Masterwork field is set and it is refused by name,
-> so the same change can never be counted twice. Those fields retire once the
-> importer can publish them as variations from your own books.
+> **Masterwork, Silver and the shield variant are controls of their own** under
+> Construction on the same tab, with their own figures. Whichever of the two you
+> use owns that kind of difference — put a masterwork variation on an item whose
+> Masterwork field is set and it is refused by name, so the same change can
+> never be counted twice.
 
 ## Named items and overlays
 
-Optional overlays add: named-item rung tracking (advancing on levels gained
-while wielding, not on the wielder's absolute level), masterwork and scavenged
-condition, enclosing helms, JJ shield variants and combat maneuvers. Each is a
-separate setting.
+Optional overlays each have a setting of their own, under **Settings tab →
+Game Settings → ACKS II — Extras** (world settings, Judge only):
+
+| Setting | What it turns on |
+|---|---|
+| **Overlay: shield variants (JJ)** | the JJ shield variants, with strap positions |
+| **Overlay: combat maneuvers** (on by default) | the special-maneuver helpers |
+| **Overlay: item loss from damage (JJ)** | the item-loss macro's rule |
+| **Overlay: mounted saves** | the saves a rider owes to stay mounted (RR p. 308) |
+| **Overlay: named magic items (JJ)** | named-item rung tracking: a named arm or armour advances on levels gained while wielding it, not on the wielder's absolute level |
+| **Overlay: scavenged equipment (RR)** | the scavenged condition tables |
+| **Overlay: enclosing helmet** | an enclosing helmet's modifiers on its wearer (RR p. 140) |
+
+Masterwork is not an overlay: it is the *Masterwork* control on the item's
+Details tab.
 
 An item made from another wears a badge naming what it was made from, so an
 embellished blade is never mistaken for the plain one it copies.
@@ -448,9 +466,9 @@ worth, how many there are and how many make a stone.*
 
 ## Macros
 
-The *ACKS Extras* macro compendium carries seven equipment macros. Each acts
-on the selected token's actor, or on your own character when nothing is
-selected.
+The *ACKS Extras Macros* compendium (Compendium Packs sidebar tab) carries
+seven equipment macros. Each acts on the selected token's actor, or on your own
+character when nothing is selected.
 
 - **Loadout Inspector** shows the actor's loadout as the module reads it:
   hands in use, the fighting style in force, armour and shield, and any
@@ -478,14 +496,13 @@ selected.
 
 ## Common problems
 
-**The container section vanished.** It should not — sections always render, even
-empty. If a bucket is missing entirely, report it.
-
-**A shield gives no bonus.** JJ shield variants: a shield strapped on the back
-protects only the rear, which is situational rather than ordinary AC.
+**A shield gives no bonus.** A shield strapped on the back (a JJ shield
+variant) is counted as situational rather than ordinary AC. A shield also counts
+only for a character trained in the Weapon & Shield style
+([above](#wear-and-hands)).
 
 **"You have no free hand."** Something is already held. Sheathe or stow it — the
-loadout summary shows what is occupying what.
+**Loadout Inspector** macro shows what is occupying what.
 
-**A torch is an item, not a weapon.** Correct: a torch is carried as a stack and
-becomes a 1d4 weapon only when one is readied for use.
+**A torch is an item, not a weapon.** A torch is carried as a stack and becomes
+a weapon only when one is readied for use.

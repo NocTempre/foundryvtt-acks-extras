@@ -1,10 +1,12 @@
 # The character sheet
 
-Every character opens on the module's own sheet: the band across the window
+A character opens on the module's own sheet: the band across the window
 header, the portrait between two rails, and tabs organised by what you do at
-the table rather than by document type. The system's sheet is still there —
-Sheet Config, on any actor, switches back — and nothing is migrated: the two
-read and write the same fields.
+the table rather than by document type. Which sheet a world opens on is the
+Judge's choice ([Appearance](appearance.md#choose-what-the-world-opens-on));
+this sheet is the default. The system's sheet is a choice away — **Configure
+Sheet** in the window menu (the ⋮ in the title bar) of any actor switches
+it — and the two read and write the same fields.
 
 ![](../releases/v11.0.0/character-sheet.png)
 
@@ -97,11 +99,10 @@ a sheet they cannot edit.
 ![](../releases/v7.0.0/character-sheet-load.png)
 
 The Load header's underline is the encumbrance bar with the breakpoints as
-ticks. The fill is the burden you move under. Where the carrying rules forgive
-some of what you carry — an adventurer's harness, a slung shield, the clothes
-on your back — a dashed, unfilled phantom runs on from the fill to your true
-weight, the header reads both figures, and hovering the bar says how much is
-forgiven. Every wear slot lists on the left, head to foot then off-body, and is
+ticks. The fill is the burden you move under. Where worn gear relieves part of
+what you carry — an adventurer's harness, a slung shield, worn clothing — a
+dashed, unfilled phantom runs on from the fill to your true weight, the header
+reads both figures, and hovering the bar says how much is relieved. Every wear slot lists on the left, head to foot then off-body, and is
 a drop target; a weapon held in both hands spans Main hand and Off hand as one
 row rather than taking a place of its own; a worn container shows its capacity
 bar and its contents. The count on a place is magic items against the form's
@@ -215,8 +216,8 @@ the stored figure, what effects add, and the helmet's part from the imported
 table with its page.*
 
 **Morale** is one of those targets on a hireling and on a character no player
-owns — an NPC the Judge built as a character — and Rolls lists its roll. A
-player's own character has none (RR ch. 6, Morale).
+owns — an NPC the Judge built as a character — and Rolls lists its roll. The
+sheet of a player's own character shows no Morale (RR ch. 6, Morale).
 
 ![](../releases/v11.8.0/character-sheet-morale.png)
 
@@ -281,16 +282,21 @@ refused.
 
 **Opening it.** On a character you own, the window menu (the ⋮ in its title
 bar) has **Official sheet (PDF)**. To make a new character from a sheet, the
-Actors directory has **Import sheet** for anyone allowed to create
-characters. The *Official Character Sheet (PDF)* macro in the module's macro
-compendium opens it on your selected token's character, or your own.
+Actors sidebar tab has **Import sheet** for anyone allowed to create
+characters. The *Official Character Sheet (PDF)* macro in the *ACKS Extras
+Macros* compendium (Compendium Packs sidebar tab) opens it on your selected
+token's character, or your own.
 
 **Importing.** Pick the filled sheet. Before anything is written, the window
 says what it found: the class and level, and how many of the proficiencies,
 languages and spells this world holds. Press **Import**. If the sheet lists
 henchmen your roster lacks and you may create characters, tick **Create the
 henchmen the roster does not hold** first; otherwise they are written into the
-notes.
+notes. On a Judge's seat, when the sheet carries a domain page and this world
+has the domain actor type (the `acks-domains` module), **Write the domain page
+into the character's domain** is ticked by default: the page is written into
+the domain the character rules, making one if none answers. Untick it, or
+import from a player's seat, and the page stays in the character's notes.
 
 ![](../releases/v11.3.0/character-sheet-pdf-import.png)
 
@@ -309,7 +315,8 @@ things:
   character's notes, and an export writes them back onto the sheet.
 
 Everything the character has no field for goes into one block in its notes:
-the domain page as tables, the tick boxes, gems, the magic facilities. Import
+the tick boxes, gems, the magic facilities, and the domain page as tables
+where it is not written into a domain. Import
 the same sheet again after editing it and the character takes what is new.
 Nothing is added twice, and the notes block is replaced, unless you have edited
 it, in which case the new one is added beside it.
@@ -321,11 +328,12 @@ back. A weapon at the belt or on the back is carried, not drawn. Hidden items
 are carried and named in the notes.
 
 **Exporting.** Export writes into the official sheet from **Your Books**, the
-same window your rulebooks are connected in. The sheet has its own row there.
-As the Judge, put the fillable blank on the server once with **Add to
-server**, and every seat opens it on joining, players included: its journal
-in the *Your Books* folder is shared with them. To keep players from it,
-remove their access on that journal; a player can still connect a copy of
+same window your rulebooks are connected in (the *Your ACKS Books (this seat)*
+macro opens it; [connecting a book](importer.md#connect)). The sheet has its
+own row there. As the Judge, put the fillable blank on the server once with
+**Add to server**, and every seat opens it on joining, players included: its
+journal in the *Your Books* folder is shared with them. To keep players from
+it, remove their access on that journal; a player can still connect a copy of
 their own on the sheet's row. The export section's **Your Books** button
 opens that window.
 
@@ -422,5 +430,11 @@ by name, and keeps the statuses you made.
 
 ## Macros
 
+The *ACKS Extras Macros* compendium (Compendium Packs sidebar tab) carries:
+
 - **Adjust Hit Points (GM)** opens the hit-point window on the canvas's
-  selected tokens, to change their hit points together.
+  selected tokens, to change their hit points together. The same window is
+  the **Adjust hit points** button in the Token controls (scene controls, GM
+  only) and opens from a party's sheet.
+- **Official Character Sheet (PDF)** opens the official-sheet window
+  ([above](#the-official-sheet-pdf)).
