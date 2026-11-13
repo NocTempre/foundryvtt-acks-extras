@@ -28,7 +28,9 @@
  * URL. A scratch clone's origin is a path on this machine, and a
  * repository without the tool has nothing to route a commit through, so both
  * pass. `git add` passes under a `GIT_INDEX_FILE` of its own, which is not
- * the shared index.
+ * the shared index. A linked work tree has one writer, who commits by hand, so
+ * every command judged there passes, by the directory the command targets and
+ * never by the session's own.
  *
  * The hook reads every Bash and PowerShell command and finds `git` itself,
  * under whatever path or `.exe` it is spelled. The commit tool's own git calls
@@ -115,6 +117,8 @@ function directory(word, from) {
 /**
  * Whether a hand-run commit in `dir` goes around the commit tool: `dir` lies
  * in a repository that carries the tool and whose `origin` is a remote URL.
+ * A linked work tree (a `.git` file whose git directory holds a `commondir`)
+ * is never guarded.
  */
 function guarded(dir) {
   for (let at = dir; ; at = path.dirname(at)) {
@@ -127,8 +131,7 @@ function guarded(dir) {
         const named = /^gitdir:\s*(.+)$/m.exec(fs.readFileSync(dot, "utf8"));
         if (!named) return false;
         gitDir = path.resolve(at, named[1].trim());
-        const common = path.join(gitDir, "commondir");
-        if (fs.existsSync(common)) gitDir = path.resolve(gitDir, fs.readFileSync(common, "utf8").trim());
+        if (fs.existsSync(path.join(gitDir, "commondir"))) return false;
       }
       const config = fs.readFileSync(path.join(gitDir, "config"), "utf8");
       const origin = /\[remote "origin"\][^[]*?^\s*url\s*=\s*(\S+)/m.exec(config);

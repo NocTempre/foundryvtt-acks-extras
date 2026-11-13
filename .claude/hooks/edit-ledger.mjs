@@ -30,6 +30,10 @@
  * records, and a file under some other repository, or one kept out of this
  * one, may be there because its content is to stay where it is.
  *
+ * A linked work tree (a `.git` file whose git directory holds a `commondir`) is
+ * never recorded: it has one writer, who commits by hand, and the file's own
+ * location decides this, never the session's directory.
+ *
  * A session appends only to its own file, so no two writers share one. The
  * hook never blocks and never prints: every failure exits 0 with nothing
  * recorded, which the reader sees as a change nobody claims.
@@ -60,8 +64,9 @@ async function readStdin() {
 /**
  * The git directory that owns `file`, its work tree's root and the file's
  * path from there, or null outside a repository and inside a git directory.
- * A `.git` that is a file names the directory, whose `commondir` names the
- * one every work tree of the repository shares.
+ * A `.git` that is a file names the directory; where that directory holds a
+ * `commondir` the file is in a linked work tree, which has one writer and no
+ * ledger, so the answer is null.
  */
 function locate(file) {
   for (let dir = path.dirname(file); ; dir = path.dirname(dir)) {
@@ -73,8 +78,7 @@ function locate(file) {
         const named = /^gitdir:\s*(.+)$/m.exec(fs.readFileSync(dot, "utf8"));
         if (!named) return null;
         gitDir = path.resolve(dir, named[1].trim());
-        const common = path.join(gitDir, "commondir");
-        if (fs.existsSync(common)) gitDir = path.resolve(gitDir, fs.readFileSync(common, "utf8").trim());
+        if (fs.existsSync(path.join(gitDir, "commondir"))) return null;
       }
       const rel = path.relative(dir, file).split(path.sep).join("/");
       return rel === ".git" || rel.startsWith(".git/") ? null : { gitDir, root: dir, rel };

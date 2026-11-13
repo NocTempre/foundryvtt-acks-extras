@@ -17,6 +17,8 @@
       "Bash(git diff *)",
       "Bash(git log *)",
       "Bash(git show *)",
+      "Bash(git worktree list)",
+      "Bash(git worktree list *)",
       "Bash(git add *)",
       "Bash(git restore *)",
       "Bash(git commit *)",
@@ -50,7 +52,7 @@
             "type": "command",
             "shell": "bash",
             "if": "Bash(git *)",
-            "command": "node \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/single-branch-guard.mjs\" pretool",
+            "command": "node \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/branch-guard.mjs\" pretool",
             "statusMessage": "Checking branch convention"
           },
           {
@@ -98,7 +100,7 @@
           {
             "type": "command",
             "shell": "bash",
-            "command": "node \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/single-branch-guard.mjs\" worktree-create"
+            "command": "node \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/branch-guard.mjs\" worktree-create"
           }
         ]
       }
@@ -109,7 +111,7 @@
           {
             "type": "command",
             "shell": "bash",
-            "command": "node \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/single-branch-guard.mjs\" session-start"
+            "command": "node \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/branch-guard.mjs\" session-start"
           }
         ]
       }

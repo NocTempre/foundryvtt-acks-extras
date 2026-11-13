@@ -11,12 +11,26 @@ it; a pointer is not duplication.
 
 - `docs/<feature>/MODEL.md` — how it works now. Present tense.
 - `docs/<feature>/DECISIONS.md` — dated: what was ruled, what was rejected,
-  what it cost. Append-only; a superseded entry stays, marked. **Superseding
+  what it cost. Each entry opens `## YYYY-MM-DD — <title>`. Append-only; a
+  superseded entry stays, its heading marked `— SUPERSEDED <date>` (or `IN
+  PART`). **Superseding
   an entry less than 7 days old requires the new entry to name the new
   evidence** — what was learned that the original ruling did not know.
   Reversals stay possible; silent ones do not: a decision flipped twice in a
-  week with no stated cause is the signature of deciding by mood.
-- `docs/<feature>/ROADMAP.md` — what is not built.
+  week with no stated cause is the signature of deciding by mood. **A major
+  release rolls the logs** (`tools/logs.mjs roll`; the preflight refuses a
+  major that has not): `CHANGELOG.md` and each DECISIONS file, as the last
+  release shipped them, become `<name>-through-v<version>.md` beside the live
+  file, byte for byte, never edited again. The live DECISIONS opens with
+  `## In force`, a row (date, title, link) per archived ruling that still
+  governs; an archived ruling governs only while its row stands, and the entry
+  that supersedes one removes or qualifies the row in the same change.
+- `docs/<feature>/ROADMAP.md` — what is not built. A major re-issues it: built
+  rows go, the rest carry, under `Re-issued <date>.`
+- `changelog.d/<YYYY-MM-DD>-<row-id or slug>.<upgrading|added|changed|removed|fixed>.md`
+  — one changelog bullet, written with its change; the release compiles and
+  deletes them (`tools/logs.mjs compile`), and nothing is written into
+  `CHANGELOG.md` by hand before then.
 - `docs/<feature>/TESTING.md` — the surface's live-test recipe: **fixtures to
   find or build, each with its marker → steps to walk → the observable that
   proves each → teardown, where setup is the subject.** It
@@ -28,7 +42,7 @@ it; a pointer is not duplication.
   surface at the next tag. A repo with a flat `scripts/` keeps one
   `docs/TESTING.md`.
 - `docs/guides/<feature>.md` — user-facing how-to, where release screenshots
-  land. `docs/GALLERY.md` indexes them. **A guide step or a `CHANGELOG.md`
+  land. `docs/GALLERY.md` indexes them. **A guide step or a changelog
   bullet that names a control says where it is**, as a path from what Foundry
   itself shows: a sidebar tab, a scene control, a sheet, or
   `Settings tab → Game Settings → <module title> → <menu name>` (core 14's

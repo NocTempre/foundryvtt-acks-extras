@@ -1,6 +1,6 @@
 ---
 name: acks-commit
-description: Commit this session's own change from a working tree other sessions are writing in — its hunks and no peer's, gated as the exact tree that is committed, with a base that moved under the gate refused or carried by rule. Use when the user says "commit", "commit when ready", "commit only your hunks" or "leave it unpushed" in an acks-* repo, and from acks-release step 6. Not the release procedure itself (acks-release) and not a canon sync (acks-sync-toolchain).
+description: Commit this session's own change from a working tree other sessions are writing in — its hunks and no peer's, gated as the exact tree that is committed, with a base that moved under the gate refused or carried by rule. Use when the user says "commit", "commit when ready", "commit only your hunks" or "leave it unpushed" in an acks-* repo, and from acks-release steps 4 and 6. Not the release procedure itself (acks-release) and not a canon sync (acks-sync-toolchain).
 ---
 
 The rule is `.claude/rules/shared-tree.md`; `commit-own-hunks.mjs`, beside this
@@ -8,6 +8,10 @@ file, carries it out, and its header is the reference for every mode and every
 `change.json` key. The user's "commit", or any finished piece of the work (a
 fix, a slice, a step) once gated, is the go-ahead to commit. A push waits for the owner's own go-ahead (TOOLCHAIN
 §2), so `land` carries `--no-push` until one is given.
+
+This skill is for `main`'s tree. In a topic branch's worktree there is one
+writer and no ledger: commit there by hand, and land the branch on `main` with
+`acks-branch` (`shared-tree.md`, "Topic and parked branches").
 
 ## 1. Describe the change
 

@@ -22,7 +22,8 @@ LOCAL-ONLY and machine-specific by design: every developer writes their own,
 and **no port, world id, user name, or password ever goes into a repo, a
 skill, or a memory.** Read it before live-testing; if it is absent, this
 machine has no test server — skip live verification and say so in the report
-rather than inventing one.
+rather than inventing one. A release is the exception: no machine without a
+test server tags one (TOOLCHAIN §4a).
 
 ## Procedure
 
@@ -141,7 +142,9 @@ rather than inventing one.
    and why — a gap you could have closed by creating fixtures is not a gap;
    close it. Quote the ledger, with each fixture's marker, as the record of
    what the run built and kept, and a setup check's sweep result — removed,
-   could not find, refused — as the record of what it deleted.
+   could not find, refused — as the record of what it deleted. A release's
+   walks are recorded in the runner's result file and judged by the
+   preflight's `live-walks` check (TOOLCHAIN §4a).
 
    **A claim is as wide as the check behind it.** Sort the report three ways:
    exercised live, checked offline only, not checked. A count is quoted from

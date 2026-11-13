@@ -7,10 +7,10 @@ The release that is mostly fixes but cannot be a patch. `acks-hotfix` ends by
 kicking exactly this work out — anything needing a data migration, a new
 setting, or a new user-facing surface — and this skill is where it lands.
 
-The release **mechanics are not here**: version bump, live gate, tagging, CI
-polling and manifest verification are `acks-release` (kind = **minor**) and
-TOOLCHAIN §4. This skill covers scoping, the three obligations that force the
-bump, and the snapshot cost that makes a minor different from a hotfix.
+The release **mechanics are not here**: they are `acks-release` (kind =
+**minor**), and what the kind requires is TOOLCHAIN §4. This skill covers
+scoping, the three obligations that force the bump, and which entries earn a
+shot.
 
 Sibling skills, by scope: `acks-hotfix` → patch, this → minor, `acks-release` →
 all three.
@@ -27,10 +27,9 @@ arguing, it costs a round trip every time, and it is wrong — the tripwires bel
 are how to CLASSIFY a release nobody has classified yet, not a veto over someone
 who has.
 
-The same goes for the obligations. A minor's snapshots and the go-live gate are
-this repo's standing rules and worth naming when they have not been met — once,
-factually, in the report. They are not grounds for refusing to cut what was
-asked for.
+The same goes for the obligations. What a minor requires is TOOLCHAIN §4's
+table; name an unmet one once, factually, in the report. It is not grounds for
+refusing to cut what was asked for.
 
 When the user has NOT named a kind, a hotfix restores intended behaviour and
 nothing else, and exactly three things push a release over that line — name
@@ -111,7 +110,7 @@ Foundry-free `*-migrate.mjs` that unit-tests under plain Node. Working example:
   module's own header: doing the market move as a side effect of the storage
   work "would put a migration between a player and their belongings." A
   migration is its own release-worthy decision, announced as one.
-- **Verify against a world that actually holds the old data** (TOOLCHAIN §4a
+- **Verify against a world that actually holds the old data** (`live-testing.md`
   step 4). Recover the pre-upgrade shape from git — `git show <tag>:<path>` —
   and re-create it as world documents in the live session. Reasoning from
   "Foundry does not delete world documents" is a citation, not a verification.
@@ -130,45 +129,31 @@ Foundry-free `*-migrate.mjs` that unit-tests under plain Node. Working example:
 
 ### c. A new user-facing surface
 
-A surface is by definition visible, so it carries the snapshot obligation below
-and earns a line in its feature's `docs/guides/<slug>.md`. If it is consumed by
+A surface is by definition visible, so it earns a shot (section 4) and a line in
+its feature's `docs/guides/<slug>.md`. If it is consumed by
 a sibling repo, TOOLCHAIN §10e applies: the dependency half lands **first**, and
 the symbol must exist in the other module's released tag, not merely its HEAD.
 
-## 4. The snapshot obligation is the real cost
+## 4. Which entries earn a shot
 
-This is where a minor stops resembling a hotfix. A hotfix shoots nothing; a
-minor shoots **one image per changelog entry with a user-visible surface**,
-captured inside the same live session that satisfies the go-live gate (§4b).
-
-Canon words that as "Added/Changed" because it assumes a feature-driven minor.
-**In a fix-driven minor the same test applies to a `### Fixed` entry** — the
-question is whether a user can see the difference, not which heading it sits
-under. `acks-extras` v2.1.0 shot its refusal messages for exactly this reason.
-An entry with no visible surface (an API change, an internal refactor) gets no
-shot; it says so with a marker rather than staging a frame for it.
-
-The markers are TOOLCHAIN §4b's, and the release preflight reads them: an
-Added or Changed bullet must carry `<!-- shot: <feature-slug> -->` or
-`<!-- no-shot: <reason> -->`. A Fixed bullet owes none to the gate, so a
-fix-driven minor's visible fix carries its `shot:` marker by this section's
-test, and the preflight then holds that shot to the same file check.
-
-When a feature is re-shot, **two referrers move**: its `docs/GALLERY.md` row and
-the inline embeds in its guide. Rows you did not re-shoot keep pointing at older
-`v<X.Y.Z>/` directories — that staleness is the audit and is meant to be left
-alone. Never rewrite a past release's snapshot directory.
+What a minor shoots, the markers and where the shots land are TOOLCHAIN §4 and
+§4b. One judgement is this skill's: §4b words the test as "Added/Changed"
+because it assumes a feature-driven minor. **In a fix-driven minor the same test
+applies to a `### Fixed` entry** — the question is whether a user can see the
+difference, not which heading it sits under. `acks-extras` v2.1.0 shot its
+refusal messages for exactly this reason. A visible fix carries its `shot:`
+marker; an entry with no visible surface (an API change, an internal refactor)
+says so with a `no-shot:` marker rather than staging a frame for it.
 
 ## 5. Repo rules that bite
 
 The reflexes in `acks-hotfix` §5 apply here unchanged — generated
-`packs/_source`, synced `tools/*.mjs`, one owner per wrapped core method, offline
-green proving nothing, and shutting the world down before `npm run build:packs`.
-Two that bite harder on a minor than on a patch:
+`packs/_source`, synced `tools/*.mjs`, one owner per wrapped core method, and
+offline green proving nothing. Two that bite harder on a minor than on a patch:
 
 - A migration or a new setting is precisely the kind of change mocked globals
-  cannot verify. The live gate is not optional and a minor has more to exercise
-  through it than a hotfix does.
+  cannot verify, so a minor has more to exercise through the live gate
+  (TOOLCHAIN §4a) than a hotfix does.
 - Raise `compatibility.verified` only to a version you actually tested on
   (TOOLCHAIN §3). Intra-family `requires` minimums are development-tracking, not
   a contract — do not compute or bump them.
@@ -179,20 +164,20 @@ Hand off to **`acks-release`** with kind = **minor**.
 
 ### Voice
 
-Commit subject and changelog use the family register. A minor's subject is
-`Release <X.Y.0> — ` followed by a lowercase clause naming what now holds; two
-clauses joined by *and* when the release has two headlines. Never "Hotfix" for a
-minor.
+Commit subject and changelog use the family register. The subject's shape is
+TOOLCHAIN §4's; a minor's clause after the dash is lowercase and names what now
+holds, two clauses joined by *and* when the release has two headlines. Never
+"Hotfix" for a minor.
 
 ```
-Release 2.1.0 — coin goes where the rest of your gear goes, and a vault can be asked for
-Release 1.4.0 — a line as wide as the corridor, and a stack that marches as the men it holds
-Release 1.2.0 — gear declares where it is worn
+Release 2026.12.15 (minor) — coin goes where the rest of your gear goes, and a vault can be asked for
+Release 2026.12.9 (minor) — a line as wide as the corridor, and a stack that marches as the men it holds
+Release 2026.11.30 (minor) — gear declares where it is worn
 ```
 
 Sections are `### Fixed` / `### Added` / `### Changed` / `### Removed`. **Lead
-with `### Fixed` when the release is fix-driven** — that is the honest ordering
-and what v2.1.0 does. Each entry opens with a **bold sentence stating the rule as
+with `### Fixed` when the release is fix-driven** — that is the honest
+ordering. Each entry opens with a **bold sentence stating the rule as
 it now holds**, then plain prose: what the player saw, what happens instead, and
 what deliberately did not change. Present tense. No dates, no attribution, no
 issue numbers, no "fixed a bug where".

@@ -9,7 +9,14 @@
  * a peer pushed since the last fetch still counts as local.
  *
  * The listing is the checkout's, not the session's: every session commits to
- * the one branch, and the message says so.
+ * the one branch, and the message says so. A session standing in a topic
+ * worktree reads the main checkout, so its listing is the repository's.
+ *
+ * It also lists, with no commit unpushed, the local branches other than `main`:
+ * an unmerged `topic/*` (commits ahead, worktree path or none, age of its last
+ * commit), a `topic/*` already contained in `main` and still open, a `parked/*`
+ * that is not on `origin`, and any other branch. Topic branches are never
+ * pushed, so none of them is compared with a remote.
  *
  * It reports and does nothing else. The output carries a `systemMessage` and
  * no decision, so the turn ends as it would have. A listing is shown once per
@@ -43,20 +50,74 @@ function git(cwd, args) {
   }
 }
 
+/** Whether `ref` exists in the repository at `top`. */
+const hasRef = (top, ref) => git(top, ["show-ref", "--verify", "--quiet", ref]) !== null;
+
+/** The main checkout's root and the worktrees by branch ref: `git worktree list`, main's first. */
+function worktrees(top) {
+  const listing = git(top, ["worktree", "list", "--porcelain"]);
+  if (!listing) return [];
+  return listing.split(/\r?\n\r?\n/).filter(Boolean).map((block) => {
+    const lines = block.split(/\r?\n/);
+    return {
+      path: path.resolve(lines.find((l) => l.startsWith("worktree "))?.slice(9) ?? ""),
+      branch: lines.find((l) => l.startsWith("branch "))?.slice(7) ?? null,
+    };
+  });
+}
+
+/** Whole days since the commit at the tip of `ref`, as a coarse label so the listing is stable within a day. */
+function age(top, ref) {
+  const seconds = Number(git(top, ["log", "-1", "--format=%ct", ref]));
+  if (!Number.isFinite(seconds) || !seconds) return "age unknown";
+  const days = Math.floor((Date.now() / 1000 - seconds) / 86400);
+  return days <= 0 ? "last commit today" : `last commit ${days}d ago`;
+}
+
+/** The local branches other than `main`, each described for the listing. */
+function branchLines(top, trees) {
+  if (!hasRef(top, "refs/heads/main")) return [];
+  const names = (git(top, ["for-each-ref", "--format=%(refname:short)", "refs/heads"]) ?? "").split("\n").filter((n) => n && n !== "main");
+  const lines = [];
+  for (const name of names) {
+    const ahead = Number(git(top, ["rev-list", "--count", `main..${name}`]) ?? 0);
+    const tree = trees.find((w) => w.branch === `refs/heads/${name}`)?.path ?? "none";
+    if (name.startsWith("topic/")) {
+      // A topic opened and not yet committed to is also contained in main; its
+      // reflog holds the one entry that made it, where a landed one holds more.
+      const entries = (git(top, ["reflog", "show", "--format=%H", `refs/heads/${name}`]) ?? "").split("\n").filter(Boolean).length;
+      const landed = ahead === 0 && git(top, ["merge-base", "--is-ancestor", name, "main"]) !== null && entries !== 1;
+      lines.push(landed
+        ? `  ${name}: landed, still open: close it (worktree ${tree})`
+        : `  ${name}: ${ahead} commit(s) ahead of main, worktree ${tree}, ${age(top, name)}`);
+    } else if (name.startsWith("parked/")) {
+      if (!hasRef(top, `refs/remotes/origin/${name}`)) lines.push(`  ${name}: not pushed`);
+    } else {
+      lines.push(`  ${name}: local branch, ${ahead} commit(s) ahead of main, ${age(top, name)}`);
+    }
+  }
+  return lines;
+}
+
 /**
- * The commits of the checkout holding `dir` that its upstream lacks.
- * @returns {{ top: string, upstream: string, commits: string[] } | null} null
- *   where `dir` is in no repository, the branch has no upstream and there is
- *   no `origin/main`, or nothing is ahead.
+ * What the repository holding `dir` has that is not where it belongs: the
+ * main checkout's commits its upstream lacks, and every local branch but
+ * `main` that is open, unmerged or unpushed. A session in a topic worktree
+ * reads the main checkout, so the listing is the repository's.
+ * @returns {{ top: string, upstream: string|null, commits: string[], branches: string[] } | null}
+ *   null where `dir` is in no repository or nothing is out of place.
  */
-function unpushed(dir) {
-  const top = git(dir, ["rev-parse", "--show-toplevel"]);
-  if (!top) return null;
+function survey(dir) {
+  const here = git(dir, ["rev-parse", "--show-toplevel"]);
+  if (!here) return null;
+  const trees = worktrees(here);
+  const top = trees[0]?.path ?? here;
   const upstream = git(top, ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"])
     ?? (git(top, ["rev-parse", "--verify", "--quiet", "refs/remotes/origin/main"]) ? "origin/main" : null);
-  if (!upstream) return null;
-  const log = git(top, ["log", `${upstream}..HEAD`, "--format=%h %s"]);
-  return log ? { top, upstream, commits: log.split("\n") } : null;
+  const log = upstream ? git(top, ["log", `${upstream}..HEAD`, "--format=%h %s"]) : null;
+  const commits = log ? log.split("\n") : [];
+  const branches = branchLines(top, trees);
+  return commits.length || branches.length ? { top, upstream, commits, branches } : null;
 }
 
 let payload = {};
@@ -72,17 +133,20 @@ const seen = new Set();
 const ahead = [];
 for (const dir of [project, template]) {
   if (!fs.existsSync(dir)) continue;
-  const found = unpushed(dir);
+  const found = survey(dir);
   if (!found || seen.has(found.top)) continue;
   seen.add(found.top);
   ahead.push(found);
 }
 
 const lines = [];
-for (const { top, upstream, commits } of ahead) {
-  lines.push(`${path.basename(top)}: ${commits.length} commit(s) not on ${upstream}`);
-  for (const commit of commits.slice(0, LISTED)) lines.push(`  ${commit}`);
-  if (commits.length > LISTED) lines.push(`  and ${commits.length - LISTED} more`);
+for (const { top, upstream, commits, branches } of ahead) {
+  if (commits.length) {
+    lines.push(`${path.basename(top)}: ${commits.length} commit(s) not on ${upstream}`);
+    for (const commit of commits.slice(0, LISTED)) lines.push(`  ${commit}`);
+    if (commits.length > LISTED) lines.push(`  and ${commits.length - LISTED} more`);
+  }
+  if (branches.length) lines.push(`${path.basename(top)}: branches to land, close or push`, ...branches);
 }
 const listing = lines.join("\n");
 
@@ -106,6 +170,6 @@ try {
 if (!listing) process.exit(0);
 
 process.stdout.write(JSON.stringify({
-  systemMessage: `Not pushed (the checkout's commits, every session's):\n${listing}`,
+  systemMessage: `Not pushed or not landed (the repository's, every session's):\n${listing}`,
 }));
 process.exit(0);

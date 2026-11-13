@@ -56,6 +56,13 @@ How much one agent and one session carry:
 - **An owner ruling reaches an agent in the owner's words.** The brief quotes
   it, and the agent's report restates it with one example before anything is
   built on it.
+- **A new phase is a clean session, its own orchestrator.** The owner: "when
+  launching a new phase, launch a clean session as orchestrator. End these
+  long chains once the plan is architected". A planning session ends once its
+  plan is written. A phase session reads the plan, runs its own agents,
+  appends its results to the plan, corrects the next phase's start prompt and
+  reports to the owner; it starts no session that reports back to it. The plan
+  file is the only hand-over.
 
 ## Layout
 
@@ -108,18 +115,18 @@ it is the canonical procedure (fixtures built once and kept, real player
 seats, world-shutdown-before-build, what to report). The machine's server is
 defined in `C:\Proj\acks-rules\TEST_ENVIRONMENT.md` (LOCAL-ONLY — no port,
 world id, user name or password ever enters a repo); if that file is absent,
-this machine has no test server — skip and say so. Offline green proves
+this machine has no test server — skip and say so, except for a release,
+which such a machine cannot tag (TOOLCHAIN §4a). Offline green proves
 nothing: `validate`/`npm test` run against mocked globals, and every
 module-breaking bug in this family passed them.
 
 ## Release
 
 Every release is a **major**, **minor** or **hotfix** — declared by the user,
-never derived. Ask if unclear; a major is always explicit. All three pass the
-same gates (build, validate, live-verify, snapshot obligations by kind);
-`/acks-release` walks the procedure and TOOLCHAIN §4 is canon. Never
-`gh run watch` (it hangs) — bounded polls only. Never retag a published
-release — cut a new patch.
+never derived. Ask if unclear; a major is always explicit. What each kind
+requires is TOOLCHAIN §4's table, and `/acks-release` walks the steps with
+their commands. Never `gh run watch` (it hangs); never retag a published
+release (the release is the day's next version).
 
 **A release ships the JUDGE TOOLS for what it adds, unless the user says
 otherwise.** A schema a Judge cannot populate and an importer that never writes
@@ -133,9 +140,16 @@ renders and hides exactly this.
 
 ## Conventions
 
-- **Single branch: `main`**; tags `v<semver>` are the only other refs. Never
-  create a branch or a worktree — `.claude/hooks/single-branch-guard.mjs`
-  enforces it and warns a misplaced session at startup. `worktree.bgIsolation`
+- **`main` is released and walked, and its tree never leaves `main`.** A
+  track goes on `topic/<slug>`, in the sibling worktree `<repo>.<slug>`, only
+  when nothing in it is walked live until it is finished, it spans more than
+  one commit, and one writer works it; a shelved line is `parked/<slug>`;
+  tags `v<version>` are the only other refs. `acks-branch` opens, lands,
+  closes and parks them, and a worktree folder is never deleted by hand
+  (`.claude/rules/shared-tree.md`, "Topic and parked branches").
+  `.claude/hooks/branch-guard.mjs` refuses a hand-made branch or worktree, a
+  hand `git worktree remove` and a switch of `main`'s tree, and says at
+  startup which tree a session is in. `worktree.bgIsolation`
   is `none` (read at daemon start — restart the app after changing it).
 - `compatibility` minimum 14 / verified 14.364; system `acks` minimum 14.
 - Every `relationships.requires` entry carries a `reason`; third-party entries
